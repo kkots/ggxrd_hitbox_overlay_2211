@@ -44,3 +44,14 @@ The project depends on:
 - Microsoft Detours library: <https://github.com/microsoft/Detours> Follow their instructions on how to build the `.lib` static library. You need to build the 32-bit (x86) version.
 
 - `d3dx9.h` header file. If you don't have it you can get it from: <https://github.com/apitrace/dxsdk/blob/master/Include/d3dx9.h>
+
+## Missing features list
+
+- Some invulnerability checks are missing;
+- OTG detection is missing;
+- Some entities will be drawn even though they are inactive (missing check);
+- Missing pushboxes, they don't even display (not found yet) (note: they seem to play an important role in throw hit detection);
+- Missing "attached" entities like dust (I don't even know what that is, it seems important);
+- Missing throw hitboxes/throw invulnerability checks/all of the throw stuff;
+- Missing counterhit detection;
+- Missing GIF mode and "no gravity" mode;
