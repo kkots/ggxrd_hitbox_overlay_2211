@@ -1,9 +1,13 @@
 # ggxrd_hitbox_overlay_2211
 
+## Description
+
+Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 8'th October 2023).
+
 ## Credits
 
-Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/forums/topic/12495-xrd-pc-hitbox-overlay-mod/>
-Created in 2016.
+Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/forums/topic/12495-xrd-pc-hitbox-overlay-mod/>  
+Created in 2016.  
 This version is adapted for Guilty Gear Xrd Rev2 version 2211 with 90% features removed as of yet (still trying to find where everything is).
 
 ## System requirements
@@ -18,7 +22,7 @@ Intel processor architecture x86 (32-bit). Windows operating system.
 
 3. Start a match. Hitboxes should display.
 
-To turn off the mod the only way is to restart the game.
+To turn off the mod the only way is to restart the game.  
 You should not launch `ggxrd_hitbox_injector.exe` more than once during the game.
 
 ## Developing
