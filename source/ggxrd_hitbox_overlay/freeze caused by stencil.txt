@@ -1,0 +1,14 @@
+Here's a problem I just solved:
+The stencil buffer would work but would cause the entire Guilty Gear application to freeze when I would switch it to fullscreen or change resolution. The problem would persist on both laptop and PC. Commenting out lines showed the problem was with calling the CreateDepthStencilSurface function and storing the result in a CComPtr. The function was called once and storing the pointer to the surface without releasing it ever until dll gets detached.
+If I either did not call the CreateDepthStencilSurface  (and consecutively use the stencil buffer) or call it, but immediately release the IDirect3DSurface9 COM object, it would work.
+I tried calling CreateDepthStencilSurface every frame and releasing the surface COM so as not to keep it in memory inbetween frames, and that would stop the freezes, but would cause significant slowdowns on the laptop.
+Googling "CreateDepthStencilSurface fullscreen freeze" led to this article (https://irrlicht.sourceforge.io/forum/viewtopic.php?t=49023) with a hint it's the IDirect3DDevice9::Reset call doing the actual harm.
+Hooking that function showed it indeed gets called, and only when switching to fullscreen (haven't tried changing resolutions, but likely it also gets called then).
+This Microsoft documentation about IDirect3DDevice9::Reset (https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-reset) tells that
+
+Before calling the IDirect3DDevice9::Reset method for a device, an application should release any explicit render targets, depth stencil surfaces ...
+
+
+Which is exactly what I was not doing with the IDirect3DSurface9 I was keeping in memory.
+Releasing that solved the problem and now there's no slowdown and the stencil works on both PC and the laptop when changing fullscreen mode or switching resolutions.
+Hooray

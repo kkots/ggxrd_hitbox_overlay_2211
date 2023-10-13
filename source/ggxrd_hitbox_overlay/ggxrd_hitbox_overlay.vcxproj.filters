@@ -21,6 +21,9 @@
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="rect_combiner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -29,7 +32,7 @@
     <ClCompile Include="ggxrd_hitbox_overlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ggxrd_hitbox_overlay original w comment.cpp">
+    <ClCompile Include="rect_combiner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -10,6 +10,8 @@ Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/
 Created in 2016.  
 This version is adapted for Guilty Gear Xrd Rev2 version 2211 with 90% features removed as of yet (still trying to find where everything is).
 
+Made with help from WorseThanYou.
+
 ## System requirements
 
 Intel processor architecture x86 (32-bit). Windows operating system.

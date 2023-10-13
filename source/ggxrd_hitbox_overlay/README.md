@@ -6,9 +6,16 @@ Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/
 Created in 2016.
 This version is adapted for Guilty Gear Xrd Rev2 version 2211 with 90% features removed as of yet (still trying to find where everything is).
 
+Made with help from WorseThanYou.
+
 ## Build instructions
 
-Open the `.sln` file using Visual Studio (I'm using 2022 Community Edition). In the top bar select `Release` and `x86`. Press `Build` -> `Build Solution`. After building, the `.dll` file appears in `Release` folder.
+Open the `.sln` file using Visual Studio (I'm using 2022 Community Edition). In the top bar select `Release` and `x86`.
+
+After this, make sure the project will be compiled with UNICODE unset. Right-click the project in `Solution Explorer` and go to `Properties` -> `Advanced` -> `Character Set`. Select `Use Multi-Byte Character Set`. This setting is set separately for each `Release` + `x86` combination so it might change after changing the target platform.
+
+Go to `Build` -> `Build Solution`.  
+After building, the `.dll` file appears in `Release` folder.
 
 ## Dependencies
 
