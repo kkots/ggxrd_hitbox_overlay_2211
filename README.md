@@ -57,3 +57,7 @@ The project depends on:
 - Missing throw hitboxes/throw invulnerability checks/all of the throw stuff;
 - Missing counterhit detection;
 - Missing GIF mode and "no gravity" mode;
+
+## Changelog
+
+- 2023 October 13: Now hitboxes belonging to the same group may be displayed as a single shape with one combined outline;
