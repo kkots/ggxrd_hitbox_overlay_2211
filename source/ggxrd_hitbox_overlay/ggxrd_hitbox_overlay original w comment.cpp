@@ -679,6 +679,7 @@ BOOL WINAPI DllMain(
 	if (fdwReason != DLL_PROCESS_ATTACH)
 		return FALSE;
 
+	// for Ghidra: 33 FF 3B DF 74 26
 	game_ptr = *(char***)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x33\xFF\x3B\xDF\x74\x26",  // found
@@ -688,54 +689,63 @@ BOOL WINAPI DllMain(
 		"GuiltyGearXrd.exe",
 		"\xA8\x03\x75\x28\xF7\x86",
 		"xxxxxx") - 0x14);*/
-
+		
+	// for Ghidra: 8B 86 ?? ?? ?? ?? 83 E0 01 74 10 F7 86
 	is_active = (is_active_t)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x8B\x86\x00\x00\x00\x00\x83\xE0\x01\x74\x10\xF7\x86",  // not found
 		"xx????xxxxxxx") - 3);
 
+	// for Ghidra: 85 C0 78 74 83 F8 01
 	asw_engine = *(char***)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x85\xC0\x78\x74\x83\xF8\x01",  // found
 		"xxxxxxx") - 4);
-
+		
+	// for Ghidra: 56 8B F1 8B 86 F4 02 00 00
 	get_pushbox_x = (get_pushbox_t)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x56\x8B\xF1\x8B\x86\xF4\x02\x00\x00", // found
 		"xxxxxxxxx"));
-
+		
+	// for Ghidra: 56 8B F1 8B 86 F8 02 00 00
 	get_pushbox_y = (get_pushbox_t)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x56\x8B\xF1\x8B\x86\xF8\x02\x00\x00",  // found but should be -7
 		"xxxxxxxxx"));
-
+		
+	// for Ghidra: 3D FF FF FF 0F 75 2B
 	get_pushbox_bottom = (get_pushbox_t)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x3D\xFF\xFF\xFF\x0F\x75\x2B", // found
 		"xxxxxxx") - 9);
-
+		
+	// for Ghidra: 83 7E 0C 00 74 10 F7 86
 	is_push_active = (is_push_active_t)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x83\x7E\x0C\x00\x74\x10\xF7\x86", // not found
 		"xxxxxxxx") - 3);
-
+		
+	// for Ghidra: 85 C9 75 35 8B 8E
 	get_pos_x = (get_pos_t)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x85\xC9\x75\x35\x8B\x8E", // found, but it's probably the old version
 		"xxxxxx") - 9);             // there's a better function at image base + 0xB618C0
-
+		
+	// for Ghidra: 75 0A 6A 08 E8
 	get_pos_y = (get_pos_t)(sigscan(
 		"GuiltyGearXrd.exe",
 		"\x75\x0A\x6A\x08\xE8", // found
 		"xxxxx") - 0xB);  // is encountered twice in the same func, the first encounter is the right one and sigscan should return that
-
+		
+	// for Ghidra: 8B 88 ?? ?? ?? ?? 51 C7 44 24 ?? ?? ?? ?? ?? E8
 	const auto cast_ref = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x8B\x88\x00\x00\x00\x00\x51\xC7\x44\x24\x00\x00\x00\x00\x00\xE8", // not found
 		"xx????xxxx?????x") + 0xF;
 
 	cast_REDGameInfo_Battle = (cast_t)(cast_ref + *(intptr_t*)(cast_ref + 1) + 5);
-
+	
 	const auto *dev_vtable = *(void***)(sigscan(
 		"d3d9.dll",
 		"\xC7\x06\x00\x00\x00\x00\x89\x86\x00\x00\x00\x00\x89\x86",  // this should be found, haven't checked
@@ -744,7 +754,8 @@ BOOL WINAPI DllMain(
 	orig_EndScene = (EndScene_t)(DetourAttach(
 		reinterpret_cast<void**>(dev_vtable[42]),
 		reinterpret_cast<void*>(hook_EndScene)));
-
+		
+	// for Ghidra: 8B 6F 0C F7 DD 1B ED
 	const auto can_throw = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x8B\x6F\x0C\xF7\xDD\x1B\xED", // not found
@@ -753,17 +764,18 @@ BOOL WINAPI DllMain(
 	orig_can_throw = (can_throw_t)(DetourAttach(
 		reinterpret_cast<void**>(can_throw),
 		reinterpret_cast<void*>(hook_can_throw)));
-
-	// removed because couldn't find this
-	/*const auto update_darken = sigscan(
+		
+	// for Ghidra: 57 74 12 F3 0F 10 86
+	const auto update_darken = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x57\x74\x12\xF3\x0F\x10\x86", // not found
 		"xxxxxxx") - 0xC;
 
 	orig_update_darken = (update_darken_t)(DetourAttach(
 		reinterpret_cast<void**>(update_darken),
-		reinterpret_cast<void*>(hook_update_darken)));*/
-
+		reinterpret_cast<void*>(hook_update_darken)));
+		
+	// for Ghidra: 57 8B 7D 08 74 17
 	const auto update_camera = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x57\x8B\x7D\x08\x74\x17", // found
@@ -772,7 +784,8 @@ BOOL WINAPI DllMain(
 	orig_update_camera = (update_camera_t)(DetourAttach(
 		reinterpret_cast<void**>(update_camera),
 		reinterpret_cast<void*>(hook_update_camera)));
-
+		
+	// for Ghidra: 8B 86 D8 00 00 00 8B 88 A8 04 00 00 51
 	const auto update_hud = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x8B\x86\xD8\x00\x00\x00\x8B\x88\xA8\x04\x00\x00\x51",
@@ -781,15 +794,16 @@ BOOL WINAPI DllMain(
 	orig_update_hud = (update_hud_t)(DetourAttach(
 		reinterpret_cast<void**>(update_hud),
 		reinterpret_cast<void*>(hook_update_hud)));
-
+		
+	// for Ghidra: 83 C5 04 F7 D8 1B C0
 	const auto hit_detection = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x83\xC5\x04\xF7\xD8\x1B\xC0",  // not found
 		"xxxxxxx") - 0x3B;
 
-	/*orig_hit_detection = (hit_detection_t)(DetourAttach(
+	orig_hit_detection = (hit_detection_t)(DetourAttach(
 		reinterpret_cast<void**>(hit_detection),
-		reinterpret_cast<void*>(hook_hit_detection)));*/
+		reinterpret_cast<void*>(hook_hit_detection)));
 
 	return TRUE;
 }

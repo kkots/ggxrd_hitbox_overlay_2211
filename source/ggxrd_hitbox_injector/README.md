@@ -10,11 +10,7 @@ Made with help from WorseThanYou.
 
 ## Build instructions
 
-Open the `.sln` file using Visual Studio (I'm using 2022 Community Edition). In the top bar select `Release` and `x86`.
-
-After this, make sure the project will be compiled with UNICODE unset. Right-click the project in `Solution Explorer` and go to `Properties` -> `Advanced` -> `Character Set`. Select `Use Multi-Byte Character Set`. This setting is set separately for each `Release` + `x86` combination so it might change after changing the target platform.
-
-Go to `Build` -> `Build Solution`.
+Open the `.sln` file using Visual Studio (I'm using 2022 Community Edition). In the top bar select `Release` and `x86`. Go to `Build` -> `Build Solution`.
 
 After building, the `.exe` file appears in `Release` folder.
 

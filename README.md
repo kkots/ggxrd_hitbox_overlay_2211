@@ -61,3 +61,6 @@ The project depends on:
 ## Changelog
 
 - 2023 October 13: Now hitboxes belonging to the same group may be displayed as a single shape with one combined outline;
+- 2023 October 16: Added Unicode support to the injector, meaning you should be able to include any non-english characters in the path to the directory in which the injector and the .dll reside;
+                   Tweaked hitbox drawing so that outlines always draw on top of all hitboxes, hitboxes always draw on top of all hurtboxes.
+                   Restricted the hitbox drawing to only non-online matches until I figure out a way to tell if Chipp is doing the invisibility thing in an online match, in which case his boxes should not display.

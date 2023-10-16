@@ -31,7 +31,7 @@ struct FloatRect {
 	float bottom = 0.F;
 };
 
-const float outlineThickness = 4000.F;
+const float outlineThickness = 3000.F;
 CComPtr<IDirect3DSurface9> stencilSurface = NULL;
 bool direct3DError = false;
 bool direct3DSuccess = false;
@@ -69,6 +69,7 @@ const float coord_coefficient = 0.42960999705207F;
 
 //char **game_ptr;
 char **asw_engine;
+char **game_data_ptr;
 
 //using cast_t = const void*(*)(const void*);
 //cast_t cast_REDGameInfo_Battle; // found something like PTR_s_AREDGameInfo_BattleexecRenderUpd_019cd5e0, but no cast
@@ -84,6 +85,52 @@ char **asw_engine;
 
 using get_pos_t = int(__thiscall*)(const void*);
 get_pos_t get_pos_x, get_pos_y;
+
+struct Hitbox
+{
+	int type;
+	float offx;
+	float offy;
+	float sizex;
+	float sizey;
+};
+
+struct RotatedPathElement {
+	float x = 0.F;
+	float y = 0.F;
+	float inX = 0.F;
+	float inY = 0.F;
+};
+
+struct DrawHitboxArrayParams {
+	int posX = 0;
+	int posY = 0;
+	char flip = 1;
+	int scaleX = 1000;
+	int scaleY = 1000;
+	float cosAngle = 1.F;
+	float sinAngle = 0.F;
+};
+
+struct DrawHitboxArrayCallParams {
+	Hitbox* hitbox_data = nullptr;
+	int hitboxCount = 0;
+	DrawHitboxArrayParams params{0};
+	D3DCOLOR fillColor{0};
+	D3DCOLOR outlineColor{0};
+};
+
+struct DrawPointCallParams {
+	int posX = 0;
+	int posY = 0;
+	D3DCOLOR fillColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+	D3DCOLOR outlineColor = D3DCOLOR_ARGB(255, 0, 0, 0);
+};
+
+struct DrawOutlineCallParams {
+	std::vector<RotatedPathElement> outline;
+	D3DCOLOR outlineColor{0};
+};
 
 void angle_vectors(
 	const float p, const float y, const float r,
@@ -323,13 +370,6 @@ struct Vertex {
 
 std::vector<Vertex> vertexArena;
 
-struct RotatedPathElement {
-	float x = 0.F;
-	float y = 0.F;
-	float inX = 0.F;
-	float inY = 0.F;
-};
-
 void draw_angled_outline(IDirect3DDevice9 *device,
 	const D3DXVECTOR3 &p1,
 	const D3DXVECTOR3 &p2,
@@ -339,7 +379,7 @@ void draw_angled_outline(IDirect3DDevice9 *device,
 	
 }
 
-void draw_outline(IDirect3DDevice9 *device, const std::vector<RotatedPathElement>& outline, D3DCOLOR outlineColor) {
+void draw_outline(IDirect3DDevice9 *device, const DrawOutlineCallParams& params) {
 	log(fprintf(logfile, "Called draw_outlines with an outline with %d elements\n", outline.size()));
 	device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 
@@ -350,21 +390,21 @@ void draw_outline(IDirect3DDevice9 *device, const std::vector<RotatedPathElement
 	device->SetTexture(0, nullptr);
 
 	D3DXVECTOR3 conv;
-	for (const RotatedPathElement& elem : outline) {
+	for (const RotatedPathElement& elem : params.outline) {
 		world_to_screen(device, D3DXVECTOR3{ elem.x, 0.F, elem.y }, &conv);
 		log(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
-		vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, outlineColor);
+		vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, params.outlineColor);
 		world_to_screen(device, D3DXVECTOR3{ elem.x + outlineThickness * elem.inX,
 		                                     0.F,
 		                                     elem.y + outlineThickness * elem.inY },
 			            &conv);
-		vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, outlineColor);
+		vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, params.outlineColor);
 	}
 	vertexArena.push_back(vertexArena.front());
 	vertexArena.push_back(vertexArena[1]);
 
 	// Triangle strip means v1, v2, v3 is a triangle, v2, v3, v4 is a triangle, etc.
-	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, outline.size() * 2, &vertexArena.front(), sizeof(Vertex));
+	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, params.outline.size() * 2, &vertexArena.front(), sizeof(Vertex));
 	vertexArena.clear();
 }
 
@@ -449,17 +489,15 @@ void draw_rect(
 	device->DrawPrimitiveUP(D3DPT_LINESTRIP, 4, outline, sizeof(vertex));*/
 }
 
-void draw_point(
-	IDirect3DDevice9 *device,
-	const D3DXVECTOR3 &p,
-	D3DCOLOR inner_color,
-	D3DCOLOR outer_color)
+void draw_point(IDirect3DDevice9 *device, const DrawPointCallParams& params)
 {
+	D3DXVECTOR3 p { (float)params.posX, 0.F, (float)params.posY };
 	log(fprintf(logfile, "draw_point called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
 
 	D3DXVECTOR3 sp;
 	world_to_screen(device, p, &sp);
-
+	
+	device->SetRenderState(D3DRS_STENCILENABLE, false);
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
 	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 	device->SetVertexShader(nullptr);
@@ -484,10 +522,10 @@ void draw_point(
 	   +-----------+*/
 	Vertex outline1[] =
 	{
-		{ sp.x - 4, sp.y - 1, 0.F, 1.F, outer_color },
-		{ sp.x - 4, sp.y + 2, 0.F, 1.F, outer_color },
-		{ sp.x + 5, sp.y - 1, 0.F, 1.F, outer_color },
-		{ sp.x + 5, sp.y + 2, 0.F, 1.F, outer_color },
+		{ sp.x - 4, sp.y - 1, 0.F, 1.F, params.fillColor },
+		{ sp.x - 4, sp.y + 2, 0.F, 1.F, params.fillColor },
+		{ sp.x + 5, sp.y - 1, 0.F, 1.F, params.fillColor },
+		{ sp.x + 5, sp.y + 2, 0.F, 1.F, params.fillColor },
 	};
 
 	// Triangle strip means v1, v2, v3 is a triangle, v2, v3, v4 is a triangle, etc.
@@ -509,10 +547,10 @@ void draw_point(
 	   +-----------+*/
 	Vertex outline2[] =
 	{
-		{ sp.x - 1, sp.y - 4, 0.F, 1.F, outer_color },
-		{ sp.x - 1, sp.y + 5, 0.F, 1.F, outer_color },
-		{ sp.x + 2, sp.y - 4, 0.F, 1.F, outer_color },
-		{ sp.x + 2, sp.y + 5, 0.F, 1.F, outer_color },
+		{ sp.x - 1, sp.y - 4, 0.F, 1.F, params.fillColor },
+		{ sp.x - 1, sp.y + 5, 0.F, 1.F, params.fillColor },
+		{ sp.x + 2, sp.y - 4, 0.F, 1.F, params.fillColor },
+		{ sp.x + 2, sp.y + 5, 0.F, 1.F, params.fillColor },
 	};
 
 	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, outline2, sizeof(Vertex));
@@ -533,10 +571,10 @@ void draw_point(
 	   +-----------+*/
 	Vertex vertices[] =
 	{
-		{ sp.x - 3, sp.y, 0.F, 1.F, inner_color },
-		{ sp.x + 4, sp.y, 0.F, 1.F, inner_color },
-		{ sp.x, sp.y - 3, 0.F, 1.F, inner_color },
-		{ sp.x, sp.y + 4, 0.F, 1.F, inner_color },
+		{ sp.x - 3, sp.y, 0.F, 1.F, params.outlineColor },
+		{ sp.x + 4, sp.y, 0.F, 1.F, params.outlineColor },
+		{ sp.x, sp.y - 3, 0.F, 1.F, params.outlineColor },
+		{ sp.x, sp.y + 4, 0.F, 1.F, params.outlineColor },
 	};
 	
 	// Linelist means every two vertices is a line. error on uneven vertices
@@ -668,50 +706,29 @@ bool __fastcall hook_can_throw(char *thisptr, void*, void *target)
 	return orig_can_throw(thisptr, target);
 }*/
 
-struct Hitbox
-{
-	int type;
-	float offx;
-	float offy;
-	float sizex;
-	float sizey;
-};
-
-struct DrawHitboxArrayParams {
-	int posX = 0;
-	int posY = 0;
-	char flip = 1;
-	int scaleX = 1000;
-	int scaleY = 1000;
-	float cosAngle = 1.F;
-	float sinAngle = 0.F;
-};
-
 std::vector<RectCombiner::Polygon> rectCombinerInputBoxes;
 std::vector<std::vector<RectCombiner::PathElement>> rectCombinerOutlines;
 
 std::vector<RotatedPathElement> rotatedOutline;
 
 void draw_hitbox_array(IDirect3DDevice9 *device,
-                       Hitbox* hitbox_data,
-					   int hitboxCount,
-					   DrawHitboxArrayParams params,
-					   D3DCOLOR fillColor,
-					   D3DCOLOR outlineColor,
+                       DrawHitboxArrayCallParams params,
+					   std::vector<DrawOutlineCallParams>& pendingOutlines,
 					   bool& stencilInitialized) {
-	if (!hitboxCount) return;
+	if (!params.hitboxCount) return;
 
-	rectCombinerInputBoxes.reserve(hitboxCount);
+	rectCombinerInputBoxes.reserve(params.hitboxCount);
 	FloatRect bounds { -1.F, 99999.F, -1.F, 99999.F };
 
-	for (int i = hitboxCount; i != 0; --i) {
+	Hitbox* hitbox_data = params.hitbox_data;
+	for (int i = params.hitboxCount; i != 0; --i) {
 		log(fprintf(logfile, "drawing box %d\n", hitboxCount - i));
 		const auto type = *(int*)(hitbox_data);
 
-		const int box_x = (int)(hitbox_data->offx * params.scaleX);
-		const int box_y = (int)(hitbox_data->offy * params.scaleY);
-		const int box_width = (int)(hitbox_data->sizex * params.scaleX);
-		const int box_height = (int)(hitbox_data->sizey * params.scaleY);
+		const int box_x = (int)(hitbox_data->offx * params.params.scaleX);
+		const int box_y = (int)(hitbox_data->offy * params.params.scaleY);
+		const int box_width = (int)(hitbox_data->sizex * params.params.scaleX);
+		const int box_height = (int)(hitbox_data->sizey * params.params.scaleY);
 
 		const int x1 = box_x;
 		const int y1 = box_y;
@@ -727,18 +744,18 @@ void draw_hitbox_array(IDirect3DDevice9 *device,
 
 		rectCombinerInputBoxes.emplace_back(box_x, box_x + box_width, box_y, box_y + box_height);
 		
-		D3DXVECTOR3 v1 { params.posX + (x1 * params.cosAngle - y1 * params.sinAngle) * params.flip,
+		D3DXVECTOR3 v1 { params.params.posX + (x1 * params.params.cosAngle - y1 * params.params.sinAngle) * params.params.flip,
 		                0.F,
-						params.posY - (y1 * params.cosAngle + x1 * params.sinAngle) };
-		D3DXVECTOR3 v2 { params.posX + (x2 * params.cosAngle - y2 * params.sinAngle) * params.flip,
+						params.params.posY - (y1 * params.params.cosAngle + x1 * params.params.sinAngle) };
+		D3DXVECTOR3 v2 { params.params.posX + (x2 * params.params.cosAngle - y2 * params.params.sinAngle) * params.params.flip,
 		                0.F,
-						params.posY - (y2 * params.cosAngle + x2 * params.sinAngle) };
-		D3DXVECTOR3 v3 { params.posX + (x3 * params.cosAngle - y3 * params.sinAngle) * params.flip,
+						params.params.posY - (y2 * params.params.cosAngle + x2 * params.params.sinAngle) };
+		D3DXVECTOR3 v3 { params.params.posX + (x3 * params.params.cosAngle - y3 * params.params.sinAngle) * params.params.flip,
 		                0.F,
-						params.posY - (y3 * params.cosAngle + x3 * params.sinAngle) };
-		D3DXVECTOR3 v4 { params.posX + (x4 * params.cosAngle - y4 * params.sinAngle) * params.flip,
+						params.params.posY - (y3 * params.params.cosAngle + x3 * params.params.sinAngle) };
+		D3DXVECTOR3 v4 { params.params.posX + (x4 * params.params.cosAngle - y4 * params.params.sinAngle) * params.params.flip,
 		                0.F,
-						params.posY - (y4 * params.cosAngle + x4 * params.sinAngle) };
+						params.params.posY - (y4 * params.params.cosAngle + x4 * params.params.sinAngle) };
 
 		draw_rect(
 			device,
@@ -746,7 +763,7 @@ void draw_hitbox_array(IDirect3DDevice9 *device,
 			v2,
 			v3,
 			v4,
-			fillColor,
+			params.fillColor,
 			bounds,
 			stencilInitialized);
 
@@ -759,22 +776,36 @@ void draw_hitbox_array(IDirect3DDevice9 *device,
 	}
 
 	RectCombiner::getOutlines(rectCombinerInputBoxes, rectCombinerOutlines);
+	rectCombinerInputBoxes.clear();
 	for (const std::vector<RectCombiner::PathElement>& outline : rectCombinerOutlines) {
 		rotatedOutline.resize(outline.size());
 		auto it = rotatedOutline.begin();
 		for (const RectCombiner::PathElement& path : outline) {
-			it->x = (float)params.posX + params.flip * ((float)path.x * params.cosAngle - (float)path.y * params.sinAngle);
-			it->y = (float)params.posY - ((float)path.y * params.cosAngle + (float)path.x * params.sinAngle);
-			it->inX = params.flip * ((float)path.xDir() * params.cosAngle - (float)path.yDir() * params.sinAngle);
-			it->inY = -((float)path.yDir() * params.cosAngle + (float)path.xDir() * params.sinAngle);
+			it->x = (float)params.params.posX + params.params.flip * (
+				(float)path.x * params.params.cosAngle - (float)path.y * params.params.sinAngle
+			);
+			it->y = (float)params.params.posY - (
+				(float)path.y * params.params.cosAngle + (float)path.x * params.params.sinAngle
+			);
+			it->inX = params.params.flip * (
+				(float)path.xDir() * params.params.cosAngle - (float)path.yDir() * params.params.sinAngle
+			);
+			it->inY = -((float)path.yDir() * params.params.cosAngle + (float)path.xDir() * params.params.sinAngle);
 			++it;
 		}
-		draw_outline(device, rotatedOutline, outlineColor);
+		DrawOutlineCallParams drawOutlineCallParams;
+		drawOutlineCallParams.outline = rotatedOutline;
+		drawOutlineCallParams.outlineColor = params.outlineColor;
+		pendingOutlines.push_back(drawOutlineCallParams);
 	}
-	rectCombinerInputBoxes.clear();
 }
 
-void draw_hitboxes(IDirect3DDevice9 *device, char *asw_data, const bool active, bool& stencilInitialized)
+void draw_hitboxes(IDirect3DDevice9 *device,
+                   char *asw_data,
+				   const bool active,
+                   std::vector<DrawHitboxArrayCallParams>& hurtboxes,
+                   std::vector<DrawHitboxArrayCallParams>& hitboxes,
+                   std::vector<DrawPointCallParams>& points)
 {
 
 	DrawHitboxArrayParams params;
@@ -860,28 +891,26 @@ void draw_hitboxes(IDirect3DDevice9 *device, char *asw_data, const bool active, 
 	                                                // this will probably all break anyway on updates...
 	log(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(asw_data + /*!*/0x264), *(int*)(asw_data + /*!*/0x268)));
 	
-	draw_hitbox_array(device,
-		hurtbox_data,
-		hurtbox_count,
-		params,
-		D3DCOLOR_ARGB(strike_invuln ? 0 : 64, 0, 255, counterhit ? 255 : 0),
-		D3DCOLOR_ARGB(255, 0, 255, counterhit ? 255 : 0),
-		stencilInitialized);
+	DrawHitboxArrayCallParams callParams;
 
-	draw_hitbox_array(device,
-		hitbox_data,
-		hitbox_count,
-		params,
-		D3DCOLOR_ARGB(active ? 64 : 0, 255, 0, 0),
-		D3DCOLOR_ARGB(255, 255, 0, 0),
-		stencilInitialized);
+	callParams.hitbox_data = hurtbox_data;
+	callParams.hitboxCount = hurtbox_count;
+	callParams.params = params;
+	callParams.fillColor = D3DCOLOR_ARGB(strike_invuln ? 0 : 64, 0, 255, counterhit ? 255 : 0);
+	callParams.outlineColor = D3DCOLOR_ARGB(255, 0, 255, counterhit ? 255 : 0);
+	hurtboxes.push_back(callParams);
 
-	draw_point(
-		device,
-		D3DXVECTOR3(params.posX, 0.F, params.posY),
-		D3DCOLOR_ARGB(255, 255, 255, 255),
-		D3DCOLOR_ARGB(255, 0, 0, 0));
-	log(fprintf(logfile, "draw_hitboxes finishing successfully\n"));
+	callParams.hitbox_data = hitbox_data;
+	callParams.hitboxCount = hitbox_count;
+	callParams.params = params;
+	callParams.fillColor = D3DCOLOR_ARGB(active ? 64 : 0, 255, 0, 0);
+	callParams.outlineColor = D3DCOLOR_ARGB(255, 255, 0, 0);
+	hitboxes.push_back(callParams);
+
+	DrawPointCallParams pointCallParams;
+	pointCallParams.posX = params.posX;
+	pointCallParams.posY = params.posY;
+	points.push_back(pointCallParams);
 }
 
 /*void draw_throw(IDirect3DDevice9 *device, const throw_info &ti, bool& stencilInitialized)
@@ -939,6 +968,19 @@ HRESULT __stdcall hook_Reset(IDirect3DDevice9 *device, D3DPRESENT_PARAMETERS *pP
 	return orig_Reset(device, pPresentationParameters);
 }
 
+enum GameModes {
+	GAME_MODE_ARCADE = 2,
+	GAME_MODE_MOM = 3,
+	GAME_MODE_SPARRING = 4,
+	GAME_MODE_VERSUS = 5,
+	GAME_MODE_TRAINING = 6,
+	GAME_MODE_STORY = 9,
+	GAME_MODE_TUTORIAL = 12,
+	GAME_MODE_CHALLENGE = 13,
+	GAME_MODE_NETWORK = 16,
+	GAME_MODE_REPLAY = 17
+};
+
 using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
 EndScene_t orig_EndScene;
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
@@ -964,7 +1006,17 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 		return orig_EndScene(device);*/
 
 
-	if (*asw_engine == nullptr) {
+	char gameMode = *(*game_data_ptr + 0x45);
+
+	if (*asw_engine == nullptr
+			|| !(
+				gameMode == GAME_MODE_ARCADE
+				|| gameMode == GAME_MODE_CHALLENGE
+				|| gameMode == GAME_MODE_REPLAY
+				|| gameMode == GAME_MODE_STORY
+				|| gameMode == GAME_MODE_TRAINING
+				|| gameMode == GAME_MODE_TUTORIAL
+				|| gameMode == GAME_MODE_VERSUS)) {
 		log(fputs("hook_EndScene called\n", logfile));
 		logwrap(didWriteOnce = true);
 		return orig_EndScene(device);
@@ -1023,6 +1075,11 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 	gif_toggle_held = gif_toggle_pressed;
 	nograv_toggle_held = nograv_toggle_pressed;*/
 
+    std::vector<DrawHitboxArrayCallParams> hurtboxes;
+    std::vector<DrawHitboxArrayCallParams> hitboxes;
+	std::vector<DrawOutlineCallParams> outlines;
+    std::vector<DrawPointCallParams> points;
+
 	log(fprintf(logfile, "ent_count: %d\n", ent_count));
 	for (auto i = 0; i < ent_count; i++)
 	{
@@ -1032,12 +1089,25 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 
 		const auto active = /*!*/true;//is_active(ent, 0);
 		log(fprintf(logfile, "drawing entity # %d\n", i));
-		draw_hitboxes(device, ent, active, stencilInitialized);
+		draw_hitboxes(device, ent, active, hurtboxes, hitboxes, points);
 
 		// Attached entities like dusts
 		/*const auto attached = *(char**)(ent + 0x200);
 		if (attached != nullptr)
 			draw_hitboxes(device, attached, active);*/
+	}
+	
+	for (const DrawHitboxArrayCallParams& params : hurtboxes) {
+		draw_hitbox_array(device, params, outlines, stencilInitialized);
+	}
+	for (const DrawHitboxArrayCallParams& params : hitboxes) {
+		draw_hitbox_array(device, params, outlines, stencilInitialized);
+	}
+	for (const DrawOutlineCallParams& params : outlines) {
+		draw_outline(device, params);
+	}
+	for (const DrawPointCallParams& params : points) {
+		draw_point(device, params);
 	}
 
 	/*for (const auto &ti : throws)
@@ -1164,6 +1234,11 @@ BOOL WINAPI DllMain(
 		stencilSurface = NULL;
 		return TRUE;
 	}
+
+	game_data_ptr = *(char***)(sigscan(
+		"GuiltyGearXrd.exe",
+		"\x33\xC0\x38\x41\x44\x0F\x95\xC0\xC3\xCC",
+		"xxxxxxxxxx") - 0x4);
 
 	/*game_ptr = *(char***)(sigscan(
 		"GuiltyGearXrd.exe",
