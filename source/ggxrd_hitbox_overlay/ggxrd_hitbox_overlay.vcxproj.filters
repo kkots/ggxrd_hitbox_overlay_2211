@@ -24,6 +24,9 @@
     <ClInclude Include="rect_combiner.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WinError.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -33,6 +36,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="rect_combiner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WinError.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

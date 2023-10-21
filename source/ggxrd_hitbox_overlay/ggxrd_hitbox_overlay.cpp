@@ -8,8 +8,19 @@
 #include <d3dx9.h>
 #include "atlbase.h"
 #include "rect_combiner.h"
+#include <strsafe.h>
+#include <algorithm>
 
-
+// TODO: Slayer's ground throw doesn't track his invulnerability during throw fully
+// TODO: Raven's Air Scharf Kugel hits twice but doesn't show hitbox on the second hit
+// TODO: Air Tech doesn't show as strike invul
+// TODO: Pushboxes, throw invulnerability and throw boxes
+// TODO: Missing OTG flag
+// TODO: Don't show counterhit if strike invul
+// TODO: Show counterhit for longer after a hit connects in counterhit state
+// TODO: Frame-by-frame stepping, maybe in some other function
+// TODO: (impossible) EndScene and Present get called in a different thread from where the game logic is happening,
+//       hence there are artifacts when boxes are drawn twice onto a frame in different states or the boxes are one frame ahead of what's on the frame.
 
 // Original was made in 2016 by Altimor. Link to source: http://www.dustloop.com/forums/index.php?/forums/topic/12495-xrd-pc-hitbox-overlay-mod/
 // This version is adapted for Guilty Gear Xrd version 2211 (as of 8'th October 2023) with 90% of the features removed as of now (most stuff is not re-found yet)
@@ -24,18 +35,32 @@
 
 #define PI 3.14159F
 
-struct FloatRect {
-	float left = 0.F;
-	float right = 0.F;
-	float top = 0.F;
-	float bottom = 0.F;
-};
-
 const float outlineThickness = 3000.F;
-CComPtr<IDirect3DSurface9> stencilSurface = NULL;
+CComPtr<IDirect3DSurface9> stencilSurface = NULL;  // Thanks to WorseThanYou for telling to use CComPtr class
 bool direct3DError = false;
 bool direct3DSuccess = false;
-FloatRect nullFloatRect;
+char** dev_vtable = nullptr;
+const float coord_coefficient = 0.42960999705207F;
+char **asw_engine = nullptr;
+char **game_data_ptr = nullptr;
+char *trainingModeMenuOpenRef = nullptr;
+char *versusModeMenuOpenRef = nullptr;
+char *isIKCutscenePlaying = nullptr;
+std::vector<std::pair<PVOID*, PVOID>> thingsToUndetourAtTheEnd;
+
+
+DWORD thisProcessId = 0;
+HWND thisProcessWindow = NULL;
+
+BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
+	DWORD windsProcId = 0;
+	DWORD windsThreadId = GetWindowThreadProcessId(hwnd, &windsProcId);
+	if (windsProcId == thisProcessId) {
+		thisProcessWindow = hwnd;
+		return FALSE;
+	}
+	return TRUE;
+}
 
 #ifdef LOG_PATH
 FILE *logfile = NULL;
@@ -65,17 +90,8 @@ msgLimit--
 #define log(things)
 #endif
 
-const float coord_coefficient = 0.42960999705207F;
-
-//char **game_ptr;
-char **asw_engine;
-char **game_data_ptr;
-
 //using cast_t = const void*(*)(const void*);
 //cast_t cast_REDGameInfo_Battle; // found something like PTR_s_AREDGameInfo_BattleexecRenderUpd_019cd5e0, but no cast
-
-//using is_active_t = bool(__thiscall*)(const void*, int);
-//is_active_t is_active;
 
 //using get_pushbox_t = int(__thiscall*)(const void*);
 //get_pushbox_t get_pushbox_x, get_pushbox_y, get_pushbox_bottom;
@@ -127,8 +143,11 @@ struct DrawPointCallParams {
 	D3DCOLOR outlineColor = D3DCOLOR_ARGB(255, 0, 0, 0);
 };
 
+std::vector<RotatedPathElement> allRotatedPathElems;
+
 struct DrawOutlineCallParams {
-	std::vector<RotatedPathElement> outline;
+	int outlineStartAddr = 0;
+	int outlineCount = 0;
 	D3DCOLOR outlineColor{0};
 };
 
@@ -380,7 +399,7 @@ void draw_angled_outline(IDirect3DDevice9 *device,
 }
 
 void draw_outline(IDirect3DDevice9 *device, const DrawOutlineCallParams& params) {
-	log(fprintf(logfile, "Called draw_outlines with an outline with %d elements\n", outline.size()));
+	log(fprintf(logfile, "Called draw_outlines with an outline with %d elements\n", params.outlineCount));
 	device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
@@ -390,13 +409,16 @@ void draw_outline(IDirect3DDevice9 *device, const DrawOutlineCallParams& params)
 	device->SetTexture(0, nullptr);
 
 	D3DXVECTOR3 conv;
-	for (const RotatedPathElement& elem : params.outline) {
-		world_to_screen(device, D3DXVECTOR3{ elem.x, 0.F, elem.y }, &conv);
+	
+	for (auto elem = allRotatedPathElems.begin() + params.outlineStartAddr;
+			elem != allRotatedPathElems.begin() + params.outlineStartAddr + params.outlineCount;
+			++elem) {
+		world_to_screen(device, D3DXVECTOR3{ elem->x, 0.F, elem->y }, &conv);
 		log(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
 		vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, params.outlineColor);
-		world_to_screen(device, D3DXVECTOR3{ elem.x + outlineThickness * elem.inX,
+		world_to_screen(device, D3DXVECTOR3{ elem->x + outlineThickness * elem->inX,
 		                                     0.F,
-		                                     elem.y + outlineThickness * elem.inY },
+		                                     elem->y + outlineThickness * elem->inY },
 			            &conv);
 		vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, params.outlineColor);
 	}
@@ -404,9 +426,16 @@ void draw_outline(IDirect3DDevice9 *device, const DrawOutlineCallParams& params)
 	vertexArena.push_back(vertexArena[1]);
 
 	// Triangle strip means v1, v2, v3 is a triangle, v2, v3, v4 is a triangle, etc.
-	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, params.outline.size() * 2, &vertexArena.front(), sizeof(Vertex));
+	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, params.outlineCount * 2, &vertexArena.front(), sizeof(Vertex));
 	vertexArena.clear();
 }
+
+struct FloatRect {
+	float left = 0.F;
+	float right = 0.F;
+	float top = 0.F;
+	float bottom = 0.F;
+} nullFloatRect;
 
 void draw_rect(
 	IDirect3DDevice9 *device,
@@ -417,6 +446,9 @@ void draw_rect(
 	D3DCOLOR fillColor,
 	FloatRect& bounds,
 	bool& stencilInitialized) {
+
+	if (p1.x == p2.x && p2.x == p3.x && p3.x == p4.x || ((fillColor >> 24) & 0xff) == 0)
+		return;
 	
 	initializeStencil(device, stencilInitialized);
 
@@ -425,10 +457,10 @@ void draw_rect(
 	world_to_screen(device, p2, &sp2);
 	world_to_screen(device, p3, &sp3);
 	world_to_screen(device, p4, &sp4);
-
-	if (sp1.x == sp2.x && sp2.x == sp3.x && sp3.x == sp4.x)
-		return;
 		
+	log(fprintf(logfile,
+		"Box. Red: %u; Green: %u; Blue: %u; Alpha: %u;\n",
+		(fillColor >> 16) & 0xff, (fillColor >> 8) & 0xff, fillColor & 0xff, (fillColor >> 24) & 0xff));
 	log(fprintf(logfile,
 		"sp1 { x: %f; y: %f; }; sp2 { x: %f; y: %f; }; sp3 { x: %f; y: %f; }; sp4 { x: %f; y: %f; }\n",
 		sp1.x, sp1.y, sp2.x, sp2.y, sp3.x, sp3.y, sp4.x, sp4.y));
@@ -454,7 +486,7 @@ void draw_rect(
 	if (sp4.y > bounds.bottom) bounds.bottom = sp4.y;
 	
 	if (stencilInitialized) {
-		device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
+		device->SetRenderState(D3DRS_STENCILENABLE, TRUE);  // Thanks to WorseThanYou for the idea of using Stenciling
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);
 		device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCRSAT);
 	}
@@ -467,7 +499,7 @@ void draw_rect(
 
 	Vertex vertices[] =
 	{
-		{ sp1.x, sp1.y, 0.F, 1.F, fillColor },
+		{ sp1.x, sp1.y, 0.F, 1.F, fillColor },  // Thanks to WorseThanYou for fixing the RHW value for Intel GPUs (was 0.F, didn't work)
 		{ sp2.x, sp2.y, 0.F, 1.F, fillColor },
 		{ sp3.x, sp3.y, 0.F, 1.F, fillColor },
 		{ sp4.x, sp4.y, 0.F, 1.F, fillColor },
@@ -581,8 +613,10 @@ void draw_point(IDirect3DDevice9 *device, const DrawPointCallParams& params)
 	device->DrawPrimitiveUP(D3DPT_LINELIST, 2, vertices, sizeof(Vertex));
 }
 
+
+
 /*auto gif_mode = false;
-auto gif_toggle_held = false;
+bool gif_toggle_held = false;
 
 auto nograv_mode = false;
 auto nograv_toggle_held = false;*/
@@ -634,13 +668,159 @@ void __fastcall hook_update_hud(char *thisptr)
 	orig_update_hud(thisptr);
 }*/
 
-/*using hit_detection_t = void(__thiscall*)(void*, int, int);
-hit_detection_t orig_hit_detection;
-void __fastcall hook_hit_detection(void *thisptr, void*, int a2, int a3)
+void collect_hitboxes(char* const asw_data,
+	const bool active,
+	std::vector<DrawHitboxArrayCallParams>* const hurtboxes,
+	std::vector<DrawHitboxArrayCallParams>* const hitboxes,
+	std::vector<DrawPointCallParams>* const points)
 {
-	if (!gif_mode)
-		orig_hit_detection(thisptr, a2, a3);
-}*/
+
+	DrawHitboxArrayParams params;
+	/*{
+	float posx = 0.F;
+	float posy = 0.F;
+	float flip = 1.F;
+	float scale_x = 1000.F;
+	float scale_y = 1000.F;
+	float ca = 1.F;
+	float sa = 0.F;*/
+
+	log(fprintf(logfile, "pox_x: %d\n", get_pos_x(asw_data)));
+	log(fprintf(logfile, "pox_y: %d\n", get_pos_y(asw_data)));
+	params.posX = get_pos_x(asw_data);
+	params.posY = get_pos_y(asw_data);
+	log(fprintf(logfile, "converted posx: %d\n", params.posX));
+	log(fprintf(logfile, "converted posy: %d\n", params.posY));
+	params.flip = *(int*)(asw_data + /*! 0x23C*/0x248) == 1 ? 1 : -1; // is this facing? it moved to 0x248
+	log(fprintf(logfile, "flip (original): %d; flip: %d\n", *(int*)(asw_data + 0x248), (int)params.flip));
+
+	const bool doingAThrow = (*(unsigned int*)(asw_data + 0x460) & 0xFF) == 0x8C;
+	const unsigned int flagsField = *(unsigned int*)(asw_data + 0x23C);
+	const bool gettingThrown = (*(unsigned int*)(asw_data + 0x43C) & 0xFF) != 0
+		&& (flagsField & 0x800)
+		&& (flagsField & 0x40000);
+	const auto otg = false;//(*(int*)(asw_data + 0x2410) & 0x800000) != 0;  // not found yet
+	const auto invuln_frames = *(int*)(asw_data + /*! 0x964*/0x9A0);
+	const auto invuln_flags = *(char*)(asw_data + /*! 0x230*/0x238);
+	const auto strike_invuln = invuln_frames > 0 || (invuln_flags & 16) || (invuln_flags & 64);
+	const auto throw_invuln = invuln_frames > 0 || (invuln_flags & 32) || (invuln_flags & 64) || otg;
+	const auto counterhit = (*(int*)(asw_data + /*! 0x22C*/0x234) & 256) != 0;  // Thanks to WorseThanYou for finding this
+	// Color scheme:
+	// light blue - hurtbox on counterhit
+	// green - hurtbox on not counterhit
+	// red - hitbox
+	// yellow - pushbox
+	// blue - throwbox
+
+
+	// Draw pushbox and throw box
+	/*if (is_push_active(asw_data))
+	{
+		const auto pushbox_top = convert_coord(get_pushbox_y(asw_data));
+		const auto pushbox_bottom = convert_coord(get_pushbox_bottom(asw_data));
+
+		const auto pushbox_x = get_pushbox_x(asw_data);
+		const auto pushbox_back = convert_coord(pushbox_x / 2);
+		const auto front_offset = *(int*)(asw_data + 0x300);
+		const auto pushbox_front = convert_coord(pushbox_x / 2 + front_offset);
+
+		draw_rect(
+			device,
+			D3DXVECTOR3(posx - pushbox_back * flip, 0.F, posy + pushbox_top),
+			D3DXVECTOR3(posx - pushbox_back * flip, 0.F, posy - pushbox_bottom),
+			D3DXVECTOR3(posx + pushbox_front * flip, 0.F, posy + pushbox_top),
+			D3DXVECTOR3(posx + pushbox_front * flip, 0.F, posy - pushbox_bottom),
+			D3DCOLOR_ARGB(throw_invuln ? 0 : 64, 255, 255, 0),
+			D3DCOLOR_ARGB(255, 255, 255, 0),
+			nullFloatRect,
+			stencilInitialized);
+	}*/
+
+	log(fprintf(logfile, "hp: %d\n", *(int*)(asw_data + 0x9cc)));
+
+	auto* const hurtbox_data = *(Hitbox**)(asw_data + 0x58);  // this address is correct and this assumes asw_data is the player
+	if (hurtbox_data == nullptr)
+		return;
+
+	auto* const hitbox_data = *(Hitbox**)(asw_data + 0x5C);
+	if (hurtbox_data == nullptr)
+		return;
+
+
+	const auto hurtbox_count = *(int*)(asw_data + 0xA0); // this address is correct
+	const auto hitbox_count = *(int*)(asw_data + 0xA4);
+
+	log(fprintf(logfile, "hurtbox_count: %d; hitbox_count: %d\n", hurtbox_count, hitbox_count));
+
+	const auto angle = (float)(*(int*)(asw_data + /*!*/0x258)) / 1000.F;  // confirmed to be the angle
+	params.cosAngle = cos(angle * PI / 180.F);
+	params.sinAngle = sin(angle * PI / 180.F);
+	log(fprintf(logfile, "angle: %d\n", *(int*)(asw_data + /*!*/0x258)));
+
+	// Thanks to jedpossum on dustloop for these offsets
+	params.scaleX = *(int*)(asw_data + /*!*/0x264); // moved to 0x264 and it's more complicated, there's a function but what if it breaks on update...
+	params.scaleY = *(int*)(asw_data + /*!*/0x268); // moved to 0x268 and it's more complicated, there's a function but what if it breaks on update...
+	// this will probably all break anyway on updates...
+	log(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(asw_data + /*!*/0x264), *(int*)(asw_data + /*!*/0x268)));
+
+	DrawHitboxArrayCallParams callParams;
+
+	if (hurtboxes) {
+		callParams.hitbox_data = hurtbox_data;
+		callParams.hitboxCount = hurtbox_count;
+		callParams.params = params;
+		callParams.fillColor = D3DCOLOR_ARGB(strike_invuln
+			|| gettingThrown
+			|| doingAThrow ? 0 : 64, 0, 255, counterhit ? 255 : 0);
+		callParams.outlineColor = D3DCOLOR_ARGB(255, 0, 255, counterhit ? 255 : 0);
+		hurtboxes->push_back(callParams);
+	}
+
+	if (hitboxes && active && !doingAThrow) {
+		callParams.hitbox_data = hitbox_data;
+		callParams.hitboxCount = hitbox_count;
+		callParams.params = params;
+		callParams.fillColor = D3DCOLOR_ARGB(64, 255, 0, 0);
+		callParams.outlineColor = D3DCOLOR_ARGB(255, 255, 0, 0);
+		hitboxes->push_back(callParams);
+	}
+
+	if (points) {
+		DrawPointCallParams pointCallParams;
+		pointCallParams.posX = params.posX;
+		pointCallParams.posY = params.posY;
+		points->push_back(pointCallParams);
+	}
+}
+
+using hit_detection_t = BOOL(__thiscall*)(void*, void*, int, int, int*, int*);
+hit_detection_t orig_hit_detection;
+
+struct HitboxThatHitStruct {
+	char* attacker;
+	int attackerTeam;
+	DrawHitboxArrayCallParams hitboxes;
+	int counter;
+};
+std::vector<HitboxThatHitStruct> hitboxesThatHit;
+
+// this is for Millia's Tandem Top because it disappears as soon as it hits and before that it's inactive,
+// so basically, we just never get to see its hitbox if it hits frame 1. This solves that
+class HitDetectionHookHelp {
+public:
+	BOOL hook_hit_detection(void* defender, int attackerHitboxIndex, int defenderHitboxIndex, int* intersectionX, int* intersectionY) {
+		// this  ==  attacker
+		BOOL hitResult = orig_hit_detection(this, defender, attackerHitboxIndex, defenderHitboxIndex, intersectionX, intersectionY);
+		if (hitResult) {
+			std::vector<DrawHitboxArrayCallParams> theHitbox;
+			collect_hitboxes((char*)this, true, nullptr, &theHitbox, nullptr);
+			if (!theHitbox.empty()) {
+				hitboxesThatHit.push_back({ (char*)this, *(int*)((char*)this + 0x40), theHitbox.front(), 5 });
+			}
+		}
+		return hitResult;
+	}
+};
 
 struct throw_info
 {
@@ -722,7 +902,7 @@ void draw_hitbox_array(IDirect3DDevice9 *device,
 
 	Hitbox* hitbox_data = params.hitbox_data;
 	for (int i = params.hitboxCount; i != 0; --i) {
-		log(fprintf(logfile, "drawing box %d\n", hitboxCount - i));
+		log(fprintf(logfile, "drawing box %d\n", params.hitboxCount - i));
 		const auto type = *(int*)(hitbox_data);
 
 		const int box_x = (int)(hitbox_data->offx * params.params.scaleX);
@@ -794,123 +974,18 @@ void draw_hitbox_array(IDirect3DDevice9 *device,
 			++it;
 		}
 		DrawOutlineCallParams drawOutlineCallParams;
-		drawOutlineCallParams.outline = rotatedOutline;
+		size_t oldSize = allRotatedPathElems.size();
+		drawOutlineCallParams.outlineStartAddr = oldSize;
+		allRotatedPathElems.resize(oldSize + rotatedOutline.size());
+		auto allRotatedPathElemsIter = allRotatedPathElems.begin() + oldSize;
+		for (auto rotatedOutlineIter = rotatedOutline.cbegin(); rotatedOutlineIter != rotatedOutline.cend(); ++rotatedOutlineIter) {
+			*allRotatedPathElemsIter = *rotatedOutlineIter;
+			++allRotatedPathElemsIter;
+		}
+		drawOutlineCallParams.outlineCount = rotatedOutline.size();
 		drawOutlineCallParams.outlineColor = params.outlineColor;
 		pendingOutlines.push_back(drawOutlineCallParams);
 	}
-}
-
-void draw_hitboxes(IDirect3DDevice9 *device,
-                   char *asw_data,
-				   const bool active,
-                   std::vector<DrawHitboxArrayCallParams>& hurtboxes,
-                   std::vector<DrawHitboxArrayCallParams>& hitboxes,
-                   std::vector<DrawPointCallParams>& points)
-{
-
-	DrawHitboxArrayParams params;
-	/*{
-	float posx = 0.F;
-	float posy = 0.F;
-	float flip = 1.F;
-	float scale_x = 1000.F;
-	float scale_y = 1000.F;
-	float ca = 1.F;
-	float sa = 0.F;*/
-
-	log(fprintf(logfile, "pox_x: %d\n", get_pos_x(asw_data)));
-	log(fprintf(logfile, "pox_y: %d\n", get_pos_y(asw_data)));
-	params.posX = get_pos_x(asw_data);
-	params.posY = get_pos_y(asw_data);
-	log(fprintf(logfile, "converted posx: %d\n", params.posX));
-	log(fprintf(logfile, "converted posy: %d\n", params.posY));
-	params.flip = *(int*)(asw_data + /*! 0x23C*/0x248) == 1 ? 1 : -1; // is this facing? it moved to 0x248
-	log(fprintf(logfile, "flip (original): %d; flip: %d\n", *(int*)(asw_data + 0x248), (int)params.flip));
-
-	const auto otg = false;//(*(int*)(asw_data + 0x2410) & 0x800000) != 0;  // not found yet
-	const auto invuln_frames = 0;//*(int*)(asw_data + 0x964);  // not found yet
-	const auto invuln_flags = *(char*)(asw_data + /*! 0x230*/0x238);
-	const auto strike_invuln = invuln_frames > 0 || (invuln_flags & 16) || (invuln_flags & 64);
-	const auto throw_invuln = invuln_frames > 0 || (invuln_flags & 32) || (invuln_flags & 64) || otg;
-	const auto counterhit = false;//(*(int*)(asw_data + 0x22C) & 256) != 0;  // not found yet
-	// Color scheme:
-	// purple - hurtbox on counterhit
-	// green - hurtbox on not counterhit
-	// red - hitbox
-	// yellow - pushbox
-	// blue - throwbox
-
-
-	// Draw pushbox and throw box
-	/*if (is_push_active(asw_data))
-	{
-		const auto pushbox_top = convert_coord(get_pushbox_y(asw_data));
-		const auto pushbox_bottom = convert_coord(get_pushbox_bottom(asw_data));
-
-		const auto pushbox_x = get_pushbox_x(asw_data);
-		const auto pushbox_back = convert_coord(pushbox_x / 2);
-		const auto front_offset = *(int*)(asw_data + 0x300);
-		const auto pushbox_front = convert_coord(pushbox_x / 2 + front_offset);
-
-		draw_rect(
-			device,
-			D3DXVECTOR3(posx - pushbox_back * flip, 0.F, posy + pushbox_top),
-			D3DXVECTOR3(posx - pushbox_back * flip, 0.F, posy - pushbox_bottom),
-			D3DXVECTOR3(posx + pushbox_front * flip, 0.F, posy + pushbox_top),
-			D3DXVECTOR3(posx + pushbox_front * flip, 0.F, posy - pushbox_bottom),
-			D3DCOLOR_ARGB(throw_invuln ? 0 : 64, 255, 255, 0),
-			D3DCOLOR_ARGB(255, 255, 255, 0),
-			nullFloatRect,
-			stencilInitialized);
-	}*/
-
-	log(fprintf(logfile, "hp: %d\n", *(int*)(asw_data + 0x9cc)));
-
-	auto * const hurtbox_data = *(Hitbox**)(asw_data + 0x58);  // this address is correct and this assumes asw_data is the player
-	if (hurtbox_data == nullptr)
-		return;
-
-	auto * const hitbox_data = *(Hitbox**)(asw_data + 0x5C);
-	if (hurtbox_data == nullptr)
-		return;
-
-		
-	const auto hurtbox_count = *(int*)(asw_data + 0xA0); // this address is correct
-	const auto hitbox_count = *(int*)(asw_data + 0xA4);
-
-	log(fprintf(logfile, "hurtbox_count: %d; hitbox_count: %d\n", hurtbox_count, hitbox_count));
-
-	const auto angle = (float)(*(int*)(asw_data + /*!*/0x258)) / 1000.F;  // confirmed to be the angle
-	params.cosAngle = cos(angle * PI / 180.F);
-	params.sinAngle = sin(angle * PI / 180.F);
-	log(fprintf(logfile, "angle: %d\n", *(int*)(asw_data + /*!*/0x258)));
-
-	// Thanks to jedpossum on dustloop for these offsets
-	params.scaleX = *(int*)(asw_data + /*!*/0x264); // moved to 0x264 and it's more complicated, there's a function but what if it breaks on update...
-	params.scaleY = *(int*)(asw_data + /*!*/0x268); // moved to 0x268 and it's more complicated, there's a function but what if it breaks on update...
-	                                                // this will probably all break anyway on updates...
-	log(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(asw_data + /*!*/0x264), *(int*)(asw_data + /*!*/0x268)));
-	
-	DrawHitboxArrayCallParams callParams;
-
-	callParams.hitbox_data = hurtbox_data;
-	callParams.hitboxCount = hurtbox_count;
-	callParams.params = params;
-	callParams.fillColor = D3DCOLOR_ARGB(strike_invuln ? 0 : 64, 0, 255, counterhit ? 255 : 0);
-	callParams.outlineColor = D3DCOLOR_ARGB(255, 0, 255, counterhit ? 255 : 0);
-	hurtboxes.push_back(callParams);
-
-	callParams.hitbox_data = hitbox_data;
-	callParams.hitboxCount = hitbox_count;
-	callParams.params = params;
-	callParams.fillColor = D3DCOLOR_ARGB(active ? 64 : 0, 255, 0, 0);
-	callParams.outlineColor = D3DCOLOR_ARGB(255, 255, 0, 0);
-	hitboxes.push_back(callParams);
-
-	DrawPointCallParams pointCallParams;
-	pointCallParams.posX = params.posX;
-	pointCallParams.posY = params.posY;
-	points.push_back(pointCallParams);
 }
 
 /*void draw_throw(IDirect3DDevice9 *device, const throw_info &ti, bool& stencilInitialized)
@@ -956,10 +1031,6 @@ void draw_hitboxes(IDirect3DDevice9 *device,
 	}
 }*/
 
-bool printedDimensionsOnce = false;
-
-int resetLimit = 10;
-
 using Reset_t = HRESULT(__stdcall*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS *pPresentationParameters);
 Reset_t orig_Reset;
 HRESULT __stdcall hook_Reset(IDirect3DDevice9 *device, D3DPRESENT_PARAMETERS *pPresentationParameters) {
@@ -969,23 +1040,185 @@ HRESULT __stdcall hook_Reset(IDirect3DDevice9 *device, D3DPRESENT_PARAMETERS *pP
 }
 
 enum GameModes {
-	GAME_MODE_ARCADE = 2,
-	GAME_MODE_MOM = 3,
-	GAME_MODE_SPARRING = 4,
-	GAME_MODE_VERSUS = 5,
-	GAME_MODE_TRAINING = 6,
-	GAME_MODE_STORY = 9,
-	GAME_MODE_TUTORIAL = 12,
-	GAME_MODE_CHALLENGE = 13,
-	GAME_MODE_NETWORK = 16,
-	GAME_MODE_REPLAY = 17
+	GAME_MODE_DEBUG_BATTLE,
+	GAME_MODE_ADVERTISE,
+	GAME_MODE_ARCADE,
+	GAME_MODE_MOM,
+	GAME_MODE_SPARRING,
+	GAME_MODE_VERSUS,
+	GAME_MODE_TRAINING,
+	GAME_MODE_RANNYU_VERSUS,
+	GAME_MODE_EVENT,
+	GAME_MODE_STORY,
+	GAME_MODE_DEGITALFIGURE,
+	GAME_MODE_MAINMENU,
+	GAME_MODE_TUTORIAL,
+	GAME_MODE_CHALLENGE,
+	GAME_MODE_KENTEI,
+	GAME_MODE_NETWORK,
+	GAME_MODE_REPLAY,
+	GAME_MODE_FISHING,
+	GAME_MODE_UNDECIDED,
+	GAME_MODE_INVALID
 };
+
+void printDetourTransactionBeginError(LONG err) {
+	if (err == ERROR_INVALID_OPERATION) {
+		logwrap(fputs("DetourTransactionBegin: ERROR_INVALID_OPERATION: A pending transaction already exists.\n", logfile));
+	} else if (err  != NO_ERROR) {
+		logwrap(fprintf(logfile, "DetourTransactionBegin: %d\n", err));
+	}
+}
+
+void printDetourUpdateThreadError(LONG err) {
+	if (err == ERROR_NOT_ENOUGH_MEMORY) {
+		logwrap(fputs("DetourUpdateThread: ERROR_NOT_ENOUGH_MEMORY: Not enough memory to record identity of thread.\n", logfile));
+	} else if (err != NO_ERROR) {
+		logwrap(fprintf(logfile, "DetourUpdateThread: %d\n", err));
+	}
+}
+
+void printDetourDetachError(LONG err) {
+	switch (err) {
+	case ERROR_INVALID_BLOCK: logwrap(fputs("ERROR_INVALID_BLOCK :  The function to be detached was too small to be detoured.\n", logfile)); break;
+	case ERROR_INVALID_HANDLE: logwrap(fputs("ERROR_INVALID_HANDLE : The ppPointer parameter is NULL or references a NULL address.\n", logfile)); break;
+	case ERROR_INVALID_OPERATION: logwrap(fputs("ERROR_INVALID_OPERATION : No pending transaction exists.\n", logfile)); break;
+	case ERROR_NOT_ENOUGH_MEMORY: logwrap(fputs("ERROR_NOT_ENOUGH_MEMORY : Not enough memory exists to complete the operation.\n", logfile)); break;
+	default: {
+		if (err != NO_ERROR) {
+			logwrap(fprintf(logfile, "DetourDetach: %d\n", err));
+		}
+	}
+	}
+}
+
+void printDetourAttachError(LONG err) {
+	switch (err) {
+	case ERROR_INVALID_BLOCK: logwrap(fputs("ERROR_INVALID_BLOCK : The function referenced is too small to be detoured.\n", logfile)); break;
+	case ERROR_INVALID_HANDLE: logwrap(fputs("ERROR_INVALID_HANDLE : The ppPointer parameter is NULL or points to a NULL pointer.\n", logfile)); break;
+	case ERROR_INVALID_OPERATION: logwrap(fputs("ERROR_INVALID_OPERATION : No pending transaction exists.\n", logfile)); break;
+	case ERROR_NOT_ENOUGH_MEMORY: logwrap(fputs("ERROR_NOT_ENOUGH_MEMORY : Not enough memory exists to complete the operation.\n", logfile)); break;
+	default: {
+		if (err != NO_ERROR) {
+			logwrap(fprintf(logfile, "DetourAttach: %d\n", err));
+		}
+	}
+	}
+}
+
+void printDetourTransactionCommitError(LONG err) {
+	if (err == ERROR_INVALID_DATA) {
+		logwrap(fputs("DetourTransactionCommit: ERROR_INVALID_DATA: Target function was changed by third party between steps of the transaction.\n", logfile));
+	} else if (err == ERROR_INVALID_OPERATION) {
+		logwrap(fputs("DetourTransactionCommit: ERROR_INVALID_OPERATION: No pending transaction exists..\n", logfile));
+	} else if (err != NO_ERROR) {
+		logwrap(fprintf(logfile, "DetourTransactionCommit: %d\n", err));
+	}
+}
 
 using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
 EndScene_t orig_EndScene;
+
+HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device);
+
+void detachFunctions(std::string calledFrom) {
+	DWORD detourResult;
+	if (dev_vtable != nullptr) {
+		detourResult = DetourTransactionBegin();
+		if (detourResult != NO_ERROR) {
+			printDetourTransactionBeginError(detourResult);
+			return;
+		}
+
+		detourResult = DetourUpdateThread(GetCurrentThread());
+		if (detourResult != NO_ERROR) {
+			printDetourUpdateThreadError(detourResult);
+			return;
+		}
+
+		bool allSuccess = true;
+
+		for (const std::pair<PVOID*, PVOID>& thing : thingsToUndetourAtTheEnd) {
+			detourResult = DetourDetach(
+				thing.first,
+				thing.second);
+			if (detourResult != NO_ERROR) {
+				printDetourDetachError(detourResult);
+				allSuccess = false;
+				break;
+			}
+		}
+		if (allSuccess) {
+			logwrap(fputs("Successfully undetoured all the hooks\n", logfile));
+		} else {
+			logwrap(fputs("Successfully undetoured some or all of the hooks\n", logfile));
+		}
+		thingsToUndetourAtTheEnd.clear();
+	
+		detourResult = DetourTransactionCommit();
+		if (detourResult != NO_ERROR) {
+			printDetourTransactionCommitError(detourResult);
+			return;
+		}
+		logwrap(fputs("Successfully committed undetour transaction\n", logfile));
+		dev_vtable = nullptr;
+	}
+}
+
+bool get_module_bounds(const char *name, uintptr_t *start, uintptr_t *end)
+{
+	const auto module = GetModuleHandle(name);
+	if(module == nullptr)
+		return false;
+
+	MODULEINFO info;
+	GetModuleInformation(GetCurrentProcess(), module, &info, sizeof(info));
+	*start = (uintptr_t)(info.lpBaseOfDll);
+	*end = *start + info.SizeOfImage;
+	return true;
+}
+
+enum CHARACTER_TYPE {
+	CHARACTER_TYPE_SOL,
+	CHARACTER_TYPE_KY,
+	CHARACTER_TYPE_MAY,
+	CHARACTER_TYPE_MILLIA,
+	CHARACTER_TYPE_ZATO,
+	CHARACTER_TYPE_POTEMKIN,
+	CHARACTER_TYPE_CHIPP,
+	CHARACTER_TYPE_FAUST,
+	CHARACTER_TYPE_AXL,
+	CHARACTER_TYPE_VENOM,
+	CHARACTER_TYPE_SLAYER,
+	CHARACTER_TYPE_INO,
+	CHARACTER_TYPE_BEDMAN,
+	CHARACTER_TYPE_RAMLETHAL,
+	CHARACTER_TYPE_SIN,
+	CHARACTER_TYPE_ELPHELT,
+	CHARACTER_TYPE_LEO,
+	CHARACTER_TYPE_JOHNNY,
+	CHARACTER_TYPE_JACKO,
+	CHARACTER_TYPE_JAM,
+	CHARACTER_TYPE_HAEHYUN,
+	CHARACTER_TYPE_RAVEN,
+	CHARACTER_TYPE_DIZZY,
+	CHARACTER_TYPE_BAIKEN,
+	CHARACTER_TYPE_ANSWER
+};
+
+bool determineInvisChipp(char* asw_data) {
+	return (*(char*)(asw_data + 0x44) == CHARACTER_TYPE_CHIPP)
+		&& *(short*)(asw_data + 0x24C50) != 0;
+}
+
+std::vector<DrawHitboxArrayCallParams> hurtboxes;
+std::vector<DrawHitboxArrayCallParams> hitboxes;
+std::vector<DrawOutlineCallParams> outlines;
+std::vector<DrawPointCallParams> points;
+std::vector<char*> drawnEntities;
+
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 {
-	
 	/*if (*game_ptr == nullptr)
 		return orig_EndScene(device);
 
@@ -1005,20 +1238,29 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 	if (cast_REDGameInfo_Battle(game_info) == nullptr)
 		return orig_EndScene(device);*/
 
+	/*HWND activeWindow = GetForegroundWindow();  // GetActiveWindow wasn't working so I used this instead
+	if (activeWindow == thisProcessWindow) {
+		const bool pressedF3 = (GetKeyState(VK_F3) & 0x8000) != 0;  // without the window check this will work even if window is not in focus which is bad
+		if (pressedF3) {
+		}
+	}*/
 
-	char gameMode = *(*game_data_ptr + 0x45);
+	bool prematureExit = false;
+	if (*asw_engine == nullptr) {
+		hitboxesThatHit.clear();
+		prematureExit = true;
+	}
 
-	if (*asw_engine == nullptr
-			|| !(
-				gameMode == GAME_MODE_ARCADE
-				|| gameMode == GAME_MODE_CHALLENGE
-				|| gameMode == GAME_MODE_REPLAY
-				|| gameMode == GAME_MODE_STORY
-				|| gameMode == GAME_MODE_TRAINING
-				|| gameMode == GAME_MODE_TUTORIAL
-				|| gameMode == GAME_MODE_VERSUS)) {
-		log(fputs("hook_EndScene called\n", logfile));
-		logwrap(didWriteOnce = true);
+	if (trainingModeMenuOpenRef && *trainingModeMenuOpenRef
+			|| versusModeMenuOpenRef && *versusModeMenuOpenRef) {
+		prematureExit = true;
+	}
+
+	if (isIKCutscenePlaying && *isIKCutscenePlaying) {
+		hitboxesThatHit.clear();
+	}
+
+	if (prematureExit) {
 		return orig_EndScene(device);
 	}
 
@@ -1032,7 +1274,7 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 
 	const auto ent_slots = (char**)(*asw_engine + /*! 0xC4*/0xC8);  // moved to 0xC8
 
-	/*const auto gif_toggle_pressed = (GetKeyState(VK_F1) & 0x8000) != 0;  // we'll have to get rid of gif mode, too much is not found or unconfirmed
+	/*const bool gif_toggle_pressed = (GetKeyState(VK_F1) & 0x8000) != 0;
 	if (!gif_toggle_held && gif_toggle_pressed)
 	{
 		gif_mode = !gif_mode;
@@ -1044,7 +1286,7 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 			*(int*)(ent_slots[1] + 0x260) = 1000; // moved to 0x26c but not confirmed if it's indeed zScale or if zScale exists at all
 
 			// Default scale
-			*(int*)(ent_slots[1] + 0x229C) = 1000;
+			*(int*)(ent_slots[1] + 0x229C) = 1000; // this has to be the 0x2594 offset
 		}
 	}
 
@@ -1074,34 +1316,143 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 
 	gif_toggle_held = gif_toggle_pressed;
 	nograv_toggle_held = nograv_toggle_pressed;*/
+	
+    hurtboxes.clear();
+    hitboxes.clear();
+	outlines.clear();
+    points.clear();
+	drawnEntities.clear();
+	allRotatedPathElems.clear();
 
-    std::vector<DrawHitboxArrayCallParams> hurtboxes;
-    std::vector<DrawHitboxArrayCallParams> hitboxes;
-	std::vector<DrawOutlineCallParams> outlines;
-    std::vector<DrawPointCallParams> points;
+	bool p1IsInvisChipp = false;
+	bool p2IsInvisChipp = false;
+	char gameMode = *(*game_data_ptr + 0x45);
+	if (!(gameMode == GAME_MODE_ARCADE
+				|| gameMode == GAME_MODE_CHALLENGE
+				|| gameMode == GAME_MODE_REPLAY
+				|| gameMode == GAME_MODE_STORY
+				|| gameMode == GAME_MODE_TRAINING
+				|| gameMode == GAME_MODE_TUTORIAL
+				|| gameMode == GAME_MODE_VERSUS)
+			&& ent_count >= 2) {
+
+		p1IsInvisChipp = determineInvisChipp(ent_slots[0]);
+		p2IsInvisChipp = determineInvisChipp(ent_slots[1]);
+	}
 
 	log(fprintf(logfile, "ent_count: %d\n", ent_count));
 	for (auto i = 0; i < ent_count; i++)
 	{
 		const auto ent = ent_list[i];
+		if (std::find(drawnEntities.cbegin(), drawnEntities.cend(), ent) != drawnEntities.cend()) {
+			continue;
+		}
 		/*if (gif_mode && ent == ent_slots[1])
 			continue;*/
 
-		const auto active = /*!*/true;//is_active(ent, 0);
-		log(fprintf(logfile, "drawing entity # %d\n", i));
-		draw_hitboxes(device, ent, active, hurtboxes, hitboxes, points);
+		bool active = (*(unsigned int*)(ent + 0x23C) & 0x100) != 0
+		              && (*(unsigned int*)(ent + 0x234) & 0x40000000) == 0;
+		log(fprintf(logfile, "drawing entity # %d. active: %c\n", i, active));
+		
+		bool needToHide = false;
+		if (*(char*)(ent + 0x40) == 0) {  // 0x40 - side to which entity belongs, 0 for p1's side, 1 for p2's side
+			needToHide = p1IsInvisChipp;
+		} else if (ent_count > 1) {
+			needToHide = p2IsInvisChipp;
+		}
+		if (needToHide) continue;
+		collect_hitboxes(ent, active, &hurtboxes, &hitboxes, &points);
+		drawnEntities.push_back(ent);
 
 		// Attached entities like dusts
-		/*const auto attached = *(char**)(ent + 0x200);
-		if (attached != nullptr)
-			draw_hitboxes(device, attached, active);*/
+		const auto attached = *(char**)(ent + 0x204);
+		if (attached != nullptr) {
+			log(fprintf(logfile, "Attached entity: %p\n", attached));
+			collect_hitboxes(attached, active, &hurtboxes, &hitboxes, &points);
+			drawnEntities.push_back(attached);
+		}
+	}
+
+	auto it = hitboxesThatHit.begin();
+	while (it != hitboxesThatHit.end()) {
+		HitboxThatHitStruct& hitboxThatHit = *it;
+
+		bool entityInTheList = false;
+		for (auto i = 0; i < ent_count; i++) {
+			char * const ent = ent_list[i];
+			// this is needed for Sol's Gunflame. The gunflame continues to exist as entity but stops being active as soon as it hits
+			const bool entityIsActive = (*(unsigned int*)(ent + 0x23C) & 0x100) != 0;
+			if (hitboxThatHit.attacker == ent && entityIsActive) {
+				entityInTheList = true;
+				break;
+			}
+		}
+
+		if (entityInTheList) {
+			it = hitboxesThatHit.erase(it);
+			continue;
+		} else {
+			bool needToHide = false;
+			if (hitboxThatHit.attackerTeam == 0) {
+				needToHide = p1IsInvisChipp;
+			} else if (ent_count > 1) {
+				needToHide = p2IsInvisChipp;
+			}
+			if (needToHide) {
+				it = hitboxesThatHit.erase(it);
+				continue;
+			}
+			hitboxes.push_back(hitboxThatHit.hitboxes);
+			--hitboxThatHit.counter;
+			if (hitboxThatHit.counter <= 0) {
+				it = hitboxesThatHit.erase(it);
+				continue;
+			}
+		}
+		++it;
 	}
 	
 	for (const DrawHitboxArrayCallParams& params : hurtboxes) {
 		draw_hitbox_array(device, params, outlines, stencilInitialized);
 	}
-	for (const DrawHitboxArrayCallParams& params : hitboxes) {
-		draw_hitbox_array(device, params, outlines, stencilInitialized);
+	for (auto it = hitboxes.cbegin(); it != hitboxes.cend(); ++it) {
+		const DrawHitboxArrayCallParams& params = *it;
+		bool found = false;
+		for (auto itScan = it; itScan != hitboxes.cend(); ++itScan) {
+			if (it == itScan) continue;
+
+			const DrawHitboxArrayCallParams& paramsScan = *itScan;
+			if (!(params.hitboxCount == paramsScan.hitboxCount
+					&& params.params.flip == paramsScan.params.flip
+					&& params.params.scaleX == paramsScan.params.scaleX
+					&& params.params.scaleY == paramsScan.params.scaleY
+					&& params.params.cosAngle == paramsScan.params.cosAngle
+					&& params.params.sinAngle == paramsScan.params.sinAngle
+					&& params.params.posX == paramsScan.params.posX
+					&& params.params.posY == paramsScan.params.posY
+					&& params.fillColor == paramsScan.fillColor)) continue;
+			
+
+			found = true;
+			Hitbox* hitboxPtr = params.hitbox_data;
+			Hitbox* hitboxScanPtr = paramsScan.hitbox_data;
+			if (hitboxPtr != hitboxScanPtr) {
+				for (int hitboxScanCounter = params.hitboxCount; hitboxScanCounter != 0; --hitboxScanCounter) {
+					if (!(hitboxPtr->offx == hitboxScanPtr->offx
+							&& hitboxPtr->offy == hitboxScanPtr->offy
+							&& hitboxPtr->sizex == hitboxScanPtr->sizex
+							&& hitboxPtr->sizey == hitboxScanPtr->sizey)) {
+						found = false;
+						break;
+					}
+				
+					++hitboxPtr;
+					++hitboxScanPtr;
+				}
+			}
+			if (found) break;
+		}
+		if (!found) draw_hitbox_array(device, params, outlines, stencilInitialized);
 	}
 	for (const DrawOutlineCallParams& params : outlines) {
 		draw_outline(device, params);
@@ -1127,21 +1478,10 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9 *device)
 		device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_KEEP);
 	}
 	
-	logwrap(didWriteOnce = true;);
+	#ifdef LOG_PATH
+	didWriteOnce = true;
+	#endif
 	return orig_EndScene(device);
-}
-
-bool get_module_bounds(const char *name, uintptr_t *start, uintptr_t *end)
-{
-	const auto module = GetModuleHandle(name);
-	if(module == nullptr)
-		return false;
-
-	MODULEINFO info;
-	GetModuleInformation(GetCurrentProcess(), module, &info, sizeof(info));
-	*start = (uintptr_t)(info.lpBaseOfDll);
-	*end = *start + info.SizeOfImage;
-	return true;
 }
 
 uintptr_t sigscan(const char *name, const char *sig, const char *mask)
@@ -1165,52 +1505,13 @@ uintptr_t sigscan(const char *name, const char *sig, const char *mask)
 	return 0;
 }
 
-void printDetourTransactionBeginError(LONG err) {
-	if (err == ERROR_INVALID_OPERATION) {
-		logwrap(fputs("DetourTransactionBegin: ERROR_INVALID_OPERATION: A pending transaction already exists.\n", logfile));
-	} else if (err  != NO_ERROR) {
-		logwrap(fprintf(logfile, "DetourTransactionBegin: %d\n", err));
-	}
-}
-
-void printDetourUpdateThreadError(LONG err) {
-	if (err == ERROR_NOT_ENOUGH_MEMORY) {
-		logwrap(fputs("DetourUpdateThread: ERROR_NOT_ENOUGH_MEMORY: Not enough memory to record identity of thread.\n", logfile));
-	} else if (err != NO_ERROR) {
-		logwrap(fprintf(logfile, "DetourUpdateThread: %d\n", err));
-	}
-}
-
-void printDetourAttachError(LONG err) {
-	switch (err) {
-	case ERROR_INVALID_BLOCK: logwrap(fputs("ERROR_INVALID_BLOCK : The function referenced is too small to be detoured.\n", logfile)); break;
-	case ERROR_INVALID_HANDLE: logwrap(fputs("ERROR_INVALID_HANDLE : The ppPointer parameter is NULL or points to a NULL pointer.\n", logfile)); break;
-	case ERROR_INVALID_OPERATION: logwrap(fputs("ERROR_INVALID_OPERATION : No pending transaction exists.\n", logfile)); break;
-	case ERROR_NOT_ENOUGH_MEMORY: logwrap(fputs("ERROR_NOT_ENOUGH_MEMORY : Not enough memory exists to complete the operation.\n", logfile)); break;
-	default: {
-		if (err != NO_ERROR) {
-			logwrap(fprintf(logfile, "DetourAttach: %d\n", err));
-		}
-	}
-	}
-}
-
-void printDetourTransactionCommitError(LONG err) {
-	if (err == ERROR_INVALID_DATA) {
-		logwrap(fputs("DetourTransactionCommit: ERROR_INVALID_DATA: Target function was changed by third party between steps of the transaction.\n", logfile));
-	} else if (err == ERROR_INVALID_OPERATION) {
-		logwrap(fputs("DetourTransactionCommit: ERROR_INVALID_OPERATION: No pending transaction exists..\n", logfile));
-	} else if (err != NO_ERROR) {
-		logwrap(fprintf(logfile, "DetourTransactionCommit: %d\n", err));
-	}
-}
-
 BOOL WINAPI DllMain(
 	_In_ HINSTANCE hinstDLL,
 	_In_ DWORD     fdwReason,
 	_In_ LPVOID    lpvReserved
 	)
 {
+	LONG detourResult;
 	#ifdef LOG_PATH
 	if (fdwReason == DLL_PROCESS_ATTACH) {
 		errno_t err;
@@ -1230,40 +1531,37 @@ BOOL WINAPI DllMain(
 	#endif
 
 	if (fdwReason == DLL_PROCESS_DETACH) {
-		logwrap(fputs("DLL_PROCESS_DETACH", logfile));
+		logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
+		detachFunctions("DllMain");
+
 		stencilSurface = NULL;
 		return TRUE;
 	}
 
-	game_data_ptr = *(char***)(sigscan(
+	thisProcessId = GetCurrentProcessId();
+	EnumWindows(EnumWindowsFindMyself, NULL);
+
+	uintptr_t sigscanResult;
+	sigscanResult = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x33\xC0\x38\x41\x44\x0F\x95\xC0\xC3\xCC",
-		"xxxxxxxxxx") - 0x4);
+		"xxxxxxxxxx");
+	if (!sigscanResult) {
+		logwrap(fputs("game_data_ptr not found\n", logfile));
+		return TRUE;
+	}
+	game_data_ptr = *(char***)(sigscanResult - 0x4);
 
-	/*game_ptr = *(char***)(sigscan(
-		"GuiltyGearXrd.exe",
-		"\x33\xFF\x3B\xDF\x74\x26",  // found
-		"xxxxxx") - 0xD);*/
-
-	/*is_active = (is_active_t)(sigscan(
-		"GuiltyGearXrd.exe",
-		"\xA8\x03\x75\x28\xF7\x86",
-		"xxxxxx") - 0x14);*/
-
-	/*is_active = (is_active_t)(sigscan(
-		"GuiltyGearXrd.exe",
-		"\x8B\x86\x00\x00\x00\x00\x83\xE0\x01\x74\x10\xF7\x86",  // not found
-		"xx????xxxxxxx") - 3);*/
-
-	asw_engine = *(char***)(sigscan(
+	sigscanResult = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x85\xC0\x78\x74\x83\xF8\x01",  // found
-		"xxxxxxx") - 4);
-
-	if ((int)asw_engine < 0) {
-		logwrap(fputs("asw_engine sigscan failed\n", logfile));
-		return FALSE;
+		"xxxxxxx");
+	if (!sigscanResult) {
+		logwrap(fputs("asw_engine not found\n", logfile));
+		return TRUE;
 	}
+	asw_engine = *(char***)(sigscanResult - 4);
+
 	logwrap(fprintf(logfile, "Found asw_engine at %p\n", asw_engine));
 
 	/*get_pushbox_x = (get_pushbox_t)(sigscan(
@@ -1286,26 +1584,28 @@ BOOL WINAPI DllMain(
 		"\x83\x7E\x0C\x00\x74\x10\xF7\x86", // not found
 		"xxxxxxxx") - 3);*/
 
-	get_pos_x = (get_pos_t)(sigscan(
+	sigscanResult = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x85\xC9\x75\x35\x8B\x8E", // found, but it's probably the old version or simplified version
-		"xxxxxx") - 9);             // there's a better function at image base + 0xB618C0
-
-	if ((int)get_pos_x < 0) {
-		logwrap(fputs("get_pos_x sigscan failed\n", logfile));
-		return FALSE;
+		"xxxxxx");
+	if (!sigscanResult) {
+		logwrap(fputs("get_pos_x not found\n", logfile));
+		return TRUE;
 	}
+	get_pos_x = (get_pos_t)(sigscanResult - 9);             // there's a better function at image base + 0xB618C0
+
 	logwrap(fprintf(logfile, "Found get_pos_x at %p\n", get_pos_x));
 
-	get_pos_y = (get_pos_t)(sigscan(
+	sigscanResult = sigscan(
 		"GuiltyGearXrd.exe",
 		"\x75\x0A\x6A\x08\xE8", // found
-		"xxxxx") - 0xB);  // is encountered twice in the same func, the first encounter is the right one and sigscan should return that
-
-	if ((int)get_pos_y < 0) {
-		logwrap(fputs("get_pos_y sigscan failed\n", logfile));
-		return FALSE;
+		"xxxxx");
+	if (!sigscanResult) {
+		logwrap(fputs("get_pos_y not found\n", logfile));
+		return TRUE;
 	}
+	get_pos_y = (get_pos_t)(sigscanResult - 0xB);  // is encountered twice in the same func, the first encounter is the right one and sigscan should return that
+
 	logwrap(fprintf(logfile, "Found get_pos_y at %p\n", get_pos_y));
 
 	/*const auto cast_ref = sigscan(
@@ -1315,64 +1615,91 @@ BOOL WINAPI DllMain(
 
 	cast_REDGameInfo_Battle = (cast_t)(cast_ref + *(intptr_t*)(cast_ref + 1) + 5);*/
 
-	const auto *dev_vtable = *(void***)(sigscan(
+	sigscanResult = sigscan(
 		"d3d9.dll",
 		"\xC7\x06\x00\x00\x00\x00\x89\x86\x00\x00\x00\x00\x89\x86",  // found
-		"xx????xx????xx") + 0x2);
+		"xx????xx????xx");
+	 if (!sigscanResult) {
+		 logwrap(fputs("dev_vtable not found\n", logfile));
+		 return TRUE;
+	 }
+	dev_vtable = *(char***)(sigscanResult + 0x2);
 
-	if ((int)dev_vtable == 0x2) {
-		logwrap(fputs("dev_vtable sigscan failed\n", logfile));
-		return FALSE;
-	}
 	logwrap(fprintf(logfile, "Found dev_vtable at %p\n", dev_vtable));
 
-	LONG detourResult;
-	logwrap(fputs("About to call DetourTransactionBegin\n", logfile));
+	sigscanResult = sigscan(
+		"GuiltyGearXrd.exe",
+		"\x85\xc0\x75\x0b\x68\x00\x00\x00\x01\xff\x15\x00\x00\x00\x01\x33\xc0\x68\x00\x00\x00\x01\xa3\x00\x00\x00\x01\xc7\x05\x00\x00\x00\x01\x00\x00\x00\x01\xa3\x00\x00\x00\x01\xff\x15\x00\x00\x00\x01\xc3",
+		"xxxxx???xxx???xxxx???xx???xxx???x???xx???xxx???xx");
+	if (!sigscanResult) {
+		logwrap(fputs("Training mode in-game menu not found\n", logfile));
+		// not a critical error
+	} else {
+		logwrap(fprintf(logfile, "Training mode in-game menu found at: %x\n", sigscanResult));
+		trainingModeMenuOpenRef = *(char**)(sigscanResult + 33) + 0x38;
+		logwrap(fprintf(logfile, "Training mode in-game is open value at: %p\n", trainingModeMenuOpenRef));
+	}
+
+	sigscanResult = sigscan(
+		"GuiltyGearXrd.exe",
+		"\xe8\x00\x00\x00\x00\x03\xf3\x83\xfe\x66\x7c\xe5\xa1\x00\x00\x00\x01\x39\x3d\x00\x00\x00\x01\x74\x0f\x29\x1d\x00\x00\x00\x01\x83\xf8\x05\x73\x13\x03\xc3\xeb\x0a\x3b\xc7\x0f\x84\x99\x00\x00\x00\x2b\xc3",
+		"x????xxxxxxxx???xxx???xxxxx???xxxxxxxxxxxxxxxxxxxx");
+	if (!sigscanResult) {
+		logwrap(fputs("Versus mode in-game menu not found\n", logfile));
+		// not a critical error
+	} else {
+		logwrap(fprintf(logfile, "Versus mode in-game menu found at: %x\n", sigscanResult));
+		versusModeMenuOpenRef = *(char**)(sigscanResult + 19);
+		logwrap(fprintf(logfile, "Versus mode in-game is open value at: %p\n", versusModeMenuOpenRef));
+	}
+
+	sigscanResult = sigscan(
+		"GuiltyGearXrd.exe",
+		"\xa1\x00\x00\x00\x00\xb9\x00\x00\x00\x00\x89\x47\x28\xe8\x00\x00\x00\x00\x8b\x0d\x00\x00\x00\x00\x8b\xb1\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x8b\x0d\x00\x00\x00\x01\x0f\x57\xc0\x8b\x1e\x33\xed\x55\x8d\x54\x24\x14",
+		"x????x????xxxx????xx????xx????x????xx????xxxxxxxxxxxx");
+	if (!sigscanResult) {
+		logwrap(fputs("Is IK cutscene playing variable not found\n", logfile));
+		// not a critical error
+	} else {
+		logwrap(fprintf(logfile, "Reference to Is IK cutscene playing found at: %x\n", sigscanResult));
+		isIKCutscenePlaying = *(char**)(sigscanResult + 1);
+		logwrap(fprintf(logfile, "Is IK cutscene playing variable at: %p\n", isIKCutscenePlaying));
+	}
+	
+
 	detourResult = DetourTransactionBegin();
-	logwrap(fputs("Called DetourTransactionBegin\n", logfile));
 	if (detourResult != NO_ERROR) {
 		printDetourTransactionBeginError(detourResult);
 		return TRUE;
 	}
 
-	logwrap(fputs("About to call DetourUpdateThread\n", logfile));
 	detourResult = DetourUpdateThread(GetCurrentThread());
-	logwrap(fputs("Called DetourUpdateThread\n", logfile));
 	if (detourResult != NO_ERROR) {
 		printDetourUpdateThreadError(detourResult);
 		return TRUE;
 	}
 
 	orig_EndScene = (EndScene_t)dev_vtable[42];
-	logwrap(fputs("About to call DetourAttach on EndScene\n", logfile));
 	detourResult = DetourAttach(
 		&(PVOID&)(orig_EndScene),
 		hook_EndScene);
-	logwrap(fputs("Called DetourAttach\n", logfile));
 	if (detourResult != NO_ERROR) {
 		printDetourAttachError(detourResult);
 		return TRUE;
 	}
 	logwrap(fputs("Successfully detoured EndScene\n", logfile));
+	thingsToUndetourAtTheEnd.push_back({ &(PVOID&)(orig_EndScene), hook_EndScene });
 
 	orig_Reset = (Reset_t)dev_vtable[16];
-	logwrap(fputs("About to call DetourAttach on Reset\n", logfile));
 	detourResult = DetourAttach(
 		&(PVOID&)(orig_Reset),
 		hook_Reset);
-	logwrap(fputs("Called DetourAttach\n", logfile));
 	if (detourResult != NO_ERROR) {
 		printDetourAttachError(detourResult);
 		return TRUE;
 	}
 	logwrap(fputs("Successfully detoured Reset\n", logfile));
-	
-	detourResult = DetourTransactionCommit();
-	if (detourResult != NO_ERROR) {
-		printDetourTransactionCommitError(detourResult);
-		return TRUE;
-	}
-	logwrap(fputs("Successfully committed detour transaction\n", logfile));
+	thingsToUndetourAtTheEnd.push_back({ &(PVOID&)(orig_Reset), hook_Reset });
 
 
 	/*const auto can_throw = sigscan(
@@ -1412,14 +1739,29 @@ BOOL WINAPI DllMain(
 		reinterpret_cast<void**>(update_hud),
 		reinterpret_cast<void*>(hook_update_hud)));*/
 
-	/*const auto hit_detection = sigscan(
+	sigscanResult = sigscan(
 		"GuiltyGearXrd.exe",
-		"\x83\xC5\x04\xF7\xD8\x1B\xC0",  // not found
-		"xxxxxxx") - 0x3B;*/
+		"\x74\x12\x85\xed\x75\x0e\x85\xdb\x74\x39\x85\xff\x74\x35\x8b\x74\x24\x14\xeb\x1d\x83\xfd\x01",  // refound
+		"xxxxxxx");
+	orig_hit_detection = (hit_detection_t)(sigscanResult - 0x3D);
 
-	/*orig_hit_detection = (hit_detection_t)(DetourAttach(
-		reinterpret_cast<void**>(hit_detection),
-		reinterpret_cast<void*>(hook_hit_detection)));*/
+	BOOL(HitDetectionHookHelp::*hook_hit_detection_ptr)(void*, int, int, int*, int*) = &HitDetectionHookHelp::hook_hit_detection;
+	detourResult = DetourAttach(
+		&(PVOID&)(orig_hit_detection),
+		*(PVOID*)&hook_hit_detection_ptr);
+	if (detourResult != NO_ERROR) {
+		printDetourAttachError(detourResult);
+		return TRUE;
+	}
+	logwrap(fputs("Successfully detoured hit_detection\n", logfile));
+	thingsToUndetourAtTheEnd.push_back({ &(PVOID&)(orig_hit_detection), *(PVOID*)&hook_hit_detection_ptr });
+
+	detourResult = DetourTransactionCommit();
+	if (detourResult != NO_ERROR) {
+		printDetourTransactionCommitError(detourResult);
+		return TRUE;
+	}
+	logwrap(fputs("Successfully committed detour transaction\n", logfile));
 
 	return TRUE;
 }

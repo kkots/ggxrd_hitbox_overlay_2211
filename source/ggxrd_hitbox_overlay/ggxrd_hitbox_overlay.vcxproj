@@ -158,6 +158,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="rect_combiner.h" />
+    <ClInclude Include="WinError.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ggxrd_hitbox_overlay.cpp" />
@@ -168,6 +169,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="rect_combiner.cpp" />
+    <ClCompile Include="WinError.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

@@ -687,13 +687,13 @@ BOOL WINAPI DllMain(
 
 	/*is_active = (is_active_t)(sigscan(
 		"GuiltyGearXrd.exe",
-		"\xA8\x03\x75\x28\xF7\x86",
+		"\xA8\x03\x75\x28\xF7\x86",  // found
 		"xxxxxx") - 0x14);*/
 		
 	// for Ghidra: 8B 86 ?? ?? ?? ?? 83 E0 01 74 10 F7 86
 	is_active = (is_active_t)(sigscan(
 		"GuiltyGearXrd.exe",
-		"\x8B\x86\x00\x00\x00\x00\x83\xE0\x01\x74\x10\xF7\x86",  // not found
+		"\x8B\x86\x00\x00\x00\x00\x83\xE0\x01\x74\x10\xF7\x86",  // found
 		"xx????xxxxxxx") - 3);
 
 	// for Ghidra: 85 C0 78 74 83 F8 01
