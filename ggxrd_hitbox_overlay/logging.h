@@ -1,5 +1,4 @@
 #pragma once
-#define LOG_PATH L"C:\\Users\\okkno\\Desktop\\injection_log.txt"
 
 // Logging class for the dll
 // Usage:
