@@ -66,20 +66,20 @@ bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 }
 
 void EndScene::endSceneHook(IDirect3DDevice9* device) {
-	log(fputs("endSceneHook called\n", logfile));
+	logOnce(fputs("endSceneHook called\n", logfile));
 	entityList.onEndSceneStart();
-	log(fputs("entityList.onEndSceneStart() called\n", logfile));
+	logOnce(fputs("entityList.onEndSceneStart() called\n", logfile));
 	invisChipp.onEndSceneStart();
-	log(fputs("invisChipp.onEndSceneStart() called\n", logfile));
+	logOnce(fputs("invisChipp.onEndSceneStart() called\n", logfile));
 	graphics.onEndSceneStart(device);
-	log(fputs("graphics.onEndSceneStart() called\n", logfile));
+	logOnce(fputs("graphics.onEndSceneStart() called\n", logfile));
 	drawOutlineCallParamsManager.onEndSceneStart();
-	log(fputs("drawOutlineCallParamsManager.onEndSceneStart() called\n", logfile));
+	logOnce(fputs("drawOutlineCallParamsManager.onEndSceneStart() called\n", logfile));
 	camera.onEndSceneStart();
-	log(fputs("camera.onEndSceneStart() called\n", logfile));
+	logOnce(fputs("camera.onEndSceneStart() called\n", logfile));
 	drawnEntities.clear();
 
-	log(fprintf(logfile, "entity count: %d\n", entityList.count));
+	logOnce(fprintf(logfile, "entity count: %d\n", entityList.count));
 
 	for (auto i = 0; i < entityList.count; i++)
 	{
@@ -87,30 +87,30 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		if (isEntityAlreadyDrawn(ent)) continue;
 
 		bool active = ent.isActive();
-		log(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
+		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
 
 		if (invisChipp.isCorrespondingChippInvis(ent)) continue;
-		log(fputs("invisChipp.isCorrespondingChippInvis(...) call successful\n", logfile));
+		logOnce(fputs("invisChipp.isCorrespondingChippInvis(...) call successful\n", logfile));
 		collectHitboxes(ent, active, &graphics.hurtboxes, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
-		log(fputs("collectHitboxes(...) call successful\n", logfile));
+		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
 		drawnEntities.push_back(ent);
-		log(fputs("drawnEntities.push_back(...) call successful\n", logfile));
+		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
 
 		// Attached entities like dusts
 		const auto attached = *(char**)(ent + 0x204);
 		if (attached != nullptr) {
-			log(fprintf(logfile, "Attached entity: %p\n", attached));
+			logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
 			collectHitboxes(attached, active, &graphics.hurtboxes, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
 			drawnEntities.push_back(attached);
 		}
 	}
 
-	log(fputs("got past the entity loop\n", logfile));
+	logOnce(fputs("got past the entity loop\n", logfile));
 	hitDetector.drawDetected();
-	log(fputs("hitDetector.drawDetected() call successful\n", logfile));
+	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
 
 	graphics.drawAll();
-	log(fputs("graphics.drawAll() call successful\n", logfile));
+	logOnce(fputs("graphics.drawAll() call successful\n", logfile));
 
 #ifdef LOG_PATH
 	didWriteOnce = true;

@@ -26,7 +26,7 @@ extern std::mutex logfileMutex;
 
 extern bool didWriteOnce;
 extern int msgLimit;
-#define log(things) { \
+#define logOnce(things) { \
 	std::unique_lock<std::mutex> logfileGuard(logfileMutex); \
 	if (msgLimit>=0 && !didWriteOnce) { \
 		errno_t err = _wfopen_s(&logfile, LOG_PATH, L"at+"); \
@@ -41,6 +41,6 @@ extern int msgLimit;
 void logColor(unsigned int d3dColor);
 #else
 #define logwrap(things)
-#define log(things)
+#define logOnce(things)
 #define logColor(things)
 #endif

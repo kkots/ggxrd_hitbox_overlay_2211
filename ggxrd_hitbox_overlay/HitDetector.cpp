@@ -33,8 +33,6 @@ void HitDetector::clearAllBoxes() {
 	hitboxesThatHit.clear();
 }
 
-bool loggedHitDetectionOnce = false;
-
 BOOL HitDetector::HookHelp::hitDetectionHook(void* defender, int attackerHitboxIndex, int defenderHitboxIndex, int* intersectionX, int* intersectionY) {
 	// this  ==  attacker
 	BOOL hitResult = hitDetector.orig_hitDetection(this, defender, attackerHitboxIndex, defenderHitboxIndex, intersectionX, intersectionY);

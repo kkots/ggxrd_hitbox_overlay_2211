@@ -14,31 +14,31 @@ void collectHitboxes(const Entity& ent,
 	DrawHitboxArrayParams params;
 	params.posX = ent.posX();
 	params.posY = ent.posY();
-	log(fprintf(logfile, "pox_x: %d\n", params.posX));
-	log(fprintf(logfile, "pox_y: %d\n", params.posY));
+	logOnce(fprintf(logfile, "pox_x: %d\n", params.posX));
+	logOnce(fprintf(logfile, "pox_y: %d\n", params.posY));
 	params.flip = ent.isFacingLeft() ? 1 : -1;
-	log(fprintf(logfile, "flip: %d\n", (int)params.flip));
+	logOnce(fprintf(logfile, "flip: %d\n", (int)params.flip));
 
 	const bool doingAThrow = ent.isDoingAThrow();
-	log(fprintf(logfile, "doingAThrow: %d\n", (int)doingAThrow));
+	logOnce(fprintf(logfile, "doingAThrow: %d\n", (int)doingAThrow));
 	const bool isGettingThrown = ent.isGettingThrown();
-	log(fprintf(logfile, "isGettingThrown: %d\n", (int)isGettingThrown));
+	logOnce(fprintf(logfile, "isGettingThrown: %d\n", (int)isGettingThrown));
 
 	const auto otg = false;//(*(int*)(asw_data + 0x2410) & 0x800000) != 0;  // not found yet
 	const auto invulnFrames = *(int*)(ent + 0x9A0);
-	log(fprintf(logfile, "invulnFrames: %x\n", invulnFrames));
+	logOnce(fprintf(logfile, "invulnFrames: %x\n", invulnFrames));
 	const auto invulnFlags = *(char*)(ent + 0x238);
-	log(fprintf(logfile, "invulnFlags: %x\n", invulnFlags));
+	logOnce(fprintf(logfile, "invulnFlags: %x\n", invulnFlags));
 	const auto strikeInvuln = invulnFrames > 0 || (invulnFlags & 16) || (invulnFlags & 64) || doingAThrow || isGettingThrown;
-	log(fprintf(logfile, "strikeInvuln: %u\n", (int)strikeInvuln));
+	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)strikeInvuln));
 	const auto throwInvuln = (invulnFlags & 32) || (invulnFlags & 64) || otg;
-	log(fprintf(logfile, "throwInvuln: %u\n", (int)throwInvuln));
+	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)throwInvuln));
 	bool isASummon = ent.characterType() == -1;
-	log(fprintf(logfile, "isASummon: %u\n", (int)isASummon));
+	logOnce(fprintf(logfile, "isASummon: %u\n", (int)isASummon));
 	const auto counterhit = (*(int*)(ent + 0x234) & 256) != 0  // Thanks to WorseThanYou for finding this
 		&& !strikeInvuln
 		&& !isASummon;
-	log(fprintf(logfile, "counterhit: %u\n", (int)counterhit));
+	logOnce(fprintf(logfile, "counterhit: %u\n", (int)counterhit));
 
 	// Color scheme:
 	// light blue - hurtbox on counterhit
@@ -48,23 +48,23 @@ void collectHitboxes(const Entity& ent,
 	// blue - throwbox
 
 	if (pushboxes && !isASummon) {
-		log(fputs("Need pushbox\n", logfile));
+		logOnce(fputs("Need pushbox\n", logfile));
 		// Draw pushbox and throw box
 		/*if (is_push_active(asw_data))
 		{*/
 		const auto pushboxTop = ent.pushboxTop();
-		log(fprintf(logfile, "pushboxTop: %d\n", pushboxTop));
+		logOnce(fprintf(logfile, "pushboxTop: %d\n", pushboxTop));
 		const auto pushboxBottom = ent.pushboxBottom();
-		log(fprintf(logfile, "pushboxBottom: %d\n", pushboxBottom));
+		logOnce(fprintf(logfile, "pushboxBottom: %d\n", pushboxBottom));
 
 		const auto pushboxWidth = ent.pushboxWidth();
-		log(fprintf(logfile, "pushboxWidth: %d\n", pushboxWidth));
+		logOnce(fprintf(logfile, "pushboxWidth: %d\n", pushboxWidth));
 		const auto pushboxBack = pushboxWidth / 2;
-		log(fprintf(logfile, "pushboxBack: %d\n", pushboxBack));
+		logOnce(fprintf(logfile, "pushboxBack: %d\n", pushboxBack));
 		const auto frontOffset = ent.pushboxFrontWidthOffset();
-		log(fprintf(logfile, "frontOffset: %d\n", frontOffset));
+		logOnce(fprintf(logfile, "frontOffset: %d\n", frontOffset));
 		const auto pushboxFront = pushboxWidth / 2 + frontOffset;
-		log(fprintf(logfile, "pushboxFront: %d\n", pushboxFront));
+		logOnce(fprintf(logfile, "pushboxFront: %d\n", pushboxFront));
 
 		DrawBoxCallParams pushboxParams;
 		pushboxParams.left = params.posX - pushboxBack * params.flip;
@@ -75,7 +75,7 @@ void collectHitboxes(const Entity& ent,
 		pushboxParams.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 0);
 		pushboxParams.thickness = pushboxThickness;
 		pushboxes->push_back(pushboxParams);
-		log(fputs("pushboxes->push_back(...) called\n", logfile));
+		logOnce(fputs("pushboxes->push_back(...) called\n", logfile));
 		//}
 	}
 
@@ -85,12 +85,12 @@ void collectHitboxes(const Entity& ent,
 	const int hurtboxCount = *(const int*)(ent + 0xA0);
 	const int hitboxCount = *(const int*)(ent + 0xA4);
 
-	log(fprintf(logfile, "hurtbox_count: %d; hitbox_count: %d\n", hurtboxCount, hitboxCount));
+	logOnce(fprintf(logfile, "hurtbox_count: %d; hitbox_count: %d\n", hurtboxCount, hitboxCount));
 
 	// Thanks to jedpossum on dustloop for these offsets
 	params.scaleX = *(int*)(ent + 0x264);
 	params.scaleY = *(int*)(ent + 0x268);
-	log(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(ent + 0x264), *(int*)(ent + 0x268)));
+	logOnce(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(ent + 0x264), *(int*)(ent + 0x268)));
 
 	DrawHitboxArrayCallParams callParams;
 
@@ -104,7 +104,7 @@ void collectHitboxes(const Entity& ent,
 	}
 
 	if (hitboxes && active && !doingAThrow) {
-		log(fprintf(logfile, "angle: %d\n", *(int*)(ent + 0x258)));
+		logOnce(fprintf(logfile, "angle: %d\n", *(int*)(ent + 0x258)));
 
 		callParams.hitboxData = hitboxData;
 		callParams.hitboxCount = hitboxCount;

@@ -81,7 +81,7 @@ void Graphics::drawBox(const DrawBoxCallParams& params, BoundingRect* const boun
 		}
 
 		D3DXVECTOR3 sp1, sp2, sp3, sp4;
-		log(fprintf(logfile, "Drawing box v1 { x: %f, z: %f }, v2 { x: %f, z: %f }, v3 { x: %f, z: %f }, v4 { x: %f, z: %f }\n",
+		logOnce(fprintf(logfile, "Drawing box v1 { x: %f, z: %f }, v2 { x: %f, z: %f }, v3 { x: %f, z: %f }, v4 { x: %f, z: %f }\n",
 			v1.x, v1.z, v2.x, v2.z, v3.x, v3.z, v4.x, v4.z));
 		worldToScreen(v1, &sp1);
 		worldToScreen(v2, &sp2);
@@ -100,10 +100,10 @@ void Graphics::drawBox(const DrawBoxCallParams& params, BoundingRect* const boun
 			boundingRect->addY(sp4.y);
 		}
 
-		log(fprintf(logfile,
+		logOnce(fprintf(logfile,
 			"Box. Red: %u; Green: %u; Blue: %u; Alpha: %u;\n",
 			(params.fillColor >> 16) & 0xff, (params.fillColor >> 8) & 0xff, params.fillColor & 0xff, (params.fillColor >> 24) & 0xff));
-		log(fprintf(logfile,
+		logOnce(fprintf(logfile,
 			"sp1 { x: %f; y: %f; }; sp2 { x: %f; y: %f; }; sp3 { x: %f; y: %f; }; sp4 { x: %f; y: %f; }\n",
 			sp1.x, sp1.y, sp2.x, sp2.y, sp3.x, sp3.y, sp4.x, sp4.y));
 
@@ -201,14 +201,14 @@ void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params) {
 	int hitboxOffsetX = 0;
 	int hitboxOffsetY = 0;
 	*/
-	log(fputs("drawHitboxArray called with parameters:\n", logfile));
-	log(fprintf(logfile, "hitboxData: %p\n", params.hitboxData));
-	log(fprintf(logfile, "hitboxCount: %d\n", params.hitboxCount));
-	log(fputs("fillColor: ", logfile));
+	logOnce(fputs("drawHitboxArray called with parameters:\n", logfile));
+	logOnce(fprintf(logfile, "hitboxData: %p\n", params.hitboxData));
+	logOnce(fprintf(logfile, "hitboxCount: %d\n", params.hitboxCount));
+	logOnce(fputs("fillColor: ", logfile));
 	logColor(params.fillColor);
-	log(fputs("\noutlineColor: ", logfile));
+	logOnce(fputs("\noutlineColor: ", logfile));
 	logColor(params.outlineColor);
-	log(fprintf(logfile, "\nposX: %d\nposY: %d\nflip: %hhd\nscaleX: %d\nscaleY: %d\nangle: %d\nhitboxOffsetX: %d\nhitboxOffsetY: %d\n",
+	logOnce(fprintf(logfile, "\nposX: %d\nposY: %d\nflip: %hhd\nscaleX: %d\nscaleY: %d\nangle: %d\nhitboxOffsetX: %d\nhitboxOffsetY: %d\n",
 		params.params.posX, params.params.posY, params.params.flip, params.params.scaleX, params.params.scaleY,
 		params.params.angle, params.params.hitboxOffsetX, params.params.hitboxOffsetY));
 	rectCombinerInputBoxes.reserve(params.hitboxCount);
@@ -234,7 +234,7 @@ void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params) {
 
 	const Hitbox* hitboxData = params.hitboxData;
 	for (int i = params.hitboxCount; i != 0; --i) {
-		log(fprintf(logfile, "drawing box %d\n", params.hitboxCount - i));
+		logOnce(fprintf(logfile, "drawing box %d\n", params.hitboxCount - i));
 
 		int offX = params.params.scaleX * ((int)hitboxData->offX + params.params.hitboxOffsetX / 1000 * params.params.flip);
 		int offY = params.params.scaleY * (-(int)hitboxData->offY + params.params.hitboxOffsetY / 1000);
@@ -288,7 +288,7 @@ Graphics::Vertex::Vertex(float x, float y, float z, float rhw, DWORD color)
 	: x(x), y(y), z(z), rhw(rhw), color(color) { }
 
 void Graphics::drawOutline(const DrawOutlineCallParams& params) {
-	log(fprintf(logfile, "Called drawOutlines with an outline with %d elements\n", params.count()));
+	logOnce(fprintf(logfile, "Called drawOutlines with an outline with %d elements\n", params.count()));
 	device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
@@ -305,7 +305,7 @@ void Graphics::drawOutline(const DrawOutlineCallParams& params) {
 			const PathElement& elem = params.getPathElem(outlineIndex);
 
 			worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv);
-			log(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
+			logOnce(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
 			vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, params.outlineColor);
 		}
 		vertexArena.push_back(vertexArena.front());
@@ -319,7 +319,7 @@ void Graphics::drawOutline(const DrawOutlineCallParams& params) {
 			const PathElement& elem = params.getPathElem(outlineIndex);
 
 			worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv);
-			log(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
+			logOnce(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
 			vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, params.outlineColor);
 			worldToScreen(D3DXVECTOR3{ (float)elem.x + params.thickness * elem.inX, 0.F, (float)elem.y + params.thickness * elem.inY }, &conv);
 			vertexArena.emplace_back(conv.x, conv.y, 0.F, 1.F, params.outlineColor);
@@ -341,7 +341,7 @@ void Graphics::worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
 void Graphics::drawPoint(const DrawPointCallParams& params)
 {
 	D3DXVECTOR3 p{ (float)params.posX, 0.F, (float)params.posY };
-	log(fprintf(logfile, "drawPoint called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
+	logOnce(fprintf(logfile, "drawPoint called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
 
 	D3DXVECTOR3 sp;
 	worldToScreen(p, &sp);

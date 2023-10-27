@@ -79,7 +79,9 @@ void Detouring::detachAll() {
 
 		if (detourResult != NO_ERROR) {
 			printDetourDetachError(detourResult);
-			if (thing.name) logwrap(fprintf(logfile, "Failed to undetour %s\n", thing.name));
+			if (thing.name) {
+				logwrap(fprintf(logfile, "Failed to undetour %s\n", thing.name));
+			}
 			allSuccess = false;
 			break;
 		}
@@ -119,7 +121,9 @@ bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, const char * name) {
 		printDetourAttachError(detourResult);
 		return false;
 	}
-	if (name) logwrap(fprintf(logfile, "Successfully detoured %s\n", name));
+	if (name) {
+		logwrap(fprintf(logfile, "Successfully detoured %s\n", name));
+	}
 	thingsToUndetourAtTheEnd.push_back({ ppPointer, pDetour, name });
 	return true;
 }

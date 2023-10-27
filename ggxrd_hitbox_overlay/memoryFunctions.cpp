@@ -86,10 +86,14 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, con
 	uintptr_t sigscanResult = sigscan(name, sig, mask);
 	if (!sigscanResult) {
 		if (error) *error = true;
-		if (logname) logwrap(fprintf(logfile, "Couldn't find %s\n", logname));
+		if (logname) {
+			logwrap(fprintf(logfile, "Couldn't find %s\n", logname));
+		}
 		return 0;
 	}
-	if (logname) logwrap(fprintf(logfile, "Found %s at %.8x\n", logname, sigscanResult));
+	if (logname) {
+		logwrap(fprintf(logfile, "Found %s at %.8x\n", logname, sigscanResult));
+	}
 	uintptr_t addr = sigscanResult;
 	bool isFirst = true;
 	for (auto it = offsets.cbegin(); it != offsets.cend(); ++it) {
@@ -100,7 +104,9 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, con
 		isFirst = false;
 	}
 	if (!offsets.empty()) {
-		if (logname) logwrap(fprintf(logfile, "Final location of %s at %.8x\n", logname, addr));
+		if (logname) {
+			logwrap(fprintf(logfile, "Final location of %s at %.8x\n", logname, addr));
+		}
 	}
 	return addr;
 }

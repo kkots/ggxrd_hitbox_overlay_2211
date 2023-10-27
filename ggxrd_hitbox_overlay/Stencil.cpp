@@ -15,31 +15,31 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 		D3DDISPLAYMODE d3dDisplayMode{ 0 };
 
 		if (FAILED(device->GetDirect3D(&d3d)) || !d3d) {
-			log(fputs("GetDirect3D failed\n", logfile));
+			logOnce(fputs("GetDirect3D failed\n", logfile));
 			direct3DError = true;
 			return;
 		}
 		else {
-			log(fputs("GetDirect3D succeeded\n", logfile));
+			logOnce(fputs("GetDirect3D succeeded\n", logfile));
 		}
 
 		SecureZeroMemory(&caps, sizeof(caps));
 		if (FAILED(device->GetDeviceCaps(&caps))) {
-			log(fputs("GetDeviceCaps failed\n", logfile));
+			logOnce(fputs("GetDeviceCaps failed\n", logfile));
 			direct3DError = true;
 			return;
 		}
 		else {
-			log(fputs("GetDeviceCaps succeeded\n", logfile));
+			logOnce(fputs("GetDeviceCaps succeeded\n", logfile));
 		}
 
 		if (FAILED(device->GetDisplayMode(0, &d3dDisplayMode))) {
-			log(fputs("GetDisplayMode failed\n", logfile));
+			logOnce(fputs("GetDisplayMode failed\n", logfile));
 			direct3DError = true;
 			return;
 		}
 		else {
-			log(fputs("GetDisplayMode succeeded\n", logfile));
+			logOnce(fputs("GetDisplayMode succeeded\n", logfile));
 		}
 
 		if (FAILED(d3d->CheckDeviceFormat(
@@ -49,12 +49,12 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 			D3DUSAGE_DEPTHSTENCIL,
 			D3DRTYPE_SURFACE,
 			D3DFMT_D24S8))) {
-			log(fputs("CheckDeviceFormat failed\n", logfile));
+			logOnce(fputs("CheckDeviceFormat failed\n", logfile));
 			direct3DError = true;
 			return;
 		}
 		else {
-			log(fputs("CheckDeviceFormat succeeded\n", logfile));
+			logOnce(fputs("CheckDeviceFormat succeeded\n", logfile));
 		}
 
 		D3DSURFACE_DESC renderTargetDesc;
@@ -67,30 +67,30 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 				break;
 			}
 			if (FAILED(getRenderTargetResult)) {
-				log(fputs("GetRenderTarget failed\n", logfile));
+				logOnce(fputs("GetRenderTarget failed\n", logfile));
 				direct3DError = true;
 				return;
 			}
 
 			if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
-				log(fputs("GetDesc failed\n", logfile));
+				logOnce(fputs("GetDesc failed\n", logfile));
 				direct3DError = true;
 				return;
 			}
 		}
-		log(fprintf(logfile, "GetRenderTargetResult returned %d targets\n", renderTargetIndex));
+		logOnce(fprintf(logfile, "GetRenderTargetResult returned %d targets\n", renderTargetIndex));
 
 		if (FAILED(d3d->CheckDepthStencilMatch(caps.AdapterOrdinal,
 			caps.DeviceType,
 			d3dDisplayMode.Format,
 			renderTargetDesc.Format,
 			D3DFMT_D24S8))) {
-			log(fputs("CheckDepthStencilMatch failed\n", logfile));
+			logOnce(fputs("CheckDepthStencilMatch failed\n", logfile));
 			direct3DError = true;
 			return;
 		}
 		else {
-			log(fputs("CheckDepthStencilMatch succeeded\n", logfile));
+			logOnce(fputs("CheckDepthStencilMatch succeeded\n", logfile));
 		}
 
 		if (FAILED(device->CreateDepthStencilSurface(
@@ -102,12 +102,12 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 			TRUE,
 			&surface,
 			NULL))) {
-			log(fputs("CreateDepthStencilSurface failed\n", logfile));
+			logOnce(fputs("CreateDepthStencilSurface failed\n", logfile));
 			direct3DError = true;
 			return;
 		}
 		else {
-			log(fputs("CreateDepthStencilSurface succeeded\n", logfile));
+			logOnce(fputs("CreateDepthStencilSurface succeeded\n", logfile));
 		}
 
 		direct3DSuccess = true;
@@ -115,12 +115,12 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 
 	if (!initialized) {
 		if (FAILED(device->SetDepthStencilSurface(surface))) {
-			log(fputs("SetDepthStencilSurface failed\n", logfile));
+			logOnce(fputs("SetDepthStencilSurface failed\n", logfile));
 			direct3DError = true;
 			return;
 		}
 		else {
-			log(fputs("SetDepthStencilSurface succeeded\n", logfile));
+			logOnce(fputs("SetDepthStencilSurface succeeded\n", logfile));
 		}
 		device->Clear(0, NULL, D3DCLEAR_STENCIL, D3DCOLOR{}, 1.f, 0);
 
@@ -132,11 +132,11 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 void Stencil::onEndSceneEnd(IDirect3DDevice9* device) {
 	if (initialized) {
 		if (FAILED(device->SetDepthStencilSurface(NULL))) {
-			log(fputs("SetDepthStencilSurface to NULL failed\n", logfile));
+			logOnce(fputs("SetDepthStencilSurface to NULL failed\n", logfile));
 			direct3DError = true;
 		}
 		else {
-			log(fputs("SetDepthStencilSurface to NULL succeeded\n", logfile));
+			logOnce(fputs("SetDepthStencilSurface to NULL succeeded\n", logfile));
 		}
 		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);
