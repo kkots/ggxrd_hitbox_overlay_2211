@@ -9,14 +9,18 @@ Game game;
 bool Game::onDllMain() {
 	bool error = false;
 
+	char aswEngineSig[] = "\x85\xC0\x78\x74\x83\xF8\x01";
 	aswEngine = (const char**)sigscanOffset("GuiltyGearXrd.exe",
-		"\x85\xC0\x78\x74\x83\xF8\x01",
+		aswEngineSig,
+		_countof(aswEngineSig),
 		{-4, 0},
 		&error, "aswEngine");
 
+	char gameDataPtrSig[] = "\x33\xC0\x38\x41\x44\x0F\x95\xC0\xC3\xCC";
 	gameDataPtr = (const char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x33\xC0\x38\x41\x44\x0F\x95\xC0\xC3\xCC",
+		gameDataPtrSig,
+		_countof(gameDataPtrSig),
 		{-4, 0},
 		NULL, "gameDataPtr");
 

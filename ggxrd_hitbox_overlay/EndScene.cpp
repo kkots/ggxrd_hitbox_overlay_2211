@@ -13,6 +13,8 @@
 #include "Camera.h"
 #include <algorithm>
 #include "collectHitboxes.h"
+#include "Throws.h"
+#include "colors.h"
 
 EndScene endScene;
 
@@ -67,8 +69,8 @@ bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 
 void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	logOnce(fputs("endSceneHook called\n", logfile));
-	entityList.onEndSceneStart();
-	logOnce(fputs("entityList.onEndSceneStart() called\n", logfile));
+	entityList.populate();
+	logOnce(fputs("entityList.populate() called\n", logfile));
 	invisChipp.onEndSceneStart();
 	logOnce(fputs("invisChipp.onEndSceneStart() called\n", logfile));
 	graphics.onEndSceneStart(device);
@@ -91,7 +93,18 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 
 		if (invisChipp.isCorrespondingChippInvis(ent)) continue;
 		logOnce(fputs("invisChipp.isCorrespondingChippInvis(...) call successful\n", logfile));
-		collectHitboxes(ent, active, &graphics.hurtboxes, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
+		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent);
+		DrawHitboxArrayCallParams hurtbox;
+		collectHitboxes(ent, active, &hurtbox, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
+		if (!wasHitResult.wasHit) {
+			graphics.hurtboxes.push_back({false, hurtbox});
+		} else {
+			if (wasHitResult.counterhit) {
+				hurtbox.fillColor = replaceAlpha(hurtbox.fillColor >> 24, COLOR_HURTBOX_COUNTERHIT);
+				hurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_COUNTERHIT);
+			}
+			graphics.hurtboxes.push_back({true, hurtbox, wasHitResult.hurtbox});
+		}
 		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
 		drawnEntities.push_back(ent);
 		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
@@ -100,14 +113,17 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		const auto attached = *(char**)(ent + 0x204);
 		if (attached != nullptr) {
 			logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
-			collectHitboxes(attached, active, &graphics.hurtboxes, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
+			collectHitboxes(attached, active, &hurtbox, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
+			graphics.hurtboxes.push_back({false, hurtbox});
 			drawnEntities.push_back(attached);
 		}
 	}
 
 	logOnce(fputs("got past the entity loop\n", logfile));
-	hitDetector.drawDetected();
+	hitDetector.drawHits();
 	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
+	throws.drawThrows();
+	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
 
 	graphics.drawAll();
 	logOnce(fputs("graphics.drawAll() call successful\n", logfile));

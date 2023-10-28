@@ -2,77 +2,53 @@
 #include "collectHitboxes.h"
 #include "logging.h"
 #include "pi.h"
+#include "EntityList.h"
+#include "Hitbox.h"
+#include "colors.h"
 
 const int pushboxThickness = 1;
+const int boxThickness = 3000;
+const int wayTooNumerousSummonsThickness = 1;
 
 void collectHitboxes(const Entity& ent,
 		const bool active,
-		std::vector<DrawHitboxArrayCallParams>* const hurtboxes,
+		DrawHitboxArrayCallParams* hurtbox,
 		std::vector<DrawHitboxArrayCallParams>* const hitboxes,
 		std::vector<DrawPointCallParams>* const points,
 		std::vector<DrawBoxCallParams>* const pushboxes) {
+
+	EntityState state;
+	ent.getState(&state);
+
 	DrawHitboxArrayParams params;
 	params.posX = ent.posX();
-	params.posY = ent.posY();
+	params.posY = state.posY;
 	logOnce(fprintf(logfile, "pox_x: %d\n", params.posX));
 	logOnce(fprintf(logfile, "pox_y: %d\n", params.posY));
 	params.flip = ent.isFacingLeft() ? 1 : -1;
 	logOnce(fprintf(logfile, "flip: %d\n", (int)params.flip));
-
-	const bool doingAThrow = ent.isDoingAThrow();
-	logOnce(fprintf(logfile, "doingAThrow: %d\n", (int)doingAThrow));
-	const bool isGettingThrown = ent.isGettingThrown();
-	logOnce(fprintf(logfile, "isGettingThrown: %d\n", (int)isGettingThrown));
-
-	const auto otg = false;//(*(int*)(asw_data + 0x2410) & 0x800000) != 0;  // not found yet
-	const auto invulnFrames = *(int*)(ent + 0x9A0);
-	logOnce(fprintf(logfile, "invulnFrames: %x\n", invulnFrames));
-	const auto invulnFlags = *(char*)(ent + 0x238);
-	logOnce(fprintf(logfile, "invulnFlags: %x\n", invulnFlags));
-	const auto strikeInvuln = invulnFrames > 0 || (invulnFlags & 16) || (invulnFlags & 64) || doingAThrow || isGettingThrown;
-	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)strikeInvuln));
-	const auto throwInvuln = (invulnFlags & 32) || (invulnFlags & 64) || otg;
-	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)throwInvuln));
-	bool isASummon = ent.characterType() == -1;
-	logOnce(fprintf(logfile, "isASummon: %u\n", (int)isASummon));
-	const auto counterhit = (*(int*)(ent + 0x234) & 256) != 0  // Thanks to WorseThanYou for finding this
-		&& !strikeInvuln
-		&& !isASummon;
-	logOnce(fprintf(logfile, "counterhit: %u\n", (int)counterhit));
 
 	// Color scheme:
 	// light blue - hurtbox on counterhit
 	// green - hurtbox on not counterhit
 	// red - hitbox
 	// yellow - pushbox
-	// blue - throwbox
+	// blue/purple - throwbox
 
-	if (pushboxes && !isASummon) {
+	if (pushboxes && !state.isASummon) {
 		logOnce(fputs("Need pushbox\n", logfile));
 		// Draw pushbox and throw box
 		/*if (is_push_active(asw_data))
 		{*/
 		const auto pushboxTop = ent.pushboxTop();
-		logOnce(fprintf(logfile, "pushboxTop: %d\n", pushboxTop));
 		const auto pushboxBottom = ent.pushboxBottom();
-		logOnce(fprintf(logfile, "pushboxBottom: %d\n", pushboxBottom));
-
-		const auto pushboxWidth = ent.pushboxWidth();
-		logOnce(fprintf(logfile, "pushboxWidth: %d\n", pushboxWidth));
-		const auto pushboxBack = pushboxWidth / 2;
-		logOnce(fprintf(logfile, "pushboxBack: %d\n", pushboxBack));
-		const auto frontOffset = ent.pushboxFrontWidthOffset();
-		logOnce(fprintf(logfile, "frontOffset: %d\n", frontOffset));
-		const auto pushboxFront = pushboxWidth / 2 + frontOffset;
-		logOnce(fprintf(logfile, "pushboxFront: %d\n", pushboxFront));
 
 		DrawBoxCallParams pushboxParams;
-		pushboxParams.left = params.posX - pushboxBack * params.flip;
-		pushboxParams.right = params.posX + pushboxFront * params.flip;
+		ent.pushboxLeftRight(&pushboxParams.left, &pushboxParams.right);
 		pushboxParams.top = params.posY + pushboxTop;
 		pushboxParams.bottom = params.posY - pushboxBottom;
-		pushboxParams.fillColor = D3DCOLOR_ARGB(throwInvuln ? 0 : 64, 255, 255, 0);
-		pushboxParams.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 0);
+		pushboxParams.fillColor = replaceAlpha(state.throwInvuln ? 0 : 64, COLOR_PUSHBOX);
+		pushboxParams.outlineColor = replaceAlpha(255, COLOR_PUSHBOX);
 		pushboxParams.thickness = pushboxThickness;
 		pushboxes->push_back(pushboxParams);
 		logOnce(fputs("pushboxes->push_back(...) called\n", logfile));
@@ -93,31 +69,53 @@ void collectHitboxes(const Entity& ent,
 	logOnce(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(ent + 0x264), *(int*)(ent + 0x268)));
 
 	DrawHitboxArrayCallParams callParams;
+	callParams.thickness = boxThickness;
 
-	if (hurtboxes) {
+	if (hurtbox) {
 		callParams.hitboxData = hurtboxData;
 		callParams.hitboxCount = hurtboxCount;
 		callParams.params = params;
-		callParams.fillColor = D3DCOLOR_ARGB(strikeInvuln ? 0 : 64, 0, 255, counterhit ? 255 : 0);
-		callParams.outlineColor = D3DCOLOR_ARGB(255, 0, 255, counterhit ? 255 : 0);
-		hurtboxes->push_back(callParams);
+		DWORD alpha = 64;
+		if (state.strikeInvuln) {
+			alpha = 0;
+		} else if (state.isASummon && state.ownerCharType == CHARACTER_TYPE_KY) {
+			alpha = 0;
+		} else if (state.isASummon && (state.ownerCharType == CHARACTER_TYPE_JACKO || state.ownerCharType == CHARACTER_TYPE_BEDMAN)) {
+			alpha = 32;
+			callParams.thickness = wayTooNumerousSummonsThickness;
+		}
+		if (state.counterhit) {
+			callParams.fillColor = replaceAlpha(alpha, COLOR_HURTBOX_COUNTERHIT);
+			callParams.outlineColor = replaceAlpha(255, COLOR_HURTBOX_COUNTERHIT);
+		} else {
+			callParams.fillColor = replaceAlpha(alpha, COLOR_HURTBOX);
+			callParams.outlineColor = replaceAlpha(255, COLOR_HURTBOX);
+		}
+		*hurtbox = callParams;
 	}
 
-	if (hitboxes && active && !doingAThrow) {
+	if (hitboxes && active && !state.doingAThrow) {
 		logOnce(fprintf(logfile, "angle: %d\n", *(int*)(ent + 0x258)));
-
+		
+		if (state.isASummon && state.ownerCharType == CHARACTER_TYPE_JACKO && hitboxCount == 1 && hitboxData->sizeX == 449.F && hitboxData->sizeY == 416.F) {
+			callParams.thickness = 1;
+			callParams.fillColor = replaceAlpha(16, COLOR_HITBOX);
+		} else {
+			callParams.thickness = boxThickness;
+			callParams.fillColor = replaceAlpha(64, COLOR_HITBOX);
+		}
+		callParams.outlineColor = replaceAlpha(255, COLOR_HITBOX);
+		
 		callParams.hitboxData = hitboxData;
 		callParams.hitboxCount = hitboxCount;
 		callParams.params = params;
 		callParams.params.angle = *(int*)(ent + 0x258);
 		callParams.params.hitboxOffsetX = *(int*)(ent + 0x27C);
 		callParams.params.hitboxOffsetY = *(int*)(ent + 0x280);
-		callParams.fillColor = D3DCOLOR_ARGB(64, 255, 0, 0);
-		callParams.outlineColor = D3DCOLOR_ARGB(255, 255, 0, 0);
 		hitboxes->push_back(callParams);
 	}
 
-	if (points) {
+	if (points && !state.isASummon) {
 		DrawPointCallParams pointCallParams;
 		pointCallParams.posX = params.posX;
 		pointCallParams.posY = params.posY;

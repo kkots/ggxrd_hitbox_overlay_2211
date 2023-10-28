@@ -9,6 +9,7 @@
 #include "Stencil.h"
 #include "rectCombiner.h"
 #include "BoundingRect.h"
+#include "ComplicatedHurtbox.h"
 
 using Reset_t = HRESULT(__stdcall*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS* pPresentationParameters);
 
@@ -23,10 +24,11 @@ public:
 	void drawAll();
 	void resetHook();
 	Reset_t orig_Reset;
-	std::vector<DrawHitboxArrayCallParams> hurtboxes;
+	std::vector<ComplicatedHurtbox> hurtboxes;
 	std::vector<DrawHitboxArrayCallParams> hitboxes;
 	std::vector<DrawBoxCallParams> pushboxes;
 	std::vector<DrawPointCallParams> points;
+	std::vector<DrawBoxCallParams> throwBoxes;
 private:
 	struct Vertex {
 		float x, y, z, rhw;
@@ -41,7 +43,7 @@ private:
 	std::vector<std::vector<RectCombiner::PathElement>> rectCombinerOutlines;
 
 	void drawBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect = nullptr, bool useStencil = false);
-	void drawHitboxArray(const DrawHitboxArrayCallParams& params);
+	void drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect = nullptr, bool clearStencil = true);
 	void drawOutline(const DrawOutlineCallParams& params);
 	void drawPoint(const DrawPointCallParams& params);
 	void worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out);

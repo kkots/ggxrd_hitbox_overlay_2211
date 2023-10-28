@@ -103,6 +103,7 @@ bool Detouring::beginTransaction() {
 		printDetourTransactionBeginError(detourResult);
 		return false;
 	}
+	beganTransaction = true;
 
 	detourResult = DetourUpdateThread(GetCurrentThread());
 	if (detourResult != NO_ERROR) {
@@ -113,6 +114,7 @@ bool Detouring::beginTransaction() {
 }
 
 bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, const char * name) {
+	if (*ppPointer == NULL) return false;
 	DWORD detourResult = DetourAttach(
 		ppPointer,
 		pDetour);
@@ -135,5 +137,12 @@ bool Detouring::endTransaction() {
 		return false;
 	}
 	logwrap(fputs("Successfully committed detour/undetour transaction\n", logfile));
+	beganTransaction = false;
 	return true;
+}
+
+bool Detouring::cancelTransaction() {
+	if (!beganTransaction) return true;
+	DetourTransactionAbort();
+	beganTransaction = false;
 }

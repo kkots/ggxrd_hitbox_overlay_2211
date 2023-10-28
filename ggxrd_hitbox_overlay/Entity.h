@@ -4,6 +4,22 @@
 using getPos_t = int(__thiscall*)(const void*);
 using getPushbox_t = int(__thiscall*)(const void*);
 
+struct EntityState {
+	bool strikeInvuln;
+	bool throwInvuln;
+	bool isASummon;
+	CharacterType charType;
+	CharacterType ownerCharType;
+	char team;
+	bool counterhit;
+	bool doingAThrow;
+	bool isGettingThrown;
+	unsigned int flagsField;
+	bool inHitstunBlockstun;
+	bool prejumpFrames;
+	int posY;
+};
+
 class Entity
 {
 public:
@@ -23,14 +39,18 @@ public:
 
 	bool isFacingLeft() const;
 
-	bool isDoingAThrow() const;
-
 	bool isGettingThrown() const;
 
 	int pushboxWidth() const;
 	int pushboxTop() const;
 	int pushboxFrontWidthOffset() const;
 	int pushboxBottom() const;
+
+	void pushboxLeftRight(int* left, int* right) const;
+
+	int currentAnimDuration() const; // how many frames current animation has been playing for. Can go very very high
+
+	void getState(EntityState*) const;
 
 	char* operator+(int offset) const;
 

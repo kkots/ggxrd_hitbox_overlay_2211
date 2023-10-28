@@ -39,9 +39,13 @@ bool InvisChipp::isP2InvisChipp() const {
 }
 
 bool InvisChipp::isCorrespondingChippInvis(const Entity& ent) const {
-	if (ent.team() == 0) {
-		return p1IsInvisChipp;
+	return isTeamsInvisChipp(ent.team());
+}
+
+bool InvisChipp::isTeamsInvisChipp(char team) const {
+	if (team == 0) {
+		return isP1InvisChipp();
 	} else {
-		return p2IsInvisChipp;
+		return isP2InvisChipp();
 	}
 }

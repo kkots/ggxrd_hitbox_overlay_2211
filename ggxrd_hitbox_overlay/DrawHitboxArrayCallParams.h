@@ -10,6 +10,7 @@ struct DrawHitboxArrayCallParams {
 	DrawHitboxArrayParams params{ 0 };
 	D3DCOLOR fillColor{ 0 };
 	D3DCOLOR outlineColor{ 0 };
+	int thickness = 1;
 	bool operator==(const DrawHitboxArrayCallParams& other) const;
 	bool operator!=(const DrawHitboxArrayCallParams& other) const;
 };

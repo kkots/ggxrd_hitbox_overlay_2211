@@ -99,6 +99,18 @@
     <ClInclude Include="BoundingRect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Throws.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ThrowInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ComplicatedHurtbox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="colors.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -163,6 +175,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Hitbox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Throws.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

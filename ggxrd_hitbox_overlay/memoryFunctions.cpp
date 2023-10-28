@@ -17,6 +17,33 @@ bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
 	return true;
 }
 
+uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
+{
+	uintptr_t start, end;
+	if (!getModuleBounds(name, &start, &end)) {
+		logwrap(fputs("Module not loaded\n", logfile));
+		return 0;
+	}
+
+	const auto lastScan = end - sigLength + 1;
+	for (auto addr = start; addr < lastScan; addr++) {
+		const char* addrPtr = (const char*)addr;
+		size_t i = sigLength - 1;
+		const char* sigPtr = sig;
+		for (; i != 0; --i) {
+			if (*sigPtr != *addrPtr)
+				break;
+
+			++sigPtr;
+			++addrPtr;
+		}
+		if (i == 0) return addr;
+	}
+
+	logwrap(fputs("Sigscan failed\n", logfile));
+	return 0;
+}
+
 uintptr_t sigscan(const char* name, const char* sig, const char* mask)
 {
 	uintptr_t start, end;
@@ -25,25 +52,13 @@ uintptr_t sigscan(const char* name, const char* sig, const char* mask)
 		return 0;
 	}
 
-	if (mask) {
-		const auto lastScan = end - strlen(mask) + 1;
-		for (auto addr = start; addr < lastScan; addr++) {
-			for (size_t i = 0;; i++) {
-				if (mask[i] == '\0')
-					return addr;
-				if (mask[i] != '?' && sig[i] != *(char*)(addr + i))
-					break;
-			}
-		}
-	} else {
-		const auto lastScan = end - strlen(sig) + 1;
-		for (auto addr = start; addr < lastScan; addr++) {
-			for (size_t i = 0;; i++) {
-				if (sig[i] == '\0')
-					return addr;
-				if (sig[i] != *(char*)(addr + i))
-					break;
-			}
+	const auto lastScan = end - strlen(mask) + 1;
+	for (auto addr = start; addr < lastScan; addr++) {
+		for (size_t i = 0;; i++) {
+			if (mask[i] == '\0')
+				return addr;
+			if (mask[i] != '?' && sig[i] != *(char*)(addr + i))
+				break;
 		}
 	}
 
@@ -51,16 +66,20 @@ uintptr_t sigscan(const char* name, const char* sig, const char* mask)
 	return 0;
 }
 
-uintptr_t sigscanOffset(const char* name, const char* sig, bool* error, const char* logname) {
-	return sigscanOffset(name, sig, nullptr, {}, error, logname);
+uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname) {
+	return sigscanOffset(name, sig, sigLength, nullptr, {}, error, logname);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, bool* error, const char* logname) {
-	return sigscanOffset(name, sig, mask, {}, error, logname);
+	return sigscanOffset(name, sig, 0, mask, {}, error, logname);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffset(name, sig, nullptr, offsets, error, logname);
+uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname) {
+	return sigscanOffset(name, sig, sigLength, nullptr, offsets, error, logname);
+}
+
+uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
+	return sigscanOffset(name, sig, 0, mask, offsets, error, logname);
 }
 
 // Offsets work the following way:
@@ -82,8 +101,13 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const std::vector<int
 //    4.c) Interpret this new position as the start of a 4-byte address which gets read, producing a new address.
 //    4.d) The result is another address. Add the second offset to this address.
 //    4.e) Repeat 4.c) and 4.d) for as many offsets as there are left. Return result on the last 4.d).
-uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
-	uintptr_t sigscanResult = sigscan(name, sig, mask);
+uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
+	uintptr_t sigscanResult;
+	if (mask) {
+		sigscanResult = sigscan(name, sig, mask);
+	} else {
+		sigscanResult = sigscan(name, sig, sigLength);
+	}
 	if (!sigscanResult) {
 		if (error) *error = true;
 		if (logname) {

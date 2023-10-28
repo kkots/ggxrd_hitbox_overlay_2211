@@ -48,8 +48,6 @@ Dependencies are better described in each project's README.md. Short version is,
 
 ## Missing features list
 
-- OTG detection. It's supposed to count as throw invulnerability;
-- Throw hitboxes/some throw invulnerability checks. For example, when backdashing you don't show as throw invulnerable;
 - GIF mode and "no gravity" mode;
 
 ## Changelog
@@ -76,21 +74,16 @@ Dependencies are better described in each project's README.md. Short version is,
                    Added pushboxes.  
                    Fixed an issue when all boxes were always drawn twice per frame, making them more opaque. Now they should be more transparent.  
                    Moved the binaries into Github's Releases section of this project.
+- 2023 October 28: Added gray boxes which are the previous arrangement of the hurtbox that was before the moment it got hit by an attack.
+                   Added missing throw invulnerability checks.
+                   Added throw boxes.
+                   Made Ky's grinders display as strike invulnerable.
+                   Made Jack-O's and Bedman's summons display extra transparent.
+                   Made counterhit display for longer on the one who got hit.
+                   Fixed an error when after some computer restarts signatures wouldn't be found anymore.
 
 ## TODO
 
-- Display throw invulnerability when backdashing.
-- Throw boxes
-- Missing OTG flag
-- Show counterhit for longer after a hit connects in counterhit state
-- When a hitbox connects, the one who got hit changes their hurtbox very fast and we can't see what exactly caused the hit.  
-  Make it so that the previous hitbox still displays with the same stencil buffer and its outlines are drawn fully together with the current
-  box's outlines. All outlines without stencil. Use gray color and gray outline for the old box, always filled (ignoring if the
-  player was strike invul at the moment of getting hit). The gray box must be drawn behind the green/blue box with stencil.
-- Show Ky Grinders and similar summons, if any such exist in the game, as invulnerable, if they have a hurtbox but can't actually be hit by the other player.  
-  Jack-O houses and minions, Bedman's deja'vus (i.e. all summons that can be a lot of and that can be hit) extra transparent and thinner outlines.  
-  Summons like Dizzy's fish, Elphelt's pineberry, Eddie that cannot be a lot of and can be hit - show normally.
-- Show Jack-O Aegis Field as extra transparent.
 - Don't display invulnerability if it's from a Dust homing dash cinematic or overdrive super freeze (if overdrive doesn't actually give any invulnerability).
 - Find is_push_active function.
 - Not show boxes on Episode and single player MOM mode victory/defeat screen

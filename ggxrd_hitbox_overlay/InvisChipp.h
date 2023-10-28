@@ -6,6 +6,7 @@ public:
 	void onEndSceneStart();
 	bool isP1InvisChipp() const;
 	bool isP2InvisChipp() const;
+	bool isTeamsInvisChipp(char team) const;
 	bool isCorrespondingChippInvis(const Entity& ent) const;
 private:
 	bool p1IsInvisChipp = false;

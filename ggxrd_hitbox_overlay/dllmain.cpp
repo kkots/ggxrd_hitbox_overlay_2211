@@ -9,6 +9,7 @@
 #include "HitDetector.h"
 #include "Entity.h"
 #include "AltModes.h"
+#include "Throws.h"
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -37,6 +38,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!hitDetector.onDllMain()) break;
         if (!graphics.onDllMain()) break;
         if (!altModes.onDllMain()) break;
+        if (!throws.onDllMain()) break;
         if (!detouring.endTransaction()) break;
         break;
     case DLL_THREAD_ATTACH:
@@ -49,5 +51,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         graphics.onDllDetach();
         break;
     }
+    detouring.cancelTransaction();
     return TRUE;
 }

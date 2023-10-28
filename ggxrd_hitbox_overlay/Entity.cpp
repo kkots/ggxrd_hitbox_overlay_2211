@@ -2,28 +2,33 @@
 #include "Entity.h"
 #include "memoryFunctions.h"
 #include "logging.h"
+#include "EntityList.h"
 
 EntityManager entityManager;
 
 bool EntityManager::onDllMain() {
 	bool error = false;
 
+	char getPosXSig[] = "\x85\xC9\x75\x35\x8B\x8E";
 	getPosX = (getPos_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x85\xC9\x75\x35\x8B\x8E",
+		getPosXSig,
+		_countof(getPosXSig),
 		{-9},
 		&error, "getPosX");
 
+	char getPosYSig[] = "\x75\x0A\x6A\x08\xE8";
 	getPosY = (getPos_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x75\x0A\x6A\x08\xE8",
+		getPosYSig,
+		_countof(getPosYSig),
 		{ -0xB },
 		&error, "getPosY");
 
 	uintptr_t pushboxTopBottom = sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\x0f\x57\xc0\xf3\x0f\x2a\xc0\xf3\x0f\x59\x05\x00\x00\x00\x01\xf3\x0f\x5c\xc8\xf3\x0f\x59\x4c\x24\x0c\xf3\x0f\x2c\xc1\x0f\x57\xc0\xf3\x0f\x2a\xc0\x8b\xce\xf3\x0f\x11\x44\x24\x10\xe8\x00\x00\x00\x00\x8b\xce\x8b\xf8\xe8\x00\x00\x00\x00\x8b\x0d\x00\x00\x00\x01",
-		"xxxxxxxxxxx???xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx???xxxxxx???xxx???x",
+		"xxxxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxxx????xx????",
 		&error, "pushboxTopBottom");
 
 	if (pushboxTopBottom) {
@@ -79,12 +84,43 @@ bool Entity::isFacingLeft() const {
 	return *(int*)(ent + 0x248) == 1;
 }
 
-bool Entity::isDoingAThrow() const {
-	const unsigned int flagsField = *(unsigned int*)(ent + 0x23C);
+void Entity::getState(EntityState* state) const {
+	state->flagsField = *(unsigned int*)(ent + 0x23C);
 	const unsigned int throwFlagsField = *(unsigned int*)(ent + 0x9A4);
-	return (flagsField & 0x1000) != 0
-		|| (flagsField & 0x800) != 0 && (flagsField & 0x4000) != 0
+	state->doingAThrow = (state->flagsField & 0x800) != 0 && (state->flagsField & 0x4000) != 0
 		|| (throwFlagsField & 0x036F3E43) == 0x036F3E43;  // To find this field you could just compare to 0x036F3E43 exactly
+
+	logOnce(fprintf(logfile, "doingAThrow: %d\n", (int)state->doingAThrow));
+	state->isGettingThrown = isGettingThrown();
+	logOnce(fprintf(logfile, "isGettingThrown: %d\n", (int)state->isGettingThrown));
+
+	state->inHitstunBlockstun = *(unsigned int*)(ent + 0x9fE4) > 0;  // this is > 0 in hitstun, blockstun,
+	// including 6f after hitstun, 5f after blockstun and 9f after wakeup
+
+	state->posY = posY();
+	state->prejumpFrames = *(unsigned int*)(ent + 0x234) != 0 && state->posY == 0;
+
+	const auto otg = (*(unsigned int*)(ent + 0x4D24) & 0x800000) != 0;
+	const auto invulnFrames = *(int*)(ent + 0x9A0);
+	logOnce(fprintf(logfile, "invulnFrames: %x\n", invulnFrames));
+	const auto invulnFlags = *(char*)(ent + 0x238);
+	logOnce(fprintf(logfile, "invulnFlags: %x\n", invulnFlags));
+	state->strikeInvuln = invulnFrames > 0 || (invulnFlags & 16) || (invulnFlags & 64) || state->doingAThrow || state->isGettingThrown;
+	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)state->strikeInvuln));
+	state->throwInvuln = (invulnFlags & 32) || (invulnFlags & 64) || otg || state->inHitstunBlockstun || state->prejumpFrames;
+	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
+	state->charType = characterType();
+	state->isASummon = state->charType == -1;
+	state->ownerCharType = (CharacterType)(-1);
+	state->team = team();
+	if (state->isASummon && entityList.count >= 2) {
+		state->ownerCharType = Entity{ entityList.slots[state->team] }.characterType();
+	}
+	logOnce(fprintf(logfile, "isASummon: %u\n", (int)state->isASummon));
+	state->counterhit = (*(int*)(ent + 0x234) & 256) != 0  // Thanks to WorseThanYou for finding this
+		&& !state->strikeInvuln
+		&& !state->isASummon;
+	logOnce(fprintf(logfile, "counterhit: %u\n", (int)state->counterhit));
 }
 
 bool Entity::isGettingThrown() const {
@@ -111,6 +147,26 @@ int Entity::pushboxFrontWidthOffset() const {
 // Usually returns 0 when pawn is on the ground
 int Entity::pushboxBottom() const {
 	return entityManager.getPushboxBottom(ent);
+}
+
+void Entity::pushboxLeftRight(int* left, int* right) const {
+	int flip = isFacingLeft() ? -1 : 1;
+	int width = pushboxWidth() / 2;
+	int frontOffset = pushboxFrontWidthOffset();
+	int posX = this->posX();
+	int back = posX - width * flip;
+	int front = posX + (width + frontOffset) * flip;
+	if (back < front) {
+		*left = back;
+		*right = front;
+	} else {
+		*left = front;
+		*right = back;
+	}
+}
+
+int Entity::currentAnimDuration() const {
+	return *(const int*)(ent + 0x130);
 }
 
 char* Entity::operator+(int offset) const {

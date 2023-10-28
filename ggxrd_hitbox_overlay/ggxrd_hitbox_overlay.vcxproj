@@ -153,6 +153,8 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="characterTypes.h" />
     <ClInclude Include="collectHitboxes.h" />
+    <ClInclude Include="colors.h" />
+    <ClInclude Include="ComplicatedHurtbox.h" />
     <ClInclude Include="Detouring.h" />
     <ClInclude Include="Direct3DVTable.h" />
     <ClInclude Include="DrawBoxCallParams.h" />
@@ -176,6 +178,8 @@
     <ClInclude Include="logging.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="memoryFunctions.h" />
+    <ClInclude Include="ThrowInfo.h" />
+    <ClInclude Include="Throws.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AltModes.cpp" />
@@ -205,6 +209,7 @@
     <ClCompile Include="memoryFunctions.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Stencil.cpp" />
+    <ClCompile Include="Throws.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

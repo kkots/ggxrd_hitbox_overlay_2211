@@ -3,10 +3,11 @@
 class EntityList
 {
 public:
-	void onEndSceneStart();
+	void populate();
 	int count = 0;
 	const char** list = nullptr;
 	const char** slots = nullptr;
+	unsigned int getCurrentTime() const;
 };
 
 extern EntityList entityList;

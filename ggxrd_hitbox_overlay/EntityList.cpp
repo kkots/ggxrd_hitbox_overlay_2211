@@ -5,7 +5,7 @@
 
 EntityList entityList;
 
-void EntityList::onEndSceneStart() {
+void EntityList::populate() {
 
 	logOnce(fputs("Trying to get entity count\n", logfile));
 	count = *(const int*)(*aswEngine + 0xB4);
@@ -14,4 +14,10 @@ void EntityList::onEndSceneStart() {
 	logOnce(fputs("Trying to get entity slots\n", logfile));
 	slots = (const char**)(*aswEngine + 0xC8);
 
+}
+
+unsigned int EntityList::getCurrentTime() const {
+	if (slots) {
+		return *(const unsigned int*)(slots[0] + 0x18);
+	}
 }

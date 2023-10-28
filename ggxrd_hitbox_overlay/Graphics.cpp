@@ -10,8 +10,6 @@
 
 Graphics graphics;
 
-const int hitboxThickness = 3000;
-
 HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters) {
 	graphics.resetHook();
 	return graphics.orig_Reset(device, pPresentationParameters);
@@ -41,6 +39,7 @@ void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
 	hurtboxes.clear();
 	hitboxes.clear();
 	outlines.clear();
+	throwBoxes.clear();
 	points.clear();
 	pushboxes.clear();
 	stencil.onEndSceneStart();
@@ -148,8 +147,14 @@ void Graphics::drawBox(const DrawBoxCallParams& params, BoundingRect* const boun
 
 void Graphics::drawAll() {
 
-	for (const DrawHitboxArrayCallParams& params : hurtboxes) {
-		drawHitboxArray(params);
+	for (const ComplicatedHurtbox& params : hurtboxes) {
+		if (params.hasTwo) {
+			BoundingRect boundingRect;
+			drawHitboxArray(params.param1, &boundingRect, false);
+			drawHitboxArray(params.param2, &boundingRect, true);
+		} else {
+			drawHitboxArray(params.param1);
+		}
 	}
 	for (auto it = hitboxes.cbegin(); it != hitboxes.cend(); ++it) {
 		const DrawHitboxArrayCallParams& params = *it;
@@ -165,6 +170,9 @@ void Graphics::drawAll() {
 		if (!found) drawHitboxArray(params);
 	}
 	for (const DrawBoxCallParams& params : pushboxes) {
+		drawBox(params);
+	}
+	for (const DrawBoxCallParams& params : throwBoxes) {
 		drawBox(params);
 	}
 	for (const DrawOutlineCallParams& params : outlines) {
@@ -183,7 +191,7 @@ void Graphics::drawAll() {
 
 }
 
-void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params) {
+void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect, bool clearStencil) {
 	if (!params.hitboxCount) return;
 	/*	const Hitbox* hitboxData = nullptr;
 	int hitboxCount = 0;
@@ -212,7 +220,10 @@ void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params) {
 		params.params.posX, params.params.posY, params.params.flip, params.params.scaleX, params.params.scaleY,
 		params.params.angle, params.params.hitboxOffsetX, params.params.hitboxOffsetY));
 	rectCombinerInputBoxes.reserve(params.hitboxCount);
-	BoundingRect boundingRect;
+	BoundingRect localBoundingRect;
+	if (!boundingRect) {
+		boundingRect = &localBoundingRect;
+	}
 
 	float angleRads;
 	int cos;
@@ -264,11 +275,13 @@ void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params) {
 		drawBoxCall.top = offY;
 		drawBoxCall.bottom = offY + sizeY;
 
-		drawBox(drawBoxCall, &boundingRect, true);
+		drawBox(drawBoxCall, boundingRect, true);
 
 		++hitboxData;
 	}
-	stencil.clearRegion(device, boundingRect);
+	if (clearStencil) {
+		stencil.clearRegion(device, *boundingRect);
+	}
 
 	RectCombiner::getOutlines(rectCombinerInputBoxes, rectCombinerOutlines);
 	rectCombinerInputBoxes.clear();
@@ -276,7 +289,7 @@ void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params) {
 		outlines.emplace_back();
 		DrawOutlineCallParams& drawOutlineCallParams = outlines.back();
 		drawOutlineCallParams.outlineColor = params.outlineColor;
-		drawOutlineCallParams.thickness = hitboxThickness;
+		drawOutlineCallParams.thickness = params.thickness;
 		drawOutlineCallParams.reserveSize(outline.size());
 		for (const RectCombiner::PathElement& path : outline) {
 			drawOutlineCallParams.addPathElem(path.x, path.y, path.xDir(), path.yDir());

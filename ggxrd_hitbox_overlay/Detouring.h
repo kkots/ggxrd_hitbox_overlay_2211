@@ -7,6 +7,7 @@ public:
 	bool beginTransaction();
 	bool attach(PVOID* ppPointer, PVOID pDetour, const char* name = nullptr);
 	bool endTransaction();
+	bool cancelTransaction();
 	void onDllDetach();
 private:
 	struct ThingToBeUndetouredAtTheEnd {
@@ -21,6 +22,7 @@ private:
 	void printDetourDetachError(LONG err);
 	void printDetourTransactionCommitError(LONG err);
 	void detachAll();
+	bool beganTransaction = false;
 };
 
 extern Detouring detouring;
