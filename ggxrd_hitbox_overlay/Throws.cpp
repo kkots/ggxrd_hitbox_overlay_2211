@@ -11,9 +11,6 @@
 
 Throws throws;
 
-const int throwThickness = 3000;
-const int throwDisplayDuration = 5;
-
 bool Throws::onDllMain() {
 	bool error = false;
 
@@ -71,7 +68,7 @@ void Throws::hitDetectionMainHook() {
 		const int throwMaxY = *(const int*)(ent + 0x488);
 		const int throwMinY = *(const int*)(ent + 0x490);
 
-		const int currentAnimDuration = ent.currentAnimDuration();
+		const unsigned int currentAnimDuration = ent.currentAnimDuration();
 		CharacterType charType = ent.characterType();
 		CharacterType ownerType = (CharacterType)(-1);
 		if (charType == -1) {
@@ -83,10 +80,9 @@ void Throws::hitDetectionMainHook() {
 			|| (attackActive == 2 || attackActive == 3)  // 2 is a command throw, 3 is Jack-O super throw
 			&& isActive
 			&& !(currentAnimDuration > 25 && charType == CHARACTER_TYPE_AXL) // the 25 check is needed to stop Axl from showing a throwbox all throughout his Yes move
-			&& ((*(const unsigned int*)(ent + 0x4D28) & 0x40) != 0
-			|| (*(const unsigned int*)(ent + 0x460) & 4) != 0)
-			|| ownerType == CHARACTER_TYPE_AXL);  // 0x460 & 4 means the move will be "unmissable".
-			                                                      // 0x4D28 & 0x40 means the move requires no hitbox vs hurtbox detection
+			&& ((*(const unsigned int*)(ent + 0x4D28) & 0x40) != 0  // 0x4D28 & 0x40 means the move requires no hitbox vs hurtbox detection
+			|| (*(const unsigned int*)(ent + 0x460) & 4) != 0)  // 0x460 & 4 means the move will be "unmissable".
+			|| ownerType == CHARACTER_TYPE_AXL);
 
 		if (charType == CHARACTER_TYPE_FAUST
 				&& strcmp(ent + 0x2444, "Mettagiri") == 0
@@ -103,7 +99,7 @@ void Throws::hitDetectionMainHook() {
 			ThrowInfo throwInfo;
 			throwInfo.active = true;
 			throwInfo.owner = ent;
-			throwInfo.framesLeft = throwDisplayDuration;
+			throwInfo.framesLeft = DISPLAY_DURATION_THROW;
 			throwInfo.leftUnlimited = true;
 			throwInfo.rightUnlimited = true;
 
@@ -177,7 +173,7 @@ void Throws::drawThrows() {
 	while (it != infos.end()) {
 		ThrowInfo& throwInfo = *it;
 
-		if (invisChipp.isCorrespondingChippInvis(throwInfo.owner)) {
+		if (invisChipp.needToHide(throwInfo.owner)) {
 			it = infos.erase(it);
 			continue;
 		}
@@ -195,7 +191,7 @@ void Throws::drawThrows() {
 		DrawBoxCallParams params;
 		params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW);
 		params.outlineColor = replaceAlpha(255, COLOR_THROW);
-		params.thickness = throwThickness;
+		params.thickness = THICKNESS_THROW;
 
 		if (throwInfo.leftUnlimited) params.left = -10000000;
 		else params.left = throwInfo.left;

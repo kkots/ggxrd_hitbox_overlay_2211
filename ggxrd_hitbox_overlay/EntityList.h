@@ -7,7 +7,11 @@ public:
 	int count = 0;
 	const char** list = nullptr;
 	const char** slots = nullptr;
-	unsigned int getCurrentTime() const;
+	unsigned int getCurrentTime();
+	bool areAnimationsNormal() const;
+	bool isAnimationNormal(const char* animationName) const;
+private:
+	unsigned int previousTime = 0;
 };
 
 extern EntityList entityList;

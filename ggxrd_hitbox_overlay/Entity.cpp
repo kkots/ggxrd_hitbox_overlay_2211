@@ -6,6 +6,8 @@
 
 EntityManager entityManager;
 
+Entity::Entity() { }
+
 bool EntityManager::onDllMain() {
 	bool error = false;
 
@@ -165,7 +167,7 @@ void Entity::pushboxLeftRight(int* left, int* right) const {
 	}
 }
 
-int Entity::currentAnimDuration() const {
+unsigned int Entity::currentAnimDuration() const {
 	return *(const int*)(ent + 0x130);
 }
 
@@ -175,4 +177,8 @@ char* Entity::operator+(int offset) const {
 
 bool Entity::operator==(const Entity& other) const {
 	return ent == other.ent;
+}
+
+Entity::operator bool() const {
+	return ent != nullptr;
 }

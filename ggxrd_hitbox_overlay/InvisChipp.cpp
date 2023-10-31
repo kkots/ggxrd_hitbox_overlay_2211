@@ -38,14 +38,30 @@ bool InvisChipp::isP2InvisChipp() const {
 	return p2IsInvisChipp;
 }
 
-bool InvisChipp::isCorrespondingChippInvis(const Entity& ent) const {
-	return isTeamsInvisChipp(ent.team());
+bool InvisChipp::needToHide(const Entity& ent) const {
+	return needToHide(ent.team());
 }
 
-bool InvisChipp::isTeamsInvisChipp(char team) const {
+bool loggedPlayerSideOnce = false;
+
+bool InvisChipp::needToHide(char team) const {
+	char playerSide = game.getPlayerSide();
+	if (!loggedPlayerSideOnce) {
+		loggedPlayerSideOnce = true;
+		logwrap(fprintf(logfile, "You're on player %hhd side\n", playerSide));
+	}
+	if (playerSide == 2) return false;
 	if (team == 0) {
-		return isP1InvisChipp();
+		if (playerSide == 1) {
+			return isP1InvisChipp();
+		} else {
+			return false;
+		}
 	} else {
-		return isP2InvisChipp();
+		if (playerSide == 0) {
+			return isP2InvisChipp();
+		} else {
+			return false;
+		}
 	}
 }

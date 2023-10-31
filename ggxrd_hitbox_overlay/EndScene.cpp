@@ -23,7 +23,11 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 		bool needToClearHitDetection = false;
 		if (*aswEngine == nullptr) {
 			needToClearHitDetection = true;
-		} else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
+		} else if (!altModes.isGameInNormalMode(&needToClearHitDetection)) {
+			needToClearHitDetection = true;
+		} else if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
+			needToClearHitDetection = true;
+		} else {
 			endScene.endSceneHook(device);
 		}
 		if (needToClearHitDetection) {
@@ -71,6 +75,10 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	logOnce(fputs("endSceneHook called\n", logfile));
 	entityList.populate();
 	logOnce(fputs("entityList.populate() called\n", logfile));
+	if (!entityList.areAnimationsNormal()) {
+		hitDetector.clearAllBoxes();
+		return;
+	}
 	invisChipp.onEndSceneStart();
 	logOnce(fputs("invisChipp.onEndSceneStart() called\n", logfile));
 	graphics.onEndSceneStart(device);
@@ -91,18 +99,13 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		bool active = ent.isActive();
 		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
 
-		if (invisChipp.isCorrespondingChippInvis(ent)) continue;
-		logOnce(fputs("invisChipp.isCorrespondingChippInvis(...) call successful\n", logfile));
-		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent);
+		if (invisChipp.needToHide(ent)) continue;
 		DrawHitboxArrayCallParams hurtbox;
 		collectHitboxes(ent, active, &hurtbox, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
+		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
 		if (!wasHitResult.wasHit) {
 			graphics.hurtboxes.push_back({false, hurtbox});
 		} else {
-			if (wasHitResult.counterhit) {
-				hurtbox.fillColor = replaceAlpha(hurtbox.fillColor >> 24, COLOR_HURTBOX_COUNTERHIT);
-				hurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_COUNTERHIT);
-			}
 			graphics.hurtboxes.push_back({true, hurtbox, wasHitResult.hurtbox});
 		}
 		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));

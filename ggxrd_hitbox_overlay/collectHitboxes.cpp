@@ -6,10 +6,6 @@
 #include "Hitbox.h"
 #include "colors.h"
 
-const int pushboxThickness = 1;
-const int boxThickness = 3000;
-const int wayTooNumerousSummonsThickness = 1;
-
 void collectHitboxes(const Entity& ent,
 		const bool active,
 		DrawHitboxArrayCallParams* hurtbox,
@@ -49,7 +45,7 @@ void collectHitboxes(const Entity& ent,
 		pushboxParams.bottom = params.posY - pushboxBottom;
 		pushboxParams.fillColor = replaceAlpha(state.throwInvuln ? 0 : 64, COLOR_PUSHBOX);
 		pushboxParams.outlineColor = replaceAlpha(255, COLOR_PUSHBOX);
-		pushboxParams.thickness = pushboxThickness;
+		pushboxParams.thickness = THICKNESS_PUSHBOX;
 		pushboxes->push_back(pushboxParams);
 		logOnce(fputs("pushboxes->push_back(...) called\n", logfile));
 		//}
@@ -69,9 +65,9 @@ void collectHitboxes(const Entity& ent,
 	logOnce(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(ent + 0x264), *(int*)(ent + 0x268)));
 
 	DrawHitboxArrayCallParams callParams;
-	callParams.thickness = boxThickness;
 
 	if (hurtbox) {
+		callParams.thickness = THICKNESS_HURTBOX;
 		callParams.hitboxData = hurtboxData;
 		callParams.hitboxCount = hurtboxCount;
 		callParams.params = params;
@@ -80,11 +76,13 @@ void collectHitboxes(const Entity& ent,
 			alpha = 0;
 		} else if (state.isASummon && state.ownerCharType == CHARACTER_TYPE_KY) {
 			alpha = 0;
-		} else if (state.isASummon && (state.ownerCharType == CHARACTER_TYPE_JACKO || state.ownerCharType == CHARACTER_TYPE_BEDMAN)) {
+		} else if (THICKNESS_WAY_TOO_NUMEROUS_SUMMONS
+				&& state.isASummon && (state.ownerCharType == CHARACTER_TYPE_JACKO || state.ownerCharType == CHARACTER_TYPE_BEDMAN)) {
 			alpha = 32;
-			callParams.thickness = wayTooNumerousSummonsThickness;
+			callParams.thickness = THICKNESS_WAY_TOO_NUMEROUS_SUMMONS;
 		}
 		if (state.counterhit) {
+			callParams.thickness = THICKNESS_HURTBOX_COUNTERHIT;
 			callParams.fillColor = replaceAlpha(alpha, COLOR_HURTBOX_COUNTERHIT);
 			callParams.outlineColor = replaceAlpha(255, COLOR_HURTBOX_COUNTERHIT);
 		} else {
@@ -97,11 +95,13 @@ void collectHitboxes(const Entity& ent,
 	if (hitboxes && active && !state.doingAThrow) {
 		logOnce(fprintf(logfile, "angle: %d\n", *(int*)(ent + 0x258)));
 		
+		callParams.thickness = THICKNESS_HITBOX;
+		
 		if (state.isASummon && state.ownerCharType == CHARACTER_TYPE_JACKO && hitboxCount == 1 && hitboxData->sizeX == 449.F && hitboxData->sizeY == 416.F) {
 			callParams.thickness = 1;
 			callParams.fillColor = replaceAlpha(16, COLOR_HITBOX);
 		} else {
-			callParams.thickness = boxThickness;
+			callParams.thickness = THICKNESS_HITBOX;
 			callParams.fillColor = replaceAlpha(64, COLOR_HITBOX);
 		}
 		callParams.outlineColor = replaceAlpha(255, COLOR_HITBOX);

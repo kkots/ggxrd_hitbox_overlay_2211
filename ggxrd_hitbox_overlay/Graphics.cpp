@@ -149,9 +149,11 @@ void Graphics::drawAll() {
 
 	for (const ComplicatedHurtbox& params : hurtboxes) {
 		if (params.hasTwo) {
+			std::vector<DrawOutlineCallParams> nonOldOutlines;
 			BoundingRect boundingRect;
-			drawHitboxArray(params.param1, &boundingRect, false);
+			drawHitboxArray(params.param1, &boundingRect, false, &nonOldOutlines);
 			drawHitboxArray(params.param2, &boundingRect, true);
+			outlines.insert(outlines.end(), nonOldOutlines.begin(), nonOldOutlines.end());
 		} else {
 			drawHitboxArray(params.param1);
 		}
@@ -191,7 +193,8 @@ void Graphics::drawAll() {
 
 }
 
-void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect, bool clearStencil) {
+void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect, bool clearStencil,
+								std::vector<DrawOutlineCallParams>* outlinesOverride) {
 	if (!params.hitboxCount) return;
 	/*	const Hitbox* hitboxData = nullptr;
 	int hitboxCount = 0;
@@ -286,8 +289,9 @@ void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params, Bounding
 	RectCombiner::getOutlines(rectCombinerInputBoxes, rectCombinerOutlines);
 	rectCombinerInputBoxes.clear();
 	for (const std::vector<RectCombiner::PathElement>& outline : rectCombinerOutlines) {
-		outlines.emplace_back();
-		DrawOutlineCallParams& drawOutlineCallParams = outlines.back();
+		std::vector<DrawOutlineCallParams>* outlinesDest = outlinesOverride ? outlinesOverride : &outlines;
+		outlinesDest->emplace_back();
+		DrawOutlineCallParams& drawOutlineCallParams = outlinesDest->back();
 		drawOutlineCallParams.outlineColor = params.outlineColor;
 		drawOutlineCallParams.thickness = params.thickness;
 		drawOutlineCallParams.reserveSize(outline.size());

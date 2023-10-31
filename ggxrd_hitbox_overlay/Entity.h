@@ -23,6 +23,7 @@ struct EntityState {
 class Entity
 {
 public:
+	Entity();
 	Entity(const char* ent);
 	const char* ent = nullptr;
 
@@ -48,13 +49,15 @@ public:
 
 	void pushboxLeftRight(int* left, int* right) const;
 
-	int currentAnimDuration() const; // how many frames current animation has been playing for. Can go very very high
+	unsigned int currentAnimDuration() const; // how many frames current animation has been playing for. Can go very very high
 
 	void getState(EntityState*) const;
 
 	char* operator+(int offset) const;
 
 	bool operator==(const Entity& other) const;
+
+	operator bool() const;
 
 };
 

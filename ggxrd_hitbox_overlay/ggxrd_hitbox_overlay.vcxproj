@@ -167,6 +167,7 @@
     <ClInclude Include="EntityList.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="gameModes.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="BoundingRect.h" />
     <ClInclude Include="Hitbox.h" />

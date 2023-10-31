@@ -13,6 +13,8 @@ bool AltModes::onDllMain() {
 		{1, 0},
 		NULL, "isIKCutscenePlaying");
 
+	if (isIKCutscenePlaying) roundendCameraFlybyTypeRef = isIKCutscenePlaying - 16;
+
 	trainingModeMenuOpenRef = (char*)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\x85\xc0\x75\x0b\x68\x00\x00\x00\x01\xff\x15\x00\x00\x00\x01\x33\xc0\x68\x00\x00\x00\x01\xa3\x00\x00\x00\x01\xc7\x05\x00\x00\x00\x01\x00\x00\x00\x01\xa3\x00\x00\x00\x01\xff\x15\x00\x00\x00\x01\xc3",
@@ -40,4 +42,9 @@ bool AltModes::isGameInNormalMode(bool* needToClearHitDetection) {
 		return false;
 	}
 	return true;
+}
+
+char AltModes::roundendCameraFlybyType() const {
+	if (roundendCameraFlybyTypeRef) return *roundendCameraFlybyTypeRef;
+	return 8;
 }

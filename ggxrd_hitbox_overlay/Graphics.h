@@ -43,7 +43,8 @@ private:
 	std::vector<std::vector<RectCombiner::PathElement>> rectCombinerOutlines;
 
 	void drawBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect = nullptr, bool useStencil = false);
-	void drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect = nullptr, bool clearStencil = true);
+	void drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect = nullptr, bool clearStencil = true,
+		std::vector<DrawOutlineCallParams>* outlinesOverride = nullptr);
 	void drawOutline(const DrawOutlineCallParams& params);
 	void drawPoint(const DrawPointCallParams& params);
 	void worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out);

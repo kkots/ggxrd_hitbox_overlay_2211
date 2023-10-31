@@ -3,7 +3,7 @@
 #include <vector>
 #include "Entity.h"
 
-using hitDetection_t = BOOL(__thiscall*)(void*, void*, int, int, int*, int*);
+using determineHitType_t = int(__thiscall*)(void*, void*, BOOL, unsigned int*, unsigned int*);
 
 class HitDetector
 {
@@ -12,32 +12,46 @@ public:
 	struct WasHitInfo {
 		bool wasHit = false;
 		DrawHitboxArrayCallParams hurtbox;
-		bool counterhit = false;
 	};
 
 	bool onDllMain();
 	void clearAllBoxes();
 	void drawHits();
-	WasHitInfo wasThisHitPreviously(Entity ent) const;
-	hitDetection_t orig_hitDetection;
+	WasHitInfo wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox);
+	determineHitType_t orig_determineHitType;
 private:
 	
 	struct DetectedHitboxes {
-		Entity entity;
-		int team;
+		Entity entity{nullptr};
+		int team = 0;
 		DrawHitboxArrayCallParams hitboxes;
-		int counter;
-		bool counterhit;
+		int activeTime = 0;  // this is needed for Chipp's Gamma Blade, it stops being active on the frame after it hits
+		int counter = 0;
+		unsigned int previousTime = 0;
+		bool timeHasChanged(bool globalTimeHasChanged);
 	};
 
 	class HookHelp {
 	private:
 		friend class HitDetector;
-		BOOL hitDetectionHook(void* defender, int attackerHitboxIndex, int defenderHitboxIndex, int* intersectionX, int* intersectionY);
+		int determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr);
+	};
+
+	struct Rejection {
+		Entity owner{nullptr};
+		int left = 0;
+		int top = 0;
+		int right = 0;
+		int bottom = 0;
+		int counter = 0;
+		int skipFrame = 0;
+		int activeFrame = 0;
+		bool firstFrame = false;
 	};
 
 	std::vector<DetectedHitboxes> hitboxesThatHit;
 	std::vector<DetectedHitboxes> hurtboxesThatGotHit;
+	std::vector<Rejection> rejections;
 
 	unsigned int previousTime = 0;
 };

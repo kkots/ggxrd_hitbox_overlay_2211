@@ -8,9 +8,8 @@ bool DrawHitboxArrayCallParams::operator==(const DrawHitboxArrayCallParams& othe
 		&& params.scaleX == other.params.scaleX
 		&& params.scaleY == other.params.scaleY
 		&& params.angle == other.params.angle
-		&& params.posX == other.params.posX
-		&& params.posY == other.params.posY
-		&& fillColor == other.fillColor)) return false;
+		&& (params.posX - other.params.posX < 1000 && params.posX - other.params.posX > -1000)
+		&& (params.posY - other.params.posY < 1000 && params.posY - other.params.posY > -1000))) return false;
 	
 	const Hitbox* hitboxPtr = hitboxData;
 	const Hitbox* hitboxOtherPtr = other.hitboxData;

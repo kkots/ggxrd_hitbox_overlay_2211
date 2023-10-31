@@ -58,7 +58,7 @@ Dependencies are better described in each project's README.md. Short version is,
                    Restricted the hitbox drawing to only non-online matches until I figure out a way to tell if Chipp is doing the invisibility thing in an online match, in which case his boxes should not display.
 - 2023 October 21: Now boxes won't be drawn for Chipp & his projectiles in online mode if he's invisible. The mod in all other cases will display boxes in online mode.  
                    Thanks to WorseThanYou's help, added counterhit state to hurtboxes. Your hurtbox will be blue if, should you get hit, you will be in a counter hit state.  
-                   Boxes now don't show if a menu is open or an Instant Kill cutscene is currently playing.
+                   Boxes now don't show if a menu is open or an Instant Kill cutscene is currently playing.  
                    Now hitboxes show only during active frames, i.e. there's no longer a problem of them showing during recovery. Hitboxes never show as transparent, only filled in.  
                    Hitboxes keep showing even after an attack connects, as long as the attack's active frames are going on.  
                    Millia's Tandem Top and Sol's Gunflame now show hitbox for a brief period after hitting a target so you could actually see the hitbox on hit.  
@@ -74,13 +74,19 @@ Dependencies are better described in each project's README.md. Short version is,
                    Added pushboxes.  
                    Fixed an issue when all boxes were always drawn twice per frame, making them more opaque. Now they should be more transparent.  
                    Moved the binaries into Github's Releases section of this project.
-- 2023 October 28: Added gray boxes which are the previous arrangement of the hurtbox that was before the moment it got hit by an attack.
-                   Added missing throw invulnerability checks.
-                   Added throw boxes.
-                   Made Ky's grinders display as strike invulnerable.
-                   Made Jack-O's and Bedman's summons display extra transparent.
-                   Made counterhit display for longer on the one who got hit.
-                   Fixed an error when after some computer restarts signatures wouldn't be found anymore.
+- 2023 October 28: Added gray boxes which are the previous arrangement of the hurtbox that was before the moment it got hit by an attack.  
+                   Added missing throw invulnerability checks.  
+                   Added throw boxes.  
+                   Made Ky's grinders display as strike invulnerable.  
+                   Made Jack-O's and Bedman's summons display extra transparent.  
+                   Made counterhit display for longer on the one who got hit.  
+                   Fixed an error when after some computer restarts signatures wouldn't be found anymore.  
+- 2023 October 31: Added rejection boxes that only show up when rejecting projectiles, as normal hits get rejected no matter the distance.  
+                   Removed counterhit prolonged display, meaning it no longer still displays you as being in counterhit state after you get hit. This is because counterhit state display is for when you haven't got hit yet, but would enter counterhit state should you get hit.  
+                   Removed hitbox showing from episode mode interludes, intro cinematics, before the match starts and on victory/defeat screen. Hitboxes still show during roundend screenfreeze.  
+                   Fixed Chipp invisibility in online mode so that only the opponent's invisible Chipp doesn't display boxes. Previously you couldn't see even your own Chipp's boxes if you went invisible. Thanks to WorseThanYou for finding the value to tell which side you're on in online mode.  
+                   Fixed an issue when gray boxes (from before the hit) were showing even if you were strike invulnerable at the moment of the hit, meaning you didn't actually get hit. Also fixed gray boxes so that their outlines now show behind the real hurtbox's outlines.  
+                   Fixed prolonged hitbox display for Chipp's Gamma Blade, so now the hitbox doesn't immediately disappear as soon as Gamma Blade hits.
 
 ## TODO
 
@@ -113,6 +119,10 @@ Each player has a pushbox. When two pushboxes collide, the players get pushed ap
 
 Each player and entity has an origin point which is shown as a black-white cross on the ground between their feet. When players jump, the origin point tracks their location. Origin points play a key role in throw hit detection.
 
+### Blue - Rejection boxes
+
+When a Blitz Shield meets a projectile it displays a square blue box around the rejecting player, and if the opponent's origin point is within that box the opponent enters rejected state. The box does not show when rejecting normal, melee attacks because those cause rejection no matter the distance. Pushboxes and their sizes do not affect the distance check in any way, i.e. only the X and Y distances between the players' origin points are checked.
+
 ### Blue - Throw boxes
 
 When a player does a throw he displays a throw box in blue color. Throw boxes are usually only active for one frame (that's when they display semi-transparent). This period is so brief throw boxes have to show for a few extra frames, but during those frames they're no longer active and so they display fully transparent (outline only).  
@@ -120,4 +130,6 @@ In this adaptation of Altimor's original mod, throw boxes must include the oppon
 It's in the rules of the game that ground throws may only connect with non-airborne opponents and air throws may only connect with airborne opponents. Opponents who are in prejump state cannot be ground thrown.  
 Most normal ground throws and ground command throws for this reason do not limit their throw boxes vertically: the throw box shows as a pillar reaching vertically over the entire screen's height. This doesn't mean they capture anything above or below the thrower, though, and the rules mentioned above are still being obeyed.  
 Some throws check for vertical position of the opponent's origin point and so display their throw box limited in size vertically.  
-When visually checking to see if a throw box would connect with an opponent you should, in this mod, ignore the pushboxes altogether and focus only on the throw box catching the origin point.
+When visually checking to see if a throw box would connect with an opponent you should, in this mod, ignore the pushboxes altogether and focus only on the throw box catching the origin point.  
+Note that normal ground throw actually simply checks if distance between the pushboxes is below the attacker's throw range (values listed on Dustloop), however some throws like command throws or air throws also check if the origin point specifically is within x or y range. Hence this is why I decided to just always show the check on the origin point only.  
+If a command throw has a throw box as well as hitbox, such as Raven's command throw, - for such moves I haven't fully studied the conditions under which they connect - but it's likely that both the throw box and the hitbox must connect.
