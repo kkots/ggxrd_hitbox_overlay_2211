@@ -2,13 +2,13 @@
 
 ## Description
 
-Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 27'th October 2023).
+Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 31'th October 2023).
 
 ## Credits
 
 Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/forums/topic/12495-xrd-pc-hitbox-overlay-mod/>  
 Created in 2016.  
-This version is adapted for Guilty Gear Xrd Rev2 version 2211 with half the features removed as of yet (still trying to find where everything is).
+This version is adapted for Guilty Gear Xrd Rev2 version 2211 with only the "GIF mode" and "No gravity" features removed (probably not going to do those).
 
 Many thanks to WorseThanYou, without whose help this wouldn't have been possible.
 
