@@ -100,7 +100,7 @@ void Entity::getState(EntityState* state) const {
 	// including 6f after hitstun, 5f after blockstun and 9f after wakeup
 
 	state->posY = posY();
-	state->prejumpFrames = *(unsigned int*)(ent + 0x234) != 0 && state->posY == 0;
+	state->prejumpFrames = false; ///*  *(unsigned int*)(ent + 0x234) != 0 && */ state->posY == 0;
 
 	const auto otg = (*(unsigned int*)(ent + 0x4D24) & 0x800000) != 0;
 	const auto invulnFrames = *(int*)(ent + 0x9A0);
