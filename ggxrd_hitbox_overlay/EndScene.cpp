@@ -23,12 +23,12 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 		bool needToClearHitDetection = false;
 		if (*aswEngine == nullptr) {
 			needToClearHitDetection = true;
-		} else if (!altModes.isGameInNormalMode(&needToClearHitDetection)) {
-			needToClearHitDetection = true;
-		} else if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
-			needToClearHitDetection = true;
-		} else {
-			endScene.endSceneHook(device);
+		} else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
+			if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
+				needToClearHitDetection = true;
+			} else {
+				endScene.endSceneHook(device);
+			}
 		}
 		if (needToClearHitDetection) {
 			hitDetector.clearAllBoxes();
@@ -77,6 +77,9 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	logOnce(fputs("entityList.populate() called\n", logfile));
 	if (!entityList.areAnimationsNormal()) {
 		hitDetector.clearAllBoxes();
+		#ifdef LOG_PATH
+		didWriteOnce = true;
+		#endif
 		return;
 	}
 	invisChipp.onEndSceneStart();

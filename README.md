@@ -24,7 +24,8 @@ Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windo
 
 3. Start a match. Hitboxes should display.
 
-To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.
+To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again. There is a small chance the game might crash when unloading the DLL.  
+If trying to use the mod with a game version that it doesn't fit, the game may crash. The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
 
 The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo to see no one else but me modified this. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
 
@@ -86,14 +87,14 @@ Dependencies are better described in each project's README.md. Short version is,
                    Removed hitbox showing from episode mode interludes, intro cinematics, before the match starts and on victory/defeat screen. Hitboxes still show during roundend screenfreeze.  
                    Fixed Chipp invisibility in online mode so that only the opponent's invisible Chipp doesn't display boxes. Previously you couldn't see even your own Chipp's boxes if you went invisible. Thanks to WorseThanYou for finding the value to tell which side you're on in online mode.  
                    Fixed an issue when gray boxes (from before the hit) were showing even if you were strike invulnerable at the moment of the hit, meaning you didn't actually get hit. Also fixed gray boxes so that their outlines now show behind the real hurtbox's outlines.  
-                   Fixed prolonged hitbox display for Chipp's Gamma Blade, so now the hitbox doesn't immediately disappear as soon as Gamma Blade hits.
+                   Fixed prolonged hitbox display for Chipp's Gamma Blade, so now the hitbox doesn't immediately disappear as soon as Gamma Blade hits.  
+                   Fixed gray boxes still showing after IK cutscene.  
+                   Fixed pause menu falsely being reported as open after some computer and game restarts.
 
 ## TODO
 
 - Don't display invulnerability if it's from a Dust homing dash cinematic or overdrive super freeze (if overdrive doesn't actually give any invulnerability).
 - Find is_push_active function.
-- Not show boxes on Episode and single player MOM mode victory/defeat screen
-- Not show boxes during episode mode in-game dialogue cutscenes
 - (impossible) EndScene and Present get called in a different thread from where the game logic is happening,
   hence sometimes there are artifacts when boxes are drawn twice onto a frame in different states or the boxes are one frame ahead of what's on the frame.
 

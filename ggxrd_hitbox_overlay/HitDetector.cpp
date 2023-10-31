@@ -38,6 +38,8 @@ bool HitDetector::onDllMain() {
 
 void HitDetector::clearAllBoxes() {
 	hitboxesThatHit.clear();
+	hurtboxesThatGotHit.clear();
+	rejections.clear();
 }
 
 /* 1 is get hit (including by all throws)

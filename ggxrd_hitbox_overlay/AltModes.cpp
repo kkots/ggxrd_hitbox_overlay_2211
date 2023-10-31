@@ -6,6 +6,13 @@ AltModes altModes;
 
 bool AltModes::onDllMain() {
 
+	pauseMenu = (char*)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"\x8b\x0d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x3c\x10\x75\x16\x8b\x15\x00\x00\x00\x00\x39\xb2\xf0\x00\x00\x00\x74\x08\xc7\x44\x24\x48\xd9\x00\x00\x00",
+		"xx????x????xxxxxx????xxxxxxxxxxxxxxxx",
+		{17, 0},
+		NULL, "pauseMenu");
+
 	isIKCutscenePlaying = (char*)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\xa1\x00\x00\x00\x00\xb9\x00\x00\x00\x00\x89\x47\x28\xe8\x00\x00\x00\x00\x8b\x0d\x00\x00\x00\x00\x8b\xb1\x00\x00\x00\x00\xa1\x00\x00\x00\x00\x8b\x0d\x00\x00\x00\x01\x0f\x57\xc0\x8b\x1e\x33\xed\x55\x8d\x54\x24\x14",
@@ -14,13 +21,6 @@ bool AltModes::onDllMain() {
 		NULL, "isIKCutscenePlaying");
 
 	if (isIKCutscenePlaying) roundendCameraFlybyTypeRef = isIKCutscenePlaying - 16;
-
-	trainingModeMenuOpenRef = (char*)sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"\x85\xc0\x75\x0b\x68\x00\x00\x00\x01\xff\x15\x00\x00\x00\x01\x33\xc0\x68\x00\x00\x00\x01\xa3\x00\x00\x00\x01\xc7\x05\x00\x00\x00\x01\x00\x00\x00\x01\xa3\x00\x00\x00\x01\xff\x15\x00\x00\x00\x01\xc3",
-		"xxxxx????xx????xxx????x????xx????????x????xx????x",
-		{33, 0x38},
-		NULL, "trainingModeMenuOpenRef");
 
 	versusModeMenuOpenRef = (char*)sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -37,7 +37,7 @@ bool AltModes::isGameInNormalMode(bool* needToClearHitDetection) {
 		if (needToClearHitDetection) *needToClearHitDetection = true;
 		return false;
 	}
-	if (trainingModeMenuOpenRef && *trainingModeMenuOpenRef
+	if (pauseMenu && *(unsigned int*)(pauseMenu + 0xFC) == 1 && (*(unsigned int*)(pauseMenu + 0x10) & 0x10000) == 0
 		|| versusModeMenuOpenRef && *versusModeMenuOpenRef) {
 		return false;
 	}
