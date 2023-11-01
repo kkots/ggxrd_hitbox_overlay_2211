@@ -15,6 +15,9 @@
 #include "collectHitboxes.h"
 #include "Throws.h"
 #include "colors.h"
+#include <chrono>
+
+using namespace std::literals;
 
 EndScene endScene;
 
@@ -184,9 +187,18 @@ void EndScene::onDllDetachWhenEndSceneHooked() {
 	logwrap(fputs("EndScene::onDllDetachWhenEndSceneHooked() called\n", logfile));
 	needUnhookAll = true;
 	{
+		std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 		std::unique_lock<std::mutex> guard(endSceneUnhookedMutex);
-		while (!endSceneUnhooked) {
-			endSceneUnhookedConditionVariable.wait(guard);
+		while (true) {
+			endSceneUnhookedConditionVariable.wait_for(guard, 500ms);  // when the game is closing it starts unloading all DLLs, but EndScene is no longer running
+			if (endSceneUnhooked) {
+				break;
+			}
+			std::chrono::steady_clock::time_point currentTime = std::chrono::steady_clock::now();
+			if (currentTime - startTime >= 500ms) {
+				onDllDetachWhenEndSceneNotHooked();
+				break;
+			}
 		}
 	}
 	logwrap(fputs("EndScene::onDllDetachWhenEndSceneHooked saw that endSceneUnhooked is true\n", logfile));
