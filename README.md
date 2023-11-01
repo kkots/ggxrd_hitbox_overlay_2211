@@ -91,6 +91,7 @@ Dependencies are better described in each project's README.md. Short version is,
                    Fixed gray boxes still showing after IK cutscene.  
                    Fixed pause menu falsely being reported as open after some computer and game restarts.
 - 2023 November 1: Fixed possible crash when unloading the DLL.
+- 2023 November 2: Fixed freeze when closing the game while the mod is running.
 
 ## TODO
 
