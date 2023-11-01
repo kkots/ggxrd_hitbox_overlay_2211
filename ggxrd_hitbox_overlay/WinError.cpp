@@ -1,9 +1,9 @@
-#include <Windows.h>
+#include "pch.h"
 #include "WinError.h"
 #include <iostream>
 #include <tchar.h>
 
-// This is an almost exact copy-paste of the WinError.cpp file from ggxrd_hitbox_overlay project
+// This is an almost exact copy-paste of the WinError.cpp file from ggxrd_hitbox_injector project
 
 #ifndef tout
 #ifdef UNICODE

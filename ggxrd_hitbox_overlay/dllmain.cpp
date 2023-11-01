@@ -47,8 +47,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         break;
     case DLL_PROCESS_DETACH:
         logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
-        detouring.onDllDetach();
-        graphics.onDllDetach();
+        detouring.dllMainThreadId = GetCurrentThreadId();
+        logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
+        endScene.onDllDetach();
         break;
     }
     detouring.cancelTransaction();

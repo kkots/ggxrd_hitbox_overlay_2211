@@ -10,6 +10,8 @@
 #include "rectCombiner.h"
 #include "BoundingRect.h"
 #include "ComplicatedHurtbox.h"
+#include <mutex>
+#include "MutexWhichTellsWhatThreadItsLockedBy.h"
 
 using Reset_t = HRESULT(__stdcall*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS* pPresentationParameters);
 
@@ -19,11 +21,13 @@ class Graphics
 {
 public:
 	bool onDllMain();
-	void onDllDetach();
+	void onUnload();
 	void onEndSceneStart(IDirect3DDevice9* device);
 	void drawAll();
 	void resetHook();
-	Reset_t orig_Reset;
+	
+	Reset_t orig_Reset = nullptr;
+	MutexWhichTellsWhatThreadItsLockedBy orig_ResetMutex;
 	std::vector<ComplicatedHurtbox> hurtboxes;
 	std::vector<DrawHitboxArrayCallParams> hitboxes;
 	std::vector<DrawBoxCallParams> pushboxes;

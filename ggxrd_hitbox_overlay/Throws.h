@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include "ThrowInfo.h"
+#include <mutex>
+#include "MutexWhichTellsWhatThreadItsLockedBy.h"
 
 #ifndef USE_ANOTHER_HOOK
 using hitDetectionMain_t = void (__thiscall*)(void* aswSubengine, int hitDetectionType);
@@ -24,7 +26,8 @@ private:
 #endif
 	};
 
-	hitDetectionMain_t orig_hitDetectionMain;
+	hitDetectionMain_t orig_hitDetectionMain = nullptr;
+	MutexWhichTellsWhatThreadItsLockedBy orig_hitDetectionMainMutex;
 
 	void hitDetectionMainHook();
 

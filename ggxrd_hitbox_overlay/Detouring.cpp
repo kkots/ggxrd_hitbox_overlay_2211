@@ -2,11 +2,81 @@
 #include "Detouring.h"
 #include "logging.h"
 #include <detours.h>
+#include <TlHelp32.h>
+#include <algorithm>
+#ifdef LOG_PATH
+#include "WinError.h"
+#ifdef UNICODE
+#define PRINTF_STRING_ARG "%ls"
+#else
+#define PRINTF_STRING_ARG "%s"
+#endif
+#endif
 
 Detouring detouring;
 
-void Detouring::onDllDetach() {
-	detachAll();
+void Detouring::suspendUnsuspendedThreadsCaller() {
+	while (suspendUnsuspendedThreads());
+}
+
+bool Detouring::suspendUnsuspendedThreads() {
+	DWORD currentThreadId = GetCurrentThreadId();
+	DWORD currentProcessId = GetCurrentProcessId();
+	THREADENTRY32 th32{0};
+	th32.dwSize = sizeof(THREADENTRY32);
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+	if (!hSnapshot || hSnapshot == INVALID_HANDLE_VALUE) {
+		#ifdef LOG_PATH
+		WinError winErr;
+		logwrap(fprintf(logfile, "Error in CreateToolhelp32Snapshot: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+		#endif
+		return false;
+	}
+
+	bool suspendedSomething = false;
+	if (!Thread32First(hSnapshot, &th32)) {
+		#ifdef LOG_PATH
+		WinError winErr;
+		logwrap(fprintf(logfile, "Error in Thread32First: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+		#endif
+		CloseHandle(hSnapshot);
+		return false;
+	}
+	while (true) {
+		if (th32.th32OwnerProcessID == currentProcessId
+				&& th32.th32ThreadID != dllMainThreadId
+				&& th32.th32ThreadID != currentThreadId) {
+			if (std::find(suspendedThreads.begin(), suspendedThreads.end(), th32.th32ThreadID) == suspendedThreads.end()) {
+				HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, th32.th32ThreadID);
+				if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
+					#ifdef LOG_PATH
+					WinError winErr;
+					logwrap(fprintf(logfile, "Error in OpenThread: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+					#endif
+				} else {
+					logwrap(fprintf(logfile, "Suspending thread ID %d\n", th32.th32ThreadID));
+					DWORD detourResult = DetourUpdateThread(hThread);  // oh god it still needs the thread handles by the time DetourTransactionCommit() is called
+					if (detourResult != NO_ERROR) {
+						printDetourUpdateThreadError(detourResult);
+					}
+					suspendedThreadHandles.push_back(hThread);
+				}
+				suspendedThreads.push_back(th32.th32ThreadID);
+				suspendedSomething = true;
+			}
+		}
+		if (!Thread32Next(hSnapshot, &th32)) {
+			#ifdef LOG_PATH
+			WinError winErr;
+			if (winErr.code != ERROR_NO_MORE_FILES) {
+				logwrap(fprintf(logfile, "Error in Thread32Next: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+			}
+			#endif
+			break;
+		}
+	}
+	CloseHandle(hSnapshot);
+	return suspendedSomething;
 }
 
 void Detouring::printDetourTransactionBeginError(LONG err) {
@@ -68,33 +138,77 @@ void Detouring::printDetourTransactionCommitError(LONG err) {
 }
 
 void Detouring::detachAll() {
-	if (!beginTransaction()) return;
+	detachAllButThese();
+}
 
-	bool allSuccess = true;
+void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
+	logwrap(fputs("Detouring::detachAllButThese(...) called\n", logfile));
+	std::vector<MutexWhichTellsWhatThreadItsLockedBy*> lockedMutexes;
+	
+	DWORD currentThreadId = GetCurrentThreadId();
 
-	for (const ThingToBeUndetouredAtTheEnd& thing : thingsToUndetourAtTheEnd) {
-		DWORD detourResult = DetourDetach(
-			thing.ppPointer,
-			thing.pDetour);
-
-		if (detourResult != NO_ERROR) {
-			printDetourDetachError(detourResult);
+	for (auto it = thingsToUndetourAtTheEnd.begin(); it != thingsToUndetourAtTheEnd.end(); ++it) {
+		const ThingToBeUndetouredAtTheEnd& thing = *it;
+		if (std::find(dontDetachThese.cbegin(), dontDetachThese.cend(), thing.pDetour) != dontDetachThese.cend()) {
 			if (thing.name) {
-				logwrap(fprintf(logfile, "Failed to undetour %s\n", thing.name));
+				logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): Will not unhook %s\n", thing.name));
 			}
-			allSuccess = false;
-			break;
+			continue;
 		}
-	}
-	if (allSuccess) {
-		logwrap(fputs("Successfully undetoured all of the hooks\n", logfile));
-	}
-	else {
-		logwrap(fputs("Failed to undetour some or all of the hooks\n", logfile));
-	}
-	thingsToUndetourAtTheEnd.clear();
 
-	if (!endTransaction()) return;
+		if (thing.mutex->isLocked && thing.mutex->threadId == currentThreadId) {
+			if (thing.name) {
+				logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): mutex for %s is already owned by this thread, so it won't be relocked\n", thing.name));
+			}
+			continue;
+		}
+
+		if (thing.name) {
+			logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): locking mutex for %s\n", thing.name));
+		}
+		it->mutex->lock();
+		lockedMutexes.push_back(it->mutex);
+	}
+	logwrap(fputs("Detouring::detachAllButThese(...): locked all needed mutexes\n", logfile));
+
+	if (beginTransaction()) {
+		bool allSuccess = true;
+
+		auto it = thingsToUndetourAtTheEnd.begin();
+		while (it != thingsToUndetourAtTheEnd.end()) {
+			const ThingToBeUndetouredAtTheEnd& thing = *it;
+			if (std::find(dontDetachThese.cbegin(), dontDetachThese.cend(), thing.pDetour) != dontDetachThese.cend()) {
+				++it;
+				continue;
+			}
+
+			DWORD detourResult = DetourDetach(
+				thing.ppPointer,
+				thing.pDetour);
+
+			if (detourResult != NO_ERROR) {
+				printDetourDetachError(detourResult);
+				if (thing.name) {
+					logwrap(fprintf(logfile, "Failed to undetour %s\n", thing.name));
+				}
+				allSuccess = false;
+				break;
+			}
+			it = thingsToUndetourAtTheEnd.erase(it);
+		}
+		if (allSuccess) {
+			logwrap(fputs("Successfully undetoured all of the hooks\n", logfile));
+		}
+		else {
+			logwrap(fputs("Failed to undetour some or all of the hooks\n", logfile));
+		}
+
+		endTransaction();
+	}
+
+	for (MutexWhichTellsWhatThreadItsLockedBy* mutexPtr : lockedMutexes) {
+		mutexPtr->unlock();
+	}
 }
 
 bool Detouring::beginTransaction() {
@@ -105,16 +219,12 @@ bool Detouring::beginTransaction() {
 	}
 	beganTransaction = true;
 
-	detourResult = DetourUpdateThread(GetCurrentThread());
-	if (detourResult != NO_ERROR) {
-		printDetourUpdateThreadError(detourResult);
-		return false;
-	}
+	suspendUnsuspendedThreadsCaller();
 	return true;
 }
 
-bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, const char * name) {
-	if (*ppPointer == NULL) return false;
+bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, MutexWhichTellsWhatThreadItsLockedBy* mutex, const char * name) {
+	if (*ppPointer == NULL || mutex == nullptr) return false;
 	DWORD detourResult = DetourAttach(
 		ppPointer,
 		pDetour);
@@ -126,23 +236,36 @@ bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, const char * name) {
 	if (name) {
 		logwrap(fprintf(logfile, "Successfully detoured %s\n", name));
 	}
-	thingsToUndetourAtTheEnd.push_back({ ppPointer, pDetour, name });
+	thingsToUndetourAtTheEnd.push_back({ ppPointer, pDetour, mutex, name });
 	return true;
 }
 
 bool Detouring::endTransaction() {
+	bool result = false;
 	DWORD detourResult = DetourTransactionCommit();
 	if (detourResult != NO_ERROR) {
 		printDetourTransactionCommitError(detourResult);
-		return false;
+	} else {
+		beganTransaction = false;
+		result = true;
+		logwrap(fputs("Successfully committed detour/undetour transaction\n", logfile));
 	}
-	logwrap(fputs("Successfully committed detour/undetour transaction\n", logfile));
-	beganTransaction = false;
-	return true;
+	closeAllThreadHandles();
+	return result;
 }
 
 bool Detouring::cancelTransaction() {
 	if (!beganTransaction) return true;
 	DetourTransactionAbort();
+	closeAllThreadHandles();
 	beganTransaction = false;
+	return true;
+}
+
+void Detouring::closeAllThreadHandles() {
+	for (HANDLE hThread : suspendedThreadHandles) {
+		CloseHandle(hThread);
+	}
+	suspendedThreadHandles.clear();
+	suspendedThreads.clear();
 }

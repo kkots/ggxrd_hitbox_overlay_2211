@@ -33,6 +33,7 @@ bool Throws::onDllMain() {
 #endif
 	if (!detouring.attach(&(PVOID&)orig_hitDetectionMain,
 		(PVOID&)hookPtr,
+		&orig_hitDetectionMainMutex,
 		"hitDetectionMain")) return false;
 
 	return !error;
@@ -43,11 +44,13 @@ void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 	if (hitDetectionType == 1) {
 		throws.hitDetectionMainHook();
 	}
+	MutexWhichTellsWhatThreadItsLockedByGuard guard(throws.orig_hitDetectionMainMutex);
 	throws.orig_hitDetectionMain(this, hitDetectionType);
 }
 #else
 BOOL Throws::HookHelp::hitDetectionMainHook(char* other) {
 	throws.hitDetectionMainHook();
+	MutexWhichTellsWhatThreadItsLockedByGuard guard(throws.orig_hitDetectionMainMutex);
 	return throws.orig_hitDetectionMain((char*)this, other);
 }
 #endif

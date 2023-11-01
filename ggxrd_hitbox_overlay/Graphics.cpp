@@ -12,6 +12,7 @@ Graphics graphics;
 
 HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters) {
 	graphics.resetHook();
+	MutexWhichTellsWhatThreadItsLockedByGuard guard(graphics.orig_ResetMutex);
 	return graphics.orig_Reset(device, pPresentationParameters);
 }
 
@@ -25,12 +26,14 @@ bool Graphics::onDllMain() {
 	orig_Reset = (Reset_t)direct3DVTable.getDirect3DVTable()[16];
 	if (!detouring.attach(
 		&(PVOID&)(orig_Reset),
-		hook_Reset)) return false;
+		hook_Reset,
+		&orig_ResetMutex,
+		"Reset")) return false;
 
 	return true;
 }
 
-void Graphics::onDllDetach() {
+void Graphics::onUnload() {
 	stencil.surface = NULL;
 }
 

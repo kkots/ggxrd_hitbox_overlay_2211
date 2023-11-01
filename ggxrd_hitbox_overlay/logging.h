@@ -5,8 +5,8 @@
 // define #define LOG_PATH L"C:\\your\\log\\path.txt"
 // write to the log using:
 // logwrap(fputs("string", logfile));  // logs every time
-// log(fputs("string", logfile)); // logs only when didWriteOnce is false and has a limit of 1000 messages
-// set didWriteOnce to false to stop log messages wrapped in log(...) from logging any further
+// logOnce(fputs("string", logfile)); // logs only when didWriteOnce is false and has a limit of 1000 messages
+// set didWriteOnce to false to stop log messages wrapped in logOnce(...) from logging any further
 
 #ifdef LOG_PATH
 #include <iostream>

@@ -151,7 +151,7 @@ int main()
 		}
 		else {
 			while (true) {
-				tout << TEXT("The dll is not yet into the application. Do you want to load it? (Type y/n):\n");
+				tout << TEXT("The dll is not yet loaded into the application. Do you want to load it? (Type y/n):\n");
 				tstring lineContents;
 				std::getline(tin, lineContents);
 				if (lineContents == TEXT("y") || lineContents == TEXT("Y")) {

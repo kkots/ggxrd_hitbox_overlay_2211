@@ -1,6 +1,6 @@
 #pragma once
 
-// This is an exact copy-paste of the WinError.h file from ggxrd_hitbox_overlay project
+// This is an exact copy-paste of the WinError.h file from ggxrd_hitbox_injector project
 
 class WinError {
 public:

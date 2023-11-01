@@ -24,7 +24,7 @@ Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windo
 
 3. Start a match. Hitboxes should display.
 
-To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again. There is a small chance the game might crash when unloading the DLL.  
+To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.  
 If trying to use the mod with a game version that it doesn't fit, the game may crash. The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
 
 The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo to see no one else but me modified this. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
@@ -90,6 +90,7 @@ Dependencies are better described in each project's README.md. Short version is,
                    Fixed prolonged hitbox display for Chipp's Gamma Blade, so now the hitbox doesn't immediately disappear as soon as Gamma Blade hits.  
                    Fixed gray boxes still showing after IK cutscene.  
                    Fixed pause menu falsely being reported as open after some computer and game restarts.
+- 2023 November 1: Fixed possible crash when unloading the DLL.
 
 ## TODO
 

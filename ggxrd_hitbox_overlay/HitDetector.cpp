@@ -29,6 +29,7 @@ bool HitDetector::onDllMain() {
 			int(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, unsigned int*, unsigned int*) = &HookHelp::determineHitTypeHook;
 			detouring.attach(&(PVOID&)(orig_determineHitType),
 				(PVOID&)determineHitTypeHookPtr,
+				&orig_determineHitTypeMutex,
 				"determineHitType");
 		}
 	}
@@ -37,6 +38,7 @@ bool HitDetector::onDllMain() {
 }
 
 void HitDetector::clearAllBoxes() {
+	std::unique_lock<std::mutex> guard(mutex);
 	hitboxesThatHit.clear();
 	hurtboxesThatGotHit.clear();
 	rejections.clear();
@@ -47,7 +49,12 @@ void HitDetector::clearAllBoxes() {
    3 is ignoring hit due to playing a possibly very long throw animation
    4 is rejected hit */
 int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr) {
-	int result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
+	int result;
+	{
+		MutexWhichTellsWhatThreadItsLockedByGuard guard(hitDetector.orig_determineHitTypeMutex);
+		result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
+	}
+	std::unique_lock<std::mutex> guard(hitDetector.mutex);
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };
 	if (result == 4) {
@@ -120,6 +127,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 					boxes.hitboxes = theHurtbox;
 					boxes.counter = DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT;
 					boxes.previousTime = otherEntity.currentAnimDuration();
+
 					hitDetector.hurtboxesThatGotHit.push_back(boxes);
 				}
 			}
@@ -129,6 +137,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 }
 
 HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox) {
+	std::unique_lock<std::mutex> guard(mutex);
 	for (auto it = hurtboxesThatGotHit.cbegin(); it != hurtboxesThatGotHit.cend(); ++it) {
 		if (ent == it->entity) {
 			if (currentHurtbox == it->hitboxes && it->counter < DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {
@@ -142,6 +151,7 @@ HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const Draw
 }
 
 void HitDetector::drawHits() {
+	std::unique_lock<std::mutex> guard(mutex);
 	bool timeHasChanged = false;
 	unsigned int currentTime = entityList.getCurrentTime();
 	if (previousTime != currentTime) {

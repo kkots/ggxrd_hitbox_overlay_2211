@@ -2,6 +2,8 @@
 #include "DrawHitboxArrayCallParams.h"
 #include <vector>
 #include "Entity.h"
+#include <mutex>
+#include "MutexWhichTellsWhatThreadItsLockedBy.h"
 
 using determineHitType_t = int(__thiscall*)(void*, void*, BOOL, unsigned int*, unsigned int*);
 
@@ -18,7 +20,8 @@ public:
 	void clearAllBoxes();
 	void drawHits();
 	WasHitInfo wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox);
-	determineHitType_t orig_determineHitType;
+	determineHitType_t orig_determineHitType = nullptr;
+	MutexWhichTellsWhatThreadItsLockedBy orig_determineHitTypeMutex;
 private:
 	
 	struct DetectedHitboxes {
@@ -52,6 +55,7 @@ private:
 	std::vector<DetectedHitboxes> hitboxesThatHit;
 	std::vector<DetectedHitboxes> hurtboxesThatGotHit;
 	std::vector<Rejection> rejections;
+	std::mutex mutex;
 
 	unsigned int previousTime = 0;
 };

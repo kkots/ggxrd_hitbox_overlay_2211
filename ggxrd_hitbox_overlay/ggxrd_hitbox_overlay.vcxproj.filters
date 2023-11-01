@@ -114,6 +114,12 @@
     <ClInclude Include="gameModes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WinError.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MutexWhichTellsWhatThreadItsLockedBy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -181,6 +187,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Throws.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="WinError.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MutexWhichTellsWhatThreadItsLockedBy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
