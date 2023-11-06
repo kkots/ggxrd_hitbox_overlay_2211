@@ -3,6 +3,7 @@
 #include "logging.h"
 #include "Detouring.h"
 #include "Graphics.h"
+#include "Camera.h"
 #include "Game.h"
 #include "Direct3DVTable.h"
 #include "EndScene.h"
@@ -10,6 +11,12 @@
 #include "Entity.h"
 #include "AltModes.h"
 #include "Throws.h"
+#include "Settings.h"
+#include "Keyboard.h"
+#include "Hud.h"
+#include "memoryFunctions.h"
+
+const char * DLL_NAME = "ggxrd_hitbox_overlay.dll";
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -30,8 +37,18 @@ BOOL APIENTRY DllMain( HMODULE hModule,
             fclose(logfile);
         }
         #endif
+
+        uintptr_t start;
+        uintptr_t end;
+        if (!getModuleBounds(DLL_NAME, &start, &end) || !start || !end) {
+            logwrap(fputs("Note to developer: make sure to specify DLL_NAME char * constant correctly in dllmain.cpp\n", logfile));
+            return FALSE;
+        }
+
         if (!detouring.beginTransaction()) break;
+        if (!settings.onDllMain()) break;
         if (!game.onDllMain()) break;
+        if (!camera.onDllMain()) break;
         if (!entityManager.onDllMain()) break;
         if (!direct3DVTable.onDllMain()) break;
         if (!endScene.onDllMain()) break;
@@ -39,6 +56,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!graphics.onDllMain()) break;
         if (!altModes.onDllMain()) break;
         if (!throws.onDllMain()) break;
+        if (!keyboard.onDllMain()) break;
+        if (!hud.onDllMain()) break;
         if (!detouring.endTransaction()) break;
         break;
     case DLL_THREAD_ATTACH:
@@ -49,7 +68,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
         detouring.dllMainThreadId = GetCurrentThreadId();
         logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
+        detouring.detachAll();
+        Sleep(100);
+        while (detouring.someThreadsAreExecutingThisModule()) Sleep(100);
+
         endScene.onDllDetach();
+        hud.onDllDetach();
         break;
     }
     detouring.cancelTransaction();

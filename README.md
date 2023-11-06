@@ -2,13 +2,13 @@
 
 ## Description
 
-Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 31'th October 2023).
+Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 6'th November 2023).
 
 ## Credits
 
 Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/forums/topic/12495-xrd-pc-hitbox-overlay-mod/>  
 Created in 2016.  
-This version is adapted for Guilty Gear Xrd Rev2 version 2211 with only the "GIF mode" and "No gravity" features removed (probably not going to do those).
+This version is adapted for Guilty Gear Xrd Rev2 version 2211 with the full featureset of the original.
 
 Many thanks to WorseThanYou, without whose help this wouldn't have been possible.
 
@@ -24,10 +24,75 @@ Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windo
 
 3. Start a match. Hitboxes should display.
 
+Read the `Features` section to understand what the colors mean and what the hotkeys are.
+
 To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.  
 If trying to use the mod with a game version that it doesn't fit, the game may crash. The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
 
 The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo to see no one else but me modified this. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
+
+## Features
+
+### Green - Hurtboxes
+
+Normally hurtboxes display in green. The rules in general are such, that when a hitbox (red) makes contact with hurtbox, a hit occurs.
+
+### Light blue - Would-be counterhit hurtboxes
+
+If your hurtbox is displaying light blue, that means, should you get hit, you would enter counterhit state. It means that moves that have light blue hurtbox on recovery are more punishable.
+
+### Gray - Pre-hit hurtboxes
+
+When you get hit a gray outline appears on top of your current hurtbox. This outline represents the previous state of your hurtbox, before you got hit. Its purpose is to make it easier to see how or why you got hit.
+
+### Yellow - Pushboxes
+
+Each player has a pushbox. When two pushboxes collide, the players get pushed apart until their pushboxes no longer collide. Pushbox widths also affect throw range - more on that in next section(s).
+
+### Point/Cross - Origin points
+
+Each player and entity has an origin point which is shown as a black-white cross on the ground between their feet. When players jump, the origin point tracks their location. Origin points play a key role in throw hit detection.
+
+### Blue - Rejection boxes
+
+When a Blitz Shield meets a projectile it displays a square blue box around the rejecting player, and if the opponent's origin point is within that box the opponent enters rejected state. The box does not show when rejecting normal, melee attacks because those cause rejection no matter the distance. Pushboxes and their sizes do not affect the distance check in any way, i.e. only the X and Y distances between the players' origin points are checked.
+
+### Blue - Throw boxes
+
+When a player does a throw he displays a throw box in blue color. Throw boxes are usually only active for one frame (that's when they display semi-transparent). This period is so brief throw boxes have to show for a few extra frames, but during those frames they're no longer active and so they display fully transparent (outline only).  
+In this adaptation of Altimor's original mod, throw boxes must include the opponent's origin point in order to connect (but that's not all, read on). That means that the sizes of your and your opponent's pushboxes affect the width of your throw box. Try crouching and see how your pushbox becomes wider a bit. This means crouching opponents are slightly easier to throw. Or Potemkin - he has a wider pushbox than average.  
+It's in the rules of the game that ground throws may only connect with non-airborne opponents and air throws may only connect with airborne opponents. Opponents who are in prejump state cannot be ground thrown.  
+Most normal ground throws and ground command throws for this reason do not limit their throw boxes vertically: the throw box shows as a pillar reaching vertically over the entire screen's height. This doesn't mean they capture anything above or below the thrower, though, and the rules mentioned above are still being obeyed.  
+Some throws check for vertical position of the opponent's origin point and so display their throw box limited in size vertically.  
+When visually checking to see if a throw box would connect with an opponent you should, in this mod, ignore the pushboxes altogether and focus only on the throw box catching the origin point.  
+Note that normal ground throw actually simply checks if distance between the pushboxes is below the attacker's throw range (values listed on Dustloop), however some throws like command throws or air throws also check if the origin point specifically is within x or y range. Hence this is why I decided to just always show the check on the origin point only.  
+If a command throw has a throw box as well as hitbox, such as Raven's command throw, - for such moves I haven't fully studied the conditions under which they connect - but it's likely that both the throw box and the hitbox must connect.
+
+### F1 - GIF mode
+
+In training mode (only) you can press F1 to enter "GIF mode", which makes the background black, centers the camera on you, hides some of the HUD (you have to hide the rest yourself via Menu - Display settings) and makes opponent invisible and unhittable.  
+Press the key again to turn off the mode.  
+Section "Hotkey configuration" describes how to configure hotkeys.
+
+### F2 - No gravity mode
+
+In training mode (only) you can press F2 to enter "No gravity mode" which makes your vertical speed always 0, i.e. you become unable to fall. This may be useful for screenshotting some air moves.  
+Press the key again to turn off the mode.  
+Section "Hotkey configuration" describes how to configure hotkeys.
+
+### Hotkey configuration
+
+If you wish to configure hotkeys for Gif mode and No gravity mode, create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
+Here's an example of the `.ini` file:
+
+```ini
+gifModeToggle = F1
+noGravityToggle = F2
+```
+
+You can specify a combination of keys, separated by `+` sign.  
+Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.  
+In the mod is already running you need to reload it in order to apply the new hotkeys. To reload the mod you can run the injector again.
 
 ## Developing
 
@@ -46,10 +111,6 @@ Dependencies are better described in each project's README.md. Short version is,
 - Microsoft Detours library: <https://github.com/microsoft/Detours> Follow their instructions on how to build the `.lib` static library. You need to build the 32-bit (x86) version.
 
 - `d3dx9.h` header file. If you don't have it you can get it from: <https://github.com/apitrace/dxsdk/blob/master/Include/d3dx9.h>
-
-## Missing features list
-
-- GIF mode and "no gravity" mode;
 
 ## Changelog
 
@@ -91,47 +152,4 @@ Dependencies are better described in each project's README.md. Short version is,
                    Fixed gray boxes still showing after IK cutscene.  
                    Fixed pause menu falsely being reported as open after some computer and game restarts.
 - 2023 November 1: Fixed possible crash when unloading the DLL.
-
-## TODO
-
-- Don't display invulnerability if it's from a Dust homing dash cinematic or overdrive super freeze (if overdrive doesn't actually give any invulnerability).
-- Find is_push_active function.
-- (impossible) EndScene and Present get called in a different thread from where the game logic is happening,
-  hence sometimes there are artifacts when boxes are drawn twice onto a frame in different states or the boxes are one frame ahead of what's on the frame.
-
-## Features
-
-### Green - Hurtboxes
-
-Normally hurtboxes display in green. The rules in general are such, that when a hitbox (red) makes contact with hurtbox, a hit occurs.
-
-### Light blue - Would-be counterhit hurtboxes
-
-If your hurtbox is displaying light blue, that means, should you get hit, you would enter counterhit state. It means that moves that have light blue hurtbox on recovery are more punishable.
-
-### Gray - Pre-hit hurtboxes
-
-When you get hit a gray outline appears on top of your current hurtbox. This outline represents the previous state of your hurtbox, before you got hit. Its purpose is to make it easier to see how or why you got hit.
-
-### Yellow - Pushboxes
-
-Each player has a pushbox. When two pushboxes collide, the players get pushed apart until their pushboxes no longer collide. Pushbox widths also affect throw range - more on that in next section(s).
-
-### Point/Cross - Origin points
-
-Each player and entity has an origin point which is shown as a black-white cross on the ground between their feet. When players jump, the origin point tracks their location. Origin points play a key role in throw hit detection.
-
-### Blue - Rejection boxes
-
-When a Blitz Shield meets a projectile it displays a square blue box around the rejecting player, and if the opponent's origin point is within that box the opponent enters rejected state. The box does not show when rejecting normal, melee attacks because those cause rejection no matter the distance. Pushboxes and their sizes do not affect the distance check in any way, i.e. only the X and Y distances between the players' origin points are checked.
-
-### Blue - Throw boxes
-
-When a player does a throw he displays a throw box in blue color. Throw boxes are usually only active for one frame (that's when they display semi-transparent). This period is so brief throw boxes have to show for a few extra frames, but during those frames they're no longer active and so they display fully transparent (outline only).  
-In this adaptation of Altimor's original mod, throw boxes must include the opponent's origin point in order to connect (but that's not all, read on). That means that the sizes of your and your opponent's pushboxes affect the width of your throw box. Try crouching and see how your pushbox becomes wider a bit. This means crouching opponents are slightly easier to throw. Or Potemkin - he has a wider pushbox than average.  
-It's in the rules of the game that ground throws may only connect with non-airborne opponents and air throws may only connect with airborne opponents. Opponents who are in prejump state cannot be ground thrown.  
-Most normal ground throws and ground command throws for this reason do not limit their throw boxes vertically: the throw box shows as a pillar reaching vertically over the entire screen's height. This doesn't mean they capture anything above or below the thrower, though, and the rules mentioned above are still being obeyed.  
-Some throws check for vertical position of the opponent's origin point and so display their throw box limited in size vertically.  
-When visually checking to see if a throw box would connect with an opponent you should, in this mod, ignore the pushboxes altogether and focus only on the throw box catching the origin point.  
-Note that normal ground throw actually simply checks if distance between the pushboxes is below the attacker's throw range (values listed on Dustloop), however some throws like command throws or air throws also check if the origin point specifically is within x or y range. Hence this is why I decided to just always show the check on the origin point only.  
-If a command throw has a throw box as well as hitbox, such as Raven's command throw, - for such moves I haven't fully studied the conditions under which they connect - but it's likely that both the throw box and the hitbox must connect.
+- 2023 November 6: Remade DLL unloading and added "GIF mode" and "no gravity" mode.

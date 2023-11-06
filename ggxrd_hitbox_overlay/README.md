@@ -4,7 +4,7 @@
 
 Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/forums/topic/12495-xrd-pc-hitbox-overlay-mod/>
 Created in 2016.
-This version is adapted for Guilty Gear Xrd Rev2 version 2211 with half the features removed as of yet (still trying to find where everything is).
+This version is adapted for Guilty Gear Xrd Rev2 version 2211.
 
 Made with help from WorseThanYou.
 

@@ -2,6 +2,10 @@
 #include <vector>
 #include <mutex>
 #include "MutexWhichTellsWhatThreadItsLockedBy.h"
+#include <functional>
+#include <atomic>
+
+using suspendThreadCallback_t = std::function<void(DWORD threadId)>;
 
 class Detouring
 {
@@ -14,7 +18,9 @@ public:
 	bool cancelTransaction();
 	void detachAll();
 	void detachAllButThese(const std::vector<PVOID>& dontDetachThese = std::vector<PVOID>{});
+	bool someThreadsAreExecutingThisModule();
 	DWORD dllMainThreadId = 0;
+	std::atomic_int hooksCounter{0};
 private:
 	struct ThingToBeUndetouredAtTheEnd {
 		PVOID* ppPointer = nullptr;  // pointer to a pointer to the original function
@@ -54,8 +60,8 @@ private:
 	void printDetourAttachError(LONG err);
 	void printDetourDetachError(LONG err);
 	void printDetourTransactionCommitError(LONG err);
-	bool suspendUnsuspendedThreads();
-	void suspendUnsuspendedThreadsCaller();
+	bool enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callback);
+	void enumerateThreadsRecursively(suspendThreadCallback_t callback);
 	void closeAllThreadHandles();
 	bool beganTransaction = false;
 	std::vector<DWORD> suspendedThreads;
@@ -63,3 +69,4 @@ private:
 };
 
 extern Detouring detouring;
+extern const char * DLL_NAME;

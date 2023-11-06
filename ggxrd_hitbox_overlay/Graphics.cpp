@@ -10,17 +10,6 @@
 
 Graphics graphics;
 
-HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters) {
-	graphics.resetHook();
-	MutexWhichTellsWhatThreadItsLockedByGuard guard(graphics.orig_ResetMutex);
-	return graphics.orig_Reset(device, pPresentationParameters);
-}
-
-void Graphics::resetHook() {
-	stencil.surface = NULL;
-	stencil.direct3DSuccess = false;
-}
-
 bool Graphics::onDllMain() {
 
 	orig_Reset = (Reset_t)direct3DVTable.getDirect3DVTable()[16];
@@ -31,6 +20,23 @@ bool Graphics::onDllMain() {
 		"Reset")) return false;
 
 	return true;
+}
+
+HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters) {
+	++detouring.hooksCounter;
+	graphics.resetHook();
+	HRESULT result;
+	{
+		MutexWhichTellsWhatThreadItsLockedByGuard guard(graphics.orig_ResetMutex);
+		result = graphics.orig_Reset(device, pPresentationParameters);
+	}
+	--detouring.hooksCounter;
+	return result;
+}
+
+void Graphics::resetHook() {
+	stencil.surface = NULL;
+	stencil.direct3DSuccess = false;
 }
 
 void Graphics::onUnload() {

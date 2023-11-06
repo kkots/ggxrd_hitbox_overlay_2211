@@ -31,7 +31,7 @@ void collectHitboxes(const Entity& ent,
 	// yellow - pushbox
 	// blue/purple - throwbox
 
-	if (pushboxes && !state.isASummon) {
+	if (pushboxes && !state.isASummon && *(int*)(ent + 0x2594) != 0) {
 		logOnce(fputs("Need pushbox\n", logfile));
 		// Draw pushbox and throw box
 		/*if (is_push_active(asw_data))

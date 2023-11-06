@@ -1,13 +1,30 @@
 #pragma once
 #include <d3d9.h>
 #include <d3dx9.h>
+#include "MutexWhichTellsWhatThreadItsLockedBy.h"
+
+using updateDarken_t = void(__thiscall*)(char* thisArg);
+using updateCamera_t = void(__thiscall*)(char* thisArg, char** param1, char* param2);
 
 class Camera
 {
 public:
 	void onEndSceneStart();
 	void worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out);
+	bool onDllMain();
+	void updateDarkenHook(char* thisArg);
+	void updateCameraHook(char* thisArg, char** param1, char* param2);
 private:
+	class HookHelp {
+		friend class Camera;
+		void updateDarkenHook();
+		void updateCameraHook(char** param1, char* param2);
+	};
+	updateDarken_t orig_updateDarken = nullptr;
+	MutexWhichTellsWhatThreadItsLockedBy orig_updateDarkenMutex;
+	updateCamera_t orig_updateCamera = nullptr;
+	MutexWhichTellsWhatThreadItsLockedBy orig_updateCameraMutex;
+	unsigned int darkenValue1Offset = 0;
 	bool isSet = false;
 	float forward[3]{ 0.F };
 	float right[3]{ 0.F };

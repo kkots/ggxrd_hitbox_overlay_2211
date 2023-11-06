@@ -168,14 +168,18 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="gameModes.h" />
+    <ClInclude Include="GifMode.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="BoundingRect.h" />
     <ClInclude Include="Hitbox.h" />
     <ClInclude Include="HitDetector.h" />
+    <ClInclude Include="Hud.h" />
     <ClInclude Include="InvisChipp.h" />
+    <ClInclude Include="Keyboard.h" />
     <ClInclude Include="MutexWhichTellsWhatThreadItsLockedBy.h" />
     <ClInclude Include="pi.h" />
     <ClInclude Include="rectCombiner.h" />
+    <ClInclude Include="Settings.h" />
     <ClInclude Include="Stencil.h" />
     <ClInclude Include="logging.h" />
     <ClInclude Include="pch.h" />
@@ -197,11 +201,14 @@
     <ClCompile Include="Entity.cpp" />
     <ClCompile Include="EntityList.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="GifMode.cpp" />
     <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="Hitbox.cpp" />
     <ClCompile Include="HitDetector.cpp" />
     <ClCompile Include="BoundingRect.cpp" />
+    <ClCompile Include="Hud.cpp" />
     <ClCompile Include="InvisChipp.cpp" />
+    <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="logging.cpp" />
     <ClCompile Include="MutexWhichTellsWhatThreadItsLockedBy.cpp" />
     <ClCompile Include="pch.cpp">
@@ -212,6 +219,7 @@
     </ClCompile>
     <ClCompile Include="memoryFunctions.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
+    <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Stencil.cpp" />
     <ClCompile Include="Throws.cpp" />
     <ClCompile Include="WinError.cpp" />

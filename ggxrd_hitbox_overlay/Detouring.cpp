@@ -4,6 +4,7 @@
 #include <detours.h>
 #include <TlHelp32.h>
 #include <algorithm>
+#include "memoryFunctions.h"
 #ifdef LOG_PATH
 #include "WinError.h"
 #ifdef UNICODE
@@ -15,11 +16,11 @@
 
 Detouring detouring;
 
-void Detouring::suspendUnsuspendedThreadsCaller() {
-	while (suspendUnsuspendedThreads());
+void Detouring::enumerateThreadsRecursively(suspendThreadCallback_t callback) {
+	while (enumerateNotYetEnumeratedThreads(callback));
 }
 
-bool Detouring::suspendUnsuspendedThreads() {
+bool Detouring::enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callback) {
 	DWORD currentThreadId = GetCurrentThreadId();
 	DWORD currentProcessId = GetCurrentProcessId();
 	THREADENTRY32 th32{0};
@@ -33,7 +34,7 @@ bool Detouring::suspendUnsuspendedThreads() {
 		return false;
 	}
 
-	bool suspendedSomething = false;
+	bool foundNotYetEnumeratedThread = false;
 	if (!Thread32First(hSnapshot, &th32)) {
 		#ifdef LOG_PATH
 		WinError winErr;
@@ -47,22 +48,9 @@ bool Detouring::suspendUnsuspendedThreads() {
 				&& th32.th32ThreadID != dllMainThreadId
 				&& th32.th32ThreadID != currentThreadId) {
 			if (std::find(suspendedThreads.begin(), suspendedThreads.end(), th32.th32ThreadID) == suspendedThreads.end()) {
-				HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, th32.th32ThreadID);
-				if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
-					#ifdef LOG_PATH
-					WinError winErr;
-					logwrap(fprintf(logfile, "Error in OpenThread: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
-					#endif
-				} else {
-					logwrap(fprintf(logfile, "Suspending thread ID %d\n", th32.th32ThreadID));
-					DWORD detourResult = DetourUpdateThread(hThread);  // oh god it still needs the thread handles by the time DetourTransactionCommit() is called
-					if (detourResult != NO_ERROR) {
-						printDetourUpdateThreadError(detourResult);
-					}
-					suspendedThreadHandles.push_back(hThread);
-				}
+				callback(th32.th32ThreadID);
 				suspendedThreads.push_back(th32.th32ThreadID);
-				suspendedSomething = true;
+				foundNotYetEnumeratedThread = true;
 			}
 		}
 		if (!Thread32Next(hSnapshot, &th32)) {
@@ -76,7 +64,7 @@ bool Detouring::suspendUnsuspendedThreads() {
 		}
 	}
 	CloseHandle(hSnapshot);
-	return suspendedSomething;
+	return foundNotYetEnumeratedThread;
 }
 
 void Detouring::printDetourTransactionBeginError(LONG err) {
@@ -219,7 +207,24 @@ bool Detouring::beginTransaction() {
 	}
 	beganTransaction = true;
 
-	suspendUnsuspendedThreadsCaller();
+	// Suspend all threads
+	enumerateThreadsRecursively([&](DWORD threadId){
+		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadId);
+		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
+			#ifdef LOG_PATH
+			WinError winErr;
+			logwrap(fprintf(logfile, "Error in OpenThread: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+			#endif
+		}
+		else {
+			logwrap(fprintf(logfile, "Suspending thread ID %d\n", threadId));
+			DWORD detourResult = DetourUpdateThread(hThread);  // oh god it still needs the thread handles by the time DetourTransactionCommit() is called
+			if (detourResult != NO_ERROR) {
+				printDetourUpdateThreadError(detourResult);
+			}
+			suspendedThreadHandles.push_back(hThread);
+		}
+	});
 	return true;
 }
 
@@ -268,4 +273,44 @@ void Detouring::closeAllThreadHandles() {
 	}
 	suspendedThreadHandles.clear();
 	suspendedThreads.clear();
+}
+
+bool Detouring::someThreadsAreExecutingThisModule() {
+	
+	uintptr_t dllStart;
+	uintptr_t dllEnd;
+	if (!getModuleBounds(DLL_NAME, &dllStart, &dllEnd)) return false;
+
+	bool threadEipInThisModule = false;
+
+	// Suspend all threads
+	enumerateThreadsRecursively([&](DWORD threadId) {
+		if (threadEipInThisModule) return;
+		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadId);
+		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
+#ifdef LOG_PATH
+			WinError winErr;
+			logwrap(fprintf(logfile, "Error in OpenThread: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+#endif
+		}
+		else {
+			logwrap(fprintf(logfile, "Suspending thread ID %d\n", threadId));
+			SuspendThread(hThread);
+			suspendedThreadHandles.push_back(hThread);
+
+			CONTEXT ctx{0};
+			ctx.ContextFlags = CONTEXT_CONTROL;
+			GetThreadContext(hThread, &ctx);
+
+			if (ctx.Eip >= dllStart && ctx.Eip < dllEnd) threadEipInThisModule = true;
+		}
+	});
+
+	threadEipInThisModule = threadEipInThisModule || hooksCounter > 0;  // some hooks may call functions that lead outside the module
+
+	for (HANDLE hThread : suspendedThreadHandles) {
+		ResumeThread(hThread);
+	}
+	closeAllThreadHandles();
+	return threadEipInThisModule;
 }

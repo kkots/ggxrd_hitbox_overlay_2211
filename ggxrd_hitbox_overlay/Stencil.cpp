@@ -80,6 +80,8 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 		}
 		logOnce(fprintf(logfile, "GetRenderTargetResult returned %d targets\n", renderTargetIndex));
 
+		logOnce(fprintf(logfile, "renderTargetDesc.Format is %d\n", renderTargetDesc.Format));
+
 		if (FAILED(d3d->CheckDepthStencilMatch(caps.AdapterOrdinal,
 			caps.DeviceType,
 			d3dDisplayMode.Format,

@@ -108,6 +108,7 @@ int main()
 
 	bool foundProcess = false;
 
+	LPVOID buf = NULL;
 	std::vector<HANDLE> handlesToClose;
 	HANDLE proc = INVALID_HANDLE_VALUE;
 	Process32First(snap, &entry);
@@ -183,7 +184,7 @@ int main()
 		}
 
 		const auto size = (_tcsclen(dll_path) + 1) * sizeof(TCHAR);
-		LPVOID buf = VirtualAllocEx(proc, nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		buf = VirtualAllocEx(proc, nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 		if (buf == NULL) {
 			tout << TEXT("Failed to allocate memory.\n");
 			break;
@@ -210,9 +211,6 @@ int main()
 	for (HANDLE h : handlesToClose) {
 		CloseHandle(h);
 	}
-	if (proc && proc != INVALID_HANDLE_VALUE) {
-		CloseHandle(proc);
-	}
 	CloseHandle(snap);
 	if (!foundProcess) {
 		tout << TEXT("Process with the name 'GuiltyGearXrd.exe' not found. Launch Guilty Gear and then try again.\n");
@@ -221,5 +219,11 @@ int main()
 	tout << TEXT("Press Enter to exit...\n");
 	ignoreLine;
 	std::getline(tin, ignoreLine);
+	if (proc && proc != INVALID_HANDLE_VALUE) {
+		if (buf) {
+			VirtualFreeEx(proc, buf, 0, MEM_RELEASE);
+		}
+		CloseHandle(proc);
+	}
 	return 0;
 }

@@ -39,7 +39,7 @@ char Game::getPlayerSide() const {
 		if (!playerSideNetworkHolder) return 2;
 		// Big thanks to WorseThanYou for finding this value
 		return *(char*)(*playerSideNetworkHolder + 0x1734);  // 0 for p1 side, 1 for p2 side, 2 for observer
-	} else if (gameDataPtr) {
+	} else if (gameDataPtr && *gameDataPtr) {
 		return *(char*)(*gameDataPtr + 0x44);  // this makes sense for training mode for example (maybe only all single player modes)
 	} else {
 		return 2;
@@ -47,11 +47,30 @@ char Game::getPlayerSide() const {
 }
 
 GameMode Game::getGameMode() const {
-	if (!gameDataPtr) return GAME_MODE_TRAINING;
+	if (!gameDataPtr || !(*gameDataPtr)) return GAME_MODE_TRAINING;
 	return (GameMode)*(*gameDataPtr + 0x45);
 }
 
 bool Game::isMatchRunning() const {
 	if (!aswEngine) return false;
 	return *(unsigned int*)(*aswEngine + 4 + 0x1c71f0 + 0x12C) != 0; // thanks to WorseThanYou for finding this
+}
+
+bool Game::isTrainingMode() const {
+	return getGameMode() == GAME_MODE_TRAINING;
+}
+
+bool Game::isNonOnline() const {
+	GameMode gameMode = getGameMode();
+	return gameMode == GAME_MODE_ARCADE
+		|| gameMode == GAME_MODE_CHALLENGE
+		|| gameMode == GAME_MODE_REPLAY
+		|| gameMode == GAME_MODE_STORY
+		|| gameMode == GAME_MODE_TRAINING
+		|| gameMode == GAME_MODE_TUTORIAL
+		|| gameMode == GAME_MODE_VERSUS;
+}
+
+bool Game::currentModeIsOnline() const {
+	return !isNonOnline();
 }

@@ -120,6 +120,18 @@
     <ClInclude Include="MutexWhichTellsWhatThreadItsLockedBy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GifMode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Keyboard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Hud.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -193,6 +205,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MutexWhichTellsWhatThreadItsLockedBy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GifMode.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Settings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Keyboard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hud.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

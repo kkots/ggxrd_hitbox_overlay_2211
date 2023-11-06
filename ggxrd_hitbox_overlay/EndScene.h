@@ -4,7 +4,6 @@
 #include "Entity.h"
 #include <condition_variable>
 #include <mutex>
-#include <atomic>
 #include "MutexWhichTellsWhatThreadItsLockedBy.h"
 
 using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
@@ -23,6 +22,7 @@ public:
 	void endSceneHookUnloadingLogic(IDirect3DDevice9* device, bool* unloadingLogicTakesOver, HRESULT* returnThisInTheCaller);
 	void setPresentFlag();
 	bool consumePresentFlag();
+	void processKeyStrokes();
 	EndScene_t orig_EndScene = nullptr;
 	MutexWhichTellsWhatThreadItsLockedBy orig_EndSceneMutex;
 	Present_t orig_Present = nullptr;
@@ -31,6 +31,8 @@ private:
 	bool isEntityAlreadyDrawn(const Entity& ent) const;
 	void onDllDetachWhenEndSceneHooked();
 	void onDllDetachWhenEndSceneNotHooked();
+	void noGravGifMode();
+
 
 	// The EndScene function is actually being called twice: once by GuiltyGear and one more time by the Steam overlay.
 	// However, Present is only called once each frame. So we use the Present function to determine if the next EndScene
@@ -39,14 +41,7 @@ private:
 
 	std::vector<Entity> drawnEntities;
 
-	DWORD ongoingPresentCall = 0;
-	bool presentMustReportEndSceneUnhooked = false;
-	std::atomic_bool endSceneIsHooked = false;
-	std::atomic_bool needUnhookAll = false;
-	bool unhookedAll = false;
-	bool endSceneUnhooked = false;
-	std::condition_variable endSceneUnhookedConditionVariable;
-	std::mutex endSceneUnhookedMutex;
+	bool scaleIs0 = false;
 };
 
 extern EndScene endScene;
