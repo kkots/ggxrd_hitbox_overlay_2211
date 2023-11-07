@@ -4,7 +4,6 @@
 #include "Entity.h"
 #include <condition_variable>
 #include <mutex>
-#include "MutexWhichTellsWhatThreadItsLockedBy.h"
 
 using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
 using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9*, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
@@ -19,18 +18,15 @@ public:
 	bool onDllDetach();
 	HRESULT presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 	void endSceneHook(IDirect3DDevice9* device);
-	void endSceneHookUnloadingLogic(IDirect3DDevice9* device, bool* unloadingLogicTakesOver, HRESULT* returnThisInTheCaller);
 	void setPresentFlag();
 	bool consumePresentFlag();
 	void processKeyStrokes();
 	EndScene_t orig_EndScene = nullptr;
-	MutexWhichTellsWhatThreadItsLockedBy orig_EndSceneMutex;
+	std::mutex orig_EndSceneMutex;
 	Present_t orig_Present = nullptr;
-	MutexWhichTellsWhatThreadItsLockedBy orig_PresentMutex;
+	std::mutex orig_PresentMutex;
 private:
 	bool isEntityAlreadyDrawn(const Entity& ent) const;
-	void onDllDetachWhenEndSceneHooked();
-	void onDllDetachWhenEndSceneNotHooked();
 	void noGravGifMode();
 
 

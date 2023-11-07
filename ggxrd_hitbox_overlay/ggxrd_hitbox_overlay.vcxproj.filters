@@ -117,9 +117,6 @@
     <ClInclude Include="WinError.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MutexWhichTellsWhatThreadItsLockedBy.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GifMode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -202,9 +199,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="WinError.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MutexWhichTellsWhatThreadItsLockedBy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GifMode.cpp">

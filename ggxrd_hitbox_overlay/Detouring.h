@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <mutex>
-#include "MutexWhichTellsWhatThreadItsLockedBy.h"
 #include <functional>
 #include <atomic>
 
@@ -13,7 +12,7 @@ public:
 	bool beginTransaction();
 
 	// See comments and example inside struct ThingToBeUndetouredAtTheEnd
-	bool attach(PVOID* ppPointer, PVOID pDetour, MutexWhichTellsWhatThreadItsLockedBy* mutex, const char* name = nullptr);  // See ThingToBeUndetouredAtTheEnd for explanation of arguments
+	bool attach(PVOID* ppPointer, PVOID pDetour, std::mutex* mutex, const char* name = nullptr);  // See ThingToBeUndetouredAtTheEnd for explanation of arguments
 	bool endTransaction();
 	bool cancelTransaction();
 	void detachAll();
@@ -25,7 +24,7 @@ private:
 	struct ThingToBeUndetouredAtTheEnd {
 		PVOID* ppPointer = nullptr;  // pointer to a pointer to the original function
 		PVOID pDetour = nullptr;  // pointer to the new function - the hook function
-		MutexWhichTellsWhatThreadItsLockedBy* mutex = nullptr;  // a mutex through which you must read and call the pointer to the original function after attaching
+		std::mutex* mutex = nullptr;  // a mutex through which you must read and call the pointer to the original function after attaching
 
 		// You can't just call the original function. The sequence must be:
 		// 1) Lock the same mutex as the one you provided in the 'mutex' element of 'ThingToBeUndetouredAtTheEnd' struct;
@@ -37,10 +36,10 @@ private:
 		// 
 		// Example:
 		//
-		// #include "MutexWhichTellsWhatThreadItsLockedBy.h"
+		// #include <mutex>
 		// using orig_t = int(__cdecl*)(void);
 		// orig_t orig = ...;  // find orig using some means
-		// MutexWhichTellsWhatThreadItsLockedBy origMutex;
+		// std::mutex origMutex;
 		// 
 		// void attach_my_hook() {
 		//    ... detouring.beginTransaction() called in dllmain.cpp
@@ -49,7 +48,7 @@ private:
 		// }
 		// 
 		// int my_hook() {
-		//   MutexWhichTellsWhatThreadItsLockedByGuard guard(origMutex); // locks the mutex. Unlocks automatically upon destruction, i.e. when exiting the my_hook function
+		//   std::unique_lock<std::mutex> guard(origMutex); // locks the mutex. Unlocks automatically upon destruction, i.e. when exiting the my_hook function
 		//   return orig();
 		// }
 		const char* name = nullptr;  // the name of the hook for logging purposes only

@@ -42,7 +42,7 @@ void Hud::updateHudHook(char* thisArg) {
 	} else {
 		changeHudVisibility(true);
 	}
-	MutexWhichTellsWhatThreadItsLockedByGuard guard(orig_updateHudMutex);
+	std::unique_lock<std::mutex> guard(orig_updateHudMutex);
 	orig_updateHud(thisArg);
 }
 

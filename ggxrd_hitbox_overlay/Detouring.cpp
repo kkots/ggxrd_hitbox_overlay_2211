@@ -131,7 +131,7 @@ void Detouring::detachAll() {
 
 void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
 	logwrap(fputs("Detouring::detachAllButThese(...) called\n", logfile));
-	std::vector<MutexWhichTellsWhatThreadItsLockedBy*> lockedMutexes;
+	std::vector<std::mutex*> lockedMutexes;
 	
 	DWORD currentThreadId = GetCurrentThreadId();
 
@@ -140,13 +140,6 @@ void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
 		if (std::find(dontDetachThese.cbegin(), dontDetachThese.cend(), thing.pDetour) != dontDetachThese.cend()) {
 			if (thing.name) {
 				logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): Will not unhook %s\n", thing.name));
-			}
-			continue;
-		}
-
-		if (thing.mutex->isLocked && thing.mutex->threadId == currentThreadId) {
-			if (thing.name) {
-				logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): mutex for %s is already owned by this thread, so it won't be relocked\n", thing.name));
 			}
 			continue;
 		}
@@ -194,7 +187,7 @@ void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
 		endTransaction();
 	}
 
-	for (MutexWhichTellsWhatThreadItsLockedBy* mutexPtr : lockedMutexes) {
+	for (std::mutex* mutexPtr : lockedMutexes) {
 		mutexPtr->unlock();
 	}
 }
@@ -228,7 +221,7 @@ bool Detouring::beginTransaction() {
 	return true;
 }
 
-bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, MutexWhichTellsWhatThreadItsLockedBy* mutex, const char * name) {
+bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, std::mutex* mutex, const char * name) {
 	if (*ppPointer == NULL || mutex == nullptr) return false;
 	DWORD detourResult = DetourAttach(
 		ppPointer,

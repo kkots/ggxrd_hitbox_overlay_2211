@@ -2,7 +2,6 @@
 #include <vector>
 #include "ThrowInfo.h"
 #include <mutex>
-#include "MutexWhichTellsWhatThreadItsLockedBy.h"
 
 #ifndef USE_ANOTHER_HOOK
 using hitDetectionMain_t = void (__thiscall*)(void* aswSubengine, int hitDetectionType);
@@ -27,7 +26,7 @@ private:
 	};
 
 	hitDetectionMain_t orig_hitDetectionMain = nullptr;
-	MutexWhichTellsWhatThreadItsLockedBy orig_hitDetectionMainMutex;
+	std::mutex orig_hitDetectionMainMutex;
 
 	void hitDetectionMainHook();
 

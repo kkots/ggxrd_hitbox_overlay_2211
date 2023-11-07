@@ -62,7 +62,7 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 	}
 	HRESULT result;
 	{
-		MutexWhichTellsWhatThreadItsLockedByGuard guard(endScene.orig_EndSceneMutex);
+		std::unique_lock<std::mutex> guard(endScene.orig_EndSceneMutex);
 		result = endScene.orig_EndScene(device);
 	}
 	--detouring.hooksCounter;
@@ -78,7 +78,7 @@ HRESULT __stdcall hook_Present(IDirect3DDevice9* device, const RECT* pSourceRect
 
 HRESULT EndScene::presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion) {
 	setPresentFlag();
-	MutexWhichTellsWhatThreadItsLockedByGuard guard(endScene.orig_PresentMutex);
+	std::unique_lock<std::mutex> guard(endScene.orig_PresentMutex);
 	HRESULT result = orig_Present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);  // may call d3d9.dll::EndScene() (and, consecutively, the hook)
 	return result;
 }

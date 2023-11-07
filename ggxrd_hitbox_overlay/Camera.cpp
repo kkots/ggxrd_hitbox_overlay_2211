@@ -68,7 +68,7 @@ void Camera::updateDarkenHook(char* thisArg) {
 		*(float*)(thisArg + darkenValue1Offset) = -1.F;
 		*(float*)(thisArg + darkenValue1Offset + 0xC) = 0.F;
 	}
-	MutexWhichTellsWhatThreadItsLockedByGuard guard(orig_updateDarkenMutex);
+	std::unique_lock<std::mutex> guard(orig_updateDarkenMutex);
 	orig_updateDarken(thisArg);
 }
 
@@ -89,7 +89,7 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 			*(float*)(deref + 0x5C) = posY + 106.4231F;
 		}
 	}
-	MutexWhichTellsWhatThreadItsLockedByGuard guard(orig_updateCameraMutex);
+	std::unique_lock<std::mutex> guard(orig_updateCameraMutex);
 	orig_updateCamera(thisArg, param1, param2);
 }
 

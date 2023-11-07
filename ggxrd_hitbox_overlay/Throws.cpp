@@ -46,7 +46,7 @@ void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 		throws.hitDetectionMainHook();
 	}
 	{
-		MutexWhichTellsWhatThreadItsLockedByGuard guard(throws.orig_hitDetectionMainMutex);
+		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
 		throws.orig_hitDetectionMain(this, hitDetectionType);
 	}
 	--detouring.hooksCounter;
@@ -57,7 +57,7 @@ BOOL Throws::HookHelp::hitDetectionMainHook(char* other) {
 	throws.hitDetectionMainHook();
 	BOOL result;
 	{
-		MutexWhichTellsWhatThreadItsLockedByGuard guard(throws.orig_hitDetectionMainMutex);
+		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
 		result throws.orig_hitDetectionMain((char*)this, other);
 	}
 	--detouring.hooksCounter;

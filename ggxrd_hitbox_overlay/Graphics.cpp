@@ -27,7 +27,7 @@ HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pP
 	graphics.resetHook();
 	HRESULT result;
 	{
-		MutexWhichTellsWhatThreadItsLockedByGuard guard(graphics.orig_ResetMutex);
+		std::unique_lock<std::mutex> guard(graphics.orig_ResetMutex);
 		result = graphics.orig_Reset(device, pPresentationParameters);
 	}
 	--detouring.hooksCounter;

@@ -1,5 +1,5 @@
 #pragma once
-#include "MutexWhichTellsWhatThreadItsLockedBy.h"
+#include <mutex>
 
 using updateHud_t = void(__thiscall*)(char* thisArg);
 
@@ -17,7 +17,7 @@ private:
 	void changeHudVisibility(bool isVisible);
 	char* hudPtr = nullptr;
 	updateHud_t orig_updateHud;
-	MutexWhichTellsWhatThreadItsLockedBy orig_updateHudMutex;
+	std::mutex orig_updateHudMutex;
 };
 
 extern Hud hud;

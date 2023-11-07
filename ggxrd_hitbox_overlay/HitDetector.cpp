@@ -55,7 +55,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 	++detouring.hooksCounter;
 	int result;
 	{
-		MutexWhichTellsWhatThreadItsLockedByGuard guard(hitDetector.orig_determineHitTypeMutex);
+		std::unique_lock<std::mutex> guard(hitDetector.orig_determineHitTypeMutex);
 		result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
 	}
 	std::unique_lock<std::mutex> guard(hitDetector.mutex);
