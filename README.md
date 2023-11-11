@@ -20,7 +20,7 @@ Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windo
 
 1. Launch the game. Or you can do the next step at any point while the game is running.
 
-2. Go to `bin` folder and launch `ggxrd_hitbox_injector.exe`.
+2. Go to downloaded folder and launch `ggxrd_hitbox_injector.exe`.
 
 3. Start a match. Hitboxes should display.
 
@@ -92,11 +92,11 @@ noGravityToggle = F2
 
 You can specify a combination of keys, separated by `+` sign.  
 Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.  
-In the mod is already running you need to reload it in order to apply the new hotkeys. To reload the mod you can run the injector again.
+If the mod is already running you need to reload it in order to apply the new hotkeys. To reload the mod you can run the injector again.
 
 ## Developing
 
-There are two separate projects in the `src` directory.
+There are two separate projects in the repository.
 
 The `ggxrd_hitbox_injector` project builds an application that will inject a dll into the process and exit. The main action will then take place in the dll, in the target process' address space.
 
