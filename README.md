@@ -1,5 +1,7 @@
 # ggxrd_hitbox_overlay_2211
 
+![Screenshot can't be viewed](screen.png)
+
 ## Description
 
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 6'th November 2023).
