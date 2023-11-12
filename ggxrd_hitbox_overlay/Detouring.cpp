@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "Detouring.h"
-#include "logging.h"
 #include <detours.h>
 #include <TlHelp32.h>
 #include <algorithm>
@@ -210,7 +209,6 @@ bool Detouring::beginTransaction() {
 			#endif
 		}
 		else {
-			logwrap(fprintf(logfile, "Suspending thread ID %d\n", threadId));
 			DWORD detourResult = DetourUpdateThread(hThread);  // oh god it still needs the thread handles by the time DetourTransactionCommit() is called
 			if (detourResult != NO_ERROR) {
 				printDetourUpdateThreadError(detourResult);
@@ -218,6 +216,7 @@ bool Detouring::beginTransaction() {
 			suspendedThreadHandles.push_back(hThread);
 		}
 	});
+	logwrap(fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size()));
 	return true;
 }
 
@@ -287,7 +286,6 @@ bool Detouring::someThreadsAreExecutingThisModule() {
 #endif
 		}
 		else {
-			logwrap(fprintf(logfile, "Suspending thread ID %d\n", threadId));
 			SuspendThread(hThread);
 			suspendedThreadHandles.push_back(hThread);
 
@@ -298,12 +296,39 @@ bool Detouring::someThreadsAreExecutingThisModule() {
 			if (ctx.Eip >= dllStart && ctx.Eip < dllEnd) threadEipInThisModule = true;
 		}
 	});
+	logwrap(fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size()));
 
 	threadEipInThisModule = threadEipInThisModule || hooksCounter > 0;  // some hooks may call functions that lead outside the module
+
+	#ifdef LOG_PATH
+	for (const std::string& name : runningHooks) {
+		logwrap(fprintf(logfile, "Hook %s is still running\n", name.c_str()));
+	}
+	#endif
 
 	for (HANDLE hThread : suspendedThreadHandles) {
 		ResumeThread(hThread);
 	}
 	closeAllThreadHandles();
 	return threadEipInThisModule;
+}
+
+void Detouring::markHookRunning(std::string name, bool running) {
+	#ifdef LOG_PATH
+	std::unique_lock<std::mutex> guard(runningHooksMutex);
+	if (running) {
+		runningHooks.push_back(name);
+	} else {
+		auto found = runningHooks.end();
+		for (auto it = runningHooks.begin(); it != runningHooks.end(); ++it) {
+			if (*it == name) {
+				found = it;
+				break;
+			}
+		}
+		if (found != runningHooks.end()) {
+			runningHooks.erase(found);
+		}
+	}
+	#endif
 }

@@ -3,6 +3,7 @@
 #include <mutex>
 #include <functional>
 #include <atomic>
+#include "logging.h"
 
 using suspendThreadCallback_t = std::function<void(DWORD threadId)>;
 
@@ -18,6 +19,7 @@ public:
 	void detachAll();
 	void detachAllButThese(const std::vector<PVOID>& dontDetachThese = std::vector<PVOID>{});
 	bool someThreadsAreExecutingThisModule();
+	void markHookRunning(std::string name, bool running);
 	DWORD dllMainThreadId = 0;
 	std::atomic_int hooksCounter{0};
 private:
@@ -65,6 +67,11 @@ private:
 	bool beganTransaction = false;
 	std::vector<DWORD> suspendedThreads;
 	std::vector<HANDLE> suspendedThreadHandles;
+
+	#ifdef LOG_PATH
+	std::mutex runningHooksMutex;
+	std::vector<std::string> runningHooks;
+	#endif
 };
 
 extern Detouring detouring;

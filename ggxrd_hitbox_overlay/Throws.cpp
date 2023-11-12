@@ -42,6 +42,7 @@ bool Throws::onDllMain() {
 #ifndef USE_ANOTHER_HOOK
 void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("hitDetectionMain", true);
 	if (hitDetectionType == 1) {
 		throws.hitDetectionMainHook();
 	}
@@ -49,17 +50,20 @@ void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
 		throws.orig_hitDetectionMain(this, hitDetectionType);
 	}
+	detouring.markHookRunning("hitDetectionMain", false);
 	--detouring.hooksCounter;
 }
 #else
 BOOL Throws::HookHelp::hitDetectionMainHook(char* other) {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("hitDetectionMain", true);
 	throws.hitDetectionMainHook();
 	BOOL result;
 	{
 		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
 		result throws.orig_hitDetectionMain((char*)this, other);
 	}
+	detouring.markHookRunning("hitDetectionMain", false);
 	--detouring.hooksCounter;
 	return result;
 }

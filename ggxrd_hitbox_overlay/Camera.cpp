@@ -53,13 +53,17 @@ bool Camera::onDllMain() {
 
 void Camera::HookHelp::updateDarkenHook() {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("updateDarken", true);
 	camera.updateDarkenHook((char*)this);
+	detouring.markHookRunning("updateDarken", false);
 	--detouring.hooksCounter;
 }
 
 void Camera::HookHelp::updateCameraHook(char** param1, char* param2) {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("updateCamera", true);
 	camera.updateCameraHook((char*)this, param1, param2);
+	detouring.markHookRunning("updateCamera", false);
 	--detouring.hooksCounter;
 }
 

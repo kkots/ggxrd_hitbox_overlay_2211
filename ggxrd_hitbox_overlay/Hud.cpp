@@ -31,7 +31,9 @@ bool Hud::onDllMain() {
 
 void Hud::HookHelp::updateHudHook() {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("updateHud", true);
 	hud.updateHudHook((char*)this);
+	detouring.markHookRunning("updateHud", false);
 	--detouring.hooksCounter;
 }
 

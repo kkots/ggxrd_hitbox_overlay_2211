@@ -4,7 +4,7 @@
 
 ## Description
 
-Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 6'th November 2023).
+Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 13'th November 2023).
 
 ## Credits
 
@@ -155,3 +155,4 @@ Dependencies are better described in each project's README.md. Short version is,
                    Fixed pause menu falsely being reported as open after some computer and game restarts.
 - 2023 November 1: Fixed possible crash when unloading the DLL.
 - 2023 November 6: Remade DLL unloading and added "GIF mode" and "no gravity" mode.
+- 2023 November 13: Fixed a possible freeze when unloading the DLL.

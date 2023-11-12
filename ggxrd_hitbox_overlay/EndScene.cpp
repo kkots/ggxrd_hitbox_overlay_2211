@@ -42,6 +42,7 @@ bool EndScene::onDllMain() {
 
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("EndScene", true);
 	if (endScene.consumePresentFlag()) {
 
 		endScene.processKeyStrokes();
@@ -65,13 +66,16 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 		std::unique_lock<std::mutex> guard(endScene.orig_EndSceneMutex);
 		result = endScene.orig_EndScene(device);
 	}
+	detouring.markHookRunning("EndScene", false);
 	--detouring.hooksCounter;
 	return result;
 }
 
 HRESULT __stdcall hook_Present(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion) {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("Present", true);
 	HRESULT result = endScene.presentHook(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	detouring.markHookRunning("Present", false);
 	--detouring.hooksCounter;
 	return result;
 }

@@ -52,7 +52,17 @@ void HitDetector::clearAllBoxes() {
    3 is ignoring hit due to playing a possibly very long throw animation (dunno why that is separate)
    4 is rejected hit */
 int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr) {
-	++detouring.hooksCounter;
+	class HookTracker {
+	public:
+		HookTracker() {
+			++detouring.hooksCounter;
+			detouring.markHookRunning("determineHitType", true);
+		}
+		~HookTracker() {
+			detouring.markHookRunning("determineHitType", false);
+			--detouring.hooksCounter;
+		}
+	} hookTracker;
 	int result;
 	{
 		std::unique_lock<std::mutex> guard(hitDetector.orig_determineHitTypeMutex);
@@ -141,7 +151,6 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 	if (gifMode.gifModeOn && game.isTrainingMode()) {
 		result = 0;
 	}
-	--detouring.hooksCounter;
 	return result;
 }
 
