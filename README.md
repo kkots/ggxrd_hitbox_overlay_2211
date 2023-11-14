@@ -198,3 +198,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 6: Remade DLL unloading and added "GIF mode" and "no gravity" mode.
 - 2023 November 13: Fixed a possible freeze when unloading the DLL.
 - 2023 November 14: Added ability to play the game frame-by-frame or in "slow motion" mode (in training mode only).
+- 2023 November 15: Removed Potemkin Buster hitbox - it's fake and doesn't actually affect anything.
