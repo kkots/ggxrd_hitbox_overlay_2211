@@ -50,6 +50,7 @@ public:
 	void pushboxLeftRight(int* left, int* right) const;
 
 	unsigned int currentAnimDuration() const; // how many frames current animation has been playing for. Can go very very high
+	const char* animationName() const;
 
 	void getState(EntityState*) const;
 

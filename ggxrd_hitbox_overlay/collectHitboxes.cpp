@@ -92,7 +92,16 @@ void collectHitboxes(const Entity& ent,
 		*hurtbox = callParams;
 	}
 
-	if (hitboxes && active && !state.doingAThrow) {
+	bool includeTheseHitboxes = hitboxes && active && !state.doingAThrow;
+	if (includeTheseHitboxes) {
+		if (state.charType == CHARACTER_TYPE_POTEMKIN
+				&& strcmp(ent.animationName(), "PotemkinBuster") == 0) {
+			includeTheseHitboxes = false;
+		}
+	}
+
+	if (includeTheseHitboxes) {
+
 		logOnce(fprintf(logfile, "angle: %d\n", *(int*)(ent + 0x258)));
 		
 		callParams.thickness = THICKNESS_HITBOX;

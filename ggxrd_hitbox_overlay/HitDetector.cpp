@@ -77,7 +77,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 			|| (*(unsigned int*)(otherEntity + 0x10) == 0)) return result;
 
 		// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
-		if (strncmp(otherEntity + 0x2444, "CounterGuard", 12) == 0) {
+		if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
 			for (auto it = hitDetector.rejections.begin(); it != hitDetector.rejections.end(); ++it) {
 				if (it->owner == otherEntity) {
 					hitDetector.rejections.erase(it);

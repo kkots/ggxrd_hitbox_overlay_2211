@@ -182,3 +182,7 @@ bool Entity::operator==(const Entity& other) const {
 Entity::operator bool() const {
 	return ent != nullptr;
 }
+
+const char* Entity::animationName() const {
+	return (const char*)(ent + 0x2444);
+}

@@ -102,7 +102,7 @@ void Throws::hitDetectionMainHook() {
 			|| ownerType == CHARACTER_TYPE_AXL);
 
 		if (charType == CHARACTER_TYPE_FAUST
-				&& strcmp(ent + 0x2444, "Mettagiri") == 0
+				&& strcmp(ent.animationName(), "Mettagiri") == 0
 				&& currentAnimDuration <= 1) {
 			throwRange = 175000;
 			checkPassed = true;
