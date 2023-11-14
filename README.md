@@ -1,6 +1,6 @@
 # ggxrd_hitbox_overlay_2211
 
-![Screenshot can't be viewed](screen.png)
+![Screenshot can't be viewed](screen.jpg)
 
 ## Description
 
@@ -26,7 +26,8 @@ Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windo
 
 3. Start a match. Hitboxes should display.
 
-Read the `Features` section to understand what the colors mean and what the hotkeys are.
+Read the `Features` section to understand what the colors mean and what the hotkeys are.  
+You can also play the game frame-by-frame (described in `Features`).
 
 To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.  
 If trying to use the mod with a game version that it doesn't fit, the game may crash. The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
@@ -70,6 +71,10 @@ When visually checking to see if a throw box would connect with an opponent you 
 Note that normal ground throw actually simply checks if distance between the pushboxes is below the attacker's throw range (values listed on Dustloop), however some throws like command throws or air throws also check if the origin point specifically is within x or y range. Hence this is why I decided to just always show the check on the origin point only.  
 If a command throw has a throw box as well as hitbox, such as Raven's command throw, - for such moves I haven't fully studied the conditions under which they connect - but it's likely that both the throw box and the hitbox must connect.
 
+### Frame-by-frame animation playback
+
+You can force the game to play one frame at a time (in training mode only). Read on in `F3 - Freeze game` secion and sections after that.
+
 ### F1 - GIF mode
 
 In training mode (only) you can press F1 to enter "GIF mode", which makes the background black, centers the camera on you, hides some of the HUD (you have to hide the rest yourself via Menu - Display settings) and makes opponent invisible and unhittable.  
@@ -82,19 +87,55 @@ In training mode (only) you can press F2 to enter "No gravity mode" which makes 
 Press the key again to turn off the mode.  
 Section "Hotkey configuration" describes how to configure hotkeys.
 
+### F3 - Freeze game
+
+Freezes the game and stops animations and game logic from advancing.  
+Section "Hotkey configuration" describes how to configure hotkeys.
+
+### F4 - Slow-motion mode
+
+Plays the game at 3 times (the default) slower rate. You configure the rate in settings (read on in `Hotkey configuration`), but the `slowmoTimes` must be a whole, round number greater than 1. I.e. the game can only be slowed down 2, 3, 4, etc times.  
+Section "Hotkey configuration" describes how to configure hotkeys.
+
+### F5 - Advance to next frame
+
+While the game is frozen using `Freeze game` feature, advances the game forward by 1 frame. Does nothing if the game is not currently frozen.  
+Section "Hotkey configuration" describes how to configure hotkeys.
+
 ### Hotkey configuration
 
-If you wish to configure hotkeys for Gif mode and No gravity mode, create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
+If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
 Here's an example of the `.ini` file:
 
 ```ini
+; Toggles GIF mode
+; GIF mode is:
+; 1) Background becomes black
+; 2) Camera is centered on you
+; 3) Opponent is invisible and invulnerable
 gifModeToggle = F1
+
+; Toggles No gravity mode
+; No gravity mode is you can't fall basically
 noGravityToggle = F2
+
+; Freezes the game
+freezeGameToggle = F3
+
+; Plays the game in slow motion. Specifies by how many times to slow the game down in "slowmoTimes"
+slowmoGameToggle = F4
+
+; Only works while the game is frozen using freezeGameToggle. Advances the game forward one frame
+allowNextFrameKeyCombo = F5
+
+; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed. Specifies by how many times to slow the game down
+slowmoTimes = 3
 ```
 
 You can specify a combination of keys, separated by `+` sign.  
 Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.  
-If the mod is already running you need to reload it in order to apply the new hotkeys. To reload the mod you can run the injector again.
+If the mod is already running you need to reload it in order to apply the new hotkeys and settings. To reload the mod you can run the injector again.  
+`slowmoTimes` is not a key combination, it must be a round integer number.
 
 ## Developing
 
@@ -156,3 +197,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 1: Fixed possible crash when unloading the DLL.
 - 2023 November 6: Remade DLL unloading and added "GIF mode" and "no gravity" mode.
 - 2023 November 13: Fixed a possible freeze when unloading the DLL.
+- 2023 November 14: Added ability to play the game frame-by-frame or in "slow motion" mode (in training mode only).
