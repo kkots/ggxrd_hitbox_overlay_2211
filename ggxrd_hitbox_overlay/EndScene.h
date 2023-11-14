@@ -38,6 +38,9 @@ private:
 	std::vector<Entity> drawnEntities;
 
 	bool scaleIs0 = false;
+	unsigned int allowNextFrameBeenHeldFor = 0;
+	unsigned int allowNextFrameCounter = 0;
+	bool freezeGame = false;
 };
 
 extern EndScene endScene;

@@ -15,6 +15,21 @@ const float coordCoefficient = 0.42960999705207F;
 bool Camera::onDllMain() {
 	bool error = false;
 
+	if (aswEngine) {
+		char cameraOffsetSig[] = "\x8b\x4c\x24\x18\x83\xc4\x08\x0b\x4c\x24\x14\x74\x1e\x8b\x15\x00\x00\x00\x00\x8b\x8a\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x85\xc0\x75\x09\x55\xe8\x00\x00\x00\x00\x83\xc4\x04";
+		char cameraOffsetSigMask[] = "xxxxxxxxxxxxxxx????xx????x????xxxxxx????xxx";
+
+		substituteWildcard(cameraOffsetSigMask, cameraOffsetSig, (char*)&aswEngine, 4, 0);
+
+		cameraOffset = (unsigned int)sigscanOffset(
+			"GuiltyGearXrd.exe",
+			cameraOffsetSig,
+			cameraOffsetSigMask,
+			{ 0x15, 0 },
+			&error, "cameraOffset");
+
+	}
+
 	orig_updateDarken = (updateDarken_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\x51\x56\x8b\xf1\x83\xbe\x00\x00\x00\x00\x00\x74\x12\xf3\x0f\x10\x86\x00\x00\x00\x00\xf3\x0f\x5c\x86\x00\x00\x00\x00\xeb\x10\xf3\x0f\x10\x86\x00\x00\x00\x00\xf3\x0f\x58\x86\x00\x00\x00\x00\x0f\x28\xc8\xf3\x0f\x11\x86\x00\x00\x00\x00",
@@ -125,7 +140,7 @@ void Camera::setValues(IDirect3DDevice9* device) {
 	D3DVIEWPORT9 viewport;
 	device->GetViewport(&viewport);
 
-	const char* cam = *(char**)(*aswEngine + 0x22e62c);
+	const char* cam = *(char**)(*aswEngine + cameraOffset);
 
 	pos.x = *(float*)(cam + 0x3C8);
 	pos.y = *(float*)(cam + 0x3CC);

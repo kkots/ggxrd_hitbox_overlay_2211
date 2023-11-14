@@ -1,92 +1,92 @@
 #include "pch.h"
 #include "Settings.h"
 #include "logging.h"
+#include "Keyboard.h"
 
 Settings settings;
 
 bool Settings::onDllMain() {
-	keys.push_back({ "Backspace", VK_BACK });
-	keys.push_back({ "Tab", VK_TAB });
-	keys.push_back({ "Enter", VK_RETURN });
-	keys.push_back({ "PauseBreak", VK_PAUSE });
-	keys.push_back({ "CapsLock", VK_CAPITAL });
-	keys.push_back({ "Escape", VK_ESCAPE });
-	keys.push_back({ "Space", VK_SPACE });
-	keys.push_back({ "PageUp", VK_PRIOR });
-	keys.push_back({ "PageDown", VK_NEXT });
-	keys.push_back({ "End", VK_END });
-	keys.push_back({ "Home", VK_HOME });
-	keys.push_back({ "Left", VK_LEFT });
-	keys.push_back({ "Up", VK_UP });
-	keys.push_back({ "Right", VK_RIGHT });
-	keys.push_back({ "Down", VK_DOWN });
-	keys.push_back({ "PrintScreen", VK_SNAPSHOT });
-	keys.push_back({ "Insert", VK_INSERT });
-	keys.push_back({ "Delete", VK_DELETE });
-	keys.push_back({ "Num0", VK_NUMPAD0 });
-	keys.push_back({ "Num1", VK_NUMPAD1 });
-	keys.push_back({ "Num2", VK_NUMPAD2 });
-	keys.push_back({ "Num3", VK_NUMPAD3 });
-	keys.push_back({ "Num4", VK_NUMPAD4 });
-	keys.push_back({ "Num5", VK_NUMPAD5 });
-	keys.push_back({ "Num6", VK_NUMPAD6 });
-	keys.push_back({ "Num7", VK_NUMPAD7 });
-	keys.push_back({ "Num8", VK_NUMPAD8 });
-	keys.push_back({ "Num9", VK_NUMPAD9 });
-	keys.push_back({ "NumMultiply", VK_MULTIPLY });
-	keys.push_back({ "NumAdd", VK_ADD });
-	keys.push_back({ "NumSubtract", VK_SUBTRACT });
-	keys.push_back({ "NumDecimal", VK_DECIMAL });
-	keys.push_back({ "NumDivide", VK_DIVIDE });
-	keys.push_back({ "F1", VK_F1 });
-	keys.push_back({ "F2", VK_F2 });
-	keys.push_back({ "F3", VK_F3 });
-	keys.push_back({ "F4", VK_F4 });
-	keys.push_back({ "F5", VK_F5 });
-	keys.push_back({ "F6", VK_F6 });
-	keys.push_back({ "F7", VK_F7 });
-	keys.push_back({ "F8", VK_F8 });
-	keys.push_back({ "F9", VK_F9 });
-	keys.push_back({ "F10", VK_F10 });
-	keys.push_back({ "F11", VK_F11 });
-	keys.push_back({ "F12", VK_F12 });
-	keys.push_back({ "NumLock", VK_NUMLOCK });
-	keys.push_back({ "ScrollLock", VK_SCROLL });
-	keys.push_back({ "Colon", VK_OEM_1 });
-	keys.push_back({ "Plus", VK_OEM_PLUS });
-	keys.push_back({ "Minus", VK_OEM_MINUS });
-	keys.push_back({ "Comma", VK_OEM_COMMA });
-	keys.push_back({ "Period", VK_OEM_PERIOD });
-	keys.push_back({ "Slash", VK_OEM_2 });
-	keys.push_back({ "Tilde", VK_OEM_3 });
-	keys.push_back({ "OpenSquareBracket", VK_OEM_4 });
-	keys.push_back({ "Backslash", VK_OEM_5 });
-	keys.push_back({ "CloseSquareBracket", VK_OEM_6 });
-	keys.push_back({ "Quote", VK_OEM_7 });
-	keys.push_back({ "Backslash2", VK_OEM_102 });
+	addKey("Backspace", VK_BACK);
+	addKey("Tab", VK_TAB);
+	addKey("Enter", VK_RETURN);
+	addKey("PauseBreak", VK_PAUSE);
+	addKey("CapsLock", VK_CAPITAL);
+	addKey("Escape", VK_ESCAPE);
+	addKey("Space", VK_SPACE);
+	addKey("PageUp", VK_PRIOR);
+	addKey("PageDown", VK_NEXT);
+	addKey("End", VK_END);
+	addKey("Home", VK_HOME);
+	addKey("Left", VK_LEFT);
+	addKey("Up", VK_UP);
+	addKey("Right", VK_RIGHT);
+	addKey("Down", VK_DOWN);
+	addKey("PrintScreen", VK_SNAPSHOT);
+	addKey("Insert", VK_INSERT);
+	addKey("Delete", VK_DELETE);
+	addKey("Num0", VK_NUMPAD0);
+	addKey("Num1", VK_NUMPAD1);
+	addKey("Num2", VK_NUMPAD2);
+	addKey("Num3", VK_NUMPAD3);
+	addKey("Num4", VK_NUMPAD4);
+	addKey("Num5", VK_NUMPAD5);
+	addKey("Num6", VK_NUMPAD6);
+	addKey("Num7", VK_NUMPAD7);
+	addKey("Num8", VK_NUMPAD8);
+	addKey("Num9", VK_NUMPAD9);
+	addKey("NumMultiply", VK_MULTIPLY);
+	addKey("NumAdd", VK_ADD);
+	addKey("NumSubtract", VK_SUBTRACT);
+	addKey("NumDecimal", VK_DECIMAL);
+	addKey("NumDivide", VK_DIVIDE);
+	addKey("F1", VK_F1);
+	addKey("F2", VK_F2);
+	addKey("F3", VK_F3);
+	addKey("F4", VK_F4);
+	addKey("F5", VK_F5);
+	addKey("F6", VK_F6);
+	addKey("F7", VK_F7);
+	addKey("F8", VK_F8);
+	addKey("F9", VK_F9);
+	addKey("F10", VK_F10);
+	addKey("F11", VK_F11);
+	addKey("F12", VK_F12);
+	addKey("NumLock", VK_NUMLOCK);
+	addKey("ScrollLock", VK_SCROLL);
+	addKey("Colon", VK_OEM_1);
+	addKey("Plus", VK_OEM_PLUS);
+	addKey("Minus", VK_OEM_MINUS);
+	addKey("Comma", VK_OEM_COMMA);
+	addKey("Period", VK_OEM_PERIOD);
+	addKey("Slash", VK_OEM_2);
+	addKey("Tilde", VK_OEM_3);
+	addKey("OpenSquareBracket", VK_OEM_4);
+	addKey("Backslash", VK_OEM_5);
+	addKey("CloseSquareBracket", VK_OEM_6);
+	addKey("Quote", VK_OEM_7);
+	addKey("Backslash2", VK_OEM_102);
 
 	addKeyRange('0', '9');
 	addKeyRange('A', 'Z');
 
-	keys.push_back({ "Shift", VK_SHIFT });
-	keys.push_back({ "Ctrl", VK_CONTROL });
-	keys.push_back({ "Alt", VK_MENU });
+	addKey("Shift", VK_SHIFT);
+	addKey("Ctrl", VK_CONTROL);
+	addKey("Alt", VK_MENU);
 
 	readSettings();
 
 	return true;
 }
 
+void Settings::addKey(const char* name, int code) {
+	keys.insert({name, {name, code}});
+}
+
 void Settings::addKeyRange(char start, char end) {
-	extraNames.emplace_back();
-	std::vector<std::string>& newVec = extraNames.back();
-	newVec.reserve(end - start + 1);
 	for (char c = start; c <= end; ++c) {
-		std::string newName;
-		newName.push_back(c);
-		newVec.push_back(newName);
-		const std::string& newNameRelocated = newVec.back();
-		keys.push_back({ newNameRelocated.c_str(), c });
+		char newStr[2] = " ";
+		newStr[0] = c;
+		addKey(newStr, c);
 	}
 }
 
@@ -94,9 +94,20 @@ void Settings::addKeyRange(char start, char end) {
 // Example INI file content:
 // gifModeToggle = Ctrl+F3
 void Settings::readSettings() {
+	
+	struct KeyComboToParse {
+		std::vector<int>* keyCombo = nullptr;
+		const char* defaultValue = nullptr;
+		bool isParsed = false;
+	};
+	std::map<std::string, KeyComboToParse> keyCombosToParse;
+	keyCombosToParse.insert({ "gifModeToggle", { &gifModeToggle, "F1" } });
+	keyCombosToParse.insert({ "noGravityToggle", { &noGravityToggle, "F2" } });
+	keyCombosToParse.insert({ "freezeGameToggle", { &freezeGameToggle, "F3" } });
+	keyCombosToParse.insert({ "slowmoGameToggle", { &slowmoGameToggle, "F4" } });
+	keyCombosToParse.insert({ "allowNextFrameKeyCombo", { &allowNextFrameKeyCombo, "F5" } });
 
-	bool gifModeToggleParsed = false;
-	bool noGravityToggleParsed = false;
+	bool slowmoTimesParsed = false;
 
 	char errorString[500];
 	char buf[128];
@@ -118,25 +129,27 @@ void Settings::readSettings() {
 				}
 				break;
 			}
-			if (!gifModeToggleParsed) {
-				gifModeToggleParsed = parseKeys("gifModeToggle", buf, gifModeToggle);
+			std::string keyName = parseKeyName(buf);
+			std::string keyValue = getKeyValue(buf);
+			auto found = keyCombosToParse.find(keyName);
+			if (found != keyCombosToParse.end()) {
+				found->second.isParsed = parseKeys(keyName.c_str(), keyValue, *found->second.keyCombo);
 			}
-			if (!noGravityToggleParsed) {
-				noGravityToggleParsed = parseKeys("noGravityToggle", buf, noGravityToggle);
+			if (!slowmoTimesParsed && keyName == "slowmoTimes") {
+				slowmoTimesParsed = parseInteger(keyName.c_str(), keyValue, slowmoTimes);
 			}
 			if (feof(file)) break;
 		}
 		fclose(file);
 	}
 
-	if (!gifModeToggleParsed) {
-		logwrap(fputs("gifModeToggle not parsed, using default value\n", logfile));
-		parseKeys("gifModeToggle", "gifModeToggle = F1", gifModeToggle);
+	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
+		if (!it->second.isParsed) {
+			parseKeys(it->first.c_str(), it->second.defaultValue, *it->second.keyCombo);
+		}
+		keyboard.addNewKeyCodes(*it->second.keyCombo);
 	}
-	if (!noGravityToggleParsed) {
-		logwrap(fputs("noGravityToggle not parsed, using default value\n", logfile));
-		parseKeys("noGravityToggle", "noGravityToggle = F2", noGravityToggle);
-	}
+
 }
 
 int Settings::findChar(const char* buf, char c) const {
@@ -195,33 +208,69 @@ std::vector<std::string> Settings::split(const std::string& str, char c) const {
 	return result;
 }
 
-bool Settings::parseKeys(const char* keyName, const char* buf, std::vector<int>& keyCodes) {
-	int equalSignPos = findChar(buf, '=');
-
-	if (equalSignPos == -1) return false;
-
-	std::string keyNameStr(buf, equalSignPos);
-	trim(keyNameStr);
-
-	if (keyNameStr != keyName) return false;
-
-	const char* bufPos = buf + equalSignPos + 1;
-	size_t bufLength = strlen(buf);
-	std::string keyValue(bufPos, buf + bufLength - bufPos);
-	trim(keyValue);
+bool Settings::parseKeys(const char* keyName, std::string keyValue, std::vector<int>& keyCodes) {
 
 	std::vector<std::string> keyNames = split(keyValue, '+');
 	for (std::string& str : keyNames) {
 		trim(str);
-		for (Key& key : keys) {
-			if (_stricmp(str.c_str(), key.name) == 0) {
-				keyCodes.push_back(key.code);
-			}
+		auto found = keys.find(str);
+		if (found != keys.end()) {
+			keyCodes.push_back(found->second.code);
+		} else {
+			return false;
 		}
 	}
 	if (!keyCodes.empty()) {
-		logwrap(fprintf(logfile, "Parsed key codes for %s: %s\n", keyName, buf));
+		logwrap(fprintf(logfile, "Parsed key codes for %s: %s\n", keyName, keyValue.c_str()));
 		return true;
 	}
 	return false;
+}
+
+bool Settings::parseInteger(const char* keyName, std::string keyValue, int& integer) {
+	int result = std::atoi(keyValue.c_str());
+	if (result == 0 && keyValue != "0") return false;
+	integer = result;
+	logwrap(fprintf(logfile, "Parsed integer for %s: %d\n", keyName, integer));
+	return true;
+}
+
+int Settings::findMinCommentPos(const char* buf) const {
+	int colonPos = findChar(buf, ';');
+	int hashtagPos = findChar(buf, '#');
+	int minCommentPos = -1;
+	if (colonPos != -1) minCommentPos = colonPos;
+	if (minCommentPos == -1 || hashtagPos != -1 && minCommentPos != -1 && hashtagPos < minCommentPos) minCommentPos = hashtagPos;
+	return minCommentPos;
+}
+
+std::string Settings::parseKeyName(const char* buf) const {
+
+	int minCommentPos = findMinCommentPos(buf);
+
+	int equalSignPos = findChar(buf, '=');
+
+	if (equalSignPos == -1 || minCommentPos != -1 && equalSignPos != -1 && equalSignPos > minCommentPos) return std::string{};
+
+	std::string keyNameStr(buf, equalSignPos);
+	trim(keyNameStr);
+
+	return keyNameStr;
+}
+
+std::string Settings::getKeyValue(const char* buf) const {
+	int minCommentPos = findMinCommentPos(buf);
+	int equalSignPos = findChar(buf, '=');
+
+	if (equalSignPos == -1 || minCommentPos != -1 && equalSignPos != -1 && equalSignPos > minCommentPos) return std::string{};
+
+	const char* bufPos = buf + equalSignPos + 1;
+	size_t bufLength = strlen(buf);
+	if (minCommentPos != -1) bufLength -= (bufLength - minCommentPos);
+	int lengthFromBufPos = buf + bufLength - bufPos;
+	if (lengthFromBufPos == 0) return std::string{};
+	std::string keyValue(bufPos, lengthFromBufPos);
+	trim(keyValue);
+
+	return keyValue;
 }

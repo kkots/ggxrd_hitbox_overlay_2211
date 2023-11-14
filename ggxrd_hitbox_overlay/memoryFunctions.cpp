@@ -159,12 +159,12 @@ int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinatio
 	return (int)(destinationAddr - (relativeCallAddr + 5));
 }
 
-char* findWildcard(char* mask, unsigned int numberOfWildcard) {
+char* findWildcard(char* mask, unsigned int indexOfWildcard) {
 	// Every contiguous sequence of ? characters in mask is treated as a single "wildcard".
 	// Every "wildcard" is assigned a number, starting from 0.
 	// This function looks for a "wildcard" number 'numberOfWildcard'
 	bool lastIsWildcard = false;
-	unsigned int currentWildcardNumber = 0;
+	unsigned int currentWildcardIndex = 0;
 	bool isFirstWildcard = true;
 	char* c = mask;
 	for (; *c != '\0'; ++c) {
@@ -173,13 +173,13 @@ char* findWildcard(char* mask, unsigned int numberOfWildcard) {
 			if (isFirstWildcard) {
 				isFirstWildcard = false;
 				lastIsWildcard = true;
-				currentWildcardNumber = 0;
+				currentWildcardIndex = 0;
 			}
 			else if (!lastIsWildcard) {
 				lastIsWildcard = true;
-				++currentWildcardNumber;
+				++currentWildcardIndex;
 			}
-			if (currentWildcardNumber == numberOfWildcard) {
+			if (currentWildcardIndex == indexOfWildcard) {
 				return c;
 			}
 		}
@@ -190,21 +190,35 @@ char* findWildcard(char* mask, unsigned int numberOfWildcard) {
 	return nullptr;
 }
 
-void substituteWildcard(char* mask, char* sig, char* sourceBuffer, size_t size, unsigned int numberOfWildcard) {
+void substituteWildcard(char* mask, char* sig, char* sourceBuffer, size_t size, unsigned int indexOfWildcard) {
 	// Every contiguous sequence of ? characters in mask is treated as a single "wildcard".
 	// Every "wildcard" is assigned a number, starting from 0.
 	// This function looks for a "wildcard" number 'numberOfWildcard' and replaces
 	// the corresponding positions in sig with bytes from
 	// the 'sourceBuffer' of size 'size'.
 	// If the "wildcard" is smaller than 'size', the extra bytes outside the mask will be overwritten (in the sig) (watch out for buffer overflow).
-	char* c = findWildcard(mask, numberOfWildcard);
+	char* c = findWildcard(mask, indexOfWildcard);
 	if (!c) return;
 
-	c = sig + (c - mask);
-	char* s = sourceBuffer;
+	char* maskPtr = c;
+	char* sigPtr = sig + (c - mask);
+	char* sourcePtr = sourceBuffer;
 	for (size_t i = size; i != 0; --i) {
-		*c = *s;
-		++c;
-		++s;
+		*sigPtr = *sourcePtr;
+		*maskPtr = 'x';
+		++sigPtr;
+		++sourcePtr;
+		++maskPtr;
 	}
+}
+
+char* scrollUpToInt3(char* ptr) {
+	int limit = 0;
+	while (true) {
+		if (*(ptr - 1) == '\xCC' && *(ptr - 2) == '\xCC') break;
+		// could use a full-on disassembler here
+		--ptr;
+		if (++limit > 10000) return nullptr;
+	}
+	return ptr;
 }

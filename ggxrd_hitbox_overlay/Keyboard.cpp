@@ -33,7 +33,7 @@ void Keyboard::updateKeyStatuses() {
 	}
 }
 
-bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
+void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 	for (int code : keyCodes) {
 		auto found = statuses.end();
 		for (auto it = statuses.begin(); it != statuses.end(); ++it) {
@@ -46,6 +46,9 @@ bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 			statuses.push_back(KeyStatus{ code, isKeyCodePressed(code), false });
 		}
 	}
+}
+
+bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 
 	bool hasNonModifierKeys = false;
 	for (int code : keyCodes) {
@@ -76,6 +79,16 @@ bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 	}
 
 	return atLeastOneGotPressed;
+}
+
+bool Keyboard::isHeld(const std::vector<int>& keyCodes) {
+	if (keyCodes.empty()) return false;
+	for (int code : keyCodes) {
+		KeyStatus* status = getStatus(code);
+		if (!status) return false;
+		if (!status->isPressed) return false;
+	}
+	return true;
 }
 
 bool Keyboard::isKeyCodePressed(int code) const {

@@ -183,13 +183,14 @@ bool EndScene::onDllDetach() {
 }
 
 void EndScene::processKeyStrokes() {
+	bool trainingMode = game.isTrainingMode();
 	keyboard.updateKeyStatuses();
 	if (keyboard.gotPressed(settings.gifModeToggle)) {
 		// idk how atomic_bool reacts to ! and operator bool(), so we do it the arduous way
 		if (gifMode.gifModeOn == true) {
 			gifMode.gifModeOn = false;
 			logwrap(fputs("GIF mode turned off\n", logfile));
-		} else {
+		} else if (trainingMode) {
 			gifMode.gifModeOn = true;
 			logwrap(fputs("GIF mode turned on\n", logfile));
 		}
@@ -199,14 +200,58 @@ void EndScene::processKeyStrokes() {
 			gifMode.noGravityOn = false;
 			logwrap(fputs("No gravity mode turned off\n", logfile));
 		}
-		else {
+		else if (trainingMode) {
 			gifMode.noGravityOn = true;
 			logwrap(fputs("No gravity mode turned on\n", logfile));
 		}
 	}
-	if (!game.isTrainingMode()) {
+	if (keyboard.gotPressed(settings.freezeGameToggle)) {
+		if (freezeGame == true) {
+			freezeGame = false;
+			logwrap(fputs("Freeze game turned off\n", logfile));
+		}
+		else if (trainingMode) {
+			freezeGame = true;
+			logwrap(fputs("Freeze game turned on\n", logfile));
+		}
+	}
+	if (keyboard.gotPressed(settings.slowmoGameToggle)) {
+		if (game.slowmoGame == true) {
+			game.slowmoGame = false;
+			logwrap(fputs("Slowmo game turned off\n", logfile));
+		}
+		else if (trainingMode) {
+			game.slowmoGame = true;
+			logwrap(fputs("Slowmo game turned on\n", logfile));
+		}
+	}
+	bool allowNextFrameIsHeld = keyboard.isHeld(settings.allowNextFrameKeyCombo);
+	if (allowNextFrameIsHeld) {
+		bool allowPress = false;
+		if (allowNextFrameBeenHeldFor == 0) {
+			allowPress = true;
+		} else if (allowNextFrameBeenHeldFor >= 40) {
+			allowNextFrameBeenHeldFor = 40;
+			++allowNextFrameCounter;
+			if (allowNextFrameCounter >= 10) {
+				allowPress = true;
+				allowNextFrameCounter = 0;
+			}
+		}
+		if (trainingMode && allowPress) {
+			game.allowNextFrame = true;
+			logwrap(fputs("allowNextFrame pressed\n", logfile));
+		}
+		++allowNextFrameBeenHeldFor;
+	} else {
+		allowNextFrameBeenHeldFor = 0;
+		allowNextFrameCounter = 0;
+	}
+	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode;
+	if (!trainingMode) {
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;
+		game.slowmoGame = false;
 	}
 }
 

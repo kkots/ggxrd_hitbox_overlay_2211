@@ -21,6 +21,8 @@ uintptr_t followRelativeCall(uintptr_t relativeCallAddr);
 
 int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinationAddr);
 
-char* findWildcard(char* mask, unsigned int numberOfWildcard = 0);
+char* findWildcard(char* mask, unsigned int indexOfWildcard = 0);
 
-void substituteWildcard(char* mask, char* sig, char* sourceBuffer, size_t size, unsigned int numberOfWildcard = 0);
+void substituteWildcard(char* mask, char* sig, char* sourceBuffer, size_t size, unsigned int indexOfWildcard = 0);
+
+char* scrollUpToInt3(char* ptr);

@@ -25,6 +25,7 @@ private:
 	updateCamera_t orig_updateCamera = nullptr;
 	std::mutex orig_updateCameraMutex;
 	unsigned int darkenValue1Offset = 0;
+	unsigned int cameraOffset = 0;
 	bool isSet = false;
 	float forward[3]{ 0.F };
 	float right[3]{ 0.F };

@@ -101,12 +101,13 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 		}
 	}
 
-	if ((result == 1 || result == 2) && (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT)) {
+	if ((result == 1 || result == 2)
+			&& (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT)) {
 		EntityState state;
 		otherEntity.getState(&state);
 		if (!state.strikeInvuln) {
 
-			if (DISPLAY_DURATION_HITBOX_THAT_HIT) {
+			if (DISPLAY_DURATION_HITBOX_THAT_HIT && thisEntity.characterType() == -1) {
 				std::vector<DrawHitboxArrayCallParams> theHitbox;
 				collectHitboxes(thisEntity, true, nullptr, &theHitbox, nullptr, nullptr);
 				if (!theHitbox.empty()) {
