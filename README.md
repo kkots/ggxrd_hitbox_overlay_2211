@@ -38,7 +38,8 @@ The mod may show up as a virus. I swear this is not a virus, check the source co
 
 ### Green - Hurtboxes
 
-Normally hurtboxes display in green. The rules in general are such, that when a hitbox (red) makes contact with hurtbox, a hit occurs.
+Normally hurtboxes display in green. The rules in general are such, that when a hitbox (red) makes contact with hurtbox, a hit occurs.  
+If a hurtbox is displayed fully transparent (i.e. shows outline only), that means strike invulnerability.
 
 ### Light blue - Would-be counterhit hurtboxes
 
@@ -50,7 +51,8 @@ When you get hit a gray outline appears on top of your current hurtbox. This out
 
 ### Yellow - Pushboxes
 
-Each player has a pushbox. When two pushboxes collide, the players get pushed apart until their pushboxes no longer collide. Pushbox widths also affect throw range - more on that in next section(s).
+Each player has a pushbox. When two pushboxes collide, the players get pushed apart until their pushboxes no longer collide. Pushbox widths also affect throw range - more on that in next section(s).  
+If a pushbox is displayed fully transparent (i.e. shows outline only), that means throw invulnerability.
 
 ### Point/Cross - Origin points
 
