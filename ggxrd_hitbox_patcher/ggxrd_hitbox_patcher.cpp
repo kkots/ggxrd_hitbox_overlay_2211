@@ -1,6 +1,5 @@
-// ggxrd_hitbox_patcher.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
+// The purpose of this program is to patch GuiltyGearXrd.exe to add instructions to it so that
+// it loads the ggxrd_hitbox_overlay.dll on startup automatically
 #include <iostream>
 #include <string>
 #include <Windows.h>
@@ -365,10 +364,10 @@ void meatOfTheProgram() {
     char* wholeFileEnd = &wholeFile.front() + wholeFile.size();
 
     // sig for ghidra: b8 ?? ?? ?? ?? eb 05 b8 ?? ?? ?? ?? 50 e8 ?? ?? ?? ?? 83 c4 04 8b f0 39 1d ?? ?? ?? ?? 75 1a eb 06
-    uintptr_t patchingPlace = sigscan(wholeFileBegin, wholeFileEnd,
+    int patchingPlace = sigscan(wholeFileBegin, wholeFileEnd,
         "\xb8\x00\x00\x00\x00\xeb\x05\xb8\x00\x00\x00\x00\x50\xe8\x00\x00\x00\x00\x83\xc4\x04\x8b\xf0\x39\x1d\x00\x00\x00\x00\x75\x1a\xeb\x06",
         "x????xxx????xx????xxxxxxx????xxxx");
-    if (!patchingPlace) {
+    if (patchingPlace == -1) {
         std::wcout << "Failed to find patching place\n";
         return;
     }
@@ -380,10 +379,10 @@ void meatOfTheProgram() {
     std::string sig = repeatCharNTimes('\xCC', stringToWrite.size() + 1);
     std::string mask = repeatCharNTimes('x', stringToWrite.size() + 1);
 
-    uintptr_t stringInsertionPlace = sigscan(wholeFileBegin, wholeFileEnd,
+    int stringInsertionPlace = sigscan(wholeFileBegin, wholeFileEnd,
         sig.c_str(),
         mask.c_str());
-    if (!stringInsertionPlace) {
+    if (stringInsertionPlace == -1) {
         std::wcout << "Failed to find string insertion place\n";
         return;
     }
@@ -392,10 +391,10 @@ void meatOfTheProgram() {
     if (!writeStringToFile(file, stringInsertionPlace, stringToWrite, wholeFileBegin + stringInsertionPlace)) return;
 
     // ghidra sig: ff 75 c8 ff 15 ?? ?? ?? ?? 8b f8 85 ff 75 41 ff 15 ?? ?? ?? ?? 89 45 dc a1 ?? ?? ?? ?? 85 c0 74 0e
-    uintptr_t loadLibraryAPlace = sigscan(wholeFileBegin, wholeFileEnd,
+    int loadLibraryAPlace = sigscan(wholeFileBegin, wholeFileEnd,
         "\xff\x75\xc8\xff\x15\x00\x00\x00\x00\x8b\xf8\x85\xff\x75\x41\xff\x15\x00\x00\x00\x00\x89\x45\xdc\xa1\x00\x00\x00\x00\x85\xc0\x74\x0e",
         "xxxxx????xxxxxxxx????xxxx????xxxx");
-    if (!loadLibraryAPlace) {
+    if (loadLibraryAPlace == -1) {
         std::wcout << "Failed to find LoadLibraryA calling place\n";
         return;
     }
@@ -403,7 +402,7 @@ void meatOfTheProgram() {
     std::wcout << "Found LoadLibraryA pointer value: 0x" << std::hex << loadLibraryAPtr << std::dec << std::endl;
 
     // JMP rel32: e9 [little endian 4 bytes relative address of the destination from the instruction after the jmp]
-    // CALL rel32: e8 [little endian 4 bytes relative address of the destination from the instruction after the jmp]
+    // CALL rel32: e8 [little endian 4 bytes relative address of the destination from the instruction after the call]
     // PUSH stringAddr: 0x68 [little endian 4 bytes absolute address of the string]
     // CALL [KERNEL32.DLL::LoadLibraryA]: 0xff 0x15 THE_VALUE_OF_LoadLibraryA_POINTER
     // RET: 0xC3
@@ -418,10 +417,10 @@ void meatOfTheProgram() {
     sig = repeatCharNTimes('\xCC', requiredCodeSize);
     mask = repeatCharNTimes('x', requiredCodeSize);
 
-    uintptr_t codeInsertionPlace = sigscan(wholeFileBegin, wholeFileEnd,
+    int codeInsertionPlace = sigscan(wholeFileBegin, wholeFileEnd,
         sig.c_str(),
         mask.c_str());
-    if (!codeInsertionPlace) {
+    if (codeInsertionPlace == -1) {
         std::wcout << "Failed to find code insertion place\n";
         return;
     }
@@ -523,14 +522,3 @@ int main()
     std::getline(std::wcin, ignoreLine);
     return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
