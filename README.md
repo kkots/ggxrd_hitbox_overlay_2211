@@ -34,6 +34,11 @@ If trying to use the mod with a game version that it doesn't fit, the game may c
 
 The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo to see no one else but me modified this. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
 
+## Quickstart if you can't use injector
+
+If the injector doesn't work for some reason you could try to run the `ggxrd_hitbox_patcher.exe`, which lets you choose the path to GuiltyGearXrd.exe executable so that it patches it and makes it so that it loads the `ggxrd_hitbox_overlay.dll` on startup automatically. The `ggxrd_hitbox_overlay.dll` must be in the same directory as the game executable (GuiltyGearXrd.exe), so you'll need to copy it manually to there.  
+If the `ggxrd_hitbox_overlay.dll` is not present in the directory with the game on startup the game would launch normally, just without the mod.
+
 ## Features
 
 ### Green - Hurtboxes
@@ -201,3 +206,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 13: Fixed a possible freeze when unloading the DLL.
 - 2023 November 14: Added ability to play the game frame-by-frame or in "slow motion" mode (in training mode only).
 - 2023 November 15: Removed Potemkin Buster hitbox - it's fake and doesn't actually affect anything.
+- 2023 November 15: Added patcher.
