@@ -1,30 +1,50 @@
+
 // The purpose of this program is to patch GuiltyGearXrd.exe to add instructions to it so that
 // it loads the ggxrd_hitbox_overlay.dll on startup automatically
 #include <iostream>
 #include <string>
+#ifndef FOR_LINUX
 #include <Windows.h>
+#else
+#include <fstream>
+#include <string.h>
+#endif
 #include <vector>
 
-wchar_t szFile[MAX_PATH];
-wchar_t szFileBackup[MAX_PATH];
+#ifndef FOR_LINUX
+#define CrossPlatformString std::wstring
+#define CrossPlatformChar wchar_t
+#define CrossPlatformPerror _wperror
+#define CrossPlatformText(txt) L##txt
+#define CrossPlatformCin std::wcin
+#define CrossPlatformCout std::wcout
+#define CrossPlatformNumberToString std::to_wstring
+#else
+#define CrossPlatformString std::string
+#define CrossPlatformChar char
+#define CrossPlatformPerror perror
+#define CrossPlatformText(txt) txt
+#define CrossPlatformCin std::cin
+#define CrossPlatformCout std::cout
+#define CrossPlatformNumberToString std::to_string
+#endif
 
-bool hasAtLeastOneBackslash(const wchar_t* str) {
-    const wchar_t* ptr = str;
-    while (*ptr != L'\0') {
-        if (*ptr == L'\\') return true;
-        ++ptr;
+bool hasAtLeastOneBackslash(const CrossPlatformString& path) {
+    
+    for (auto it = path.cbegin(); it != path.cend(); ++it) {
+        if (*it == (CrossPlatformChar)'\\') return true;
     }
     return false;
 }
 
-wchar_t determineSeparator(const std::wstring& path) {
-    if (hasAtLeastOneBackslash(path.c_str())) {
-        return L'\\';
+CrossPlatformChar determineSeparator(const CrossPlatformString& path) {
+    if (hasAtLeastOneBackslash(path)) {
+        return (CrossPlatformChar)'\\';
     }
-    return L'/';
+    return (CrossPlatformChar)'/';
 }
 
-int findLast(const std::wstring& str, wchar_t character) {
+int findLast(const CrossPlatformString& str, CrossPlatformChar character) {
     if (str.empty()) return -1;
     auto it = str.cend();
     --it;
@@ -37,28 +57,35 @@ int findLast(const std::wstring& str, wchar_t character) {
 }
 
 // Does not include trailing slash
-std::wstring getParentDir(const std::wstring& path) {
-    std::wstring result;
+CrossPlatformString getParentDir(const CrossPlatformString& path) {
+    CrossPlatformString result;
     int lastSlashPos = findLast(path, determineSeparator(path));
     if (lastSlashPos == -1) return result;
     result.insert(result.begin(), path.cbegin(), path.cbegin() + lastSlashPos);
     return result;
 }
 
-std::wstring getFileName(const std::wstring& path) {
-    std::wstring result;
+CrossPlatformString getFileName(const CrossPlatformString& path) {
+    CrossPlatformString result;
     int lastSlashPos = findLast(path, determineSeparator(path));
     if (lastSlashPos == -1) return path;
     result.insert(result.begin(), path.cbegin() + lastSlashPos + 1, path.cend());
     return result;
 }
 
-bool fileExists(const std::wstring& path) {
+bool fileExists(const CrossPlatformString& path) {
+    #ifndef FOR_LINUX
     DWORD fileAtrib = GetFileAttributesW(path.c_str());
     if (fileAtrib == INVALID_FILE_ATTRIBUTES) {
         return false;
     }
     return true;
+    #else
+    FILE* file = fopen(path.c_str(), "rb");
+    if (!file) return false;
+    fclose(file);
+    return true;
+    #endif
 }
 
 int sigscan(const char* start, const char* end, const char* sig, const char* mask) {
@@ -109,7 +136,7 @@ uintptr_t sigscan(FILE* file, const char* sig, const char* mask) {
         }
         if (readBytes == 0) {
             if (ferror(file)) {
-                _wperror(L"Error reading from file");
+                CrossPlatformPerror(CrossPlatformText("Error reading from file"));
             }
             // assume it's feof
             break;
@@ -129,7 +156,7 @@ uintptr_t sigscan(FILE* file, const char* sig, const char* mask) {
 
         if (readBytes < 1024) {
             if (ferror(file)) {
-                _wperror(L"Error reading from file");
+                CrossPlatformPerror(CrossPlatformText("Error reading from file"));
             }
             // assume it's feof
             break;
@@ -160,7 +187,7 @@ bool readWholeFile(FILE* file, std::vector<char>& wholeFile) {
         size_t readBytes = fread(wholeFilePtr, 1, sizeToRead, file);
         if (readBytes != sizeToRead) {
             if (ferror(file)) {
-                _wperror(L"Error reading file");
+                CrossPlatformPerror(CrossPlatformText("Error reading file"));
                 return false;
             }
             // assume feof
@@ -183,7 +210,7 @@ bool writeStringToFile(FILE* file, size_t pos, const std::string& stringToWrite,
     fseek(file, pos, SEEK_SET);
     size_t writtenBytes = fwrite(stringToWrite.c_str(), 1, stringToWrite.size() + 1, file);
     if (writtenBytes != stringToWrite.size() + 1) {
-        _wperror(L"Error writing to file");
+        CrossPlatformPerror(CrossPlatformText("Error writing to file"));
         return false;
     }
     return true;
@@ -300,10 +327,51 @@ void writeRelocEntry(FILE* file, char relocType, uintptr_t va) {
     fwrite(&relocEntry, 2, 1, file);
 }
 
-void meatOfTheProgram() {
-    std::wstring ignoreLine;
-    std::wcout << L"Please select a path to your GuiltyGearXrd.exe file that will be patched...\n";
+void trim(std::string& str) {
+    if (str.empty()) return;
+    auto it = str.end();
+    --it;
+    while (true) {
+        if (*it >= 32) break;
+        if (it == str.begin()) {
+            str.clear();
+            return;
+        }
+        --it;
+    }
+    str.resize(it - str.begin() + 1);
+}
 
+bool crossPlatformOpenFile(FILE** file, const CrossPlatformString& path) {
+    #ifndef FOR_LINUX
+    if (_wfopen_s(file, path.c_str(), CrossPlatformText("r+b")) || !*file) {
+        if (*file) {
+            fclose(*file);
+        }
+        return false;
+    }
+    return true;
+    #else
+    *file = fopen(path.c_str(), "r+b");
+    if (!*file) return false;
+    return true;
+    #endif
+}
+
+#ifdef FOR_LINUX
+void copyFileLinux(const std::string& pathSource, const std::string& pathDestination) {
+    std::ifstream src(pathSource, std::ios::binary);
+    std::ofstream dst(pathDestination, std::ios::binary);
+
+    dst << src.rdbuf();
+}
+#endif
+
+void meatOfTheProgram() {
+    CrossPlatformString ignoreLine;
+    CrossPlatformCout << CrossPlatformText("Please select a path to your GuiltyGearXrd.exe file that will be patched...\n");
+
+    #ifndef FOR_LINUX
     std::wstring szFile;
     szFile.resize(MAX_PATH);
 
@@ -330,31 +398,45 @@ void meatOfTheProgram() {
         return;
     }
     szFile.resize(lstrlenW(szFile.c_str()));
-    std::wcout << "Selected file: " << szFile.c_str() << std::endl;
+    #else
+    std::string szFile;
+    std::getline(std::cin, szFile);
+    trim(szFile);
+    if (szFile.empty()) {
+        std::cout << "Empty path provided. Aborting.\n";
+        return;
+    }
+    #endif
+    CrossPlatformCout << "Selected file: " << szFile.c_str() << std::endl;
 
-    wchar_t separator = determineSeparator(szFile);
-    std::wstring fileName = getFileName(szFile);
-    std::wstring parentDir = getParentDir(szFile);
+    CrossPlatformChar separator = determineSeparator(szFile);
+    CrossPlatformString fileName = getFileName(szFile);
+    CrossPlatformString parentDir = getParentDir(szFile);
 
-    std::wstring backupFilePath = parentDir + separator + fileName + L"_backup";
+    CrossPlatformString backupFilePath = parentDir + separator + fileName + CrossPlatformText("_backup");
     int backupNameCounter = 1;
     while (fileExists(backupFilePath)) {
-        backupFilePath = parentDir + separator + fileName + L"_backup" + std::to_wstring(backupNameCounter);
+        backupFilePath = parentDir + separator + fileName + CrossPlatformText("_backup") + CrossPlatformNumberToString(backupNameCounter);
         ++backupNameCounter;
     }
 
-    std::wcout << "Will use backup file path: " << backupFilePath.c_str() << std::endl;
+    CrossPlatformCout << "Will use backup file path: " << backupFilePath.c_str() << std::endl;
 
+    #ifndef FOR_LINUX
     if (!CopyFileW(szFile.c_str(), backupFilePath.c_str(), true)) {
         std::wcout << "Failed to create a backup copy. Do you want to continue anyway? You won't be able to revert the file to the original. Press Enter to agree...\n";
         std::getline(std::wcin, ignoreLine);
     } else {
         std::wcout << "Backup copy created successfully.\n";
     }
+    #else
+    copyFileLinux(szFile, backupFilePath);
+    std::wcout << "Backup copy created successfully.\n";
+    #endif
 
     FILE* file = nullptr;
-    if (_wfopen_s(&file, szFile.c_str(), L"r+b") || !file) {
-        _wperror(L"Failed to open file");
+    if (!crossPlatformOpenFile(&file, szFile)) {
+        CrossPlatformPerror(CrossPlatformText("Failed to open file"));
         return;
     }
 
@@ -368,11 +450,11 @@ void meatOfTheProgram() {
         "\xb8\x00\x00\x00\x00\xeb\x05\xb8\x00\x00\x00\x00\x50\xe8\x00\x00\x00\x00\x83\xc4\x04\x8b\xf0\x39\x1d\x00\x00\x00\x00\x75\x1a\xeb\x06",
         "x????xxx????xx????xxxxxxx????xxxx");
     if (patchingPlace == -1) {
-        std::wcout << "Failed to find patching place\n";
+        CrossPlatformCout << "Failed to find patching place\n";
         return;
     }
     patchingPlace += 13;
-    std::wcout << "Found patching place: 0x" << std::hex << patchingPlace << std::dec << std::endl;
+    CrossPlatformCout << "Found patching place: 0x" << std::hex << patchingPlace << std::dec << std::endl;
 
     std::string stringToWrite = "ggxrd_hitbox_overlay.dll";
     // thunk_... functions have huge regions of these
@@ -383,10 +465,10 @@ void meatOfTheProgram() {
         sig.c_str(),
         mask.c_str());
     if (stringInsertionPlace == -1) {
-        std::wcout << "Failed to find string insertion place\n";
+        CrossPlatformCout << "Failed to find string insertion place\n";
         return;
     }
-    std::wcout << "Found string insertion place: 0x" << std::hex << stringInsertionPlace << std::dec << std::endl;
+    CrossPlatformCout << "Found string insertion place: 0x" << std::hex << stringInsertionPlace << std::dec << std::endl;
 
     if (!writeStringToFile(file, stringInsertionPlace, stringToWrite, wholeFileBegin + stringInsertionPlace)) return;
 
@@ -395,11 +477,11 @@ void meatOfTheProgram() {
         "\xff\x75\xc8\xff\x15\x00\x00\x00\x00\x8b\xf8\x85\xff\x75\x41\xff\x15\x00\x00\x00\x00\x89\x45\xdc\xa1\x00\x00\x00\x00\x85\xc0\x74\x0e",
         "xxxxx????xxxxxxxx????xxxx????xxxx");
     if (loadLibraryAPlace == -1) {
-        std::wcout << "Failed to find LoadLibraryA calling place\n";
+        CrossPlatformCout << "Failed to find LoadLibraryA calling place\n";
         return;
     }
     uintptr_t loadLibraryAPtr = *(uintptr_t*)(wholeFileBegin + loadLibraryAPlace + 5);
-    std::wcout << "Found LoadLibraryA pointer value: 0x" << std::hex << loadLibraryAPtr << std::dec << std::endl;
+    CrossPlatformCout << "Found LoadLibraryA pointer value: 0x" << std::hex << loadLibraryAPtr << std::dec << std::endl;
 
     // JMP rel32: e9 [little endian 4 bytes relative address of the destination from the instruction after the jmp]
     // CALL rel32: e8 [little endian 4 bytes relative address of the destination from the instruction after the call]
@@ -421,33 +503,33 @@ void meatOfTheProgram() {
         sig.c_str(),
         mask.c_str());
     if (codeInsertionPlace == -1) {
-        std::wcout << "Failed to find code insertion place\n";
+        CrossPlatformCout << "Failed to find code insertion place\n";
         return;
     }
-    std::wcout << "Found code insertion place: 0x" << std::hex << codeInsertionPlace << std::dec << std::endl;
+    CrossPlatformCout << "Found code insertion place: 0x" << std::hex << codeInsertionPlace << std::dec << std::endl;
 
     std::vector<Section> sections = readSections(file);
     if (sections.empty()) {
-        std::wcout << "Failed to read sections\n";
+        CrossPlatformCout << "Failed to read sections\n";
         return;
     }
-    std::wcout << "Read sections: [\n";
-    std::wcout << std::hex;
+    CrossPlatformCout << "Read sections: [\n";
+    CrossPlatformCout << std::hex;
     bool isFirst = true;
     for (const Section& section : sections) {
         if (!isFirst) {
-            std::wcout << ",\n";
+            CrossPlatformCout << ",\n";
         }
         isFirst = false;
-        std::wcout << "{\n\tname: \"" << section.name.c_str() << "\""
+        CrossPlatformCout << "{\n\tname: \"" << section.name.c_str() << "\""
             << ",\n\tvirtualSize: 0x" << section.virtualSize
             << ",\n\tvirtualAddress: 0x" << section.virtualAddress
             << ",\n\trawSize: 0x" << section.rawSize
             << ",\n\trawAddress: 0x" << section.rawAddress
             << "\n}";
     }
-    std::wcout << "\n]\n";
-    std::wcout << std::dec;
+    CrossPlatformCout << "\n]\n";
+    CrossPlatformCout << std::dec;
 
     uintptr_t codeInsertionPlacePtr = codeInsertionPlace;
     fseek(file, codeInsertionPlacePtr, SEEK_SET);
@@ -497,7 +579,7 @@ void meatOfTheProgram() {
     writeRelocEntry(file, 3, codeInsertionPlaceVa + 6);  // codeInsertionPlace + 6 is the pointer to string in our PUSH instruction
     writeRelocEntry(file, 3, codeInsertionPlaceVa + 12);  // codeInsertionPlace + 12 is the [KERNEL32.DLL::LoadLibraryA] in our CALL instruction
 
-    std::wcout << "Patched successfully\n";
+    CrossPlatformCout << "Patched successfully\n";
 
     fclose(file);
 
@@ -505,20 +587,21 @@ void meatOfTheProgram() {
 
 int main()
 {
-    std::wcout << L"This program patches GuiltyGearXrd.exe executable to permanently launch this hitbox overlay mod when it starts.\n"
-                  L"This cannot be undone, and you should backup your GuiltyGearXrd.exe file before proceeding.\n"
-                  L"A backup copy will also be automatically created (but that may fail).\n"
-                  L"(!) The ggxrd_hitbox_overlay.dll must be placed in the same folder as the game executable in order to get loaded by the game. (!)\n"
-                  L"(!) If the DLL is not present in the folder with the game the game will just run normally, without the mod. (!)\n"
-                  L"Only Guilty Gear Xrd Rev2 version 2211 supported.\n"
-                  L"Press Enter when ready...\n";
+    CrossPlatformCout <<
+                  "This program patches GuiltyGearXrd.exe executable to permanently launch this hitbox overlay mod when it starts.\n"
+                  "This cannot be undone, and you should backup your GuiltyGearXrd.exe file before proceeding.\n"
+                  "A backup copy will also be automatically created (but that may fail).\n"
+                  "(!) The ggxrd_hitbox_overlay.dll must be placed in the same folder as the game executable in order to get loaded by the game. (!)\n"
+                  "(!) If the DLL is not present in the folder with the game the game will just run normally, without the mod. (!)\n"
+                  "Only Guilty Gear Xrd Rev2 version 2211 supported.\n"
+                  "Press Enter when ready...\n";
 
-    std::wstring ignoreLine;
-    std::getline(std::wcin, ignoreLine);
+    CrossPlatformString ignoreLine;
+    std::getline(CrossPlatformCin, ignoreLine);
 
     meatOfTheProgram();
 
-    std::wcout << L"Press Enter to exit...\n";
-    std::getline(std::wcin, ignoreLine);
+    CrossPlatformCout << "Press Enter to exit...\n";
+    std::getline(CrossPlatformCin, ignoreLine);
     return 0;
 }
