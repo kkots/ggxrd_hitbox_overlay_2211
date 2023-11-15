@@ -217,7 +217,6 @@ int main()
 	}
 
 	tout << TEXT("Press Enter to exit...\n");
-	ignoreLine;
 	std::getline(tin, ignoreLine);
 	if (proc && proc != INVALID_HANDLE_VALUE) {
 		if (buf) {
