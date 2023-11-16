@@ -19,6 +19,7 @@ public:
 	std::vector<int> freezeGameToggle;
 	std::vector<int> slowmoGameToggle;
 	std::vector<int> allowNextFrameKeyCombo;
+	std::vector<int> disableModKeyCombo;
 	int slowmoTimes = 3;
 private:
 	void addKey(const char* name, int code);
@@ -32,6 +33,7 @@ private:
 	std::vector<std::string> split(const std::string& str, char c) const;
 	bool parseKeys(const char* keyName, std::string keyValue, std::vector<int>& keyCodes);
 	bool parseInteger(const char* keyName, std::string keyValue, int& integer);
+	bool parseBoolean(const char* keyName, std::string keyValue, bool& aBooleanValue);
 };
 
 extern Settings settings;

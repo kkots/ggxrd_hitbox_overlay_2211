@@ -8,6 +8,7 @@
 #include "InvisChipp.h"
 #include "logging.h"
 #include "colors.h"
+#include "GifMode.h"
 
 Throws throws;
 
@@ -43,7 +44,7 @@ bool Throws::onDllMain() {
 void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("hitDetectionMain", true);
-	if (hitDetectionType == 1) {
+	if (hitDetectionType == 1 && !gifMode.modDisabled) {
 		throws.hitDetectionMainHook();
 	}
 	{

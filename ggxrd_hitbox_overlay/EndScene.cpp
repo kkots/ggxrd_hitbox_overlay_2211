@@ -18,12 +18,14 @@
 #include "Settings.h"
 #include "Keyboard.h"
 #include "GifMode.h"
+#include "memoryFunctions.h"
 
 EndScene endScene;
 
 bool EndScene::onDllMain() {
-	orig_EndScene = (EndScene_t)direct3DVTable.getDirect3DVTable()[42];
-	orig_Present = (Present_t)direct3DVTable.getDirect3DVTable()[17];
+	char** d3dvtbl = direct3DVTable.getDirect3DVTable();
+	orig_EndScene = (EndScene_t)d3dvtbl[42];
+	orig_Present = (Present_t)d3dvtbl[17];
 
 	// there will actually be a deadlock during DLL unloading if we don't put Present first and EndScene second
 
@@ -48,7 +50,9 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 		endScene.processKeyStrokes();
 
 		bool needToClearHitDetection = false;
-		if (*aswEngine == nullptr) {
+		if (gifMode.modDisabled) {
+			needToClearHitDetection = true;
+		} else if (*aswEngine == nullptr) {
 			needToClearHitDetection = true;
 		} else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
 			if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
@@ -225,6 +229,17 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Slowmo game turned on\n", logfile));
 		}
 	}
+	bool needToRunNoGravGifMode = false;
+	if (keyboard.gotPressed(settings.disableModKeyCombo)) {
+		if (gifMode.modDisabled == true) {
+			gifMode.modDisabled = false;
+			logwrap(fputs("Mod enabled\n", logfile));
+		} else {
+			gifMode.modDisabled = true;
+			logwrap(fputs("Mod disabled\n", logfile));
+			needToRunNoGravGifMode = true;
+		}
+	}
 	bool allowNextFrameIsHeld = keyboard.isHeld(settings.allowNextFrameKeyCombo);
 	if (allowNextFrameIsHeld) {
 		bool allowPress = false;
@@ -247,11 +262,14 @@ void EndScene::processKeyStrokes() {
 		allowNextFrameBeenHeldFor = 0;
 		allowNextFrameCounter = 0;
 	}
-	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode;
-	if (!trainingMode) {
+	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
+	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;
 		game.slowmoGame = false;
+	}
+	if (needToRunNoGravGifMode) {
+		if (*aswEngine) noGravGifMode();
 	}
 }
 

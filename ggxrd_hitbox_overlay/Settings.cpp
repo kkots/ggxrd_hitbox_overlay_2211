@@ -2,6 +2,7 @@
 #include "Settings.h"
 #include "logging.h"
 #include "Keyboard.h"
+#include "GifMode.h"
 
 Settings settings;
 
@@ -106,8 +107,10 @@ void Settings::readSettings() {
 	keyCombosToParse.insert({ "freezeGameToggle", { &freezeGameToggle, "F3" } });
 	keyCombosToParse.insert({ "slowmoGameToggle", { &slowmoGameToggle, "F4" } });
 	keyCombosToParse.insert({ "allowNextFrameKeyCombo", { &allowNextFrameKeyCombo, "F5" } });
+	keyCombosToParse.insert({ "disableModToggle", { &disableModKeyCombo, "F6" } });
 
 	bool slowmoTimesParsed = false;
+	bool startDisabledParsed = false;
 
 	char errorString[500];
 	char buf[128];
@@ -137,6 +140,13 @@ void Settings::readSettings() {
 			}
 			if (!slowmoTimesParsed && keyName == "slowmoTimes") {
 				slowmoTimesParsed = parseInteger(keyName.c_str(), keyValue, slowmoTimes);
+			}
+			if (!startDisabledParsed && keyName == "startDisabled") {
+				bool startDisabled = false;
+				startDisabledParsed = parseBoolean(keyName.c_str(), keyValue, startDisabled);
+				if (startDisabled) {
+					gifMode.modDisabled = true;
+				}
 			}
 			if (feof(file)) break;
 		}
@@ -233,6 +243,20 @@ bool Settings::parseInteger(const char* keyName, std::string keyValue, int& inte
 	integer = result;
 	logwrap(fprintf(logfile, "Parsed integer for %s: %d\n", keyName, integer));
 	return true;
+}
+
+bool Settings::parseBoolean(const char* keyName, std::string keyValue, bool& aBooleanValue) {
+	if (_stricmp(keyValue.c_str(), "true") == 0) {
+		logwrap(fprintf(logfile, "Parsed boolean for %s: %d\n", keyName, 1));
+		aBooleanValue = true;
+		return true;
+	}
+	if (_stricmp(keyValue.c_str(), "false") == 0) {
+		logwrap(fprintf(logfile, "Parsed boolean for %s: %d\n", keyName, 0));
+		aBooleanValue = false;
+		return true;
+	}
+	return false;
 }
 
 int Settings::findMinCommentPos(const char* buf) const {

@@ -34,10 +34,12 @@ If trying to use the mod with a game version that it doesn't fit, the game may c
 
 The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo to see no one else but me modified this. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
 
-## Quickstart if you can't use injector
+## Quickstart for Ubuntu/Linux
 
-If the injector doesn't work for some reason you could try to run the `ggxrd_hitbox_patcher.exe`, which lets you choose the path to GuiltyGearXrd.exe executable so that it patches it and makes it so that it loads the `ggxrd_hitbox_overlay.dll` on startup automatically. The `ggxrd_hitbox_overlay.dll` must be in the same directory as the game executable (GuiltyGearXrd.exe), so you'll need to copy it manually to there.  
-If the `ggxrd_hitbox_overlay.dll` is not present in the directory with the game on startup the game would launch normally, just without the mod.
+On Ubuntu/Linux the injector won't work. You need to patch the game so that it loads the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` does exactly that and must be launched directly, without Wine. (Its Windows version, `ggxrd_hitbox_patcher.exe`, can be used on Windows if you want to make the game load the mod automatically on startup.) The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes.  
+The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
+If the DLL is not found when the game launches, it will just run normally, without the mod.  
+Since there's no way to unload the mod on Ubuntu/Linux (the injector doesn't work), you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisable = false` to `startDisable = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
 
 ## Features
 
@@ -109,6 +111,10 @@ Section "Hotkey configuration" describes how to configure hotkeys.
 While the game is frozen using `Freeze game` feature, advances the game forward by 1 frame. Does nothing if the game is not currently frozen.  
 Section "Hotkey configuration" describes how to configure hotkeys.
 
+### F6 - Disable mod
+
+This toggle enables/disables the mod if you don't want to (or can't) load/unload it every time.
+
 ### Hotkey configuration
 
 If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
@@ -137,6 +143,13 @@ allowNextFrameKeyCombo = F5
 
 ; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed. Specifies by how many times to slow the game down
 slowmoTimes = 3
+
+; A toggle button (or combination of buttons) to enable/disable the mod without having to load/unload it
+; In the disabled state the mod doesn't draw the boxes, doesn't affect anything and doesn't react to gifModeToggle, noGravityToggle, freezeGameToggle, etc
+disableModToggle = F6
+
+; Starts the mod in a disabled state when it doesn't draw boxes or affect anything
+startDisabled = false
 ```
 
 You can specify a combination of keys, separated by `+` sign.  
@@ -207,3 +220,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 14: Added ability to play the game frame-by-frame or in "slow motion" mode (in training mode only).
 - 2023 November 15: Removed Potemkin Buster hitbox - it's fake and doesn't actually affect anything.
 - 2023 November 15: Added patcher.
+- 2023 November 16: Made fixes so it works under Steam Proton on Ubuntu.

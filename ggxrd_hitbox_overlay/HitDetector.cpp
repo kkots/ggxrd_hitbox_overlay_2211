@@ -68,6 +68,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 		std::unique_lock<std::mutex> guard(hitDetector.orig_determineHitTypeMutex);
 		result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
 	}
+	if (gifMode.modDisabled) return result;
 	std::unique_lock<std::mutex> guard(hitDetector.mutex);
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };

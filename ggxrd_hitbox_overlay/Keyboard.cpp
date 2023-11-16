@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Keyboard.h"
+#include "logging.h"
 
 Keyboard keyboard;
 
@@ -7,8 +8,12 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 	DWORD windsProcId = 0;
 	DWORD windsThreadId = GetWindowThreadProcessId(hwnd, &windsProcId);
 	if (windsProcId == keyboard.thisProcessId) {
-		keyboard.thisProcessWindow = hwnd;
-		return FALSE;
+		char className[1024] = "";
+		GetClassName(hwnd, className, _countof(className));
+		// we got multiple windows on Linux, need to disambiguate
+		if (strcmp(className, "LaunchUnrealUWindowsClient") == 0) {
+			keyboard.thisProcessWindow = hwnd;
+		}
 	}
 	return TRUE;
 }
@@ -16,6 +21,9 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 bool Keyboard::onDllMain() {
 	thisProcessId = GetCurrentProcessId();
 	EnumWindows(EnumWindowsFindMyself, NULL);
+	if (!thisProcessWindow) {
+		logwrap(fputs("Could not find this process' window\n", logfile));
+	}
 	return true;
 }
 

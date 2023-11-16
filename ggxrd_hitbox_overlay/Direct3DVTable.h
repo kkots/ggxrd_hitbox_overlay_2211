@@ -1,4 +1,5 @@
 #pragma once
+
 class Direct3DVTable
 {
 public:

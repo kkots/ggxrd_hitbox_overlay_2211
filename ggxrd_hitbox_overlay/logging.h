@@ -2,7 +2,7 @@
 
 // Logging class for the dll
 // Usage:
-// define #define LOG_PATH L"C:\\your\\log\\path.txt"
+// define #define LOG_PATH L"C:\\your\\log\\path.txt". The path can be relative and that will be relative to the game executable's location (GuiltyGearXrd.exe)
 // write to the log using:
 // logwrap(fputs("string", logfile));  // logs every time
 // logOnce(fputs("string", logfile)); // logs only when didWriteOnce is false and has a limit of 1000 messages
