@@ -16,6 +16,7 @@ bool Direct3DVTable::onDllMain() {
 	// if we're here that means we're on Linux inside Wine or Steam Proton or something
 	// luckily the game has a variable where it stores an IDirect3DDevice9*
 
+	// Bit thanks to WorseThanYou for finding this variable
 	char** d3dManager = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\xe8\x00\x00\x00\x00\x89\x3d\x00\x00\x00\x00\x33\xc9\xa3\x00\x00\x00\x00\x8b\x44\x24\x20\xc7\x44\x24\x40\xff\xff\xff\xff\x89\x4c\x24\x28",
