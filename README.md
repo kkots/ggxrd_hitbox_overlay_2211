@@ -115,6 +115,10 @@ Section "Hotkey configuration" describes how to configure hotkeys.
 
 This toggle enables/disables the mod if you don't want to (or can't) load/unload it every time.
 
+### F7 - Toggle hitboxes display
+
+Since the `Disable mod` toggle disables the whole mod, this toggle only disables the hitbox drawing, so that GIF mode, No gravity mode, freeze game mode, etc may still work, only the boxes don't display.
+
 ### Hotkey configuration
 
 If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
@@ -145,11 +149,13 @@ allowNextFrameKeyCombo = F5
 slowmoTimes = 3
 
 ; A toggle button (or combination of buttons) to enable/disable the mod without having to load/unload it
-; In the disabled state the mod doesn't draw the boxes, doesn't affect anything and doesn't react to gifModeToggle, noGravityToggle, freezeGameToggle, etc
 disableModToggle = F6
 
 ; Starts the mod in a disabled state when it doesn't draw boxes or affect anything
 startDisabled = false
+
+; A toggle to enable/disable only the mod hitbox drawing feature, the GIF mode and no gravity, etc will keep working
+disableHitboxDisplayToggle = F7
 ```
 
 You can specify a combination of keys, separated by `+` sign.  
@@ -221,3 +227,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 15: Removed Potemkin Buster hitbox - it's fake and doesn't actually affect anything.
 - 2023 November 15: Added patcher.
 - 2023 November 16: Made fixes so it works under Steam Proton on Ubuntu.
+- 2023 November 16: Added toggle to only disable box drawing.

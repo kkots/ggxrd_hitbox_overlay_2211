@@ -108,6 +108,7 @@ void Settings::readSettings() {
 	keyCombosToParse.insert({ "slowmoGameToggle", { &slowmoGameToggle, "F4" } });
 	keyCombosToParse.insert({ "allowNextFrameKeyCombo", { &allowNextFrameKeyCombo, "F5" } });
 	keyCombosToParse.insert({ "disableModToggle", { &disableModKeyCombo, "F6" } });
+	keyCombosToParse.insert({ "disableHitboxDisplayToggle", { &disableHitboxDisplayToggle, "F7" } });
 
 	bool slowmoTimesParsed = false;
 	bool startDisabledParsed = false;

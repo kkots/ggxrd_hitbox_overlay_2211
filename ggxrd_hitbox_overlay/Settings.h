@@ -20,6 +20,7 @@ public:
 	std::vector<int> slowmoGameToggle;
 	std::vector<int> allowNextFrameKeyCombo;
 	std::vector<int> disableModKeyCombo;
+	std::vector<int> disableHitboxDisplayToggle;
 	int slowmoTimes = 3;
 private:
 	void addKey(const char* name, int code);
