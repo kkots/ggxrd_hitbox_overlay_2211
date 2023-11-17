@@ -4,7 +4,9 @@
 
 ## Description
 
-Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 13'th November 2023).
+Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 13'th November 2023).  
+Also can freeze the game and play it frame-by-frame (with box display turned off for example).  
+Also can screenshot the game with transparency enabled (with help from WorseThanYou).
 
 ## Credits
 
@@ -88,6 +90,7 @@ You can force the game to play one frame at a time (in training mode only). Read
 
 In training mode (only) you can press F1 to enter "GIF mode", which makes the background black, centers the camera on you, hides some of the HUD (you have to hide the rest yourself via Menu - Display settings) and makes opponent invisible and unhittable.  
 Press the key again to turn off the mode.  
+GIF mode can be broken down into separate toggles for each of its functionalities.  
 Section "Hotkey configuration" describes how to configure hotkeys.
 
 ### F2 - No gravity mode
@@ -113,11 +116,16 @@ Section "Hotkey configuration" describes how to configure hotkeys.
 
 ### F6 - Disable mod
 
-This toggle enables/disables the mod if you don't want to (or can't) load/unload it every time.
+This toggle enables/disables the mod if you don't want to (or can't) load/unload it every time.  
+There's also a setting named `startDisabled = false/true` which is a boolean which tells the mod to either be disabled or enabled right when it starts, so that you could start the game with the mod disabled initially.
 
 ### F7 - Toggle hitboxes display
 
 Since the `Disable mod` toggle disables the whole mod, this toggle only disables the hitbox drawing, so that GIF mode, No gravity mode, freeze game mode, etc may still work, only the boxes don't display.
+
+### F8 - Take transparent screenshot
+
+This is a big section that is described in `Taking transparent screenshots` section. Basically this is a button to take a screenshot of the game with transparency enabled. Transparency only works under conditions described in that section.
 
 ### Hotkey configuration
 
@@ -131,6 +139,15 @@ Here's an example of the `.ini` file:
 ; 2) Camera is centered on you
 ; 3) Opponent is invisible and invulnerable
 gifModeToggle = F1
+
+; Only does the "background becomes black" part of the gifModeToggle. Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here. This option can be combined with the other "only" options
+gifModeToggleBackgroundOnly =
+
+; Only does the "Camera is centered on you" part of the gifModeToggle. Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here. This option can be combined with the other "only" options
+gifModeToggleCameraCenterOnly =
+
+; Only does the "Opponent is invisible and invulnerable" part of the gifModeToggle. Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here. This option can be combined with the other "only" options
+gifModeToggleHideOpponentOnly =
 
 ; Toggles No gravity mode
 ; No gravity mode is you can't fall basically
@@ -156,12 +173,85 @@ startDisabled = false
 
 ; A toggle to enable/disable only the mod hitbox drawing feature, the GIF mode and no gravity, etc will keep working
 disableHitboxDisplayToggle = F7
+
+; Takes a screenshot and saves it at screenshotPath path
+; To take screenshots over a transparent background you need to go to the game's Display Settings and turn off Post-Effects, then use GIF mode (make background dark). Then screenshots will film character over transparent background
+screenshotBtn = F8
+
+; setting "screenshotPath" specifies where screenshots will be saved. If you provided a file path it must be with extension, and if such name exists a number will be appended to it, increasing from 1 to infinity consecutively so that it's unique.
+; If you provided a directory path, it must already exist, and "screen.png" will be appended to it with an increasing number at the end in case the filename is not unique.
+; The provided path must be without quotes.
+; If you want the path to be multilingual you need to save this file in UTF-8.
+; On Ubuntu/Linux running Guilty Gear Xrd under Steam Proton you need to specify paths with the Z:\ drive, path separator is backslash (\), not forward slash (/). Example: Z:\home\yourUserName\ggscreen.png
+; If the path is not specified or is empty, the screenshot will be saved into your clipboard so it can be pasted into any image editing program. For example, GIMP will recognize the PNG format and paste that, with transparency. This would work even on Ubuntu/Linux.
+; Only PNG format is supported.
+screenshotPath = C:\Users\yourUser\Desktop\test screenshot name.png
+
+; When this is true that means screenshots are being taken every game loop logical frame as long as the screenshotBtn is being held. Game loop logical frame means that if the game is paused or the actual animations are not playing for whatever reason, screenshot won't be taken. A new screenshot is only taken when animation frames change on the player characters. Be cautions not to run out of disk space if you're low. This option doesn't work if screenshotPath is empty, it's not allowed to work outside of training mode or when a match (training session) isn't currently running (for example on character selection screen).
+allowContinuousScreenshotting = false
+
+; This toggle can be used same way as screenshotBtn in combination with allowContinuousScreenshotting = true, except it's a separate key combination and when you press it it toggles the continuous screenshot taking every game logical frame
+continuousScreenshotToggle =
 ```
 
 You can specify a combination of keys, separated by `+` sign.  
 Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.  
 If the mod is already running you need to reload it in order to apply the new hotkeys and settings. To reload the mod you can run the injector again.  
 `slowmoTimes` is not a key combination, it must be a round integer number.
+
+## Taking transparent screenshots
+
+The mod allows you to take screenshots of the game with the transparency in the background, with characters overlaid on top without transparency. To achieve that, you need to go into the game's `Display settings` and set `Post-Effect` to `OFF`.
+
+![Screenshot can't be viewed](posteffect_off.jpg)
+
+Post-Effect set to Off seems to turn off anti-aliasing, but without it the trick won't work. Then you can load the mod and enter "GIF mode" (F1 is the default hotkey) or "gifModeToggleBackgroundOnly" (not hotkey by default) to make the background black and that would actually make the background transparent - but you can't see that with your naked eyes. You need to press "screenshotBtn" (F8, copies to clipboard by default) to take a screenshot and paste it into a graphical editor supporting transparency, like GIMP for example, in order to see transparency.  
+Transparency in the game is actually inverted, meaning the background is fully opague while the characters are fully transparent. The screenshotter inverts the alpha channel to make it correct.  
+Only GIMP has been tested to support the PNG screenshot format that the mod produces, and this works on Windows and on Ubuntu/Linux, where Guilty Gear Xrd runs under Steam Proton.  
+
+### Screenshot saving location
+
+By default the mod saves the screenshot into clipboard buffer, meaning you can paste it afterwards into a graphics program which supports transparency. In order to save screenshots to a file or directory you can add the `ggxrd_hitbox_overlay.ini` file into the same folder as the game executable and write the path into the `screenshotPath` setting in it, without quotes. Now when you save multiple screenshots in a row each consecutive one will get a number in its name, increasing from 1 to infinity. Screenshots are never cleaned up, so if you never clean them up yourself you might fill up your hard drive.  
+The only supported format by the mod is PNG and it uses `libpng` to encode that. You don't need to do anything to install `libpng` it should come working inside the DLL already.  
+
+### Continuous screenshotting
+
+You can use the `.ini` setting `allowContinuousScreenshotting` to make it so that as you hold down the `screenshotBtn` the screenshots get taken every game frame. This only includes non-frozen and non-paused game frames, i.e. only animations frames that are actually new. This feature only works under following conditions:
+
+- The `screenshotPath` in the `.ini` is not empty;
+- It only works in Training mode;
+- A match (training session) must currently be running;
+- The mod is not currently disabled using `disableModToggle` or `startDisabled`.
+
+There's also a toggle you can use instead of holding down a button, and that toggle is the `continuousScreenshotToggle` setting in the `.ini`. It doesn't require `allowContinuousScreenshotting` to be set to `true` in order to work, can be any hotkey and toggles continuous screenshotting on and off, but it still works only under the abovementioned conditions.
+
+### Converting PNGs into an WEBP animation with transparency with ffmpeg
+
+You can use ffmpeg (<https://www.ffmpeg.org/>) to convert multiple PNGs into one animation. Now, GIF could be used but it doesn't support semi-transparency: each pixel in GIF can only be either fully transparent or not transparent at all, which would ruin most animations containing special effects.  
+WEBP supports full transparency and is an animation format. The command to transform PNGs into a WEBP is as follows:
+
+```cmd
+ffmpeg -framerate 4 -i imageFrameName%d.png -filter:v "crop=out_w:out_h:x:y" -quality 100 -loop 65535 webpFileName.webp
+```
+
+Make sure to substitute:  
+
+- `ffmpeg` with the real location to the ffmpeg.exe on your computer;
+- `-framerate 4` make sure to substitute with the desired framerate, the higher the faster;
+- `imageFrameName%d.png` with the path to the PNGs that you want to convert. The `%d` is the number part of the filename. So for example, if your PNGs are named like `screen1.png`, `screen2.png`, `screen3.png`, etc you would write here `screen%d.png`;
+- `out_w`:`out_h`:`x`:`y` with the width and height of the cropping rectangle, x and y with the x and y of its top-left corner. You can get the bounding rectangle location by doing a selection in GIMP and maybe even in Paint;
+- `-quality 100` can be lowered of course to conserve file size;
+- `webpFileName.webp` is the output webp file name. If you replace the `.webp` with `.gif` here and remove the `-quality` option, it might work for a GIF as well;
+
+If any paths contain spaces (to ffmpeg, to the input PNGs, to the output WEBP) you must enclose them in quotation marks.
+
+You can a frame counter to the bottom of the animation using following ffmpeg command (taken from <https://stackoverflow.com/questions/15364861/frame-number-overlay-with-ffmpeg>):
+
+```cmd
+ffmpeg -framerate 2 -i imageFrameName%d.png -loop 65535 -vf "drawtext=fontfile=Arial.ttf: text='%{frame_num}': start_number=1: x=(w-tw)/2: y=h-(2*lh): fontcolor=black: fontsize=20: box=1: boxcolor=white: boxborderw=5" -c:a copy webpFileName.webp
+```
+
+Here I think `w` in `x=...` means width of the image, and `tw` is the width of the text. `h` is height of the image. Perhaps you can regulate the text position by setting the x and y to literal numbers. I'm sorry, I can't be of much help here.
 
 ## Developing
 
@@ -170,6 +260,8 @@ There are two separate projects in the repository.
 The `ggxrd_hitbox_injector` project builds an application that will inject a dll into the process and exit. The main action will then take place in the dll, in the target process' address space.
 
 The `ggxrd_hitbox_overlay` project builds the dll that's responsible for drawing the hitboxes.
+
+The `ggxrd_hitbox_patcher` project is cross-platform for Windows and Ubuntu/Linux and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed because injector doesn't work on Ubuntu/Linux or to make the game always start with the mod on Windows.
 
 Each project should have its own separate README.md.
 
@@ -180,6 +272,8 @@ Dependencies are better described in each project's README.md. Short version is,
 - Microsoft Detours library: <https://github.com/microsoft/Detours> Follow their instructions on how to build the `.lib` static library. You need to build the 32-bit (x86) version.
 
 - `d3dx9.h` header file. If you don't have it you can get it from: <https://github.com/apitrace/dxsdk/blob/master/Include/d3dx9.h>
+
+- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's not included in the mod in any way, you must download and build it yourself. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>
 
 ## Changelog
 
@@ -228,3 +322,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 15: Added patcher.
 - 2023 November 16: Made fixes so it works under Steam Proton on Ubuntu.
 - 2023 November 16: Added toggle to only disable box drawing.
+- 2023 November 17: With help from WorseThanYou added a transparent screenshotter to the mod.

@@ -32,6 +32,8 @@ The project depends on:
   The correct place to get this header would be from Microsoft DirectX SDK (June 2010) (for DirectX 9) which can be downloaded freely from Microsoft.  
   Add the full path to the `SDK_ROOT\Include` folder into the `Include Directories` folder. You don't need the `.lib` static libraries because you will get them from the Guilty Gear executable.
 
+- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's not included in the mod in any way, you must download and build it yourself. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>
+
 ## Main README
 
 The main README of the entire project is located in the root of the git repository.
