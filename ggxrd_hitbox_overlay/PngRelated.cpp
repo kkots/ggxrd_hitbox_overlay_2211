@@ -48,13 +48,16 @@ std::wstring PngRelated::getScreenshotSavingPath() {
 	MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, &pathUncounted.front(), pathUncounted.size());
 	pathUncounted.resize(wcslen(pathUncounted.c_str()));
 
+	int backslashPos = findRev(pathUncounted.c_str(), L'\\');
 	if (isDirectory(pathUncounted.c_str())) {
+		if (backslashPos == -1 || backslashPos != pathUncounted.size() - 1) {
+			pathUncounted += L'\\';
+		}
 		pathUncounted += L"screen.png";
 	}
 
 	std::wstring extension;
 	int dotPos = findRev(pathUncounted.c_str(), L'.');
-	int backslashPos = findRev(pathUncounted.c_str(), L'\\');
 	if (dotPos != -1 && (backslashPos == -1 || dotPos > backslashPos)) {
 		extension.insert(extension.begin(), pathUncounted.begin() + dotPos, pathUncounted.end());
 		pathUncounted.resize(dotPos);
