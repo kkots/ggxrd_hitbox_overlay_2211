@@ -323,3 +323,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 16: Made fixes so it works under Steam Proton on Ubuntu.
 - 2023 November 16: Added toggle to only disable box drawing.
 - 2023 November 17: With help from WorseThanYou added a transparent screenshotter to the mod.
+- 2023 November 17: Fixed origin point showing the dummy even when it's hidden using "GIF mode" (or similar feature).

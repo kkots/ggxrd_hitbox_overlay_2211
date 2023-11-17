@@ -31,7 +31,9 @@ void collectHitboxes(const Entity& ent,
 	// yellow - pushbox
 	// blue/purple - throwbox
 
-	if (pushboxes && !state.isASummon && *(int*)(ent + 0x2594) != 0) {
+	bool isNotZeroScaled = *(int*)(ent + 0x2594) != 0;
+
+	if (pushboxes && !state.isASummon && isNotZeroScaled) {
 		logOnce(fputs("Need pushbox\n", logfile));
 		// Draw pushbox and throw box
 		/*if (is_push_active(asw_data))
@@ -66,7 +68,7 @@ void collectHitboxes(const Entity& ent,
 
 	DrawHitboxArrayCallParams callParams;
 
-	if (hurtbox) {
+	if (hurtbox && isNotZeroScaled) {
 		callParams.thickness = THICKNESS_HURTBOX;
 		callParams.hitboxData = hurtboxData;
 		callParams.hitboxCount = hurtboxCount;
@@ -100,7 +102,7 @@ void collectHitboxes(const Entity& ent,
 		}
 	}
 
-	if (includeTheseHitboxes) {
+	if (includeTheseHitboxes && isNotZeroScaled) {
 
 		logOnce(fprintf(logfile, "angle: %d\n", *(int*)(ent + 0x258)));
 		
@@ -124,7 +126,7 @@ void collectHitboxes(const Entity& ent,
 		hitboxes->push_back(callParams);
 	}
 
-	if (points && !state.isASummon) {
+	if (points && !state.isASummon && isNotZeroScaled) {
 		DrawPointCallParams pointCallParams;
 		pointCallParams.posX = params.posX;
 		pointCallParams.posY = params.posY;
