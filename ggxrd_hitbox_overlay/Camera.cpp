@@ -83,7 +83,7 @@ void Camera::HookHelp::updateCameraHook(char** param1, char* param2) {
 }
 
 void Camera::updateDarkenHook(char* thisArg) {
-	if (gifMode.gifModeOn) {
+	if (gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly) {
 		*(float*)(thisArg + darkenValue1Offset) = -1.F;
 		*(float*)(thisArg + darkenValue1Offset + 0xC) = 0.F;
 	}
@@ -92,7 +92,7 @@ void Camera::updateDarkenHook(char* thisArg) {
 }
 
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
-	if (gifMode.gifModeOn && aswEngine && game.isTrainingMode()) {
+	if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && aswEngine && game.isTrainingMode()) {
 		entityList.populate();
 
 		char playerSide = game.getPlayerSide();

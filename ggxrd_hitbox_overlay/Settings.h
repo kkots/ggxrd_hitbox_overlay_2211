@@ -21,6 +21,13 @@ public:
 	std::vector<int> allowNextFrameKeyCombo;
 	std::vector<int> disableModKeyCombo;
 	std::vector<int> disableHitboxDisplayToggle;
+	std::vector<int> continuousScreenshotToggle;
+	std::vector<int> gifModeToggleBackgroundOnly;
+	std::vector<int> gifModeToggleCameraCenterOnly;
+	std::vector<int> gifModeToggleHideOpponentOnly;
+	std::vector<int> screenshotBtn;
+	std::string screenshotPath;
+	bool allowContinuousScreenshotting = false;
 	int slowmoTimes = 3;
 private:
 	void addKey(const char* name, int code);

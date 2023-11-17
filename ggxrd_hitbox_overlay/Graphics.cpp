@@ -7,6 +7,8 @@
 #include "BoundingRect.h"
 #include "logging.h"
 #include "pi.h"
+#include "colors.h"
+#include "PngRelated.h"
 
 Graphics graphics;
 
@@ -39,6 +41,9 @@ HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pP
 void Graphics::resetHook() {
 	stencil.surface = NULL;
 	stencil.direct3DSuccess = false;
+	offscreenSurface = NULL;
+	offscreenSurfaceWidth = 0;
+	offscreenSurfaceHeight = 0;
 }
 
 void Graphics::onUnload() {
@@ -57,7 +62,6 @@ void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
 }
 
 void Graphics::drawBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect, bool useStencil) {
-	
 	if (params.left == params.right
 		|| params.top == params.bottom) return;
 
@@ -117,29 +121,42 @@ void Graphics::drawBox(const DrawBoxCallParams& params, BoundingRect* const boun
 			"sp1 { x: %f; y: %f; }; sp2 { x: %f; y: %f; }; sp3 { x: %f; y: %f; }; sp4 { x: %f; y: %f; }\n",
 			sp1.x, sp1.y, sp2.x, sp2.y, sp3.x, sp3.y, sp4.x, sp4.y));
 
-		if (stencil.initialized) {
-			device->SetRenderState(D3DRS_STENCILENABLE, TRUE);  // Thanks to WorseThanYou for the idea of using Stenciling
-			device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);
-			device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCRSAT);
+		if (allowedToDrawFills) {
+			if (stencil.initialized && allowedToUseStencil) {
+				device->SetRenderState(D3DRS_STENCILENABLE, TRUE);  // Thanks to WorseThanYou for the idea of using Stenciling
+				device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);
+				device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCRSAT);
+			}
+			if (!screenshotMode) {
+				device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+				device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+				device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+			}
+			device->SetVertexShader(nullptr);
+			device->SetPixelShader(nullptr);
+			device->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+			device->SetTexture(0, nullptr);
+			D3DCOLOR fillColor;
+			if (screenshotMode) {
+				unsigned int newAlphaValue = ((unsigned int)(params.fillColor) >> 24) * 2;
+				if (newAlphaValue > 255) newAlphaValue = 255;
+				fillColor = replaceAlpha(newAlphaValue, params.fillColor);
+			} else {
+				fillColor = params.fillColor;
+			}
+
+			Vertex vertices[] =
+			{
+				{ sp1.x, sp1.y, 0.F, 1.F, fillColor },  // Thanks to WorseThanYou for fixing the RHW value for Intel GPUs (was 0.F, didn't work)
+				{ sp2.x, sp2.y, 0.F, 1.F, fillColor },
+				{ sp3.x, sp3.y, 0.F, 1.F, fillColor },
+				{ sp4.x, sp4.y, 0.F, 1.F, fillColor },
+			};
+
+			// Triangle strip means v1, v2, v3 is a triangle, v2, v3, v4 is a triangle, etc.
+			// Second parameter is the number of triangles.
+			device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex));
 		}
-		device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-		device->SetVertexShader(nullptr);
-		device->SetPixelShader(nullptr);
-		device->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-		device->SetTexture(0, nullptr);
-
-		Vertex vertices[] =
-		{
-			{ sp1.x, sp1.y, 0.F, 1.F, params.fillColor },  // Thanks to WorseThanYou for fixing the RHW value for Intel GPUs (was 0.F, didn't work)
-			{ sp2.x, sp2.y, 0.F, 1.F, params.fillColor },
-			{ sp3.x, sp3.y, 0.F, 1.F, params.fillColor },
-			{ sp4.x, sp4.y, 0.F, 1.F, params.fillColor },
-		};
-
-		// Triangle strip means v1, v2, v3 is a triangle, v2, v3, v4 is a triangle, etc.
-		// Second parameter is the number of triangles.
-		device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex));
 	}
 
 	if (params.thickness) {
@@ -207,22 +224,6 @@ void Graphics::drawAll() {
 void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect, bool clearStencil,
 								std::vector<DrawOutlineCallParams>* outlinesOverride) {
 	if (!params.hitboxCount) return;
-	/*	const Hitbox* hitboxData = nullptr;
-	int hitboxCount = 0;
-	DrawHitboxArrayParams params{ 0 };
-	D3DCOLOR fillColor{ 0 };
-	D3DCOLOR outlineColor{ 0 };
-	bool operator==(const DrawHitboxArrayCallParams& other) const;
-	bool operator!=(const DrawHitboxArrayCallParams& other) const;
-		int posX = 0;
-	int posY = 0;
-	char flip = 1;  // 1 for facing left, -1 for facing right
-	int scaleX = 1000;
-	int scaleY = 1000;
-	int angle = 0;
-	int hitboxOffsetX = 0;
-	int hitboxOffsetY = 0;
-	*/
 	logOnce(fputs("drawHitboxArray called with parameters:\n", logfile));
 	logOnce(fprintf(logfile, "hitboxData: %p\n", params.hitboxData));
 	logOnce(fprintf(logfile, "hitboxCount: %d\n", params.hitboxCount));
@@ -293,7 +294,7 @@ void Graphics::drawHitboxArray(const DrawHitboxArrayCallParams& params, Bounding
 
 		++hitboxData;
 	}
-	if (clearStencil) {
+	if (clearStencil && allowedToUseStencil) {
 		stencil.clearRegion(device, *boundingRect);
 	}
 
@@ -316,10 +317,13 @@ Graphics::Vertex::Vertex(float x, float y, float z, float rhw, DWORD color)
 	: x(x), y(y), z(z), rhw(rhw), color(color) { }
 
 void Graphics::drawOutline(const DrawOutlineCallParams& params) {
+	if (!allowedToDrawOutlines) return;
 	logOnce(fprintf(logfile, "Called drawOutlines with an outline with %d elements\n", params.count()));
 	device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
+	if (!screenshotMode) {
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+	}
 	device->SetVertexShader(nullptr);
 	device->SetPixelShader(nullptr);
 	device->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
@@ -368,14 +372,16 @@ void Graphics::worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
 
 void Graphics::drawPoint(const DrawPointCallParams& params)
 {
+	if (!allowedToDrawPoints) return;
 	D3DXVECTOR3 p{ (float)params.posX, 0.F, (float)params.posY };
 	logOnce(fprintf(logfile, "drawPoint called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
 
 	D3DXVECTOR3 sp;
 	worldToScreen(p, &sp);
 
-	device->SetRenderState(D3DRS_STENCILENABLE, false);
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+	device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 	device->SetVertexShader(nullptr);
 	device->SetPixelShader(nullptr);
@@ -458,4 +464,284 @@ void Graphics::drawPoint(const DrawPointCallParams& params)
 	// Linelist means v1, v2 is a line, v3, v4 is a line, etc. Error on uneven vertices
 	// Second parameter is the number of lines.
 	device->DrawPrimitiveUP(D3DPT_LINELIST, 2, vertices, sizeof(Vertex));
+}
+
+IDirect3DSurface9* Graphics::getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr) {
+	D3DSURFACE_DESC renderTargetDesc;
+	if (!renderTargetDescPtr) {
+		CComPtr<IDirect3DSurface9> renderTarget;
+		if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+			logwrap(fputs("GetRenderTarget failed\n", logfile));
+			return nullptr;
+		}
+		SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+		if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+			logwrap(fputs("GetDesc failed\n", logfile));
+			return nullptr;
+		}
+		renderTargetDescPtr = &renderTargetDesc;
+	}
+	if (offscreenSurfaceWidth != renderTargetDescPtr->Width || offscreenSurfaceHeight != renderTargetDescPtr->Height) {
+		offscreenSurface = nullptr;
+		if (FAILED(device->CreateOffscreenPlainSurface(renderTargetDescPtr->Width,
+			renderTargetDescPtr->Height,
+			renderTargetDescPtr->Format,
+			D3DPOOL_SYSTEMMEM,
+			&offscreenSurface,
+			NULL))) {
+			logwrap(fputs("CreateOffscreenPlainSurface failed\n", logfile));
+			return nullptr;
+		}
+		offscreenSurfaceWidth = renderTargetDescPtr->Width;
+		offscreenSurfaceHeight = renderTargetDescPtr->Height;
+	}
+	return offscreenSurface;
+}
+
+bool Graphics::takeScreenshotBegin(IDirect3DDevice9* device) {
+	logwrap(fputs("takeScreenshotBegin called\n", logfile));
+	device->CreateStateBlock(D3DSBT_ALL, &oldState);
+
+	if (FAILED(device->GetRenderTarget(0, &gamesRenderTarget))) {
+		logwrap(fputs("GetRenderTarget failed\n", logfile));
+		return false;
+	}
+
+	D3DSURFACE_DESC renderTargetDesc;
+	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+	if (FAILED(gamesRenderTarget->GetDesc(&renderTargetDesc))) {
+		logwrap(fputs("GetDesc failed\n", logfile));
+		return false;
+	}
+
+	CComPtr<IDirect3DSurface9> newRenderTarget = nullptr;
+	if (FAILED(device->CreateRenderTarget(renderTargetDesc.Width,
+		renderTargetDesc.Height,
+		renderTargetDesc.Format,
+		renderTargetDesc.MultiSampleType,
+		renderTargetDesc.MultiSampleQuality,
+		FALSE,
+		&newRenderTarget,
+		NULL))) {
+		logwrap(fputs("CreateRenderTarget failed\n", logfile));
+		return false;
+	}
+
+	if (FAILED(device->SetRenderTarget(0, newRenderTarget))) {
+		logwrap(fputs("SetRenderTarget failed\n", logfile));
+		return false;
+	}
+
+	if (FAILED(device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 0), 1.F, 0))) {
+		logwrap(fputs("Clear failed\n", logfile));
+		device->SetRenderTarget(0, gamesRenderTarget);
+		gamesRenderTarget = nullptr;
+		return false;
+	}
+
+	device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
+
+	device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
+	device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
+	device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCRSAT);
+	device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);
+
+	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+	device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO);
+	device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+
+	screenshotMode = true;
+	allowedToDrawFills = true;
+	allowedToDrawOutlines = false;
+	allowedToUseStencil = false;
+	allowedToDrawPoints = false;
+	return true;
+}
+
+void Graphics::takeScreenshotDebug(IDirect3DDevice9* device, const wchar_t* filename) {
+	std::vector<unsigned char> gameImage;
+	unsigned int width = 0;
+	unsigned int height = 0;
+	if (!!getFramebufferData(device, gameImage, nullptr, nullptr, &width, &height)) return;
+	pngRelated.writePngToPath(filename, width, height, &gameImage.front());
+
+}
+
+void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
+	screenshotMode = false;
+	allowedToDrawFills = true;
+	allowedToDrawOutlines = true;
+	allowedToUseStencil = true;
+	allowedToDrawPoints = true;
+	CComPtr<IDirect3DSurface9> renderTarget;
+	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+		logwrap(fputs("GetRenderTarget failed\n", logfile));
+		return;
+	}
+	D3DSURFACE_DESC renderTargetDesc;
+	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+	if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+		logwrap(fputs("GetDesc failed\n", logfile));
+		return;
+	}
+	std::vector<unsigned char> boxesImage;
+	if (!getFramebufferData(device, boxesImage, renderTarget, &renderTargetDesc)) return;
+
+
+	std::vector<unsigned char> gameImage;
+	if (!getFramebufferData(device, gameImage, gamesRenderTarget, &renderTargetDesc)) return;
+
+	// Thanks to WorseThanYou for writing this CPU pixel blender
+	union Pixel {
+		struct { unsigned char r, g, b, a; };
+		int value;
+	};
+	Pixel* gameImagePtr = (Pixel*)&gameImage.front();
+	Pixel* boxesImagePtr = (Pixel*)&boxesImage.front();
+	const size_t offLimit = renderTargetDesc.Width * renderTargetDesc.Height * 4;
+	for (size_t off = 0; off < offLimit; off += 4)
+	{
+		Pixel& d = *gameImagePtr;
+		Pixel& s = *boxesImagePtr;
+
+		if (s.a != 255) {
+			s.a /= 2;
+		}
+
+		d.a ^= 255;
+		unsigned int average = (d.r + d.g + d.b) / 3;
+		if (average > d.a) d.a = average;
+		unsigned char daInv = ~d.a, saInv = 255 ^ s.a;
+		d.r = (daInv * s.r + d.a * (s.r * s.a + d.r * saInv) / 255) / 255;
+		d.g = (daInv * s.g + d.a * (s.g * s.a + d.g * saInv) / 255) / 255;
+		d.b = (daInv * s.b + d.a * (s.b * s.a + d.b * saInv) / 255) / 255;
+		d.a = (daInv * s.a + d.a * (255 * 255 - daInv * saInv) / 255) / 255;
+		++gameImagePtr;
+		++boxesImagePtr;
+	}
+
+	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, &gameImage.front());
+}
+
+void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
+	CComPtr<IDirect3DSurface9> renderTarget;
+	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+		logwrap(fputs("GetRenderTarget failed\n", logfile));
+		return;
+	}
+	D3DSURFACE_DESC renderTargetDesc;
+	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+	if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+		logwrap(fputs("GetDesc failed\n", logfile));
+		return;
+	}
+	std::vector<unsigned char> gameImage;
+	if (!getFramebufferData(device, gameImage, renderTarget, &renderTargetDesc)) return;
+
+	// Thanks to WorseThanYou for writing this CPU pixel blender
+	union Pixel {
+		struct { unsigned char r, g, b, a; };
+		int value;
+	};
+	Pixel* gameImagePtr = (Pixel*)&gameImage.front();
+	const size_t offLimit = renderTargetDesc.Width * renderTargetDesc.Height * 4;
+	for (size_t off = 0; off < offLimit; off += 4)
+	{
+		Pixel& d = *gameImagePtr;
+
+		d.a ^= 255;
+		++gameImagePtr;
+	}
+
+	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, &gameImage.front());
+
+}
+
+bool Graphics::getFramebufferData(IDirect3DDevice9* device,
+		std::vector<unsigned char>& buffer,
+		IDirect3DSurface9* renderTarget,
+		D3DSURFACE_DESC* renderTargetDescPtr,
+		unsigned int* widthPtr,
+		unsigned int* heightPtr) {
+	CComPtr<IDirect3DSurface9> renderTargetComPtr;
+	if (!renderTarget) {
+		if (FAILED(device->GetRenderTarget(0, &renderTargetComPtr))) {
+			logwrap(fputs("GetRenderTarget failed\n", logfile));
+			return false;
+		}
+		renderTarget = renderTargetComPtr;
+	}
+	D3DSURFACE_DESC renderTargetDesc;
+	if (!renderTargetDescPtr) {
+		SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+		if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+			logwrap(fputs("GetDesc failed\n", logfile));
+			return false;
+		}
+		renderTargetDescPtr = &renderTargetDesc;
+	}
+	if (widthPtr) *widthPtr = renderTargetDescPtr->Width;
+	if (heightPtr) *heightPtr = renderTargetDescPtr->Height;
+
+	IDirect3DSurface9* offscreenSurface = getOffscreenSurface(renderTargetDescPtr);
+	if (!offscreenSurface) return false;
+	if (FAILED(device->GetRenderTargetData(renderTarget, offscreenSurface))) {
+		logwrap(fprintf(logfile, "GetRenderTargetData failed. renderTarget is: %p. offscreenSurface is %p. gamesRenderTarget is %p\n", renderTarget, offscreenSurface, gamesRenderTarget.p));
+		return false;
+	}
+
+	D3DLOCKED_RECT lockedRect;
+	RECT rect;
+	rect.left = 0;
+	rect.right = renderTargetDescPtr->Width;
+	rect.top = 0;
+	rect.bottom = renderTargetDescPtr->Height;
+	if (FAILED(offscreenSurface->LockRect(&lockedRect, &rect, D3DLOCK_READONLY))) {
+		logwrap(fputs("LockRect failed\n", logfile));
+		return false;
+	}
+
+	unsigned int imageSize = renderTargetDescPtr->Width * renderTargetDescPtr->Height;
+
+	buffer.resize(imageSize * 4);
+	memcpy((void*)&buffer.front(), lockedRect.pBits, imageSize * 4);
+
+	offscreenSurface->UnlockRect();
+
+	return true;
+}
+
+void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion) {
+	if (useSimpleVerion) {
+		takeScreenshotSimple(device);
+		return;
+	}
+	if (!takeScreenshotBegin(device)) return;
+	// thanks to WorseThanYou for coming up with this box blending sequence
+	drawAll();
+	logOnce(fputs("drawAll() (for screenshot) call successful\n", logfile));
+	device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+	allowedToUseStencil = true;
+	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	// 1-(1-a)*(1-b) = a+b(1-a)
+	device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+	device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+	drawAll();
+	allowedToDrawOutlines = true;
+	allowedToDrawPoints = true;
+	allowedToDrawFills = false;
+	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+	device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+	device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	drawAll();
+	takeScreenshotEnd(device);
+	device->SetRenderTarget(0, gamesRenderTarget);
+	gamesRenderTarget = nullptr;
+	oldState->Apply();
+	oldState = nullptr;
 }

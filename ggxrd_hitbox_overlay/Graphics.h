@@ -23,7 +23,9 @@ public:
 	void onUnload();
 	void onEndSceneStart(IDirect3DDevice9* device);
 	void drawAll();
+	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
 	void resetHook();
+	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
 	
 	Reset_t orig_Reset = nullptr;
 	std::mutex orig_ResetMutex;
@@ -32,6 +34,12 @@ public:
 	std::vector<DrawBoxCallParams> pushboxes;
 	std::vector<DrawPointCallParams> points;
 	std::vector<DrawBoxCallParams> throwBoxes;
+	bool screenshotMode = false;
+	bool allowedToDrawFills = true;
+	bool allowedToDrawOutlines = true;
+	bool allowedToUseStencil = true;
+	bool allowedToDrawPoints = true;
+
 private:
 	struct Vertex {
 		float x, y, z, rhw;
@@ -44,6 +52,9 @@ private:
 	std::vector<Vertex> vertexArena;
 	std::vector<RectCombiner::Polygon> rectCombinerInputBoxes;
 	std::vector<std::vector<RectCombiner::PathElement>> rectCombinerOutlines;
+	CComPtr<IDirect3DSurface9> offscreenSurface;
+	unsigned int offscreenSurfaceWidth = 0;
+	unsigned int offscreenSurfaceHeight = 0;
 
 	void drawBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect = nullptr, bool useStencil = false);
 	void drawHitboxArray(const DrawHitboxArrayCallParams& params, BoundingRect* boundingRect = nullptr, bool clearStencil = true,
@@ -51,6 +62,18 @@ private:
 	void drawOutline(const DrawOutlineCallParams& params);
 	void drawPoint(const DrawPointCallParams& params);
 	void worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out);
+	bool takeScreenshotBegin(IDirect3DDevice9* device);
+	void takeScreenshotDebug(IDirect3DDevice9* device, const wchar_t* filename);
+	void takeScreenshotEnd(IDirect3DDevice9* device);
+	bool getFramebufferData(IDirect3DDevice9* device,
+		std::vector<unsigned char>& buffer,
+		IDirect3DSurface9* renderTarget = nullptr,
+		D3DSURFACE_DESC* renderTargetDescPtr = nullptr,
+		unsigned int* widthPtr = nullptr,
+		unsigned int* heightPtr = nullptr);
+	void takeScreenshotSimple(IDirect3DDevice9* device);
+	CComPtr<IDirect3DSurface9> gamesRenderTarget = nullptr;
+	CComPtr<IDirect3DStateBlock9> oldState;
 };
 
 extern Graphics graphics;

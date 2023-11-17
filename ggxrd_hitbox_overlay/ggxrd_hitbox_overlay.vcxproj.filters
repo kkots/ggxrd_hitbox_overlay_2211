@@ -129,6 +129,9 @@
     <ClInclude Include="Hud.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PngRelated.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -211,6 +214,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Hud.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PngRelated.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

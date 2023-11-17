@@ -143,6 +143,7 @@ void Stencil::onEndSceneEnd(IDirect3DDevice9* device) {
 		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);
 		device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_KEEP);
+		initialized = false;
 	}
 }
 

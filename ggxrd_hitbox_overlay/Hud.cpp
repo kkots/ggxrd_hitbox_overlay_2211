@@ -39,7 +39,11 @@ void Hud::HookHelp::updateHudHook() {
 
 void Hud::updateHudHook(char* thisArg) {
 	hudPtr = thisArg;
-	if (aswEngine && *aswEngine && game.isTrainingMode() && gifMode.gifModeOn) {
+	if (aswEngine && *aswEngine && game.isTrainingMode()
+			&& (gifMode.gifModeOn
+			|| gifMode.gifModeToggleBackgroundOnly
+			|| gifMode.gifModeToggleHideOpponentOnly
+			|| gifMode.gifModeToggleCameraCenterOnly)) {
 		changeHudVisibility(false);
 	} else {
 		changeHudVisibility(true);

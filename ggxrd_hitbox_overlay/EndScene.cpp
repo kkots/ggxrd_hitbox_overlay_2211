@@ -168,10 +168,18 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		throws.drawThrows();
 		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
 
+		if (needToTakeScreenshot) {
+			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
+			graphics.takeScreenshotMain(device, false);
+		}
+
 		graphics.drawAll();
 		logOnce(fputs("graphics.drawAll() call successful\n", logfile));
 
+	} else if (needToTakeScreenshot) {
+		graphics.takeScreenshotMain(device, true);
 	}
+
 #ifdef LOG_PATH
 	didWriteOnce = true;
 #endif
@@ -190,15 +198,48 @@ bool EndScene::onDllDetach() {
 
 void EndScene::processKeyStrokes() {
 	bool trainingMode = game.isTrainingMode();
+	bool needToRunNoGravGifMode = false;
 	keyboard.updateKeyStatuses();
 	if (keyboard.gotPressed(settings.gifModeToggle)) {
 		// idk how atomic_bool reacts to ! and operator bool(), so we do it the arduous way
 		if (gifMode.gifModeOn == true) {
 			gifMode.gifModeOn = false;
 			logwrap(fputs("GIF mode turned off\n", logfile));
+			needToRunNoGravGifMode = true;
 		} else if (trainingMode) {
 			gifMode.gifModeOn = true;
 			logwrap(fputs("GIF mode turned on\n", logfile));
+		}
+	}
+	if (keyboard.gotPressed(settings.gifModeToggleBackgroundOnly)) {
+		if (gifMode.gifModeToggleBackgroundOnly == true) {
+			gifMode.gifModeToggleBackgroundOnly = false;
+			logwrap(fputs("GIF mode (darken background only) turned off\n", logfile));
+		}
+		else if (trainingMode) {
+			gifMode.gifModeToggleBackgroundOnly = true;
+			logwrap(fputs("GIF mode (darken background only) turned on\n", logfile));
+		}
+	}
+	if (keyboard.gotPressed(settings.gifModeToggleCameraCenterOnly)) {
+		if (gifMode.gifModeToggleCameraCenterOnly == true) {
+			gifMode.gifModeToggleCameraCenterOnly = false;
+			logwrap(fputs("GIF mode (center camera only) turned off\n", logfile));
+		}
+		else if (trainingMode) {
+			gifMode.gifModeToggleCameraCenterOnly = true;
+			logwrap(fputs("GIF mode (center camera only) turned on\n", logfile));
+		}
+	}
+	if (keyboard.gotPressed(settings.gifModeToggleHideOpponentOnly)) {
+		if (gifMode.gifModeToggleHideOpponentOnly == true) {
+			gifMode.gifModeToggleHideOpponentOnly = false;
+			logwrap(fputs("GIF mode (hide opponent only) turned off\n", logfile));
+			needToRunNoGravGifMode = true;
+		}
+		else if (trainingMode) {
+			gifMode.gifModeToggleHideOpponentOnly = true;
+			logwrap(fputs("GIF mode (hide opponent only) turned on\n", logfile));
 		}
 	}
 	if (keyboard.gotPressed(settings.noGravityToggle)) {
@@ -231,7 +272,6 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Slowmo game turned on\n", logfile));
 		}
 	}
-	bool needToRunNoGravGifMode = false;
 	if (keyboard.gotPressed(settings.disableModKeyCombo)) {
 		if (gifMode.modDisabled == true) {
 			gifMode.modDisabled = false;
@@ -273,11 +313,54 @@ void EndScene::processKeyStrokes() {
 		allowNextFrameBeenHeldFor = 0;
 		allowNextFrameCounter = 0;
 	}
+	needToTakeScreenshot = keyboard.gotPressed(settings.screenshotBtn);
+	if (keyboard.gotPressed(settings.continuousScreenshotToggle)) {
+		needToTakeScreenshot = true;
+		if (gifMode.continuousScreenshotMode) {
+			gifMode.continuousScreenshotMode = false;
+			logwrap(fputs("Continuous screenshot mode off\n", logfile));
+		} else if (trainingMode) {
+			gifMode.continuousScreenshotMode = true;
+			logwrap(fputs("Continuous screenshot mode on\n", logfile));
+		}
+	}
+	if ((keyboard.isHeld(settings.screenshotBtn) && settings.allowContinuousScreenshotting || gifMode.continuousScreenshotMode)
+			&& !gifMode.modDisabled
+			&& *aswEngine
+			&& trainingMode
+			&& !settings.screenshotPath.empty()) {
+		if (!needToTakeScreenshot) {
+			unsigned int p1CurrentTimer = ~0;
+			unsigned int p2CurrentTimer = ~0;
+			if (*aswEngine) {
+				entityList.populate();
+				if (entityList.count >= 1) {
+					p1CurrentTimer = Entity{ entityList.slots[0] }.currentAnimDuration();
+				}
+				if (entityList.count >= 2) {
+					p2CurrentTimer = Entity{ entityList.slots[1] }.currentAnimDuration();
+				}
+			}
+			if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
+					|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
+				needToTakeScreenshot = true;
+				p1PreviousTimeOfTakingScreen = p1CurrentTimer;
+				p2PreviousTimeOfTakingScreen = p2CurrentTimer;
+			}
+		}
+	} else {
+		p1PreviousTimeOfTakingScreen = ~0;
+		p2PreviousTimeOfTakingScreen = ~0;
+	}
 	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;
 		game.slowmoGame = false;
+		gifMode.continuousScreenshotMode = false;
+		gifMode.gifModeToggleBackgroundOnly = false;
+		gifMode.gifModeToggleCameraCenterOnly = false;
+		gifMode.gifModeToggleHideOpponentOnly = false;
 	}
 	if (needToRunNoGravGifMode) {
 		if (*aswEngine) noGravGifMode();
@@ -291,7 +374,7 @@ void EndScene::noGravGifMode() {
 	if (playerIndex == 2) playerIndex = 0;
 	opponentIndex = 1 - playerIndex;
 
-	bool useGifMode = gifMode.gifModeOn && game.isTrainingMode();
+	bool useGifMode = (gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode();
 	if (scaleIs0 && !useGifMode) {
 		if (entityList.count > opponentIndex) {
 			*(int*)(entityList.slots[opponentIndex] + 0x264) = 1000;

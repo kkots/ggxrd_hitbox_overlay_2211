@@ -1,5 +1,7 @@
 #pragma once
 #include <d3d9.h>
+#include <d3dx9.h>
+#include <atlbase.h>
 #include <vector>
 #include "Entity.h"
 #include <condition_variable>
@@ -7,9 +9,11 @@
 
 using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
 using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9*, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
+//using DrawIndexedPrimitive_t = HRESULT(__stdcall*)(IDirect3DDevice9* device, D3DPRIMITIVETYPE unnamedParam1, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount);
 
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device);
 HRESULT __stdcall hook_Present(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
+//HRESULT __stdcall hook_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIVETYPE unnamedParam1, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount);
 
 class EndScene
 {
@@ -28,7 +32,7 @@ public:
 private:
 	bool isEntityAlreadyDrawn(const Entity& ent) const;
 	void noGravGifMode();
-
+	bool needToTakeScreenshot = false;
 
 	// The EndScene function is actually being called twice: once by GuiltyGear and one more time by the Steam overlay.
 	// However, Present is only called once each frame. So we use the Present function to determine if the next EndScene
@@ -41,6 +45,8 @@ private:
 	unsigned int allowNextFrameBeenHeldFor = 0;
 	unsigned int allowNextFrameCounter = 0;
 	bool freezeGame = false;
+	unsigned int p1PreviousTimeOfTakingScreen = ~0;
+	unsigned int p2PreviousTimeOfTakingScreen = ~0;
 };
 
 extern EndScene endScene;

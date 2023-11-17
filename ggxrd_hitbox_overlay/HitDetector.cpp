@@ -152,7 +152,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 		}
 	}
 
-	if (gifMode.gifModeOn && game.isTrainingMode()) {
+	if ((gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode()) {
 		result = 0;
 	}
 	return result;

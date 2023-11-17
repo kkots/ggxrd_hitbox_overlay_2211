@@ -109,9 +109,16 @@ void Settings::readSettings() {
 	keyCombosToParse.insert({ "allowNextFrameKeyCombo", { &allowNextFrameKeyCombo, "F5" } });
 	keyCombosToParse.insert({ "disableModToggle", { &disableModKeyCombo, "F6" } });
 	keyCombosToParse.insert({ "disableHitboxDisplayToggle", { &disableHitboxDisplayToggle, "F7" } });
+	keyCombosToParse.insert({ "screenshotBtn", { &screenshotBtn, "F8" } });
+	keyCombosToParse.insert({ "continuousScreenshotToggle", { &continuousScreenshotToggle, "" } });
+	keyCombosToParse.insert({ "gifModeToggleBackgroundOnly", { &gifModeToggleBackgroundOnly, "" } });
+	keyCombosToParse.insert({ "gifModeToggleCameraCenterOnly", { &gifModeToggleCameraCenterOnly, "" } });
+	keyCombosToParse.insert({ "gifModeToggleHideOpponentOnly", { &gifModeToggleHideOpponentOnly, "" } });
 
 	bool slowmoTimesParsed = false;
 	bool startDisabledParsed = false;
+	bool screenshotPathParsed = false;
+	bool allowContinuousScreenshottingParsed = false;
 
 	char errorString[500];
 	char buf[128];
@@ -142,12 +149,18 @@ void Settings::readSettings() {
 			if (!slowmoTimesParsed && keyName == "slowmoTimes") {
 				slowmoTimesParsed = parseInteger(keyName.c_str(), keyValue, slowmoTimes);
 			}
-			if (!startDisabledParsed && keyName == "startDisabled") {
-				bool startDisabled = false;
-				startDisabledParsed = parseBoolean(keyName.c_str(), keyValue, startDisabled);
-				if (startDisabled) {
-					gifMode.modDisabled = true;
-				}
+			if (!allowContinuousScreenshottingParsed && keyName == "allowContinuousScreenshotting") {
+				allowContinuousScreenshottingParsed = parseBoolean(keyName.c_str(), keyValue, allowContinuousScreenshotting);
+			}
+			if (!screenshotPathParsed && keyName == "screenshotPath") {
+				screenshotPathParsed = true;
+				screenshotPath = keyValue;  // in UTF-8
+				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
+			}
+			if (!screenshotPathParsed && keyName == "screenshotPath") {
+				screenshotPathParsed = true;
+				screenshotPath = keyValue;  // in UTF-8
+				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
 			}
 			if (feof(file)) break;
 		}

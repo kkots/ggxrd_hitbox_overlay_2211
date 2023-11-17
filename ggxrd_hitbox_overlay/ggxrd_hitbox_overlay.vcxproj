@@ -75,8 +75,8 @@
     <LibraryPath>D:\source\repos\Detours-main\lib.X86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>D:\source\repos\dxsdk-master\Include;D:\source\repos\Detours-main\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\source\repos\Detours-main\lib.X86;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\source\repos\dxsdk-master\Include;D:\source\repos\Detours-main\include;D:\source\repos\libpng-libpng16;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\source\repos\Detours-main\lib.X86;D:\source\repos\libpng-libpng16\projects\vstudio\Release Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -111,7 +111,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>detours.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -177,6 +177,7 @@
     <ClInclude Include="InvisChipp.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="pi.h" />
+    <ClInclude Include="PngRelated.h" />
     <ClInclude Include="rectCombiner.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="Stencil.h" />
@@ -216,6 +217,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="memoryFunctions.cpp" />
+    <ClCompile Include="PngRelated.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Stencil.cpp" />
