@@ -6,7 +6,7 @@
 
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 13'th November 2023).  
 Also can freeze the game and play it frame-by-frame (with box display turned off for example).  
-Also can screenshot the game with transparency enabled (with help from WorseThanYou).
+Also can screenshot the game with transparency enabled/disabled (with help from WorseThanYou).
 
 ## Credits
 
@@ -123,9 +123,9 @@ There's also a setting named `startDisabled = false/true` which is a boolean whi
 
 Since the `Disable mod` toggle disables the whole mod, this toggle only disables the hitbox drawing, so that GIF mode, No gravity mode, freeze game mode, etc may still work, only the boxes don't display.
 
-### F8 - Take transparent screenshot
+### F8 - Take transparent/non-transparent screenshot
 
-This is a big section that is described in `Taking transparent screenshots` section. Basically this is a button to take a screenshot of the game with transparency enabled. Transparency only works under conditions described in that section.
+This is a big section that is described in `Taking transparent/non-transparent screenshots` section. Basically this is a button to take a screenshot of the game with transparency enabled/disabled. Transparency only works under conditions described in that section.
 
 ### Hotkey configuration
 
@@ -176,9 +176,10 @@ disableHitboxDisplayToggle = F7
 
 ; Takes a screenshot and saves it at screenshotPath path
 ; To take screenshots over a transparent background you need to go to the game's Display Settings and turn off Post-Effects, then use GIF mode (make background dark). Then screenshots will film character over transparent background
+; If the dontUseScreenshotTransparency setting is true, screenshot will be without transparency anyway
 screenshotBtn = F8
 
-; setting "screenshotPath" specifies where screenshots will be saved. If you provided a file path it must be with extension, and if such name exists a number will be appended to it, increasing from 1 to infinity consecutively so that it's unique.
+; setting "screenshotPath" specifies where screenshots will be saved. If you provided a file path it must be with extension, and if such name already exists a number will be appended to it, increasing from 1 to infinity consecutively so that it's unique.
 ; If you provided a directory path, it must already exist, and "screen.png" will be appended to it with an increasing number at the end in case the filename is not unique.
 ; The provided path must be without quotes.
 ; If you want the path to be multilingual you need to save this file in UTF-8.
@@ -190,8 +191,12 @@ screenshotPath = C:\Users\yourUser\Desktop\test screenshot name.png
 ; When this is true that means screenshots are being taken every game loop logical frame as long as the screenshotBtn is being held. Game loop logical frame means that if the game is paused or the actual animations are not playing for whatever reason, screenshot won't be taken. A new screenshot is only taken when animation frames change on the player characters. Be cautions not to run out of disk space if you're low. This option doesn't work if screenshotPath is empty, it's not allowed to work outside of training mode or when a match (training session) isn't currently running (for example on character selection screen).
 allowContinuousScreenshotting = false
 
-; This toggle can be used same way as screenshotBtn in combination with allowContinuousScreenshotting = true, except it's a separate key combination and when you press it it toggles the continuous screenshot taking every game logical frame
+; This toggle can be used same way as screenshotBtn (when it's combined with allowContinuousScreenshotting = true), except it's a separate key combination and when you press it it toggles the continuous screenshot taking every game logical frame. This toggle does not require allowContinuousScreenshotting to be set to true
 continuousScreenshotToggle =
+
+; Setting this to true will produce screenshots without transparency
+dontUseScreenshotTransparency = false
+
 ```
 
 You can specify a combination of keys, separated by `+` sign.  
@@ -199,7 +204,7 @@ Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, Cap
 If the mod is already running you need to reload it in order to apply the new hotkeys and settings. To reload the mod you can run the injector again.  
 `slowmoTimes` is not a key combination, it must be a round integer number.
 
-## Taking transparent screenshots
+## Taking transparent/non-transparent screenshots
 
 The mod allows you to take screenshots of the game with the transparency in the background, with characters overlaid on top without transparency. To achieve that, you need to go into the game's `Display settings` and set `Post-Effect` to `OFF`.
 
@@ -224,6 +229,10 @@ You can use the `.ini` setting `allowContinuousScreenshotting` to make it so tha
 - The mod is not currently disabled using `disableModToggle` or `startDisabled`.
 
 There's also a toggle you can use instead of holding down a button, and that toggle is the `continuousScreenshotToggle` setting in the `.ini`. It doesn't require `allowContinuousScreenshotting` to be set to `true` in order to work, can be any hotkey and toggles continuous screenshotting on and off, but it still works only under the abovementioned conditions.
+
+### Non-transparent screenshotting
+
+To take regular, non-transparency-enabled screenshots you can set the `dontUseScreenshotTransparency` setting to `true`.
 
 ### Converting PNGs into an WEBP animation with transparency with ffmpeg
 
@@ -273,7 +282,7 @@ Dependencies are better described in each project's README.md. Short version is,
 
 - `d3dx9.h` header file. If you don't have it you can get it from: <https://github.com/apitrace/dxsdk/blob/master/Include/d3dx9.h>
 
-- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's not included in the mod in any way, you must download and build it yourself. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>
+- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's not included in the mod sources in any way, you must download and build it yourself. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>
 
 ## Changelog
 
@@ -324,3 +333,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 16: Added toggle to only disable box drawing.
 - 2023 November 17: With help from WorseThanYou added a transparent screenshotter to the mod.
 - 2023 November 17: Fixed origin point showing the dummy even when it's hidden using "GIF mode" (or similar feature).
+- 2023 November 17: Fixed pasting of transparent screenshots into MSPaint and added non-transparent screenshotting.
