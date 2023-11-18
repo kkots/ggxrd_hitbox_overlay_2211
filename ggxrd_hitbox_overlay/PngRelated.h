@@ -12,6 +12,7 @@ private:
 	int findRev(const wchar_t* path, wchar_t charToFind) const;
 	std::wstring getScreenshotSavingPath();
 	bool writePngToMemory(HGLOBAL* handleToGlobalAlloc, unsigned int width, unsigned int height, void* imageDataToWrite);
+	void writePngPrepare(unsigned int width, unsigned int height, void* buffer, unsigned int* formatField, void** newBuffer);
 	void writeScreenshotToClipboard(unsigned int width, unsigned int height, void* buffer);
 };
 

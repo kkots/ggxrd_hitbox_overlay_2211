@@ -9,6 +9,7 @@
 #include "pi.h"
 #include "colors.h"
 #include "PngRelated.h"
+#include "Settings.h"
 
 Graphics graphics;
 
@@ -641,19 +642,20 @@ void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
 	std::vector<unsigned char> gameImage;
 	if (!getFramebufferData(device, gameImage, renderTarget, &renderTargetDesc)) return;
 
-	// Thanks to WorseThanYou for writing this CPU pixel blender
-	union Pixel {
-		struct { unsigned char r, g, b, a; };
-		int value;
-	};
-	Pixel* gameImagePtr = (Pixel*)&gameImage.front();
-	const size_t offLimit = renderTargetDesc.Width * renderTargetDesc.Height * 4;
-	for (size_t off = 0; off < offLimit; off += 4)
-	{
-		Pixel& d = *gameImagePtr;
+	if (!settings.dontUseScreenshotTransparency) {
+		union Pixel {
+			struct { unsigned char r, g, b, a; };
+			int value;
+		};
+		Pixel* gameImagePtr = (Pixel*)&gameImage.front();
+		const size_t offLimit = renderTargetDesc.Width * renderTargetDesc.Height;
+		for (size_t off = 0; off < offLimit; ++off)
+		{
+			Pixel& d = *gameImagePtr;
 
-		d.a ^= 255;
-		++gameImagePtr;
+			d.a ^= 255;
+			++gameImagePtr;
+		}
 	}
 
 	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, &gameImage.front());

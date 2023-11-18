@@ -119,6 +119,7 @@ void Settings::readSettings() {
 	bool startDisabledParsed = false;
 	bool screenshotPathParsed = false;
 	bool allowContinuousScreenshottingParsed = false;
+	bool dontUseScreenshotTransparencyParsed = false;
 
 	char errorString[500];
 	char buf[128];
@@ -161,6 +162,9 @@ void Settings::readSettings() {
 				screenshotPathParsed = true;
 				screenshotPath = keyValue;  // in UTF-8
 				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
+			}
+			if (!dontUseScreenshotTransparencyParsed && keyName == "dontUseScreenshotTransparency") {
+				dontUseScreenshotTransparencyParsed = parseBoolean(keyName.c_str(), keyValue, dontUseScreenshotTransparency);
 			}
 			if (feof(file)) break;
 		}

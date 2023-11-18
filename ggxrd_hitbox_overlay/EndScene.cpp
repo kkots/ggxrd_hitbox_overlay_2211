@@ -168,13 +168,17 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		throws.drawThrows();
 		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
 
-		if (needToTakeScreenshot) {
+		if (needToTakeScreenshot && !settings.dontUseScreenshotTransparency) {
 			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
 			graphics.takeScreenshotMain(device, false);
 		}
 
 		graphics.drawAll();
 		logOnce(fputs("graphics.drawAll() call successful\n", logfile));
+
+		if (needToTakeScreenshot && settings.dontUseScreenshotTransparency) {
+			graphics.takeScreenshotMain(device, true);
+		}
 
 	} else if (needToTakeScreenshot) {
 		graphics.takeScreenshotMain(device, true);

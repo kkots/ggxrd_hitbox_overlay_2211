@@ -28,6 +28,7 @@ public:
 	std::vector<int> screenshotBtn;
 	std::string screenshotPath;
 	bool allowContinuousScreenshotting = false;
+	bool dontUseScreenshotTransparency = false;
 	int slowmoTimes = 3;
 private:
 	void addKey(const char* name, int code);
