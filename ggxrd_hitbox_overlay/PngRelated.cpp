@@ -194,15 +194,16 @@ void PngRelated::writeScreenshotToClipboard(unsigned int width, unsigned int hei
 	logwrap(fputs("About to run memcpy1\n", logfile));
 	memcpy(hgLock, &bitmapInfo, sizeof(BITMAPINFO));
 	logwrap(fputs("About to run memcpy2\n", logfile));
-	char* hgLockPtr = (char*)hgLock + sizeof(BITMAPINFO);
+	unsigned char* hgLockPtr = (unsigned char*)hgLock + sizeof(BITMAPINFO);
 	unsigned int oneLineWidth = width * 4;
-	char* bufferPtr = (char*)buffer + width * height * 4 - oneLineWidth;
+	unsigned char* bufferPtr = (unsigned char*)buffer + width * height * 4 - oneLineWidth;
 	for (unsigned int i = 0; i < height; ++i) {
-		char* bufferWidthPtr = bufferPtr;
+		unsigned char* bufferWidthPtr = bufferPtr;
 		for (unsigned int j = 0; j < width; ++j) {
-			*hgLockPtr = *(bufferWidthPtr + 1);
-			*(hgLockPtr + 1) = *(bufferWidthPtr + 2);
-			*(hgLockPtr + 2) = *bufferWidthPtr;
+			const unsigned char alpha = *(bufferWidthPtr + 3);
+			*hgLockPtr = (unsigned int)*(bufferWidthPtr + 1) * alpha / 0xFF;
+			*(hgLockPtr + 1) = (unsigned int)*(bufferWidthPtr + 2) * alpha / 0xFF;
+			*(hgLockPtr + 2) = (unsigned int)*bufferWidthPtr * alpha / 0xFF;
 			hgLockPtr += 3;
 			bufferWidthPtr += 4;
 		}
