@@ -167,7 +167,7 @@ void Settings::readSettings() {
 	keyCombosToParse.insert({ "gifModeToggleBackgroundOnly", { &gifModeToggleBackgroundOnly, "" } });
 	keyCombosToParse.insert({ "gifModeToggleCameraCenterOnly", { &gifModeToggleCameraCenterOnly, "" } });
 	keyCombosToParse.insert({ "gifModeToggleHideOpponentOnly", { &gifModeToggleHideOpponentOnly, "" } });
-
+	
 
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
 		std::unique_lock<std::mutex> guard(keyCombosMutex);
@@ -313,22 +313,24 @@ std::vector<std::string> Settings::split(const std::string& str, char c) const {
 }
 
 bool Settings::parseKeys(const char* keyName, std::string keyValue, std::vector<int>& keyCodes) {
-
-	std::vector<std::string> keyNames = split(keyValue, '+');
-	for (std::string& str : keyNames) {
-		trim(str);
-		auto found = keys.find(str);
-		if (found != keys.end()) {
-			keyCodes.push_back(found->second.code);
-		} else {
-			return false;
+	if (!keyValue.empty()) {
+		std::vector<std::string> keyNames = split(keyValue, '+');
+		for (std::string& str : keyNames) {
+			trim(str);
+			auto found = keys.find(str);
+			if (found != keys.end()) {
+				keyCodes.push_back(found->second.code);
+			} else {
+				return false;
+			}
 		}
 	}
 	if (!keyCodes.empty()) {
 		logwrap(fprintf(logfile, "Parsed key codes for %s: %s\n", keyName, keyValue.c_str()));
-		return true;
+	} else {
+		logwrap(fprintf(logfile, "Parsed that key codes are empty for %s\n", keyName));
 	}
-	return false;
+	return true;
 }
 
 bool Settings::parseInteger(const char* keyName, std::string keyValue, std::atomic_int& integer) {

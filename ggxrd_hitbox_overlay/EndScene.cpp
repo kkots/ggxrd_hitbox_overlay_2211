@@ -211,7 +211,7 @@ void EndScene::processKeyStrokes() {
 	bool trainingMode = game.isTrainingMode();
 	bool needToRunNoGravGifMode = false;
 	keyboard.updateKeyStatuses();
-	if (keyboard.gotPressed(settings.gifModeToggle)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggle)) {
 		// idk how atomic_bool reacts to ! and operator bool(), so we do it the arduous way
 		if (gifMode.gifModeOn == true) {
 			gifMode.gifModeOn = false;
@@ -222,7 +222,7 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("GIF mode turned on\n", logfile));
 		}
 	}
-	if (keyboard.gotPressed(settings.gifModeToggleBackgroundOnly)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleBackgroundOnly)) {
 		if (gifMode.gifModeToggleBackgroundOnly == true) {
 			gifMode.gifModeToggleBackgroundOnly = false;
 			logwrap(fputs("GIF mode (darken background only) turned off\n", logfile));
@@ -232,7 +232,7 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("GIF mode (darken background only) turned on\n", logfile));
 		}
 	}
-	if (keyboard.gotPressed(settings.gifModeToggleCameraCenterOnly)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleCameraCenterOnly)) {
 		if (gifMode.gifModeToggleCameraCenterOnly == true) {
 			gifMode.gifModeToggleCameraCenterOnly = false;
 			logwrap(fputs("GIF mode (center camera only) turned off\n", logfile));
@@ -242,7 +242,7 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("GIF mode (center camera only) turned on\n", logfile));
 		}
 	}
-	if (keyboard.gotPressed(settings.gifModeToggleHideOpponentOnly)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleHideOpponentOnly)) {
 		if (gifMode.gifModeToggleHideOpponentOnly == true) {
 			gifMode.gifModeToggleHideOpponentOnly = false;
 			logwrap(fputs("GIF mode (hide opponent only) turned off\n", logfile));
@@ -253,7 +253,7 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("GIF mode (hide opponent only) turned on\n", logfile));
 		}
 	}
-	if (keyboard.gotPressed(settings.noGravityToggle)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.noGravityToggle)) {
 		if (gifMode.noGravityOn == true) {
 			gifMode.noGravityOn = false;
 			logwrap(fputs("No gravity mode turned off\n", logfile));
@@ -263,7 +263,7 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("No gravity mode turned on\n", logfile));
 		}
 	}
-	if (keyboard.gotPressed(settings.freezeGameToggle)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.freezeGameToggle)) {
 		if (freezeGame == true) {
 			freezeGame = false;
 			logwrap(fputs("Freeze game turned off\n", logfile));
@@ -273,7 +273,7 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Freeze game turned on\n", logfile));
 		}
 	}
-	if (keyboard.gotPressed(settings.slowmoGameToggle)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.slowmoGameToggle)) {
 		if (game.slowmoGame == true) {
 			game.slowmoGame = false;
 			logwrap(fputs("Slowmo game turned off\n", logfile));
@@ -293,7 +293,7 @@ void EndScene::processKeyStrokes() {
 			needToRunNoGravGifMode = true;
 		}
 	}
-	if (keyboard.gotPressed(settings.disableHitboxDisplayToggle)) {
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.disableHitboxDisplayToggle)) {
 		if (gifMode.hitboxDisplayDisabled == true) {
 			gifMode.hitboxDisplayDisabled = false;
 			logwrap(fputs("Hitbox display enabled\n", logfile));
@@ -302,7 +302,10 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Hitbox display disabled\n", logfile));
 		}
 	}
-	bool allowNextFrameIsHeld = keyboard.isHeld(settings.allowNextFrameKeyCombo);
+	bool allowNextFrameIsHeld = false;
+	if (!gifMode.modDisabled) {
+		allowNextFrameIsHeld = keyboard.isHeld(settings.allowNextFrameKeyCombo);
+	}
 	if (allowNextFrameIsHeld) {
 		bool allowPress = false;
 		if (allowNextFrameBeenHeldFor == 0) {
@@ -324,8 +327,11 @@ void EndScene::processKeyStrokes() {
 		allowNextFrameBeenHeldFor = 0;
 		allowNextFrameCounter = 0;
 	}
-	needToTakeScreenshot = keyboard.gotPressed(settings.screenshotBtn);
-	if (keyboard.gotPressed(settings.continuousScreenshotToggle)) {
+	needToTakeScreenshot = false;
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.screenshotBtn)) {
+		needToTakeScreenshot = true;
+	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.continuousScreenshotToggle)) {
 		needToTakeScreenshot = true;
 		if (gifMode.continuousScreenshotMode) {
 			gifMode.continuousScreenshotMode = false;
@@ -340,8 +346,8 @@ void EndScene::processKeyStrokes() {
 		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
 		screenshotPathEmpty = settings.screenshotPath.empty();
 	}
-	if ((keyboard.isHeld(settings.screenshotBtn) && settings.allowContinuousScreenshotting || gifMode.continuousScreenshotMode)
-			&& !gifMode.modDisabled
+	if (!gifMode.modDisabled
+			&& (keyboard.isHeld(settings.screenshotBtn) && settings.allowContinuousScreenshotting || gifMode.continuousScreenshotMode)
 			&& *aswEngine
 			&& trainingMode
 			&& !screenshotPathEmpty) {
