@@ -4,7 +4,6 @@
 #include <map>
 #include <mutex>
 #include <atomic>
-#include <thread>
 
 BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam);
 
@@ -13,7 +12,6 @@ class Settings
 public:
 	bool onDllMain();
 	void onDllDetach();
-	void readSettings();
 	void readSettingsIfChanged();
 	struct Key {
 		const char* name = nullptr;
@@ -39,6 +37,7 @@ public:
 	std::atomic_bool dontUseScreenshotTransparency = false;
 	std::atomic_int slowmoTimes = 3;
 private:
+	void readSettings();
 	void addKey(const char* name, int code);
 	int findMinCommentPos(const char* buf) const;
 	std::string parseKeyName(const char* buf) const;

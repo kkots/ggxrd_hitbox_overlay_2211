@@ -54,6 +54,7 @@ HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 			needToClearHitDetection = true;
 		} else if (*aswEngine == nullptr) {
 			needToClearHitDetection = true;
+			endScene.clearContinuousScreenshotMode();
 		} else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
 			if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
 				needToClearHitDetection = true;
@@ -130,6 +131,31 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 
 	logOnce(fprintf(logfile, "entity count: %d\n", entityList.count));
 
+	bool frameHasChanged = false;
+	unsigned int p1CurrentTimer = ~0;
+	unsigned int p2CurrentTimer = ~0;
+	if (entityList.count >= 1) {
+		p1CurrentTimer = Entity{ entityList.slots[0] }.currentAnimDuration();
+	}
+	if (entityList.count >= 2) {
+		p2CurrentTimer = Entity{ entityList.slots[1] }.currentAnimDuration();
+	}
+	if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
+			|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
+		frameHasChanged = true;
+	}
+	if (needContinuouslyTakeScreens) {
+		if (frameHasChanged) {
+			needToTakeScreenshot = true;
+		}
+		p1PreviousTimeOfTakingScreen = p1CurrentTimer;
+		p2PreviousTimeOfTakingScreen = p2CurrentTimer;
+	} else if (frameHasChanged) {
+		p1PreviousTimeOfTakingScreen = ~0;
+		p2PreviousTimeOfTakingScreen = ~0;
+	}
+
+	bool tookAScreenshot = false;
 	if (!gifMode.hitboxDisplayDisabled) {
 		for (auto i = 0; i < entityList.count; i++)
 		{
@@ -171,6 +197,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		if (needToTakeScreenshot && !settings.dontUseScreenshotTransparency) {
 			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
 			graphics.takeScreenshotMain(device, false);
+			tookAScreenshot = true;
 		}
 
 		graphics.drawAll();
@@ -178,10 +205,12 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 
 		if (needToTakeScreenshot && settings.dontUseScreenshotTransparency) {
 			graphics.takeScreenshotMain(device, true);
+			tookAScreenshot = true;
 		}
 
 	} else if (needToTakeScreenshot) {
 		graphics.takeScreenshotMain(device, true);
+		tookAScreenshot = true;
 	}
 
 #ifdef LOG_PATH
@@ -332,12 +361,11 @@ void EndScene::processKeyStrokes() {
 		needToTakeScreenshot = true;
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.continuousScreenshotToggle)) {
-		needToTakeScreenshot = true;
-		if (gifMode.continuousScreenshotMode) {
-			gifMode.continuousScreenshotMode = false;
+		if (continuousScreenshotMode) {
+			continuousScreenshotMode = false;
 			logwrap(fputs("Continuous screenshot mode off\n", logfile));
 		} else if (trainingMode) {
-			gifMode.continuousScreenshotMode = true;
+			continuousScreenshotMode = true;
 			logwrap(fputs("Continuous screenshot mode on\n", logfile));
 		}
 	}
@@ -346,43 +374,23 @@ void EndScene::processKeyStrokes() {
 		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
 		screenshotPathEmpty = settings.screenshotPath.empty();
 	}
+	needContinuouslyTakeScreens = false;
 	if (!gifMode.modDisabled
-			&& (keyboard.isHeld(settings.screenshotBtn) && settings.allowContinuousScreenshotting || gifMode.continuousScreenshotMode)
+			&& (keyboard.isHeld(settings.screenshotBtn) && settings.allowContinuousScreenshotting || continuousScreenshotMode)
 			&& *aswEngine
 			&& trainingMode
 			&& !screenshotPathEmpty) {
-		if (!needToTakeScreenshot) {
-			unsigned int p1CurrentTimer = ~0;
-			unsigned int p2CurrentTimer = ~0;
-			if (*aswEngine) {
-				entityList.populate();
-				if (entityList.count >= 1) {
-					p1CurrentTimer = Entity{ entityList.slots[0] }.currentAnimDuration();
-				}
-				if (entityList.count >= 2) {
-					p2CurrentTimer = Entity{ entityList.slots[1] }.currentAnimDuration();
-				}
-			}
-			if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
-					|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
-				needToTakeScreenshot = true;
-				p1PreviousTimeOfTakingScreen = p1CurrentTimer;
-				p2PreviousTimeOfTakingScreen = p2CurrentTimer;
-			}
-		}
-	} else {
-		p1PreviousTimeOfTakingScreen = ~0;
-		p2PreviousTimeOfTakingScreen = ~0;
+		needContinuouslyTakeScreens = true;
 	}
 	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;
 		game.slowmoGame = false;
-		gifMode.continuousScreenshotMode = false;
 		gifMode.gifModeToggleBackgroundOnly = false;
 		gifMode.gifModeToggleCameraCenterOnly = false;
 		gifMode.gifModeToggleHideOpponentOnly = false;
+		clearContinuousScreenshotMode();
 	}
 	if (needToRunNoGravGifMode) {
 		if (*aswEngine) noGravGifMode();
@@ -397,29 +405,103 @@ void EndScene::noGravGifMode() {
 	opponentIndex = 1 - playerIndex;
 
 	bool useGifMode = (gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode();
-	if (scaleIs0 && !useGifMode) {
-		if (entityList.count > opponentIndex) {
-			*(int*)(entityList.slots[opponentIndex] + 0x264) = 1000;
-			*(int*)(entityList.slots[opponentIndex] + 0x268) = 1000;
-			*(int*)(entityList.slots[opponentIndex] + 0x26C) = 1000;
-
-			*(int*)(entityList.slots[opponentIndex] + 0x2594) = 1000;
-		}
-		scaleIs0 = false;
+	for (auto it = hiddenEntities.begin(); it != hiddenEntities.end(); ++it) {
+		it->wasFoundOnThisFrame = false;
 	}
 	if (useGifMode) {
-		if (entityList.count > opponentIndex) {
-			*(int*)(entityList.slots[opponentIndex] + 0x264) = 0;
-			*(int*)(entityList.slots[opponentIndex] + 0x268) = 0;
-			*(int*)(entityList.slots[opponentIndex] + 0x26C) = 0;
+		for (int i = 0; i < entityList.count; ++i) {
+			Entity ent{entityList.list[i]};
+			if (ent.team() != playerIndex) {
+				const int currentScaleX = *(int*)(ent + 0x264);
+				const int currentScaleY = *(int*)(ent + 0x268);
+				const int currentScaleZ = *(int*)(ent + 0x26C);
+				const int currentScaleDefault = *(int*)(ent + 0x2594);
 
-			*(int*)(entityList.slots[opponentIndex] + 0x2594) = 0;
+				auto found = findHiddenEntity(ent);
+				if (found == hiddenEntities.end()) {
+					hiddenEntities.emplace_back();
+					HiddenEntity& hiddenEntity = hiddenEntities.back();
+					hiddenEntity.ent = ent;
+					hiddenEntity.scaleX = currentScaleX;
+					hiddenEntity.scaleY = currentScaleY;
+					hiddenEntity.scaleZ = currentScaleZ;
+					hiddenEntity.scaleDefault = currentScaleDefault;
+					hiddenEntity.wasFoundOnThisFrame = true;
+				} else {
+					HiddenEntity& hiddenEntity = *found;
+					if (currentScaleX != 0) {
+						hiddenEntity.scaleX = currentScaleX;
+					}
+					if (currentScaleY != 0) {
+						hiddenEntity.scaleY = currentScaleY;
+					}
+					if (currentScaleZ != 0) {
+						hiddenEntity.scaleZ = currentScaleZ;
+					}
+					if (currentScaleDefault != 0) {
+						hiddenEntity.scaleDefault = currentScaleDefault;
+					}
+					hiddenEntity.wasFoundOnThisFrame = true;
+				}
+				*(int*)(ent + 0x264) = 0;
+				*(int*)(ent + 0x268) = 0;
+				*(int*)(ent + 0x26C) = 0;
+				*(int*)(ent + 0x2594) = 0;
+			}
 		}
-		scaleIs0 = true;
+		auto it = hiddenEntities.begin();
+		while (it != hiddenEntities.end()) {
+			if (!it->wasFoundOnThisFrame) {
+				hiddenEntities.erase(it);
+			}
+			else {
+				++it;
+			}
+		}
+	} else {
+		for (int i = 0; i < entityList.count; ++i) {
+			Entity ent{ entityList.list[i] };
+			auto found = findHiddenEntity(ent);
+			if (found != hiddenEntities.end()) {
+				const int currentScaleX = *(int*)(ent + 0x264);
+				const int currentScaleY = *(int*)(ent + 0x268);
+				const int currentScaleZ = *(int*)(ent + 0x26C);
+				const int currentScaleDefault = *(int*)(ent + 0x2594);
+
+				if (currentScaleX == 0) {
+					*(int*)(ent + 0x264) = found->scaleX;
+				}
+				if (currentScaleY == 0) {
+					*(int*)(ent + 0x268) = found->scaleY;
+				}
+				if (currentScaleZ == 0) {
+					*(int*)(ent + 0x26C) = found->scaleZ;
+				}
+				if (currentScaleDefault == 0) {
+					*(int*)(ent + 0x2594) = found->scaleDefault;
+				}
+			}
+		}
+		hiddenEntities.clear();
 	}
 
 	bool useNoGravMode = gifMode.noGravityOn && game.isTrainingMode();
 	if (useNoGravMode) {
 		*(int*)(entityList.slots[playerIndex] + 0x300) = 0;
 	}
+}
+
+void EndScene::clearContinuousScreenshotMode() {
+	continuousScreenshotMode = false;
+	p1PreviousTimeOfTakingScreen = ~0;
+	p2PreviousTimeOfTakingScreen = ~0;
+}
+
+std::vector<EndScene::HiddenEntity>::iterator EndScene::findHiddenEntity(const Entity& ent) {
+	for (auto it = hiddenEntities.begin(); it != hiddenEntities.end(); ++it) {
+		if (it->ent == ent) {
+			return it;
+		}
+	}
+	return hiddenEntities.end();
 }

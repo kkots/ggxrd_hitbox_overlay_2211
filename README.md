@@ -138,6 +138,7 @@ Here's an example of the `.ini` file:
 ; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod. Allowed key names: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.
 
 ; Key combinations can be specified by separating key names with '+' sign.
+; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.
 ; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.
 
 ; Toggles GIF mode
@@ -233,7 +234,7 @@ dontUseScreenshotTransparency = false
 
 ```
 
-You can specify a combination of keys, separated by `+` sign.  
+You can specify a combination of keys, separated by `+` sign. You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.  
 Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.
 
 If the mod is already running you don't need to do anything in order to apply the new hotkeys and settings. The mod can reread the settings on the fly, without reloading the mod or restarting the game (this was tested to work even on Ubuntu/Linux running GGXrd under Steam Proton).
@@ -404,3 +405,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 17: Fixed origin point showing the dummy even when it's hidden using "GIF mode" (or similar feature).
 - 2023 November 17: Fixed pasting of transparent screenshots into MSPaint and added non-transparent screenshotting.
 - 2023 November 19: Added ability to reload the settings file on the fly, without reloading the mod.
+- 2023 November 20: Made GIF mode hide all entities that belong to the opponent's side (still can't hide the tension lightning though). Made continuous screenshot toggle not take a screenshot erroneously twice when toggled on during the game frozen state.

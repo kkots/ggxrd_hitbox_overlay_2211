@@ -218,6 +218,7 @@ void Graphics::drawAll() {
 
 	throws.clear();*/
 
+	outlines.clear();
 	stencil.onEndSceneEnd(device);
 
 }
