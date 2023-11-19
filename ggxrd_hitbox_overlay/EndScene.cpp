@@ -193,14 +193,21 @@ bool EndScene::onDllDetach() {
 	logwrap(fputs("EndScene::onDllDetach() called\n", logfile));
 	if (*aswEngine) {
 		entityList.populate();
+		bool needToCallNoGravGifMode = gifMode.gifModeOn
+			|| gifMode.gifModeToggleHideOpponentOnly
+			|| gifMode.noGravityOn;
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;
-		noGravGifMode();
+		gifMode.gifModeToggleHideOpponentOnly = false;
+		if (needToCallNoGravGifMode) {
+			noGravGifMode();
+		}
 	}
 	return true;
 }
 
 void EndScene::processKeyStrokes() {
+	settings.readSettingsIfChanged();
 	bool trainingMode = game.isTrainingMode();
 	bool needToRunNoGravGifMode = false;
 	keyboard.updateKeyStatuses();
@@ -328,11 +335,16 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Continuous screenshot mode on\n", logfile));
 		}
 	}
+	bool screenshotPathEmpty = false;
+	{
+		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
+		screenshotPathEmpty = settings.screenshotPath.empty();
+	}
 	if ((keyboard.isHeld(settings.screenshotBtn) && settings.allowContinuousScreenshotting || gifMode.continuousScreenshotMode)
 			&& !gifMode.modDisabled
 			&& *aswEngine
 			&& trainingMode
-			&& !settings.screenshotPath.empty()) {
+			&& !screenshotPathEmpty) {
 		if (!needToTakeScreenshot) {
 			unsigned int p1CurrentTimer = ~0;
 			unsigned int p2CurrentTimer = ~0;

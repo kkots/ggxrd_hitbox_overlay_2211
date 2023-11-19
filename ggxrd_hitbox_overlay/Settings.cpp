@@ -3,6 +3,8 @@
 #include "logging.h"
 #include "Keyboard.h"
 #include "GifMode.h"
+#include "Detouring.h"
+#include "WinError.h"
 
 Settings settings;
 
@@ -74,9 +76,60 @@ bool Settings::onDllMain() {
 	addKey("Ctrl", VK_CONTROL);
 	addKey("Alt", VK_MENU);
 
+
+	std::wstring currentDir = getCurrentDirectory();
+	settingsPath = currentDir + L"\\ggxrd_hitbox_overlay.ini";
+	logwrap(fprintf(logfile, "INI file path: %ls\n", settingsPath.c_str()));
+
+
+	directoryChangeHandle = FindFirstChangeNotificationW(
+		currentDir.c_str(), // directory to watch 
+		FALSE,                         // do not watch subtree 
+		FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE); // watch file name changes and last write date changes
+	if (directoryChangeHandle == INVALID_HANDLE_VALUE || !directoryChangeHandle) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "FindFirstChangeNotificationW failed: %s\n", winErr.getMessage()));
+		directoryChangeHandle = NULL;
+	}
+
 	readSettings();
 
 	return true;
+}
+
+void Settings::onDllDetach() {
+	if (directoryChangeHandle) {
+		FindCloseChangeNotification(directoryChangeHandle);
+	}
+}
+
+void Settings::readSettingsIfChanged() {
+	if (!directoryChangeHandle) return;
+	DWORD dwWaitStatus;
+	if (lastCallFailedToGetTime) {
+		dwWaitStatus = WAIT_OBJECT_0;
+	} else {
+		dwWaitStatus = WaitForSingleObject(directoryChangeHandle, 0);
+	}
+	if (dwWaitStatus == WAIT_OBJECT_0) {
+		FILETIME newTime;
+		if (!getLastWriteTime(settingsPath, &newTime)) {
+			lastCallFailedToGetTime = true;
+			return;
+		}
+		lastCallFailedToGetTime = false;
+		if (newTime.dwLowDateTime != lastSettingsWriteTime.dwLowDateTime
+			|| newTime.dwHighDateTime != lastSettingsWriteTime.dwHighDateTime) {
+			readSettings();
+		}
+		if (!FindNextChangeNotification(directoryChangeHandle)) {
+			WinError winErr;
+			logwrap(fprintf(logfile, "FindNextChangeNotification failed: %s\n", winErr.getMessage()));
+			FindCloseChangeNotification(directoryChangeHandle);
+			directoryChangeHandle = NULL;
+			return;
+		}
+	}
 }
 
 void Settings::addKey(const char* name, int code) {
@@ -115,20 +168,37 @@ void Settings::readSettings() {
 	keyCombosToParse.insert({ "gifModeToggleCameraCenterOnly", { &gifModeToggleCameraCenterOnly, "" } });
 	keyCombosToParse.insert({ "gifModeToggleHideOpponentOnly", { &gifModeToggleHideOpponentOnly, "" } });
 
+
+	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
+		std::unique_lock<std::mutex> guard(keyCombosMutex);
+		it->second.keyCombo->clear();
+	}
+	keyboard.removeAllKeyCodes();
+
+
+	slowmoTimes = 3;
 	bool slowmoTimesParsed = false;
+
+	// startDisabled stores its result not here, applies effects right after parsing
 	bool startDisabledParsed = false;
+
+	{
+		std::unique_lock<std::mutex> guard(screenshotPathMutex);
+		screenshotPath.clear();
+	}
 	bool screenshotPathParsed = false;
+
+	allowContinuousScreenshotting = false;
 	bool allowContinuousScreenshottingParsed = false;
+
+	dontUseScreenshotTransparency = false;
 	bool dontUseScreenshotTransparencyParsed = false;
+
 
 	char errorString[500];
 	char buf[128];
-	wchar_t currentPath[MAX_PATH];
-	GetCurrentDirectoryW(_countof(currentPath), currentPath);
-	wcscat_s(currentPath, L"\\ggxrd_hitbox_overlay.ini");
-	logwrap(fprintf(logfile, "INI file path: %ls\n", currentPath));
 	FILE* file = NULL;
-	if (_wfopen_s(&file, currentPath, L"rt") || !file) {
+	if (_wfopen_s(&file, settingsPath.c_str(), L"rt") || !file) {
 		strerror_s(errorString, errno);
 		logwrap(fprintf(logfile, "Could not open INI file: %s\n", errorString));
 	} else {
@@ -153,14 +223,19 @@ void Settings::readSettings() {
 			if (!allowContinuousScreenshottingParsed && keyName == "allowContinuousScreenshotting") {
 				allowContinuousScreenshottingParsed = parseBoolean(keyName.c_str(), keyValue, allowContinuousScreenshotting);
 			}
-			if (!screenshotPathParsed && keyName == "screenshotPath") {
-				screenshotPathParsed = true;
-				screenshotPath = keyValue;  // in UTF-8
-				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
+			if (firstSettingsParse && !startDisabledParsed && keyName == "startDisabled") {
+				std::atomic_bool startDisabled = false;
+				startDisabledParsed = parseBoolean(keyName.c_str(), keyValue, startDisabled);
+				if (startDisabled) {
+					gifMode.modDisabled = true;
+				}
 			}
 			if (!screenshotPathParsed && keyName == "screenshotPath") {
 				screenshotPathParsed = true;
-				screenshotPath = keyValue;  // in UTF-8
+				{
+					std::unique_lock<std::mutex> guard(screenshotPathMutex);
+					screenshotPath = keyValue;  // in UTF-8
+				}
 				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
 			}
 			if (!dontUseScreenshotTransparencyParsed && keyName == "dontUseScreenshotTransparency") {
@@ -178,6 +253,7 @@ void Settings::readSettings() {
 		keyboard.addNewKeyCodes(*it->second.keyCombo);
 	}
 
+	firstSettingsParse = false;
 }
 
 int Settings::findChar(const char* buf, char c) const {
@@ -255,15 +331,15 @@ bool Settings::parseKeys(const char* keyName, std::string keyValue, std::vector<
 	return false;
 }
 
-bool Settings::parseInteger(const char* keyName, std::string keyValue, int& integer) {
+bool Settings::parseInteger(const char* keyName, std::string keyValue, std::atomic_int& integer) {
 	int result = std::atoi(keyValue.c_str());
 	if (result == 0 && keyValue != "0") return false;
 	integer = result;
-	logwrap(fprintf(logfile, "Parsed integer for %s: %d\n", keyName, integer));
+	logwrap(fprintf(logfile, "Parsed integer for %s: %d\n", keyName, integer.load()));
 	return true;
 }
 
-bool Settings::parseBoolean(const char* keyName, std::string keyValue, bool& aBooleanValue) {
+bool Settings::parseBoolean(const char* keyName, std::string keyValue, std::atomic_bool& aBooleanValue) {
 	if (_stricmp(keyValue.c_str(), "true") == 0) {
 		logwrap(fprintf(logfile, "Parsed boolean for %s: %d\n", keyName, 1));
 		aBooleanValue = true;
@@ -315,4 +391,42 @@ std::string Settings::getKeyValue(const char* buf) const {
 	trim(keyValue);
 
 	return keyValue;
+}
+
+std::wstring Settings::getCurrentDirectory() {
+	DWORD requiredSize = GetCurrentDirectoryW(0, NULL);
+	if (!requiredSize) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "GetCurrentDirectoryW failed: %s\n", winErr.getMessage()));
+		return std::wstring{};
+	}
+	std::wstring currentDir;
+	currentDir.resize(requiredSize - 1);
+	if (!GetCurrentDirectoryW(currentDir.size() + 1, &currentDir.front())) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "GetCurrentDirectoryW (second call) failed: %s\n", winErr.getMessage()));
+		return std::wstring{};
+	}
+	return currentDir;
+}
+
+bool Settings::getLastWriteTime(const std::wstring& path, FILETIME* fileTime) {
+	HANDLE hFile = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (!hFile || hFile == INVALID_HANDLE_VALUE) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "CreateFileW failed: %s. %.8x\n", winErr.getMessage(), winErr.code));;
+		return false;
+	}
+	FILETIME creationTime{ 0 };
+	FILETIME lastAccessTime{ 0 };
+	FILETIME lastWriteTime{ 0 };
+	if (!GetFileTime(hFile, &creationTime, &lastAccessTime, &lastWriteTime)) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "GetFileTime failed: %s\n", winErr.getMessage()));
+		CloseHandle(hFile);
+		return false;
+	}
+	CloseHandle(hFile);
+	*fileTime = lastWriteTime;
+	return true;
 }

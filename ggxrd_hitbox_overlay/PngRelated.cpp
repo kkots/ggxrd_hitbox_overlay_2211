@@ -40,12 +40,15 @@ int PngRelated::findRev(const wchar_t* path, wchar_t charToFind) const {
 }
 
 std::wstring PngRelated::getScreenshotSavingPath() {
-	if (settings.screenshotPath.empty()) {
-		return std::wstring{};
-	}
 	std::wstring pathUncounted;
-	pathUncounted.resize(settings.screenshotPath.size());
-	MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, &pathUncounted.front(), pathUncounted.size());
+	{
+		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
+		if (settings.screenshotPath.empty()) {
+			return std::wstring{};
+		}
+		pathUncounted.resize(settings.screenshotPath.size());
+		MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, &pathUncounted.front(), pathUncounted.size());
+	}
 	pathUncounted.resize(wcslen(pathUncounted.c_str()));
 
 	int backslashPos = findRev(pathUncounted.c_str(), L'\\');
@@ -166,14 +169,21 @@ bool PngRelated::writePngToMemory(HGLOBAL* handleToGlobalAlloc, unsigned int wid
 }
 
 void PngRelated::saveScreenshotData(unsigned int width, unsigned int height, void* buffer) {
-	if (settings.screenshotPath.empty()) {
+	bool screenshotPathEmpty = false;
+	{
+		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
+		screenshotPathEmpty = settings.screenshotPath.empty();
+	}
+	if (screenshotPathEmpty) {
 		logwrap(fputs("Need to write screenshot to clipboard\n", logfile));
 		writeScreenshotToClipboard(width, height, buffer);
 	}
 	else {
 		logwrap(fputs("Need to save screenshot to a path\n", logfile));
 		std::wstring path = getScreenshotSavingPath();
-		writePngToPath(path, width, height, buffer);
+		if (!path.empty()) {
+			writePngToPath(path, width, height, buffer);
+		}
 	}
 }
 

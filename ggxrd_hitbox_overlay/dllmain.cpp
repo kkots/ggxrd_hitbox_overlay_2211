@@ -74,6 +74,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 
         endScene.onDllDetach();
         hud.onDllDetach();
+        settings.onDllDetach();
         break;
     }
     detouring.cancelTransaction();

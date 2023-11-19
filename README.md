@@ -43,6 +43,8 @@ The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup.
 If the DLL is not found when the game launches, it will just run normally, without the mod.  
 Since there's no way to unload the mod on Ubuntu/Linux (the injector doesn't work), you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
 
+If Steam Proton is taking forever to launch the game, patched or not, then rename the mod's dll and put the original, unpatched version of the game executable back, then try switching the Proton version in Steam's settings and agree to restart Steam. After restarting Steam will start downloading two things related to Guilty Gear Xrd and will launch GGXrd automatically (even though you didn't tell it to). GGXrd should work. Quit GGXrd. Place the patched version of the game executable and the mod's dll back and restart GGXrd. GGXrd will launch with the mod. Idk what causes this.
+
 ## Features
 
 ### Green - Hurtboxes
@@ -133,6 +135,11 @@ If you wish to configure hotkeys for Gif mode and No gravity mode and other mode
 Here's an example of the `.ini` file:
 
 ```ini
+; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod. Allowed key names: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.
+
+; Key combinations can be specified by separating key names with '+' sign.
+; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.
+
 ; Toggles GIF mode
 ; GIF mode is:
 ; 1) Background becomes black
@@ -229,7 +236,7 @@ dontUseScreenshotTransparency = false
 You can specify a combination of keys, separated by `+` sign.  
 Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.
 
-If the mod is already running you need to reload it in order to apply the new hotkeys and settings. To reload the mod you can run the injector again.
+If the mod is already running you don't need to do anything in order to apply the new hotkeys and settings. The mod can reread the settings on the fly, without reloading the mod or restarting the game (this was tested to work even on Ubuntu/Linux running GGXrd under Steam Proton).
 
 `slowmoTimes` is not a key combination, it must be a round integer number.
 
@@ -295,7 +302,7 @@ Here I think `w` in `x=...` means width of the image, and `tw` is the width of t
 
 This command takes a set of PNG screenshots labeled "screen1.png", "screen2.png", "screen3.png", etc (it's important that the numbers start from 0 or 1 or somewhere close to that) with transparency and converts them into a GIF with transparency with cropping with given framerate:
 
-First generate a palette, so that we get best quality of colors:
+First generate a palette, so that we get the best quality of colors:
 
 ```cmd
 ffmpeg -i screenspath\screen%d.png -vf palettegen=reserve_transparent=1 palettepath\palette.png
@@ -310,11 +317,11 @@ ffmpeg -framerate 20 -i screenspath\screen%d.png -i palettepath\palette.png -lav
 
 Here the options you must replace are:
 
-- `ffmpeg` - this is not an options, it's the command to be run, provide the full path to your ffmpeg.exe here;
+- `ffmpeg` - this is not an option, it's the command to be run, provide the full path to your ffmpeg.exe here;
 - `-framerate 20` - replace 20 with desired framerate;
-- `screenspath\screen%d.png` - the path to your screenshot PNG files;
+- `screenspath\screen%d.png` - the path to your screenshot PNG files. The %d is the number part of the filename. So for example, if your PNGs are named like screen1.png, screen2.png, screen3.png, etc you would write here screen%d.png;
 - `crop=out_w:out_h:x:y` - this is the crop filter and its arguments. What a crop filter does is cut out only a part of the image. You must substitute `out_w` (width), `out_h` (height), `x` (top-left corner x) and `y` (top-left corner y) with the size and position of the cropping rectangle. You can get these positions by selecting a region of the image in GIMP or MSPaint;
-- `,` - the `crop` filter and its arguments are then followed by `,`, which separated filters in a filter chain. The crop takes the first `-i` input as its input (so it takes one input) and produces one output. The first output of the `crop` filter and the second `-i` input (which is the palette) then go as inputs to the next, `paletteuse` filter;
+- `,` - the `crop` filter and its arguments are then followed by `,`, which separates filters in a filter chain. The crop takes the first `-i` input as its input (crop has only one input) and produces one output. The first output of the `crop` filter and the second `-i` input (which is the palette) then go as inputs to the next, `paletteuse` filter;
 - `paletteuse=` - this is the paletteuse filter and what follows are its arguments, separated by `:`;
 - `alpha_threshold=128` - this is the first argument of the `paletteuse` filter. It specifies the cut-off alpha threshold after which the pixel is considered fully transparent. Since there's no partial transparency in GIF - only either full transparency or no transparency - this value is very important if there's partial transparency or some kind of special effects in your animation;
 - `dither=floyd_steinberg` - this is the second argument of the `paletteuse` filter. It specifies dithering. Dithering is the process by which all the other colors that are not in the palette are achieved in GIF. Personally I find that the `floyd_steinberg` value produces the best results, but the other values that you could use for `dither` are: `bayer` (fixed grid (static) dithering - the classic look and feel of the GIF format), `none` (no dithering, I guess for when you got the colors in the palette exactly right or for 8-bit images).
@@ -326,7 +333,7 @@ I will add that `-lavfi`, `-filter_complex`, `-vf`, `-af`, `-filter` mean exactl
 
 ## Developing
 
-There are two separate projects in the repository.
+There are multiple separate projects in the repository.
 
 The `ggxrd_hitbox_injector` project builds an application that will inject a dll into the process and exit. The main action will then take place in the dll, in the target process' address space.
 
@@ -396,3 +403,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 17: With help from WorseThanYou added a transparent screenshotter to the mod.
 - 2023 November 17: Fixed origin point showing the dummy even when it's hidden using "GIF mode" (or similar feature).
 - 2023 November 17: Fixed pasting of transparent screenshots into MSPaint and added non-transparent screenshotting.
+- 2023 November 19: Added ability to reload the settings file on the fly, without reloading the mod.

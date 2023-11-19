@@ -53,7 +53,7 @@ void Hud::updateHudHook(char* thisArg) {
 }
 
 void Hud::changeHudVisibility(bool isVisible) {
-	if (!hudPtr) return;
+	if (!hudPtr || !aswEngine || !*aswEngine) return;
 	unsigned int* bShowHud = (unsigned int*)(hudPtr + 0x1D8);
 	if (isVisible) {
 		*bShowHud |= 2;
