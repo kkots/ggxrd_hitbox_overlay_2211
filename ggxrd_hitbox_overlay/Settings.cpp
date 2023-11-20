@@ -84,7 +84,7 @@ bool Settings::onDllMain() {
 
 	directoryChangeHandle = FindFirstChangeNotificationW(
 		currentDir.c_str(), // directory to watch 
-		FALSE,                         // do not watch subtree 
+		FALSE,              // do not watch subtree 
 		FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE); // watch file name changes and last write date changes
 	if (directoryChangeHandle == INVALID_HANDLE_VALUE || !directoryChangeHandle) {
 		WinError winErr;
@@ -133,7 +133,7 @@ void Settings::readSettingsIfChanged() {
 }
 
 void Settings::addKey(const char* name, int code) {
-	keys.insert({name, {name, code}});
+	keys.insert({toUppercase(name), {name, code}});
 }
 
 void Settings::addKeyRange(char start, char end) {
@@ -144,29 +144,28 @@ void Settings::addKeyRange(char start, char end) {
 	}
 }
 
+void Settings::insertKeyComboToParse(std::map<std::string, KeyComboToParse>& keyCombosToParse, const char* name, std::vector<int>* keyCombo, const char* defaultValue) {
+	keyCombosToParse.insert({ toUppercase(name), { name, keyCombo, defaultValue } });
+}
+
 // INI file must be placed next the the game's executable at SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32\ggxrd_hitbox_overlay.ini
 // Example INI file content:
 // gifModeToggle = Ctrl+F3
 void Settings::readSettings() {
 	
-	struct KeyComboToParse {
-		std::vector<int>* keyCombo = nullptr;
-		const char* defaultValue = nullptr;
-		bool isParsed = false;
-	};
 	std::map<std::string, KeyComboToParse> keyCombosToParse;
-	keyCombosToParse.insert({ "gifModeToggle", { &gifModeToggle, "F1" } });
-	keyCombosToParse.insert({ "noGravityToggle", { &noGravityToggle, "F2" } });
-	keyCombosToParse.insert({ "freezeGameToggle", { &freezeGameToggle, "F3" } });
-	keyCombosToParse.insert({ "slowmoGameToggle", { &slowmoGameToggle, "F4" } });
-	keyCombosToParse.insert({ "allowNextFrameKeyCombo", { &allowNextFrameKeyCombo, "F5" } });
-	keyCombosToParse.insert({ "disableModToggle", { &disableModKeyCombo, "F6" } });
-	keyCombosToParse.insert({ "disableHitboxDisplayToggle", { &disableHitboxDisplayToggle, "F7" } });
-	keyCombosToParse.insert({ "screenshotBtn", { &screenshotBtn, "F8" } });
-	keyCombosToParse.insert({ "continuousScreenshotToggle", { &continuousScreenshotToggle, "" } });
-	keyCombosToParse.insert({ "gifModeToggleBackgroundOnly", { &gifModeToggleBackgroundOnly, "" } });
-	keyCombosToParse.insert({ "gifModeToggleCameraCenterOnly", { &gifModeToggleCameraCenterOnly, "" } });
-	keyCombosToParse.insert({ "gifModeToggleHideOpponentOnly", { &gifModeToggleHideOpponentOnly, "" } });
+	insertKeyComboToParse(keyCombosToParse, "gifModeToggle", &gifModeToggle, "F1");
+	insertKeyComboToParse(keyCombosToParse, "noGravityToggle", &noGravityToggle, "F2");
+	insertKeyComboToParse(keyCombosToParse, "freezeGameToggle", &freezeGameToggle, "F3");
+	insertKeyComboToParse(keyCombosToParse, "slowmoGameToggle", &slowmoGameToggle, "F4");
+	insertKeyComboToParse(keyCombosToParse, "allowNextFrameKeyCombo", &allowNextFrameKeyCombo, "F5");
+	insertKeyComboToParse(keyCombosToParse, "disableModToggle", &disableModKeyCombo, "F6");
+	insertKeyComboToParse(keyCombosToParse, "disableHitboxDisplayToggle", &disableHitboxDisplayToggle, "F7");
+	insertKeyComboToParse(keyCombosToParse, "screenshotBtn", &screenshotBtn, "F8");
+	insertKeyComboToParse(keyCombosToParse, "continuousScreenshotToggle", &continuousScreenshotToggle, "");
+	insertKeyComboToParse(keyCombosToParse, "gifModeToggleBackgroundOnly", &gifModeToggleBackgroundOnly, "");
+	insertKeyComboToParse(keyCombosToParse, "gifModeToggleCameraCenterOnly", &gifModeToggleCameraCenterOnly, "");
+	insertKeyComboToParse(keyCombosToParse, "gifModeToggleHideOpponentOnly", &gifModeToggleHideOpponentOnly, "");
 	
 
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
@@ -212,25 +211,26 @@ void Settings::readSettings() {
 				break;
 			}
 			std::string keyName = parseKeyName(buf);
+			std::string keyNameUpper = toUppercase(keyName);
 			std::string keyValue = getKeyValue(buf);
-			auto found = keyCombosToParse.find(keyName);
+			auto found = keyCombosToParse.find(keyNameUpper);
 			if (found != keyCombosToParse.end()) {
-				found->second.isParsed = parseKeys(keyName.c_str(), keyValue, *found->second.keyCombo);
+				found->second.isParsed = parseKeys(found->second.name.c_str(), keyValue, *found->second.keyCombo);
 			}
-			if (!slowmoTimesParsed && keyName == "slowmoTimes") {
-				slowmoTimesParsed = parseInteger(keyName.c_str(), keyValue, slowmoTimes);
+			if (!slowmoTimesParsed && _stricmp(keyName.c_str(), "slowmoTimes") == 0) {
+				slowmoTimesParsed = parseInteger(found->second.name.c_str(), keyValue, slowmoTimes);
 			}
-			if (!allowContinuousScreenshottingParsed && keyName == "allowContinuousScreenshotting") {
-				allowContinuousScreenshottingParsed = parseBoolean(keyName.c_str(), keyValue, allowContinuousScreenshotting);
+			if (!allowContinuousScreenshottingParsed && _stricmp(keyName.c_str(), "allowContinuousScreenshotting") == 0) {
+				allowContinuousScreenshottingParsed = parseBoolean(found->second.name.c_str(), keyValue, allowContinuousScreenshotting);
 			}
-			if (firstSettingsParse && !startDisabledParsed && keyName == "startDisabled") {
+			if (firstSettingsParse && !startDisabledParsed && _stricmp(keyName.c_str(), "startDisabled") == 0) {
 				std::atomic_bool startDisabled = false;
-				startDisabledParsed = parseBoolean(keyName.c_str(), keyValue, startDisabled);
+				startDisabledParsed = parseBoolean(found->second.name.c_str(), keyValue, startDisabled);
 				if (startDisabled) {
 					gifMode.modDisabled = true;
 				}
 			}
-			if (!screenshotPathParsed && keyName == "screenshotPath") {
+			if (!screenshotPathParsed && _stricmp(keyName.c_str(), "screenshotPath") == 0) {
 				screenshotPathParsed = true;
 				{
 					std::unique_lock<std::mutex> guard(screenshotPathMutex);
@@ -238,8 +238,8 @@ void Settings::readSettings() {
 				}
 				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
 			}
-			if (!dontUseScreenshotTransparencyParsed && keyName == "dontUseScreenshotTransparency") {
-				dontUseScreenshotTransparencyParsed = parseBoolean(keyName.c_str(), keyValue, dontUseScreenshotTransparency);
+			if (!dontUseScreenshotTransparencyParsed && _stricmp(keyName.c_str(), "dontUseScreenshotTransparency") == 0) {
+				dontUseScreenshotTransparencyParsed = parseBoolean(found->second.name.c_str(), keyValue, dontUseScreenshotTransparency);
 			}
 			if (feof(file)) break;
 		}
@@ -289,6 +289,15 @@ void Settings::trim(std::string& str) const {
 	str = std::string(c, cEnd - c + 1);
 }
 
+std::string Settings::toUppercase(std::string str) const {
+	std::string result;
+	result.reserve(str.size());
+	for (char c : str) {
+		result.push_back(toupper(c));
+	}
+	return result;
+}
+
 std::vector<std::string> Settings::split(const std::string& str, char c) const {
 	std::vector<std::string> result;
 	const char* strStart = &str.front();
@@ -312,20 +321,20 @@ std::vector<std::string> Settings::split(const std::string& str, char c) const {
 	return result;
 }
 
-bool Settings::parseKeys(const char* keyName, std::string keyValue, std::vector<int>& keyCodes) {
+bool Settings::parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes) {
 	if (!keyValue.empty()) {
-		std::vector<std::string> keyNames = split(keyValue, '+');
+		std::string keyValueUppercase = toUppercase(keyValue);
+		std::vector<std::string> keyNames = split(keyValueUppercase, '+');
 		for (std::string& str : keyNames) {
 			trim(str);
 			auto found = keys.find(str);
 			if (found != keys.end()) {
 				keyCodes.push_back(found->second.code);
 			} else {
+				logwrap(fprintf(logfile, "Key combo parsing error: key not found %s\n", str));
 				return false;
 			}
 		}
-	}
-	if (!keyCodes.empty()) {
 		logwrap(fprintf(logfile, "Parsed key codes for %s: %s\n", keyName, keyValue.c_str()));
 	} else {
 		logwrap(fprintf(logfile, "Parsed that key codes are empty for %s\n", keyName));
@@ -333,7 +342,7 @@ bool Settings::parseKeys(const char* keyName, std::string keyValue, std::vector<
 	return true;
 }
 
-bool Settings::parseInteger(const char* keyName, std::string keyValue, std::atomic_int& integer) {
+bool Settings::parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer) {
 	int result = std::atoi(keyValue.c_str());
 	if (result == 0 && keyValue != "0") return false;
 	integer = result;
@@ -341,7 +350,7 @@ bool Settings::parseInteger(const char* keyName, std::string keyValue, std::atom
 	return true;
 }
 
-bool Settings::parseBoolean(const char* keyName, std::string keyValue, std::atomic_bool& aBooleanValue) {
+bool Settings::parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue) {
 	if (_stricmp(keyValue.c_str(), "true") == 0) {
 		logwrap(fprintf(logfile, "Parsed boolean for %s: %d\n", keyName, 1));
 		aBooleanValue = true;

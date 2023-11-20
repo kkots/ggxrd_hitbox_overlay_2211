@@ -37,6 +37,13 @@ public:
 	std::atomic_bool dontUseScreenshotTransparency = false;
 	std::atomic_int slowmoTimes = 3;
 private:
+	struct KeyComboToParse {
+		std::string name;
+		std::vector<int>* keyCombo = nullptr;
+		const char* defaultValue = nullptr;
+		bool isParsed = false;
+	};
+	void insertKeyComboToParse(std::map<std::string, KeyComboToParse>& keyCombosToParse, const char* name, std::vector<int>* keyCombo, const char* defaultValue);
 	void readSettings();
 	void addKey(const char* name, int code);
 	int findMinCommentPos(const char* buf) const;
@@ -45,10 +52,11 @@ private:
 	void addKeyRange(char start, char end);
 	int findChar(const char* buf, char c) const;
 	void trim(std::string& str) const;
+	std::string toUppercase(std::string str) const;
 	std::vector<std::string> split(const std::string& str, char c) const;
-	bool parseKeys(const char* keyName, std::string keyValue, std::vector<int>& keyCodes);
-	bool parseInteger(const char* keyName, std::string keyValue, std::atomic_int& integer);
-	bool parseBoolean(const char* keyName, std::string keyValue, std::atomic_bool& aBooleanValue);
+	bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes);
+	bool parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer);
+	bool parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue);
 	std::wstring getCurrentDirectory();
 	bool getLastWriteTime(const std::wstring& path, FILETIME* fileTime);
 	std::wstring settingsPath;
