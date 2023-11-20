@@ -393,7 +393,10 @@ void EndScene::processKeyStrokes() {
 		clearContinuousScreenshotMode();
 	}
 	if (needToRunNoGravGifMode) {
-		if (*aswEngine) noGravGifMode();
+		if (*aswEngine) {
+			entityList.populate();
+			noGravGifMode();
+		}
 	}
 }
 
@@ -405,10 +408,10 @@ void EndScene::noGravGifMode() {
 	opponentIndex = 1 - playerIndex;
 
 	bool useGifMode = (gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode();
-	for (auto it = hiddenEntities.begin(); it != hiddenEntities.end(); ++it) {
-		it->wasFoundOnThisFrame = false;
-	}
 	if (useGifMode) {
+		for (auto it = hiddenEntities.begin(); it != hiddenEntities.end(); ++it) {
+			it->wasFoundOnThisFrame = false;
+		}
 		for (int i = 0; i < entityList.count; ++i) {
 			Entity ent{entityList.list[i]};
 			if (ent.team() != playerIndex) {

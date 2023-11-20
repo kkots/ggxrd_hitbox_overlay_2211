@@ -20,20 +20,18 @@ const int hitboxMinActiveTime = 2;
 bool HitDetector::onDllMain() {
 	bool error = false;
 
-	if (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT || DISPLAY_DURATION_REJECTION) {
-		orig_determineHitType = (determineHitType_t)sigscanOffset(
-			"GuiltyGearXrd.exe",
-			"\x55\x8b\xec\x83\xe4\xf8\x81\xec\x54\x02\x00\x00\xa1\x00\x00\x00\x00\x33\xc4\x89\x84\x24\x50\x02\x00\x00\x8b\x45\x10\x53\x56\x8b\x75\x08\x8b\x5e\x10\xf7\xdb\x57\x8b\xf9\x1b\xdb\x23\xde\xf6\x87\x64\x04\x00\x00\x02",
-			"xxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-			nullptr, "determineHitType");
+	orig_determineHitType = (determineHitType_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"\x55\x8b\xec\x83\xe4\xf8\x81\xec\x54\x02\x00\x00\xa1\x00\x00\x00\x00\x33\xc4\x89\x84\x24\x50\x02\x00\x00\x8b\x45\x10\x53\x56\x8b\x75\x08\x8b\x5e\x10\xf7\xdb\x57\x8b\xf9\x1b\xdb\x23\xde\xf6\x87\x64\x04\x00\x00\x02",
+		"xxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		nullptr, "determineHitType");
 
-		if (orig_determineHitType) {
-			int(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, unsigned int*, unsigned int*) = &HookHelp::determineHitTypeHook;
-			detouring.attach(&(PVOID&)(orig_determineHitType),
-				(PVOID&)determineHitTypeHookPtr,
-				&orig_determineHitTypeMutex,
-				"determineHitType");
-		}
+	if (orig_determineHitType) {
+		int(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, unsigned int*, unsigned int*) = &HookHelp::determineHitTypeHook;
+		detouring.attach(&(PVOID&)(orig_determineHitType),
+			(PVOID&)determineHitTypeHookPtr,
+			&orig_determineHitTypeMutex,
+			"determineHitType");
 	}
 
 	return !error;

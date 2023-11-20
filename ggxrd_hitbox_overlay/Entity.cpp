@@ -168,7 +168,7 @@ void Entity::pushboxLeftRight(int* left, int* right) const {
 }
 
 unsigned int Entity::currentAnimDuration() const {
-	return *(const int*)(ent + 0x130);
+	return *(const unsigned int*)(ent + 0x130);
 }
 
 char* Entity::operator+(int offset) const {
