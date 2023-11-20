@@ -193,6 +193,8 @@ void Settings::readSettings() {
 	dontUseScreenshotTransparency = false;
 	bool dontUseScreenshotTransparencyParsed = false;
 
+	drawPushboxCheckSeparately = true;
+	bool drawPushboxCheckSeparatelyParsed = false;
 
 	char errorString[500];
 	char buf[128];
@@ -240,6 +242,9 @@ void Settings::readSettings() {
 			}
 			if (!dontUseScreenshotTransparencyParsed && _stricmp(keyName.c_str(), "dontUseScreenshotTransparency") == 0) {
 				dontUseScreenshotTransparencyParsed = parseBoolean(found->second.name.c_str(), keyValue, dontUseScreenshotTransparency);
+			}
+			if (!drawPushboxCheckSeparatelyParsed && _stricmp(keyName.c_str(), "drawPushboxCheckSeparately") == 0) {
+				drawPushboxCheckSeparatelyParsed = parseBoolean(found->second.name.c_str(), keyValue, drawPushboxCheckSeparately);
 			}
 			if (feof(file)) break;
 		}

@@ -73,16 +73,46 @@ Each player and entity has an origin point which is shown as a black-white cross
 
 When a Blitz Shield meets a projectile it displays a square blue box around the rejecting player, and if the opponent's origin point is within that box the opponent enters rejected state. The box does not show when rejecting normal, melee attacks because those cause rejection no matter the distance. Pushboxes and their sizes do not affect the distance check in any way, i.e. only the X and Y distances between the players' origin points are checked.
 
-### Blue - Throw boxes
+### Blue - Throw box pushbox check (when drawPushboxCheckSeparately = true - the default)
 
-When a player does a throw he displays a throw box in blue color. Throw boxes are usually only active for one frame (that's when they display semi-transparent). This period is so brief throw boxes have to show for a few extra frames, but during those frames they're no longer active and so they display fully transparent (outline only).  
-In this adaptation of Altimor's original mod, throw boxes must include the opponent's origin point in order to connect (but that's not all, read on). That means that the sizes of your and your opponent's pushboxes affect the width of your throw box. Try crouching and see how your pushbox becomes wider a bit. This means crouching opponents are slightly easier to throw. Or Potemkin - he has a wider pushbox than average.  
+When a player does a throw he displays a throw box which may either be represented as one blue box, one purple box or one blue and one purple box. Throw boxes are usually only active for one frame (that's when they display semi-transparent). This period is so brief throw boxes have to show for a few extra frames, but during those frames they're no longer active and so they display fully transparent (outline only).
+
+The blue part of the box shows the pushbox-checking throw box. It is never limited vertically, because it only checks the horizontal distance between pushboxes. The rule is if this blue throw box touches the yellow pushbox of the opponent, the pushbox-checking part of the throw is satisfied.  
+But there may be another part of the throw that checks the X and/or Y of the opponent's origin point (shown in purple). If such a part of the throw box is present, it must also be satisfied, or else the throw won't connect.
+
+This mode of showing throw boxes shows them like this:
+
+![Screenshot can't be viewed](throw_box_drawPushboxCheckSeparately_true.jpg)
+
+### Purple - Throw box origin point check (when drawPushboxCheckSeparately = true - the default)
+
+The purple part of the throw box displays the region where the opponent's origin point must be in order for this part of the throw check to connect.  
+If there's a pushbox-proximity-checking part of the throw (blue), then satisfying the origin point check (purple) is not enough - the pushbox check must be passed as well. The pushbox-checking part of the throw displays in blue and is described in the section above.
+
+### Blue - Throw boxes (when drawPushboxCheckSeparately = false)
+
+There's an alternative mode in the mod to show the part of the throw box that checks pushbox proximity (blue) and the part of the throw box that checks the X and Y of the opponent's origin point (purple) as a single blue throw box which only checks the opponent's origin point. To turn this mode on place the `.ini` file described in `Hotkey configuration` into the folder with the game executable and change `drawPushboxCheckSeparately = true` to be `drawPushboxCheckSeparately = false`. (Reloading the mod is unnecessary.)
+
+In this mode, when a player does a throw he displays a throw box in blue color. Throw boxes are usually only active for one frame (that's when they display semi-transparent). This period is so brief throw boxes have to show for a few extra frames, but during those frames they're no longer active and so they display fully transparent (outline only).
+
+In this mode, throw boxes must only include the opponent's origin point in order to connect (but that's not all, read on). That means that the sizes of your and your opponent's pushboxes affect the width of your throw box. Try crouching and see how your pushbox becomes wider a bit. This means crouching opponents are slightly easier to throw. Or Potemkin - he has a wider pushbox than average.
+
 It's in the rules of the game that ground throws may only connect with non-airborne opponents and air throws may only connect with airborne opponents. Opponents who are in prejump state cannot be ground thrown.  
-Most normal ground throws and ground command throws for this reason do not limit their throw boxes vertically: the throw box shows as a pillar reaching vertically over the entire screen's height. This doesn't mean they capture anything above or below the thrower, though, and the rules mentioned above are still being obeyed.  
+Most normal ground throws and ground command throws for this reason do not limit their throw boxes vertically: the throw box shows as a pillar reaching vertically over the entire screen's height. This doesn't mean they capture anything above or below the thrower, though, and the rules mentioned above are still being obeyed.
+
 Some throws check for vertical position of the opponent's origin point and so display their throw box limited in size vertically.  
 When visually checking to see if a throw box would connect with an opponent you should, in this mod, ignore the pushboxes altogether and focus only on the throw box catching the origin point.  
-Note that normal ground throw actually simply checks if distance between the pushboxes is below the attacker's throw range (values listed on Dustloop), however some throws like command throws or air throws also check if the origin point specifically is within x or y range. Hence this is why I decided to just always show the check on the origin point only.  
-If a command throw has a throw box as well as hitbox, such as Raven's command throw, - for such moves I haven't fully studied the conditions under which they connect - but it's likely that both the throw box and the hitbox must connect.
+Note that normal ground throw actually simply checks if distance between the pushboxes is below the attacker's throw range (values listed on Dustloop), however some throws like command throws or air throws also check if the origin point specifically is within x or y range. Hence this is why this mode exists to just always show the check on the origin point only.
+
+This mode of showing throw boxes shows them like this:
+
+![Screenshot can't be viewed](throw_box_drawPushboxCheckSeparately_false.jpg)
+
+### General notes about throw boxes
+
+For some command throws such as Sol's Wild Throw a purple box is displayed, which supposedly checks the Y of the origin point of the opponent. This doesn't really make sense since Wild Throw only connects on grounded opponents. If anyone has information on this, I would gladly listen.
+
+If a command throw has a throw box as well as hitbox, such as Raven's command throw, - for such moves I haven't fully studied the conditions under which they connect - but it's likely that the hitbox doesn't matter and only the throw box has to connect, since it was already proven that Potemkin Buster's hitbox does not matter - only the throw box (proof: <https://youtu.be/59uc9h6KKIE>).
 
 ### Frame-by-frame animation playback
 
@@ -146,6 +176,7 @@ Here's an example of the `.ini` file:
 ; 1) Background becomes black
 ; 2) Camera is centered on you
 ; 3) Opponent is invisible and invulnerable
+; 4) Hide HUD
 gifModeToggle = F1
 
 ; Only does the "background becomes black" part of the gifModeToggle.
@@ -212,7 +243,7 @@ screenshotBtn = F8
 ; it can be pasted into any image editing program. For example, GIMP will recognize the PNG
 ; format and paste that, with transparency. This would work even on Ubuntu/Linux.
 ; Only PNG format is supported.
-screenshotPath = C:\Users\yourUser\Desktop\test screenshot name.png
+screenshotPath = ;C:\Users\yourUser\Desktop\test screenshot name.png   don't forget to uncomment (; is a comment)
 
 ; When this is true that means screenshots are being taken every game loop logical frame as
 ; long as the screenshotBtn is being held. Game loop logical frame means that if the game is
@@ -231,6 +262,16 @@ continuousScreenshotToggle =
 
 ; Setting this to true will produce screenshots without transparency
 dontUseScreenshotTransparency = false
+
+; Setting this to true will make throw boxes show in an opponent-character-independent way:
+; The part of the throw box that checks for pushboxes proximity will be shown in blue,
+; while the part of the throw box that checks x or y of the origin point will be shown in purple
+; Setting this to false will combine both the checks of the throw so that you only see the final box
+; in blue which only checks the opponent's origin point. Be warned, such a throw box
+; is affected by the width of the opponent's pushbox. Say, on Potemkin, for example,
+; all ground throw ranges should be higher.
+drawPushboxCheckSeparately = true
+
 
 ```
 
@@ -410,3 +451,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 17: Fixed pasting of transparent screenshots into MSPaint and added non-transparent screenshotting.
 - 2023 November 19: Added ability to reload the settings file on the fly, without reloading the mod.
 - 2023 November 20: Made GIF mode hide all entities that belong to the opponent's side (still can't hide the tension lightning though). Made continuous screenshot toggle not take a screenshot erroneously twice when toggled on during the game frozen state.
+- 2023 November 20: Added the `drawPushboxCheckSeparately` mode which breaks throw boxes into two parts: pushbox-proximity-checking and origin-point-checking.

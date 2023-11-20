@@ -36,6 +36,7 @@ public:
 	std::atomic_bool allowContinuousScreenshotting = false;
 	std::atomic_bool dontUseScreenshotTransparency = false;
 	std::atomic_int slowmoTimes = 3;
+	std::atomic_bool drawPushboxCheckSeparately = true;
 private:
 	struct KeyComboToParse {
 		std::string name;

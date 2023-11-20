@@ -9,6 +9,7 @@
 #include "logging.h"
 #include "colors.h"
 #include "GifMode.h"
+#include "Settings.h"
 
 Throws throws;
 
@@ -118,10 +119,9 @@ void Throws::hitDetectionMainHook() {
 			throwInfo.active = true;
 			throwInfo.owner = ent;
 			throwInfo.framesLeft = DISPLAY_DURATION_THROW;
-			throwInfo.leftUnlimited = true;
-			throwInfo.rightUnlimited = true;
 
 			if (throwRange >= 0) {
+				throwInfo.hasPushboxCheck = true;
 				int otherLeft;
 				int otherRight;
 
@@ -137,17 +137,23 @@ void Throws::hitDetectionMainHook() {
 				throwInfo.leftUnlimited = false;
 				throwInfo.rightUnlimited = false;
 				ent.pushboxLeftRight(&throwInfo.left, &throwInfo.right);
+				throwInfo.pushboxCheckMinX = throwInfo.left - throwRange;
+				throwInfo.pushboxCheckMaxX = throwInfo.right + throwRange;
 				throwInfo.left -= throwRange + (otherRight - otherX);
 				throwInfo.right += throwRange + (otherX - otherLeft);
 			}
 
 			if (throwMinX < throwMaxX) {
+				throwInfo.hasXCheck = true;
 				int throwMinXInSpace = posX + throwMinX * flip;
 				int throwMaxXInSpace = posX + throwMaxX * flip;
 				
 				if (throwMinXInSpace > throwMaxXInSpace) {
 					std::swap(throwMinXInSpace, throwMaxXInSpace);
 				}
+
+				throwInfo.minX = throwMinXInSpace;
+				throwInfo.maxX = throwMaxXInSpace;
 
 				if (throwInfo.leftUnlimited || throwMinXInSpace > throwInfo.left) throwInfo.left = throwMinXInSpace;
 				if (throwInfo.rightUnlimited || throwMaxXInSpace < throwInfo.right) throwInfo.right = throwMaxXInSpace;
@@ -156,9 +162,12 @@ void Throws::hitDetectionMainHook() {
 			}
 
 			if (throwMinY < throwMaxY) {
+				throwInfo.hasYCheck = true;
 				const int posY = ent.posY();
 				const int throwMinYInSpace = posY + throwMinY;
 				const int throwMaxYInSpace = posY + throwMaxY;
+				throwInfo.minY = throwMinYInSpace;
+				throwInfo.maxY = throwMaxYInSpace;
 
 				throwInfo.topUnlimited = false;
 				throwInfo.bottomUnlimited = false;
@@ -206,21 +215,67 @@ void Throws::drawThrows() {
 		}
 		throwInfo.firstFrame = false;
 
-		DrawBoxCallParams params;
-		params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW);
-		params.outlineColor = replaceAlpha(255, COLOR_THROW);
-		params.thickness = THICKNESS_THROW;
+		if (!settings.drawPushboxCheckSeparately) {
 
-		if (throwInfo.leftUnlimited) params.left = -10000000;
-		else params.left = throwInfo.left;
-		if (throwInfo.rightUnlimited) params.right = 10000000;
-		else params.right = throwInfo.right;
-		if (throwInfo.bottomUnlimited) params.bottom = -10000000;
-		else params.bottom = throwInfo.bottom;
-		if (throwInfo.topUnlimited) params.top = 10000000;
-		else params.top = throwInfo.top;
+			DrawBoxCallParams params;
+			params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW);
+			params.outlineColor = replaceAlpha(255, COLOR_THROW);
+			params.thickness = THICKNESS_THROW;
 
-		graphics.throwBoxes.push_back(params);
+			if (throwInfo.leftUnlimited) params.left = -10000000;
+			else params.left = throwInfo.left;
+			if (throwInfo.rightUnlimited) params.right = 10000000;
+			else params.right = throwInfo.right;
+			if (throwInfo.bottomUnlimited) params.bottom = -10000000;
+			else params.bottom = throwInfo.bottom;
+			if (throwInfo.topUnlimited) params.top = 10000000;
+			else params.top = throwInfo.top;
+
+			graphics.throwBoxes.push_back(params);
+
+		} else {
+			
+			if (throwInfo.hasPushboxCheck) {
+
+				DrawBoxCallParams params;
+				params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW_PUSHBOX);
+				params.outlineColor = replaceAlpha(255, COLOR_THROW_PUSHBOX);
+				params.thickness = THICKNESS_THROW_PUSHBOX;
+				params.left = throwInfo.pushboxCheckMinX;
+				params.right = throwInfo.pushboxCheckMaxX;
+				params.bottom = -10000000;
+				params.top = 10000000;
+				graphics.throwBoxes.push_back(params);
+
+			}
+
+			if (throwInfo.hasXCheck || throwInfo.hasYCheck) {
+
+				DrawBoxCallParams params;
+				params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW_XYORIGIN);
+				params.outlineColor = replaceAlpha(255, COLOR_THROW_XYORIGIN);
+				params.thickness = THICKNESS_THROW_XYORIGIN;
+
+				params.left = -10000000;
+				params.right = 10000000;
+				params.bottom = -10000000;
+				params.top = 10000000;
+
+				if (throwInfo.hasXCheck) {
+					params.left = throwInfo.minX;
+					params.right = throwInfo.maxX;
+				}
+
+				if (throwInfo.hasYCheck) {
+					params.top = throwInfo.maxY;
+					params.bottom = throwInfo.minY;
+				}
+
+				graphics.throwBoxes.push_back(params);
+
+			}
+
+		}
 		++it;
 	}
 }
