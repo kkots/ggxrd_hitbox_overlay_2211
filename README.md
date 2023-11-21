@@ -452,3 +452,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 19: Added ability to reload the settings file on the fly, without reloading the mod.
 - 2023 November 20: Made GIF mode hide all entities that belong to the opponent's side (still can't hide the tension lightning though). Made continuous screenshot toggle not take a screenshot erroneously twice when toggled on during the game frozen state.
 - 2023 November 20: Added the `drawPushboxCheckSeparately` mode which breaks throw boxes into two parts: pushbox-proximity-checking and origin-point-checking.
+- 2023 November 21: Added reverse chroma key to the transparent screenshotting, so that pixels that have non-black color but 0 alpha still get some alpha.

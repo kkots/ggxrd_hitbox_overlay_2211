@@ -614,8 +614,10 @@ void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
 		}
 
 		d.a ^= 255;
-		unsigned int average = (d.r + d.g + d.b) / 3;
-		if (average > d.a) d.a = average;
+		unsigned int maxColor = d.r;
+		if (d.g > maxColor) maxColor = d.g;
+		if (d.b > maxColor) maxColor = d.b;
+		if (maxColor > d.a) d.a = maxColor;
 		unsigned char daInv = ~d.a, saInv = 255 ^ s.a;
 		d.r = (daInv * s.r + d.a * (s.r * s.a + d.r * saInv) / 255) / 255;
 		d.g = (daInv * s.g + d.a * (s.g * s.a + d.g * saInv) / 255) / 255;
@@ -655,6 +657,10 @@ void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
 			Pixel& d = *gameImagePtr;
 
 			d.a ^= 255;
+			unsigned int maxColor = d.r;
+			if (d.g > maxColor) maxColor = d.g;
+			if (d.b > maxColor) maxColor = d.b;
+			if (maxColor > d.a) d.a = maxColor;
 			++gameImagePtr;
 		}
 	}
