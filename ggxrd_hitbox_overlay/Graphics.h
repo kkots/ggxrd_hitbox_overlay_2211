@@ -16,6 +16,18 @@ using Reset_t = HRESULT(__stdcall*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS* pP
 
 HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters);
 
+struct DrawData {
+	std::vector<ComplicatedHurtbox> hurtboxes;
+	std::vector<DrawHitboxArrayCallParams> hitboxes;
+	std::vector<DrawBoxCallParams> pushboxes;
+	std::vector<DrawPointCallParams> points;
+	std::vector<DrawBoxCallParams> throwBoxes;
+	void clear();
+	void copyTo(DrawData* destination);
+	bool empty = false;
+	bool needTakeScreenshot = false;
+};
+
 class Graphics
 {
 public:
@@ -29,11 +41,8 @@ public:
 	
 	Reset_t orig_Reset = nullptr;
 	std::mutex orig_ResetMutex;
-	std::vector<ComplicatedHurtbox> hurtboxes;
-	std::vector<DrawHitboxArrayCallParams> hitboxes;
-	std::vector<DrawBoxCallParams> pushboxes;
-	std::vector<DrawPointCallParams> points;
-	std::vector<DrawBoxCallParams> throwBoxes;
+	DrawData drawDataPrepared;
+	DrawData drawDataUse;
 	bool screenshotMode = false;
 	bool allowedToDrawFills = true;
 	bool allowedToDrawOutlines = true;

@@ -6,6 +6,18 @@
 using updateDarken_t = void(__thiscall*)(char* thisArg);
 using updateCamera_t = void(__thiscall*)(char* thisArg, char** param1, char* param2);
 
+struct CameraValues {
+	D3DXVECTOR3 pos{ 0.F, 0.F, 0.F };
+	float forward[3]{ 0.F };
+	float right[3]{ 0.F };
+	float up[3]{ 0.F };
+	float fov = 0.F;
+	float coordCoefficient = 0.F;
+	void setValues();
+	void copyTo(CameraValues& destination);
+	bool sent = false;
+};
+
 class Camera
 {
 public:
@@ -14,7 +26,10 @@ public:
 	bool onDllMain();
 	void updateDarkenHook(char* thisArg);
 	void updateCameraHook(char* thisArg, char** param1, char* param2);
+	CameraValues valuesPrepare;
+	CameraValues valuesUse;
 private:
+	friend struct CameraValues;
 	class HookHelp {
 		friend class Camera;
 		void updateDarkenHook();
@@ -27,12 +42,6 @@ private:
 	unsigned int darkenValue1Offset = 0;
 	unsigned int cameraOffset = 0;
 	bool isSet = false;
-	float forward[3]{ 0.F };
-	float right[3]{ 0.F };
-	float up[3]{ 0.F };
-	D3DXVECTOR3 pos{ 0.F, 0.F, 0.F };
-	float clipX = 0.F;
-	float clipY = 0.F;
 	float clipXHalf = 0.F;
 	float clipYHalf = 0.F;
 	float divisor = 0.F;
@@ -42,6 +51,7 @@ private:
 		const float p, const float y, const float r,
 		float* forward, float* right, float* up) const;
 	float vecDot(float* a, float* b) const;
+	uintptr_t coordCoeffOffset = 0;
 };
 
 extern Camera camera;

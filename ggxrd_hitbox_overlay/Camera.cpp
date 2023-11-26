@@ -10,8 +10,6 @@
 
 Camera camera;
 
-const float coordCoefficient = 0.42960999705207F;
-
 bool Camera::onDllMain() {
 	bool error = false;
 
@@ -63,6 +61,13 @@ bool Camera::onDllMain() {
 
 	}
 
+	coordCoeffOffset = (uintptr_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"\x89\x4c\x24\x10\xe9\xf5\x00\x00\x00\xf3\x0f\x10\x82\x00\x00\x00\x00\x0f\x57\xc9\x8b\xce\xf3\x0f\x2a\xcb\xe8\x00\x00\x00\x00",
+		"xxxxxxxxxxxxx????xxxxxxxxxx????",
+		{ 13, 0 },
+		&error, "coordCoeffOffset");
+
 	return !error;
 }
 
@@ -92,7 +97,7 @@ void Camera::updateDarkenHook(char* thisArg) {
 }
 
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
-	if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && aswEngine && game.isTrainingMode()) {
+	if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && game.isTrainingMode()) {
 		entityList.populate();
 
 		char playerSide = game.getPlayerSide();
@@ -108,12 +113,20 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 			*(float*)(deref + 0x5C) = posY + 106.4231F;
 		}
 	}
-	std::unique_lock<std::mutex> guard(orig_updateCameraMutex);
-	orig_updateCamera(thisArg, param1, param2);
+	{
+		std::unique_lock<std::mutex> guard(orig_updateCameraMutex);
+		orig_updateCamera(thisArg, param1, param2);
+	}
+	valuesPrepare.setValues();
+	valuesPrepare.sent = false;
 }
 
 void Camera::onEndSceneStart() {
 	isSet = false;
+}
+
+void CameraValues::copyTo(CameraValues& destination) {
+	memcpy(&destination, this, sizeof(CameraValues));
 }
 
 void Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
@@ -122,15 +135,41 @@ void Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3D
 	D3DXVECTOR3 vecConverted{ convertCoord(vec.x), 0.F, convertCoord(vec.z) };
 
 	D3DXVECTOR3 relativePos;
-	D3DXVec3Subtract(&relativePos, &vecConverted, &pos);
+	D3DXVec3Subtract(&relativePos, &vecConverted, &valuesUse.pos);
 
-	out->x = vecDot(relativePos, right);
-	out->y = vecDot(relativePos, up);
-	out->z = vecDot(relativePos, forward);
+	out->x = vecDot(relativePos, valuesUse.right);
+	out->y = vecDot(relativePos, valuesUse.up);
+	out->z = vecDot(relativePos, valuesUse.forward);
 
 	out->x = floorf(clipXHalf - out->x * divisor / out->z + .5F);
 	out->y = floorf(clipYHalf - out->y * divisor / out->z + .5F);
 	out->z = 0.F;
+}
+
+void CameraValues::setValues() {
+	const char* cam = *(char**)(*aswEngine + camera.cameraOffset);
+
+	pos.x = *(float*)(cam + 0x3C8);
+	pos.y = *(float*)(cam + 0x3CC);
+	pos.z = *(float*)(cam + 0x3D0);
+
+	const auto pitch = (float)(*(int*)(cam + 0x3D4)) / 32768.F * PI;
+	const auto yaw = (float)(*(int*)(cam + 0x3D8)) / 32768.F * PI;
+	const auto roll = (float)(*(int*)(cam + 0x3DC)) / 32768.F * PI;
+
+	fov = *(float*)(cam + 0x3E0);
+
+	camera.angleVectors(pitch, yaw, roll, forward, right, up);
+
+	coordCoefficient = *(float*)(*aswEngine + camera.coordCoeffOffset);
+
+	// I counted like 4 distinct copies of the camera:
+	// *((*aswEngine + 0x22e62c) + 0x3C0) + 0x54  -  x position + everything else, except fov is always 1 here
+	// (0x22e62c is camera.cameraOffset)
+	// (*aswEngine + 0x22e62c) + 0x3C8  -  x position + everything else
+	// (*aswEngine + 0x22e62c) + 0x3A4  -  x position + everything else
+	// (*aswEngine + 0x22e62c) + 0x384  -  x position + everything else
+
 }
 
 void Camera::setValues(IDirect3DDevice9* device) {
@@ -140,33 +179,19 @@ void Camera::setValues(IDirect3DDevice9* device) {
 	D3DVIEWPORT9 viewport;
 	device->GetViewport(&viewport);
 
-	const char* cam = *(char**)(*aswEngine + cameraOffset);
-
-	pos.x = *(float*)(cam + 0x3C8);
-	pos.y = *(float*)(cam + 0x3CC);
-	pos.z = *(float*)(cam + 0x3D0);
-
 	const float clipX = (float)(viewport.Width);
 	const float clipY = (float)(viewport.Height);
 
-	const auto pitch = (float)(*(int*)(cam + 0x3D4)) / 32768.F * PI;
-	const auto yaw = (float)(*(int*)(cam + 0x3D8)) / 32768.F * PI;
-	const auto roll = (float)(*(int*)(cam + 0x3DC)) / 32768.F * PI;
-
-	const float fov = *(float*)(cam + 0x3E0);
-
-	angleVectors(pitch, yaw, roll, forward, right, up);
-
 	clipXHalf = (clipX / 2.F);
 	clipYHalf = (clipY / 2.F);
-	divisor = (clipXHalf / tan(fov * PI / 360.F));
+	divisor = (clipXHalf / tan(valuesUse.fov * PI / 360.F));
 
 }
 
 // Arcsys engine to UE coords
 
 float Camera::convertCoord(float in) const {
-	return in / 1000.F * /*!*//*   *(float*)(*asw_engine + 0x3EA724)  */ coordCoefficient;  // not found, replacement value
+	return in / 1000.F * /*!*//*   *(float*)(*asw_engine + 0x3EA724)  */ valuesUse.coordCoefficient;  // if this is not found, just use 0.42960999705207F
 }
 
 void Camera::angleVectors(

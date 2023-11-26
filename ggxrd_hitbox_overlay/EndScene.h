@@ -9,11 +9,11 @@
 
 using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
 using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9*, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
-//using DrawIndexedPrimitive_t = HRESULT(__stdcall*)(IDirect3DDevice9* device, D3DPRIMITIVETYPE unnamedParam1, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount);
+using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
+using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device);
 HRESULT __stdcall hook_Present(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
-//HRESULT __stdcall hook_DrawIndexedPrimitive(IDirect3DDevice9* device, D3DPRIMITIVETYPE unnamedParam1, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount);
 
 class EndScene
 {
@@ -26,11 +26,24 @@ public:
 	bool consumePresentFlag();
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
+	void logic();
 	EndScene_t orig_EndScene = nullptr;
 	std::mutex orig_EndSceneMutex;
 	Present_t orig_Present = nullptr;
 	std::mutex orig_PresentMutex;
+	SendUnrealPawnData_t orig_SendUnrealPawnData = nullptr;
+	std::mutex orig_SendUnrealPawnDataMutex;
+	ReadUnrealPawnData_t orig_ReadUnrealPawnData = nullptr;
+	std::mutex orig_ReadUnrealPawnDataMutex;
 private:
+	class HookHelp {
+		friend class EndScene;
+		void sendUnrealPawnDataHook();
+		void readUnrealPawnDataHook();
+	};
+	void sendUnrealPawnDataHook(char* thisArg);
+	void readUnrealPawnDataHook(char* thisArg);
+	void prepareDrawData();
 	struct HiddenEntity {
 		Entity ent{ nullptr };
 		int scaleX = 0;

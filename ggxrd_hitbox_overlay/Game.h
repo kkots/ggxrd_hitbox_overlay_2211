@@ -47,6 +47,7 @@ private:
 	const char** playerSideNetworkHolder = nullptr;
 	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;
+	bool needToCallEndSceneLogic = false;
 };
 
 extern Game game;

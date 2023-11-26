@@ -53,12 +53,6 @@ void Graphics::onUnload() {
 
 void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
 	this->device = device;
-	hurtboxes.clear();
-	hitboxes.clear();
-	outlines.clear();
-	throwBoxes.clear();
-	points.clear();
-	pushboxes.clear();
 	stencil.onEndSceneStart();
 }
 
@@ -176,7 +170,7 @@ void Graphics::drawBox(const DrawBoxCallParams& params, BoundingRect* const boun
 
 void Graphics::drawAll() {
 
-	for (const ComplicatedHurtbox& params : hurtboxes) {
+	for (const ComplicatedHurtbox& params : drawDataUse.hurtboxes) {
 		if (params.hasTwo) {
 			std::vector<DrawOutlineCallParams> nonOldOutlines;
 			BoundingRect boundingRect;
@@ -187,10 +181,10 @@ void Graphics::drawAll() {
 			drawHitboxArray(params.param1);
 		}
 	}
-	for (auto it = hitboxes.cbegin(); it != hitboxes.cend(); ++it) {
+	for (auto it = drawDataUse.hitboxes.cbegin(); it != drawDataUse.hitboxes.cend(); ++it) {
 		const DrawHitboxArrayCallParams& params = *it;
 		bool found = false;
-		for (auto itScan = it; itScan != hitboxes.cend(); ++itScan) {
+		for (auto itScan = it; itScan != drawDataUse.hitboxes.cend(); ++itScan) {
 			if (it == itScan) continue;
 
 			if (params == *itScan) {
@@ -200,16 +194,16 @@ void Graphics::drawAll() {
 		}
 		if (!found) drawHitboxArray(params);
 	}
-	for (const DrawBoxCallParams& params : pushboxes) {
+	for (const DrawBoxCallParams& params : drawDataUse.pushboxes) {
 		drawBox(params);
 	}
-	for (const DrawBoxCallParams& params : throwBoxes) {
+	for (const DrawBoxCallParams& params : drawDataUse.throwBoxes) {
 		drawBox(params);
 	}
 	for (const DrawOutlineCallParams& params : outlines) {
 		drawOutline(params);
 	}
-	for (const DrawPointCallParams& params : points) {
+	for (const DrawPointCallParams& params : drawDataUse.points) {
 		drawPoint(params);
 	}
 
@@ -753,4 +747,22 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	gamesRenderTarget = nullptr;
 	oldState->Apply();
 	oldState = nullptr;
+}
+
+void DrawData::clear() {
+	hurtboxes.clear();
+	hitboxes.clear();
+	pushboxes.clear();
+	points.clear();
+	throwBoxes.clear();
+	needTakeScreenshot = false;
+}
+
+void DrawData::copyTo(DrawData* destination) {
+	destination->hurtboxes.insert(destination->hurtboxes.begin(), hurtboxes.begin(), hurtboxes.end());
+	destination->hitboxes.insert(destination->hitboxes.begin(), hitboxes.begin(), hitboxes.end());
+	destination->pushboxes.insert(destination->pushboxes.begin(), pushboxes.begin(), pushboxes.end());
+	destination->points.insert(destination->points.begin(), points.begin(), points.end());
+	destination->throwBoxes.insert(destination->throwBoxes.begin(), throwBoxes.begin(), throwBoxes.end());
+	destination->needTakeScreenshot = needTakeScreenshot;
 }

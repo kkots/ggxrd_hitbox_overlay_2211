@@ -3,6 +3,7 @@
 #include "memoryFunctions.h"
 #include "Detouring.h"
 #include "Settings.h"
+#include "EndScene.h"
 
 const char** aswEngine = nullptr;
 
@@ -119,7 +120,13 @@ void Game::updateAnimationsHookStatic(int param1, int param2, int param3, int pa
 }
 
 void Game::updateAnimationsHook(int param1, int param2, int param3, int param4) {
-	if (ignoreAllCalls) return;
+	if (ignoreAllCalls) {
+		if (needToCallEndSceneLogic) {
+			endScene.logic();
+			needToCallEndSceneLogic = false;
+		}
+		return;
+	}
 	{
 		std::unique_lock<std::mutex> guard(orig_updateAnimationsMutex);
 		orig_updateAnimations(param1, param2, param3, param4);
@@ -142,7 +149,9 @@ void Game::HookHelp::actualGameLoopHook(int param1) {
 }
 
 void Game::actualGameLoopHook(char* thisArg, int param1) {
-	if (ignoreAllCalls) return;
+	if (ignoreAllCalls) {
+		return;
+	}
 	{
 		std::unique_lock<std::mutex> guard(orig_actualGameLoopMutex);
 		orig_actualGameLoop(thisArg, param1);
@@ -166,6 +175,7 @@ void Game::gameLoopHookStatic(int param1, int param2, int param3, int param4) {
 
 void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 	ignoreAllCalls = false;
+	needToCallEndSceneLogic = false;
 	if (freezeGame) {
 		slowmoSkipCounter = 0;
 		if (!allowNextFrame) {
@@ -182,6 +192,9 @@ void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 		}
 	} else {
 		slowmoSkipCounter = 0;
+	}
+	if (ignoreAllCalls) {
+		needToCallEndSceneLogic = true;
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_gameLoopMutex);

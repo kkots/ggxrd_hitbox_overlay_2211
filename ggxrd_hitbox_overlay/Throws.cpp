@@ -231,7 +231,7 @@ void Throws::drawThrows() {
 			if (throwInfo.topUnlimited) params.top = 10000000;
 			else params.top = throwInfo.top;
 
-			graphics.throwBoxes.push_back(params);
+			graphics.drawDataPrepared.throwBoxes.push_back(params);
 
 		} else {
 			
@@ -245,7 +245,7 @@ void Throws::drawThrows() {
 				params.right = throwInfo.pushboxCheckMaxX;
 				params.bottom = -10000000;
 				params.top = 10000000;
-				graphics.throwBoxes.push_back(params);
+				graphics.drawDataPrepared.throwBoxes.push_back(params);
 
 			}
 
@@ -271,7 +271,7 @@ void Throws::drawThrows() {
 					params.bottom = throwInfo.minY;
 				}
 
-				graphics.throwBoxes.push_back(params);
+				graphics.drawDataPrepared.throwBoxes.push_back(params);
 
 			}
 

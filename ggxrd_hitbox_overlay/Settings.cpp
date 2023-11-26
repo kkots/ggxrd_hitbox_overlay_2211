@@ -220,14 +220,14 @@ void Settings::readSettings() {
 				found->second.isParsed = parseKeys(found->second.name.c_str(), keyValue, *found->second.keyCombo);
 			}
 			if (!slowmoTimesParsed && _stricmp(keyName.c_str(), "slowmoTimes") == 0) {
-				slowmoTimesParsed = parseInteger(found->second.name.c_str(), keyValue, slowmoTimes);
+				slowmoTimesParsed = parseInteger("slowmoTimes", keyValue, slowmoTimes);
 			}
 			if (!allowContinuousScreenshottingParsed && _stricmp(keyName.c_str(), "allowContinuousScreenshotting") == 0) {
-				allowContinuousScreenshottingParsed = parseBoolean(found->second.name.c_str(), keyValue, allowContinuousScreenshotting);
+				allowContinuousScreenshottingParsed = parseBoolean("allowContinuousScreenshotting", keyValue, allowContinuousScreenshotting);
 			}
 			if (firstSettingsParse && !startDisabledParsed && _stricmp(keyName.c_str(), "startDisabled") == 0) {
 				std::atomic_bool startDisabled = false;
-				startDisabledParsed = parseBoolean(found->second.name.c_str(), keyValue, startDisabled);
+				startDisabledParsed = parseBoolean("startDisabled", keyValue, startDisabled);
 				if (startDisabled) {
 					gifMode.modDisabled = true;
 				}
@@ -241,10 +241,10 @@ void Settings::readSettings() {
 				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
 			}
 			if (!dontUseScreenshotTransparencyParsed && _stricmp(keyName.c_str(), "dontUseScreenshotTransparency") == 0) {
-				dontUseScreenshotTransparencyParsed = parseBoolean(found->second.name.c_str(), keyValue, dontUseScreenshotTransparency);
+				dontUseScreenshotTransparencyParsed = parseBoolean("dontUseScreenshotTransparency", keyValue, dontUseScreenshotTransparency);
 			}
 			if (!drawPushboxCheckSeparatelyParsed && _stricmp(keyName.c_str(), "drawPushboxCheckSeparately") == 0) {
-				drawPushboxCheckSeparatelyParsed = parseBoolean(found->second.name.c_str(), keyValue, drawPushboxCheckSeparately);
+				drawPushboxCheckSeparatelyParsed = parseBoolean("drawPushboxCheckSeparately", keyValue, drawPushboxCheckSeparately);
 			}
 			if (feof(file)) break;
 		}

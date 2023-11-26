@@ -23,6 +23,8 @@
 EndScene endScene;
 
 bool EndScene::onDllMain() {
+	bool error = false;
+
 	char** d3dvtbl = direct3DVTable.getDirect3DVTable();
 	orig_EndScene = (EndScene_t)d3dvtbl[42];
 	orig_Present = (Present_t)d3dvtbl[17];
@@ -39,32 +41,226 @@ bool EndScene::onDllMain() {
 		&orig_EndSceneMutex,
 		"EndScene")) return false;
 
+	orig_SendUnrealPawnData = (SendUnrealPawnData_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"\x8b\x0d\x00\x00\x00\x00\x33\xdb\x53\xe8\x00\x00\x00\x00\xf3\x0f\x10\x80\x24\x04\x00\x00\xf3\x0f\x5c\x05\x00\x00\x00\x00\xf3\x0f\x10\x8e\xd0\x01\x00\x00\x0f\x2f\xc8\x76\x05\x8d\x43\x01\xeb\x02",
+		"xx????xxxx????xxxxxxxxxxxx????xxxxxxxxxxxxxxxxxx",
+		{ -0x11 },
+		&error, "SendUnrealPawnData");
+
+	if (orig_SendUnrealPawnData) {
+		void (HookHelp::*sendUnrealPawnDataHookPtr)(void) = &HookHelp::sendUnrealPawnDataHook;
+		if (!detouring.attach(&(PVOID&)orig_SendUnrealPawnData,
+			(PVOID&)sendUnrealPawnDataHookPtr,
+			&orig_SendUnrealPawnDataMutex,
+			"SendUnrealPawnData")) return false;
+	}
+
+	orig_ReadUnrealPawnData = (ReadUnrealPawnData_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"\x8b\xf1\x8b\x0e\xe8\x00\x00\x00\x00\x8b\x06\x8b\x48\x04\x89\x44\x24\x04\x85\xc9\x74\x1e\x83\x78\x08\x00\x74\x18\xf6\x81\x84\x00\x00\x00\x20",
+		"xxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxx",
+		{ -2 },
+		&error, "ReadUnrealPawnData");
+
+	if (orig_ReadUnrealPawnData) {
+		void (HookHelp::*readUnrealPawnDataHookPtr)(void) = &HookHelp::readUnrealPawnDataHook;
+		if (!detouring.attach(&(PVOID&)orig_ReadUnrealPawnData,
+			(PVOID&)readUnrealPawnDataHookPtr,
+			&orig_ReadUnrealPawnDataMutex,
+			"ReadUnrealPawnData")) return false;
+	}
+
+	return !error;
+}
+
+bool EndScene::onDllDetach() {
+	logwrap(fputs("EndScene::onDllDetach() called\n", logfile));
+	if (*aswEngine) {
+		entityList.populate();
+		bool needToCallNoGravGifMode = gifMode.gifModeOn
+			|| gifMode.gifModeToggleHideOpponentOnly
+			|| gifMode.noGravityOn;
+		gifMode.gifModeOn = false;
+		gifMode.noGravityOn = false;
+		gifMode.gifModeToggleHideOpponentOnly = false;
+		if (needToCallNoGravGifMode) {
+			noGravGifMode();
+		}
+	}
 	return true;
+}
+
+void EndScene::HookHelp::sendUnrealPawnDataHook() {
+	// this gets called many times every frame, presumably once per entity, but there're way more entities and they're not in the entityList.list
+	++detouring.hooksCounter;
+	detouring.markHookRunning("SendUnrealPawnData", true);
+	endScene.sendUnrealPawnDataHook((char*)this);
+	{
+		std::unique_lock<std::mutex> guard(endScene.orig_SendUnrealPawnDataMutex);
+		endScene.orig_SendUnrealPawnData((char*)this);
+	}
+	detouring.markHookRunning("SendUnrealPawnData", false);
+	--detouring.hooksCounter;
+}
+
+void EndScene::HookHelp::readUnrealPawnDataHook() {
+	// this read happens many times every frame and it appears to be synchronized with sendUnrealPawnDataHook via a simple SetEvent.
+	// the model we built might not be super precise and probably is not how the game sends data over from the logic thread to the graphics thread,
+	// but it's precise enough to never fail so we'll keep using it
+	++detouring.hooksCounter;
+	detouring.markHookRunning("ReadUnrealPawnData", true);
+	endScene.readUnrealPawnDataHook((char*)this);
+	detouring.markHookRunning("ReadUnrealPawnData", false);
+	--detouring.hooksCounter;
+}
+
+void EndScene::sendUnrealPawnDataHook(char* thisArg) {
+	if (*aswEngine == nullptr) return;
+	entityList.populate();
+	if (entityList.count < 1) return;
+	if (*(char**)(*(char**)(entityList.slots[0] + 0x27a8) + 0x384) != thisArg) return;
+	endScene.logic();
+}
+
+void EndScene::logic() {
+	if (graphics.drawDataPrepared.empty) {
+		processKeyStrokes();
+
+		bool needToClearHitDetection = false;
+		if (gifMode.modDisabled) {
+			needToClearHitDetection = true;
+		}
+		else if (*aswEngine == nullptr) {
+			needToClearHitDetection = true;
+			clearContinuousScreenshotMode();
+		}
+		else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
+			if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
+				needToClearHitDetection = true;
+			}
+			else {
+				prepareDrawData();
+			}
+		}
+		if (needToClearHitDetection) {
+			hitDetector.clearAllBoxes();
+		}
+	}
+}
+
+void EndScene::prepareDrawData() {
+	logOnce(fputs("endSceneHook called\n", logfile));
+	entityList.populate();
+	logOnce(fputs("entityList.populate() called\n", logfile));
+	if (!entityList.areAnimationsNormal()) {
+		hitDetector.clearAllBoxes();
+#ifdef LOG_PATH
+		didWriteOnce = true;
+#endif
+		return;
+	}
+	invisChipp.onEndSceneStart();
+	graphics.drawDataPrepared.clear();
+	drawnEntities.clear();
+
+	noGravGifMode();
+
+	logOnce(fprintf(logfile, "entity count: %d\n", entityList.count));
+
+	bool frameHasChanged = false;
+	unsigned int p1CurrentTimer = ~0;
+	unsigned int p2CurrentTimer = ~0;
+	if (entityList.count >= 1) {
+		p1CurrentTimer = Entity{ entityList.slots[0] }.currentAnimDuration();
+	}
+	if (entityList.count >= 2) {
+		p2CurrentTimer = Entity{ entityList.slots[1] }.currentAnimDuration();
+	}
+	if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
+		|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
+		frameHasChanged = true;
+	}
+	if (needContinuouslyTakeScreens) {
+		if (frameHasChanged) {
+			graphics.drawDataPrepared.needTakeScreenshot = true;
+		}
+		p1PreviousTimeOfTakingScreen = p1CurrentTimer;
+		p2PreviousTimeOfTakingScreen = p2CurrentTimer;
+	}
+	else if (frameHasChanged) {
+		p1PreviousTimeOfTakingScreen = ~0;
+		p2PreviousTimeOfTakingScreen = ~0;
+	}
+
+	if (!gifMode.hitboxDisplayDisabled) {
+		for (auto i = 0; i < entityList.count; i++)
+		{
+			Entity ent(entityList.list[i]);
+			if (isEntityAlreadyDrawn(ent)) continue;
+
+			bool active = ent.isActive();
+			logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
+
+			if (invisChipp.needToHide(ent)) continue;
+			DrawHitboxArrayCallParams hurtbox;
+			collectHitboxes(ent, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
+			HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
+			if (!wasHitResult.wasHit) {
+				graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
+			}
+			else {
+				graphics.drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
+			}
+			logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
+			drawnEntities.push_back(ent);
+			logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
+
+			// Attached entities like dusts
+			const auto attached = *(char**)(ent + 0x204);
+			if (attached != nullptr) {
+				logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
+				collectHitboxes(attached, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
+				graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
+				drawnEntities.push_back(attached);
+			}
+		}
+
+		logOnce(fputs("got past the entity loop\n", logfile));
+		hitDetector.drawHits();
+		logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
+		throws.drawThrows();
+		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
+	}
+
+	// Camera values are updated later, after this, in a updateCameraHook call
+	graphics.drawDataPrepared.empty = false;
+
+#ifdef LOG_PATH
+	didWriteOnce = true;
+#endif
+}
+
+void EndScene::readUnrealPawnDataHook(char* thisArg) {
+	if (!graphics.drawDataPrepared.empty) {
+		graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
+		graphics.drawDataPrepared.empty = true;
+	}
+	if (!camera.valuesPrepare.sent) {
+		camera.valuesPrepare.copyTo(camera.valuesUse);
+		camera.valuesPrepare.sent = true;
+	}
+	{
+		std::unique_lock<std::mutex> guard(orig_ReadUnrealPawnDataMutex);
+		orig_ReadUnrealPawnData(thisArg);
+	}
 }
 
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("EndScene", true);
 	if (endScene.consumePresentFlag()) {
-
-		endScene.processKeyStrokes();
-
-		bool needToClearHitDetection = false;
-		if (gifMode.modDisabled) {
-			needToClearHitDetection = true;
-		} else if (*aswEngine == nullptr) {
-			needToClearHitDetection = true;
-			endScene.clearContinuousScreenshotMode();
-		} else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
-			if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
-				needToClearHitDetection = true;
-			} else {
-				endScene.endSceneHook(device);
-			}
-		}
-		if (needToClearHitDetection) {
-			hitDetector.clearAllBoxes();
-		}
+		endScene.endSceneHook(device);
 	}
 	HRESULT result;
 	{
@@ -107,132 +303,24 @@ bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 }
 
 void EndScene::endSceneHook(IDirect3DDevice9* device) {
-	logOnce(fputs("endSceneHook called\n", logfile));
-	entityList.populate();
-	logOnce(fputs("entityList.populate() called\n", logfile));
-	if (!entityList.areAnimationsNormal()) {
-		hitDetector.clearAllBoxes();
-		#ifdef LOG_PATH
-		didWriteOnce = true;
-		#endif
-		return;
-	}
-	invisChipp.onEndSceneStart();
-	logOnce(fputs("invisChipp.onEndSceneStart() called\n", logfile));
 	graphics.onEndSceneStart(device);
-	logOnce(fputs("graphics.onEndSceneStart() called\n", logfile));
 	drawOutlineCallParamsManager.onEndSceneStart();
-	logOnce(fputs("drawOutlineCallParamsManager.onEndSceneStart() called\n", logfile));
 	camera.onEndSceneStart();
-	logOnce(fputs("camera.onEndSceneStart() called\n", logfile));
-	drawnEntities.clear();
 
-	noGravGifMode();
-
-	logOnce(fprintf(logfile, "entity count: %d\n", entityList.count));
-
-	bool frameHasChanged = false;
-	unsigned int p1CurrentTimer = ~0;
-	unsigned int p2CurrentTimer = ~0;
-	if (entityList.count >= 1) {
-		p1CurrentTimer = Entity{ entityList.slots[0] }.currentAnimDuration();
-	}
-	if (entityList.count >= 2) {
-		p2CurrentTimer = Entity{ entityList.slots[1] }.currentAnimDuration();
-	}
-	if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
-			|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
-		frameHasChanged = true;
-	}
-	if (needContinuouslyTakeScreens) {
-		if (frameHasChanged) {
-			needToTakeScreenshot = true;
-		}
-		p1PreviousTimeOfTakingScreen = p1CurrentTimer;
-		p2PreviousTimeOfTakingScreen = p2CurrentTimer;
-	} else if (frameHasChanged) {
-		p1PreviousTimeOfTakingScreen = ~0;
-		p2PreviousTimeOfTakingScreen = ~0;
-	}
-
-	bool tookAScreenshot = false;
 	if (!gifMode.hitboxDisplayDisabled) {
-		for (auto i = 0; i < entityList.count; i++)
-		{
-			Entity ent(entityList.list[i]);
-			if (isEntityAlreadyDrawn(ent)) continue;
-
-			bool active = ent.isActive();
-			logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
-
-			if (invisChipp.needToHide(ent)) continue;
-			DrawHitboxArrayCallParams hurtbox;
-			collectHitboxes(ent, active, &hurtbox, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
-			HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
-			if (!wasHitResult.wasHit) {
-				graphics.hurtboxes.push_back({false, hurtbox});
-			} else {
-				graphics.hurtboxes.push_back({true, hurtbox, wasHitResult.hurtbox});
-			}
-			logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
-			drawnEntities.push_back(ent);
-			logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
-
-			// Attached entities like dusts
-			const auto attached = *(char**)(ent + 0x204);
-			if (attached != nullptr) {
-				logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
-				collectHitboxes(attached, active, &hurtbox, &graphics.hitboxes, &graphics.points, &graphics.pushboxes);
-				graphics.hurtboxes.push_back({false, hurtbox});
-				drawnEntities.push_back(attached);
-			}
-		}
-
-		logOnce(fputs("got past the entity loop\n", logfile));
-		hitDetector.drawHits();
-		logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
-		throws.drawThrows();
-		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
-
-		if (needToTakeScreenshot && !settings.dontUseScreenshotTransparency) {
+		if (graphics.drawDataUse.needTakeScreenshot && !settings.dontUseScreenshotTransparency) {
 			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
 			graphics.takeScreenshotMain(device, false);
-			tookAScreenshot = true;
 		}
-
 		graphics.drawAll();
-		logOnce(fputs("graphics.drawAll() call successful\n", logfile));
-
-		if (needToTakeScreenshot && settings.dontUseScreenshotTransparency) {
+		if (graphics.drawDataUse.needTakeScreenshot && settings.dontUseScreenshotTransparency) {
 			graphics.takeScreenshotMain(device, true);
-			tookAScreenshot = true;
 		}
 
-	} else if (needToTakeScreenshot) {
+	} else if (graphics.drawDataUse.needTakeScreenshot) {
 		graphics.takeScreenshotMain(device, true);
-		tookAScreenshot = true;
 	}
-
-#ifdef LOG_PATH
-	didWriteOnce = true;
-#endif
-}
-
-bool EndScene::onDllDetach() {
-	logwrap(fputs("EndScene::onDllDetach() called\n", logfile));
-	if (*aswEngine) {
-		entityList.populate();
-		bool needToCallNoGravGifMode = gifMode.gifModeOn
-			|| gifMode.gifModeToggleHideOpponentOnly
-			|| gifMode.noGravityOn;
-		gifMode.gifModeOn = false;
-		gifMode.noGravityOn = false;
-		gifMode.gifModeToggleHideOpponentOnly = false;
-		if (needToCallNoGravGifMode) {
-			noGravGifMode();
-		}
-	}
-	return true;
+	graphics.drawDataUse.clear();
 }
 
 void EndScene::processKeyStrokes() {
@@ -356,9 +444,9 @@ void EndScene::processKeyStrokes() {
 		allowNextFrameBeenHeldFor = 0;
 		allowNextFrameCounter = 0;
 	}
-	needToTakeScreenshot = false;
+	graphics.drawDataPrepared.needTakeScreenshot = false;
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.screenshotBtn)) {
-		needToTakeScreenshot = true;
+		graphics.drawDataPrepared.needTakeScreenshot = true;
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.continuousScreenshotToggle)) {
 		if (continuousScreenshotMode) {
