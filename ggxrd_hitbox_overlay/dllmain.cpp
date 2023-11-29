@@ -72,6 +72,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         Sleep(100);
         while (detouring.someThreadsAreExecutingThisModule()) Sleep(100);
 
+        graphics.onUnload();  // here's how we cope with this being unsafe: between unhooking all functions
+        // and this line of code we may miss an IDirect3DDevice9::Reset() call, in which we have to null the stencil
+        // and the offscreenSurface. If we don't unhook Reset, we can't really wait for all hooks to finish executing,
+        // because immediately after the wait, Reset may get called.
+        // What solves all this is that Reset only gets called when the user decides to change resolutions or go
+        // to fullscreen mode/exit fullscreen mode. So we just hope he doesn't do it while uninjecting the DLL.
         endScene.onDllDetach();
         hud.onDllDetach();
         settings.onDllDetach();

@@ -49,6 +49,7 @@ void Graphics::resetHook() {
 
 void Graphics::onUnload() {
 	stencil.surface = NULL;
+	offscreenSurface = NULL;
 }
 
 void Graphics::onEndSceneStart(IDirect3DDevice9* device) {

@@ -13,7 +13,7 @@ struct CameraValues {
 	float up[3]{ 0.F };
 	float fov = 0.F;
 	float coordCoefficient = 0.F;
-	void setValues();
+	bool setValues();
 	void copyTo(CameraValues& destination);
 	bool sent = false;
 };

@@ -201,7 +201,7 @@ bool Detouring::beginTransaction() {
 
 	// Suspend all threads
 	enumerateThreadsRecursively([&](DWORD threadId){
-		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadId);
+		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
 		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
 			#ifdef LOG_PATH
 			WinError winErr;
@@ -278,7 +278,7 @@ bool Detouring::someThreadsAreExecutingThisModule() {
 	// Suspend all threads
 	enumerateThreadsRecursively([&](DWORD threadId) {
 		if (threadEipInThisModule) return;
-		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, threadId);
+		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
 		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
 #ifdef LOG_PATH
 			WinError winErr;

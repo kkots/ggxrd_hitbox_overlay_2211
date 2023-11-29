@@ -97,7 +97,7 @@ void Camera::updateDarkenHook(char* thisArg) {
 }
 
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
-	if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && game.isTrainingMode()) {
+	if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && game.isTrainingMode() && *aswEngine) {
 		entityList.populate();
 
 		char playerSide = game.getPlayerSide();
@@ -117,8 +117,11 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		std::unique_lock<std::mutex> guard(orig_updateCameraMutex);
 		orig_updateCamera(thisArg, param1, param2);
 	}
-	valuesPrepare.setValues();
-	valuesPrepare.sent = false;
+	if (*aswEngine) {  // without this it will actually crash when you quit a match
+		if (valuesPrepare.setValues()) {
+			valuesPrepare.sent = false;
+		}
+	}
 }
 
 void Camera::onEndSceneStart() {
@@ -146,8 +149,9 @@ void Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3D
 	out->z = 0.F;
 }
 
-void CameraValues::setValues() {
+bool CameraValues::setValues() {
 	const char* cam = *(char**)(*aswEngine + camera.cameraOffset);
+	if (!cam) return false;  // without this it will actually crash when a match finishes loading
 
 	pos.x = *(float*)(cam + 0x3C8);
 	pos.y = *(float*)(cam + 0x3CC);
@@ -169,6 +173,8 @@ void CameraValues::setValues() {
 	// (*aswEngine + 0x22e62c) + 0x3C8  -  x position + everything else
 	// (*aswEngine + 0x22e62c) + 0x3A4  -  x position + everything else
 	// (*aswEngine + 0x22e62c) + 0x384  -  x position + everything else
+
+	return true;
 
 }
 

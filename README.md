@@ -454,3 +454,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 20: Added the `drawPushboxCheckSeparately` mode which breaks throw boxes into two parts: pushbox-proximity-checking and origin-point-checking.
 - 2023 November 21: Added reverse chroma key to the transparent screenshotting, so that pixels that have non-black color but 0 alpha still get some alpha.
 - 2023 November 26: Made real-time continuous screenshotting absolutely frame-precise, meaning hitboxes always match positions of the sprites displayed on the screen.
+- 2023 November 29: Fixed a crash when quitting a match/training session while the mod is running.
