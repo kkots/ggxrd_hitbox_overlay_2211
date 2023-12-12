@@ -160,6 +160,7 @@ void EndScene::prepareDrawData() {
 #endif
 		return;
 	}
+	std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
 	invisChipp.onEndSceneStart();
 	graphics.drawDataPrepared.clear();
 	drawnEntities.clear();
@@ -242,13 +243,19 @@ void EndScene::prepareDrawData() {
 }
 
 void EndScene::readUnrealPawnDataHook(char* thisArg) {
-	if (!graphics.drawDataPrepared.empty) {
-		graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
-		graphics.drawDataPrepared.empty = true;
+	{
+		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
+		if (!graphics.drawDataPrepared.empty) {
+			graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
+			graphics.drawDataPrepared.empty = true;
+		}
 	}
-	if (!camera.valuesPrepare.sent) {
-		camera.valuesPrepare.copyTo(camera.valuesUse);
-		camera.valuesPrepare.sent = true;
+	{
+		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
+		if (!camera.valuesPrepare.sent) {
+			camera.valuesPrepare.copyTo(camera.valuesUse);
+			camera.valuesPrepare.sent = true;
+		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_ReadUnrealPawnDataMutex);

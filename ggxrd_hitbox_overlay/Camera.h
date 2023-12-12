@@ -27,6 +27,7 @@ public:
 	void updateDarkenHook(char* thisArg);
 	void updateCameraHook(char* thisArg, char** param1, char* param2);
 	CameraValues valuesPrepare;
+	std::mutex valuesPrepareMutex;
 	CameraValues valuesUse;
 private:
 	friend struct CameraValues;

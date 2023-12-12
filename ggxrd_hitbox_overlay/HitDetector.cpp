@@ -212,19 +212,21 @@ void HitDetector::drawHits() {
 		++rejIt;
 	}
 
-	auto it = hurtboxesThatGotHit.begin();
-	while (it != hurtboxesThatGotHit.end()) {
-		if ((*it).timeHasChanged(timeHasChanged)) {
-			--it->counter;
-			if (it->counter == 0) {
-				hurtboxesThatGotHit.erase(it);
-				continue;
+	{
+		auto it = hurtboxesThatGotHit.begin();
+		while (it != hurtboxesThatGotHit.end()) {
+			if ((*it).timeHasChanged(timeHasChanged)) {
+				--it->counter;
+				if (it->counter == 0) {
+					it = hurtboxesThatGotHit.erase(it);
+					continue;
+				}
 			}
+			++it;
 		}
-		++it;
 	}
 
-	it = hitboxesThatHit.begin();
+	auto it = hitboxesThatHit.begin();
 	while (it != hitboxesThatHit.end()) {
 		DetectedHitboxes& hitboxThatHit = *it;
 

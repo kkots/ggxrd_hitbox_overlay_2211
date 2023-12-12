@@ -42,6 +42,7 @@ public:
 	Reset_t orig_Reset = nullptr;
 	std::mutex orig_ResetMutex;
 	DrawData drawDataPrepared;
+	std::mutex drawDataPreparedMutex;
 	DrawData drawDataUse;
 	bool screenshotMode = false;
 	bool allowedToDrawFills = true;

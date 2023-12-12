@@ -118,6 +118,7 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		orig_updateCamera(thisArg, param1, param2);
 	}
 	if (*aswEngine) {  // without this it will actually crash when you quit a match
+		std::unique_lock<std::mutex> guard(valuesPrepareMutex);
 		if (valuesPrepare.setValues()) {
 			valuesPrepare.sent = false;
 		}

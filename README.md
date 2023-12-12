@@ -18,9 +18,10 @@ Many thanks to WorseThanYou, without whose help this wouldn't have been possible
 
 ## System requirements
 
-Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windows operating system.
+Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windows operating system.  
+For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (I'm not aware of a Linux version existing) under Steam Proton.
 
-## Quickstart
+## Quickstart for Windows
 
 1. Launch the game. Or you can do the next step at any point while the game is running.
 
@@ -455,3 +456,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 21: Added reverse chroma key to the transparent screenshotting, so that pixels that have non-black color but 0 alpha still get some alpha.
 - 2023 November 26: Made real-time continuous screenshotting absolutely frame-precise, meaning hitboxes always match positions of the sprites displayed on the screen.
 - 2023 November 29: Fixed a crash when quitting a match/training session while the mod is running.
+- 2023 December 12: Made some fixes in code related to thread safety.
