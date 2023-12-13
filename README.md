@@ -457,3 +457,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 November 26: Made real-time continuous screenshotting absolutely frame-precise, meaning hitboxes always match positions of the sprites displayed on the screen.
 - 2023 November 29: Fixed a crash when quitting a match/training session while the mod is running.
 - 2023 December 12: Made some fixes in code related to thread safety.
+- 2023 December 13: Tried to fix an issue with hotkeys not working during frame freeze.
