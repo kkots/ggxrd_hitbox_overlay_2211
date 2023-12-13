@@ -35,6 +35,7 @@ public:
 	std::mutex orig_SendUnrealPawnDataMutex;
 	ReadUnrealPawnData_t orig_ReadUnrealPawnData = nullptr;
 	std::mutex orig_ReadUnrealPawnDataMutex;
+	bool keystrokesProcessed = false;
 private:
 	class HookHelp {
 		friend class EndScene;

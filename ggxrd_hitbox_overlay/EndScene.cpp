@@ -331,6 +331,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 }
 
 void EndScene::processKeyStrokes() {
+	keystrokesProcessed = true;
 	settings.readSettingsIfChanged();
 	bool trainingMode = game.isTrainingMode();
 	bool needToRunNoGravGifMode = false;
