@@ -73,6 +73,9 @@ void collectHitboxes(const Entity& ent,
 		callParams.hitboxData = hurtboxData;
 		callParams.hitboxCount = hurtboxCount;
 		callParams.params = params;
+		callParams.params.angle = *(int*)(ent + 0x258);
+		callParams.params.hitboxOffsetX = *(int*)(ent + 0x27C);
+		callParams.params.hitboxOffsetY = *(int*)(ent + 0x280);
 		DWORD alpha = 64;
 		if (state.strikeInvuln) {
 			alpha = 0;
