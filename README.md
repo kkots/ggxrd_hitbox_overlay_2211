@@ -459,3 +459,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 December 12: Made some fixes in code related to thread safety.
 - 2023 December 13: Tried to fix an issue with hotkeys not working during frame freeze.
 - 2023 December 20: Fixed May's dolphin hurtbox rotation.
+- 2024 January 1: Fixed an issue when boxes weren't frame perfect on very low FPS (caused by excessive logging in debug version).

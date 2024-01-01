@@ -9,6 +9,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ggxrd_hitbox_overlay", "ggx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ggxrd_hitbox_patcher", "ggxrd_hitbox_patcher\ggxrd_hitbox_patcher.vcxproj", "{2771DC44-0C87-49D0-9FC8-3E6BA9076A94}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{AA7BC172-AAF8-41B3-9961-0738048B2EEF}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
