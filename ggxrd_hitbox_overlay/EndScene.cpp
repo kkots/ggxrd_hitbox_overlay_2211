@@ -245,16 +245,18 @@ void EndScene::prepareDrawData() {
 void EndScene::readUnrealPawnDataHook(char* thisArg) {
 	{
 		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-		if (!graphics.drawDataPrepared.empty) {
+		if (!graphics.drawDataPrepared.empty && graphics.needNewDrawData) {
 			graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
 			graphics.drawDataPrepared.empty = true;
+			graphics.needNewDrawData = false;
 		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
-		if (!camera.valuesPrepare.sent) {
+		if (!camera.valuesPrepare.sent && graphics.needNewCameraData) {
 			camera.valuesPrepare.copyTo(camera.valuesUse);
 			camera.valuesPrepare.sent = true;
+			graphics.needNewCameraData = false;
 		}
 	}
 	{
@@ -292,6 +294,14 @@ HRESULT EndScene::presentHook(IDirect3DDevice9* device, const RECT* pSourceRect,
 	setPresentFlag();
 	std::unique_lock<std::mutex> guard(endScene.orig_PresentMutex);
 	HRESULT result = orig_Present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);  // may call d3d9.dll::EndScene() (and, consecutively, the hook)
+	{
+		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
+		graphics.needNewDrawData = true;
+	}
+	{
+		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
+		graphics.needNewCameraData = true;
+	}
 	return result;
 }
 

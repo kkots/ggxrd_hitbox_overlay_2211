@@ -44,6 +44,8 @@ public:
 	DrawData drawDataPrepared;
 	std::mutex drawDataPreparedMutex;
 	DrawData drawDataUse;
+	bool needNewDrawData = true;
+	bool needNewCameraData = true;
 	bool screenshotMode = false;
 	bool allowedToDrawFills = true;
 	bool allowedToDrawOutlines = true;
