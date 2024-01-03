@@ -2,6 +2,7 @@
 #include <d3d9.h>
 #include <d3dx9.h>
 #include <mutex>
+#include <vector>
 
 using updateDarken_t = void(__thiscall*)(char* thisArg);
 using updateCamera_t = void(__thiscall*)(char* thisArg, char** param1, char* param2);
@@ -16,6 +17,7 @@ struct CameraValues {
 	bool setValues();
 	void copyTo(CameraValues& destination);
 	bool sent = false;
+	unsigned int id = 0;
 };
 
 class Camera
@@ -26,9 +28,11 @@ public:
 	bool onDllMain();
 	void updateDarkenHook(char* thisArg);
 	void updateCameraHook(char* thisArg, char** param1, char* param2);
-	CameraValues valuesPrepare;
+	std::vector<CameraValues> valuesPrepare;
 	std::mutex valuesPrepareMutex;
 	CameraValues valuesUse;
+	bool butDontPrepareBoxData = false;
+	unsigned int nextId = 0;
 private:
 	friend struct CameraValues;
 	class HookHelp {

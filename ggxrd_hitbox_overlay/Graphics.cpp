@@ -208,11 +208,6 @@ void Graphics::drawAll() {
 		drawPoint(params);
 	}
 
-	/*for (const auto &ti : throws)
-		draw_throw(device, ti, stencilInitialized);
-
-	throws.clear();*/
-
 	outlines.clear();
 	stencil.onEndSceneEnd(device);
 
@@ -766,4 +761,5 @@ void DrawData::copyTo(DrawData* destination) {
 	destination->points.insert(destination->points.begin(), points.begin(), points.end());
 	destination->throwBoxes.insert(destination->throwBoxes.begin(), throwBoxes.begin(), throwBoxes.end());
 	destination->needTakeScreenshot = needTakeScreenshot;
+	destination->id = id;
 }

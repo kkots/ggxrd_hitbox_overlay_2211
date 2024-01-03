@@ -44,7 +44,7 @@ private:
 	};
 	void sendUnrealPawnDataHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
-	void prepareDrawData();
+	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
 		int scaleX = 0;

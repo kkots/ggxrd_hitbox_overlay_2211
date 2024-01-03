@@ -279,3 +279,7 @@ void Throws::drawThrows() {
 		++it;
 	}
 }
+
+void Throws::clearAllBoxes() {
+	infos.clear();
+}

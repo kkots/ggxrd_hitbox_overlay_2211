@@ -127,6 +127,9 @@ void EndScene::logic() {
 	std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
 	processKeyStrokes();
 	if (graphics.drawDataPrepared.empty && !butDontPrepareBoxData) {
+		bool oldNeedTakeScreenshot = graphics.drawDataPrepared.needTakeScreenshot;
+		graphics.drawDataPrepared.clear();
+		graphics.drawDataPrepared.needTakeScreenshot = oldNeedTakeScreenshot;
 
 		bool needToClearHitDetection = false;
 		if (gifMode.modDisabled) {
@@ -141,28 +144,37 @@ void EndScene::logic() {
 				needToClearHitDetection = true;
 			}
 			else {
-				prepareDrawData();
+				prepareDrawData(&needToClearHitDetection);
 			}
 		}
 		if (needToClearHitDetection) {
 			hitDetector.clearAllBoxes();
+			throws.clearAllBoxes();
 		}
+
+		if (graphics.drawDataPrepared.id == 0xFFFFFFFF) {
+			graphics.drawDataPrepared.id = 0;
+		} else {
+			++graphics.drawDataPrepared.id;
+		}
+		camera.nextId = graphics.drawDataPrepared.id;
+		// Camera values are updated later, after this, in a updateCameraHook call
+		graphics.drawDataPrepared.empty = false;
 	}
 }
 
-void EndScene::prepareDrawData() {
+void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("endSceneHook called\n", logfile));
 	entityList.populate();
 	logOnce(fputs("entityList.populate() called\n", logfile));
 	if (!entityList.areAnimationsNormal()) {
-		hitDetector.clearAllBoxes();
+		*needClearHitDetection = true;
 #ifdef LOG_PATH
 		didWriteOnce = true;
 #endif
 		return;
 	}
 	invisChipp.onEndSceneStart();
-	graphics.drawDataPrepared.clear();
 	drawnEntities.clear();
 
 	noGravGifMode();
@@ -234,9 +246,6 @@ void EndScene::prepareDrawData() {
 		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
 	}
 
-	// Camera values are updated later, after this, in a updateCameraHook call
-	graphics.drawDataPrepared.empty = false;
-
 #ifdef LOG_PATH
 	didWriteOnce = true;
 #endif
@@ -250,14 +259,6 @@ void EndScene::readUnrealPawnDataHook(char* thisArg) {
 			graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
 			graphics.drawDataPrepared.empty = true;
 			graphics.needNewDrawData = false;
-		}
-	}
-	{
-		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
-		if (!camera.valuesPrepare.sent && graphics.needNewCameraData) {
-			camera.valuesPrepare.copyTo(camera.valuesUse);
-			camera.valuesPrepare.sent = true;
-			graphics.needNewCameraData = false;
 		}
 	}
 	{
@@ -325,6 +326,28 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	drawOutlineCallParamsManager.onEndSceneStart();
 	camera.onEndSceneStart();
 
+	static bool everythingBroke = false;
+
+	{
+		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
+		if (!camera.valuesPrepare.empty() && graphics.needNewCameraData) {
+			if (camera.valuesPrepare.size() > 100) {
+				everythingBroke = true;
+				camera.valuesPrepare.clear();
+			}
+			if (!everythingBroke) {
+				for (auto it = camera.valuesPrepare.begin(); it != camera.valuesPrepare.end(); ++it) {
+					if (it->id == graphics.drawDataUse.id) {
+						it->copyTo(camera.valuesUse);
+						camera.valuesPrepare.erase(camera.valuesPrepare.begin(), it + 1);
+						graphics.needNewCameraData = false;
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	{
 		std::unique_lock<std::mutex> specialGuard(graphics.specialScreenshotFlagMutex);
 		if (graphics.specialScreenshotFlag) {
@@ -333,7 +356,16 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		}
 	}
 
-	if (!gifMode.hitboxDisplayDisabled) {
+	bool doYourThing = !gifMode.hitboxDisplayDisabled;
+
+	if (!*aswEngine) {
+		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
+		graphics.drawDataUse.clear();
+	} else if (!altModes.isGameInNormalMode(nullptr)) {
+		doYourThing = false;
+	}
+
+	if (doYourThing) {
 		if (graphics.drawDataUse.needTakeScreenshot && !settings.dontUseScreenshotTransparency) {
 			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
 			graphics.takeScreenshotMain(device, false);
@@ -410,6 +442,7 @@ void EndScene::processKeyStrokes() {
 		if (freezeGame == true) {
 			freezeGame = false;
 			butDontPrepareBoxData = false;
+			camera.butDontPrepareBoxData = false;
 			logwrap(fputs("Freeze game turned off\n", logfile));
 		}
 		else if (trainingMode) {
@@ -464,7 +497,7 @@ void EndScene::processKeyStrokes() {
 		}
 		if (trainingMode && allowPress) {
 			game.allowNextFrame = true;
-			logwrap(fputs("allowNextFrame pressed\n", logfile));
+			logwrap(fputs("allowNextFrame set to true\n", logfile));
 		}
 		++allowNextFrameBeenHeldFor;
 	} else {
@@ -503,7 +536,10 @@ void EndScene::processKeyStrokes() {
 		needContinuouslyTakeScreens = true;
 	}
 	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
-	if (!game.freezeGame) butDontPrepareBoxData = false;
+	if (!game.freezeGame) {
+		butDontPrepareBoxData = false;
+		camera.butDontPrepareBoxData = false;
+	}
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;

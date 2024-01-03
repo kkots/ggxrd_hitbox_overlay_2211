@@ -26,6 +26,7 @@ struct DrawData {
 	void copyTo(DrawData* destination);
 	bool empty = false;
 	bool needTakeScreenshot = false;
+	unsigned int id = 0;
 };
 
 class Graphics

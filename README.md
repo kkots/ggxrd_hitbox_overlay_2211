@@ -4,9 +4,9 @@
 
 ## Description
 
-Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 13'th November 2023).  
+Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
 Also can freeze the game and play it frame-by-frame (with box display turned off for example).  
-Also can screenshot the game with transparency enabled/disabled (with help from WorseThanYou).
+Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou).
 
 ## Credits
 
@@ -462,3 +462,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 January 1: Fixed an issue when boxes weren't frame perfect on very low FPS (caused by excessive logging in debug version).
 - 2024 January 3: Fixed the issue of boxes being 1 frame behind during frame freeze mode + gif mode.
 - 2024 January 3: Fixed the issue of continuous screenshot mode taking screens during frame freeze 60 times per second even if the game is frozen. Fixed the issue of screenshot button not working during frame freeze mode.
+- 2024 January 3: Fixed the issue of boxes being placed wrong during GIF mode + frame freeze on moves that move the character. Fixed boxes displaying during frame freeze even when menu is open.

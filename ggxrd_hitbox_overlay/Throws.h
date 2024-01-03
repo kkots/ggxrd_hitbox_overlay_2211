@@ -14,6 +14,7 @@ class Throws
 public:
 	bool onDllMain();
 	void drawThrows();
+	void clearAllBoxes();
 private:
 	class HookHelp {
 	private:

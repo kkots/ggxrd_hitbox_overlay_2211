@@ -4,6 +4,7 @@
 #include "Detouring.h"
 #include "Settings.h"
 #include "EndScene.h"
+#include "Camera.h"
 
 const char** aswEngine = nullptr;
 
@@ -177,6 +178,7 @@ void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 	ignoreAllCalls = false;
 	needToCallEndSceneLogic = false;
 	endScene.butDontPrepareBoxData = false;
+	camera.butDontPrepareBoxData = false;
 	if (freezeGame) {
 		slowmoSkipCounter = 0;
 		if (!allowNextFrame) {
@@ -197,6 +199,7 @@ void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 	if (ignoreAllCalls) {
 		needToCallEndSceneLogic = true;
 		endScene.butDontPrepareBoxData = true;
+		camera.butDontPrepareBoxData = true;
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_gameLoopMutex);
