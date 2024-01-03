@@ -124,8 +124,9 @@ void EndScene::sendUnrealPawnDataHook(char* thisArg) {
 }
 
 void EndScene::logic() {
-	if (graphics.drawDataPrepared.empty) {
-		processKeyStrokes();
+	std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
+	processKeyStrokes();
+	if (graphics.drawDataPrepared.empty && !butDontPrepareBoxData) {
 
 		bool needToClearHitDetection = false;
 		if (gifMode.modDisabled) {
@@ -160,7 +161,6 @@ void EndScene::prepareDrawData() {
 #endif
 		return;
 	}
-	std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
 	invisChipp.onEndSceneStart();
 	graphics.drawDataPrepared.clear();
 	drawnEntities.clear();
@@ -246,6 +246,7 @@ void EndScene::readUnrealPawnDataHook(char* thisArg) {
 	{
 		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
 		if (!graphics.drawDataPrepared.empty && graphics.needNewDrawData) {
+			graphics.drawDataUse.clear();
 			graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
 			graphics.drawDataPrepared.empty = true;
 			graphics.needNewDrawData = false;
@@ -337,11 +338,9 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	} else if (graphics.drawDataUse.needTakeScreenshot) {
 		graphics.takeScreenshotMain(device, true);
 	}
-	graphics.drawDataUse.clear();
 }
 
 void EndScene::processKeyStrokes() {
-	keystrokesProcessed = true;
 	settings.readSettingsIfChanged();
 	bool trainingMode = game.isTrainingMode();
 	bool needToRunNoGravGifMode = false;
@@ -401,6 +400,7 @@ void EndScene::processKeyStrokes() {
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.freezeGameToggle)) {
 		if (freezeGame == true) {
 			freezeGame = false;
+			butDontPrepareBoxData = false;
 			logwrap(fputs("Freeze game turned off\n", logfile));
 		}
 		else if (trainingMode) {
@@ -489,6 +489,7 @@ void EndScene::processKeyStrokes() {
 		needContinuouslyTakeScreens = true;
 	}
 	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
+	if (!game.freezeGame) butDontPrepareBoxData = false;
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;

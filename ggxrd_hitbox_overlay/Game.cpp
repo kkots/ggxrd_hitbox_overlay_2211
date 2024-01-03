@@ -175,8 +175,8 @@ void Game::gameLoopHookStatic(int param1, int param2, int param3, int param4) {
 
 void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 	ignoreAllCalls = false;
-	endScene.keystrokesProcessed = false;
 	needToCallEndSceneLogic = false;
+	endScene.butDontPrepareBoxData = false;
 	if (freezeGame) {
 		slowmoSkipCounter = 0;
 		if (!allowNextFrame) {
@@ -196,6 +196,7 @@ void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 	}
 	if (ignoreAllCalls) {
 		needToCallEndSceneLogic = true;
+		endScene.butDontPrepareBoxData = true;
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_gameLoopMutex);
@@ -203,9 +204,6 @@ void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 	}
 	if (ignoreAllCalls) {
 		gameLoopHookEmpty();
-		if (!endScene.keystrokesProcessed) {
-			endScene.logic();
-		}
 	}
 }
 
