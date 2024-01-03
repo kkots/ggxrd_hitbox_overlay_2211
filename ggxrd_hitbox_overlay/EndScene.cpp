@@ -325,6 +325,14 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	drawOutlineCallParamsManager.onEndSceneStart();
 	camera.onEndSceneStart();
 
+	{
+		std::unique_lock<std::mutex> specialGuard(graphics.specialScreenshotFlagMutex);
+		if (graphics.specialScreenshotFlag) {
+			graphics.drawDataUse.needTakeScreenshot = true;
+			graphics.specialScreenshotFlag = false;
+		}
+	}
+
 	if (!gifMode.hitboxDisplayDisabled) {
 		if (graphics.drawDataUse.needTakeScreenshot && !settings.dontUseScreenshotTransparency) {
 			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
@@ -338,6 +346,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	} else if (graphics.drawDataUse.needTakeScreenshot) {
 		graphics.takeScreenshotMain(device, true);
 	}
+	graphics.drawDataUse.needTakeScreenshot = false;
 }
 
 void EndScene::processKeyStrokes() {
@@ -464,7 +473,12 @@ void EndScene::processKeyStrokes() {
 	}
 	graphics.drawDataPrepared.needTakeScreenshot = false;
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.screenshotBtn)) {
-		graphics.drawDataPrepared.needTakeScreenshot = true;
+		if (butDontPrepareBoxData) {
+			std::unique_lock<std::mutex> specialGuard(graphics.specialScreenshotFlagMutex);
+			graphics.specialScreenshotFlag = true;
+		} else {
+			graphics.drawDataPrepared.needTakeScreenshot = true;
+		}
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.continuousScreenshotToggle)) {
 		if (continuousScreenshotMode) {

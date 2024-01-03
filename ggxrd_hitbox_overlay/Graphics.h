@@ -51,6 +51,8 @@ public:
 	bool allowedToDrawOutlines = true;
 	bool allowedToUseStencil = true;
 	bool allowedToDrawPoints = true;
+	std::mutex specialScreenshotFlagMutex;
+	bool specialScreenshotFlag = false;
 
 private:
 	struct Vertex {

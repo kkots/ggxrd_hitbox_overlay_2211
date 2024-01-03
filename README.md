@@ -461,3 +461,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2023 December 20: Fixed May's dolphin hurtbox rotation.
 - 2024 January 1: Fixed an issue when boxes weren't frame perfect on very low FPS (caused by excessive logging in debug version).
 - 2024 January 3: Fixed the issue of boxes being 1 frame behind during frame freeze mode + gif mode.
+- 2024 January 3: Fixed the issue of continuous screenshot mode taking screens during frame freeze 60 times per second even if the game is frozen. Fixed the issue of screenshot button not working during frame freeze mode.
