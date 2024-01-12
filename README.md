@@ -463,3 +463,5 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 January 3: Fixed the issue of boxes being 1 frame behind during frame freeze mode + gif mode.
 - 2024 January 3: Fixed the issue of continuous screenshot mode taking screens during frame freeze 60 times per second even if the game is frozen. Fixed the issue of screenshot button not working during frame freeze mode.
 - 2024 January 3: Fixed the issue of boxes being placed wrong during GIF mode + frame freeze on moves that move the character. Fixed boxes displaying during frame freeze even when menu is open.
+- 2024 January 3: Removed Raven's ground command grab hitbox - it does nothing.
+- 2024 January 12: Fixed hitboxes' position not responding to camera movement after using the mod for a while.

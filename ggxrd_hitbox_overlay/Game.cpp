@@ -175,18 +175,30 @@ void Game::gameLoopHookStatic(int param1, int param2, int param3, int param4) {
 }
 
 void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
+	// Approximate order in which things get called:
+	// 1) This hook gets called
+	// 2) The hooked function calls actualGameLoopHook
+	// 3) After actualGameLoopHook ends, updateAnimationsHook gets called many times in one frame
+	// 4) This hook ends
+	// 5) updateAnimationsHook gets called a some more times
+	// 6) sendUnrealPawnDataHook in EndScene.cpp fires off with the one entity that it tracks, and the boxes data gets prepared
+	// 6.5) Meanwhile, in GUI thread, readUnrealPawnDataHook in EndScene.cpp gets called many times to read that data (although we only need one call)
+	// 7) The camera hook gets called which prepares the camera data for this frame. The problem is that some unknown functions send and receive data for it.
+	//    We only know for sure that by the time EndScene is called, the camera data is already transferred to GUI thread.
+
+	// When game pause menu is open, sendUnrealPawnDataHook does not get called, which means the mod can't process hotkeys.
 	ignoreAllCalls = false;
 	needToCallEndSceneLogic = false;
 	endScene.butDontPrepareBoxData = false;
 	camera.butDontPrepareBoxData = false;
-	if (freezeGame) {
+	if (freezeGame && *aswEngine) {
 		slowmoSkipCounter = 0;
 		if (!allowNextFrame) {
 			ignoreAllCalls = true;
 		}
 		allowNextFrame = false;
 	}
-	if (slowmoGame) {
+	if (slowmoGame && *aswEngine) {
 		++slowmoSkipCounter;
 		if ((int)slowmoSkipCounter < settings.slowmoTimes) {
 			ignoreAllCalls = true;

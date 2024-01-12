@@ -123,7 +123,20 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		newValues.id = nextId;
 		newValues.sent = false;
 		std::unique_lock<std::mutex> guard(valuesPrepareMutex);
-		valuesPrepare.push_back(newValues);
+		bool foundOldOne = false;
+		for (auto it = valuesPrepare.begin(); it != valuesPrepare.end(); ++it) {
+			if (it->id == nextId) {
+				*it = newValues;
+				foundOldOne = true;
+				break;
+			}
+		}
+		if (!foundOldOne) {
+			valuesPrepare.push_back(newValues);
+		}
+		if (valuesPrepare.size() > 2) {
+			valuesPrepare.erase(valuesPrepare.begin(), valuesPrepare.begin() + (valuesPrepare.size() - 2));
+		}
 	}
 }
 
