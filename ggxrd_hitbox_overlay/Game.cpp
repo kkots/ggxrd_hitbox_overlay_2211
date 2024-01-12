@@ -153,6 +153,7 @@ void Game::actualGameLoopHook(char* thisArg, int param1) {
 	if (ignoreAllCalls) {
 		return;
 	}
+	endScene.assignNextId();
 	{
 		std::unique_lock<std::mutex> guard(orig_actualGameLoopMutex);
 		orig_actualGameLoop(thisArg, param1);
