@@ -27,15 +27,12 @@ public:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
 	void logic();
-	void assignNextId(bool acquireLock = false);
 	EndScene_t orig_EndScene = nullptr;
 	std::mutex orig_EndSceneMutex;
 	Present_t orig_Present = nullptr;
 	std::mutex orig_PresentMutex;
 	SendUnrealPawnData_t orig_SendUnrealPawnData = nullptr;
 	std::mutex orig_SendUnrealPawnDataMutex;
-	bool orig_SendUnrealPawnDataMutexLocked = false;
-	DWORD orig_SendUnrealPawnDataMutexThreadId = NULL;
 	ReadUnrealPawnData_t orig_ReadUnrealPawnData = nullptr;
 	std::mutex orig_ReadUnrealPawnDataMutex;
 	bool butDontPrepareBoxData = false;

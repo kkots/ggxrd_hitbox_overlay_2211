@@ -134,8 +134,8 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		if (!foundOldOne) {
 			valuesPrepare.push_back(newValues);
 		}
-		if (valuesPrepare.size() > 15) {
-			valuesPrepare.erase(valuesPrepare.begin(), valuesPrepare.begin() + (valuesPrepare.size() - 15));
+		if (valuesPrepare.size() > 2) {
+			valuesPrepare.erase(valuesPrepare.begin(), valuesPrepare.begin() + (valuesPrepare.size() - 2));
 		}
 	}
 }

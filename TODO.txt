@@ -1,6 +1,0 @@
-Obfuscate injector
-Add reflection box for Leo shield parry
-Investigate Baiken pushbox when she does tatami gaeshi in the airs
-Replace isMatchRunning offset with sigscan
-Fix an issue of graphical frames sometimes missing a logical frame (will cause flickering of hitboxes)
-Switch to using vertex buffers instead of DrawPrimitiveUP

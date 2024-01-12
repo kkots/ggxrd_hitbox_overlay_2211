@@ -97,18 +97,8 @@ void EndScene::HookHelp::sendUnrealPawnDataHook() {
 	detouring.markHookRunning("SendUnrealPawnData", true);
 	endScene.sendUnrealPawnDataHook((char*)this);
 	{
-		bool needToUnlock = false;
-		if (!endScene.orig_SendUnrealPawnDataMutexLocked || endScene.orig_SendUnrealPawnDataMutexThreadId != GetCurrentThreadId()) {
-			needToUnlock = true;
-			endScene.orig_SendUnrealPawnDataMutex.lock();
-			endScene.orig_SendUnrealPawnDataMutexLocked = true;
-			endScene.orig_SendUnrealPawnDataMutexThreadId = GetCurrentThreadId();
-		}
+		std::unique_lock<std::mutex> guard(endScene.orig_SendUnrealPawnDataMutex);
 		endScene.orig_SendUnrealPawnData((char*)this);
-		if (needToUnlock) {
-			endScene.orig_SendUnrealPawnDataMutexLocked = false;
-			endScene.orig_SendUnrealPawnDataMutex.unlock();
-		}
 	}
 	detouring.markHookRunning("SendUnrealPawnData", false);
 	--detouring.hooksCounter;
@@ -161,6 +151,13 @@ void EndScene::logic() {
 			hitDetector.clearAllBoxes();
 			throws.clearAllBoxes();
 		}
+
+		if (graphics.drawDataPrepared.id == 0xFFFFFFFF) {
+			graphics.drawDataPrepared.id = 0;
+		} else {
+			++graphics.drawDataPrepared.id;
+		}
+		camera.nextId = graphics.drawDataPrepared.id;
 		// Camera values are updated later, after this, in a updateCameraHook call
 		graphics.drawDataPrepared.empty = false;
 	}
@@ -667,18 +664,4 @@ std::vector<EndScene::HiddenEntity>::iterator EndScene::findHiddenEntity(const E
 		}
 	}
 	return hiddenEntities.end();
-}
-
-void EndScene::assignNextId(bool acquireLock) {
-	std::unique_lock<std::mutex> guard;
-	if (acquireLock) {
-		guard = std::unique_lock<std::mutex>(graphics.drawDataPreparedMutex);
-	}
-	if (graphics.drawDataPrepared.id == 0xFFFFFFFF) {
-		graphics.drawDataPrepared.id = 0;
-	}
-	else {
-		++graphics.drawDataPrepared.id;
-	}
-	camera.nextId = graphics.drawDataPrepared.id;
 }
