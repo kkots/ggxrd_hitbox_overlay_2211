@@ -209,45 +209,43 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		p2PreviousTimeOfTakingScreen = ~0;
 	}
 
-	if (!gifMode.hitboxDisplayDisabled) {
-		for (auto i = 0; i < entityList.count; i++)
-		{
-			Entity ent(entityList.list[i]);
-			if (isEntityAlreadyDrawn(ent)) continue;
+	for (auto i = 0; i < entityList.count; i++)
+	{
+		Entity ent(entityList.list[i]);
+		if (isEntityAlreadyDrawn(ent)) continue;
 
-			bool active = ent.isActive();
-			logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
+		bool active = ent.isActive();
+		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
 
-			if (invisChipp.needToHide(ent)) continue;
-			DrawHitboxArrayCallParams hurtbox;
-			collectHitboxes(ent, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
-			HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
-			if (!wasHitResult.wasHit) {
-				graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
-			}
-			else {
-				graphics.drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
-			}
-			logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
-			drawnEntities.push_back(ent);
-			logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
-
-			// Attached entities like dusts
-			const auto attached = *(char**)(ent + 0x204);
-			if (attached != nullptr) {
-				logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
-				collectHitboxes(attached, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
-				graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
-				drawnEntities.push_back(attached);
-			}
+		if (invisChipp.needToHide(ent)) continue;
+		DrawHitboxArrayCallParams hurtbox;
+		collectHitboxes(ent, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
+		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
+		if (!wasHitResult.wasHit) {
+			graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
 		}
+		else {
+			graphics.drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
+		}
+		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
+		drawnEntities.push_back(ent);
+		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
 
-		logOnce(fputs("got past the entity loop\n", logfile));
-		hitDetector.drawHits();
-		logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
-		throws.drawThrows();
-		logOnce(fputs("throws.drawThrows() call successful\n", logfile));
+		// Attached entities like dusts
+		const auto attached = *(char**)(ent + 0x204);
+		if (attached != nullptr) {
+			logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
+			collectHitboxes(attached, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
+			graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
+			drawnEntities.push_back(attached);
+		}
 	}
+
+	logOnce(fputs("got past the entity loop\n", logfile));
+	hitDetector.drawHits();
+	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
+	throws.drawThrows();
+	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
 
 #ifdef LOG_PATH
 	didWriteOnce = true;

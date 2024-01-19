@@ -466,3 +466,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 January 3: Removed Raven's ground command grab hitbox - it does nothing.
 - 2024 January 12: Fixed hitboxes' position not responding to camera movement after using the mod for a while.
 - 2024 January 13: Fixed hitboxes' position not responding to camera movement in online matches due to rollback. Fixed a crash caused by using hitbox overlay in rollback-affected matches.
+- 2024 January 19: Fixed hitbox display disabling/enabling during frame freeze mode.
