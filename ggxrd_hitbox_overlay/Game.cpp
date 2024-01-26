@@ -187,7 +187,9 @@ void Game::gameLoopHook(int param1, int param2, int param3, int param4) {
 	// 7) The camera hook gets called which prepares the camera data for this frame. The problem is that some unknown functions send and receive data for it.
 	//    We only know for sure that by the time EndScene is called, the camera data is already transferred to GUI thread.
 
-	// When game pause menu is open, sendUnrealPawnDataHook does not get called, which means the mod can't process hotkeys.
+	// In rollback-affected online matches, the camera code runs multiple times per frame, from oldest frame to latest.
+	// However, the pawn data is always sent only once per frame.
+	// When game pause menu is open in single player, sendUnrealPawnDataHook does not get called, which means the mod can't process hotkeys.
 	ignoreAllCalls = false;
 	needToCallEndSceneLogic = false;
 	endScene.butDontPrepareBoxData = false;

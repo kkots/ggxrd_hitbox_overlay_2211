@@ -429,6 +429,16 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("GIF mode (hide opponent only) turned on\n", logfile));
 		}
 	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleHudOnly)) {
+		if (gifMode.gifModeToggleHudOnly == true) {
+			gifMode.gifModeToggleHudOnly = false;
+			logwrap(fputs("GIF mode (hide hud only) turned off\n", logfile));
+		}
+		else if (trainingMode) {
+			gifMode.gifModeToggleHudOnly = true;
+			logwrap(fputs("GIF mode (hide hud only) turned on\n", logfile));
+		}
+	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.noGravityToggle)) {
 		if (gifMode.noGravityOn == true) {
 			gifMode.noGravityOn = false;
@@ -442,8 +452,6 @@ void EndScene::processKeyStrokes() {
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.freezeGameToggle)) {
 		if (freezeGame == true) {
 			freezeGame = false;
-			butDontPrepareBoxData = false;
-			camera.butDontPrepareBoxData = false;
 			logwrap(fputs("Freeze game turned off\n", logfile));
 		}
 		else if (trainingMode) {
@@ -537,10 +545,6 @@ void EndScene::processKeyStrokes() {
 		needContinuouslyTakeScreens = true;
 	}
 	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
-	if (!game.freezeGame) {
-		butDontPrepareBoxData = false;
-		camera.butDontPrepareBoxData = false;
-	}
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		gifMode.noGravityOn = false;
@@ -548,6 +552,7 @@ void EndScene::processKeyStrokes() {
 		gifMode.gifModeToggleBackgroundOnly = false;
 		gifMode.gifModeToggleCameraCenterOnly = false;
 		gifMode.gifModeToggleHideOpponentOnly = false;
+		gifMode.gifModeToggleHudOnly = false;
 		clearContinuousScreenshotMode();
 	}
 	if (needToRunNoGravGifMode) {

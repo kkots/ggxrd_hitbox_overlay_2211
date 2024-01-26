@@ -11,6 +11,7 @@ public:
 	std::atomic_bool gifModeToggleBackgroundOnly{ false };
 	std::atomic_bool gifModeToggleCameraCenterOnly{ false };
 	std::atomic_bool gifModeToggleHideOpponentOnly{ false };
+	std::atomic_bool gifModeToggleHudOnly{ false };
 };
 
 extern GifMode gifMode;

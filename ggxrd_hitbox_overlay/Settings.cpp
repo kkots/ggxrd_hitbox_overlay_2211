@@ -166,6 +166,7 @@ void Settings::readSettings() {
 	insertKeyComboToParse(keyCombosToParse, "gifModeToggleBackgroundOnly", &gifModeToggleBackgroundOnly, "");
 	insertKeyComboToParse(keyCombosToParse, "gifModeToggleCameraCenterOnly", &gifModeToggleCameraCenterOnly, "");
 	insertKeyComboToParse(keyCombosToParse, "gifModeToggleHideOpponentOnly", &gifModeToggleHideOpponentOnly, "");
+	insertKeyComboToParse(keyCombosToParse, "gifModeToggleHudOnly", &gifModeToggleHudOnly, "");
 	
 
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {

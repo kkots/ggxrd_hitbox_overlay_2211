@@ -30,6 +30,7 @@ public:
 	std::vector<int> gifModeToggleBackgroundOnly;
 	std::vector<int> gifModeToggleCameraCenterOnly;
 	std::vector<int> gifModeToggleHideOpponentOnly;
+	std::vector<int> gifModeToggleHudOnly;
 	std::vector<int> screenshotBtn;
 	std:: mutex screenshotPathMutex;
 	std::string screenshotPath;

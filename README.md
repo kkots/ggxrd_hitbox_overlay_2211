@@ -182,18 +182,23 @@ gifModeToggle = F1
 
 ; Only does the "background becomes black" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
-; This option can be combined with the other "only" options
+; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleBackgroundOnly =
 
 ; Only does the "Camera is centered on you" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
-; This option can be combined with the other "only" options
+; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleCameraCenterOnly =
 
 ; Only does the "Opponent is invisible and invulnerable" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
-; This option can be combined with the other "only" options
+; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleHideOpponentOnly =
+
+; Only does the "hide hud" part of the gifModeToggle.
+; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
+; This option can be combined with the other "only" options, by sharing the same key binding for example
+gifModeToggleHudOnly =
 
 ; Toggles No gravity mode
 ; No gravity mode is you can't fall basically
@@ -467,3 +472,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 January 12: Fixed hitboxes' position not responding to camera movement after using the mod for a while.
 - 2024 January 13: Fixed hitboxes' position not responding to camera movement in online matches due to rollback. Fixed a crash caused by using hitbox overlay in rollback-affected matches.
 - 2024 January 19: Fixed hitbox display disabling/enabling during frame freeze mode.
+- 2024 January 26: Added a toggle to hide the hud only/separated hud out of the "GIF mode". Fixed an issue when rapidly freezing/unfreezing the game made the hitboxes desync from the visuals.
