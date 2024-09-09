@@ -6,7 +6,7 @@
 
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
 Also can freeze the game and play it frame-by-frame (with box display turned off for example).  
-Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou).
+Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).
 
 ## Credits
 
@@ -396,15 +396,30 @@ The tools provided in <https://github.com/kkots/GIFTools> allow renumbering PNG 
 
 ## Developing
 
+### How to clone this repo
+
+This git repo has a submodule for `imgui`. To clone this repo you can either follow this guide: <https://git-scm.com/book/en/v2/Git-Tools-Submodules>  
+Or use command:
+
+```bash
+git clone --recurse-submodules https://github.com/kkots/ggxrd_hitbox_overlay_2211.git
+```
+
+This will create a subfolder called `ggxrd_hitbox_overlay_2211` in your current directory, download the mod's files into it, in that folder there will be another folder called `imgui` and that will contain the files for the version of imgui that we use.
+
+### Project structure
+
 There are multiple separate projects in the repository.
 
 The `ggxrd_hitbox_injector` project builds an application that will inject a dll into the process and exit. The main action will then take place in the dll, in the target process' address space.
 
 The `ggxrd_hitbox_overlay` project builds the dll that's responsible for drawing the hitboxes.
 
-The `ggxrd_hitbox_patcher` project is cross-platform for Windows and Ubuntu/Linux and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed because injector doesn't work on Ubuntu/Linux or to make the game always start with the mod on Windows.
+The `ggxrd_hitbox_patcher` project is cross-platform for Windows and Ubuntu/Linux and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed in case injector doesn't work on Ubuntu/Linux (there is a launcher script for it though, try that) or to make the game always start with the mod on Windows.
 
 Each project should have its own separate README.md.
+
+The `imgui` project is a submodule, it's an outside repository that we depend on. Do not modify anything there and try not to update it using git fetch or git pull, unless you're ready to make corresponding changes in our mod.
 
 ## Development dependencies
 
@@ -415,6 +430,8 @@ Dependencies are better described in each project's README.md. Short version is,
 - `d3dx9.h` header file. If you don't have it you can get it from: <https://github.com/apitrace/dxsdk/blob/master/Include/d3dx9.h>
 
 - `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's not included in the mod sources in any way, you must download and build it yourself. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>
+
+- `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game.
 
 ## Changelog
 
