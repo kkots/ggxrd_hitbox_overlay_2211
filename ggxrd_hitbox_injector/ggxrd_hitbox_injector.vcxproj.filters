@@ -30,4 +30,7 @@
   <ItemGroup>
     <None Include="README.md" />
   </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="..\launch_ggxrd_hitbox_injector_linux.sh" />
+  </ItemGroup>
 </Project>

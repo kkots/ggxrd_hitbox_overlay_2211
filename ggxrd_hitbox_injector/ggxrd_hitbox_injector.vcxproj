@@ -134,6 +134,10 @@
     <ClInclude Include="WinError.h" />
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="..\launch_ggxrd_hitbox_injector_linux.sh">
+      <DeploymentContent>true</DeploymentContent>
+      <FileType>Script</FileType>
+    </CopyFileToFolders>
     <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
