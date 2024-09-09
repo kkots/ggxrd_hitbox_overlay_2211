@@ -267,11 +267,10 @@ void Detouring::closeAllThreadHandles() {
 	suspendedThreads.clear();
 }
 
-bool Detouring::someThreadsAreExecutingThisModule() {
+bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 	
-	uintptr_t dllStart;
-	uintptr_t dllEnd;
-	if (!getModuleBounds(DLL_NAME, &dllStart, &dllEnd)) return false;
+	uintptr_t dllStart, dllEnd;
+	if (!getModuleBoundsHandle(hModule, &dllStart, &dllEnd)) return false;
 
 	bool threadEipInThisModule = false;
 

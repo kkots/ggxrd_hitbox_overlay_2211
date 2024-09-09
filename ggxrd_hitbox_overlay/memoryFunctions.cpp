@@ -10,10 +10,28 @@ bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
 	if (module == nullptr)
 		return false;
 
+	return getModuleBoundsHandle(module, start, end);
+}
+
+bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
+{
 	MODULEINFO info;
-	GetModuleInformation(GetCurrentProcess(), module, &info, sizeof(info));
+	if (!GetModuleInformation(GetCurrentProcess(), hModule, &info, sizeof(info))) return false;
 	*start = (uintptr_t)(info.lpBaseOfDll);
 	*end = *start + info.SizeOfImage;
+	const uintptr_t peHeaderStart = *start + *(uintptr_t*)(*start + 0x3C);
+	unsigned short numberOfSections = *(unsigned short*)(peHeaderStart + 0x6);
+	const unsigned short optionalHeaderSize = *(unsigned short*)(peHeaderStart + 0x14);
+	const uintptr_t optionalHeaderStart = peHeaderStart + 0x18;
+	uintptr_t sectionStart = optionalHeaderStart + optionalHeaderSize;
+	for (; numberOfSections != 0; --numberOfSections) {
+		if (strncmp((const char*)(sectionStart), ".text", 8) == 0) {
+			*start = *start + *(unsigned int*)(sectionStart + 12);
+			*end = *start + *(unsigned int*)(sectionStart + 8);
+			break;
+		}
+		sectionStart += 40;
+	}
 	return true;
 }
 

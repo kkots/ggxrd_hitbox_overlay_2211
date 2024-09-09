@@ -33,11 +33,9 @@ void Keyboard::updateKeyStatuses() {
 	const bool windowActive = isWindowActive();
 	for (KeyStatus& status : statuses) {
 		status.gotPressed = false;
-		const bool isPressed = isKeyCodePressed(status.code);
+		const bool isPressed = windowActive && isKeyCodePressed(status.code);
 		if (isPressed && !status.isPressed) {
-			if (windowActive) {
-				status.gotPressed = true;
-			}
+			status.gotPressed = true;
 		}
 		status.isPressed = isPressed;
 	}

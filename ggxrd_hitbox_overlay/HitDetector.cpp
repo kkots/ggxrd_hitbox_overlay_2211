@@ -20,6 +20,7 @@ const int hitboxMinActiveTime = 2;
 bool HitDetector::onDllMain() {
 	bool error = false;
 
+	// ghidra sig: 55 8b ec 83 e4 f8 81 ec 54 02 00 00 a1 ?? ?? ?? ?? 33 c4 89 84 24 50 02 00 00 8b 45 10 53 56 8b 75 08 8b 5e 10 f7 db 57 8b f9 1b db 23 de f6 87 64 04 00 00 02
 	orig_determineHitType = (determineHitType_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\x55\x8b\xec\x83\xe4\xf8\x81\xec\x54\x02\x00\x00\xa1\x00\x00\x00\x00\x33\xc4\x89\x84\x24\x50\x02\x00\x00\x8b\x45\x10\x53\x56\x8b\x75\x08\x8b\x5e\x10\xf7\xdb\x57\x8b\xf9\x1b\xdb\x23\xde\xf6\x87\x64\x04\x00\x00\x02",

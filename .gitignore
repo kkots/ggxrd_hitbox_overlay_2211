@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/raven grab hitbox meaningless1.jpg
+/raven grab hitbox meaningless2.jpg
+/TODO.txt

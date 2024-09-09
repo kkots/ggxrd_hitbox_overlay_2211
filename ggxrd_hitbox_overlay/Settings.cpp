@@ -337,7 +337,7 @@ bool Settings::parseKeys(const char* keyName, const std::string& keyValue, std::
 			if (found != keys.end()) {
 				keyCodes.push_back(found->second.code);
 			} else {
-				logwrap(fprintf(logfile, "Key combo parsing error: key not found %s\n", str));
+				logwrap(fprintf(logfile, "Key combo parsing error: key not found %s\n", str.c_str()));
 				return false;
 			}
 		}

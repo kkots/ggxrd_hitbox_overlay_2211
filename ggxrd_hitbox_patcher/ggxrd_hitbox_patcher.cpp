@@ -564,7 +564,7 @@ void meatOfTheProgram() {
     size_t relocSize = 0;
     fread(&relocSize, 4, 1, file);
     fseek(file, -4, SEEK_CUR);
-    size_t newRelocSize = relocSize + 12;  // we'll insert to relocation table one block for the PUSH string and the LoadLibraryA call
+    size_t newRelocSize = relocSize + 12;  // into the relocation table we'll insert both the PUSH string and the LoadLibraryA call into a single block
     fwrite(&newRelocSize, 4, 1, file);
 
     uintptr_t relocInFile = rvaToRaw(sections, relocRva) + relocSize;

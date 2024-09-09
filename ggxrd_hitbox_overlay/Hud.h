@@ -1,7 +1,7 @@
 #pragma once
 #include <mutex>
 
-using updateHud_t = void(__thiscall*)(char* thisArg);
+using REDHUDBattleUpdateAll_t = void(__thiscall*)(char* thisArg);
 
 class Hud
 {
@@ -11,13 +11,13 @@ public:
 private:
 	class HookHelp {
 		friend class Hud;
-		void updateHudHook();
+		void REDHUDBattleUpdateAllHook();
 	};
-	void updateHudHook(char* thisArg);
+	void REDHUDBattleUpdateAllHook(char* thisArg);
 	void changeHudVisibility(bool isVisible);
 	char* hudPtr = nullptr;
-	updateHud_t orig_updateHud;
-	std::mutex orig_updateHudMutex;
+	REDHUDBattleUpdateAll_t orig_REDHUDBattleUpdateAll;
+	std::mutex orig_REDHUDBattleUpdateAllMutex;
 };
 
 extern Hud hud;

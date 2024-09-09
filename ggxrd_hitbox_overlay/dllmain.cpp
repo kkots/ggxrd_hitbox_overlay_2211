@@ -15,8 +15,8 @@
 #include "Keyboard.h"
 #include "Hud.h"
 #include "memoryFunctions.h"
-
-const char * DLL_NAME = "ggxrd_hitbox_overlay.dll";
+#include <io.h>     // for _open_osfhandle
+#include <fcntl.h>  // for _O_APPEND
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -25,25 +25,22 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 {
     switch (ul_reason_for_call)
     {
-    case DLL_PROCESS_ATTACH:
-        #ifdef LOG_PATH
+    case DLL_PROCESS_ATTACH: {
+#ifdef LOG_PATH
         {
-            errno_t err;
-            err = _wfopen_s(&logfile, LOG_PATH, L"wt");
-            if (err != 0 || logfile == NULL) {
-                return FALSE;
-            }
-            fputs("DllMain called with fdwReason DLL_PROCESS_ATTACH\n", logfile);
-            fclose(logfile);
-        }
-        #endif
-
-        uintptr_t start;
-        uintptr_t end;
-        if (!getModuleBounds(DLL_NAME, &start, &end) || !start || !end) {
-            logwrap(fputs("Note to developer: make sure to specify DLL_NAME char * constant correctly in dllmain.cpp\n", logfile));
-            return FALSE;
-        }
+            HANDLE fileHandle = CreateFileW(
+				LOG_PATH,
+				GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
+				FILE_ATTRIBUTE_NORMAL, NULL);
+			if (fileHandle == INVALID_HANDLE_VALUE) {
+				return FALSE;
+			}
+			int fileDesc = _open_osfhandle((intptr_t)fileHandle, _O_APPEND | _O_TEXT);
+			logfile = _fdopen(fileDesc, "at");
+			fputs("DllMain called with fdwReason DLL_PROCESS_ATTACH\n", logfile);
+			fflush(logfile);
+		}
+#endif
 
         if (!detouring.beginTransaction()) break;
         if (!settings.onDllMain()) break;
@@ -60,6 +57,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!hud.onDllMain()) break;
         if (!detouring.endTransaction()) break;
         break;
+    }
     case DLL_THREAD_ATTACH:
         break;
     case DLL_THREAD_DETACH:
@@ -70,7 +68,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
         detouring.detachAll();
         Sleep(100);
-        while (detouring.someThreadsAreExecutingThisModule()) Sleep(100);
+        while (detouring.someThreadsAreExecutingThisModule(hModule)) Sleep(100);
 
         graphics.onUnload();  // here's how we cope with this being unsafe: between unhooking all functions
         // and this line of code we may miss an IDirect3DDevice9::Reset() call, in which we have to null the stencil
@@ -84,5 +82,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         break;
     }
     detouring.cancelTransaction();
+#ifdef LOG_PATH
+    if (ul_reason_for_call == DLL_PROCESS_DETACH && logfile) {
+        fflush(logfile);
+        fclose(logfile);
+        logfile = NULL;
+    }
+#endif
     return TRUE;
 }

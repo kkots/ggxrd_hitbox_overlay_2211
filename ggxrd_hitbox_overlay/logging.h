@@ -16,12 +16,8 @@ extern std::mutex logfileMutex;
 #define logwrap(things) \
 { \
 	std::unique_lock<std::mutex> logfileGuard(logfileMutex); \
-	errno_t err = _wfopen_s(&logfile, LOG_PATH, L"at+"); \
-	if (err == 0 && logfile) { \
-		things; \
-		fclose(logfile); \
-	} \
-	logfile = NULL; \
+	things; \
+	fflush(logfile); \
 }
 
 extern bool didWriteOnce;
@@ -29,12 +25,8 @@ extern int msgLimit;
 #define logOnce(things) { \
 	std::unique_lock<std::mutex> logfileGuard(logfileMutex); \
 	if (msgLimit>=0 && !didWriteOnce) { \
-		errno_t err = _wfopen_s(&logfile, LOG_PATH, L"at+"); \
-		if (err == 0 && logfile) { \
-			things; \
-			fclose(logfile); \
-		} \
-		logfile = NULL; \
+		things; \
+		fflush(logfile); \
 	} \
 	msgLimit--; \
 }

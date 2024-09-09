@@ -2,6 +2,7 @@
 #include <vector>
 
 bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end);
+bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end);
 
 uintptr_t sigscan(const char* name, const char* sig, size_t sigLength);
 

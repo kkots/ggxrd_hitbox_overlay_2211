@@ -6,6 +6,7 @@
 Direct3DVTable direct3DVTable;
 
 bool Direct3DVTable::onDllMain() {
+	// ghidra sig: C7 06 ?? ?? ?? ?? 89 86 ?? ?? ?? ?? 89 86
 	vTableAddr = (char**)sigscanOffset("d3d9.dll",
 		"\xC7\x06\x00\x00\x00\x00\x89\x86\x00\x00\x00\x00\x89\x86",
 		"xx????xx????xx",
@@ -17,6 +18,7 @@ bool Direct3DVTable::onDllMain() {
 	// luckily the game has a variable where it stores an IDirect3DDevice9*
 
 	// Big thanks to WorseThanYou for finding this variable
+	// ghidra sig: e8 ?? ?? ?? ?? 89 3d ?? ?? ?? ?? 33 c9 a3 ?? ?? ?? ?? 8b 44 24 20 c7 44 24 40 ff ff ff ff 89 4c 24 28
 	char** d3dManager = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\xe8\x00\x00\x00\x00\x89\x3d\x00\x00\x00\x00\x33\xc9\xa3\x00\x00\x00\x00\x8b\x44\x24\x20\xc7\x44\x24\x40\xff\xff\xff\xff\x89\x4c\x24\x28",

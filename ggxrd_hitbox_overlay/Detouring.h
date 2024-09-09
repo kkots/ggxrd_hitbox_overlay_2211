@@ -18,7 +18,7 @@ public:
 	bool cancelTransaction();
 	void detachAll();
 	void detachAllButThese(const std::vector<PVOID>& dontDetachThese = std::vector<PVOID>{});
-	bool someThreadsAreExecutingThisModule();
+	bool someThreadsAreExecutingThisModule(HMODULE hModule);
 	void markHookRunning(std::string name, bool running);
 	DWORD dllMainThreadId = 0;
 	std::atomic_int hooksCounter{0};
@@ -75,4 +75,3 @@ private:
 };
 
 extern Detouring detouring;
-extern const char * DLL_NAME;

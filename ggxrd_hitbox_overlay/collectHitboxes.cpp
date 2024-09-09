@@ -102,7 +102,9 @@ void collectHitboxes(const Entity& ent,
 		if (state.charType == CHARACTER_TYPE_POTEMKIN
 				&& strcmp(ent.animationName(), "PotemkinBuster") == 0
 				|| state.charType == CHARACTER_TYPE_RAVEN
-				&& strcmp(ent.animationName(), "CommandThrowEx") == 0) {
+				&& strcmp(ent.animationName(), "CommandThrowEx") == 0
+				|| state.charType == CHARACTER_TYPE_RAMLETHAL
+				&& strcmp(ent.animationName(), "CommandThrow") == 0) {
 			includeTheseHitboxes = false;
 		}
 	}

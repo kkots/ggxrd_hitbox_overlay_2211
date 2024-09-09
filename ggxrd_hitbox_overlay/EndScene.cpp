@@ -41,6 +41,8 @@ bool EndScene::onDllMain() {
 		&orig_EndSceneMutex,
 		"EndScene")) return false;
 
+	// SendUnrealPawnData is USkeletalMeshComponent::UpdateTransform()
+	// ghidra sig: 8b 0d ?? ?? ?? ?? 33 db 53 e8 ?? ?? ?? ?? f3 0f 10 80 24 04 00 00 f3 0f 5c 05 ?? ?? ?? ?? f3 0f 10 8e d0 01 00 00 0f 2f c8 76 05 8d 43 01 eb 02
 	orig_SendUnrealPawnData = (SendUnrealPawnData_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\x8b\x0d\x00\x00\x00\x00\x33\xdb\x53\xe8\x00\x00\x00\x00\xf3\x0f\x10\x80\x24\x04\x00\x00\xf3\x0f\x5c\x05\x00\x00\x00\x00\xf3\x0f\x10\x8e\xd0\x01\x00\x00\x0f\x2f\xc8\x76\x05\x8d\x43\x01\xeb\x02",
@@ -56,6 +58,7 @@ bool EndScene::onDllMain() {
 			"SendUnrealPawnData")) return false;
 	}
 
+	// ghidra sig: 8b f1 8b 0e e8 ?? ?? ?? ?? 8b 06 8b 48 04 89 44 24 04 85 c9 74 1e 83 78 08 00 74 18 f6 81 84 00 00 00 20
 	orig_ReadUnrealPawnData = (ReadUnrealPawnData_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\x8b\xf1\x8b\x0e\xe8\x00\x00\x00\x00\x8b\x06\x8b\x48\x04\x89\x44\x24\x04\x85\xc9\x74\x1e\x83\x78\x08\x00\x74\x18\xf6\x81\x84\x00\x00\x00\x20",
@@ -104,7 +107,7 @@ void EndScene::HookHelp::sendUnrealPawnDataHook() {
 			endScene.orig_SendUnrealPawnDataMutexLocked = true;
 			endScene.orig_SendUnrealPawnDataMutexThreadId = GetCurrentThreadId();
 		}
-		endScene.orig_SendUnrealPawnData((char*)this);
+		endScene.orig_SendUnrealPawnData((char*)this);  // this method likes to call itself
 		if (needToUnlock) {
 			endScene.orig_SendUnrealPawnDataMutexLocked = false;
 			endScene.orig_SendUnrealPawnDataMutex.unlock();
@@ -129,6 +132,7 @@ void EndScene::sendUnrealPawnDataHook(char* thisArg) {
 	if (*aswEngine == nullptr) return;
 	entityList.populate();
 	if (entityList.count < 1) return;
+	// the thing at 0x27a8 is a REDPawn_Player, and the thing at 0x384 is a SkeletalMeshComponent
 	if (*(char**)(*(char**)(entityList.slots[0] + 0x27a8) + 0x384) != thisArg) return;
 	endScene.logic();
 }
@@ -581,7 +585,7 @@ void EndScene::noGravGifMode() {
 				const int currentScaleX = *(int*)(ent + 0x264);
 				const int currentScaleY = *(int*)(ent + 0x268);
 				const int currentScaleZ = *(int*)(ent + 0x26C);
-				const int currentScaleDefault = *(int*)(ent + 0x2594);
+				const int currentScaleDefault = *(int*)(ent + 0x2594);  // 0x2664 is another default scaling
 
 				auto found = findHiddenEntity(ent);
 				if (found == hiddenEntities.end()) {
@@ -613,6 +617,7 @@ void EndScene::noGravGifMode() {
 				*(int*)(ent + 0x268) = 0;
 				*(int*)(ent + 0x26C) = 0;
 				*(int*)(ent + 0x2594) = 0;
+				*(int*)(ent + 0x2664) = 0;
 			}
 		}
 		auto it = hiddenEntities.begin();
@@ -645,6 +650,7 @@ void EndScene::noGravGifMode() {
 				}
 				if (currentScaleDefault == 0) {
 					*(int*)(ent + 0x2594) = found->scaleDefault;
+					*(int*)(ent + 0x2664) = found->scaleDefault;
 				}
 			}
 		}

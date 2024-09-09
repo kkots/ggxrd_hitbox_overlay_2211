@@ -16,12 +16,14 @@ Throws throws;
 bool Throws::onDllMain() {
 	bool error = false;
 
+	// ghidra sig: 83 ec 50 a1 ?? ?? ?? ?? 33 c4 89 44 24 4c 53 55 8b d9 56 57 8d 83 10 98 16 00 8d 54 24 1c 33 ed 89 44 24 10
 #ifndef USE_ANOTHER_HOOK
 	orig_hitDetectionMain = (hitDetectionMain_t)sigscanOffset("GuiltyGearXrd.exe",
 		"\x83\xec\x50\xa1\x00\x00\x00\x00\x33\xc4\x89\x44\x24\x4c\x53\x55\x8b\xd9\x56\x57\x8d\x83\x10\x98\x16\x00\x8d\x54\x24\x1c\x33\xed\x89\x44\x24\x10",
 		"xxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 		&error, "hitDetectionMain");
 #else
+	// ghidra sig: 51 53 8b 5c 24 0c 55 8b 6b 10 f7 dd 56 1b ed 23 eb 53 8b f1 89 6c 24 10 e8 ?? ?? ?? ?? 85 c0 74 09
 	orig_hitDetectionMain = (hitDetectionMain_t)sigscanOffset("GuiltyGearXrd.exe",
 		"\x51\x53\x8b\x5c\x24\x0c\x55\x8b\x6b\x10\xf7\xdd\x56\x1b\xed\x23\xeb\x53\x8b\xf1\x89\x6c\x24\x10\xe8\x00\x00\x00\x00\x85\xc0\x74\x09",
 		"xxxxxxxxxxxxxxxxxxxxxxxxx????xxxx",
