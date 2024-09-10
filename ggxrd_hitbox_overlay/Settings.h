@@ -5,8 +5,6 @@
 #include <mutex>
 #include <atomic>
 
-BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam);
-
 class Settings
 {
 public:

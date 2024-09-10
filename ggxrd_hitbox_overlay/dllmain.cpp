@@ -17,7 +17,7 @@
 #include "memoryFunctions.h"
 #include <io.h>     // for _open_osfhandle
 #include <fcntl.h>  // for _O_APPEND
-#include "..\imgui\imgui.h"
+#include "imgui.h"
 
 static void closeLog();
 
@@ -55,12 +55,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!camera.onDllMain()) break;
         if (!entityManager.onDllMain()) break;
         if (!direct3DVTable.onDllMain()) break;
+        if (!keyboard.onDllMain()) break;
         if (!endScene.onDllMain()) break;
         if (!hitDetector.onDllMain()) break;
         if (!graphics.onDllMain()) break;
         if (!altModes.onDllMain()) break;
         if (!throws.onDllMain()) break;
-        if (!keyboard.onDllMain()) break;
         if (!hud.onDllMain()) break;
         if (!detouring.endTransaction()) break;
         break;
@@ -89,13 +89,15 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         break;
     }
     detouring.cancelTransaction();
-    closeLog();
+    if (ul_reason_for_call == DLL_PROCESS_DETACH) {
+    	closeLog();
+    }
     return TRUE;
 }
 
 void closeLog() {
 #ifdef LOG_PATH
-    if (ul_reason_for_call == DLL_PROCESS_DETACH && logfile) {
+    if (logfile) {
         fflush(logfile);
         fclose(logfile);
         logfile = NULL;

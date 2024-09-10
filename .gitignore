@@ -21,6 +21,8 @@ mono_crash.*
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+Release Library/
+Debug Library/
 x64/
 x86/
 [Ww][Ii][Nn]32/
@@ -399,6 +401,3 @@ FodyWeavers.xsd
 /raven grab hitbox meaningless1.jpg
 /raven grab hitbox meaningless2.jpg
 /TODO.txt
-/Debug Library
-/libpng/projects/vstudio/libpng/Debug Library
-/libpng/projects/vstudio/zlib/Debug Library/zlib.lib.recipe

@@ -2,14 +2,12 @@
 #include <vector>
 #include <mutex>
 
-BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam);
-
 class Keyboard
 {
 public:
 	bool onDllMain();
 	DWORD thisProcessId = 0;
-	HWND thisProcessWindow = NULL;
+	HWND thisProcessWindow = NULL;  // only set this once and never update it. Don't worry the window won't go anywhere
 	void updateKeyStatuses();
 	bool gotPressed(const std::vector<int>& keyCodes);
 	bool isHeld(const std::vector<int>& keyCodes);

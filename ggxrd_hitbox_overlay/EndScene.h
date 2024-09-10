@@ -14,6 +14,7 @@ using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device);
 HRESULT __stdcall hook_Present(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
+LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 class EndScene
 {
@@ -22,6 +23,7 @@ public:
 	bool onDllDetach();
 	HRESULT presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 	void endSceneHook(IDirect3DDevice9* device);
+	LRESULT WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void setPresentFlag();
 	bool consumePresentFlag();
 	void processKeyStrokes();
@@ -40,6 +42,10 @@ public:
 	DWORD orig_SendUnrealPawnDataMutexThreadId = NULL;
 	ReadUnrealPawnData_t orig_ReadUnrealPawnData = nullptr;
 	std::mutex orig_ReadUnrealPawnDataMutex;
+	WNDPROC orig_WndProc = nullptr;
+	std::mutex orig_WndProcMutex;
+	bool orig_WndProcMutexLockedByWndProc = false;
+	DWORD wndProcThread = 0;
 	bool butDontPrepareBoxData = false;
 private:
 	class HookHelp {

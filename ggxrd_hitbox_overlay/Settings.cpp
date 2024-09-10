@@ -88,7 +88,7 @@ bool Settings::onDllMain() {
 		FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE); // watch file name changes and last write date changes
 	if (directoryChangeHandle == INVALID_HANDLE_VALUE || !directoryChangeHandle) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "FindFirstChangeNotificationW failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "FindFirstChangeNotificationW failed: %ls\n", winErr.getMessage()));
 		directoryChangeHandle = NULL;
 	}
 
@@ -124,7 +124,7 @@ void Settings::readSettingsIfChanged() {
 		}
 		if (!FindNextChangeNotification(directoryChangeHandle)) {
 			WinError winErr;
-			logwrap(fprintf(logfile, "FindNextChangeNotification failed: %s\n", winErr.getMessage()));
+			logwrap(fprintf(logfile, "FindNextChangeNotification failed: %ls\n", winErr.getMessage()));
 			FindCloseChangeNotification(directoryChangeHandle);
 			directoryChangeHandle = NULL;
 			return;
@@ -417,14 +417,14 @@ std::wstring Settings::getCurrentDirectory() {
 	DWORD requiredSize = GetCurrentDirectoryW(0, NULL);
 	if (!requiredSize) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "GetCurrentDirectoryW failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "GetCurrentDirectoryW failed: %ls\n", winErr.getMessage()));
 		return std::wstring{};
 	}
 	std::wstring currentDir;
 	currentDir.resize(requiredSize - 1);
 	if (!GetCurrentDirectoryW(currentDir.size() + 1, &currentDir.front())) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "GetCurrentDirectoryW (second call) failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "GetCurrentDirectoryW (second call) failed: %ls\n", winErr.getMessage()));
 		return std::wstring{};
 	}
 	return currentDir;
@@ -434,7 +434,7 @@ bool Settings::getLastWriteTime(const std::wstring& path, FILETIME* fileTime) {
 	HANDLE hFile = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (!hFile || hFile == INVALID_HANDLE_VALUE) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "CreateFileW failed: %s. %.8x\n", winErr.getMessage(), winErr.code));;
+		logwrap(fprintf(logfile, "CreateFileW failed: %ls. %.8x\n", winErr.getMessage(), winErr.code));;
 		return false;
 	}
 	FILETIME creationTime{ 0 };
@@ -442,7 +442,7 @@ bool Settings::getLastWriteTime(const std::wstring& path, FILETIME* fileTime) {
 	FILETIME lastWriteTime{ 0 };
 	if (!GetFileTime(hFile, &creationTime, &lastAccessTime, &lastWriteTime)) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "GetFileTime failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "GetFileTime failed: %ls\n", winErr.getMessage()));
 		CloseHandle(hFile);
 		return false;
 	}

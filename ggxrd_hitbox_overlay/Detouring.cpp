@@ -6,11 +6,6 @@
 #include "memoryFunctions.h"
 #ifdef LOG_PATH
 #include "WinError.h"
-#ifdef UNICODE
-#define PRINTF_STRING_ARG "%ls"
-#else
-#define PRINTF_STRING_ARG "%s"
-#endif
 #endif
 
 Detouring detouring;
@@ -28,7 +23,7 @@ bool Detouring::enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callbac
 	if (!hSnapshot || hSnapshot == INVALID_HANDLE_VALUE) {
 		#ifdef LOG_PATH
 		WinError winErr;
-		logwrap(fprintf(logfile, "Error in CreateToolhelp32Snapshot: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "Error in CreateToolhelp32Snapshot: %ls\n", winErr.getMessage()));
 		#endif
 		return false;
 	}
@@ -37,7 +32,7 @@ bool Detouring::enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callbac
 	if (!Thread32First(hSnapshot, &th32)) {
 		#ifdef LOG_PATH
 		WinError winErr;
-		logwrap(fprintf(logfile, "Error in Thread32First: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "Error in Thread32First: %ls\n", winErr.getMessage()));
 		#endif
 		CloseHandle(hSnapshot);
 		return false;
@@ -56,7 +51,7 @@ bool Detouring::enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callbac
 			#ifdef LOG_PATH
 			WinError winErr;
 			if (winErr.code != ERROR_NO_MORE_FILES) {
-				logwrap(fprintf(logfile, "Error in Thread32Next: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+				logwrap(fprintf(logfile, "Error in Thread32Next: %ls\n", winErr.getMessage()));
 			}
 			#endif
 			break;
@@ -126,6 +121,22 @@ void Detouring::printDetourTransactionCommitError(LONG err) {
 
 void Detouring::detachAll() {
 	detachAllButThese();
+	
+	for (const WndProcToUnhookAtTheEnd& thing : wndProcsToUnhookAtTheEnd) {
+		std::unique_lock<std::mutex> wndProcGuard = std::unique_lock<std::mutex>(*thing.mutex);
+		SetWindowLongPtrW(thing.window, GWLP_WNDPROC, (LONG_PTR)thing.oldWndProc);
+		// this is still not perfectly thread safe.
+		// If with detour-hooking functions usually jump into the function through a CALL,
+		// and end up executing either our instructions or original instructions,
+		// (depending on whether we unhooked yet),
+		// with WndProc some Windows code could obtain the pointer to the hook function,
+		// then we freeze all threads, see that no one is running our hook (yet, but
+		// it about to, as soon as we unfreeze), happily unhook, unfreeze and unload DLL,
+		// and then they call our no longer existing hook through a stale pointer they have.
+		// A safer option would be to detour WndProc instead of swapping the pointer but it's
+		// more ugly.
+	}
+	wndProcsToUnhookAtTheEnd.clear();
 }
 
 void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
@@ -205,7 +216,7 @@ bool Detouring::beginTransaction() {
 		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
 			#ifdef LOG_PATH
 			WinError winErr;
-			logwrap(fprintf(logfile, "Error in OpenThread: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+			logwrap(fprintf(logfile, "Error in OpenThread: %ls\n", winErr.getMessage()));
 			#endif
 		}
 		else {
@@ -281,7 +292,7 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
 #ifdef LOG_PATH
 			WinError winErr;
-			logwrap(fprintf(logfile, "Error in OpenThread: " PRINTF_STRING_ARG "\n", winErr.getMessage()));
+			logwrap(fprintf(logfile, "Error in OpenThread: %ls\n", winErr.getMessage()));
 #endif
 		}
 		else {

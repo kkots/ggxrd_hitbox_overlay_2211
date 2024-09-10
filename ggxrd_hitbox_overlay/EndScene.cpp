@@ -19,9 +19,12 @@
 #include "Keyboard.h"
 #include "GifMode.h"
 #include "memoryFunctions.h"
-#include "..\imgui\imgui.h"
-#include "..\imgui\backends\imgui_impl_dx9.h"
-#include "..\imgui\backends\imgui_impl_win32.h"
+#include "imgui.h"
+#include "imgui_impl_dx9.h"
+#include "imgui_impl_win32.h"
+#include "WinError.h"
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 EndScene endScene;
 
@@ -31,7 +34,21 @@ bool EndScene::onDllMain() {
 	char** d3dvtbl = direct3DVTable.getDirect3DVTable();
 	orig_EndScene = (EndScene_t)d3dvtbl[42];
 	orig_Present = (Present_t)d3dvtbl[17];
-
+	
+	SetLastError(0);
+	orig_WndProc = (WNDPROC)SetWindowLongPtrW(keyboard.thisProcessWindow, GWLP_WNDPROC, (LONG_PTR)hook_WndProc);
+	logwrap(fprintf(logfile, "orig_WndProc: %p\n", orig_WndProc));
+	if (!orig_WndProc && GetLastError()) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "Failed to hook WndProc: %ls\n", winErr.getMessage()));
+		return false;
+	}
+	detouring.wndProcsToUnhookAtTheEnd.emplace_back();
+	Detouring::WndProcToUnhookAtTheEnd& wndProcThing = detouring.wndProcsToUnhookAtTheEnd.back();
+	wndProcThing.mutex = &orig_WndProcMutex;
+	wndProcThing.oldWndProc = orig_WndProc;
+	wndProcThing.window = keyboard.thisProcessWindow;
+	
 	// there will actually be a deadlock during DLL unloading if we don't put Present first and EndScene second
 
 	if (!detouring.attach(&(PVOID&)(orig_Present),
@@ -94,6 +111,7 @@ bool EndScene::onDllDetach() {
 			noGravGifMode();
 		}
 	}
+	
 	destroyImgui();
 	return true;
 }
@@ -389,7 +407,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	}
 	graphics.drawDataUse.needTakeScreenshot = false;
 	
-	imguiEndScene();
+	imguiEndScene(device);
 }
 
 void EndScene::imguiEndScene(IDirect3DDevice9* device) {
@@ -740,4 +758,31 @@ void EndScene::assignNextId(bool acquireLock) {
 		++graphics.drawDataPrepared.id;
 	}
 	camera.nextId = graphics.drawDataPrepared.id;
+}
+
+LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	return endScene.WndProcHook(hWnd, message, wParam, lParam);
+}
+
+LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	++detouring.hooksCounter;
+	if (imguiInitialized && ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)) {
+		--detouring.hooksCounter;
+		return TRUE;
+	}
+	
+	bool iLockedTheMutex = false;
+	if (!orig_WndProcMutexLockedByWndProc) {
+		orig_WndProcMutex.lock();
+		orig_WndProcMutexLockedByWndProc = true;
+		wndProcThread = GetCurrentThreadId();
+		iLockedTheMutex = true;
+	}
+	LRESULT result = orig_WndProc(hWnd, message, wParam, lParam);
+	if (iLockedTheMutex) {
+		orig_WndProcMutex.unlock();
+		orig_WndProcMutexLockedByWndProc = false;
+	}
+	--detouring.hooksCounter;
+	return result;
 }
