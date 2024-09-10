@@ -17,6 +17,9 @@
 #include "memoryFunctions.h"
 #include <io.h>     // for _open_osfhandle
 #include <fcntl.h>  // for _O_APPEND
+#include "..\imgui\imgui.h"
+
+static void closeLog();
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -41,7 +44,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			fflush(logfile);
 		}
 #endif
-
+		if (!IMGUI_CHECKVERSION()) {
+			logwrap(fputs("IMGUI_CHECKVERSION() returned false\n", logfile));
+			closeLog();
+			return FALSE;
+		}
         if (!detouring.beginTransaction()) break;
         if (!settings.onDllMain()) break;
         if (!game.onDllMain()) break;
@@ -82,6 +89,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         break;
     }
     detouring.cancelTransaction();
+    closeLog();
+    return TRUE;
+}
+
+void closeLog() {
 #ifdef LOG_PATH
     if (ul_reason_for_call == DLL_PROCESS_DETACH && logfile) {
         fflush(logfile);
@@ -89,5 +101,4 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         logfile = NULL;
     }
 #endif
-    return TRUE;
 }

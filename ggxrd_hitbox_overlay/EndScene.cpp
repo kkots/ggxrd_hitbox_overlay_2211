@@ -19,6 +19,9 @@
 #include "Keyboard.h"
 #include "GifMode.h"
 #include "memoryFunctions.h"
+#include "..\imgui\imgui.h"
+#include "..\imgui\backends\imgui_impl_dx9.h"
+#include "..\imgui\backends\imgui_impl_win32.h"
 
 EndScene endScene;
 
@@ -91,6 +94,7 @@ bool EndScene::onDllDetach() {
 			noGravGifMode();
 		}
 	}
+	destroyImgui();
 	return true;
 }
 
@@ -384,6 +388,52 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		graphics.takeScreenshotMain(device, true);
 	}
 	graphics.drawDataUse.needTakeScreenshot = false;
+	
+	imguiEndScene();
+}
+
+void EndScene::imguiEndScene(IDirect3DDevice9* device) {
+	if (!imguiInitialized) initializeImgui(device);
+	
+	ImGui_ImplDX9_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+	ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+	ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+	ImGui::Checkbox("Demo Window", &checkbox1);      // Edit bools storing our window open/close state
+	ImGui::Checkbox("Another Window", &checkbox2);
+	ImGui::End();
+	ImGui::EndFrame();
+	device->SetRenderState(D3DRS_ZENABLE, FALSE);
+	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+	device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+	ImGui::Render();
+	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+}
+
+void EndScene::initializeImgui(IDirect3DDevice9* device) {
+	if (imguiInitialized) return;
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
+	ImGui_ImplDX9_Init(device);
+	imguiInitialized = true;
+}
+
+void EndScene::destroyImgui() {
+	if (!imguiInitialized) return;
+    ImGui_ImplDX9_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+    imguiInitialized = false;
+}
+
+void EndScene::imguiHandleResetBefore() {
+    ImGui_ImplDX9_InvalidateDeviceObjects();
+}
+
+void EndScene::imguiHandleResetAfter() {
+    ImGui_ImplDX9_CreateDeviceObjects();
 }
 
 void EndScene::processKeyStrokes() {

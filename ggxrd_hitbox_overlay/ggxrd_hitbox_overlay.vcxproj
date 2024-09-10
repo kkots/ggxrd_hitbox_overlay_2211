@@ -71,12 +71,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>D:\source\repos\dxsdk-master\Include;D:\source\repos\Detours-main\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\source\repos\Detours-main\lib.X86;$(LibraryPath)</LibraryPath>
+    <IncludePath>..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
+    <LibraryPath>..\Detours\lib.X86;..\libpng\projects\vstudio\Release Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>D:\source\repos\dxsdk-master\Include;D:\source\repos\Detours-main\include;D:\source\repos\libpng-libpng16;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\source\repos\Detours-main\lib.X86;D:\source\repos\libpng-libpng16\projects\vstudio\Release Library;$(LibraryPath)</LibraryPath>
+    <IncludePath>..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
+    <LibraryPath>..\Detours\lib.X86;..\libpng\projects\vstudio\Release Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -91,7 +91,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>detours.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -226,6 +226,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Detours\vc\Detours.vcxproj">
+      <Project>{37489709-8054-4903-9c49-a79846049fc9}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

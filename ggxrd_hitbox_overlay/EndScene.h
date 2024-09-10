@@ -28,6 +28,8 @@ public:
 	void clearContinuousScreenshotMode();
 	void logic();
 	void assignNextId(bool acquireLock = false);
+	void imguiHandleResetBefore();
+	void imguiHandleResetAfter();
 	EndScene_t orig_EndScene = nullptr;
 	std::mutex orig_EndSceneMutex;
 	Present_t orig_Present = nullptr;
@@ -59,6 +61,9 @@ private:
 	bool isEntityAlreadyDrawn(const Entity& ent) const;
 	void noGravGifMode();
 	std::vector<HiddenEntity>::iterator findHiddenEntity(const Entity& ent);
+	void initializeImgui(IDirect3DDevice9* device);
+	void destroyImgui();
+	void imguiEndScene(IDirect3DDevice9* device);
 	bool needToTakeScreenshot = false;
 
 	// The EndScene function is actually being called twice: once by GuiltyGear and one more time by the Steam overlay.
@@ -76,6 +81,10 @@ private:
 	bool needContinuouslyTakeScreens = false;
 	unsigned int p1PreviousTimeOfTakingScreen = ~0;
 	unsigned int p2PreviousTimeOfTakingScreen = ~0;
+	
+	bool imguiInitialized = false;
+	bool checkbox1 = false;
+	bool checkbox2 = false;
 };
 
 extern EndScene endScene;
