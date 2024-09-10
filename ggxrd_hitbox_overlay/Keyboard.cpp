@@ -10,7 +10,7 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 	DWORD windsThreadId = GetWindowThreadProcessId(hwnd, &windsProcId);
 	if (windsProcId == keyboard.thisProcessId) {
 		char className[1024] = "";
-		GetClassName(hwnd, className, _countof(className));
+		GetClassNameA(hwnd, className, _countof(className));
 		// we got multiple windows on Linux, need to disambiguate
 		if (strcmp(className, "LaunchUnrealUWindowsClient") == 0) {
 			keyboard.thisProcessWindow = hwnd;

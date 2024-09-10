@@ -6,7 +6,7 @@
 
 bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
 {
-	const auto module = GetModuleHandle(name);
+	const auto module = GetModuleHandleA(name);
 	if (module == nullptr)
 		return false;
 

@@ -4,14 +4,14 @@
 
 class WinError {
 public:
-    LPTSTR message = NULL;
+    LPWSTR message = NULL;
     DWORD code = 0;
     WinError();
     void moveFrom(WinError& src) noexcept;
     void copyFrom(const WinError& src);
     WinError(const WinError& src);
     WinError(WinError&& src) noexcept;
-    LPCTSTR getMessage();
+    LPCWSTR getMessage();
     void clear();
     ~WinError();
     WinError& operator=(const WinError& src);

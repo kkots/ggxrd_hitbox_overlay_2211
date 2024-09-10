@@ -2,36 +2,11 @@
 #include <TlHelp32.h>
 #include <Psapi.h>
 #include <iostream>
-#include <tchar.h> // please Microsoft make it so tchar no longer exists there's enough headache without it
 #include <string>
 #include <vector>
 #include "WinError.h"
 
 // original was made in 2016 by Altimor. Link to source: http://www.dustloop.com/forums/index.php?/forums/topic/12495-xrd-pc-hitbox-overlay-mod/
-
-#ifndef tout
-#ifdef UNICODE
-#define tout std::wcout
-#else
-#define tout std::cout
-#endif
-#endif
-
-#ifndef tin
-#ifdef UNICODE
-#define tin std::wcin
-#else
-#define tin std::cin
-#endif
-#endif
-
-#ifndef tstring
-#ifdef UNICODE
-#define tstring std::wstring
-#else
-#define tstring std::string
-#endif
-#endif
 
 // Finds module (a loaded dll or exe itself) in the given process by name.
 // If module is not found, the returned module will have its modBaseAddr equal to 0.
@@ -39,10 +14,10 @@
 //  procId - process ID (PID)
 //  name - the name of the module, including the .exe or .dll at the end
 //  is32Bit - specify true if the target process is 32-bit
-MODULEENTRY32 findModule(DWORD procId, LPCTSTR name, bool is32Bit) {
+MODULEENTRY32W findModule(DWORD procId, const wchar_t* name, bool is32Bit) {
 	HANDLE hSnapshot = NULL;
-	MODULEENTRY32 mod32{ 0 };
-	mod32.dwSize = sizeof(MODULEENTRY32);
+	MODULEENTRY32W mod32{ 0 };
+	mod32.dwSize = sizeof(MODULEENTRY32W);
 	while (true) {
 		// If you're a 64-bit process trying to get modules from a 32-bit process,
 		// use TH32CS_SNAPMODULE32.
@@ -55,55 +30,55 @@ MODULEENTRY32 findModule(DWORD procId, LPCTSTR name, bool is32Bit) {
 				continue;
 			}
 			else {
-				tout << TEXT("Error in CreateToolhelp32Snapshot: ") << err.getMessage() << std::endl;
-				return MODULEENTRY32{ 0 };
+				std::wcout << L"Error in CreateToolhelp32Snapshot: " << err.getMessage() << std::endl;
+				return MODULEENTRY32W{ 0 };
 			}
 		}
 		else {
 			break;
 		}
 	}
-	if (!Module32First(hSnapshot, &mod32)) {
+	if (!Module32FirstW(hSnapshot, &mod32)) {
 		WinError winErr;
-		tout << TEXT("Error in Module32First: ") << winErr.getMessage() << std::endl;
+		std::wcout << L"Error in Module32First: " << winErr.getMessage() << std::endl;
 		CloseHandle(hSnapshot);
-		return MODULEENTRY32{ 0 };
+		return MODULEENTRY32W{ 0 };
 	}
 	while (true) {
-		if (CompareString(LOCALE_INVARIANT, NORM_IGNORECASE, mod32.szModule, -1, name, -1) == CSTR_EQUAL) {
+		if (CompareStringW(LOCALE_INVARIANT, NORM_IGNORECASE, mod32.szModule, -1, name, -1) == CSTR_EQUAL) {
 			CloseHandle(hSnapshot);
 			return mod32;
 		}
-		BOOL resNext = Module32Next(hSnapshot, &mod32);
+		BOOL resNext = Module32NextW(hSnapshot, &mod32);
 		if (!resNext) {
 			WinError err;
 			if (err.code != ERROR_NO_MORE_FILES) {
-				tout << TEXT("Error in Module32Next: ") << err.getMessage() << std::endl;
+				std::wcout << L"Error in Module32Next: " << err.getMessage() << std::endl;
 				CloseHandle(hSnapshot);
-				return MODULEENTRY32{ 0 };
+				return MODULEENTRY32W{ 0 };
 			}
 			break;
 		}
 	}
 	CloseHandle(hSnapshot);
-	return MODULEENTRY32{ 0 };
+	return MODULEENTRY32W{ 0 };
 }
 
 int main()
 {
-	const auto* exe = TEXT("GuiltyGearXrd.exe");
-	const auto* dll = TEXT("ggxrd_hitbox_overlay.dll");
+	const wchar_t* exe = L"GuiltyGearXrd.exe";
+	const wchar_t* dll = L"ggxrd_hitbox_overlay.dll";
 
-	tout << TEXT("This program will look for ") << exe << TEXT(" process and inject the ") << dll << TEXT(" into it.\n")
-		<< TEXT("The DLL must be in the same folder as this injector in order for this to work.\n")
-		<< TEXT("Only Guilty Gear Xrd Rev2 version 2211 supported.\n")
-		<< TEXT("Press Enter to continue...\n");
-	tstring ignoreLine;
-	std::getline(tin, ignoreLine);
+	std::wcout << L"This program will look for " << exe << L" process and inject the " << dll << L" into it.\n"
+		<< L"The DLL must be in the same folder as this injector in order for this to work.\n"
+		<< L"Only Guilty Gear Xrd Rev2 version 2211 supported.\n"
+		<< L"Press Enter to continue...\n";
+	std::wstring ignoreLine;
+	std::getline(std::wcin, ignoreLine);
 
 	const auto snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 
-	PROCESSENTRY32 entry;
+	PROCESSENTRY32W entry;
 	entry.dwSize = sizeof(entry);
 
 	bool foundProcess = false;
@@ -111,40 +86,40 @@ int main()
 	LPVOID buf = NULL;
 	std::vector<HANDLE> handlesToClose;
 	HANDLE proc = INVALID_HANDLE_VALUE;
-	Process32First(snap, &entry);
+	Process32FirstW(snap, &entry);
 	do
 	{
 		if (proc && proc != INVALID_HANDLE_VALUE) CloseHandle(proc);
 		proc = OpenProcess(PROCESS_ALL_ACCESS, false, entry.th32ProcessID);
 		if (proc == INVALID_HANDLE_VALUE || proc == NULL) continue;
 
-		TCHAR path[MAX_PATH];
-		if (GetModuleFileNameEx(proc, nullptr, path, MAX_PATH) == 0) continue;
-		if (_tcscmp(path + _tcsclen(path) - _tcsclen(exe), exe) != 0) continue;
+		wchar_t path[MAX_PATH];
+		if (GetModuleFileNameExW(proc, nullptr, path, MAX_PATH) == 0) continue;
+		if (wcscmp(path + wcslen(path) - wcslen(exe), exe) != 0) continue;
 
 		foundProcess = true;
-		tout << TEXT("Found the process by name: ") << exe << std::endl;
+		std::wcout << L"Found the process by name: " << exe << std::endl;
 
-		MODULEENTRY32 mod32 = findModule(entry.th32ProcessID, dll, true);
+		MODULEENTRY32W mod32 = findModule(entry.th32ProcessID, dll, true);
 		bool skipTheRest = false;
 		if (mod32.modBaseAddr) {
 			while (true) {
-				tout << TEXT("The dll is already loaded into the application. Do you want to unload it? (Type y/n):\n");
-				tstring lineContents;
-				std::getline(tin, lineContents);
-				if (lineContents == TEXT("y") || lineContents == TEXT("Y")) {
+				std::wcout << L"The dll is already loaded into the application. Do you want to unload it? (Type y/n):\n";
+				std::wstring lineContents;
+				std::getline(std::wcin, lineContents);
+				if (lineContents == L"y" || lineContents == L"Y") {
 					HANDLE newThread = CreateRemoteThread(proc, nullptr, 0, (LPTHREAD_START_ROUTINE)(FreeLibrary), mod32.modBaseAddr, 0, nullptr);
 					if (newThread == INVALID_HANDLE_VALUE || newThread == 0) {
 						WinError winErr;
-						tout << TEXT("Failed to create remote thread: ") << winErr.getMessage() << std::endl;
+						std::wcout << L"Failed to create remote thread: " << winErr.getMessage() << std::endl;
 						break;
 					}
 					handlesToClose.push_back(newThread);
-					tout << TEXT("DLL unloaded.\n");
+					std::wcout << L"DLL unloaded.\n";
 					break;
 				}
-				else if (lineContents == TEXT("n") || lineContents == TEXT("N")) {
-					tout << TEXT("The DLL won't be loaded a second time. No action will be taken.\n");
+				else if (lineContents == L"n" || lineContents == L"N") {
+					std::wcout << L"The DLL won't be loaded a second time. No action will be taken.\n";
 					break;
 				}
 			}
@@ -152,14 +127,14 @@ int main()
 		}
 		else {
 			while (true) {
-				tout << TEXT("The dll is not yet loaded into the application. Do you want to load it? (Type y/n):\n");
-				tstring lineContents;
-				std::getline(tin, lineContents);
-				if (lineContents == TEXT("y") || lineContents == TEXT("Y")) {
+				std::wcout << L"The dll is not yet loaded into the application. Do you want to load it? (Type y/n):\n";
+				std::wstring lineContents;
+				std::getline(std::wcin, lineContents);
+				if (lineContents == L"y" || lineContents == L"Y") {
 					break;
 				}
-				else if (lineContents == TEXT("n") || lineContents == TEXT("N")) {
-					tout << TEXT("The DLL won't be loaded.\n");
+				else if (lineContents == L"n" || lineContents == L"N") {
+					std::wcout << L"The DLL won't be loaded.\n";
 					skipTheRest = true;
 					break;
 				}
@@ -167,57 +142,57 @@ int main()
 		}
 		if (skipTheRest) break;
 
-		TCHAR dll_path[MAX_PATH];
-		GetCurrentDirectory(MAX_PATH, dll_path);
-		_tcscat_s(dll_path, MAX_PATH, TEXT("\\"));
-		_tcscat_s(dll_path, MAX_PATH, dll);
-		tout << TEXT("Dll path: ") << dll_path << std::endl;
-		DWORD dllAtrib = GetFileAttributes(dll_path);
+		wchar_t dll_path[MAX_PATH];
+		GetCurrentDirectoryW(MAX_PATH, dll_path);
+		wcscat_s(dll_path, MAX_PATH, L"\\");
+		wcscat_s(dll_path, MAX_PATH, dll);
+		std::wcout << L"Dll path: " << dll_path << std::endl;
+		DWORD dllAtrib = GetFileAttributesW(dll_path);
 		if (dllAtrib == INVALID_FILE_ATTRIBUTES) {
 			WinError winErr;
-			tout << winErr.getMessage() << std::endl;
+			std::wcout << winErr.getMessage() << std::endl;
 			break;
 		}
 		if ((dllAtrib & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-			tout << TEXT("The found DLL is actually a directory. Terminating.\n");
+			std::wcout << L"The found DLL is actually a directory. Terminating.\n";
 			break;
 		}
 
-		const auto size = (_tcsclen(dll_path) + 1) * sizeof(TCHAR);
+		const auto size = (wcslen(dll_path) + 1) * sizeof(wchar_t);
 		buf = VirtualAllocEx(proc, nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 		if (buf == NULL) {
-			tout << TEXT("Failed to allocate memory.\n");
+			std::wcout << L"Failed to allocate memory.\n";
 			break;
 		}
-		tout << TEXT("Allocated memory: ") << buf << std::endl;
+		std::wcout << L"Allocated memory: " << buf << std::endl;
 		if (WriteProcessMemory(proc, buf, dll_path, size, nullptr)) {
-			tout << TEXT("Wrote memory successfully.\n");
+			std::wcout << L"Wrote memory successfully.\n";
 		}
 		else {
-			tout << TEXT("Failed to write memory.\n");
+			std::wcout << L"Failed to write memory.\n";
 			break;
 		}
-		HANDLE newThread = CreateRemoteThread(proc, nullptr, 0, (LPTHREAD_START_ROUTINE)(LoadLibrary), buf, 0, nullptr);
+		HANDLE newThread = CreateRemoteThread(proc, nullptr, 0, (LPTHREAD_START_ROUTINE)(LoadLibraryW), buf, 0, nullptr);
 		if (newThread == INVALID_HANDLE_VALUE || newThread == 0) {
 			WinError winErr;
-			tout << TEXT("Failed to create remote thread: ") << winErr.getMessage() << std::endl;
+			std::wcout << L"Failed to create remote thread: " << winErr.getMessage() << std::endl;
 			break;
 		}
 		handlesToClose.push_back(newThread);
-		tout << TEXT("Injected successfully. You can launch this injector again to unload the DLL.\n");
+		std::wcout << L"Injected successfully. You can launch this injector again to unload the DLL.\n";
 		break;
-	} while (Process32Next(snap, &entry));
+	} while (Process32NextW(snap, &entry));
 
 	for (HANDLE h : handlesToClose) {
 		CloseHandle(h);
 	}
 	CloseHandle(snap);
 	if (!foundProcess) {
-		tout << TEXT("Process with the name 'GuiltyGearXrd.exe' not found. Launch Guilty Gear and then try again.\n");
+		std::wcout << L"Process with the name 'GuiltyGearXrd.exe' not found. Launch Guilty Gear and then try again.\n";
 	}
 
-	tout << TEXT("Press Enter to exit...\n");
-	std::getline(tin, ignoreLine);
+	std::wcout << L"Press Enter to exit...\n";
+	std::getline(std::wcin, ignoreLine);
 	if (proc && proc != INVALID_HANDLE_VALUE) {
 		if (buf) {
 			VirtualFreeEx(proc, buf, 0, MEM_RELEASE);

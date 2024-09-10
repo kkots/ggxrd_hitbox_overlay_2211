@@ -1,17 +1,8 @@
 #include <Windows.h>
 #include "WinError.h"
 #include <iostream>
-#include <tchar.h>
 
 // This is an almost exact copy-paste of the WinError.cpp file from ggxrd_hitbox_overlay project
-
-#ifndef tout
-#ifdef UNICODE
-#define tout std::wcout
-#else
-#define tout std::cout
-#endif
-#endif
 
 WinError::WinError() {
     code = GetLastError();
@@ -25,14 +16,14 @@ void WinError::moveFrom(WinError& src) noexcept {
 void WinError::copyFrom(const WinError& src) {
     code = src.code;
     if (src.message) {
-        size_t len = _tcslen(src.message);
-        message = (LPTSTR)LocalAlloc(0, (len + 1) * sizeof(TCHAR));
+        size_t len = wcslen(src.message);
+        message = (LPWSTR)LocalAlloc(0, (len + 1) * sizeof(wchar_t));
         if (message) {
-            memcpy(message, src.message, (len + 1) * sizeof(TCHAR));
+            memcpy(message, src.message, (len + 1) * sizeof(wchar_t));
         }
         else {
             WinError winErr;
-            tout << TEXT("Error in LocalAlloc: ") << winErr.getMessage();
+            std::wcout << L"Error in LocalAlloc: " << winErr.getMessage();
             return;
         }
     }
@@ -43,16 +34,16 @@ WinError::WinError(const WinError& src) {
 WinError::WinError(WinError&& src) noexcept {
     moveFrom(src);
 }
-LPCTSTR WinError::getMessage() {
+LPCWSTR WinError::getMessage() {
     if (!message) {
-        FormatMessage(
+        FormatMessageW(
             FORMAT_MESSAGE_ALLOCATE_BUFFER |
             FORMAT_MESSAGE_FROM_SYSTEM |
             FORMAT_MESSAGE_IGNORE_INSERTS,
             NULL,
             code,
             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            (LPTSTR)(&message),
+            (LPWSTR)(&message),
             0, NULL);
     }
 
