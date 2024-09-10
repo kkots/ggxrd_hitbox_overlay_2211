@@ -419,19 +419,29 @@ The `ggxrd_hitbox_patcher` project is cross-platform for Windows and Ubuntu/Linu
 
 Each project should have its own separate README.md.
 
-The `imgui` project is a submodule, it's an outside repository that we depend on. Do not modify anything there and try not to update it using git fetch or git pull, unless you're ready to make corresponding changes in our mod.
+The `libpng` series of projects is an outside repository that we depend on that I had to modify, so it's not included as a git submodule, but copied directly into the mod's sources. The reason I had to modify some of it was because I needed to retarget its Visual Studio projects since I didn't have the older build tools.
+
+`imgui` is an outside project that we depend on, it's included in this mod as a git submodule. Please do not modify anything there and try not to update it using git fetch or git pull, unless you're ready to make corresponding changes in our mod.
+
+`detours` is Microsoft Detours library, also included as a git submodule.
+
+`zlib` is a compression library needed to libpng. Unlike libpng, it *is* included as a git submodule here. Please also refrain from modifying it.
+
+The dependency projects are better described in *Development dependencies*.
 
 ## Development dependencies
 
 Dependencies are better described in each project's README.md. Short version is, the project depends on:
 
-- Microsoft Detours library: <https://github.com/microsoft/Detours> Follow their instructions on how to build the `.lib` static library. You need to build the 32-bit (x86) version.
+- Microsoft Detours library: <https://github.com/microsoft/Detours> Used for hooking functions. We need the 32-bit (x86) statically linked library of it. It is included in the mod as a git submodule: <https://github.com/microsoft/Detours.git>
 
-- `d3dx9.h` header file. If you don't have it you can get it from: <https://github.com/apitrace/dxsdk/blob/master/Include/d3dx9.h>
+- `dxsdk` - repository version of Microsoft's Direct3D 9 SDK. Needed for the `d3dx9.h` header file. The repo is included in this mod as a git submodule: <https://github.com/apitrace/dxsdk.git>
 
-- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's not included in the mod sources in any way, you must download and build it yourself. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>
+- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's sources are included in the mod directly (not as a submodule). libpng homepage: <http://www.libpng.org/pub/png/libpng.html>. libpng github repository: <https://github.com/pnggroup/libpng>
 
-- `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game.
+- `zlib` - a compression library needed for libpng. You should statically link its 32-bit verion into this mod, it's included in the mod as a git submodule: <https://github.com/madler/zlib.git>
+
+- `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game. The sources of imgui are included in this mod as a git submodule: <https://github.com/ocornut/imgui.git>.
 
 ## Changelog
 
