@@ -35,19 +35,25 @@ bool EndScene::onDllMain() {
 	orig_EndScene = (EndScene_t)d3dvtbl[42];
 	orig_Present = (Present_t)d3dvtbl[17];
 	
-	SetLastError(0);
-	orig_WndProc = (WNDPROC)SetWindowLongPtrW(keyboard.thisProcessWindow, GWLP_WNDPROC, (LONG_PTR)hook_WndProc);
-	logwrap(fprintf(logfile, "orig_WndProc: %p\n", orig_WndProc));
-	if (!orig_WndProc && GetLastError()) {
-		WinError winErr;
-		logwrap(fprintf(logfile, "Failed to hook WndProc: %ls\n", winErr.getMessage()));
-		return false;
+	// ghidra sig: 81 fb 18 02 00 00 75 0f 83 fd 01 77 28 5d b8 44 51 4d 42 5b c2 10 00
+	orig_WndProc = (WNDPROC)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"\x81\xfb\x18\x02\x00\x00\x75\x0f\x83\xfd\x01\x77\x28\x5d\xb8\x44\x51\x4d\x42\x5b\xc2\x10\x00",
+		"xxxxxxxxxxxxxxxxxxxxxxx",
+		{ -0xA },
+		&error, "WndProc");
+	// why not use orig_WndProc = (WNDPROC)SetWindowLongPtrW(keyboard.thisProcessWindow, GWLP_WNDPROC, (LONG_PTR)hook_WndProc);?
+	// because if you use the patcher, it will load the DLL on startup, the DLL will swap out the WndProc,
+	// but then the game swaps out the WndProc with its own afterwards. So clearly, we need to load the DLL
+	// a bit later, and that needs to be fixed in the patcher, but a quick solution is to hook the
+	// WndProc directly.
+
+	if (orig_WndProc) {
+		if (!detouring.attach(&(PVOID&)orig_WndProc,
+			hook_WndProc,
+			&orig_WndProcMutex,
+			"WndProc")) return false;
 	}
-	detouring.wndProcsToUnhookAtTheEnd.emplace_back();
-	Detouring::WndProcToUnhookAtTheEnd& wndProcThing = detouring.wndProcsToUnhookAtTheEnd.back();
-	wndProcThing.mutex = &orig_WndProcMutex;
-	wndProcThing.oldWndProc = orig_WndProc;
-	wndProcThing.window = keyboard.thisProcessWindow;
 	
 	// there will actually be a deadlock during DLL unloading if we don't put Present first and EndScene second
 
