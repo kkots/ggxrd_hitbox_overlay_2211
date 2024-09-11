@@ -172,6 +172,7 @@
     <ClInclude Include="DrawHitboxArrayParams.h" />
     <ClInclude Include="DrawOutlineCallParams.h" />
     <ClInclude Include="DrawPointCallParams.h" />
+    <ClInclude Include="DrawTextWithIconsParams.h" />
     <ClInclude Include="EndScene.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="EntityList.h" />
@@ -196,6 +197,7 @@
     <ClInclude Include="memoryFunctions.h" />
     <ClInclude Include="ThrowInfo.h" />
     <ClInclude Include="Throws.h" />
+    <ClInclude Include="UI.h" />
     <ClInclude Include="WinError.h" />
   </ItemGroup>
   <ItemGroup>
@@ -253,6 +255,7 @@
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Stencil.cpp" />
     <ClCompile Include="Throws.cpp" />
+    <ClCompile Include="UI.cpp" />
     <ClCompile Include="WinError.cpp" />
   </ItemGroup>
   <ItemGroup>

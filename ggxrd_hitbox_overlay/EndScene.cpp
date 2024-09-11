@@ -19,16 +19,10 @@
 #include "Keyboard.h"
 #include "GifMode.h"
 #include "memoryFunctions.h"
-#include "imgui.h"
-#include "imgui_impl_dx9.h"
-#include "imgui_impl_win32.h"
 #include "WinError.h"
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#include "UI.h"
 
 EndScene endScene;
-
-
 
 bool EndScene::onDllMain() {
 	bool error = false;
@@ -145,7 +139,6 @@ bool EndScene::onDllDetach() {
 		}
 	}
 	
-	destroyImgui();
 	return true;
 }
 
@@ -308,7 +301,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	
 	{
 		char HelloWorld[] = "Hello World";
-		struct_4 s;
+		DrawTextWithIconsParams s;
 	    s.field159_0x100 = 36.0;
 	    s.field11_0x2c = 177;
 	    s.field160_0x104 = -1.0;
@@ -326,15 +319,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	    s.flags2 = 0xff000000;
 	    s.x = 100;
 	    s.y = 185.0 + 34 * 3;
-	    s.field9_0x24 = 0;
+	    s.alignment = ALIGN_LEFT;
 	    s.field10_0x28 = HelloWorld;
 	    s.field156_0xf4 = 0x210;
 	    drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
     
 	{
-		char HelloWorld[] = "-5";
-		struct_4 s;
+		char HelloWorld[] = "-1235";
+		DrawTextWithIconsParams s;
 	    s.field159_0x100 = 36.0;
 	    s.field11_0x2c = 177;
 	    s.field160_0x104 = -1.0;
@@ -352,7 +345,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	    s.flags2 = 0xff000000;
 	    s.x = 460;
 	    s.y = 185.0 + 34 * 3;
-	    s.field9_0x24 = 2;
+	    s.alignment = ALIGN_CENTER;
 	    s.field10_0x28 = HelloWorld;
 	    s.field156_0xf4 = 0x210;
 	    drawTextWithIcons(&s,0x0,1,4,0,0);
@@ -492,51 +485,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	}
 	graphics.drawDataUse.needTakeScreenshot = false;
 	
-	imguiEndScene(device);
-}
-
-void EndScene::imguiEndScene(IDirect3DDevice9* device) {
-	if (!imguiInitialized) initializeImgui(device);
-	
-	ImGui_ImplDX9_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
-	ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-	ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-	ImGui::Checkbox("Demo Window", &checkbox1);      // Edit bools storing our window open/close state
-	ImGui::Checkbox("Another Window", &checkbox2);
-	ImGui::End();
-	ImGui::EndFrame();
-	device->SetRenderState(D3DRS_ZENABLE, FALSE);
-	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-	device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-	ImGui::Render();
-	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-}
-
-void EndScene::initializeImgui(IDirect3DDevice9* device) {
-	if (imguiInitialized) return;
-	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
-	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
-	ImGui_ImplDX9_Init(device);
-	imguiInitialized = true;
-}
-
-void EndScene::destroyImgui() {
-	if (!imguiInitialized) return;
-    ImGui_ImplDX9_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
-    imguiInitialized = false;
-}
-
-void EndScene::imguiHandleResetBefore() {
-    ImGui_ImplDX9_InvalidateDeviceObjects();
-}
-
-void EndScene::imguiHandleResetAfter() {
-    ImGui_ImplDX9_CreateDeviceObjects();
+	ui.onEndScene(device);
 }
 
 void EndScene::processKeyStrokes() {
@@ -851,7 +800,7 @@ LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	++detouring.hooksCounter;
-	if (imguiInitialized && ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam)) {
+	if (ui.WndProc(hWnd, message, wParam, lParam)) {
 		--detouring.hooksCounter;
 		return TRUE;
 	}

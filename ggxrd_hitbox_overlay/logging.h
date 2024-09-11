@@ -8,6 +8,8 @@
 // logOnce(fputs("string", logfile)); // logs only when didWriteOnce is false and has a limit of 1000 messages
 // set didWriteOnce to false to stop log messages wrapped in logOnce(...) from logging any further
 
+#define LOG_PATH L"C:\\Users\\okkno\\Desktop\\injection_log.txt"
+
 #ifdef LOG_PATH
 #include <iostream>
 #include <mutex>

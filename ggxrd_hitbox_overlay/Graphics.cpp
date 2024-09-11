@@ -10,7 +10,7 @@
 #include "colors.h"
 #include "PngRelated.h"
 #include "Settings.h"
-#include "EndScene.h"
+#include "UI.h"
 
 Graphics graphics;
 
@@ -30,13 +30,13 @@ HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pP
 	++detouring.hooksCounter;
 	detouring.markHookRunning("Reset", true);
 	graphics.resetHook();
-	endScene.imguiHandleResetBefore();
+	ui.handleResetBefore();
 	HRESULT result;
 	{
 		std::unique_lock<std::mutex> guard(graphics.orig_ResetMutex);
 		result = graphics.orig_Reset(device, pPresentationParameters);
 	}
-	endScene.imguiHandleResetAfter();
+	ui.handleResetAfter();
 	detouring.markHookRunning("Reset", false);
 	--detouring.hooksCounter;
 	return result;

@@ -162,6 +162,12 @@
     <ClInclude Include="..\imgui\backends\imgui_impl_win32.h">
       <Filter>imgui\backends</Filter>
     </ClInclude>
+    <ClInclude Include="DrawTextWithIconsParams.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="UI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -269,6 +275,9 @@
     </ClCompile>
     <ClCompile Include="..\imgui\backends\imgui_impl_win32.cpp">
       <Filter>imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="UI.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
