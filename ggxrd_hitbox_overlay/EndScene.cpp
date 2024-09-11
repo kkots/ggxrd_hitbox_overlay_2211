@@ -28,6 +28,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 EndScene endScene;
 
+
+
 bool EndScene::onDllMain() {
 	bool error = false;
 
@@ -53,6 +55,31 @@ bool EndScene::onDllMain() {
 			hook_WndProc,
 			&orig_WndProcMutex,
 			"WndProc")) return false;
+	}
+	
+    // ghidra sig: 81 fb 18 02 00 00 75 0f 83 fd 01 77 28 5d b8 44 51 4d 42 5b c2 10 00
+	uintptr_t TrainingEtc_OneDamage = sigscanOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		"TrainingEtc_OneDamage",
+		"xxxxxxxxxxxxxxxxxxxxx",
+		&error, "TrainingEtc_OneDamage");
+	if (!error) {
+		char sig[9] { "\xc7\x40\x28\x00\x00\x00\x00\xe8" };
+		memcpy(sig + 3, &TrainingEtc_OneDamage, 4);
+		
+		uintptr_t drawTextWithIconsCall = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig,
+			"xxxxxxxx",
+			{ 7 },
+			&error, "drawTextWithIconsCall");
+		if (drawTextWithIconsCall) {
+			drawTextWithIcons = (drawTextWithIcons_t)followRelativeCall(drawTextWithIconsCall);
+			logwrap(fprintf(logfile, "drawTextWithIcons: %p\n", drawTextWithIcons));
+		}
+		if (!drawTextWithIcons) {
+			error = true;
+		}
 	}
 	
 	// there will actually be a deadlock during DLL unloading if we don't put Present first and EndScene second
@@ -278,7 +305,59 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
 	throws.drawThrows();
 	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
-
+	
+	{
+		char HelloWorld[] = "Hello World";
+		struct_4 s;
+	    s.field159_0x100 = 36.0;
+	    s.field11_0x2c = 177;
+	    s.field160_0x104 = -1.0;
+	    s.field4_0x10 = -1.0;
+	    s.field155_0xf0 = 1;
+	    s.field157_0xf8 = -1;
+	    s.field158_0xfc = -1;
+	    s.field161_0x108 = 0;
+	    s.field162_0x10c = 0;
+	    s.field163_0x110 = -1;
+	    s.field164_0x114 = 0;
+	    s.field165_0x118 = 0;
+	    s.field166_0x11c = -1;
+	    s.field167_0x120 = 0xff000000;
+	    s.flags2 = 0xff000000;
+	    s.x = 100;
+	    s.y = 185.0 + 34 * 3;
+	    s.field9_0x24 = 0;
+	    s.field10_0x28 = HelloWorld;
+	    s.field156_0xf4 = 0x210;
+	    drawTextWithIcons(&s,0x0,1,4,0,0);
+	}
+    
+	{
+		char HelloWorld[] = "-5";
+		struct_4 s;
+	    s.field159_0x100 = 36.0;
+	    s.field11_0x2c = 177;
+	    s.field160_0x104 = -1.0;
+	    s.field4_0x10 = -1.0;
+	    s.field155_0xf0 = 1;
+	    s.field157_0xf8 = -1;
+	    s.field158_0xfc = -1;
+	    s.field161_0x108 = 0;
+	    s.field162_0x10c = 0;
+	    s.field163_0x110 = -1;
+	    s.field164_0x114 = 0;
+	    s.field165_0x118 = 0;
+	    s.field166_0x11c = -1;
+	    s.field167_0x120 = 0xff000000;
+	    s.flags2 = 0xff000000;
+	    s.x = 460;
+	    s.y = 185.0 + 34 * 3;
+	    s.field9_0x24 = 2;
+	    s.field10_0x28 = HelloWorld;
+	    s.field156_0xf4 = 0x210;
+	    drawTextWithIcons(&s,0x0,1,4,0,0);
+	}
+	
 #ifdef LOG_PATH
 	didWriteOnce = true;
 #endif

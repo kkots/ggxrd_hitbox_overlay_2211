@@ -6,14 +6,25 @@
 
 bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
 {
+	char moduleName[256] {0};
+	char sectionName[16] {0};
+	splitOutModuleName(name, moduleName, sectionName);
+	if (sectionName[0] == '\0') {
+		strncpy_s(sectionName, ".text", 5);
+	}
+	return getModuleBounds(moduleName, sectionName, start, end);
+}
+
+bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end)
+{
 	const auto module = GetModuleHandleA(name);
 	if (module == nullptr)
 		return false;
 
-	return getModuleBoundsHandle(module, start, end);
+	return getModuleBoundsHandle(module, sectionName, start, end);
 }
 
-bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
+bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* start, uintptr_t* end)
 {
 	MODULEINFO info;
 	if (!GetModuleInformation(GetCurrentProcess(), hModule, &info, sizeof(info))) return false;
@@ -25,7 +36,7 @@ bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
 	const uintptr_t optionalHeaderStart = peHeaderStart + 0x18;
 	uintptr_t sectionStart = optionalHeaderStart + optionalHeaderSize;
 	for (; numberOfSections != 0; --numberOfSections) {
-		if (strncmp((const char*)(sectionStart), ".text", 8) == 0) {
+		if (strncmp((const char*)(sectionStart), sectionName, 8) == 0) {
 			*start = *start + *(unsigned int*)(sectionStart + 12);
 			*end = *start + *(unsigned int*)(sectionStart + 8);
 			break;
@@ -33,6 +44,11 @@ bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
 		sectionStart += 40;
 	}
 	return true;
+}
+
+bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
+{
+	return getModuleBoundsHandle(hModule, ".text", start, end);
 }
 
 uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
@@ -60,6 +76,21 @@ uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
 
 	logwrap(fputs("Sigscan failed\n", logfile));
 	return 0;
+}
+
+void splitOutModuleName(const char* name, char* moduleName, char* sectionName) {
+	bool foundColon = false;
+	for (const char* c = name; *c != '\0'; ++c) {
+		if (*c == ':') {
+			foundColon = true;
+		} else if (!foundColon) {
+			*moduleName = *c;
+			++moduleName;
+		} else {
+			*sectionName = *c;
+			++sectionName;
+		}
+	}
 }
 
 uintptr_t sigscan(const char* name, const char* sig, const char* mask)
@@ -153,10 +184,10 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLengt
 	return addr;
 }
 
+// relativeCallAddr points to the start of a relative call instruction.
+// the relative call instruction is one byte of the instruction command, followed by 4 bytes relative offset. Offset can be negative (start with FF...).
+// The relative offset is relative to the instruction that goes after the call smh, and the call instruction itself is 5 bytes
 uintptr_t followRelativeCall(uintptr_t relativeCallAddr) {
-	// relativeCallAddr points to the start of a relative call instruction.
-	// the relative call instruction is one byte of the instruction command, followed by 4 bytes relative offset. Offset can be negative (start with FF...).
-	// The relative offset is relative to the instruction that goes after the call smh, and the call instruction itself is 5 bytes, so
 	logwrap(fprintf(logfile, "Following relative call at %.8x, the call looks like ", relativeCallAddr));
 	unsigned char* c = (unsigned char*)relativeCallAddr;
 	for (int i = 5; i != 0; --i) {
