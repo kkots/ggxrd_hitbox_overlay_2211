@@ -140,9 +140,6 @@ void Stencil::onEndSceneEnd(IDirect3DDevice9* device) {
 		else {
 			logOnce(fputs("SetDepthStencilSurface to NULL succeeded\n", logfile));
 		}
-		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
-		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);
-		device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_KEEP);
 		initialized = false;
 	}
 }
@@ -152,4 +149,10 @@ void Stencil::clearRegion(IDirect3DDevice9* device, const BoundingRect& bounding
 
 	D3DRECT rect{ (LONG)boundingRect.left - 1, (LONG)boundingRect.top - 1, (LONG)boundingRect.right + 1, (LONG)boundingRect.bottom + 1 };
 	device->Clear(1, &rect, D3DCLEAR_STENCIL, D3DCOLOR{}, 1.f, 0);
+}
+
+void Stencil::clear(IDirect3DDevice9* device) {
+	if (!initialized) return;
+
+	device->Clear(0, NULL, D3DCLEAR_STENCIL, D3DCOLOR{}, 1.f, 0);
 }

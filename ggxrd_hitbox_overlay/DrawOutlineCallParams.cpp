@@ -11,6 +11,9 @@ void DrawOutlineCallParamsManager::onEndSceneStart() {
 PathElement::PathElement(int x, int y, int inX, int inY)
 	                    : x(x), y(y), inX(inX), inY(inY) { }
 
+PathElement::PathElement(float xProjected, float yProjected, int x, int y, int inX, int inY)
+                        : hasProjectionAlready(true), xProjected(xProjected), yProjected(yProjected), x(x), y(y), inX(inX), inY(inY) { }
+
 void DrawOutlineCallParams::reserveSize(int numPathElems) {
 	outlineStartAddr = drawOutlineCallParamsManager.allPathElems.size();
 	internalOutlineAddr = outlineStartAddr;
@@ -32,4 +35,16 @@ const PathElement& DrawOutlineCallParams::getPathElem(int index) const {
 
 int DrawOutlineCallParams::count() const {
 	return outlineCount;
+}
+
+bool DrawOutlineCallParams::empty() const {
+	return outlineCount == 0;
+}
+
+void DrawOutlineCallParams::addPathElem(float xProjected, float yProjected, int x, int y, int inX, int inY) {
+	if (internalOutlineAddr - outlineStartAddr >= outlineCount) {
+		logwrap(fprintf(logfile, "Error: putting too many path elements into an outline call params: %d\n", outlineCount));
+		return;
+	}
+	drawOutlineCallParamsManager.allPathElems.emplace_back(xProjected, yProjected, x, y, inX, inY);
 }
