@@ -120,6 +120,7 @@ void Settings::readSettingsIfChanged() {
 		lastCallFailedToGetTime = false;
 		if (newTime.dwLowDateTime != lastSettingsWriteTime.dwLowDateTime
 			|| newTime.dwHighDateTime != lastSettingsWriteTime.dwHighDateTime) {
+			lastSettingsWriteTime = newTime;
 			readSettings();
 		}
 		if (!FindNextChangeNotification(directoryChangeHandle)) {
