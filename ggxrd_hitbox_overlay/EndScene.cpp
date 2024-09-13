@@ -197,16 +197,74 @@ void EndScene::logic() {
 		if (gifMode.modDisabled) {
 			needToClearHitDetection = true;
 		}
-		else if (*aswEngine == nullptr) {
-			needToClearHitDetection = true;
-			clearContinuousScreenshotMode();
-		}
-		else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
-			if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
-				needToClearHitDetection = true;
+		else {
+			bool isPauseMenu;
+			bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu);
+			bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
+			entityList.populate();
+			bool areAnimationsNormal = entityList.areAnimationsNormal();
+			if (isNormalMode) {
+				if (!isRunning || !areAnimationsNormal) {
+					needToClearHitDetection = true;
+				}
+				else {
+					prepareDrawData(&needToClearHitDetection);
+				}
 			}
-			else {
-				prepareDrawData(&needToClearHitDetection);
+			if ((isNormalMode || isPauseMenu) && isRunning && areAnimationsNormal) {
+				
+				{
+					char HelloWorld[] = "Hello World";
+					DrawTextWithIconsParams s;
+				    s.field159_0x100 = 36.0;
+				    s.field11_0x2c = 177;
+				    s.field160_0x104 = -1.0;
+				    s.field4_0x10 = -1.0;
+				    s.field155_0xf0 = 1;
+				    s.field157_0xf8 = -1;
+				    s.field158_0xfc = -1;
+				    s.field161_0x108 = 0;
+				    s.field162_0x10c = 0;
+				    s.field163_0x110 = -1;
+				    s.field164_0x114 = 0;
+				    s.field165_0x118 = 0;
+				    s.field166_0x11c = -1;
+				    s.field167_0x120 = 0xff000000;
+				    s.flags2 = 0xff000000;
+				    s.x = 100;
+				    s.y = 185.0 + 34 * 3;
+				    s.alignment = ALIGN_LEFT;
+				    s.field10_0x28 = HelloWorld;
+				    s.field156_0xf4 = 0x210;
+				    drawTextWithIcons(&s,0x0,1,4,0,0);
+				}
+			    
+				{
+					char HelloWorld[] = "-1235";
+					DrawTextWithIconsParams s;
+				    s.field159_0x100 = 36.0;
+				    s.field11_0x2c = 177;
+				    s.field160_0x104 = -1.0;
+				    s.field4_0x10 = -1.0;
+				    s.field155_0xf0 = 1;
+				    s.field157_0xf8 = -1;
+				    s.field158_0xfc = -1;
+				    s.field161_0x108 = 0;
+				    s.field162_0x10c = 0;
+				    s.field163_0x110 = -1;
+				    s.field164_0x114 = 0;
+				    s.field165_0x118 = 0;
+				    s.field166_0x11c = -1;
+				    s.field167_0x120 = 0xff000000;
+				    s.flags2 = 0xff000000;
+				    s.x = 460;
+				    s.y = 185.0 + 34 * 3;
+				    s.alignment = ALIGN_CENTER;
+				    s.field10_0x28 = HelloWorld;
+				    s.field156_0xf4 = 0x210;
+				    drawTextWithIcons(&s,0x0,1,4,0,0);
+				}
+				
 			}
 		}
 		if (needToClearHitDetection) {
@@ -220,15 +278,6 @@ void EndScene::logic() {
 
 void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("endSceneHook called\n", logfile));
-	entityList.populate();
-	logOnce(fputs("entityList.populate() called\n", logfile));
-	if (!entityList.areAnimationsNormal()) {
-		*needClearHitDetection = true;
-#ifdef LOG_PATH
-		didWriteOnce = true;
-#endif
-		return;
-	}
 	invisChipp.onEndSceneStart();
 	drawnEntities.clear();
 
@@ -298,58 +347,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
 	throws.drawThrows();
 	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
-	
-	{
-		char HelloWorld[] = "Hello World";
-		DrawTextWithIconsParams s;
-	    s.field159_0x100 = 36.0;
-	    s.field11_0x2c = 177;
-	    s.field160_0x104 = -1.0;
-	    s.field4_0x10 = -1.0;
-	    s.field155_0xf0 = 1;
-	    s.field157_0xf8 = -1;
-	    s.field158_0xfc = -1;
-	    s.field161_0x108 = 0;
-	    s.field162_0x10c = 0;
-	    s.field163_0x110 = -1;
-	    s.field164_0x114 = 0;
-	    s.field165_0x118 = 0;
-	    s.field166_0x11c = -1;
-	    s.field167_0x120 = 0xff000000;
-	    s.flags2 = 0xff000000;
-	    s.x = 100;
-	    s.y = 185.0 + 34 * 3;
-	    s.alignment = ALIGN_LEFT;
-	    s.field10_0x28 = HelloWorld;
-	    s.field156_0xf4 = 0x210;
-	    drawTextWithIcons(&s,0x0,1,4,0,0);
-	}
-    
-	{
-		char HelloWorld[] = "-1235";
-		DrawTextWithIconsParams s;
-	    s.field159_0x100 = 36.0;
-	    s.field11_0x2c = 177;
-	    s.field160_0x104 = -1.0;
-	    s.field4_0x10 = -1.0;
-	    s.field155_0xf0 = 1;
-	    s.field157_0xf8 = -1;
-	    s.field158_0xfc = -1;
-	    s.field161_0x108 = 0;
-	    s.field162_0x10c = 0;
-	    s.field163_0x110 = -1;
-	    s.field164_0x114 = 0;
-	    s.field165_0x118 = 0;
-	    s.field166_0x11c = -1;
-	    s.field167_0x120 = 0xff000000;
-	    s.flags2 = 0xff000000;
-	    s.x = 460;
-	    s.y = 185.0 + 34 * 3;
-	    s.alignment = ALIGN_CENTER;
-	    s.field10_0x28 = HelloWorld;
-	    s.field156_0xf4 = 0x210;
-	    drawTextWithIcons(&s,0x0,1,4,0,0);
-	}
 	
 #ifdef LOG_PATH
 	didWriteOnce = true;
@@ -725,7 +722,7 @@ void EndScene::noGravGifMode() {
 		auto it = hiddenEntities.begin();
 		while (it != hiddenEntities.end()) {
 			if (!it->wasFoundOnThisFrame) {
-				hiddenEntities.erase(it);
+				it = hiddenEntities.erase(it);
 			}
 			else {
 				++it;

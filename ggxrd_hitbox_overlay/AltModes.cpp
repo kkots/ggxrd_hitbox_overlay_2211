@@ -7,7 +7,7 @@ AltModes altModes;
 bool AltModes::onDllMain() {
 	
 	// ghidra sig: 8b 0d ?? ?? ?? ?? e8 ?? ?? ?? ?? 3c 10 75 16 8b 15 ?? ?? ?? ?? 39 b2 f0 00 00 00 74 08 c7 44 24 48 d9 00 00 00
-	pauseMenu = (char*)sigscanOffset(
+	pauseMenu = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"\x8b\x0d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x3c\x10\x75\x16\x8b\x15\x00\x00\x00\x00\x39\xb2\xf0\x00\x00\x00\x74\x08\xc7\x44\x24\x48\xd9\x00\x00\x00",
 		"xx????x????xxxxxx????xxxxxxxxxxxxxxxx",
@@ -35,13 +35,15 @@ bool AltModes::onDllMain() {
 	return true;
 }
 
-bool AltModes::isGameInNormalMode(bool* needToClearHitDetection) {
+bool AltModes::isGameInNormalMode(bool* needToClearHitDetection, bool* isPauseMenu) {
+	if (isPauseMenu) *isPauseMenu = false;
 	if (isIKCutscenePlaying && *isIKCutscenePlaying) {
 		if (needToClearHitDetection) *needToClearHitDetection = true;
 		return false;
 	}
-	if (pauseMenu && *(unsigned int*)(pauseMenu + 0xFC) == 1 && (*(unsigned int*)(pauseMenu + 0x10) & 0x10000) == 0
+	if (pauseMenu && *pauseMenu && *(unsigned int*)(*pauseMenu + 0xFC) == 1 && (*(unsigned int*)(*pauseMenu + 0x10) & 0x10000) == 0
 		|| versusModeMenuOpenRef && *versusModeMenuOpenRef) {
+		if (isPauseMenu) *isPauseMenu = true;
 		return false;
 	}
 	return true;
