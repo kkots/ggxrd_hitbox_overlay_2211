@@ -5,6 +5,7 @@
 #include "GifMode.h"
 #include "Detouring.h"
 #include "WinError.h"
+#include <list>
 
 Settings settings;
 
@@ -138,10 +139,12 @@ void Settings::addKey(const char* name, int code) {
 }
 
 void Settings::addKeyRange(char start, char end) {
+	static std::list<std::string> mem;
 	for (char c = start; c <= end; ++c) {
-		char newStr[2] = " ";
-		newStr[0] = c;
-		addKey(newStr, c);
+		mem.emplace_back(2, '\0');
+		std::string& newMem = mem.back();
+		newMem[0] = c;
+		addKey(newMem.c_str(), c);
 	}
 }
 
