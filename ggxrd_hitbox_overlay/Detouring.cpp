@@ -284,10 +284,12 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 	if (!getModuleBoundsHandle(hModule, &dllStart, &dllEnd)) return false;
 
 	bool threadEipInThisModule = false;
-
+	bool hasMoreThanOneThread = false;
+	
 	// Suspend all threads
 	enumerateThreadsRecursively([&](DWORD threadId) {
 		if (threadEipInThisModule) return;
+		hasMoreThanOneThread = true;
 		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
 		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
 #ifdef LOG_PATH
@@ -307,7 +309,8 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 		}
 	});
 	logwrap(fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size()));
-
+	
+	if (!hasMoreThanOneThread) hooksCounter = 0; // on crash all threads just die, except this one, and the DLL gets unloaded gracefully
 	threadEipInThisModule = threadEipInThisModule || hooksCounter > 0;  // some hooks may call functions that lead outside the module
 
 	#ifdef LOG_PATH
