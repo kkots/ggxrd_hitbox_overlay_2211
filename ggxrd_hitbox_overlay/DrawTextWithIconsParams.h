@@ -10,6 +10,8 @@ enum DrawTextWithIconsAlignment {
 struct DrawTextWithIconsParams {
     int field0_0x0;
     int field1_0x4;
+    // I think 14 is the width of a "0" character
+    // x and y are specified for 1280x720 resolution, in pixels. It gets scaled if the resolution is bigger or smaller.
     float x;
     // 34 is height of one line
     float y;
@@ -31,8 +33,8 @@ struct DrawTextWithIconsParams {
     int field11_0x2c;
     int field12_0x30;
     int field13_0x34;
-    float field14_0x38;
-    float field15_0x3c;
+    float scaleX;
+    float scaleY;
     char field16_0x40;
     char field17_0x41;
     char field18_0x42;
@@ -249,8 +251,8 @@ struct DrawTextWithIconsParams {
 		field4_0x10 = 200.0;
 		field5_0x14 = 300.0;
 		field6_0x18 = 0;
-		field14_0x38 = 1.0;
-		field15_0x3c = 1.0;
+		scaleX = 1.0;
+		scaleY = 1.0;
 		field155_0xf0 = 0;
 		field0_0x0 = 0;
 		field8_0x20 = 0;

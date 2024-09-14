@@ -283,4 +283,7 @@
   <ItemGroup>
     <None Include="README.md" />
   </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini" />
+  </ItemGroup>
 </Project>
