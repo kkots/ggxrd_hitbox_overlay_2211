@@ -30,6 +30,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH: {
+		DisableThreadLibraryCalls(hModule);
 #ifdef LOG_PATH
         {
             HANDLE fileHandle = CreateFileW(
@@ -70,12 +71,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!detouring.endTransaction()) terminate
         break;
     }
-    case DLL_THREAD_ATTACH:
-        break;
-    case DLL_THREAD_DETACH:
-        break;
     case DLL_PROCESS_DETACH:
         logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
+        settings.onDllDetach();
         detouring.dllMainThreadId = GetCurrentThreadId();
         logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
         detouring.detachAll();
@@ -91,7 +89,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         endScene.onDllDetach();
         ui.onDllDetach();
         hud.onDllDetach();
-        settings.onDllDetach();
     	detouring.cancelTransaction();
     	closeLog();
         break;

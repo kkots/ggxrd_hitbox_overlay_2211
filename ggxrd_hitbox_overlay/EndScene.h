@@ -28,8 +28,6 @@ public:
 	LRESULT WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void setPresentFlag();
 	bool consumePresentFlag();
-	void processKeyStrokes();
-	void clearContinuousScreenshotMode();
 	void logic();
 	void assignNextId(bool acquireLock = false);
 	EndScene_t orig_EndScene = nullptr;
@@ -48,6 +46,9 @@ public:
 	DWORD wndProcThread = 0;
 	bool butDontPrepareBoxData = false;
 private:
+	void processKeyStrokes();
+	void clearContinuousScreenshotMode();
+	void actUponKeyStrokesThatAlreadyHappened();
 	class HookHelp {
 		friend class EndScene;
 		void sendUnrealPawnDataHook();
@@ -86,6 +87,8 @@ private:
 	unsigned int p2PreviousTimeOfTakingScreen = ~0;
 	
 	drawTextWithIcons_t drawTextWithIcons = nullptr;
+	
+	bool needToRunNoGravGifMode = false;
 	
 };
 

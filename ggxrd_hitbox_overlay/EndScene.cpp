@@ -21,6 +21,8 @@
 #include "memoryFunctions.h"
 #include "WinError.h"
 #include "UI.h"
+#include <chrono>
+#include "CustomWindowMessages.h"
 
 EndScene endScene;
 
@@ -187,7 +189,7 @@ void EndScene::sendUnrealPawnDataHook(char* thisArg) {
 
 void EndScene::logic() {
 	std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-	processKeyStrokes();
+	actUponKeyStrokesThatAlreadyHappened();
 	if (graphics.drawDataPrepared.empty && !butDontPrepareBoxData) {
 		bool oldNeedTakeScreenshot = graphics.drawDataPrepared.needTakeScreenshot;
 		graphics.drawDataPrepared.clear();
@@ -240,7 +242,7 @@ void EndScene::logic() {
 				}
 			    
 				{
-					char HelloWorld[] = "-1235";
+					char HelloWorld[] = "-123765";
 					DrawTextWithIconsParams s;
 				    s.field159_0x100 = 36.0;
 				    s.field11_0x2c = 177;
@@ -486,16 +488,20 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 }
 
 void EndScene::processKeyStrokes() {
-	settings.readSettingsIfChanged();
 	bool trainingMode = game.isTrainingMode();
-	bool needToRunNoGravGifMode = false;
 	keyboard.updateKeyStatuses();
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggle)) {
+	bool stateChanged;
+	{
+		RecursiveGuard uiGuard(ui.lock);
+		stateChanged = ui.stateChanged;
+		ui.stateChanged = false;
+	}
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggle) || stateChanged && ui.gifModeOn != gifMode.gifModeOn)) {
 		// idk how atomic_bool reacts to ! and operator bool(), so we do it the arduous way
 		if (gifMode.gifModeOn == true) {
 			gifMode.gifModeOn = false;
 			logwrap(fputs("GIF mode turned off\n", logfile));
-			needToRunNoGravGifMode = true;
+			needToRunNoGravGifMode = needToRunNoGravGifMode || (*aswEngine != nullptr);
 		} else if (trainingMode) {
 			gifMode.gifModeOn = true;
 			logwrap(fputs("GIF mode turned on\n", logfile));
@@ -579,7 +585,7 @@ void EndScene::processKeyStrokes() {
 		} else {
 			gifMode.modDisabled = true;
 			logwrap(fputs("Mod disabled\n", logfile));
-			needToRunNoGravGifMode = true;
+			needToRunNoGravGifMode = needToRunNoGravGifMode || (*aswEngine != nullptr);
 		}
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.disableHitboxDisplayToggle)) {
@@ -591,6 +597,19 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Hitbox display disabled\n", logfile));
 		}
 	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.modWindowVisibilityToggle)) {
+		if (ui.visible == true) {
+			ui.visible = false;
+			logwrap(fputs("UI display disabled\n", logfile));
+		} else {
+			ui.visible = true;
+			logwrap(fputs("Hitbox display enabled\n", logfile));
+		}
+	}
+}
+
+void EndScene::actUponKeyStrokesThatAlreadyHappened() {
+	bool trainingMode = game.isTrainingMode();
 	bool allowNextFrameIsHeld = false;
 	if (!gifMode.modDisabled) {
 		allowNextFrameIsHeld = keyboard.isHeld(settings.allowNextFrameKeyCombo);
@@ -650,6 +669,7 @@ void EndScene::processKeyStrokes() {
 	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
+		ui.gifModeOn = false;
 		gifMode.noGravityOn = false;
 		game.slowmoGame = false;
 		gifMode.gifModeToggleBackgroundOnly = false;
@@ -664,6 +684,8 @@ void EndScene::processKeyStrokes() {
 			noGravGifMode();
 		}
 	}
+	needToRunNoGravGifMode = false;
+	
 }
 
 void EndScene::noGravGifMode() {
@@ -800,6 +822,22 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 	if (ui.WndProc(hWnd, message, wParam, lParam)) {
 		--detouring.hooksCounter;
 		return TRUE;
+	}
+	
+	if (message == WM_APP_SETTINGS_FILE_UPDATED) {
+		settings.readSettings(true);
+	}
+	
+	if (message == WM_APP_UI_STATE_CHANGED && lParam) {
+		settings.writeSettings();
+	}
+	
+	if (message == WM_KEYDOWN
+			|| message == WM_KEYUP
+			|| message == WM_SYSKEYDOWN
+			|| message == WM_SYSKEYUP
+			|| message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
+		processKeyStrokes();
 	}
 	
 	bool iLockedTheMutex = false;
