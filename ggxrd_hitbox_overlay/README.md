@@ -38,7 +38,10 @@ This will include `libpng` and `zlib` statically (meaning it's included into wha
 
 - `imgui` - a graphical user interface library. Its included in this mod as a git submodule.
 
-Please refrain from modifying anything that's a git submodule, because there is no way to push those changes back into the repository, because for the submodules you would be pushing them not here but to the corresponding submodule repository (so a different git repository that isn't ours). Don't modify libpng either because the changes that were made to it are only limited to retargeting the projects since I didn't have the older build tools and was getting errors.
+- `steam_api` - Valve's Steamworks API, version 1.37. Its header files and .lib redistributable are included in this project directly. Note that the license to use this SDK is nontransferable, which means only I can use it - you cannot. You must obtain your own copy of the license directly from Valve.
+
+Please refrain from modifying anything that's a git submodule, because there is no way to push those changes back into the repository, because for the submodules you would be pushing them not here but to the corresponding submodule repository (so a different git repository that isn't ours). Don't modify libpng either because the changes that were made to it are only limited to retargeting the projects since I didn't have the older build tools and was getting errors.  
+Don't modify steam_api either because that might break compatibility with its binary module. Not that the license would allow you to anyway.
 
 ## Main README
 

@@ -441,9 +441,13 @@ void UI::OnGameOverlayActivated(GameOverlayActivated_t* pParam) {
 }
 
 SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
+	++detouring.hooksCounter;
 	if (ui.GetKeyStateAllowedThread == 0 || GetCurrentThreadId() == ui.GetKeyStateAllowedThread) {
 		std::unique_lock<std::mutex> guard(ui.orig_GetKeyStateMutex);
-		return ui.orig_GetKeyState(nVirtKey);
+		SHORT result = ui.orig_GetKeyState(nVirtKey);
+		--detouring.hooksCounter;
+		return result;
 	}
+	--detouring.hooksCounter;
 	return 0;
 }

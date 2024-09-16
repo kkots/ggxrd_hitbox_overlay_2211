@@ -427,6 +427,8 @@ The `libpng` series of projects is an outside repository that we depend on that 
 
 `zlib` is a compression library needed to libpng. Unlike libpng, it *is* included as a git submodule here. Please also refrain from modifying it.
 
+`steam_api` - Valve's Steamworks API, version 1.37. Its header files and .lib redistributable are included in this project directly. Note that the license to use this SDK is nontransferable, which means only I can use it - you cannot. You must obtain your own copy of the license directly from Valve.
+
 The dependency projects are better described in *Development dependencies*.
 
 ## Development dependencies
@@ -442,6 +444,8 @@ Dependencies are better described in each project's README.md. Short version is,
 - `zlib` - a compression library needed for libpng. You should statically link its 32-bit verion into this mod, it's included in the mod as a git submodule: <https://github.com/madler/zlib.git>
 
 - `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game. The sources of imgui are included in this mod as a git submodule: <https://github.com/ocornut/imgui.git>.
+
+- `steam_api` - Valve's Steamworks API, version 1.37. Its header files and .lib redistributable are included in this project directly. Note that the license to use this SDK is nontransferable, which means only I can use it - you cannot. You must obtain your own copy of the license directly from Valve.
 
 ## Changelog
 

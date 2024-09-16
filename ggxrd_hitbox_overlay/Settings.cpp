@@ -648,6 +648,7 @@ void Settings::writeSettingsMain() {
 	buf[0] = '\0';
 	int bufContentSize = 0;
 	bool reachedEnd = false;
+	bool rCharDetected = false;
 	while (true) {
 		accum.clear();
 		++lineNumber;
@@ -656,8 +657,14 @@ void Settings::writeSettingsMain() {
 		if (pos != -1) {
 			needToReadMore = false;
 			*(buf + pos) = '\0';
-			if (pos > 0 && *(buf + pos - 1) == '\r') *(buf + pos - 1) = '\0';
-			if (pos == 0 && !accum.empty() && accum.back() == '\r') accum.resize(accum.size() - 1);
+			if (pos > 0 && *(buf + pos - 1) == '\r') {
+				rCharDetected = true;
+				*(buf + pos - 1) = '\0';
+			}
+			if (pos == 0 && !accum.empty() && accum.back() == '\r') {
+				rCharDetected = true;
+				accum.resize(accum.size() - 1);
+			}
 			accum.append(buf);
 			if (pos + 1 >= bufContentSize) {
 				bufContentSize = 0;
@@ -666,13 +673,18 @@ void Settings::writeSettingsMain() {
 				bufContentSize = bufContentSize - (pos + 1);
 				memmove(buf, buf + pos + 1, bufContentSize + 1);
 			}
-		} else if (bufContentSize) {
-			accum += buf;
-			// can have \r character at the end of buf here, will deal with it in the branch above
-			bufContentSize = 0;
-			buf[0] = '\0';
 		}
-		while (needToReadMore && !reachedEnd) {
+		while (needToReadMore) {
+			if (bufContentSize) {
+				accum += buf;
+				// can have \r character at the end of buf here, will deal with it in the branch above
+				bufContentSize = 0;
+				buf[0] = '\0';
+			}
+			if (reachedEnd) {
+				needToReadMore = false;
+				break;
+			}
 			needToReadMore = true;
 			DWORD bytesRead;
 			if (!ReadFile(file, buf, sizeof buf - 1, &bytesRead, NULL)) {
@@ -687,9 +699,15 @@ void Settings::writeSettingsMain() {
 			pos = findChar(buf, '\n');
 			if (pos != -1) {
 				*(buf + pos) = '\0';
-				if (pos > 0 && *(buf + pos - 1) == '\r') *(buf + pos - 1) = '\0';
+				if (pos > 0 && *(buf + pos - 1) == '\r') {
+					rCharDetected = true;
+					*(buf + pos - 1) = '\0';
+				}
 				needToReadMore = false;
-				if (pos == 0 && !accum.empty() && accum.back() == '\r') accum.resize(accum.size() - 1);
+				if (pos == 0 && !accum.empty() && accum.back() == '\r') {
+					rCharDetected = true;
+					accum.resize(accum.size() - 1);
+				}
 				accum.append(buf);
 				if (pos + 1 >= bufContentSize) {
 					bufContentSize = 0;
@@ -879,7 +897,11 @@ void Settings::writeSettingsMain() {
 			}
 			WriteFile(file, lineStr.c_str(), lineStr.size(), &bytesWritten, NULL);
 		}
-		WriteFile(file, "\n", 1, &bytesWritten, NULL);
+		if (rCharDetected) {
+			WriteFile(file, "\r\n", 1, &bytesWritten, NULL);
+		} else {
+			WriteFile(file, "\n", 1, &bytesWritten, NULL);
+		}
 	}
 	
 	SetEndOfFile(file);
