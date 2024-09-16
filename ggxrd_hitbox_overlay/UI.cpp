@@ -185,29 +185,29 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 	ImGui::Begin(windowTitle.c_str(), &visible);
 	if (ImGui::CollapsingHeader("Settings")) {
 		if (ImGui::CollapsingHeader("Hitbox settings")) {
-			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled", &gifModeOn);
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode", &gifModeOn);
 			ImGui::SameLine();
 			HelpMarker("GIF mode is:\n"
 				"; 1) Background becomes black\n"
 				"; 2) Camera is centered on you\n"
 				"; 3) Opponent is invisible and invulnerable\n"
 				"; 4) Hide HUD");
-			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Black Background Only)", &gifModeToggleBackgroundOnly);
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Black Background Only)", &gifModeToggleBackgroundOnly);
 			ImGui::SameLine();
 			HelpMarker("Makes background black (and, for screenshotting purposes, - effectively transparent, if Post Effect is turned off in the game's graphics settings).");
-			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Camera Center Only)", &gifModeToggleCameraCenterOnly);
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Camera Center Only)", &gifModeToggleCameraCenterOnly);
 			ImGui::SameLine();
 			HelpMarker("Centers the camera on you.");
-			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Hide Opponent Only)", &gifModeToggleHideOpponentOnly);
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Hide Opponent Only)", &gifModeToggleHideOpponentOnly);
 			ImGui::SameLine();
 			HelpMarker("Make the opponent invisible and invulnerable.");
-			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Hide HUD Only)", &gifModeToggleHudOnly);
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Hide HUD Only)", &gifModeToggleHudOnly);
 			ImGui::SameLine();
 			HelpMarker("Hides the HUD.");
-			stateChanged = stateChanged || ImGui::Checkbox("No Gravity Enabled", &noGravityOn);
+			stateChanged = stateChanged || ImGui::Checkbox("No Gravity", &noGravityOn);
 			ImGui::SameLine();
 			HelpMarker("Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.");
-			stateChanged = stateChanged || ImGui::Checkbox("Freeze Game Enabled", &freezeGame);
+			stateChanged = stateChanged || ImGui::Checkbox("Freeze Game", &freezeGame);
 			ImGui::SameLine();
 			if (ImGui::Button("Next Frame")) {
 				allowNextFrame = true;
@@ -216,7 +216,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 			ImGui::SameLine();
 			HelpMarker("Freezes the current frame of the game and stops gameplay from advancing. You can advance gameplay to the next frame using the 'Next Frame' button."
 				" It is way more convenient to use this feature with shortcuts, which you can configure in the 'Keyboard shortcuts' section below.");
-			stateChanged = stateChanged || ImGui::Checkbox("Slow-Mo Mode Enabled", &slowmoGame);
+			stateChanged = stateChanged || ImGui::Checkbox("Slow-Mo Mode", &slowmoGame);
 			ImGui::SameLine();
 			int slowmoTimes = settings.slowmoTimes;
 			ImGui::SetNextItemWidth(80.F);
@@ -284,7 +284,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 				" will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set,"
 				" they're saved there instead.");
 			bool allowContinuousScreenshotting = settings.allowContinuousScreenshotting;
-			if (ImGui::Checkbox("Allow Continuous Screenshotting", &allowContinuousScreenshotting)) {
+			if (ImGui::Checkbox("Allow Continuous Screenshotting When Button Is Held", &allowContinuousScreenshotting)) {
 				settings.allowContinuousScreenshotting = allowContinuousScreenshotting;
 				needWriteSettings = true;
 			}
