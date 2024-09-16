@@ -1,0 +1,9 @@
+LICENSE
+
+Valve gave a license to use this code only to me. This license is not transferable, which means that, because I received this license, does not mean you can use this code as well - you must obtain a license from Valve directly.
+
+The details of the license that I received shall not be disclosed here, as there is no need to do so.
+
+There was no permission to share the source code of the SDK. This code is present here only as a necessity to compile the project.
+
+All rights reserved by Valve. "Valve" is a registered trademark of Valve Corporation. I am not affiliated with or endorsed by Valve in any way.

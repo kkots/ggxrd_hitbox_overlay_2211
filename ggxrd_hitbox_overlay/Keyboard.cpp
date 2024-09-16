@@ -130,7 +130,7 @@ bool Keyboard::isKeyCodePressed(int code) const {
 }
 
 bool Keyboard::isWindowActive() const {
-	return GetForegroundWindow() == thisProcessWindow;
+	return GetForegroundWindow() == thisProcessWindow && thisProcessWindow != NULL;
 }
 
 bool Keyboard::isModifierKey(int code) const {

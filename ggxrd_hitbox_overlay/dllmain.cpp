@@ -62,6 +62,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!entityManager.onDllMain()) terminate
         if (!direct3DVTable.onDllMain()) terminate
         if (!keyboard.onDllMain()) terminate
+        if (!ui.onDllMain()) terminate
         if (!endScene.onDllMain()) terminate
         if (!hitDetector.onDllMain()) terminate
         if (!graphics.onDllMain()) terminate
@@ -73,6 +74,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     }
     case DLL_PROCESS_DETACH:
         logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
+        ui.onDllDetach();
         settings.onDllDetach();
         detouring.dllMainThreadId = GetCurrentThreadId();
         logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
@@ -87,7 +89,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         // What solves all this is that Reset only gets called when the user decides to change resolutions or go
         // to fullscreen mode/exit fullscreen mode. So we just hope he doesn't do it while uninjecting the DLL.
         endScene.onDllDetach();
-        ui.onDllDetach();
         hud.onDllDetach();
     	detouring.cancelTransaction();
     	closeLog();

@@ -22,6 +22,9 @@
     <Filter Include="imgui\backends">
       <UniqueIdentifier>{88bc5120-9e9f-4b41-94d2-964066300f92}</UniqueIdentifier>
     </Filter>
+    <Filter Include="steam_api">
+      <UniqueIdentifier>{95d0e7f3-2902-4dea-985a-82ce051bd4d3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -173,6 +176,117 @@
     </ClInclude>
     <ClInclude Include="CustomWindowMessages.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamapplist.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamapps.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamappticket.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamclient.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamcontroller.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamfriends.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamgamecoordinator.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamgameserver.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamgameserverstats.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamhtmlsurface.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamhttp.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteaminventory.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteammasterserverupdater.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteammatchmaking.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteammusic.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteammusicremote.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamnetworking.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamps3overlayrenderer.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamremotestorage.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamscreenshots.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamugc.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamunifiedmessages.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamuser.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamuserstats.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamutils.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\isteamvideo.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\matchmakingtypes.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steam_api.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steam_api_flat.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steam_api_internal.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steam_gameserver.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steamclientpublic.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steamencryptedappticket.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steamhttpenums.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steamps3params.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steamtypes.h">
+      <Filter>steam_api</Filter>
+    </ClInclude>
+    <ClInclude Include="..\steam_api\public\steam\steamuniverse.h">
+      <Filter>steam_api</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

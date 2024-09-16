@@ -50,6 +50,8 @@ public:
 	};
 	void onKeyCombosUpdated();
 	void getComboInfo(std::vector<int>& keyCombo, ComboInfo* info);
+	const char* getOtherUIDescription(void* ptr);
+	const char* getOtherINIDescription(void* ptr);
 private:
 	struct KeyComboToParse {
 		const char* name = nullptr;
@@ -99,6 +101,14 @@ private:
 	const char* getComboRepresentation(std::vector<int>& toggle);
 	const char* getKeyTxtName(int code);
 	void trashComboRepresentation(std::vector<int>& toggle);
+	struct OtherDescription {
+		void* ptr = nullptr;
+		const char* iniDescription = nullptr;
+		std::string uiDescription;
+	};
+	std::vector<OtherDescription> otherDescriptions;
+	void registerOtherDescription(void* ptr, const char* iniDescription);
+	std::string convertToUiDescription(const char* iniDescription);
 };
 
 extern Settings settings;

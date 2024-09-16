@@ -21,7 +21,6 @@
 #include "memoryFunctions.h"
 #include "WinError.h"
 #include "UI.h"
-#include <chrono>
 #include "CustomWindowMessages.h"
 
 EndScene endScene;
@@ -460,7 +459,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		}
 	}
 
-	bool doYourThing = !gifMode.hitboxDisplayDisabled;
+	bool doYourThing = !gifMode.hitboxDisplayDisabled && !ui.isSteamOverlayActive;
 
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
@@ -824,12 +823,13 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		return TRUE;
 	}
 	
-	if (message == WM_APP_SETTINGS_FILE_UPDATED) {
-		settings.readSettings(true);
+	if (message == WM_DESTROY) {
+		keyboard.thisProcessWindow = NULL;
 	}
 	
-	if (message == WM_APP_UI_STATE_CHANGED && lParam) {
-		settings.writeSettings();
+	if (message == WM_APP_SETTINGS_FILE_UPDATED) {
+		settings.readSettings(true);
+		return TRUE;
 	}
 	
 	if (message == WM_KEYDOWN

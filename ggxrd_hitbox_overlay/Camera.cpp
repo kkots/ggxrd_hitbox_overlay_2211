@@ -114,8 +114,8 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		if (playerSide == 2) playerSide = 0;
 		if (entityList.count > playerSide) {
 			Entity ent { entityList.slots[playerSide] };
-			const auto posX = convertCoord(ent.posX());
-			const auto posY = convertCoord(ent.posY());
+			const auto posX = convertCoord((float)ent.posX());
+			const auto posY = convertCoord((float)ent.posY());
 
 			char* deref = *param1;
 			*(float*)(deref + 0x54) = posX;

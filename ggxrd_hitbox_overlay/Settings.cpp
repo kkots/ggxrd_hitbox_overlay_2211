@@ -142,6 +142,47 @@ bool Settings::onDllMain() {
 		"; A keyboard shortcut.\n"
 		"; Pressing this shortcut will show/hide the mod's UI window.");
 	
+	registerOtherDescription(&slowmoTimes, "; A number.\n"
+			"; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed.\n"
+			"; Specifies by how many times to slow the game down");
+	registerOtherDescription(&allowContinuousScreenshotting, "; Specify true or false.\n"
+			"; When this is true that means screenshots are being taken every game loop logical frame as\n"
+			"; long as the screenshotBtn is being held. Game loop logical frame means that if the game is\n"
+			"; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.\n"
+			"; A new screenshot is only taken when animation frames change on the player characters.\n"
+			"; Be cautions not to run out of disk space if you're low. This option doesn't\n"
+			"; work if screenshotPath is empty, it's not allowed to work outside of training mode or when\n"
+			"; a match (training session) isn't currently running (for example on character selection screen).");
+	registerOtherDescription(&startDisabled, "; Specify true or false.\n"
+			"; When true, starts the mod in a disabled state: it doesn't draw boxes or affect anything");
+	registerOtherDescription(&screenshotPath, "; A path to a file or a directory.\n"
+			"; It specifies where screenshots will be saved.\n"
+			"; If you provided a file path, it must be with .png extension, and if such name already exists, a\n"
+			"; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique,\n"
+			"; so that new screenshots will never overwrite old ones.\n"
+			"; If you provided a directory path, it must already exist, and \"screen.png\" will be appended to\n"
+			"; it with an increasing number at the end in case the filename is not unique.\n"
+			"; The provided path must be without quotes.\n"
+			"; If you want the path to be multilingual you need to save this file in UTF-8.\n"
+			"; On Ubuntu/Linux running Guilty Gear Xrd under Steam Proton you need to specify paths with\n"
+			"; the Z:\\ drive, path separator is backslash (\\), not forward slash (/). Example: Z:\\home\\yourUserName\\ggscreen.png\n"
+			"; If the path is not specified or is empty, the screenshot will be saved into your clipboard so\n"
+			"; it can be pasted into any image editing program. For example, GIMP will recognize the PNG\n"
+			"; format and paste that, with transparency. This would work even on Ubuntu/Linux.\n"
+			"; Only PNG format is supported.");
+	registerOtherDescription(&dontUseScreenshotTransparency, "; Specify true or false.\n"
+			"; Setting this to true will produce screenshots without transparency");
+	registerOtherDescription(&drawPushboxCheckSeparately, "; Specify true or false.\n"
+			"; Setting this to true will make throw boxes show in an opponent-character-independent way:\n"
+			"; The part of the throw box that checks for pushboxes proximity will be shown in blue,\n"
+			"; while the part of the throw box that checks x or y of the origin point will be shown in purple\n"
+			"; Setting this to false will combine both the checks of the throw so that you only see the final box\n"
+			"; in blue which only checks the opponent's origin point. Be warned, such a throw box\n"
+			"; is affected by the width of the opponent's pushbox. Say, on Potemkin, for example,\n"
+			"; all ground throw ranges should be higher.");
+	registerOtherDescription(&modWindowVisibleOnStart, "; Specify true or false.\n"
+			"; If this is false, when this mod starts, the mod's UI window will be invisible.");
+	
 	std::wstring currentDir = getCurrentDirectory();
 	settingsPath = currentDir + L"\\ggxrd_hitbox_overlay.ini";
 	logwrap(fprintf(logfile, "INI file path: %ls\n", settingsPath.c_str()));
@@ -168,7 +209,23 @@ void Settings::onDllDetach() {
 		// When a thread exits, even if you used DisableThreadLibraryCalls(hModule), it calls DllMain with the loader lock, and this
 		// happens before its object is signaled.
 		// As such, you cannot wait on a thread inside DllMain.
-		SignalObjectAndWait(changesListenerWakeEvent, changeListenerExitedEvent, INFINITE, FALSE);
+		
+		// On normal exit the thread is already killed by something
+		bool eventIsSet = false;
+		while (true) {
+			DWORD exitCode;
+			if (GetExitCodeThread(changesListener, &exitCode)) {
+				if (exitCode != STILL_ACTIVE) {
+					break;
+				}
+			}
+			if (!eventIsSet) {
+				eventIsSet = true;
+				SetEvent(changesListenerWakeEvent);
+			}
+			DWORD waitResult = WaitForSingleObject(changeListenerExitedEvent, 100);
+			if (waitResult == WAIT_OBJECT_0) break;
+		}
 		CloseHandle(changeListenerExitedEvent);
 		CloseHandle(changesListener);
 		CloseHandle(changesListenerWakeEvent);
@@ -193,32 +250,7 @@ void Settings::addKeyRange(char start, char end) {
 void Settings::insertKeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription) {
 	auto newIt = keyCombosToParse.insert({ toUppercase(name), { name, uiName, keyCombo, defaultValue, iniDescription } });
 	KeyComboToParse& k = newIt.first->second;
-	if (*iniDescription != '\0') {
-		k.uiDescription.reserve(strlen(iniDescription));
-		enum ParseMode {
-			PARSING_NEWLINE,
-			PARSING_SEMICOLON,
-			PARSING_WHITESPACE
-		} parsingMode = PARSING_NEWLINE;
-		for (; ; ++iniDescription) {
-			char cVal = *iniDescription;
-			if (cVal == '\0') break;
-			if (cVal == ';' && parsingMode == PARSING_NEWLINE) {
-				parsingMode = PARSING_SEMICOLON;
-				continue;
-			}
-			if (cVal == '\n') {
-				parsingMode = PARSING_NEWLINE;
-				k.uiDescription += '\n';
-				continue;
-			}
-			if (cVal <= 32 && parsingMode == PARSING_SEMICOLON) {
-				parsingMode = PARSING_WHITESPACE;
-				continue;
-			}
-			k.uiDescription += cVal;
-		}
-	}
+	k.uiDescription = convertToUiDescription(iniDescription);
 }
 
 // INI file must be placed next the the game's executable at SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32\ggxrd_hitbox_overlay.ini
@@ -625,6 +657,7 @@ void Settings::writeSettingsMain() {
 			needToReadMore = false;
 			*(buf + pos) = '\0';
 			if (pos > 0 && *(buf + pos - 1) == '\r') *(buf + pos - 1) = '\0';
+			if (pos == 0 && !accum.empty() && accum.back() == '\r') accum.resize(accum.size() - 1);
 			accum.append(buf);
 			if (pos + 1 >= bufContentSize) {
 				bufContentSize = 0;
@@ -633,8 +666,9 @@ void Settings::writeSettingsMain() {
 				bufContentSize = bufContentSize - (pos + 1);
 				memmove(buf, buf + pos + 1, bufContentSize + 1);
 			}
-		} else {
+		} else if (bufContentSize) {
 			accum += buf;
+			// can have \r character at the end of buf here, will deal with it in the branch above
 			bufContentSize = 0;
 			buf[0] = '\0';
 		}
@@ -655,6 +689,7 @@ void Settings::writeSettingsMain() {
 				*(buf + pos) = '\0';
 				if (pos > 0 && *(buf + pos - 1) == '\r') *(buf + pos - 1) = '\0';
 				needToReadMore = false;
+				if (pos == 0 && !accum.empty() && accum.back() == '\r') accum.resize(accum.size() - 1);
 				accum.append(buf);
 				if (pos + 1 >= bufContentSize) {
 					bufContentSize = 0;
@@ -667,6 +702,7 @@ void Settings::writeSettingsMain() {
 			if (bytesRead < sizeof buf - 1) {
 				if (needToReadMore && bytesRead > 0) {
 					accum += buf;
+					// can't have \r character here
 					bufContentSize = 0;
 					buf[0] = '\0';
 				}
@@ -740,9 +776,9 @@ void Settings::writeSettingsMain() {
 		}
 	}
 	
-	std::function<void(const char*, const char*, const char*)> appendLine = [&](
+	std::function<LineInfo&(const char*, const char*, const char*)> appendLine = [&](
 		const char* name, const char* value, const char* iniDescription
-	) {
+	) -> LineInfo& {
 		if (!lines.empty() && !isWhitespace(lines.back().line.c_str())) {
 			lines.emplace_back();
 			LineInfo& li = lines.back();
@@ -767,6 +803,7 @@ void Settings::writeSettingsMain() {
 		li.valuePos = li.equalSignPos + 2;
 		li.value = value;
 		li.needReform = true;
+		return li;
 	};
 	
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
@@ -777,69 +814,37 @@ void Settings::writeSettingsMain() {
 		}
 	}
 	
-	if (keyToLine.find(toUppercase("slowmoTimes")) == keyToLine.end()) {
-		appendLine("slowmoTimes", std::to_string(slowmoTimes).c_str(), "; A number.\n"
-			"; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed.\n"
-			"; Specifies by how many times to slow the game down");
-	}
+	std::function<LineInfo&(const char*, const char*, const char*)> replaceOrAddSetting = [&](
+		const char* name, const char* value, const char* description
+	) -> LineInfo& {
+		auto found = keyToLine.find(toUppercase(name));
+		if (found == keyToLine.end()) {
+			return appendLine(name, value, description);
+		} else {
+			found->second->needReform = true;
+			found->second->value = value;
+			return *found->second;
+		}
+	};
 	
-	if (keyToLine.find(toUppercase("allowContinuousScreenshotting")) == keyToLine.end()) {
-		appendLine("allowContinuousScreenshotting", formatBoolean(allowContinuousScreenshotting), "; Specify true or false.\n"
-			"; When this is true that means screenshots are being taken every game loop logical frame as\n"
-			"; long as the screenshotBtn is being held. Game loop logical frame means that if the game is\n"
-			"; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.\n"
-			"; A new screenshot is only taken when animation frames change on the player characters.\n"
-			"; Be cautions not to run out of disk space if you're low. This option doesn't\n"
-			"; work if screenshotPath is empty, it's not allowed to work outside of training mode or when\n"
-			"; a match (training session) isn't currently running (for example on character selection screen).");
+	replaceOrAddSetting("slowmoTimes", std::to_string(slowmoTimes).c_str(), getOtherINIDescription(&slowmoTimes));
+	replaceOrAddSetting("allowContinuousScreenshotting", formatBoolean(allowContinuousScreenshotting), getOtherINIDescription(&allowContinuousScreenshotting));
+	replaceOrAddSetting("startDisabled", formatBoolean(startDisabled), getOtherINIDescription(&startDisabled));
+	std::string scrPathCpy;
+	{
+		std::unique_lock<std::mutex> screenshotGuard(screenshotPathMutex);
+		scrPathCpy = screenshotPath;
 	}
-	
-	if (keyToLine.find(toUppercase("startDisabled")) == keyToLine.end()) {
-		appendLine("startDisabled", formatBoolean(startDisabled), "; Specify true or false.\n"
-			"; When true, starts the mod in a disabled state: it doesn't draw boxes or affect anything");
-	}
-	
-	if (keyToLine.find(toUppercase("screenshotPath")) == keyToLine.end()) {
-		appendLine("screenshotPath", screenshotPath.c_str(), "; A path to a file or a directory.\n"
-			"; It specifies where screenshots will be saved.\n"
-			"; If you provided a file path, it must be with .png extension, and if such name already exists, a\n"
-			"; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique,\n"
-			"; so that new screenshots will never overwrite old ones.\n"
-			"; If you provided a directory path, it must already exist, and \"screen.png\" will be appended to\n"
-			"; it with an increasing number at the end in case the filename is not unique.\n"
-			"; The provided path must be without quotes.\n"
-			"; If you want the path to be multilingual you need to save this file in UTF-8.\n"
-			"; On Ubuntu/Linux running Guilty Gear Xrd under Steam Proton you need to specify paths with\n"
-			"; the Z:\\ drive, path separator is backslash (\\), not forward slash (/). Example: Z:\\home\\yourUserName\\ggscreen.png\n"
-			"; If the path is not specified or is empty, the screenshot will be saved into your clipboard so\n"
-			"; it can be pasted into any image editing program. For example, GIMP will recognize the PNG\n"
-			"; format and paste that, with transparency. This would work even on Ubuntu/Linux.\n"
-			"; Only PNG format is supported.");
-		LineInfo& li = lines.back();
-		li.commentPos = li.valuePos + li.value.size() + 1;
+	logwrap(fprintf(logfile, "Writing screenshot path: %s\n", screenshotPath.c_str()));
+	LineInfo& li = replaceOrAddSetting("screenshotPath", scrPathCpy.c_str(), getOtherINIDescription(&screenshotPath));
+	if (li.value.empty()) {
+		li.commentPos = li.equalSignPos + 2;
 		li.comment = ";C:\\Users\\yourUser\\Desktop\\test screenshot name.png   don't forget to uncomment (; is a comment)";
 	}
 	
-	if (keyToLine.find(toUppercase("dontUseScreenshotTransparency")) == keyToLine.end()) {
-		appendLine("dontUseScreenshotTransparency", formatBoolean(dontUseScreenshotTransparency), "; Specify true or false.\n"
-			"; Setting this to true will produce screenshots without transparency");
-	}
-	
-	if (keyToLine.find(toUppercase("drawPushboxCheckSeparately")) == keyToLine.end()) {
-		appendLine("drawPushboxCheckSeparately", formatBoolean(drawPushboxCheckSeparately), "; Specify true or false.\n"
-			"; Setting this to true will make throw boxes show in an opponent-character-independent way:\n"
-			"; The part of the throw box that checks for pushboxes proximity will be shown in blue,\n"
-			"; while the part of the throw box that checks x or y of the origin point will be shown in purple\n"
-			"; Setting this to false will combine both the checks of the throw so that you only see the final box\n"
-			"; in blue which only checks the opponent's origin point. Be warned, such a throw box\n"
-			"; is affected by the width of the opponent's pushbox. Say, on Potemkin, for example,\n"
-			"; all ground throw ranges should be higher.");
-	}
-	
-	if (keyToLine.find(toUppercase("modWindowVisibleOnStart")) == keyToLine.end()) {
-		appendLine("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), "; Specify true or false.\n"
-			"; If this is false, when this mod starts, the mod's UI window will be invisible.");
-	}
+	replaceOrAddSetting("dontUseScreenshotTransparency", formatBoolean(dontUseScreenshotTransparency), getOtherINIDescription(&dontUseScreenshotTransparency));
+	replaceOrAddSetting("drawPushboxCheckSeparately", formatBoolean(drawPushboxCheckSeparately), getOtherINIDescription(&drawPushboxCheckSeparately));
+	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));
 	
 	SetFilePointer(file, 0, NULL, FILE_BEGIN);
 	
@@ -855,15 +860,21 @@ void Settings::writeSettingsMain() {
 				lineStr += li.key;
 			}
 			if (li.equalSignPos != -1) {
-				lineStr.append(li.equalSignPos - lineStr.size(), ' ');
+				if (li.equalSignPos > (int)lineStr.size()) {
+					lineStr.append(li.equalSignPos - lineStr.size(), ' ');
+				}
 				lineStr += '=';
 			}
 			if (li.valuePos != -1) {
-				lineStr.append(li.valuePos - lineStr.size(), ' ');
+				if (li.valuePos > (int)lineStr.size()) {
+					lineStr.append(li.valuePos - lineStr.size(), ' ');
+				}
 				lineStr += li.value;
 			}
 			if (li.commentPos != -1) {
-				lineStr.append(li.commentPos - lineStr.size(), ' ');
+				if (li.commentPos > (int)lineStr.size()) {
+					lineStr.append(li.commentPos - lineStr.size(), ' ');
+				}
 				lineStr += li.comment;
 			}
 			WriteFile(file, lineStr.c_str(), lineStr.size(), &bytesWritten, NULL);
@@ -995,4 +1006,57 @@ void Settings::getComboInfo(std::vector<int>& keyCombo, ComboInfo* info) {
 		}
 	}
 	info->uiName = info->uiDescription = "";
+}
+
+const char* Settings::getOtherUIDescription(void* ptr) {
+	for (const OtherDescription& desc : otherDescriptions) {
+		if (desc.ptr == ptr) return desc.uiDescription.c_str();
+	}
+	return "";
+}
+
+const char* Settings::getOtherINIDescription(void* ptr) {
+	for (const OtherDescription& desc : otherDescriptions) {
+		if (desc.ptr == ptr) return desc.iniDescription;
+	}
+	return "";
+}
+
+void Settings::registerOtherDescription(void* ptr, const char* iniDescription) {
+	otherDescriptions.emplace_back();
+	OtherDescription& desc = otherDescriptions.back();
+	desc.ptr = ptr;
+	desc.iniDescription = iniDescription;
+	desc.uiDescription = convertToUiDescription(iniDescription);
+}
+
+std::string Settings::convertToUiDescription(const char* iniDescription) {
+	std::string result;
+	if (*iniDescription != '\0') {
+		result.reserve(strlen(iniDescription));
+		enum ParseMode {
+			PARSING_NEWLINE,
+			PARSING_SEMICOLON,
+			PARSING_WHITESPACE
+		} parsingMode = PARSING_NEWLINE;
+		for (; ; ++iniDescription) {
+			char cVal = *iniDescription;
+			if (cVal == '\0') break;
+			if (cVal == ';' && parsingMode == PARSING_NEWLINE) {
+				parsingMode = PARSING_SEMICOLON;
+				continue;
+			}
+			if (cVal == '\n') {
+				parsingMode = PARSING_NEWLINE;
+				result += '\n';
+				continue;
+			}
+			if (cVal <= 32 && parsingMode == PARSING_SEMICOLON) {
+				parsingMode = PARSING_WHITESPACE;
+				continue;
+			}
+			result += cVal;
+		}
+	}
+	return result;
 }
