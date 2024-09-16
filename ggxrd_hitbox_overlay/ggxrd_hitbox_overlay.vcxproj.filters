@@ -288,6 +288,9 @@
     <ClInclude Include="..\steam_api\public\steam\steamuniverse.h">
       <Filter>steam_api</Filter>
     </ClInclude>
+    <ClInclude Include="Version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

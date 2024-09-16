@@ -271,3 +271,22 @@ char* scrollUpToInt3(char* ptr) {
 	}
 	return ptr;
 }
+
+char* scrollUpToBytes(char *ptr, const char* buf, int bufSize, int limit) {
+	while (--limit >= 0) {
+		bool match = true;
+		const char* ptrPtr = ptr;
+		const char* bufPtr = buf;
+		for (int bufCounter = bufSize; bufCounter > 0; --bufCounter) {
+			if (*bufPtr != *ptrPtr) {
+				match = false;
+				break;
+			}
+			++bufPtr;
+			++ptrPtr;
+		}
+		if (match) return ptr;
+		--ptr;
+	}
+	return nullptr;
+}

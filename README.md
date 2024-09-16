@@ -173,7 +173,7 @@ This is a big section that is described in `Taking transparent/non-transparent s
 
 ### Hotkey configuration
 
-If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
+If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, you can use the mod's UI that you can see in the game's window when you load the mod, or you can create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
 Here's an example of the `.ini` file:
 
 ```ini
@@ -183,73 +183,79 @@ Here's an example of the `.ini` file:
 ; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.
 ; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.
 
-; Toggles GIF mode
+; A keyboard shortcut to toggle GIF mode.
 ; GIF mode is:
 ; 1) Background becomes black
 ; 2) Camera is centered on you
 ; 3) Opponent is invisible and invulnerable
 ; 4) Hide HUD
-gifModeToggle = F1
+gifModeToggle =
 
-; Only does the "background becomes black" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "background becomes black" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleBackgroundOnly =
 
-; Only does the "Camera is centered on you" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "Camera is centered on you" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleCameraCenterOnly =
 
-; Only does the "Opponent is invisible and invulnerable" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "Opponent is invisible and invulnerable" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleHideOpponentOnly =
 
-; Only does the "hide hud" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "hide hud" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleHudOnly =
 
-; Toggles No gravity mode
+; A keyboard shortcut to toggle No gravity mode
 ; No gravity mode is you can't fall basically
 noGravityToggle = F2
 
-; Freezes the game
+; A keyboard shortcut to freeze the game
 freezeGameToggle = F3
 
-; Plays the game in slow motion. Specifies by how many times to slow the game down in "slowmoTimes"
+; A keyboard shortcut to play the game in slow motion.
+; Please specify by how many times to slow the game down in "slowmoTimes"
 slowmoGameToggle = F4
 
-; Only works while the game is frozen using freezeGameToggle. Advances the game forward one frame
+; A keyboard shortcut. Only works while the game is frozen using freezeGameToggle.
+; Advances the game forward one frame
 allowNextFrameKeyCombo = F5
 
+; A number.
 ; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed.
 ; Specifies by how many times to slow the game down
 slowmoTimes = 3
 
-; A toggle button (or combination of buttons) to enable/disable the mod without having to
-; load/unload it
+; A keyboard shortcut to enable/disable the mod without having to load/unload it
 disableModToggle = F6
 
-; Starts the mod in a disabled state when it doesn't draw boxes or affect anything
+; Specify true or false.
+; When true, starts the mod in a disabled state: it doesn't draw boxes or affect anything
 startDisabled = false
 
-; A toggle to enable/disable only the mod hitbox drawing feature, the GIF mode and no
-; gravity, etc will keep working
+; A keyboard shortcut to enable/disable only the mod hitbox drawing feature:
+; the GIF mode and no gravity, etc will keep working
 disableHitboxDisplayToggle = F7
 
+; A keyboard shortcut.
 ; Takes a screenshot and saves it at screenshotPath path
 ; To take screenshots over a transparent background you need to go to the game's
 ; Display Settings and turn off Post-Effects, then use GIF mode (make background dark).
-; Then screenshots will film character over transparent background
+; Then screenshots will film character over transparent background.
 ; If the dontUseScreenshotTransparency setting is true, screenshot will be without
 ; transparency anyway
 screenshotBtn = F8
 
-; setting "screenshotPath" specifies where screenshots will be saved.
-; If you provided a file path it must be with extension, and if such name already exists a
-; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique.
+; A path to a file or a directory.
+; It specifies where screenshots will be saved.
+; If you provided a file path, it must be with .png extension, and if such name already exists, a
+; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique,
+; so that new screenshots will never overwrite old ones.
 ; If you provided a directory path, it must already exist, and "screen.png" will be appended to
 ; it with an increasing number at the end in case the filename is not unique.
 ; The provided path must be without quotes.
@@ -262,6 +268,7 @@ screenshotBtn = F8
 ; Only PNG format is supported.
 screenshotPath = ;C:\Users\yourUser\Desktop\test screenshot name.png   don't forget to uncomment (; is a comment)
 
+; Specify true or false.
 ; When this is true that means screenshots are being taken every game loop logical frame as
 ; long as the screenshotBtn is being held. Game loop logical frame means that if the game is
 ; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.
@@ -271,15 +278,19 @@ screenshotPath = ;C:\Users\yourUser\Desktop\test screenshot name.png   don't for
 ; a match (training session) isn't currently running (for example on character selection screen).
 allowContinuousScreenshotting = false
 
+; A keyboard shortcut.
 ; This toggle can be used same way as screenshotBtn (when it's combined with
 ; allowContinuousScreenshotting = true), except it's a separate key combination and when you
-; press it it toggles the continuous screenshot taking every game logical frame. This
-; toggle does not require allowContinuousScreenshotting to be set to true
+; press it, it toggles the continuous screenshot taking every game logical frame. This
+; toggle does not require allowContinuousScreenshotting to be set to true,
+; or screenshotBtn to be set to anything.
 continuousScreenshotToggle =
 
+; Specify true or false.
 ; Setting this to true will produce screenshots without transparency
 dontUseScreenshotTransparency = false
 
+; Specify true or false.
 ; Setting this to true will make throw boxes show in an opponent-character-independent way:
 ; The part of the throw box that checks for pushboxes proximity will be shown in blue,
 ; while the part of the throw box that checks x or y of the origin point will be shown in purple
@@ -289,6 +300,13 @@ dontUseScreenshotTransparency = false
 ; all ground throw ranges should be higher.
 drawPushboxCheckSeparately = true
 
+; A keyboard shortcut.
+; Pressing this shortcut will show/hide the mod's UI window.
+modWindowVisibilityToggle = Escape
+
+; Specify true or false.
+; If this is false, when this mod starts, the mod's UI window will be invisible.
+modWindowVisibleOnStart = true
 
 ```
 
@@ -311,7 +329,7 @@ Only GIMP has been tested to support the PNG screenshot format that the mod prod
 
 ### Screenshot saving location
 
-By default the mod saves the screenshot into clipboard buffer, meaning you can paste it afterwards into a graphics program which supports transparency. In order to save screenshots to a file or directory you can add the `ggxrd_hitbox_overlay.ini` file into the same folder as the game executable and write the path into the `screenshotPath` setting in it, without quotes. Now when you save multiple screenshots in a row, each consecutive one will get a number in its name, increasing from 1 to infinity. Screenshots are never cleaned up, so if you never clean them up yourself, you might fill up your hard drive.  
+By default the mod saves the screenshot into clipboard buffer, meaning you can paste it afterwards into a graphics program which supports transparency. In order to save screenshots to a file or directory you can either specify it in the mod's UI window in its Settings, or you can add the `ggxrd_hitbox_overlay.ini` file into the same folder as the game executable and write the path into the `screenshotPath` setting in it, without quotes. Now when you save multiple screenshots in a row, each consecutive one will get a number in its name, increasing from 1 to infinity. Screenshots are never cleaned up, so if you never clean them up yourself, you might fill up your hard drive.  
 The only supported format by the mod is PNG and it uses `libpng` to encode that. You don't need to do anything to install `libpng` since it should come working inside the DLL already.  
 
 ### Continuous screenshotting
@@ -323,11 +341,11 @@ You can use the `.ini` setting `allowContinuousScreenshotting` to make it so tha
 - A match (training session) must currently be running;
 - The mod is not currently disabled using `disableModToggle` or `startDisabled`.
 
-There's also a toggle you can use instead of holding down a button, and that toggle is the `continuousScreenshotToggle` setting in the `.ini`. It doesn't require `allowContinuousScreenshotting` to be set to `true` in order to work, can be any hotkey and toggles continuous screenshotting on and off, but it still works only under the aforementioned conditions.
+There's also a toggle you can use instead of holding down a button, and that toggle is a checkbox in the mod's UI called 'Continuous Screenshotting Mode' or you can also edit the `continuousScreenshotToggle` setting in the `.ini`. It doesn't require `allowContinuousScreenshotting` to be set to `true` in order to work, can be any hotkey and toggles continuous screenshotting on and off, but it still works only under the aforementioned conditions.
 
 ### Non-transparent screenshotting
 
-To take regular, non-transparency-enabled screenshots you can set the `dontUseScreenshotTransparency` setting to `true` in the `.ini` file (which must be placed into the game's folder).
+To take regular, non-transparency-enabled screenshots you can set the `dontUseScreenshotTransparency` setting to `true` either through the mod's UI window or in the `.ini` file (which must be placed into the game's folder).
 
 ### Converting PNGs into WEBP animation with transparency with ffmpeg
 
@@ -515,3 +533,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 January 13: Fixed hitboxes' position not responding to camera movement in online matches due to rollback. Fixed a crash caused by using hitbox overlay in rollback-affected matches.
 - 2024 January 19: Fixed hitbox display disabling/enabling during frame freeze mode.
 - 2024 January 26: Added a toggle to hide the hud only/separated hud out of the "GIF mode". Fixed an issue when rapidly freezing/unfreezing the game made the hitboxes desync from the visuals.
+- 2024 September 16: Added imGui.

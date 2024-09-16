@@ -237,6 +237,7 @@
     <ClInclude Include="ThrowInfo.h" />
     <ClInclude Include="Throws.h" />
     <ClInclude Include="UI.h" />
+    <ClInclude Include="Version.h" />
     <ClInclude Include="WinError.h" />
   </ItemGroup>
   <ItemGroup>

@@ -6,6 +6,9 @@
 #include "CustomWindowMessages.h"
 #include "WinError.h"
 #include "Detouring.h"
+#include "GifMode.h"
+#include "Game.h"
+#include "Version.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx9.h"
@@ -147,8 +150,10 @@ void UI::onDllDetach() {
 }
 
 void UI::onEndScene(IDirect3DDevice9* device) {
-	if (!visible || isSteamOverlayActive) {
+	if (!visible || isSteamOverlayActive || gifMode.modDisabled) {
 		GetKeyStateAllowedThread = 0;
+		takeScreenshot = false;
+		takeScreenshotPress = false;
 		imguiActive = false;
 		return;
 	}
@@ -163,51 +168,167 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 	stateChanged = false;
 	needWriteSettings = false;
 	keyCombosChanged = false;
+	bool imguiActiveTemp = false;
+	bool takeScreenshotTemp = false;
+	
+	decrementFlagTimer(allowNextFrameTimer, allowNextFrame);
+	decrementFlagTimer(takeScreenshotTimer, takeScreenshotPress);
 	
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-	ImGui::Begin("Mod UI Window", &visible);
-	if (ImGui::CollapsingHeader("Hitbox settings")) {
-		stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled", &gifModeOn);
-		{
-			std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
-			size_t newLen = settings.screenshotPath.size();
-			if (newLen > MAX_PATH - 1) {
-				newLen = MAX_PATH - 1;
+	static std::string windowTitle;
+	if (windowTitle.empty()) {
+		windowTitle = "ggxrd_hitbox_overlay v";
+		windowTitle += VERSION;
+	}
+	ImGui::Begin(windowTitle.c_str(), &visible);
+	if (ImGui::CollapsingHeader("Settings")) {
+		if (ImGui::CollapsingHeader("Hitbox settings")) {
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled", &gifModeOn);
+			ImGui::SameLine();
+			HelpMarker("GIF mode is:\n"
+				"; 1) Background becomes black\n"
+				"; 2) Camera is centered on you\n"
+				"; 3) Opponent is invisible and invulnerable\n"
+				"; 4) Hide HUD");
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Black Background Only)", &gifModeToggleBackgroundOnly);
+			ImGui::SameLine();
+			HelpMarker("Makes background black (and, for screenshotting purposes, - effectively transparent, if Post Effect is turned off in the game's graphics settings).");
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Camera Center Only)", &gifModeToggleCameraCenterOnly);
+			ImGui::SameLine();
+			HelpMarker("Centers the camera on you.");
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Hide Opponent Only)", &gifModeToggleHideOpponentOnly);
+			ImGui::SameLine();
+			HelpMarker("Make the opponent invisible and invulnerable.");
+			stateChanged = stateChanged || ImGui::Checkbox("GIF Mode Enabled (Hide HUD Only)", &gifModeToggleHudOnly);
+			ImGui::SameLine();
+			HelpMarker("Hides the HUD.");
+			stateChanged = stateChanged || ImGui::Checkbox("No Gravity Enabled", &noGravityOn);
+			ImGui::SameLine();
+			HelpMarker("Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.");
+			stateChanged = stateChanged || ImGui::Checkbox("Freeze Game Enabled", &freezeGame);
+			ImGui::SameLine();
+			if (ImGui::Button("Next Frame")) {
+				allowNextFrame = true;
+				allowNextFrameTimer = 10;
 			}
-			memcpy(screenshotsPathBuf, settings.screenshotPath.c_str(), newLen);
-			screenshotsPathBuf[newLen] = '\0';
-		}
-		ImGui::Text("Screenshots path");
-		ImGui::SameLine();
-        float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
-        ImGui::SetNextItemWidth(w);
-		if (ImGui::InputText("##Screenshots path", screenshotsPathBuf, MAX_PATH, 0, nullptr, nullptr)) {
+			ImGui::SameLine();
+			HelpMarker("Freezes the current frame of the game and stops gameplay from advancing. You can advance gameplay to the next frame using the 'Next Frame' button."
+				" It is way more convenient to use this feature with shortcuts, which you can configure in the 'Keyboard shortcuts' section below.");
+			stateChanged = stateChanged || ImGui::Checkbox("Slow-Mo Mode Enabled", &slowmoGame);
+			ImGui::SameLine();
+			int slowmoTimes = settings.slowmoTimes;
+			ImGui::SetNextItemWidth(80.F);
+			if (ImGui::InputInt("Slow-Mo Factor", &slowmoTimes, 1, 1, 0)) {
+				if (slowmoTimes <= 0) {
+					slowmoTimes = 1;
+				}
+				settings.slowmoTimes = slowmoTimes;
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::SameLine();
+			HelpMarker("Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.");
+			stateChanged = stateChanged || ImGui::Checkbox("Disable Hitbox Drawing", &hitboxDisplayDisabled);
+			ImGui::SameLine();
+			HelpMarker("Disables display of hitboxes/boxes. All other features of the mod continue to work normally.");
+			bool drawPushboxCheckSeparately = settings.drawPushboxCheckSeparately;
+			if (ImGui::Checkbox("Draw Pushbox Check Separately", &drawPushboxCheckSeparately)) {
+				settings.drawPushboxCheckSeparately = drawPushboxCheckSeparately;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.drawPushboxCheckSeparately));
 			{
 				std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
-				settings.screenshotPath = screenshotsPathBuf;
+				size_t newLen = settings.screenshotPath.size();
+				if (newLen > MAX_PATH - 1) {
+					newLen = MAX_PATH - 1;
+				}
+				memcpy(screenshotsPathBuf, settings.screenshotPath.c_str(), newLen);
+				screenshotsPathBuf[newLen] = '\0';
 			}
-			if (keyboard.thisProcessWindow) {
-				logwrap(fputs("Posting message 'WM_APP_SCREENSHOT_PATH_UPDATED'\n", logfile));
-				PostMessageW(keyboard.thisProcessWindow, WM_APP_SCREENSHOT_PATH_UPDATED, 0, 0);
+			
+			ImGui::Text("Screenshots path");
+			ImGui::SameLine();
+	        float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
+	        ImGui::SetNextItemWidth(w);
+			if (ImGui::InputText("##Screenshots path", screenshotsPathBuf, MAX_PATH, 0, nullptr, nullptr)) {
+				{
+					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
+					settings.screenshotPath = screenshotsPathBuf;
+				}
+				if (keyboard.thisProcessWindow) {
+					logwrap(fputs("Posting message 'WM_APP_SCREENSHOT_PATH_UPDATED'\n", logfile));
+					PostMessageW(keyboard.thisProcessWindow, WM_APP_SCREENSHOT_PATH_UPDATED, 0, 0);
+				}
 			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::SameLine();
+			if (ImGui::Button("Select", BTN_SIZE) && keyboard.thisProcessWindow) {
+				PostMessageW(keyboard.thisProcessWindow, WM_APP_OPEN_FILE_SELECTION, 0, 0);
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
+			ImGui::Button("Take Screenshot");
+			if (ImGui::IsItemActivated()) {
+				// Regular ImGui button 'press' (ImGui::Button(...) function returning true) happens when you RELEASE the button,
+				// but to simulate the old keyboard behavior we need this to happen when you PRESS the button
+				takeScreenshotPress = true;
+				takeScreenshotTimer = 10;
+			}
+			takeScreenshotTemp = ImGui::IsItemActive();
+			ImGui::SameLine();
+			HelpMarker("Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
+				" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings, you"
+				" will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set,"
+				" they're saved there instead.");
+			bool allowContinuousScreenshotting = settings.allowContinuousScreenshotting;
+			if (ImGui::Checkbox("Allow Continuous Screenshotting", &allowContinuousScreenshotting)) {
+				settings.allowContinuousScreenshotting = allowContinuousScreenshotting;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.allowContinuousScreenshotting));
+			stateChanged = stateChanged || ImGui::Checkbox("Continuous Screenshotting Mode", &continuousScreenshotToggle);
+			ImGui::SameLine();
+			HelpMarker("When this option is enabled, screenshots will be taken every frame, unless the game is frozen, in which case"
+				" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
+				" the game down significantly. Continuous screenshotting is only allowed in training mode.");
+			bool dontUseScreenshotTransparency = settings.dontUseScreenshotTransparency;
+			if (ImGui::Checkbox("Take Screenshots Without Transparency", &dontUseScreenshotTransparency)) {
+				settings.dontUseScreenshotTransparency = dontUseScreenshotTransparency;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.dontUseScreenshotTransparency));
 		}
-		imguiActive = ImGui::IsItemActive();
-		ImGui::SameLine();
-		if (ImGui::Button("Select", BTN_SIZE) && keyboard.thisProcessWindow) {
-			PostMessageW(keyboard.thisProcessWindow, WM_APP_OPEN_FILE_SELECTION, 0, 0);
+		if (ImGui::CollapsingHeader("Keyboard shortcuts")) {
+			keyComboControl(settings.modWindowVisibilityToggle);
+			keyComboControl(settings.gifModeToggle);
+			keyComboControl(settings.gifModeToggleBackgroundOnly);
+			keyComboControl(settings.gifModeToggleCameraCenterOnly);
+			keyComboControl(settings.gifModeToggleHideOpponentOnly);
+			keyComboControl(settings.gifModeToggleHudOnly);
+			keyComboControl(settings.noGravityToggle);
+			keyComboControl(settings.freezeGameToggle);
+			keyComboControl(settings.slowmoGameToggle);
+			keyComboControl(settings.allowNextFrameKeyCombo);
+			keyComboControl(settings.disableHitboxDisplayToggle);
+			keyComboControl(settings.screenshotBtn);
+			keyComboControl(settings.continuousScreenshotToggle);
 		}
-		ImGui::SameLine();
-		HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
-	} else {
-		imguiActive = false;
+		if (ImGui::CollapsingHeader("General settings")) {
+			bool modWindowVisibleOnStart = settings.modWindowVisibleOnStart;
+			if (ImGui::Checkbox("Mod Window Visible On Start", &modWindowVisibleOnStart)) {
+				settings.modWindowVisibleOnStart = modWindowVisibleOnStart;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.modWindowVisibleOnStart));
+		}
 	}
-	if (ImGui::CollapsingHeader("Keyboard shortcuts")) {
-		keyComboControl(settings.modWindowVisibilityToggle);
-		keyComboControl(settings.gifModeToggle);
-		keyComboControl(settings.gifModeToggleBackgroundOnly);
-	}
+	takeScreenshot = takeScreenshotTemp;
+	imguiActive = imguiActiveTemp;
 	ImGui::End();
 	ImGui::EndFrame();
 	device->SetRenderState(D3DRS_ZENABLE, FALSE);
@@ -219,14 +340,13 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		settings.onKeyCombosUpdated();
 	}
 	if ((stateChanged || needWriteSettings) && keyboard.thisProcessWindow) {
-		logwrap(fprintf(logfile, "Posting WM_APP_UI_STATE_CHANGED: %d, %d\n", stateChanged, needWriteSettings));
 		PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_STATE_CHANGED, stateChanged, needWriteSettings);
 	}
 	stateChanged = oldStateChanged || stateChanged;
 }
 
 void UI::initialize(IDirect3DDevice9* device) {
-	if (imguiInitialized || !visible || !keyboard.thisProcessWindow) return;
+	if (imguiInitialized || !visible || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
@@ -283,20 +403,16 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 		if (imguiResult) return TRUE;
 		switch (message) {
 		case WM_APP_SCREENSHOT_PATH_UPDATED: {
-			logwrap(fputs("Received message 'WM_APP_SCREENSHOT_PATH_UPDATED'\n", logfile));
 			if (timerId == 0) {
 				timerId = SetTimer(NULL, 0, 1000, Timerproc);
-				logwrap(fprintf(logfile, "Calling SetTimer for new timer, timerId: %d\n", timerId));
 			} else {
 				SetTimer(NULL, timerId, 1000, Timerproc);
-				logwrap(fprintf(logfile, "Calling SetTimer for old timer, timerId: %d\n", timerId));
 			}
 			return TRUE;
 		}
 		case WM_APP_UI_STATE_CHANGED: {
 			if (lParam) {
 				if (timerId) {
-					logwrap(fprintf(logfile, "'WM_APP_UI_STATE_CHANGED': Killing timer. timerId: %d\n", timerId));
 					KillTimer(NULL, timerId);
 					timerId = 0;
 				}
@@ -307,7 +423,6 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 		}
 		case WM_APP_NEED_KILL_TIMER: {
 			if (wParam == timerId && ui.timerId != 0) {
-				logwrap(fprintf(logfile, "'WM_APP_NEED_KILL_TIMER': Killing timer. timerId: %d\n", timerId));
 				KillTimer(NULL, timerId);
 				timerId = 0;
 			}
@@ -435,6 +550,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 
 void UI::OnGameOverlayActivated(GameOverlayActivated_t* pParam) {
 	isSteamOverlayActive = pParam->m_bActive;
+	logwrap(fprintf(logfile, "isSteamOverlayActive: %d\n", isSteamOverlayActive));
 	if (isSteamOverlayActive) GetKeyStateAllowedThread = 0;
 	else if (imguiActive && !GetKeyStateAllowedThread) GetKeyStateAllowedThread = -1;
 	else if (!imguiActive) GetKeyStateAllowedThread = 0;
@@ -442,12 +558,22 @@ void UI::OnGameOverlayActivated(GameOverlayActivated_t* pParam) {
 
 SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
 	++detouring.hooksCounter;
+	detouring.markHookRunning("GetKeyState", true);
 	if (ui.GetKeyStateAllowedThread == 0 || GetCurrentThreadId() == ui.GetKeyStateAllowedThread) {
 		std::unique_lock<std::mutex> guard(ui.orig_GetKeyStateMutex);
 		SHORT result = ui.orig_GetKeyState(nVirtKey);
+		detouring.markHookRunning("GetKeyState", false);
 		--detouring.hooksCounter;
 		return result;
 	}
+	detouring.markHookRunning("GetKeyState", false);
 	--detouring.hooksCounter;
 	return 0;
+}
+
+void UI::decrementFlagTimer(int& timer, bool& flag) {
+	if (timer > 0 && flag) {
+		--timer;
+		if (timer == 0) flag = false;
+	}
 }

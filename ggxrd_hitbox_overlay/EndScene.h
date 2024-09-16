@@ -12,6 +12,7 @@ using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
 using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9*, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
+using drawTrainingHud_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device);
@@ -45,6 +46,8 @@ public:
 	bool orig_WndProcMutexLockedByWndProc = false;
 	DWORD wndProcThread = 0;
 	bool butDontPrepareBoxData = false;
+	drawTrainingHud_t orig_drawTrainingHud = nullptr;
+	std::mutex orig_drawTrainingHudMutex;
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -53,9 +56,11 @@ private:
 		friend class EndScene;
 		void sendUnrealPawnDataHook();
 		void readUnrealPawnDataHook();
+		void drawTrainingHudHook();
 	};
 	void sendUnrealPawnDataHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
+	void drawTrainingHudHook(char* thisArg);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
@@ -89,6 +94,7 @@ private:
 	drawTextWithIcons_t drawTextWithIcons = nullptr;
 	
 	bool needToRunNoGravGifMode = false;
+	void drawTexts();
 	
 };
 

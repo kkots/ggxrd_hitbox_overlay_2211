@@ -19,6 +19,20 @@ public:
 	bool visible = true;
 	bool stateChanged = false;
 	bool gifModeOn = false;
+	bool gifModeToggleBackgroundOnly = false;
+	bool gifModeToggleCameraCenterOnly = false;
+	bool gifModeToggleHideOpponentOnly = false;
+	bool gifModeToggleHudOnly = false;
+	bool noGravityOn = false;
+	bool freezeGame = false;
+	bool hitboxDisplayDisabled = false;
+	bool allowNextFrame = false;
+	int allowNextFrameTimer = 0;
+	bool takeScreenshot = false;
+	bool takeScreenshotPress = false;
+	int takeScreenshotTimer = 0;
+	bool slowmoGame = false;
+	bool continuousScreenshotToggle = false;
 	RecursiveLock lock;
 	bool isSteamOverlayActive = false;
 	bool imguiActive = false;
@@ -38,6 +52,7 @@ private:
 	std::mutex orig_GetKeyStateMutex;
 	static SHORT WINAPI hook_GetKeyState(int nVirtKey);
 	DWORD GetKeyStateAllowedThread = 0;
+	void decrementFlagTimer(int& timer, bool& flag);
 };
 
 extern UI ui;

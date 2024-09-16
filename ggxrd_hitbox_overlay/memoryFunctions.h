@@ -31,3 +31,5 @@ char* findWildcard(char* mask, unsigned int indexOfWildcard = 0);
 void substituteWildcard(char* mask, char* sig, char* sourceBuffer, size_t size, unsigned int indexOfWildcard = 0);
 
 char* scrollUpToInt3(char* ptr);
+
+char* scrollUpToBytes(char* ptr, const char* buf, int bufSize, int searchLimit = 1000);
