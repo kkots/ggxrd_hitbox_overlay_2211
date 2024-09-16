@@ -898,7 +898,7 @@ void Settings::writeSettingsMain() {
 			WriteFile(file, lineStr.c_str(), lineStr.size(), &bytesWritten, NULL);
 		}
 		if (rCharDetected) {
-			WriteFile(file, "\r\n", 1, &bytesWritten, NULL);
+			WriteFile(file, "\r\n", 2, &bytesWritten, NULL);
 		} else {
 			WriteFile(file, "\n", 1, &bytesWritten, NULL);
 		}
