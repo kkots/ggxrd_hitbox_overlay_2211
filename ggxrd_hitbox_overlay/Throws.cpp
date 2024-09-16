@@ -47,7 +47,7 @@ bool Throws::onDllMain() {
 void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("hitDetectionMain", true);
-	if (hitDetectionType == 1 && !gifMode.modDisabled && !gifMode.hitboxDisplayDisabled) {
+	if (hitDetectionType == 1 && !gifMode.modDisabled) {
 		throws.hitDetectionMainHook();
 	}
 	{

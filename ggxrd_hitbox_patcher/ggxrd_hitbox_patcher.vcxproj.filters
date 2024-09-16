@@ -22,4 +22,7 @@
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="ggxrd_hitbox_patcher_linux" />
+  </ItemGroup>
 </Project>

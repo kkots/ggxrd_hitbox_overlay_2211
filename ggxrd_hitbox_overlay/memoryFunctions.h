@@ -2,7 +2,11 @@
 #include <vector>
 
 bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end);
+bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end);
 bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end);
+bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* start, uintptr_t* end);
+
+static void splitOutModuleName(const char* name, char* moduleName, char* sectionName);
 
 uintptr_t sigscan(const char* name, const char* sig, size_t sigLength);
 
@@ -27,3 +31,5 @@ char* findWildcard(char* mask, unsigned int indexOfWildcard = 0);
 void substituteWildcard(char* mask, char* sig, char* sourceBuffer, size_t size, unsigned int indexOfWildcard = 0);
 
 char* scrollUpToInt3(char* ptr);
+
+char* scrollUpToBytes(char* ptr, const char* buf, int bufSize, int searchLimit = 1000);

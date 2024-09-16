@@ -10,7 +10,7 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 	DWORD windsThreadId = GetWindowThreadProcessId(hwnd, &windsProcId);
 	if (windsProcId == keyboard.thisProcessId) {
 		char className[1024] = "";
-		GetClassName(hwnd, className, _countof(className));
+		GetClassNameA(hwnd, className, _countof(className));
 		// we got multiple windows on Linux, need to disambiguate
 		if (strcmp(className, "LaunchUnrealUWindowsClient") == 0) {
 			keyboard.thisProcessWindow = hwnd;
@@ -29,7 +29,10 @@ bool Keyboard::onDllMain() {
 }
 
 void Keyboard::updateKeyStatuses() {
-	std::unique_lock<std::mutex> guard(mutex);
+	std::unique_lock<std::mutex> guard;
+	if (!mutexLockedFromOutside)
+		guard = std::unique_lock<std::mutex>(mutex);
+	
 	const bool windowActive = isWindowActive();
 	for (KeyStatus& status : statuses) {
 		status.gotPressed = false;
@@ -42,12 +45,18 @@ void Keyboard::updateKeyStatuses() {
 }
 
 void Keyboard::removeAllKeyCodes() {
-	std::unique_lock<std::mutex> guard(mutex);
+	std::unique_lock<std::mutex> guard;
+	if (!mutexLockedFromOutside)
+		guard = std::unique_lock<std::mutex>(mutex);
+	
 	statuses.clear();
 }
 
 void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
-	std::unique_lock<std::mutex> guard(mutex);
+	std::unique_lock<std::mutex> guard;
+	if (!mutexLockedFromOutside)
+		guard = std::unique_lock<std::mutex>(mutex);
+	
 	for (int code : keyCodes) {
 		auto found = statuses.end();
 		for (auto it = statuses.begin(); it != statuses.end(); ++it) {
@@ -63,8 +72,12 @@ void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 }
 
 bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
-	std::unique_lock<std::mutex> guard(mutex);
-	std::unique_lock<std::mutex> guardSettings(settings.keyCombosMutex);
+	std::unique_lock<std::mutex> guard;
+	std::unique_lock<std::mutex> guardSettings;
+	if (!mutexLockedFromOutside) {
+		guard = std::unique_lock<std::mutex>(mutex);
+		guardSettings = std::unique_lock<std::mutex>(settings.keyCombosMutex);
+	}
 	bool hasNonModifierKeys = false;
 	for (int code : keyCodes) {
 		if (!isModifierKey(code)) {
@@ -97,8 +110,12 @@ bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 }
 
 bool Keyboard::isHeld(const std::vector<int>& keyCodes) {
-	std::unique_lock<std::mutex> guard(mutex);
-	std::unique_lock<std::mutex> guardSettings(settings.keyCombosMutex);
+	std::unique_lock<std::mutex> guard;
+	std::unique_lock<std::mutex> guardSettings;
+	if (!mutexLockedFromOutside) {
+		guard = std::unique_lock<std::mutex>(mutex);
+		guardSettings = std::unique_lock<std::mutex>(settings.keyCombosMutex);
+	}
 	if (keyCodes.empty()) return false;
 	for (int code : keyCodes) {
 		KeyStatus* status = getStatus(code);
@@ -113,7 +130,7 @@ bool Keyboard::isKeyCodePressed(int code) const {
 }
 
 bool Keyboard::isWindowActive() const {
-	return GetForegroundWindow() == thisProcessWindow;
+	return GetForegroundWindow() == thisProcessWindow && thisProcessWindow != NULL;
 }
 
 bool Keyboard::isModifierKey(int code) const {
@@ -129,4 +146,12 @@ Keyboard::KeyStatus* Keyboard::getStatus(int code) {
 		}
 	}
 	return nullptr;
+}
+
+Keyboard::MutexLockedFromOutsideGuard::MutexLockedFromOutsideGuard() {
+	keyboard.mutexLockedFromOutside = true;
+}
+
+Keyboard::MutexLockedFromOutsideGuard::~MutexLockedFromOutsideGuard() {
+	keyboard.mutexLockedFromOutside = false;
 }

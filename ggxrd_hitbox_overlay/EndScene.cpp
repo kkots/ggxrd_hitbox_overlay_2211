@@ -19,6 +19,9 @@
 #include "Keyboard.h"
 #include "GifMode.h"
 #include "memoryFunctions.h"
+#include "WinError.h"
+#include "UI.h"
+#include "CustomWindowMessages.h"
 
 EndScene endScene;
 
@@ -28,7 +31,61 @@ bool EndScene::onDllMain() {
 	char** d3dvtbl = direct3DVTable.getDirect3DVTable();
 	orig_EndScene = (EndScene_t)d3dvtbl[42];
 	orig_Present = (Present_t)d3dvtbl[17];
+	
+	// ghidra sig: 81 fb 18 02 00 00 75 0f 83 fd 01 77 28 5d b8 44 51 4d 42 5b c2 10 00
+	orig_WndProc = (WNDPROC)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"\x81\xfb\x18\x02\x00\x00\x75\x0f\x83\xfd\x01\x77\x28\x5d\xb8\x44\x51\x4d\x42\x5b\xc2\x10\x00",
+		"xxxxxxxxxxxxxxxxxxxxxxx",
+		{ -0xA },
+		&error, "WndProc");
+	// why not use orig_WndProc = (WNDPROC)SetWindowLongPtrW(keyboard.thisProcessWindow, GWLP_WNDPROC, (LONG_PTR)hook_WndProc);?
+	// because if you use the patcher, it will load the DLL on startup, the DLL will swap out the WndProc,
+	// but then the game swaps out the WndProc with its own afterwards. So clearly, we need to load the DLL
+	// a bit later, and that needs to be fixed in the patcher, but a quick solution is to hook the
+	// WndProc directly.
 
+	if (orig_WndProc) {
+		if (!detouring.attach(&(PVOID&)orig_WndProc,
+			hook_WndProc,
+			&orig_WndProcMutex,
+			"WndProc")) return false;
+	}
+	
+    // ghidra sig: 81 fb 18 02 00 00 75 0f 83 fd 01 77 28 5d b8 44 51 4d 42 5b c2 10 00
+	uintptr_t TrainingEtc_OneDamage = sigscanOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		"TrainingEtc_OneDamage",
+		"xxxxxxxxxxxxxxxxxxxxx",
+		&error, "TrainingEtc_OneDamage");
+	if (!error) {
+		char sig[9] { "\xc7\x40\x28\x00\x00\x00\x00\xe8" };
+		memcpy(sig + 3, &TrainingEtc_OneDamage, 4);
+		
+		uintptr_t drawTextWithIconsCall = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig,
+			"xxxxxxxx",
+			{ 7 },
+			&error, "drawTextWithIconsCall");
+		if (drawTextWithIconsCall) {
+			drawTextWithIcons = (drawTextWithIcons_t)followRelativeCall(drawTextWithIconsCall);
+			logwrap(fprintf(logfile, "drawTextWithIcons: %p\n", drawTextWithIcons));
+			orig_drawTrainingHud = (drawTrainingHud_t)scrollUpToBytes((char*)drawTextWithIconsCall, "\x55\x8b\xec\x83\xe4\xf0", 6, 4000);
+			logwrap(fprintf(logfile, "orig_drawTrainingHud final location: %p\n", (void*)orig_drawTrainingHud));
+		}
+		if (orig_drawTrainingHud) {
+			void (HookHelp::*drawTrainingHudHookPtr)(void) = &HookHelp::drawTrainingHudHook;
+			if (!detouring.attach(&(PVOID&)orig_drawTrainingHud,
+				(PVOID&)drawTrainingHudHookPtr,
+				&orig_drawTrainingHudMutex,
+				"drawTrainingHud")) return false;
+		}
+		if (!drawTextWithIcons) {
+			error = true;
+		}
+	}
+	
 	// there will actually be a deadlock during DLL unloading if we don't put Present first and EndScene second
 
 	if (!detouring.attach(&(PVOID&)(orig_Present),
@@ -91,6 +148,7 @@ bool EndScene::onDllDetach() {
 			noGravGifMode();
 		}
 	}
+	
 	return true;
 }
 
@@ -128,6 +186,14 @@ void EndScene::HookHelp::readUnrealPawnDataHook() {
 	--detouring.hooksCounter;
 }
 
+void EndScene::HookHelp::drawTrainingHudHook() {
+	++detouring.hooksCounter;
+	detouring.markHookRunning("ReadUnrealPawnData", true);
+	endScene.drawTrainingHudHook((char*)this);
+	detouring.markHookRunning("ReadUnrealPawnData", false);
+	--detouring.hooksCounter;
+}
+
 void EndScene::sendUnrealPawnDataHook(char* thisArg) {
 	if (*aswEngine == nullptr) return;
 	entityList.populate();
@@ -139,7 +205,7 @@ void EndScene::sendUnrealPawnDataHook(char* thisArg) {
 
 void EndScene::logic() {
 	std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-	processKeyStrokes();
+	actUponKeyStrokesThatAlreadyHappened();
 	if (graphics.drawDataPrepared.empty && !butDontPrepareBoxData) {
 		bool oldNeedTakeScreenshot = graphics.drawDataPrepared.needTakeScreenshot;
 		graphics.drawDataPrepared.clear();
@@ -149,16 +215,22 @@ void EndScene::logic() {
 		if (gifMode.modDisabled) {
 			needToClearHitDetection = true;
 		}
-		else if (*aswEngine == nullptr) {
-			needToClearHitDetection = true;
-			clearContinuousScreenshotMode();
-		}
-		else if (altModes.isGameInNormalMode(&needToClearHitDetection)) {
-			if (!(game.isMatchRunning() ? true : altModes.roundendCameraFlybyType() != 8)) {
-				needToClearHitDetection = true;
+		else {
+			bool isPauseMenu;
+			bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu);
+			bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
+			entityList.populate();
+			bool areAnimationsNormal = entityList.areAnimationsNormal();
+			if (isNormalMode) {
+				if (!isRunning || !areAnimationsNormal) {
+					needToClearHitDetection = true;
+				}
+				else {
+					prepareDrawData(&needToClearHitDetection);
+				}
 			}
-			else {
-				prepareDrawData(&needToClearHitDetection);
+			if ((isNormalMode || isPauseMenu) && isRunning && areAnimationsNormal && !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
+				drawTexts();
 			}
 		}
 		if (needToClearHitDetection) {
@@ -172,15 +244,6 @@ void EndScene::logic() {
 
 void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("endSceneHook called\n", logfile));
-	entityList.populate();
-	logOnce(fputs("entityList.populate() called\n", logfile));
-	if (!entityList.areAnimationsNormal()) {
-		*needClearHitDetection = true;
-#ifdef LOG_PATH
-		didWriteOnce = true;
-#endif
-		return;
-	}
 	invisChipp.onEndSceneStart();
 	drawnEntities.clear();
 
@@ -250,7 +313,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
 	throws.drawThrows();
 	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
-
+	
 #ifdef LOG_PATH
 	didWriteOnce = true;
 #endif
@@ -361,7 +424,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		}
 	}
 
-	bool doYourThing = !gifMode.hitboxDisplayDisabled;
+	bool doYourThing = !gifMode.hitboxDisplayDisabled && !ui.isSteamOverlayActive;
 
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
@@ -384,25 +447,32 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		graphics.takeScreenshotMain(device, true);
 	}
 	graphics.drawDataUse.needTakeScreenshot = false;
+	
+	ui.onEndScene(device);
 }
 
 void EndScene::processKeyStrokes() {
-	settings.readSettingsIfChanged();
 	bool trainingMode = game.isTrainingMode();
-	bool needToRunNoGravGifMode = false;
 	keyboard.updateKeyStatuses();
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggle)) {
+	bool stateChanged;
+	{
+		RecursiveGuard uiGuard(ui.lock);
+		stateChanged = ui.stateChanged;
+		ui.stateChanged = false;
+	}
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggle) || stateChanged && ui.gifModeOn != gifMode.gifModeOn)) {
 		// idk how atomic_bool reacts to ! and operator bool(), so we do it the arduous way
 		if (gifMode.gifModeOn == true) {
 			gifMode.gifModeOn = false;
 			logwrap(fputs("GIF mode turned off\n", logfile));
-			needToRunNoGravGifMode = true;
+			needToRunNoGravGifMode = needToRunNoGravGifMode || (*aswEngine != nullptr);
 		} else if (trainingMode) {
 			gifMode.gifModeOn = true;
 			logwrap(fputs("GIF mode turned on\n", logfile));
 		}
+		ui.gifModeOn = gifMode.gifModeOn;
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleBackgroundOnly)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggleBackgroundOnly) || stateChanged && ui.gifModeToggleBackgroundOnly != gifMode.gifModeToggleBackgroundOnly)) {
 		if (gifMode.gifModeToggleBackgroundOnly == true) {
 			gifMode.gifModeToggleBackgroundOnly = false;
 			logwrap(fputs("GIF mode (darken background only) turned off\n", logfile));
@@ -411,8 +481,9 @@ void EndScene::processKeyStrokes() {
 			gifMode.gifModeToggleBackgroundOnly = true;
 			logwrap(fputs("GIF mode (darken background only) turned on\n", logfile));
 		}
+		ui.gifModeToggleBackgroundOnly = gifMode.gifModeToggleBackgroundOnly;
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleCameraCenterOnly)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggleCameraCenterOnly) || stateChanged && ui.gifModeToggleCameraCenterOnly != gifMode.gifModeToggleCameraCenterOnly)) {
 		if (gifMode.gifModeToggleCameraCenterOnly == true) {
 			gifMode.gifModeToggleCameraCenterOnly = false;
 			logwrap(fputs("GIF mode (center camera only) turned off\n", logfile));
@@ -421,8 +492,9 @@ void EndScene::processKeyStrokes() {
 			gifMode.gifModeToggleCameraCenterOnly = true;
 			logwrap(fputs("GIF mode (center camera only) turned on\n", logfile));
 		}
+		ui.gifModeToggleCameraCenterOnly = gifMode.gifModeToggleCameraCenterOnly;
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleHideOpponentOnly)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggleHideOpponentOnly) || stateChanged && ui.gifModeToggleHideOpponentOnly != gifMode.gifModeToggleHideOpponentOnly)) {
 		if (gifMode.gifModeToggleHideOpponentOnly == true) {
 			gifMode.gifModeToggleHideOpponentOnly = false;
 			logwrap(fputs("GIF mode (hide opponent only) turned off\n", logfile));
@@ -432,8 +504,9 @@ void EndScene::processKeyStrokes() {
 			gifMode.gifModeToggleHideOpponentOnly = true;
 			logwrap(fputs("GIF mode (hide opponent only) turned on\n", logfile));
 		}
+		ui.gifModeToggleHideOpponentOnly = gifMode.gifModeToggleHideOpponentOnly;
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.gifModeToggleHudOnly)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggleHudOnly) || stateChanged && ui.gifModeToggleHudOnly != gifMode.gifModeToggleHudOnly)) {
 		if (gifMode.gifModeToggleHudOnly == true) {
 			gifMode.gifModeToggleHudOnly = false;
 			logwrap(fputs("GIF mode (hide hud only) turned off\n", logfile));
@@ -442,8 +515,9 @@ void EndScene::processKeyStrokes() {
 			gifMode.gifModeToggleHudOnly = true;
 			logwrap(fputs("GIF mode (hide hud only) turned on\n", logfile));
 		}
+		ui.gifModeToggleHudOnly = gifMode.gifModeToggleHudOnly;
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.noGravityToggle)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.noGravityToggle) || stateChanged && ui.noGravityOn != gifMode.noGravityOn)) {
 		if (gifMode.noGravityOn == true) {
 			gifMode.noGravityOn = false;
 			logwrap(fputs("No gravity mode turned off\n", logfile));
@@ -452,8 +526,9 @@ void EndScene::processKeyStrokes() {
 			gifMode.noGravityOn = true;
 			logwrap(fputs("No gravity mode turned on\n", logfile));
 		}
+		ui.noGravityOn = gifMode.noGravityOn;
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.freezeGameToggle)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.freezeGameToggle) || stateChanged && ui.freezeGame != freezeGame)) {
 		if (freezeGame == true) {
 			freezeGame = false;
 			logwrap(fputs("Freeze game turned off\n", logfile));
@@ -462,8 +537,9 @@ void EndScene::processKeyStrokes() {
 			freezeGame = true;
 			logwrap(fputs("Freeze game turned on\n", logfile));
 		}
+		ui.freezeGame = freezeGame;
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.slowmoGameToggle)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.slowmoGameToggle) || stateChanged && ui.slowmoGame != game.slowmoGame)) {
 		if (game.slowmoGame == true) {
 			game.slowmoGame = false;
 			logwrap(fputs("Slowmo game turned off\n", logfile));
@@ -472,6 +548,7 @@ void EndScene::processKeyStrokes() {
 			game.slowmoGame = true;
 			logwrap(fputs("Slowmo game turned on\n", logfile));
 		}
+		ui.slowmoGame = game.slowmoGame;
 	}
 	if (keyboard.gotPressed(settings.disableModKeyCombo)) {
 		if (gifMode.modDisabled == true) {
@@ -480,10 +557,10 @@ void EndScene::processKeyStrokes() {
 		} else {
 			gifMode.modDisabled = true;
 			logwrap(fputs("Mod disabled\n", logfile));
-			needToRunNoGravGifMode = true;
+			needToRunNoGravGifMode = needToRunNoGravGifMode || (*aswEngine != nullptr);
 		}
 	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.disableHitboxDisplayToggle)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.disableHitboxDisplayToggle) || stateChanged && ui.hitboxDisplayDisabled != gifMode.hitboxDisplayDisabled)) {
 		if (gifMode.hitboxDisplayDisabled == true) {
 			gifMode.hitboxDisplayDisabled = false;
 			logwrap(fputs("Hitbox display enabled\n", logfile));
@@ -491,10 +568,38 @@ void EndScene::processKeyStrokes() {
 			gifMode.hitboxDisplayDisabled = true;
 			logwrap(fputs("Hitbox display disabled\n", logfile));
 		}
+		ui.hitboxDisplayDisabled = gifMode.hitboxDisplayDisabled;
 	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.modWindowVisibilityToggle)) {
+		if (ui.visible == true) {
+			ui.visible = false;
+			logwrap(fputs("UI display disabled\n", logfile));
+		} else {
+			ui.visible = true;
+			logwrap(fputs("UI display enabled\n", logfile));
+		}
+	}
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.continuousScreenshotToggle) || stateChanged && ui.continuousScreenshotToggle != continuousScreenshotMode)) {
+		if (continuousScreenshotMode) {
+			continuousScreenshotMode = false;
+			logwrap(fputs("Continuous screenshot mode off\n", logfile));
+		} else if (trainingMode) {
+			continuousScreenshotMode = true;
+			logwrap(fputs("Continuous screenshot mode on\n", logfile));
+		}
+		ui.continuousScreenshotToggle = continuousScreenshotMode;
+	}
+}
+
+void EndScene::actUponKeyStrokesThatAlreadyHappened() {
+	bool trainingMode = game.isTrainingMode();
 	bool allowNextFrameIsHeld = false;
 	if (!gifMode.modDisabled) {
 		allowNextFrameIsHeld = keyboard.isHeld(settings.allowNextFrameKeyCombo);
+	}
+	if (ui.allowNextFrame && !gifMode.modDisabled) {
+		allowNextFrameIsHeld = true;
+		ui.allowNextFrame = false;
 	}
 	if (allowNextFrameIsHeld) {
 		bool allowPress = false;
@@ -518,21 +623,13 @@ void EndScene::processKeyStrokes() {
 		allowNextFrameCounter = 0;
 	}
 	graphics.drawDataPrepared.needTakeScreenshot = false;
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.screenshotBtn)) {
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.screenshotBtn) || ui.takeScreenshotPress)) {
+		ui.takeScreenshotPress = false;
 		if (butDontPrepareBoxData) {
 			std::unique_lock<std::mutex> specialGuard(graphics.specialScreenshotFlagMutex);
 			graphics.specialScreenshotFlag = true;
 		} else {
 			graphics.drawDataPrepared.needTakeScreenshot = true;
-		}
-	}
-	if (!gifMode.modDisabled && keyboard.gotPressed(settings.continuousScreenshotToggle)) {
-		if (continuousScreenshotMode) {
-			continuousScreenshotMode = false;
-			logwrap(fputs("Continuous screenshot mode off\n", logfile));
-		} else if (trainingMode) {
-			continuousScreenshotMode = true;
-			logwrap(fputs("Continuous screenshot mode on\n", logfile));
 		}
 	}
 	bool screenshotPathEmpty = false;
@@ -542,7 +639,7 @@ void EndScene::processKeyStrokes() {
 	}
 	needContinuouslyTakeScreens = false;
 	if (!gifMode.modDisabled
-			&& (keyboard.isHeld(settings.screenshotBtn) && settings.allowContinuousScreenshotting || continuousScreenshotMode)
+			&& ((keyboard.isHeld(settings.screenshotBtn) || ui.takeScreenshot) && settings.allowContinuousScreenshotting || continuousScreenshotMode)
 			&& *aswEngine
 			&& trainingMode
 			&& !screenshotPathEmpty) {
@@ -551,12 +648,19 @@ void EndScene::processKeyStrokes() {
 	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
+		ui.gifModeOn = false;
 		gifMode.noGravityOn = false;
+		ui.noGravityOn = false;
 		game.slowmoGame = false;
+		ui.slowmoGame = false;
 		gifMode.gifModeToggleBackgroundOnly = false;
+		ui.gifModeToggleBackgroundOnly = false;
 		gifMode.gifModeToggleCameraCenterOnly = false;
+		ui.gifModeToggleCameraCenterOnly = false;
 		gifMode.gifModeToggleHideOpponentOnly = false;
+		ui.gifModeToggleHideOpponentOnly = false;
 		gifMode.gifModeToggleHudOnly = false;
+		ui.gifModeToggleHudOnly = false;
 		clearContinuousScreenshotMode();
 	}
 	if (needToRunNoGravGifMode) {
@@ -565,6 +669,8 @@ void EndScene::processKeyStrokes() {
 			noGravGifMode();
 		}
 	}
+	needToRunNoGravGifMode = false;
+	
 }
 
 void EndScene::noGravGifMode() {
@@ -623,7 +729,7 @@ void EndScene::noGravGifMode() {
 		auto it = hiddenEntities.begin();
 		while (it != hiddenEntities.end()) {
 			if (!it->wasFoundOnThisFrame) {
-				hiddenEntities.erase(it);
+				it = hiddenEntities.erase(it);
 			}
 			else {
 				++it;
@@ -665,6 +771,7 @@ void EndScene::noGravGifMode() {
 
 void EndScene::clearContinuousScreenshotMode() {
 	continuousScreenshotMode = false;
+	ui.continuousScreenshotToggle = false;
 	p1PreviousTimeOfTakingScreen = ~0;
 	p2PreviousTimeOfTakingScreen = ~0;
 }
@@ -690,4 +797,116 @@ void EndScene::assignNextId(bool acquireLock) {
 		++graphics.drawDataPrepared.id;
 	}
 	camera.nextId = graphics.drawDataPrepared.id;
+}
+
+LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	return endScene.WndProcHook(hWnd, message, wParam, lParam);
+}
+
+LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	++detouring.hooksCounter;
+	detouring.markHookRunning("WndProc", true);
+	if (ui.WndProc(hWnd, message, wParam, lParam)) {
+		detouring.markHookRunning("WndProc", false);
+		--detouring.hooksCounter;
+		return TRUE;
+	}
+	
+	if (message == WM_DESTROY) {
+		keyboard.thisProcessWindow = NULL;
+	}
+	
+	if (message == WM_APP_SETTINGS_FILE_UPDATED) {
+		settings.readSettings(true);
+	}
+	
+	if (message == WM_KEYDOWN
+			|| message == WM_KEYUP
+			|| message == WM_SYSKEYDOWN
+			|| message == WM_SYSKEYUP
+			|| message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
+		processKeyStrokes();
+	}
+	
+	bool iLockedTheMutex = false;
+	if (!orig_WndProcMutexLockedByWndProc) {
+		orig_WndProcMutex.lock();
+		orig_WndProcMutexLockedByWndProc = true;
+		wndProcThread = GetCurrentThreadId();
+		iLockedTheMutex = true;
+	}
+	LRESULT result = orig_WndProc(hWnd, message, wParam, lParam);
+	if (iLockedTheMutex) {
+		orig_WndProcMutex.unlock();
+		orig_WndProcMutexLockedByWndProc = false;
+	}
+	detouring.markHookRunning("WndProc", false);
+	--detouring.hooksCounter;
+	return result;
+}
+
+void EndScene::drawTrainingHudHook(char* thisArg) {
+	if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
+	{
+		std::unique_lock<std::mutex> guard(orig_drawTrainingHudMutex);
+		orig_drawTrainingHud(thisArg);
+	}
+}
+
+void EndScene::drawTexts() {
+	return;
+	#if 0
+	// Example code
+	{
+		char HelloWorld[] = "Hello World";
+		DrawTextWithIconsParams s;
+	    s.field159_0x100 = 36.0;
+	    s.field11_0x2c = 177;
+	    s.field160_0x104 = -1.0;
+	    s.field4_0x10 = -1.0;
+	    s.field155_0xf0 = 1;
+	    s.field157_0xf8 = -1;
+	    s.field158_0xfc = -1;
+	    s.field161_0x108 = 0;
+	    s.field162_0x10c = 0;
+	    s.field163_0x110 = -1;
+	    s.field164_0x114 = 0;
+	    s.field165_0x118 = 0;
+	    s.field166_0x11c = -1;
+	    s.field167_0x120 = 0xff000000;
+	    s.flags2 = 0xff000000;
+	    s.x = 100;
+	    s.y = 185.0 + 34 * 3;
+	    s.alignment = ALIGN_LEFT;
+	    s.field10_0x28 = HelloWorld;
+	    s.field156_0xf4 = 0x210;
+	    drawTextWithIcons(&s,0x0,1,4,0,0);
+	}
+    
+	{
+		char HelloWorld[] = "-123765";
+		DrawTextWithIconsParams s;
+	    s.field159_0x100 = 36.0;
+	    s.field11_0x2c = 177;
+	    s.field160_0x104 = -1.0;
+	    s.field4_0x10 = -1.0;
+	    s.field155_0xf0 = 1;
+	    s.field157_0xf8 = -1;
+	    s.field158_0xfc = -1;
+	    s.field161_0x108 = 0;
+	    s.field162_0x10c = 0;
+	    s.field163_0x110 = -1;
+	    s.field164_0x114 = 0;
+	    s.field165_0x118 = 0;
+	    s.field166_0x11c = -1;
+	    s.field167_0x120 = 0xff000000;
+	    s.flags2 = 0xff000000;
+	    s.x = 460;
+	    s.y = 185.0 + 34 * 3;
+	    s.alignment = ALIGN_CENTER;
+	    s.field10_0x28 = HelloWorld;
+	    s.field156_0xf4 = 0x210;
+	    drawTextWithIcons(&s,0x0,1,4,0,0);
+	}
+	#endif
 }

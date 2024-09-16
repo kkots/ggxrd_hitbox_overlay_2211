@@ -17,6 +17,10 @@
 #include "memoryFunctions.h"
 #include <io.h>     // for _open_osfhandle
 #include <fcntl.h>  // for _O_APPEND
+#include "imgui.h"
+#include "UI.h"
+
+static void closeLog();
 
 BOOL APIENTRY DllMain( HMODULE hModule,
                        DWORD  ul_reason_for_call,
@@ -26,6 +30,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH: {
+		DisableThreadLibraryCalls(hModule);
 #ifdef LOG_PATH
         {
             HANDLE fileHandle = CreateFileW(
@@ -41,29 +46,36 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			fflush(logfile);
 		}
 #endif
-
-        if (!detouring.beginTransaction()) break;
-        if (!settings.onDllMain()) break;
-        if (!game.onDllMain()) break;
-        if (!camera.onDllMain()) break;
-        if (!entityManager.onDllMain()) break;
-        if (!direct3DVTable.onDllMain()) break;
-        if (!endScene.onDllMain()) break;
-        if (!hitDetector.onDllMain()) break;
-        if (!graphics.onDllMain()) break;
-        if (!altModes.onDllMain()) break;
-        if (!throws.onDllMain()) break;
-        if (!keyboard.onDllMain()) break;
-        if (!hud.onDllMain()) break;
-        if (!detouring.endTransaction()) break;
+		#define terminate { \
+    		detouring.cancelTransaction(); \
+			closeLog(); \
+			return FALSE; \
+		}
+		if (!IMGUI_CHECKVERSION()) {
+			logwrap(fputs("IMGUI_CHECKVERSION() returned false\n", logfile));
+			terminate
+		}
+        if (!detouring.beginTransaction()) terminate
+        if (!settings.onDllMain()) terminate
+        if (!game.onDllMain()) terminate
+        if (!camera.onDllMain()) terminate
+        if (!entityManager.onDllMain()) terminate
+        if (!direct3DVTable.onDllMain()) terminate
+        if (!keyboard.onDllMain()) terminate
+        if (!ui.onDllMain()) terminate
+        if (!endScene.onDllMain()) terminate
+        if (!hitDetector.onDllMain()) terminate
+        if (!graphics.onDllMain()) terminate
+        if (!altModes.onDllMain()) terminate
+        if (!throws.onDllMain()) terminate
+        if (!hud.onDllMain()) terminate
+        if (!detouring.endTransaction()) terminate
         break;
     }
-    case DLL_THREAD_ATTACH:
-        break;
-    case DLL_THREAD_DETACH:
-        break;
     case DLL_PROCESS_DETACH:
         logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
+        ui.onDllDetach();
+        settings.onDllDetach();
         detouring.dllMainThreadId = GetCurrentThreadId();
         logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
         detouring.detachAll();
@@ -78,16 +90,19 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         // to fullscreen mode/exit fullscreen mode. So we just hope he doesn't do it while uninjecting the DLL.
         endScene.onDllDetach();
         hud.onDllDetach();
-        settings.onDllDetach();
+    	detouring.cancelTransaction();
+    	closeLog();
         break;
     }
-    detouring.cancelTransaction();
+    return TRUE;
+}
+
+void closeLog() {
 #ifdef LOG_PATH
-    if (ul_reason_for_call == DLL_PROCESS_DETACH && logfile) {
+    if (logfile) {
         fflush(logfile);
         fclose(logfile);
         logfile = NULL;
     }
 #endif
-    return TRUE;
 }

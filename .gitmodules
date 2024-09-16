@@ -1,0 +1,12 @@
+[submodule "imgui"]
+	path = imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "dxsdk"]
+	path = dxsdk
+	url = https://github.com/apitrace/dxsdk.git
+[submodule "Detours"]
+	path = Detours
+	url = https://github.com/microsoft/Detours.git
+[submodule "zlib"]
+	path = zlib
+	url = https://github.com/madler/zlib.git

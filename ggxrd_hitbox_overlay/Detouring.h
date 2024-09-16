@@ -22,6 +22,12 @@ public:
 	void markHookRunning(std::string name, bool running);
 	DWORD dllMainThreadId = 0;
 	std::atomic_int hooksCounter{0};
+	struct WndProcToUnhookAtTheEnd {
+		WNDPROC oldWndProc = NULL;
+		HWND window = NULL;
+		std::mutex* mutex = nullptr;
+	};
+	std::vector<WndProcToUnhookAtTheEnd> wndProcsToUnhookAtTheEnd;
 private:
 	struct ThingToBeUndetouredAtTheEnd {
 		PVOID* ppPointer = nullptr;  // pointer to a pointer to the original function

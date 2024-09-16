@@ -6,7 +6,7 @@
 
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
 Also can freeze the game and play it frame-by-frame (with box display turned off for example).  
-Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou).
+Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).
 
 ## Credits
 
@@ -35,14 +35,25 @@ You can also play the game frame-by-frame (described in `Features`).
 To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.  
 If trying to use the mod with a game version that it doesn't fit, the game may crash. The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
 
-The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo to see no one else but me modified this. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
+The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
 
 ## Quickstart for Ubuntu/Linux
 
-On Ubuntu/Linux the injector won't work. You need to patch the game so that it loads the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` does exactly that and must be launched directly, without Wine. (Its Windows version, `ggxrd_hitbox_patcher.exe`, can be used on Windows if you want to make the game load the mod automatically on startup.) The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes.  
+On Ubuntu/Linux the injector won't work on its own. You need to cd into the mod's directory and type into the console:
+
+```bash
+.\launch_ggxrd_hitbox_injector_linux.sh
+```
+
+This will launch the injector (the .exe one) on the same Wine server that Guilty Gear runs on. Assuming you're running the game using Steam Proton, and its version is supported, everything should work.  
+If it doesn't work, you can use the patcher:
+
+## Patching the game to always launch with the mod
+
+If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
 The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
 If the DLL is not found when the game launches, it will just run normally, without the mod.  
-Since there's no way to unload the mod on Ubuntu/Linux (the injector doesn't work), you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
+Normally you can run the injector to unload the mod, but if for whatever reason you can't run on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
 
 If Steam Proton is taking forever to launch the game, patched or not, then rename the mod's dll and put the original, unpatched version of the game executable back, then try switching the Proton version in Steam's settings and agree to restart Steam. After restarting Steam will start downloading two things related to Guilty Gear Xrd and will launch GGXrd automatically (even though you didn't tell it to). GGXrd should work. Quit GGXrd. Place the patched version of the game executable and the mod's dll back and restart GGXrd. GGXrd will launch with the mod. Idk what causes this.
 
@@ -162,7 +173,7 @@ This is a big section that is described in `Taking transparent/non-transparent s
 
 ### Hotkey configuration
 
-If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
+If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, you can use the mod's UI that you can see in the game's window when you load the mod, or you can create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
 Here's an example of the `.ini` file:
 
 ```ini
@@ -172,73 +183,79 @@ Here's an example of the `.ini` file:
 ; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.
 ; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.
 
-; Toggles GIF mode
+; A keyboard shortcut to toggle GIF mode.
 ; GIF mode is:
 ; 1) Background becomes black
 ; 2) Camera is centered on you
 ; 3) Opponent is invisible and invulnerable
 ; 4) Hide HUD
-gifModeToggle = F1
+gifModeToggle =
 
-; Only does the "background becomes black" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "background becomes black" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleBackgroundOnly =
 
-; Only does the "Camera is centered on you" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "Camera is centered on you" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleCameraCenterOnly =
 
-; Only does the "Opponent is invisible and invulnerable" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "Opponent is invisible and invulnerable" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleHideOpponentOnly =
 
-; Only does the "hide hud" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "hide hud" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleHudOnly =
 
-; Toggles No gravity mode
+; A keyboard shortcut to toggle No gravity mode
 ; No gravity mode is you can't fall basically
 noGravityToggle = F2
 
-; Freezes the game
+; A keyboard shortcut to freeze the game
 freezeGameToggle = F3
 
-; Plays the game in slow motion. Specifies by how many times to slow the game down in "slowmoTimes"
+; A keyboard shortcut to play the game in slow motion.
+; Please specify by how many times to slow the game down in "slowmoTimes"
 slowmoGameToggle = F4
 
-; Only works while the game is frozen using freezeGameToggle. Advances the game forward one frame
+; A keyboard shortcut. Only works while the game is frozen using freezeGameToggle.
+; Advances the game forward one frame
 allowNextFrameKeyCombo = F5
 
+; A number.
 ; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed.
 ; Specifies by how many times to slow the game down
 slowmoTimes = 3
 
-; A toggle button (or combination of buttons) to enable/disable the mod without having to
-; load/unload it
+; A keyboard shortcut to enable/disable the mod without having to load/unload it
 disableModToggle = F6
 
-; Starts the mod in a disabled state when it doesn't draw boxes or affect anything
+; Specify true or false.
+; When true, starts the mod in a disabled state: it doesn't draw boxes or affect anything
 startDisabled = false
 
-; A toggle to enable/disable only the mod hitbox drawing feature, the GIF mode and no
-; gravity, etc will keep working
+; A keyboard shortcut to enable/disable only the mod hitbox drawing feature:
+; the GIF mode and no gravity, etc will keep working
 disableHitboxDisplayToggle = F7
 
+; A keyboard shortcut.
 ; Takes a screenshot and saves it at screenshotPath path
 ; To take screenshots over a transparent background you need to go to the game's
 ; Display Settings and turn off Post-Effects, then use GIF mode (make background dark).
-; Then screenshots will film character over transparent background
+; Then screenshots will film character over transparent background.
 ; If the dontUseScreenshotTransparency setting is true, screenshot will be without
 ; transparency anyway
 screenshotBtn = F8
 
-; setting "screenshotPath" specifies where screenshots will be saved.
-; If you provided a file path it must be with extension, and if such name already exists a
-; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique.
+; A path to a file or a directory.
+; It specifies where screenshots will be saved.
+; If you provided a file path, it must be with .png extension, and if such name already exists, a
+; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique,
+; so that new screenshots will never overwrite old ones.
 ; If you provided a directory path, it must already exist, and "screen.png" will be appended to
 ; it with an increasing number at the end in case the filename is not unique.
 ; The provided path must be without quotes.
@@ -251,6 +268,7 @@ screenshotBtn = F8
 ; Only PNG format is supported.
 screenshotPath = ;C:\Users\yourUser\Desktop\test screenshot name.png   don't forget to uncomment (; is a comment)
 
+; Specify true or false.
 ; When this is true that means screenshots are being taken every game loop logical frame as
 ; long as the screenshotBtn is being held. Game loop logical frame means that if the game is
 ; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.
@@ -260,15 +278,19 @@ screenshotPath = ;C:\Users\yourUser\Desktop\test screenshot name.png   don't for
 ; a match (training session) isn't currently running (for example on character selection screen).
 allowContinuousScreenshotting = false
 
+; A keyboard shortcut.
 ; This toggle can be used same way as screenshotBtn (when it's combined with
 ; allowContinuousScreenshotting = true), except it's a separate key combination and when you
-; press it it toggles the continuous screenshot taking every game logical frame. This
-; toggle does not require allowContinuousScreenshotting to be set to true
+; press it, it toggles the continuous screenshot taking every game logical frame. This
+; toggle does not require allowContinuousScreenshotting to be set to true,
+; or screenshotBtn to be set to anything.
 continuousScreenshotToggle =
 
+; Specify true or false.
 ; Setting this to true will produce screenshots without transparency
 dontUseScreenshotTransparency = false
 
+; Specify true or false.
 ; Setting this to true will make throw boxes show in an opponent-character-independent way:
 ; The part of the throw box that checks for pushboxes proximity will be shown in blue,
 ; while the part of the throw box that checks x or y of the origin point will be shown in purple
@@ -278,6 +300,13 @@ dontUseScreenshotTransparency = false
 ; all ground throw ranges should be higher.
 drawPushboxCheckSeparately = true
 
+; A keyboard shortcut.
+; Pressing this shortcut will show/hide the mod's UI window.
+modWindowVisibilityToggle = Escape
+
+; Specify true or false.
+; If this is false, when this mod starts, the mod's UI window will be invisible.
+modWindowVisibleOnStart = true
 
 ```
 
@@ -300,7 +329,7 @@ Only GIMP has been tested to support the PNG screenshot format that the mod prod
 
 ### Screenshot saving location
 
-By default the mod saves the screenshot into clipboard buffer, meaning you can paste it afterwards into a graphics program which supports transparency. In order to save screenshots to a file or directory you can add the `ggxrd_hitbox_overlay.ini` file into the same folder as the game executable and write the path into the `screenshotPath` setting in it, without quotes. Now when you save multiple screenshots in a row, each consecutive one will get a number in its name, increasing from 1 to infinity. Screenshots are never cleaned up, so if you never clean them up yourself, you might fill up your hard drive.  
+By default the mod saves the screenshot into clipboard buffer, meaning you can paste it afterwards into a graphics program which supports transparency. In order to save screenshots to a file or directory you can either specify it in the mod's UI window in its Settings, or you can add the `ggxrd_hitbox_overlay.ini` file into the same folder as the game executable and write the path into the `screenshotPath` setting in it, without quotes. Now when you save multiple screenshots in a row, each consecutive one will get a number in its name, increasing from 1 to infinity. Screenshots are never cleaned up, so if you never clean them up yourself, you might fill up your hard drive.  
 The only supported format by the mod is PNG and it uses `libpng` to encode that. You don't need to do anything to install `libpng` since it should come working inside the DLL already.  
 
 ### Continuous screenshotting
@@ -312,11 +341,11 @@ You can use the `.ini` setting `allowContinuousScreenshotting` to make it so tha
 - A match (training session) must currently be running;
 - The mod is not currently disabled using `disableModToggle` or `startDisabled`.
 
-There's also a toggle you can use instead of holding down a button, and that toggle is the `continuousScreenshotToggle` setting in the `.ini`. It doesn't require `allowContinuousScreenshotting` to be set to `true` in order to work, can be any hotkey and toggles continuous screenshotting on and off, but it still works only under the aforementioned conditions.
+There's also a toggle you can use instead of holding down a button, and that toggle is a checkbox in the mod's UI called 'Continuous Screenshotting Mode' or you can also edit the `continuousScreenshotToggle` setting in the `.ini`. It doesn't require `allowContinuousScreenshotting` to be set to `true` in order to work, can be any hotkey and toggles continuous screenshotting on and off, but it still works only under the aforementioned conditions.
 
 ### Non-transparent screenshotting
 
-To take regular, non-transparency-enabled screenshots you can set the `dontUseScreenshotTransparency` setting to `true` in the `.ini` file (which must be placed into the game's folder).
+To take regular, non-transparency-enabled screenshots you can set the `dontUseScreenshotTransparency` setting to `true` either through the mod's UI window or in the `.ini` file (which must be placed into the game's folder).
 
 ### Converting PNGs into WEBP animation with transparency with ffmpeg
 
@@ -385,25 +414,56 @@ The tools provided in <https://github.com/kkots/GIFTools> allow renumbering PNG 
 
 ## Developing
 
+### How to clone this repo
+
+This git repo has a submodule for `imgui`. To clone this repo you can either follow this guide: <https://git-scm.com/book/en/v2/Git-Tools-Submodules>  
+Or use command:
+
+```bash
+git clone --recurse-submodules https://github.com/kkots/ggxrd_hitbox_overlay_2211.git
+```
+
+This will create a subfolder called `ggxrd_hitbox_overlay_2211` in your current directory, download the mod's files into it, in that folder there will be another folder called `imgui` and that will contain the files for the version of imgui that we use.
+
+### Project structure
+
 There are multiple separate projects in the repository.
 
 The `ggxrd_hitbox_injector` project builds an application that will inject a dll into the process and exit. The main action will then take place in the dll, in the target process' address space.
 
 The `ggxrd_hitbox_overlay` project builds the dll that's responsible for drawing the hitboxes.
 
-The `ggxrd_hitbox_patcher` project is cross-platform for Windows and Ubuntu/Linux and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed because injector doesn't work on Ubuntu/Linux or to make the game always start with the mod on Windows.
+The `ggxrd_hitbox_patcher` project is cross-platform for Windows and Ubuntu/Linux and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed in case injector doesn't work on Ubuntu/Linux (there is a launcher script for it though, try that) or to make the game always start with the mod on Windows.
 
 Each project should have its own separate README.md.
+
+The `libpng` series of projects is an outside repository that we depend on that I had to modify, so it's not included as a git submodule, but copied directly into the mod's sources. The reason I had to modify some of it was because I needed to retarget its Visual Studio projects since I didn't have the older build tools.
+
+`imgui` is an outside project that we depend on, it's included in this mod as a git submodule. Please do not modify anything there and try not to update it using git fetch or git pull, unless you're ready to make corresponding changes in our mod.
+
+`detours` is Microsoft Detours library, also included as a git submodule.
+
+`zlib` is a compression library needed to libpng. Unlike libpng, it *is* included as a git submodule here. Please also refrain from modifying it.
+
+`steam_api` - Valve's Steamworks API, version 1.37. Its header files and .lib redistributable are included in this project directly. Note that the license to use this SDK is nontransferable, which means only I can use it - you cannot. You must obtain your own copy of the license directly from Valve.
+
+The dependency projects are better described in *Development dependencies*.
 
 ## Development dependencies
 
 Dependencies are better described in each project's README.md. Short version is, the project depends on:
 
-- Microsoft Detours library: <https://github.com/microsoft/Detours> Follow their instructions on how to build the `.lib` static library. You need to build the 32-bit (x86) version.
+- Microsoft Detours library: <https://github.com/microsoft/Detours> Used for hooking functions. We need the 32-bit (x86) statically linked library of it. It is included in the mod as a git submodule: <https://github.com/microsoft/Detours.git>
 
-- `d3dx9.h` header file. If you don't have it you can get it from: <https://github.com/apitrace/dxsdk/blob/master/Include/d3dx9.h>
+- `dxsdk` - repository version of Microsoft's Direct3D 9 SDK. Needed for the `d3dx9.h` header file. The repo is included in this mod as a git submodule: <https://github.com/apitrace/dxsdk.git>
 
-- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's not included in the mod sources in any way, you must download and build it yourself. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>
+- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's sources are included in the mod directly (not as a submodule). libpng homepage: <http://www.libpng.org/pub/png/libpng.html>. libpng github repository: <https://github.com/pnggroup/libpng>
+
+- `zlib` - a compression library needed for libpng. You should statically link its 32-bit verion into this mod, it's included in the mod as a git submodule: <https://github.com/madler/zlib.git>
+
+- `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game. The sources of imgui are included in this mod as a git submodule: <https://github.com/ocornut/imgui.git>.
+
+- `steam_api` - Valve's Steamworks API, version 1.37. Its header files and .lib redistributable are included in this project directly. Note that the license to use this SDK is nontransferable, which means only I can use it - you cannot. You must obtain your own copy of the license directly from Valve.
 
 ## Changelog
 
@@ -473,3 +533,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 January 13: Fixed hitboxes' position not responding to camera movement in online matches due to rollback. Fixed a crash caused by using hitbox overlay in rollback-affected matches.
 - 2024 January 19: Fixed hitbox display disabling/enabling during frame freeze mode.
 - 2024 January 26: Added a toggle to hide the hud only/separated hud out of the "GIF mode". Fixed an issue when rapidly freezing/unfreezing the game made the hitboxes desync from the visuals.
+- 2024 September 16: Added imGui.

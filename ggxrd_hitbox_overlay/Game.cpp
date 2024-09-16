@@ -263,7 +263,7 @@ GameMode Game::getGameMode() const {
 }
 
 bool Game::isMatchRunning() const {
-	if (!aswEngine) return false;
+	if (!*aswEngine) return false;
 	return *(unsigned int*)(*aswEngine + 4 + 0x1c71f0 + 0x12C) != 0; // thanks to WorseThanYou for finding this
 }
 

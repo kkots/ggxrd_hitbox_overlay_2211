@@ -190,7 +190,7 @@ void PngRelated::saveScreenshotData(unsigned int width, unsigned int height, voi
 void PngRelated::writeScreenshotToClipboard(unsigned int width, unsigned int height, void* buffer) {
 	if (!OpenClipboard(0)) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "OpenClipboard failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "OpenClipboard failed: %ls\n", winErr.getMessage()));
 		return;
 	}
 	class ClipboardCloser {
@@ -204,7 +204,7 @@ void PngRelated::writeScreenshotToClipboard(unsigned int width, unsigned int hei
 	} clipboardCloser;
 	if (!EmptyClipboard()) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "EmptyClipboard failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "EmptyClipboard failed: %ls\n", winErr.getMessage()));
 		return;
 	}
 	BITMAPINFO bitmapInfo;
@@ -218,13 +218,13 @@ void PngRelated::writeScreenshotToClipboard(unsigned int width, unsigned int hei
 	HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, sizeof(BITMAPINFO) + width * height * 3);
 	if (!hg) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "GlobalAlloc failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "GlobalAlloc failed: %ls\n", winErr.getMessage()));
 		return;
 	}
 	LPVOID hgLock = GlobalLock(hg);
 	if (!hgLock) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "GlobalLock failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "GlobalLock failed: %ls\n", winErr.getMessage()));
 		return;
 	}
 	memcpy(hgLock, &bitmapInfo, sizeof(BITMAPINFO));
@@ -260,7 +260,7 @@ void PngRelated::writeScreenshotToClipboard(unsigned int width, unsigned int hei
 	GlobalUnlock(hg);
 	if (!SetClipboardData(CF_DIB, hg)) {
 		WinError winErr;
-		logwrap(fprintf(logfile, "SetClipboardData on BMP failed: %s\n", winErr.getMessage()));
+		logwrap(fprintf(logfile, "SetClipboardData on BMP failed: %ls\n", winErr.getMessage()));
 		return;
 	}
 
@@ -273,7 +273,7 @@ void PngRelated::writeScreenshotToClipboard(unsigned int width, unsigned int hei
 		}
 		if (!SetClipboardData(pngClipboardFormat, pngMemory)) {
 			WinError winErr;
-			logwrap(fprintf(logfile, "SetClipboardData on PNG failed: %s\n", winErr.getMessage()));
+			logwrap(fprintf(logfile, "SetClipboardData on PNG failed: %ls\n", winErr.getMessage()));
 			return;
 		}
 	}
