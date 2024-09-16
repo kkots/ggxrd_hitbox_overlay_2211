@@ -138,7 +138,7 @@ bool Settings::onDllMain() {
 		"; A keyboard shortcut to only toggle the \"hide hud\" part of the gifModeToggle.\n"
 		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
 		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example");
-	insertKeyComboToParse("modWindowVisibilityToggle", "Hide UI Toggle", &modWindowVisibilityToggle, "",
+	insertKeyComboToParse("modWindowVisibilityToggle", "Hide UI Toggle", &modWindowVisibilityToggle, "Escape",
 		"; A keyboard shortcut.\n"
 		"; Pressing this shortcut will show/hide the mod's UI window.");
 	

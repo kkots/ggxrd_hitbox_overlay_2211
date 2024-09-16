@@ -589,6 +589,10 @@ void EndScene::processKeyStrokes() {
 		}
 		ui.continuousScreenshotToggle = continuousScreenshotMode;
 	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.screenshotBtn)) {
+		ui.takeScreenshotPress = true;
+		ui.takeScreenshotTimer = 10;
+	}
 }
 
 void EndScene::actUponKeyStrokesThatAlreadyHappened() {
@@ -623,7 +627,7 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		allowNextFrameCounter = 0;
 	}
 	graphics.drawDataPrepared.needTakeScreenshot = false;
-	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.screenshotBtn) || ui.takeScreenshotPress)) {
+	if (!gifMode.modDisabled && ui.takeScreenshotPress) {
 		ui.takeScreenshotPress = false;
 		if (butDontPrepareBoxData) {
 			std::unique_lock<std::mutex> specialGuard(graphics.specialScreenshotFlagMutex);
