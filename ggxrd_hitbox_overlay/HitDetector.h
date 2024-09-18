@@ -30,6 +30,7 @@ private:
 		int activeTime = 0;  // this is needed for Chipp's Gamma Blade, it stops being active on the frame after it hits
 		int counter = 0;
 		unsigned int previousTime = 0;
+		int hitboxesCount = 0;
 		bool timeHasChanged(bool globalTimeHasChanged);
 	};
 

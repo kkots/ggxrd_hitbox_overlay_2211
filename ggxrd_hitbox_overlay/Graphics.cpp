@@ -11,10 +11,11 @@
 #include "PngRelated.h"
 #include "Settings.h"
 #include "UI.h"
+#include "resource.h"
 
 Graphics graphics;
 
-bool Graphics::onDllMain() {
+bool Graphics::onDllMain(HMODULE hMod) {
 
 	orig_Reset = (Reset_t)direct3DVTable.getDirect3DVTable()[16];
 	if (!detouring.attach(
@@ -22,6 +23,8 @@ bool Graphics::onDllMain() {
 		hook_Reset,
 		&orig_ResetMutex,
 		"Reset")) return false;
+	
+	this->hMod = hMod;
 
 	return true;
 }
@@ -49,6 +52,7 @@ void Graphics::resetHook() {
 	offscreenSurfaceWidth = 0;
 	offscreenSurfaceHeight = 0;
 	vertexBuffer = NULL;
+	texture = NULL;
 }
 
 void Graphics::onUnload() {
@@ -1122,13 +1126,22 @@ void Graphics::resetVertexBuffer() {
 	vertexBufferPosition = 0;
 }
 
-void DrawData::clear() {
+void DrawData::clearPlayers() {
+	memset(players, 0, sizeof players);
+}
+
+void DrawData::clearWithoutPlayers() {
 	hurtboxes.clear();
 	hitboxes.clear();
 	pushboxes.clear();
 	points.clear();
 	throwBoxes.clear();
 	needTakeScreenshot = false;
+}
+
+void DrawData::clear() {
+	clearWithoutPlayers();
+	clearPlayers();
 }
 
 bool Graphics::drawIfOutOfSpace(unsigned int verticesCountRequired, unsigned int texturedVerticesCountRequired) {
@@ -1165,4 +1178,167 @@ void DrawData::copyTo(DrawData* destination) {
 	destination->throwBoxes.insert(destination->throwBoxes.begin(), throwBoxes.begin(), throwBoxes.end());
 	destination->needTakeScreenshot = needTakeScreenshot;
 	destination->id = id;
+	memcpy(destination->players, players, sizeof players);
+}
+
+int PlayerInfo::findActiveProjectile(Entity ent) {
+	for (int i = 0; i < activeProjectilesCount; ++i) {
+		if (activeProjectiles[i] == ent) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void PlayerInfo::addActiveProjectile(Entity ent) {
+	hasNewActiveProjectiles = true;
+	if (findActiveProjectile(ent) != -1) return;
+	if (activeProjectilesCount >= _countof(activeProjectiles)) {
+		memmove(activeProjectiles, activeProjectiles + 1, sizeof activeProjectiles - sizeof *activeProjectiles);
+		activeProjectiles[activeProjectilesCount - 1] = ent;
+		return;
+	}
+	activeProjectiles[activeProjectilesCount] = ent;
+	++activeProjectilesCount;
+}
+
+void PlayerInfo::removeActiveProjectile(int index) {
+	if (index != activeProjectilesCount - 1) {
+		memmove(activeProjectiles + index, activeProjectiles + index + 1, (activeProjectilesCount - index - 1) * sizeof *activeProjectiles);
+	}
+	--activeProjectilesCount;
+}
+
+void ActiveDataArray::addActive(int n) {
+	if (count == 0) {
+		data[0].actives = n;
+		data[0].nonActives = 0;
+		count = 1;
+		return;
+	}
+	if (count >= _countof(data)) {
+		memmove(data, data + 1, sizeof data - sizeof *data);
+		data[count - 1].actives = n;
+		data[count - 1].nonActives = 0;
+		return;
+	}
+	if (data[count - 1].nonActives) {
+		data[count].actives = n;
+		data[count].nonActives = 0;
+		++count;
+		return;
+	} else {
+		data[count - 1].actives += n;
+	}
+}
+
+void ActiveDataArray::print(char* buf, size_t bufSize) {
+	if (count == 0) {
+		sprintf_s(buf, bufSize, "0");
+		return;
+	}
+	int lastNonActives = 0;
+	for (int i = 0; i < count && bufSize; ++i) {
+		int result;
+		if (lastNonActives) {
+			result = sprintf_s(buf, bufSize, "(%d)", lastNonActives);
+			if (result != -1) {
+				buf += result;
+				if ((int)bufSize <= result) return;
+				else bufSize -= result;
+			}
+		}
+		ActiveData& elem = data[i];
+		result = sprintf_s(buf, bufSize, "%d", elem.actives);
+		if (result != -1) {
+			buf += result;
+			if ((int)bufSize <= result) return;
+			else bufSize -= result;
+		}
+		lastNonActives = elem.nonActives;
+	}
+}
+
+void PlayerInfo::addGap(int length) {
+	if (gapsCount >= _countof(gaps)) {
+		memmove(gaps, gaps + 1, sizeof gaps - sizeof *gaps);
+		gaps[gapsCount - 1] = length;
+		return;
+	}
+	gaps[gapsCount++] = length;
+}
+
+void PlayerInfo::printGaps(char* buf, size_t bufSize) {
+	if (gapsCount == 0) {
+		*buf = '\0';
+		return;
+	}
+	for (int i = 0; i < gapsCount && bufSize; ++i) {
+		int result;
+		if (i > 0) {
+			if (bufSize > 0) {
+				*buf = ',';
+				++buf;
+				--bufSize;
+				if (bufSize > 0) {
+					*(buf) = ' ';
+					++buf;
+					--bufSize;
+				}
+			}
+			if (bufSize == 0) return;
+		}
+		int gapLength = gaps[i];
+		result = sprintf_s(buf, bufSize, "%d", gapLength);
+		if (result != -1) {
+			buf += result;
+			if ((int)bufSize <= result) return;
+			else bufSize -= result;
+		}
+	}
+}
+
+bool Graphics::initializeTexture() {
+	if (failedToCreateTexture) return false;
+	if (texture) return true;
+	if (!loadPngResource(hMod, IDB_QUESTION, questionMarkRes)) {
+		logwrap(fputs("loadPngResource failed\n", logfile));
+		failedToCreateTexture = true;
+		return false;
+	}
+	CComPtr<IDirect3DTexture9> systemTexture;
+	if (FAILED(device->CreateTexture(questionMarkRes.width, questionMarkRes.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &systemTexture, NULL))) {
+		logwrap(fputs("CreateTexture failed\n", logfile));
+		failedToCreateTexture = true;
+		return false;
+	}
+	if (FAILED(device->CreateTexture(questionMarkRes.width, questionMarkRes.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &texture, NULL))) {
+		logwrap(fputs("CreateTexture (2) failed\n", logfile));
+		failedToCreateTexture = true;
+		return false;
+	}
+	D3DLOCKED_RECT lockedRect;
+	if (FAILED(systemTexture->LockRect(0, &lockedRect, NULL, NULL))) {
+		logwrap(fputs("texture->LockRect failed\n", logfile));
+		failedToCreateTexture = true;
+		return false;
+	}
+	questionMarkRes.bitBlt(lockedRect.pBits, lockedRect.Pitch, 0, 0, 0, 0, questionMarkRes.width, questionMarkRes.height);
+	if (FAILED(systemTexture->UnlockRect(0))) {
+		logwrap(fputs("texture->UnlockRect failed\n", logfile));
+		failedToCreateTexture = true;
+		return false;
+	}
+	if (FAILED(device->UpdateTexture(systemTexture, texture))) {
+		logwrap(fputs("UpdateTexture failed\n", logfile));
+		failedToCreateTexture = true;
+		return false;
+	}
+	logwrap(fprintf(logfile, "Initialized packed texture successfully. Width: %u; Height: %u.\n", questionMarkRes.width, questionMarkRes.height));
+	return true;
+}
+
+void* Graphics::getTexture() {
+	if (!initializeTexture()) return nullptr;
+	return (void*)texture.p;
 }

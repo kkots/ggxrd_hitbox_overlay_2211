@@ -78,7 +78,7 @@ void Throws::hitDetectionMainHook() {
 	for (int i = 0; i < entityList.count; ++i) {
 		Entity ent{entityList.list[i]};
 
-		const int attackActive = *(const int*)(ent + 0x44C);
+		const int attackType = *(const int*)(ent + 0x44C);
 		const bool isActive = ent.isActive();
 		int throwRange = *(const int*)(ent + 0x494);  // This value resets to -1 on normal throws very fast so that's why we need this separate hook.
 		                                              // For command throws it stays non -1 for much longer than the throw actually happens
@@ -97,8 +97,8 @@ void Throws::hitDetectionMainHook() {
 		}
 
 		bool checkPassed = (throwRange >= 0 || throwMinX < throwMaxX || throwMinY < throwMaxY)
-			&& (attackActive == 1  // 1 is more like 4/6 H (+OS possibly) throw
-			|| (attackActive == 2 || attackActive == 3)  // 2 is a command throw, 3 is Jack-O super throw
+			&& (attackType == 1  // 1 is more like 4/6 H (+OS possibly) throw
+			|| (attackType == 2 || attackType == 3)  // 2 is a command throw, 3 is Jack-O super throw
 			&& isActive
 			&& !(currentAnimDuration > 25 && charType == CHARACTER_TYPE_AXL) // the 25 check is needed to stop Axl from showing a throwbox all throughout his Yes move
 			&& ((*(const unsigned int*)(ent + 0x4D28) & 0x40) != 0  // 0x4D28 & 0x40 means the move requires no hitbox vs hurtbox detection
@@ -201,12 +201,22 @@ void Throws::drawThrows() {
 	auto it = infos.begin();
 	while (it != infos.end()) {
 		ThrowInfo& throwInfo = *it;
-
+		
+		if (throwInfo.framesLeft == DISPLAY_DURATION_THROW) {
+			for (int i = 0; i < 2; ++i) {
+				if (throwInfo.owner == entityList.slots[i]) {
+					PlayerInfo& player = graphics.drawDataPrepared.players[i];
+					++player.hitboxesCount;
+					break;
+				}
+			}
+		}
+		
 		if (invisChipp.needToHide(throwInfo.owner)) {
 			it = infos.erase(it);
 			continue;
 		}
-
+		
 		if (timeHasChanged && !throwInfo.firstFrame) {
 			throwInfo.active = false;
 			--throwInfo.framesLeft;

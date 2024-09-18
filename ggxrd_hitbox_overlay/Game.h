@@ -9,6 +9,7 @@ using updateBattleOfflineVer_t = void(__thiscall*)(char* thisArg, int param1);
 using trainingHudTick_t = void(__thiscall*)(char* thisArg);
 using getTrainingHudArgument_t = char*(__cdecl*)(void);
 using updateAnimations_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
+using destroyAswEngine_t = void(__cdecl*)(void);
 
 class Game {
 public:
@@ -19,9 +20,12 @@ public:
 	char getPlayerSide() const;
 	bool isMatchRunning() const;
 	bool isTrainingMode() const;
+	int getBurst(int team) const;
 	bool freezeGame = false;
 	bool slowmoGame = false;
 	bool allowNextFrame = false;
+	trainingHudTick_t trainingHudTick = nullptr;
+	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
 private:
 	class HookHelp {
 		friend class Game;
@@ -35,10 +39,9 @@ private:
 	void static __cdecl levelTickHookStatic(int param1, int param2, int param3, int param4);
 	void levelTickHook(int param1, int param2, int param3, int param4);
 	void levelTickHookEmpty();
+	static void destroyAswEngineHook();
 	levelTick_t orig_levelTick = nullptr;
 	std::mutex orig_levelTickMutex;
-	trainingHudTick_t trainingHudTick = nullptr;
-	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
 	updateBattleOfflineVer_t orig_updateBattleOfflineVer = nullptr;
 	std::mutex orig_updateBattleOfflineVerMutex;
 	updateAnimations_t orig_updateAnimations = nullptr;
@@ -48,6 +51,9 @@ private:
 	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;
 	bool needToCallEndSceneLogic = false;
+	uintptr_t burstOffset = 0;
+	destroyAswEngine_t orig_destroyAswEngine = nullptr;
+	std::mutex orig_destroyAswEngineMutex;
 };
 
 extern Game game;

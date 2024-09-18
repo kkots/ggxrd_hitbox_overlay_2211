@@ -12,7 +12,6 @@ using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
 using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9*, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
-using drawTrainingHud_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 
 HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device);
@@ -31,6 +30,7 @@ public:
 	bool consumePresentFlag();
 	void logic();
 	void assignNextId(bool acquireLock = false);
+	void onAswEngineDestroyed();
 	EndScene_t orig_EndScene = nullptr;
 	std::mutex orig_EndSceneMutex;
 	Present_t orig_Present = nullptr;
@@ -46,7 +46,7 @@ public:
 	bool orig_WndProcMutexLockedByWndProc = false;
 	DWORD wndProcThread = 0;
 	bool butDontPrepareBoxData = false;
-	drawTrainingHud_t orig_drawTrainingHud = nullptr;
+	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
 	std::mutex orig_drawTrainingHudMutex;
 private:
 	void processKeyStrokes();
@@ -96,6 +96,16 @@ private:
 	bool needToRunNoGravGifMode = false;
 	void drawTexts();
 	
+	uintptr_t superflashInstigatorOffset = 0;
+	uintptr_t superflashCounterAllOffset = 0;
+	uintptr_t superflashCounterSelfOffset = 0;
+	Entity getSuperflashInstigator();
+	int getSuperflashCounterAll();
+	
+	bool measuringFrameAdvantage = false;
+	int measuringLandingFrameAdvantage = -1;
+	void restartMeasuringFrameAdvantage(int index);
+	void restartMeasuringLandingFrameAdvantage(int index);
 };
 
 extern EndScene endScene;

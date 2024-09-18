@@ -13,29 +13,21 @@ Game game;
 bool Game::onDllMain() {
 	bool error = false;
 
-	char aswEngineSig[] = "\x85\xC0\x78\x74\x83\xF8\x01";
-	// ghidra sig: 85 C0 78 74 83 F8 01
 	aswEngine = (const char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		aswEngineSig,
-		_countof(aswEngineSig),
+		"85 C0 78 74 83 F8 01",
 		{-4, 0},
 		&error, "aswEngine");
 
-	char gameDataPtrSig[] = "\x33\xC0\x38\x41\x44\x0F\x95\xC0\xC3\xCC";
-	// ghidra sig: 33 C0 38 41 44 0F 95 C0 C3 CC
 	gameDataPtr = (const char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		gameDataPtrSig,
-		_countof(gameDataPtrSig),
+		"33 C0 38 41 44 0F 95 C0 C3 CC",
 		{-4, 0},
 		NULL, "gameDataPtr");
 
-	// ghidra sig: 8b 0d ?? ?? ?? ?? e8 ?? ?? ?? ?? 3c 10 75 10 a1 ?? ?? ?? ?? 85 c0 74 07 c6 80 0c 12 00 00 01 c3
 	playerSideNetworkHolder = (const char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x8b\x0d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x3c\x10\x75\x10\xa1\x00\x00\x00\x00\x85\xc0\x74\x07\xc6\x80\x0c\x12\x00\x00\x01\xc3",
-		"xx????x????xxxxx????xxxxxxxxxxxx",
+		"8b 0d ?? ?? ?? ?? e8 ?? ?? ?? ?? 3c 10 75 10 a1 ?? ?? ?? ?? 85 c0 74 07 c6 80 0c 12 00 00 01 c3",
 		{16, 0},
 		NULL, "playerSideNetworkHolder");
 
@@ -43,9 +35,40 @@ bool Game::onDllMain() {
 	if (!error && sigscanFrameByFraming()) {
 		hookFrameByFraming();
 	}
-
-
-
+	
+	if (aswEngine) {
+		std::vector<char> burstSig;
+		std::vector<char> burstMask;
+		byteSpecificationToSigMask("8b 56 40 a1 ?? ?? ?? ?? 8b 84 90 ?? ?? ?? ?? 5f 5e 5d 5b 8b 4c 24 18 33 cc",
+			burstSig, burstMask);
+		substituteWildcard(burstSig.data(), burstMask.data(), 0, aswEngine);
+		burstOffset = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			burstSig.data(),
+			burstMask.data(),
+			{ 11, 0 },
+			NULL, "burstOffset");
+		
+		std::vector<char> destroySig;
+		std::vector<char> destroyMask;
+		byteSpecificationToSigMask("c7 05 ?? ?? ?? ?? 00 00 00 00",
+			destroySig, destroyMask);
+		substituteWildcard(destroySig.data(), destroyMask.data(), 0, aswEngine);
+		orig_destroyAswEngine = (destroyAswEngine_t)sigscanOffset(
+			"GuiltyGearXrd.exe",
+			destroySig.data(),
+			destroyMask.data(),
+			{ -0x5A },
+			NULL, "destroyAswEngine");
+	}
+	
+	if (orig_destroyAswEngine) {
+		detouring.attach(&(PVOID&)(orig_destroyAswEngine),
+			destroyAswEngineHook,
+			&orig_destroyAswEngineMutex,
+			"destroyAswEngine");
+	}
+	
 	return !error;
 }
 
@@ -53,19 +76,16 @@ bool Game::sigscanFrameByFraming() {
 	bool error = false;
 
 	// levelTick is called by ULevel::Tick which is called by UGameEngine::Tick
-	// ghidra sig: 83 ec 18 53 55 57 8b 7c 24 28 8b 87 48 01 00 00 33 db 89 9f 44 01 00 00 3b c3 7d 22 8b 87 40 01 00 00 89 9f 48 01 00 00 3b c3 74 12 6a 08
 	orig_levelTick = (levelTick_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x83\xec\x18\x53\x55\x57\x8b\x7c\x24\x28\x8b\x87\x48\x01\x00\x00\x33\xdb\x89\x9f\x44\x01\x00\x00\x3b\xc3\x7d\x22\x8b\x87\x40\x01\x00\x00\x89\x9f\x48\x01\x00\x00\x3b\xc3\x74\x12\x6a\x08",
-		"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		"83 ec 18 53 55 57 8b 7c 24 28 8b 87 48 01 00 00 33 db 89 9f 44 01 00 00 3b c3 7d 22 8b 87 40 01 00 00 89 9f 48 01 00 00 3b c3 74 12 6a 08",
 		&error, "levelTick");
 	
-	// ghidra sig: b9 ?? ?? ?? ?? e8 ?? ?? ?? ?? 84 c0 75 0c e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ?? 8b 4c 24 1c
 	uintptr_t trainingHudCallPlace = sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\xb9\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x84\xc0\x75\x0c\xe8\x00\x00\x00\x00\x8b\xc8\xe8\x00\x00\x00\x00\x8b\x4c\x24\x1c",
-		"x????x????xxxxx????xxx????xxxx",
+		"b9 ?? ?? ?? ?? e8 ?? ?? ?? ?? 84 c0 75 0c e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ?? 8b 4c 24 1c",
 		&error, "trainingHudCallPlace");
+	
 	if (trainingHudCallPlace) {
 		getTrainingHudArgument = (getTrainingHudArgument_t)followRelativeCall(trainingHudCallPlace + 14);
 		trainingHudTick = (trainingHudTick_t)followRelativeCall(trainingHudCallPlace + 21);
@@ -73,22 +93,21 @@ bool Game::sigscanFrameByFraming() {
 
 	// updateBattleOfflineVer is the offline variant called from AREDGameInfo_Battle::UpdateBattle at E61240 (game version 2211, netcode version 2.15)
 	// (it's in the non-else branch of the if ... == 0)
-	// ghidra sig: 89 7c 24 14 e8 ?? ?? ?? ?? 85 c0 74 0a 6a 01 e8 ?? ?? ?? ?? 83 c4 04 8b 0d ?? ?? ?? ?? 8b 81 ?? ?? ?? ?? 8b 80 7c 03 00 00
-	char updateBattleOfflineVerSig[] = "\x89\x7c\x24\x14\xe8\x00\x00\x00\x00\x85\xc0\x74\x0a\x6a\x01\xe8\x00\x00\x00\x00\x83\xc4\x04\x8b\x0d\x00\x00\x00\x00\x8b\x81\x00\x00\x00\x00\x8b\x80\x7c\x03\x00\x00";
-	char updateBattleOfflineVerSigMask[] = "xxxxx????xxxxxxx????xxxxx????xx????xxxxxx";
-	substituteWildcard(updateBattleOfflineVerSigMask, updateBattleOfflineVerSig, (char*)&aswEngine, 4, 2);
+	std::vector<char> updateBattleOfflineVerSig;
+	std::vector<char> updateBattleOfflineVerSigMask;
+	byteSpecificationToSigMask("89 7c 24 14 e8 ?? ?? ?? ?? 85 c0 74 0a 6a 01 e8 ?? ?? ?? ?? 83 c4 04 8b 0d ?? ?? ?? ?? 8b 81 ?? ?? ?? ?? 8b 80 7c 03 00 00",
+		updateBattleOfflineVerSig, updateBattleOfflineVerSigMask);
+	substituteWildcard(updateBattleOfflineVerSig.data(), updateBattleOfflineVerSigMask.data(), 2, aswEngine);
 	orig_updateBattleOfflineVer = (updateBattleOfflineVer_t)((sigscanOffset(
 		"GuiltyGearXrd.exe",
-		updateBattleOfflineVerSig,
-		updateBattleOfflineVerSigMask,
+		updateBattleOfflineVerSig.data(),
+		updateBattleOfflineVerSigMask.data(),
 		&error, "updateBattleOfflineVer") - 0x30) & 0xFFFFFFF0);
 	logwrap(fprintf(logfile, "Final location of updateBattleOfflineVer: %p\n", orig_updateBattleOfflineVer));
 
-	// ghidra sig: 57 bf 01 00 00 00 39 7c 24 20 75 18 8b 06 8b 90 ec 01 00 00 8b ce ff d2 c7 44 24 10 00 00 00 00
 	orig_updateAnimations = (updateAnimations_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x57\xbf\x01\x00\x00\x00\x39\x7c\x24\x20\x75\x18\x8b\x06\x8b\x90\xec\x01\x00\x00\x8b\xce\xff\xd2\xc7\x44\x24\x10\x00\x00\x00\x00",
-		"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		"57 bf 01 00 00 00 39 7c 24 20 75 18 8b 06 8b 90 ec 01 00 00 8b ce ff d2 c7 44 24 10 00 00 00 00",
 		{ -8 },
 		&error, "updateAnimations");
 
@@ -284,4 +303,20 @@ bool Game::isNonOnline() const {
 
 bool Game::currentModeIsOnline() const {
 	return !isNonOnline();
+}
+
+int Game::getBurst(int team) const {
+	if (!burstOffset || team != 0 && team != 1) return 0;
+	return *(int*)(*aswEngine + burstOffset + team * 4);
+}
+
+void Game::destroyAswEngineHook() {
+	if (*aswEngine) {
+		logwrap(fputs("Asw Engine destroyed\n", logfile));
+		endScene.onAswEngineDestroyed();
+	}
+	{
+		std::unique_lock<std::mutex> guard(game.orig_destroyAswEngineMutex);
+		game.orig_destroyAswEngine();
+	}
 }

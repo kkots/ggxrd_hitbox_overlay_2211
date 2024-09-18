@@ -11,10 +11,100 @@
 #include "BoundingRect.h"
 #include "ComplicatedHurtbox.h"
 #include <mutex>
+#include "characterTypes.h"
+#include "Entity.h"
+#include "PngResource.h"
 
 using Reset_t = HRESULT(__stdcall*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS* pPresentationParameters);
 
 HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters);
+
+struct ActiveData {
+	int actives = 0;
+	int nonActives = 0;
+};
+
+struct ActiveDataArray {
+	int count = 0;
+	ActiveData data[32] { 0 };
+	inline void addNonActive(int n = 1) {
+		if (count == 0) {
+			return;
+		}
+		data[count - 1].nonActives += n;
+	}
+	void addActive(int n = 1);
+	inline void clear() { count = 0; }
+	void print(char* buf, size_t bufSize);
+};
+
+struct PlayerInfo {
+	int hp = 0;
+	int maxHp = 0;
+	int defenseModifier = 0;  // dmg = dmg * ((256 + defenseModifier) / 256)
+	int gutsRating = 0;
+	int gutsPercentage = 0;
+	int risc = 0;  // max 12800
+	int tension = 0;  // max 10000
+	int tensionPulse = 0;  // -25000 to 25000
+	int negativePenalty = 0;  // 0 to 10000
+	int stun = 0;
+	int stunThreshold = 0;
+	int blockstun = 0;
+	int hitstun = 0;
+	int hitstop = 0;
+	int nextHitstop = 0;
+	int burst = 0;  // max 15000
+	int frameAdvantage = 0;
+	int landingFrameAdvantage = 0;
+	int gaps[10] { 0 };
+	int gapsCount = 0;
+	int timeSinceLastGap = 0;
+	int weight = 0;
+	int wakeupTiming = 0;
+	WakeupTimings wakeupTimings;
+	int timePassed = 0;
+	int timePassedLanding = 0;
+	int hitboxesCount = 0;
+	int activeProjectilesCount = 0;
+	Entity activeProjectiles[32] { nullptr };
+	bool hasNewActiveProjectiles = false;
+	int superfreezeStartup = 0;
+	int projectileStartup = 0;
+	ActiveDataArray projectileActives { 0 };
+	int timeSinceLastBusyStart = 0;
+	int timeSinceLastActiveProjectile = 0;
+	int startup = 0;
+	ActiveDataArray actives { 0 };
+	int recovery = 0;
+	int total = 0;
+	int landingOrPreJumpFrames = 0;
+	int remainingDoubleJumps = 0;
+	int remainingAirDashes = 0;
+	bool frameAdvantageValid = false;
+	bool landingFrameAdvantageValid = false;
+	bool idle:1;
+	bool idleNext:1;
+	bool idlePlus:1;
+	bool idleLanding:1;
+	bool startedUp:1;
+	bool projectileStartedUp:1;
+	bool onTheDefensive:1;
+	bool landingOrPreJump:1;
+	bool landed:1;
+	bool isLanding:1;
+	bool isLandingOrPreJump:1;
+	bool needLand:1;
+	bool airborne:1;
+	CharacterType charType = CHARACTER_TYPE_SOL;
+	char anim[32] { 0 };
+	void removeActiveProjectile(int index);
+	int findActiveProjectile(Entity ent);
+	void addActiveProjectile(Entity ent);
+	inline void clearGaps() { gapsCount = 0; }
+	void addGap(int length = 1);
+	void printGaps(char* buf, size_t bufSize);
+};
 
 struct DrawData {
 	std::vector<ComplicatedHurtbox> hurtboxes;
@@ -22,7 +112,10 @@ struct DrawData {
 	std::vector<DrawBoxCallParams> pushboxes;
 	std::vector<DrawPointCallParams> points;
 	std::vector<DrawBoxCallParams> throwBoxes;
+	PlayerInfo players[2] { 0 };
 	void clear();
+	void clearPlayers();
+	void clearWithoutPlayers();
 	void copyTo(DrawData* destination);
 	bool empty = false;
 	bool needTakeScreenshot = false;
@@ -32,13 +125,14 @@ struct DrawData {
 class Graphics
 {
 public:
-	bool onDllMain();
+	bool onDllMain(HMODULE hMod);
 	void onUnload();
 	void onEndSceneStart(IDirect3DDevice9* device);
 	void drawAll();
 	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
 	void resetHook();
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
+	void* getTexture();
 	
 	Reset_t orig_Reset = nullptr;
 	std::mutex orig_ResetMutex;
@@ -165,6 +259,12 @@ private:
 		SCREENSHOT_STAGE_BASE_COLOR,
 		SCREENSHOT_STAGE_FINAL
 	} screenshotStage = SCREENSHOT_STAGE_NONE;
+	
+	bool failedToCreateTexture = false;
+	bool initializeTexture();
+	CComPtr<IDirect3DTexture9> texture = nullptr;
+	PngResource questionMarkRes;
+	HMODULE hMod = NULL;
 };
 
 extern Graphics graphics;

@@ -291,6 +291,12 @@
     <ClInclude Include="Version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PngResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -405,11 +411,24 @@
     <ClCompile Include="RecursiveLock.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PngResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ggxrd_hitbox_overlay.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\images\Question.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

@@ -32,11 +32,9 @@ bool EndScene::onDllMain() {
 	orig_EndScene = (EndScene_t)d3dvtbl[42];
 	orig_Present = (Present_t)d3dvtbl[17];
 	
-	// ghidra sig: 81 fb 18 02 00 00 75 0f 83 fd 01 77 28 5d b8 44 51 4d 42 5b c2 10 00
 	orig_WndProc = (WNDPROC)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x81\xfb\x18\x02\x00\x00\x75\x0f\x83\xfd\x01\x77\x28\x5d\xb8\x44\x51\x4d\x42\x5b\xc2\x10\x00",
-		"xxxxxxxxxxxxxxxxxxxxxxx",
+		"81 fb 18 02 00 00 75 0f 83 fd 01 77 28 5d b8 44 51 4d 42 5b c2 10 00",
 		{ -0xA },
 		&error, "WndProc");
 	// why not use orig_WndProc = (WNDPROC)SetWindowLongPtrW(keyboard.thisProcessWindow, GWLP_WNDPROC, (LONG_PTR)hook_WndProc);?
@@ -52,26 +50,26 @@ bool EndScene::onDllMain() {
 			"WndProc")) return false;
 	}
 	
-    // ghidra sig: 81 fb 18 02 00 00 75 0f 83 fd 01 77 28 5d b8 44 51 4d 42 5b c2 10 00
-	uintptr_t TrainingEtc_OneDamage = sigscanOffset(
+	uintptr_t TrainingEtc_OneDamage = sigscanStrOffset(
 		"GuiltyGearXrd.exe:.rdata",
 		"TrainingEtc_OneDamage",
-		"xxxxxxxxxxxxxxxxxxxxx",
 		&error, "TrainingEtc_OneDamage");
 	if (!error) {
-		char sig[9] { "\xc7\x40\x28\x00\x00\x00\x00\xe8" };
-		memcpy(sig + 3, &TrainingEtc_OneDamage, 4);
+		std::vector<char> sig;//[9] { "\xc7\x40\x28\x00\x00\x00\x00\xe8" };
+		std::vector<char> mask;
+		byteSpecificationToSigMask("c7 40 28 ?? ?? ?? ?? e8", sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 0, (void*)TrainingEtc_OneDamage);
 		
-		uintptr_t drawTextWithIconsCall = sigscanOffset(
+		uintptr_t drawTextWithIconsCall = sigscanBufOffset(
 			"GuiltyGearXrd.exe",
-			sig,
-			"xxxxxxxx",
+			sig.data(),
+			sig.size() - 1,
 			{ 7 },
 			&error, "drawTextWithIconsCall");
 		if (drawTextWithIconsCall) {
 			drawTextWithIcons = (drawTextWithIcons_t)followRelativeCall(drawTextWithIconsCall);
 			logwrap(fprintf(logfile, "drawTextWithIcons: %p\n", drawTextWithIcons));
-			orig_drawTrainingHud = (drawTrainingHud_t)scrollUpToBytes((char*)drawTextWithIconsCall, "\x55\x8b\xec\x83\xe4\xf0", 6, 4000);
+			orig_drawTrainingHud = game.trainingHudTick;
 			logwrap(fprintf(logfile, "orig_drawTrainingHud final location: %p\n", (void*)orig_drawTrainingHud));
 		}
 		if (orig_drawTrainingHud) {
@@ -99,11 +97,9 @@ bool EndScene::onDllMain() {
 		"EndScene")) return false;
 
 	// SendUnrealPawnData is USkeletalMeshComponent::UpdateTransform()
-	// ghidra sig: 8b 0d ?? ?? ?? ?? 33 db 53 e8 ?? ?? ?? ?? f3 0f 10 80 24 04 00 00 f3 0f 5c 05 ?? ?? ?? ?? f3 0f 10 8e d0 01 00 00 0f 2f c8 76 05 8d 43 01 eb 02
 	orig_SendUnrealPawnData = (SendUnrealPawnData_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x8b\x0d\x00\x00\x00\x00\x33\xdb\x53\xe8\x00\x00\x00\x00\xf3\x0f\x10\x80\x24\x04\x00\x00\xf3\x0f\x5c\x05\x00\x00\x00\x00\xf3\x0f\x10\x8e\xd0\x01\x00\x00\x0f\x2f\xc8\x76\x05\x8d\x43\x01\xeb\x02",
-		"xx????xxxx????xxxxxxxxxxxx????xxxxxxxxxxxxxxxxxx",
+		"8b 0d ?? ?? ?? ?? 33 db 53 e8 ?? ?? ?? ?? f3 0f 10 80 24 04 00 00 f3 0f 5c 05 ?? ?? ?? ?? f3 0f 10 8e d0 01 00 00 0f 2f c8 76 05 8d 43 01 eb 02",
 		{ -0x11 },
 		&error, "SendUnrealPawnData");
 
@@ -115,11 +111,9 @@ bool EndScene::onDllMain() {
 			"SendUnrealPawnData")) return false;
 	}
 
-	// ghidra sig: 8b f1 8b 0e e8 ?? ?? ?? ?? 8b 06 8b 48 04 89 44 24 04 85 c9 74 1e 83 78 08 00 74 18 f6 81 84 00 00 00 20
 	orig_ReadUnrealPawnData = (ReadUnrealPawnData_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x8b\xf1\x8b\x0e\xe8\x00\x00\x00\x00\x8b\x06\x8b\x48\x04\x89\x44\x24\x04\x85\xc9\x74\x1e\x83\x78\x08\x00\x74\x18\xf6\x81\x84\x00\x00\x00\x20",
-		"xxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxx",
+		"8b f1 8b 0e e8 ?? ?? ?? ?? 8b 06 8b 48 04 89 44 24 04 85 c9 74 1e 83 78 08 00 74 18 f6 81 84 00 00 00 20",
 		{ -2 },
 		&error, "ReadUnrealPawnData");
 
@@ -129,6 +123,16 @@ bool EndScene::onDllMain() {
 			(PVOID&)readUnrealPawnDataHookPtr,
 			&orig_ReadUnrealPawnDataMutex,
 			"ReadUnrealPawnData")) return false;
+	}
+	
+	superflashInstigatorOffset = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"8b 86 ?? ?? ?? ?? 3b c3 74 09 ff 48 24 89 9e ?? ?? ?? ?? 89 be ?? ?? ?? ?? ff 47 24 8b 8f bc 01 00 00 49 89 8e ?? ?? ?? ?? 8b 97 c0 01 00 00 4a",
+		{ 37, 0 },
+		NULL, "superflashInstigatorOffset");
+	if (superflashInstigatorOffset) {
+		superflashCounterAllOffset = superflashInstigatorOffset + 4;
+		superflashCounterSelfOffset = superflashInstigatorOffset + 8;
 	}
 
 	return !error;
@@ -208,7 +212,7 @@ void EndScene::logic() {
 	actUponKeyStrokesThatAlreadyHappened();
 	if (graphics.drawDataPrepared.empty && !butDontPrepareBoxData) {
 		bool oldNeedTakeScreenshot = graphics.drawDataPrepared.needTakeScreenshot;
-		graphics.drawDataPrepared.clear();
+		graphics.drawDataPrepared.clearWithoutPlayers();
 		graphics.drawDataPrepared.needTakeScreenshot = oldNeedTakeScreenshot;
 
 		bool needToClearHitDetection = false;
@@ -228,9 +232,6 @@ void EndScene::logic() {
 				else {
 					prepareDrawData(&needToClearHitDetection);
 				}
-			}
-			if ((isNormalMode || isPauseMenu) && isRunning && areAnimationsNormal && !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
-				drawTexts();
 			}
 		}
 		if (needToClearHitDetection) {
@@ -275,18 +276,194 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		p1PreviousTimeOfTakingScreen = ~0;
 		p2PreviousTimeOfTakingScreen = ~0;
 	}
-
-	for (auto i = 0; i < entityList.count; i++)
+	
+	for (int i = 0; i < 2; ++i) {
+		PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		for (int j = 0; j < player.activeProjectilesCount; ++j) {
+			Entity activeProjectile = player.activeProjectiles[j];
+			bool found = false;
+			for (int k = 0; k < entityList.count; k++) {
+				if (activeProjectile == entityList.list[k]) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				player.removeActiveProjectile(j);
+				--j;
+			}
+		}
+	}
+	
+	if (frameHasChanged) {
+		for (int i = 0; i < 2; ++i) {
+			Entity ent(entityList.slots[i]);
+			PlayerInfo& player = graphics.drawDataPrepared.players[i];
+			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
+			player.hasNewActiveProjectiles = false;
+			player.hitboxesCount = 0;
+			player.charType = ent.characterType();
+			player.hp = ent.hp();
+			player.maxHp = ent.maxHp();
+			player.defenseModifier = ent.defenseModifier();
+			player.gutsRating = ent.gutsRating();
+			player.gutsPercentage = ent.calculateGuts();
+			player.risc = ent.risc();
+			player.tension = ent.tension();
+			player.tensionPulse = ent.tensionPulse();
+			player.negativePenalty = ent.negativePenalty();
+			player.stun = ent.stun();
+			player.stunThreshold = ent.stunThreshold();
+			player.blockstun = ent.blockstun();
+			player.hitstun = ent.hitstun();
+			int hitstop = ent.hitstop();
+			if (player.hitstop == 0 && hitstop != 0 && ent.currentAnimDuration() != 1) {
+				player.hitstop = 0;
+			} else {
+				player.hitstop = hitstop;
+			}
+			player.airborne = ent.y() > 0;  // there's also tumbling state in which you're airborne, check *(DWORD*)(end + 0x4d40) & 0x4 != 0 if you need it. This flag is set on any airborne type of hitstun
+			player.nextHitstop = hitstop;
+			player.burst = game.getBurst(i);
+			player.weight = ent.weight();
+			const char* animName = ent.animationName();
+			ent.getWakeupTimings(&player.wakeupTimings);
+			player.wakeupTiming = 0;
+			CmnActIndex cmnActIndex = ent.cmnActIndex();
+			if (cmnActIndex == CmnActFDown2Stand) {
+				player.wakeupTiming = player.wakeupTimings.faceDown;
+			} else if (cmnActIndex == CmnActBDown2Stand) {
+				player.wakeupTiming = player.wakeupTimings.faceUp;
+			}
+			player.onTheDefensive = player.blockstun || ent.inPain() || cmnActIndex == CmnActUkemi;
+			player.idleNext = ent.isIdle();
+			player.isLanding = cmnActIndex == CmnActJumpLanding || cmnActIndex == CmnActLandingStiff;
+			player.isLandingOrPreJump = player.isLanding || cmnActIndex == CmnActJumpPre;
+			if (!player.isLandingOrPreJump) {
+				if (player.landingOrPreJumpFrames) {
+					if (!player.idleNext) {
+						player.startedUp = false;
+						player.startup = player.landingOrPreJumpFrames;
+						player.actives.clear();
+						player.recovery = 0;
+						player.total = player.landingOrPreJumpFrames;
+						player.superfreezeStartup = 0;
+						player.projectileStartedUp = false;
+						player.projectileStartup = 0;
+						player.projectileActives.clear();
+						player.idlePlus = false;
+						player.timePassed = player.landingOrPreJumpFrames;
+						player.timePassedLanding = player.landingOrPreJumpFrames;
+					}
+					player.landingOrPreJumpFrames = 0;
+				}
+				player.landingOrPreJump = false;
+			}
+			memcpy(player.anim, animName, 32);
+			++player.timeSinceLastBusyStart;
+		}
+		// I need another loop because in the next one each player refers to other's timePassed and I modified it
+	
+		for (int i = 0; i < 2; i++) {
+			Entity ent(entityList.slots[i]);
+			PlayerInfo& player = graphics.drawDataPrepared.players[i];
+			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
+			CmnActIndex cmnActIndex = ent.cmnActIndex();
+			if (player.idleNext != player.idle) {
+				player.idle = player.idleNext;
+				if (!player.idle) {
+					player.landingOrPreJump = player.isLandingOrPreJump;
+					if (player.onTheDefensive) {
+						restartMeasuringFrameAdvantage(i);
+						restartMeasuringLandingFrameAdvantage(i);
+						
+						
+						if (other.timeSinceLastGap > 45) {
+							other.clearGaps();
+						} else {
+							other.addGap(other.timeSinceLastGap);
+						}
+						other.timeSinceLastGap = 0;
+					}
+					player.timeSinceLastBusyStart = 0;
+					if (!player.landingOrPreJump) {
+						player.startedUp = false;
+						player.startup = 0;
+						player.actives.clear();
+						player.recovery = 0;
+						player.total = 0;
+						player.superfreezeStartup = 0;
+						player.projectileStartedUp = false;
+						player.projectileStartup = 0;
+						player.projectileActives.clear();
+					}
+				} else if (player.airborne) {
+					player.needLand = true;
+					player.landingFrameAdvantageValid = false;
+					other.landingFrameAdvantageValid = false;
+				}
+			}
+			int remainingDoubleJumps = ent.remainingDoubleJumps();
+			int remainingAirDashes = ent.remainingAirDashes();
+			if (player.needLand
+					&& (remainingDoubleJumps < player.remainingDoubleJumps
+					|| remainingAirDashes < player.remainingAirDashes
+					|| player.isLanding
+					|| player.onTheDefensive
+					|| !player.idle)) {
+				if (!player.isLanding) {
+					measuringLandingFrameAdvantage = -1;
+					player.landingFrameAdvantageValid = false;
+					other.landingFrameAdvantageValid = false;
+				}
+				player.needLand = false;
+			}
+			if (player.idleLanding != player.idle) {
+				if (!(!player.idleLanding && player.needLand)) {
+					player.idleLanding = player.idle;
+					if (player.idleLanding && player.isLanding && other.idlePlus) {
+						if (measuringLandingFrameAdvantage != -1) {
+							player.landingFrameAdvantageValid = true;
+							other.landingFrameAdvantageValid = true;
+						}
+						measuringLandingFrameAdvantage = -1;
+						if (other.timePassed > player.timePassedLanding) {
+							player.landingFrameAdvantage = -player.timePassedLanding;
+						} else {
+							player.landingFrameAdvantage = -other.timePassed;
+						}
+						other.landingFrameAdvantage = -player.landingFrameAdvantage;
+					}
+					player.timePassedLanding = 0;
+				}
+			}
+			player.remainingDoubleJumps = remainingDoubleJumps;
+			player.remainingAirDashes = remainingAirDashes;
+			bool idlePlus = player.idle || player.landingOrPreJump;
+			if (idlePlus != player.idlePlus) {
+				player.timePassed = 0;
+				player.idlePlus = idlePlus;
+			}
+		}
+	}
+	
+	for (int i = 0; i < entityList.count; i++)
 	{
 		Entity ent(entityList.list[i]);
+		int team = ent.team();
 		if (isEntityAlreadyDrawn(ent)) continue;
 
 		bool active = ent.isActive();
 		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
-
-		if (invisChipp.needToHide(ent)) continue;
+		
+		size_t hurtboxesPrevSize = graphics.drawDataPrepared.hurtboxes.size();
+		size_t hitboxesPrevSize = graphics.drawDataPrepared.hitboxes.size();
+		size_t pointsPrevSize = graphics.drawDataPrepared.points.size();
+		size_t pushboxesPrevSize = graphics.drawDataPrepared.pushboxes.size();
+		
+		int hitboxesCount = 0;
 		DrawHitboxArrayCallParams hurtbox;
-		collectHitboxes(ent, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
+		collectHitboxes(ent, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes, &hitboxesCount);
 		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
 		if (!wasHitResult.wasHit) {
 			graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
@@ -302,10 +479,35 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		const auto attached = *(char**)(ent + 0x204);
 		if (attached != nullptr) {
 			logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
-			collectHitboxes(attached, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes);
+			collectHitboxes(attached, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes, &hitboxesCount);
 			graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
 			drawnEntities.push_back(attached);
 		}
+		if ((team == 0 || team == 1) && frameHasChanged) {
+			PlayerInfo& player = graphics.drawDataPrepared.players[team];
+			if (hitboxesCount) {
+				if (i < 2) {
+					player.hitboxesCount += hitboxesCount;
+				} else {
+					player.addActiveProjectile(ent);
+				}
+			} else {
+				int foundIndex = player.findActiveProjectile(ent);
+				if (foundIndex != -1) {
+					player.removeActiveProjectile(foundIndex);
+				}
+			}
+		}
+		if (invisChipp.needToHide(ent)) {
+			graphics.drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
+			graphics.drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
+			graphics.drawDataPrepared.points.resize(pointsPrevSize);
+			graphics.drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
+		}
+	}
+	for (int i = 0; i < 2; ++i) {
+		PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
 	}
 
 	logOnce(fputs("got past the entity loop\n", logfile));
@@ -313,6 +515,110 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
 	throws.drawThrows();
 	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
+	
+	if (frameHasChanged) {
+		Entity superflashInstigator = getSuperflashInstigator();
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = graphics.drawDataPrepared.players[i];
+			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
+			
+			++player.timeSinceLastActiveProjectile;
+			
+			if (!superflashInstigator) {
+				++player.timePassed;
+				++player.timePassedLanding;
+				if (player.landingOrPreJump) {
+					++player.landingOrPreJumpFrames;
+				}
+				if (player.timeSinceLastGap == 0) {
+					if (other.idle || !other.onTheDefensive) {
+						player.timeSinceLastGap = 1;
+					}
+				} else {
+					++player.timeSinceLastGap;
+				}
+				
+				if (player.idlePlus && !other.idlePlus) {
+					if (measuringFrameAdvantage) {
+						++player.frameAdvantage;
+					}
+				} else if (!player.idlePlus && other.idlePlus) {
+					if (measuringFrameAdvantage) {
+						--player.frameAdvantage;
+					}
+				} else if (!player.idlePlus && !other.idlePlus) {
+					player.frameAdvantage = 0;
+					other.frameAdvantage = 0;
+					measuringFrameAdvantage = true;
+					player.frameAdvantageValid = false;
+					other.frameAdvantageValid = false;
+				} else if (player.idlePlus && other.idlePlus) {
+					if (measuringFrameAdvantage) {
+						measuringFrameAdvantage = false;
+						player.frameAdvantageValid = true;
+						other.frameAdvantageValid = true;
+					}
+				}
+				
+				if (i == measuringLandingFrameAdvantage) {
+					if (player.idleLanding && !other.idle) {
+						++player.landingFrameAdvantage;
+						--other.landingFrameAdvantage;
+					} else if (!player.idleLanding && other.idle) {
+						--player.landingFrameAdvantage;
+						++other.landingFrameAdvantage;
+					} else if (!player.idleLanding && !other.idle) {
+						player.landingFrameAdvantage = 0;
+						other.landingFrameAdvantage = 0;
+					} else if (player.idleLanding && other.idle) {
+						measuringLandingFrameAdvantage = -1;
+						player.landingFrameAdvantageValid = true;
+						other.landingFrameAdvantageValid = true;
+					}
+				}
+				
+			}
+			Entity ent = entityList.slots[i];
+			if (!player.hitstop && !(superflashInstigator && superflashInstigator != ent)) {
+				if (!player.idlePlus && !player.startedUp && !superflashInstigator) {
+					++player.startup;
+					++player.total;
+				}
+				if (player.hasNewActiveProjectiles) {
+					if (!player.projectileStartedUp || player.timeSinceLastActiveProjectile > 60) {
+						player.projectileStartedUp = true;
+						player.projectileStartup = player.timeSinceLastBusyStart;
+						player.projectileActives.clear();
+					}
+					player.timeSinceLastActiveProjectile = 0;
+					player.projectileActives.addActive();
+				} else {
+					player.projectileActives.addNonActive();
+				}
+				bool hasHitboxes = !player.idlePlus && (player.hitboxesCount || player.hasNewActiveProjectiles);
+				if (superflashInstigator == ent && !player.superfreezeStartup) {
+					player.superfreezeStartup = player.total;
+				}
+				if (hasHitboxes) {
+					if (!player.startedUp) {
+						player.startedUp = true;
+						player.actives.addActive();
+					} else if (!superflashInstigator) {
+						if (player.recovery) {
+							player.actives.addNonActive(player.recovery);
+							player.recovery = 0;
+						}
+						player.actives.addActive();
+						++player.total;
+					}
+				} else if (!player.idlePlus && !superflashInstigator && player.startedUp) {
+					++player.total;
+					++player.recovery;
+				}
+			}
+			player.hitstop = player.nextHitstop;
+		}
+	}
 	
 #ifdef LOG_PATH
 	didWriteOnce = true;
@@ -644,7 +950,6 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 	needContinuouslyTakeScreens = false;
 	if (!gifMode.modDisabled
 			&& ((keyboard.isHeld(settings.screenshotBtn) || ui.takeScreenshot) && settings.allowContinuousScreenshotting || continuousScreenshotMode)
-			&& *aswEngine
 			&& trainingMode
 			&& !screenshotPathEmpty) {
 		needContinuouslyTakeScreens = true;
@@ -668,10 +973,8 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		clearContinuousScreenshotMode();
 	}
 	if (needToRunNoGravGifMode) {
-		if (*aswEngine) {
-			entityList.populate();
-			noGravGifMode();
-		}
+		entityList.populate();
+		noGravGifMode();
 	}
 	needToRunNoGravGifMode = false;
 	
@@ -807,6 +1110,7 @@ LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 	return endScene.WndProcHook(hWnd, message, wParam, lParam);
 }
 
+// WndProc runs the game logic
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("WndProc", true);
@@ -851,6 +1155,7 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 
 void EndScene::drawTrainingHudHook(char* thisArg) {
 	if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
+	drawTexts();
 	{
 		std::unique_lock<std::mutex> guard(orig_drawTrainingHudMutex);
 		orig_drawTrainingHud(thisArg);
@@ -914,3 +1219,48 @@ void EndScene::drawTexts() {
 	}
 	#endif
 }
+
+void EndScene::onAswEngineDestroyed() {
+	{
+		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
+		graphics.drawDataPrepared.clear();
+	}
+	clearContinuousScreenshotMode();
+	measuringFrameAdvantage = false;
+	measuringLandingFrameAdvantage = -1;
+}
+
+Entity EndScene::getSuperflashInstigator() {
+	if (!superflashInstigatorOffset) return nullptr;
+	return Entity{ *(char**)(*aswEngine + superflashInstigatorOffset) };
+}
+
+int EndScene::getSuperflashCounterAll() {
+	if (!superflashCounterAllOffset) return 0;
+	return *(int*)(*aswEngine + superflashCounterAllOffset);
+}
+
+void EndScene::restartMeasuringFrameAdvantage(int index) {
+	PlayerInfo& player = graphics.drawDataPrepared.players[index];
+	PlayerInfo& other = graphics.drawDataPrepared.players[1 - index];
+	player.frameAdvantageValid = false;
+	other.frameAdvantageValid = false;
+	if (other.idlePlus) {
+		player.frameAdvantage = -other.timePassed;
+		other.frameAdvantage = other.timePassed;
+	}
+	measuringFrameAdvantage = true;
+}
+
+void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
+	PlayerInfo& player = graphics.drawDataPrepared.players[index];
+	PlayerInfo& other = graphics.drawDataPrepared.players[1 - index];
+	player.landingFrameAdvantageValid = false;
+	other.landingFrameAdvantageValid = false;
+	if (other.idleLanding) {
+		player.landingFrameAdvantage = -other.timePassedLanding;
+		other.landingFrameAdvantage = other.timePassedLanding;
+	}
+	measuringLandingFrameAdvantage = 1 - index;
+}
+

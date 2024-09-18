@@ -6,12 +6,13 @@
 #include "Hitbox.h"
 #include "colors.h"
 
-void collectHitboxes(const Entity& ent,
+void collectHitboxes(const Entity ent,
 		const bool active,
 		DrawHitboxArrayCallParams* const hurtbox,
 		std::vector<DrawHitboxArrayCallParams>* const hitboxes,
 		std::vector<DrawPointCallParams>* const points,
-		std::vector<DrawBoxCallParams>* const pushboxes) {
+		std::vector<DrawBoxCallParams>* const pushboxes,
+		int* numHitboxes) {
 
 	EntityState state;
 	ent.getState(&state);
@@ -124,6 +125,7 @@ void collectHitboxes(const Entity& ent,
 		}
 		callParams.outlineColor = replaceAlpha(255, COLOR_HITBOX);
 		
+		if (numHitboxes) *numHitboxes += hitboxCount;
 		callParams.hitboxData = hitboxData;
 		callParams.hitboxCount = hitboxCount;
 		callParams.params = params;

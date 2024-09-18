@@ -20,11 +20,9 @@ const int hitboxMinActiveTime = 2;
 bool HitDetector::onDllMain() {
 	bool error = false;
 
-	// ghidra sig: 55 8b ec 83 e4 f8 81 ec 54 02 00 00 a1 ?? ?? ?? ?? 33 c4 89 84 24 50 02 00 00 8b 45 10 53 56 8b 75 08 8b 5e 10 f7 db 57 8b f9 1b db 23 de f6 87 64 04 00 00 02
 	orig_determineHitType = (determineHitType_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x55\x8b\xec\x83\xe4\xf8\x81\xec\x54\x02\x00\x00\xa1\x00\x00\x00\x00\x33\xc4\x89\x84\x24\x50\x02\x00\x00\x8b\x45\x10\x53\x56\x8b\x75\x08\x8b\x5e\x10\xf7\xdb\x57\x8b\xf9\x1b\xdb\x23\xde\xf6\x87\x64\x04\x00\x00\x02",
-		"xxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		"55 8b ec 83 e4 f8 81 ec 54 02 00 00 a1 ?? ?? ?? ?? 33 c4 89 84 24 50 02 00 00 8b 45 10 53 56 8b 75 08 8b 5e 10 f7 db 57 8b f9 1b db 23 de f6 87 64 04 00 00 02",
 		nullptr, "determineHitType");
 
 	if (orig_determineHitType) {
@@ -68,84 +66,84 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 		result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
 	}
 	if (gifMode.modDisabled) return result;
-	if (!gifMode.hitboxDisplayDisabled) {
-		std::unique_lock<std::mutex> guard(hitDetector.mutex);
-		Entity thisEntity{ (char*)this };
-		Entity otherEntity{ (char*)defender };
-		if (result == 4) {
-			if (thisEntity.characterType() != -1
-				|| !otherEntity
-				|| (*(unsigned int*)(otherEntity + 0x10) == 0)) return result;
+	std::unique_lock<std::mutex> guard(hitDetector.mutex);
+	Entity thisEntity{ (char*)this };
+	Entity otherEntity{ (char*)defender };
+	if (result == 4) {
+		if (thisEntity.characterType() != -1
+			|| !otherEntity
+			|| (*(unsigned int*)(otherEntity + 0x10) == 0)) return result;
 
-			// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
-			if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
-				for (auto it = hitDetector.rejections.begin(); it != hitDetector.rejections.end(); ++it) {
-					if (it->owner == otherEntity) {
-						hitDetector.rejections.erase(it);
-						break;
-					}
+		// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
+		if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
+			for (auto it = hitDetector.rejections.begin(); it != hitDetector.rejections.end(); ++it) {
+				if (it->owner == otherEntity) {
+					hitDetector.rejections.erase(it);
+					break;
 				}
-
-				int posY = otherEntity.posY();
-
-				Rejection newRejection;
-				newRejection.owner = otherEntity;
-				newRejection.firstFrame = true;
-				newRejection.counter = DISPLAY_DURATION_REJECTION + REJECTION_DELAY;
-				newRejection.skipFrame = -1;
-				newRejection.activeFrame = DISPLAY_DURATION_REJECTION;
-				newRejection.left = otherEntity.posX() - rejectionDistance;
-				newRejection.right = newRejection.left + rejectionDistance * 2;
-				newRejection.top = posY + rejectionDistance;
-				newRejection.bottom = posY - rejectionDistance;
-				hitDetector.rejections.push_back(newRejection);
 			}
+
+			int posY = otherEntity.posY();
+
+			Rejection newRejection;
+			newRejection.owner = otherEntity;
+			newRejection.firstFrame = true;
+			newRejection.counter = DISPLAY_DURATION_REJECTION + REJECTION_DELAY;
+			newRejection.skipFrame = -1;
+			newRejection.activeFrame = DISPLAY_DURATION_REJECTION;
+			newRejection.left = otherEntity.posX() - rejectionDistance;
+			newRejection.right = newRejection.left + rejectionDistance * 2;
+			newRejection.top = posY + rejectionDistance;
+			newRejection.bottom = posY - rejectionDistance;
+			hitDetector.rejections.push_back(newRejection);
 		}
+	}
 
-		if ((result == 1 || result == 2)
-				&& (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT)) {
-			EntityState state;
-			otherEntity.getState(&state);
-			if (!state.strikeInvuln) {
+	if ((result == 1 || result == 2)
+			&& (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT)) {
+		EntityState state;
+		otherEntity.getState(&state);
+		if (!state.strikeInvuln) {
 
-				if (DISPLAY_DURATION_HITBOX_THAT_HIT && thisEntity.characterType() == -1) {
-					std::vector<DrawHitboxArrayCallParams> theHitbox;
-					collectHitboxes(thisEntity, true, nullptr, &theHitbox, nullptr, nullptr);
-					if (!theHitbox.empty()) {
-						DetectedHitboxes boxes;
-						boxes.entity = thisEntity;
-						boxes.team = thisEntity.team();
-						boxes.hitboxes = theHitbox.front();
-						boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
-						boxes.previousTime = thisEntity.currentAnimDuration();
+			if (DISPLAY_DURATION_HITBOX_THAT_HIT && thisEntity.characterType() == -1) {
+				int hitboxesCount = 0;
+				std::vector<DrawHitboxArrayCallParams> theHitbox;
+				collectHitboxes(thisEntity, true, nullptr, &theHitbox, nullptr, nullptr, &hitboxesCount);
+				if (!theHitbox.empty()) {
+					DetectedHitboxes boxes;
+					boxes.entity = thisEntity;
+					boxes.team = thisEntity.team();
+					boxes.hitboxes = theHitbox.front();
+					boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
+					boxes.previousTime = thisEntity.currentAnimDuration();
+					boxes.hitboxesCount = hitboxesCount;
 
-						hitDetector.hitboxesThatHit.push_back(boxes);
-					}
+					hitDetector.hitboxesThatHit.push_back(boxes);
 				}
+			}
 
-				if (DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {
-					DrawHitboxArrayCallParams theHurtbox;
-					collectHitboxes(otherEntity, true, &theHurtbox, nullptr, nullptr, nullptr);
-					DWORD oldTransparency = theHurtbox.fillColor >> 24;
-					theHurtbox.fillColor = replaceAlpha(oldTransparency == 0 ? 64 : oldTransparency, COLOR_HURTBOX_OLD);
-					theHurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_OLD);
-					if (theHurtbox.hitboxCount) {
-						for (auto it = hitDetector.hurtboxesThatGotHit.begin(); it != hitDetector.hurtboxesThatGotHit.end(); ++it) {
-							if (it->entity == otherEntity) {
-								hitDetector.hurtboxesThatGotHit.erase(it);
-								break;
-							}
+			if (DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {
+				DrawHitboxArrayCallParams theHurtbox;
+				collectHitboxes(otherEntity, true, &theHurtbox, nullptr, nullptr, nullptr);
+				DWORD oldTransparency = theHurtbox.fillColor >> 24;
+				theHurtbox.fillColor = replaceAlpha(oldTransparency == 0 ? 64 : oldTransparency, COLOR_HURTBOX_OLD);
+				theHurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_OLD);
+				if (theHurtbox.hitboxCount) {
+					for (auto it = hitDetector.hurtboxesThatGotHit.begin(); it != hitDetector.hurtboxesThatGotHit.end(); ++it) {
+						if (it->entity == otherEntity) {
+							hitDetector.hurtboxesThatGotHit.erase(it);
+							break;
 						}
-
-						DetectedHitboxes boxes;
-						boxes.entity = otherEntity;
-						boxes.team = otherEntity.team();
-						boxes.hitboxes = theHurtbox;
-						boxes.counter = DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT;
-						boxes.previousTime = otherEntity.currentAnimDuration();
-
-						hitDetector.hurtboxesThatGotHit.push_back(boxes);
 					}
+
+					DetectedHitboxes boxes;
+					boxes.entity = otherEntity;
+					boxes.team = otherEntity.team();
+					boxes.hitboxes = theHurtbox;
+					boxes.counter = DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT;
+					boxes.previousTime = otherEntity.currentAnimDuration();
+
+					hitDetector.hurtboxesThatGotHit.push_back(boxes);
 				}
 			}
 		}
@@ -264,6 +262,11 @@ void HitDetector::drawHits() {
 			continue;
 		}
 		else {
+			if ((hitboxThatHit.team == 0 || hitboxThatHit.team == 1)
+					&& hitboxThatHit.counter == DISPLAY_DURATION_HITBOX_THAT_HIT) {
+				PlayerInfo& player = graphics.drawDataPrepared.players[hitboxThatHit.team];
+				player.addActiveProjectile(hitboxThatHit.entity);
+			}
 			if (invisChipp.needToHide(hitboxThatHit.team)) {
 				it = hitboxesThatHit.erase(it);
 				continue;

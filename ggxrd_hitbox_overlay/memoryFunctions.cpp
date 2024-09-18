@@ -4,6 +4,13 @@
 #include "logging.h"
 #include <cstdarg>
 
+static int findChar(const char* str, char searchChar) {
+	for (const char* c = str; *c != '\0'; ++c) {
+		if (*c == searchChar) return c - str;
+	}
+	return -1;
+}
+
 bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
 {
 	char moduleName[256] {0};
@@ -51,6 +58,63 @@ bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
 	return getModuleBoundsHandle(hModule, ".text", start, end);
 }
 
+// byteSpecification is of the format "00 8f 1e ??". ?? means unknown byte.
+// Converts a "00 8f 1e ??" string into two vectors:
+// sig vector will contain bytes '00 8f 1e' for the first 3 bytes and 00 for every ?? byte.
+// sig vector will be terminated with an extra 0 byte.
+// mask vector will contain an 'x' character for every non-?? byte and a '?' character for every ?? byte.
+// mask vector will be terminated with an extra 0 byte.
+void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask) {
+	unsigned long long accumulatedNibbles = 0;
+	int nibbleCount = 0;
+	bool nibblesUnknown = false;
+	const char* byteSpecificationPtr = byteSpecification;
+	while (true) {
+		char currentChar = *byteSpecificationPtr;
+		if (currentChar != ' ' && currentChar != '\0') {
+			char currentNibble = 0;
+			if (currentChar >= '0' && currentChar <= '9' && !nibblesUnknown) {
+				currentNibble = currentChar - '0';
+			} else if (currentChar >= 'a' && currentChar <= 'f' && !nibblesUnknown) {
+				currentNibble = currentChar - 'a' + 10;
+			} else if (currentChar >= 'A' && currentChar <= 'F' && !nibblesUnknown) {
+				currentNibble = currentChar - 'A' + 10;
+			} else if (currentChar == '?' && (nibbleCount == 0 || nibblesUnknown)) {
+				nibblesUnknown = true;
+			} else {
+				logwrap(fprintf(logfile, "Wrong byte specification: %s\n", byteSpecification));
+				return;
+			}
+			accumulatedNibbles = (accumulatedNibbles << 4) | currentNibble;
+			++nibbleCount;
+			if (nibbleCount > 16) {
+				logwrap(fprintf(logfile, "Wrong byte specification: %s\n", byteSpecification));
+				return;
+			}
+		} else if (nibbleCount) {
+			do {
+				if (!nibblesUnknown) {
+					sig.push_back(accumulatedNibbles & 0xff);
+					mask.push_back('x');
+					accumulatedNibbles >>= 8;
+				} else {
+					sig.push_back(0);
+					mask.push_back('?');
+				}
+				nibbleCount -= 2;
+			} while (nibbleCount > 0);
+			nibbleCount = 0;
+			nibblesUnknown = false;
+			if (currentChar == '\0') {
+				break;
+			}
+		}
+		++byteSpecificationPtr;
+	}
+	sig.push_back('\0');
+	mask.push_back('\0');
+}
+
 uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
 {
 	uintptr_t start, end;
@@ -58,21 +122,33 @@ uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
 		logwrap(fputs("Module not loaded\n", logfile));
 		return 0;
 	}
-
-	const auto lastScan = end - sigLength + 1;
-	for (auto addr = start; addr < lastScan; addr++) {
-		const char* addrPtr = (const char*)addr;
-		size_t i = sigLength - 1;
-		const char* sigPtr = sig;
-		for (; i != 0; --i) {
-			if (*sigPtr != *addrPtr)
-				break;
-
-			++sigPtr;
-			++addrPtr;
-		}
-		if (i == 0) return addr;
+	
+	// Boyer-Moore-Horspool substring search
+	// A table containing, for each symbol in the alphabet, the number of characters that can safely be skipped
+	size_t step[256];
+	for (int i = 0; i < _countof(step); ++i) {
+		step[i] = sigLength;
 	}
+    for (size_t i = 0; i < sigLength - 1; i++) {
+        step[(BYTE)sig[i]] = sigLength - 1 - i;
+    }
+	
+	BYTE pNext;
+    end -= sigLength;
+    for (uintptr_t p = start; p <= end; p += step[pNext]) {
+        int j = sigLength - 1;
+    	pNext = *(BYTE*)(p + j);
+    	if (sig[j] == (char)pNext) {
+	        for (--j; j >= 0; --j) {
+	            if (sig[j] != *(char*)(p + j)) {
+	                break;
+	            }
+	        }
+	        if (j < 0) {
+	            return p;
+	        }
+    	}
+    }
 
 	logwrap(fputs("Sigscan failed\n", logfile));
 	return 0;
@@ -115,7 +191,7 @@ uintptr_t sigscan(const char* name, const char* sig, const char* mask)
 	return 0;
 }
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname) {
+uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname) {
 	return sigscanOffset(name, sig, sigLength, nullptr, {}, error, logname);
 }
 
@@ -123,12 +199,34 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, boo
 	return sigscanOffset(name, sig, 0, mask, {}, error, logname);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname) {
+uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname) {
 	return sigscanOffset(name, sig, sigLength, nullptr, offsets, error, logname);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
 	return sigscanOffset(name, sig, 0, mask, offsets, error, logname);
+}
+
+uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const char* logname) {
+	return sigscanOffset(name, str, strlen(str), nullptr, {}, error, logname);
+}
+
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname) {
+	std::vector<char> sig;
+	std::vector<char> mask;
+	byteSpecificationToSigMask(byteSpecification, sig, mask);
+	return sigscanOffset(name, sig.data(), 0, mask.data(), {}, error, logname);
+}
+
+uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname) {
+	return sigscanOffset(name, str, strlen(str), nullptr, offsets, error, logname);
+}
+
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname) {
+	std::vector<char> sig;
+	std::vector<char> mask;
+	byteSpecificationToSigMask(byteSpecification, sig, mask);
+	return sigscanOffset(name, sig.data(), 0, mask.data(), offsets, error, logname);
 }
 
 // Offsets work the following way:
@@ -150,10 +248,15 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, con
 //    4.c) Interpret this new position as the start of a 4-byte address which gets read, producing a new address.
 //    4.d) The result is another address. Add the second offset to this address.
 //    4.e) Repeat 4.c) and 4.d) for as many offsets as there are left. Return result on the last 4.d).
-uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
+uintptr_t sigscanOffset(const char* name, const char* sig, size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
 	uintptr_t sigscanResult;
 	if (mask) {
-		sigscanResult = sigscan(name, sig, mask);
+		if (findChar(mask, '?') == -1) {
+			sigLength = strlen(mask);
+			sigscanResult = sigscan(name, sig, sigLength);
+		} else {
+			sigscanResult = sigscan(name, sig, mask);
+		}
 	} else {
 		sigscanResult = sigscan(name, sig, sigLength);
 	}
@@ -239,7 +342,11 @@ char* findWildcard(char* mask, unsigned int indexOfWildcard) {
 	return nullptr;
 }
 
-void substituteWildcard(char* mask, char* sig, char* sourceBuffer, size_t size, unsigned int indexOfWildcard) {
+void substituteWildcard(char* sig, char* mask, unsigned int indexOfWildcard, void* ptrToSubstitute) {
+	substituteWildcard(sig, mask, indexOfWildcard, (char*)&ptrToSubstitute, 4);
+}
+
+void substituteWildcard(char* sig, char* mask, unsigned int indexOfWildcard, char* sourceBuffer, size_t size) {
 	// Every contiguous sequence of ? characters in mask is treated as a single "wildcard".
 	// Every "wildcard" is assigned a number, starting from 0.
 	// This function looks for a "wildcard" number 'numberOfWildcard' and replaces

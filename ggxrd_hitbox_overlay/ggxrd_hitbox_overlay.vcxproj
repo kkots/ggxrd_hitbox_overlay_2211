@@ -227,8 +227,10 @@
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="pi.h" />
     <ClInclude Include="PngRelated.h" />
+    <ClInclude Include="PngResource.h" />
     <ClInclude Include="rectCombiner.h" />
     <ClInclude Include="RecursiveLock.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="Stencil.h" />
     <ClInclude Include="logging.h" />
@@ -252,6 +254,7 @@
     </ClCompile>
     <ClCompile Include="..\imgui\imgui_demo.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\imgui\imgui_draw.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -291,6 +294,7 @@
     </ClCompile>
     <ClCompile Include="memoryFunctions.cpp" />
     <ClCompile Include="PngRelated.cpp" />
+    <ClCompile Include="PngResource.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="RecursiveLock.cpp" />
     <ClCompile Include="Settings.cpp" />
@@ -310,6 +314,12 @@
     <ProjectReference Include="..\Detours\vc\Detours.vcxproj">
       <Project>{37489709-8054-4903-9c49-a79846049fc9}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ggxrd_hitbox_overlay.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\images\Question.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

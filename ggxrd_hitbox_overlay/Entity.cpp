@@ -3,37 +3,65 @@
 #include "memoryFunctions.h"
 #include "logging.h"
 #include "EntityList.h"
+#include <unordered_map>
+#include <string>
 
 EntityManager entityManager;
+
+using isIdleHandler_t = bool(Entity::*)() const;
+
+struct IsIdleHashEntry {
+	CharacterType charType;
+	const char* animName;
+	bool operator==(const IsIdleHashEntry& other) const {
+		return charType == other.charType && strcmp(animName, other.animName) == 0;
+	}
+};
+
+static int hashString(const char* str, int startingHash = 0);
+
+template <>
+struct std::hash<IsIdleHashEntry>
+{
+	std::size_t operator()(const IsIdleHashEntry& k) const {
+		return hashString(k.animName);
+	}
+};
+
+static std::unordered_map<IsIdleHashEntry, isIdleHandler_t> idleHandlers;
+
+// There's no convenient way to sigscan this and usually we do it the other way around:
+// we use numbers like these to find stuff using sigscan. So we're hardcoding this and it's a decision that's made.
+static char gutsTable[6][6] {     // We're NOT hardcoding guts rating of each char. Char names are here for info
+	{ 100, 90, 76, 60, 50, 40 },  // Answer, Bedman, Elphelt, Faust, Zato
+	{ 100, 87, 72, 58, 48, 40 },  // Axl, I-No, Ramlethal, Sin, Slayer, Sol, Venom, Dizzy
+	{ 100, 84, 68, 56, 46, 38 },  // Ky, Haehyun, Jack-O'
+	{ 100, 81, 66, 54, 44, 38 },  // Johnny, Leo, May, Millia, Potemkin, Jam
+	{ 100, 78, 64, 50, 42, 38 },  // Baiken, Chipp
+	{ 100, 75, 60, 48, 40, 36 }   // Raven
+};
 
 Entity::Entity() { }
 
 bool EntityManager::onDllMain() {
 	bool error = false;
 
-	// ghidra sig: 85 C9 75 35 8B 8E
-	char getPosXSig[] = "\x85\xC9\x75\x35\x8B\x8E";
 	getPosX = (getPos_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		getPosXSig,
-		_countof(getPosXSig),
+		"85 C9 75 35 8B 8E",
 		{-9},
 		&error, "getPosX");
 
-	// ghidra sig: 75 0A 6A 08 E8
-	char getPosYSig[] = "\x75\x0A\x6A\x08\xE8";
+	// ghidra sig: 
 	getPosY = (getPos_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		getPosYSig,
-		_countof(getPosYSig),
+		"75 0A 6A 08 E8",
 		{ -0xB },
 		&error, "getPosY");
 
-	// ghidra sig: 0f 57 c0 f3 0f 2a c0 f3 0f 59 05 ?? ?? ?? ?? f3 0f 5c c8 f3 0f 59 4c 24 0c f3 0f 2c c1 0f 57 c0 f3 0f 2a c0 8b ce f3 0f 11 44 24 10 e8 ?? ?? ?? ?? 8b ce 8b f8 e8 ?? ?? ?? ?? 8b 0d ?? ?? ?? ??
 	uintptr_t pushboxTopBottom = sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x0f\x57\xc0\xf3\x0f\x2a\xc0\xf3\x0f\x59\x05\x00\x00\x00\x01\xf3\x0f\x5c\xc8\xf3\x0f\x59\x4c\x24\x0c\xf3\x0f\x2c\xc1\x0f\x57\xc0\xf3\x0f\x2a\xc0\x8b\xce\xf3\x0f\x11\x44\x24\x10\xe8\x00\x00\x00\x00\x8b\xce\x8b\xf8\xe8\x00\x00\x00\x00\x8b\x0d\x00\x00\x00\x01",
-		"xxxxxxxxxxx????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxxx????xx????",
+		"0f 57 c0 f3 0f 2a c0 f3 0f 59 05 ?? ?? ?? ?? f3 0f 5c c8 f3 0f 59 4c 24 0c f3 0f 2c c1 0f 57 c0 f3 0f 2a c0 8b ce f3 0f 11 44 24 10 e8 ?? ?? ?? ?? 8b ce 8b f8 e8 ?? ?? ?? ?? 8b 0d ?? ?? ?? ??",
 		&error, "pushboxTopBottom");
 
 	if (pushboxTopBottom) {
@@ -45,11 +73,9 @@ bool EntityManager::onDllMain() {
 		logwrap(fprintf(logfile, "getPushboxBottom final location at: %p\n", getPushboxBottom));
 	}
 
-	// ghidra sig: 99 2b c2 8b d8 8b ce d1 fb e8 ?? ?? ?? ?? 99 2b c2 8b e8 d1 fd 03 ae 2c 03 00 00 8b ce e8 ?? ?? ?? ?? 8b 4c 24 44 03 c7 89 01 8b ce e8 ?? ?? ?? ??
 	uintptr_t pushboxWidthUsage = sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x99\x2b\xc2\x8b\xd8\x8b\xce\xd1\xfb\xe8\x00\x00\x00\x00\x99\x2b\xc2\x8b\xe8\xd1\xfd\x03\xae\x2c\x03\x00\x00\x8b\xce\xe8\x00\x00\x00\x00\x8b\x4c\x24\x44\x03\xc7\x89\x01\x8b\xce\xe8\x00\x00\x00\x00",
-		"xxxxxxxxxx????xxxxxxxxxxxxxxxx????xxxxxxxxxxx????",
+		"99 2b c2 8b d8 8b ce d1 fb e8 ?? ?? ?? ?? 99 2b c2 8b e8 d1 fd 03 ae 2c 03 00 00 8b ce e8 ?? ?? ?? ?? 8b 4c 24 44 03 c7 89 01 8b ce e8 ?? ?? ?? ??",
 		// the second ???? is the getPushboxTop, but it's a relative call and we don't know where this whole sig is so even knowing
 		// getPushboxTop exact address we don't know what those bytes will be.
 		// the third ???? is getPushboxBottom, also a relative call.
@@ -59,24 +85,31 @@ bool EntityManager::onDllMain() {
 		getPushboxWidth = (getPushbox_t)followRelativeCall(pushboxWidthUsage + 9);
 		logwrap(fprintf(logfile, "getPushboxWidth final location at: %p\n", getPushboxWidth));
 	}
-
+	
+	idleHandlers.insert( { {CHARACTER_TYPE_CHIPP, "HaritsukiKeep"}, &Entity::isIdleHaritsukiKeep });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenA"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten9"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten44"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten66"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenB"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenC"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenE"}, &Entity::isIdleSouten });
+	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten8"}, &Entity::isIdleSouten8 });
+	idleHandlers.insert( { {CHARACTER_TYPE_AXL, "DaiRensen"}, &Entity::isIdleDaiRensen });
+	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Start"}, &Entity::isIdleRifle });
+	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Reload"}, &Entity::isIdleRifle });
+	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Perfect"}, &Entity::isIdleRifle });
+	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Roman"}, &Entity::isIdleRifle });
+	idleHandlers.insert( { {CHARACTER_TYPE_LEO, "Semuke"}, &Entity::isIdleSemuke });
+	idleHandlers.insert( { {CHARACTER_TYPE_JAM, "NeoHochihu"}, &Entity::isIdleNeoHochihu });
+	idleHandlers.insert( { {CHARACTER_TYPE_ANSWER, "Ami_Hold"}, &Entity::isIdleAmi_Hold });
+	idleHandlers.insert( { {CHARACTER_TYPE_ANSWER, "Ami_Move"}, &Entity::isIdleAmi_Move });
+	
 	return !error;
 }
 
 Entity::Entity(const char* ent) : ent(ent) { }
-
-bool Entity::isActive() const {
-	return (*(unsigned int*)(ent + 0x23C) & 0x100) != 0  // this signals that attack's hitboxes are allowed to be active can happen before hitboxes come out
-		&& (*(unsigned int*)(ent + 0x234) & 0x40000000) == 0;  // this signals recovery frames and can be simultaneous with 0x100 flag in 0x23C (recovery takes priority)
-}
-
-char Entity::team() const {
-	return *(char*)(ent + 0x40);
-}
-
-CharacterType Entity::characterType() const {
-	return (CharacterType)*(char*)(ent + 0x44);
-}
 
 int Entity::posX() const {
 	return entityManager.getPosX(ent);
@@ -84,10 +117,6 @@ int Entity::posX() const {
 
 int Entity::posY() const {
 	return entityManager.getPosY(ent);
-}
-
-bool Entity::isFacingLeft() const {
-	return *(int*)(ent + 0x248) == 1;
 }
 
 void Entity::getState(EntityState* state) const {
@@ -104,7 +133,6 @@ void Entity::getState(EntityState* state) const {
 	// including 6f after hitstun, 5f after blockstun and 9f after wakeup
 
 	state->posY = posY();
-	state->prejumpFrames = false; ///*  *(unsigned int*)(ent + 0x234) != 0 && */ state->posY == 0;
 
 	const auto otg = (*(unsigned int*)(ent + 0x4D24) & 0x800000) != 0;
 	const auto invulnFrames = *(int*)(ent + 0x9A0);
@@ -113,7 +141,7 @@ void Entity::getState(EntityState* state) const {
 	logOnce(fprintf(logfile, "invulnFlags: %x\n", invulnFlags));
 	state->strikeInvuln = invulnFrames > 0 || (invulnFlags & 16) || (invulnFlags & 64) || state->doingAThrow || state->isGettingThrown;
 	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)state->strikeInvuln));
-	state->throwInvuln = (invulnFlags & 32) || (invulnFlags & 64) || otg || state->inHitstunBlockstun || state->prejumpFrames;
+	state->throwInvuln = (invulnFlags & 32) || (invulnFlags & 64) || otg || state->inHitstunBlockstun;
 	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
 	state->charType = characterType();
 	state->isASummon = state->charType == -1;
@@ -145,11 +173,6 @@ int Entity::pushboxTop() const {
 	return entityManager.getPushboxTop(ent);
 }
 
-// Everyone always seems to have this value set to 0 no matter what
-int Entity::pushboxFrontWidthOffset() const {
-	return *(int*)(ent + 0x32C);
-}
-
 // Usually returns 0 when pawn is on the ground
 int Entity::pushboxBottom() const {
 	return entityManager.getPushboxBottom(ent);
@@ -171,22 +194,112 @@ void Entity::pushboxLeftRight(int* left, int* right) const {
 	}
 }
 
-unsigned int Entity::currentAnimDuration() const {
-	return *(const unsigned int*)(ent + 0x130);
+bool Entity::isIdle() const {
+	IsIdleHashEntry e;
+	e.charType = characterType();
+	e.animName = animationName();
+	auto found = idleHandlers.find(e);
+	if (found == idleHandlers.end()) {
+		return enableNormals();
+	}
+	return (this->*found->second)();
 }
 
-char* Entity::operator+(int offset) const {
-	return (char*)(ent + offset);
+// Chipp wall cling idle/moving up/down
+bool Entity::isIdleHaritsukiKeep() const {
+	return enableWhiffCancels();
+}
+// Faust pogo
+bool Entity::isIdleSouten() const {
+	return enableWhiffCancels();
+}
+// Faust pogo helicopter
+bool Entity::isIdleSouten8() const {
+	return !enableGatlings();
+}
+// Axl Haitaka stance
+bool Entity::isIdleDaiRensen() const {
+	return enableWhiffCancels();
+}
+// Elphelt Ms. Confille (rifle)
+bool Entity::isIdleRifle() const {
+	return enableWhiffCancels()
+		&& (forceDisableFlags() & 0x2) == 0;  // 0x2 is the force disable flag for Rifle_Fire
+}
+// Leo backturn idle
+bool Entity::isIdleSemuke() const {
+	return true;
+}
+// Jam parry
+bool Entity::isIdleNeoHochihu() const {
+	return false;
+}
+// Answer scroll cling idle
+bool Entity::isIdleAmi_Hold() const {
+	return enableWhiffCancels();
+}
+// Answer s.D
+bool Entity::isIdleAmi_Move() const {
+	return enableWhiffCancels()
+		&& hitstop() == 0;
 }
 
-bool Entity::operator==(const Entity& other) const {
-	return ent == other.ent;
+int hashString(const char* str, int startingHash) {
+	for (const char* c = str; *c != '\0'; ++c) {
+		startingHash = startingHash * 0x89 + *c;
+	}
+	return startingHash;
 }
 
-Entity::operator bool() const {
-	return ent != nullptr;
+void Entity::getWakeupTimings(CharacterType charType, WakeupTimings* output) {
+	switch (charType) {
+		case CHARACTER_TYPE_SOL:		*output = { 25, 21 }; break;
+		case CHARACTER_TYPE_KY:			*output = { 23, 21 }; break;
+		case CHARACTER_TYPE_MAY:		*output = { 25, 22 }; break;
+		case CHARACTER_TYPE_MILLIA:		*output = { 25, 23 }; break;
+		case CHARACTER_TYPE_ZATO:		*output = { 25, 22 }; break;
+		case CHARACTER_TYPE_POTEMKIN:	*output = { 24, 22 }; break;
+		case CHARACTER_TYPE_CHIPP:		*output = { 30, 24 }; break;
+		case CHARACTER_TYPE_FAUST:		*output = { 25, 29 }; break;
+		case CHARACTER_TYPE_AXL:		*output = { 25, 21 }; break;
+		case CHARACTER_TYPE_VENOM:		*output = { 21, 26 }; break;
+		case CHARACTER_TYPE_SLAYER:		*output = { 26, 20 }; break;
+		case CHARACTER_TYPE_INO:		*output = { 24, 20 }; break;
+		case CHARACTER_TYPE_BEDMAN:		*output = { 24, 30 }; break;
+		case CHARACTER_TYPE_RAMLETHAL:	*output = { 25, 23 }; break;
+		case CHARACTER_TYPE_SIN:		*output = { 30, 21 }; break;
+		case CHARACTER_TYPE_ELPHELT:	*output = { 27, 27 }; break;
+		case CHARACTER_TYPE_LEO:		*output = { 28, 26 }; break;
+		case CHARACTER_TYPE_JOHNNY:		*output = { 25, 24 }; break;
+		case CHARACTER_TYPE_JACKO:		*output = { 25, 23 }; break;
+		case CHARACTER_TYPE_JAM:		*output = { 26, 25 }; break;
+		case CHARACTER_TYPE_HAEHYUN:	*output = { 22, 27 }; break;
+		case CHARACTER_TYPE_RAVEN:		*output = { 25, 24 }; break;
+		case CHARACTER_TYPE_DIZZY:		*output = { 25, 24 }; break;
+		case CHARACTER_TYPE_BAIKEN:		*output = { 25, 21 }; break;
+		case CHARACTER_TYPE_ANSWER:		*output = { 25, 25 }; break;
+	}
+	*output = { 0, 0 };
 }
 
-const char* Entity::animationName() const {
-	return (const char*)(ent + 0x2444);
+void Entity::getWakeupTimings(WakeupTimings* output) {
+	getWakeupTimings(characterType(), output);
+}
+
+int Entity::calculateGuts() {
+	int maxHP = maxHp();
+	int HP = hp();
+	int gutsIndex = 0;
+	if (HP <= maxHP * 10 / 100) {
+		gutsIndex = 5;
+	} else if (HP <= maxHP * 20 / 100) {
+		gutsIndex = 4;
+	} else if (HP <= maxHP * 30 / 100) {
+		gutsIndex = 3;
+	} else if (HP <= maxHP * 40 / 100) {
+		gutsIndex = 2;
+	} else if (HP <= maxHP * 50 / 100) {
+		gutsIndex = 1;
+	}
+	return gutsTable[gutsRating()][gutsIndex];
 }

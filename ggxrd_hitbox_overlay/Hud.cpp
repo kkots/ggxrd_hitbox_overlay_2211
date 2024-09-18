@@ -11,11 +11,9 @@ bool Hud::onDllMain() {
 	bool error = false;
 
 	// REDHUDBattleUpdateAll is AREDHUD_Battle::UpdateAll
-	// ghidra sig: 83 3d ?? ?? ?? ?? 00 8b f1 c7 44 24 18 00 00 00 00 0f 84 d7 06 00 00 8b 86 d8 00 00 00 8b 88 a8 04 00 00 51 e8 ?? ?? ?? ?? 83 c4 04 89 44 24 14 85 c0 0f 84 b6 06 00 00
 	orig_REDHUDBattleUpdateAll = (REDHUDBattleUpdateAll_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"\x83\x3d\x00\x00\x00\x00\x00\x8b\xf1\xc7\x44\x24\x18\x00\x00\x00\x00\x0f\x84\xd7\x06\x00\x00\x8b\x86\xd8\x00\x00\x00\x8b\x88\xa8\x04\x00\x00\x51\xe8\x00\x00\x00\x00\x83\xc4\x04\x89\x44\x24\x14\x85\xc0\x0f\x84\xb6\x06\x00\x00",
-		"xx????xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx????xxxxxxxxxxxxxxx",
+		"83 3d ?? ?? ?? ?? 00 8b f1 c7 44 24 18 00 00 00 00 0f 84 d7 06 00 00 8b 86 d8 00 00 00 8b 88 a8 04 00 00 51 e8 ?? ?? ?? ?? 83 c4 04 89 44 24 14 85 c0 0f 84 b6 06 00 00",
 		{-0x3B},
 		nullptr, "REDHUDBattleUpdateAll");
 
