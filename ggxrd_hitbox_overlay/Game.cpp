@@ -69,6 +69,12 @@ bool Game::onDllMain() {
 			"destroyAswEngine");
 	}
 	
+	aswEngineTickCountOffset = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"8d bd a4 04 00 00 bd 02 00 00 00 90 8b 0f 3b cb 74 05 e8 ?? ?? ?? ?? 83 c7 04 4d 75 ef ff 86",
+		{ 31, 0 },
+		&error, "aswEngineTickCountOffset");
+	
 	return !error;
 }
 

@@ -58,6 +58,7 @@ private:
 	void frameAdvantageControl();
 	void frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
 	void frameAdvantageText(int frameAdv);
+	char* printDecimal(int num, int numAfterPoint, int padding);
 	bool showTensionData = false;
 };
 

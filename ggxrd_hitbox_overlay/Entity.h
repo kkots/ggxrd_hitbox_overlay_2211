@@ -201,6 +201,7 @@ public:
 	inline int remainingDoubleJumps() const { return *(int*)(ent + 0x4d58); }
 	inline int remainingAirDashes() const { return *(int*)(ent + 0x4d5c); }
 	inline int comboCount() const { return *(int*)(ent + 0x9F28); }
+	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
 
 	void getState(EntityState*) const;
 	

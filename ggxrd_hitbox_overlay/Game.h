@@ -26,6 +26,7 @@ public:
 	bool allowNextFrame = false;
 	trainingHudTick_t trainingHudTick = nullptr;
 	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
+	uintptr_t aswEngineTickCountOffset = 0;
 private:
 	class HookHelp {
 		friend class Game;

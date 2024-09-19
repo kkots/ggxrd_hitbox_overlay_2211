@@ -258,7 +258,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 
 	logOnce(fprintf(logfile, "entity count: %d\n", entityList.count));
 
-	bool frameHasChanged = false;
+	bool frameHasChangedForScreenshot = false;
 	unsigned int p1CurrentTimer = ~0;
 	unsigned int p2CurrentTimer = ~0;
 	if (entityList.count >= 1) {
@@ -269,39 +269,41 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	}
 	if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
 		|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
-		frameHasChanged = true;
+		frameHasChangedForScreenshot = true;
 	}
 	if (needContinuouslyTakeScreens) {
-		if (frameHasChanged) {
+		if (frameHasChangedForScreenshot) {
 			graphics.drawDataPrepared.needTakeScreenshot = true;
 		}
 		p1PreviousTimeOfTakingScreen = p1CurrentTimer;
 		p2PreviousTimeOfTakingScreen = p2CurrentTimer;
 	}
-	else if (frameHasChanged) {
+	else if (frameHasChangedForScreenshot) {
 		p1PreviousTimeOfTakingScreen = ~0;
 		p2PreviousTimeOfTakingScreen = ~0;
 	}
-	
-	for (int i = 0; i < 2; ++i) {
-		PlayerInfo& player = graphics.drawDataPrepared.players[i];
-		for (int j = 0; j < player.activeProjectilesCount; ++j) {
-			Entity activeProjectile = player.activeProjectiles[j];
-			bool found = false;
-			for (int k = 0; k < entityList.count; k++) {
-				if (activeProjectile == entityList.list[k]) {
-					found = true;
-					break;
-				}
-			}
-			if (!found) {
-				player.removeActiveProjectile(j);
-				--j;
-			}
-		}
-	}
+	DWORD aswEngineTickCount = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
+	bool frameHasChanged = prevAswEngineTickCount != aswEngineTickCount;
+	prevAswEngineTickCount = aswEngineTickCount;
 	
 	if (frameHasChanged) {
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = graphics.drawDataPrepared.players[i];
+			for (int j = 0; j < player.activeProjectilesCount; ++j) {
+				Entity activeProjectile = player.activeProjectiles[j];
+				bool found = false;
+				for (int k = 0; k < entityList.count; k++) {
+					if (activeProjectile == entityList.list[k]) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					player.removeActiveProjectile(j);
+					--j;
+				}
+			}
+		}
 		
 		int distanceBetweenPlayers = Entity{entityList.slots[0]}.posX() - Entity{entityList.slots[1]}.posX();
 		if (distanceBetweenPlayers < 0) distanceBetweenPlayers = -distanceBetweenPlayers;
@@ -321,8 +323,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			Entity otherEnt(entityList.slots[1 - i]);
 			PlayerInfo& player = graphics.drawDataPrepared.players[i];
 			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
-			player.hasNewActiveProjectiles = false;
-			player.hitboxesCount = 0;
 			player.charType = ent.characterType();
 			player.hp = ent.hp();
 			player.maxHp = ent.maxHp();
@@ -421,7 +421,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			} else if (cmnActIndex == CmnActBDown2Stand) {
 				player.wakeupTiming = player.wakeupTimings.faceUp;
 			}
-			player.onTheDefensive = player.blockstun || player.inPain || cmnActIndex == CmnActUkemi;
+			player.onTheDefensive = player.blockstun
+				|| player.inPain
+				|| cmnActIndex == CmnActUkemi
+				|| ent.gettingUp();
 			player.idleNext = ent.isIdle();
 			player.isLanding = cmnActIndex == CmnActJumpLanding || cmnActIndex == CmnActLandingStiff;
 			player.isLandingOrPreJump = player.isLanding || cmnActIndex == CmnActJumpPre;
@@ -491,6 +494,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			int remainingDoubleJumps = ent.remainingDoubleJumps();
 			int remainingAirDashes = ent.remainingAirDashes();
+			player.gettingUp = ent.gettingUp();
 			if (player.needLand
 					&& (player.isLanding
 					|| player.onTheDefensive && !player.airborne)) {

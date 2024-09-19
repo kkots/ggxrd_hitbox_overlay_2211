@@ -27,6 +27,7 @@ static ImVec4 YELLOW_COLOR = RGBToVec(0xF9EA6C);
 static ImVec4 GREEN_COLOR = RGBToVec(0x5AE976);
 static char strbuf[512];
 static std::string stringArena;
+static char printdecimalbuf[512];
 
 static bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart) {
     unsigned int length = 0;
@@ -279,13 +280,9 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    {
 		    	PlayerInfo& player = graphics.drawDataUse.players[0];
 		    	ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "[%d.%.2dx]",
-			    	(player.defenseModifier + 0x100) / 0x100,
-			    	(player.defenseModifier + 0x100) * 100 / 0x100 % 100);
+			    sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) / 0x100, 2, 0));
 			    stringArena = strbuf;
-			    sprintf_s(strbuf, " (%d.%.2dx)",
-			    	player.gutsPercentage / 100,
-			    	player.gutsPercentage % 100);
+			    sprintf_s(strbuf, " (x%s)", printDecimal(player.gutsPercentage, 2, 0));
 			    stringArena += strbuf;
 			    sprintf_s(strbuf, " %3d", player.hp);
 			    stringArena += strbuf;
@@ -301,13 +298,9 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%-3d ", player.hp);
 			    stringArena = strbuf;
-			    sprintf_s(strbuf, " (x%d.%.2d)",
-			    	player.gutsPercentage / 100,
-			    	player.gutsPercentage % 100);
+			    sprintf_s(strbuf, "(x%s) ", printDecimal(player.gutsPercentage, 2, 0));
 			    stringArena += strbuf;
-			    sprintf_s(strbuf, "[x%d.%.2d]",
-			    	(player.defenseModifier + 0x100) / 0x100,
-			    	(player.defenseModifier + 0x100) * 100 / 0x100 % 100);
+			    sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) / 0x100, 2, 0));
 			    stringArena += strbuf;
 		    	ImGui::TextUnformatted(stringArena.c_str());
 			}
@@ -315,7 +308,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d.%.2d", player.tension / 100, player.tension % 100);
+			    sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -328,33 +321,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d.%.2d", player.tensionPulse / 100, player.tensionPulse % 100);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Pulse");
-					AddTooltip("Tension Pulse");
-		    	}
-		    }
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataUse.players[i];
-			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d.%.2d", player.negativePenalty / 100, player.negativePenalty % 100);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Penalty");
-					AddTooltip("Progress towards getting a Negative penalty");
-		    	}
-		    }
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataUse.players[i];
-			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d.%.2d", player.burst / 100, player.burst % 100);
+			    sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -366,7 +333,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d.%.2d", player.risc / 100, player.risc % 100);
+			    sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -780,7 +747,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 			for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d.%.2d", player.negativePenalty / 100, player.negativePenalty % 100);
+			    sprintf_s(strbuf, "%s", printDecimal(player.negativePenalty, 2, 0));
 			    int p = strlen(strbuf);
 			    int n = 6 - p;
 			    while (n >= 0) {
@@ -923,7 +890,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 			for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d.%.2d", player.burstGainOnLastHit / 100, player.burstGainOnLastHit % 100);
+			    sprintf_s(strbuf, "%s", printDecimal(player.burstGainOnLastHit, 2, 0));
 			    ImGui::TextUnformatted(strbuf);
 			}
 			
@@ -1250,6 +1217,7 @@ void UI::frameAdvantageControl() {
 	    	ImGui::TableNextColumn();
     		CenterAlignedText("Frame Adv.");
     		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier."
+    			" (For certain stances it means whether you can do a move out of your stance.)"
 		    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
 		    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value means frame advantage"
 		    	" immediately after recovering in the air.");
@@ -1276,4 +1244,42 @@ void UI::frameAdvantageText(int frameAdv) {
 			ImGui::TextColored(RED_COLOR, strbuf);
 		}
 	}
+}
+
+char* UI::printDecimal(int num, int numAfterPoint, int padding) {
+	int divideBy = 1;
+	for (int i = 0; i < numAfterPoint; ++i) {
+		divideBy *= 10;
+	}
+	char fmtbuf[9] = "%d.%.";
+	if (numAfterPoint < 0 || numAfterPoint > 99) {
+		*printdecimalbuf = '\0';
+		return printdecimalbuf;
+	}
+	sprintf_s(fmtbuf + 5, sizeof fmtbuf - 5, "%dd", numAfterPoint);
+	if (num >= 0) {
+		sprintf_s(printdecimalbuf, fmtbuf, num / divideBy, num % divideBy);
+	} else {
+		num = -num;
+		sprintf_s(printdecimalbuf + 1, sizeof printdecimalbuf - 1, fmtbuf, num / divideBy, num % divideBy);
+		*printdecimalbuf = '-';
+	}
+	size_t len = strlen(printdecimalbuf);
+	int absPadding = padding;
+	if (absPadding < 0) absPadding = -absPadding;
+	if (len < (size_t)absPadding) {
+		int padSize = padding - len;
+		if ((int)(sizeof printdecimalbuf - len) < padSize) {
+			padSize = (int)(sizeof printdecimalbuf - len);
+		}
+		if (padSize == 0) return printdecimalbuf;
+		if (padding > 0) {
+			memmove(printdecimalbuf, printdecimalbuf + padSize, len);
+			memset(printdecimalbuf, ' ', padSize);
+		} else {
+			memset(printdecimalbuf + len, ' ', padSize);
+		}
+		printdecimalbuf[len + padSize] = '\0';
+	}
+	return printdecimalbuf;
 }

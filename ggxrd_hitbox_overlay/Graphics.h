@@ -118,6 +118,7 @@ struct PlayerInfo {
 	bool airborne:1;
 	bool inPain:1;
 	bool wasCombod:1;
+	bool gettingUp:1;
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
 	void removeActiveProjectile(int index);

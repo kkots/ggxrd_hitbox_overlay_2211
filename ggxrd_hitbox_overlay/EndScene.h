@@ -119,6 +119,8 @@ private:
 	int burstGainMaxCombo[2] { 0 };
 	int tensionGainLastCombo[2] { 0 };
 	int burstGainLastCombo[2] { 0 };
+	
+	DWORD prevAswEngineTickCount = 0;
 };
 
 extern EndScene endScene;
