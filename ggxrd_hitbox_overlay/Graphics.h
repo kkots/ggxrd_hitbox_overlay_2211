@@ -47,7 +47,24 @@ struct PlayerInfo {
 	int risc = 0;  // max 12800
 	int tension = 0;  // max 10000
 	int tensionPulse = 0;  // -25000 to 25000
+	int negativePenaltyTimer = 0;  // time remaining until negative penalty wears off
 	int negativePenalty = 0;  // 0 to 10000
+	int tensionPulsePenalty = 0;  // 0 to 1800
+	int cornerPenalty = 0;  // 0 to 960
+	int tensionPulsePenaltyGainModifier_distanceModifier = 0;
+	int tensionPulsePenaltyGainModifier_tensionPulseModifier = 0;
+	int tensionGainModifier_distanceModifier = 0;
+	int tensionGainModifier_negativePenaltyModifier = 0;
+	int tensionGainModifier_tensionPulseModifier = 0;
+	int extraTensionGainModifier = 0;
+	int receivedComboCountTensionGainModifier = 0;
+	int dealtComboCountTensionGainModifier = 0;
+	int tensionGainOnLastHit = 0;
+	int burstGainOnLastHit = 0;
+	int tensionGainLastCombo = 0;
+	int burstGainLastCombo = 0;
+	int tensionGainMaxCombo = 0;
+	int burstGainMaxCombo = 0;
 	int stun = 0;
 	int stunThreshold = 0;
 	int blockstun = 0;
@@ -55,6 +72,7 @@ struct PlayerInfo {
 	int hitstop = 0;
 	int nextHitstop = 0;
 	int burst = 0;  // max 15000
+	int comboCountBurstGainModifier = 0;
 	int frameAdvantage = 0;
 	int landingFrameAdvantage = 0;
 	int gaps[10] { 0 };
@@ -81,6 +99,8 @@ struct PlayerInfo {
 	int landingOrPreJumpFrames = 0;
 	int remainingDoubleJumps = 0;
 	int remainingAirDashes = 0;
+	char tensionPulsePenaltySeverity = 0;
+	char cornerPenaltySeverity = 0;
 	bool frameAdvantageValid = false;
 	bool landingFrameAdvantageValid = false;
 	bool idle:1;
@@ -96,6 +116,8 @@ struct PlayerInfo {
 	bool isLandingOrPreJump:1;
 	bool needLand:1;
 	bool airborne:1;
+	bool inPain:1;
+	bool wasCombod:1;
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
 	void removeActiveProjectile(int index);

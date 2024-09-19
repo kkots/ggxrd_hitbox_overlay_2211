@@ -23,6 +23,7 @@ static ImVec4 RGBToVec(DWORD color);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 const ImVec2 BTN_SIZE = ImVec2(60, 20);
 static ImVec4 RED_COLOR = RGBToVec(0xEF5454);
+static ImVec4 YELLOW_COLOR = RGBToVec(0xF9EA6C);
 static ImVec4 GREEN_COLOR = RGBToVec(0x5AE976);
 static char strbuf[512];
 static std::string stringArena;
@@ -47,6 +48,18 @@ static bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart)
         --it;
     }
     return length == 0;
+}
+
+static int findCharRev(const char* buf, char c) {
+    const char* ptr = buf;
+    while (*ptr != '\0') {
+        ++ptr;
+    }
+    while (ptr != buf) {
+        --ptr;
+        if (*ptr == c) return ptr - buf;
+    }
+    return -1;
 }
 
 static int findCharRevW(const wchar_t* buf, wchar_t c) {
@@ -162,6 +175,13 @@ static const char* formatBoolean(bool value) {
 	return value ? trueStr : falseStr;
 }
 
+static void pushZeroItemSpacingStyle() {
+	ImGuiStyle& style = ImGui::GetStyle();  // it's a reference
+	ImVec2 itemSpacing = style.ItemSpacing;
+	itemSpacing.x = 0;
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
+}
+
 bool UI::onDllMain() {
 	orig_GetKeyState = GetKeyState;
 	if (!detouring.attach(&(PVOID&)orig_GetKeyState,
@@ -225,6 +245,9 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 	
 	decrementFlagTimer(allowNextFrameTimer, allowNextFrame);
 	decrementFlagTimer(takeScreenshotTimer, takeScreenshotPress);
+	for (int i = 0; i < 2; ++i) {
+		decrementFlagTimer(clearTensionGainMaxComboTimer[i], clearTensionGainMaxCombo[i]);
+	}
 	
 	ImGui_ImplDX9_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -292,7 +315,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.tension / 100);
+			    sprintf_s(strbuf, "%d.%.2d", player.tension / 100, player.tension % 100);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -305,7 +328,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.tensionPulse / 100);
+			    sprintf_s(strbuf, "%d.%.2d", player.tensionPulse / 100, player.tensionPulse % 100);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -318,7 +341,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.negativePenalty / 100);
+			    sprintf_s(strbuf, "%d.%.2d", player.negativePenalty / 100, player.negativePenalty % 100);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -331,7 +354,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.burst / 100);
+			    sprintf_s(strbuf, "%d.%.2d", player.burst / 100, player.burst % 100);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -343,7 +366,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.risc / 100);
+			    sprintf_s(strbuf, "%d.%.2d", player.risc / 100, player.risc % 100);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -355,7 +378,13 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%4d / %4d", player.stun, player.stunThreshold * 100);
+			    const char* formatString;
+			    if (i == 0) {
+			    	formatString = "%4d / %4d";
+			    } else {
+			    	formatString = "%-4d / %-4d";
+			    }
+			    sprintf_s(strbuf, formatString, player.stun, player.stunThreshold * 100);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -479,18 +508,9 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    	}
 		    }
 		    
-		    frameAdvantageControl("Frame Adv.", offsetof(PlayerInfo, frameAdvantage),
-		    	offsetof(PlayerInfo, frameAdvantageValid),
-		    	"Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier."
-		    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
-		    	" The value in () means frame advantage after landing. When () are present, the value that is not in () means frame advantage"
-		    	" immediately after recovering in the air.");
+		    frameAdvantageControl();
 		    
-		    frameAdvantageControl("Frame Adv.L", offsetof(PlayerInfo, landingFrameAdvantage),
-		    	offsetof(PlayerInfo, landingFrameAdvantageValid),
-		    	"Eh");
-		    
-		    for (int i = 0; i < 2; ++i) {
+		    /*for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", formatBoolean(player.frameAdvantageValid));
@@ -501,7 +521,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Frame Adv. Valid");
 		    	}
-		    }
+		    }*/
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
@@ -515,7 +535,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		    		AddTooltip("Each gap is the number of frames from when the opponent left blockstun to when they entered blockstun again.");
 		    	}
 		    }
-		    for (int i = 0; i < 2; ++i) {
+		    /*for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = graphics.drawDataUse.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", formatBoolean(player.idle));
@@ -550,8 +570,11 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("idleLanding");
 		    	}
-		    }
+		    }*/
 		    ImGui::EndTable();
+		}
+		if (ImGui::Button("Show Tension Values")) {
+			showTensionData = true;
 		}
 	}
 	if (ImGui::CollapsingHeader("Hitboxes")) {
@@ -700,9 +723,255 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 			HelpMarker(settings.getOtherUIDescription(&settings.modWindowVisibleOnStart));
 		}
 	}
+	ImGui::End();
+	if (showTensionData) {
+		ImGui::Begin("Tension Data", &showTensionData);
+		if (ImGui::BeginTable("##TensionData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			ImGui::TableHeadersRow();
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Tension");
+			AddTooltip("Meter");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.tension);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Tension Pulse");
+			AddTooltip("Affects how fast you gain tension. Gained on IB, landing attacks, moving forward. Lost when moving back. Decays on its own slowly towards 0."
+				" Tension Pulse Penalty and Corner Penalty may decrease Tension Pulse over time.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%-6d / %d", player.tensionPulse, player.tensionPulse < 0 ? -25000 : 25000);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Negative Penalty Active");
+			AddTooltip("When Negative Penalty is active, you receive only 20% of the tension you would without it when attacking or moving.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%s", player.negativePenaltyTimer ? "yes" : "no");
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Negative Penalty Time Left");
+			AddTooltip("Timer that counts down how much time is remaining until Negative Penalty wears off.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%.2f sec", (float)player.negativePenaltyTimer / 60.F);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Negative Penalty Buildup");
+			AddTooltip("Tracks your progress towards reaching Negative Penalty. Negative Penalty is built up by Tension Pulse Penalty being red"
+				" or Corner Penalty being red or by moving back.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d.%.2d", player.negativePenalty / 100, player.negativePenalty % 100);
+			    int p = strlen(strbuf);
+			    int n = 6 - p;
+			    while (n >= 0) {
+			    	strbuf[p] = ' ';
+			    	++p;
+			    	--n;
+			    }
+			    strbuf[p] = '\0';
+			    strcat(strbuf, " / 100.00");
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Tension Pulse Penalty");
+			AddTooltip("Reduces Tension Pulse (yellow) and at large enough values (red) increases Negative Penalty Buildup."
+				" Increases constantly by 1. Gets reduced when getting hit, landing hits, getting your attack blocked or moving forward.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%-4d / 1800", player.tensionPulsePenalty);
+			    if (player.tensionPulsePenaltySeverity == 0) {
+			    	ImGui::TextUnformatted(strbuf);
+			    } else if (player.tensionPulsePenaltySeverity == 1) {
+			    	ImGui::TextColored(YELLOW_COLOR, strbuf);
+			    } else if (player.tensionPulsePenaltySeverity == 2) {
+			    	ImGui::TextColored(RED_COLOR, strbuf);
+			    }
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Corner Penalty");
+			AddTooltip("Penalty for being in touch with the screen or the wall. Reduces Tension Pulse (yellow) and increases Negative Penalty (red)."
+				" Slowly decays when not in corner and gets reduced when getting hit.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%-3d / 960", player.cornerPenalty);
+			    if (player.cornerPenaltySeverity == 0) {
+			    	ImGui::TextUnformatted(strbuf);
+			    } else if (player.cornerPenaltySeverity == 1) {
+			    	ImGui::TextColored(YELLOW_COLOR, strbuf);
+			    } else if (player.cornerPenaltySeverity == 2) {
+			    	ImGui::TextColored(RED_COLOR, strbuf);
+			    }
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Negative Penalty Gain");
+			AddTooltip("Negative Penalty Buildup gain modifier. Affects how fast Negative Penalty Buildup increases.\n"
+				"Negative Penalty Gain Modifier = Distance-Based Modifier * Tension Pulse-Based Modifier.\n"
+				"Distance-Based Modifier - depends on distance to the opponent.\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%-3d%c * %d%c", player.tensionPulsePenaltyGainModifier_distanceModifier, '%',
+			    	player.tensionPulsePenaltyGainModifier_tensionPulseModifier, '%');
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Tension Gain");
+			AddTooltip("Affects how fast you gain Tension increases.\n"
+				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
+				"Distance-Based Modifier - depends on distance to the opponent.\n"
+				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%-3d%c * %-3d%c * %d%c",
+			    	player.tensionGainModifier_distanceModifier, '%',
+			    	player.tensionGainModifier_negativePenaltyModifier, '%',
+			    	player.tensionGainModifier_tensionPulseModifier, '%');
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Extra Tension Modifier");
+			AddTooltip("An extra modifier that affects how fast you gain Tension. This one is applied to you when you attack.\n"
+				"It does not apply when getting hit or blocking."
+				" Stylish Mode affects this modifier.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d%c", player.extraTensionGainModifier, '%');
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Combo Tension Gain Modifier");
+			AddTooltip("An extra modifier that affects how fast you gain Tension when performing or being in a combo."
+				" It depends on the number of hits.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d%c",
+			    	player.wasCombod
+				    	? player.receivedComboCountTensionGainModifier
+				    	: player.dealtComboCountTensionGainModifier,
+			    	'%');
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Tension Gain On Last Hit");
+			AddTooltip("How much Tension was gained on a single last hit (either inflicting it or getting hit by it).");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.tensionGainOnLastHit);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Tension Gain On Last Combo");
+			AddTooltip("How much Tension was gained on the entire last performed combo (either inflicting it or getting hit by it).");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.tensionGainLastCombo);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Tension Gain On Last Max Combo");
+			AddTooltip("The maximum amount of Tension that was gained on an entire performed combo during this training session"
+				" (either inflicting it or getting hit by it).\n"
+				"You can clear this value by pressing a button below this table.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.tensionGainMaxCombo);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Burst Gain On Last Hit");
+			AddTooltip("How much Burst was gained on a single last hit (either inflicting it or getting hit by it).");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d.%.2d", player.burstGainOnLastHit / 100, player.burstGainOnLastHit % 100);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Burst Gain On Last Combo");
+			AddTooltip("How much Burst was gained on the entire last performed combo (either inflicting it or getting hit by it).");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.burstGainLastCombo);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			float offsets[2];
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Burst Gain On Last Max Combo");
+			AddTooltip("The maximum amount of Burst that was gained on an entire performed combo during this training session"
+				" (either inflicting it or getting hit by it).\n"
+				"You can clear this value by pressing a button below this table.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = graphics.drawDataUse.players[i];
+			    ImGui::TableNextColumn();
+				offsets[i] = ImGui::GetCursorPosX();
+			    sprintf_s(strbuf, "%d", player.burstGainMaxCombo);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			
+		    ImGui::EndTable();
+		    
+		    for (int i = 0; i < 2; ++i) {
+			    ImGui::SetCursorPosX(offsets[i]);
+		    	ImGui::PushID(i);
+			    if (ImGui::Button("Clear Max Combo")) {
+			    	clearTensionGainMaxCombo[i] = true;
+			    	clearTensionGainMaxComboTimer[i] = 10;
+			    	stateChanged = true;
+			    }
+			    AddTooltip("Clear max combo's Tension and Burst gain.");
+			    if (i == 0) ImGui::SameLine();
+			    ImGui::PopID();
+			}
+		}
+		ImGui::End();
+	}
 	takeScreenshot = takeScreenshotTemp;
 	imguiActive = imguiActiveTemp;
-	ImGui::End();
 	ImGui::EndFrame();
 	device->SetRenderState(D3DRS_ZENABLE, FALSE);
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
@@ -951,44 +1220,60 @@ void UI::decrementFlagTimer(int& timer, bool& flag) {
 	}
 }
 
-void UI::frameAdvantageControl(const char* columnName, DWORD frameAdvOff, DWORD frameAdvValidOff, const char* description) {
+void UI::frameAdvantageControl() {
     for (int i = 0; i < 2; ++i) {
     	PlayerInfo& player = graphics.drawDataUse.players[i];
 	    ImGui::TableNextColumn();
-	    
-	    int frameAdvantage = *(int*)((char*)&player + frameAdvOff);
-	    bool valid = *(bool*)((char*)&player + frameAdvValidOff);
-	    //if (player.frameAdvantageValid) {
-	    if (frameAdvantage == 0) {
-	    	*strbuf = '0';
-	    	*(strbuf + 1) = '\0';
-	    } else if (frameAdvantage > 0) {
-			sprintf_s(strbuf, "+%d", frameAdvantage);
-	    } else {
-		    sprintf_s(strbuf, "%d", frameAdvantage);
+    	if (player.frameAdvantageValid && player.landingFrameAdvantageValid && player.frameAdvantage != player.landingFrameAdvantage) {
+    		frameAdvantageTextFormat(player.frameAdvantage, strbuf, sizeof strbuf);
+    		strcat(strbuf, " (");
+    		frameAdvantageTextFormat(player.landingFrameAdvantage, strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf));
+    		strcat(strbuf, ")");
+    		if (i == 0) RightAlign(ImGui::CalcTextSize(strbuf).x);
+			pushZeroItemSpacingStyle();
+	    	frameAdvantageText(player.frameAdvantage);
+	    	ImGui::SameLine();
+			ImGui::TextUnformatted(" (");
+			ImGui::SameLine();
+			frameAdvantageText(player.landingFrameAdvantage);
+			ImGui::SameLine();
+			ImGui::TextUnformatted(")");
+			ImGui::PopStyleVar();
+	    } else if (player.frameAdvantageValid || player.landingFrameAdvantageValid) {
+	    	int frameAdvantage = player.frameAdvantageValid ? player.frameAdvantage : player.landingFrameAdvantage;
+	    	frameAdvantageTextFormat(frameAdvantage, strbuf, sizeof strbuf);
+	    	if (i == 0) RightAlign(ImGui::CalcTextSize(strbuf).x);
+	    	frameAdvantageText(frameAdvantage);
 	    }
-	    stringArena = strbuf;
-	    sprintf_s(strbuf + stringArena.size(), sizeof strbuf - stringArena.size(), " (%s)", formatBoolean(valid));
-	    if (i == 0) {
-	    	RightAlign(ImGui::CalcTextSize(strbuf).x + ImGui::GetStyle().ItemSpacing.x);
-	    }
-	    if (frameAdvantage == 0) {
-		    ImGui::TextUnformatted("0");
-	    } else if (frameAdvantage > 0) {
-		    ImGui::TextColored(GREEN_COLOR, stringArena.c_str());
-	    } else {
-		    ImGui::TextColored(RED_COLOR, stringArena.c_str());
-	    }
-	    ImGui::SameLine();
-	    ImGui::TextUnformatted(strbuf + stringArena.size());
-	    //} else {
-	    //	ImGui::TextUnformatted("");
-	    //}
     	
     	if (i == 0) {
 	    	ImGui::TableNextColumn();
-    		CenterAlignedText(columnName);
-    		AddTooltip(description);
+    		CenterAlignedText("Frame Adv.");
+    		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier."
+		    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
+		    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value means frame advantage"
+		    	" immediately after recovering in the air.");
     	}
     }
+}
+
+void UI::frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize) {
+	if (frameAdv > 0) {
+		sprintf_s(buf, bufSize, "+%d", frameAdv);
+	} else {
+		sprintf_s(buf, bufSize, "%d", frameAdv);
+	}
+}
+
+void UI::frameAdvantageText(int frameAdv) {
+	frameAdvantageTextFormat(frameAdv, strbuf, sizeof strbuf);
+	if (frameAdv > 0) {
+		ImGui::TextColored(GREEN_COLOR, strbuf);
+	} else {
+		if (frameAdv == 0) {
+			ImGui::TextUnformatted(strbuf);
+		} else {
+			ImGui::TextColored(RED_COLOR, strbuf);
+		}
+	}
 }

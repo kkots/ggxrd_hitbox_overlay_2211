@@ -106,6 +106,15 @@ bool EntityManager::onDllMain() {
 	idleHandlers.insert( { {CHARACTER_TYPE_ANSWER, "Ami_Hold"}, &Entity::isIdleAmi_Hold });
 	idleHandlers.insert( { {CHARACTER_TYPE_ANSWER, "Ami_Move"}, &Entity::isIdleAmi_Move });
 	
+	uintptr_t tensionModsCall = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"0f af fe b8 1f 85 eb 51 f7 ef c1 fa 05 8b ca c1 e9 1f 03 ca 01 8b 34 d1 02 00",
+		NULL, "tensionModsCall");
+	if (tensionModsCall) {
+		getExtraTensionModifier = (getExtraTensionModifier_t)followRelativeCall(tensionModsCall - 0x1b);
+		logwrap(fprintf(logfile, "getExtraTensionModifier: %p\n", getExtraTensionModifier));
+	}
+	
 	return !error;
 }
 
@@ -302,4 +311,113 @@ int Entity::calculateGuts() {
 		gutsIndex = 1;
 	}
 	return gutsTable[gutsRating()][gutsIndex];
+}
+
+int EntityManager::calculateExtraTensionGainModifier(void* pawn) {
+	if (!getExtraTensionModifier) return 100;
+	return getExtraTensionModifier(pawn, 3);
+}
+
+void EntityManager::calculateTensionGainModifier(
+		int distance,
+		int negativePenaltyTimer,
+		int tensionPulse,
+		int* distanceModifier,
+		int* tensionPenaltyModifier,
+		int* tensionPulseModifier) {
+	if (distance < 0) distance = -distance;
+	
+	if (distance < 875000) {
+		*distanceModifier = 100;
+	} else if (distance >= 1312500) {
+		*distanceModifier = 60;
+	} else {
+		*distanceModifier = 80;
+	}
+	
+	if (negativePenaltyTimer) {
+		*tensionPenaltyModifier = 20;
+	} else {
+		*tensionPenaltyModifier = 100;
+	}
+	
+	if (tensionPulse < -12500) {
+		*tensionPulseModifier = 25;
+	} else if (tensionPulse < -7500) {
+		*tensionPulseModifier = 50;
+	} else if (tensionPulse < -3750) {
+		*tensionPulseModifier = 75;
+	} else if (tensionPulse < -1250) {
+		*tensionPulseModifier = 90;
+	} else if (tensionPulse < 1250) {
+		*tensionPulseModifier = 100;
+	} else if (tensionPulse < 5000) {
+		*tensionPulseModifier = 125;
+	} else {
+		*tensionPulseModifier = 150;
+	}
+}
+
+void EntityManager::calculateTensionPulsePenaltyGainModifier(
+		int distance,
+		int tensionPulse,
+		int* distanceModifier,
+		int* tensionPulseModifier) {
+	if (distance < 0) distance = -distance;
+	
+	if (distance < 437500) {
+		*distanceModifier = 50;
+	} else if (distance >= 875000) {
+		*distanceModifier = 150;
+	} else {
+		*distanceModifier = 100;
+	}
+	
+	if (tensionPulse < -17500) {
+		*tensionPulseModifier = 350;
+	} else if (tensionPulse < -12500) {
+		*tensionPulseModifier = 250;
+	} else if (tensionPulse < -7500) {
+		*tensionPulseModifier = 200;
+	} else if (tensionPulse < -5000) {
+		*tensionPulseModifier = 150;
+	} else if (tensionPulse < -2500) {
+		*tensionPulseModifier = 125;
+	} else {
+		*tensionPulseModifier = 100;
+	}
+	
+}
+
+char EntityManager::calculateTensionPulsePenaltySeverity(int tensionPulsePenalty) {
+	if (tensionPulsePenalty >= 1080) {
+		return 2;
+	} else if (tensionPulsePenalty > 360) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+char EntityManager::calculateCornerPenaltySeverity(int cornerPenalty) {
+	if (cornerPenalty >= 300) {
+		return 2;
+	} else if (cornerPenalty > 120) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+int EntityManager::calculateReceivedComboCountTensionGainModifier(bool inPain, int comboCount) {
+	if (!inPain) return 400;
+	return (comboCount + 17) * 100 / 16 * 4;
+}
+
+int EntityManager::calculateDealtComboCountTensionGainModifier(bool inPain, int comboCount) {
+	if (!inPain) return 100;
+	int n = comboCount + 8;
+	if (n > 30) n = 30;
+	else if (n < 8) n = 8;
+	return (32 - n) * 100 / 32;
 }

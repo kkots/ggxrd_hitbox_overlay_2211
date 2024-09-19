@@ -241,6 +241,12 @@ void EndScene::logic() {
 		// Camera values are updated later, after this, in a updateCameraHook call
 		graphics.drawDataPrepared.empty = false;
 	}
+	for (int i = 0; i < 2; ++i) {
+		graphics.drawDataPrepared.players[i].tensionGainLastCombo = tensionGainLastCombo[i];
+		graphics.drawDataPrepared.players[i].burstGainLastCombo = burstGainLastCombo[i];
+		graphics.drawDataPrepared.players[i].tensionGainMaxCombo = tensionGainMaxCombo[i];
+		graphics.drawDataPrepared.players[i].burstGainMaxCombo = burstGainMaxCombo[i];
+	}
 }
 
 void EndScene::prepareDrawData(bool* needClearHitDetection) {
@@ -296,8 +302,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	}
 	
 	if (frameHasChanged) {
+		
+		int distanceBetweenPlayers = Entity{entityList.slots[0]}.posX() - Entity{entityList.slots[1]}.posX();
+		if (distanceBetweenPlayers < 0) distanceBetweenPlayers = -distanceBetweenPlayers;
+		
+		bool comboStarted = false;
 		for (int i = 0; i < 2; ++i) {
 			Entity ent(entityList.slots[i]);
+			PlayerInfo& player = graphics.drawDataPrepared.players[i];
+			if (ent.inPain() && !player.inPain) {
+				comboStarted = true;
+				break;
+			}
+		}
+		
+		for (int i = 0; i < 2; ++i) {
+			Entity ent(entityList.slots[i]);
+			Entity otherEnt(entityList.slots[1 - i]);
 			PlayerInfo& player = graphics.drawDataPrepared.players[i];
 			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
 			player.hasNewActiveProjectiles = false;
@@ -309,9 +330,75 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.gutsRating = ent.gutsRating();
 			player.gutsPercentage = ent.calculateGuts();
 			player.risc = ent.risc();
-			player.tension = ent.tension();
+			int tension = ent.tension();
+			int tensionGain = tension - player.tension;
+			player.tension = tension;
+			int burst = game.getBurst(i);
+			int burstGain = burst - player.burst;
+			player.burst = burst;
 			player.tensionPulse = ent.tensionPulse();
+			player.negativePenaltyTimer = ent.negativePenaltyTimer();
 			player.negativePenalty = ent.negativePenalty();
+			player.tensionPulsePenalty = ent.tensionPulsePenalty();
+			player.cornerPenalty = ent.cornerPenalty();
+			entityManager.calculateTensionPulsePenaltyGainModifier(
+				distanceBetweenPlayers,
+				player.tensionPulse,
+				&player.tensionPulsePenaltyGainModifier_distanceModifier,
+				&player.tensionPulsePenaltyGainModifier_tensionPulseModifier);
+			entityManager.calculateTensionGainModifier(
+				distanceBetweenPlayers,
+				player.negativePenaltyTimer,
+				player.tensionPulse,
+				&player.tensionGainModifier_distanceModifier,
+				&player.tensionGainModifier_negativePenaltyModifier,
+				&player.tensionGainModifier_tensionPulseModifier);
+			player.extraTensionGainModifier = entityManager.calculateExtraTensionGainModifier(ent);
+			if (comboStarted) {
+				player.wasCombod = player.inPain;
+				if (tensionGainOnLastHitUpdated[i]) {
+					tensionGainLastCombo[i] = tensionGainOnLastHit[i];
+					tensionGain = player.tension - tensionRecordedHit[i];
+				} else {
+					tensionGainLastCombo[i] = 0;
+				}
+				if (burstGainOnLastHitUpdated[i]) {
+					player.burstGainLastCombo = burstGainOnLastHit[i];
+					burstGain = player.burst - burstRecordedHit[i];
+				} else {
+					player.burstGainLastCombo = 0;
+				}
+			}
+			player.inPain = ent.inPain();
+			if (player.inPain || otherEnt.inPain()) {
+				tensionGainLastCombo[i] += tensionGain;
+				player.burstGainLastCombo += burstGain;
+			}
+			if (tensionGainLastCombo[i] > tensionGainMaxCombo[i]) {
+				tensionGainMaxCombo[i] = tensionGainLastCombo[i];
+			}
+			if (player.burstGainLastCombo > burstGainMaxCombo[i]) {
+				burstGainMaxCombo[i] = player.burstGainLastCombo;
+			}
+			player.tensionGainMaxCombo = tensionGainMaxCombo[i];
+			player.burstGainMaxCombo = burstGainMaxCombo[i];
+			player.receivedComboCountTensionGainModifier = entityManager.calculateReceivedComboCountTensionGainModifier(
+				player.inPain,
+				ent.comboCount());
+			player.dealtComboCountTensionGainModifier = entityManager.calculateDealtComboCountTensionGainModifier(
+				otherEnt.inPain(),
+				otherEnt.comboCount());
+			player.tensionPulsePenaltySeverity = entityManager.calculateTensionPulsePenaltySeverity(player.tensionPulsePenalty);
+			player.cornerPenaltySeverity = entityManager.calculateCornerPenaltySeverity(player.cornerPenalty);
+			if (tensionGainOnLastHitUpdated[i]) {
+				player.tensionGainOnLastHit = tensionGainOnLastHit[i];
+			}
+			if (burstGainOnLastHitUpdated[i]) {
+				player.burstGainOnLastHit = burstGainOnLastHit[i];
+			}
+			tensionGainOnLastHitUpdated[i] = false;
+			burstGainOnLastHitUpdated[i] = false;
+	
 			player.stun = ent.stun();
 			player.stunThreshold = ent.stunThreshold();
 			player.blockstun = ent.blockstun();
@@ -324,7 +411,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.airborne = ent.y() > 0;  // there's also tumbling state in which you're airborne, check *(DWORD*)(end + 0x4d40) & 0x4 != 0 if you need it. This flag is set on any airborne type of hitstun
 			player.nextHitstop = hitstop;
-			player.burst = game.getBurst(i);
 			player.weight = ent.weight();
 			const char* animName = ent.animationName();
 			ent.getWakeupTimings(&player.wakeupTimings);
@@ -335,7 +421,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			} else if (cmnActIndex == CmnActBDown2Stand) {
 				player.wakeupTiming = player.wakeupTimings.faceUp;
 			}
-			player.onTheDefensive = player.blockstun || ent.inPain() || cmnActIndex == CmnActUkemi;
+			player.onTheDefensive = player.blockstun || player.inPain || cmnActIndex == CmnActUkemi;
 			player.idleNext = ent.isIdle();
 			player.isLanding = cmnActIndex == CmnActJumpLanding || cmnActIndex == CmnActLandingStiff;
 			player.isLandingOrPreJump = player.isLanding || cmnActIndex == CmnActJumpPre;
@@ -406,33 +492,33 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			int remainingDoubleJumps = ent.remainingDoubleJumps();
 			int remainingAirDashes = ent.remainingAirDashes();
 			if (player.needLand
-					&& (remainingDoubleJumps < player.remainingDoubleJumps
-					|| remainingAirDashes < player.remainingAirDashes
-					|| player.isLanding
-					|| player.onTheDefensive
-					|| !player.idle)) {
-				if (!player.isLanding) {
-					measuringLandingFrameAdvantage = -1;
-					player.landingFrameAdvantageValid = false;
-					other.landingFrameAdvantageValid = false;
-				}
+					&& (player.isLanding
+					|| player.onTheDefensive && !player.airborne)) {
 				player.needLand = false;
 			}
 			if (player.idleLanding != player.idle) {
 				if (!(!player.idleLanding && player.needLand)) {
 					player.idleLanding = player.idle;
-					if (player.idleLanding && player.isLanding && other.idlePlus) {
-						if (measuringLandingFrameAdvantage != -1) {
-							player.landingFrameAdvantageValid = true;
-							other.landingFrameAdvantageValid = true;
+					if (player.idleLanding && player.isLanding) {
+						if (other.idlePlus) {
+							measuringLandingFrameAdvantage = -1;
+							if (other.timePassed > player.timePassedLanding) {
+								player.landingFrameAdvantage = -player.timePassedLanding;
+							} else {
+								player.landingFrameAdvantage = -other.timePassed;
+							}
+							other.landingFrameAdvantage = -player.landingFrameAdvantage;
+							if (-player.landingFrameAdvantage != player.landingOrPreJumpFrames) {
+								player.landingFrameAdvantageValid = true;
+								other.landingFrameAdvantageValid = true;
+							}
+						} else if (measuringLandingFrameAdvantage == -1) {
+							measuringLandingFrameAdvantage = i;
+							player.landingFrameAdvantageValid = false;
+							other.landingFrameAdvantageValid = false;
+							player.landingFrameAdvantage = 0;
+							other.landingFrameAdvantage = 0;
 						}
-						measuringLandingFrameAdvantage = -1;
-						if (other.timePassed > player.timePassedLanding) {
-							player.landingFrameAdvantage = -player.timePassedLanding;
-						} else {
-							player.landingFrameAdvantage = -other.timePassed;
-						}
-						other.landingFrameAdvantage = -player.landingFrameAdvantage;
 					}
 					player.timePassedLanding = 0;
 				}
@@ -547,6 +633,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						--player.frameAdvantage;
 					}
 				} else if (!player.idlePlus && !other.idlePlus) {
+					if (measuringLandingFrameAdvantage == -1) {
+						player.landingFrameAdvantageValid = false;
+						other.landingFrameAdvantageValid = false;
+					}
 					player.frameAdvantage = 0;
 					other.frameAdvantage = 0;
 					measuringFrameAdvantage = true;
@@ -633,6 +723,13 @@ void EndScene::readUnrealPawnDataHook(char* thisArg) {
 			graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
 			graphics.drawDataPrepared.empty = true;
 			graphics.needNewDrawData = false;
+		} else {
+			for (int i = 0; i < 2; ++i) {
+				graphics.drawDataUse.players[i].tensionGainLastCombo = graphics.drawDataPrepared.players[i].tensionGainLastCombo;
+				graphics.drawDataUse.players[i].burstGainLastCombo = graphics.drawDataPrepared.players[i].burstGainLastCombo;
+				graphics.drawDataUse.players[i].tensionGainMaxCombo = graphics.drawDataPrepared.players[i].tensionGainMaxCombo;
+				graphics.drawDataUse.players[i].burstGainMaxCombo = graphics.drawDataPrepared.players[i].burstGainMaxCombo;
+			}
 		}
 	}
 	{
@@ -898,6 +995,17 @@ void EndScene::processKeyStrokes() {
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.screenshotBtn)) {
 		ui.takeScreenshotPress = true;
 		ui.takeScreenshotTimer = 10;
+	}
+	if (!gifMode.modDisabled) {
+		for (int i = 0; i < 2; ++i) {
+			if (ui.clearTensionGainMaxCombo[i]) {
+				ui.clearTensionGainMaxCombo[i] = false;
+				tensionGainMaxCombo[i] = 0;
+				burstGainMaxCombo[i] = 0;
+				tensionGainLastCombo[i] = 0;
+				burstGainLastCombo[i] = 0;
+			}
+		}
 	}
 }
 
@@ -1228,6 +1336,12 @@ void EndScene::onAswEngineDestroyed() {
 	clearContinuousScreenshotMode();
 	measuringFrameAdvantage = false;
 	measuringLandingFrameAdvantage = -1;
+	memset(tensionGainOnLastHit, 0, sizeof tensionGainOnLastHit);
+	memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
+	memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
+	memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
+	memset(tensionGainMaxCombo, 0, sizeof tensionGainMaxCombo);
+	memset(burstGainMaxCombo, 0, sizeof burstGainMaxCombo);
 }
 
 Entity EndScene::getSuperflashInstigator() {
@@ -1264,3 +1378,36 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 	measuringLandingFrameAdvantage = 1 - index;
 }
 
+void EndScene::onHitDetectionStart() {
+	entityList.populate();
+	for (int i = 0; i < 2; ++i) {
+		Entity ent = entityList.slots[i];
+		tensionRecordedHit[i] = ent.tension();
+		burstRecordedHit[i] = game.getBurst(i);
+		tensionGainOnLastHit[i] = 0;
+		burstGainOnLastHit[i] = 0;
+		tensionGainOnLastHitUpdated[i] = false;
+		burstGainOnLastHitUpdated[i] = false;
+	}
+}
+
+void EndScene::onHitDetectionEnd() {
+	entityList.populate();
+	for (int i = 0; i < 2; ++i) {
+		Entity ent = entityList.slots[i];
+		int tension = ent.tension();
+		int tensionBefore = tensionRecordedHit[i];
+		if (tension != tensionBefore) {
+			tensionGainOnLastHit[i] += tension - tensionBefore;
+			tensionGainOnLastHitUpdated[i] = true;
+		}
+		tensionRecordedHit[i] = tension;
+		int burst = game.getBurst(i);
+		int burstBefore = burstRecordedHit[i];
+		if (burst != burstBefore) {
+			burstGainOnLastHit[i] += burst - burstBefore;
+			burstGainOnLastHitUpdated[i] = true;
+		}
+		burstRecordedHit[i] = burst;
+	}
+}

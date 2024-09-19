@@ -31,6 +31,8 @@ public:
 	void logic();
 	void assignNextId(bool acquireLock = false);
 	void onAswEngineDestroyed();
+	void onHitDetectionStart();
+	void onHitDetectionEnd();
 	EndScene_t orig_EndScene = nullptr;
 	std::mutex orig_EndSceneMutex;
 	Present_t orig_Present = nullptr;
@@ -106,6 +108,17 @@ private:
 	int measuringLandingFrameAdvantage = -1;
 	void restartMeasuringFrameAdvantage(int index);
 	void restartMeasuringLandingFrameAdvantage(int index);
+	
+	int tensionRecordedHit[2] { 0 };
+	int burstRecordedHit[2] { 0 };
+	int tensionGainOnLastHit[2] { 0 };
+	bool tensionGainOnLastHitUpdated[2] { 0 };
+	int burstGainOnLastHit[2] { 0 };
+	bool burstGainOnLastHitUpdated[2] { 0 };
+	int tensionGainMaxCombo[2] { 0 };
+	int burstGainMaxCombo[2] { 0 };
+	int tensionGainLastCombo[2] { 0 };
+	int burstGainLastCombo[2] { 0 };
 };
 
 extern EndScene endScene;

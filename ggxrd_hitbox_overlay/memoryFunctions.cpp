@@ -192,41 +192,41 @@ uintptr_t sigscan(const char* name, const char* sig, const char* mask)
 }
 
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname) {
-	return sigscanOffset(name, sig, sigLength, nullptr, {}, error, logname);
+	return sigscanOffsetMain(name, sig, sigLength, nullptr, {}, error, logname);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, bool* error, const char* logname) {
-	return sigscanOffset(name, sig, 0, mask, {}, error, logname);
+	return sigscanOffsetMain(name, sig, 0, mask, {}, error, logname);
 }
 
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffset(name, sig, sigLength, nullptr, offsets, error, logname);
+	return sigscanOffsetMain(name, sig, sigLength, nullptr, offsets, error, logname);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffset(name, sig, 0, mask, offsets, error, logname);
+	return sigscanOffsetMain(name, sig, 0, mask, offsets, error, logname);
 }
 
 uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const char* logname) {
-	return sigscanOffset(name, str, strlen(str), nullptr, {}, error, logname);
+	return sigscanOffsetMain(name, str, strlen(str), nullptr, {}, error, logname);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname) {
 	std::vector<char> sig;
 	std::vector<char> mask;
 	byteSpecificationToSigMask(byteSpecification, sig, mask);
-	return sigscanOffset(name, sig.data(), 0, mask.data(), {}, error, logname);
+	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname);
 }
 
 uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffset(name, str, strlen(str), nullptr, offsets, error, logname);
+	return sigscanOffsetMain(name, str, strlen(str), nullptr, offsets, error, logname);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname) {
 	std::vector<char> sig;
 	std::vector<char> mask;
 	byteSpecificationToSigMask(byteSpecification, sig, mask);
-	return sigscanOffset(name, sig.data(), 0, mask.data(), offsets, error, logname);
+	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname);
 }
 
 // Offsets work the following way:
@@ -248,7 +248,7 @@ uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const s
 //    4.c) Interpret this new position as the start of a 4-byte address which gets read, producing a new address.
 //    4.d) The result is another address. Add the second offset to this address.
 //    4.e) Repeat 4.c) and 4.d) for as many offsets as there are left. Return result on the last 4.d).
-uintptr_t sigscanOffset(const char* name, const char* sig, size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
+uintptr_t sigscanOffsetMain(const char* name, const char* sig, size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
 	uintptr_t sigscanResult;
 	if (mask) {
 		if (findChar(mask, '?') == -1) {

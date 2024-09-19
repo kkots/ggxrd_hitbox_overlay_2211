@@ -28,7 +28,7 @@ uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLe
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname);
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const size_t sigLength, const char* mask = nullptr, const std::vector<int>& offsets = std::vector<int>{}, bool* error = nullptr, const char* logname = nullptr);
+uintptr_t sigscanOffsetMain(const char* name, const char* sig, const size_t sigLength, const char* mask = nullptr, const std::vector<int>& offsets = std::vector<int>{}, bool* error = nullptr, const char* logname = nullptr);
 
 
 

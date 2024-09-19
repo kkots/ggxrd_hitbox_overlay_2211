@@ -4,6 +4,7 @@
 #include "memoryFunctions.h"
 #include "Detouring.h"
 #include "EntityList.h"
+#include "Entity.h"
 #include "InvisChipp.h"
 #include "Graphics.h"
 #include "logging.h"
@@ -26,7 +27,7 @@ bool HitDetector::onDllMain() {
 		nullptr, "determineHitType");
 
 	if (orig_determineHitType) {
-		int(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, unsigned int*, unsigned int*) = &HookHelp::determineHitTypeHook;
+		HitResult(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, unsigned int*, unsigned int*) = &HookHelp::determineHitTypeHook;
 		detouring.attach(&(PVOID&)(orig_determineHitType),
 			(PVOID&)determineHitTypeHookPtr,
 			&orig_determineHitTypeMutex,
@@ -43,12 +44,7 @@ void HitDetector::clearAllBoxes() {
 	rejections.clear();
 }
 
-/* 0 means no hit
-   1 is get hit (including by all throws)
-   2 is blocked hit
-   3 is ignoring hit due to playing a possibly very long throw animation (dunno why that is separate)
-   4 is rejected hit */
-int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr) {
+HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr) {
 	class HookTracker {
 	public:
 		HookTracker() {
@@ -60,7 +56,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 			--detouring.hooksCounter;
 		}
 	} hookTracker;
-	int result;
+	HitResult result;
 	{
 		std::unique_lock<std::mutex> guard(hitDetector.orig_determineHitTypeMutex);
 		result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
@@ -69,10 +65,10 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 	std::unique_lock<std::mutex> guard(hitDetector.mutex);
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };
-	if (result == 4) {
+	if (result == HIT_RESULT_ARMORED) {
 		if (thisEntity.characterType() != -1
 			|| !otherEntity
-			|| (*(unsigned int*)(otherEntity + 0x10) == 0)) return result;
+			|| !otherEntity.isPawn()) return result;
 
 		// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
 		if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
@@ -99,7 +95,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 		}
 	}
 
-	if ((result == 1 || result == 2)
+	if ((result == HIT_RESULT_NORMAL || result == HIT_RESULT_BLOCKED)
 			&& (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT)) {
 		EntityState state;
 		otherEntity.getState(&state);
@@ -150,7 +146,7 @@ int HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10
 	}
 
 	if ((gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode()) {
-		result = 0;
+		result = HIT_RESULT_NONE;
 	}
 	return result;
 }

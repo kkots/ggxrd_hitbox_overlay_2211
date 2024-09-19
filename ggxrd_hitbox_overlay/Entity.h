@@ -3,6 +3,7 @@
 
 using getPos_t = int(__thiscall*)(const void*);
 using getPushbox_t = int(__thiscall*)(const void*);
+using getExtraTensionModifier_t = int(__thiscall*)(const void*, int param1);
 
 struct EntityState {
 	bool strikeInvuln;
@@ -122,6 +123,15 @@ enum CmnActIndex {
 	NotACmnAct = 0xffffffff
 };
 
+enum HitResult {
+	HIT_RESULT_NONE,
+	HIT_RESULT_NORMAL,
+	HIT_RESULT_BLOCKED,
+	HIT_RESULT_IGNORED,
+	HIT_RESULT_ARMORED,  // or rejected
+	HIT_RESULT_5
+};
+
 class Entity
 {
 public:
@@ -140,6 +150,7 @@ public:
 	// 0 for P1, 1 for P2
 	inline char team() const { return *(char*)(ent + 0x40); }
 	
+	inline bool isPawn() const { return *(bool*)(ent + 0x10); }
 	inline CharacterType characterType() const { return (CharacterType)*(char*)(ent + 0x44); }
 	
 	inline int x() const { return *(int*)(ent + 0x24c); }
@@ -167,7 +178,12 @@ public:
 	inline int hitstop() const { return *(int*)(ent + 0x1ac); }
 	inline int hitstun() const { return *(int*)(ent + 0x9808); }
 	inline int blockstun() const { return *(int*)(ent + 0x4d54); }
-	inline int tension() const { return *(int*)(ent + 0x2d134); }
+	inline int tension() const { return *(int*)(ent + 0x2d134); }  // meter
+	inline int tensionPulse() const { return *(int*)(ent + 0x2d128); }  // affects how fast you gain tension
+	inline int negativePenaltyTimer() const { return *(int*)(ent + 0x2d12c); }  // starts after you reach negative penalty
+	inline int tensionPulsePenalty() const { return *(int*)(ent + 0x2d140); }  // reduces tension pulse and increases negative penalty
+	inline int negativePenalty() const { return *(int*)(ent + 0x2d144); }  // progress towards negative penalty
+	inline int cornerPenalty() const { return *(int*)(ent + 0x2d14c); }  // penalty for touching the wall
 	inline int risc() const { return *(DWORD*)(ent + 0x24e30); }
 	inline int hp() const { return *(int*)(ent + 0x9cc); }
 	inline int maxHp() const { return *(int*)(ent + 0x9d0); }
@@ -181,11 +197,10 @@ public:
 	inline bool enableGatlings() const { return (*(DWORD*)(ent + 0x4d48) & 0x1) != 0; }
 	inline DWORD forceDisableFlags() const { return *(DWORD*)(ent + 0x24e3c); }
 	inline int lifeTimeCounter() const { return *(int*)(ent + 0x18); }
-	inline bool inPain() const { return (*(DWORD*)(ent + 0x23c) & 0x4) != 0; }
+	inline bool inPain() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }
 	inline int remainingDoubleJumps() const { return *(int*)(ent + 0x4d58); }
 	inline int remainingAirDashes() const { return *(int*)(ent + 0x4d5c); }
-	inline int tensionPulse() const { return *(int*)(ent + 0x2d128); }
-	inline int negativePenalty() const { return *(int*)(ent + 0x2d144); }
+	inline int comboCount() const { return *(int*)(ent + 0x9F28); }
 
 	void getState(EntityState*) const;
 	
@@ -212,12 +227,30 @@ public:
 	inline bool operator!=(void* other) const { return (void*)ent != (void*)other; }
 
 	inline operator bool() const { return ent != nullptr; }
+	inline operator void*() const { return (void*)ent; }
 
 };
 
 class EntityManager {
 public:
 	bool onDllMain();
+	int calculateExtraTensionGainModifier(void* pawn);
+	char calculateTensionPulsePenaltySeverity(int tensionPulsePenalty);
+	char calculateCornerPenaltySeverity(int cornerPenalty);
+	void calculateTensionGainModifier(
+		int distance,
+		int negativePenaltyTimer,
+		int tensionPulse,
+		int* distanceModifier,
+		int* tensionPenaltyModifier,
+		int* tensionPulseModifier);
+	void calculateTensionPulsePenaltyGainModifier(
+		int distance,
+		int tensionPulse,
+		int* distanceModifier,
+		int* tensionPulseModifier);
+	int calculateReceivedComboCountTensionGainModifier(bool inPain, int comboCount);
+	int calculateDealtComboCountTensionGainModifier(bool inPain, int comboCount);
 private:
 	friend class Entity;
 	getPos_t getPosX;
@@ -225,6 +258,7 @@ private:
 	getPushbox_t getPushboxWidth;
 	getPushbox_t getPushboxTop;
 	getPushbox_t getPushboxBottom;
+	getExtraTensionModifier_t getExtraTensionModifier = nullptr;
 };
 
 extern EntityManager entityManager;

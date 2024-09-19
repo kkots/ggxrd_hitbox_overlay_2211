@@ -4,7 +4,7 @@
 #include "Entity.h"
 #include <mutex>
 
-using determineHitType_t = int(__thiscall*)(void*, void*, BOOL, unsigned int*, unsigned int*);
+using determineHitType_t = HitResult(__thiscall*)(void*, void*, BOOL, unsigned int*, unsigned int*);
 
 class HitDetector
 {
@@ -37,7 +37,7 @@ private:
 	class HookHelp {
 	private:
 		friend class HitDetector;
-		int determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr);
+		HitResult determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr);
 	};
 
 	struct Rejection {

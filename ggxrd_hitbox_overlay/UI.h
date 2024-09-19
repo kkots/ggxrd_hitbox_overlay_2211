@@ -31,6 +31,8 @@ public:
 	bool takeScreenshot = false;
 	bool takeScreenshotPress = false;
 	int takeScreenshotTimer = 0;
+	bool clearTensionGainMaxCombo[2] { false };
+	int clearTensionGainMaxComboTimer[2] { 0 };
 	bool slowmoGame = false;
 	bool continuousScreenshotToggle = false;
 	RecursiveLock lock;
@@ -53,7 +55,10 @@ private:
 	static SHORT WINAPI hook_GetKeyState(int nVirtKey);
 	DWORD GetKeyStateAllowedThread = 0;
 	void decrementFlagTimer(int& timer, bool& flag);
-	void frameAdvantageControl(const char* columnName, DWORD frameAdvOff, DWORD frameAdvValidOff, const char* description);
+	void frameAdvantageControl();
+	void frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
+	void frameAdvantageText(int frameAdv);
+	bool showTensionData = false;
 };
 
 extern UI ui;
