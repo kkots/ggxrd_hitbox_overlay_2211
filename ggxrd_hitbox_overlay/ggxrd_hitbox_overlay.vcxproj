@@ -229,7 +229,6 @@
     <ClInclude Include="PngRelated.h" />
     <ClInclude Include="PngResource.h" />
     <ClInclude Include="rectCombiner.h" />
-    <ClInclude Include="RecursiveLock.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="Stencil.h" />
@@ -296,7 +295,6 @@
     <ClCompile Include="PngRelated.cpp" />
     <ClCompile Include="PngResource.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
-    <ClCompile Include="RecursiveLock.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Stencil.cpp" />
     <ClCompile Include="Throws.cpp" />

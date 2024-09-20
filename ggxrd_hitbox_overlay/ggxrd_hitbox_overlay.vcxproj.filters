@@ -171,9 +171,6 @@
     <ClInclude Include="UI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RecursiveLock.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="CustomWindowMessages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -406,9 +403,6 @@
       <Filter>imgui\backends</Filter>
     </ClCompile>
     <ClCompile Include="UI.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RecursiveLock.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PngResource.cpp">
