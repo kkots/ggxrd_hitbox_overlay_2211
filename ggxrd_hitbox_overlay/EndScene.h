@@ -8,14 +8,11 @@
 #include <mutex>
 #include "DrawTextWithIconsParams.h"
 
-using EndScene_t = HRESULT(__stdcall*)(IDirect3DDevice9*);
-using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9*, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
+using endSceneCaller_t = void(__thiscall*)(void* thisArg, int param1, int param2, int param3);
 
-HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device);
-HRESULT __stdcall hook_Present(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 class EndScene
@@ -23,20 +20,15 @@ class EndScene
 public:
 	bool onDllMain();
 	bool onDllDetach();
-	HRESULT presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
-	void endSceneHook(IDirect3DDevice9* device);
 	LRESULT WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-	void setPresentFlag();
-	bool consumePresentFlag();
 	void logic();
 	void assignNextId(bool acquireLock = false);
 	void onAswEngineDestroyed();
 	void onHitDetectionStart();
 	void onHitDetectionEnd();
-	EndScene_t orig_EndScene = nullptr;
-	std::mutex orig_EndSceneMutex;
-	Present_t orig_Present = nullptr;
-	std::mutex orig_PresentMutex;
+	void onUWorld_TickBegin();
+	void onUWorld_Tick();
+	void endSceneHook(IDirect3DDevice9* device);
 	SendUnrealPawnData_t orig_SendUnrealPawnData = nullptr;
 	std::mutex orig_SendUnrealPawnDataMutex;
 	bool orig_SendUnrealPawnDataMutexLocked = false;
@@ -50,6 +42,8 @@ public:
 	bool butDontPrepareBoxData = false;
 	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
 	std::mutex orig_drawTrainingHudMutex;
+	endSceneCaller_t orig_endSceneCaller = nullptr;
+	std::mutex orig_endSceneCallerMutex;
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -59,6 +53,7 @@ private:
 		void sendUnrealPawnDataHook();
 		void readUnrealPawnDataHook();
 		void drawTrainingHudHook();
+		void endSceneCallerHook(int param1, int param2, int param3);
 	};
 	void sendUnrealPawnDataHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
@@ -76,11 +71,6 @@ private:
 	void noGravGifMode();
 	std::vector<HiddenEntity>::iterator findHiddenEntity(const Entity& ent);
 	bool needToTakeScreenshot = false;
-
-	// The EndScene function is actually being called twice: once by GuiltyGear and one more time by the Steam overlay.
-	// However, Present is only called once each frame. So we use the Present function to determine if the next EndScene
-	// call should draw the boxes.
-	bool presentCalled = true;
 
 	std::vector<Entity> drawnEntities;
 
@@ -121,6 +111,7 @@ private:
 	int burstGainLastCombo[2] { 0 };
 	
 	DWORD prevAswEngineTickCount = 0;
+	bool drawDataPrepared = false;
 };
 
 extern EndScene endScene;

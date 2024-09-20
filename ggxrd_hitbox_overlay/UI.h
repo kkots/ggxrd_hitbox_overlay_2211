@@ -1,7 +1,6 @@
 #pragma once
 #include "pch.h"
 #include <d3d9.h>
-#include "RecursiveLock.h"
 #include <vector>
 #include "steam_api.h"
 #include <mutex>
@@ -11,6 +10,7 @@ class UI
 public:
 	bool onDllMain();
 	void onDllDetach();
+	void prepareDrawData();
 	void onEndScene(IDirect3DDevice9* device);
 	LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void handleResetBefore();
@@ -35,12 +35,15 @@ public:
 	int clearTensionGainMaxComboTimer[2] { 0 };
 	bool slowmoGame = false;
 	bool continuousScreenshotToggle = false;
-	RecursiveLock lock;
+	std::mutex lock;
 	bool isSteamOverlayActive = false;
 	bool imguiActive = false;
+	void* drawData = nullptr;
+	bool needInitFont = false;
 private:
-	void initialize(IDirect3DDevice9* device);
+	void initialize();
 	bool imguiInitialized = false;
+	bool imguiD3DInitialized = false;
 	void keyComboControl(std::vector<int>& keyCombo);
 	bool needWriteSettings = false;
 	bool keyCombosChanged = false;
@@ -58,7 +61,7 @@ private:
 	void frameAdvantageControl();
 	void frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
 	void frameAdvantageText(int frameAdv);
-	char* printDecimal(int num, int numAfterPoint, int padding);
+	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);
 	bool showTensionData = false;
 };
 

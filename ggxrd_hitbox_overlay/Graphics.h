@@ -15,9 +15,7 @@
 #include "Entity.h"
 #include "PngResource.h"
 
-using Reset_t = HRESULT(__stdcall*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS* pPresentationParameters);
-
-HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters);
+using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 
 struct ActiveData {
 	int actives = 0;
@@ -157,8 +155,8 @@ public:
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
 	void* getTexture();
 	
-	Reset_t orig_Reset = nullptr;
-	std::mutex orig_ResetMutex;
+	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
+	std::mutex orig_UpdateD3DDeviceFromViewportsMutex;
 	DrawData drawDataPrepared;
 	std::mutex drawDataPreparedMutex;
 	DrawData drawDataUse;
@@ -166,8 +164,13 @@ public:
 	bool needNewCameraData = true;
 	std::mutex specialScreenshotFlagMutex;
 	bool specialScreenshotFlag = false;
+	IDirect3DDevice9* device;
 
 private:
+	class HookHelp {
+		friend class Graphics;
+		void UpdateD3DDeviceFromViewportsHook();
+	};
 	struct Vertex {
 		float x, y, z, rhw;
 		DWORD color;
@@ -176,7 +179,6 @@ private:
 	};
 	Stencil stencil;
 	std::vector<DrawOutlineCallParams> outlines;
-	IDirect3DDevice9* device;
 	std::vector<RectCombiner::Polygon> rectCombinerInputBoxes;
 	std::vector<std::vector<RectCombiner::PathElement>> rectCombinerOutlines;
 	CComPtr<IDirect3DSurface9> offscreenSurface;

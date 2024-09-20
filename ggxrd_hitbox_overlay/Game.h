@@ -4,12 +4,19 @@
 
 extern const char** aswEngine;
 
+enum ELevelTick {
+	LEVELTICK_TimeOnly,
+	LEVELTICK_ViewportsOnly,
+	LEVELTICK_All
+};
+
 using levelTick_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
 using updateBattleOfflineVer_t = void(__thiscall*)(char* thisArg, int param1);
 using trainingHudTick_t = void(__thiscall*)(char* thisArg);
 using getTrainingHudArgument_t = char*(__cdecl*)(void);
 using updateAnimations_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
 using destroyAswEngine_t = void(__cdecl*)(void);
+using UWorld_Tick_t = void(__thiscall*)(void* thisArg, ELevelTick TickType, float DeltaSeconds);
 
 class Game {
 public:
@@ -31,6 +38,7 @@ private:
 	class HookHelp {
 		friend class Game;
 		void updateBattleOfflineVerHook(int param1);
+		void UWorld_TickHook(ELevelTick TickType, float DeltaSeconds);
 	};
 	bool sigscanFrameByFraming();
 	void hookFrameByFraming();
@@ -55,6 +63,9 @@ private:
 	uintptr_t burstOffset = 0;
 	destroyAswEngine_t orig_destroyAswEngine = nullptr;
 	std::mutex orig_destroyAswEngineMutex;
+	UWorld_Tick_t orig_UWorld_Tick = nullptr;
+	std::mutex orig_UWorld_TickMutex;
+	void UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds);
 };
 
 extern Game game;

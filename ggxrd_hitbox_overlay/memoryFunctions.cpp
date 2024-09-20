@@ -37,6 +37,7 @@ bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* 
 	if (!GetModuleInformation(GetCurrentProcess(), hModule, &info, sizeof(info))) return false;
 	*start = (uintptr_t)(info.lpBaseOfDll);
 	*end = *start + info.SizeOfImage;
+	if (strcmp(sectionName, "all") == 0) return true;
 	const uintptr_t peHeaderStart = *start + *(uintptr_t*)(*start + 0x3C);
 	unsigned short numberOfSections = *(unsigned short*)(peHeaderStart + 0x6);
 	const unsigned short optionalHeaderSize = *(unsigned short*)(peHeaderStart + 0x14);

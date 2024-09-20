@@ -27,10 +27,6 @@ EndScene endScene;
 
 bool EndScene::onDllMain() {
 	bool error = false;
-
-	char** d3dvtbl = direct3DVTable.getDirect3DVTable();
-	orig_EndScene = (EndScene_t)d3dvtbl[42];
-	orig_Present = (Present_t)d3dvtbl[17];
 	
 	orig_WndProc = (WNDPROC)sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -84,18 +80,6 @@ bool EndScene::onDllMain() {
 		}
 	}
 	
-	// there will actually be a deadlock during DLL unloading if we don't put Present first and EndScene second
-
-	if (!detouring.attach(&(PVOID&)(orig_Present),
-		hook_Present,
-		&orig_PresentMutex,
-		"Present")) return false;
-
-	if (!detouring.attach(&(PVOID&)(orig_EndScene),
-		hook_EndScene,
-		&orig_EndSceneMutex,
-		"EndScene")) return false;
-
 	// SendUnrealPawnData is USkeletalMeshComponent::UpdateTransform()
 	orig_SendUnrealPawnData = (SendUnrealPawnData_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -134,6 +118,13 @@ bool EndScene::onDllMain() {
 		superflashCounterAllOffset = superflashInstigatorOffset + 4;
 		superflashCounterSelfOffset = superflashInstigatorOffset + 8;
 	}
+	
+	orig_endSceneCaller = *(endSceneCaller_t*)(**(void****)direct3DVTable.d3dManager + 0x4b);
+	void (HookHelp::*endSceneCallerHookPtr)(int param1, int param2, int param3) = &HookHelp::endSceneCallerHook;
+	if (!detouring.attach(&(PVOID&)orig_endSceneCaller,
+		(PVOID&)endSceneCallerHookPtr,
+		&orig_endSceneCallerMutex,
+		"endSceneCaller")) return false;
 
 	return !error;
 }
@@ -246,6 +237,12 @@ void EndScene::logic() {
 		graphics.drawDataPrepared.players[i].burstGainLastCombo = burstGainLastCombo[i];
 		graphics.drawDataPrepared.players[i].tensionGainMaxCombo = tensionGainMaxCombo[i];
 		graphics.drawDataPrepared.players[i].burstGainMaxCombo = burstGainMaxCombo[i];
+	}
+	if (!drawDataPrepared) {
+		ui.drawData = nullptr;
+		ui.needInitFont = false;
+		ui.prepareDrawData();
+		drawDataPrepared = true;
 	}
 }
 
@@ -742,56 +739,6 @@ void EndScene::readUnrealPawnDataHook(char* thisArg) {
 	}
 }
 
-HRESULT __stdcall hook_EndScene(IDirect3DDevice9* device) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("EndScene", true);
-	if (endScene.consumePresentFlag()) {
-		endScene.endSceneHook(device);
-	}
-	HRESULT result;
-	{
-		std::unique_lock<std::mutex> guard(endScene.orig_EndSceneMutex);
-		result = endScene.orig_EndScene(device);
-	}
-	detouring.markHookRunning("EndScene", false);
-	--detouring.hooksCounter;
-	return result;
-}
-
-HRESULT __stdcall hook_Present(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("Present", true);
-	HRESULT result = endScene.presentHook(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-	detouring.markHookRunning("Present", false);
-	--detouring.hooksCounter;
-	return result;
-}
-
-HRESULT EndScene::presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion) {
-	setPresentFlag();
-	std::unique_lock<std::mutex> guard(endScene.orig_PresentMutex);
-	HRESULT result = orig_Present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);  // may call d3d9.dll::EndScene() (and, consecutively, the hook)
-	{
-		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-		graphics.needNewDrawData = true;
-	}
-	{
-		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
-		graphics.needNewCameraData = true;
-	}
-	return result;
-}
-
-bool EndScene::consumePresentFlag() {
-	if (!presentCalled) return false;
-	presentCalled = false;
-	return true;
-}
-
-void EndScene::setPresentFlag() {
-	presentCalled = true;
-}
-
 bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 	return std::find(drawnEntities.cbegin(), drawnEntities.cend(), ent) != drawnEntities.cend();
 }
@@ -863,7 +810,6 @@ void EndScene::processKeyStrokes() {
 	keyboard.updateKeyStatuses();
 	bool stateChanged;
 	{
-		RecursiveGuard uiGuard(ui.lock);
 		stateChanged = ui.stateChanged;
 		ui.stateChanged = false;
 	}
@@ -1414,4 +1360,37 @@ void EndScene::onHitDetectionEnd() {
 		}
 		burstRecordedHit[i] = burst;
 	}
+}
+
+void EndScene::onUWorld_TickBegin() {
+	drawDataPrepared = false;
+}
+
+void EndScene::onUWorld_Tick() {
+	if (!drawDataPrepared) {
+		ui.drawData = nullptr;
+		ui.needInitFont = false;
+		ui.prepareDrawData();
+	}
+}
+
+void EndScene::HookHelp::endSceneCallerHook(int param1, int param2, int param3) {
+	++detouring.hooksCounter;
+	detouring.markHookRunning("endSceneCaller", true);
+	IDirect3DDevice9* device = *(IDirect3DDevice9**)((char*)this + 0x24);
+	endScene.endSceneHook(device);
+	{
+		std::unique_lock<std::mutex> guard(endScene.orig_endSceneCallerMutex);
+		endScene.orig_endSceneCaller((void*)this, param1, param2, param3);
+	}
+	{
+		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
+		graphics.needNewDrawData = true;
+	}
+	{
+		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
+		graphics.needNewCameraData = true;
+	}
+	detouring.markHookRunning("endSceneCaller", false);
+	--detouring.hooksCounter;
 }

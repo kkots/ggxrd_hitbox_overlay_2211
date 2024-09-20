@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Graphics.h"
 #include "Detouring.h"
-#include "Direct3DVTable.h"
+#include "memoryFunctions.h"
 #include "Hitbox.h"
 #include "Camera.h"
 #include "BoundingRect.h"
@@ -16,33 +16,41 @@
 Graphics graphics;
 
 bool Graphics::onDllMain(HMODULE hMod) {
-
-	orig_Reset = (Reset_t)direct3DVTable.getDirect3DVTable()[16];
+	
+	uintptr_t UpdateD3DDeviceFromViewportsCallPlace = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"83 79 40 00 74 05 e8 ?? ?? ?? ?? c2 04 00",
+		{ 6 },
+		nullptr, "UpdateD3DDeviceFromViewportsCallPlace");
+	
+	if (!UpdateD3DDeviceFromViewportsCallPlace) return false;
+	orig_UpdateD3DDeviceFromViewports = (UpdateD3DDeviceFromViewports_t)followRelativeCall(UpdateD3DDeviceFromViewportsCallPlace);
+	
+	void(HookHelp::*UpdateD3DDeviceFromViewportsHookPtr)() = &HookHelp::UpdateD3DDeviceFromViewportsHook;
 	if (!detouring.attach(
-		&(PVOID&)(orig_Reset),
-		hook_Reset,
-		&orig_ResetMutex,
-		"Reset")) return false;
+		&(PVOID&)(orig_UpdateD3DDeviceFromViewports),
+		(PVOID&)UpdateD3DDeviceFromViewportsHookPtr,
+		&orig_UpdateD3DDeviceFromViewportsMutex,
+		"UpdateD3DDeviceFromViewports")) return false;
 	
 	this->hMod = hMod;
 
 	return true;
 }
 
-HRESULT __stdcall hook_Reset(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS* pPresentationParameters) {
+void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
 	++detouring.hooksCounter;
-	detouring.markHookRunning("Reset", true);
+	detouring.markHookRunning("UpdateD3DDeviceFromViewports", true);
 	graphics.resetHook();
 	ui.handleResetBefore();
-	HRESULT result;
 	{
-		std::unique_lock<std::mutex> guard(graphics.orig_ResetMutex);
-		result = graphics.orig_Reset(device, pPresentationParameters);
+		std::unique_lock<std::mutex> guard(graphics.orig_UpdateD3DDeviceFromViewportsMutex);
+		graphics.orig_UpdateD3DDeviceFromViewports((char*)this);
 	}
 	ui.handleResetAfter();
-	detouring.markHookRunning("Reset", false);
+	detouring.markHookRunning("UpdateD3DDeviceFromViewports", false);
 	--detouring.hooksCounter;
-	return result;
+	return;
 }
 
 void Graphics::resetHook() {

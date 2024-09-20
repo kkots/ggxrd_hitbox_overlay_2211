@@ -4,9 +4,7 @@ class Direct3DVTable
 {
 public:
 	bool onDllMain();
-	char** getDirect3DVTable() const;
-private:
-	char** vTableAddr = nullptr;
+	char** d3dManager = nullptr;
 };
 
 extern Direct3DVTable direct3DVTable;

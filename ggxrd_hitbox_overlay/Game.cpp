@@ -31,7 +31,23 @@ bool Game::onDllMain() {
 		{16, 0},
 		NULL, "playerSideNetworkHolder");
 
-
+	uintptr_t UWorld_TickCallPlace = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"89 9e f4 04 00 00 8b 0d ?? ?? ?? ?? f3 0f 11 04 24 6a 02 e8 ?? ?? ?? ?? 33 ff 39 9e d8 04 00 00 7e 37",
+		{ 19 },
+		&error, "UWorld_TickCallPlace");
+	if (UWorld_TickCallPlace) {
+		orig_UWorld_Tick = (UWorld_Tick_t)followRelativeCall(UWorld_TickCallPlace);
+	}
+	
+	if (orig_UWorld_Tick) {
+		void(HookHelp::*UWorld_TickHookPtr)(ELevelTick TickType, float DeltaSeconds) = &HookHelp::UWorld_TickHook;
+		detouring.attach(&(PVOID&)(orig_UWorld_Tick),
+			(PVOID&)UWorld_TickHookPtr,
+			&orig_UWorld_TickMutex,
+			"UWorld_Tick");
+	}
+	
 	if (!error && sigscanFrameByFraming()) {
 		hookFrameByFraming();
 	}
@@ -203,8 +219,8 @@ void Game::levelTickHookStatic(int param1, int param2, int param3, int param4) {
 			detouring.markHookRunning("levelTick", true);
 		}
 		~HookTracker() {
-			--detouring.hooksCounter;
 			detouring.markHookRunning("levelTick", false);
+			--detouring.hooksCounter;
 		}
 	} hookTracker;
 	game.levelTickHook(param1, param2, param3, param4);
@@ -325,4 +341,26 @@ void Game::destroyAswEngineHook() {
 		std::unique_lock<std::mutex> guard(game.orig_destroyAswEngineMutex);
 		game.orig_destroyAswEngine();
 	}
+}
+
+void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds) {
+	++detouring.hooksCounter;
+	detouring.markHookRunning("UWorld_Tick", true);
+	bool hadAsw = *aswEngine != nullptr;
+	endScene.onUWorld_TickBegin();
+	{
+		std::unique_lock<std::mutex> guard(game.orig_UWorld_TickMutex);
+		game.orig_UWorld_Tick(thisArg, TickType, DeltaSeconds);
+	}
+	endScene.onUWorld_Tick();
+	if (!game.orig_destroyAswEngine && hadAsw && *aswEngine == nullptr) {
+		logwrap(fputs("Asw Engine destroyed\n", logfile));
+		endScene.onAswEngineDestroyed();
+	}
+	detouring.markHookRunning("UWorld_Tick", false);
+	--detouring.hooksCounter;
+}
+
+void Game::HookHelp::UWorld_TickHook(ELevelTick TickType, float DeltaSeconds) {
+	game.UWorld_TickHook(this, TickType, DeltaSeconds);
 }
