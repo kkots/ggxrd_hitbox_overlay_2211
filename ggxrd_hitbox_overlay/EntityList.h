@@ -5,8 +5,8 @@ class EntityList
 public:
 	void populate();
 	int count = 0;
-	const char** list = nullptr;
-	const char** slots = nullptr;
+	char** list = nullptr;
+	char** slots = nullptr;
 	unsigned int getCurrentTime();
 	bool areAnimationsNormal() const;
 	bool isAnimationNormal(const char* animationName) const;

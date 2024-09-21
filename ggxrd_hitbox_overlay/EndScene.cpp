@@ -125,6 +125,20 @@ bool EndScene::onDllMain() {
 		(PVOID&)endSceneCallerHookPtr,
 		&orig_endSceneCallerMutex,
 		"endSceneCaller")) return false;
+	
+	orig_BBScr_createObjectWithArgs = (BBScr_createObjectWithArgs_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"33 db 80 3f 63 8b f1 75 14 80 7f 01 6d 75 0e 80 7f 02 6e c7 44 24 10 01 00 00 00 74 04",
+		{ -0x1f },
+		NULL, "BBScr_createObjectWithArgs");
+	
+	if (orig_BBScr_createObjectWithArgs) {
+		void (HookHelp::*BBScr_createObjectWithArgsHookPtr)(char*, unsigned int) = &HookHelp::BBScr_createObjectWithArgsHook;
+		if (!detouring.attach(&(PVOID&)orig_BBScr_createObjectWithArgs,
+			(PVOID&)BBScr_createObjectWithArgsHookPtr,
+			&orig_BBScr_createObjectWithArgsMutex,
+			"BBScr_createObjectWithArgs")) return false;
+	}
 
 	return !error;
 }
@@ -489,8 +503,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					other.landingFrameAdvantageValid = false;
 				}
 			}
-			int remainingDoubleJumps = ent.remainingDoubleJumps();
-			int remainingAirDashes = ent.remainingAirDashes();
 			player.gettingUp = ent.gettingUp();
 			if (player.needLand
 					&& (player.isLanding
@@ -524,8 +536,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.timePassedLanding = 0;
 				}
 			}
-			player.remainingDoubleJumps = remainingDoubleJumps;
-			player.remainingAirDashes = remainingAirDashes;
 			bool idlePlus = player.idle || player.landingOrPreJump;
 			if (idlePlus != player.idlePlus) {
 				player.timePassed = 0;
@@ -1040,10 +1050,8 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 
 void EndScene::noGravGifMode() {
 	char playerIndex;
-	char opponentIndex;
 	playerIndex = game.getPlayerSide();
 	if (playerIndex == 2) playerIndex = 0;
-	opponentIndex = 1 - playerIndex;
 
 	bool useGifMode = (gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode();
 	if (useGifMode) {
@@ -1053,42 +1061,7 @@ void EndScene::noGravGifMode() {
 		for (int i = 0; i < entityList.count; ++i) {
 			Entity ent{entityList.list[i]};
 			if (ent.team() != playerIndex) {
-				const int currentScaleX = *(int*)(ent + 0x264);
-				const int currentScaleY = *(int*)(ent + 0x268);
-				const int currentScaleZ = *(int*)(ent + 0x26C);
-				const int currentScaleDefault = *(int*)(ent + 0x2594);  // 0x2664 is another default scaling
-
-				auto found = findHiddenEntity(ent);
-				if (found == hiddenEntities.end()) {
-					hiddenEntities.emplace_back();
-					HiddenEntity& hiddenEntity = hiddenEntities.back();
-					hiddenEntity.ent = ent;
-					hiddenEntity.scaleX = currentScaleX;
-					hiddenEntity.scaleY = currentScaleY;
-					hiddenEntity.scaleZ = currentScaleZ;
-					hiddenEntity.scaleDefault = currentScaleDefault;
-					hiddenEntity.wasFoundOnThisFrame = true;
-				} else {
-					HiddenEntity& hiddenEntity = *found;
-					if (currentScaleX != 0) {
-						hiddenEntity.scaleX = currentScaleX;
-					}
-					if (currentScaleY != 0) {
-						hiddenEntity.scaleY = currentScaleY;
-					}
-					if (currentScaleZ != 0) {
-						hiddenEntity.scaleZ = currentScaleZ;
-					}
-					if (currentScaleDefault != 0) {
-						hiddenEntity.scaleDefault = currentScaleDefault;
-					}
-					hiddenEntity.wasFoundOnThisFrame = true;
-				}
-				*(int*)(ent + 0x264) = 0;
-				*(int*)(ent + 0x268) = 0;
-				*(int*)(ent + 0x26C) = 0;
-				*(int*)(ent + 0x2594) = 0;
-				*(int*)(ent + 0x2664) = 0;
+				hideEntity(ent);
 			}
 		}
 		auto it = hiddenEntities.begin();
@@ -1105,23 +1078,23 @@ void EndScene::noGravGifMode() {
 			Entity ent{ entityList.list[i] };
 			auto found = findHiddenEntity(ent);
 			if (found != hiddenEntities.end()) {
-				const int currentScaleX = *(int*)(ent + 0x264);
-				const int currentScaleY = *(int*)(ent + 0x268);
-				const int currentScaleZ = *(int*)(ent + 0x26C);
-				const int currentScaleDefault = *(int*)(ent + 0x2594);
+				const int currentScaleX = ent.scaleX();
+				const int currentScaleY = ent.scaleY();
+				const int currentScaleZ = ent.scaleZ();
+				const int currentScaleDefault = ent.scaleDefault();
 
 				if (currentScaleX == 0) {
-					*(int*)(ent + 0x264) = found->scaleX;
+					ent.scaleX() = found->scaleX;
 				}
 				if (currentScaleY == 0) {
-					*(int*)(ent + 0x268) = found->scaleY;
+					ent.scaleY() = found->scaleY;
 				}
 				if (currentScaleZ == 0) {
-					*(int*)(ent + 0x26C) = found->scaleZ;
+					ent.scaleZ() = found->scaleZ;
 				}
 				if (currentScaleDefault == 0) {
-					*(int*)(ent + 0x2594) = found->scaleDefault;
-					*(int*)(ent + 0x2664) = found->scaleDefault;
+					ent.scaleDefault() = found->scaleDefault;
+					ent.scaleDefault2() = found->scaleDefault;
 				}
 			}
 		}
@@ -1393,4 +1366,67 @@ void EndScene::HookHelp::endSceneCallerHook(int param1, int param2, int param3) 
 	}
 	detouring.markHookRunning("endSceneCaller", false);
 	--detouring.hooksCounter;
+}
+
+void EndScene::HookHelp::BBScr_createObjectWithArgsHook(char* animName, unsigned int posType) {
+	++detouring.hooksCounter;
+	detouring.markHookRunning("BBScr_createObjectWithArgs", true);
+	{
+		std::unique_lock<std::mutex> guard(endScene.orig_BBScr_createObjectWithArgsMutex);
+		endScene.orig_BBScr_createObjectWithArgs(this, animName, posType);
+	}
+	endScene.BBScr_createObjectWithArgsHook(Entity{(char*)this}, animName, posType);
+	detouring.markHookRunning("BBScr_createObjectWithArgs", true);
+	--detouring.hooksCounter;
+}
+
+void EndScene::BBScr_createObjectWithArgsHook(Entity pawn, char* animName, unsigned int posType) {
+	if (!gifMode.modDisabled && (gifMode.gifModeToggleHideOpponentOnly || gifMode.gifModeOn) && game.isTrainingMode()) {
+		Entity createdPawn = pawn.previousEntity();
+		if (!createdPawn) return;
+		int playerSide = game.getPlayerSide();
+		if (playerSide == 2) playerSide = 0;
+		if (createdPawn.team() != playerSide) {
+			hideEntity(createdPawn);
+		}
+	}
+}
+
+void EndScene::hideEntity(Entity ent) {
+	const int currentScaleX = ent.scaleX();
+	const int currentScaleY = ent.scaleY();
+	const int currentScaleZ = ent.scaleZ();
+	const int currentScaleDefault = ent.scaleDefault();  // 0x2664 is another default scaling
+
+	auto found = findHiddenEntity(ent);
+	if (found == hiddenEntities.end()) {
+		hiddenEntities.emplace_back();
+		HiddenEntity& hiddenEntity = hiddenEntities.back();
+		hiddenEntity.ent = ent;
+		hiddenEntity.scaleX = currentScaleX;
+		hiddenEntity.scaleY = currentScaleY;
+		hiddenEntity.scaleZ = currentScaleZ;
+		hiddenEntity.scaleDefault = currentScaleDefault;
+		hiddenEntity.wasFoundOnThisFrame = true;
+	} else {
+		HiddenEntity& hiddenEntity = *found;
+		if (currentScaleX != 0) {
+			hiddenEntity.scaleX = currentScaleX;
+		}
+		if (currentScaleY != 0) {
+			hiddenEntity.scaleY = currentScaleY;
+		}
+		if (currentScaleZ != 0) {
+			hiddenEntity.scaleZ = currentScaleZ;
+		}
+		if (currentScaleDefault != 0) {
+			hiddenEntity.scaleDefault = currentScaleDefault;
+		}
+		hiddenEntity.wasFoundOnThisFrame = true;
+	}
+	ent.scaleX() = 0;
+	ent.scaleY() = 0;
+	ent.scaleZ() = 0;
+	ent.scaleDefault() = 0;
+	ent.scaleDefault2() = 0;
 }

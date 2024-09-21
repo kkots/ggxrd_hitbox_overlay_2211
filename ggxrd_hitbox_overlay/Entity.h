@@ -135,9 +135,9 @@ enum HitResult {
 class Entity
 {
 public:
-	Entity();
-	Entity(const char* ent);
-	const char* ent = nullptr;
+	inline Entity() {}
+	inline Entity(const char* ent) { this->ent = const_cast<char*>(ent); }
+	char* ent = nullptr;
 	
 	// Active means attack frames are coming
 	inline bool isActive() const {
@@ -198,10 +198,15 @@ public:
 	inline DWORD forceDisableFlags() const { return *(DWORD*)(ent + 0x24e3c); }
 	inline int lifeTimeCounter() const { return *(int*)(ent + 0x18); }
 	inline bool inPain() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }
-	inline int remainingDoubleJumps() const { return *(int*)(ent + 0x4d58); }
-	inline int remainingAirDashes() const { return *(int*)(ent + 0x4d5c); }
 	inline int comboCount() const { return *(int*)(ent + 0x9F28); }
 	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
+	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }
+	inline int& scaleX() { return *(int*)(ent + 0x264); }
+	inline int& scaleY() { return *(int*)(ent + 0x268); }
+	inline int& scaleZ() { return *(int*)(ent + 0x26c); }
+	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
+	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
+	inline int& physicsYImpulse() { return *(int*)(ent + 0x300); }
 
 	void getState(EntityState*) const;
 	

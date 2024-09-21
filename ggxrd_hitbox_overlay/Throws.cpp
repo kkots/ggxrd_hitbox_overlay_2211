@@ -131,7 +131,7 @@ void Throws::hitDetectionMainHook() {
 
 				Entity other{ nullptr };
 				if (entityList.count >= 2) {
-					other.ent = (const char*)(entityList.slots[1 - ent.team()]);
+					other.ent = (char*)(entityList.slots[1 - ent.team()]);
 				} else {
 					other.ent = entityList.slots[0];
 				}

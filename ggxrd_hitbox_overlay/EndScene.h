@@ -12,6 +12,7 @@ using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using endSceneCaller_t = void(__thiscall*)(void* thisArg, int param1, int param2, int param3);
+using BBScr_createObjectWithArgs_t = void(__thiscall*)(void* pawn, char* animName, unsigned int posType);
 
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -44,6 +45,8 @@ public:
 	std::mutex orig_drawTrainingHudMutex;
 	endSceneCaller_t orig_endSceneCaller = nullptr;
 	std::mutex orig_endSceneCallerMutex;
+	BBScr_createObjectWithArgs_t orig_BBScr_createObjectWithArgs = nullptr;
+	std::mutex orig_BBScr_createObjectWithArgsMutex;
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -54,10 +57,12 @@ private:
 		void readUnrealPawnDataHook();
 		void drawTrainingHudHook();
 		void endSceneCallerHook(int param1, int param2, int param3);
+		void BBScr_createObjectWithArgsHook(char* animName, unsigned int posType);
 	};
 	void sendUnrealPawnDataHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
 	void drawTrainingHudHook(char* thisArg);
+	void BBScr_createObjectWithArgsHook(Entity pawn, char* animName, unsigned int posType);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
@@ -69,6 +74,7 @@ private:
 	};
 	bool isEntityAlreadyDrawn(const Entity& ent) const;
 	void noGravGifMode();
+	void hideEntity(Entity ent);
 	std::vector<HiddenEntity>::iterator findHiddenEntity(const Entity& ent);
 	bool needToTakeScreenshot = false;
 

@@ -7,9 +7,9 @@ EntityList entityList;
 
 void EntityList::populate() {
 
-	count = *(const int*)(*aswEngine + 0xB4);
-	list = (const char**)(*aswEngine + 0x1FC);
-	slots = (const char**)(*aswEngine + 0xC8);
+	count = *(int*)(*aswEngine + 0xB4);
+	list = (char**)(*aswEngine + 0x1FC);
+	slots = (char**)(*aswEngine + 0xC8);
 
 }
 

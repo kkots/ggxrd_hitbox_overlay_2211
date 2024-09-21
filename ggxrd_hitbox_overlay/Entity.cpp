@@ -41,8 +41,6 @@ static char gutsTable[6][6] {     // We're NOT hardcoding guts rating of each ch
 	{ 100, 75, 60, 48, 40, 36 }   // Raven
 };
 
-Entity::Entity() { }
-
 bool EntityManager::onDllMain() {
 	bool error = false;
 
@@ -117,8 +115,6 @@ bool EntityManager::onDllMain() {
 	
 	return !error;
 }
-
-Entity::Entity(const char* ent) : ent(ent) { }
 
 int Entity::posX() const {
 	return entityManager.getPosX(ent);
