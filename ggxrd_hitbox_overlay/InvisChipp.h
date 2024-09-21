@@ -11,7 +11,7 @@ public:
 private:
 	bool p1IsInvisChipp = false;
 	bool p2IsInvisChipp = false;
-	bool determineInvisChipp(const char* aswData);
+	bool determineInvisChipp(Entity ent);
 };
 
 extern InvisChipp invisChipp;

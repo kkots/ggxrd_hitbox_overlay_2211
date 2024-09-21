@@ -153,7 +153,7 @@ void Entity::getState(EntityState* state) const {
 	state->ownerCharType = (CharacterType)(-1);
 	state->team = team();
 	if (state->isASummon && entityList.count >= 2) {
-		state->ownerCharType = Entity{ entityList.slots[state->team] }.characterType();
+		state->ownerCharType = entityList.slots[state->team].characterType();
 	}
 	logOnce(fprintf(logfile, "isASummon: %u\n", (int)state->isASummon));
 	state->counterhit = (*(int*)(ent + 0x234) & 256) != 0  // Thanks to WorseThanYou for finding this

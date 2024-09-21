@@ -1,15 +1,16 @@
 #pragma once
+#include "Entity.h"
 
 class EntityList
 {
 public:
 	void populate();
 	int count = 0;
-	char** list = nullptr;
-	char** slots = nullptr;
+	Entity* list = nullptr;
+	Entity* slots = nullptr;
 	unsigned int getCurrentTime();
 	bool areAnimationsNormal() const;
-	bool isAnimationNormal(const char* animationName) const;
+	bool isAnimationNormal(Entity ent) const;
 private:
 	unsigned int previousTime = 0;
 };

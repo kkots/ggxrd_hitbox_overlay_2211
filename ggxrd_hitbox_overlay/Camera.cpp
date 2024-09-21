@@ -109,7 +109,7 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		char playerSide = game.getPlayerSide();
 		if (playerSide == 2) playerSide = 0;
 		if (entityList.count > playerSide) {
-			Entity ent { entityList.slots[playerSide] };
+			Entity ent = entityList.slots[playerSide];
 			const auto posX = convertCoord((float)ent.posX());
 			const auto posY = convertCoord((float)ent.posY());
 

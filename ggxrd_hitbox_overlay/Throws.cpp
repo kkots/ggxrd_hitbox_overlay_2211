@@ -78,7 +78,7 @@ BOOL Throws::HookHelp::hitDetectionMainHook(char* other) {
 void Throws::hitDetectionMainHook() {
 	entityList.populate();
 	for (int i = 0; i < entityList.count; ++i) {
-		Entity ent{entityList.list[i]};
+		Entity ent = entityList.list[i];
 
 		const int attackType = *(const int*)(ent + 0x44C);
 		const bool isActive = ent.isActive();
@@ -95,7 +95,7 @@ void Throws::hitDetectionMainHook() {
 		CharacterType charType = ent.characterType();
 		CharacterType ownerType = (CharacterType)(-1);
 		if (charType == -1) {
-			ownerType = Entity{entityList.slots[ent.team()]}.characterType();
+			ownerType = entityList.slots[ent.team()].characterType();
 		}
 
 		bool checkPassed = (throwRange >= 0 || throwMinX < throwMaxX || throwMinY < throwMaxY)
@@ -129,11 +129,11 @@ void Throws::hitDetectionMainHook() {
 				int otherLeft;
 				int otherRight;
 
-				Entity other{ nullptr };
+				Entity other = nullptr;
 				if (entityList.count >= 2) {
-					other.ent = (char*)(entityList.slots[1 - ent.team()]);
+					other = entityList.slots[1 - ent.team()];
 				} else {
-					other.ent = entityList.slots[0];
+					other = entityList.slots[0];
 				}
 				other.pushboxLeftRight(&otherLeft, &otherRight);
 				int otherX = other.posX();

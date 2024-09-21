@@ -2,7 +2,6 @@
 #include "pch.h"
 #include <d3d9.h>
 #include <vector>
-#include "steam_api.h"
 #include <mutex>
 
 class UI
@@ -36,7 +35,6 @@ public:
 	bool slowmoGame = false;
 	bool continuousScreenshotToggle = false;
 	std::mutex lock;
-	bool isSteamOverlayActive = false;
 	bool imguiActive = false;
 	void* drawData = nullptr;
 	bool needInitFont = false;
@@ -52,7 +50,6 @@ private:
 	bool selectFile(std::wstring& path, HWND owner);
 	std::wstring lastSelectedPath;
 	static void __stdcall Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR unnamedParam3, DWORD unnamedParam4);
-	STEAM_CALLBACK(UI, OnGameOverlayActivated, GameOverlayActivated_t);
 	SHORT (WINAPI *orig_GetKeyState) (int nVirtKey);
 	std::mutex orig_GetKeyStateMutex;
 	static SHORT WINAPI hook_GetKeyState(int nVirtKey);

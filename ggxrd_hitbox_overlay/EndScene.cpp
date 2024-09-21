@@ -273,10 +273,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	unsigned int p1CurrentTimer = ~0;
 	unsigned int p2CurrentTimer = ~0;
 	if (entityList.count >= 1) {
-		p1CurrentTimer = Entity{ entityList.slots[0] }.currentAnimDuration();
+		p1CurrentTimer = entityList.slots[0].currentAnimDuration();
 	}
 	if (entityList.count >= 2) {
-		p2CurrentTimer = Entity{ entityList.slots[1] }.currentAnimDuration();
+		p2CurrentTimer = entityList.slots[1].currentAnimDuration();
 	}
 	if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
 		|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
@@ -316,12 +316,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
-		int distanceBetweenPlayers = Entity{entityList.slots[0]}.posX() - Entity{entityList.slots[1]}.posX();
+		int distanceBetweenPlayers = entityList.slots[0].posX() - entityList.slots[1].posX();
 		if (distanceBetweenPlayers < 0) distanceBetweenPlayers = -distanceBetweenPlayers;
 		
 		bool comboStarted = false;
 		for (int i = 0; i < 2; ++i) {
-			Entity ent(entityList.slots[i]);
+			Entity ent = entityList.slots[i];
 			PlayerInfo& player = graphics.drawDataPrepared.players[i];
 			if (ent.inPain() && !player.inPain) {
 				comboStarted = true;
@@ -330,8 +330,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		
 		for (int i = 0; i < 2; ++i) {
-			Entity ent(entityList.slots[i]);
-			Entity otherEnt(entityList.slots[1 - i]);
+			Entity ent = entityList.slots[i];
+			Entity otherEnt = entityList.slots[1 - i];
 			PlayerInfo& player = graphics.drawDataPrepared.players[i];
 			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
 			player.charType = ent.characterType();
@@ -465,7 +465,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		// I need another loop because in the next one each player refers to other's timePassed and I modified it
 	
 		for (int i = 0; i < 2; i++) {
-			Entity ent(entityList.slots[i]);
+			Entity ent = entityList.slots[i];
 			PlayerInfo& player = graphics.drawDataPrepared.players[i];
 			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
@@ -546,7 +546,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	
 	for (int i = 0; i < entityList.count; i++)
 	{
-		Entity ent(entityList.list[i]);
+		Entity ent = entityList.list[i];
 		int team = ent.team();
 		if (isEntityAlreadyDrawn(ent)) continue;
 
@@ -788,7 +788,7 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		}
 	}
 
-	bool doYourThing = !gifMode.hitboxDisplayDisabled && !ui.isSteamOverlayActive;
+	bool doYourThing = !gifMode.hitboxDisplayDisabled;
 
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
@@ -1059,7 +1059,7 @@ void EndScene::noGravGifMode() {
 			it->wasFoundOnThisFrame = false;
 		}
 		for (int i = 0; i < entityList.count; ++i) {
-			Entity ent{entityList.list[i]};
+			Entity ent = entityList.list[i];
 			if (ent.team() != playerIndex) {
 				hideEntity(ent);
 			}
@@ -1075,7 +1075,7 @@ void EndScene::noGravGifMode() {
 		}
 	} else {
 		for (int i = 0; i < entityList.count; ++i) {
-			Entity ent{ entityList.list[i] };
+			Entity ent = entityList.list[i];
 			auto found = findHiddenEntity(ent);
 			if (found != hiddenEntities.end()) {
 				const int currentScaleX = ent.scaleX();
@@ -1103,7 +1103,7 @@ void EndScene::noGravGifMode() {
 
 	bool useNoGravMode = gifMode.noGravityOn && game.isTrainingMode();
 	if (useNoGravMode) {
-		*(int*)(entityList.slots[playerIndex] + 0x300) = 0;
+		entityList.slots[playerIndex].physicsYImpulse() = 0;
 	}
 }
 

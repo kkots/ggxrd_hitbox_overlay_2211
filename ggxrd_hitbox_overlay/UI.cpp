@@ -225,7 +225,7 @@ void UI::onDllDetach() {
 }
 
 void UI::prepareDrawData() {
-	if (!visible || isSteamOverlayActive || gifMode.modDisabled) {
+	if (!visible || gifMode.modDisabled) {
 		GetKeyStateAllowedThread = 0;
 		takeScreenshot = false;
 		takeScreenshotPress = false;
@@ -995,7 +995,7 @@ void UI::prepareDrawData() {
 }
 
 void UI::onEndScene(IDirect3DDevice9* device) {
-	if (!visible || !imguiInitialized || isSteamOverlayActive || gifMode.modDisabled) {
+	if (!visible || !imguiInitialized || gifMode.modDisabled) {
 		return;
 	}
 	std::unique_lock<std::mutex> uiGuard(lock);
@@ -1212,27 +1212,20 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
     HelpMarker(info.uiDescription);
 }
 
-void UI::OnGameOverlayActivated(GameOverlayActivated_t* pParam) {
-	isSteamOverlayActive = pParam->m_bActive;
-	logwrap(fprintf(logfile, "isSteamOverlayActive: %d\n", isSteamOverlayActive));
-	if (isSteamOverlayActive) GetKeyStateAllowedThread = 0;
-	else if (imguiActive && !GetKeyStateAllowedThread) GetKeyStateAllowedThread = -1;
-	else if (!imguiActive) GetKeyStateAllowedThread = 0;
-}
-
 SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("GetKeyState", true);
-	if (ui.GetKeyStateAllowedThread == 0 || GetCurrentThreadId() == ui.GetKeyStateAllowedThread) {
+	SHORT result;
+	{
 		std::unique_lock<std::mutex> guard(ui.orig_GetKeyStateMutex);
-		SHORT result = ui.orig_GetKeyState(nVirtKey);
-		detouring.markHookRunning("GetKeyState", false);
-		--detouring.hooksCounter;
-		return result;
+		result = ui.orig_GetKeyState(nVirtKey);
+	}
+	if (!(ui.GetKeyStateAllowedThread == 0 || GetCurrentThreadId() == ui.GetKeyStateAllowedThread)) {
+		result = 0;
 	}
 	detouring.markHookRunning("GetKeyState", false);
 	--detouring.hooksCounter;
-	return 0;
+	return result;
 }
 
 void UI::decrementFlagTimer(int& timer, bool& flag) {

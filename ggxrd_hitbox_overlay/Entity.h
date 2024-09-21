@@ -234,6 +234,7 @@ public:
 
 	inline operator bool() const { return ent != nullptr; }
 	inline operator void*() const { return (void*)ent; }
+	inline operator char*() const { return ent; }
 
 };
 

@@ -16,9 +16,9 @@ void InvisChipp::onEndSceneStart() {
 	}
 }
 
-bool InvisChipp::determineInvisChipp(const char* aswData) {
-	return (Entity(aswData).characterType() == CHARACTER_TYPE_CHIPP)
-		&& *(short*)(aswData + 0x24C50) != 0;
+bool InvisChipp::determineInvisChipp(Entity ent) {
+	return (ent.characterType() == CHARACTER_TYPE_CHIPP)
+		&& *(short*)(ent + 0x24C50) != 0;
 }
 
 bool InvisChipp::isP1InvisChipp() const {
