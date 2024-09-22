@@ -12,7 +12,6 @@
 #include "ComplicatedHurtbox.h"
 #include <mutex>
 #include "characterTypes.h"
-#include "Entity.h"
 #include "PngResource.h"
 #include "PlayerInfo.h"
 
@@ -24,10 +23,7 @@ struct DrawData {
 	std::vector<DrawBoxCallParams> pushboxes;
 	std::vector<DrawPointCallParams> points;
 	std::vector<DrawBoxCallParams> throwBoxes;
-	PlayerInfo players[2] { 0 };
 	void clear();
-	void clearPlayers();
-	void clearWithoutPlayers();
 	void copyTo(DrawData* destination);
 	bool empty = false;
 	bool needTakeScreenshot = false;
@@ -38,7 +34,7 @@ class Graphics
 {
 public:
 	bool onDllMain(HMODULE hMod);
-	void onUnload();
+	void onDllDetach();
 	void onEndSceneStart(IDirect3DDevice9* device);
 	void drawAll();
 	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
@@ -56,6 +52,8 @@ public:
 	std::mutex specialScreenshotFlagMutex;
 	bool specialScreenshotFlag = false;
 	IDirect3DDevice9* device;
+	DWORD graphicsThreadId = NULL;
+	bool shutdown = false;
 
 private:
 	class HookHelp {
@@ -181,6 +179,7 @@ private:
 	CComPtr<IDirect3DTexture9> texture = nullptr;
 	PngResource questionMarkRes;
 	HMODULE hMod = NULL;
+	HANDLE shutdownFinishedEvent = NULL;
 };
 
 extern Graphics graphics;

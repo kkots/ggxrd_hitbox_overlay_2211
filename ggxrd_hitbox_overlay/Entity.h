@@ -207,6 +207,7 @@ public:
 	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
 	inline int& physicsYImpulse() { return *(int*)(ent + 0x300); }
+	inline int currentHitNum() { return *(int*)(ent + 0x26d8); }
 
 	void getState(EntityState*) const;
 	

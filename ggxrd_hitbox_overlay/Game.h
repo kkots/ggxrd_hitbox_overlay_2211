@@ -34,6 +34,7 @@ public:
 	trainingHudTick_t trainingHudTick = nullptr;
 	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
 	uintptr_t aswEngineTickCountOffset = 0;
+	bool shutdown = false;
 private:
 	class HookHelp {
 		friend class Game;

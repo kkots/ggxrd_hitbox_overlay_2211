@@ -12,6 +12,7 @@
 #include "Settings.h"
 #include "UI.h"
 #include "resource.h"
+#include "WinError.h"
 
 Graphics graphics;
 
@@ -34,6 +35,13 @@ bool Graphics::onDllMain(HMODULE hMod) {
 		"UpdateD3DDeviceFromViewports")) return false;
 	
 	this->hMod = hMod;
+	
+	shutdownFinishedEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
+	if (!shutdownFinishedEvent || shutdownFinishedEvent == INVALID_HANDLE_VALUE) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "Failed to create event: %ls\n", winErr.getMessage()));
+		return false;
+	}
 
 	return true;
 }
@@ -42,12 +50,18 @@ void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("UpdateD3DDeviceFromViewports", true);
 	graphics.resetHook();
-	ui.handleResetBefore();
+	if (graphics.shutdown) {
+		ui.onDllDetachGraphics();
+	} else {
+		ui.handleResetBefore();
+	}
 	{
 		std::unique_lock<std::mutex> guard(graphics.orig_UpdateD3DDeviceFromViewportsMutex);
 		graphics.orig_UpdateD3DDeviceFromViewports((char*)this);
 	}
-	ui.handleResetAfter();
+	if (!graphics.shutdown) {
+		ui.handleResetAfter();
+	}
 	detouring.markHookRunning("UpdateD3DDeviceFromViewports", false);
 	--detouring.hooksCounter;
 	return;
@@ -63,13 +77,65 @@ void Graphics::resetHook() {
 	texture = NULL;
 }
 
-void Graphics::onUnload() {
-	resetHook();
+void Graphics::onDllDetach() {
+	logwrap(fputs("Graphics::onDllDetach called\n", logfile));
+	// this tells various callers to stop trying to use the resources as they're about to be freed
+	shutdown = true;
+	ui.shutdownGraphics = true;
+	if (!graphicsThreadId || graphicsThreadId == detouring.dllMainThreadId) {
+		resetHook();
+		ui.onDllDetachGraphics();
+		return;
+	}
+	HANDLE graphicsThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, graphicsThreadId);
+	if (!graphicsThreadHandle) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "Graphics failed to open graphics thread handle: %ls\n", winErr.getMessage()));
+		resetHook();
+		ui.onDllDetachGraphics();
+		return;
+	}
+	if (GetProcessIdOfThread(graphicsThreadHandle) != GetCurrentProcessId()) {
+		CloseHandle(graphicsThreadHandle);
+		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive"));
+		resetHook();
+		ui.onDllDetachGraphics();
+		return;
+	}
+	DWORD exitCode;
+	bool stillActive = GetExitCodeThread(graphicsThreadHandle, &exitCode) && exitCode == STILL_ACTIVE;
+	CloseHandle(graphicsThreadHandle);
+	
+	// free the resource - and stop using it
+	
+	if (!stillActive) {
+		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive (2)"));
+		resetHook();
+		ui.onDllDetachGraphics();
+		return;
+	}
+	
+	logwrap(fputs("Graphics calling WaitForSingleObject\n", logfile));
+	DWORD result = WaitForSingleObject(shutdownFinishedEvent, 300);
+	if (result != WAIT_OBJECT_0) {
+		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because WaitForSingleObject did not return success"));
+		// We were hoping to free resources on the graphics thread, but if that's not possible, we free them on this thread
+		resetHook();
+		ui.onDllDetachGraphics();
+		return;
+	}
+	logwrap(fprintf(logfile, "Graphics freed resources successfully\n"));
 }
 
 void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
-	this->device = device;
-	stencil.onEndSceneStart();
+	if (!shutdown) {
+		this->device = device;
+		stencil.onEndSceneStart();
+	} else {
+		resetHook();
+		ui.onDllDetachGraphics();
+		SetEvent(shutdownFinishedEvent);
+	}
 }
 
 bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect, bool ignoreFill, bool ignoreOutline) {
@@ -1134,22 +1200,13 @@ void Graphics::resetVertexBuffer() {
 	vertexBufferPosition = 0;
 }
 
-void DrawData::clearPlayers() {
-	memset(players, 0, sizeof players);
-}
-
-void DrawData::clearWithoutPlayers() {
+void DrawData::clear() {
 	hurtboxes.clear();
 	hitboxes.clear();
 	pushboxes.clear();
 	points.clear();
 	throwBoxes.clear();
 	needTakeScreenshot = false;
-}
-
-void DrawData::clear() {
-	clearWithoutPlayers();
-	clearPlayers();
 }
 
 bool Graphics::drawIfOutOfSpace(unsigned int verticesCountRequired, unsigned int texturedVerticesCountRequired) {
@@ -1186,16 +1243,17 @@ void DrawData::copyTo(DrawData* destination) {
 	destination->throwBoxes.insert(destination->throwBoxes.begin(), throwBoxes.begin(), throwBoxes.end());
 	destination->needTakeScreenshot = needTakeScreenshot;
 	destination->id = id;
-	memcpy(destination->players, players, sizeof players);
 }
 
 bool Graphics::initializeTexture() {
 	if (failedToCreateTexture) return false;
 	if (texture) return true;
-	if (!loadPngResource(hMod, IDB_QUESTION, questionMarkRes)) {
-		logwrap(fputs("loadPngResource failed\n", logfile));
-		failedToCreateTexture = true;
-		return false;
+	if (questionMarkRes.data.empty()) {
+		if (!loadPngResource(hMod, IDB_QUESTION, questionMarkRes)) {
+			logwrap(fputs("loadPngResource failed\n", logfile));
+			failedToCreateTexture = true;
+			return false;
+		}
 	}
 	CComPtr<IDirect3DTexture9> systemTexture;
 	if (FAILED(device->CreateTexture(questionMarkRes.width, questionMarkRes.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &systemTexture, NULL))) {

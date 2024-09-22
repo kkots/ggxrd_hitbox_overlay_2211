@@ -94,36 +94,40 @@ void Camera::HookHelp::updateCameraHook(char** param1, char* param2) {
 }
 
 void Camera::updateDarkenHook(char* thisArg) {
-	if (gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly) {
-		*(float*)(thisArg + darkenValue1Offset) = -1.F;
-		*(float*)(thisArg + darkenValue1Offset + 0xC) = 0.F;
+	if (!shutdown) {
+		if (gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly) {
+			*(float*)(thisArg + darkenValue1Offset) = -1.F;
+			*(float*)(thisArg + darkenValue1Offset + 0xC) = 0.F;
+		}
 	}
 	std::unique_lock<std::mutex> guard(orig_updateDarkenMutex);
 	orig_updateDarken(thisArg);
 }
 
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
-	if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && game.isTrainingMode() && *aswEngine) {
-		entityList.populate();
-
-		char playerSide = game.getPlayerSide();
-		if (playerSide == 2) playerSide = 0;
-		if (entityList.count > playerSide) {
-			Entity ent = entityList.slots[playerSide];
-			const auto posX = convertCoord((float)ent.posX());
-			const auto posY = convertCoord((float)ent.posY());
-
-			char* deref = *param1;
-			*(float*)(deref + 0x54) = posX;
-			*(float*)(deref + 0x58) = 540.F;
-			*(float*)(deref + 0x5C) = posY + 106.4231F;
+	if (!shutdown) {
+		if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && game.isTrainingMode() && *aswEngine) {
+			entityList.populate();
+	
+			char playerSide = game.getPlayerSide();
+			if (playerSide == 2) playerSide = 0;
+			if (entityList.count > playerSide) {
+				Entity ent = entityList.slots[playerSide];
+				const auto posX = convertCoord((float)ent.posX());
+				const auto posY = convertCoord((float)ent.posY());
+	
+				char* deref = *param1;
+				*(float*)(deref + 0x54) = posX;
+				*(float*)(deref + 0x58) = 540.F;
+				*(float*)(deref + 0x5C) = posY + 106.4231F;
+			}
 		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_updateCameraMutex);
 		orig_updateCamera(thisArg, param1, param2);
 	}
-	if (*aswEngine) {  // without this it will actually crash when you quit a match
+	if (*aswEngine && !shutdown) {  // without *aswEngine check it will actually crash when you quit a match
 		CameraValues newValues;
 		newValues.setValues();
 		newValues.id = nextId;

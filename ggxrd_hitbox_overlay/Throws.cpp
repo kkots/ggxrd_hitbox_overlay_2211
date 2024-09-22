@@ -207,7 +207,7 @@ void Throws::drawThrows() {
 		if (throwInfo.framesLeft == DISPLAY_DURATION_THROW) {
 			for (int i = 0; i < 2; ++i) {
 				if (throwInfo.owner == entityList.slots[i]) {
-					PlayerInfo& player = graphics.drawDataPrepared.players[i];
+					PlayerInfo& player = endScene.players[i];
 					++player.hitboxesCount;
 					break;
 				}

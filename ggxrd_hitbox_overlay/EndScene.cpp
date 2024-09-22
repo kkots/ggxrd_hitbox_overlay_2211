@@ -22,6 +22,7 @@
 #include "WinError.h"
 #include "UI.h"
 #include "CustomWindowMessages.h"
+#include "Hud.h"
 
 EndScene endScene;
 
@@ -139,25 +140,55 @@ bool EndScene::onDllMain() {
 			&orig_BBScr_createObjectWithArgsMutex,
 			"BBScr_createObjectWithArgs")) return false;
 	}
+	
+	shutdownFinishedEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
+	if (!shutdownFinishedEvent || shutdownFinishedEvent == INVALID_HANDLE_VALUE) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "Failed to create event: %ls\n", winErr.getMessage()));
+		error = true;
+	}
 
 	return !error;
 }
 
 bool EndScene::onDllDetach() {
 	logwrap(fputs("EndScene::onDllDetach() called\n", logfile));
-	if (*aswEngine) {
-		entityList.populate();
-		bool needToCallNoGravGifMode = gifMode.gifModeOn
-			|| gifMode.gifModeToggleHideOpponentOnly
-			|| gifMode.noGravityOn;
-		gifMode.gifModeOn = false;
-		gifMode.noGravityOn = false;
-		gifMode.gifModeToggleHideOpponentOnly = false;
-		if (needToCallNoGravGifMode) {
-			noGravGifMode();
-		}
+	shutdown = true;
+	if (!logicThreadId || logicThreadId == detouring.dllMainThreadId) return true;
+	HANDLE logicThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, logicThreadId);
+	if (!logicThreadHandle) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "EndScene failed to open logic thread handle: %ls\n", winErr.getMessage()));
+		hud.onDllDetach();
+		ui.onDllDetachNonGraphics();
+		return false;
+	}
+	if (GetProcessIdOfThread(logicThreadHandle) != GetCurrentProcessId()) {
+		CloseHandle(logicThreadHandle);
+		logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because thread is no longer alive"));
+		hud.onDllDetach();
+		ui.onDllDetachNonGraphics();
+		return true;
+	}
+	DWORD exitCode;
+	bool stillActive = GetExitCodeThread(logicThreadHandle, &exitCode) && exitCode == STILL_ACTIVE;
+	CloseHandle(logicThreadHandle);
+	
+	if (!stillActive) {
+		logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because thread is no longer alive (2)"));
+		hud.onDllDetach();
+		ui.onDllDetachNonGraphics();
+		return true;
 	}
 	
+	logwrap(fputs("EndScene calling WaitForSingleObject\n", logfile));
+	if (WaitForSingleObject(shutdownFinishedEvent, 300) == WAIT_OBJECT_0) {
+		logwrap(fprintf(logfile, "EndScene freed resources successfully\n"));
+		return true;
+	}
+	logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because WaitForSingleObject did not return success"));
+	hud.onDllDetach();
+	ui.onDllDetachNonGraphics();
 	return true;
 }
 
@@ -165,7 +196,9 @@ void EndScene::HookHelp::sendUnrealPawnDataHook() {
 	// this gets called many times every frame, presumably once per entity, but there're way more entities and they're not in the entityList.list
 	++detouring.hooksCounter;
 	detouring.markHookRunning("SendUnrealPawnData", true);
-	endScene.sendUnrealPawnDataHook((char*)this);
+	if (!endScene.shutdown && !graphics.shutdown) {
+		endScene.sendUnrealPawnDataHook((char*)this);
+	}
 	{
 		bool needToUnlock = false;
 		if (!endScene.orig_SendUnrealPawnDataMutexLocked || endScene.orig_SendUnrealPawnDataMutexThreadId != GetCurrentThreadId()) {
@@ -217,7 +250,7 @@ void EndScene::logic() {
 	actUponKeyStrokesThatAlreadyHappened();
 	if (graphics.drawDataPrepared.empty && !butDontPrepareBoxData) {
 		bool oldNeedTakeScreenshot = graphics.drawDataPrepared.needTakeScreenshot;
-		graphics.drawDataPrepared.clearWithoutPlayers();
+		graphics.drawDataPrepared.clear();
 		graphics.drawDataPrepared.needTakeScreenshot = oldNeedTakeScreenshot;
 
 		bool needToClearHitDetection = false;
@@ -246,16 +279,12 @@ void EndScene::logic() {
 		// Camera values are updated later, after this, in a updateCameraHook call
 		graphics.drawDataPrepared.empty = false;
 	}
-	for (int i = 0; i < 2; ++i) {
-		graphics.drawDataPrepared.players[i].tensionGainLastCombo = tensionGainLastCombo[i];
-		graphics.drawDataPrepared.players[i].burstGainLastCombo = burstGainLastCombo[i];
-		graphics.drawDataPrepared.players[i].tensionGainMaxCombo = tensionGainMaxCombo[i];
-		graphics.drawDataPrepared.players[i].burstGainMaxCombo = burstGainMaxCombo[i];
-	}
 	if (!drawDataPrepared) {
 		ui.drawData = nullptr;
 		ui.needInitFont = false;
-		ui.prepareDrawData();
+		if (!ui.shutdownGraphics) {
+			ui.prepareDrawData();
+		}
 		drawDataPrepared = true;
 	}
 }
@@ -298,22 +327,47 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	prevAswEngineTickCount = aswEngineTickCount;
 	
 	if (frameHasChanged) {
-		for (int i = 0; i < 2; ++i) {
-			PlayerInfo& player = graphics.drawDataPrepared.players[i];
-			for (int j = 0; j < player.activeProjectilesCount; ++j) {
-				Entity activeProjectile = player.activeProjectiles[j];
-				bool found = false;
-				for (int k = 0; k < entityList.count; k++) {
-					if (activeProjectile == entityList.list[k]) {
-						found = true;
-						break;
-					}
-				}
-				if (!found) {
-					player.removeActiveProjectile(j);
-					--j;
+		
+		for (auto it = projectiles.begin(); it != projectiles.end();) {
+			bool found = false;
+			for (int i = 0; i < entityList.count; ++i) {
+				Entity ent = entityList.list[i];
+				if (it->ptr == ent && ent.lifeTimeCounter() != 1) {
+					found = true;
+					break;
 				}
 			}
+			if (!found) {
+				if (it->cameFromHitDetect) {
+					it->ptr = nullptr;
+					it->markActive = true;
+					it->cameFromHitDetect = false;
+					++it;
+					continue;
+				}
+				it = projectiles.erase(it);
+			} else {
+				it->markActive = false;
+				++it;
+			}
+		}
+		for (int i = 2; i < entityList.count; ++i) {
+			Entity ent = entityList.list[i];
+			auto found = projectiles.begin();
+			for (; found != projectiles.end(); ++found) {
+				if (found->ptr == ent) {
+					break;
+				}
+			}
+			ProjectileInfo* projPtr = nullptr;
+			if (found == projectiles.end()) {
+				projectiles.emplace_back();
+				projPtr = &projectiles.back();
+			} else {
+				projPtr = &*found;
+			}
+			ProjectileInfo& projectile = *projPtr;
+			projectile.fill(ent);
 		}
 		
 		int distanceBetweenPlayers = entityList.slots[0].posX() - entityList.slots[1].posX();
@@ -322,7 +376,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		bool comboStarted = false;
 		for (int i = 0; i < 2; ++i) {
 			Entity ent = entityList.slots[i];
-			PlayerInfo& player = graphics.drawDataPrepared.players[i];
+			PlayerInfo& player = players[i];
 			if (ent.inPain() && !player.inPain) {
 				comboStarted = true;
 				break;
@@ -332,8 +386,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		for (int i = 0; i < 2; ++i) {
 			Entity ent = entityList.slots[i];
 			Entity otherEnt = entityList.slots[1 - i];
-			PlayerInfo& player = graphics.drawDataPrepared.players[i];
-			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
+			PlayerInfo& player = players[i];
+			PlayerInfo& other = players[1 - i];
 			player.charType = ent.characterType();
 			player.hp = ent.hp();
 			player.maxHp = ent.maxHp();
@@ -366,12 +420,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				&player.tensionGainModifier_tensionPulseModifier);
 			player.extraTensionGainModifier = entityManager.calculateExtraTensionGainModifier(ent);
 			if (comboStarted) {
-				player.wasCombod = player.inPain;
 				if (tensionGainOnLastHitUpdated[i]) {
-					tensionGainLastCombo[i] = tensionGainOnLastHit[i];
+					player.tensionGainLastCombo = tensionGainOnLastHit[i];
 					tensionGain = player.tension - tensionRecordedHit[i];
 				} else {
-					tensionGainLastCombo[i] = 0;
+					player.tensionGainLastCombo = 0;
 				}
 				if (burstGainOnLastHitUpdated[i]) {
 					player.burstGainLastCombo = burstGainOnLastHit[i];
@@ -382,17 +435,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.inPain = ent.inPain();
 			if (player.inPain || otherEnt.inPain()) {
-				tensionGainLastCombo[i] += tensionGain;
+				player.tensionGainLastCombo += tensionGain;
 				player.burstGainLastCombo += burstGain;
 			}
-			if (tensionGainLastCombo[i] > tensionGainMaxCombo[i]) {
-				tensionGainMaxCombo[i] = tensionGainLastCombo[i];
+			if (player.tensionGainLastCombo > player.tensionGainMaxCombo) {
+				player.tensionGainMaxCombo = player.tensionGainLastCombo;
 			}
-			if (player.burstGainLastCombo > burstGainMaxCombo[i]) {
-				burstGainMaxCombo[i] = player.burstGainLastCombo;
+			if (player.burstGainLastCombo > player.burstGainMaxCombo) {
+				player.burstGainMaxCombo = player.burstGainLastCombo;
 			}
-			player.tensionGainMaxCombo = tensionGainMaxCombo[i];
-			player.burstGainMaxCombo = burstGainMaxCombo[i];
 			player.receivedComboCountTensionGainModifier = entityManager.calculateReceivedComboCountTensionGainModifier(
 				player.inPain,
 				ent.comboCount());
@@ -417,13 +468,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			int hitstop = ent.hitstop();
 			if (player.hitstop == 0 && hitstop != 0 && ent.currentAnimDuration() != 1) {
 				player.hitstop = 0;
+				player.ignoreHitstop = true;
 			} else {
 				player.hitstop = hitstop;
+				player.ignoreHitstop = false;
 			}
 			player.airborne = ent.y() > 0;  // there's also tumbling state in which you're airborne, check *(DWORD*)(end + 0x4d40) & 0x4 != 0 if you need it. This flag is set on any airborne type of hitstun
 			player.nextHitstop = hitstop;
 			player.weight = ent.weight();
-			const char* animName = ent.animationName();
 			ent.getWakeupTimings(&player.wakeupTimings);
 			player.wakeupTiming = 0;
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
@@ -442,32 +494,27 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (!player.isLandingOrPreJump) {
 				if (player.landingOrPreJumpFrames) {
 					if (!player.idleNext) {
-						player.startedUp = false;
-						player.startup = player.landingOrPreJumpFrames;
-						player.actives.clear();
-						player.recovery = 0;
-						player.total = player.landingOrPreJumpFrames;
-						player.superfreezeStartup = 0;
-						player.projectileStartedUp = false;
-						player.projectileStartup = 0;
-						player.projectileActives.clear();
 						player.idlePlus = false;
-						player.timePassed = player.landingOrPreJumpFrames;
-						player.timePassedLanding = player.landingOrPreJumpFrames;
+						player.timePassed = 0;
+						player.timePassedLanding = 0;
 					}
 					player.landingOrPreJumpFrames = 0;
 				}
 				player.landingOrPreJump = false;
 			}
-			memcpy(player.anim, animName, 32);
-			++player.timeSinceLastBusyStart;
+			if (cmnActIndex == CmnActJumpPre) {
+				player.frameAdvantageValid = false;
+				other.frameAdvantageValid = false;
+			}
+			player.animFrame = ent.currentAnimDuration();
+			player.hitboxesCount = 0;
 		}
 		// I need another loop because in the next one each player refers to other's timePassed and I modified it
 	
 		for (int i = 0; i < 2; i++) {
 			Entity ent = entityList.slots[i];
-			PlayerInfo& player = graphics.drawDataPrepared.players[i];
-			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
+			PlayerInfo& player = players[i];
+			PlayerInfo& other = players[1 - i];
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
 			if (player.idleNext != player.idle) {
 				player.idle = player.idleNext;
@@ -485,7 +532,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 						other.timeSinceLastGap = 0;
 					}
-					player.timeSinceLastBusyStart = 0;
 					if (!player.landingOrPreJump) {
 						player.startedUp = false;
 						player.startup = 0;
@@ -493,9 +539,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.recovery = 0;
 						player.total = 0;
 						player.superfreezeStartup = 0;
-						player.projectileStartedUp = false;
-						player.projectileStartup = 0;
-						player.projectileActives.clear();
 					}
 				} else if (player.airborne) {
 					player.needLand = true;
@@ -541,11 +584,35 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.timePassed = 0;
 				player.idlePlus = idlePlus;
 			}
+			const char* animName = ent.animationName();
+			if (strcmp(player.anim, animName) != 0) {
+				memcpy(player.anim, animName, 32);
+				if (!player.isLanding) {
+					if (!player.idlePlus) {
+						player.startup = 0;
+						player.startedUp = false;
+						player.actives.clear();
+						player.recovery = 0;
+						player.total = 0;
+						player.superfreezeStartup = 0;
+					}
+				}
+			}
+		}
+		Entity superflashInstigator = getSuperflashInstigator();
+		for (ProjectileInfo& projectile : projectiles) {
+			if (!projectile.startedUp && !superflashInstigator) {
+				++projectile.startup;
+			}
+			if (projectile.team != 0 && projectile.team != 1) continue;
+			PlayerInfo& player = players[projectile.team];
+			if (projectile.ptr.currentAnimDuration() == 1 && !player.idlePlus) {
+				projectile.startup = player.timePassed;
+			}
 		}
 	}
 	
-	for (int i = 0; i < entityList.count; i++)
-	{
+	for (int i = 0; i < entityList.count; i++) {
 		Entity ent = entityList.list[i];
 		int team = ent.team();
 		if (isEntityAlreadyDrawn(ent)) continue;
@@ -581,17 +648,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			drawnEntities.push_back(attached);
 		}
 		if ((team == 0 || team == 1) && frameHasChanged) {
-			PlayerInfo& player = graphics.drawDataPrepared.players[team];
+			PlayerInfo& player = players[team];
 			if (hitboxesCount) {
 				if (i < 2) {
 					player.hitboxesCount += hitboxesCount;
-				} else {
-					player.addActiveProjectile(ent);
-				}
-			} else {
-				int foundIndex = player.findActiveProjectile(ent);
-				if (foundIndex != -1) {
-					player.removeActiveProjectile(foundIndex);
+				} else if (frameHasChanged) {
+					for (ProjectileInfo& projectile : projectiles) {
+						projectile.markActive = true;
+						projectile.actives.addActive(-1, 1, false);
+					}
 				}
 			}
 		}
@@ -602,11 +667,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			graphics.drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
 		}
 	}
-	for (int i = 0; i < 2; ++i) {
-		PlayerInfo& player = graphics.drawDataPrepared.players[i];
-		PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
-	}
-
+	
 	logOnce(fputs("got past the entity loop\n", logfile));
 	hitDetector.drawHits();
 	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
@@ -615,11 +676,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	
 	if (frameHasChanged) {
 		Entity superflashInstigator = getSuperflashInstigator();
+		int instigatorTeam = -1;
+		if (superflashInstigator) {
+			instigatorTeam = superflashInstigator.team();
+		}
+		for (ProjectileInfo& projectile : projectiles) {
+			if (!projectile.markActive) {
+				projectile.actives.addNonActive();
+			} else if (!projectile.startedUp) {
+				projectile.startedUp = true;
+			}
+		}
 		for (int i = 0; i < 2; ++i) {
-			PlayerInfo& player = graphics.drawDataPrepared.players[i];
-			PlayerInfo& other = graphics.drawDataPrepared.players[1 - i];
-			
-			++player.timeSinceLastActiveProjectile;
+			PlayerInfo& player = players[i];
+			PlayerInfo& other = players[1 - i];
 			
 			if (!superflashInstigator) {
 				++player.timePassed;
@@ -685,31 +755,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					++player.startup;
 					++player.total;
 				}
-				if (player.hasNewActiveProjectiles) {
-					if (!player.projectileStartedUp || player.timeSinceLastActiveProjectile > 60) {
-						player.projectileStartedUp = true;
-						player.projectileStartup = player.timeSinceLastBusyStart;
-						player.projectileActives.clear();
-					}
-					player.timeSinceLastActiveProjectile = 0;
-					player.projectileActives.addActive();
-				} else {
-					player.projectileActives.addNonActive();
-				}
-				bool hasHitboxes = !player.idlePlus && (player.hitboxesCount || player.hasNewActiveProjectiles);
+				bool hasHitboxes = player.hitboxesCount > 0;
 				if (superflashInstigator == ent && !player.superfreezeStartup) {
 					player.superfreezeStartup = player.total;
 				}
 				if (hasHitboxes) {
 					if (!player.startedUp) {
 						player.startedUp = true;
-						player.actives.addActive();
+						player.actives.addActive(ent.currentHitNum());
 					} else if (!superflashInstigator) {
 						if (player.recovery) {
 							player.actives.addNonActive(player.recovery);
 							player.recovery = 0;
 						}
-						player.actives.addActive();
+						player.actives.addActive(ent.currentHitNum());
 						++player.total;
 					}
 				} else if (!player.idlePlus && !superflashInstigator && player.startedUp) {
@@ -719,6 +778,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.hitstop = player.nextHitstop;
 		}
+		
+		for (ProjectileInfo& projectile : projectiles) {
+			projectile.hitstop = projectile.nextHitstop;
+		}
 	}
 	
 #ifdef LOG_PATH
@@ -727,20 +790,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 }
 
 void EndScene::readUnrealPawnDataHook(char* thisArg) {
-	{
+	if (!shutdown && !graphics.shutdown) {
 		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
 		if (!graphics.drawDataPrepared.empty && graphics.needNewDrawData) {
 			graphics.drawDataUse.clear();
 			graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
 			graphics.drawDataPrepared.empty = true;
 			graphics.needNewDrawData = false;
-		} else {
-			for (int i = 0; i < 2; ++i) {
-				graphics.drawDataUse.players[i].tensionGainLastCombo = graphics.drawDataPrepared.players[i].tensionGainLastCombo;
-				graphics.drawDataUse.players[i].burstGainLastCombo = graphics.drawDataPrepared.players[i].burstGainLastCombo;
-				graphics.drawDataUse.players[i].tensionGainMaxCombo = graphics.drawDataPrepared.players[i].tensionGainMaxCombo;
-				graphics.drawDataUse.players[i].burstGainMaxCombo = graphics.drawDataPrepared.players[i].burstGainMaxCombo;
-			}
 		}
 	}
 	{
@@ -754,6 +810,7 @@ bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 }
 
 void EndScene::endSceneHook(IDirect3DDevice9* device) {
+	graphics.graphicsThreadId = GetCurrentThreadId();
 	graphics.onEndSceneStart(device);
 	drawOutlineCallParamsManager.onEndSceneStart();
 	camera.onEndSceneStart();
@@ -960,10 +1017,10 @@ void EndScene::processKeyStrokes() {
 		for (int i = 0; i < 2; ++i) {
 			if (ui.clearTensionGainMaxCombo[i]) {
 				ui.clearTensionGainMaxCombo[i] = false;
-				tensionGainMaxCombo[i] = 0;
-				burstGainMaxCombo[i] = 0;
-				tensionGainLastCombo[i] = 0;
-				burstGainLastCombo[i] = 0;
+				players[i].tensionGainMaxCombo = 0;
+				players[i].burstGainMaxCombo = 0;
+				players[i].tensionGainLastCombo = 0;
+				players[i].burstGainLastCombo = 0;
 			}
 		}
 	}
@@ -1145,33 +1202,34 @@ LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("WndProc", true);
-	if (ui.WndProc(hWnd, message, wParam, lParam)) {
-		detouring.markHookRunning("WndProc", false);
-		--detouring.hooksCounter;
-		return TRUE;
-	}
-	
-	if (message == WM_DESTROY) {
-		keyboard.thisProcessWindow = NULL;
-	}
-	
-	if (message == WM_APP_SETTINGS_FILE_UPDATED) {
-		settings.readSettings(true);
-	}
-	
-	if (message == WM_KEYDOWN
-			|| message == WM_KEYUP
-			|| message == WM_SYSKEYDOWN
-			|| message == WM_SYSKEYUP
-			|| message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
-		processKeyStrokes();
+	if (!shutdown) {
+		if (!ui.shutdownGraphics && ui.WndProc(hWnd, message, wParam, lParam)) {
+			detouring.markHookRunning("WndProc", false);
+			--detouring.hooksCounter;
+			return TRUE;
+		}
+		
+		if (message == WM_DESTROY) {
+			keyboard.thisProcessWindow = NULL;
+		}
+		
+		if (message == WM_APP_SETTINGS_FILE_UPDATED) {
+			settings.readSettings(true);
+		}
+		
+		if (message == WM_KEYDOWN
+				|| message == WM_KEYUP
+				|| message == WM_SYSKEYDOWN
+				|| message == WM_SYSKEYUP
+				|| message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
+			processKeyStrokes();
+		}
 	}
 	
 	bool iLockedTheMutex = false;
 	if (!orig_WndProcMutexLockedByWndProc) {
 		orig_WndProcMutex.lock();
 		orig_WndProcMutexLockedByWndProc = true;
-		wndProcThread = GetCurrentThreadId();
 		iLockedTheMutex = true;
 	}
 	LRESULT result = orig_WndProc(hWnd, message, wParam, lParam);
@@ -1185,8 +1243,10 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 }
 
 void EndScene::drawTrainingHudHook(char* thisArg) {
-	if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
-	drawTexts();
+	if (!shutdown && !graphics.shutdown) {
+		if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
+		drawTexts();
+	}
 	{
 		std::unique_lock<std::mutex> guard(orig_drawTrainingHudMutex);
 		orig_drawTrainingHud(thisArg);
@@ -1263,8 +1323,9 @@ void EndScene::onAswEngineDestroyed() {
 	memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
 	memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
 	memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
-	memset(tensionGainMaxCombo, 0, sizeof tensionGainMaxCombo);
-	memset(burstGainMaxCombo, 0, sizeof burstGainMaxCombo);
+	for (int i = 0; i < 2; ++i) {
+		players[i].clear();
+	}
 }
 
 Entity EndScene::getSuperflashInstigator() {
@@ -1278,8 +1339,8 @@ int EndScene::getSuperflashCounterAll() {
 }
 
 void EndScene::restartMeasuringFrameAdvantage(int index) {
-	PlayerInfo& player = graphics.drawDataPrepared.players[index];
-	PlayerInfo& other = graphics.drawDataPrepared.players[1 - index];
+	PlayerInfo& player = players[index];
+	PlayerInfo& other = players[1 - index];
 	player.frameAdvantageValid = false;
 	other.frameAdvantageValid = false;
 	if (other.idlePlus) {
@@ -1290,8 +1351,8 @@ void EndScene::restartMeasuringFrameAdvantage(int index) {
 }
 
 void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
-	PlayerInfo& player = graphics.drawDataPrepared.players[index];
-	PlayerInfo& other = graphics.drawDataPrepared.players[1 - index];
+	PlayerInfo& player = players[index];
+	PlayerInfo& other = players[1 - index];
 	player.landingFrameAdvantageValid = false;
 	other.landingFrameAdvantageValid = false;
 	if (other.idleLanding) {
@@ -1336,6 +1397,7 @@ void EndScene::onHitDetectionEnd() {
 }
 
 void EndScene::onUWorld_TickBegin() {
+	logicThreadId = GetCurrentThreadId();
 	drawDataPrepared = false;
 }
 
@@ -1343,7 +1405,26 @@ void EndScene::onUWorld_Tick() {
 	if (!drawDataPrepared) {
 		ui.drawData = nullptr;
 		ui.needInitFont = false;
-		ui.prepareDrawData();
+		if (!ui.shutdownGraphics) {
+			ui.prepareDrawData();
+		}
+	}
+	if (shutdown) {
+		if (*aswEngine) {
+			bool needToCallNoGravGifMode = gifMode.gifModeOn
+				|| gifMode.gifModeToggleHideOpponentOnly
+				|| gifMode.noGravityOn;
+			gifMode.gifModeOn = false;
+			gifMode.noGravityOn = false;
+			gifMode.gifModeToggleHideOpponentOnly = false;
+			if (needToCallNoGravGifMode && game.isTrainingMode()) {
+				entityList.populate();
+				noGravGifMode();
+			}
+		}
+		hud.onDllDetach();
+		ui.onDllDetachNonGraphics();
+		SetEvent(shutdownFinishedEvent);
 	}
 }
 
@@ -1351,18 +1432,24 @@ void EndScene::HookHelp::endSceneCallerHook(int param1, int param2, int param3) 
 	++detouring.hooksCounter;
 	detouring.markHookRunning("endSceneCaller", true);
 	IDirect3DDevice9* device = *(IDirect3DDevice9**)((char*)this + 0x24);
-	endScene.endSceneHook(device);
+	if (!endScene.shutdown && !graphics.shutdown) {
+		endScene.endSceneHook(device);
+	} else {
+		graphics.onEndSceneStart(device);
+	}
 	{
 		std::unique_lock<std::mutex> guard(endScene.orig_endSceneCallerMutex);
 		endScene.orig_endSceneCaller((void*)this, param1, param2, param3);
 	}
-	{
-		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-		graphics.needNewDrawData = true;
-	}
-	{
-		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
-		graphics.needNewCameraData = true;
+	if (!endScene.shutdown && !graphics.shutdown) {
+		{
+			std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
+			graphics.needNewDrawData = true;
+		}
+		{
+			std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
+			graphics.needNewCameraData = true;
+		}
 	}
 	detouring.markHookRunning("endSceneCaller", false);
 	--detouring.hooksCounter;
@@ -1375,7 +1462,9 @@ void EndScene::HookHelp::BBScr_createObjectWithArgsHook(char* animName, unsigned
 		std::unique_lock<std::mutex> guard(endScene.orig_BBScr_createObjectWithArgsMutex);
 		endScene.orig_BBScr_createObjectWithArgs(this, animName, posType);
 	}
-	endScene.BBScr_createObjectWithArgsHook(Entity{(char*)this}, animName, posType);
+	if (!endScene.shutdown) {
+		endScene.BBScr_createObjectWithArgsHook(Entity{(char*)this}, animName, posType);
+	}
 	detouring.markHookRunning("BBScr_createObjectWithArgs", true);
 	--detouring.hooksCounter;
 }
@@ -1429,4 +1518,20 @@ void EndScene::hideEntity(Entity ent) {
 	ent.scaleZ() = 0;
 	ent.scaleDefault() = 0;
 	ent.scaleDefault2() = 0;
+}
+
+void EndScene::addActiveProjectile(ProjectileInfo& info) {
+	bool found = false;
+	for (ProjectileInfo& projectile : projectiles) {
+		if (projectile.ptr == info.ptr) {
+			found = true;
+			projectile.markActive = true;
+		}
+	}
+	if (!found) {
+		projectiles.emplace_back();
+		ProjectileInfo& projectile = projectiles.back();
+		projectile = info;
+		projectile.cameFromHitDetect = true;
+	}
 }

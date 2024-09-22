@@ -11,6 +11,7 @@
 #include "colors.h"
 #include "GifMode.h"
 #include "Game.h"
+#include "EndScene.h"
 
 HitDetector hitDetector;
 
@@ -113,6 +114,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 					boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
 					boxes.previousTime = thisEntity.currentAnimDuration();
 					boxes.hitboxesCount = hitboxesCount;
+					boxes.projectile.fill(thisEntity);
 
 					hitDetector.hitboxesThatHit.push_back(boxes);
 				}
@@ -260,8 +262,7 @@ void HitDetector::drawHits() {
 		else {
 			if ((hitboxThatHit.team == 0 || hitboxThatHit.team == 1)
 					&& hitboxThatHit.counter == DISPLAY_DURATION_HITBOX_THAT_HIT) {
-				PlayerInfo& player = graphics.drawDataPrepared.players[hitboxThatHit.team];
-				player.addActiveProjectile(hitboxThatHit.entity);
+				endScene.addActiveProjectile(hitboxThatHit.projectile);
 			}
 			if (invisChipp.needToHide(hitboxThatHit.team)) {
 				it = hitboxesThatHit.erase(it);

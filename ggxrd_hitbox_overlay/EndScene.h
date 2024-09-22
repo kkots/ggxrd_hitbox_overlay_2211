@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <mutex>
 #include "DrawTextWithIconsParams.h"
+#include "PlayerInfo.h"
 
 using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
@@ -30,6 +31,7 @@ public:
 	void onUWorld_TickBegin();
 	void onUWorld_Tick();
 	void endSceneHook(IDirect3DDevice9* device);
+	void addActiveProjectile(ProjectileInfo& info);
 	SendUnrealPawnData_t orig_SendUnrealPawnData = nullptr;
 	std::mutex orig_SendUnrealPawnDataMutex;
 	bool orig_SendUnrealPawnDataMutexLocked = false;
@@ -39,7 +41,6 @@ public:
 	WNDPROC orig_WndProc = nullptr;
 	std::mutex orig_WndProcMutex;
 	bool orig_WndProcMutexLockedByWndProc = false;
-	DWORD wndProcThread = 0;
 	bool butDontPrepareBoxData = false;
 	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
 	std::mutex orig_drawTrainingHudMutex;
@@ -47,6 +48,10 @@ public:
 	std::mutex orig_endSceneCallerMutex;
 	BBScr_createObjectWithArgs_t orig_BBScr_createObjectWithArgs = nullptr;
 	std::mutex orig_BBScr_createObjectWithArgsMutex;
+	
+	PlayerInfo players[2] { 0 };
+	std::vector<ProjectileInfo> projectiles;
+	DWORD logicThreadId = NULL;
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -111,13 +116,11 @@ private:
 	bool tensionGainOnLastHitUpdated[2] { 0 };
 	int burstGainOnLastHit[2] { 0 };
 	bool burstGainOnLastHitUpdated[2] { 0 };
-	int tensionGainMaxCombo[2] { 0 };
-	int burstGainMaxCombo[2] { 0 };
-	int tensionGainLastCombo[2] { 0 };
-	int burstGainLastCombo[2] { 0 };
 	
 	DWORD prevAswEngineTickCount = 0;
 	bool drawDataPrepared = false;
+	bool shutdown = false;
+	HANDLE shutdownFinishedEvent = NULL;
 };
 
 extern EndScene endScene;

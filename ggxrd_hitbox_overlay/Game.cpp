@@ -172,12 +172,14 @@ void Game::updateAnimationsHookStatic(int param1, int param2, int param3, int pa
 }
 
 void Game::updateAnimationsHook(int param1, int param2, int param3, int param4) {
-	if (ignoreAllCalls) {
-		if (needToCallEndSceneLogic) {
-			endScene.logic();
-			needToCallEndSceneLogic = false;
+	if (!shutdown) {
+		if (ignoreAllCalls) {
+			if (needToCallEndSceneLogic) {
+				endScene.logic();
+				needToCallEndSceneLogic = false;
+			}
+			return;
 		}
-		return;
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_updateAnimationsMutex);
@@ -201,10 +203,12 @@ void Game::HookHelp::updateBattleOfflineVerHook(int param1) {
 }
 
 void Game::updateBattleOfflineVerHook(char* thisArg, int param1) {
-	if (ignoreAllCalls) {
-		return;
+	if (!shutdown) {
+		if (ignoreAllCalls) {
+			return;
+		}
+		endScene.assignNextId();
 	}
-	endScene.assignNextId();
 	{
 		std::unique_lock<std::mutex> guard(orig_updateBattleOfflineVerMutex);
 		orig_updateBattleOfflineVer(thisArg, param1);
@@ -245,38 +249,42 @@ void Game::levelTickHook(int param1, int param2, int param3, int param4) {
 	// 
 	// When game pause menu is open in single player, sendUnrealPawnDataHook does not get called, which means the mod can't process hotkeys.
 
-	ignoreAllCalls = false;
-	needToCallEndSceneLogic = false;
-	endScene.butDontPrepareBoxData = false;
-	camera.butDontPrepareBoxData = false;
-	if (freezeGame && *aswEngine) {
-		slowmoSkipCounter = 0;
-		if (!allowNextFrame) {
-			ignoreAllCalls = true;
+	if (!shutdown) {
+		ignoreAllCalls = false;
+		needToCallEndSceneLogic = false;
+		endScene.butDontPrepareBoxData = false;
+		camera.butDontPrepareBoxData = false;
+		if (freezeGame && *aswEngine) {
+			slowmoSkipCounter = 0;
+			if (!allowNextFrame) {
+				ignoreAllCalls = true;
+			}
+			allowNextFrame = false;
 		}
-		allowNextFrame = false;
-	}
-	if (slowmoGame && *aswEngine) {
-		++slowmoSkipCounter;
-		if ((int)slowmoSkipCounter < settings.slowmoTimes) {
-			ignoreAllCalls = true;
+		if (slowmoGame && *aswEngine) {
+			++slowmoSkipCounter;
+			if ((int)slowmoSkipCounter < settings.slowmoTimes) {
+				ignoreAllCalls = true;
+			} else {
+				slowmoSkipCounter = 0;
+			}
 		} else {
 			slowmoSkipCounter = 0;
 		}
-	} else {
-		slowmoSkipCounter = 0;
-	}
-	if (ignoreAllCalls) {
-		needToCallEndSceneLogic = true;
-		endScene.butDontPrepareBoxData = true;
-		camera.butDontPrepareBoxData = true;
+		if (ignoreAllCalls) {
+			needToCallEndSceneLogic = true;
+			endScene.butDontPrepareBoxData = true;
+			camera.butDontPrepareBoxData = true;
+		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_levelTickMutex);
 		orig_levelTick(param1, param2, param3, param4);
 	}
-	if (ignoreAllCalls) {
-		levelTickHookEmpty();
+	if (!shutdown) {
+		if (ignoreAllCalls) {
+			levelTickHookEmpty();
+		}
 	}
 }
 
@@ -333,14 +341,20 @@ int Game::getBurst(int team) const {
 }
 
 void Game::destroyAswEngineHook() {
-	if (*aswEngine) {
-		logwrap(fputs("Asw Engine destroyed\n", logfile));
-		endScene.onAswEngineDestroyed();
+	++detouring.hooksCounter;
+	detouring.markHookRunning("destroyAswEngine", true);
+	if (!game.shutdown) {
+		if (*aswEngine) {
+			logwrap(fputs("Asw Engine destroyed\n", logfile));
+			endScene.onAswEngineDestroyed();
+		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(game.orig_destroyAswEngineMutex);
 		game.orig_destroyAswEngine();
 	}
+	detouring.markHookRunning("destroyAswEngine", false);
+	--detouring.hooksCounter;
 }
 
 void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds) {
@@ -353,7 +367,7 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		game.orig_UWorld_Tick(thisArg, TickType, DeltaSeconds);
 	}
 	endScene.onUWorld_Tick();
-	if (!game.orig_destroyAswEngine && hadAsw && *aswEngine == nullptr) {
+	if (!shutdown && !game.orig_destroyAswEngine && hadAsw && *aswEngine == nullptr) {
 		logwrap(fputs("Asw Engine destroyed\n", logfile));
 		endScene.onAswEngineDestroyed();
 	}

@@ -3,55 +3,27 @@
 #include <stdlib.h>
 #include "PlayerInfo.h"
 
-int PlayerInfo::findActiveProjectile(Entity ent) {
-	for (int i = 0; i < activeProjectilesCount; ++i) {
-		if (activeProjectiles[i] == ent) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-void PlayerInfo::addActiveProjectile(Entity ent) {
-	hasNewActiveProjectiles = true;
-	if (findActiveProjectile(ent) != -1) return;
-	if (activeProjectilesCount >= _countof(activeProjectiles)) {
-		memmove(activeProjectiles, activeProjectiles + 1, sizeof activeProjectiles - sizeof *activeProjectiles);
-		activeProjectiles[activeProjectilesCount - 1] = ent;
-		return;
-	}
-	activeProjectiles[activeProjectilesCount] = ent;
-	++activeProjectilesCount;
-}
-
-void PlayerInfo::removeActiveProjectile(int index) {
-	if (index != activeProjectilesCount - 1) {
-		memmove(activeProjectiles + index, activeProjectiles + index + 1, (activeProjectilesCount - index - 1) * sizeof *activeProjectiles);
-	}
-	--activeProjectilesCount;
-}
-
-void ActiveDataArray::addActive(int n) {
+void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 	if (count == 0) {
+		prevHitNum = hitNum;
 		data[0].actives = n;
 		data[0].nonActives = 0;
 		count = 1;
 		return;
 	}
-	if (count >= _countof(data)) {
-		memmove(data, data + 1, sizeof data - sizeof *data);
-		data[count - 1].actives = n;
-		data[count - 1].nonActives = 0;
-		return;
-	}
-	if (data[count - 1].nonActives) {
+	if (data[count - 1].nonActives || forceNewHit || hitNum > prevHitNum) {
+		if (count >= _countof(data)) {
+			memmove(data, data + 1, sizeof data - sizeof *data);
+			--count;
+			// the dumb version of ring buffer
+		}
 		data[count].actives = n;
 		data[count].nonActives = 0;
 		++count;
-		return;
 	} else {
 		data[count - 1].actives += n;
 	}
+	prevHitNum = hitNum;
 }
 
 void ActiveDataArray::print(char* buf, size_t bufSize) {
@@ -59,6 +31,7 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 		sprintf_s(buf, bufSize, "0");
 		return;
 	}
+	int lastActives = 0;
 	int lastNonActives = 0;
 	for (int i = 0; i < count && bufSize; ++i) {
 		int result;
@@ -69,6 +42,17 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 				if ((int)bufSize <= result) return;
 				else bufSize -= result;
 			}
+		} else if (lastActives) {
+			if (bufSize > 1) {
+				*buf = ',';
+				++buf;
+				--bufSize;
+			}
+			if (bufSize) {
+				*buf = '\0';
+			} else {
+				return;
+			}
 		}
 		ActiveData& elem = data[i];
 		result = sprintf_s(buf, bufSize, "%d", elem.actives);
@@ -78,6 +62,7 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 			else bufSize -= result;
 		}
 		lastNonActives = elem.nonActives;
+		lastActives = elem.actives;
 	}
 }
 
@@ -118,4 +103,12 @@ void PlayerInfo::printGaps(char* buf, size_t bufSize) {
 			else bufSize -= result;
 		}
 	}
+}
+
+void PlayerInfo::clear() {
+	memset(this, 0, sizeof PlayerInfo);
+}
+
+void PlayerInfo::copyTo(PlayerInfo& dest) {
+	memcpy(&dest, this, sizeof PlayerInfo);
 }

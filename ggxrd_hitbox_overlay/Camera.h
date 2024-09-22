@@ -33,6 +33,7 @@ public:
 	CameraValues valuesUse;
 	bool butDontPrepareBoxData = false;
 	unsigned int nextId = 0;
+	bool shutdown = false;
 private:
 	friend struct CameraValues;
 	class HookHelp {

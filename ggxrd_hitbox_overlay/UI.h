@@ -8,7 +8,9 @@ class UI
 {
 public:
 	bool onDllMain();
-	void onDllDetach();
+	void onDllDetachStage1();
+	void onDllDetachGraphics();
+	void onDllDetachNonGraphics();
 	void prepareDrawData();
 	void onEndScene(IDirect3DDevice9* device);
 	LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -38,6 +40,8 @@ public:
 	bool imguiActive = false;
 	void* drawData = nullptr;
 	bool needInitFont = false;
+	bool timerDisabled = false;
+	bool shutdownGraphics = false;
 private:
 	void initialize();
 	bool imguiInitialized = false;

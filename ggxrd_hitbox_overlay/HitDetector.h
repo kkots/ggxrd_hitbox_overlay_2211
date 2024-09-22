@@ -2,6 +2,7 @@
 #include "DrawHitboxArrayCallParams.h"
 #include <vector>
 #include "Entity.h"
+#include "PlayerInfo.h"
 #include <mutex>
 
 using determineHitType_t = HitResult(__thiscall*)(void*, void*, BOOL, unsigned int*, unsigned int*);
@@ -31,6 +32,7 @@ private:
 		int counter = 0;
 		unsigned int previousTime = 0;
 		int hitboxesCount = 0;
+		ProjectileInfo projectile;
 		bool timeHasChanged(bool globalTimeHasChanged);
 	};
 

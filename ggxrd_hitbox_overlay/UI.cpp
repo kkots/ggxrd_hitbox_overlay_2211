@@ -10,6 +10,7 @@
 #include "Game.h"
 #include "Version.h"
 #include "Graphics.h"
+#include "EndScene.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx9.h"
@@ -192,7 +193,8 @@ bool UI::onDllMain() {
 	return true;
 }
 
-void UI::onDllDetach() {
+void UI::onDllDetachStage1() {
+	timerDisabled = true;
 	if (!imguiInitialized) return;
 	if (!keyboard.thisProcessWindow) timerId = NULL;
 	if (timerId) {
@@ -215,13 +217,31 @@ void UI::onDllDetach() {
 			}
 		}
 	}
+}
+
+void UI::onDllDetachGraphics() {
+	std::unique_lock<std::mutex> guard(lock);
+	shutdownGraphics = true;
 	if (imguiD3DInitialized) {
+		logwrap(fputs("imgui freeing D3D resources\n", logfile));
+    	imguiD3DInitialized = false;
     	ImGui_ImplDX9_Shutdown();
 	}
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
-    imguiInitialized = false;
-    imguiD3DInitialized = false;
+}
+
+void UI::onDllDetachNonGraphics() {
+	if (imguiD3DInitialized) {
+		logwrap(fputs("imgui calling onDllDetachGraphics from onDllDetachNonGraphics\n", logfile));
+		// this shouldn't happen
+		onDllDetachGraphics();
+	}
+	std::unique_lock<std::mutex> guard(lock);
+	if (imguiInitialized) {
+		logwrap(fputs("imgui freeing non-D3D resources\n", logfile));
+	    ImGui_ImplWin32_Shutdown();
+	    ImGui::DestroyContext();
+	    imguiInitialized = false;
+	}
 }
 
 void UI::prepareDrawData() {
@@ -282,7 +302,7 @@ void UI::prepareDrawData() {
 			ImGui::TextUnformatted("P2");
 	    	
 		    {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[0];
+		    	PlayerInfo& player = endScene.players[0];
 		    	ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) / 0x100, 2, 0));
 			    stringArena = strbuf;
@@ -298,7 +318,7 @@ void UI::prepareDrawData() {
 			AddTooltip("HP (x Guts) [x Defense Modifier]");
 			
 			{
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[1];
+		    	PlayerInfo& player = endScene.players[1];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%-3d ", player.hp);
 			    stringArena = strbuf;
@@ -310,7 +330,7 @@ void UI::prepareDrawData() {
 			}
 			
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
 			    if (i == 0) RightAlignedText(strbuf);
@@ -323,7 +343,7 @@ void UI::prepareDrawData() {
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
 			    if (i == 0) RightAlignedText(strbuf);
@@ -335,7 +355,7 @@ void UI::prepareDrawData() {
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
 			    if (i == 0) RightAlignedText(strbuf);
@@ -347,7 +367,7 @@ void UI::prepareDrawData() {
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    const char* formatString;
 			    if (i == 0) {
@@ -364,10 +384,10 @@ void UI::prepareDrawData() {
 		    		CenterAlignedText("Stun");
 		    	}
 		    }
-		    /*for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    if (player.startedUp) {
+			    //if (player.startedUp) {
 				    if (player.superfreezeStartup) {
 				    	if (player.startedUp) {
 				    		sprintf_s(strbuf, "%d+%d", player.superfreezeStartup, player.startup - player.superfreezeStartup);
@@ -377,9 +397,9 @@ void UI::prepareDrawData() {
 				    } else {
 				    	sprintf_s(strbuf, "%d", player.startup);
 				    }
-			    } else {
-			    	*strbuf = '\0';
-			    }
+			    //} else {
+			    //	*strbuf = '\0';
+			    //}
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -390,62 +410,33 @@ void UI::prepareDrawData() {
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
-			    ImGui::TableNextColumn();
-			    if (player.projectileStartedUp) {
-			    	sprintf_s(strbuf, "%d", player.projectileStartup);
-			    } else {
-			    	*strbuf = '\0';
-			    }
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Startup (P)");
-					AddTooltip("Startup (Projectile)\n"
-						"The startup of a launched projectile in the last performed move. The last startup frame is also an active frame.");
-		    	}
-		    }
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    if (player.startedUp) {
 				    player.actives.print(strbuf, sizeof strbuf);
 			    } else {
 			    	*strbuf = '\0';
 			    }
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    float w = ImGui::CalcTextSize(strbuf).x;
+			    if (w > ImGui::GetContentRegionAvail().x) {
+				    ImGui::TextWrapped(strbuf);
+			    } else {
+				    if (i == 0) RightAlign(w);
+				    ImGui::TextUnformatted(strbuf);
+			    }
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Active");
-		    		AddTooltip("Number of active frames in the last performed move. Numbers in () mean non-active frames inbetween active frames."
-		    			" So, for example, 1(2)3 would mean you were active for 1 frame, then were not active for 2 frames, then were active again for 3.");
+		    		AddTooltip("Number of active frames in the last performed move.\n"
+		    			"Numbers in (), when surrounded by other numbers, mean non-active frames inbetween active frames."
+		    			" So, for example, 1(2)3 would mean you were active for 1 frame, then were not active for 2 frames, then were active again for 3.\n"
+		    			"Numbers separated by comma (,) mean active frames of separate distinct hits, between which there is no gap of non-active frames."
+		    			" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
-			    ImGui::TableNextColumn();
-			    if (player.projectileStartedUp) {
-				    player.projectileActives.print(strbuf, sizeof strbuf);
-			    } else {
-			    	*strbuf = '\0';
-			    }
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Active (P)");
-					AddTooltip("Active (Projectile).\n"
-						"Number of active frames of a launched projectile in the last performed move. For a description of what numbers in () mean,"
-		    			" read the tooltip of 'Active'.");
-		    	}
-		    }
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    if (player.startedUp) {
 				    sprintf_s(strbuf, "%d", player.recovery);
@@ -458,11 +449,12 @@ void UI::prepareDrawData() {
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Recovery");
-		    		AddTooltip("Number of recovery frames in the last performed move.");
+		    		AddTooltip("Number of recovery frames in the last performed move."
+		    			" If the move spawned a projectile that lasts beyond the boundaries of the move, its recovery is 0.");
 		    	}
-		    }*/
+		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    if (player.idlePlus && player.total) {
 			    	sprintf_s(strbuf, "%d", player.total);
@@ -481,20 +473,8 @@ void UI::prepareDrawData() {
 		    
 		    frameAdvantageControl();
 		    
-		    /*for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
-			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%s", formatBoolean(player.frameAdvantageValid));
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Frame Adv. Valid");
-		    	}
-		    }*/
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.printGaps(strbuf, sizeof strbuf);
 			    if (i == 0) RightAlignedText(strbuf);
@@ -506,8 +486,8 @@ void UI::prepareDrawData() {
 		    		AddTooltip("Each gap is the number of frames from when the opponent left blockstun to when they entered blockstun again.");
 		    	}
 		    }
-		    /*for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", formatBoolean(player.idle));
 			    if (i == 0) RightAlignedText(strbuf);
@@ -519,7 +499,7 @@ void UI::prepareDrawData() {
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
 			    if (i == 0) RightAlignedText(strbuf);
@@ -531,7 +511,7 @@ void UI::prepareDrawData() {
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s (%d) (%s)", formatBoolean(player.idleLanding), player.timePassedLanding, formatBoolean(player.needLand));
 			    if (i == 0) RightAlignedText(strbuf);
@@ -541,8 +521,190 @@ void UI::prepareDrawData() {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("idleLanding");
 		    	}
-		    }*/
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.ignoreHitstop ? 0 : player.hitstop);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("hitstop");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.hitboxesCount);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("hitboxes");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    if (i == 0) RightAlignedText(player.anim);
+			    else ImGui::TextUnformatted(player.anim);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("anim");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.animFrame);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("animFrame");
+		    	}
+		    }
 		    ImGui::EndTable();
+	    	ImGui::Spacing();
+	    	if (ImGui::CollapsingHeader("Projectiles")) {
+	    		if (ImGui::BeginTable("##Projectiles", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+					ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
+					ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+					ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.4f);
+					ImGui::TableHeadersRow();
+		    		struct Row {
+		    			ProjectileInfo* side[2] { nullptr };
+		    		};
+		    		std::vector<Row> rows;
+			    	for (ProjectileInfo& projectile : endScene.projectiles) {
+	    				bool found = false;
+		    			for (Row& row : rows) {
+		    				if (!row.side[projectile.team]) {
+		    					row.side[projectile.team] = &projectile;
+		    					found = true;
+		    					break;
+		    				}
+		    			}
+		    			if (!found) {
+		    				rows.emplace_back();
+		    				Row& row = rows.back();
+		    				row.side[projectile.team] = &projectile;
+		    			}
+			    	}
+			    	bool isFirst = true;
+			    	for (Row& row : rows) {
+			    		if (!isFirst) {
+			    			ImGui::TableNextColumn();
+			    			ImGui::TableNextColumn();
+			    			ImGui::TableNextColumn();
+			    		}
+			    		isFirst = false;
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    sprintf_s(strbuf, "%p", (void*)projectile.ptr);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("ptr");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    sprintf_s(strbuf, "%d", projectile.lifeTimeCounter);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("lifeTimeCounter");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    if (i == 0) RightAlignedText(projectile.animName);
+							    else ImGui::TextUnformatted(projectile.animName);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("anim");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    sprintf_s(strbuf, "%d", projectile.animFrame);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("animFrame");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    sprintf_s(strbuf, "%d", projectile.hitstop);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("hitstop");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    projectile.actives.print(strbuf, sizeof strbuf);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("active");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    sprintf_s(strbuf, "%d", projectile.startup);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("startup");
+					    	}
+					    }
+			    	}
+			    	ImGui::EndTable();
+	    		}
+	    	}
 		}
 		if (ImGui::Button("Show Tension Values")) {
 			showTensionData = true;
@@ -707,7 +869,7 @@ void UI::prepareDrawData() {
 			ImGui::TextUnformatted("Tension");
 			AddTooltip("Meter");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    printDecimal(player.tension, 2, 0);
 			    ImGui::TextUnformatted(printdecimalbuf);
@@ -718,7 +880,7 @@ void UI::prepareDrawData() {
 			AddTooltip("Affects how fast you gain tension. Gained on IB, landing attacks, moving forward. Lost when moving back. Decays on its own slowly towards 0."
 				" Tension Pulse Penalty and Corner Penalty may decrease Tension Pulse over time.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%-6d / %d", player.tensionPulse, player.tensionPulse < 0 ? -25000 : 25000);
 			    ImGui::TextUnformatted(strbuf);
@@ -728,17 +890,16 @@ void UI::prepareDrawData() {
 			ImGui::TextUnformatted("Negative Penalty Active");
 			AddTooltip("When Negative Penalty is active, you receive only 20% of the tension you would without it when attacking or moving.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%s", player.negativePenaltyTimer ? "yes" : "no");
-			    ImGui::TextUnformatted(strbuf);
+			    ImGui::TextUnformatted(player.negativePenaltyTimer ? "yes" : "no");
 			}
 			
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted("Negative Penalty Time Left");
 			AddTooltip("Timer that counts down how much time is remaining until Negative Penalty wears off.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%.2f sec", (float)player.negativePenaltyTimer / 60.F);
 			    ImGui::TextUnformatted(strbuf);
@@ -749,7 +910,7 @@ void UI::prepareDrawData() {
 			AddTooltip("Tracks your progress towards reaching Negative Penalty. Negative Penalty is built up by Tension Pulse Penalty being red"
 				" or Corner Penalty being red or by moving back.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s / 100.00", printDecimal(player.negativePenalty, 2, -6));
 			    ImGui::TextUnformatted(strbuf);
@@ -760,7 +921,7 @@ void UI::prepareDrawData() {
 			AddTooltip("Reduces Tension Pulse (yellow) and at large enough values (red) increases Negative Penalty Buildup."
 				" Increases constantly by 1. Gets reduced when getting hit, landing hits, getting your attack blocked or moving forward.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%-4d / 1800", player.tensionPulsePenalty);
 			    if (player.tensionPulsePenaltySeverity == 0) {
@@ -777,7 +938,7 @@ void UI::prepareDrawData() {
 			AddTooltip("Penalty for being in touch with the screen or the wall. Reduces Tension Pulse (yellow) and increases Negative Penalty (red)."
 				" Slowly decays when not in corner and gets reduced when getting hit.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%-3d / 960", player.cornerPenalty);
 			    if (player.cornerPenaltySeverity == 0) {
@@ -796,7 +957,7 @@ void UI::prepareDrawData() {
 				"Distance-Based Modifier - depends on distance to the opponent.\n"
 				"Tension Pulse-Based Modifier - depends on Tension Pulse.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s * %d%c", printDecimal(player.tensionPulsePenaltyGainModifier_distanceModifier, 0, -3, true),
 			    	player.tensionPulsePenaltyGainModifier_tensionPulseModifier, '%');
@@ -805,7 +966,7 @@ void UI::prepareDrawData() {
 			
 			bool comboHappening = false;
 			for (int i = 0; i < 2; ++i) {
-				if (graphics.drawDataPrepared.players[i].inPain) {
+				if (endScene.players[i].inPain) {
 					comboHappening = true;
 					break;
 				}
@@ -823,7 +984,7 @@ void UI::prepareDrawData() {
 				"A fourth or fifth modifier may be displayed, which is a combo hit count-dependent modifier. "
 				"It affects how fast you gain Tension from performing a combo.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
 			    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s", printDecimal(player.tensionGainModifier_negativePenaltyModifier, 0, -3, true));
@@ -843,19 +1004,20 @@ void UI::prepareDrawData() {
 			    	ImGui::SameLine();
 			    }
 		    	int total = player.tensionGainModifier_distanceModifier
-			    	* player.tensionGainModifier_negativePenaltyModifier
-			    	* player.tensionGainModifier_tensionPulseModifier
+			    	* player.tensionGainModifier_negativePenaltyModifier;
+		    	total /= 100;
+		    	total *= player.tensionGainModifier_tensionPulseModifier
 			    	* player.extraTensionGainModifier;
-		    	int divide = 1000000;
+		    	total /= 10000;
 			    if (comboHappening) {
-			    	if (!player.wasCombod) {
+			    	if (!player.inPain) {
 			    		sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
 			    			printDecimal(player.dealtComboCountTensionGainModifier, 0, -3, true));
 			    		total *= player.dealtComboCountTensionGainModifier;
-			    		divide *= 100;
+			    		total /= 100;
 			    	}
 		    	}
-		    	sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total / divide, '%');
+		    	sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total, '%');
 			    ImGui::TextUnformatted(strbuf);
 			    if (needPop) {
 			    	ImGui::PopStyleVar();
@@ -872,7 +1034,7 @@ void UI::prepareDrawData() {
 				"A fourth modifer may be displayed, which happens when you are getting combo'd. It affects how much tension you gain from getting hid by a combo"
 				" and depends on the number of hits.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
 			    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf),
@@ -882,16 +1044,16 @@ void UI::prepareDrawData() {
 		    	int total = player.tensionGainModifier_distanceModifier
 			    	* player.tensionGainModifier_negativePenaltyModifier
 			    	* player.tensionGainModifier_tensionPulseModifier;
-		    	int divide = 10000;
+		    	total /= 10000;
 			    if (comboHappening) {
-			    	if (player.wasCombod) {
+			    	if (player.inPain) {
 			    		sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
 			    			printDecimal(player.receivedComboCountTensionGainModifier, 0, -3, true));
 			    		total *= player.receivedComboCountTensionGainModifier;
-			    		divide *= 100;
+			    		total /= 100;
 			    	}
 		    	}
-		    	sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total / divide, '%');
+		    	sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total, '%');
 			    ImGui::TextUnformatted(strbuf);
 			}
 			
@@ -899,7 +1061,7 @@ void UI::prepareDrawData() {
 			ImGui::TextUnformatted("Tension Gain On Last Hit");
 			AddTooltip("How much Tension was gained on a single last hit (either inflicting it or getting hit by it).");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    printDecimal(player.tensionGainOnLastHit, 2, 0);
 			    ImGui::TextUnformatted(printdecimalbuf);
@@ -909,7 +1071,7 @@ void UI::prepareDrawData() {
 			ImGui::TextUnformatted("Tension Gain Last Combo");
 			AddTooltip("How much Tension was gained on the entire last performed combo (either inflicting it or getting hit by it).");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    printDecimal(player.tensionGainLastCombo, 2, 0);
 			    ImGui::TextUnformatted(printdecimalbuf);
@@ -921,7 +1083,7 @@ void UI::prepareDrawData() {
 				" (either inflicting it or getting hit by it).\n"
 				"You can clear this value by pressing a button below this table.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    printDecimal(player.tensionGainMaxCombo, 2, 0);
 			    ImGui::TextUnformatted(printdecimalbuf);
@@ -931,7 +1093,7 @@ void UI::prepareDrawData() {
 			ImGui::TextUnformatted("Burst Gain On Last Hit");
 			AddTooltip("How much Burst was gained on a single last hit (either inflicting it or getting hit by it).");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    printDecimal(player.burstGainOnLastHit, 2, 0);
 			    ImGui::TextUnformatted(printdecimalbuf);
@@ -941,7 +1103,7 @@ void UI::prepareDrawData() {
 			ImGui::TextUnformatted("Burst Gain Last Combo");
 			AddTooltip("How much Burst was gained on the entire last performed combo (either inflicting it or getting hit by it).");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    printDecimal(player.burstGainLastCombo, 2, 0);
 			    ImGui::TextUnformatted(printdecimalbuf);
@@ -955,7 +1117,7 @@ void UI::prepareDrawData() {
 				" (either inflicting it or getting hit by it).\n"
 				"You can clear this value by pressing a button below this table.");
 			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 				offsets[i] = ImGui::GetCursorPosX();
 			    printDecimal(player.burstGainMaxCombo, 2, 0);
@@ -1003,6 +1165,7 @@ void UI::onEndScene(IDirect3DDevice9* device) {
 		imguiD3DInitialized = true;
 		ImGui_ImplDX9_Init(device);
 		ImGui_ImplDX9_NewFrame();
+		graphics.getTexture();
 	}
 	if (needInitFont) {
 		ImGui_ImplDX9_NewFrame();
@@ -1030,6 +1193,7 @@ void UI::handleResetBefore() {
 void UI::handleResetAfter() {
 	if (imguiD3DInitialized) {
 		ImGui_ImplDX9_CreateDeviceObjects();
+		graphics.getTexture();
 	}
 }
 
@@ -1067,10 +1231,12 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 		if (imguiResult) return TRUE;
 		switch (message) {
 		case WM_APP_SCREENSHOT_PATH_UPDATED: {
-			if (timerId == 0) {
-				timerId = SetTimer(NULL, 0, 1000, Timerproc);
-			} else {
-				SetTimer(NULL, timerId, 1000, Timerproc);
+			if (!timerDisabled) {
+				if (timerId == 0) {
+					timerId = SetTimer(NULL, 0, 1000, Timerproc);
+				} else {
+					SetTimer(NULL, timerId, 1000, Timerproc);
+				}
 			}
 			return TRUE;
 		}
@@ -1237,7 +1403,7 @@ void UI::decrementFlagTimer(int& timer, bool& flag) {
 
 void UI::frameAdvantageControl() {
     for (int i = 0; i < 2; ++i) {
-    	PlayerInfo& player = graphics.drawDataPrepared.players[i];
+    	PlayerInfo& player = endScene.players[i];
 	    ImGui::TableNextColumn();
     	if (player.frameAdvantageValid && player.landingFrameAdvantageValid && player.frameAdvantage != player.landingFrameAdvantage) {
     		frameAdvantageTextFormat(player.frameAdvantage, strbuf, sizeof strbuf);

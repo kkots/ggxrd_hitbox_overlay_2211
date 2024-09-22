@@ -74,22 +74,27 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     }
     case DLL_PROCESS_DETACH:
         logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
-        ui.onDllDetach();
-        settings.onDllDetach();
         detouring.dllMainThreadId = GetCurrentThreadId();
         logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
+        ui.onDllDetachStage1();
+        settings.onDllDetach();
+        
+        // send signals to various hooked threads that are running continuously,
+        // telling them to undo the changes they have made.
+        // imGui looks like it needs graphics resources undone first (on the graphics thread),
+        // then the whole rest of imGui (on the logic thread)
+        
+        graphics.shutdown = true;
+        graphics.onDllDetach();
+        
+        camera.shutdown = true;
+        game.shutdown = true;
+        endScene.onDllDetach();
+        
         detouring.detachAll();
         Sleep(100);
         while (detouring.someThreadsAreExecutingThisModule(hModule)) Sleep(100);
-
-        graphics.onUnload();  // here's how we cope with this being unsafe: between unhooking all functions
-        // and this line of code we may miss an IDirect3DDevice9::Reset() call, in which we have to null the stencil
-        // and the offscreenSurface. If we don't unhook Reset, we can't really wait for all hooks to finish executing,
-        // because immediately after the wait, Reset may get called.
-        // What solves all this is that Reset only gets called when the user decides to change resolutions or go
-        // to fullscreen mode/exit fullscreen mode. So we just hope he doesn't do it while uninjecting the DLL.
-        endScene.onDllDetach();
-        hud.onDllDetach();
+		
     	detouring.cancelTransaction();
     	closeLog();
         break;

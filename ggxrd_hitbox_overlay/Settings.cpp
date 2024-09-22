@@ -210,11 +210,11 @@ void Settings::onDllDetach() {
 		// happens before its object is signaled.
 		// As such, you cannot wait on a thread inside DllMain.
 		
-		// On normal exit the thread is already killed by something
 		bool eventIsSet = false;
 		while (true) {
 			DWORD exitCode;
 			if (GetExitCodeThread(changesListener, &exitCode)) {
+				// On normal exit the thread is already killed by something
 				if (exitCode != STILL_ACTIVE) {
 					break;
 				}

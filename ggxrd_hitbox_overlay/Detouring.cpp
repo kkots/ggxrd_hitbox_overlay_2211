@@ -286,6 +286,14 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 	bool threadEipInThisModule = false;
 	bool hasMoreThanOneThread = false;
 	
+	#ifdef LOG_PATH
+	// If we don't lock the mutex in advance, when we freeze a thread, it may be holding this lock,
+	// and then when we try to log something, we will get stuck waiting on that mutex forever.
+	logfileMutex.lock();
+	#endif
+	
+	DWORD thisProcId = GetCurrentProcessId();
+	
 	// Suspend all threads
 	enumerateThreadsRecursively([&](DWORD threadId) {
 		if (threadEipInThisModule) return;
@@ -294,10 +302,15 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
 #ifdef LOG_PATH
 			WinError winErr;
-			logwrap(fprintf(logfile, "Error in OpenThread: %ls\n", winErr.getMessage()));
+			fprintf(logfile, "Error in OpenThread: %ls\n", winErr.getMessage());
+			fflush(logfile);
 #endif
 		}
 		else {
+			DWORD procId = GetProcessIdOfThread(hThread);
+			if (procId != thisProcId) {
+				return;
+			}
 			SuspendThread(hThread);
 			suspendedThreadHandles.push_back(hThread);
 
@@ -308,17 +321,22 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 			if (ctx.Eip >= dllStart && ctx.Eip < dllEnd) threadEipInThisModule = true;
 		}
 	});
-	logwrap(fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size()));
+	#ifdef LOG_PATH
+	fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size());
+	fflush(logfile);
+	#endif
 	
 	if (!hasMoreThanOneThread) hooksCounter = 0; // on crash all threads just die, except this one, and the DLL gets unloaded gracefully
 	threadEipInThisModule = threadEipInThisModule || hooksCounter > 0;  // some hooks may call functions that lead outside the module
 
 	#ifdef LOG_PATH
 	for (const std::string& name : runningHooks) {
-		logwrap(fprintf(logfile, "Hook %s is still running\n", name.c_str()));
+		fprintf(logfile, "Hook %s is still running\n", name.c_str());
 	}
+	fflush(logfile);
+	logfileMutex.unlock();
 	#endif
-
+	
 	for (HANDLE hThread : suspendedThreadHandles) {
 		ResumeThread(hThread);
 	}
