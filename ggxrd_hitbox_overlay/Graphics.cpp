@@ -90,6 +90,13 @@ void Graphics::onDllDetach() {
 	HANDLE graphicsThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, graphicsThreadId);
 	if (!graphicsThreadHandle) {
 		WinError winErr;
+		// The graphicsThreadId we have may be from a time before this thread got terminated:
+		// When Xrd is closed with the mod still running, it kills all threads except the main one
+		// first, then unloads all DLLs.
+		// If the graphics thread got terminated, it will fail to open which is a possible reason
+		// why we may be here.
+		// The logic thread won't be terminated on normal Xrd exit though, because it is the main
+		// thread and the window thread (as in, it pumps messages for windows).
 		logwrap(fprintf(logfile, "Graphics failed to open graphics thread handle: %ls\n", winErr.getMessage()));
 		resetHook();
 		ui.onDllDetachGraphics();

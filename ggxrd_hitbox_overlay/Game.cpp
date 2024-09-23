@@ -5,6 +5,8 @@
 #include "Settings.h"
 #include "EndScene.h"
 #include "Camera.h"
+#include "GifMode.h"
+#include "Entity.h"
 
 const char** aswEngine = nullptr;
 
@@ -76,6 +78,27 @@ bool Game::onDllMain() {
 			destroyMask.data(),
 			{ -0x5A },
 			NULL, "destroyAswEngine");
+	
+		// offset from aswEngine to its field containing a pointer to an instance of AREDCamera_Battle class
+		std::vector<char> cameraOffsetSig;
+		std::vector<char> cameraOffsetSigMask;
+		byteSpecificationToSigMask("8b 4c 24 18 83 c4 08 0b 4c 24 14 74 1e 8b 15 ?? ?? ?? ?? 8b 8a ?? ?? ?? ?? e8 ?? ?? ?? ?? 85 c0 75 09 55 e8 ?? ?? ?? ?? 83 c4 04",
+			cameraOffsetSig, cameraOffsetSigMask);
+	
+		substituteWildcard(cameraOffsetSig.data(), cameraOffsetSigMask.data(), 0, aswEngine);
+		// pointer to REDCamera_Battle
+		cameraOffset = (unsigned int)sigscanOffset(
+			"GuiltyGearXrd.exe",
+			cameraOffsetSig.data(),
+			cameraOffsetSigMask.data(),
+			{ 0x15, 0 },
+			&error, "cameraOffset");
+		
+	}
+	
+	if (cameraOffset) {
+		REDGameInfo_BattleOffset = cameraOffset + 4;
+		REDHUD_BattleOffset = cameraOffset - 4;
 	}
 	
 	if (orig_destroyAswEngine) {
@@ -90,6 +113,38 @@ bool Game::onDllMain() {
 		"8d bd a4 04 00 00 bd 02 00 00 00 90 8b 0f 3b cb 74 05 e8 ?? ?? ?? ?? 83 c7 04 4d 75 ef ff 86",
 		{ 31, 0 },
 		&error, "aswEngineTickCountOffset");
+	
+
+	if (REDHUD_BattleOffset) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("8b 81 ?? ?? ?? ?? f6 80 5c 04 00 00 08 74 14 8b 54 24 14 f6 82 c8 04 00 00 02",
+			sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 0, (void*)REDHUD_BattleOffset);
+		uintptr_t drawJohnnyHUDCallPlace = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig.data(),
+			mask.data(),
+			nullptr, "drawJohnnyHUDCallPlace");
+		if (drawJohnnyHUDCallPlace) {
+			drawJohnnyHUDOffset = *(DWORD*)(drawJohnnyHUDCallPlace + 40);
+			drawJohnnyHUD = (drawJohnnyHUD_t)followRelativeCall(drawJohnnyHUDCallPlace + 44);
+			
+			void(HookHelp::*drawJohnnyHUDHookPtr)(int param_1) = &HookHelp::drawJohnnyHUDHook;
+			detouring.attach(&(PVOID&)(orig_drawJohnnyHUD),
+				(PVOID&)drawJohnnyHUDHookPtr,
+				&orig_drawJohnnyHUDMutex,
+				"drawJohnnyHUD");
+		}
+	}
+	
+	/*std::vector<char> sig;
+	
+	uintptr_t _KizetsuRecover = sigscanBufOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		sig,
+		sig.size(),
+		nullptr, "_KizetsuRecover");*/
 	
 	return !error;
 }
@@ -285,12 +340,20 @@ void Game::levelTickHook(int param1, int param2, int param3, int param4) {
 		if (ignoreAllCalls) {
 			levelTickHookEmpty();
 		}
+		ignoreAllCalls = false;
 	}
 }
 
 void Game::levelTickHookEmpty() {
 	if (getTrainingHudArgument) {
 		trainingHudTick(getTrainingHudArgument());
+	}
+	if (drawJohnnyHUD) {
+		char* battleHud = *(char**)(*aswEngine + REDHUD_BattleOffset);
+		char field1 = *(char*)(battleHud + 0x45c);
+		char* gameInfoBattle = *(char**)(*aswEngine + REDGameInfo_BattleOffset);
+		char field2 = *(char*)(gameInfoBattle + 0x4c8);
+		drawJohnnyHUD((void*)(*aswEngine + drawJohnnyHUDOffset), (field1 & 0x8) != 0 && (field2 & 0x2) != 0);
 	}
 }
 
@@ -377,4 +440,15 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 
 void Game::HookHelp::UWorld_TickHook(ELevelTick TickType, float DeltaSeconds) {
 	game.UWorld_TickHook(this, TickType, DeltaSeconds);
+}
+
+void Game::HookHelp::drawJohnnyHUDHook(int param_1) {
+	++detouring.hooksCounter;
+	detouring.markHookRunning("drawJohnnyHUD", true);
+	if (gifMode.modDisabled || !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
+		std::unique_lock<std::mutex> guard(game.orig_drawJohnnyHUDMutex);
+		game.orig_drawJohnnyHUD((void*)this, param_1);
+	}
+	detouring.markHookRunning("drawJohnnyHUD", false);
+	--detouring.hooksCounter;
 }

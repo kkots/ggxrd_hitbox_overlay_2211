@@ -96,7 +96,9 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 		}
 	}
 
-	if ((result == HIT_RESULT_NORMAL || result == HIT_RESULT_BLOCKED)
+	bool hasHitbox = false;
+	
+	if ((result == HIT_RESULT_NORMAL || result == HIT_RESULT_BLOCKED || result == HIT_RESULT_ARMORED)
 			&& (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT)) {
 		EntityState state;
 		otherEntity.getState(&state);
@@ -114,7 +116,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 					boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
 					boxes.previousTime = thisEntity.currentAnimDuration();
 					boxes.hitboxesCount = hitboxesCount;
-					boxes.projectile.fill(thisEntity);
+					hasHitbox = true;
 
 					hitDetector.hitboxesThatHit.push_back(boxes);
 				}
@@ -145,6 +147,12 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				}
 			}
 		}
+	}
+	
+	if (result == HIT_RESULT_NORMAL
+			|| result == HIT_RESULT_BLOCKED
+			|| result == HIT_RESULT_ARMORED) {
+		endScene.registerHit(result, hasHitbox, thisEntity, otherEntity);
 	}
 
 	if ((gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode()) {
@@ -260,10 +268,6 @@ void HitDetector::drawHits() {
 			continue;
 		}
 		else {
-			if ((hitboxThatHit.team == 0 || hitboxThatHit.team == 1)
-					&& hitboxThatHit.counter == DISPLAY_DURATION_HITBOX_THAT_HIT) {
-				endScene.addActiveProjectile(hitboxThatHit.projectile);
-			}
 			if (invisChipp.needToHide(hitboxThatHit.team)) {
 				it = hitboxesThatHit.erase(it);
 				continue;

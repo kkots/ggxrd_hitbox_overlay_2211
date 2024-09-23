@@ -54,16 +54,14 @@ private:
 	bool selectFile(std::wstring& path, HWND owner);
 	std::wstring lastSelectedPath;
 	static void __stdcall Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR unnamedParam3, DWORD unnamedParam4);
-	SHORT (WINAPI *orig_GetKeyState) (int nVirtKey);
-	std::mutex orig_GetKeyStateMutex;
 	static SHORT WINAPI hook_GetKeyState(int nVirtKey);
-	DWORD GetKeyStateAllowedThread = 0;
 	void decrementFlagTimer(int& timer, bool& flag);
 	void frameAdvantageControl();
 	void frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
 	void frameAdvantageText(int frameAdv);
 	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);
 	bool showTensionData = false;
+	void* hook_GetKeyStatePtr = nullptr;
 };
 
 extern UI ui;

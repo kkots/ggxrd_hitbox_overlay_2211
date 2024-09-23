@@ -132,6 +132,14 @@ enum HitResult {
 	HIT_RESULT_5
 };
 
+enum AttackType {
+	ATTACK_TYPE_NONE,
+	ATTACK_TYPE_NORMAL,
+	ATTACK_TYPE_EX,
+	ATTACK_TYPE_OVERDRIVE,
+	ATTACK_TYPE_IK
+};
+
 class Entity
 {
 public:
@@ -208,6 +216,12 @@ public:
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
 	inline int& physicsYImpulse() { return *(int*)(ent + 0x300); }
 	inline int currentHitNum() { return *(int*)(ent + 0x26d8); }
+	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
+	inline int throwRange() { return *(int*)(ent + 0x494); }
+	inline int throwMinX() { return *(int*)(ent + 0x48c); }
+	inline int throwMaxX() { return *(int*)(ent + 0x484); }
+	inline int throwMaxY() { return *(int*)(ent + 0x488); }
+	inline int throwMinY() { return *(int*)(ent + 0x490); }
 
 	void getState(EntityState*) const;
 	

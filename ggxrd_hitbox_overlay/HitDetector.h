@@ -32,7 +32,6 @@ private:
 		int counter = 0;
 		unsigned int previousTime = 0;
 		int hitboxesCount = 0;
-		ProjectileInfo projectile;
 		bool timeHasChanged(bool globalTimeHasChanged);
 	};
 

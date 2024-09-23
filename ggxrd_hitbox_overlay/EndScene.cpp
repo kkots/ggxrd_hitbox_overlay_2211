@@ -127,18 +127,18 @@ bool EndScene::onDllMain() {
 		&orig_endSceneCallerMutex,
 		"endSceneCaller")) return false;
 	
-	orig_BBScr_createObjectWithArgs = (BBScr_createObjectWithArgs_t)sigscanOffset(
+	orig_BBScr_createObjectWithArg = (BBScr_createObjectWithArg_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"33 db 80 3f 63 8b f1 75 14 80 7f 01 6d 75 0e 80 7f 02 6e c7 44 24 10 01 00 00 00 74 04",
 		{ -0x1f },
-		NULL, "BBScr_createObjectWithArgs");
+		NULL, "BBScr_createObjectWithArg");
 	
-	if (orig_BBScr_createObjectWithArgs) {
-		void (HookHelp::*BBScr_createObjectWithArgsHookPtr)(char*, unsigned int) = &HookHelp::BBScr_createObjectWithArgsHook;
-		if (!detouring.attach(&(PVOID&)orig_BBScr_createObjectWithArgs,
-			(PVOID&)BBScr_createObjectWithArgsHookPtr,
-			&orig_BBScr_createObjectWithArgsMutex,
-			"BBScr_createObjectWithArgs")) return false;
+	if (orig_BBScr_createObjectWithArg) {
+		void (HookHelp::*BBScr_createObjectWithArgHookPtr)(char*, unsigned int) = &HookHelp::BBScr_createObjectWithArgHook;
+		if (!detouring.attach(&(PVOID&)orig_BBScr_createObjectWithArg,
+			(PVOID&)BBScr_createObjectWithArgHookPtr,
+			&orig_BBScr_createObjectWithArgMutex,
+			"BBScr_createObjectWithArg")) return false;
 	}
 	
 	shutdownFinishedEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
@@ -230,9 +230,9 @@ void EndScene::HookHelp::readUnrealPawnDataHook() {
 
 void EndScene::HookHelp::drawTrainingHudHook() {
 	++detouring.hooksCounter;
-	detouring.markHookRunning("ReadUnrealPawnData", true);
+	detouring.markHookRunning("drawTrainingHud", true);
 	endScene.drawTrainingHudHook((char*)this);
-	detouring.markHookRunning("ReadUnrealPawnData", false);
+	detouring.markHookRunning("drawTrainingHud", false);
 	--detouring.hooksCounter;
 }
 
@@ -328,26 +328,64 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	
 	if (frameHasChanged) {
 		
-		for (auto it = projectiles.begin(); it != projectiles.end();) {
+		for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
+			ProjectileInfo& projectile = *it;
+			projectile.landedHit = false;
+			for (auto itHit = registeredHits.begin(); itHit != registeredHits.end(); ++itHit) {
+				RegisteredHit& regHit = *itHit;
+				if (projectile.ptr == regHit.attacker && regHit.hasHitbox && !regHit.isPawn) {
+					projectile.animFrame = regHit.projectile.animFrame;
+					projectile.lifeTimeCounter = regHit.projectile.lifeTimeCounter;
+					if (!(regHit.projectile.hitstop && !projectile.hitstop)) {
+						projectile.hitstop = regHit.projectile.hitstop;
+					}
+					projectile.nextHitstop = regHit.projectile.hitstop;
+					projectile.team = regHit.projectile.team;
+					projectile.landedHit = true;
+					break;
+				}
+			}
+		}
+		for (auto itHit = registeredHits.begin(); itHit != registeredHits.end(); ++itHit) {
+			RegisteredHit& regHit = *itHit;
+			if (regHit.isPawn) continue;
 			bool found = false;
-			for (int i = 0; i < entityList.count; ++i) {
-				Entity ent = entityList.list[i];
-				if (it->ptr == ent && ent.lifeTimeCounter() != 1) {
+			for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
+				ProjectileInfo& projectile = *it;
+				if (regHit.attacker == projectile.ptr) {
 					found = true;
 					break;
 				}
 			}
 			if (!found) {
-				if (it->cameFromHitDetect) {
+				projectiles.emplace_back();
+				ProjectileInfo& projectile = projectiles.back();
+				projectile = regHit.projectile;
+				projectile.landedHit = true;
+			}
+		}
+		
+		for (auto it = projectiles.begin(); it != projectiles.end();) {
+			bool found = false;
+			for (int i = 0; i < entityList.count; ++i) {
+				Entity ent = entityList.list[i];
+				if (it->ptr == ent && ent.lifeTimeCounter() != 0) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				if (it->landedHit && it->ptr) {
 					it->ptr = nullptr;
 					it->markActive = true;
-					it->cameFromHitDetect = false;
 					++it;
 					continue;
 				}
 				it = projectiles.erase(it);
 			} else {
-				it->markActive = false;
+				if (!it->landedHit) {
+					it->markActive = false;
+				}
 				++it;
 			}
 		}
@@ -604,11 +642,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (!projectile.startedUp && !superflashInstigator) {
 				++projectile.startup;
 			}
-			if (projectile.team != 0 && projectile.team != 1) continue;
-			PlayerInfo& player = players[projectile.team];
-			if (projectile.ptr.currentAnimDuration() == 1 && !player.idlePlus) {
-				projectile.startup = player.timePassed;
-			}
 		}
 	}
 	
@@ -648,14 +681,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			drawnEntities.push_back(attached);
 		}
 		if ((team == 0 || team == 1) && frameHasChanged) {
-			PlayerInfo& player = players[team];
 			if (hitboxesCount) {
 				if (i < 2) {
+					PlayerInfo& player = players[team];
 					player.hitboxesCount += hitboxesCount;
 				} else if (frameHasChanged) {
 					for (ProjectileInfo& projectile : projectiles) {
-						projectile.markActive = true;
-						projectile.actives.addActive(-1, 1, false);
+						if (projectile.ptr == ent) {
+							projectile.markActive = true;
+							break;
+						}
 					}
 				}
 			}
@@ -680,11 +715,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		if (superflashInstigator) {
 			instigatorTeam = superflashInstigator.team();
 		}
-		for (ProjectileInfo& projectile : projectiles) {
-			if (!projectile.markActive) {
-				projectile.actives.addNonActive();
-			} else if (!projectile.startedUp) {
-				projectile.startedUp = true;
+		if (!superflashInstigator) {
+			for (ProjectileInfo& projectile : projectiles) {
+				if (!projectile.markActive) {
+					projectile.actives.addNonActive();
+				} else {
+					projectile.actives.addActive(-1, 1, false);
+					if (!projectile.startedUp) {
+						projectile.startedUp = true;
+					}
+				}
 			}
 		}
 		for (int i = 0; i < 2; ++i) {
@@ -1323,6 +1363,7 @@ void EndScene::onAswEngineDestroyed() {
 	memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
 	memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
 	memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
+	registeredHits.clear();
 	for (int i = 0; i < 2; ++i) {
 		players[i].clear();
 	}
@@ -1362,20 +1403,23 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 	measuringLandingFrameAdvantage = 1 - index;
 }
 
-void EndScene::onHitDetectionStart() {
-	entityList.populate();
-	for (int i = 0; i < 2; ++i) {
-		Entity ent = entityList.slots[i];
-		tensionRecordedHit[i] = ent.tension();
-		burstRecordedHit[i] = game.getBurst(i);
-		tensionGainOnLastHit[i] = 0;
-		burstGainOnLastHit[i] = 0;
-		tensionGainOnLastHitUpdated[i] = false;
-		burstGainOnLastHitUpdated[i] = false;
+void EndScene::onHitDetectionStart(int hitDetectionType) {
+	if (hitDetectionType == 0) {
+		entityList.populate();
+		for (int i = 0; i < 2; ++i) {
+			Entity ent = entityList.slots[i];
+			tensionRecordedHit[i] = ent.tension();
+			burstRecordedHit[i] = game.getBurst(i);
+			tensionGainOnLastHit[i] = 0;
+			burstGainOnLastHit[i] = 0;
+			tensionGainOnLastHitUpdated[i] = false;
+			burstGainOnLastHitUpdated[i] = false;
+		}
+		registeredHits.clear();
 	}
 }
 
-void EndScene::onHitDetectionEnd() {
+void EndScene::onHitDetectionEnd(int hitDetectionType) {
 	entityList.populate();
 	for (int i = 0; i < 2; ++i) {
 		Entity ent = entityList.slots[i];
@@ -1394,6 +1438,17 @@ void EndScene::onHitDetectionEnd() {
 		}
 		burstRecordedHit[i] = burst;
 	}
+}
+
+void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender) {
+	registeredHits.emplace_back();
+	RegisteredHit& hit = registeredHits.back();
+	hit.projectile.fill(attacker);
+	hit.isPawn = attacker.isPawn();
+	hit.hitResult = hitResult;
+	hit.hasHitbox = hasHitbox;
+	hit.attacker = attacker;
+	hit.defender = defender;
 }
 
 void EndScene::onUWorld_TickBegin() {
@@ -1455,21 +1510,31 @@ void EndScene::HookHelp::endSceneCallerHook(int param1, int param2, int param3) 
 	--detouring.hooksCounter;
 }
 
-void EndScene::HookHelp::BBScr_createObjectWithArgsHook(char* animName, unsigned int posType) {
+void EndScene::HookHelp::BBScr_createObjectWithArgHook(char* animName, unsigned int posType) {
 	++detouring.hooksCounter;
-	detouring.markHookRunning("BBScr_createObjectWithArgs", true);
+	detouring.markHookRunning("BBScr_createObjectWithArg", true);
 	{
-		std::unique_lock<std::mutex> guard(endScene.orig_BBScr_createObjectWithArgsMutex);
-		endScene.orig_BBScr_createObjectWithArgs(this, animName, posType);
+		static bool imHoldingTheLock = false;
+		bool needUnlock = false;
+		if (!imHoldingTheLock) {
+			needUnlock = true;
+			imHoldingTheLock = true;
+			endScene.orig_BBScr_createObjectWithArgMutex.lock();
+		}
+		endScene.orig_BBScr_createObjectWithArg(this, animName, posType);
+		if (needUnlock) {
+			imHoldingTheLock = false;
+			endScene.orig_BBScr_createObjectWithArgMutex.unlock();
+		}
 	}
 	if (!endScene.shutdown) {
-		endScene.BBScr_createObjectWithArgsHook(Entity{(char*)this}, animName, posType);
+		endScene.BBScr_createObjectWithArgHook(Entity{(char*)this}, animName, posType);
 	}
-	detouring.markHookRunning("BBScr_createObjectWithArgs", true);
+	detouring.markHookRunning("BBScr_createObjectWithArg", false);
 	--detouring.hooksCounter;
 }
 
-void EndScene::BBScr_createObjectWithArgsHook(Entity pawn, char* animName, unsigned int posType) {
+void EndScene::BBScr_createObjectWithArgHook(Entity pawn, char* animName, unsigned int posType) {
 	if (!gifMode.modDisabled && (gifMode.gifModeToggleHideOpponentOnly || gifMode.gifModeOn) && game.isTrainingMode()) {
 		Entity createdPawn = pawn.previousEntity();
 		if (!createdPawn) return;
@@ -1520,18 +1585,11 @@ void EndScene::hideEntity(Entity ent) {
 	ent.scaleDefault2() = 0;
 }
 
-void EndScene::addActiveProjectile(ProjectileInfo& info) {
-	bool found = false;
-	for (ProjectileInfo& projectile : projectiles) {
-		if (projectile.ptr == info.ptr) {
-			found = true;
-			projectile.markActive = true;
+bool EndScene::didHit(Entity attacker) {
+	for (auto it = registeredHits.begin(); it != registeredHits.end(); ++it) {
+		if (it->attacker == attacker) {
+			return true;
 		}
 	}
-	if (!found) {
-		projectiles.emplace_back();
-		ProjectileInfo& projectile = projectiles.back();
-		projectile = info;
-		projectile.cameFromHitDetect = true;
-	}
+	return false;
 }

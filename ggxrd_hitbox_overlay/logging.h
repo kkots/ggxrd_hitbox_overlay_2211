@@ -15,20 +15,24 @@ extern FILE* logfile;
 extern std::mutex logfileMutex;
 #define logwrap(things) \
 { \
-	std::unique_lock<std::mutex> logfileGuard(logfileMutex); \
-	things; \
-	fflush(logfile); \
+	if (logfile) { \
+		std::unique_lock<std::mutex> logfileGuard(logfileMutex); \
+		things; \
+		fflush(logfile); \
+	} \
 }
 
 extern bool didWriteOnce;
 extern int msgLimit;
 #define logOnce(things) { \
-	std::unique_lock<std::mutex> logfileGuard(logfileMutex); \
-	if (msgLimit>=0 && !didWriteOnce) { \
-		things; \
-		fflush(logfile); \
+	if (logfile) { \
+		std::unique_lock<std::mutex> logfileGuard(logfileMutex); \
+		if (msgLimit>=0 && !didWriteOnce) { \
+			things; \
+			fflush(logfile); \
+		} \
+		msgLimit--; \
 	} \
-	msgLimit--; \
 }
 void logColor(unsigned int d3dColor);
 #else

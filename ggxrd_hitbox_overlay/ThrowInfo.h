@@ -3,6 +3,8 @@
 
 struct ThrowInfo {
 	Entity owner{ nullptr };
+	bool isPawn = false;
+	AttackType attackType = ATTACK_TYPE_NONE;
 
 	bool hasPushboxCheck = false;
 	int pushboxCheckMinX = 0;

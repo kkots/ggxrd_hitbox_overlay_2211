@@ -11,6 +11,7 @@
 #include "Version.h"
 #include "Graphics.h"
 #include "EndScene.h"
+#include "memoryFunctions.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx9.h"
@@ -185,11 +186,38 @@ static void pushZeroItemSpacingStyle() {
 }
 
 bool UI::onDllMain() {
-	orig_GetKeyState = GetKeyState;
-	if (!detouring.attach(&(PVOID&)orig_GetKeyState,
-		hook_GetKeyState,
-		&orig_GetKeyStateMutex,
-		"GetKeyState")) return false;
+	void* GetKeyStatePtr = &GetKeyState;
+	uintptr_t GetKeyStateRData = sigscanBufOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		(const char*)&GetKeyStatePtr,
+		4,
+		nullptr, "GetKeyStateRData");
+	if (GetKeyStateRData) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("8b 3d ?? ?? ?? ?? 52 ff d7", sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 0, (void*)GetKeyStateRData);
+		uintptr_t GetKeyStateCallPlace = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig.data(),
+			mask.data(),
+			{ 2 },
+			nullptr, "GetKeyStateCallPlace");
+		if (GetKeyStateCallPlace) {
+			std::vector<char> origBytes;
+			origBytes.resize(4);
+			memcpy(origBytes.data(), &GetKeyStateRData, 4);
+			detouring.addInstructionToReplace(GetKeyStateCallPlace, origBytes);
+			DWORD oldProtect;
+			VirtualProtect((void*)GetKeyStateCallPlace, 4, PAGE_EXECUTE_READWRITE, &oldProtect);
+			hook_GetKeyStatePtr = hook_GetKeyState;
+			void** hook_GetKeyStatePtrPtr = &hook_GetKeyStatePtr;
+			memcpy((void*)GetKeyStateCallPlace, &hook_GetKeyStatePtrPtr, 4);
+			DWORD unused;
+			VirtualProtect((void*)GetKeyStateCallPlace, 4, oldProtect, &unused);
+			FlushInstructionCache(GetCurrentProcess(), (void*)GetKeyStateCallPlace, 4);
+		}
+	}
 	return true;
 }
 
@@ -246,7 +274,6 @@ void UI::onDllDetachNonGraphics() {
 
 void UI::prepareDrawData() {
 	if (!visible || gifMode.modDisabled) {
-		GetKeyStateAllowedThread = 0;
 		takeScreenshot = false;
 		takeScreenshotPress = false;
 		imguiActive = false;
@@ -576,7 +603,13 @@ void UI::prepareDrawData() {
 					ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
 					ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
 					ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.4f);
-					ImGui::TableHeadersRow();
+					
+					ImGui::TableNextColumn();
+					RightAlignedText("P1");
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("P2");
+					
 		    		struct Row {
 		    			ProjectileInfo* side[2] { nullptr };
 		    		};
@@ -1210,25 +1243,9 @@ void __stdcall UI::Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR un
 
 LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	if (imguiInitialized) {
-		static int nestingLevel = 0;
-		if (nestingLevel == 0) {
-			if (imguiActive) {
-				GetKeyStateAllowedThread = GetCurrentThreadId();
-			} else {
-				GetKeyStateAllowedThread = 0;
-			}
-		}
-		++nestingLevel;
-		LRESULT imguiResult = ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam);
-		--nestingLevel;
-		if (nestingLevel == 0) {
-			if (imguiActive) {
-				GetKeyStateAllowedThread = -1;
-			} else {
-				GetKeyStateAllowedThread = 0;
-			}
-		}
-		if (imguiResult) return TRUE;
+		if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+			return TRUE;
+		
 		switch (message) {
 		case WM_APP_SCREENSHOT_PATH_UPDATED: {
 			if (!timerDisabled) {
@@ -1382,12 +1399,10 @@ SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("GetKeyState", true);
 	SHORT result;
-	{
-		std::unique_lock<std::mutex> guard(ui.orig_GetKeyStateMutex);
-		result = ui.orig_GetKeyState(nVirtKey);
-	}
-	if (!(ui.GetKeyStateAllowedThread == 0 || GetCurrentThreadId() == ui.GetKeyStateAllowedThread)) {
+	if (ui.imguiActive) {
 		result = 0;
+	} else {
+		result = GetKeyState(nVirtKey);
 	}
 	detouring.markHookRunning("GetKeyState", false);
 	--detouring.hooksCounter;

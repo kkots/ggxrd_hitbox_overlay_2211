@@ -30,15 +30,13 @@ struct ProjectileInfo {
 	int startup = 0;
 	ActiveDataArray actives { 0 };
 	char animName[32] { 0 };
-	bool ignoreHitstop:1;
 	bool markActive:1;
 	bool startedUp:1;
-	bool cameFromHitDetect:1;
+	bool landedHit:1;
 	ProjectileInfo() :
-		ignoreHitstop(false),
 		markActive(false),
 		startedUp(false),
-		cameFromHitDetect(false)
+		landedHit(false)
 	{
 	}
 	void fill(Entity ent) {
@@ -46,8 +44,12 @@ struct ProjectileInfo {
 		team = ent.team();
 		animFrame = ent.currentAnimDuration();
 		nextHitstop = ent.hitstop();
-		ignoreHitstop = !hitstop && nextHitstop;
 		lifeTimeCounter = ent.lifeTimeCounter();
+		if (lifeTimeCounter != 0 || hitstop != 0) {
+			hitstop = nextHitstop;
+		} else {
+			hitstop = 0;
+		}
 		memcpy(animName, ent.animationName(), 32);
 	}
 };

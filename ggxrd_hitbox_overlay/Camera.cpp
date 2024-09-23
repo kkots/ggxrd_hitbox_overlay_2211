@@ -13,27 +13,7 @@ Camera camera;
 bool Camera::onDllMain() {
 	bool error = false;
 
-	if (aswEngine) {
-		// offset from aswEngine to its field containing a pointer to an instance of AREDCamera_Battle class
-		// ghidra sig: 
-		std::vector<char> cameraOffsetSig;
-		std::vector<char> cameraOffsetSigMask;
-		byteSpecificationToSigMask("8b 4c 24 18 83 c4 08 0b 4c 24 14 74 1e 8b 15 ?? ?? ?? ?? 8b 8a ?? ?? ?? ?? e8 ?? ?? ?? ?? 85 c0 75 09 55 e8 ?? ?? ?? ?? 83 c4 04",
-			cameraOffsetSig, cameraOffsetSigMask);
-
-		substituteWildcard(cameraOffsetSig.data(), cameraOffsetSigMask.data(), 0, aswEngine);
-
-		// pointer to REDCamera_Battle
-		cameraOffset = (unsigned int)sigscanOffset(
-			"GuiltyGearXrd.exe",
-			cameraOffsetSig.data(),
-			cameraOffsetSigMask.data(),
-			{ 0x15, 0 },
-			&error, "cameraOffset");
-
-		// cameraOffset+4 is pointing to the parent class, REDGameBattle_Info
-
-	}
+	cameraOffset = game.cameraOffset;
 
 	// updateCamera is a virtual function of AREDPawn_CameraAttach
 	orig_updateDarken = (updateDarken_t)sigscanOffset(

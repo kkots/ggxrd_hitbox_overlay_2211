@@ -17,6 +17,7 @@ using getTrainingHudArgument_t = char*(__cdecl*)(void);
 using updateAnimations_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
 using destroyAswEngine_t = void(__cdecl*)(void);
 using UWorld_Tick_t = void(__thiscall*)(void* thisArg, ELevelTick TickType, float DeltaSeconds);
+using drawJohnnyHUD_t = void(__thiscall*)(void* thisArg, int param_1);
 
 class Game {
 public:
@@ -35,11 +36,20 @@ public:
 	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
 	uintptr_t aswEngineTickCountOffset = 0;
 	bool shutdown = false;
+	DWORD drawJohnnyHUDOffset = 0;
+	drawJohnnyHUD_t drawJohnnyHUD = nullptr;
+	drawJohnnyHUD_t orig_drawJohnnyHUD = nullptr;
+	std::mutex orig_drawJohnnyHUDMutex;
+	uintptr_t cameraOffset = 0;
+	uintptr_t REDGameInfo_BattleOffset = 0;
+	uintptr_t REDHUD_BattleOffset = 0;
+	void* stunLeverDisplayFunc = 0;
 private:
 	class HookHelp {
 		friend class Game;
 		void updateBattleOfflineVerHook(int param1);
 		void UWorld_TickHook(ELevelTick TickType, float DeltaSeconds);
+		void drawJohnnyHUDHook(int param_1);
 	};
 	bool sigscanFrameByFraming();
 	void hookFrameByFraming();

@@ -13,7 +13,7 @@ using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using endSceneCaller_t = void(__thiscall*)(void* thisArg, int param1, int param2, int param3);
-using BBScr_createObjectWithArgs_t = void(__thiscall*)(void* pawn, char* animName, unsigned int posType);
+using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, char* animName, unsigned int posType);
 
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -26,12 +26,13 @@ public:
 	void logic();
 	void assignNextId(bool acquireLock = false);
 	void onAswEngineDestroyed();
-	void onHitDetectionStart();
-	void onHitDetectionEnd();
+	void onHitDetectionStart(int hitDetectionType);
+	void onHitDetectionEnd(int hitDetectionType);
 	void onUWorld_TickBegin();
 	void onUWorld_Tick();
 	void endSceneHook(IDirect3DDevice9* device);
-	void addActiveProjectile(ProjectileInfo& info);
+	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
+	bool didHit(Entity attacker);
 	SendUnrealPawnData_t orig_SendUnrealPawnData = nullptr;
 	std::mutex orig_SendUnrealPawnDataMutex;
 	bool orig_SendUnrealPawnDataMutexLocked = false;
@@ -46,8 +47,8 @@ public:
 	std::mutex orig_drawTrainingHudMutex;
 	endSceneCaller_t orig_endSceneCaller = nullptr;
 	std::mutex orig_endSceneCallerMutex;
-	BBScr_createObjectWithArgs_t orig_BBScr_createObjectWithArgs = nullptr;
-	std::mutex orig_BBScr_createObjectWithArgsMutex;
+	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
+	std::mutex orig_BBScr_createObjectWithArgMutex;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
@@ -62,12 +63,12 @@ private:
 		void readUnrealPawnDataHook();
 		void drawTrainingHudHook();
 		void endSceneCallerHook(int param1, int param2, int param3);
-		void BBScr_createObjectWithArgsHook(char* animName, unsigned int posType);
+		void BBScr_createObjectWithArgHook(char* animName, unsigned int posType);
 	};
 	void sendUnrealPawnDataHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
 	void drawTrainingHudHook(char* thisArg);
-	void BBScr_createObjectWithArgsHook(Entity pawn, char* animName, unsigned int posType);
+	void BBScr_createObjectWithArgHook(Entity pawn, char* animName, unsigned int posType);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
@@ -121,6 +122,15 @@ private:
 	bool drawDataPrepared = false;
 	bool shutdown = false;
 	HANDLE shutdownFinishedEvent = NULL;
+	struct RegisteredHit {
+		ProjectileInfo projectile;
+		HitResult hitResult;
+		Entity attacker;
+		Entity defender;
+		bool hasHitbox;
+		bool isPawn;
+	};
+	std::vector<RegisteredHit> registeredHits;
 };
 
 extern EndScene endScene;

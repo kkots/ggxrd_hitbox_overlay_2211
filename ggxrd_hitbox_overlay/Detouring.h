@@ -20,6 +20,7 @@ public:
 	void detachAllButThese(const std::vector<PVOID>& dontDetachThese = std::vector<PVOID>{});
 	bool someThreadsAreExecutingThisModule(HMODULE hModule);
 	void markHookRunning(std::string name, bool running);
+	void addInstructionToReplace(uintptr_t addr, const std::vector<char>& bytes);
 	DWORD dllMainThreadId = 0;
 	std::atomic_int hooksCounter{0};
 	struct WndProcToUnhookAtTheEnd {
@@ -78,6 +79,12 @@ private:
 	std::mutex runningHooksMutex;
 	std::vector<std::string> runningHooks;
 	#endif
+	struct InstructionToReplace {
+		uintptr_t addr = 0;
+		std::vector<char> bytes;
+		DWORD oldProtect = 0;
+	};
+	std::vector<InstructionToReplace> instructionsToReplace;
 };
 
 extern Detouring detouring;

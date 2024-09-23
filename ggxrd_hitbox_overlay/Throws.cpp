@@ -45,16 +45,16 @@ bool Throws::onDllMain() {
 void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 	++detouring.hooksCounter;
 	detouring.markHookRunning("hitDetectionMain", true);
+	endScene.onHitDetectionStart(hitDetectionType);
 	if (hitDetectionType == 1 && !gifMode.modDisabled) {
 		throws.hitDetectionMainHook();
-		endScene.onHitDetectionStart();
 	}
 	{
 		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
 		throws.orig_hitDetectionMain(this, hitDetectionType);
 	}
-	if (hitDetectionType == 1 && !gifMode.modDisabled) {
-		endScene.onHitDetectionEnd();
+	if (!gifMode.modDisabled) {
+		endScene.onHitDetectionEnd(hitDetectionType);
 	}
 	detouring.markHookRunning("hitDetectionMain", false);
 	--detouring.hooksCounter;
@@ -80,16 +80,16 @@ void Throws::hitDetectionMainHook() {
 	for (int i = 0; i < entityList.count; ++i) {
 		Entity ent = entityList.list[i];
 
-		const int attackType = *(const int*)(ent + 0x44C);
+		const AttackType attackType = ent.attackType();
 		const bool isActive = ent.isActive();
-		int throwRange = *(const int*)(ent + 0x494);  // This value resets to -1 on normal throws very fast so that's why we need this separate hook.
-		                                              // For command throws it stays non -1 for much longer than the throw actually happens
+		int throwRange = ent.throwRange();  // This value resets to -1 on normal throws very fast so that's why we need this separate hook.
+		                                    // For command throws it stays non -1 for much longer than the throw actually happens
 
-		const int throwMinX = *(const int*)(ent + 0x48C);
-		const int throwMaxX = *(const int*)(ent + 0x484);
+		const int throwMinX = ent.throwMinX();
+		const int throwMaxX = ent.throwMaxX();
 
-		const int throwMaxY = *(const int*)(ent + 0x488);
-		const int throwMinY = *(const int*)(ent + 0x490);
+		const int throwMaxY = ent.throwMaxY();
+		const int throwMinY = ent.throwMinY();
 
 		const unsigned int currentAnimDuration = ent.currentAnimDuration();
 		CharacterType charType = ent.characterType();
@@ -99,8 +99,8 @@ void Throws::hitDetectionMainHook() {
 		}
 
 		bool checkPassed = (throwRange >= 0 || throwMinX < throwMaxX || throwMinY < throwMaxY)
-			&& (attackType == 1  // 1 is more like 4/6 H (+OS possibly) throw
-			|| (attackType == 2 || attackType == 3)  // 2 is a command throw, 3 is Jack-O super throw
+			&& (attackType == ATTACK_TYPE_NORMAL  // ATTACK_TYPE_NORMAL is more like 4/6 H (+OS possibly) throw
+			|| (attackType == ATTACK_TYPE_EX || attackType == ATTACK_TYPE_OVERDRIVE)  // ATTACK_TYPE_EX is a command throw, ATTACK_TYPE_OVERDRIVE is Jack-O super throw
 			&& isActive
 			&& !(currentAnimDuration > 25 && charType == CHARACTER_TYPE_AXL) // the 25 check is needed to stop Axl from showing a throwbox all throughout his Yes move
 			&& ((*(const unsigned int*)(ent + 0x4D28) & 0x40) != 0  // 0x4D28 & 0x40 means the move requires no hitbox vs hurtbox detection
@@ -120,8 +120,10 @@ void Throws::hitDetectionMainHook() {
 			const int flip = ent.isFacingLeft() ? -1 : 1;
 
 			ThrowInfo throwInfo;
+			throwInfo.attackType = attackType;
 			throwInfo.active = true;
 			throwInfo.owner = ent;
+			throwInfo.isPawn = ent.isPawn();
 			throwInfo.framesLeft = DISPLAY_DURATION_THROW;
 
 			if (throwRange >= 0) {
@@ -204,21 +206,6 @@ void Throws::drawThrows() {
 	while (it != infos.end()) {
 		ThrowInfo& throwInfo = *it;
 		
-		if (throwInfo.framesLeft == DISPLAY_DURATION_THROW) {
-			for (int i = 0; i < 2; ++i) {
-				if (throwInfo.owner == entityList.slots[i]) {
-					PlayerInfo& player = endScene.players[i];
-					++player.hitboxesCount;
-					break;
-				}
-			}
-		}
-		
-		if (invisChipp.needToHide(throwInfo.owner)) {
-			it = infos.erase(it);
-			continue;
-		}
-		
 		if (timeHasChanged && !throwInfo.firstFrame) {
 			throwInfo.active = false;
 			--throwInfo.framesLeft;
@@ -228,67 +215,84 @@ void Throws::drawThrows() {
 			}
 		}
 		throwInfo.firstFrame = false;
-
-		if (!settings.drawPushboxCheckSeparately) {
-
-			DrawBoxCallParams params;
-			params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW);
-			params.outlineColor = replaceAlpha(255, COLOR_THROW);
-			params.thickness = THICKNESS_THROW;
-
-			if (throwInfo.leftUnlimited) params.left = -10000000;
-			else params.left = throwInfo.left;
-			if (throwInfo.rightUnlimited) params.right = 10000000;
-			else params.right = throwInfo.right;
-			if (throwInfo.bottomUnlimited) params.bottom = -10000000;
-			else params.bottom = throwInfo.bottom;
-			if (throwInfo.topUnlimited) params.top = 10000000;
-			else params.top = throwInfo.top;
-
-			graphics.drawDataPrepared.throwBoxes.push_back(params);
-
-		} else {
-			
-			if (throwInfo.hasPushboxCheck) {
-
-				DrawBoxCallParams params;
-				params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW_PUSHBOX);
-				params.outlineColor = replaceAlpha(255, COLOR_THROW_PUSHBOX);
-				params.thickness = THICKNESS_THROW_PUSHBOX;
-				params.left = throwInfo.pushboxCheckMinX;
-				params.right = throwInfo.pushboxCheckMaxX;
-				params.bottom = -10000000;
-				params.top = 10000000;
-				graphics.drawDataPrepared.throwBoxes.push_back(params);
-
-			}
-
-			if (throwInfo.hasXCheck || throwInfo.hasYCheck) {
-
-				DrawBoxCallParams params;
-				params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW_XYORIGIN);
-				params.outlineColor = replaceAlpha(255, COLOR_THROW_XYORIGIN);
-				params.thickness = THICKNESS_THROW_XYORIGIN;
-
-				params.left = -10000000;
-				params.right = 10000000;
-				params.bottom = -10000000;
-				params.top = 10000000;
-
-				if (throwInfo.hasXCheck) {
-					params.left = throwInfo.minX;
-					params.right = throwInfo.maxX;
+		
+		// This is to prevent 4H/6H from displaying 1 active frame at the start and startup 1.
+		if (throwInfo.active
+				&& (throwInfo.attackType != ATTACK_TYPE_NONE
+				&& throwInfo.attackType != ATTACK_TYPE_NORMAL
+				|| endScene.didHit(throwInfo.owner)
+				|| !throwInfo.isPawn)) {
+			for (int i = 0; i < 2; ++i) {
+				if (throwInfo.owner == entityList.slots[i]) {
+					PlayerInfo& player = endScene.players[i];
+					++player.hitboxesCount;
+					break;
 				}
-
-				if (throwInfo.hasYCheck) {
-					params.top = throwInfo.maxY;
-					params.bottom = throwInfo.minY;
-				}
-
-				graphics.drawDataPrepared.throwBoxes.push_back(params);
-
 			}
-
+		}
+		
+		if (!invisChipp.needToHide(throwInfo.owner)) {
+			if (!settings.drawPushboxCheckSeparately) {
+	
+				DrawBoxCallParams params;
+				params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW);
+				params.outlineColor = replaceAlpha(255, COLOR_THROW);
+				params.thickness = THICKNESS_THROW;
+	
+				if (throwInfo.leftUnlimited) params.left = -10000000;
+				else params.left = throwInfo.left;
+				if (throwInfo.rightUnlimited) params.right = 10000000;
+				else params.right = throwInfo.right;
+				if (throwInfo.bottomUnlimited) params.bottom = -10000000;
+				else params.bottom = throwInfo.bottom;
+				if (throwInfo.topUnlimited) params.top = 10000000;
+				else params.top = throwInfo.top;
+	
+				graphics.drawDataPrepared.throwBoxes.push_back(params);
+	
+			} else {
+				
+				if (throwInfo.hasPushboxCheck) {
+	
+					DrawBoxCallParams params;
+					params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW_PUSHBOX);
+					params.outlineColor = replaceAlpha(255, COLOR_THROW_PUSHBOX);
+					params.thickness = THICKNESS_THROW_PUSHBOX;
+					params.left = throwInfo.pushboxCheckMinX;
+					params.right = throwInfo.pushboxCheckMaxX;
+					params.bottom = -10000000;
+					params.top = 10000000;
+					graphics.drawDataPrepared.throwBoxes.push_back(params);
+	
+				}
+	
+				if (throwInfo.hasXCheck || throwInfo.hasYCheck) {
+	
+					DrawBoxCallParams params;
+					params.fillColor = replaceAlpha(throwInfo.active ? 64 : 0, COLOR_THROW_XYORIGIN);
+					params.outlineColor = replaceAlpha(255, COLOR_THROW_XYORIGIN);
+					params.thickness = THICKNESS_THROW_XYORIGIN;
+	
+					params.left = -10000000;
+					params.right = 10000000;
+					params.bottom = -10000000;
+					params.top = 10000000;
+	
+					if (throwInfo.hasXCheck) {
+						params.left = throwInfo.minX;
+						params.right = throwInfo.maxX;
+					}
+	
+					if (throwInfo.hasYCheck) {
+						params.top = throwInfo.maxY;
+						params.bottom = throwInfo.minY;
+					}
+	
+					graphics.drawDataPrepared.throwBoxes.push_back(params);
+	
+				}
+	
+			}
 		}
 		++it;
 	}
