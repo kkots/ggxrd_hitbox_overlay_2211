@@ -1,5 +1,6 @@
 #pragma once
 #include "gameModes.h"
+#include "Entity.h"
 #include <mutex>
 
 extern const char** aswEngine;
@@ -18,6 +19,7 @@ using updateAnimations_t = void(__cdecl*)(int param1, int param2, int param3, in
 using destroyAswEngine_t = void(__cdecl*)(void);
 using UWorld_Tick_t = void(__thiscall*)(void* thisArg, ELevelTick TickType, float DeltaSeconds);
 using drawJohnnyHUD_t = void(__thiscall*)(void* thisArg, int param_1);
+using drawStunMash_t = void(__thiscall*)(void* pawn, float bar, BOOL withBar, BOOL withLever);
 
 class Game {
 public:
@@ -34,16 +36,15 @@ public:
 	bool allowNextFrame = false;
 	trainingHudTick_t trainingHudTick = nullptr;
 	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
-	uintptr_t aswEngineTickCountOffset = 0;
+	DWORD aswEngineTickCountOffset = 0;
 	bool shutdown = false;
 	DWORD drawJohnnyHUDOffset = 0;
 	drawJohnnyHUD_t drawJohnnyHUD = nullptr;
 	drawJohnnyHUD_t orig_drawJohnnyHUD = nullptr;
 	std::mutex orig_drawJohnnyHUDMutex;
-	uintptr_t cameraOffset = 0;
-	uintptr_t REDGameInfo_BattleOffset = 0;
-	uintptr_t REDHUD_BattleOffset = 0;
-	void* stunLeverDisplayFunc = 0;
+	DWORD cameraOffset = 0;
+	DWORD REDGameInfo_BattleOffset = 0;
+	DWORD REDHUD_BattleOffset = 0;
 private:
 	class HookHelp {
 		friend class Game;
@@ -77,6 +78,11 @@ private:
 	UWorld_Tick_t orig_UWorld_Tick = nullptr;
 	std::mutex orig_UWorld_TickMutex;
 	void UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds);
+	int float_max_bytes = 0x4f800000;
+	float float_max = (float&)float_max_bytes;
+	void drawStunLeverWithButtonMash(Entity pawn);
+	void drawStunButtonMash(Entity pawn);
+	drawStunMash_t drawStunMashPtr = nullptr;
 };
 
 extern Game game;

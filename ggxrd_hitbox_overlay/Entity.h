@@ -83,7 +83,7 @@ enum CmnActIndex {
 	CmnActWallHaritsukiLand = 0x36,  // landing on the ground from wallslump, also laying/sitting there
 	CmnActWallHaritsukiGetUp = 0x37,  // getting up after wallslump, followed by crouch2stand
 	CmnActJitabataLoop = 0x38,  // stagger (as in from Ky 5H CH) animation
-	CmnActKizetsu = 0x39,  // dizziness animation
+	CmnActKizetsu = 0x39,  // dizziness animation. You may get a jitabata first, which then transitions into kizetsu
 	CmnActHizakuzure = 0x3a,  // crumple from getting hit by max charge blitz. Is followed by CmnActFDownLoop
 	CmnActKorogari = 0x3b,  // tumbling animation
 	CmnActZSpin = 0x3c,  // happens when Haehyun airthrows you, you spin in the air around the axis perpendicular to the screen
@@ -222,6 +222,14 @@ public:
 	inline int throwMaxX() { return *(int*)(ent + 0x484); }
 	inline int throwMaxY() { return *(int*)(ent + 0x488); }
 	inline int throwMinY() { return *(int*)(ent + 0x490); }
+	// Starts at 2560 on Sol getting dizzied.
+	// On next frame decreases by 10 if you didn't press a button.
+	// On next frame doesn't decrease because you're in 27f hitstop.
+	// Starting on the frame hitstop reaches 0, including that frame, decreases by 10 every frame.
+	// When it reaches 0, you're free from dizziness.
+	// Is 0 on stagger hits (Ky CH 5H for ex.) and is not used for stagger mashing
+	inline int dizzyMashAmountLeft() { return *(int*)(ent + 0x9fcc); }
+	inline int dizzyMashAmountMax() { return *(int*)(ent + 0x9fd0); }
 
 	void getState(EntityState*) const;
 	
@@ -241,6 +249,7 @@ public:
 	int calculateGuts();
 	
 	inline char* operator+(int offset) const { return (char*)(ent + offset); }
+	inline char* operator+(DWORD offset) const { return (char*)(ent + offset); }
 
 	inline bool operator==(const Entity& other) const { return ent == other.ent; }
 	inline bool operator!=(const Entity& other) const { return ent != other.ent; }

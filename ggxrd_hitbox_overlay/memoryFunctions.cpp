@@ -66,6 +66,8 @@ bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
 // mask vector will contain an 'x' character for every non-?? byte and a '?' character for every ?? byte.
 // mask vector will be terminated with an extra 0 byte.
 void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask) {
+	sig.clear();
+	mask.clear();
 	unsigned long long accumulatedNibbles = 0;
 	int nibbleCount = 0;
 	bool nibblesUnknown = false;

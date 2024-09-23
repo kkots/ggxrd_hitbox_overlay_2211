@@ -6,7 +6,8 @@
 #include "EndScene.h"
 #include "Camera.h"
 #include "GifMode.h"
-#include "Entity.h"
+#include "WinError.h"
+#include "EntityList.h"
 
 const char** aswEngine = nullptr;
 
@@ -115,9 +116,9 @@ bool Game::onDllMain() {
 		&error, "aswEngineTickCountOffset");
 	
 
+	std::vector<char> sig;
+	std::vector<char> mask;
 	if (REDHUD_BattleOffset) {
-		std::vector<char> sig;
-		std::vector<char> mask;
 		byteSpecificationToSigMask("8b 81 ?? ?? ?? ?? f6 80 5c 04 00 00 08 74 14 8b 54 24 14 f6 82 c8 04 00 00 02",
 			sig, mask);
 		substituteWildcard(sig.data(), mask.data(), 0, (void*)REDHUD_BattleOffset);
@@ -138,13 +139,35 @@ bool Game::onDllMain() {
 		}
 	}
 	
-	/*std::vector<char> sig;
+	char _JitabataRecoverSig[] = "\0_JitabataRecover";
 	
-	uintptr_t _KizetsuRecover = sigscanBufOffset(
+	uintptr_t _JitabataRecover = sigscanBufOffset(
 		"GuiltyGearXrd.exe:.rdata",
-		sig,
-		sig.size(),
-		nullptr, "_KizetsuRecover");*/
+		_JitabataRecoverSig,
+		sizeof _JitabataRecoverSig,
+		{ 1 },
+		nullptr, "_JitabataRecover");
+	
+	uintptr_t stunmashDrawingPlace = 0;
+	
+	if (_JitabataRecover) {
+		byteSpecificationToSigMask("53 53 53 68 ?? ?? ?? ?? 6a 15",
+			sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 0, (void*)_JitabataRecover);
+		
+		stunmashDrawingPlace = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig.data(),
+			mask.data(),
+			{ 0x2b2 },
+			nullptr, "stunmashDrawingPlace");
+		
+	}
+	
+	if (stunmashDrawingPlace) {
+		drawStunMashPtr = (drawStunMash_t)followRelativeCall(stunmashDrawingPlace);
+	}
+	
 	
 	return !error;
 }
@@ -355,6 +378,14 @@ void Game::levelTickHookEmpty() {
 		char field2 = *(char*)(gameInfoBattle + 0x4c8);
 		drawJohnnyHUD((void*)(*aswEngine + drawJohnnyHUDOffset), (field1 & 0x8) != 0 && (field2 & 0x2) != 0);
 	}
+	entityList.populate();
+	for (int i = 0; i < 2; ++i) {
+		Entity pawn = entityList.slots[i];
+		if (pawn.cmnActIndex() == CmnActJitabataLoop) {
+			drawStunButtonMash(pawn);
+		}
+		drawStunLeverWithButtonMash(pawn);
+	}
 }
 
 char Game::getPlayerSide() const {
@@ -451,4 +482,27 @@ void Game::HookHelp::drawJohnnyHUDHook(int param_1) {
 	}
 	detouring.markHookRunning("drawJohnnyHUD", false);
 	--detouring.hooksCounter;
+}
+
+void Game::drawStunLeverWithButtonMash(Entity pawn) {
+	if (!drawStunMashPtr) return;
+	if (pawn.hp() * 10000 / 420 <= 0) return;
+	int dizzyMashAmountLeft = pawn.dizzyMashAmountLeft();
+	if (dizzyMashAmountLeft <= 0) return;
+	float bar = (float)dizzyMashAmountLeft / (float)pawn.dizzyMashAmountMax();
+	drawStunMashPtr((void*)pawn, bar, true, true);
+}
+
+void Game::drawStunButtonMash(Entity pawn) {
+	if (!drawStunMashPtr) return;
+	if (pawn.hp() * 10000 / 420 <= 0) return;
+	if ((*(DWORD*)(pawn + 0x710 + 0x14) & 0x8000000) != 0) return;
+	if (pawn.dizzyMashAmountLeft() > 0) return;
+	int field = *(int*)(pawn + 0x710 + 0x168);
+	int amount = pawn.currentAnimDuration() - *(int*)(pawn + 0x24e04) / 10 - 1 + field;
+	float bar = (float)amount;
+	if (amount < 0) {
+		bar = float_max;
+	}
+	drawStunMashPtr((void*)pawn, 1.F - bar / (float)field, true, false);
 }
