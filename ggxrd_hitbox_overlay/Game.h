@@ -18,7 +18,7 @@ using getTrainingHudArgument_t = char*(__cdecl*)(void);
 using updateAnimations_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
 using destroyAswEngine_t = void(__cdecl*)(void);
 using UWorld_Tick_t = void(__thiscall*)(void* thisArg, ELevelTick TickType, float DeltaSeconds);
-using drawJohnnyHUD_t = void(__thiscall*)(void* thisArg, int param_1);
+using drawExGaugeHUD_t = void(__thiscall*)(void* thisArg, int param_1);
 using drawStunMash_t = void(__thiscall*)(void* pawn, float bar, BOOL withBar, BOOL withLever);
 
 class Game {
@@ -38,10 +38,10 @@ public:
 	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
 	DWORD aswEngineTickCountOffset = 0;
 	bool shutdown = false;
-	DWORD drawJohnnyHUDOffset = 0;
-	drawJohnnyHUD_t drawJohnnyHUD = nullptr;
-	drawJohnnyHUD_t orig_drawJohnnyHUD = nullptr;
-	std::mutex orig_drawJohnnyHUDMutex;
+	DWORD drawExGaugeHUDOffset = 0;
+	drawExGaugeHUD_t drawExGaugeHUD = nullptr;
+	drawExGaugeHUD_t orig_drawExGaugeHUD = nullptr;
+	std::mutex orig_drawExGaugeHUDMutex;
 	DWORD cameraOffset = 0;
 	DWORD REDGameInfo_BattleOffset = 0;
 	DWORD REDHUD_BattleOffset = 0;
@@ -50,7 +50,7 @@ private:
 		friend class Game;
 		void updateBattleOfflineVerHook(int param1);
 		void UWorld_TickHook(ELevelTick TickType, float DeltaSeconds);
-		void drawJohnnyHUDHook(int param_1);
+		void drawExGaugeHUDHook(int param_1);
 	};
 	bool sigscanFrameByFraming();
 	void hookFrameByFraming();

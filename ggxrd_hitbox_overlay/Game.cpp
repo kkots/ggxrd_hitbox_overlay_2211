@@ -122,20 +122,20 @@ bool Game::onDllMain() {
 		byteSpecificationToSigMask("8b 81 ?? ?? ?? ?? f6 80 5c 04 00 00 08 74 14 8b 54 24 14 f6 82 c8 04 00 00 02",
 			sig, mask);
 		substituteWildcard(sig.data(), mask.data(), 0, (void*)REDHUD_BattleOffset);
-		uintptr_t drawJohnnyHUDCallPlace = sigscanOffset(
+		uintptr_t drawExGaugeHUDCallPlace = sigscanOffset(
 			"GuiltyGearXrd.exe",
 			sig.data(),
 			mask.data(),
-			nullptr, "drawJohnnyHUDCallPlace");
-		if (drawJohnnyHUDCallPlace) {
-			drawJohnnyHUDOffset = *(DWORD*)(drawJohnnyHUDCallPlace + 40);
-			drawJohnnyHUD = (drawJohnnyHUD_t)followRelativeCall(drawJohnnyHUDCallPlace + 44);
+			nullptr, "drawExGaugeHUDCallPlace");
+		if (drawExGaugeHUDCallPlace) {
+			drawExGaugeHUDOffset = *(DWORD*)(drawExGaugeHUDCallPlace + 40);
+			drawExGaugeHUD = (drawExGaugeHUD_t)followRelativeCall(drawExGaugeHUDCallPlace + 44);
 			
-			void(HookHelp::*drawJohnnyHUDHookPtr)(int param_1) = &HookHelp::drawJohnnyHUDHook;
-			detouring.attach(&(PVOID&)(orig_drawJohnnyHUD),
-				(PVOID&)drawJohnnyHUDHookPtr,
-				&orig_drawJohnnyHUDMutex,
-				"drawJohnnyHUD");
+			void(HookHelp::*drawExGaugeHUDHookPtr)(int param_1) = &HookHelp::drawExGaugeHUDHook;
+			detouring.attach(&(PVOID&)(orig_drawExGaugeHUD),
+				(PVOID&)drawExGaugeHUDHookPtr,
+				&orig_drawExGaugeHUDMutex,
+				"drawExGaugeHUD");
 		}
 	}
 	
@@ -371,12 +371,12 @@ void Game::levelTickHookEmpty() {
 	if (getTrainingHudArgument) {
 		trainingHudTick(getTrainingHudArgument());
 	}
-	if (drawJohnnyHUD) {
+	if (drawExGaugeHUD) {
 		char* battleHud = *(char**)(*aswEngine + REDHUD_BattleOffset);
 		char field1 = *(char*)(battleHud + 0x45c);
 		char* gameInfoBattle = *(char**)(*aswEngine + REDGameInfo_BattleOffset);
 		char field2 = *(char*)(gameInfoBattle + 0x4c8);
-		drawJohnnyHUD((void*)(*aswEngine + drawJohnnyHUDOffset), (field1 & 0x8) != 0 && (field2 & 0x2) != 0);
+		drawExGaugeHUD((void*)(*aswEngine + drawExGaugeHUDOffset), (field1 & 0x8) != 0 && (field2 & 0x2) != 0);
 	}
 	entityList.populate();
 	for (int i = 0; i < 2; ++i) {
@@ -473,14 +473,14 @@ void Game::HookHelp::UWorld_TickHook(ELevelTick TickType, float DeltaSeconds) {
 	game.UWorld_TickHook(this, TickType, DeltaSeconds);
 }
 
-void Game::HookHelp::drawJohnnyHUDHook(int param_1) {
+void Game::HookHelp::drawExGaugeHUDHook(int param_1) {
 	++detouring.hooksCounter;
-	detouring.markHookRunning("drawJohnnyHUD", true);
+	detouring.markHookRunning("drawExGaugeHUD", true);
 	if (gifMode.modDisabled || !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
-		std::unique_lock<std::mutex> guard(game.orig_drawJohnnyHUDMutex);
-		game.orig_drawJohnnyHUD((void*)this, param_1);
+		std::unique_lock<std::mutex> guard(game.orig_drawExGaugeHUDMutex);
+		game.orig_drawExGaugeHUD((void*)this, param_1);
 	}
-	detouring.markHookRunning("drawJohnnyHUD", false);
+	detouring.markHookRunning("drawExGaugeHUD", false);
 	--detouring.hooksCounter;
 }
 
