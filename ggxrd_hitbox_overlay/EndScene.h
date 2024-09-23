@@ -9,7 +9,7 @@
 #include "DrawTextWithIconsParams.h"
 #include "PlayerInfo.h"
 
-using SendUnrealPawnData_t = void(__thiscall*)(char* thisArg);
+using USkeletalMeshComponent_UpdateTransform_t = void(__thiscall*)(char* thisArg);
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using endSceneCaller_t = void(__thiscall*)(void* thisArg, int param1, int param2, int param3);
@@ -33,10 +33,10 @@ public:
 	void endSceneHook(IDirect3DDevice9* device);
 	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
 	bool didHit(Entity attacker);
-	SendUnrealPawnData_t orig_SendUnrealPawnData = nullptr;
-	std::mutex orig_SendUnrealPawnDataMutex;
-	bool orig_SendUnrealPawnDataMutexLocked = false;
-	DWORD orig_SendUnrealPawnDataMutexThreadId = NULL;
+	USkeletalMeshComponent_UpdateTransform_t orig_USkeletalMeshComponent_UpdateTransform = nullptr;
+	std::mutex orig_USkeletalMeshComponent_UpdateTransformMutex;
+	bool orig_USkeletalMeshComponent_UpdateTransformMutexLocked = false;
+	DWORD orig_USkeletalMeshComponent_UpdateTransformMutexThreadId = NULL;
 	ReadUnrealPawnData_t orig_ReadUnrealPawnData = nullptr;
 	std::mutex orig_ReadUnrealPawnDataMutex;
 	WNDPROC orig_WndProc = nullptr;
@@ -59,13 +59,13 @@ private:
 	void actUponKeyStrokesThatAlreadyHappened();
 	class HookHelp {
 		friend class EndScene;
-		void sendUnrealPawnDataHook();
+		void USkeletalMeshComponent_UpdateTransformHook();
 		void readUnrealPawnDataHook();
 		void drawTrainingHudHook();
 		void endSceneCallerHook(int param1, int param2, int param3);
 		void BBScr_createObjectWithArgHook(char* animName, unsigned int posType);
 	};
-	void sendUnrealPawnDataHook(char* thisArg);
+	void USkeletalMeshComponent_UpdateTransformHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createObjectWithArgHook(Entity pawn, char* animName, unsigned int posType);

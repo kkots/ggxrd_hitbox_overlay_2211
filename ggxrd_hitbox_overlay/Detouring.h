@@ -88,3 +88,16 @@ private:
 };
 
 extern Detouring detouring;
+
+class HookGuard {
+public:
+	inline HookGuard(const char* name) : name(name) {
+		++detouring.hooksCounter;
+		detouring.markHookRunning(name, true);
+	}
+	inline ~HookGuard() {
+		detouring.markHookRunning(name, false);
+		--detouring.hooksCounter;
+	}
+	const char* name = nullptr;
+};

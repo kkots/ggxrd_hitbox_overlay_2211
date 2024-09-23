@@ -44,11 +44,25 @@ bool Game::onDllMain() {
 	}
 	
 	if (orig_UWorld_Tick) {
+		
+		uintptr_t IsPausedCallPlace = sigscanForward((uintptr_t)orig_UWorld_Tick, "e8 ?? ?? ?? ?? 85 c0");
+		if (IsPausedCallPlace) {
+			orig_UWorld_IsPaused = (UWorld_IsPaused_t)followRelativeCall(IsPausedCallPlace);
+		}
+		
 		void(HookHelp::*UWorld_TickHookPtr)(ELevelTick TickType, float DeltaSeconds) = &HookHelp::UWorld_TickHook;
 		detouring.attach(&(PVOID&)(orig_UWorld_Tick),
 			(PVOID&)UWorld_TickHookPtr,
 			&orig_UWorld_TickMutex,
 			"UWorld_Tick");
+	}
+	
+	if (orig_UWorld_IsPaused) {
+		bool(HookHelp::*UWorld_IsPausedHookPtr)() = &HookHelp::UWorld_IsPausedHook;
+		detouring.attach(&(PVOID&)(orig_UWorld_IsPaused),
+			(PVOID&)UWorld_IsPausedHookPtr,
+			&orig_UWorld_IsPausedMutex,
+			"UWorld_IsPaused");
 	}
 	
 	if (!error && sigscanFrameByFraming()) {
@@ -175,11 +189,11 @@ bool Game::onDllMain() {
 bool Game::sigscanFrameByFraming() {
 	bool error = false;
 
-	// levelTick is called by ULevel::Tick which is called by UGameEngine::Tick
-	orig_levelTick = (levelTick_t)sigscanOffset(
+	// TickActors<FDeferredTickList::FGlobalActorIterator>
+	orig_TickActors_FDeferredTickList_FGlobalActorIterator = (TickActors_FDeferredTickList_FGlobalActorIterator_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"83 ec 18 53 55 57 8b 7c 24 28 8b 87 48 01 00 00 33 db 89 9f 44 01 00 00 3b c3 7d 22 8b 87 40 01 00 00 89 9f 48 01 00 00 3b c3 74 12 6a 08",
-		&error, "levelTick");
+		&error, "TickActors_FDeferredTickList_FGlobalActorIterator");
 	
 	uintptr_t trainingHudCallPlace = sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -205,21 +219,21 @@ bool Game::sigscanFrameByFraming() {
 		&error, "updateBattleOfflineVer") - 0x30) & 0xFFFFFFF0);
 	logwrap(fprintf(logfile, "Final location of updateBattleOfflineVer: %p\n", orig_updateBattleOfflineVer));
 
-	orig_updateAnimations = (updateAnimations_t)sigscanOffset(
+	orig_TickActorComponents = (TickActorComponents_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"57 bf 01 00 00 00 39 7c 24 20 75 18 8b 06 8b 90 ec 01 00 00 8b ce ff d2 c7 44 24 10 00 00 00 00",
 		{ -8 },
-		&error, "updateAnimations");
+		&error, "TickActorComponents");
 
 	return !error;
 }
 
 void Game::hookFrameByFraming() {
 	
-	detouring.attach(&(PVOID&)(orig_levelTick),
-		Game::levelTickHookStatic,
-		&orig_levelTickMutex,
-		"levelTick");
+	detouring.attach(&(PVOID&)(orig_TickActors_FDeferredTickList_FGlobalActorIterator),
+		Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookStatic,
+		&orig_TickActors_FDeferredTickList_FGlobalActorIteratorMutex,
+		"TickActors_FDeferredTickList_FGlobalActorIterator");
 
 	void(HookHelp::*updateBattleOfflineVerHookPtr)(int param1) = &HookHelp::updateBattleOfflineVerHook;
 	detouring.attach(&(PVOID&)orig_updateBattleOfflineVer,
@@ -227,29 +241,19 @@ void Game::hookFrameByFraming() {
 		&orig_updateBattleOfflineVerMutex,
 		"updateBattleOfflineVer");
 
-	detouring.attach(&(PVOID&)(orig_updateAnimations),
-		Game::updateAnimationsHookStatic,
-		&orig_updateAnimationsMutex,
-		"updateAnimations");
+	detouring.attach(&(PVOID&)(orig_TickActorComponents),
+		Game::TickActorComponentsHookStatic,
+		&orig_TickActorComponentsMutex,
+		"TickActorComponents");
 
 }
 
-void Game::updateAnimationsHookStatic(int param1, int param2, int param3, int param4) {
-	class HookTracker {
-	public:
-		HookTracker() {
-			++detouring.hooksCounter;
-			detouring.markHookRunning("updateAnimations", true);
-		}
-		~HookTracker() {
-			--detouring.hooksCounter;
-			detouring.markHookRunning("updateAnimations", false);
-		}
-	} hookTracker;
-	game.updateAnimationsHook(param1, param2, param3, param4);
+void Game::TickActorComponentsHookStatic(int param1, int param2, int param3, int param4) {
+	HookGuard hookGuard("TickActorComponents");
+	game.TickActorComponentsHook(param1, param2, param3, param4);
 }
 
-void Game::updateAnimationsHook(int param1, int param2, int param3, int param4) {
+void Game::TickActorComponentsHook(int param1, int param2, int param3, int param4) {
 	if (!shutdown) {
 		if (ignoreAllCalls) {
 			if (needToCallEndSceneLogic) {
@@ -260,23 +264,13 @@ void Game::updateAnimationsHook(int param1, int param2, int param3, int param4) 
 		}
 	}
 	{
-		std::unique_lock<std::mutex> guard(orig_updateAnimationsMutex);
-		orig_updateAnimations(param1, param2, param3, param4);
+		std::unique_lock<std::mutex> guard(orig_TickActorComponentsMutex);
+		orig_TickActorComponents(param1, param2, param3, param4);
 	}
 }
 
 void Game::HookHelp::updateBattleOfflineVerHook(int param1) {
-	class HookTracker {
-	public:
-		HookTracker() {
-			++detouring.hooksCounter;
-			detouring.markHookRunning("updateBattleOfflineVer", true);
-		}
-		~HookTracker() {
-			--detouring.hooksCounter;
-			detouring.markHookRunning("updateBattleOfflineVer", false);
-		}
-	} hookTracker;
+	HookGuard hookGuard("updateBattleOfflineVer");
 	return game.updateBattleOfflineVerHook((char*)this, param1);
 }
 
@@ -293,81 +287,47 @@ void Game::updateBattleOfflineVerHook(char* thisArg, int param1) {
 	}
 }
 
-void Game::levelTickHookStatic(int param1, int param2, int param3, int param4) {
-	class HookTracker {
-	public:
-		HookTracker() {
-			++detouring.hooksCounter;
-			detouring.markHookRunning("levelTick", true);
-		}
-		~HookTracker() {
-			detouring.markHookRunning("levelTick", false);
-			--detouring.hooksCounter;
-		}
-	} hookTracker;
-	game.levelTickHook(param1, param2, param3, param4);
+void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookStatic(int param1, int param2, int param3, int param4) {
+	HookGuard hookGuard("TickActors_FDeferredTickList_FGlobalActorIterator");
+	game.TickActors_FDeferredTickList_FGlobalActorIteratorHook(param1, param2, param3, param4);
 }
 
-void Game::levelTickHook(int param1, int param2, int param3, int param4) {
+void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int param2, int param3, int param4) {
 	// Approximate order in which things get called:
 	// 1) This hook gets called in the game logic thread
 	// 2) The hooked function calls updateBattleOfflineVerHook
-	// 3) After updateBattleOfflineVerHook ends, updateAnimationsHook gets called many times in one frame
+	// 3) After updateBattleOfflineVerHook ends, TickActorComponentsHook gets called many times in one frame
 	// 4) This hook ends
-	// 5) updateAnimationsHook gets called some more times
-	// 6) sendUnrealPawnDataHook in EndScene.cpp fires off many times, among which is the one entity that it tracks (once per frame), and the boxes data gets prepared
+	// 5) TickActorComponentsHook gets called some more times
+	// 6) USkeletalMeshComponent_UpdateTransformHook in EndScene.cpp fires off many times, among which is the one entity that it tracks (once per frame), and the boxes data gets prepared
 	// 6.5) Meanwhile, in GUI thread, readUnrealPawnDataHook in EndScene.cpp gets called many times, and reads that data in one of the calls
 	// 7) The camera hook gets called in the game logic thread which prepares the camera data for this frame. The problem is that some unknown functions send and receive data for it.
-	//    It is certain that sendUnrealPawnDataHook/readUnrealPawnDataHook do not handle the camera data.
+	//    It is certain that USkeletalMeshComponent_UpdateTransformHook/readUnrealPawnDataHook do not handle the camera data.
 	//    We only know for sure that by the time EndScene is called, the camera data is already transferred to GUI thread.
 
 	// In rollback-affected online matches, the camera code runs multiple times per frame, from oldest frame to latest.
 	// However, the pawn data is always sent only once per frame.
-	// It is also certain that in rollback-affected matches, camera code runs first, and only then sendUnrealPawnDataHook/readUnrealPawnDataHook happen.
+	// It is also certain that in rollback-affected matches, camera code runs first, and only then USkeletalMeshComponent_UpdateTransformHook/readUnrealPawnDataHook happen.
 	// 
-	// When game pause menu is open in single player, sendUnrealPawnDataHook does not get called, which means the mod can't process hotkeys.
-
+	// When game pause menu is open in single player, USkeletalMeshComponent_UpdateTransformHook does not get called, which means the mod can't process hotkeys.
 	if (!shutdown) {
-		ignoreAllCalls = false;
-		needToCallEndSceneLogic = false;
-		endScene.butDontPrepareBoxData = false;
-		camera.butDontPrepareBoxData = false;
-		if (freezeGame && *aswEngine) {
-			slowmoSkipCounter = 0;
-			if (!allowNextFrame) {
-				ignoreAllCalls = true;
-			}
-			allowNextFrame = false;
-		}
-		if (slowmoGame && *aswEngine) {
-			++slowmoSkipCounter;
-			if ((int)slowmoSkipCounter < settings.slowmoTimes) {
-				ignoreAllCalls = true;
-			} else {
-				slowmoSkipCounter = 0;
-			}
-		} else {
-			slowmoSkipCounter = 0;
-		}
-		if (ignoreAllCalls) {
-			needToCallEndSceneLogic = true;
-			endScene.butDontPrepareBoxData = true;
-			camera.butDontPrepareBoxData = true;
-		}
+		ignoreAllCalls = ignoreAllCallsButEarlier;
+		needToCallEndSceneLogic = ignoreAllCallsButEarlier;
+		endScene.butDontPrepareBoxData = ignoreAllCallsButEarlier;
+		camera.butDontPrepareBoxData = ignoreAllCallsButEarlier;
 	}
 	{
-		std::unique_lock<std::mutex> guard(orig_levelTickMutex);
-		orig_levelTick(param1, param2, param3, param4);
+		std::unique_lock<std::mutex> guard(orig_TickActors_FDeferredTickList_FGlobalActorIteratorMutex);
+		orig_TickActors_FDeferredTickList_FGlobalActorIterator(param1, param2, param3, param4);
 	}
 	if (!shutdown) {
 		if (ignoreAllCalls) {
-			levelTickHookEmpty();
+			TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty();
 		}
-		ignoreAllCalls = false;
 	}
 }
 
-void Game::levelTickHookEmpty() {
+void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty() {
 	if (getTrainingHudArgument) {
 		trainingHudTick(getTrainingHudArgument());
 	}
@@ -435,8 +395,7 @@ int Game::getBurst(int team) const {
 }
 
 void Game::destroyAswEngineHook() {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("destroyAswEngine", true);
+	HookGuard hookGuard("destroyAswEngine");
 	if (!game.shutdown) {
 		if (*aswEngine) {
 			logwrap(fputs("Asw Engine destroyed\n", logfile));
@@ -447,13 +406,33 @@ void Game::destroyAswEngineHook() {
 		std::unique_lock<std::mutex> guard(game.orig_destroyAswEngineMutex);
 		game.orig_destroyAswEngine();
 	}
-	detouring.markHookRunning("destroyAswEngine", false);
-	--detouring.hooksCounter;
 }
 
 void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("UWorld_Tick", true);
+	HookGuard hookGuard("UWorld_Tick");
+	IsPausedCallCount = 0;
+	
+	if (!shutdown) {
+		ignoreAllCallsButEarlier = false;
+		if (freezeGame && *aswEngine) {
+			slowmoSkipCounter = 0;
+			if (!allowNextFrame) {
+				ignoreAllCallsButEarlier = true;
+			}
+			allowNextFrame = false;
+		}
+		if (slowmoGame && *aswEngine) {
+			++slowmoSkipCounter;
+			if ((int)slowmoSkipCounter < settings.slowmoTimes) {
+				ignoreAllCallsButEarlier = true;
+			} else {
+				slowmoSkipCounter = 0;
+			}
+		} else {
+			slowmoSkipCounter = 0;
+		}
+	}
+	
 	bool hadAsw = *aswEngine != nullptr;
 	endScene.onUWorld_TickBegin();
 	{
@@ -465,8 +444,7 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		logwrap(fputs("Asw Engine destroyed\n", logfile));
 		endScene.onAswEngineDestroyed();
 	}
-	detouring.markHookRunning("UWorld_Tick", false);
-	--detouring.hooksCounter;
+	ignoreAllCalls = false;
 }
 
 void Game::HookHelp::UWorld_TickHook(ELevelTick TickType, float DeltaSeconds) {
@@ -474,14 +452,11 @@ void Game::HookHelp::UWorld_TickHook(ELevelTick TickType, float DeltaSeconds) {
 }
 
 void Game::HookHelp::drawExGaugeHUDHook(int param_1) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("drawExGaugeHUD", true);
+	HookGuard hookGuard("drawExGaugeHUD");
 	if (gifMode.modDisabled || !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
 		std::unique_lock<std::mutex> guard(game.orig_drawExGaugeHUDMutex);
 		game.orig_drawExGaugeHUD((void*)this, param_1);
 	}
-	detouring.markHookRunning("drawExGaugeHUD", false);
-	--detouring.hooksCounter;
 }
 
 void Game::drawStunLeverWithButtonMash(Entity pawn) {
@@ -505,4 +480,21 @@ void Game::drawStunButtonMash(Entity pawn) {
 		bar = float_max;
 	}
 	drawStunMashPtr((void*)pawn, 1.F - bar / (float)field, true, false);
+}
+
+bool Game::HookHelp::UWorld_IsPausedHook() {
+	HookGuard hookGuard("UWorld_IsPaused");
+	// This function is called from UWorld::Tick several times.
+	
+	// If UWorld->DemoRecDriver is not nullptr, we might get an extra call at the start that messes us up.
+	// It's a: 'Fake NetDriver for capturing network traffic to record demos'.
+	// Probably will never be non-0.
+	++game.IsPausedCallCount;
+	if (!game.shutdown && game.IsPausedCallCount == 2) {
+		if (game.ignoreAllCallsButEarlier) {
+			return true;
+		}
+	}
+	std::unique_lock<std::mutex> guard(game.orig_UWorld_IsPausedMutex);
+	return game.orig_UWorld_IsPaused((void*)this);
 }

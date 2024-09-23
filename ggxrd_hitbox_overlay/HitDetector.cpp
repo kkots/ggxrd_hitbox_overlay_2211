@@ -46,17 +46,7 @@ void HitDetector::clearAllBoxes() {
 }
 
 HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr) {
-	class HookTracker {
-	public:
-		HookTracker() {
-			++detouring.hooksCounter;
-			detouring.markHookRunning("determineHitType", true);
-		}
-		~HookTracker() {
-			detouring.markHookRunning("determineHitType", false);
-			--detouring.hooksCounter;
-		}
-	} hookTracker;
+	HookGuard hookGuard("determineHitType");
 	HitResult result;
 	{
 		std::unique_lock<std::mutex> guard(hitDetector.orig_determineHitTypeMutex);

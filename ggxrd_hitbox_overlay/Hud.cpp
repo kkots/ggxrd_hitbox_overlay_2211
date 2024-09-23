@@ -30,11 +30,8 @@ bool Hud::onDllMain() {
 }
 
 void Hud::HookHelp::REDHUDBattleUpdateAllHook() {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("REDHUDBattleUpdateAll", true);
+	HookGuard hookGuard("REDHUDBattleUpdateAll");
 	hud.REDHUDBattleUpdateAllHook((char*)this);
-	detouring.markHookRunning("REDHUDBattleUpdateAll", false);
-	--detouring.hooksCounter;
 }
 
 void Hud::REDHUDBattleUpdateAllHook(char* thisArg) {

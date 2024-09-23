@@ -81,19 +81,18 @@ bool EndScene::onDllMain() {
 		}
 	}
 	
-	// SendUnrealPawnData is USkeletalMeshComponent::UpdateTransform()
-	orig_SendUnrealPawnData = (SendUnrealPawnData_t)sigscanOffset(
+	orig_USkeletalMeshComponent_UpdateTransform = (USkeletalMeshComponent_UpdateTransform_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"8b 0d ?? ?? ?? ?? 33 db 53 e8 ?? ?? ?? ?? f3 0f 10 80 24 04 00 00 f3 0f 5c 05 ?? ?? ?? ?? f3 0f 10 8e d0 01 00 00 0f 2f c8 76 05 8d 43 01 eb 02",
 		{ -0x11 },
-		&error, "SendUnrealPawnData");
+		&error, "USkeletalMeshComponent_UpdateTransform");
 
-	if (orig_SendUnrealPawnData) {
-		void (HookHelp::*sendUnrealPawnDataHookPtr)(void) = &HookHelp::sendUnrealPawnDataHook;
-		if (!detouring.attach(&(PVOID&)orig_SendUnrealPawnData,
-			(PVOID&)sendUnrealPawnDataHookPtr,
-			&orig_SendUnrealPawnDataMutex,
-			"SendUnrealPawnData")) return false;
+	if (orig_USkeletalMeshComponent_UpdateTransform) {
+		void (HookHelp::*USkeletalMeshComponent_UpdateTransformHookPtr)(void) = &HookHelp::USkeletalMeshComponent_UpdateTransformHook;
+		if (!detouring.attach(&(PVOID&)orig_USkeletalMeshComponent_UpdateTransform,
+			(PVOID&)USkeletalMeshComponent_UpdateTransformHookPtr,
+			&orig_USkeletalMeshComponent_UpdateTransformMutex,
+			"USkeletalMeshComponent_UpdateTransform")) return false;
 	}
 
 	orig_ReadUnrealPawnData = (ReadUnrealPawnData_t)sigscanOffset(
@@ -192,51 +191,42 @@ bool EndScene::onDllDetach() {
 	return true;
 }
 
-void EndScene::HookHelp::sendUnrealPawnDataHook() {
+void EndScene::HookHelp::USkeletalMeshComponent_UpdateTransformHook() {
 	// this gets called many times every frame, presumably once per entity, but there're way more entities and they're not in the entityList.list
-	++detouring.hooksCounter;
-	detouring.markHookRunning("SendUnrealPawnData", true);
+	HookGuard hookGuard("USkeletalMeshComponent_UpdateTransform");
 	if (!endScene.shutdown && !graphics.shutdown) {
-		endScene.sendUnrealPawnDataHook((char*)this);
+		endScene.USkeletalMeshComponent_UpdateTransformHook((char*)this);
 	}
 	{
 		bool needToUnlock = false;
-		if (!endScene.orig_SendUnrealPawnDataMutexLocked || endScene.orig_SendUnrealPawnDataMutexThreadId != GetCurrentThreadId()) {
+		if (!endScene.orig_USkeletalMeshComponent_UpdateTransformMutexLocked || endScene.orig_USkeletalMeshComponent_UpdateTransformMutexThreadId != GetCurrentThreadId()) {
 			needToUnlock = true;
-			endScene.orig_SendUnrealPawnDataMutex.lock();
-			endScene.orig_SendUnrealPawnDataMutexLocked = true;
-			endScene.orig_SendUnrealPawnDataMutexThreadId = GetCurrentThreadId();
+			endScene.orig_USkeletalMeshComponent_UpdateTransformMutex.lock();
+			endScene.orig_USkeletalMeshComponent_UpdateTransformMutexLocked = true;
+			endScene.orig_USkeletalMeshComponent_UpdateTransformMutexThreadId = GetCurrentThreadId();
 		}
-		endScene.orig_SendUnrealPawnData((char*)this);  // this method likes to call itself
+		endScene.orig_USkeletalMeshComponent_UpdateTransform((char*)this);  // this method likes to call itself
 		if (needToUnlock) {
-			endScene.orig_SendUnrealPawnDataMutexLocked = false;
-			endScene.orig_SendUnrealPawnDataMutex.unlock();
+			endScene.orig_USkeletalMeshComponent_UpdateTransformMutexLocked = false;
+			endScene.orig_USkeletalMeshComponent_UpdateTransformMutex.unlock();
 		}
 	}
-	detouring.markHookRunning("SendUnrealPawnData", false);
-	--detouring.hooksCounter;
 }
 
 void EndScene::HookHelp::readUnrealPawnDataHook() {
-	// this read happens many times every frame and it appears to be synchronized with sendUnrealPawnDataHook via a simple SetEvent.
+	// this read happens many times every frame and it appears to be synchronized with USkeletalMeshComponent_UpdateTransformHook via a simple SetEvent.
 	// the model we built might not be super precise and probably is not how the game sends data over from the logic thread to the graphics thread,
 	// but it's precise enough to never fail so we'll keep using it
-	++detouring.hooksCounter;
-	detouring.markHookRunning("ReadUnrealPawnData", true);
+	HookGuard hookGuard("ReadUnrealPawnData");
 	endScene.readUnrealPawnDataHook((char*)this);
-	detouring.markHookRunning("ReadUnrealPawnData", false);
-	--detouring.hooksCounter;
 }
 
 void EndScene::HookHelp::drawTrainingHudHook() {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("drawTrainingHud", true);
+	HookGuard hookGuard("drawTrainingHud");
 	endScene.drawTrainingHudHook((char*)this);
-	detouring.markHookRunning("drawTrainingHud", false);
-	--detouring.hooksCounter;
 }
 
-void EndScene::sendUnrealPawnDataHook(char* thisArg) {
+void EndScene::USkeletalMeshComponent_UpdateTransformHook(char* thisArg) {
 	if (*aswEngine == nullptr) return;
 	entityList.populate();
 	if (entityList.count < 1) return;
@@ -1240,12 +1230,9 @@ LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 
 // WndProc runs the game logic
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("WndProc", true);
+	HookGuard hookGuard("WndProc");
 	if (!shutdown) {
 		if (!ui.shutdownGraphics && ui.WndProc(hWnd, message, wParam, lParam)) {
-			detouring.markHookRunning("WndProc", false);
-			--detouring.hooksCounter;
 			return TRUE;
 		}
 		
@@ -1277,8 +1264,6 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		orig_WndProcMutex.unlock();
 		orig_WndProcMutexLockedByWndProc = false;
 	}
-	detouring.markHookRunning("WndProc", false);
-	--detouring.hooksCounter;
 	return result;
 }
 
@@ -1484,8 +1469,7 @@ void EndScene::onUWorld_Tick() {
 }
 
 void EndScene::HookHelp::endSceneCallerHook(int param1, int param2, int param3) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("endSceneCaller", true);
+	HookGuard hookGuard("endSceneCaller");
 	IDirect3DDevice9* device = *(IDirect3DDevice9**)((char*)this + 0x24);
 	if (!endScene.shutdown && !graphics.shutdown) {
 		endScene.endSceneHook(device);
@@ -1506,13 +1490,10 @@ void EndScene::HookHelp::endSceneCallerHook(int param1, int param2, int param3) 
 			graphics.needNewCameraData = true;
 		}
 	}
-	detouring.markHookRunning("endSceneCaller", false);
-	--detouring.hooksCounter;
 }
 
 void EndScene::HookHelp::BBScr_createObjectWithArgHook(char* animName, unsigned int posType) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("BBScr_createObjectWithArg", true);
+	HookGuard hookGuard("BBScr_createObjectWithArg");
 	{
 		static bool imHoldingTheLock = false;
 		bool needUnlock = false;
@@ -1530,8 +1511,6 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(char* animName, unsigned 
 	if (!endScene.shutdown) {
 		endScene.BBScr_createObjectWithArgHook(Entity{(char*)this}, animName, posType);
 	}
-	detouring.markHookRunning("BBScr_createObjectWithArg", false);
-	--detouring.hooksCounter;
 }
 
 void EndScene::BBScr_createObjectWithArgHook(Entity pawn, char* animName, unsigned int posType) {

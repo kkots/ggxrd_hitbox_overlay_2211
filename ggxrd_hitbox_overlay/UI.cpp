@@ -1396,16 +1396,13 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 }
 
 SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("GetKeyState", true);
+	HookGuard hookGuard("GetKeyState");
 	SHORT result;
 	if (ui.imguiActive) {
 		result = 0;
 	} else {
 		result = GetKeyState(nVirtKey);
 	}
-	detouring.markHookRunning("GetKeyState", false);
-	--detouring.hooksCounter;
 	return result;
 }
 

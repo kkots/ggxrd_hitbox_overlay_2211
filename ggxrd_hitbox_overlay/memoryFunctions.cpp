@@ -126,6 +126,11 @@ uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
 		return 0;
 	}
 	
+	return sigscan(start, end, sig, sigLength);
+}
+
+uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength) {
+	
 	// Boyer-Moore-Horspool substring search
 	// A table containing, for each symbol in the alphabet, the number of characters that can safely be skipped
 	size_t step[256];
@@ -179,7 +184,11 @@ uintptr_t sigscan(const char* name, const char* sig, const char* mask)
 		logwrap(fputs("Module not loaded\n", logfile));
 		return 0;
 	}
+	
+	return sigscan(start, end, sig, mask);
+}
 
+uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask) {
 	const auto lastScan = end - strlen(mask) + 1;
 	for (auto addr = start; addr < lastScan; addr++) {
 		for (size_t i = 0;; i++) {
@@ -382,8 +391,9 @@ char* scrollUpToInt3(char* ptr) {
 	return ptr;
 }
 
-char* scrollUpToBytes(char *ptr, const char* buf, int bufSize, int limit) {
-	while (--limit >= 0) {
+char* scrollUpToBytes(char *ptr, const char* buf, int bufSize, size_t searchLimit) {
+	while (searchLimit) {
+		--searchLimit;
 		bool match = true;
 		const char* ptrPtr = ptr;
 		const char* bufPtr = buf;
@@ -399,4 +409,24 @@ char* scrollUpToBytes(char *ptr, const char* buf, int bufSize, int limit) {
 		--ptr;
 	}
 	return nullptr;
+}
+
+uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit) {
+	std::vector<char> sig;
+	std::vector<char> mask;
+	byteSpecificationToSigMask(byteSpecification, sig, mask);
+	if (findChar(mask.data(), '?') == -1) {
+		return sigscan(ptr, ptr + searchLimit, sig.data(), sig.size() - 1);
+	} else {
+		return sigscan(ptr, ptr + searchLimit, sig.data(), mask.data());
+	}
+}
+
+uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_t searchLimit) {
+	if (findChar(mask, '?') == -1) {
+		size_t strLen = strlen(mask);
+		return sigscan(ptr, ptr + searchLimit, sig, strLen);
+	} else {
+		return sigscan(ptr, ptr + searchLimit, sig, mask);
+	}
 }

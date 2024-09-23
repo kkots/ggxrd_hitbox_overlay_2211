@@ -19,6 +19,7 @@
 #include <fcntl.h>  // for _O_APPEND
 #include "imgui.h"
 #include "UI.h"
+#include "WinError.h"
 
 static void closeLog();
 
@@ -38,6 +39,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 				GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
 				FILE_ATTRIBUTE_NORMAL, NULL);
 			if (fileHandle == INVALID_HANDLE_VALUE) {
+				WinError winErr;
+				char winErrStr[1024];
+				sprintf_s(winErrStr, "Failed to open log: %ls", winErr.getMessage());
 				return FALSE;
 			}
 			int fileDesc = _open_osfhandle((intptr_t)fileHandle, _O_APPEND | _O_TEXT);

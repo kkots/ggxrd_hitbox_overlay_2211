@@ -47,8 +47,7 @@ bool Graphics::onDllMain(HMODULE hMod) {
 }
 
 void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
-	++detouring.hooksCounter;
-	detouring.markHookRunning("UpdateD3DDeviceFromViewports", true);
+	HookGuard hookGuard("UpdateD3DDeviceFromViewports");
 	graphics.resetHook();
 	if (graphics.shutdown) {
 		ui.onDllDetachGraphics();
@@ -62,8 +61,6 @@ void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
 	if (!graphics.shutdown) {
 		ui.handleResetAfter();
 	}
-	detouring.markHookRunning("UpdateD3DDeviceFromViewports", false);
-	--detouring.hooksCounter;
 	return;
 }
 
