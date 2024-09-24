@@ -8,6 +8,7 @@
 #include "GifMode.h"
 #include "WinError.h"
 #include "EntityList.h"
+#include "AltModes.h"
 
 const char** aswEngine = nullptr;
 
@@ -182,6 +183,19 @@ bool Game::onDllMain() {
 		drawStunMashPtr = (drawStunMash_t)followRelativeCall(stunmashDrawingPlace);
 	}
 	
+	inputsHolder = (BYTE**)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"e8 ?? ?? ?? ?? bb 00 00 01 00 bf 00 00 80 00",
+		{ -12, 0 },
+		nullptr, "inputsHolderCallPlace");
+	// A nice way to find this is to search for a UTF16 string L"Steam must be running to play this game (SteamAPI_Init() failed)"
+	// It will be near the top of the function, initialized this way:
+	// if (local_1c == (undefined4 *)0x0) {
+	//   DAT_0209cfa0 = (int *)0x0;
+	// }
+	// else {
+	//   DAT_0209cfa0 = (int *)FUN_00fa1fa0();
+	// }
 	
 	return !error;
 }
@@ -410,9 +424,10 @@ void Game::destroyAswEngineHook() {
 
 void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds) {
 	HookGuard hookGuard("UWorld_Tick");
-	IsPausedCallCount = 0;
 	
 	if (!shutdown) {
+		IsPausedCallCount = 0;
+		
 		ignoreAllCallsButEarlier = false;
 		if (freezeGame && *aswEngine) {
 			slowmoSkipCounter = 0;
@@ -431,6 +446,31 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		} else {
 			slowmoSkipCounter = 0;
 		}
+		
+		bool unused;
+		bool normalMode = altModes.isGameInNormalMode(&unused);
+		if (*aswEngine && ignoreAllCallsButEarlier && normalMode) {
+			for (int i = 0; i < 4; ++i) {
+				onNeedRememberPress(i, playPressed + i, BUTTON_CODE_PLAY);
+				onNeedRememberPress(i, recordPressed + i, BUTTON_CODE_RECORD);
+				onNeedRememberPress(i, resetPressed + i, BUTTON_CODE_MENU_RESET);
+				onNeedRememberPress(i, unknownPressed + i, BUTTON_CODE_MENU_UNKNOWN);
+			}
+		} else if (*aswEngine && normalMode) {
+			for (int i = 0; i < 4; ++i) {
+				onNeedForcePress(i, playPressed + i, BUTTON_CODE_PLAY);
+				onNeedForcePress(i, recordPressed + i, BUTTON_CODE_RECORD);
+				onNeedForcePress(i, resetPressed + i, BUTTON_CODE_MENU_RESET);
+				onNeedForcePress(i, unknownPressed + i, BUTTON_CODE_MENU_UNKNOWN);
+			}
+		} else {
+			for (int i = 0; i < 4; ++i) {
+				playPressed[i] = false;
+				recordPressed[i] = false;
+				resetPressed[i] = false;
+				unknownPressed[i] = false;
+			}
+		}
 	}
 	
 	bool hadAsw = *aswEngine != nullptr;
@@ -444,6 +484,15 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		logwrap(fputs("Asw Engine destroyed\n", logfile));
 		endScene.onAswEngineDestroyed();
 	}
+	if (!shutdown && (!*aswEngine || !ignoreAllCallsButEarlier)) {
+		for (int i = 0; i < 4; ++i) {
+			playPressed[i] = false;
+			recordPressed[i] = false;
+			resetPressed[i] = false;
+			unknownPressed[i] = false;
+		}
+	}
+	ignoreAllCallsButEarlier = false;
 	ignoreAllCalls = false;
 }
 
@@ -485,16 +534,76 @@ void Game::drawStunButtonMash(Entity pawn) {
 bool Game::HookHelp::UWorld_IsPausedHook() {
 	HookGuard hookGuard("UWorld_IsPaused");
 	// This function is called from UWorld::Tick several times.
-	
-	// If UWorld->DemoRecDriver is not nullptr, we might get an extra call at the start that messes us up.
-	// It's a: 'Fake NetDriver for capturing network traffic to record demos'.
-	// Probably will never be non-0.
-	++game.IsPausedCallCount;
-	if (!game.shutdown && game.IsPausedCallCount == 2) {
-		if (game.ignoreAllCallsButEarlier) {
-			return true;
+	if (!game.shutdown) {
+		// If UWorld->DemoRecDriver is not nullptr, we might get an extra call at the start that messes us up.
+		// It's a: 'Fake NetDriver for capturing network traffic to record demos'.
+		// Probably will never be non-0.
+		++game.IsPausedCallCount;
+		if (game.IsPausedCallCount == 2) {
+			if (game.ignoreAllCallsButEarlier) {
+				return true;
+			}
 		}
 	}
 	std::unique_lock<std::mutex> guard(game.orig_UWorld_IsPausedMutex);
 	return game.orig_UWorld_IsPaused((void*)this);
+}
+
+bool Game::buttonPressed(int padInd, bool isMenu, DWORD code) {
+	if (!inputsHolder) return false;
+	BYTE* step1 = *(BYTE**)inputsHolder;
+	BYTE* step2 = *(BYTE**)(step1 + 0x28);
+	DWORD inputs = *(DWORD*)(step2 + 0x38 + 0x38 * padInd + !isMenu * 0x1c + 0x10);
+	return (inputs & code) != 0;
+}
+
+bool Game::buttonHeld(int padInd, bool isMenu, DWORD code) {
+	if (!inputsHolder) return false;
+	BYTE* step1 = *(BYTE**)inputsHolder;
+	BYTE* step2 = *(BYTE**)(step1 + 0x28);
+	BYTE* step3 = *(BYTE**)(step2 + 0x38 + 0x38 * padInd + !isMenu * 0x1c + 0x8);
+	DWORD inputs = *(DWORD*)(step3 + 0xc);
+	return (inputs & code) != 0;
+}
+
+void Game::setButtonPressed(int padInd, bool isMenu, DWORD code) {
+	if (!inputsHolder) return;
+	BYTE* step1 = *(BYTE**)inputsHolder;
+	BYTE* step2 = *(BYTE**)(step1 + 0x28);
+	DWORD* inputs = (DWORD*)(step2 + 0x38 + 0x38 * padInd + !isMenu * 0x1c + 0x10);
+	*inputs |= code;
+}
+
+void Game::onNeedRememberPress(int padInd, bool* pressed, ButtonCode code) {
+	onNeedRememberPress(padInd, pressed, false, code);
+}
+
+void Game::onNeedRememberPress(int padInd, bool* pressed, ButtonCodeMenu code) {
+	onNeedRememberPress(padInd, pressed, true, code);
+}
+
+void Game::onNeedRememberPress(int padInd, bool* pressed, bool isMenu, DWORD code) {
+	bool isPressed = buttonPressed(padInd, isMenu, code);
+	if (isPressed) {
+		*pressed = true;
+	} else if (!buttonHeld(padInd, isMenu, code)) {
+		*pressed = false;
+	}
+}
+
+void Game::onNeedForcePress(int padInd, bool* pressed, ButtonCode code) {
+	onNeedForcePress(padInd, pressed, false, code);
+}
+
+void Game::onNeedForcePress(int padInd, bool* pressed, ButtonCodeMenu code) {
+	onNeedForcePress(padInd, pressed, true, code);
+}
+
+void Game::onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code) {
+	if (*pressed) {
+		if (buttonHeld(padInd, isMenu, code)) {
+			setButtonPressed(padInd, isMenu, code);
+		}
+		*pressed = false;
+	}
 }

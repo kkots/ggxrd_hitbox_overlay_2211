@@ -11,6 +11,46 @@ enum ELevelTick {
 	LEVELTICK_All
 };
 
+enum ButtonCode {
+	BUTTON_CODE_UP = 0x1,
+	BUTTON_CODE_DOWN = 0x2,
+	BUTTON_CODE_LEFT = 0x4,
+	BUTTON_CODE_RIGHT = 0x8,
+	BUTTON_CODE_PUNCH = 0x10,
+	BUTTON_CODE_KICK = 0x20,
+	BUTTON_CODE_SLASH = 0x40,
+	BUTTON_CODE_HSLASH = 0x80,
+	BUTTON_CODE_DUST = 0x100,
+	BUTTON_CODE_TAUNT = 0x200,
+	BUTTON_CODE_SPECIAL = 0x400,
+	BUTTON_CODE_PK_MACRO = 0x800,
+	BUTTON_CODE_RC_MACRO = 0x1000,
+	BUTTON_CODE_IK_MACRO = 0x2000,
+	BUTTON_CODE_BLITZ_MACRO = 0x4000,
+	BUTTON_CODE_BURST_MACRO = 0x8000,
+	BUTTON_CODE_PLAY = 0x10000,
+	BUTTON_CODE_RECORD = 0x20000
+};
+
+// Button codes for menus
+enum ButtonCodeMenu {
+	BUTTON_CODE_MENU_UP = 0x1,
+	BUTTON_CODE_MENU_RIGHT = 0x2,
+	BUTTON_CODE_MENU_DOWN = 0x4,
+	BUTTON_CODE_MENU_LEFT = 0x8,
+	BUTTON_CODE_MENU_RCODE = 0x1000,
+	BUTTON_CODE_MENU_MENU = 0x2000,
+	BUTTON_CODE_MENU_DECIDE = 0x4000,
+	BUTTON_CODE_MENU_BACK = 0x8000,
+	BUTTON_CODE_MENU_PageChange2 = 0x10000,
+	BUTTON_CODE_MENU_CameraControl2 = 0x20000,
+	BUTTON_CODE_MENU_PageChange1 = 0x40000,
+	BUTTON_CODE_MENU_CameraControl1 = 0x80000,
+	BUTTON_CODE_MENU_PAUSE = 0x400000,
+	BUTTON_CODE_MENU_RESET = 0x800000,
+	BUTTON_CODE_MENU_UNKNOWN = 0x1000000  // functions same way as Reset or Backspace
+};
+
 using TickActors_FDeferredTickList_FGlobalActorIterator_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
 using updateBattleOfflineVer_t = void(__thiscall*)(char* thisArg, int param1);
 using trainingHudTick_t = void(__thiscall*)(char* thisArg);
@@ -89,6 +129,20 @@ private:
 	int IsPausedCallCount = 0;
 	UWorld_IsPaused_t orig_UWorld_IsPaused = nullptr;
 	std::mutex orig_UWorld_IsPausedMutex;
+	BYTE** inputsHolder = nullptr;
+	bool recordPressed[4] { false };
+	bool playPressed[4] { false };
+	bool resetPressed[4] { false };
+	bool unknownPressed[4] { false };
+	bool buttonPressed(int padInd, bool isMenu, DWORD code);
+	bool buttonHeld(int padInd, bool isMenu, DWORD code);
+	void setButtonPressed(int padInd, bool isMenu, DWORD code);
+	void onNeedRememberPress(int padInd, bool* pressed, ButtonCodeMenu code);
+	void onNeedRememberPress(int padInd, bool* pressed, ButtonCode code);
+	void onNeedRememberPress(int padInd, bool* pressed, bool isMenu, DWORD code);
+	void onNeedForcePress(int padInd, bool* pressed, ButtonCodeMenu code);
+	void onNeedForcePress(int padInd, bool* pressed, ButtonCode code);
+	void onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code);
 };
 
 extern Game game;
