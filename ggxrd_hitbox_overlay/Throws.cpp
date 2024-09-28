@@ -101,9 +101,10 @@ void Throws::hitDetectionMainHook() {
 			|| (*(const unsigned int*)(ent + 0x460) & 4) != 0)  // 0x460 & 4 means the move will be "unmissable".
 			|| ownerType == CHARACTER_TYPE_AXL);
 
-		if (charType == CHARACTER_TYPE_FAUST
-				&& strcmp(ent.animationName(), "Mettagiri") == 0
-				&& currentAnimDuration <= 1) {
+		bool isMettagiri = charType == CHARACTER_TYPE_FAUST
+			&& strcmp(ent.animationName(), "Mettagiri") == 0
+			&& currentAnimDuration <= 1;
+		if (isMettagiri) {
 			throwRange = 175000;
 			checkPassed = true;
 		}
@@ -119,6 +120,7 @@ void Throws::hitDetectionMainHook() {
 			throwInfo.owner = ent;
 			throwInfo.isPawn = ent.isPawn();
 			throwInfo.framesLeft = DISPLAY_DURATION_THROW;
+			throwInfo.isMettagiri = isMettagiri;
 
 			if (throwRange >= 0) {
 				throwInfo.hasPushboxCheck = true;
@@ -215,7 +217,8 @@ void Throws::drawThrows() {
 				&& (throwInfo.attackType != ATTACK_TYPE_NONE
 				&& throwInfo.attackType != ATTACK_TYPE_NORMAL
 				|| endScene.didHit(throwInfo.owner)
-				|| !throwInfo.isPawn)) {
+				|| !throwInfo.isPawn)
+				&& !throwInfo.isMettagiri) {
 			for (int i = 0; i < 2; ++i) {
 				if (throwInfo.owner == entityList.slots[i]) {
 					PlayerInfo& player = endScene.players[i];

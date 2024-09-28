@@ -445,7 +445,7 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 		printNoSeparateHits(buf, bufSize);
 		size_t newBufLen = strlen(buf);
 		if (newBufLen > 10) {
-			printNoSeparateHitsGapsOnlyFirstAndBiggerThan3(buf, bufSize);
+			printNoSeparateHitsGapsBiggerThan3(buf, bufSize);
 			newBufLen = strlen(buf);
 		}
 		sprintf_s(buf + newBufLen, bufSize - newBufLen, " / %s", ownbuf);
@@ -486,18 +486,16 @@ void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) {
 	}
 }
 
-void ActiveDataArray::printNoSeparateHitsGapsOnlyFirstAndBiggerThan3(char* buf, size_t bufSize) {
+void ActiveDataArray::printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) {
 	if (count == 0) {
 		sprintf_s(buf, bufSize, "0");
 		return;
 	}
-	bool isFirstGap = true;
 	int lastNonActives = 0;
 	for (int i = 0; i < count && bufSize; ++i) {
 		int result;
 		int n = 0;
-		if (lastNonActives && (isFirstGap || lastNonActives > 5)) {
-			isFirstGap = false;
+		if (lastNonActives && lastNonActives > 5) {
 			result = sprintf_s(buf, bufSize, "(%d)", lastNonActives);
 			if (result != -1) {
 				buf += result;
@@ -510,7 +508,7 @@ void ActiveDataArray::printNoSeparateHitsGapsOnlyFirstAndBiggerThan3(char* buf, 
 		for(; i < count; ++i) {
 			ActiveData& elem = data[i];
 			n += elem.actives;
-			if (elem.nonActives && (isFirstGap || elem.nonActives > 5)) {
+			if (elem.nonActives && elem.nonActives > 5) {
 				lastNonActives = elem.nonActives;
 				break;
 			} else if (elem.nonActives && i != count - 1) {

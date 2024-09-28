@@ -37,7 +37,7 @@ struct ActiveDataArray {
 	// Fuse distinct hits together into unified spans of active frames. Don't use comma (",") character.
 	// Non-active frames are printed in parentheses ("(123)") inbetween the active frames.
 	void printNoSeparateHits(char* buf, size_t bufSize);
-	void printNoSeparateHitsGapsOnlyFirstAndBiggerThan3(char* buf, size_t bufSize);
+	void printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize);
 	void removeSeparateHits(int* outIndex);
 	// Wrap multiple calls to addActive(...) in beginMergeFrame() and endMergeFrame(),
 	// if you want multiple entities to contribute to the active frames on the same frame.

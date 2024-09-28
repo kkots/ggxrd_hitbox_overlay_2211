@@ -91,6 +91,7 @@ extern Detouring detouring;
 
 class HookGuard {
 public:
+	#ifdef _DEBUG
 	inline HookGuard(const char* name) : name(name) {
 		++detouring.hooksCounter;
 		detouring.markHookRunning(name, true);
@@ -100,4 +101,7 @@ public:
 		--detouring.hooksCounter;
 	}
 	const char* name = nullptr;
+	#else
+	inline HookGuard(const char* name) { }
+	#endif
 };

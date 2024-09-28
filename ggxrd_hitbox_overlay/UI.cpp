@@ -186,12 +186,7 @@ static void pushZeroItemSpacingStyle() {
 }
 
 bool UI::onDllMain() {
-	void* GetKeyStatePtr = &GetKeyState;
-	uintptr_t GetKeyStateRData = sigscanBufOffset(
-		"GuiltyGearXrd.exe:.rdata",
-		(const char*)&GetKeyStatePtr,
-		4,
-		nullptr, "GetKeyStateRData");
+	uintptr_t GetKeyStateRData = findImportedFunction("GuiltyGearXrd.exe", "USER32.DLL", "GetKeyState");
 	if (GetKeyStateRData) {
 		std::vector<char> sig;
 		std::vector<char> mask;
