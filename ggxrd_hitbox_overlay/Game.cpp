@@ -323,12 +323,14 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 	// However, the pawn data is always sent only once per frame.
 	// It is also certain that in rollback-affected matches, camera code runs first, and only then USkeletalMeshComponent_UpdateTransformHook/readUnrealPawnDataHook happen.
 	// 
-	// When game pause menu is open in single player, USkeletalMeshComponent_UpdateTransformHook does not get called, which means the mod can't process hotkeys.
+	// When game pause menu is open in single player, USkeletalMeshComponent_UpdateTransformHook does not get called,
+	// and this hook is also not called.
 	if (!shutdown) {
 		ignoreAllCalls = ignoreAllCallsButEarlier;
 		needToCallEndSceneLogic = ignoreAllCallsButEarlier;
 		endScene.butDontPrepareBoxData = ignoreAllCallsButEarlier;
 		camera.butDontPrepareBoxData = ignoreAllCallsButEarlier;
+		endScene.onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(ignoreAllCalls);
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_TickActors_FDeferredTickList_FGlobalActorIteratorMutex);

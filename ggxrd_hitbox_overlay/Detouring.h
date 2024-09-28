@@ -75,7 +75,7 @@ private:
 	std::vector<DWORD> suspendedThreads;
 	std::vector<HANDLE> suspendedThreadHandles;
 
-	#ifdef LOG_PATH
+	#ifdef _DEBUG
 	std::mutex runningHooksMutex;
 	std::vector<std::string> runningHooks;
 	#endif

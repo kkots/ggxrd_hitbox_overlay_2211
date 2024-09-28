@@ -16,6 +16,8 @@
 #include "PlayerInfo.h"
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
+using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
+using FSuspendRenderingThreadDestructor_t = void(__thiscall*)(char* thisArg);
 
 struct DrawData {
 	std::vector<ComplicatedHurtbox> hurtboxes;
@@ -42,8 +44,6 @@ public:
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
 	void* getTexture();
 	
-	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
-	std::mutex orig_UpdateD3DDeviceFromViewportsMutex;
 	DrawData drawDataPrepared;
 	std::mutex drawDataPreparedMutex;
 	DrawData drawDataUse;
@@ -56,9 +56,17 @@ public:
 	bool shutdown = false;
 
 private:
+	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
+	std::mutex orig_UpdateD3DDeviceFromViewportsMutex;
+	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
+	std::mutex orig_FSuspendRenderingThreadMutex;
+	FSuspendRenderingThreadDestructor_t orig_FSuspendRenderingThreadDestructor = nullptr;
+	std::mutex orig_FSuspendRenderingThreadDestructorMutex;
 	class HookHelp {
 		friend class Graphics;
 		void UpdateD3DDeviceFromViewportsHook();
+		void FSuspendRenderingThreadHook(unsigned int InSuspendThreadFlags);
+		void FSuspendRenderingThreadDestructorHook();
 	};
 	struct Vertex {
 		float x, y, z, rhw;
@@ -180,6 +188,7 @@ private:
 	PngResource questionMarkRes;
 	HMODULE hMod = NULL;
 	HANDLE shutdownFinishedEvent = NULL;
+	DWORD suspenderThreadId = NULL;
 };
 
 extern Graphics graphics;

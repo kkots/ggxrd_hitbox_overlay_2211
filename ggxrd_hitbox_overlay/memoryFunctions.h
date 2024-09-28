@@ -64,3 +64,5 @@ char* scrollUpToBytes(char* ptr, const char* buf, int bufSize, size_t searchLimi
 uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit = 1000);
 
 uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_t searchLimit = 1000);
+
+uintptr_t findImportedFunction(const char* module, const char* dll, const char* function);

@@ -24,7 +24,7 @@ bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
 
 bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end)
 {
-	const auto module = GetModuleHandleA(name);
+	HMODULE module = GetModuleHandleA(name);
 	if (module == nullptr)
 		return false;
 
@@ -189,7 +189,7 @@ uintptr_t sigscan(const char* name, const char* sig, const char* mask)
 }
 
 uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask) {
-	const auto lastScan = end - strlen(mask) + 1;
+	uintptr_t lastScan = end - strlen(mask) + 1;
 	for (auto addr = start; addr < lastScan; addr++) {
 		for (size_t i = 0;; i++) {
 			if (mask[i] == '\0')
@@ -429,4 +429,65 @@ uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_
 	} else {
 		return sigscan(ptr, ptr + searchLimit, sig, mask);
 	}
+}
+
+
+
+/// <summary>
+/// Finds the address which holds a pointer to a function with the given name imported from the given DLL.
+/// For example, searching USER32.DLL, GetKeyState would return a non-0 value on successful find, and
+/// if you cast that value to a short (__stdcall**)(int) and dereference it, you would get a pointer to
+/// GetKeyState that you can call. Or swap out for hooks.
+/// 
+/// This function is useless because the calls to imported functions are relative
+/// and even then they call thunk functions (a thunk function is a function consisting only
+/// of a jump instruction to some other function).
+/// </summary>
+/// <param name="module">Type "GuiltyGearXrd.exe" here.</param>
+/// <param name="dll">Include ".DLL" in the DLL's name here. Case-insensitive.</param>
+/// <param name="function">The name of the function. Case-sensitive.</param>
+/// <returns>The address which holds a pointer to a function. 0 if not found.</returns>
+uintptr_t findImportedFunction(const char* module, const char* dll, const char* function) {
+	HMODULE hModule = GetModuleHandleA(module);
+	if (!hModule) return 0;
+	
+	MODULEINFO info;
+	if (!GetModuleInformation(GetCurrentProcess(), hModule, &info, sizeof(info))) return false;
+	uintptr_t base = (uintptr_t)(info.lpBaseOfDll);
+	uintptr_t peHeaderStart = base + *(uintptr_t*)(base + 0x3C);  // PE file header start
+	struct RvaAndSize {
+		DWORD rva;
+		DWORD size;
+	};
+	const RvaAndSize* importsDataDirectoryRvaAndSize = (const RvaAndSize*)(peHeaderStart + 0x80);
+	struct ImageImportDescriptor {
+		DWORD ImportLookupTableRVA;  // The RVA of the import lookup table. This table contains a name or ordinal for each import. (The name "Characteristics" is used in Winnt.h, but no longer describes this field.)
+		DWORD TimeDateStamp;  // The stamp that is set to zero until the image is bound. After the image is bound, this field is set to the time/data stamp of the DLL. LIES, this field is 0 for me at runtime.
+		DWORD ForwarderChain;  // The index of the first forwarder reference. 0 for me.
+		DWORD NameRVA;  // The address of an ASCII string that contains the name of the DLL. This address is relative to the image base.
+		DWORD ImportAddressTableRVA;  // The RVA of the import address table. The contents of this table are identical to the contents of the import lookup table until the image is bound.
+	};
+	DWORD importsSize = importsDataDirectoryRvaAndSize->size;  // in bytes
+	const ImageImportDescriptor* importPtrNext = (const ImageImportDescriptor*)(base + importsDataDirectoryRvaAndSize->rva);
+	for (; importsSize > 0; importsSize -= sizeof ImageImportDescriptor) {
+		const ImageImportDescriptor* importPtr = importPtrNext++;
+		if (!importPtr->ImportLookupTableRVA) break;
+		const char* dllName = (const char*)(base + importPtr->NameRVA);
+		if (_stricmp(dllName, dll) != 0) continue;
+		void** funcPtr = (void**)(base + importPtr->ImportAddressTableRVA);
+		DWORD* imageImportByNameRvaPtr = (DWORD*)(base + importPtr->ImportLookupTableRVA);
+		struct ImageImportByName {
+			short importIndex;  // if you know this index you can use it for lookup. Name is just convenience for programmers.
+			char name[1];  // arbitrary length, zero-terminated ASCII string
+		};
+		for (; *imageImportByNameRvaPtr != 0; ++imageImportByNameRvaPtr) {
+			const ImageImportByName* importByName = (const ImageImportByName*)(base + *imageImportByNameRvaPtr);
+			if (strcmp(importByName->name, function) == 0) {
+				return (uintptr_t)funcPtr;
+			}
+			++funcPtr;
+		}
+		return 0;
+	}
+	return 0;
 }

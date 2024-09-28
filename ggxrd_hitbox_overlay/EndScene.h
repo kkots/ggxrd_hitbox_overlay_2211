@@ -13,7 +13,10 @@ using USkeletalMeshComponent_UpdateTransform_t = void(__thiscall*)(char* thisArg
 using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using endSceneCaller_t = void(__thiscall*)(void* thisArg, int param1, int param2, int param3);
-using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, char* animName, unsigned int posType);
+using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
+using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
+using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
+using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
 
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -33,6 +36,7 @@ public:
 	void endSceneHook(IDirect3DDevice9* device);
 	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
 	bool didHit(Entity attacker);
+	void onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen);
 	USkeletalMeshComponent_UpdateTransform_t orig_USkeletalMeshComponent_UpdateTransform = nullptr;
 	std::mutex orig_USkeletalMeshComponent_UpdateTransformMutex;
 	bool orig_USkeletalMeshComponent_UpdateTransformMutexLocked = false;
@@ -49,10 +53,19 @@ public:
 	std::mutex orig_endSceneCallerMutex;
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
 	std::mutex orig_BBScr_createObjectWithArgMutex;
+	BBScr_createParticleWithArg_t orig_BBScr_createParticleWithArg = nullptr;
+	std::mutex orig_BBScr_createParticleWithArgMutex;
+	setAnim_t orig_setAnim = nullptr;
+	std::mutex orig_setAnimMutex;
+	pawnInitialize_t orig_pawnInitialize = nullptr;
+	std::mutex orig_pawnInitializeMutex;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
 	DWORD logicThreadId = NULL;
+	Entity getSuperflashInstigator();
+	int getSuperflashCounterAll();
+	int getSuperflashCounterSelf();
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -63,12 +76,18 @@ private:
 		void readUnrealPawnDataHook();
 		void drawTrainingHudHook();
 		void endSceneCallerHook(int param1, int param2, int param3);
-		void BBScr_createObjectWithArgHook(char* animName, unsigned int posType);
+		void BBScr_createObjectWithArgHook(const char* animName, unsigned int posType);
+		void BBScr_createParticleWithArgHook(const char* animName, unsigned int posType);
+		void setAnimHook(const char* animName);
+		void pawnInitializeHook(void* initializationParams);
 	};
 	void USkeletalMeshComponent_UpdateTransformHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
 	void drawTrainingHudHook(char* thisArg);
-	void BBScr_createObjectWithArgHook(Entity pawn, char* animName, unsigned int posType);
+	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
+	void onObjectCreated(Entity pawn, Entity createdPawn, const char* animName);
+	void setAnimHook(Entity pawn, const char* animName);
+	void pawnInitializeHook(Entity createdObj, void* initializationParams);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
@@ -76,6 +95,7 @@ private:
 		int scaleY = 0;
 		int scaleZ = 0;
 		int scaleDefault = 0;
+		int scaleForParticles = 0;
 		bool wasFoundOnThisFrame = false;
 	};
 	bool isEntityAlreadyDrawn(const Entity& ent) const;
@@ -103,8 +123,6 @@ private:
 	uintptr_t superflashInstigatorOffset = 0;
 	uintptr_t superflashCounterAllOffset = 0;
 	uintptr_t superflashCounterSelfOffset = 0;
-	Entity getSuperflashInstigator();
-	int getSuperflashCounterAll();
 	
 	bool measuringFrameAdvantage = false;
 	int measuringLandingFrameAdvantage = -1;
@@ -131,6 +149,14 @@ private:
 		bool isPawn;
 	};
 	std::vector<RegisteredHit> registeredHits;
+	
+	PlayerInfo& findPlayer(Entity ent);
+	void initializePawn(PlayerInfo& player, Entity ent);
+	bool needFrameCleanup = false;
+	void frameCleanup();
+	bool creatingObject = false;
+	Entity creatorOfCreatedObject = nullptr;
+	const char* createdObjectAnim = nullptr;
 };
 
 extern EndScene endScene;

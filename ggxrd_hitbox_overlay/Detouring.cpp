@@ -349,10 +349,12 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 
 	#ifdef LOG_PATH
 	if (logfile) {
+		#ifdef _DEBUG
 		for (const std::string& name : runningHooks) {
 			fprintf(logfile, "Hook %s is still running\n", name.c_str());
 		}
 		fflush(logfile);
+		#endif
 		logfileMutex.unlock();
 	}
 	#endif
@@ -365,7 +367,7 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 }
 
 void Detouring::markHookRunning(std::string name, bool running) {
-	#ifdef LOG_PATH
+	#ifdef _DEBUG
 	std::unique_lock<std::mutex> guard(runningHooksMutex);
 	if (running) {
 		runningHooks.push_back(name);

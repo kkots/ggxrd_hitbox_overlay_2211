@@ -214,6 +214,7 @@ public:
 	inline int& scaleZ() { return *(int*)(ent + 0x26c); }
 	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
+	inline int& scaleForParticles() { return *(int*)(ent + 0x2618); }
 	inline int& physicsYImpulse() { return *(int*)(ent + 0x300); }
 	inline int currentHitNum() { return *(int*)(ent + 0x26d8); }
 	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
@@ -230,6 +231,7 @@ public:
 	// Is 0 on stagger hits (Ky CH 5H for ex.) and is not used for stagger mashing
 	inline int dizzyMashAmountLeft() { return *(int*)(ent + 0x9fcc); }
 	inline int dizzyMashAmountMax() { return *(int*)(ent + 0x9fd0); }
+	inline bool landed() { return (*(int*)(ent + 0x234) & 0x4) != 0; }  // is true for only one frame - the frame on which you touched the ground
 
 	void getState(EntityState*) const;
 	

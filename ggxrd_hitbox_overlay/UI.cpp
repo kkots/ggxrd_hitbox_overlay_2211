@@ -414,19 +414,16 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    //if (player.startedUp) {
-				    if (player.superfreezeStartup) {
-				    	if (player.startedUp) {
-				    		sprintf_s(strbuf, "%d+%d", player.superfreezeStartup, player.startup - player.superfreezeStartup);
-				    	} else {
-				    		sprintf_s(strbuf, "%d", player.superfreezeStartup);
-				    	}
-				    } else {
-				    	sprintf_s(strbuf, "%d", player.startup);
-				    }
-			    //} else {
 			    //	*strbuf = '\0';
-			    //}
+			    if (player.superfreezeStartup && player.superfreezeStartup <= player.startupDisp && (player.startedUp || player.startupProj)) {
+		    		sprintf_s(strbuf, "%d+%d", player.superfreezeStartup, player.startupDisp - player.superfreezeStartup);
+			    } else if (player.superfreezeStartup && !(player.startedUp || player.startupProj)) {
+			    	sprintf_s(strbuf, "%d", player.startupDisp);
+			    } else if (player.superfreezeStartup) {
+			    	sprintf_s(strbuf, "%d", player.superfreezeStartup);
+			    } else { //if (player.startedUp || player.startupProj) {
+			    	sprintf_s(strbuf, "%d", player.startupDisp);
+			    }
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -439,8 +436,8 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    if (player.startedUp) {
-				    player.actives.print(strbuf, sizeof strbuf);
+			    if (player.startedUp || player.startupProj) {
+				    player.activesDisp.print(strbuf, sizeof strbuf);
 			    } else {
 			    	*strbuf = '\0';
 			    }
@@ -458,17 +455,25 @@ void UI::prepareDrawData() {
 		    		AddTooltip("Number of active frames in the last performed move.\n"
 		    			"Numbers in (), when surrounded by other numbers, mean non-active frames inbetween active frames."
 		    			" So, for example, 1(2)3 would mean you were active for 1 frame, then were not active for 2 frames, then were active again for 3.\n"
-		    			"Numbers separated by comma (,) mean active frames of separate distinct hits, between which there is no gap of non-active frames."
-		    			" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two.");
+		    			"Numbers separated by a , symbol mean active frames of separate distinct hits, between which there is no gap of non-active frames."
+		    			" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two.\n"
+		    			"Sometimes, when the number of hits is too great, an alternative representation of active frames will be displayed over a / sign."
+		    			" In this representation, separate hits are not shown, only active frames and gaps between active frames, in ().");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    if (player.startedUp) {
-				    sprintf_s(strbuf, "%d", player.recovery);
+			    if ((player.startedUp || player.startupProj) && !(player.recoveryDisp == 0 && player.landingRecovery)) {
+				    sprintf_s(strbuf, "%d", player.recoveryDisp);
 			    } else {
 			    	*strbuf = '\0';
+			    }
+			    if (player.landingRecovery) {
+			    	if (*strbuf != '\0') {
+			    		strcat(strbuf, "+");
+			    	}
+			    	sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%d landing", player.landingRecovery);
 			    }
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
@@ -483,8 +488,8 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    if (player.idlePlus && player.total) {
-			    	sprintf_s(strbuf, "%d", player.total);
+			    if (player.idlePlus && player.totalDisp) {
+			    	sprintf_s(strbuf, "%d", player.totalDisp);
 			    } else {
 			    	*strbuf = '\0';
 			    }
@@ -552,7 +557,7 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.ignoreHitstop ? 0 : player.hitstop);
+			    sprintf_s(strbuf, "%d", player.hitstop);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -564,13 +569,21 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.hitboxesCount);
+			    if (player.hitstun) {
+			    	sprintf_s(strbuf, "%d", player.hitstun);
+			    } else if (player.blockstun) {
+			    	sprintf_s(strbuf, "%d", player.blockstun);
+			    } else if (player.wakeupTiming) {
+			    	sprintf_s(strbuf, "%d", player.wakeupTiming - player.animFrame + 1);
+			    } else {
+			    	*strbuf = '\0';
+			    }
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("hitboxes");
+		    		CenterAlignedText("hitstun/...");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -594,6 +607,97 @@ void UI::prepareDrawData() {
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("animFrame");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.startup);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("startup");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    player.actives.print(strbuf, sizeof strbuf);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("active");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.recovery);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("recovery");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.total);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("total");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.startupProj);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("startupProj");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    player.activesProj.print(strbuf, sizeof strbuf);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("activesProj");
+		    	}
+		    }
+		    Entity superflashInstigator = endScene.getSuperflashInstigator();
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    if (superflashInstigator == player.pawn) {
+			    	sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterSelf());
+			    } else if (superflashInstigator) {
+			    	sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterAll());
+			    } else {
+			    	strcpy(strbuf, "false");
+			    }
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("superfreeze");
 		    	}
 		    }
 		    ImGui::EndTable();
@@ -711,8 +815,14 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    projectile.actives.print(strbuf, sizeof strbuf);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    
+							    float w = ImGui::CalcTextSize(strbuf).x;
+							    if (w > ImGui::GetContentRegionAvail().x) {
+								    ImGui::TextWrapped(strbuf);
+							    } else {
+								    if (i == 0) RightAlign(w);
+								    ImGui::TextUnformatted(strbuf);
+							    }
 					    	}
 					    	
 					    	if (i == 0) {
@@ -732,6 +842,34 @@ void UI::prepareDrawData() {
 					    	if (i == 0) {
 						    	ImGui::TableNextColumn();
 					    		CenterAlignedText("startup");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    sprintf_s(strbuf, "%d", projectile.total);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("total");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    sprintf_s(strbuf, "%s", formatBoolean(projectile.disabled));
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("disabled");
 					    	}
 					    }
 			    	}

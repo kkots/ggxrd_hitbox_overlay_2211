@@ -201,30 +201,39 @@ void Settings::onDllDetach() {
 		FindCloseChangeNotification(temp);
 	}
 	if (changesListener) {
-		changesListenerWakeType = WAKE_TYPE_EXIT;
-		// We're calling WaitForSingleObject on the changeListenerExitedEvent, instead of on the
-		// changesListener, because this call happens in DllMain, which happens under an internal
-		// system lock, called the "loader" lock.
-		// "The loader lock is taken by any function that needs to access the list of DLLs loaded into the process." - Raymond Chen.
-		// When a thread exits, even if you used DisableThreadLibraryCalls(hModule), it calls DllMain with the loader lock, and this
-		// happens before its object is signaled.
-		// As such, you cannot wait on a thread inside DllMain.
-		
-		bool eventIsSet = false;
-		while (true) {
-			DWORD exitCode;
-			if (GetExitCodeThread(changesListener, &exitCode)) {
-				// On normal exit the thread is already killed by something
-				if (exitCode != STILL_ACTIVE) {
-					break;
+		if (!changesListenerStarted) {
+			// When the DLL returns FALSE in DllMain upon DLL_PROCESS_ATTACH, and
+			// the changesListener thread has already been created,
+			// it will not have started yet by the time this code runs.
+			// We need to terminate it because there's absolutely no way to interact with it,
+			// since its waiting on a lock that DllMain holds.
+			TerminateThread(changesListener, 0);
+		} else {
+			changesListenerWakeType = WAKE_TYPE_EXIT;
+			// We're calling WaitForSingleObject on the changeListenerExitedEvent, instead of on the
+			// changesListener, because this call happens in DllMain, which happens under an internal
+			// system lock, called the "loader" lock.
+			// "The loader lock is taken by any function that needs to access the list of DLLs loaded into the process." - Raymond Chen.
+			// When a thread exits, even if you used DisableThreadLibraryCalls(hModule), it calls DllMain with the loader lock, and this
+			// happens before its object is signaled.
+			// As such, you cannot wait on a thread inside DllMain.
+			
+			bool eventIsSet = false;
+			while (true) {
+				DWORD exitCode;
+				if (GetExitCodeThread(changesListener, &exitCode)) {
+					// On normal exit the thread is already killed by something
+					if (exitCode != STILL_ACTIVE) {
+						break;
+					}
 				}
+				if (!eventIsSet) {
+					eventIsSet = true;
+					SetEvent(changesListenerWakeEvent);
+				}
+				DWORD waitResult = WaitForSingleObject(changeListenerExitedEvent, 100);
+				if (waitResult == WAIT_OBJECT_0) break;
 			}
-			if (!eventIsSet) {
-				eventIsSet = true;
-				SetEvent(changesListenerWakeEvent);
-			}
-			DWORD waitResult = WaitForSingleObject(changeListenerExitedEvent, 100);
-			if (waitResult == WAIT_OBJECT_0) break;
 		}
 		CloseHandle(changeListenerExitedEvent);
 		CloseHandle(changesListener);
@@ -953,6 +962,7 @@ DWORD WINAPI Settings::changesListenerLoop(LPVOID lpThreadParameter) {
 			SetEvent(settings.changeListenerExitedEvent);
 		}
 	} setEventOnExit;
+	settings.changesListenerStarted = true;
 	while (true) {
 		HANDLE handles[2] { 0 };
 		int handlesCount = 0;

@@ -88,6 +88,7 @@ private:
 	HANDLE directoryChangeHandle = NULL;
 	bool lastCallFailedToGetTime = false;
 	HANDLE changesListener = NULL;
+	bool changesListenerStarted = false;
 	HANDLE changesListenerWakeEvent = NULL;
 	HANDLE changeListenerExitedEvent = NULL;
 	enum ChangesListenerWakeType {

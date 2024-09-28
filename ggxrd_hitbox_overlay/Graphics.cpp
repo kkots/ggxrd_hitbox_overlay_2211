@@ -17,22 +17,59 @@
 Graphics graphics;
 
 bool Graphics::onDllMain(HMODULE hMod) {
-	
+	bool error = false;
 	uintptr_t UpdateD3DDeviceFromViewportsCallPlace = sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"83 79 40 00 74 05 e8 ?? ?? ?? ?? c2 04 00",
 		{ 6 },
-		nullptr, "UpdateD3DDeviceFromViewportsCallPlace");
+		&error, "UpdateD3DDeviceFromViewportsCallPlace");
 	
 	if (!UpdateD3DDeviceFromViewportsCallPlace) return false;
 	orig_UpdateD3DDeviceFromViewports = (UpdateD3DDeviceFromViewports_t)followRelativeCall(UpdateD3DDeviceFromViewportsCallPlace);
+	if (orig_UpdateD3DDeviceFromViewports) {
+		void(HookHelp::*UpdateD3DDeviceFromViewportsHookPtr)() = &HookHelp::UpdateD3DDeviceFromViewportsHook;
+		if (!detouring.attach(
+			&(PVOID&)(orig_UpdateD3DDeviceFromViewports),
+			(PVOID&)UpdateD3DDeviceFromViewportsHookPtr,
+			&orig_UpdateD3DDeviceFromViewportsMutex,
+			"UpdateD3DDeviceFromViewports")) return false;
+		
+		uintptr_t FSuspendRenderingThreadCallPlace = sigscanForward((uintptr_t)orig_UpdateD3DDeviceFromViewports,
+			"6a 01 8d 8c 24 80 00 00 00 e8");
+		if (FSuspendRenderingThreadCallPlace) {
+			orig_FSuspendRenderingThread = (FSuspendRenderingThread_t)followRelativeCall(FSuspendRenderingThreadCallPlace + 9);
+		}
+		uintptr_t functionEnd = sigscanForward((uintptr_t)orig_UpdateD3DDeviceFromViewports,
+			"81 c4 ?? ?? ?? ?? c3", 0x1200);
+		uintptr_t leaEcxEspPlusSmthPlace = 0;
+		if (functionEnd) {
+			leaEcxEspPlusSmthPlace = (uintptr_t)scrollUpToBytes((char*)functionEnd, "\x8d\x4c\x24", 3);
+		}
+		uintptr_t destructorCallPlace = 0;
+		if (leaEcxEspPlusSmthPlace) {
+			destructorCallPlace = sigscanForward(leaEcxEspPlusSmthPlace, "e8");
+		}
+		if (destructorCallPlace) {
+			orig_FSuspendRenderingThreadDestructor = (FSuspendRenderingThreadDestructor_t)followRelativeCall(destructorCallPlace);
+		}
+	}
+	if (orig_FSuspendRenderingThread) {
+		void(HookHelp::*FSuspendRenderingThreadHookPtr)(unsigned int InSuspendThreadFlags) = &HookHelp::FSuspendRenderingThreadHook;
+		if (!detouring.attach(
+			&(PVOID&)(orig_FSuspendRenderingThread),
+			(PVOID&)FSuspendRenderingThreadHookPtr,
+			&orig_FSuspendRenderingThreadMutex,
+			"FSuspendRenderingThread")) return false;
+	} else return false;
 	
-	void(HookHelp::*UpdateD3DDeviceFromViewportsHookPtr)() = &HookHelp::UpdateD3DDeviceFromViewportsHook;
-	if (!detouring.attach(
-		&(PVOID&)(orig_UpdateD3DDeviceFromViewports),
-		(PVOID&)UpdateD3DDeviceFromViewportsHookPtr,
-		&orig_UpdateD3DDeviceFromViewportsMutex,
-		"UpdateD3DDeviceFromViewports")) return false;
+	if (orig_FSuspendRenderingThreadDestructor) {
+		void(HookHelp::*FSuspendRenderingThreadDestructorHookPtr)() = &HookHelp::FSuspendRenderingThreadDestructorHook;
+		if (!detouring.attach(
+			&(PVOID&)(orig_FSuspendRenderingThreadDestructor),
+			(PVOID&)FSuspendRenderingThreadDestructorHookPtr,
+			&orig_FSuspendRenderingThreadDestructorMutex,
+			"~FSuspendRenderingThread")) return false;
+	} else return false;
 	
 	this->hMod = hMod;
 	
@@ -43,24 +80,24 @@ bool Graphics::onDllMain(HMODULE hMod) {
 		return false;
 	}
 
-	return true;
+	return !error;
 }
 
+// This function is called from the main thread.
+// It 'initializes the D3D device for the current viewport state.'
 void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
 	HookGuard hookGuard("UpdateD3DDeviceFromViewports");
-	graphics.resetHook();
-	if (graphics.shutdown) {
-		ui.onDllDetachGraphics();
-	} else {
-		ui.handleResetBefore();
-	}
+	graphics.suspenderThreadId = GetCurrentThreadId();
+	// This function will call the constructor of class FSuspendRenderingThread, which we hooked.
+	// That constructor stops the rendering thread, so that this function could manipulate graphics
+	// resources safely.
+	// We must release our own resources only after the suspension occurs.
+	// We must recreate our own resources either on the graphics thread or before the resuming occurs.
 	{
 		std::unique_lock<std::mutex> guard(graphics.orig_UpdateD3DDeviceFromViewportsMutex);
 		graphics.orig_UpdateD3DDeviceFromViewports((char*)this);
 	}
-	if (!graphics.shutdown) {
-		ui.handleResetAfter();
-	}
+	graphics.suspenderThreadId = NULL;
 	return;
 }
 
@@ -1294,4 +1331,33 @@ bool Graphics::initializeTexture() {
 void* Graphics::getTexture() {
 	if (!initializeTexture()) return nullptr;
 	return (void*)texture.p;
+}
+
+void Graphics::HookHelp::FSuspendRenderingThreadHook(unsigned int InSuspendThreadFlags) {
+	HookGuard hookGuard("FSuspendRenderingThread");
+	{
+		std::unique_lock<std::mutex> guard(graphics.orig_FSuspendRenderingThreadMutex);
+		graphics.orig_FSuspendRenderingThread((char*)this, InSuspendThreadFlags);
+	}
+	if (graphics.suspenderThreadId == GetCurrentThreadId()) {
+		graphics.resetHook();
+		if (graphics.shutdown) {
+			ui.onDllDetachGraphics();
+		} else {
+			ui.handleResetBefore();
+		}
+	}
+}
+
+void Graphics::HookHelp::FSuspendRenderingThreadDestructorHook() {
+	HookGuard hookGuard("~FSuspendRenderingThread");
+	if (graphics.suspenderThreadId == GetCurrentThreadId() && !graphics.shutdown) {
+		// We must recreate our resources before FSuspendRenderingThread resumes the graphics thread, so that
+		// there's no race condition between us and the graphics thread
+		ui.handleResetAfter();
+	}
+	{
+		std::unique_lock<std::mutex> guard(graphics.orig_FSuspendRenderingThreadDestructorMutex);
+		graphics.orig_FSuspendRenderingThreadDestructor((char*)this);
+	}
 }
