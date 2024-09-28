@@ -1593,6 +1593,8 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		for (ProjectileInfo& projectile : projectiles) {
 			if (projectile.ptr == attacker) {
 				projectile.fill(attacker);
+				projectile.nextHitstop = attacker.hitstop();
+				projectile.hitstop = projectile.nextHitstop;
 				projectile.landedHit = true;
 				projectile.markActive = true;
 				break;
@@ -1831,7 +1833,7 @@ void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName
 	}
 }
 
-// Called before a logic tick happens
+// Called before a logic tick happens. Doesn't run when the pause menu is open or a match is not running.
 void EndScene::onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen) {
 	if (!isFrozen) {
 		if (needFrameCleanup) {

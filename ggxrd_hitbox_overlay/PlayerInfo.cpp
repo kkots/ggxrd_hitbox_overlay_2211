@@ -436,14 +436,19 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 		lastNonActives = elem.nonActives;
 		lastActives = elem.actives;
 	}
-	if (count > 5 && maxConsecutiveHits > 3 && buf - origBuf > 10) {
+	if (count > 5 && buf - origBuf > 10) {
 		char ownbuf[512];
 		memmove(ownbuf, origBuf, buf - origBuf + 1);
 		bufSize = origBufSize;
 		buf = origBuf;
 		*buf = '\0';
 		printNoSeparateHits(buf, bufSize);
-		sprintf_s(buf + strlen(buf), bufSize - strlen(buf), " / %s", ownbuf);
+		size_t newBufLen = strlen(buf);
+		if (newBufLen > 10) {
+			printNoSeparateHitsGapsOnlyFirstAndBiggerThan3(buf, bufSize);
+			newBufLen = strlen(buf);
+		}
+		sprintf_s(buf + newBufLen, bufSize - newBufLen, " / %s", ownbuf);
 	}
 }
 
@@ -470,6 +475,46 @@ void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) {
 			if (elem.nonActives) {
 				lastNonActives = elem.nonActives;
 				break;
+			}
+		}
+		result = sprintf_s(buf, bufSize, "%d", n);
+		if (result != -1) {
+			buf += result;
+			if ((int)bufSize <= result) return;
+			else bufSize -= result;
+		} else return;
+	}
+}
+
+void ActiveDataArray::printNoSeparateHitsGapsOnlyFirstAndBiggerThan3(char* buf, size_t bufSize) {
+	if (count == 0) {
+		sprintf_s(buf, bufSize, "0");
+		return;
+	}
+	bool isFirstGap = true;
+	int lastNonActives = 0;
+	for (int i = 0; i < count && bufSize; ++i) {
+		int result;
+		int n = 0;
+		if (lastNonActives && (isFirstGap || lastNonActives > 5)) {
+			isFirstGap = false;
+			result = sprintf_s(buf, bufSize, "(%d)", lastNonActives);
+			if (result != -1) {
+				buf += result;
+				if ((int)bufSize <= result) return;
+				else bufSize -= result;
+			} else return;
+		} else if (lastNonActives) {
+			n += lastNonActives;
+		}
+		for(; i < count; ++i) {
+			ActiveData& elem = data[i];
+			n += elem.actives;
+			if (elem.nonActives && (isFirstGap || elem.nonActives > 5)) {
+				lastNonActives = elem.nonActives;
+				break;
+			} else if (elem.nonActives && i != count - 1) {
+				n += elem.nonActives;
 			}
 		}
 		result = sprintf_s(buf, bufSize, "%d", n);
