@@ -413,8 +413,6 @@ void UI::prepareDrawData() {
 			    if (player.superfreezeStartup && player.superfreezeStartup <= player.startupDisp && (player.startedUp || player.startupProj)) {
 		    		sprintf_s(strbuf, "%d+%d", player.superfreezeStartup, player.startupDisp - player.superfreezeStartup);
 			    } else if (player.superfreezeStartup && !(player.startedUp || player.startupProj)) {
-			    	sprintf_s(strbuf, "%d", player.startupDisp);
-			    } else if (player.superfreezeStartup) {
 			    	sprintf_s(strbuf, "%d", player.superfreezeStartup);
 			    } else { //if (player.startedUp || player.startupProj) {
 			    	sprintf_s(strbuf, "%d", player.startupDisp);
