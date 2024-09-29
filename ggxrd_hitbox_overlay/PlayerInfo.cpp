@@ -560,6 +560,7 @@ void ActiveDataArray::removeSeparateHits(int* outIndex) {
 }
 
 void PlayerInfo::addGap(int length) {
+	if (length == 0) return;
 	if (gapsCount >= _countof(gaps)) {
 		memmove(gaps, gaps + 1, sizeof gaps - sizeof *gaps);
 		gaps[gapsCount - 1] = length;

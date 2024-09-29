@@ -409,6 +409,64 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
+			    *strbuf = '\0';
+			    if (player.displayHitstop) {
+			    	sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
+			    }
+			    char* ptrNext = strbuf;
+			    int ptrNextSize = sizeof strbuf;
+			    if (*strbuf) {
+			    	ptrNext += strlen(strbuf) + strlen(" + ");
+			    	*ptrNext = '\0';
+			    	ptrNextSize -= (ptrNext - strbuf);
+			    }
+			    size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
+			    if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
+			    	sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.hitstun - (player.hitstop ? 1 : 0), player.hitstunMax);
+			    } else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
+			    	sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.blockstun - (player.hitstop ? 1 : 0), player.blockstunMax);
+			    }
+			    if (strbuf != ptrNext && *strbuf && *ptrNext) {
+			    	ptrNext = strbuf + strlen(strbuf);
+			    	memcpy(ptrNext, " + ", 3);
+			    }
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("Hitstop+X-stun");
+		    		AddTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
+		    			" max hitstun or blockstun. When there's no + sign, the displayed values could"
+		    			" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
+		    			" and the other are on the right.\n"
+		    			"During Roman Cancel or Mortal Counter slowdown, the actual hitstop and hitstun/etc duration may be longer"
+		    			" than the displayed value due to slowdown.");
+		    	}
+		    }
+		    // Don't show this normally
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    
+		    	int remaining = 0;
+		    	if (player.wakeupTiming) {
+		    		remaining = player.wakeupTiming - player.animFrame + 1;
+		    	}
+		    	sprintf_s(strbuf, "%d/%d", remaining, player.wakeupTiming);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("Wakeup");
+		    		AddTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
+		    			" Format: Time remaining until able to act / Total wakeup or airtech time.");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
 			    //	*strbuf = '\0';
 			    if (player.superfreezeStartup && player.superfreezeStartup <= player.startupDisp && (player.startedUp || player.startupProj)) {
 		    		sprintf_s(strbuf, "%d+%d", player.superfreezeStartup, player.startupDisp - player.superfreezeStartup);
@@ -545,38 +603,6 @@ void UI::prepareDrawData() {
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("idleLanding");
-		    	}
-		    }
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = endScene.players[i];
-			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d", player.hitstop);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("hitstop");
-		    	}
-		    }
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = endScene.players[i];
-			    ImGui::TableNextColumn();
-			    if (player.hitstun) {
-			    	sprintf_s(strbuf, "%d", player.hitstun);
-			    } else if (player.blockstun) {
-			    	sprintf_s(strbuf, "%d", player.blockstun);
-			    } else if (player.wakeupTiming) {
-			    	sprintf_s(strbuf, "%d", player.wakeupTiming - player.animFrame + 1);
-			    } else {
-			    	*strbuf = '\0';
-			    }
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("hitstun/...");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {

@@ -184,6 +184,7 @@ public:
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
 	inline int hitstop() const { return *(int*)(ent + 0x1ac); }
+	inline int startingHitstop() const { return *(int*)(ent + 0x1b4); }
 	inline int hitstun() const { return *(int*)(ent + 0x9808); }
 	inline int blockstun() const { return *(int*)(ent + 0x4d54); }
 	inline int tension() const { return *(int*)(ent + 0x2d134); }  // meter
@@ -232,6 +233,10 @@ public:
 	inline int dizzyMashAmountLeft() { return *(int*)(ent + 0x9fcc); }
 	inline int dizzyMashAmountMax() { return *(int*)(ent + 0x9fd0); }
 	inline bool landed() { return (*(int*)(ent + 0x234) & 0x4) != 0; }  // is true for only one frame - the frame on which you touched the ground
+	inline bool hitSomethingOnThisFrame() { return (*(int*)(ent + 0x12c) & 0x20000) != 0; }  // is true for only one frame - the frame on which you hit something
+	inline bool inPainNextFrame() { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
+	inline bool inBlockstunNextFrame() { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
+	inline bool inUnknownNextFrame() { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // uuh
 
 	void getState(EntityState*) const;
 	

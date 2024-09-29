@@ -258,31 +258,31 @@ int hashString(const char* str, int startingHash) {
 
 void Entity::getWakeupTimings(CharacterType charType, WakeupTimings* output) {
 	switch (charType) {
-		case CHARACTER_TYPE_SOL:		*output = { 25, 21 }; break;
-		case CHARACTER_TYPE_KY:			*output = { 23, 21 }; break;
-		case CHARACTER_TYPE_MAY:		*output = { 25, 22 }; break;
-		case CHARACTER_TYPE_MILLIA:		*output = { 25, 23 }; break;
-		case CHARACTER_TYPE_ZATO:		*output = { 25, 22 }; break;
-		case CHARACTER_TYPE_POTEMKIN:	*output = { 24, 22 }; break;
-		case CHARACTER_TYPE_CHIPP:		*output = { 30, 24 }; break;
-		case CHARACTER_TYPE_FAUST:		*output = { 25, 29 }; break;
-		case CHARACTER_TYPE_AXL:		*output = { 25, 21 }; break;
-		case CHARACTER_TYPE_VENOM:		*output = { 21, 26 }; break;
-		case CHARACTER_TYPE_SLAYER:		*output = { 26, 20 }; break;
-		case CHARACTER_TYPE_INO:		*output = { 24, 20 }; break;
-		case CHARACTER_TYPE_BEDMAN:		*output = { 24, 30 }; break;
-		case CHARACTER_TYPE_RAMLETHAL:	*output = { 25, 23 }; break;
-		case CHARACTER_TYPE_SIN:		*output = { 30, 21 }; break;
-		case CHARACTER_TYPE_ELPHELT:	*output = { 27, 27 }; break;
-		case CHARACTER_TYPE_LEO:		*output = { 28, 26 }; break;
-		case CHARACTER_TYPE_JOHNNY:		*output = { 25, 24 }; break;
-		case CHARACTER_TYPE_JACKO:		*output = { 25, 23 }; break;
-		case CHARACTER_TYPE_JAM:		*output = { 26, 25 }; break;
-		case CHARACTER_TYPE_HAEHYUN:	*output = { 22, 27 }; break;
-		case CHARACTER_TYPE_RAVEN:		*output = { 25, 24 }; break;
-		case CHARACTER_TYPE_DIZZY:		*output = { 25, 24 }; break;
-		case CHARACTER_TYPE_BAIKEN:		*output = { 25, 21 }; break;
-		case CHARACTER_TYPE_ANSWER:		*output = { 25, 25 }; break;
+		case CHARACTER_TYPE_SOL:		*output = { 25, 21 }; return;
+		case CHARACTER_TYPE_KY:			*output = { 23, 21 }; return;
+		case CHARACTER_TYPE_MAY:		*output = { 25, 22 }; return;
+		case CHARACTER_TYPE_MILLIA:		*output = { 25, 23 }; return;
+		case CHARACTER_TYPE_ZATO:		*output = { 25, 22 }; return;
+		case CHARACTER_TYPE_POTEMKIN:	*output = { 24, 22 }; return;
+		case CHARACTER_TYPE_CHIPP:		*output = { 30, 24 }; return;
+		case CHARACTER_TYPE_FAUST:		*output = { 25, 29 }; return;
+		case CHARACTER_TYPE_AXL:		*output = { 25, 21 }; return;
+		case CHARACTER_TYPE_VENOM:		*output = { 21, 26 }; return;
+		case CHARACTER_TYPE_SLAYER:		*output = { 26, 20 }; return;
+		case CHARACTER_TYPE_INO:		*output = { 24, 20 }; return;
+		case CHARACTER_TYPE_BEDMAN:		*output = { 24, 30 }; return;
+		case CHARACTER_TYPE_RAMLETHAL:	*output = { 25, 23 }; return;
+		case CHARACTER_TYPE_SIN:		*output = { 30, 21 }; return;
+		case CHARACTER_TYPE_ELPHELT:	*output = { 27, 27 }; return;
+		case CHARACTER_TYPE_LEO:		*output = { 28, 26 }; return;
+		case CHARACTER_TYPE_JOHNNY:		*output = { 25, 24 }; return;
+		case CHARACTER_TYPE_JACKO:		*output = { 25, 23 }; return;
+		case CHARACTER_TYPE_JAM:		*output = { 26, 25 }; return;
+		case CHARACTER_TYPE_HAEHYUN:	*output = { 22, 27 }; return;
+		case CHARACTER_TYPE_RAVEN:		*output = { 25, 24 }; return;
+		case CHARACTER_TYPE_DIZZY:		*output = { 25, 24 }; return;
+		case CHARACTER_TYPE_BAIKEN:		*output = { 25, 21 }; return;
+		case CHARACTER_TYPE_ANSWER:		*output = { 25, 25 }; return;
 	}
 	*output = { 0, 0 };
 }

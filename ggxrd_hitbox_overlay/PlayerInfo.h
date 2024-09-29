@@ -62,7 +62,6 @@ struct ProjectileInfo {
 	int lifeTimeCounter = 0;
 	int animFrame = 0;
 	int hitstop = 0;
-	int nextHitstop = 0;
 	int startup = 0;
 	int total = 0;
 	int hitNumber = 0;
@@ -83,10 +82,9 @@ struct ProjectileInfo {
 		ptr = ent;
 		team = ent.team();
 		animFrame = ent.currentAnimDuration();
-		nextHitstop = ent.hitstop();
 		lifeTimeCounter = ent.lifeTimeCounter();
-		if (lifeTimeCounter != 0 && hitstop != 0) {
-			hitstop = nextHitstop;
+		if (!ent.hitSomethingOnThisFrame()) {
+			hitstop = ent.hitstop();
 		} else {
 			hitstop = 0;
 		}
@@ -125,10 +123,12 @@ struct PlayerInfo {
 	int burstGainMaxCombo = 0;
 	int stun = 0;
 	int stunThreshold = 0;
+	int hitstunMax = 0;
+	int blockstunMax = 0;
+	int hitstopMax = 0;
 	int blockstun = 0;
 	int hitstun = 0;
 	int hitstop = 0;
-	int nextHitstop = 0;
 	int burst = 0;  // max 15000
 	int comboCountBurstGainModifier = 0;
 	int frameAdvantage = 0;
@@ -162,6 +162,11 @@ struct PlayerInfo {
 	int landingOrPreJumpFrames = 0;  // number of frames currently spent in landing or prejump
 	int landingRecovery = 0;  // number of landing recovery frames. Either current or of the last performed move
 	int animFrame = 0;
+	enum XstunDisplay {
+		XSTUN_DISPLAY_NONE,
+		XSTUN_DISPLAY_HIT,
+		XSTUN_DISPLAY_BLOCK
+	} xStunDisplay = XSTUN_DISPLAY_NONE;
 	CmnActIndex cmnActIndex = CmnActStand;
 	char tensionPulsePenaltySeverity = 0;  // the higher, the worse
 	char cornerPenaltySeverity = 0;  // the higher, the worse
@@ -183,6 +188,10 @@ struct PlayerInfo {
 	bool wasIdle:1;  // briefly became idle during the frame while transitioning through some animations
 	bool startedDefending:1;  // triggers restart of frame advantage measurement
 	bool moveOriginatedInTheAir:1;  // for measuring landing recovery of moves that started in the air only
+	bool setHitstopMax:1;
+	bool setHitstunMax:1;
+	bool setBlockstunMax:1;
+	bool displayHitstop:1;
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
 	char index = 0;

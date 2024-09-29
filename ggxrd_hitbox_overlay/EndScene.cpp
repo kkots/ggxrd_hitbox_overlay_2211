@@ -26,6 +26,7 @@
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
+ProjectileInfo emptyProjectile;
 
 bool EndScene::onDllMain() {
 	bool error = false;
@@ -205,6 +206,21 @@ bool EndScene::onDllMain() {
 			"pawnInitialize")) return false;
 	}
 	
+	uintptr_t logicOnFrameAfterHitPiece = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"77 10 89 ?? b4 01 00 00 c7 ?? b8 01 00 00 02 00 00 00",
+		&error, "logicOnFrameAfterHitPiece");
+	if (logicOnFrameAfterHitPiece) {
+		orig_logicOnFrameAfterHit = (logicOnFrameAfterHit_t)scrollUpToBytes((char*)logicOnFrameAfterHitPiece,
+			"\x83\xec\x14", 3);
+	}
+	if (orig_logicOnFrameAfterHit) {
+		void (HookHelp::*logicOnFrameAfterHitHookPtr)(int, int) = &HookHelp::logicOnFrameAfterHitHook;
+		if (!detouring.attach(&(PVOID&)orig_logicOnFrameAfterHit,
+			(PVOID&)logicOnFrameAfterHitHookPtr,
+			&orig_logicOnFrameAfterHitMutex,
+			"logicOnFrameAfterHit")) return false;
+	}
 
 	return !error;
 }
@@ -511,13 +527,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.blockstun = ent.blockstun();
 			player.hitstun = ent.hitstun();
 			int hitstop = ent.hitstop();
-			if (player.hitstop == 0 && hitstop != 0 && ent.currentAnimDuration() != 1) {
+			if (ent.hitSomethingOnThisFrame()) {
 				player.hitstop = 0;
+				player.hitstopMax = hitstop - 1;
+				player.setHitstopMax = true;
 			} else {
 				player.hitstop = hitstop;
 			}
 			player.airborne = ent.y() > 0;  // there's also tumbling state in which you're airborne, check *(DWORD*)(end + 0x4d40) & 0x4 != 0 if you need it. This flag is set on any airborne type of hitstun
-			player.nextHitstop = hitstop;
 			player.wakeupTiming = 0;
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
 			player.cmnActIndex = cmnActIndex;
@@ -561,12 +578,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			Entity ent = entityList.slots[i];
 			PlayerInfo& player = players[i];
 			PlayerInfo& other = players[1 - i];
-			if (player.idleNext != player.idle || player.wasIdle && !player.idleNext) {
+			if (player.idleNext != player.idle || player.wasIdle && !player.idleNext || player.setBlockstunMax && !player.idleNext) {
 				player.idle = player.idleNext;
 				if (!player.idle) {
 					player.landingOrPreJump = player.isLandingOrPreJump;
 					if (player.onTheDefensive) {
 						player.startedDefending = true;
+						if (player.cmnActIndex != CmnActUkemi) {
+							player.hitstopMax = player.hitstop;
+							player.setHitstopMax = true;
+							if (player.setBlockstunMax) {
+								--player.blockstunMax;
+							}
+						}
 						
 						if (other.timeSinceLastGap > 45) {
 							other.clearGaps();
@@ -599,6 +623,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.moveOriginatedInTheAir = false;
 				if (!player.isLanding) {
 					if (!player.idlePlus && !(!player.wasIdle && player.cmnActIndex == CmnActRomanCancel)) {
+						if (player.setHitstunMax || player.setBlockstunMax) {
+							player.displayHitstop = false;
+						}
+						if (!player.onTheDefensive) {
+							player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
+						}
 						player.moveOriginatedInTheAir = player.airborne;
 						
 						player.startupProj = 0;
@@ -667,12 +697,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		Entity superflashInstigator = getSuperflashInstigator();
 		if (!superflashInstigator) {
 			for (ProjectileInfo& projectile : projectiles) {
-				if (!projectile.hitstop) {
-					if (!projectile.startedUp) {
-						++projectile.startup;
-					}
-					++projectile.total;
+				if (!projectile.startedUp) {
+					++projectile.startup;
 				}
+				++projectile.total;
 			}
 		}
 	}
@@ -718,11 +746,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					PlayerInfo& player = players[team];
 					player.hitboxesCount += hitboxesCount;
 				} else if (frameHasChanged) {
-					for (ProjectileInfo& projectile : projectiles) {
-						if (projectile.ptr == ent) {
-							projectile.markActive = true;
-							break;
-						}
+					ProjectileInfo& projectile = findProjectile(ent);
+					if (projectile.ptr) {
+						projectile.markActive = true;
 					}
 				}
 			}
@@ -757,7 +783,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (!superflashInstigator) {
 					projectile.actives.addNonActive();
 				}
-			} else if (!superflashInstigator && !projectile.hitstop || !projectile.startedUp) {
+			} else if (!superflashInstigator || !projectile.startedUp) {
 				if (!projectile.startedUp) {
 					if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1)) {
 						PlayerInfo& player = players[projectile.team];
@@ -934,6 +960,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					player.totalDisp = player.total;
 				}
+			}
+			
+			if (player.hitstop) {
+				player.displayHitstop = true;
+			}
+			if (player.hitstun) {
+				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_HIT;
+			} else if (player.blockstun) {
+				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK;
 			}
 		}
 		
@@ -1589,16 +1624,17 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 	hit.hasHitbox = hasHitbox;
 	hit.attacker = attacker;
 	hit.defender = defender;
+	if (defender.isPawn()) {
+		PlayerInfo& defenderPlayer = findPlayer(defender);
+		defenderPlayer.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
+	}
 	if (hasHitbox) {
-		for (ProjectileInfo& projectile : projectiles) {
-			if (projectile.ptr == attacker) {
-				projectile.fill(attacker);
-				projectile.nextHitstop = attacker.hitstop();
-				projectile.hitstop = projectile.nextHitstop;
-				projectile.landedHit = true;
-				projectile.markActive = true;
-				break;
-			}
+		ProjectileInfo& projectile = findProjectile(attacker);
+		if (projectile.ptr) {
+			projectile.fill(attacker);
+			projectile.hitstop = attacker.hitstop();
+			projectile.landedHit = true;
+			projectile.markActive = true;
 		}
 	}
 }
@@ -1708,14 +1744,12 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 	ProjectileInfo& projectile = projectiles.back();
 	projectile.fill(createdPawn);
 	bool ownerFound = false;
-	for (ProjectileInfo& it : projectiles) {
-		if (it.ptr == pawn) {
-			projectile.startup = it.total;
-			projectile.total = it.total;
-			projectile.disabled = it.disabled;
-			ownerFound = true;
-			break;
-		}
+	ProjectileInfo& creatorProjectile = findProjectile(pawn);
+	if (creatorProjectile.ptr) {
+		projectile.startup = creatorProjectile.total;
+		projectile.total = creatorProjectile.total;
+		projectile.disabled = creatorProjectile.disabled;
+		ownerFound = true;
 	}
 	if (!ownerFound && pawn.isPawn()) {
 		entityList.populate();
@@ -1793,6 +1827,15 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 		std::unique_lock<std::mutex> guard(orig_setAnimMutex);
 		orig_setAnim((void*)pawn, animName);
 	}
+	if (pawn.isPawn()) {
+		PlayerInfo& player = findPlayer(pawn);
+		int blockstun = pawn.blockstun();
+		if (blockstun) {
+			// defender was observed to not be in hitstop at this point, but having blockstun nonetheless
+			player.blockstunMax = blockstun;
+			player.setBlockstunMax = true;
+		}
+	}
 }
 
 void EndScene::initializePawn(PlayerInfo& player, Entity ent) {
@@ -1848,7 +1891,6 @@ void EndScene::frameCleanup() {
 	entityList.populate();
 	for (auto it = projectiles.begin(); it != projectiles.end();) {
 		ProjectileInfo& projectile = *it;
-		projectile.hitstop = projectile.nextHitstop;
 		projectile.landedHit = false;
 		bool found = false;
 		if (projectile.ptr) {
@@ -1866,8 +1908,10 @@ void EndScene::frameCleanup() {
 		++it;
 	}
 	for (PlayerInfo& player : players) {
+		player.setHitstopMax = false;
+		player.setHitstunMax = false;
+		player.setBlockstunMax = false;
 		player.wasIdle = false;
-		player.hitstop = player.nextHitstop;
 		player.startedDefending = false;
 	}
 }
@@ -1896,4 +1940,33 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 			endScene.orig_pawnInitializeMutex.unlock();
 		}
 	}
+}
+
+void EndScene::HookHelp::logicOnFrameAfterHitHook(int param1, int param2) {
+	HookGuard hookGuard("logicOnFrameAfterHit");
+	endScene.logicOnFrameAfterHitHook(Entity{(char*)this}, param1, param2);
+}
+
+void EndScene::logicOnFrameAfterHitHook(Entity pawn, int param1, int param2) {
+	bool functionWillNotDoAnything = !pawn.inPainNextFrame() && (!pawn.inUnknownNextFrame() || !pawn.inBlockstunNextFrame());
+	{
+		std::unique_lock<std::mutex> guard(orig_logicOnFrameAfterHitMutex);
+		orig_logicOnFrameAfterHit((void*)pawn.ent, param1, param2);
+	}
+	if (pawn.isPawn() && !functionWillNotDoAnything) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.hitstopMax = pawn.startingHitstop();
+		player.hitstunMax = pawn.hitstun() - (player.hitstopMax ? 1 : 0);
+		player.setHitstopMax = true;
+		player.setHitstunMax = true;
+	}
+}
+
+ProjectileInfo& EndScene::findProjectile(Entity pawn) {
+	for (ProjectileInfo& projectile : projectiles) {
+		if (projectile.ptr == pawn) {
+			return projectile;
+		}
+	}
+	return emptyProjectile;
 }
