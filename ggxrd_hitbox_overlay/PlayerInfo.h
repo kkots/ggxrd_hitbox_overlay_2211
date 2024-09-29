@@ -57,20 +57,20 @@ struct ActiveDataArray {
 };
 
 struct ProjectileInfo {
-	Entity ptr = 0;
-	int team = 0;
-	int lifeTimeCounter = 0;
-	int animFrame = 0;
-	int hitstop = 0;
-	int startup = 0;
-	int total = 0;
-	int hitNumber = 0;
+	Entity ptr = 0;  // may be 0 if the entity tied to this projectile no longer exists - such projectiles are removed at the start of the next logic tick. Otherwise points to that entity
+	int team = 0;  // updated every frame
+	int lifeTimeCounter = 0;  // updated every frame
+	int animFrame = 0;  // updated every frame
+	int hitstop = 0;  // updated every frame
+	int startup = 0;  // if active frames have not started yet, is equal to total. Otherwise, means time since the owning player has started their last move until active frames, inclusive
+	int total = 0;  // time since the owning player started their last move
+	int hitNumber = 0;  // updated every frame
 	ActiveDataArray actives;
 	char animName[32] { 0 };
-	bool markActive:1;
-	bool startedUp:1;
-	bool landedHit:1;
-	bool disabled:1;
+	bool markActive:1;  // cleared at the start of prepareDrawData. True means hitboxes were found on this frame, or on this logic tick this projectile registered a hit.
+	bool startedUp:1;  // cleared upon disabling. True means active frames have started.
+	bool landedHit:1;  // cleared at the start of each logic tick. Set to true from a hit registering function hook.
+	bool disabled:1;  // set to true for all projectiles belonging to a player when the player starts a new move.
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -93,6 +93,8 @@ struct ProjectileInfo {
 	}
 };
 
+// This struct is cleared by setting all its memory to zero. If you add a new member, make sure it's ok to initialize it with 0.
+// This means you cannot add std::vector or std::string here.
 struct PlayerInfo {
 	Entity pawn{ nullptr };
 	int hp = 0;
@@ -102,7 +104,7 @@ struct PlayerInfo {
 	int gutsPercentage = 0;
 	int risc = 0;  // max 12800
 	int tension = 0;  // max 10000
-	int tensionPulse = 0;  // -25000 to 25000
+	int tensionPulse = 0;  // -25000 to 25000. You can read about this in AddTooltip in UI.cpp
 	int negativePenaltyTimer = 0;  // time remaining until negative penalty wears off, in frames
 	int negativePenalty = 0;  // 0 to 10000
 	int tensionPulsePenalty = 0;  // 0 to 1800
@@ -164,9 +166,9 @@ struct PlayerInfo {
 	int animFrame = 0;
 	enum XstunDisplay {
 		XSTUN_DISPLAY_NONE,
-		XSTUN_DISPLAY_HIT,
-		XSTUN_DISPLAY_BLOCK
-	} xStunDisplay = XSTUN_DISPLAY_NONE;
+		XSTUN_DISPLAY_HIT,  // hitstun
+		XSTUN_DISPLAY_BLOCK  // blockstun
+	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
 	char tensionPulsePenaltySeverity = 0;  // the higher, the worse
 	char cornerPenaltySeverity = 0;  // the higher, the worse
@@ -188,13 +190,13 @@ struct PlayerInfo {
 	bool wasIdle:1;  // briefly became idle during the frame while transitioning through some animations
 	bool startedDefending:1;  // triggers restart of frame advantage measurement
 	bool moveOriginatedInTheAir:1;  // for measuring landing recovery of moves that started in the air only
-	bool setHitstopMax:1;
-	bool setHitstunMax:1;
-	bool setBlockstunMax:1;
-	bool displayHitstop:1;
+	bool setHitstopMax:1;  // during this logic tick, from some hook, hitstopMax field was updated
+	bool setHitstunMax:1;  // during this logic tick, from some hook, hitstunMax field was updated
+	bool setBlockstunMax:1;  // during this logic tick, from some hook, blockstunMax field was updated
+	bool displayHitstop:1;  // should hitstop be displayed in UI
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
-	char index = 0;
+	char index = 0;  // the index of this PlayerInfo in endScene's 'players' array
 	inline void clearGaps() { gapsCount = 0; }
 	void addGap(int length = 1);
 	void printGaps(char* buf, size_t bufSize);

@@ -237,6 +237,7 @@ public:
 	inline bool inPainNextFrame() { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
 	inline bool inBlockstunNextFrame() { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
 	inline bool inUnknownNextFrame() { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // uuh
+	inline Entity currentRunOnObject() { return *(Entity*)(ent + 0x2464); }
 
 	void getState(EntityState*) const;
 	

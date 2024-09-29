@@ -406,44 +406,6 @@ void UI::prepareDrawData() {
 		    		CenterAlignedText("Stun");
 		    	}
 		    }
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = endScene.players[i];
-			    ImGui::TableNextColumn();
-			    *strbuf = '\0';
-			    if (player.displayHitstop) {
-			    	sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
-			    }
-			    char* ptrNext = strbuf;
-			    int ptrNextSize = sizeof strbuf;
-			    if (*strbuf) {
-			    	ptrNext += strlen(strbuf) + strlen(" + ");
-			    	*ptrNext = '\0';
-			    	ptrNextSize -= (ptrNext - strbuf);
-			    }
-			    size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
-			    if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
-			    	sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.hitstun - (player.hitstop ? 1 : 0), player.hitstunMax);
-			    } else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
-			    	sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.blockstun - (player.hitstop ? 1 : 0), player.blockstunMax);
-			    }
-			    if (strbuf != ptrNext && *strbuf && *ptrNext) {
-			    	ptrNext = strbuf + strlen(strbuf);
-			    	memcpy(ptrNext, " + ", 3);
-			    }
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Hitstop+X-stun");
-		    		AddTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
-		    			" max hitstun or blockstun. When there's no + sign, the displayed values could"
-		    			" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
-		    			" and the other are on the right.\n"
-		    			"During Roman Cancel or Mortal Counter slowdown, the actual hitstop and hitstun/etc duration may be longer"
-		    			" than the displayed value due to slowdown.");
-		    	}
-		    }
 		    // Don't show this normally
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
@@ -467,12 +429,12 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    //	*strbuf = '\0';
+			    *strbuf = '\0';
 			    if (player.superfreezeStartup && player.superfreezeStartup <= player.startupDisp && (player.startedUp || player.startupProj)) {
 		    		sprintf_s(strbuf, "%d+%d", player.superfreezeStartup, player.startupDisp - player.superfreezeStartup);
 			    } else if (player.superfreezeStartup && !(player.startedUp || player.startupProj)) {
 			    	sprintf_s(strbuf, "%d", player.superfreezeStartup);
-			    } else { //if (player.startedUp || player.startupProj) {
+			    } else if (player.startedUp || player.startupProj) {
 			    	sprintf_s(strbuf, "%d", player.startupDisp);
 			    }
 			    if (i == 0) RightAlignedText(strbuf);
@@ -509,7 +471,10 @@ void UI::prepareDrawData() {
 		    			"Numbers separated by a , symbol mean active frames of separate distinct hits, between which there is no gap of non-active frames."
 		    			" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two.\n"
 		    			"Sometimes, when the number of hits is too great, an alternative representation of active frames will be displayed over a / sign."
-		    			" In this representation, separate hits are not shown, only active frames and gaps between active frames, in ().");
+		    			" For example: 13 / 1,1,1,1,1,1,1,1,1,1,1,1,1. Means there're 13 active frames, and over the /, each individual hit's active frames"
+		    			" are shown.\n"
+		    			"Note: if active frames start during superfreeze, the active frames will include the frame that happened during superfreeze and"
+		    			" all the active frames that were after the superfreeze.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -533,7 +498,7 @@ void UI::prepareDrawData() {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Recovery");
 		    		AddTooltip("Number of recovery frames in the last performed move."
-		    			" If the move spawned a projectile that lasts beyond the boundaries of the move, its recovery is 0.");
+		    			" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -550,7 +515,49 @@ void UI::prepareDrawData() {
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Total");
-		    		AddTooltip("Total number of frames in the last performed move.");
+		    		AddTooltip("Total number of frames in the last performed move.\n"
+		    			"If the move spawned a projectiled that lasted beyond the boundaries of the move, this field will display"
+		    			" only the amount of frames it took to recover (i.e. become able to press 5P or j.P), from the start of the move."
+		    			" So for example, if a move's startup is 1, it creates a projectile that lasts 100 frames and recovers instantly,"
+		    			" on frame 2, then its total frames will be 1, its startup will be 1 and its actives will be 100.");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    *strbuf = '\0';
+			    if (player.displayHitstop) {
+			    	sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
+			    }
+			    char* ptrNext = strbuf;
+			    int ptrNextSize = sizeof strbuf;
+			    if (*strbuf) {
+			    	ptrNext += strlen(strbuf) + strlen(" + ");
+			    	*ptrNext = '\0';
+			    	ptrNextSize -= (ptrNext - strbuf);
+			    }
+			    size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
+			    if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
+			    	sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.hitstun - (player.hitstop ? 1 : 0), player.hitstunMax);
+			    } else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
+			    	sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.blockstun - (player.hitstop ? 1 : 0), player.blockstunMax);
+			    }
+			    if (strbuf != ptrNext && *strbuf && *ptrNext) {
+			    	ptrNext = strbuf + strlen(strbuf);
+			    	memcpy(ptrNext, " + ", 3);
+			    }
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("Hitstop+X-stun");
+		    		AddTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
+		    			" max hitstun or blockstun. When there's no + sign, the displayed values could"
+		    			" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
+		    			" and the other are on the right.\n"
+		    			"During Roman Cancel or Mortal Counter slowdown, the actual hitstop and hitstun/etc duration may be longer"
+		    			" than the displayed value due to slowdown.");
 		    	}
 		    }
 		    
@@ -1602,8 +1609,10 @@ void UI::frameAdvantageControl() {
     		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier."
     			" (For certain stances it means whether you can do a move out of your stance.)"
 		    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
-		    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value means frame advantage"
-		    	" immediately after recovering in the air.");
+		    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value (not in ()) means frame advantage"
+		    	" immediately after recovering in the air. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
+		    	" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
+		    	" +1 (-99).");
     	}
     }
 }

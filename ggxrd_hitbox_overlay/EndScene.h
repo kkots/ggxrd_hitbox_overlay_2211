@@ -18,6 +18,7 @@ using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* 
 using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
 using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
 using logicOnFrameAfterHit_t = void(__thiscall*)(void* pawn, int param1, int param2);
+using BBScr_runOnObject_t = void(__thiscall*)(void* pawn, int entityReference);
 
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -62,6 +63,8 @@ public:
 	std::mutex orig_pawnInitializeMutex;
 	logicOnFrameAfterHit_t orig_logicOnFrameAfterHit = nullptr;
 	std::mutex orig_logicOnFrameAfterHitMutex;
+	BBScr_runOnObject_t orig_BBScr_runOnObject = nullptr;
+	std::mutex orig_BBScr_runOnObjectMutex;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
@@ -84,6 +87,7 @@ private:
 		void setAnimHook(const char* animName);
 		void pawnInitializeHook(void* initializationParams);
 		void logicOnFrameAfterHitHook(int param1, int param2);
+		void BBScr_runOnObjectHook(int entityReference);
 	};
 	void USkeletalMeshComponent_UpdateTransformHook(char* thisArg);
 	void readUnrealPawnDataHook(char* thisArg);
@@ -93,6 +97,7 @@ private:
 	void setAnimHook(Entity pawn, const char* animName);
 	void pawnInitializeHook(Entity createdObj, void* initializationParams);
 	void logicOnFrameAfterHitHook(Entity pawn, int param1, int param2);
+	void BBScr_runOnObjectHook(Entity pawn, int entityReference);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };

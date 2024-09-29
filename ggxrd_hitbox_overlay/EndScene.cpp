@@ -144,9 +144,12 @@ bool EndScene::onDllMain() {
 	uintptr_t bbscrCreateObjectWithArgCall = 0;
 	uintptr_t bbscrCreateParticleWithArgCallPlace = 0;
 	uintptr_t bbscrCreateParticleWithArgCall = 0;
+	uintptr_t bbscrRunOnObjectCallPlace = 0;
+	uintptr_t bbscrRunOnObjectCall = 0;
 	if (bbscrJumptable) {
 		bbscrCreateObjectWithArgCallPlace = *(uintptr_t*)(bbscrJumptable + 445*4);
 		bbscrCreateParticleWithArgCallPlace = *(uintptr_t*)(bbscrJumptable + 449*4);
+		bbscrRunOnObjectCallPlace = *(uintptr_t*)(bbscrJumptable + 41*4);
 	}
 	if (bbscrCreateObjectWithArgCallPlace) {
 		bbscrCreateObjectWithArgCall = sigscanForward(bbscrCreateObjectWithArgCallPlace, "e8");
@@ -154,11 +157,17 @@ bool EndScene::onDllMain() {
 	if (bbscrCreateParticleWithArgCallPlace) {
 		bbscrCreateParticleWithArgCall = sigscanForward(bbscrCreateParticleWithArgCallPlace, "e8");
 	}
+	if (bbscrRunOnObjectCallPlace) {
+		bbscrRunOnObjectCall = sigscanForward(bbscrRunOnObjectCallPlace, "e8");
+	}
 	if (bbscrCreateObjectWithArgCall) {
 		orig_BBScr_createObjectWithArg = (BBScr_createObjectWithArg_t)followRelativeCall(bbscrCreateObjectWithArgCall);
 	}
 	if (bbscrCreateParticleWithArgCall) {
 		orig_BBScr_createParticleWithArg = (BBScr_createParticleWithArg_t)followRelativeCall(bbscrCreateParticleWithArgCall);
+	}
+	if (bbscrRunOnObjectCall) {
+		orig_BBScr_runOnObject = (BBScr_runOnObject_t)followRelativeCall(bbscrRunOnObjectCall);
 	}
 	
 	if (orig_BBScr_createObjectWithArg) {
@@ -174,6 +183,13 @@ bool EndScene::onDllMain() {
 			(PVOID&)BBScr_createParticleWithArgHookPtr,
 			&orig_BBScr_createParticleWithArgMutex,
 			"BBScr_createParticleWithArg")) return false;
+	}
+	if (orig_BBScr_runOnObject) {
+		void (HookHelp::*BBScr_runOnObjectHookPtr)(int) = &HookHelp::BBScr_runOnObjectHook;
+		if (!detouring.attach(&(PVOID&)orig_BBScr_runOnObject,
+			(PVOID&)BBScr_runOnObjectHookPtr,
+			&orig_BBScr_runOnObjectMutex,
+			"BBScr_runOnObject")) return false;
 	}
 	std::vector<char> sig;
 	std::vector<char> mask;
@@ -646,6 +662,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							for (ProjectileInfo& projectile : projectiles) {
 								if (projectile.team == player.index) {
 									projectile.disabled = true;
+									projectile.startedUp = false;
+									projectile.actives.clear();
 								}
 							}
 						}
@@ -960,6 +978,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					player.totalDisp = player.total;
 				}
+			} else {
+				player.totalDisp = player.total;
 			}
 			
 			if (player.hitstop) {
@@ -1969,4 +1989,30 @@ ProjectileInfo& EndScene::findProjectile(Entity pawn) {
 		}
 	}
 	return emptyProjectile;
+}
+
+void EndScene::HookHelp::BBScr_runOnObjectHook(int entityReference) {
+	HookGuard hookGuard("BBScr_runOnObject");
+	endScene.BBScr_runOnObjectHook(Entity{(char*)this}, entityReference);
+}
+
+void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
+	{
+		std::unique_lock<std::mutex> guard(orig_BBScr_runOnObjectMutex);
+		orig_BBScr_runOnObject((void*)pawn.ent, entityReference);
+	}
+	if (!shutdown && pawn.isPawn()) {
+		PlayerInfo& player = findPlayer(pawn);
+		Entity objectBeingRunOn = pawn.currentRunOnObject();
+		if (objectBeingRunOn) {
+			if (!objectBeingRunOn.isPawn()) {
+				ProjectileInfo& projectile = findProjectile(objectBeingRunOn);
+				if (projectile.ptr) {
+					projectile.disabled = false;
+					projectile.startup = player.total;
+					projectile.total = player.total;
+				}
+			}
+		}
+	}
 }
