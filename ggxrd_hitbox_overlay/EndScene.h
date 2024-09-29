@@ -122,8 +122,7 @@ private:
 	bool freezeGame = false;
 	bool continuousScreenshotMode = false;
 	bool needContinuouslyTakeScreens = false;
-	unsigned int p1PreviousTimeOfTakingScreen = ~0;
-	unsigned int p2PreviousTimeOfTakingScreen = ~0;
+	unsigned int previousTimeOfTakingScreen = ~0;
 	
 	drawTextWithIcons_t drawTextWithIcons = nullptr;
 	

@@ -13,25 +13,6 @@ void EntityList::populate() {
 
 }
 
-unsigned int EntityList::getCurrentTime() {
-	if (slots && count >= 0) {
-		unsigned int p1Time = slots[0].currentAnimDuration();
-		if (count >= 2) {
-			unsigned int p2Time = slots[1].currentAnimDuration();
-			if (previousTime != p2Time) {
-				previousTime = p2Time;
-				return p2Time;
-			}
-		}
-		if (previousTime != p1Time) {
-			previousTime = p1Time;
-			return p1Time;
-		}
-		return previousTime;
-	}
-	return 0;
-}
-
 bool EntityList::areAnimationsNormal() const {
 	if (slots && count >= 1) {
 		if (!isAnimationNormal(slots[0])) return false;

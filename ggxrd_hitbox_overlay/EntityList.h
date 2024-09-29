@@ -8,7 +8,6 @@ public:
 	int count = 0;
 	Entity* list = nullptr;
 	Entity* slots = nullptr;
-	unsigned int getCurrentTime();
 	bool areAnimationsNormal() const;
 	bool isAnimationNormal(Entity ent) const;
 private:

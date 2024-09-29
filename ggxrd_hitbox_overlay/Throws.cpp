@@ -11,6 +11,7 @@
 #include "GifMode.h"
 #include "Settings.h"
 #include "EndScene.h"
+#include "Game.h"
 
 Throws throws;
 
@@ -94,12 +95,12 @@ void Throws::hitDetectionMainHook() {
 
 		bool checkPassed = (throwRange >= 0 || throwMinX < throwMaxX || throwMinY < throwMaxY)
 			&& (attackType == ATTACK_TYPE_NORMAL  // ATTACK_TYPE_NORMAL is more like 4/6 H (+OS possibly) throw
-			|| (attackType == ATTACK_TYPE_EX || attackType == ATTACK_TYPE_OVERDRIVE)  // ATTACK_TYPE_EX is a command throw, ATTACK_TYPE_OVERDRIVE is Jack-O super throw
+			|| (attackType == ATTACK_TYPE_EX  // ATTACK_TYPE_EX is a command throw
+			|| attackType == ATTACK_TYPE_OVERDRIVE  // ATTACK_TYPE_OVERDRIVE is Jack-O super throw
+			|| attackType == ATTACK_TYPE_IK)  // ATTACK_TYPE_IK is Potemkin's IK - it's a throw
 			&& isActive
 			&& !(currentAnimDuration > 25 && charType == CHARACTER_TYPE_AXL) // the 25 check is needed to stop Axl from showing a throwbox all throughout his Yes move
-			&& ((*(const unsigned int*)(ent + 0x4D28) & 0x40) != 0  // 0x4D28 & 0x40 means the move requires no hitbox vs hurtbox detection
-			|| (*(const unsigned int*)(ent + 0x460) & 4) != 0)  // 0x460 & 4 means the move will be "unmissable".
-			|| ownerType == CHARACTER_TYPE_AXL);
+		);
 
 		bool isMettagiri = charType == CHARACTER_TYPE_FAUST
 			&& strcmp(ent.animationName(), "Mettagiri") == 0
@@ -153,6 +154,12 @@ void Throws::hitDetectionMainHook() {
 				if (throwMinXInSpace > throwMaxXInSpace) {
 					std::swap(throwMinXInSpace, throwMaxXInSpace);
 				}
+				
+				if (throwInfo.hasPushboxCheck
+						&& throwMinXInSpace > throwInfo.pushboxCheckMinX
+						&& throwMaxXInSpace < throwInfo.pushboxCheckMaxX) {
+					throwInfo.hasPushboxCheck = false;
+				}
 
 				throwInfo.minX = throwMinXInSpace;
 				throwInfo.maxX = throwMaxXInSpace;
@@ -192,7 +199,7 @@ void Throws::hitDetectionMainHook() {
 
 void Throws::drawThrows() {
 	bool timeHasChanged = false;
-	unsigned int currentTime = entityList.getCurrentTime();
+	unsigned int currentTime = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
 	if (previousTime != currentTime) {
 		previousTime = currentTime;
 		timeHasChanged = true;

@@ -100,13 +100,8 @@ void collectHitboxes(const Entity ent,
 
 	bool includeTheseHitboxes = hitboxes && active && !state.doingAThrow;
 	if (includeTheseHitboxes) {
-		if (state.charType == CHARACTER_TYPE_POTEMKIN
-				&& strcmp(ent.animationName(), "PotemkinBuster") == 0
-				|| state.charType == CHARACTER_TYPE_RAVEN
-				&& strcmp(ent.animationName(), "CommandThrowEx") == 0
-				|| state.charType == CHARACTER_TYPE_RAMLETHAL
-				&& strcmp(ent.animationName(), "CommandThrow") == 0
-				|| (*(DWORD*)(ent + 0x44c + 0x14) & 0x1000000) != 0) {
+		if ((*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0  // having this flag means you ignore the hitboxes hit detection check
+				|| (*(DWORD*)(ent + 0x44c + 0x14) & 0x1000000) != 0) {  // having this flag means you're not a valid attacker
 			includeTheseHitboxes = false;
 		}
 	}

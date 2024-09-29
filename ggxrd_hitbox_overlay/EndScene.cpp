@@ -379,31 +379,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 
 	logOnce(fprintf(logfile, "entity count: %d\n", entityList.count));
 
-	bool frameHasChangedForScreenshot = false;
-	unsigned int p1CurrentTimer = ~0;
-	unsigned int p2CurrentTimer = ~0;
-	if (entityList.count >= 1) {
-		p1CurrentTimer = entityList.slots[0].currentAnimDuration();
-	}
-	if (entityList.count >= 2) {
-		p2CurrentTimer = entityList.slots[1].currentAnimDuration();
-	}
-	if (p1CurrentTimer != p1PreviousTimeOfTakingScreen
-		|| p2CurrentTimer != p2PreviousTimeOfTakingScreen) {
-		frameHasChangedForScreenshot = true;
-	}
+	DWORD aswEngineTickCount = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
+	bool frameHasChangedForScreenshot = previousTimeOfTakingScreen != aswEngineTickCount;
 	if (needContinuouslyTakeScreens) {
 		if (frameHasChangedForScreenshot) {
 			graphics.drawDataPrepared.needTakeScreenshot = true;
 		}
-		p1PreviousTimeOfTakingScreen = p1CurrentTimer;
-		p2PreviousTimeOfTakingScreen = p2CurrentTimer;
+		previousTimeOfTakingScreen = aswEngineTickCount;
 	}
 	else if (frameHasChangedForScreenshot) {
-		p1PreviousTimeOfTakingScreen = ~0;
-		p2PreviousTimeOfTakingScreen = ~0;
+		previousTimeOfTakingScreen = ~0;
 	}
-	DWORD aswEngineTickCount = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
 	bool frameHasChanged = prevAswEngineTickCount != aswEngineTickCount;
 	prevAswEngineTickCount = aswEngineTickCount;
 	
@@ -1382,8 +1368,7 @@ void EndScene::noGravGifMode() {
 void EndScene::clearContinuousScreenshotMode() {
 	continuousScreenshotMode = false;
 	ui.continuousScreenshotToggle = false;
-	p1PreviousTimeOfTakingScreen = ~0;
-	p2PreviousTimeOfTakingScreen = ~0;
+	previousTimeOfTakingScreen = ~0;
 }
 
 std::vector<EndScene::HiddenEntity>::iterator EndScene::findHiddenEntity(const Entity& ent) {

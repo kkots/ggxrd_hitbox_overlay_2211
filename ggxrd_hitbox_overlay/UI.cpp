@@ -474,7 +474,8 @@ void UI::prepareDrawData() {
 		    			" For example: 13 / 1,1,1,1,1,1,1,1,1,1,1,1,1. Means there're 13 active frames, and over the /, each individual hit's active frames"
 		    			" are shown.\n"
 		    			"Note: if active frames start during superfreeze, the active frames will include the frame that happened during superfreeze and"
-		    			" all the active frames that were after the superfreeze.");
+		    			" all the active frames that were after the superfreeze.\n"
+		    			"Note: performing multiple ranged moves that shoot out projectiles/swords only displays the startup/active/recovery/total of the last such move.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {

@@ -168,7 +168,7 @@ HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const Draw
 void HitDetector::drawHits() {
 	std::unique_lock<std::mutex> guard(mutex);
 	bool timeHasChanged = false;
-	unsigned int currentTime = entityList.getCurrentTime();
+	unsigned int currentTime = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
 	if (previousTime != currentTime) {
 		previousTime = currentTime;
 		timeHasChanged = true;
