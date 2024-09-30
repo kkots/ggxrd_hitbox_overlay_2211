@@ -10,7 +10,7 @@
 #include "PlayerInfo.h"
 
 using USkeletalMeshComponent_UpdateTransform_t = void(__thiscall*)(char* thisArg);
-using ReadUnrealPawnData_t = void(__thiscall*)(char* thisArg);
+using FUpdatePrimitiveTransformCommand_Apply_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using endSceneCaller_t = void(__thiscall*)(void* thisArg, int param1, int param2, int param3);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -43,8 +43,8 @@ public:
 	std::mutex orig_USkeletalMeshComponent_UpdateTransformMutex;
 	bool orig_USkeletalMeshComponent_UpdateTransformMutexLocked = false;
 	DWORD orig_USkeletalMeshComponent_UpdateTransformMutexThreadId = NULL;
-	ReadUnrealPawnData_t orig_ReadUnrealPawnData = nullptr;
-	std::mutex orig_ReadUnrealPawnDataMutex;
+	FUpdatePrimitiveTransformCommand_Apply_t orig_FUpdatePrimitiveTransformCommand_Apply = nullptr;
+	std::mutex orig_FUpdatePrimitiveTransformCommand_ApplyMutex;
 	WNDPROC orig_WndProc = nullptr;
 	std::mutex orig_WndProcMutex;
 	bool orig_WndProcMutexLockedByWndProc = false;
@@ -79,7 +79,7 @@ private:
 	class HookHelp {
 		friend class EndScene;
 		void USkeletalMeshComponent_UpdateTransformHook();
-		void readUnrealPawnDataHook();
+		void FUpdatePrimitiveTransformCommand_ApplyHook();
 		void drawTrainingHudHook();
 		void endSceneCallerHook(int param1, int param2, int param3);
 		void BBScr_createObjectWithArgHook(const char* animName, unsigned int posType);
@@ -90,7 +90,7 @@ private:
 		void BBScr_runOnObjectHook(int entityReference);
 	};
 	void USkeletalMeshComponent_UpdateTransformHook(char* thisArg);
-	void readUnrealPawnDataHook(char* thisArg);
+	void FUpdatePrimitiveTransformCommand_ApplyHook(char* thisArg);
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
 	void onObjectCreated(Entity pawn, Entity createdPawn, const char* animName);

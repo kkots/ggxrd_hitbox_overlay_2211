@@ -96,19 +96,20 @@ bool EndScene::onDllMain() {
 			&orig_USkeletalMeshComponent_UpdateTransformMutex,
 			"USkeletalMeshComponent_UpdateTransform")) return false;
 	}
-
-	orig_ReadUnrealPawnData = (ReadUnrealPawnData_t)sigscanOffset(
+	
+	// FUpdatePrimitiveTransformCommand::Apply()
+	orig_FUpdatePrimitiveTransformCommand_Apply = (FUpdatePrimitiveTransformCommand_Apply_t)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"8b f1 8b 0e e8 ?? ?? ?? ?? 8b 06 8b 48 04 89 44 24 04 85 c9 74 1e 83 78 08 00 74 18 f6 81 84 00 00 00 20",
 		{ -2 },
-		&error, "ReadUnrealPawnData");
+		&error, "FUpdatePrimitiveTransformCommand::Apply");
 
-	if (orig_ReadUnrealPawnData) {
-		void (HookHelp::*readUnrealPawnDataHookPtr)(void) = &HookHelp::readUnrealPawnDataHook;
-		if (!detouring.attach(&(PVOID&)orig_ReadUnrealPawnData,
-			(PVOID&)readUnrealPawnDataHookPtr,
-			&orig_ReadUnrealPawnDataMutex,
-			"ReadUnrealPawnData")) return false;
+	if (orig_FUpdatePrimitiveTransformCommand_Apply) {
+		void (HookHelp::*FUpdatePrimitiveTransformCommand_ApplyHookPtr)(void) = &HookHelp::FUpdatePrimitiveTransformCommand_ApplyHook;
+		if (!detouring.attach(&(PVOID&)orig_FUpdatePrimitiveTransformCommand_Apply,
+			(PVOID&)FUpdatePrimitiveTransformCommand_ApplyHookPtr,
+			&orig_FUpdatePrimitiveTransformCommand_ApplyMutex,
+			"FUpdatePrimitiveTransformCommand::Apply")) return false;
 	}
 	
 	superflashInstigatorOffset = sigscanOffset(
@@ -304,12 +305,12 @@ void EndScene::HookHelp::USkeletalMeshComponent_UpdateTransformHook() {
 	}
 }
 
-void EndScene::HookHelp::readUnrealPawnDataHook() {
+void EndScene::HookHelp::FUpdatePrimitiveTransformCommand_ApplyHook() {
 	// this read happens many times every frame and it appears to be synchronized with USkeletalMeshComponent_UpdateTransformHook via a simple SetEvent.
 	// the model we built might not be super precise and probably is not how the game sends data over from the logic thread to the graphics thread,
 	// but it's precise enough to never fail so we'll keep using it
-	HookGuard hookGuard("ReadUnrealPawnData");
-	endScene.readUnrealPawnDataHook((char*)this);
+	HookGuard hookGuard("FUpdatePrimitiveTransformCommand::Apply");
+	endScene.FUpdatePrimitiveTransformCommand_ApplyHook((char*)this);
 }
 
 void EndScene::HookHelp::drawTrainingHudHook() {
@@ -986,7 +987,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 #endif
 }
 
-void EndScene::readUnrealPawnDataHook(char* thisArg) {
+void EndScene::FUpdatePrimitiveTransformCommand_ApplyHook(char* thisArg) {
 	if (!shutdown && !graphics.shutdown) {
 		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
 		if (!graphics.drawDataPrepared.empty && graphics.needNewDrawData) {
@@ -997,8 +998,8 @@ void EndScene::readUnrealPawnDataHook(char* thisArg) {
 		}
 	}
 	{
-		std::unique_lock<std::mutex> guard(orig_ReadUnrealPawnDataMutex);
-		orig_ReadUnrealPawnData(thisArg);
+		std::unique_lock<std::mutex> guard(orig_FUpdatePrimitiveTransformCommand_ApplyMutex);
+		orig_FUpdatePrimitiveTransformCommand_Apply(thisArg);
 	}
 }
 
@@ -1458,11 +1459,11 @@ void EndScene::drawTrainingHudHook(char* thisArg) {
 }
 
 void EndScene::drawTexts() {
-	return;
-	#if 0
+	//return;
+	#if 1
 	// Example code
 	{
-		char HelloWorld[] = "Hello World";
+		char HelloWorld[] = "oig^mAtk1;";
 		DrawTextWithIconsParams s;
 	    s.field159_0x100 = 36.0;
 	    s.field11_0x2c = 177;
@@ -1477,16 +1478,16 @@ void EndScene::drawTexts() {
 	    s.field164_0x114 = 0;
 	    s.field165_0x118 = 0;
 	    s.field166_0x11c = -1;
-	    s.field167_0x120 = 0xff000000;
+	    s.outlineColor = 0xff000000;
 	    s.flags2 = 0xff000000;
 	    s.x = 100;
 	    s.y = 185.0 + 34 * 3;
 	    s.alignment = ALIGN_LEFT;
-	    s.field10_0x28 = HelloWorld;
+	    s.text = HelloWorld;
 	    s.field156_0xf4 = 0x210;
 	    drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
-    
+    return;
 	{
 		char HelloWorld[] = "-123765";
 		DrawTextWithIconsParams s;
@@ -1503,12 +1504,12 @@ void EndScene::drawTexts() {
 	    s.field164_0x114 = 0;
 	    s.field165_0x118 = 0;
 	    s.field166_0x11c = -1;
-	    s.field167_0x120 = 0xff000000;
+	    s.outlineColor = 0xff000000;
 	    s.flags2 = 0xff000000;
 	    s.x = 460;
 	    s.y = 185.0 + 34 * 3;
 	    s.alignment = ALIGN_CENTER;
-	    s.field10_0x28 = HelloWorld;
+	    s.text = HelloWorld;
 	    s.field156_0xf4 = 0x210;
 	    drawTextWithIcons(&s,0x0,1,4,0,0);
 	}

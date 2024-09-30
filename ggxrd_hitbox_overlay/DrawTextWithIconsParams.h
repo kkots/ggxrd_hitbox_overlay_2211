@@ -1,5 +1,6 @@
 #pragma once
 #include "pch.h"
+#include "d3d9.h"
 
 enum DrawTextWithIconsAlignment {
 	ALIGN_LEFT,
@@ -18,8 +19,8 @@ struct DrawTextWithIconsParams {
     float field4_0x10;
     float field5_0x14;
     int field6_0x18;
-    int field7_0x1c;
-    int field8_0x20;
+    D3DCOLOR tint;  // each pixel is multiplied by this color. Input history uses color 0xffa0a0a1 for stuff that was already pressed
+    D3DCOLOR colorAdd;  // 
     DrawTextWithIconsAlignment alignment;
 	/* The string.
 	^mNull; - empty icon
@@ -29,7 +30,7 @@ struct DrawTextWithIconsParams {
 	(probably KYK, MAY, MLL, ZAT, POT, CHP, FAU, AXL, VEN, SLY, INO, BED, RAM, SIN, ELP, LEO, JHN, JKO, KUM, RVN, DZY, BKN, ANS, APRL, ARLS, GBRL, PHLX, PRDM, RBKY, VRNN, ZPPA, DARL)
 	^g%04d; // guild icon
 	*/
-    char * field10_0x28;
+    char * text;
     int field11_0x2c;
     int field12_0x30;
     int field13_0x34;
@@ -176,6 +177,7 @@ struct DrawTextWithIconsParams {
     unsigned long long field154_0xe8;
     int field155_0xf0;
     // flag 0x20 means single-byte string
+    // flag 0x200 means outline - specify color in outlineColor
     int field156_0xf4;
     int field157_0xf8;
     int field158_0xfc;
@@ -187,7 +189,7 @@ struct DrawTextWithIconsParams {
     int field164_0x114;
     int field165_0x118;
     int field166_0x11c;
-    unsigned int field167_0x120;
+    D3DCOLOR outlineColor;
     unsigned int flags2;
     char field169_0x128;
     char field170_0x129;
@@ -255,15 +257,15 @@ struct DrawTextWithIconsParams {
 		scaleY = 1.0;
 		field155_0xf0 = 0;
 		field0_0x0 = 0;
-		field8_0x20 = 0;
-		field10_0x28 = (char *)0x0;
+		colorAdd = 0;
+		text = (char *)0x0;
 		field12_0x30 = 0;
 		field13_0x34 = 0;
 		field144_0xc0 = 0;
 		field149_0xc8 = 0;
 		field150_0xcc = 0;
 		field1_0x4 = 1;
-		field7_0x1c = -1;
+		tint = -1;
 		alignment = ALIGN_CENTER;
 		field11_0x2c = 0xf7;
 		field151_0xd0 = 0;

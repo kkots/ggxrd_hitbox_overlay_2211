@@ -505,7 +505,7 @@ void Graphics::drawAllPrepared() {
 }
 
 void Graphics::drawAll() {
-
+	
 	initializeVertexBuffers();
 	resetVertexBuffer();
 	preparedArrayboxIdCounter = 0;
@@ -988,7 +988,7 @@ void Graphics::takeScreenshotDebug(IDirect3DDevice9* device, const wchar_t* file
 	std::vector<unsigned char> gameImage;
 	unsigned int width = 0;
 	unsigned int height = 0;
-	if (!!getFramebufferData(device, gameImage, nullptr, nullptr, &width, &height)) return;
+	if (!getFramebufferData(device, gameImage, nullptr, nullptr, &width, &height)) return;
 	pngRelated.writePngToPath(filename, width, height, &gameImage.front());
 
 }

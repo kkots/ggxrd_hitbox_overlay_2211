@@ -98,6 +98,7 @@ void PngRelated::writePngPrepare(unsigned int width, unsigned int height, void* 
 	}
 }
 
+// May overwrite data in -buffer-
 bool PngRelated::writePngToPath(const std::wstring& path, unsigned int width, unsigned int height, void* buffer) {
 	png_image image;
 	memset(&image, 0, (sizeof image));
