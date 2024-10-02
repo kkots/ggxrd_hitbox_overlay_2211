@@ -1726,16 +1726,17 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, uns
 			endScene.orig_BBScr_createObjectWithArgMutex.unlock();
 		}
 	}
-}
-
-void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName) {
 	if (!gifMode.modDisabled && (gifMode.gifModeToggleHideOpponentOnly || gifMode.gifModeOn) && game.isTrainingMode()) {
 		int playerSide = game.getPlayerSide();
 		if (playerSide == 2) playerSide = 0;
-		if (createdPawn.team() != playerSide) {
-			hideEntity(createdPawn);
+		Entity createdPawn = Entity{(char*)this}.previousEntity();
+		if (createdPawn && createdPawn.team() != playerSide) {
+			endScene.hideEntity(createdPawn);
+		}
 		}
 	}
+
+void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName) {
 	for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
 		if (it->ptr == createdPawn) {
 			if (it->landedHit) {
