@@ -28,6 +28,18 @@ EndScene endScene;
 PlayerInfo emptyPlayer {0};
 ProjectileInfo emptyProjectile;
 
+// Runs on the main thread
+extern "C"
+void __cdecl drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas);  // defined here
+
+// Runs on the main thread
+extern "C"
+void __cdecl drawQuadExecHookAsm(REDDrawQuadCommand* item, void* canvas);  // defined in drawQuadExecHook.asm
+
+// Runs on the main thread
+extern "C"
+void __cdecl call_orig_drawQuadExec(void* orig_drawQuadExec, FVector2D *screenSize, REDDrawQuadCommand *item, void* canvas);  // defined in drawQuadExecHook.asm
+
 bool EndScene::onDllMain() {
 	bool error = false;
 	
@@ -83,33 +95,124 @@ bool EndScene::onDllMain() {
 		}
 	}
 	
-	orig_USkeletalMeshComponent_UpdateTransform = (USkeletalMeshComponent_UpdateTransform_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"8b 0d ?? ?? ?? ?? 33 db 53 e8 ?? ?? ?? ?? f3 0f 10 80 24 04 00 00 f3 0f 5c 05 ?? ?? ?? ?? f3 0f 10 8e d0 01 00 00 0f 2f c8 76 05 8d 43 01 eb 02",
-		{ -0x11 },
-		&error, "USkeletalMeshComponent_UpdateTransform");
-
-	if (orig_USkeletalMeshComponent_UpdateTransform) {
-		void (HookHelp::*USkeletalMeshComponent_UpdateTransformHookPtr)(void) = &HookHelp::USkeletalMeshComponent_UpdateTransformHook;
-		if (!detouring.attach(&(PVOID&)orig_USkeletalMeshComponent_UpdateTransform,
-			(PVOID&)USkeletalMeshComponent_UpdateTransformHookPtr,
-			&orig_USkeletalMeshComponent_UpdateTransformMutex,
-			"USkeletalMeshComponent_UpdateTransform")) return false;
+	wchar_t CanvasFlushSetupCommandString[] = L"_CanvasFlushSetupCommand";
+	CanvasFlushSetupCommandString[0] = L'\0';
+	uintptr_t CanvasFlushSetupCommandStringAddr = sigscanBufOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		(const char*)CanvasFlushSetupCommandString,
+		sizeof CanvasFlushSetupCommandString,
+		{ 2 },
+		&error, "CanvasFlushSetupCommandString");
+	uintptr_t CanvasFlushSetupCommand_DescribeCommand = 0;
+	if (CanvasFlushSetupCommandStringAddr) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("b8 ?? ?? ?? ?? c3",
+			sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 0, (void*)CanvasFlushSetupCommandStringAddr);
+		CanvasFlushSetupCommand_DescribeCommand = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig.data(),
+			mask.data(),
+			&error, "CanvasFlushSetupCommand_DescribeCommand");
+	}
+	uintptr_t CanvasFlushSetupCommandVtable = 0;
+	if (CanvasFlushSetupCommand_DescribeCommand) {
+		CanvasFlushSetupCommandVtable = sigscanBufOffset(
+			"GuiltyGearXrd.exe:.rdata",
+			(const char*)&CanvasFlushSetupCommand_DescribeCommand,
+			4,
+			{ -8 },
+			&error, "CanvasFlushSetupCommandVtable");
+	}
+	uintptr_t CanvasFlushSetupCommandCreationPlace = 0;
+	if (CanvasFlushSetupCommandVtable) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("c7 ?? ?? ?? ?? ??", sig, mask);
+		strcpy(mask.data() + 2, "xxxx");
+		memcpy(sig.data() + 2, &CanvasFlushSetupCommandVtable, 4);
+		CanvasFlushSetupCommandCreationPlace = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig.data(),
+			mask.data(),
+			&error, "CanvasFlushSetupCommandCreationPlace");
+	}
+	uintptr_t GIsThreadedRenderingJzInstr = 0;
+	if (CanvasFlushSetupCommandCreationPlace) {
+		GIsThreadedRenderingJzInstr = sigscanBackwards(CanvasFlushSetupCommandCreationPlace - 1,
+			"0f 84 ?? 00 00 00 6a 14");
+	}
+	uintptr_t commandVtableAssignment = 0;
+	uintptr_t FRingBuffer_AllocationContext_ConstructorCallPlace = 0;
+	if (GIsThreadedRenderingJzInstr) {
+		// assume it's 39 3d __ __ __ __ CMP [GIsRenderedThreading], reg32  ; reg32 stores 0
+		GIsThreadedRendering = *(bool**)(GIsThreadedRenderingJzInstr - 4);
+		// 8d 4c 24 __ LEA ECX,[ESP+__]
+		// e8 __ __ __ __ CALL ________
+		FRingBuffer_AllocationContext_ConstructorCallPlace = sigscanForward(GIsThreadedRenderingJzInstr,
+			"8d 4c 24 ?? e8");
+		commandVtableAssignment = sigscanForward(GIsThreadedRenderingJzInstr,
+			"c7 00 ?? ?? ?? ?? c7 00 ?? ?? ?? ??");
+	}
+	if (FRingBuffer_AllocationContext_ConstructorCallPlace) {
+		FRingBuffer_AllocationContext_Constructor = (FRingBuffer_AllocationContext_Constructor_t)followRelativeCall(FRingBuffer_AllocationContext_ConstructorCallPlace + 4);
+		GRenderCommandBuffer = *(void**)(FRingBuffer_AllocationContext_ConstructorCallPlace - 4);
+	}
+	if (commandVtableAssignment) {
+		FRingBuffer_AllocationContext_Commit = (FRingBuffer_AllocationContext_Commit_t)followRelativeCall(commandVtableAssignment + 19);
+		FRenderCommandVtable = *(void**)(commandVtableAssignment + 2);
+		FRenderCommandDestructor = *(FRenderCommandDestructor_t*)FRenderCommandVtable;
+		FSkipRenderCommandVtable = *(void**)(commandVtableAssignment + 8);
+	}
+	if (!GIsThreadedRendering
+			|| !GRenderCommandBuffer
+			|| !FRingBuffer_AllocationContext_Constructor
+			|| !FRingBuffer_AllocationContext_Commit) {
+		logwrap(fputs("Failed to find things needed for enqueueing render commands\n"));
+		error = true;
 	}
 	
-	// FUpdatePrimitiveTransformCommand::Apply()
-	orig_FUpdatePrimitiveTransformCommand_Apply = (FUpdatePrimitiveTransformCommand_Apply_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"8b f1 8b 0e e8 ?? ?? ?? ?? 8b 06 8b 48 04 89 44 24 04 85 c9 74 1e 83 78 08 00 74 18 f6 81 84 00 00 00 20",
-		{ -2 },
-		&error, "FUpdatePrimitiveTransformCommand::Apply");
-
-	if (orig_FUpdatePrimitiveTransformCommand_Apply) {
-		void (HookHelp::*FUpdatePrimitiveTransformCommand_ApplyHookPtr)(void) = &HookHelp::FUpdatePrimitiveTransformCommand_ApplyHook;
-		if (!detouring.attach(&(PVOID&)orig_FUpdatePrimitiveTransformCommand_Apply,
-			(PVOID&)FUpdatePrimitiveTransformCommand_ApplyHookPtr,
-			&orig_FUpdatePrimitiveTransformCommand_ApplyMutex,
-			"FUpdatePrimitiveTransformCommand::Apply")) return false;
+	uintptr_t TryEnterCriticalSectionPtr = findImportedFunction("GuiltyGearXrd.exe", "KERNEL32.DLL", "TryEnterCriticalSection");
+	uintptr_t EnterCriticalSectionPtr = findImportedFunction("GuiltyGearXrd.exe", "KERNEL32.DLL", "EnterCriticalSection");
+	uintptr_t LeaveCriticalSectionPtr = findImportedFunction("GuiltyGearXrd.exe", "KERNEL32.DLL", "LeaveCriticalSection");
+	{
+		std::vector<char> sig;
+		std::vector<char> unused;
+		byteSpecificationToSigMask("e8 ?? ?? ?? ?? 8b ?? ?? ?? ?? ?? 8b ?? ?? ?? ?? ?? 8b ?? ?? ?? ?? ??",
+			sig, unused);
+		memcpy(sig.data() + 7, &TryEnterCriticalSectionPtr, 4);
+		memcpy(sig.data() + 13, &EnterCriticalSectionPtr, 4);
+		memcpy(sig.data() + 19, &LeaveCriticalSectionPtr, 4);
+		orig_REDAnywhereDispDraw = (REDAnywhereDispDraw_t)sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig.data(),
+			"x????x?xxxxx?xxxxx?xxxx",
+			{ -0x4 },
+			&error, "REDAnywhereDispDraw");
+	}
+	
+	if (orig_REDAnywhereDispDraw) {
+		uintptr_t anotherCallWith2ArgsCdecl = followRelativeCall((uintptr_t)orig_REDAnywhereDispDraw + 0x5f);  // a cdecl call with 2 arguments
+		FCanvas_Flush = (FCanvas_Flush_t)followRelativeCall(anotherCallWith2ArgsCdecl + 0x16f);  // it's in switch's case 7
+		if (!detouring.attach(&(PVOID&)orig_REDAnywhereDispDraw,
+			REDAnywhereDispDrawHookStatic,
+			&orig_REDAnywhereDispDrawMutex,
+			"REDAnywhereDispDraw")) return false;
+		orig_drawQuadExec = (void*)followRelativeCall(anotherCallWith2ArgsCdecl + 0x148);  // it's in switch's case 4
+	}
+	
+	if (orig_drawQuadExec) {
+		// This function has a weird calling convention:
+		// It does not pop stack arguments, similar to cdecl
+		// It expects a pointer argument in ECX
+		// It expects two more arguments on the stack, in ESP+4 and ESP+8
+		// 
+		// It cannot be hooked solely by C, because none of the standard calling conventions satisfy these requirements, so we hook it with a function written in asm
+		if (!detouring.attach(&(PVOID&)orig_drawQuadExec,
+			drawQuadExecHookAsm,  // defined in drawQuadExecHook.asm
+			&orig_drawQuadExecMutex,
+			"drawQuadExec")) return false;
 	}
 	
 	superflashInstigatorOffset = sigscanOffset(
@@ -121,13 +224,6 @@ bool EndScene::onDllMain() {
 		superflashCounterAllOffset = superflashInstigatorOffset + 4;
 		superflashCounterSelfOffset = superflashInstigatorOffset + 8;
 	}
-	
-	orig_endSceneCaller = *(endSceneCaller_t*)(**(void****)direct3DVTable.d3dManager + 0x4b);
-	void (HookHelp::*endSceneCallerHookPtr)(int param1, int param2, int param3) = &HookHelp::endSceneCallerHook;
-	if (!detouring.attach(&(PVOID&)orig_endSceneCaller,
-		(PVOID&)endSceneCallerHookPtr,
-		&orig_endSceneCallerMutex,
-		"endSceneCaller")) return false;
 	
 	shutdownFinishedEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
 	if (!shutdownFinishedEvent || shutdownFinishedEvent == INVALID_HANDLE_VALUE) {
@@ -238,7 +334,7 @@ bool EndScene::onDllMain() {
 			&orig_logicOnFrameAfterHitMutex,
 			"logicOnFrameAfterHit")) return false;
 	}
-
+	
 	return !error;
 }
 
@@ -283,94 +379,44 @@ bool EndScene::onDllDetach() {
 	return true;
 }
 
-void EndScene::HookHelp::USkeletalMeshComponent_UpdateTransformHook() {
-	// this gets called many times every frame, presumably once per entity, but there're way more entities and they're not in the entityList.list
-	HookGuard hookGuard("USkeletalMeshComponent_UpdateTransform");
-	if (!endScene.shutdown && !graphics.shutdown) {
-		endScene.USkeletalMeshComponent_UpdateTransformHook((char*)this);
-	}
-	{
-		bool needToUnlock = false;
-		if (!endScene.orig_USkeletalMeshComponent_UpdateTransformMutexLocked || endScene.orig_USkeletalMeshComponent_UpdateTransformMutexThreadId != GetCurrentThreadId()) {
-			needToUnlock = true;
-			endScene.orig_USkeletalMeshComponent_UpdateTransformMutex.lock();
-			endScene.orig_USkeletalMeshComponent_UpdateTransformMutexLocked = true;
-			endScene.orig_USkeletalMeshComponent_UpdateTransformMutexThreadId = GetCurrentThreadId();
-		}
-		endScene.orig_USkeletalMeshComponent_UpdateTransform((char*)this);  // this method likes to call itself
-		if (needToUnlock) {
-			endScene.orig_USkeletalMeshComponent_UpdateTransformMutexLocked = false;
-			endScene.orig_USkeletalMeshComponent_UpdateTransformMutex.unlock();
-		}
-	}
-}
-
-void EndScene::HookHelp::FUpdatePrimitiveTransformCommand_ApplyHook() {
-	// this read happens many times every frame and it appears to be synchronized with USkeletalMeshComponent_UpdateTransformHook via a simple SetEvent.
-	// the model we built might not be super precise and probably is not how the game sends data over from the logic thread to the graphics thread,
-	// but it's precise enough to never fail so we'll keep using it
-	HookGuard hookGuard("FUpdatePrimitiveTransformCommand::Apply");
-	endScene.FUpdatePrimitiveTransformCommand_ApplyHook((char*)this);
-}
-
+// Runs on the main thread
 void EndScene::HookHelp::drawTrainingHudHook() {
 	HookGuard hookGuard("drawTrainingHud");
 	endScene.drawTrainingHudHook((char*)this);
 }
 
-void EndScene::USkeletalMeshComponent_UpdateTransformHook(char* thisArg) {
-	if (*aswEngine == nullptr) return;
-	entityList.populate();
-	if (entityList.count < 1) return;
-	// the thing at 0x27a8 is a REDPawn_Player, and the thing at 0x384 is a SkeletalMeshComponent
-	if (*(char**)(*(char**)(entityList.slots[0] + 0x27a8) + 0x384) != thisArg) return;
-	endScene.logic();
-}
-
+// Runs on the main thread
 void EndScene::logic() {
-	std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
 	actUponKeyStrokesThatAlreadyHappened();
-	if (graphics.drawDataPrepared.empty && !butDontPrepareBoxData) {
-		bool oldNeedTakeScreenshot = graphics.drawDataPrepared.needTakeScreenshot;
-		graphics.drawDataPrepared.clear();
-		graphics.drawDataPrepared.needTakeScreenshot = oldNeedTakeScreenshot;
 
-		bool needToClearHitDetection = false;
-		if (gifMode.modDisabled) {
-			needToClearHitDetection = true;
-		}
-		else {
-			bool isPauseMenu;
-			bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu);
-			bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
-			entityList.populate();
-			bool areAnimationsNormal = entityList.areAnimationsNormal();
-			if (isNormalMode) {
-				if (!isRunning || !areAnimationsNormal) {
-					needToClearHitDetection = true;
-				}
-				else {
-					prepareDrawData(&needToClearHitDetection);
-				}
+	bool needToClearHitDetection = false;
+	if (gifMode.modDisabled) {
+		needToClearHitDetection = true;
+	}
+	else {
+		bool isPauseMenu;
+		bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu) || isPauseMenu;
+		bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
+		entityList.populate();
+		bool areAnimationsNormal = entityList.areAnimationsNormal();
+		if (isNormalMode) {
+			if (!isRunning || !areAnimationsNormal) {
+				needToClearHitDetection = true;
+			}
+			else {
+				prepareDrawData(&needToClearHitDetection);
 			}
 		}
-		if (needToClearHitDetection) {
-			hitDetector.clearAllBoxes();
-			throws.clearAllBoxes();
-		}
-		// Camera values are updated later, after this, in a updateCameraHook call
-		graphics.drawDataPrepared.empty = false;
 	}
-	if (!drawDataPrepared) {
-		ui.drawData = nullptr;
-		ui.needInitFont = false;
-		if (!ui.shutdownGraphics) {
-			ui.prepareDrawData();
-		}
-		drawDataPrepared = true;
+	if (needToClearHitDetection) {
+		hitDetector.clearAllBoxes();
+		throws.clearAllBoxes();
 	}
+	// Camera values are updated later, after this, in a updateCameraHook call
+	drawDataPrepared.empty = false;
 }
 
+// Runs on the main thread
 void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("endSceneHook called\n", logfile));
 	invisChipp.onEndSceneStart();
@@ -384,7 +430,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	bool frameHasChangedForScreenshot = previousTimeOfTakingScreen != aswEngineTickCount;
 	if (needContinuouslyTakeScreens) {
 		if (frameHasChangedForScreenshot) {
-			graphics.drawDataPrepared.needTakeScreenshot = true;
+			drawDataPrepared.needTakeScreenshot = true;
 		}
 		previousTimeOfTakingScreen = aswEngineTickCount;
 	}
@@ -718,20 +764,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		bool active = ent.isActive();
 		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
 		
-		size_t hurtboxesPrevSize = graphics.drawDataPrepared.hurtboxes.size();
-		size_t hitboxesPrevSize = graphics.drawDataPrepared.hitboxes.size();
-		size_t pointsPrevSize = graphics.drawDataPrepared.points.size();
-		size_t pushboxesPrevSize = graphics.drawDataPrepared.pushboxes.size();
+		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
+		size_t hitboxesPrevSize = drawDataPrepared.hitboxes.size();
+		size_t pointsPrevSize = drawDataPrepared.points.size();
+		size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
 		
 		int hitboxesCount = 0;
 		DrawHitboxArrayCallParams hurtbox;
-		collectHitboxes(ent, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes, &hitboxesCount);
+		collectHitboxes(ent, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount);
 		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
 		if (!wasHitResult.wasHit) {
-			graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
+			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
 		}
 		else {
-			graphics.drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
+			drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
 		}
 		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
 		drawnEntities.push_back(ent);
@@ -741,8 +787,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		const auto attached = *(char**)(ent + 0x204);
 		if (attached != nullptr) {
 			logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
-			collectHitboxes(attached, active, &hurtbox, &graphics.drawDataPrepared.hitboxes, &graphics.drawDataPrepared.points, &graphics.drawDataPrepared.pushboxes, &hitboxesCount);
-			graphics.drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
+			collectHitboxes(attached, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount);
+			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
 			drawnEntities.push_back(attached);
 		}
 		if ((team == 0 || team == 1) && frameHasChanged) {
@@ -759,10 +805,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		if (invisChipp.needToHide(ent)) {
-			graphics.drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
-			graphics.drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
-			graphics.drawDataPrepared.points.resize(pointsPrevSize);
-			graphics.drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
+			drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
+			drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
+			drawDataPrepared.points.resize(pointsPrevSize);
+			drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
 		}
 	}
 	
@@ -987,69 +1033,25 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 #endif
 }
 
-void EndScene::FUpdatePrimitiveTransformCommand_ApplyHook(char* thisArg) {
-	if (!shutdown && !graphics.shutdown) {
-		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-		if (!graphics.drawDataPrepared.empty && graphics.needNewDrawData) {
-			graphics.drawDataUse.clear();
-			graphics.drawDataPrepared.copyTo(&graphics.drawDataUse);
-			graphics.drawDataPrepared.empty = true;
-			graphics.needNewDrawData = false;
-		}
-	}
-	{
-		std::unique_lock<std::mutex> guard(orig_FUpdatePrimitiveTransformCommand_ApplyMutex);
-		orig_FUpdatePrimitiveTransformCommand_Apply(thisArg);
-	}
-}
-
+// Runs on the main thread
 bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 	return std::find(drawnEntities.cbegin(), drawnEntities.cend(), ent) != drawnEntities.cend();
 }
 
+// Runs on the graphics thread
 void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	graphics.graphicsThreadId = GetCurrentThreadId();
 	graphics.onEndSceneStart(device);
 	drawOutlineCallParamsManager.onEndSceneStart();
 	camera.onEndSceneStart();
 
-	static bool everythingBroke = false;
-
-	{
-		std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
-		if (!camera.valuesPrepare.empty() && graphics.needNewCameraData) {
-			if (camera.valuesPrepare.size() > 100) {
-				everythingBroke = true;
-				camera.valuesPrepare.clear();
-			}
-			if (!everythingBroke) {
-				for (auto it = camera.valuesPrepare.begin(); it != camera.valuesPrepare.end(); ++it) {
-					if (it->id == graphics.drawDataUse.id) {
-						it->copyTo(camera.valuesUse);
-						camera.valuesPrepare.erase(camera.valuesPrepare.begin(), it + 1);
-						graphics.needNewCameraData = false;
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	{
-		std::unique_lock<std::mutex> specialGuard(graphics.specialScreenshotFlagMutex);
-		if (graphics.specialScreenshotFlag) {
-			graphics.drawDataUse.needTakeScreenshot = true;
-			graphics.specialScreenshotFlag = false;
-		}
-	}
-
 	bool doYourThing = !gifMode.hitboxDisplayDisabled;
 
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
 		graphics.drawDataUse.clear();
-	} else if (!altModes.isGameInNormalMode(nullptr)) {
-		doYourThing = false;
+	//} else if (!altModes.isGameInNormalMode(nullptr)) {  // no more need to hide boxes when menu is open, because we draw under the menus now
+		//doYourThing = false;
 	}
 
 	if (doYourThing) {
@@ -1067,9 +1069,10 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	}
 	graphics.drawDataUse.needTakeScreenshot = false;
 	
-	ui.onEndScene(device);
+	//ui.onEndScene(device);  // ui must be drawn separately
 }
 
+// Runs on the main thread
 void EndScene::processKeyStrokes() {
 	bool trainingMode = game.isTrainingMode();
 	keyboard.updateKeyStatuses();
@@ -1224,6 +1227,7 @@ void EndScene::processKeyStrokes() {
 	}
 }
 
+// Runs on the main thread
 void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 	bool trainingMode = game.isTrainingMode();
 	bool allowNextFrameIsHeld = false;
@@ -1255,15 +1259,10 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		allowNextFrameBeenHeldFor = 0;
 		allowNextFrameCounter = 0;
 	}
-	graphics.drawDataPrepared.needTakeScreenshot = false;
+	drawDataPrepared.needTakeScreenshot = false;
 	if (!gifMode.modDisabled && ui.takeScreenshotPress) {
 		ui.takeScreenshotPress = false;
-		if (butDontPrepareBoxData) {
-			std::unique_lock<std::mutex> specialGuard(graphics.specialScreenshotFlagMutex);
-			graphics.specialScreenshotFlag = true;
-		} else {
-			graphics.drawDataPrepared.needTakeScreenshot = true;
-		}
+		drawDataPrepared.needTakeScreenshot = true;
 	}
 	bool screenshotPathEmpty = false;
 	{
@@ -1303,6 +1302,7 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 	
 }
 
+// Runs on the main thread
 void EndScene::noGravGifMode() {
 	char playerIndex;
 	playerIndex = game.getPlayerSide();
@@ -1366,12 +1366,14 @@ void EndScene::noGravGifMode() {
 	}
 }
 
+// Runs on the main thread
 void EndScene::clearContinuousScreenshotMode() {
 	continuousScreenshotMode = false;
 	ui.continuousScreenshotToggle = false;
 	previousTimeOfTakingScreen = ~0;
 }
 
+// Runs on the main thread
 std::vector<EndScene::HiddenEntity>::iterator EndScene::findHiddenEntity(const Entity& ent) {
 	for (auto it = hiddenEntities.begin(); it != hiddenEntities.end(); ++it) {
 		if (it->ent == ent) {
@@ -1381,28 +1383,13 @@ std::vector<EndScene::HiddenEntity>::iterator EndScene::findHiddenEntity(const E
 	return hiddenEntities.end();
 }
 
-// Called at the start of the tick.
-// We use this merely to synchronize draw data between our logic tick hook and camera update function hook.
-// They're called on the same thread.
-void EndScene::assignNextId(bool acquireLock) {
-	std::unique_lock<std::mutex> guard;
-	if (acquireLock) {
-		guard = std::unique_lock<std::mutex>(graphics.drawDataPreparedMutex);
-	}
-	if (graphics.drawDataPrepared.id == 0xFFFFFFFF) {
-		graphics.drawDataPrepared.id = 0;
-	}
-	else {
-		++graphics.drawDataPrepared.id;
-	}
-	camera.nextId = graphics.drawDataPrepared.id;
-}
-
+// Runs on the main thread
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	return endScene.WndProcHook(hWnd, message, wParam, lParam);
 }
 
 // The game logic thread runs WndProc, by calling DispatchMessageW inbetween ticks.
+// Runs on the main thread
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	HookGuard hookGuard("WndProc");
 	if (!shutdown) {
@@ -1447,26 +1434,29 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 // 3) Virtual sticks
 // 4) Dummy status
 // All drawn in this one function depending on in-game settings. This function hooks that.
+// Runs on the main thread
 void EndScene::drawTrainingHudHook(char* thisArg) {
-	if (!shutdown && !graphics.shutdown) {
-		if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
-		drawTexts();
-	}
 	{
 		std::unique_lock<std::mutex> guard(orig_drawTrainingHudMutex);
 		orig_drawTrainingHud(thisArg);
 	}
+	if (!shutdown && !graphics.shutdown) {
+		if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
+		drawTexts();
+	}
 }
 
+// See drawTrainingHudHook
+// Runs on the main thread
 void EndScene::drawTexts() {
-	//return;
-	#if 1
+	return;
+	#if 0
 	// Example code
 	{
 		char HelloWorld[] = "oig^mAtk1;";
 		DrawTextWithIconsParams s;
 	    s.field159_0x100 = 36.0;
-	    s.field11_0x2c = 177;
+	    s.layer = 177;
 	    s.field160_0x104 = -1.0;
 	    s.field4_0x10 = -1.0;
 	    s.field155_0xf0 = 1;
@@ -1492,7 +1482,7 @@ void EndScene::drawTexts() {
 		char HelloWorld[] = "-123765";
 		DrawTextWithIconsParams s;
 	    s.field159_0x100 = 36.0;
-	    s.field11_0x2c = 177;
+	    s.layer = 177;
 	    s.field160_0x104 = -1.0;
 	    s.field4_0x10 = -1.0;
 	    s.field155_0xf0 = 1;
@@ -1517,11 +1507,9 @@ void EndScene::drawTexts() {
 }
 
 // Called when switching characters, exiting the match.
+// Runs on the main thread
 void EndScene::onAswEngineDestroyed() {
-	{
-		std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-		graphics.drawDataPrepared.clear();
-	}
+	drawDataPrepared.clear();
 	clearContinuousScreenshotMode();
 	measuringFrameAdvantage = false;
 	measuringLandingFrameAdvantage = -1;
@@ -1539,21 +1527,25 @@ void EndScene::onAswEngineDestroyed() {
 
 // When someone YRCs, PRCs, RRCs or does a super, the address of their entity is written into the
 // *aswEngine + superflashInstigatorOffset variable for the duration of the superfreeze.
+// Runs on the main thread
 Entity EndScene::getSuperflashInstigator() {
 	if (!superflashInstigatorOffset || !*aswEngine) return nullptr;
 	return Entity{ *(char**)(*aswEngine + superflashInstigatorOffset) };
 }
 
+// Runs on the main thread
 int EndScene::getSuperflashCounterAll() {
 	if (!superflashCounterAllOffset || !*aswEngine) return 0;
 	return *(int*)(*aswEngine + superflashCounterAllOffset);
 }
 
+// Runs on the main thread
 int EndScene::getSuperflashCounterSelf() {
 	if (!superflashCounterSelfOffset || !*aswEngine) return 0;
 	return *(int*)(*aswEngine + superflashCounterSelfOffset);
 }
 
+// Runs on the main thread
 void EndScene::restartMeasuringFrameAdvantage(int index) {
 	PlayerInfo& player = players[index];
 	PlayerInfo& other = players[1 - index];
@@ -1566,6 +1558,7 @@ void EndScene::restartMeasuringFrameAdvantage(int index) {
 	measuringFrameAdvantage = true;
 }
 
+// Runs on the main thread
 void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 	PlayerInfo& player = players[index];
 	PlayerInfo& other = players[1 - index];
@@ -1582,6 +1575,7 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 // one right after the other each logic tick.
 // A single hit detection does a loop in a loop and tries to find which two entities hit each other.
 // We use this hook at the start of hit detection algorithm to measure some values before a hit.
+// Runs on the main thread
 void EndScene::onHitDetectionStart(int hitDetectionType) {
 	if (hitDetectionType == 0) {
 		entityList.populate();
@@ -1599,6 +1593,7 @@ void EndScene::onHitDetectionStart(int hitDetectionType) {
 }
 
 // We use this hook at the end of hit detection algorithm to measure some values after a hit.
+// Runs on the main thread
 void EndScene::onHitDetectionEnd(int hitDetectionType) {
 	entityList.populate();
 	for (int i = 0; i < 2; ++i) {
@@ -1621,6 +1616,7 @@ void EndScene::onHitDetectionEnd(int hitDetectionType) {
 }
 
 // Called by a hook inside hit detection when a hit was detected.
+// Runs on the main thread
 void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender) {
 	registeredHits.emplace_back();
 	RegisteredHit& hit = registeredHits.back();
@@ -1647,21 +1643,16 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 
 // Called at the start of an UE3 engine tick.
 // This tick runs even when paused or not in a match.
+// Runs on the main thread
 void EndScene::onUWorld_TickBegin() {
 	logicThreadId = GetCurrentThreadId();
-	drawDataPrepared = false;
+	drewExGaugeHud = false;
 }
 
 // Called at the end of an UE3 engine tick.
 // This tick runs even when paused or not in a match.
+// Runs on the main thread
 void EndScene::onUWorld_Tick() {
-	if (!drawDataPrepared) {
-		ui.drawData = nullptr;
-		ui.needInitFont = false;
-		if (!ui.shutdownGraphics) {
-			ui.prepareDrawData();
-		}
-	}
 	if (shutdown) {
 		if (*aswEngine) {
 			bool needToCallNoGravGifMode = gifMode.gifModeOn
@@ -1681,30 +1672,7 @@ void EndScene::onUWorld_Tick() {
 	}
 }
 
-void EndScene::HookHelp::endSceneCallerHook(int param1, int param2, int param3) {
-	HookGuard hookGuard("endSceneCaller");
-	IDirect3DDevice9* device = *(IDirect3DDevice9**)((char*)this + 0x24);
-	if (!endScene.shutdown && !graphics.shutdown) {
-		endScene.endSceneHook(device);
-	} else {
-		graphics.onEndSceneStart(device);
-	}
-	{
-		std::unique_lock<std::mutex> guard(endScene.orig_endSceneCallerMutex);
-		endScene.orig_endSceneCaller((void*)this, param1, param2, param3);
-	}
-	if (!endScene.shutdown && !graphics.shutdown) {
-		{
-			std::unique_lock<std::mutex> guard(graphics.drawDataPreparedMutex);
-			graphics.needNewDrawData = true;
-		}
-		{
-			std::unique_lock<std::mutex> guard(camera.valuesPrepareMutex);
-			graphics.needNewCameraData = true;
-		}
-	}
-}
-
+// Runs on the main thread
 void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, unsigned int posType) {
 	HookGuard hookGuard("BBScr_createObjectWithArg");
 	if (!endScene.shutdown) {
@@ -1733,9 +1701,10 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, uns
 		if (createdPawn && createdPawn.team() != playerSide) {
 			endScene.hideEntity(createdPawn);
 		}
-		}
 	}
+}
 
+// Runs on the main thread
 void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName) {
 	for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
 		if (it->ptr == createdPawn) {
@@ -1766,6 +1735,7 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 	}
 }
 
+// Runs on the main thread
 void EndScene::hideEntity(Entity ent) {
 	const int currentScaleX = ent.scaleX();
 	const int currentScaleY = ent.scaleY();
@@ -1811,6 +1781,7 @@ void EndScene::hideEntity(Entity ent) {
 	ent.scaleForParticles() = 0;
 }
 
+// Runs on the main thread
 bool EndScene::didHit(Entity attacker) {
 	for (auto it = registeredHits.begin(); it != registeredHits.end(); ++it) {
 		if (it->attacker == attacker) {
@@ -1820,11 +1791,13 @@ bool EndScene::didHit(Entity attacker) {
 	return false;
 }
 
+// Runs on the main thread
 void EndScene::HookHelp::setAnimHook(const char* animName) {
 	HookGuard hookGuard("setAnim");
 	endScene.setAnimHook(Entity{(char*)this}, animName);
 }
 
+// Runs on the main thread
 void EndScene::setAnimHook(Entity pawn, const char* animName) {
 	if (pawn.isPawn() && !gifMode.modDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
@@ -1845,6 +1818,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 	}
 }
 
+// Runs on the main thread
 void EndScene::initializePawn(PlayerInfo& player, Entity ent) {
 	player.pawn = ent;
 	player.charType = ent.characterType();
@@ -1855,6 +1829,7 @@ void EndScene::initializePawn(PlayerInfo& player, Entity ent) {
 	player.defenseModifier = ent.defenseModifier();
 }
 
+// Runs on the main thread
 PlayerInfo& EndScene::findPlayer(Entity ent) {
 	for (int i = 0; i < 2; ++i) {
 		if (players[i].pawn == ent) {
@@ -1864,11 +1839,13 @@ PlayerInfo& EndScene::findPlayer(Entity ent) {
 	return emptyPlayer;
 }
 
+// Runs on the main thread
 void EndScene::HookHelp::BBScr_createParticleWithArgHook(const char* animName, unsigned int posType) {
 	HookGuard hookGuard("BBScr_createParticleWithArg");
 	endScene.BBScr_createParticleWithArgHook(Entity{(char*)this}, animName, posType);
 }
 
+// Runs on the main thread
 void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType) {
 	if (!gifMode.modDisabled && (gifMode.gifModeToggleHideOpponentOnly || gifMode.gifModeOn) && game.isTrainingMode() && pawn.isPawn()) {
 		int playerSide = game.getPlayerSide();
@@ -1884,6 +1861,7 @@ void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName
 }
 
 // Called before a logic tick happens. Doesn't run when the pause menu is open or a match is not running.
+// Runs on the main thread
 void EndScene::onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen) {
 	if (!isFrozen) {
 		if (needFrameCleanup) {
@@ -1894,6 +1872,7 @@ void EndScene::onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isF
 }
 
 // Stuff that runs at the start of a tick
+// Runs on the main thread
 void EndScene::frameCleanup() {
 	entityList.populate();
 	for (auto it = projectiles.begin(); it != projectiles.end();) {
@@ -1923,11 +1902,13 @@ void EndScene::frameCleanup() {
 	}
 }
 
+// Runs on the main thread
 void EndScene::HookHelp::pawnInitializeHook(void* initializationParams) {
 	HookGuard hookGuard("pawnInitialize");
 	endScene.pawnInitializeHook(Entity{(char*)this}, initializationParams);
 }
 
+// Runs on the main thread
 void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams) { 
 	if (!shutdown && creatingObject) {
 		creatingObject = false;
@@ -1949,11 +1930,13 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 	}
 }
 
+// Runs on the main thread
 void EndScene::HookHelp::logicOnFrameAfterHitHook(int param1, int param2) {
 	HookGuard hookGuard("logicOnFrameAfterHit");
 	endScene.logicOnFrameAfterHitHook(Entity{(char*)this}, param1, param2);
 }
 
+// Runs on the main thread
 void EndScene::logicOnFrameAfterHitHook(Entity pawn, int param1, int param2) {
 	bool functionWillNotDoAnything = !pawn.inPainNextFrame() && (!pawn.inUnknownNextFrame() || !pawn.inBlockstunNextFrame());
 	{
@@ -1969,6 +1952,7 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, int param1, int param2) {
 	}
 }
 
+// Runs on the main thread
 ProjectileInfo& EndScene::findProjectile(Entity pawn) {
 	for (ProjectileInfo& projectile : projectiles) {
 		if (projectile.ptr == pawn) {
@@ -1978,11 +1962,13 @@ ProjectileInfo& EndScene::findProjectile(Entity pawn) {
 	return emptyProjectile;
 }
 
+// Runs on the main thread
 void EndScene::HookHelp::BBScr_runOnObjectHook(int entityReference) {
 	HookGuard hookGuard("BBScr_runOnObject");
 	endScene.BBScr_runOnObjectHook(Entity{(char*)this}, entityReference);
 }
 
+// Runs on the main thread
 void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
 	{
 		std::unique_lock<std::mutex> guard(orig_BBScr_runOnObjectMutex);
@@ -2001,5 +1987,189 @@ void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
 				}
 			}
 		}
+	}
+}
+
+// Runs on the main thread
+void EndScene::REDAnywhereDispDrawHookStatic(void* canvas, FVector2D* screenSize) {
+	HookGuard hookGuard("REDAnywhereDispDraw");
+	endScene.REDAnywhereDispDrawHook(canvas, screenSize);
+}
+
+// Runs on the main thread
+template<typename T>
+void enqueueRenderCommand() {
+	if (*endScene.GIsThreadedRendering) {
+		FRingBuffer_AllocationContext allocationContext(endScene.GRenderCommandBuffer, sizeof(T));
+		if (allocationContext.GetAllocatedSize() < sizeof(T)) {
+			if (allocationContext.AllocationStart) {
+				new (allocationContext.AllocationStart) FSkipRenderCommand(allocationContext.GetAllocatedSize());
+			}
+			allocationContext.Commit();
+			allocationContext = FRingBuffer_AllocationContext(endScene.GRenderCommandBuffer, sizeof(T));
+		}
+		if (allocationContext.AllocationStart) {
+			new (allocationContext.AllocationStart) T();
+		}
+			
+	} else {
+		T MyCommand_2348623486;
+		MyCommand_2348623486.Execute();
+	}
+}
+
+// Runs on the graphics thread
+IDirect3DDevice9* EndScene::getDevice() {
+	return *(IDirect3DDevice9**)(*direct3DVTable.d3dManager + 0x24);
+}
+
+// Runs on the graphics thread
+unsigned int DrawBoxesRenderCommand::Execute() {
+	endScene.executeDrawBoxesRenderCommand(this);
+	return sizeof(*this);
+}
+const wchar_t* DrawBoxesRenderCommand::DescribeCommand() {
+	return L"DrawBoxesRenderCommand";
+}
+// Runs on the main thread
+DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
+	drawData.clear();
+	endScene.drawDataPrepared.copyTo(&drawData);
+	camera.valuesPrepare.copyTo(cameraValues);
+}
+
+// Runs on the graphics thread
+unsigned int DrawOriginPointsRenderCommand::Execute() {
+	endScene.executeDrawOriginPointsRenderCommand(this);
+	return sizeof(*this);
+}
+const wchar_t* DrawOriginPointsRenderCommand::DescribeCommand() {
+	return L"DrawOriginPointsRenderCommand";
+}
+
+// Runs on the main thread
+void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
+	drawDataPrepared.clear();
+	lastScreenSize = *screenSize;
+	if (*aswEngine) {
+		logic();
+	}
+	enqueueRenderCommand<DrawBoxesRenderCommand>();
+	if (!gifMode.hitboxDisplayDisabled && !gifMode.modDisabled && *aswEngine && !drawDataPrepared.points.empty()) {
+		queueOriginPointDrawingDummyCommand();
+	}
+	{
+		std::unique_lock<std::mutex> guard;
+		orig_REDAnywhereDispDraw(canvas, screenSize);
+	}
+	
+	/* TODO: queue imGui drawing
+	FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
+	                           // items might still be drawn on top of yours
+	ui.drawData = nullptr;
+	ui.needInitFont = false;
+	if (!ui.shutdownGraphics) {
+		ui.prepareDrawData();
+	}*/
+}
+
+// Runs on the main thread
+FRingBuffer_AllocationContext::FRingBuffer_AllocationContext(void* InRingBuffer, unsigned int InAllocationSize) {
+	endScene.FRingBuffer_AllocationContext_Constructor(this, InRingBuffer, InAllocationSize);
+}
+
+// Runs on the main thread
+void FRingBuffer_AllocationContext::Commit() {
+	endScene.FRingBuffer_AllocationContext_Commit(this);
+}
+
+void FRenderCommand::Destructor(BOOL freeMem) {
+	endScene.FRenderCommandDestructor((void*)this, freeMem);
+}
+
+// Runs on the main thread
+FSkipRenderCommand::FSkipRenderCommand(unsigned int InNumSkipBytes) : NumSkipBytes(InNumSkipBytes) { }
+
+// Runs on the graphics thread
+unsigned int FSkipRenderCommand::Execute() {
+	return NumSkipBytes;
+}
+const wchar_t* FSkipRenderCommand::DescribeCommand() {
+	return L"FSkipRenderCommand";
+}
+
+// Runs on the graphics thread
+void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
+	graphics.drawDataUse.clear();
+	command->drawData.copyTo(&graphics.drawDataUse);
+	command->cameraValues.copyTo(camera.valuesUse);
+	if (!endScene.shutdown && !graphics.shutdown) {
+		endSceneHook(getDevice());
+	} else {
+		graphics.onEndSceneStart(getDevice());
+	}
+}
+
+// Runs on the graphics thread
+void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command) {
+	if (!endScene.shutdown && !graphics.shutdown) {
+		if (gifMode.hitboxDisplayDisabled) return;
+		graphics.onlyDrawPoints = true;
+		graphics.drawAll();
+		graphics.onlyDrawPoints = false;
+	} else {
+		graphics.onEndSceneStart(getDevice());
+	}
+}
+
+// Runs on the main thread
+void EndScene::queueOriginPointDrawingDummyCommand() {
+	// 6,15 offset to center of "+"
+	// full size: 12,22
+	
+	// Queue a dummy text item for drawing - later we catch it in our drawQuadExecHook and draw players' origin points
+	// The item is queued to be drawn on top of HUD but underneath the Pause menu, so that's where the players' origin points will show up.
+	char plusSign[] = "+";
+	DrawTextWithIconsParams s;
+    s.field159_0x100 = 36.0;
+    s.layer = 177;
+    s.field160_0x104 = -1.0;
+    s.field4_0x10 = -1.0;
+    s.field155_0xf0 = 1;
+    s.field157_0xf8 = -1;
+    s.field158_0xfc = -1;
+    s.field161_0x108 = 0;
+    s.field162_0x10c = 0;
+    s.field163_0x110 = -1;
+    s.field164_0x114 = 0;
+    s.field165_0x118 = 0;
+    s.field166_0x11c = -1;
+    s.outlineColor = 0xff000000;
+    s.flags2 = 0xff000000;
+    s.x = -615530.F;  // gets converted into -615529.0F, or 0xC9164690
+    s.y = 0.F;
+    s.alignment = ALIGN_LEFT;
+    s.text = plusSign;
+    s.field156_0xf4 = 0x010;
+    endScene.drawTextWithIcons(&s,0x0,1,4,0,0);
+}
+
+// Runs on the main thread
+void drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas) {
+	endScene.drawQuadExecHook(screenSize, item, canvas);
+}
+
+// Runs on the main thread
+void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas) {
+	if (item->count == 4 && (unsigned int&)item->vertices[0].x == 0xC9164690) {  // avoid floating point comparison as it may be slower
+		if (!drawDataPrepared.points.empty() && !gifMode.hitboxDisplayDisabled && !gifMode.modDisabled) {
+			FCanvas_Flush(canvas, 0);
+			enqueueRenderCommand<DrawOriginPointsRenderCommand>();
+		}
+		return;  // can safely omit items
+	}
+	{
+		std::unique_lock<std::mutex> guard(orig_drawQuadExecMutex);
+		call_orig_drawQuadExec(orig_drawQuadExec, screenSize, item, canvas);
 	}
 }

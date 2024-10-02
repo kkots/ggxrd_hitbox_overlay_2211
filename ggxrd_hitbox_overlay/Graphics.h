@@ -14,23 +14,11 @@
 #include "characterTypes.h"
 #include "PngResource.h"
 #include "PlayerInfo.h"
+#include "DrawData.h"
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
 using FSuspendRenderingThreadDestructor_t = void(__thiscall*)(char* thisArg);
-
-struct DrawData {
-	std::vector<ComplicatedHurtbox> hurtboxes;
-	std::vector<DrawHitboxArrayCallParams> hitboxes;
-	std::vector<DrawBoxCallParams> pushboxes;
-	std::vector<DrawPointCallParams> points;
-	std::vector<DrawBoxCallParams> throwBoxes;
-	void clear();
-	void copyTo(DrawData* destination);
-	bool empty = false;
-	bool needTakeScreenshot = false;
-	unsigned int id = 0;
-};
 
 class Graphics
 {
@@ -44,16 +32,11 @@ public:
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
 	void* getTexture();
 	
-	DrawData drawDataPrepared;
-	std::mutex drawDataPreparedMutex;
 	DrawData drawDataUse;
-	bool needNewDrawData = true;
-	bool needNewCameraData = true;
-	std::mutex specialScreenshotFlagMutex;
-	bool specialScreenshotFlag = false;
 	IDirect3DDevice9* device;
 	DWORD graphicsThreadId = NULL;
 	bool shutdown = false;
+	bool onlyDrawPoints = false;
 
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;

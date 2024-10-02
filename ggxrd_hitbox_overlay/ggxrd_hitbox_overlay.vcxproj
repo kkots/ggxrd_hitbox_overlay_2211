@@ -54,6 +54,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -169,6 +170,7 @@
     <ClInclude Include="Detouring.h" />
     <ClInclude Include="Direct3DVTable.h" />
     <ClInclude Include="DrawBoxCallParams.h" />
+    <ClInclude Include="DrawData.h" />
     <ClInclude Include="DrawHitboxArrayCallParams.h" />
     <ClInclude Include="DrawHitboxArrayParams.h" />
     <ClInclude Include="DrawOutlineCallParams.h" />
@@ -236,6 +238,7 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="DrawHitboxArrayCallParams.cpp" />
     <ClCompile Include="DrawOutlineCallParams.cpp" />
+    <ClCompile Include="DrawTextWithIconsParams.cpp" />
     <ClCompile Include="EndScene.cpp" />
     <ClCompile Include="Entity.cpp" />
     <ClCompile Include="EntityList.cpp" />
@@ -271,6 +274,9 @@
       <DeploymentContent>true</DeploymentContent>
       <FileType>Document</FileType>
     </CopyFileToFolders>
+    <MASM Include="drawQuadExecHook.asm">
+      <FileType>Document</FileType>
+    </MASM>
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
@@ -286,5 +292,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>

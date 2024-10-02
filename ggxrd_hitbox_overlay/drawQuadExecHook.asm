@@ -1,0 +1,38 @@
+
+.MODEL flat
+
+.code
+
+extrn _drawQuadExecHook:proc
+
+; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
+_drawQuadExecHookAsm proc
+  push ebp
+  lea ebp,[esp+4]
+  mov eax,dword ptr[ebp+8]
+  push eax
+  mov eax,dword ptr[ebp+4]
+  push eax
+  push ecx
+  call _drawQuadExecHook
+  add esp,0Ch
+  pop ebp
+  ret
+_drawQuadExecHookAsm endp
+
+; cdecl esp+4 is the pointer to the original function,
+;       esp+8 is the ecx arg
+;       esp+0Ch is the first stack arg
+;       esp+10h is the second stack arg
+_call_orig_drawQuadExec proc
+  mov edx,dword ptr[esp+4]
+  mov ecx,dword ptr[esp+8]
+  mov eax,dword ptr[esp+0Ch]
+  mov dword ptr[esp+4],eax
+  mov eax,dword ptr[esp+10h]
+  mov dword ptr[esp+8],eax
+  ; cdecl ecx - first arg, esp+4,esp+8 - second and third args
+  jmp edx
+_call_orig_drawQuadExec endp
+
+end

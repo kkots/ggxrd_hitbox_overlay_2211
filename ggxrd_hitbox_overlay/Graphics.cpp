@@ -528,29 +528,31 @@ void Graphics::drawAll() {
 		device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
 	}
 	
-	for (const ComplicatedHurtbox& params : drawDataUse.hurtboxes) {
-		prepareComplicatedHurtbox(params);
-	}
-
-	for (auto it = drawDataUse.hitboxes.cbegin(); it != drawDataUse.hitboxes.cend(); ++it) {
-		const DrawHitboxArrayCallParams& params = *it;
-		bool found = false;
-		for (auto itScan = it + 1; itScan != drawDataUse.hitboxes.cend(); ++itScan) {
-			if (params == *itScan) {
-				found = true;
-				break;
-			}
+	if (!onlyDrawPoints) {
+		for (const ComplicatedHurtbox& params : drawDataUse.hurtboxes) {
+			prepareComplicatedHurtbox(params);
 		}
-		if (!found) prepareArraybox(params, false);
-	}
-	for (const DrawBoxCallParams& params : drawDataUse.pushboxes) {
-		prepareBox(params);
-	}
-	for (const DrawBoxCallParams& params : drawDataUse.throwBoxes) {
-		prepareBox(params);
-	}
-	for (const DrawOutlineCallParams& params : outlines) {
-		prepareOutline(params);
+		
+		for (auto it = drawDataUse.hitboxes.cbegin(); it != drawDataUse.hitboxes.cend(); ++it) {
+			const DrawHitboxArrayCallParams& params = *it;
+			bool found = false;
+			for (auto itScan = it + 1; itScan != drawDataUse.hitboxes.cend(); ++itScan) {
+				if (params == *itScan) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) prepareArraybox(params, false);
+		}
+		for (const DrawBoxCallParams& params : drawDataUse.pushboxes) {
+			prepareBox(params);
+		}
+		for (const DrawBoxCallParams& params : drawDataUse.throwBoxes) {
+			prepareBox(params);
+		}
+		for (const DrawOutlineCallParams& params : outlines) {
+			prepareOutline(params);
+		}
 	}
 	for (const DrawPointCallParams& params : drawDataUse.points) {
 		preparePoint(params);
@@ -1283,7 +1285,6 @@ void DrawData::copyTo(DrawData* destination) {
 	destination->points.insert(destination->points.begin(), points.begin(), points.end());
 	destination->throwBoxes.insert(destination->throwBoxes.begin(), throwBoxes.begin(), throwBoxes.end());
 	destination->needTakeScreenshot = needTakeScreenshot;
-	destination->id = id;
 }
 
 bool Graphics::initializeTexture() {

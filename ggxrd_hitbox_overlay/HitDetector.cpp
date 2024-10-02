@@ -202,7 +202,7 @@ void HitDetector::drawHits() {
 			params.bottom = rejection.bottom;
 			params.top = rejection.top;
 
-			graphics.drawDataPrepared.throwBoxes.push_back(params);
+			endScene.drawDataPrepared.throwBoxes.push_back(params);
 		}
 		++rejIt;
 	}
@@ -262,7 +262,7 @@ void HitDetector::drawHits() {
 				it = hitboxesThatHit.erase(it);
 				continue;
 			}
-			graphics.drawDataPrepared.hitboxes.push_back(hitboxThatHit.hitboxes);
+			endScene.drawDataPrepared.hitboxes.push_back(hitboxThatHit.hitboxes);
 
 			if (hitboxThatHit.timeHasChanged(timeHasChanged)) {
 				--hitboxThatHit.counter;

@@ -145,6 +145,7 @@ bool Game::onDllMain() {
 		if (drawExGaugeHUDCallPlace) {
 			drawExGaugeHUDOffset = *(DWORD*)(drawExGaugeHUDCallPlace + 40);
 			drawExGaugeHUD = (drawExGaugeHUD_t)followRelativeCall(drawExGaugeHUDCallPlace + 44);
+			orig_drawExGaugeHUD = drawExGaugeHUD;
 			
 			void(HookHelp::*drawExGaugeHUDHookPtr)(int param_1) = &HookHelp::drawExGaugeHUDHook;
 			detouring.attach(&(PVOID&)(orig_drawExGaugeHUD),
@@ -270,10 +271,6 @@ void Game::TickActorComponentsHookStatic(int param1, int param2, int param3, int
 void Game::TickActorComponentsHook(int param1, int param2, int param3, int param4) {
 	if (!shutdown) {
 		if (ignoreAllCalls) {
-			if (needToCallEndSceneLogic) {
-				endScene.logic();
-				needToCallEndSceneLogic = false;
-			}
 			return;
 		}
 	}
@@ -289,11 +286,8 @@ void Game::HookHelp::updateBattleOfflineVerHook(int param1) {
 }
 
 void Game::updateBattleOfflineVerHook(char* thisArg, int param1) {
-	if (!shutdown) {
-		if (ignoreAllCalls) {
-			return;
-		}
-		endScene.assignNextId();
+	if (!shutdown && ignoreAllCalls) {
+		return;
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_updateBattleOfflineVerMutex);
@@ -307,29 +301,29 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookStatic(int param
 }
 
 void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int param2, int param3, int param4) {
-	// Approximate order in which things get called:
+	// Approximate order in which things get called (when pause menu is not open and there's no rollback):
+	// -1) ???
+	// 0) UWorld::Tick is called, even when paused, in the game main (logic) thread
 	// 1) This hook gets called in the game logic thread
 	// 2) The hooked function calls updateBattleOfflineVerHook
+	// 2.5) Inside updateBattleOfflineVerHook, drawExGaugeHUD is called
 	// 3) After updateBattleOfflineVerHook ends, TickActorComponentsHook gets called many times in one frame
 	// 4) This hook ends
-	// 5) TickActorComponentsHook gets called some more times
-	// 6) USkeletalMeshComponent_UpdateTransformHook in EndScene.cpp fires off many times, among which is the one entity that it tracks (once per frame), and the boxes data gets prepared
-	// 6.5) Meanwhile, in GUI thread, readUnrealPawnDataHook in EndScene.cpp gets called many times, and reads that data in one of the calls
-	// 7) The camera hook gets called in the game logic thread which prepares the camera data for this frame. The problem is that some unknown functions send and receive data for it.
-	//    It is certain that USkeletalMeshComponent_UpdateTransformHook/readUnrealPawnDataHook do not handle the camera data.
-	//    We only know for sure that by the time EndScene is called, the camera data is already transferred to GUI thread.
+	// 5) TickActorComponentsHook gets called some more times - it is known that Jam 22K/S/H aura effect gets ticked in one of these calls
+	// 6) USkeletalMeshComponent::UpdateTransform is ran many times (we don't need this function, this is just for info)
+	// 6.5) Meanwhile, in GUI thread, FUpdatePrimitiveTransformCommand::Apply gets called many times, and reads the data of the updated transforms (we don't need this info)
+	// 7) The camera hook gets called in the game logic thread which prepares the camera data for this frame.
+	// 8) REDAnywhereDispDraw hook gets called in EndScene.cpp - this happens even when pause menu is open or a match is not running (for ex. on main menu)
 
 	// In rollback-affected online matches, the camera code runs multiple times per frame, from oldest frame to latest.
-	// However, the pawn data is always sent only once per frame.
-	// It is also certain that in rollback-affected matches, camera code runs first, and only then USkeletalMeshComponent_UpdateTransformHook/readUnrealPawnDataHook happen.
+	// However, USkeletalMeshComponent::UpdateTransform is always called only once per frame.
+	// It is also certain that in rollback-affected matches, camera code runs first, and only
+	// then USkeletalMeshComponent::UpdateTransform/FUpdatePrimitiveTransformCommand::Apply happen.
 	// 
-	// When game pause menu is open in single player, USkeletalMeshComponent_UpdateTransformHook does not get called,
+	// When game pause menu is open in single player, USkeletalMeshComponent::UpdateTransform does not get called,
 	// and this hook is also not called.
 	if (!shutdown) {
 		ignoreAllCalls = ignoreAllCallsButEarlier;
-		needToCallEndSceneLogic = ignoreAllCallsButEarlier;
-		endScene.butDontPrepareBoxData = ignoreAllCallsButEarlier;
-		camera.butDontPrepareBoxData = ignoreAllCallsButEarlier;
 		endScene.onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(ignoreAllCalls);
 	}
 	{

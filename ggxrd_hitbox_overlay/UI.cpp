@@ -1561,7 +1561,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 }
 
 SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
-	HookGuard hookGuard("GetKeyState");
+	//HookGuard hookGuard("GetKeyState");
 	SHORT result;
 	if (ui.imguiActive) {
 		result = 0;

@@ -203,6 +203,20 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* m
 	return 0;
 }
 
+uintptr_t sigscanBackwards(uintptr_t startBottom, uintptr_t endTop, const char* sig, const char* mask) {
+	uintptr_t lastScan = endTop;
+	for (auto addr = startBottom - strlen(mask) + 1; addr >= lastScan; addr--) {
+		for (size_t i = 0;; i++) {
+			if (mask[i] == '\0')
+				return addr;
+			if (mask[i] != '?' && sig[i] != *(char*)(addr + i))
+				break;
+		}
+	}
+
+	logwrap(fputs("Sigscan failed\n", logfile));
+	return 0;
+}
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname) {
 	return sigscanOffsetMain(name, sig, sigLength, nullptr, {}, error, logname);
 }
@@ -411,6 +425,12 @@ char* scrollUpToBytes(char *ptr, const char* buf, int bufSize, size_t searchLimi
 	return nullptr;
 }
 
+uintptr_t sigscanBackwards(uintptr_t ptr, const char* byteSpecification, size_t searchLimit) {
+	std::vector<char> sig;
+	std::vector<char> mask;
+	byteSpecificationToSigMask(byteSpecification, sig, mask);
+	return sigscanBackwards(ptr, ptr - searchLimit, sig.data(), mask.data());
+}
 uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit) {
 	std::vector<char> sig;
 	std::vector<char> mask;

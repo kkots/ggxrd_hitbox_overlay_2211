@@ -24,6 +24,8 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLen
 
 uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask);
 
+uintptr_t sigscanBackwards(uintptr_t startBottom, uintptr_t endTop, const char* sig, const char* mask);
+
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname);
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, bool* error, const char* logname);
@@ -60,6 +62,8 @@ void substituteWildcard(char* sig, char* mask, unsigned int indexOfWildcard, voi
 char* scrollUpToInt3(char* ptr);
 
 char* scrollUpToBytes(char* ptr, const char* buf, int bufSize, size_t searchLimit = 1000);
+
+uintptr_t sigscanBackwards(uintptr_t, const char* byteSpecification, size_t searchLimit = 1000);
 
 uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit = 1000);
 

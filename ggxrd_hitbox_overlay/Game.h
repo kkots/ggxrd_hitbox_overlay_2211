@@ -114,7 +114,6 @@ private:
 	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;
 	bool ignoreAllCallsButEarlier = false;
-	bool needToCallEndSceneLogic = false;
 	uintptr_t burstOffset = 0;
 	destroyAswEngine_t orig_destroyAswEngine = nullptr;
 	std::mutex orig_destroyAswEngineMutex;

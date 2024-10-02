@@ -3,22 +3,10 @@
 #include <d3dx9.h>
 #include <mutex>
 #include <vector>
+#include "DrawData.h"
 
 using updateDarken_t = void(__thiscall*)(char* thisArg);
 using updateCamera_t = void(__thiscall*)(char* thisArg, char** param1, char* param2);
-
-struct CameraValues {
-	D3DXVECTOR3 pos{ 0.F, 0.F, 0.F };
-	float forward[3]{ 0.F };
-	float right[3]{ 0.F };
-	float up[3]{ 0.F };
-	float fov = 0.F;
-	float coordCoefficient = 0.F;
-	bool setValues();
-	void copyTo(CameraValues& destination);
-	bool sent = false;
-	unsigned int id = 0;
-};
 
 class Camera
 {
@@ -28,11 +16,8 @@ public:
 	bool onDllMain();
 	void updateDarkenHook(char* thisArg);
 	void updateCameraHook(char* thisArg, char** param1, char* param2);
-	std::vector<CameraValues> valuesPrepare;
-	std::mutex valuesPrepareMutex;
+	CameraValues valuesPrepare;
 	CameraValues valuesUse;
-	bool butDontPrepareBoxData = false;
-	unsigned int nextId = 0;
 	bool shutdown = false;
 private:
 	friend struct CameraValues;

@@ -57,16 +57,19 @@ bool Camera::onDllMain() {
 	return !error;
 }
 
+// Runs on the main thread
 void Camera::HookHelp::updateDarkenHook() {
 	HookGuard hookGuard("updateDarken");
 	camera.updateDarkenHook((char*)this);
 }
 
+// Runs on the main thread
 void Camera::HookHelp::updateCameraHook(char** param1, char* param2) {
 	HookGuard hookGuard("updateCamera");
 	camera.updateCameraHook((char*)this, param1, param2);
 }
 
+// Runs on the main thread
 void Camera::updateDarkenHook(char* thisArg) {
 	if (!shutdown) {
 		if (gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly) {
@@ -78,6 +81,7 @@ void Camera::updateDarkenHook(char* thisArg) {
 	orig_updateDarken(thisArg);
 }
 
+// Runs on the main thread
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 	if (!shutdown) {
 		if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && game.isTrainingMode() && *aswEngine) {
@@ -104,34 +108,21 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 	if (*aswEngine && !shutdown) {  // without *aswEngine check it will actually crash when you quit a match
 		CameraValues newValues;
 		newValues.setValues();
-		newValues.id = nextId;
-		newValues.sent = false;
-		std::unique_lock<std::mutex> guard(valuesPrepareMutex);
-		bool foundOldOne = false;
-		for (auto it = valuesPrepare.begin(); it != valuesPrepare.end(); ++it) {
-			if (it->id == nextId) {
-				*it = newValues;
-				foundOldOne = true;
-				break;
-			}
-		}
-		if (!foundOldOne) {
-			valuesPrepare.push_back(newValues);
-		}
-		if (valuesPrepare.size() > 15) {
-			valuesPrepare.erase(valuesPrepare.begin(), valuesPrepare.begin() + (valuesPrepare.size() - 15));
-		}
+		valuesPrepare = newValues;
 	}
 }
 
+// Runs on the graphics thread
 void Camera::onEndSceneStart() {
 	isSet = false;
 }
 
+// Runs on both threads
 void CameraValues::copyTo(CameraValues& destination) {
 	memcpy(&destination, this, sizeof(CameraValues));
 }
 
+// Runs on the graphics thread
 void Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
 	setValues(device);
 
@@ -149,6 +140,7 @@ void Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3D
 	out->z = 0.F;
 }
 
+// Runs on the main thread
 bool CameraValues::setValues() {
 	const char* cam = *(char**)(*aswEngine + camera.cameraOffset);
 	if (!cam) return false;  // without this it will actually crash when a match finishes loading
@@ -178,6 +170,7 @@ bool CameraValues::setValues() {
 
 }
 
+// Runs on the graphics thread
 void Camera::setValues(IDirect3DDevice9* device) {
 	if (isSet) return;
 	isSet = true;
@@ -195,11 +188,12 @@ void Camera::setValues(IDirect3DDevice9* device) {
 }
 
 // Arcsys engine to UE coords
-
+// Runs on both threads
 float Camera::convertCoord(float in) const {
 	return in / 1000.F * /*!*//*   *(float*)(*asw_engine + 0x3EA724)  */ valuesUse.coordCoefficient;  // if this is not found, just use 0.42960999705207F
 }
 
+// Runs on the main thread
 void Camera::angleVectors(
 	const float p, const float y, const float r,
 	float* forward, float* right, float* up) const
@@ -233,6 +227,7 @@ void Camera::angleVectors(
 	}
 }
 
+// Runs on the graphics thread
 float Camera::vecDot(float* a, float* b) const
 {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

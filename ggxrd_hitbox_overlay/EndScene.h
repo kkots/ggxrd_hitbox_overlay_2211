@@ -8,17 +8,99 @@
 #include <mutex>
 #include "DrawTextWithIconsParams.h"
 #include "PlayerInfo.h"
+#include "DrawData.h"
 
-using USkeletalMeshComponent_UpdateTransform_t = void(__thiscall*)(char* thisArg);
-using FUpdatePrimitiveTransformCommand_Apply_t = void(__thiscall*)(char* thisArg);
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
-using endSceneCaller_t = void(__thiscall*)(void* thisArg, int param1, int param2, int param3);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
 using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
 using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
 using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
 using logicOnFrameAfterHit_t = void(__thiscall*)(void* pawn, int param1, int param2);
 using BBScr_runOnObject_t = void(__thiscall*)(void* pawn, int entityReference);
+using FCanvas_Flush_t = void(__thiscall*)(void* canvas, bool bForce);
+
+struct FVector2D {
+	float X;
+	float Y;
+};
+
+struct FRingBuffer_AllocationContext {
+	void* RingBuffer = nullptr;
+	BYTE* AllocationStart = nullptr;
+	BYTE* AllocationEnd = nullptr;
+	FRingBuffer_AllocationContext(void* InRingBuffer, unsigned int InAllocationSize);
+	inline int GetAllocatedSize() { return AllocationEnd - AllocationStart; }
+	void Commit();
+	inline ~FRingBuffer_AllocationContext() { Commit(); }
+	FRingBuffer_AllocationContext& operator=(const FRingBuffer_AllocationContext& other) = delete;
+	FRingBuffer_AllocationContext& operator=(FRingBuffer_AllocationContext&& other) noexcept {
+		memmove(this, &other, sizeof(*this));
+		other.AllocationStart = 0;
+		return *this;
+	}
+};
+
+struct FRenderCommand {
+	virtual void Destructor(BOOL freeMem);
+	virtual unsigned int Execute() = 0;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand() = 0;
+};
+
+struct FSkipRenderCommand : FRenderCommand {
+	FSkipRenderCommand(unsigned int InNumSkipBytes);  // Runs on the main thread
+	virtual unsigned int Execute() override;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand();
+	unsigned int NumSkipBytes;
+};
+
+struct DrawBoxesRenderCommand : FRenderCommand {
+	virtual unsigned int Execute();  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand();
+	DrawBoxesRenderCommand();  // Runs on the main thread
+	DrawData drawData;
+	CameraValues cameraValues;
+};
+
+struct DrawOriginPointsRenderCommand : FRenderCommand {
+	virtual unsigned int Execute();  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand();
+};
+
+struct REDDrawCommand {
+    int commandType;  // 4 is quad
+    unsigned int layer;  // ordered by layer, lowest to highest, lowest drawn first
+    float z;  // ordered by z within same layer, lowest to highest
+    REDDrawCommand* prevItem;  // prev item within the same layer
+    REDDrawCommand* nextItem;  // next item within the same layer
+    REDDrawCommand* prevLayer;  // only valid for layer-items, i.e. items that are the first in a given layer
+    REDDrawCommand* nextLayer;  // only valid for layer-items, i.e. items that are the first in a given layer
+};
+
+struct REDQuadVertex {
+    float x;
+    float y;
+    float u;
+    float v;
+    D3DCOLOR color;
+};
+
+struct REDDrawQuadCommand : REDDrawCommand {
+    void* texture;  // UTexture2D*
+    int field2_0x20;
+    int count;  // vertex count
+    int field4_0x28;
+    REDQuadVertex* vertices;
+    int field6_0x30;
+    void* field7_0x34;
+    int field8_0x38;
+    int field9_0x3c;
+};
+
+using FRingBuffer_AllocationContext_Constructor_t = FRingBuffer_AllocationContext*(__thiscall*)(FRingBuffer_AllocationContext* thisArg,
+	void* InRingBuffer, unsigned int InAllocationSize);
+using FRingBuffer_AllocationContext_Commit_t = void(__thiscall*)(FRingBuffer_AllocationContext* thisArg);
+using REDAnywhereDispDraw_t = void(__cdecl*)(void* canvas, FVector2D* screenSize);  // canvas is FCanvas*
+using FRenderCommandDestructor_t = void(__thiscall*)(void* thisArg, BOOL freeMem);
 
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -29,7 +111,6 @@ public:
 	bool onDllDetach();
 	LRESULT WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void logic();
-	void assignNextId(bool acquireLock = false);
 	void onAswEngineDestroyed();
 	void onHitDetectionStart(int hitDetectionType);
 	void onHitDetectionEnd(int hitDetectionType);
@@ -39,20 +120,11 @@ public:
 	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
 	bool didHit(Entity attacker);
 	void onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen);
-	USkeletalMeshComponent_UpdateTransform_t orig_USkeletalMeshComponent_UpdateTransform = nullptr;
-	std::mutex orig_USkeletalMeshComponent_UpdateTransformMutex;
-	bool orig_USkeletalMeshComponent_UpdateTransformMutexLocked = false;
-	DWORD orig_USkeletalMeshComponent_UpdateTransformMutexThreadId = NULL;
-	FUpdatePrimitiveTransformCommand_Apply_t orig_FUpdatePrimitiveTransformCommand_Apply = nullptr;
-	std::mutex orig_FUpdatePrimitiveTransformCommand_ApplyMutex;
 	WNDPROC orig_WndProc = nullptr;
 	std::mutex orig_WndProcMutex;
 	bool orig_WndProcMutexLockedByWndProc = false;
-	bool butDontPrepareBoxData = false;
 	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
 	std::mutex orig_drawTrainingHudMutex;
-	endSceneCaller_t orig_endSceneCaller = nullptr;
-	std::mutex orig_endSceneCallerMutex;
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
 	std::mutex orig_BBScr_createObjectWithArgMutex;
 	BBScr_createParticleWithArg_t orig_BBScr_createParticleWithArg = nullptr;
@@ -65,6 +137,12 @@ public:
 	std::mutex orig_logicOnFrameAfterHitMutex;
 	BBScr_runOnObject_t orig_BBScr_runOnObject = nullptr;
 	std::mutex orig_BBScr_runOnObjectMutex;
+	REDAnywhereDispDraw_t orig_REDAnywhereDispDraw = nullptr;
+	std::mutex orig_REDAnywhereDispDrawMutex;
+	FCanvas_Flush_t FCanvas_Flush = nullptr;
+	DrawData drawDataPrepared;
+	void* orig_drawQuadExec = nullptr;  // weird calling convention
+	std::mutex orig_drawQuadExecMutex;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
@@ -72,16 +150,23 @@ public:
 	Entity getSuperflashInstigator();
 	int getSuperflashCounterAll();
 	int getSuperflashCounterSelf();
+	FRingBuffer_AllocationContext_Constructor_t FRingBuffer_AllocationContext_Constructor = nullptr;
+	FRenderCommandDestructor_t FRenderCommandDestructor = nullptr;
+	FRingBuffer_AllocationContext_Commit_t FRingBuffer_AllocationContext_Commit = nullptr;
+	void* GRenderCommandBuffer = nullptr;  // an FRingBuffer*
+	bool* GIsThreadedRendering = 0;
+	void executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command);
+	void executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command);
+	IDirect3DDevice9* getDevice();
+	FVector2D lastScreenSize { 0.F, 0.F };
+	void drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas);
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
 	void actUponKeyStrokesThatAlreadyHappened();
 	class HookHelp {
 		friend class EndScene;
-		void USkeletalMeshComponent_UpdateTransformHook();
-		void FUpdatePrimitiveTransformCommand_ApplyHook();
 		void drawTrainingHudHook();
-		void endSceneCallerHook(int param1, int param2, int param3);
 		void BBScr_createObjectWithArgHook(const char* animName, unsigned int posType);
 		void BBScr_createParticleWithArgHook(const char* animName, unsigned int posType);
 		void setAnimHook(const char* animName);
@@ -89,8 +174,6 @@ private:
 		void logicOnFrameAfterHitHook(int param1, int param2);
 		void BBScr_runOnObjectHook(int entityReference);
 	};
-	void USkeletalMeshComponent_UpdateTransformHook(char* thisArg);
-	void FUpdatePrimitiveTransformCommand_ApplyHook(char* thisArg);
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
 	void onObjectCreated(Entity pawn, Entity createdPawn, const char* animName);
@@ -98,6 +181,8 @@ private:
 	void pawnInitializeHook(Entity createdObj, void* initializationParams);
 	void logicOnFrameAfterHitHook(Entity pawn, int param1, int param2);
 	void BBScr_runOnObjectHook(Entity pawn, int entityReference);
+	static void REDAnywhereDispDrawHookStatic(void* canvas, FVector2D* screenSize);
+	void REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
@@ -146,7 +231,6 @@ private:
 	bool burstGainOnLastHitUpdated[2] { 0 };
 	
 	DWORD prevAswEngineTickCount = 0;
-	bool drawDataPrepared = false;
 	bool shutdown = false;
 	HANDLE shutdownFinishedEvent = NULL;
 	struct RegisteredHit {
@@ -167,6 +251,10 @@ private:
 	bool creatingObject = false;
 	Entity creatorOfCreatedObject = nullptr;
 	const char* createdObjectAnim = nullptr;
+	void* FRenderCommandVtable = nullptr;
+	void* FSkipRenderCommandVtable = nullptr;
+	bool drewExGaugeHud = false;
+	void queueOriginPointDrawingDummyCommand();
 };
 
 extern EndScene endScene;
