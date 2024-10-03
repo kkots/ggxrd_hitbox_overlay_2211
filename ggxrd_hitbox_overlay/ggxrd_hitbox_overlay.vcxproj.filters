@@ -177,9 +177,6 @@
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PngResource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="PlayerInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -297,9 +294,6 @@
     <ClCompile Include="UI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PngResource.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="PlayerInfo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -319,11 +313,9 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\images\Question.png">
-      <Filter>Resource Files</Filter>
-    </Image>
+    <MASM Include="drawQuadExecHook.asm" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="drawQuadExecHook.asm" />
+    <Text Include="How to debug Xrd without it relaunching itself.txt" />
   </ItemGroup>
 </Project>

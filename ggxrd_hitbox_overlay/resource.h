@@ -2,8 +2,6 @@
 // Microsoft Visual C++ generated include file.
 // Used by ggxrd_hitbox_overlay.rc
 //
-#define IDB_PNG1                        102
-#define IDB_QUESTION                    102
 
 // Next default values for new objects
 // 

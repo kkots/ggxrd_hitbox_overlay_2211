@@ -335,6 +335,35 @@ bool EndScene::onDllMain() {
 			"logicOnFrameAfterHit")) return false;
 	}
 	
+	wchar_t iconStringW[] = L"icon";
+	char iconStringA[1 + sizeof iconStringW];
+	iconStringA[0] = '\0';
+	memcpy(iconStringA + 1, iconStringW, sizeof iconStringW);
+	uintptr_t iconStringAddr = sigscanBufOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		iconStringA,
+		sizeof iconStringA,
+		{ 1 },
+		&error, "iconStringAddr");
+	uintptr_t iconStringUsage = 0;
+	if (iconStringAddr) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("68 ?? ?? ?? ?? e8", sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 0, (void*)iconStringAddr);
+		iconStringUsage = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig.data(),
+			mask.data(),
+			&error, "iconStringUsage");
+	}
+	if (iconStringUsage) {
+		iconStringUsage = sigscanForward(iconStringUsage, "a3");
+	}
+	if (iconStringUsage) {
+		iconTexture = *(void**)(iconStringUsage + 1);
+	}
+	
 	return !error;
 }
 
@@ -385,7 +414,7 @@ void EndScene::HookHelp::drawTrainingHudHook() {
 	endScene.drawTrainingHudHook((char*)this);
 }
 
-// Runs on the main thread
+// Runs on the main thread. Called once every frame when a match is running, including freeze mode or when Pause menu is open
 void EndScene::logic() {
 	actUponKeyStrokesThatAlreadyHappened();
 
@@ -412,8 +441,7 @@ void EndScene::logic() {
 		hitDetector.clearAllBoxes();
 		throws.clearAllBoxes();
 	}
-	// Camera values are updated later, after this, in a updateCameraHook call
-	drawDataPrepared.empty = false;
+	// Camera values are updated separately, in a updateCameraHook call, which happens before this is called
 }
 
 // Runs on the main thread
@@ -1038,6 +1066,7 @@ bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 	return std::find(drawnEntities.cbegin(), drawnEntities.cend(), ent) != drawnEntities.cend();
 }
 
+// Draw boxes, without UI, and take a screenshot if needed
 // Runs on the graphics thread
 void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	graphics.graphicsThreadId = GetCurrentThreadId();
@@ -1068,11 +1097,9 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 		graphics.takeScreenshotMain(device, true);
 	}
 	graphics.drawDataUse.needTakeScreenshot = false;
-	
-	//ui.onEndScene(device);  // ui must be drawn separately
 }
 
-// Runs on the main thread
+// Runs on the main thread. Is called from WndProc hook
 void EndScene::processKeyStrokes() {
 	bool trainingMode = game.isTrainingMode();
 	keyboard.updateKeyStatuses();
@@ -1227,7 +1254,7 @@ void EndScene::processKeyStrokes() {
 	}
 }
 
-// Runs on the main thread
+// Runs on the main thread. Called once every frame when a match is running, including freeze mode or when Pause menu is open
 void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 	bool trainingMode = game.isTrainingMode();
 	bool allowNextFrameIsHeld = false;
@@ -1393,7 +1420,7 @@ LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	HookGuard hookGuard("WndProc");
 	if (!shutdown) {
-		if (!ui.shutdownGraphics && ui.WndProc(hWnd, message, wParam, lParam)) {
+		if (ui.WndProc(hWnd, message, wParam, lParam)) {
 			return TRUE;
 		}
 		
@@ -2028,8 +2055,12 @@ unsigned int DrawBoxesRenderCommand::Execute() {
 	endScene.executeDrawBoxesRenderCommand(this);
 	return sizeof(*this);
 }
-const wchar_t* DrawBoxesRenderCommand::DescribeCommand() {
+const wchar_t* DrawBoxesRenderCommand::DescribeCommand() noexcept {
 	return L"DrawBoxesRenderCommand";
+}
+void DrawBoxesRenderCommand::Destructor(BOOL freeMem) noexcept {
+	drawData.~DrawData();
+	FRenderCommand::Destructor(freeMem);
 }
 // Runs on the main thread
 DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
@@ -2043,34 +2074,64 @@ unsigned int DrawOriginPointsRenderCommand::Execute() {
 	endScene.executeDrawOriginPointsRenderCommand(this);
 	return sizeof(*this);
 }
-const wchar_t* DrawOriginPointsRenderCommand::DescribeCommand() {
+const wchar_t* DrawOriginPointsRenderCommand::DescribeCommand() noexcept {
 	return L"DrawOriginPointsRenderCommand";
+}
+
+// Runs on the graphics thread
+unsigned int DrawImGuiRenderCommand::Execute() {
+	endScene.executeDrawImGuiRenderCommand(this);
+	return sizeof(*this);
+}
+const wchar_t* DrawImGuiRenderCommand::DescribeCommand() noexcept {
+	return L"DrawImGuiRenderCommand";
+}
+void DrawImGuiRenderCommand::Destructor(BOOL freeMem) noexcept {
+	drawData.~vector<BYTE>();
+	FRenderCommand::Destructor(freeMem);
+}
+// Runs on the main thread
+DrawImGuiRenderCommand::DrawImGuiRenderCommand() {
+	ui.copyDrawDataTo(drawData);
+	iconsUTexture2D = endScene.getIconsUTexture2D();
 }
 
 // Runs on the main thread
 void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
-	drawDataPrepared.clear();
-	lastScreenSize = *screenSize;
-	if (*aswEngine) {
-		logic();
+	if (graphics.shutdown) {
+		static bool graphicsOnShutdownCalled = false;
+		if (!graphicsOnShutdownCalled) {
+			graphicsOnShutdownCalled = true;
+			enqueueRenderCommand<ShutdownRenderCommand>();
+		}
 	}
-	enqueueRenderCommand<DrawBoxesRenderCommand>();
-	if (!gifMode.hitboxDisplayDisabled && !gifMode.modDisabled && *aswEngine && !drawDataPrepared.points.empty()) {
-		queueOriginPointDrawingDummyCommand();
+	if (!shutdown && !graphics.shutdown) {
+		drawDataPrepared.clear();
+		lastScreenSize = *screenSize;
+		if (*aswEngine) {
+			logic();
+		}
+		enqueueRenderCommand<DrawBoxesRenderCommand>();
+		if (!gifMode.modDisabled && (
+				!gifMode.hitboxDisplayDisabled && !drawDataPrepared.points.empty()
+				|| !getIconsUTexture2D())) {
+			queueOriginPointDrawingDummyCommandAndInitializeIcon();
+		}
 	}
 	{
 		std::unique_lock<std::mutex> guard;
-		orig_REDAnywhereDispDraw(canvas, screenSize);
+		orig_REDAnywhereDispDraw(canvas, screenSize);  // calls drawQuadExecHook
 	}
 	
-	/* TODO: queue imGui drawing
-	FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
-	                           // items might still be drawn on top of yours
-	ui.drawData = nullptr;
-	ui.needInitFont = false;
-	if (!ui.shutdownGraphics) {
+	if (!shutdown && !graphics.shutdown) {
+		ui.drawData = nullptr;
 		ui.prepareDrawData();
-	}*/
+		if (ui.drawData) {
+			FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
+			                           // items might still be drawn on top of yours
+			enqueueRenderCommand<DrawImGuiRenderCommand>();
+		}
+	}
 }
 
 // Runs on the main thread
@@ -2083,7 +2144,7 @@ void FRingBuffer_AllocationContext::Commit() {
 	endScene.FRingBuffer_AllocationContext_Commit(this);
 }
 
-void FRenderCommand::Destructor(BOOL freeMem) {
+void FRenderCommand::Destructor(BOOL freeMem) noexcept {
 	endScene.FRenderCommandDestructor((void*)this, freeMem);
 }
 
@@ -2094,42 +2155,50 @@ FSkipRenderCommand::FSkipRenderCommand(unsigned int InNumSkipBytes) : NumSkipByt
 unsigned int FSkipRenderCommand::Execute() {
 	return NumSkipBytes;
 }
-const wchar_t* FSkipRenderCommand::DescribeCommand() {
+const wchar_t* FSkipRenderCommand::DescribeCommand() noexcept {
 	return L"FSkipRenderCommand";
 }
 
 // Runs on the graphics thread
+unsigned int ShutdownRenderCommand::Execute() {
+	endScene.executeShutdownRenderCommand();
+	return sizeof(*this);
+}
+const wchar_t* ShutdownRenderCommand::DescribeCommand() noexcept {
+	return L"ShutdownRenderCommand";
+}
+
+// Runs on the graphics thread
 void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
+	if (endScene.shutdown || graphics.shutdown) return;
 	graphics.drawDataUse.clear();
 	command->drawData.copyTo(&graphics.drawDataUse);
 	command->cameraValues.copyTo(camera.valuesUse);
-	if (!endScene.shutdown && !graphics.shutdown) {
-		endSceneHook(getDevice());
-	} else {
-		graphics.onEndSceneStart(getDevice());
-	}
+	endSceneHook(getDevice());
 }
 
 // Runs on the graphics thread
 void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command) {
-	if (!endScene.shutdown && !graphics.shutdown) {
-		if (gifMode.hitboxDisplayDisabled) return;
-		graphics.onlyDrawPoints = true;
-		graphics.drawAll();
-		graphics.onlyDrawPoints = false;
-	} else {
-		graphics.onEndSceneStart(getDevice());
-	}
+	if (endScene.shutdown || graphics.shutdown) return;
+	if (gifMode.hitboxDisplayDisabled) return;
+	graphics.onlyDrawPoints = true;
+	graphics.drawAll();
+	graphics.onlyDrawPoints = false;
 }
 
 // Runs on the main thread
-void EndScene::queueOriginPointDrawingDummyCommand() {
+void EndScene::queueOriginPointDrawingDummyCommandAndInitializeIcon() {
 	// 6,15 offset to center of "+"
 	// full size: 12,22
 	
 	// Queue a dummy text item for drawing - later we catch it in our drawQuadExecHook and draw players' origin points
 	// The item is queued to be drawn on top of HUD but underneath the Pause menu, so that's where the players' origin points will show up.
-	char plusSign[] = "+";
+	char plusSign[9] = "+";
+	if (!getIconsUTexture2D()) {
+		// Draw a dummy icon so that the icons texture variable gets initialized
+		// this code runs when the icon is lost due to switching menus
+		strcat(plusSign, "^mAtk1;");
+	}
 	DrawTextWithIconsParams s;
     s.field159_0x100 = 36.0;
     s.layer = 177;
@@ -2151,18 +2220,22 @@ void EndScene::queueOriginPointDrawingDummyCommand() {
     s.alignment = ALIGN_LEFT;
     s.text = plusSign;
     s.field156_0xf4 = 0x010;
-    endScene.drawTextWithIcons(&s,0x0,1,4,0,0);
+    drawTextWithIcons(&s,0x0,1,4,0,0);
 }
 
-// Runs on the main thread
+// Runs on the main thread. Called from orig_REDAnywhereDispDraw
 void drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas) {
 	endScene.drawQuadExecHook(screenSize, item, canvas);
 }
 
-// Runs on the main thread
+// Runs on the main thread. Called from ::drawQuadExecHook
 void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas) {
 	if (item->count == 4 && (unsigned int&)item->vertices[0].x == 0xC9164690) {  // avoid floating point comparison as it may be slower
-		if (!drawDataPrepared.points.empty() && !gifMode.hitboxDisplayDisabled && !gifMode.modDisabled) {
+		if (!shutdown
+				&& !graphics.shutdown
+				&& !drawDataPrepared.points.empty()
+				&& !gifMode.hitboxDisplayDisabled
+				&& !gifMode.modDisabled) {
 			FCanvas_Flush(canvas, 0);
 			enqueueRenderCommand<DrawOriginPointsRenderCommand>();
 		}
@@ -2172,4 +2245,47 @@ void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item,
 		std::unique_lock<std::mutex> guard(orig_drawQuadExecMutex);
 		call_orig_drawQuadExec(orig_drawQuadExec, screenSize, item, canvas);
 	}
+}
+
+// Runs on the main thread
+BYTE* EndScene::getIconsUTexture2D() {
+	return *(BYTE**)iconTexture;
+}
+
+// Runs on the graphics thread
+void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
+	if (shutdown || graphics.shutdown) return;
+	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->iconsUTexture2D);
+	ui.onEndScene(getDevice(), command->drawData.data(), tex);
+}
+
+// Runs on the graphics thread
+void EndScene::executeShutdownRenderCommand() {
+	if (!graphics.shutdown) return;
+	graphics.onShutdown();
+}
+
+// Runs on the graphics thread
+IDirect3DTexture9* EndScene::getTextureFromUTexture2D(BYTE* uTex2D) {
+	if (!uTex2D) return nullptr;
+	BYTE* next = *(BYTE**)(uTex2D + 0x3c + 0x84);  // read FTextureResouruce* Resource
+	if (!next) return nullptr;
+	next = *(BYTE**)(next + 0x14);  // read FTextureRHIRef TextureRHI
+	if (!next) return nullptr;
+	
+	//  FTextureRHIRef is a typedef for TDynamicRHIResourceReference<RRT_Texture>.
+	//  TDynamicRHIResourceReference<RRT_Texture> is a:
+	//  struct TDynamicRHIResourceReference<RRT_Texture> {
+	//      TDynamicRHIResource<RRT_Texture>* Reference;
+	//  };
+	//  Pointers to TDynamicRHIResource<RRT_Texture> type are actually pointing at offset 0xc
+	//  into a TD3D9Texture<IDirect3DBaseTexture9,RRT_Texture> type.
+	//  template<typename D3DResourceType,...>
+	//  class TD3D9Texture : public FRefCountedObject, public TRefCountPtr<D3DResourceType> ...
+	//  The TRefCountPtr<D3DResourceType> is at offset 0x8 of TD3D9Texture and is actually a:
+	//  template<typename ReferencedType>
+	//  class TRefCountPtr {
+	//      ReferencedType* Reference;
+	//  };
+	return *(IDirect3DTexture9**)(next + -0xc + 0x8);
 }

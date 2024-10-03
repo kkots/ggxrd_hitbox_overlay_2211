@@ -1,0 +1,10 @@
+
+How to debug GuiltyGearXrd.exe without it relaunching itself:
+Copy the 'GUILTY GEAR Xrd -REVELATOR-\steam_appid.txt' binary file (it is not actually text) in the 'GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32' directory
+In Visual Studio, go to Debug -> ggxrd_hitbox_injector Debug Properties.
+It will open the ggxrd_hitbox_injector Property Pages window.
+Navigate to the Debugging tab.
+Write path to GuiltyGearXrd.exe into the 'Command' field: D:\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32\GuiltyGearXrd.exe
+Write into the 'Command Arguments' field: -SEEKFREELOADINGPCCONSOLE -NOHOMEDIR -NOSPLASH -LANGUAGE=INT
+Write the path to the folder GuiltyGearXrd.exe is in into the 'Working Directory' field: D:\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32
+Select 'Debug' or 'Release' configuration at the top of Visual Studio, x86, and press 'Local Windows Debugger', or F5, or Debug - Start Debugging, or Debug - Step Into.

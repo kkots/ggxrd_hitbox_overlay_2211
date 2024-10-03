@@ -9,9 +9,9 @@
 #include "GifMode.h"
 #include "Game.h"
 #include "Version.h"
-#include "Graphics.h"
 #include "EndScene.h"
 #include "memoryFunctions.h"
+#include "EntityList.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx9.h"
@@ -31,161 +31,51 @@ static char strbuf[512];
 static std::string stringArena;
 static char printdecimalbuf[512];
 
-static bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart) {
-    unsigned int length = 0;
-    const wchar_t* ptr = endingPart;
-    while (*ptr != L'\0') {
-        if (length == 0xFFFFFFFF) return false;
-        ++ptr;
-        ++length;
-    }
-    if (str.size() < length) return false;
-    if (length == 0) return true;
-    --ptr;
-    auto it = str.begin() + (str.size() - 1);
-    while (length) {
-        if (towupper(*it) != towupper(*ptr)) return false;
-        --length;
-        --ptr;
-        if (it == str.begin()) break;
-        --it;
-    }
-    return length == 0;
-}
+struct CustomImDrawList {
+    ImVector<ImDrawCmd> CmdBuffer;
+    ImVector<ImDrawIdx> IdxBuffer;
+    ImVector<ImDrawVert> VtxBuffer;
+};
 
-static int findCharRev(const char* buf, char c) {
-    const char* ptr = buf;
-    while (*ptr != '\0') {
-        ++ptr;
-    }
-    while (ptr != buf) {
-        --ptr;
-        if (*ptr == c) return ptr - buf;
-    }
-    return -1;
-}
+struct GGIcon {
+	ImVec2 size;
+	ImVec2 uvStart;
+	ImVec2 uvEnd;
+};
 
-static int findCharRevW(const wchar_t* buf, wchar_t c) {
-    const wchar_t* ptr = buf;
-    while (*ptr != '\0') {
-        ++ptr;
-    }
-    while (ptr != buf) {
-        --ptr;
-        if (*ptr == c) return ptr - buf;
-    }
-    return -1;
-}
-
-bool UI::selectFile(std::wstring& path, HWND owner) {
-    std::wstring szFile;
-    szFile = lastSelectedPath;
-    szFile.resize(MAX_PATH, L'\0');
-
-    OPENFILENAMEW selectedFiles{ 0 };
-    selectedFiles.lStructSize = sizeof(OPENFILENAMEW);
-    selectedFiles.hwndOwner = owner;
-    selectedFiles.lpstrFile = &szFile.front();
-    selectedFiles.nMaxFile = (DWORD)szFile.size() + 1;
-    selectedFiles.lpstrFilter = L"PNG file (*.png)\0*.PNG\0";
-    selectedFiles.nFilterIndex = 1;
-    selectedFiles.lpstrFileTitle = NULL;
-    selectedFiles.nMaxFileTitle = 0;
-    selectedFiles.lpstrInitialDir = NULL;
-    selectedFiles.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-
-    if (!GetSaveFileNameW(&selectedFiles)) {
-        DWORD errCode = CommDlgExtendedError();
-        if (!errCode) {
-            logwrap(fputs("The file selection dialog was closed by the user.\n", logfile));
-        }
-        else {
-            logwrap(fprintf(logfile, "Error selecting file. Error code: %.8x\n", errCode));
-        }
-        return false;
-    }
-    szFile.resize(lstrlenW(szFile.c_str()));
-
-    if (!endsWithCaseInsensitive(szFile, L".png")) {
-        path = szFile + L".png";
-        return true;
-    }
-    path = szFile;
-    int pos = findCharRevW(path.c_str(), L'\\');
-    if (pos == -1) {
-        lastSelectedPath = path;
-    } else {
-        lastSelectedPath = path.c_str() + pos + 1;
-    }
-    return true;
-}
-
-static void AddTooltip(const char* desc) {
-    if (ImGui::BeginItemTooltip()) {
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-        ImGui::TextUnformatted(desc);
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
-    }
-}
-
-static void HelpMarker(const char* desc) {
-    ImGui::TextDisabled("(?)");
-    AddTooltip(desc);
-}
-
-static void RightAlign(float w) {
-	const auto rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth();
-    const auto posX = (rightEdge - w);
-    ImGui::SetCursorPosX(posX);
-}
-
-static void RightAlignedText(const char* txt) {
-	RightAlign(ImGui::CalcTextSize(txt).x);
-	ImGui::TextUnformatted(txt);
-}
-
-static void RightAlignedColoredText(const ImVec4& color, const char* txt) {
-	RightAlign(ImGui::CalcTextSize(txt).x);
-    ImGui::TextColored(color, txt);
-}
-
-static void CenterAlign(float w) {
-	const auto rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth() / 2;
-    const auto posX = (rightEdge - w / 2);
-    ImGui::SetCursorPosX(posX);
-}
-
-static void CenterAlignedText(const char* txt) {
-	CenterAlign(ImGui::CalcTextSize(txt).x);
-	ImGui::TextUnformatted(txt);
-}
-
-// color = 0xRRGGBB
-ImVec4 RGBToVec(DWORD color) {
-	// they also wrote it as r, g, b, a... just in struct form
-	return {
-		((color >> 16) & 0xff) * (1.F / 255.F),  // red
-		((color >> 8) & 0xff) * (1.F / 255.F),  // green
-		(color & 0xff) * (1.F / 255.F),  // blue
-		1.F  // alpha
-	};
-}
-
-static const char* formatBoolean(bool value) {
-	static const char* trueStr = "true";
-	static const char* falseStr = "false";
-	return value ? trueStr : falseStr;
-}
-
-static void pushZeroItemSpacingStyle() {
-	ImGuiStyle& style = ImGui::GetStyle();  // it's a reference
-	ImVec2 itemSpacing = style.ItemSpacing;
-	itemSpacing.x = 0;
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
-}
+static GGIcon coordsToGGIcon(int x, int y, int w, int h);
+static GGIcon questionMarkIcon = coordsToGGIcon(1104, 302, 20, 28);
+static GGIcon tipsIcon = coordsToGGIcon(253, 1093, 62, 41);
+static GGIcon characterIcons[25];
+static GGIcon characterIconsBorderless[25];
+static void drawGGIcon(const GGIcon& icon);
+static GGIcon scaleGGIconToHeight(const GGIcon& icon, float height);
+static CharacterType getPlayerCharacter(int playerSide);
+static void drawPlayerIconWithTooltip(int playerSide);
+static bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart);
+static int findCharRev(const char* buf, char c);
+static int findCharRevW(const wchar_t* buf, wchar_t c);
+static void AddTooltip(const char* desc);
+static void HelpMarker(const char* desc);
+static void RightAlign(float w);
+static void RightAlignedText(const char* txt);
+static void RightAlignedColoredText(const ImVec4& color, const char* txt);
+static void CenterAlign(float w);
+static void CenterAlignedText(const char* txt);
+static const GGIcon& getCharIcon(CharacterType charType);
+static const GGIcon& getPlayerCharIcon(int playerSide);
+ImVec4 RGBToVec(DWORD color);  // color = 0xRRGGBB
+static const char* formatBoolean(bool value);
+static void pushZeroItemSpacingStyle();
+static float getItemSpacing();
 
 bool UI::onDllMain() {
+	
+	for (int i = 0; i < 25; ++i) {
+		characterIcons[i] = coordsToGGIcon(1 + 42 * i, 1135, 41, 41);
+		characterIconsBorderless[i] = coordsToGGIcon(3 + 42 * i, 1137, 37, 37);
+	}
+	
 	uintptr_t GetKeyStateRData = findImportedFunction("GuiltyGearXrd.exe", "USER32.DLL", "GetKeyState");
 	if (GetKeyStateRData) {
 		std::vector<char> sig;
@@ -216,6 +106,7 @@ bool UI::onDllMain() {
 	return true;
 }
 
+// Stops queueing new timer events on the window (main) thread. KillTimer does not remove events that have already been queued
 void UI::onDllDetachStage1() {
 	timerDisabled = true;
 	if (!imguiInitialized) return;
@@ -242,9 +133,9 @@ void UI::onDllDetachStage1() {
 	}
 }
 
+// Destroys only the graphical resources of imGui
 void UI::onDllDetachGraphics() {
 	std::unique_lock<std::mutex> guard(lock);
-	shutdownGraphics = true;
 	if (imguiD3DInitialized) {
 		logwrap(fputs("imgui freeing D3D resources\n", logfile));
     	imguiD3DInitialized = false;
@@ -252,11 +143,12 @@ void UI::onDllDetachGraphics() {
 	}
 }
 
+// Destroys the entire rest of imGui
 void UI::onDllDetachNonGraphics() {
 	if (imguiD3DInitialized) {
-		logwrap(fputs("imgui calling onDllDetachGraphics from onDllDetachNonGraphics\n", logfile));
+		logwrap(fputs("imgui calling onDllDetachNonGraphics from onDllDetachNonGraphics\n", logfile));
 		// this shouldn't happen
-		onDllDetachGraphics();
+		onDllDetachNonGraphics();
 	}
 	std::unique_lock<std::mutex> guard(lock);
 	if (imguiInitialized) {
@@ -267,6 +159,7 @@ void UI::onDllDetachNonGraphics() {
 	}
 }
 
+// Runs on the main thread
 void UI::prepareDrawData() {
 	if (!visible || gifMode.modDisabled) {
 		takeScreenshot = false;
@@ -293,10 +186,6 @@ void UI::prepareDrawData() {
 		decrementFlagTimer(clearTensionGainMaxComboTimer[i], clearTensionGainMaxCombo[i]);
 	}
 	
-	if (!imguiD3DInitialized) {
-		needInitFont = true;
-		return;
-	}
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 	static std::string windowTitle;
@@ -312,16 +201,21 @@ void UI::prepareDrawData() {
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 			
 			ImGui::TableNextColumn();
-			RightAlignedText("P1");
+			GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
+			float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
+			RightAlign(w);
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
 			ImGui::TableNextColumn();
-			void* texId = graphics.getTexture();
-			if (texId) {
-				CenterAlign(14.F);
-				ImGui::Image(texId, ImVec2(14.F, 14.F));
-				AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
-			}
+			scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
+			CenterAlign(scaledIcon.size.x);
+			drawGGIcon(scaledIcon);
+			AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted("P2");
+			ImGui::SameLine();
+			drawPlayerIconWithTooltip(1);
 	    	
 		    {
 		    	PlayerInfo& player = endScene.players[0];
@@ -964,8 +858,8 @@ void UI::prepareDrawData() {
 		ImGui::SameLine();
 		HelpMarker("Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
 			" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings, you"
-			" will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set,"
-			" they're saved there instead.");
+			" will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
+			" in the 'Hitbox settings', they're saved there instead.");
 		stateChanged = stateChanged || ImGui::Checkbox("Continuous Screenshotting Mode", &continuousScreenshotToggle);
 		ImGui::SameLine();
 		HelpMarker("When this option is enabled, screenshots will be taken every frame, unless the game is frozen, in which case"
@@ -1061,7 +955,17 @@ void UI::prepareDrawData() {
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-			ImGui::TableHeadersRow();
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Name");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(1);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P2");
 			
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted("Tension");
@@ -1354,47 +1258,65 @@ void UI::prepareDrawData() {
 	stateChanged = oldStateChanged || stateChanged;
 }
 
-void UI::onEndScene(IDirect3DDevice9* device) {
-	if (!visible || !imguiInitialized || gifMode.modDisabled) {
+// Runs on the graphics thread
+void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture) {
+	if (!visible || !imguiInitialized || gifMode.modDisabled || !drawData) {
 		return;
 	}
 	std::unique_lock<std::mutex> uiGuard(lock);
-	if (!imguiD3DInitialized) {
-		imguiD3DInitialized = true;
-		ImGui_ImplDX9_Init(device);
-		ImGui_ImplDX9_NewFrame();
-		graphics.getTexture();
-	}
-	if (needInitFont) {
-		ImGui_ImplDX9_NewFrame();
-		needInitFont = false;
-	}
-	if (drawData) {
-		ImGui_ImplDX9_RenderDrawData((ImDrawData*)drawData);
-	}
+	initializeD3D(device);
+	
+	substituteTextureIDs(drawData, iconTexture);
+	ImGui_ImplDX9_RenderDrawData((ImDrawData*)drawData);
 }
 
+// Runs on the main thread
+// Must be performed while holding the -lock- mutex.
 void UI::initialize() {
 	if (imguiInitialized || !visible || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
+	
+	ImGuiIO& io = ImGui::GetIO();
+	BYTE* unused;
+    io.Fonts->GetTexDataAsRGBA32(&unused, nullptr, nullptr);  // imGui complains if we don't call this before preparing its draw data
+    io.Fonts->SetTexID((ImTextureID)IMGUIFONT);  // I use fake wishy-washy IDs instead of real textures, because they're created on the
+                                                 // the graphics thread and this code is running on the main thread.
+                                                 // I cannot create our textures on the main thread, because I inject our DLL in the middle
+                                                 // of the app already running and I don't know if Direct3D 9 is fully thread-safe during resource creation.
+                                                 // Even if it was, device may be lost when calling IDirect3DDevice9->Present(), which is called on the graphics
+                                                 // thread, but the IDirect3DDevice9->Reset() is called on the main thread, which creates a delay between losing
+                                                 // a device and resetting it, during which I don't want to create new resources.
+                                                 // For these reasons, I create all Direct3D resources only on the graphics thread
+                                                 // and use imaginary numbers for tex IDs in imGui.
+                                                 // I also made imGui a submodule instead of copying all its files directly, so I can't modify it now,
+                                                 // i can't submit a Pull Request, because using IDirect3DTexture9* as tex IDs lies at the core philosophy
+                                                 // of not only the current imGui D3D9 implementation, but the whole imGui, so it's unchangeable.
+                                                 // I made imGui a submodule because it's easier to keep track of changes to it and update it, and also
+                                                 // give it credit by making it visible in some git tools that it's a link to their repo.
+                                                 // For now, we keep the current imGui D3D9 implementation stores pointers in tex IDs.
+                                                 // So we must swap out the pointers every time imGui D3D9 implementation interacts with them.
+    
 	imguiInitialized = true;
 }
 
+// Runs on the main thread while the graphics thread is suspended
 void UI::handleResetBefore() {
 	if (imguiD3DInitialized) {
 		ImGui_ImplDX9_InvalidateDeviceObjects();
 	}
 }
 
+// Runs on the main thread while the graphics thread is suspended
 void UI::handleResetAfter() {
 	if (imguiD3DInitialized) {
 		ImGui_ImplDX9_CreateDeviceObjects();
-		graphics.getTexture();
+		onImGuiMessWithFontTexID();
 	}
 }
 
+// Runs on the main thread
 void __stdcall UI::Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR unnamedParam3, DWORD unnamedParam4) {
 	if (ui.timerId == 0) return;
 	logwrap(fprintf(logfile, "Timerproc called for timerId: %d\n", ui.timerId));
@@ -1406,6 +1328,7 @@ void __stdcall UI::Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR un
 	ui.timerId = 0;
 }
 
+// Runs on the main thread. Called from EndScene::WndProcHook
 LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	if (imguiInitialized) {
 		if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
@@ -1477,6 +1400,7 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	return FALSE;
 }
 
+// Runs on the main thread
 void UI::keyComboControl(std::vector<int>& keyCombo) {
 	Settings::ComboInfo info;
 	settings.getComboInfo(keyCombo, &info);
@@ -1560,6 +1484,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
     HelpMarker(info.uiDescription);
 }
 
+// Runs on the main thread. Called hundreds of times each frame
 SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
 	//HookGuard hookGuard("GetKeyState");
 	SHORT result;
@@ -1571,6 +1496,7 @@ SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
 	return result;
 }
 
+// Runs on the main thread
 void UI::decrementFlagTimer(int& timer, bool& flag) {
 	if (timer > 0 && flag) {
 		--timer;
@@ -1578,6 +1504,7 @@ void UI::decrementFlagTimer(int& timer, bool& flag) {
 	}
 }
 
+// Runs on the main thread
 void UI::frameAdvantageControl() {
     for (int i = 0; i < 2; ++i) {
     	PlayerInfo& player = endScene.players[i];
@@ -1618,6 +1545,7 @@ void UI::frameAdvantageControl() {
     }
 }
 
+// Runs on the main thread
 void UI::frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize) {
 	if (frameAdv > 0) {
 		sprintf_s(buf, bufSize, "+%d", frameAdv);
@@ -1626,6 +1554,7 @@ void UI::frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize) {
 	}
 }
 
+// Runs on the main thread
 void UI::frameAdvantageText(int frameAdv) {
 	frameAdvantageTextFormat(frameAdv, strbuf, sizeof strbuf);
 	if (frameAdv > 0) {
@@ -1639,6 +1568,7 @@ void UI::frameAdvantageText(int frameAdv) {
 	}
 }
 
+// Runs on the main thread
 char* UI::printDecimal(int num, int numAfterPoint, int padding, bool percentage) {
 	int divideBy = 1;
 	for (int i = 0; i < numAfterPoint; ++i) {
@@ -1694,4 +1624,368 @@ char* UI::printDecimal(int num, int numAfterPoint, int padding, bool percentage)
 		printdecimalbuf[len + padSize] = '\0';
 	}
 	return printdecimalbuf;
+}
+
+// Avoid copying the vector - only move or pass by pointer/reference
+// Runs on the main thread
+void UI::copyDrawDataTo(std::vector<BYTE>& destinationBuffer) {
+	destinationBuffer.clear();
+	if (!drawData) return;
+	
+	ImDrawData* oldData = (ImDrawData*)drawData;
+	if (!oldData->Valid) return;
+	
+	size_t requiredSize = sizeof ImDrawData
+		+ sizeof (CustomImDrawList*) * oldData->CmdListsCount
+		+ sizeof CustomImDrawList * oldData->CmdListsCount;
+	
+	for (int i = 0; i < oldData->CmdListsCount; ++i) {
+		const ImDrawList* cmdList = oldData->CmdLists[i];
+		requiredSize += cmdList->CmdBuffer.Size * sizeof ImDrawCmd
+			+ cmdList->IdxBuffer.Size * sizeof ImDrawIdx
+			+ cmdList->VtxBuffer.Size * sizeof ImDrawVert
+		;
+	}
+	
+	destinationBuffer.resize(requiredSize);
+	BYTE* p = destinationBuffer.data();
+	
+	memcpy(p, oldData, sizeof ImDrawData);
+	ImDrawData* newData = (ImDrawData*)p;
+	p += sizeof ImDrawData;
+	
+	newData->CmdLists.Data = (ImDrawList**)p;
+	
+	p += sizeof (CustomImDrawList*) * oldData->CmdListsCount;
+	
+	for (int i = 0; i < oldData->CmdListsCount; ++i) {
+		newData->CmdLists.Data[i] = (ImDrawList*)p;
+		
+		CustomImDrawList* newCmdList = (CustomImDrawList*)p;
+		const ImDrawList* oldCmdList = oldData->CmdLists[i];
+		
+		newCmdList->CmdBuffer.Size = oldCmdList->CmdBuffer.Size;
+		newCmdList->IdxBuffer.Size = oldCmdList->IdxBuffer.Size;
+		newCmdList->VtxBuffer.Size = oldCmdList->VtxBuffer.Size;
+		p += sizeof CustomImDrawList;
+		
+		newCmdList->CmdBuffer.Data = (ImDrawCmd*)p;
+		size_t cmdsSize = oldCmdList->CmdBuffer.Size * sizeof ImDrawCmd;
+		memcpy(p, oldCmdList->CmdBuffer.Data, cmdsSize);
+		p += cmdsSize;
+		
+		newCmdList->IdxBuffer.Data = (ImDrawIdx*)p;
+		size_t idxSize = oldCmdList->IdxBuffer.Size * sizeof ImDrawIdx;
+		memcpy(p, oldCmdList->IdxBuffer.Data, idxSize);
+		p += idxSize;
+		
+		newCmdList->VtxBuffer.Data = (ImDrawVert*)p;
+		size_t vtxSize = oldCmdList->VtxBuffer.Size * sizeof ImDrawVert;
+		memcpy(p, oldCmdList->VtxBuffer.Data, vtxSize);
+		p += vtxSize;
+	}
+	
+}
+
+// Runs on the graphics thread
+void UI::substituteTextureIDs(void* drawData, IDirect3DTexture9* iconTexture) {
+	ImDrawData* d = (ImDrawData*)drawData;
+	for (int i = 0; i < d->CmdListsCount; ++i) {
+		ImDrawList* drawList = d->CmdLists[i];
+		for (int j = 0; j < drawList->CmdBuffer.Size; ++j) {
+			ImDrawCmd& cmd = drawList->CmdBuffer[j];
+			if (cmd.TextureId == (ImTextureID)IMGUIFONT) {
+				cmd.TextureId = imguiFont;
+			} else if (cmd.TextureId == (ImTextureID)GGICON) {
+				cmd.TextureId = iconTexture;
+			}
+		}
+	}
+}
+
+// Must be performed while holding the -lock- mutex
+// Runs on the graphics thread
+void UI::initializeD3D(IDirect3DDevice9* device) {
+	if (!imguiD3DInitialized) {
+		imguiD3DInitialized = true;
+		ImGui_ImplDX9_Init(device);
+		ImGui_ImplDX9_NewFrame();
+		onImGuiMessWithFontTexID();
+	}
+}
+
+// Runs on the graphics thread
+void UI::onImGuiMessWithFontTexID() {
+	ImGuiIO& io = ImGui::GetIO();
+	IDirect3DTexture9* tmp = (IDirect3DTexture9*)io.Fonts->TexID;  // has SetTexID() but no GetTexID()... says it will pass it back to me if I draw something. No thx
+	if (tmp != (IDirect3DTexture9*)IMGUIFONT) {
+		imguiFont = tmp;
+		io.Fonts->SetTexID((ImTextureID)IMGUIFONT);  // undo the TexID replacement ImGui_ImplDX9_NewFrame has done. You can read more about this stupid gig we're doing in UI::initialize()
+	}
+}
+
+const char* characterNames[25] {
+	"Sol",       // 0
+	"Ky",        // 1
+	"May",       // 2
+	"Millia",    // 3
+	"Zato=1",    // 4
+	"Potemkin",  // 5
+	"Chipp",     // 6
+	"Faust",     // 7
+	"Axl",       // 8
+	"Venom",     // 9
+	"Slayer",    // 10
+	"I-No",      // 11
+	"Bedman",    // 12
+	"Ramlethal", // 13
+	"Sin",       // 14
+	"Elphelt",   // 15
+	"Leo",       // 16
+	"Johnny",    // 17
+	"Jack O'",   // 18
+	"Jam",       // 19
+	"Kum",       // 20
+	"Raven",     // 21
+	"Dizzy",     // 22
+	"Baiken",    // 23
+	"Answer"     // 24
+};
+
+const char* characterNamesFull[25] {
+	"Sol Badguy",	  // 0
+	"Ky Kiske",		  // 1
+	"May",			  // 2
+	"Millia Rage",	  // 3
+	"Zato=1",		  // 4
+	"Potemkin",		  // 5
+	"Chipp Zanuff",	  // 6
+	"Faust",		  // 7
+	"Axl Low",		  // 8
+	"Venom",		  // 9
+	"Slayer",		  // 10
+	"I-No",           // 11
+	"Bedman",         // 12
+	"Ramlethal",      // 13
+	"Sin Kiske",      // 14
+	"Elphelt",        // 15
+	"Leo Whitefang",  // 16
+	"Johnny",         // 17
+	"Jack O'",        // 18
+	"Jam Kuradoberi", // 19
+	"Kum Haehyun",    // 20
+	"Raven",          // 21
+	"Dizzy",          // 22
+	"Baiken",         // 23
+	"Answer"          // 24
+};
+
+
+
+// DEATH ZONE
+
+GGIcon coordsToGGIcon(int x, int y, int w, int h) {
+	GGIcon result;
+	result.size = ImVec2{ (float)w, (float)h };
+	result.uvStart = ImVec2{ (float)x / 1536.F, (float)y / 1536.F };
+	result.uvEnd = ImVec2{ (float)(x + w) / 1536.F, (float)(y + h) / 1536.F };
+	return result;
+}
+
+void drawGGIcon(const GGIcon& icon) {
+	ImGui::Image((ImTextureID)GGICON, icon.size, icon.uvStart, icon.uvEnd);
+}
+
+GGIcon scaleGGIconToHeight(const GGIcon& icon, float height) {
+	GGIcon result;
+	result.size = ImVec2{ icon.size.x * height / icon.size.y, height };
+	result.uvStart = icon.uvStart;
+	result.uvEnd = icon.uvEnd;
+	return result;
+}
+
+CharacterType getPlayerCharacter(int playerSide) {
+	if (!*aswEngine || playerSide != 0 && playerSide != 1) return (CharacterType)-1;
+	entityList.populate();
+	Entity ent = entityList.slots[playerSide];
+	if (!ent) return (CharacterType)-1;
+	return ent.characterType();
+}
+
+void drawPlayerIconWithTooltip(int playerSide) {
+	CharacterType charType = getPlayerCharacter(playerSide);
+	GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(charType), 14.F);
+	drawGGIcon(scaledIcon);
+	if (charType != -1) {
+		AddTooltip(characterNamesFull[charType]);
+	}
+}
+
+bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart) {
+    unsigned int length = 0;
+    const wchar_t* ptr = endingPart;
+    while (*ptr != L'\0') {
+        if (length == 0xFFFFFFFF) return false;
+        ++ptr;
+        ++length;
+    }
+    if (str.size() < length) return false;
+    if (length == 0) return true;
+    --ptr;
+    auto it = str.begin() + (str.size() - 1);
+    while (length) {
+        if (towupper(*it) != towupper(*ptr)) return false;
+        --length;
+        --ptr;
+        if (it == str.begin()) break;
+        --it;
+    }
+    return length == 0;
+}
+
+int findCharRev(const char* buf, char c) {
+    const char* ptr = buf;
+    while (*ptr != '\0') {
+        ++ptr;
+    }
+    while (ptr != buf) {
+        --ptr;
+        if (*ptr == c) return ptr - buf;
+    }
+    return -1;
+}
+
+int findCharRevW(const wchar_t* buf, wchar_t c) {
+    const wchar_t* ptr = buf;
+    while (*ptr != '\0') {
+        ++ptr;
+    }
+    while (ptr != buf) {
+        --ptr;
+        if (*ptr == c) return ptr - buf;
+    }
+    return -1;
+}
+
+bool UI::selectFile(std::wstring& path, HWND owner) {
+    std::wstring szFile;
+    szFile = lastSelectedPath;
+    szFile.resize(MAX_PATH, L'\0');
+
+    OPENFILENAMEW selectedFiles{ 0 };
+    selectedFiles.lStructSize = sizeof(OPENFILENAMEW);
+    selectedFiles.hwndOwner = owner;
+    selectedFiles.lpstrFile = &szFile.front();
+    selectedFiles.nMaxFile = (DWORD)szFile.size() + 1;
+    selectedFiles.lpstrFilter = L"PNG file (*.png)\0*.PNG\0";
+    selectedFiles.nFilterIndex = 1;
+    selectedFiles.lpstrFileTitle = NULL;
+    selectedFiles.nMaxFileTitle = 0;
+    selectedFiles.lpstrInitialDir = NULL;
+    selectedFiles.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+
+    if (!GetSaveFileNameW(&selectedFiles)) {
+        DWORD errCode = CommDlgExtendedError();
+        if (!errCode) {
+            logwrap(fputs("The file selection dialog was closed by the user.\n", logfile));
+        }
+        else {
+            logwrap(fprintf(logfile, "Error selecting file. Error code: %.8x\n", errCode));
+        }
+        return false;
+    }
+    szFile.resize(lstrlenW(szFile.c_str()));
+
+    if (!endsWithCaseInsensitive(szFile, L".png")) {
+        path = szFile + L".png";
+        return true;
+    }
+    path = szFile;
+    int pos = findCharRevW(path.c_str(), L'\\');
+    if (pos == -1) {
+        lastSelectedPath = path;
+    } else {
+        lastSelectedPath = path.c_str() + pos + 1;
+    }
+    return true;
+}
+
+void AddTooltip(const char* desc) {
+    if (ImGui::BeginItemTooltip()) {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+void HelpMarker(const char* desc) {
+    ImGui::TextDisabled("(?)");
+    AddTooltip(desc);
+}
+
+void RightAlign(float w) {
+	const auto rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth();
+    const auto posX = (rightEdge - w);
+    ImGui::SetCursorPosX(posX);
+}
+
+void RightAlignedText(const char* txt) {
+	RightAlign(ImGui::CalcTextSize(txt).x);
+	ImGui::TextUnformatted(txt);
+}
+
+void RightAlignedColoredText(const ImVec4& color, const char* txt) {
+	RightAlign(ImGui::CalcTextSize(txt).x);
+    ImGui::TextColored(color, txt);
+}
+
+void CenterAlign(float w) {
+	const auto rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth() / 2;
+    const auto posX = (rightEdge - w / 2);
+    ImGui::SetCursorPosX(posX);
+}
+
+void CenterAlignedText(const char* txt) {
+	CenterAlign(ImGui::CalcTextSize(txt).x);
+	ImGui::TextUnformatted(txt);
+}
+
+const GGIcon& getCharIcon(CharacterType charType) {
+	if (charType >= 0 && charType < 25) {
+		return characterIconsBorderless[charType];
+	}
+	return questionMarkIcon;
+}
+
+const GGIcon& getPlayerCharIcon(int playerSide) {
+	return getCharIcon(getPlayerCharacter(playerSide));
+}
+
+// color = 0xRRGGBB
+ImVec4 RGBToVec(DWORD color) {
+	// they also wrote it as r, g, b, a... just in struct form
+	return {
+		((color >> 16) & 0xff) * (1.F / 255.F),  // red
+		((color >> 8) & 0xff) * (1.F / 255.F),  // green
+		(color & 0xff) * (1.F / 255.F),  // blue
+		1.F  // alpha
+	};
+}
+
+const char* formatBoolean(bool value) {
+	static const char* trueStr = "true";
+	static const char* falseStr = "false";
+	return value ? trueStr : falseStr;
+}
+
+void pushZeroItemSpacingStyle() {
+	ImGuiStyle& style = ImGui::GetStyle();  // it's a reference
+	ImVec2 itemSpacing = style.ItemSpacing;
+	itemSpacing.x = 0;
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
+}
+
+float getItemSpacing() {
+	return ImGui::GetStyle().ItemSpacing.x;
 }

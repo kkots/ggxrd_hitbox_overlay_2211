@@ -41,29 +41,44 @@ struct FRingBuffer_AllocationContext {
 };
 
 struct FRenderCommand {
-	virtual void Destructor(BOOL freeMem);
+	virtual void Destructor(BOOL freeMem) noexcept;
 	virtual unsigned int Execute() = 0;  // Runs on the graphics thread
-	virtual const wchar_t* DescribeCommand() = 0;
+	virtual const wchar_t* DescribeCommand() noexcept = 0;
 };
 
 struct FSkipRenderCommand : FRenderCommand {
 	FSkipRenderCommand(unsigned int InNumSkipBytes);  // Runs on the main thread
 	virtual unsigned int Execute() override;  // Runs on the graphics thread
-	virtual const wchar_t* DescribeCommand();
+	virtual const wchar_t* DescribeCommand() noexcept override;
 	unsigned int NumSkipBytes;
 };
 
 struct DrawBoxesRenderCommand : FRenderCommand {
-	virtual unsigned int Execute();  // Runs on the graphics thread
-	virtual const wchar_t* DescribeCommand();
+	virtual void Destructor(BOOL freeMem) noexcept override;
+	virtual unsigned int Execute() override;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand() noexcept override;
 	DrawBoxesRenderCommand();  // Runs on the main thread
 	DrawData drawData;
 	CameraValues cameraValues;
 };
 
 struct DrawOriginPointsRenderCommand : FRenderCommand {
-	virtual unsigned int Execute();  // Runs on the graphics thread
-	virtual const wchar_t* DescribeCommand();
+	virtual unsigned int Execute() override;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand() noexcept override;
+};
+
+struct DrawImGuiRenderCommand : FRenderCommand {
+	virtual void Destructor(BOOL freeMem) noexcept override;
+	virtual unsigned int Execute() override;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand() noexcept override;
+	DrawImGuiRenderCommand();  // Runs on the main thread
+	std::vector<BYTE> drawData;
+	BYTE* iconsUTexture2D = nullptr;
+};
+
+struct ShutdownRenderCommand : FRenderCommand {
+	virtual unsigned int Execute() override;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand() noexcept override;
 };
 
 struct REDDrawCommand {
@@ -160,6 +175,11 @@ public:
 	IDirect3DDevice9* getDevice();
 	FVector2D lastScreenSize { 0.F, 0.F };
 	void drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas);
+	BYTE* getIconsUTexture2D();
+	void executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command);
+	void* iconTexture = nullptr;
+	IDirect3DTexture9* getTextureFromUTexture2D(BYTE* uTex2D);
+	void executeShutdownRenderCommand();
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -254,7 +274,7 @@ private:
 	void* FRenderCommandVtable = nullptr;
 	void* FSkipRenderCommandVtable = nullptr;
 	bool drewExGaugeHud = false;
-	void queueOriginPointDrawingDummyCommand();
+	void queueOriginPointDrawingDummyCommandAndInitializeIcon();
 };
 
 extern EndScene endScene;

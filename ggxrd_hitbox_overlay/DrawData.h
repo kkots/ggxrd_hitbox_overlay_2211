@@ -12,7 +12,6 @@ struct DrawData {
 	std::vector<DrawBoxCallParams> throwBoxes;
 	void clear();
 	void copyTo(DrawData* destination);
-	bool empty = false;
 	bool needTakeScreenshot = false;
 };
 

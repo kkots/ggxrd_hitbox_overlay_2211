@@ -193,7 +193,6 @@
     <ClInclude Include="pi.h" />
     <ClInclude Include="PlayerInfo.h" />
     <ClInclude Include="PngRelated.h" />
-    <ClInclude Include="PngResource.h" />
     <ClInclude Include="rectCombiner.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Settings.h" />
@@ -261,7 +260,6 @@
     <ClCompile Include="memoryFunctions.cpp" />
     <ClCompile Include="PlayerInfo.cpp" />
     <ClCompile Include="PngRelated.cpp" />
-    <ClCompile Include="PngResource.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Stencil.cpp" />
@@ -288,7 +286,7 @@
     <ResourceCompile Include="ggxrd_hitbox_overlay.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\images\Question.png" />
+    <Text Include="How to debug Xrd without it relaunching itself.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,5 +1,9 @@
 #pragma once
 
+extern const char* characterNames[];
+
+extern const char* characterNamesFull[];
+
 // Important! Character names may be subject of copyright
 enum CharacterType {
 	/* 0 */    CHARACTER_TYPE_SOL,

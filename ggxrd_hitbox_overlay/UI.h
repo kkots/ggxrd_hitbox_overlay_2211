@@ -4,6 +4,12 @@
 #include <vector>
 #include <mutex>
 
+enum UITexture {
+	NONE,
+	IMGUIFONT,
+	GGICON
+};
+
 class UI
 {
 public:
@@ -12,7 +18,7 @@ public:
 	void onDllDetachGraphics();
 	void onDllDetachNonGraphics();
 	void prepareDrawData();
-	void onEndScene(IDirect3DDevice9* device);
+	void onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture);
 	LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void handleResetBefore();
 	void handleResetAfter();
@@ -39,11 +45,12 @@ public:
 	std::mutex lock;
 	bool imguiActive = false;
 	void* drawData = nullptr;
-	bool needInitFont = false;
 	bool timerDisabled = false;
-	bool shutdownGraphics = false;
+	void copyDrawDataTo(std::vector<BYTE>& destinationBuffer);
+	void substituteTextureIDs(void* drawData, IDirect3DTexture9* iconTexture);
 private:
 	void initialize();
+	void initializeD3D(IDirect3DDevice9* device);
 	bool imguiInitialized = false;
 	bool imguiD3DInitialized = false;
 	void keyComboControl(std::vector<int>& keyCombo);
@@ -62,6 +69,8 @@ private:
 	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);
 	bool showTensionData = false;
 	void* hook_GetKeyStatePtr = nullptr;
+	IDirect3DTexture9* imguiFont = nullptr;
+	void onImGuiMessWithFontTexID();
 };
 
 extern UI ui;

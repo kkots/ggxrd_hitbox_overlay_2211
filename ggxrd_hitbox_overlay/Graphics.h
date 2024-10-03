@@ -12,7 +12,6 @@
 #include "ComplicatedHurtbox.h"
 #include <mutex>
 #include "characterTypes.h"
-#include "PngResource.h"
 #include "PlayerInfo.h"
 #include "DrawData.h"
 
@@ -23,14 +22,14 @@ using FSuspendRenderingThreadDestructor_t = void(__thiscall*)(char* thisArg);
 class Graphics
 {
 public:
-	bool onDllMain(HMODULE hMod);
+	bool onDllMain();
 	void onDllDetach();
 	void onEndSceneStart(IDirect3DDevice9* device);
+	void onShutdown();
 	void drawAll();
 	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
 	void resetHook();
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
-	void* getTexture();
 	
 	DrawData drawDataUse;
 	IDirect3DDevice9* device;
@@ -155,8 +154,6 @@ private:
 
 	bool drawIfOutOfSpace(unsigned int verticesCountRequired, unsigned int texturedVerticesCountRequired);
 
-	CComPtr<IDirect3DTexture9> packedTexture;
-	bool failedToCreatePackedTexture = false;
 	bool loggedDrawingOperationsOnce = false;
 	
 	enum ScreenshotStage {
@@ -165,11 +162,6 @@ private:
 		SCREENSHOT_STAGE_FINAL
 	} screenshotStage = SCREENSHOT_STAGE_NONE;
 	
-	bool failedToCreateTexture = false;
-	bool initializeTexture();
-	CComPtr<IDirect3DTexture9> texture = nullptr;
-	PngResource questionMarkRes;
-	HMODULE hMod = NULL;
 	HANDLE shutdownFinishedEvent = NULL;
 	DWORD suspenderThreadId = NULL;
 };

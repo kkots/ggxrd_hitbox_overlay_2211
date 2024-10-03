@@ -16,7 +16,7 @@
 
 Graphics graphics;
 
-bool Graphics::onDllMain(HMODULE hMod) {
+bool Graphics::onDllMain() {
 	bool error = false;
 	uintptr_t UpdateD3DDeviceFromViewportsCallPlace = sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -71,8 +71,6 @@ bool Graphics::onDllMain(HMODULE hMod) {
 			"~FSuspendRenderingThread")) return false;
 	} else return false;
 	
-	this->hMod = hMod;
-	
 	shutdownFinishedEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
 	if (!shutdownFinishedEvent || shutdownFinishedEvent == INVALID_HANDLE_VALUE) {
 		WinError winErr;
@@ -108,14 +106,12 @@ void Graphics::resetHook() {
 	offscreenSurfaceWidth = 0;
 	offscreenSurfaceHeight = 0;
 	vertexBuffer = NULL;
-	texture = NULL;
 }
 
 void Graphics::onDllDetach() {
 	logwrap(fputs("Graphics::onDllDetach called\n", logfile));
 	// this tells various callers to stop trying to use the resources as they're about to be freed
 	shutdown = true;
-	ui.shutdownGraphics = true;
 	if (!graphicsThreadId || graphicsThreadId == detouring.dllMainThreadId) {
 		resetHook();
 		ui.onDllDetachGraphics();
@@ -169,14 +165,15 @@ void Graphics::onDllDetach() {
 }
 
 void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
-	if (!shutdown) {
-		this->device = device;
-		stencil.onEndSceneStart();
-	} else {
-		resetHook();
-		ui.onDllDetachGraphics();
-		SetEvent(shutdownFinishedEvent);
-	}
+	if (shutdown) return;
+	this->device = device;
+	stencil.onEndSceneStart();
+}
+
+void Graphics::onShutdown() {
+	resetHook();
+	ui.onDllDetachGraphics();
+	SetEvent(shutdownFinishedEvent);
 }
 
 bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect, bool ignoreFill, bool ignoreOutline) {
@@ -1287,53 +1284,6 @@ void DrawData::copyTo(DrawData* destination) {
 	destination->needTakeScreenshot = needTakeScreenshot;
 }
 
-bool Graphics::initializeTexture() {
-	if (failedToCreateTexture) return false;
-	if (texture) return true;
-	if (questionMarkRes.data.empty()) {
-		if (!loadPngResource(hMod, IDB_QUESTION, questionMarkRes)) {
-			logwrap(fputs("loadPngResource failed\n", logfile));
-			failedToCreateTexture = true;
-			return false;
-		}
-	}
-	CComPtr<IDirect3DTexture9> systemTexture;
-	if (FAILED(device->CreateTexture(questionMarkRes.width, questionMarkRes.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &systemTexture, NULL))) {
-		logwrap(fputs("CreateTexture failed\n", logfile));
-		failedToCreateTexture = true;
-		return false;
-	}
-	if (FAILED(device->CreateTexture(questionMarkRes.width, questionMarkRes.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &texture, NULL))) {
-		logwrap(fputs("CreateTexture (2) failed\n", logfile));
-		failedToCreateTexture = true;
-		return false;
-	}
-	D3DLOCKED_RECT lockedRect;
-	if (FAILED(systemTexture->LockRect(0, &lockedRect, NULL, NULL))) {
-		logwrap(fputs("texture->LockRect failed\n", logfile));
-		failedToCreateTexture = true;
-		return false;
-	}
-	questionMarkRes.bitBlt(lockedRect.pBits, lockedRect.Pitch, 0, 0, 0, 0, questionMarkRes.width, questionMarkRes.height);
-	if (FAILED(systemTexture->UnlockRect(0))) {
-		logwrap(fputs("texture->UnlockRect failed\n", logfile));
-		failedToCreateTexture = true;
-		return false;
-	}
-	if (FAILED(device->UpdateTexture(systemTexture, texture))) {
-		logwrap(fputs("UpdateTexture failed\n", logfile));
-		failedToCreateTexture = true;
-		return false;
-	}
-	logwrap(fprintf(logfile, "Initialized packed texture successfully. Width: %u; Height: %u.\n", questionMarkRes.width, questionMarkRes.height));
-	return true;
-}
-
-void* Graphics::getTexture() {
-	if (!initializeTexture()) return nullptr;
-	return (void*)texture.p;
-}
-
 void Graphics::HookHelp::FSuspendRenderingThreadHook(unsigned int InSuspendThreadFlags) {
 	HookGuard hookGuard("FSuspendRenderingThread");
 	{
@@ -1342,11 +1292,7 @@ void Graphics::HookHelp::FSuspendRenderingThreadHook(unsigned int InSuspendThrea
 	}
 	if (graphics.suspenderThreadId == GetCurrentThreadId()) {
 		graphics.resetHook();
-		if (graphics.shutdown) {
-			ui.onDllDetachGraphics();
-		} else {
-			ui.handleResetBefore();
-		}
+		ui.handleResetBefore();
 	}
 }
 

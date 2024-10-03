@@ -3,9 +3,14 @@
 
 .code
 
+; x86 C/C++ supports inline asm - we don't need a separate .asm file. But what if it inserts some mov ecx,[securityCookie] at the start of the function, before my asm block? How do I read incoming ecx? So I use this instead
+
+; reference to a C function declared in C code - in EndScene.cpp, called "drawQuadExecHook"
+; It's a cdecl with 3 args
 extrn _drawQuadExecHook:proc
 
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
+; Runs on the main thread
 _drawQuadExecHookAsm proc
   push ebp
   lea ebp,[esp+4]
@@ -24,6 +29,7 @@ _drawQuadExecHookAsm endp
 ;       esp+8 is the ecx arg
 ;       esp+0Ch is the first stack arg
 ;       esp+10h is the second stack arg
+; Runs on the main thread
 _call_orig_drawQuadExec proc
   mov edx,dword ptr[esp+4]
   mov ecx,dword ptr[esp+8]
