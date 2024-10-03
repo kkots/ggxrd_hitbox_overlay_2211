@@ -4,10 +4,12 @@
 #include <vector>
 #include <mutex>
 
-enum UITexture {
-	NONE,
-	IMGUIFONT,
-	GGICON
+namespace UITextureNamespace {
+	enum UITexture {
+		NONE,  // the names are a little  too generic, and this is defined in a header file, oof
+		IMGUIFONT,
+		GGICON
+	};
 };
 
 class UI

@@ -101,7 +101,7 @@ void collectHitboxes(const Entity ent,
 	bool includeTheseHitboxes = hitboxes && active && !state.doingAThrow;
 	if (includeTheseHitboxes) {
 		if ((*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0  // having this flag means you ignore the hitboxes hit detection check
-				|| (*(DWORD*)(ent + 0x44c + 0x14) & 0x1000000) != 0) {  // having this flag means you're not a valid attacker
+				|| (*(DWORD*)(ent + 0x44c + 0x14) & 0x1000000) != 0) {  // having this flag means you're not a valid attacker. For ex. Ky's RideAura during RTL has this
 			includeTheseHitboxes = false;
 		}
 	}

@@ -216,7 +216,7 @@ public:
 	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
 	inline int& scaleForParticles() { return *(int*)(ent + 0x2618); }
-	inline int& physicsYImpulse() { return *(int*)(ent + 0x300); }
+	inline int& speedY() { return *(int*)(ent + 0x300); }
 	inline int currentHitNum() { return *(int*)(ent + 0x26d8); }
 	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
 	inline int throwRange() { return *(int*)(ent + 0x494); }

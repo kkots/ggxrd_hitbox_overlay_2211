@@ -21,6 +21,7 @@
 
 UI ui;
 
+using namespace UITextureNamespace;
 static ImVec4 RGBToVec(DWORD color);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 const ImVec2 BTN_SIZE = ImVec2(60, 20);
@@ -211,7 +212,8 @@ void UI::prepareDrawData() {
 			scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
 			CenterAlign(scaledIcon.size.x);
 			drawGGIcon(scaledIcon);
-			AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
+			AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.\n"
+				"If this is an online match affected by rollback, displayed framedata might be incorrect.");
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted("P2");
 			ImGui::SameLine();
@@ -1295,7 +1297,7 @@ void UI::initialize() {
                                                  // of not only the current imGui D3D9 implementation, but the whole imGui, so it's unchangeable.
                                                  // I made imGui a submodule because it's easier to keep track of changes to it and update it, and also
                                                  // give it credit by making it visible in some git tools that it's a link to their repo.
-                                                 // For now, we keep the current imGui D3D9 implementation stores pointers in tex IDs.
+                                                 // For now, we keep the current imGui D3D9 implementation which stores pointers in tex IDs.
                                                  // So we must swap out the pointers every time imGui D3D9 implementation interacts with them.
     
 	imguiInitialized = true;
@@ -1779,10 +1781,6 @@ const char* characterNamesFull[25] {
 	"Baiken",         // 23
 	"Answer"          // 24
 };
-
-
-
-// DEATH ZONE
 
 GGIcon coordsToGGIcon(int x, int y, int w, int h) {
 	GGIcon result;

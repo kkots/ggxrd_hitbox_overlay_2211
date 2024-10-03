@@ -20,7 +20,7 @@ struct DrawTextWithIconsParams {
     float field5_0x14;
     int field6_0x18;
     D3DCOLOR tint;  // each pixel is multiplied by this color. Input history uses color 0xffa0a0a1 for stuff that was already pressed
-    D3DCOLOR colorAdd;  // 
+    D3DCOLOR colorAdd;  // this color is added to each pixel
     DrawTextWithIconsAlignment alignment;
 	/* The string.
 	^mNull; - empty icon

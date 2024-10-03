@@ -173,6 +173,13 @@ bool EndScene::onDllMain() {
 		error = true;
 	}
 	
+	// Another way to find this is search for L"PostEvent" string. It will be used to create an FName global var
+	// (FName is basically 2 ints). You can then search for uses of that global var to find a really big function
+	// that calls a function with 2 arguments, with PostEvent FName being used after the call (is unrelated to the call).
+	// PostName FName is used in 6 places, 3 of which are the same function - that is the big function I'm referring to,
+	// and the call I'm looking for happens just prior to the third usage.
+	// Or you could take one of the last called functions inside drawTextWithIcons, find where it stores data,
+	// then the function that reads that data, and its calling function's calling function will be the one I want.
 	uintptr_t TryEnterCriticalSectionPtr = findImportedFunction("GuiltyGearXrd.exe", "KERNEL32.DLL", "TryEnterCriticalSection");
 	uintptr_t EnterCriticalSectionPtr = findImportedFunction("GuiltyGearXrd.exe", "KERNEL32.DLL", "EnterCriticalSection");
 	uintptr_t LeaveCriticalSectionPtr = findImportedFunction("GuiltyGearXrd.exe", "KERNEL32.DLL", "LeaveCriticalSection");
@@ -960,7 +967,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& !player.isLandingOrPreJump
 						&& player.moveOriginatedInTheAir
 						&& ent.y() == 0
-						&& ent.physicsYImpulse() == 0
+						&& ent.speedY() == 0
 						&& player.startedUp
 						&& !hasHitboxes
 					)) {
@@ -1079,8 +1086,6 @@ void EndScene::endSceneHook(IDirect3DDevice9* device) {
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
 		graphics.drawDataUse.clear();
-	//} else if (!altModes.isGameInNormalMode(nullptr)) {  // no more need to hide boxes when menu is open, because we draw under the menus now
-		//doYourThing = false;
 	}
 
 	if (doYourThing) {
@@ -1389,7 +1394,7 @@ void EndScene::noGravGifMode() {
 
 	bool useNoGravMode = gifMode.noGravityOn && game.isTrainingMode();
 	if (useNoGravMode) {
-		entityList.slots[playerIndex].physicsYImpulse() = 0;
+		entityList.slots[playerIndex].speedY() = 0;
 	}
 }
 

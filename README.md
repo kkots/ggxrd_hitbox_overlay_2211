@@ -132,7 +132,7 @@ You can force the game to play one frame at a time (in training mode only). Read
 
 ### F1 - GIF mode
 
-In training mode (only) you can press F1 to enter "GIF mode", which makes the background black, centers the camera on you, hides some of the HUD (you have to hide the rest yourself via Menu - Display settings) and makes opponent invisible and unhittable.  
+In training mode (only) you can press F1 to enter "GIF mode", which makes the background black, centers the camera on you, hides all of the HUD and makes opponent invisible and unhittable.  
 Press the key again to turn off the mode.  
 GIF mode can be broken down into separate toggles for each of its functionalities.  
 Section "Hotkey configuration" describes how to configure hotkeys.
@@ -531,3 +531,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 January 26: Added a toggle to hide the hud only/separated hud out of the "GIF mode". Fixed an issue when rapidly freezing/unfreezing the game made the hitboxes desync from the visuals.
 - 2024 September 16: Added imGui.
 - 2024 September 24: Fixed some animations still playing in frame freeze mode and playing too fast is slow-mo mode. Fixed danger time countdown playing during frame freeze mode. Fixed Johnny coins and stunmash indicator not displaying in frame freeze mode and displaying glitchily in slow-mo mode. Fixed play, record and backspace buttons not working in frame freeze and slow-mo modes. Draw hitboxes and imgui under steam overlay instead of on top. Not interfere with OBS recording. Can now hide ky sword lightning and >50 tension sparkles in gif mode. Fixed johnny coins, jacko organ cooldown indicators, jam powerup icons not being hidden in gif mode.
+- 2024 October 3: drawing hitboxes underneath not just steam overlay, but the in-game pause menu and training HUD, while the origin point is still drawn on top of training HUD, but underneath the pause menu. Added in-game icons to imgui window. Fixed Potemkin IK throwbox, which also fixed throwboxes for Sol Riot Stamp, maybe Potemkin ICPM if it wasn't showing before (now it does), maybe other moves that grab you on hit. Fixed 6P+H,5 (blitz input by pressing 6P+H and immediately releasing 6) displaying a throw which is active for 2 frames which is incorrect - throw is actually active for 1 frame. Removed backside and upside Ky's Ride the Lightning hitboxes - they're not real.
