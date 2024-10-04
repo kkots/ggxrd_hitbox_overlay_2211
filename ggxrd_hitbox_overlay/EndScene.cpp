@@ -335,7 +335,7 @@ bool EndScene::onDllMain() {
 			"\x83\xec\x14", 3);
 	}
 	if (orig_logicOnFrameAfterHit) {
-		void (HookHelp::*logicOnFrameAfterHitHookPtr)(int, int) = &HookHelp::logicOnFrameAfterHitHook;
+		void (HookHelp::*logicOnFrameAfterHitHookPtr)(bool, int) = &HookHelp::logicOnFrameAfterHitHook;
 		if (!detouring.attach(&(PVOID&)orig_logicOnFrameAfterHit,
 			(PVOID&)logicOnFrameAfterHitHookPtr,
 			&orig_logicOnFrameAfterHitMutex,
@@ -369,6 +369,39 @@ bool EndScene::onDllMain() {
 	}
 	if (iconStringUsage) {
 		iconTexture = *(void**)(iconStringUsage + 1);
+	}
+	
+	uintptr_t backPushbackApplierPiece = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"85 90 18 01 00 00 74 08 01 b0 30 03 00 00 eb 06 89 a8 30 03 00 00",
+		nullptr, "backPushbackApplierPiece");
+	if (backPushbackApplierPiece) {
+		orig_backPushbackApplier = (backPushbackApplier_t)sigscanBackwards(backPushbackApplierPiece,
+			"83 ec ?? 53 55 56 57");
+	}
+	if (orig_backPushbackApplier) {
+		void (HookHelp::*backPushbackApplierHookPtr)() = &HookHelp::backPushbackApplierHook;
+		if (!detouring.attach(&(PVOID&)orig_backPushbackApplier,
+			(PVOID&)backPushbackApplierHookPtr,
+			&orig_backPushbackApplierMutex,
+			"backPushbackApplier")) return false;
+	}
+	
+	uintptr_t pushbackStunOnBlockPiece = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"f7 d8 89 83 1c 03 00 00 8b 86 08 07 00 00 8b 88 08 07 00 00",
+		nullptr, "pushbackStunOnBlockPiece");
+	if (pushbackStunOnBlockPiece) {
+		isDummyPtr = (isDummy_t)followRelativeCall(pushbackStunOnBlockPiece - 0xd7);
+		orig_pushbackStunOnBlock = (pushbackStunOnBlock_t)sigscanBackwards(pushbackStunOnBlockPiece,
+			"83 ec ?? 53 55 56 57");
+	}
+	if (orig_pushbackStunOnBlock) {
+		void (HookHelp::*pushbackStunOnBlockHookPtr)(bool isAirHit) = &HookHelp::pushbackStunOnBlockHook;
+		if (!detouring.attach(&(PVOID&)orig_pushbackStunOnBlock,
+			(PVOID&)pushbackStunOnBlockHookPtr,
+			&orig_pushbackStunOnBlockMutex,
+			"pushbackStunOnBlock")) return false;
 	}
 	
 	return !error;
@@ -564,6 +597,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				&player.tensionGainModifier_negativePenaltyModifier,
 				&player.tensionGainModifier_tensionPulseModifier);
 			player.extraTensionGainModifier = entityManager.calculateExtraTensionGainModifier(ent);
+			
+			player.x = ent.posX();
+			player.y = ent.posY();
+			player.prevSpeedX = player.speedX;
+			player.speedX = ent.speedX();
+			player.speedY = ent.speedY();
+			player.gravity = ent.gravity();
+			player.comboTimer = ent.comboTimer();
+			player.pushback = ent.pushback();
+			
 			if (comboStarted) {
 				if (tensionGainOnLastHitUpdated[i]) {
 					player.tensionGainLastCombo = tensionGainOnLastHit[i];
@@ -597,6 +640,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				otherEnt.comboCount());
 			player.tensionPulsePenaltySeverity = entityManager.calculateTensionPulsePenaltySeverity(player.tensionPulsePenalty);
 			player.cornerPenaltySeverity = entityManager.calculateCornerPenaltySeverity(player.cornerPenalty);
+			
 			if (tensionGainOnLastHitUpdated[i]) {
 				player.tensionGainOnLastHit = tensionGainOnLastHit[i];
 			}
@@ -618,7 +662,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			} else {
 				player.hitstop = hitstop;
 			}
-			player.airborne = ent.y() > 0;  // there's also tumbling state in which you're airborne, check *(DWORD*)(end + 0x4d40) & 0x4 != 0 if you need it. This flag is set on any airborne type of hitstun
+			player.airborne = ent.y() > 0;
 			player.wakeupTiming = 0;
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
 			player.cmnActIndex = cmnActIndex;
@@ -1963,17 +2007,17 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 }
 
 // Runs on the main thread
-void EndScene::HookHelp::logicOnFrameAfterHitHook(int param1, int param2) {
+void EndScene::HookHelp::logicOnFrameAfterHitHook(bool isAirHit, int param2) {
 	HookGuard hookGuard("logicOnFrameAfterHit");
-	endScene.logicOnFrameAfterHitHook(Entity{(char*)this}, param1, param2);
+	endScene.logicOnFrameAfterHitHook(Entity{(char*)this}, isAirHit, param2);
 }
 
 // Runs on the main thread
-void EndScene::logicOnFrameAfterHitHook(Entity pawn, int param1, int param2) {
+void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) {
 	bool functionWillNotDoAnything = !pawn.inPainNextFrame() && (!pawn.inUnknownNextFrame() || !pawn.inBlockstunNextFrame());
 	{
 		std::unique_lock<std::mutex> guard(orig_logicOnFrameAfterHitMutex);
-		orig_logicOnFrameAfterHit((void*)pawn.ent, param1, param2);
+		orig_logicOnFrameAfterHit((void*)pawn.ent, isAirHit, param2);
 	}
 	if (pawn.isPawn() && !functionWillNotDoAnything) {
 		PlayerInfo& player = findPlayer(pawn);
@@ -1981,6 +2025,44 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, int param1, int param2) {
 		player.hitstunMax = pawn.hitstun() - (player.hitstopMax ? 1 : 0);
 		player.setHitstopMax = true;
 		player.setHitstunMax = true;
+		player.receivedSpeedYValid = isAirHit;
+		player.receivedSpeedY = pawn.receivedSpeedY();
+		Entity attacker = pawn.attacker();
+		player.pushbackMax = pawn.pendingPushback();
+		player.baseFdPushback = 0;
+		if (attacker) {
+			PlayerInfo& attackerPlayer = findPlayer(attacker);
+			attackerPlayer.baseFdPushback = 0;
+		}
+		entityManager.calculateSpeedYProration(
+			pawn.comboCount(),
+			pawn.weight(),
+			pawn.ignoreWeight(),
+			pawn.dontUseComboTimerForSpeedY(),
+			&player.receivedSpeedYWeight,
+			&player.receivedSpeedYComboProration);
+		entityManager.calculateHitstunProration(
+			pawn.noHitstunScaling(),
+			isAirHit,
+			pawn.comboTimer(),
+			&player.hitstunProration);
+		entityManager.calculatePushback(
+			pawn.receivedAttackLevel(),
+			pawn.comboTimer(),
+			pawn.dontUseComboTimerForPushback(),
+			pawn.ascending(),
+			pawn.y(),
+			pawn.pushbackModifier(),
+			pawn.airPushbackModifier(),
+			true,
+			pawn.pushbackModifierDuringPain(),
+			&player.basePushback,
+			&player.attackPushbackModifier,
+			&player.painPushbackModifier,
+			&player.comboTimerPushbackModifier);
+		player.hitstunProrationValid = true;
+		
+		player.ibPushbackModifier = 100;
 	}
 }
 
@@ -2293,4 +2375,74 @@ IDirect3DTexture9* EndScene::getTextureFromUTexture2D(BYTE* uTex2D) {
 	//      ReferencedType* Reference;
 	//  };
 	return *(IDirect3DTexture9**)(next + -0xc + 0x8);
+}
+
+void EndScene::HookHelp::backPushbackApplierHook() {
+	HookGuard hookGuard("backPushbackApplier");
+	endScene.backPushbackApplierHook((char*)this);
+}
+
+void EndScene::backPushbackApplierHook(char* thisArg) {
+	entityList.populate();
+	for (int i = 0; i < 2; ++i) {
+		PlayerInfo& player = players[i];
+		player.fdPushback = entityList.slots[i].fdPushback();
+		// it changes after it was used, so if we don't do this, at the end of a frame we will see a decremented value
+	}
+	{
+		std::unique_lock<std::mutex> guard(orig_backPushbackApplierMutex);
+		orig_backPushbackApplier((void*)thisArg);
+	}
+}
+
+void EndScene::HookHelp::pushbackStunOnBlockHook(bool isAirHit) {
+	HookGuard hookGuard("pushbackStunOnBlock");
+	endScene.pushbackStunOnBlockHook(Entity{(char*)this}, isAirHit);
+}
+
+void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
+	{
+		std::unique_lock<std::mutex> guard(orig_pushbackStunOnBlockMutex);
+		orig_pushbackStunOnBlock((void*)pawn, isAirHit);
+	}
+	PlayerInfo& player = findPlayer(pawn);
+	player.ibPushbackModifier = 100;
+	char* trainingStruct = game.getTrainingHud();
+	bool isDummy = isDummyPtr(trainingStruct, pawn.team());
+	bool fd = !isDummy ? pawn.holdingFD() : *(DWORD*)(trainingStruct + 0x670 + 4 * pawn.team()) == 2;
+	Entity attacker = pawn.attacker();
+	PlayerInfo& attackerPlayer = findPlayer(attacker);
+	if (attacker) {
+		attackerPlayer.baseFdPushback = 0;
+	}
+	if (fd) {
+		attackerPlayer.fdPushbackMax = attacker.fdPushback();
+		int dist = pawn.posX() - attacker.posX();
+		if (dist < 0) dist = -dist;
+		attackerPlayer.oppoWasTouchingWallOnFD = pawn.isTouchingLeftWall() || pawn.isTouchingRightWall();
+		if (dist >= 385000) {
+			attackerPlayer.baseFdPushback = 500;
+		} else {
+			attackerPlayer.baseFdPushback = 900;
+		}
+	} else if (pawn.successfulIB() && pawn.lastHitResult() == HIT_RESULT_BLOCKED) {
+		player.ibPushbackModifier = isAirHit ? 10 : 90;
+	}
+	player.receivedSpeedYValid = false;
+	player.pushbackMax = pawn.pendingPushback();
+	entityManager.calculatePushback(
+		pawn.receivedAttackLevel(),
+		pawn.comboTimer(),
+		pawn.dontUseComboTimerForPushback(),
+		pawn.ascending(),
+		pawn.y(),
+		pawn.pushbackModifier(),
+		pawn.airPushbackModifier(),
+		pawn.inPain(),
+		pawn.pushbackModifierDuringPain(),
+		&player.basePushback,
+		&player.attackPushbackModifier,
+		&player.painPushbackModifier,
+		&player.comboTimerPushbackModifier);
+	player.hitstunProrationValid = false;
 }

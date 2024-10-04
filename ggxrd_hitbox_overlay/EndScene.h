@@ -15,9 +15,12 @@ using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* an
 using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
 using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
 using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
-using logicOnFrameAfterHit_t = void(__thiscall*)(void* pawn, int param1, int param2);
+using logicOnFrameAfterHit_t = void(__thiscall*)(void* pawn, bool isAirHit, int param2);
 using BBScr_runOnObject_t = void(__thiscall*)(void* pawn, int entityReference);
 using FCanvas_Flush_t = void(__thiscall*)(void* canvas, bool bForce);
+using backPushbackApplier_t = void(__thiscall*)(void* thisArg);
+using pushbackStunOnBlock_t = void(__thiscall*)(void* pawn, bool isAirAttack);
+using isDummy_t = bool(__thiscall*)(void* trainingStruct, int team);
 
 struct FVector2D {
 	float X;
@@ -158,6 +161,11 @@ public:
 	DrawData drawDataPrepared;
 	void* orig_drawQuadExec = nullptr;  // weird calling convention
 	std::mutex orig_drawQuadExecMutex;
+	backPushbackApplier_t orig_backPushbackApplier = nullptr;
+	std::mutex orig_backPushbackApplierMutex;
+	pushbackStunOnBlock_t orig_pushbackStunOnBlock = nullptr;
+	std::mutex orig_pushbackStunOnBlockMutex;
+	isDummy_t isDummyPtr = nullptr;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
@@ -191,18 +199,22 @@ private:
 		void BBScr_createParticleWithArgHook(const char* animName, unsigned int posType);
 		void setAnimHook(const char* animName);
 		void pawnInitializeHook(void* initializationParams);
-		void logicOnFrameAfterHitHook(int param1, int param2);
+		void logicOnFrameAfterHitHook(bool isAirHit, int param2);
 		void BBScr_runOnObjectHook(int entityReference);
+		void backPushbackApplierHook();
+		void pushbackStunOnBlockHook(bool isAirAttack);
 	};
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
 	void onObjectCreated(Entity pawn, Entity createdPawn, const char* animName);
 	void setAnimHook(Entity pawn, const char* animName);
 	void pawnInitializeHook(Entity createdObj, void* initializationParams);
-	void logicOnFrameAfterHitHook(Entity pawn, int param1, int param2);
+	void logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2);
 	void BBScr_runOnObjectHook(Entity pawn, int entityReference);
 	static void REDAnywhereDispDrawHookStatic(void* canvas, FVector2D* screenSize);
 	void REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize);
+	void backPushbackApplierHook(char* thisArg);
+	void pushbackStunOnBlockHook(Entity pawn, bool isAirAttack);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };

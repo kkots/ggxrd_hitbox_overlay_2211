@@ -78,19 +78,7 @@ struct ProjectileInfo {
 		disabled(false)
 	{
 	}
-	void fill(Entity ent) {
-		ptr = ent;
-		team = ent.team();
-		animFrame = ent.currentAnimDuration();
-		lifeTimeCounter = ent.lifeTimeCounter();
-		if (!ent.hitSomethingOnThisFrame()) {
-			hitstop = ent.hitstop();
-		} else {
-			hitstop = 0;
-		}
-		hitNumber = ent.currentHitNum();
-		memcpy(animName, ent.animationName(), 32);
-	}
+	void fill(Entity ent);
 };
 
 // This struct is cleared by setting all its memory to zero. If you add a new member, make sure it's ok to initialize it with 0.
@@ -103,12 +91,14 @@ struct PlayerInfo {
 	int gutsRating = 0;
 	int gutsPercentage = 0;
 	int risc = 0;  // max 12800
+	
 	int tension = 0;  // max 10000
 	int tensionPulse = 0;  // -25000 to 25000. You can read about this in AddTooltip in UI.cpp
 	int negativePenaltyTimer = 0;  // time remaining until negative penalty wears off, in frames
 	int negativePenalty = 0;  // 0 to 10000
 	int tensionPulsePenalty = 0;  // 0 to 1800
 	int cornerPenalty = 0;  // 0 to 960
+	
 	int tensionPulsePenaltyGainModifier_distanceModifier = 0;
 	int tensionPulsePenaltyGainModifier_tensionPulseModifier = 0;
 	int tensionGainModifier_distanceModifier = 0;
@@ -117,12 +107,39 @@ struct PlayerInfo {
 	int extraTensionGainModifier = 0;
 	int receivedComboCountTensionGainModifier = 0;
 	int dealtComboCountTensionGainModifier = 0;
+	
 	int tensionGainOnLastHit = 0;
 	int burstGainOnLastHit = 0;
 	int tensionGainLastCombo = 0;
 	int burstGainLastCombo = 0;
 	int tensionGainMaxCombo = 0;
 	int burstGainMaxCombo = 0;
+	
+	int x = 0;
+	int y = 0;
+	int prevSpeedX = 0;
+	int speedX = 0;
+	int speedY = 0;
+	int gravity = 0;
+	
+	int pushback = 0;
+	int pushbackMax = 0;
+	int basePushback = 0;
+	int baseFdPushback = 0;
+	int fdPushback = 0;
+	int fdPushbackMax = 0;
+	int comboTimer = 0;
+	int attackPushbackModifier = 100;
+	int painPushbackModifier = 100;
+	int comboTimerPushbackModifier = 100;
+	int ibPushbackModifier = 100;
+	
+	int receivedSpeedY = 0;
+	int receivedSpeedYWeight = 100;
+	int receivedSpeedYComboProration = 100;
+	
+	int hitstunProration = 100;
+	
 	int stun = 0;
 	int stunThreshold = 0;
 	int hitstunMax = 0;
@@ -194,6 +211,9 @@ struct PlayerInfo {
 	bool setHitstunMax:1;  // during this logic tick, from some hook, hitstunMax field was updated
 	bool setBlockstunMax:1;  // during this logic tick, from some hook, blockstunMax field was updated
 	bool displayHitstop:1;  // should hitstop be displayed in UI
+	bool oppoWasTouchingWallOnFD:1;
+	bool receivedSpeedYValid:1;
+	bool hitstunProrationValid:1;
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
 	char index = 0;  // the index of this PlayerInfo in endScene's 'players' array

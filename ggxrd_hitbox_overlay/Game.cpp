@@ -216,7 +216,7 @@ bool Game::sigscanFrameByFraming() {
 		&error, "trainingHudCallPlace");
 	
 	if (trainingHudCallPlace) {
-		getTrainingHudArgument = (getTrainingHudArgument_t)followRelativeCall(trainingHudCallPlace + 14);
+		getTrainingHud = (getTrainingHud_t)followRelativeCall(trainingHudCallPlace + 14);
 		trainingHudTick = (trainingHudTick_t)followRelativeCall(trainingHudCallPlace + 21);
 	}
 
@@ -338,8 +338,8 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 }
 
 void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty() {
-	if (getTrainingHudArgument) {
-		trainingHudTick(getTrainingHudArgument());
+	if (getTrainingHud) {
+		trainingHudTick(getTrainingHud());
 	}
 	if (drawExGaugeHUD) {
 		char* battleHud = *(char**)(*aswEngine + REDHUD_BattleOffset);

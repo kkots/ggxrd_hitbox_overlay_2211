@@ -216,7 +216,22 @@ public:
 	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
 	inline int& scaleForParticles() { return *(int*)(ent + 0x2618); }
+	inline int speedX() { return *(int*)(ent + 0x2fc); }
 	inline int& speedY() { return *(int*)(ent + 0x300); }
+	inline int gravity() { return *(int*)(ent + 0x304); }
+	inline int comboTimer() { return *(int*)(ent + 0x9f50); }
+	inline bool dontUseComboTimerForPushback() { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x20) != 0; }
+	inline bool dontUseComboTimerForSpeedY() { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x400) != 0; }
+	inline bool noHitstunScaling() { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x10) != 0; }
+	inline bool ignoreWeight() { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x1) != 0; }
+	inline int fdPushback() { return *(int*)(ent + 0x31c); }  // Ky 5H on May FD ground block, Ky gets -900 on first frame of hitstop. facing right
+	inline int pushback() { return *(int*)(ent + 0x2cc); }  // Ky punch May with 5P, May gets pushback 20020 on the frame after hitstop ends. = pendingPushback * 175 / 10
+	inline int pendingPushback() { return *(int*)(ent + 0x318); }  // Ky punch May with 5P, May gets pushback 1144 on the frame after hitstop ends.
+	inline int pushbackModifier() { return *(int*)(ent + 0x710 + 0x154); }  // Ky 6K has this set to 65 and bbscript calls it hitPushbackX
+	inline int airPushbackModifier() { return *(int*)(ent + 0x710 + 0x228); }  // Has not been spotted yet to not be 0
+	inline bool ascending() { return (*(DWORD*)(ent + 0x234) & 0x1) != 0; }  // this does not mean prejump. It is set on the initial 7 frames of May jump, 10 Ky jump.
+	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
+	inline int pushbackModifierDuringPain() { return *(int*)(ent + 0x710 + 0x158); }
 	inline bool displayModel() { return *(bool*)(ent + 0x2814); }
 	inline int playerVal(int n) { return *(int*)(ent + 0x24c50 + 4 * n); }
 	inline int currentHitNum() { return *(int*)(ent + 0x26d8); }
@@ -240,6 +255,15 @@ public:
 	inline bool inBlockstunNextFrame() { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
 	inline bool inUnknownNextFrame() { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // uuh
 	inline Entity currentRunOnObject() { return *(Entity*)(ent + 0x2464); }
+	inline bool successfulIB() { return (*(DWORD*)(ent + 0x23c) & 0x800000) != 0; }  // can be set even on FD IB. Remains set even after blockstun is over.
+	inline HitResult lastHitResult() { return *(HitResult*)(ent + 0x984); }
+	inline int receivedAttackLevel() { return *(int*)(ent + 0x710 + 0x4); }
+	inline bool isTouchingLeftWall() { return (*(DWORD*)(ent + 0x118) & 0x400000) != 0; }
+	inline bool isTouchingRightWall() { return (*(DWORD*)(ent + 0x118) & 0x800000) != 0; }
+	inline Entity attacker() { return *(Entity*)(ent + 0x708); }
+	inline bool holdingFD() { return (*(DWORD*)(ent + 0x23c) & 0x20000000) != 0; }
+	inline int receivedSpeedY() { return *(int*)(ent + 0x944); }
+	inline bool airtechOK() { return (*(DWORD*)(ent + 0x4d40) & 0x4) != 0; }  // the height is OK for air teching. Also set in tumble state
 
 	void getState(EntityState*) const;
 	
@@ -292,6 +316,32 @@ public:
 		int* tensionPulseModifier);
 	int calculateReceivedComboCountTensionGainModifier(bool inPain, int comboCount);
 	int calculateDealtComboCountTensionGainModifier(bool inPain, int comboCount);
+	void calculatePushback(
+		int attackLevel,
+		int comboTimer,
+		bool dontUseComboTimer,
+		bool ascending,
+		int y,
+		int pushbackModifier,
+		int airPushbackModifier,
+		bool inPainOrInPainNextFrame,
+		int pushbackModifierOnPain,
+		int* basePushback,
+		int* attackPushbackModifier,
+		int* painPushbackModifier,
+		int* comboTimerPushbackModifier);
+	void calculateSpeedYProration(
+		int comboCount,
+		int weight,
+		bool ignoreWeight,
+		bool disableComboProtation,
+		int* weightModifier,
+		int* comboCountModifier);
+	void calculateHitstunProration(
+		bool noHitstunScaling,
+		bool isInAir,
+		int comboTimer,
+		int* hitstunProration);
 private:
 	friend class Entity;
 	getPos_t getPosX;

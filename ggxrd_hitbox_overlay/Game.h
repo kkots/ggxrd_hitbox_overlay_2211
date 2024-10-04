@@ -54,7 +54,7 @@ enum ButtonCodeMenu {
 using TickActors_FDeferredTickList_FGlobalActorIterator_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
 using updateBattleOfflineVer_t = void(__thiscall*)(char* thisArg, int param1);
 using trainingHudTick_t = void(__thiscall*)(char* thisArg);
-using getTrainingHudArgument_t = char*(__cdecl*)(void);
+using getTrainingHud_t = char*(__cdecl*)(void);
 using TickActorComponents_t = void(__cdecl*)(int param1, int param2, int param3, int param4);
 using destroyAswEngine_t = void(__cdecl*)(void);
 using UWorld_Tick_t = void(__thiscall*)(void* thisArg, ELevelTick TickType, float DeltaSeconds);
@@ -76,7 +76,7 @@ public:
 	bool slowmoGame = false;
 	bool allowNextFrame = false;
 	trainingHudTick_t trainingHudTick = nullptr;
-	getTrainingHudArgument_t getTrainingHudArgument = nullptr;
+	getTrainingHud_t getTrainingHud = nullptr;
 	DWORD aswEngineTickCountOffset = 0;
 	bool shutdown = false;
 	DWORD drawExGaugeHUDOffset = 0;

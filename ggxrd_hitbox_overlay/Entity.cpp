@@ -417,3 +417,130 @@ int EntityManager::calculateDealtComboCountTensionGainModifier(bool inPain, int 
 	else if (n < 8) n = 8;
 	return (32 - n) * 100 / 32;
 }
+
+void EntityManager::calculatePushback(
+		int attackLevel,
+		int comboTimer,
+		bool dontUseComboTimer,
+		bool ascending,
+		int y,
+		int pushbackModifier,
+		int airPushbackModifier,
+		bool inPainOrInPainNextFrame,
+		int pushbackModifierOnPain,
+		int* basePushback,
+		int* attackPushbackModifier,
+		int* painPushbackModifier,
+		int* comboTimerPushbackModifier) {
+	if (dontUseComboTimer) {
+		comboTimer = 0;
+	}
+	
+	static int pushbacksOnHit[]         { 1300, 1400, 1500, 1750, 2000, 2400, 3000 };
+	static int pushbacksOnGroundBlock[] { 1250, 1375, 1500, 1750, 2000, 2400, 3000 };
+	static int pushbacksOnAirBlock[]    {  800,  850,  900,  950, 1000, 2400, 3000 };
+	
+	if (basePushback) {
+		if (inPainOrInPainNextFrame) {
+			*basePushback = pushbacksOnHit[attackLevel];
+		} else if (!ascending && y <= 0) {
+			*basePushback = pushbacksOnGroundBlock[attackLevel];
+		} else {
+			*basePushback = pushbacksOnAirBlock[attackLevel];
+		}
+	}
+	if (attackPushbackModifier) {
+		*attackPushbackModifier = pushbackModifier;
+		if ((ascending || y > 0) && airPushbackModifier != 0) {
+			*attackPushbackModifier = airPushbackModifier;
+		}
+	}
+	if (painPushbackModifier) {
+		*painPushbackModifier = 100;
+		if (inPainOrInPainNextFrame) {
+			*painPushbackModifier = pushbackModifierOnPain;
+		}
+	}
+	if (comboTimerPushbackModifier) {
+		if (comboTimer < 60) {
+			*comboTimerPushbackModifier = 100;
+		} else if (comboTimer < 120) {
+			*comboTimerPushbackModifier = 106;
+		} else if (comboTimer < 180) {
+			*comboTimerPushbackModifier = 114;
+		} else if (comboTimer < 240) {
+			*comboTimerPushbackModifier = 124;
+		} else if (comboTimer < 300) {
+			*comboTimerPushbackModifier = 136;
+		} else if (comboTimer < 360) {
+			*comboTimerPushbackModifier = 150;
+		} else if (comboTimer < 420) {
+			*comboTimerPushbackModifier = 166;
+		} else if (comboTimer < 480) {
+			*comboTimerPushbackModifier = 184;
+		} else {
+			*comboTimerPushbackModifier = 200;
+		}
+	}
+}
+
+void EntityManager::calculateSpeedYProration(
+		int comboCount,
+		int weight,
+		bool ignoreWeight,
+		bool disableComboProtation,
+		int* weightModifier,
+		int* comboCountModifier) {
+	int n = comboCount - 5;
+	if (!disableComboProtation) {
+		if (n < 0) {
+			n = 0;
+		} else if (n > 30) {
+			n = 30;
+		}
+	} else {
+		n = 0;
+	}
+	if (comboCountModifier) {
+		*comboCountModifier = (60 - n) * 100 / 60;
+	}
+	if (weightModifier) {
+		if (!ignoreWeight) {
+			*weightModifier = weight;
+		} else {
+			*weightModifier = 100;
+		}
+	}
+}
+
+void EntityManager::calculateHitstunProration(
+		bool noHitstunScaling,
+		bool isInAir,
+		int comboTimer,
+		int* hitstunProration) {
+	if (noHitstunScaling) {
+		*hitstunProration = 100;
+		return;
+	}
+	if (!isInAir) {
+		if (comboTimer >= 1080) {
+			*hitstunProration = 50;
+		} else {
+			*hitstunProration = 100;
+		}
+	} else if (comboTimer >= 1080) {
+		*hitstunProration = 10;
+	} else if (comboTimer >= 840) {
+		*hitstunProration = 60;
+	} else if (comboTimer >= 600) {
+		*hitstunProration = 70;
+	} else if (comboTimer >= 420) {
+		*hitstunProration = 80;
+	} else if (comboTimer >= 300) {
+		*hitstunProration = 90;
+	} else if (comboTimer >= 180) {
+		*hitstunProration = 95;
+	} else {
+		*hitstunProration = 100;
+	}
+}

@@ -302,26 +302,6 @@ void UI::prepareDrawData() {
 		    		CenterAlignedText("Stun");
 		    	}
 		    }
-		    // Don't show this normally
-		    for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = endScene.players[i];
-			    ImGui::TableNextColumn();
-			    
-		    	int remaining = 0;
-		    	if (player.wakeupTiming) {
-		    		remaining = player.wakeupTiming - player.animFrame + 1;
-		    	}
-		    	sprintf_s(strbuf, "%d/%d", remaining, player.wakeupTiming);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
-		    	
-		    	if (i == 0) {
-			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Wakeup");
-		    		AddTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
-		    			" Format: Time remaining until able to act / Total wakeup or airtech time.");
-		    	}
-		    }
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
@@ -803,6 +783,10 @@ void UI::prepareDrawData() {
 		if (ImGui::Button("Show Tension Values")) {
 			showTensionData = true;
 		}
+		ImGui::SameLine();
+		if (ImGui::Button("Speed/Proration")) {
+			showSpeedsData = true;
+		}
 	}
 	if (ImGui::CollapsingHeader("Hitboxes")) {
 		stateChanged = ImGui::Checkbox("GIF Mode", &gifModeOn) || stateChanged;
@@ -1005,7 +989,8 @@ void UI::prepareDrawData() {
 			for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%.2f sec", (float)player.negativePenaltyTimer / 60.F);
+			    printDecimal(player.negativePenaltyTimer * 100 / 60, 2, 0);
+			    sprintf_s(strbuf, "%s sec", printdecimalbuf);
 			    ImGui::TextUnformatted(strbuf);
 			}
 			
@@ -1246,6 +1231,218 @@ void UI::prepareDrawData() {
 		}
 		ImGui::End();
 	}
+	if (showSpeedsData) {
+		ImGui::Begin("Speed/Proration", &showSpeedsData);
+		
+		if (ImGui::BeginTable("##TensionData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.f);
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Name");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(1);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P2");
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("X; Y");
+			AddTooltip("Position X; Y in the arena. Divided by 100 for viewability.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    printDecimal(player.x, 2, 0);
+			    sprintf_s(strbuf, "%s; ", printdecimalbuf);
+			    printDecimal(player.y, 2, 0);
+			    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Speed X; Y");
+			AddTooltip("Speed X; Y in the arena. Divided by 100 for viewability.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    printDecimal(player.speedX, 2, 0);
+			    sprintf_s(strbuf, "%s; ", printdecimalbuf);
+			    printDecimal(player.speedY, 2, 0);
+			    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Gravity");
+			AddTooltip("Gravity. Divided by 100 for viewability.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    printDecimal(player.gravity, 2, 0);
+			    ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Combo Timer");
+			AddTooltip("The time, in seconds, of the current combo's duration.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    printDecimal(player.comboTimer * 100 / 60, 2, 0);
+			    sprintf_s(strbuf, "%s sec (%df)", printdecimalbuf, player.comboTimer);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Pushback");
+			AddTooltip("Pushback. Divided by 100 for viewability.\n"
+				"Format: Current pushback / (Max pushback + FD pushback) (FD pushback base value, FD pushback percentage modifier%).\n"
+				"If last hit was not FD'd, FD values are not displayed.\n"
+				"When you attack an opponent, the opponent has this 'Pushback' value and you only get pushed back if they're in the corner (or close to it)."
+				" If the opponent utilized FD, you will be pushed back regardless of whether the opponent is in the corner."
+				" If they're in the corner and they also FD, the pushback from FD and the pushback from them being in the corner get added together."
+				" The FD pushback base value and modifier % will be listed in (). The base value depends on distance between players. If it's less"
+				" than 385000, the base is 900, otherwise it's 500. The modifier is 130% if the defender was touching the wall, otherwise 100%."
+				" Multiply the base value by the modifier and 175 / 10, round down to get resulting pushback, divide by 100 for viewability.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    printDecimal(player.pushback, 2, 0);
+			    sprintf_s(strbuf, !player.baseFdPushback ? "%s / " : "%s / (", printdecimalbuf);
+			    printDecimal(player.pushbackMax * 175 / 10, 2, 0);
+			    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+			    if (player.baseFdPushback) {
+				    printDecimal(player.fdPushbackMax * 175 / 10, 2, 0);
+				    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " + %s)", printdecimalbuf);
+				    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " (%d, %d%c)",
+				    	player.baseFdPushback, player.oppoWasTouchingWallOnFD ? 130 : 100, '%');
+			    }
+		    	ImGui::TextWrapped("%s", strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Base pushback");
+			AddTooltip("Base pushback on hit/block. Pushback = floor(Base pushback * 175 / 10) (divide by 100 for viewability).\n"
+				"The base values of pushback are, per attack level:\n"
+				"Ground block: 1250, 1375, 1500, 1750, 2000, 2400, 3000;\n"
+				"Air block: 800,  850,  900,  950, 1000, 2400, 3000;\n"
+				"Hit: 1300, 1400, 1500, 1750, 2000, 2400, 3000;\n");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d", player.basePushback);
+			    ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Pushback Modifier");
+			AddTooltip("Pushback modifier. Equals Attack pushback modifier % * Attack pushback modifier on hit % * Combo timer modifier %"
+				" * IB modifier %.\n"
+				"Attack pushback modifier depends on the performed move."
+				" Attack pushback modifier on hit depends on the performed move and should only be non-100 when the opponent is in hitstun."
+				" Combo timer modifier depends on combo timer, in frames: >= 480 --> 200%, >= 420 --> 184%, >= 360 --> 166%, >= 300 --> 150%"
+				", >= 240 --> 136%, >= 180 --> 124%, >= 120 --> 114%, >= 60 --> 106%."
+				" IB modifier is non-100 on IB: air IB 90%, ground IB 10%.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%d%c * %d%c * %d%c * %d%c = %d%c", player.attackPushbackModifier, '%', player.painPushbackModifier, '%',
+			    	player.comboTimerPushbackModifier, '%', player.ibPushbackModifier, '%',
+			    	player.attackPushbackModifier * player.painPushbackModifier / 100
+			    	* player.comboTimerPushbackModifier / 100
+			    	* player.ibPushbackModifier / 100, '%');
+			    ImGui::TextWrapped("%s", strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Speed X change");
+			AddTooltip("Speed X change compared to previous frame. Divided by 100 for viewability.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    printDecimal(player.speedX - player.prevSpeedX, 2, 0);
+			    ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Received Speed Y");
+			AddTooltip("This is updated only when a hit happens.\n"
+				"Format: Base speed Y * (Weight % * Combo Proration % = Resulting Modifier %) = Resulting speed Y. Base and Final speeds divided by 100 for viewability."
+				" On block, something more is going on, and it's not studied yet, so gained speed Y cannot be displayed."
+				" Modifiers on received speed Y are weight and combo proration, displayed in that order.\n"
+				"The combo proration depends on the number of hits so far at the moment of getting hit, not including the ongoing hit:\n"
+				"6 hits so far -> 59/60 * 100% proration,\n"
+				"5 hits -> 58 / 60 * 100% and so on, up to 30 / 60 * 100%. The rounding of the final speed Y is up.\n"
+				"Some moves could theoretically ignore weight or combo proration, or both. When that happens, 100% will be displayed in place"
+				" of the ignored parameter.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    if (!player.receivedSpeedYValid) {
+			    	ImGui::TextUnformatted("???");
+			    } else {
+			    	int mod = player.receivedSpeedYWeight * player.receivedSpeedYComboProration / 100;
+			    	printDecimal(player.receivedSpeedY * 100 / mod, 2, 0);
+				    sprintf_s(strbuf, "%s", printdecimalbuf);
+				    printDecimal(player.receivedSpeedY, 2, 0);
+				    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * (%d%c * %d%c = %d%c) = %s",
+				    	player.receivedSpeedYWeight,
+				    	'%', player.receivedSpeedYComboProration, '%',
+				    	mod, '%',
+				    	printdecimalbuf);
+				    ImGui::TextWrapped("%s", strbuf);
+			    }
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Hitstun Proration");
+			AddTooltip("This is updated only when a hit happens."
+				" Hitstun proration depends on duration of air or ground combo, in frames. For air combo:\n"
+				">= 1080 --> 10%\n"
+				">= 840  --> 60%\n"
+				">= 600  --> 70%\n"
+				">= 420  --> 80%\n"
+				">= 300  --> 90%\n"
+				">= 180  --> 95%\n"
+				"For ground combo it's just:\n"
+				">= 1080 --> 50%\n"
+				"Some attacks could theoretically ignore hitstun proration. When that happens, 100% is displayed.");
+			for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    if (!player.hitstunProrationValid) {
+			    	ImGui::TextUnformatted("--");
+			    } else {
+				    sprintf_s(strbuf, "%d%c", player.hitstunProration, '%');
+				    ImGui::TextUnformatted(strbuf);
+			    }
+			}
+			
+	    	ImGui::TableNextColumn();
+    		ImGui::TextUnformatted("Wakeup");
+    		AddTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
+    			" Format: Time remaining until able to act / Total wakeup or airtech time.");
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    
+		    	int remaining = 0;
+		    	if (player.wakeupTiming) {
+		    		remaining = player.wakeupTiming - player.animFrame + 1;
+		    	}
+		    	sprintf_s(strbuf, "%d/%d", remaining, player.wakeupTiming);
+			    ImGui::TextUnformatted(strbuf);
+		    }
+			
+		    ImGui::EndTable();
+		}
+		ImGui::End();
+	}
+	
 	takeScreenshot = takeScreenshotTemp;
 	imguiActive = imguiActiveTemp;
 	ImGui::EndFrame();

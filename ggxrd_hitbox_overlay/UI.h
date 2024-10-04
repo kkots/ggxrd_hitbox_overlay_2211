@@ -70,6 +70,7 @@ private:
 	void frameAdvantageText(int frameAdv);
 	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);
 	bool showTensionData = false;
+	bool showSpeedsData = false;
 	void* hook_GetKeyStatePtr = nullptr;
 	IDirect3DTexture9* imguiFont = nullptr;
 	void onImGuiMessWithFontTexID();

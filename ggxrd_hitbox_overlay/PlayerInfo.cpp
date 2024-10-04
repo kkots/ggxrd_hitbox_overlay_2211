@@ -559,6 +559,20 @@ void ActiveDataArray::removeSeparateHits(int* outIndex) {
 	count = index + 1;
 }
 
+void ProjectileInfo::fill(Entity ent) {
+	ptr = ent;
+	team = ent.team();
+	animFrame = ent.currentAnimDuration();
+	lifeTimeCounter = ent.lifeTimeCounter();
+	if (!ent.hitSomethingOnThisFrame()) {
+		hitstop = ent.hitstop();
+	} else {
+		hitstop = 0;
+	}
+	hitNumber = ent.currentHitNum();
+	memcpy(animName, ent.animationName(), 32);
+}
+
 void PlayerInfo::addGap(int length) {
 	if (length == 0) return;
 	if (gapsCount >= _countof(gaps)) {
