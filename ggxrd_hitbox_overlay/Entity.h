@@ -217,6 +217,8 @@ public:
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
 	inline int& scaleForParticles() { return *(int*)(ent + 0x2618); }
 	inline int& speedY() { return *(int*)(ent + 0x300); }
+	inline bool displayModel() { return *(bool*)(ent + 0x2814); }
+	inline int playerVal(int n) { return *(int*)(ent + 0x24c50 + 4 * n); }
 	inline int currentHitNum() { return *(int*)(ent + 0x26d8); }
 	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
 	inline int throwRange() { return *(int*)(ent + 0x494); }

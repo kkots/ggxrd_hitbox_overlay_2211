@@ -17,8 +17,16 @@ void InvisChipp::onEndSceneStart() {
 }
 
 bool InvisChipp::determineInvisChipp(Entity ent) {
-	return (ent.characterType() == CHARACTER_TYPE_CHIPP)
-		&& *(short*)(ent + 0x24C50) != 0;
+	return ent.characterType() == CHARACTER_TYPE_CHIPP
+	
+		// How to find this value:
+		// Stop the game at the end of the game tick on frame 10 of Chipp Tsuyoshi-Shiki Meisai animation
+		// The value will be 479. It decrements each frame by 1. BBScript calls it Mem(PLAYERVAL_0)
+		&& ent.playerVal(0)
+		
+		|| ent.characterType() == CHARACTER_TYPE_SLAYER
+		&& !ent.displayModel();
+	;
 }
 
 bool InvisChipp::isP1InvisChipp() const {
