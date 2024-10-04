@@ -805,29 +805,29 @@ void UI::prepareDrawData() {
 		}
 	}
 	if (ImGui::CollapsingHeader("Hitboxes")) {
-		stateChanged = stateChanged || ImGui::Checkbox("GIF Mode", &gifModeOn);
+		stateChanged = ImGui::Checkbox("GIF Mode", &gifModeOn) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("GIF mode is:\n"
 			"; 1) Background becomes black\n"
 			"; 2) Camera is centered on you\n"
 			"; 3) Opponent is invisible and invulnerable\n"
 			"; 4) Hide HUD");
-		stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Black Background Only)", &gifModeToggleBackgroundOnly);
+		stateChanged = ImGui::Checkbox("GIF Mode (Black Background Only)", &gifModeToggleBackgroundOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Makes background black (and, for screenshotting purposes, - effectively transparent, if Post Effect is turned off in the game's graphics settings).");
-		stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Camera Center Only)", &gifModeToggleCameraCenterOnly);
+		stateChanged = ImGui::Checkbox("GIF Mode (Camera Center Only)", &gifModeToggleCameraCenterOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Centers the camera on you.");
-		stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Hide Opponent Only)", &gifModeToggleHideOpponentOnly);
+		stateChanged = ImGui::Checkbox("GIF Mode (Hide Opponent Only)", &gifModeToggleHideOpponentOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Make the opponent invisible and invulnerable.");
-		stateChanged = stateChanged || ImGui::Checkbox("GIF Mode (Hide HUD Only)", &gifModeToggleHudOnly);
+		stateChanged = ImGui::Checkbox("GIF Mode (Hide HUD Only)", &gifModeToggleHudOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Hides the HUD.");
-		stateChanged = stateChanged || ImGui::Checkbox("No Gravity", &noGravityOn);
+		stateChanged = ImGui::Checkbox("No Gravity", &noGravityOn) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.");
-		stateChanged = stateChanged || ImGui::Checkbox("Freeze Game", &freezeGame);
+		stateChanged = ImGui::Checkbox("Freeze Game", &freezeGame) || stateChanged;
 		ImGui::SameLine();
 		if (ImGui::Button("Next Frame")) {
 			allowNextFrame = true;
@@ -836,7 +836,7 @@ void UI::prepareDrawData() {
 		ImGui::SameLine();
 		HelpMarker("Freezes the current frame of the game and stops gameplay from advancing. You can advance gameplay to the next frame using the 'Next Frame' button."
 			" It is way more convenient to use this feature with shortcuts, which you can configure in the 'Keyboard shortcuts' section below.");
-		stateChanged = stateChanged || ImGui::Checkbox("Slow-Mo Mode", &slowmoGame);
+		stateChanged = ImGui::Checkbox("Slow-Mo Mode", &slowmoGame) || stateChanged;
 		ImGui::SameLine();
 		int slowmoTimes = settings.slowmoTimes;
 		ImGui::SetNextItemWidth(80.F);
@@ -862,7 +862,7 @@ void UI::prepareDrawData() {
 			" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings, you"
 			" will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
 			" in the 'Hitbox settings', they're saved there instead.");
-		stateChanged = stateChanged || ImGui::Checkbox("Continuous Screenshotting Mode", &continuousScreenshotToggle);
+		stateChanged = ImGui::Checkbox("Continuous Screenshotting Mode", &continuousScreenshotToggle) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("When this option is enabled, screenshots will be taken every frame, unless the game is frozen, in which case"
 			" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
@@ -870,7 +870,7 @@ void UI::prepareDrawData() {
 	}
 	if (ImGui::CollapsingHeader("Settings")) {
 		if (ImGui::CollapsingHeader("Hitbox settings")) {
-			stateChanged = stateChanged || ImGui::Checkbox("Disable Hitbox Drawing", &hitboxDisplayDisabled);
+			stateChanged = ImGui::Checkbox("Disable Hitbox Drawing", &hitboxDisplayDisabled) || stateChanged;
 			ImGui::SameLine();
 			HelpMarker("Disables display of hitboxes/boxes. All other features of the mod continue to work normally.");
 			bool drawPushboxCheckSeparately = settings.drawPushboxCheckSeparately;
