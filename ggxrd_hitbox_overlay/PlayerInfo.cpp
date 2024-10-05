@@ -448,6 +448,9 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 			printNoSeparateHitsGapsBiggerThan3(buf, bufSize);
 			newBufLen = strlen(buf);
 		}
+		if (strlen(buf) >= strlen(ownbuf)) {
+			newBufLen = sprintf_s(buf, bufSize, "%d", total());
+		}
 		sprintf_s(buf + newBufLen, bufSize - newBufLen, " / %s", ownbuf);
 	}
 }
@@ -619,4 +622,18 @@ void PlayerInfo::clear() {
 
 void PlayerInfo::copyTo(PlayerInfo& dest) {
 	memcpy(&dest, this, sizeof PlayerInfo);
+}
+
+void PlayerInfo::addPrevStartup(int n) {
+	if (prevStartupsCount >= _countof(prevStartups)) {
+		memmove(prevStartups, prevStartups + 1, sizeof prevStartups - sizeof *prevStartups);
+		--prevStartupsCount;
+		// the dumb version of ring buffer
+	}
+	prevStartups[prevStartupsCount] = n;
+	++prevStartupsCount;
+}
+
+void PlayerInfo::clearPrevStartups() {
+	prevStartupsCount = 0;
 }

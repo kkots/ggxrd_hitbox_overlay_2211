@@ -250,10 +250,13 @@ bool EndScene::onDllMain() {
 	uintptr_t bbscrCreateParticleWithArgCall = 0;
 	uintptr_t bbscrRunOnObjectCallPlace = 0;
 	uintptr_t bbscrRunOnObjectCall = 0;
+	uintptr_t BBScr_sendSignalCallPlace = 0;
+	uintptr_t BBScr_sendSignalCall = 0;
 	if (bbscrJumptable) {
 		bbscrCreateObjectWithArgCallPlace = *(uintptr_t*)(bbscrJumptable + 445*4);
 		bbscrCreateParticleWithArgCallPlace = *(uintptr_t*)(bbscrJumptable + 449*4);
 		bbscrRunOnObjectCallPlace = *(uintptr_t*)(bbscrJumptable + 41*4);
+		BBScr_sendSignalCallPlace = *(uintptr_t*)(bbscrJumptable + 1766*4);
 	}
 	if (bbscrCreateObjectWithArgCallPlace) {
 		bbscrCreateObjectWithArgCall = sigscanForward(bbscrCreateObjectWithArgCallPlace, "e8");
@@ -264,6 +267,9 @@ bool EndScene::onDllMain() {
 	if (bbscrRunOnObjectCallPlace) {
 		bbscrRunOnObjectCall = sigscanForward(bbscrRunOnObjectCallPlace, "e8");
 	}
+	if (BBScr_sendSignalCallPlace) {
+		BBScr_sendSignalCall = sigscanForward(BBScr_sendSignalCallPlace, "e8");
+	}
 	if (bbscrCreateObjectWithArgCall) {
 		orig_BBScr_createObjectWithArg = (BBScr_createObjectWithArg_t)followRelativeCall(bbscrCreateObjectWithArgCall);
 	}
@@ -272,6 +278,10 @@ bool EndScene::onDllMain() {
 	}
 	if (bbscrRunOnObjectCall) {
 		orig_BBScr_runOnObject = (BBScr_runOnObject_t)followRelativeCall(bbscrRunOnObjectCall);
+	}
+	if (BBScr_sendSignalCallPlace) {
+		orig_BBScr_sendSignal = (BBScr_sendSignal_t)followRelativeCall(BBScr_sendSignalCall);
+		getReferredEntity = (getReferredEntity_t)followRelativeCall((uintptr_t)orig_BBScr_sendSignal + 5);
 	}
 	
 	if (orig_BBScr_createObjectWithArg) {
@@ -294,6 +304,13 @@ bool EndScene::onDllMain() {
 			(PVOID&)BBScr_runOnObjectHookPtr,
 			&orig_BBScr_runOnObjectMutex,
 			"BBScr_runOnObject")) return false;
+	}
+	if (orig_BBScr_sendSignal) {
+		void (HookHelp::*BBScr_sendSignalHookPtr)(int, int) = &HookHelp::BBScr_sendSignalHook;
+		if (!detouring.attach(&(PVOID&)orig_BBScr_sendSignal,
+			(PVOID&)BBScr_sendSignalHookPtr,
+			&orig_BBScr_sendSignalMutex,
+			"BBScr_sendSignal")) return false;
 	}
 	std::vector<char> sig;
 	std::vector<char> mask;
@@ -600,7 +617,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			
 			player.x = ent.posX();
 			player.y = ent.posY();
-			player.prevSpeedX = player.speedX;
 			player.speedX = ent.speedX();
 			player.speedY = ent.speedY();
 			player.gravity = ent.gravity();
@@ -658,13 +674,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (ent.hitSomethingOnThisFrame()) {
 				player.hitstop = 0;
 				player.hitstopMax = hitstop - 1;
+				if (player.hitstopMax < 0) player.hitstopMax = 0;
 				player.setHitstopMax = true;
 			} else {
 				player.hitstop = hitstop;
 			}
-			player.airborne = ent.y() > 0;
-			player.wakeupTiming = 0;
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
+			player.airborne = !(ent.y() == 0 && player.speedY == 0);
+			player.wakeupTiming = 0;
 			player.cmnActIndex = cmnActIndex;
 			if (cmnActIndex == CmnActFDown2Stand) {
 				player.wakeupTiming = player.wakeupTimings.faceDown;
@@ -734,19 +751,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			player.gettingUp = ent.gettingUp();
-			if (player.needLand
-					&& (player.isLanding
-					|| player.onTheDefensive && !player.airborne)) {
-				player.needLand = false;
-			}
 			bool idlePlus = player.idle || player.landingOrPreJump;
 			if (idlePlus != player.idlePlus) {
 				player.timePassed = 0;
 				player.idlePlus = idlePlus;
 			}
 			const char* animName = ent.animationName();
-			// the wasIdle && !player.idle is for when you link a move into that same move. The animation doesn't change but you started/restarted the move
-			if (strcmp(player.anim, animName) != 0 || player.wasIdle && !player.idle) {
+			if (player.changedAnimOnThisFrame) {
 				memcpy(player.anim, animName, 32);
 				player.moveOriginatedInTheAir = false;
 				if (!player.isLanding) {
@@ -772,7 +783,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.superfreezeStartup = 0;
 						if (player.cmnActIndex != CmnActRomanCancel) {
 							for (ProjectileInfo& projectile : projectiles) {
-								if (projectile.team == player.index) {
+								if (projectile.team == player.index && projectile.lifeTimeCounter > 0) {
 									projectile.disabled = true;
 									projectile.startedUp = false;
 									projectile.actives.clear();
@@ -787,9 +798,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		// This is a separate loop because it depends on another player's idlePlus, which I changed in the previous loop
 		for (PlayerInfo& player : players) {
 			PlayerInfo& other = players[1 - player.index];
-			if (player.idleLanding != (player.idle || player.wasIdle)) {
-				if (!(!player.idleLanding && player.needLand)) {  // we can't change idleLanding from false to true while needLand is true
-					player.idleLanding = (player.idle || player.wasIdle);
+			bool thatsItTotallyLandingNow = player.needLand
+					&& (player.isLanding
+					|| player.onTheDefensive && !player.airborne);
+			
+			bool actualIdle = player.idle || player.wasIdle && !player.needLand;
+			
+			if (player.idleLanding != actualIdle) {
+				if (!(!player.idleLanding && (player.needLand && !thatsItTotallyLandingNow))) {  // we can't change idleLanding from false to true while needLand is true
+					player.idleLanding = actualIdle;
 					if (player.idleLanding && player.isLanding) {
 						if (other.idlePlus) {
 							measuringLandingFrameAdvantage = -1;
@@ -813,6 +830,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					player.timePassedLanding = 0;
 				}
+			}
+			if (thatsItTotallyLandingNow) {
+				player.needLand = false;
 			}
 		}
 		
@@ -848,9 +868,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		size_t pointsPrevSize = drawDataPrepared.points.size();
 		size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
 		
+		int lastIgnoredHitNum = -1;
+		if (i < 2 && (team == 0 || team == 1)) {
+			PlayerInfo& player = players[team];
+			lastIgnoredHitNum = player.lastIgnoredHitNum;
+		}
 		int hitboxesCount = 0;
 		DrawHitboxArrayCallParams hurtbox;
-		collectHitboxes(ent, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount);
+		collectHitboxes(ent, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount, lastIgnoredHitNum);
 		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
 		if (!wasHitResult.wasHit) {
 			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
@@ -863,14 +888,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
 
 		// Attached entities like dusts
-		const auto attached = *(char**)(ent + 0x204);
+		Entity attached = *(Entity*)(ent + 0x204);
 		if (attached != nullptr) {
-			logOnce(fprintf(logfile, "Attached entity: %p\n", attached));
-			collectHitboxes(attached, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount);
+			logOnce(fprintf(logfile, "Attached entity: %p\n", attached.ent));
+			collectHitboxes(attached, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount, lastIgnoredHitNum);
 			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
 			drawnEntities.push_back(attached);
 		}
 		if ((team == 0 || team == 1) && frameHasChanged) {
+			if (!hitboxesCount && i < 2) {
+				PlayerInfo& player = players[team];
+				if (player.hitSomething) ++hitboxesCount;
+			}
 			if (hitboxesCount) {
 				if (i < 2) {
 					PlayerInfo& player = players[team];
@@ -882,6 +911,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 				}
 			}
+		}
+		if (!hitboxesCount && frameHasChanged && (team == 0 || team == 1) && i < 2) {
+			PlayerInfo& player = players[team];
+			player.lastIgnoredHitNum = ent.currentHitNum();
 		}
 		if (invisChipp.needToHide(ent)) {
 			drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
@@ -1006,13 +1039,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (!player.hitstop
 					&& !(superflashInstigator && superflashInstigator != ent)
 					&& (
-						player.cmnActIndex == CmnActLandingStiff
+						player.cmnActIndex == CmnActLandingStiff && !player.idle  // Ramlethal j.8D becomes "idle" on f6 of stiff landing
 						|| !player.idle
 						&& !player.isLandingOrPreJump
 						&& player.moveOriginatedInTheAir
 						&& ent.y() == 0
 						&& ent.speedY() == 0
-						&& player.startedUp
 						&& !hasHitboxes
 					)) {
 				++player.landingRecovery;
@@ -1599,6 +1631,7 @@ void EndScene::onAswEngineDestroyed() {
 	}
 	projectiles.clear();
 	needFrameCleanup = false;
+	creatingObject = false;
 }
 
 // When someone YRCs, PRCs, RRCs or does a super, the address of their entity is written into the
@@ -1706,6 +1739,10 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		PlayerInfo& defenderPlayer = findPlayer(defender);
 		defenderPlayer.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
 	}
+	if (attacker.isPawn()) {
+		PlayerInfo& attackerPlayer = findPlayer(attacker);
+		attackerPlayer.hitSomething = true;
+	}
 	if (hasHitbox) {
 		ProjectileInfo& projectile = findProjectile(attacker);
 		if (projectile.ptr) {
@@ -1751,7 +1788,10 @@ void EndScene::onUWorld_Tick() {
 // Runs on the main thread
 void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, unsigned int posType) {
 	HookGuard hookGuard("BBScr_createObjectWithArg");
+	static bool insideObjectCreation = false;
+	bool needUnset = !insideObjectCreation;
 	if (!endScene.shutdown) {
+		insideObjectCreation = true;
 		endScene.creatingObject = true;
 		endScene.createdObjectAnim = animName;
 		endScene.creatorOfCreatedObject = Entity{(char*)this};
@@ -1768,6 +1808,12 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, uns
 		if (needUnlock) {
 			imHoldingTheLock = false;
 			endScene.orig_BBScr_createObjectWithArgMutex.unlock();
+		}
+	}
+	if (!endScene.shutdown) {
+		if (needUnset) {
+			insideObjectCreation = false;
+			endScene.creatingObject = false;
 		}
 	}
 	if (!gifMode.modDisabled && (gifMode.gifModeToggleHideOpponentOnly || gifMode.gifModeOn) && game.isTrainingMode()) {
@@ -1877,7 +1923,10 @@ void EndScene::HookHelp::setAnimHook(const char* animName) {
 void EndScene::setAnimHook(Entity pawn, const char* animName) {
 	if (pawn.isPawn() && !gifMode.modDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
+		player.lastIgnoredHitNum = -1;
+		player.changedAnimOnThisFrame = true;
 		if (pawn.isIdle()) player.wasIdle = true;
+		if (pawn.isIdleSimple()) player.wasIdleSimple = true;
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_setAnimMutex);
@@ -1903,6 +1952,8 @@ void EndScene::initializePawn(PlayerInfo& player, Entity ent) {
 	player.weight = ent.weight();
 	player.maxHp = ent.maxHp();
 	player.defenseModifier = ent.defenseModifier();
+	player.lastIgnoredHitNum = -1;
+	player.changedAnimOnThisFrame = true;
 }
 
 // Runs on the main thread
@@ -1974,8 +2025,12 @@ void EndScene::frameCleanup() {
 		player.setHitstunMax = false;
 		player.setBlockstunMax = false;
 		player.wasIdle = false;
+		player.wasIdleSimple = false;
 		player.startedDefending = false;
+		player.hitSomething = false;
+		player.changedAnimOnThisFrame = false;
 	}
+	creatingObject = false;
 }
 
 // Runs on the main thread
@@ -2403,7 +2458,7 @@ void EndScene::HookHelp::pushbackStunOnBlockHook(bool isAirHit) {
 void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 	{
 		std::unique_lock<std::mutex> guard(orig_pushbackStunOnBlockMutex);
-		orig_pushbackStunOnBlock((void*)pawn, isAirHit);
+		orig_pushbackStunOnBlock((void*)pawn.ent, isAirHit);
 	}
 	PlayerInfo& player = findPlayer(pawn);
 	player.ibPushbackModifier = 100;
@@ -2445,4 +2500,36 @@ void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 		&player.painPushbackModifier,
 		&player.comboTimerPushbackModifier);
 	player.hitstunProrationValid = false;
+}
+
+void EndScene::HookHelp::BBScr_sendSignalHook(int referenceType, int signal) {
+	HookGuard hookGuard("BBScr_sendSignal");
+	endScene.BBScr_sendSignalHook(Entity{(char*)this}, referenceType, signal);
+}
+
+void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) {
+	Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
+	if (referredEntity) {
+		ProjectileInfo& projectile = findProjectile(referredEntity);
+		int team = pawn.team();
+		if (projectile.ptr && (team == 0 || team == 1)) {
+			PlayerInfo& player = players[team];
+			projectile.disabled = false;
+			projectile.startup = player.total;
+			projectile.total = player.total;
+		}
+	}
+	{
+		static bool isLocked = false;
+		bool needUnlock = !isLocked;
+		isLocked = true;
+		std::unique_lock<std::mutex> guard;
+		if (needUnlock) {
+			guard = std::unique_lock<std::mutex>(orig_BBScr_sendSignalMutex);
+		}
+		orig_BBScr_sendSignal((void*)pawn, referenceType, signal);
+		if (needUnlock) {
+			isLocked = false;
+		}
+	}
 }

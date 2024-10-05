@@ -21,6 +21,8 @@ using FCanvas_Flush_t = void(__thiscall*)(void* canvas, bool bForce);
 using backPushbackApplier_t = void(__thiscall*)(void* thisArg);
 using pushbackStunOnBlock_t = void(__thiscall*)(void* pawn, bool isAirAttack);
 using isDummy_t = bool(__thiscall*)(void* trainingStruct, int team);
+using BBScr_sendSignal_t = void(__thiscall*)(void* pawn, int referenceType, int signal);
+using getReferredEntity_t = void*(__thiscall*)(void* pawn, int referenceType);
 
 struct FVector2D {
 	float X;
@@ -166,6 +168,9 @@ public:
 	pushbackStunOnBlock_t orig_pushbackStunOnBlock = nullptr;
 	std::mutex orig_pushbackStunOnBlockMutex;
 	isDummy_t isDummyPtr = nullptr;
+	BBScr_sendSignal_t orig_BBScr_sendSignal = nullptr;
+	std::mutex orig_BBScr_sendSignalMutex;
+	getReferredEntity_t getReferredEntity = nullptr;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
@@ -188,6 +193,8 @@ public:
 	void* iconTexture = nullptr;
 	IDirect3DTexture9* getTextureFromUTexture2D(BYTE* uTex2D);
 	void executeShutdownRenderCommand();
+	PlayerInfo& findPlayer(Entity ent);
+	ProjectileInfo& findProjectile(Entity ent);
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -203,6 +210,7 @@ private:
 		void BBScr_runOnObjectHook(int entityReference);
 		void backPushbackApplierHook();
 		void pushbackStunOnBlockHook(bool isAirAttack);
+		void BBScr_sendSignalHook(int referenceType, int signal);
 	};
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
@@ -215,6 +223,7 @@ private:
 	void REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize);
 	void backPushbackApplierHook(char* thisArg);
 	void pushbackStunOnBlockHook(Entity pawn, bool isAirAttack);
+	void BBScr_sendSignalHook(Entity pawn, int referenceType, int signal);
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
@@ -275,8 +284,6 @@ private:
 	};
 	std::vector<RegisteredHit> registeredHits;
 	
-	PlayerInfo& findPlayer(Entity ent);
-	ProjectileInfo& findProjectile(Entity ent);
 	void initializePawn(PlayerInfo& player, Entity ent);
 	bool needFrameCleanup = false;
 	void frameCleanup();

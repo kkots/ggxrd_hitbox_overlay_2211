@@ -319,7 +319,8 @@ void UI::prepareDrawData() {
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Startup");
-		    		AddTooltip("The startup of the last performed move. The last startup frame is also an active frame.");
+		    		AddTooltip("The startup of the last performed move. The last startup frame is also an active frame.\n"
+		    			"For moves that cause a superfreeze, such as RC, the startup of the superfreeze is displayed.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -349,9 +350,13 @@ void UI::prepareDrawData() {
 		    			"Sometimes, when the number of hits is too great, an alternative representation of active frames will be displayed over a / sign."
 		    			" For example: 13 / 1,1,1,1,1,1,1,1,1,1,1,1,1. Means there're 13 active frames, and over the /, each individual hit's active frames"
 		    			" are shown.\n"
+		    			"If the move spawned one or more projectiles, and the hits of projectiles overlap with each other or with the player's hits, then the"
+		    			" individual hits' information is discarded in the overlapping spans and they're shown as one hit.\n"
+		    			"If, while the move was happening, some projectile unrelated to the move had active frames, those are not included in the move's"
+		    			" active frames.\n"
 		    			"Note: if active frames start during superfreeze, the active frames will include the frame that happened during superfreeze and"
-		    			" all the active frames that were after the superfreeze.\n"
-		    			"Note: performing multiple ranged moves that shoot out projectiles/swords only displays the startup/active/recovery/total of the last such move.");
+		    			" all the active frames that were after the superfreeze. For example, a move has superfreeze startup 1, +0 startup after superfreeze,"
+		    			" and 2 active frames after the superfreeze. The displayed result for active frames will be: 3.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -375,7 +380,13 @@ void UI::prepareDrawData() {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Recovery");
 		    		AddTooltip("Number of recovery frames in the last performed move."
-		    			" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.");
+		    			" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.\n"
+		    			"We only check for the ability to perform normals, such as 5P or j.P, or moves from stances, such as from Leo backturn."
+		    			" It is possible to become able to block"
+		    			" or do other actions earlier than you become able to perform normals.\n"
+		    			"If you performed an air normal or some air move without landing recovery and canceled it by landing on the ground,"
+		    			" normally, there's one frame upon landing during which you can't attack but can block. This frame is not included"
+		    			" in the recovery frames.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -392,11 +403,21 @@ void UI::prepareDrawData() {
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Total");
-		    		AddTooltip("Total number of frames in the last performed move.\n"
+		    		AddTooltip("Total number of frames in the last performed move during which you've been unable to act.\n"
+		    			"If you recovered (by recovered we mean became able to perform an attack, such as 5P/j.P or a stance move,"
+		    			" like from Leo backturn for example)"
+		    			" before the move was over, those remaining frames are not included in the total."
+		    			" For example, if Johnny dashes forward, he becomes able to act on f13 but the total animation is 18f,"
+		    			" so that makes the total frames until recovery 12.\n"
 		    			"If the move spawned a projectiled that lasted beyond the boundaries of the move, this field will display"
-		    			" only the amount of frames it took to recover (i.e. become able to press 5P or j.P), from the start of the move."
+		    			" only the amount of frames it took to recover, from the start of the move."
 		    			" So for example, if a move's startup is 1, it creates a projectile that lasts 100 frames and recovers instantly,"
-		    			" on frame 2, then its total frames will be 1, its startup will be 1 and its actives will be 100.");
+		    			" on frame 2, then its total frames will be 1, its startup will be 1 and its actives will be 100.\n"
+		    			"If you performed an air move that let you recover in the air, but the move has landing recovery, the"
+		    			" landing recovery is not included in the total frames.\n"
+		    			"If you performed an air normal or similar air move without landing recovery, and it got canceled by"
+		    			" landing, normally there's 1 frame upon landing during which normals can't be used but blocking is possible."
+		    			" This frame is not included in the total frames as it is not considered part of the move.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -444,8 +465,13 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.printGaps(strbuf, sizeof strbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    float w = ImGui::CalcTextSize(strbuf).x;
+			    if (w > ImGui::GetContentRegionAvail().x) {
+				    ImGui::TextWrapped(strbuf);
+			    } else {
+				    if (i == 0) RightAlign(w);
+				    ImGui::TextUnformatted(strbuf);
+			    }
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -1359,16 +1385,6 @@ void UI::prepareDrawData() {
 			}
 			
 			ImGui::TableNextColumn();
-			ImGui::TextUnformatted("Speed X change");
-			AddTooltip("Speed X change compared to previous frame. Divided by 100 for viewability.");
-			for (int i = 0; i < 2; ++i) {
-		    	PlayerInfo& player = endScene.players[i];
-			    ImGui::TableNextColumn();
-			    printDecimal(player.speedX - player.prevSpeedX, 2, 0);
-			    ImGui::TextUnformatted(printdecimalbuf);
-			}
-			
-			ImGui::TableNextColumn();
 			ImGui::TextUnformatted("Received Speed Y");
 			AddTooltip("This is updated only when a hit happens.\n"
 				"Format: Base speed Y * (Weight % * Combo Proration % = Resulting Modifier %) = Resulting speed Y. Base and Final speeds divided by 100 for viewability."
@@ -1733,13 +1749,15 @@ void UI::frameAdvantageControl() {
     	if (i == 0) {
 	    	ImGui::TableNextColumn();
     		CenterAlignedText("Frame Adv.");
-    		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier."
-    			" (For certain stances it means whether you can do a move out of your stance.)"
+    		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
+    			" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
 		    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
 		    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value (not in ()) means frame advantage"
 		    	" immediately after recovering in the air. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
 		    	" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
-		    	" +1 (-99).");
+		    	" +1 (-99).\n"
+		    	"\n"
+		    	"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.");
     	}
     }
 }

@@ -6,17 +6,27 @@
 #include "Hitbox.h"
 #include "colors.h"
 
-void collectHitboxes(const Entity ent,
+void collectHitboxes(Entity ent,
 		const bool active,
 		DrawHitboxArrayCallParams* const hurtbox,
 		std::vector<DrawHitboxArrayCallParams>* const hitboxes,
 		std::vector<DrawPointCallParams>* const points,
 		std::vector<DrawBoxCallParams>* const pushboxes,
-		int* numHitboxes) {
-
+		int* numHitboxes,
+		int lastIgnoredHitNum) {
+	
+	if (!ent.isPawn()
+			&& (ent.team() == 0 || ent.team() == 1)
+			&& entityList.slots[ent.team()].characterType() == CHARACTER_TYPE_JACKO
+			&& !ent.displayModel()) {
+		return;
+	}
+	
 	EntityState state;
 	ent.getState(&state);
-
+	
+	int currentHitNum = ent.currentHitNum();
+	
 	DrawHitboxArrayParams params;
 	params.posX = ent.posX();
 	params.posY = state.posY;
@@ -100,8 +110,10 @@ void collectHitboxes(const Entity ent,
 
 	bool includeTheseHitboxes = hitboxes && active && !state.doingAThrow;
 	if (includeTheseHitboxes) {
-		if ((*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0  // having this flag means you ignore the hitboxes hit detection check
-				|| (*(DWORD*)(ent + 0x44c + 0x14) & 0x1000000) != 0) {  // having this flag means you're not a valid attacker. For ex. Ky's RideAura during RTL has this
+		if ((*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0) {  // having this flag means you ignore the hitboxes hit detection check
+			includeTheseHitboxes = false;
+		}
+		if (currentHitNum <= lastIgnoredHitNum) {
 			includeTheseHitboxes = false;
 		}
 	}
@@ -112,7 +124,7 @@ void collectHitboxes(const Entity ent,
 		
 		callParams.thickness = THICKNESS_HITBOX;
 		
-		if (state.isASummon && state.ownerCharType == CHARACTER_TYPE_JACKO && hitboxCount == 1 && hitboxData->sizeX == 449.F && hitboxData->sizeY == 416.F) {
+		if (ent.clashOnly()) {
 			callParams.thickness = 1;
 			callParams.fillColor = replaceAlpha(16, COLOR_HITBOX);
 		} else {

@@ -226,11 +226,16 @@ void Throws::drawThrows() {
 				|| endScene.didHit(throwInfo.owner)
 				|| !throwInfo.isPawn)
 				&& !throwInfo.isMettagiri) {
-			for (int i = 0; i < 2; ++i) {
-				if (throwInfo.owner == entityList.slots[i]) {
-					PlayerInfo& player = endScene.players[i];
-					++player.hitboxesCount;
-					break;
+			ProjectileInfo& projectile = endScene.findProjectile(throwInfo.owner);
+			if (projectile.ptr) {
+				projectile.markActive = true;
+			} else {
+				for (int i = 0; i < 2; ++i) {
+					if (throwInfo.owner == entityList.slots[i]) {
+						PlayerInfo& player = endScene.players[i];
+						++player.hitboxesCount;
+						break;
+					}
 				}
 			}
 		}

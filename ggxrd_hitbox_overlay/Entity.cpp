@@ -127,9 +127,15 @@ int Entity::posY() const {
 void Entity::getState(EntityState* state) const {
 	state->flagsField = *(unsigned int*)(ent + 0x23C);
 	const unsigned int throwFlagsField = *(unsigned int*)(ent + 0x9A4);
-	state->doingAThrow = (state->flagsField & 0x800) != 0 && (state->flagsField & 0x4000) != 0
-		|| (throwFlagsField & 0x036F3E43) == 0x036F3E43;  // To find this field you could just compare to 0x036F3E43 exactly
-
+	Entity presumablyThrownEntity = *(Entity*)(ent + 0x43c);
+	state->doingAThrow = presumablyThrownEntity
+		&& (*(DWORD*)(presumablyThrownEntity + 0x23c) & 0x800) != 0
+		&& (*(DWORD*)(ent + 0x23c) & 0x1000) != 0
+		|| superArmorEnabled()
+		&& superArmorType() == SUPER_ARMOR_DODGE
+		&& !superArmorForReflect()
+		&& (throwFlagsField & 0x036F3E43) == 0x036F3E43;
+	
 	logOnce(fprintf(logfile, "doingAThrow: %d\n", (int)state->doingAThrow));
 	state->isGettingThrown = isGettingThrown();
 	logOnce(fprintf(logfile, "isGettingThrown: %d\n", (int)state->isGettingThrown));
@@ -144,7 +150,11 @@ void Entity::getState(EntityState* state) const {
 	logOnce(fprintf(logfile, "invulnFrames: %x\n", invulnFrames));
 	const auto invulnFlags = *(char*)(ent + 0x238);
 	logOnce(fprintf(logfile, "invulnFlags: %x\n", invulnFlags));
-	state->strikeInvuln = invulnFrames > 0 || (invulnFlags & 16) || (invulnFlags & 64) || state->doingAThrow || state->isGettingThrown;
+	state->strikeInvuln = invulnFrames > 0
+		|| (invulnFlags & 16)
+		|| (invulnFlags & 64)
+		|| state->doingAThrow
+		|| state->isGettingThrown;
 	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)state->strikeInvuln));
 	state->throwInvuln = (invulnFlags & 32) || (invulnFlags & 64) || otg || state->inHitstunBlockstun;
 	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
@@ -208,6 +218,14 @@ bool Entity::isIdle() const {
 		return enableNormals();
 	}
 	return (this->*found->second)();
+}
+
+bool Entity::isIdleSimple() const {
+	if (characterType() == CHARACTER_TYPE_JAM
+			&& strcmp(animationName(), "NeoHochihu") == 0) {
+		return false;
+	}
+	return enableNormals();
 }
 
 // Chipp wall cling idle/moving up/down

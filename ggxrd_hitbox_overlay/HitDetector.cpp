@@ -6,7 +6,6 @@
 #include "EntityList.h"
 #include "Entity.h"
 #include "InvisChipp.h"
-#include "Graphics.h"
 #include "logging.h"
 #include "colors.h"
 #include "GifMode.h"
@@ -94,13 +93,14 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 		otherEntity.getState(&state);
 		if (!state.strikeInvuln) {
 
-			if (DISPLAY_DURATION_HITBOX_THAT_HIT && thisEntity.characterType() == -1) {
+			if (DISPLAY_DURATION_HITBOX_THAT_HIT) {
 				int hitboxesCount = 0;
 				std::vector<DrawHitboxArrayCallParams> theHitbox;
 				collectHitboxes(thisEntity, true, nullptr, &theHitbox, nullptr, nullptr, &hitboxesCount);
 				if (!theHitbox.empty()) {
 					DetectedHitboxes boxes;
 					boxes.entity = thisEntity;
+					boxes.isPawn = thisEntity.isPawn();
 					boxes.team = thisEntity.team();
 					boxes.hitboxes = theHitbox.front();
 					boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
@@ -236,7 +236,7 @@ void HitDetector::drawHits() {
 					entityInTheList = true;
 					const bool isActive = (*(unsigned int*)(ent + 0x23C) & 0x100) != 0;
 					const int hitboxCount = *(const int*)(ent + 0xA4);
-					entityInTheListAndActive = isActive && hitboxCount > 0;
+					entityInTheListAndActive = ent.isActive() && hitboxCount > 0;
 					break;
 				}
 			}
@@ -250,7 +250,7 @@ void HitDetector::drawHits() {
 			if (timeHasChanged) {
 				++it->activeTime;
 			}
-			if (it->activeTime >= hitboxMinActiveTime) {
+			if (it->activeTime >= hitboxMinActiveTime || it->isPawn) {
 				it = hitboxesThatHit.erase(it);
 			} else {
 				++it;
@@ -266,7 +266,7 @@ void HitDetector::drawHits() {
 
 			if (hitboxThatHit.timeHasChanged(timeHasChanged)) {
 				--hitboxThatHit.counter;
-				if (hitboxThatHit.counter <= 0) {
+				if (hitboxThatHit.counter <= 0 || hitboxThatHit.isPawn) {
 					it = hitboxesThatHit.erase(it);
 					continue;
 				}

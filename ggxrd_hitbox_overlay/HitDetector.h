@@ -26,6 +26,7 @@ private:
 	
 	struct DetectedHitboxes {
 		Entity entity{nullptr};
+		bool isPawn = false;
 		int team = 0;
 		DrawHitboxArrayCallParams hitboxes;
 		int activeTime = 0;  // this is needed for Chipp's Gamma Blade, it stops being active on the frame after it hits

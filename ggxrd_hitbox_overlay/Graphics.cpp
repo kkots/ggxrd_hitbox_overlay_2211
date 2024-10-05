@@ -530,16 +530,31 @@ void Graphics::drawAll() {
 			prepareComplicatedHurtbox(params);
 		}
 		
-		for (auto it = drawDataUse.hitboxes.cbegin(); it != drawDataUse.hitboxes.cend(); ++it) {
-			const DrawHitboxArrayCallParams& params = *it;
-			bool found = false;
-			for (auto itScan = it + 1; itScan != drawDataUse.hitboxes.cend(); ++itScan) {
-				if (params == *itScan) {
-					found = true;
-					break;
+		static std::vector<bool> algoArena;  // needed for Johnny hitboxes, they have a duplicate:
+		                                     // one is a projectile with clashOnly set, the other is Johnny himself
+		                                     // clashOnly we recently started displaying more thin, they're after Johnny's own hitboxes,
+		                                     // so that makes Johnny's own hitboxes end up displaying thin, which is wrong. We're fixing that
+		algoArena.assign(drawDataUse.hitboxes.size(), false);
+		
+		for (int i = 0; i < (int)drawDataUse.hitboxes.size(); ++i) {
+			DrawHitboxArrayCallParams& params = drawDataUse.hitboxes[i];
+			bool found = algoArena[i];
+			if (!found) {
+				for (int j = i + 1; j < (int)drawDataUse.hitboxes.size(); ++j) {
+					DrawHitboxArrayCallParams& paramsOther = drawDataUse.hitboxes[j];
+					if (params == paramsOther) {
+						if (paramsOther.thickness >= params.thickness) {
+							found = true;
+						} else {
+							algoArena[j] = true;
+						}
+						break;
+					}
 				}
 			}
-			if (!found) prepareArraybox(params, false);
+			if (!found) {
+				prepareArraybox(params, false);
+			}
 		}
 		for (const DrawBoxCallParams& params : drawDataUse.pushboxes) {
 			prepareBox(params);

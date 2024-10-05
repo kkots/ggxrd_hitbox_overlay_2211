@@ -57,7 +57,7 @@ struct ActiveDataArray {
 };
 
 struct ProjectileInfo {
-	Entity ptr = 0;  // may be 0 if the entity tied to this projectile no longer exists - such projectiles are removed at the start of the next logic tick. Otherwise points to that entity
+	Entity ptr = nullptr;  // may be 0 if the entity tied to this projectile no longer exists - such projectiles are removed at the start of the next logic tick. Otherwise points to that entity
 	int team = 0;  // updated every frame
 	int lifeTimeCounter = 0;  // updated every frame
 	int animFrame = 0;  // updated every frame
@@ -117,7 +117,6 @@ struct PlayerInfo {
 	
 	int x = 0;
 	int y = 0;
-	int prevSpeedX = 0;
 	int speedX = 0;
 	int speedY = 0;
 	int gravity = 0;
@@ -139,6 +138,8 @@ struct PlayerInfo {
 	int receivedSpeedYComboProration = 100;
 	
 	int hitstunProration = 100;
+	
+	int lastIgnoredHitNum = -1;
 	
 	int stun = 0;
 	int stunThreshold = 0;
@@ -170,6 +171,8 @@ struct PlayerInfo {
 	int recovery = 0;  // recovery of attacks done directly by the character. Either current or of the last move
 	int total = 0;  // total frames of attacks done directly by the character. Either current or of the last move
 	
+	short prevStartups[10] { 0 };  // startups of moves that you whiff canceled from
+	
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move
 	int recoveryDisp = 0;  // recovery to display in the UI. Either current or of the last move
@@ -189,6 +192,7 @@ struct PlayerInfo {
 	CmnActIndex cmnActIndex = CmnActStand;
 	char tensionPulsePenaltySeverity = 0;  // the higher, the worse
 	char cornerPenaltySeverity = 0;  // the higher, the worse
+	char prevStartupsCount = 0;
 	bool frameAdvantageValid:1;
 	bool landingFrameAdvantageValid:1;
 	bool idle:1;  // is able to perform a non-cancel move
@@ -201,19 +205,22 @@ struct PlayerInfo {
 	bool isLanding:1;  // on this frame, is it landing animation
 	bool isLandingOrPreJump:1;  // on this frame, is it either landing or prejump animation
 	bool needLand:1;  // recovery from an air move happened and now landing is needed to measure frame advantage on landing
-	bool airborne:1;  // is y > 0
+	bool airborne:1;  // is y > 0. Note that tumbling state and pre-landing frame may be y == 0, and getting hit by Greed Sever puts you airborne at y == 0, also check speedY == 0
 	bool inPain:1;  // being combo'd
 	bool gettingUp:1;  // playing a wakeup animation
-	bool wasIdle:1;  // briefly became idle during the frame while transitioning through some animations
+	bool wasIdle:1;  // briefly became idle (5P, j.P or move from stance) during the frame while transitioning through some animations
+	bool wasIdleSimple:1;  // briefly became idle (5P, j.P only) during the frame while transitioning through some animations
 	bool startedDefending:1;  // triggers restart of frame advantage measurement
 	bool moveOriginatedInTheAir:1;  // for measuring landing recovery of moves that started in the air only
 	bool setHitstopMax:1;  // during this logic tick, from some hook, hitstopMax field was updated
 	bool setHitstunMax:1;  // during this logic tick, from some hook, hitstunMax field was updated
 	bool setBlockstunMax:1;  // during this logic tick, from some hook, blockstunMax field was updated
 	bool displayHitstop:1;  // should hitstop be displayed in UI
-	bool oppoWasTouchingWallOnFD:1;
-	bool receivedSpeedYValid:1;
-	bool hitstunProrationValid:1;
+	bool oppoWasTouchingWallOnFD:1;  // used to calculate FD pushback modifier on the display
+	bool receivedSpeedYValid:1;  // should display received speed Y, instead of "???"
+	bool hitstunProrationValid:1;  // should display hitstun proration, instead of "--"
+	bool hitSomething:1;  // during this logic tick, hit someone with own (non-projectile) active frames
+	bool changedAnimOnThisFrame:1;
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
 	char index = 0;  // the index of this PlayerInfo in endScene's 'players' array
@@ -222,4 +229,6 @@ struct PlayerInfo {
 	void printGaps(char* buf, size_t bufSize);
 	void clear();
 	void copyTo(PlayerInfo& dest);
+	void addPrevStartup(int n);
+	void clearPrevStartups();
 };

@@ -140,11 +140,16 @@ enum AttackType {
 	ATTACK_TYPE_IK
 };
 
+enum SuperArmorType {
+	SUPER_ARMOR_DODGE,
+	SUPER_ARMOR_ARMOR
+};
+
 class Entity
 {
 public:
 	inline Entity() {}
-	inline Entity(const char* ent) { this->ent = const_cast<char*>(ent); }
+	inline Entity(void* ent) { this->ent = (char*)ent; }
 	char* ent = nullptr;
 	
 	// Active means attack frames are coming
@@ -234,7 +239,7 @@ public:
 	inline int pushbackModifierDuringPain() { return *(int*)(ent + 0x710 + 0x158); }
 	inline bool displayModel() { return *(bool*)(ent + 0x2814); }
 	inline int playerVal(int n) { return *(int*)(ent + 0x24c50 + 4 * n); }
-	inline int currentHitNum() { return *(int*)(ent + 0x26d8); }
+	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
 	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
 	inline int throwRange() { return *(int*)(ent + 0x494); }
 	inline int throwMinX() { return *(int*)(ent + 0x48c); }
@@ -263,11 +268,15 @@ public:
 	inline Entity attacker() { return *(Entity*)(ent + 0x708); }
 	inline bool holdingFD() { return (*(DWORD*)(ent + 0x23c) & 0x20000000) != 0; }
 	inline int receivedSpeedY() { return *(int*)(ent + 0x944); }
-	inline bool airtechOK() { return (*(DWORD*)(ent + 0x4d40) & 0x4) != 0; }  // the height is OK for air teching. Also set in tumble state
-
+	inline bool clashOnly() { return (*(DWORD*)(ent + 0x44c + 0x14) & 0x1000000) != 0; }  // RTL RideAura has this, Jack O' Aigisfield
+	inline bool superArmorEnabled() const { return (*(DWORD*)(ent + 0x9a4) & 0x2) != 0; }
+	inline SuperArmorType superArmorType() const { return *(SuperArmorType*)(ent + 0x9a8); }
+	inline bool superArmorForReflect() const { return (*(DWORD*)(ent + 0x9a4) & 0x100000) != 0; }
+                                                                                                                                                                                                                               
 	void getState(EntityState*) const;
 	
 	bool isIdle() const;
+	bool isIdleSimple() const;
 	bool isIdleHaritsukiKeep() const;
 	bool isIdleSouten() const;
 	bool isIdleSouten8() const;
