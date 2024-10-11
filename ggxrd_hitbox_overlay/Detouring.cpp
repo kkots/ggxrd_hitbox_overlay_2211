@@ -139,6 +139,57 @@ void Detouring::detachAll() {
 	wndProcsToUnhookAtTheEnd.clear();
 }
 
+// This is separate, because if we call VirtualProtect a second time to restore old protection, Detours won't be able to write to the program anymore.
+void Detouring::undoPatches() {
+	
+	DWORD thisProcId = GetCurrentProcessId();
+	HANDLE thisProcess = GetCurrentProcess();
+	
+	// Suspend all threads
+	enumerateThreadsRecursively([&](DWORD threadId) {
+		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
+		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
+#ifdef LOG_PATH
+			WinError winErr;
+			// do not log stuff while threads are suspended, if you're not holding the log lock.
+			// If a thread is holding the lock while suspended, you can't get it and an attempt
+			// to log will result in a deadlock.
+#endif
+		}
+		else {
+			DWORD procId = GetProcessIdOfThread(hThread);
+			if (procId != thisProcId) {
+				return;
+			}
+			SuspendThread(hThread);
+			suspendedThreadHandles.push_back(hThread);
+		}
+	});
+	
+	{
+		
+		if (!instructionsToReplace.empty()) {
+			for (InstructionToReplace& bytes : instructionsToReplace) {
+				// If Detours already changed this page's protection prior to us, oldProtect will hold
+				// the value that Detours set, and then we will restore the page to that protection.
+				// It will be Detours' job to put the original-original protection on the page
+				DWORD oldProtect;
+				VirtualProtect((void*)bytes.addr, bytes.bytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect);
+				memcpy((void*)bytes.addr, bytes.bytes.data(), bytes.bytes.size());
+				FlushInstructionCache(thisProcess, (void*)bytes.addr, bytes.bytes.size());
+				DWORD unused;
+				VirtualProtect((void*)bytes.addr, bytes.bytes.size(), oldProtect, &unused);
+			}
+		}
+	}
+	
+	for (HANDLE hThread : suspendedThreadHandles) {
+		ResumeThread(hThread);
+	}
+	closeAllThreadHandles();
+	return;
+}
+
 void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
 	logwrap(fputs("Detouring::detachAllButThese(...) called\n", logfile));
 	std::vector<std::mutex*> lockedMutexes;
@@ -161,7 +212,9 @@ void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
 		lockedMutexes.push_back(it->mutex);
 	}
 	logwrap(fputs("Detouring::detachAllButThese(...): locked all needed mutexes\n", logfile));
-
+	
+	undoPatches();
+	
 	if (beginTransaction()) {
 		bool allSuccess = true;
 
@@ -186,17 +239,6 @@ void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
 				break;
 			}
 			it = thingsToUndetourAtTheEnd.erase(it);
-		}
-		
-		HANDLE thisProcess = GetCurrentProcess();
-		if (!instructionsToReplace.empty()) {
-			for (InstructionToReplace& bytes : instructionsToReplace) {
-				VirtualProtect((void*)bytes.addr, bytes.bytes.size(), PAGE_EXECUTE_READWRITE, &bytes.oldProtect);
-				memcpy((void*)bytes.addr, bytes.bytes.data(), bytes.bytes.size());
-				FlushInstructionCache(thisProcess, (void*)bytes.addr, bytes.bytes.size());
-				// If we call VirtualProtect here to restore old protection, Detours won't be able to write to the program anymore.
-				// If there's something to undetour, Detours will restore old protection status for us, no need to call VirtualProtect ourselves.
-			}
 		}
 		
 		endTransaction();

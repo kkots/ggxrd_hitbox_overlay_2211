@@ -206,6 +206,9 @@ public:
 	inline int stun() const { return *(int*)(ent + 0x9fc4); }
 	inline int stunThreshold() const { return *(int*)(ent + 0x9fc8); }
 	inline int weight() const { return *(int*)(ent + 0x9880); }
+	// some of these are really hard to describe without comments that super continent's (Pangaea's) bbscript database doesn't have.
+	// This is set when hitting someone and reset on recovery
+	inline bool attackCollidedSoCanCancelNow() const { return (*(DWORD*)(ent + 0x23c) & 0x20) != 0; }
 	inline bool enableWhiffCancels() const { return (*(DWORD*)(ent + 0x4d48) & 0x2) != 0; }
 	inline bool enableNormals() const { return (*(DWORD*)(ent + 0x4d3c) & 0x1000) != 0; }
 	inline bool enableGatlings() const { return (*(DWORD*)(ent + 0x4d48) & 0x1) != 0; }
@@ -238,7 +241,7 @@ public:
 	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
 	inline int pushbackModifierDuringPain() { return *(int*)(ent + 0x710 + 0x158); }
 	inline bool displayModel() { return *(bool*)(ent + 0x2814); }
-	inline int playerVal(int n) { return *(int*)(ent + 0x24c50 + 4 * n); }
+	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
 	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
 	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
 	inline int throwRange() { return *(int*)(ent + 0x494); }
@@ -272,20 +275,24 @@ public:
 	inline bool superArmorEnabled() const { return (*(DWORD*)(ent + 0x9a4) & 0x2) != 0; }
 	inline SuperArmorType superArmorType() const { return *(SuperArmorType*)(ent + 0x9a8); }
 	inline bool superArmorForReflect() const { return (*(DWORD*)(ent + 0x9a4) & 0x100000) != 0; }
-                                                                                                                                                                                                                               
-	void getState(EntityState*) const;
+	inline bool hasUponIdling() const { return (*(DWORD*)(ent + 0xa0c) & 0x8) != 0; }
+	inline int mem45() const { return *(int*)(ent + 0x14c); }
+	inline int mem46() const { return *(int*)(ent + 0x150); }
+	inline int mem51() const { return *(int*)(ent + 0x164); }
+	inline int mem57() const { return *(int*)(ent + 0x17c); }
+	inline int mem58() const { return *(int*)(ent + 0x180); }
+	inline int mem59() const { return *(int*)(ent + 0x184); }
+	inline int mem60() const { return *(int*)(ent + 0x188); }
+	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }
+	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }
+	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }
+	inline const char* gotoLabelRequest() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
+	inline const char* spriteName() const { return (const char*)(ent + 0xa58); }
+	inline const char* attackLockAction() const { return (const char*)(ent + 0x44c + 0x54); }
+	inline int spriteFrameCounter() const { return *(int*)(ent + 0xa78); }
+	inline int spriteFrameCounterMax() const { return *(int*)(ent + 0xa80); }
 	
-	bool isIdle() const;
-	bool isIdleSimple() const;
-	bool isIdleHaritsukiKeep() const;
-	bool isIdleSouten() const;
-	bool isIdleSouten8() const;
-	bool isIdleDaiRensen() const;
-	bool isIdleRifle() const;
-	bool isIdleSemuke() const;
-	bool isIdleNeoHochihu() const;
-	bool isIdleAmi_Hold() const;
-	bool isIdleAmi_Move() const;
+	void getState(EntityState*) const;
 	
 	static void getWakeupTimings(CharacterType charType, WakeupTimings* output);
 	void getWakeupTimings(WakeupTimings* output);

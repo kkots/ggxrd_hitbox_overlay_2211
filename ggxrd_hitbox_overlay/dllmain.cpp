@@ -20,6 +20,7 @@
 #include "imgui.h"
 #include "UI.h"
 #include "WinError.h"
+#include "Moves.h"
 
 static void closeLog();
 
@@ -73,6 +74,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!altModes.onDllMain()) terminate
         if (!throws.onDllMain()) terminate
         if (!hud.onDllMain()) terminate
+        moves.onDllMain();
         if (!detouring.endTransaction()) terminate
         break;
     }

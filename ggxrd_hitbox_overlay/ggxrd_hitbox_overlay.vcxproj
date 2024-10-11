@@ -190,6 +190,7 @@
     <ClInclude Include="Hud.h" />
     <ClInclude Include="InvisChipp.h" />
     <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="Moves.h" />
     <ClInclude Include="pi.h" />
     <ClInclude Include="PlayerInfo.h" />
     <ClInclude Include="PngRelated.h" />
@@ -251,6 +252,7 @@
     <ClCompile Include="InvisChipp.cpp" />
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="logging.cpp" />
+    <ClCompile Include="Moves.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

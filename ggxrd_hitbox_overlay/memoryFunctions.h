@@ -30,9 +30,13 @@ uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLe
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, bool* error, const char* logname);
 
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, bool* error, const char* logname);
+
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname);
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname);
+
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::vector<int>& offsets, bool* error, const char* logname);
 
 uintptr_t sigscanOffsetMain(const char* name, const char* sig, const size_t sigLength, const char* mask = nullptr, const std::vector<int>& offsets = std::vector<int>{}, bool* error = nullptr, const char* logname = nullptr);
 
@@ -55,6 +59,8 @@ int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinatio
 
 char* findWildcard(char* mask, unsigned int indexOfWildcard = 0);
 
+void substituteWildcard(std::vector<char>& sig, std::vector<char>& mask, unsigned int indexOfWildcard, void* ptrToSubstitute);
+
 void substituteWildcard(char* sig, char* mask, unsigned int indexOfWildcard, char* sourceBuffer, size_t size);
 
 void substituteWildcard(char* sig, char* mask, unsigned int indexOfWildcard, void* ptrToSubstitute);
@@ -68,5 +74,7 @@ uintptr_t sigscanBackwards(uintptr_t, const char* byteSpecification, size_t sear
 uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit = 1000);
 
 uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_t searchLimit = 1000);
+
+uintptr_t sigscanForward(uintptr_t ptr, const std::vector<char>& sig, const std::vector<char>& mask, size_t searchLimit = 1000);
 
 uintptr_t findImportedFunction(const char* module, const char* dll, const char* function);

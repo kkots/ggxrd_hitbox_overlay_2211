@@ -23,6 +23,7 @@
 #include "UI.h"
 #include "CustomWindowMessages.h"
 #include "Hud.h"
+#include "Moves.h"
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -69,7 +70,7 @@ bool EndScene::onDllMain() {
 		std::vector<char> sig;//[9] { "\xc7\x40\x28\x00\x00\x00\x00\xe8" };
 		std::vector<char> mask;
 		byteSpecificationToSigMask("c7 40 28 ?? ?? ?? ?? e8", sig, mask);
-		substituteWildcard(sig.data(), mask.data(), 0, (void*)TrainingEtc_OneDamage);
+		substituteWildcard(sig, mask, 0, (void*)TrainingEtc_OneDamage);
 		
 		uintptr_t drawTextWithIconsCall = sigscanBufOffset(
 			"GuiltyGearXrd.exe",
@@ -109,11 +110,11 @@ bool EndScene::onDllMain() {
 		std::vector<char> mask;
 		byteSpecificationToSigMask("b8 ?? ?? ?? ?? c3",
 			sig, mask);
-		substituteWildcard(sig.data(), mask.data(), 0, (void*)CanvasFlushSetupCommandStringAddr);
+		substituteWildcard(sig, mask, 0, (void*)CanvasFlushSetupCommandStringAddr);
 		CanvasFlushSetupCommand_DescribeCommand = sigscanOffset(
 			"GuiltyGearXrd.exe",
-			sig.data(),
-			mask.data(),
+			sig,
+			mask,
 			&error, "CanvasFlushSetupCommand_DescribeCommand");
 	}
 	uintptr_t CanvasFlushSetupCommandVtable = 0;
@@ -134,8 +135,8 @@ bool EndScene::onDllMain() {
 		memcpy(sig.data() + 2, &CanvasFlushSetupCommandVtable, 4);
 		CanvasFlushSetupCommandCreationPlace = sigscanOffset(
 			"GuiltyGearXrd.exe",
-			sig.data(),
-			mask.data(),
+			sig,
+			mask,
 			&error, "CanvasFlushSetupCommandCreationPlace");
 	}
 	uintptr_t GIsThreadedRenderingJzInstr = 0;
@@ -252,11 +253,17 @@ bool EndScene::onDllMain() {
 	uintptr_t bbscrRunOnObjectCall = 0;
 	uintptr_t BBScr_sendSignalCallPlace = 0;
 	uintptr_t BBScr_sendSignalCall = 0;
+	uintptr_t BBScr_sendSignalToActionCallPlace = 0;
+	uintptr_t BBScr_sendSignalToActionCall = 0;
+	uintptr_t BBScr_callSubroutineCallPlace = 0;
+	uintptr_t BBScr_callSubroutineCall = 0;
 	if (bbscrJumptable) {
 		bbscrCreateObjectWithArgCallPlace = *(uintptr_t*)(bbscrJumptable + 445*4);
 		bbscrCreateParticleWithArgCallPlace = *(uintptr_t*)(bbscrJumptable + 449*4);
 		bbscrRunOnObjectCallPlace = *(uintptr_t*)(bbscrJumptable + 41*4);
 		BBScr_sendSignalCallPlace = *(uintptr_t*)(bbscrJumptable + 1766*4);
+		BBScr_sendSignalToActionCallPlace = *(uintptr_t*)(bbscrJumptable + 1771*4);
+		BBScr_callSubroutineCallPlace = *(uintptr_t*)(bbscrJumptable + 17*4);
 	}
 	if (bbscrCreateObjectWithArgCallPlace) {
 		bbscrCreateObjectWithArgCall = sigscanForward(bbscrCreateObjectWithArgCallPlace, "e8");
@@ -270,6 +277,13 @@ bool EndScene::onDllMain() {
 	if (BBScr_sendSignalCallPlace) {
 		BBScr_sendSignalCall = sigscanForward(BBScr_sendSignalCallPlace, "e8");
 	}
+	if (BBScr_sendSignalToActionCallPlace) {
+		BBScr_sendSignalToActionCall = sigscanForward(BBScr_sendSignalToActionCallPlace, "e8");
+	}
+	if (BBScr_callSubroutineCallPlace) {
+		BBScr_callSubroutineCall = sigscanForward(BBScr_callSubroutineCallPlace, "e8");
+	}
+	
 	if (bbscrCreateObjectWithArgCall) {
 		orig_BBScr_createObjectWithArg = (BBScr_createObjectWithArg_t)followRelativeCall(bbscrCreateObjectWithArgCall);
 	}
@@ -279,9 +293,15 @@ bool EndScene::onDllMain() {
 	if (bbscrRunOnObjectCall) {
 		orig_BBScr_runOnObject = (BBScr_runOnObject_t)followRelativeCall(bbscrRunOnObjectCall);
 	}
-	if (BBScr_sendSignalCallPlace) {
+	if (BBScr_sendSignalCall) {
 		orig_BBScr_sendSignal = (BBScr_sendSignal_t)followRelativeCall(BBScr_sendSignalCall);
 		getReferredEntity = (getReferredEntity_t)followRelativeCall((uintptr_t)orig_BBScr_sendSignal + 5);
+	}
+	if (BBScr_sendSignalToActionCall) {
+		orig_BBScr_sendSignalToAction = (BBScr_sendSignalToAction_t)followRelativeCall(BBScr_sendSignalToActionCall);
+	}
+	if (BBScr_callSubroutineCall) {
+		BBScr_callSubroutine = (BBScr_callSubroutine_t)followRelativeCall(BBScr_callSubroutineCall);
 	}
 	
 	if (orig_BBScr_createObjectWithArg) {
@@ -312,19 +332,54 @@ bool EndScene::onDllMain() {
 			&orig_BBScr_sendSignalMutex,
 			"BBScr_sendSignal")) return false;
 	}
+	if (orig_BBScr_sendSignalToAction) {
+		void (HookHelp::*BBScr_sendSignalToActionHookPtr)(const char*, int) = &HookHelp::BBScr_sendSignalToActionHook;
+		if (!detouring.attach(&(PVOID&)orig_BBScr_sendSignalToAction,
+			(PVOID&)BBScr_sendSignalToActionHookPtr,
+			&orig_BBScr_sendSignalToActionMutex,
+			"BBScr_sendSignalToAction")) return false;
+	}
 	std::vector<char> sig;
 	std::vector<char> mask;
 	byteSpecificationToSigMask("c7 ?? ?? ?? ?? ?? 66 0f ef c0 8d ?? ?? ?? ?? ?? ?? 66 0f d6 ?? ?? ?? ?? ?? ?? 89 ?? ?? ?? 66 0f d6 ?? ?? ?? ?? ?? e8",
 		sig, mask);
 	uintptr_t PawnVtable = sigscanOffset(
 		"GuiltyGearXrd.exe",
-		sig.data(),
-		mask.data(),
+		sig,
+		mask,
 		{ 2, 0 },
 		&error, "PawnVtable");
+	uintptr_t getAccessedValueAddr = 0;
 	if (PawnVtable) {
 		orig_setAnim = *(setAnim_t*)(PawnVtable + 0x44);
 		orig_pawnInitialize = *(pawnInitialize_t*)(PawnVtable);
+		orig_handleUpon = *(handleUpon_t*)(PawnVtable + 0x3c);
+		getAccessedValueAddr = *(uintptr_t*)(PawnVtable + 0x4c);
+	}
+	uintptr_t getAccessedValueImplCallPlace = 0;
+	if (getAccessedValueAddr) {
+		getAccessedValueImplCallPlace = sigscanForward(getAccessedValueAddr, "e8");
+	}
+	uintptr_t getAccessedValueImpl = 0;
+	if (getAccessedValueImplCallPlace) {
+		getAccessedValueImpl = followRelativeCall(getAccessedValueImplCallPlace);
+	}
+	uintptr_t getAccessedValueImplJumptableUse = 0;
+	if (getAccessedValueImpl) {
+		getAccessedValueImplJumptableUse = sigscanForward(getAccessedValueImpl, "ff 24 85");
+	}
+	if (getAccessedValueImplJumptableUse) {
+		uintptr_t getAccessedValueJumptable = *(uintptr_t*)(getAccessedValueImplJumptableUse + 3);
+		uintptr_t interroundValueStorage2CodeStart = *(uintptr_t*)(getAccessedValueJumptable + 124 * 4);
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("8b ?? ?? ?? ?? ?? 8b", sig, mask);
+		*(char***)(sig.data() + 2) = aswEngine;
+		memcpy(mask.data() + 2, "xxxx", 4);
+		uintptr_t interroundValueStorage2Use = sigscanForward(interroundValueStorage2CodeStart, sig, mask);
+		if (interroundValueStorage2Use) {
+			interRoundValueStorage2Offset = *(DWORD*)(interroundValueStorage2Use + 9);
+		}
 	}
 	
 	if (orig_setAnim) {
@@ -341,6 +396,14 @@ bool EndScene::onDllMain() {
 			(PVOID&)pawnInitializeHookPtr,
 			&orig_pawnInitializeMutex,
 			"pawnInitialize")) return false;
+	}
+	
+	if (orig_handleUpon) {
+		void (HookHelp::*handleUponHookPtr)(int) = &HookHelp::handleUponHook;
+		if (!detouring.attach(&(PVOID&)orig_handleUpon,
+			(PVOID&)handleUponHookPtr,
+			&orig_handleUponMutex,
+			"handleUpon")) return false;
 	}
 	
 	uintptr_t logicOnFrameAfterHitPiece = sigscanOffset(
@@ -377,8 +440,8 @@ bool EndScene::onDllMain() {
 		substituteWildcard(sig.data(), mask.data(), 0, (void*)iconStringAddr);
 		iconStringUsage = sigscanOffset(
 			"GuiltyGearXrd.exe",
-			sig.data(),
-			mask.data(),
+			sig,
+			mask,
 			&error, "iconStringUsage");
 	}
 	if (iconStringUsage) {
@@ -419,6 +482,46 @@ bool EndScene::onDllMain() {
 			(PVOID&)pushbackStunOnBlockHookPtr,
 			&orig_pushbackStunOnBlockMutex,
 			"pushbackStunOnBlock")) return false;
+	}
+	
+	uintptr_t OnPreSkillCheckStrAddr = sigscanStrOffset(
+		"GuiltyGearXrd.exe:.rdata",
+		"OnPreSkillCheck",
+		&error, "OnPreSkillCheckStrAddr");
+	uintptr_t OnPreSkillCheckVar = 0;
+	if (OnPreSkillCheckStrAddr) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("68 ?? ?? ?? ??", sig, mask);
+		substituteWildcard(sig, mask, 0, (void*)OnPreSkillCheckStrAddr);
+		OnPreSkillCheckVar = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig,
+			mask,
+			{ 6, 0 },
+			&error, "OnPreSkillCheckVar");
+	}
+	if (OnPreSkillCheckVar) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("68 ?? ?? ?? ??", sig, mask);
+		substituteWildcard(sig, mask, 0, (void*)OnPreSkillCheckVar);
+		uintptr_t jmpInstrAddr = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig,
+			mask,
+			{ 0x1e },
+			&error, "skillCheckPiece");
+		if (jmpInstrAddr) {
+			orig_skillCheckPiece = (skillCheckPiece_t)followRelativeCall(jmpInstrAddr);
+		}
+	}
+	if (orig_skillCheckPiece) {
+		BOOL (HookHelp::*skillCheckPieceHookPtr)() = &HookHelp::skillCheckPieceHook;
+		if (!detouring.attach(&(PVOID&)orig_skillCheckPiece,
+			(PVOID&)skillCheckPieceHookPtr,
+			&orig_skillCheckPieceMutex,
+			"skillCheckPiece")) return false;
 	}
 	
 	return !error;
@@ -539,32 +642,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			// probably the mod was loaded in mid-game
 			for (int i = 2; i < entityList.count; ++i) {
 				onObjectCreated(entityList.slots[i], entityList.list[i], entityList.list[i].animationName());
-			}
-		}
-		
-		for (auto it = projectiles.begin(); it != projectiles.end();) {
-			bool found = false;
-			if (it->ptr) {
-				for (int i = 0; i < entityList.count; ++i) {
-					Entity ent = entityList.list[i];
-					if (it->ptr == ent) {
-						found = true;
-						break;
-					}
-				}
-			}
-			if (!found) {
-				if (it->landedHit) {
-					it->ptr = nullptr;
-					it->markActive = true;
-					++it;
-					continue;
-				}
-				it = projectiles.erase(it);
-			} else {
-				it->fill(it->ptr);
-				it->markActive = it->landedHit;
-				++it;
 			}
 		}
 		
@@ -696,8 +773,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				|| player.inPain
 				|| cmnActIndex == CmnActUkemi
 				|| ent.gettingUp();
-			player.idleNext = ent.isIdle();
-			player.isLanding = cmnActIndex == CmnActJumpLanding || cmnActIndex == CmnActLandingStiff;
+			if (!player.obtainedForceDisableFlags) {
+				player.wasForceDisableFlags = ent.forceDisableFlags();
+			}
+			const MoveInfo& move = moves.getInfo(player.charType, ent.animationName(), false);
+			player.idleNext = move.isIdle(player);
+			player.isLanding = cmnActIndex == CmnActJumpLanding
+				|| cmnActIndex == CmnActLandingStiff
+				|| player.needLand  // needed for May dolphin riding: custom landing animation
+				&& !player.airborne;
 			player.isLandingOrPreJump = player.isLanding || cmnActIndex == CmnActJumpPre;
 			if (!player.isLandingOrPreJump) {
 				if (player.landingOrPreJumpFrames) {
@@ -713,16 +797,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (cmnActIndex == CmnActJumpPre) {
 				player.frameAdvantageValid = false;
 				other.frameAdvantageValid = false;
+				player.frameAdvantageIncludesIdlenessInNewSection = false;
+				other.frameAdvantageIncludesIdlenessInNewSection = false;
 			}
+			memcpy(player.prevAttackLockAction, player.attackLockAction, 32);
+			memcpy(player.attackLockAction, ent.attackLockAction(), 32);
 			player.animFrame = ent.currentAnimDuration();
 			player.hitboxesCount = 0;
-		}
-		// I need another loop because in the next one each player refers to other's timePassed and I modified it
-	
-		for (int i = 0; i < 2; i++) {
-			Entity ent = entityList.slots[i];
-			PlayerInfo& player = players[i];
-			PlayerInfo& other = players[1 - i];
+			
 			if (player.idleNext != player.idle || player.wasIdle && !player.idleNext || player.setBlockstunMax && !player.idleNext) {
 				player.idle = player.idleNext;
 				if (!player.idle) {
@@ -748,50 +830,206 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.needLand = true;
 					player.landingFrameAdvantageValid = false;
 					other.landingFrameAdvantageValid = false;
+					player.landingFrameAdvantageIncludesIdlenessInNewSection = false;
+					other.landingFrameAdvantageIncludesIdlenessInNewSection = false;
 				}
 			}
+			int playerval0 = ent.playerVal(0);
+			int playerval1 = ent.playerVal(1);
+			if (!player.playerval0 && playerval0) {
+				player.maxDI = playerval1;
+			}
+			player.playerval1 = playerval1;
+			player.playerval0 = playerval0;
 			player.gettingUp = ent.gettingUp();
-			bool idlePlus = player.idle || player.landingOrPreJump;
+			bool idlePlus = player.idle
+				|| player.landingOrPreJump
+				|| player.idleInNewSection;
 			if (idlePlus != player.idlePlus) {
 				player.timePassed = 0;
 				player.idlePlus = idlePlus;
 			}
+			player.sprite.fill(ent);
+			bool needDisableProjectiles = false;
 			const char* animName = ent.animationName();
 			if (player.changedAnimOnThisFrame) {
 				memcpy(player.anim, animName, 32);
-				player.moveOriginatedInTheAir = false;
-				if (!player.isLanding) {
-					if (!player.idlePlus && !(!player.wasIdle && player.cmnActIndex == CmnActRomanCancel)) {
-						if (player.setHitstunMax || player.setBlockstunMax) {
-							player.displayHitstop = false;
-						}
-						if (!player.onTheDefensive) {
-							player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
-						}
-						player.moveOriginatedInTheAir = player.airborne;
-						
-						player.startupProj = 0;
-						player.activesProj.clear();
-						
-						player.startup = 0;
-						player.startedUp = false;
-						player.actives.clear();
-						player.recovery = 0;
-						player.total = 0;
-						
-						player.landingRecovery = 0;
-						player.superfreezeStartup = 0;
-						if (player.cmnActIndex != CmnActRomanCancel) {
-							for (ProjectileInfo& projectile : projectiles) {
-								if (projectile.team == player.index && projectile.lifeTimeCounter > 0) {
-									projectile.disabled = true;
-									projectile.startedUp = false;
-									projectile.actives.clear();
-								}
+				player.move = &move;
+				if (!move.preservesNewSection) {
+					player.inNewMoveSection = false;
+					if (!measuringFrameAdvantage) {
+						player.frameAdvantageIncludesIdlenessInNewSection = true;
+						other.frameAdvantageIncludesIdlenessInNewSection = true;
+					}
+					if (measuringLandingFrameAdvantage == -1) {
+						player.landingFrameAdvantageIncludesIdlenessInNewSection = true;
+						other.landingFrameAdvantageIncludesIdlenessInNewSection = true;
+					}
+					if (player.idleInNewSection) {
+						player.idleInNewSection = false;
+						player.idlePlus = false;
+						player.timePassed = 0;
+					}
+				}
+				if (move.combineWithPreviousMove && !move.usePlusSignInCombination
+						 || player.move == &moves.defaultMove
+						 && *player.prevAttackLockAction != '\0'
+						 && strcmp(animName, player.prevAttackLockAction) == 0) {
+					// do nothing
+				} else {
+					player.moveOriginatedInTheAir = false;
+					if (!player.isLanding) {
+						if (!player.idlePlus && !(!player.wasIdle && player.cmnActIndex == CmnActRomanCancel)) {
+							if (player.setHitstunMax || player.setBlockstunMax) {
+								player.displayHitstop = false;
+							}
+							if (!player.onTheDefensive) {
+								player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
+							}
+							player.moveOriginatedInTheAir = player.airborne;
+							
+							player.startupProj = 0;
+							player.activesProj.clear();
+							player.prevStartupsProj.clear();
+							
+							if (!move.usePlusSignInCombination) {
+								player.prevStartups.clear();
+							} else {
+								player.prevStartups.add(player.total);
+							}
+							
+							player.startup = 0;
+							player.startedUp = false;
+							player.actives.clear();
+							player.recovery = 0;
+							player.total = 0;
+							
+							player.landingRecovery = 0;
+							player.superfreezeStartup = 0;
+							if (player.cmnActIndex != CmnActRomanCancel) {
+								needDisableProjectiles = true;
 							}
 						}
 					}
 				}
+				
+			}
+			// This is needed for animations that create projectiles on frame 1
+			for (OccuredEvent& event : events) {
+				if (event.type == OccuredEvent::SET_ANIM
+						&& needDisableProjectiles
+						&& event.u.setAnim.pawn == ent) {
+					for (ProjectileInfo& projectile : projectiles) {
+						if (projectile.team == player.index && projectile.lifeTimeCounter > 0) {
+							projectile.disabled = true;
+							projectile.startedUp = false;
+							projectile.actives.clear();
+						}
+					}
+				} else if (event.type == OccuredEvent::SIGNAL) {
+					PlayerInfo& playerFrom = findPlayer(event.u.signal.from);
+					ProjectileInfo& projectileFrom = findProjectile(event.u.signal.from);
+					ProjectileInfo& projectileTo = findProjectile(event.u.signal.to);
+					if ((projectileFrom.ptr || playerFrom.pawn)
+							&& projectileTo.ptr
+							&& (projectileFrom.ptr
+							&& projectileFrom.team == player.index
+							|| playerFrom.pawn == ent)
+							&& projectileTo.team == player.index) {
+						projectileTo.disabled = false;
+						projectileTo.startup = player.total;
+						projectileTo.total = player.total;
+					}
+				}
+			}
+			
+			if (!player.hitstop
+					&& getSuperflashInstigator() == nullptr
+					&& !player.startedUp
+					&& !player.inNewMoveSection
+					&& player.move
+					&& player.move->sectionSeparator
+					&& player.move->sectionSeparator(ent)) {
+				player.inNewMoveSection = true;
+				player.timeInNewSection = 0;
+				if (!player.startedUp && player.total) {
+					player.prevStartups.add(player.total);
+					player.startup = 0;
+					player.total = 0;
+				}
+			}
+			if (!player.idleInNewSection && player.isIdleInNewSection()) {
+				player.idleInNewSection = true;
+				if (!player.idlePlus) {
+					player.idlePlus = true;
+					player.timePassed = player.timeInNewSection;
+					if (!player.frameAdvantageIncludesIdlenessInNewSection) {
+						player.frameAdvantageIncludesIdlenessInNewSection = true;
+						player.frameAdvantage += player.timeInNewSection;
+					}
+					if (!other.frameAdvantageIncludesIdlenessInNewSection) {
+						other.frameAdvantageIncludesIdlenessInNewSection = true;
+						other.frameAdvantage -= player.timeInNewSection;
+					}
+					if (!player.needLand && !player.airborne) {
+						if (!player.landingFrameAdvantageIncludesIdlenessInNewSection) {
+							player.landingFrameAdvantageIncludesIdlenessInNewSection = true;
+							player.landingFrameAdvantage += player.timeInNewSection;
+						}
+						if (!other.landingFrameAdvantageIncludesIdlenessInNewSection) {
+							other.landingFrameAdvantageIncludesIdlenessInNewSection = true;
+							other.landingFrameAdvantage -= player.timeInNewSection;
+						}
+					}
+				}
+			}
+		}
+		
+		// This is down here because throughout the logic tick in various hooks we gather
+		// events that refer to objects via pointer, and some objects like May beachball
+		// can get deleted on the same frame they receive a signal if they also happen
+		// to hit something on that frame, so we process events before setting
+		// deleted projectiles' ptr to null
+		for (auto it = projectiles.begin(); it != projectiles.end();) {
+			bool found = false;
+			ProjectileInfo& projectile = *it;
+			if (projectile.ptr) {
+				for (int i = 0; i < entityList.count; ++i) {
+					Entity ent = entityList.list[i];
+					if (projectile.ptr == ent) {
+						found = true;
+						break;
+					}
+				}
+			}
+			if (!found) {
+				if (projectile.landedHit) {
+					projectile.ptr = nullptr;
+					projectile.markActive = true;
+					++it;
+					continue;
+				}
+				it = projectiles.erase(it);
+			} else {
+				projectile.fill(projectile.ptr);
+				projectile.markActive = projectile.landedHit;
+				if (projectile.team == 0 || projectile.team == 1) {
+					projectile.move = &moves.getInfo(entityList.slots[projectile.team].characterType(), projectile.animName, true);
+				} else {
+					projectile.move = nullptr;
+				}
+				if (!projectile.inNewSection
+						&& projectile.move
+						&& projectile.move->sectionSeparator
+						&& projectile.move->sectionSeparator(projectile.ptr)) {
+					projectile.inNewSection = true;
+					if (projectile.total) {
+						projectile.prevStartups.add(projectile.total);
+					}
+					projectile.startup = 0;
+					projectile.total = 0;
+				}
+				++it;
 			}
 		}
 		
@@ -802,7 +1040,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& (player.isLanding
 					|| player.onTheDefensive && !player.airborne);
 			
-			bool actualIdle = player.idle || player.wasIdle && !player.needLand;
+			bool actualIdle = player.idle || player.idleInNewSection;
 			
 			if (player.idleLanding != actualIdle) {
 				if (!(!player.idleLanding && (player.needLand && !thatsItTotallyLandingNow))) {  // we can't change idleLanding from false to true while needLand is true
@@ -821,6 +1059,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								other.landingFrameAdvantageValid = true;
 							}
 						} else if (measuringLandingFrameAdvantage == -1) {
+							other.landingFrameAdvantageIncludesIdlenessInNewSection = false;
+							player.landingFrameAdvantageIncludesIdlenessInNewSection = false;
 							measuringLandingFrameAdvantage = player.index;
 							player.landingFrameAdvantageValid = false;
 							other.landingFrameAdvantageValid = false;
@@ -868,10 +1108,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		size_t pointsPrevSize = drawDataPrepared.points.size();
 		size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
 		
-		int lastIgnoredHitNum = -1;
+		int* lastIgnoredHitNum = nullptr;
 		if (i < 2 && (team == 0 || team == 1)) {
 			PlayerInfo& player = players[team];
-			lastIgnoredHitNum = player.lastIgnoredHitNum;
+			lastIgnoredHitNum = &player.lastIgnoredHitNum;
 		}
 		int hitboxesCount = 0;
 		DrawHitboxArrayCallParams hurtbox;
@@ -912,10 +1152,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 		}
-		if (!hitboxesCount && frameHasChanged && (team == 0 || team == 1) && i < 2) {
-			PlayerInfo& player = players[team];
-			player.lastIgnoredHitNum = ent.currentHitNum();
-		}
 		if (invisChipp.needToHide(ent)) {
 			drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
 			drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
@@ -942,6 +1178,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		for (ProjectileInfo& projectile : projectiles) {
+			if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1)
+					&& !projectile.prevStartups.empty()) {
+				PlayerInfo& player = players[projectile.team];
+				player.prevStartupsProj = projectile.prevStartups;
+			}
 			if (!projectile.markActive) {
 				if (!superflashInstigator) {
 					projectile.actives.addNonActive();
@@ -970,6 +1211,112 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		if (!superflashInstigator) {
 			for (PlayerInfo& player : players) {
 				player.activesProj.endMergeFrame();
+				
+				if (player.charType != CHARACTER_TYPE_ZATO) continue;
+				
+				int resource = player.pawn.exGaugeValue(0);
+				int prevResource = player.eddie.prevResource;
+				player.eddie.prevResource = resource;
+				PlayerInfo& enemy = players[1 - player.index];
+				Entity ent = nullptr;
+				if (player.pawn.playerVal(0)) {
+					ent = getReferredEntity((void*)player.pawn.ent, 4);
+				}
+				bool created = false;
+				
+				Entity landminePtr = nullptr;
+				for (ProjectileInfo& projectile : projectiles) {
+					if (strcmp(projectile.animName, "ChouDoriru") == 0
+							&& projectile.ptr
+							&& projectile.team == player.index) {
+						landminePtr = projectile.ptr;
+						if (!player.eddie.landminePtr) {
+							projectile.startup = player.eddie.total;
+							projectile.total = player.eddie.total;
+						}
+						break;
+					}
+				}
+				player.eddie.landminePtr = landminePtr;
+				
+				if (player.eddie.ptr != ent) {
+					player.eddie.ptr = ent;
+					created = !player.eddie.landminePtr;
+				}
+				if (!player.eddie.ptr && !landminePtr) continue;
+				
+				int diff = prevResource - resource;
+				if (diff > 10) {  // 10 is the amount you lose each frame
+					player.eddie.consumedResource = diff;
+				}
+				
+				bool idleNext = !player.eddie.ptr ? false : !player.pawn.playerVal(2);
+				ProjectileInfo& projectile = !player.eddie.ptr ? findProjectile(landminePtr) : findProjectile(player.eddie.ptr);
+				if (created || strcmp(player.eddie.anim, projectile.animName) != 0) {
+					memcpy(player.eddie.anim, projectile.animName, 32);
+					
+					if (created || !idleNext && player.eddie.ptr) {
+						player.eddie.total = 0;
+						player.eddie.startup = 0;
+						player.eddie.startedUp = false;
+						player.eddie.actives.clear();
+						player.eddie.recovery = 0;
+						player.eddie.frameAdvantageValid = false;
+					}
+					
+					if (created) {
+						player.eddie.hitstopMax = 0;
+						player.eddie.startup = player.total;
+						player.eddie.total = player.total;
+						player.eddie.prevEnemyIdle = enemy.idlePlus;
+					}
+				}
+				
+				if (created || player.eddie.idle != idleNext) {
+					player.eddie.idle = idleNext;
+					player.eddie.timePassed = 0;
+					if (idleNext && enemy.idlePlus) {
+						player.eddie.frameAdvantage = -enemy.timePassed;
+						if (enemy.timePassed > 60) {
+							player.eddie.frameAdvantage = 0;
+						}
+						player.eddie.frameAdvantageValid = true;
+					}
+				}
+				if (enemy.idlePlus != player.eddie.prevEnemyIdle) {
+					player.eddie.prevEnemyIdle = enemy.idlePlus;
+					if (enemy.idlePlus && player.eddie.idle) {
+						player.eddie.frameAdvantage = player.eddie.timePassed;
+						player.eddie.frameAdvantageValid = true;
+					}
+				}
+				
+				int hitstop = player.eddie.hitstop;
+				player.eddie.hitstop = projectile.hitstop;
+				if (!hitstop && projectile.hitstop) {
+					player.eddie.hitstopMax = projectile.hitstop;
+				}
+				
+				if (!projectile.hitstop && !player.eddie.idle) {
+					if (!player.eddie.startedUp) {
+						++player.eddie.startup;
+					}
+					if (!projectile.markActive) {
+						if (player.eddie.startedUp) {
+							++player.eddie.recovery;
+						}
+					} else {
+						player.eddie.startedUp = true;
+						if (player.eddie.recovery) {
+							player.eddie.actives.addNonActive(player.eddie.recovery);
+							player.eddie.recovery = 0;
+						}
+						player.eddie.actives.addActive(projectile.hitNumber, 1);
+					}
+					++player.eddie.total;
+				}
+				
+				++player.eddie.timePassed;
 			}
 		}
 		for (int i = 0; i < 2; ++i) {
@@ -979,6 +1326,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (!superflashInstigator) {
 				++player.timePassed;
 				++player.timePassedLanding;
+				if (player.inNewMoveSection) {
+					++player.timeInNewSection;
+				}
 				if (player.landingOrPreJump) {
 					++player.landingOrPreJumpFrames;
 				}
@@ -1008,6 +1358,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					measuringFrameAdvantage = true;
 					player.frameAdvantageValid = false;
 					other.frameAdvantageValid = false;
+					player.frameAdvantageIncludesIdlenessInNewSection = false;
+					other.frameAdvantageIncludesIdlenessInNewSection = false;
 				} else if (player.idlePlus && other.idlePlus) {
 					if (measuringFrameAdvantage) {
 						measuringFrameAdvantage = false;
@@ -1041,18 +1393,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& (
 						player.cmnActIndex == CmnActLandingStiff && !player.idle  // Ramlethal j.8D becomes "idle" on f6 of stiff landing
 						|| !player.idle
-						&& !player.isLandingOrPreJump
+						&& !player.airborne
 						&& player.moveOriginatedInTheAir
-						&& ent.y() == 0
-						&& ent.speedY() == 0
-						&& !hasHitboxes
-					)) {
+					)
+					&& !hasHitboxes) {
 				++player.landingRecovery;
 			} else if (!player.hitstop
 					&& !(superflashInstigator && superflashInstigator != ent)
 					&& player.cmnActIndex != CmnActJump
 					&& !player.isLanding) {
-				if (!player.idlePlus && !player.startedUp && !superflashInstigator) {
+				if ((!player.idlePlus || player.idleInNewSection) && !player.startedUp && !superflashInstigator) {
+					if (player.airborne && player.landingRecovery) {  // needed for Zato Shadow Gallery
+						player.startup += player.landingRecovery;
+						player.total += player.landingRecovery;
+						player.landingRecovery = 0;
+					}
 					++player.startup;
 					++player.total;
 				}
@@ -1062,8 +1417,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (hasHitboxes) {
 					if (!player.startedUp) {
 						player.startedUp = true;
+						player.inNewMoveSection = false;
 						player.actives.addActive(ent.currentHitNum());
 					} else if (!superflashInstigator) {
+						if (player.airborne && player.landingRecovery) {
+							player.recovery += player.landingRecovery;
+							player.total += player.landingRecovery;
+							player.landingRecovery = 0;
+						}
 						if (player.recovery) {
 							player.actives.addNonActive(player.recovery);
 							player.recovery = 0;
@@ -1072,6 +1433,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						++player.total;
 					}
 				} else if (!player.idlePlus && !superflashInstigator && player.startedUp) {
+					if (player.airborne && player.landingRecovery) {
+						player.recovery += player.landingRecovery;
+						player.total += player.landingRecovery;
+						player.landingRecovery = 0;
+					}
 					++player.total;
 					++player.recovery;
 				}
@@ -1083,46 +1449,63 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.activesDisp.clear();
 			player.recoveryDisp = 0;
 			player.totalDisp = 0;
+			player.prevStartupsDisp.clear();
+			player.prevStartupsTotalDisp.clear();
 			if (player.startedUp && !player.startupProj) {
+				player.prevStartupsDisp = player.prevStartups;
+				player.prevStartupsTotalDisp = player.prevStartups;
 				player.startupDisp = player.startup;
 				player.activesDisp = player.actives;
 				player.recoveryDisp = player.recovery;
 				player.totalDisp = player.total;
 			} else if (player.startupProj && !player.startedUp) {
-				player.startupDisp = player.startupProj;
+				int endOfActivesRelativeToPlayerTotalCountdownStart;
+				if (!player.prevStartupsProj.empty()) {
+					player.startupDisp = player.startupProj;
+					player.prevStartupsDisp = player.prevStartupsProj;
+					endOfActivesRelativeToPlayerTotalCountdownStart = player.prevStartupsProj.total() + player.startupProj + player.activesProj.total() - 1;
+				} else {
+					player.startupDisp = player.startupProj - player.prevStartups.total();
+					player.prevStartupsDisp = player.prevStartups;
+					player.prevStartupsTotalDisp = player.prevStartups;
+					endOfActivesRelativeToPlayerTotalCountdownStart = player.startupDisp + player.activesProj.total() - 1;
+				}
 				player.activesDisp = player.activesProj;
 				int activesDispTotal = player.activesDisp.total();
-				if (player.startupDisp + activesDispTotal - 1 >= player.total) {
+				if (endOfActivesRelativeToPlayerTotalCountdownStart >= player.total) {
 					player.recoveryDisp = 0;
 				} else {
-					player.recoveryDisp = player.total - (player.startupDisp + activesDispTotal - 1);
+					player.recoveryDisp = player.total - endOfActivesRelativeToPlayerTotalCountdownStart;
 				}
 				player.totalDisp = player.total;
 			} else if (player.startedUp && player.startupProj) {
+				if (!player.prevStartupsProj.empty()) {
+					int projPrevTotal = player.prevStartupsProj.total();
+					player.startupProj += projPrevTotal;
+					player.prevStartupsProj.clear();
+				}
+				player.prevStartupsDisp = player.prevStartups;
+				player.prevStartupsTotalDisp = player.prevStartups;
 				if (player.startup <= player.startupProj) {
 					player.startupDisp = player.startup;
 					player.activesDisp = player.actives;
-					player.activesDisp.mergeTimeline(player.startupProj - player.startup + 1, player.activesProj);
-					int activesDispTotal = player.activesDisp.total();
-					if (player.startup + activesDispTotal - 1 >= player.total) {
-						player.recoveryDisp = 0;
-					} else {
-						player.recoveryDisp = player.total - (player.startup + activesDispTotal - 1);
-					}
-					player.totalDisp = player.total;
+					player.activesDisp.mergeTimeline(player.startupProj - player.startup + 1 - player.prevStartupsDisp.total(), player.activesProj);
 				} else {
 					player.startupDisp = player.startupProj;
 					player.activesDisp = player.activesProj;
-					player.activesDisp.mergeTimeline(player.startup - player.startupProj + 1, player.actives);
-					int activesDispTotal = player.activesDisp.total();
-					if (player.startupProj + activesDispTotal - 1 >= player.total) {
-						player.recoveryDisp = 0;
-					} else {
-						player.recoveryDisp = player.total - (player.startupProj + activesDispTotal - 1);
-					}
-					player.totalDisp = player.total;
+					player.activesDisp.mergeTimeline(player.startup - player.startupProj + 1 - player.prevStartupsDisp.total(), player.actives);
 				}
+				int activesDispTotal = player.activesDisp.total();
+				int totalAbsoluteStartup = player.startupDisp + activesDispTotal - 1;
+				if (totalAbsoluteStartup >= player.total) {
+					player.recoveryDisp = 0;
+				} else {
+					player.recoveryDisp = player.total - totalAbsoluteStartup;
+				}
+				player.totalDisp = player.total;
 			} else {
+				player.prevStartupsDisp = player.prevStartups;
+				player.prevStartupsTotalDisp = player.prevStartups;
 				player.totalDisp = player.total;
 			}
 			
@@ -1544,12 +1927,14 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 // All drawn in this one function depending on in-game settings. This function hooks that.
 // Runs on the main thread
 void EndScene::drawTrainingHudHook(char* thisArg) {
+	if (!shutdown && !graphics.shutdown) {
+		if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
+	}
 	{
 		std::unique_lock<std::mutex> guard(orig_drawTrainingHudMutex);
 		orig_drawTrainingHud(thisArg);
 	}
 	if (!shutdown && !graphics.shutdown) {
-		if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
 		drawTexts();
 	}
 }
@@ -1632,6 +2017,8 @@ void EndScene::onAswEngineDestroyed() {
 	projectiles.clear();
 	needFrameCleanup = false;
 	creatingObject = false;
+	sendSignalStack.clear();
+	events.clear();
 }
 
 // When someone YRCs, PRCs, RRCs or does a super, the address of their entity is written into the
@@ -1664,6 +2051,8 @@ void EndScene::restartMeasuringFrameAdvantage(int index) {
 		player.frameAdvantage = -other.timePassed;
 		other.frameAdvantage = other.timePassed;
 	}
+	player.frameAdvantageIncludesIdlenessInNewSection = false;
+	other.frameAdvantageIncludesIdlenessInNewSection = false;
 	measuringFrameAdvantage = true;
 }
 
@@ -1677,6 +2066,8 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 		player.landingFrameAdvantage = -other.timePassedLanding;
 		other.landingFrameAdvantage = other.timePassedLanding;
 	}
+	player.landingFrameAdvantageIncludesIdlenessInNewSection = false;
+	other.landingFrameAdvantageIncludesIdlenessInNewSection = false;
 	measuringLandingFrameAdvantage = 1 - index;
 }
 
@@ -1739,7 +2130,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		PlayerInfo& defenderPlayer = findPlayer(defender);
 		defenderPlayer.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
 	}
-	if (attacker.isPawn()) {
+	if (attacker.isPawn() && hasHitbox) {
 		PlayerInfo& attackerPlayer = findPlayer(attacker);
 		attackerPlayer.hitSomething = true;
 	}
@@ -1815,13 +2206,13 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, uns
 			insideObjectCreation = false;
 			endScene.creatingObject = false;
 		}
-	}
-	if (!gifMode.modDisabled && (gifMode.gifModeToggleHideOpponentOnly || gifMode.gifModeOn) && game.isTrainingMode()) {
-		int playerSide = game.getPlayerSide();
-		if (playerSide == 2) playerSide = 0;
-		Entity createdPawn = Entity{(char*)this}.previousEntity();
-		if (createdPawn && createdPawn.team() != playerSide) {
-			endScene.hideEntity(createdPawn);
+		if (!gifMode.modDisabled && (gifMode.gifModeToggleHideOpponentOnly || gifMode.gifModeOn) && game.isTrainingMode()) {
+			int playerSide = game.getPlayerSide();
+			if (playerSide == 2) playerSide = 0;
+			Entity createdPawn = Entity{(char*)this}.previousEntity();
+			if (createdPawn && createdPawn.team() != playerSide) {
+				endScene.hideEntity(createdPawn);
+			}
 		}
 	}
 }
@@ -1914,25 +2305,35 @@ bool EndScene::didHit(Entity attacker) {
 }
 
 // Runs on the main thread
+// This hook does not work on projectiles
 void EndScene::HookHelp::setAnimHook(const char* animName) {
 	HookGuard hookGuard("setAnim");
 	endScene.setAnimHook(Entity{(char*)this}, animName);
 }
 
 // Runs on the main thread
+// This hook does not work on projectiles
 void EndScene::setAnimHook(Entity pawn, const char* animName) {
-	if (pawn.isPawn() && !gifMode.modDisabled) {
+	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
-		player.lastIgnoredHitNum = -1;
-		player.changedAnimOnThisFrame = true;
-		if (pawn.isIdle()) player.wasIdle = true;
-		if (pawn.isIdleSimple()) player.wasIdleSimple = true;
+		if (player.pawn) {  // The hook may run on match load before we initialize our pawns,
+			                // because we only do our pawn initialization after the end of the logic tick
+			player.lastIgnoredHitNum = -1;
+			player.changedAnimOnThisFrame = true;
+			const MoveInfo& move = moves.getInfo(player.charType, animName, false);
+			if (move.isIdle(player)) player.wasIdle = true;
+			if (isIdleSimple(player)) player.wasIdleSimple = true;
+			events.emplace_back();
+			OccuredEvent& event = events.back();
+			event.type = OccuredEvent::SET_ANIM;
+			event.u.setAnim.pawn = pawn;
+		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_setAnimMutex);
 		orig_setAnim((void*)pawn, animName);
 	}
-	if (pawn.isPawn()) {
+	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
 		int blockstun = pawn.blockstun();
 		if (blockstun) {
@@ -1948,7 +2349,7 @@ void EndScene::initializePawn(PlayerInfo& player, Entity ent) {
 	player.pawn = ent;
 	player.charType = ent.characterType();
 	ent.getWakeupTimings(&player.wakeupTimings);
-	player.idle = ent.isIdle();
+	player.idle = moves.getInfo(player.charType, ent.animationName(), false).isIdle(player);
 	player.weight = ent.weight();
 	player.maxHp = ent.maxHp();
 	player.defenseModifier = ent.defenseModifier();
@@ -2029,8 +2430,13 @@ void EndScene::frameCleanup() {
 		player.startedDefending = false;
 		player.hitSomething = false;
 		player.changedAnimOnThisFrame = false;
+		player.wasEnableGatlings = false;
+		player.wasEnableNormals = false;
+		player.wasEnableWhiffCancels = false;
+		player.obtainedForceDisableFlags = false;
 	}
 	creatingObject = false;
+	events.clear();
 }
 
 // Runs on the main thread
@@ -2040,10 +2446,21 @@ void EndScene::HookHelp::pawnInitializeHook(void* initializationParams) {
 }
 
 // Runs on the main thread
+void EndScene::HookHelp::handleUponHook(int signal) {
+	HookGuard hookGuard("handleUpon");
+	endScene.handleUponHook(Entity{(char*)this}, signal);
+}
+
+// Runs on the main thread
 void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams) { 
 	if (!shutdown && creatingObject) {
 		creatingObject = false;
 		onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim);
+		events.emplace_back();
+		OccuredEvent& event = events.back();
+		event.type = OccuredEvent::SIGNAL;
+		event.u.signal.from = creatorOfCreatedObject;
+		event.u.signal.to = createdObj;
 	}
 	{
 		static bool imHoldingTheLock = false;
@@ -2057,6 +2474,33 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 		if (needUnlock) {
 			imHoldingTheLock = false;
 			endScene.orig_pawnInitializeMutex.unlock();
+		}
+	}
+}
+
+// Runs on the main thread
+void EndScene::handleUponHook(Entity pawn, int signal) { 
+	if (!shutdown) {
+		if (!sendSignalStack.empty()) {
+			events.emplace_back();
+			OccuredEvent& event = events.back();
+			event.type = OccuredEvent::SIGNAL;
+			event.u.signal.from = sendSignalStack.back();
+			event.u.signal.to = pawn;
+		}
+	}
+	{
+		static bool imHoldingTheLock = false;
+		bool needUnlock = false;
+		if (!imHoldingTheLock) {
+			needUnlock = true;
+			imHoldingTheLock = true;
+			endScene.orig_handleUponMutex.lock();
+		}
+		endScene.orig_handleUpon((void*)pawn.ent, signal);
+		if (needUnlock) {
+			imHoldingTheLock = false;
+			endScene.orig_handleUponMutex.unlock();
 		}
 	}
 }
@@ -2150,9 +2594,11 @@ void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
 			if (!objectBeingRunOn.isPawn()) {
 				ProjectileInfo& projectile = findProjectile(objectBeingRunOn);
 				if (projectile.ptr) {
-					projectile.disabled = false;
-					projectile.startup = player.total;
-					projectile.total = player.total;
+					events.emplace_back();
+					OccuredEvent& event = events.back();
+					event.type = OccuredEvent::SIGNAL;
+					event.u.signal.from = pawn;
+					event.u.signal.to = projectile.ptr;
 				}
 			}
 		}
@@ -2507,16 +2953,22 @@ void EndScene::HookHelp::BBScr_sendSignalHook(int referenceType, int signal) {
 	endScene.BBScr_sendSignalHook(Entity{(char*)this}, referenceType, signal);
 }
 
+void EndScene::HookHelp::BBScr_sendSignalToActionHook(const char* searchAnim, int signal) {
+	HookGuard hookGuard("BBScr_sendSignalToAction");
+	endScene.BBScr_sendSignalToActionHook(Entity{(char*)this}, searchAnim, signal);
+}
+
 void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) {
 	Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
-	if (referredEntity) {
+	if (!shutdown && referredEntity) {
 		ProjectileInfo& projectile = findProjectile(referredEntity);
 		int team = pawn.team();
 		if (projectile.ptr && (team == 0 || team == 1)) {
-			PlayerInfo& player = players[team];
-			projectile.disabled = false;
-			projectile.startup = player.total;
-			projectile.total = player.total;
+			events.emplace_back();
+			OccuredEvent& event = events.back();
+			event.type = OccuredEvent::SIGNAL;
+			event.u.signal.from = pawn;
+			event.u.signal.to = projectile.ptr;
 		}
 	}
 	{
@@ -2533,3 +2985,46 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) 
 		}
 	}
 }
+
+void EndScene::BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, int signal) {
+	if (!shutdown) {
+		sendSignalStack.push_back(pawn);
+	}
+	{
+		static bool isLocked = false;
+		bool needUnlock = !isLocked;
+		isLocked = true;
+		std::unique_lock<std::mutex> guard;
+		if (needUnlock) {
+			guard = std::unique_lock<std::mutex>(orig_BBScr_sendSignalToActionMutex);
+		}
+		orig_BBScr_sendSignalToAction((void*)pawn, searchAnim, signal);
+		if (needUnlock) {
+			isLocked = false;
+		}
+	}
+	if (!shutdown) {
+		sendSignalStack.pop_back();
+	}
+}
+
+BOOL EndScene::HookHelp::skillCheckPieceHook() {
+	HookGuard hookGuard("skillCheckPiece");
+	return endScene.skillCheckPieceHook(Entity{(char*)this});
+}
+
+BOOL EndScene::skillCheckPieceHook(Entity pawn) {
+	BOOL result;
+	{
+		std::unique_lock<std::mutex> guard(orig_skillCheckPieceMutex);
+		result = orig_skillCheckPiece((void*)pawn.ent);
+	}
+	PlayerInfo& player = findPlayer(pawn);
+	player.wasEnableNormals = pawn.enableNormals();
+	player.wasEnableGatlings = pawn.enableGatlings();
+	player.wasEnableWhiffCancels = pawn.enableWhiffCancels();
+	player.wasForceDisableFlags = pawn.forceDisableFlags();
+	player.obtainedForceDisableFlags = true;
+	return result;
+}
+

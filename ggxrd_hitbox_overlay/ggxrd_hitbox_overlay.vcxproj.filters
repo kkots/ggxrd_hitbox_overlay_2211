@@ -183,6 +183,9 @@
     <ClInclude Include="DrawData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Moves.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -298,6 +301,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DrawTextWithIconsParams.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Moves.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

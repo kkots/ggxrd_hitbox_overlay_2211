@@ -74,6 +74,7 @@ private:
 	void* hook_GetKeyStatePtr = nullptr;
 	IDirect3DTexture9* imguiFont = nullptr;
 	void onImGuiMessWithFontTexID();
+	bool showCharSpecific[2] = { false, false };
 };
 
 extern UI ui;

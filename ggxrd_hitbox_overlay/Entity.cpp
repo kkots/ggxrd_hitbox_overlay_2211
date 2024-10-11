@@ -3,32 +3,9 @@
 #include "memoryFunctions.h"
 #include "logging.h"
 #include "EntityList.h"
-#include <unordered_map>
 #include <string>
 
 EntityManager entityManager;
-
-using isIdleHandler_t = bool(Entity::*)() const;
-
-struct IsIdleHashEntry {
-	CharacterType charType;
-	const char* animName;
-	bool operator==(const IsIdleHashEntry& other) const {
-		return charType == other.charType && strcmp(animName, other.animName) == 0;
-	}
-};
-
-static int hashString(const char* str, int startingHash = 0);
-
-template <>
-struct std::hash<IsIdleHashEntry>
-{
-	std::size_t operator()(const IsIdleHashEntry& k) const {
-		return hashString(k.animName);
-	}
-};
-
-static std::unordered_map<IsIdleHashEntry, isIdleHandler_t> idleHandlers;
 
 // There's no convenient way to sigscan this and usually we do it the other way around:
 // we use numbers like these to find stuff using sigscan. So we're hardcoding this and it's a decision that's made.
@@ -83,26 +60,6 @@ bool EntityManager::onDllMain() {
 		getPushboxWidth = (getPushbox_t)followRelativeCall(pushboxWidthUsage + 9);
 		logwrap(fprintf(logfile, "getPushboxWidth final location at: %p\n", getPushboxWidth));
 	}
-	
-	idleHandlers.insert( { {CHARACTER_TYPE_CHIPP, "HaritsukiKeep"}, &Entity::isIdleHaritsukiKeep });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenA"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten9"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten44"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten66"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenB"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenC"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "SoutenE"}, &Entity::isIdleSouten });
-	idleHandlers.insert( { {CHARACTER_TYPE_FAUST, "Souten8"}, &Entity::isIdleSouten8 });
-	idleHandlers.insert( { {CHARACTER_TYPE_AXL, "DaiRensen"}, &Entity::isIdleDaiRensen });
-	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Start"}, &Entity::isIdleRifle });
-	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Reload"}, &Entity::isIdleRifle });
-	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Perfect"}, &Entity::isIdleRifle });
-	idleHandlers.insert( { {CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Roman"}, &Entity::isIdleRifle });
-	idleHandlers.insert( { {CHARACTER_TYPE_LEO, "Semuke"}, &Entity::isIdleSemuke });
-	idleHandlers.insert( { {CHARACTER_TYPE_JAM, "NeoHochihu"}, &Entity::isIdleNeoHochihu });
-	idleHandlers.insert( { {CHARACTER_TYPE_ANSWER, "Ami_Hold"}, &Entity::isIdleAmi_Hold });
-	idleHandlers.insert( { {CHARACTER_TYPE_ANSWER, "Ami_Move"}, &Entity::isIdleAmi_Move });
 	
 	uintptr_t tensionModsCall = sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -207,71 +164,6 @@ void Entity::pushboxLeftRight(int* left, int* right) const {
 		*left = front;
 		*right = back;
 	}
-}
-
-bool Entity::isIdle() const {
-	IsIdleHashEntry e;
-	e.charType = characterType();
-	e.animName = animationName();
-	auto found = idleHandlers.find(e);
-	if (found == idleHandlers.end()) {
-		return enableNormals();
-	}
-	return (this->*found->second)();
-}
-
-bool Entity::isIdleSimple() const {
-	if (characterType() == CHARACTER_TYPE_JAM
-			&& strcmp(animationName(), "NeoHochihu") == 0) {
-		return false;
-	}
-	return enableNormals();
-}
-
-// Chipp wall cling idle/moving up/down
-bool Entity::isIdleHaritsukiKeep() const {
-	return enableWhiffCancels();
-}
-// Faust pogo
-bool Entity::isIdleSouten() const {
-	return enableWhiffCancels();
-}
-// Faust pogo helicopter
-bool Entity::isIdleSouten8() const {
-	return !enableGatlings();
-}
-// Axl Haitaka stance
-bool Entity::isIdleDaiRensen() const {
-	return enableWhiffCancels();
-}
-// Elphelt Ms. Confille (rifle)
-bool Entity::isIdleRifle() const {
-	return enableWhiffCancels()
-		&& (forceDisableFlags() & 0x2) == 0;  // 0x2 is the force disable flag for Rifle_Fire
-}
-// Leo backturn idle
-bool Entity::isIdleSemuke() const {
-	return true;
-}
-// Jam parry
-bool Entity::isIdleNeoHochihu() const {
-	return false;
-}
-// Answer scroll cling idle
-bool Entity::isIdleAmi_Hold() const {
-	return enableWhiffCancels();
-}
-// Answer s.D
-bool Entity::isIdleAmi_Move() const {
-	return enableWhiffCancels()
-		&& hitstop() == 0;
-}
-
-int hashString(const char* str, int startingHash) {
-	for (const char* c = str; *c != '\0'; ++c) {
-		startingHash = startingHash * 0x89 + *c;
-	}
-	return startingHash;
 }
 
 void Entity::getWakeupTimings(CharacterType charType, WakeupTimings* output) {

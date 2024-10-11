@@ -387,7 +387,7 @@ void ActiveDataArray::mergeTimeline(int startup, const ActiveDataArray& other) {
 	*this = result;
 }
 
-void ActiveDataArray::print(char* buf, size_t bufSize) {
+void ActiveDataArray::print(char* buf, size_t bufSize) const {
 	size_t origBufSize = bufSize;
 	char* origBuf = buf;
 	if (count == 0) {
@@ -426,7 +426,7 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 		if (currentConsecutiveHits > maxConsecutiveHits) {
 			maxConsecutiveHits = currentConsecutiveHits;
 		}
-		ActiveData& elem = data[i];
+		const ActiveData& elem = data[i];
 		result = sprintf_s(buf, bufSize, "%d", elem.actives);
 		if (result != -1) {
 			buf += result;
@@ -455,7 +455,7 @@ void ActiveDataArray::print(char* buf, size_t bufSize) {
 	}
 }
 
-void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) {
+void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) const {
 	if (count == 0) {
 		sprintf_s(buf, bufSize, "0");
 		return;
@@ -473,7 +473,7 @@ void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) {
 		}
 		int n = 0;
 		for(; i < count; ++i) {
-			ActiveData& elem = data[i];
+			const ActiveData& elem = data[i];
 			n += elem.actives;
 			if (elem.nonActives) {
 				lastNonActives = elem.nonActives;
@@ -489,7 +489,7 @@ void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) {
 	}
 }
 
-void ActiveDataArray::printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) {
+void ActiveDataArray::printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) const {
 	if (count == 0) {
 		sprintf_s(buf, bufSize, "0");
 		return;
@@ -509,7 +509,7 @@ void ActiveDataArray::printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSi
 			n += lastNonActives;
 		}
 		for(; i < count; ++i) {
-			ActiveData& elem = data[i];
+			const ActiveData& elem = data[i];
 			n += elem.actives;
 			if (elem.nonActives && elem.nonActives > 5) {
 				lastNonActives = elem.nonActives;
@@ -573,6 +573,7 @@ void ProjectileInfo::fill(Entity ent) {
 		hitstop = 0;
 	}
 	hitNumber = ent.currentHitNum();
+	sprite.fill(ent);
 	memcpy(animName, ent.animationName(), 32);
 }
 
@@ -624,16 +625,95 @@ void PlayerInfo::copyTo(PlayerInfo& dest) {
 	memcpy(&dest, this, sizeof PlayerInfo);
 }
 
-void PlayerInfo::addPrevStartup(int n) {
-	if (prevStartupsCount >= _countof(prevStartups)) {
-		memmove(prevStartups, prevStartups + 1, sizeof prevStartups - sizeof *prevStartups);
-		--prevStartupsCount;
+void PrevStartupsInfo::add(short n) {
+	if (count >= _countof(startups)) {
+		memmove(startups, startups + 1, sizeof startups - sizeof *startups);
+		--count;
 		// the dumb version of ring buffer
 	}
-	prevStartups[prevStartupsCount] = n;
-	++prevStartupsCount;
+	startups[count] = n;
+	++count;
 }
 
-void PlayerInfo::clearPrevStartups() {
-	prevStartupsCount = 0;
+void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
+	int charsPrinted;
+	int i;
+	for (i = 0; i < count; ++i) {
+		charsPrinted = sprintf_s(buf, bufSize, i == 0 ? "%d" : "+%d", startups[i]);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+	}
+	if (i != 0 && bufSize) {
+		*buf = '+';
+		++buf;
+		--bufSize;
+		*buf = '\0';
+	}
+}
+
+void PlayerInfo::printStartup(char* buf, size_t bufSize) {
+	*buf = '\0';
+    if (superfreezeStartup && superfreezeStartup <= startupDisp && (startedUp || startupProj)) {
+    	prevStartupsDisp.print(buf, bufSize);
+		sprintf_s(buf, bufSize, "%d+%d", superfreezeStartup, startupDisp - superfreezeStartup);
+    } else if (superfreezeStartup && !(startedUp || startupProj)) {
+    	prevStartupsDisp.print(buf, bufSize);
+    	sprintf_s(buf, bufSize, "%d", superfreezeStartup);
+    } else if (startedUp || startupProj) {
+    	prevStartupsDisp.print(buf, bufSize);
+    	sprintf_s(buf, bufSize, "%d", startupDisp);
+    }
+}
+
+void ProjectileInfo::printStartup(char* buf, size_t bufSize) {
+	*buf = '\0';
+	prevStartups.print(buf, bufSize);
+	sprintf_s(buf, bufSize, "%d", startup);
+}
+
+void PlayerInfo::printTotal(char* buf, size_t bufSize) {
+	*buf = '\0';
+	int charsPrinted;
+    if (idlePlus && totalDisp) {
+    	prevStartupsTotalDisp.print(buf, bufSize);
+    	charsPrinted = sprintf_s(buf, bufSize, "%d", totalDisp);
+    	if (charsPrinted == -1) return;
+    	buf += charsPrinted;
+    	bufSize -= charsPrinted;
+	    if (landingRecovery) {
+	    	sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
+	    }
+    }
+}
+
+void ProjectileInfo::printTotal(char* buf, size_t bufSize) {
+	*buf = '\0';
+	prevStartups.print(buf, bufSize);
+	sprintf_s(buf, bufSize, "%d", total);
+}
+
+bool PlayerInfo::isIdleInNewSection() {
+	return inNewMoveSection
+		&& move
+		&& move->considerIdleInSeparatedSectionAfterThisManyFrames
+		&& timeInNewSection > move->considerIdleInSeparatedSectionAfterThisManyFrames;
+}
+
+int PrevStartupsInfo::total() const {
+	int sum = 0;
+	for (int i = 0; i < count; ++i) {
+		sum += startups[i];
+	}
+	return sum;
+}
+
+void SpriteFrameInfo::print(char* buf, size_t bufSize) const {
+	sprintf_s(buf, bufSize, "%s (%d/%d)", name, frame, frameMax);
+}
+
+void SpriteFrameInfo::fill(Entity ent) {
+	memcpy(name, ent.spriteName(), 32);
+	frame = ent.spriteFrameCounter();
+	frameMax = ent.spriteFrameCounterMax();
 }

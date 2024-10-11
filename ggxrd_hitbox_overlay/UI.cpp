@@ -69,6 +69,7 @@ ImVec4 RGBToVec(DWORD color);  // color = 0xRRGGBB
 static const char* formatBoolean(bool value);
 static void pushZeroItemSpacingStyle();
 static float getItemSpacing();
+static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
 
 bool UI::onDllMain() {
 	
@@ -82,11 +83,11 @@ bool UI::onDllMain() {
 		std::vector<char> sig;
 		std::vector<char> mask;
 		byteSpecificationToSigMask("8b 3d ?? ?? ?? ?? 52 ff d7", sig, mask);
-		substituteWildcard(sig.data(), mask.data(), 0, (void*)GetKeyStateRData);
+		substituteWildcard(sig, mask, 0, (void*)GetKeyStateRData);
 		uintptr_t GetKeyStateCallPlace = sigscanOffset(
 			"GuiltyGearXrd.exe",
-			sig.data(),
-			mask.data(),
+			sig,
+			mask,
 			{ 2 },
 			nullptr, "GetKeyStateCallPlace");
 		if (GetKeyStateCallPlace) {
@@ -222,7 +223,7 @@ void UI::prepareDrawData() {
 		    {
 		    	PlayerInfo& player = endScene.players[0];
 		    	ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) / 0x100, 2, 0));
+			    sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
 			    stringArena = strbuf;
 			    sprintf_s(strbuf, " (x%s)", printDecimal(player.gutsPercentage, 2, 0));
 			    stringArena += strbuf;
@@ -242,11 +243,10 @@ void UI::prepareDrawData() {
 			    stringArena = strbuf;
 			    sprintf_s(strbuf, "(x%s) ", printDecimal(player.gutsPercentage, 2, 0));
 			    stringArena += strbuf;
-			    sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) / 0x100, 2, 0));
+			    sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
 			    stringArena += strbuf;
 		    	ImGui::TextUnformatted(stringArena.c_str());
 			}
-			
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
@@ -305,14 +305,23 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    *strbuf = '\0';
-			    if (player.superfreezeStartup && player.superfreezeStartup <= player.startupDisp && (player.startedUp || player.startupProj)) {
-		    		sprintf_s(strbuf, "%d+%d", player.superfreezeStartup, player.startupDisp - player.superfreezeStartup);
-			    } else if (player.superfreezeStartup && !(player.startedUp || player.startupProj)) {
-			    	sprintf_s(strbuf, "%d", player.superfreezeStartup);
-			    } else if (player.startedUp || player.startupProj) {
-			    	sprintf_s(strbuf, "%d", player.startupDisp);
-			    }
+			    printDecimal(player.x, 2, 0);
+			    sprintf_s(strbuf, "%s; ", printdecimalbuf);
+			    printDecimal(player.y, 2, 0);
+			    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("X; Y");
+					AddTooltip("Position X; Y in the arena. Divided by 100 for viewability.");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    player.printStartup(strbuf, sizeof strbuf);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -320,7 +329,15 @@ void UI::prepareDrawData() {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Startup");
 		    		AddTooltip("The startup of the last performed move. The last startup frame is also an active frame.\n"
-		    			"For moves that cause a superfreeze, such as RC, the startup of the superfreeze is displayed.");
+		    			"For moves that cause a superfreeze, such as RC, the startup of the superfreeze is displayed.\n"
+		    			"The startup of the move may consist of multiple numbers, separated by +. In that case:\n"
+		    			"1) If the move caused a superfreeze, it's displayed as the startup of the superfreeze + startup after superfreeze;\n"
+		    			"2) If the move only caused a superfreeze and no attack (for example, it's RC), then only the startup of the superfreeze"
+		    			" is displayed.\n"
+		    			"3) If the move can be held, such as Blitz Shield, May 6P, May 6H, Johnny Mist Finer, etc, then the startup is displayed"
+		    			" as everything up to releasing the button + startup after releasing the button. Except Johnny Mist Finer additionally"
+		    			" breaks up into: the number of frames before the move enters the portion that can be held"
+		    			" + the amount of frames you held after that + startup after you released the button.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -352,6 +369,9 @@ void UI::prepareDrawData() {
 		    			" are shown.\n"
 		    			"If the move spawned one or more projectiles, and the hits of projectiles overlap with each other or with the player's hits, then the"
 		    			" individual hits' information is discarded in the overlapping spans and they're shown as one hit.\n"
+		    			"If the move spawned one or more projectiles, or Eddie, and that projectile entered hitstop due to the opponent blocking it or"
+		    			" getting hit by it, then the displayed number of active frames may be larger than it is on whiff, because the hitstop gets added"
+		    			" to it.\n"
 		    			"If, while the move was happening, some projectile unrelated to the move had active frames, those are not included in the move's"
 		    			" active frames.\n"
 		    			"Note: if active frames start during superfreeze, the active frames will include the frame that happened during superfreeze and"
@@ -392,11 +412,7 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    if (player.idlePlus && player.totalDisp) {
-			    	sprintf_s(strbuf, "%d", player.totalDisp);
-			    } else {
-			    	*strbuf = '\0';
-			    }
+			    player.printTotal(strbuf, sizeof strbuf);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -414,7 +430,9 @@ void UI::prepareDrawData() {
 		    			" So for example, if a move's startup is 1, it creates a projectile that lasts 100 frames and recovers instantly,"
 		    			" on frame 2, then its total frames will be 1, its startup will be 1 and its actives will be 100.\n"
 		    			"If you performed an air move that let you recover in the air, but the move has landing recovery, the"
-		    			" landing recovery is not included in the total frames.\n"
+		    			" landing recovery is included in the total frames as '+X landing'.\n"
+		    			"If you performed an air move and you did not recover in the air, and the move has landing recovery, the"
+		    			" landing recovery is included in the total frames, without a + sign.\n"
 		    			"If you performed an air normal or similar air move without landing recovery, and it got canceled by"
 		    			" landing, normally there's 1 frame upon landing during which normals can't be used but blocking is possible."
 		    			" This frame is not included in the total frames as it is not considered part of the move.");
@@ -518,8 +536,19 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    if (i == 0) RightAlignedText(player.anim);
-			    else ImGui::TextUnformatted(player.anim);
+			    if (!player.move || !player.move->displayName) {
+				    if (i == 0) RightAlignedText(player.anim);
+				    else ImGui::TextUnformatted(player.anim);
+			    } else {
+			    	sprintf_s(strbuf, "%s (%s)", player.move->displayName, player.anim);
+				    float w = ImGui::CalcTextSize(strbuf).x;
+				    if (w > ImGui::GetContentRegionAvail().x) {
+					    ImGui::TextWrapped(strbuf);
+				    } else {
+					    if (i == 0) RightAlign(w);
+					    ImGui::TextUnformatted(strbuf);
+				    }
+			    }
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -536,6 +565,18 @@ void UI::prepareDrawData() {
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("animFrame");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    player.sprite.print(strbuf, sizeof strbuf);
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("sprite");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -729,6 +770,20 @@ void UI::prepareDrawData() {
 						    ImGui::TableNextColumn();
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
+					    		projectile.sprite.print(strbuf, sizeof strbuf);
+							    if (i == 0) RightAlignedText(strbuf);
+							    else ImGui::TextUnformatted(strbuf);
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("sprite");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
 							    sprintf_s(strbuf, "%d", projectile.hitstop);
 							    if (i == 0) RightAlignedText(strbuf);
 							    else ImGui::TextUnformatted(strbuf);
@@ -763,7 +818,7 @@ void UI::prepareDrawData() {
 						    ImGui::TableNextColumn();
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
-							    sprintf_s(strbuf, "%d", projectile.startup);
+							    projectile.printStartup(strbuf, sizeof strbuf);
 							    if (i == 0) RightAlignedText(strbuf);
 							    else ImGui::TextUnformatted(strbuf);
 					    	}
@@ -777,7 +832,7 @@ void UI::prepareDrawData() {
 						    ImGui::TableNextColumn();
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
-							    sprintf_s(strbuf, "%d", projectile.total);
+							    projectile.printTotal(strbuf, sizeof strbuf);
 							    if (i == 0) RightAlignedText(strbuf);
 							    else ImGui::TextUnformatted(strbuf);
 					    	}
@@ -812,6 +867,13 @@ void UI::prepareDrawData() {
 		ImGui::SameLine();
 		if (ImGui::Button("Speed/Proration")) {
 			showSpeedsData = true;
+		}
+		for (int i = 0; i < 2; ++i) {
+			sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
+			if (i != 0) ImGui::SameLine();
+			if (ImGui::Button(strbuf)) {
+				showCharSpecific[i] = true;
+			}
 		}
 	}
 	if (ImGui::CollapsingHeader("Hitboxes")) {
@@ -1457,6 +1519,173 @@ void UI::prepareDrawData() {
 		    ImGui::EndTable();
 		}
 		ImGui::End();
+	}
+	for (int i = 0; i < 2; ++i) {
+		if (showCharSpecific[i]) {
+			sprintf_s(strbuf, "Character Specific (P%d)", i + 1);
+			ImGui::Begin(strbuf, showCharSpecific + i);
+			if (!*aswEngine) {
+				ImGui::TextUnformatted("Match not running");
+				ImGui::End();
+				continue;
+			}
+			const PlayerInfo& player = endScene.players[i];
+			if (player.charType == CHARACTER_TYPE_SOL) {
+				if (player.playerval0) {
+					GGIcon scaledIcon = scaleGGIconToHeight(DISolIcon, 14.F);
+					drawGGIcon(scaledIcon);
+					ImGui::SameLine();
+					ImGui::TextUnformatted("In Dragon Install");
+					ImGui::Text("Time remaining: %d/%df", player.playerval1, player.maxDI);
+				} else {
+					GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(CHARACTER_TYPE_SOL), 14.F);
+					drawGGIcon(scaledIcon);
+					ImGui::SameLine();
+					ImGui::TextUnformatted("Not in Dragon Install");
+				}
+			} else if (player.charType == CHARACTER_TYPE_KY) {
+				GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
+				drawGGIcon(scaledIcon);
+				ImGui::SameLine();
+				if (!endScene.interRoundValueStorage2Offset) {
+					ImGui::TextUnformatted("Error");
+				} else {
+					DWORD& theValue = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage2Offset + i * 4);
+					if (theValue) {
+						ImGui::TextUnformatted("Hair down");
+					} else {
+						ImGui::TextUnformatted("Hair not down");
+					}
+					if (game.isTrainingMode() && ImGui::Button("Toggle Hair Down")) {
+						theValue = 1 - theValue;
+						endScene.BBScr_callSubroutine((void*)player.pawn.ent, "PonyMeshSetCheck");
+					}
+				}
+			} else if (player.charType == CHARACTER_TYPE_ZATO) {
+				Entity eddie = nullptr;
+				bool isSummoned = player.pawn.playerVal(0);
+				if (isSummoned) {
+					eddie = endScene.getReferredEntity((void*)player.pawn.ent, 4);
+				}
+				
+				GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
+				drawGGIcon(scaledIcon);
+				ImGui::SameLine();
+				ImGui::Text("Eddie Values");
+				sprintf_s(strbuf, "##Zato_P%d", i);
+	    		if (ImGui::BeginTable(strbuf, 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+					ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+					
+					ImGui::TableHeadersRow();
+					
+					ImGui::TableNextColumn();
+					ImGui::Text("Eddie Gauge");
+					AddTooltip("Divided by 10 for readability.");
+					ImGui::TableNextColumn();
+					ImGui::Text("%.3d/%d", player.pawn.exGaugeValue(0) / 10, player.pawn.exGaugeMaxValue(0) / 10);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Is Summoned");
+					ImGui::TableNextColumn();
+					if (!isSummoned) {
+						ImGui::TextUnformatted("no");
+					} else {
+						ImGui::TextUnformatted("yes");
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Shadow Puddle X");
+					ImGui::TableNextColumn();
+					int shadowPuddleX = player.pawn.playerVal(3);
+					if (shadowPuddleX != 3000000) {
+						printDecimal(shadowPuddleX, 2, 0);
+						ImGui::TextUnformatted(printdecimalbuf);
+					}
+					
+					if (!eddie && player.eddie.landminePtr) {
+						eddie = Entity{player.eddie.landminePtr};
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Startup");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.startup);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Active");
+					ImGui::TableNextColumn();
+					player.eddie.actives.print(strbuf, sizeof strbuf);
+					ImGui::TextUnformatted(strbuf);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Recovery");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.recovery);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Total");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.total);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Frame Adv.");
+					ImGui::TableNextColumn();
+					if (player.eddie.frameAdvantageValid) {
+						frameAdvantageTextFormat(player.eddie.frameAdvantage, strbuf, sizeof strbuf);
+	    				frameAdvantageText(player.eddie.frameAdvantage);
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Hitstop");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d/%d", player.eddie.hitstop, player.eddie.hitstopMax);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Last Consumed Eddie Gauge Amount");
+					AddTooltip("Divided by 10 for readability. The amount of consumed Eddie Gauge of the last attack.");
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.consumedResource / 10);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("X");
+					ImGui::TableNextColumn();
+					if (eddie) {
+						printDecimal(eddie.x(), 2, 0);
+						ImGui::TextUnformatted(printdecimalbuf);
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Anim");
+					ImGui::TableNextColumn();
+					if (eddie) {
+						ImGui::TextUnformatted(eddie.animationName());
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Frame");
+					ImGui::TableNextColumn();
+					if (eddie) {
+						ImGui::Text("%d", eddie.currentAnimDuration());
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("Sprite");
+					ImGui::TableNextColumn();
+					if (eddie) {
+						ImGui::Text("%s (%d/%d)", eddie.spriteName(), eddie.spriteFrameCounter(), eddie.spriteFrameCounterMax());
+					}
+					
+					ImGui::EndTable();
+	    		}
+			} else {
+				GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
+				drawGGIcon(scaledIcon);
+				ImGui::SameLine();
+				ImGui::TextUnformatted("No character specific information to show.");
+			}
+			ImGui::End();
+		}
 	}
 	
 	takeScreenshot = takeScreenshotTemp;

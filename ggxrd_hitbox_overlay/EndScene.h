@@ -22,7 +22,11 @@ using backPushbackApplier_t = void(__thiscall*)(void* thisArg);
 using pushbackStunOnBlock_t = void(__thiscall*)(void* pawn, bool isAirAttack);
 using isDummy_t = bool(__thiscall*)(void* trainingStruct, int team);
 using BBScr_sendSignal_t = void(__thiscall*)(void* pawn, int referenceType, int signal);
+using BBScr_sendSignalToAction_t = void(__thiscall*)(void* pawn, const char* searchAnim, int signal);
 using getReferredEntity_t = void*(__thiscall*)(void* pawn, int referenceType);
+using skillCheckPiece_t = BOOL(__thiscall*)(void* pawn);
+using handleUpon_t = void(__thiscall*)(void* pawn, int signal);
+using BBScr_callSubroutine_t = void(__thiscall*)(void* pawn, const char* funcName);
 
 struct FVector2D {
 	float X;
@@ -170,7 +174,14 @@ public:
 	isDummy_t isDummyPtr = nullptr;
 	BBScr_sendSignal_t orig_BBScr_sendSignal = nullptr;
 	std::mutex orig_BBScr_sendSignalMutex;
+	BBScr_sendSignalToAction_t orig_BBScr_sendSignalToAction = nullptr;
+	std::mutex orig_BBScr_sendSignalToActionMutex;
 	getReferredEntity_t getReferredEntity = nullptr;
+	skillCheckPiece_t orig_skillCheckPiece = nullptr;
+	std::mutex orig_skillCheckPieceMutex;
+	handleUpon_t orig_handleUpon = nullptr;
+	std::mutex orig_handleUponMutex;
+	BBScr_callSubroutine_t BBScr_callSubroutine = nullptr;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
@@ -195,6 +206,7 @@ public:
 	void executeShutdownRenderCommand();
 	PlayerInfo& findPlayer(Entity ent);
 	ProjectileInfo& findProjectile(Entity ent);
+	DWORD interRoundValueStorage2Offset = 0;
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -211,6 +223,9 @@ private:
 		void backPushbackApplierHook();
 		void pushbackStunOnBlockHook(bool isAirAttack);
 		void BBScr_sendSignalHook(int referenceType, int signal);
+		void BBScr_sendSignalToActionHook(const char* searchAnim, int signal);
+		BOOL skillCheckPieceHook();
+		void handleUponHook(int signal);
 	};
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
@@ -224,6 +239,10 @@ private:
 	void backPushbackApplierHook(char* thisArg);
 	void pushbackStunOnBlockHook(Entity pawn, bool isAirAttack);
 	void BBScr_sendSignalHook(Entity pawn, int referenceType, int signal);
+	void BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, int signal);
+	BOOL skillCheckPieceHook(Entity pawn);
+	void handleUponHook(Entity pawn, int signal);
+	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
 		Entity ent{ nullptr };
@@ -260,7 +279,7 @@ private:
 	uintptr_t superflashCounterSelfOffset = 0;
 	
 	bool measuringFrameAdvantage = false;
-	int measuringLandingFrameAdvantage = -1;
+	int measuringLandingFrameAdvantage = -1;  // index of the player who is in the air and needs to land
 	void restartMeasuringFrameAdvantage(int index);
 	void restartMeasuringLandingFrameAdvantage(int index);
 	
@@ -294,6 +313,24 @@ private:
 	void* FSkipRenderCommandVtable = nullptr;
 	bool drewExGaugeHud = false;
 	void queueOriginPointDrawingDummyCommandAndInitializeIcon();
+	struct OccuredEvent {
+		enum OccuredEventType {
+			SET_ANIM,
+			SIGNAL
+		} type;
+		union OccuredEventUnion {
+			struct OccuredEventSetAnim {
+				Entity pawn;
+			} setAnim;
+			struct OccuredEventSignal {
+				Entity from;
+				Entity to;
+			} signal;
+			inline OccuredEventUnion() { }
+		} u;
+	};
+	std::vector<OccuredEvent> events;
+	std::vector<Entity> sendSignalStack;
 };
 
 extern EndScene endScene;

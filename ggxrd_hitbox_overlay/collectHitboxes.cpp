@@ -13,7 +13,7 @@ void collectHitboxes(Entity ent,
 		std::vector<DrawPointCallParams>* const points,
 		std::vector<DrawBoxCallParams>* const pushboxes,
 		int* numHitboxes,
-		int lastIgnoredHitNum) {
+		int* lastIgnoredHitNum) {
 	
 	if (!ent.isPawn()
 			&& (ent.team() == 0 || ent.team() == 1)
@@ -113,9 +113,13 @@ void collectHitboxes(Entity ent,
 		if ((*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0) {  // having this flag means you ignore the hitboxes hit detection check
 			includeTheseHitboxes = false;
 		}
-		if (currentHitNum <= lastIgnoredHitNum) {
+		if (lastIgnoredHitNum && currentHitNum <= *lastIgnoredHitNum) {
 			includeTheseHitboxes = false;
 		}
+	}
+	
+	if (!includeTheseHitboxes && hitboxCount && state.doingAThrow && lastIgnoredHitNum) {
+		*lastIgnoredHitNum = ent.currentHitNum();
 	}
 
 	if (includeTheseHitboxes && isNotZeroScaled) {

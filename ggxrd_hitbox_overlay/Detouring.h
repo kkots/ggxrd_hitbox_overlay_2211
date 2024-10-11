@@ -71,6 +71,7 @@ private:
 	bool enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callback);
 	void enumerateThreadsRecursively(suspendThreadCallback_t callback);
 	void closeAllThreadHandles();
+	void undoPatches();
 	bool beganTransaction = false;
 	std::vector<DWORD> suspendedThreads;
 	std::vector<HANDLE> suspendedThreadHandles;
@@ -82,7 +83,6 @@ private:
 	struct InstructionToReplace {
 		uintptr_t addr = 0;
 		std::vector<char> bytes;
-		DWORD oldProtect = 0;
 	};
 	std::vector<InstructionToReplace> instructionsToReplace;
 };

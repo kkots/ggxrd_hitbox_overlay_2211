@@ -10,26 +10,26 @@
 #include "EntityList.h"
 #include "AltModes.h"
 
-const char** aswEngine = nullptr;
+char** aswEngine = nullptr;
 
 Game game;
 
 bool Game::onDllMain() {
 	bool error = false;
 
-	aswEngine = (const char**)sigscanOffset(
+	aswEngine = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"85 C0 78 74 83 F8 01",
 		{-4, 0},
 		&error, "aswEngine");
 
-	gameDataPtr = (const char**)sigscanOffset(
+	gameDataPtr = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"33 C0 38 41 44 0F 95 C0 C3 CC",
 		{-4, 0},
 		NULL, "gameDataPtr");
 
-	playerSideNetworkHolder = (const char**)sigscanOffset(
+	playerSideNetworkHolder = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"8b 0d ?? ?? ?? ?? e8 ?? ?? ?? ?? 3c 10 75 10 a1 ?? ?? ?? ?? 85 c0 74 07 c6 80 0c 12 00 00 01 c3",
 		{16, 0},
@@ -75,11 +75,11 @@ bool Game::onDllMain() {
 		std::vector<char> burstMask;
 		byteSpecificationToSigMask("8b 56 40 a1 ?? ?? ?? ?? 8b 84 90 ?? ?? ?? ?? 5f 5e 5d 5b 8b 4c 24 18 33 cc",
 			burstSig, burstMask);
-		substituteWildcard(burstSig.data(), burstMask.data(), 0, aswEngine);
+		substituteWildcard(burstSig, burstMask, 0, aswEngine);
 		burstOffset = sigscanOffset(
 			"GuiltyGearXrd.exe",
-			burstSig.data(),
-			burstMask.data(),
+			burstSig,
+			burstMask,
 			{ 11, 0 },
 			NULL, "burstOffset");
 		
@@ -87,11 +87,11 @@ bool Game::onDllMain() {
 		std::vector<char> destroyMask;
 		byteSpecificationToSigMask("c7 05 ?? ?? ?? ?? 00 00 00 00",
 			destroySig, destroyMask);
-		substituteWildcard(destroySig.data(), destroyMask.data(), 0, aswEngine);
+		substituteWildcard(destroySig, destroyMask, 0, aswEngine);
 		orig_destroyAswEngine = (destroyAswEngine_t)sigscanOffset(
 			"GuiltyGearXrd.exe",
-			destroySig.data(),
-			destroyMask.data(),
+			destroySig,
+			destroyMask,
 			{ -0x5A },
 			NULL, "destroyAswEngine");
 	
@@ -101,12 +101,12 @@ bool Game::onDllMain() {
 		byteSpecificationToSigMask("8b 4c 24 18 83 c4 08 0b 4c 24 14 74 1e 8b 15 ?? ?? ?? ?? 8b 8a ?? ?? ?? ?? e8 ?? ?? ?? ?? 85 c0 75 09 55 e8 ?? ?? ?? ?? 83 c4 04",
 			cameraOffsetSig, cameraOffsetSigMask);
 	
-		substituteWildcard(cameraOffsetSig.data(), cameraOffsetSigMask.data(), 0, aswEngine);
+		substituteWildcard(cameraOffsetSig, cameraOffsetSigMask, 0, aswEngine);
 		// pointer to REDCamera_Battle
 		cameraOffset = (unsigned int)sigscanOffset(
 			"GuiltyGearXrd.exe",
-			cameraOffsetSig.data(),
-			cameraOffsetSigMask.data(),
+			cameraOffsetSig,
+			cameraOffsetSigMask,
 			{ 0x15, 0 },
 			&error, "cameraOffset");
 		
@@ -136,11 +136,11 @@ bool Game::onDllMain() {
 	if (REDHUD_BattleOffset) {
 		byteSpecificationToSigMask("8b 81 ?? ?? ?? ?? f6 80 5c 04 00 00 08 74 14 8b 54 24 14 f6 82 c8 04 00 00 02",
 			sig, mask);
-		substituteWildcard(sig.data(), mask.data(), 0, (void*)REDHUD_BattleOffset);
+		substituteWildcard(sig, mask, 0, (void*)REDHUD_BattleOffset);
 		uintptr_t drawExGaugeHUDCallPlace = sigscanOffset(
 			"GuiltyGearXrd.exe",
-			sig.data(),
-			mask.data(),
+			sig,
+			mask,
 			nullptr, "drawExGaugeHUDCallPlace");
 		if (drawExGaugeHUDCallPlace) {
 			drawExGaugeHUDOffset = *(DWORD*)(drawExGaugeHUDCallPlace + 40);
@@ -169,12 +169,12 @@ bool Game::onDllMain() {
 	if (_JitabataRecover) {
 		byteSpecificationToSigMask("53 53 53 68 ?? ?? ?? ?? 6a 15",
 			sig, mask);
-		substituteWildcard(sig.data(), mask.data(), 0, (void*)_JitabataRecover);
+		substituteWildcard(sig, mask, 0, (void*)_JitabataRecover);
 		
 		stunmashDrawingPlace = sigscanOffset(
 			"GuiltyGearXrd.exe",
-			sig.data(),
-			mask.data(),
+			sig,
+			mask,
 			{ 0x2b2 },
 			nullptr, "stunmashDrawingPlace");
 		
@@ -218,6 +218,7 @@ bool Game::sigscanFrameByFraming() {
 	if (trainingHudCallPlace) {
 		getTrainingHud = (getTrainingHud_t)followRelativeCall(trainingHudCallPlace + 14);
 		trainingHudTick = (trainingHudTick_t)followRelativeCall(trainingHudCallPlace + 21);
+		// the hook for trainingHudTick is in EndScene
 	}
 
 	// updateBattleOfflineVer is the offline variant called from AREDGameInfo_Battle::UpdateBattle at E61240 (game version 2211, netcode version 2.15)
@@ -226,11 +227,11 @@ bool Game::sigscanFrameByFraming() {
 	std::vector<char> updateBattleOfflineVerSigMask;
 	byteSpecificationToSigMask("89 7c 24 14 e8 ?? ?? ?? ?? 85 c0 74 0a 6a 01 e8 ?? ?? ?? ?? 83 c4 04 8b 0d ?? ?? ?? ?? 8b 81 ?? ?? ?? ?? 8b 80 7c 03 00 00",
 		updateBattleOfflineVerSig, updateBattleOfflineVerSigMask);
-	substituteWildcard(updateBattleOfflineVerSig.data(), updateBattleOfflineVerSigMask.data(), 2, aswEngine);
+	substituteWildcard(updateBattleOfflineVerSig, updateBattleOfflineVerSigMask, 2, aswEngine);
 	orig_updateBattleOfflineVer = (updateBattleOfflineVer_t)((sigscanOffset(
 		"GuiltyGearXrd.exe",
-		updateBattleOfflineVerSig.data(),
-		updateBattleOfflineVerSigMask.data(),
+		updateBattleOfflineVerSig,
+		updateBattleOfflineVerSigMask,
 		&error, "updateBattleOfflineVer") - 0x30) & 0xFFFFFFF0);
 	logwrap(fprintf(logfile, "Final location of updateBattleOfflineVer: %p\n", orig_updateBattleOfflineVer));
 
@@ -340,6 +341,7 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty() {
 	if (getTrainingHud) {
 		trainingHudTick(getTrainingHud());
+		// the hook for trainingHudTick is in EndScene
 	}
 	if (drawExGaugeHUD) {
 		char* battleHud = *(char**)(*aswEngine + REDHUD_BattleOffset);

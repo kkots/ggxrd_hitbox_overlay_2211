@@ -1,5 +1,6 @@
 #pragma once
 #include "Entity.h"
+#include "Moves.h"
 struct ActiveData {
 	short actives = 0;
 	short nonActives = 0;
@@ -32,12 +33,12 @@ struct ActiveDataArray {
 	// Print active frames, not including the final span of non-active frames.
 	// Separate distinct hits using a comma (",") character.
 	// Non-active frames are printed in parentheses ("(123)") inbetween the active frames.
-	void print(char* buf, size_t bufSize);
+	void print(char* buf, size_t bufSize) const;
 	// Print active frames, not including the final span of non-active frames.
 	// Fuse distinct hits together into unified spans of active frames. Don't use comma (",") character.
 	// Non-active frames are printed in parentheses ("(123)") inbetween the active frames.
-	void printNoSeparateHits(char* buf, size_t bufSize);
-	void printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize);
+	void printNoSeparateHits(char* buf, size_t bufSize) const;
+	void printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) const;
 	void removeSeparateHits(int* outIndex);
 	// Wrap multiple calls to addActive(...) in beginMergeFrame() and endMergeFrame(),
 	// if you want multiple entities to contribute to the active frames on the same frame.
@@ -56,6 +57,52 @@ struct ActiveDataArray {
 	int total() const;
 };
 
+struct PrevStartupsInfo {
+	short startups[10] { 0 };
+	char count = 0;
+	inline short& operator[](int index) {
+		return startups[index];
+	}
+	inline void clear() { count = 0; }
+	void add(short n);
+	void print(char*& buf, size_t& bufSize) const;
+	int total() const;
+	inline bool empty() const { return count == 0; }
+};
+
+struct SpriteFrameInfo {
+	char name[32] { 0 };
+	int frame = 0;
+	int frameMax = 0;
+	void print(char* buf, size_t bufSize) const;
+	void fill(Entity ent);
+};
+
+struct EddieInfo {
+	Entity ptr = nullptr;
+	Entity landminePtr = nullptr;
+	
+	int startup = 0;
+	bool startedUp = false;
+	ActiveDataArray actives;
+	int recovery = 0;
+	int total = 0;
+	
+	int hitstop = 0;
+	int hitstopMax = 0;
+	
+	int timePassed = 0;
+	int frameAdvantage = 0;
+	
+	char anim[32] { '\0' };
+	int prevResource = 0;
+	int consumedResource = 0;
+	
+	bool idle:1;
+	bool prevEnemyIdle:1;
+	bool frameAdvantageValid:1;
+};
+
 struct ProjectileInfo {
 	Entity ptr = nullptr;  // may be 0 if the entity tied to this projectile no longer exists - such projectiles are removed at the start of the next logic tick. Otherwise points to that entity
 	int team = 0;  // updated every frame
@@ -66,11 +113,15 @@ struct ProjectileInfo {
 	int total = 0;  // time since the owning player started their last move
 	int hitNumber = 0;  // updated every frame
 	ActiveDataArray actives;
+	const MoveInfo* move = nullptr;
+	PrevStartupsInfo prevStartups { 0 };
+	SpriteFrameInfo sprite;
 	char animName[32] { 0 };
 	bool markActive:1;  // cleared at the start of prepareDrawData. True means hitboxes were found on this frame, or on this logic tick this projectile registered a hit.
 	bool startedUp:1;  // cleared upon disabling. True means active frames have started.
 	bool landedHit:1;  // cleared at the start of each logic tick. Set to true from a hit registering function hook.
 	bool disabled:1;  // set to true for all projectiles belonging to a player when the player starts a new move.
+	bool inNewSection:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -79,6 +130,8 @@ struct ProjectileInfo {
 	{
 	}
 	void fill(Entity ent);
+	void printStartup(char* buf, size_t bufSize);
+	void printTotal(char* buf, size_t bufSize);
 };
 
 // This struct is cleared by setting all its memory to zero. If you add a new member, make sure it's ok to initialize it with 0.
@@ -139,7 +192,7 @@ struct PlayerInfo {
 	
 	int hitstunProration = 100;
 	
-	int lastIgnoredHitNum = -1;
+	int lastIgnoredHitNum = -1;  // this is to stop Dizzy ground throw from showing a hitbox on the leech bite
 	
 	int stun = 0;
 	int stunThreshold = 0;
@@ -171,7 +224,7 @@ struct PlayerInfo {
 	int recovery = 0;  // recovery of attacks done directly by the character. Either current or of the last move
 	int total = 0;  // total frames of attacks done directly by the character. Either current or of the last move
 	
-	short prevStartups[10] { 0 };  // startups of moves that you whiff canceled from
+	PrevStartupsInfo prevStartups { 0 };  // startups of moves that you whiff canceled from
 	
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move
@@ -180,6 +233,11 @@ struct PlayerInfo {
 	
 	int startupProj = 0;  // startup of all projectiles. Either current or of the last move
 	ActiveDataArray activesProj;  // active frames of all projectiles. Either current or of the last move
+	
+	PrevStartupsInfo prevStartupsDisp { 0 };  // things to add over a + sign in the displayed startup field
+	PrevStartupsInfo prevStartupsTotalDisp { 0 };  // things to add over a + sign in the displayed 'Total' field
+	PrevStartupsInfo prevStartupsProj { 0 };  //  this relies on there being only one active projectile for a move.
+	                                          //  it's a copy of previous startups of that projectile
 	
 	int landingOrPreJumpFrames = 0;  // number of frames currently spent in landing or prejump
 	int landingRecovery = 0;  // number of landing recovery frames. Either current or of the last performed move
@@ -190,14 +248,25 @@ struct PlayerInfo {
 		XSTUN_DISPLAY_BLOCK  // blockstun
 	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
+	int timeInNewSection = 0;
+	DWORD wasForceDisableFlags = 0;
+	SpriteFrameInfo sprite;
+	const MoveInfo* move = nullptr;
+	
+	int playerval0 = 0;
+	int playerval1 = 0;
+	int maxDI = 0;
+	EddieInfo eddie { 0 };
+	
+	char attackLockAction[32] { '\0' };
+	char prevAttackLockAction[32] { '\0' };
 	char tensionPulsePenaltySeverity = 0;  // the higher, the worse
 	char cornerPenaltySeverity = 0;  // the higher, the worse
-	char prevStartupsCount = 0;
 	bool frameAdvantageValid:1;
 	bool landingFrameAdvantageValid:1;
 	bool idle:1;  // is able to perform a non-cancel move
 	bool idleNext:1;  // the precomputed new value for 'idle'. We need this because a change of idle is checked twice in separate loops
-	bool idlePlus:1;  // is able to perform a non-cancel move. Jump startup and landing are considered 'idle' if not immediately following or preceding a move
+	bool idlePlus:1;  // is able to perform a non-cancel move. Jump startup and landing are considered 'idle'
 	bool idleLanding:1;  // is able to perform a non-cancel move. Time spent in the air after recovering from an air move is considered 'not idle'
 	bool startedUp:1;  // if true, recovery frames or gaps in active frames are measured instead of startup
 	bool onTheDefensive:1;  // true when blocking or being combo'd/hit, or when teching or waking up
@@ -221,6 +290,25 @@ struct PlayerInfo {
 	bool hitstunProrationValid:1;  // should display hitstun proration, instead of "--"
 	bool hitSomething:1;  // during this logic tick, hit someone with own (non-projectile) active frames
 	bool changedAnimOnThisFrame:1;
+	bool inNewMoveSection:1;
+	bool idleInNewSection:1;
+	bool frameAdvantageIncludesIdlenessInNewSection:1;
+	bool landingFrameAdvantageIncludesIdlenessInNewSection:1;
+	
+	// These fields are needed because when tap Blitz Shield rejects an attack,
+	// it only enables normals after hitstop at the end of the logic tick, when
+	// it doesn't matter anymore for that tick, so what we end up seeing is
+	// enableNormals == true, but for the most duration of the tick it was actually
+	// enableNormals == false. These fields hold the values at the moment of
+	// dicision making of which move you're doing.
+	// Also this is needed for superfreezes, because on the frame after superfreeze
+	// you can't initiate a 5P, but enableNormals would say yes. So technically
+	// enableNormals is not true on that frame.
+	bool wasEnableNormals:1;
+	bool wasEnableGatlings:1;
+	bool wasEnableWhiffCancels:1;
+	bool obtainedForceDisableFlags:1;
+	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
 	char index = 0;  // the index of this PlayerInfo in endScene's 'players' array
@@ -229,6 +317,7 @@ struct PlayerInfo {
 	void printGaps(char* buf, size_t bufSize);
 	void clear();
 	void copyTo(PlayerInfo& dest);
-	void addPrevStartup(int n);
-	void clearPrevStartups();
+	void printStartup(char* buf, size_t bufSize);
+	void printTotal(char* buf, size_t bufSize);
+	bool isIdleInNewSection();
 };

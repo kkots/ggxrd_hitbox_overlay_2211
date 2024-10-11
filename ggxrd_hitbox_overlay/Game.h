@@ -3,7 +3,7 @@
 #include "Entity.h"
 #include <mutex>
 
-extern const char** aswEngine;
+extern char** aswEngine;
 
 enum ELevelTick {
 	LEVELTICK_TimeOnly,
@@ -109,8 +109,8 @@ private:
 	std::mutex orig_updateBattleOfflineVerMutex;
 	TickActorComponents_t orig_TickActorComponents = nullptr;
 	std::mutex orig_TickActorComponentsMutex;
-	const char** gameDataPtr = nullptr;
-	const char** playerSideNetworkHolder = nullptr;
+	char** gameDataPtr = nullptr;
+	char** playerSideNetworkHolder = nullptr;
 	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;
 	bool ignoreAllCallsButEarlier = false;

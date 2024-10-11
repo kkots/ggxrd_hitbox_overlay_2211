@@ -225,12 +225,20 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, boo
 	return sigscanOffsetMain(name, sig, 0, mask, {}, error, logname);
 }
 
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, bool* error, const char* logname) {
+	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname);
+}
+
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname) {
 	return sigscanOffsetMain(name, sig, sigLength, nullptr, offsets, error, logname);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
 	return sigscanOffsetMain(name, sig, 0, mask, offsets, error, logname);
+}
+
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::vector<int>& offsets, bool* error, const char* logname) {
+	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname);
 }
 
 uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const char* logname) {
@@ -368,6 +376,10 @@ char* findWildcard(char* mask, unsigned int indexOfWildcard) {
 	return nullptr;
 }
 
+void substituteWildcard(std::vector<char>& sig, std::vector<char>& mask, unsigned int indexOfWildcard, void* ptrToSubstitute) {
+	substituteWildcard(sig.data(), mask.data(), indexOfWildcard, ptrToSubstitute);
+}
+
 void substituteWildcard(char* sig, char* mask, unsigned int indexOfWildcard, void* ptrToSubstitute) {
 	substituteWildcard(sig, mask, indexOfWildcard, (char*)&ptrToSubstitute, 4);
 }
@@ -449,6 +461,10 @@ uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_
 	} else {
 		return sigscan(ptr, ptr + searchLimit, sig, mask);
 	}
+}
+
+uintptr_t sigscanForward(uintptr_t ptr, const std::vector<char>& sig, const std::vector<char>& mask, size_t searchLimit) {
+	return sigscanForward(ptr, sig.data(), mask.data(), searchLimit);
 }
 
 
