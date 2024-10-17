@@ -27,6 +27,9 @@ using getReferredEntity_t = void*(__thiscall*)(void* pawn, int referenceType);
 using skillCheckPiece_t = BOOL(__thiscall*)(void* pawn);
 using handleUpon_t = void(__thiscall*)(void* pawn, int signal);
 using BBScr_callSubroutine_t = void(__thiscall*)(void* pawn, const char* funcName);
+using BBScr_setHitstop_t = void(__thiscall*)(void* pawn, int hitstop);
+using beginHitstop_t = void(__thiscall*)(void* pawn);
+using BBScr_ignoreDeactivate_t = void(__thiscall*)(void* pawn);
 
 struct FVector2D {
 	float X;
@@ -182,6 +185,12 @@ public:
 	handleUpon_t orig_handleUpon = nullptr;
 	std::mutex orig_handleUponMutex;
 	BBScr_callSubroutine_t BBScr_callSubroutine = nullptr;
+	BBScr_setHitstop_t orig_BBScr_setHitstop = nullptr;
+	std::mutex orig_BBScr_setHitstopMutex;
+	beginHitstop_t orig_beginHitstop = nullptr;
+	std::mutex orig_beginHitstopMutex;
+	BBScr_ignoreDeactivate_t orig_BBScr_ignoreDeactivate = nullptr;
+	std::mutex orig_BBScr_ignoreDeactivateMutex;
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
@@ -226,6 +235,9 @@ private:
 		void BBScr_sendSignalToActionHook(const char* searchAnim, int signal);
 		BOOL skillCheckPieceHook();
 		void handleUponHook(int signal);
+		void BBScr_setHitstopHook(int hitstop);
+		void BBScr_ignoreDeactivateHook();
+		void beginHitstopHook();
 	};
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
@@ -242,6 +254,9 @@ private:
 	void BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, int signal);
 	BOOL skillCheckPieceHook(Entity pawn);
 	void handleUponHook(Entity pawn, int signal);
+	void BBScr_setHitstopHook(Entity pawn, int hitstop);
+	void BBScr_ignoreDeactivateHook(Entity pawn);
+	void beginHitstopHook(Entity pawn);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {

@@ -189,6 +189,7 @@ public:
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
 	inline int hitstop() const { return *(int*)(ent + 0x1ac); }
+	inline bool needSetHitstop() const { return *(DWORD*)(ent + 0x1b8) != 0; }
 	inline int startingHitstop() const { return *(int*)(ent + 0x1b4); }
 	inline int hitstun() const { return *(int*)(ent + 0x9808); }
 	inline int blockstun() const { return *(int*)(ent + 0x4d54); }
@@ -213,8 +214,11 @@ public:
 	inline bool enableNormals() const { return (*(DWORD*)(ent + 0x4d3c) & 0x1000) != 0; }
 	inline bool enableGatlings() const { return (*(DWORD*)(ent + 0x4d48) & 0x1) != 0; }
 	inline DWORD forceDisableFlags() const { return *(DWORD*)(ent + 0x24e3c); }
+	inline bool enableBlock() const { return (*(DWORD*)(ent + 0x4d3c) & 0x10000) != 0; }
+	inline bool enableCrouch() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2) != 0; }
+	inline bool enableWalkBack() const { return (*(DWORD*)(ent + 0x4d3c) & 0x20) != 0; }
 	inline int lifeTimeCounter() const { return *(int*)(ent + 0x18); }
-	inline bool inPain() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }
+	inline bool inPain() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }  // I guess this should be called inHitstun
 	inline int comboCount() const { return *(int*)(ent + 0x9F28); }
 	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
 	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }

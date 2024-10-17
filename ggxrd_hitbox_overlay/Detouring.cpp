@@ -387,7 +387,8 @@ bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
 	#endif
 	
 	if (!hasMoreThanOneThread) hooksCounter = 0; // on crash all threads just die, except this one, and the DLL gets unloaded gracefully
-	threadEipInThisModule = threadEipInThisModule || hooksCounter > 0;  // some hooks may call functions that lead outside the module
+	threadEipInThisModule = threadEipInThisModule || hooksCounter > 0;  // some hooks may call functions that lead outside the module.
+	                                                                    // hooksCounter > 0 is meant to check for hooks that are running those
 
 	#ifdef LOG_PATH
 	if (logfile) {

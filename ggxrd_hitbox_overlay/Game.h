@@ -75,7 +75,7 @@ public:
 	bool freezeGame = false;
 	bool slowmoGame = false;
 	bool allowNextFrame = false;
-	trainingHudTick_t trainingHudTick = nullptr;
+	trainingHudTick_t trainingHudTick = nullptr;  // the hook for this function is in EndScene.cpp
 	getTrainingHud_t getTrainingHud = nullptr;
 	DWORD aswEngineTickCountOffset = 0;
 	bool shutdown = false;

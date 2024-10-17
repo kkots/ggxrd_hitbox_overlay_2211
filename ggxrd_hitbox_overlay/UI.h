@@ -65,7 +65,7 @@ private:
 	static void __stdcall Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR unnamedParam3, DWORD unnamedParam4);
 	static SHORT WINAPI hook_GetKeyState(int nVirtKey);
 	void decrementFlagTimer(int& timer, bool& flag);
-	void frameAdvantageControl();
+	void frameAdvantageControl(int frameAdvantage, int landingFrameAdvantage, bool frameAdvantageValid, bool landingFrameAdvantageValid, bool rightAlign);
 	void frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
 	void frameAdvantageText(int frameAdv);
 	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);

@@ -672,6 +672,36 @@ void ProjectileInfo::printStartup(char* buf, size_t bufSize) {
 	sprintf_s(buf, bufSize, "%d", startup);
 }
 
+void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
+	*buf = '\0';
+	int charsPrinted = 0;
+    if ((startedUp || startupProj) && !(recoveryDisp == 0 && landingRecovery)) {
+	    charsPrinted = sprintf_s(buf, bufSize, "%d", recoveryDisp);
+    	if (charsPrinted == -1) return;
+    	buf += charsPrinted;
+    	bufSize -= charsPrinted;
+    }
+    if (landingRecovery) {
+    	if (charsPrinted && bufSize) {
+    		strcat(buf, "+");
+    		++buf;
+    		--bufSize;
+    	}
+    	charsPrinted = sprintf_s(buf, bufSize, "%d landing", landingRecovery);
+    	if (charsPrinted == -1) return;
+    	buf += charsPrinted;
+    	bufSize -= charsPrinted;
+    }
+    if (totalFD) {
+    	if (charsPrinted && bufSize) {
+    		strcat(buf, "+");
+    		++buf;
+    		--bufSize;
+    	}
+    	sprintf_s(buf, bufSize, "%d FD", totalFD);
+    }
+}
+
 void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 	*buf = '\0';
 	int charsPrinted;
@@ -682,7 +712,13 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
     	buf += charsPrinted;
     	bufSize -= charsPrinted;
 	    if (landingRecovery) {
-	    	sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
+	    	charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
+	    	if (charsPrinted == -1) return;
+	    	buf += charsPrinted;
+	    	bufSize -= charsPrinted;
+	    }
+	    if (totalFD) {
+	    	sprintf_s(buf, bufSize, "+%d FD", totalFD);
 	    }
     }
 }

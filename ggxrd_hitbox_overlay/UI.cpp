@@ -363,7 +363,9 @@ void UI::prepareDrawData() {
 		    			"Numbers in (), when surrounded by other numbers, mean non-active frames inbetween active frames."
 		    			" So, for example, 1(2)3 would mean you were active for 1 frame, then were not active for 2 frames, then were active again for 3.\n"
 		    			"Numbers separated by a , symbol mean active frames of separate distinct hits, between which there is no gap of non-active frames."
-		    			" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two.\n"
+		    			" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two."
+		    			" The attack need not actually land those hits, and some moves may be limited by the max number of hits they can deal, which means"
+		    			" the displayed number of hits might not represent the actual number of hits dealt.\n"
 		    			"Sometimes, when the number of hits is too great, an alternative representation of active frames will be displayed over a / sign."
 		    			" For example: 13 / 1,1,1,1,1,1,1,1,1,1,1,1,1. Means there're 13 active frames, and over the /, each individual hit's active frames"
 		    			" are shown.\n"
@@ -382,17 +384,7 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    if ((player.startedUp || player.startupProj) && !(player.recoveryDisp == 0 && player.landingRecovery)) {
-				    sprintf_s(strbuf, "%d", player.recoveryDisp);
-			    } else {
-			    	*strbuf = '\0';
-			    }
-			    if (player.landingRecovery) {
-			    	if (*strbuf != '\0') {
-			    		strcat(strbuf, "+");
-			    	}
-			    	sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%d landing", player.landingRecovery);
-			    }
+			    player.printRecovery(strbuf, sizeof strbuf);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -477,7 +469,31 @@ void UI::prepareDrawData() {
 		    	}
 		    }
 		    
-		    frameAdvantageControl();
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+		    	
+			    ImGui::TableNextColumn();
+			    frameAdvantageControl(
+			    	player.frameAdvantage,
+			    	player.landingFrameAdvantage,
+			    	player.frameAdvantageValid,
+			    	player.landingFrameAdvantageValid,
+			    	i == 0);
+			    
+			    if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("Frame Adv.");
+		    		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
+		    			" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
+				    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
+				    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value (not in ()) means frame advantage"
+				    	" immediately after recovering in the air. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
+				    	" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
+				    	" +1 (-99).\n"
+				    	"\n"
+				    	"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.");
+			    }
+		    }
 		    
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
@@ -512,6 +528,18 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
+			    if (i == 0) RightAlignedText(strbuf);
+			    else ImGui::TextUnformatted(strbuf);
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("canBlock");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
@@ -524,7 +552,7 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%s (%d) (%s)", formatBoolean(player.idleLanding), player.timePassedLanding, formatBoolean(player.needLand));
+			    sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
 			    if (i == 0) RightAlignedText(strbuf);
 			    else ImGui::TextUnformatted(strbuf);
 		    	
@@ -1151,7 +1179,7 @@ void UI::prepareDrawData() {
 			
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted("Tension Gain On Attack");
-			AddTooltip("Affects how fast you gain Tension increases when performing attacks or combos.\n"
+			AddTooltip("Affects how fast you gain Tension when performing attacks or combos.\n"
 				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
 				"Distance-Based Modifier - depends on distance to the opponent.\n"
 				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
@@ -1202,8 +1230,8 @@ void UI::prepareDrawData() {
 			}
 			
 			ImGui::TableNextColumn();
-			ImGui::TextUnformatted("Tension Gain");
-			AddTooltip("Affects how fast you gain Tension increases when performing attacks or combos.\n"
+			ImGui::TextUnformatted("Tension Gain On Defense");
+			AddTooltip("Affects how fast you gain Tension when getting hit by attacks or combos.\n"
 				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
 				"Distance-Based Modifier - depends on distance to the opponent.\n"
 				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
@@ -1583,7 +1611,7 @@ void UI::prepareDrawData() {
 					ImGui::Text("Eddie Gauge");
 					AddTooltip("Divided by 10 for readability.");
 					ImGui::TableNextColumn();
-					ImGui::Text("%.3d/%d", player.pawn.exGaugeValue(0) / 10, player.pawn.exGaugeMaxValue(0) / 10);
+					ImGui::Text("%-3d/%d", player.pawn.exGaugeValue(0) / 10, player.pawn.exGaugeMaxValue(0) / 10);
 					
 					ImGui::TableNextColumn();
 					ImGui::TextUnformatted("Is Summoned");
@@ -1631,10 +1659,12 @@ void UI::prepareDrawData() {
 					ImGui::TableNextColumn();
 					ImGui::TextUnformatted("Frame Adv.");
 					ImGui::TableNextColumn();
-					if (player.eddie.frameAdvantageValid) {
-						frameAdvantageTextFormat(player.eddie.frameAdvantage, strbuf, sizeof strbuf);
-	    				frameAdvantageText(player.eddie.frameAdvantage);
-					}
+				    frameAdvantageControl(
+				    	player.eddie.frameAdvantage,
+				    	player.eddie.landingFrameAdvantage,
+				    	player.eddie.frameAdvantageValid,
+				    	player.eddie.landingFrameAdvantageValid,
+				    	false);
 					
 					ImGui::TableNextColumn();
 					ImGui::TextUnformatted("Hitstop");
@@ -1949,45 +1979,27 @@ void UI::decrementFlagTimer(int& timer, bool& flag) {
 }
 
 // Runs on the main thread
-void UI::frameAdvantageControl() {
-    for (int i = 0; i < 2; ++i) {
-    	PlayerInfo& player = endScene.players[i];
-	    ImGui::TableNextColumn();
-    	if (player.frameAdvantageValid && player.landingFrameAdvantageValid && player.frameAdvantage != player.landingFrameAdvantage) {
-    		frameAdvantageTextFormat(player.frameAdvantage, strbuf, sizeof strbuf);
-    		strcat(strbuf, " (");
-    		frameAdvantageTextFormat(player.landingFrameAdvantage, strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf));
-    		strcat(strbuf, ")");
-    		if (i == 0) RightAlign(ImGui::CalcTextSize(strbuf).x);
-			pushZeroItemSpacingStyle();
-	    	frameAdvantageText(player.frameAdvantage);
-	    	ImGui::SameLine();
-			ImGui::TextUnformatted(" (");
-			ImGui::SameLine();
-			frameAdvantageText(player.landingFrameAdvantage);
-			ImGui::SameLine();
-			ImGui::TextUnformatted(")");
-			ImGui::PopStyleVar();
-	    } else if (player.frameAdvantageValid || player.landingFrameAdvantageValid) {
-	    	int frameAdvantage = player.frameAdvantageValid ? player.frameAdvantage : player.landingFrameAdvantage;
-	    	frameAdvantageTextFormat(frameAdvantage, strbuf, sizeof strbuf);
-	    	if (i == 0) RightAlign(ImGui::CalcTextSize(strbuf).x);
-	    	frameAdvantageText(frameAdvantage);
-	    }
-    	
-    	if (i == 0) {
-	    	ImGui::TableNextColumn();
-    		CenterAlignedText("Frame Adv.");
-    		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
-    			" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
-		    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
-		    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value (not in ()) means frame advantage"
-		    	" immediately after recovering in the air. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
-		    	" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
-		    	" +1 (-99).\n"
-		    	"\n"
-		    	"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.");
-    	}
+void UI::frameAdvantageControl(int frameAdvantage, int landingFrameAdvantage, bool frameAdvantageValid, bool landingFrameAdvantageValid, bool rightAlign) {
+	if (frameAdvantageValid && landingFrameAdvantageValid && frameAdvantage != landingFrameAdvantage) {
+		frameAdvantageTextFormat(frameAdvantage, strbuf, sizeof strbuf);
+		strcat(strbuf, " (");
+		frameAdvantageTextFormat(landingFrameAdvantage, strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf));
+		strcat(strbuf, ")");
+		if (rightAlign) RightAlign(ImGui::CalcTextSize(strbuf).x);
+		pushZeroItemSpacingStyle();
+    	frameAdvantageText(frameAdvantage);
+    	ImGui::SameLine();
+		ImGui::TextUnformatted(" (");
+		ImGui::SameLine();
+		frameAdvantageText(landingFrameAdvantage);
+		ImGui::SameLine();
+		ImGui::TextUnformatted(")");
+		ImGui::PopStyleVar();
+    } else if (frameAdvantageValid || landingFrameAdvantageValid) {
+    	int frameAdvantageLocal = frameAdvantageValid ? frameAdvantage : landingFrameAdvantage;
+    	frameAdvantageTextFormat(frameAdvantageLocal, strbuf, sizeof strbuf);
+    	if (rightAlign) RightAlign(ImGui::CalcTextSize(strbuf).x);
+    	frameAdvantageText(frameAdvantageLocal);
     }
 }
 
@@ -2267,7 +2279,6 @@ bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart) {
     unsigned int length = 0;
     const wchar_t* ptr = endingPart;
     while (*ptr != L'\0') {
-        if (length == 0xFFFFFFFF) return false;
         ++ptr;
         ++length;
     }

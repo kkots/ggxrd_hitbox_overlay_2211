@@ -93,6 +93,9 @@ struct EddieInfo {
 	
 	int timePassed = 0;
 	int frameAdvantage = 0;
+	int landingFrameAdvantage = 0;
+	int frameAdvantageCanBlock = 0;
+	int landingFrameAdvantageCanBlock = 0;
 	
 	char anim[32] { '\0' };
 	int prevResource = 0;
@@ -100,7 +103,13 @@ struct EddieInfo {
 	
 	bool idle:1;
 	bool prevEnemyIdle:1;
+	bool prevEnemyIdleLanding:1;
+	bool prevEnemyIdleCanBlock:1;
+	bool prevEnemyIdleLandingCanBlock:1;
 	bool frameAdvantageValid:1;
+	bool landingFrameAdvantageValid:1;
+	bool frameAdvantageIncludesIdlenessInNewSection:1;
+	bool landingFrameAdvantageIncludesIdlenessInNewSection:1;
 };
 
 struct ProjectileInfo {
@@ -140,7 +149,7 @@ struct PlayerInfo {
 	Entity pawn{ nullptr };
 	int hp = 0;
 	int maxHp = 0;
-	int defenseModifier = 0;  // dmg = dmg * ((256 + defenseModifier) / 256)
+	int defenseModifier = 0;  // dmg = dmg * (256 + defenseModifier) / 256
 	int gutsRating = 0;
 	int gutsPercentage = 0;
 	int risc = 0;  // max 12800
@@ -199,47 +208,58 @@ struct PlayerInfo {
 	int hitstunMax = 0;
 	int blockstunMax = 0;
 	int hitstopMax = 0;
+	int hitstopMaxSuperArmor = 0;  // for super armors showing correct hitstop max
 	int blockstun = 0;
 	int hitstun = 0;
 	int hitstop = 0;
 	int burst = 0;  // max 15000
 	int comboCountBurstGainModifier = 0;
+	
 	int frameAdvantage = 0;
 	int landingFrameAdvantage = 0;
+	
 	int gaps[10] { 0 };
 	int gapsCount = 0;
 	int timeSinceLastGap = 0;
 	int weight = 0;
 	int wakeupTiming = 0;
 	WakeupTimings wakeupTimings;
-	int timePassed = 0;  // time passed since a change in idlePlus. If it's false, this measures the time you've been busy for.
-	                     // If it's true, this measures the time you've been idle for
-	int timePassedLanding = 0;  // time passed since a change in idleLanding. If it's false, this measures the time since the start of an air move.
-	                            // If it's false, this measures the time since you've last landed or been idle on the ground
+	
+	// time passed since a change in idlePlus. If it's false, this measures the time you've been busy for.
+	// If it's true, this measures the time you've been idle for
+	int timePassed = 0;
+	// time passed since a change in idleLanding. If it's false, this measures the time since the start of an air move.
+	// If it's false, this measures the time since you've last landed or been idle on the ground
+	int timePassedLanding = 0;
+	                            
 	int hitboxesCount = 0;
 	int superfreezeStartup = 0;
 	
-	int startup = 0;  // startup of attacks done directly by the character. Either current or of the last move
-	ActiveDataArray actives;  // active frames of attacks done directly by the character. Either current or of the last move
-	int recovery = 0;  // recovery of attacks done directly by the character. Either current or of the last move
-	int total = 0;  // total frames of attacks done directly by the character. Either current or of the last move
+	int startup = 0;  // startup of the last move done directly by the character
+	ActiveDataArray actives;  // active frames of the last move done directly by the character
+	int recovery = 0;  // recovery of the last move done directly by the character. Includes only frames where you can't attack
+	int total = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't attack
+	
+	int totalCanBlock = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't block
+	
+	int totalFD = 0;  // number of frames for which you were holding FD
 	
 	PrevStartupsInfo prevStartups { 0 };  // startups of moves that you whiff canceled from
 	
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move
-	int recoveryDisp = 0;  // recovery to display in the UI. Either current or of the last move
-	int totalDisp = 0;  // total frames to display in the UI. Either current or of the last move
+	int recoveryDisp = 0;  // recovery to display in the UI. Either current or of the last move. Includes only frames where you can't attack
+	int totalDisp = 0;  // total frames to display in the UI. Either current or of the last move. Includes only frames where you can't attack
 	
 	int startupProj = 0;  // startup of all projectiles. Either current or of the last move
 	ActiveDataArray activesProj;  // active frames of all projectiles. Either current or of the last move
 	
 	PrevStartupsInfo prevStartupsDisp { 0 };  // things to add over a + sign in the displayed startup field
 	PrevStartupsInfo prevStartupsTotalDisp { 0 };  // things to add over a + sign in the displayed 'Total' field
-	PrevStartupsInfo prevStartupsProj { 0 };  //  this relies on there being only one active projectile for a move.
-	                                          //  it's a copy of previous startups of that projectile
+	//  this relies on there being only one active projectile for a move.
+	//  it's a copy of previous startups of that projectile
+	PrevStartupsInfo prevStartupsProj { 0 };
 	
-	int landingOrPreJumpFrames = 0;  // number of frames currently spent in landing or prejump
 	int landingRecovery = 0;  // number of landing recovery frames. Either current or of the last performed move
 	int animFrame = 0;
 	enum XstunDisplay {
@@ -265,23 +285,29 @@ struct PlayerInfo {
 	bool frameAdvantageValid:1;
 	bool landingFrameAdvantageValid:1;
 	bool idle:1;  // is able to perform a non-cancel move
-	bool idleNext:1;  // the precomputed new value for 'idle'. We need this because a change of idle is checked twice in separate loops
 	bool idlePlus:1;  // is able to perform a non-cancel move. Jump startup and landing are considered 'idle'
 	bool idleLanding:1;  // is able to perform a non-cancel move. Time spent in the air after recovering from an air move is considered 'not idle'
 	bool startedUp:1;  // if true, recovery frames or gaps in active frames are measured instead of startup
 	bool onTheDefensive:1;  // true when blocking or being combo'd/hit, or when teching or waking up
 	bool landingOrPreJump:1;  // becomes true when transitioning from idle to prejump/landing. Becomes false when exiting prejump/landing
-	bool isLanding:1;  // on this frame, is it landing animation
-	bool isLandingOrPreJump:1;  // on this frame, is it either landing or prejump animation
-	bool needLand:1;  // recovery from an air move happened and now landing is needed to measure frame advantage on landing
-	bool airborne:1;  // is y > 0. Note that tumbling state and pre-landing frame may be y == 0, and getting hit by Greed Sever puts you airborne at y == 0, also check speedY == 0
-	bool inPain:1;  // being combo'd
+	bool isLanding:1;  // on this frame, is it landing animation or the first frame of a customized landing animation
+	bool isLandingOrPreJump:1;  // on this frame, is it either landing or prejump animation or the first frame of a customized landing animation
+	// you recovered in the air. Upon next landing, don't treat it as "busy"
+	// for the purposes of the air frame advantage calculator
+	bool dontRestartTheNonLandingFrameAdvantageCountdownUponNextLanding:1;
+	// needed for May dolphin riding and Air Blitz Shield (whiff): custom landing animation.
+	// This makes it so that when the player touches the ground, the remainder of their busy,
+	// non-idle state is considered to be landing recovery.
+	// If the animation changes to another one, this has to be reset.
+	bool theAnimationIsNotOverYetLolConsiderBusyNonAirborneFramesAsLandingAnimation:1;
+	bool airborne:1;  // is y > 0 or speed y != 0. Note that tumbling state and pre-landing frame may be y == 0, and getting hit by Greed Sever puts you airborne at y == 0, so also check speedY == 0
+	bool inPain:1;  // being combo'd. I guess this should be called inHitstun
 	bool gettingUp:1;  // playing a wakeup animation
-	bool wasIdle:1;  // briefly became idle (5P, j.P or move from stance) during the frame while transitioning through some animations
-	bool wasIdleSimple:1;  // briefly became idle (5P, j.P only) during the frame while transitioning through some animations
+	bool wasIdle:1;  // briefly became idle during the frame while transitioning through some animations
 	bool startedDefending:1;  // triggers restart of frame advantage measurement
 	bool moveOriginatedInTheAir:1;  // for measuring landing recovery of moves that started in the air only
 	bool setHitstopMax:1;  // during this logic tick, from some hook, hitstopMax field was updated
+	bool setHitstopMaxSuperArmor:1;  // during this logic tick, from some hook, hitstopMaxSuperArmor field was updated
 	bool setHitstunMax:1;  // during this logic tick, from some hook, hitstunMax field was updated
 	bool setBlockstunMax:1;  // during this logic tick, from some hook, blockstunMax field was updated
 	bool displayHitstop:1;  // should hitstop be displayed in UI
@@ -290,10 +316,10 @@ struct PlayerInfo {
 	bool hitstunProrationValid:1;  // should display hitstun proration, instead of "--"
 	bool hitSomething:1;  // during this logic tick, hit someone with own (non-projectile) active frames
 	bool changedAnimOnThisFrame:1;
-	bool inNewMoveSection:1;
-	bool idleInNewSection:1;
-	bool frameAdvantageIncludesIdlenessInNewSection:1;
-	bool landingFrameAdvantageIncludesIdlenessInNewSection:1;
+	bool inNewMoveSection:1;  // see Moves.h:MoveInfo::sectionSeparator
+	bool idleInNewSection:1;  // see Moves.h:MoveInfo::considerIdleInSeparatedSectionAfterThisManyFrames
+	bool frameAdvantageIncludesIdlenessInNewSection:1;  // since frame advantage gets corrected after becoming idle in new section, we need to track if we changed it already
+	bool landingFrameAdvantageIncludesIdlenessInNewSection:1;  // since frame advantage gets corrected after becoming idle in new section, we need to track if we changed it already
 	
 	// These fields are needed because when tap Blitz Shield rejects an attack,
 	// it only enables normals after hitstop at the end of the logic tick, when
@@ -309,6 +335,15 @@ struct PlayerInfo {
 	bool wasEnableWhiffCancels:1;
 	bool obtainedForceDisableFlags:1;
 	
+	bool enableBlock:1;  // this holds the raw value of ent.enableBlock() flag
+	bool canBlock:1;  // this may either contain the value from enableBlock field or the result of the decision override by the current move
+	
+	bool isInFDWithoutBlockstun:1;
+	
+	bool armoredHitOnThisFrame:1;  // for super armors showing correct hitstop max
+	bool gotHitOnThisFrame:1;  // for super armors showing correct hitstop max
+	bool baikenReturningToBlockstunAfterAzami:1;  // for Baiken azamiing a hit and not doing a followup
+	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
 	char index = 0;  // the index of this PlayerInfo in endScene's 'players' array
@@ -318,6 +353,7 @@ struct PlayerInfo {
 	void clear();
 	void copyTo(PlayerInfo& dest);
 	void printStartup(char* buf, size_t bufSize);
+	void printRecovery(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
 	bool isIdleInNewSection();
 };

@@ -21,6 +21,7 @@ static bool isIdle_Souten8(const PlayerInfo& player);
 static bool isIdle_Rifle(const PlayerInfo& player);
 static bool isIdle_alwaysTrue(const PlayerInfo& player);
 static bool isIdle_alwaysFalse(const PlayerInfo& player);
+static bool canBlock_neoHochihu(const PlayerInfo& player);
 static bool isIdle_Ami_Move(const PlayerInfo& player);
 static bool isIdle_IrukasanRidingAttack(const PlayerInfo& player);
 
@@ -311,15 +312,15 @@ void Moves::onDllMain() {
 			{ CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Roman" },
 			{ false, false, "Reload RC", nullptr, 0, false, isIdle_Rifle }
 		},
-		// Leo backturn idle
+		// Leo backturn idle and also exiting backturn via 22
 		{
 			{ CHARACTER_TYPE_LEO, "Semuke" },
-			{ false, false, "Brynhildr Stance", nullptr, 0, false, isIdle_alwaysTrue }
+			{ false, false, "Brynhildr Stance", nullptr, 0, false, isIdle_enableWhiffCancels }
 		},
 		// Jam parry
 		{
 			{ CHARACTER_TYPE_JAM, "NeoHochihu" },
-			{ false, false, "Hochifu", nullptr, 0, false, isIdle_alwaysFalse }
+			{ false, false, "Hochifu", nullptr, 0, false, isIdle_alwaysFalse, canBlock_neoHochihu }
 		},
 		// Answer scroll cling idle
 		{
@@ -410,12 +411,8 @@ bool isIdle_default(const PlayerInfo& player) {
 	return player.wasEnableNormals;
 }
 
-bool isIdleSimple(const PlayerInfo& player) {
-	if (player.pawn.characterType() == CHARACTER_TYPE_JAM
-			&& strcmp(player.pawn.animationName(), "NeoHochihu") == 0) {
-		return false;
-	}
-	return player.wasEnableNormals;
+bool canBlock_default(const PlayerInfo& player) {
+	return player.enableBlock;
 }
 
 bool isIdle_enableWhiffCancels(const PlayerInfo& player) {
@@ -435,6 +432,10 @@ bool isIdle_alwaysTrue(const PlayerInfo& player) {
 bool isIdle_alwaysFalse(const PlayerInfo& player) {
 	return false;
 }
+bool canBlock_neoHochihu(const PlayerInfo& player) {
+	return player.pawn.currentAnimDuration() > 3
+		&& player.enableBlock;
+}
 bool isIdle_Ami_Move(const PlayerInfo& player) {
 	return player.wasEnableWhiffCancels
 		&& player.pawn.hitstop() == 0;
@@ -442,4 +443,30 @@ bool isIdle_Ami_Move(const PlayerInfo& player) {
 bool isIdle_IrukasanRidingAttack(const PlayerInfo& player) {
 	return player.wasEnableWhiffCancels
 		&& player.pawn.attackCollidedSoCanCancelNow();
+}
+
+MoveInfo::MoveInfo(bool combineWithPreviousMove,
+		bool usePlusSignInCombination,
+		const char* displayName,
+		sectionSeparator_t sectionSeparator,
+		int considerIdleInSeparatedSectionAfterThisManyFrames,
+		bool preservesNewSection,
+		isIdle_t isIdle,
+		isIdle_t canBlock)
+		:
+		combineWithPreviousMove(combineWithPreviousMove),
+		usePlusSignInCombination(usePlusSignInCombination),
+		displayName(displayName),
+		sectionSeparator(sectionSeparator),
+		considerIdleInSeparatedSectionAfterThisManyFrames(considerIdleInSeparatedSectionAfterThisManyFrames),
+		preservesNewSection(preservesNewSection),
+		isIdle(isIdle ? isIdle : isIdle_default) {
+	
+	if (!isIdle && !canBlock) {
+		this->canBlock = canBlock_default;
+	} else if (canBlock) {
+		this->canBlock = canBlock;
+	} else if (isIdle) {
+		this->canBlock = isIdle;
+	}
 }

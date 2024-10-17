@@ -56,32 +56,33 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };
 	if (result == HIT_RESULT_ARMORED) {
-		if (thisEntity.characterType() != -1
-			|| !otherEntity
-			|| !otherEntity.isPawn()) return result;
-
-		// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
-		if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
-			for (auto it = hitDetector.rejections.begin(); it != hitDetector.rejections.end(); ++it) {
-				if (it->owner == otherEntity) {
-					hitDetector.rejections.erase(it);
-					break;
+		if (thisEntity.characterType() == -1
+				&& otherEntity
+				&& otherEntity.isPawn()) {
+			
+			// "CounterGuard..."  +  "..Stand", "..Air", "..Crouch"
+			if (strncmp(otherEntity.animationName(), "CounterGuard", 12) == 0) {
+				for (auto it = hitDetector.rejections.begin(); it != hitDetector.rejections.end(); ++it) {
+					if (it->owner == otherEntity) {
+						hitDetector.rejections.erase(it);
+						break;
+					}
 				}
+	
+				int posY = otherEntity.posY();
+	
+				Rejection newRejection;
+				newRejection.owner = otherEntity;
+				newRejection.firstFrame = true;
+				newRejection.counter = DISPLAY_DURATION_REJECTION + REJECTION_DELAY;
+				newRejection.skipFrame = -1;
+				newRejection.activeFrame = DISPLAY_DURATION_REJECTION;
+				newRejection.left = otherEntity.posX() - rejectionDistance;
+				newRejection.right = newRejection.left + rejectionDistance * 2;
+				newRejection.top = posY + rejectionDistance;
+				newRejection.bottom = posY - rejectionDistance;
+				hitDetector.rejections.push_back(newRejection);
 			}
-
-			int posY = otherEntity.posY();
-
-			Rejection newRejection;
-			newRejection.owner = otherEntity;
-			newRejection.firstFrame = true;
-			newRejection.counter = DISPLAY_DURATION_REJECTION + REJECTION_DELAY;
-			newRejection.skipFrame = -1;
-			newRejection.activeFrame = DISPLAY_DURATION_REJECTION;
-			newRejection.left = otherEntity.posX() - rejectionDistance;
-			newRejection.right = newRejection.left + rejectionDistance * 2;
-			newRejection.top = posY + rejectionDistance;
-			newRejection.bottom = posY - rejectionDistance;
-			hitDetector.rejections.push_back(newRejection);
 		}
 	}
 
@@ -141,7 +142,8 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 	
 	if (result == HIT_RESULT_NORMAL
 			|| result == HIT_RESULT_BLOCKED
-			|| result == HIT_RESULT_ARMORED) {
+			|| result == HIT_RESULT_ARMORED
+			|| result == HIT_RESULT_5) {
 		endScene.registerHit(result, hasHitbox, thisEntity, otherEntity);
 	}
 
