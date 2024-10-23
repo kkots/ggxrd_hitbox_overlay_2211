@@ -29,7 +29,7 @@ void DrawOutlineCallParams::addPathElem(int x, int y, int inX, int inY) {
 	drawOutlineCallParamsManager.allPathElems.emplace_back(x, y, inX, inY);
 }
 
-const PathElement& DrawOutlineCallParams::getPathElem(int index) const {
+PathElement& DrawOutlineCallParams::getPathElem(int index) const {
 	return drawOutlineCallParamsManager.allPathElems[outlineStartAddr + index];
 }
 

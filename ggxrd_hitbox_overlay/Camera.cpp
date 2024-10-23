@@ -106,9 +106,8 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 		orig_updateCamera(thisArg, param1, param2);
 	}
 	if (*aswEngine && !shutdown) {  // without *aswEngine check it will actually crash when you quit a match
-		CameraValues newValues;
-		newValues.setValues();
-		valuesPrepare = newValues;
+		grabValues();
+		grabbedValues = true;
 	}
 }
 
@@ -123,7 +122,7 @@ void CameraValues::copyTo(CameraValues& destination) {
 }
 
 // Runs on the graphics thread
-void Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
+bool Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
 	setValues(device);
 
 	D3DXVECTOR3 vecConverted{ convertCoord(vec.x), 0.F, convertCoord(vec.z) };
@@ -134,10 +133,12 @@ void Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3D
 	out->x = vecDot(relativePos, valuesUse.right);
 	out->y = vecDot(relativePos, valuesUse.up);
 	out->z = vecDot(relativePos, valuesUse.forward);
+	if (out->z <= 5.F) return false;
 
 	out->x = floorf(clipXHalf - out->x * divisor / out->z + .5F);
 	out->y = floorf(clipYHalf - out->y * divisor / out->z + .5F);
 	out->z = 0.F;
+	return true;
 }
 
 // Runs on the main thread
@@ -231,4 +232,10 @@ void Camera::angleVectors(
 float Camera::vecDot(float* a, float* b) const
 {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+void Camera::grabValues() {
+	CameraValues newValues;
+	newValues.setValues();
+	valuesPrepare = newValues;
 }

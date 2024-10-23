@@ -184,11 +184,6 @@ bool Game::onDllMain() {
 		drawStunMashPtr = (drawStunMash_t)followRelativeCall(stunmashDrawingPlace);
 	}
 	
-	inputsHolder = (BYTE**)sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"e8 ?? ?? ?? ?? bb 00 00 01 00 bf 00 00 80 00",
-		{ -12, 0 },
-		nullptr, "inputsHolderCallPlace");
 	// A nice way to find this is to search for a UTF16 string L"Steam must be running to play this game (SteamAPI_Init() failed)"
 	// It will be near the top of the function, initialized this way:
 	// if (local_1c == (undefined4 *)0x0) {
@@ -197,6 +192,17 @@ bool Game::onDllMain() {
 	// else {
 	//   DAT_0209cfa0 = (int *)FUN_00fa1fa0();
 	// }
+	inputsHolder = (BYTE**)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"e8 ?? ?? ?? ?? bb 00 00 01 00 bf 00 00 80 00",
+		{ -12, 0 },
+		nullptr, "inputsHolderCallPlace");
+	
+	drawJackoHouseHp = (drawJackoHouseHp_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"74 19 8b 86 40 25 00 00 39 86 3c 25 00 00 7d 0b",
+		{ -0x26 },
+		nullptr, "drawJackoHouseHp");
 	
 	return !error;
 }
@@ -339,6 +345,14 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 }
 
 void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty() {
+	entityList.populate();
+	if (drawJackoHouseHp) {
+		for (int i = 0; i < entityList.count; ++i) {
+			Entity ent = entityList.list[i];
+			if (!ent.isActive()) continue;
+			drawJackoHouseHp((void*)ent.ent);
+		}
+	}
 	if (getTrainingHud) {
 		trainingHudTick(getTrainingHud());
 		// the hook for trainingHudTick is in EndScene
@@ -350,7 +364,6 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty() {
 		char field2 = *(char*)(gameInfoBattle + 0x4c8);
 		drawExGaugeHUD((void*)(*aswEngine + drawExGaugeHUDOffset), (field1 & 0x8) != 0 && (field2 & 0x2) != 0);
 	}
-	entityList.populate();
 	for (int i = 0; i < 2; ++i) {
 		Entity pawn = entityList.slots[i];
 		if (pawn.cmnActIndex() == CmnActJitabataLoop) {

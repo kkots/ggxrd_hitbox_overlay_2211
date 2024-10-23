@@ -70,6 +70,7 @@ static const char* formatBoolean(bool value);
 static void pushZeroItemSpacingStyle();
 static float getItemSpacing();
 static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
+static bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_button, bool* isDragging);
 
 bool UI::onDllMain() {
 	
@@ -196,6 +197,32 @@ void UI::prepareDrawData() {
 		windowTitle += VERSION;
 	}
 	ImGui::Begin(windowTitle.c_str(), &visible);
+	#define printWithWordWrap \
+				float w = ImGui::CalcTextSize(strbuf).x; \
+			    if (w > ImGui::GetContentRegionAvail().x) { \
+				    ImGui::TextWrapped(strbuf); \
+			    } else { \
+				    if (i == 0) RightAlign(w); \
+				    ImGui::TextUnformatted(strbuf); \
+			    }
+			    
+	#define printWithWordWrapArg(a) \
+				float w = ImGui::CalcTextSize(a).x; \
+			    if (w > ImGui::GetContentRegionAvail().x) { \
+				    ImGui::TextWrapped(a); \
+			    } else { \
+				    if (i == 0) RightAlign(w); \
+				    ImGui::TextUnformatted(a); \
+			    }
+			    
+    #define printNoWordWrap \
+			    if (i == 0) RightAlignedText(strbuf); \
+			    else ImGui::TextUnformatted(strbuf);
+			    
+    #define printNoWordWrapArg(a) \
+			    if (i == 0) RightAlignedText(a); \
+			    else ImGui::TextUnformatted(a);
+			    
 	if (ImGui::CollapsingHeader("Framedata", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::BeginTable("##PayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
@@ -251,8 +278,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -264,8 +290,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -276,8 +301,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -294,8 +318,7 @@ void UI::prepareDrawData() {
 			    	formatString = "%-4d / %-4d";
 			    }
 			    sprintf_s(strbuf, formatString, player.stun, player.stunThreshold * 100);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -309,8 +332,7 @@ void UI::prepareDrawData() {
 			    sprintf_s(strbuf, "%s; ", printdecimalbuf);
 			    printDecimal(player.y, 2, 0);
 			    sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -322,12 +344,12 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.printStartup(strbuf, sizeof strbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printWithWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Startup");
+		    		// have I overdone this?
 		    		AddTooltip("The startup of the last performed move. The last startup frame is also an active frame.\n"
 		    			"For moves that cause a superfreeze, such as RC, the startup of the superfreeze is displayed.\n"
 		    			"The startup of the move may consist of multiple numbers, separated by +. In that case:\n"
@@ -348,17 +370,12 @@ void UI::prepareDrawData() {
 			    } else {
 			    	*strbuf = '\0';
 			    }
-			    float w = ImGui::CalcTextSize(strbuf).x;
-			    if (w > ImGui::GetContentRegionAvail().x) {
-				    ImGui::TextWrapped(strbuf);
-			    } else {
-				    if (i == 0) RightAlign(w);
-				    ImGui::TextUnformatted(strbuf);
-			    }
+			    printWithWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Active");
+		    		// have I overdone this?
 		    		AddTooltip("Number of active frames in the last performed move.\n"
 		    			"Numbers in (), when surrounded by other numbers, mean non-active frames inbetween active frames."
 		    			" So, for example, 1(2)3 would mean you were active for 1 frame, then were not active for 2 frames, then were active again for 3.\n"
@@ -370,14 +387,17 @@ void UI::prepareDrawData() {
 		    			" For example: 13 / 1,1,1,1,1,1,1,1,1,1,1,1,1. Means there're 13 active frames, and over the /, each individual hit's active frames"
 		    			" are shown.\n"
 		    			"If the move spawned one or more projectiles, and the hits of projectiles overlap with each other or with the player's hits, then the"
-		    			" individual hits' information is discarded in the overlapping spans and they're shown as one hit.\n"
+		    			" individual hits' information is discarded in the overlapping spans and they're shown as one hit. For example,"
+		    			" Sol DI Ground Viper spawns vertical pillars of fire in its path, as Sol himself is hitting from below. The hits of the pillars are"
+		    			" out of sync with Sol's hits and so everything is displayed as just one number representing the total duration of all active frames.\n"
 		    			"If the move spawned one or more projectiles, or Eddie, and that projectile entered hitstop due to the opponent blocking it or"
 		    			" getting hit by it, then the displayed number of active frames may be larger than it is on whiff, because the hitstop gets added"
 		    			" to it.\n"
 		    			"If, while the move was happening, some projectile unrelated to the move had active frames, those are not included in the move's"
 		    			" active frames.\n"
-		    			"Note: if active frames start during superfreeze, the active frames will include the frame that happened during superfreeze and"
-		    			" all the active frames that were after the superfreeze. For example, a move has superfreeze startup 1, +0 startup after superfreeze,"
+		    			"If active frames start during superfreeze, the active frames will include the frame that happened during superfreeze and"
+		    			" all the active frames that were after the superfreeze. For example, a move has superfreeze startup 1"
+		    			" (meaning superfreeze starts in 1 frame), +0 startup after superfreeze (which means that it starts during the superfreeze),"
 		    			" and 2 active frames after the superfreeze. The displayed result for active frames will be: 3.");
 		    	}
 		    }
@@ -385,49 +405,45 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.printRecovery(strbuf, sizeof strbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printWithWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Recovery");
 		    		AddTooltip("Number of recovery frames in the last performed move."
 		    			" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.\n"
-		    			"We only check for the ability to perform normals, such as 5P or j.P, or moves from stances, such as from Leo backturn."
-		    			" It is possible to become able to block"
-		    			" or do other actions earlier than you become able to perform normals.\n"
-		    			"If you performed an air normal or some air move without landing recovery and canceled it by landing on the ground,"
-		    			" normally, there's one frame upon landing during which you can't attack but can block. This frame is not included"
-		    			" in the recovery frames.");
+		    			"See the tooltip for the 'Total' field for more details.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.printTotal(strbuf, sizeof strbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printWithWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Total");
+		    		// have I overdone this?
 		    		AddTooltip("Total number of frames in the last performed move during which you've been unable to act.\n"
-		    			"If you recovered (by recovered we mean became able to perform an attack, such as 5P/j.P or a stance move,"
-		    			" like from Leo backturn for example)"
-		    			" before the move was over, those remaining frames are not included in the total."
-		    			" For example, if Johnny dashes forward, he becomes able to act on f13 but the total animation is 18f,"
-		    			" so that makes the total frames until recovery 12.\n"
 		    			"If the move spawned a projectiled that lasted beyond the boundaries of the move, this field will display"
 		    			" only the amount of frames it took to recover, from the start of the move."
 		    			" So for example, if a move's startup is 1, it creates a projectile that lasts 100 frames and recovers instantly,"
 		    			" on frame 2, then its total frames will be 1, its startup will be 1 and its actives will be 100.\n"
-		    			"If you performed an air move that let you recover in the air, but the move has landing recovery, the"
-		    			" landing recovery is included in the total frames as '+X landing'.\n"
-		    			"If you performed an air move and you did not recover in the air, and the move has landing recovery, the"
-		    			" landing recovery is included in the total frames, without a + sign.\n"
+		    			"If you performed an air move that has landing recovery, the"
+		    			" landing recovery is included in the display as '+X landing'.\n"
+		    			"If you performed an air move and recovered in the air, then the time you spent in the air idle is not included"
+		    			" in the recovery or 'Total' frames. Even if such move had landing recovery, it will display only the frames,"
+		    			" during which you were 'busy', will not include the idle time spent in the air, and will add a '+X landing'"
+		    			" to the recovery.\n"
 		    			"If you performed an air normal or similar air move without landing recovery, and it got canceled by"
 		    			" landing, normally there's 1 frame upon landing during which normals can't be used but blocking is possible."
-		    			" This frame is not included in the total frames as it is not considered part of the move.");
+		    			" This frame is not included in the total frames as it is not considered part of the move.\n"
+		    			"If the move recovery lets you attack first and then some times passes and then it lets you block, or vice versa"
+		    			" the display will say either 'X can't block+Y can't attack' or 'X can't attack+Y can't block'. In this case"
+		    			" the first part is the number of frames during which you were unable to block/attack and the second part is"
+		    			" the number of frames during which you were unable to attack/block.\n"
+		    			"If the move was jump canceled, the prejump frames and the jump are not included in neither the recovery nor 'Total'.");
 		    	}
 		    }
 		    for (int i = 0; i < 2; ++i) {
@@ -454,8 +470,7 @@ void UI::prepareDrawData() {
 			    	ptrNext = strbuf + strlen(strbuf);
 			    	memcpy(ptrNext, " + ", 3);
 			    }
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -483,15 +498,34 @@ void UI::prepareDrawData() {
 			    if (i == 0) {
 			    	ImGui::TableNextColumn();
 		    		CenterAlignedText("Frame Adv.");
+		    		// have I overdone this?
 		    		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
 		    			" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
-				    	" Please note that players may become able to block earlier than they become able to attack.\n\n"
-				    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last. The other value (not in ()) means frame advantage"
-				    	" immediately after recovering in the air. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
+				    	" Please note that players may become able to block earlier than they become able to attack. This difference will not be displayed, and only the time"
+				    	" when players become able to attack will be considered for frame advantage calculation.\n\n"
+				    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last."
+				    	" The landing frame advantage is measured against the other player's becoming able to attack after landing or,"
+				    	" if they never jumped, after them just becoming able to attack."
+				    	" For example, two players jump one after each other with 1f delay. Both players whiff a j.P in the air and recover in the air, then land"
+				    	" one after another with 1f delay. The player who landed first will have a +1 'landing' frame advantage and the displayed result will be:"
+				    	" ??? (+1), where ??? is the 'air' frame advantage (read below), and +1 is the 'landing' frame advantage.\n"
+				    	"The other value (not in ()) means ('air') frame advantage"
+				    	" immediately after recovering in the air or on the ground, whichever happened earlier."
+				    	" 'Air' frame advantage is measured against the other player becoming able to attack in the air or"
+				    	" on the ground, whichever happened earlier. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
 				    	" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
-				    	" +1 (-99).\n"
+				    	" +1 (-99). If both you and the opponent jumped, and you recovered in the air 1f before they did, but after they recovered,"
+				    	" it took you 100 frames to fall back down"
+				    	" and them - only one, then the displayed result for you will be: +1 (-99), and for them: -1 (+99). So, 'air' frame advantage is measured"
+				    	" against recovering in the air/on the ground, 'landing' frame advantage is measured against recovering on the ground only.\n"
 				    	"\n"
-				    	"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.");
+				    	"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.\n"
+				    	"Frame advantage may go into the past and use time from before the opponent entered blockstun and add that time to your frame advantage,"
+				    	" if during that time you were idle. For example, if Ky uses j.D, he recovers in the air before it goes active, then opponent gets put into blockstun,"
+				    	" then all the time that Ky was idle in the air immediately gets included in the frame advantage. For example, if you did a move that let you recover"
+				    	" in one frame, but it caused the opponent to enter blockstun 100 frames after you started your move, and the opponent spent 1 frame in blockstun,"
+				    	" you're considered +100 instead of +1. If you do not want to include attacker's pre-blockstun idle time as part of frame advantage,"
+				    	" then you may calculate frame advantage manually by adding defender's hitstop + blockstun together. They're displayed above in the 'Hitstop+X-stun' field.");
 			    }
 		    }
 		    
@@ -499,13 +533,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.printGaps(strbuf, sizeof strbuf);
-			    float w = ImGui::CalcTextSize(strbuf).x;
-			    if (w > ImGui::GetContentRegionAvail().x) {
-				    ImGui::TextWrapped(strbuf);
-			    } else {
-				    if (i == 0) RightAlign(w);
-				    ImGui::TextUnformatted(strbuf);
-			    }
+			    printWithWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -517,8 +545,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", formatBoolean(player.idle));
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -529,8 +556,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -541,8 +567,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -553,8 +578,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -565,17 +589,10 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    if (!player.move || !player.move->displayName) {
-				    if (i == 0) RightAlignedText(player.anim);
-				    else ImGui::TextUnformatted(player.anim);
+				    printNoWordWrapArg(player.anim)
 			    } else {
 			    	sprintf_s(strbuf, "%s (%s)", player.move->displayName, player.anim);
-				    float w = ImGui::CalcTextSize(strbuf).x;
-				    if (w > ImGui::GetContentRegionAvail().x) {
-					    ImGui::TextWrapped(strbuf);
-				    } else {
-					    if (i == 0) RightAlign(w);
-					    ImGui::TextUnformatted(strbuf);
-				    }
+				    printWithWordWrap
 			    }
 		    	
 		    	if (i == 0) {
@@ -587,8 +604,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%d", player.animFrame);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -599,8 +615,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.sprite.print(strbuf, sizeof strbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -611,8 +626,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%d", player.startup);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -623,8 +637,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.actives.print(strbuf, sizeof strbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -635,8 +648,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%d", player.recovery);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -647,8 +659,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%d", player.total);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -659,8 +670,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%d", player.startupProj);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -671,8 +681,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.activesProj.print(strbuf, sizeof strbuf);
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -690,8 +699,7 @@ void UI::prepareDrawData() {
 			    } else {
 			    	strcpy(strbuf, "false");
 			    }
-			    if (i == 0) RightAlignedText(strbuf);
-			    else ImGui::TextUnformatted(strbuf);
+			    printNoWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -744,8 +752,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    sprintf_s(strbuf, "%p", (void*)projectile.ptr);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -758,8 +765,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    sprintf_s(strbuf, "%d", projectile.lifeTimeCounter);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -771,8 +777,7 @@ void UI::prepareDrawData() {
 						    ImGui::TableNextColumn();
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
-							    if (i == 0) RightAlignedText(projectile.animName);
-							    else ImGui::TextUnformatted(projectile.animName);
+							    printNoWordWrapArg(projectile.animName)
 					    	}
 					    	
 					    	if (i == 0) {
@@ -785,8 +790,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    sprintf_s(strbuf, "%d", projectile.animFrame);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -799,8 +803,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 					    		projectile.sprite.print(strbuf, sizeof strbuf);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -813,8 +816,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    sprintf_s(strbuf, "%d", projectile.hitstop);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -828,13 +830,7 @@ void UI::prepareDrawData() {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    projectile.actives.print(strbuf, sizeof strbuf);
 							    
-							    float w = ImGui::CalcTextSize(strbuf).x;
-							    if (w > ImGui::GetContentRegionAvail().x) {
-								    ImGui::TextWrapped(strbuf);
-							    } else {
-								    if (i == 0) RightAlign(w);
-								    ImGui::TextUnformatted(strbuf);
-							    }
+							    printWithWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -847,8 +843,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    projectile.printStartup(strbuf, sizeof strbuf);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -861,8 +856,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    projectile.printTotal(strbuf, sizeof strbuf);
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -875,8 +869,7 @@ void UI::prepareDrawData() {
 					    	if (row.side[i]) {
 						    	ProjectileInfo& projectile = *row.side[i];
 							    sprintf_s(strbuf, "%s", formatBoolean(projectile.disabled));
-							    if (i == 0) RightAlignedText(strbuf);
-							    else ImGui::TextUnformatted(strbuf);
+							    printNoWordWrap
 					    	}
 					    	
 					    	if (i == 0) {
@@ -890,17 +883,17 @@ void UI::prepareDrawData() {
 	    	}
 		}
 		if (ImGui::Button("Show Tension Values")) {
-			showTensionData = true;
+			showTensionData = !showTensionData;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Speed/Proration")) {
-			showSpeedsData = true;
+			showSpeedsData = !showSpeedsData;
 		}
 		for (int i = 0; i < 2; ++i) {
 			sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
 			if (i != 0) ImGui::SameLine();
 			if (ImGui::Button(strbuf)) {
-				showCharSpecific[i] = true;
+				showCharSpecific[i] = !showCharSpecific[i];
 			}
 		}
 	}
@@ -1718,6 +1711,19 @@ void UI::prepareDrawData() {
 		}
 	}
 	
+	
+	/*static ImVec2 selStart { 0.F, 0.F };
+	static ImVec2 selEnd { 0.F, 0.F };
+	static bool isDragging = false;
+	SelectionRect(&selStart, &selEnd, ImGuiMouseButton_Left, &isDragging);
+	ImGui::SetNextWindowContentSize({800.F, 500.F});
+	ImGui::Begin("Framebar", nullptr,
+		ImGuiWindowFlags_NoBackground
+		| ImGuiWindowFlags_NoCollapse
+		| ImGuiWindowFlags_NoTitleBar
+		| (isDragging ? ImGuiWindowFlags_NoMove : 0));
+	ImGui::End();*/
+	
 	takeScreenshot = takeScreenshotTemp;
 	imguiActive = imguiActiveTemp;
 	ImGui::EndFrame();
@@ -2441,4 +2447,21 @@ void pushZeroItemSpacingStyle() {
 
 float getItemSpacing() {
 	return ImGui::GetStyle().ItemSpacing.x;
+}
+
+bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_button, bool* isDragging)
+{
+    IM_ASSERT(start_pos != NULL);
+    IM_ASSERT(end_pos != NULL);
+    if (ImGui::IsMouseClicked(mouse_button))
+        *start_pos = ImGui::GetMousePos();
+    if (ImGui::IsMouseDown(mouse_button))
+    {
+    	*isDragging = true;
+        *end_pos = ImGui::GetMousePos();
+        ImDrawList* draw_list = ImGui::GetForegroundDrawList(); //ImGui::GetWindowDrawList();
+        draw_list->AddRect(*start_pos, *end_pos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 255)));   // Border
+        draw_list->AddRectFilled(*start_pos, *end_pos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 50)));    // Background
+    }
+    return ImGui::IsMouseReleased(mouse_button);
 }

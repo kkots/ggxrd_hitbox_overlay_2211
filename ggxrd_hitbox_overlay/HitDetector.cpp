@@ -234,11 +234,11 @@ void HitDetector::drawHits() {
 				Entity ent = entityList.list[i];
 				// this is needed for Sol's Gunflame. The gunflame continues to exist as entity but stops being active as soon as it hits
 				// this is also needed for Chipp's Gamma Blade. It stops being active very soon after it hits
-				if (hitboxThatHit.entity == ent) {
+				if (ent.isActive() && hitboxThatHit.entity == ent) {
 					entityInTheList = true;
 					const bool isActive = (*(unsigned int*)(ent + 0x23C) & 0x100) != 0;
 					const int hitboxCount = *(const int*)(ent + 0xA4);
-					entityInTheListAndActive = ent.isActive() && hitboxCount > 0;
+					entityInTheListAndActive = ent.isActiveFrames() && hitboxCount > 0;
 					break;
 				}
 			}

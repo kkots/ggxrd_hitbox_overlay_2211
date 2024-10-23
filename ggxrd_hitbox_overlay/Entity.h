@@ -28,21 +28,21 @@ struct WakeupTimings {
 enum CmnActIndex {
 	CmnActStand = 0x0,  // standing
 	CmnActStandTurn = 0x1,  // turning around
-	CmnActStand2Crouch = 0x2,  // switching from stand to crouching animation
+	CmnActStand2Crouch = 0x2,  // switching from standing to crouching animation
 	CmnActCrouch = 0x3,  // crouching
 	CmnActCrouchTurn = 0x4,  // turning around while crouching
-	CmnActCrouch2Stand = 0x5,  // switching from crouching to standing animation"
+	CmnActCrouch2Stand = 0x5,  // switching from crouching to standing animation
 	CmnActJumpPre = 0x6,  // prejump
 	CmnActJump = 0x7,  // jumping
 	CmnActJumpLanding = 0x8,  // landing from a jump
 	CmnActLandingStiff = 0x9,  // landing recovery after doing an air move, like Ky j.D
 	CmnActFWalk = 0xa,  // walking forward
 	CmnActBWalk = 0xb,  // walking backwards
-	CmnActFDash = 0xc,  // runing
-	CmnActFDashStop = 0xd,  // stoping running
+	CmnActFDash = 0xc,  // running
+	CmnActFDashStop = 0xd,  // stopping running
 	CmnActBDash = 0xe,  // backdash
 	CmnActAirFDash = 0xf,  // airdashing forward
-	CmnActAirBDash = 0x10,  // airdashing backwards
+	CmnActAirBDash = 0x10,  // airdashing backward
 	CmnActNokezoriHighLv1 = 0x11,  // these are all hit animations
 	CmnActNokezoriHighLv2 = 0x12,
 	CmnActNokezoriHighLv3 = 0x13,
@@ -81,7 +81,7 @@ enum CmnActIndex {
 	CmnActWallBoundDown = 0x34,  // falling down after bouncing from a wall
 	CmnActWallHaritsuki = 0x35,  // wallsplat from 5D6/other moves, and wallslump animation
 	CmnActWallHaritsukiLand = 0x36,  // landing on the ground from wallslump, also laying/sitting there
-	CmnActWallHaritsukiGetUp = 0x37,  // getting up after wallslump, followed by crouch2stand
+	CmnActWallHaritsukiGetUp = 0x37,  // getting up after wallslump, followed by crouch2stand (not part of haritsuki getup)
 	CmnActJitabataLoop = 0x38,  // stagger (as in from Ky 5H CH) animation
 	CmnActKizetsu = 0x39,  // dizziness animation. You may get a jitabata first, which then transitions into kizetsu
 	CmnActHizakuzure = 0x3a,  // crumple from getting hit by max charge blitz. Is followed by CmnActFDownLoop
@@ -118,7 +118,7 @@ enum CmnActIndex {
 	CmnActResultWin = 0x59,  // static pose that happens on victory quote screen
 	CmnActResultLose = 0x5a,  // static pose that happens on victory quote screen
 	CmnActEntryWait = 0x5b,  // you're invisible
-	CmnActExDamage = 0x5c,  // don't know
+	CmnActExDamage = 0x5c,  // getting hit by Elphelt 236236K
 	CmnActExDamageLand = 0x5d,  // don't know
 	NotACmnAct = 0xffffffff
 };
@@ -152,8 +152,9 @@ public:
 	inline Entity(void* ent) { this->ent = (char*)ent; }
 	char* ent = nullptr;
 	
+	inline bool isActive() const { return *(DWORD*)(ent + 0xc) == 1; }
 	// Active means attack frames are coming
-	inline bool isActive() const {
+	inline bool isActiveFrames() const {
 		return (*(unsigned int*)(ent + 0x23C) & 0x100) != 0  // This signals that attack's hitboxes should not be ignored. Can happen before hitboxes come out
 			&& (*(unsigned int*)(ent + 0x234) & 0x40000000) == 0;  // This signals that attack's hitboxes should be ignored.
 		                                                           // Can be simultaneous with 0x100 flag in 0x23C - recovery takes priority
@@ -189,6 +190,7 @@ public:
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
 	inline int hitstop() const { return *(int*)(ent + 0x1ac); }
+	inline int clashHitstop() const { return *(int*)(ent + 0x1b0); }
 	inline bool needSetHitstop() const { return *(DWORD*)(ent + 0x1b8) != 0; }
 	inline int startingHitstop() const { return *(int*)(ent + 0x1b4); }
 	inline int hitstun() const { return *(int*)(ent + 0x9808); }
@@ -245,6 +247,7 @@ public:
 	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
 	inline int pushbackModifierDuringPain() { return *(int*)(ent + 0x710 + 0x158); }
 	inline bool displayModel() { return *(bool*)(ent + 0x2814); }
+	inline bool isHidden() { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
 	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
 	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
@@ -265,7 +268,7 @@ public:
 	inline bool hitSomethingOnThisFrame() { return (*(int*)(ent + 0x12c) & 0x20000) != 0; }  // is true for only one frame - the frame on which you hit something
 	inline bool inPainNextFrame() { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
 	inline bool inBlockstunNextFrame() { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
-	inline bool inUnknownNextFrame() { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // uuh
+	inline bool enableGuardBreak() { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // i don't know what this is, bbscript calls it enableGuardBreak
 	inline Entity currentRunOnObject() { return *(Entity*)(ent + 0x2464); }
 	inline bool successfulIB() { return (*(DWORD*)(ent + 0x23c) & 0x800000) != 0; }  // can be set even on FD IB. Remains set even after blockstun is over.
 	inline HitResult lastHitResult() { return *(HitResult*)(ent + 0x984); }
@@ -295,6 +298,8 @@ public:
 	inline const char* attackLockAction() const { return (const char*)(ent + 0x44c + 0x54); }
 	inline int spriteFrameCounter() const { return *(int*)(ent + 0xa78); }
 	inline int spriteFrameCounterMax() const { return *(int*)(ent + 0xa80); }
+	inline BYTE* bbscrCurrentInstr() const { return *(BYTE**)(ent + 0xa50); }  // if playing a sprite, points to the next sprite command that would go after it
+	inline BYTE* bbscrCurrentFunc() const { return *(BYTE**)(ent + 0xa54); }  // points to a beginState instruction
 	
 	void getState(EntityState*) const;
 	

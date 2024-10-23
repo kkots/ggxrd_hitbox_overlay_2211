@@ -25,7 +25,7 @@ public:
 	void reserveSize(int numPathElems);
 	void addPathElem(int x, int y, int inX, int inY);
 	void addPathElem(float xProjected, float yProjected, int x, int y, int inX, int inY);
-	const PathElement& getPathElem(int index) const;
+	PathElement& getPathElem(int index) const;
 	int count() const;
 	bool empty() const;
 private:

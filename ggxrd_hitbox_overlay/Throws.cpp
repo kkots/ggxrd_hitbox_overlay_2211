@@ -74,9 +74,10 @@ void Throws::hitDetectionMainHook() {
 	entityList.populate();
 	for (int i = 0; i < entityList.count; ++i) {
 		Entity ent = entityList.list[i];
+		if (!ent.isActive()) continue;
 
 		const AttackType attackType = ent.attackType();
-		const bool isActive = ent.isActive();
+		const bool isActive = ent.isActiveFrames();
 		int throwRange = ent.throwRange();  // This value resets to -1 on normal throws very fast so that's why we need this separate hook.
 		                                    // For command throws it stays non -1 for much longer than the throw actually happens
 

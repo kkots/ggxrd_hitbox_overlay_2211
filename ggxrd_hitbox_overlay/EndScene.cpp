@@ -706,14 +706,25 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.blockstun = ent.blockstun();
 			player.hitstun = ent.hitstun();
 			int hitstop = ent.hitstop();
+			int clashHitstop = ent.clashHitstop();
+			if (!player.clashHitstop && clashHitstop) {
+				player.hitstopMax = 0;
+			}
+			if (player.clashHitstop) {
+				int val = clashHitstop + hitstop;
+				if (val > player.hitstopMax) {
+					player.hitstopMax = val;
+				}
+			}
+			player.clashHitstop = clashHitstop;
 			if (ent.hitSomethingOnThisFrame()) {
 				player.hitstop = 0;
-				player.hitstopMax = hitstop - 1;
+				player.hitstopMax = hitstop + clashHitstop - 1;
 				if (player.hitstopMax < 0) player.hitstopMax = 0;
 			} else if (player.armoredHitOnThisFrame && !player.gotHitOnThisFrame && player.setHitstopMaxSuperArmor) {
 				player.hitstopMax = player.hitstopMaxSuperArmor - 1;
 			} else {
-				player.hitstop = hitstop;
+				player.hitstop = hitstop + clashHitstop;
 			}
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
 			player.airborne = !(ent.y() == 0 && player.speedY == 0);
@@ -728,6 +739,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			} else if (cmnActIndex == CmnActUkemi) {
 				player.wakeupTiming = 9;
 			}
+			if (player.cmnActIndex == CmnActKirimomiUpper && ent.currentAnimDuration() == 2) {
+				player.hitstunMax = player.hitstun;  // 5D6 hitstun
+			}
+			player.inBlockstunNextFrame = ent.inBlockstunNextFrame();
 			const char* animName = ent.animationName();
 			player.onTheDefensive = player.blockstun
 				|| player.inPain
@@ -739,14 +754,49 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.enableBlock = ent.enableBlock();
 			const MoveInfo& move = moves.getInfo(player.charType, ent.animationName(), false);
 			bool idleNext = move.isIdle(player);
+			bool prevFrameIdle = player.idle;
+			bool prevFrameignoreNextInabilityToBlockOrAttack = player.ignoreNextInabilityToBlockOrAttack;
+			bool prevFrameCanBlock = player.canBlock;
 			player.canBlock = move.canBlock(player);
+			
+			if (!player.changedAnimOnThisFrame
+					&& prevFrameIdle
+					&& (
+						// Leaving Ms. Confille stance after spending too much time in it doing nothing
+						player.charType == CHARACTER_TYPE_ELPHELT
+						&& (
+							strcmp(player.anim, "Rifle_Start") == 0
+							&& strcmp(animName, "Rifle_Start") == 0
+							|| strcmp(player.anim, "Rifle_Reload") == 0
+							&& strcmp(animName, "Rifle_Reload") == 0
+							|| strcmp(player.anim, "Rifle_Reload_Perfect") == 0
+							&& strcmp(animName, "Rifle_Reload_Perfect") == 0
+							|| strcmp(player.anim, "Rifle_Roman") == 0
+							&& strcmp(animName, "Rifle_Roman") == 0
+						)
+						&& !player.idle
+					)
+				) {
+				player.changedAnimOnThisFrame = true;
+			}
+			if (!player.changedAnimOnThisFrame
+					&& player.charType == CHARACTER_TYPE_LEO
+					&& idleNext
+					&& strcmp(player.anim, "Semuke") == 0
+					&& strcmp(ent.gotoLabelRequest(), "SemukeEnd") == 0) {
+				player.changedAnimOnThisFrame = true;
+				player.canBlock = false;
+				idleNext = false;
+			}
+			
 			player.isLanding = cmnActIndex == CmnActJumpLanding
 				|| cmnActIndex == CmnActLandingStiff
 				|| player.theAnimationIsNotOverYetLolConsiderBusyNonAirborneFramesAsLandingAnimation
 				&& !player.airborne
-				&& !idleNext;
+				&& !idleNext
+				&& !player.onTheDefensive;
 			player.isLandingOrPreJump = player.isLanding || cmnActIndex == CmnActJumpPre;
-			if (cmnActIndex == CmnActJumpPre) {
+			if (cmnActIndex == CmnActJumpPre || player.airborne && !player.idle && !player.idleInNewSection) {  // second check needed for Venom Ball teleport
 				player.frameAdvantageValid = false;
 				other.frameAdvantageValid = false;
 				player.landingFrameAdvantageValid = false;
@@ -764,18 +814,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.animFrame = ent.currentAnimDuration();
 			player.hitboxesCount = 0;
 			
-			bool prevFrameIdle = player.idle;
-			if (idleNext != player.idle || player.wasIdle && !idleNext || player.setBlockstunMax && !idleNext) {
+			if (idleNext != player.idle || player.wasIdle && !idleNext || (player.setBlockstunMax || player.setHitstunMax) && !idleNext) {
 				player.idle = idleNext;
 				if (!player.idle) {
 					if (player.onTheDefensive) {
 						player.startedDefending = true;
-						if (player.cmnActIndex != CmnActUkemi) {
-							if (!player.baikenReturningToBlockstunAfterAzami) {
-								player.hitstopMax = player.hitstop;
-								if (player.setBlockstunMax) {
-									--player.blockstunMax;
-								}
+						if (player.cmnActIndex != CmnActUkemi && !player.baikenReturningToBlockstunAfterAzami) {
+							player.hitstopMax = player.hitstop;
+							if (player.setBlockstunMax) {
+								--player.blockstunMax;  // this is the line PlayerInfo.h:PlayerInfo::inBlockstunNextFrame refers to
+							}
+							if (player.setHitstunMax) {
+								player.hitstunMax = ent.hitstun() - (ent.hitstop() ? 1 : 0);
 							}
 						}
 						
@@ -820,7 +870,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| player.cmnActIndex == CmnActHighGuardLoop
 				)
 				&& player.blockstun == 0
-				&& !player.idle;  // idle check needed because proxyguard also triggers these animations
+				&& (
+					!player.idle  // idle check needed because proxyguard also triggers these animations
+					|| !player.canBlock  // block check also needed because 5D6 cannot be immediately FD canceled
+					&& !player.ignoreNextInabilityToBlockOrAttack  // this check must always follow the canBlock check
+				);
 			bool needDisableProjectiles = false;
 			if (player.changedAnimOnThisFrame) {
 				player.move = &move;
@@ -842,8 +896,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.timePassed = 0;
 					}
 				}
-				if (move.combineWithPreviousMove
-						&& move.usePlusSignInCombination
+				if (
+						move.combineWithPreviousMove
+						&& !move.usePlusSignInCombination
+						&& !(
+							player.charType == CHARACTER_TYPE_BEDMAN
+							&& strcmp(player.anim, "Boomerang_B") != 0
+							&& strcmp(player.anim, "Boomerang_B_Air") != 0
+							&& strcmp(animName, "BWarp") == 0
+						)
+						&& !(
+							player.charType == CHARACTER_TYPE_HAEHYUN
+							&& strcmp(player.anim, "AntiAirAttack") != 0
+							&& strcmp(animName, "AntiAir4Hasei") == 0
+						)
 						|| player.move == &moves.defaultMove
 						&& *player.prevAttackLockAction != '\0'
 						&& strcmp(animName, player.prevAttackLockAction) == 0
@@ -852,7 +918,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& strcmp(animName, "NeoHochihu") == 0
 						|| player.isInFDWithoutBlockstun  // this check is here and not down below because I don't want air button +
 						                                  // + recover in air + short FD + keep falling = to mess up the moveOriginatedInTheAir flag
-						&& !prevFrameIdle) {
+						&& (
+							!prevFrameIdle
+							|| !prevFrameCanBlock
+							&& !prevFrameignoreNextInabilityToBlockOrAttack
+						)
+					) {
 					// do nothing
 				} else {
 					player.moveOriginatedInTheAir = false;
@@ -865,7 +936,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (!player.isLandingOrPreJump
 							&& player.cmnActIndex != CmnActJump
 							&& !player.idlePlus
-							&& !(!player.wasIdle && player.cmnActIndex == CmnActRomanCancel)) {
+							&& !(
+								!player.wasIdle
+								&& player.cmnActIndex == CmnActRomanCancel
+							)) {
+						if (!player.baikenReturningToBlockstunAfterAzami) {
+							player.displayHitstop = false;  // technically Baiken changes animation when she puts herself into blockstun from a successful Azami with no followup,
+							                                // and normally we stop displaying old hitstop when the animation changes, but in this case we should keep it
+						}
 						if (!player.onTheDefensive) {
 							player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
 						}
@@ -875,10 +953,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.activesProj.clear();
 						player.prevStartupsProj.clear();
 						
-						if (!move.usePlusSignInCombination) {
-							player.prevStartups.clear();
-						} else {
+						if (move.usePlusSignInCombination
+								|| player.charType == CHARACTER_TYPE_BAIKEN
+								&& strcmp(player.anim, "Suzuran") == 0
+								&& (
+									strcmp(animName, "Youshijin") == 0  // P followup
+									|| strcmp(animName, "Mawarikomi") == 0  // K followup
+									|| strcmp(animName, "Sakura") == 0  // S followup
+									|| strcmp(animName, "Issen") == 0  // H followup
+									|| strcmp(animName, "Teppou") == 0  // D followup
+								)) {
 							player.prevStartups.add(player.total);
+						} else {
+							player.prevStartups.clear();
 						}
 						
 						player.startup = 0;
@@ -888,6 +975,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.total = 0;
 						player.totalFD = 0;
 						player.totalCanBlock = 0;
+						player.ignoreNextInabilityToBlockOrAttack = false;
 						
 						player.dontRestartTheNonLandingFrameAdvantageCountdownUponNextLanding = false;
 						
@@ -902,6 +990,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				memcpy(player.anim, animName, 32);
 				
 			}
+			
+			if (player.idle && player.canBlock) {
+				player.ignoreNextInabilityToBlockOrAttack = true;
+			}
+			
 			// This is needed for animations that create projectiles on frame 1
 			for (OccuredEvent& event : events) {
 				if (event.type == OccuredEvent::SET_ANIM
@@ -923,8 +1016,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							&& playerFrom.pawn == ent
 							&& projectileTo.team == player.index) {
 						projectileTo.disabled = false;
-						projectileTo.startup = player.total;
-						projectileTo.total = player.total;
+						projectileTo.startup = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
+						projectileTo.total = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
 					} else if (projectileFrom.ptr
 							&& projectileTo.ptr
 							&& projectileFrom.ptr
@@ -947,7 +1040,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.inNewMoveSection = true;
 				player.timeInNewSection = 0;
 				if (!player.startedUp && player.total) {
-					player.prevStartups.add(player.total);
+					if (player.superfreezeStartup) {
+						player.prevStartups.add(player.superfreezeStartup);
+						player.total -= player.superfreezeStartup;  // needed for Johnny Treasure Hunt
+						player.superfreezeStartup = 0;
+					}
+					if (player.total) {
+						player.prevStartups.add(player.total);
+					}
 					player.startup = 0;
 					player.total = 0;
 					player.totalCanBlock = 0;
@@ -999,7 +1099,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (projectile.ptr) {
 				for (int i = 0; i < entityList.count; ++i) {
 					Entity ent = entityList.list[i];
-					if (projectile.ptr == ent) {
+					if (ent.isActive() && projectile.ptr == ent) {
 						found = true;
 						break;
 					}
@@ -1046,12 +1146,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !(!player.idleLanding && player.airborne)) {  // we can't change idleLanding from false to true while player is airborne
 				player.idleLanding = actualIdle;
 				if (player.idleLanding && player.isLanding) {
-					if (other.idlePlus) {
+					if (other.idleLanding) {  // no need to worry about the value of other.idleLanding being outdated here,
+						                      // because if they're landing on the same frame, they will enter the if branch
+						                      // immediately below and reset measuringLandingFrameAdvantage to -1
 						measuringLandingFrameAdvantage = -1;
-						if (other.timePassed > player.timePassedLanding) {
+						if (other.timePassedLanding > player.timePassedLanding) {
 							player.landingFrameAdvantage = -player.timePassedLanding;
 						} else {
-							player.landingFrameAdvantage = -other.timePassed;
+							player.landingFrameAdvantage = -other.timePassedLanding;
 						}
 						other.landingFrameAdvantage = -player.landingFrameAdvantage;
 						player.landingFrameAdvantageValid = true;
@@ -1097,9 +1199,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	for (int i = 0; i < entityList.count; i++) {
 		Entity ent = entityList.list[i];
 		int team = ent.team();
-		if (isEntityAlreadyDrawn(ent)) continue;
+		if (!ent.isActive() || isEntityAlreadyDrawn(ent)) continue;
 
-		bool active = ent.isActive();
+		bool active = ent.isActiveFrames();
 		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
 		
 		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
@@ -1173,12 +1275,30 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		if (!superflashInstigator) {
 			for (PlayerInfo& player : players) {
-				player.activesProj.beginMergeFrame();
+				if (!player.hitstop) {  // needed for Axl DP
+					player.activesProj.beginMergeFrame();
+				}
 			}
 		}
 		for (ProjectileInfo& projectile : projectiles) {
+			bool ignoreThisForPlayer = false;
+			if (projectile.team == 0 || projectile.team == 1) {
+				PlayerInfo& player = players[projectile.team];
+				ignoreThisForPlayer = 
+					player.charType == CHARACTER_TYPE_JACKO
+					&& (
+						strcmp(projectile.animName, "ServantA") == 0
+						|| strcmp(projectile.animName, "ServantB") == 0
+						|| strcmp(projectile.animName, "ServantC") == 0
+						|| strcmp(projectile.animName, "magicAtkLv1") == 0
+						|| strcmp(projectile.animName, "magicAtkLv2") == 0
+						|| strcmp(projectile.animName, "magicAtkLv3") == 0
+					);
+			}
+			
 			if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1)
-					&& !projectile.prevStartups.empty()) {
+					&& !projectile.prevStartups.empty()
+					&& !ignoreThisForPlayer) {
 				PlayerInfo& player = players[projectile.team];
 				player.prevStartupsProj = projectile.prevStartups;
 			}
@@ -1188,7 +1308,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			} else if (!superflashInstigator || !projectile.startedUp) {
 				if (!projectile.startedUp) {
-					if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1)) {
+					if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
 						PlayerInfo& player = players[projectile.team];
 						if (!player.startupProj) {
 							player.startupProj = projectile.startup;
@@ -1197,19 +1317,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					projectile.startedUp = true;
 				}
 				projectile.actives.addActive(projectile.hitNumber, 1);
-				if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1)) {
+				if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
 					PlayerInfo& player = players[projectile.team];
-					if (superflashInstigator) {
-						player.activesProj.addSuperfreezeActive(projectile.hitNumber);
-					} else {
-						player.activesProj.addActive(projectile.hitNumber, 1);
+					if (!player.hitstop) {
+						if (superflashInstigator) {
+							player.activesProj.addSuperfreezeActive(projectile.hitNumber);
+						} else {
+							player.activesProj.addActive(projectile.hitNumber, 1);
+						}
 					}
 				}
 			}
 		}
 		if (!superflashInstigator) {
 			for (PlayerInfo& player : players) {
-				player.activesProj.endMergeFrame();
+				if (!player.hitstop) {
+					player.activesProj.endMergeFrame();
+				}
 				
 				if (player.charType != CHARACTER_TYPE_ZATO) continue;
 				
@@ -1381,16 +1505,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				
 				if (i == measuringLandingFrameAdvantage) {
-					if (player.idleLanding && !other.idle) {
+					if (player.idleLanding && !other.idleLanding) {
 						++player.landingFrameAdvantage;
 						--other.landingFrameAdvantage;
-					} else if (!player.idleLanding && other.idle) {
+					} else if (!player.idleLanding && other.idleLanding) {
 						--player.landingFrameAdvantage;
 						++other.landingFrameAdvantage;
-					} else if (!player.idleLanding && !other.idle) {
+					} else if (!player.idleLanding && !other.idleLanding) {
 						player.landingFrameAdvantage = 0;
 						other.landingFrameAdvantage = 0;
-					} else if (player.idleLanding && other.idle) {
+					} else if (player.idleLanding && other.idleLanding) {
 						measuringLandingFrameAdvantage = -1;
 						player.landingFrameAdvantageValid = true;
 						other.landingFrameAdvantageValid = true;
@@ -1410,7 +1534,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& !player.airborne
 						&& player.moveOriginatedInTheAir
 					)
-					&& !hasHitboxes) {
+					&& !hasHitboxes
+					&& !player.onTheDefensive  // Potemkin F.D.B. may cause a situation where, on hit, opponent is put into CmnActLockWait that begins airborne,
+					                           // then transitions to the ground and, if this check wasn't here, it would be seen as landing animation (lol)
+				) {
 				++player.landingRecovery;
 				player.totalFD = 0;
 			} else if (!player.hitstop
@@ -1418,44 +1545,79 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& player.cmnActIndex != CmnActJump
 					&& player.cmnActIndex != CmnActJumpPre
 					&& !player.isLanding) {
-				if ((!player.idlePlus || player.idleInNewSection) && !player.startedUp && !superflashInstigator) {
-					if (player.airborne && player.landingRecovery) {  // needed for Zato Shadow Gallery
-						player.startup += player.landingRecovery;
-						player.total += player.landingRecovery;
-						player.landingRecovery = 0;
+				if (
+						(
+							(!player.idlePlus
+							|| player.idleInNewSection
+							|| !player.canBlock)
+							&& !player.ignoreNextInabilityToBlockOrAttack
+						)
+						&& !player.startedUp
+						&& !superflashInstigator
+					) {
+					if (!player.idlePlus || player.idleInNewSection) {
+						if (player.landingRecovery) {  // needed for Zato Shadow Gallery. Removing airborne check for Answer s.S
+							player.startup += player.landingRecovery;
+							player.total += player.landingRecovery;
+							player.totalCanBlock += player.landingRecovery;
+							player.landingRecovery = 0;
+						}
+						++player.startup;
+						++player.total;
 					}
-					++player.startup;
-					++player.total;
+					if (!player.canBlock) {
+						++player.totalCanBlock;
+					}
 				}
 				if (superflashInstigator == ent && !player.superfreezeStartup) {
 					player.superfreezeStartup = player.total;
 				}
 				if (hasHitboxes) {
 					if (!player.startedUp) {
+						player.totalCanBlock = player.total;  // needed for Raven glide
 						player.startedUp = true;
 						player.inNewMoveSection = false;
 						player.actives.addActive(ent.currentHitNum());
 					} else if (!superflashInstigator) {
-						if (player.airborne && player.landingRecovery) {
+						if (player.landingRecovery) {
 							player.recovery += player.landingRecovery;
 							player.total += player.landingRecovery;
+							player.totalCanBlock += player.landingRecovery;
 							player.landingRecovery = 0;
 						}
-						if (player.recovery) {
-							player.actives.addNonActive(player.recovery);
+						if (player.recovery + player.landingRecovery) {  // needed for Venom H Mad Struggle
+							player.actives.addNonActive(player.recovery + player.landingRecovery);
 							player.recovery = 0;
+							player.landingRecovery = 0;
 						}
 						player.actives.addActive(ent.currentHitNum());
 						++player.total;
+						if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack) {
+							++player.totalCanBlock;
+						}
 					}
-				} else if (!player.idlePlus && !superflashInstigator && player.startedUp) {
-					if (player.airborne && player.landingRecovery) {
+				} else if (
+						(
+							(!player.idlePlus
+							|| !player.canBlock)
+							&& !player.ignoreNextInabilityToBlockOrAttack
+						)
+						&& !superflashInstigator
+						&& player.startedUp
+					) {
+					if (player.landingRecovery && !player.idlePlus) {
 						player.recovery += player.landingRecovery;
 						player.total += player.landingRecovery;
+						player.totalCanBlock += player.landingRecovery;
 						player.landingRecovery = 0;
 					}
-					++player.total;
-					++player.recovery;
+					if (!player.idlePlus) {
+						++player.total;
+						++player.recovery;
+					}
+					if (!player.canBlock) {
+						++player.totalCanBlock;
+					}
 				}
 			}
 		}
@@ -1481,8 +1643,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.prevStartupsDisp = player.prevStartupsProj;
 					endOfActivesRelativeToPlayerTotalCountdownStart = player.prevStartupsProj.total() + player.startupProj + player.activesProj.total() - 1;
 				} else {
-					player.startupDisp = player.startupProj - player.prevStartups.total();
-					player.prevStartupsDisp = player.prevStartups;
+					int prevStartupsTotal = player.prevStartups.total();
+					if (player.startupProj < prevStartupsTotal) {  // needed for Dizzy 421H
+						player.startupDisp = player.startupProj;
+					} else {
+						player.startupDisp = player.startupProj - prevStartupsTotal;
+						player.prevStartupsDisp = player.prevStartups;
+					}
 					player.prevStartupsTotalDisp = player.prevStartups;
 					endOfActivesRelativeToPlayerTotalCountdownStart = player.startupDisp + player.activesProj.total() - 1;
 				}
@@ -2172,6 +2339,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 void EndScene::onUWorld_TickBegin() {
 	logicThreadId = GetCurrentThreadId();
 	drewExGaugeHud = false;
+	camera.grabbedValues = false;
 }
 
 // Called at the end of an UE3 engine tick.
@@ -2264,8 +2432,8 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 	if (!ownerFound && pawn.isPawn()) {
 		entityList.populate();
 		PlayerInfo& player = findPlayer(pawn);
-		projectile.startup = player.total;
-		projectile.total = player.total;
+		projectile.startup = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
+		projectile.total = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
 	}
 }
 
@@ -2341,7 +2509,8 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 			                // because we only do our pawn initialization after the end of the logic tick
 			player.lastIgnoredHitNum = -1;
 			player.changedAnimOnThisFrame = true;
-			const MoveInfo& move = moves.getInfo(player.charType, animName, false);
+			const MoveInfo& move = moves.getInfo(player.charType, player.animIntraFrame, false);
+			memcpy(player.animIntraFrame, animName, 32);
 			if (move.isIdle(player)) player.wasIdle = true;
 			events.emplace_back();
 			OccuredEvent& event = events.back();
@@ -2356,7 +2525,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
 		PlayerInfo& player = findPlayer(pawn);
 		int blockstun = pawn.blockstun();
-		if (blockstun) {
+		if (blockstun && (player.inBlockstunNextFrame || player.baikenReturningToBlockstunAfterAzami)) {
 			// defender was observed to not be in hitstop at this point, but having blockstun nonetheless
 			player.blockstunMax = blockstun;
 			player.setBlockstunMax = true;
@@ -2457,6 +2626,7 @@ void EndScene::frameCleanup() {
 		player.armoredHitOnThisFrame = false;
 		player.gotHitOnThisFrame = false;
 		player.baikenReturningToBlockstunAfterAzami = false;
+		memcpy(player.animIntraFrame, player.anim, 32);
 	}
 	creatingObject = false;
 	events.clear();
@@ -2536,7 +2706,7 @@ void EndScene::HookHelp::logicOnFrameAfterHitHook(bool isAirHit, int param2) {
 
 // Runs on the main thread
 void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) {
-	bool functionWillNotDoAnything = !pawn.inPainNextFrame() && (!pawn.inUnknownNextFrame() || !pawn.inBlockstunNextFrame());
+	bool functionWillNotDoAnything = !pawn.inPainNextFrame() && (!pawn.enableGuardBreak() || !pawn.inBlockstunNextFrame());
 	{
 		std::unique_lock<std::mutex> guard(orig_logicOnFrameAfterHitMutex);
 		orig_logicOnFrameAfterHit((void*)pawn.ent, isAirHit, param2);
@@ -2544,7 +2714,8 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) 
 	if (pawn.isPawn() && !functionWillNotDoAnything) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = pawn.startingHitstop();
-		player.hitstunMax = pawn.hitstun() - (player.hitstopMax ? 1 : 0);
+		// after this function, the enclosing function may additionally increase hitstun
+		// try this on Potemkin ICPM: it sets hitstun in this hook first, but just outside the hook adds 10 to it
 		player.setHitstopMax = true;
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = true;
@@ -2722,6 +2893,43 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		lastScreenSize = *screenSize;
 		if (*aswEngine) {
 			logic();
+			if (!gifMode.modDisabled) {
+				Entity instigator = getSuperflashInstigator();
+				if (instigator != nullptr) {
+					if (
+						instigator.characterType() == CHARACTER_TYPE_RAMLETHAL
+						&& strcmp(instigator.animationName(), "BitLaser") == 0
+						&& instigator.currentAnimDuration() >= 8 && instigator.currentAnimDuration() < 139
+						|| instigator.characterType() == CHARACTER_TYPE_INO
+						&& strcmp(instigator.animationName(), "Madogiwa") == 0  // 632146H super
+						&& instigator.currentAnimDuration() >= 8 && instigator.currentAnimDuration() < 64
+						|| instigator.characterType() == CHARACTER_TYPE_SLAYER
+						&& strcmp(instigator.animationName(), "DeadOnTime") == 0
+						&& instigator.currentAnimDuration() >= 8 && instigator.currentAnimDuration() < 20
+						|| instigator.characterType() == CHARACTER_TYPE_HAEHYUN
+						&& strcmp(instigator.animationName(), "BlackHoleAttack") == 0  // 236236H super
+						&& instigator.currentAnimDuration() >= 7 && instigator.currentAnimDuration() < 100
+						|| instigator.characterType() == CHARACTER_TYPE_ANSWER
+						&& strcmp(instigator.animationName(), "Royal_Straight_Flush") == 0  // 632146S super
+						&& instigator.currentAnimDuration() >= 19 && instigator.currentAnimDuration() < 143
+					) {
+						drawDataPrepared.clear();
+					}
+				} else {
+					for (int i = 0; i < 2 && i < entityList.count; ++i) {
+						instigator = entityList.slots[i];
+						if (instigator.characterType() == CHARACTER_TYPE_RAVEN
+								&& strcmp(instigator.animationName(), "RevengeAttackEx") == 0  // 214214H super
+								&& instigator.currentAnimDuration() >= 19 && instigator.currentAnimDuration() < 139) {
+							drawDataPrepared.clear();
+							break;
+						}
+					}
+				}
+				if (!camera.grabbedValues) {
+					camera.grabValues();
+				}
+			}
 		}
 		enqueueRenderCommand<DrawBoxesRenderCommand>();
 		if (!gifMode.modDisabled && (
@@ -2984,7 +3192,12 @@ void EndScene::HookHelp::BBScr_sendSignalToActionHook(const char* searchAnim, in
 
 void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) {
 	Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
-	if (!shutdown && referredEntity) {
+	
+	bool isDizzyBubblePopping = referredEntity == pawn && signal == 0x17  // HIT_OR_BLOCK
+			&& (strcmp(pawn.animationName(), "AwaPObj") == 0  // Dizzy bubble
+				|| strcmp(pawn.animationName(), "AwaKObj") == 0);
+	
+	if (!shutdown && referredEntity && !isDizzyBubblePopping) {
 		ProjectileInfo& projectile = findProjectile(referredEntity);
 		int team = pawn.team();
 		if (projectile.ptr && (team == 0 || team == 1)) {
@@ -3099,4 +3312,12 @@ void EndScene::BBScr_ignoreDeactivateHook(Entity pawn) {
 	}
 	PlayerInfo& player = findPlayer(pawn);
 	player.baikenReturningToBlockstunAfterAzami = true;
+}
+
+void EndScene::onBubblePop(Entity bubble) {
+	endScene.events.emplace_back();
+	OccuredEvent& event = events.back();
+	event.type = OccuredEvent::SIGNAL;
+	event.u.signal.from = players[bubble.team()].pawn;
+	event.u.signal.to = bubble;
 }

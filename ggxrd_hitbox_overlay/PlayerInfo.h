@@ -212,6 +212,7 @@ struct PlayerInfo {
 	int blockstun = 0;
 	int hitstun = 0;
 	int hitstop = 0;
+	int clashHitstop = 0;
 	int burst = 0;  // max 15000
 	int comboCountBurstGainModifier = 0;
 	
@@ -342,10 +343,16 @@ struct PlayerInfo {
 	
 	bool armoredHitOnThisFrame:1;  // for super armors showing correct hitstop max
 	bool gotHitOnThisFrame:1;  // for super armors showing correct hitstop max
-	bool baikenReturningToBlockstunAfterAzami:1;  // for Baiken azamiing a hit and not doing a followup
+	bool baikenReturningToBlockstunAfterAzami:1;  // for Baiken azamiing a hit and not doing a followup. She puts herself in blockstun, but this blockstun takes effect immediately,
+	                                              // because it has no hitstop, so there's no need to decrement it by 1
+	bool ignoreNextInabilityToBlockOrAttack:1;  // When next you become unable to block, do not include that as part of the move, into totalCanBlock
+	bool inBlockstunNextFrame:1;  // This flag is needed so that when you transfer blockstun from air to ground the blockstunMax doesn't get reset,
+	                              // because normally it would, because technically you changed animation and we don't treat all blockstun animations
+	                              // as the same animation yet. If we allow such reset we will wrongfully decrement blockstunMax by 1 in our next prepareDrawData call
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
+	char animIntraFrame[32] { '\0' };
 	char index = 0;  // the index of this PlayerInfo in endScene's 'players' array
 	inline void clearGaps() { gapsCount = 0; }
 	void addGap(int length = 1);

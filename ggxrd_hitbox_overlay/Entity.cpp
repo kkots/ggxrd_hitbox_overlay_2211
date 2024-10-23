@@ -111,9 +111,14 @@ void Entity::getState(EntityState* state) const {
 		|| (invulnFlags & 16)
 		|| (invulnFlags & 64)
 		|| state->doingAThrow
-		|| state->isGettingThrown;
+		|| state->isGettingThrown
+		|| clashHitstop();
 	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)state->strikeInvuln));
-	state->throwInvuln = (invulnFlags & 32) || (invulnFlags & 64) || otg || state->inHitstunBlockstun;
+	state->throwInvuln = (invulnFlags & 32)
+		|| (invulnFlags & 64)
+		|| otg
+		|| state->inHitstunBlockstun
+		|| clashHitstop();
 	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
 	state->charType = characterType();
 	state->isASummon = state->charType == -1;

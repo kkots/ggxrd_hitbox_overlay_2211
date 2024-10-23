@@ -70,7 +70,14 @@ void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 }
 
 void ActiveDataArray::addSuperfreezeActive(int hitNum) {
-	if (count == 0) return;
+	if (count == 0) {
+		// fix for Venom Red Hail
+		data[0].nonActives = 0;
+		data[0].actives = 1;
+		prevHitNum = hitNum;
+		++count;
+		return;
+	}
 	ActiveData& elem = data[count - 1];
 	if (elem.nonActives == 1) {
 		elem.nonActives = 0;
@@ -636,33 +643,55 @@ void PrevStartupsInfo::add(short n) {
 }
 
 void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
+	if (!count) return;
 	int charsPrinted;
-	int i;
-	for (i = 0; i < count; ++i) {
+	for (int i = 0; i < count; ++i) {
 		charsPrinted = sprintf_s(buf, bufSize, i == 0 ? "%d" : "+%d", startups[i]);
 		if (charsPrinted == -1) return;
 		buf += charsPrinted;
 		bufSize -= charsPrinted;
 	}
-	if (i != 0 && bufSize) {
-		*buf = '+';
-		++buf;
-		--bufSize;
-		*buf = '\0';
-	}
+	charsPrinted = sprintf_s(buf, bufSize, "%c", '+');
+	if (charsPrinted == -1) return;
+	buf += charsPrinted;
+	bufSize -= charsPrinted;
 }
 
 void PlayerInfo::printStartup(char* buf, size_t bufSize) {
 	*buf = '\0';
+	int uhh = -1;
     if (superfreezeStartup && superfreezeStartup <= startupDisp && (startedUp || startupProj)) {
-    	prevStartupsDisp.print(buf, bufSize);
-		sprintf_s(buf, bufSize, "%d+%d", superfreezeStartup, startupDisp - superfreezeStartup);
+    	uhh = 0;
     } else if (superfreezeStartup && !(startedUp || startupProj)) {
-    	prevStartupsDisp.print(buf, bufSize);
-    	sprintf_s(buf, bufSize, "%d", superfreezeStartup);
+    	uhh = 1;
     } else if (startedUp || startupProj) {
-    	prevStartupsDisp.print(buf, bufSize);
-    	sprintf_s(buf, bufSize, "%d", startupDisp);
+    	uhh = 2;
+    } else {
+    	return;
+    }
+	prevStartupsDisp.print(buf, bufSize);
+    for (int i = 0; ; ++i) {
+    	int charsPrinted;
+	    if (uhh == 0) {
+			charsPrinted = sprintf_s(buf, bufSize, "%d+%d", superfreezeStartup, startupDisp - superfreezeStartup);
+	    } else if (uhh == 1) {
+	    	charsPrinted = sprintf_s(buf, bufSize, "%d", superfreezeStartup);
+	    } else if (uhh == 2) {
+	    	charsPrinted = sprintf_s(buf, bufSize, "%d", startupDisp);
+	    }
+	    
+	    if (charsPrinted == -1) return;
+	    buf += charsPrinted;
+	    bufSize -= charsPrinted;
+	    
+	    if (i == 0 && prevStartupsDisp.count > 1) {
+	    	charsPrinted = sprintf_s(buf, bufSize, "=%d+", prevStartupsDisp.total());
+		    if (charsPrinted == -1) return;
+		    buf += charsPrinted;
+		    bufSize -= charsPrinted;
+	    } else {
+	    	break;
+	    }
     }
 }
 
@@ -675,24 +704,33 @@ void ProjectileInfo::printStartup(char* buf, size_t bufSize) {
 void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 	*buf = '\0';
 	int charsPrinted = 0;
+	bool printedTheMainThing = false;
     if ((startedUp || startupProj) && !(recoveryDisp == 0 && landingRecovery)) {
-	    charsPrinted = sprintf_s(buf, bufSize, "%d", recoveryDisp);
+    	if (totalCanBlock < totalDisp && recoveryDisp - (totalDisp - totalCanBlock) > 0) {
+    		charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack",
+    			recoveryDisp - (totalDisp - totalCanBlock),
+    			totalDisp - totalCanBlock);
+    	} else {
+			charsPrinted = sprintf_s(buf, bufSize, "%d", recoveryDisp);
+    	}
+    	if (charsPrinted == -1) return;
+    	buf += charsPrinted;
+    	bufSize -= charsPrinted;
+    	printedTheMainThing = true;
+    }
+    if (printedTheMainThing && totalCanBlock > totalDisp) {
+    	charsPrinted = sprintf_s(buf, bufSize, "%s%d can't block", charsPrinted ? " can't attack+" : "", totalCanBlock - totalDisp);
     	if (charsPrinted == -1) return;
     	buf += charsPrinted;
     	bufSize -= charsPrinted;
     }
     if (landingRecovery) {
-    	if (charsPrinted && bufSize) {
-    		strcat(buf, "+");
-    		++buf;
-    		--bufSize;
-    	}
-    	charsPrinted = sprintf_s(buf, bufSize, "%d landing", landingRecovery);
+    	charsPrinted = sprintf_s(buf, bufSize, "%s%d landing", charsPrinted ? "+" : "", landingRecovery);
     	if (charsPrinted == -1) return;
     	buf += charsPrinted;
     	bufSize -= charsPrinted;
     }
-    if (totalFD) {
+    if (printedTheMainThing && totalFD) {
     	if (charsPrinted && bufSize) {
     		strcat(buf, "+");
     		++buf;
@@ -703,11 +741,33 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 }
 
 void PlayerInfo::printTotal(char* buf, size_t bufSize) {
+	char* origBuf = buf;
 	*buf = '\0';
 	int charsPrinted;
-    if (idlePlus && totalDisp) {
+	bool printedMainPart = false;
+	int partsCount = 0;
+	int partsTotal = 0;
+    if ((idlePlus || isLandingOrPreJump || cmnActIndex == CmnActJump) && totalDisp) {
+    	printedMainPart = true;
     	prevStartupsTotalDisp.print(buf, bufSize);
-    	charsPrinted = sprintf_s(buf, bufSize, "%d", totalDisp);
+    	partsTotal = prevStartupsTotalDisp.total();
+    	partsCount += prevStartupsTotalDisp.count;
+    	if (totalCanBlock < totalDisp && totalCanBlock != 0) {
+    		charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack", totalCanBlock, totalDisp - totalCanBlock);
+    		partsCount += 2;
+    	} else {
+    		charsPrinted = sprintf_s(buf, bufSize, "%d", totalDisp);
+    		++partsCount;
+    	}
+		partsTotal += totalCanBlock > totalDisp ? totalCanBlock : totalDisp;
+    	if (charsPrinted == -1) return;
+    	buf += charsPrinted;
+    	bufSize -= charsPrinted;
+    	charsPrinted = 0;
+	    if (totalCanBlock > totalDisp) {
+	    	charsPrinted = sprintf_s(buf, bufSize, " can't attack+%d can't block", totalCanBlock - totalDisp);
+	    	++partsCount;
+	    }
     	if (charsPrinted == -1) return;
     	buf += charsPrinted;
     	bufSize -= charsPrinted;
@@ -717,7 +777,23 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 	    	buf += charsPrinted;
 	    	bufSize -= charsPrinted;
 	    }
-	    if (totalFD) {
+    }
+    if (idlePlus && totalFD) {
+    	charsPrinted = sprintf_s(buf, bufSize, "%s%d FD", printedMainPart ? "+" : "", totalFD);
+    	if (charsPrinted == -1) return;
+    	buf += charsPrinted;
+    	bufSize -= charsPrinted;
+    }
+    
+    if (partsCount > 2) {
+    	sprintf_s(buf, bufSize, "=%d", partsTotal);
+	    if (landingRecovery) {
+	    	charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
+	    	if (charsPrinted == -1) return;
+	    	buf += charsPrinted;
+	    	bufSize -= charsPrinted;
+	    }
+	    if (idlePlus && totalFD) {
 	    	sprintf_s(buf, bufSize, "+%d FD", totalFD);
 	    }
     }

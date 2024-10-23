@@ -18,7 +18,9 @@ void collectHitboxes(Entity ent,
 	if (!ent.isPawn()
 			&& (ent.team() == 0 || ent.team() == 1)
 			&& entityList.slots[ent.team()].characterType() == CHARACTER_TYPE_JACKO
-			&& !ent.displayModel()) {
+			&& !ent.displayModel()
+			|| ent.y() < -3000000  // needed for May [2]8S/H
+			|| ent.isHidden()) {  // needed for super animations
 		return;
 	}
 	
@@ -108,7 +110,7 @@ void collectHitboxes(Entity ent,
 		*hurtbox = callParams;
 	}
 
-	bool includeTheseHitboxes = hitboxes && active && !state.doingAThrow;
+	bool includeTheseHitboxes = hitboxes && active && !(state.doingAThrow && ent.isPawn());  // isPawn check for Dizzy bubble pop
 	if (includeTheseHitboxes) {
 		if ((*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0) {  // having this flag means you ignore the hitboxes hit detection check
 			includeTheseHitboxes = false;
@@ -137,7 +139,7 @@ void collectHitboxes(Entity ent,
 		}
 		callParams.outlineColor = replaceAlpha(255, COLOR_HITBOX);
 		
-		if (numHitboxes) *numHitboxes += hitboxCount;
+		if (numHitboxes && !ent.clashOnly()) *numHitboxes += hitboxCount;  // don't include clash-only hitboxes in the active frames: Venom QV
 		callParams.hitboxData = hitboxData;
 		callParams.hitboxCount = hitboxCount;
 		callParams.params = params;

@@ -61,6 +61,7 @@ using UWorld_Tick_t = void(__thiscall*)(void* thisArg, ELevelTick TickType, floa
 using drawExGaugeHUD_t = void(__thiscall*)(void* thisArg, int param_1);
 using drawStunMash_t = void(__thiscall*)(void* pawn, float bar, BOOL withBar, BOOL withLever);
 using UWorld_IsPaused_t = bool(__thiscall*)(void* UWorld);
+using drawJackoHouseHp_t = void(__thiscall*)(void* pawn);
 
 class Game {
 public:
@@ -142,6 +143,7 @@ private:
 	void onNeedForcePress(int padInd, bool* pressed, ButtonCodeMenu code);
 	void onNeedForcePress(int padInd, bool* pressed, ButtonCode code);
 	void onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code);
+	drawJackoHouseHp_t drawJackoHouseHp = nullptr;
 };
 
 extern Game game;

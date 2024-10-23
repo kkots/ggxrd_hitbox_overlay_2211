@@ -207,10 +207,10 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 	D3DXVECTOR3 sp1, sp2, sp3, sp4;
 	logOnce(fprintf(logfile, "Drawing box v1 { x: %f, z: %f }, v2 { x: %f, z: %f }, v3 { x: %f, z: %f }, v4 { x: %f, z: %f }\n",
 			v1.x, v1.z, v2.x, v2.z, v3.x, v3.z, v4.x, v4.z));
-	worldToScreen(v1, &sp1);
-	worldToScreen(v2, &sp2);
-	worldToScreen(v3, &sp3);
-	worldToScreen(v4, &sp4);
+	if (!worldToScreen(v1, &sp1)) return false;
+	if (!worldToScreen(v2, &sp2)) return false;
+	if (!worldToScreen(v3, &sp3)) return false;
+	if (!worldToScreen(v4, &sp4)) return false;
 
 	bool drewRect = false;
 
@@ -562,7 +562,7 @@ void Graphics::drawAll() {
 		for (const DrawBoxCallParams& params : drawDataUse.throwBoxes) {
 			prepareBox(params);
 		}
-		for (const DrawOutlineCallParams& params : outlines) {
+		for (DrawOutlineCallParams& params : outlines) {
 			prepareOutline(params);
 		}
 	}
@@ -691,7 +691,7 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 Graphics::Vertex::Vertex(float x, float y, float z, float rhw, D3DCOLOR color)
 	: x(x), y(y), z(z), rhw(rhw), color(color) { }
 
-void Graphics::prepareOutline(const DrawOutlineCallParams& params) {
+void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 	if (screenshotStage == SCREENSHOT_STAGE_BASE_COLOR) return;
 	logOnce(fprintf(logfile, "Called drawOutlines with an outline with %d elements\n", params.count()));
 	
@@ -701,12 +701,23 @@ void Graphics::prepareOutline(const DrawOutlineCallParams& params) {
 		
 		if (params.empty()) return;
 
+		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
+		if (!alreadyProjected) {
+			for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
+				PathElement& elem = params.getPathElem(outlineIndex);
+				if (!worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv)) {
+					return;
+				}
+				elem.xProjected = conv.x;
+				elem.yProjected = conv.y;
+				elem.hasProjectionAlready = true;
+			}
+		}
+
 		preparedOutlines.emplace_back();
 		preparedOutlines.back().isOnePixelThick = true;
 
 		Vertex firstVertex;
-
-		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
 
 		for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
 			const PathElement& elem = params.getPathElem(outlineIndex);
@@ -716,15 +727,8 @@ void Graphics::prepareOutline(const DrawOutlineCallParams& params) {
 				++preparedOutlines.back().linesSoFar;
 			}
 
-			if (!alreadyProjected) {
-				worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv);
-			} else {
-				conv.x = elem.xProjected;
-				conv.y = elem.yProjected;
-			}
-
-			logOnce(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
-			*vertexIt = Vertex{ conv.x, conv.y, 0.F, 1.F, params.outlineColor };
+			logOnce(fprintf(logfile, "x: %f; y: %f;\n", elem.xProjected, elem.yProjected));
+			*vertexIt = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 			if (outlineIndex == 0) firstVertex = *vertexIt;
 			++vertexIt;
 			++vertexBufferLength;
@@ -741,6 +745,33 @@ void Graphics::prepareOutline(const DrawOutlineCallParams& params) {
 		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_THINLINE;
 
 	} else if (!params.empty()) {
+		
+		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
+		if (!alreadyProjected) {
+			for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
+				PathElement& elem = params.getPathElem(outlineIndex);
+				if (!worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv)) return;
+				elem.xProjected = conv.x;
+				elem.yProjected = conv.y;
+				elem.hasProjectionAlready = true;
+			}
+		}
+		
+		std::vector<D3DXVECTOR3> extraPoints(params.count(), D3DXVECTOR3{ 0.F, 0.F, 0.F });
+		
+		for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
+			PathElement& elem = params.getPathElem(outlineIndex);
+			if (!worldToScreen(
+					D3DXVECTOR3{
+						(float)elem.x + params.thickness * elem.inX,
+						0.F,
+						(float)elem.y + params.thickness * elem.inY
+					},
+					&extraPoints[outlineIndex]
+				)) {
+				return;
+			}
+		}
 
 		preparedOutlines.emplace_back();
 
@@ -748,21 +779,16 @@ void Graphics::prepareOutline(const DrawOutlineCallParams& params) {
 		Vertex secondVertex;
 
 		bool padTheFirst = (lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE);
-		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
-
+		
 		for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
 			const PathElement& elem = params.getPathElem(outlineIndex);
 
-			if (!alreadyProjected) {
-				worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv);
-			} else {
-				conv.x = elem.xProjected;
-				conv.y = elem.yProjected;
-			}
+			conv.x = elem.xProjected;
+			conv.y = elem.yProjected;
 
-			logOnce(fprintf(logfile, "x: %f; y: %f;\n", conv.x, conv.y));
+			logOnce(fprintf(logfile, "x: %f; y: %f;\n", elem.xProjected, elem.yProjected));
 			if (padTheFirst && !drawIfOutOfSpace(4, 0)) {
-				firstVertex = Vertex{ conv.x, conv.y, 0.F, 1.F, params.outlineColor };
+				firstVertex = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 				*vertexIt = *(vertexIt - 1);
 				++vertexIt;
 				*vertexIt = firstVertex;
@@ -775,26 +801,27 @@ void Graphics::prepareOutline(const DrawOutlineCallParams& params) {
 			} else {
 				drawIfOutOfSpace(2, 0);
 				if (outlineIndex == 0) {
-					firstVertex = Vertex{ conv.x, conv.y, 0.F, 1.F, params.outlineColor };
+					firstVertex = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 					*vertexIt = firstVertex;
 					++vertexIt;
 				} else {
 					++preparedOutlines.back().linesSoFar;
-					*vertexIt = Vertex{ conv.x, conv.y, 0.F, 1.F, params.outlineColor };
+					*vertexIt = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 					++vertexIt;
 				}
 				vertexBufferLength += 2;
 				vertexBufferRemainingSize -= 2;
 			}
 			padTheFirst = false;
-			worldToScreen(D3DXVECTOR3{ (float)elem.x + params.thickness * elem.inX, 0.F, (float)elem.y + params.thickness * elem.inY }, &conv);
+			
+			const D3DXVECTOR3& extraPoint = extraPoints[outlineIndex];
 
 			if (outlineIndex == 0) {
-				secondVertex = Vertex{ conv.x, conv.y, 0.F, 1.F, params.outlineColor };
+				secondVertex = Vertex{ extraPoint.x, extraPoint.y, 0.F, 1.F, params.outlineColor };
 				*vertexIt = secondVertex;
 				++vertexIt;
 			} else {
-				*vertexIt = Vertex{ conv.x, conv.y, 0.F, 1.F, params.outlineColor };
+				*vertexIt = Vertex{ extraPoint.x, extraPoint.y, 0.F, 1.F, params.outlineColor };
 				++vertexIt;
 			}
 		}
@@ -812,8 +839,8 @@ void Graphics::prepareOutline(const DrawOutlineCallParams& params) {
 	}
 }
 
-void Graphics::worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
-	camera.worldToScreen(device, vec, out);
+bool Graphics::worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
+	return camera.worldToScreen(device, vec, out);
 }
 
 void Graphics::preparePoint(const DrawPointCallParams& params) {
@@ -822,7 +849,7 @@ void Graphics::preparePoint(const DrawPointCallParams& params) {
 	logOnce(fprintf(logfile, "drawPoint called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
 
 	D3DXVECTOR3 sp;
-	worldToScreen(p, &sp);
+	if (!worldToScreen(p, &sp)) return;
 
 	/*  54321012345 (+)
 	*  +-----------+

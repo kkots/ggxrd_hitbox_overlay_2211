@@ -74,7 +74,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!altModes.onDllMain()) terminate
         if (!throws.onDllMain()) terminate
         if (!hud.onDllMain()) terminate
-        moves.onDllMain();
+        if (!moves.onDllMain()) terminate
         if (!detouring.endTransaction()) terminate
         break;
     }

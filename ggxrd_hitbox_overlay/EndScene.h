@@ -216,6 +216,7 @@ public:
 	PlayerInfo& findPlayer(Entity ent);
 	ProjectileInfo& findProjectile(Entity ent);
 	DWORD interRoundValueStorage2Offset = 0;
+	void onBubblePop(Entity bubble);
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();

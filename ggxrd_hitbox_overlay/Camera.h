@@ -12,12 +12,14 @@ class Camera
 {
 public:
 	void onEndSceneStart();
-	void worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out);
+	bool worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out);
 	bool onDllMain();
 	void updateDarkenHook(char* thisArg);
 	void updateCameraHook(char* thisArg, char** param1, char* param2);
+	void grabValues();
 	CameraValues valuesPrepare;
 	CameraValues valuesUse;
+	bool grabbedValues = false;
 	bool shutdown = false;
 private:
 	friend struct CameraValues;

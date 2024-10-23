@@ -87,13 +87,13 @@ private:
 		bool hasPadding = false;
 	};
 	std::vector<PreparedOutline> preparedOutlines;
-	void prepareOutline(const DrawOutlineCallParams& params);
+	void prepareOutline(DrawOutlineCallParams& params);
 	void drawOutlinesSection(bool preserveLastTwoVertices);
 
 	unsigned int numberOfPointsPrepared = 0;
 	void preparePoint(const DrawPointCallParams& params);
 
-	void worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out);
+	bool worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out);
 	bool takeScreenshotBegin(IDirect3DDevice9* device);
 	void takeScreenshotDebug(IDirect3DDevice9* device, const wchar_t* filename);
 	void takeScreenshotEnd(IDirect3DDevice9* device);

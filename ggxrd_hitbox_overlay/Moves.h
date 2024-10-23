@@ -44,11 +44,20 @@ struct MoveInfo {
 
 class Moves {
 public:
-	void onDllMain();
+	bool onDllMain();
 	const MoveInfo& getInfo(CharacterType charType, const char* name, bool isEffect);
 	MoveInfo defaultMove{
 		false, false, nullptr
 	};
+	unsigned short* bbscrInstructionSizes = nullptr;
+	inline BYTE* gotoNextInstruction(BYTE* in) const;
+	enum InstructionType {
+		instr_endState = 1,
+		instr_sprite = 2,
+		instr_setMarker = 11,
+	};
+	inline InstructionType instructionType(BYTE* in) const;
+	BYTE* findSetMarker(BYTE* in, const char* name) const;
 private:
 	struct MyKey {
 		CharacterType charType = (CharacterType)-1;
@@ -72,7 +81,6 @@ private:
 		}
 	};
 	std::unordered_map<MyKey, MoveInfo, MyHashFunction, MyCompareFunction> map;
-	
 };
 
 extern Moves moves;
