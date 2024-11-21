@@ -14,7 +14,8 @@ Original version created by Altimor: <http://www.dustloop.com/forums/index.php?/
 Created in 2016.  
 This version is adapted for Guilty Gear Xrd Rev2 version 2211 with the full featureset of the original.
 
-Many thanks to WorseThanYou, without whose help this wouldn't have been possible.
+Many thanks to WorseThanYou (@worsety), without whose help this wouldn't have been possible.  
+Thanks to @PCvolt for advice on framebar.
 
 ## System requirements
 
@@ -61,7 +62,7 @@ If Steam Proton is taking forever to launch the game, patched or not, then renam
 
 ### Red - Hitboxes
 
-Strike and projectile non-throw hitboxes are shown in green. Clash-only hitboxes are shown in more transparent red with thinner outline. Hitboxes' fills may never be fully transparent.
+Strike and projectile non-throw hitboxes are shown in red. Clash-only hitboxes are shown in more transparent red with thinner outline. Hitboxes' fills may never be absent.
 
 ### Green - Hurtboxes
 
@@ -79,7 +80,8 @@ When you get hit a gray outline appears on top of your current hurtbox. This out
 ### Yellow - Pushboxes
 
 Each player has a pushbox. When two pushboxes collide, the players get pushed apart until their pushboxes no longer collide. Pushbox widths also affect throw range - more on that in next section(s).  
-If a pushbox is displayed fully transparent (i.e. shows outline only), that means throw invulnerability.
+If a pushbox is displayed fully transparent (i.e. shows outline only), that means throw invulnerability.  
+Pushbox outline is always thin.
 
 ### Point/Cross - Origin points
 
@@ -123,6 +125,15 @@ Note that normal ground throw actually simply checks if distance between the pus
 This mode of showing throw boxes shows them like this:
 
 ![Screenshot can't be viewed](throw_box_drawPushboxCheckSeparately_false.jpg)
+
+### Outlines lie within their boxes/on the edge
+
+If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
+If a box's outline is thin, like that of a pushbox or a clash-only hitbox for example, then that outline lies on the edge of the box.
+
+### Projectile-only invul
+
+Some non-parry/reflect moves in the game have invulnerability that only protects the user from projectiles. There are only 2 such moves: Ky's Ride the Lightning and Jack O's Aegis Field. The projectile invulnerability lasts all the way until the red clash-only hitbox disappears, so there's no separate display for it.
 
 ### General notes about throw boxes
 
@@ -187,6 +198,8 @@ Here's an example of the `.ini` file:
 ; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.
 ; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.
 
+; All of these settings can be changed using the mod's UI which can be seen in the game if you press ESC (by default, see modWindowVisibilityToggle).
+
 ; A keyboard shortcut to toggle GIF mode.
 ; GIF mode is:
 ; 1) Background becomes black
@@ -205,10 +218,20 @@ gifModeToggleBackgroundOnly =
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleCameraCenterOnly =
 
+; A keyboard shortcut to toggle the camera to be centered on the opponent.
+; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
+; This option can be combined with GIF Mode options, by sharing the same key binding for example
+toggleCameraCenterOpponent =
+
 ; A keyboard shortcut to only toggle the "Opponent is invisible and invulnerable" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleHideOpponentOnly =
+
+; A keyboard shortcut to toggle hiding the player.
+; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
+; This option can be combined with GIF Mode options, by sharing the same key binding for example
+toggleHidePlayer =
 
 ; A keyboard shortcut to only toggle the "hide hud" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
@@ -304,6 +327,12 @@ dontUseScreenshotTransparency = false
 ; all ground throw ranges should be higher.
 drawPushboxCheckSeparately = true
 
+; Specify true or false.
+; Setting this to true may increase the performance of transparent screenshotting which may be useful if you're screenshotting every frame.
+; The produced screenshots won't have such improvements as improving visibility of semi-transparent effects or changing hitbox outlines to
+; black when drawn over the same color.
+useSimplePixelBlender = false
+
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the mod's UI window.
 modWindowVisibilityToggle = Escape
@@ -311,6 +340,67 @@ modWindowVisibilityToggle = Escape
 ; Specify true or false.
 ; If this is false, when this mod starts, the mod's UI window will be invisible.
 modWindowVisibleOnStart = true
+
+; A keyboard shortcut.
+; Pressing this shortcut will disable/enable the display of residual hurtboxes that appear on hit/block and show
+; the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but
+; they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.
+toggleDisableGrayHurtboxes = 
+
+; Specify true or false.
+; This disables the display of gray hurtboxes (for a toggle see toggleDisableGrayHurtboxes).
+; Gray hurtboxes are residual hurtboxes that appear on hit/block and show the defender's hurtbox at the moment of impact.
+; These hurtboxes display for only a brief time on impacts but they can get in the way when trying to do certain stuff such
+; as take screenshots of hurtboxes on hit/block.
+neverDisplayGrayHurtboxes = false
+
+; Specify true or false.
+; Setting this to true will hide all hurtboxes, hitboxes, pushboxes and other boxes and points.
+dontShowBoxes = false
+
+; Specify true or false.
+; Display mod's UI on top of the game's Pause Menu.
+displayUIOnTopOfPauseMenu = false
+
+; Specify true or false.
+; The framebar is only shown when the UI is shown. If the UI is not shown the only way to show it is via the
+; modWindowVisibilityToggle hotkey. By default it's ESC keyboard key, can be configured either using the INI file or the UI.
+showFramebar = true
+
+; A number.
+; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.
+; The standard height is 19.
+framebarHeight = 19
+
+; Specify true or false.
+; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,
+; unless a projectile or a blocking Baiken is present.
+; If this is set to true, then we always show hitstop in the framebar.
+neverIgnoreHitstop = false
+
+; Specify true or false.
+; Normally we consider running and walking as being idle, which does not advance the framebar forward.
+; The framebar only advances when one of the players is "busy".
+; If this is set to true, then one player running or walking will be treated same way as "busy" and will advance the framebar.
+considerRunAndWalkNonIdle = true
+
+; Specify true or false
+; This controls whether a character being knocked down, waking up or air recovering causes the framebar to advance forward (if you're also idle).
+; Framebar only advances forward when one or both players are not idle.
+; Framebar advancing forward means it continuously overwrites its oldest contents with new data to display.
+; This could be bad if you wanted to study why a combo dropped, as some knockdowns can be very long and erase all the info you wanted to see.
+; Setting this to true may prevent that.
+; The first frame when the opponent is in OTG state and onwards - those frames do not get included in the framebar.
+; If you recover from your move later than the opponent enters OTG state, the frames are included for your whole recovery for both you and the opponent,
+; which means OTG state may partially or fully get included into the framebar.
+; In such cases, look for an animation start delimiter on the opponent's framebar, shown as a white ' between frames.
+considerKnockdownWakeupAndAirtechIdle = false
+
+; Specify true or false.
+; If true, certain types of frames in the framebar will be displayed with distinct hatches on them.
+; Make sure the framebar is scaled wide enough and the screen resolution is large enough that you can see the hatches properly.
+; To scale the framebar you can drag its right edge.
+useColorblindHelp = false
 
 ```
 
@@ -447,7 +537,7 @@ The `libpng` series of projects is an outside repository that we depend on that 
 
 `detours` is Microsoft Detours library, also included as a git submodule.
 
-`zlib` is a compression library needed to libpng. Unlike libpng, it *is* included as a git submodule here. Please also refrain from modifying it.
+`zlib` is a compression library needed for libpng. Unlike libpng, it *is* included as a git submodule here. Please also refrain from modifying it.
 
 The dependency projects are better described in *Development dependencies*.
 
@@ -455,7 +545,8 @@ The dependency projects are better described in *Development dependencies*.
 
 Dependencies are better described in each project's README.md. Short version is, the project depends on:
 
-- Microsoft Detours library: <https://github.com/microsoft/Detours> Used for hooking functions. We need the 32-bit (x86) statically linked library of it. It is included in the mod as a git submodule: <https://github.com/microsoft/Detours.git>
+- Microsoft Detours library: <https://github.com/microsoft/Detours> Used for hooking functions. We need the 32-bit (x86) statically linked library of it. It is included in the mod as a git submodule: <https://github.com/microsoft/Detours.git>.
+  If you run into the problem that Detours rebuilds itself and all its samples each time you try to build the ggxrd_hitbox_overlay project, try replacing the Makefile located in SOLUTION_ROOT/Detours/Makefile with an empty file. Do not commit this change to the Detours repository, either locally or remotely.
 
 - `dxsdk` - repository version of Microsoft's Direct3D 9 SDK. Needed for the `d3dx9.h` header file. The repo is included in this mod as a git submodule: <https://github.com/apitrace/dxsdk.git>
 
@@ -464,6 +555,8 @@ Dependencies are better described in each project's README.md. Short version is,
 - `zlib` - a compression library needed for libpng. You should statically link its 32-bit verion into this mod, it's included in the mod as a git submodule: <https://github.com/madler/zlib.git>
 
 - `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game. The sources of imgui are included in this mod as a git submodule: <https://github.com/ocornut/imgui.git>.
+
+- `D3DCompiler_47.dll` - required to compile a pixel shader at run-time. This DLL should be present on the end user's Windows machine, in the C:\\Windows\\SysWOW64 folder. Distributing it on your own may constitute a violation of copyright. If problems arise with it you'll need to remove it from dependencies. See ggxrd_hitbox_overlay's README.
 
 ## Changelog
 
@@ -537,3 +630,6 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 September 24: Fixed some animations still playing in frame freeze mode and playing too fast is slow-mo mode. Fixed danger time countdown playing during frame freeze mode. Fixed Johnny coins and stunmash indicator not displaying in frame freeze mode and displaying glitchily in slow-mo mode. Fixed play, record and backspace buttons not working in frame freeze and slow-mo modes. Draw hitboxes and imgui under steam overlay instead of on top. Not interfere with OBS recording. Can now hide ky sword lightning and >50 tension sparkles in gif mode. Fixed johnny coins, jacko organ cooldown indicators, jam powerup icons not being hidden in gif mode.
 - 2024 October 3: drawing hitboxes underneath not just steam overlay, but the in-game pause menu and training HUD, while the origin point is still drawn on top of training HUD, but underneath the pause menu. Added in-game icons to imgui window. Fixed Potemkin IK throwbox, which also fixed throwboxes for Sol Riot Stamp, maybe Potemkin ICPM if it wasn't showing before (now it does), maybe other moves that grab you on hit. Fixed 6P+H,5 (blitz input by pressing 6P+H and immediately releasing 6) displaying a throw which is active for 2 frames which is incorrect - throw is actually active for 1 frame. Changed how backside and upside Ky's Ride the Lightning hitboxes display - they're "clash only". Similarly for Jack O Aegis Field hitbox. Hiding boxes on Slayer's forward and back dashes in online mode for the sake of making it a guess which side he's teleporting to. Fixed Dizzy Reflect hitbox - it was not visible.
 - 2024 October 20: added missing check for full invul that happens during clash hitstop.
+- 2024 October 23: fixed missing hitboxes for Dizzy's bubble pop
+- 2024 October 30: added toggleCameraCenterOpponent setting into INI and the UI to center camera on the opponent. Added a toggle and setting to hide the player. Added a toggle to disable gray hurtboxes. In other words, you can now screenshot hurtboxes of the dummy during hitstun and blockstun.
+- 2024 November 12: made hitboxes' outline change to black when drawing over similarly colored background. For example, previously, when the character is red, the hitbox outline would not be visible on top of them, but now the outline will be black in this particular case.

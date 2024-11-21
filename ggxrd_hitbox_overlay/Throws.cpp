@@ -105,7 +105,8 @@ void Throws::hitDetectionMainHook() {
 
 		bool isMettagiri = charType == CHARACTER_TYPE_FAUST
 			&& strcmp(ent.animationName(), "Mettagiri") == 0
-			&& currentAnimDuration <= 1;
+			&& currentAnimDuration <= 1
+			&& !ent.isRCFrozen();
 		if (isMettagiri) {
 			throwRange = 175000;
 			checkPassed = true;
@@ -123,6 +124,10 @@ void Throws::hitDetectionMainHook() {
 			throwInfo.isPawn = ent.isPawn();
 			throwInfo.framesLeft = DISPLAY_DURATION_THROW;
 			throwInfo.isMettagiri = isMettagiri;
+			throwInfo.hatched = false;
+			throwInfo.originX = posX;
+			const int posY = ent.posY();
+			throwInfo.originY = posY;
 
 			if (throwRange >= 0) {
 				throwInfo.hasPushboxCheck = true;
@@ -173,7 +178,6 @@ void Throws::hitDetectionMainHook() {
 
 			if (throwMinY < throwMaxY) {
 				throwInfo.hasYCheck = true;
-				const int posY = ent.posY();
 				const int throwMinYInSpace = posY + throwMinY;
 				const int throwMaxYInSpace = posY + throwMaxY;
 				throwInfo.minY = throwMinYInSpace;
@@ -257,6 +261,10 @@ void Throws::drawThrows() {
 				else params.bottom = throwInfo.bottom;
 				if (throwInfo.topUnlimited) params.top = 10000000;
 				else params.top = throwInfo.top;
+				
+				params.hatched = throwInfo.hatched;
+				params.originX = throwInfo.originX;
+				params.originY = throwInfo.originY;
 	
 				endScene.drawDataPrepared.throwBoxes.push_back(params);
 	
@@ -272,6 +280,9 @@ void Throws::drawThrows() {
 					params.right = throwInfo.pushboxCheckMaxX;
 					params.bottom = -10000000;
 					params.top = 10000000;
+					params.hatched = throwInfo.hatched;
+					params.originX = throwInfo.originX;
+					params.originY = throwInfo.originY;
 					endScene.drawDataPrepared.throwBoxes.push_back(params);
 	
 				}
@@ -297,6 +308,10 @@ void Throws::drawThrows() {
 						params.top = throwInfo.maxY;
 						params.bottom = throwInfo.minY;
 					}
+					
+					params.hatched = throwInfo.hatched;
+					params.originX = throwInfo.originX;
+					params.originY = throwInfo.originY;
 	
 					endScene.drawDataPrepared.throwBoxes.push_back(params);
 	

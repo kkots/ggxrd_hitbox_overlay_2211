@@ -1,13 +1,34 @@
 #pragma once
 #include "characterTypes.h"
+#include "Hitbox.h"
 
 using getPos_t = int(__thiscall*)(const void*);
 using getPushbox_t = int(__thiscall*)(const void*);
 using getExtraTensionModifier_t = int(__thiscall*)(const void*, int param1);
 
+enum HitboxType : char {
+	HITBOXTYPE_HURTBOX,
+	HITBOXTYPE_HITBOX,
+	HITBOXTYPE_EX_POINT,  // used in some animations like Millia Bad Moon
+	HITBOXTYPE_EX_POINT_EXTENDED,
+	HITBOXTYPE_TYPE4,
+	HITBOXTYPE_TYPE5,
+	HITBOXTYPE_TYPE6,
+	HITBOXTYPE_NECK,
+	HITBOXTYPE_ABDOMEN,
+	HITBOXTYPE_R_LEG,
+	HITBOXTYPE_L_LEG,
+	HITBOXTYPE_PRIVATE0,
+	HITBOXTYPE_PRIVATE1,
+	HITBOXTYPE_PRIVATE2,
+	HITBOXTYPE_PRIVATE3,
+	HITBOXTYPE_TYPE17
+};
+
 struct EntityState {
 	bool strikeInvuln;
 	bool throwInvuln;
+	bool superArmorActive;
 	bool isASummon;
 	CharacterType charType;
 	CharacterType ownerCharType;
@@ -74,8 +95,8 @@ enum CmnActIndex {
 	CmnActVDownUpperEnd = 0x2d,  // seems to be unused
 	CmnActVDownDown = 0x2e,  // launched into air, is at the top of the trajectory or going down
 	CmnActVDownBound = 0x2f,  // landing from air launch
-	CmnActVDownLoop = 0x30,  // laying down (on the face) from having been launched into the air
-	CmnActBlowoff = 0x31,  // don't know
+	CmnActVDownLoop = 0x30,  // laying down (on the face) from having been launched into the air. Followed by CmnActFDown2Stand
+	CmnActBlowoff = 0x31,  // getting hit by 6P, pilebunker
 	CmnActKirimomiUpper = 0x32,  // got hit by 5D
 	CmnActWallBound = 0x33,  // bouncing from a wall
 	CmnActWallBoundDown = 0x34,  // falling down after bouncing from a wall
@@ -155,11 +176,12 @@ public:
 	inline bool isActive() const { return *(DWORD*)(ent + 0xc) == 1; }
 	// Active means attack frames are coming
 	inline bool isActiveFrames() const {
-		return (*(unsigned int*)(ent + 0x23C) & 0x100) != 0  // This signals that attack's hitboxes should not be ignored. Can happen before hitboxes come out
-			&& (*(unsigned int*)(ent + 0x234) & 0x40000000) == 0;  // This signals that attack's hitboxes should be ignored.
+		return (*(DWORD*)(ent + 0x23C) & 0x100) != 0  // This signals that attack's hitboxes should not be ignored. Can happen before hitboxes come out
+			&& (*(DWORD*)(ent + 0x234) & 0x40000000) == 0;  // This signals that attack's hitboxes should be ignored.
 		                                                           // Can be simultaneous with 0x100 flag in 0x23C - recovery takes priority
 		                                                           // Some moves don't have this flag during their recovery
 	}
+	inline bool hasActiveFlag() const { return (*(DWORD*)(ent + 0x23C) & 0x100) != 0; }
 	
 	// 0 for P1, 1 for P2
 	inline char team() const { return *(char*)(ent + 0x40); }
@@ -220,10 +242,13 @@ public:
 	inline bool enableCrouch() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2) != 0; }
 	inline bool enableWalkBack() const { return (*(DWORD*)(ent + 0x4d3c) & 0x20) != 0; }
 	inline int lifeTimeCounter() const { return *(int*)(ent + 0x18); }
-	inline bool inPain() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }  // I guess this should be called inHitstun
-	inline int comboCount() const { return *(int*)(ent + 0x9F28); }
+	inline bool inHitstun() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }
+	inline bool inHitstunThisFrame() const { return (*(DWORD*)(ent + 0x23c) & 0x4) != 0; }
+	inline bool inHitstunNextFrame() const { return (*(DWORD*)(ent + 0x23c) & 0x2) != 0; }
+	inline int comboCount() const { return *(int*)(ent + 0x9F28); }  // this is set on the one getting combo'd
 	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
-	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }
+	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }  // the last created entity by this entity
+	inline Entity stackEntity(int index) const { return Entity{*(char**)(ent + 0x210 + index * 4)}; }  // STACK_0..7 from bbscript
 	inline int& scaleX() { return *(int*)(ent + 0x264); }
 	inline int& scaleY() { return *(int*)(ent + 0x268); }
 	inline int& scaleZ() { return *(int*)(ent + 0x26c); }
@@ -245,9 +270,10 @@ public:
 	inline int airPushbackModifier() { return *(int*)(ent + 0x710 + 0x228); }  // Has not been spotted yet to not be 0
 	inline bool ascending() { return (*(DWORD*)(ent + 0x234) & 0x1) != 0; }  // this does not mean prejump. It is set on the initial 7 frames of May jump, 10 Ky jump.
 	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
-	inline int pushbackModifierDuringPain() { return *(int*)(ent + 0x710 + 0x158); }
+	inline int pushbackModifierDuringHitstun() { return *(int*)(ent + 0x710 + 0x158); }
 	inline bool displayModel() { return *(bool*)(ent + 0x2814); }
 	inline bool isHidden() { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
+	inline bool isRecoveryState() { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
 	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
 	inline AttackType attackType() { return *(AttackType*)(ent + 0x44c); }
@@ -266,7 +292,7 @@ public:
 	inline int dizzyMashAmountMax() { return *(int*)(ent + 0x9fd0); }
 	inline bool landed() { return (*(int*)(ent + 0x234) & 0x4) != 0; }  // is true for only one frame - the frame on which you touched the ground
 	inline bool hitSomethingOnThisFrame() { return (*(int*)(ent + 0x12c) & 0x20000) != 0; }  // is true for only one frame - the frame on which you hit something
-	inline bool inPainNextFrame() { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
+	inline bool inHitstunNextFrame() { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
 	inline bool inBlockstunNextFrame() { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
 	inline bool enableGuardBreak() { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // i don't know what this is, bbscript calls it enableGuardBreak
 	inline Entity currentRunOnObject() { return *(Entity*)(ent + 0x2464); }
@@ -275,6 +301,8 @@ public:
 	inline int receivedAttackLevel() { return *(int*)(ent + 0x710 + 0x4); }
 	inline bool isTouchingLeftWall() { return (*(DWORD*)(ent + 0x118) & 0x400000) != 0; }
 	inline bool isTouchingRightWall() { return (*(DWORD*)(ent + 0x118) & 0x800000) != 0; }
+	inline bool isSuperFrozen() { return (*(DWORD*)(ent + 0x118) & 0x4000000) != 0; }
+	inline bool isRCFrozen() { return (*(DWORD*)(ent + 0x11c) & 0x200000) != 0; }
 	inline Entity attacker() { return *(Entity*)(ent + 0x708); }
 	inline bool holdingFD() { return (*(DWORD*)(ent + 0x23c) & 0x20000000) != 0; }
 	inline int receivedSpeedY() { return *(int*)(ent + 0x944); }
@@ -282,9 +310,12 @@ public:
 	inline bool superArmorEnabled() const { return (*(DWORD*)(ent + 0x9a4) & 0x2) != 0; }
 	inline SuperArmorType superArmorType() const { return *(SuperArmorType*)(ent + 0x9a8); }
 	inline bool superArmorForReflect() const { return (*(DWORD*)(ent + 0x9a4) & 0x100000) != 0; }
-	inline bool hasUponIdling() const { return (*(DWORD*)(ent + 0xa0c) & 0x8) != 0; }
+	inline bool superArmorHontaiAttacck() const { return (*(DWORD*)(ent + 0x9a4) & 0x40000) != 0; }  // this is not a typo, it's from bbscript
+	inline bool invulnForAegisField() const { return (*(DWORD*)(ent + 0x238) & 0x400) != 0; }
+	bool hasUpon(int index) const;
 	inline int mem45() const { return *(int*)(ent + 0x14c); }
 	inline int mem46() const { return *(int*)(ent + 0x150); }
+	inline int mem50() const { return *(int*)(ent + 0x160); }
 	inline int mem51() const { return *(int*)(ent + 0x164); }
 	inline int mem57() const { return *(int*)(ent + 0x17c); }
 	inline int mem58() const { return *(int*)(ent + 0x180); }
@@ -298,8 +329,28 @@ public:
 	inline const char* attackLockAction() const { return (const char*)(ent + 0x44c + 0x54); }
 	inline int spriteFrameCounter() const { return *(int*)(ent + 0xa78); }
 	inline int spriteFrameCounterMax() const { return *(int*)(ent + 0xa80); }
-	inline BYTE* bbscrCurrentInstr() const { return *(BYTE**)(ent + 0xa50); }  // if playing a sprite, points to the next sprite command that would go after it
+	// If playing a sprite, points to the next sprite command that would go after it.
+	// When on the last sprite, points to the endState instruction.
+	inline BYTE* bbscrCurrentInstr() const { return *(BYTE**)(ent + 0xa50); }
 	inline BYTE* bbscrCurrentFunc() const { return *(BYTE**)(ent + 0xa54); }  // points to a beginState instruction
+	inline int remainingDoubleJumps() const { return *(int*)(ent + 0x4d58); }
+	inline Entity playerEntity() const { return *(Entity*)(ent + 0x1d0); }
+	inline Entity effectLinkedCollision() const { return *(Entity*)(ent + 0x204); }
+	inline bool collisionForceExpand() const { return (*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0; }  // having this flag means you ignore the hitboxes hit detection check
+	inline int pitch() const { return *(int*)(ent + 0x258); }
+	inline int hitboxOffsetX() const { return *(int*)(ent + 0x27c); }
+	inline int hitboxOffsetY() const { return *(int*)(ent + 0x280); }
+	inline int hitboxCount(HitboxType type) const { return *(int*)(ent + 0xa0 + (int)type * 4); }
+	inline const Hitbox* hitboxData(HitboxType type) const { return *(const Hitbox**)(ent + 0x58 + (int)type * 4); }
+	inline int untechableTime() const { return *(int*)(ent + 0x694); }
+	inline int floorBouncesRemaining() const { return *(int*)(ent + 0x960); }
+	inline bool isOtg() const { return (*(DWORD*)(ent + 0x4d24) & 0x800000) != 0; }
+	inline int atkAngle() const { return *(int*)(ent + 0x44c + 0x164); }
+	inline int strikeInvulnFrames() const { return *(int*)(ent + 0x9a0); }
+	inline int throwInvulnFrames() const { return *(int*)(ent + 0x99c); }
+	inline bool strikeInvul() const { return (*(DWORD*)(ent + 0x238) & 0x10) != 0; }
+	inline bool throwInvul() const { return (*(DWORD*)(ent + 0x238) & 0x20) != 0; }
+	inline bool fullInvul() const { return (*(DWORD*)(ent + 0x238) & 0x40) != 0; }
 	
 	void getState(EntityState*) const;
 	
@@ -339,8 +390,8 @@ public:
 		int tensionPulse,
 		int* distanceModifier,
 		int* tensionPulseModifier);
-	int calculateReceivedComboCountTensionGainModifier(bool inPain, int comboCount);
-	int calculateDealtComboCountTensionGainModifier(bool inPain, int comboCount);
+	int calculateReceivedComboCountTensionGainModifier(bool inHitstun, int comboCount);
+	int calculateDealtComboCountTensionGainModifier(bool inHitstun, int comboCount);
 	void calculatePushback(
 		int attackLevel,
 		int comboTimer,
@@ -349,11 +400,11 @@ public:
 		int y,
 		int pushbackModifier,
 		int airPushbackModifier,
-		bool inPainOrInPainNextFrame,
-		int pushbackModifierOnPain,
+		bool inHitstunOrInHitstunNextFrame,
+		int pushbackModifierOnHitstun,
 		int* basePushback,
 		int* attackPushbackModifier,
-		int* painPushbackModifier,
+		int* hitstunPushbackModifier,
 		int* comboTimerPushbackModifier);
 	void calculateSpeedYProration(
 		int comboCount,

@@ -78,7 +78,7 @@ std::wstring PngRelated::getScreenshotSavingPath() {
 	return path;
 }
 
-void PngRelated::writePngPrepare(unsigned int width, unsigned int height, void* buffer, unsigned int* formatField, void** newBuffer) {
+void PngRelated::writePngPrepare(unsigned int width, unsigned int height, const void* buffer, unsigned int* formatField, void** newBuffer) {
 	if (!settings.dontUseScreenshotTransparency) {
 		*formatField = PNG_FORMAT_BGRA;
 		return;
@@ -88,7 +88,7 @@ void PngRelated::writePngPrepare(unsigned int width, unsigned int height, void* 
 	if (!*newBuffer) return;
 	struct BGR { unsigned char b; unsigned char g; unsigned char r; };
 	struct BGRA { BGR bgr; unsigned char a; };
-	BGRA* oldBufferPtr = (BGRA*)buffer;
+	const BGRA* oldBufferPtr = (const BGRA*)buffer;
 	BGR* newBufferPtr = (BGR*)*newBuffer;
 	const unsigned int imageSize = width * height;
 	for (unsigned int i = imageSize; i != 0; --i) {
@@ -126,6 +126,8 @@ bool PngRelated::writePngToPath(const std::wstring& path, unsigned int width, un
 	return true;
 }
 
+// imageDataToWrite - the source data. Destination is new memory allocated by GlobalAlloc
+// May overwrite data in -imageDataToWrite-
 bool PngRelated::writePngToMemory(HGLOBAL* handleToGlobalAlloc, unsigned int width, unsigned int height, void* imageDataToWrite) {
 	if (!handleToGlobalAlloc) return false;
 	if (!imageDataToWrite) return false;
@@ -169,6 +171,7 @@ bool PngRelated::writePngToMemory(HGLOBAL* handleToGlobalAlloc, unsigned int wid
 	return true;
 }
 
+// May overwrite data in -buffer-
 void PngRelated::saveScreenshotData(unsigned int width, unsigned int height, void* buffer) {
 	bool screenshotPathEmpty = false;
 	{

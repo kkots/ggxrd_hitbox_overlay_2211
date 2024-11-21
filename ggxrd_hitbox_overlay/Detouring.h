@@ -93,8 +93,9 @@ class HookGuard {
 public:
 	inline HookGuard(const char* name)
 		#ifdef _DEBUG
-		: name(name) {
+		: name(name)
 		#endif
+	{
 		++detouring.hooksCounter;
 		#ifdef _DEBUG
 		detouring.markHookRunning(name, true);

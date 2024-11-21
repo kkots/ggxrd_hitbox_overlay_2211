@@ -12,4 +12,5 @@ void collectHitboxes(Entity ent,
 		std::vector<DrawPointCallParams>* const points,
 		std::vector<DrawBoxCallParams>* const pushboxes,
 		int* numHitboxes = nullptr,
-		int* lastIgnoredHitNum = nullptr);
+		int* lastIgnoredHitNum = nullptr,
+		EntityState* entityState = nullptr);

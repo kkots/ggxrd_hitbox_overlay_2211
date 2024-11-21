@@ -130,10 +130,18 @@ bool Settings::onDllMain() {
 		"; A keyboard shortcut to only toggle the \"Camera is centered on you\" part of the gifModeToggle.\n"
 		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
 		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example");
+	insertKeyComboToParse("toggleCameraCenterOpponent", "Center camera on the opponent", &toggleCameraCenterOpponent, "",
+		"; A keyboard shortcut to toggle the camera to be centered on the opponent.\n"
+		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+		"; This option can be combined with GIF Mode options, by sharing the same key binding for example");
 	insertKeyComboToParse("gifModeToggleHideOpponentOnly", "GIF Mode Toggle (Hide Opponent Only)", &gifModeToggleHideOpponentOnly, "",
 		"; A keyboard shortcut to only toggle the \"Opponent is invisible and invulnerable\" part of the gifModeToggle.\n"
 		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
 		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example");
+	insertKeyComboToParse("toggleHidePlayer", "Hide Player", &toggleHidePlayer, "",
+		"; A keyboard shortcut to toggle hiding the player.\n"
+		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+		"; This option can be combined with GIF Mode options, by sharing the same key binding for example");
 	insertKeyComboToParse("gifModeToggleHudOnly", "GIF Mode Toggle (HUD Only)", &gifModeToggleHudOnly, "",
 		"; A keyboard shortcut to only toggle the \"hide hud\" part of the gifModeToggle.\n"
 		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
@@ -141,10 +149,18 @@ bool Settings::onDllMain() {
 	insertKeyComboToParse("modWindowVisibilityToggle", "Hide UI Toggle", &modWindowVisibilityToggle, "Escape",
 		"; A keyboard shortcut.\n"
 		"; Pressing this shortcut will show/hide the mod's UI window.");
+	insertKeyComboToParse("toggleDisableGrayHurtboxes", "Disable Gray Hurtboxes", &toggleDisableGrayHurtboxes, "",
+		"; A keyboard shortcut.\n"
+		"; Pressing this shortcut will disable/enable the display of residual hurtboxes that appear on hit/block and show\n"
+		"; the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but\n"
+		"; they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.");
 	
 	registerOtherDescription(&slowmoTimes, "; A number.\n"
 			"; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed.\n"
 			"; Specifies by how many times to slow the game down");
+	registerOtherDescription(&framebarHeight, "; A number.\n"
+			"; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.\n"
+			"; The standard height is 19.");
 	registerOtherDescription(&allowContinuousScreenshotting, "; Specify true or false.\n"
 			"; When this is true that means screenshots are being taken every game loop logical frame as\n"
 			"; long as the screenshotBtn is being held. Game loop logical frame means that if the game is\n"
@@ -153,6 +169,44 @@ bool Settings::onDllMain() {
 			"; Be cautions not to run out of disk space if you're low. This option doesn't\n"
 			"; work if screenshotPath is empty, it's not allowed to work outside of training mode or when\n"
 			"; a match (training session) isn't currently running (for example on character selection screen).");
+	registerOtherDescription(&displayUIOnTopOfPauseMenu, "; Specify true or false.\n"
+			"; Display mod's UI on top of the game's Pause Menu.");
+	registerOtherDescription(&neverIgnoreHitstop, "; Specify true or false.\n"
+			"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"
+			"; unless a projectile or a blocking Baiken is present.\n"
+			"; If this is set to true, then we always show hitstop in the framebar.");
+	registerOtherDescription(&considerRunAndWalkNonIdle, "; Specify true or false.\n"
+			"; Normally we consider running and walking as being idle, which does not advance the framebar forward.\n"
+			"; The framebar only advances when one of the players is \"busy\".\n"
+			"; If this is set to true, then one player running or walking will be treated same way as \"busy\" and will advance the framebar.");
+	registerOtherDescription(&useSimplePixelBlender, "; Specify true or false.\n"
+			"; Setting this to true may increase the performance of transparent screenshotting which may be useful if you're screenshotting every frame.\n"
+			"; The produced screenshots won't have such improvements as improving visibility of semi-transparent effects or changing hitbox outlines to\n"
+			"; black when drawn over the same color.");
+	registerOtherDescription(&dontShowBoxes, "; Specify true or false.\n"
+			"; Setting this to true will hide all hurtboxes, hitboxes, pushboxes and other boxes and points.");
+	registerOtherDescription(&neverDisplayGrayHurtboxes, "; Specify true or false.\n"
+			"; This disables the display of gray hurtboxes (for a toggle see toggleDisableGrayHurtboxes).\n"
+			"; Gray hurtboxes are residual hurtboxes that appear on hit/block and show the defender's hurtbox at the moment of impact.\n"
+			"; These hurtboxes display for only a brief time on impacts but they can get in the way when trying to do certain stuff such\n"
+			"; as take screenshots of hurtboxes on hit/block.");
+	registerOtherDescription(&showFramebar, "; Specify true or false.\n"
+			"; The framebar is only shown when the UI is shown. If the UI is not shown the only way to show it is via the\n"
+			"; modWindowVisibilityToggle hotkey. By default it's ESC keyboard key, can be configured either using the INI file or the UI.");
+	registerOtherDescription(&useColorblindHelp, "; Specify true or false.\n"
+			"; If true, certain types of frames in the framebar will be displayed with distinct hatches on them.\n"
+			"; Make sure the framebar is scaled wide enough and the screen resolution is large enough that you can see the hatches properly.\n"
+			"; To scale the framebar you can drag its right edge.");
+	registerOtherDescription(&considerKnockdownWakeupAndAirtechIdle, "; Specify true or false\n"
+			"; This controls whether a character being knocked down, waking up or air recovering causes the framebar to advance forward (if you're also idle).\n"
+			"; Framebar only advances forward when one or both players are not idle.\n"
+			"; Framebar advancing forward means it continuously overwrites its oldest contents with new data to display.\n"
+			"; This could be bad if you wanted to study why a combo dropped, as some knockdowns can be very long and erase all the info you wanted to see.\n"
+			"; Setting this to true may prevent that.\n"
+			"; The first frame when the opponent is in OTG state and onwards - those frames do not get included in the framebar.\n"
+			"; If you recover from your move later than the opponent enters OTG state, the frames are included for your whole recovery for both you and the opponent,\n"
+			"; which means OTG state may partially or fully get included into the framebar.\n"
+			"; In such cases, look for an animation start delimiter on the opponent's framebar, shown as a white ' between frames.");
 	registerOtherDescription(&startDisabled, "; Specify true or false.\n"
 			"; When true, starts the mod in a disabled state: it doesn't draw boxes or affect anything");
 	registerOtherDescription(&screenshotPath, "; A path to a file or a directory.\n"
@@ -291,6 +345,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 
 	slowmoTimes = 3;
 	bool slowmoTimesParsed = false;
+	
+	framebarHeight = 19;
+	bool framebarHeightParsed = false;
 
 	startDisabled = false;
 	bool startDisabledParsed = false;
@@ -300,6 +357,33 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 
 	allowContinuousScreenshotting = false;
 	bool allowContinuousScreenshottingParsed = false;
+	
+	displayUIOnTopOfPauseMenu = false;
+	bool displayUIOnTopOfPauseMenuParsed = false;
+	
+	neverIgnoreHitstop = false;
+	bool neverIgnoreHitstopParsed = false;
+	
+	considerRunAndWalkNonIdle = true;
+	bool considerRunAndWalkNonIdleParsed = false;
+	
+	useSimplePixelBlender = false;
+	bool useSimplePixelBlenderParsed = false;
+	
+	dontShowBoxes = false;
+	bool dontShowBoxesParsed = false;
+	
+	neverDisplayGrayHurtboxes = false;
+	bool neverDisplayGrayHurtboxesParsed = false;
+	
+	showFramebar = true;
+	bool showFramebarParsed = false;
+	
+	useColorblindHelp = false;
+	bool useColorblindHelpParsed = false;
+	
+	considerKnockdownWakeupAndAirtechIdle = false;
+	bool considerKnockdownWakeupAndAirtechIdleParsed = false;
 
 	dontUseScreenshotTransparency = false;
 	bool dontUseScreenshotTransparencyParsed = false;
@@ -347,14 +431,41 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			if (!slowmoTimesParsed && _stricmp(keyName.c_str(), "slowmoTimes") == 0) {
 				slowmoTimesParsed = parseInteger("slowmoTimes", keyValue, slowmoTimes);
 			}
+			if (!framebarHeightParsed && _stricmp(keyName.c_str(), "framebarHeight") == 0) {
+				framebarHeightParsed = parseInteger("framebarHeight", keyValue, framebarHeight);
+			}
+			if (!displayUIOnTopOfPauseMenuParsed && _stricmp(keyName.c_str(), "displayUIOnTopOfPauseMenu") == 0) {
+				displayUIOnTopOfPauseMenuParsed = parseBoolean("displayUIOnTopOfPauseMenu", keyValue, displayUIOnTopOfPauseMenu);
+			}
+			if (!neverIgnoreHitstopParsed && _stricmp(keyName.c_str(), "neverIgnoreHitstop") == 0) {
+				neverIgnoreHitstopParsed = parseBoolean("neverIgnoreHitstop", keyValue, neverIgnoreHitstop);
+			}
+			if (!considerRunAndWalkNonIdleParsed && _stricmp(keyName.c_str(), "considerRunAndWalkNonIdle") == 0) {
+				considerRunAndWalkNonIdleParsed = parseBoolean("considerRunAndWalkNonIdle", keyValue, considerRunAndWalkNonIdle);
+			}
+			if (!useSimplePixelBlenderParsed && _stricmp(keyName.c_str(), "useSimplePixelBlender") == 0) {
+				useSimplePixelBlenderParsed = parseBoolean("useSimplePixelBlender", keyValue, useSimplePixelBlender);
+			}
+			if (!dontShowBoxesParsed && _stricmp(keyName.c_str(), "dontShowBoxes") == 0) {
+				dontShowBoxesParsed = parseBoolean("dontShowBoxes", keyValue, dontShowBoxes);
+			}
+			if (!neverDisplayGrayHurtboxesParsed && _stricmp(keyName.c_str(), "neverDisplayGrayHurtboxes") == 0) {
+				neverDisplayGrayHurtboxesParsed = parseBoolean("neverDisplayGrayHurtboxes", keyValue, neverDisplayGrayHurtboxes);
+			}
+			if (!showFramebarParsed && _stricmp(keyName.c_str(), "showFramebar") == 0) {
+				showFramebarParsed = parseBoolean("showFramebar", keyValue, showFramebar);
+			}
+			if (!useColorblindHelpParsed && _stricmp(keyName.c_str(), "useColorblindHelp") == 0) {
+				useColorblindHelpParsed = parseBoolean("useColorblindHelp", keyValue, useColorblindHelp);
+			}
+			if (!considerKnockdownWakeupAndAirtechIdleParsed && _stricmp(keyName.c_str(), "considerKnockdownWakeupAndAirtechIdle") == 0) {
+				considerKnockdownWakeupAndAirtechIdleParsed = parseBoolean("considerKnockdownWakeupAndAirtechIdle", keyValue, considerKnockdownWakeupAndAirtechIdle);
+			}
 			if (!allowContinuousScreenshottingParsed && _stricmp(keyName.c_str(), "allowContinuousScreenshotting") == 0) {
 				allowContinuousScreenshottingParsed = parseBoolean("allowContinuousScreenshotting", keyValue, allowContinuousScreenshotting);
 			}
-			if (firstSettingsParse && !startDisabledParsed && _stricmp(keyName.c_str(), "startDisabled") == 0) {
+			if (!startDisabledParsed && _stricmp(keyName.c_str(), "startDisabled") == 0) {
 				startDisabledParsed = parseBoolean("startDisabled", keyValue, startDisabled);
-				if (startDisabled) {
-					gifMode.modDisabled = true;
-				}
 			}
 			if (!screenshotPathParsed && _stricmp(keyName.c_str(), "screenshotPath") == 0) {
 				screenshotPathParsed = true;
@@ -369,15 +480,19 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			}
 			if (!modWindowVisibleOnStartParsed && _stricmp(keyName.c_str(), "modWindowVisibleOnStart") == 0) {
 				modWindowVisibleOnStartParsed = parseBoolean("modWindowVisibleOnStart", keyValue, modWindowVisibleOnStart);
-				if (firstSettingsParse && modWindowVisibleOnStartParsed) {
-					ui.visible = modWindowVisibleOnStart;
-				}
 			}
 			if (feof(file)) break;
 		}
 		fclose(file);
 	}
 
+	if (firstSettingsParse) {
+		ui.visible = modWindowVisibleOnStart;
+		if (startDisabled) {
+			gifMode.modDisabled = true;
+		}
+	}
+	
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
 		if (!it->second.isParsed) {
 			parseKeys(it->first.c_str(), it->second.defaultValue, *it->second.keyCombo);
@@ -871,7 +986,17 @@ void Settings::writeSettingsMain() {
 	
 	replaceOrAddSetting("dontUseScreenshotTransparency", formatBoolean(dontUseScreenshotTransparency), getOtherINIDescription(&dontUseScreenshotTransparency));
 	replaceOrAddSetting("drawPushboxCheckSeparately", formatBoolean(drawPushboxCheckSeparately), getOtherINIDescription(&drawPushboxCheckSeparately));
+	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));
+	replaceOrAddSetting("neverDisplayGrayHurtboxes", formatBoolean(neverDisplayGrayHurtboxes), getOtherINIDescription(&neverDisplayGrayHurtboxes));
+	replaceOrAddSetting("dontShowBoxes", formatBoolean(dontShowBoxes), getOtherINIDescription(&dontShowBoxes));
+	replaceOrAddSetting("displayUIOnTopOfPauseMenu", formatBoolean(displayUIOnTopOfPauseMenu), getOtherINIDescription(&displayUIOnTopOfPauseMenu));
+	replaceOrAddSetting("showFramebar", formatBoolean(showFramebar), getOtherINIDescription(&showFramebar));
+	replaceOrAddSetting("framebarHeight", std::to_string(framebarHeight).c_str(), getOtherINIDescription(&framebarHeight));
+	replaceOrAddSetting("neverIgnoreHitstop", formatBoolean(neverIgnoreHitstop), getOtherINIDescription(&neverIgnoreHitstop));
+	replaceOrAddSetting("considerRunAndWalkNonIdle", formatBoolean(considerRunAndWalkNonIdle), getOtherINIDescription(&considerRunAndWalkNonIdle));
+	replaceOrAddSetting("considerKnockdownWakeupAndAirtechIdle", formatBoolean(considerKnockdownWakeupAndAirtechIdle), getOtherINIDescription(&considerKnockdownWakeupAndAirtechIdle));
+	replaceOrAddSetting("useColorblindHelp", formatBoolean(useColorblindHelp), getOtherINIDescription(&useColorblindHelp));
 	
 	SetFilePointer(file, 0, NULL, FILE_BEGIN);
 	

@@ -13,10 +13,65 @@
 #include "UI.h"
 #include "resource.h"
 #include "WinError.h"
+#include <d3dcompiler.h>
+#include "resource.h"
+#include <D3DX9Shader.h>
+#ifdef PERFORMANCE_MEASUREMENT
+#include <chrono>
+#endif
+#include <algorithm>
 
 Graphics graphics;
 
-bool Graphics::onDllMain() {
+// THIS PERFORMANCE MEASUREMENT IS NOT THREAD SAFE
+#ifdef PERFORMANCE_MEASUREMENT
+static std::chrono::time_point<std::chrono::system_clock> performanceMeasurementStart;
+#define PERFORMANCE_MEASUREMENT_DECLARE(name) \
+	static unsigned long long performanceMeasurement_##name##_sum = 0; \
+	static unsigned long long performanceMeasurement_##name##_count = 0; \
+	static unsigned long long performanceMeasurement_##name##_average = 0;
+#define PERFORMANCE_MEASUREMENT_ON_EXIT(name) \
+	PerformanceMeasurementEnder performanceMeasurementEnder_##name(performanceMeasurement_##name##_sum, \
+		performanceMeasurement_##name##_count, \
+		performanceMeasurement_##name##_average, \
+		#name);
+#define PERFORMANCE_MEASUREMENT_START performanceMeasurementStart = std::chrono::system_clock::now();
+#define PERFORMANCE_MEASUREMENT_END(name) \
+	{ \
+		PERFORMANCE_MEASUREMENT_ON_EXIT(name) \
+	}
+		
+PERFORMANCE_MEASUREMENT_DECLARE(takeScreenshotBegin)
+PERFORMANCE_MEASUREMENT_DECLARE(screenshotDrawAll1)
+PERFORMANCE_MEASUREMENT_DECLARE(screenshotDrawAll2)
+PERFORMANCE_MEASUREMENT_DECLARE(takeScreenshotEnd_getFramebufferData)
+PERFORMANCE_MEASUREMENT_DECLARE(takeScreenshotEnd_pixelBlender)
+PERFORMANCE_MEASUREMENT_DECLARE(takeScreenshotEnd_writeScreenshot)
+
+struct PerformanceMeasurementEnder {
+	PerformanceMeasurementEnder(unsigned long long& sum,
+		unsigned long long& count,
+		unsigned long long& average,
+		const char* name) : sum(sum), count(count), average(average), name(name) { }
+	~PerformanceMeasurementEnder() {
+		unsigned long long duration = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - performanceMeasurementStart).count();
+		sum += duration;
+		++count;
+		average = sum / count;
+		logwrap(fprintf(logfile, "%s took %llu nanoseconds; average: %llu; count: %llu\n", name, duration, average, count));
+	}
+	unsigned long long& sum;
+	unsigned long long& count;
+	unsigned long long& average;
+	const char* name;
+};
+#else
+#define PERFORMANCE_MEASUREMENT_ON_EXIT(name) 
+#define PERFORMANCE_MEASUREMENT_START 
+#define PERFORMANCE_MEASUREMENT_END(name) 
+#endif
+
+bool Graphics::onDllMain(HMODULE hInstance) {
 	bool error = false;
 	uintptr_t UpdateD3DDeviceFromViewportsCallPlace = sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -77,7 +132,9 @@ bool Graphics::onDllMain() {
 		logwrap(fprintf(logfile, "Failed to create event: %ls\n", winErr.getMessage()));
 		return false;
 	}
-
+	
+	this->hInstance = hInstance;
+	
 	return !error;
 }
 
@@ -106,6 +163,10 @@ void Graphics::resetHook() {
 	offscreenSurfaceWidth = 0;
 	offscreenSurfaceHeight = 0;
 	vertexBuffer = NULL;
+	framesTexture = nullptr;
+	outlinesRTSamplingTexture = nullptr;
+	pixelShader = nullptr;
+	altRenderTarget = nullptr;
 }
 
 void Graphics::onDllDetach() {
@@ -245,7 +306,7 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 		}
 		
 		if (lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_BOX) {
-			const bool drew = drawIfOutOfSpace(6, 0);
+			const bool drew = drawIfOutOfSpace(6);
 			if (!drew) {
 				*vertexIt = *(vertexIt - 1);
 				++vertexIt;
@@ -263,7 +324,7 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 				++vertexIt;
 			}
 		} else {
-			drawIfOutOfSpace(4, 0);
+			drawIfOutOfSpace(4);
 			vertexBufferLength += 4;
 			vertexBufferRemainingSize -= 4;
 			*vertexIt = Vertex{ sp1.x, sp1.y, 0.F, 1.F, fillColor };
@@ -289,6 +350,15 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 		drawOutlineCallParams.addPathElem(sp3.x, sp3.y, right, top, -1, 1);
 		drawOutlineCallParams.outlineColor = params.outlineColor;
 		drawOutlineCallParams.thickness = params.thickness;
+		drawOutlineCallParams.hatched = params.hatched;
+		if (params.hatched) {
+			drawOutlineCallParams.hatches.originX = params.originX;
+			drawOutlineCallParams.hatches.originY = params.originY;
+			drawOutlineCallParams.hatches.points.emplace_back();
+			HatchesCallParams::HatchPoints& pointStarts = drawOutlineCallParams.hatches.points.back();
+			pointStarts.start = drawOutlineCallParams.getStartPosition();
+			pointStarts.count = 4;
+		}
 		outlines.push_back(drawOutlineCallParams);
 	}
 	return drewRect;
@@ -368,17 +438,22 @@ void Graphics::drawOutlinesSection(bool preserveLastTwoVertices) {
 		outlinesSectionOutlineCount = 0;
 		outlinesSectionTotalLineCount = 0;
 	}
+	if (outlinesSectionHatchCount) {
+		device->DrawPrimitive(D3DPT_LINELIST, vertexBufferPosition, outlinesSectionHatchCount);
+		vertexBufferPosition += 2 * outlinesSectionHatchCount;
+		outlinesSectionHatchCount = 0;
+	}
 }
 
 bool Graphics::drawAllOutlines() {
 	if (preparedOutlines.empty()) return true;
 	sendAllPreparedVertices();
 	advanceRenderState(RENDER_STATE_DRAWING_OUTLINES);
-
+	
 	if (!loggedDrawingOperationsOnce) {
 		logwrap(fprintf(logfile, "drawAllOutlines: vertexBufferPosition: %u\n", vertexBufferPosition));
 	}
-
+	
 	for (auto it = preparedOutlines.begin(); it != preparedOutlines.end(); ++it) {
 		if (!loggedDrawingOperationsOnce) {
 			logwrap(fprintf(logfile, "drawAllOutlines: outline index: %u; it->isOnePixelThick: %u; it->linesSoFar: %u; it->isComplete: %u\n",
@@ -391,6 +466,15 @@ bool Graphics::drawAllOutlines() {
 				if (it->isComplete) {
 					vertexBufferPosition += 1 + it->linesSoFar;
 					it->linesSoFar = 0;
+					if (it->hatched) {
+						outlinesSectionHatchCount += it->hatchesCount;
+						it->hatchesCount = 0;
+						drawOutlinesSection(false);
+						if (!it->hatchesComplete) {
+							preparedOutlines.erase(preparedOutlines.begin(), it);
+							return false;
+						}
+					}
 				} else {
 					// we'll duplicate the last one vertex into the new buffer
 					vertexBufferPosition += it->linesSoFar;
@@ -408,11 +492,20 @@ bool Graphics::drawAllOutlines() {
 				}
 				preparedOutlines.erase(preparedOutlines.begin(), it);
 				return false;
-			} else {
-				logwrap(fputs("Suspicious outline behavior in drawAllOutlines\n", logfile));
+			} else if (it->hatched) {
+				outlinesSectionHatchCount += it->hatchesCount;
+				it->hatchesCount = 0;
+				drawOutlinesSection(false);
+				if (!it->hatchesComplete) {
+					preparedOutlines.erase(preparedOutlines.begin(), it);
+					return false;
+				}
 			}
 		} else {
 			if (it->linesSoFar) {
+				if (outlinesSectionHatchCount) {
+					drawOutlinesSection(false);
+				}
 				if (outlinesSectionOutlineCount == 0 && !loggedDrawingOperationsOnce) {
 					logwrap(fprintf(logfile, "drawAllOutlines: starting new outlines section\n"));
 				}
@@ -427,6 +520,14 @@ bool Graphics::drawAllOutlines() {
 					}
 					preparedOutlines.erase(preparedOutlines.begin(), it);
 					return false;
+				} else if (it->hatched) {
+					outlinesSectionHatchCount += it->hatchesCount;
+					it->hatchesCount = 0;
+					drawOutlinesSection(false);
+					if (!it->hatchesComplete) {
+						preparedOutlines.erase(preparedOutlines.begin(), it);
+						return false;
+					}
 				}
 			} else if (!it->isComplete) {
 				drawOutlinesSection(false);
@@ -439,6 +540,14 @@ bool Graphics::drawAllOutlines() {
 				}
 				preparedOutlines.erase(preparedOutlines.begin(), it);
 				return false;
+			} else if (it->hatched) {
+				outlinesSectionHatchCount += it->hatchesCount;
+				it->hatchesCount = 0;
+				drawOutlinesSection(false);
+				if (!it->hatchesComplete) {
+					preparedOutlines.erase(preparedOutlines.begin(), it);
+					return false;
+				}
 			}
 		}
 	}
@@ -608,15 +717,10 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 		preparedArrayboxes.back().id = preparedArrayboxIdCounter++;
 	}
 
-	float angleRads;
-	int cos;
-	int sin;
-	int angleCapped;
-	const bool isRotated = (params.params.angle != 0);
-	if (isRotated) {
-		angleRads = -(float)params.params.angle / 1000.F / 180.F * PI;
-		angleCapped = params.params.angle % 360000;
-		if (angleCapped < 0) angleCapped += 360000;
+	int cos = -2000;
+	int sin = -2000;
+	if (params.params.angle) {
+		float angleRads = -(float)params.params.angle / 1000.F / 180.F * PI;
 		cos = (int)(::cos(angleRads) * 1000.F);
 		sin = (int)(::sin(angleRads) * 1000.F);
 	}
@@ -624,45 +728,23 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 	DrawBoxCallParams drawBoxCall;
 	drawBoxCall.fillColor = params.fillColor;
 
-	const Hitbox* hitboxData = params.hitboxData;
 	for (int i = 0; i < params.hitboxCount; ++i) {
 		logOnce(fprintf(logfile, "drawing box %d\n", params.hitboxCount - i));
-
-		int offX = params.params.scaleX * ((int)hitboxData->offX + params.params.hitboxOffsetX / 1000 * params.params.flip);
-		int offY = params.params.scaleY * (-(int)hitboxData->offY + params.params.hitboxOffsetY / 1000);
-		int sizeX = (int)hitboxData->sizeX * params.params.scaleX;
-		int sizeY = -(int)hitboxData->sizeY * params.params.scaleY;
-
-		if (isRotated) {
-			int centerX = offX + sizeX / 2;
-			int centerY = offY + sizeY / 2;
-			if (angleCapped >= 45000 && (angleCapped < 135000 || angleCapped >= 225000)) {
-				std::swap(sizeX, sizeY);
-			}
-			offX = (cos * centerX - sin * centerY) / 1000 - sizeX / 2;
-			offY = (cos * centerY + sin * centerX) / 1000 - sizeY / 2;
-		}
-
-		offX -= params.params.hitboxOffsetX;
-		offX = params.params.posX + offX * params.params.flip;
-		sizeX *= params.params.flip;
-
-		offY += params.params.posY + params.params.hitboxOffsetY;
+		
+		RECT bounds = params.getWorldBounds(i, cos, sin);
 		
 		if (drawOutlines) {
-			rectCombinerInputBoxes.emplace_back(offX, offX + sizeX, offY, offY + sizeY);
+			rectCombinerInputBoxes.emplace_back(bounds.left, bounds.right, bounds.top, bounds.bottom);
 		}
 
-		drawBoxCall.left = offX;
-		drawBoxCall.right = offX + sizeX;
-		drawBoxCall.top = offY;
-		drawBoxCall.bottom = offY + sizeY;
+		drawBoxCall.left = bounds.left;
+		drawBoxCall.right = bounds.right;
+		drawBoxCall.top = bounds.top;
+		drawBoxCall.bottom = bounds.bottom;
 
 		if (prepareBox(drawBoxCall, boundingRect, false, true)) {
 			++preparedArrayboxes.back().boxesPreparedSoFar;
 		}
-
-		++hitboxData;
 	}
 	if (!isComplicatedHurtbox) {
 		PreparedArraybox& preparedArraybox = preparedArrayboxes.back();
@@ -674,15 +756,38 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 	if (drawOutlines) {
 		RectCombiner::getOutlines(rectCombinerInputBoxes, rectCombinerOutlines);
 		rectCombinerInputBoxes.clear();
+		size_t totalCount = rectCombinerOutlines.size();
+		size_t counter = 0;
+		std::vector<HatchesCallParams::HatchPoints>* pointStarts = nullptr;
+		unsigned long long pointStartsMem[sizeof *pointStarts / 8 + ((sizeof *pointStarts % 8) != 0 ? 1 : 0)];
+		if (params.hatched) {
+			pointStarts = new (pointStartsMem) std::vector<HatchesCallParams::HatchPoints>();
+			pointStarts->reserve(totalCount);
+		}
+		std::vector<DrawOutlineCallParams>* outlinesDest = outlinesOverride ? outlinesOverride : &outlines;
+		outlinesDest->reserve(outlinesDest->size() + totalCount);
 		for (const std::vector<RectCombiner::PathElement>& outline : rectCombinerOutlines) {
-			std::vector<DrawOutlineCallParams>* outlinesDest = outlinesOverride ? outlinesOverride : &outlines;
 			outlinesDest->emplace_back();
 			DrawOutlineCallParams& drawOutlineCallParams = outlinesDest->back();
 			drawOutlineCallParams.outlineColor = params.outlineColor;
 			drawOutlineCallParams.thickness = params.thickness;
+			++counter;
+			bool hatched = params.hatched && counter == totalCount;
+			drawOutlineCallParams.hatched = hatched;
 			drawOutlineCallParams.reserveSize(outline.size());
 			for (const RectCombiner::PathElement& path : outline) {
 				drawOutlineCallParams.addPathElem(path.x, path.y, path.xDir(), path.yDir());
+			}
+			if (params.hatched) {
+				pointStarts->emplace_back();
+				HatchesCallParams::HatchPoints& pointStart = pointStarts->back();
+				pointStart.start = drawOutlineCallParams.getStartPosition();
+				pointStart.count = outline.size();
+				if (hatched) {
+					drawOutlineCallParams.hatches.originX = params.originX;
+					drawOutlineCallParams.hatches.originY = params.originY;
+					drawOutlineCallParams.hatches.points = std::move(*pointStarts);
+				}
 			}
 		}
 	}
@@ -696,7 +801,8 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 	logOnce(fprintf(logfile, "Called drawOutlines with an outline with %d elements\n", params.count()));
 	
 	D3DXVECTOR3 conv;
-
+	PreparedOutline* preparedOutlinePtr = nullptr;
+	
 	if (params.thickness == 1) {
 		
 		if (params.empty()) return;
@@ -722,7 +828,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 		for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
 			const PathElement& elem = params.getPathElem(outlineIndex);
 
-			drawIfOutOfSpace(1, 0);
+			drawIfOutOfSpace(1);
 			if (outlineIndex != 0) {
 				++preparedOutlines.back().linesSoFar;
 			}
@@ -734,8 +840,9 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			++vertexBufferLength;
 			--vertexBufferRemainingSize;
 		}
-		drawIfOutOfSpace(1, 0);
+		drawIfOutOfSpace(1);
 		PreparedOutline& preparedOutline = preparedOutlines.back();
+		preparedOutlinePtr = &preparedOutline;
 		++preparedOutline.linesSoFar;
 		preparedOutline.isComplete = true;
 		*vertexIt = firstVertex;
@@ -787,7 +894,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			conv.y = elem.yProjected;
 
 			logOnce(fprintf(logfile, "x: %f; y: %f;\n", elem.xProjected, elem.yProjected));
-			if (padTheFirst && !drawIfOutOfSpace(4, 0)) {
+			if (padTheFirst && !drawIfOutOfSpace(4)) {
 				firstVertex = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 				*vertexIt = *(vertexIt - 1);
 				++vertexIt;
@@ -799,7 +906,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 				vertexBufferRemainingSize -= 4;
 				preparedOutlines.back().hasPadding = true;
 			} else {
-				drawIfOutOfSpace(2, 0);
+				drawIfOutOfSpace(2);
 				if (outlineIndex == 0) {
 					firstVertex = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 					*vertexIt = firstVertex;
@@ -825,8 +932,9 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 				++vertexIt;
 			}
 		}
-		drawIfOutOfSpace(2, 0);
+		drawIfOutOfSpace(2);
 		PreparedOutline& preparedOutline = preparedOutlines.back();
+		preparedOutlinePtr = &preparedOutline;
 		++preparedOutline.linesSoFar;
 		preparedOutline.isComplete = true;
 		*vertexIt = firstVertex;
@@ -836,6 +944,188 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 		vertexBufferLength += 2;
 		vertexBufferRemainingSize -= 2;
 		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE;
+		
+	}
+		
+	if (params.hatched) {
+		preparedOutlinePtr->hatched = true;
+		
+		struct HatchPoint {
+			int n;
+			int x;
+			int y;
+		};
+		static std::vector<HatchPoint> hatchArena;
+		hatchArena.clear();
+		
+		int originX = params.hatches.originX + hatchesDist / 2;
+		int originY = params.hatches.originY;
+		
+		for (const HatchesCallParams::HatchPoints& pointStart : params.hatches.points) {
+			if (!pointStart.count) break;
+			
+			const PathElement* pathElementStart = &DrawOutlineCallParams::getPathElemStatic(pointStart.start, 0);
+			int distToLine = pathElementStart->x - originX + (pathElementStart->y - originY);
+			int n = distToLine / hatchesDist;
+			int dist = distToLine % hatchesDist;
+			if (distToLine > 0) {
+				dist = hatchesDist - dist;
+			} else if (distToLine < 0) {
+				--n;
+				dist = hatchesDist + dist;
+			}
+			enum Direction {
+				DIRECTION_NONE,
+				DIRECTION_UP,
+				DIRECTION_RIGHT,
+				DIRECTION_DOWN,
+				DIRECTION_LEFT
+			} lastDir = DIRECTION_NONE;
+			bool lastAddedHatch = false;
+			
+			const PathElement* pathElementEnd = pathElementStart;
+			Direction currentDir;
+			
+			for (int i = 0; i < pointStart.count; ++i) {
+				pathElementStart = pathElementEnd;
+				if (i == pointStart.count - 1) {
+					pathElementEnd = &DrawOutlineCallParams::getPathElemStatic(pointStart.start, 0);
+				} else {
+					pathElementEnd = &DrawOutlineCallParams::getPathElemStatic(pointStart.start, i + 1);
+				}
+				
+				bool addedHatch = false;
+				int lineHasX;
+				int lineHasY;
+				int distEnd;
+				if (pathElementEnd->x == pathElementStart->x) {
+					lineHasX = 0;
+					lineHasY = 1;
+					if (pathElementEnd->y == pathElementStart->y) {
+						continue;
+					}
+					distEnd = dist + pathElementEnd->y - pathElementStart->y;
+					if (pathElementEnd->y > pathElementStart->y) {
+						currentDir = DIRECTION_UP;
+					} else {
+						currentDir = DIRECTION_DOWN;
+					}
+				} else {
+					lineHasX = 1;
+					lineHasY = 0;
+					distEnd = dist + pathElementEnd->x - pathElementStart->x;
+					if (pathElementEnd->x > pathElementStart->x) {
+						currentDir = DIRECTION_RIGHT;
+					} else {
+						currentDir = DIRECTION_LEFT;
+					}
+				}
+				
+				int off = -dist;
+				if (distEnd > 0) {
+					if (dist < 0) {
+						hatchArena.emplace_back();
+						HatchPoint& hatchPoint = hatchArena.back();
+						hatchPoint.n = n;
+						hatchPoint.x = pathElementStart->x + lineHasX * off;
+						hatchPoint.y = pathElementStart->y + lineHasY * off;
+						addedHatch = true;
+					}
+					while (distEnd >= hatchesDist) {
+						++n;
+						distEnd -= hatchesDist;
+						off += hatchesDist;
+						if (distEnd != 0 || pathElementEnd->inX != pathElementEnd->inY) {
+							hatchArena.emplace_back();
+							HatchPoint& hatchPoint = hatchArena.back();
+							hatchPoint.n = n;
+							hatchPoint.x = pathElementStart->x + lineHasX * off;
+							hatchPoint.y = pathElementStart->y + lineHasY * off;
+							addedHatch = true;
+						}
+					}
+				} else {
+					if (dist > 0) {
+						if (distEnd != 0 || pathElementEnd->inX != pathElementEnd->inY) {
+							hatchArena.emplace_back();
+							HatchPoint& hatchPoint = hatchArena.back();
+							hatchPoint.n = n;
+							hatchPoint.x = pathElementStart->x + lineHasX * off;
+							hatchPoint.y = pathElementStart->y + lineHasY * off;
+							addedHatch = true;
+						}
+					}
+					while (distEnd <= -hatchesDist) {
+						--n;
+						distEnd += hatchesDist;
+						off -= hatchesDist;
+						if (distEnd != 0 || pathElementEnd->inX != pathElementEnd->inY) {
+							hatchArena.emplace_back();
+							HatchPoint& hatchPoint = hatchArena.back();
+							hatchPoint.n = n;
+							hatchPoint.x = pathElementStart->x + lineHasX * off;
+							hatchPoint.y = pathElementStart->y + lineHasY * off;
+							addedHatch = true;
+						}
+					}
+				}
+				dist = distEnd;
+				lastAddedHatch = addedHatch;
+			}
+		}
+		
+		std::sort(hatchArena.begin(), hatchArena.end(), [](const HatchPoint& a, const HatchPoint& b) {
+			return a.n < b.n || a.n == b.n && a.x < b.x;
+		});
+		
+		int lastN = 0;
+		D3DXVECTOR3 pnt1;
+		bool hasPnt1 = false;
+		for (const HatchPoint& hatchPoint : hatchArena) {
+			
+			if (hatchPoint.n != lastN) {
+				lastN = hatchPoint.n;
+				hasPnt1 = false;
+			}
+			
+			if (!hasPnt1) {
+				if (!worldToScreen(
+						D3DXVECTOR3{
+							(float)hatchPoint.x,
+							0.F,
+							(float)hatchPoint.y
+						},
+						&pnt1
+					)) {
+					return;
+				}
+				hasPnt1 = true;
+				continue;
+			}
+			
+			D3DXVECTOR3 pnt2;
+			if (!worldToScreen(
+					D3DXVECTOR3{
+						(float)hatchPoint.x,
+						0.F,
+						(float)hatchPoint.y
+					},
+					&pnt2
+				)) {
+				return;
+			}
+			hasPnt1 = false;
+			
+			drawIfOutOfSpace(2);
+			++preparedOutlinePtr->hatchesCount;
+			*vertexIt = Vertex{ pnt1.x, pnt1.y, 0.F, 1.F, params.outlineColor };
+			++vertexIt;
+			*vertexIt = Vertex{ pnt2.x, pnt2.y, 0.F, 1.F, params.outlineColor };
+			++vertexIt;
+			vertexBufferLength += 2;
+			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_HATCH;
+		}
+		preparedOutlinePtr->hatchesComplete = true;
 	}
 }
 
@@ -866,7 +1156,7 @@ void Graphics::preparePoint(const DrawPointCallParams& params) {
 	*  |           | 5 (-)
 	   +-----------+*/
 
-	drawIfOutOfSpace(14, 0);
+	drawIfOutOfSpace(14);
 	vertexBufferLength += 14;
 	vertexBufferRemainingSize -= 14;
 
@@ -973,33 +1263,40 @@ IDirect3DSurface9* Graphics::getOffscreenSurface(D3DSURFACE_DESC* renderTargetDe
 
 bool Graphics::takeScreenshotBegin(IDirect3DDevice9* device) {
 	logwrap(fputs("takeScreenshotBegin called\n", logfile));
-
-	if (FAILED(device->GetRenderTarget(0, &gamesRenderTarget))) {
+	
+	PERFORMANCE_MEASUREMENT_START
+	PERFORMANCE_MEASUREMENT_ON_EXIT(takeScreenshotBegin)
+	
+	CComPtr<IDirect3DSurface9> oldRenderTarget;
+	if (FAILED(device->GetRenderTarget(0, &oldRenderTarget))) {
 		logwrap(fputs("GetRenderTarget failed\n", logfile));
 		return false;
 	}
-
+	
 	D3DSURFACE_DESC renderTargetDesc;
 	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
-	if (FAILED(gamesRenderTarget->GetDesc(&renderTargetDesc))) {
+	if (FAILED(oldRenderTarget->GetDesc(&renderTargetDesc))) {
 		logwrap(fputs("GetDesc failed\n", logfile));
 		return false;
 	}
-
-	CComPtr<IDirect3DSurface9> newRenderTarget = nullptr;
-	if (FAILED(device->CreateRenderTarget(renderTargetDesc.Width,
-		renderTargetDesc.Height,
-		renderTargetDesc.Format,
-		renderTargetDesc.MultiSampleType,
-		renderTargetDesc.MultiSampleQuality,
-		FALSE,
-		&newRenderTarget,
-		NULL))) {
-		logwrap(fputs("CreateRenderTarget failed\n", logfile));
-		return false;
+	
+	if (!altRenderTarget) {
+		if (FAILED(device->CreateRenderTarget(renderTargetDesc.Width,
+				renderTargetDesc.Height,
+				renderTargetDesc.Format,
+				renderTargetDesc.MultiSampleType,
+				renderTargetDesc.MultiSampleQuality,
+				FALSE,
+				&altRenderTarget,
+				NULL))) {
+				logwrap(fputs("CreateRenderTarget failed\n", logfile));
+			return false;
+		}
 	}
+	
+	altRenderTargetLifeRemaining = 41;
 
-	if (FAILED(device->SetRenderTarget(0, newRenderTarget))) {
+	if (FAILED(device->SetRenderTarget(0, altRenderTarget))) {
 		logwrap(fputs("SetRenderTarget failed\n", logfile));
 		return false;
 	}
@@ -1008,13 +1305,13 @@ bool Graphics::takeScreenshotBegin(IDirect3DDevice9* device) {
 	public:
 		~SetOldRenderTargetOnFail() {
 			if (success) return;
-			device->SetRenderTarget(0, gamesRenderTarget);
-			gamesRenderTarget = nullptr;
+			device->SetRenderTarget(0, oldRenderTarget);
+			oldRenderTarget = nullptr;
 		}
 		IDirect3DDevice9* device = nullptr;
-		CComPtr<IDirect3DSurface9>& gamesRenderTarget;
+		CComPtr<IDirect3DSurface9>& oldRenderTarget;
 		bool success = false;
-	} setOldRenderTargetOnFail { device, gamesRenderTarget };
+	} setOldRenderTargetOnFail { device, oldRenderTarget };
 	
 	if (FAILED(device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 0), 1.F, 0))) {
 		logwrap(fputs("Clear failed\n", logfile));
@@ -1022,6 +1319,7 @@ bool Graphics::takeScreenshotBegin(IDirect3DDevice9* device) {
 	}
 	
 	setOldRenderTargetOnFail.success = true;
+	gamesRenderTarget = oldRenderTarget;
 	return true;
 }
 
@@ -1035,6 +1333,9 @@ void Graphics::takeScreenshotDebug(IDirect3DDevice9* device, const wchar_t* file
 }
 
 void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
+	
+	PERFORMANCE_MEASUREMENT_START
+	
 	CComPtr<IDirect3DSurface9> renderTarget;
 	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
 		logwrap(fputs("GetRenderTarget failed\n", logfile));
@@ -1052,39 +1353,24 @@ void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
 
 	std::vector<unsigned char> gameImage;
 	if (!getFramebufferData(device, gameImage, gamesRenderTarget, &renderTargetDesc)) return;
-
-	// Thanks to WorseThanYou for writing this CPU pixel blender
-	union Pixel {
-		struct { unsigned char r, g, b, a; };
-		int value;
-	};
-	Pixel* gameImagePtr = (Pixel*)&gameImage.front();
-	Pixel* boxesImagePtr = (Pixel*)&boxesImage.front();
-	const size_t offLimit = renderTargetDesc.Width * renderTargetDesc.Height * 4;
-	for (size_t off = 0; off < offLimit; off += 4)
-	{
-		Pixel& d = *gameImagePtr;
-		Pixel& s = *boxesImagePtr;
-
-		if (s.a != 255) {
-			s.a /= 2;
-		}
-
-		d.a ^= 255;
-		unsigned int maxColor = d.r;
-		if (d.g > maxColor) maxColor = d.g;
-		if (d.b > maxColor) maxColor = d.b;
-		if (maxColor > d.a) d.a = maxColor;
-		unsigned char daInv = ~d.a, saInv = 255 ^ s.a;
-		d.r = (daInv * s.r + d.a * (s.r * s.a + d.r * saInv) / 255) / 255;
-		d.g = (daInv * s.g + d.a * (s.g * s.a + d.g * saInv) / 255) / 255;
-		d.b = (daInv * s.b + d.a * (s.b * s.a + d.b * saInv) / 255) / 255;
-		d.a = (daInv * s.a + d.a * (255 * 255 - daInv * saInv) / 255) / 255;
-		++gameImagePtr;
-		++boxesImagePtr;
+	
+	PERFORMANCE_MEASUREMENT_END(takeScreenshotEnd_getFramebufferData)
+	
+	PERFORMANCE_MEASUREMENT_START
+	
+	if (settings.useSimplePixelBlender) {
+		cpuPixelBlenderSimple(gameImage.data(), boxesImage.data(), renderTargetDesc.Width, renderTargetDesc.Height);
+	} else {
+		cpuPixelBlenderComplex(gameImage.data(), boxesImage.data(), renderTargetDesc.Width, renderTargetDesc.Height);
 	}
-
+	
+	PERFORMANCE_MEASUREMENT_END(takeScreenshotEnd_pixelBlender)
+	
+	PERFORMANCE_MEASUREMENT_START
+	
 	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, &gameImage.front());
+	
+	PERFORMANCE_MEASUREMENT_END(takeScreenshotEnd_writeScreenshot)
 }
 
 void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
@@ -1216,7 +1502,12 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
 	screenshotStage = SCREENSHOT_STAGE_BASE_COLOR;
 	
+	PERFORMANCE_MEASUREMENT_START
+	
 	drawAll();
+	
+	PERFORMANCE_MEASUREMENT_END(screenshotDrawAll1)
+	
 	logOnce(fputs("drawAll() (for screenshot) call successful\n", logfile));
 	
 	// This step blends the colors with alpha and just does everything normally
@@ -1229,7 +1520,11 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	screenshotStage = SCREENSHOT_STAGE_FINAL;
 	stencil.clear(device);
 	
+	PERFORMANCE_MEASUREMENT_START
+	
 	drawAll();
+	
+	PERFORMANCE_MEASUREMENT_END(screenshotDrawAll2)
 	
 	takeScreenshotEnd(device);
 	screenshotStage = SCREENSHOT_STAGE_NONE;
@@ -1258,13 +1553,27 @@ void Graphics::advanceRenderState(RenderStateDrawingWhat newState) {
 			device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 		}
 	}
+	if (drawingWhat != RENDER_STATE_DRAWING_OUTLINES
+			&& newState == RENDER_STATE_DRAWING_OUTLINES) {
+		if (screenshotStage == SCREENSHOT_STAGE_NONE) {
+			// Thanks to WorseThanYou for advice on this
+			preparePixelShader(device);
+		}
+	}
+	if (drawingWhat == RENDER_STATE_DRAWING_OUTLINES
+			&& newState != RENDER_STATE_DRAWING_OUTLINES) {
+		if (screenshotStage == SCREENSHOT_STAGE_NONE) {
+			device->SetPixelShader(nullptr);
+			device->SetTexture(0, nullptr);
+		}
+	}
 	drawingWhat = newState;
 }
 
 bool Graphics::initializeVertexBuffers() {
 	if (failedToCreateVertexBuffers) return false;
 	if (vertexBuffer) return true;
-	if (FAILED(device->CreateVertexBuffer(sizeof(Vertex) * vertexBufferSize, D3DUSAGE_DYNAMIC, D3DFVF_XYZRHW | D3DFVF_DIFFUSE, D3DPOOL_DEFAULT, &vertexBuffer, NULL))) {
+	if (FAILED(device->CreateVertexBuffer(sizeof(Vertex) * vertexBufferSize, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_DIFFUSE, D3DPOOL_DEFAULT, &vertexBuffer, NULL))) {
 		logwrap(fputs("CreateVertexBuffer failed\n", logfile));
 		failedToCreateVertexBuffers = false;
 		return false;
@@ -1291,7 +1600,7 @@ void DrawData::clear() {
 	needTakeScreenshot = false;
 }
 
-bool Graphics::drawIfOutOfSpace(unsigned int verticesCountRequired, unsigned int texturedVerticesCountRequired) {
+bool Graphics::drawIfOutOfSpace(unsigned int verticesCountRequired) {
 	if (vertexBufferRemainingSize < verticesCountRequired) {
 		drawAllPrepared();
 		return true;
@@ -1348,5 +1657,306 @@ void Graphics::HookHelp::FSuspendRenderingThreadDestructorHook() {
 	{
 		std::unique_lock<std::mutex> guard(graphics.orig_FSuspendRenderingThreadDestructorMutex);
 		graphics.orig_FSuspendRenderingThreadDestructor((char*)this);
+	}
+}
+
+IDirect3DTexture9* Graphics::getFramesTexture(IDirect3DDevice9* device) {
+	if (failedToCreateFramesTexture) return nullptr;
+	if (framesTexture) return framesTexture;
+	CComPtr<IDirect3DTexture9> systemTexture;
+	const PngResource& packedFramesTexture = ui.getPackedFramesTexture();
+	if (FAILED(device->CreateTexture(packedFramesTexture.width, packedFramesTexture.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &systemTexture, NULL))) {
+		logwrap(fputs("CreateTexture failed\n", logfile));
+		failedToCreateFramesTexture = true;
+		return nullptr;
+	}
+	if (FAILED(device->CreateTexture(packedFramesTexture.width, packedFramesTexture.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &framesTexture, NULL))) {
+		logwrap(fputs("CreateTexture (2) failed\n", logfile));
+		failedToCreateFramesTexture = true;
+		return nullptr;
+	}
+	D3DLOCKED_RECT lockedRect;
+	if (FAILED(systemTexture->LockRect(0, &lockedRect, NULL, NULL))) {
+		logwrap(fputs("texture->LockRect failed\n", logfile));
+		failedToCreateFramesTexture = true;
+		return nullptr;
+	}
+	packedFramesTexture.bitBlt(lockedRect.pBits, lockedRect.Pitch, 0, 0, 0, 0, packedFramesTexture.width, packedFramesTexture.height);
+	if (FAILED(systemTexture->UnlockRect(0))) {
+		logwrap(fputs("texture->UnlockRect failed\n", logfile));
+		failedToCreateFramesTexture = true;
+		return nullptr;
+	}
+	if (FAILED(device->UpdateTexture(systemTexture, framesTexture))) {
+		logwrap(fputs("UpdateTexture failed\n", logfile));
+		failedToCreateFramesTexture = true;
+		return nullptr;
+	}
+	logwrap(fprintf(logfile, "Initialized packed frames texture successfully. Width: %u; Height: %u.\n", packedFramesTexture.width, packedFramesTexture.height));
+	return framesTexture;
+}
+
+IDirect3DTexture9* Graphics::getOutlinesRTSamplingTexture(IDirect3DDevice9* device) {
+	if (failedToCreateOutlinesRTSamplingTexture) return nullptr;
+	if (outlinesRTSamplingTexture) return outlinesRTSamplingTexture;
+	
+	D3DSURFACE_DESC renderTargetDesc;
+	CComPtr<IDirect3DSurface9> renderTarget;
+	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+		failedToCreateOutlinesRTSamplingTexture = true;
+		logwrap(fputs("GetRenderTarget failed\n", logfile));
+		return nullptr;
+	}
+	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+	if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+		failedToCreateOutlinesRTSamplingTexture = true;
+		logwrap(fputs("GetDesc failed\n", logfile));
+		return nullptr;
+	}
+	
+	if (FAILED(device->CreateTexture(renderTargetDesc.Width, renderTargetDesc.Height, 1, D3DUSAGE_RENDERTARGET, renderTargetDesc.Format, D3DPOOL_DEFAULT, &outlinesRTSamplingTexture, NULL))) {
+		logwrap(fputs("CreateTexture (3) failed\n", logfile));
+		failedToCreateOutlinesRTSamplingTexture = true;
+		return nullptr;
+	}
+	logwrap(fprintf(logfile, "Initialized packed frames texture successfully. Width: %u; Height: %u.\n", renderTargetDesc.Width, renderTargetDesc.Height));
+	return outlinesRTSamplingTexture;
+}
+
+void Graphics::compilePixelShader() {
+	
+	if (failedToCompilePixelShader || pixelShaderCode) return;
+	
+	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
+	if (!resourceInfoHandle) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "FindResource failed: %ls\n", winErr.getMessage()));
+		failedToCompilePixelShader = true;
+		return;
+	}
+	HGLOBAL resourceHandle = LoadResource(hInstance, resourceInfoHandle);
+	if (!resourceHandle) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "LoadResource failed: %ls\n", winErr.getMessage()));
+		failedToCompilePixelShader = true;
+		return;
+	}
+	LPVOID pixelShaderTxtData = LockResource(resourceHandle);
+	if (!pixelShaderTxtData) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "LockResource failed: %ls\n", winErr.getMessage()));
+		failedToCompilePixelShader = true;
+		return;
+	}
+	DWORD txtSize = SizeofResource(hInstance, resourceInfoHandle);
+	if (!txtSize) {
+		WinError winErr;
+		logwrap(fprintf(logfile, "SizeofResource failed: %ls\n", winErr.getMessage()));
+		failedToCompilePixelShader = true;
+		return;
+	}
+	
+	// If user can't find D3DCOMPILER_47.dll on their computer, use LoadLibraryA to load an older version of the compiler:
+	// D3DCompiler_33.dll
+	// D3DCompiler_34.dll
+	// D3DCompiler_35.dll
+	// D3DCompiler_36.dll
+	// D3DCompiler_37.dll
+	// D3DCompiler_38.dll
+	// D3DCompiler_39.dll
+	// D3DCompiler_40.dll
+	// D3DCompiler_41.dll
+	// D3DCompiler_42.dll
+	// D3DCompiler_43.dll
+	// Use GetProcAddress to locate D3DCompile and call it through a pointer.
+	// Normally these DLLs should be found in C:\Windows\SysWOW64\ on the user's machine.
+	// Redistributing these DLLs may be a violation of copyright.
+	// Last resort may be using fxc to precompile the shader.
+	
+	CComPtr<ID3DBlob> code;
+	CComPtr<ID3DBlob> errorMsgs;
+	if (FAILED(D3DCompile(
+		  pixelShaderTxtData,
+		  txtSize,
+		  "MyPixelShader",
+		  NULL,
+		  NULL,
+		  "main",
+		  "ps_3_0",
+		  D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY,
+		  NULL,
+		  &code,
+		  &errorMsgs
+		))) {
+		if (!errorMsgs) {
+			logwrap(fprintf(logfile, "D3DCompile failed\n"));
+		} else {
+			shaderCompilationError = std::string((const char*)errorMsgs->GetBufferPointer(), (size_t)errorMsgs->GetBufferSize());
+			logwrap(fprintf(logfile, "D3DCompile failed: %s\n", shaderCompilationError.c_str()));
+		}
+		failedToCompilePixelShader = true;
+		return;
+	}
+	
+	SIZE_T shaderSize = code->GetBufferSize();
+	const DWORD* codeData = (const DWORD*)code->GetBufferPointer();
+	
+	pixelShaderCode = malloc(shaderSize);
+	if (!pixelShaderCode) {
+		logwrap(fprintf(logfile, "malloc(code->GetBufferSize()) failed: %u\n", pixelShaderCodeSize));
+		failedToCompilePixelShader = true;
+		return;
+	}
+	pixelShaderCodeSize = shaderSize;
+	memcpy(pixelShaderCode, codeData, pixelShaderCodeSize);
+}
+
+void Graphics::getShaderCompilationError(const std::string** result) {
+	*result = nullptr;
+	if (shaderCompilationError.empty()) return;
+	*result = &shaderCompilationError;
+}
+
+IDirect3DPixelShader9* Graphics::getPixelShader(IDirect3DDevice9* device) {
+	if (failedToCreatePixelShader) return nullptr;
+	if (pixelShader) return pixelShader;
+	if (!pixelShaderCode) {
+		failedToCreatePixelShader = true;
+		return nullptr;
+	}
+	if (FAILED(device->CreatePixelShader((const DWORD*)pixelShaderCode, &pixelShader))) {
+		failedToCreatePixelShader = true;
+		logwrap(fprintf(logfile, "CreatePixelShader failed\n"));
+		return nullptr;
+	}
+	return pixelShader;
+}
+
+void Graphics::preparePixelShader(IDirect3DDevice9* device) {
+	
+	IDirect3DTexture9* tex = getOutlinesRTSamplingTexture(device);
+	if (!tex) return;
+	CComPtr<IDirect3DSurface9> renderTarget;
+	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+		logwrap(fputs("GetRenderTarget failed\n", logfile));
+		return;
+	}
+	CComPtr<IDirect3DSurface9> surfaceLevel;
+	if (FAILED(tex->GetSurfaceLevel(0, &surfaceLevel))) {
+		logwrap(fputs("GetSurfaceLevel failed\n", logfile));
+		return;
+	}
+	if (FAILED(device->StretchRect(renderTarget, NULL, surfaceLevel, NULL, D3DTEXF_NONE))) {
+		logwrap(fputs("StretchRect failed\n", logfile));
+		return;
+	}
+	compilePixelShader();
+	IDirect3DPixelShader9* shader = getPixelShader(device);
+	if (!shader) return;
+	
+	device->SetPixelShader(shader);
+	device->SetTexture(0, tex);
+	
+	
+	D3DSURFACE_DESC renderTargetDesc;
+	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+	if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+		logwrap(fputs("GetDesc failed\n", logfile));
+		return;
+	}
+	float screenSizeConstant[4] { (float)renderTargetDesc.Width, (float)renderTargetDesc.Height, 0.F, 0.F };
+	device->SetPixelShaderConstantF(0, screenSizeConstant, 1);
+}
+
+void Graphics::checkAltRenderTargetLifeTime() {
+	if (!altRenderTarget) return;
+	if (--altRenderTargetLifeRemaining < 0) {
+		altRenderTargetLifeRemaining = 0;
+		altRenderTarget = nullptr;
+	}
+}
+
+void Graphics::cpuPixelBlenderComplex(void* gameImage, const void* boxesImage, int width, int height) {
+	// Thanks to WorseThanYou for writing this CPU pixel blender
+	union Pixel {
+		struct { unsigned char r, g, b, a; };
+		int value;
+	};
+	Pixel* gameImagePtr = (Pixel*)gameImage;
+	Pixel* boxesImagePtr = (Pixel*)boxesImage;
+	const size_t offLimit = width * height * 4;
+	for (size_t off = 0; off < offLimit; off += 4)
+	{
+		Pixel& d = *gameImagePtr;
+		Pixel& s = *boxesImagePtr;
+		
+		if (s.a != 255) {
+			s.a /= 2;
+		}
+
+		d.a ^= 255;
+		
+		// I added this part to improve visibility of effects like Ky RTL Aura
+		unsigned int maxColor = d.r;
+		if (d.g > maxColor) maxColor = d.g;
+		if (d.b > maxColor) maxColor = d.b;
+		if (maxColor > d.a) d.a = maxColor;
+		
+		unsigned char daInv = ~d.a, saInv = 255 ^ s.a;  // This part written by WorseThanYou
+		
+		// I added this part to improve visibility of red hitboxes' outlines over things like Ramlethal mirror color f.S
+		if (d.a >= 128 && s.a == 255 && s.value != 0 && s.value != 0xFFFFFFF) {
+			
+			int diffSum = abs((int)s.r - (int)d.r)
+				+ abs((int)s.g - (int)d.g)
+				+ abs((int)s.b - (int)d.b);
+			
+			if (diffSum < 21) {
+				
+				d.value &= 0xFF000000;
+				
+				++gameImagePtr;
+				++boxesImagePtr;
+				continue;
+			}
+		}
+		
+		// This part written by WorseThanYou
+		d.r = (daInv * s.r + d.a * (s.r * s.a + d.r * saInv) / 255) / 255;
+		d.g = (daInv * s.g + d.a * (s.g * s.a + d.g * saInv) / 255) / 255;
+		d.b = (daInv * s.b + d.a * (s.b * s.a + d.b * saInv) / 255) / 255;
+		d.a = (daInv * s.a + d.a * (255 * 255 - daInv * saInv) / 255) / 255;
+		++gameImagePtr;
+		++boxesImagePtr;
+	}
+}
+
+void Graphics::cpuPixelBlenderSimple(void* gameImage, const void* boxesImage, int width, int height) {
+	// Thanks to WorseThanYou for writing this CPU pixel blender
+	union Pixel {
+		struct { unsigned char r, g, b, a; };
+		int value;
+	};
+	Pixel* gameImagePtr = (Pixel*)gameImage;
+	Pixel* boxesImagePtr = (Pixel*)boxesImage;
+	const size_t offLimit = width * height * 4;
+	for (size_t off = 0; off < offLimit; off += 4)
+	{
+		Pixel& d = *gameImagePtr;
+		Pixel& s = *boxesImagePtr;
+		
+		if (s.a != 255) {
+			s.a /= 2;
+		}
+
+		d.a ^= 255;
+		
+		unsigned char daInv = ~d.a, saInv = 255 ^ s.a;
+		d.r = (daInv * s.r + d.a * (s.r * s.a + d.r * saInv) / 255) / 255;
+		d.g = (daInv * s.g + d.a * (s.g * s.a + d.g * saInv) / 255) / 255;
+		d.b = (daInv * s.b + d.a * (s.b * s.a + d.b * saInv) / 255) / 255;
+		d.a = (daInv * s.a + d.a * (255 * 255 - daInv * saInv) / 255) / 255;
+		++gameImagePtr;
+		++boxesImagePtr;
 	}
 }

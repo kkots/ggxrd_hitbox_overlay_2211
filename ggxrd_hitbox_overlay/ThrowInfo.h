@@ -30,4 +30,8 @@ struct ThrowInfo {
 	bool active = true;
 	int framesLeft = 0;
 	bool firstFrame = true;
+	
+	bool hatched = false;
+	int originX = 0;
+	int originY = 0;
 };

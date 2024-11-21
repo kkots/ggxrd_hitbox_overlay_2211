@@ -81,5 +81,5 @@ fi
 # and Wine often says irrelevant stuff into stderr during any program and even breaks in
 # the middle of what the program is saying, and your terminal would display that as well if
 # we don't silence it.
-# The WINEFSUNC variable is needed because Wine would refuse to launch otherwise.
+# The WINEFSYNC variable is needed because Wine would refuse to launch otherwise.
 WINEFSYNC=1 WINEPREFIX="$GUILTYGEAR_WINEPREFIX" "$GUILTYGEAR_WINELOADER" $TOOLNAME 2> /dev/null

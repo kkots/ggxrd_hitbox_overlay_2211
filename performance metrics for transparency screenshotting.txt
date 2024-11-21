@@ -1,0 +1,3 @@
+Getting render target data for the boxes and the game takes almost 5ms on average.
+CPU pixel blender takes 12ms on average.
+Writing a PNG to disk takes 51ms on average.

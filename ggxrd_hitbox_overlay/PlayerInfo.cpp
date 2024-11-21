@@ -829,3 +829,175 @@ void SpriteFrameInfo::fill(Entity ent) {
 	frame = ent.spriteFrameCounter();
 	frameMax = ent.spriteFrameCounterMax();
 }
+
+void EntityFramebar::utf8len(const char* txt, int* byteLen, int* cpCountTotal, int maxCodepointCount, int* byteLenBelowMax) {
+	int cpCount = 0;
+	const char* c = txt;
+	while (*c != '\0') {
+		char ch = *c;
+		if (cpCount == maxCodepointCount && byteLenBelowMax) {
+			*byteLenBelowMax = c - txt;
+		}
+		++c;
+		++cpCount;
+		int extraBytesCount = 0;
+		if ((ch & 0b11100000) == 0b11000000) {
+			extraBytesCount = 1;
+		} else if ((ch & 0b11110000) == 0b11100000) {
+			extraBytesCount = 2;
+		} else if ((ch & 0b11111000) == 0b11110000) {
+			extraBytesCount = 3;
+		}
+		for (int i = 0; i < extraBytesCount && *c != '\0'; ++i) {
+			++c;
+		}
+	}
+	if (cpCount <= maxCodepointCount && byteLenBelowMax) {
+		*byteLenBelowMax = c - txt;
+	}
+	*byteLen = c - txt;
+	*cpCountTotal = cpCount;
+}
+
+void EntityFramebar::setTitle(const char* text, const char* textFull) {
+	
+	if (textFull && *textFull == '\0') textFull = nullptr;
+	
+	int len;
+	int bytesUpToMax;
+	int cpsTotal;
+	utf8len(text, &len, &cpsTotal, titleShortCharsCountMax, &bytesUpToMax);
+	
+	if (bytesUpToMax != len) {
+		strncpy(titleShort, text, bytesUpToMax);
+		memset(titleShort + bytesUpToMax, 0, sizeof titleShort - bytesUpToMax);
+		if (textFull) {
+			titleFull = textFull;
+		} else {
+			titleFull = text;
+		}
+	} else {
+		memset(titleShort, 0, sizeof titleShort);
+		strcpy(titleShort, text);
+		if (textFull) {
+			titleFull = textFull;
+		} else {
+			titleFull.clear();
+		}
+	}
+}
+
+void EntityFramebar::copyTitle(const EntityFramebar& source) {
+	memcpy(titleShort, source.titleShort, sizeof titleShort);
+	titleFull = source.titleFull;
+}
+
+int EntityFramebar::confinePos(int pos) {
+	if (pos < 0) {
+		return (int)_countof(Framebar::frames) + (pos + 1) % (int)_countof(Framebar::frames) - 1;  // (int) very important x_x (all covered in bruises) (written in blood)
+	} else {
+		return pos % _countof(Framebar::frames);
+	}
+}
+
+int Framebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
+	for (int i = 0; i < _countof(frames); ++i) {
+		int curPos = (startingPos - i + _countof(frames)) % _countof(frames);
+		if (frames[curPos].type == FT_NONE) return -1;
+		DWORD curTick = frames[curPos].aswEngineTick;
+		if (curTick <= tick) {
+			return curPos;
+		}
+	}
+	return -1;
+}
+
+void EntityFramebar::changePreviousFrames(FrameType prevType,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame) {
+	if (maxCount <= 0) return;
+	
+	positionHitstopIdle = confinePos(positionHitstopIdle);
+	
+	DWORD aswEngineTick = idleHitstop[positionHitstopIdle].aswEngineTick;
+	
+	int hitstopPos = hitstop.findTickNoGreaterThan(confinePos(positionHitstop), aswEngineTick);
+	int idlePos = idle.findTickNoGreaterThan(confinePos(positionIdle), aswEngineTick);
+	int mainPos = main.findTickNoGreaterThan(confinePos(position), aswEngineTick);
+	
+	while (maxCount) {
+		Frame& frame = idleHitstop[positionHitstopIdle];
+		
+		if (stopAtFirstFrame && frame.isFirst) break;
+		
+		if (frame.type == prevType) {
+			frame.type = newType;
+			
+			#define piece(posName, barName) \
+				if (posName != -1) { \
+					Frame& otherFrame = barName[posName]; \
+					if (otherFrame.aswEngineTick == frame.aswEngineTick) { \
+						if (otherFrame.type == prevType) { \
+							otherFrame.type = newType; \
+							decrementPos(posName); \
+						} else { \
+							posName = -1; \
+						} \
+					} else if (otherFrame.aswEngineTick > frame.aswEngineTick) { \
+						decrementPos(posName); \
+					} \
+				}
+			
+			piece(hitstopPos, hitstop)	
+			piece(idlePos, idle)
+			piece(mainPos, main)
+			
+			#undef piece
+		} else {
+			break;
+		}
+		
+		--maxCount;
+		decrementPos(positionHitstopIdle);
+	}
+}
+
+void Framebar::clear() {
+	memset(this, 0, sizeof *this);
+}
+
+void Framebar::soakUpIntoPreFrame(const Frame& srcFrame) {
+	if (preFrame == srcFrame.type && !srcFrame.isFirst) {
+		++preFrameLength;
+	} else {
+		preFrame = srcFrame.type;
+		preFrameLength = 1;
+	}
+}
+
+static inline int determineFrameLevel(const Frame& frame) {
+	if (frame.type == FT_ACTIVE) {
+		return 3;
+	}
+	if (frame.type == FT_NON_ACTIVE) {
+		return 2;
+	}
+	if (frame.type == FT_IDLE) {
+		return 1;
+	}
+	return 0;
+}
+
+void Framebar::combineFramebar(const Framebar& source) {
+	for (int i = 0; i < _countof(frames); ++i) {
+		if (determineFrameLevel(source[i]) >= determineFrameLevel(frames[i])) {
+			frames[i].type = source[i].type;
+		}
+		frames[i].strikeInful |= source[i].strikeInful;
+	}
+}

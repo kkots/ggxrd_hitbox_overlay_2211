@@ -1,6 +1,9 @@
 #include "pch.h"
 #include "DrawHitboxArrayCallParams.h"
 #include "Hitbox.h"
+#include <utility>
+#include "pi.h"
+#include <cmath>
 
 bool DrawHitboxArrayCallParams::operator==(const DrawHitboxArrayCallParams& other) const {
 	if (!(hitboxCount == other.hitboxCount
@@ -28,4 +31,52 @@ bool DrawHitboxArrayCallParams::operator==(const DrawHitboxArrayCallParams& othe
 
 bool DrawHitboxArrayCallParams::operator!=(const DrawHitboxArrayCallParams& other) const {
 	return !(*this == other);
+}
+
+RECT DrawHitboxArrayCallParams::getWorldBounds(int index, int cos, int sin) const {
+	RECT result;
+	
+	int offX = params.scaleX * ((int)hitboxData[index].offX + params.hitboxOffsetX / 1000 * params.flip);
+	int offY = params.scaleY * (-(int)hitboxData[index].offY + params.hitboxOffsetY / 1000);
+	int sizeX = (int)hitboxData[index].sizeX * params.scaleX;
+	int sizeY = -(int)hitboxData[index].sizeY * params.scaleY;
+	
+	if (params.angle) {
+		int centerX = offX + sizeX / 2;
+		int centerY = offY + sizeY / 2;
+		
+		int angleCapped = params.angle % 360000;
+		if (angleCapped < 0) angleCapped += 360000;
+		
+		if (cos == -2000 || sin == -2000) {
+			float angleRads = -(float)params.angle / 1000.F / 180.F * PI;
+			cos = (int)(::cos(angleRads) * 1000.F);
+			sin = (int)(::sin(angleRads) * 1000.F);
+		}
+		
+		if (angleCapped >= 45000 && (angleCapped < 135000 || angleCapped >= 225000)) {
+			std::swap(sizeX, sizeY);
+		}
+		offX = (cos * centerX - sin * centerY) / 1000 - sizeX / 2;
+		offY = (cos * centerY + sin * centerX) / 1000 - sizeY / 2;
+	}
+
+	offX -= params.hitboxOffsetX;
+	offX = params.posX + offX * params.flip;
+	sizeX *= params.flip;
+	offY += params.posY + params.hitboxOffsetY;
+	
+	result.left = offX;
+	result.right = offX + sizeX;
+	result.top = offY;
+	result.bottom = offY + sizeY;
+	
+	if (result.left > result.right) {
+		std::swap(result.left, result.right);
+	}
+	if (result.top > result.bottom) {
+		std::swap(result.top, result.bottom);
+	}
+	
+	return result;
 }

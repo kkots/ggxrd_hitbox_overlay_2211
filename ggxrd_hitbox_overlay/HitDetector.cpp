@@ -70,6 +70,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				}
 	
 				int posY = otherEntity.posY();
+				int posX = otherEntity.posX();
 	
 				Rejection newRejection;
 				newRejection.owner = otherEntity;
@@ -77,10 +78,13 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				newRejection.counter = DISPLAY_DURATION_REJECTION + REJECTION_DELAY;
 				newRejection.skipFrame = -1;
 				newRejection.activeFrame = DISPLAY_DURATION_REJECTION;
-				newRejection.left = otherEntity.posX() - rejectionDistance;
+				newRejection.left = posX - rejectionDistance;
 				newRejection.right = newRejection.left + rejectionDistance * 2;
 				newRejection.top = posY + rejectionDistance;
 				newRejection.bottom = posY - rejectionDistance;
+				newRejection.hatched = false;
+				newRejection.originX = posX;
+				newRejection.originY = posY;
 				hitDetector.rejections.push_back(newRejection);
 			}
 		}
@@ -119,6 +123,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				DWORD oldTransparency = theHurtbox.fillColor >> 24;
 				theHurtbox.fillColor = replaceAlpha(oldTransparency == 0 ? 64 : oldTransparency, COLOR_HURTBOX_OLD);
 				theHurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_OLD);
+				theHurtbox.hatched = false;
 				if (theHurtbox.hitboxCount) {
 					for (auto it = hitDetector.hurtboxesThatGotHit.begin(); it != hitDetector.hurtboxesThatGotHit.end(); ++it) {
 						if (it->entity == otherEntity) {
@@ -147,7 +152,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 		endScene.registerHit(result, hasHitbox, thisEntity, otherEntity);
 	}
 
-	if ((gifMode.gifModeOn || gifMode.gifModeToggleHideOpponentOnly) && game.isTrainingMode()) {
+	if (endScene.isEntityHidden(otherEntity) && game.isTrainingMode()) {
 		result = HIT_RESULT_NONE;
 	}
 	return result;
@@ -203,6 +208,10 @@ void HitDetector::drawHits() {
 			params.right = rejection.right;
 			params.bottom = rejection.bottom;
 			params.top = rejection.top;
+			
+			params.hatched = rejection.hatched;
+			params.originX = rejection.originX;
+			params.originY = rejection.originY;
 
 			endScene.drawDataPrepared.throwBoxes.push_back(params);
 		}

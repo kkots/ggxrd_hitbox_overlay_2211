@@ -73,7 +73,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
-    <LibraryPath>..\Detours\lib.X86;..\Debug Library;$(LibraryPath)</LibraryPath>
+    <LibraryPath>..\d3dx9\x86;..\Detours\lib.X86;..\Debug Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
@@ -92,7 +92,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3dcompiler.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -114,7 +114,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3dcompiler.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -194,6 +195,7 @@
     <ClInclude Include="pi.h" />
     <ClInclude Include="PlayerInfo.h" />
     <ClInclude Include="PngRelated.h" />
+    <ClInclude Include="PngResource.h" />
     <ClInclude Include="rectCombiner.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Settings.h" />
@@ -201,6 +203,7 @@
     <ClInclude Include="logging.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="memoryFunctions.h" />
+    <ClInclude Include="TexturePacker.h" />
     <ClInclude Include="ThrowInfo.h" />
     <ClInclude Include="Throws.h" />
     <ClInclude Include="UI.h" />
@@ -262,9 +265,11 @@
     <ClCompile Include="memoryFunctions.cpp" />
     <ClCompile Include="PlayerInfo.cpp" />
     <ClCompile Include="PngRelated.cpp" />
+    <ClCompile Include="PngResource.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="Stencil.cpp" />
+    <ClCompile Include="TexturePacker.cpp" />
     <ClCompile Include="Throws.cpp" />
     <ClCompile Include="UI.cpp" />
     <ClCompile Include="WinError.cpp" />
@@ -282,6 +287,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Detours\vc\Detours.vcxproj">
       <Project>{37489709-8054-4903-9c49-a79846049fc9}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <Private>false</Private>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
@@ -289,6 +296,53 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="How to debug Xrd without it relaunching itself.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\images\ActiveFrame.png" />
+    <Image Include="..\images\ActiveFrame_NonColorblind.png" />
+    <Image Include="..\images\Digit0.png" />
+    <Image Include="..\images\Digit1.png" />
+    <Image Include="..\images\Digit2.png" />
+    <Image Include="..\images\Digit3.png" />
+    <Image Include="..\images\Digit4.png" />
+    <Image Include="..\images\Digit5.png" />
+    <Image Include="..\images\Digit6.png" />
+    <Image Include="..\images\Digit7.png" />
+    <Image Include="..\images\Digit8.png" />
+    <Image Include="..\images\Digit9.png" />
+    <Image Include="..\images\FirstFrame.png" />
+    <Image Include="..\images\IdleFrame.png" />
+    <Image Include="..\images\LandingRecoveryFrame.png" />
+    <Image Include="..\images\LandingRecoveryFrame_NonColorblind.png" />
+    <Image Include="..\images\NonActiveFrame.png" />
+    <Image Include="..\images\NonActiveFrame_NonColorblind.png" />
+    <Image Include="..\images\NoneFrame.png" />
+    <Image Include="..\images\ProjectileFrame.png" />
+    <Image Include="..\images\ProjectileFrame_NonColorblind.png" />
+    <Image Include="..\images\RecoveryFrame.png" />
+    <Image Include="..\images\RecoveryFrame_NonColorblind.png" />
+    <Image Include="..\images\StartupFrame.png" />
+    <Image Include="..\images\StartupFrame_NonColorblind.png" />
+    <Image Include="..\images\StrikeInvul.png" />
+    <Image Include="..\images\SuperArmorActive.png" />
+    <Image Include="..\images\ThrowInvul.png" />
+    <Image Include="..\images\XStunFrame.png" />
+    <Image Include="..\images\XStunFrame_NonColorblind.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\MyPixelShader.hlsl">
+      <FileType>Document</FileType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">3.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">3.0</ShaderModel>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</TreatWarningAsError>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</TreatWarningAsError>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/Gec</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/Gec</AdditionalOptions>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)\..\shader_test_compile\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)\..\shader_test_compile\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

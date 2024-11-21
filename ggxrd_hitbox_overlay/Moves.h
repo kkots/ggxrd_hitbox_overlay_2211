@@ -7,8 +7,11 @@ struct PlayerInfo;
 
 using sectionSeparator_t = bool(*)(Entity ent);
 using isIdle_t = bool(*)(const PlayerInfo& ent);
+using isDangerous_t = bool(*)(Entity ent);
+
 bool isIdle_default(const PlayerInfo& player);
 bool canBlock_default(const PlayerInfo& player);
+bool isDangerous_default(Entity ent);
 
 struct MoveInfo {
 	// This is needed for Bandit Revolver turning into Bandit Bringer
@@ -32,6 +35,10 @@ struct MoveInfo {
 	bool preservesNewSection = false;
 	isIdle_t isIdle = isIdle_default;
 	isIdle_t canBlock = canBlock_default;
+	isDangerous_t isDangerous = isDangerous_default;
+	int framebarId = -1;
+	const char* framebarName = nullptr;
+	const char* framebarNameFull = nullptr;
 	MoveInfo(bool combineWithPreviousMove = false,
 		bool usePlusSignInCombination = false,
 		const char* displayName = nullptr,
@@ -39,7 +46,11 @@ struct MoveInfo {
 		int considerIdleInSeparatedSectionAfterThisManyFrames = 0,
 		bool preservesNewSection = false,
 		isIdle_t isIdle = nullptr,
-		isIdle_t canBlock = nullptr);
+		isIdle_t canBlock = nullptr,
+		isDangerous_t isDangerous = isDangerous_default,
+		int framebarId = -1,
+		const char* framebarName = nullptr,
+		const char* framebarNameFull = nullptr);
 };
 
 class Moves {
@@ -55,21 +66,20 @@ public:
 		instr_endState = 1,
 		instr_sprite = 2,
 		instr_setMarker = 11,
+		instr_createObject = 446,
 	};
 	inline InstructionType instructionType(BYTE* in) const;
 	BYTE* findSetMarker(BYTE* in, const char* name) const;
+	BYTE* findCreateObj(BYTE* in, const char* name) const;
+	BYTE* findSpriteNull(BYTE* in) const;
+	BYTE* findSpriteNonNull(BYTE* in) const;
 private:
 	struct MyKey {
 		CharacterType charType = (CharacterType)-1;
 		const char* name = nullptr;
 		bool isEffect = false;
 	};
-	inline static int hashString(const char* str, int startingHash = 0) {
-		for (const char* c = str; *c != '\0'; ++c) {
-			startingHash = startingHash * 0x89 + *c;
-		}
-		return startingHash;
-	}
+	static int hashString(const char* str, int startingHash = 0);
 	struct MyHashFunction {
 		inline std::size_t operator()(const MyKey& k) const {
 			return hashString(k.name);
@@ -77,10 +87,30 @@ private:
 	};
 	struct MyCompareFunction {
 		inline bool operator()(const MyKey& k, const MyKey& other) const {
-			return k.charType == other.charType && strcmp(k.name, other.name) == 0;
+			return k.charType == other.charType && strcmp(k.name, other.name) == 0 && k.isEffect == other.isEffect;
 		}
 	};
 	std::unordered_map<MyKey, MoveInfo, MyHashFunction, MyCompareFunction> map;
+	struct AddedMove : MoveInfo {
+		CharacterType charType;
+		const char* name;
+		bool isEffect;
+		bool combineWithPreviousMove = false;
+		bool usePlusSignInCombination = false;
+		const char* displayName = nullptr;
+		sectionSeparator_t sectionSeparator = nullptr;
+		int considerIdleInSeparatedSectionAfterThisManyFrames = 0;
+		bool preservesNewSection = false;
+		isIdle_t isIdle = nullptr;
+		isIdle_t canBlock = nullptr;
+		isDangerous_t isDangerous = isDangerous_default;
+		int framebarId = -1;
+		const char* framebarName = nullptr;
+		const char* framebarNameFull = nullptr;
+		inline AddedMove() { }
+		inline AddedMove(CharacterType charType, const char* name, bool isEffect = false) : charType(charType), name(name), isEffect(isEffect) { }
+	};
+	void addMove(const AddedMove& move);
 };
 
 extern Moves moves;

@@ -51,6 +51,9 @@ private:
 		int counter = 0;
 		int skipFrame = 0;
 		int activeFrame = 0;
+		bool hatched = false;
+		int originX = 0;
+		int originY = 0;
 		bool firstFrame = false;
 	};
 

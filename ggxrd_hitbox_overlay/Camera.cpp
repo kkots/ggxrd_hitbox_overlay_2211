@@ -84,13 +84,13 @@ void Camera::updateDarkenHook(char* thisArg) {
 // Runs on the main thread
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 	if (!shutdown) {
-		if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly) && game.isTrainingMode() && *aswEngine) {
+		if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly || gifMode.toggleCameraCenterOpponent) && game.isTrainingMode() && *aswEngine) {
 			entityList.populate();
 	
 			char playerSide = game.getPlayerSide();
 			if (playerSide == 2) playerSide = 0;
 			if (entityList.count > playerSide) {
-				Entity ent = entityList.slots[playerSide];
+				Entity ent = entityList.slots[gifMode.toggleCameraCenterOpponent ? 1 - playerSide : playerSide];
 				const auto posX = convertCoord((float)ent.posX());
 				const auto posY = convertCoord((float)ent.posY());
 	

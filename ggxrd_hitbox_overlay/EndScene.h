@@ -4,11 +4,11 @@
 #include <atlbase.h>
 #include <vector>
 #include "Entity.h"
-#include <condition_variable>
 #include <mutex>
 #include "DrawTextWithIconsParams.h"
 #include "PlayerInfo.h"
 #include "DrawData.h"
+#include <unordered_set>
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -93,6 +93,11 @@ struct ShutdownRenderCommand : FRenderCommand {
 	virtual const wchar_t* DescribeCommand() noexcept override;
 };
 
+struct CheckDeleteAltRenderTargetRenderCommand : FRenderCommand {
+	virtual unsigned int Execute() override;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand() noexcept override;
+};
+
 struct REDDrawCommand {
     int commandType;  // 4 is quad
     unsigned int layer;  // ordered by layer, lowest to highest, lowest drawn first
@@ -154,6 +159,8 @@ public:
 	std::mutex orig_drawTrainingHudMutex;
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
 	std::mutex orig_BBScr_createObjectWithArgMutex;
+	BBScr_createObjectWithArg_t orig_BBScr_createObject = nullptr;
+	std::mutex orig_BBScr_createObjectMutex;
 	BBScr_createParticleWithArg_t orig_BBScr_createParticleWithArg = nullptr;
 	std::mutex orig_BBScr_createParticleWithArgMutex;
 	setAnim_t orig_setAnim = nullptr;
@@ -194,10 +201,13 @@ public:
 	
 	PlayerInfo players[2] { 0 };
 	std::vector<ProjectileInfo> projectiles;
+	std::vector<EntityFramebar> framebars;
+	std::vector<EntityFramebar> combinedFramebars;  // does not contain player framebars
+	
 	DWORD logicThreadId = NULL;
 	Entity getSuperflashInstigator();
-	int getSuperflashCounterAll();
-	int getSuperflashCounterSelf();
+	int getSuperflashCounterOpponent();
+	int getSuperflashCounterAllied();
 	FRingBuffer_AllocationContext_Constructor_t FRingBuffer_AllocationContext_Constructor = nullptr;
 	FRenderCommandDestructor_t FRenderCommandDestructor = nullptr;
 	FRingBuffer_AllocationContext_Commit_t FRingBuffer_AllocationContext_Commit = nullptr;
@@ -213,10 +223,14 @@ public:
 	void* iconTexture = nullptr;
 	IDirect3DTexture9* getTextureFromUTexture2D(BYTE* uTex2D);
 	void executeShutdownRenderCommand();
+	void executeCheckDeleteAltRenderTargetRenderCommand();
 	PlayerInfo& findPlayer(Entity ent);
 	ProjectileInfo& findProjectile(Entity ent);
 	DWORD interRoundValueStorage2Offset = 0;
 	void onBubblePop(Entity bubble);
+	bool isEntityHidden(const Entity& ent);
+	int getFramebarPosition() const;
+	int getFramebarPositionHitstop() const;
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -224,6 +238,7 @@ private:
 	class HookHelp {
 		friend class EndScene;
 		void drawTrainingHudHook();
+		void BBScr_createObjectHook(const char* animName, unsigned int posType);
 		void BBScr_createObjectWithArgHook(const char* animName, unsigned int posType);
 		void BBScr_createParticleWithArgHook(const char* animName, unsigned int posType);
 		void setAnimHook(const char* animName);
@@ -239,6 +254,7 @@ private:
 		void BBScr_setHitstopHook(int hitstop);
 		void BBScr_ignoreDeactivateHook();
 		void beginHitstopHook();
+		void BBScr_createObjectHook_piece();
 	};
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
@@ -291,8 +307,8 @@ private:
 	void drawTexts();
 	
 	uintptr_t superflashInstigatorOffset = 0;
-	uintptr_t superflashCounterAllOffset = 0;
-	uintptr_t superflashCounterSelfOffset = 0;
+	uintptr_t superflashCounterOpponentOffset = 0;
+	uintptr_t superflashCounterAlliedOffset = 0;
 	
 	bool measuringFrameAdvantage = false;
 	int measuringLandingFrameAdvantage = -1;  // index of the player who is in the air and needs to land
@@ -328,7 +344,22 @@ private:
 	void* FRenderCommandVtable = nullptr;
 	void* FSkipRenderCommandVtable = nullptr;
 	bool drewExGaugeHud = false;
+	
+	
+	#define makeDummyCmdConst(name, floatVal) \
+		const float name = floatVal; \
+		const float name##OneGreater = name + 1.F; \
+		const unsigned int name##UInt = *(unsigned int*)&name##OneGreater;
+		
+	makeDummyCmdConst(dummyOriginPointX, -615530.F)
+	makeDummyCmdConst(dummyDrawUIX, -615529.F)
+	
+	#undef makeDummyCmdConst
+	
+	
 	void queueOriginPointDrawingDummyCommandAndInitializeIcon();
+	void queueUIDrawingDummyCommand();
+	void queueDummyCommand(int layer, float x, char* txt);
 	struct OccuredEvent {
 		enum OccuredEventType {
 			SET_ANIM,
@@ -337,16 +368,37 @@ private:
 		union OccuredEventUnion {
 			struct OccuredEventSetAnim {
 				Entity pawn;
+				char fromAnim[32];
 			} setAnim;
 			struct OccuredEventSignal {
 				Entity from;
 				Entity to;
+				char fromAnim[32];  // this is needed from Bedman 236H's bomb1 being created by Flying_bomb1.
+				                    // Flying_bomb1 disappears on that very frame and is never actually visible,
+				                    // and we get a different animation string ("423wind") when reading from its pointer
 			} signal;
 			inline OccuredEventUnion() { }
 		} u;
 	};
 	std::vector<OccuredEvent> events;
 	std::vector<Entity> sendSignalStack;
+	int framebarPosition = 0;
+	int framebarPositionHitstop = 0;
+	int framebarIdleFor = 0;
+	int framebarIdleHitstopFor = 0;
+	const int framebarIdleForLimit = 30;
+	DWORD getAswEngineTick();
+	
+	int nextFramebarId = 0;
+	void incrementNextFramebarIdDirectly();
+	void incrementNextFramebarIdSmartly();
+	EntityFramebar& findProjectileFramebar(ProjectileInfo& projectile, bool needCreate);
+	EntityFramebar& findCombinedFramebar(const EntityFramebar& source);
+	void copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entityFramebar,
+		bool framebarAdvanced,
+		bool framebarAdvancedIdle,
+		bool framebarAdvancedHitstop,
+		bool framebarAdvancedIdleHitstop);
 };
 
 extern EndScene endScene;

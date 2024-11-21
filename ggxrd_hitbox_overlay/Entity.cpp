@@ -88,9 +88,14 @@ void Entity::getState(EntityState* state) const {
 	state->doingAThrow = presumablyThrownEntity
 		&& (*(DWORD*)(presumablyThrownEntity + 0x23c) & 0x800) != 0
 		&& (*(DWORD*)(ent + 0x23c) & 0x1000) != 0
+		&& !(
+			// needed for Baiken Metsudo Kushodo
+			*attackLockAction() != '\0'
+			&& strcmp(animationName(), attackLockAction()) != 0
+		)
 		|| superArmorEnabled()
 		&& superArmorType() == SUPER_ARMOR_DODGE
-		&& !superArmorForReflect()
+		&& !superArmorForReflect()  // needed for Dizzy mirror super
 		&& (throwFlagsField & 0x036F3E43) == 0x036F3E43;
 	
 	logOnce(fprintf(logfile, "doingAThrow: %d\n", (int)state->doingAThrow));
@@ -102,24 +107,26 @@ void Entity::getState(EntityState* state) const {
 
 	state->posY = posY();
 
-	const auto otg = (*(unsigned int*)(ent + 0x4D24) & 0x800000) != 0;
-	const auto invulnFrames = *(int*)(ent + 0x9A0);
-	logOnce(fprintf(logfile, "invulnFrames: %x\n", invulnFrames));
-	const auto invulnFlags = *(char*)(ent + 0x238);
-	logOnce(fprintf(logfile, "invulnFlags: %x\n", invulnFlags));
-	state->strikeInvuln = invulnFrames > 0
-		|| (invulnFlags & 16)
-		|| (invulnFlags & 64)
+	const auto otg = isOtg();
+	const auto strikeIF = strikeInvulnFrames();
+	const auto throwIF = throwInvulnFrames();
+	logOnce(fprintf(logfile, "invulnFrames: %d, %d\n", strikeIF, throwIF));
+	logOnce(fprintf(logfile, "invulnFlags: %x\n", *(DWORD*)(ent + 0x238)));
+	state->strikeInvuln = strikeIF > 0
+		|| strikeInvul()
+		|| fullInvul()
 		|| state->doingAThrow
 		|| state->isGettingThrown
 		|| clashHitstop();
 	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)state->strikeInvuln));
-	state->throwInvuln = (invulnFlags & 32)
-		|| (invulnFlags & 64)
+	state->throwInvuln = throwIF > 0
+		|| throwInvul()
+		|| fullInvul()
 		|| otg
 		|| state->inHitstunBlockstun
 		|| clashHitstop();
 	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
+	state->superArmorActive = superArmorEnabled();
 	state->charType = characterType();
 	state->isASummon = state->charType == -1;
 	state->ownerCharType = (CharacterType)(-1);
@@ -132,6 +139,13 @@ void Entity::getState(EntityState* state) const {
 		&& !state->strikeInvuln
 		&& !state->isASummon;
 	logOnce(fprintf(logfile, "counterhit: %u\n", (int)state->counterhit));
+}
+
+bool Entity::hasUpon(int index) const {
+	int arrayIndex = index >> 5;
+	int bitIndex = index & 31;
+	int bitMask = 1 << bitIndex;
+	return (*(DWORD*)(ent + 0xa0c + arrayIndex * 4) & bitMask) != 0;
 }
 
 bool Entity::isGettingThrown() const {
@@ -320,13 +334,13 @@ char EntityManager::calculateCornerPenaltySeverity(int cornerPenalty) {
 	}
 }
 
-int EntityManager::calculateReceivedComboCountTensionGainModifier(bool inPain, int comboCount) {
-	if (!inPain) return 400;
+int EntityManager::calculateReceivedComboCountTensionGainModifier(bool inHitstun, int comboCount) {
+	if (!inHitstun) return 400;
 	return (comboCount + 17) * 100 / 16 * 4;
 }
 
-int EntityManager::calculateDealtComboCountTensionGainModifier(bool inPain, int comboCount) {
-	if (!inPain) return 100;
+int EntityManager::calculateDealtComboCountTensionGainModifier(bool inHitstun, int comboCount) {
+	if (!inHitstun) return 100;
 	int n = comboCount + 8;
 	if (n > 30) n = 30;
 	else if (n < 8) n = 8;
@@ -341,11 +355,11 @@ void EntityManager::calculatePushback(
 		int y,
 		int pushbackModifier,
 		int airPushbackModifier,
-		bool inPainOrInPainNextFrame,
-		int pushbackModifierOnPain,
+		bool inHitstunOrInHitstunNextFrame,
+		int pushbackModifierOnHitstun,
 		int* basePushback,
 		int* attackPushbackModifier,
-		int* painPushbackModifier,
+		int* hitstunPushbackModifier,
 		int* comboTimerPushbackModifier) {
 	if (dontUseComboTimer) {
 		comboTimer = 0;
@@ -356,7 +370,7 @@ void EntityManager::calculatePushback(
 	static int pushbacksOnAirBlock[]    {  800,  850,  900,  950, 1000, 2400, 3000 };
 	
 	if (basePushback) {
-		if (inPainOrInPainNextFrame) {
+		if (inHitstunOrInHitstunNextFrame) {
 			*basePushback = pushbacksOnHit[attackLevel];
 		} else if (!ascending && y <= 0) {
 			*basePushback = pushbacksOnGroundBlock[attackLevel];
@@ -370,10 +384,10 @@ void EntityManager::calculatePushback(
 			*attackPushbackModifier = airPushbackModifier;
 		}
 	}
-	if (painPushbackModifier) {
-		*painPushbackModifier = 100;
-		if (inPainOrInPainNextFrame) {
-			*painPushbackModifier = pushbackModifierOnPain;
+	if (hitstunPushbackModifier) {
+		*hitstunPushbackModifier = 100;
+		if (inHitstunOrInHitstunNextFrame) {
+			*hitstunPushbackModifier = pushbackModifierOnHitstun;
 		}
 	}
 	if (comboTimerPushbackModifier) {

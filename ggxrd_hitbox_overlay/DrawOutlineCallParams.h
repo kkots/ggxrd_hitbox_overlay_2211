@@ -16,11 +16,26 @@ struct PathElement {
 	PathElement(float xProjected, float yProjected, int x, int y, int inX, int inY);
 };
 
+struct HatchesCallParams {
+	
+	struct HatchPoints {
+		int start;
+		int count;
+	};
+	std::vector<HatchPoints> points;
+	
+	int originX = 0;
+	int originY = 0;
+};
+
 class DrawOutlineCallParams {
 public:
 	D3DCOLOR outlineColor{ 0 };
 	int thickness = 0;
-
+	
+	bool hatched = false;
+	HatchesCallParams hatches;
+	
 	// You must reserve size first for N elems and only then add them
 	void reserveSize(int numPathElems);
 	void addPathElem(int x, int y, int inX, int inY);
@@ -28,6 +43,8 @@ public:
 	PathElement& getPathElem(int index) const;
 	int count() const;
 	bool empty() const;
+	int getStartPosition() const;
+	static PathElement& getPathElemStatic(int startIndex, int index);
 private:
 	int outlineStartAddr = 0;
 	int outlineCount = 0;

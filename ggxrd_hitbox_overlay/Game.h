@@ -62,6 +62,7 @@ using drawExGaugeHUD_t = void(__thiscall*)(void* thisArg, int param_1);
 using drawStunMash_t = void(__thiscall*)(void* pawn, float bar, BOOL withBar, BOOL withLever);
 using UWorld_IsPaused_t = bool(__thiscall*)(void* UWorld);
 using drawJackoHouseHp_t = void(__thiscall*)(void* pawn);
+using getGameViewportClient_t = void*(__thiscall*)(void* REDHUD);
 
 class Game {
 public:
@@ -73,6 +74,8 @@ public:
 	bool isMatchRunning() const;
 	bool isTrainingMode() const;
 	int getBurst(int team) const;
+	bool isFading() const;
+	bool isRoundend() const;
 	bool freezeGame = false;
 	bool slowmoGame = false;
 	bool allowNextFrame = false;
@@ -87,6 +90,7 @@ public:
 	DWORD cameraOffset = 0;
 	DWORD REDGameInfo_BattleOffset = 0;
 	DWORD REDHUD_BattleOffset = 0;
+	DWORD roundendSuperfreezeCounterOffset = 0;
 private:
 	class HookHelp {
 		friend class Game;

@@ -13,7 +13,8 @@ void collectHitboxes(Entity ent,
 		std::vector<DrawPointCallParams>* const points,
 		std::vector<DrawBoxCallParams>* const pushboxes,
 		int* numHitboxes,
-		int* lastIgnoredHitNum) {
+		int* lastIgnoredHitNum,
+		EntityState* entityState) {
 	
 	if (!ent.isPawn()
 			&& (ent.team() == 0 || ent.team() == 1)
@@ -26,6 +27,7 @@ void collectHitboxes(Entity ent,
 	
 	EntityState state;
 	ent.getState(&state);
+	if (entityState) *entityState = state;
 	
 	int currentHitNum = ent.currentHitNum();
 	
@@ -61,34 +63,39 @@ void collectHitboxes(Entity ent,
 		pushboxParams.fillColor = replaceAlpha(state.throwInvuln ? 0 : 64, COLOR_PUSHBOX);
 		pushboxParams.outlineColor = replaceAlpha(255, COLOR_PUSHBOX);
 		pushboxParams.thickness = THICKNESS_PUSHBOX;
+		pushboxParams.hatched = false;
+		pushboxParams.originX = params.posX;
+		pushboxParams.originY = params.posY;
 		pushboxes->push_back(pushboxParams);
 		logOnce(fputs("pushboxes->push_back(...) called\n", logfile));
 		//}
 	}
-
-	const Hitbox* const hurtboxData = *(const Hitbox* const*)(ent + 0x58);
-	const Hitbox* const hitboxData = *(const Hitbox* const*)(ent + 0x5C);
-
-	const int hurtboxCount = *(const int*)(ent + 0xA0);
-	const int hitboxCount = *(const int*)(ent + 0xA4);
+	
+	static const HitboxType overrideHurtboxType = HITBOXTYPE_HURTBOX;
+	
+	const Hitbox* const hurtboxData = ent.hitboxData(overrideHurtboxType);
+	const Hitbox* const hitboxData = ent.hitboxData(HITBOXTYPE_HITBOX);
+	
+	const int hurtboxCount = ent.hitboxCount(overrideHurtboxType);
+	const int hitboxCount = ent.hitboxCount(HITBOXTYPE_HITBOX);
 
 	logOnce(fprintf(logfile, "hurtbox_count: %d; hitbox_count: %d\n", hurtboxCount, hitboxCount));
 
 	// Thanks to jedpossum on dustloop for these offsets
-	params.scaleX = *(int*)(ent + 0x264);
-	params.scaleY = *(int*)(ent + 0x268);
+	params.scaleX = ent.scaleX();
+	params.scaleY = ent.scaleY();
 	logOnce(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(ent + 0x264), *(int*)(ent + 0x268)));
-
+	
 	DrawHitboxArrayCallParams callParams;
-
-	if (hurtbox && isNotZeroScaled) {
+	
+	if (hurtbox && isNotZeroScaled && hurtboxCount) {
 		callParams.thickness = THICKNESS_HURTBOX;
 		callParams.hitboxData = hurtboxData;
 		callParams.hitboxCount = hurtboxCount;
 		callParams.params = params;
-		callParams.params.angle = *(int*)(ent + 0x258);
-		callParams.params.hitboxOffsetX = *(int*)(ent + 0x27C);
-		callParams.params.hitboxOffsetY = *(int*)(ent + 0x280);
+		callParams.params.angle = ent.pitch();
+		callParams.params.hitboxOffsetX = ent.hitboxOffsetX();
+		callParams.params.hitboxOffsetY = ent.hitboxOffsetY();
 		DWORD alpha = 64;
 		if (state.strikeInvuln) {
 			alpha = 0;
@@ -107,12 +114,26 @@ void collectHitboxes(Entity ent,
 			callParams.fillColor = replaceAlpha(alpha, COLOR_HURTBOX);
 			callParams.outlineColor = replaceAlpha(255, COLOR_HURTBOX);
 		}
+		callParams.hatched = state.superArmorActive;
+		callParams.originX = params.posX;
+		callParams.originY = params.posY;
 		*hurtbox = callParams;
+		
+		if (points && overrideHurtboxType != HITBOXTYPE_HURTBOX && isNotZeroScaled && hurtboxCount) {
+			RECT bounds = callParams.getWorldBounds(0);
+			DrawPointCallParams pointCallParams;
+			pointCallParams.posX = bounds.left;
+			pointCallParams.posY = bounds.top;
+			points->push_back(pointCallParams);
+		}
 	}
 
-	bool includeTheseHitboxes = hitboxes && active && !(state.doingAThrow && ent.isPawn());  // isPawn check for Dizzy bubble pop
+	bool includeTheseHitboxes = hitboxes && active && !(
+		state.doingAThrow
+		&& ent.isPawn()  // isPawn check for Dizzy bubble pop
+	);
 	if (includeTheseHitboxes) {
-		if ((*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0) {  // having this flag means you ignore the hitboxes hit detection check
+		if (ent.collisionForceExpand()) {
 			includeTheseHitboxes = false;
 		}
 		if (lastIgnoredHitNum && currentHitNum <= *lastIgnoredHitNum) {
@@ -124,9 +145,9 @@ void collectHitboxes(Entity ent,
 		*lastIgnoredHitNum = ent.currentHitNum();
 	}
 
-	if (includeTheseHitboxes && isNotZeroScaled) {
+	if (includeTheseHitboxes && isNotZeroScaled && hitboxCount) {
 
-		logOnce(fprintf(logfile, "angle: %d\n", *(int*)(ent + 0x258)));
+		logOnce(fprintf(logfile, "angle: %d\n", ent.pitch()));
 		
 		callParams.thickness = THICKNESS_HITBOX;
 		
@@ -139,20 +160,29 @@ void collectHitboxes(Entity ent,
 		}
 		callParams.outlineColor = replaceAlpha(255, COLOR_HITBOX);
 		
-		if (numHitboxes && !ent.clashOnly()) *numHitboxes += hitboxCount;  // don't include clash-only hitboxes in the active frames: Venom QV
+		if (numHitboxes
+				&& !ent.clashOnly()  // don't include clash-only hitboxes in the active frames: Venom QV
+				&& !ent.isSuperFrozen()  // don't include projectiles stuck in superfreeze as active: Ky CSE YRC
+				) {
+			*numHitboxes += hitboxCount;
+		}
 		callParams.hitboxData = hitboxData;
 		callParams.hitboxCount = hitboxCount;
 		callParams.params = params;
-		callParams.params.angle = *(int*)(ent + 0x258);
-		callParams.params.hitboxOffsetX = *(int*)(ent + 0x27C);
-		callParams.params.hitboxOffsetY = *(int*)(ent + 0x280);
+		callParams.params.angle = ent.pitch();
+		callParams.params.hitboxOffsetX = ent.hitboxOffsetX();
+		callParams.params.hitboxOffsetY = ent.hitboxOffsetY();
+		callParams.hatched = false;
+		callParams.originX = params.posX;
+		callParams.originY = params.posY;
 		hitboxes->push_back(callParams);
 	}
-
+	
 	if (points && !state.isASummon && isNotZeroScaled) {
 		DrawPointCallParams pointCallParams;
 		pointCallParams.posX = params.posX;
 		pointCallParams.posY = params.posY;
 		points->push_back(pointCallParams);
 	}
+	
 }

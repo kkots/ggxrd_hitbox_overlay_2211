@@ -22,7 +22,7 @@ using FSuspendRenderingThreadDestructor_t = void(__thiscall*)(char* thisArg);
 class Graphics
 {
 public:
-	bool onDllMain();
+	bool onDllMain(HMODULE hInstance);
 	void onDllDetach();
 	void onEndSceneStart(IDirect3DDevice9* device);
 	void onShutdown();
@@ -30,6 +30,10 @@ public:
 	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
 	void resetHook();
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
+	IDirect3DTexture9* getFramesTexture(IDirect3DDevice9* device);
+	// only returns a result once. Provides the error text to other classes
+	void getShaderCompilationError(const std::string** result);
+	void checkAltRenderTargetLifeTime();
 	
 	DrawData drawDataUse;
 	IDirect3DDevice9* device;
@@ -80,11 +84,15 @@ private:
 
 	unsigned int outlinesSectionOutlineCount = 0;
 	unsigned int outlinesSectionTotalLineCount = 0;
+	unsigned int outlinesSectionHatchCount = 0;
 	struct PreparedOutline {
 		unsigned int linesSoFar = 0;
+		unsigned int hatchesCount = 0;
 		bool isOnePixelThick = false;
 		bool isComplete = false;
 		bool hasPadding = false;
+		bool hatched = false;
+		bool hatchesComplete = false;
 	};
 	std::vector<PreparedOutline> preparedOutlines;
 	void prepareOutline(DrawOutlineCallParams& params);
@@ -136,7 +144,8 @@ private:
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_ARRAYBOX,
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_BOX,
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_THINLINE,
-		LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE
+		LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE,
+		LAST_THING_IN_VERTEX_BUFFER_HATCH
 	} lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 
 	unsigned int preparedBoxesCount = 0;
@@ -152,7 +161,7 @@ private:
 
 	void drawAllPrepared();
 
-	bool drawIfOutOfSpace(unsigned int verticesCountRequired, unsigned int texturedVerticesCountRequired);
+	bool drawIfOutOfSpace(unsigned int verticesCountRequired);
 
 	bool loggedDrawingOperationsOnce = false;
 	
@@ -162,8 +171,37 @@ private:
 		SCREENSHOT_STAGE_FINAL
 	} screenshotStage = SCREENSHOT_STAGE_NONE;
 	
+	CComPtr<IDirect3DSurface9> altRenderTarget;
+	int altRenderTargetLifeRemaining = 0;
+	
 	HANDLE shutdownFinishedEvent = NULL;
 	DWORD suspenderThreadId = NULL;
+	
+	CComPtr<IDirect3DTexture9> framesTexture = nullptr;
+	bool failedToCreateFramesTexture = false;
+	
+	IDirect3DTexture9* getOutlinesRTSamplingTexture(IDirect3DDevice9* device);
+	CComPtr<IDirect3DTexture9> outlinesRTSamplingTexture = nullptr;
+	bool failedToCreateOutlinesRTSamplingTexture = false;
+	
+	HMODULE hInstance = NULL;
+	void compilePixelShader();
+	bool failedToCompilePixelShader = false;
+	void* pixelShaderCode = nullptr;
+	size_t pixelShaderCodeSize = 0;
+	
+	std::string shaderCompilationError;
+	
+	bool failedToCreatePixelShader = false;
+	CComPtr<IDirect3DPixelShader9> pixelShader;
+	IDirect3DPixelShader9* getPixelShader(IDirect3DDevice9* device);
+	
+	void preparePixelShader(IDirect3DDevice9* device);
+	
+	void cpuPixelBlenderSimple(void* gameImage, const void* boxesImage, int width, int height);
+	void cpuPixelBlenderComplex(void* gameImage, const void* boxesImage, int width, int height);
+	
+	const int hatchesDist = 10000;
 };
 
 extern Graphics graphics;

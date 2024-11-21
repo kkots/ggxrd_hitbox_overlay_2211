@@ -507,7 +507,7 @@ void RectCombiner::getOutlines(std::vector<Polygon>& boxes,
             } while (true);
         }
     }
-
+	
     gridSpace.is.clear();
     gridSpace.js.clear();
     return;

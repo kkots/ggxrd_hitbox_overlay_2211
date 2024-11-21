@@ -86,11 +86,23 @@ namespace RectCombiner {
         // The indices mean the gridlines indices from is, js vectors.
         inline GridCell& getCell(int i, int j);
     };
-
+    
+    struct RECT {
+	    LONG    left;
+	    LONG    top;
+	    LONG    right;
+	    LONG    bottom;
+	};
+	
+	// This is the only function you need to call to get the results.
+	// All outlines are clockwise, even inner ones. To compensate for this, for each PathElement
+	// the direction towards which the filled area is is returned.
+	// Zero-length lines may be included in the outlines.
     void getOutlines(std::vector<Polygon>& boxes,
 	                 std::vector<std::vector<RectCombiner::PathElement>>& outlines,
 					 std::vector<Polygon>* newBoxes = nullptr);
-
+	
+	// This is for internal use
 	void finalizePath(std::vector<GridLine>::iterator& it, GridLine*& i, bool& isFirst, std::vector<std::vector<PathElement>>& outlines);
 	
 	extern GridSpace gridSpace;

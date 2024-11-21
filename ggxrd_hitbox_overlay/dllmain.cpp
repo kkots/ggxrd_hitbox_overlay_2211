@@ -67,10 +67,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
         if (!entityManager.onDllMain()) terminate
         if (!direct3DVTable.onDllMain()) terminate
         if (!keyboard.onDllMain()) terminate
-        if (!ui.onDllMain()) terminate
+        if (!ui.onDllMain(hModule)) terminate
         if (!endScene.onDllMain()) terminate
         if (!hitDetector.onDllMain()) terminate
-        if (!graphics.onDllMain()) terminate
+        if (!graphics.onDllMain(hModule)) terminate
         if (!altModes.onDllMain()) terminate
         if (!throws.onDllMain()) terminate
         if (!hud.onDllMain()) terminate

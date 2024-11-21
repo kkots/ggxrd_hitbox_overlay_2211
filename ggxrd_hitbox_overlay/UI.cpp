@@ -18,19 +18,22 @@
 #include "imgui_impl_win32.h"
 
 #include <commdlg.h>  // for GetOpenFileNameW
+#include "resource.h"
+#include "Graphics.h"
 
 UI ui;
 
-using namespace UITextureNamespace;
 static ImVec4 RGBToVec(DWORD color);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 const ImVec2 BTN_SIZE = ImVec2(60, 20);
 static ImVec4 RED_COLOR = RGBToVec(0xEF5454);
 static ImVec4 YELLOW_COLOR = RGBToVec(0xF9EA6C);
 static ImVec4 GREEN_COLOR = RGBToVec(0x5AE976);
+static ImVec4 BLACK_COLOR = RGBToVec(0);
 static char strbuf[512];
 static std::string stringArena;
 static char printdecimalbuf[512];
+static int numDigits(int num);  // For negative numbers does not include the '-'
 
 struct CustomImDrawList {
     ImVector<ImDrawCmd> CmdBuffer;
@@ -71,8 +74,9 @@ static void pushZeroItemSpacingStyle();
 static float getItemSpacing();
 static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
 static bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_button, bool* isDragging);
+static void outlinedText(ImVec2 pos, const char* text);
 
-bool UI::onDllMain() {
+bool UI::onDllMain(HMODULE hModule) {
 	
 	for (int i = 0; i < 25; ++i) {
 		characterIcons[i] = coordsToGGIcon(1 + 42 * i, 1135, 41, 41);
@@ -106,6 +110,38 @@ bool UI::onDllMain() {
 			FlushInstructionCache(GetCurrentProcess(), (void*)GetKeyStateCallPlace, 4);
 		}
 	}
+	
+	addImage(hModule, IDB_ACTIVE_FRAME, activeFrame);
+	addImage(hModule, IDB_ACTIVE_FRAME_NON_COLORBLIND, activeFrameNonColorblind);
+	addImage(hModule, IDB_DIGIT_0, digitFrame[0]);
+	addImage(hModule, IDB_DIGIT_1, digitFrame[1]);
+	addImage(hModule, IDB_DIGIT_2, digitFrame[2]);
+	addImage(hModule, IDB_DIGIT_3, digitFrame[3]);
+	addImage(hModule, IDB_DIGIT_4, digitFrame[4]);
+	addImage(hModule, IDB_DIGIT_5, digitFrame[5]);
+	addImage(hModule, IDB_DIGIT_6, digitFrame[6]);
+	addImage(hModule, IDB_DIGIT_7, digitFrame[7]);
+	addImage(hModule, IDB_DIGIT_8, digitFrame[8]);
+	addImage(hModule, IDB_DIGIT_9, digitFrame[9]);
+	addImage(hModule, IDB_FIRST_FRAME, firstFrame);
+	addImage(hModule, IDB_IDLE_FRAME, idleFrame);
+	addImage(hModule, IDB_LANDING_RECOVERY_FRAME, landingRecoveryFrame);
+	addImage(hModule, IDB_LANDING_RECOVERY_FRAME_NON_COLORBLIND, landingRecoveryFrameNonColorblind);
+	addImage(hModule, IDB_NON_ACTIVE_FRAME, nonActiveFrame);
+	addImage(hModule, IDB_NON_ACTIVE_FRAME_NON_COLORBLIND, nonActiveFrameNonColorblind);
+	addImage(hModule, IDB_PROJECTILE_FRAME, projectileFrame);
+	addImage(hModule, IDB_PROJECTILE_FRAME_NON_COLORBLIND, projectileFrameNonColorblind);
+	addImage(hModule, IDB_RECOVERY_FRAME, recoveryFrame);
+	addImage(hModule, IDB_RECOVERY_FRAME_NON_COLORBLIND, recoveryFrameNonColorblind);
+	addImage(hModule, IDB_STARTUP_FRAME, startupFrame);
+	addImage(hModule, IDB_STARTUP_FRAME_NON_COLORBLIND, startupFrameNonColorblind);
+	addImage(hModule, IDB_STRIKE_INVUL, strikeInvulFrame);
+	addImage(hModule, IDB_SUPER_ARMOR_ACTIVE, superArmorFrame);
+	addImage(hModule, IDB_THROW_INVUL, throwInvulFrame);
+	addImage(hModule, IDB_XSTUN_FRAME, xstunFrame);
+	addImage(hModule, IDB_XSTUN_FRAME_NON_COLORBLIND, xstunFrameNonColorblind);
+	packedTexture = texturePacker.getTexture();
+	
 	return true;
 }
 
@@ -168,6 +204,17 @@ void UI::prepareDrawData() {
 		takeScreenshot = false;
 		takeScreenshotPress = false;
 		imguiActive = false;
+		
+		if (imguiInitialized) {
+			// When the window is hidden for very long it may become temporarily unresponsive after showing again,
+			// and then start quickly processing all the input that was accumulated during the unresponsiveness period (over a span of several frames).
+			// However, the thread does not get hung up and both the game and ImGui display fine,
+			// it's just that ImGui does not respond to user input for a while.
+			// The cause of this is unknown, I haven't tried reproducing it yet and I think it may be related to not doing an ImGui frame every frame.
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
+			ImGui::EndFrame();
+		}
 		return;
 	}
 	std::unique_lock<std::mutex> uiGuard(lock);
@@ -497,35 +544,14 @@ void UI::prepareDrawData() {
 			    
 			    if (i == 0) {
 			    	ImGui::TableNextColumn();
-		    		CenterAlignedText("Frame Adv.");
-		    		// have I overdone this?
-		    		AddTooltip("Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
-		    			" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
-				    	" Please note that players may become able to block earlier than they become able to attack. This difference will not be displayed, and only the time"
-				    	" when players become able to attack will be considered for frame advantage calculation.\n\n"
-				    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last."
-				    	" The landing frame advantage is measured against the other player's becoming able to attack after landing or,"
-				    	" if they never jumped, after them just becoming able to attack."
-				    	" For example, two players jump one after each other with 1f delay. Both players whiff a j.P in the air and recover in the air, then land"
-				    	" one after another with 1f delay. The player who landed first will have a +1 'landing' frame advantage and the displayed result will be:"
-				    	" ??? (+1), where ??? is the 'air' frame advantage (read below), and +1 is the 'landing' frame advantage.\n"
-				    	"The other value (not in ()) means ('air') frame advantage"
-				    	" immediately after recovering in the air or on the ground, whichever happened earlier."
-				    	" 'Air' frame advantage is measured against the other player becoming able to attack in the air or"
-				    	" on the ground, whichever happened earlier. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
-				    	" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
-				    	" +1 (-99). If both you and the opponent jumped, and you recovered in the air 1f before they did, but after they recovered,"
-				    	" it took you 100 frames to fall back down"
-				    	" and them - only one, then the displayed result for you will be: +1 (-99), and for them: -1 (+99). So, 'air' frame advantage is measured"
-				    	" against recovering in the air/on the ground, 'landing' frame advantage is measured against recovering on the ground only.\n"
-				    	"\n"
-				    	"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.\n"
-				    	"Frame advantage may go into the past and use time from before the opponent entered blockstun and add that time to your frame advantage,"
-				    	" if during that time you were idle. For example, if Ky uses j.D, he recovers in the air before it goes active, then opponent gets put into blockstun,"
-				    	" then all the time that Ky was idle in the air immediately gets included in the frame advantage. For example, if you did a move that let you recover"
-				    	" in one frame, but it caused the opponent to enter blockstun 100 frames after you started your move, and the opponent spent 1 frame in blockstun,"
-				    	" you're considered +100 instead of +1. If you do not want to include attacker's pre-blockstun idle time as part of frame advantage,"
-				    	" then you may calculate frame advantage manually by adding defender's hitstop + blockstun together. They're displayed above in the 'Hitstop+X-stun' field.");
+			    	const char* txt = "Frame Adv.";
+			    	CenterAlign(ImGui::CalcTextSize(txt).x);
+			    	ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { 0.F, 0.F, 0.F, 0.F });
+		    		if (ImGui::Selectable(txt)) {
+		    			showFrameAdvTooltip = !showFrameAdvTooltip;
+		    		}
+		    		ImGui::PopStyleColor();
+		    		AddTooltip("Click the field for tooltip.");
 			    }
 		    }
 		    
@@ -637,7 +663,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.actives.print(strbuf, sizeof strbuf);
-			    printNoWordWrap
+			    printWithWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -669,6 +695,28 @@ void UI::prepareDrawData() {
 		    for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%s", formatBoolean(player.superArmorActive));
+			    printNoWordWrap
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("Super Armor Active");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
+			    sprintf_s(strbuf, "%s", formatBoolean(player.projectileOnlyInvul));
+			    printNoWordWrap
+		    	
+		    	if (i == 0) {
+			    	ImGui::TableNextColumn();
+		    		CenterAlignedText("Projectile-Only Invul");
+		    	}
+		    }
+		    for (int i = 0; i < 2; ++i) {
+		    	PlayerInfo& player = endScene.players[i];
+			    ImGui::TableNextColumn();
 			    sprintf_s(strbuf, "%d", player.startupProj);
 			    printNoWordWrap
 		    	
@@ -681,7 +729,7 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    player.activesProj.print(strbuf, sizeof strbuf);
-			    printNoWordWrap
+			    printWithWordWrap
 		    	
 		    	if (i == 0) {
 			    	ImGui::TableNextColumn();
@@ -693,9 +741,9 @@ void UI::prepareDrawData() {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
 			    if (superflashInstigator == player.pawn) {
-			    	sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterSelf());
+			    	sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterAllied());
 			    } else if (superflashInstigator) {
-			    	sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterAll());
+			    	sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterOpponent());
 			    } else {
 			    	strcpy(strbuf, "false");
 			    }
@@ -771,6 +819,18 @@ void UI::prepareDrawData() {
 					    	if (i == 0) {
 						    	ImGui::TableNextColumn();
 					    		CenterAlignedText("lifeTimeCounter");
+					    	}
+					    }
+					    for (int i = 0; i < 2; ++i) {
+						    ImGui::TableNextColumn();
+					    	if (row.side[i]) {
+						    	ProjectileInfo& projectile = *row.side[i];
+							    printNoWordWrapArg(projectile.creatorName)
+					    	}
+					    	
+					    	if (i == 0) {
+						    	ImGui::TableNextColumn();
+					    		CenterAlignedText("creator");
 					    	}
 					    }
 					    for (int i = 0; i < 2; ++i) {
@@ -905,21 +965,45 @@ void UI::prepareDrawData() {
 			"; 2) Camera is centered on you\n"
 			"; 3) Opponent is invisible and invulnerable\n"
 			"; 4) Hide HUD");
+		
 		stateChanged = ImGui::Checkbox("GIF Mode (Black Background Only)", &gifModeToggleBackgroundOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Makes background black (and, for screenshotting purposes, - effectively transparent, if Post Effect is turned off in the game's graphics settings).");
+		
 		stateChanged = ImGui::Checkbox("GIF Mode (Camera Center Only)", &gifModeToggleCameraCenterOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Centers the camera on you.");
+		
+		stateChanged = ImGui::Checkbox("Center camera on opponent", &toggleCameraCenterOpponent) || stateChanged;
+		ImGui::SameLine();
+		HelpMarker("Centers the camera on the opponent.");
+		
 		stateChanged = ImGui::Checkbox("GIF Mode (Hide Opponent Only)", &gifModeToggleHideOpponentOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Make the opponent invisible and invulnerable.");
+		
+		stateChanged = ImGui::Checkbox("Hide Player", &toggleHidePlayer) || stateChanged;
+		ImGui::SameLine();
+		HelpMarker("Make the player invisible and invulnerable.");
+		
 		stateChanged = ImGui::Checkbox("GIF Mode (Hide HUD Only)", &gifModeToggleHudOnly) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Hides the HUD.");
+		
 		stateChanged = ImGui::Checkbox("No Gravity", &noGravityOn) || stateChanged;
 		ImGui::SameLine();
 		HelpMarker("Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.");
+		
+		bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
+		if (ImGui::Checkbox("Disable Gray Hurtboxes", &neverDisplayGrayHurtboxes)) {
+			settings.neverDisplayGrayHurtboxes = neverDisplayGrayHurtboxes;
+			needWriteSettings = true;
+		}
+		ImGui::SameLine();
+		HelpMarker("Disables/enables the display of residual hurtboxes that appear on hit/block and show"
+			" the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but"
+			" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.");
+		
 		stateChanged = ImGui::Checkbox("Freeze Game", &freezeGame) || stateChanged;
 		ImGui::SameLine();
 		if (ImGui::Button("Next Frame")) {
@@ -929,6 +1013,7 @@ void UI::prepareDrawData() {
 		ImGui::SameLine();
 		HelpMarker("Freezes the current frame of the game and stops gameplay from advancing. You can advance gameplay to the next frame using the 'Next Frame' button."
 			" It is way more convenient to use this feature with shortcuts, which you can configure in the 'Keyboard shortcuts' section below.");
+		
 		stateChanged = ImGui::Checkbox("Slow-Mo Mode", &slowmoGame) || stateChanged;
 		ImGui::SameLine();
 		int slowmoTimes = settings.slowmoTimes;
@@ -938,10 +1023,12 @@ void UI::prepareDrawData() {
 				slowmoTimes = 1;
 			}
 			settings.slowmoTimes = slowmoTimes;
+			needWriteSettings = true;
 		}
 		imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 		ImGui::SameLine();
 		HelpMarker("Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.");
+		
 		ImGui::Button("Take Screenshot");
 		if (ImGui::IsItemActivated()) {
 			// Regular ImGui button 'press' (ImGui::Button(...) function returning true) happens when you RELEASE the button,
@@ -960,12 +1047,26 @@ void UI::prepareDrawData() {
 		HelpMarker("When this option is enabled, screenshots will be taken every frame, unless the game is frozen, in which case"
 			" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
 			" the game down significantly. Continuous screenshotting is only allowed in training mode.");
+		
+		bool useSimplePixelBlender = settings.useSimplePixelBlender;
+		if (ImGui::Checkbox("Use Simple CPU Pixel Blender", &useSimplePixelBlender)) {
+			settings.useSimplePixelBlender = useSimplePixelBlender;
+			needWriteSettings = true;
+		}
+		ImGui::SameLine();
+		HelpMarker(settings.getOtherUIDescription(&settings.useSimplePixelBlender));
 	}
 	if (ImGui::CollapsingHeader("Settings")) {
-		if (ImGui::CollapsingHeader("Hitbox settings")) {
-			stateChanged = ImGui::Checkbox("Disable Hitbox Drawing", &hitboxDisplayDisabled) || stateChanged;
+		if (ImGui::CollapsingHeader("Hitbox Settings")) {
+			
+			bool dontShowBoxes = settings.dontShowBoxes;
+			if (ImGui::Checkbox("Don't show boxes", &dontShowBoxes)) {
+				settings.dontShowBoxes = dontShowBoxes;
+				needWriteSettings = true;
+			}
 			ImGui::SameLine();
-			HelpMarker("Disables display of hitboxes/boxes. All other features of the mod continue to work normally.");
+			HelpMarker(settings.getOtherUIDescription(&settings.dontShowBoxes));
+			
 			bool drawPushboxCheckSeparately = settings.drawPushboxCheckSeparately;
 			if (ImGui::Checkbox("Draw Pushbox Check Separately", &drawPushboxCheckSeparately)) {
 				settings.drawPushboxCheckSeparately = drawPushboxCheckSeparately;
@@ -973,6 +1074,7 @@ void UI::prepareDrawData() {
 			}
 			ImGui::SameLine();
 			HelpMarker(settings.getOtherUIDescription(&settings.drawPushboxCheckSeparately));
+			
 			{
 				std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
 				size_t newLen = settings.screenshotPath.size();
@@ -983,7 +1085,7 @@ void UI::prepareDrawData() {
 				screenshotsPathBuf[newLen] = '\0';
 			}
 			
-			ImGui::Text("Screenshots path");
+			ImGui::Text("Screenshots Path");
 			ImGui::SameLine();
 	        float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
 	        ImGui::SetNextItemWidth(w);
@@ -1004,6 +1106,7 @@ void UI::prepareDrawData() {
 			}
 			ImGui::SameLine();
 			HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
+			
 			bool allowContinuousScreenshotting = settings.allowContinuousScreenshotting;
 			if (ImGui::Checkbox("Allow Continuous Screenshotting When Button Is Held", &allowContinuousScreenshotting)) {
 				settings.allowContinuousScreenshotting = allowContinuousScreenshotting;
@@ -1011,6 +1114,7 @@ void UI::prepareDrawData() {
 			}
 			ImGui::SameLine();
 			HelpMarker(settings.getOtherUIDescription(&settings.allowContinuousScreenshotting));
+			
 			bool dontUseScreenshotTransparency = settings.dontUseScreenshotTransparency;
 			if (ImGui::Checkbox("Take Screenshots Without Transparency", &dontUseScreenshotTransparency)) {
 				settings.dontUseScreenshotTransparency = dontUseScreenshotTransparency;
@@ -1018,12 +1122,68 @@ void UI::prepareDrawData() {
 			ImGui::SameLine();
 			HelpMarker(settings.getOtherUIDescription(&settings.dontUseScreenshotTransparency));
 		}
-		if (ImGui::CollapsingHeader("Keyboard shortcuts")) {
+		if (ImGui::CollapsingHeader("Framebar Settings")) {
+			bool neverIgnoreHitstop = settings.neverIgnoreHitstop;
+			if (ImGui::Checkbox("Never Ignore Hitstop", &neverIgnoreHitstop)) {
+				settings.neverIgnoreHitstop = neverIgnoreHitstop;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.neverIgnoreHitstop));
+			
+			bool considerRunAndWalkNonIdle = settings.considerRunAndWalkNonIdle;
+			if (ImGui::Checkbox("Consider Running And Walking Non-Idle", &considerRunAndWalkNonIdle)) {
+				settings.considerRunAndWalkNonIdle = considerRunAndWalkNonIdle;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.considerRunAndWalkNonIdle));
+			
+			bool considerKnockdownWakeupAndAirtechIdle = settings.considerKnockdownWakeupAndAirtechIdle;
+			if (ImGui::Checkbox("Consider Knockdown, Wakeup and Airtech Idle", &considerKnockdownWakeupAndAirtechIdle)) {
+				settings.considerKnockdownWakeupAndAirtechIdle = considerKnockdownWakeupAndAirtechIdle;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.considerKnockdownWakeupAndAirtechIdle));
+			
+			bool useColorblindHelp = settings.useColorblindHelp;
+			if (ImGui::Checkbox("Use Colorblindness Help", &useColorblindHelp)) {
+				settings.useColorblindHelp = useColorblindHelp;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.useColorblindHelp));
+			
+			bool showFramebar = settings.showFramebar;
+			if (ImGui::Checkbox("Show Framebar", &showFramebar)) {
+				settings.showFramebar = showFramebar;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.showFramebar));
+			
+			int framebarHeight = settings.framebarHeight;
+			ImGui::SetNextItemWidth(80.F);
+			if (ImGui::InputInt("Framebar Height", &framebarHeight, 1, 1, 0)) {
+				if (framebarHeight <= 0) {
+					framebarHeight = 1;
+				}
+				settings.framebarHeight = framebarHeight;
+				needWriteSettings = true;
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.framebarHeight));
+		}
+		if (ImGui::CollapsingHeader("Keyboard Shortcuts")) {
 			keyComboControl(settings.modWindowVisibilityToggle);
 			keyComboControl(settings.gifModeToggle);
 			keyComboControl(settings.gifModeToggleBackgroundOnly);
 			keyComboControl(settings.gifModeToggleCameraCenterOnly);
+			keyComboControl(settings.toggleCameraCenterOpponent);
 			keyComboControl(settings.gifModeToggleHideOpponentOnly);
+			keyComboControl(settings.toggleHidePlayer);
 			keyComboControl(settings.gifModeToggleHudOnly);
 			keyComboControl(settings.noGravityToggle);
 			keyComboControl(settings.freezeGameToggle);
@@ -1032,8 +1192,9 @@ void UI::prepareDrawData() {
 			keyComboControl(settings.disableHitboxDisplayToggle);
 			keyComboControl(settings.screenshotBtn);
 			keyComboControl(settings.continuousScreenshotToggle);
+			keyComboControl(settings.toggleDisableGrayHurtboxes);
 		}
-		if (ImGui::CollapsingHeader("General settings")) {
+		if (ImGui::CollapsingHeader("General Settings")) {
 			bool modWindowVisibleOnStart = settings.modWindowVisibleOnStart;
 			if (ImGui::Checkbox("Mod Window Visible On Start", &modWindowVisibleOnStart)) {
 				settings.modWindowVisibleOnStart = modWindowVisibleOnStart;
@@ -1041,6 +1202,14 @@ void UI::prepareDrawData() {
 			}
 			ImGui::SameLine();
 			HelpMarker(settings.getOtherUIDescription(&settings.modWindowVisibleOnStart));
+			
+			bool displayUIOnTopOfPauseMenu = settings.displayUIOnTopOfPauseMenu;
+			if (ImGui::Checkbox("Display Mod's UI on top of Pause Menu", &displayUIOnTopOfPauseMenu)) {
+				settings.displayUIOnTopOfPauseMenu = displayUIOnTopOfPauseMenu;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.displayUIOnTopOfPauseMenu));
 		}
 	}
 	ImGui::End();
@@ -1164,7 +1333,7 @@ void UI::prepareDrawData() {
 			
 			bool comboHappening = false;
 			for (int i = 0; i < 2; ++i) {
-				if (endScene.players[i].inPain) {
+				if (endScene.players[i].inHitstun) {
 					comboHappening = true;
 					break;
 				}
@@ -1208,7 +1377,7 @@ void UI::prepareDrawData() {
 			    	* player.extraTensionGainModifier;
 		    	total /= 10000;
 			    if (comboHappening) {
-			    	if (!player.inPain) {
+			    	if (!player.inHitstun) {
 			    		sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
 			    			printDecimal(player.dealtComboCountTensionGainModifier, 0, -3, true));
 			    		total *= player.dealtComboCountTensionGainModifier;
@@ -1244,7 +1413,7 @@ void UI::prepareDrawData() {
 			    	* player.tensionGainModifier_tensionPulseModifier;
 		    	total /= 10000;
 			    if (comboHappening) {
-			    	if (player.inPain) {
+			    	if (player.inHitstun) {
 			    		sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
 			    			printDecimal(player.receivedComboCountTensionGainModifier, 0, -3, true));
 			    		total *= player.receivedComboCountTensionGainModifier;
@@ -1459,9 +1628,9 @@ void UI::prepareDrawData() {
 			for (int i = 0; i < 2; ++i) {
 		    	PlayerInfo& player = endScene.players[i];
 			    ImGui::TableNextColumn();
-			    sprintf_s(strbuf, "%d%c * %d%c * %d%c * %d%c = %d%c", player.attackPushbackModifier, '%', player.painPushbackModifier, '%',
+			    sprintf_s(strbuf, "%d%c * %d%c * %d%c * %d%c = %d%c", player.attackPushbackModifier, '%', player.hitstunPushbackModifier, '%',
 			    	player.comboTimerPushbackModifier, '%', player.ibPushbackModifier, '%',
-			    	player.attackPushbackModifier * player.painPushbackModifier / 100
+			    	player.attackPushbackModifier * player.hitstunPushbackModifier / 100
 			    	* player.comboTimerPushbackModifier / 100
 			    	* player.ibPushbackModifier / 100, '%');
 			    ImGui::TextWrapped("%s", strbuf);
@@ -1500,7 +1669,7 @@ void UI::prepareDrawData() {
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted("Hitstun Proration");
 			AddTooltip("This is updated only when a hit happens."
-				" Hitstun proration depends on duration of air or ground combo, in frames. For air combo:\n"
+				" Hitstun proration depends on the duration of an air or ground combo, in frames. For air combo:\n"
 				">= 1080 --> 10%\n"
 				">= 840  --> 60%\n"
 				">= 600  --> 70%\n"
@@ -1710,19 +1879,51 @@ void UI::prepareDrawData() {
 			ImGui::End();
 		}
 	}
+	if (showFrameAdvTooltip) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		ImGui::Begin("Frame Advantage Help", &showFrameAdvTooltip);
+		ImGui::TextWrapped("%s",
+			"Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
+			" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
+	    	" Please note that players may become able to block earlier than they become able to attack. This difference will not be displayed, and only the time"
+	    	" when players become able to attack will be considered for frame advantage calculation.\n\n"
+	    	"The value in () means frame advantage after yours or your opponent's landing, whatever happened last."
+	    	" The landing frame advantage is measured against the other player's becoming able to attack after landing or,"
+	    	" if they never jumped, after them just becoming able to attack."
+	    	" For example, two players jump one after each other with 1f delay. Both players whiff a j.P in the air and recover in the air, then land"
+	    	" one after another with 1f delay. The player who landed first will have a +1 'landing' frame advantage and the displayed result will be:"
+	    	" ??? (+1), where ??? is the 'air' frame advantage (read below), and +1 is the 'landing' frame advantage.\n"
+	    	"The other value (not in ()) means ('air') frame advantage"
+	    	" immediately after recovering in the air or on the ground, whichever happened earlier."
+	    	" 'Air' frame advantage is measured against the other player becoming able to attack in the air or"
+	    	" on the ground, whichever happened earlier. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
+	    	" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
+	    	" +1 (-99). If both you and the opponent jumped, and you recovered in the air 1f before they did, but after they recovered"
+	    	" it took you 100 frames to fall back down"
+	    	" and them - only one, then the displayed result for you will be: +1 (-99), and for them: -1 (+99). So, 'air' frame advantage is measured"
+	    	" against recovering in the air/on the ground, 'landing' frame advantage is measured against recovering on the ground only.\n"
+	    	"\n"
+	    	"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.\n"
+	    	"Frame advantage may go into the past and use time from before the opponent entered blockstun and add that time to your frame advantage,"
+	    	" if during that time you were idle. For example, if Ky uses j.D, he recovers in the air before it goes active, then opponent gets put into blockstun,"
+	    	" then all the time that Ky was idle in the air immediately gets included in the frame advantage. For example, if you did a move that let you recover"
+	    	" in one frame, but it caused the opponent to enter blockstun 100 frames after you started your move, and the opponent spent 1 frame in blockstun,"
+	    	" you're considered +100 instead of +1. If you do not want to include attacker's pre-blockstun idle time as part of frame advantage,"
+	    	" then you may calculate frame advantage manually by adding defender's hitstop + blockstun together. They're displayed above in the 'Hitstop+X-stun' field.");
+		ImGui::End();
+	}
 	
+	if (!shaderCompilationError) {
+		graphics.getShaderCompilationError(&shaderCompilationError);
+	}
+	if (shaderCompilationError && showShaderCompilationError) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		ImGui::Begin("Shader compilation error", &showShaderCompilationError);
+		ImGui::TextWrapped("%s", shaderCompilationError->c_str());
+		ImGui::End();
+	}
 	
-	/*static ImVec2 selStart { 0.F, 0.F };
-	static ImVec2 selEnd { 0.F, 0.F };
-	static bool isDragging = false;
-	SelectionRect(&selStart, &selEnd, ImGuiMouseButton_Left, &isDragging);
-	ImGui::SetNextWindowContentSize({800.F, 500.F});
-	ImGui::Begin("Framebar", nullptr,
-		ImGuiWindowFlags_NoBackground
-		| ImGuiWindowFlags_NoCollapse
-		| ImGuiWindowFlags_NoTitleBar
-		| (isDragging ? ImGuiWindowFlags_NoMove : 0));
-	ImGui::End();*/
+	drawFramebars();
 	
 	takeScreenshot = takeScreenshotTemp;
 	imguiActive = imguiActiveTemp;
@@ -1746,7 +1947,7 @@ void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9*
 	std::unique_lock<std::mutex> uiGuard(lock);
 	initializeD3D(device);
 	
-	substituteTextureIDs(drawData, iconTexture);
+	substituteTextureIDs(device, drawData, iconTexture);
 	ImGui_ImplDX9_RenderDrawData((ImDrawData*)drawData);
 }
 
@@ -1761,7 +1962,7 @@ void UI::initialize() {
 	ImGuiIO& io = ImGui::GetIO();
 	BYTE* unused;
     io.Fonts->GetTexDataAsRGBA32(&unused, nullptr, nullptr);  // imGui complains if we don't call this before preparing its draw data
-    io.Fonts->SetTexID((ImTextureID)IMGUIFONT);  // I use fake wishy-washy IDs instead of real textures, because they're created on the
+    io.Fonts->SetTexID((ImTextureID)TEXID_IMGUIFONT);  // I use fake wishy-washy IDs instead of real textures, because they're created on the
                                                  // the graphics thread and this code is running on the main thread.
                                                  // I cannot create our textures on the main thread, because I inject our DLL in the middle
                                                  // of the app already running and I don't know if Direct3D 9 is fully thread-safe during resource creation.
@@ -2152,16 +2353,18 @@ void UI::copyDrawDataTo(std::vector<BYTE>& destinationBuffer) {
 }
 
 // Runs on the graphics thread
-void UI::substituteTextureIDs(void* drawData, IDirect3DTexture9* iconTexture) {
+void UI::substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture) {
 	ImDrawData* d = (ImDrawData*)drawData;
 	for (int i = 0; i < d->CmdListsCount; ++i) {
 		ImDrawList* drawList = d->CmdLists[i];
 		for (int j = 0; j < drawList->CmdBuffer.Size; ++j) {
 			ImDrawCmd& cmd = drawList->CmdBuffer[j];
-			if (cmd.TextureId == (ImTextureID)IMGUIFONT) {
+			if (cmd.TextureId == (ImTextureID)TEXID_IMGUIFONT) {
 				cmd.TextureId = imguiFont;
-			} else if (cmd.TextureId == (ImTextureID)GGICON) {
+			} else if (cmd.TextureId == (ImTextureID)TEXID_GGICON) {
 				cmd.TextureId = iconTexture;
+			} else if (cmd.TextureId == (ImTextureID)TEXID_FRAMES) {
+				cmd.TextureId = graphics.getFramesTexture(device);
 			}
 		}
 	}
@@ -2182,9 +2385,9 @@ void UI::initializeD3D(IDirect3DDevice9* device) {
 void UI::onImGuiMessWithFontTexID() {
 	ImGuiIO& io = ImGui::GetIO();
 	IDirect3DTexture9* tmp = (IDirect3DTexture9*)io.Fonts->TexID;  // has SetTexID() but no GetTexID()... says it will pass it back to me if I draw something. No thx
-	if (tmp != (IDirect3DTexture9*)IMGUIFONT) {
+	if (tmp != (IDirect3DTexture9*)TEXID_IMGUIFONT) {
 		imguiFont = tmp;
-		io.Fonts->SetTexID((ImTextureID)IMGUIFONT);  // undo the TexID replacement ImGui_ImplDX9_NewFrame has done. You can read more about this stupid gig we're doing in UI::initialize()
+		io.Fonts->SetTexID((ImTextureID)TEXID_IMGUIFONT);  // undo the TexID replacement ImGui_ImplDX9_NewFrame has done. You can read more about this stupid gig we're doing in UI::initialize()
 	}
 }
 
@@ -2253,7 +2456,7 @@ GGIcon coordsToGGIcon(int x, int y, int w, int h) {
 }
 
 void drawGGIcon(const GGIcon& icon) {
-	ImGui::Image((ImTextureID)GGICON, icon.size, icon.uvStart, icon.uvEnd);
+	ImGui::Image((ImTextureID)TEXID_GGICON, icon.size, icon.uvStart, icon.uvEnd);
 }
 
 GGIcon scaleGGIconToHeight(const GGIcon& icon, float height) {
@@ -2451,7 +2654,7 @@ float getItemSpacing() {
 
 bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_button, bool* isDragging)
 {
-    IM_ASSERT(start_pos != NULL);
+    /*IM_ASSERT(start_pos != NULL);
     IM_ASSERT(end_pos != NULL);
     if (ImGui::IsMouseClicked(mouse_button))
         *start_pos = ImGui::GetMousePos();
@@ -2463,5 +2666,427 @@ bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_bu
         draw_list->AddRect(*start_pos, *end_pos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 255)));   // Border
         draw_list->AddRectFilled(*start_pos, *end_pos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 50)));    // Background
     }
-    return ImGui::IsMouseReleased(mouse_button);
+    return ImGui::IsMouseReleased(mouse_button);*/
+    return false;
+}
+
+bool UI::addImage(HMODULE hModule, WORD resourceId, PngResource& resource) {
+    if (!loadPngResource(hModule, resourceId, resource)) return false;
+    texturePacker.addImage(resource);
+	return true;
+}
+
+void outlinedText(ImVec2 pos, const char* text) {
+	ImGui::SetCursorPos({ pos.x, pos.y - 1.F });
+	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	
+	ImGui::SetCursorPos({ pos.x, pos.y + 1.F });
+	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	
+	ImGui::SetCursorPos({ pos.x - 1.F, pos.y - 1.F });
+	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	
+	ImGui::SetCursorPos({ pos.x + 1.F, pos.y - 1.F });
+	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	
+	ImGui::SetCursorPos({ pos.x - 1.F, pos.y + 1.F });
+	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	
+	ImGui::SetCursorPos({ pos.x + 1.F, pos.y + 1.F });
+	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	
+	ImGui::SetCursorPos({ pos.x, pos.y });
+	ImGui::TextUnformatted(text);
+}
+
+const PngResource& UI::getPackedFramesTexture() const {
+	return packedTexture;
+}
+
+int numDigits(int num) {
+	int answer = 1;
+	num /= 10;
+	while (num) {
+		++answer;
+		num /= 10;
+	}
+	return answer;
+}
+
+const PngResource& UI::chooseColorblind(const PngResource& colorblindFrame) {
+	if (settings.useColorblindHelp) {
+		return colorblindFrame;
+	}
+	if (&colorblindFrame == &startupFrame) {
+		return startupFrameNonColorblind;
+	} else if (&colorblindFrame == &activeFrame) {
+		return activeFrameNonColorblind;
+	} else if (&colorblindFrame == &recoveryFrame) {
+		return recoveryFrameNonColorblind;
+	} else if (&colorblindFrame == &nonActiveFrame) {
+		return nonActiveFrameNonColorblind;
+	} else if (&colorblindFrame == &projectileFrame) {
+		return projectileFrameNonColorblind;
+	} else if (&colorblindFrame == &landingRecoveryFrame) {
+		return landingRecoveryFrameNonColorblind;
+	} else if (&colorblindFrame == &xstunFrame) {
+		return xstunFrameNonColorblind;
+	} else {
+		return colorblindFrame;
+	}
+}
+
+void UI::drawFramebars() {
+	if (!settings.showFramebar) return;
+	static ImVec2 selStart { 0.F, 0.F };
+	static ImVec2 selEnd { 0.F, 0.F };
+	static bool isDragging = false;
+	SelectionRect(&selStart, &selEnd, ImGuiMouseButton_Left, &isDragging);
+	
+	float settingsFramebarHeight = (float)settings.framebarHeight;
+	if (settingsFramebarHeight < 5.F) {
+		settingsFramebarHeight = 5.F;
+	}
+	
+	static const float outerBorderThickness = 2.F;
+	const float frameItselfHeight = settingsFramebarHeight - outerBorderThickness - outerBorderThickness;
+	static const float frameWidthOriginal = 9.F;
+	static const float frameHeightOriginal = 15.F;
+	static const float frameNumberHeightOriginal = 11.F;
+	static const float firstFrameHeight = 19.F;
+	static const float frameMarkerWidth = 11.F;
+	static const float frameMarkerHeight = 6.F;
+	static const float markerPaddingHeight = -1.F;
+	static const float paddingBetweenFramebars = 5.F;
+	static const float innerBorderThickness = 1.F;
+	static const float paddingBetweenTextAndFramebar = 5.F;
+	static const float textStartX = 1.F;
+	static const float firstFrameHeightDiff = firstFrameHeight - frameHeightOriginal;
+	static const float frameWidthScaled = frameWidthOriginal * frameItselfHeight / frameHeightOriginal;
+	static const float frameNumberPaddingY = 2.F;
+	static const float highlighterWidth = 2.F;
+	
+	float maxTopPadding = firstFrameHeightDiff - outerBorderThickness;
+	static const float otherTopPadding = -outerBorderThickness - markerPaddingHeight + frameMarkerHeight;
+	if (otherTopPadding > maxTopPadding) {
+		maxTopPadding = otherTopPadding;
+	}
+	float bottomPadding = -outerBorderThickness - markerPaddingHeight + frameMarkerHeight;
+	if (bottomPadding < 0.F) {
+		bottomPadding = 0.F;
+	}
+	
+	const float oneFramebarHeight = outerBorderThickness
+		+ frameItselfHeight
+		+ outerBorderThickness;
+	
+	std::vector<const EntityFramebar*> framebars(2 + endScene.combinedFramebars.size(), nullptr);
+	int framebarsCount = 0;
+	int playerFramebarLimit = 2;
+	for (int i = 0; i < 2; ++i) {
+		for (const EntityFramebar& entityFramebar : endScene.framebars) {
+			if (entityFramebar.playerIndex == i && entityFramebar.belongsToPlayer() && playerFramebarLimit) {
+				framebars[framebarsCount++] = &entityFramebar;
+				--playerFramebarLimit;
+				break;
+			}
+		}
+		for (const EntityFramebar& entityFramebar : endScene.combinedFramebars) {
+			if (entityFramebar.playerIndex == i && entityFramebar.belongsToProjectile()) {
+				framebars[framebarsCount++] = &entityFramebar;
+			}
+		}
+	}
+	for (const EntityFramebar& entityFramebar : endScene.combinedFramebars) {
+		if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1) {
+			framebars[framebarsCount++] = &entityFramebar;
+		}
+	}
+	if (framebarsCount != framebars.size()) {
+		framebars.erase(framebars.begin() + framebarsCount, framebars.end());
+	}
+	
+	float framebarsPaddingYTotal = 0.F;
+	if (framebarsCount) {
+		framebarsPaddingYTotal = (float)(framebarsCount - 1) * paddingBetweenFramebars;
+	}
+	ImGui::SetNextWindowContentSize({ 0.F,
+		maxTopPadding
+		+ oneFramebarHeight
+		* (float)framebarsCount
+		+ framebarsPaddingYTotal
+		+ bottomPadding
+	});
+	ImGui::Begin("Framebar", nullptr,
+		ImGuiWindowFlags_NoBackground
+		| ImGuiWindowFlags_NoCollapse
+		| ImGuiWindowFlags_NoTitleBar
+		| (isDragging ? ImGuiWindowFlags_NoMove : 0));
+	
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	if (ImGui::GetScrollMaxY() > 0.001F) {
+		drawList->AddLine({ImGui::GetWindowPos().x, ImGui::GetWindowPos().y + 1.F},
+			{ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + 1.F},
+			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+			1.F);
+		drawList->AddLine({ImGui::GetWindowPos().x, ImGui::GetWindowPos().y + ImGui::GetWindowHeight() - 2.F},
+			{ImGui::GetWindowPos().x + ImGui::GetWindowWidth(), ImGui::GetWindowPos().y + ImGui::GetWindowHeight() - 2.F},
+			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+			1.F);
+	}
+	
+	char maxText[EntityFramebar::titleShortCharsCountMax + 1];
+	memset(maxText, 'W', sizeof maxText);  // I know it's monospace
+	maxText[sizeof maxText - 1] = '\0';
+	ImVec2 maxTextSize = ImGui::CalcTextSize(maxText);
+	
+	const float framesX = ImGui::GetWindowPos().x
+		+ textStartX
+		+ maxTextSize.x 
+		+ paddingBetweenTextAndFramebar
+		+ outerBorderThickness;
+	const float framesXEnd = ImGui::GetWindowPos().x
+		+ ImGui::GetContentRegionMax().x
+		+ 5.F  // window padding?
+		- outerBorderThickness
+		+ innerBorderThickness;
+	
+	float y = ImGui::GetWindowPos().y 
+		+ outerBorderThickness
+		+ maxTopPadding;
+    
+	static const float framesCountFloat = (float)_countof(Framebar::frames);
+	const int framebarPosition = settings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
+	ImU32 tintDarker = ImGui::GetColorU32(IM_COL32(128, 128, 128, 255));
+	
+	
+	float frameNumberHeightDiff = frameHeightOriginal - frameItselfHeight;
+	float frameNumberPaddingYUse = frameNumberPaddingY;
+	if (frameNumberHeightDiff >= 0.F) {
+		if (frameNumberHeightDiff >= frameNumberPaddingY + frameNumberPaddingY) {
+			frameNumberPaddingYUse = 0.F;
+		} else {
+			frameNumberPaddingYUse = frameNumberPaddingY - frameNumberHeightDiff * 0.5F;
+		}
+	} else {
+		frameNumberPaddingYUse = frameNumberPaddingY;
+	}
+	const float frameNumberHeight = frameItselfHeight - frameNumberPaddingYUse - frameNumberPaddingYUse;
+	
+	struct FrameDims {
+		float x;
+		float width;
+	};
+	FrameDims preppedDims[_countof(Framebar::frames)];
+	float highlighterStartX;
+	float highlighterEndX;
+	
+	if (framesXEnd > framesX) {
+		float x = framesX;
+		for (int i = 0; i < _countof(Framebar::frames); ++i) {
+			float thisFrameXEnd = std::round((framesXEnd - framesX) * (float)(i + 1) / framesCountFloat + framesX);
+			float thisFrameWidth = thisFrameXEnd - x;
+			float thisFrameWidthWithoutOutline = thisFrameWidth - 1.F;
+			
+			if (thisFrameWidth < 0.99F) {
+				thisFrameWidth = 1.F;
+				thisFrameWidthWithoutOutline = 1.F;
+			}
+			
+			FrameDims& dims = preppedDims[i];
+			dims.x = x;
+			dims.width = thisFrameWidthWithoutOutline;
+			
+			x = thisFrameXEnd;
+		}
+		
+		highlighterStartX = preppedDims[EntityFramebar::confinePos(framebarPosition + 1)].x - innerBorderThickness;
+		highlighterEndX = highlighterStartX + highlighterWidth;
+		
+	}
+	
+	
+	for (const EntityFramebar* entityFramebarPtr : framebars) {
+		const EntityFramebar& entityFramebar = *entityFramebarPtr;
+		float frameNumberYTopTemp = y + frameNumberPaddingYUse;
+		float frameNumberYBottom = frameNumberYTopTemp + frameNumberHeight;
+		float frameNumberYTop;
+		if (frameNumberPaddingYUse > 0.01F) {
+			frameNumberYTop = std::floor(frameNumberYTopTemp);
+			frameNumberYBottom -= frameNumberYTopTemp - frameNumberYTop;
+		} else {
+			frameNumberYTop = frameNumberYTopTemp;
+		}
+		const Framebar& framebar = settings.neverIgnoreHitstop ? entityFramebar.hitstop : entityFramebar.main;
+		
+		if (framesXEnd > framesX) {
+		    drawList->AddRectFilled(
+		    	{ framesX - outerBorderThickness, y - outerBorderThickness },
+		    	{ framesXEnd, y - outerBorderThickness + oneFramebarHeight },
+		    	ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)));
+		}
+		
+		const char* title;
+		if (entityFramebar.titleShort) {
+			title = entityFramebar.titleShort;
+		} else {
+			title = "???";
+		}
+		ImVec2 textSize = ImGui::CalcTextSize(title);
+		outlinedText({
+				textStartX + maxTextSize.x - textSize.x,
+				y - outerBorderThickness + (oneFramebarHeight - textSize.y) * 0.5F - ImGui::GetWindowPos().y
+			}, title);
+		if (!entityFramebar.titleFull.empty()) {
+			AddTooltip(entityFramebar.titleFull.c_str());
+		}
+		
+		if (framesXEnd > framesX) {
+			
+			for (int i = 0; i < _countof(Framebar::frames); ++i) {
+				const Frame& frame = framebar[i];
+				const FrameDims& dims = preppedDims[i];
+				
+				ImU32 tint = -1;
+				if (i > framebarPosition) {
+					tint = tintDarker;
+				}
+				
+				switch (frame.type) {
+					case FT_NONE: break;
+					
+					#define drawFrame(enumFrameName, pngResourceFrameName) \
+						case enumFrameName: { \
+							const PngResource& pngRef = pngResourceFrameName; \
+							drawList->AddImage((ImTextureID)TEXID_FRAMES, \
+								{ dims.x, y }, \
+								{ dims.x + dims.width, y + frameItselfHeight }, \
+								{ pngRef.uStart, pngRef.vStart }, \
+								{ pngRef.uEnd, pngRef.vEnd }, \
+								tint); \
+							break; \
+						}
+					
+					drawFrame(FT_IDLE, chooseColorblind(idleFrame))
+					drawFrame(FT_HITSTOP, chooseColorblind(idleFrame))
+					drawFrame(FT_ACTIVE, chooseColorblind(activeFrame))
+					drawFrame(FT_STARTUP, chooseColorblind(startupFrame))
+					drawFrame(FT_RECOVERY, chooseColorblind(recoveryFrame))
+					drawFrame(FT_NON_ACTIVE, chooseColorblind(nonActiveFrame))
+					drawFrame(FT_PROJECTILE, chooseColorblind(projectileFrame))
+					drawFrame(FT_LANDING_RECOVERY, chooseColorblind(landingRecoveryFrame))
+					drawFrame(FT_XSTUN, chooseColorblind(xstunFrame))
+					
+					#undef drawFrame
+				}
+				
+				if (frame.isFirst) {
+					drawList->AddImage((ImTextureID)TEXID_FRAMES,
+						{
+							dims.x - innerBorderThickness * 0.5F - dims.width * 0.5F,
+							y - firstFrameHeightDiff
+						},
+						{
+							dims.x - innerBorderThickness * 0.5F + dims.width * 0.5F,
+							y + firstFrameHeight
+						},
+						{ firstFrame.uStart, firstFrame.vStart },
+						{ firstFrame.uEnd, firstFrame.vEnd },
+						-1);
+				}
+			}
+			
+			{
+				FrameType lastFrameType = framebar.preFrame;
+				int sameFrameTypeCount = framebar.preFrameLength;
+				int visualFrameCount = 0;
+				
+				for (int i = 0; i < _countof(Framebar::frames); ++i) {
+					int ind = (framebarPosition + 1 + i) % _countof(Framebar::frames);
+					const Frame& frame = framebar[ind];
+					
+					enum DivisionType {
+						DIVISION_TYPE_NONE,
+						DIVISION_TYPE_DIFFERENT_TYPES,
+						DIVISION_TYPE_REACHED_END
+					} divisionType = DIVISION_TYPE_NONE;
+					
+					int displayPos = ind - 1;
+					
+					if (frame.type == lastFrameType
+							&& !frame.isFirst
+							&& i == _countof(Framebar::frames) - 1
+							&& lastFrameType != FT_NONE) {
+						divisionType = DIVISION_TYPE_REACHED_END;
+						++displayPos;
+						++sameFrameTypeCount;
+						++visualFrameCount;
+					} else if (!(frame.type == lastFrameType && !frame.isFirst)
+							&& i != 0
+							&& lastFrameType != FT_NONE) {
+						divisionType = DIVISION_TYPE_DIFFERENT_TYPES;
+					}
+					
+					if (
+							divisionType != DIVISION_TYPE_NONE
+							&& (sameFrameTypeCount > 3 || sameFrameTypeCount > 1 && i == 0 && divisionType == DIVISION_TYPE_DIFFERENT_TYPES)
+							&& numDigits(sameFrameTypeCount) <= visualFrameCount
+						) {
+						
+						displayPos = EntityFramebar::confinePos(displayPos);
+						
+						int prevIndCounter = 0;
+						int sameFrameTypeCountModif = sameFrameTypeCount;
+						while (sameFrameTypeCountModif) {
+							
+							int remainder = sameFrameTypeCountModif % 10;
+							sameFrameTypeCountModif /= 10;
+							
+							const PngResource& digitImg = digitFrame[remainder];
+							
+							const FrameDims& prevDim = preppedDims[EntityFramebar::confinePos(displayPos - prevIndCounter)];
+							float digitX = prevDim.x;
+							float digitWidth = prevDim.width;
+							
+							if (digitWidth > frameWidthScaled) {
+								digitX += (digitWidth - frameWidthScaled) * 0.5F;
+								digitWidth = frameWidthScaled;
+							}
+							
+							drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								{ digitX, frameNumberYTop },
+								{ digitX + digitWidth, frameNumberYBottom },
+								{ digitImg.uStart, digitImg.vStart },
+								{ digitImg.uEnd, digitImg.vEnd });
+							
+							++prevIndCounter;
+						}
+					}
+					
+					if (frame.type == lastFrameType && !frame.isFirst) {
+						++sameFrameTypeCount;
+						++visualFrameCount;
+					} else {
+						lastFrameType = frame.type;
+						sameFrameTypeCount = 1;
+						visualFrameCount = 1;
+					}
+				}
+			}
+			
+			{
+				const float yStart = y
+					- outerBorderThickness;
+				
+				drawList->AddRectFilled(
+			    	{ highlighterStartX, yStart },
+			    	{ highlighterEndX, yStart + oneFramebarHeight },
+			    	ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));
+			}
+		}
+		
+		y += oneFramebarHeight + paddingBetweenFramebars;
+	}
+	
+	ImGui::End();
 }

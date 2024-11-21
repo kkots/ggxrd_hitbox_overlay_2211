@@ -204,6 +204,12 @@ bool Game::onDllMain() {
 		{ -0x26 },
 		nullptr, "drawJackoHouseHp");
 	
+	roundendSuperfreezeCounterOffset = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"83 bf ?? ?? ?? ?? 00 7e 31 33 d2 8b c2 3b 97 b0 00 00 00 7d 25 8b 84 87 f8 01 00 00 42 85 c0 74 19 8b 88 18 01 00 00 f6 c1 01 75 df 81 c9 00 00 00 04 89 88 18 01 00 00 eb d1",
+		{ 2, 0 },
+		nullptr, "roundendSuperfreezeCounter");
+	
 	return !error;
 }
 
@@ -617,4 +623,52 @@ void Game::onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code) 
 		}
 		*pressed = false;
 	}
+}
+
+bool Game::isFading() const {
+	if (!*aswEngine) return false;
+	BYTE* REDHUD_Battle = *(BYTE**)(*aswEngine + REDHUD_BattleOffset);
+	BYTE* vtable = *(BYTE**)REDHUD_Battle;
+	getGameViewportClient_t getGameViewportFunc = *(getGameViewportClient_t*)(vtable + 0x384);  // if this offset breaks, search for string AREDHUDexecGetGameViewportClient
+	// it will be used in only one place, and at offset +0x4 from that place is the corresponding function pointer.
+	// go into this function. In it, it's doing uVar1 = (**(code **)(*this + 900))(); 900 is the up-to-date offset in the vtable to this function. Change it here if it's different
+	BYTE* REDGameViewportClient = (BYTE*)getGameViewportFunc(REDHUD_Battle);
+	return (*(DWORD*)(REDGameViewportClient + 0x128) & 0x1) != 0;  // 0x128 & 0x1 is FadeDraw, & 0x2 is FadeEnd and was spotted to be set long after fade is over
+	// if this offset breaks, you need to list the members of the REDGameViewportClient UObject and find it by 'FadeDraw' name.
+	// Listing contents of UObjects is easy. First you need to find the FNameNames. Search for this byte sequence in RAM:
+	// 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 4E 6F 6E 65 00 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00 42 79 74 65 50 72 6F 70 65 72 74 79
+	// It will be at an ADDRESS. Next search for Array of Byte again, but the array is made up of this ADDRESS, then ADDRESS + 0x15, and then ADDRESS + 0x32.
+	// For example, if ADDRESS is 0x3c40000, then search for 00 00 C4 03 15 00 C4 03 32 00 C4 03.
+	// This byte sequence will be at an ADDRESS (forget the old ADDRESS). This ADDRESS is the current value of FNameNames pointer.
+	// To find where FNamesNames is relative to the in-memory EXE file,
+	// just search for '4 Bytes' and enter the ADDRESS. The first search result will be 'GuiltyGearXrd.exe+something' and that's where it is.
+	// Now that you've found FNameNames, you need to know a bit about UObject and UClass structs.
+	// At 0x2c, every UObject has an FName field called 'Name'. FName is just a number, so to get a string from it you have to (char*)(*(BYTE**)(*(BYTE**)FNameNames + (int)fName * 4) + 0x10)
+	// At 0x34, every UObject has a pointer to its UClass. UClass extends UObject.
+	// Because every UClass object is of type Class, to get the superclass you get it from another field in the UClass: 0x48.
+	// There are two ways to list all members of a UClass: through Children (0x4c, UField*, extends UObject) or through PropertyLink (0x70, UProperty*, extends UField).
+	// Each UField at 0x3c points to the next UField.
+	// In each UField, the class (0x34) will be its type, and the name (0x2c) will be its name.
+	// Each UProperty points to where it is inside the UObject by specifying an offset relative to the UObject's start. The offset is specified at 0x60 in UProperty. UFields don't have this.
+	// Bool properties (class BoolProperty) also specify a bitmask at 0x70.
+	// StructProperty specifies a nested type at 0x70, it's a ScriptStruct*.
+	// MapProperty specifies key UProperty* at 0x70 and value UProperty* at 0x74 but those seem to be broken.
+	// ArrayProperty specifies the type of its members at 0x70, a UProperty*.
+	// ObjectProperty and ComponentProperty specify UClass* at 0x70.
+	// ByteProperty specifies a UEnum* at 0x70. UEnum extends UField and has a TArray<FName> at 0x40.
+	// TArray<TypeName> is a struct TArray<TypeName> {
+	//   int ArrayNum;
+	//   int ArrayMax;
+	//   TypeName* Data;
+	// };  FName is 8 bytes long but the index we need is at offset 0 and only 4 bytes long. The second 4 bytes are the number part of an FName and if it's non-0,
+	//     an underscore is added to the string part of the name, followed by a decimal print of the number-1. For example, FName 0x00000000 0x00000000 is "None", but
+	//     FName 0x00000000 0x00000001 is "None_0"
+	// To list fields of a ScriptStruct you have to treat it as a UClass and list its members directly either through Children or PropertyLink.
+	// I have a tool that automates some of this, but it's shit just make your own
+}
+
+bool Game::isRoundend() const {
+	if (!roundendSuperfreezeCounterOffset) return false;
+	if (!*aswEngine) return false;
+	return *(int*)(*aswEngine + 4 + roundendSuperfreezeCounterOffset) > 0;
 }

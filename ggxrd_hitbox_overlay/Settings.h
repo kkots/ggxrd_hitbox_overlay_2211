@@ -10,7 +10,6 @@ class Settings
 public:
 	bool onDllMain();
 	void onDllDetach();
-	void readSettingsIfChanged();
 	struct Key {
 		const char* name = nullptr;
 		const char* uiName = nullptr;
@@ -29,18 +28,31 @@ public:
 	std::vector<int> continuousScreenshotToggle;
 	std::vector<int> gifModeToggleBackgroundOnly;
 	std::vector<int> gifModeToggleCameraCenterOnly;
+	std::vector<int> toggleCameraCenterOpponent;
 	std::vector<int> gifModeToggleHideOpponentOnly;
+	std::vector<int> toggleHidePlayer;
 	std::vector<int> gifModeToggleHudOnly;
 	std::vector<int> screenshotBtn;
 	std::vector<int> modWindowVisibilityToggle;
+	std::vector<int> toggleDisableGrayHurtboxes;
 	std:: mutex screenshotPathMutex;
 	std::string screenshotPath;
+	std::atomic_bool displayUIOnTopOfPauseMenu = false;
 	std::atomic_bool allowContinuousScreenshotting = false;
 	std::atomic_bool dontUseScreenshotTransparency = false;
 	std::atomic_int slowmoTimes = 3;
+	std::atomic_int framebarHeight = 19;
 	std::atomic_bool startDisabled = false;
 	std::atomic_bool drawPushboxCheckSeparately = true;
 	std::atomic_bool modWindowVisibleOnStart = true;
+	std::atomic_bool neverIgnoreHitstop = false;
+	std::atomic_bool considerRunAndWalkNonIdle = false;
+	std::atomic_bool useSimplePixelBlender = false;
+	std::atomic_bool dontShowBoxes = false;
+	std::atomic_bool neverDisplayGrayHurtboxes = false;
+	std::atomic_bool showFramebar = true;
+	std::atomic_bool useColorblindHelp = false;
+	std::atomic_bool considerKnockdownWakeupAndAirtechIdle = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);
 	void writeSettings();
@@ -78,7 +90,6 @@ private:
 	std::vector<std::string> split(const std::string& str, char c) const;
 	bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes);
 	bool parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer);
-	std::string formatInteger(int value);
 	bool parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue);
 	const char* formatBoolean(bool value);
 	std::wstring getCurrentDirectory();

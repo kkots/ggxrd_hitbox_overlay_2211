@@ -1,6 +1,103 @@
 #pragma once
 #include "Entity.h"
 #include "Moves.h"
+#include <string>
+
+enum FrameType : char {
+	FT_NONE,
+	FT_IDLE,
+	FT_HITSTOP,
+	FT_ACTIVE,
+	FT_STARTUP,
+	FT_RECOVERY,
+	FT_NON_ACTIVE,
+	FT_PROJECTILE,
+	FT_LANDING_RECOVERY,
+	FT_XSTUN
+};
+
+// This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
+// This means that types like std::vector are not allowed.
+struct Frame {
+	DWORD aswEngineTick;
+	FrameType type;
+	bool strikeInful:1;
+	bool throwInvul:1;
+	bool superArmorActive:1;
+	bool isFirst:1;
+	bool enableNormals:1;
+	bool canBlock:1;
+};
+
+// This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
+// This means that types like std::vector are not allowed.
+struct Framebar {
+	FrameType preFrame = FT_NONE;
+	DWORD preFrameLength = 0;
+	bool requestFirstFrame = false;
+	Frame frames[80] { 0 };
+	bool completelyEmpty = false;
+	inline Frame& operator[](int index) { return frames[index]; }
+	inline const Frame& operator[](int index) const { return frames[index]; }
+	void clear();
+	int findTickNoGreaterThan(int startingPos, DWORD tick) const;
+	void soakUpIntoPreFrame(const Frame& srcFrame);
+	void combineFramebar(const Framebar& source);
+};
+
+struct EntityFramebar {
+	int playerIndex = -1;
+	int id = -1;
+	const MoveInfo* move = nullptr;
+	static const int titleShortCharsCountMax = 12;
+	char titleShort[titleShortCharsCountMax * 4 + 1];  // UTF8, 12 characters, 4 bytes maximum each, plus a terminating null
+	std::string titleFull;
+	Framebar main { FT_NONE };  // the one framebar that is displayed
+	Framebar idle { FT_NONE };  // because we don't update the framebar when players are idle and reset it when an action beghins after
+	                            // EndScene::framebarIdleForLimit f of idle, if an action begins before EndScene::framebarIdleForLimit f
+	                            // of idle with some non-zero f idle time, we need to display what happened during that
+	                            // idle time so we will take that information from here. This framebar shall be updated even during idle time
+	Framebar hitstop { FT_NONE };  // we omit hitstop in the main framebar, but there's a setting to show it anyway, and we want the
+	                               // framebar to update upon changing this setting without having to re-record the action.
+	                               // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
+	Framebar idleHitstop { FT_NONE };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
+	                                   // described in the 'idle' framebar
+	bool foundOnThisFrame = false;
+	void setTitle(const char* text, const char* textFull = nullptr);
+	void copyTitle(const EntityFramebar& source);
+	void changePreviousFrames(FrameType prevType,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame = false);
+	static int confinePos(int pos);
+	inline static void decrementPos(int& pos) { if (pos == 0) pos = _countof(main.frames) - 1; else --pos; }
+	inline static void incrementPos(int& pos) { if (pos == _countof(main.frames) - 1) pos = 0; else ++pos; }
+	inline bool belongsToProjectile() const { return id != -1; }
+	inline bool belongsToPlayer() const { return id == -1; }
+	// maxCodepointCount - pass in a pointer to the maximum number of whole characters (codepoints). This
+	//  number of characters will be included in the byte-length that will be returned via the same
+	//  (maxCodepointCount) pointer.
+	
+	/// <summary>
+	/// Determines the length of the UTF8 encoded string in both bytes, not including the terminating null character,
+	/// and codepoints (whole UTF32 characters), as well as returns the number of bytes, not including the terminating
+	/// null character, that the left portion of the string of given maximum codepoint length is occupying.
+	/// </summary>
+	/// <param name="txt">The UTF8 encoded string, must be null terminated.</param>
+	/// <param name="byteLen">Returns the length of the string, in bytes, not including the terminating null character.</param>
+	/// <param name="cpCountTotal">Returns the number of codepoints in the string, not including the terminating null character.</param>
+	/// <param name="maxCodepointCount">Provide the maximum number of codepoints to use to calculate byteLenBelowMax.</param>
+	/// <param name="byteLenBelowMax">Uses the first maxCodepointCount codepoints of the string to calculate their byte length
+	/// and return it. Does not include terminating null characters in either the calculation or the return value.
+	/// If the provided maxCodepointCount is more than the total number of codepoints in the string, returns the same
+	/// value as byteLen.</param>
+	static void utf8len(const char* txt, int* byteLen, int* cpCountTotal, int maxCodepointCount, int* byteLenBelowMax);
+};
+
 struct ActiveData {
 	short actives = 0;
 	short nonActives = 0;
@@ -101,6 +198,8 @@ struct EddieInfo {
 	int prevResource = 0;
 	int consumedResource = 0;
 	
+	DWORD moveStartTime_aswEngineTick = 0;
+	
 	bool idle:1;
 	bool prevEnemyIdle:1;
 	bool prevEnemyIdleLanding:1;
@@ -121,16 +220,21 @@ struct ProjectileInfo {
 	int startup = 0;  // if active frames have not started yet, is equal to total. Otherwise, means time since the owning player has started their last move until active frames, inclusive
 	int total = 0;  // time since the owning player started their last move
 	int hitNumber = 0;  // updated every frame
+	DWORD creationTime_aswEngineTick = 0;
 	ActiveDataArray actives;
 	const MoveInfo* move = nullptr;
 	PrevStartupsInfo prevStartups { 0 };
 	SpriteFrameInfo sprite;
+	int framebarId = -1;
+	char creatorName[32] { 0 };
 	char animName[32] { 0 };
 	bool markActive:1;  // cleared at the start of prepareDrawData. True means hitboxes were found on this frame, or on this logic tick this projectile registered a hit.
 	bool startedUp:1;  // cleared upon disabling. True means active frames have started.
 	bool landedHit:1;  // cleared at the start of each logic tick. Set to true from a hit registering function hook.
 	bool disabled:1;  // set to true for all projectiles belonging to a player when the player starts a new move.
 	bool inNewSection:1;
+	bool isDangerous:1;
+	bool superArmorActive:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -191,7 +295,7 @@ struct PlayerInfo {
 	int fdPushbackMax = 0;
 	int comboTimer = 0;
 	int attackPushbackModifier = 100;
-	int painPushbackModifier = 100;
+	int hitstunPushbackModifier = 100;
 	int comboTimerPushbackModifier = 100;
 	int ibPushbackModifier = 100;
 	
@@ -277,7 +381,10 @@ struct PlayerInfo {
 	int playerval0 = 0;
 	int playerval1 = 0;
 	int maxDI = 0;
+	int remainingDoubleJumps = 0;
 	EddieInfo eddie { 0 };
+	
+	DWORD moveStartTime_aswEngineTick = 0;
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };
@@ -288,6 +395,7 @@ struct PlayerInfo {
 	bool idle:1;  // is able to perform a non-cancel move
 	bool idlePlus:1;  // is able to perform a non-cancel move. Jump startup and landing are considered 'idle'
 	bool idleLanding:1;  // is able to perform a non-cancel move. Time spent in the air after recovering from an air move is considered 'not idle'
+	bool idleForFramebar:1;
 	bool startedUp:1;  // if true, recovery frames or gaps in active frames are measured instead of startup
 	bool onTheDefensive:1;  // true when blocking or being combo'd/hit, or when teching or waking up
 	bool landingOrPreJump:1;  // becomes true when transitioning from idle to prejump/landing. Becomes false when exiting prejump/landing
@@ -302,7 +410,7 @@ struct PlayerInfo {
 	// If the animation changes to another one, this has to be reset.
 	bool theAnimationIsNotOverYetLolConsiderBusyNonAirborneFramesAsLandingAnimation:1;
 	bool airborne:1;  // is y > 0 or speed y != 0. Note that tumbling state and pre-landing frame may be y == 0, and getting hit by Greed Sever puts you airborne at y == 0, so also check speedY == 0
-	bool inPain:1;  // being combo'd. I guess this should be called inHitstun
+	bool inHitstun:1;  // being combo'd. I guess this should be called inHitstun
 	bool gettingUp:1;  // playing a wakeup animation
 	bool wasIdle:1;  // briefly became idle during the frame while transitioning through some animations
 	bool startedDefending:1;  // triggers restart of frame advantage measurement
@@ -317,10 +425,12 @@ struct PlayerInfo {
 	bool hitstunProrationValid:1;  // should display hitstun proration, instead of "--"
 	bool hitSomething:1;  // during this logic tick, hit someone with own (non-projectile) active frames
 	bool changedAnimOnThisFrame:1;
+	bool changedAnimFiltered:1; // changedAnimOnThisFrame but with extra checks
 	bool inNewMoveSection:1;  // see Moves.h:MoveInfo::sectionSeparator
 	bool idleInNewSection:1;  // see Moves.h:MoveInfo::considerIdleInSeparatedSectionAfterThisManyFrames
 	bool frameAdvantageIncludesIdlenessInNewSection:1;  // since frame advantage gets corrected after becoming idle in new section, we need to track if we changed it already
 	bool landingFrameAdvantageIncludesIdlenessInNewSection:1;  // since frame advantage gets corrected after becoming idle in new section, we need to track if we changed it already
+	bool airteched:1;
 	
 	// These fields are needed because when tap Blitz Shield rejects an attack,
 	// it only enables normals after hitstop at the end of the logic tick, when
@@ -349,6 +459,14 @@ struct PlayerInfo {
 	bool inBlockstunNextFrame:1;  // This flag is needed so that when you transfer blockstun from air to ground the blockstunMax doesn't get reset,
 	                              // because normally it would, because technically you changed animation and we don't treat all blockstun animations
 	                              // as the same animation yet. If we allow such reset we will wrongfully decrement blockstunMax by 1 in our next prepareDrawData call
+	bool leftHitstop:1;
+	bool hasDangerousProjectiles:1;
+	
+	bool projectileOnlyInvul:1;
+	bool strikeInvul:1;
+	bool throwInvul:1;
+	bool superArmorActive:1;
+	bool counterhit:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
