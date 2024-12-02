@@ -5,6 +5,7 @@
 #include <mutex>
 #include "PngResource.h"
 #include "TexturePacker.h"
+#include "PlayerInfo.h"
 
 enum UITexture {
 	TEXID_NONE,
@@ -12,6 +13,14 @@ enum UITexture {
 	TEXID_GGICON,
 	TEXID_FRAMES
 };
+
+enum FrameMarkerType {
+	MARKER_TYPE_STRIKE_INVUL,
+	MARKER_TYPE_SUPER_ARMOR,
+	MARKER_TYPE_SUPER_ARMOR_FULL,
+	MARKER_TYPE_THROW_INVUL
+};
+const FrameMarkerType MARKER_TYPE_LAST = MARKER_TYPE_THROW_INVUL;
 
 class UI
 {
@@ -84,8 +93,14 @@ private:
 	PngResource activeFrameNonColorblind;
 	PngResource startupFrame;
 	PngResource startupFrameNonColorblind;
+	PngResource startupFrameCanBlock;
+	PngResource startupFrameCanBlockNonColorblind;
 	PngResource recoveryFrame;
 	PngResource recoveryFrameNonColorblind;
+	PngResource recoveryFrameHasGatlings;
+	PngResource recoveryFrameHasGatlingsNonColorblind;
+	PngResource recoveryFrameCanAct;
+	PngResource recoveryFrameCanActNonColorblind;
 	PngResource nonActiveFrame;
 	PngResource nonActiveFrameNonColorblind;
 	PngResource projectileFrame;
@@ -94,18 +109,33 @@ private:
 	PngResource landingRecoveryFrameNonColorblind;
 	PngResource firstFrame;
 	PngResource idleFrame;
+	PngResource idleFrameCantBlockNonColorblind;
+	PngResource idleFrameCantBlock;
+	PngResource idleFrameCantFDNonColorblind;
+	PngResource idleFrameCantFD;
+	PngResource idleFrameElpheltRifleNonColorblind;
+	PngResource idleFrameElpheltRifle;
 	PngResource strikeInvulFrame;
 	PngResource throwInvulFrame;
 	PngResource superArmorFrame;
+	PngResource superArmorFrameNonColorblind;
+	PngResource superArmorFrameFull;
+	PngResource superArmorFrameFullNonColorblind;
 	PngResource digitFrame[10];
 	PngResource xstunFrame;
 	PngResource xstunFrameNonColorblind;
 	TexturePacker texturePacker;
+	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, PngResource& resourceColorblind,
+                 WORD resourceIdNonColorblind, PngResource& resourceNonColorblind, const char* description);
+	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, PngResource& resourceBothVersions, const char* description);
+	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdColorblind, PngResource& resourceColorblind,
+                 WORD resourceIdNonColorblind, PngResource& resourceNonColorblind);
+	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdBothVersions, PngResource& resourceBothVersions);
 	bool addImage(HMODULE hModule, WORD resourceId, PngResource& resource);
 	void drawFramebars();
-	const PngResource& chooseColorblind(const PngResource& colorblindFrame);
 	bool showShaderCompilationError = true;
 	const std::string* shaderCompilationError = nullptr;
+	bool needShowFramebar() const;
 };
 
 extern UI ui;

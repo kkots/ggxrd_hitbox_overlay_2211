@@ -11,6 +11,9 @@ void collectHitboxes(Entity ent,
 		std::vector<DrawHitboxArrayCallParams>* const hitboxes,
 		std::vector<DrawPointCallParams>* const points,
 		std::vector<DrawBoxCallParams>* const pushboxes,
+		std::vector<DrawBoxCallParams>* const interactionBoxes,
 		int* numHitboxes = nullptr,
 		int* lastIgnoredHitNum = nullptr,
-		EntityState* entityState = nullptr);
+		EntityState* entityState = nullptr,
+		bool* wasSuperArmorEnabled = nullptr,
+		bool* wasFullInvul = nullptr);

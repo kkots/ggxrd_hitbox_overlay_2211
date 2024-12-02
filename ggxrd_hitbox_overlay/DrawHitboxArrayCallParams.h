@@ -4,6 +4,10 @@
 
 struct Hitbox;  // I've had enough cross-reference errors in my life
 
+RECT combineBounds(const RECT& a, const RECT& b);
+
+void combineBounds(RECT& result, const RECT& other);
+
 struct DrawHitboxArrayCallParams {
 	const Hitbox* hitboxData = nullptr;
 	int hitboxCount = 0;
@@ -17,4 +21,5 @@ struct DrawHitboxArrayCallParams {
 	bool operator==(const DrawHitboxArrayCallParams& other) const;
 	bool operator!=(const DrawHitboxArrayCallParams& other) const;
 	RECT getWorldBounds(int index, int cos = -2000, int sin = -2000) const;
+	RECT getWorldBounds() const;
 };

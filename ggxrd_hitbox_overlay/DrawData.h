@@ -8,6 +8,7 @@ struct DrawData {
 	std::vector<ComplicatedHurtbox> hurtboxes;
 	std::vector<DrawHitboxArrayCallParams> hitboxes;
 	std::vector<DrawBoxCallParams> pushboxes;
+	std::vector<DrawBoxCallParams> interactionBoxes;
 	std::vector<DrawPointCallParams> points;
 	std::vector<DrawBoxCallParams> throwBoxes;
 	void clear();

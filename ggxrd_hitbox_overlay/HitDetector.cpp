@@ -101,7 +101,15 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 			if (DISPLAY_DURATION_HITBOX_THAT_HIT) {
 				int hitboxesCount = 0;
 				std::vector<DrawHitboxArrayCallParams> theHitbox;
-				collectHitboxes(thisEntity, true, nullptr, &theHitbox, nullptr, nullptr, &hitboxesCount);
+				collectHitboxes(thisEntity,
+					true,
+					nullptr,
+					&theHitbox,
+					nullptr,
+					nullptr,
+					nullptr,
+					&hitboxesCount);
+				
 				if (!theHitbox.empty()) {
 					DetectedHitboxes boxes;
 					boxes.entity = thisEntity;
@@ -119,7 +127,14 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 
 			if (DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {
 				DrawHitboxArrayCallParams theHurtbox;
-				collectHitboxes(otherEntity, true, &theHurtbox, nullptr, nullptr, nullptr);
+				collectHitboxes(otherEntity,
+					true,
+					&theHurtbox,
+					nullptr,
+					nullptr,
+					nullptr,
+					nullptr);
+				
 				DWORD oldTransparency = theHurtbox.fillColor >> 24;
 				theHurtbox.fillColor = replaceAlpha(oldTransparency == 0 ? 64 : oldTransparency, COLOR_HURTBOX_OLD);
 				theHurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_OLD);

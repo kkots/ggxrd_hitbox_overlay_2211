@@ -67,11 +67,14 @@ Strike and projectile non-throw hitboxes are shown in red. Clash-only hitboxes a
 ### Green - Hurtboxes
 
 Normally hurtboxes display in green. The rules in general are such, that when a hitbox (red) makes contact with hurtbox, a hit occurs.  
-If a hurtbox is displayed fully transparent (i.e. shows outline only), that means strike invulnerability.
+If a hurtbox is displayed fully transparent (i.e. shows outline only), that means strike invulnerability.  
+If a hurtbox is hatched with diagonal lines, that means some form of super armor is active: it could be parry (Jam 46P), projectile reflection (Zato Drunkard Shade), super armor (Potemkin Hammerfall), or projectile-only invulnerability (Ky Ride the Lightning), or direct player attacks-only invulnerability (Ky j.D). This visual hatching effect can be combined with the hurtbox being not filled in, meaning strike invulerability + super armor/other.  
+For Jack O's and Bedman's summons the hurtbox's outline may be thin to create less clutter on the screen.
 
 ### Light blue - Would-be counterhit hurtboxes
 
-If your hurtbox is displaying light blue, that means, should you get hit, you would enter counterhit state. It means that moves that have light blue hurtbox on recovery are more punishable.
+If your hurtbox is displaying light blue, that means, should you get hit, you would enter counterhit state. It means that moves that have light blue hurtbox on recovery are more punishable.  
+If a hurtbox is hatched with diagonal lines, that means some form of super armor is active: it could be parry (Jam 46P), projectile reflection (Zato Drunkard Shade), super armor (Potemkin Hammerfall), or projectile-only invulnerability (Ky Ride the Lightning), or direct player attacks-only invulnerability (Ky j.D).
 
 ### Gray - Pre-hit hurtboxes
 
@@ -129,11 +132,7 @@ This mode of showing throw boxes shows them like this:
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
-If a box's outline is thin, like that of a pushbox or a clash-only hitbox for example, then that outline lies on the edge of the box.
-
-### Projectile-only invul
-
-Some non-parry/reflect moves in the game have invulnerability that only protects the user from projectiles. There are only 2 such moves: Ky's Ride the Lightning and Jack O's Aegis Field. The projectile invulnerability lasts all the way until the red clash-only hitbox disappears, so there's no separate display for it.
+If a box's outline is thin, like that of a pushbox or a clash-only hitbox for example, then that outline lies on the edge of the box. For Jack O's and Bedman's summons the hurtbox's outline may be thin to create less clutter on the screen.
 
 ### General notes about throw boxes
 
@@ -213,6 +212,20 @@ gifModeToggle =
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
 gifModeToggleBackgroundOnly =
 
+; A keyboard shortcut to toggle the game's Settings - Display Settings - Post-Effect. Changing it this way does not
+; require the current match to be restarted.
+; Alternatively, you could set the turnOffPostEffectWhenMakingBackgroundBlack setting in this INI file to true
+; so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect are
+; turned off automatically, and when you leave those modes, it gets turned back on.
+; This hotkey is empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
+; This option can be combined with the other hotkey options, by sharing the same key binding for example.
+togglePostEffectOnOff =
+
+; Specify true or false.
+; When true, whenever you enter either the GIF mode or the GIF mode (black background only),
+; the Post-Effect are turned off automatically, and when you leave those modes, it gets turned back on.
+turnOffPostEffectWhenMakingBackgroundBlack = true
+
 ; A keyboard shortcut to only toggle the "Camera is centered on you" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
@@ -272,7 +285,8 @@ disableHitboxDisplayToggle = F7
 ; A keyboard shortcut.
 ; Takes a screenshot and saves it at screenshotPath path
 ; To take screenshots over a transparent background you need to go to the game's
-; Display Settings and turn off Post-Effects, then use GIF mode (make background dark).
+; Display Settings and turn off Post-Effect (or use togglePostEffectOnOff and
+; turnOffPostEffectWhenMakingBackgroundBlack settings for this), then use GIF mode (make background dark).
 ; Then screenshots will film character over transparent background.
 ; If the dontUseScreenshotTransparency setting is true, screenshot will be without
 ; transparency anyway
@@ -362,10 +376,62 @@ dontShowBoxes = false
 ; Display mod's UI on top of the game's Pause Menu.
 displayUIOnTopOfPauseMenu = false
 
+; Specify a whole number.
+; In the UI's 'Invul' field and in the framebar on-mouse-hover info,
+; hurtboxes that are below this Y will trigger the display of 'low profile' invulnerability type.
+; After changing this value, redo the move to see the updated value.
+lowProfileCutoffPoint = 175000
+
 ; Specify true or false.
-; The framebar is only shown when the UI is shown. If the UI is not shown the only way to show it is via the
-; modWindowVisibilityToggle hotkey. By default it's ESC keyboard key, can be configured either using the INI file or the UI.
+; This setting can be changed using the framebarVisibilityToggle hotkey.
+; If closingModWindowAlsoHidesFramebar is true, then setting showFramebar to true is not enough, as the main
+; mod's UI window must also be open in order to show the framebar. If the window is not open, and showFramebar is true,
+; then the only way to open it and to show the framebar is with the modWindowVisibilityToggle hotkey.
 showFramebar = true
+
+; Specify true or false.
+; If false, the framebar will not be shown when in training mode even when showFramebar is true and the UI is open.
+showFramebarInTrainingMode = true
+
+; Specify true or false.
+; If false, the framebar will not be shown when in replay mode even when showFramebar is true and the UI is open.
+showFramebarInReplayMode = true
+
+; Specify true or false.
+; If false, the framebar will not be shown when in other modes even when showFramebar is true and the UI is open.
+showFramebarInOtherModes = false
+
+; Specify true or false.
+; If this is true, then closing the main mod's window, either using a hotkey or the cross mark,
+; will also hide the framebar, while opening the main mod's window will show the framebar.
+closingModWindowAlsoHidesFramebar = true
+
+; A keyboard shortcut.
+; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.
+; If closingModWindowAlsoHidesFramebar is true, then setting showFramebar to true is not enough, as the main
+; mod's UI window must also be open in order to show the framebar. If the window is not open, and showFramebar is true,
+; then the only way to open it and to show the framebar is with the modWindowVisibilityToggle hotkey.
+framebarVisibilityToggle = 
+
+; Specify true or false.
+; Strike invul will be displayed using a green ^ on top of a frame.
+showStrikeInvulOnFramebar = true
+
+; Specify true or false.
+; Super armor will be displayed using a purple ^ on top of a frame. It includes reflect, parry and projectile-only invulnerability
+; (excluding Aegis Field, that isn't displayed on the framebar at all). If both strike invul and super armor are present, super armor
+; will be below the strike invul.
+showSuperArmorOnFramebar = true
+
+; Specify true or false.
+; Throw invul will be displayed using a yellow v underneath a frame.
+showThrowInvulOnFramebar = true
+
+; Specify true or false.
+; When a player's animation changes from one to another, except in certain cases, the first frame of the new animation is denoted with
+; a ' mark before that frame. For some animations a first frame is denoted even when
+; the animation didn't change, but instead reached some important point. This includes entering and leaving hitstop.
+showFirstFramesOnFramebar = true
 
 ; A number.
 ; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.
@@ -383,6 +449,13 @@ neverIgnoreHitstop = false
 ; The framebar only advances when one of the players is "busy".
 ; If this is set to true, then one player running or walking will be treated same way as "busy" and will advance the framebar.
 considerRunAndWalkNonIdle = true
+
+; Specify true or false.
+; Normally we consider crouching as being idle, which does not advance the framebar forward.
+; The framebar only advances when one of the players is "busy".
+; If this is set to true, then one player crouching or walking will be treated same way as "busy" and will advance the framebar.
+; A dummy who is crouching automatically due to training settings will still not be considered "busy" no matter what.
+considerCrouchNonIdle = true
 
 ; Specify true or false
 ; This controls whether a character being knocked down, waking up or air recovering causes the framebar to advance forward (if you're also idle).
@@ -413,13 +486,15 @@ If the mod is already running you don't need to do anything in order to apply th
 
 ## Taking transparent/non-transparent screenshots
 
-The mod allows you to take screenshots of the game with the transparency in the background, with characters overlaid on top without transparency. To achieve that, you need to go into the game's `Display settings` and set `Post-Effect` to `OFF`.
+The mod allows you to take screenshots of the game with the transparency in the background, with characters overlaid on top without transparency. To achieve that, you need to go into the game's `Display settings` and set `Post-Effect` to `OFF` or the mod can turn it off for you automatically (read below).
 
 ![Screenshot can't be viewed](posteffect_off.jpg)
 
 Post-Effect set to Off seems to turn off anti-aliasing, but without it the trick won't work. Then you can load the mod and enter "GIF mode" (F1 is the default hotkey) or "gifModeToggleBackgroundOnly" (no hotkey by default) to make the background black and that would actually make the background transparent - but you can't see that with a naked eye. You need to press "screenshotBtn" (F8, copies to clipboard by default) to take a screenshot and paste it into a graphical editor supporting transparency, like GIMP for example, in order to see transparency.  
 Transparency in the game is actually inverted, meaning the background is fully opaque while the characters are fully transparent. The screenshotter inverts the alpha channel to make it correct.  
-Only GIMP has been tested to support the PNG screenshot format that the mod produces, and this works on Windows and on Ubuntu/Linux, where Guilty Gear Xrd runs under Steam Proton.  
+Only GIMP has been tested to support the PNG screenshot format that the mod produces, and this works on Windows and on Ubuntu/Linux, where Guilty Gear Xrd runs under Steam Proton.
+
+To turn off `Post-Effect` automatically whenever you make the background black, you could set the `turnOffPostEffectWhenMakingBackgroundBlack` setting in the INI file to true (is true by default) or tick the 'Settings - Hitbox Settings - Turn Off Post-Effect When Making Background Black' checkbox (ticked by default). Or, alternatively, you could use the `togglePostEffectOnOff` keyboard shortcut, which is set in the INI file, to turn the Post-Effect on or off manually using a hotkey (the default hotkey is not set) (in UI, it's located in Settings - Keyboard Shortcuts - Toggle Post-Effect On/Off). Turning Post-Effect on/off this way does not require reloading the match! This is much faster than going to the main menu and changing it there!
 
 ### Screenshot saving location
 

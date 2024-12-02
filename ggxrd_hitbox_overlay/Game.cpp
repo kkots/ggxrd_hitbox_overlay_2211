@@ -210,6 +210,12 @@ bool Game::onDllMain() {
 		{ 2, 0 },
 		nullptr, "roundendSuperfreezeCounter");
 	
+	postEffectOnPtr = (BOOL*)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"89 8e a4 01 00 00 8b 15 ?? ?? ?? ?? 89 96 a8 01 00 00 39 1d ?? ?? ?? ?? 0f 94 c0 33 c9 89 86 ac 01 00 00",
+		{ 20, 0 },
+		nullptr, "postEffectOn");
+	
 	return !error;
 }
 
@@ -671,4 +677,16 @@ bool Game::isRoundend() const {
 	if (!roundendSuperfreezeCounterOffset) return false;
 	if (!*aswEngine) return false;
 	return *(int*)(*aswEngine + 4 + roundendSuperfreezeCounterOffset) > 0;
+}
+
+DummyRecordingMode Game::getDummyRecordingMode() const {
+	if (!getTrainingHud) return DUMMY_MODE_IDLE;
+	char* trainingStruct = getTrainingHud();
+	return *(DummyRecordingMode*)(trainingStruct);
+}
+
+BOOL& Game::postEffectOn() {
+	static BOOL placeholder = 0;
+	if (!postEffectOnPtr) return placeholder;
+	return *postEffectOnPtr;
 }

@@ -8,6 +8,7 @@ struct PlayerInfo;
 using sectionSeparator_t = bool(*)(Entity ent);
 using isIdle_t = bool(*)(const PlayerInfo& ent);
 using isDangerous_t = bool(*)(Entity ent);
+using selectFramebarName_t = const char*(*)(Entity ent);
 
 bool isIdle_default(const PlayerInfo& player);
 bool canBlock_default(const PlayerInfo& player);
@@ -39,6 +40,16 @@ struct MoveInfo {
 	int framebarId = -1;
 	const char* framebarName = nullptr;
 	const char* framebarNameFull = nullptr;
+	selectFramebarName_t framebarNameSelector = nullptr;
+	isDangerous_t isInArbitraryStartupSection = nullptr;
+	bool considerNewSectionAsBeingInArbitraryStartup = false;
+	bool considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = false;
+	bool considerArbitraryStartupAsStanceForFramebar = false;
+	bool canBeUnableToBlockIndefinitelyOrForVeryLongTime = false;
+	isDangerous_t isRecoveryHasGatlings = nullptr;
+	isDangerous_t isRecoveryCanAct = nullptr;
+	isDangerous_t canFaultlessDefend = nullptr;
+	const char* getFramebarName(Entity ent) const;
 	MoveInfo(bool combineWithPreviousMove = false,
 		bool usePlusSignInCombination = false,
 		const char* displayName = nullptr,
@@ -50,7 +61,16 @@ struct MoveInfo {
 		isDangerous_t isDangerous = isDangerous_default,
 		int framebarId = -1,
 		const char* framebarName = nullptr,
-		const char* framebarNameFull = nullptr);
+		const char* framebarNameFull = nullptr,
+		selectFramebarName_t framebarNameSelector = nullptr,
+		isDangerous_t isInArbitraryStartupSection = nullptr,
+		bool considerNewSectionAsBeingInArbitraryStartup = false,
+		bool considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = false,
+		bool considerArbitraryStartupAsStanceForFramebar = false,
+		bool canBeUnableToBlockIndefinitelyOrForVeryLongTime = false,
+		isDangerous_t isRecoveryHasGatlings = nullptr,
+		isDangerous_t isRecoveryCanAct = nullptr,
+		isDangerous_t canFaultlessDefend = nullptr);
 };
 
 class Moves {
@@ -107,6 +127,15 @@ private:
 		int framebarId = -1;
 		const char* framebarName = nullptr;
 		const char* framebarNameFull = nullptr;
+		selectFramebarName_t framebarNameSelector = nullptr;
+		isDangerous_t isInArbitraryStartupSection = nullptr;
+		bool considerNewSectionAsBeingInArbitraryStartup = false;
+		bool considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = false;
+		bool considerArbitraryStartupAsStanceForFramebar = false;
+		bool canBeUnableToBlockIndefinitelyOrForVeryLongTime = false;
+		isDangerous_t isRecoveryHasGatlings = nullptr;
+		isDangerous_t isRecoveryCanAct = nullptr;
+		isDangerous_t canFaultlessDefend = nullptr;
 		inline AddedMove() { }
 		inline AddedMove(CharacterType charType, const char* name, bool isEffect = false) : charType(charType), name(name), isEffect(isEffect) { }
 	};

@@ -64,6 +64,17 @@ using UWorld_IsPaused_t = bool(__thiscall*)(void* UWorld);
 using drawJackoHouseHp_t = void(__thiscall*)(void* pawn);
 using getGameViewportClient_t = void*(__thiscall*)(void* REDHUD);
 
+enum DummyRecordingMode {
+	DUMMY_MODE_IDLE,
+	DUMMY_MODE_CONTROLLING,
+	DUMMY_MODE_RECORDING,
+	DUMMY_MODE_PLAYING_BACK,
+	DUMMY_MODE_SETTING_CONTROLLER,
+	DUMMY_MODE_CONTROLLER,
+	DUMMY_MODE_COM,
+	DUMMY_MODE_CONTINUOUS_ATTACKS
+};
+
 class Game {
 public:
 	bool onDllMain();
@@ -76,6 +87,7 @@ public:
 	int getBurst(int team) const;
 	bool isFading() const;
 	bool isRoundend() const;
+	DummyRecordingMode getDummyRecordingMode() const;
 	bool freezeGame = false;
 	bool slowmoGame = false;
 	bool allowNextFrame = false;
@@ -91,6 +103,7 @@ public:
 	DWORD REDGameInfo_BattleOffset = 0;
 	DWORD REDHUD_BattleOffset = 0;
 	DWORD roundendSuperfreezeCounterOffset = 0;
+	BOOL& postEffectOn();
 private:
 	class HookHelp {
 		friend class Game;
@@ -148,6 +161,7 @@ private:
 	void onNeedForcePress(int padInd, bool* pressed, ButtonCode code);
 	void onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code);
 	drawJackoHouseHp_t drawJackoHouseHp = nullptr;
+	BOOL* postEffectOnPtr = nullptr;
 };
 
 extern Game game;

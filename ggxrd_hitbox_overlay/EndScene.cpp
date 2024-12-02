@@ -635,7 +635,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		for (int i = 0; i < 2; ++i) {
 			Entity ent = entityList.slots[i];
 			PlayerInfo& player = players[i];
-			if (ent.inHitstun() && !player.inHitstun) {
+			if (ent.inHitstun() && !player.inHitstunNowOrNextFrame) {
 				comboStarted = true;
 				break;
 			}
@@ -699,8 +699,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.burstGainLastCombo = 0;
 				}
 			}
-			player.inHitstun = ent.inHitstun();
-			if (player.inHitstun || otherEnt.inHitstun()) {
+			player.inHitstunNowOrNextFrame = ent.inHitstun();
+			player.inHitstun = ent.inHitstunThisFrame() || ent.hitstun();
+			if (player.inHitstunNowOrNextFrame || otherEnt.inHitstun()) {
 				player.tensionGainLastCombo += tensionGain;
 				player.burstGainLastCombo += burstGain;
 			}
@@ -711,7 +712,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.burstGainMaxCombo = player.burstGainLastCombo;
 			}
 			player.receivedComboCountTensionGainModifier = entityManager.calculateReceivedComboCountTensionGainModifier(
-				player.inHitstun,
+				player.inHitstunNowOrNextFrame,
 				ent.comboCount());
 			player.dealtComboCountTensionGainModifier = entityManager.calculateDealtComboCountTensionGainModifier(
 				otherEnt.inHitstun(),
@@ -797,22 +798,52 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.wasForceDisableFlags = ent.forceDisableFlags();
 			}
 			player.enableBlock = ent.enableBlock();
+			bool prevFrameCanFaultlessDefense = player.canFaultlessDefense;
+			player.canFaultlessDefense = (player.enableBlock || player.wasEnableNormals)  // I gave up trying to understand how moves work. Hardcode/make shit up time!
+				&& ent.fdNegativeCheck() == 0
+				&& player.wasProhibitFDTimer == 0
+				&& ent.dizzyMashAmountLeft() <= 0
+				&& ent.exKizetsu() <= 0;
 			const MoveInfo& move = moves.getInfo(player.charType, ent.animationName(), false);
 			bool idleNext = move.isIdle(player);
 			bool prevFrameIdle = player.idle;
 			bool prevFrameIgnoreNextInabilityToBlockOrAttack = player.ignoreNextInabilityToBlockOrAttack;
 			bool prevFrameCanBlock = player.canBlock;
 			player.canBlock = move.canBlock(player);
-			player.projectileOnlyInvul = ent.superArmorEnabled()
-				&& !ent.strikeInvul()
+			player.projectileOnlyInvul.active = !ent.strikeInvul()
 				&& ent.strikeInvulnFrames() <= 0
-				&& !ent.fullInvul()
-				&& !ent.superArmorHontaiAttacck()
-				&& ent.superArmorType() == SUPER_ARMOR_DODGE
-				|| ent.invulnForAegisField();
-			player.strikeInvul = false;
-			player.throwInvul = false;
-			player.superArmorActive = false;
+				&& !player.wasFullInvul
+				&& (
+					player.wasSuperArmorEnabled
+					&& ent.superArmorType() == SUPER_ARMOR_DODGE
+					&& !ent.superArmorHontaiAttacck()
+					&& !ent.superArmorForReflect()
+				);
+			player.reflect.active = !player.wasFullInvul
+				&& (
+					(
+						player.wasSuperArmorEnabled
+						|| ent.strikeInvul()
+						|| ent.strikeInvulnFrames() > 0
+					)
+					&& ent.superArmorType() == SUPER_ARMOR_DODGE
+					&& ent.superArmorForReflect()
+				);
+			player.strikeInvul.active = false;
+			player.throwInvul.active = false;
+			player.lowProfile.active = false;
+			player.superArmor.active = false;
+			player.superArmorThrow.active = false;
+			player.superArmorBurst.active = false;
+			player.superArmorMid.active = false;
+			player.superArmorOverhead.active = false;
+			player.superArmorLow.active = false;
+			player.superArmorGuardImpossible.active = false;
+			player.superArmorObjectAttacck.active = false;
+			player.superArmorHontaiAttacck.active = false;
+			player.superArmorProjectileLevel0.active = false;
+			player.superArmorOverdrive.active = false;
+			player.superArmorBlitzBreak.active = false;
 			player.counterhit = false;
 			
 			if (!player.changedAnimOnThisFrame
@@ -820,15 +851,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& (
 						// Leaving Ms. Confille stance after spending too much time in it doing nothing
 						player.charType == CHARACTER_TYPE_ELPHELT
+						&& strncmp(player.anim, "Rifle_", 6) == 0
+						&& strncmp(animName, "Rifle_", 6) == 0
+						// gotta type out the names fully for search:
+						// Rifle_Start, Rifle_Reload, Rifle_Reload_Perfect, Rifle_Roman
 						&& (
-							strcmp(player.anim, "Rifle_Start") == 0
-							&& strcmp(animName, "Rifle_Start") == 0
-							|| strcmp(player.anim, "Rifle_Reload") == 0
-							&& strcmp(animName, "Rifle_Reload") == 0
-							|| strcmp(player.anim, "Rifle_Reload_Perfect") == 0
-							&& strcmp(animName, "Rifle_Reload_Perfect") == 0
-							|| strcmp(player.anim, "Rifle_Roman") == 0
-							&& strcmp(animName, "Rifle_Roman") == 0
+							strcmp(player.anim + 6, "Start") == 0
+							&& strcmp(animName + 6, "Start") == 0
+							|| strcmp(player.anim + 6, "Reload") == 0
+							&& strcmp(animName + 6, "Reload") == 0
+							|| strcmp(player.anim + 6, "Reload_Perfect") == 0
+							&& strcmp(animName + 6, "Reload_Perfect") == 0
+							|| strcmp(player.anim + 6, "Roman") == 0
+							&& strcmp(animName + 6, "Roman") == 0
 						)
 						&& !idleNext
 					)
@@ -857,6 +892,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& ent.remainingDoubleJumps() != player.remainingDoubleJumps - 1
 						|| !prevFrameBlockstun  // proximity blocking - for displaying gaps in framebar
 						&& !player.blockstun
+						&& idleNext  // exclude voluntary FD
 						&& (
 							(
 								prevFrameCmnActIndex == CmnActMidGuardEnd
@@ -867,7 +903,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								|| prevFrameCmnActIndex == CmnActCrouchGuardLoop
 								|| prevFrameCmnActIndex == CmnActHighGuardLoop
 								|| prevFrameCmnActIndex == CmnActAirGuardLoop
-							) && idleNext
+							)
 							|| prevFrameIdle
 							&& (
 								cmnActIndex == CmnActMidGuardEnd
@@ -995,7 +1031,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool needDisableProjectiles = false;
 			player.changedAnimFiltered = false;
 			player.move = &move;
-			if (player.changedAnimOnThisFrame) {
+			bool changedAnim = player.changedAnimOnThisFrame;
+			if (changedAnim) {
+				if (player.cmnActIndex == CmnActJump && !player.canFaultlessDefense) {
+					changedAnim = false;
+				}
+			} else if (player.cmnActIndex == CmnActJump
+					&& prevFrameCmnActIndex == CmnActJump
+					&& !prevFrameCanFaultlessDefense
+					&& player.canFaultlessDefense) {
+			}
+			if (changedAnim) {
 				if (!move.preservesNewSection) {
 					player.inNewMoveSection = false;
 					if (!measuringFrameAdvantage) {
@@ -1025,6 +1071,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| player.charType == CHARACTER_TYPE_JAM
 					&& strcmp(player.anim, "NeoHochihu") == 0  // 54625 causes NeoHochihu to cancel into itself
 					&& strcmp(animName, "NeoHochihu") == 0
+					&& !player.wasEnableWhiffCancels
 				);
 				if (
 						!player.changedAnimFiltered
@@ -1078,13 +1125,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						if (move.usePlusSignInCombination
 								|| player.charType == CHARACTER_TYPE_BAIKEN
-								&& strcmp(player.anim, "Suzuran") == 0
 								&& (
-									strcmp(animName, "Youshijin") == 0  // P followup
-									|| strcmp(animName, "Mawarikomi") == 0  // K followup
-									|| strcmp(animName, "Sakura") == 0  // S followup
-									|| strcmp(animName, "Issen") == 0  // H followup
-									|| strcmp(animName, "Teppou") == 0  // D followup
+									strcmp(player.anim, "BlockingStand") == 0
+									|| strcmp(player.anim, "BlockingCrouch") == 0
+									|| strcmp(player.anim, "BlockingAir") == 0
+								)
+								&& (
+									strcmp(animName, "BlockingStand") == 0
+									|| strcmp(animName, "BlockingCrouch") == 0
+									|| strcmp(animName, "BlockingAir") == 0
 								)
 								|| player.charType == CHARACTER_TYPE_ELPHELT
 								&& !player.idle
@@ -1101,6 +1150,25 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.prevStartups.add(player.total);
 						} else {
 							player.prevStartups.clear();
+							
+							player.strikeInvul.clear();
+							player.throwInvul.clear();
+							player.lowProfile.clear();
+							player.projectileOnlyInvul.clear();
+							player.superArmor.clear();
+							player.superArmorThrow.clear();
+							player.superArmorBurst.clear();
+							player.superArmorMid.clear();
+							player.superArmorOverhead.clear();
+							player.superArmorLow.clear();
+							player.superArmorGuardImpossible.clear();
+							player.superArmorObjectAttacck.clear();
+							player.superArmorHontaiAttacck.clear();
+							player.superArmorProjectileLevel0.clear();
+							player.superArmorOverdrive.clear();
+							player.superArmorBlitzBreak.clear();
+							player.reflect.clear();
+							
 						}
 						
 						player.airteched = player.cmnActIndex == CmnActUkemi;
@@ -1112,12 +1180,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.total = 0;
 						player.totalFD = 0;
 						player.totalCanBlock = 0;
+						player.totalCanFD = 0;
 						player.ignoreNextInabilityToBlockOrAttack = false;
 						
 						player.dontRestartTheNonLandingFrameAdvantageCountdownUponNextLanding = false;
 						
 						player.landingRecovery = 0;
 						player.superfreezeStartup = 0;
+						
+						player.hitboxTopBottomValid = false;
+						player.hurtboxTopBottomValid = false;
+						
 						if (player.cmnActIndex != CmnActRomanCancel) {
 							needDisableProjectiles = true;
 						}
@@ -1127,8 +1200,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			memcpy(player.anim, animName, 32);
 			
 			if (player.idle && (
-					player.canBlock
-					|| player.wasIdle && player.changedAnimOnThisFrame  // needed for linking a normal with a forward dash
+					player.canBlock && player.canFaultlessDefense
+					|| player.wasIdle && changedAnim  // needed for linking a normal with a forward dash
 				)) {
 				player.ignoreNextInabilityToBlockOrAttack = true;
 			}
@@ -1158,7 +1231,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 						projectileTo.disabled = false;
 						projectileTo.startup = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
-						projectileTo.total = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
+						if (player.totalCanBlock > player.total) {  // needed for Answer Taunt
+							projectileTo.startup += player.totalCanBlock - player.total;
+						}
+						projectileTo.total = projectileTo.startup;
 						memcpy(projectileTo.creatorName, event.u.signal.fromAnim, 32);
 					} else if (projectileFrom.ptr
 							&& projectileTo.ptr
@@ -1203,6 +1279,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.startup = 0;
 					player.total = 0;
 					player.totalCanBlock = 0;
+					player.totalCanFD = 0;
 				}
 			}
 			if (!player.idleInNewSection && player.isIdleInNewSection()) {
@@ -1338,6 +1415,201 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			
 		}
 		
+		// This is a separate loop because it depends on another player's timePassedLanding, which I changed in the previous loop
+		for (PlayerInfo& player : players) {
+			if (player.startedDefending) {
+				restartMeasuringFrameAdvantage(player.index);
+				restartMeasuringLandingFrameAdvantage(player.index);
+			}
+		}
+		
+		Entity superflashInstigator = getSuperflashInstigator();
+		if (!superflashInstigator) {
+			for (ProjectileInfo& projectile : projectiles) {
+				if (!projectile.startedUp) {
+					++projectile.startup;
+				}
+				++projectile.total;
+			}
+		}
+	}
+	
+	for (int i = 0; i < entityList.count; i++) {
+		Entity ent = entityList.list[i];
+		int team = ent.team();
+		if (!ent.isActive() || isEntityAlreadyDrawn(ent)) continue;
+
+		bool active = ent.isActiveFrames();
+		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
+		
+		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
+		size_t hitboxesPrevSize = drawDataPrepared.hitboxes.size();
+		size_t pointsPrevSize = drawDataPrepared.points.size();
+		size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
+		size_t interactionBoxesPrevSize = drawDataPrepared.interactionBoxes.size();
+		
+		int* lastIgnoredHitNum = nullptr;
+		if (i < 2 && (team == 0 || team == 1)) {
+			PlayerInfo& player = players[team];
+			lastIgnoredHitNum = &player.lastIgnoredHitNum;
+		}
+		int hitboxesCount = 0;
+		DrawHitboxArrayCallParams hurtbox;
+		
+		EntityState entityState;
+		
+		bool useTheseValues = false;
+		bool isSuperArmor;
+		bool isFullInvul;
+		if (i < 2 && (team == 0 || team == 1)) {
+			const PlayerInfo& player = players[team];
+			isSuperArmor = player.wasSuperArmorEnabled;
+			isFullInvul = player.wasFullInvul;
+			useTheseValues = true;
+		}
+		size_t oldHitboxesSize = drawDataPrepared.hitboxes.size();
+		
+		collectHitboxes(ent,
+			active,
+			&hurtbox,
+			&drawDataPrepared.hitboxes,
+			&drawDataPrepared.points,
+			&drawDataPrepared.pushboxes,
+			&drawDataPrepared.interactionBoxes,
+			&hitboxesCount,
+			lastIgnoredHitNum,
+			&entityState,
+			useTheseValues ? &isSuperArmor : nullptr,
+			useTheseValues ? &isFullInvul : nullptr);
+		
+		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
+		if (!wasHitResult.wasHit || settings.neverDisplayGrayHurtboxes) {
+			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
+		}
+		else {
+			drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
+		}
+		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
+		drawnEntities.push_back(ent);
+		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
+
+		// Attached entities like dusts
+		Entity attached = ent.effectLinkedCollision();
+		if (attached != nullptr) {
+			DrawHitboxArrayCallParams attachedHurtbox;
+			logOnce(fprintf(logfile, "Attached entity: %p\n", attached.ent));
+			collectHitboxes(attached,
+				active,
+				&attachedHurtbox,
+				&drawDataPrepared.hitboxes,
+				&drawDataPrepared.points,
+				&drawDataPrepared.pushboxes,
+				&drawDataPrepared.interactionBoxes,
+				&hitboxesCount,
+				lastIgnoredHitNum);
+			drawDataPrepared.hurtboxes.push_back({ false, attachedHurtbox });
+			drawnEntities.push_back(attached);
+		}
+		if ((team == 0 || team == 1) && frameHasChanged) {
+			if (!hitboxesCount && i < 2) {
+				PlayerInfo& player = players[team];
+				if (player.hitSomething) ++hitboxesCount;
+			}
+			RECT hitboxesBoundsTotal;
+			if (hitboxesCount && oldHitboxesSize != drawDataPrepared.hitboxes.size()) {
+				bool isFirstHitbox = true;
+				for (auto it = drawDataPrepared.hitboxes.begin() + oldHitboxesSize;
+						it != drawDataPrepared.hitboxes.end();
+						++it) {
+					if (isFirstHitbox) {
+						hitboxesBoundsTotal = it->getWorldBounds();
+					} else {
+						combineBounds(hitboxesBoundsTotal, it->getWorldBounds());
+					}
+					isFirstHitbox = false;
+				}
+			}
+			if (i < 2) {
+				PlayerInfo& player = players[team];
+				player.hitboxesCount += hitboxesCount;
+				if (hitboxesCount && oldHitboxesSize != drawDataPrepared.hitboxes.size()) {
+					player.hitboxTopY = hitboxesBoundsTotal.top;
+					player.hitboxBottomY = hitboxesBoundsTotal.bottom;
+					player.hitboxTopBottomValid = true;
+				}
+				RECT hurtboxBounds;
+				if (hurtbox.hitboxCount) {
+					hurtboxBounds = hurtbox.getWorldBounds();
+					player.hurtboxTopY = hurtboxBounds.top;
+					player.hurtboxBottomY = hurtboxBounds.bottom;
+					player.hurtboxTopBottomValid = true;
+				}
+				player.strikeInvul.active = entityState.strikeInvuln;
+				player.throwInvul.active = entityState.throwInvuln;
+				player.lowProfile.active = !player.strikeInvul.active
+					&& !player.airborne
+					&& hurtbox.hitboxCount
+					&& hurtboxBounds.bottom < settings.lowProfileCutoffPoint;
+				player.superArmor.active = entityState.superArmorActive && !player.projectileOnlyInvul.active && !player.reflect.active;
+				if (player.charType == CHARACTER_TYPE_LEO
+						&& player.superArmor.active
+						&& strcmp(player.anim, "Semuke5E") == 0) {  // Leo bt.D
+					for (int projectileSearch = 2; projectileSearch < entityList.count; ++projectileSearch) {
+						Entity projectileSearchPtr = entityList.list[projectileSearch];
+						if (projectileSearchPtr.isActive()
+								&& projectileSearchPtr.team() == player.index
+								&& strcmp(projectileSearchPtr.animationName(), "Semuke5E_Reflect") == 0
+								&& projectileSearchPtr.superArmorEnabled()) {
+							player.reflect.active = true;
+						}
+					}
+				}
+				if (player.superArmor.active) {
+					player.superArmorThrow.active = ent.superArmorThrow();
+					player.superArmorBurst.active = ent.superArmorBurst();
+					player.superArmorMid.active = ent.superArmorMid();
+					player.superArmorOverhead.active = ent.superArmorOverhead();
+					player.superArmorLow.active = ent.superArmorLow();
+					player.superArmorGuardImpossible.active = ent.superArmorGuardImpossible();
+					player.superArmorObjectAttacck.active = ent.superArmorObjectAttacck();
+					player.superArmorHontaiAttacck.active = ent.superArmorHontaiAttacck();
+					player.superArmorProjectileLevel0.active = ent.superArmorProjectileLevel0();
+					player.superArmorOverdrive.active = ent.superArmorOverdrive();
+					player.superArmorBlitzBreak.active = ent.superArmorBlitzBreak();
+				}
+				player.counterhit = entityState.counterhit;
+			} else if (frameHasChanged) {
+				ProjectileInfo& projectile = findProjectile(ent);
+				if (projectile.ptr) {
+					if (hitboxesCount) {
+						projectile.markActive = true;
+						if (oldHitboxesSize != drawDataPrepared.hitboxes.size()) {
+							projectile.hitboxTopY = hitboxesBoundsTotal.top;
+							projectile.hitboxBottomY = hitboxesBoundsTotal.bottom;
+							projectile.hitboxTopBottomValid = true;
+						}
+					}
+					projectile.superArmorActive = entityState.superArmorActive;
+				}
+			}
+		}
+		if (invisChipp.needToHide(ent)) {
+			drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
+			drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
+			drawDataPrepared.points.resize(pointsPrevSize);
+			drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
+			drawDataPrepared.interactionBoxes.resize(interactionBoxesPrevSize);
+		}
+	}
+	
+	logOnce(fputs("got past the entity loop\n", logfile));
+	hitDetector.drawHits();
+	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
+	throws.drawThrows();
+	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
+	
+	if (frameHasChanged) {
+		
 		if (!dontAdvanceFramePosition) {
 			bool atLeastOneNotInHitstop = false;
 			bool atLeastOneBusy = false;
@@ -1368,8 +1640,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 									&& player.idlePlus
 								)
 							)
-							|| !player.canBlock
+							|| (!player.canBlock || !player.canFaultlessDefense)
 							&& !player.ignoreNextInabilityToBlockOrAttack
+							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)
+							|| player.strikeInvul.active
+							|| player.throwInvul.active
+							|| player.projectileOnlyInvul.active
+							|| player.superArmor.active
+							|| player.reflect.active
 							|| settings.considerRunAndWalkNonIdle
 							&& (
 								player.cmnActIndex == CmnActFWalk
@@ -1377,6 +1655,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								|| player.cmnActIndex == CmnActFDash
 								|| player.cmnActIndex == CmnActFDashStop
 							)
+							|| settings.considerCrouchNonIdle
+							&& misterPlayerIsManuallyCrouching(player)
 						)
 						&& (
 							!settings.considerKnockdownWakeupAndAirtechIdle
@@ -1419,6 +1699,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					atLeastOneNotInHitstop = true;
 				}
 			}
+			
 			if (getSuperflashInstigator() == nullptr) {
 				if (atLeastOneBusy || atLeastOneDangerousProjectilePresent) {
 					if (framebarIdleHitstopFor > framebarIdleForLimit) {
@@ -1502,103 +1783,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
-		// This is a separate loop because it depends on another player's timePassedLanding, which I changed in the previous loop
-		for (PlayerInfo& player : players) {
-			if (player.startedDefending) {
-				restartMeasuringFrameAdvantage(player.index);
-				restartMeasuringLandingFrameAdvantage(player.index);
-			}
-		}
-		
-		Entity superflashInstigator = getSuperflashInstigator();
-		if (!superflashInstigator) {
-			for (ProjectileInfo& projectile : projectiles) {
-				if (!projectile.startedUp) {
-					++projectile.startup;
-				}
-				++projectile.total;
-			}
-		}
-	}
-	
-	for (int i = 0; i < entityList.count; i++) {
-		Entity ent = entityList.list[i];
-		int team = ent.team();
-		if (!ent.isActive() || isEntityAlreadyDrawn(ent)) continue;
-
-		bool active = ent.isActiveFrames();
-		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
-		
-		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
-		size_t hitboxesPrevSize = drawDataPrepared.hitboxes.size();
-		size_t pointsPrevSize = drawDataPrepared.points.size();
-		size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
-		
-		int* lastIgnoredHitNum = nullptr;
-		if (i < 2 && (team == 0 || team == 1)) {
-			PlayerInfo& player = players[team];
-			lastIgnoredHitNum = &player.lastIgnoredHitNum;
-		}
-		int hitboxesCount = 0;
-		DrawHitboxArrayCallParams hurtbox;
-		EntityState entityState;
-		collectHitboxes(ent, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount, lastIgnoredHitNum, &entityState);
-		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
-		if (!wasHitResult.wasHit || settings.neverDisplayGrayHurtboxes) {
-			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
-		}
-		else {
-			drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
-		}
-		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
-		drawnEntities.push_back(ent);
-		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
-
-		// Attached entities like dusts
-		Entity attached = ent.effectLinkedCollision();
-		if (attached != nullptr) {
-			logOnce(fprintf(logfile, "Attached entity: %p\n", attached.ent));
-			collectHitboxes(attached, active, &hurtbox, &drawDataPrepared.hitboxes, &drawDataPrepared.points, &drawDataPrepared.pushboxes, &hitboxesCount, lastIgnoredHitNum);
-			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
-			drawnEntities.push_back(attached);
-		}
-		if ((team == 0 || team == 1) && frameHasChanged) {
-			if (!hitboxesCount && i < 2) {
-				PlayerInfo& player = players[team];
-				if (player.hitSomething) ++hitboxesCount;
-			}
-			if (i < 2) {
-				PlayerInfo& player = players[team];
-				player.hitboxesCount += hitboxesCount;
-				player.strikeInvul = entityState.strikeInvuln;
-				player.throwInvul = entityState.throwInvuln;
-				player.superArmorActive = entityState.superArmorActive;
-				player.counterhit = entityState.counterhit;
-			} else if (frameHasChanged) {
-				ProjectileInfo& projectile = findProjectile(ent);
-				if (projectile.ptr) {
-					if (hitboxesCount) {
-						projectile.markActive = true;
-					}
-					projectile.superArmorActive = entityState.superArmorActive;
-				}
-			}
-		}
-		if (invisChipp.needToHide(ent)) {
-			drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
-			drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
-			drawDataPrepared.points.resize(pointsPrevSize);
-			drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
-		}
-	}
-	
-	logOnce(fputs("got past the entity loop\n", logfile));
-	hitDetector.drawHits();
-	logOnce(fputs("hitDetector.drawDetected() call successful\n", logfile));
-	throws.drawThrows();
-	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
-	
-	if (frameHasChanged) {
 		Entity superflashInstigator = getSuperflashInstigator();
 		int instigatorTeam = -1;
 		if (superflashInstigator) {
@@ -1910,9 +2094,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			EntityFramebar& entityFramebar = framebars[player.index];
 			Framebar& framebar = entityFramebar.idleHitstop;
 			
-			bool inXStun = player.hitstun > 0
+			bool inXStun = player.inHitstun
 				|| player.blockstun > 0
-				|| player.pawn.inHitstunThisFrame()
 				|| player.wakeupTiming;
 			if (inXStun && player.leftHitstop) {
 				framebar.requestFirstFrame = true;
@@ -1943,6 +2126,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			
 			Frame& currentFrame = framebar[framebarPos];
+			FrameType defaultStartupFrame = FT_STARTUP;
+			FrameType defaultRecoveryFrameType = FT_RECOVERY;
+			bool overrideStartupFrame = false;
 			if (framebarAdvancedIdleHitstop) {
 				currentFrame.aswEngineTick = aswEngineTickCount;
 				if (inXStun) {
@@ -1950,17 +2136,73 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else if (!player.idle && player.hitstop) {
 					currentFrame.type = FT_HITSTOP;
 				} else if (!player.idle) {
-					currentFrame.type = FT_STARTUP;
+					if (player.inNewMoveSection && player.move && player.move->considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot) {
+						overrideStartupFrame = true;
+						defaultStartupFrame = FT_IDLE_ELPHELT_RIFLE;
+					} else if (player.isInArbitraryStartupSection()) {
+						overrideStartupFrame = true;
+						defaultRecoveryFrameType = FT_RECOVERY_HAS_GATLINGS;
+						defaultStartupFrame = player.move->considerArbitraryStartupAsStanceForFramebar ? FT_STARTUP_STANCE : FT_STARTUP_ANYTIME_NOW;
+					} else if (player.canBlock) {
+						defaultStartupFrame = FT_STARTUP_CAN_BLOCK;
+					} else {
+						defaultStartupFrame = FT_STARTUP;
+					}
+					currentFrame.type = defaultStartupFrame;
+				} else if (!player.canBlock) {
+					if (player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime) {
+						currentFrame.type = FT_STARTUP_STANCE;
+					} else {
+						currentFrame.type = FT_IDLE_CANT_BLOCK;
+					}
+				} else if (!player.canFaultlessDefense) {
+					currentFrame.type = FT_IDLE_CANT_FD;
 				} else {
 					currentFrame.type = FT_IDLE;
 				}
 				currentFrame.isFirst = framebar.requestFirstFrame;
 				currentFrame.enableNormals = player.wasEnableNormals;
 				currentFrame.canBlock = player.canBlock;
+				currentFrame.strikeInvulInGeneral = player.strikeInvul.active;
+				currentFrame.throwInvulInGeneral = player.throwInvul.active;
+				currentFrame.superArmorActiveInGeneral = player.superArmor.active || player.projectileOnlyInvul.active || player.reflect.active;
+				currentFrame.superArmorActiveInGeneral_IsFull =
+					currentFrame.superArmorActiveInGeneral
+					&& player.superArmorMid.active
+					&& player.superArmorLow.active
+					&& player.superArmorOverhead.active
+					&& (
+						strcmp(player.anim, "CounterGuardStand") == 0
+						|| strcmp(player.anim, "CounterGuardCrouch") == 0
+					)
+					&& player.superArmorHontaiAttacck.active
+					&& !player.superArmorProjectileLevel0.active
+					&& !player.projectileOnlyInvul.active
+					&& ! player.reflect.active;
+				
+				currentFrame.strikeInvul = player.strikeInvul.active;
+				currentFrame.throwInvul = player.throwInvul.active;
+				currentFrame.lowProfile = player.lowProfile.active;
+				currentFrame.projectileOnlyInvul = player.projectileOnlyInvul.active;
+				currentFrame.superArmor = player.superArmor.active;
+				currentFrame.superArmorThrow = player.superArmorThrow.active;
+				currentFrame.superArmorBurst = player.superArmorBurst.active;
+				currentFrame.superArmorMid = player.superArmorMid.active;
+				currentFrame.superArmorOverhead = player.superArmorOverhead.active;
 			}
 			
-			FrameType startupFrameType = FT_STARTUP;
-			FrameType recoveryFrameType = FT_RECOVERY;
+			FrameType startupFrameType = player.canBlock ? FT_STARTUP_CAN_BLOCK : FT_STARTUP;
+			FrameType recoveryFrameType = defaultRecoveryFrameType;
+			
+			if (player.cmnActIndex == CmnActRomanCancel && !player.superfreezeStartup) {
+				recoveryFrameType = FT_STARTUP;
+			}
+			if (player.move && player.move->isRecoveryCanAct && player.move->isRecoveryCanAct(player.pawn)) {
+				recoveryFrameType = FT_RECOVERY_CAN_ACT;
+			} else if (player.move && player.move->isRecoveryHasGatlings && player.move->isRecoveryHasGatlings(player.pawn)) {
+				recoveryFrameType = FT_RECOVERY_HAS_GATLINGS;
+			}
+			
 			if (inXStun) {
 				startupFrameType = FT_XSTUN;
 			} else if (!player.startedUp
@@ -1969,27 +2211,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.cmnActIndex == CmnActRomanCancel
 						&& !player.superfreezeStartup
 					)) {
-				startupFrameType = FT_RECOVERY;
+				startupFrameType = recoveryFrameType;
 			} else if (player.cmnActIndex == CmnActRomanCancel && player.superfreezeStartup) {
-				startupFrameType = FT_RECOVERY;
-			}
-			if (player.cmnActIndex == CmnActRomanCancel && !player.superfreezeStartup) {
-				recoveryFrameType = FT_STARTUP;
+				startupFrameType = recoveryFrameType;
+			} else if (overrideStartupFrame) {
+				startupFrameType = defaultStartupFrame;
 			}
 			
 			Entity ent = entityList.slots[i];
 			bool hasHitboxes = player.hitboxesCount > 0;
-			bool considerIdleForFramebar = player.charType == CHARACTER_TYPE_ELPHELT
-				&& player.inNewMoveSection
-				&& (strcmp(player.anim, "Rifle_Start") == 0
-					|| strcmp(player.anim, "Rifle_Reload") == 0
-					|| strcmp(player.anim, "Rifle_Reload_Perfect") == 0);
+			
+			bool measureInvuls = !player.hitstop
+					&& !superflashInstigator
+					&& (player.strikeInvul.active
+						|| player.throwInvul.active
+						|| player.projectileOnlyInvul.active
+						|| player.superArmor.active
+						|| player.reflect.active);
 			
 			if (player.isInFDWithoutBlockstun) {
 				++player.totalFD;
 				currentFrame.type = FT_XSTUN;
 			} else if (!player.hitstop
-					&& !(superflashInstigator && superflashInstigator != ent)
+					&& !superflashInstigator
 					&& (
 						player.cmnActIndex == CmnActLandingStiff && !player.idle  // Ramlethal j.8D becomes "idle" on f6 of stiff landing
 						|| !player.idle
@@ -1997,22 +2241,28 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& player.moveOriginatedInTheAir
 					)
 					&& !hasHitboxes
-					&& !player.onTheDefensive  // Potemkin F.D.B. may cause a situation where, on hit, opponent is put into CmnActLockWait that begins airborne,
+					&& !player.onTheDefensive  // Potemkin I.C.P.M may cause a situation where, on hit, opponent is put into CmnActLockWait that begins airborne,
 					                           // then transitions to the ground and, if this check wasn't here, it would be seen as landing animation (lol)
+					&& player.cmnActIndex != CmnActRomanCancel  // needed for Elphelt j.D YRC
 				) {
 				currentFrame.type = FT_LANDING_RECOVERY;
 				++player.landingRecovery;
 				player.totalFD = 0;
+				measureInvuls = player.total
+					&& !player.theAnimationIsNotOverYetLolConsiderBusyNonAirborneFramesAsLandingAnimation
+					&& !player.ignoreNextInabilityToBlockOrAttack;
 			} else if (!player.hitstop
 					&& !(superflashInstigator && superflashInstigator != ent)
-					&& player.cmnActIndex != CmnActJump
+					&& !(player.cmnActIndex == CmnActJump && player.canFaultlessDefense)
 					&& player.cmnActIndex != CmnActJumpPre
 					&& !player.isLanding) {
 				if (
 						(
-							(!player.idlePlus
-							|| player.idleInNewSection
-							|| !player.canBlock)
+							(
+								!player.idlePlus
+								|| player.idleInNewSection
+								|| !(player.canBlock && player.canFaultlessDefense || player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)
+							)
 							&& !player.ignoreNextInabilityToBlockOrAttack
 						)
 						&& !player.startedUp
@@ -2030,20 +2280,27 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.startup += player.landingRecovery;
 							player.total += player.landingRecovery;
 							player.totalCanBlock += player.landingRecovery;
+							player.totalCanFD += player.landingRecovery;
 							player.landingRecovery = 0;
 						}
 						++player.startup;
 						++player.total;
+						measureInvuls = true;
 					}
-					if (!player.canBlock) {
+					if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack
+							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
 						++player.totalCanBlock;
 					}
-					if (!player.idlePlus || player.idleInNewSection || !player.canBlock) {
-						if (considerIdleForFramebar) {
-							currentFrame.type = FT_IDLE;
-						} else {
-							currentFrame.type = startupFrameType;
-						}
+					if ((!player.canBlock || !player.canFaultlessDefense) && !player.ignoreNextInabilityToBlockOrAttack
+							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+						++player.totalCanFD;
+					}
+					if (!player.idlePlus || player.idleInNewSection
+							|| (
+								player.canBlock && player.canFaultlessDefense
+								|| player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime
+							)) {
+						currentFrame.type = startupFrameType;
 					}
 				}
 				if (superflashInstigator == ent && !player.superfreezeStartup) {
@@ -2052,9 +2309,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (hasHitboxes) {
 					if (!player.startedUp) {
 						player.totalCanBlock = player.total;  // needed for Raven glide
+						player.totalCanFD = player.total;  // needed for Raven glide
 						if (player.startupProj) {
 							entityFramebar.changePreviousFrames(FT_RECOVERY,
-								FT_STARTUP,
+								startupFrameType,
 								framebarPos - 1,
 								framebarHitstopSearchPos,
 								framebarIdleSearchPos,
@@ -2078,6 +2336,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.recovery += player.landingRecovery;
 							player.total += player.landingRecovery;
 							player.totalCanBlock += player.landingRecovery;
+							player.totalCanFD += player.landingRecovery;
 							player.landingRecovery = 0;
 						}
 						if (player.recovery + player.landingRecovery) {  // needed for Venom H Mad Struggle
@@ -2102,15 +2361,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.actives.addActive(ent.currentHitNum());
 						currentFrame.type = FT_ACTIVE;
 						++player.total;
-						if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack) {
+						if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack
+								&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
 							++player.totalCanBlock;
 						}
+						if ((!player.canBlock || !player.canFaultlessDefense) && !player.ignoreNextInabilityToBlockOrAttack
+								&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+							++player.totalCanFD;
+						}
+						measureInvuls = true;
 					}
 				} else if (
 						(
-							(!player.idlePlus
-							|| !player.canBlock)
-							&& !player.ignoreNextInabilityToBlockOrAttack
+							(
+								!player.idlePlus
+								|| !(player.canBlock && player.canFaultlessDefense || player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)
+							) && !player.ignoreNextInabilityToBlockOrAttack
 						)
 						&& !superflashInstigator
 						&& player.startedUp
@@ -2126,16 +2392,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.recovery += player.landingRecovery;
 						player.total += player.landingRecovery;
 						player.totalCanBlock += player.landingRecovery;
+						player.totalCanFD += player.landingRecovery;
 						player.landingRecovery = 0;
 					}
 					if (!player.idlePlus) {
 						++player.total;
 						++player.recovery;
 						currentFrame.type = recoveryFrameType;
+						measureInvuls = true;
 					}
-					if (!player.canBlock) {
+					if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack
+							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
 						currentFrame.type = recoveryFrameType;
 						++player.totalCanBlock;
+					}
+					if ((!player.canBlock || !player.canFaultlessDefense) && !player.ignoreNextInabilityToBlockOrAttack
+							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+						currentFrame.type = recoveryFrameType;
+						++player.totalCanFD;
 					}
 				}
 			}
@@ -2145,12 +2419,34 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				framebarAdvancedIdle,
 				framebarAdvancedHitstop,
 				framebarAdvancedIdleHitstop);
+			
+			if (measureInvuls) {
+				int prevTotal = player.prevStartups.total() + player.total;
+				player.strikeInvul.addInvulFrame(prevTotal);
+				player.throwInvul.addInvulFrame(prevTotal);
+				player.lowProfile.addInvulFrame(prevTotal);
+				player.projectileOnlyInvul.addInvulFrame(prevTotal);
+				player.superArmor.addInvulFrame(prevTotal);
+				player.superArmorThrow.addInvulFrame(prevTotal);
+				player.superArmorBurst.addInvulFrame(prevTotal);
+				player.superArmorMid.addInvulFrame(prevTotal);
+				player.superArmorOverhead.addInvulFrame(prevTotal);
+				player.superArmorLow.addInvulFrame(prevTotal);
+				player.superArmorGuardImpossible.addInvulFrame(prevTotal);
+				player.superArmorObjectAttacck.addInvulFrame(prevTotal);
+				player.superArmorHontaiAttacck.addInvulFrame(prevTotal);
+				player.superArmorProjectileLevel0.addInvulFrame(prevTotal);
+				player.superArmorOverdrive.addInvulFrame(prevTotal);
+				player.superArmorBlitzBreak.addInvulFrame(prevTotal);
+				player.reflect.addInvulFrame(prevTotal);
+			}
 		}
 		
 		for (PlayerInfo& player : players) {
 			player.startupDisp = 0;
 			player.activesDisp.clear();
 			player.recoveryDisp = 0;
+			player.recoveryDispCanBlock = -1;
 			player.totalDisp = 0;
 			player.prevStartupsDisp.clear();
 			player.prevStartupsTotalDisp.clear();
@@ -2182,6 +2478,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				int activesDispTotal = player.activesDisp.total();
 				if (endOfActivesRelativeToPlayerTotalCountdownStart >= player.total) {
 					player.recoveryDisp = 0;
+					if (player.totalCanBlock > player.total && endOfActivesRelativeToPlayerTotalCountdownStart < player.totalCanBlock) {
+						// needed for Answer Taunt
+						player.recoveryDispCanBlock = player.totalCanBlock - endOfActivesRelativeToPlayerTotalCountdownStart;
+					}
 				} else {
 					player.recoveryDisp = player.total - endOfActivesRelativeToPlayerTotalCountdownStart;
 				}
@@ -2360,6 +2660,7 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("GIF mode turned on\n", logfile));
 		}
 		ui.gifModeOn = gifMode.gifModeOn;
+		onGifModeBlackBackgroundChanged();
 	}
 	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggleBackgroundOnly) || stateChanged && ui.gifModeToggleBackgroundOnly != gifMode.gifModeToggleBackgroundOnly)) {
 		if (gifMode.gifModeToggleBackgroundOnly == true) {
@@ -2371,6 +2672,17 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("GIF mode (darken background only) turned on\n", logfile));
 		}
 		ui.gifModeToggleBackgroundOnly = gifMode.gifModeToggleBackgroundOnly;
+		onGifModeBlackBackgroundChanged();
+	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.togglePostEffectOnOff)) {
+		BOOL theValue = !game.postEffectOn();
+		game.postEffectOn() = theValue;
+		if (theValue) {
+			logwrap(fputs("Post Effect turned on\n", logfile));
+		}
+		else {
+			logwrap(fputs("Post Effect turned off\n", logfile));
+		}
 	}
 	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.gifModeToggleCameraCenterOnly) || stateChanged && ui.gifModeToggleCameraCenterOnly != gifMode.gifModeToggleCameraCenterOnly)) {
 		if (gifMode.gifModeToggleCameraCenterOnly == true) {
@@ -2491,6 +2803,16 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("UI display enabled\n", logfile));
 		}
 	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.framebarVisibilityToggle)) {
+		if (settings.showFramebar == true) {
+			settings.showFramebar = false;
+			logwrap(fputs("Framebar display disabled\n", logfile));
+		} else {
+			settings.showFramebar = true;
+			logwrap(fputs("Framebar display enabled\n", logfile));
+		}
+		needWriteSettings = true;
+	}
 	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.toggleDisableGrayHurtboxes))) {
 		if (settings.neverDisplayGrayHurtboxes == true) {
 			settings.neverDisplayGrayHurtboxes = false;
@@ -2589,6 +2911,7 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		game.slowmoGame = false;
 		ui.slowmoGame = false;
 		gifMode.gifModeToggleBackgroundOnly = false;
+		onGifModeBlackBackgroundChanged();
 		ui.gifModeToggleBackgroundOnly = false;
 		gifMode.gifModeToggleCameraCenterOnly = false;
 		ui.gifModeToggleCameraCenterOnly = false;
@@ -2739,6 +3062,9 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				|| message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
 			processKeyStrokes();
 		}
+		if (message == WM_APP_TURN_OFF_POST_EFFECT_SETTING_CHANGED) {
+			onGifModeBlackBackgroundChanged();
+		}
 	}
 	
 	bool iLockedTheMutex = false;
@@ -2784,53 +3110,53 @@ void EndScene::drawTexts() {
 	{
 		char HelloWorld[] = "oig^mAtk1;";
 		DrawTextWithIconsParams s;
-	    s.field159_0x100 = 36.0;
-	    s.layer = 177;
-	    s.field160_0x104 = -1.0;
-	    s.field4_0x10 = -1.0;
-	    s.field155_0xf0 = 1;
-	    s.field157_0xf8 = -1;
-	    s.field158_0xfc = -1;
-	    s.field161_0x108 = 0;
-	    s.field162_0x10c = 0;
-	    s.field163_0x110 = -1;
-	    s.field164_0x114 = 0;
-	    s.field165_0x118 = 0;
-	    s.field166_0x11c = -1;
-	    s.outlineColor = 0xff000000;
-	    s.flags2 = 0xff000000;
-	    s.x = 100;
-	    s.y = 185.0 + 34 * 3;
-	    s.alignment = ALIGN_LEFT;
-	    s.text = HelloWorld;
-	    s.field156_0xf4 = 0x210;
-	    drawTextWithIcons(&s,0x0,1,4,0,0);
+		s.field159_0x100 = 36.0;
+		s.layer = 177;
+		s.field160_0x104 = -1.0;
+		s.field4_0x10 = -1.0;
+		s.field155_0xf0 = 1;
+		s.field157_0xf8 = -1;
+		s.field158_0xfc = -1;
+		s.field161_0x108 = 0;
+		s.field162_0x10c = 0;
+		s.field163_0x110 = -1;
+		s.field164_0x114 = 0;
+		s.field165_0x118 = 0;
+		s.field166_0x11c = -1;
+		s.outlineColor = 0xff000000;
+		s.flags2 = 0xff000000;
+		s.x = 100;
+		s.y = 185.0 + 34 * 3;
+		s.alignment = ALIGN_LEFT;
+		s.text = HelloWorld;
+		s.field156_0xf4 = 0x210;
+		drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
-    return;
+	return;
 	{
 		char HelloWorld[] = "-123765";
 		DrawTextWithIconsParams s;
-	    s.field159_0x100 = 36.0;
-	    s.layer = 177;
-	    s.field160_0x104 = -1.0;
-	    s.field4_0x10 = -1.0;
-	    s.field155_0xf0 = 1;
-	    s.field157_0xf8 = -1;
-	    s.field158_0xfc = -1;
-	    s.field161_0x108 = 0;
-	    s.field162_0x10c = 0;
-	    s.field163_0x110 = -1;
-	    s.field164_0x114 = 0;
-	    s.field165_0x118 = 0;
-	    s.field166_0x11c = -1;
-	    s.outlineColor = 0xff000000;
-	    s.flags2 = 0xff000000;
-	    s.x = 460;
-	    s.y = 185.0 + 34 * 3;
-	    s.alignment = ALIGN_CENTER;
-	    s.text = HelloWorld;
-	    s.field156_0xf4 = 0x210;
-	    drawTextWithIcons(&s,0x0,1,4,0,0);
+		s.field159_0x100 = 36.0;
+		s.layer = 177;
+		s.field160_0x104 = -1.0;
+		s.field4_0x10 = -1.0;
+		s.field155_0xf0 = 1;
+		s.field157_0xf8 = -1;
+		s.field158_0xfc = -1;
+		s.field161_0x108 = 0;
+		s.field162_0x10c = 0;
+		s.field163_0x110 = -1;
+		s.field164_0x114 = 0;
+		s.field165_0x118 = 0;
+		s.field166_0x11c = -1;
+		s.outlineColor = 0xff000000;
+		s.flags2 = 0xff000000;
+		s.x = 460;
+		s.y = 185.0 + 34 * 3;
+		s.alignment = ALIGN_CENTER;
+		s.text = HelloWorld;
+		s.field156_0xf4 = 0x210;
+		drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
 	#endif
 }
@@ -3009,6 +3335,7 @@ void EndScene::onUWorld_Tick() {
 			gifMode.gifModeOn = false;
 			gifMode.noGravityOn = false;
 			gifMode.gifModeToggleHideOpponentOnly = false;
+			onGifModeBlackBackgroundChanged();
 			gifMode.toggleHidePlayer = false;
 			if (needToCallNoGravGifMode && game.isTrainingMode()) {
 				entityList.populate();
@@ -3137,7 +3464,10 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 		PlayerInfo& player = findPlayer(pawn);
 		projectile.creationTime_aswEngineTick = getAswEngineTick();
 		projectile.startup = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
-		projectile.total = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
+		if (player.totalCanBlock > player.total) {  // needed for Answer Taunt
+			projectile.startup += player.totalCanBlock - player.total;
+		}
+		projectile.total = projectile.startup;
 		memcpy(projectile.creatorName, player.anim, 32);
 	}
 }
@@ -3332,7 +3662,10 @@ void EndScene::frameCleanup() {
 		player.changedAnimOnThisFrame = false;
 		player.wasEnableGatlings = false;
 		player.wasEnableNormals = false;
+		player.wasProhibitFDTimer = 1;
 		player.wasEnableWhiffCancels = false;
+		player.wasSuperArmorEnabled = false;
+		player.wasFullInvul = false;
 		player.obtainedForceDisableFlags = false;
 		player.armoredHitOnThisFrame = false;
 		player.gotHitOnThisFrame = false;
@@ -3393,6 +3726,14 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 			event.u.signal.from = sendSignalStack.back();
 			event.u.signal.to = pawn;
 			memcpy(event.u.signal.fromAnim, sendSignalStack.back().animationName(), 32);
+		}
+		// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
+		if (signal == 0x27  // PRE_DRAW
+				&& pawn.isPawn()
+				&& (pawn.team() == 0 || pawn.team() == 1)) {
+			PlayerInfo& player = findPlayer(pawn);
+			player.wasSuperArmorEnabled = pawn.superArmorEnabled();
+			player.wasFullInvul = pawn.fullInvul();
 		}
 	}
 	{
@@ -3763,27 +4104,27 @@ void EndScene::queueUIDrawingDummyCommand() {
 
 void EndScene::queueDummyCommand(int layer, float x, char* txt) {
 	DrawTextWithIconsParams s;
-    s.field159_0x100 = 36.0;
-    s.layer = layer;
-    s.field160_0x104 = -1.0;
-    s.field4_0x10 = -1.0;
-    s.field155_0xf0 = 1;
-    s.field157_0xf8 = -1;
-    s.field158_0xfc = -1;
-    s.field161_0x108 = 0;
-    s.field162_0x10c = 0;
-    s.field163_0x110 = -1;
-    s.field164_0x114 = 0;
-    s.field165_0x118 = 0;
-    s.field166_0x11c = -1;
-    s.outlineColor = 0xff000000;
-    s.flags2 = 0xff000000;
-    s.x = x;
-    s.y = 0.F;
-    s.alignment = ALIGN_LEFT;
-    s.text = txt;
-    s.field156_0xf4 = 0x010;
-    drawTextWithIcons(&s,0x0,1,4,0,0);
+	s.field159_0x100 = 36.0;
+	s.layer = layer;
+	s.field160_0x104 = -1.0;
+	s.field4_0x10 = -1.0;
+	s.field155_0xf0 = 1;
+	s.field157_0xf8 = -1;
+	s.field158_0xfc = -1;
+	s.field161_0x108 = 0;
+	s.field162_0x10c = 0;
+	s.field163_0x110 = -1;
+	s.field164_0x114 = 0;
+	s.field165_0x118 = 0;
+	s.field166_0x11c = -1;
+	s.outlineColor = 0xff000000;
+	s.flags2 = 0xff000000;
+	s.x = x;
+	s.y = 0.F;
+	s.alignment = ALIGN_LEFT;
+	s.text = txt;
+	s.field156_0xf4 = 0x010;
+	drawTextWithIcons(&s,0x0,1,4,0,0);
 }
 
 // Runs on the main thread. Called from orig_REDAnywhereDispDraw
@@ -4022,6 +4363,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 	}
 	PlayerInfo& player = findPlayer(pawn);
 	player.wasEnableNormals = pawn.enableNormals();
+	player.wasProhibitFDTimer = pawn.prohibitFDTimer();
 	player.wasEnableGatlings = pawn.enableGatlings();
 	player.wasEnableWhiffCancels = pawn.enableWhiffCancels();
 	player.wasForceDisableFlags = pawn.forceDisableFlags();
@@ -4134,23 +4476,38 @@ EntityFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile, boo
 	bool dontReplaceTitle;
 	
 	if (projectile.move) {
+		
+		const char* framebarName = projectile.move->getFramebarName(projectile.ptr);
+		
 		if (projectile.team == 0) {
 			memcpy(nameBuf, "P1 ", 3);
 		} else {
 			memcpy(nameBuf, "P2 ", 3);
 		}
 		
-		if (projectile.move->framebarName) {
+		if (framebarName) {
 			int len;
 			int bytesUpToMax;
 			int cpsTotal;
-			EntityFramebar::utf8len(projectile.move->framebarName, &len, &cpsTotal, EntityFramebar::titleShortCharsCountMax - 3, &bytesUpToMax);
+			EntityFramebar::utf8len(framebarName, &len, &cpsTotal, EntityFramebar::titleShortCharsCountMax - 3, &bytesUpToMax);
 			
-			strncpy(nameBuf + 3, projectile.move->framebarName, bytesUpToMax);
+			strncpy(nameBuf + 3, framebarName, bytesUpToMax);
+			
+			if (len != bytesUpToMax) {
+				nameFull = framebarName;
+			}
+			name = nameBuf;
+		} else {
+			if (projectile.team == 0) {
+				name = "P1 Projectiles";
+			} else {
+				name = "P2 Projectiles";
+			}
 		}
 		
-		name = nameBuf;
-		nameFull = projectile.move->framebarNameFull;
+		if (projectile.move->framebarNameFull) {
+			nameFull = projectile.move->framebarNameFull;
+		}
 		dontReplaceTitle = false;
 	} else {
 		if (projectile.team == 0) {
@@ -4278,5 +4635,35 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 	}
 	if (framebarAdvancedHitstop) {
 		entityFramebar.hitstop.requestFirstFrame = false;
+	}
+}
+
+bool EndScene::misterPlayerIsManuallyCrouching(const PlayerInfo& player) {
+	if (player.cmnActIndex == CmnActCrouch
+			|| player.cmnActIndex == CmnActCrouchTurn
+			|| player.cmnActIndex == CmnActStand2Crouch) {
+		if (!game.isTrainingMode()) return true;
+		int playerSide = game.getPlayerSide();
+		DummyRecordingMode mode = game.getDummyRecordingMode();
+		if (mode == DUMMY_MODE_CONTROLLING || mode == DUMMY_MODE_RECORDING) {
+			playerSide = 1 - playerSide;
+		}
+		bool autoCrouch = (mode == DUMMY_MODE_IDLE || mode == DUMMY_MODE_CONTROLLING || mode == DUMMY_MODE_RECORDING);
+		if (autoCrouch && playerSide != player.index) {
+			return false;
+		} else {
+			return true;
+		}
+	} else {
+		return false;
+	}
+}
+
+void EndScene::onGifModeBlackBackgroundChanged() {
+	if (!settings.turnOffPostEffectWhenMakingBackgroundBlack) return;
+	BOOL theValue = game.postEffectOn();
+	BOOL whatTheValueShouldBe = !(gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly);
+	if (theValue != whatTheValueShouldBe) {
+		game.postEffectOn() = whatTheValueShouldBe;
 	}
 }

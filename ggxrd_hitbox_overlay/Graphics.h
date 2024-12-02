@@ -60,6 +60,12 @@ private:
 		Vertex() = default;
 		Vertex(float x, float y, float z, float rhw, DWORD color);
 	};
+	struct SmallerVertex {
+		float x, y, z;
+		DWORD color;
+		SmallerVertex() = default;
+		SmallerVertex(float x, float y, float z, DWORD color);
+	};
 	Stencil stencil;
 	std::vector<DrawOutlineCallParams> outlines;
 	std::vector<RectCombiner::Polygon> rectCombinerInputBoxes;
@@ -134,6 +140,11 @@ private:
 	const unsigned int vertexBufferSize = 6 * 200;
 	unsigned int vertexBufferRemainingSize = 0;
 	unsigned int vertexBufferLength = 0;
+	inline void consumeVertexBufferSpace(int verticesCount) {
+		vertexBufferLength += verticesCount;
+		vertexBufferRemainingSize -= verticesCount;
+	}
+	bool vertexRemainingSizeIsInSmallVertices = false;
 	std::vector<Vertex>::iterator vertexIt;
 	unsigned int vertexBufferPosition = 0;
 	bool vertexBufferSent = false;
@@ -201,7 +212,8 @@ private:
 	void cpuPixelBlenderSimple(void* gameImage, const void* boxesImage, int width, int height);
 	void cpuPixelBlenderComplex(void* gameImage, const void* boxesImage, int width, int height);
 	
-	const int hatchesDist = 10000;
+	const int hatchesDist = 15000;
+	
 };
 
 extern Graphics graphics;

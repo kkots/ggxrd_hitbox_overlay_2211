@@ -12,21 +12,29 @@ void collectHitboxes(Entity ent,
 		std::vector<DrawHitboxArrayCallParams>* const hitboxes,
 		std::vector<DrawPointCallParams>* const points,
 		std::vector<DrawBoxCallParams>* const pushboxes,
+		std::vector<DrawBoxCallParams>* const interactionBoxes,
 		int* numHitboxes,
 		int* lastIgnoredHitNum,
-		EntityState* entityState) {
+		EntityState* entityState,
+		bool* wasSuperArmorEnabled,
+		bool* wasFullInvul) {
 	
+	CharacterType ownerType = CHARACTER_TYPE_SOL;
 	if (!ent.isPawn()
-			&& (ent.team() == 0 || ent.team() == 1)
-			&& entityList.slots[ent.team()].characterType() == CHARACTER_TYPE_JACKO
-			&& !ent.displayModel()
-			|| ent.y() < -3000000  // needed for May [2]8S/H
-			|| ent.isHidden()) {  // needed for super animations
-		return;
+			&& (ent.team() == 0 || ent.team() == 1)) {
+		ownerType = entityList.slots[ent.team()].characterType();
+		if (ownerType == CHARACTER_TYPE_JACKO
+				&& !ent.displayModel()
+				|| ent.y() < -3000000  // needed for May [2]8S/H
+				|| ent.isHidden()  // needed for super animations
+				|| ownerType == CHARACTER_TYPE_LEO
+				&& strcmp(ent.animationName(), "Semuke5E_Reflect") == 0) {
+			return;
+		}
 	}
 	
 	EntityState state;
-	ent.getState(&state);
+	ent.getState(&state, wasSuperArmorEnabled, wasFullInvul);
 	if (entityState) *entityState = state;
 	
 	int currentHitNum = ent.currentHitNum();
@@ -99,8 +107,6 @@ void collectHitboxes(Entity ent,
 		DWORD alpha = 64;
 		if (state.strikeInvuln) {
 			alpha = 0;
-		} else if (state.isASummon && state.ownerCharType == CHARACTER_TYPE_KY) {
-			alpha = 0;
 		} else if (THICKNESS_WAY_TOO_NUMEROUS_SUMMONS
 				&& state.isASummon && (state.ownerCharType == CHARACTER_TYPE_JACKO || state.ownerCharType == CHARACTER_TYPE_BEDMAN)) {
 			alpha = 32;
@@ -128,10 +134,7 @@ void collectHitboxes(Entity ent,
 		}
 	}
 
-	bool includeTheseHitboxes = hitboxes && active && !(
-		state.doingAThrow
-		&& ent.isPawn()  // isPawn check for Dizzy bubble pop
-	);
+	bool includeTheseHitboxes = hitboxes && active && !state.doingAThrow;
 	if (includeTheseHitboxes) {
 		if (ent.collisionForceExpand()) {
 			includeTheseHitboxes = false;
@@ -183,6 +186,35 @@ void collectHitboxes(Entity ent,
 		pointCallParams.posX = params.posX;
 		pointCallParams.posY = params.posY;
 		points->push_back(pointCallParams);
+	}
+	
+	if (interactionBoxes) {
+		if (ownerType == CHARACTER_TYPE_FAUST && !ent.mem50() && ent.y() == 0) {
+			int rangeX = 0;
+			if (strcmp(ent.animationName(), "Item_Chocolate") == 0) {
+				rangeX = 84000;
+			} else if (strcmp(ent.animationName(), "Item_BestChocolate") == 0) {
+				rangeX = 168000;
+			} else if (strcmp(ent.animationName(), "Item_Donut") == 0) {
+				rangeX = 84000;
+			} else if (strcmp(ent.animationName(), "Item_ManyDonut") == 0) {
+				rangeX = 168000;
+			}
+			if (rangeX) {
+				DrawBoxCallParams interactionBoxParams;
+				interactionBoxParams.left = params.posX - rangeX;
+				interactionBoxParams.right = params.posX + rangeX;
+				interactionBoxParams.top = params.posY + 10000000;
+				interactionBoxParams.bottom = params.posY - 10000000;
+				interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
+				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+				interactionBoxParams.thickness = THICKNESS_INTERACTION;
+				interactionBoxParams.hatched = false;
+				interactionBoxParams.originX = params.posX;
+				interactionBoxParams.originY = params.posY;
+				interactionBoxes->push_back(interactionBoxParams);
+			}
+		}
 	}
 	
 }

@@ -427,6 +427,51 @@
     <Image Include="..\images\XStunFrame_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\images\SuperArmorActive_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_CantBlock.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_CantFD.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\StartupFrame_CanBlock.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\StartupFrame_CanBlock_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_CantBlock_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_CantFD_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_ElpheltRifle.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_ElpheltRifle_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\RecoveryFrame_CanAct.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\RecoveryFrame_CanAct_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\RecoveryFrame_HasGatlings.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\RecoveryFrame_HasGatlings_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\SuperArmorActive_Full.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\SuperArmorActive_Full_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\MyPixelShader.hlsl">

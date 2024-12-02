@@ -81,11 +81,18 @@ int Entity::posY() const {
 	return entityManager.getPosY(ent);
 }
 
-void Entity::getState(EntityState* state) const {
+void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasFullInvul) const {
 	state->flagsField = *(unsigned int*)(ent + 0x23C);
-	const unsigned int throwFlagsField = *(unsigned int*)(ent + 0x9A4);
+	const unsigned int throwFlagsField = *(unsigned int*)(ent + 0x9A4);  // this is super armor flags
 	Entity presumablyThrownEntity = *(Entity*)(ent + 0x43c);
-	state->doingAThrow = presumablyThrownEntity
+	
+	// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
+	bool isFullInvul = wasFullInvul ? *wasFullInvul : fullInvul();
+	bool isSuperArmor = wasSuperArmorEnabled ? *wasSuperArmorEnabled : superArmorEnabled();
+	
+	state->doingAThrow = isPawn()  // isPawn check for Dizzy bubble pop
+	&& (
+		presumablyThrownEntity
 		&& (*(DWORD*)(presumablyThrownEntity + 0x23c) & 0x800) != 0
 		&& (*(DWORD*)(ent + 0x23c) & 0x1000) != 0
 		&& !(
@@ -93,17 +100,18 @@ void Entity::getState(EntityState* state) const {
 			*attackLockAction() != '\0'
 			&& strcmp(animationName(), attackLockAction()) != 0
 		)
-		|| superArmorEnabled()
+		
+		|| isSuperArmor
 		&& superArmorType() == SUPER_ARMOR_DODGE
 		&& !superArmorForReflect()  // needed for Dizzy mirror super
-		&& (throwFlagsField & 0x036F3E43) == 0x036F3E43;
+		&& (throwFlagsField & 0x036F3E43) == 0x036F3E43
+	);
 	
 	logOnce(fprintf(logfile, "doingAThrow: %d\n", (int)state->doingAThrow));
 	state->isGettingThrown = isGettingThrown();
 	logOnce(fprintf(logfile, "isGettingThrown: %d\n", (int)state->isGettingThrown));
 
-	state->inHitstunBlockstun = *(unsigned int*)(ent + 0x9fE4) > 0;  // this is > 0 in hitstun, blockstun,
-	// including 6f after hitstun, 5f after blockstun and 9f after wakeup
+	state->inHitstunBlockstun = throwProtection();
 
 	state->posY = posY();
 
@@ -114,19 +122,34 @@ void Entity::getState(EntityState* state) const {
 	logOnce(fprintf(logfile, "invulnFlags: %x\n", *(DWORD*)(ent + 0x238)));
 	state->strikeInvuln = strikeIF > 0
 		|| strikeInvul()
-		|| fullInvul()
+		|| isFullInvul
 		|| state->doingAThrow
 		|| state->isGettingThrown
 		|| clashHitstop();
 	logOnce(fprintf(logfile, "strikeInvuln: %u\n", (int)state->strikeInvuln));
 	state->throwInvuln = throwIF > 0
 		|| throwInvul()
-		|| fullInvul()
+		|| isFullInvul
 		|| otg
 		|| state->inHitstunBlockstun
 		|| clashHitstop();
 	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
-	state->superArmorActive = superArmorEnabled();
+	state->superArmorActive = isSuperArmor
+		&& !(
+			isFullInvul
+			|| strikeInvul()
+			|| strikeIF > 0
+			|| state->doingAThrow
+			|| state->isGettingThrown
+		)
+		|| superArmorForReflect()
+		&& (
+			// you just get hit by the projectile if you try to reflect without armor/invul
+			isSuperArmor
+			|| strikeInvul()
+			|| strikeIF > 0
+			// full invul just makes you ignore interactions, you don't even get to the reflect part
+		);
 	state->charType = characterType();
 	state->isASummon = state->charType == -1;
 	state->ownerCharType = (CharacterType)(-1);
@@ -216,11 +239,11 @@ void Entity::getWakeupTimings(CharacterType charType, WakeupTimings* output) {
 	*output = { 0, 0 };
 }
 
-void Entity::getWakeupTimings(WakeupTimings* output) {
+void Entity::getWakeupTimings(WakeupTimings* output) const {
 	getWakeupTimings(characterType(), output);
 }
 
-int Entity::calculateGuts() {
+int Entity::calculateGuts() const {
 	int maxHP = maxHp();
 	int HP = hp();
 	int gutsIndex = 0;

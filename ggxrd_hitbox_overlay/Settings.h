@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <mutex>
 #include <atomic>
 
@@ -27,6 +28,7 @@ public:
 	std::vector<int> disableHitboxDisplayToggle;
 	std::vector<int> continuousScreenshotToggle;
 	std::vector<int> gifModeToggleBackgroundOnly;
+	std::vector<int> togglePostEffectOnOff;
 	std::vector<int> gifModeToggleCameraCenterOnly;
 	std::vector<int> toggleCameraCenterOpponent;
 	std::vector<int> gifModeToggleHideOpponentOnly;
@@ -34,25 +36,39 @@ public:
 	std::vector<int> gifModeToggleHudOnly;
 	std::vector<int> screenshotBtn;
 	std::vector<int> modWindowVisibilityToggle;
+	std::vector<int> framebarVisibilityToggle;
 	std::vector<int> toggleDisableGrayHurtboxes;
 	std:: mutex screenshotPathMutex;
+	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	std::string screenshotPath;
 	std::atomic_bool displayUIOnTopOfPauseMenu = false;
 	std::atomic_bool allowContinuousScreenshotting = false;
 	std::atomic_bool dontUseScreenshotTransparency = false;
+	std::atomic_bool turnOffPostEffectWhenMakingBackgroundBlack = true;
 	std::atomic_int slowmoTimes = 3;
 	std::atomic_int framebarHeight = 19;
+	std::atomic_int lowProfileCutoffPoint = 19;
 	std::atomic_bool startDisabled = false;
 	std::atomic_bool drawPushboxCheckSeparately = true;
 	std::atomic_bool modWindowVisibleOnStart = true;
+	std::atomic_bool closingModWindowAlsoHidesFramebar = true;
 	std::atomic_bool neverIgnoreHitstop = false;
 	std::atomic_bool considerRunAndWalkNonIdle = false;
+	std::atomic_bool considerCrouchNonIdle = false;
 	std::atomic_bool useSimplePixelBlender = false;
 	std::atomic_bool dontShowBoxes = false;
 	std::atomic_bool neverDisplayGrayHurtboxes = false;
 	std::atomic_bool showFramebar = true;
+	std::atomic_bool showFramebarInTrainingMode = true;
+	std::atomic_bool showFramebarInReplayMode = true;
+	std::atomic_bool showFramebarInOtherModes = true;
+	std::atomic_bool showStrikeInvulOnFramebar = true;
+	std::atomic_bool showSuperArmorOnFramebar = true;
+	std::atomic_bool showThrowInvulOnFramebar = true;
+	std::atomic_bool showFirstFramesOnFramebar = true;
 	std::atomic_bool useColorblindHelp = false;
 	std::atomic_bool considerKnockdownWakeupAndAirtechIdle = false;
+	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);
 	void writeSettings();
@@ -62,12 +78,14 @@ public:
 	};
 	void onKeyCombosUpdated();
 	void getComboInfo(std::vector<int>& keyCombo, ComboInfo* info);
+	const char* getOtherUIName(void* ptr);
 	const char* getOtherUIDescription(void* ptr);
 	const char* getOtherINIDescription(void* ptr);
 private:
 	struct KeyComboToParse {
 		const char* name = nullptr;
 		const char* uiName = nullptr;
+		std::string uiFullName;
 		std::vector<int>* keyCombo = nullptr;
 		const char* defaultValue = nullptr;
 		const char* iniDescription = nullptr;
@@ -76,23 +94,40 @@ private:
 		bool representationGenerated = false;
 		std::string representation;
 		void generateRepresentation();
+		KeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription);
 	};
 	std::map<std::string, KeyComboToParse> keyCombosToParse;
+	struct MyKey {
+		const char* str;
+	};
+	static int hashString(const char* str, int startingHash = 0);
+	struct MyHashFunction {
+		inline std::size_t operator()(const char* key) const {
+			return hashString(key);
+		}
+	};
+	struct MyCompareFunction {
+		inline bool operator()(const char* key, const char* other) const {
+			return strcmp(key, other) == 0;
+		}
+	};
+	std::unordered_map<const char*, const char*, MyHashFunction, MyCompareFunction> iniNameToUiNameMap;
 	void insertKeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription);
 	void addKey(const char* name, const char* uiName, int code);
-	int findMinCommentPos(const char* buf) const;
-	std::string parseKeyName(const char* buf) const;
-	std::string getKeyValue(const char* buf) const;
+	static int findMinCommentPos(const char* buf);
+	static std::string parseKeyName(const char* buf);
+	static std::string getKeyValue(const char* buf);
 	void addKeyRange(char start, char end);
-	int findChar(const char* buf, char c, int startingPos = 0) const;
-	std::pair<int, int> trim(std::string& str) const; // Trims left and right in-place. Returns how many chars were cut off from left (.first) and from right (.second).
-	std::string toUppercase(const std::string& str) const;
-	std::vector<std::string> split(const std::string& str, char c) const;
-	bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes);
-	bool parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer);
-	bool parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue);
-	const char* formatBoolean(bool value);
-	std::wstring getCurrentDirectory();
+	static int findChar(const char* buf, char c, int startingPos = 0);
+	static int findCharRev(const char* buf, char c);
+	static std::pair<int, int> trim(std::string& str); // Trims left and right in-place. Returns how many chars were cut off from left (.first) and from right (.second).
+	static std::string toUppercase(const std::string& str);
+	static std::vector<std::string> split(const std::string& str, char c);
+	static bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes);
+	static bool parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer);
+	static bool parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue);
+	static const char* formatBoolean(bool value);
+	static std::wstring getCurrentDirectory();
 	void registerListenerForChanges();
 	std::wstring settingsPath;
 	bool firstSettingsParse = true;
@@ -108,19 +143,24 @@ private:
 	} changesListenerWakeType;
 	static DWORD WINAPI changesListenerLoop(LPVOID lpThreadParameter);
 	void writeSettingsMain();
-	bool isWhitespace(const char* str);
-	int compareKeyCombos(const std::vector<int>& left, const std::vector<int>& right);
+	static bool isWhitespace(const char* str);
+	static int compareKeyCombos(const std::vector<int>& left, const std::vector<int>& right);
 	const char* getComboRepresentation(std::vector<int>& toggle);
 	const char* getKeyTxtName(int code);
 	void trashComboRepresentation(std::vector<int>& toggle);
 	struct OtherDescription {
 		void* ptr = nullptr;
+		const char* iniName = nullptr;
+		std::string iniNameAllCaps;
+		const char* uiName = nullptr;
+		std::string uiFullPath;
 		const char* iniDescription = nullptr;
 		std::string uiDescription;
 	};
 	std::vector<OtherDescription> otherDescriptions;
-	void registerOtherDescription(void* ptr, const char* iniDescription);
+	void registerOtherDescription(void* ptr, const char* iniName, const char* uiName, const char* uiPath, const char* iniDescription);
 	std::string convertToUiDescription(const char* iniDescription);
+	std::vector<OtherDescription*> pointerIntoSettingsIntoDescription;
 };
 
 extern Settings settings;

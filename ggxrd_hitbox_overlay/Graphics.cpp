@@ -315,18 +315,15 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 				++vertexIt;
 				*vertexIt = firstVertex;
 				++vertexIt;
-				vertexBufferLength += 6;
-				vertexBufferRemainingSize -= 6;
+				consumeVertexBufferSpace(6);
 			} else {
-				vertexBufferLength += 4;
-				vertexBufferRemainingSize -= 4;
+				consumeVertexBufferSpace(4);
 				*vertexIt = Vertex{ sp1.x, sp1.y, 0.F, 1.F, fillColor };
 				++vertexIt;
 			}
 		} else {
 			drawIfOutOfSpace(4);
-			vertexBufferLength += 4;
-			vertexBufferRemainingSize -= 4;
+			consumeVertexBufferSpace(4);
 			*vertexIt = Vertex{ sp1.x, sp1.y, 0.F, 1.F, fillColor };
 			++vertexIt;
 		}
@@ -671,6 +668,9 @@ void Graphics::drawAll() {
 		for (const DrawBoxCallParams& params : drawDataUse.throwBoxes) {
 			prepareBox(params);
 		}
+		for (const DrawBoxCallParams& params : drawDataUse.interactionBoxes) {
+			prepareBox(params);
+		}
 		for (DrawOutlineCallParams& params : outlines) {
 			prepareOutline(params);
 		}
@@ -796,8 +796,12 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 Graphics::Vertex::Vertex(float x, float y, float z, float rhw, D3DCOLOR color)
 	: x(x), y(y), z(z), rhw(rhw), color(color) { }
 
+Graphics::SmallerVertex::SmallerVertex(float x, float y, float z, D3DCOLOR color)
+	: x(x), y(y), z(z), color(color) { }
+
 void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 	if (screenshotStage == SCREENSHOT_STAGE_BASE_COLOR) return;
+	if (params.empty()) return;
 	logOnce(fprintf(logfile, "Called drawOutlines with an outline with %d elements\n", params.count()));
 	
 	D3DXVECTOR3 conv;
@@ -805,8 +809,6 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 	
 	if (params.thickness == 1) {
 		
-		if (params.empty()) return;
-
 		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
 		if (!alreadyProjected) {
 			for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
@@ -837,8 +839,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			*vertexIt = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 			if (outlineIndex == 0) firstVertex = *vertexIt;
 			++vertexIt;
-			++vertexBufferLength;
-			--vertexBufferRemainingSize;
+			consumeVertexBufferSpace(1);
 		}
 		drawIfOutOfSpace(1);
 		PreparedOutline& preparedOutline = preparedOutlines.back();
@@ -847,11 +848,10 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 		preparedOutline.isComplete = true;
 		*vertexIt = firstVertex;
 		++vertexIt;
-		++vertexBufferLength;
-		--vertexBufferRemainingSize;
+		consumeVertexBufferSpace(1);
 		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_THINLINE;
 
-	} else if (!params.empty()) {
+	} else {
 		
 		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
 		if (!alreadyProjected) {
@@ -902,8 +902,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 				++vertexIt;
 				*vertexIt = firstVertex;
 				++vertexIt;
-				vertexBufferLength += 4;
-				vertexBufferRemainingSize -= 4;
+				consumeVertexBufferSpace(4);
 				preparedOutlines.back().hasPadding = true;
 			} else {
 				drawIfOutOfSpace(2);
@@ -916,8 +915,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 					*vertexIt = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
 					++vertexIt;
 				}
-				vertexBufferLength += 2;
-				vertexBufferRemainingSize -= 2;
+				consumeVertexBufferSpace(2);
 			}
 			padTheFirst = false;
 			
@@ -941,8 +939,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 		++vertexIt;
 		*vertexIt = secondVertex;
 		++vertexIt;
-		vertexBufferLength += 2;
-		vertexBufferRemainingSize -= 2;
+		consumeVertexBufferSpace(2);
 		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE;
 		
 	}
@@ -974,17 +971,8 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 				--n;
 				dist = hatchesDist + dist;
 			}
-			enum Direction {
-				DIRECTION_NONE,
-				DIRECTION_UP,
-				DIRECTION_RIGHT,
-				DIRECTION_DOWN,
-				DIRECTION_LEFT
-			} lastDir = DIRECTION_NONE;
-			bool lastAddedHatch = false;
 			
 			const PathElement* pathElementEnd = pathElementStart;
-			Direction currentDir;
 			
 			for (int i = 0; i < pointStart.count; ++i) {
 				pathElementStart = pathElementEnd;
@@ -994,31 +982,20 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 					pathElementEnd = &DrawOutlineCallParams::getPathElemStatic(pointStart.start, i + 1);
 				}
 				
-				bool addedHatch = false;
-				int lineHasX;
-				int lineHasY;
+				DWORD lineHasX;
+				DWORD lineHasY;
 				int distEnd;
 				if (pathElementEnd->x == pathElementStart->x) {
 					lineHasX = 0;
-					lineHasY = 1;
+					lineHasY = -1;
 					if (pathElementEnd->y == pathElementStart->y) {
 						continue;
 					}
 					distEnd = dist + pathElementEnd->y - pathElementStart->y;
-					if (pathElementEnd->y > pathElementStart->y) {
-						currentDir = DIRECTION_UP;
-					} else {
-						currentDir = DIRECTION_DOWN;
-					}
 				} else {
-					lineHasX = 1;
+					lineHasX = -1;
 					lineHasY = 0;
 					distEnd = dist + pathElementEnd->x - pathElementStart->x;
-					if (pathElementEnd->x > pathElementStart->x) {
-						currentDir = DIRECTION_RIGHT;
-					} else {
-						currentDir = DIRECTION_LEFT;
-					}
 				}
 				
 				int off = -dist;
@@ -1027,9 +1004,8 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 						hatchArena.emplace_back();
 						HatchPoint& hatchPoint = hatchArena.back();
 						hatchPoint.n = n;
-						hatchPoint.x = pathElementStart->x + lineHasX * off;
-						hatchPoint.y = pathElementStart->y + lineHasY * off;
-						addedHatch = true;
+						hatchPoint.x = pathElementStart->x + (lineHasX & off);
+						hatchPoint.y = pathElementStart->y + (lineHasY & off);
 					}
 					while (distEnd >= hatchesDist) {
 						++n;
@@ -1039,9 +1015,8 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 							hatchArena.emplace_back();
 							HatchPoint& hatchPoint = hatchArena.back();
 							hatchPoint.n = n;
-							hatchPoint.x = pathElementStart->x + lineHasX * off;
-							hatchPoint.y = pathElementStart->y + lineHasY * off;
-							addedHatch = true;
+							hatchPoint.x = pathElementStart->x + (lineHasX & off);
+							hatchPoint.y = pathElementStart->y + (lineHasY & off);
 						}
 					}
 				} else {
@@ -1050,9 +1025,8 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 							hatchArena.emplace_back();
 							HatchPoint& hatchPoint = hatchArena.back();
 							hatchPoint.n = n;
-							hatchPoint.x = pathElementStart->x + lineHasX * off;
-							hatchPoint.y = pathElementStart->y + lineHasY * off;
-							addedHatch = true;
+							hatchPoint.x = pathElementStart->x + (lineHasX & off);
+							hatchPoint.y = pathElementStart->y + (lineHasY & off);
 						}
 					}
 					while (distEnd <= -hatchesDist) {
@@ -1063,14 +1037,12 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 							hatchArena.emplace_back();
 							HatchPoint& hatchPoint = hatchArena.back();
 							hatchPoint.n = n;
-							hatchPoint.x = pathElementStart->x + lineHasX * off;
-							hatchPoint.y = pathElementStart->y + lineHasY * off;
-							addedHatch = true;
+							hatchPoint.x = pathElementStart->x + (lineHasX & off);
+							hatchPoint.y = pathElementStart->y + (lineHasY & off);
 						}
 					}
 				}
 				dist = distEnd;
-				lastAddedHatch = addedHatch;
 			}
 		}
 		
@@ -1122,7 +1094,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			++vertexIt;
 			*vertexIt = Vertex{ pnt2.x, pnt2.y, 0.F, 1.F, params.outlineColor };
 			++vertexIt;
-			vertexBufferLength += 2;
+			consumeVertexBufferSpace(2);
 			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_HATCH;
 		}
 		preparedOutlinePtr->hatchesComplete = true;
@@ -1157,8 +1129,7 @@ void Graphics::preparePoint(const DrawPointCallParams& params) {
 	   +-----------+*/
 
 	drawIfOutOfSpace(14);
-	vertexBufferLength += 14;
-	vertexBufferRemainingSize -= 14;
+	consumeVertexBufferSpace(14);
 
 	const D3DCOLOR fillColor = params.fillColor;
 
@@ -1595,6 +1566,7 @@ void DrawData::clear() {
 	hurtboxes.clear();
 	hitboxes.clear();
 	pushboxes.clear();
+	interactionBoxes.clear();
 	points.clear();
 	throwBoxes.clear();
 	needTakeScreenshot = false;
@@ -1630,6 +1602,7 @@ void DrawData::copyTo(DrawData* destination) {
 	destination->hurtboxes.insert(destination->hurtboxes.begin(), hurtboxes.begin(), hurtboxes.end());
 	destination->hitboxes.insert(destination->hitboxes.begin(), hitboxes.begin(), hitboxes.end());
 	destination->pushboxes.insert(destination->pushboxes.begin(), pushboxes.begin(), pushboxes.end());
+	destination->interactionBoxes.insert(destination->interactionBoxes.begin(), interactionBoxes.begin(), interactionBoxes.end());
 	destination->points.insert(destination->points.begin(), points.begin(), points.end());
 	destination->throwBoxes.insert(destination->throwBoxes.begin(), throwBoxes.begin(), throwBoxes.end());
 	destination->needTakeScreenshot = needTakeScreenshot;
@@ -1769,7 +1742,7 @@ void Graphics::compilePixelShader() {
 	// D3DCompiler_42.dll
 	// D3DCompiler_43.dll
 	// Use GetProcAddress to locate D3DCompile and call it through a pointer.
-	// Normally these DLLs should be found in C:\Windows\SysWOW64\ on the user's machine.
+	// Normally these DLLs should be found in C:\Windows\SysWOW64\ (if machine/OS is 64-bit) or C:\Windows\System32\ (if machine/OS is 32-bit) on the user's machine (the DLL we need is always 32-bit).
 	// Redistributing these DLLs may be a violation of copyright.
 	// Last resort may be using fxc to precompile the shader.
 	

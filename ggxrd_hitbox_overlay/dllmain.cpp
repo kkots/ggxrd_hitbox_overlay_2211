@@ -25,17 +25,17 @@
 static void closeLog();
 
 BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+					   DWORD  ul_reason_for_call,
+					   LPVOID lpReserved
+					 )
 {
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH: {
+	switch (ul_reason_for_call)
+	{
+	case DLL_PROCESS_ATTACH: {
 		DisableThreadLibraryCalls(hModule);
 #ifdef LOG_PATH
-        {
-            HANDLE fileHandle = CreateFileW(
+		{
+			HANDLE fileHandle = CreateFileW(
 				LOG_PATH,
 				GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
 				FILE_ATTRIBUTE_NORMAL, NULL);
@@ -52,7 +52,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		}
 #endif
 		#define terminate { \
-    		detouring.cancelTransaction(); \
+			detouring.cancelTransaction(); \
 			closeLog(); \
 			return FALSE; \
 		}
@@ -60,60 +60,60 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			logwrap(fputs("IMGUI_CHECKVERSION() returned false\n", logfile));
 			terminate
 		}
-        if (!detouring.beginTransaction()) terminate
-        if (!settings.onDllMain()) terminate
-        if (!game.onDllMain()) terminate
-        if (!camera.onDllMain()) terminate
-        if (!entityManager.onDllMain()) terminate
-        if (!direct3DVTable.onDllMain()) terminate
-        if (!keyboard.onDllMain()) terminate
-        if (!ui.onDllMain(hModule)) terminate
-        if (!endScene.onDllMain()) terminate
-        if (!hitDetector.onDllMain()) terminate
-        if (!graphics.onDllMain(hModule)) terminate
-        if (!altModes.onDllMain()) terminate
-        if (!throws.onDllMain()) terminate
-        if (!hud.onDllMain()) terminate
-        if (!moves.onDllMain()) terminate
-        if (!detouring.endTransaction()) terminate
-        break;
-    }
-    case DLL_PROCESS_DETACH:
-        logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
-        detouring.dllMainThreadId = GetCurrentThreadId();
-        logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
-        ui.onDllDetachStage1();
-        settings.onDllDetach();
-        
-        // send signals to various hooked threads that are running continuously,
-        // telling them to undo the changes they have made.
-        // imGui looks like it needs graphics resources undone first (on the graphics thread),
-        // then the whole rest of imGui (on the logic thread)
-        
-        graphics.shutdown = true;
-        graphics.onDllDetach();
-        
-        camera.shutdown = true;
-        game.shutdown = true;
-        endScene.onDllDetach();
-        
-        detouring.detachAll();
-        Sleep(100);
-        while (detouring.someThreadsAreExecutingThisModule(hModule)) Sleep(100);
+		if (!detouring.beginTransaction()) terminate
+		if (!settings.onDllMain()) terminate
+		if (!game.onDllMain()) terminate
+		if (!camera.onDllMain()) terminate
+		if (!entityManager.onDllMain()) terminate
+		if (!direct3DVTable.onDllMain()) terminate
+		if (!keyboard.onDllMain()) terminate
+		if (!ui.onDllMain(hModule)) terminate
+		if (!endScene.onDllMain()) terminate
+		if (!hitDetector.onDllMain()) terminate
+		if (!graphics.onDllMain(hModule)) terminate
+		if (!altModes.onDllMain()) terminate
+		if (!throws.onDllMain()) terminate
+		if (!hud.onDllMain()) terminate
+		if (!moves.onDllMain()) terminate
+		if (!detouring.endTransaction()) terminate
+		break;
+	}
+	case DLL_PROCESS_DETACH:
+		logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
+		detouring.dllMainThreadId = GetCurrentThreadId();
+		logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
+		ui.onDllDetachStage1();
+		settings.onDllDetach();
 		
-    	detouring.cancelTransaction();
-    	closeLog();
-        break;
-    }
-    return TRUE;
+		// send signals to various hooked threads that are running continuously,
+		// telling them to undo the changes they have made.
+		// imGui looks like it needs graphics resources undone first (on the graphics thread),
+		// then the whole rest of imGui (on the logic thread)
+		
+		graphics.shutdown = true;
+		graphics.onDllDetach();
+		
+		camera.shutdown = true;
+		game.shutdown = true;
+		endScene.onDllDetach();
+		
+		detouring.detachAll();
+		Sleep(100);
+		while (detouring.someThreadsAreExecutingThisModule(hModule)) Sleep(100);
+		
+		detouring.cancelTransaction();
+		closeLog();
+		break;
+	}
+	return TRUE;
 }
 
 void closeLog() {
 #ifdef LOG_PATH
-    if (logfile) {
-        fflush(logfile);
-        fclose(logfile);
-        logfile = NULL;
-    }
+	if (logfile) {
+		fflush(logfile);
+		fclose(logfile);
+		logfile = NULL;
+	}
 #endif
 }

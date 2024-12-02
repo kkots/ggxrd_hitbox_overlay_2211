@@ -6,27 +6,56 @@
 enum FrameType : char {
 	FT_NONE,
 	FT_IDLE,
+	FT_IDLE_CANT_BLOCK,
+	FT_IDLE_CANT_FD,
+	FT_IDLE_ELPHELT_RIFLE,
 	FT_HITSTOP,
 	FT_ACTIVE,
 	FT_STARTUP,
+	FT_STARTUP_ANYTIME_NOW,
+	FT_STARTUP_STANCE,
+	FT_STARTUP_CAN_BLOCK,
 	FT_RECOVERY,
+	FT_RECOVERY_HAS_GATLINGS,
+	FT_RECOVERY_CAN_ACT,
 	FT_NON_ACTIVE,
 	FT_PROJECTILE,
 	FT_LANDING_RECOVERY,
 	FT_XSTUN
 };
+// ! start must be 0 !
+const FrameType FRAME_TYPE_LAST = FT_XSTUN;
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
 struct Frame {
 	DWORD aswEngineTick;
 	FrameType type;
-	bool strikeInful:1;
-	bool throwInvul:1;
-	bool superArmorActive:1;
+	bool strikeInvulInGeneral:1;
+	bool throwInvulInGeneral:1;
+	bool superArmorActiveInGeneral:1;
+	bool superArmorActiveInGeneral_IsFull:1;
 	bool isFirst:1;
 	bool enableNormals:1;
 	bool canBlock:1;
+	
+	bool strikeInvul:1;
+	bool throwInvul:1;
+	bool lowProfile:1;
+	bool projectileOnlyInvul:1;
+	bool superArmor:1;
+	bool superArmorThrow:1;
+	bool superArmorBurst:1;
+	bool superArmorMid:1;
+	bool superArmorOverhead:1;
+	bool superArmorLow:1;
+	bool superArmorGuardImpossible:1;
+	bool superArmorObjectAttacck:1;
+	bool superArmorHontaiAttacck:1;
+	bool superArmorProjectileLevel0:1;
+	bool superArmorOverdrive:1;
+	bool superArmorBlitzBreak:1;
+	bool reflect:1;
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
@@ -101,6 +130,8 @@ struct EntityFramebar {
 struct ActiveData {
 	short actives = 0;
 	short nonActives = 0;
+	inline bool operator==(const ActiveData& other) const { return actives == other.actives && nonActives == other.nonActives; }
+	inline bool operator!=(const ActiveData& other) const { return !(*this == other); }
 };
 
 struct ActiveDataArray {
@@ -220,6 +251,11 @@ struct ProjectileInfo {
 	int startup = 0;  // if active frames have not started yet, is equal to total. Otherwise, means time since the owning player has started their last move until active frames, inclusive
 	int total = 0;  // time since the owning player started their last move
 	int hitNumber = 0;  // updated every frame
+	
+	int hitboxTopY = 0;
+	int hitboxBottomY = 0;
+	bool hitboxTopBottomValid = false;
+	
 	DWORD creationTime_aswEngineTick = 0;
 	ActiveDataArray actives;
 	const MoveInfo* move = nullptr;
@@ -245,6 +281,14 @@ struct ProjectileInfo {
 	void fill(Entity ent);
 	void printStartup(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
+};
+
+struct InvulData {
+	bool active = false;
+	int start = 0;
+	ActiveDataArray frames;
+	void clear();
+	void addInvulFrame(int prevTotal);
 };
 
 // This struct is cleared by setting all its memory to zero. If you add a new member, make sure it's ok to initialize it with 0.
@@ -286,6 +330,13 @@ struct PlayerInfo {
 	int speedX = 0;
 	int speedY = 0;
 	int gravity = 0;
+	
+	int hurtboxTopY = 0;
+	int hurtboxBottomY = 0;
+	bool hurtboxTopBottomValid = false;
+	int hitboxTopY = 0;
+	int hitboxBottomY = 0;
+	bool hitboxTopBottomValid = false;
 	
 	int pushback = 0;
 	int pushbackMax = 0;
@@ -346,6 +397,7 @@ struct PlayerInfo {
 	int total = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't attack
 	
 	int totalCanBlock = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't block
+	int totalCanFD = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't FD
 	
 	int totalFD = 0;  // number of frames for which you were holding FD
 	
@@ -354,6 +406,7 @@ struct PlayerInfo {
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move
 	int recoveryDisp = 0;  // recovery to display in the UI. Either current or of the last move. Includes only frames where you can't attack
+	int recoveryDispCanBlock = -1;  // recovery until becoming able to block to display in the UI. Either current or of the last move. Includes only frames where you can't block. -1 means need to determine automatically
 	int totalDisp = 0;  // total frames to display in the UI. Either current or of the last move. Includes only frames where you can't attack
 	
 	int startupProj = 0;  // startup of all projectiles. Either current or of the last move
@@ -364,6 +417,24 @@ struct PlayerInfo {
 	//  this relies on there being only one active projectile for a move.
 	//  it's a copy of previous startups of that projectile
 	PrevStartupsInfo prevStartupsProj { 0 };
+	
+	InvulData strikeInvul { 0 };
+	InvulData throwInvul { 0 };
+	InvulData lowProfile { 0 };
+	InvulData projectileOnlyInvul { 0 };
+	InvulData superArmor { 0 };
+	InvulData superArmorThrow { 0 };
+	InvulData superArmorBurst { 0 };
+	InvulData superArmorMid { 0 };
+	InvulData superArmorOverhead { 0 };
+	InvulData superArmorLow { 0 };
+	InvulData superArmorGuardImpossible { 0 };
+	InvulData superArmorObjectAttacck { 0 };
+	InvulData superArmorHontaiAttacck { 0 };
+	InvulData superArmorProjectileLevel0 { 0 };
+	InvulData superArmorOverdrive { 0 };
+	InvulData superArmorBlitzBreak { 0 };
+	InvulData reflect { 0 };
 	
 	int landingRecovery = 0;  // number of landing recovery frames. Either current or of the last performed move
 	int animFrame = 0;
@@ -382,6 +453,7 @@ struct PlayerInfo {
 	int playerval1 = 0;
 	int maxDI = 0;
 	int remainingDoubleJumps = 0;
+	int wasProhibitFDTimer = 0;
 	EddieInfo eddie { 0 };
 	
 	DWORD moveStartTime_aswEngineTick = 0;
@@ -410,7 +482,8 @@ struct PlayerInfo {
 	// If the animation changes to another one, this has to be reset.
 	bool theAnimationIsNotOverYetLolConsiderBusyNonAirborneFramesAsLandingAnimation:1;
 	bool airborne:1;  // is y > 0 or speed y != 0. Note that tumbling state and pre-landing frame may be y == 0, and getting hit by Greed Sever puts you airborne at y == 0, so also check speedY == 0
-	bool inHitstun:1;  // being combo'd. I guess this should be called inHitstun
+	bool inHitstun:1;  // being combo'd
+	bool inHitstunNowOrNextFrame:1;  // being combo'd
 	bool gettingUp:1;  // playing a wakeup animation
 	bool wasIdle:1;  // briefly became idle during the frame while transitioning through some animations
 	bool startedDefending:1;  // triggers restart of frame advantage measurement
@@ -447,6 +520,7 @@ struct PlayerInfo {
 	bool obtainedForceDisableFlags:1;
 	
 	bool enableBlock:1;  // this holds the raw value of ent.enableBlock() flag
+	bool canFaultlessDefense:1;  // this contains the result of a decision that determines whether you can FD based on information gathered during the logic tick
 	bool canBlock:1;  // this may either contain the value from enableBlock field or the result of the decision override by the current move
 	
 	bool isInFDWithoutBlockstun:1;
@@ -462,11 +536,11 @@ struct PlayerInfo {
 	bool leftHitstop:1;
 	bool hasDangerousProjectiles:1;
 	
-	bool projectileOnlyInvul:1;
-	bool strikeInvul:1;
-	bool throwInvul:1;
-	bool superArmorActive:1;
 	bool counterhit:1;
+	
+	// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
+	bool wasSuperArmorEnabled:1;
+	bool wasFullInvul:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { 0 };
@@ -480,5 +554,8 @@ struct PlayerInfo {
 	void printStartup(char* buf, size_t bufSize);
 	void printRecovery(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
+	void printInvuls(char* buf, size_t bufSize) const;
 	bool isIdleInNewSection();
+	bool isInArbitraryStartupSection();
+	bool canPrintTotal() const;
 };

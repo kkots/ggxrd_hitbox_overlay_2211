@@ -99,33 +99,33 @@ struct CheckDeleteAltRenderTargetRenderCommand : FRenderCommand {
 };
 
 struct REDDrawCommand {
-    int commandType;  // 4 is quad
-    unsigned int layer;  // ordered by layer, lowest to highest, lowest drawn first
-    float z;  // ordered by z within same layer, lowest to highest
-    REDDrawCommand* prevItem;  // prev item within the same layer
-    REDDrawCommand* nextItem;  // next item within the same layer
-    REDDrawCommand* prevLayer;  // only valid for layer-items, i.e. items that are the first in a given layer
-    REDDrawCommand* nextLayer;  // only valid for layer-items, i.e. items that are the first in a given layer
+	int commandType;  // 4 is quad
+	unsigned int layer;  // ordered by layer, lowest to highest, lowest drawn first
+	float z;  // ordered by z within same layer, lowest to highest
+	REDDrawCommand* prevItem;  // prev item within the same layer
+	REDDrawCommand* nextItem;  // next item within the same layer
+	REDDrawCommand* prevLayer;  // only valid for layer-items, i.e. items that are the first in a given layer
+	REDDrawCommand* nextLayer;  // only valid for layer-items, i.e. items that are the first in a given layer
 };
 
 struct REDQuadVertex {
-    float x;
-    float y;
-    float u;
-    float v;
-    D3DCOLOR color;
+	float x;
+	float y;
+	float u;
+	float v;
+	D3DCOLOR color;
 };
 
 struct REDDrawQuadCommand : REDDrawCommand {
-    void* texture;  // UTexture2D*
-    int field2_0x20;
-    int count;  // vertex count
-    int field4_0x28;
-    REDQuadVertex* vertices;
-    int field6_0x30;
-    void* field7_0x34;
-    int field8_0x38;
-    int field9_0x3c;
+	void* texture;  // UTexture2D*
+	int field2_0x20;
+	int count;  // vertex count
+	int field4_0x28;
+	REDQuadVertex* vertices;
+	int field6_0x30;
+	void* field7_0x34;
+	int field8_0x38;
+	int field9_0x3c;
 };
 
 using FRingBuffer_AllocationContext_Constructor_t = FRingBuffer_AllocationContext*(__thiscall*)(FRingBuffer_AllocationContext* thisArg,
@@ -152,6 +152,7 @@ public:
 	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
 	bool didHit(Entity attacker);
 	void onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen);
+	void onGifModeBlackBackgroundChanged();
 	WNDPROC orig_WndProc = nullptr;
 	std::mutex orig_WndProcMutex;
 	bool orig_WndProcMutexLockedByWndProc = false;
@@ -374,8 +375,8 @@ private:
 				Entity from;
 				Entity to;
 				char fromAnim[32];  // this is needed from Bedman 236H's bomb1 being created by Flying_bomb1.
-				                    // Flying_bomb1 disappears on that very frame and is never actually visible,
-				                    // and we get a different animation string ("423wind") when reading from its pointer
+									// Flying_bomb1 disappears on that very frame and is never actually visible,
+									// and we get a different animation string ("423wind") when reading from its pointer
 			} signal;
 			inline OccuredEventUnion() { }
 		} u;
@@ -399,6 +400,8 @@ private:
 		bool framebarAdvancedIdle,
 		bool framebarAdvancedHitstop,
 		bool framebarAdvancedIdleHitstop);
+	
+	bool misterPlayerIsManuallyCrouching(const PlayerInfo& player);
 };
 
 extern EndScene endScene;

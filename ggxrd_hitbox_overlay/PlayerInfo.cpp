@@ -660,39 +660,43 @@ void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
 void PlayerInfo::printStartup(char* buf, size_t bufSize) {
 	*buf = '\0';
 	int uhh = -1;
-    if (superfreezeStartup && superfreezeStartup <= startupDisp && (startedUp || startupProj)) {
-    	uhh = 0;
-    } else if (superfreezeStartup && !(startedUp || startupProj)) {
-    	uhh = 1;
-    } else if (startedUp || startupProj) {
-    	uhh = 2;
-    } else {
-    	return;
-    }
+	if (superfreezeStartup && superfreezeStartup <= startupDisp && (startedUp || startupProj)) {
+		uhh = 0;
+	} else if (superfreezeStartup && !(startedUp || startupProj)) {
+		uhh = 1;
+	} else if (startedUp || startupProj) {
+		uhh = 2;
+	} else {
+		return;
+	}
 	prevStartupsDisp.print(buf, bufSize);
-    for (int i = 0; ; ++i) {
-    	int charsPrinted;
-	    if (uhh == 0) {
+	for (int i = 0; ; ++i) {
+		int charsPrinted;
+		if (uhh == 0) {
 			charsPrinted = sprintf_s(buf, bufSize, "%d+%d", superfreezeStartup, startupDisp - superfreezeStartup);
-	    } else if (uhh == 1) {
-	    	charsPrinted = sprintf_s(buf, bufSize, "%d", superfreezeStartup);
-	    } else if (uhh == 2) {
-	    	charsPrinted = sprintf_s(buf, bufSize, "%d", startupDisp);
-	    }
-	    
-	    if (charsPrinted == -1) return;
-	    buf += charsPrinted;
-	    bufSize -= charsPrinted;
-	    
-	    if (i == 0 && prevStartupsDisp.count > 1) {
-	    	charsPrinted = sprintf_s(buf, bufSize, "=%d+", prevStartupsDisp.total());
-		    if (charsPrinted == -1) return;
-		    buf += charsPrinted;
-		    bufSize -= charsPrinted;
-	    } else {
-	    	break;
-	    }
-    }
+		} else if (uhh == 1) {
+			charsPrinted = sprintf_s(buf, bufSize, "%d", superfreezeStartup);
+		} else if (uhh == 2) {
+			if (prevStartupsDisp.count && superfreezeStartup) {
+				charsPrinted = sprintf_s(buf, bufSize, "%d (superfreeze happens on frame %d)", startupDisp, prevStartupsDisp.total() + superfreezeStartup);
+			} else {
+				charsPrinted = sprintf_s(buf, bufSize, "%d", startupDisp);
+			}
+		}
+		
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+		
+		if (i == 0 && prevStartupsDisp.count > 1) {
+			charsPrinted = sprintf_s(buf, bufSize, "=%d+", prevStartupsDisp.total());
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		} else {
+			break;
+		}
+	}
 }
 
 void ProjectileInfo::printStartup(char* buf, size_t bufSize) {
@@ -705,39 +709,58 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 	*buf = '\0';
 	int charsPrinted = 0;
 	bool printedTheMainThing = false;
-    if ((startedUp || startupProj) && !(recoveryDisp == 0 && landingRecovery)) {
-    	if (totalCanBlock < totalDisp && recoveryDisp - (totalDisp - totalCanBlock) > 0) {
-    		charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack",
-    			recoveryDisp - (totalDisp - totalCanBlock),
-    			totalDisp - totalCanBlock);
-    	} else {
-			charsPrinted = sprintf_s(buf, bufSize, "%d", recoveryDisp);
-    	}
-    	if (charsPrinted == -1) return;
-    	buf += charsPrinted;
-    	bufSize -= charsPrinted;
-    	printedTheMainThing = true;
-    }
-    if (printedTheMainThing && totalCanBlock > totalDisp) {
-    	charsPrinted = sprintf_s(buf, bufSize, "%s%d can't block", charsPrinted ? " can't attack+" : "", totalCanBlock - totalDisp);
-    	if (charsPrinted == -1) return;
-    	buf += charsPrinted;
-    	bufSize -= charsPrinted;
-    }
-    if (landingRecovery) {
-    	charsPrinted = sprintf_s(buf, bufSize, "%s%d landing", charsPrinted ? "+" : "", landingRecovery);
-    	if (charsPrinted == -1) return;
-    	buf += charsPrinted;
-    	bufSize -= charsPrinted;
-    }
-    if (printedTheMainThing && totalFD) {
-    	if (charsPrinted && bufSize) {
-    		strcat(buf, "+");
-    		++buf;
-    		--bufSize;
-    	}
-    	sprintf_s(buf, bufSize, "%d FD", totalFD);
-    }
+	bool mentionedCantAttack = false;
+	if ((startedUp || startupProj) && !(recoveryDisp == 0 && landingRecovery)) {
+		if (recoveryDispCanBlock == -1 || recoveryDisp != 0) {
+			if (totalCanBlock < totalDisp && recoveryDisp - (totalDisp - totalCanBlock) > 0) {
+				charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack",
+					recoveryDisp - (totalDisp - totalCanBlock),
+					totalDisp - totalCanBlock);
+				mentionedCantAttack = true;
+			} else {
+				charsPrinted = sprintf_s(buf, bufSize, "%d", recoveryDisp);
+			}
+		} else {
+			charsPrinted = sprintf_s(buf, bufSize, "%d can't block", recoveryDispCanBlock);
+		}
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+		printedTheMainThing = true;
+	}
+	if (printedTheMainThing && totalCanBlock > totalDisp && !(recoveryDispCanBlock != -1 && recoveryDisp == 0)) {
+		charsPrinted = sprintf_s(buf, bufSize, "%s%s%d can't block",
+			mentionedCantAttack ? " can't attack" : "",
+			charsPrinted ? "+" : "",
+			totalCanBlock - totalDisp);
+		mentionedCantAttack = true;
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+	}
+	if (printedTheMainThing && totalCanFD > totalCanBlock && totalCanBlock != 0 && !(recoveryDispCanBlock != -1 && recoveryDisp == 0)) {
+		charsPrinted = sprintf_s(buf, bufSize, "%s%s%d can't FD",
+			mentionedCantAttack ? " can't attack" : "",
+			charsPrinted ? "+" : "",
+			totalCanFD - totalCanBlock);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+	}
+	if (landingRecovery) {
+		charsPrinted = sprintf_s(buf, bufSize, "%s%d landing", charsPrinted ? "+" : "", landingRecovery);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+	}
+	if (printedTheMainThing && totalFD) {
+		if (charsPrinted && bufSize) {
+			strcat(buf, "+");
+			++buf;
+			--bufSize;
+		}
+		sprintf_s(buf, bufSize, "%d FD", totalFD);
+	}
 }
 
 void PlayerInfo::printTotal(char* buf, size_t bufSize) {
@@ -747,56 +770,73 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 	bool printedMainPart = false;
 	int partsCount = 0;
 	int partsTotal = 0;
-    if ((idlePlus || isLandingOrPreJump || cmnActIndex == CmnActJump) && totalDisp) {
-    	printedMainPart = true;
-    	prevStartupsTotalDisp.print(buf, bufSize);
-    	partsTotal = prevStartupsTotalDisp.total();
-    	partsCount += prevStartupsTotalDisp.count;
-    	if (totalCanBlock < totalDisp && totalCanBlock != 0) {
-    		charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack", totalCanBlock, totalDisp - totalCanBlock);
-    		partsCount += 2;
-    	} else {
-    		charsPrinted = sprintf_s(buf, bufSize, "%d", totalDisp);
-    		++partsCount;
-    	}
+	bool mentionedCantAttack = false;
+	if (canPrintTotal()) {
+		printedMainPart = true;
+		prevStartupsTotalDisp.print(buf, bufSize);
+		partsTotal = prevStartupsTotalDisp.total();
+		partsCount += prevStartupsTotalDisp.count;
+		if (totalCanBlock < totalDisp && totalCanBlock != 0) {
+			charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack", totalCanBlock, totalDisp - totalCanBlock);
+			partsCount += 2;
+			mentionedCantAttack = true;
+		} else {
+			charsPrinted = sprintf_s(buf, bufSize, "%d", totalDisp);
+			++partsCount;
+		}
 		partsTotal += totalCanBlock > totalDisp ? totalCanBlock : totalDisp;
-    	if (charsPrinted == -1) return;
-    	buf += charsPrinted;
-    	bufSize -= charsPrinted;
-    	charsPrinted = 0;
-	    if (totalCanBlock > totalDisp) {
-	    	charsPrinted = sprintf_s(buf, bufSize, " can't attack+%d can't block", totalCanBlock - totalDisp);
-	    	++partsCount;
-	    }
-    	if (charsPrinted == -1) return;
-    	buf += charsPrinted;
-    	bufSize -= charsPrinted;
-	    if (landingRecovery) {
-	    	charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
-	    	if (charsPrinted == -1) return;
-	    	buf += charsPrinted;
-	    	bufSize -= charsPrinted;
-	    }
-    }
-    if (idlePlus && totalFD) {
-    	charsPrinted = sprintf_s(buf, bufSize, "%s%d FD", printedMainPart ? "+" : "", totalFD);
-    	if (charsPrinted == -1) return;
-    	buf += charsPrinted;
-    	bufSize -= charsPrinted;
-    }
-    
-    if (partsCount > 2) {
-    	sprintf_s(buf, bufSize, "=%d", partsTotal);
-	    if (landingRecovery) {
-	    	charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
-	    	if (charsPrinted == -1) return;
-	    	buf += charsPrinted;
-	    	bufSize -= charsPrinted;
-	    }
-	    if (idlePlus && totalFD) {
-	    	sprintf_s(buf, bufSize, "+%d FD", totalFD);
-	    }
-    }
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+		
+		if (totalCanBlock > totalDisp) {
+			charsPrinted = sprintf_s(buf, bufSize, " can't attack+%d can't block", totalCanBlock - totalDisp);
+			mentionedCantAttack = true;
+			++partsCount;
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+		
+		if (totalCanFD > totalCanBlock && totalCanBlock != 0) {
+			charsPrinted = sprintf_s(buf, bufSize, "%s+%d can't FD",
+				mentionedCantAttack ? "" : " can't attack",
+				totalCanFD - totalCanBlock);
+			++partsCount;
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+		
+		if (landingRecovery) {
+			charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+	}
+	if (totalFD) {
+		charsPrinted = sprintf_s(buf, bufSize, "%s%d FD", printedMainPart ? "+" : "", totalFD);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+	}
+	
+	if (partsCount > 2) {
+		charsPrinted = sprintf_s(buf, bufSize, "=%d", partsTotal);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+		if (landingRecovery) {
+			charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+		if (totalFD) {
+			sprintf_s(buf, bufSize, "+%d FD", totalFD);
+		}
+	}
 }
 
 void ProjectileInfo::printTotal(char* buf, size_t bufSize) {
@@ -810,6 +850,17 @@ bool PlayerInfo::isIdleInNewSection() {
 		&& move
 		&& move->considerIdleInSeparatedSectionAfterThisManyFrames
 		&& timeInNewSection > move->considerIdleInSeparatedSectionAfterThisManyFrames;
+}
+
+bool PlayerInfo::isInArbitraryStartupSection() {
+	return move
+		&& (
+			inNewMoveSection
+			&& (move->considerNewSectionAsBeingInArbitraryStartup
+				|| move->considerIdleInSeparatedSectionAfterThisManyFrames)
+			|| move->isInArbitraryStartupSection
+			&& move->isInArbitraryStartupSection(pawn)
+		);
 }
 
 int PrevStartupsInfo::total() const {
@@ -995,9 +1046,402 @@ static inline int determineFrameLevel(const Frame& frame) {
 
 void Framebar::combineFramebar(const Framebar& source) {
 	for (int i = 0; i < _countof(frames); ++i) {
-		if (determineFrameLevel(source[i]) >= determineFrameLevel(frames[i])) {
-			frames[i].type = source[i].type;
+		Frame& meFrame = frames[i];
+		const Frame& sourceFrame = source[i];
+		if (determineFrameLevel(sourceFrame) >= determineFrameLevel(meFrame)) {
+			meFrame.type = sourceFrame.type;
 		}
-		frames[i].strikeInful |= source[i].strikeInful;
+		meFrame.strikeInvulInGeneral |= sourceFrame.strikeInvulInGeneral;
+		meFrame.throwInvulInGeneral |= sourceFrame.throwInvulInGeneral;
+		meFrame.superArmorActiveInGeneral |= sourceFrame.superArmorActiveInGeneral;
 	}
+}
+
+enum printInvuls_SortItemType {
+	// if you change the order of these elements you must also change the order of elements in SortItem items[] in printInvuls()
+	STRIKE_INVUL,
+	THROW_INVUL,
+	LOW_PROFILE,
+	PROJECTILE_ONLY_INVUL,
+	SUPER_ARMOR,
+	// If you add super armor types or change their order, you need to change the code that relies on SUPER_ARMOR_THROW being first and SUPER_ARMOR_OVERDRIVE being last
+	SUPER_ARMOR_THROW,
+	SUPER_ARMOR_BURST,
+	SUPER_ARMOR_MID,
+	SUPER_ARMOR_OVERHEAD,
+	SUPER_ARMOR_LOW,
+	SUPER_ARMOR_GUARD_IMPOSSIBLE,
+	SUPER_ARMOR_OBJECT_ATTACCK,
+	SUPER_ARMOR_HONTAI_ATTACCK,
+	SUPER_ARMOR_PROJECTILE_LEVEL_0,
+	SUPER_ARMOR_OVERDRIVE,
+	SUPER_ARMOR_BLITZ_BREAK,
+	REFLECT
+};
+const printInvuls_SortItemType SUPER_ARMOR_FIRST = SUPER_ARMOR_THROW;
+const printInvuls_SortItemType SUPER_ARMOR_LAST = SUPER_ARMOR_BLITZ_BREAK;
+
+struct printInvuls_SortItem {
+	printInvuls_SortItemType type = STRIKE_INVUL;
+	const InvulData* invulData = nullptr;
+	const char* printfStringArg = nullptr;
+	bool included = false;
+	int index = 0;
+	int position = INT_MAX;  // starts from 1. Values < start are behind the earliest start
+	ActiveData last { 0 };
+	printInvuls_SortItem(printInvuls_SortItemType type,
+			const char* printfStringArg,
+			const InvulData* invulData
+			) :
+			type(type),
+			invulData(invulData),
+			printfStringArg(printfStringArg)
+		{
+		if (invulData->start && invulData->frames.count) {
+			index = 0;
+			position = invulData->start;
+			last = invulData->frames.data[0];
+		}
+	}
+	inline bool isSuperArmorType() const { return type >= SUPER_ARMOR_FIRST && type <= SUPER_ARMOR_LAST; }
+};
+
+static int printInvuls_addItem(printInvuls_SortItem* items, int start, printInvuls_SortItemType type, const ActiveDataArray* frames) {
+	using SortItem = printInvuls_SortItem;
+	return 0;
+}
+
+void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
+	using SortItemType = printInvuls_SortItemType;
+	using SortItem = printInvuls_SortItem;
+	
+	if (bufSize) *buf = '\0';
+	if (!canPrintTotal()) {
+		return;
+	}
+	
+	SortItem items[] {
+		// the types must go in the same order as the elements of printInvuls_SortItemType enum
+		{ STRIKE_INVUL, "strike", &strikeInvul },
+		{ THROW_INVUL, "throw", &throwInvul },
+		{ LOW_PROFILE, "low profile", &lowProfile },
+		{ PROJECTILE_ONLY_INVUL, "projectile only", &projectileOnlyInvul },
+		{ SUPER_ARMOR, "super armor", &superArmor },
+		{ SUPER_ARMOR_THROW, "throws", &superArmorThrow },
+		{ SUPER_ARMOR_BURST, "burst", &superArmorBurst },
+		{ SUPER_ARMOR_MID, "mids", &superArmorMid },
+		{ SUPER_ARMOR_OVERHEAD, "overheads", &superArmorOverhead },
+		{ SUPER_ARMOR_LOW, "lows", &superArmorLow },
+		{ SUPER_ARMOR_GUARD_IMPOSSIBLE, "unblockables", &superArmorGuardImpossible },
+		{ SUPER_ARMOR_OBJECT_ATTACCK, "projectiles only", &superArmorObjectAttacck },
+		{ SUPER_ARMOR_HONTAI_ATTACCK, "non-projectiles only", &superArmorHontaiAttacck },
+		{ SUPER_ARMOR_PROJECTILE_LEVEL_0, "error ERROR", &superArmorProjectileLevel0 },
+		{ SUPER_ARMOR_OVERDRIVE, "overdrives", &superArmorOverdrive },
+		{ SUPER_ARMOR_BLITZ_BREAK, "max charge blitz or overdrives", &superArmorBlitzBreak },
+		{ REFLECT, "reflect", &reflect }
+	};
+	int count = _countof(items);
+	
+	struct SuperArmorProperties {
+		bool valid = false;
+		
+		SortItem* armors[SUPER_ARMOR_LAST - SUPER_ARMOR_FIRST + 1] { nullptr };
+		int count = 0;
+		
+		inline void add(SortItem* item) {
+			armors[count++] = item;
+		}
+	};
+	SuperArmorProperties prevSuperArmor { false };
+	bool prevSuperArmorWasEmpty = true;
+	bool prevSuperArmorHadMidHighLowInfo = false;
+	
+	int position;
+	int minLength;
+	// keep track of which to include using bool included in struct SortItem
+	
+	int result;
+	bool needComma = false;
+	bool alreadyAdvisedToCheckTooltip = false;
+	do {
+		
+		position = INT_MAX;
+		for (int i = 0; i < count; ++i) {
+			SortItem& item = items[i];
+			if (item.position < position) {
+				position = item.position;
+			}
+		}
+		if (position == INT_MAX) break;
+		
+		SuperArmorProperties currentSuperArmor { false };
+		minLength = INT_MAX;
+		for (int i = 0; i < count; ++i) {
+			SortItem& item = items[i];
+			if (item.position == position) {
+				if (item.isSuperArmorType()) {
+					currentSuperArmor.add(&item);
+				}
+				item.included = true;
+				const int actives = item.last.actives;
+				if (actives < minLength) {
+					minLength = actives;
+				}
+			} else {
+				item.included = false;
+				if (item.position != INT_MAX) {
+					const int actives = item.position - position;
+					if (actives < minLength) {
+						minLength = actives;
+					}
+				}
+			}
+		}
+		
+		bool hasFull = items[STRIKE_INVUL].included && items[THROW_INVUL].included;
+		
+		bool superArmorIsSame = false;
+		if (items[SUPER_ARMOR].included) {
+			currentSuperArmor.valid = true;
+			if (!prevSuperArmor.valid) {
+				prevSuperArmor = currentSuperArmor;
+				prevSuperArmorWasEmpty = true;
+			} else {
+				prevSuperArmorWasEmpty = false;
+				if (memcmp(&prevSuperArmor, &currentSuperArmor, sizeof SuperArmorProperties) == 0) {
+					superArmorIsSame = true;
+				} else {
+					prevSuperArmor = currentSuperArmor;
+				}
+			}
+		}
+		
+		if (minLength != INT_MAX) {
+			// the caller is responsible for clearing the stack for vararg functions, so I should be able to supply more arguments than the function will use
+			result = sprintf_s(buf, bufSize,
+				minLength == 1
+				&& needComma  // the needComma check is needed because from my experience displaying the initial "just the frame number" was confusing as fuck, like I though it starts from frame 1 and is that many frames long
+				&& false  // actually you know what, disable this completely, this is too easy to confuse with the amount of frames since the previous range
+				? "%s%d" : "%s%d-%d",
+				needComma ? ", " : "",
+				position,
+				position + minLength - 1);
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+			needComma = true;
+		}
+		
+		bool printedFull = false;
+		bool needPlus = false;
+		for (int i = 0; i < count; ++i) {
+			SortItem& item = items[i];
+			if (item.included) {
+				bool shouldBeIncludedInFull = hasFull && (item.type == STRIKE_INVUL || item.type == THROW_INVUL);
+				if (!(shouldBeIncludedInFull && printedFull || item.isSuperArmorType())) {
+					const char* stringArg = item.printfStringArg;
+					if (shouldBeIncludedInFull) {
+						stringArg = "full";
+						printedFull = true;
+					}
+					result = sprintf_s(buf, bufSize,
+						needPlus ? " + %s%s" : " %s%s",
+						stringArg,
+						item.type == SUPER_ARMOR && superArmorIsSame && !prevSuperArmorWasEmpty ? " (same)" : ""
+					);
+					if (result != -1) {
+						buf += result;
+						bufSize -= result;
+					}
+					bool thisSuperArmorHasMidHighLowInfo = false;
+					if (item.type == SUPER_ARMOR && !superArmorIsSame) {
+						bool flickableOnly = !items[SUPER_ARMOR_PROJECTILE_LEVEL_0].included
+							&& items[SUPER_ARMOR_OBJECT_ATTACCK].included;
+						bool flickableOnlyOnly = flickableOnly && !items[SUPER_ARMOR_HONTAI_ATTACCK].included;
+						bool hasObjectAndHontai = items[SUPER_ARMOR_OBJECT_ATTACCK].included
+							&& items[SUPER_ARMOR_HONTAI_ATTACCK].included;
+						bool ignoreMidLowOverhead = flickableOnly;
+						bool needSubplus = false;
+						char* oldBuf = buf;
+						if (bufSize >= 2) {
+							buf += 2;
+							bufSize -= 2;
+						}
+						bool allGuard = false;
+						if (!flickableOnlyOnly) {
+							result = -1;
+							if (items[SUPER_ARMOR_MID].included
+									&& items[SUPER_ARMOR_OVERHEAD].included
+									&& !items[SUPER_ARMOR_LOW].included) {
+								ignoreMidLowOverhead = true;
+								result = sprintf_s(buf, bufSize, "mids and overheads");
+							}
+							allGuard = items[SUPER_ARMOR_MID].included
+									&& items[SUPER_ARMOR_OVERHEAD].included
+									&& items[SUPER_ARMOR_LOW].included;
+							if (allGuard) {
+								ignoreMidLowOverhead = true;
+								if (prevSuperArmorHadMidHighLowInfo) {
+									result = sprintf_s(buf, bufSize, "lows, mids and overheads");
+									allGuard = false;
+								}
+							}
+							if (items[SUPER_ARMOR_MID].included
+									&& !items[SUPER_ARMOR_OVERHEAD].included
+									&& items[SUPER_ARMOR_LOW].included) {
+								ignoreMidLowOverhead = true;
+								result = sprintf_s(buf, bufSize, "mids and lows");
+							}
+							if (!items[SUPER_ARMOR_MID].included
+									&& !items[SUPER_ARMOR_OVERHEAD].included
+									&& items[SUPER_ARMOR_LOW].included) {
+								ignoreMidLowOverhead = true;
+								result = sprintf_s(buf, bufSize, "lows only");
+							}
+							if (result != -1) {
+								thisSuperArmorHasMidHighLowInfo = true;
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+						}
+						if (flickableOnly) {
+							if (allGuard) {
+								result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "lows, mids and overheads");
+								if (result != -1) {
+									needSubplus = true;
+									buf += result;
+									bufSize -= result;
+								}
+								allGuard = false;
+							}
+							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s",
+								!flickableOnlyOnly ? "if projectiles, then flickable only" : "flickable projectiles only");
+							if (result != -1) {
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+						}
+						
+						for (int j = SUPER_ARMOR_FIRST; j <= SUPER_ARMOR_LAST; ++j) {
+							SortItem& superArmorType = items[j];
+							if (!superArmorType.included
+									|| j == SUPER_ARMOR_PROJECTILE_LEVEL_0
+									|| j == SUPER_ARMOR_BLITZ_BREAK
+									|| !items[SUPER_ARMOR_HONTAI_ATTACCK].included
+									&& (
+										j == SUPER_ARMOR_THROW
+										|| j == SUPER_ARMOR_GUARD_IMPOSSIBLE
+										|| j == SUPER_ARMOR_OVERDRIVE
+									)
+									|| flickableOnlyOnly
+									&& (
+										j == SUPER_ARMOR_HONTAI_ATTACCK
+										|| j == SUPER_ARMOR_OBJECT_ATTACCK
+									)
+									|| j == SUPER_ARMOR_BURST) continue;
+							
+							if (hasObjectAndHontai && (j == SUPER_ARMOR_OBJECT_ATTACCK || j == SUPER_ARMOR_HONTAI_ATTACCK)) {
+								continue;
+							}
+							if (ignoreMidLowOverhead && (j == SUPER_ARMOR_MID || j == SUPER_ARMOR_OVERHEAD || j == SUPER_ARMOR_LOW)) {
+								continue;
+							}
+							if (j == SUPER_ARMOR_OVERDRIVE && !items[SUPER_ARMOR_BLITZ_BREAK].included) continue;
+							if (allGuard) {
+								result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "lows, mids and overheads");
+								if (result != -1) {
+									needSubplus = true;
+									buf += result;
+									bufSize -= result;
+								}
+								allGuard = false;
+							}
+							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", superArmorType.printfStringArg);
+							if (result != -1) {
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+						}
+						if (items[SUPER_ARMOR_OBJECT_ATTACCK].included && !items[SUPER_ARMOR_BURST].included) {
+							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "can't armor burst");
+							if (result != -1) {
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+						}
+						if (items[SUPER_ARMOR_HONTAI_ATTACCK].included && !items[SUPER_ARMOR_GUARD_IMPOSSIBLE].included) {
+							result = sprintf_s(buf, bufSize, needSubplus ? ", %s%s" : "%s%s",
+								"can't armor unblockables",
+								alreadyAdvisedToCheckTooltip ? "" : " - see full list in tooltip");
+							alreadyAdvisedToCheckTooltip = true;
+							if (result != -1) {
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+						}
+						if (needSubplus) {
+							prevSuperArmorWasEmpty = false;
+							*oldBuf = ' ';
+							*(oldBuf + 1) = '(';
+							result = sprintf_s(buf, bufSize, ")");
+							if (result != -1) {
+								buf += result;
+								bufSize -= result;
+							}
+						} else {
+							buf -= 2;
+							bufSize += 2;
+						}
+					}
+					if (item.type == SUPER_ARMOR) {
+						prevSuperArmorHadMidHighLowInfo = thisSuperArmorHasMidHighLowInfo;
+					}
+					needPlus = true;
+				}
+				
+				const int actives = item.last.actives;
+				if (actives == minLength) {
+					++item.index;
+					if (item.index >= item.invulData->frames.count) {
+						item.position = INT_MAX;
+					} else {
+						item.position += item.last.actives + item.last.nonActives;
+						item.last = item.invulData->frames.data[item.index];
+					}
+				} else {
+					item.last.actives -= minLength;
+					item.position += minLength;
+				}
+			}
+		}
+		
+	} while (1);
+	
+}
+
+void InvulData::clear() {
+	start = 0;
+	frames.clear();
+}
+
+void InvulData::addInvulFrame(int prevTotal) {
+	if (!start && active) {
+		start = prevTotal;
+	}
+	frames.hitNumConflict = true;
+	if (active) {
+		frames.addActive(-1, 1);
+	} else {
+		frames.addNonActive(1);
+	}
+}
+
+bool PlayerInfo::canPrintTotal() const {
+	return !(onTheDefensive && !idlePlus) && totalDisp;
 }

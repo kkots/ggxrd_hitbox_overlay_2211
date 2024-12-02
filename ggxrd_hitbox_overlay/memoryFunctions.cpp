@@ -137,26 +137,26 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLen
 	for (int i = 0; i < _countof(step); ++i) {
 		step[i] = sigLength;
 	}
-    for (size_t i = 0; i < sigLength - 1; i++) {
-        step[(BYTE)sig[i]] = sigLength - 1 - i;
-    }
+	for (size_t i = 0; i < sigLength - 1; i++) {
+		step[(BYTE)sig[i]] = sigLength - 1 - i;
+	}
 	
 	BYTE pNext;
-    end -= sigLength;
-    for (uintptr_t p = start; p <= end; p += step[pNext]) {
-        int j = sigLength - 1;
-    	pNext = *(BYTE*)(p + j);
-    	if (sig[j] == (char)pNext) {
-	        for (--j; j >= 0; --j) {
-	            if (sig[j] != *(char*)(p + j)) {
-	                break;
-	            }
-	        }
-	        if (j < 0) {
-	            return p;
-	        }
-    	}
-    }
+	end -= sigLength;
+	for (uintptr_t p = start; p <= end; p += step[pNext]) {
+		int j = sigLength - 1;
+		pNext = *(BYTE*)(p + j);
+		if (sig[j] == (char)pNext) {
+			for (--j; j >= 0; --j) {
+				if (sig[j] != *(char*)(p + j)) {
+					break;
+				}
+			}
+			if (j < 0) {
+				return p;
+			}
+		}
+	}
 
 	logwrap(fputs("Sigscan failed\n", logfile));
 	return 0;

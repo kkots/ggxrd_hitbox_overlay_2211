@@ -80,3 +80,38 @@ RECT DrawHitboxArrayCallParams::getWorldBounds(int index, int cos, int sin) cons
 	
 	return result;
 }
+
+RECT DrawHitboxArrayCallParams::getWorldBounds() const {
+	RECT result;
+	if (!hitboxCount) {
+		memset(&result, 0, sizeof RECT);
+		return result;
+	}
+	
+	RECT subresult;
+	for (int i = 0; i < hitboxCount; ++i) {
+		subresult = getWorldBounds(i);
+		if (i == 0) {
+			result = subresult;
+			continue;
+		}
+		combineBounds(result, subresult);
+	}
+	return result;
+}
+
+RECT combineBounds(const RECT& a, const RECT& b) {
+	return {
+		min(a.left, b.left),
+		min(a.top, b.top),
+		max(a.right, b.right),
+		max(a.bottom, b.bottom)
+	};
+}
+
+void combineBounds(RECT& result, const RECT& other) {
+	if (other.left < result.left) result.left = other.left;
+	if (other.right > result.right) result.right = other.right;
+	if (other.top < result.top) result.top = other.top;
+	if (other.bottom > result.bottom) result.bottom = other.bottom;
+}
