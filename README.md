@@ -15,7 +15,8 @@ Created in 2016.
 This version is adapted for Guilty Gear Xrd Rev2 version 2211 with the full featureset of the original.
 
 Many thanks to WorseThanYou (@worsety), without whose help this wouldn't have been possible.  
-Thanks to @PCvolt for advice on framebar.
+Thanks to @PCvolt for advice on framebar and allowing to add his labtool's (<https://github.com/PCvolt/rev2-Labtool>) functionality to this mod. Thanks to WorseThanYou (again) for help and advice on framebar.  
+Thanks to Pangaea for their BBScript database (<https://github.com/super-continent/bbscript>), which is invaluable in understanding almost everything about how the game works. The people who made the database seem to have reverse engineered the entire game, it's really amazing!
 
 ## System requirements
 
@@ -33,8 +34,7 @@ For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (
 Read the `Features` section to understand what the colors mean and what the hotkeys are.  
 You can also play the game frame-by-frame (described in `Features`).
 
-To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.  
-If trying to use the mod with a game version that it doesn't fit, the game may crash. The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
+To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.
 
 The mod may show up as a virus. I swear this is not a virus, check the source code, compile this yourself if still doubting. Check commit history of this repo. Add this to whatever antivirus exceptions necessary and run as administrator if necessary.
 
@@ -49,12 +49,43 @@ On Ubuntu/Linux the injector won't work on its own. You need to cd into the mod'
 This will launch the injector (the .exe one) on the same Wine server that Guilty Gear runs on. Assuming you're running the game using Steam Proton, and its version is supported, everything should work.  
 If it doesn't work, you can use the patcher:
 
+## Mod compatibility
+
+If trying to use the mod with a game version that it doesn't fit, the game may crash. The version of the game it's meant for is 2211. This is the number that is displayed in the bottom right corner of the main menu screen after you launch the game.
+
+The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
+
+This mod is totally compatible with:
+
+- PCvolt's Labtool: <https://github.com/PCvolt/rev2-Labtool>
+- Iquis' Wakeup Tool: <https://github.com/Iquis/rev2-wakeup-tool>
+- GGXrdMirrorColorSelect: <https://github.com/kkots/GGXrdMirrorColorSelect>
+- GGXrdAdjustConnectionTiers: <https://github.com/kkots/GGXrdAdjustConnectionTiers>
+- Worse Than You's delay mod patch and all of his other patches
+- Whatever you run on Cheat Engine (unless you patch the functions I need)
+- OBS, Windows Gamebar, Nvidia Shadowplay, other recording software
+- Steam overlay and anything that Steam does
+
+All of the mods mentioned above are also compatible with each other.
+
+Mods that are likely not compatible and may or will crash (I'm going to be honest, I haven't recently tested these, but remember them crashing when combined with this):
+
+- Freecam mod: <https://github.com/kkots/ggxrd_freecam>
+- Replay mod: <https://github.com/kkots/ggxrd_replay_mod>
+
+Iffy, 50/50, haven't tested yet but likely to crash or not work properly:
+
+- Pangaea's Guilty Gear Rev2 Mod: <https://github.com/super-continent/ggxrd-mod>  
+It hooks the same functions that I use, namely FN_DEINIT_GAMESTATE. It might be possible to first load his mod, then mine, because I sigscan a small portion of the function that doesn't change after anyone's hook. If you load my mod first, his mod won't find the function.
+
+In a bright future where the Detours library evolves to have a ~~brain~~ *mandatory DLL* and creates detouring functions that allow multiple ~~modders~~ *hackers* to sigscan and hook the same function without getting stupid conflicts, combining all mods will be possible.
+
 ## Patching the game to always launch with the mod
 
 If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
 The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
 If the DLL is not found when the game launches, it will just run normally, without the mod.  
-Normally you can run the injector to unload the mod, but if for whatever reason you can't run on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
+Normally you can run the injector to unload the mod, but if for whatever reason you can't run it on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
 
 If Steam Proton is taking forever to launch the game, patched or not, then rename the mod's dll and put the original, unpatched version of the game executable back, then try switching the Proton version in Steam's settings and agree to restart Steam. After restarting Steam will start downloading two things related to Guilty Gear Xrd and will launch GGXrd automatically (even though you didn't tell it to). GGXrd should work. Quit GGXrd. Place the patched version of the game executable and the mod's dll back and restart GGXrd. GGXrd will launch with the mod. Idk what causes this.
 
@@ -185,9 +216,13 @@ Since the `Disable mod` toggle disables the whole mod, this toggle only disables
 
 This is a big section that is described in `Taking transparent/non-transparent screenshots` section. Basically this is a button to take a screenshot of the game with transparency enabled/disabled. Transparency only works under conditions described in that section.
 
+### ESC - Show/hide mod's UI
+
+By default when you start the mod it will open a UI window in-game that has all the controls and settings laid out as buttons, checkboxes and fields. To hide the UI you can close it by clicking the x in the top right corner or by pressing ESC (default hotkey). To open the UI again, press ESC (default hotkey). You configure this hotkey and whether the UI opens when you start the mod using `modWindowVisibilityToggle` (in the mod's UI it's under 'Settings - Keyboard Shortcuts - Hide UI Toggle') and `modWindowVisibleOnStart` (in the mod's UI it's under 'Settings - General Settings - Mod Window Visible On Start').
+
 ### Hotkey configuration
 
-If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, you can use the mod's UI that you can see in the game's window when you load the mod, or you can create a text file named `ggxrd_hitbox_overlay.ini` and place it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
+If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, you can use the mod's UI that you can see in the game's window when you load the mod. All other settings are also located in various parts of the UI. Or you can configure all settings by creating a text file named `ggxrd_hitbox_overlay.ini` and placing it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
 Here's an example of the `.ini` file:
 
 ```ini
@@ -215,7 +250,7 @@ gifModeToggleBackgroundOnly =
 ; A keyboard shortcut to toggle the game's Settings - Display Settings - Post-Effect. Changing it this way does not
 ; require the current match to be restarted.
 ; Alternatively, you could set the turnOffPostEffectWhenMakingBackgroundBlack setting in this INI file to true
-; so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect are
+; so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is
 ; turned off automatically, and when you leave those modes, it gets turned back on.
 ; This hotkey is empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other hotkey options, by sharing the same key binding for example.
@@ -223,8 +258,40 @@ togglePostEffectOnOff =
 
 ; Specify true or false.
 ; When true, whenever you enter either the GIF mode or the GIF mode (black background only),
-; the Post-Effect are turned off automatically, and when you leave those modes, it gets turned back on.
+; the Post-Effect is turned off automatically, and when you leave those modes, it gets turned back on.
 turnOffPostEffectWhenMakingBackgroundBlack = true
+
+; Specify true or false.
+; When entering a camera-center mode using "gifModeToggle", "gifModeToggleCameraCenterOnly" or "toggleCameraCenterOpponent",
+; which center the camera on either you or the opponent, the camera is angled downwards slightly, and this camera angle is called "pitch".
+; It may cause lines of hitboxes to not be displayed entirely parallel to the sides of the screen.
+; By setting this to true you can force the camera to look straight forward.
+forceZeroPitchDuringCameraCentering = true
+
+; Specify a floating point value where '.' is the delimiter, like so: 0.0
+; When entering a camera-center mode using "gifModeToggle", "gifModeToggleCameraCenterOnly" or "toggleCameraCenterOpponent",
+; which center the camera on either you or the opponent, this value will control how offset the camera is horizontally, relative
+; to the player. A positive value offsets left, and a negative offsets right. Default value is 0.0.
+cameraCenterOffsetX = 0.0
+
+; Specify a floating point value where '.' is the delimiter, like so: 106.4231
+; When entering a camera-center mode using "gifModeToggle", "gifModeToggleCameraCenterOnly" or "toggleCameraCenterOpponent",
+; which center the camera on either you or the opponent, this value will control how offset the camera is vertically, relative
+; to the player. A positive value offsets down, and a negative offsets up. Default value is 106.4231.
+cameraCenterOffsetY = 106.4231
+
+; Specify a floating point value where '.' is the delimiter, like so: 130.4231
+; When entering a camera-center mode using "gifModeToggle", "gifModeToggleCameraCenterOnly" or "toggleCameraCenterOpponent",
+; which center the camera on either you or the opponent, AND "forceZeroPitchDuringCameraCentering" is set to true,
+; this value will control how offset the camera is vertically, relative
+; to the player. A positive value offsets down, and a negative offsets up. Default value is 130.4231.
+cameraCenterOffsetY_WhenForcePitch0 = 130.4231
+
+; Specify a floating point value where '.' is the delimiter, like so: 540.0
+; When entering a camera-center mode using "gifModeToggle", "gifModeToggleCameraCenterOnly" or "toggleCameraCenterOpponent",
+; which center the camera on either you or the opponent,
+; this value will control how far the camera is. The bigger the value, the further the camera will be. Default value is 540.0.
+cameraCenterOffsetZ = 540.0
 
 ; A keyboard shortcut to only toggle the "Camera is centered on you" part of the gifModeToggle.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
@@ -404,6 +471,8 @@ showFramebarInOtherModes = false
 ; Specify true or false.
 ; If this is true, then closing the main mod's window, either using a hotkey or the cross mark,
 ; will also hide the framebar, while opening the main mod's window will show the framebar.
+; Alternatively you could set up a separate hotkey to control visibility of the framebar, using "framebarVisibilityToggle".
+; Note that even when the UI is open, "showFramebar" must be set to true for the framebar to be visible.
 closingModWindowAlsoHidesFramebar = true
 
 ; A keyboard shortcut.
@@ -433,16 +502,76 @@ showThrowInvulOnFramebar = true
 ; the animation didn't change, but instead reached some important point. This includes entering and leaving hitstop.
 showFirstFramesOnFramebar = true
 
+; Specify true or false.
+; This affects the frame counts that are displayed on the framebar. The frame counter will not reset
+; between different frame graphics that all mean recovery or all mean startup or all mean idle and so on.
+considerSimilarFrameTypesSameForFrameCounts = true
+
+; Specify true or false.
+; When true, two or more projectile framebars will be combined into one if their active/non-active frames don't intersect.
+combineProjectileFramebarsWhenPossible = false
+
+; Specify true or false.
+; When true, projectiles will never be combined even if there are very many of them and they're all same.
+eachProjectileOnSeparateFramebar = false
+
+; Specify true or false.
+; When true, the framebar won't be cleared when resetting the stage with Record+Playback or Backspace in Training Mode,
+; or when a player dies or when a new rounds starts.
+dontClearFramebarOnStageReset = false
+
+; Specify true or false.
+; Each framebar displays a label or title either to the left or to the right from it. The titles are truncated to 12 character by default.
+; By setting this setting to true, you can stop them from truncating and always display full titles.
+dontTruncateFramebarTitles = false
+
+; Specify true or false.
+; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.
+; By setting this setting to true, you can make all framebar titles always display on the left.
+; To help tell which player it is you can use the "showPlayerInFramebarTitle" setting.
+allFramebarTitlesDisplayToTheLeft = true
+
 ; A number.
 ; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.
 ; The standard height is 19.
 framebarHeight = 19
+
+; A number.
+; Specifies the maximum number of characters that can be displayed in a framebar title.
+; This does not include the "P1 " and "P2 " additional text that is displayed when "showPlayerInFramebarTitle" is true.
+; You can use "useSlangNamesInFramebarTitle" to help reduce the lengths of text displayed in framebar titles.
+; The standard value is 12.
+framebarTitleCharsMax = 12
+
+; Specify true or false.
+; This setting will affect how the 'Frame Advantage' field in the UI is calculated.
+; Normally, attacks put your opponent in blockstun right away, however, there are some moves that
+; may put your opponent in blockstun after the move is over. Such moves are usually projectiles, such
+; Ky j.D or I-No Antidepressant Scale.
+; When this setting is false, then, whenever the opponent enters blockstun, the time that you spent idle
+; before that gets included in the frame advantage with a +. For example:
+; You shoot a projectile and then recover. Then you and the opponent are just standing there for 1000000 frames.
+; Then, the projectile that you shot puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.
+; Setting this to false will cause the idle time that you spent before the opponent entered blockstun to not be included
+; in your frame advantage, and your frame advantage in the example above will be just +1.
+; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.
+frameAdvantage_dontUsePreBlockstunTime = false
 
 ; Specify true or false.
 ; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,
 ; unless a projectile or a blocking Baiken is present.
 ; If this is set to true, then we always show hitstop in the framebar.
 neverIgnoreHitstop = false
+
+; Specify true or false.
+; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,
+; unless a projectile or a blocking Baiken is present.
+; If this is set to true, then we ignore the blocking Baiken part and display hitstop in the framebar only
+; when a projectile is present.
+; There's another setting that controls the display of hitstop in the framebar: "neverIgnoreHitstop".
+; If that setting is set to true, hitstop is always shown, no matter what "ignoreHitstopForBlockingBaiken" setting is.
+; After changing this setting, you need to repeat the moves or actions to see updated result in the framebar.
+ignoreHitstopForBlockingBaiken = false
 
 ; Specify true or false.
 ; Normally we consider running and walking as being idle, which does not advance the framebar forward.
@@ -469,6 +598,20 @@ considerCrouchNonIdle = true
 ; In such cases, look for an animation start delimiter on the opponent's framebar, shown as a white ' between frames.
 considerKnockdownWakeupAndAirtechIdle = false
 
+; Specify true or false
+; After waking up, or leaving blockstun or hitstun, or airteching, usually there's some strike and/or throw invul while
+; you're idle and are able to fully act. Framebar only advances forward when one or both players are not idle, however,
+; if this invul is present, then by default the framebar will advance anyway. You can set this setting to false to prevent that
+; and consider being idle while having invul as still being idle.
+considerIdleInvulIdle = false
+
+; Specify true or false.
+; Normally we consider standing as being idle, which does not advance the framebar forward.
+; The framebar only advances when one of the players is "busy".
+; If this is set to true, then as soon as you tell the dummy to play a recording slot, the entirety of the playback will be considered
+; as "busy" and will advance the framebar, even if in parts of the recording the dummy is not doing anything.
+considerDummyPlaybackNonIdle = true
+
 ; Specify true or false.
 ; If true, certain types of frames in the framebar will be displayed with distinct hatches on them.
 ; Make sure the framebar is scaled wide enough and the screen resolution is large enough that you can see the hatches properly.
@@ -491,8 +634,7 @@ The mod allows you to take screenshots of the game with the transparency in the 
 ![Screenshot can't be viewed](posteffect_off.jpg)
 
 Post-Effect set to Off seems to turn off anti-aliasing, but without it the trick won't work. Then you can load the mod and enter "GIF mode" (F1 is the default hotkey) or "gifModeToggleBackgroundOnly" (no hotkey by default) to make the background black and that would actually make the background transparent - but you can't see that with a naked eye. You need to press "screenshotBtn" (F8, copies to clipboard by default) to take a screenshot and paste it into a graphical editor supporting transparency, like GIMP for example, in order to see transparency.  
-Transparency in the game is actually inverted, meaning the background is fully opaque while the characters are fully transparent. The screenshotter inverts the alpha channel to make it correct.  
-Only GIMP has been tested to support the PNG screenshot format that the mod produces, and this works on Windows and on Ubuntu/Linux, where Guilty Gear Xrd runs under Steam Proton.
+Transparency in the game is actually inverted, meaning the background is fully opaque while the characters are (almost) fully transparent. The screenshotter inverts the alpha channel to make it correct. Some parts of the characters might still remain at about 230-254 alpha instead of 255, though, so watch out.
 
 To turn off `Post-Effect` automatically whenever you make the background black, you could set the `turnOffPostEffectWhenMakingBackgroundBlack` setting in the INI file to true (is true by default) or tick the 'Settings - Hitbox Settings - Turn Off Post-Effect When Making Background Black' checkbox (ticked by default). Or, alternatively, you could use the `togglePostEffectOnOff` keyboard shortcut, which is set in the INI file, to turn the Post-Effect on or off manually using a hotkey (the default hotkey is not set) (in UI, it's located in Settings - Keyboard Shortcuts - Toggle Post-Effect On/Off). Turning Post-Effect on/off this way does not require reloading the match! This is much faster than going to the main menu and changing it there!
 
@@ -631,7 +773,9 @@ Dependencies are better described in each project's README.md. Short version is,
 
 - `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game. The sources of imgui are included in this mod as a git submodule: <https://github.com/ocornut/imgui.git>.
 
-- `D3DCompiler_47.dll` - required to compile a pixel shader at run-time. This DLL should be present on the end user's Windows machine, in the C:\\Windows\\SysWOW64 folder. Distributing it on your own may constitute a violation of copyright. If problems arise with it you'll need to remove it from dependencies. See ggxrd_hitbox_overlay's README.
+- `D3DCompiler_43.dll` - used for compiling a custom pixel shader. A .LIB file for it, d3dcompiler.lib, is taken from Microsoft's legacy DirectX Software Development Kit and included in this project in the `d3d9` folder. The .LIB file allows the functions from the DLL to be used directly, without LoadLibraryA and GetProcAddress, and the DLL itself, which gets loaded by the mod on startup automatically, is shipped with Guilty Gear Xrd and resides in its Binaries\\Win32 folder.
+
+- `D3DX9_43.dll` - used for matrix math. It is used by the project the exact same way as D3DCompiler_43.dll, and its .LIB file is d3dx9.lib.
 
 ## Changelog
 

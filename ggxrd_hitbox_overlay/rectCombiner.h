@@ -79,8 +79,7 @@ namespace RectCombiner {
 	public:
 		std::vector<GridLine> is;
 		std::vector<GridLine> js;
-		GridCell* cells = nullptr;
-		size_t cellCount = 0;  // the number of cells currently allocated in the cells pointer
+		std::vector<GridCell> cells;
 
 		// A cell is obtained by the indices of its top left corner.
 		// The indices mean the gridlines indices from is, js vectors.

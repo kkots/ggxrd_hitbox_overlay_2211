@@ -24,10 +24,13 @@
 #include "CustomWindowMessages.h"
 #include "Hud.h"
 #include "Moves.h"
+#include <intrin.h>
+#include "findMoveByName.h"
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
 ProjectileInfo emptyProjectile;
+findMoveByName_t findMoveByName = nullptr;
 
 // Runs on the main thread
 extern "C"
@@ -229,8 +232,8 @@ bool EndScene::onDllMain() {
 		{ 37, 0 },
 		NULL, "superflashInstigatorOffset");
 	if (superflashInstigatorOffset) {
-		superflashCounterAlliedOffset = superflashInstigatorOffset + 4;
-		superflashCounterOpponentOffset = superflashInstigatorOffset + 8;
+		superflashCounterOpponentOffset = superflashInstigatorOffset + 4;
+		superflashCounterAlliedOffset = superflashInstigatorOffset + 8;
 	}
 	
 	shutdownFinishedEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
@@ -276,11 +279,30 @@ bool EndScene::onDllMain() {
 	digUpBBScrFunctionAndHook(BBScr_sendSignal_t, BBScr_sendSignal, 1766, (int, int))
 	digUpBBScrFunctionAndHook(BBScr_sendSignalToAction_t, BBScr_sendSignalToAction, 1771, (const char*, int))
 	digUpBBScrFunction(BBScr_callSubroutine_t, BBScr_callSubroutine, 17)
+	uintptr_t BBScr_createArgHikitsukiVal = 0;
+	digUpBBScrFunction(uintptr_t, BBScr_createArgHikitsukiVal, 2247)
+	uintptr_t BBScr_checkMoveCondition = 0;
+	digUpBBScrFunction(uintptr_t, BBScr_checkMoveCondition, 49)
+	uintptr_t BBScr_whiffCancelOptionBufferTime = 0;
+	digUpBBScrFunction(uintptr_t, BBScr_whiffCancelOptionBufferTime, 1630)
 	digUpBBScrFunctionAndHook(BBScr_setHitstop_t, BBScr_setHitstop, 2263, (int))
 	digUpBBScrFunctionAndHook(BBScr_ignoreDeactivate_t, BBScr_ignoreDeactivate, 298, ())
 	
 	if (orig_BBScr_sendSignal) {
 		getReferredEntity = (getReferredEntity_t)followRelativeCall((uintptr_t)orig_BBScr_sendSignal + 5);
+	}
+	
+	if (BBScr_createArgHikitsukiVal) {
+		BBScr_getAccessedValueImpl = (BBScr_getAccessedValueImpl_t)followRelativeCall(BBScr_createArgHikitsukiVal + 15);
+	}
+	if (BBScr_checkMoveCondition) {
+		BBScr_checkMoveConditionImpl = (BBScr_checkMoveConditionImpl_t)followRelativeCall(BBScr_checkMoveCondition + 14);
+	}
+	if (BBScr_whiffCancelOptionBufferTime) {
+		uintptr_t findMoveByNameCallPlace = sigscanForward(BBScr_whiffCancelOptionBufferTime, "e8", 20);
+		if (findMoveByNameCallPlace) {
+			findMoveByName = (findMoveByName_t)followRelativeCall(findMoveByNameCallPlace);
+		}
 	}
 	
 	std::vector<char> sig;
@@ -482,6 +504,8 @@ bool EndScene::onDllMain() {
 			"beginHitstop")) return false;
 	}
 	
+	initializeCantAttackTypes();
+	
 	return !error;
 }
 
@@ -544,6 +568,11 @@ void EndScene::logic() {
 		bool isPauseMenu;
 		bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu) || isPauseMenu;
 		bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
+		if (!isRunning && !settings.dontClearFramebarOnStageReset) {
+			playerFramebars.clear();
+			projectileFramebars.clear();
+			combinedFramebars.clear();
+		}
 		entityList.populate();
 		bool areAnimationsNormal = entityList.areAnimationsNormal();
 		if (isNormalMode) {
@@ -569,17 +598,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	drawnEntities.clear();
 	
 	bool dontAdvanceFramePosition = false;
-	if (framebars.empty()) {
-		framebars.emplace_back();
+	if (playerFramebars.empty() && !iGiveUp) {
+		playerFramebars.emplace_back();
 		{
-			EntityFramebar& framebar = framebars.back();
+			PlayerFramebars& framebar = playerFramebars.back();
 			framebar.playerIndex = 0;
 			framebar.setTitle("Player 1");
 		}
 		
-		framebars.emplace_back();
+		playerFramebars.emplace_back();
 		{
-			EntityFramebar& framebar = framebars.back();
+			PlayerFramebars& framebar = playerFramebars.back();
 			framebar.playerIndex = 1;
 			framebar.setTitle("Player 2");
 		}
@@ -611,7 +640,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	bool frameHasChanged = prevAswEngineTickCount != aswEngineTickCount && !game.isRoundend();
 	prevAswEngineTickCount = aswEngineTickCount;
 	
-	if (frameHasChanged) {
+	if (frameHasChanged && !iGiveUp) {
 		bool needCatchEntities = false;
 		for (int i = 0; i < 2; ++i) {
 			PlayerInfo& player = players[i];
@@ -700,7 +729,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			player.inHitstunNowOrNextFrame = ent.inHitstun();
-			player.inHitstun = ent.inHitstunThisFrame() || ent.hitstun();
+			player.inHitstun = ent.inHitstunThisFrame();
 			if (player.inHitstunNowOrNextFrame || otherEnt.inHitstun()) {
 				player.tensionGainLastCombo += tensionGain;
 				player.burstGainLastCombo += burstGain;
@@ -744,14 +773,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				                                                              // try this with Sol Kudakero airhit floorbounce. Potemkin ICPM ground hit may also do this
 				                                                              // Greed Sever airhit does this
 			}
-			if (player.hitstun && ent.inHitstunNextFrame()) {
-				--player.hitstun;  // for the second hit of Sol 5K CH
-			}
-			if (player.blockstun && ent.inBlockstunNextFrame()) {
-				--player.blockstun;  // try Sol Gunflame YRC f.S - opponent reenters blockstun. Normally causes blockstun to go over blockstunMax, we remedy that here
-			}
 			int hitstop = ent.hitstop();
-			player.leftHitstop = !hitstop && player.hitstop;
 			int clashHitstop = ent.clashHitstop();
 			if (!player.clashHitstop && clashHitstop) {
 				player.hitstopMax = 0;
@@ -771,8 +793,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.hitstopMax = player.hitstopMaxSuperArmor - 1;
 			} else {
 				player.hitstop = hitstop + clashHitstop;
+				if (!player.hitstop) {
+					player.hitstop = player.lastHitstopBeforeWipe;
+				}
 			}
-			player.airborne = !(ent.y() == 0 && player.speedY == 0);
+			player.airborne = player.airborne_afterTick();
+			int prevFrameWakeupTiming = player.wakeupTiming;
 			player.wakeupTiming = 0;
 			CmnActIndex prevFrameCmnActIndex = player.cmnActIndex;
 			player.cmnActIndex = cmnActIndex;
@@ -799,12 +825,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.enableBlock = ent.enableBlock();
 			bool prevFrameCanFaultlessDefense = player.canFaultlessDefense;
-			player.canFaultlessDefense = (player.enableBlock || player.wasEnableNormals)  // I gave up trying to understand how moves work. Hardcode/make shit up time!
+			// I gave up trying to understand how moves work. Hardcode/make shit up time!
+			player.canFaultlessDefense = (player.enableBlock || player.wasEnableNormals || whiffCancelIntoFDEnabled(player))
 				&& ent.fdNegativeCheck() == 0
 				&& player.wasProhibitFDTimer == 0
 				&& ent.dizzyMashAmountLeft() <= 0
 				&& ent.exKizetsu() <= 0;
-			const MoveInfo& move = moves.getInfo(player.charType, ent.animationName(), false);
+			const MoveInfo& move = moves.getInfo(player.charType,
+				ent.currentMoveIndex() == -1 ? nullptr : ent.currentMove()->name,
+				ent.animationName(),
+				false);
 			bool idleNext = move.isIdle(player);
 			bool prevFrameIdle = player.idle;
 			bool prevFrameIgnoreNextInabilityToBlockOrAttack = player.ignoreNextInabilityToBlockOrAttack;
@@ -832,6 +862,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.strikeInvul.active = false;
 			player.throwInvul.active = false;
 			player.lowProfile.active = false;
+			player.frontLegInvul.active = false;
 			player.superArmor.active = false;
 			player.superArmorThrow.active = false;
 			player.superArmorBurst.active = false;
@@ -845,6 +876,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.superArmorOverdrive.active = false;
 			player.superArmorBlitzBreak.active = false;
 			player.counterhit = false;
+			
+			if (player.changedAnimOnThisFrame) {
+				player.maxHit.clear();
+				player.hitNumber = 0;
+			}
 			
 			if (!player.changedAnimOnThisFrame
 					&& prevFrameIdle
@@ -870,14 +906,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				) {
 				player.changedAnimOnThisFrame = true;
 			}
-			if (!player.changedAnimOnThisFrame
-					&& player.charType == CHARACTER_TYPE_LEO
-					&& idleNext
-					&& strcmp(player.anim, "Semuke") == 0
-					&& strcmp(ent.gotoLabelRequest(), "SemukeEnd") == 0) {
-				player.changedAnimOnThisFrame = true;
+			player.forceBusy = false;
+			if (player.charType == CHARACTER_TYPE_LEO
+					&& strcmp(animName, "Semuke") == 0
+					&& (
+						strcmp(ent.gotoLabelRequest(), "SemukeEnd") == 0
+						|| !ent.enableWhiffCancels()
+					)) {
+				if (strcmp(ent.gotoLabelRequest(), "SemukeEnd") == 0) {
+					player.changedAnimOnThisFrame = true;
+				}
 				player.canBlock = false;
-				idleNext = false;
+				player.forceBusy = true;  // if I just set idleNext to false here, the framebar will display Leo as busy on that frame, but that's not true - he can act
 			}
 			if (player.changedAnimOnThisFrame
 					&& (
@@ -978,7 +1018,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								--player.blockstunMax;  // this is the line PlayerInfo.h:PlayerInfo::inBlockstunNextFrame refers to
 							}
 							if (player.setHitstunMax) {
-								player.hitstunMax = ent.hitstun() - (ent.hitstop() ? 1 : 0);
+								player.hitstunMax = ent.hitstun();
+								if (ent.inHitstunNextFrame() && player.lastHitstopBeforeWipe
+										|| ent.hitstop()) {
+									--player.hitstunMax;
+								}
 							}
 						}
 						
@@ -1002,10 +1046,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			int playerval0 = ent.playerVal(0);
 			int playerval1 = ent.playerVal(1);
 			if (!player.playerval0 && playerval0) {
-				player.maxDI = playerval1;
+				if (player.charType == CHARACTER_TYPE_SOL) {
+					player.maxDI = playerval1;
+				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
+					player.maxDI = playerval0;
+				}
 			}
 			player.playerval1 = playerval1;
 			player.playerval0 = playerval0;
+			
+			int poisonDuration = ent.poisonDuration();
+			if (!player.poisonDuration) {
+				player.poisonDurationMax = poisonDuration;
+			} else if (poisonDuration > player.poisonDuration) {
+				player.poisonDurationMax = poisonDuration;
+			}
+			player.poisonDuration = poisonDuration;
+			
+			player.maxHit.fill(ent, ent.currentHitNum());
+			
+			bool isHitOnThisFrame = player.pawn.inHitstunNextFrame();
+			player.wasHitOnPreviousFrame = player.wasHitOnThisFrame;
+			player.wasHitOnThisFrame = isHitOnThisFrame;
+			
 			player.gettingUp = ent.gettingUp();
 			bool idlePlus = player.idle
 				|| player.idleInNewSection
@@ -1042,6 +1105,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& player.canFaultlessDefense) {
 			}
 			if (changedAnim) {
+				player.wokeUp = prevFrameWakeupTiming && !player.wakeupTiming && idleNext;
 				if (!move.preservesNewSection) {
 					player.inNewMoveSection = false;
 					if (!measuringFrameAdvantage) {
@@ -1103,7 +1167,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					            // This assignment is not higher above because some animations I just consider an inseparable part of another animation.
 					if (!player.isLandingOrPreJump
 							&& player.cmnActIndex != CmnActJump
-							&& !player.idlePlus
+							&& (!player.idlePlus || player.forceBusy)
 							&& !(
 								!player.wasIdle
 								&& player.cmnActIndex == CmnActRomanCancel
@@ -1120,8 +1184,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.moveOriginatedInTheAir = player.airborne;
 						
 						player.startupProj = 0;
+						player.startupProjIgnoredForFramebar = 0;
 						player.activesProj.clear();
+						player.maxHitUse.clear();
 						player.prevStartupsProj.clear();
+						player.maxHitProj.clear();
+						player.maxHitProjConflict = false;
+						player.maxHitProjLastPtr = nullptr;
 						
 						if (move.usePlusSignInCombination
 								|| player.charType == CHARACTER_TYPE_BAIKEN
@@ -1154,6 +1223,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.strikeInvul.clear();
 							player.throwInvul.clear();
 							player.lowProfile.clear();
+							player.frontLegInvul.clear();
 							player.projectileOnlyInvul.clear();
 							player.superArmor.clear();
 							player.superArmorThrow.clear();
@@ -1198,6 +1268,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			memcpy(player.anim, animName, 32);
+			player.setMoveName(player.moveName, ent);
 			
 			if (player.idle && (
 					player.canBlock && player.canFaultlessDefense
@@ -1212,7 +1283,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& needDisableProjectiles
 						&& event.u.setAnim.pawn == ent) {
 					for (ProjectileInfo& projectile : projectiles) {
-						if (projectile.team == player.index && projectile.lifeTimeCounter > 0) {
+						bool parentDisabled = false;
+						if (projectile.creator && projectile.creator != players[0].pawn && projectile.creator != players[1].pawn) {
+							for (ProjectileInfo& seekParent : projectiles) {
+								if (seekParent.ptr && seekParent.ptr != projectile.ptr && seekParent.ptr == projectile.creator) {
+									parentDisabled = seekParent.disabled;
+									break;
+								}
+							}
+						}
+						if (projectile.team == player.index && (projectile.lifeTimeCounter > 0 || parentDisabled)) {
 							projectile.disabled = true;
 							projectile.startedUp = false;
 							projectile.actives.clear();
@@ -1236,6 +1316,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 						projectileTo.total = projectileTo.startup;
 						memcpy(projectileTo.creatorName, event.u.signal.fromAnim, 32);
+						projectileTo.creator = event.u.signal.from;
 					} else if (projectileFrom.ptr
 							&& projectileTo.ptr
 							&& projectileFrom.team == player.index
@@ -1243,10 +1324,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (projectileTo.disabled) {
 							projectileTo.creationTime_aswEngineTick = aswEngineTickCount;
 						}
-						projectileTo.disabled = false;
+						projectileTo.disabled = projectileFrom.disabled;  // Sol Gunflame YRC delay 1f 5P. This prevents it from thinking Gunflame active frames are part of 5P
 						projectileTo.startup = projectileFrom.total;
 						projectileTo.total = projectileFrom.total;
 						memcpy(projectileTo.creatorName, event.u.signal.fromAnim, 32);
+						projectileTo.creator = event.u.signal.from;
 					}
 				}
 			}
@@ -1262,7 +1344,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& player.canBlock
 					) && player.move
 					&& player.move->sectionSeparator
-					&& player.move->sectionSeparator(ent)) {
+					&& player.move->sectionSeparator(player)) {
 				player.inNewMoveSection = true;
 				player.changedAnimOnThisFrame = true;  // for framebar
 				player.changedAnimFiltered = true;  // for framebar
@@ -1290,10 +1372,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (!player.frameAdvantageIncludesIdlenessInNewSection) {
 						player.frameAdvantageIncludesIdlenessInNewSection = true;
 						player.frameAdvantage += player.timeInNewSection;
+						player.frameAdvantageNoPreBlockstun += player.timeInNewSection;
 					}
 					if (!other.frameAdvantageIncludesIdlenessInNewSection) {
 						other.frameAdvantageIncludesIdlenessInNewSection = true;
 						other.frameAdvantage -= player.timeInNewSection;
+						other.frameAdvantageNoPreBlockstun -= player.timeInNewSection;
 					}
 					if (!other.eddie.frameAdvantageIncludesIdlenessInNewSection) {
 						other.eddie.frameAdvantageIncludesIdlenessInNewSection = true;
@@ -1303,10 +1387,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (!player.landingFrameAdvantageIncludesIdlenessInNewSection) {
 							player.landingFrameAdvantageIncludesIdlenessInNewSection = true;
 							player.landingFrameAdvantage += player.timeInNewSection;
+							player.landingFrameAdvantageNoPreBlockstun += player.timeInNewSection;
 						}
 						if (!other.landingFrameAdvantageIncludesIdlenessInNewSection) {
 							other.landingFrameAdvantageIncludesIdlenessInNewSection = true;
 							other.landingFrameAdvantage -= player.timeInNewSection;
+							other.landingFrameAdvantageNoPreBlockstun -= player.timeInNewSection;
 						}
 						if (!other.eddie.landingFrameAdvantageIncludesIdlenessInNewSection) {
 							other.eddie.landingFrameAdvantageIncludesIdlenessInNewSection = true;
@@ -1346,19 +1432,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				projectile.fill(projectile.ptr);
 				projectile.markActive = projectile.landedHit;
 				if (projectile.team == 0 || projectile.team == 1) {
-					projectile.move = &moves.getInfo(entityList.slots[projectile.team].characterType(), projectile.animName, true);
-					projectile.isDangerous = projectile.move->isDangerous(projectile.ptr);
-					if (projectile.isDangerous) {
-						PlayerInfo& player = players[projectile.team];
-						player.hasDangerousProjectiles = true;
+					projectile.move = &moves.getInfo(entityList.slots[projectile.team].characterType(), nullptr, projectile.animName, true);
+					if (projectile.move == &moves.defaultMove) {
+						projectile.move = nullptr;
+						projectile.isDangerous = false;
+					} else {
+						projectile.isDangerous = projectile.move->isDangerous(projectile.ptr);
+						if (projectile.isDangerous) {
+							PlayerInfo& player = players[projectile.team];
+							player.hasDangerousProjectiles = true;
+						}
 					}
 				} else {
 					projectile.move = nullptr;
 				}
 				if (!projectile.inNewSection
 						&& projectile.move
-						&& projectile.move->sectionSeparator
-						&& projectile.move->sectionSeparator(projectile.ptr)) {
+						&& projectile.move->sectionSeparatorProjectile
+						&& projectile.move->sectionSeparatorProjectile(projectile.ptr)) {
 					projectile.inNewSection = true;
 					if (projectile.total) {
 						projectile.prevStartups.add(projectile.total);
@@ -1386,10 +1477,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						measuringLandingFrameAdvantage = -1;
 						if (other.timePassedLanding > player.timePassedLanding) {
 							player.landingFrameAdvantage = -player.timePassedLanding;
+							player.landingFrameAdvantageNoPreBlockstun = -player.timePassedLanding;
 						} else {
 							player.landingFrameAdvantage = -other.timePassedLanding;
+							player.landingFrameAdvantageNoPreBlockstun = -other.timePassedLanding;
 						}
 						other.landingFrameAdvantage = -player.landingFrameAdvantage;
+						other.landingFrameAdvantageNoPreBlockstun = -player.landingFrameAdvantage;
 						player.landingFrameAdvantageValid = true;
 						other.landingFrameAdvantageValid = true;
 					} else if (measuringLandingFrameAdvantage == -1) {
@@ -1400,6 +1494,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						other.landingFrameAdvantageValid = false;
 						player.landingFrameAdvantage = 0;
 						other.landingFrameAdvantage = 0;
+						player.landingFrameAdvantageNoPreBlockstun = 0;
+						other.landingFrameAdvantageNoPreBlockstun = 0;
 						other.eddie.landingFrameAdvantageValid = false;
 					}
 				}
@@ -1439,7 +1535,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		int team = ent.team();
 		if (!ent.isActive() || isEntityAlreadyDrawn(ent)) continue;
 
-		bool active = ent.isActiveFrames();
+		bool active = ent.isActiveFrames()
+			&& (
+				i < 2
+					&& ent.characterType() == CHARACTER_TYPE_JAM
+					&& strcmp(ent.animationName(), "Saishingeki") == 0
+					&& ent.currentAnimDuration() > 100
+				?
+					ent.currentHitNum() > 1
+				: true
+			);
 		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
 		
 		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
@@ -1449,7 +1554,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		size_t interactionBoxesPrevSize = drawDataPrepared.interactionBoxes.size();
 		
 		int* lastIgnoredHitNum = nullptr;
-		if (i < 2 && (team == 0 || team == 1)) {
+		if (!iGiveUp && i < 2 && (team == 0 || team == 1)) {
 			PlayerInfo& player = players[team];
 			lastIgnoredHitNum = &player.lastIgnoredHitNum;
 		}
@@ -1461,7 +1566,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		bool useTheseValues = false;
 		bool isSuperArmor;
 		bool isFullInvul;
-		if (i < 2 && (team == 0 || team == 1)) {
+		if (!iGiveUp && i < 2 && (team == 0 || team == 1)) {
 			const PlayerInfo& player = players[team];
 			isSuperArmor = player.wasSuperArmorEnabled;
 			isFullInvul = player.wasFullInvul;
@@ -1510,7 +1615,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			drawDataPrepared.hurtboxes.push_back({ false, attachedHurtbox });
 			drawnEntities.push_back(attached);
 		}
-		if ((team == 0 || team == 1) && frameHasChanged) {
+		if (!iGiveUp && (team == 0 || team == 1) && frameHasChanged) {
 			if (!hitboxesCount && i < 2) {
 				PlayerInfo& player = players[team];
 				if (player.hitSomething) ++hitboxesCount;
@@ -1550,6 +1655,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !player.airborne
 					&& hurtbox.hitboxCount
 					&& hurtboxBounds.bottom < settings.lowProfileCutoffPoint;
+				player.frontLegInvul.active = !player.strikeInvul.active
+					&& player.move
+					&& player.move->frontLegInvul
+					&& player.move->frontLegInvul(player);
 				player.superArmor.active = entityState.superArmorActive && !player.projectileOnlyInvul.active && !player.reflect.active;
 				if (player.charType == CHARACTER_TYPE_LEO
 						&& player.superArmor.active
@@ -1608,7 +1717,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	throws.drawThrows();
 	logOnce(fputs("throws.drawThrows() call successful\n", logfile));
 	
-	if (frameHasChanged) {
+	if (frameHasChanged && !iGiveUp) {
 		
 		if (!dontAdvanceFramePosition) {
 			bool atLeastOneNotInHitstop = false;
@@ -1619,44 +1728,75 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (!player.hitstop
 						|| player.charType == CHARACTER_TYPE_BAIKEN
 						&& (
-							player.blockstun > 0
-							|| strcmp(player.anim, "BlockingStand") == 0
-							|| strcmp(player.anim, "BlockingCrouch") == 0
-							|| strcmp(player.anim, "BlockingAir") == 0
-							|| strcmp(player.anim, "Suzuran") == 0
+							!settings.ignoreHitstopForBlockingBaiken && player.blockstun > 0
+							|| player.move && player.move->ignoresHitstop
 						)) {
 					atLeastOneNotInHitstop = true;
 				}
 				if (
 						(
-							!(
-								!settings.considerKnockdownWakeupAndAirtechIdle
-								&& player.idleLanding
-								|| settings.considerKnockdownWakeupAndAirtechIdle
-								&& (
-									!player.airteched
-									&& player.idleLanding
-									|| player.airteched
-									&& player.idlePlus
+							(
+								!(
+									!settings.considerKnockdownWakeupAndAirtechIdle
+									&& (
+										player.idleLanding
+										|| player.idle
+										&& player.move
+										&& player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime  // Chipp Wall Climb
+									)
+									|| settings.considerKnockdownWakeupAndAirtechIdle
+									&& (player.airteched ? player.idlePlus : player.idleLanding)
 								)
+								|| (!player.canBlock || !player.canFaultlessDefense)
+								&& !player.ignoreNextInabilityToBlockOrAttack
+								&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)
+							) && !(
+								!settings.considerRunAndWalkNonIdle
+								&& player.charType == CHARACTER_TYPE_LEO
+								&& player.cmnActIndex == CmnActFDash
 							)
-							|| (!player.canBlock || !player.canFaultlessDefense)
-							&& !player.ignoreNextInabilityToBlockOrAttack
-							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)
-							|| player.strikeInvul.active
-							|| player.throwInvul.active
-							|| player.projectileOnlyInvul.active
-							|| player.superArmor.active
-							|| player.reflect.active
+							|| (
+								(
+									player.strikeInvul.active
+									|| player.throwInvul.active
+								) && (
+									!settings.considerKnockdownWakeupAndAirtechIdle
+									|| !player.wokeUp
+									&& (player.airteched ? player.idlePlus : player.idleLanding)
+								)
+								|| player.projectileOnlyInvul.active
+								|| player.superArmor.active
+								|| player.reflect.active
+							)
+							&& !settings.considerIdleInvulIdle
 							|| settings.considerRunAndWalkNonIdle
 							&& (
 								player.cmnActIndex == CmnActFWalk
 								|| player.cmnActIndex == CmnActBWalk
 								|| player.cmnActIndex == CmnActFDash
 								|| player.cmnActIndex == CmnActFDashStop
+								|| player.charType == CHARACTER_TYPE_LEO
+								&& strcmp(player.anim, "Semuke") == 0
+								&& (
+									strcmp(player.pawn.gotoLabelRequest(), "SemukeFrontWalk") == 0
+									|| strcmp(player.pawn.gotoLabelRequest(), "SemukeBackWalk") == 0
+									|| player.pawn.speedX() != 0
+								)
+								|| (
+									player.charType == CHARACTER_TYPE_FAUST
+									|| player.charType == CHARACTER_TYPE_BEDMAN
+								) && (
+									strcmp(player.anim, "CrouchFWalk") == 0
+									|| strcmp(player.anim, "CrouchBWalk") == 0
+								)
+								|| player.charType == CHARACTER_TYPE_HAEHYUN
+								&& strcmp(player.anim, "CrouchFDash") == 0
 							)
 							|| settings.considerCrouchNonIdle
 							&& misterPlayerIsManuallyCrouching(player)
+							|| player.forceBusy
+							|| settings.considerDummyPlaybackNonIdle
+							&& game.isTrainingMode() && game.getDummyRecordingMode() == DUMMY_MODE_PLAYING_BACK
 						)
 						&& (
 							!settings.considerKnockdownWakeupAndAirtechIdle
@@ -1704,27 +1844,36 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (atLeastOneBusy || atLeastOneDangerousProjectilePresent) {
 					if (framebarIdleHitstopFor > framebarIdleForLimit) {
 						framebarPositionHitstop = 0;
-						for (EntityFramebar& entityFramebar : framebars) {
-							entityFramebar.hitstop.clear();
-							entityFramebar.idleHitstop.clear();
+						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+							entityFramebar.getHitstop().clear();
+							entityFramebar.getIdleHitstop().clear();
+							if (entityFramebar.belongsToPlayer()) {
+								PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+								framebarCast.hitstop.clearCancels();
+								framebarCast.idleHitstop.clearCancels();
+							}
 						}
 					} else {
 						if (framebarIdleHitstopFor) {
-							for (EntityFramebar& entityFramebar : framebars) {
-								for (int i = 1; i <= framebarIdleHitstopFor; ++i) {
-									int ind = (framebarPositionHitstop + i) % _countof(Framebar::frames);
-									entityFramebar.hitstop.soakUpIntoPreFrame(entityFramebar.hitstop[ind]);
-									entityFramebar.hitstop[ind] = entityFramebar.idleHitstop[ind];
-								}
-								entityFramebar.hitstop.requestFirstFrame = entityFramebar.idleHitstop.requestFirstFrame;
+							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+								bool isPlayer = entityFramebar.belongsToPlayer();
+								entityFramebar.getHitstop().catchUpToIdle(entityFramebar.getIdleHitstop(), framebarPositionHitstop, framebarIdleHitstopFor);
 							}
 							framebarPositionHitstop += framebarIdleHitstopFor;
 							framebarPositionHitstop %= _countof(Framebar::frames);
 						}
 						EntityFramebar::incrementPos(framebarPositionHitstop);
-						for (EntityFramebar& entityFramebar : framebars) {
-							entityFramebar.hitstop.soakUpIntoPreFrame(entityFramebar.hitstop[framebarPositionHitstop]);
-							entityFramebar.idleHitstop.soakUpIntoPreFrame(entityFramebar.idleHitstop[framebarPositionHitstop]);
+						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+							entityFramebar.getHitstop().soakUpIntoPreFrame(entityFramebar.getHitstop().getFrame(framebarPositionHitstop));
+							entityFramebar.getIdleHitstop().soakUpIntoPreFrame(entityFramebar.getIdleHitstop().getFrame(framebarPositionHitstop));
+							if (entityFramebar.belongsToPlayer()) {
+								PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+								framebarCast.hitstop.clearCancels(framebarPositionHitstop);
+								framebarCast.idleHitstop.clearCancels(framebarPositionHitstop);
+							}
 						}
 						
 					}
@@ -1735,48 +1884,81 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (atLeastOneNotInHitstop) {
 						if (framebarIdleFor > framebarIdleForLimit) {
 							framebarPosition = 0;
-							for (EntityFramebar& entityFramebar : framebars) {
-								entityFramebar.main.clear();
-								entityFramebar.idle.clear();
+							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+								entityFramebar.getMain().clear();
+								entityFramebar.getIdle().clear();
+								if (entityFramebar.belongsToPlayer()) {
+									PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+									framebarCast.main.clearCancels();
+									framebarCast.idle.clearCancels();
+								}
 							}
 						} else {
 							if (framebarIdleFor) {
-								for (EntityFramebar& entityFramebar : framebars) {
-									for (int i = 1; i <= framebarIdleFor; ++i) {
-										int ind = (framebarPosition + i) % _countof(Framebar::frames);
-										entityFramebar.main.soakUpIntoPreFrame(entityFramebar.main[ind]);
-										entityFramebar.main[ind] = entityFramebar.idle[ind];
-									}
-									entityFramebar.main.requestFirstFrame = entityFramebar.idle.requestFirstFrame;
+								for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+									EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+									bool isPlayer = entityFramebar.belongsToPlayer();
+									entityFramebar.getMain().catchUpToIdle(entityFramebar.getIdle(), framebarPosition, framebarIdleFor);
 								}
 								framebarPosition += framebarIdleFor;
 								framebarPosition %= _countof(Framebar::frames);
 							}
 							EntityFramebar::incrementPos(framebarPosition);
-							for (EntityFramebar& entityFramebar : framebars) {
-								entityFramebar.main.soakUpIntoPreFrame(entityFramebar.main[framebarPosition]);
-								entityFramebar.idle.soakUpIntoPreFrame(entityFramebar.idle[framebarPosition]);
+							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+								FrameBase& mainFrame = entityFramebar.getMain().getFrame(framebarPosition);
+								FrameBase& idleFrame = entityFramebar.getMain().getFrame(framebarPosition);
+								entityFramebar.getMain().soakUpIntoPreFrame(mainFrame);
+								entityFramebar.getIdle().soakUpIntoPreFrame(idleFrame);
+								if (entityFramebar.belongsToPlayer()) {
+									PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+									framebarCast.main.clearCancels(framebarPosition);
+									framebarCast.idle.clearCancels(framebarPosition);
+								}
 							}
 						}
 						framebarIdleFor = 0;
 						framebarAdvanced = true;
 						framebarAdvancedIdle = true;
+					} else {
+						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+							++entityFramebar.getMain().skippedHitstop;
+							++entityFramebar.getIdle().skippedHitstop;
+						}
 					}
 				} else {
 					framebarAdvancedIdleHitstop = true;
 					++framebarIdleHitstopFor;
-					for (EntityFramebar& entityFramebar : framebars) {
-						entityFramebar.idleHitstop.soakUpIntoPreFrame(entityFramebar.idleHitstop[
-							EntityFramebar::confinePos(framebarPositionHitstop + framebarIdleHitstopFor)
-						]);
+					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+						int confinedPos = EntityFramebar::confinePos(framebarPositionHitstop + framebarIdleHitstopFor);
+						entityFramebar.getIdleHitstop().soakUpIntoPreFrame(entityFramebar.getIdleHitstop().getFrame(confinedPos));
+						if (entityFramebar.belongsToPlayer()) {
+							PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+							framebarCast.idleHitstop.clearCancels(confinedPos);
+						}
 					}
 					if (atLeastOneNotInHitstop) {
 						framebarAdvancedIdle = true;
 						++framebarIdleFor;
-						for (EntityFramebar& entityFramebar : framebars) {
-							entityFramebar.idle.soakUpIntoPreFrame(entityFramebar.idle[
-								EntityFramebar::confinePos(framebarPosition + framebarIdleFor)
-							]);
+						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+							int confinedPos = EntityFramebar::confinePos(framebarPosition + framebarIdleFor);
+							FrameBase& frame = entityFramebar.getIdle().getFrame(confinedPos);
+							entityFramebar.getIdle().soakUpIntoPreFrame(frame);
+							entityFramebar.getMain().skippedHitstop = 0;
+							if (entityFramebar.belongsToPlayer()) {
+								PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+								framebarCast.idle.clearCancels(confinedPos);
+							}
+						}
+					} else {
+						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+							++entityFramebar.getMain().skippedHitstop;
+							++entityFramebar.getIdle().skippedHitstop;
 						}
 					}
 				}
@@ -1784,10 +1966,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		
 		Entity superflashInstigator = getSuperflashInstigator();
-		int instigatorTeam = -1;
-		if (superflashInstigator) {
-			instigatorTeam = superflashInstigator.team();
-		}
+		
 		if (!superflashInstigator) {
 			for (PlayerInfo& player : players) {
 				if (!player.hitstop) {  // needed for Axl DP
@@ -1795,7 +1974,94 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 		}
-		for (EntityFramebar& entityFramebar : framebars) {
+		
+		int instigatorTeam = -1;
+		if (superflashInstigator) {
+			instigatorTeam = superflashInstigator.team();
+			
+			int newValue;
+			
+			newValue = getSuperflashCounterAllied();
+			if (!superflashCounterAllied && newValue) {
+				superflashCounterAlliedMax = newValue;
+			}
+			superflashCounterAllied = newValue;
+			
+			newValue = getSuperflashCounterOpponent();
+			if (!superflashCounterOpponent && newValue) {
+				superflashCounterOpponentMax = newValue;
+			}
+			superflashCounterOpponent = newValue;
+			
+		} else {
+			superflashCounterAllied = 0;
+			superflashCounterOpponent = 0;
+		}
+		
+		for (PlayerInfo& player : players) {
+			player.immuneToRCSlowdown = true;
+		}
+		for (ProjectileInfo& projectile : projectiles) {
+			projectile.immuneToRCSlowdown = true;
+		}
+		
+		rcSlowdownCounter = 0;
+		for (PlayerInfo& player : players) {
+			int slowdown = player.pawn.rcSlowdownCounter();
+			if (slowdown) {
+				player.rcSlowdownCounter = min(127, slowdown);
+				++slowdown;
+			} else if (player.rcSlowdownCounter) {
+				player.rcSlowdownCounter = 0;
+				PlayerInfo& other = players[1 - player.index];
+				slowdown = slowdown == 0 && (
+						player.pawn.inHitstunThisFrame()
+						|| player.pawn.inBlockstunNextFrame()
+						|| other.pawn.inHitstunThisFrame()
+						|| other.pawn.inBlockstunNextFrame()
+					) ? 0 : 1;
+			}
+			if (slowdown) {
+				rcSlowdownCounter = max(rcSlowdownCounter, slowdown);
+				for (PlayerInfo& other : players) {
+					bool isAffected = other.pawn != player.pawn && other.pawn != superflashInstigator && !other.pawn.immuneToRCSlowdown();
+					if (isAffected) {
+						other.immuneToRCSlowdown = false;
+					}
+				}
+				for (ProjectileInfo& projectile : projectiles) {
+					if (!projectile.ptr) continue;
+					bool isAffected = !projectile.ptr.immuneToRCSlowdown();
+					if (isAffected) {
+						projectile.immuneToRCSlowdown = false;
+					}
+				}
+			}
+		}
+		
+		if (!superflashInstigator && superfreezeHasBeenGoingFor) {
+			rcSlowdownCounterMax = 0;
+			for (PlayerInfo& player : players) {
+				rcSlowdownCounterMax = max(rcSlowdownCounterMax, player.pawn.rcSlowdownCounter());
+			}
+			if (rcSlowdownCounterMax) ++rcSlowdownCounterMax;
+			for (PlayerInfo& player : players) {
+				if (player.immuneToRCSlowdown) {
+					player.rcSlowdownMax = 0;
+				} else {
+					player.rcSlowdownMax = min(127, rcSlowdownCounterMax);
+				}
+			}
+		}
+		
+		if (superflashInstigator && !superfreezeHasBeenGoingFor) {
+			for (PlayerInfo& player : players) {
+				player.rcSlowdownMax = 0;
+			}
+		}
+		
+		for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+			EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 			entityFramebar.foundOnThisFrame = false;
 		}
 		const int framebarPos = (framebarPositionHitstop + framebarIdleHitstopFor) % _countof(Framebar::frames);
@@ -1829,19 +2095,41 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.prevStartupsProj = projectile.prevStartups;
 			}
 			
-			EntityFramebar& entityFramebar = findProjectileFramebar(projectile, projectile.markActive);
+			ProjectileFramebar& entityFramebar = findProjectileFramebar(projectile, projectile.markActive);
 			entityFramebar.foundOnThisFrame = true;
 			Framebar& framebar = entityFramebar.idleHitstop;
 			Frame& currentFrame = framebar[framebarPos];
 			if (framebarAdvancedIdleHitstop) {
-				currentFrame.type = FT_IDLE;
+				currentFrame.type = FT_IDLE_PROJECTILE;
+				currentFrame.animName = nullptr;
+				if (projectile.move) {
+					if (projectile.move->getDisplayName(true)) {
+						currentFrame.animName = projectile.move->getDisplayName(true);
+					} else if (projectile.move->framebarName) {
+						currentFrame.animName = projectile.move->framebarName;
+					} else if (projectile.move->framebarNameSelector && projectile.ptr) {
+						currentFrame.animName = projectile.move->framebarNameSelector(projectile.ptr);
+					}
+				}
+				if (!currentFrame.animName && projectile.ptr) {
+					BYTE* currentFunc = projectile.ptr.bbscrCurrentFunc();
+					if (currentFunc && *(DWORD*)currentFunc == 0) {
+						currentFrame.animName = (const char*)(currentFunc + 4);
+					}
+				}
+				currentFrame.hitstop = projectile.hitstop;
+				currentFrame.hitstopMax = projectile.hitstopMax;
+				currentFrame.hitConnected = projectile.ptr ? projectile.ptr.hitSomethingOnThisFrame() : projectile.landedHit
+					|| projectile.clashedOnThisFrame;
+				currentFrame.rcSlowdown = projectile.immuneToRCSlowdown ? 0 : rcSlowdownCounter;
+				currentFrame.rcSlowdownMax = projectile.immuneToRCSlowdown ? 0 : rcSlowdownCounterMax;
 			}
 			
 			if (!projectile.markActive) {
 				if (!superflashInstigator) {
 					projectile.actives.addNonActive();
 					if (framebarAdvancedIdleHitstop) {
-						currentFrame.type = projectile.isDangerous ? FT_NON_ACTIVE : FT_IDLE;
+						currentFrame.type = FT_IDLE_PROJECTILE;
 					}
 				}
 			} else if (!superflashInstigator || !projectile.startedUp) {
@@ -1854,9 +2142,27 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					projectile.startedUp = true;
 				}
-				projectile.actives.addActive(projectile.hitNumber, 1);
+				if (projectile.actives.count) {
+					int lastNonActives = projectile.actives.data[projectile.actives.count - 1].nonActives;
+					if (lastNonActives) {
+						entityFramebar.changePreviousFramesOneType(FT_IDLE_PROJECTILE,
+							FT_NON_ACTIVE_PROJECTILE,
+							framebarPos - 1,
+							framebarHitstopSearchPos,
+							framebarIdleSearchPos,
+							framebarSearchPos,
+							lastNonActives);
+					}
+				}
+				if (projectile.actives.count
+						&& !projectile.actives.data[projectile.actives.count - 1].nonActives
+						&& projectile.hitNumber != projectile.actives.prevHitNum
+						&& !(projectile.ptr ? projectile.ptr.isRCFrozen() : false)) {
+					framebar.requestNextHit = true;
+				}
+				projectile.actives.addActive(projectile.hitNumber);
 				if (framebarAdvancedIdleHitstop) {
-					currentFrame.type = FT_ACTIVE;
+					currentFrame.type = projectile.hitstop ? FT_ACTIVE_HITSTOP_PROJECTILE : FT_ACTIVE_PROJECTILE;
 				}
 				if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
 					PlayerInfo& player = players[projectile.team];
@@ -1864,10 +2170,32 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (superflashInstigator) {
 							player.activesProj.addSuperfreezeActive(projectile.hitNumber);
 						} else {
-							player.activesProj.addActive(projectile.hitNumber, 1);
+							player.activesProj.addActive(projectile.hitNumber);
+						}
+						if (player.maxHitProj.empty()) {
+							if (!player.maxHitProjConflict) {
+								player.maxHitProj = projectile.maxHit;
+								player.maxHitProjLastPtr = projectile.ptr;
+							}
+						} else if (!projectile.maxHit.empty()) {
+							if (projectile.ptr == player.maxHitProjLastPtr) {
+								if (projectile.ptr) {
+									player.maxHitProj = projectile.maxHit;
+								} else if (player.maxHitProj != projectile.maxHit) {
+									player.maxHitProjConflict = true;
+									player.maxHitProj.clear();
+								}
+							} else if (!projectile.ptr ? player.maxHitProj != projectile.maxHit : true) {
+								player.maxHitProjConflict = true;
+								player.maxHitProj.clear();
+							}
 						}
 					}
 				}
+			}
+			
+			if (framebarAdvancedIdleHitstop) {
+				currentFrame.newHit = framebar.requestNextHit;
 			}
 			
 			copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
@@ -1877,13 +2205,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				framebarAdvancedIdleHitstop);
 		}
 		if (framebarAdvancedIdleHitstop) {
-			for (EntityFramebar& entityFramebar : framebars) {
+			for (ProjectileFramebar& entityFramebar : projectileFramebars) {
 				if(entityFramebar.foundOnThisFrame) continue;
 				
 				Framebar& framebar = entityFramebar.idleHitstop;
 				Frame& currentFrame = framebar[framebarPos];
 				
-				currentFrame.type = FT_IDLE;
+				currentFrame.type = FT_IDLE_PROJECTILE;
 				
 				copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
 					framebarAdvanced,
@@ -1892,6 +2220,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					framebarAdvancedIdleHitstop);
 			}
 		}
+		
 		if (!superflashInstigator) {
 			for (PlayerInfo& player : players) {
 				if (!player.hitstop) {
@@ -1921,6 +2250,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							projectile.startup = player.eddie.total;
 							memset(projectile.creatorName, 0, 32);
 							strcpy(projectile.creatorName, "Eddie");
+							projectile.creator = player.eddie.ptr;
 							projectile.total = player.eddie.total;
 						}
 						break;
@@ -2047,10 +2377,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (player.idlePlus && !other.idlePlus) {
 					if (measuringFrameAdvantage) {
 						++player.frameAdvantage;
+						++player.frameAdvantageNoPreBlockstun;
 					}
 				} else if (!player.idlePlus && other.idlePlus) {
 					if (measuringFrameAdvantage) {
 						--player.frameAdvantage;
+						--player.frameAdvantageNoPreBlockstun;
 					}
 				} else if (!player.idlePlus && !other.idlePlus) {
 					if (measuringLandingFrameAdvantage == -1) {
@@ -2059,6 +2391,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					player.frameAdvantage = 0;
 					other.frameAdvantage = 0;
+					player.frameAdvantageNoPreBlockstun = 0;
+					other.frameAdvantageNoPreBlockstun = 0;
 					measuringFrameAdvantage = true;
 					player.frameAdvantageValid = false;
 					other.frameAdvantageValid = false;
@@ -2076,12 +2410,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (player.idleLanding && !other.idleLanding) {
 						++player.landingFrameAdvantage;
 						--other.landingFrameAdvantage;
+						++player.landingFrameAdvantageNoPreBlockstun;
+						--other.landingFrameAdvantageNoPreBlockstun;
 					} else if (!player.idleLanding && other.idleLanding) {
 						--player.landingFrameAdvantage;
 						++other.landingFrameAdvantage;
+						--player.landingFrameAdvantageNoPreBlockstun;
+						++other.landingFrameAdvantageNoPreBlockstun;
 					} else if (!player.idleLanding && !other.idleLanding) {
 						player.landingFrameAdvantage = 0;
 						other.landingFrameAdvantage = 0;
+						player.landingFrameAdvantageNoPreBlockstun = 0;
+						other.landingFrameAdvantageNoPreBlockstun = 0;
 					} else if (player.idleLanding && other.idleLanding) {
 						measuringLandingFrameAdvantage = -1;
 						player.landingFrameAdvantageValid = true;
@@ -2091,15 +2431,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 			}
 			
-			EntityFramebar& entityFramebar = framebars[player.index];
-			Framebar& framebar = entityFramebar.idleHitstop;
+			PlayerFramebars& entityFramebar = playerFramebars[player.index];
+			PlayerFramebar& framebar = entityFramebar.idleHitstop;
 			
 			bool inXStun = player.inHitstun
 				|| player.blockstun > 0
 				|| player.wakeupTiming;
-			if (inXStun && player.leftHitstop) {
-				framebar.requestFirstFrame = true;
-			}
 			if (player.changedAnimOnThisFrame
 					&& (
 						player.startup == 0
@@ -2117,55 +2454,248 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				framebar.requestFirstFrame = true;
 			}
 			
+			if (player.move
+					&& player.move->sectionSeparator
+					&& player.startedUp
+					&& !player.inNewMoveSection
+					&& !player.pawn.isRCFrozen()
+					&& player.move->sectionSeparator(player)) {
+				framebar.requestFirstFrame = true;
+			}
+			
+			PlayerFrame& prevFrame = framebar[EntityFramebar::confinePos(framebarPos - 1)];
 			if (player.wasEnableNormals
 					&& !player.canBlock) {
-				const Frame& prevFrame = framebar[framebarPos == 0 ? _countof(Framebar::frames) - 1 : framebarPos - 1];
 				if (!prevFrame.canBlock && !prevFrame.enableNormals) {
 					framebar.requestFirstFrame = true;
 				}
 			}
 			
-			Frame& currentFrame = framebar[framebarPos];
+			FrameType hasCancelsRecoveryFrameType = FT_NONE;
+			bool hasCancelsOverridePrevRecovery = false;
+			bool hasCancels = false;
+			if (player.move && player.move->isRecoveryCanReload && player.move->isRecoveryCanReload(player)) {
+				hasCancelsRecoveryFrameType = FT_RECOVERY_CAN_RELOAD;
+				hasCancels = true;
+			} else if (player.move && player.move->isRecoveryCanAct && player.move->isRecoveryCanAct(player)) {
+				hasCancelsRecoveryFrameType = FT_RECOVERY_CAN_ACT;
+				hasCancels = true;
+			} else if (player.move
+					&& player.move->isRecoveryHasGatlings
+					&& player.move->isRecoveryHasGatlings(player)) {
+				hasCancelsRecoveryFrameType = FT_RECOVERY_HAS_GATLINGS;
+				hasCancels = true;
+				
+			// Automatic version of isRecoveryHasGatlings
+			} else if (!(
+						player.move
+						&& (
+							player.move->isRecoveryHasGatlings
+							|| player.move->isRecoveryCanAct
+							|| player.move->isRecoveryCanReload
+						)
+					)
+					&& (
+						player.wasEnableGatlings
+						&& player.wasAttackCollidedSoCanCancelNow
+						&& (
+							!playerWasCancels[player.index].gatlings.empty()
+							|| player.wasEnableSpecialCancel
+						)
+						|| player.wasEnableWhiffCancels
+						&& !playerWasCancels[player.index].whiffCancels.empty()
+					)) {
+				if (player.recovery >= 1) {
+					hasCancelsRecoveryFrameType = FT_RECOVERY_HAS_GATLINGS;
+					hasCancelsOverridePrevRecovery = true;
+				}
+				hasCancels = true;
+			}
+			
+			PlayerFrame& currentFrame = framebar[framebarPos];
 			FrameType defaultStartupFrame = FT_STARTUP;
+			FrameType defaultActiveFrame = player.hitstop ? FT_ACTIVE_HITSTOP : FT_ACTIVE;
 			FrameType defaultRecoveryFrameType = FT_RECOVERY;
 			bool overrideStartupFrame = false;
+			bool isAzami = player.move && player.move->ignoresHitstop;
+			FrameType standardXStun;
+			if (player.wasEnableAirtech && player.hitstun == 0) {
+				standardXStun = FT_GRAYBEAT_AIR_HITSTUN;
+			} else if (player.hitstop) {
+				standardXStun = FT_XSTUN_HITSTOP;
+			} else if (player.charType == CHARACTER_TYPE_BAIKEN
+					&& player.blockstun
+					&& !playerWasCancels[player.index].whiffCancels.empty()) {
+				standardXStun = FT_XSTUN_CAN_CANCEL;
+			} else {
+				standardXStun = FT_XSTUN;
+			}
+			
+			FrameType startupFrameType;
+			if (player.canBlock) {
+				if (hasCancels) {
+					startupFrameType = FT_STARTUP_CAN_BLOCK_AND_CANCEL;
+				} else {
+					startupFrameType = FT_STARTUP_CAN_BLOCK;
+				}
+			} else {
+				startupFrameType = FT_STARTUP;
+			}
+			
+			Entity ent = entityList.slots[i];
+			bool hasHitboxes = player.hitboxesCount > 0;
+			
 			if (framebarAdvancedIdleHitstop) {
+				
+				FrameType zatoFrameType = FT_NONE;
+				if (player.move->zatoHoldLevel && !player.idle) {
+					DWORD zatoHoldLevel = player.move->zatoHoldLevel(player);
+					if ((zatoHoldLevel & 3) >= 2) {
+						if ((zatoHoldLevel & 4) != 0) {
+							zatoFrameType = (FrameType)((char)FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED + (zatoHoldLevel & 3) - 2);
+						} else {
+							zatoFrameType = (FrameType)((char)FT_ZATO_BREAK_THE_LAW_STAGE2 + (zatoHoldLevel & 3) - 2);
+						}
+					}
+				}
+				
+				CanProgramSecretGardenInfo canProgramSecretGarden { 0 };
+				if (player.charType == CHARACTER_TYPE_MILLIA) {
+					canProgramSecretGarden = player.canProgramSecretGarden();
+					currentFrame.u.canProgramSecretGarden = canProgramSecretGarden;
+				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
+					currentFrame.u.chippInfo.invis = player.playerval0;
+					currentFrame.u.chippInfo.wallTime = 0;
+					if (player.move && player.move->caresAboutWall) {
+						int wallTime = player.pawn.mem54();
+						if (wallTime > USHRT_MAX || wallTime <= 0) wallTime = USHRT_MAX;
+						currentFrame.u.chippInfo.wallTime = wallTime;
+					}
+				} else if (player.charType == CHARACTER_TYPE_SOL) {
+					currentFrame.u.diInfo.current = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
+					currentFrame.u.diInfo.max = player.maxDI;
+				} else {
+					currentFrame.u.canProgramSecretGarden = canProgramSecretGarden;
+				}
+				
+				if (player.move
+						&& player.move->butForFramebarDontCombineWithPreviousMove
+						&& !player.startedUp
+						&& player.startupProj) {
+					if (!player.startupProjIgnoredForFramebar
+							&& player.animFrame == 1
+							&& !player.pawn.isRCFrozen()
+							&& !superflashInstigator) {
+						if (!player.activesProj.count || player.activesProj.last().nonActives) {
+							player.startupProjIgnoredForFramebar = player.activesProj.count;
+						}
+						framebar.requestFirstFrame = true;
+					} else if (player.startupProjIgnoredForFramebar != player.activesProj.count) {
+						player.startupProjIgnoredForFramebar = 0;
+					}
+				}
+				if (player.wasHitOnPreviousFrame && inXStun && !player.wakeupTiming) {
+					framebar.requestFirstFrame = true;
+				}
+				
 				currentFrame.aswEngineTick = aswEngineTickCount;
 				if (inXStun) {
-					currentFrame.type = FT_XSTUN;
-				} else if (!player.idle && player.hitstop) {
-					currentFrame.type = FT_HITSTOP;
+					currentFrame.type = standardXStun;
+				} else if (!player.idle && player.hitstop && !isAzami) {
+					currentFrame.type = hasHitboxes ? FT_ACTIVE_HITSTOP : FT_HITSTOP;
 				} else if (!player.idle) {
 					if (player.inNewMoveSection && player.move && player.move->considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot) {
 						overrideStartupFrame = true;
 						defaultStartupFrame = FT_IDLE_ELPHELT_RIFLE;
-					} else if (player.isInArbitraryStartupSection()) {
-						overrideStartupFrame = true;
-						defaultRecoveryFrameType = FT_RECOVERY_HAS_GATLINGS;
-						defaultStartupFrame = player.move->considerArbitraryStartupAsStanceForFramebar ? FT_STARTUP_STANCE : FT_STARTUP_ANYTIME_NOW;
-					} else if (player.canBlock) {
-						defaultStartupFrame = FT_STARTUP_CAN_BLOCK;
 					} else {
-						defaultStartupFrame = FT_STARTUP;
+						bool isInVariableStartupSection = player.isInVariableStartupSection();
+						bool isInASectionBeforeVariableStartup = false;
+						if (isInVariableStartupSection) {
+							overrideStartupFrame = true;
+							defaultRecoveryFrameType = FT_RECOVERY_HAS_GATLINGS;
+							if (player.move->considerVariableStartupAsStanceForFramebar) {
+								if (player.move->aSectionBeforeVariableStartup) {
+									defaultStartupFrame = FT_STARTUP_ANYTIME_NOW_CAN_ACT;
+								} else if (player.move->canStopHolding && player.move->canStopHolding(player)) {
+									defaultStartupFrame = FT_STARTUP_STANCE_CAN_STOP_HOLDING;
+								} else {
+									defaultStartupFrame = FT_STARTUP_STANCE;
+								}
+							} else if (zatoFrameType != FT_NONE) {
+								defaultStartupFrame = zatoFrameType;
+							} else {
+								defaultStartupFrame = FT_STARTUP_ANYTIME_NOW;
+							}
+						} else if (player.move->aSectionBeforeVariableStartup) {
+							isInASectionBeforeVariableStartup = player.move->aSectionBeforeVariableStartup(player);
+							if (isInASectionBeforeVariableStartup) {
+								defaultStartupFrame = FT_STARTUP_ANYTIME_NOW;
+							}
+						} else if (zatoFrameType != FT_NONE) {
+							defaultStartupFrame = zatoFrameType;
+							overrideStartupFrame = true;
+						} else if (canProgramSecretGarden.can) {
+							overrideStartupFrame = true;
+							defaultStartupFrame = FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN;
+						}
+						if (!isInVariableStartupSection && !isInASectionBeforeVariableStartup && !canProgramSecretGarden.can && zatoFrameType == FT_NONE) {
+							defaultStartupFrame = startupFrameType;
+						}
 					}
 					currentFrame.type = defaultStartupFrame;
 				} else if (!player.canBlock) {
 					if (player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime) {
-						currentFrame.type = FT_STARTUP_STANCE;
+						if (player.inNewMoveSection && player.move && player.move->considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot) {
+							defaultStartupFrame = FT_IDLE_ELPHELT_RIFLE_READY;
+						} else if (player.move->faustPogo) {
+							defaultStartupFrame = FT_IDLE_CANT_BLOCK;
+						} else {
+							defaultStartupFrame = FT_STARTUP_STANCE;
+						}
+						overrideStartupFrame = true;
+						currentFrame.type = defaultStartupFrame;
 					} else {
 						currentFrame.type = FT_IDLE_CANT_BLOCK;
 					}
 				} else if (!player.canFaultlessDefense) {
 					currentFrame.type = FT_IDLE_CANT_FD;
+				} else if (player.airborne
+						&& player.idle
+						&& player.canBlock
+						&& player.y == 0
+						&& player.speedY != 0
+						&& !player.pawn.ascending()) {  // the last check idk if I need it
+					currentFrame.type = FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK;
 				} else {
 					currentFrame.type = FT_IDLE;
 				}
 				currentFrame.isFirst = framebar.requestFirstFrame;
+				currentFrame.newHit = framebar.requestNextHit;
 				currentFrame.enableNormals = player.wasEnableNormals;
 				currentFrame.canBlock = player.canBlock;
 				currentFrame.strikeInvulInGeneral = player.strikeInvul.active;
 				currentFrame.throwInvulInGeneral = player.throwInvul.active;
 				currentFrame.superArmorActiveInGeneral = player.superArmor.active || player.projectileOnlyInvul.active || player.reflect.active;
+				
+				currentFrame.strikeInvul = player.strikeInvul.active;
+				currentFrame.throwInvul = player.throwInvul.active;
+				currentFrame.lowProfile = player.lowProfile.active;
+				currentFrame.frontLegInvul = player.frontLegInvul.active;
+				currentFrame.projectileOnlyInvul = player.projectileOnlyInvul.active;
+				currentFrame.superArmor = player.superArmor.active;
+				currentFrame.superArmorThrow = player.superArmorThrow.active;
+				currentFrame.superArmorBurst = player.superArmorBurst.active;
+				currentFrame.superArmorMid = player.superArmorMid.active;
+				currentFrame.superArmorOverhead = player.superArmorOverhead.active;
+				currentFrame.superArmorLow = player.superArmorLow.active;
+				currentFrame.superArmorGuardImpossible = player.superArmorGuardImpossible.active;
+				currentFrame.superArmorObjectAttacck = player.superArmorObjectAttacck.active;
+				currentFrame.superArmorHontaiAttacck = player.superArmorHontaiAttacck.active;
+				currentFrame.superArmorProjectileLevel0 = player.superArmorProjectileLevel0.active;
+				currentFrame.superArmorOverdrive = player.superArmorOverdrive.active;
+				currentFrame.superArmorBlitzBreak = player.superArmorBlitzBreak.active;
+				currentFrame.reflect = player.reflect.active;
+				
 				currentFrame.superArmorActiveInGeneral_IsFull =
 					currentFrame.superArmorActiveInGeneral
 					&& player.superArmorMid.active
@@ -2174,54 +2704,101 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& (
 						strcmp(player.anim, "CounterGuardStand") == 0
 						|| strcmp(player.anim, "CounterGuardCrouch") == 0
+						|| strcmp(player.anim, "CounterGuardAir") == 0
 					)
 					&& player.superArmorHontaiAttacck.active
-					&& !player.superArmorProjectileLevel0.active
 					&& !player.projectileOnlyInvul.active
-					&& ! player.reflect.active;
+					&& !player.reflect.active;
 				
-				currentFrame.strikeInvul = player.strikeInvul.active;
-				currentFrame.throwInvul = player.throwInvul.active;
-				currentFrame.lowProfile = player.lowProfile.active;
-				currentFrame.projectileOnlyInvul = player.projectileOnlyInvul.active;
-				currentFrame.superArmor = player.superArmor.active;
-				currentFrame.superArmorThrow = player.superArmorThrow.active;
-				currentFrame.superArmorBurst = player.superArmorBurst.active;
-				currentFrame.superArmorMid = player.superArmorMid.active;
-				currentFrame.superArmorOverhead = player.superArmorOverhead.active;
+				currentFrame.airborne = player.airborne;
+				currentFrame.hitOccured = player.pawn.hitOccured() >= player.pawn.theValueHitOccuredIsComparedAgainst()
+					|| !player.pawn.currentHitNum();
+				currentFrame.hitConnected = player.pawn.hitSomethingOnThisFrame()
+					|| player.pawn.inBlockstunNextFrame()
+					|| player.pawn.inHitstunNextFrame()
+					|| player.armoredHitOnThisFrame
+					|| player.gotHitOnThisFrame;
+				currentFrame.enableSpecialCancel = player.wasEnableSpecialCancel
+					&& player.wasAttackCollidedSoCanCancelNow
+					&& player.wasEnableGatlings;
+				currentFrame.enableSpecials = false;
+				currentFrame.animName = nullptr;
+				if (player.move && player.move->getDisplayName(player.idle)) {
+					currentFrame.animName = player.move->getDisplayName(player.idle);
+				} else if (player.pawn.currentMoveIndex() != -1) {
+					currentFrame.animName = player.pawn.currentMove()->name;
+				} else {
+					BYTE* currentFunc = player.pawn.bbscrCurrentFunc();
+					if (currentFunc && *(DWORD*)currentFunc == 0) {
+						currentFrame.animName = (const char*)(currentFunc + 4);
+					}
+				}
+				currentFrame.cancels = playerWasCancels[player.index];
+				currentFrame.skippedSuperfreeze = min(superfreezeHasBeenGoingFor, SHRT_MAX);
+				currentFrame.hitstop = player.hitstop;
+				currentFrame.hitstopMax = player.hitstopMax;
+				if (player.blockstun) {
+					currentFrame.stop.isBlockstun = true;
+					currentFrame.stop.isHitstun = false;
+					currentFrame.stop.value = min(player.blockstun, 255);
+					currentFrame.stop.valueMax = min(player.blockstunMax, 255);
+				} else if (player.hitstun) {
+					currentFrame.stop.isBlockstun = false;
+					currentFrame.stop.isHitstun = true;
+					currentFrame.stop.value = min(player.hitstun, 255);
+					currentFrame.stop.valueMax = min(player.hitstunMax, 255);
+				} else {
+					currentFrame.stop.isBlockstun = false;
+					currentFrame.stop.isHitstun = false;
+				}
+				
+				if (!player.airborne || player.airborne && player.y == 0 && player.speedY != 0 && !player.pawn.ascending()) {
+					int crossupProtection = player.pawn.crossupProtection();
+					currentFrame.crossupProtectionIsOdd = (crossupProtection & 1);
+					currentFrame.crossupProtectionIsAbove1 = (crossupProtection & 2) >> 1;
+				} else {
+					currentFrame.crossupProtectionIsOdd = 0;
+					currentFrame.crossupProtectionIsAbove1 = 0;
+				}
+				currentFrame.rcSlowdown = player.immuneToRCSlowdown ? 0 : rcSlowdownCounter;
+				currentFrame.rcSlowdownMax = player.immuneToRCSlowdown ? 0 : rcSlowdownCounterMax;
+				
+				currentFrame.poisonDuration = player.poisonDuration;
 			}
 			
-			FrameType startupFrameType = player.canBlock ? FT_STARTUP_CAN_BLOCK : FT_STARTUP;
 			FrameType recoveryFrameType = defaultRecoveryFrameType;
+			bool overridePrevRecoveryFrames = false;
+			if (hasCancelsRecoveryFrameType != FT_NONE) {
+				recoveryFrameType = hasCancelsRecoveryFrameType;
+				overridePrevRecoveryFrames = hasCancelsOverridePrevRecovery;
+			}
 			
 			if (player.cmnActIndex == CmnActRomanCancel && !player.superfreezeStartup) {
 				recoveryFrameType = FT_STARTUP;
-			}
-			if (player.move && player.move->isRecoveryCanAct && player.move->isRecoveryCanAct(player.pawn)) {
-				recoveryFrameType = FT_RECOVERY_CAN_ACT;
-			} else if (player.move && player.move->isRecoveryHasGatlings && player.move->isRecoveryHasGatlings(player.pawn)) {
-				recoveryFrameType = FT_RECOVERY_HAS_GATLINGS;
+			} else if (player.move && player.move->secondaryStartup && player.move->secondaryStartup(player)) {
+				recoveryFrameType = FT_STARTUP;
 			}
 			
 			if (inXStun) {
-				startupFrameType = FT_XSTUN;
+				startupFrameType = standardXStun;
 			} else if (!player.startedUp
-					&& player.startupProj
+					&& (player.startupProj && !player.startupProjIgnoredForFramebar)
 					&& !(
 						player.cmnActIndex == CmnActRomanCancel
 						&& !player.superfreezeStartup
 					)) {
-				startupFrameType = recoveryFrameType;
+				if (hasCancels && recoveryFrameType == FT_RECOVERY) {
+					startupFrameType = FT_RECOVERY_HAS_GATLINGS;
+				} else {
+					startupFrameType = recoveryFrameType;
+				}
 			} else if (player.cmnActIndex == CmnActRomanCancel && player.superfreezeStartup) {
 				startupFrameType = recoveryFrameType;
 			} else if (overrideStartupFrame) {
 				startupFrameType = defaultStartupFrame;
 			}
 			
-			Entity ent = entityList.slots[i];
-			bool hasHitboxes = player.hitboxesCount > 0;
-			
-			bool measureInvuls = !player.hitstop
+			bool measureInvuls = !(player.hitstop && !isAzami)
 					&& !superflashInstigator
 					&& (player.strikeInvul.active
 						|| player.throwInvul.active
@@ -2229,10 +2806,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						|| player.superArmor.active
 						|| player.reflect.active);
 			
+			int playerMaxThing = player.total;
+			if (player.totalCanBlock > playerMaxThing) playerMaxThing = player.totalCanBlock;
+			if (player.totalCanFD > playerMaxThing) playerMaxThing = player.totalCanFD;
+			
 			if (player.isInFDWithoutBlockstun) {
 				++player.totalFD;
-				currentFrame.type = FT_XSTUN;
-			} else if (!player.hitstop
+				currentFrame.type = standardXStun;
+			} else if (!(player.hitstop && !isAzami)
 					&& !superflashInstigator
 					&& (
 						player.cmnActIndex == CmnActLandingStiff && !player.idle  // Ramlethal j.8D becomes "idle" on f6 of stiff landing
@@ -2245,13 +2826,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					                           // then transitions to the ground and, if this check wasn't here, it would be seen as landing animation (lol)
 					&& player.cmnActIndex != CmnActRomanCancel  // needed for Elphelt j.D YRC
 				) {
-				currentFrame.type = FT_LANDING_RECOVERY;
+				currentFrame.type = hasCancels ? FT_LANDING_RECOVERY_CAN_CANCEL : FT_LANDING_RECOVERY;
 				++player.landingRecovery;
 				player.totalFD = 0;
 				measureInvuls = player.total
 					&& !player.theAnimationIsNotOverYetLolConsiderBusyNonAirborneFramesAsLandingAnimation
 					&& !player.ignoreNextInabilityToBlockOrAttack;
-			} else if (!player.hitstop
+			} else if (!(player.hitstop && !isAzami)
 					&& !(superflashInstigator && superflashInstigator != ent)
 					&& !(player.cmnActIndex == CmnActJump && player.canFaultlessDefense)
 					&& player.cmnActIndex != CmnActJumpPre
@@ -2261,6 +2842,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							(
 								!player.idlePlus
 								|| player.idleInNewSection
+								|| player.forceBusy
 								|| !(player.canBlock && player.canFaultlessDefense || player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)
 							)
 							&& !player.ignoreNextInabilityToBlockOrAttack
@@ -2268,9 +2850,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& !player.startedUp
 						&& !superflashInstigator
 					) {
-					if (!player.idlePlus || player.idleInNewSection) {
+					if (!player.idlePlus || player.idleInNewSection || player.forceBusy) {
 						if (player.landingRecovery) {  // needed for Zato Shadow Gallery. Removing airborne check for Answer s.S
-							entityFramebar.changePreviousFrames(FT_LANDING_RECOVERY,
+							entityFramebar.changePreviousFrames(landingRecoveryTypes,
+								_countof(landingRecoveryTypes),
 								startupFrameType,
 								framebarPos - 1,
 								framebarHitstopSearchPos,
@@ -2278,24 +2861,31 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								framebarSearchPos,
 								player.landingRecovery);
 							player.startup += player.landingRecovery;
+							if (player.total < playerMaxThing) player.total = playerMaxThing;
+							if (player.totalCanBlock < playerMaxThing) player.totalCanBlock = playerMaxThing;
+							if (player.totalCanFD < playerMaxThing) player.totalCanFD = playerMaxThing;
 							player.total += player.landingRecovery;
 							player.totalCanBlock += player.landingRecovery;
 							player.totalCanFD += player.landingRecovery;
+							playerMaxThing += player.landingRecovery;
 							player.landingRecovery = 0;
 						}
 						++player.startup;
+						if (player.total < playerMaxThing) player.total = playerMaxThing;
 						++player.total;
 						measureInvuls = true;
 					}
 					if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack
 							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+						if (player.totalCanBlock < playerMaxThing) player.totalCanBlock = playerMaxThing;
 						++player.totalCanBlock;
 					}
 					if ((!player.canBlock || !player.canFaultlessDefense) && !player.ignoreNextInabilityToBlockOrAttack
 							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+						if (player.totalCanFD < playerMaxThing) player.totalCanFD = playerMaxThing;
 						++player.totalCanFD;
 					}
-					if (!player.idlePlus || player.idleInNewSection
+					if (!player.idlePlus || player.idleInNewSection || player.forceBusy
 							|| (
 								player.canBlock && player.canFaultlessDefense
 								|| player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime
@@ -2311,7 +2901,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.totalCanBlock = player.total;  // needed for Raven glide
 						player.totalCanFD = player.total;  // needed for Raven glide
 						if (player.startupProj) {
-							entityFramebar.changePreviousFrames(FT_RECOVERY,
+							entityFramebar.changePreviousFramesOneType(FT_RECOVERY,
 								startupFrameType,
 								framebarPos - 1,
 								framebarHitstopSearchPos,
@@ -2322,51 +2912,57 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 						player.startedUp = true;
 						player.inNewMoveSection = false;
-						player.actives.addActive(ent.currentHitNum());
-						currentFrame.type = FT_ACTIVE;
+						player.addActiveFrame(ent, framebar);
+						player.maxHitUse = player.maxHit;
+						currentFrame.type = defaultActiveFrame;
 					} else if (!superflashInstigator) {
-						if (player.landingRecovery) {
-							entityFramebar.changePreviousFrames(FT_LANDING_RECOVERY,
-								FT_LANDING_RECOVERY,
-								framebarPos - 1,
-								framebarHitstopSearchPos,
-								framebarIdleSearchPos,
-								framebarSearchPos,
-								player.landingRecovery);
-							player.recovery += player.landingRecovery;
-							player.total += player.landingRecovery;
-							player.totalCanBlock += player.landingRecovery;
-							player.totalCanFD += player.landingRecovery;
-							player.landingRecovery = 0;
-						}
-						if (player.recovery + player.landingRecovery) {  // needed for Venom H Mad Struggle
-							entityFramebar.changePreviousFrames(FT_LANDING_RECOVERY,
-								FT_NON_ACTIVE,
-								framebarPos - 1,
-								framebarHitstopSearchPos,
-								framebarIdleSearchPos,
-								framebarSearchPos,
-								player.landingRecovery);
-							entityFramebar.changePreviousFrames(FT_RECOVERY,
+						if (player.recovery + player.landingRecovery) {
+							if (player.landingRecovery) {
+								entityFramebar.changePreviousFrames(landingRecoveryTypes,  // needed for Venom H Mad Struggle
+									_countof(landingRecoveryTypes),
+									FT_NON_ACTIVE,
+									framebarPos - 1,
+									framebarHitstopSearchPos,
+									framebarIdleSearchPos,
+									framebarSearchPos,
+									player.landingRecovery);
+								player.recovery += player.landingRecovery;
+								if (player.total < playerMaxThing) player.total = playerMaxThing;
+								if (player.totalCanBlock < playerMaxThing) player.totalCanBlock = playerMaxThing;
+								if (player.totalCanFD < playerMaxThing) player.totalCanFD = playerMaxThing;
+								player.total += player.landingRecovery;
+								player.totalCanBlock += player.landingRecovery;
+								player.totalCanFD += player.landingRecovery;
+								playerMaxThing += player.landingRecovery;
+								player.landingRecovery = 0;
+							}
+							
+							entityFramebar.changePreviousFrames(recoveryFrameTypes,
+								_countof(recoveryFrameTypes),
 								FT_NON_ACTIVE,
 								framebarPos - 1 - player.landingRecovery,
 								framebarHitstopSearchPos,
 								framebarIdleSearchPos,
 								framebarSearchPos,
 								player.recovery);
+							
 							player.actives.addNonActive(player.recovery + player.landingRecovery);
 							player.recovery = 0;
 							player.landingRecovery = 0;
 						}
-						player.actives.addActive(ent.currentHitNum());
-						currentFrame.type = FT_ACTIVE;
+						player.addActiveFrame(ent, framebar);
+						player.maxHitUse = player.maxHit;
+						currentFrame.type = defaultActiveFrame;
+						if (player.total < playerMaxThing) player.total = playerMaxThing;
 						++player.total;
 						if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack
 								&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+							if (player.totalCanBlock < playerMaxThing) player.totalCanBlock = playerMaxThing;
 							++player.totalCanBlock;
 						}
 						if ((!player.canBlock || !player.canFaultlessDefense) && !player.ignoreNextInabilityToBlockOrAttack
 								&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+							if (player.totalCanFD < playerMaxThing) player.totalCanFD = playerMaxThing;
 							++player.totalCanFD;
 						}
 						measureInvuls = true;
@@ -2382,7 +2978,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& player.startedUp
 					) {
 					if (player.landingRecovery && !player.idlePlus) {
-						entityFramebar.changePreviousFrames(FT_LANDING_RECOVERY,
+						entityFramebar.changePreviousFrames(landingRecoveryTypes,
+							_countof(landingRecoveryTypes),
 							recoveryFrameType,
 							framebarPos - 1,
 							framebarHitstopSearchPos,
@@ -2395,23 +2992,64 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.totalCanFD += player.landingRecovery;
 						player.landingRecovery = 0;
 					}
+					DWORD recoveryMode = 0;
 					if (!player.idlePlus) {
+						recoveryMode |= 1;
+					}
+					if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack
+							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+						recoveryMode |= 2;
+					}
+					if ((!player.canBlock || !player.canFaultlessDefense) && !player.ignoreNextInabilityToBlockOrAttack
+							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+						recoveryMode |= 4;
+					}
+					if (recoveryMode
+							&& overridePrevRecoveryFrames
+							&& player.recovery == 1) {
+						const FrameCancelInfo& cancelInfo = prevFrame.cancels;
+						// needed for whiff 5P to not show first recovery frame as cancelable (it is not)
+						if (!cancelInfo.gatlings.empty()
+								|| !cancelInfo.whiffCancels.empty()
+								|| prevFrame.enableSpecialCancel  // for Ky 3H
+								|| prevFrame.enableSpecials) {
+							entityFramebar.changePreviousFramesOneType(FT_RECOVERY,
+								recoveryFrameType,
+								framebarPos - 1,
+								framebarHitstopSearchPos,
+								framebarIdleSearchPos,
+								framebarSearchPos,
+								1);
+						}
+					}
+					if ((recoveryMode & 1) != 0) {
+						if (player.total < playerMaxThing) player.total = playerMaxThing;
 						++player.total;
 						++player.recovery;
 						currentFrame.type = recoveryFrameType;
 						measureInvuls = true;
 					}
-					if (!player.canBlock && !player.ignoreNextInabilityToBlockOrAttack
-							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+					if ((recoveryMode & 2) != 0) {
 						currentFrame.type = recoveryFrameType;
+						if (player.totalCanBlock < playerMaxThing) player.totalCanBlock = playerMaxThing;
 						++player.totalCanBlock;
 					}
-					if ((!player.canBlock || !player.canFaultlessDefense) && !player.ignoreNextInabilityToBlockOrAttack
-							&& !(player.move && player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
+					if ((recoveryMode & 4) != 0) {
 						currentFrame.type = recoveryFrameType;
+						if (player.totalCanFD < playerMaxThing) player.totalCanFD = playerMaxThing;
 						++player.totalCanFD;
 					}
 				}
+			}
+			if (framebarAdvancedIdleHitstop && (
+					frameTypeAssumesCantAttack(currentFrame.type)
+					|| player.move
+					&& player.move->canBeUnableToBlockIndefinitelyOrForVeryLongTime
+				)) {
+				currentFrame.enableSpecials = player.wasEnableSpecials;
+			}
+			if (framebarAdvancedIdleHitstop) {
+				currentFrame.newHit = framebar.requestNextHit;
 			}
 			
 			copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
@@ -2425,6 +3063,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.strikeInvul.addInvulFrame(prevTotal);
 				player.throwInvul.addInvulFrame(prevTotal);
 				player.lowProfile.addInvulFrame(prevTotal);
+				player.frontLegInvul.addInvulFrame(prevTotal);
 				player.projectileOnlyInvul.addInvulFrame(prevTotal);
 				player.superArmor.addInvulFrame(prevTotal);
 				player.superArmorThrow.addInvulFrame(prevTotal);
@@ -2445,6 +3084,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		for (PlayerInfo& player : players) {
 			player.startupDisp = 0;
 			player.activesDisp.clear();
+			player.maxHitDisp.clear();
 			player.recoveryDisp = 0;
 			player.recoveryDispCanBlock = -1;
 			player.totalDisp = 0;
@@ -2455,6 +3095,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.prevStartupsTotalDisp = player.prevStartups;
 				player.startupDisp = player.startup;
 				player.activesDisp = player.actives;
+				player.maxHitDisp = player.maxHitUse;
 				player.recoveryDisp = player.recovery;
 				player.totalDisp = player.total;
 			} else if (player.startupProj && !player.startedUp) {
@@ -2474,6 +3115,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.prevStartupsTotalDisp = player.prevStartups;
 					endOfActivesRelativeToPlayerTotalCountdownStart = player.startupDisp + player.activesProj.total() - 1;
 				}
+				player.maxHitDisp = player.maxHitProj; 
 				player.activesDisp = player.activesProj;
 				int activesDispTotal = player.activesDisp.total();
 				if (endOfActivesRelativeToPlayerTotalCountdownStart >= player.total) {
@@ -2527,14 +3169,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
-		for (auto it = framebars.begin(); it != framebars.end(); ) {
-			EntityFramebar& entityFramebar = *it;
-			entityFramebar.main.completelyEmpty = false;
-			entityFramebar.hitstop.completelyEmpty = false;
-			if (entityFramebar.belongsToPlayer()) {
-				++it;
-				continue;
-			}
+		for (auto it = projectileFramebars.begin(); it != projectileFramebars.end(); ) {
+			ProjectileFramebar& entityFramebar = *it;
 			entityFramebar.main.completelyEmpty = true;
 			entityFramebar.hitstop.completelyEmpty = true;
 			
@@ -2542,21 +3178,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				int i = 0;
 				for (; i < _countof(Framebar::frames); ++i) {
 					FrameType ft = entityFramebar.main[i].type;
-					if (ft != FT_IDLE && ft != FT_NONE) {
+					if (!frameTypeDiscardable(ft)) {
 						entityFramebar.main.completelyEmpty = false;
 						break;
 					}
 					ft = entityFramebar.hitstop[i].type;
-					if (ft != FT_IDLE && ft != FT_NONE) {
+					if (!frameTypeDiscardable(ft)) {
 						entityFramebar.hitstop.completelyEmpty = false;
 						break;
 					}
 				}
 				if (i != _countof(Framebar::frames)) {
 					if (entityFramebar.main.completelyEmpty) {
-						for (; i < _countof(Framebar::frames); ++i) {
+						for (++i; i < _countof(Framebar::frames); ++i) {
 							FrameType ft = entityFramebar.main[i].type;
-							if (ft != FT_IDLE && ft != FT_NONE) {
+							if (!frameTypeDiscardable(ft)) {
 								entityFramebar.main.completelyEmpty = false;
 								break;
 							}
@@ -2564,7 +3200,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					} else {
 						for (; i < _countof(Framebar::frames); ++i) {
 							FrameType ft = entityFramebar.hitstop[i].type;
-							if (ft != FT_IDLE && ft != FT_NONE) {
+							if (!frameTypeDiscardable(ft)) {
 								entityFramebar.hitstop.completelyEmpty = false;
 								break;
 							}
@@ -2574,26 +3210,52 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			
 			if (entityFramebar.main.completelyEmpty && entityFramebar.hitstop.completelyEmpty) {
-				it = framebars.erase(it);
+				it = projectileFramebars.erase(it);
 			} else {
 				++it;
 			}
 		}
-		
+	}
+	bool combinedFramebarsSettingsChanged = false;
+	if (combineProjectileFramebarsWhenPossible != settings.combineProjectileFramebarsWhenPossible) {
+		combineProjectileFramebarsWhenPossible = settings.combineProjectileFramebarsWhenPossible;
+		combinedFramebarsSettingsChanged = true;
+	}
+	if (eachProjectileOnSeparateFramebar != settings.eachProjectileOnSeparateFramebar) {
+		eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+		combinedFramebarsSettingsChanged = true;
+	}
+	if (neverIgnoreHitstop != settings.neverIgnoreHitstop) {
+		neverIgnoreHitstop = settings.neverIgnoreHitstop;
+		combinedFramebarsSettingsChanged = true;
+	}
+	if ((combinedFramebarsSettingsChanged || frameHasChanged) && !iGiveUp) {
 		combinedFramebars.clear();
-		combinedFramebars.reserve(framebars.size());
-		for (const EntityFramebar& source : framebars) {
-			if (source.belongsToPlayer()) continue;
-			
-			EntityFramebar& entityFramebar = findCombinedFramebar(source);
-			if (!source.main.completelyEmpty) {
-				entityFramebar.main.combineFramebar(source.main);
+		combinedFramebars.reserve(projectileFramebars.size());
+		if (!eachProjectileOnSeparateFramebar) {
+			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop ? true : false;
+			for (const ProjectileFramebar& source : projectileFramebars) {
+				const Framebar& from = combinedFramebarMustIncludeHitstop ? source.hitstop : source.main;
+				if (!from.completelyEmpty) {
+					CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(source, combinedFramebarMustIncludeHitstop);
+					entityFramebar.combineFramebar(from, &source);
+				}
 			}
-			if (!source.hitstop.completelyEmpty) {
-				entityFramebar.hitstop.combineFramebar(source.hitstop);
+			for (CombinedProjectileFramebar& entityFramebar : combinedFramebars) {
+				entityFramebar.determineName();
 			}
 		}
-		
+	}
+	if (frameHasChanged && !iGiveUp) {
+		Entity superflashInstigator = getSuperflashInstigator();
+		if (!superflashInstigator) {
+			superfreezeHasBeenGoingFor = 0;
+		} else {
+			lastNonZeroSuperflashInstigator = superflashInstigator;
+			++superfreezeHasBeenGoingFor;
+		}
+	}
+	if (frameHasChanged) {
 		needFrameCleanup = true;
 	}
 	
@@ -2820,6 +3482,16 @@ void EndScene::processKeyStrokes() {
 		} else {
 			settings.neverDisplayGrayHurtboxes = true;
 			logwrap(fputs("Disabling gray hurtboxes\n", logfile));
+		}
+		needWriteSettings = true;
+	}
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.toggleNeverIgnoreHitstop))) {
+		if (settings.neverIgnoreHitstop == true) {
+			settings.neverIgnoreHitstop = false;
+			logwrap(fputs("Never ignore hitstop = false\n", logfile));
+		} else {
+			settings.neverIgnoreHitstop = true;
+			logwrap(fputs("Never ignore hitstop = true\n", logfile));
 		}
 		needWriteSettings = true;
 	}
@@ -3096,7 +3768,7 @@ void EndScene::drawTrainingHudHook(char* thisArg) {
 		std::unique_lock<std::mutex> guard(orig_drawTrainingHudMutex);
 		orig_drawTrainingHud(thisArg);
 	}
-	if (!shutdown && !graphics.shutdown) {
+	if (!shutdown && !graphics.shutdown && !iGiveUp) {
 		drawTexts();
 	}
 }
@@ -3166,23 +3838,38 @@ void EndScene::drawTexts() {
 void EndScene::onAswEngineDestroyed() {
 	drawDataPrepared.clear();
 	clearContinuousScreenshotMode();
-	measuringFrameAdvantage = false;
-	measuringLandingFrameAdvantage = -1;
-	memset(tensionGainOnLastHit, 0, sizeof tensionGainOnLastHit);
-	memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
-	memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
-	memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
 	registeredHits.clear();
-	for (int i = 0; i < 2; ++i) {
-		players[i].clear();
-	}
-	projectiles.clear();
 	needFrameCleanup = false;
 	creatingObject = false;
-	sendSignalStack.clear();
-	events.clear();
-	framebars.clear();
-	combinedFramebars.clear();
+	if (!iGiveUp) {
+		moves.onAswEngineDestroyed();
+		measuringFrameAdvantage = false;
+		measuringLandingFrameAdvantage = -1;
+		memset(tensionGainOnLastHit, 0, sizeof tensionGainOnLastHit);
+		memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
+		memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
+		memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
+		for (int i = 0; i < 2; ++i) {
+			players[i].clear();
+			playerWasCancels[i].clear();
+		}
+		projectiles.clear();
+		sendSignalStack.clear();
+		events.clear();
+		playerFramebars.clear();
+		projectileFramebars.clear();
+		combinedFramebars.clear();
+		superfreezeHasBeenGoingFor = 0;
+		lastNonZeroSuperflashInstigator = nullptr;
+		superfreezeHasBeenGoingFor = 0;
+		superflashCounterAllied = 0;
+		superflashCounterAlliedMax = 0;
+		superflashCounterOpponent = 0;
+		superflashCounterOpponentMax = 0;
+		rcSlowdownCounter = 0;
+		rcSlowdownCounterMax = 0;
+		baikenBlockCancels.clear();
+	}
 }
 
 // When someone YRCs, PRCs, RRCs or does a super, the address of their entity is written into the
@@ -3214,6 +3901,8 @@ void EndScene::restartMeasuringFrameAdvantage(int index) {
 	if (other.idlePlus) {
 		player.frameAdvantage = -other.timePassed;
 		other.frameAdvantage = other.timePassed;
+		player.frameAdvantageNoPreBlockstun = 0;
+		other.frameAdvantageNoPreBlockstun = 0;
 	}
 	player.frameAdvantageIncludesIdlenessInNewSection = false;
 	other.frameAdvantageIncludesIdlenessInNewSection = false;
@@ -3229,6 +3918,8 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 	if (other.idleLanding) {
 		player.landingFrameAdvantage = -other.timePassedLanding;
 		other.landingFrameAdvantage = other.timePassedLanding;
+		player.landingFrameAdvantageNoPreBlockstun = 0;
+		other.landingFrameAdvantageNoPreBlockstun = 0;
 	}
 	player.landingFrameAdvantageIncludesIdlenessInNewSection = false;
 	other.landingFrameAdvantageIncludesIdlenessInNewSection = false;
@@ -3237,20 +3928,25 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 
 // There're three hit detection calls: with hitDetectionType 0, 1 and 2, called
 // one right after the other each logic tick.
+// 0 - easy clash only (see easyClash in bbscript)
+// 1 - regular hitbox vs hurtbox interaction
+// 2 - clash only (excluding easy clash)
 // A single hit detection does a loop in a loop and tries to find which two entities hit each other.
 // We use this hook at the start of hit detection algorithm to measure some values before a hit.
 // Runs on the main thread
 void EndScene::onHitDetectionStart(int hitDetectionType) {
 	if (hitDetectionType == 0) {
-		entityList.populate();
-		for (int i = 0; i < 2; ++i) {
-			Entity ent = entityList.slots[i];
-			tensionRecordedHit[i] = ent.tension();
-			burstRecordedHit[i] = game.getBurst(i);
-			tensionGainOnLastHit[i] = 0;
-			burstGainOnLastHit[i] = 0;
-			tensionGainOnLastHitUpdated[i] = false;
-			burstGainOnLastHitUpdated[i] = false;
+		if (!iGiveUp) {
+			entityList.populate();
+			for (int i = 0; i < 2; ++i) {
+				Entity ent = entityList.slots[i];
+				tensionRecordedHit[i] = ent.tension();
+				burstRecordedHit[i] = game.getBurst(i);
+				tensionGainOnLastHit[i] = 0;
+				burstGainOnLastHit[i] = 0;
+				tensionGainOnLastHitUpdated[i] = false;
+				burstGainOnLastHitUpdated[i] = false;
+			}
 		}
 		registeredHits.clear();
 	}
@@ -3259,6 +3955,7 @@ void EndScene::onHitDetectionStart(int hitDetectionType) {
 // We use this hook at the end of hit detection algorithm to measure some values after a hit.
 // Runs on the main thread
 void EndScene::onHitDetectionEnd(int hitDetectionType) {
+	if (iGiveUp) return;
 	entityList.populate();
 	for (int i = 0; i < 2; ++i) {
 		Entity ent = entityList.slots[i];
@@ -3277,6 +3974,24 @@ void EndScene::onHitDetectionEnd(int hitDetectionType) {
 		}
 		burstRecordedHit[i] = burst;
 	}
+	if (hitDetectionType == 0 || hitDetectionType == 2) {
+		for (int i = 2; i < entityList.count; ++i) {
+			Entity ent { entityList.list[i] };
+			if (!ent.isActive() || ent.isPawn() || !ent.receivedProjectileClashSignal()) continue;
+			onProjectileHit(ent);
+		}
+	}
+}
+
+// Runs on the main thread
+void EndScene::onProjectileHit(Entity ent) {
+	ProjectileInfo& projectile = findProjectile(ent);
+	if (projectile.ptr) {
+		projectile.fill(ent);
+		projectile.hitstop = ent.hitstop() + ent.clashHitstop();
+		projectile.landedHit = true;
+		projectile.markActive = true;
+	}
 }
 
 // Called by a hook inside hit detection when a hit was detected.
@@ -3284,32 +3999,30 @@ void EndScene::onHitDetectionEnd(int hitDetectionType) {
 void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender) {
 	registeredHits.emplace_back();
 	RegisteredHit& hit = registeredHits.back();
-	hit.projectile.fill(attacker);
-	hit.isPawn = attacker.isPawn();
-	hit.hitResult = hitResult;
-	hit.hasHitbox = hasHitbox;
+	if (!iGiveUp) {
+		hit.projectile.fill(attacker);
+		hit.isPawn = attacker.isPawn();
+		hit.hitResult = hitResult;
+		hit.hasHitbox = hasHitbox;
+	}
 	hit.attacker = attacker;
-	hit.defender = defender;
-	if (defender.isPawn()) {
-		PlayerInfo& defenderPlayer = findPlayer(defender);
-		defenderPlayer.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
-		if (hitResult == HIT_RESULT_ARMORED || hitResult == HIT_RESULT_5) {
-			defenderPlayer.armoredHitOnThisFrame = true;
-		} else if (hitResult == HIT_RESULT_NORMAL || hitResult == HIT_RESULT_BLOCKED) {
-			defenderPlayer.gotHitOnThisFrame = true;
+	if (!iGiveUp) {
+		hit.defender = defender;
+		if (defender.isPawn()) {
+			PlayerInfo& defenderPlayer = findPlayer(defender);
+			defenderPlayer.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
+			if (hitResult == HIT_RESULT_ARMORED || hitResult == HIT_RESULT_5) {
+				defenderPlayer.armoredHitOnThisFrame = true;
+			} else if (hitResult == HIT_RESULT_NORMAL || hitResult == HIT_RESULT_BLOCKED) {
+				defenderPlayer.gotHitOnThisFrame = true;
+			}
 		}
-	}
-	if (attacker.isPawn() && hasHitbox) {
-		PlayerInfo& attackerPlayer = findPlayer(attacker);
-		attackerPlayer.hitSomething = true;
-	}
-	if (hasHitbox) {
-		ProjectileInfo& projectile = findProjectile(attacker);
-		if (projectile.ptr) {
-			projectile.fill(attacker);
-			projectile.hitstop = attacker.hitstop();
-			projectile.landedHit = true;
-			projectile.markActive = true;
+		if (attacker.isPawn() && hasHitbox) {
+			PlayerInfo& attackerPlayer = findPlayer(attacker);
+			attackerPlayer.hitSomething = true;
+		}
+		if (hasHitbox) {
+			onProjectileHit(attacker);
 		}
 	}
 }
@@ -3321,6 +4034,7 @@ void EndScene::onUWorld_TickBegin() {
 	logicThreadId = GetCurrentThreadId();
 	drewExGaugeHud = false;
 	camera.grabbedValues = false;
+	iGiveUp = game.getGameMode() == GAME_MODE_NETWORK && game.getPlayerSide() != 2;
 }
 
 // Called at the end of an UE3 engine tick.
@@ -3455,6 +4169,7 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 		projectile.creationTime_aswEngineTick = creatorProjectile.creationTime_aswEngineTick;
 		projectile.startup = creatorProjectile.total;
 		memcpy(projectile.creatorName, creatorProjectile.ptr.animationName(), 32);
+		projectile.creator = creatorProjectile.ptr;
 		projectile.total = creatorProjectile.total;
 		projectile.disabled = creatorProjectile.disabled;
 		ownerFound = true;
@@ -3469,6 +4184,7 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 		}
 		projectile.total = projectile.startup;
 		memcpy(projectile.creatorName, player.anim, 32);
+		projectile.creator = player.pawn;
 	}
 }
 
@@ -3538,14 +4254,15 @@ void EndScene::HookHelp::setAnimHook(const char* animName) {
 // Runs on the main thread
 // This hook does not work on projectiles
 void EndScene::setAnimHook(Entity pawn, const char* animName) {
-	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
+	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (player.pawn) {  // The hook may run on match load before we initialize our pawns,
 			                // because we only do our pawn initialization after the end of the logic tick
 			player.lastIgnoredHitNum = -1;
 			player.changedAnimOnThisFrame = true;
-			const MoveInfo& move = moves.getInfo(player.charType, player.animIntraFrame, false);
+			const MoveInfo& move = moves.getInfo(player.charType, player.moveNameIntraFrame, player.animIntraFrame, false);
 			memcpy(player.animIntraFrame, animName, 32);
+			player.setMoveName(player.moveNameIntraFrame, pawn);
 			if (move.isIdle(player)) player.wasIdle = true;
 			events.emplace_back();
 			OccuredEvent& event = events.back();
@@ -3558,7 +4275,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 		std::unique_lock<std::mutex> guard(orig_setAnimMutex);
 		orig_setAnim((void*)pawn, animName);
 	}
-	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
+	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		int blockstun = pawn.blockstun();
 		if (blockstun && (player.inBlockstunNextFrame || player.baikenReturningToBlockstunAfterAzami)) {
@@ -3574,7 +4291,10 @@ void EndScene::initializePawn(PlayerInfo& player, Entity ent) {
 	player.pawn = ent;
 	player.charType = ent.characterType();
 	ent.getWakeupTimings(&player.wakeupTimings);
-	player.idle = moves.getInfo(player.charType, ent.animationName(), false).isIdle(player);
+	player.idle = moves.getInfo(player.charType,
+		ent.currentMoveIndex() == -1 ? nullptr : ent.currentMove()->name,
+		ent.animationName(),
+		false).isIdle(player);
 	player.weight = ent.weight();
 	player.maxHp = ent.maxHp();
 	player.defenseModifier = ent.defenseModifier();
@@ -3656,14 +4376,20 @@ void EndScene::frameCleanup() {
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = false;
 		player.setBlockstunMax = false;
+		player.lastHitstopBeforeWipe = 0;
+		if (player.pawn) player.lastHitstopBeforeWipe = player.pawn.hitstop();
 		player.wasIdle = false;
 		player.startedDefending = false;
 		player.hitSomething = false;
 		player.changedAnimOnThisFrame = false;
 		player.wasEnableGatlings = false;
+		player.wasEnableAirtech = false;
+		player.wasAttackCollidedSoCanCancelNow = false;
 		player.wasEnableNormals = false;
 		player.wasProhibitFDTimer = 1;
 		player.wasEnableWhiffCancels = false;
+		player.wasEnableSpecials = false;
+		player.wasEnableSpecialCancel = false;
 		player.wasSuperArmorEnabled = false;
 		player.wasFullInvul = false;
 		player.obtainedForceDisableFlags = false;
@@ -3671,6 +4397,7 @@ void EndScene::frameCleanup() {
 		player.gotHitOnThisFrame = false;
 		player.baikenReturningToBlockstunAfterAzami = false;
 		memcpy(player.animIntraFrame, player.anim, 32);
+		playerWasCancels[player.index].clear();
 	}
 	creatingObject = false;
 	events.clear();
@@ -3692,13 +4419,15 @@ void EndScene::HookHelp::handleUponHook(int signal) {
 void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams) { 
 	if (!shutdown && creatingObject) {
 		creatingObject = false;
-		onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim);
-		events.emplace_back();
-		OccuredEvent& event = events.back();
-		event.type = OccuredEvent::SIGNAL;
-		event.u.signal.from = creatorOfCreatedObject;
-		event.u.signal.to = createdObj;
-		memcpy(event.u.signal.fromAnim, creatorOfCreatedObject.animationName(), 32);
+		if (!iGiveUp) {
+			onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim);
+			events.emplace_back();
+			OccuredEvent& event = events.back();
+			event.type = OccuredEvent::SIGNAL;
+			event.u.signal.from = creatorOfCreatedObject;
+			event.u.signal.to = createdObj;
+			memcpy(event.u.signal.fromAnim, creatorOfCreatedObject.animationName(), 32);
+		}
 	}
 	{
 		static bool imHoldingTheLock = false;
@@ -3718,7 +4447,7 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 
 // Runs on the main thread
 void EndScene::handleUponHook(Entity pawn, int signal) { 
-	if (!shutdown) {
+	if (!shutdown && !iGiveUp) {
 		if (!sendSignalStack.empty()) {
 			events.emplace_back();
 			OccuredEvent& event = events.back();
@@ -3765,9 +4494,12 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) 
 		std::unique_lock<std::mutex> guard(orig_logicOnFrameAfterHitMutex);
 		orig_logicOnFrameAfterHit((void*)pawn.ent, isAirHit, param2);
 	}
-	if (pawn.isPawn() && !functionWillNotDoAnything) {
+	if (pawn.isPawn() && !functionWillNotDoAnything && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = pawn.startingHitstop();
+		player.lastHitstopBeforeWipe = player.hitstopMax;  // try Sol Gunflame YRC delay 1f 5P:
+			// on connection frame, inHitstunNextFrame flag is set. On the frame after, this function fires and sets hitstop.
+			// On the same frame, the hit detection successful hit fires and erases hitstop.
 		// after this function, the enclosing function may additionally increase hitstun
 		// try this on Potemkin ICPM: it sets hitstun in this hook first, but just outside the hook adds 10 to it
 		player.setHitstopMax = true;
@@ -3836,7 +4568,7 @@ void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
 		std::unique_lock<std::mutex> guard(orig_BBScr_runOnObjectMutex);
 		orig_BBScr_runOnObject((void*)pawn.ent, entityReference);
 	}
-	if (!shutdown && pawn.isPawn()) {
+	if (!shutdown && pawn.isPawn() && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		Entity objectBeingRunOn = pawn.currentRunOnObject();
 		if (objectBeingRunOn) {
@@ -3905,6 +4637,7 @@ DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 	drawData.clear();
 	endScene.drawDataPrepared.copyTo(&drawData);
 	camera.valuesPrepare.copyTo(cameraValues);
+	noNeedToDrawPoints = endScene.willEnqueueAndDrawOriginPoints;
 }
 
 // Runs on the graphics thread
@@ -3945,13 +4678,25 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	}
 	bool isFading = false;
 	bool drawBoxesEnqueued = false;
+	bool needEnqueueOriginPoints = false;
+	willEnqueueAndDrawOriginPoints = false;
 	if (!shutdown && !graphics.shutdown) {
 		drawDataPrepared.clear();
 		lastScreenSize = *screenSize;
+		
+		if (!gifMode.modDisabled) {
+			if (!getIconsUTexture2D()) {
+				needEnqueueOriginPoints = true;
+			}
+		}
+		
 		if (*aswEngine) {
 			isFading = game.isFading();
 			logic();
 			if (!gifMode.modDisabled) {
+				if (!settings.dontShowBoxes && !drawDataPrepared.points.empty()) {
+					needEnqueueOriginPoints = true;
+				}
 				Entity instigator = getSuperflashInstigator();
 				if (instigator != nullptr) {
 					if (
@@ -3988,6 +4733,9 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 					camera.grabValues();
 				}
 			}
+			
+			willEnqueueAndDrawOriginPoints = needEnqueueOriginPoints && willDrawOriginPoints();
+			
 			enqueueRenderCommand<DrawBoxesRenderCommand>();
 			drawBoxesEnqueued = true;
 			
@@ -3995,9 +4743,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 				queueUIDrawingDummyCommand();
 			}
 		}
-		if (!gifMode.modDisabled && (
-				!settings.dontShowBoxes && !drawDataPrepared.points.empty() && *aswEngine
-				|| !getIconsUTexture2D())) {
+		if (needEnqueueOriginPoints) {
 			queueOriginPointDrawingDummyCommandAndInitializeIcon();
 		}
 	}
@@ -4069,7 +4815,9 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 	graphics.drawDataUse.clear();
 	command->drawData.copyTo(&graphics.drawDataUse);
 	command->cameraValues.copyTo(camera.valuesUse);
+	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;
 	endSceneHook(getDevice());
+	graphics.noNeedToDrawPoints = false;
 }
 
 // Runs on the graphics thread
@@ -4099,7 +4847,7 @@ void EndScene::queueOriginPointDrawingDummyCommandAndInitializeIcon() {
 
 void EndScene::queueUIDrawingDummyCommand() {
 	char safeToOverwriteMemory[2] = ".";
-	queueDummyCommand(180, dummyDrawUIX, safeToOverwriteMemory);
+	queueDummyCommand(182, dummyDrawUIX, safeToOverwriteMemory);  // 181 or 182 is Raven excitement sparkles
 }
 
 void EndScene::queueDummyCommand(int layer, float x, char* txt) {
@@ -4134,18 +4882,14 @@ void drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* can
 
 // Runs on the main thread. Called from ::drawQuadExecHook
 void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas) {
-	if (item->count == 4 && (unsigned int&)item->vertices[0].x == dummyOriginPointXUInt) {  // avoid floating point comparison as it may be slower
-		if (!shutdown
-				&& !graphics.shutdown
-				&& !drawDataPrepared.points.empty()
-				&& !settings.dontShowBoxes
-				&& !gifMode.modDisabled) {
+	if (item->count == 4 && (unsigned int&)item->vertices[0].x == getDummyCmdUInt(dummyOriginPointX)) {  // avoid floating point comparison as it may be slower
+		if (willDrawOriginPoints()) {
 			FCanvas_Flush(canvas, 0);
 			enqueueRenderCommand<DrawOriginPointsRenderCommand>();
 		}
 		return;  // can safely omit items
 	}
-	if (item->count == 4 && (unsigned int&)item->vertices[0].x == dummyDrawUIXUInt) {  // avoid floating point comparison as it may be slower
+	if (item->count == 4 && (unsigned int&)item->vertices[0].x == getDummyCmdUInt(dummyDrawUIX)) {  // avoid floating point comparison as it may be slower
 		if (!shutdown
 				&& !graphics.shutdown
 				&& !gifMode.modDisabled) {
@@ -4220,11 +4964,13 @@ void EndScene::HookHelp::backPushbackApplierHook() {
 }
 
 void EndScene::backPushbackApplierHook(char* thisArg) {
-	entityList.populate();
-	for (int i = 0; i < 2; ++i) {
-		PlayerInfo& player = players[i];
-		player.fdPushback = entityList.slots[i].fdPushback();
-		// it changes after it was used, so if we don't do this, at the end of a frame we will see a decremented value
+	if (!iGiveUp) {
+		entityList.populate();
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = players[i];
+			player.fdPushback = entityList.slots[i].fdPushback();
+			// it changes after it was used, so if we don't do this, at the end of a frame we will see a decremented value
+		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(orig_backPushbackApplierMutex);
@@ -4242,46 +4988,48 @@ void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 		std::unique_lock<std::mutex> guard(orig_pushbackStunOnBlockMutex);
 		orig_pushbackStunOnBlock((void*)pawn.ent, isAirHit);
 	}
-	PlayerInfo& player = findPlayer(pawn);
-	player.ibPushbackModifier = 100;
-	char* trainingStruct = game.getTrainingHud();
-	bool isDummy = isDummyPtr(trainingStruct, pawn.team());
-	bool fd = !isDummy ? pawn.holdingFD() : *(DWORD*)(trainingStruct + 0x670 + 4 * pawn.team()) == 2;
-	Entity attacker = pawn.attacker();
-	PlayerInfo& attackerPlayer = findPlayer(attacker);
-	if (attacker) {
-		attackerPlayer.baseFdPushback = 0;
-	}
-	if (fd) {
-		attackerPlayer.fdPushbackMax = attacker.fdPushback();
-		int dist = pawn.posX() - attacker.posX();
-		if (dist < 0) dist = -dist;
-		attackerPlayer.oppoWasTouchingWallOnFD = pawn.isTouchingLeftWall() || pawn.isTouchingRightWall();
-		if (dist >= 385000) {
-			attackerPlayer.baseFdPushback = 500;
-		} else {
-			attackerPlayer.baseFdPushback = 900;
+	if (!iGiveUp) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.ibPushbackModifier = 100;
+		char* trainingStruct = game.getTrainingHud();
+		bool isDummy = isDummyPtr(trainingStruct, pawn.team());
+		bool fd = !isDummy ? pawn.holdingFD() : *(DWORD*)(trainingStruct + 0x670 + 4 * pawn.team()) == 2;
+		Entity attacker = pawn.attacker();
+		PlayerInfo& attackerPlayer = findPlayer(attacker);
+		if (attacker) {
+			attackerPlayer.baseFdPushback = 0;
 		}
-	} else if (pawn.successfulIB() && pawn.lastHitResult() == HIT_RESULT_BLOCKED) {
-		player.ibPushbackModifier = isAirHit ? 10 : 90;
+		if (fd) {
+			attackerPlayer.fdPushbackMax = attacker.fdPushback();
+			int dist = pawn.posX() - attacker.posX();
+			if (dist < 0) dist = -dist;
+			attackerPlayer.oppoWasTouchingWallOnFD = pawn.isTouchingLeftWall() || pawn.isTouchingRightWall();
+			if (dist >= 385000) {
+				attackerPlayer.baseFdPushback = 500;
+			} else {
+				attackerPlayer.baseFdPushback = 900;
+			}
+		} else if (pawn.successfulIB() && pawn.lastHitResult() == HIT_RESULT_BLOCKED) {
+			player.ibPushbackModifier = isAirHit ? 10 : 90;
+		}
+		player.receivedSpeedYValid = false;
+		player.pushbackMax = pawn.pendingPushback();
+		entityManager.calculatePushback(
+			pawn.receivedAttackLevel(),
+			pawn.comboTimer(),
+			pawn.dontUseComboTimerForPushback(),
+			pawn.ascending(),
+			pawn.y(),
+			pawn.pushbackModifier(),
+			pawn.airPushbackModifier(),
+			pawn.inHitstun(),
+			pawn.pushbackModifierDuringHitstun(),
+			&player.basePushback,
+			&player.attackPushbackModifier,
+			&player.hitstunPushbackModifier,
+			&player.comboTimerPushbackModifier);
+		player.hitstunProrationValid = false;
 	}
-	player.receivedSpeedYValid = false;
-	player.pushbackMax = pawn.pendingPushback();
-	entityManager.calculatePushback(
-		pawn.receivedAttackLevel(),
-		pawn.comboTimer(),
-		pawn.dontUseComboTimerForPushback(),
-		pawn.ascending(),
-		pawn.y(),
-		pawn.pushbackModifier(),
-		pawn.airPushbackModifier(),
-		pawn.inHitstun(),
-		pawn.pushbackModifierDuringHitstun(),
-		&player.basePushback,
-		&player.attackPushbackModifier,
-		&player.hitstunPushbackModifier,
-		&player.comboTimerPushbackModifier);
-	player.hitstunProrationValid = false;
 }
 
 void EndScene::HookHelp::BBScr_sendSignalHook(int referenceType, int signal) {
@@ -4295,22 +5043,24 @@ void EndScene::HookHelp::BBScr_sendSignalToActionHook(const char* searchAnim, in
 }
 
 void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) {
-	Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
-	
-	bool isDizzyBubblePopping = referredEntity == pawn && signal == 0x17  // HIT_OR_BLOCK
-			&& (strcmp(pawn.animationName(), "AwaPObj") == 0  // Dizzy bubble
-				|| strcmp(pawn.animationName(), "AwaKObj") == 0);
-	
-	if (!shutdown && referredEntity && !isDizzyBubblePopping) {
-		ProjectileInfo& projectile = findProjectile(referredEntity);
-		int team = pawn.team();
-		if (projectile.ptr && (team == 0 || team == 1)) {
-			events.emplace_back();
-			OccuredEvent& event = events.back();
-			event.type = OccuredEvent::SIGNAL;
-			event.u.signal.from = pawn;
-			event.u.signal.to = projectile.ptr;
-			memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);
+	if (!iGiveUp) {
+		Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
+		
+		bool isDizzyBubblePopping = referredEntity == pawn && signal == 0x17  // HIT_OR_BLOCK
+				&& (strcmp(pawn.animationName(), "AwaPObj") == 0  // Dizzy bubble
+					|| strcmp(pawn.animationName(), "AwaKObj") == 0);
+		
+		if (!shutdown && referredEntity && !isDizzyBubblePopping) {
+			ProjectileInfo& projectile = findProjectile(referredEntity);
+			int team = pawn.team();
+			if (projectile.ptr && (team == 0 || team == 1)) {
+				events.emplace_back();
+				OccuredEvent& event = events.back();
+				event.type = OccuredEvent::SIGNAL;
+				event.u.signal.from = pawn;
+				event.u.signal.to = projectile.ptr;
+				memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);
+			}
 		}
 	}
 	{
@@ -4329,7 +5079,7 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) 
 }
 
 void EndScene::BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, int signal) {
-	if (!shutdown) {
+	if (!shutdown && !iGiveUp) {
 		sendSignalStack.push_back(pawn);
 	}
 	{
@@ -4345,7 +5095,7 @@ void EndScene::BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim,
 			isLocked = false;
 		}
 	}
-	if (!shutdown) {
+	if (!shutdown && !iGiveUp) {
 		sendSignalStack.pop_back();
 	}
 }
@@ -4361,13 +5111,25 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 		std::unique_lock<std::mutex> guard(orig_skillCheckPieceMutex);
 		result = orig_skillCheckPiece((void*)pawn.ent);
 	}
-	PlayerInfo& player = findPlayer(pawn);
-	player.wasEnableNormals = pawn.enableNormals();
-	player.wasProhibitFDTimer = pawn.prohibitFDTimer();
-	player.wasEnableGatlings = pawn.enableGatlings();
-	player.wasEnableWhiffCancels = pawn.enableWhiffCancels();
-	player.wasForceDisableFlags = pawn.forceDisableFlags();
-	player.obtainedForceDisableFlags = true;
+	if (!iGiveUp) {
+		PlayerInfo& player = findPlayer(pawn);
+		if (player.pawn) {
+			player.wasEnableNormals = pawn.enableNormals();
+			player.wasProhibitFDTimer = min(127, pawn.prohibitFDTimer());
+			player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
+			player.wasEnableWhiffCancels = player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels();
+			player.wasEnableSpecials = player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();
+			player.wasEnableSpecialCancel = player.wasEnableSpecialCancel && pawn.currentAnimDuration() != 1 || pawn.enableSpecialCancel();
+			player.wasAttackCollidedSoCanCancelNow = player.wasAttackCollidedSoCanCancelNow && pawn.currentAnimDuration() != 1 || pawn.attackCollidedSoCanCancelNow();
+			player.wasEnableAirtech = player.wasEnableAirtech && pawn.currentAnimDuration() != 1 || pawn.enableAirtech();
+			player.wasForceDisableFlags = pawn.forceDisableFlags();
+			player.obtainedForceDisableFlags = true;
+			if (pawn.currentAnimDuration() == 1) {
+				playerWasCancels[player.index].clear();
+			}
+			collectFrameCancels(player, playerWasCancels[player.index]);
+		}
+	}
 	return result;
 }
 
@@ -4377,7 +5139,7 @@ void EndScene::HookHelp::BBScr_setHitstopHook(int hitstop) {
 }
 
 void EndScene::BBScr_setHitstopHook(Entity pawn, int hitstop) {
-	if (!shutdown) {
+	if (!shutdown && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = hitstop;
 		player.setHitstopMax = true;
@@ -4395,9 +5157,13 @@ void EndScene::HookHelp::beginHitstopHook() {
 }
 
 void EndScene::beginHitstopHook(Entity pawn) {
-	if (pawn.needSetHitstop() && pawn.startingHitstop() != 0) {
+	if (!iGiveUp && pawn.needSetHitstop()) {
 		PlayerInfo& player = findPlayer(pawn);
-		player.hitstopMaxSuperArmor = pawn.startingHitstop();
+		if (pawn.startingHitstop() == 0) {
+			player.lastHitstopBeforeWipe = pawn.hitstop();
+		} else {
+			player.hitstopMaxSuperArmor = pawn.startingHitstop();
+		}
 		player.setHitstopMaxSuperArmor = true;
 	}
 	{
@@ -4416,17 +5182,10 @@ void EndScene::BBScr_ignoreDeactivateHook(Entity pawn) {
 		std::unique_lock<std::mutex> guard(orig_BBScr_ignoreDeactivateMutex);
 		orig_BBScr_ignoreDeactivate((void*)pawn.ent);
 	}
-	PlayerInfo& player = findPlayer(pawn);
-	player.baikenReturningToBlockstunAfterAzami = true;
-}
-
-void EndScene::onBubblePop(Entity bubble) {
-	endScene.events.emplace_back();
-	OccuredEvent& event = events.back();
-	event.type = OccuredEvent::SIGNAL;
-	event.u.signal.from = players[bubble.team()].pawn;
-	event.u.signal.to = bubble;
-	memcpy(event.u.signal.fromAnim, event.u.signal.from.animationName(), 32);
+	if (!iGiveUp) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.baikenReturningToBlockstunAfterAzami = true;
+	}
 }
 
 bool EndScene::isEntityHidden(const Entity& ent) {
@@ -4458,7 +5217,7 @@ void EndScene::incrementNextFramebarIdSmartly() {
 	bool restart;
 	do {
 		restart = false;
-		for (const EntityFramebar& f: framebars) {
+		for (const ProjectileFramebar& f: projectileFramebars) {
 			if (f.id == nextFramebarId) {
 				incrementNextFramebarIdDirectly();
 				restart = true;
@@ -4468,9 +5227,8 @@ void EndScene::incrementNextFramebarIdSmartly() {
 	} while(restart);
 }
 
-EntityFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile, bool needCreate) {
-	static EntityFramebar defaultFramebar;
-	char nameBuf[EntityFramebar::titleShortCharsCountMax * 4 + 1] { '\0' };
+ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile, bool needCreate) {
+	static ProjectileFramebar defaultFramebar { -1, INT_MAX };
 	const char* name = nullptr;
 	const char* nameFull = nullptr;
 	bool dontReplaceTitle;
@@ -4479,30 +5237,10 @@ EntityFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile, boo
 		
 		const char* framebarName = projectile.move->getFramebarName(projectile.ptr);
 		
-		if (projectile.team == 0) {
-			memcpy(nameBuf, "P1 ", 3);
-		} else {
-			memcpy(nameBuf, "P2 ", 3);
-		}
-		
 		if (framebarName) {
-			int len;
-			int bytesUpToMax;
-			int cpsTotal;
-			EntityFramebar::utf8len(framebarName, &len, &cpsTotal, EntityFramebar::titleShortCharsCountMax - 3, &bytesUpToMax);
-			
-			strncpy(nameBuf + 3, framebarName, bytesUpToMax);
-			
-			if (len != bytesUpToMax) {
-				nameFull = framebarName;
-			}
-			name = nameBuf;
+			name = framebarName;
 		} else {
-			if (projectile.team == 0) {
-				name = "P1 Projectiles";
-			} else {
-				name = "P2 Projectiles";
-			}
+			name = "Projectiles";
 		}
 		
 		if (projectile.move->framebarNameFull) {
@@ -4510,16 +5248,11 @@ EntityFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile, boo
 		}
 		dontReplaceTitle = false;
 	} else {
-		if (projectile.team == 0) {
-			name = "P1 Projectiles";
-		} else {
-			name = "P2 Projectiles";
-		}
+		name = "Projectiles";
 		nameFull = nullptr;
 		dontReplaceTitle = true;
 	}
-	for (int i = 2; i < (int)framebars.size(); ++i) {
-		EntityFramebar& bar = framebars[i];
+	for (ProjectileFramebar& bar : projectileFramebars) {
 		if (bar.playerIndex == projectile.team && bar.id == projectile.framebarId) {
 			if (!(bar.move && !projectile.move)) {
 				bar.move = projectile.move;
@@ -4540,8 +5273,8 @@ EntityFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile, boo
 	if (!needCreate) {
 		return defaultFramebar;
 	}
-	framebars.emplace_back();
-	EntityFramebar& bar = framebars.back();
+	projectileFramebars.emplace_back();
+	ProjectileFramebar& bar = projectileFramebars.back();
 	bar.playerIndex = projectile.team;
 	bar.id = nextFramebarId;
 	projectile.framebarId = nextFramebarId;
@@ -4551,35 +5284,40 @@ EntityFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile, boo
 	return bar;
 }
 
-EntityFramebar& EndScene::findCombinedFramebar(const EntityFramebar& source) {
-	static EntityFramebar defaultFramebar;
+CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFramebar& source, bool hitstop) {
 	int id;
 	if (source.move) {
 		id = source.move->framebarId;
 	} else {
-		id = -2 - source.playerIndex;
+		id = INT_MAX - 1 + source.playerIndex;
 	}
-	for (EntityFramebar& bar : combinedFramebars) {
-		if (bar.playerIndex == source.playerIndex && bar.id == id) {
-			if (!(bar.move && !source.move)) {
-				bar.move = source.move;
+	const bool combineProjectileFramebarsWhenPossible = settings.combineProjectileFramebarsWhenPossible;
+	const bool eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+	if (!eachProjectileOnSeparateFramebar) {
+		for (CombinedProjectileFramebar& bar : combinedFramebars) {
+			if (combineProjectileFramebarsWhenPossible
+					? bar.canBeCombined(hitstop ? source.hitstop : source.main)
+					: bar.playerIndex == source.playerIndex && bar.id == id
+			) {
+				if (!(bar.move && !source.move)) {
+					bar.move = source.move;
+				}
+				if (!(
+						*bar.titleShort != '\0'
+						&& bar.move
+						&& (
+							*source.titleShort == '\0'
+							|| !source.move
+						)
+					)) {
+					bar.copyTitle(source);
+				}
+				return bar;
 			}
-			if (!(
-					*bar.titleShort != '\0'
-					&& bar.move
-					&& (
-						*source.titleShort == '\0'
-						|| !source.move
-					)
-				)) {
-				memcpy(bar.titleShort, source.titleShort, sizeof bar.titleShort);
-				bar.titleFull = source.titleFull;
-			}
-			return bar;
 		}
 	}
 	combinedFramebars.emplace_back();
-	EntityFramebar& bar = combinedFramebars.back();
+	CombinedProjectileFramebar& bar = combinedFramebars.back();
 	bar.playerIndex = source.playerIndex;
 	bar.id = id;
 	bar.copyTitle(source);
@@ -4593,48 +5331,41 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 		bool framebarAdvancedHitstop,
 		bool framebarAdvancedIdleHitstop) {
 	
-	Framebar& framebar = entityFramebar.idleHitstop;
+	bool isPlayer = entityFramebar.belongsToPlayer();
+	FramebarBase& framebar = entityFramebar.getIdleHitstop();
 	const int framebarPos = (framebarPositionHitstop + framebarIdleHitstopFor) % _countof(Framebar::frames);
-	Frame& currentFrame = framebar[framebarPos];
+	FrameBase& currentFrame = framebar.getFrame(framebarPos);
 	
 	if (framebarAdvancedHitstop) {
-		Frame& destinationFrame = entityFramebar.hitstop[framebarPositionHitstop];
-		destinationFrame = currentFrame;
-		if (entityFramebar.hitstop.requestFirstFrame) {
-			destinationFrame.isFirst = true;
-			entityFramebar.hitstop.requestFirstFrame = false;
-		}
+		FrameBase& destinationFrame = entityFramebar.getHitstop().getFrame(framebarPositionHitstop);
+		entityFramebar.copyFrame(destinationFrame, currentFrame);
+		entityFramebar.getHitstop().processRequests(destinationFrame);
 	} else {
-		entityFramebar.hitstop.requestFirstFrame = framebar.requestFirstFrame;
+		entityFramebar.getHitstop().copyRequests(framebar);
 	}
 	if (framebarAdvancedIdle) {
-		Frame& destinationFrame = entityFramebar.idle[(framebarPosition + framebarIdleFor) % _countof(Framebar::frames)];
-		destinationFrame = currentFrame;
-		if (entityFramebar.idle.requestFirstFrame) {
-			destinationFrame.isFirst = true;
-			entityFramebar.idle.requestFirstFrame = false;
-		}
+		int idlePos = (framebarPosition + framebarIdleFor) % _countof(Framebar::frames);
+		FrameBase& destinationFrame = entityFramebar.getIdle().getFrame(idlePos);
+		entityFramebar.copyFrame(destinationFrame, currentFrame);
+		entityFramebar.getIdle().processRequests(destinationFrame);
 	} else {
-		entityFramebar.idle.requestFirstFrame = framebar.requestFirstFrame;
+		entityFramebar.getIdle().copyRequests(framebar);
 	}
 	if (framebarAdvanced) {
-		Frame& destinationFrame = entityFramebar.main[framebarPosition];
-		destinationFrame = currentFrame;
-		if (entityFramebar.main.requestFirstFrame) {
-			destinationFrame.isFirst = true;
-			entityFramebar.main.requestFirstFrame = false;
-		}
+		FrameBase& destinationFrame = entityFramebar.getMain().getFrame(framebarPosition);
+		entityFramebar.copyFrame(destinationFrame, currentFrame);
+		entityFramebar.getMain().processRequests(destinationFrame);
 	} else {
-		entityFramebar.main.requestFirstFrame = framebar.requestFirstFrame;
+		entityFramebar.getMain().copyRequests(framebar);
 	}
 	if (framebarAdvancedIdle) {
-		entityFramebar.idle.requestFirstFrame = false;
+		entityFramebar.getIdle().clearRequests();
 	}
 	if (framebarAdvancedIdleHitstop) {
-		framebar.requestFirstFrame = false;
+		framebar.clearRequests();
 	}
 	if (framebarAdvancedHitstop) {
-		entityFramebar.hitstop.requestFirstFrame = false;
+		entityFramebar.getHitstop().clearRequests();
 	}
 }
 
@@ -4660,10 +5391,258 @@ bool EndScene::misterPlayerIsManuallyCrouching(const PlayerInfo& player) {
 }
 
 void EndScene::onGifModeBlackBackgroundChanged() {
-	if (!settings.turnOffPostEffectWhenMakingBackgroundBlack) return;
-	BOOL theValue = game.postEffectOn();
-	BOOL whatTheValueShouldBe = !(gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly);
-	if (theValue != whatTheValueShouldBe) {
-		game.postEffectOn() = whatTheValueShouldBe;
+	bool newIsInMode = (gifMode.gifModeOn || gifMode.gifModeToggleBackgroundOnly) && settings.turnOffPostEffectWhenMakingBackgroundBlack;
+	if (newIsInMode != isInDarkenModePlusTurnOffPostEffect) {
+		isInDarkenModePlusTurnOffPostEffect = newIsInMode;
+		if (isInDarkenModePlusTurnOffPostEffect) {
+			postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect = game.postEffectOn() != 0;
+			game.postEffectOn() = false;
+		} else if (postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect) {
+			game.postEffectOn() = true;
+		}
 	}
+}
+
+bool EndScene::willDrawOriginPoints() {
+	return !shutdown
+			&& !graphics.shutdown
+			&& !drawDataPrepared.points.empty()
+			&& !settings.dontShowBoxes
+			&& !gifMode.modDisabled;
+}
+
+void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move, int iterationIndex) {
+	bool foundTheMove = false;
+	int vecPos = -1;
+	for (const GatlingOrWhiffCancelInfo& existingElem : vec) {
+		if (existingElem.move == move) {
+			foundTheMove = true;
+		}
+		if (existingElem.iterationIndex < iterationIndex) {
+			vecPos = &existingElem - vec.data();
+		}
+	}
+	if (foundTheMove) return;
+	GatlingOrWhiffCancelInfo* ptr = nullptr;
+	if (vecPos == -1 && !vec.empty()) {
+		vec.emplace(vec.begin());
+		ptr = &vec.front();
+	} else if (vecPos == -1 && vec.empty() || vecPos == (int)vec.size() - 1) {
+		vec.emplace_back();
+		ptr = &vec.back();
+	} else {
+		vec.emplace(vec.begin() + vecPos + 1);
+		ptr = &vec[vecPos + 1];
+	}
+	GatlingOrWhiffCancelInfo& cancel = *ptr;
+	cancel.iterationIndex = iterationIndex;
+	const MoveInfo& info = moves.getInfo(player.charType, move->name, move->stateName, false);
+	if (&info == &moves.defaultMove || !info.getDisplayName(player.idle)) {
+		cancel.name = move->name;
+		int lenTest = strnlen(move->name, 32);
+		if (lenTest >= 32) {
+			int somethingBad = 1;
+		}
+		cancel.nameIncludesInputs = false;
+	} else {
+		cancel.name = info.getDisplayName(player.idle);
+		cancel.nameIncludesInputs = info.nameIncludesInputs;
+	}
+	cancel.move = move;
+	cancel.replacementInputs = info.replacementInputs;
+	cancel.bufferTime = info.replacementBufferTime ? info.replacementBufferTime : move->bufferTime;
+}
+
+void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame) {
+	if (player.move) frame.whiffCancelsNote = player.move->whiffCancelsNote;
+	const AddedMoveData* base = player.pawn.movesBase();
+	int* indices = player.pawn.moveIndices();
+	if (player.charType == CHARACTER_TYPE_BAIKEN
+			&& player.pawn.blockstun()
+			&& player.pawn.playerVal(0)) {
+		if (baikenBlockCancels.empty()) {
+			const char* baikenBlockCancelsStrs[] {
+				"DeadAngleAttack",  // standing
+				// Blue Burst, obviously
+				// FD, obviously
+				"BlockingStandGuard",  // standing
+				"BlockingCrouchGuard",  // crouching
+				"YoushijinGuard",  // standing
+				"MawarikomiGuard", // standing
+				"SakuraGuard", // standing
+				"IssenGuard",  // standing
+				"TeppouGuard",  // standing
+				"AirGCAntiAirAGuard",  // jumping
+				"AirGCAntiAirBGuard",  // jumping
+				"AirGCAntiGroundCGuard",  // jumping
+				"AirGCAntiGroundDGuard",  // jumping
+				"BlockingKakuseiGuard"  // none
+			};
+			baikenBlockCancels.reserve(_countof(baikenBlockCancelsStrs));
+			for (int i = 0; i < _countof(baikenBlockCancelsStrs); ++i) {
+				baikenBlockCancels.emplace_back();
+				ForceAddedWhiffCancel& newCancel = baikenBlockCancels.back();
+				newCancel.name = baikenBlockCancelsStrs[i];
+			}
+		}
+		for (ForceAddedWhiffCancel& cancel : baikenBlockCancels) {
+			int moveIndex = cancel.getMoveIndex(player.pawn);
+			const AddedMoveData* move = base + indices[moveIndex];
+			if (checkMoveConditions(player, move)) {
+				collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex);
+			}
+		}
+		return;
+	}
+	bool enableGatlings = player.wasEnableGatlings && player.wasAttackCollidedSoCanCancelNow;
+	bool enableWhiffCancels = player.wasEnableWhiffCancels;
+	for (int i = player.pawn.moveIndicesCount() - 1; i >= 0; --i) {
+		const AddedMoveData* move = base + indices[i];
+		bool isGatling = move->gatlingOption() && enableGatlings;
+		bool isWhiffCancel = move->whiffCancelOption() && enableWhiffCancels;
+		if ((isGatling || isWhiffCancel) && checkMoveConditions(player, move)) {
+			if (isGatling) {
+				collectFrameCancelsPart(player, frame.gatlings, move, i);
+			}
+			if (isWhiffCancel) {
+				collectFrameCancelsPart(player, frame.whiffCancels, move, i);
+			}
+		}
+	}
+	if (player.move && enableWhiffCancels) {
+		if (player.move->onlyAddForceWhiffCancelsOnFirstFrameOfSprite
+				?
+					!player.pawn.isRCFrozen()
+					&& player.sprite.frame == 0
+					&& strcmp(player.sprite.name, player.move->onlyAddForceWhiffCancelsOnFirstFrameOfSprite) == 0
+				:
+					true
+				&& player.move->conditionForAddingWhiffCancels
+					? player.move->conditionForAddingWhiffCancels(player)
+					: true
+		) {
+			for (int i = 0; i < player.move->forceAddWhiffCancelsCount; ++i) {
+				ForceAddedWhiffCancel* cancel = player.move->getForceAddWhiffCancel(i);
+				int moveIndex = cancel->getMoveIndex(player.pawn);
+				const AddedMoveData* move = base + indices[moveIndex];
+				collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex);
+			}
+		}
+	}
+}
+
+bool EndScene::checkMoveConditions(PlayerInfo& player, const AddedMoveData* move) {
+	if (move->forceDisableFlags && (move->forceDisableFlags & player.wasForceDisableFlags) != 0) return false;
+	int posY = player.pawn.posY();
+	bool isLand = !player.airborne_insideTick();  // you may ask, well what about the last airborne, prelanding frame? On that frame, your y == 1. And at the end of the tick it's 0. (Are they hardcoding aroung their own code?..)
+	if (move->minimumHeightRequirement && posY < move->minimumHeightRequirement) return false;
+	if (move->characterState == MOVE_CHARACTER_STATE_JUMPING && isLand
+			|| (move->characterState == MOVE_CHARACTER_STATE_CROUCHING
+				|| move->characterState == MOVE_CHARACTER_STATE_STANDING)
+			&& !isLand) return false;
+	DWORD conditions[5];
+	memcpy(conditions, move->conditions, 4*5);
+	for (int i = 0; i < 5; ++i) {
+		DWORD dword = conditions[i];
+		while (dword) {
+			DWORD bitIndex;  // 0 is LSB
+			if (!_BitScanForward(&bitIndex, dword)) {
+				break;
+			}
+			MoveCondition condition = (MoveCondition)(i * 32 + bitIndex);
+			if (condition != MOVE_CONDITION_REQUIRES_25_TENSION
+					&& condition != MOVE_CONDITION_REQUIRES_50_TENSION
+					&& condition != MOVE_CONDITION_REQUIRES_100_TENSION
+					&& condition != MOVE_CONDITION_IS_TOUCHING_LEFT_SCREEN_EDGE
+					&& condition != MOVE_CONDITION_IS_TOUCHING_RIGHT_SCREEN_EDGE
+					&& condition != MOVE_CONDITION_IS_TOUCHING_WALL
+					&& condition != MOVE_CONDITION_CLOSE_SLASH
+					&& condition != MOVE_CONDITION_FAR_SLASH) {
+				if (BBScr_checkMoveConditionImpl && !BBScr_checkMoveConditionImpl((void*)player.pawn.ent, condition)) {
+					return false;
+				}
+			}
+			dword &= ~(1 << bitIndex);
+		}
+	}
+	return true;
+}
+
+bool EndScene::whiffCancelIntoFDEnabled(PlayerInfo& player) {
+	if (!findMoveByName || !player.wasEnableWhiffCancels) return false;
+	if (!player.standingFDMove) {
+		player.standingFDMove = player.findMoveByName("FaultlessDefenceStand");
+	}
+	if (!player.crouchingFDMove) {
+		player.crouchingFDMove = player.findMoveByName("FaultlessDefenceCrouch");
+	}
+	if (!player.standingFDMove || !player.crouchingFDMove) return false;
+	for (GatlingOrWhiffCancelInfo& cancel : playerWasCancels[player.index].whiffCancels) {
+		if (player.standingFDMove == cancel.move || player.crouchingFDMove == cancel.move) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool EndScene::wasPlayerHadGatling(int playerIndex, const char* name) {
+	for (const GatlingOrWhiffCancelInfo& cancel : playerWasCancels[playerIndex].gatlings) {
+		if (strcmp(cancel.move->name, name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool EndScene::wasPlayerHadWhiffCancel(int playerIndex, const char* name) {
+	for (const GatlingOrWhiffCancelInfo& cancel : playerWasCancels[playerIndex].whiffCancels) {
+		if (strcmp(cancel.move->name, name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool EndScene::wasPlayerHadGatlings(int playerIndex) {
+	return !playerWasCancels[playerIndex].gatlings.empty();
+}
+
+bool EndScene::wasPlayerHadWhiffCancels(int playerIndex) {
+	return !playerWasCancels[playerIndex].whiffCancels.empty();
+}
+
+EntityFramebar& EndScene::getFramebar(int totalIndex) {
+	if (totalIndex >= (int)playerFramebars.size()) {
+		return projectileFramebars[totalIndex - playerFramebars.size()];
+	} else {
+		return playerFramebars[totalIndex];
+	}
+}
+
+int EndScene::getRCSlowdownCounter() {
+	return rcSlowdownCounter;
+}
+
+int EndScene::getRCSlowdownCounterMax() {
+	return rcSlowdownCounterMax;
+}
+
+int EndScene::getSuperflashCounterOpponentCached() {
+	return superflashCounterOpponent;
+}
+
+int EndScene::getSuperflashCounterAlliedCached() {
+	return superflashCounterAllied;
+}
+
+int EndScene::getSuperflashCounterOpponentMax() {
+	return superflashCounterOpponentMax;
+}
+
+int EndScene::getSuperflashCounterAlliedMax() {
+	return superflashCounterAlliedMax;
+}
+
+Entity EndScene::getLastNonZeroSuperflashInstigator() {
+	return lastNonZeroSuperflashInstigator;
 }

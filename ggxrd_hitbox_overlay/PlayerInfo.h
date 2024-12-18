@@ -2,46 +2,180 @@
 #include "Entity.h"
 #include "Moves.h"
 #include <string>
+#include <vector>
+
+struct CanProgramSecretGardenInfo {
+	DWORD can:1;
+	DWORD inputs:3;
+	DWORD inputsMax:3;
+};
+
+struct ChippInfo {
+	unsigned short invis;
+	unsigned short wallTime;
+};
+
+struct DIInfo {
+	unsigned short current;
+	unsigned short max;
+};
+
+struct GatlingOrWhiffCancelInfo {
+	const char* name;
+	const char* replacementInputs;
+	const AddedMoveData* move;
+	int iterationIndex;
+	bool nameIncludesInputs;
+	int bufferTime;
+};
+
+struct FrameCancelInfo {
+	std::vector<GatlingOrWhiffCancelInfo> gatlings;
+	std::vector<GatlingOrWhiffCancelInfo> whiffCancels;
+	const char* whiffCancelsNote = nullptr;
+	FrameCancelInfo() = default;
+	void clear();
+};
 
 enum FrameType : char {
 	FT_NONE,
 	FT_IDLE,
+	FT_IDLE_PROJECTILE,
 	FT_IDLE_CANT_BLOCK,
 	FT_IDLE_CANT_FD,
+	FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK,
 	FT_IDLE_ELPHELT_RIFLE,
+	FT_IDLE_ELPHELT_RIFLE_READY,
 	FT_HITSTOP,
 	FT_ACTIVE,
+	FT_ACTIVE_PROJECTILE,
+	FT_ACTIVE_HITSTOP,
+	FT_ACTIVE_HITSTOP_PROJECTILE,
+	FT_ACTIVE_NEW_HIT,
+	FT_ACTIVE_NEW_HIT_PROJECTILE,
 	FT_STARTUP,
 	FT_STARTUP_ANYTIME_NOW,
+	FT_STARTUP_ANYTIME_NOW_CAN_ACT,
 	FT_STARTUP_STANCE,
+	FT_STARTUP_STANCE_CAN_STOP_HOLDING,
 	FT_STARTUP_CAN_BLOCK,
+	FT_STARTUP_CAN_BLOCK_AND_CANCEL,
+	FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN,
+	FT_ZATO_BREAK_THE_LAW_STAGE2,
+	FT_ZATO_BREAK_THE_LAW_STAGE3,
+	FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED,
+	FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED,
 	FT_RECOVERY,
 	FT_RECOVERY_HAS_GATLINGS,
 	FT_RECOVERY_CAN_ACT,
+	FT_RECOVERY_CAN_RELOAD,
 	FT_NON_ACTIVE,
+	FT_NON_ACTIVE_PROJECTILE,
 	FT_PROJECTILE,
 	FT_LANDING_RECOVERY,
-	FT_XSTUN
+	FT_LANDING_RECOVERY_CAN_CANCEL,
+	FT_XSTUN,
+	FT_XSTUN_CAN_CANCEL,
+	FT_XSTUN_HITSTOP,
+	FT_GRAYBEAT_AIR_HITSTUN,
+	FT_LAST  // must always be last
 };
-// ! start must be 0 !
-const FrameType FRAME_TYPE_LAST = FT_XSTUN;
+inline bool frameTypeDiscardable(FrameType type) {
+	return type == FT_NONE || type == FT_IDLE || type == FT_IDLE_PROJECTILE;
+}
+extern bool cantAttackTypes[FT_LAST];
+void initializeCantAttackTypes();
+inline bool frameTypeAssumesCantAttack(FrameType type) {
+	return cantAttackTypes[type];
+}
+inline bool frameTypeActive(FrameType type) {
+	return type == FT_ACTIVE || type == FT_ACTIVE_PROJECTILE;
+}
+static FrameType landingRecoveryTypes[] {
+	FT_LANDING_RECOVERY,
+	FT_LANDING_RECOVERY_CAN_CANCEL
+};
+static FrameType recoveryFrameTypes[] {
+	FT_RECOVERY,
+	FT_RECOVERY_HAS_GATLINGS,
+	FT_RECOVERY_CAN_ACT,
+	FT_RECOVERY_CAN_RELOAD
+};
+static FrameType projectileFrameTypes[] {
+	FT_IDLE_PROJECTILE,
+	FT_ACTIVE_PROJECTILE,
+	FT_ACTIVE_NEW_HIT_PROJECTILE,
+	FT_ACTIVE_HITSTOP_PROJECTILE,
+	FT_NON_ACTIVE_PROJECTILE
+};
+
+struct FrameStopInfo {
+	unsigned char value:7;  // hitstun, blockstun or hitstop
+	bool isHitstun:1;
+	unsigned char valueMax:7;  // hitstunMax, blockstunMax or hitstopMax
+	bool isBlockstun:1;
+};
+
+void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax);
+
+struct FrameBase {
+	DWORD aswEngineTick;
+	const char* animName;
+};
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
-struct Frame {
-	DWORD aswEngineTick;
+struct Frame : public FrameBase {
+	short skippedSuperfreeze;  // this value is same for all framebars and happens rarely. However if we start allocating vectors for each nuance like this how much will we actually save?
 	FrameType type;
+	unsigned char hitstop;  // because of danger time can go up to 99
+	unsigned char hitstopMax;
+	unsigned char skippedHitstop;
+	unsigned short rcSlowdown:6;
+	unsigned short isFirst:1;
+	unsigned short hitConnected:1;  // true only for the frame on which a hit connected
+	unsigned short rcSlowdownMax:6;
+	unsigned short hitstopConflict:1;
+	unsigned short newHit:1;
+};
+
+// This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
+// This means that types like std::vector are not allowed.
+struct PlayerFrame : public FrameBase {
+	FrameCancelInfo cancels;
+	union {
+		CanProgramSecretGardenInfo canProgramSecretGarden;
+		ChippInfo chippInfo;
+		DIInfo diInfo;
+	} u;
+	short skippedSuperfreeze;
+	short poisonDuration;
+	FrameStopInfo stop;
+	FrameType type;
+	unsigned char hitstop;  // because of danger time can go up to 99
+	unsigned char hitstopMax;
+	unsigned char skippedHitstop;
+	unsigned char rcSlowdown;
+	unsigned char rcSlowdownMax;
+	
+	
+	bool isFirst:1;
+	bool hitConnected:1;  // true only for the frame on which a hit connected
+	bool hitstopConflict:1;
+	bool newHit:1;
+	
+	bool enableNormals:1;
+	bool canBlock:1;
+	
 	bool strikeInvulInGeneral:1;
 	bool throwInvulInGeneral:1;
 	bool superArmorActiveInGeneral:1;
 	bool superArmorActiveInGeneral_IsFull:1;
-	bool isFirst:1;
-	bool enableNormals:1;
-	bool canBlock:1;
 	
 	bool strikeInvul:1;
 	bool throwInvul:1;
 	bool lowProfile:1;
+	bool frontLegInvul:1;
 	bool projectileOnlyInvul:1;
 	bool superArmor:1;
 	bool superArmorThrow:1;
@@ -56,57 +190,134 @@ struct Frame {
 	bool superArmorOverdrive:1;
 	bool superArmorBlitzBreak:1;
 	bool reflect:1;
+	
+	bool hitOccured:1;  // stays true for the remainder of the move
+	bool enableSpecialCancel:1;
+	bool enableSpecials:1;
+	bool airborne:1;
+	
+	bool crossupProtectionIsOdd:1;
+	bool crossupProtectionIsAbove1:1;
+	
+	void printInvuls(char* buf, size_t bufSize) const;
+	void clear();
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
-struct Framebar {
+struct FramebarBase {
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const = 0;
+	virtual void clear() = 0;
+	virtual int findTickNoGreaterThan(int startingPos, DWORD tick) const = 0;
+	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) = 0;
+	virtual void processRequests(FrameBase& destinationFrame) = 0;
+	virtual void processRequests(int destinationPosition) = 0;
+	virtual void copyRequests(FramebarBase& source) = 0;
+	virtual void clearRequests() = 0;
+	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) = 0;
+	virtual FrameBase& getFrame(int index) = 0;
 	FrameType preFrame = FT_NONE;
 	DWORD preFrameLength = 0;
+	int skippedHitstop = 0;
 	bool requestFirstFrame = false;
-	Frame frames[80] { 0 };
+	bool requestNextHit = false;
 	bool completelyEmpty = false;
+};
+
+// This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
+// This means that types like std::vector are not allowed.
+struct Framebar : public FramebarBase {
+	Frame frames[80] { Frame{} };
 	inline Frame& operator[](int index) { return frames[index]; }
 	inline const Frame& operator[](int index) const { return frames[index]; }
-	void clear();
-	int findTickNoGreaterThan(int startingPos, DWORD tick) const;
-	void soakUpIntoPreFrame(const Frame& srcFrame);
-	void combineFramebar(const Framebar& source);
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void clear() override;
+	virtual int findTickNoGreaterThan(int startingPos, DWORD tick) const override;
+	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
+	virtual void processRequests(FrameBase& destinationFrame) override;
+	virtual void processRequests(int destinationPosition) override;
+	virtual void copyRequests(FramebarBase& source) override;
+	virtual void clearRequests() override;
+	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
+	virtual FrameBase& getFrame(int index) override;
+};
+
+// This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
+// This means that types like std::vector are not allowed.
+struct PlayerFramebar : public FramebarBase {
+	PlayerFrame frames[80] { PlayerFrame{} };
+	inline PlayerFrame& operator[](int index) { return frames[index]; }
+	inline const PlayerFrame& operator[](int index) const { return frames[index]; }
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void clear() override;
+	virtual int findTickNoGreaterThan(int startingPos, DWORD tick) const override;
+	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
+	virtual void processRequests(FrameBase& destinationFrame) override;
+	virtual void processRequests(int destinationPosition) override;
+	virtual void copyRequests(FramebarBase& source) override;
+	virtual void clearRequests() override;
+	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
+	virtual FrameBase& getFrame(int index) override;
+	void clearCancels();
+	void clearCancels(int index);
 };
 
 struct EntityFramebar {
+	EntityFramebar() = default;
+	EntityFramebar(int playerIndex, int id) : playerIndex(playerIndex), id(id) { }
 	int playerIndex = -1;
 	int id = -1;
 	const MoveInfo* move = nullptr;
-	static const int titleShortCharsCountMax = 12;
-	char titleShort[titleShortCharsCountMax * 4 + 1];  // UTF8, 12 characters, 4 bytes maximum each, plus a terminating null
-	std::string titleFull;
-	Framebar main { FT_NONE };  // the one framebar that is displayed
-	Framebar idle { FT_NONE };  // because we don't update the framebar when players are idle and reset it when an action beghins after
-	                            // EndScene::framebarIdleForLimit f of idle, if an action begins before EndScene::framebarIdleForLimit f
-	                            // of idle with some non-zero f idle time, we need to display what happened during that
-	                            // idle time so we will take that information from here. This framebar shall be updated even during idle time
-	Framebar hitstop { FT_NONE };  // we omit hitstop in the main framebar, but there's a setting to show it anyway, and we want the
-	                               // framebar to update upon changing this setting without having to re-record the action.
-	                               // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
-	Framebar idleHitstop { FT_NONE };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
-	                                   // described in the 'idle' framebar
+	const char* titleShort = nullptr;
+	const char* titleFull = nullptr;
 	bool foundOnThisFrame = false;
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const = 0;
 	void setTitle(const char* text, const char* textFull = nullptr);
 	void copyTitle(const EntityFramebar& source);
-	void changePreviousFrames(FrameType prevType,
+	inline void changePreviousFramesOneType(FrameType prevType,
+			FrameType newType,
+			int positionHitstopIdle,
+			int positionHitstop,
+			int positionIdle,
+			int position,
+			int maxCount,
+			bool stopAtFirstFrame = false) {
+		changePreviousFrames(&prevType,
+			1,
+			newType,
+			positionHitstopIdle,
+			positionHitstop,
+			positionIdle,
+			position,
+			maxCount,
+			stopAtFirstFrame);
+	}
+	virtual void changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
 		FrameType newType,
 		int positionHitstopIdle,
 		int positionHitstop,
 		int positionIdle,
 		int position,
 		int maxCount,
-		bool stopAtFirstFrame = false);
+		bool stopAtFirstFrame = false) = 0;
 	static int confinePos(int pos);
-	inline static void decrementPos(int& pos) { if (pos == 0) pos = _countof(main.frames) - 1; else --pos; }
-	inline static void incrementPos(int& pos) { if (pos == _countof(main.frames) - 1) pos = 0; else ++pos; }
+	inline static void decrementPos(int& pos) { if (pos == 0) pos = _countof(PlayerFramebar::frames) - 1; else --pos; }
+	inline static void incrementPos(int& pos) { if (pos == _countof(PlayerFramebar::frames) - 1) pos = 0; else ++pos; }
 	inline bool belongsToProjectile() const { return id != -1; }
 	inline bool belongsToPlayer() const { return id == -1; }
+	virtual FramebarBase& getMain() = 0;
+	virtual FramebarBase& getHitstop() = 0;
+	virtual FramebarBase& getIdle() = 0;
+	virtual FramebarBase& getIdleHitstop() = 0;
+	virtual const FramebarBase& getMain() const = 0;
+	virtual const FramebarBase& getHitstop() const = 0;
+	virtual const FramebarBase& getIdle() const = 0;
+	virtual const FramebarBase& getIdleHitstop() const = 0;
 	// maxCodepointCount - pass in a pointer to the maximum number of whole characters (codepoints). This
 	//  number of characters will be included in the byte-length that will be returned via the same
 	//  (maxCodepointCount) pointer.
@@ -117,8 +328,8 @@ struct EntityFramebar {
 	/// null character, that the left portion of the string of given maximum codepoint length is occupying.
 	/// </summary>
 	/// <param name="txt">The UTF8 encoded string, must be null terminated.</param>
-	/// <param name="byteLen">Returns the length of the string, in bytes, not including the terminating null character.</param>
-	/// <param name="cpCountTotal">Returns the number of codepoints in the string, not including the terminating null character.</param>
+	/// <param name="byteLen">Returns the total length of the string, in bytes, not including the terminating null character.</param>
+	/// <param name="cpCountTotal">Returns the total number of codepoints in the string, not including the terminating null character.</param>
 	/// <param name="maxCodepointCount">Provide the maximum number of codepoints to use to calculate byteLenBelowMax.</param>
 	/// <param name="byteLenBelowMax">Uses the first maxCodepointCount codepoints of the string to calculate their byte length
 	/// and return it. Does not include terminating null characters in either the calculation or the return value.
@@ -127,11 +338,105 @@ struct EntityFramebar {
 	static void utf8len(const char* txt, int* byteLen, int* cpCountTotal, int maxCodepointCount, int* byteLenBelowMax);
 };
 
+struct ProjectileFramebar : public EntityFramebar {
+	ProjectileFramebar() = default;
+	ProjectileFramebar(int playerIndex, int id) : EntityFramebar(playerIndex, id) {}
+	Framebar main { };  // the one framebar that is displayed
+	Framebar idle { };  // because we don't update the framebar when players are idle and reset it when an action beghins after
+	                            // EndScene::framebarIdleForLimit f of idle, if an action begins before EndScene::framebarIdleForLimit f
+	                            // of idle with some non-zero f idle time, we need to display what happened during that
+	                            // idle time so we will take that information from here. This framebar shall be updated even during idle time
+	Framebar hitstop { };  // we omit hitstop in the main framebar, but there's a setting to show it anyway, and we want the
+	                               // framebar to update upon changing this setting without having to re-record the action.
+	                               // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
+	Framebar idleHitstop { };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
+	                                   // described in the 'idle' framebar
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame = false) override;
+	virtual FramebarBase& getMain() override;
+	virtual FramebarBase& getHitstop() override;
+	virtual FramebarBase& getIdle() override;
+	virtual FramebarBase& getIdleHitstop() override;
+	virtual const FramebarBase& getMain() const override;
+	virtual const FramebarBase& getHitstop() const override;
+	virtual const FramebarBase& getIdle() const override;
+	virtual const FramebarBase& getIdleHitstop() const override;
+};
+	
+struct CombinedProjectileFramebar : public ProjectileFramebar {
+	CombinedProjectileFramebar() = default;
+	CombinedProjectileFramebar(int playerIndex, int id) : ProjectileFramebar(playerIndex, id) {}
+	Framebar main { };  // the one framebar that is displayed
+	const ProjectileFramebar* sources[_countof(Framebar::frames)] { nullptr };
+	virtual void changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame = false) override;
+	virtual FramebarBase& getMain() override;
+	virtual FramebarBase& getHitstop() override;
+	virtual FramebarBase& getIdle() override;
+	virtual FramebarBase& getIdleHitstop() override;
+	virtual const FramebarBase& getMain() const override;
+	virtual const FramebarBase& getHitstop() const override;
+	virtual const FramebarBase& getIdle() const override;
+	virtual const FramebarBase& getIdleHitstop() const override;
+	bool canBeCombined(const Framebar& source) const;
+	void combineFramebar(const Framebar& source, const ProjectileFramebar* dad);
+	void determineName();
+};
+
+struct PlayerFramebars : public EntityFramebar {
+	PlayerFramebar main { };  // the one framebar that is displayed
+	PlayerFramebar idle { };  // because we don't update the framebar when players are idle and reset it when an action beghins after
+	                            // EndScene::framebarIdleForLimit f of idle, if an action begins before EndScene::framebarIdleForLimit f
+	                            // of idle with some non-zero f idle time, we need to display what happened during that
+	                            // idle time so we will take that information from here. This framebar shall be updated even during idle time
+	PlayerFramebar hitstop { };  // we omit hitstop in the main framebar, but there's a setting to show it anyway, and we want the
+	                               // framebar to update upon changing this setting without having to re-record the action.
+	                               // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
+	PlayerFramebar idleHitstop { };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
+	                                   // described in the 'idle' framebar
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame = false) override;
+	virtual FramebarBase& getMain() override;
+	virtual FramebarBase& getHitstop() override;
+	virtual FramebarBase& getIdle() override;
+	virtual FramebarBase& getIdleHitstop() override;
+	virtual const FramebarBase& getMain() const override;
+	virtual const FramebarBase& getHitstop() const override;
+	virtual const FramebarBase& getIdle() const override;
+	virtual const FramebarBase& getIdleHitstop() const override;
+};
+
 struct ActiveData {
 	short actives = 0;
 	short nonActives = 0;
 	inline bool operator==(const ActiveData& other) const { return actives == other.actives && nonActives == other.nonActives; }
 	inline bool operator!=(const ActiveData& other) const { return !(*this == other); }
+	inline short total() { return actives + nonActives; }
 };
 
 struct ActiveDataArray {
@@ -161,12 +466,12 @@ struct ActiveDataArray {
 	// Print active frames, not including the final span of non-active frames.
 	// Separate distinct hits using a comma (",") character.
 	// Non-active frames are printed in parentheses ("(123)") inbetween the active frames.
-	void print(char* buf, size_t bufSize) const;
+	int print(char* buf, size_t bufSize) const;
 	// Print active frames, not including the final span of non-active frames.
 	// Fuse distinct hits together into unified spans of active frames. Don't use comma (",") character.
 	// Non-active frames are printed in parentheses ("(123)") inbetween the active frames.
-	void printNoSeparateHits(char* buf, size_t bufSize) const;
-	void printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) const;
+	int printNoSeparateHits(char* buf, size_t bufSize) const;
+	int printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) const;
 	void removeSeparateHits(int* outIndex);
 	// Wrap multiple calls to addActive(...) in beginMergeFrame() and endMergeFrame(),
 	// if you want multiple entities to contribute to the active frames on the same frame.
@@ -183,6 +488,7 @@ struct ActiveDataArray {
 	bool checkHitNumConflict(int startup, const ActiveDataArray& other);
 	void findFrame(int frame, int* outIndex, int* outFrame) const;
 	int total() const;
+	inline ActiveData& last() { return data[count - 1]; }
 };
 
 struct PrevStartupsInfo {
@@ -204,6 +510,18 @@ struct SpriteFrameInfo {
 	int frameMax = 0;
 	void print(char* buf, size_t bufSize) const;
 	void fill(Entity ent);
+};
+
+struct MaxHitInfo {
+	int current = 0;
+	int max = 0;
+	int currentUse = 0;
+	int maxUse = 0;
+	void fill(Entity player, int currentHitNum);
+	inline void clear() { current = -1; max = -1; currentUse = -1; maxUse = -1; }
+	inline bool empty() const { return currentUse == -1 && maxUse == -1; }
+	inline bool operator==(const MaxHitInfo& other) { return currentUse == other.currentUse && maxUse == other.maxUse; }
+	inline bool operator!=(const MaxHitInfo& other) { return !(*this == other); }
 };
 
 struct EddieInfo {
@@ -248,12 +566,16 @@ struct ProjectileInfo {
 	int lifeTimeCounter = 0;  // updated every frame
 	int animFrame = 0;  // updated every frame
 	int hitstop = 0;  // updated every frame
+	int hitstopMax = 0;
+	int clashHitstop = 0;
 	int startup = 0;  // if active frames have not started yet, is equal to total. Otherwise, means time since the owning player has started their last move until active frames, inclusive
 	int total = 0;  // time since the owning player started their last move
 	int hitNumber = 0;  // updated every frame
+	int numberOfHits = 0;
 	
 	int hitboxTopY = 0;
 	int hitboxBottomY = 0;
+	MaxHitInfo maxHit;
 	bool hitboxTopBottomValid = false;
 	
 	DWORD creationTime_aswEngineTick = 0;
@@ -263,6 +585,7 @@ struct ProjectileInfo {
 	SpriteFrameInfo sprite;
 	int framebarId = -1;
 	char creatorName[32] { 0 };
+	Entity creator { nullptr };
 	char animName[32] { 0 };
 	bool markActive:1;  // cleared at the start of prepareDrawData. True means hitboxes were found on this frame, or on this logic tick this projectile registered a hit.
 	bool startedUp:1;  // cleared upon disabling. True means active frames have started.
@@ -271,6 +594,8 @@ struct ProjectileInfo {
 	bool inNewSection:1;
 	bool isDangerous:1;
 	bool superArmorActive:1;
+	bool clashedOnThisFrame:1;
+	bool immuneToRCSlowdown:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -361,6 +686,7 @@ struct PlayerInfo {
 	int stun = 0;
 	int stunThreshold = 0;
 	int hitstunMax = 0;
+	int lastHitstopBeforeWipe = 0;
 	int blockstunMax = 0;
 	int hitstopMax = 0;
 	int hitstopMaxSuperArmor = 0;  // for super armors showing correct hitstop max
@@ -373,6 +699,8 @@ struct PlayerInfo {
 	
 	int frameAdvantage = 0;
 	int landingFrameAdvantage = 0;
+	int frameAdvantageNoPreBlockstun = 0;
+	int landingFrameAdvantageNoPreBlockstun = 0;
 	
 	int gaps[10] { 0 };
 	int gapsCount = 0;
@@ -405,12 +733,20 @@ struct PlayerInfo {
 	
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move
+	MaxHitInfo maxHitDisp;
 	int recoveryDisp = 0;  // recovery to display in the UI. Either current or of the last move. Includes only frames where you can't attack
 	int recoveryDispCanBlock = -1;  // recovery until becoming able to block to display in the UI. Either current or of the last move. Includes only frames where you can't block. -1 means need to determine automatically
 	int totalDisp = 0;  // total frames to display in the UI. Either current or of the last move. Includes only frames where you can't attack
+	MaxHitInfo maxHit;
+	MaxHitInfo maxHitUse;
+	int hitNumber = 0;
 	
 	int startupProj = 0;  // startup of all projectiles. Either current or of the last move
+	unsigned short startupProjIgnoredForFramebar = 0;
 	ActiveDataArray activesProj;  // active frames of all projectiles. Either current or of the last move
+	MaxHitInfo maxHitProj;
+	bool maxHitProjConflict = false;
+	Entity maxHitProjLastPtr = nullptr;
 	
 	PrevStartupsInfo prevStartupsDisp { 0 };  // things to add over a + sign in the displayed startup field
 	PrevStartupsInfo prevStartupsTotalDisp { 0 };  // things to add over a + sign in the displayed 'Total' field
@@ -421,6 +757,7 @@ struct PlayerInfo {
 	InvulData strikeInvul { 0 };
 	InvulData throwInvul { 0 };
 	InvulData lowProfile { 0 };
+	InvulData frontLegInvul { 0 };
 	InvulData projectileOnlyInvul { 0 };
 	InvulData superArmor { 0 };
 	InvulData superArmorThrow { 0 };
@@ -431,7 +768,7 @@ struct PlayerInfo {
 	InvulData superArmorGuardImpossible { 0 };
 	InvulData superArmorObjectAttacck { 0 };
 	InvulData superArmorHontaiAttacck { 0 };
-	InvulData superArmorProjectileLevel0 { 0 };
+	InvulData superArmorProjectileLevel0 { 0 };  // this flag only matters when it is absent, and it is present by default. Level 0 are unflickable projectiles
 	InvulData superArmorOverdrive { 0 };
 	InvulData superArmorBlitzBreak { 0 };
 	InvulData reflect { 0 };
@@ -452,11 +789,17 @@ struct PlayerInfo {
 	int playerval0 = 0;
 	int playerval1 = 0;
 	int maxDI = 0;
-	int remainingDoubleJumps = 0;
-	int wasProhibitFDTimer = 0;
+	char remainingDoubleJumps = 0;
+	char wasProhibitFDTimer = 0;
+	char rcSlowdownCounter = 0;
+	char rcSlowdownMax = 0;
+	unsigned short poisonDuration = 0;
+	unsigned short poisonDurationMax = 0;
 	EddieInfo eddie { 0 };
 	
 	DWORD moveStartTime_aswEngineTick = 0;
+	AddedMoveData* standingFDMove = nullptr;
+	AddedMoveData* crouchingFDMove = nullptr;
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };
@@ -501,9 +844,11 @@ struct PlayerInfo {
 	bool changedAnimFiltered:1; // changedAnimOnThisFrame but with extra checks
 	bool inNewMoveSection:1;  // see Moves.h:MoveInfo::sectionSeparator
 	bool idleInNewSection:1;  // see Moves.h:MoveInfo::considerIdleInSeparatedSectionAfterThisManyFrames
+	bool forceBusy:1;  // force startup/total to keep counting frames and the framebar to advance
 	bool frameAdvantageIncludesIdlenessInNewSection:1;  // since frame advantage gets corrected after becoming idle in new section, we need to track if we changed it already
 	bool landingFrameAdvantageIncludesIdlenessInNewSection:1;  // since frame advantage gets corrected after becoming idle in new section, we need to track if we changed it already
 	bool airteched:1;
+	bool wokeUp:1;
 	
 	// These fields are needed because when tap Blitz Shield rejects an attack,
 	// it only enables normals after hitstop at the end of the logic tick, when
@@ -517,6 +862,10 @@ struct PlayerInfo {
 	bool wasEnableNormals:1;
 	bool wasEnableGatlings:1;
 	bool wasEnableWhiffCancels:1;
+	bool wasEnableSpecials:1;
+	bool wasEnableSpecialCancel:1;
+	bool wasEnableAirtech:1;
+	bool wasAttackCollidedSoCanCancelNow:1;
 	bool obtainedForceDisableFlags:1;
 	
 	bool enableBlock:1;  // this holds the raw value of ent.enableBlock() flag
@@ -533,7 +882,6 @@ struct PlayerInfo {
 	bool inBlockstunNextFrame:1;  // This flag is needed so that when you transfer blockstun from air to ground the blockstunMax doesn't get reset,
 	                              // because normally it would, because technically you changed animation and we don't treat all blockstun animations
 	                              // as the same animation yet. If we allow such reset we will wrongfully decrement blockstunMax by 1 in our next prepareDrawData call
-	bool leftHitstop:1;
 	bool hasDangerousProjectiles:1;
 	
 	bool counterhit:1;
@@ -541,10 +889,15 @@ struct PlayerInfo {
 	// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
 	bool wasSuperArmorEnabled:1;
 	bool wasFullInvul:1;
+	bool immuneToRCSlowdown:1;
+	bool wasHitOnPreviousFrame:1;
+	bool wasHitOnThisFrame:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
-	char anim[32] { 0 };
+	char anim[32] { '\0' };
+	char moveName[32] = { '\0' };
 	char animIntraFrame[32] { '\0' };
+	char moveNameIntraFrame[32] = { '\0' };
 	char index = 0;  // the index of this PlayerInfo in endScene's 'players' array
 	inline void clearGaps() { gapsCount = 0; }
 	void addGap(int length = 1);
@@ -556,6 +909,20 @@ struct PlayerInfo {
 	void printTotal(char* buf, size_t bufSize);
 	void printInvuls(char* buf, size_t bufSize) const;
 	bool isIdleInNewSection();
-	bool isInArbitraryStartupSection();
+	bool isInVariableStartupSection();
 	bool canPrintTotal() const;
+	void setMoveName(char* destination, Entity ent);
+	void addActiveFrame(Entity ent, PlayerFramebar& framebar);
+	AddedMoveData* findMoveByName(const char* name) const;
+	// use this function to determine whether the player is airborne when
+	// the game's logic tick is still ongoing, as inside various game's function hooks for example
+	inline bool airborne_insideTick() const { return pawn.ascending() || pawn.posY() > 0; }
+	// use THIS function to determine whether the player is airborne after
+	// the game's logic tick is over, in EndScene's prepareDrawData
+	inline bool airborne_afterTick() const { return !(y == 0 && speedY == 0); }
+	bool wasHadGatling(const char* name) const;
+	bool wasHadWhiffCancel(const char* name) const;
+	bool wasHadGatlings() const;
+	bool wasHadWhiffCancels() const;
+	CanProgramSecretGardenInfo canProgramSecretGarden() const;
 };

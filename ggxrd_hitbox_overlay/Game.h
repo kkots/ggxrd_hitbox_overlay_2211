@@ -63,6 +63,7 @@ using drawStunMash_t = void(__thiscall*)(void* pawn, float bar, BOOL withBar, BO
 using UWorld_IsPaused_t = bool(__thiscall*)(void* UWorld);
 using drawJackoHouseHp_t = void(__thiscall*)(void* pawn);
 using getGameViewportClient_t = void*(__thiscall*)(void* REDHUD);
+using getExtraGameState_t = char*(__cdecl*)();
 
 enum DummyRecordingMode {
 	DUMMY_MODE_IDLE,

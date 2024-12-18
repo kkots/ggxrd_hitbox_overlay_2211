@@ -25,11 +25,37 @@ UI ui;
 
 static ImVec4 RGBToVec(DWORD color);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+// The following functions are from imgui_internal.h
+IMGUI_API int           ImTextCharFromUtf8(unsigned int* out_char, const char* in_text, const char* in_text_end);               // read one character. return input UTF-8 bytes count
+static inline bool      ImCharIsBlankW(unsigned int c)  { return c == ' ' || c == '\t' || c == 0x3000; }
+
+
+struct imGuiDrawWrappedTextWithIcons_Icon {
+	ImTextureID texId;
+	ImVec2 size;
+	ImVec2 uvStart;
+	ImVec2 uvEnd;
+};
+// You must call PopTextWrapPos if you set wrap width with PushTextWrapPos before calling this function
+static void imGuiDrawWrappedTextWithIcons(const char* textStart, const char* textEnd, float wrap_width, const imGuiDrawWrappedTextWithIcons_Icon* icons, int iconsCount);
+static const char* imGuiDrawWrappedTextWithIcons_CalcWordWrapPositionA(float scale,
+	const char* text,
+	const char* text_end,
+	float wrap_width,
+	const imGuiDrawWrappedTextWithIcons_Icon* icons, int iconsCount,
+	const imGuiDrawWrappedTextWithIcons_Icon** icon);
 const ImVec2 BTN_SIZE = ImVec2(60, 20);
 static ImVec4 RED_COLOR = RGBToVec(0xEF5454);
 static ImVec4 YELLOW_COLOR = RGBToVec(0xF9EA6C);
 static ImVec4 GREEN_COLOR = RGBToVec(0x5AE976);
 static ImVec4 BLACK_COLOR = RGBToVec(0);
+static ImVec4 WHITE_COLOR = RGBToVec(0xFFFFFF);
+static ImVec4 P1_COLOR = RGBToVec(0xff944f);
+static ImVec4 P1_OUTLINE_COLOR = RGBToVec(0xd73833);
+static ImVec4 P2_COLOR = RGBToVec(0x78d6ff);
+static ImVec4 P2_OUTLINE_COLOR = RGBToVec(0x525fdf);
+static ImVec4* P1P2_COLOR[2] = { &P1_COLOR, &P2_COLOR };
+static ImVec4* P1P2_OUTLINE_COLOR[2] = { &P1_OUTLINE_COLOR, &P2_OUTLINE_COLOR };
 static char strbuf[512];
 static std::string stringArena;
 static char printdecimalbuf[512];
@@ -37,11 +63,27 @@ static int numDigits(int num);  // For negative numbers does not include the '-'
 struct UVStartEnd { ImVec2 start; ImVec2 end; };
 static UVStartEnd digitUVs[10];
 struct FrameArt { FrameType type; const PngResource* resource; ImVec2 uvStart; ImVec2 uvEnd; const char* description; };
-static FrameArt frameArtNonColorblind[FRAME_TYPE_LAST + 1];
-static FrameArt frameArtColorblind[FRAME_TYPE_LAST + 1];
+static FrameArt frameArtNonColorblind[FT_LAST];
+static FrameArt frameArtColorblind[FT_LAST];
 struct FrameMarkerArt { FrameMarkerType type; const PngResource* resource; ImVec2 uvStart; ImVec2 uvEnd; };
-static FrameMarkerArt frameMarkerArtNonColorblind[MARKER_TYPE_LAST + 1];
-static FrameMarkerArt frameMarkerArtColorblind[MARKER_TYPE_LAST + 1];
+static FrameMarkerArt frameMarkerArtNonColorblind[MARKER_TYPE_LAST];
+static FrameMarkerArt frameMarkerArtColorblind[MARKER_TYPE_LAST];
+static const float frameWidthOriginal = 9.F;
+static const float frameHeightOriginal = 15.F;
+static const float frameMarkerWidthOriginal = 11.F;
+static const float frameMarkerHeightOriginal = 6.F;
+static const float firstFrameHeight = 19.F;
+float drawFramebars_frameItselfHeight;
+const FrameArt* drawFramebars_frameArtArray;
+ImDrawList* drawFramebars_drawList;
+ImVec2 drawFramebars_windowPos;
+int drawFramebars_hoveredFrameIndex;
+float drawFramebars_hoveredFrameY;
+float drawFramebars_y;
+const float innerBorderThickness = 1.F;
+const float innerBorderThicknessHalf = innerBorderThickness * 0.5F;
+float drawFramebars_frameWidthScaled;
+static FrameType frameMap[FT_LAST];
 
 struct CustomImDrawList {
 	ImVector<ImDrawCmd> CmdBuffer;
@@ -82,7 +124,14 @@ static void pushZeroItemSpacingStyle();
 static float getItemSpacing();
 static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
 static bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_button, bool* isDragging);
-static void outlinedText(ImVec2 pos, const char* text);
+static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
+static int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels);
+static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
+static void printInputs(char*&buf, size_t& bufSize, UI::InputName** motions, int motionCount, UI::InputName** buttons, int buttonsCount);
+static void printChippInvisibility(int current, int max);
+static void textUnformattedColored(ImVec4 color, const char* str);
+static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str);
+static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit);
 
 bool UI::onDllMain(HMODULE hModule) {
 	
@@ -118,11 +167,28 @@ bool UI::onDllMain(HMODULE hModule) {
 			FlushInstructionCache(GetCurrentProcess(), (void*)GetKeyStateCallPlace, 4);
 		}
 	}
+	#define blockFDNotice " May or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD."
 	addFrameArt(hModule, FT_ACTIVE,
 		IDB_ACTIVE_FRAME, activeFrame,
 		IDB_ACTIVE_FRAME_NON_COLORBLIND, activeFrameNonColorblind,
-		"Active: an attack is currently active. Cannot perform another attack,"
-		" but may or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD.");
+		"Active: an attack is currently active. Cannot perform another attack."
+		blockFDNotice);
+	addFrameArt(hModule, FT_ACTIVE_NEW_HIT,
+		IDB_ACTIVE_FRAME_NEW_HIT, activeFrameNewHit,
+		IDB_ACTIVE_FRAME_NEW_HIT_NON_COLORBLIND, activeFrameNewHitNonColorblind,
+		"Active, new (potential) hit has started: an attack is currently active. The black shadow on the left side of the frame"
+		" denotes the start of a new (potential) hit. They attack may be capable of doing fewer hits than 1+\"new hits\" displayed,"
+		" and the first actual hit may occur on any active frame independent of \"new hit\" frames."
+		" \"New hit\" frame merely means that the hit #2, #3 and so on can only happen after a \"new hit\" frame,"
+		" and, between the first hit and the next \"new hit\", the attack is inactive (even though it is displayed as active)."
+		" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on."
+		" Cannot perform another attack."
+		blockFDNotice);
+	addFrameArt(hModule, FT_ACTIVE_HITSTOP,
+		IDB_ACTIVE_FRAME_HITSTOP, activeFrameHitstop,
+		IDB_ACTIVE_FRAME_HITSTOP_NON_COLORBLIND, activeFrameHitstopNonColorblind,
+		"Active: an attack is currently active and the attacking player is in hitstop. Cannot perform another attack."
+		blockFDNotice);
 	addImage(hModule, IDB_DIGIT_0, digitFrame[0]);
 	addImage(hModule, IDB_DIGIT_1, digitFrame[1]);
 	addImage(hModule, IDB_DIGIT_2, digitFrame[2]);
@@ -147,38 +213,48 @@ bool UI::onDllMain(HMODULE hModule) {
 	addFrameArt(hModule, FT_IDLE_ELPHELT_RIFLE,
 		IDB_IDLE_FRAME_ELPHELT_RIFLE, idleFrameElpheltRifle,
 		IDB_IDLE_FRAME_ELPHELT_RIFLE_NON_COLORBLIND, idleFrameElpheltRifleNonColorblind,
-		"Idle: For Elphelt: can cancel stance with specials, but not fire yet. For everyone else: are in stance and able to attack from it. Everyone: Can't block or FD.");
+		"Idle: can cancel stance with specials, but not fire yet. Can't block or FD.");
+	addFrameArt(hModule, FT_STARTUP_STANCE_CAN_STOP_HOLDING,
+		IDB_IDLE_FRAME_ELPHELT_RIFLE_CAN_STOP_HOLDING, idleFrameElpheltRifleCanStopHolding,
+		IDB_IDLE_FRAME_ELPHELT_RIFLE_CAN_STOP_HOLDING_NON_COLORBLIND, idleFrameElpheltRifleCanStopHoldingNonColorblind,
+		"Being in some form of stance: can cancel into one or more specials. Can release the button to cancel stance. Can't block or FD or perform normal attacks.");
 	addFrameArt(hModule, FT_LANDING_RECOVERY,
 		IDB_LANDING_RECOVERY_FRAME, landingRecoveryFrame,
 		IDB_LANDING_RECOVERY_FRAME_NON_COLORBLIND, landingRecoveryFrameNonColorblind,
-		"Landing recovery: can't perform another attack,"
-		" but may or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD.");
+		"Landing recovery: can't perform another attack."
+		blockFDNotice);
+	addFrameArt(hModule, FT_LANDING_RECOVERY_CAN_CANCEL,
+		IDB_LANDING_RECOVERY_FRAME_CAN_CANCEL, landingRecoveryFrameCanCancel,
+		IDB_LANDING_RECOVERY_FRAME_CAN_CANCEL_NON_COLORBLIND, landingRecoveryFrameCanCancelNonColorblind,
+		"Landing recovery: can't perform a regular attack, but can cancel into certain moves."
+		blockFDNotice);
 	addFrameArt(hModule, FT_NON_ACTIVE,
 		IDB_NON_ACTIVE_FRAME, nonActiveFrame,
 		IDB_NON_ACTIVE_FRAME_NON_COLORBLIND, nonActiveFrameNonColorblind,
 		"Non-active: a frame inbetween active frames of an attack."
-		" Cannot perform another attack,"
-		" but may or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD.");
+		" Cannot perform another attack."
+		blockFDNotice);
 	addFrameArt(hModule, FT_PROJECTILE,
 		IDB_PROJECTILE_FRAME, projectileFrame,
 		IDB_PROJECTILE_FRAME_NON_COLORBLIND, projectileFrameNonColorblind,
-		"Projectile: a projectile's attack is active. Can't perform another attack,"
-		" but may or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD.");
+		"Projectile: a projectile's attack is active. Can't perform another attack."
+		blockFDNotice);
 	addFrameArt(hModule, FT_RECOVERY,
 		IDB_RECOVERY_FRAME, recoveryFrame,
 		IDB_RECOVERY_FRAME_NON_COLORBLIND, recoveryFrameNonColorblind,
-		"Recovery: an attack's active frames are already over. Can't perform another attack,"
-		" but may or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD.");
+		"Recovery: an attack's active frames are already over. Can't perform another attack."
+		blockFDNotice);
 	addFrameArt(hModule, FT_RECOVERY_HAS_GATLINGS,
 		IDB_RECOVERY_FRAME_HAS_GATLINGS, recoveryFrameHasGatlings,
 		IDB_RECOVERY_FRAME_HAS_GATLINGS_NON_COLORBLIND, recoveryFrameHasGatlingsNonColorblind,
-		"Recovery, but can gatling or cancels: an attack's active frames are already over but can gatling or cancel into some other attacks."
-		" May or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD.");
+		"Recovery, but can gatling or cancel or release: an attack's active frames are already over but can gatling or cancel into some other attacks"
+		" or release the button to end the attack sooner."
+		blockFDNotice);
 	addFrameArt(hModule, FT_RECOVERY_CAN_ACT,
 		IDB_RECOVERY_FRAME_CAN_ACT, recoveryFrameCanAct,
 		IDB_RECOVERY_FRAME_CAN_ACT_NON_COLORBLIND, recoveryFrameCanActNonColorblind,
-		"Recovery, but can act: an attack's active frames are already over but can gatling into some other attacks or jump or airdash."
-		" May or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD.");
+		"Recovery, but can gatling or cancel or more: an attack's active frames are already over but can gatling into some other attacks or do other actions."
+		blockFDNotice);
 	addFrameArt(hModule, FT_STARTUP,
 		IDB_STARTUP_FRAME, startupFrame,
 		IDB_STARTUP_FRAME_NON_COLORBLIND, startupFrameNonColorblind,
@@ -201,16 +277,51 @@ bool UI::onDllMain(HMODULE hModule) {
 	addFrameArt(hModule, FT_XSTUN,
 		IDB_XSTUN_FRAME, xstunFrame,
 		IDB_XSTUN_FRAME_NON_COLORBLIND, xstunFrameNonColorblind,
-		"Blockstun, hitstun or holding FD: can't perform another attack, or, if in hitstun, then block/FD.");
+		"Blockstun, hitstun, holding FD, wakeup or airtech: can't perform an attack, and, if in hitstun/wakeup/tech, then block/FD.");
+	addFrameArt(hModule, FT_XSTUN_CAN_CANCEL,
+		IDB_XSTUN_FRAME_CAN_CANCEL, xstunFrameCanCancel,
+		IDB_XSTUN_FRAME_CAN_CANCEL_NON_COLORBLIND, xstunFrameCanCancelNonColorblind,
+		"Blockstun that can be canceled into some specials: can't perform regular attacks.");
+	addFrameArt(hModule, FT_XSTUN_HITSTOP,
+		IDB_XSTUN_FRAME_HITSTOP, xstunFrameHitstop,
+		IDB_XSTUN_FRAME_HITSTOP_NON_COLORBLIND, xstunFrameHitstopNonColorblind,
+		"Blockstun, hitstun, holding FD while in hitstop: can't perform an attack, and, if in hitstun, then block/FD.");
+	addFrameArt(hModule, FT_GRAYBEAT_AIR_HITSTUN,
+		IDB_GRAYBEAT_AIR_HITSTUN, graybeatAirHitstunFrame,
+		IDB_GRAYBEAT_AIR_HITSTUN_NON_COLORBLIND, graybeatAirHitstunFrameNonColorblind,
+		"In air hitstun, but can airtech: this is a graybeat combo. Can't perform an attack or block or FD.");
+	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE2,
+		IDB_ZATO_BREAK_THE_LAW_STAGE2, zatoBreakTheLawStage2Frame,
+		IDB_ZATO_BREAK_THE_LAW_STAGE2_NON_COLORBLIND, zatoBreakTheLawStage2FrameNonColorblind,
+		"Performing a move that can be held: can release the button any time to cancel the move."
+			" The move was held long enough to have longer recovery upon release."
+			" Can't block or FD or perform attacks.");
+	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE3,
+		IDB_ZATO_BREAK_THE_LAW_STAGE3, zatoBreakTheLawStage3Frame,
+		IDB_ZATO_BREAK_THE_LAW_STAGE3_NON_COLORBLIND, zatoBreakTheLawStage3FrameNonColorblind,
+		"Performing a move that can be held: can release the button any time to cancel the move."
+			" The move was held long enough to have an even longer recovery upon release."
+			" Can't block or FD or perform attacks.");
+	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED,
+		IDB_ZATO_BREAK_THE_LAW_STAGE2_RELEASED, zatoBreakTheLawStage2ReleasedFrame,
+		IDB_ZATO_BREAK_THE_LAW_STAGE2_RELEASED_NON_COLORBLIND, zatoBreakTheLawStage2ReleasedFrameNonColorblind,
+		"Performing a move that can be held: the move had been held long enough to have longer recovery upon release."
+			" Can't block or FD or perform attacks.");
+	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED,
+		IDB_ZATO_BREAK_THE_LAW_STAGE3_RELEASED, zatoBreakTheLawStage3ReleasedFrame,
+		IDB_ZATO_BREAK_THE_LAW_STAGE3_RELEASED_NON_COLORBLIND, zatoBreakTheLawStage3ReleasedFrameNonColorblind,
+		"Performing a move that can be held: the move had been held long enough to have an even longer recovery upon release."
+			" Can't block or FD or perform attacks.");
 	
-	packedTexture = texturePacker.getTexture();
+	packedTexture = std::make_unique<PngResource>();
+	*packedTexture = texturePacker.getTexture();
 	
 	FrameArt* arrays[2] = { frameArtColorblind, frameArtNonColorblind };
 	FrameMarkerArt* arraysMarkers[2] = { frameMarkerArtColorblind, frameMarkerArtNonColorblind };
 	for (int i = 0; i < 2; ++i) {
 		arrays[i][FT_HITSTOP] = {
 			FT_HITSTOP,
-			&idleFrame,
+			idleFrame.get(),
 			ImVec2{},
 			ImVec2{},
 			"Hitstop: the time is stopped for this player due to a hit or blocking."
@@ -219,42 +330,326 @@ bool UI::onDllMain(HMODULE hModule) {
 	for (int i = 0; i < 2; ++i) {
 		FrameArt* theArray = arrays[i];
 		
+		FrameArt& idleProjectile = theArray[FT_IDLE_PROJECTILE];
+		idleProjectile = arrays[i][FT_IDLE];
+		idleProjectile.description = "Projectile is not active.";
+		
+		FrameArt& activeProjectile = theArray[FT_ACTIVE_PROJECTILE];
+		activeProjectile = arrays[i][FT_ACTIVE];
+		activeProjectile.description = "Projectile is active.";
+		
+		FrameArt& activeProjectileNewHit = theArray[FT_ACTIVE_NEW_HIT_PROJECTILE];
+		activeProjectileNewHit = arrays[i][FT_ACTIVE_NEW_HIT];
+		activeProjectileNewHit.description = "Projectile is active, new (potential) hit has started:"
+			" The black shadow on the left side of the frame denotes the start of a new (potential) hit."
+			" The projectile may be capable of doing fewer hits than 1+the number of \"new hits\" displayed,"
+			" and the first actual hit may occur on any active frame independent of \"new hit\" frames."
+			" \"New hit\" frame merely means that the hit #2, #3 and so on can only happen after a \"new hit\" frame,"
+			" and, between the first hit and the next \"new hit\", projectile is inactive (even though it is displayed as active)."
+			" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on.";
+		
+		FrameArt& activeProjectileHitstop = theArray[FT_ACTIVE_HITSTOP_PROJECTILE];
+		activeProjectileHitstop = arrays[i][FT_ACTIVE_HITSTOP];
+		activeProjectileHitstop.description = "Projectile is active, and in hitstop: while the projectile is in hitstop, time doesn't advance for it and"
+			" it doesn't hit enemies.";
+		
+		FrameArt& nonActiveProjectile = theArray[FT_NON_ACTIVE_PROJECTILE];
+		nonActiveProjectile = arrays[i][FT_NON_ACTIVE];
+		nonActiveProjectile.description = "A frame inbetweeen the active frames of a projectile.";
+		
 		FrameArt& startupAnytimeNow = theArray[FT_STARTUP_ANYTIME_NOW];
 		startupAnytimeNow = arrays[i][FT_IDLE_ELPHELT_RIFLE];
-		startupAnytimeNow.description = "Startup of a chargeable move: can release the button any time to attack. Can't block or FD or perform normal attacks.";
+		startupAnytimeNow.description = "Startup of a chargeable move: can release the button any time to either attack or cancel the move."
+			" Can't block or FD or perform normal attacks.";
+		
+		FrameArt& startupProgramSecretGarden = theArray[FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN];
+		startupProgramSecretGarden = arrays[i][FT_IDLE_ELPHELT_RIFLE];
+		startupProgramSecretGarden.description = "Startup: can program Secret Garden."
+			" Can't block or FD or perform normal attacks.";
 		
 		FrameArt& startupStance = theArray[FT_STARTUP_STANCE];
 		startupStance = arrays[i][FT_IDLE_ELPHELT_RIFLE];
 		startupStance.description = "Being in some form of stance: can cancel into one or more specials. Can't block or FD or perform normal attacks.";
 		
+		FrameArt& elpheltRifleReady = theArray[FT_IDLE_ELPHELT_RIFLE_READY];
+		elpheltRifleReady = arrays[i][FT_STARTUP_STANCE_CAN_STOP_HOLDING];
+		elpheltRifleReady.description = "Idle: Can cancel the stance into specials or fire the rifle. Can't block or FD or perform normal attacks.";
+		
+		FrameArt& canBlockAndCancel = theArray[FT_STARTUP_CAN_BLOCK_AND_CANCEL];
+		canBlockAndCancel = arrays[i][FT_STARTUP_STANCE_CAN_STOP_HOLDING];
+		canBlockAndCancel.description = "Startup, but can block and cancel into certain moves:"
+		" an attack's active frames have not yet started, or this is not an attack."
+		" Can block and/or maybe FD, possibly can't switch block, and can cancel into certain moves.";
+		
+		FrameArt& rifleReload = theArray[FT_RECOVERY_CAN_RELOAD];
+		rifleReload = arrays[i][FT_RECOVERY_HAS_GATLINGS];
+		rifleReload.description = "Recovery, but can reload. Can't attack, block or FD.";
+		
+		FrameArt& startupAnytimeNowCanAct = theArray[FT_STARTUP_ANYTIME_NOW_CAN_ACT];
+		startupAnytimeNowCanAct = arrays[i][FT_IDLE_CANT_BLOCK];
+		startupAnytimeNowCanAct.description = "Startup of a chargeable move: can release the button any time to either attack or cancel the move,"
+			" and can also cancel into other moves."
+			" Can't block or FD or perform normal attacks.";
+		
+		FrameArt& airborneIdleCanGroundBlock = theArray[FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK];
+		airborneIdleCanGroundBlock = arrays[i][FT_IDLE_CANT_FD];
+		airborneIdleCanGroundBlock.description = "Idle while airborne on the pre-landing (last airborne) frame:"
+			" can block grounded on this frame and regular (without FD) block ground attacks that require FD to be blocked in the air."
+			" Can attack, block and FD.";
+		
 		for (int j = 1; j < _countof(frameArtNonColorblind); ++j) {
 			FrameArt& art = theArray[j];
+			#ifdef _DEBUG
 			if (!art.resource) {
 				MessageBoxW(NULL, L"Null frame art.", L"Error", MB_OK);
 				return false;
 			}
+			#endif
 			art.uvStart = { art.resource->uStart, art.resource->vStart };
 			art.uvEnd = { art.resource->uEnd, art.resource->vEnd };
 		}
 	}
+	#undef blockFDNotice
 	for (int i = 0; i < 2; ++i) {
 		for (int j = 0; j < _countof(frameMarkerArtNonColorblind); ++j) {
 			FrameMarkerArt& art = arraysMarkers[i][j];
+			#ifdef _DEBUG
 			if (!art.resource) {
 				MessageBoxW(NULL, L"Null frame marker art.", L"Error", MB_OK);
 				return false;
 			}
+			#endif
 			art.uvStart = { art.resource->uStart, art.resource->vStart };
 			art.uvEnd = { art.resource->uEnd, art.resource->vEnd };
 		}
 	}
 	for (int i = 0; i < 10; ++i) {
-		const PngResource& res = digitFrame[i];
+		const PngResource& res = *digitFrame[i];
 		digitUVs[i] = {
 			{ res.uStart, res.vStart },
 			{ res.uEnd, res.vEnd }
 		};
 	}
+	
+	inputNames[INPUT_HOLD_P] = { "[P]", BUTTON };
+	inputNames[INPUT_P_STRICT_PRESS] = { "S (no buffer)",  BUTTON };
+	inputNames[INPUT_P_STRICT_RELEASE] = { "]S[ (no buffer)",  BUTTON };
+	inputNames[INPUT_PRESS_P] = { "P",  BUTTON };
+	inputNames[INPUT_NOT_HOLD_P] = { "don't hold P",  MULTIWORD_BUTTON };
+	inputNames[INPUT_RELEASE_P] = { "]P[",  BUTTON };
+	inputNames[INPUT_HOLD_K] = { "[K]", BUTTON };
+	inputNames[INPUT_K_STRICT_PRESS] = { "K (no buffer)", BUTTON };
+	inputNames[INPUT_K_STRICT_RELEASE] = { "]K[ (no buffer)", BUTTON };
+	inputNames[INPUT_PRESS_K] = { "K", BUTTON };
+	inputNames[INPUT_NOT_HOLD_K] = { "don't hold K", MULTIWORD_BUTTON };
+	inputNames[INPUT_RELEASE_K] = { "]K[", BUTTON };
+	inputNames[INPUT_HOLD_S] = { "[S]", BUTTON };
+	inputNames[INPUT_S_STRICT_PRESS] = { "S (no buffer)", BUTTON };
+	inputNames[INPUT_S_STRICT_RELEASE] = { "]S[ (no buffer)", BUTTON };
+	inputNames[INPUT_PRESS_S] = { "S", BUTTON };
+	inputNames[INPUT_NOT_HOLD_S] = { "don't hold S", MULTIWORD_BUTTON };
+	inputNames[INPUT_RELEASE_S] = { "]S[", BUTTON };
+	inputNames[INPUT_HOLD_H] = { "[H]", BUTTON };
+	inputNames[INPUT_H_STRICT_PRESS] = { "H (no buffer)", BUTTON };
+	inputNames[INPUT_H_STRICT_RELEASE] = { "]H[ (no buffer)", BUTTON };
+	inputNames[INPUT_PRESS_H] = { "H", BUTTON };
+	inputNames[INPUT_NOT_HOLD_H] = { "don't hold H", MULTIWORD_BUTTON };
+	inputNames[INPUT_RELEASE_H] = { "]H[", BUTTON };
+	inputNames[INPUT_HOLD_D] = { "[D]", BUTTON };
+	inputNames[INPUT_D_STRICT_PRESS] = { "D (no buffer)", BUTTON };
+	inputNames[INPUT_D_STRICT_RELEASE] = { "]D[ (no buffer)", BUTTON };
+	inputNames[INPUT_PRESS_D] = { "D", BUTTON };
+	inputNames[INPUT_NOT_HOLD_D] = { "don't hold D", MULTIWORD_BUTTON };
+	inputNames[INPUT_RELEASE_D] = { "]D[", BUTTON };
+	inputNames[INPUT_HOLD_TAUNT] = { "[Taunt]", BUTTON };
+	inputNames[INPUT_TAUNT_STRICT_PRESS] = { "Taunt (no buffer)", BUTTON };
+	inputNames[INPUT_TAUNT_STRICT_RELEASE] = { "]Taunt[ (no buffer)", BUTTON };
+	inputNames[INPUT_PRESS_TAUNT] = { "Taunt", BUTTON };
+	inputNames[INPUT_NOT_HOLD_TAUNT] = { "don't hold Taunt", MULTIWORD_BUTTON };
+	inputNames[INPUT_RELEASE_TAUNT] = { "Taunt", BUTTON };
+	inputNames[INPUT_1] = { "1", MOTION };
+	inputNames[INPUT_4_OR_1_OR_2] = { "4/1/2", MOTION };
+	inputNames[INPUT_NOT_1] = { "don't hold 1", MULTIWORD_MOTION };
+	inputNames[INPUT_NOT_4_OR_1_OR_2] = { "don't hold 4/1/2", MULTIWORD_MOTION };
+	inputNames[INPUT_2] = { "2", MOTION };
+	inputNames[INPUT_ANYDOWN] = { "1/2/3", MOTION };
+	inputNames[INPUT_ANYDOWN_STRICT_PRESS] = { "press 1/2/3 (no buffer)", MULTIWORD_BUTTON };
+	inputNames[INPUT_NOT_2] = { "don't hold 2", MULTIWORD_MOTION };
+	inputNames[INPUT_NOTANYDOWN] = { "don't hold 1/2/3", MULTIWORD_MOTION };
+	inputNames[INPUT_3] = { "3", MOTION };
+	inputNames[INPUT_6_OR_3_OR_2] = { "6/3/2", MOTION };
+	inputNames[INPUT_NOT_3] = { "don't hold 3", MULTIWORD_MOTION };
+	inputNames[INPUT_NOT_6_OR_3_OR_2] = { "don't hold 6/3/2", MULTIWORD_MOTION };
+	inputNames[INPUT_4] = { "4", MOTION };
+	inputNames[INPUT_ANYBACK] = { "7/4/1", MOTION };
+	inputNames[INPUT_ANYBACK_STRICT_PRESS] = { "press 7/4/1 (no buffer)", MULTIWORD_BUTTON };
+	inputNames[INPUT_NOT_4] = { "don't hold 4", MULTIWORD_MOTION };
+	inputNames[INPUT_NOTANYBACK] = { "don't hold 7/4/1", MULTIWORD_MOTION };
+	inputNames[INPUT_5] = { "5", MOTION };
+	inputNames[INPUT_ALWAYS_TRUE_DUPLICATE] = { "nullptr", MULTIWORD_MOTION };
+	inputNames[INPUT_NOT_5] = { "don't hold 5", MULTIWORD_MOTION };
+	inputNames[INPUT_6] = { "6", MOTION };
+	inputNames[INPUT_ANYFORWARD] = { "9/6/3", MOTION };
+	inputNames[INPUT_ANYFORWARD_STRICT_PRESS] = { "press 9/6/3 (no buffer)", MULTIWORD_BUTTON };
+	inputNames[INPUT_NOT_6] = { "don't hold 6", MULTIWORD_MOTION };
+	inputNames[INPUT_NOTANYFORWARD] = { "don't hold 9/6/3", MULTIWORD_MOTION };
+	inputNames[INPUT_7] = { "7", MOTION };
+	inputNames[INPUT_4_OR_7_OR_8] = { "4/7/8", MOTION };
+	inputNames[INPUT_NOT_7] = { "don't hold 7", MULTIWORD_MOTION };
+	inputNames[INPUT_NOT_4_OR_7_OR_8] = { "don't hold 4/7/8", MULTIWORD_MOTION };
+	inputNames[INPUT_8] = { "8", MOTION };
+	inputNames[INPUT_ANYUP] = { "7/8/9", MOTION };
+	inputNames[INPUT_ANYUP_STRICT_PRESS] = { "press 7/8/9 (no buffer)", MULTIWORD_BUTTON };
+	inputNames[INPUT_NOT_8] = { "don't hold 8", MULTIWORD_MOTION };
+	inputNames[INPUT_NOTANYUP] = { "don't hold 7/8/9", MULTIWORD_MOTION };
+	inputNames[INPUT_9] = { "9", MOTION };
+	inputNames[INPUT_6_OR_9_OR_8] = { "6/9/8", MOTION };
+	inputNames[INPUT_NOT_9] = { "don't hold 9", MULTIWORD_MOTION };
+	inputNames[INPUT_NOT_6_OR_9_OR_8] = { "don't hold 6/9/8", MULTIWORD_MOTION };
+	inputNames[INPUT_236] = { "236", MOTION };
+	inputNames[INPUT_623] = { "623", MOTION };
+	inputNames[INPUT_214] = { "214", MOTION };
+	inputNames[INPUT_41236] = { "41236", MOTION };
+	inputNames[INPUT_421] = { "421", MOTION };
+	inputNames[INPUT_63214] = { "63214", MOTION };
+	inputNames[INPUT_236236] = { "236236", MOTION };
+	inputNames[INPUT_214214] = { "214214", MOTION };
+	inputNames[INPUT_4123641236] = { "4123641236", MOTION };
+	inputNames[INPUT_624624] = { "624624", MOTION };
+	inputNames[INPUT_632146] = { "632146", MOTION };
+	inputNames[INPUT_641236] = { "641236", MOTION };
+	inputNames[INPUT_2141236] = { "2141236", MOTION };
+	inputNames[INPUT_2363214] = { "2363214", MOTION };
+	inputNames[INPUT_22] = { "22", MOTION };
+	inputNames[INPUT_46] = { "46", MOTION };
+	inputNames[INPUT_CHARGE_BACK_FORWARD_30F] = { "charge back 30f -> forward", MULTIWORD_MOTION };
+	inputNames[INPUT_CHARGE_DOWN_UP_30F] = { "charge down 30f -> up", MULTIWORD_MOTION };
+	inputNames[INPUT_6428] = { "6428", MOTION };
+	inputNames[INPUT_CHARGE_BACK_UP_30F] = { "charge back 30f -> up", MULTIWORD_MOTION };
+	inputNames[INPUT_646426] = { "646426", MOTION };
+	inputNames[INPUT_342646] = { "342646", MOTION };
+	inputNames[INPUT_28] = { "28", MOTION };
+	inputNames[INPUT_646] = { "646", MOTION };
+	inputNames[INPUT_P_MASH] = { "mash (press 5 times) P", MULTIWORD_BUTTON };
+	inputNames[INPUT_K_MASH] = { "mash (press 5 times) K", MULTIWORD_BUTTON };
+	inputNames[INPUT_S_MASH] = { "mash (press 5 times) S", MULTIWORD_BUTTON };
+	inputNames[INPUT_H_MASH] = { "mash (press 5 times) H", MULTIWORD_BUTTON };
+	inputNames[INPUT_D_MASH] = { "mash (press 5 times) D", MULTIWORD_BUTTON };
+	inputNames[INPUT_CIRCLE] = { "circle", MULTIWORD_MOTION };
+	inputNames[INPUT_222] = { "222", MOTION };
+	inputNames[INPUT_2222] = { "2222", MOTION };
+	inputNames[INPUT_236236_STRICTER] = { "236236", MOTION };
+	inputNames[INPUT_PRESS_D_DUPLICATE] = { "D", BUTTON };
+	inputNames[INPUT_HOLD_6_OR_3_AND_PRESS_TWO_OF_PKSH] = { "6/3+any two of PKSH", MULTIWORD_BUTTON };
+	inputNames[INPUT_ROMAN_CANCEL] = { "Roman Cancel", MULTIWORD_BUTTON };
+	inputNames[INPUT_SUPERJUMP] = { "Superjump", BUTTON };
+	inputNames[INPUT_ANYUP_STRICT_PRESS_DUPLICATE] = { "press 7/8/9 (no buffer)", MULTIWORD_BUTTON };
+	inputNames[INPUT_FORWARD_DASH] = { "66", MOTION };
+	inputNames[INPUT_BACKDASH] = { "44", MOTION };
+	inputNames[INPUT_BLOCK_WITH_CROSSUP_PROTECTION] = { "hold block (when crossup immunity (3f) is in effect, both directions of block will suffice or even not blocking"
+		" at all and simply having held block within the past 6f."
+		" If in the air and the opponent is behind you, you may hold block in either direction)", MULTIWORD_MOTION };
+	inputNames[INPUT_BLOCK_OR_CROSSUP_AIR_BLOCK] = { "hold block (or if in the air and the opponent is behind you, then you may hold block in either direction)", MULTIWORD_MOTION };
+	inputNames[INPUT_151] = { "151", MOTION };
+	inputNames[INPUT_252] = { "252", MOTION };
+	inputNames[INPUT_353] = { "353", MOTION };
+	inputNames[INPUT_454] = { "454", MOTION };
+	inputNames[INPUT_66_QUICK] = { "66", MOTION };
+	inputNames[INPUT_757] = { "757", MOTION };
+	inputNames[INPUT_858] = { "858", MOTION };
+	inputNames[INPUT_959] = { "959", MOTION };
+	inputNames[INPUT_ALWAYS_TRUE_DUPLICATE2] = { "nullptr", MULTIWORD_MOTION };
+	inputNames[INPUT_ALWAYS_FALSE_DUPLICATE] = { "nullptr", MULTIWORD_MOTION };
+	inputNames[INPUT_623_LENIENT] = { "623", MOTION };
+	inputNames[INPUT_22_LENIENT] = { "22", MOTION };
+	inputNames[INPUT_5_OR_4_OR_ANY_UP] = { "5/4/7/8/9", MOTION };
+	inputNames[INPUT_5_OR_ANY_UP] = { "5/7/8/9", MOTION };
+	inputNames[INPUT_5_OR_6_OR_ANY_UP] = { "5/6/7/8/9", MOTION };
+	inputNames[INPUT_5_OR_4_OR_7_OR_8] = { "5/4/7/8", MOTION };
+	inputNames[INPUT_421_LENIENT] = { "421", MOTION };
+	inputNames[INPUT_16243] = { "16243", MOTION };
+	inputNames[INPUT_546] = { "546", MOTION };
+	inputNames[INPUT_5_ANYBACK_ANYFORWARD_STRICTER] = { "5(7/4/1)(9/6/3)", MOTION };
+	inputNames[INPUT_5_ANYFORWARD_ANYBACK] = { "5(9/6/3)(7/4/1)", MOTION };
+	inputNames[INPUT_CHARGE_BACK_FORWARD_40F] = { "charge back 40f -> forward", MULTIWORD_MOTION };
+	inputNames[INPUT_CHARGE_DOWN_UP_40F] = { "charge down 40f -> up", MULTIWORD_MOTION };
+	inputNames[INPUT_CHARGE_BACK_FORWARD_45F] = { "charge back 45f -> forward", MULTIWORD_MOTION };
+	inputNames[INPUT_CHARGE_DOWN_UP_45F] = { "charge down 45f -> up", MULTIWORD_MOTION };
+	inputNames[INPUT_236236236] = { "236236236", MOTION };
+	inputNames[INPUT_623_WITHIN_LAST_3F] = { "623 (3f buffer)", MULTIWORD_MOTION };
+	inputNames[INPUT_5_ANYBACK_ANYFORWARD_WITHIN_LAST_2F] = { "5(7/4/1)(9/6/3) (2f buffer)", MULTIWORD_MOTION };
+	inputNames[INPUT_NOTANYDOWN_2] = { "(not 1/2/3) -> 2", MULTIWORD_MOTION };
+	inputNames[INPUT_46_WITHIN_LAST_1F] = { "46 (no buffer)", MULTIWORD_MOTION };
+	inputNames[INPUT_CHARGE_DOWN_10F] = { "charge down 10f", MULTIWORD_MOTION };
+	inputNames[INPUT_546_BUTNOT_54_ANYDOWN_6] = { "(546, but not 54(1/2/3)6)", MOTION };
+	inputNames[INPUT_5_ANYBACK_ANYFORWARD_LENIENT] = { "5(7/4/1)(9/6/3)", MOTION };
+	inputNames[INPUT_BURST] = { "Burst", BUTTON };
+	inputNames[INPUT_HOLD_TWO_OR_MORE_OF_PKSH] = { "hold two or more of PKSH", MULTIWORD_BUTTON };
+	inputNames[INPUT_PRESS_TWO_OR_MORE_OF_PKSH_GLITCHED] = { "press two or more of PKSH (obsolete)", MULTIWORD_BUTTON };  // why it's glitched? I think it relies on a 2f buttonpress buffer. Rn it's 3. So it gets its flag set on f1 of press and then on f2 it's unset and on f3 it's set again and then you need to press the button again to continue it switching on and off each frame. Activating twice from one press on frames 1 and 3 is a glitch thank you for reading this far I hope you're happy and all is well
+	inputNames[INPUT_PRESS_ANYBACK_WITHIN_LAST_8F_NO_MASH_ALLOWED] = { "7/4/1 within last 8f no mash allowed", MULTIWORD_BUTTON };
+	inputNames[INPUT_P_OR_K_OR_S_OR_H] = { "P/K/S/H", BUTTON };
+	inputNames[INPUT_BOOLEAN_OR] = { "or", BUTTON };
+	inputNames[INPUT_HAS_PRECEDING_5] = { "preceding 5", MULTIWORD_MOTION };
+	inputNames[INPUT_ITEM] = { "Item", BUTTON };
+	inputNames[INPUT_HOLD_SPECIAL] = { "[Sp]", BUTTON };
+	inputNames[INPUT_SPECIAL_STRICT_PRESS] = { "Sp (no buffer)", BUTTON };
+	inputNames[INPUT_SPECIAL_STRICT_RELEASE] = { "]Sp[ (no buffer)", BUTTON };
+	inputNames[INPUT_PRESS_SPECIAL] = { "Sp", BUTTON };
+	inputNames[INPUT_NOT_HOLD_SPECIAL] = { "don't hold Sp", MULTIWORD_BUTTON };
+	inputNames[INPUT_RELEASE_SPECIAL] = { "]Sp[", BUTTON };
+	inputNames[INPUT_ANY_TWO_OF_PKSH] = { "any two of PKSH", MULTIWORD_BUTTON };
+	inputNames[INPUT_ROMAN_CANCEL_DUPLICATE] = { "Roman Cancel", MULTIWORD_BUTTON };
+	inputNames[INPUT_MOM_TAUNT] = { "MOM Taunt", MULTIWORD_BUTTON };
+	inputNames[INPUT_FORWARD_DASH_WITHIN_LAST_2F] = { "66 (2f buffer)", MULTIWORD_MOTION };
+	inputNames[INPUT_BACKDASH_WITHIN_LAST_2F] = { "44 (2f buffer)", MULTIWORD_MOTION };
+	inputNames[INPUT_P_OR_K_OR_S_OR_H_OR_D_STRICT_PRESS] = { "P/K/S/H/D (no buffer)", BUTTON };
+	inputNames[INPUT_ALWAYS_FALSE] = { "nullptr", MULTIWORD_MOTION };
+	inputNames[INPUT_PRESS_TAUNT_DUPLICATE] = { "Taunt", BUTTON };
+	inputNames[INPUT_HOLD_ONE_OR_MORE_OF_PKSH] = { "hold one or more of P/K/S/H", MULTIWORD_BUTTON };
+	inputNames[INPUT_HOLD_ONE_OR_MORE_OF_PKSH_OR_D] = { "hold one or more of P/K/S/H/D", MULTIWORD_BUTTON };
+	
+	errorDialogPos = new ImVec2();
+	
+	frameMap[FT_NONE] = FT_NONE;
+	frameMap[FT_IDLE] = FT_IDLE;
+	frameMap[FT_IDLE_PROJECTILE] = FT_IDLE_PROJECTILE;
+	frameMap[FT_IDLE_CANT_BLOCK] = FT_IDLE;
+	frameMap[FT_IDLE_CANT_FD] = FT_IDLE;
+	frameMap[FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK] = FT_IDLE;
+	frameMap[FT_IDLE_ELPHELT_RIFLE] = FT_STARTUP;
+	frameMap[FT_IDLE_ELPHELT_RIFLE_READY] = FT_IDLE;
+	frameMap[FT_HITSTOP] = FT_HITSTOP;
+	frameMap[FT_ACTIVE] = FT_ACTIVE;
+	frameMap[FT_ACTIVE_PROJECTILE] = FT_ACTIVE_PROJECTILE;
+	frameMap[FT_ACTIVE_HITSTOP] = FT_ACTIVE_HITSTOP;
+	frameMap[FT_ACTIVE_HITSTOP_PROJECTILE] = FT_ACTIVE_HITSTOP_PROJECTILE;
+	frameMap[FT_ACTIVE_NEW_HIT] = FT_ACTIVE_NEW_HIT;
+	frameMap[FT_ACTIVE_NEW_HIT_PROJECTILE] = FT_ACTIVE_NEW_HIT_PROJECTILE;
+	frameMap[FT_STARTUP] = FT_STARTUP;
+	frameMap[FT_STARTUP_ANYTIME_NOW] = FT_STARTUP;
+	frameMap[FT_STARTUP_ANYTIME_NOW_CAN_ACT] = FT_STARTUP;
+	frameMap[FT_STARTUP_STANCE] = FT_STARTUP;
+	frameMap[FT_STARTUP_STANCE_CAN_STOP_HOLDING] = FT_STARTUP;
+	frameMap[FT_STARTUP_CAN_BLOCK] = FT_STARTUP;
+	frameMap[FT_STARTUP_CAN_BLOCK_AND_CANCEL] = FT_STARTUP;
+	frameMap[FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN] = FT_STARTUP;
+	frameMap[FT_ZATO_BREAK_THE_LAW_STAGE2] = FT_STARTUP;
+	frameMap[FT_ZATO_BREAK_THE_LAW_STAGE3] = FT_STARTUP;
+	frameMap[FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED] = FT_STARTUP;
+	frameMap[FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED] = FT_STARTUP;
+	frameMap[FT_RECOVERY] = FT_RECOVERY;
+	frameMap[FT_RECOVERY_HAS_GATLINGS] = FT_RECOVERY;
+	frameMap[FT_RECOVERY_CAN_ACT] = FT_RECOVERY;
+	frameMap[FT_RECOVERY_CAN_RELOAD] = FT_RECOVERY;
+	frameMap[FT_NON_ACTIVE] = FT_NON_ACTIVE;
+	frameMap[FT_NON_ACTIVE_PROJECTILE] = FT_NON_ACTIVE_PROJECTILE;
+	frameMap[FT_PROJECTILE] = FT_PROJECTILE;
+	frameMap[FT_LANDING_RECOVERY] = FT_LANDING_RECOVERY;
+	frameMap[FT_LANDING_RECOVERY_CAN_CANCEL] = FT_LANDING_RECOVERY;
+	frameMap[FT_XSTUN] = FT_XSTUN;
+	frameMap[FT_XSTUN_CAN_CANCEL] = FT_XSTUN;
+	frameMap[FT_XSTUN_HITSTOP] = FT_XSTUN_HITSTOP;
+	frameMap[FT_GRAYBEAT_AIR_HITSTUN] = FT_GRAYBEAT_AIR_HITSTUN;
 	
 	return true;
 }
@@ -341,7 +736,7 @@ void UI::prepareDrawData() {
 	stateChanged = false;
 	needWriteSettings = false;
 	keyCombosChanged = false;
-	bool imguiActiveTemp = false;
+	imguiActiveTemp = false;
 	bool takeScreenshotTemp = false;
 	
 	decrementFlagTimer(allowNextFrameTimer, allowNextFrame);
@@ -356,7 +751,7 @@ void UI::prepareDrawData() {
 	#define printWithWordWrap \
 				float w = ImGui::CalcTextSize(strbuf).x; \
 				if (w > ImGui::GetContentRegionAvail().x) { \
-					ImGui::TextWrapped(strbuf); \
+					ImGui::TextWrapped("%s", strbuf); \
 				} else { \
 					if (i == 0) RightAlign(w); \
 					ImGui::TextUnformatted(strbuf); \
@@ -365,7 +760,7 @@ void UI::prepareDrawData() {
 	#define printWithWordWrapArg(a) \
 				float w = ImGui::CalcTextSize(a).x; \
 				if (w > ImGui::GetContentRegionAvail().x) { \
-					ImGui::TextWrapped(a); \
+					ImGui::TextWrapped("%s", a); \
 				} else { \
 					if (i == 0) RightAlign(w); \
 					ImGui::TextUnformatted(a); \
@@ -388,7 +783,16 @@ void UI::prepareDrawData() {
 		ImGui::Begin(windowTitle.c_str(), &visible);
 		
 		if (ImGui::CollapsingHeader("Framedata", ImGuiTreeNodeFlags_DefaultOpen)) {
-			if (ImGui::BeginTable("##PayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			if (endScene.isIGiveUp()) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else
+			if (ImGui::BeginTable("##PayerData",
+						3,
+						ImGuiTableFlags_Borders
+						| ImGuiTableFlags_RowBg
+						| ImGuiTableFlags_NoSavedSettings
+						| ImGuiTableFlags_NoPadOuterX)
+			) {
 				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
 				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
@@ -404,8 +808,7 @@ void UI::prepareDrawData() {
 				scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
 				CenterAlign(scaledIcon.size.x);
 				drawGGIcon(scaledIcon);
-				AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.\n"
-					"If this is an online match affected by rollback, displayed framedata might be incorrect.");
+				AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted("P2");
 				ImGui::SameLine();
@@ -425,7 +828,8 @@ void UI::prepareDrawData() {
 				
 				ImGui::TableNextColumn();
 				CenterAlignedText("HP");
-				AddTooltip("HP (x Guts) [x Defense Modifier]");
+				AddTooltip("HP (x Guts) [x Defense Modifier]\n"
+					"Technically you should divide HP by these values in order to get effective HP, because they're what all damage is multiplied by.");
 				
 				{
 					PlayerInfo& player = endScene.players[1];
@@ -539,7 +943,7 @@ void UI::prepareDrawData() {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
 					if (player.startedUp || player.startupProj) {
-						player.activesDisp.print(strbuf, sizeof strbuf);
+						printActiveWithMaxHit(player.activesDisp, player.maxHitDisp);
 					} else {
 						*strbuf = '\0';
 					}
@@ -628,6 +1032,8 @@ void UI::prepareDrawData() {
 						CenterAlignedText("Invul");
 						AddTooltip("Strike invul: invulnerable to strike and projectiles.\n"
 							"Throw invul: invulnerable to throws.\n"
+							"Low profile: low profiles first active frame of Ky f.S"
+							" (read the bottom for how to configure maximum height that determines what 'low profile' is).\n"
 							"Projectile-only invul: only vulnerable to direct player strikes or throws.\n"
 							"Super armor: parry or super armor.\n"
 							"Reflect: able to reflect certain types of projectiles.\n\n"
@@ -654,7 +1060,10 @@ void UI::prepareDrawData() {
 							"*) Potemkin Heat Knuckle;\n"
 							"*) Potemkin Heavenly Potemkin Buster;\n"
 							"*) Raven S Wachen Zweig;\n"
-							"*) Slayer Undertow.\n\n"
+							"*) Slayer Undertow.\n"
+							"NOTE: If the super armor properties say it can armor unblockables, but does not mention overdrives, then that means it can't"
+							" armor overdrive unblockables such as Kum Enlightened 3000 Palm Strike max charge.\n"
+							"Some moves such as Kum max charge Falcon Dive cause guard crush and are not \"unblockables\".\n\n"
 							"Low profile invul can be configured using Settings - General Settings - Low Profile Cut-Off Height");
 					}
 				}
@@ -692,7 +1101,10 @@ void UI::prepareDrawData() {
 							" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
 							" and the other are on the right.\n"
 							"During Roman Cancel or Mortal Counter slowdown, the actual hitstop and hitstun/etc duration may be longer"
-							" than the displayed value due to slowdown.");
+							" than the displayed value due to slowdown.\n"
+							"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
+							" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
+							" slightly prolonged when transitioning from air blockstun to ground blockstun.");
 					}
 				}
 				
@@ -701,8 +1113,8 @@ void UI::prepareDrawData() {
 					
 					ImGui::TableNextColumn();
 					frameAdvantageControl(
-						player.frameAdvantage,
-						player.landingFrameAdvantage,
+						settings.frameAdvantage_dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage,
+						settings.frameAdvantage_dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage,
 						player.frameAdvantageValid,
 						player.landingFrameAdvantageValid,
 						i == 0);
@@ -823,11 +1235,23 @@ void UI::prepareDrawData() {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					if (!player.move || !player.move->displayName) {
-						printNoWordWrapArg(player.anim)
+					if (!player.move || !player.move->getDisplayName(player.idle)) {
+						if (player.moveName[0] != '\0' && strcmp(player.moveName, player.anim) != 0) {
+							sprintf_s(strbuf, "%s (%s)", player.anim, player.moveName);
+							printNoWordWrap
+						} else {
+							printNoWordWrapArg(player.anim)
+						}
 					} else {
-						sprintf_s(strbuf, "%s (%s)", player.move->displayName, player.anim);
-						printWithWordWrap
+						if (player.moveName[0] != '\0'
+								&& strcmp(player.moveName, player.move->getDisplayName(player.idle)) != 0
+								&& strcmp(player.moveName, player.anim) != 0) {
+							sprintf_s(strbuf, "%s (%s) (%s)", player.move->getDisplayName(player.idle), player.anim, player.moveName);
+							printWithWordWrap
+						} else {
+							sprintf_s(strbuf, "%s (%s)", player.move->getDisplayName(player.idle), player.anim);
+							printWithWordWrap
+						}
 					}
 					
 					if (i == 0) {
@@ -923,62 +1347,38 @@ void UI::prepareDrawData() {
 						CenterAlignedText("activesProj");
 					}
 				}
-				Entity superflashInstigator = endScene.getSuperflashInstigator();
+				Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
+				int slowdown = endScene.getRCSlowdownCounter();
+				int slowdownMax = endScene.getRCSlowdownCounterMax();
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
+					int flashCurrent = 0;
+					int flashMax = 0;
+					int slowCurrent = !player.immuneToRCSlowdown ? slowdown : 0;
+					int slowMax = player.rcSlowdownMax;
 					if (superflashInstigator == player.pawn) {
-						sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterAllied());
+						flashCurrent = endScene.getSuperflashCounterAlliedCached();
+						flashMax = endScene.getSuperflashCounterAlliedMax();
 					} else if (superflashInstigator) {
-						sprintf_s(strbuf, "true (%d)", endScene.getSuperflashCounterOpponent());
+						flashCurrent = endScene.getSuperflashCounterOpponentCached();
+						flashMax = endScene.getSuperflashCounterOpponentMax();
+					}
+					if (flashCurrent + flashMax + slowCurrent + slowMax == 0) {
+						strbuf[0] = '\0';
 					} else {
-						strcpy(strbuf, "false");
+						sprintf_s(strbuf, "%d/%d+%d/%d", flashCurrent, flashMax, slowCurrent, slowMax);
 					}
 					printNoWordWrap
 					
 					if (i == 0) {
 						ImGui::TableNextColumn();
-						CenterAlignedText("superfreeze");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (player.hurtboxTopBottomValid) {
-						sprintf_s(strbuf, "from %d to %d",
-							player.hurtboxTopY,
-							player.hurtboxBottomY);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Hurtbox Y");
-						AddTooltip("These values display either the current or last valid value and change each frame."
-							" They do not show the total combined bounding box."
-							" To view these values for each frame more easily you could use the frame freeze mode,"
-							" available in the Hitboxes section.\n"
-							"The coordinates shown are relative to the global space.");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (player.hitboxTopBottomValid) {
-						sprintf_s(strbuf, "from %d to %d",
-							player.hitboxTopY,
-							player.hitboxBottomY);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Hitbox Y");
-						AddTooltip("These values display either the current or last valid value and change each frame."
-							" They do not show the total combined bounding box."
-							" To view these values for each frame more easily you could use the frame freeze mode,"
-							" available in the Hitboxes section.\n"
-							"The coordinates shown are relative to the global space.");
+						CenterAlignedText("Freeze+RC Slow");
+						AddTooltip("Shows superfreeze current/maximum duration in frames, followed by +, followed by"
+							" Roman Cancel slowdown duration current/maximum in frames."
+							" Both the superfreeze and the Roman Cancel slowdown are always shown."
+							" If either is not present at the moment, 0/0 or 0/X is shown in its place."
+							" If a player is not affected by the superfreeze or Roman Cancel slowdown, 0/0 or 0/X is shown in the place of that.");
 					}
 				}
 				ImGui::EndTable();
@@ -1102,7 +1502,7 @@ void UI::prepareDrawData() {
 								ImGui::TableNextColumn();
 								if (row.side[i]) {
 									ProjectileInfo& projectile = *row.side[i];
-									sprintf_s(strbuf, "%d", projectile.hitstop);
+									sprintf_s(strbuf, "%d/%d", projectile.hitstop, projectile.hitstopMax);
 									printNoWordWrap
 								}
 								
@@ -1115,7 +1515,7 @@ void UI::prepareDrawData() {
 								ImGui::TableNextColumn();
 								if (row.side[i]) {
 									ProjectileInfo& projectile = *row.side[i];
-									projectile.actives.print(strbuf, sizeof strbuf);
+									printActiveWithMaxHit(projectile.actives, projectile.maxHit);
 									
 									printWithWordWrap
 								}
@@ -1194,68 +1594,134 @@ void UI::prepareDrawData() {
 			if (ImGui::Button("Show Tension Values")) {
 				showTensionData = !showTensionData;
 			}
+			AddTooltip("Displays tension gained from combo and factors that affect tension gain.");
 			ImGui::SameLine();
 			if (ImGui::Button("Speed/Proration")) {
 				showSpeedsData = !showSpeedsData;
 			}
+			AddTooltip("Display x,y, speed, pushback and protation of hitstun and pushback.");
 			for (int i = 0; i < 2; ++i) {
 				sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
 				if (i != 0) ImGui::SameLine();
 				if (ImGui::Button(strbuf)) {
 					showCharSpecific[i] = !showCharSpecific[i];
 				}
+				AddTooltip("Display of information specific to a character.");
 			}
+			if (ImGui::Button("Box Extents")) {
+				showBoxExtents = !showBoxExtents;
+			}
+			AddTooltip("Shows the minimum and maximum Y (vertical) extents of hurtboxes and hitboxes of each player. The units are not divided by 100 for viewability.");
 		}
 		if (ImGui::CollapsingHeader("Hitboxes")) {
+			
+			bool dontShowBoxes = settings.dontShowBoxes;
+			if (ImGui::Checkbox(settings.getOtherUIName(&settings.dontShowBoxes), &dontShowBoxes)) {
+				settings.dontShowBoxes = dontShowBoxes;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.dontShowBoxes));
+			
 			stateChanged = ImGui::Checkbox("GIF Mode", &gifModeOn) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("GIF mode is:\n"
-				"; 1) Background becomes black\n"
-				"; 2) Camera is centered on you\n"
-				"; 3) Opponent is invisible and invulnerable\n"
-				"; 4) Hide HUD");
+			static std::string GIFModeHelp;
+			if (GIFModeHelp.empty()) {
+				GIFModeHelp = settings.convertToUiDescription("GIF mode is:\n"
+					"1) Background becomes black\n"
+					"2) Camera is centered on you\n"
+					"3) Opponent is invisible and invulnerable\n"
+					"4) Hide HUD\n"
+					"A hotkey can be configured for entering and leaving GIF Mode at \"gifModeToggle\".");
+			}
+			HelpMarker(GIFModeHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Black Background", &gifModeToggleBackgroundOnly) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("Makes background black (and, for screenshotting purposes, - effectively transparent, if Post Effect is turned off in the game's graphics settings).");
+			static std::string blackBackgroundHelp;
+			if (blackBackgroundHelp.empty()) {
+				blackBackgroundHelp = settings.convertToUiDescription(
+					"Makes background black (and, for screenshotting purposes, - effectively transparent,"
+					" if Post Effect is turned off in the game's graphics settings).\n"
+					"You can use the \"gifModeToggleBackgroundOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarker(blackBackgroundHelp.c_str());
 			
 			bool postEffectOn = game.postEffectOn() != 0;
 			if (ImGui::Checkbox("Post-Effect On", &postEffectOn)) {
 				game.postEffectOn() = (BOOL)postEffectOn;
 			}
 			ImGui::SameLine();
-			HelpMarker("Toggles the game's Settings - Display Settings - Post-Effect. Changing it this way does not"
+			static std::string postEffectOnHelp;
+			if (postEffectOnHelp.empty()) {
+				postEffectOnHelp = settings.convertToUiDescription("Toggles the game's 'Settings - Display Settings - Post-Effect'. Changing it this way does not"
 				" require the current match to be restarted.\n"
-				"Alternatively, you could tick the 'Turn Off Post-Effect When Making Background Black' checkbox"
-				" (in this mod's Settings - Hitbox Settings),"
-				" so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect are"
+				"Alternatively, you could tick the \"turnOffPostEffectWhenMakingBackgroundBlack\" checkbox,"
+				" so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is"
 				" turned off automatically, and when you leave those modes, it gets turned back on.\n"
-				"Or, alternatively, you could use the manual keyboard toggle, set in this mod's Settings - Keyboard settings"
-				" - Toggle Post-Effect On/Off.");
+				"Or, alternatively, you could use the manual keyboard toggle, set in this mod's \"togglePostEffectOnOff\".");
+			}
+			HelpMarker(postEffectOnHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Camera Center on Player", &gifModeToggleCameraCenterOnly) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("Centers the camera on you.");
+			static std::string cameraCenterHelp;
+			if (cameraCenterHelp.empty()) {
+				cameraCenterHelp = settings.convertToUiDescription(
+					"Centers the camera on you.\n"
+					"You can use the \"gifModeToggleCameraCenterOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarker(cameraCenterHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Camera Center on Opponent", &toggleCameraCenterOpponent) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("Centers the camera on the opponent.");
+			static std::string cameraCenterOpponentHelp;
+			if (cameraCenterOpponentHelp.empty()) {
+				cameraCenterOpponentHelp = settings.convertToUiDescription(
+					"Centers the camera on the opponent.\n"
+					"You can use the \"toggleCameraCenterOpponent\" hotkey to toggle this setting.");
+			}
+			HelpMarker(cameraCenterOpponentHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Hide Opponent", &gifModeToggleHideOpponentOnly) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("Make the opponent invisible and invulnerable.");
+			static std::string hideOpponentHelp;
+			if (hideOpponentHelp.empty()) {
+				hideOpponentHelp = settings.convertToUiDescription(
+					"Make the opponent invisible and invulnerable.\n"
+					"You can use the \"gifModeToggleHideOpponentOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarker(hideOpponentHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Hide Player", &toggleHidePlayer) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("Make the player invisible and invulnerable.");
+			static std::string hidePlayerHelp;
+			if (hidePlayerHelp.empty()) {
+				hidePlayerHelp = settings.convertToUiDescription(
+					"Make the player invisible and invulnerable.\n"
+					"You can use the \"toggleHidePlayer\" hotkey to toggle this setting.");
+			}
+			HelpMarker(hidePlayerHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Hide HUD", &gifModeToggleHudOnly) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("Hides the HUD.");
+			static std::string hideHUDHelp;
+			if (hideHUDHelp.empty()) {
+				hideHUDHelp = settings.convertToUiDescription(
+					"Hides the HUD.\n"
+					"You can use the \"gifModeToggleHudOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarker(hideHUDHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("No Gravity", &noGravityOn) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.");
+			static std::string noGravityHelp;
+			if (noGravityHelp.empty()) {
+				noGravityHelp = settings.convertToUiDescription(
+					"Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.\n"
+					"You can use the \"noGravityToggle\" hotkey to toggle this setting.");
+			}
+			HelpMarker(noGravityHelp.c_str());
 			
 			bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
 			if (ImGui::Checkbox("Disable Gray Hurtboxes", &neverDisplayGrayHurtboxes)) {
@@ -1263,9 +1729,15 @@ void UI::prepareDrawData() {
 				needWriteSettings = true;
 			}
 			ImGui::SameLine();
-			HelpMarker("Disables/enables the display of residual hurtboxes that appear on hit/block and show"
-				" the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but"
-				" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.");
+			static std::string neverDisplayGrayHurtboxesHelp;
+			if (neverDisplayGrayHurtboxesHelp.empty()) {
+				neverDisplayGrayHurtboxesHelp = settings.convertToUiDescription(
+					"Disables/enables the display of residual hurtboxes that appear on hit/block and show"
+					" the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but"
+					" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
+					"You can use the \"toggleDisableGrayHurtboxes\" hotkey to toggle this setting.");
+			}
+			HelpMarker(neverDisplayGrayHurtboxesHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Freeze Game", &freezeGame) || stateChanged;
 			ImGui::SameLine();
@@ -1274,8 +1746,15 @@ void UI::prepareDrawData() {
 				allowNextFrameTimer = 10;
 			}
 			ImGui::SameLine();
-			HelpMarker("Freezes the current frame of the game and stops gameplay from advancing. You can advance gameplay to the next frame using the 'Next Frame' button."
-				" It is way more convenient to use this feature with shortcuts, which you can configure in the 'Keyboard shortcuts' section below.");
+			static std::string freezeGameHelp;
+			if (freezeGameHelp.empty()) {
+				freezeGameHelp = settings.convertToUiDescription(
+					"Freezes the current frame of the game and stops gameplay from advancing."
+					" You can advance gameplay to the next frame using the 'Next Frame' button."
+					" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
+					" instead of pressing the button.");
+			}
+			HelpMarker(freezeGameHelp.c_str());
 			
 			stateChanged = ImGui::Checkbox("Slow-Mo Mode", &slowmoGame) || stateChanged;
 			ImGui::SameLine();
@@ -1290,7 +1769,13 @@ void UI::prepareDrawData() {
 			}
 			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 			ImGui::SameLine();
-			HelpMarker("Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.");
+			static std::string slowmoHelp;
+			if (slowmoHelp.empty()) {
+				slowmoHelp = settings.convertToUiDescription(
+					"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
+					"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
+			}
+			HelpMarker(slowmoHelp.c_str());
 			
 			ImGui::Button("Take Screenshot");
 			if (ImGui::IsItemActivated()) {
@@ -1301,29 +1786,35 @@ void UI::prepareDrawData() {
 			}
 			takeScreenshotTemp = ImGui::IsItemActive();
 			ImGui::SameLine();
-			HelpMarker("Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
-				" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings"
-				" (or use 'Settings - Keyboard Shortcuts - Toggle Post-Effect On/Off' or 'Settings - Hitbox Settings - Turn Off Post-Effect' When Making Background Black)"
-				", you will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
-				" in the 'Hitbox settings', they're saved there instead.\n"
-				"A hotkey can be configured to take screenshots with, in 'Settings - Keyboard Shortcuts - Take Screenshot'.");
+			static std::string screenshotHelp;
+			if (screenshotHelp.empty()) {
+				screenshotHelp = settings.convertToUiDescription(
+					"Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
+					" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings"
+					" (or use \"togglePostEffectOnOff\" or \"turnOffPostEffectWhenMakingBackgroundBlack\")"
+					", you will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
+					" in the 'Hitbox settings', they're saved there instead.\n"
+					"A hotkey can be configured to take screenshots with, in \"screenshotBtn\".");
+			}
+			HelpMarker(screenshotHelp.c_str());
+			
 			stateChanged = ImGui::Checkbox("Continuous Screenshotting Mode", &continuousScreenshotToggle) || stateChanged;
 			ImGui::SameLine();
-			HelpMarker("When this option is enabled, screenshots will be taken every frame, unless the game is frozen, in which case"
-				" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
-				" the game down significantly. Continuous screenshotting is only allowed in training mode.");
+			static std::string continuousScreenshottingHelp;
+			if (continuousScreenshottingHelp.empty()) {
+				continuousScreenshottingHelp = settings.convertToUiDescription(
+					"When this option is enabled, screenshots will be taken every frame,"
+					" as long as the mod's screenshot button is being help, unless the game is frozen, in which case"
+					" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
+					" the game down significantly. Continuous screenshotting is only allowed in training mode.\n"
+					"Alternatively, you can use \"continuousScreenshotToggle\" shortcut to toggle a mode where you don't have to hold"
+					" the screenshot button, and screenshots get taken every non frozen (advancing) frame automatically.");
+			}
+			HelpMarker(continuousScreenshottingHelp.c_str());
 			
 		}
 		if (ImGui::CollapsingHeader("Settings")) {
 			if (ImGui::CollapsingHeader("Hitbox Settings")) {
-				
-				bool dontShowBoxes = settings.dontShowBoxes;
-				if (ImGui::Checkbox(settings.getOtherUIName(&settings.dontShowBoxes), &dontShowBoxes)) {
-					settings.dontShowBoxes = dontShowBoxes;
-					needWriteSettings = true;
-				}
-				ImGui::SameLine();
-				HelpMarker(settings.getOtherUIDescription(&settings.dontShowBoxes));
 				
 				bool drawPushboxCheckSeparately = settings.drawPushboxCheckSeparately;
 				if (ImGui::Checkbox(settings.getOtherUIName(&settings.drawPushboxCheckSeparately), &drawPushboxCheckSeparately)) {
@@ -1391,16 +1882,80 @@ void UI::prepareDrawData() {
 				bool turnOffPostEffectWhenMakingBackgroundBlack = settings.turnOffPostEffectWhenMakingBackgroundBlack;
 				if (ImGui::Checkbox(settings.getOtherUIName(&settings.turnOffPostEffectWhenMakingBackgroundBlack), &turnOffPostEffectWhenMakingBackgroundBlack)) {
 					settings.turnOffPostEffectWhenMakingBackgroundBlack = turnOffPostEffectWhenMakingBackgroundBlack;
-					if (turnOffPostEffectWhenMakingBackgroundBlack) {
-						endScene.onGifModeBlackBackgroundChanged();
-					}
+					endScene.onGifModeBlackBackgroundChanged();
 					needWriteSettings = true;
 				}
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.turnOffPostEffectWhenMakingBackgroundBlack));
 				
+				bool forceZeroPitchDuringCameraCentering = settings.forceZeroPitchDuringCameraCentering;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.forceZeroPitchDuringCameraCentering), &forceZeroPitchDuringCameraCentering)) {
+					settings.forceZeroPitchDuringCameraCentering = forceZeroPitchDuringCameraCentering;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.forceZeroPitchDuringCameraCentering));
+				
+				ImGui::PushItemWidth(120.F);
+				float cameraCenterOffsetX = settings.cameraCenterOffsetX;
+				if (ImGui::InputFloat(settings.getOtherUIName(&settings.cameraCenterOffsetX), &cameraCenterOffsetX, 1.F, 10.F, "%.4f")) {
+					settings.cameraCenterOffsetX = cameraCenterOffsetX;
+					needWriteSettings = true;
+				}
+				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.cameraCenterOffsetX));
+				ImGui::PopItemWidth();
+				
+				ImGui::PushItemWidth(120.F);
+				float cameraCenterOffsetY = settings.cameraCenterOffsetY;
+				if (ImGui::InputFloat(settings.getOtherUIName(&settings.cameraCenterOffsetY), &cameraCenterOffsetY, 1.F, 10.F, "%.4f")) {
+					settings.cameraCenterOffsetY = cameraCenterOffsetY;
+					needWriteSettings = true;
+				}
+				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.cameraCenterOffsetY));
+				ImGui::PopItemWidth();
+				
+				ImGui::PushItemWidth(120.F);
+				float cameraCenterOffsetY_WhenForcePitch0 = settings.cameraCenterOffsetY_WhenForcePitch0;
+				if (ImGui::InputFloat(settings.getOtherUIName(&settings.cameraCenterOffsetY_WhenForcePitch0), &cameraCenterOffsetY_WhenForcePitch0, 1.F, 10.F, "%.4f")) {
+					settings.cameraCenterOffsetY_WhenForcePitch0 = cameraCenterOffsetY_WhenForcePitch0;
+					needWriteSettings = true;
+				}
+				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.cameraCenterOffsetY_WhenForcePitch0));
+				ImGui::PopItemWidth();
+				
+				ImGui::PushItemWidth(120.F);
+				float cameraCenterOffsetZ = settings.cameraCenterOffsetZ;
+				if (ImGui::InputFloat(settings.getOtherUIName(&settings.cameraCenterOffsetZ), &cameraCenterOffsetZ, 1.F, 10.F, "%.4f")) {
+					settings.cameraCenterOffsetZ = cameraCenterOffsetZ;
+					needWriteSettings = true;
+				}
+				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.cameraCenterOffsetZ));
+				ImGui::PopItemWidth();
+				
+				if (ImGui::Button("Restore Defaults")) {
+					settings.cameraCenterOffsetX = settings.cameraCenterOffsetX_defaultValue;
+					settings.cameraCenterOffsetY = settings.cameraCenterOffsetY_defaultValue;
+					settings.cameraCenterOffsetY_WhenForcePitch0 = settings.cameraCenterOffsetY_WhenForcePitch0_defaultValue;
+					settings.cameraCenterOffsetZ = settings.cameraCenterOffsetZ_defaultValue;
+					needWriteSettings = true;
+				}
+				AddTooltip("Restores the default values for the four settings above.");
 			}
 			if (ImGui::CollapsingHeader("Framebar Settings")) {
+				
+				if (ImGui::Button("Framebar Help")) {
+					showFramebarHelp = !showFramebarHelp;
+				}
+				AddTooltip("Shows the meaning of each frame color/graphic on the framebar.");
+				
 				bool neverIgnoreHitstop = settings.neverIgnoreHitstop;
 				if (ImGui::Checkbox(settings.getOtherUIName(&settings.neverIgnoreHitstop), &neverIgnoreHitstop)) {
 					settings.neverIgnoreHitstop = neverIgnoreHitstop;
@@ -1408,6 +1963,14 @@ void UI::prepareDrawData() {
 				}
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.neverIgnoreHitstop));
+				
+				bool ignoreHitstopForBlockingBaiken = settings.ignoreHitstopForBlockingBaiken;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.ignoreHitstopForBlockingBaiken), &ignoreHitstopForBlockingBaiken)) {
+					settings.ignoreHitstopForBlockingBaiken = ignoreHitstopForBlockingBaiken;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.ignoreHitstopForBlockingBaiken));
 				
 				bool considerRunAndWalkNonIdle = settings.considerRunAndWalkNonIdle;
 				if (ImGui::Checkbox(settings.getOtherUIName(&settings.considerRunAndWalkNonIdle), &considerRunAndWalkNonIdle)) {
@@ -1432,6 +1995,22 @@ void UI::prepareDrawData() {
 				}
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.considerKnockdownWakeupAndAirtechIdle));
+				
+				bool considerIdleInvulIdle = settings.considerIdleInvulIdle;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.considerIdleInvulIdle), &considerIdleInvulIdle)) {
+					settings.considerIdleInvulIdle = considerIdleInvulIdle;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.considerIdleInvulIdle));
+				
+				bool considerDummyPlaybackNonIdle = settings.considerDummyPlaybackNonIdle;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.considerDummyPlaybackNonIdle), &considerDummyPlaybackNonIdle)) {
+					settings.considerDummyPlaybackNonIdle = considerDummyPlaybackNonIdle;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.considerDummyPlaybackNonIdle));
 				
 				bool useColorblindHelp = settings.useColorblindHelp;
 				if (ImGui::Checkbox(settings.getOtherUIName(&settings.useColorblindHelp), &useColorblindHelp)) {
@@ -1513,6 +2092,81 @@ void UI::prepareDrawData() {
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.showFirstFramesOnFramebar));
 				
+				bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.considerSimilarFrameTypesSameForFrameCounts), &considerSimilarFrameTypesSameForFrameCounts)) {
+					settings.considerSimilarFrameTypesSameForFrameCounts = considerSimilarFrameTypesSameForFrameCounts;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.considerSimilarFrameTypesSameForFrameCounts));
+				
+				bool combineProjectileFramebarsWhenPossible = settings.combineProjectileFramebarsWhenPossible;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.combineProjectileFramebarsWhenPossible), &combineProjectileFramebarsWhenPossible)) {
+					settings.combineProjectileFramebarsWhenPossible = combineProjectileFramebarsWhenPossible;
+					if (combineProjectileFramebarsWhenPossible) {
+						settings.eachProjectileOnSeparateFramebar = false;
+					}
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.combineProjectileFramebarsWhenPossible));
+				
+				bool eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.eachProjectileOnSeparateFramebar), &eachProjectileOnSeparateFramebar)) {
+					settings.eachProjectileOnSeparateFramebar = eachProjectileOnSeparateFramebar;
+					if (eachProjectileOnSeparateFramebar) {
+						settings.combineProjectileFramebarsWhenPossible = false;
+					}
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.eachProjectileOnSeparateFramebar));
+				
+				bool dontClearFramebarOnStageReset = settings.dontClearFramebarOnStageReset;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.dontClearFramebarOnStageReset), &dontClearFramebarOnStageReset)) {
+					settings.dontClearFramebarOnStageReset = dontClearFramebarOnStageReset;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.dontClearFramebarOnStageReset));
+				
+				bool dontTruncateFramebarTitles = settings.dontTruncateFramebarTitles;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.dontTruncateFramebarTitles), &dontTruncateFramebarTitles)) {
+					settings.dontTruncateFramebarTitles = dontTruncateFramebarTitles;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.dontTruncateFramebarTitles));
+				
+				bool allFramebarTitlesDisplayToTheLeft = settings.allFramebarTitlesDisplayToTheLeft;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.allFramebarTitlesDisplayToTheLeft), &allFramebarTitlesDisplayToTheLeft)) {
+					settings.allFramebarTitlesDisplayToTheLeft = allFramebarTitlesDisplayToTheLeft;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.allFramebarTitlesDisplayToTheLeft));
+				
+				bool showPlayerInFramebarTitle = settings.showPlayerInFramebarTitle;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.showPlayerInFramebarTitle), &showPlayerInFramebarTitle)) {
+					settings.showPlayerInFramebarTitle = showPlayerInFramebarTitle;
+					needWriteSettings = true;
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.showPlayerInFramebarTitle));
+				
+				int framebarTitleCharsMax = settings.framebarTitleCharsMax;
+				ImGui::SetNextItemWidth(80.F);
+				if (ImGui::InputInt(settings.getOtherUIName(&settings.framebarTitleCharsMax), &framebarTitleCharsMax, 1, 1, 0)) {
+					if (framebarTitleCharsMax < 0) {
+						framebarTitleCharsMax = 0;
+					}
+					settings.framebarTitleCharsMax = framebarTitleCharsMax;
+					needWriteSettings = true;
+				}
+				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.framebarTitleCharsMax));
+				
 				int framebarHeight = settings.framebarHeight;
 				ImGui::SetNextItemWidth(80.F);
 				if (ImGui::InputInt(settings.getOtherUIName(&settings.framebarHeight), &framebarHeight, 1, 1, 0)) {
@@ -1526,15 +2180,9 @@ void UI::prepareDrawData() {
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.framebarHeight));
 				
-				int lowProfileCutoffPoint = settings.lowProfileCutoffPoint;
-				ImGui::SetNextItemWidth(200.F);
-				if (ImGui::InputInt(settings.getOtherUIName(&settings.lowProfileCutoffPoint), &lowProfileCutoffPoint, 1000, 10000, 0)) {
-					settings.lowProfileCutoffPoint = lowProfileCutoffPoint;
-					needWriteSettings = true;
-				}
-				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
-				ImGui::SameLine();
-				HelpMarker(settings.getOtherUIDescription(&settings.lowProfileCutoffPoint));
+				ImGui::PushID(1);
+				lowProfileControl();
+				ImGui::PopID();
 				
 			}
 			if (ImGui::CollapsingHeader("Keyboard Shortcuts")) {
@@ -1556,6 +2204,7 @@ void UI::prepareDrawData() {
 				keyComboControl(settings.screenshotBtn);
 				keyComboControl(settings.continuousScreenshotToggle);
 				keyComboControl(settings.toggleDisableGrayHurtboxes);
+				keyComboControl(settings.toggleNeverIgnoreHitstop);
 			}
 			if (ImGui::CollapsingHeader("General Settings")) {
 				bool modWindowVisibleOnStart = settings.modWindowVisibleOnStart;
@@ -1566,6 +2215,7 @@ void UI::prepareDrawData() {
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.modWindowVisibleOnStart));
 				
+				ImGui::PushID(1);
 				bool closingModWindowAlsoHidesFramebar = settings.closingModWindowAlsoHidesFramebar;
 				if (ImGui::Checkbox(settings.getOtherUIName(&settings.closingModWindowAlsoHidesFramebar), &closingModWindowAlsoHidesFramebar)) {
 					settings.closingModWindowAlsoHidesFramebar = closingModWindowAlsoHidesFramebar;
@@ -1573,6 +2223,7 @@ void UI::prepareDrawData() {
 				}
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.closingModWindowAlsoHidesFramebar));
+				ImGui::PopID();
 				
 				bool displayUIOnTopOfPauseMenu = settings.displayUIOnTopOfPauseMenu;
 				if (ImGui::Checkbox(settings.getOtherUIName(&settings.displayUIOnTopOfPauseMenu), &displayUIOnTopOfPauseMenu)) {
@@ -1582,22 +2233,31 @@ void UI::prepareDrawData() {
 				ImGui::SameLine();
 				HelpMarker(settings.getOtherUIDescription(&settings.displayUIOnTopOfPauseMenu));
 				
-				int lowProfileCutoffPoint = settings.lowProfileCutoffPoint;
-				ImGui::SetNextItemWidth(200.F);
-				if (ImGui::InputInt(settings.getOtherUIName(&settings.lowProfileCutoffPoint), &lowProfileCutoffPoint, 1000, 10000, 0)) {
-					settings.lowProfileCutoffPoint = lowProfileCutoffPoint;
+				lowProfileControl();
+				
+				bool frameAdvantage_dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
+				if (ImGui::Checkbox(settings.getOtherUIName(&settings.frameAdvantage_dontUsePreBlockstunTime), &frameAdvantage_dontUsePreBlockstunTime)) {
+					settings.frameAdvantage_dontUsePreBlockstunTime = frameAdvantage_dontUsePreBlockstunTime;
 					needWriteSettings = true;
 				}
-				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 				ImGui::SameLine();
-				HelpMarker(settings.getOtherUIDescription(&settings.lowProfileCutoffPoint));
+				HelpMarker(settings.getOtherUIDescription(&settings.frameAdvantage_dontUsePreBlockstunTime));
 				
 			}
 		}
 		ImGui::End();
 		if (showTensionData) {
 			ImGui::Begin("Tension Data", &showTensionData);
-			if (ImGui::BeginTable("##TensionData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			if (endScene.isIGiveUp()) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else
+			if (ImGui::BeginTable("##TensionData",
+						3,
+						ImGuiTableFlags_Borders
+						| ImGuiTableFlags_RowBg
+						| ImGuiTableFlags_NoSavedSettings
+						| ImGuiTableFlags_NoPadOuterX)
+			) {
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
 				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -1894,7 +2554,16 @@ void UI::prepareDrawData() {
 		if (showSpeedsData) {
 			ImGui::Begin("Speed/Proration", &showSpeedsData);
 			
-			if (ImGui::BeginTable("##TensionData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			if (endScene.isIGiveUp()) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else
+			if (ImGui::BeginTable("##TensionData",
+						3,
+						ImGuiTableFlags_Borders
+						| ImGuiTableFlags_RowBg
+						| ImGuiTableFlags_NoSavedSettings
+						| ImGuiTableFlags_NoPadOuterX)
+			) {
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.f);
 				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -2060,6 +2729,7 @@ void UI::prepareDrawData() {
 					">= 180  --> 95%\n"
 					"For ground combo it's just:\n"
 					">= 1080 --> 50%\n"
+					"Multiply base hitstun by the percentage using floating point math, then round down to get prorated hitstun.\n"
 					"Some attacks could theoretically ignore hitstun proration. When that happens, 100% is displayed.");
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
@@ -2098,6 +2768,10 @@ void UI::prepareDrawData() {
 				ImGui::Begin(strbuf, showCharSpecific + i);
 				if (!*aswEngine) {
 					ImGui::TextUnformatted("Match not running");
+					ImGui::End();
+					continue;
+				} else if (endScene.isIGiveUp()) {
+					ImGui::TextUnformatted("Online non-observer match running.");
 					ImGui::End();
 					continue;
 				}
@@ -2252,6 +2926,31 @@ void UI::prepareDrawData() {
 						
 						ImGui::EndTable();
 					}
+				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
+					GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
+					drawGGIcon(scaledIcon);
+					ImGui::SameLine();
+					if (player.playerval0) {
+						printChippInvisibility(player.playerval0, player.maxDI);
+					} else {
+						ImGui::TextUnformatted("Not invisible");
+					}
+					if (player.move && player.move->caresAboutWall) {
+						ImGui::Text("Wall time: %d/120", player.pawn.mem54());
+					} else {
+						ImGui::TextUnformatted("Not on a wall.");
+					}
+				} else if (player.charType == CHARACTER_TYPE_FAUST) {
+					GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
+					drawGGIcon(scaledIcon);
+					ImGui::SameLine();
+					const PlayerInfo& otherPlayer = endScene.players[1 - player.index];
+					if (!otherPlayer.poisonDuration) {
+						ImGui::TextUnformatted("Opponent not poisoned.");
+					} else {
+						sprintf_s(strbuf, "Poison duration on opponent: %d/%d", otherPlayer.poisonDuration, otherPlayer.poisonDurationMax);
+						ImGui::TextUnformatted(strbuf);
+					}
 				} else {
 					GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
 					drawGGIcon(scaledIcon);
@@ -2260,6 +2959,89 @@ void UI::prepareDrawData() {
 				}
 				ImGui::End();
 			}
+		}
+		if (showBoxExtents) {
+			ImGui::Begin("Box Extents", &showBoxExtents);
+			if (endScene.isIGiveUp()) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else
+			if (ImGui::BeginTable("##PayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
+				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
+				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
+				
+				ImGui::TableNextColumn();
+				GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
+				float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
+				RightAlign(w);
+				drawPlayerIconWithTooltip(0);
+				ImGui::SameLine();
+				ImGui::TextUnformatted("P1");
+				ImGui::TableNextColumn();
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted("P2");
+				ImGui::SameLine();
+				drawPlayerIconWithTooltip(1);
+				
+				for (int i = 0; i < 2; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					if (player.hurtboxTopBottomValid) {
+						sprintf_s(strbuf, "from %d to %d",
+							player.hurtboxTopY,
+							player.hurtboxBottomY);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Hurtbox Y");
+						AddTooltip("These values display either the current or last valid value and change each frame."
+							" They do not show the total combined bounding box."
+							" To view these values for each frame more easily you could use the frame freeze mode,"
+							" available in the Hitboxes section.\n"
+							"The coordinates shown are relative to the global space.");
+					}
+				}
+				for (int i = 0; i < 2; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					if (player.hitboxTopBottomValid) {
+						sprintf_s(strbuf, "from %d to %d",
+							player.hitboxTopY,
+							player.hitboxBottomY);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Hitbox Y");
+						AddTooltip("These values display either the current or last valid value and change each frame."
+							" They do not show the total combined bounding box."
+							" To view these values for each frame more easily you could use the frame freeze mode,"
+							" available in the Hitboxes section.\n"
+							"The coordinates shown are relative to the global space.\n"
+							"If the coordinates are not shown while an attack is out, that means that attack is a projectile."
+							" To view projectiles' hitbox extents you can see 'Projectiles' in the main UI window.");
+					}
+				}
+				ImGui::EndTable();
+			}
+			ImGui::End();
+		}
+		if (showLowProfilePresets) {
+			lowProfilePresetsWindow();
+		}
+		if (showFramebarHelp) {
+			framebarHelpWindow();
+		}
+		if (showErrorDialog && errorDialogText && *errorDialogText != '\0') {
+			ImGui::SetNextWindowPos(*(ImVec2*)errorDialogPos, ImGuiCond_Appearing);
+			ImGui::Begin("Error", &showErrorDialog);
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			ImGui::TextUnformatted(errorDialogText);
+			ImGui::PopTextWrapPos();
+			ImGui::End();
 		}
 		if (showFrameAdvTooltip) {
 			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
@@ -2275,7 +3057,7 @@ void UI::prepareDrawData() {
 				" For example, two players jump one after each other with 1f delay. Both players whiff a j.P in the air and recover in the air, then land"
 				" one after another with 1f delay. The player who landed first will have a +1 'landing' frame advantage and the displayed result will be:"
 				" ??? (+1), where ??? is the 'air' frame advantage (read below), and +1 is the 'landing' frame advantage.\n"
-				"The other value (not in ()) means ('air') frame advantage"
+				"The other value (not in ()) means 'air' frame advantage"
 				" immediately after recovering in the air or on the ground, whichever happened earlier."
 				" 'Air' frame advantage is measured against the other player becoming able to attack in the air or"
 				" on the ground, whichever happened earlier. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
@@ -2291,7 +3073,8 @@ void UI::prepareDrawData() {
 				" then all the time that Ky was idle in the air immediately gets included in the frame advantage. For example, if you did a move that let you recover"
 				" in one frame, but it caused the opponent to enter blockstun 100 frames after you started your move, and the opponent spent 1 frame in blockstun,"
 				" you're considered +100 instead of +1. If you do not want to include attacker's pre-blockstun idle time as part of frame advantage,"
-				" then you may calculate frame advantage manually by adding defender's hitstop + blockstun together. They're displayed above in the 'Hitstop+X-stun' field.");
+				" then you may untick the 'Settings - General Settings - Frame Advantage: Don't Use Pre-Blockstun Time' checkbox"
+				" (called frameAdvantage_dontUsePreBlockstunTime in the INI file).");
 			ImGui::End();
 		}
 		
@@ -2666,7 +3449,7 @@ char* UI::printDecimal(int num, int numAfterPoint, int padding, bool percentage)
 			return printdecimalbuf;
 		}
 		if (padding > 0) {
-			memmove(printdecimalbuf, printdecimalbuf + padSize, len);
+			memmove(printdecimalbuf + padSize, printdecimalbuf, len);
 			memset(printdecimalbuf, ' ', padSize);
 		} else {
 			memset(printdecimalbuf + len, ' ', padSize);
@@ -3055,37 +3838,51 @@ bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_bu
 	return false;
 }
 
-bool UI::addImage(HMODULE hModule, WORD resourceId, PngResource& resource) {
-	if (!loadPngResource(hModule, resourceId, resource)) return false;
-	texturePacker.addImage(resource);
+bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource) {
+	if (!resource) resource = std::make_unique<PngResource>();
+	if (!loadPngResource(hModule, resourceId, *resource)) return false;
+	texturePacker.addImage(*resource);
 	return true;
 }
 
-void outlinedText(ImVec2 pos, const char* text) {
+void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
+	if (!color) color = &WHITE_COLOR;
+	if (!outlineColor) outlineColor = &BLACK_COLOR;
+	
+    ImGui::PushStyleColor(ImGuiCol_Text, *outlineColor);
+    
 	ImGui::SetCursorPos({ pos.x, pos.y - 1.F });
-	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	ImGui::TextUnformatted(text);
 	
 	ImGui::SetCursorPos({ pos.x, pos.y + 1.F });
-	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	ImGui::TextUnformatted(text);
 	
 	ImGui::SetCursorPos({ pos.x - 1.F, pos.y - 1.F });
-	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	ImGui::TextUnformatted(text);
 	
 	ImGui::SetCursorPos({ pos.x + 1.F, pos.y - 1.F });
-	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	ImGui::TextUnformatted(text);
 	
 	ImGui::SetCursorPos({ pos.x - 1.F, pos.y + 1.F });
-	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	ImGui::TextUnformatted(text);
 	
 	ImGui::SetCursorPos({ pos.x + 1.F, pos.y + 1.F });
-	ImGui::TextColored(BLACK_COLOR, "%s", text);
+	ImGui::TextUnformatted(text);
+	
+    ImGui::PopStyleColor();
 	
 	ImGui::SetCursorPos({ pos.x, pos.y });
-	ImGui::TextUnformatted(text);
+	if (!color) {
+		ImGui::TextUnformatted(text);
+	} else {
+		ImGui::PushStyleColor(ImGuiCol_Text, *color);
+		ImGui::TextUnformatted(text);
+    	ImGui::PopStyleColor();
+	}
 }
 
 const PngResource& UI::getPackedFramesTexture() const {
-	return packedTexture;
+	return *packedTexture;
 }
 
 int numDigits(int num) {
@@ -3098,33 +3895,36 @@ int numDigits(int num) {
 	return answer;
 }
 
-void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, PngResource& resourceBothVersions, const char* description) {
+void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, const char* description) {
+	if (!resourceBothVersions) resourceBothVersions = std::make_unique<PngResource>();
 	addImage(hModule, resourceIdBothVersions, resourceBothVersions);
 	frameArtNonColorblind[frameType] = frameArtColorblind[frameType] = {
 		frameType,
-		&resourceBothVersions,
+		resourceBothVersions.get(),
 		ImVec2{},
 		ImVec2{},
 		description
 	};
 }
 
-void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, PngResource& resourceColorblind,
-                 WORD resourceIdNonColorblind, PngResource& resourceNonColorblind, const char* description) {
+void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
+                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, const char* description) {
+	if (!resourceColorblind) resourceColorblind = std::make_unique<PngResource>();
+	if (!resourceNonColorblind) resourceNonColorblind = std::make_unique<PngResource>();
 	assert(&resourceIdColorblind != &resourceIdNonColorblind);
 	assert(&resourceColorblind != &resourceNonColorblind);
 	addImage(hModule, resourceIdColorblind, resourceColorblind);
 	addImage(hModule, resourceIdNonColorblind, resourceNonColorblind);
 	frameArtColorblind[frameType] = {
 		frameType,
-		&resourceColorblind,
+		resourceColorblind.get(),
 		ImVec2{},
 		ImVec2{},
 		description
 	};
 	frameArtNonColorblind[frameType] = {
 		frameType,
-		&resourceNonColorblind,
+		resourceNonColorblind.get(),
 		ImVec2{},
 		ImVec2{},
 		description
@@ -3132,35 +3932,1420 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColo
 	
 }
 
-void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdBothVersions, PngResource& resourceBothVersions) {
+void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions) {
+	if (!resourceBothVersions) resourceBothVersions = std::make_unique<PngResource>();
 	addImage(hModule, resourceIdBothVersions, resourceBothVersions);
 	frameMarkerArtNonColorblind[markerType] = frameMarkerArtColorblind[markerType] = {
 		markerType,
-		&resourceBothVersions,
+		resourceBothVersions.get(),
 		ImVec2{},
 		ImVec2{}
 	};
 }
 
-void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdColorblind, PngResource& resourceColorblind,
-                 WORD resourceIdNonColorblind, PngResource& resourceNonColorblind) {
+void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
+                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind) {
+	if (!resourceColorblind) resourceColorblind = std::make_unique<PngResource>();
+	if (!resourceNonColorblind) resourceNonColorblind = std::make_unique<PngResource>();
 	assert(&resourceIdColorblind != &resourceIdNonColorblind);
 	assert(&resourceColorblind != &resourceNonColorblind);
 	addImage(hModule, resourceIdColorblind, resourceColorblind);
 	addImage(hModule, resourceIdNonColorblind, resourceNonColorblind);
 	frameMarkerArtColorblind[markerType] = {
 		markerType,
-		&resourceColorblind,
+		resourceColorblind.get(),
 		ImVec2{},
 		ImVec2{}
 	};
 	frameMarkerArtNonColorblind[markerType] = {
 		markerType,
-		&resourceNonColorblind,
+		resourceNonColorblind.get(),
 		ImVec2{},
 		ImVec2{}
 	};
 	
+}
+
+void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motionCount, UI::InputName** buttons, int buttonsCount) {
+	char* bufOrig = buf;
+	int result;
+	bool needSpace = false;
+	for (int i = 0; i < motionCount; ++i) {
+		UI::InputName* desc = motions[i];
+		if (desc->type == UI::InputNameType::MULTIWORD_MOTION) {
+			result = sprintf_s(buf, bufSize, "%s%s", needSpace ? ", " : "", desc->name);
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+			needSpace = true;
+		}
+	}
+	bool needPlus = false;
+	for (int i = 0; i < motionCount; ++i) {
+		UI::InputName* desc = motions[i];
+		if (desc->type == UI::InputNameType::MOTION) {
+			result = sprintf_s(buf, bufSize, "%s%s",
+				needSpace
+					? ", "
+					: needPlus
+						? "+" : ""
+				, desc->name);
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+			needSpace = false;
+			needPlus = true;
+		}
+	}
+	needPlus = false;
+	for (int i = 0; i < buttonsCount; ++i) {
+		UI::InputName* desc = buttons[i];
+		result = sprintf_s(buf, bufSize, "%s%s",
+			needPlus
+				? "+"
+				: (desc->type == UI::InputNameType::MULTIWORD_BUTTON || needSpace) && bufOrig != buf
+					? " " : ""
+			, desc->name);
+		if (result != -1) {
+			buf += result;
+			bufSize -= result;
+		}
+		needSpace = false;
+		needPlus = true;
+	}
+}
+
+int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
+	if (!bufSize) return 0;
+	*buf = '\0';
+	char* origBuf = buf;
+	UI::InputName* motions[16] { nullptr };
+	int motionCount = 0;
+	UI::InputName* buttons[16] { nullptr };
+	int buttonsCount = 0;
+	int result;
+	for (int i = 0; i < 16; ++i) {
+		InputType inputType = inputs[i];
+		if (inputType == INPUT_END) {
+			break;
+		}
+		if (inputType == INPUT_BOOLEAN_OR) {
+			printInputs(buf, bufSize, motions, motionCount, buttons, buttonsCount);
+			result = sprintf_s(buf, bufSize, " or ");
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+			motionCount = 0;
+			buttonsCount = 0;
+			continue;
+		}
+		UI::InputName& info = ui.inputNames[inputType];
+		if (info.type == UI::InputNameType::MOTION || info.type == UI::InputNameType::MULTIWORD_MOTION) {
+			motions[motionCount++] = &info;
+		}
+		if (info.type == UI::InputNameType::BUTTON || info.type == UI::InputNameType::MULTIWORD_BUTTON) {
+			buttons[buttonsCount++] = &info;
+		}
+	}
+	printInputs(buf, bufSize, motions, motionCount, buttons, buttonsCount);
+	return buf - origBuf;
+}
+
+bool UI::needShowFramebar() const {
+	if (settings.showFramebar && (!settings.closingModWindowAlsoHidesFramebar || visible)) {
+		GameMode mode = game.getGameMode();
+		if (mode == GAME_MODE_TRAINING) {
+			return settings.showFramebarInTrainingMode;
+		} else if (mode == GAME_MODE_REPLAY) {
+			return settings.showFramebarInReplayMode;
+		} else if (!(mode == GAME_MODE_NETWORK && game.getPlayerSide() != 2)) {  // if (!(you're playing online as a non-observer)) {
+			return settings.showFramebarInOtherModes;
+		} else {
+			return false;
+		}
+	} else {
+		return false;
+	}
+}
+
+int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
+	struct Requirement {
+		MoveCondition condition;
+		const char* description;
+		int index;
+		int mask;
+	};
+	static Requirement requirements[] {
+		{ MOVE_CONDITION_REQUIRES_25_TENSION, "requires 25 meter", 0, 0x20 },
+		{ MOVE_CONDITION_REQUIRES_50_TENSION, "requires 50 meter", 0, 0x8 },
+		{ MOVE_CONDITION_REQUIRES_100_TENSION, "requires 100 meter", 0, 0x10 },
+		{ MOVE_CONDITION_IS_TOUCHING_LEFT_SCREEN_EDGE, "must touch left screen edge", 2, 0x10 },
+		{ MOVE_CONDITION_IS_TOUCHING_RIGHT_SCREEN_EDGE, "must touch right screen edge", 2, 0x20 },
+		{ MOVE_CONDITION_IS_TOUCHING_WALL, "must touch arena's wall", 1, 0x10000000 }
+	};
+	int counter = 1;
+	for (const GatlingOrWhiffCancelInfo& cancel : cancels) {
+		char* buf = strbuf;
+		size_t bufSize = sizeof strbuf;
+		int result;
+		result = sprintf_s(buf, bufSize, "%s", cancel.name);
+		if (result != -1) {
+			buf += result;
+			bufSize -= result;
+		}
+		if (cancel.move->inputs[0] != INPUT_END && bufSize >= 2 && !cancel.nameIncludesInputs) {
+			if (cancel.replacementInputs) {
+				result = sprintf_s(buf + 2, bufSize - 2, "%s", cancel.replacementInputs);
+				if (result == -1) result = 0;
+			} else {
+				result = printInputs(buf + 2, bufSize - 2, cancel.move->inputs);
+			}
+			if (result) {
+				*buf = ' ';
+				*(buf + 1) = '(';
+			}
+			buf += result + 2;
+			bufSize -= result + 2;
+			if (bufSize >= 2) {
+				*buf = ')';
+				*(buf + 1) = '\0';
+				++buf;
+				--bufSize;
+			}
+		}
+		bool isFirstCondition = true;
+		bool alreadySaidTheWordRequires = false;
+		for (int i = 0; i < _countof(requirements); ++i) {
+			Requirement& req = requirements[i];
+			if ((cancel.move->conditions[req.index] & req.mask) != 0) {
+				result = sprintf_s(buf, bufSize, isFirstCondition ? " (%s" : ", %s", req.description);
+				if (result != -1) {
+					buf += result;
+					bufSize -= result;
+				}
+				isFirstCondition = false;
+				alreadySaidTheWordRequires = req.condition == MOVE_CONDITION_REQUIRES_25_TENSION
+					|| req.condition == MOVE_CONDITION_REQUIRES_50_TENSION
+					|| req.condition == MOVE_CONDITION_REQUIRES_100_TENSION;
+			}
+		}
+		if (cancel.move->subcategory == MOVE_SUBCATEGORY_BURST_OVERDRIVE) {
+			if (alreadySaidTheWordRequires) {
+				result = sprintf_s(buf, bufSize, "%s", " and burst");
+			} else {
+				result = sprintf_s(buf, bufSize, isFirstCondition ? " (%s" : ", %s", "requires burst");
+			}
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+			isFirstCondition = false;
+		}
+		if (cancel.move->minimumHeightRequirement) {
+			ui.printDecimal(cancel.move->minimumHeightRequirement, 2, 0);
+			result = sprintf_s(buf, bufSize, "%sminimum height requirement: %s",
+				isFirstCondition ? " (" : ", ",
+				printdecimalbuf);
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+			isFirstCondition = false;
+		}
+		if (!isFirstCondition) {
+			result = sprintf_s(buf, bufSize, ")");
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+		}
+		if (cancel.bufferTime && cancel.bufferTime != 3) {
+			result = sprintf_s(buf, bufSize, " (%df buffer)", cancel.bufferTime);
+			if (result != -1) {
+				buf += result;
+				bufSize -= result;
+			}
+		}
+		ImGui::Text("%d) %s;", counter++, strbuf);
+	}
+	return counter - 1;
+}
+
+void UI::framebarHelpWindow() {
+	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
+	ImGui::Begin("Framebar Help", &showFramebarHelp);
+	float wordWrapWidth = ImGui::GetContentRegionAvail().x;
+	ImGui::PushTextWrapPos(wordWrapWidth);
+	
+	static bool framebarHelpContentGenerated = false;
+	struct FramebarHelpElement {
+		const FrameArt* art[2];
+		std::vector<const char*> meanings;
+	};
+	static std::vector<FramebarHelpElement> framebarHelpContent;
+	
+	if (!framebarHelpContentGenerated) {
+		framebarHelpContentGenerated = true;
+		framebarHelpContent.reserve(_countof(frameArtNonColorblind));
+		for (int i = 0; i < _countof(frameArtNonColorblind); ++i) {
+			FrameArt& art = frameArtNonColorblind[i];
+			if (art.type == FT_PROJECTILE
+					|| art.type == FT_NONE) {
+				continue;
+			}
+			
+			FramebarHelpElement* found = nullptr;
+			for (FramebarHelpElement& elem : framebarHelpContent) {
+				if (elem.art[0]->resource == art.resource) {
+					found = &elem;
+					break;
+				}
+			}
+			
+			if (!found) {
+				framebarHelpContent.emplace_back();
+				FramebarHelpElement& newHelp = framebarHelpContent.back();
+				newHelp.art[0] = &art;
+				newHelp.art[1] = &frameArtColorblind[i];
+				newHelp.meanings.emplace_back(art.description);
+			} else {
+				found->meanings.emplace_back(art.description);
+			}
+		}
+	}
+	int index = settings.useColorblindHelp ? 1 : 0;
+	bool needSeparator = false;
+	for (const FramebarHelpElement& elem : framebarHelpContent) {
+		const FrameArt* art = elem.art[index];
+		
+		if (needSeparator) {
+			ImGui::Separator();
+		}
+		
+		ImGui::Image((ImTextureID)TEXID_FRAMES,
+			{ frameWidthOriginal, frameHeightOriginal },
+			art->uvStart,
+			art->uvEnd,
+			ImVec4(1, 1, 1, 1),
+			ImVec4(1, 1, 1, 1));
+		
+		ImGui::SameLine();
+		float cursorX = ImGui::GetCursorPosX();
+		
+		int count = 1;
+		bool theresOnlyOne = elem.meanings.size() == 1;
+		for (const char* description : elem.meanings) {
+			if (count != 1) {
+				ImGui::SetCursorPosX(cursorX);
+			}
+			if (theresOnlyOne) {
+				ImGui::TextUnformatted(description);
+			} else {
+				ImGui::Text("%d) %s", count++, description);
+			}
+		}
+		
+		needSeparator = true;
+	}
+	
+	ImGui::Separator();
+	
+	const FrameMarkerArt* frameMarkerArtArray = settings.useColorblindHelp ? frameMarkerArtColorblind : frameMarkerArtNonColorblind;
+	float frameMarkerVHeight = frameMarkerHeightOriginal / (float)strikeInvulFrame->height
+		* (strikeInvulFrame->vEnd - strikeInvulFrame->vStart);
+	
+	struct MarkerHelpInfo {
+		FrameMarkerType type;
+		bool isOnTheBottom;
+		const char* description;
+	};
+	MarkerHelpInfo markerHelps[] {
+		{ MARKER_TYPE_STRIKE_INVUL, false, "Strike invulnerability." },
+		{ MARKER_TYPE_THROW_INVUL, true, "Throw invulnerability." },
+		{ MARKER_TYPE_SUPER_ARMOR, false, "Super armor, parry, azami,"
+			" projectile-only invulnerability, reflect or flick, or a combination of those." },
+		{ MARKER_TYPE_SUPER_ARMOR_FULL, false, "Red Blitz charge super armor or air Blitz super armor." }
+	};
+	
+	for (int i = 0; i < _countof(markerHelps); ++i) {
+		MarkerHelpInfo& info = markerHelps[i];
+		float cursorY = ImGui::GetCursorPosY();
+		ImGui::SetCursorPosY(cursorY + (ImGui::GetTextLineHeightWithSpacing() - frameMarkerHeightOriginal) * 0.5F);
+		ImGui::Image((ImTextureID)TEXID_FRAMES,
+			{ frameMarkerWidthOriginal, frameMarkerHeightOriginal },
+			!info.isOnTheBottom
+				? frameMarkerArtArray[info.type].uvStart
+				: ImVec2{
+					frameMarkerArtArray[info.type].uvStart.x,
+					frameMarkerArtArray[info.type].uvEnd.y - frameMarkerVHeight
+				},
+			!info.isOnTheBottom
+				? ImVec2{
+					frameMarkerArtArray[info.type].uvEnd.x,
+					frameMarkerArtArray[info.type].uvStart.y + frameMarkerVHeight
+				}
+				: frameMarkerArtArray[info.type].uvEnd
+			);
+		ImGui::SameLine();
+		ImGui::SetCursorPosY(cursorY);
+		ImGui::TextUnformatted(info.description);
+	}
+	
+	ImGui::Separator();
+	
+	ImGui::Image((ImTextureID)TEXID_FRAMES,
+		{ frameWidthOriginal, firstFrameHeight },
+		{ firstFrame->uStart, firstFrame->vStart },
+		{ firstFrame->uEnd, firstFrame->vEnd });
+	ImGui::SameLine();
+	ImGui::TextUnformatted("A first frame, denoting the start of a new animation."
+		" If the animation didn't change, may mean transition to some new state in the animation."
+		" For blockstun and hitstun may mean leaving hitstop or re-entering hitstun/blockstun/hitstop.\n"
+		"Some animation changes are intentionally not shown.");
+	
+	ImGui::Separator();
+	
+	static std::string generalFramebarHelp;
+	if (generalFramebarHelp.empty()) {
+		generalFramebarHelp = settings.convertToUiDescription(
+			"Note: due to rollback, framebar cannot function properly in online play and is disabled there.\n"
+			"\n"
+			"The game runs at 60FPS. If the computer can't handle the game's required processing at the required FPS,"
+			" frames do not get skipped. Instead, the game slows down, and every frame is always displayed on the screen without skipping."
+			" If you see frames skipping in online play, that's due to rollback frames, not the game compensating for poor CPU or graphical performance."
+			" If the performance is low, the game just slows down, even in online. Point is, every frame some game logic runs and all time and everything"
+			" is measured in frames.\n"
+			"\n"
+			"The framebar shows individual frames that record some information of what happened on that frame and display it using color,"
+			" or extra graphics around the frames.\n"
+			"\n"
+			"When both players stand still, the framebar doesn't display any new information."
+			" The framebar only advances forward when either player is not 'idle', or is strike/throw/etc invul,"
+			" or a projectile is present on the arena."
+			" \"considerRunAndWalkNonIdle\", \"considerCrouchNonIdle\", \"considerDummyPlaybackNonIdle\", \"considerIdleInvulIdle\","
+			" \"considerKnockdownWakeupAndAirtechIdle\" settings affect"
+			" whether a player is considered 'idle'.\n"
+			"\n"
+			"A framebar displays 80 frames maximum. When the framebar gets full, it circles back and the old frames are tinted darker. A white vertical line"
+			" denotes the current position in the framebar. All sub-framebars always have the same position of the white vertical line.\n"
+			"\n"
+			"Hitstop in general is skipped, unless a projectile or a blocking Baiken (see \"ignoreHitstopForBlockingBaiken\")"
+			" is present. The \"neverIgnoreHitstop\" setting can be used to not skip hitstop.\n"
+			"\n"
+			"Superfreeze is always skipped in the framebar.\n"
+			"\n"
+			"When a projectile appears, a new sub-framebar is created for it. It may not be visible if it doesn't fit in the 'framebar window'."
+			" If there are more sub-framebars than the framebar window can show, a vertical scrollbar will appear on its right side that can be used"
+			" to scroll it with the mouse wheel or by dragging the scrollbar with the mouse."
+			" The framebar window has an invisible border which can be resized using the mouse. Try to find where the border is by following towards the top"
+			" from the 'Player 1' title text. You can resize the framebar so that it is large enough to fit all its sub-framebars in it without having to scroll."
+			" Framebar can be dragged by clicking anywhere on it with the mouse, holding and moving.\n"
+			"Similar projectiles may be combined into single sub-framebars. The \"combineProjectileFramebarsWhenPossible\" and \"eachProjectileOnSeparateFramebar\""
+			" settings control how projectile sub-framebars are combined.\n"
+			"\n"
+			"You can hover your mouse over individual frames in the framebar to reveal additional information about them.\n"
+			"\n"
+			"Numbers on the framebar mean the number of same-type frames in a row, until a 'first frame' marker (^img0;) is encountered."
+			" The numbers do not reset (do not restart counting) when a \"next hit\" active frame (^img1;) is encountered."
+			" The \"considerSimilarFrameTypesSameForFrameCounts\" setting may help broaden the range of situations where the numbers get reset (restart counting)."
+			" By default it is set to true, meaning similar frame types of startup or recovery are counted as one range of frames."
+			" When the number of frames is double or triple digit"
+			" and does not fit, it may be broken up into 1-2 digit on one side + 1-2 digits on the other side. The way you should"
+			" read this is as one whole number: the pieces on the right are the higher digits, and pieces on the left are the lower ones."
+		);
+	}
+	
+	FrameArt* newHitArt;
+	if (settings.useColorblindHelp) {
+		newHitArt = &frameArtColorblind[FT_ACTIVE_NEW_HIT];
+	} else {
+		newHitArt = &frameArtNonColorblind[FT_ACTIVE_NEW_HIT];
+	}
+	imGuiDrawWrappedTextWithIcons_Icon icons[] {
+		{
+			(ImTextureID)TEXID_FRAMES,
+			{ frameWidthOriginal, firstFrameHeight },
+			{ firstFrame->uStart, firstFrame->vStart },
+			{ firstFrame->uEnd, firstFrame->vEnd }
+		},
+		{
+			(ImTextureID)TEXID_FRAMES,
+			{ frameWidthOriginal, frameHeightOriginal },
+			newHitArt->uvStart,
+			newHitArt->uvEnd
+		}
+	};
+	ImGui::PopTextWrapPos();
+	imGuiDrawWrappedTextWithIcons(generalFramebarHelp.c_str(),
+		generalFramebarHelp.c_str() + generalFramebarHelp.size(),
+		wordWrapWidth,
+		icons,
+		_countof(icons));
+	ImGui::End();
+}
+
+// This is from imgui_draw.cpp::ImFont::CalcWordWrapPositionA, modified version. Added icons
+const char* imGuiDrawWrappedTextWithIcons_CalcWordWrapPositionA(float scale,
+		const char* text,
+		const char* text_end,
+		float wrap_width,
+		const imGuiDrawWrappedTextWithIcons_Icon* icons,
+		int iconsCount,
+		const imGuiDrawWrappedTextWithIcons_Icon** icon)
+{
+	if (icon) *icon = nullptr;
+	ImFont* font = ImGui::GetFont();
+    // For references, possible wrap point marked with ^
+    //  "aaa bbb, ccc,ddd. eee   fff. ggg!"
+    //      ^    ^    ^   ^   ^__    ^    ^
+
+    // List of hardcoded separators: .,;!?'"
+
+    // Skip extra blanks after a line returns (that includes not counting them in width computation)
+    // e.g. "Hello    world" --> "Hello" "World"
+
+    // Cut words that cannot possibly fit within one line.
+    // e.g.: "The tropical fish" with ~5 characters worth of width --> "The tr" "opical" "fish"
+    float line_width = 0.0f;
+    float word_width = 0.0f;
+    float blank_width = 0.0f;
+    wrap_width /= scale; // We work with unscaled widths to avoid scaling every characters
+
+    const char* word_end = text;
+    const char* prev_word_end = NULL;
+    bool inside_word = true;
+
+    const char* s = text;
+    IM_ASSERT(text_end != NULL);
+    while (s < text_end)
+    {
+        unsigned int c = (unsigned int)*s;
+        const char* next_s;
+        if (c < 0x80)
+            next_s = s + 1;
+        else
+            next_s = s + ImTextCharFromUtf8(&c, s, text_end);
+
+        if (c < 32)
+        {
+            if (c == '\n')
+            {
+                return s;
+            }
+            if (c == '\r')
+            {
+                s = next_s;
+                continue;
+            }
+        }
+
+        float char_width = ((int)c < font->IndexAdvanceX.Size ? font->IndexAdvanceX.Data[c] : font->FallbackAdvanceX);
+        if (ImCharIsBlankW(c))
+        {
+            if (inside_word)
+            {
+                line_width += blank_width;
+                blank_width = 0.0f;
+                word_end = s;
+            }
+            blank_width += char_width;
+            inside_word = false;
+        }
+        else
+        {
+        	if (c == '^' && strncmp(s + 1, "img", 3) == 0) {
+        		int digitValue = 0;
+        		const char* digitPtr = s + 4;
+        		while (digitPtr < text_end) {
+        			char digit = *digitPtr;
+        			if (digit >= '0' && digit <= '9') {
+        				digitValue = digitValue * 10 + digit - '0';
+        			} else {
+        				if (digitPtr != s + 4 && digit == ';' && digitValue < iconsCount) {
+        					const imGuiDrawWrappedTextWithIcons_Icon& iconRef = icons[digitValue];
+        					if (icon) *icon = &iconRef;
+        					char_width = iconRef.size.x;
+        					next_s = digitPtr + 1;
+        					c = 'A';
+        					return s;
+        				}
+        				break;
+        			}
+        			++digitPtr;
+        		}
+        	}
+            word_width += char_width;
+            if (inside_word)
+            {
+                word_end = next_s;
+            }
+            else
+            {
+                prev_word_end = word_end;
+                line_width += word_width + blank_width;
+                word_width = blank_width = 0.0f;
+            }
+
+            // Allow wrapping after punctuation.
+            inside_word = (c != '.' && c != ',' && c != ';' && c != '!' && c != '?' && c != '\"');
+        }
+
+        // We ignore blank width at the end of the line (they can be skipped)
+        if (line_width + word_width > wrap_width)
+        {
+            // Words that cannot possibly fit within an entire line will be cut anywhere.
+            if (word_width < wrap_width)
+                s = prev_word_end ? prev_word_end : word_end;
+            break;
+        }
+
+        s = next_s;
+    }
+	
+    // Wrap_width is too small to fit anything. Force displaying 1 character to minimize the height discontinuity.
+    // +1 may not be a character start point in UTF-8 but it's ok because caller loops use (text >= word_wrap_eol).
+    /*
+			ImGui::Image((ImTextureID)TEXID_FRAMES,
+				{ frameWidthOriginal, frameHeightOriginal },
+				newHitArt->uvStart,
+				newHitArt->uvEnd);*/
+    if (s == text && text < text_end)
+        return s + 1;
+    return s;
+}
+
+// You must call PopTextWrapPos if you set wrap width with PushTextWrapPos before calling this function
+void imGuiDrawWrappedTextWithIcons(const char* textStart,
+		const char* textEnd,
+		float wrap_width,
+		const imGuiDrawWrappedTextWithIcons_Icon* icons,
+		int iconsCount) {
+	if (textEnd == nullptr) textEnd = textStart + strlen(textStart);
+	const char* lineStart = textStart;
+	
+	ImFont* font = ImGui::GetFont();
+	float lineHeight = ImGui::GetTextLineHeight();
+	float cursorX = ImGui::GetCursorPosX();
+	ImVec2 windowPos = ImGui::GetWindowPos();
+	float wordWrapWidthUse = wrap_width - cursorX;
+	float wordWrapWidthUseOrig = wordWrapWidthUse;
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	float scrollY = ImGui::GetScrollY();
+	float textPosOrigX = cursorX + windowPos.x;
+	ImVec2 currentTextPos{
+		textPosOrigX,
+		ImGui::GetCursorPosY() + windowPos.y - scrollY
+	};
+	float yStart = currentTextPos.y;
+	const imGuiDrawWrappedTextWithIcons_Icon* icon = nullptr;
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0.F, 0.F });
+	char gianttextid[15] = "##gianttext";
+	int invisButtonCount = 0;
+	bool prevWasIcon = false;
+	while (true) {
+		const char* lineEnd = imGuiDrawWrappedTextWithIcons_CalcWordWrapPositionA(1.F, lineStart, textEnd, wordWrapWidthUse, icons, iconsCount, &icon);
+		if (!icon) {
+			drawList->AddText(currentTextPos, -1, lineStart, lineEnd);
+			lineStart = lineEnd;
+			if (prevWasIcon) {
+				ImGui::NewLine();
+				wordWrapWidthUse = wordWrapWidthUseOrig;
+				currentTextPos.x = textPosOrigX;
+				currentTextPos.y = ImGui::GetCursorPosY() + windowPos.y - scrollY;
+				yStart = currentTextPos.y;
+			} else {
+				currentTextPos.y += lineHeight;
+			}
+			prevWasIcon = false;
+		} else {
+			if (!prevWasIcon && currentTextPos.y != yStart) {
+				sprintf_s(gianttextid + 11, sizeof gianttextid - 11, "%d", invisButtonCount++);
+				ImGui::InvisibleButton(gianttextid, { wordWrapWidthUseOrig, currentTextPos.y - yStart }, ImGuiButtonFlags_None);
+			}
+			bool needSameLine = prevWasIcon;
+			if (lineEnd != lineStart) {
+				if (needSameLine) ImGui::SameLine();
+				ImGui::TextUnformatted(lineStart, lineEnd);
+				ImGui::SameLine();
+				needSameLine = false;
+			}
+			if (needSameLine) ImGui::SameLine();
+			ImGui::Image(icon->texId,
+				icon->size,
+				icon->uvStart,
+				icon->uvEnd);
+			const char* iconEnd = textEnd;
+			if (textEnd > lineEnd) iconEnd = (const char*)memchr(lineEnd, ';', textEnd - lineEnd);
+			if (iconEnd == nullptr) break;
+			if (iconEnd != textEnd) ++iconEnd;
+			
+			ImGui::SameLine();
+			cursorX = ImGui::GetCursorPosX();
+			wordWrapWidthUse = wrap_width - cursorX;
+			currentTextPos.x = cursorX + windowPos.x;
+			prevWasIcon = true;
+			
+			lineStart = iconEnd;
+		}
+		bool isFirstLineBreak = true;
+		while (lineStart < textEnd && *lineStart <= 32) {
+			if (*lineStart == '\n') {
+				if (!isFirstLineBreak) {
+					currentTextPos.y += lineHeight;
+				} else if (icon) {
+					wordWrapWidthUse = wordWrapWidthUseOrig;
+					currentTextPos.x = textPosOrigX;
+					prevWasIcon = false;
+					ImGui::NewLine();
+					
+					currentTextPos.y = ImGui::GetCursorPosY() + windowPos.y - scrollY;
+					yStart = currentTextPos.y;
+				}
+					
+				isFirstLineBreak = false;
+			}
+			++lineStart;
+		}
+		if (lineStart >= textEnd) break;
+	}
+	if (currentTextPos.y != yStart) {
+		sprintf_s(gianttextid + 11, sizeof gianttextid - 11, "%d", invisButtonCount++);
+		ImGui::InvisibleButton(gianttextid, { wordWrapWidthUseOrig, currentTextPos.y - yStart }, ImGuiButtonFlags_None);
+	}
+	ImGui::PopStyleVar();
+}
+
+void UI::lowProfilePresetsWindow() {
+	
+	static AttackValuePreset presets[] {
+		{ "Sol c.S: 107000", 107000 },
+		{ "Sol f.S: 133000", 133000 },
+		{ "Sol DAA/6P: 129000", 129000 },
+		{ "Sol Tyrant Rave (Normal/DI): 129000", 129000 },
+		{ "Ky f.S: 175000", 175000 },
+		{ "Ky DAA/6P: 150000", 150000 },
+		{ "Ky SE: 184000", 184000 },
+		{ "Ky CSE: 178000", 178000 },
+		{ "Ky DCCSE Main Shaft: 171000", 171000 },
+		{ "Ky DCCSE Base Ring: 136000", 136000 },
+		{ "Ky Lowest Descending j.D: 160951", 160951 },
+		{ "Ky tk j.D: 247226", 247226 },
+		{ "May c.S: 110000", 110000 },
+		{ "May f.S: 88000", 88000 },
+		{ "May DAA/6P: 180000", 180000 },
+		{ "May Ultimate Whiner: 179000", 179000 },
+		{ "May Ultimate Spinning Whirlwind: 133000", 133000 },
+		{ "May Mr. Dolphin Horizontal (S): 113025", 113025 },
+		{ "May Mr. Dolphin Horizontal (H): 161500", 161500 },
+		{ "Millia c.S: 98000", 98000 },
+		{ "Millia f.S: 103000", 103000 },
+		{ "Millia 6P: 126000", 126000 },
+		{ "Millia 5H: 157000", 157000 },
+		{ "Millia DAA: 194000", 194000 },
+		{ "Millia Tandem Top (S): 225000", 225000 },
+		{ "Millia Tandem Top (H) (Lowest Possible): 208900", 208900 },
+		{ "Zato c.S: 184000", 184000 },
+		{ "Zato f.S: 220000", 220000 },
+		{ "Zato 6P: 166000", 166000 },
+		{ "Zato DAA/2H: 217000", 217000 },
+		{ "Potemkin c.S: 28000", 28000 },
+		{ "Potemkin f.S: 220000", 220000 },
+		{ "Potemkin 6P: 264000", 264000 },
+		{ "Potemkin 5H: 133000", 133000 },
+		{ "Potemkin 6H: 159000", 159000 },
+		{ "Potemkin DAA/5D: 178000", 178000 },
+		{ "Potemkin Hammerfall: 132000", 132000 },
+		{ "Potemkin Giganter Kai: 73000", 73000 },
+		{ "Potemkin F.D.B.: 165000", 165000 },
+		{ "Potemkin F.D.B. Reflected Projectile: 152000", 152000 },
+		{ "Chipp 5K: 140000", 140000 },
+		{ "Chipp c.S: 123000", 123000 },
+		{ "Chipp f.S: 143000", 143000 },
+		{ "Chipp 5H/DAA: 202000", 202000 },
+		{ "Chipp 6P: 161000", 161000 },
+		{ "Chipp tk Alpha Blade: 51751", 51751 },
+		{ "Chipp Zansei Rouga: 130250", 130250 },
+		{ "Faust 5P: 215000", 215000 },
+		{ "Faust f.S: 221000", 221000 },
+		{ "Faust 5H: 205000", 205000 },
+		{ "Faust 6P/DAA: 161000", 161000 },
+		{ "Faust Re-re-re Thrust: 209000", 209000 },
+		{ "Faust Drill (Lowest Possible): 182000", 182000 },
+		{ "Axl 5K: 163000", 163000 },
+		{ "Axl c.S: 107000", 107000 },
+		{ "Axl f.S: 133000", 133000 },
+		{ "Axl 6P/DAA: 244000", 244000 },
+		{ "Venom 5K/DAA: 91000", 91000 },
+		{ "Venom c.S: 137000", 137000 },
+		{ "Venom f.S: 184000", 184000 },
+		{ "Venom 5H: 185000", 185000 },
+		{ "Venom 6P: 273000", 273000 },
+		{ "Venom P Ball hit by 2P (Lowest Possible): 133875", 133875 },
+		{ "Venom Stinger Aim (S/H): 183000", 183000 },
+		{ "Slayer 5K: 184000", 184000 },
+		{ "Slayer 6P/DAA: 85000", 85000 },
+		{ "Slayer c.S: 121000", 121000 },
+		{ "Slayer f.S: 149000", 149000 },
+		{ "Slayer 5H: 78000", 78000 },
+		{ "Slayer Mappa Hunch: 154000", 154000 },
+		{ "Slayer Under Pressure: 100000", 100000 },
+		{ "Slayer Pilebunker: 112000", 112000 },
+		{ "Slayer Dead on Time: 126500", 126500 },
+		{ "Slayer Eternal Wings: 107500", 107500 },
+		{ "I-No 5K: 187000", 187000 },
+		{ "I-No c.S: 116000", 116000 },
+		{ "I-No f.S: 209000", 209000 },
+		{ "I-No 6P/DAA: 147000", 147000 },
+		{ "I-No Longing Desperation: 119000", 119000 },
+		{ "I-No Chemical Love (Horizontal) (Lowest Possible): 299410", 299410 },
+		{ "I-No Antidepressant Scale: 251000", 251000 },
+		{ "Bedman 5K/DAA: 117000", 117000 },
+		{ "Bedman 6P: 172000", 172000 },
+		{ "Bedman c.S: 61000", 61000 },
+		{ "Bedman f.S: 109000", 109000 },
+		{ "Bedman Task A/A' (First Frame): 193000", 193000 },
+		{ "Ramlethal DAA: 107000", 107000 },
+		{ "Ramlethal 5P: 220000", 220000 },
+		{ "Ramlethal 5K: 163000", 163000 },
+		{ "Ramlethal c.S (With/Without Sword): 97000", 97000 },
+		{ "Ramlethal f.S: 123820", 123820 },
+		{ "Ramlethal 6P: 193000", 193000 },
+		{ "Ramlethal f.S (No Sword): 174000", 174000 },
+		{ "Ramlethal 5H (No Sword): 95000", 95000 },
+		{ "Ramlethal Launch Greatsword (S): 92000", 92000 },
+		{ "Ramlethal Launch Greatsword (H): 169000", 169000 },
+		{ "Ramlethal Dauro: 127000", 127000 },
+		{ "Sin 5K: 169000", 169000 },
+		{ "Sin 6P: 224000", 224000 },
+		{ "Sin f.S/DAA: 175000", 175000 },
+		{ "Sin 5H (First Hit. Hard Whiffs on Crouching): 260000", 260000 },
+		{ "Sin Beak Driver (Lowest Possible): 170000", 170000 },
+		{ "Sin Beak Driver (Max Charge): 90000", 90000 },
+		{ "Sin Voltec Dein: 218000", 218000 },
+		{ "Elphelt c.S: 52000", 52000 },
+		{ "Elphelt f.S: 159000", 159000 },
+		{ "Elphelt 5H (Whiffs on Crouching): 244000", 244000 },
+		{ "Elphelt Bridal Express: 52000", 52000 },
+		{ "Elphelt sg.H (Not Max Charge): 41000", 41000 },
+		{ "Elphelt sg.P: 112000", 112000 },
+		{ "Elphelt sg.S: 47000", 47000 },
+		{ "Elphelt DAA/6P: 212000", 212000 },
+		{ "Elphelt j.D YRC (Lowest Possible): 138000", 138000 },
+		{ "Leo 5K: 147000", 147000 },
+		{ "Leo c.S: 148000", 148000 },
+		{ "Leo f.S: 158000", 158000 },
+		{ "Leo 5H: 145000", 145000 },
+		{ "Leo 6P: 196000", 196000 },
+		{ "Leo Kaltes Gest\xc3\xb6\x62\x65r Erst: 133000", 133000 },
+		{ "Leo Kaltes Gest\xc3\xb6\x62\x65r Zweit: 121000", 121000 },
+		{ "Leo bt.P: 142000", 142000 },
+		{ "Leo bt.S: 108000", 108000 },
+		{ "Leo bt.H: 112000", 112000 },
+		{ "Leo Graviert W\xc3\xbcrde (S): 113000", 113000 },
+		{ "Leo Graviert W\xc3\xbcrde (H): 115000", 115000 },
+		{ "Leo Leidenschaft Dirigent: 188000", 188000 },
+		{ "Leo DAA/5D: 131000", 131000 },
+		{ "Johnny 5K: 180000", 180000 },
+		{ "Johnny 6K: 189000", 189000 },
+		{ "Johnny 6P/DAA: 222000", 222000 },
+		{ "Johnny c.S: 66000", 66000 },
+		{ "Johnny f.S: 191000", 191000 },
+		{ "Johnny 5H: 56000", 56000 },
+		{ "Johnny 6H: 97000", 97000 },
+		{ "Johnny 2H: 44951", 44951 },
+		{ "Johnny K Mist Finer (Lv1, Lv2): 210000", 210000 },
+		{ "Johnny K Mist Finer (Lv3): 204000", 204000 },
+		{ "Johnny That's My Name: 187000", 187000 },
+		{ "Jack O' 5K: 173000", 173000 },
+		{ "Jack O' c.S: 70000", 70000 },
+		{ "Jack O' f.S: 106000", 106000 },
+		{ "Jack O' 5H (First Frame of First Hit): 117000", 117000 },
+		{ "Jack O' 4D: 152000", 152000 },
+		{ "Jack O' 6P/DAA: 166000", 166000 },
+		{ "Jack O' 5D: 72000", 72000 },
+		{ "Jack O' 6K: 99000", 99000 },
+		{ "Jam 5K: 61000", 61000 },
+		{ "Jam c.S: 98000", 98000 },
+		{ "Jam f.S/DAA: 134000", 134000 },
+		{ "Jam 5H (First Hit): 164000", 164000 },
+		{ "Jam 6H: 92000", 92000 },
+		{ "Jam 2H (First Hit): 160000", 160000 },
+		{ "Jam Hyappo Shinshou/Senri Shinshou: 81000", 81000 },
+		{ "Jam Choukyaku Hou'oushou: 27000", 27000 },
+		{ "Jam Bao Saishinshou: 89000", 89000 },
+		{ "Haehyun 5K/DAA (Lower Hitbox): 89000", 89000 },
+		{ "Haehyun 6P: 198000", 198000 },
+		{ "Haehyun c.S: 56000", 56000 },
+		{ "Haehyun f.S: 167000", 167000 },
+		{ "Haehyun 6H: 84000", 84000 },
+		{ "Haehyun Falcon Dive: 135000", 135000 },
+		{ "Haehyun Four Tigers Sword (NOT Hold): 45000", 45000 },
+		{ "Haehyun Four Tigers Sword (Reverse Ver.): 60000", 60000 },
+		{ "Haehyun Tuning Ball (S/H): 203000", 203000 },
+		{ "Raven 5K: 118000", 118000 },
+		{ "Raven c.S: 89000", 89000 },
+		{ "Raven f.S: 191000", 191000 },
+		{ "Raven 2S: 78000", 78000 },
+		{ "Raven 5H (First Hit): 151000", 151000 },
+		{ "Raven 5H (Second Hit): 103000", 103000 },
+		{ "Raven Schmerz Berg: 198600", 198600 },
+		{ "Raven IAD: 209000", 209000 },
+		{ "Raven IAD j.P: 206375", 206375 },
+		{ "Raven IAD j.K: 123100", 123100 },
+		{ "Raven IAD j.S: 177325", 177325 },
+		{ "Raven IAD j.H: 145775", 145775 },
+		{ "Raven Scharf Kugel: 296641", 296641 },
+		{ "Raven tk Grausam Impuls: 213801", 213801 },
+		{ "Raven DAA/6P: 183000", 183000 },
+		{ "Dizzy 5K: 161000", 161000 },
+		{ "Dizzy c.S: 91000", 91000 },
+		{ "Dizzy f.S (Lowest Possible): 139000", 139000 },
+		{ "Dizzy 5H: 89000", 89000 },
+		{ "Dizyy 2H: 76000", 76000 },
+		{ "Dizzy 6P/DAA: 160000", 160000 },
+		{ "Dizzy The light was so small in the beginning (Lowest Possible): 139375", 139375 },
+		{ "Dizzy For putting out the light...: 170600", 170600 },
+		{ "Dizzy For searing cod... (First Descent, Lowest Possible): 167500", 167500 },
+		{ "Dizzy For searing cod... (Second Descent, Lowest Possible): 150875", 150875 },
+		{ "Baiken 5K: 109000", 109000 },
+		{ "Baiken 6K: 110000", 110000 },
+		{ "Baiken 2D (First Hit. Second Hit is 18000): 96000", 96000 },
+		{ "Baiken 6P/DAA: 175000", 175000 },
+		{ "Baiken f.S: 142000", 142000 },
+		{ "Baiken 2S: 101000", 101000 },
+		{ "Baiken 5H: 63000", 63000 },
+		{ "Baiken Kabari (H): 154000", 154000 },
+		{ "Baiken Kuchinashi: 210000", 210000 },
+		{ "Baiken Sakura: 145000", 145000 },
+		{ "Baiken Rokkon Sogi: 48000", 48000 },
+		{ "Baiken Tetsuzan Sen: 74000", 74000 },
+		{ "Baiken Tsuranu Sanzu-watashi (First Frame of First Hit): 84000", 84000 },
+		{ "Answer 5K: 152000", 152000 },
+		{ "Answer 6K: 301000", 301000 },
+		{ "Answer c.S (First Hit): 147000", 147000 },
+		{ "Answer c.S (Second Hit): 166000", 166000 },
+		{ "Answer f.S: 115000", 115000 },
+		{ "Answer 5H: 63000", 63000 },
+		{ "Answer 2H: 145000", 145000 },
+		{ "Answer 46P: 88000", 88000 },
+		{ "Answer Low Scroll s.D Horizontal: 188001", 188001 }
+	};
+	
+	ImGui::SetNextWindowSize({ 350.F, 0.F }, ImGuiCond_FirstUseEver);
+	ImGui::Begin("Low Profile Presets", &showLowProfilePresets);
+	ImGui::TextUnformatted("All these values represent the low extent of an attack's hitboxes.");
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+	ImGui::ListBox("##PresetsList", &currentSelectedLowProfilePreset, AttackValuePreset::getName, presets, _countof(presets), 12);
+	if (ImGui::Button("Set##LowProfile")) {
+		if (currentSelectedLowProfilePreset == -1) {
+			showErrorDialog = true;
+			errorDialogText = "Please first select a preset.";
+			*(ImVec2*)errorDialogPos = ImGui::GetCursorScreenPos();
+		} else {
+			settings.lowProfileCutoffPoint = presets[currentSelectedLowProfilePreset].value;
+			needWriteSettings = true;
+		}
+	}
+	static std::string lowProfilePresetSetHelp;
+	if (lowProfilePresetSetHelp.empty()) {
+		lowProfilePresetSetHelp = settings.convertToUiDescription("Sets the selected item as the current setting for \"lowProfileCutoffPoint\".");
+	}
+	AddTooltip(lowProfilePresetSetHelp.c_str());
+	ImGui::End();
+}
+
+void UI::lowProfileControl() {
+	
+	int lowProfileCutoffPoint = settings.lowProfileCutoffPoint;
+	ImGui::SetNextItemWidth(200.F);
+	if (ImGui::InputInt(settings.getOtherUIName(&settings.lowProfileCutoffPoint), &lowProfileCutoffPoint, 1000, 10000, 0)) {
+		settings.lowProfileCutoffPoint = lowProfileCutoffPoint;
+		needWriteSettings = true;
+	}
+	imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+	ImGui::SameLine();
+	HelpMarker(settings.getOtherUIDescription(&settings.lowProfileCutoffPoint));
+	if (ImGui::Button("Presets##LowProfile")) {
+		showLowProfilePresets = !showLowProfilePresets;
+	}
+	AddTooltip("If you don't want to manually enter a value or use 'Box Extents' with frame freeze to determine the right value to enter,"
+		" you may select a preset value from a list of character moves.");
+}
+
+struct FrameDims {
+	float x;
+	float width;
+};
+
+void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
+	frame.printInvuls(strbuf, sizeof strbuf - 7);
+	if (*strbuf != '\0') {
+		ImGui::Separator();
+		textUnformattedColored(YELLOW_COLOR, "Invul: ");
+		ImGui::SameLine();
+		drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
+	}
+	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1) {
+		ImGui::Separator();
+		textUnformattedColored(YELLOW_COLOR, "Crossup protection: ");
+		ImGui::SameLine();
+		sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
+		ImGui::TextUnformatted(strbuf);
+	}
+	const std::vector<GatlingOrWhiffCancelInfo>& gatlings = frame.cancels.gatlings;
+	const std::vector<GatlingOrWhiffCancelInfo>& whiffCancels = frame.cancels.whiffCancels;
+	if (!gatlings.empty() || frame.enableSpecialCancel) {
+		ImGui::Separator();
+		textUnformattedColored(YELLOW_COLOR, "Gatlings:");
+		int count = 1;
+		if (!gatlings.empty()) {
+			count += printCancels(gatlings);
+		}
+		if (frame.enableSpecialCancel) {
+			ImGui::Text("%d) Specials", count);
+		}
+	}
+	if (!whiffCancels.empty() || frame.enableSpecials) {
+		ImGui::Separator();
+		if (frame.hitOccured) {
+			textUnformattedColored(YELLOW_COLOR, "Late cancels:");
+		} else {
+			textUnformattedColored(YELLOW_COLOR, "Whiff cancels:");
+		}
+		int count = 1;
+		if (!whiffCancels.empty()) {
+			count += printCancels(whiffCancels);
+		}
+		if (frame.enableSpecials) {
+			if (frame.airborne) {
+				ImGui::Text("%d) Specials (note: some specials have a minimum height limit and might be unavailable at this time)", count);
+			} else {
+				ImGui::Text("%d) Specials", count);
+			}
+		}
+	}
+	if (gatlings.empty() && !frame.enableSpecialCancel
+			&& whiffCancels.empty() && !frame.enableSpecials
+			&& frame.cancels.whiffCancelsNote) {
+		ImGui::Separator();
+		if (frame.hitOccured) {
+			textUnformattedColored(YELLOW_COLOR, "Late cancels:");
+		} else {
+			textUnformattedColored(YELLOW_COLOR, "Whiff cancels:");
+		}
+		ImGui::TextUnformatted(frame.cancels.whiffCancelsNote);
+	}
+	if (frame.poisonDuration) {
+		ImGui::Separator();
+		textUnformattedColored(YELLOW_COLOR, "Poison duration: ");
+		ImGui::SameLine();
+		sprintf_s(strbuf, "%d/360", frame.poisonDuration);
+		ImGui::TextUnformatted(strbuf);
+	}
+	CharacterType charType = endScene.players[playerIndex].charType;
+	if (charType == CHARACTER_TYPE_SOL) {
+		if (frame.u.diInfo.current) {
+			ImGui::Separator();
+			textUnformattedColored(YELLOW_COLOR, "Dragon Install: ");
+			ImGui::SameLine();
+			if (frame.u.diInfo.current == USHRT_MAX) {
+				ImGui::Text("overdue/%d", frame.u.diInfo.max);
+			} else {
+				ImGui::Text("%d/%d", frame.u.diInfo.current, frame.u.diInfo.max);
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_MILLIA) {
+		if (frame.u.canProgramSecretGarden.can || frame.u.canProgramSecretGarden.inputs) {
+			ImGui::Separator();
+			ImGui::Text("%sInputs %d/%d",
+				frame.u.canProgramSecretGarden.can ? "Can program Secret Garden. " : "Secret Garden ",
+				frame.u.canProgramSecretGarden.inputs,
+				frame.u.canProgramSecretGarden.inputsMax);
+		}
+	} else if (charType == CHARACTER_TYPE_CHIPP) {
+		if (frame.u.chippInfo.invis || frame.u.chippInfo.wallTime) {
+			ImGui::Separator();
+			if (frame.u.chippInfo.invis) {
+				printChippInvisibility(frame.u.chippInfo.invis, endScene.players[playerIndex].maxDI);
+			}
+			if (frame.u.chippInfo.wallTime) {
+				textUnformattedColored(YELLOW_COLOR, "Wall time: ");
+				ImGui::SameLine();
+				if (frame.u.chippInfo.wallTime == USHRT_MAX) {
+					ImGui::TextUnformatted("0/120");
+				} else {
+					ImGui::Text("%d/120", frame.u.chippInfo.wallTime);
+				}
+			}
+		}
+	}
+}
+
+template<typename FramebarT, typename FrameT>
+inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex) {
+	for (int i = 0; i < _countof(Framebar::frames); ++i) {
+		const FrameT& frame = framebar[i];
+		const FrameDims& dims = preppedDims[i];
+		
+		ImU32 tint = -1;
+		if (i > framebarPosition) {
+			tint = tintDarker;
+		}
+		
+		if (frame.type != FT_NONE) {
+			ImVec2 frameStartVec { dims.x, drawFramebars_y };
+			ImVec2 frameEndVec { dims.x + dims.width, drawFramebars_y + drawFramebars_frameItselfHeight };
+			ImVec2 frameEndVecForTooltip;
+			if (i < _countof(Framebar::frames) - 1) {
+				frameEndVecForTooltip = { preppedDims[i + 1].x, frameEndVec.y };
+			} else {
+				frameEndVecForTooltip = frameEndVec;
+			}
+			
+			const FrameArt* frameArt = &drawFramebars_frameArtArray[frame.type];
+			const char* description = frameArt->description;
+			if (frame.newHit && frameTypeActive(frame.type)) {
+				frameArt = &drawFramebars_frameArtArray[frame.type - FT_ACTIVE + FT_ACTIVE_NEW_HIT];
+				description = frameArt->description;
+			}
+			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+				frameStartVec,
+				frameEndVec,
+				frameArt->uvStart,
+				frameArt->uvEnd,
+				tint);
+			ImVec2 mouseRectStart{
+				drawFramebars_windowPos.x + frameStartVec.x - drawFramebars_windowPos.x,
+				drawFramebars_windowPos.y + frameStartVec.y - drawFramebars_windowPos.y
+			};
+			
+			ImVec2 mouseRectEnd{
+				mouseRectStart.x + frameEndVecForTooltip.x - frameStartVec.x,
+				mouseRectStart.y + frameEndVecForTooltip.y - frameStartVec.y
+			};
+			
+			if (drawFramebars_hoveredFrameIndex == -1 && ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(mouseRectStart, mouseRectEnd, true)) {
+				drawFramebars_hoveredFrameIndex = i;
+				drawFramebars_hoveredFrameY = drawFramebars_y;
+				if (ImGui::BeginTooltip()) {
+					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+					float wrapWidth = ImGui::GetFontSize() * 35.0f;
+					static float descriptionHeights[FT_LAST] { 0 };
+					static bool descriptionHeightsInitialized = false;
+					static float maxDescriptionHeight = 0;
+					static float maxDescriptionHeightProjectiles = 0;
+					if (!descriptionHeightsInitialized) {
+						descriptionHeightsInitialized = true;
+						float wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
+						for (int p = 1; p < FT_LAST; ++p) {
+							float currentHeight = ImGui::CalcTextSize(frameArtColorblind[p].description,
+								nullptr, false, wrapWidthUse).y;
+							descriptionHeights[p] = currentHeight;
+							if (p != FT_ACTIVE_NEW_HIT && p != FT_ACTIVE_NEW_HIT_PROJECTILE) {
+								maxDescriptionHeight = max(maxDescriptionHeight, currentHeight);
+							}
+						}
+						for (int p = 0; p < _countof(projectileFrameTypes); ++p) {
+							FrameType ptype = projectileFrameTypes[p];
+							float currentHeight = descriptionHeights[ptype];
+							if (ptype != FT_ACTIVE_NEW_HIT && ptype != FT_ACTIVE_NEW_HIT_PROJECTILE) {
+								maxDescriptionHeightProjectiles = max(maxDescriptionHeightProjectiles, currentHeight);
+							}
+						}
+					}
+					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+					float oldCursorPos = ImGui::GetCursorPosY();
+					ImGui::TextUnformatted(description);
+					float newCursorPos = ImGui::GetCursorPosY();
+					float textHeight = newCursorPos - oldCursorPos;
+					float requiredHeight;
+					if (playerIndex != -1) {
+						requiredHeight = maxDescriptionHeight;
+					} else {
+						requiredHeight = maxDescriptionHeightProjectiles;
+					}
+					if (textHeight < requiredHeight) {
+						ImGui::SetCursorPosY(newCursorPos + requiredHeight - textHeight);
+					}
+					if (frame.animName && *frame.animName != '\0') {
+						ImGui::Separator();
+						textUnformattedColored(YELLOW_COLOR, "Anim: ");
+						ImGui::SameLine();
+						ImGui::TextUnformatted(frame.animName);
+					}
+					if (playerIndex != -1) {
+						drawPlayerFrameTooltipInfo((const PlayerFrame&)frame, playerIndex, wrapWidth);
+					}
+					if (playerIndex != -1) {
+						const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
+						if (playerFrame.hitstop || playerFrame.stop.isHitstun || playerFrame.stop.isBlockstun) {
+							ImGui::Separator();
+							printFameStop(strbuf, sizeof strbuf, &playerFrame.stop, playerFrame.hitstop, playerFrame.hitstopMax);
+							ImGui::TextUnformatted(strbuf);
+						}
+					} else {
+						if (frame.hitstop) {
+							ImGui::Separator();
+							printFameStop(strbuf, sizeof strbuf, nullptr, frame.hitstop, frame.hitstopMax);
+							ImGui::TextUnformatted(strbuf);
+						}
+					}
+					if (frame.skippedSuperfreeze || frame.skippedHitstop || frame.rcSlowdown || frame.hitConnected || frame.newHit) {
+						ImGui::Separator();
+						if (frame.skippedSuperfreeze && frame.skippedHitstop) {
+							textUnformattedColored(YELLOW_COLOR, "Since previous displayed frame, skipped:");
+							sprintf_s(strbuf, "%df superfreeze;", frame.skippedSuperfreeze);
+							ImGui::TextUnformatted(strbuf);
+							sprintf_s(strbuf, "%df hitstop.", frame.skippedHitstop);
+							ImGui::TextUnformatted(strbuf);
+						} else if (frame.skippedSuperfreeze || frame.skippedHitstop) {
+							sprintf_s(strbuf, "Since previous displayed frame, skipped %df %s.",
+								frame.skippedSuperfreeze + frame.skippedHitstop,
+								frame.skippedSuperfreeze ? "superfreeze" : "hitstop");
+							ImGui::TextUnformatted(strbuf);
+						}
+						if (frame.newHit) {
+							ImGui::TextUnformatted("A new (potential) hit starts on this frame.");
+						}
+						if (frame.hitConnected) {
+							ImGui::TextUnformatted("A hit connected on this frame.");
+						}
+						if (frame.rcSlowdown) {
+							textUnformattedColored(YELLOW_COLOR, "RC-slowed down: ");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", frame.rcSlowdown, frame.rcSlowdownMax);
+							ImGui::TextUnformatted(strbuf);
+						}
+					}
+					ImGui::PopTextWrapPos();
+					ImGui::PopStyleVar();
+					ImGui::EndTooltip();
+				}
+			}
+		}
+	}
+}
+
+void drawPlayerFramebar(const PlayerFramebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex) {
+	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, framebarPosition, tintDarker, playerIndex);
+}
+
+void drawProjectileFramebar(const Framebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker) {
+	drawFramebar<Framebar, Frame>(framebar, preppedDims, framebarPosition, tintDarker, -1);
+}
+
+template<typename FramebarT, typename FrameT>
+void drawFirstFrames(const FramebarT& framebar, int framebarPosition, FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
+	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
+	const ImVec2 firstFrameUVStart = { ui.firstFrame->uStart, ui.firstFrame->vStart };
+	const ImVec2 firstFrameUVEnd = { ui.firstFrame->uEnd, ui.firstFrame->vEnd };
+	for (int i = 0; i < _countof(Framebar::frames); ++i) {
+		const FrameT& frame = framebar[i];
+		const FrameDims& dims = preppedDims[i];
+		
+		if (frame.isFirst
+				&& !(
+					considerSimilarFrameTypesSameForFrameCounts
+						?
+							i == framebarPosition
+								?
+									framebar.preFrame != FT_NONE
+									&& frameMap[frame.type] == frameMap[framebar.preFrame]
+									&& frameMap[frame.type] == FT_IDLE
+								:
+									frameMap[frame.type] == frameMap[framebar[i == 0 ? _countof(Framebar::frames) - 1 : i - 1].type]
+									&& frameMap[frame.type] == FT_IDLE
+						:
+							false
+				)) {
+			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+				{
+					dims.x - innerBorderThicknessHalf - dims.width * 0.5F,
+					firstFrameTopY
+				},
+				{
+					dims.x - innerBorderThicknessHalf + dims.width * 0.5F,
+					firstFrameBottomY
+				},
+				firstFrameUVStart,
+				firstFrameUVEnd,
+				-1);
+		}
+	}
+}
+
+template<typename FramebarT, typename FrameT>
+void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom) {
+	
+	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
+	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
+	
+	FrameType lastFrameType = framebar.preFrame;
+	if (considerSimilarFrameTypesSameForFrameCounts) {
+		lastFrameType = frameMap[lastFrameType];
+	}
+	int sameFrameTypeCount = framebar.preFrameLength;
+	int visualFrameCount = 0;
+	
+	for (int i = 0; i < _countof(Framebar::frames); ++i) {
+		int ind = (framebarPosition + 1 + i) % _countof(Framebar::frames);
+		const FrameT& frame = framebar[ind];
+		
+		enum DivisionType {
+			DIVISION_TYPE_NONE,
+			DIVISION_TYPE_DIFFERENT_TYPES,
+			DIVISION_TYPE_REACHED_END
+		} divisionType = DIVISION_TYPE_NONE;
+		
+		int displayPos = ind - 1;
+		
+		FrameType currentType = frame.type;
+		if (considerSimilarFrameTypesSameForFrameCounts) {
+			currentType = frameMap[currentType];
+		}
+		
+		bool isFirst;
+		if (showFirstFrames) {
+			isFirst = frame.isFirst
+				&& !(
+					considerSimilarFrameTypesSameForFrameCounts
+						?
+							i == 0
+								?
+									framebar.preFrame != FT_NONE
+									&& frameMap[frame.type] == frameMap[framebar.preFrame]
+									&& frameMap[frame.type] == FT_IDLE
+								:
+									frameMap[frame.type] == frameMap[framebar[ind == 0 ? _countof(Framebar::frames) - 1 : ind - 1].type]
+									&& frameMap[frame.type] == FT_IDLE
+						:
+							false
+				);
+		} else {
+			isFirst = false;
+		}
+		
+		if (currentType == lastFrameType
+				&& !isFirst
+				&& i == _countof(Framebar::frames) - 1
+				&& lastFrameType != FT_NONE) {
+			divisionType = DIVISION_TYPE_REACHED_END;
+			++displayPos;
+			++sameFrameTypeCount;
+			++visualFrameCount;
+		} else if (!(currentType == lastFrameType && !isFirst)
+				&& i != 0
+				&& lastFrameType != FT_NONE) {
+			divisionType = DIVISION_TYPE_DIFFERENT_TYPES;
+		}
+		
+		if (
+				divisionType != DIVISION_TYPE_NONE
+				&& (sameFrameTypeCount > 3 || sameFrameTypeCount > 1 && i == 0 && divisionType == DIVISION_TYPE_DIFFERENT_TYPES)
+				&& numDigits(sameFrameTypeCount) <= visualFrameCount
+			) {
+			
+			displayPos = EntityFramebar::confinePos(displayPos);
+			
+			int prevIndCounter = 0;
+			int sameFrameTypeCountModif = sameFrameTypeCount;
+			while (sameFrameTypeCountModif) {
+				
+				int remainder = sameFrameTypeCountModif % 10;
+				sameFrameTypeCountModif /= 10;
+				
+				const UVStartEnd& digitImg = digitUVs[remainder];
+				
+				const FrameDims& prevDim = preppedDims[EntityFramebar::confinePos(displayPos - prevIndCounter)];
+				float digitX = prevDim.x;
+				float digitWidth = prevDim.width;
+				
+				if (digitWidth > drawFramebars_frameWidthScaled) {
+					digitX += (digitWidth - drawFramebars_frameWidthScaled) * 0.5F;
+					digitWidth = drawFramebars_frameWidthScaled;
+				}
+				
+				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+					{ digitX, frameNumberYTop },
+					{ digitX + digitWidth, frameNumberYBottom },
+					digitImg.start,
+					digitImg.end);
+				
+				++prevIndCounter;
+			}
+		}
+		
+		if (currentType == lastFrameType && !isFirst) {
+			++sameFrameTypeCount;
+			++visualFrameCount;
+		} else {
+			lastFrameType = currentType;
+			sameFrameTypeCount = 1;
+			visualFrameCount = 1;
+		}
+	}
+}
+
+void printChippInvisibility(int current, int max) {
+	int percentage = current % 120;
+	if (percentage <= 65) {
+		if (percentage > 55) {
+			percentage = 55;
+		}
+	} else {
+		percentage = 120 - percentage;
+	}
+	percentage = 100 * percentage / 55;
+	textUnformattedColored(YELLOW_COLOR, "Invisibility: ");
+	ImGui::SameLine();
+	ImGui::Text("%s (%d/%d)",
+		ui.printDecimal(percentage, 0, 3, true),
+		current,
+		max);
+}
+
+void textUnformattedColored(ImVec4 color, const char* str) {
+	ImGui::PushStyleColor(ImGuiCol_Text, color);
+	ImGui::TextUnformatted(str);
+	ImGui::PopStyleColor();
+}
+
+void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str) {
+	ImFont* font = ImGui::GetFont();
+	const char* textEnd = str + strlen(str);
+	const char* newlinePos = (const char*)memchr(str, '\n', textEnd - str);
+	if (newlinePos == nullptr) newlinePos = textEnd;
+	const char* wrapPos = font->CalcWordWrapPositionA(1.F, str, textEnd, wrapWidth - ImGui::GetCursorPosX());
+	if (wrapPos == textEnd) {
+		ImGui::TextUnformatted(str);
+		return;
+	} else {
+		ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.F);
+		ImGui::TextUnformatted(str, wrapPos);
+		while (wrapPos < textEnd && *wrapPos <= 32) {
+			++wrapPos;
+		}
+		if (wrapPos != textEnd) {
+			ImGui::TextUnformatted(wrapPos, textEnd);
+		}
+		ImGui::PopStyleVar();
+	}
+}
+
+static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit) {
+	int result = active.print(strbuf, sizeof strbuf);
+	if (!maxHit.empty()
+			&& strbuf[0] != '\0'
+			&& !(
+				active.count == maxHit.maxUse
+				&& maxHit.maxUse <= 2  // for Ky Air stun edge and Jack O' j.H
+				|| active.count < maxHit.maxUse
+			)) {
+		sprintf_s(strbuf + result, sizeof strbuf - result, " (%d hit%s max)", maxHit.maxUse, maxHit.maxUse == 1 ? "" : "s");
+	}
 }
 
 void UI::drawFramebars() {
@@ -3179,16 +5364,11 @@ void UI::drawFramebars() {
 	}
 	
 	static const float outerBorderThickness = 2.F;
-	const float frameItselfHeight = settingsFramebarHeight - outerBorderThickness - outerBorderThickness;
-	static const float frameWidthOriginal = 9.F;
-	static const float frameHeightOriginal = 15.F;
+	drawFramebars_frameItselfHeight = settingsFramebarHeight - outerBorderThickness - outerBorderThickness;
 	static const float frameNumberHeightOriginal = 11.F;
-	static const float firstFrameHeight = 19.F;
-	static const float frameMarkerWidthOriginal = 11.F;
 	static const float frameMarkerWidthOffset = (frameMarkerWidthOriginal - frameWidthOriginal) * 0.5F;
-	static const float frameMarkerHeightOriginal = 6.F;
 	static const float frameMarkerSideHeightOriginal = 3.F;
-	float frameMarkerHeight = frameMarkerHeightOriginal * frameItselfHeight / frameHeightOriginal;
+	float frameMarkerHeight = frameMarkerHeightOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
 	if (frameMarkerHeight < 5.F) {
 		frameMarkerHeight = 5.F;
 	}
@@ -3196,13 +5376,15 @@ void UI::drawFramebars() {
 	static const float markerPaddingHeight = -1.F;
 	static const float paddingBetweenFramebarsOriginal = 5.F;
 	static const float paddingBetweenFramebarsMin = 3.F;
-	static const float innerBorderThickness = 1.F;
 	static const float paddingBetweenTextAndFramebar = 5.F;
-	static const float textStartX = 1.F;
+	static const float textPadding = 2.F;
 	static const float firstFrameHeightDiff = firstFrameHeight - frameHeightOriginal;
-	static const float frameWidthScaled = frameWidthOriginal * frameItselfHeight / frameHeightOriginal;
+	drawFramebars_frameWidthScaled = frameWidthOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
 	static const float frameNumberPaddingY = 2.F;
 	static const float highlighterWidth = 2.F;
+	static const float hoveredFrameHighlightPaddingX = 3.F;
+	static const float hoveredFrameHighlightPaddingY = 3.F;
+	static const float framebarCurrentPositionHighlighterStickoutDistance = 2.F;
 	
 	float maxTopPadding;
 	if (!showFirstFrames) {
@@ -3225,29 +5407,49 @@ void UI::drawFramebars() {
 	}
 	
 	const float oneFramebarHeight = outerBorderThickness
-		+ frameItselfHeight
+		+ drawFramebars_frameItselfHeight
 		+ outerBorderThickness;
 	
-	std::vector<const EntityFramebar*> framebars(2 + endScene.combinedFramebars.size(), nullptr);
+	std::vector<const EntityFramebar*> framebars;
+	const bool eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+	if (eachProjectileOnSeparateFramebar) {
+		framebars.resize(2 + endScene.projectileFramebars.size(), nullptr);
+	} else {
+		framebars.resize(2 + endScene.combinedFramebars.size(), nullptr);
+	}
 	int framebarsCount = 0;
 	int playerFramebarLimit = 2;
+	for (const PlayerFramebars& entityFramebar : endScene.playerFramebars) {
+		if (!playerFramebarLimit) break;
+		framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+		--playerFramebarLimit;
+	}
 	for (int i = 0; i < 2; ++i) {
-		for (const EntityFramebar& entityFramebar : endScene.framebars) {
-			if (entityFramebar.playerIndex == i && entityFramebar.belongsToPlayer() && playerFramebarLimit) {
-				framebars[framebarsCount++] = &entityFramebar;
-				--playerFramebarLimit;
-				break;
+		if (eachProjectileOnSeparateFramebar) {
+			for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
+				if (entityFramebar.playerIndex == i) {
+					framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+				}
 			}
-		}
-		for (const EntityFramebar& entityFramebar : endScene.combinedFramebars) {
-			if (entityFramebar.playerIndex == i && entityFramebar.belongsToProjectile()) {
-				framebars[framebarsCount++] = &entityFramebar;
+		} else {
+			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
+				if (entityFramebar.playerIndex == i) {
+					framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+				}
 			}
 		}
 	}
-	for (const EntityFramebar& entityFramebar : endScene.combinedFramebars) {
-		if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1) {
-			framebars[framebarsCount++] = &entityFramebar;
+	if (eachProjectileOnSeparateFramebar) {
+		for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
+			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1) {
+				framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+			}
+		}
+	} else {
+		for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
+			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1) {
+				framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+			}
 		}
 	}
 	if (framebarsCount != framebars.size()) {
@@ -3258,64 +5460,93 @@ void UI::drawFramebars() {
 	if (framebarsCount) {
 		framebarsPaddingYTotal = (float)(framebarsCount - 1) * paddingBetweenFramebars;
 	}
+	ImGuiIO& io = ImGui::GetIO();
+	ImGui::SetNextWindowSize({ 988.F / 1280.F * io.DisplaySize.x,
+		2.F  // imgui window padding
+		+ 1.F
+		+ maxTopPadding
+		+ oneFramebarHeight
+		* 2.F
+		+ (framebarsCount <= 1 ? 0.F : paddingBetweenFramebars)
+		+ bottomPadding
+		+ 1.F
+		+ 2.F  // imgui window padding
+	}, ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowContentSize({ 0.F,
-		1.F
+		// don't add imgui window padding here
+		+ 1.F
 		+ maxTopPadding
 		+ oneFramebarHeight
 		* (float)framebarsCount
 		+ framebarsPaddingYTotal
 		+ bottomPadding
 		+ 1.F
+		// don't add imgui window padding here
 	});
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.F, 2.F });
 	ImGui::Begin("Framebar", nullptr,
 		ImGuiWindowFlags_NoBackground
 		| ImGuiWindowFlags_NoCollapse
 		| ImGuiWindowFlags_NoTitleBar
-		| (isDragging ? ImGuiWindowFlags_NoMove : 0));
+		| (isDragging ? ImGuiWindowFlags_NoMove : 0)
+		| ImGuiWindowFlags_NoBringToFrontOnFocus
+		| ImGuiWindowFlags_NoFocusOnAppearing);
+	bool drawFullBorder = ImGui::IsMouseDown(ImGuiMouseButton_Left)
+		&& ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true)
+		&& ImGui::IsWindowFocused();
+	ImGui::PopStyleVar();
 	
-	const ImVec2 windowPos = ImGui::GetWindowPos();
+	drawFramebars_windowPos = ImGui::GetWindowPos();
 	const float windowWidth = ImGui::GetWindowWidth();
 	const float windowHeight = ImGui::GetWindowHeight();
 	
-	ImDrawList* drawList = ImGui::GetWindowDrawList();
-	if (ImGui::GetScrollMaxY() > 0.001F) {
-		drawList->AddLine({windowPos.x, windowPos.y + 1.F},
-			{windowPos.x + windowWidth, windowPos.y + 1.F},
+	drawFramebars_drawList = ImGui::GetWindowDrawList();
+	
+	ImDrawList* foregroundFrawList = ImGui::GetForegroundDrawList();
+	if (ImGui::GetScrollMaxY() > 0.001F || drawFullBorder) {
+		drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x, drawFramebars_windowPos.y + 1.F },
+			{ drawFramebars_windowPos.x + windowWidth, drawFramebars_windowPos.y + 1.F },
 			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
 			1.F);
-		drawList->AddLine({windowPos.x, windowPos.y + windowHeight - 2.F},
-			{windowPos.x + windowWidth, windowPos.y + windowHeight - 2.F},
+		drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x, drawFramebars_windowPos.y + windowHeight - 2.F },
+			{ drawFramebars_windowPos.x + windowWidth, drawFramebars_windowPos.y + windowHeight - 2.F },
 			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
 			1.F);
+		if (drawFullBorder) {
+			drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x + 1.F, drawFramebars_windowPos.y + 1.F },
+				{ drawFramebars_windowPos.x + 1.F, drawFramebars_windowPos.y + windowHeight - 2.F },
+				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+				1.F);
+			drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x + windowWidth - 2.F, drawFramebars_windowPos.y + 1.F },
+				{ drawFramebars_windowPos.x + windowWidth - 2.F, drawFramebars_windowPos.y + windowHeight - 2.F },
+				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
+				1.F);
+		}
 	}
 	
-	char maxText[EntityFramebar::titleShortCharsCountMax + 1];
-	memset(maxText, 'W', sizeof maxText);  // I know it's monospace
-	maxText[sizeof maxText - 1] = '\0';
-	ImVec2 maxTextSize = ImGui::CalcTextSize(maxText);
-	
-	const float framesX = windowPos.x
-		+ textStartX
-		+ maxTextSize.x 
+	const float framesX = drawFramebars_windowPos.x
 		+ paddingBetweenTextAndFramebar
 		+ outerBorderThickness;
-	const float framesXEnd = windowPos.x
+	const float framesXEnd = drawFramebars_windowPos.x
 		+ ImGui::GetContentRegionMax().x
-		+ 5.F  // window padding?
+		+ 5.F  // window padding? (it was 8. close enough)
 		- outerBorderThickness
 		+ innerBorderThickness;
 	
-	float y = windowPos.y 
+	const float scrollY = ImGui::GetScrollY();
+	drawFramebars_y = drawFramebars_windowPos.y 
+		+ 2.F  // imgui window padding
 		+ 1.F
 		+ maxTopPadding
-		+ outerBorderThickness;
+		+ outerBorderThickness
+		- scrollY;
 	
 	static const float framesCountFloat = (float)_countof(Framebar::frames);
 	const int framebarPosition = settings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
 	ImU32 tintDarker = ImGui::GetColorU32(IM_COL32(128, 128, 128, 255));
 	
 	
-	float frameNumberHeightDiff = frameHeightOriginal - frameItselfHeight;
+	float frameNumberHeightDiff = frameHeightOriginal - drawFramebars_frameItselfHeight;
 	float frameNumberPaddingYUse = frameNumberPaddingY;
 	if (frameNumberHeightDiff >= 0.F) {
 		if (frameNumberHeightDiff >= frameNumberPaddingY + frameNumberPaddingY) {
@@ -3326,12 +5557,8 @@ void UI::drawFramebars() {
 	} else {
 		frameNumberPaddingYUse = frameNumberPaddingY;
 	}
-	const float frameNumberHeight = frameItselfHeight - frameNumberPaddingYUse - frameNumberPaddingYUse;
+	const float frameNumberHeight = drawFramebars_frameItselfHeight - frameNumberPaddingYUse - frameNumberPaddingYUse;
 	
-	struct FrameDims {
-		float x;
-		float width;
-	};
 	FrameDims preppedDims[_countof(Framebar::frames)];
 	float highlighterStartX;
 	float highlighterEndX;
@@ -3360,101 +5587,204 @@ void UI::drawFramebars() {
 		
 	}
 	
-	const FrameArt* frameArtArray = settings.useColorblindHelp ? frameArtColorblind : frameArtNonColorblind;
+	static float P1P2TextSizeWithSpace;
+	static float P1P2TextSize;
+	static bool P1P2TextSizeCalculated = false;
+	if (!P1P2TextSizeCalculated) {
+		P1P2TextSizeCalculated = true;
+		P1P2TextSizeWithSpace = ImGui::CalcTextSize("P1 ").x;
+		P1P2TextSize = ImGui::CalcTextSize("P1").x;
+	}
+	
+	drawFramebars_frameArtArray = settings.useColorblindHelp ? frameArtColorblind : frameArtNonColorblind;
 	const FrameMarkerArt* frameMarkerArtArray = settings.useColorblindHelp ? frameMarkerArtColorblind : frameMarkerArtNonColorblind;
 	const FrameMarkerArt& strikeInvulMarker = frameMarkerArtArray[MARKER_TYPE_STRIKE_INVUL];
 	const FrameMarkerArt& throwInvulMarker = frameMarkerArtArray[MARKER_TYPE_THROW_INVUL];
 	
+	drawFramebars_hoveredFrameIndex = -1;
+	const float currentPositionHighlighterStartY = drawFramebars_y;
+	
+	const bool showPlayerInFramebarTitle = settings.showPlayerInFramebarTitle;
+	const int framebarTitleCharsMax = settings.framebarTitleCharsMax;
+	
+	if (showPlayerInFramebarTitle || framebarTitleCharsMax > 0) {
+		ImGui::PushClipRect(
+			{
+				0.F,
+				drawFramebars_windowPos.y
+			},
+			{
+				200000.F,
+				drawFramebars_windowPos.y + windowHeight
+			}, false);
+		float titleY = drawFramebars_y + scrollY;
+		const float lineHeight = ImGui::GetTextLineHeightWithSpacing();
+		const float textPaddingY = (oneFramebarHeight - lineHeight) * 0.5F;
+		const bool dontTruncateFramebarTitles = settings.dontTruncateFramebarTitles;
+		const bool allFramebarTitlesDisplayToTheLeft = settings.allFramebarTitlesDisplayToTheLeft;
+		for (const EntityFramebar* entityFramebarPtr : framebars) {
+			const EntityFramebar& entityFramebar = *entityFramebarPtr;
+			const char* title;
+			const char* titleFull = nullptr;
+			static std::string titleShortStr;
+			if (framebarTitleCharsMax <= 0) {
+				title = nullptr;
+			} else if (entityFramebar.titleShort) {
+				if (!dontTruncateFramebarTitles) {
+					int len;
+					int bytesUpToMax;
+					int cpsTotal;
+					EntityFramebar::utf8len(entityFramebar.titleShort, &len, &cpsTotal, framebarTitleCharsMax, &bytesUpToMax);
+					if (bytesUpToMax != len) {
+						titleFull = entityFramebar.titleShort;
+						titleShortStr.assign(entityFramebar.titleShort, bytesUpToMax);
+						title = titleShortStr.c_str();
+					} else {
+						title = entityFramebar.titleShort;
+					}
+				} else {
+					title = entityFramebar.titleShort;
+				}
+			} else {
+				title = "???";
+			}
+			if (entityFramebar.titleFull && *entityFramebar.titleFull != '\0') titleFull = entityFramebar.titleFull;
+			float textX;
+			bool isOnTheLeft = true;
+			ImVec2 textSize;
+			if (entityFramebar.playerIndex == 0 || allFramebarTitlesDisplayToTheLeft) {
+				if (!title) {
+					textSize.x = 0.F;
+				} else {
+					textSize = ImGui::CalcTextSize(title);
+				}
+				textX = -textPadding;
+			} else {
+				textX = windowWidth + textPadding;
+				isOnTheLeft = false;
+			}
+			
+			const float textY = titleY
+				- outerBorderThickness
+				+ textPaddingY
+				- drawFramebars_windowPos.y;
+			
+			bool hoveredExtra = false;
+			
+			if (showPlayerInFramebarTitle) {
+				
+				ImVec4* P1P2Clr = P1P2_COLOR[entityFramebar.playerIndex];
+				ImVec4* P1P2OutlineClr = P1P2_OUTLINE_COLOR[entityFramebar.playerIndex];
+				
+				if (!entityFramebar.belongsToPlayer()) {
+					const char* P1P2Str;
+					if (isOnTheLeft) {
+						if (entityFramebar.playerIndex == 0) {
+							P1P2Str = " P1";
+						} else {
+							P1P2Str = " P2";
+						}
+					} else {
+						if (entityFramebar.playerIndex == 0) {
+							P1P2Str = "P1 ";
+						} else {
+							P1P2Str = "P2 ";
+						}
+					}
+					outlinedText({
+							isOnTheLeft
+								? textX - P1P2TextSizeWithSpace
+								: textX,
+							textY
+						},
+						P1P2Str,
+						P1P2Clr,
+						P1P2OutlineClr);
+					
+					if (title) {
+						if (titleFull) {
+							hoveredExtra = ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly);
+						}
+						
+						outlinedText({
+								(
+									isOnTheLeft
+										? textX - P1P2TextSizeWithSpace - textSize.x
+										: textX + P1P2TextSizeWithSpace
+								),
+								textY
+							}, title);
+					}
+				} else {
+					const char* P1P2Str;
+					if (entityFramebar.playerIndex == 0) {
+						P1P2Str = "P1";
+					} else {
+						P1P2Str = "P2";
+					}
+					
+					outlinedText({
+							isOnTheLeft
+								? textX - P1P2TextSize
+								: textX,
+							textY
+						},
+						P1P2Str,
+						P1P2Clr,
+						P1P2OutlineClr);
+				}
+			} else if (title) {
+				outlinedText({
+					isOnTheLeft
+						? textX - textSize.x
+						: textX,
+					textY
+				},
+				title);
+			}
+			if (titleFull
+					&& (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly) || hoveredExtra)
+					&& !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)
+					&& ImGui::BeginTooltip()) {
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				if (entityFramebar.belongsToPlayer()) {
+					ImGui::TextUnformatted(titleFull);
+				} else {
+					ImGui::Text("Player %d's %s", entityFramebar.playerIndex + 1, titleFull);
+				}
+				ImGui::PopTextWrapPos();
+				ImGui::EndTooltip();
+			}
+			titleY += oneFramebarHeight + paddingBetweenFramebars;
+		}
+		ImGui::PopClipRect();
+	}
+	
 	for (const EntityFramebar* entityFramebarPtr : framebars) {
 		const EntityFramebar& entityFramebar = *entityFramebarPtr;
-		const Framebar& framebar = settings.neverIgnoreHitstop ? entityFramebar.hitstop : entityFramebar.main;
+		const FramebarBase& framebar = settings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
 		
 		if (framesXEnd > framesX) {
-			drawList->AddRectFilled(
-				{ framesX - outerBorderThickness, y - outerBorderThickness },
-				{ framesXEnd, y - outerBorderThickness + oneFramebarHeight },
+			drawFramebars_drawList->AddRectFilled(
+				{ framesX - outerBorderThickness, drawFramebars_y - outerBorderThickness },
+				{ framesXEnd, drawFramebars_y - outerBorderThickness + oneFramebarHeight },
 				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)));
 		}
 		
-		const char* title;
-		if (entityFramebar.titleShort) {
-			title = entityFramebar.titleShort;
-		} else {
-			title = "???";
-		}
-		ImVec2 textSize = ImGui::CalcTextSize(title);
-		outlinedText({
-				textStartX + maxTextSize.x - textSize.x,
-				y - outerBorderThickness + (oneFramebarHeight - textSize.y) * 0.5F - windowPos.y
-			}, title);
-		if (!entityFramebar.titleFull.empty()) {
-			AddTooltip(entityFramebar.titleFull.c_str());
-		}
-		
 		if (framesXEnd > framesX) {
-			char invisibleButtonImGuiId[] = "invisibleButtonImGuiId79";
 			
-			for (int i = 0; i < _countof(Framebar::frames); ++i) {
-				const Frame& frame = framebar[i];
-				const FrameDims& dims = preppedDims[i];
-				
-				ImU32 tint = -1;
-				if (i > framebarPosition) {
-					tint = tintDarker;
-				}
-				
-				
-				if (frame.type != FT_NONE) {
-					ImVec2 frameStartVec { dims.x, y };
-					ImVec2 frameEndVec { dims.x + dims.width, y + frameItselfHeight };
-					ImVec2 frameEndVecForTooltip;
-					if (i < _countof(Framebar::frames) - 1) {
-						frameEndVecForTooltip = { preppedDims[i + 1].x, frameEndVec.y };
-					} else {
-						frameEndVecForTooltip = frameEndVec;
-					}
-					
-					const FrameArt& frameArt = frameArtArray[frame.type];
-					drawList->AddImage((ImTextureID)TEXID_FRAMES,
-						frameStartVec,
-						frameEndVec,
-						frameArt.uvStart,
-						frameArt.uvEnd,
-						tint);
-					ImGui::SetCursorPos({
-						{ frameStartVec.x - windowPos.x },
-						{ frameStartVec.y - windowPos.y }
-					});
-					
-					invisibleButtonImGuiId[sizeof invisibleButtonImGuiId - 2] = '0' + (i / 10);
-					invisibleButtonImGuiId[sizeof invisibleButtonImGuiId - 1] = '0' + (i % 10);
-					
-					ImGui::InvisibleButton(invisibleButtonImGuiId, {
-						frameEndVecForTooltip.x - frameStartVec.x,
-						frameEndVecForTooltip.y - frameStartVec.y
-					}, 0);
-					if (ImGui::IsItemHovered()) {
-						if (ImGui::BeginTooltip()) {
-							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-							ImGui::TextUnformatted(frameArt.description);
-							ImGui::PopTextWrapPos();
-							ImGui::Separator();
-							bool hasFull = frame.strikeInvul && frame.throwInvul;
-							ImGui::EndTooltip();
-						}
-					}
-				}
+			if (entityFramebar.belongsToPlayer()) {
+				drawPlayerFramebar((const PlayerFramebar&)framebar, preppedDims, framebarPosition, tintDarker, entityFramebar.playerIndex);
+			} else {
+				drawProjectileFramebar((const Framebar&)framebar, preppedDims, framebarPosition, tintDarker);
 			}
 			
 			{
-				FrameType lastFrameType = framebar.preFrame;
-				int sameFrameTypeCount = framebar.preFrameLength;
-				int visualFrameCount = 0;
 				
 				float frameNumberYTop;
 				float frameNumberYBottom;
 				{
-					float frameNumberYTopTemp = y + frameNumberPaddingYUse;
+					float frameNumberYTopTemp = drawFramebars_y + frameNumberPaddingYUse;
 					frameNumberYBottom = frameNumberYTopTemp + frameNumberHeight;
 					if (frameNumberPaddingYUse > 0.01F) {
 						frameNumberYTop = std::floor(frameNumberYTopTemp);
@@ -3464,192 +5794,113 @@ void UI::drawFramebars() {
 					}
 				}
 				
-				for (int i = 0; i < _countof(Framebar::frames); ++i) {
-					int ind = (framebarPosition + 1 + i) % _countof(Framebar::frames);
-					const Frame& frame = framebar[ind];
-					
-					enum DivisionType {
-						DIVISION_TYPE_NONE,
-						DIVISION_TYPE_DIFFERENT_TYPES,
-						DIVISION_TYPE_REACHED_END
-					} divisionType = DIVISION_TYPE_NONE;
-					
-					int displayPos = ind - 1;
-					
-					if (frame.type == lastFrameType
-							&& !(frame.isFirst && showFirstFrames)
-							&& i == _countof(Framebar::frames) - 1
-							&& lastFrameType != FT_NONE) {
-						divisionType = DIVISION_TYPE_REACHED_END;
-						++displayPos;
-						++sameFrameTypeCount;
-						++visualFrameCount;
-					} else if (!(frame.type == lastFrameType && !(frame.isFirst && showFirstFrames))
-							&& i != 0
-							&& lastFrameType != FT_NONE) {
-						divisionType = DIVISION_TYPE_DIFFERENT_TYPES;
-					}
-					
-					if (
-							divisionType != DIVISION_TYPE_NONE
-							&& (sameFrameTypeCount > 3 || sameFrameTypeCount > 1 && i == 0 && divisionType == DIVISION_TYPE_DIFFERENT_TYPES)
-							&& numDigits(sameFrameTypeCount) <= visualFrameCount
-						) {
-						
-						displayPos = EntityFramebar::confinePos(displayPos);
-						
-						int prevIndCounter = 0;
-						int sameFrameTypeCountModif = sameFrameTypeCount;
-						while (sameFrameTypeCountModif) {
-							
-							int remainder = sameFrameTypeCountModif % 10;
-							sameFrameTypeCountModif /= 10;
-							
-							const UVStartEnd& digitImg = digitUVs[remainder];
-							
-							const FrameDims& prevDim = preppedDims[EntityFramebar::confinePos(displayPos - prevIndCounter)];
-							float digitX = prevDim.x;
-							float digitWidth = prevDim.width;
-							
-							if (digitWidth > frameWidthScaled) {
-								digitX += (digitWidth - frameWidthScaled) * 0.5F;
-								digitWidth = frameWidthScaled;
-							}
-							
-							drawList->AddImage((ImTextureID)TEXID_FRAMES,
-								{ digitX, frameNumberYTop },
-								{ digitX + digitWidth, frameNumberYBottom },
-								digitImg.start,
-								digitImg.end);
-							
-							++prevIndCounter;
-						}
-					}
-					
-					if (frame.type == lastFrameType && !(frame.isFirst && showFirstFrames)) {
-						++sameFrameTypeCount;
-						++visualFrameCount;
-					} else {
-						lastFrameType = frame.type;
-						sameFrameTypeCount = 1;
-						visualFrameCount = 1;
-					}
+				if (entityFramebar.belongsToPlayer()) {
+					drawDigits<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, framebarPosition, preppedDims, frameNumberYTop, frameNumberYBottom);
+				} else {
+					drawDigits<Framebar, Frame>((const Framebar&)framebar, framebarPosition, preppedDims, frameNumberYTop, frameNumberYBottom);
 				}
 			}
 			
 			if (showStrikeInvulOnFramebar || showSuperArmorOnFramebar || showThrowInvulOnFramebar) {
 				
-				const float yTopRow = y - markerPaddingHeight - frameMarkerHeight;
+				const float yTopRow = drawFramebars_y - markerPaddingHeight - frameMarkerHeight;
 				const float markerEndY = yTopRow + frameMarkerHeight;
 				const float thisMarkerWidthPremult = frameMarkerWidthOriginal / frameWidthOriginal;
 				
-				for (int i = 0; i < _countof(Framebar::frames); ++i) {
-					const Frame& frame = framebar[i];
-					const FrameDims& dims = preppedDims[i];
-					
-					ImU32 tint = -1;
-					if (i > framebarPosition) {
-						tint = tintDarker;
-					}
-					
-					float thisMarkerWidth = thisMarkerWidthPremult * dims.width;
-					float thisMarkerWidthOffset = (thisMarkerWidth - dims.width) * 0.5F;
-					ImVec2 markerStart { dims.x - thisMarkerWidthOffset, yTopRow };
-					ImVec2 markerEnd { dims.x + dims.width + thisMarkerWidthOffset, markerEndY };
-					
-					if (frame.strikeInvulInGeneral && showStrikeInvulOnFramebar) {
-						drawList->AddImage((ImTextureID)TEXID_FRAMES,
-							markerStart,
-							markerEnd,
-							strikeInvulMarker.uvStart,
-							strikeInvulMarker.uvEnd,
-							tint);
+				if (entityFramebar.belongsToPlayer()) {
+					const PlayerFramebar& framebarCast = (const PlayerFramebar&)framebar;
+					for (int i = 0; i < _countof(Framebar::frames); ++i) {
+						const PlayerFrame& frame = framebarCast[i];
+						const FrameDims& dims = preppedDims[i];
 						
-						markerStart.y += frameMarkerSideHeight;
-						markerEnd.y += frameMarkerSideHeight;
-					}
-					if (frame.superArmorActiveInGeneral && showSuperArmorOnFramebar) {
-						const FrameMarkerArt& markerArt = frameMarkerArtArray[frame.superArmorActiveInGeneral_IsFull ? MARKER_TYPE_SUPER_ARMOR_FULL : MARKER_TYPE_SUPER_ARMOR];
-						drawList->AddImage((ImTextureID)TEXID_FRAMES,
-							markerStart,
-							markerEnd,
-							markerArt.uvStart,
-							markerArt.uvEnd,
-							tint);
-					}
-					
-					if (frame.throwInvulInGeneral && showThrowInvulOnFramebar) {
+						ImU32 tint = -1;
+						if (i > framebarPosition) {
+							tint = tintDarker;
+						}
 						
-						markerStart.y = y + frameItselfHeight + markerPaddingHeight;
-						markerEnd.y = markerStart.y + frameMarkerHeight;
+						float thisMarkerWidth = thisMarkerWidthPremult * dims.width;
+						float thisMarkerWidthOffset = (thisMarkerWidth - dims.width) * 0.5F;
+						ImVec2 markerStart { dims.x - thisMarkerWidthOffset, yTopRow };
+						ImVec2 markerEnd { dims.x + dims.width + thisMarkerWidthOffset, markerEndY };
 						
-						drawList->AddImage((ImTextureID)TEXID_FRAMES,
-							markerStart,
-							markerEnd,
-							throwInvulMarker.uvStart,
-							throwInvulMarker.uvEnd,
-							tint);
+						if (frame.strikeInvulInGeneral && showStrikeInvulOnFramebar) {
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								markerStart,
+								markerEnd,
+								strikeInvulMarker.uvStart,
+								strikeInvulMarker.uvEnd,
+								tint);
+							
+							markerStart.y += frameMarkerSideHeight;
+							markerEnd.y += frameMarkerSideHeight;
+						}
+						if (frame.superArmorActiveInGeneral && showSuperArmorOnFramebar) {
+							const FrameMarkerArt& markerArt = frameMarkerArtArray[frame.superArmorActiveInGeneral_IsFull ? MARKER_TYPE_SUPER_ARMOR_FULL : MARKER_TYPE_SUPER_ARMOR];
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								markerStart,
+								markerEnd,
+								markerArt.uvStart,
+								markerArt.uvEnd,
+								tint);
+						}
+						
+						if (frame.throwInvulInGeneral && showThrowInvulOnFramebar) {
+							
+							markerStart.y = drawFramebars_y + drawFramebars_frameItselfHeight + markerPaddingHeight;
+							markerEnd.y = markerStart.y + frameMarkerHeight;
+							
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								markerStart,
+								markerEnd,
+								throwInvulMarker.uvStart,
+								throwInvulMarker.uvEnd,
+								tint);
+						}
 					}
 				}
 			}
 			
 			if (showFirstFrames) {
 				
-				const float firstFrameTopY = y - firstFrameHeightDiff;
-				const float firstFrameBottomY = y + firstFrameHeight;
-				const float innerBorderThicknessHalf = innerBorderThickness * 0.5F;
-				const ImVec2 firstFrameUVStart = { firstFrame.uStart, firstFrame.vStart };
-				const ImVec2 firstFrameUVEnd = { firstFrame.uEnd, firstFrame.vEnd };
+				const float firstFrameTopY = drawFramebars_y - firstFrameHeightDiff;
+				const float firstFrameBottomY = drawFramebars_y + firstFrameHeight;
 				
-				for (int i = 0; i < _countof(Framebar::frames); ++i) {
-					const Frame& frame = framebar[i];
-					const FrameDims& dims = preppedDims[i];
-					
-					if (frame.isFirst) {
-						drawList->AddImage((ImTextureID)TEXID_FRAMES,
-							{
-								dims.x - innerBorderThicknessHalf - dims.width * 0.5F,
-								firstFrameTopY
-							},
-							{
-								dims.x - innerBorderThicknessHalf + dims.width * 0.5F,
-								firstFrameBottomY
-							},
-							firstFrameUVStart,
-							firstFrameUVEnd,
-							-1);
-					}
+				if (entityFramebar.belongsToPlayer()) {
+					drawFirstFrames<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, framebarPosition, preppedDims, firstFrameTopY, firstFrameBottomY);
+				} else {
+					drawFirstFrames<Framebar, Frame>((const Framebar&)framebar, framebarPosition, preppedDims, firstFrameTopY, firstFrameBottomY);
 				}
-			}
-			
-			{
-				const float yStart = y
-					- outerBorderThickness;
-				
-				drawList->AddRectFilled(
-					{ highlighterStartX, yStart },
-					{ highlighterEndX, yStart + oneFramebarHeight },
-					ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));
 			}
 		}
 		
-		y += oneFramebarHeight + paddingBetweenFramebars;
+		drawFramebars_y += oneFramebarHeight + paddingBetweenFramebars;
+	}
+			
+	if (framesXEnd > framesX) {
+		drawFramebars_drawList->AddRectFilled(
+			{
+				highlighterStartX,
+				currentPositionHighlighterStartY
+					- outerBorderThickness
+					- framebarCurrentPositionHighlighterStickoutDistance
+			},
+			{
+				highlighterEndX,
+				drawFramebars_y
+					- paddingBetweenFramebars
+					+ outerBorderThickness
+					+ framebarCurrentPositionHighlighterStickoutDistance
+			},
+			ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));
+	}
+	
+	if (drawFramebars_hoveredFrameIndex != -1) {
+		const FrameDims& dims = preppedDims[drawFramebars_hoveredFrameIndex];
+		foregroundFrawList->AddRectFilled(
+			{ dims.x - hoveredFrameHighlightPaddingX, drawFramebars_hoveredFrameY - hoveredFrameHighlightPaddingY },
+			{ dims.x + dims.width + hoveredFrameHighlightPaddingX, drawFramebars_hoveredFrameY + oneFramebarHeight + hoveredFrameHighlightPaddingY - 1.F },
+			ImGui::GetColorU32(IM_COL32(255, 255, 255, 60)));
 	}
 	
 	ImGui::End();
-}
-
-bool UI::needShowFramebar() const {
-	if (settings.showFramebar && (!settings.closingModWindowAlsoHidesFramebar || visible)) {
-		GameMode mode = game.getGameMode();
-		if (mode == GAME_MODE_TRAINING) {
-			return settings.showFramebarInTrainingMode;
-		} else if (mode == GAME_MODE_REPLAY) {
-			return settings.showFramebarInReplayMode;
-		} else {
-			return settings.showFramebarInOtherModes;
-		}
-	} else {
-		return false;
-	}
 }

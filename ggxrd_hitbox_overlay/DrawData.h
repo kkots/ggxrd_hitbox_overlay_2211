@@ -18,6 +18,9 @@ struct DrawData {
 
 struct CameraValues {
 	D3DXVECTOR3 pos{ 0.F, 0.F, 0.F };
+	int pitch = 0;
+	int yaw = 0;
+	int roll = 0;
 	float forward[3]{ 0.F };
 	float right[3]{ 0.F };
 	float up[3]{ 0.F };

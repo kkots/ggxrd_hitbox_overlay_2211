@@ -73,11 +73,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
-    <LibraryPath>..\d3dx9\x86;..\Detours\lib.X86;..\Debug Library;$(LibraryPath)</LibraryPath>
+    <LibraryPath>..\d3d9;..\Detours\lib.X86;..\Debug Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
-    <LibraryPath>..\Detours\lib.X86;..\Release Library;$(LibraryPath)</LibraryPath>
+    <LibraryPath>..\d3d9;..\Detours\lib.X86;..\Release Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -92,7 +92,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3dcompiler.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -114,7 +114,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3dcompiler.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
   </ItemDefinitionGroup>
@@ -180,6 +180,7 @@
     <ClInclude Include="EndScene.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="EntityList.h" />
+    <ClInclude Include="findMoveByName.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="gameModes.h" />
@@ -299,6 +300,14 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\images\ActiveFrame.png" />
+    <Image Include="..\images\ActiveFrame_CanCancel.png" />
+    <Image Include="..\images\ActiveFrame_CanCancel_NewHit.png" />
+    <Image Include="..\images\ActiveFrame_CanCancel_NewHit_NonColorblind.png" />
+    <Image Include="..\images\ActiveFrame_CanCancel_NonColorblind.png" />
+    <Image Include="..\images\ActiveFrame_Hitstop.png" />
+    <Image Include="..\images\ActiveFrame_Hitstop_NonColorblind.png" />
+    <Image Include="..\images\ActiveFrame_NewHit.png" />
+    <Image Include="..\images\ActiveFrame_NewHit_NonColorblind.png" />
     <Image Include="..\images\ActiveFrame_NonColorblind.png" />
     <Image Include="..\images\Digit0.png" />
     <Image Include="..\images\Digit1.png" />
@@ -311,16 +320,28 @@
     <Image Include="..\images\Digit8.png" />
     <Image Include="..\images\Digit9.png" />
     <Image Include="..\images\FirstFrame.png" />
+    <Image Include="..\images\GraybeatAirHitstunFrame.png" />
+    <Image Include="..\images\GraybeatAirHitstun_NonColorblind.png" />
     <Image Include="..\images\IdleFrame.png" />
     <Image Include="..\images\IdleFrame_CantBlock.png" />
     <Image Include="..\images\IdleFrame_CantBlock_NonColorblind.png" />
     <Image Include="..\images\IdleFrame_CantFD.png" />
     <Image Include="..\images\IdleFrame_CantFD_NonColorblind.png" />
     <Image Include="..\images\IdleFrame_ElpheltRifle.png" />
+    <Image Include="..\images\IdleFrame_ElpheltRifle_CanStopHolding.png" />
+    <Image Include="..\images\IdleFrame_ElpheltRifle_CanStopHolding_NonColorblind.png" />
     <Image Include="..\images\IdleFrame_ElpheltRifle_NonColorblind.png" />
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage2.png" />
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage2_NonColorblind.png" />
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage3.png" />
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage3_NonColorblind.png" />
     <Image Include="..\images\LandingRecoveryFrame.png" />
+    <Image Include="..\images\LandingRecoveryFrame_CanCancel.png" />
+    <Image Include="..\images\LandingRecoveryFrame_CanCancel_NonColorblind.png" />
     <Image Include="..\images\LandingRecoveryFrame_NonColorblind.png" />
     <Image Include="..\images\NonActiveFrame.png" />
+    <Image Include="..\images\NonActiveFrame_CanCancel.png" />
+    <Image Include="..\images\NonActiveFrame_CanCancel_NonColorblind.png" />
     <Image Include="..\images\NonActiveFrame_NonColorblind.png" />
     <Image Include="..\images\NoneFrame.png" />
     <Image Include="..\images\ProjectileFrame.png" />
@@ -334,6 +355,8 @@
     <Image Include="..\images\StartupFrame.png" />
     <Image Include="..\images\StartupFrame_CanBlock.png" />
     <Image Include="..\images\StartupFrame_CanBlock_NonColorblind.png" />
+    <Image Include="..\images\StartupFrame_FaustPogo.png" />
+    <Image Include="..\images\StartupFrame_FaustPogo_NonColorblind.png" />
     <Image Include="..\images\StartupFrame_NonColorblind.png" />
     <Image Include="..\images\StrikeInvul.png" />
     <Image Include="..\images\SuperArmorActive.png" />
@@ -342,7 +365,19 @@
     <Image Include="..\images\SuperArmorActive_NonColorblind.png" />
     <Image Include="..\images\ThrowInvul.png" />
     <Image Include="..\images\XStunFrame.png" />
+    <Image Include="..\images\XStunFrame_CanCancel.png" />
+    <Image Include="..\images\XStunFrame_CanCancel_NonColorblind.png" />
+    <Image Include="..\images\XStunFrame_Hitstop.png" />
+    <Image Include="..\images\XStunFrame_Hitstop_NonColorblind.png" />
     <Image Include="..\images\XStunFrame_NonColorblind.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2_NonColorblind.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2_Released.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2_Released_NonColorblind.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3_NonColorblind.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3_Released.png" />
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3_Released_NonColorblind.png" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\MyPixelShader.hlsl">

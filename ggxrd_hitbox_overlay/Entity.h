@@ -166,6 +166,312 @@ enum SuperArmorType {
 	SUPER_ARMOR_ARMOR
 };
 
+enum MoveCharacterState {
+	MOVE_CHARACTER_STATE_NONE,
+	MOVE_CHARACTER_STATE_STANDING,
+	MOVE_CHARACTER_STATE_CROUCHING,
+	MOVE_CHARACTER_STATE_JUMPING
+};
+
+enum MoveCondition {
+	MOVE_CONDITION_LAND = 1,
+	MOVE_CONDITION_AIR = 2,
+	MOVE_CONDITION_REQUIRES_50_TENSION = 3,
+	MOVE_CONDITION_REQUIRES_100_TENSION = 4,
+	MOVE_CONDITION_REQUIRES_25_TENSION = 5,
+	// PLAYERVAL_0 != 0 means:
+	// For Answer: on scroll
+	// For Baiken: Azami
+	// For Chipp: in invisibility state from Tsuyoshishiki Meisei
+	// For Elphelt: in shotgun mode
+	// For I-No: held 3 while hoverdashing for at least 1 frame at some point. Only set after some initial portion of the hoverdash is over
+	// For Jam: number of Ryuujins, Gekirins and Kenroukakus remaining (PLAYERVAL_0 set to 2, 1, or 0)
+	// For Jack-O: is holding a house
+	// For Ramlethal: S sword is on her
+	// For Sol: is in DI
+	// For Zato: Eddie is summoned
+	MOVE_CONDITION_PLAYERVAL_0_TRUE = 0xc,  // also means PLAYERVAL_0 != 0
+	// For Ramlethal: S sword is somewhere out there and able to be used
+	MOVE_CONDITION_PLAYERVAL_1_TRUE = 0xd,
+	// For Ramlethal: H sword is on her
+	MOVE_CONDITION_PLAYERVAL_2_TRUE = 0xe,
+	// For Ramlethal: H sword is somewhere out there and able to be used
+	// For Zato: shadow puddle X. 3000000 means there's no shadow puddle
+	MOVE_CONDITION_PLAYERVAL_3_TRUE = 0xf,
+	MOVE_CONDITION_PLAYERVAL_0_FALSE = 0x10,
+	// PLAYERVAL_1 != 0 means:
+	// For Chipp: already used wallcling during airborne state. Gets reset only when landing
+	// For Elphelt: shotgun reached max charge
+	// For Jack-O: a non-airborne house is in range
+	// For Zato: Eddie gauge disabled
+	MOVE_CONDITION_PLAYERVAL_1_FALSE = 0x11,
+	MOVE_CONDITION_PLAYERVAL_2_FALSE = 0x12,
+	MOVE_CONDITION_PLAYERVAL_3_FALSE = 0x13,
+	MOVE_CONDITION_IS_TOUCHING_WALL = 0x3c,
+	// GAUGE means RESOURCE, just to clarify
+	// For Elphelt: EX_GAUGE_0 is her resource which is the grenade timer
+	// For Jam: Gauge 0 is Ryuujin (K card charge), 1 Gekirin (S card charge), 2 Kenroukaku (H card charge)
+	// For Johnny: it's his coins
+	MOVE_CONDITION_EX_GAUGE_0_EMPTY = 0x3e,
+	MOVE_CONDITION_EX_GAUGE_1_EMPTY = 0x3f,
+	MOVE_CONDITION_EX_GAUGE_2_EMPTY = 0x40,
+	MOVE_CONDITION_EX_GAUGE_3_EMPTY = 0x41,
+	MOVE_CONDITION_EX_GAUGE_4_EMPTY = 0x42,
+	MOVE_CONDITION_IS_TOUCHING_LEFT_SCREEN_EDGE = 0x44,
+	MOVE_CONDITION_IS_TOUCHING_RIGHT_SCREEN_EDGE = 0x45,
+	MOVE_CONDITION_EX_GAUGE_0_NOT_EMPTY = 0x48,
+	MOVE_CONDITION_EX_GAUGE_1_NOT_EMPTY = 0x49,
+	MOVE_CONDITION_EX_GAUGE_2_NOT_EMPTY = 0x4a,
+	MOVE_CONDITION_EX_GAUGE_3_NOT_EMPTY = 0x4b,
+	MOVE_CONDITION_EX_GAUGE_4_NOT_EMPTY = 0x4c,
+	MOVE_CONDITION_IS_BOSS = 0x5e,
+	MOVE_CONDITION_IS_CPU = 0x62,
+	MOVE_CONDITION_CLOSE_SLASH = 0x66,
+	MOVE_CONDITION_FAR_SLASH = 0x67,
+	MOVE_CONDITION_LAST = 0x68  // must always be last
+};
+
+enum InputType {
+	INPUT_END=0,  // looking for INPUT_BOOLEAN_OR? It's 273
+    INPUT_HOLD_P=1,
+    INPUT_P_STRICT_PRESS=2,
+    INPUT_P_STRICT_RELEASE=3,
+    INPUT_PRESS_P=4,
+    INPUT_NOT_HOLD_P=5,
+    INPUT_RELEASE_P=6,
+    INPUT_HOLD_K=10,
+    INPUT_K_STRICT_PRESS=11,
+    INPUT_K_STRICT_RELEASE=12,
+    INPUT_PRESS_K=13,
+    INPUT_NOT_HOLD_K=14,
+    INPUT_RELEASE_K=15,
+    INPUT_HOLD_S=19,
+    INPUT_S_STRICT_PRESS=20,
+    INPUT_S_STRICT_RELEASE=21,
+    INPUT_PRESS_S=22,
+    INPUT_NOT_HOLD_S=23,
+    INPUT_RELEASE_S=24,
+    INPUT_HOLD_H=28,
+    INPUT_H_STRICT_PRESS=29,
+    INPUT_H_STRICT_RELEASE=30,
+    INPUT_PRESS_H=31,
+    INPUT_NOT_HOLD_H=32,
+    INPUT_RELEASE_H=33,
+    INPUT_HOLD_D=37,
+    INPUT_D_STRICT_PRESS=38,
+    INPUT_D_STRICT_RELEASE=39,
+    INPUT_PRESS_D=40,
+    INPUT_NOT_HOLD_D=41,
+    INPUT_RELEASE_D=42,
+    INPUT_HOLD_TAUNT=46,
+    INPUT_TAUNT_STRICT_PRESS=47,
+    INPUT_TAUNT_STRICT_RELEASE=48,
+    INPUT_PRESS_TAUNT=49,
+    INPUT_NOT_HOLD_TAUNT=50,
+    INPUT_RELEASE_TAUNT=51,
+    INPUT_1=55,
+    INPUT_4_OR_1_OR_2=56,
+    INPUT_NOT_1=63,
+    INPUT_NOT_4_OR_1_OR_2=64,
+    INPUT_2=68,
+    INPUT_ANYDOWN=69,
+    INPUT_ANYDOWN_STRICT_PRESS=71,
+    INPUT_NOT_2=76,
+    INPUT_NOTANYDOWN=77,
+    INPUT_3=81,
+    INPUT_6_OR_3_OR_2=82,
+    INPUT_NOT_3=89,
+    INPUT_NOT_6_OR_3_OR_2=90,
+    INPUT_4=94,
+    INPUT_ANYBACK=95,
+    INPUT_ANYBACK_STRICT_PRESS=97,
+    INPUT_NOT_4=102,
+    INPUT_NOTANYBACK=103,
+    INPUT_5=107,
+    INPUT_ALWAYS_TRUE_DUPLICATE=108,
+    INPUT_NOT_5=115,
+    INPUT_6=120,
+    INPUT_ANYFORWARD=121,
+    INPUT_ANYFORWARD_STRICT_PRESS=123,
+    INPUT_NOT_6=128,
+    INPUT_NOTANYFORWARD=129,
+    INPUT_7=133,
+    INPUT_4_OR_7_OR_8=134,
+    INPUT_NOT_7=141,
+    INPUT_NOT_4_OR_7_OR_8=142,
+    INPUT_8=146,
+    INPUT_ANYUP=147,
+    INPUT_ANYUP_STRICT_PRESS=149,
+    INPUT_NOT_8=154,
+    INPUT_NOTANYUP=155,
+    INPUT_9=159,
+    INPUT_6_OR_9_OR_8=160,
+    INPUT_NOT_9=167,
+    INPUT_NOT_6_OR_9_OR_8=168,
+    INPUT_236=172,
+    INPUT_623=173,
+    INPUT_214=174,
+    INPUT_41236=175,
+    INPUT_421=176,
+    INPUT_63214=177,
+    INPUT_236236=178,
+    INPUT_214214=179,
+    INPUT_4123641236=180,
+    INPUT_624624=181,
+    INPUT_632146=182,
+    INPUT_641236=183,
+    INPUT_2141236=184,
+    INPUT_2363214=185,
+    INPUT_22=186,
+    INPUT_46=187,
+    INPUT_CHARGE_BACK_FORWARD_30F=188,
+    INPUT_CHARGE_DOWN_UP_30F=189,
+    INPUT_6428=190,
+    INPUT_CHARGE_BACK_UP_30F=191,
+    INPUT_646426=192,
+    INPUT_342646=193,
+    INPUT_28=194,
+    INPUT_646=195,
+    INPUT_P_MASH=196,
+    INPUT_K_MASH=197,
+    INPUT_S_MASH=198,
+    INPUT_H_MASH=199,
+    INPUT_D_MASH=200,
+    INPUT_CIRCLE=201,
+    INPUT_222=204,
+    INPUT_2222=205,
+    INPUT_236236_STRICTER=206,
+    INPUT_PRESS_D_DUPLICATE=212,
+    INPUT_HOLD_6_OR_3_AND_PRESS_TWO_OF_PKSH=213,
+    INPUT_ROMAN_CANCEL=214,
+    INPUT_SUPERJUMP=215,
+    INPUT_ANYUP_STRICT_PRESS_DUPLICATE=216,
+    INPUT_FORWARD_DASH=217,
+    INPUT_BACKDASH=218,
+    INPUT_BLOCK_WITH_CROSSUP_PROTECTION=219,
+    INPUT_BLOCK_OR_CROSSUP_AIR_BLOCK=220,
+    INPUT_151=221,
+    INPUT_252=222,
+    INPUT_353=223,
+    INPUT_454=224,
+    INPUT_66_QUICK=225,
+    INPUT_757=226,
+    INPUT_858=227,
+    INPUT_959=228,
+    INPUT_ALWAYS_TRUE_DUPLICATE2=233,
+    INPUT_ALWAYS_FALSE_DUPLICATE=234,
+    INPUT_623_LENIENT=235,
+    INPUT_22_LENIENT=238,
+    INPUT_5_OR_4_OR_ANY_UP=239,
+    INPUT_5_OR_ANY_UP=240,
+    INPUT_5_OR_6_OR_ANY_UP=241,
+    INPUT_5_OR_4_OR_7_OR_8=242,
+    INPUT_421_LENIENT=243,
+    INPUT_16243=246,
+    INPUT_546=247,
+    INPUT_5_ANYBACK_ANYFORWARD_STRICTER=249,
+    INPUT_5_ANYFORWARD_ANYBACK=250,
+    INPUT_CHARGE_BACK_FORWARD_40F=251,
+    INPUT_CHARGE_DOWN_UP_40F=252,
+    INPUT_CHARGE_BACK_FORWARD_45F=253,
+    INPUT_CHARGE_DOWN_UP_45F=254,
+    INPUT_236236236=255,
+    INPUT_623_WITHIN_LAST_3F=256,
+    INPUT_5_ANYBACK_ANYFORWARD_WITHIN_LAST_2F=257,
+    INPUT_NOTANYDOWN_2=258,
+    INPUT_46_WITHIN_LAST_1F=259,
+    INPUT_CHARGE_DOWN_10F=260,
+    INPUT_546_BUTNOT_54_ANYDOWN_6=261,
+    INPUT_5_ANYBACK_ANYFORWARD_LENIENT=262,
+    INPUT_BURST=268,
+    INPUT_HOLD_TWO_OR_MORE_OF_PKSH=269,
+    INPUT_PRESS_TWO_OR_MORE_OF_PKSH_GLITCHED=270,
+    INPUT_PRESS_ANYBACK_WITHIN_LAST_8F_NO_MASH_ALLOWED=271,
+    INPUT_P_OR_K_OR_S_OR_H=272,
+    INPUT_BOOLEAN_OR=273,
+    INPUT_HAS_PRECEDING_5=274,
+    INPUT_ITEM=275,
+    INPUT_HOLD_SPECIAL=276,
+    INPUT_SPECIAL_STRICT_PRESS=277,
+    INPUT_SPECIAL_STRICT_RELEASE=278,
+    INPUT_PRESS_SPECIAL=279,
+    INPUT_NOT_HOLD_SPECIAL=280,
+    INPUT_RELEASE_SPECIAL=281,
+    INPUT_ANY_TWO_OF_PKSH=285,
+    INPUT_ROMAN_CANCEL_DUPLICATE=286,
+    INPUT_MOM_TAUNT=287,  // doubt
+    INPUT_FORWARD_DASH_WITHIN_LAST_2F=288,
+    INPUT_BACKDASH_WITHIN_LAST_2F=289,
+    INPUT_P_OR_K_OR_S_OR_H_OR_D_STRICT_PRESS=290,
+    INPUT_ALWAYS_FALSE=291,
+    INPUT_PRESS_TAUNT_DUPLICATE=292,
+    INPUT_HOLD_ONE_OR_MORE_OF_PKSH=293,
+    INPUT_HOLD_ONE_OR_MORE_OF_PKSH_OR_D=294,
+};
+
+enum MoveSubcategory {
+    MOVE_SUBCATEGORY_DEFAULT,
+    MOVE_SUBCATEGORY_TAUNT,
+    MOVE_SUBCATEGORY_RESPECT,
+    MOVE_SUBCATEGORY_ITEM_USE,
+    MOVE_SUBCATEGORY_BURST_OVERDRIVE,
+    MOVE_SUBCATEGORY_BAIKEN_AZAMI
+};
+
+struct AddedMoveData {
+	int index;
+	int stylishRealMoveIndex;  // for stylish moves: realMoveIndex. Non-stylish: matches index
+	char name[32];
+	char stylishRealMoveName[32];
+	char stateName[32];  // state function name
+	unsigned int requestActionFlag; // bitfield
+	DWORD type;
+	MoveSubcategory subcategory;
+	MoveCharacterState characterState;
+	DWORD flags0x78;
+	inline bool isFollowupMove() const { return (flags0x78 & 2) != 0; }
+	DWORD cpuEstimateFlags;
+	DWORD inputDirectionBaseObject;
+	DWORD conditions[5];
+	InputType inputs[16];
+	char moveRecipeEMove[32];
+	int recipeStopTypeExArg3;
+	int recipeStopTypeExArg2;
+	int recipeStopTypeExArg1;
+	DWORD eMoveOffset;
+	DWORD eMoveDataSize;
+	int padding[4];
+	BYTE priority;
+	char padding2;
+	char shareChain[32];
+	char padding3[2];
+	int enemyHpRate;
+	char callSubroutine[32];
+	char conditionCheckSubroutine[32];
+	int minimumHeightRequirement;
+	int maxXDistanceToEnemy;  // used by stylish combos
+	int minYDistanceToEnemyAbove;  // used by stylish combos
+	int maxYDistanceToEnemyAbove;  // used by stylish combos
+	DWORD forceDisableFlags;
+	DWORD hitOrBlockstunCondition;  // the function that uses this in the game may return 2 or 1 or 0. 2 means nope, 1 means ok. Not sure what 0 is for
+	int cpuEstimatePoint;
+	int padding4[11];
+	DWORD flags0x1cc;
+	inline bool gatlingOption() const { return (flags0x1cc & 0x1) != 0; }
+	inline bool whiffCancelOption() const { return (flags0x1cc & 0x10) != 0; }
+	inline bool passedAllChecks() const { return (flags0x1cc & 0x80) != 0; }
+	char padding5[4];
+	int frameCounterPerFacing[2];  // gets incremented every frame until reaches 10000
+	int frameCounterPerFacingNoHitstop[2];  // when not in hitstop or superfreeze or frame lost due to RC slowdown, gets incremented every frame until reaches 10000
+	int passedEnabledFlags;
+	int padding6;
+	BOOL passedMoveChecksOfSomeKind;
+	int padding7;
+	int bufferTime;
+	int padding8;
+	bool hasCondition(MoveCondition condition) const;
+};
+
 class Entity
 {
 public:
@@ -234,8 +540,11 @@ public:
 	// some of these are really hard to describe without comments that super continent's (Pangaea's) bbscript database doesn't have.
 	// This is set when hitting someone and reset on recovery
 	inline bool attackCollidedSoCanCancelNow() const { return (*(DWORD*)(ent + 0x23c) & 0x20) != 0; }
+	inline bool enableAirtech() const { return (*(DWORD*)(ent + 0x4d40) & 0x4) != 0; }
 	inline bool enableWhiffCancels() const { return (*(DWORD*)(ent + 0x4d48) & 0x2) != 0; }
+	inline bool enableSpecialCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x4) != 0; }
 	inline bool enableNormals() const { return (*(DWORD*)(ent + 0x4d3c) & 0x1000) != 0; }
+	inline bool enableSpecials() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2000) != 0; }
 	inline bool enableGatlings() const { return (*(DWORD*)(ent + 0x4d48) & 0x1) != 0; }
 	inline DWORD forceDisableFlags() const { return *(DWORD*)(ent + 0x24e3c); }
 	inline bool enableBlock() const { return (*(DWORD*)(ent + 0x4d3c) & 0x10000) != 0; }
@@ -301,6 +610,7 @@ public:
 	inline int exKizetsu() const { return *(int*)(ent + 0x24dc4); }
 	inline bool landed() const { return (*(int*)(ent + 0x234) & 0x4) != 0; }  // is true for only one frame - the frame on which you touched the ground
 	inline bool hitSomethingOnThisFrame() const { return (*(int*)(ent + 0x12c) & 0x20000) != 0; }  // is true for only one frame - the frame on which you hit something
+	inline bool receivedProjectileClashSignal() const { return (*(int*)(ent + 0x12c) & 0x8) != 0; }
 	inline bool inHitstunNextFrame() const { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
 	inline bool inBlockstunNextFrame() const { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
 	inline bool enableGuardBreak() const { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // i don't know what this is, bbscript calls it enableGuardBreak
@@ -310,6 +620,8 @@ public:
 	inline int receivedAttackLevel() const { return *(int*)(ent + 0x710 + 0x4); }
 	inline bool isTouchingLeftWall() const { return (*(DWORD*)(ent + 0x118) & 0x400000) != 0; }
 	inline bool isTouchingRightWall() const { return (*(DWORD*)(ent + 0x118) & 0x800000) != 0; }
+	inline bool isTouchingLeftScreenEdge() const { return (*(DWORD*)(ent + 0x118) & 0x100000) != 0; }
+	inline bool isTouchingRightScreenEdge() const { return (*(DWORD*)(ent + 0x118) & 0x200000) != 0; }
 	inline bool isSuperFrozen() const { return (*(DWORD*)(ent + 0x118) & 0x4000000) != 0; }
 	inline bool isRCFrozen() const { return (*(DWORD*)(ent + 0x11c) & 0x200000) != 0; }
 	inline Entity attacker() const { return *(Entity*)(ent + 0x708); }
@@ -336,9 +648,12 @@ public:
 	bool hasUpon(int index) const;
 	inline int mem45() const { return *(int*)(ent + 0x14c); }
 	inline int mem46() const { return *(int*)(ent + 0x150); }
+	inline int mem47() const { return *(int*)(ent + 0x154); }
 	inline int mem48() const { return *(int*)(ent + 0x158); }
+	inline int mem49() const { return *(int*)(ent + 0x15c); }
 	inline int mem50() const { return *(int*)(ent + 0x160); }
 	inline int mem51() const { return *(int*)(ent + 0x164); }
+	inline int mem54() const { return *(int*)(ent + 0x170); }
 	inline int mem57() const { return *(int*)(ent + 0x17c); }
 	inline int mem58() const { return *(int*)(ent + 0x180); }
 	inline int mem59() const { return *(int*)(ent + 0x184); }
@@ -368,6 +683,7 @@ public:
 	inline int untechableTime() const { return *(int*)(ent + 0x694); }
 	inline int floorBouncesRemaining() const { return *(int*)(ent + 0x960); }
 	inline bool isOtg() const { return (*(DWORD*)(ent + 0x4d24) & 0x800000) != 0; }
+	inline bool isThrow() const { return (*(DWORD*)(ent + 0x44c + 0x10) & 0x800000) != 0; }
 	inline int atkAngle() const { return *(int*)(ent + 0x44c + 0x164); }
 	inline int strikeInvulnFrames() const { return *(int*)(ent + 0x9a0); }
 	inline int throwInvulnFrames() const { return *(int*)(ent + 0x99c); }
@@ -378,6 +694,26 @@ public:
 	// this is > 0 in hitstun, blockstun,
 	// including 6f after hitstun, 5f after blockstun and 9f after wakeup
 	inline int throwProtection() const { return *(unsigned int*)(ent + 0x9fE4) > 0; }
+	inline int currentMoveIndex() const { return *(int*)(ent + 0x24c0 + 0x44); }  // currentMoveIndex() MAY BE -1!!!
+	inline int* moveIndices() const { return (int*)(ent + 0xa020 + 0x16530); }  // used to iterate moves
+	inline int moveIndicesCount() const { return *(int*)(ent + 0xa020 + 0x16800); }  // iterate from the end (count - 1) to 0
+	inline const AddedMoveData* movesBase() const { return (const AddedMoveData*)(ent + 0xa020); }
+	inline const AddedMoveData* currentMove() const { return movesBase() + currentMoveIndex(); }  // currentMoveIndex() MAY BE -1!!!
+	inline int hitOccured() const { return *(int*)(ent + 0x444); }  // equal to 10 when occured, 0 when not
+	inline int theValueHitOccuredIsComparedAgainst() const { return *(int*)(ent + 0x448); }  // always 10
+	inline int crossupProtection() const { return *(int*)(ent + 0xa010); }
+	inline bool immuneToRCSlowdown() const { return (*(DWORD*)(ent + 0x11c) & 0x10000000) != 0; }
+	inline int rcSlowdownCounter() const { return *(int*)(ent + 0x261fc); }
+	inline int poisonDuration() const { return *(int*)(ent + 0x2510); }
+	// some moves have this at first and then decide to get rid of it: Mad Struggle, Eddie K at a wall (sets to an impossibly high value).
+	// Other moves don't have it and then obtain it: Jam j.2K
+	inline int maxHit() const { return *(int*)(ent + 0x25a4); }
+	inline int numberOfHitsTaken() const { return *(int*)(ent + 0x253c); }
+	inline int numberOfHits() const { return *(int*)(ent + 0x2540); }
+	inline bool notDestroyOnMaxNumOfHits() const { return (*(DWORD*)(ent + 0x240) & 0x20000000) != 0; }
+	inline int destroyOnBlockOrArmor() const { return *(int*)(ent + 0x2548); }
+	inline int destroyOnHitProjectile() const { return *(int*)(ent + 0x254c); }
+	inline int destroyOnHitPlayer() const { return *(int*)(ent + 0x2544); }
 	
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;

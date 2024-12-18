@@ -37,7 +37,7 @@ private:
 	bool isSet = false;
 	float clipXHalf = 0.F;
 	float clipYHalf = 0.F;
-	float divisor = 0.F;
+	float multiplier = 0.F;
 	void setValues(IDirect3DDevice9* device);
 	float convertCoord(float in) const;
 	void angleVectors(

@@ -496,3 +496,8 @@ void EntityManager::calculateHitstunProration(
 		*hitstunProration = 100;
 	}
 }
+
+bool AddedMoveData::hasCondition(MoveCondition condition) const {
+	int index = condition >> 5;
+	return (conditions[index] & (1 << (condition & 31))) != 0;
+}

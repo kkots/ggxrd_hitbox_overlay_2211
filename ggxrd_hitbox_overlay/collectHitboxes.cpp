@@ -19,18 +19,18 @@ void collectHitboxes(Entity ent,
 		bool* wasSuperArmorEnabled,
 		bool* wasFullInvul) {
 	
-	CharacterType ownerType = CHARACTER_TYPE_SOL;
+	CharacterType ownerType = (CharacterType)-1;
 	if (!ent.isPawn()
 			&& (ent.team() == 0 || ent.team() == 1)) {
 		ownerType = entityList.slots[ent.team()].characterType();
-		if (ownerType == CHARACTER_TYPE_JACKO
-				&& !ent.displayModel()
-				|| ent.y() < -3000000  // needed for May [2]8S/H
-				|| ent.isHidden()  // needed for super animations
-				|| ownerType == CHARACTER_TYPE_LEO
-				&& strcmp(ent.animationName(), "Semuke5E_Reflect") == 0) {
-			return;
-		}
+	}
+	if (ownerType == CHARACTER_TYPE_JACKO
+			&& !ent.displayModel()
+			|| ent.y() < -3000000  // needed for May [2]8S/H
+			|| ent.isHidden()  // needed for super animations
+			|| ownerType == CHARACTER_TYPE_LEO
+			&& strcmp(ent.animationName(), "Semuke5E_Reflect") == 0) {
+		return;
 	}
 	
 	EntityState state;

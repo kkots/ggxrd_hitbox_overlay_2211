@@ -1,0 +1,1 @@
+These files are from Microsoft's Legacy DirectX Software Development Kit. In its license, there was NO permission to distribute the .LIB files specifically. These files are provided only as an aid in compiling this project and may NOT be redistributed. Obtain your own copy only by downloading DirectX Software Development Kit from Microsoft directly.

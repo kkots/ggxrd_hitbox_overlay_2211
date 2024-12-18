@@ -193,21 +193,20 @@ void RectCombiner::getOutlines(std::vector<Polygon>& boxes,
 	++sideCount;
 	unsigned int cellsCount = sideCount * sideCount;
 	bool needToZeroMemory = true;
-	if (gridSpace.cellCount < cellsCount) {
-		if (!gridSpace.cells) {
-			gridSpace.cells = (GridCell*)calloc(cellsCount, sizeof(GridCell));
-			gridSpace.cellCount = cellsCount;
+	if (gridSpace.cells.size() < cellsCount) {
+		if (gridSpace.cells.empty()) {
+			gridSpace.cells.resize(cellsCount);
 			needToZeroMemory = false;
 		} else {
-			while (gridSpace.cellCount < cellsCount) {
-				gridSpace.cellCount <<= 1;
+			size_t size = gridSpace.cells.size();
+			while (size < cellsCount) {
+				size <<= 1;
 			}
-			gridSpace.cells = (GridCell*)realloc(gridSpace.cells, gridSpace.cellCount * sizeof(GridCell));
+			gridSpace.cells.resize(size);
 		}
 	}
-	if (!gridSpace.cells) return;
 	if (needToZeroMemory) {
-		memset(gridSpace.cells, 0, cellsCount * sizeof(GridCell));
+		memset(gridSpace.cells.data(), 0, cellsCount * sizeof(GridCell));
 	}
 
 	for (const auto& box : boxes) {
@@ -228,7 +227,7 @@ void RectCombiner::getOutlines(std::vector<Polygon>& boxes,
 	}
 
 	if (newBoxes) {
-		GridCell* c = gridSpace.cells;
+		GridCell* c = gridSpace.cells.data();
 		for (unsigned int j = 0; j < sideCount; ++j) {
 			for (unsigned int i = 0; i < sideCount; ++i) {
 				if (!c->filled) { ++c; continue; }

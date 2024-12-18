@@ -402,3 +402,4 @@ FodyWeavers.xsd
 /raven grab hitbox meaningless2.jpg
 /TODO.txt
 /texture dump.cpp
+/shader_test_compile/MyPixelShader.cso

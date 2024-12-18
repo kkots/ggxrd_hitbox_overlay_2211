@@ -5,6 +5,7 @@ struct ThrowInfo {
 	Entity owner{ nullptr };
 	bool isPawn = false;
 	bool isMettagiri = false;
+	bool isThrow = false;
 	AttackType attackType = ATTACK_TYPE_NONE;
 
 	bool hasPushboxCheck = false;

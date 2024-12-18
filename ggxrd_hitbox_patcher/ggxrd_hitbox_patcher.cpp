@@ -227,10 +227,28 @@ uintptr_t followRelativeCall(uintptr_t callInstructionAddress, const char* callI
 
 struct Section {
     std::string name;
+	
+	// RVA. Virtual address offset relative to the virtual address start of the entire .exe.
+	// So let's say the whole .exe starts at 0x400000 and RVA is 0x400.
+	// That means the non-relative VA is 0x400000 + RVA = 0x400400.
+	// Note that the .exe, although it does specify a base virtual address for itself on the disk,
+	// may actually be loaded anywhere in the RAM once it's launched, and that RAM location will
+	// become its base virtual address.
     uintptr_t relativeVirtualAddress = 0;
+    
+	// VA. Virtual address within the .exe.
+	// A virtual address is the location of something within the .exe once it's loaded into memory.
+	// An on-disk, file .exe is usually smaller than when it's loaded so it creates this distinction
+	// between raw address and virtual address.
     uintptr_t virtualAddress = 0;
+    
+	// The size in terms of virtual address space.
     uintptr_t virtualSize = 0;
+    
+	// Actual position of the start of this section's data within the file.
     uintptr_t rawAddress = 0;
+    
+	// Size of this section's data on disk in the file.
     uintptr_t rawSize = 0;
 };
 

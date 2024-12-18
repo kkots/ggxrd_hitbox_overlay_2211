@@ -45,9 +45,11 @@ bool Throws::onDllMain() {
 #ifndef USE_ANOTHER_HOOK
 void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 	HookGuard hookGuard("hitDetectionMain");
-	endScene.onHitDetectionStart(hitDetectionType);
-	if (hitDetectionType == 1 && !gifMode.modDisabled) {
-		throws.hitDetectionMainHook();
+	if (!gifMode.modDisabled) {
+		endScene.onHitDetectionStart(hitDetectionType);
+		if (hitDetectionType == 1) {
+			throws.hitDetectionMainHook();
+		}
 	}
 	{
 		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
@@ -119,6 +121,7 @@ void Throws::hitDetectionMainHook() {
 
 			ThrowInfo throwInfo;
 			throwInfo.attackType = attackType;
+			throwInfo.isThrow = ent.isThrow();  // needed for Leo Siegesparade. Throw box is present way after the active frames are
 			throwInfo.active = true;
 			throwInfo.owner = ent;
 			throwInfo.isPawn = ent.isPawn();
@@ -234,7 +237,7 @@ void Throws::drawThrows() {
 			ProjectileInfo& projectile = endScene.findProjectile(throwInfo.owner);
 			if (projectile.ptr) {
 				projectile.markActive = true;
-			} else {
+			} else if (throwInfo.isThrow) {
 				for (int i = 0; i < 2; ++i) {
 					if (throwInfo.owner == entityList.slots[i]) {
 						PlayerInfo& player = endScene.players[i];

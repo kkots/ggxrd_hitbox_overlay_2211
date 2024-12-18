@@ -2,6 +2,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "PlayerInfo.h"
+#include "findMoveByName.h"
+#include "EndScene.h"
+#include "EntityList.h"
+
+bool cantAttackTypes[FT_LAST] { 0 };
+
+void initializeCantAttackTypes() {
+	cantAttackTypes[FT_ACTIVE] = true;
+	cantAttackTypes[FT_ACTIVE_PROJECTILE] = true;
+	cantAttackTypes[FT_STARTUP] = true;
+	cantAttackTypes[FT_STARTUP_ANYTIME_NOW] = true;
+	cantAttackTypes[FT_STARTUP_ANYTIME_NOW_CAN_ACT] = true;
+	cantAttackTypes[FT_STARTUP_STANCE] = true;
+	cantAttackTypes[FT_STARTUP_STANCE_CAN_STOP_HOLDING] = true;
+	cantAttackTypes[FT_STARTUP_CAN_BLOCK] = true;
+	cantAttackTypes[FT_STARTUP_CAN_BLOCK_AND_CANCEL] = true;
+	cantAttackTypes[FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN] = true;
+	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE2] = true;
+	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE3] = true;
+	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED] = true;
+	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED] = true;
+	cantAttackTypes[FT_RECOVERY] = true;
+	cantAttackTypes[FT_RECOVERY_HAS_GATLINGS] = true;
+	cantAttackTypes[FT_RECOVERY_CAN_ACT] = true;
+	cantAttackTypes[FT_NON_ACTIVE] = true;
+	cantAttackTypes[FT_NON_ACTIVE_PROJECTILE] = true;
+	cantAttackTypes[FT_PROJECTILE] = true;
+	cantAttackTypes[FT_LANDING_RECOVERY] = true;
+	cantAttackTypes[FT_LANDING_RECOVERY_CAN_CANCEL] = true;
+	cantAttackTypes[FT_XSTUN] = true;
+	cantAttackTypes[FT_XSTUN_CAN_CANCEL] = true;
+	cantAttackTypes[FT_XSTUN_HITSTOP] = true;
+	cantAttackTypes[FT_GRAYBEAT_AIR_HITSTUN] = true;
+}
 
 void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 	if (count == 0) {
@@ -394,27 +428,28 @@ void ActiveDataArray::mergeTimeline(int startup, const ActiveDataArray& other) {
 	*this = result;
 }
 
-void ActiveDataArray::print(char* buf, size_t bufSize) const {
+int ActiveDataArray::print(char* buf, size_t bufSize) const {
 	size_t origBufSize = bufSize;
 	char* origBuf = buf;
+	int result;
 	if (count == 0) {
-		sprintf_s(buf, bufSize, "0");
-		return;
+		result = sprintf_s(buf, bufSize, "0");
+		if (result == -1) return 0;
+		return 1;
 	}
 	int maxConsecutiveHits = 0;
 	int currentConsecutiveHits = 0;
 	int lastActives = 0;
 	int lastNonActives = 0;
-	int result;
 	for (int i = 0; i < count && bufSize; ++i) {
 		if (lastNonActives) {
 			currentConsecutiveHits = 1;
 			result = sprintf_s(buf, bufSize, "(%d)", lastNonActives);
 			if (result != -1) {
+				if ((int)bufSize <= result) return buf - origBuf;
 				buf += result;
-				if ((int)bufSize <= result) return;
 				bufSize -= result;
-			} else return;
+			} else return buf - origBuf;
 		} else if (lastActives) {
 			++currentConsecutiveHits;
 			if (bufSize > 1) {
@@ -425,7 +460,7 @@ void ActiveDataArray::print(char* buf, size_t bufSize) const {
 			if (bufSize) {
 				*buf = '\0';
 			} else {
-				return;
+				return buf - origBuf;
 			}
 		} else {
 			currentConsecutiveHits = 1;
@@ -436,47 +471,61 @@ void ActiveDataArray::print(char* buf, size_t bufSize) const {
 		const ActiveData& elem = data[i];
 		result = sprintf_s(buf, bufSize, "%d", elem.actives);
 		if (result != -1) {
+			if ((int)bufSize <= result) return buf - origBuf;
 			buf += result;
-			if ((int)bufSize <= result) return;
 			bufSize -= result;
-		} else return;
+		} else return buf - origBuf;
 		lastNonActives = elem.nonActives;
 		lastActives = elem.actives;
 	}
 	if (count > 5 && buf - origBuf > 10) {
 		char ownbuf[512];
-		memmove(ownbuf, origBuf, buf - origBuf + 1);
+		int ownbufSize = buf - origBuf;
+		if (ownbufSize > sizeof ownbuf - 1) {
+			ownbufSize = sizeof ownbuf - 1;
+		}
+		memmove(ownbuf, origBuf, ownbufSize);
+		ownbuf[ownbufSize] = '\0';
 		bufSize = origBufSize;
 		buf = origBuf;
 		*buf = '\0';
-		printNoSeparateHits(buf, bufSize);
-		size_t newBufLen = strlen(buf);
+		result = printNoSeparateHits(buf, bufSize);
+		int newBufLen = result;
 		if (newBufLen > 10) {
-			printNoSeparateHitsGapsBiggerThan3(buf, bufSize);
-			newBufLen = strlen(buf);
+			result = printNoSeparateHitsGapsBiggerThan3(buf, bufSize);
+			newBufLen = result;
 		}
-		if (strlen(buf) >= strlen(ownbuf)) {
+		if (newBufLen >= ownbufSize) {
 			newBufLen = sprintf_s(buf, bufSize, "%d", total());
+			if (newBufLen == -1) return buf - origBuf;
 		}
-		sprintf_s(buf + newBufLen, bufSize - newBufLen, " / %s", ownbuf);
+		buf += newBufLen;
+		bufSize -= newBufLen;
+		result = sprintf_s(buf, bufSize, " / %s", ownbuf);
+		if (result != -1) {
+			buf += result;
+		}
 	}
+	return buf - origBuf;
 }
 
-void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) const {
+int ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) const {
+	int result;
+	char* origBuf = buf;
 	if (count == 0) {
-		sprintf_s(buf, bufSize, "0");
-		return;
+		result = sprintf_s(buf, bufSize, "0");
+		if (result == -1) return 0;
+		return 1;
 	}
 	int lastNonActives = 0;
 	for (int i = 0; i < count && bufSize; ++i) {
-		int result;
 		if (lastNonActives) {
 			result = sprintf_s(buf, bufSize, "(%d)", lastNonActives);
 			if (result != -1) {
+				if ((int)bufSize <= result) return buf - origBuf;
 				buf += result;
-				if ((int)bufSize <= result) return;
-				else bufSize -= result;
-			} else return;
+				bufSize -= result;
+			} else return buf - origBuf;
 		}
 		int n = 0;
 		for(; i < count; ++i) {
@@ -489,29 +538,32 @@ void ActiveDataArray::printNoSeparateHits(char* buf, size_t bufSize) const {
 		}
 		result = sprintf_s(buf, bufSize, "%d", n);
 		if (result != -1) {
+			if ((int)bufSize <= result) return buf - origBuf;
 			buf += result;
-			if ((int)bufSize <= result) return;
-			else bufSize -= result;
-		} else return;
+			bufSize -= result;
+		} else return buf - origBuf;
 	}
+	return buf - origBuf;
 }
 
-void ActiveDataArray::printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) const {
+int ActiveDataArray::printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSize) const {
+	char* origBuf = buf;
+	int result;
 	if (count == 0) {
-		sprintf_s(buf, bufSize, "0");
-		return;
+		result = sprintf_s(buf, bufSize, "0");
+		if (result == -1) return 0;
+		return 1;
 	}
 	int lastNonActives = 0;
 	for (int i = 0; i < count && bufSize; ++i) {
-		int result;
 		int n = 0;
 		if (lastNonActives && lastNonActives > 5) {
 			result = sprintf_s(buf, bufSize, "(%d)", lastNonActives);
 			if (result != -1) {
+				if ((int)bufSize <= result) return buf - origBuf;
+				bufSize -= result;
 				buf += result;
-				if ((int)bufSize <= result) return;
-				else bufSize -= result;
-			} else return;
+			} else return buf - origBuf;
 		} else if (lastNonActives) {
 			n += lastNonActives;
 		}
@@ -527,11 +579,12 @@ void ActiveDataArray::printNoSeparateHitsGapsBiggerThan3(char* buf, size_t bufSi
 		}
 		result = sprintf_s(buf, bufSize, "%d", n);
 		if (result != -1) {
+			if ((int)bufSize <= result) return buf - origBuf;
 			buf += result;
-			if ((int)bufSize <= result) return;
-			else bufSize -= result;
-		} else return;
+			bufSize -= result;
+		} else return buf - origBuf;
 	}
+	return buf - origBuf;
 }
 
 void ActiveDataArray::removeSeparateHits(int* outIndex) {
@@ -573,13 +626,28 @@ void ProjectileInfo::fill(Entity ent) {
 	ptr = ent;
 	team = ent.team();
 	animFrame = ent.currentAnimDuration();
+	if (animFrame == 1 && !ent.isRCFrozen()) {
+		maxHit.clear();
+		hitNumber = 0;
+	}
 	lifeTimeCounter = ent.lifeTimeCounter();
+	int prevFrameHitstop = hitstop;
+	int clashHitstop = ent.clashHitstop();
+	clashedOnThisFrame = clashHitstop && !this->clashHitstop;
 	if (!ent.hitSomethingOnThisFrame()) {
-		hitstop = ent.hitstop();
+		hitstop = ent.hitstop() + clashHitstop;
 	} else {
 		hitstop = 0;
 	}
-	hitNumber = ent.currentHitNum();
+	if (!prevFrameHitstop && hitstop) {
+		hitstopMax = hitstop;
+	}
+	this->clashHitstop = clashHitstop;
+	int currentHitNum = ent.currentHitNum();
+	maxHit.fill(ent, currentHitNum);
+	if (maxHit.currentUse == -1 || maxHit.currentUse > 0 && !(maxHit.maxUse == 1 && hitNumber > 0)) {
+		hitNumber = currentHitNum;
+	}
 	sprite.fill(ent);
 	memcpy(animName, ent.animationName(), 32);
 }
@@ -596,7 +664,7 @@ void PlayerInfo::addGap(int length) {
 
 void PlayerInfo::printGaps(char* buf, size_t bufSize) {
 	if (gapsCount == 0) {
-		*buf = '\0';
+		if (bufSize) *buf = '\0';
 		return;
 	}
 	for (int i = 0; i < gapsCount && bufSize; ++i) {
@@ -658,6 +726,7 @@ void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
 }
 
 void PlayerInfo::printStartup(char* buf, size_t bufSize) {
+	if (!bufSize) return;
 	*buf = '\0';
 	int uhh = -1;
 	if (superfreezeStartup && superfreezeStartup <= startupDisp && (startedUp || startupProj)) {
@@ -700,12 +769,14 @@ void PlayerInfo::printStartup(char* buf, size_t bufSize) {
 }
 
 void ProjectileInfo::printStartup(char* buf, size_t bufSize) {
+	if (!bufSize) return;
 	*buf = '\0';
 	prevStartups.print(buf, bufSize);
 	sprintf_s(buf, bufSize, "%d", startup);
 }
 
 void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
+	if (!bufSize) return;
 	*buf = '\0';
 	int charsPrinted = 0;
 	bool printedTheMainThing = false;
@@ -738,11 +809,17 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 		buf += charsPrinted;
 		bufSize -= charsPrinted;
 	}
-	if (printedTheMainThing && totalCanFD > totalCanBlock && totalCanBlock != 0 && !(recoveryDispCanBlock != -1 && recoveryDisp == 0)) {
+	int maxOfTheTwo = max(totalCanBlock, totalDisp);
+	if (printedTheMainThing
+			&& totalCanFD > maxOfTheTwo
+			&& maxOfTheTwo != 0
+			&& totalCanBlock != 0
+			&& !(recoveryDispCanBlock != -1 && recoveryDisp == 0)
+	) {
 		charsPrinted = sprintf_s(buf, bufSize, "%s%s%d can't FD",
 			mentionedCantAttack ? " can't attack" : "",
 			charsPrinted ? "+" : "",
-			totalCanFD - totalCanBlock);
+			totalCanFD - maxOfTheTwo);
 		if (charsPrinted == -1) return;
 		buf += charsPrinted;
 		bufSize -= charsPrinted;
@@ -764,6 +841,7 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 }
 
 void PlayerInfo::printTotal(char* buf, size_t bufSize) {
+	if (!bufSize) return;
 	char* origBuf = buf;
 	*buf = '\0';
 	int charsPrinted;
@@ -771,6 +849,7 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 	int partsCount = 0;
 	int partsTotal = 0;
 	bool mentionedCantAttack = false;
+	int maxOfTheTwo = max(totalCanBlock, totalDisp);
 	if (canPrintTotal()) {
 		printedMainPart = true;
 		prevStartupsTotalDisp.print(buf, bufSize);
@@ -798,11 +877,10 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 			bufSize -= charsPrinted;
 		}
 		
-		if (totalCanFD > totalCanBlock && totalCanBlock != 0) {
+		if (totalCanFD > maxOfTheTwo && maxOfTheTwo != 0 && totalCanBlock != 0) {
 			charsPrinted = sprintf_s(buf, bufSize, "%s+%d can't FD",
 				mentionedCantAttack ? "" : " can't attack",
-				totalCanFD - totalCanBlock);
-			++partsCount;
+				totalCanFD - maxOfTheTwo);
 			if (charsPrinted == -1) return;
 			buf += charsPrinted;
 			bufSize -= charsPrinted;
@@ -834,12 +912,24 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 			bufSize -= charsPrinted;
 		}
 		if (totalFD) {
-			sprintf_s(buf, bufSize, "+%d FD", totalFD);
+			charsPrinted = sprintf_s(buf, bufSize, "+%d FD", totalFD);
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
 		}
+		if (totalCanFD > maxOfTheTwo && maxOfTheTwo != 0 && totalCanBlock != 0) {
+			charsPrinted = sprintf_s(buf, bufSize, "+%d can't FD",
+				totalCanFD - maxOfTheTwo);
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+		
 	}
 }
 
 void ProjectileInfo::printTotal(char* buf, size_t bufSize) {
+	if (!bufSize) return;
 	*buf = '\0';
 	prevStartups.print(buf, bufSize);
 	sprintf_s(buf, bufSize, "%d", total);
@@ -852,14 +942,14 @@ bool PlayerInfo::isIdleInNewSection() {
 		&& timeInNewSection > move->considerIdleInSeparatedSectionAfterThisManyFrames;
 }
 
-bool PlayerInfo::isInArbitraryStartupSection() {
+bool PlayerInfo::isInVariableStartupSection() {
 	return move
 		&& (
 			inNewMoveSection
-			&& (move->considerNewSectionAsBeingInArbitraryStartup
+			&& (move->considerNewSectionAsBeingInVariableStartup
 				|| move->considerIdleInSeparatedSectionAfterThisManyFrames)
-			|| move->isInArbitraryStartupSection
-			&& move->isInArbitraryStartupSection(pawn)
+			|| move->isInVariableStartupSection
+			&& move->isInVariableStartupSection(*this)
 		);
 }
 
@@ -912,34 +1002,14 @@ void EntityFramebar::utf8len(const char* txt, int* byteLen, int* cpCountTotal, i
 
 void EntityFramebar::setTitle(const char* text, const char* textFull) {
 	
+	if (text && *text == '\0') text = nullptr;
 	if (textFull && *textFull == '\0') textFull = nullptr;
-	
-	int len;
-	int bytesUpToMax;
-	int cpsTotal;
-	utf8len(text, &len, &cpsTotal, titleShortCharsCountMax, &bytesUpToMax);
-	
-	if (bytesUpToMax != len) {
-		strncpy(titleShort, text, bytesUpToMax);
-		memset(titleShort + bytesUpToMax, 0, sizeof titleShort - bytesUpToMax);
-		if (textFull) {
-			titleFull = textFull;
-		} else {
-			titleFull = text;
-		}
-	} else {
-		memset(titleShort, 0, sizeof titleShort);
-		strcpy(titleShort, text);
-		if (textFull) {
-			titleFull = textFull;
-		} else {
-			titleFull.clear();
-		}
-	}
+	titleShort = text;
+	titleFull = textFull;
 }
 
 void EntityFramebar::copyTitle(const EntityFramebar& source) {
-	memcpy(titleShort, source.titleShort, sizeof titleShort);
+	titleShort = source.titleShort;
 	titleFull = source.titleFull;
 }
 
@@ -951,11 +1021,12 @@ int EntityFramebar::confinePos(int pos) {
 	}
 }
 
-int Framebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
-	for (int i = 0; i < _countof(frames); ++i) {
-		int curPos = (startingPos - i + _countof(frames)) % _countof(frames);
-		if (frames[curPos].type == FT_NONE) return -1;
-		DWORD curTick = frames[curPos].aswEngineTick;
+template<typename FramebarT>
+inline int findTickNoGreaterThan(const FramebarT* framebar, int startingPos, DWORD tick) {
+	for (int i = 0; i < _countof(framebar->frames); ++i) {
+		int curPos = (startingPos - i + _countof(framebar->frames)) % _countof(framebar->frames);
+		if (framebar->frames[curPos].type == FT_NONE) return -1;
+		DWORD curTick = framebar->frames[curPos].aswEngineTick;
 		if (curTick <= tick) {
 			return curPos;
 		}
@@ -963,7 +1034,18 @@ int Framebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
 	return -1;
 }
 
-void EntityFramebar::changePreviousFrames(FrameType prevType,
+int Framebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
+	return ::findTickNoGreaterThan<Framebar>(this, startingPos, tick);
+}
+
+int PlayerFramebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
+	return ::findTickNoGreaterThan<PlayerFramebar>(this, startingPos, tick);
+}
+
+template<typename EntFramebarT, typename FrameT>
+inline void changePreviousFrames(EntFramebarT* framebars,
+		FrameType* prevTypes,
+		int prevTypesCount,
 		FrameType newType,
 		int positionHitstopIdle,
 		int positionHitstop,
@@ -971,97 +1053,152 @@ void EntityFramebar::changePreviousFrames(FrameType prevType,
 		int position,
 		int maxCount,
 		bool stopAtFirstFrame) {
-	if (maxCount <= 0) return;
+	if (maxCount <= 0 || prevTypesCount <= 0) return;
 	
-	positionHitstopIdle = confinePos(positionHitstopIdle);
+	positionHitstopIdle = EntityFramebar::confinePos(positionHitstopIdle);
 	
-	DWORD aswEngineTick = idleHitstop[positionHitstopIdle].aswEngineTick;
+	DWORD aswEngineTick = framebars->idleHitstop[positionHitstopIdle].aswEngineTick;
 	
-	int hitstopPos = hitstop.findTickNoGreaterThan(confinePos(positionHitstop), aswEngineTick);
-	int idlePos = idle.findTickNoGreaterThan(confinePos(positionIdle), aswEngineTick);
-	int mainPos = main.findTickNoGreaterThan(confinePos(position), aswEngineTick);
+	int hitstopPos = framebars->hitstop.findTickNoGreaterThan(EntityFramebar::confinePos(positionHitstop), aswEngineTick);
+	int idlePos = framebars->idle.findTickNoGreaterThan(EntityFramebar::confinePos(positionIdle), aswEngineTick);
+	int mainPos = framebars->main.findTickNoGreaterThan(EntityFramebar::confinePos(position), aswEngineTick);
 	
 	while (maxCount) {
-		Frame& frame = idleHitstop[positionHitstopIdle];
+		FrameT& frame = framebars->idleHitstop[positionHitstopIdle];
 		
 		if (stopAtFirstFrame && frame.isFirst) break;
 		
-		if (frame.type == prevType) {
-			frame.type = newType;
-			
-			#define piece(posName, barName) \
-				if (posName != -1) { \
-					Frame& otherFrame = barName[posName]; \
-					if (otherFrame.aswEngineTick == frame.aswEngineTick) { \
-						if (otherFrame.type == prevType) { \
-							otherFrame.type = newType; \
-							decrementPos(posName); \
-						} else { \
-							posName = -1; \
+		int i, j;
+		for (i = 0; i < prevTypesCount; ++i) {
+			if (frame.type == prevTypes[i]) {
+				frame.type = newType;
+				
+				#define piece(posName, barName) \
+					if (posName != -1) { \
+						FrameT& otherFrame = barName[posName]; \
+						if (otherFrame.aswEngineTick == frame.aswEngineTick) { \
+							for (j = 0; j < prevTypesCount; ++j) { \
+								if (otherFrame.type == prevTypes[j]) { \
+									otherFrame.type = newType; \
+									framebars->decrementPos(posName); \
+									break; \
+								} \
+							} \
+							if (j == prevTypesCount) { \
+								posName = -1; \
+							} \
+						} else if (otherFrame.aswEngineTick > frame.aswEngineTick) { \
+							framebars->decrementPos(posName); \
 						} \
-					} else if (otherFrame.aswEngineTick > frame.aswEngineTick) { \
-						decrementPos(posName); \
-					} \
-				}
-			
-			piece(hitstopPos, hitstop)	
-			piece(idlePos, idle)
-			piece(mainPos, main)
-			
-			#undef piece
-		} else {
+					}
+				
+				piece(hitstopPos, framebars->hitstop)	
+				piece(idlePos, framebars->idle)
+				piece(mainPos, framebars->main)
+				
+				#undef piece
+				break;
+			}
+		}
+		if (i == prevTypesCount) {
 			break;
 		}
 		
 		--maxCount;
-		decrementPos(positionHitstopIdle);
+		framebars->decrementPos(positionHitstopIdle);
 	}
 }
 
-void Framebar::clear() {
-	memset(this, 0, sizeof *this);
+void ProjectileFramebar::changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame) {
+	::changePreviousFrames<ProjectileFramebar, Frame>(this,
+		prevTypes,
+		prevTypesCount,
+		newType,
+		positionHitstopIdle,
+		positionHitstop,
+		positionIdle,
+		position,
+		maxCount,
+		stopAtFirstFrame);
 }
 
-void Framebar::soakUpIntoPreFrame(const Frame& srcFrame) {
-	if (preFrame == srcFrame.type && !srcFrame.isFirst) {
-		++preFrameLength;
+void CombinedProjectileFramebar::changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame) {
+}
+
+void PlayerFramebars::changePreviousFrames(FrameType* prevTypes,
+		int prevTypesCount,
+		FrameType newType,
+		int positionHitstopIdle,
+		int positionHitstop,
+		int positionIdle,
+		int position,
+		int maxCount,
+		bool stopAtFirstFrame) {
+	::changePreviousFrames<PlayerFramebars, PlayerFrame>(this,
+		prevTypes,
+		prevTypesCount,
+		newType,
+		positionHitstopIdle,
+		positionHitstop,
+		positionIdle,
+		position,
+		maxCount,
+		stopAtFirstFrame);
+}
+
+template<typename FramebarT, typename FrameT>
+inline void soakUpIntoPreFrame(FramebarT* framebar, const FrameT& srcFrame) {
+	if (framebar->preFrame == srcFrame.type && !srcFrame.isFirst) {
+		++framebar->preFrameLength;
 	} else {
-		preFrame = srcFrame.type;
-		preFrameLength = 1;
+		framebar->preFrame = srcFrame.type;
+		framebar->preFrameLength = 1;
 	}
 }
 
-static inline int determineFrameLevel(const Frame& frame) {
-	if (frame.type == FT_ACTIVE) {
+void Framebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
+	::soakUpIntoPreFrame<Framebar, Frame>(this, (Frame&)srcFrame);
+}
+
+void PlayerFramebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
+	::soakUpIntoPreFrame<PlayerFramebar, PlayerFrame>(this, (PlayerFrame&)srcFrame);
+}
+
+static inline int determineFrameLevel(FrameType type) {
+	if (type == FT_ACTIVE_PROJECTILE) {
 		return 3;
 	}
-	if (frame.type == FT_NON_ACTIVE) {
+	if (type == FT_NON_ACTIVE_PROJECTILE) {
 		return 2;
 	}
-	if (frame.type == FT_IDLE) {
+	if (type == FT_IDLE_PROJECTILE) {
 		return 1;
 	}
 	return 0;
 }
 
-void Framebar::combineFramebar(const Framebar& source) {
-	for (int i = 0; i < _countof(frames); ++i) {
-		Frame& meFrame = frames[i];
-		const Frame& sourceFrame = source[i];
-		if (determineFrameLevel(sourceFrame) >= determineFrameLevel(meFrame)) {
-			meFrame.type = sourceFrame.type;
-		}
-		meFrame.strikeInvulInGeneral |= sourceFrame.strikeInvulInGeneral;
-		meFrame.throwInvulInGeneral |= sourceFrame.throwInvulInGeneral;
-		meFrame.superArmorActiveInGeneral |= sourceFrame.superArmorActiveInGeneral;
-	}
-}
-
-enum printInvuls_SortItemType {
+enum SortItemType {
 	// if you change the order of these elements you must also change the order of elements in SortItem items[] in printInvuls()
 	STRIKE_INVUL,
 	THROW_INVUL,
 	LOW_PROFILE,
+	FRONT_LEG_INVUL,
 	PROJECTILE_ONLY_INVUL,
 	SUPER_ARMOR,
 	// If you add super armor types or change their order, you need to change the code that relies on SUPER_ARMOR_THROW being first and SUPER_ARMOR_OVERDRIVE being last
@@ -1078,67 +1215,87 @@ enum printInvuls_SortItemType {
 	SUPER_ARMOR_BLITZ_BREAK,
 	REFLECT
 };
-const printInvuls_SortItemType SUPER_ARMOR_FIRST = SUPER_ARMOR_THROW;
-const printInvuls_SortItemType SUPER_ARMOR_LAST = SUPER_ARMOR_BLITZ_BREAK;
+const SortItemType SUPER_ARMOR_FIRST = SUPER_ARMOR_THROW;
+const SortItemType SUPER_ARMOR_LAST = SUPER_ARMOR_BLITZ_BREAK;
 
-struct printInvuls_SortItem {
-	printInvuls_SortItemType type = STRIKE_INVUL;
-	const InvulData* invulData = nullptr;
-	const char* printfStringArg = nullptr;
-	bool included = false;
-	int index = 0;
-	int position = INT_MAX;  // starts from 1. Values < start are behind the earliest start
-	ActiveData last { 0 };
-	printInvuls_SortItem(printInvuls_SortItemType type,
-			const char* printfStringArg,
-			const InvulData* invulData
-			) :
-			type(type),
-			invulData(invulData),
-			printfStringArg(printfStringArg)
-		{
-		if (invulData->start && invulData->frames.count) {
-			index = 0;
-			position = invulData->start;
-			last = invulData->frames.data[0];
-		}
-	}
-	inline bool isSuperArmorType() const { return type >= SUPER_ARMOR_FIRST && type <= SUPER_ARMOR_LAST; }
+struct InvulFlags {
+	bool strikeInvul:1;
+	bool throwInvul:1;
+	bool lowProfile:1;
+	bool frontLegInvul:1;
+	bool projectileOnlyInvul:1;
+	bool superArmor:1;
+	bool superArmorThrow:1;
+	bool superArmorBurst:1;
+	bool superArmorMid:1;
+	bool superArmorOverhead:1;
+	bool superArmorLow:1;
+	bool superArmorGuardImpossible:1;
+	bool superArmorObjectAttacck:1;
+	bool superArmorHontaiAttacck:1;
+	bool superArmorProjectileLevel0:1;
+	bool superArmorOverdrive:1;
+	bool superArmorBlitzBreak:1;
+	bool reflect:1;
+	int print(char* buf,
+		size_t bufSize,
+		bool includeASpaceAtTheStart,
+		const char* guardImpossibleTooltipHelp,
+		bool needPrintHighMidLowInfoWhenItsAllGuardArmor,
+		bool* out_thisSuperArmorHasMidHighLowInfo,
+		bool* advisedToReadGuardImpossibleTooltip,
+		bool justSayThatSuperArmorIsSameAsSomePreviousOne) const;
 };
 
-static int printInvuls_addItem(printInvuls_SortItem* items, int start, printInvuls_SortItemType type, const ActiveDataArray* frames) {
-	using SortItem = printInvuls_SortItem;
-	return 0;
-}
-
 void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
-	using SortItemType = printInvuls_SortItemType;
-	using SortItem = printInvuls_SortItem;
 	
 	if (bufSize) *buf = '\0';
 	if (!canPrintTotal()) {
 		return;
 	}
 	
+	struct SortItem {
+		SortItemType type = STRIKE_INVUL;
+		const InvulData* invulData = nullptr;
+		bool included = false;
+		int index = 0;
+		int position = INT_MAX;  // starts from 1. Values < start are behind the earliest start
+		ActiveData last { 0 };
+		SortItem(SortItemType type,
+				const InvulData* invulData
+				) :
+				type(type),
+				invulData(invulData)
+			{
+			if (invulData->start && invulData->frames.count) {
+				index = 0;
+				position = invulData->start;
+				last = invulData->frames.data[0];
+			}
+		}
+		inline bool isSuperArmorType() const { return type >= SUPER_ARMOR_FIRST && type <= SUPER_ARMOR_LAST; }
+	};
+	
 	SortItem items[] {
-		// the types must go in the same order as the elements of printInvuls_SortItemType enum
-		{ STRIKE_INVUL, "strike", &strikeInvul },
-		{ THROW_INVUL, "throw", &throwInvul },
-		{ LOW_PROFILE, "low profile", &lowProfile },
-		{ PROJECTILE_ONLY_INVUL, "projectile only", &projectileOnlyInvul },
-		{ SUPER_ARMOR, "super armor", &superArmor },
-		{ SUPER_ARMOR_THROW, "throws", &superArmorThrow },
-		{ SUPER_ARMOR_BURST, "burst", &superArmorBurst },
-		{ SUPER_ARMOR_MID, "mids", &superArmorMid },
-		{ SUPER_ARMOR_OVERHEAD, "overheads", &superArmorOverhead },
-		{ SUPER_ARMOR_LOW, "lows", &superArmorLow },
-		{ SUPER_ARMOR_GUARD_IMPOSSIBLE, "unblockables", &superArmorGuardImpossible },
-		{ SUPER_ARMOR_OBJECT_ATTACCK, "projectiles only", &superArmorObjectAttacck },
-		{ SUPER_ARMOR_HONTAI_ATTACCK, "non-projectiles only", &superArmorHontaiAttacck },
-		{ SUPER_ARMOR_PROJECTILE_LEVEL_0, "error ERROR", &superArmorProjectileLevel0 },
-		{ SUPER_ARMOR_OVERDRIVE, "overdrives", &superArmorOverdrive },
-		{ SUPER_ARMOR_BLITZ_BREAK, "max charge blitz or overdrives", &superArmorBlitzBreak },
-		{ REFLECT, "reflect", &reflect }
+		// the types must go in the same order as the elements of SortItemType enum
+		{ STRIKE_INVUL, &strikeInvul },
+		{ THROW_INVUL, &throwInvul },
+		{ LOW_PROFILE, &lowProfile },
+		{ FRONT_LEG_INVUL, &frontLegInvul },
+		{ PROJECTILE_ONLY_INVUL, &projectileOnlyInvul },
+		{ SUPER_ARMOR, &superArmor },
+		{ SUPER_ARMOR_THROW, &superArmorThrow },
+		{ SUPER_ARMOR_BURST, &superArmorBurst },
+		{ SUPER_ARMOR_MID, &superArmorMid },
+		{ SUPER_ARMOR_OVERHEAD, &superArmorOverhead },
+		{ SUPER_ARMOR_LOW, &superArmorLow },
+		{ SUPER_ARMOR_GUARD_IMPOSSIBLE, &superArmorGuardImpossible },
+		{ SUPER_ARMOR_OBJECT_ATTACCK, &superArmorObjectAttacck },
+		{ SUPER_ARMOR_HONTAI_ATTACCK, &superArmorHontaiAttacck },
+		{ SUPER_ARMOR_PROJECTILE_LEVEL_0, &superArmorProjectileLevel0 },
+		{ SUPER_ARMOR_OVERDRIVE, &superArmorOverdrive },
+		{ SUPER_ARMOR_BLITZ_BREAK, &superArmorBlitzBreak },
+		{ REFLECT, &reflect }
 	};
 	int count = _countof(items);
 	
@@ -1153,7 +1310,6 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 		}
 	};
 	SuperArmorProperties prevSuperArmor { false };
-	bool prevSuperArmorWasEmpty = true;
 	bool prevSuperArmorHadMidHighLowInfo = false;
 	
 	int position;
@@ -1198,16 +1354,12 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 			}
 		}
 		
-		bool hasFull = items[STRIKE_INVUL].included && items[THROW_INVUL].included;
-		
 		bool superArmorIsSame = false;
 		if (items[SUPER_ARMOR].included) {
 			currentSuperArmor.valid = true;
 			if (!prevSuperArmor.valid) {
 				prevSuperArmor = currentSuperArmor;
-				prevSuperArmorWasEmpty = true;
 			} else {
-				prevSuperArmorWasEmpty = false;
 				if (memcmp(&prevSuperArmor, &currentSuperArmor, sizeof SuperArmorProperties) == 0) {
 					superArmorIsSame = true;
 				} else {
@@ -1233,178 +1385,41 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 			needComma = true;
 		}
 		
-		bool printedFull = false;
-		bool needPlus = false;
+		InvulFlags flags;
+		flags.strikeInvul = items[STRIKE_INVUL].included;
+		flags.throwInvul = items[THROW_INVUL].included;
+		flags.lowProfile = items[LOW_PROFILE].included;
+		flags.frontLegInvul = items[FRONT_LEG_INVUL].included;
+		flags.projectileOnlyInvul = items[PROJECTILE_ONLY_INVUL].included;
+		flags.superArmor = items[SUPER_ARMOR].included;
+		flags.superArmorThrow = items[SUPER_ARMOR_THROW].included;
+		flags.superArmorBurst = items[SUPER_ARMOR_BURST].included;
+		flags.superArmorMid = items[SUPER_ARMOR_MID].included;
+		flags.superArmorOverhead = items[SUPER_ARMOR_OVERHEAD].included;
+		flags.superArmorLow = items[SUPER_ARMOR_LOW].included;
+		flags.superArmorGuardImpossible = items[SUPER_ARMOR_GUARD_IMPOSSIBLE].included;
+		flags.superArmorObjectAttacck = items[SUPER_ARMOR_OBJECT_ATTACCK].included;
+		flags.superArmorHontaiAttacck = items[SUPER_ARMOR_HONTAI_ATTACCK].included;
+		flags.superArmorProjectileLevel0 = items[SUPER_ARMOR_PROJECTILE_LEVEL_0].included;
+		flags.superArmorOverdrive = items[SUPER_ARMOR_OVERDRIVE].included;
+		flags.superArmorBlitzBreak = items[SUPER_ARMOR_BLITZ_BREAK].included;
+		flags.reflect = items[REFLECT].included;
+		
+		int printedChars = flags.print(buf,
+			bufSize,
+			true,
+			alreadyAdvisedToCheckTooltip ? "" : " - see full list in tooltip",
+			prevSuperArmorHadMidHighLowInfo,
+			&prevSuperArmorHadMidHighLowInfo,
+			&alreadyAdvisedToCheckTooltip,
+			superArmorIsSame);
+		
+		buf += printedChars;
+		bufSize -= printedChars;
+		
 		for (int i = 0; i < count; ++i) {
 			SortItem& item = items[i];
 			if (item.included) {
-				bool shouldBeIncludedInFull = hasFull && (item.type == STRIKE_INVUL || item.type == THROW_INVUL);
-				if (!(shouldBeIncludedInFull && printedFull || item.isSuperArmorType())) {
-					const char* stringArg = item.printfStringArg;
-					if (shouldBeIncludedInFull) {
-						stringArg = "full";
-						printedFull = true;
-					}
-					result = sprintf_s(buf, bufSize,
-						needPlus ? " + %s%s" : " %s%s",
-						stringArg,
-						item.type == SUPER_ARMOR && superArmorIsSame && !prevSuperArmorWasEmpty ? " (same)" : ""
-					);
-					if (result != -1) {
-						buf += result;
-						bufSize -= result;
-					}
-					bool thisSuperArmorHasMidHighLowInfo = false;
-					if (item.type == SUPER_ARMOR && !superArmorIsSame) {
-						bool flickableOnly = !items[SUPER_ARMOR_PROJECTILE_LEVEL_0].included
-							&& items[SUPER_ARMOR_OBJECT_ATTACCK].included;
-						bool flickableOnlyOnly = flickableOnly && !items[SUPER_ARMOR_HONTAI_ATTACCK].included;
-						bool hasObjectAndHontai = items[SUPER_ARMOR_OBJECT_ATTACCK].included
-							&& items[SUPER_ARMOR_HONTAI_ATTACCK].included;
-						bool ignoreMidLowOverhead = flickableOnly;
-						bool needSubplus = false;
-						char* oldBuf = buf;
-						if (bufSize >= 2) {
-							buf += 2;
-							bufSize -= 2;
-						}
-						bool allGuard = false;
-						if (!flickableOnlyOnly) {
-							result = -1;
-							if (items[SUPER_ARMOR_MID].included
-									&& items[SUPER_ARMOR_OVERHEAD].included
-									&& !items[SUPER_ARMOR_LOW].included) {
-								ignoreMidLowOverhead = true;
-								result = sprintf_s(buf, bufSize, "mids and overheads");
-							}
-							allGuard = items[SUPER_ARMOR_MID].included
-									&& items[SUPER_ARMOR_OVERHEAD].included
-									&& items[SUPER_ARMOR_LOW].included;
-							if (allGuard) {
-								ignoreMidLowOverhead = true;
-								if (prevSuperArmorHadMidHighLowInfo) {
-									result = sprintf_s(buf, bufSize, "lows, mids and overheads");
-									allGuard = false;
-								}
-							}
-							if (items[SUPER_ARMOR_MID].included
-									&& !items[SUPER_ARMOR_OVERHEAD].included
-									&& items[SUPER_ARMOR_LOW].included) {
-								ignoreMidLowOverhead = true;
-								result = sprintf_s(buf, bufSize, "mids and lows");
-							}
-							if (!items[SUPER_ARMOR_MID].included
-									&& !items[SUPER_ARMOR_OVERHEAD].included
-									&& items[SUPER_ARMOR_LOW].included) {
-								ignoreMidLowOverhead = true;
-								result = sprintf_s(buf, bufSize, "lows only");
-							}
-							if (result != -1) {
-								thisSuperArmorHasMidHighLowInfo = true;
-								needSubplus = true;
-								buf += result;
-								bufSize -= result;
-							}
-						}
-						if (flickableOnly) {
-							if (allGuard) {
-								result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "lows, mids and overheads");
-								if (result != -1) {
-									needSubplus = true;
-									buf += result;
-									bufSize -= result;
-								}
-								allGuard = false;
-							}
-							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s",
-								!flickableOnlyOnly ? "if projectiles, then flickable only" : "flickable projectiles only");
-							if (result != -1) {
-								needSubplus = true;
-								buf += result;
-								bufSize -= result;
-							}
-						}
-						
-						for (int j = SUPER_ARMOR_FIRST; j <= SUPER_ARMOR_LAST; ++j) {
-							SortItem& superArmorType = items[j];
-							if (!superArmorType.included
-									|| j == SUPER_ARMOR_PROJECTILE_LEVEL_0
-									|| j == SUPER_ARMOR_BLITZ_BREAK
-									|| !items[SUPER_ARMOR_HONTAI_ATTACCK].included
-									&& (
-										j == SUPER_ARMOR_THROW
-										|| j == SUPER_ARMOR_GUARD_IMPOSSIBLE
-										|| j == SUPER_ARMOR_OVERDRIVE
-									)
-									|| flickableOnlyOnly
-									&& (
-										j == SUPER_ARMOR_HONTAI_ATTACCK
-										|| j == SUPER_ARMOR_OBJECT_ATTACCK
-									)
-									|| j == SUPER_ARMOR_BURST) continue;
-							
-							if (hasObjectAndHontai && (j == SUPER_ARMOR_OBJECT_ATTACCK || j == SUPER_ARMOR_HONTAI_ATTACCK)) {
-								continue;
-							}
-							if (ignoreMidLowOverhead && (j == SUPER_ARMOR_MID || j == SUPER_ARMOR_OVERHEAD || j == SUPER_ARMOR_LOW)) {
-								continue;
-							}
-							if (j == SUPER_ARMOR_OVERDRIVE && !items[SUPER_ARMOR_BLITZ_BREAK].included) continue;
-							if (allGuard) {
-								result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "lows, mids and overheads");
-								if (result != -1) {
-									needSubplus = true;
-									buf += result;
-									bufSize -= result;
-								}
-								allGuard = false;
-							}
-							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", superArmorType.printfStringArg);
-							if (result != -1) {
-								needSubplus = true;
-								buf += result;
-								bufSize -= result;
-							}
-						}
-						if (items[SUPER_ARMOR_OBJECT_ATTACCK].included && !items[SUPER_ARMOR_BURST].included) {
-							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "can't armor burst");
-							if (result != -1) {
-								needSubplus = true;
-								buf += result;
-								bufSize -= result;
-							}
-						}
-						if (items[SUPER_ARMOR_HONTAI_ATTACCK].included && !items[SUPER_ARMOR_GUARD_IMPOSSIBLE].included) {
-							result = sprintf_s(buf, bufSize, needSubplus ? ", %s%s" : "%s%s",
-								"can't armor unblockables",
-								alreadyAdvisedToCheckTooltip ? "" : " - see full list in tooltip");
-							alreadyAdvisedToCheckTooltip = true;
-							if (result != -1) {
-								needSubplus = true;
-								buf += result;
-								bufSize -= result;
-							}
-						}
-						if (needSubplus) {
-							prevSuperArmorWasEmpty = false;
-							*oldBuf = ' ';
-							*(oldBuf + 1) = '(';
-							result = sprintf_s(buf, bufSize, ")");
-							if (result != -1) {
-								buf += result;
-								bufSize -= result;
-							}
-						} else {
-							buf -= 2;
-							bufSize += 2;
-						}
-					}
-					if (item.type == SUPER_ARMOR) {
-						prevSuperArmorHadMidHighLowInfo = thisSuperArmorHasMidHighLowInfo;
-					}
-					needPlus = true;
-				}
-				
 				const int actives = item.last.actives;
 				if (actives == minLength) {
 					++item.index;
@@ -1444,4 +1459,638 @@ void InvulData::addInvulFrame(int prevTotal) {
 
 bool PlayerInfo::canPrintTotal() const {
 	return !(onTheDefensive && !idlePlus) && totalDisp;
+}
+
+void PlayerFrame::printInvuls(char* buf, size_t bufSize) const {
+	if (!bufSize) return;
+	*buf = '\0';
+	
+	InvulFlags flags;
+	flags.strikeInvul = strikeInvul;
+	flags.throwInvul = throwInvul;
+	flags.lowProfile = lowProfile;
+	flags.frontLegInvul = frontLegInvul;
+	flags.projectileOnlyInvul = projectileOnlyInvul;
+	flags.superArmor = superArmor;
+	flags.superArmorThrow = superArmorThrow;
+	flags.superArmorBurst = superArmorBurst;
+	flags.superArmorMid = superArmorMid;
+	flags.superArmorOverhead = superArmorOverhead;
+	flags.superArmorLow = superArmorLow;
+	flags.superArmorGuardImpossible = superArmorGuardImpossible;
+	flags.superArmorObjectAttacck = superArmorObjectAttacck;
+	flags.superArmorHontaiAttacck = superArmorHontaiAttacck;
+	flags.superArmorProjectileLevel0 = superArmorProjectileLevel0;
+	flags.superArmorOverdrive = superArmorOverdrive;
+	flags.superArmorBlitzBreak = superArmorBlitzBreak;
+	flags.reflect = reflect;
+	
+	flags.print(buf,
+		bufSize,
+		false,
+		" - see full list in the tooltip of field 'Invul' in the main mod's UI",
+		false,
+		nullptr,
+		nullptr,
+		false);
+	
+}
+
+void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax) {
+	if (!bufSize) return;
+	*buf = '\0';
+	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun) : false;
+	if (!hitstop && !hasStop) return;
+	int result;
+	
+	if (hitstop && hitstopMax) {
+		result = sprintf_s(buf, bufSize, "%d/%d hitstop%s", hitstop, hitstopMax,
+			hasStop ? "+" : "");
+		if (result != -1) {
+			buf += result;
+			bufSize -= result;
+		}
+	} else if (hitstop) {
+		result = sprintf_s(buf, bufSize, "%d hitstop%s", hitstop,
+			hasStop ? "+" : "");
+		if (result != -1) {
+			buf += result;
+			bufSize -= result;
+		}
+	}
+	if (hasStop) {
+		result = sprintf_s(buf, bufSize, "%d/%d %s", stopInfo->value - (hitstop ? 1 : 0), stopInfo->valueMax,
+			stopInfo->isHitstun ? "hitstun" : "blockstun");
+		if (result != -1) {
+			buf += result;
+			bufSize -= result;
+		}
+	}
+}
+
+int InvulFlags::print(char* buf,
+		size_t bufSize,
+		bool includeASpaceAtTheStart,
+		const char* guardImpossibleTooltipHelp,
+		bool needPrintHighMidLowInfoWhenItsAllGuardArmor,
+		bool* out_thisSuperArmorHasMidHighLowInfo,
+		bool* advisedToReadGuardImpossibleTooltip,
+		bool justSayThatSuperArmorIsSameAsSomePreviousOne) const {
+	
+	char* origBuf = buf;
+	struct SortItem {
+		SortItemType type;
+		const char* description;
+		bool active;
+		inline bool isSuperArmorType() const { return type >= SUPER_ARMOR_FIRST && type <= SUPER_ARMOR_LAST; }
+	};
+	
+	SortItem items[] {
+		// the types must go in the same order as the elements of SortItemType enum
+		{ STRIKE_INVUL, "strike", strikeInvul },
+		{ THROW_INVUL, "throw", throwInvul },
+		{ LOW_PROFILE, "low profile", lowProfile },
+		{ FRONT_LEG_INVUL, "front leg invul", frontLegInvul },
+		{ PROJECTILE_ONLY_INVUL, "projectile only", projectileOnlyInvul },
+		{ SUPER_ARMOR, "super armor", superArmor },
+		{ SUPER_ARMOR_THROW, "throws", superArmorThrow },
+		{ SUPER_ARMOR_BURST, "burst", superArmorBurst },
+		{ SUPER_ARMOR_MID, "mids", superArmorMid },
+		{ SUPER_ARMOR_OVERHEAD, "overheads", superArmorOverhead },
+		{ SUPER_ARMOR_LOW, "lows", superArmorLow },
+		{ SUPER_ARMOR_GUARD_IMPOSSIBLE, "unblockables", superArmorGuardImpossible },
+		{ SUPER_ARMOR_OBJECT_ATTACCK, "projectiles only", superArmorObjectAttacck },
+		{ SUPER_ARMOR_HONTAI_ATTACCK, "non-projectiles only", superArmorHontaiAttacck },
+		{ SUPER_ARMOR_PROJECTILE_LEVEL_0, "error ERROR", superArmorProjectileLevel0 },
+		{ SUPER_ARMOR_OVERDRIVE, "overdrives", superArmorOverdrive },
+		{ SUPER_ARMOR_BLITZ_BREAK, "max charge blitz or overdrives", superArmorBlitzBreak },
+		{ REFLECT, "reflect", reflect }
+	};
+	int count = _countof(items);
+	
+	bool hasFull = strikeInvul && throwInvul;
+	bool printedFull = false;
+	bool needPlus = false;
+	int result;
+	
+	for (int i = 0; i < count; ++i) {
+		SortItem& item = items[i];
+		if (item.active) {
+			bool shouldBeIncludedInFull = hasFull && (item.type == STRIKE_INVUL || item.type == THROW_INVUL);
+			if (!(shouldBeIncludedInFull && printedFull || item.isSuperArmorType())) {
+				const char* stringArg = item.description;
+				if (shouldBeIncludedInFull) {
+					stringArg = "full";
+					printedFull = true;
+				}
+				result = sprintf_s(buf, bufSize,
+					needPlus
+						? " + %s%s"
+						: includeASpaceAtTheStart
+							? " %s%s" : "%s%s",
+					stringArg,
+					item.type == SUPER_ARMOR && justSayThatSuperArmorIsSameAsSomePreviousOne ? " (same)" : ""
+				);
+				includeASpaceAtTheStart = true;
+				if (result != -1) {
+					buf += result;
+					bufSize -= result;
+				}
+				bool thisSuperArmorHasMidHighLowInfo = false;
+				if (item.type == SUPER_ARMOR && !justSayThatSuperArmorIsSameAsSomePreviousOne) {
+					bool flickableOnly = !superArmorProjectileLevel0 && superArmorObjectAttacck;
+					bool flickableOnlyOnly = flickableOnly && !superArmorHontaiAttacck;
+					bool hasObjectAndHontai = superArmorObjectAttacck && superArmorHontaiAttacck;
+					bool ignoreMidLowOverhead = flickableOnly;
+					bool needSubplus = false;
+					char* oldBuf = buf;
+					if (bufSize >= 2) {
+						buf += 2;
+						bufSize -= 2;
+					}
+					bool allGuard = false;
+					if (!flickableOnlyOnly) {
+						result = -1;
+						if (superArmorMid
+								&& superArmorOverhead
+								&& !superArmorLow) {
+							ignoreMidLowOverhead = true;
+							result = sprintf_s(buf, bufSize, "mids and overheads");
+						}
+						allGuard = superArmorMid
+								&& superArmorOverhead
+								&& superArmorLow;
+						if (allGuard) {
+							ignoreMidLowOverhead = true;
+							if (needPrintHighMidLowInfoWhenItsAllGuardArmor) {
+								result = sprintf_s(buf, bufSize, "lows, mids and overheads");
+								allGuard = false;
+							}
+						}
+						if (superArmorMid
+								&& !superArmorOverhead
+								&& superArmorLow) {
+							ignoreMidLowOverhead = true;
+							result = sprintf_s(buf, bufSize, "mids and lows");
+						}
+						if (!superArmorMid
+								&& !superArmorOverhead
+								&& superArmorLow) {
+							ignoreMidLowOverhead = true;
+							result = sprintf_s(buf, bufSize, "lows only");
+						}
+						if (result != -1) {
+							thisSuperArmorHasMidHighLowInfo = true;
+							needSubplus = true;
+							buf += result;
+							bufSize -= result;
+						}
+					}
+					if (flickableOnly) {
+						if (allGuard) {
+							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "lows, mids and overheads");
+							if (result != -1) {
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+							allGuard = false;
+						}
+						result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s",
+							!flickableOnlyOnly ? "if projectiles, then flickable only" : "flickable projectiles only");
+						if (result != -1) {
+							needSubplus = true;
+							buf += result;
+							bufSize -= result;
+						}
+					}
+					
+					for (int j = SUPER_ARMOR_FIRST; j <= SUPER_ARMOR_LAST; ++j) {
+						SortItem& superArmorType = items[j];
+						if (!superArmorType.active
+								|| j == SUPER_ARMOR_PROJECTILE_LEVEL_0
+								|| j == SUPER_ARMOR_BLITZ_BREAK
+								|| !superArmorHontaiAttacck
+								&& (
+									j == SUPER_ARMOR_THROW
+									|| j == SUPER_ARMOR_GUARD_IMPOSSIBLE
+									|| j == SUPER_ARMOR_OVERDRIVE
+								)
+								|| flickableOnlyOnly
+								&& (
+									j == SUPER_ARMOR_HONTAI_ATTACCK
+									|| j == SUPER_ARMOR_OBJECT_ATTACCK
+								)
+								|| j == SUPER_ARMOR_BURST) continue;
+						
+						if (hasObjectAndHontai && (j == SUPER_ARMOR_OBJECT_ATTACCK || j == SUPER_ARMOR_HONTAI_ATTACCK)) {
+							continue;
+						}
+						if (ignoreMidLowOverhead && (j == SUPER_ARMOR_MID || j == SUPER_ARMOR_OVERHEAD || j == SUPER_ARMOR_LOW)) {
+							continue;
+						}
+						if (j == SUPER_ARMOR_OVERDRIVE && !superArmorBlitzBreak) continue;
+						if (allGuard) {
+							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "lows, mids and overheads");
+							if (result != -1) {
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+							allGuard = false;
+						}
+						// all overdrives are blitz breaks by default
+						if (j == SUPER_ARMOR_GUARD_IMPOSSIBLE && (!superArmorOverdrive || !superArmorBlitzBreak)) {
+							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "unblockables, but not overdrive unblockables");
+							if (result != -1) {
+								needSubplus = true;
+								buf += result;
+								bufSize -= result;
+							}
+							continue;
+						}
+						result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", superArmorType.description);
+						if (result != -1) {
+							needSubplus = true;
+							buf += result;
+							bufSize -= result;
+						}
+					}
+					if (superArmorObjectAttacck && !superArmorBurst) {
+						result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "can't armor burst");
+						if (result != -1) {
+							needSubplus = true;
+							buf += result;
+							bufSize -= result;
+						}
+					}
+					if (!superArmorGuardImpossible) {
+						result = sprintf_s(buf, bufSize, needSubplus ? ", %s%s" : "%s%s",
+							"can't armor unblockables",
+							guardImpossibleTooltipHelp);
+						if (advisedToReadGuardImpossibleTooltip) *advisedToReadGuardImpossibleTooltip = true;
+						if (result != -1) {
+							needSubplus = true;
+							buf += result;
+							bufSize -= result;
+						}
+					}
+					if (needSubplus) {
+						*oldBuf = ' ';
+						*(oldBuf + 1) = '(';
+						result = sprintf_s(buf, bufSize, ")");
+						if (result != -1) {
+							buf += result;
+							bufSize -= result;
+						}
+					} else {
+						buf -= 2;
+						bufSize += 2;
+					}
+				}
+				if (item.type == SUPER_ARMOR && out_thisSuperArmorHasMidHighLowInfo) {
+					*out_thisSuperArmorHasMidHighLowInfo = thisSuperArmorHasMidHighLowInfo;
+				}
+				needPlus = true;
+			}
+		}
+	}
+	return buf - origBuf;
+}
+
+template<typename FramebarT, typename FrameT>
+inline void processRequests(FramebarT* framebar, FrameT& destinationFrame) {
+	if (framebar->requestFirstFrame) {
+		destinationFrame.isFirst = true;
+		framebar->requestFirstFrame = false;
+	}
+	if (framebar->skippedHitstop) {
+		destinationFrame.skippedHitstop = framebar->skippedHitstop;
+		framebar->skippedHitstop = 0;
+	}
+	if (framebar->requestNextHit) {
+		destinationFrame.newHit = true;
+		framebar->requestNextHit = false;
+	}
+}
+
+void Framebar::processRequests(FrameBase& destinationFrame) {
+	::processRequests<Framebar, Frame>(this, (Frame&)destinationFrame);
+}
+
+void PlayerFramebar::processRequests(FrameBase& destinationFrame) {
+	::processRequests<PlayerFramebar, PlayerFrame>(this, (PlayerFrame&)destinationFrame);
+}
+
+void Framebar::processRequests(int destinationPosition) {
+	processRequests(frames[destinationPosition]);
+}
+
+void PlayerFramebar::processRequests(int destinationPosition) {
+	processRequests(frames[destinationPosition]);
+}
+
+template<typename FramebarT>
+inline void copyRequests(FramebarT* destination, FramebarT& source) {
+	destination->requestFirstFrame |= source.requestFirstFrame;
+	destination->requestNextHit |= source.requestNextHit;
+}
+
+void Framebar::copyRequests(FramebarBase& source) {
+	::copyRequests<Framebar>(this, (Framebar&)source);
+}
+
+void PlayerFramebar::copyRequests(FramebarBase& source) {
+	::copyRequests<PlayerFramebar>(this, (PlayerFramebar&)source);
+}
+
+template<typename FramebarT>
+inline void clearRequests(FramebarT* framebar) {
+	framebar->requestFirstFrame = false;
+	framebar->requestNextHit = false;
+}
+
+void Framebar::clearRequests() {
+	::clearRequests<Framebar>(this);
+}
+
+void PlayerFramebar::clearRequests() {
+	::clearRequests<PlayerFramebar>(this);
+}
+
+void PlayerInfo::setMoveName(char* destination, Entity ent) {
+	if (ent.currentMoveIndex() == -1) {
+		memset(destination, 0, 32);
+	} else {
+		memcpy(destination, ent.currentMove()->name, 32);
+	}
+}
+
+void PlayerInfo::addActiveFrame(Entity ent, PlayerFramebar& framebar) {
+	if (maxHit.currentUse == -1 || maxHit.currentUse > 0 && !(maxHit.maxUse == 1 && hitNumber > 0)) {
+		hitNumber = ent.currentHitNum();
+	}
+	if (actives.count
+			&& !actives.data[actives.count - 1].nonActives
+			&& hitNumber != actives.prevHitNum
+			&& !pawn.isRCFrozen()) {
+		framebar.requestNextHit = true;
+	}
+	actives.addActive(hitNumber);
+}
+
+AddedMoveData* PlayerInfo::findMoveByName(const char* name) const {
+	return (AddedMoveData*)::findMoveByName((void*)pawn.ent, name, 0);
+}
+
+bool PlayerInfo::wasHadGatling(const char* name) const {
+	return endScene.wasPlayerHadGatling(index, name);
+}
+
+bool PlayerInfo::wasHadWhiffCancel(const char* name) const {
+	return endScene.wasPlayerHadWhiffCancel(index, name);
+}
+
+bool PlayerInfo::wasHadGatlings() const {
+	return endScene.wasPlayerHadGatlings(index);
+}
+
+bool PlayerInfo::wasHadWhiffCancels() const {
+	return endScene.wasPlayerHadWhiffCancels(index);
+}
+
+CanProgramSecretGardenInfo PlayerInfo::canProgramSecretGarden() const {
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity e = entityList.list[i];
+		if (e
+				&& e.isActive()
+				&& e.team() == index
+				&& strcmp(e.animationName(), "SecretGardenBall") == 0) {
+			CanProgramSecretGardenInfo response;
+			response.can = e.mem50();
+			response.inputs = e.mem51();
+			response.inputsMax = 4;
+			return response;
+		}
+	}
+	return { false, 0, 4 };
+}
+
+FramebarBase& PlayerFramebars::getMain() { return main; }
+FramebarBase& PlayerFramebars::getHitstop() { return hitstop; }
+FramebarBase& PlayerFramebars::getIdle() { return idle; }
+FramebarBase& PlayerFramebars::getIdleHitstop() { return idleHitstop; }
+
+FramebarBase& ProjectileFramebar::getMain() { return main; }
+FramebarBase& ProjectileFramebar::getHitstop() { return hitstop; }
+FramebarBase& ProjectileFramebar::getIdle() { return idle; }
+FramebarBase& ProjectileFramebar::getIdleHitstop() { return idleHitstop; }
+
+FramebarBase& CombinedProjectileFramebar::getMain() { return main; }
+FramebarBase& CombinedProjectileFramebar::getHitstop() { return main; }
+FramebarBase& CombinedProjectileFramebar::getIdle() { return main; }
+FramebarBase& CombinedProjectileFramebar::getIdleHitstop() { return main; }
+
+const FramebarBase& PlayerFramebars::getMain() const { return main; }
+const FramebarBase& PlayerFramebars::getHitstop() const { return hitstop; }
+const FramebarBase& PlayerFramebars::getIdle() const { return idle; }
+const FramebarBase& PlayerFramebars::getIdleHitstop() const { return idleHitstop; }
+
+const FramebarBase& ProjectileFramebar::getMain() const { return main; }
+const FramebarBase& ProjectileFramebar::getHitstop() const { return hitstop; }
+const FramebarBase& ProjectileFramebar::getIdle() const { return idle; }
+const FramebarBase& ProjectileFramebar::getIdleHitstop() const { return idleHitstop; }
+
+const FramebarBase& CombinedProjectileFramebar::getMain() const { return main; }
+const FramebarBase& CombinedProjectileFramebar::getHitstop() const { return main; }
+const FramebarBase& CombinedProjectileFramebar::getIdle() const { return main; }
+const FramebarBase& CombinedProjectileFramebar::getIdleHitstop() const { return main; }
+
+void Framebar::clear() { memset((BYTE*)this + sizeof(uintptr_t), 0, sizeof *this - sizeof(uintptr_t)); }
+
+void PlayerFramebar::clear() {
+	for (int i = 0; i < _countof(frames); ++i) {
+		frames[i].clear();
+	}
+}
+
+void PlayerFrame::clear() {
+	DWORD pos = offsetof(PlayerFrame, cancels);
+	memset(this, 0, pos);
+	cancels.clear();
+	pos += sizeof cancels;
+	memset((BYTE*)this + pos, 0, sizeof *this - pos);
+}
+
+void Framebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) {
+	Framebar& cast = (Framebar&)source;
+	for (int i = 1; i <= framesToCatchUpFor; ++i) {
+		int ind = (destinationStartingPosition + i) % _countof(Framebar::frames);
+		soakUpIntoPreFrame(frames[ind]);
+		frames[ind] = cast[ind];
+	}
+	copyRequests(cast);
+}
+
+void PlayerFramebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) {
+	PlayerFramebar& cast = (PlayerFramebar&) source;
+	for (int i = 1; i <= framesToCatchUpFor; ++i) {
+		int ind = (destinationStartingPosition + i) % _countof(Framebar::frames);
+		soakUpIntoPreFrame(frames[ind]);
+		frames[ind] = cast[ind];
+		frames[ind].cancels = cast[ind].cancels;
+	}
+	copyRequests(source);
+}
+
+FrameBase& Framebar::getFrame(int index) { return (FrameBase&)frames[index]; }
+FrameBase& PlayerFramebar::getFrame(int index) { return (FrameBase&)frames[index]; }
+
+void PlayerFramebar::clearCancels() {
+	for (int i = 0; i < _countof(frames); ++i) {
+		frames[i].cancels.clear();
+	}
+}
+
+void PlayerFramebar::clearCancels(int index) {
+	frames[index].cancels.clear();
+}
+
+void PlayerFramebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	(PlayerFrame&)destFrame = (const PlayerFrame&)srcFrame;
+}
+
+void Framebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	(Frame&)destFrame = (const Frame&)srcFrame;
+}
+
+void PlayerFramebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
+	(PlayerFrame&)destFrame = std::move((PlayerFrame&&)srcFrame);
+}
+
+void Framebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
+	(Frame&)destFrame = std::move((Frame&&)srcFrame);
+}
+
+void PlayerFramebars::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	(PlayerFrame&)destFrame = (const PlayerFrame&)srcFrame;
+}
+
+void ProjectileFramebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	(Frame&)destFrame = (const Frame&)srcFrame;
+}
+
+void PlayerFramebars::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
+	(PlayerFrame&)destFrame = std::move((PlayerFrame&&)srcFrame);
+}
+
+void ProjectileFramebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
+	(Frame&)destFrame = std::move((Frame&&)srcFrame);
+}
+
+void MaxHitInfo::fill(Entity ent, int currentHitNum) {
+	int maxHit = ent.maxHit();
+	int remainingHits = -1;
+	int numOfHits = ent.numberOfHits();
+	if (!ent.isPawn() && ent.destroyOnBlockOrArmor() && ent.destroyOnHitPlayer() && !ent.notDestroyOnMaxNumOfHits()) {
+		remainingHits = numOfHits - ent.numberOfHitsTaken() + (ent.hitSomethingOnThisFrame() ? 1 : 0);
+	}
+	if (maxHit == -1 && remainingHits == -1) {
+		max = -1;
+		current = -1;
+		maxUse = -1;
+		currentUse = -1;
+		return;
+	} else if (maxHit != -1) {
+		int maxHitMax = maxHit + (ent.hitSomethingOnThisFrame() ? 1 : 0);
+		if (max == -1) {
+			max = currentHitNum == 0 ? maxHitMax : maxHitMax + currentHitNum - 1;
+		} else if (maxHitMax > current) {
+			max += maxHitMax - current;
+		}
+		current = maxHitMax;
+	} else if (remainingHits != -1) {
+		max = numOfHits;
+		maxUse = numOfHits;
+		current = remainingHits;
+		currentUse = remainingHits;
+		return;
+	}
+	
+	maxUse = max;
+	currentUse = current;
+	if (remainingHits != -1) {
+		if (max != -1 && numOfHits < max || max == -1) {
+			maxUse = numOfHits;
+		}
+		if (current != -1 && remainingHits < current || current == -1) {
+			currentUse = remainingHits;
+		}
+	}
+}
+
+void FrameCancelInfo::clear() {
+	gatlings.clear();
+	whiffCancels.clear();
+	whiffCancelsNote = nullptr;
+}
+
+bool CombinedProjectileFramebar::canBeCombined(const Framebar& source) const {
+	for (int i = 0; i < _countof(source.frames); ++i) {
+		if (!frameTypeDiscardable(main[i].type) && !frameTypeDiscardable(source[i].type)) return false;
+	}
+	return true;
+}
+
+void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const ProjectileFramebar* dad) {
+	for (int i = 0; i < _countof(source.frames); ++i) {
+		const Frame& sf = source[i];
+		Frame& df = main[i];
+		sources[i] = dad;
+		if (determineFrameLevel(sf.type) >= determineFrameLevel(df.type)) {
+			df.type = sf.type;
+		}
+		if (!df.animName) {
+			df.animName = sf.animName;
+		}
+		if (!df.hitstopConflict) {
+			if (df.hitstop != sf.hitstop || df.hitstopMax != sf.hitstopMax) {
+				if (df.hitstop || df.hitstopMax) {
+					df.hitstopConflict = true;
+					df.hitstop = 0;
+					df.hitstopMax = 0;
+				} else {
+					df.hitstop = sf.hitstop;
+					df.hitstopMax = sf.hitstopMax;
+				}
+			}
+		}
+		df.hitConnected = df.hitConnected | sf.hitConnected;
+		df.newHit = df.newHit | sf.newHit;
+		df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
+		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
+		df.skippedHitstop = sf.skippedHitstop;
+		df.skippedSuperfreeze = sf.skippedSuperfreeze;
+	}
+	if (source.preFrameLength) {
+		if (source.preFrame != main.preFrame) {
+			if (determineFrameLevel(source.preFrame) >= determineFrameLevel(main.preFrame)) {
+				main.preFrame = source.preFrame;
+				main.preFrameLength = source.preFrameLength;
+			}
+		} else if (source.preFrameLength > main.preFrameLength) {
+			main.preFrameLength = source.preFrameLength;
+		}
+	}
+}
+
+void CombinedProjectileFramebar::determineName() {
+	for (int i = _countof(main.frames) - 1; i >= 0; --i) {
+		const ProjectileFramebar* source = sources[i];
+		if (source) {
+			copyTitle(*source);
+			move = source->move;
+			return;
+		}
+	}
 }

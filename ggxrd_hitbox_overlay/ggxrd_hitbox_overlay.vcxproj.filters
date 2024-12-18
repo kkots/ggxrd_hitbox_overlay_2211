@@ -192,6 +192,9 @@
     <ClInclude Include="TexturePacker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="findMoveByName.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -470,6 +473,108 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\images\SuperArmorActive_Full_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_ElpheltRifle_CanStopHolding.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_ElpheltRifle_CanStopHolding_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_NewHit.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_NewHit_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_Hitstop.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_Hitstop_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\LandingRecoveryFrame_CanCancel.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\LandingRecoveryFrame_CanCancel_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage2.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage2_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage3.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage3_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2_Released.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage2_Released_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3_Released.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Zato_BreakTheLaw_Stage3_Released_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\GraybeatAirHitstun_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\GraybeatAirHitstunFrame.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\XStunFrame_Hitstop.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\XStunFrame_Hitstop_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\StartupFrame_FaustPogo.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\StartupFrame_FaustPogo_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_CanCancel.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_CanCancel_NewHit.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_CanCancel_NewHit_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\ActiveFrame_CanCancel_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\NonActiveFrame_CanCancel.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\NonActiveFrame_CanCancel_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\XStunFrame_CanCancel.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\XStunFrame_CanCancel_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

@@ -30,6 +30,8 @@ using BBScr_callSubroutine_t = void(__thiscall*)(void* pawn, const char* funcNam
 using BBScr_setHitstop_t = void(__thiscall*)(void* pawn, int hitstop);
 using beginHitstop_t = void(__thiscall*)(void* pawn);
 using BBScr_ignoreDeactivate_t = void(__thiscall*)(void* pawn);
+using BBScr_getAccessedValueImpl_t = int(__thiscall*)(void* pawn, int tag, int id);
+using BBScr_checkMoveConditionImpl_t = int(__thiscall*)(void* pawn, MoveCondition condition);
 
 struct FVector2D {
 	float X;
@@ -72,6 +74,7 @@ struct DrawBoxesRenderCommand : FRenderCommand {
 	DrawBoxesRenderCommand();  // Runs on the main thread
 	DrawData drawData;
 	CameraValues cameraValues;
+	bool noNeedToDrawPoints;
 };
 
 struct DrawOriginPointsRenderCommand : FRenderCommand {
@@ -200,15 +203,15 @@ public:
 	BBScr_ignoreDeactivate_t orig_BBScr_ignoreDeactivate = nullptr;
 	std::mutex orig_BBScr_ignoreDeactivateMutex;
 	
-	PlayerInfo players[2] { 0 };
+	std::vector<PlayerInfo> players{2};
 	std::vector<ProjectileInfo> projectiles;
-	std::vector<EntityFramebar> framebars;
-	std::vector<EntityFramebar> combinedFramebars;  // does not contain player framebars
+	std::vector<PlayerFramebars> playerFramebars;
+	std::vector<ProjectileFramebar> projectileFramebars;
+	inline int totalFramebarCount() { return playerFramebars.size() + projectileFramebars.size(); }
+	EntityFramebar& getFramebar(int totalIndex);
+	std::vector<CombinedProjectileFramebar> combinedFramebars;  // does not contain player framebars
 	
 	DWORD logicThreadId = NULL;
-	Entity getSuperflashInstigator();
-	int getSuperflashCounterOpponent();
-	int getSuperflashCounterAllied();
 	FRingBuffer_AllocationContext_Constructor_t FRingBuffer_AllocationContext_Constructor = nullptr;
 	FRenderCommandDestructor_t FRenderCommandDestructor = nullptr;
 	FRingBuffer_AllocationContext_Commit_t FRingBuffer_AllocationContext_Commit = nullptr;
@@ -228,10 +231,24 @@ public:
 	PlayerInfo& findPlayer(Entity ent);
 	ProjectileInfo& findProjectile(Entity ent);
 	DWORD interRoundValueStorage2Offset = 0;
-	void onBubblePop(Entity bubble);
 	bool isEntityHidden(const Entity& ent);
 	int getFramebarPosition() const;
 	int getFramebarPositionHitstop() const;
+	bool willEnqueueAndDrawOriginPoints = false;
+	BBScr_getAccessedValueImpl_t BBScr_getAccessedValueImpl = nullptr;
+	BBScr_checkMoveConditionImpl_t BBScr_checkMoveConditionImpl = nullptr;
+	bool wasPlayerHadGatling(int playerIndex, const char* name);
+	bool wasPlayerHadWhiffCancel(int playerIndex, const char* name);
+	bool wasPlayerHadGatlings(int playerIndex);
+	bool wasPlayerHadWhiffCancels(int playerIndex);
+	int getSuperflashCounterOpponentCached();
+	int getSuperflashCounterAlliedCached();
+	int getSuperflashCounterOpponentMax();
+	int getSuperflashCounterAlliedMax();
+	Entity getLastNonZeroSuperflashInstigator();
+	int getRCSlowdownCounter();
+	int getRCSlowdownCounterMax();
+	inline bool isIGiveUp() const { return iGiveUp; }
 private:
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
@@ -347,10 +364,11 @@ private:
 	bool drewExGaugeHud = false;
 	
 	
+	#define getDummyCmdUInt(name) name##UInt
 	#define makeDummyCmdConst(name, floatVal) \
 		const float name = floatVal; \
 		const float name##OneGreater = name + 1.F; \
-		const unsigned int name##UInt = *(unsigned int*)&name##OneGreater;
+		const unsigned int getDummyCmdUInt(name) = *(unsigned int*)&name##OneGreater;
 		
 	makeDummyCmdConst(dummyOriginPointX, -615530.F)
 	makeDummyCmdConst(dummyDrawUIX, -615529.F)
@@ -393,8 +411,8 @@ private:
 	int nextFramebarId = 0;
 	void incrementNextFramebarIdDirectly();
 	void incrementNextFramebarIdSmartly();
-	EntityFramebar& findProjectileFramebar(ProjectileInfo& projectile, bool needCreate);
-	EntityFramebar& findCombinedFramebar(const EntityFramebar& source);
+	ProjectileFramebar& findProjectileFramebar(ProjectileInfo& projectile, bool needCreate);
+	CombinedProjectileFramebar& findCombinedFramebar(const ProjectileFramebar& source, bool hitstop);
 	void copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entityFramebar,
 		bool framebarAdvanced,
 		bool framebarAdvancedIdle,
@@ -402,6 +420,32 @@ private:
 		bool framebarAdvancedIdleHitstop);
 	
 	bool misterPlayerIsManuallyCrouching(const PlayerInfo& player);
+	
+	bool isInDarkenModePlusTurnOffPostEffect = false;
+	bool postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect = false;
+	bool willDrawOriginPoints();
+	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame);
+	void collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move, int iterationIndex);
+	bool checkMoveConditions(PlayerInfo& player, const AddedMoveData* move);
+	FrameCancelInfo playerWasCancels[2];  // this is kept outside of PlayerInfo, because PlayerInfo gets memset to 0 and this contains std::vectors. Zeroing an std::vector may be bad
+	bool whiffCancelIntoFDEnabled(PlayerInfo& player);
+	Entity getSuperflashInstigator();
+	int getSuperflashCounterOpponent();
+	int getSuperflashCounterAllied();
+	int superfreezeHasBeenGoingFor = 0;
+	int superflashCounterAllied = 0;
+	int superflashCounterAlliedMax = 0;
+	int superflashCounterOpponent = 0;
+	int superflashCounterOpponentMax = 0;
+	int rcSlowdownCounter = 0;
+	int rcSlowdownCounterMax = 0;
+	void onProjectileHit(Entity ent);
+	Entity lastNonZeroSuperflashInstigator;
+	bool iGiveUp = false;
+	std::vector<ForceAddedWhiffCancel> baikenBlockCancels;
+	bool neverIgnoreHitstop = false;
+	bool combineProjectileFramebarsWhenPossible = false;
+	bool eachProjectileOnSeparateFramebar = false;
 };
 
 extern EndScene endScene;

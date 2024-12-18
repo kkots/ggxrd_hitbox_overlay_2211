@@ -71,6 +71,8 @@ struct PerformanceMeasurementEnder {
 #define PERFORMANCE_MEASUREMENT_END(name) 
 #endif
 
+static D3DXMATRIX identity;
+
 bool Graphics::onDllMain(HMODULE hInstance) {
 	bool error = false;
 	uintptr_t UpdateD3DDeviceFromViewportsCallPlace = sigscanOffset(
@@ -134,6 +136,99 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	}
 	
 	this->hInstance = hInstance;
+	
+	D3DXMatrixIdentity(&identity);
+	
+	renderStateValueHandlers[RenderStateType(D3DRS_STENCILENABLE)] = new RenderStateHandler(D3DRS_STENCILENABLE)(this);
+	renderStateValueHandlers[RenderStateType(D3DRS_ALPHABLENDENABLE)] = new RenderStateHandler(D3DRS_ALPHABLENDENABLE)(this);
+	renderStateValueHandlers[RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = new RenderStateHandler(PIXEL_SHADER_AND_TEXTURE)(this);
+	renderStateValueHandlers[RenderStateType(TRANSFORM_MATRICES)] = new RenderStateHandler(TRANSFORM_MATRICES)(this);
+	renderStateValueHandlers[RenderStateType(D3DRS_SRCBLEND)] = new RenderStateHandler(D3DRS_SRCBLEND)(this);
+	renderStateValueHandlers[RenderStateType(D3DRS_DESTBLEND)] = new RenderStateHandler(D3DRS_DESTBLEND)(this);
+	renderStateValueHandlers[RenderStateType(D3DRS_SRCBLENDALPHA)] = new RenderStateHandler(D3DRS_SRCBLENDALPHA)(this);
+	renderStateValueHandlers[RenderStateType(D3DRS_DESTBLENDALPHA)] = new RenderStateHandler(D3DRS_DESTBLENDALPHA)(this);
+	
+	RenderStateValueStack* stack = requiredRenderState[SCREENSHOT_STAGE_NONE];
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NONE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+	
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, TRUE);
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	
+	stack[RENDER_STATE_DRAWING_BOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	
+	stack[RENDER_STATE_DRAWING_OUTLINES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, CUSTOM_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	
+	stack[RENDER_STATE_DRAWING_POINTS] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE);
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 2D);
+	
+	stack = requiredRenderState[SCREENSHOT_STAGE_BASE_COLOR];
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, TRUE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	
+	stack[RENDER_STATE_DRAWING_BOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	
+	stack = requiredRenderState[SCREENSHOT_STAGE_FINAL];
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
+	
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, TRUE);
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	// 1-(1-a)*(1-b) = a+b(1-a)
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+	
+	stack[RENDER_STATE_DRAWING_BOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+	
+	stack[RENDER_STATE_DRAWING_OUTLINES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	
+	stack[RENDER_STATE_DRAWING_POINTS] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 2D);
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	
 	
 	return !error;
 }
@@ -260,41 +355,48 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 		bottom = params.bottom;
 	}
 
-	D3DXVECTOR3 v1{ (float)left, 0.F, (float)top };
-	D3DXVECTOR3 v2{ (float)left, 0.F, (float)bottom };
-	D3DXVECTOR3 v3{ (float)right, 0.F, (float)top };
-	D3DXVECTOR3 v4{ (float)right, 0.F, (float)bottom };
+	D3DXVECTOR3 v1{ (float)left, (float)top, 0.F };
+	D3DXVECTOR3 v2{ (float)left, (float)bottom, 0.F };
+	D3DXVECTOR3 v3{ (float)right, (float)top, 0.F };
+	D3DXVECTOR3 v4{ (float)right, (float)bottom, 0.F };
 
-	D3DXVECTOR3 sp1, sp2, sp3, sp4;
 	logOnce(fprintf(logfile, "Drawing box v1 { x: %f, z: %f }, v2 { x: %f, z: %f }, v3 { x: %f, z: %f }, v4 { x: %f, z: %f }\n",
 			v1.x, v1.z, v2.x, v2.z, v3.x, v3.z, v4.x, v4.z));
-	if (!worldToScreen(v1, &sp1)) return false;
-	if (!worldToScreen(v2, &sp2)) return false;
-	if (!worldToScreen(v3, &sp3)) return false;
-	if (!worldToScreen(v4, &sp4)) return false;
 
 	bool drewRect = false;
 
 	if ((params.fillColor & 0xFF000000) != 0 && !ignoreFill) {
 		drewRect = true;
 		if (boundingRect) {
-			boundingRect->addX(sp1.x);
-			boundingRect->addX(sp2.x);
-			boundingRect->addX(sp3.x);
-			boundingRect->addX(sp4.x);
-
-			boundingRect->addY(sp1.y);
-			boundingRect->addY(sp2.y);
-			boundingRect->addY(sp3.y);
-			boundingRect->addY(sp4.y);
+			D3DXVECTOR3 sp1;
+			D3DXVECTOR3 sp2;
+			D3DXVECTOR3 sp3;
+			D3DXVECTOR3 sp4;
+			bool projectionFailed = !camera.worldToScreen(device, v1, &sp1);
+			projectionFailed = projectionFailed || !camera.worldToScreen(device, v2, &sp2);
+			projectionFailed = projectionFailed || !camera.worldToScreen(device, v3, &sp3);
+			projectionFailed = projectionFailed || !camera.worldToScreen(device, v4, &sp4);
+			if (projectionFailed) {
+				boundingRect->addX(0.F);
+				boundingRect->addX(viewportW);
+				boundingRect->addY(0.F);
+				boundingRect->addY(viewportH);
+			} else {
+				boundingRect->addX(sp1.x);
+				boundingRect->addX(sp2.x);
+				boundingRect->addX(sp3.x);
+				boundingRect->addX(sp4.x);
+	
+				boundingRect->addY(sp1.y);
+				boundingRect->addY(sp2.y);
+				boundingRect->addY(sp3.y);
+				boundingRect->addY(sp4.y);
+			}
 		}
 
 		logOnce(fprintf(logfile,
 			"Box. Red: %u; Green: %u; Blue: %u; Alpha: %u;\n",
 			(params.fillColor >> 16) & 0xff, (params.fillColor >> 8) & 0xff, params.fillColor & 0xff, (params.fillColor >> 24) & 0xff));
-		logOnce(fprintf(logfile,
-			"sp1 { x: %f; y: %f; }; sp2 { x: %f; y: %f; }; sp3 { x: %f; y: %f; }; sp4 { x: %f; y: %f; }\n",
-			sp1.x, sp1.y, sp2.x, sp2.y, sp3.x, sp3.y, sp4.x, sp4.y));
 
 		D3DCOLOR fillColor;
 		if (screenshotStage != SCREENSHOT_STAGE_NONE) {
@@ -310,7 +412,7 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 			if (!drew) {
 				*vertexIt = *(vertexIt - 1);
 				++vertexIt;
-				const Vertex firstVertex{ sp1.x, sp1.y, 0.F, 1.F, fillColor };
+				const Vertex firstVertex{ v1.x, v1.y, 0.F, fillColor };
 				*vertexIt = firstVertex;
 				++vertexIt;
 				*vertexIt = firstVertex;
@@ -318,20 +420,20 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 				consumeVertexBufferSpace(6);
 			} else {
 				consumeVertexBufferSpace(4);
-				*vertexIt = Vertex{ sp1.x, sp1.y, 0.F, 1.F, fillColor };
+				*vertexIt = Vertex{ v1.x, v1.y, 0.F, fillColor };
 				++vertexIt;
 			}
 		} else {
 			drawIfOutOfSpace(4);
 			consumeVertexBufferSpace(4);
-			*vertexIt = Vertex{ sp1.x, sp1.y, 0.F, 1.F, fillColor };
+			*vertexIt = Vertex{ v1.x, v1.y, 0.F, fillColor };
 			++vertexIt;
 		}
-		*vertexIt = Vertex{ sp2.x, sp2.y, 0.F, 1.F, fillColor };
+		*vertexIt = Vertex{ v2.x, v2.y, 0.F, fillColor };
 		++vertexIt;
-		*vertexIt = Vertex{ sp3.x, sp3.y, 0.F, 1.F, fillColor };
+		*vertexIt = Vertex{ v3.x, v3.y, 0.F, fillColor };
 		++vertexIt;
-		*vertexIt = Vertex{ sp4.x, sp4.y, 0.F, 1.F, fillColor };
+		*vertexIt = Vertex{ v4.x, v4.y, 0.F, fillColor };
 		++vertexIt;
 		++preparedBoxesCount;
 		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_BOX;
@@ -341,10 +443,10 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 		DrawOutlineCallParams drawOutlineCallParams;
 		drawOutlineCallParams.reserveSize(4);
 
-		drawOutlineCallParams.addPathElem(sp1.x, sp1.y, left, top, 1, 1);
-		drawOutlineCallParams.addPathElem(sp2.x, sp2.y, left, bottom, 1, -1);
-		drawOutlineCallParams.addPathElem(sp4.x, sp4.y, right, bottom, -1, -1);
-		drawOutlineCallParams.addPathElem(sp3.x, sp3.y, right, top, -1, 1);
+		drawOutlineCallParams.addPathElem(v1.x, v1.y, left, top, 1, 1);
+		drawOutlineCallParams.addPathElem(v2.x, v2.y, left, bottom, 1, -1);
+		drawOutlineCallParams.addPathElem(v4.x, v4.y, right, bottom, -1, -1);
+		drawOutlineCallParams.addPathElem(v3.x, v3.y, right, top, -1, 1);
 		drawOutlineCallParams.outlineColor = params.outlineColor;
 		drawOutlineCallParams.thickness = params.thickness;
 		drawOutlineCallParams.hatched = params.hatched;
@@ -366,12 +468,13 @@ void Graphics::sendAllPreparedVertices() {
 	vertexBufferSent = true;
 	Vertex* buffer = nullptr;
 	if (FAILED(vertexBuffer->Lock(0, 0, (void**)&buffer, D3DLOCK_DISCARD))) return;
-	memcpy(buffer, &vertexArena.front(), sizeof(Vertex) * vertexBufferLength);
+	memcpy(buffer, vertexArena.data(), sizeof(Vertex) * vertexBufferLength);
 	if (FAILED(vertexBuffer->Unlock())) return;
 }
 
 bool Graphics::drawAllArrayboxes() {
 	if (preparedArrayboxes.empty()) return true;
+	advanceRenderState(RENDER_STATE_DRAWING_ARRAYBOXES);
 	sendAllPreparedVertices();
 	for (auto it = preparedArrayboxes.begin(); it != preparedArrayboxes.end(); ++it) {
 		if (it->boxesPreparedSoFar) {
@@ -614,21 +717,31 @@ void Graphics::drawAll() {
 	preparedArrayboxIdCounter = 0;
 	needClearStencil = false;
 
-	drawingWhat = RENDER_STATE_DRAWING_ARRAYBOXES;
+	drawingWhat = RENDER_STATE_DRAWING_NOTHING;
 	CComPtr<IDirect3DStateBlock9> oldState = nullptr;
 	if (screenshotStage == SCREENSHOT_STAGE_NONE) {
+		currentTransformSet = CURRENT_TRANSFORM_DEFAULT;
+		renderStateValues[RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
 		device->CreateStateBlock(D3DSBT_ALL, &oldState);
-		device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);
 		device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCRSAT);
 		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		renderStateValues[RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
 		device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		renderStateValues[RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 		device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		renderStateValues[RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		device->SetRenderState(D3DRS_LIGHTING, FALSE);
+		
+		renderStateValues[RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
+		renderStateValues[RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NONE);
+		renderStateValues[RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+		renderStateValues[RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+		
 		device->SetVertexShader(nullptr);
-		device->SetPixelShader(nullptr);
-		device->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-		device->SetTexture(0, nullptr);
+		device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
 		device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
+		
 	}
 	
 	if (!onlyDrawPoints) {
@@ -671,12 +784,17 @@ void Graphics::drawAll() {
 		for (const DrawBoxCallParams& params : drawDataUse.interactionBoxes) {
 			prepareBox(params);
 		}
-		for (DrawOutlineCallParams& params : outlines) {
-			prepareOutline(params);
+		if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR) {
+			for (DrawOutlineCallParams& params : outlines) {
+				prepareOutline(params);
+			}
 		}
 	}
-	for (const DrawPointCallParams& params : drawDataUse.points) {
-		preparePoint(params);
+	
+	if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR && (!noNeedToDrawPoints || drawDataUse.needTakeScreenshot)) {
+		for (const DrawPointCallParams& params : drawDataUse.points) {
+			preparePoint(params);
+		}
 	}
 	drawAllPrepared();
 	
@@ -685,10 +803,21 @@ void Graphics::drawAll() {
 	if (screenshotStage == SCREENSHOT_STAGE_NONE) {
 		stencil.onEndSceneEnd(device);
 		oldState->Apply();
+		bringBackOldTransform(device);
+		
 	}
 
 	loggedDrawingOperationsOnce = true;
 
+}
+
+void Graphics::bringBackOldTransform(IDirect3DDevice9* device) {
+	if (currentTransformSet != CURRENT_TRANSFORM_DEFAULT) {
+	    device->SetTransform(D3DTS_WORLD, &prevWorld);
+	    device->SetTransform(D3DTS_VIEW, &prevView);
+	    device->SetTransform(D3DTS_PROJECTION, &prevProjection);
+	    currentTransformSet = CURRENT_TRANSFORM_DEFAULT;
+	}
 }
 
 void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isComplicatedHurtbox,
@@ -793,35 +922,17 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 	}
 }
 
-Graphics::Vertex::Vertex(float x, float y, float z, float rhw, D3DCOLOR color)
-	: x(x), y(y), z(z), rhw(rhw), color(color) { }
-
-Graphics::SmallerVertex::SmallerVertex(float x, float y, float z, D3DCOLOR color)
+Graphics::Vertex::Vertex(float x, float y, float z, D3DCOLOR color)
 	: x(x), y(y), z(z), color(color) { }
 
 void Graphics::prepareOutline(DrawOutlineCallParams& params) {
-	if (screenshotStage == SCREENSHOT_STAGE_BASE_COLOR) return;
 	if (params.empty()) return;
 	logOnce(fprintf(logfile, "Called drawOutlines with an outline with %d elements\n", params.count()));
 	
-	D3DXVECTOR3 conv;
 	PreparedOutline* preparedOutlinePtr = nullptr;
 	
 	if (params.thickness == 1) {
 		
-		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
-		if (!alreadyProjected) {
-			for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
-				PathElement& elem = params.getPathElem(outlineIndex);
-				if (!worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv)) {
-					return;
-				}
-				elem.xProjected = conv.x;
-				elem.yProjected = conv.y;
-				elem.hasProjectionAlready = true;
-			}
-		}
-
 		preparedOutlines.emplace_back();
 		preparedOutlines.back().isOnePixelThick = true;
 
@@ -835,8 +946,8 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 				++preparedOutlines.back().linesSoFar;
 			}
 
-			logOnce(fprintf(logfile, "x: %f; y: %f;\n", elem.xProjected, elem.yProjected));
-			*vertexIt = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
+			logOnce(fprintf(logfile, "x: %d; y: %d;\n", elem.x, elem.y));
+			*vertexIt = Vertex{ (float)elem.x, (float)elem.y, 0.F, params.outlineColor };
 			if (outlineIndex == 0) firstVertex = *vertexIt;
 			++vertexIt;
 			consumeVertexBufferSpace(1);
@@ -853,31 +964,15 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 
 	} else {
 		
-		const bool alreadyProjected = params.getPathElem(0).hasProjectionAlready;
-		if (!alreadyProjected) {
-			for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
-				PathElement& elem = params.getPathElem(outlineIndex);
-				if (!worldToScreen(D3DXVECTOR3{ (float)elem.x, 0.F, (float)elem.y }, &conv)) return;
-				elem.xProjected = conv.x;
-				elem.yProjected = conv.y;
-				elem.hasProjectionAlready = true;
-			}
-		}
-		
 		std::vector<D3DXVECTOR3> extraPoints(params.count(), D3DXVECTOR3{ 0.F, 0.F, 0.F });
 		
 		for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
 			PathElement& elem = params.getPathElem(outlineIndex);
-			if (!worldToScreen(
-					D3DXVECTOR3{
-						(float)elem.x + params.thickness * elem.inX,
-						0.F,
-						(float)elem.y + params.thickness * elem.inY
-					},
-					&extraPoints[outlineIndex]
-				)) {
-				return;
-			}
+			extraPoints[outlineIndex] = D3DXVECTOR3{
+				(float)elem.x + params.thickness * elem.inX,
+				(float)elem.y + params.thickness * elem.inY,
+				0.F
+			};
 		}
 
 		preparedOutlines.emplace_back();
@@ -890,12 +985,9 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 		for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
 			const PathElement& elem = params.getPathElem(outlineIndex);
 
-			conv.x = elem.xProjected;
-			conv.y = elem.yProjected;
-
-			logOnce(fprintf(logfile, "x: %f; y: %f;\n", elem.xProjected, elem.yProjected));
+			logOnce(fprintf(logfile, "x: %d; y: %d;\n", elem.x, elem.y));
 			if (padTheFirst && !drawIfOutOfSpace(4)) {
-				firstVertex = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
+				firstVertex = Vertex{ (float)elem.x, (float)elem.y, 0.F, params.outlineColor };
 				*vertexIt = *(vertexIt - 1);
 				++vertexIt;
 				*vertexIt = firstVertex;
@@ -907,12 +999,12 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			} else {
 				drawIfOutOfSpace(2);
 				if (outlineIndex == 0) {
-					firstVertex = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
+					firstVertex = Vertex{ (float)elem.x, (float)elem.y, 0.F, params.outlineColor };
 					*vertexIt = firstVertex;
 					++vertexIt;
 				} else {
 					++preparedOutlines.back().linesSoFar;
-					*vertexIt = Vertex{ elem.xProjected, elem.yProjected, 0.F, 1.F, params.outlineColor };
+					*vertexIt = Vertex{ (float)elem.x, (float)elem.y, 0.F, params.outlineColor };
 					++vertexIt;
 				}
 				consumeVertexBufferSpace(2);
@@ -922,11 +1014,11 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			const D3DXVECTOR3& extraPoint = extraPoints[outlineIndex];
 
 			if (outlineIndex == 0) {
-				secondVertex = Vertex{ extraPoint.x, extraPoint.y, 0.F, 1.F, params.outlineColor };
+				secondVertex = Vertex{ extraPoint.x, extraPoint.y, 0.F, params.outlineColor };
 				*vertexIt = secondVertex;
 				++vertexIt;
 			} else {
-				*vertexIt = Vertex{ extraPoint.x, extraPoint.y, 0.F, 1.F, params.outlineColor };
+				*vertexIt = Vertex{ extraPoint.x, extraPoint.y, 0.F, params.outlineColor };
 				++vertexIt;
 			}
 		}
@@ -1061,38 +1153,23 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			}
 			
 			if (!hasPnt1) {
-				if (!worldToScreen(
-						D3DXVECTOR3{
-							(float)hatchPoint.x,
-							0.F,
-							(float)hatchPoint.y
-						},
-						&pnt1
-					)) {
-					return;
-				}
+				pnt1 = { (float)hatchPoint.x, (float)hatchPoint.y, 0.F };
 				hasPnt1 = true;
 				continue;
 			}
 			
-			D3DXVECTOR3 pnt2;
-			if (!worldToScreen(
-					D3DXVECTOR3{
-						(float)hatchPoint.x,
-						0.F,
-						(float)hatchPoint.y
-					},
-					&pnt2
-				)) {
-				return;
-			}
+			D3DXVECTOR3 pnt2 = D3DXVECTOR3{
+				(float)hatchPoint.x,
+				(float)hatchPoint.y,
+				0.F
+			};
 			hasPnt1 = false;
 			
 			drawIfOutOfSpace(2);
 			++preparedOutlinePtr->hatchesCount;
-			*vertexIt = Vertex{ pnt1.x, pnt1.y, 0.F, 1.F, params.outlineColor };
+			*vertexIt = Vertex{ pnt1.x, pnt1.y, 0.F, params.outlineColor };
 			++vertexIt;
-			*vertexIt = Vertex{ pnt2.x, pnt2.y, 0.F, 1.F, params.outlineColor };
+			*vertexIt = Vertex{ pnt2.x, pnt2.y, 0.F, params.outlineColor };
 			++vertexIt;
 			consumeVertexBufferSpace(2);
 			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_HATCH;
@@ -1106,10 +1183,9 @@ bool Graphics::worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
 }
 
 void Graphics::preparePoint(const DrawPointCallParams& params) {
-	if (screenshotStage == SCREENSHOT_STAGE_BASE_COLOR) return;
-	D3DXVECTOR3 p{ (float)params.posX, 0.F, (float)params.posY };
+	D3DXVECTOR3 p{ (float)params.posX, (float)params.posY, 0.F };
 	logOnce(fprintf(logfile, "drawPoint called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
-
+	
 	D3DXVECTOR3 sp;
 	if (!worldToScreen(p, &sp)) return;
 
@@ -1133,13 +1209,13 @@ void Graphics::preparePoint(const DrawPointCallParams& params) {
 
 	const D3DCOLOR fillColor = params.fillColor;
 
-	*vertexIt = Vertex{ sp.x - 4, sp.y - 1, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x - 4, sp.y - 1, 0.F, fillColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x - 4, sp.y + 2, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x - 4, sp.y + 2, 0.F, fillColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x + 5, sp.y - 1, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x + 5, sp.y - 1, 0.F, fillColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x + 5, sp.y + 2, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x + 5, sp.y + 2, 0.F, fillColor };
 	++vertexIt;
 
 	/*  54321012345 (+)
@@ -1158,18 +1234,18 @@ void Graphics::preparePoint(const DrawPointCallParams& params) {
 	   +-----------+*/
 
 	// PADDING
-	*vertexIt = Vertex{ sp.x + 5, sp.y + 2, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x + 5, sp.y + 2, 0.F, fillColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x - 1, sp.y - 4, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x - 1, sp.y - 4, 0.F, fillColor };
 	++vertexIt;
 
-	*vertexIt = Vertex{ sp.x - 1, sp.y - 4, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x - 1, sp.y - 4, 0.F, fillColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x - 1, sp.y + 5, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x - 1, sp.y + 5, 0.F, fillColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x + 2, sp.y - 4, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x + 2, sp.y - 4, 0.F, fillColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x + 2, sp.y + 5, 0.F, 1.F, fillColor };
+	*vertexIt = Vertex{ sp.x + 2, sp.y + 5, 0.F, fillColor };
 	++vertexIt;
 
 	/*  54321012345 (+)
@@ -1189,13 +1265,13 @@ void Graphics::preparePoint(const DrawPointCallParams& params) {
 
 	const D3DCOLOR outlineColor = params.outlineColor;
 
-	*vertexIt = Vertex{ sp.x - 3, sp.y, 0.F, 1.F, outlineColor };
+	*vertexIt = Vertex{ sp.x - 3, sp.y, 0.F, outlineColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x + 4, sp.y, 0.F, 1.F, outlineColor };
+	*vertexIt = Vertex{ sp.x + 4, sp.y, 0.F, outlineColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x, sp.y - 3, 0.F, 1.F, outlineColor };
+	*vertexIt = Vertex{ sp.x, sp.y - 3, 0.F, outlineColor };
 	++vertexIt;
-	*vertexIt = Vertex{ sp.x, sp.y + 4, 0.F, 1.F, outlineColor };
+	*vertexIt = Vertex{ sp.x, sp.y + 4, 0.F, outlineColor };
 	++vertexIt;
 	++numberOfPointsPrepared;
 }
@@ -1299,7 +1375,7 @@ void Graphics::takeScreenshotDebug(IDirect3DDevice9* device, const wchar_t* file
 	unsigned int width = 0;
 	unsigned int height = 0;
 	if (!getFramebufferData(device, gameImage, nullptr, nullptr, &width, &height)) return;
-	pngRelated.writePngToPath(filename, width, height, &gameImage.front());
+	pngRelated.writePngToPath(filename, width, height, gameImage.data());
 
 }
 
@@ -1339,7 +1415,7 @@ void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
 	
 	PERFORMANCE_MEASUREMENT_START
 	
-	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, &gameImage.front());
+	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, gameImage.data());
 	
 	PERFORMANCE_MEASUREMENT_END(takeScreenshotEnd_writeScreenshot)
 }
@@ -1356,7 +1432,8 @@ void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
 		logwrap(fputs("GetDesc failed\n", logfile));
 		return;
 	}
-	std::vector<unsigned char> gameImage;
+	static std::vector<unsigned char> gameImage;
+	gameImage.clear();
 	if (!getFramebufferData(device, gameImage, renderTarget, &renderTargetDesc)) return;
 
 	if (!settings.dontUseScreenshotTransparency) {
@@ -1364,7 +1441,7 @@ void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
 			struct { unsigned char r, g, b, a; };
 			int value;
 		};
-		Pixel* gameImagePtr = (Pixel*)&gameImage.front();
+		Pixel* gameImagePtr = (Pixel*)gameImage.data();
 		const size_t offLimit = renderTargetDesc.Width * renderTargetDesc.Height;
 		for (size_t off = 0; off < offLimit; ++off)
 		{
@@ -1379,7 +1456,7 @@ void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
 		}
 	}
 
-	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, &gameImage.front());
+	pngRelated.saveScreenshotData(renderTargetDesc.Width, renderTargetDesc.Height, gameImage.data());
 
 }
 
@@ -1430,11 +1507,97 @@ bool Graphics::getFramebufferData(IDirect3DDevice9* device,
 	unsigned int imageSize = renderTargetDescPtr->Width * renderTargetDescPtr->Height;
 
 	buffer.resize(imageSize * 4);
-	memcpy((void*)&buffer.front(), lockedRect.pBits, imageSize * 4);
+	memcpy(buffer.data(), lockedRect.pBits, imageSize * 4);
 
 	offscreenSurface->UnlockRect();
 
 	return true;
+}
+
+void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
+	
+	if (currentTransformSet == CURRENT_TRANSFORM_3D_PROJECTION) return;
+	
+	rememberTransforms(device);
+	
+	float m = camera.valuesUse.coordCoefficient / 1000.F;
+	D3DXMATRIX world {
+		m,   0.F, 0.F, 0.F,
+		0.F, 0.F, m,   0.F,
+		0.F, m,   0.F, 0.F,
+		0.F, 0.F, 0.F, 1.F
+	};
+	device->SetTransform(D3DTS_WORLD, &world);
+	
+	
+	D3DXMATRIX cameraTranslation;
+	D3DXMatrixTranslation(&cameraTranslation, -camera.valuesUse.pos.x, -camera.valuesUse.pos.y, -camera.valuesUse.pos.z);
+	
+	m = PI / 32768.F;
+	D3DXMATRIX cameraRotation;
+	D3DXMATRIX cameraRotationX;
+	D3DXMatrixRotationX(&cameraRotationX, (float)-camera.valuesUse.roll * m);
+	D3DXMATRIX cameraRotationY;
+	D3DXMatrixRotationY(&cameraRotationY, (float)camera.valuesUse.pitch * m);  // no idea why pitch is flipped
+	D3DXMATRIX cameraRotationZ;
+	D3DXMatrixRotationZ(&cameraRotationZ, (float)-camera.valuesUse.yaw * m);
+	cameraRotation = cameraRotationZ;
+	D3DXMATRIX cameraRotationOut;
+	D3DXMatrixMultiply(&cameraRotationOut, &cameraRotation, &cameraRotationY);
+	cameraRotation = cameraRotationOut;
+	D3DXMatrixMultiply(&cameraRotationOut, &cameraRotation, &cameraRotationX);
+	cameraRotation = cameraRotationOut;
+	
+	D3DXMATRIX view;
+	D3DXMatrixMultiply(&view, &cameraTranslation, &cameraRotation);
+	device->SetTransform(D3DTS_VIEW, &view);
+	
+	D3DVIEWPORT9 viewport;
+	device->GetViewport(&viewport);
+	float vw = (float)viewport.Width;
+	float vh = (float)viewport.Height;
+	viewportW = vw;
+	viewportH = vh;
+	float t = 1.F / tanf(camera.valuesUse.fov / 360.F * PI);
+	
+	D3DXMATRIX projection;
+	projection = {
+		1.F / vw, 1.F / vh,    1.F, 1.F,
+		t,        0.F,         0.F, 0.F,
+		0.F,      t * vw / vh, 0.F, 0.F,
+		0.F,      0.F,         0.F, 0.F
+	};
+	device->SetTransform(D3DTS_PROJECTION, &projection);
+	
+	currentTransformSet = CURRENT_TRANSFORM_3D_PROJECTION;
+	
+}
+
+void Graphics::setTransformMatricesPlain2D(IDirect3DDevice9* device) {
+	
+	if (currentTransformSet == CURRENT_TRANSFORM_2D_PROJECTION) return;
+	
+	D3DXMATRIX projection =
+    {
+        2.F / viewportW,  0.F,              0.F, 0.F,
+        0.F,              -2.F / viewportH, 0.F, 0.F,
+        0.F,              0.F,              1.F, 0.F,
+        -1.F,             1.F,              0.F, 1.F
+    };
+	
+    rememberTransforms(device);
+    device->SetTransform(D3DTS_WORLD, &identity);
+    device->SetTransform(D3DTS_VIEW, &identity);
+    device->SetTransform(D3DTS_PROJECTION, &projection);
+    
+    currentTransformSet = CURRENT_TRANSFORM_2D_PROJECTION;
+}
+
+void Graphics::rememberTransforms(IDirect3DDevice9* device) {
+	if (currentTransformSet != CURRENT_TRANSFORM_DEFAULT) return;
+	device->GetTransform(D3DTS_WORLD, &prevWorld);
+	device->GetTransform(D3DTS_VIEW, &prevView);
+	device->GetTransform(D3DTS_PROJECTION, &prevProjection);
 }
 
 void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion) {
@@ -1454,23 +1617,35 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	// So we need this step which is aimed at getting the base color into the render target.
 	device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
 	device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	renderStateValues[RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
 	device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, TRUE);
 
 	device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
+	renderStateValues[RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, TRUE);
 	device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
 	device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCRSAT);
 	device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);
 
 	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
+	renderStateValues[RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE);
 	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+	renderStateValues[RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO);
 	device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO);
+	renderStateValues[RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO);
 	device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	renderStateValues[RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	device->SetRenderState(D3DRS_LIGHTING, FALSE);
 	
 	device->SetVertexShader(nullptr);
-	device->SetPixelShader(nullptr);
-	device->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-	device->SetTexture(0, nullptr);
+	device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
 	device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
+	renderStateValues[RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	device->SetPixelShader(nullptr);
+	device->SetTexture(0, nullptr);
+	
+	renderStateValues[RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
+	currentTransformSet = CURRENT_TRANSFORM_DEFAULT;
+	
 	screenshotStage = SCREENSHOT_STAGE_BASE_COLOR;
 	
 	PERFORMANCE_MEASUREMENT_START
@@ -1482,12 +1657,6 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	logOnce(fputs("drawAll() (for screenshot) call successful\n", logfile));
 	
 	// This step blends the colors with alpha and just does everything normally
-	device->SetRenderState(D3DRS_STENCILENABLE, TRUE);
-	device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-	device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-	// 1-(1-a)*(1-b) = a+b(1-a)
-	device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
-	device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
 	screenshotStage = SCREENSHOT_STAGE_FINAL;
 	stencil.clear(device);
 	
@@ -1503,39 +1672,20 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	gamesRenderTarget = nullptr;
 	stencil.onEndSceneEnd(device);
 	oldState->Apply();
+	bringBackOldTransform(device);
+	
+    device->SetTransform(D3DTS_WORLD, &prevWorld);
+    device->SetTransform(D3DTS_VIEW, &prevView);
+    device->SetTransform(D3DTS_PROJECTION, &prevProjection);
 }
 
 void Graphics::advanceRenderState(RenderStateDrawingWhat newState) {
-	if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR
-			&& drawingWhat == RENDER_STATE_DRAWING_ARRAYBOXES
-			&& newState != RENDER_STATE_DRAWING_ARRAYBOXES) {
-		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
-	}
-	if (drawingWhat != RENDER_STATE_DRAWING_OUTLINES
-			&& drawingWhat != RENDER_STATE_DRAWING_POINTS
-			&& (newState == RENDER_STATE_DRAWING_OUTLINES
-			|| newState == RENDER_STATE_DRAWING_POINTS)) {
-		if (screenshotStage != SCREENSHOT_STAGE_NONE) {
-			device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-			device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
-			device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
-			device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
-		} else {
-			device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-		}
-	}
-	if (drawingWhat != RENDER_STATE_DRAWING_OUTLINES
-			&& newState == RENDER_STATE_DRAWING_OUTLINES) {
-		if (screenshotStage == SCREENSHOT_STAGE_NONE) {
-			// Thanks to WorseThanYou for advice on this
-			preparePixelShader(device);
-		}
-	}
-	if (drawingWhat == RENDER_STATE_DRAWING_OUTLINES
-			&& newState != RENDER_STATE_DRAWING_OUTLINES) {
-		if (screenshotStage == SCREENSHOT_STAGE_NONE) {
-			device->SetPixelShader(nullptr);
-			device->SetTexture(0, nullptr);
+	RenderStateValueStack& to = requiredRenderState[screenshotStage][newState];
+	for (int i = 0; i < RENDER_STATE_TYPE_LAST; ++i) {
+		RenderStateValue newVal = to[i];
+		if (renderStateValues[i] != newVal) {
+			renderStateValueHandlers[i]->handleChange(newVal);
+			renderStateValues[i] = newVal;
 		}
 	}
 	drawingWhat = newState;
@@ -1729,23 +1879,6 @@ void Graphics::compilePixelShader() {
 		return;
 	}
 	
-	// If user can't find D3DCOMPILER_47.dll on their computer, use LoadLibraryA to load an older version of the compiler:
-	// D3DCompiler_33.dll
-	// D3DCompiler_34.dll
-	// D3DCompiler_35.dll
-	// D3DCompiler_36.dll
-	// D3DCompiler_37.dll
-	// D3DCompiler_38.dll
-	// D3DCompiler_39.dll
-	// D3DCompiler_40.dll
-	// D3DCompiler_41.dll
-	// D3DCompiler_42.dll
-	// D3DCompiler_43.dll
-	// Use GetProcAddress to locate D3DCompile and call it through a pointer.
-	// Normally these DLLs should be found in C:\Windows\SysWOW64\ (if machine/OS is 64-bit) or C:\Windows\System32\ (if machine/OS is 32-bit) on the user's machine (the DLL we need is always 32-bit).
-	// Redistributing these DLLs may be a violation of copyright.
-	// Last resort may be using fxc to precompile the shader.
-	
 	CComPtr<ID3DBlob> code;
 	CComPtr<ID3DBlob> errorMsgs;
 	if (FAILED(D3DCompile(
@@ -1932,4 +2065,63 @@ void Graphics::cpuPixelBlenderSimple(void* gameImage, const void* boxesImage, in
 		++gameImagePtr;
 		++boxesImagePtr;
 	}
+}
+
+
+void Graphics::RenderStateHandler(D3DRS_STENCILENABLE)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(D3DRS_STENCILENABLE, FALSE): graphics.device->SetRenderState(D3DRS_STENCILENABLE, FALSE); break;
+		case RenderStateValue(D3DRS_STENCILENABLE, TRUE): graphics.device->SetRenderState(D3DRS_STENCILENABLE, TRUE); break;
+	}
+}
+void Graphics::RenderStateHandler(D3DRS_ALPHABLENDENABLE)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE): graphics.device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE); break;
+		case RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE): graphics.device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE); break;
+	}
+}
+void Graphics::RenderStateHandler(PIXEL_SHADER_AND_TEXTURE)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(PIXEL_SHADER_AND_TEXTURE, CUSTOM_PIXEL_SHADER): graphics.preparePixelShader(graphics.device); break;
+		case RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER):
+			graphics.device->SetPixelShader(nullptr);
+			graphics.device->SetTexture(0, nullptr);
+			break;
+	}
+}
+void Graphics::RenderStateHandler(TRANSFORM_MATRICES)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(TRANSFORM_MATRICES, 3D): graphics.setTransformMatrices3DProjection(graphics.device); break;
+		case RenderStateValue(TRANSFORM_MATRICES, 2D): graphics.setTransformMatricesPlain2D(graphics.device); break;
+	}
+}
+void Graphics::RenderStateHandler(D3DRS_SRCBLEND)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA): graphics.device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); break;
+		case RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE): graphics.device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE); break;
+	}
+}
+void Graphics::RenderStateHandler(D3DRS_DESTBLEND)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO): graphics.device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO); break;
+		case RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA): graphics.device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA); break;
+	}
+}
+void Graphics::RenderStateHandler(D3DRS_SRCBLENDALPHA)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE): graphics.device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE); break;
+		case RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO): graphics.device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO); break;
+	}
+}
+void Graphics::RenderStateHandler(D3DRS_DESTBLENDALPHA)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA): graphics.device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA); break;
+		case RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO): graphics.device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO); break;
+	}
+}
+
+char* fnameArray = nullptr;
+const char* readFName(unsigned int fnameId) {
+    char* fnamePtr = *(char**)(fnameArray + fnameId * 4);
+    return (const char*)(fnamePtr + 0x10);
 }

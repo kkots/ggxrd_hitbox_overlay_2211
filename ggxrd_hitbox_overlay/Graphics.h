@@ -40,6 +40,7 @@ public:
 	DWORD graphicsThreadId = NULL;
 	bool shutdown = false;
 	bool onlyDrawPoints = false;
+	bool noNeedToDrawPoints = false;
 
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
@@ -55,16 +56,10 @@ private:
 		void FSuspendRenderingThreadDestructorHook();
 	};
 	struct Vertex {
-		float x, y, z, rhw;
-		DWORD color;
-		Vertex() = default;
-		Vertex(float x, float y, float z, float rhw, DWORD color);
-	};
-	struct SmallerVertex {
 		float x, y, z;
 		DWORD color;
-		SmallerVertex() = default;
-		SmallerVertex(float x, float y, float z, DWORD color);
+		Vertex() = default;
+		Vertex(float x, float y, float z, DWORD color);
 	};
 	Stencil stencil;
 	std::vector<DrawOutlineCallParams> outlines;
@@ -121,10 +116,12 @@ private:
 	CComPtr<IDirect3DSurface9> gamesRenderTarget = nullptr;
 	
 	enum RenderStateDrawingWhat {
+		RENDER_STATE_DRAWING_NOTHING,
 		RENDER_STATE_DRAWING_ARRAYBOXES,
 		RENDER_STATE_DRAWING_BOXES,
 		RENDER_STATE_DRAWING_OUTLINES,
-		RENDER_STATE_DRAWING_POINTS
+		RENDER_STATE_DRAWING_POINTS,
+		RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE  // must be last
 	} drawingWhat;
 	void advanceRenderState(RenderStateDrawingWhat newState);
 	bool needClearStencil;
@@ -144,7 +141,6 @@ private:
 		vertexBufferLength += verticesCount;
 		vertexBufferRemainingSize -= verticesCount;
 	}
-	bool vertexRemainingSizeIsInSmallVertices = false;
 	std::vector<Vertex>::iterator vertexIt;
 	unsigned int vertexBufferPosition = 0;
 	bool vertexBufferSent = false;
@@ -179,7 +175,8 @@ private:
 	enum ScreenshotStage {
 		SCREENSHOT_STAGE_NONE,
 		SCREENSHOT_STAGE_BASE_COLOR,
-		SCREENSHOT_STAGE_FINAL
+		SCREENSHOT_STAGE_FINAL,
+		SCREENSHOT_STAGE_HOW_MANY_ENUMS_ARE_THERE  // must be last
 	} screenshotStage = SCREENSHOT_STAGE_NONE;
 	
 	CComPtr<IDirect3DSurface9> altRenderTarget;
@@ -214,6 +211,112 @@ private:
 	
 	const int hatchesDist = 15000;
 	
+	enum CurrentTransformSet {
+		CURRENT_TRANSFORM_DEFAULT,
+		CURRENT_TRANSFORM_3D_PROJECTION,
+		CURRENT_TRANSFORM_2D_PROJECTION
+	} currentTransformSet;
+	void rememberTransforms(IDirect3DDevice9* device);
+	void bringBackOldTransform(IDirect3DDevice9* device);
+	D3DMATRIX prevWorld;
+	D3DMATRIX prevView;
+	D3DMATRIX prevProjection;
+	void setTransformMatrices3DProjection(IDirect3DDevice9* device);
+	void setTransformMatricesPlain2D(IDirect3DDevice9* device);
+	float viewportW = 0.F;
+	float viewportH = 0.F;
+	#define RenderStateType(name) RENDER_STATE_TYPE_##name
+	#define RenderStateValue(settingName, value) RENDER_STATE_VALUE_##settingName##__##value
+	#define RenderStateHandler(name) RenderStateValueHandler_##name
+	enum TypeOfRenderState {
+		RenderStateType(D3DRS_STENCILENABLE),
+		RenderStateType(D3DRS_ALPHABLENDENABLE),
+		RenderStateType(PIXEL_SHADER_AND_TEXTURE),
+		RenderStateType(TRANSFORM_MATRICES),
+		RenderStateType(D3DRS_SRCBLEND),
+		RenderStateType(D3DRS_DESTBLEND),
+		RenderStateType(D3DRS_SRCBLENDALPHA),
+		RenderStateType(D3DRS_DESTBLENDALPHA),
+		RENDER_STATE_TYPE_LAST  // must always be last
+	};
+	enum RenderStateValue {
+		RenderStateValue(D3DRS_STENCILENABLE, FALSE),
+		RenderStateValue(D3DRS_STENCILENABLE, TRUE),
+		RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE),
+		RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE),
+		RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NONE),
+		RenderStateValue(PIXEL_SHADER_AND_TEXTURE, CUSTOM_PIXEL_SHADER),
+		RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER),
+		RenderStateValue(TRANSFORM_MATRICES, NONE),
+		RenderStateValue(TRANSFORM_MATRICES, 3D),
+		RenderStateValue(TRANSFORM_MATRICES, 2D),
+		RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA),
+		RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE),
+		RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO),
+		RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA),
+		RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE),
+		RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO),
+		RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA),
+		RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO)
+	};
+	RenderStateValue renderStateValues[RENDER_STATE_TYPE_LAST];
+	class RenderStateValueHandler {
+	public:
+		inline RenderStateValueHandler(Graphics* graphics) : graphics(*graphics) {}
+		virtual void handleChange(RenderStateValue newValue) = 0;
+		Graphics& graphics;
+	};
+	#define inheritConstructor(name) name(Graphics* graphics) : RenderStateValueHandler(graphics) {}
+	class RenderStateHandler(D3DRS_STENCILENABLE) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(D3DRS_STENCILENABLE))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(D3DRS_ALPHABLENDENABLE) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(D3DRS_ALPHABLENDENABLE))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(PIXEL_SHADER_AND_TEXTURE) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(PIXEL_SHADER_AND_TEXTURE))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(TRANSFORM_MATRICES) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(TRANSFORM_MATRICES))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(D3DRS_SRCBLEND) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(D3DRS_SRCBLEND))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(D3DRS_DESTBLEND) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(D3DRS_DESTBLEND))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(D3DRS_SRCBLENDALPHA) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(D3DRS_SRCBLENDALPHA))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(D3DRS_DESTBLENDALPHA) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(D3DRS_DESTBLENDALPHA))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	#undef inheritConstructor
+	RenderStateValueHandler* renderStateValueHandlers[RENDER_STATE_TYPE_LAST];
+	struct RenderStateValueStack {
+		RenderStateValue values[RENDER_STATE_TYPE_LAST];
+		inline RenderStateValueStack* operator=(const RenderStateValueStack* other) {
+			memcpy(this, other, sizeof *this);
+		}
+		inline RenderStateValue& operator[](int index) { return values[index]; }
+	};
+	RenderStateValueStack requiredRenderState[SCREENSHOT_STAGE_HOW_MANY_ENUMS_ARE_THERE][RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE];
 };
 
 extern Graphics graphics;

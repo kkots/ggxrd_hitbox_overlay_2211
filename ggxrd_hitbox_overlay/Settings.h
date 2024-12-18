@@ -38,6 +38,7 @@ public:
 	std::vector<int> modWindowVisibilityToggle;
 	std::vector<int> framebarVisibilityToggle;
 	std::vector<int> toggleDisableGrayHurtboxes;
+	std::vector<int> toggleNeverIgnoreHitstop;
 	std:: mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	std::string screenshotPath;
@@ -47,14 +48,26 @@ public:
 	std::atomic_bool turnOffPostEffectWhenMakingBackgroundBlack = true;
 	std::atomic_int slowmoTimes = 3;
 	std::atomic_int framebarHeight = 19;
+	std::atomic_int framebarTitleCharsMax = 12;
 	std::atomic_int lowProfileCutoffPoint = 19;
+	const float cameraCenterOffsetX_defaultValue = 0.F;
+	const float cameraCenterOffsetY_defaultValue = 106.4231F;
+	const float cameraCenterOffsetY_WhenForcePitch0_defaultValue = 130.4231F;
+	const float cameraCenterOffsetZ_defaultValue = 540.F;
+	float cameraCenterOffsetX = cameraCenterOffsetX_defaultValue;
+	float cameraCenterOffsetY = cameraCenterOffsetY_defaultValue;
+	float cameraCenterOffsetY_WhenForcePitch0 = cameraCenterOffsetY_WhenForcePitch0_defaultValue;
+	float cameraCenterOffsetZ = cameraCenterOffsetZ_defaultValue;
 	std::atomic_bool startDisabled = false;
 	std::atomic_bool drawPushboxCheckSeparately = true;
+	std::atomic_bool forceZeroPitchDuringCameraCentering = true;
 	std::atomic_bool modWindowVisibleOnStart = true;
 	std::atomic_bool closingModWindowAlsoHidesFramebar = true;
 	std::atomic_bool neverIgnoreHitstop = false;
+	std::atomic_bool ignoreHitstopForBlockingBaiken = false;
 	std::atomic_bool considerRunAndWalkNonIdle = false;
 	std::atomic_bool considerCrouchNonIdle = false;
+	std::atomic_bool considerDummyPlaybackNonIdle = false;
 	std::atomic_bool useSimplePixelBlender = false;
 	std::atomic_bool dontShowBoxes = false;
 	std::atomic_bool neverDisplayGrayHurtboxes = false;
@@ -66,8 +79,17 @@ public:
 	std::atomic_bool showSuperArmorOnFramebar = true;
 	std::atomic_bool showThrowInvulOnFramebar = true;
 	std::atomic_bool showFirstFramesOnFramebar = true;
+	std::atomic_bool considerSimilarFrameTypesSameForFrameCounts = false;
+	std::atomic_bool combineProjectileFramebarsWhenPossible = false;
+	std::atomic_bool eachProjectileOnSeparateFramebar = false;
+	std::atomic_bool dontClearFramebarOnStageReset = false;
 	std::atomic_bool useColorblindHelp = false;
+	std::atomic_bool dontTruncateFramebarTitles = false;
+	std::atomic_bool allFramebarTitlesDisplayToTheLeft = true;
+	std::atomic_bool showPlayerInFramebarTitle = true;
 	std::atomic_bool considerKnockdownWakeupAndAirtechIdle = false;
+	std::atomic_bool considerIdleInvulIdle = true;
+	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);
@@ -79,8 +101,10 @@ public:
 	void onKeyCombosUpdated();
 	void getComboInfo(std::vector<int>& keyCombo, ComboInfo* info);
 	const char* getOtherUIName(void* ptr);
+	const char* getOtherUIFullName(void* ptr);
 	const char* getOtherUIDescription(void* ptr);
 	const char* getOtherINIDescription(void* ptr);
+	std::string convertToUiDescription(const char* iniDescription);
 private:
 	struct KeyComboToParse {
 		const char* name = nullptr;
@@ -106,12 +130,16 @@ private:
 			return hashString(key);
 		}
 	};
+	struct IniNameToUiNameMapElement {
+		const char* fullName;
+		const char* name;
+	};
 	struct MyCompareFunction {
 		inline bool operator()(const char* key, const char* other) const {
-			return strcmp(key, other) == 0;
+			return key == other || strcmp(key, other) == 0;
 		}
 	};
-	std::unordered_map<const char*, const char*, MyHashFunction, MyCompareFunction> iniNameToUiNameMap;
+	std::unordered_map<const char*, IniNameToUiNameMapElement, MyHashFunction, MyCompareFunction> iniNameToUiNameMap;
 	void insertKeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription);
 	void addKey(const char* name, const char* uiName, int code);
 	static int findMinCommentPos(const char* buf);
@@ -123,10 +151,14 @@ private:
 	static std::pair<int, int> trim(std::string& str); // Trims left and right in-place. Returns how many chars were cut off from left (.first) and from right (.second).
 	static std::string toUppercase(const std::string& str);
 	static std::vector<std::string> split(const std::string& str, char c);
-	static bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes);
+	bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes);
 	static bool parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer);
 	static bool parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue);
 	static const char* formatBoolean(bool value);
+	static bool parseFloat(const char* keyName, const std::string& keyValue, float& floatValue);
+	static float parseFloat(const char* inputString, bool* error = nullptr);
+	static std::string formatFloat(float f);
+	static std::string formatInteger(int f);
 	static std::wstring getCurrentDirectory();
 	void registerListenerForChanges();
 	std::wstring settingsPath;
@@ -159,7 +191,6 @@ private:
 	};
 	std::vector<OtherDescription> otherDescriptions;
 	void registerOtherDescription(void* ptr, const char* iniName, const char* uiName, const char* uiPath, const char* iniDescription);
-	std::string convertToUiDescription(const char* iniDescription);
 	std::vector<OtherDescription*> pointerIntoSettingsIntoDescription;
 };
 

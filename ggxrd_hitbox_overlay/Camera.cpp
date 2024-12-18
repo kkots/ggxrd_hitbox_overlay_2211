@@ -7,6 +7,7 @@
 #include "GifMode.h"
 #include "EntityList.h"
 #include "Entity.h"
+#include "Settings.h"
 
 Camera camera;
 
@@ -95,9 +96,16 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 				const auto posY = convertCoord((float)ent.posY());
 	
 				char* deref = *param1;
-				*(float*)(deref + 0x54) = posX;
-				*(float*)(deref + 0x58) = 540.F;
-				*(float*)(deref + 0x5C) = posY + 106.4231F;
+				*(float*)(deref + 0x54) = posX + settings.cameraCenterOffsetX;
+				*(float*)(deref + 0x58) = settings.cameraCenterOffsetZ;
+				if (settings.forceZeroPitchDuringCameraCentering) {
+					*(float*)(deref + 0x5C) = posY + settings.cameraCenterOffsetY_WhenForcePitch0;
+					*(int*)(deref + 0x60) = 0;
+					*(int*)(deref + 0x64) = -16384;
+					*(int*)(deref + 0x68) = 0;
+				} else {
+					*(float*)(deref + 0x5C) = posY + settings.cameraCenterOffsetY;
+				}
 			}
 		}
 	}
@@ -125,7 +133,7 @@ void CameraValues::copyTo(CameraValues& destination) {
 bool Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
 	setValues(device);
 
-	D3DXVECTOR3 vecConverted{ convertCoord(vec.x), 0.F, convertCoord(vec.z) };
+	D3DXVECTOR3 vecConverted{ convertCoord(vec.x), 0.F, convertCoord(vec.y) };
 
 	D3DXVECTOR3 relativePos;
 	D3DXVec3Subtract(&relativePos, &vecConverted, &valuesUse.pos);
@@ -135,8 +143,8 @@ bool Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3D
 	out->z = vecDot(relativePos, valuesUse.forward);
 	if (out->z <= 5.F) return false;
 
-	out->x = floorf(clipXHalf - out->x * divisor / out->z + .5F);
-	out->y = floorf(clipYHalf - out->y * divisor / out->z + .5F);
+	out->x = floorf(clipXHalf - out->x * multiplier / out->z + .5F);
+	out->y = floorf(clipYHalf - out->y * multiplier / out->z + .5F);
 	out->z = 0.F;
 	return true;
 }
@@ -150,9 +158,12 @@ bool CameraValues::setValues() {
 	pos.y = *(float*)(cam + 0x3CC);
 	pos.z = *(float*)(cam + 0x3D0);
 
-	const auto pitch = (float)(*(int*)(cam + 0x3D4)) / 32768.F * PI;
-	const auto yaw = (float)(*(int*)(cam + 0x3D8)) / 32768.F * PI;
-	const auto roll = (float)(*(int*)(cam + 0x3DC)) / 32768.F * PI;
+	this->pitch = *(int*)(cam + 0x3D4);
+	this->yaw = *(int*)(cam + 0x3D8);
+	this->roll = *(int*)(cam + 0x3DC);
+	const auto pitch = (float)this->pitch / 32768.F * PI;
+	const auto yaw = (float)this->yaw / 32768.F * PI;
+	const auto roll = (float)this->roll / 32768.F * PI;
 
 	fov = *(float*)(cam + 0x3E0);
 
@@ -184,7 +195,7 @@ void Camera::setValues(IDirect3DDevice9* device) {
 
 	clipXHalf = (clipX / 2.F);
 	clipYHalf = (clipY / 2.F);
-	divisor = (clipXHalf / (float)tan(valuesUse.fov * PI / 360.F));
+	multiplier = (clipXHalf / tanf(valuesUse.fov * PI / 360.F));
 
 }
 
@@ -199,32 +210,32 @@ void Camera::angleVectors(
 	const float p, const float y, const float r,
 	float* forward, float* right, float* up) const
 {
-	const auto sp = sin(-p);
-	const auto cp = cos(-p);
+	const float sp = sinf(-p);
+	const float cp = cosf(-p);
 
-	const auto sy = sin(y);
-	const auto cy = cos(y);
+	const float sy = sinf(y);
+	const float cy = cosf(y);
 
-	const auto sr = sin(-r);
-	const auto cr = cos(-r);
+	const float sr = sinf(-r);
+	const float cr = cosf(-r);
 
 	if (forward != nullptr)
 	{
-		forward[0] = (float)(cp * cy);
-		forward[1] = (float)(cp * sy);
-		forward[2] = (float)-sp;
+		forward[0] = cp * cy;
+		forward[1] = cp * sy;
+		forward[2] = -sp;
 	}
 	if (right != nullptr)
 	{
-		right[0] = (float)(-1.F * sr * sp * cy + -1 * cr * -sy);
-		right[1] = (float)(-1.F * sr * sp * sy + -1 * cr * cy);
-		right[2] = (float)(-1.F * sr * cp);
+		right[0] = -sr * sp * cy - cr * -sy;
+		right[1] = -sr * sp * sy - cr * cy;
+		right[2] = -sr * cp;
 	}
 	if (up != nullptr)
 	{
-		up[0] = (float)(cr * sp * cy + -sr * -sy);
-		up[1] = (float)(cr * sp * sy + -sr * cy);
-		up[2] = (float)(cr * cp);
+		up[0] = cr * sp * cy + -sr * -sy;
+		up[1] = cr * sp * sy + -sr * cy;
+		up[2] = cr * cp;
 	}
 }
 
