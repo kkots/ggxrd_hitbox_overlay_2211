@@ -27,6 +27,8 @@ struct GatlingOrWhiffCancelInfo {
 	int iterationIndex;
 	bool nameIncludesInputs;
 	int bufferTime;
+	inline bool operator==(const GatlingOrWhiffCancelInfo& other) const { return move == other.move && bufferTime == other.bufferTime; }
+	inline bool operator!=(const GatlingOrWhiffCancelInfo& other) const { return !(*this == other); }
 };
 
 struct FrameCancelInfo {
@@ -37,9 +39,26 @@ struct FrameCancelInfo {
 	void clear();
 };
 
+struct PlayerCancelInfo {
+	int start = 0;
+	int end = 0; // inclusive
+	FrameCancelInfo cancels;
+	bool enableJumpCancel:1;
+	bool enableSpecialCancel:1;
+	bool enableSpecials:1;
+	bool airborne:1;
+	bool hitOccured:1;
+	
+	bool cancelsEqual(const PlayerCancelInfo& other) const;
+	void clear();
+	bool isCompletelyEmpty() const;
+};
+
 enum FrameType : char {
 	FT_NONE,
 	FT_IDLE,
+	// this frame type is only intended to prevent projectiles' framebars that existed only during a superfreeze from being erased due to their framebar being completely empty
+	FT_IDLE_ACTIVE_IN_SUPERFREEZE,
 	FT_IDLE_PROJECTILE,
 	FT_IDLE_CANT_BLOCK,
 	FT_IDLE_CANT_FD,
@@ -83,10 +102,33 @@ enum FrameType : char {
 inline bool frameTypeDiscardable(FrameType type) {
 	return type == FT_NONE || type == FT_IDLE || type == FT_IDLE_PROJECTILE;
 }
-extern bool cantAttackTypes[FT_LAST];
-void initializeCantAttackTypes();
 inline bool frameTypeAssumesCantAttack(FrameType type) {
-	return cantAttackTypes[type];
+	return type == FT_ACTIVE
+		|| type == FT_ACTIVE_PROJECTILE
+		|| type == FT_STARTUP
+		|| type == FT_STARTUP_ANYTIME_NOW
+		|| type == FT_STARTUP_ANYTIME_NOW_CAN_ACT
+		|| type == FT_STARTUP_STANCE
+		|| type == FT_STARTUP_STANCE_CAN_STOP_HOLDING
+		|| type == FT_STARTUP_CAN_BLOCK
+		|| type == FT_STARTUP_CAN_BLOCK_AND_CANCEL
+		|| type == FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN
+		|| type == FT_ZATO_BREAK_THE_LAW_STAGE2
+		|| type == FT_ZATO_BREAK_THE_LAW_STAGE3
+		|| type == FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED
+		|| type == FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED
+		|| type == FT_RECOVERY
+		|| type == FT_RECOVERY_HAS_GATLINGS
+		|| type == FT_RECOVERY_CAN_ACT
+		|| type == FT_NON_ACTIVE
+		|| type == FT_NON_ACTIVE_PROJECTILE
+		|| type == FT_PROJECTILE
+		|| type == FT_LANDING_RECOVERY
+		|| type == FT_LANDING_RECOVERY_CAN_CANCEL
+		|| type == FT_XSTUN
+		|| type == FT_XSTUN_CAN_CANCEL
+		|| type == FT_XSTUN_HITSTOP
+		|| type == FT_GRAYBEAT_AIR_HITSTUN;
 }
 inline bool frameTypeActive(FrameType type) {
 	return type == FT_ACTIVE || type == FT_ACTIVE_PROJECTILE;
@@ -102,12 +144,64 @@ static FrameType recoveryFrameTypes[] {
 	FT_RECOVERY_CAN_RELOAD
 };
 static FrameType projectileFrameTypes[] {
+	FT_IDLE_ACTIVE_IN_SUPERFREEZE,
 	FT_IDLE_PROJECTILE,
 	FT_ACTIVE_PROJECTILE,
 	FT_ACTIVE_NEW_HIT_PROJECTILE,
 	FT_ACTIVE_HITSTOP_PROJECTILE,
 	FT_NON_ACTIVE_PROJECTILE
 };
+inline bool frameAssumesCanBlockButCantFDAfterSuperfreeze(FrameType type) {
+	return type == FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK
+		|| type == FT_STARTUP_CAN_BLOCK
+		|| type == FT_STARTUP_CAN_BLOCK_AND_CANCEL;
+}
+inline FrameType frameMap(FrameType type) {
+	switch (type) {
+		case FT_NONE:                               return FT_NONE;
+		case FT_IDLE:                               return FT_IDLE;
+		case FT_IDLE_ACTIVE_IN_SUPERFREEZE:         return FT_IDLE_PROJECTILE;
+		case FT_IDLE_PROJECTILE:                    return FT_IDLE_PROJECTILE;
+		case FT_IDLE_CANT_BLOCK:                    return FT_IDLE;
+		case FT_IDLE_CANT_FD:                       return FT_IDLE;
+		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE;
+		case FT_IDLE_ELPHELT_RIFLE:                 return FT_STARTUP;
+		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE;
+		case FT_HITSTOP:                            return FT_HITSTOP;
+		case FT_ACTIVE:                             return FT_ACTIVE;
+		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
+		case FT_ACTIVE_HITSTOP:                     return FT_ACTIVE_HITSTOP;
+		case FT_ACTIVE_HITSTOP_PROJECTILE:          return FT_ACTIVE_HITSTOP_PROJECTILE;
+		case FT_ACTIVE_NEW_HIT:                     return FT_ACTIVE_NEW_HIT;
+		case FT_ACTIVE_NEW_HIT_PROJECTILE:          return FT_ACTIVE_NEW_HIT_PROJECTILE;
+		case FT_STARTUP:                            return FT_STARTUP;
+		case FT_STARTUP_ANYTIME_NOW:                return FT_STARTUP;
+		case FT_STARTUP_ANYTIME_NOW_CAN_ACT:        return FT_STARTUP;
+		case FT_STARTUP_STANCE:                     return FT_STARTUP;
+		case FT_STARTUP_STANCE_CAN_STOP_HOLDING:    return FT_STARTUP;
+		case FT_STARTUP_CAN_BLOCK:                  return FT_STARTUP;
+		case FT_STARTUP_CAN_BLOCK_AND_CANCEL:       return FT_STARTUP;
+		case FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN:  return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE2:          return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE3:          return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED: return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED: return FT_STARTUP;
+		case FT_RECOVERY:                           return FT_RECOVERY;
+		case FT_RECOVERY_HAS_GATLINGS:              return FT_RECOVERY;
+		case FT_RECOVERY_CAN_ACT:                   return FT_RECOVERY;
+		case FT_RECOVERY_CAN_RELOAD:                return FT_RECOVERY;
+		case FT_NON_ACTIVE:                         return FT_NON_ACTIVE;
+		case FT_NON_ACTIVE_PROJECTILE:              return FT_NON_ACTIVE_PROJECTILE;
+		case FT_PROJECTILE:                         return FT_PROJECTILE;
+		case FT_LANDING_RECOVERY:                   return FT_LANDING_RECOVERY;
+		case FT_LANDING_RECOVERY_CAN_CANCEL:        return FT_LANDING_RECOVERY;
+		case FT_XSTUN:                              return FT_XSTUN;
+		case FT_XSTUN_CAN_CANCEL:                   return FT_XSTUN;
+		case FT_XSTUN_HITSTOP:                      return FT_XSTUN_HITSTOP;
+		case FT_GRAYBEAT_AIR_HITSTUN:               return FT_GRAYBEAT_AIR_HITSTUN;
+		default:                                    return FT_NONE;
+	}
+}
 
 struct FrameStopInfo {
 	unsigned char value:7;  // hitstun, blockstun or hitstop
@@ -121,6 +215,7 @@ void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int
 struct FrameBase {
 	DWORD aswEngineTick;
 	const char* animName;
+	const char* animSlangName;
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
@@ -137,6 +232,7 @@ struct Frame : public FrameBase {
 	unsigned short rcSlowdownMax:6;
 	unsigned short hitstopConflict:1;
 	unsigned short newHit:1;
+	bool activeDuringSuperfreeze:1;
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
@@ -157,12 +253,15 @@ struct PlayerFrame : public FrameBase {
 	unsigned char skippedHitstop;
 	unsigned char rcSlowdown;
 	unsigned char rcSlowdownMax;
-	
+	unsigned char doubleJumps:4;
+	unsigned char airDashes:3;
+	unsigned char needShowAirOptions:1;
 	
 	bool isFirst:1;
 	bool hitConnected:1;  // true only for the frame on which a hit connected
 	bool hitstopConflict:1;
 	bool newHit:1;
+	bool activeDuringSuperfreeze:1;
 	
 	bool enableNormals:1;
 	bool canBlock:1;
@@ -194,6 +293,7 @@ struct PlayerFrame : public FrameBase {
 	bool hitOccured:1;  // stays true for the remainder of the move
 	bool enableSpecialCancel:1;
 	bool enableSpecials:1;
+	bool enableJumpCancel:1;
 	bool airborne:1;
 	
 	bool crossupProtectionIsOdd:1;
@@ -270,13 +370,21 @@ struct EntityFramebar {
 	EntityFramebar(int playerIndex, int id) : playerIndex(playerIndex), id(id) { }
 	int playerIndex = -1;
 	int id = -1;
-	const MoveInfo* move = nullptr;
+	int moveFramebarId = -1;
 	const char* titleShort = nullptr;
+	const char* titleSlang = nullptr;
+	const char* titleUncombined = nullptr;
+	const char* titleSlangUncombined = nullptr;
 	const char* titleFull = nullptr;
 	bool foundOnThisFrame = false;
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const = 0;
-	void setTitle(const char* text, const char* textFull = nullptr);
+	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
+	void setTitle(const char* text,
+		const char* slangName = nullptr,
+		const char* nameUncombined = nullptr,
+		const char* slangNameUncombined = nullptr,
+		const char* textFull = nullptr);
 	void copyTitle(const EntityFramebar& source);
 	inline void changePreviousFramesOneType(FrameType prevType,
 			FrameType newType,
@@ -306,6 +414,7 @@ struct EntityFramebar {
 		int maxCount,
 		bool stopAtFirstFrame = false) = 0;
 	static int confinePos(int pos);
+	inline static int posMinusOne(int pos) { if (pos == 0) return _countof(PlayerFramebar::frames) - 1; else return pos - 1; }
 	inline static void decrementPos(int& pos) { if (pos == 0) pos = _countof(PlayerFramebar::frames) - 1; else --pos; }
 	inline static void incrementPos(int& pos) { if (pos == _countof(PlayerFramebar::frames) - 1) pos = 0; else ++pos; }
 	inline bool belongsToProjectile() const { return id != -1; }
@@ -353,6 +462,7 @@ struct ProjectileFramebar : public EntityFramebar {
 	                                   // described in the 'idle' framebar
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void changePreviousFrames(FrameType* prevTypes,
 		int prevTypesCount,
 		FrameType newType,
@@ -412,6 +522,7 @@ struct PlayerFramebars : public EntityFramebar {
 	                                   // described in the 'idle' framebar
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void changePreviousFrames(FrameType* prevTypes,
 		int prevTypesCount,
 		FrameType newType,
@@ -489,17 +600,29 @@ struct ActiveDataArray {
 	void findFrame(int frame, int* outIndex, int* outFrame) const;
 	int total() const;
 	inline ActiveData& last() { return data[count - 1]; }
+	inline ActiveData& operator[](int index) { return data[index]; }
+};
+
+struct PrevStartupsInfoElem {
+	const char* moveName = nullptr;
+	const char* moveSlangName = nullptr;
+	bool partOfStance = false;
+	inline const char* selectName(bool slang) const { return slang && moveSlangName ? moveSlangName : moveName; }
+	short startup = 0;
 };
 
 struct PrevStartupsInfo {
-	short startups[10] { 0 };
+	PrevStartupsInfoElem startups[10] { 0 };
 	char count = 0;
-	inline short& operator[](int index) {
+	int initialSkip = 0;
+	inline PrevStartupsInfoElem& operator[](int index) {
 		return startups[index];
 	}
-	inline void clear() { count = 0; }
-	void add(short n);
+	inline void clear() { count = 0; initialSkip = 0; }
+	void add(short n, bool partOfStance, const char* name, const char* slangName);
 	void print(char*& buf, size_t& bufSize) const;
+	void printNames(char*& buf, size_t& bufSize, const char** lastNames, int lastNamesCount, bool slang, bool useMultiplicationSign = true, bool printFrames = false) const;
+	int countOfNonEmptyUniqueNames(const char** lastNames, int lastNamesCount, bool slang) const;
 	int total() const;
 	inline bool empty() const { return count == 0; }
 };
@@ -531,6 +654,8 @@ struct EddieInfo {
 	int startup = 0;
 	bool startedUp = false;
 	ActiveDataArray actives;
+	MaxHitInfo maxHit;
+	int hitOnFrame = 0;
 	int recovery = 0;
 	int total = 0;
 	
@@ -569,6 +694,7 @@ struct ProjectileInfo {
 	int hitstopMax = 0;
 	int clashHitstop = 0;
 	int startup = 0;  // if active frames have not started yet, is equal to total. Otherwise, means time since the owning player has started their last move until active frames, inclusive
+	int hitOnFrame = 0;
 	int total = 0;  // time since the owning player started their last move
 	int hitNumber = 0;  // updated every frame
 	int numberOfHits = 0;
@@ -580,8 +706,10 @@ struct ProjectileInfo {
 	
 	DWORD creationTime_aswEngineTick = 0;
 	ActiveDataArray actives;
-	const MoveInfo* move = nullptr;
+	MoveInfo move {};
 	PrevStartupsInfo prevStartups { 0 };
+	const char* lastName = nullptr;
+	const char* lastSlangName = nullptr;
 	SpriteFrameInfo sprite;
 	int framebarId = -1;
 	char creatorName[32] { 0 };
@@ -596,6 +724,7 @@ struct ProjectileInfo {
 	bool superArmorActive:1;
 	bool clashedOnThisFrame:1;
 	bool immuneToRCSlowdown:1;
+	bool moveNonEmpty:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -606,6 +735,7 @@ struct ProjectileInfo {
 	void fill(Entity ent);
 	void printStartup(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
+	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
 };
 
 struct InvulData {
@@ -614,10 +744,9 @@ struct InvulData {
 	ActiveDataArray frames;
 	void clear();
 	void addInvulFrame(int prevTotal);
+	void removeFirstNFrames(int n);
 };
 
-// This struct is cleared by setting all its memory to zero. If you add a new member, make sure it's ok to initialize it with 0.
-// This means you cannot add std::vector or std::string here.
 struct PlayerInfo {
 	Entity pawn{ nullptr };
 	int hp = 0;
@@ -720,6 +849,7 @@ struct PlayerInfo {
 	int superfreezeStartup = 0;
 	
 	int startup = 0;  // startup of the last move done directly by the character
+	int hitOnFrame = 0;
 	ActiveDataArray actives;  // active frames of the last move done directly by the character
 	int recovery = 0;  // recovery of the last move done directly by the character. Includes only frames where you can't attack
 	int total = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't attack
@@ -730,9 +860,12 @@ struct PlayerInfo {
 	int totalFD = 0;  // number of frames for which you were holding FD
 	
 	PrevStartupsInfo prevStartups { 0 };  // startups of moves that you whiff canceled from
+	const char* lastPerformedMoveName = nullptr;
+	const char* lastPerformedMoveSlangName = nullptr;
 	
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move
+	int hitOnFrameDisp = 0;
 	MaxHitInfo maxHitDisp;
 	int recoveryDisp = 0;  // recovery to display in the UI. Either current or of the last move. Includes only frames where you can't attack
 	int recoveryDispCanBlock = -1;  // recovery until becoming able to block to display in the UI. Either current or of the last move. Includes only frames where you can't block. -1 means need to determine automatically
@@ -742,6 +875,7 @@ struct PlayerInfo {
 	int hitNumber = 0;
 	
 	int startupProj = 0;  // startup of all projectiles. Either current or of the last move
+	int hitOnFrameProj = 0;
 	unsigned short startupProjIgnoredForFramebar = 0;
 	ActiveDataArray activesProj;  // active frames of all projectiles. Either current or of the last move
 	MaxHitInfo maxHitProj;
@@ -784,12 +918,13 @@ struct PlayerInfo {
 	int timeInNewSection = 0;
 	DWORD wasForceDisableFlags = 0;
 	SpriteFrameInfo sprite;
-	const MoveInfo* move = nullptr;
+	MoveInfo move {};
 	
 	int playerval0 = 0;
 	int playerval1 = 0;
 	int maxDI = 0;
 	char remainingDoubleJumps = 0;
+	char remainingAirDashes = 0;
 	char wasProhibitFDTimer = 0;
 	char rcSlowdownCounter = 0;
 	char rcSlowdownMax = 0;
@@ -800,6 +935,12 @@ struct PlayerInfo {
 	DWORD moveStartTime_aswEngineTick = 0;
 	AddedMoveData* standingFDMove = nullptr;
 	AddedMoveData* crouchingFDMove = nullptr;
+	PlayerCancelInfo cancels[10] { };
+	int cancelsTimer = 0;
+	FrameCancelInfo wasCancels;
+	int cancelsCount = 0;
+	char grabAnimation[32] { '\0' };
+	bool cancelsOverflow = false;
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };
@@ -849,6 +990,7 @@ struct PlayerInfo {
 	bool landingFrameAdvantageIncludesIdlenessInNewSection:1;  // since frame advantage gets corrected after becoming idle in new section, we need to track if we changed it already
 	bool airteched:1;
 	bool wokeUp:1;
+	bool regainedAirOptions:1;
 	
 	// These fields are needed because when tap Blitz Shield rejects an attack,
 	// it only enables normals after hitstop at the end of the logic tick, when
@@ -864,6 +1006,7 @@ struct PlayerInfo {
 	bool wasEnableWhiffCancels:1;
 	bool wasEnableSpecials:1;
 	bool wasEnableSpecialCancel:1;
+	bool wasEnableJumpCancel:1;
 	bool wasEnableAirtech:1;
 	bool wasAttackCollidedSoCanCancelNow:1;
 	bool obtainedForceDisableFlags:1;
@@ -892,6 +1035,9 @@ struct PlayerInfo {
 	bool immuneToRCSlowdown:1;
 	bool wasHitOnPreviousFrame:1;
 	bool wasHitOnThisFrame:1;
+	bool grab:1;  // this doesn't work on regular ground and air throws
+	bool lastMoveIsPartOfStance:1;
+	bool moveNonEmpty:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
@@ -904,6 +1050,7 @@ struct PlayerInfo {
 	void printGaps(char* buf, size_t bufSize);
 	void clear();
 	void copyTo(PlayerInfo& dest);
+	int startupType() const;
 	void printStartup(char* buf, size_t bufSize);
 	void printRecovery(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
@@ -925,4 +1072,9 @@ struct PlayerInfo {
 	bool wasHadGatlings() const;
 	bool wasHadWhiffCancels() const;
 	CanProgramSecretGardenInfo canProgramSecretGarden() const;
+	void appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel);
+	void appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel);
+	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
+	void onAnimReset();
+	void removeNonStancePrevStartups();
 };

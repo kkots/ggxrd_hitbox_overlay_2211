@@ -1529,27 +1529,51 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	};
 	device->SetTransform(D3DTS_WORLD, &world);
 	
+	// D3D axes:
+	// Z points into the screen
+	// X points right
+	// Y points up
 	
-	D3DXMATRIX cameraTranslation;
-	D3DXMatrixTranslation(&cameraTranslation, -camera.valuesUse.pos.x, -camera.valuesUse.pos.y, -camera.valuesUse.pos.z);
+	// UE3 axes:
+	// Z points up
+	// Y points away from the fighting arena, to the right from P1's character's side
+	// X points to the right of arena
+	
+	// ArcSys axes:
+	// Z points away from and out of the screen
+	// Y points up
+	// X points right
+	
+	// yaw goes from positive direction of x to positive direction of y in UE3 coordinate space
+	// pitch goes from positive direction of x to positive direction of z
+	// roll goes from positive direction of z to positive direction of y
 	
 	m = PI / 32768.F;
-	D3DXMATRIX cameraRotation;
-	D3DXMATRIX cameraRotationX;
-	D3DXMatrixRotationX(&cameraRotationX, (float)-camera.valuesUse.roll * m);
-	D3DXMATRIX cameraRotationY;
-	D3DXMatrixRotationY(&cameraRotationY, (float)camera.valuesUse.pitch * m);  // no idea why pitch is flipped
-	D3DXMATRIX cameraRotationZ;
-	D3DXMatrixRotationZ(&cameraRotationZ, (float)-camera.valuesUse.yaw * m);
-	cameraRotation = cameraRotationZ;
-	D3DXMATRIX cameraRotationOut;
-	D3DXMatrixMultiply(&cameraRotationOut, &cameraRotation, &cameraRotationY);
-	cameraRotation = cameraRotationOut;
-	D3DXMatrixMultiply(&cameraRotationOut, &cameraRotation, &cameraRotationX);
-	cameraRotation = cameraRotationOut;
-	
 	D3DXMATRIX view;
-	D3DXMatrixMultiply(&view, &cameraTranslation, &cameraRotation);
+	D3DXMATRIX mat1;
+	// The reason we apply translation first is because we need to move everything to where the camera is before rotating.
+	// We rotate everything in the opposite direction to undo the camera's rotation.
+	// The camera itself, if we please view it as a model for a second here, was rotated roll, then pitch, then yaw, then translated.
+	// So to do the reverse of that, we have to untranslate, unyaw, unpitch and then unroll.
+	D3DXMatrixTranslation(&mat1, -camera.valuesUse.pos.x, -camera.valuesUse.pos.y, -camera.valuesUse.pos.z);
+	D3DXMATRIX mat2;
+	// The reason the angle is not reversed here is because the function's rotation is defined as:
+	// "Angles are measured clockwise when looking along the rotation axis toward the origin."
+	// Clearly, this function rotates from positive direction of x to positive direction of y which is exactly what we need
+	D3DXMatrixRotationZ(&mat2, (float)-camera.valuesUse.yaw * m);
+	D3DXMatrixMultiply(&view, &mat1, &mat2);
+	// The reason the angle is reversed here is because the function's rotation is defined as:
+	// "Angles are measured clockwise when looking along the rotation axis toward the origin."
+	// Clearly, this function rotates from positive direction of z to positive direction of x which is the opposite of what we need
+	D3DXMatrixRotationY(&mat2, (float)camera.valuesUse.pitch * m);
+	mat1 = view;
+	D3DXMatrixMultiply(&view, &mat1, &mat2);
+	// The reason the angle is reversed here is because the function's rotation is defined as:
+	// "Angles are measured clockwise when looking along the rotation axis toward the origin."
+	// Clearly, this function rotates from positive direction of y to positive direction of z which is the opposite of what we need
+	D3DXMatrixRotationX(&mat2, (float)camera.valuesUse.roll * m);
+	mat1 = view;
+	D3DXMatrixMultiply(&view, &mat1, &mat2);
 	device->SetTransform(D3DTS_VIEW, &view);
 	
 	D3DVIEWPORT9 viewport;
@@ -1558,15 +1582,20 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	float vh = (float)viewport.Height;
 	viewportW = vw;
 	viewportH = vh;
-	float t = 1.F / tanf(camera.valuesUse.fov / 360.F * PI);
+	float t = 1.F / tanf(camera.valuesUse.fov / 360.F * PI);  // this is from Altimor's formula
 	
+	// A thing of note is that D3D automatically divides x and y by z at the end.
+	// Tests show if w does not equal z, nothing gets drawn on the screen. So w must equal z.
+	// X goes from -1 (left side) to 1 (right side).
+	// Y goes from 1 (top side) to -1 (bottom side).
+	// Z goes into the screen.
 	D3DXMATRIX projection;
 	projection = {
-		1.F / vw, 1.F / vh,    1.F, 1.F,
-		t,        0.F,         0.F, 0.F,
-		0.F,      t * vw / vh, 0.F, 0.F,
-		0.F,      0.F,         0.F, 0.F
-	};
+		1.F / vw, 1.F / vh,     1.F, 1.F,  // UE3 uses left-hand coordinates, and D3D also uses left-hand
+		t,        0.F,          0.F, 0.F,
+		0.F,      t * vw / vh,  0.F, 0.F,
+		0.F,      0.F,          0.F, 0.F
+	};  // the "1.F / vw, 1.F / vh" at the top left are from Altimor's formula, because multiplying and dividing them by Z will give us that half a pixel
 	device->SetTransform(D3DTS_PROJECTION, &projection);
 	
 	currentTransformSet = CURRENT_TRANSFORM_3D_PROJECTION;

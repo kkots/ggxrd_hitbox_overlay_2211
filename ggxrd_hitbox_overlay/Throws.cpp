@@ -12,6 +12,7 @@
 #include "Settings.h"
 #include "EndScene.h"
 #include "Game.h"
+#include "Hardcode.h"
 
 Throws throws;
 
@@ -106,7 +107,7 @@ void Throws::hitDetectionMainHook() {
 		);
 
 		bool isMettagiri = charType == CHARACTER_TYPE_FAUST
-			&& strcmp(ent.animationName(), "Mettagiri") == 0
+			&& strcmp(ent.animationName(), "Mettagiri"_hardcode) == 0
 			&& currentAnimDuration <= 1
 			&& !ent.isRCFrozen();
 		if (isMettagiri) {

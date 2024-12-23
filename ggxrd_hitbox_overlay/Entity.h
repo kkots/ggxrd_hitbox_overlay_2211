@@ -418,6 +418,40 @@ enum MoveSubcategory {
     MOVE_SUBCATEGORY_BAIKEN_AZAMI
 };
 
+enum MoveType {
+	MOVE_TYPE_NEUTRAL = 0,
+	MOVE_TYPE_FORWARD_WALK = 1,
+	MOVE_TYPE_BACKWARD_WALK = 2,
+	MOVE_TYPE_FORWARD_DASH = 3,
+	MOVE_TYPE_BACKWARD_DASH = 4,
+	MOVE_TYPE_FORWARD_JUMP = 5,
+	MOVE_TYPE_BACKWARD_JUMP = 6,
+	MOVE_TYPE_NEUTRAL_JUMP = 7,
+	MOVE_TYPE_FORWARD_SUPER_JUMP = 8,
+	MOVE_TYPE_BACKWARD_SUPER_JUMP = 9,
+	MOVE_TYPE_NEUTRAL_SUPER_JUMP = 10,
+	MOVE_TYPE_FORWARD_AIR_JUMP = 11,
+	MOVE_TYPE_BACKWARD_AIR_JUMP = 12,
+	MOVE_TYPE_NEUTRAL_AIR_JUMP = 13,
+	MOVE_TYPE_FORWARD_AIR_DASH = 14,
+	MOVE_TYPE_BACKWARD_AIR_DASH = 15,
+	MOVE_TYPE_DUST_FOLLOWUP = 16,
+	MOVE_TYPE_NORMAL = 17,
+	MOVE_TYPE_SPECIAL = 18,
+	MOVE_TYPE_MIST_CANCEL = 19,
+	MOVE_TYPE_OVERDRIVE = 20,
+	MOVE_TYPE_INSTANT_KILL = 21,
+	MOVE_TYPE_DEAD_ANGLE_ATTACK = 22,
+	MOVE_TYPE_BLUE_BURST = 23,
+	MOVE_TYPE_GOLD_BURST = 24,
+	MOVE_TYPE_E_MOVE = 25,
+	MOVE_TYPE_FAULTLESS_DEFENCE = 26,
+	MOVE_TYPE_ROMAN_CANCEL_YELLOW = 27,
+	MOVE_TYPE_ROMAN_CANCEL_REDPURPLE = 28,  // I think all Roman Cancels are just this type instead
+	MOVE_TYPE_INSTANT_KILL_PREPARATION = 29,
+	MOVE_TYPE_BLITZ_SHIELD = 30
+};
+
 struct AddedMoveData {
 	int index;
 	int stylishRealMoveIndex;  // for stylish moves: realMoveIndex. Non-stylish: matches index
@@ -425,7 +459,7 @@ struct AddedMoveData {
 	char stylishRealMoveName[32];
 	char stateName[32];  // state function name
 	unsigned int requestActionFlag; // bitfield
-	DWORD type;
+	MoveType type;
 	MoveSubcategory subcategory;
 	MoveCharacterState characterState;
 	DWORD flags0x78;
@@ -540,9 +574,11 @@ public:
 	// some of these are really hard to describe without comments that super continent's (Pangaea's) bbscript database doesn't have.
 	// This is set when hitting someone and reset on recovery
 	inline bool attackCollidedSoCanCancelNow() const { return (*(DWORD*)(ent + 0x23c) & 0x20) != 0; }
+	inline bool attackCollidedSoCanJumpCancelNow() const { return (*(DWORD*)(ent + 0x240) & 0x100000) != 0; }
 	inline bool enableAirtech() const { return (*(DWORD*)(ent + 0x4d40) & 0x4) != 0; }
 	inline bool enableWhiffCancels() const { return (*(DWORD*)(ent + 0x4d48) & 0x2) != 0; }
 	inline bool enableSpecialCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x4) != 0; }
+	inline bool enableJumpCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x8) != 0; }
 	inline bool enableNormals() const { return (*(DWORD*)(ent + 0x4d3c) & 0x1000) != 0; }
 	inline bool enableSpecials() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2000) != 0; }
 	inline bool enableGatlings() const { return (*(DWORD*)(ent + 0x4d48) & 0x1) != 0; }
@@ -672,6 +708,9 @@ public:
 	inline BYTE* bbscrCurrentInstr() const { return *(BYTE**)(ent + 0xa50); }
 	inline BYTE* bbscrCurrentFunc() const { return *(BYTE**)(ent + 0xa54); }  // points to a beginState instruction
 	inline int remainingDoubleJumps() const { return *(int*)(ent + 0x4d58); }
+	inline int remainingAirDashes() const { return *(int*)(ent + 0x4d5c); }
+	inline int maxAirdashes() const { return *(int*)(ent + 0x9884); }
+	inline int maxDoubleJumps() const { return *(int*)(ent + 0x9888); }
 	inline Entity playerEntity() const { return *(Entity*)(ent + 0x1d0); }
 	inline Entity effectLinkedCollision() const { return *(Entity*)(ent + 0x204); }
 	inline bool collisionForceExpand() const { return (*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0; }  // having this flag means you ignore the hitboxes hit detection check

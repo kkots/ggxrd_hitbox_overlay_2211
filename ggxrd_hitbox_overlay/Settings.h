@@ -62,7 +62,8 @@ public:
 	std::atomic_bool drawPushboxCheckSeparately = true;
 	std::atomic_bool forceZeroPitchDuringCameraCentering = true;
 	std::atomic_bool modWindowVisibleOnStart = true;
-	std::atomic_bool closingModWindowAlsoHidesFramebar = true;
+	std::atomic_bool closingModWindowAlsoHidesFramebar = false;
+	std::atomic_bool dontShowMoveName = true;
 	std::atomic_bool neverIgnoreHitstop = false;
 	std::atomic_bool ignoreHitstopForBlockingBaiken = false;
 	std::atomic_bool considerRunAndWalkNonIdle = false;
@@ -85,11 +86,13 @@ public:
 	std::atomic_bool dontClearFramebarOnStageReset = false;
 	std::atomic_bool useColorblindHelp = false;
 	std::atomic_bool dontTruncateFramebarTitles = false;
+	std::atomic_bool useSlangNames = false;
 	std::atomic_bool allFramebarTitlesDisplayToTheLeft = true;
 	std::atomic_bool showPlayerInFramebarTitle = true;
 	std::atomic_bool considerKnockdownWakeupAndAirtechIdle = false;
 	std::atomic_bool considerIdleInvulIdle = true;
-	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = false;
+	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = true;
+	std::atomic_bool skipGrabsInFramebar = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

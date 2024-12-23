@@ -204,7 +204,7 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(framebarTitleCharsMax), "Framebar Title Max Characters", settingsFramebarSettingsStr, "; A number.\n"
 			"; Specifies the maximum number of characters that can be displayed in a framebar title.\n"
 			"; This does not include the \"P1 \" and \"P2 \" additional text that is displayed when \"showPlayerInFramebarTitle\" is true.\n"
-			"; You can use \"useSlangNamesInFramebarTitle\" to help reduce the lengths of text displayed in framebar titles.\n"
+			"; You can use \"useSlangNames\" to help reduce the lengths of text displayed in framebar titles.\n"
 			"; The standard value is 12.");
 	registerOtherDescription(settingAndItsName(allowContinuousScreenshotting), "Allow Continuous Screenshotting When Button Is Held", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
@@ -338,12 +338,18 @@ bool Settings::onDllMain() {
 			"; When true, projectiles will never be combined even if there are very many of them and they're all same.");
 	registerOtherDescription(settingAndItsName(dontClearFramebarOnStageReset), "Don't Clear Framebar On Stage Reset", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
-			"; When true, the framebar won't be cleared when resetting the stage with Record+Playback or Backspace in Training Mode,\n"
+			"; When true, the framebar won't be cleared when resetting the stage with Record+Playback or Backspace or Pause Menu - Reset Position in Training Mode,\n"
 			"; or when a player dies or when a new rounds starts.");
 	registerOtherDescription(settingAndItsName(dontTruncateFramebarTitles), "Don't Truncate Framebar Titles", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Each framebar displays a label or title either to the left or to the right from it. The titles are truncated to 12 character by default.\n"
 			"; By setting this setting to true, you can stop them from truncating and always display full titles.");
+	registerOtherDescription(settingAndItsName(useSlangNames), "Use Slang In Move & Projectile Names", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; Each framebar displays a label or title either to the left or to the right from it.\n"
+			"; When the title is too long, depending on the setting, it gets cut off. Setting this to true changes some\n"
+			"; projectile titles to slang names to make framebar titles short so that they fit.\n"
+			"; This also changes names of moves that are displayed in main UI window and other windows.");
 	registerOtherDescription(settingAndItsName(allFramebarTitlesDisplayToTheLeft), "All Framebar Titles Display On The Left", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.\n"
@@ -410,6 +416,9 @@ bool Settings::onDllMain() {
 			"; Setting this to false will cause the idle time that you spent before the opponent entered blockstun to not be included\n"
 			"; in your frame advantage, and your frame advantage in the example above will be just +1.\n"
 			"; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.");
+	registerOtherDescription(settingAndItsName(skipGrabsInFramebar), "Skip Grab Animations In Framebar", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; Setting this to true will skip grab animations such as ground throw or some supers that connected in the framebar.");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -446,6 +455,12 @@ bool Settings::onDllMain() {
 			"; will also hide the framebar, while opening the main mod's window will show the framebar.\n"
 			"; Alternatively you could set up a separate hotkey to control visibility of the framebar, using \"framebarVisibilityToggle\".\n"
 			"; Note that even when the UI is open, \"showFramebar\" must be set to true for the framebar to be visible.");
+	registerOtherDescription(settingAndItsName(dontShowMoveName), "Don't Show Move's Name", settingsGeneralSettingsStr,
+			"; Specify true or false.\n"
+			"; In the main UI window, there's a field called 'Move' which displays the last performed move or several moves\n"
+			"; that the mod decided to combine together. That text can get pretty long. If you set this setting to true,\n"
+			"; then that field will be hidden, and you will only be able to see moves' names either in 'Cancels (P1/P2)' window,\n"
+			"; or by hovering your mouse over the 'Startup' or 'Total' fields in the main UI window and reading their tooltip.");
 	#undef settingAndItsName
 	
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));
@@ -653,6 +668,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool dontTruncateFramebarTitlesParsed = false;
 	
+	bool useSlangNamesParsed = false;
+	
 	bool allFramebarTitlesDisplayToTheLeftParsed = false;
 	
 	bool showPlayerInFramebarTitleParsed = false;
@@ -665,11 +682,15 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool frameAdvantage_dontUsePreBlockstunTimeParsed = false;
 	
+	bool skipGrabsInFramebarParsed = false;
+	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
 	bool modWindowVisibleOnStartParsed = false;
 	
 	bool closingModWindowAlsoHidesFramebarParsed = false;
+
+	bool dontShowMoveNameParsed = false;
 
 	std::string accum;
 	char buf[128];
@@ -801,6 +822,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			if (!dontTruncateFramebarTitlesParsed && _stricmp(keyName.c_str(), "dontTruncateFramebarTitles") == 0) {
 				dontTruncateFramebarTitlesParsed = parseBoolean("dontTruncateFramebarTitles", keyValue, dontTruncateFramebarTitles);
 			}
+			if (!useSlangNamesParsed && _stricmp(keyName.c_str(), "useSlangNames") == 0) {
+				useSlangNamesParsed = parseBoolean("useSlangNames", keyValue, useSlangNames);
+			}
 			if (!allFramebarTitlesDisplayToTheLeftParsed && _stricmp(keyName.c_str(), "allFramebarTitlesDisplayToTheLeft") == 0) {
 				allFramebarTitlesDisplayToTheLeftParsed = parseBoolean("allFramebarTitlesDisplayToTheLeft", keyValue, allFramebarTitlesDisplayToTheLeft);
 			}
@@ -833,6 +857,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			if (!frameAdvantage_dontUsePreBlockstunTimeParsed && _stricmp(keyName.c_str(), "frameAdvantage_dontUsePreBlockstunTime") == 0) {
 				frameAdvantage_dontUsePreBlockstunTimeParsed = parseBoolean("frameAdvantage_dontUsePreBlockstunTime", keyValue, frameAdvantage_dontUsePreBlockstunTime);
 			}
+			if (!skipGrabsInFramebarParsed && _stricmp(keyName.c_str(), "skipGrabsInFramebar") == 0) {
+				skipGrabsInFramebarParsed = parseBoolean("skipGrabsInFramebar", keyValue, skipGrabsInFramebar);
+			}
 			if (!forceZeroPitchDuringCameraCenteringParsed && _stricmp(keyName.c_str(), "forceZeroPitchDuringCameraCentering") == 0) {
 				forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
 			}
@@ -841,6 +868,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			}
 			if (!closingModWindowAlsoHidesFramebarParsed && _stricmp(keyName.c_str(), "closingModWindowAlsoHidesFramebar") == 0) {
 				closingModWindowAlsoHidesFramebarParsed = parseBoolean("closingModWindowAlsoHidesFramebar", keyValue, closingModWindowAlsoHidesFramebar);
+			}
+			if (!dontShowMoveNameParsed && _stricmp(keyName.c_str(), "dontShowMoveName") == 0) {
+				dontShowMoveNameParsed = parseBoolean("dontShowMoveName", keyValue, dontShowMoveName);
 			}
 			if (feof(file)) break;
 		}
@@ -979,6 +1009,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 		dontTruncateFramebarTitles = false;
 	}
 	
+	if (!useSlangNamesParsed) {
+		useSlangNames = false;
+	}
+	
 	if (!allFramebarTitlesDisplayToTheLeftParsed) {
 		allFramebarTitlesDisplayToTheLeft = true;
 	}
@@ -1011,6 +1045,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 		frameAdvantage_dontUsePreBlockstunTime = false;
 	}
 	
+	if (!skipGrabsInFramebarParsed) {
+		skipGrabsInFramebar = true;
+	}
+	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
 		forceZeroPitchDuringCameraCentering = true;
 	}
@@ -1021,6 +1059,14 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!closingModWindowAlsoHidesFramebarParsed) {
 		closingModWindowAlsoHidesFramebar = true;
+	}
+	
+	if (!dontShowMoveNameParsed) {
+		dontShowMoveName = false;
+	}
+	
+	if (!dontShowMoveNameParsed) {
+		dontShowMoveName = false;
 	}
 	
 	if (firstSettingsParse) {
@@ -1537,10 +1583,12 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("turnOffPostEffectWhenMakingBackgroundBlack", formatBoolean(turnOffPostEffectWhenMakingBackgroundBlack), getOtherINIDescription(&turnOffPostEffectWhenMakingBackgroundBlack));
 	replaceOrAddSetting("drawPushboxCheckSeparately", formatBoolean(drawPushboxCheckSeparately), getOtherINIDescription(&drawPushboxCheckSeparately));
 	replaceOrAddSetting("frameAdvantage_dontUsePreBlockstunTime", formatBoolean(frameAdvantage_dontUsePreBlockstunTime), getOtherINIDescription(&frameAdvantage_dontUsePreBlockstunTime));
+	replaceOrAddSetting("skipGrabsInFramebar", formatBoolean(skipGrabsInFramebar), getOtherINIDescription(&skipGrabsInFramebar));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));
 	replaceOrAddSetting("closingModWindowAlsoHidesFramebar", formatBoolean(closingModWindowAlsoHidesFramebar), getOtherINIDescription(&closingModWindowAlsoHidesFramebar));
+	replaceOrAddSetting("dontShowMoveName", formatBoolean(dontShowMoveName), getOtherINIDescription(&dontShowMoveName));
 	replaceOrAddSetting("neverDisplayGrayHurtboxes", formatBoolean(neverDisplayGrayHurtboxes), getOtherINIDescription(&neverDisplayGrayHurtboxes));
 	replaceOrAddSetting("dontShowBoxes", formatBoolean(dontShowBoxes), getOtherINIDescription(&dontShowBoxes));
 	replaceOrAddSetting("displayUIOnTopOfPauseMenu", formatBoolean(displayUIOnTopOfPauseMenu), getOtherINIDescription(&displayUIOnTopOfPauseMenu));
@@ -1558,6 +1606,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("eachProjectileOnSeparateFramebar", formatBoolean(eachProjectileOnSeparateFramebar), getOtherINIDescription(&eachProjectileOnSeparateFramebar));
 	replaceOrAddSetting("dontClearFramebarOnStageReset", formatBoolean(dontClearFramebarOnStageReset), getOtherINIDescription(&dontClearFramebarOnStageReset));
 	replaceOrAddSetting("dontTruncateFramebarTitles", formatBoolean(dontTruncateFramebarTitles), getOtherINIDescription(&dontTruncateFramebarTitles));
+	replaceOrAddSetting("useSlangNames", formatBoolean(useSlangNames), getOtherINIDescription(&useSlangNames));
 	replaceOrAddSetting("allFramebarTitlesDisplayToTheLeft", formatBoolean(allFramebarTitlesDisplayToTheLeft), getOtherINIDescription(&allFramebarTitlesDisplayToTheLeft));
 	replaceOrAddSetting("showPlayerInFramebarTitle", formatBoolean(showPlayerInFramebarTitle), getOtherINIDescription(&showPlayerInFramebarTitle));
 	replaceOrAddSetting("framebarHeight", formatInteger(framebarHeight).c_str(), getOtherINIDescription(&framebarHeight));

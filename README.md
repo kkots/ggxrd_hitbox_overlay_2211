@@ -475,6 +475,13 @@ showFramebarInOtherModes = false
 ; Note that even when the UI is open, "showFramebar" must be set to true for the framebar to be visible.
 closingModWindowAlsoHidesFramebar = true
 
+; Specify true or false.
+; In the main UI window, there's a field called 'Move' which displays the last performed move or several moves
+; that the mod decided to combine together. That text can get pretty long. If you set this setting to true,
+; then that field will be hidden, and you will only be able to see moves' names either in 'Cancels (P1/P2)' window,
+; or by hovering your mouse over the 'Startup' or 'Total' fields in the main UI window and reading their tooltip.
+dontShowMoveName = false
+
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.
 ; If closingModWindowAlsoHidesFramebar is true, then setting showFramebar to true is not enough, as the main
@@ -516,7 +523,7 @@ combineProjectileFramebarsWhenPossible = false
 eachProjectileOnSeparateFramebar = false
 
 ; Specify true or false.
-; When true, the framebar won't be cleared when resetting the stage with Record+Playback or Backspace in Training Mode,
+; When true, the framebar won't be cleared when resetting the stage with Record+Playback or Backspace or Pause Menu - Reset Position in Training Mode,
 ; or when a player dies or when a new rounds starts.
 dontClearFramebarOnStageReset = false
 
@@ -524,6 +531,13 @@ dontClearFramebarOnStageReset = false
 ; Each framebar displays a label or title either to the left or to the right from it. The titles are truncated to 12 character by default.
 ; By setting this setting to true, you can stop them from truncating and always display full titles.
 dontTruncateFramebarTitles = false
+
+; Specify true or false.
+; Each framebar displays a label or title either to the left or to the right from it.
+; When the title is too long, depending on the setting, it gets cut off. Setting this to true changes some
+; projectile titles to slang names to make framebar titles short so that they fit.
+; This also changes names of moves that are displayed in main UI window and other windows.
+useSlangNames = false
 
 ; Specify true or false.
 ; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.
@@ -539,7 +553,7 @@ framebarHeight = 19
 ; A number.
 ; Specifies the maximum number of characters that can be displayed in a framebar title.
 ; This does not include the "P1 " and "P2 " additional text that is displayed when "showPlayerInFramebarTitle" is true.
-; You can use "useSlangNamesInFramebarTitle" to help reduce the lengths of text displayed in framebar titles.
+; You can use "useSlangNames" to help reduce the lengths of text displayed in framebar titles.
 ; The standard value is 12.
 framebarTitleCharsMax = 12
 
@@ -556,6 +570,10 @@ framebarTitleCharsMax = 12
 ; in your frame advantage, and your frame advantage in the example above will be just +1.
 ; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.
 frameAdvantage_dontUsePreBlockstunTime = false
+
+; Specify true or false.
+; Setting this to true will skip grab animations such as ground throw or some supers that connected in the framebar.
+skipGrabsInFramebar = true
 
 ; Specify true or false.
 ; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,

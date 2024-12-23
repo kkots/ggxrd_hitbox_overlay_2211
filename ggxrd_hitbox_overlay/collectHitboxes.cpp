@@ -5,6 +5,7 @@
 #include "EntityList.h"
 #include "Hitbox.h"
 #include "colors.h"
+#include "Hardcode.h"
 
 void collectHitboxes(Entity ent,
 		const bool active,
@@ -29,7 +30,7 @@ void collectHitboxes(Entity ent,
 			|| ent.y() < -3000000  // needed for May [2]8S/H
 			|| ent.isHidden()  // needed for super animations
 			|| ownerType == CHARACTER_TYPE_LEO
-			&& strcmp(ent.animationName(), "Semuke5E_Reflect") == 0) {
+			&& strcmp(ent.animationName(), "Semuke5E_Reflect"_hardcode) == 0) {
 		return;
 	}
 	
@@ -191,13 +192,13 @@ void collectHitboxes(Entity ent,
 	if (interactionBoxes) {
 		if (ownerType == CHARACTER_TYPE_FAUST && !ent.mem50() && ent.y() == 0) {
 			int rangeX = 0;
-			if (strcmp(ent.animationName(), "Item_Chocolate") == 0) {
+			if (strcmp(ent.animationName(), "Item_Chocolate"_hardcode) == 0) {
 				rangeX = 84000;
-			} else if (strcmp(ent.animationName(), "Item_BestChocolate") == 0) {
+			} else if (strcmp(ent.animationName(), "Item_BestChocolate"_hardcode) == 0) {
 				rangeX = 168000;
-			} else if (strcmp(ent.animationName(), "Item_Donut") == 0) {
+			} else if (strcmp(ent.animationName(), "Item_Donut"_hardcode) == 0) {
 				rangeX = 84000;
-			} else if (strcmp(ent.animationName(), "Item_ManyDonut") == 0) {
+			} else if (strcmp(ent.animationName(), "Item_ManyDonut"_hardcode) == 0) {
 				rangeX = 168000;
 			}
 			if (rangeX) {

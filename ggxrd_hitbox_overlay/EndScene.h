@@ -9,6 +9,7 @@
 #include "PlayerInfo.h"
 #include "DrawData.h"
 #include <unordered_set>
+#include <memory>
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -427,7 +428,6 @@ private:
 	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame);
 	void collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move, int iterationIndex);
 	bool checkMoveConditions(PlayerInfo& player, const AddedMoveData* move);
-	FrameCancelInfo playerWasCancels[2];  // this is kept outside of PlayerInfo, because PlayerInfo gets memset to 0 and this contains std::vectors. Zeroing an std::vector may be bad
 	bool whiffCancelIntoFDEnabled(PlayerInfo& player);
 	Entity getSuperflashInstigator();
 	int getSuperflashCounterOpponent();

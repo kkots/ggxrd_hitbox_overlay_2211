@@ -98,6 +98,10 @@ private:
 	bool showSpeedsData = false;
 	bool showBoxExtents = false;
 	bool showFrameAdvTooltip = false;
+	bool showStartupTooltip = false;
+	bool showActiveTooltip = false;
+	bool showTotalTooltip = false;
+	bool showInvulTooltip = false;
 	void* hook_GetKeyStatePtr = nullptr;
 	IDirect3DTexture9* imguiFont = nullptr;
 	void onImGuiMessWithFontTexID();
@@ -190,6 +194,10 @@ private:
 			return arr[index].name;
 		};
 	};
+	bool booleanSettingPreset(std::atomic_bool& settingsPtr);
+	bool float4SettingPreset(float& settingsPtr);
+	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue);
+	bool showCancels[2] { false, false };
 };
 
 extern UI ui;

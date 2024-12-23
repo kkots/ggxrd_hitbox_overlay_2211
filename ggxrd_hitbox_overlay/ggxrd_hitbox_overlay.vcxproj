@@ -187,6 +187,7 @@
     <ClInclude Include="GifMode.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="BoundingRect.h" />
+    <ClInclude Include="Hardcode.h" />
     <ClInclude Include="Hitbox.h" />
     <ClInclude Include="HitDetector.h" />
     <ClInclude Include="Hud.h" />
@@ -300,10 +301,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\images\ActiveFrame.png" />
-    <Image Include="..\images\ActiveFrame_CanCancel.png" />
-    <Image Include="..\images\ActiveFrame_CanCancel_NewHit.png" />
-    <Image Include="..\images\ActiveFrame_CanCancel_NewHit_NonColorblind.png" />
-    <Image Include="..\images\ActiveFrame_CanCancel_NonColorblind.png" />
     <Image Include="..\images\ActiveFrame_Hitstop.png" />
     <Image Include="..\images\ActiveFrame_Hitstop_NonColorblind.png" />
     <Image Include="..\images\ActiveFrame_NewHit.png" />
@@ -331,10 +328,6 @@
     <Image Include="..\images\IdleFrame_ElpheltRifle_CanStopHolding.png" />
     <Image Include="..\images\IdleFrame_ElpheltRifle_CanStopHolding_NonColorblind.png" />
     <Image Include="..\images\IdleFrame_ElpheltRifle_NonColorblind.png" />
-    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage2.png" />
-    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage2_NonColorblind.png" />
-    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage3.png" />
-    <Image Include="..\images\IdleFrame_Zato_BreakTheLaw_Stage3_NonColorblind.png" />
     <Image Include="..\images\LandingRecoveryFrame.png" />
     <Image Include="..\images\LandingRecoveryFrame_CanCancel.png" />
     <Image Include="..\images\LandingRecoveryFrame_CanCancel_NonColorblind.png" />
@@ -355,8 +348,6 @@
     <Image Include="..\images\StartupFrame.png" />
     <Image Include="..\images\StartupFrame_CanBlock.png" />
     <Image Include="..\images\StartupFrame_CanBlock_NonColorblind.png" />
-    <Image Include="..\images\StartupFrame_FaustPogo.png" />
-    <Image Include="..\images\StartupFrame_FaustPogo_NonColorblind.png" />
     <Image Include="..\images\StartupFrame_NonColorblind.png" />
     <Image Include="..\images\StrikeInvul.png" />
     <Image Include="..\images\SuperArmorActive.png" />

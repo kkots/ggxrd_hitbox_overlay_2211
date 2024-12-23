@@ -6,37 +6,6 @@
 #include "EndScene.h"
 #include "EntityList.h"
 
-bool cantAttackTypes[FT_LAST] { 0 };
-
-void initializeCantAttackTypes() {
-	cantAttackTypes[FT_ACTIVE] = true;
-	cantAttackTypes[FT_ACTIVE_PROJECTILE] = true;
-	cantAttackTypes[FT_STARTUP] = true;
-	cantAttackTypes[FT_STARTUP_ANYTIME_NOW] = true;
-	cantAttackTypes[FT_STARTUP_ANYTIME_NOW_CAN_ACT] = true;
-	cantAttackTypes[FT_STARTUP_STANCE] = true;
-	cantAttackTypes[FT_STARTUP_STANCE_CAN_STOP_HOLDING] = true;
-	cantAttackTypes[FT_STARTUP_CAN_BLOCK] = true;
-	cantAttackTypes[FT_STARTUP_CAN_BLOCK_AND_CANCEL] = true;
-	cantAttackTypes[FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN] = true;
-	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE2] = true;
-	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE3] = true;
-	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED] = true;
-	cantAttackTypes[FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED] = true;
-	cantAttackTypes[FT_RECOVERY] = true;
-	cantAttackTypes[FT_RECOVERY_HAS_GATLINGS] = true;
-	cantAttackTypes[FT_RECOVERY_CAN_ACT] = true;
-	cantAttackTypes[FT_NON_ACTIVE] = true;
-	cantAttackTypes[FT_NON_ACTIVE_PROJECTILE] = true;
-	cantAttackTypes[FT_PROJECTILE] = true;
-	cantAttackTypes[FT_LANDING_RECOVERY] = true;
-	cantAttackTypes[FT_LANDING_RECOVERY_CAN_CANCEL] = true;
-	cantAttackTypes[FT_XSTUN] = true;
-	cantAttackTypes[FT_XSTUN_CAN_CANCEL] = true;
-	cantAttackTypes[FT_XSTUN_HITSTOP] = true;
-	cantAttackTypes[FT_GRAYBEAT_AIR_HITSTUN] = true;
-}
-
 void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 	if (count == 0) {
 		prevHitNum = hitNum;
@@ -629,6 +598,7 @@ void ProjectileInfo::fill(Entity ent) {
 	if (animFrame == 1 && !ent.isRCFrozen()) {
 		maxHit.clear();
 		hitNumber = 0;
+		hitOnFrame = 0;
 	}
 	lifeTimeCounter = ent.lifeTimeCounter();
 	int prevFrameHitstop = hitstop;
@@ -650,6 +620,7 @@ void ProjectileInfo::fill(Entity ent) {
 	}
 	sprite.fill(ent);
 	memcpy(animName, ent.animationName(), 32);
+	determineMoveNameAndSlangName(&lastName, &lastSlangName);
 }
 
 void PlayerInfo::addGap(int length) {
@@ -693,54 +664,204 @@ void PlayerInfo::printGaps(char* buf, size_t bufSize) {
 }
 
 void PlayerInfo::clear() {
-	memset(this, 0, sizeof PlayerInfo);
+	size_t cancelsOffset = offsetof(PlayerInfo, cancels);
+	memset(this, 0, cancelsOffset);
+	for (int i = 0; i < _countof(cancels); ++i) {
+		cancels[i].clear();
+	}
+	cancelsOffset += sizeof cancels;
+	cancelsTimer = 0;
+	cancelsOffset += sizeof cancelsTimer;
+	wasCancels.clear();
+	cancelsOffset += sizeof wasCancels;
+	memset(this, 0, sizeof PlayerInfo - cancelsOffset);
 }
 
 void PlayerInfo::copyTo(PlayerInfo& dest) {
 	memcpy(&dest, this, sizeof PlayerInfo);
 }
 
-void PrevStartupsInfo::add(short n) {
+void PrevStartupsInfo::add(short n, bool partOfStance, const char* name, const char* slangName) {
 	if (count >= _countof(startups)) {
+		initialSkip += startups[0].startup;
 		memmove(startups, startups + 1, sizeof startups - sizeof *startups);
 		--count;
 		// the dumb version of ring buffer
 	}
-	startups[count] = n;
+	PrevStartupsInfoElem& elem = startups[count];
+	elem.partOfStance = partOfStance;
+	elem.startup = n;
+	elem.moveName = name;
+	elem.moveSlangName = slangName;
 	++count;
 }
 
 void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
 	if (!count) return;
 	int charsPrinted;
-	for (int i = 0; i < count; ++i) {
-		charsPrinted = sprintf_s(buf, bufSize, i == 0 ? "%d" : "+%d", startups[i]);
+	
+	if (initialSkip) {
+		charsPrinted = sprintf_s(buf, bufSize, "%d", initialSkip);
 		if (charsPrinted == -1) return;
 		buf += charsPrinted;
 		bufSize -= charsPrinted;
 	}
-	charsPrinted = sprintf_s(buf, bufSize, "%c", '+');
+	
+	for (int i = 0; i < count; ++i) {
+		charsPrinted = sprintf_s(buf, bufSize, i == 0 && !initialSkip ? "%d" : "+%d", startups[i].startup);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+	}
+	charsPrinted = sprintf_s(buf, bufSize, "+");
 	if (charsPrinted == -1) return;
 	buf += charsPrinted;
 	bufSize -= charsPrinted;
 }
 
+int PrevStartupsInfo::countOfNonEmptyUniqueNames(const char** lastNames, int lastNamesCount, bool slang) const {
+	int answer = 0;
+	for (int i = 0; i < count + lastNamesCount; ++i) {
+		const char* selectedName;
+		if (i >= count) {
+			selectedName = lastNames[i - count];
+		} else {
+			selectedName = startups[i].selectName(slang);
+		}
+		if (!selectedName) continue;
+		if (i > 0 && i - 1 < count) {
+			const char* otherName = startups[i - 1].selectName(slang);
+			if (otherName && strcmp(selectedName, otherName) == 0) continue;
+		}
+		
+		++answer;
+		
+		int sameCount = 0;
+		for (int j = i + 1; j < count + lastNamesCount; ++j) {
+			const char* otherName;
+			if (j >= count) {
+				otherName = lastNames[j - count];
+			} else {
+				otherName = startups[j].selectName(slang);
+			}
+			if (!otherName) continue;
+			if (strcmp(selectedName, otherName) == 0) {
+				++sameCount;
+			} else {
+				break;
+			}
+		}
+		if (sameCount) {
+			i += sameCount;
+		}
+	}
+	return answer;
+}
+
+void PrevStartupsInfo::printNames(char*& buf, size_t& bufSize, const char** lastNames, int lastNamesCount, bool slang, bool useMultiplicationSign, bool printFrames) const {
+	int charsPrinted;
+	bool isFirst = true;
+	
+	if (initialSkip) {
+		charsPrinted = sprintf_s(buf, bufSize, "???");
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+		
+		isFirst = false;
+		if (printFrames) {
+			charsPrinted = sprintf_s(buf, bufSize, " (frames 1-%d)", initialSkip);
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+	}
+	
+	int currentStart = initialSkip + 1;
+	for (int i = 0; i < count + lastNamesCount; ++i) {
+		int currentEnd = currentStart;
+		const char* selectedName;
+		if (i >= count) {
+			selectedName = lastNames[i - count];
+		} else {
+			selectedName = startups[i].selectName(slang);
+			currentEnd += startups[i].startup;
+		}
+		if (!selectedName) continue;
+		if (i > 0 && i - 1 < count) {
+			const char* otherName = startups[i - 1].selectName(slang);
+			if (otherName && strcmp(selectedName, otherName) == 0) continue;
+		}
+		
+		
+		
+		int sameCount = 0;
+		for (int j = i + 1; j < count + lastNamesCount; ++j) {
+			const char* otherName;
+			if (j >= count) {
+				otherName = lastNames[j - count];
+			} else {
+				otherName = startups[j].selectName(slang);
+			}
+			if (!otherName) continue;
+			if (strcmp(selectedName, otherName) == 0) {
+				++sameCount;
+			} else {
+				break;
+			}
+		}
+		
+		charsPrinted = sprintf_s(buf, bufSize, isFirst ? "%s" : "+%s", selectedName);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+		
+		if (sameCount) {
+			if (useMultiplicationSign) {
+				charsPrinted = sprintf_s(buf, bufSize, "*%d", sameCount + 1);
+				if (charsPrinted == -1) return;
+				buf += charsPrinted;
+				bufSize -= charsPrinted;
+			}
+			i += sameCount;
+		}
+		
+		if (printFrames) {
+			if (i >= count) {
+				charsPrinted = sprintf_s(buf, bufSize, " (frames %d+)", currentStart);
+			} else {
+				charsPrinted = sprintf_s(buf, bufSize, " (frames %d-%d)", currentStart, currentEnd - 1);
+			}
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+		
+		currentStart = currentEnd;
+		isFirst = false;
+	}
+}
+
+int PlayerInfo::startupType() const {
+	if (superfreezeStartup && superfreezeStartup <= startupDisp && (startedUp || startupProj)) {
+		return 0;
+	} else if (superfreezeStartup && !(startedUp || startupProj)) {
+		return 1;
+	} else if (startedUp || startupProj) {
+		return 2;
+	} else {
+		return -1;
+	}
+}
+
 void PlayerInfo::printStartup(char* buf, size_t bufSize) {
 	if (!bufSize) return;
 	*buf = '\0';
-	int uhh = -1;
-	if (superfreezeStartup && superfreezeStartup <= startupDisp && (startedUp || startupProj)) {
-		uhh = 0;
-	} else if (superfreezeStartup && !(startedUp || startupProj)) {
-		uhh = 1;
-	} else if (startedUp || startupProj) {
-		uhh = 2;
-	} else {
-		return;
-	}
+	int uhh = startupType();
+	if (uhh == -1) return;
 	prevStartupsDisp.print(buf, bufSize);
 	for (int i = 0; ; ++i) {
-		int charsPrinted;
+		int charsPrinted = -1;
 		if (uhh == 0) {
 			charsPrinted = sprintf_s(buf, bufSize, "%d+%d", superfreezeStartup, startupDisp - superfreezeStartup);
 		} else if (uhh == 1) {
@@ -937,28 +1058,24 @@ void ProjectileInfo::printTotal(char* buf, size_t bufSize) {
 
 bool PlayerInfo::isIdleInNewSection() {
 	return inNewMoveSection
-		&& move
-		&& move->considerIdleInSeparatedSectionAfterThisManyFrames
-		&& timeInNewSection > move->considerIdleInSeparatedSectionAfterThisManyFrames;
+		&& move.considerIdleInSeparatedSectionAfterThisManyFrames
+		&& timeInNewSection > move.considerIdleInSeparatedSectionAfterThisManyFrames;
 }
 
 bool PlayerInfo::isInVariableStartupSection() {
-	return move
-		&& (
-			inNewMoveSection
-			&& (move->considerNewSectionAsBeingInVariableStartup
-				|| move->considerIdleInSeparatedSectionAfterThisManyFrames)
-			|| move->isInVariableStartupSection
-			&& move->isInVariableStartupSection(*this)
-		);
+	return inNewMoveSection
+			&& (move.considerNewSectionAsBeingInVariableStartup
+				|| move.considerIdleInSeparatedSectionAfterThisManyFrames)
+			|| move.isInVariableStartupSection
+			&& move.isInVariableStartupSection(*this);
 }
 
 int PrevStartupsInfo::total() const {
 	int sum = 0;
 	for (int i = 0; i < count; ++i) {
-		sum += startups[i];
+		sum += startups[i].startup;
 	}
-	return sum;
+	return initialSkip + sum;
 }
 
 void SpriteFrameInfo::print(char* buf, size_t bufSize) const {
@@ -1000,16 +1117,29 @@ void EntityFramebar::utf8len(const char* txt, int* byteLen, int* cpCountTotal, i
 	*cpCountTotal = cpCount;
 }
 
-void EntityFramebar::setTitle(const char* text, const char* textFull) {
+void EntityFramebar::setTitle(const char* text,
+			const char* slangName,
+			const char* nameUncombined,
+			const char* slangNameUncombined,
+			const char* textFull) {
 	
 	if (text && *text == '\0') text = nullptr;
+	if (slangName && *slangName == '\0') slangName = nullptr;
+	if (nameUncombined && *nameUncombined == '\0') nameUncombined = nullptr;
+	if (slangNameUncombined && *slangNameUncombined == '\0') slangNameUncombined = nullptr;
 	if (textFull && *textFull == '\0') textFull = nullptr;
 	titleShort = text;
+	titleSlang = slangName;
+	titleUncombined = nameUncombined;
+	titleSlangUncombined = slangNameUncombined;
 	titleFull = textFull;
 }
 
 void EntityFramebar::copyTitle(const EntityFramebar& source) {
 	titleShort = source.titleShort;
+	titleSlang = source.titleSlang;
+	titleUncombined = source.titleUncombined;
+	titleSlangUncombined = source.titleSlangUncombined;
 	titleFull = source.titleFull;
 }
 
@@ -1187,7 +1317,7 @@ static inline int determineFrameLevel(FrameType type) {
 	if (type == FT_NON_ACTIVE_PROJECTILE) {
 		return 2;
 	}
-	if (type == FT_IDLE_PROJECTILE) {
+	if (type == FT_IDLE_PROJECTILE || type == FT_IDLE_ACTIVE_IN_SUPERFREEZE) {
 		return 1;
 	}
 	return 0;
@@ -1837,6 +1967,9 @@ void PlayerInfo::addActiveFrame(Entity ent, PlayerFramebar& framebar) {
 		framebar.requestNextHit = true;
 	}
 	actives.addActive(hitNumber);
+	if (!hitOnFrame && pawn.hitSomethingOnThisFrame()) {
+		hitOnFrame = actives.total();
+	}
 }
 
 AddedMoveData* PlayerInfo::findMoveByName(const char* name) const {
@@ -1965,11 +2098,11 @@ void Framebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const 
 }
 
 void PlayerFramebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
-	(PlayerFrame&)destFrame = std::move((PlayerFrame&&)srcFrame);
+	(PlayerFrame&)destFrame = (PlayerFrame&&)srcFrame;
 }
 
 void Framebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
-	(Frame&)destFrame = std::move((Frame&&)srcFrame);
+	(Frame&)destFrame = (Frame&&)srcFrame;
 }
 
 void PlayerFramebars::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const {
@@ -1981,11 +2114,26 @@ void ProjectileFramebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFra
 }
 
 void PlayerFramebars::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
-	(PlayerFrame&)destFrame = std::move((PlayerFrame&&)srcFrame);
+	(PlayerFrame&)destFrame = (PlayerFrame&&)srcFrame;
 }
 
 void ProjectileFramebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
-	(Frame&)destFrame = std::move((Frame&&)srcFrame);
+	(Frame&)destFrame = (Frame&&)srcFrame;
+}
+
+template<typename FrameT>
+inline void copyActiveDuringSuperfreeze(FrameT& destFrame, const FrameT& srcFrame) {
+	if (srcFrame.type == FT_NONE || !srcFrame.activeDuringSuperfreeze) return;
+	if (destFrame.type == FT_NONE) destFrame.type = srcFrame.type;
+	destFrame.activeDuringSuperfreeze = srcFrame.activeDuringSuperfreeze;
+}
+
+void PlayerFramebars::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	::copyActiveDuringSuperfreeze((PlayerFrame&)destFrame, (const PlayerFrame&)srcFrame);
+}
+
+void ProjectileFramebar::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	::copyActiveDuringSuperfreeze((Frame&)destFrame, (const Frame&)srcFrame);
 }
 
 void MaxHitInfo::fill(Entity ent, int currentHitNum) {
@@ -2052,6 +2200,7 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 		}
 		if (!df.animName) {
 			df.animName = sf.animName;
+			df.animSlangName = sf.animSlangName;
 		}
 		if (!df.hitstopConflict) {
 			if (df.hitstop != sf.hitstop || df.hitstopMax != sf.hitstopMax) {
@@ -2071,6 +2220,7 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
 		df.skippedHitstop = sf.skippedHitstop;
 		df.skippedSuperfreeze = sf.skippedSuperfreeze;
+		df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
 	}
 	if (source.preFrameLength) {
 		if (source.preFrame != main.preFrame) {
@@ -2089,8 +2239,279 @@ void CombinedProjectileFramebar::determineName() {
 		const ProjectileFramebar* source = sources[i];
 		if (source) {
 			copyTitle(*source);
-			move = source->move;
+			moveFramebarId = source->moveFramebarId;
 			return;
 		}
 	}
+}
+
+bool PlayerCancelInfo::cancelsEqual(const PlayerCancelInfo& other) const {
+	if (cancels.gatlings.size() != other.cancels.gatlings.size()
+			|| cancels.whiffCancels.size() != other.cancels.whiffCancels.size()
+			|| enableJumpCancel != other.enableJumpCancel
+			|| enableSpecialCancel != other.enableSpecialCancel
+			|| enableSpecials != other.enableSpecials
+			|| airborne != other.airborne) {
+		return false;
+	}
+	{
+		auto it = cancels.gatlings.begin();
+		auto otherIt = other.cancels.gatlings.begin();
+		for (; it != cancels.gatlings.end(); ) {
+			if (*it != *otherIt) return false;
+			++it;
+			++otherIt;
+		}
+	}
+	{
+		auto it = cancels.whiffCancels.begin();
+		auto otherIt = other.cancels.whiffCancels.begin();
+		for (; it != cancels.whiffCancels.end(); ) {
+			if (*it != *otherIt) return false;
+			++it;
+			++otherIt;
+		}
+	}
+	return true;
+}
+
+void PlayerCancelInfo::clear() {
+	start = 0;
+	end = 0;
+	cancels.clear();
+	enableJumpCancel = false;
+	enableSpecialCancel = false;
+	enableSpecials = false;
+	hitOccured = false;
+}
+
+void PlayerInfo::appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel) {
+	PlayerCancelInfo* lastEmpty = nullptr;
+	if (!cancelsCount) {
+		cancels[0] = playerCancel;
+		cancelsCount = 1;
+		return;
+	}
+	PlayerCancelInfo& lastCancel = cancels[cancelsCount - 1];
+	if (playerCancel.start == lastCancel.end + 1 && lastCancel.cancelsEqual(playerCancel)) {
+		lastCancel.end = playerCancel.end;
+		return;
+	}
+	if (cancelsCount == _countof(cancels)) {
+		for (int i = 0; i < _countof(cancels) - 1; ++i) {
+			cancels[i] = cancels[i + 1];  // ring buffer maybe? Naah. When will this ever happen?
+		}
+		cancels[_countof(cancels) - 1] = playerCancel;
+		cancelsOverflow = true;
+		return;
+	}
+	cancels[cancelsCount++] = playerCancel;
+}
+
+void PlayerInfo::appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel) {
+	PlayerCancelInfo* lastEmpty = nullptr;
+	if (!cancelsCount) {
+		cancels[0] = playerCancel;
+		cancelsCount = 1;
+		return;
+	}
+	PlayerCancelInfo& lastCancel = cancels[cancelsCount - 1];
+	if (playerCancel.start == lastCancel.end + 1 && lastCancel.cancelsEqual(playerCancel)) {
+		lastCancel.end = playerCancel.end;
+		return;
+	}
+	if (cancelsCount == _countof(cancels)) {
+		for (int i = 0; i < _countof(cancels) - 1; ++i) {
+			cancels[i] = cancels[i + 1];  // ring buffer maybe? Naah. When will this ever happen?
+		}
+		cancels[_countof(cancels) - 1] = playerCancel;
+		cancelsOverflow = true;
+		return;
+	}
+	cancels[cancelsCount++] = playerCancel;
+}
+
+bool PlayerCancelInfo::isCompletelyEmpty() const {
+	return cancels.gatlings.empty() && cancels.whiffCancels.empty() && !enableJumpCancel && !enableSpecialCancel && !enableSpecials;
+}
+
+void PlayerInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) const {
+	if (name) *name = nullptr;
+	if (slangName) *slangName = nullptr;
+	if (moveNonEmpty) {
+		if (name) *name = move.getDisplayName(idle);
+		if (slangName) *slangName = move.getDisplayNameSlang(idle);
+	}
+	if (name && !*name) {
+		int moveIndex = pawn.currentMoveIndex();
+		if (moveIndex == -1) {
+			*name = (const char*)(pawn.bbscrCurrentFunc() + 4);
+		} else {
+			const AddedMoveData* actualMove = pawn.movesBase() + moveIndex;
+			*name = actualMove->name;
+		}
+	}
+}
+
+void ProjectileInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) const {
+	if (name) *name = nullptr;
+	if (slangName) *slangName = nullptr;
+	if (moveNonEmpty) {
+		if (name) {
+			if (move.framebarNameSelector && ptr) {
+				*name = move.framebarNameSelector(ptr);
+			} else if (move.framebarNameUncombined) {
+				*name = move.framebarNameUncombined;
+			} else if (move.framebarName) {
+				*name = move.framebarName;
+			}
+		}
+		if (slangName) {
+			if (move.framebarSlangNameSelector && ptr) {
+				*slangName = move.framebarSlangNameSelector(ptr);
+			} else if (move.framebarSlangNameUncombined) {
+				*slangName = move.framebarSlangNameUncombined;
+			} else if (move.framebarSlangName) {
+				*slangName = move.framebarSlangName;
+			}
+		}
+	} else if (!ptr) {
+		if (name) *name = nullptr;
+	} else {
+		if (name) *name = (const char*)(ptr.bbscrCurrentFunc() + 4);
+	}
+}
+
+void PlayerInfo::onAnimReset() {
+	prevStartups.clear();
+	
+	strikeInvul.clear();
+	throwInvul.clear();
+	lowProfile.clear();
+	frontLegInvul.clear();
+	projectileOnlyInvul.clear();
+	superArmor.clear();
+	superArmorThrow.clear();
+	superArmorBurst.clear();
+	superArmorMid.clear();
+	superArmorOverhead.clear();
+	superArmorLow.clear();
+	superArmorGuardImpossible.clear();
+	superArmorObjectAttacck.clear();
+	superArmorHontaiAttacck.clear();
+	superArmorProjectileLevel0.clear();
+	superArmorOverdrive.clear();
+	superArmorBlitzBreak.clear();
+	reflect.clear();
+	
+	cancelsTimer = 0;
+	cancelsCount = 0;
+	cancelsOverflow = false;
+}
+
+void PlayerInfo::removeNonStancePrevStartups() {
+	int amountToRemove = 0;
+	int countToRemove = 0;
+	for (int i = 0; i < prevStartups.count; ++i) {
+		if (!prevStartups[i].partOfStance) {
+			++countToRemove;
+			amountToRemove += prevStartups[i].startup;
+		}
+	}
+	if (!countToRemove) return;
+	if (countToRemove == prevStartups.count) {
+		prevStartups.clear();
+	} else {
+		memmove(prevStartups.startups, prevStartups.startups + countToRemove, sizeof PrevStartupsInfoElem * (prevStartups.count - countToRemove));
+		prevStartups.count -= countToRemove;
+	}
+	countToRemove = 0;
+	for (int i = 0; i < cancelsCount; ++i) {
+		PlayerCancelInfo& info = cancels[i];
+		if (info.end <= amountToRemove) {
+			++countToRemove;
+		} else {
+			if (info.start - amountToRemove >= 1) {
+				info.start -= amountToRemove;
+			} else {
+				info.start = 1;
+			}
+			info.end -= amountToRemove;
+		}
+	}
+	if (countToRemove) {
+		if (countToRemove == cancelsCount) {
+			cancelsCount = 0;
+		} else {
+			for (int i = 0; i < cancelsCount - countToRemove; ++i) {
+				cancels[i] = cancels[i + countToRemove];
+			}
+			cancelsCount -= countToRemove;
+		}
+		cancelsOverflow = false;
+	}
+	cancelsTimer -= amountToRemove;
+	
+	strikeInvul.removeFirstNFrames(amountToRemove);
+	throwInvul.removeFirstNFrames(amountToRemove);
+	lowProfile.removeFirstNFrames(amountToRemove);
+	frontLegInvul.removeFirstNFrames(amountToRemove);
+	projectileOnlyInvul.removeFirstNFrames(amountToRemove);
+	superArmor.removeFirstNFrames(amountToRemove);
+	superArmorThrow.removeFirstNFrames(amountToRemove);
+	superArmorBurst.removeFirstNFrames(amountToRemove);
+	superArmorMid.removeFirstNFrames(amountToRemove);
+	superArmorOverhead.removeFirstNFrames(amountToRemove);
+	superArmorLow.removeFirstNFrames(amountToRemove);
+	superArmorGuardImpossible.removeFirstNFrames(amountToRemove);
+	superArmorObjectAttacck.removeFirstNFrames(amountToRemove);
+	superArmorHontaiAttacck.removeFirstNFrames(amountToRemove);
+	superArmorProjectileLevel0.removeFirstNFrames(amountToRemove);
+	superArmorOverdrive.removeFirstNFrames(amountToRemove);
+	superArmorBlitzBreak.removeFirstNFrames(amountToRemove);
+	reflect.removeFirstNFrames(amountToRemove);
+}
+
+void InvulData::removeFirstNFrames(int n) {
+	if (start > n) {
+		start -= n;
+		return;
+	}
+	int amountToEat = n - start + 1;
+	start = 1;
+	int i;
+	for (i = 0; i < frames.count; ++i) {
+		ActiveData& data = frames[i];
+		if (data.actives >= amountToEat) {
+			data.actives -= amountToEat;
+			amountToEat = 0;
+			break;
+		} else {
+			amountToEat -= data.actives;
+			data.actives = 0;
+		}
+		if (data.nonActives >= amountToEat) {
+			data.nonActives -= amountToEat;
+			amountToEat = 0;
+			break;
+		} else {
+			amountToEat -= data.nonActives;
+			data.nonActives = 0;
+		}
+	}
+	if (i == frames.count) {
+		clear();
+		return;
+	}
+	ActiveData& data = frames[i];
+	if (!data.actives) {
+		start += data.nonActives;
+		++i;
+	}
+	if (i == frames.count) {
+		clear();
+		return;
+	}
+	memmove(frames.data, frames.data + i, sizeof ActiveData * (frames.count - i));
+	frames.count -= i;
 }
