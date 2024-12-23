@@ -10,7 +10,6 @@
 #include "rectCombiner.h"
 #include "BoundingRect.h"
 #include "ComplicatedHurtbox.h"
-#include <mutex>
 #include "characterTypes.h"
 #include "PlayerInfo.h"
 #include "DrawData.h"
@@ -44,11 +43,8 @@ public:
 
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
-	std::mutex orig_UpdateD3DDeviceFromViewportsMutex;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
-	std::mutex orig_FSuspendRenderingThreadMutex;
 	FSuspendRenderingThreadDestructor_t orig_FSuspendRenderingThreadDestructor = nullptr;
-	std::mutex orig_FSuspendRenderingThreadDestructorMutex;
 	class HookHelp {
 		friend class Graphics;
 		void UpdateD3DDeviceFromViewportsHook();

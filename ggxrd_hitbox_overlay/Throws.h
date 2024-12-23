@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include "ThrowInfo.h"
-#include <mutex>
 
 #ifndef USE_ANOTHER_HOOK
 using hitDetectionMain_t = void (__thiscall*)(void* aswSubengine, int hitDetectionType);
@@ -27,7 +26,6 @@ private:
 	};
 
 	hitDetectionMain_t orig_hitDetectionMain = nullptr;
-	std::mutex orig_hitDetectionMainMutex;
 
 	void hitDetectionMainHook();
 

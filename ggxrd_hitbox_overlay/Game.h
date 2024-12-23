@@ -1,7 +1,6 @@
 #pragma once
 #include "gameModes.h"
 #include "Entity.h"
-#include <mutex>
 
 extern char** aswEngine;
 
@@ -99,7 +98,6 @@ public:
 	DWORD drawExGaugeHUDOffset = 0;
 	drawExGaugeHUD_t drawExGaugeHUD = nullptr;
 	drawExGaugeHUD_t orig_drawExGaugeHUD = nullptr;
-	std::mutex orig_drawExGaugeHUDMutex;
 	DWORD cameraOffset = 0;
 	DWORD REDGameInfo_BattleOffset = 0;
 	DWORD REDHUD_BattleOffset = 0;
@@ -123,11 +121,8 @@ private:
 	void TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty();
 	static void destroyAswEngineHook();
 	TickActors_FDeferredTickList_FGlobalActorIterator_t orig_TickActors_FDeferredTickList_FGlobalActorIterator = nullptr;
-	std::mutex orig_TickActors_FDeferredTickList_FGlobalActorIteratorMutex;
 	updateBattleOfflineVer_t orig_updateBattleOfflineVer = nullptr;
-	std::mutex orig_updateBattleOfflineVerMutex;
 	TickActorComponents_t orig_TickActorComponents = nullptr;
-	std::mutex orig_TickActorComponentsMutex;
 	char** gameDataPtr = nullptr;
 	char** playerSideNetworkHolder = nullptr;
 	unsigned slowmoSkipCounter = 0;
@@ -135,9 +130,7 @@ private:
 	bool ignoreAllCallsButEarlier = false;
 	uintptr_t burstOffset = 0;
 	destroyAswEngine_t orig_destroyAswEngine = nullptr;
-	std::mutex orig_destroyAswEngineMutex;
 	UWorld_Tick_t orig_UWorld_Tick = nullptr;
-	std::mutex orig_UWorld_TickMutex;
 	void UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds);
 	int float_max_bytes = 0x4f800000;
 	float float_max = (float&)float_max_bytes;
@@ -146,7 +139,6 @@ private:
 	drawStunMash_t drawStunMashPtr = nullptr;
 	int IsPausedCallCount = 0;
 	UWorld_IsPaused_t orig_UWorld_IsPaused = nullptr;
-	std::mutex orig_UWorld_IsPausedMutex;
 	BYTE** inputsHolder = nullptr;
 	bool recordPressed[4] { false };
 	bool playPressed[4] { false };

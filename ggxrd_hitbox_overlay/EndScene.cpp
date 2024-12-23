@@ -27,6 +27,7 @@
 #include <intrin.h>
 #include "findMoveByName.h"
 #include "Hardcode.h"
+#include <mutex>
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -63,7 +64,6 @@ bool EndScene::onDllMain() {
 	if (orig_WndProc) {
 		if (!detouring.attach(&(PVOID&)orig_WndProc,
 			hook_WndProc,
-			&orig_WndProcMutex,
 			"WndProc")) return false;
 	}
 	
@@ -93,7 +93,6 @@ bool EndScene::onDllMain() {
 			void (HookHelp::*drawTrainingHudHookPtr)(void) = &HookHelp::drawTrainingHudHook;
 			if (!detouring.attach(&(PVOID&)orig_drawTrainingHud,
 				(PVOID&)drawTrainingHudHookPtr,
-				&orig_drawTrainingHudMutex,
 				"drawTrainingHud")) return false;
 		}
 		if (!drawTextWithIcons) {
@@ -210,7 +209,6 @@ bool EndScene::onDllMain() {
 		FCanvas_Flush = (FCanvas_Flush_t)followRelativeCall(anotherCallWith2ArgsCdecl + 0x16f);  // it's in switch's case 7
 		if (!detouring.attach(&(PVOID&)orig_REDAnywhereDispDraw,
 			REDAnywhereDispDrawHookStatic,
-			&orig_REDAnywhereDispDrawMutex,
 			"REDAnywhereDispDraw")) return false;
 		orig_drawQuadExec = (void*)followRelativeCall(anotherCallWith2ArgsCdecl + 0x148);  // it's in switch's case 4
 	}
@@ -224,7 +222,6 @@ bool EndScene::onDllMain() {
 		// It cannot be hooked solely by C, because none of the standard calling conventions satisfy these requirements, so we hook it with a function written in asm
 		if (!detouring.attach(&(PVOID&)orig_drawQuadExec,
 			drawQuadExecHookAsm,  // defined in drawQuadExecHook.asm
-			&orig_drawQuadExecMutex,
 			"drawQuadExec")) return false;
 	}
 	
@@ -270,7 +267,6 @@ bool EndScene::onDllMain() {
 			void (HookHelp::*name##HookPtr)signature_in_parentheses = &HookHelp::name##Hook; \
 			if (!detouring.attach(&(PVOID&)orig_##name, \
 				(PVOID&)name##HookPtr, \
-				&orig_##name##Mutex, \
 				#name)) return false; \
 		}
 	
@@ -354,7 +350,6 @@ bool EndScene::onDllMain() {
 		void (HookHelp::*setAnimHookPtr)(const char*) = &HookHelp::setAnimHook;
 		if (!detouring.attach(&(PVOID&)orig_setAnim,
 			(PVOID&)setAnimHookPtr,
-			&orig_setAnimMutex,
 			"setAnim")) return false;
 	}
 	
@@ -362,7 +357,6 @@ bool EndScene::onDllMain() {
 		void (HookHelp::*pawnInitializeHookPtr)(void*) = &HookHelp::pawnInitializeHook;
 		if (!detouring.attach(&(PVOID&)orig_pawnInitialize,
 			(PVOID&)pawnInitializeHookPtr,
-			&orig_pawnInitializeMutex,
 			"pawnInitialize")) return false;
 	}
 	
@@ -370,7 +364,6 @@ bool EndScene::onDllMain() {
 		void (HookHelp::*handleUponHookPtr)(int) = &HookHelp::handleUponHook;
 		if (!detouring.attach(&(PVOID&)orig_handleUpon,
 			(PVOID&)handleUponHookPtr,
-			&orig_handleUponMutex,
 			"handleUpon")) return false;
 	}
 	
@@ -386,7 +379,6 @@ bool EndScene::onDllMain() {
 		void (HookHelp::*logicOnFrameAfterHitHookPtr)(bool, int) = &HookHelp::logicOnFrameAfterHitHook;
 		if (!detouring.attach(&(PVOID&)orig_logicOnFrameAfterHit,
 			(PVOID&)logicOnFrameAfterHitHookPtr,
-			&orig_logicOnFrameAfterHitMutex,
 			"logicOnFrameAfterHit")) return false;
 	}
 	
@@ -431,7 +423,6 @@ bool EndScene::onDllMain() {
 		void (HookHelp::*backPushbackApplierHookPtr)() = &HookHelp::backPushbackApplierHook;
 		if (!detouring.attach(&(PVOID&)orig_backPushbackApplier,
 			(PVOID&)backPushbackApplierHookPtr,
-			&orig_backPushbackApplierMutex,
 			"backPushbackApplier")) return false;
 	}
 	
@@ -448,7 +439,6 @@ bool EndScene::onDllMain() {
 		void (HookHelp::*pushbackStunOnBlockHookPtr)(bool isAirHit) = &HookHelp::pushbackStunOnBlockHook;
 		if (!detouring.attach(&(PVOID&)orig_pushbackStunOnBlock,
 			(PVOID&)pushbackStunOnBlockHookPtr,
-			&orig_pushbackStunOnBlockMutex,
 			"pushbackStunOnBlock")) return false;
 	}
 	
@@ -488,7 +478,6 @@ bool EndScene::onDllMain() {
 		BOOL (HookHelp::*skillCheckPieceHookPtr)() = &HookHelp::skillCheckPieceHook;
 		if (!detouring.attach(&(PVOID&)orig_skillCheckPiece,
 			(PVOID&)skillCheckPieceHookPtr,
-			&orig_skillCheckPieceMutex,
 			"skillCheckPiece")) return false;
 	}
 	
@@ -502,30 +491,34 @@ bool EndScene::onDllMain() {
 		void (HookHelp::*beginHitstopHookPtr)() = &HookHelp::beginHitstopHook;
 		if (!detouring.attach(&(PVOID&)orig_beginHitstop,
 			(PVOID&)beginHitstopHookPtr,
-			&orig_beginHitstopMutex,
 			"beginHitstop")) return false;
 	}
 	
 	return !error;
 }
 
+void EndScene::onDllDetachPiece() {
+	hud.onDllDetach();
+	ui.onDllDetachNonGraphics();
+	detouring.detachAll(true);
+	detouring.cancelTransaction();
+}
+
 bool EndScene::onDllDetach() {
 	logwrap(fputs("EndScene::onDllDetach() called\n", logfile));
 	shutdown = true;
-	if (!logicThreadId || logicThreadId == detouring.dllMainThreadId) return true;
+	if (!logicThreadId) return true;
 	HANDLE logicThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, logicThreadId);
 	if (!logicThreadHandle) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "EndScene failed to open logic thread handle: %ls\n", winErr.getMessage()));
-		hud.onDllDetach();
-		ui.onDllDetachNonGraphics();
+		onDllDetachPiece();
 		return false;
 	}
 	if (GetProcessIdOfThread(logicThreadHandle) != GetCurrentProcessId()) {
 		CloseHandle(logicThreadHandle);
 		logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because thread is no longer alive"));
-		hud.onDllDetach();
-		ui.onDllDetachNonGraphics();
+		onDllDetachPiece();
 		return true;
 	}
 	DWORD exitCode;
@@ -534,8 +527,7 @@ bool EndScene::onDllDetach() {
 	
 	if (!stillActive) {
 		logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because thread is no longer alive (2)"));
-		hud.onDllDetach();
-		ui.onDllDetachNonGraphics();
+		onDllDetachPiece();
 		return true;
 	}
 	
@@ -545,14 +537,12 @@ bool EndScene::onDllDetach() {
 		return true;
 	}
 	logwrap(fprintf(logfile, "EndScene freeing resources on DLL thread, because WaitForSingleObject did not return success"));
-	hud.onDllDetach();
-	ui.onDllDetachNonGraphics();
+	onDllDetachPiece();
 	return true;
 }
 
 // Runs on the main thread
 void EndScene::HookHelp::drawTrainingHudHook() {
-	HookGuard hookGuard("drawTrainingHud");
 	endScene.drawTrainingHudHook((char*)this);
 }
 
@@ -3839,7 +3829,6 @@ LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 // The game logic thread runs WndProc, by calling DispatchMessageW inbetween ticks.
 // Runs on the main thread
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	HookGuard hookGuard("WndProc");
 	if (!shutdown) {
 		if (ui.WndProc(hWnd, message, wParam, lParam)) {
 			return TRUE;
@@ -3865,17 +3854,7 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		}
 	}
 	
-	bool iLockedTheMutex = false;
-	if (!orig_WndProcMutexLockedByWndProc) {
-		orig_WndProcMutex.lock();
-		orig_WndProcMutexLockedByWndProc = true;
-		iLockedTheMutex = true;
-	}
 	LRESULT result = orig_WndProc(hWnd, message, wParam, lParam);
-	if (iLockedTheMutex) {
-		orig_WndProcMutex.unlock();
-		orig_WndProcMutexLockedByWndProc = false;
-	}
 	return result;
 }
 
@@ -3890,10 +3869,7 @@ void EndScene::drawTrainingHudHook(char* thisArg) {
 	if (!shutdown && !graphics.shutdown) {
 		if (gifMode.gifModeToggleHudOnly || gifMode.gifModeOn) return;
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_drawTrainingHudMutex);
-		orig_drawTrainingHud(thisArg);
-	}
+	orig_drawTrainingHud(thisArg);
 	if (!shutdown && !graphics.shutdown && !iGiveUp) {
 		drawTexts();
 	}
@@ -4184,12 +4160,13 @@ void EndScene::onUWorld_Tick() {
 		hud.onDllDetach();
 		ui.onDllDetachNonGraphics();
 		SetEvent(shutdownFinishedEvent);
+		detouring.detachAll(false);
+		detouring.cancelTransaction();
 	}
 }
 
 // Runs on the main thread
 void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, unsigned int posType) {
-	HookGuard hookGuard("BBScr_createObjectWithArg");
 	static bool insideObjectCreation = false;
 	bool needUnset = !insideObjectCreation;
 	if (!endScene.shutdown) {
@@ -4198,20 +4175,7 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, uns
 		endScene.createdObjectAnim = animName;
 		endScene.creatorOfCreatedObject = Entity{(char*)this};
 	}
-	{
-		static bool imHoldingTheLock = false;
-		bool needUnlock = false;
-		if (!imHoldingTheLock) {
-			needUnlock = true;
-			imHoldingTheLock = true;
-			endScene.orig_BBScr_createObjectWithArgMutex.lock();
-		}
-		endScene.orig_BBScr_createObjectWithArg(this, animName, posType);
-		if (needUnlock) {
-			imHoldingTheLock = false;
-			endScene.orig_BBScr_createObjectWithArgMutex.unlock();
-		}
-	}
+	endScene.orig_BBScr_createObjectWithArg(this, animName, posType);
 	if (!endScene.shutdown) {
 		if (needUnset) {
 			insideObjectCreation = false;
@@ -4223,7 +4187,6 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, uns
 
 // Runs on the main thread
 void EndScene::HookHelp::BBScr_createObjectHook(const char* animName, unsigned int posType) {
-	HookGuard hookGuard("BBScr_createObject");
 	static bool insideObjectCreation = false;
 	bool needUnset = !insideObjectCreation;
 	if (!endScene.shutdown) {
@@ -4232,20 +4195,7 @@ void EndScene::HookHelp::BBScr_createObjectHook(const char* animName, unsigned i
 		endScene.createdObjectAnim = animName;
 		endScene.creatorOfCreatedObject = Entity{(char*)this};
 	}
-	{
-		static bool imHoldingTheLock = false;
-		bool needUnlock = false;
-		if (!imHoldingTheLock) {
-			needUnlock = true;
-			imHoldingTheLock = true;
-			endScene.orig_BBScr_createObjectMutex.lock();
-		}
-		endScene.orig_BBScr_createObject(this, animName, posType);
-		if (needUnlock) {
-			imHoldingTheLock = false;
-			endScene.orig_BBScr_createObjectMutex.unlock();
-		}
-	}
+	endScene.orig_BBScr_createObject(this, animName, posType);
 	if (!endScene.shutdown) {
 		if (needUnset) {
 			insideObjectCreation = false;
@@ -4372,7 +4322,6 @@ bool EndScene::didHit(Entity attacker) {
 // Runs on the main thread
 // This hook does not work on projectiles
 void EndScene::HookHelp::setAnimHook(const char* animName) {
-	HookGuard hookGuard("setAnim");
 	endScene.setAnimHook(Entity{(char*)this}, animName);
 }
 
@@ -4397,10 +4346,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 			memcpy(event.u.setAnim.fromAnim, pawn.animationName(), 32);
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_setAnimMutex);
-		orig_setAnim((void*)pawn, animName);
-	}
+	orig_setAnim((void*)pawn, animName);
 	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		int blockstun = pawn.blockstun();
@@ -4443,7 +4389,6 @@ PlayerInfo& EndScene::findPlayer(Entity ent) {
 
 // Runs on the main thread
 void EndScene::HookHelp::BBScr_createParticleWithArgHook(const char* animName, unsigned int posType) {
-	HookGuard hookGuard("BBScr_createParticleWithArg");
 	endScene.BBScr_createParticleWithArgHook(Entity{(char*)this}, animName, posType);
 }
 
@@ -4461,10 +4406,7 @@ void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName
 			pawn.scaleForParticles() = 0;
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_BBScr_createParticleWithArgMutex);
-		orig_BBScr_createParticleWithArg((void*)pawn, animName, posType);
-	}
+	orig_BBScr_createParticleWithArg((void*)pawn, animName, posType);
 }
 
 // Called before a logic tick happens. Doesn't run when the pause menu is open or a match is not running.
@@ -4534,13 +4476,11 @@ void EndScene::frameCleanup() {
 
 // Runs on the main thread
 void EndScene::HookHelp::pawnInitializeHook(void* initializationParams) {
-	HookGuard hookGuard("pawnInitialize");
 	endScene.pawnInitializeHook(Entity{(char*)this}, initializationParams);
 }
 
 // Runs on the main thread
 void EndScene::HookHelp::handleUponHook(int signal) {
-	HookGuard hookGuard("handleUpon");
 	endScene.handleUponHook(Entity{(char*)this}, signal);
 }
 
@@ -4558,20 +4498,7 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 			memcpy(event.u.signal.fromAnim, creatorOfCreatedObject.animationName(), 32);
 		}
 	}
-	{
-		static bool imHoldingTheLock = false;
-		bool needUnlock = false;
-		if (!imHoldingTheLock) {
-			needUnlock = true;
-			imHoldingTheLock = true;
-			endScene.orig_pawnInitializeMutex.lock();
-		}
-		endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
-		if (needUnlock) {
-			imHoldingTheLock = false;
-			endScene.orig_pawnInitializeMutex.unlock();
-		}
-	}
+	endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
 }
 
 // Runs on the main thread
@@ -4594,35 +4521,18 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 			player.wasFullInvul = pawn.fullInvul();
 		}
 	}
-	{
-		static bool imHoldingTheLock = false;
-		bool needUnlock = false;
-		if (!imHoldingTheLock) {
-			needUnlock = true;
-			imHoldingTheLock = true;
-			endScene.orig_handleUponMutex.lock();
-		}
-		endScene.orig_handleUpon((void*)pawn.ent, signal);
-		if (needUnlock) {
-			imHoldingTheLock = false;
-			endScene.orig_handleUponMutex.unlock();
-		}
-	}
+	endScene.orig_handleUpon((void*)pawn.ent, signal);
 }
 
 // Runs on the main thread
 void EndScene::HookHelp::logicOnFrameAfterHitHook(bool isAirHit, int param2) {
-	HookGuard hookGuard("logicOnFrameAfterHit");
 	endScene.logicOnFrameAfterHitHook(Entity{(char*)this}, isAirHit, param2);
 }
 
 // Runs on the main thread
 void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) {
 	bool functionWillNotDoAnything = !pawn.inHitstunNextFrame() && (!pawn.enableGuardBreak() || !pawn.inBlockstunNextFrame());
-	{
-		std::unique_lock<std::mutex> guard(orig_logicOnFrameAfterHitMutex);
-		orig_logicOnFrameAfterHit((void*)pawn.ent, isAirHit, param2);
-	}
+	orig_logicOnFrameAfterHit((void*)pawn.ent, isAirHit, param2);
 	if (pawn.isPawn() && !functionWillNotDoAnything && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = pawn.startingHitstop();
@@ -4692,16 +4602,12 @@ ProjectileInfo& EndScene::findProjectile(Entity pawn) {
 
 // Runs on the main thread
 void EndScene::HookHelp::BBScr_runOnObjectHook(int entityReference) {
-	HookGuard hookGuard("BBScr_runOnObject");
 	endScene.BBScr_runOnObjectHook(Entity{(char*)this}, entityReference);
 }
 
 // Runs on the main thread
 void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
-	{
-		std::unique_lock<std::mutex> guard(orig_BBScr_runOnObjectMutex);
-		orig_BBScr_runOnObject((void*)pawn.ent, entityReference);
-	}
+	orig_BBScr_runOnObject((void*)pawn.ent, entityReference);
 	if (!shutdown && pawn.isPawn() && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		Entity objectBeingRunOn = pawn.currentRunOnObject();
@@ -4723,7 +4629,6 @@ void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
 
 // Runs on the main thread
 void EndScene::REDAnywhereDispDrawHookStatic(void* canvas, FVector2D* screenSize) {
-	HookGuard hookGuard("REDAnywhereDispDraw");
 	endScene.REDAnywhereDispDrawHook(canvas, screenSize);
 }
 
@@ -4881,10 +4786,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			queueOriginPointDrawingDummyCommandAndInitializeIcon();
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard;
-		orig_REDAnywhereDispDraw(canvas, screenSize);  // calls drawQuadExecHook
-	}
+	orig_REDAnywhereDispDraw(canvas, screenSize);  // calls drawQuadExecHook
 	
 	if (!shutdown && !graphics.shutdown && (!*aswEngine || isFading || settings.displayUIOnTopOfPauseMenu)) {
 		ui.drawData = nullptr;
@@ -5037,10 +4939,7 @@ void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item,
 		}
 		return;  // can safely omit items
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_drawQuadExecMutex);
-		call_orig_drawQuadExec(orig_drawQuadExec, screenSize, item, canvas);
-	}
+	call_orig_drawQuadExec(orig_drawQuadExec, screenSize, item, canvas);
 }
 
 // Runs on the main thread
@@ -5093,7 +4992,6 @@ IDirect3DTexture9* EndScene::getTextureFromUTexture2D(BYTE* uTex2D) {
 }
 
 void EndScene::HookHelp::backPushbackApplierHook() {
-	HookGuard hookGuard("backPushbackApplier");
 	endScene.backPushbackApplierHook((char*)this);
 }
 
@@ -5106,22 +5004,15 @@ void EndScene::backPushbackApplierHook(char* thisArg) {
 			// it changes after it was used, so if we don't do this, at the end of a frame we will see a decremented value
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_backPushbackApplierMutex);
-		orig_backPushbackApplier((void*)thisArg);
-	}
+	orig_backPushbackApplier((void*)thisArg);
 }
 
 void EndScene::HookHelp::pushbackStunOnBlockHook(bool isAirHit) {
-	HookGuard hookGuard("pushbackStunOnBlock");
 	endScene.pushbackStunOnBlockHook(Entity{(char*)this}, isAirHit);
 }
 
 void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
-	{
-		std::unique_lock<std::mutex> guard(orig_pushbackStunOnBlockMutex);
-		orig_pushbackStunOnBlock((void*)pawn.ent, isAirHit);
-	}
+	orig_pushbackStunOnBlock((void*)pawn.ent, isAirHit);
 	if (!iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.ibPushbackModifier = 100;
@@ -5167,12 +5058,10 @@ void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 }
 
 void EndScene::HookHelp::BBScr_sendSignalHook(int referenceType, int signal) {
-	HookGuard hookGuard("BBScr_sendSignal");
 	endScene.BBScr_sendSignalHook(Entity{(char*)this}, referenceType, signal);
 }
 
 void EndScene::HookHelp::BBScr_sendSignalToActionHook(const char* searchAnim, int signal) {
-	HookGuard hookGuard("BBScr_sendSignalToAction");
 	endScene.BBScr_sendSignalToActionHook(Entity{(char*)this}, searchAnim, signal);
 }
 
@@ -5197,54 +5086,25 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) 
 			}
 		}
 	}
-	{
-		static bool isLocked = false;
-		bool needUnlock = !isLocked;
-		isLocked = true;
-		std::unique_lock<std::mutex> guard;
-		if (needUnlock) {
-			guard = std::unique_lock<std::mutex>(orig_BBScr_sendSignalMutex);
-		}
-		orig_BBScr_sendSignal((void*)pawn, referenceType, signal);
-		if (needUnlock) {
-			isLocked = false;
-		}
-	}
+	orig_BBScr_sendSignal((void*)pawn, referenceType, signal);
 }
 
 void EndScene::BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, int signal) {
 	if (!shutdown && !iGiveUp) {
 		sendSignalStack.push_back(pawn);
 	}
-	{
-		static bool isLocked = false;
-		bool needUnlock = !isLocked;
-		isLocked = true;
-		std::unique_lock<std::mutex> guard;
-		if (needUnlock) {
-			guard = std::unique_lock<std::mutex>(orig_BBScr_sendSignalToActionMutex);
-		}
-		orig_BBScr_sendSignalToAction((void*)pawn, searchAnim, signal);
-		if (needUnlock) {
-			isLocked = false;
-		}
-	}
+	orig_BBScr_sendSignalToAction((void*)pawn, searchAnim, signal);
 	if (!shutdown && !iGiveUp) {
 		sendSignalStack.pop_back();
 	}
 }
 
 BOOL EndScene::HookHelp::skillCheckPieceHook() {
-	HookGuard hookGuard("skillCheckPiece");
 	return endScene.skillCheckPieceHook(Entity{(char*)this});
 }
 
 BOOL EndScene::skillCheckPieceHook(Entity pawn) {
-	BOOL result;
-	{
-		std::unique_lock<std::mutex> guard(orig_skillCheckPieceMutex);
-		result = orig_skillCheckPiece((void*)pawn.ent);
-	}
+	BOOL result = orig_skillCheckPiece((void*)pawn.ent);
 	if (!iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (player.pawn) {
@@ -5269,7 +5129,6 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 }
 
 void EndScene::HookHelp::BBScr_setHitstopHook(int hitstop) {
-	HookGuard hookGuard("BBScr_setHitstop");
 	endScene.BBScr_setHitstopHook(Entity{(char*)this}, hitstop);
 }
 
@@ -5280,14 +5139,10 @@ void EndScene::BBScr_setHitstopHook(Entity pawn, int hitstop) {
 		player.setHitstopMax = true;
 		player.setHitstopMaxSuperArmor = false;
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_BBScr_setHitstopMutex);
-		orig_BBScr_setHitstop((void*)pawn.ent, hitstop);
-	}
+	orig_BBScr_setHitstop((void*)pawn.ent, hitstop);
 }
 
 void EndScene::HookHelp::beginHitstopHook() {
-	HookGuard hookGuard("beginHitstop");
 	endScene.beginHitstopHook(Entity{(char*)this});
 }
 
@@ -5301,22 +5156,15 @@ void EndScene::beginHitstopHook(Entity pawn) {
 		}
 		player.setHitstopMaxSuperArmor = true;
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_beginHitstopMutex);
-		orig_beginHitstop((void*)pawn.ent);
-	}
+	orig_beginHitstop((void*)pawn.ent);
 }
 
 void EndScene::HookHelp::BBScr_ignoreDeactivateHook() {
-	HookGuard hookGuard("BBScr_ignoreDeactivate");
 	endScene.BBScr_ignoreDeactivateHook(Entity{(char*)this});
 }
 
 void EndScene::BBScr_ignoreDeactivateHook(Entity pawn) {
-	{
-		std::unique_lock<std::mutex> guard(orig_BBScr_ignoreDeactivateMutex);
-		orig_BBScr_ignoreDeactivate((void*)pawn.ent);
-	}
+	orig_BBScr_ignoreDeactivate((void*)pawn.ent);
 	if (!iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.baikenReturningToBlockstunAfterAzami = true;

@@ -27,7 +27,7 @@ class UI
 {
 public:
 	bool onDllMain(HMODULE hModule);
-	void onDllDetachStage1();
+	void onDllDetachStage1_killTimer();
 	void onDllDetachGraphics();
 	void onDllDetachNonGraphics();
 	void prepareDrawData();

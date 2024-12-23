@@ -655,7 +655,7 @@ bool UI::onDllMain(HMODULE hModule) {
 }
 
 // Stops queueing new timer events on the window (main) thread. KillTimer does not remove events that have already been queued
-void UI::onDllDetachStage1() {
+void UI::onDllDetachStage1_killTimer() {
 	timerDisabled = true;
 	if (!imguiInitialized) return;
 	if (!keyboard.thisProcessWindow) timerId = NULL;
@@ -669,11 +669,8 @@ void UI::onDllDetachStage1() {
 			}
 			++attempts;
 			if (attempts > 3) {
-				logwrap(fprintf(logfile, "Trying to kill timer not from the WndProc\n"));
-				if (!KillTimer(NULL, timerId)) {
-					WinError winErr;
-					logwrap(fprintf(logfile, "Failed to kill timer not from the WndProc: %ls\n", winErr.getMessage()));
-				}
+				// we won't call KillTimer from a non-WndProc thread
+				logwrap(fprintf(logfile, "Failed to kill timer not from the WndProc\n"));
 				timerId = 0;
 				break;
 			}
@@ -696,7 +693,7 @@ void UI::onDllDetachNonGraphics() {
 	if (imguiD3DInitialized) {
 		logwrap(fputs("imgui calling onDllDetachNonGraphics from onDllDetachNonGraphics\n", logfile));
 		// this shouldn't happen
-		onDllDetachNonGraphics();
+		onDllDetachGraphics();
 	}
 	std::unique_lock<std::mutex> guard(lock);
 	if (imguiInitialized) {
@@ -3134,8 +3131,12 @@ void UI::handleResetAfter() {
 // Runs on the main thread
 void __stdcall UI::Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR unnamedParam3, DWORD unnamedParam4) {
 	if (ui.timerId == 0) return;
-	logwrap(fprintf(logfile, "Timerproc called for timerId: %d\n", ui.timerId));
-	settings.writeSettings();
+	if (!ui.timerDisabled) {
+		logwrap(fprintf(logfile, "Timerproc called for timerId: %d\n", ui.timerId));
+		settings.writeSettings();
+	} else {
+		logwrap(fprintf(logfile, "Killing timerId: %d\n", ui.timerId));
+	}
 	if (!KillTimer(NULL, ui.timerId)) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "Failed to kill timer: %ls\n", winErr.getMessage()));
@@ -3173,8 +3174,8 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 		}
 		case WM_APP_NEED_KILL_TIMER: {
 			if (wParam == timerId && ui.timerId != 0) {
-				KillTimer(NULL, timerId);
-				timerId = 0;
+				// remember, killing a timer does not remove its messages from the queue. The only way to ensure it is dead is to set it and wait for its arrival
+				SetTimer(NULL, timerId, 1, Timerproc);
 			}
 			return TRUE;
 		}
@@ -3301,7 +3302,6 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 
 // Runs on the main thread. Called hundreds of times each frame
 SHORT WINAPI UI::hook_GetKeyState(int nVirtKey) {
-	//HookGuard hookGuard("GetKeyState");
 	SHORT result;
 	if (ui.imguiActive) {
 		result = 0;

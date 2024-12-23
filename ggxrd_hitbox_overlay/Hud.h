@@ -1,5 +1,4 @@
 #pragma once
-#include <mutex>
 
 using REDHUDBattleUpdateAll_t = void(__thiscall*)(char* thisArg);
 
@@ -17,7 +16,6 @@ private:
 	void changeHudVisibility(bool isVisible);
 	char* hudPtr = nullptr;
 	REDHUDBattleUpdateAll_t orig_REDHUDBattleUpdateAll;
-	std::mutex orig_REDHUDBattleUpdateAllMutex;
 };
 
 extern Hud hud;

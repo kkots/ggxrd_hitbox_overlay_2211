@@ -39,7 +39,6 @@ bool Detouring::enumerateNotYetEnumeratedThreads(suspendThreadCallback_t callbac
 	}
 	while (true) {
 		if (th32.th32OwnerProcessID == currentProcessId
-				&& th32.th32ThreadID != dllMainThreadId
 				&& th32.th32ThreadID != currentThreadId) {
 			if (std::find(suspendedThreads.begin(), suspendedThreads.end(), th32.th32ThreadID) == suspendedThreads.end()) {
 				callback(th32.th32ThreadID);
@@ -119,103 +118,46 @@ void Detouring::printDetourTransactionCommitError(LONG err) {
 	}
 }
 
-void Detouring::detachAll() {
-	detachAllButThese();
-	
-	for (const WndProcToUnhookAtTheEnd& thing : wndProcsToUnhookAtTheEnd) {
-		std::unique_lock<std::mutex> wndProcGuard = std::unique_lock<std::mutex>(*thing.mutex);
-		SetWindowLongPtrW(thing.window, GWLP_WNDPROC, (LONG_PTR)thing.oldWndProc);
-		// this is still not perfectly thread safe.
-		// If with detour-hooking functions usually jump into the function through a CALL,
-		// and end up executing either our instructions or original instructions,
-		// (depending on whether we unhooked yet),
-		// with WndProc some Windows code could obtain the pointer to the hook function,
-		// then we freeze all threads, see that no one is running our hook (yet, but
-		// it about to, as soon as we unfreeze), happily unhook, unfreeze and unload DLL,
-		// and then they call our no longer existing hook through a stale pointer they have.
-		// A safer option would be to detour WndProc instead of swapping the pointer but it's
-		// more ugly.
-	}
-	wndProcsToUnhookAtTheEnd.clear();
+void Detouring::detachAll(bool freezeAll) {
+	detachAllButThese(freezeAll);
 }
 
 // This is separate, because if we call VirtualProtect a second time to restore old protection, Detours won't be able to write to the program anymore.
 void Detouring::undoPatches() {
+	if (instructionsToReplace.empty()) return;
 	
-	DWORD thisProcId = GetCurrentProcessId();
 	HANDLE thisProcess = GetCurrentProcess();
 	
-	// Suspend all threads
-	enumerateThreadsRecursively([&](DWORD threadId) {
-		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
-		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
-#ifdef LOG_PATH
-			WinError winErr;
-			// do not log stuff while threads are suspended, if you're not holding the log lock.
-			// If a thread is holding the lock while suspended, you can't get it and an attempt
-			// to log will result in a deadlock.
-#endif
-		}
-		else {
-			DWORD procId = GetProcessIdOfThread(hThread);
-			if (procId != thisProcId) {
-				return;
-			}
-			SuspendThread(hThread);
-			suspendedThreadHandles.push_back(hThread);
-		}
-	});
-	
-	{
-		
-		if (!instructionsToReplace.empty()) {
-			for (InstructionToReplace& bytes : instructionsToReplace) {
-				// If Detours already changed this page's protection prior to us, oldProtect will hold
-				// the value that Detours set, and then we will restore the page to that protection.
-				// It will be Detours' job to put the original-original protection on the page
-				DWORD oldProtect;
-				VirtualProtect((void*)bytes.addr, bytes.bytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect);
-				memcpy((void*)bytes.addr, bytes.bytes.data(), bytes.bytes.size());
-				FlushInstructionCache(thisProcess, (void*)bytes.addr, bytes.bytes.size());
-				DWORD unused;
-				VirtualProtect((void*)bytes.addr, bytes.bytes.size(), oldProtect, &unused);
-			}
-		}
+	for (InstructionToReplace& bytes : instructionsToReplace) {
+		// If Detours already changed this page's protection prior to us, oldProtect will hold
+		// the value that Detours set, and then we will restore the page to that protection.
+		// It will be Detours' job to put the original-original protection on the page
+		DWORD oldProtect;
+		VirtualProtect((void*)bytes.addr, bytes.bytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect);
+		memcpy((void*)bytes.addr, bytes.bytes.data(), bytes.bytes.size());
+		FlushInstructionCache(thisProcess, (void*)bytes.addr, bytes.bytes.size());
+		DWORD unused;
+		VirtualProtect((void*)bytes.addr, bytes.bytes.size(), oldProtect, &unused);
 	}
 	
-	for (HANDLE hThread : suspendedThreadHandles) {
-		ResumeThread(hThread);
-	}
-	closeAllThreadHandles();
-	return;
 }
 
-void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
+void Detouring::detachAllButThese(bool freezeAll, const std::vector<PVOID>& dontDetachThese) {
 	logwrap(fputs("Detouring::detachAllButThese(...) called\n", logfile));
-	std::vector<std::mutex*> lockedMutexes;
 	
 	DWORD currentThreadId = GetCurrentThreadId();
 
 	for (auto it = thingsToUndetourAtTheEnd.begin(); it != thingsToUndetourAtTheEnd.end(); ++it) {
 		const ThingToBeUndetouredAtTheEnd& thing = *it;
-		if (std::find(dontDetachThese.cbegin(), dontDetachThese.cend(), thing.pDetour) != dontDetachThese.cend()) {
-			if (thing.name) {
-				logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): Will not unhook %s\n", thing.name));
-			}
-			continue;
+		if (std::find(dontDetachThese.cbegin(), dontDetachThese.cend(), thing.pDetour) != dontDetachThese.cend()
+				&& thing.name) {
+			logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): Will not unhook %s\n", thing.name));
 		}
-
-		if (thing.name) {
-			logwrap(fprintf(logfile, "Detouring::detachAllButThese(...): locking mutex for %s\n", thing.name));
-		}
-		it->mutex->lock();
-		lockedMutexes.push_back(it->mutex);
 	}
-	logwrap(fputs("Detouring::detachAllButThese(...): locked all needed mutexes\n", logfile));
 	
-	undoPatches();
-	
-	if (beginTransaction()) {
+	if (beginTransaction(freezeAll)) {
+		undoPatches();
+		
 		bool allSuccess = true;
 
 		auto it = thingsToUndetourAtTheEnd.begin();
@@ -250,43 +192,41 @@ void Detouring::detachAllButThese(const std::vector<PVOID>& dontDetachThese) {
 			logwrap(fputs("Failed to undetour some or all of the hooks\n", logfile));
 		}
 	}
-
-	for (std::mutex* mutexPtr : lockedMutexes) {
-		mutexPtr->unlock();
-	}
 }
 
-bool Detouring::beginTransaction() {
+bool Detouring::beginTransaction(bool freezeAllThreads) {
 	DWORD detourResult = DetourTransactionBegin();
 	if (detourResult != NO_ERROR) {
 		printDetourTransactionBeginError(detourResult);
 		return false;
 	}
 	beganTransaction = true;
-
-	// Suspend all threads
-	enumerateThreadsRecursively([&](DWORD threadId){
-		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
-		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
-			#ifdef LOG_PATH
-			WinError winErr;
-			logwrap(fprintf(logfile, "Error in OpenThread: %ls\n", winErr.getMessage()));
-			#endif
-		}
-		else {
-			DWORD detourResult = DetourUpdateThread(hThread);  // oh god it still needs the thread handles by the time DetourTransactionCommit() is called
-			if (detourResult != NO_ERROR) {
-				printDetourUpdateThreadError(detourResult);
+	
+	if (freezeAllThreads) {
+		// Suspend all threads
+		enumerateThreadsRecursively([&](DWORD threadId){
+			HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
+			if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
+				#ifdef LOG_PATH
+				WinError winErr;
+				logwrap(fprintf(logfile, "Error in OpenThread: %ls\n", winErr.getMessage()));
+				#endif
 			}
-			suspendedThreadHandles.push_back(hThread);
-		}
-	});
-	logwrap(fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size()));
+			else {
+				DWORD detourResult = DetourUpdateThread(hThread);  // oh god it still needs the thread handles by the time DetourTransactionCommit() is called
+				if (detourResult != NO_ERROR) {
+					printDetourUpdateThreadError(detourResult);
+				}
+				suspendedThreadHandles.push_back(hThread);
+			}
+		});
+		logwrap(fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size()));
+	}
 	return true;
 }
 
-bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, std::mutex* mutex, const char * name) {
-	if (*ppPointer == NULL || mutex == nullptr) return false;
+bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, const char * name) {
+	if (*ppPointer == NULL) return false;
 	DWORD detourResult = DetourAttach(
 		ppPointer,
 		pDetour);
@@ -298,7 +238,7 @@ bool Detouring::attach(PVOID* ppPointer, PVOID pDetour, std::mutex* mutex, const
 	if (name) {
 		logwrap(fprintf(logfile, "Successfully detoured %s\n", name));
 	}
-	thingsToUndetourAtTheEnd.push_back({ ppPointer, pDetour, mutex, name });
+	thingsToUndetourAtTheEnd.push_back({ ppPointer, pDetour, name });
 	return true;
 }
 
@@ -330,103 +270,6 @@ void Detouring::closeAllThreadHandles() {
 	}
 	suspendedThreadHandles.clear();
 	suspendedThreads.clear();
-}
-
-bool Detouring::someThreadsAreExecutingThisModule(HMODULE hModule) {
-	
-	uintptr_t dllStart, dllEnd;
-	if (!getModuleBoundsHandle(hModule, &dllStart, &dllEnd)) return false;
-
-	bool threadEipInThisModule = false;
-	bool hasMoreThanOneThread = false;
-	
-	#ifdef LOG_PATH
-	if (logfile) {
-		// If we don't lock the mutex in advance, when we freeze a thread, it may be holding this lock,
-		// and then when we try to log something, we will get stuck waiting on that mutex forever.
-		logfileMutex.lock();
-	}
-	#endif
-	
-	DWORD thisProcId = GetCurrentProcessId();
-	
-	// Suspend all threads
-	enumerateThreadsRecursively([&](DWORD threadId) {
-		if (threadEipInThisModule) return;
-		hasMoreThanOneThread = true;
-		HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT, FALSE, threadId);
-		if (hThread == NULL || hThread == INVALID_HANDLE_VALUE) {
-#ifdef LOG_PATH
-			if (logfile) {
-				WinError winErr;
-				fprintf(logfile, "Error in OpenThread: %ls\n", winErr.getMessage());
-				fflush(logfile);
-			}
-#endif
-		}
-		else {
-			DWORD procId = GetProcessIdOfThread(hThread);
-			if (procId != thisProcId) {
-				return;
-			}
-			SuspendThread(hThread);
-			suspendedThreadHandles.push_back(hThread);
-
-			CONTEXT ctx{0};
-			ctx.ContextFlags = CONTEXT_CONTROL;
-			GetThreadContext(hThread, &ctx);
-
-			if (ctx.Eip >= dllStart && ctx.Eip < dllEnd) threadEipInThisModule = true;
-		}
-	});
-	#ifdef LOG_PATH
-	if (logfile) {
-		fprintf(logfile, "Suspended %u threads\n", suspendedThreadHandles.size());
-		fflush(logfile);
-	}
-	#endif
-	
-	if (!hasMoreThanOneThread) hooksCounter = 0; // on crash all threads just die, except this one, and the DLL gets unloaded gracefully
-	threadEipInThisModule = threadEipInThisModule || hooksCounter > 0;  // some hooks may call functions that lead outside the module.
-	                                                                    // hooksCounter > 0 is meant to check for hooks that are running those
-
-	#ifdef LOG_PATH
-	if (logfile) {
-		#ifdef _DEBUG
-		for (const std::string& name : runningHooks) {
-			fprintf(logfile, "Hook %s is still running\n", name.c_str());
-		}
-		fflush(logfile);
-		#endif
-		logfileMutex.unlock();
-	}
-	#endif
-	
-	for (HANDLE hThread : suspendedThreadHandles) {
-		ResumeThread(hThread);
-	}
-	closeAllThreadHandles();
-	return threadEipInThisModule;
-}
-
-void Detouring::markHookRunning(std::string name, bool running) {
-	#ifdef _DEBUG
-	std::unique_lock<std::mutex> guard(runningHooksMutex);
-	if (running) {
-		runningHooks.push_back(name);
-	} else {
-		auto found = runningHooks.end();
-		for (auto it = runningHooks.begin(); it != runningHooks.end(); ++it) {
-			if (*it == name) {
-				found = it;
-				break;
-			}
-		}
-		if (found != runningHooks.end()) {
-			runningHooks.erase(found);
-		}
-	}
-	#endif
 }
 
 void Detouring::addInstructionToReplace(uintptr_t addr, const std::vector<char>& bytes) {

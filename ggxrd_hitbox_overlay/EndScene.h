@@ -4,7 +4,6 @@
 #include <atlbase.h>
 #include <vector>
 #include "Entity.h"
-#include <mutex>
 #include "DrawTextWithIconsParams.h"
 #include "PlayerInfo.h"
 #include "DrawData.h"
@@ -158,51 +157,30 @@ public:
 	void onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen);
 	void onGifModeBlackBackgroundChanged();
 	WNDPROC orig_WndProc = nullptr;
-	std::mutex orig_WndProcMutex;
-	bool orig_WndProcMutexLockedByWndProc = false;
 	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
-	std::mutex orig_drawTrainingHudMutex;
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
-	std::mutex orig_BBScr_createObjectWithArgMutex;
 	BBScr_createObjectWithArg_t orig_BBScr_createObject = nullptr;
-	std::mutex orig_BBScr_createObjectMutex;
 	BBScr_createParticleWithArg_t orig_BBScr_createParticleWithArg = nullptr;
-	std::mutex orig_BBScr_createParticleWithArgMutex;
 	setAnim_t orig_setAnim = nullptr;
-	std::mutex orig_setAnimMutex;
 	pawnInitialize_t orig_pawnInitialize = nullptr;
-	std::mutex orig_pawnInitializeMutex;
 	logicOnFrameAfterHit_t orig_logicOnFrameAfterHit = nullptr;
-	std::mutex orig_logicOnFrameAfterHitMutex;
 	BBScr_runOnObject_t orig_BBScr_runOnObject = nullptr;
-	std::mutex orig_BBScr_runOnObjectMutex;
 	REDAnywhereDispDraw_t orig_REDAnywhereDispDraw = nullptr;
-	std::mutex orig_REDAnywhereDispDrawMutex;
 	FCanvas_Flush_t FCanvas_Flush = nullptr;
 	DrawData drawDataPrepared;
 	void* orig_drawQuadExec = nullptr;  // weird calling convention
-	std::mutex orig_drawQuadExecMutex;
 	backPushbackApplier_t orig_backPushbackApplier = nullptr;
-	std::mutex orig_backPushbackApplierMutex;
 	pushbackStunOnBlock_t orig_pushbackStunOnBlock = nullptr;
-	std::mutex orig_pushbackStunOnBlockMutex;
 	isDummy_t isDummyPtr = nullptr;
 	BBScr_sendSignal_t orig_BBScr_sendSignal = nullptr;
-	std::mutex orig_BBScr_sendSignalMutex;
 	BBScr_sendSignalToAction_t orig_BBScr_sendSignalToAction = nullptr;
-	std::mutex orig_BBScr_sendSignalToActionMutex;
 	getReferredEntity_t getReferredEntity = nullptr;
 	skillCheckPiece_t orig_skillCheckPiece = nullptr;
-	std::mutex orig_skillCheckPieceMutex;
 	handleUpon_t orig_handleUpon = nullptr;
-	std::mutex orig_handleUponMutex;
 	BBScr_callSubroutine_t BBScr_callSubroutine = nullptr;
 	BBScr_setHitstop_t orig_BBScr_setHitstop = nullptr;
-	std::mutex orig_BBScr_setHitstopMutex;
 	beginHitstop_t orig_beginHitstop = nullptr;
-	std::mutex orig_beginHitstopMutex;
 	BBScr_ignoreDeactivate_t orig_BBScr_ignoreDeactivate = nullptr;
-	std::mutex orig_BBScr_ignoreDeactivateMutex;
 	
 	std::vector<PlayerInfo> players{2};
 	std::vector<ProjectileInfo> projectiles;
@@ -251,6 +229,7 @@ public:
 	int getRCSlowdownCounterMax();
 	inline bool isIGiveUp() const { return iGiveUp; }
 private:
+	void onDllDetachPiece();
 	void processKeyStrokes();
 	void clearContinuousScreenshotMode();
 	void actUponKeyStrokesThatAlreadyHappened();

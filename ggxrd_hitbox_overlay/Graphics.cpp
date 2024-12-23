@@ -88,7 +88,6 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 		if (!detouring.attach(
 			&(PVOID&)(orig_UpdateD3DDeviceFromViewports),
 			(PVOID&)UpdateD3DDeviceFromViewportsHookPtr,
-			&orig_UpdateD3DDeviceFromViewportsMutex,
 			"UpdateD3DDeviceFromViewports")) return false;
 		
 		uintptr_t FSuspendRenderingThreadCallPlace = sigscanForward((uintptr_t)orig_UpdateD3DDeviceFromViewports,
@@ -115,7 +114,6 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 		if (!detouring.attach(
 			&(PVOID&)(orig_FSuspendRenderingThread),
 			(PVOID&)FSuspendRenderingThreadHookPtr,
-			&orig_FSuspendRenderingThreadMutex,
 			"FSuspendRenderingThread")) return false;
 	} else return false;
 	
@@ -124,7 +122,6 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 		if (!detouring.attach(
 			&(PVOID&)(orig_FSuspendRenderingThreadDestructor),
 			(PVOID&)FSuspendRenderingThreadDestructorHookPtr,
-			&orig_FSuspendRenderingThreadDestructorMutex,
 			"~FSuspendRenderingThread")) return false;
 	} else return false;
 	
@@ -236,17 +233,13 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 // This function is called from the main thread.
 // It 'initializes the D3D device for the current viewport state.'
 void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
-	HookGuard hookGuard("UpdateD3DDeviceFromViewports");
 	graphics.suspenderThreadId = GetCurrentThreadId();
 	// This function will call the constructor of class FSuspendRenderingThread, which we hooked.
 	// That constructor stops the rendering thread, so that this function could manipulate graphics
 	// resources safely.
 	// We must release our own resources only after the suspension occurs.
 	// We must recreate our own resources either on the graphics thread or before the resuming occurs.
-	{
-		std::unique_lock<std::mutex> guard(graphics.orig_UpdateD3DDeviceFromViewportsMutex);
-		graphics.orig_UpdateD3DDeviceFromViewports((char*)this);
-	}
+	graphics.orig_UpdateD3DDeviceFromViewports((char*)this);
 	graphics.suspenderThreadId = NULL;
 	return;
 }
@@ -268,7 +261,7 @@ void Graphics::onDllDetach() {
 	logwrap(fputs("Graphics::onDllDetach called\n", logfile));
 	// this tells various callers to stop trying to use the resources as they're about to be freed
 	shutdown = true;
-	if (!graphicsThreadId || graphicsThreadId == detouring.dllMainThreadId) {
+	if (!graphicsThreadId) {
 		resetHook();
 		ui.onDllDetachGraphics();
 		return;
@@ -1788,11 +1781,7 @@ void DrawData::copyTo(DrawData* destination) {
 }
 
 void Graphics::HookHelp::FSuspendRenderingThreadHook(unsigned int InSuspendThreadFlags) {
-	HookGuard hookGuard("FSuspendRenderingThread");
-	{
-		std::unique_lock<std::mutex> guard(graphics.orig_FSuspendRenderingThreadMutex);
-		graphics.orig_FSuspendRenderingThread((char*)this, InSuspendThreadFlags);
-	}
+	graphics.orig_FSuspendRenderingThread((char*)this, InSuspendThreadFlags);
 	if (graphics.suspenderThreadId == GetCurrentThreadId()) {
 		graphics.resetHook();
 		ui.handleResetBefore();
@@ -1800,16 +1789,12 @@ void Graphics::HookHelp::FSuspendRenderingThreadHook(unsigned int InSuspendThrea
 }
 
 void Graphics::HookHelp::FSuspendRenderingThreadDestructorHook() {
-	HookGuard hookGuard("~FSuspendRenderingThread");
 	if (graphics.suspenderThreadId == GetCurrentThreadId() && !graphics.shutdown) {
 		// We must recreate our resources before FSuspendRenderingThread resumes the graphics thread, so that
 		// there's no race condition between us and the graphics thread
 		ui.handleResetAfter();
 	}
-	{
-		std::unique_lock<std::mutex> guard(graphics.orig_FSuspendRenderingThreadDestructorMutex);
-		graphics.orig_FSuspendRenderingThreadDestructor((char*)this);
-	}
+	graphics.orig_FSuspendRenderingThreadDestructor((char*)this);
 }
 
 IDirect3DTexture9* Graphics::getFramesTexture(IDirect3DDevice9* device) {

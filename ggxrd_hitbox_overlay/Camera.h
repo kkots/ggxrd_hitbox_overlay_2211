@@ -1,7 +1,6 @@
 #pragma once
 #include <d3d9.h>
 #include <d3dx9.h>
-#include <mutex>
 #include <vector>
 #include "DrawData.h"
 
@@ -29,9 +28,7 @@ private:
 		void updateCameraHook(char** param1, char* param2);
 	};
 	updateDarken_t orig_updateDarken = nullptr;
-	std::mutex orig_updateDarkenMutex;
 	updateCamera_t orig_updateCamera = nullptr;
-	std::mutex orig_updateCameraMutex;
 	unsigned int darkenValue1Offset = 0;
 	unsigned int cameraOffset = 0;
 	bool isSet = false;

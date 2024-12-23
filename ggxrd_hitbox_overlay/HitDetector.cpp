@@ -30,7 +30,6 @@ bool HitDetector::onDllMain() {
 		HitResult(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, unsigned int*, unsigned int*) = &HookHelp::determineHitTypeHook;
 		detouring.attach(&(PVOID&)(orig_determineHitType),
 			(PVOID&)determineHitTypeHookPtr,
-			&orig_determineHitTypeMutex,
 			"determineHitType");
 	}
 
@@ -38,21 +37,14 @@ bool HitDetector::onDllMain() {
 }
 
 void HitDetector::clearAllBoxes() {
-	std::unique_lock<std::mutex> guard(mutex);
 	hitboxesThatHit.clear();
 	hurtboxesThatGotHit.clear();
 	rejections.clear();
 }
 
 HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr) {
-	HookGuard hookGuard("determineHitType");
-	HitResult result;
-	{
-		std::unique_lock<std::mutex> guard(hitDetector.orig_determineHitTypeMutex);
-		result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
-	}
+	HitResult result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
 	if (gifMode.modDisabled) return result;
-	std::unique_lock<std::mutex> guard(hitDetector.mutex);
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };
 	if (result == HIT_RESULT_ARMORED) {
@@ -174,7 +166,6 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 }
 
 HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox) {
-	std::unique_lock<std::mutex> guard(mutex);
 	for (auto it = hurtboxesThatGotHit.cbegin(); it != hurtboxesThatGotHit.cend(); ++it) {
 		if (ent == it->entity) {
 			if (currentHurtbox == it->hitboxes && it->counter < DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {
@@ -188,7 +179,6 @@ HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const Draw
 }
 
 void HitDetector::drawHits() {
-	std::unique_lock<std::mutex> guard(mutex);
 	bool timeHasChanged = false;
 	unsigned int currentTime = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
 	if (previousTime != currentTime) {

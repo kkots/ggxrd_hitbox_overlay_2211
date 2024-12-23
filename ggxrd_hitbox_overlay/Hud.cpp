@@ -22,7 +22,6 @@ bool Hud::onDllMain() {
 		void(HookHelp::* REDHUDBattleUpdateAllHookPtr)() = &HookHelp::REDHUDBattleUpdateAllHook;
 		detouring.attach(&(PVOID&)(orig_REDHUDBattleUpdateAll),
 			(PVOID&)REDHUDBattleUpdateAllHookPtr,
-			&orig_REDHUDBattleUpdateAllMutex,
 			"REDHUDBattleUpdateAll");
 	}
 
@@ -30,7 +29,6 @@ bool Hud::onDllMain() {
 }
 
 void Hud::HookHelp::REDHUDBattleUpdateAllHook() {
-	HookGuard hookGuard("REDHUDBattleUpdateAll");
 	hud.REDHUDBattleUpdateAllHook((char*)this);
 }
 
@@ -42,7 +40,6 @@ void Hud::REDHUDBattleUpdateAllHook(char* thisArg) {
 	} else {
 		changeHudVisibility(true);
 	}
-	std::unique_lock<std::mutex> guard(orig_REDHUDBattleUpdateAllMutex);
 	orig_REDHUDBattleUpdateAll(thisArg);
 }
 

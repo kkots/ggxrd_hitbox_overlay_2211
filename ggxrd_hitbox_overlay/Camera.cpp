@@ -29,7 +29,6 @@ bool Camera::onDllMain() {
 		void(HookHelp::*updateDarkenHookPtr)() = &HookHelp::updateDarkenHook;
 		detouring.attach(&(PVOID&)(orig_updateDarken),
 			(PVOID&)updateDarkenHookPtr,
-			&orig_updateDarkenMutex,
 			"updateDarken");
 	}
 
@@ -44,7 +43,6 @@ bool Camera::onDllMain() {
 		void(HookHelp::*updateCameraHookPtr)(char**, char*) = &HookHelp::updateCameraHook;
 		detouring.attach(&(PVOID&)(orig_updateCamera),
 			(PVOID&)updateCameraHookPtr,
-			&orig_updateCameraMutex,
 			"updateCamera");
 
 	}
@@ -60,13 +58,11 @@ bool Camera::onDllMain() {
 
 // Runs on the main thread
 void Camera::HookHelp::updateDarkenHook() {
-	HookGuard hookGuard("updateDarken");
 	camera.updateDarkenHook((char*)this);
 }
 
 // Runs on the main thread
 void Camera::HookHelp::updateCameraHook(char** param1, char* param2) {
-	HookGuard hookGuard("updateCamera");
 	camera.updateCameraHook((char*)this, param1, param2);
 }
 
@@ -78,7 +74,6 @@ void Camera::updateDarkenHook(char* thisArg) {
 			*(float*)(thisArg + darkenValue1Offset + 0xC) = 0.F;
 		}
 	}
-	std::unique_lock<std::mutex> guard(orig_updateDarkenMutex);
 	orig_updateDarken(thisArg);
 }
 
@@ -109,10 +104,7 @@ void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 			}
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_updateCameraMutex);
-		orig_updateCamera(thisArg, param1, param2);
-	}
+	orig_updateCamera(thisArg, param1, param2);
 	if (*aswEngine && !shutdown) {  // without *aswEngine check it will actually crash when you quit a match
 		grabValues();
 		grabbedValues = true;

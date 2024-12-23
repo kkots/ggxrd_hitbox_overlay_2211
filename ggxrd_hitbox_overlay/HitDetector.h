@@ -3,7 +3,6 @@
 #include <vector>
 #include "Entity.h"
 #include "PlayerInfo.h"
-#include <mutex>
 
 using determineHitType_t = HitResult(__thiscall*)(void*, void*, BOOL, unsigned int*, unsigned int*);
 
@@ -21,7 +20,6 @@ public:
 	void drawHits();
 	WasHitInfo wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox);
 	determineHitType_t orig_determineHitType = nullptr;
-	std::mutex orig_determineHitTypeMutex;
 private:
 	
 	struct DetectedHitboxes {
@@ -60,7 +58,6 @@ private:
 	std::vector<DetectedHitboxes> hitboxesThatHit;
 	std::vector<DetectedHitboxes> hurtboxesThatGotHit;
 	std::vector<Rejection> rejections;
-	std::mutex mutex;
 
 	unsigned int previousTime = 0;
 };

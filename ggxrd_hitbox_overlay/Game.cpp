@@ -54,7 +54,6 @@ bool Game::onDllMain() {
 		void(HookHelp::*UWorld_TickHookPtr)(ELevelTick TickType, float DeltaSeconds) = &HookHelp::UWorld_TickHook;
 		detouring.attach(&(PVOID&)(orig_UWorld_Tick),
 			(PVOID&)UWorld_TickHookPtr,
-			&orig_UWorld_TickMutex,
 			"UWorld_Tick");
 	}
 	
@@ -62,7 +61,6 @@ bool Game::onDllMain() {
 		bool(HookHelp::*UWorld_IsPausedHookPtr)() = &HookHelp::UWorld_IsPausedHook;
 		detouring.attach(&(PVOID&)(orig_UWorld_IsPaused),
 			(PVOID&)UWorld_IsPausedHookPtr,
-			&orig_UWorld_IsPausedMutex,
 			"UWorld_IsPaused");
 	}
 	
@@ -120,7 +118,6 @@ bool Game::onDllMain() {
 	if (orig_destroyAswEngine) {
 		detouring.attach(&(PVOID&)(orig_destroyAswEngine),
 			destroyAswEngineHook,
-			&orig_destroyAswEngineMutex,
 			"destroyAswEngine");
 	}
 	
@@ -150,7 +147,6 @@ bool Game::onDllMain() {
 			void(HookHelp::*drawExGaugeHUDHookPtr)(int param_1) = &HookHelp::drawExGaugeHUDHook;
 			detouring.attach(&(PVOID&)(orig_drawExGaugeHUD),
 				(PVOID&)drawExGaugeHUDHookPtr,
-				&orig_drawExGaugeHUDMutex,
 				"drawExGaugeHUD");
 		}
 	}
@@ -266,24 +262,20 @@ void Game::hookFrameByFraming() {
 	
 	detouring.attach(&(PVOID&)(orig_TickActors_FDeferredTickList_FGlobalActorIterator),
 		Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookStatic,
-		&orig_TickActors_FDeferredTickList_FGlobalActorIteratorMutex,
 		"TickActors_FDeferredTickList_FGlobalActorIterator");
 
 	void(HookHelp::*updateBattleOfflineVerHookPtr)(int param1) = &HookHelp::updateBattleOfflineVerHook;
 	detouring.attach(&(PVOID&)orig_updateBattleOfflineVer,
 		(PVOID&)updateBattleOfflineVerHookPtr,
-		&orig_updateBattleOfflineVerMutex,
 		"updateBattleOfflineVer");
 
 	detouring.attach(&(PVOID&)(orig_TickActorComponents),
 		Game::TickActorComponentsHookStatic,
-		&orig_TickActorComponentsMutex,
 		"TickActorComponents");
 
 }
 
 void Game::TickActorComponentsHookStatic(int param1, int param2, int param3, int param4) {
-	HookGuard hookGuard("TickActorComponents");
 	game.TickActorComponentsHook(param1, param2, param3, param4);
 }
 
@@ -293,14 +285,10 @@ void Game::TickActorComponentsHook(int param1, int param2, int param3, int param
 			return;
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_TickActorComponentsMutex);
-		orig_TickActorComponents(param1, param2, param3, param4);
-	}
+	orig_TickActorComponents(param1, param2, param3, param4);
 }
 
 void Game::HookHelp::updateBattleOfflineVerHook(int param1) {
-	HookGuard hookGuard("updateBattleOfflineVer");
 	return game.updateBattleOfflineVerHook((char*)this, param1);
 }
 
@@ -308,14 +296,10 @@ void Game::updateBattleOfflineVerHook(char* thisArg, int param1) {
 	if (!shutdown && ignoreAllCalls) {
 		return;
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_updateBattleOfflineVerMutex);
-		orig_updateBattleOfflineVer(thisArg, param1);
-	}
+	orig_updateBattleOfflineVer(thisArg, param1);
 }
 
 void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookStatic(int param1, int param2, int param3, int param4) {
-	HookGuard hookGuard("TickActors_FDeferredTickList_FGlobalActorIterator");
 	game.TickActors_FDeferredTickList_FGlobalActorIteratorHook(param1, param2, param3, param4);
 }
 
@@ -345,10 +329,7 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 		ignoreAllCalls = ignoreAllCallsButEarlier;
 		endScene.onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(ignoreAllCalls);
 	}
-	{
-		std::unique_lock<std::mutex> guard(orig_TickActors_FDeferredTickList_FGlobalActorIteratorMutex);
-		orig_TickActors_FDeferredTickList_FGlobalActorIterator(param1, param2, param3, param4);
-	}
+	orig_TickActors_FDeferredTickList_FGlobalActorIterator(param1, param2, param3, param4);
 	if (!shutdown) {
 		if (ignoreAllCalls) {
 			TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty();
@@ -432,21 +413,16 @@ int Game::getBurst(int team) const {
 }
 
 void Game::destroyAswEngineHook() {
-	HookGuard hookGuard("destroyAswEngine");
 	if (!game.shutdown) {
 		if (*aswEngine) {
 			logwrap(fputs("Asw Engine destroyed\n", logfile));
 			endScene.onAswEngineDestroyed();
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard(game.orig_destroyAswEngineMutex);
-		game.orig_destroyAswEngine();
-	}
+	game.orig_destroyAswEngine();
 }
 
 void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSeconds) {
-	HookGuard hookGuard("UWorld_Tick");
 	
 	if (!shutdown) {
 		IsPausedCallCount = 0;
@@ -498,10 +474,7 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 	
 	bool hadAsw = *aswEngine != nullptr;
 	endScene.onUWorld_TickBegin();
-	{
-		std::unique_lock<std::mutex> guard(game.orig_UWorld_TickMutex);
-		game.orig_UWorld_Tick(thisArg, TickType, DeltaSeconds);
-	}
+	game.orig_UWorld_Tick(thisArg, TickType, DeltaSeconds);
 	endScene.onUWorld_Tick();
 	if (!shutdown && !game.orig_destroyAswEngine && hadAsw && *aswEngine == nullptr) {
 		logwrap(fputs("Asw Engine destroyed\n", logfile));
@@ -524,9 +497,7 @@ void Game::HookHelp::UWorld_TickHook(ELevelTick TickType, float DeltaSeconds) {
 }
 
 void Game::HookHelp::drawExGaugeHUDHook(int param_1) {
-	HookGuard hookGuard("drawExGaugeHUD");
 	if (gifMode.modDisabled || !(gifMode.gifModeOn || gifMode.gifModeToggleHudOnly)) {
-		std::unique_lock<std::mutex> guard(game.orig_drawExGaugeHUDMutex);
 		game.orig_drawExGaugeHUD((void*)this, param_1);
 	}
 }
@@ -555,7 +526,6 @@ void Game::drawStunButtonMash(Entity pawn) {
 }
 
 bool Game::HookHelp::UWorld_IsPausedHook() {
-	HookGuard hookGuard("UWorld_IsPaused");
 	// This function is called from UWorld::Tick several times.
 	if (!game.shutdown) {
 		// If UWorld->DemoRecDriver is not nullptr, we might get an extra call at the start that messes us up.
@@ -568,7 +538,6 @@ bool Game::HookHelp::UWorld_IsPausedHook() {
 			}
 		}
 	}
-	std::unique_lock<std::mutex> guard(game.orig_UWorld_IsPausedMutex);
 	return game.orig_UWorld_IsPaused((void*)this);
 }
 

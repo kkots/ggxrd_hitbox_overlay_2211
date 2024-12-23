@@ -37,7 +37,6 @@ bool Throws::onDllMain() {
 #endif
 	if (!detouring.attach(&(PVOID&)orig_hitDetectionMain,
 		(PVOID&)hookPtr,
-		&orig_hitDetectionMainMutex,
 		"hitDetectionMain")) return false;
 
 	return !error;
@@ -45,30 +44,21 @@ bool Throws::onDllMain() {
 
 #ifndef USE_ANOTHER_HOOK
 void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
-	HookGuard hookGuard("hitDetectionMain");
 	if (!gifMode.modDisabled) {
 		endScene.onHitDetectionStart(hitDetectionType);
 		if (hitDetectionType == 1) {
 			throws.hitDetectionMainHook();
 		}
 	}
-	{
-		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
-		throws.orig_hitDetectionMain(this, hitDetectionType);
-	}
+	throws.orig_hitDetectionMain(this, hitDetectionType);
 	if (!gifMode.modDisabled) {
 		endScene.onHitDetectionEnd(hitDetectionType);
 	}
 }
 #else
 BOOL Throws::HookHelp::hitDetectionMainHook(char* other) {
-	HookGuard hookGuard("hitDetectionMain");
 	throws.hitDetectionMainHook();
-	BOOL result;
-	{
-		std::unique_lock<std::mutex> guard(throws.orig_hitDetectionMainMutex);
-		result throws.orig_hitDetectionMain((char*)this, other);
-	}
+	BOOL result = throws.orig_hitDetectionMain((char*)this, other);
 	return result;
 }
 #endif

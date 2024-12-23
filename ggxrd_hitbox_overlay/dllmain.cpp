@@ -60,7 +60,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			logwrap(fputs("IMGUI_CHECKVERSION() returned false\n", logfile));
 			terminate
 		}
-		if (!detouring.beginTransaction()) terminate
+		if (!detouring.beginTransaction(true)) terminate
 		if (!settings.onDllMain()) terminate
 		if (!game.onDllMain()) terminate
 		if (!camera.onDllMain()) terminate
@@ -80,9 +80,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	}
 	case DLL_PROCESS_DETACH:
 		logwrap(fputs("DLL_PROCESS_DETACH\n", logfile));
-		detouring.dllMainThreadId = GetCurrentThreadId();
 		logwrap(fprintf(logfile, "DllMain called from thread ID %d\n", GetCurrentThreadId()));
-		ui.onDllDetachStage1();
+		ui.onDllDetachStage1_killTimer();
 		settings.onDllDetach();
 		
 		// send signals to various hooked threads that are running continuously,
@@ -97,11 +96,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		game.shutdown = true;
 		endScene.onDllDetach();
 		
-		detouring.detachAll();
-		Sleep(100);
-		while (detouring.someThreadsAreExecutingThisModule(hModule)) Sleep(100);
-		
-		detouring.cancelTransaction();
 		closeLog();
 		break;
 	}
