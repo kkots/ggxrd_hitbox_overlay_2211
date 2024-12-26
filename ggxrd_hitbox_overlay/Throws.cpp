@@ -19,22 +19,11 @@ Throws throws;
 bool Throws::onDllMain() {
 	bool error = false;
 
-#ifndef USE_ANOTHER_HOOK
 	orig_hitDetectionMain = (hitDetectionMain_t)sigscanOffset("GuiltyGearXrd.exe",
 		"83 ec 50 a1 ?? ?? ?? ?? 33 c4 89 44 24 4c 53 55 8b d9 56 57 8d 83 10 98 16 00 8d 54 24 1c 33 ed 89 44 24 10",
 		&error, "hitDetectionMain");
-#else
-	// ghidra sig: 
-	orig_hitDetectionMain = (hitDetectionMain_t)sigscanOffset("GuiltyGearXrd.exe",
-		"51 53 8b 5c 24 0c 55 8b 6b 10 f7 dd 56 1b ed 23 eb 53 8b f1 89 6c 24 10 e8 ?? ?? ?? ?? 85 c0 74 09",
-		&error, "hitDetectionMain");
-#endif
 
-#ifndef USE_ANOTHER_HOOK
 	void (HookHelp::*hookPtr)(int) = &HookHelp::hitDetectionMainHook;
-#else
-	BOOL (HookHelp:: * hookPtr)(char*) = &HookHelp::hitDetectionMainHook;
-#endif
 	if (!detouring.attach(&(PVOID&)orig_hitDetectionMain,
 		(PVOID&)hookPtr,
 		"hitDetectionMain")) return false;
@@ -42,7 +31,6 @@ bool Throws::onDllMain() {
 	return !error;
 }
 
-#ifndef USE_ANOTHER_HOOK
 void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 	if (!gifMode.modDisabled) {
 		endScene.onHitDetectionStart(hitDetectionType);
@@ -55,13 +43,6 @@ void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
 		endScene.onHitDetectionEnd(hitDetectionType);
 	}
 }
-#else
-BOOL Throws::HookHelp::hitDetectionMainHook(char* other) {
-	throws.hitDetectionMainHook();
-	BOOL result = throws.orig_hitDetectionMain((char*)this, other);
-	return result;
-}
-#endif
 
 void Throws::hitDetectionMainHook() {
 	entityList.populate();
@@ -69,16 +50,16 @@ void Throws::hitDetectionMainHook() {
 		Entity ent = entityList.list[i];
 		if (!ent.isActive()) continue;
 
-		const AttackType attackType = ent.attackType();
+		const AttackType attackType = ent.dealtAttack()->type;
 		const bool isActive = ent.isActiveFrames();
-		int throwRange = ent.throwRange();  // This value resets to -1 on normal throws very fast so that's why we need this separate hook.
+		int throwRange = ent.dealtAttack()->throwRange;  // This value resets to -1 on normal throws very fast so that's why we need this separate hook.
 		                                    // For command throws it stays non -1 for much longer than the throw actually happens
 
-		const int throwMinX = ent.throwMinX();
-		const int throwMaxX = ent.throwMaxX();
+		const int throwMinX = ent.dealtAttack()->throwMinX;
+		const int throwMaxX = ent.dealtAttack()->throwMaxX;
 
-		const int throwMaxY = ent.throwMaxY();
-		const int throwMinY = ent.throwMinY();
+		const int throwMaxY = ent.dealtAttack()->throwMaxY;
+		const int throwMinY = ent.dealtAttack()->throwMinY;
 
 		const unsigned int currentAnimDuration = ent.currentAnimDuration();
 		CharacterType charType = ent.characterType();
@@ -112,7 +93,7 @@ void Throws::hitDetectionMainHook() {
 
 			ThrowInfo throwInfo;
 			throwInfo.attackType = attackType;
-			throwInfo.isThrow = ent.isThrow();  // needed for Leo Siegesparade. Throw box is present way after the active frames are
+			throwInfo.isThrow = ent.dealtAttack()->isThrow();  // needed for Leo Siegesparade. Throw box is present way after the active frames are
 			throwInfo.active = true;
 			throwInfo.owner = ent;
 			throwInfo.isPawn = ent.isPawn();

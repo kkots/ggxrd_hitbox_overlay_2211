@@ -674,6 +674,10 @@ void PlayerInfo::clear() {
 	cancelsOffset += sizeof cancelsTimer;
 	wasCancels.clear();
 	cancelsOffset += sizeof wasCancels;
+	cancelsCount = 0;
+	cancelsOffset += sizeof cancelsCount;
+	dmgCalcs.clear();
+	cancelsOffset += sizeof dmgCalcs;
 	memset(this, 0, sizeof PlayerInfo - cancelsOffset);
 }
 
@@ -2336,11 +2340,36 @@ bool PlayerCancelInfo::isCompletelyEmpty() const {
 }
 
 void PlayerInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) const {
+	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, idle, pawn, name, slangName);
+}
+
+void PlayerInfo::determineMoveNameAndSlangName(Entity pawn, const char** name, const char** slangName) {
+	MoveInfo moveInfo;
+	bool moveNonEmpty = moves.getInfo(moveInfo,
+		pawn.characterType(),
+		pawn.currentMoveIndex() == -1 ? nullptr : pawn.currentMove()->name,
+		pawn.animationName(),
+		false);
+	bool idle = false;
+	if (moveNonEmpty) {
+		static std::unique_ptr<PlayerInfo> dummyPlayer = nullptr;
+		if (!dummyPlayer) {
+			dummyPlayer = std::make_unique<PlayerInfo>();
+		}
+		dummyPlayer->pawn = pawn;
+		dummyPlayer->wasEnableWhiffCancels = pawn.enableWhiffCancels();
+		dummyPlayer->wasForceDisableFlags = pawn.forceDisableFlags();
+		idle = moveInfo.isIdle(*dummyPlayer);
+	}
+	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, idle, pawn, name, slangName);
+}
+
+void PlayerInfo::determineMoveNameAndSlangName(const MoveInfo* move, bool idle, Entity pawn, const char** name, const char** slangName) {
 	if (name) *name = nullptr;
 	if (slangName) *slangName = nullptr;
-	if (moveNonEmpty) {
-		if (name) *name = move.getDisplayName(idle);
-		if (slangName) *slangName = move.getDisplayNameSlang(idle);
+	if (move) {
+		if (name) *name = move->getDisplayName(idle);
+		if (slangName) *slangName = move->getDisplayNameSlang(idle);
 	}
 	if (name && !*name) {
 		int moveIndex = pawn.currentMoveIndex();
@@ -2354,25 +2383,41 @@ void PlayerInfo::determineMoveNameAndSlangName(const char** name, const char** s
 }
 
 void ProjectileInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) const {
+	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, ptr, name, slangName);
+}
+
+void ProjectileInfo::determineMoveNameAndSlangName(Entity ptr, const char** name, const char** slangName, const char** framebarNameFull) {
+	entityList.populate();
+	MoveInfo moveInfo;
+	bool moveNonEmpty = moves.getInfo(moveInfo,
+		entityList.slots[ptr.team()].characterType(),
+		nullptr,
+		ptr.animationName(),
+		true);
+	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, ptr, name, slangName);
+	if (framebarNameFull) *framebarNameFull = moveInfo.framebarNameFull;
+}
+
+void ProjectileInfo::determineMoveNameAndSlangName(const MoveInfo* move, Entity ptr, const char** name, const char** slangName) {
 	if (name) *name = nullptr;
 	if (slangName) *slangName = nullptr;
-	if (moveNonEmpty) {
+	if (move) {
 		if (name) {
-			if (move.framebarNameSelector && ptr) {
-				*name = move.framebarNameSelector(ptr);
-			} else if (move.framebarNameUncombined) {
-				*name = move.framebarNameUncombined;
-			} else if (move.framebarName) {
-				*name = move.framebarName;
+			if (move->framebarNameSelector && ptr) {
+				*name = move->framebarNameSelector(ptr);
+			} else if (move->framebarNameUncombined) {
+				*name = move->framebarNameUncombined;
+			} else if (move->framebarName) {
+				*name = move->framebarName;
 			}
 		}
 		if (slangName) {
-			if (move.framebarSlangNameSelector && ptr) {
-				*slangName = move.framebarSlangNameSelector(ptr);
-			} else if (move.framebarSlangNameUncombined) {
-				*slangName = move.framebarSlangNameUncombined;
-			} else if (move.framebarSlangName) {
-				*slangName = move.framebarSlangName;
+			if (move->framebarSlangNameSelector && ptr) {
+				*slangName = move->framebarSlangNameSelector(ptr);
+			} else if (move->framebarSlangNameUncombined) {
+				*slangName = move->framebarSlangNameUncombined;
+			} else if (move->framebarSlangName) {
+				*slangName = move->framebarSlangName;
 			}
 		}
 	} else if (!ptr) {
@@ -2514,4 +2559,21 @@ void InvulData::removeFirstNFrames(int n) {
 	}
 	memmove(frames.data, frames.data + i, sizeof ActiveData * (frames.count - i));
 	frames.count -= i;
+}
+
+void PlayerInfo::fillInMove() {
+	moveNonEmpty = moves.getInfo(move,
+		charType,
+		pawn.currentMoveIndex() == -1 ? nullptr : pawn.currentMove()->name,
+		pawn.animationName(),
+		false);
+}
+
+void ProjectileInfo::fillInMove() {
+	entityList.populate();
+	moveNonEmpty = moves.getInfo(move,
+		entityList.slots[team].characterType(),
+		nullptr,
+		animName,
+		true);
 }

@@ -9,6 +9,7 @@
 #include "WinError.h"
 #include "EntityList.h"
 #include "AltModes.h"
+#include "HitDetector.h"
 
 char** aswEngine = nullptr;
 
@@ -126,6 +127,7 @@ bool Game::onDllMain() {
 		"8d bd a4 04 00 00 bd 02 00 00 00 90 8b 0f 3b cb 74 05 e8 ?? ?? ?? ?? 83 c7 04 4d 75 ef ff 86",
 		{ 31, 0 },
 		&error, "aswEngineTickCountOffset");
+	if (aswEngineTickCountOffset) dangerTimeOffset = aswEngineTickCountOffset - 0x2dc;
 	
 
 	std::vector<char> sig;
@@ -212,7 +214,59 @@ bool Game::onDllMain() {
 		{ 20, 0 },
 		nullptr, "postEffectOn");
 	
+	orig_getRiscForUI_Background = (getRiscForUI_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"66 0f 6e 80 34 4e 02 00",
+		{ -15 },
+		nullptr, "getRiscForUIBackground");
+	if (orig_getRiscForUI_Background) {
+		float(HookHelp::*getRiscForUI_BackgroundHookPtr)() = &HookHelp::getRiscForUI_BackgroundHook;
+		detouring.attach(&(PVOID&)(orig_getRiscForUI_Background),
+			(PVOID&)getRiscForUI_BackgroundHookPtr,
+			"getRiscForUIBackground");
+		
+		orig_getRiscForUI_Foreground = (getRiscForUI_t)((char*)orig_getRiscForUI_Background - 0x40);
+	}
+	
+	if (orig_getRiscForUI_Foreground) {
+		float(HookHelp::*getRiscForUI_ForegroundHookPtr)() = &HookHelp::getRiscForUI_ForegroundHook;
+		detouring.attach(&(PVOID&)(orig_getRiscForUI_Foreground),
+			(PVOID&)getRiscForUI_ForegroundHookPtr,
+			"getRiscForUIForeground");
+	}
+	
 	return !error;
+}
+
+bool Game::sigscanAfterHitDetector() {
+	uintptr_t getTrainingSettingCallPlace = 0;
+	if (hitDetector.activeFrameHit) {
+		getTrainingSettingCallPlace = sigscanForward(hitDetector.activeFrameHit,
+			"6a 0b 89 6c 24 30 e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ??",
+			0xc00);
+	}
+	
+	if (getTrainingSettingCallPlace) {
+		getTrainingSettingPtr = (getTrainingSetting_t)followRelativeCall(getTrainingSettingCallPlace + 13);
+	}
+	
+	if (hitDetector.orig_dealHit) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("e8 ?? ?? ?? ?? 8b 0d ?? ?? ?? ??", sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 2, aswEngine);
+		uintptr_t isStylishCallPlace = sigscanForward((uintptr_t)hitDetector.orig_dealHit,
+			sig.data(),
+			mask.data(),
+			0xf0);
+		if (isStylishCallPlace) {
+			isStylishPtr = (isStylish_t)followRelativeCall(isStylishCallPlace);
+			stylishDefenseInverseModifierOffset = *(uintptr_t*)(isStylishCallPlace + 0x17);
+			handicapsOffset = *(uintptr_t*)(isStylishCallPlace + 0x23);
+		}
+	}
+	
+	return true;
 }
 
 bool Game::sigscanFrameByFraming() {
@@ -658,4 +712,47 @@ BOOL& Game::postEffectOn() {
 	static BOOL placeholder = 0;
 	if (!postEffectOnPtr) return placeholder;
 	return *postEffectOnPtr;
+}
+
+float Game::HookHelp::getRiscForUI_BackgroundHook() {
+	if (settings.showComboProrationInRiscGauge) {
+		Entity player = *(Entity*)((char*)this + 0x484);
+		return (float)(player.riscResidual() / 2 + 6400) * 0.000078124998F;
+	} else {
+		return game.orig_getRiscForUI_Background((char*)this);
+	}
+}
+
+float Game::HookHelp::getRiscForUI_ForegroundHook() {
+	if (settings.showComboProrationInRiscGauge) {
+		Entity player = *(Entity*)((char*)this + 0x484);
+		return (float)(player.risc() / 2 + 6400) * 0.000078124998F;
+	} else {
+		return game.orig_getRiscForUI_Foreground((char*)this);
+	}
+}
+
+int Game::getDangerTime() const {
+	if (!dangerTimeOffset || !*aswEngine) return 0;
+	return *(int*)(*aswEngine + 4 + dangerTimeOffset);
+}
+
+bool Game::isStylish(Entity pawn) const {
+	if (!isStylishPtr) return false;
+	return isStylishPtr((void*)pawn.ent) != 0;
+}
+
+int Game::getStylishDefenseInverseModifier() const {
+	if (!stylishDefenseInverseModifierOffset || !aswEngine || !*aswEngine) return 100;
+	return *(int*)(*aswEngine + stylishDefenseInverseModifierOffset);
+}
+
+int Game::getHandicap(int playerIndex) const {
+	if (!handicapsOffset || !aswEngine || !*aswEngine) return 2;
+	return *(int*)(*aswEngine + handicapsOffset + playerIndex * 4);
+}
+
+int Game::getTrainingSetting(TrainingSettingId setting) const {
+	if (!getTrainingSettingPtr || !getTrainingHud) return 0;
+	return getTrainingSettingPtr(getTrainingHud(), setting, 0);
 }

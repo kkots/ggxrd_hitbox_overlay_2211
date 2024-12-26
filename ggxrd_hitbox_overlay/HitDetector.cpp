@@ -20,19 +20,72 @@ const int hitboxMinActiveTime = 2;
 
 bool HitDetector::onDllMain() {
 	bool error = false;
-
-	orig_determineHitType = (determineHitType_t)sigscanOffset(
+	
+	uintptr_t activeFrameHitCallPlace = sigscanOffset(
 		"GuiltyGearXrd.exe",
-		"55 8b ec 83 e4 f8 81 ec 54 02 00 00 a1 ?? ?? ?? ?? 33 c4 89 84 24 50 02 00 00 8b 45 10 53 56 8b 75 08 8b 5e 10 f7 db 57 8b f9 1b db 23 de f6 87 64 04 00 00 02",
-		nullptr, "determineHitType");
-
-	if (orig_determineHitType) {
-		HitResult(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, unsigned int*, unsigned int*) = &HookHelp::determineHitTypeHook;
+		"e8 ?? ?? ?? ?? 8b 87 84 09 00 00 83 f8 04 74 13 83 f8 05 74 0e 83 f8 01 74 09 83 f8 02 0f 85 89 fe ff ff",
+		&error, "activeFrameHit");
+	if (activeFrameHitCallPlace) {
+		activeFrameHit = followRelativeCall(activeFrameHitCallPlace);
+	}
+	
+	uintptr_t determineHitTypeCallPlace = 0;
+	if (activeFrameHit) {
+		determineHitTypeCallPlace = sigscanForward(activeFrameHit,
+			"e8 ?? ?? ?? ?? f7 87 a4 09 00 00 00 40 00 00",
+			0x100);
+	}
+	if (determineHitTypeCallPlace) {
+		orig_determineHitType = (determineHitType_t)followRelativeCall(determineHitTypeCallPlace);
+	}
+	if (!orig_determineHitType) {
+		logwrap(fprintf(logfile, "determineHitType not found\n"));
+	} else {
+		HitResult(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, DWORD*, int*) = &HookHelp::determineHitTypeHook;
 		detouring.attach(&(PVOID&)(orig_determineHitType),
 			(PVOID&)determineHitTypeHookPtr,
 			"determineHitType");
 	}
-
+	
+	uintptr_t copyDealtAtkToReceivedAtkCallPlace = 0;
+	if (activeFrameHit) {
+		copyDealtAtkToReceivedAtkCallPlace = sigscanForward(activeFrameHit,
+			"e8 ?? ?? ?? ?? 53 55 8b cf e8 ?? ?? ?? ?? 83 fd 01 74 0f 83 fd 02 74 0a 83 fd 04 74 05 83 fd 05 75 14",
+			0x2000);
+	}
+	
+	if (copyDealtAtkToReceivedAtkCallPlace) {
+		orig_copyDealtAtkToReceivedAtk = (copyDealtAtkToReceivedAtk_t)followRelativeCall(copyDealtAtkToReceivedAtkCallPlace);
+	}
+	
+	if (!orig_copyDealtAtkToReceivedAtk) {
+		logwrap(fprintf(logfile, "copyDealtAtkToReceivedAtk not found\n"));
+	} else {
+		void(HookHelp::*copyDealtAtkToReceivedAtkHookPtr)(void*) = &HookHelp::copyDealtAtkToReceivedAtkHook;
+		detouring.attach(&(PVOID&)(orig_copyDealtAtkToReceivedAtk),
+			(PVOID&)copyDealtAtkToReceivedAtkHookPtr,
+			"copyDealtAtkToReceivedAtk");
+	}
+	
+	uintptr_t dealHitCallPlace = 0;
+	if (activeFrameHit) {
+		dealHitCallPlace = sigscanForward(activeFrameHit,
+			"83 be dc 07 00 00 02 75 0a c7 86 b4 9f 00 00 01 00 00 00 8b 54 24 34 52 53 8b ce e8 ?? ?? ?? ??",
+			0x2000);
+	}
+	if (dealHitCallPlace) {
+		orig_dealHit = (dealHit_t)followRelativeCall(dealHitCallPlace + 0x1b);
+	}
+	
+	if (!orig_dealHit) {
+		logwrap(fprintf(logfile, "dealHit not found\n"));
+	} else {
+		void(HookHelp::*dealHitHookPtr)(void*, BOOL) = &HookHelp::dealHitHook;
+		detouring.attach(&(PVOID&)(orig_dealHit),
+			(PVOID&)dealHitHookPtr,
+			"dealHit");
+	}
+	
 	return !error;
 }
 
@@ -42,8 +95,8 @@ void HitDetector::clearAllBoxes() {
 	rejections.clear();
 }
 
-HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr) {
-	HitResult result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, param3, hpPtr);
+HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, DWORD* hitFlags, int* hpPtr) {
+	HitResult result = hitDetector.orig_determineHitType(this, defender, wasItType10Hitbox, hitFlags, hpPtr);
 	if (gifMode.modDisabled) return result;
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };
@@ -155,7 +208,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 	if (result == HIT_RESULT_NORMAL
 			|| result == HIT_RESULT_BLOCKED
 			|| result == HIT_RESULT_ARMORED
-			|| result == HIT_RESULT_5) {
+			|| result == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
 		endScene.registerHit(result, hasHitbox, thisEntity, otherEntity);
 	}
 
@@ -163,6 +216,16 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 		result = HIT_RESULT_NONE;
 	}
 	return result;
+}
+
+void HitDetector::HookHelp::copyDealtAtkToReceivedAtkHook(void* attacker) {
+	hitDetector.orig_copyDealtAtkToReceivedAtk((void*)this, attacker);
+	endScene.onAfterAttackCopy(Entity{(char*)this}, Entity{attacker});
+}
+
+void HitDetector::HookHelp::dealHitHook(void* attacker, BOOL isInHitstun) {
+	endScene.onDealHit(Entity{(char*)this}, Entity{attacker});
+	hitDetector.orig_dealHit((void*)this, attacker, isInHitstun);
 }
 
 HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox) {

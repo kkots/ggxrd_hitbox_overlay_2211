@@ -2,11 +2,8 @@
 #include <vector>
 #include "ThrowInfo.h"
 
-#ifndef USE_ANOTHER_HOOK
 using hitDetectionMain_t = void (__thiscall*)(void* aswSubengine, int hitDetectionType);
-#else
-using hitDetectionMain_t = BOOL(__thiscall*)(char* thisPtr, char* other);
-#endif
+
 
 class Throws
 {
@@ -18,11 +15,7 @@ private:
 	class HookHelp {
 	private:
 		friend class Throws;
-#ifndef USE_ANOTHER_HOOK
 		void hitDetectionMainHook(int hitDetectionType);
-#else
-		BOOL hitDetectionMainHook(char* other);
-#endif
 	};
 
 	hitDetectionMain_t orig_hitDetectionMain = nullptr;

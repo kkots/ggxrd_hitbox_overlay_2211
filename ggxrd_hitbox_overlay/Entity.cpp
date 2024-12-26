@@ -18,6 +18,9 @@ static char gutsTable[6][6] {     // We're NOT hardcoding guts rating of each ch
 	{ 100, 75, 60, 48, 40, 36 }   // Raven
 };
 
+static int normalComboProrationTable[] { 256, 200, 152, 112, 80, 48, 32, 16, 8, 8, 8 };
+static int overdriveComboProrationTable[] { 256, 176, 128, 96, 80, 48, 40, 32, 24, 16, 16 };
+
 bool EntityManager::onDllMain() {
 	bool error = false;
 
@@ -97,8 +100,8 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 		&& (*(DWORD*)(ent + 0x23c) & 0x1000) != 0
 		&& !(
 			// needed for Baiken Metsudo Kushodo
-			*attackLockAction() != '\0'
-			&& strcmp(animationName(), attackLockAction()) != 0
+			*dealtAttack()->attackLockAction != '\0'
+			&& strcmp(animationName(), dealtAttack()->attackLockAction) != 0
 		)
 		
 		|| isSuperArmor
@@ -132,7 +135,11 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 		|| isFullInvul
 		|| otg
 		|| state->inHitstunBlockstun
-		|| clashHitstop();
+		|| clashHitstop()
+		|| (
+			damageToAir()
+			|| setOnCmnActDownBoundEntry()
+		) && !(state->posY != 0 || speedY() != 0);
 	logOnce(fprintf(logfile, "throwInvuln: %u\n", (int)state->throwInvuln));
 	state->superArmorActive = isSuperArmor
 		&& !(
@@ -243,7 +250,7 @@ void Entity::getWakeupTimings(WakeupTimings* output) const {
 	getWakeupTimings(characterType(), output);
 }
 
-int Entity::calculateGuts() const {
+int Entity::calculateGuts(int* gutsLevel) const {
 	int maxHP = maxHp();
 	int HP = hp();
 	int gutsIndex = 0;
@@ -258,6 +265,7 @@ int Entity::calculateGuts() const {
 	} else if (HP <= maxHP * 50 / 100) {
 		gutsIndex = 1;
 	}
+	if (gutsLevel) *gutsLevel = gutsIndex;
 	return gutsTable[gutsRating()][gutsIndex];
 }
 
@@ -495,6 +503,22 @@ void EntityManager::calculateHitstunProration(
 	} else {
 		*hitstunProration = 100;
 	}
+}
+
+int EntityManager::calculateComboProration(int risc, AttackType attackType) {
+	risc = risc / 100;
+	if (risc >= 0) return 256;
+	int* prorationTable;
+	if ((int)attackType < 3) {
+		prorationTable = normalComboProrationTable;
+	} else {
+		prorationTable = overdriveComboProrationTable;
+	}
+	risc = -risc - 1;
+	int ind = risc >> 4;
+	return (
+			(prorationTable[ind] << 4) - (prorationTable[ind] - prorationTable[ind + 1]) * (risc & 15)
+		) >> 4;
 }
 
 bool AddedMoveData::hasCondition(MoveCondition condition) const {

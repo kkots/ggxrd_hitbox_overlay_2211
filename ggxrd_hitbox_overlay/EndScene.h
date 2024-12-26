@@ -156,6 +156,8 @@ public:
 	bool didHit(Entity attacker);
 	void onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen);
 	void onGifModeBlackBackgroundChanged();
+	void onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr);
+	void onDealHit(Entity defenderPtr, Entity attackerPtr);
 	WNDPROC orig_WndProc = nullptr;
 	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
@@ -425,6 +427,8 @@ private:
 	bool neverIgnoreHitstop = false;
 	bool combineProjectileFramebarsWhenPossible = false;
 	bool eachProjectileOnSeparateFramebar = false;
+	bool isHoldingFD(const PlayerInfo& player) const;
+	bool isHoldingFD(Entity pawn) const;
 };
 
 extern EndScene endScene;

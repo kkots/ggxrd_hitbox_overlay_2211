@@ -93,6 +93,7 @@ public:
 	std::atomic_bool considerIdleInvulIdle = true;
 	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = true;
 	std::atomic_bool skipGrabsInFramebar = false;
+	std::atomic_bool showComboProrationInRiscGauge = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

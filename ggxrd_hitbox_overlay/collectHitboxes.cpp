@@ -137,7 +137,7 @@ void collectHitboxes(Entity ent,
 
 	bool includeTheseHitboxes = hitboxes && active && !state.doingAThrow;
 	if (includeTheseHitboxes) {
-		if (ent.collisionForceExpand()) {
+		if (ent.dealtAttack()->collisionForceExpand()) {
 			includeTheseHitboxes = false;
 		}
 		if (lastIgnoredHitNum && currentHitNum <= *lastIgnoredHitNum) {
@@ -155,7 +155,7 @@ void collectHitboxes(Entity ent,
 		
 		callParams.thickness = THICKNESS_HITBOX;
 		
-		if (ent.clashOnly()) {
+		if (ent.dealtAttack()->clashOnly()) {
 			callParams.thickness = 1;
 			callParams.fillColor = replaceAlpha(16, COLOR_HITBOX);
 		} else {
@@ -165,7 +165,7 @@ void collectHitboxes(Entity ent,
 		callParams.outlineColor = replaceAlpha(255, COLOR_HITBOX);
 		
 		if (numHitboxes
-				&& !ent.clashOnly()  // don't include clash-only hitboxes in the active frames: Venom QV
+				&& !ent.dealtAttack()->clashOnly()  // don't include clash-only hitboxes in the active frames: Venom QV
 				&& !ent.isSuperFrozen()  // don't include projectiles stuck in superfreeze as active: Ky CSE YRC
 				) {
 			*numHitboxes += hitboxCount;

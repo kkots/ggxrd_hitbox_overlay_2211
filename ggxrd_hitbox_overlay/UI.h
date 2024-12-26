@@ -95,6 +95,7 @@ private:
 	void frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
 	void frameAdvantageText(int frameAdv);
 	bool showTensionData = false;
+	bool showBurstGain = false;
 	bool showSpeedsData = false;
 	bool showBoxExtents = false;
 	bool showFrameAdvTooltip = false;
@@ -198,6 +199,7 @@ private:
 	bool float4SettingPreset(float& settingsPtr);
 	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue);
 	bool showCancels[2] { false, false };
+	bool showDamageCalculation[2] { false, false };
 };
 
 extern UI ui;

@@ -150,7 +150,7 @@ enum HitResult {
 	HIT_RESULT_BLOCKED,
 	HIT_RESULT_IGNORED,
 	HIT_RESULT_ARMORED,  // or rejected
-	HIT_RESULT_5
+	HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION
 };
 
 enum AttackType {
@@ -506,6 +506,123 @@ struct AddedMoveData {
 	bool hasCondition(MoveCondition condition) const;
 };
 
+enum CounterHitType {
+	COUNTERHIT_TYPE_DEFAULT,
+	COUNTERHIT_TYPE_NO_COUNTER,
+	COUNTERHIT_TYPE_FORCE_COUNTER
+};
+
+enum KillType {
+	KILL_TYPE_NORMAL,
+	KILL_TYPE_NOT_KILL,
+	KILL_TYPE_NOT_KILL_IN_COMBO,
+	KILL_TYPE_KILL,
+	KILL_TYPE_KILL_ALLY
+};
+
+enum GuardType {
+	GUARD_TYPE_ANY,
+	GUARD_TYPE_HIGH,
+	GUARD_TYPE_LOW,
+	GUARD_TYPE_NONE
+};
+
+struct AttackData {
+	AttackType type;
+	int level;
+	int damage;
+	DWORD flags0xc;
+	inline bool hellfire() const { return (flags0xc & 0x10000) != 0; }
+	inline bool enableGuardBreak() const { return (flags0xc & 0x40000) != 0; }
+	inline bool airUnblockable() const { return (flags0xc & 0x100000) != 0; }
+	inline bool easyClash() const { return (flags0xc & 0x1000000) != 0; }
+	DWORD flags0x10;
+	inline bool ignoreWeight() const { return (flags0x10 & 0x1) != 0; }  // noGravityScaling
+	inline bool noHitstunScaling() const { return (flags0x10 & 0x10) != 0; }
+	inline bool dontUseComboTimerForPushback() const { return (flags0x10 & 0x20) != 0; }  // noPushbackScaling
+	inline bool noDamageScaling() const { return (flags0x10 & 0x100) != 0; }
+	inline bool dontUseComboTimerForSpeedY() const { return (flags0x10 & 0x400) != 0; }
+	inline bool prorationTandan() const { return (flags0x10 & 0x10000) != 0; }  // this flag is always set on everything, even when not attacking
+	inline bool isThrow() const { return (flags0x10 & 0x800000) != 0; }
+	DWORD flags0x14;
+	inline bool collisionForceExpand() const { return (flags0x14 & 4) != 0; }
+	inline bool onlyHitGround() const { return (flags0x14 & 10) != 0; }
+	inline bool onlyHitAir() const { return (flags0x14 & 20) != 0; }
+	inline bool whiffCrouch() const { return (flags0x14 & 40) != 0; }
+	inline bool clashOnly() const { return (flags0x14 & 0x1000000) != 0; }  // RTL RideAura has this, Jack O' "Aigisfield" (sic)
+	inline bool attackMultiHit() const { return (flags0x14 & 0x4000000) != 0; }  // Elphelt grenade, Elphelt shotgun, Oil Fire, 100-t Weight, Stahl Wirbel, etc. Lets you hit multiple entities in one frame
+	inline bool wasHitDuringRc() const { return (flags0x14 & 0x20000000) != 0; }
+	DWORD flags0x18;
+	int extraHitstops[3];  // [2] is extra CH hitstop
+	int hitstop;
+	int attackLockWaitTime;
+	int receivedAtkLvlBlockstun;
+	int blockstunAirExtra;
+	int throwMaxX;
+	int throwMaxY;
+	int throwMinX;
+	int throwMinY;
+	int throwRange;
+	int projectileLvl;
+	CounterHitType counterHitType;
+	char attackLockAction[32];
+	DWORD undefined1;
+	char undefined2[32];
+	DWORD undefined3;
+	char undefined4[32];
+	int undefined5;
+	DWORD undefined6;
+	DWORD attackFrontDirection;
+	int undefined7;
+	KillType killType;
+	char undefined8[32];
+	DWORD undefined9;
+	DWORD undefined10;
+	int undefined11;
+	int undefined12;
+	int varAdd; // attackExHitParam
+	DWORD varEntity;
+	DWORD varFlags;
+	DWORD varTag;
+	DWORD varId;
+	int varMin;
+	int varMax;
+	int poisonDuration;
+	int poisonPercentage;
+	DWORD undefined20;
+	int minimumDamagePercent;
+	int undefined21;
+	GuardType guardType;
+	char attackLockSprite[32];
+	int pushbackModifier;  // Ky 6K has this set to 65 and bbscript calls it hitPushbackX
+	int pushbackModifierOnHitstun;  // pushbackXForHit
+	int extraCrouchHitstun;  // crouchHitstunAddition
+	DWORD undefined22;
+	int angle;
+	int stunmashAmountMax;  // staggerDuration
+	int tensionGainOnConnect;
+	char undefined23[32];
+	char undefined24[32];
+	char undefined25[32];
+	int atkLvlOnBlockOrArmor;
+	int riscPlus;
+	int riscMinus;
+	int initialProration;
+	int forcedProration;
+	int riscMinusStarter;
+	int riscMinusOnce;
+	int attackKezuri;
+	int unburstableTime;
+	int invulnTime;
+	int dustInvulnTime;
+	int damageSprite;
+	int lifeStealPercent;
+	int exDamageType;
+	char trialName[32];
+	int airPushbackModifier;  // Has not been spotted yet to not be 0
+	DWORD undefined26;
+};
+
 class Entity
 {
 public:
@@ -551,6 +668,7 @@ public:
 	inline unsigned int currentAnimDuration() const { return *(const unsigned int*)(ent + 0x130); }
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
+	inline bool guardBreakInitialProrationApplied() const { return (*(DWORD*)(ent + 0x120) & 0x1000) != 0; }
 	inline int hitstop() const { return *(int*)(ent + 0x1ac); }
 	inline int clashHitstop() const { return *(int*)(ent + 0x1b0); }
 	inline bool needSetHitstop() const { return *(DWORD*)(ent + 0x1b8) != 0; }
@@ -564,10 +682,12 @@ public:
 	inline int negativePenalty() const { return *(int*)(ent + 0x2d144); }  // progress towards negative penalty
 	inline int cornerPenalty() const { return *(int*)(ent + 0x2d14c); }  // penalty for touching the wall
 	inline int risc() const { return *(DWORD*)(ent + 0x24e30); }
+	inline int riscResidual() const { return *(DWORD*)(ent + 0x24e34); }  // the value that UI shows in the dark red part of the RISC gauge
 	inline int hp() const { return *(int*)(ent + 0x9cc); }
 	inline int maxHp() const { return *(int*)(ent + 0x9d0); }
 	inline int defenseModifier() const { return *(int*)(ent + 0x9874); }  // dmg = dmg * (defenseModifier + 0x100) / 0x100
 	inline int gutsRating() const { return *(int*)(ent + 0x9878); }
+	inline int proration() const { return *(int*)(ent + 0x9f58); }
 	inline int stun() const { return *(int*)(ent + 0x9fc4); }
 	inline int stunThreshold() const { return *(int*)(ent + 0x9fc8); }
 	inline int weight() const { return *(int*)(ent + 0x9880); }
@@ -603,6 +723,7 @@ public:
 	inline int scaleZ() const { return *(int*)(ent + 0x26c); }
 	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
 	inline int scaleDefault() const { return *(int*)(ent + 0x2594); }
+	inline int defendersRisc() const { return *(int*)(ent + 0x25b0); }
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
 	inline int scaleDefault2() const { return *(int*)(ent + 0x2664); }
 	inline int& scaleForParticles() { return *(int*)(ent + 0x2618); }
@@ -612,29 +733,20 @@ public:
 	inline int& speedY() { return *(int*)(ent + 0x300); }
 	inline int gravity() const { return *(int*)(ent + 0x304); }
 	inline int comboTimer() const { return *(int*)(ent + 0x9f50); }
-	inline bool dontUseComboTimerForPushback() const { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x20) != 0; }
-	inline bool dontUseComboTimerForSpeedY() const { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x400) != 0; }
-	inline bool noHitstunScaling() const { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x10) != 0; }
-	inline bool ignoreWeight() const { return (*(DWORD*)(ent + 0x710 + 0x10) & 0x1) != 0; }
+	inline BOOL riscMinusOnceUsed() const { return *(BOOL*)(ent + 0x9f54); }
+	inline BOOL rcDmgProration() const { return *(BOOL*)(ent + 0x9f5c); }
 	inline int fdPushback() const { return *(int*)(ent + 0x31c); }  // Ky 5H on May FD ground block, Ky gets -900 on first frame of hitstop. facing right
 	inline int pushback() const { return *(int*)(ent + 0x2cc); }  // Ky punch May with 5P, May gets pushback 20020 on the frame after hitstop ends. = pendingPushback * 175 / 10
 	inline int pendingPushback() const { return *(int*)(ent + 0x318); }  // Ky punch May with 5P, May gets pushback 1144 on the frame after hitstop ends.
-	inline int pushbackModifier() const { return *(int*)(ent + 0x710 + 0x154); }  // Ky 6K has this set to 65 and bbscript calls it hitPushbackX
-	inline int airPushbackModifier() const { return *(int*)(ent + 0x710 + 0x228); }  // Has not been spotted yet to not be 0
 	inline bool ascending() const { return (*(DWORD*)(ent + 0x234) & 0x1) != 0; }  // this does not mean prejump. It is set on the initial 7 frames of May jump, 10 Ky jump.
 	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
-	inline int pushbackModifierDuringHitstun() const { return *(int*)(ent + 0x710 + 0x158); }
 	inline bool displayModel() const { return *(bool*)(ent + 0x2814); }
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
 	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
-	inline AttackType attackType() const { return *(AttackType*)(ent + 0x44c); }
-	inline int throwRange() const { return *(int*)(ent + 0x494); }
-	inline int throwMinX() const { return *(int*)(ent + 0x48c); }
-	inline int throwMaxX() const { return *(int*)(ent + 0x484); }
-	inline int throwMaxY() const { return *(int*)(ent + 0x488); }
-	inline int throwMinY() const { return *(int*)(ent + 0x490); }
+	inline const AttackData* dealtAttack() const { return (const AttackData*)(ent + 0x44c); }
+	inline const AttackData* receivedAttack() const { return (const AttackData*)(ent + 0x710); }
 	// Starts at 2560 on Sol getting dizzied.
 	// On next frame decreases by 10 if you didn't press a button.
 	// On next frame doesn't decrease because you're in 27f hitstop.
@@ -644,16 +756,23 @@ public:
 	inline int dizzyMashAmountLeft() const { return *(int*)(ent + 0x9fcc); }
 	inline int dizzyMashAmountMax() const { return *(int*)(ent + 0x9fd0); }
 	inline int exKizetsu() const { return *(int*)(ent + 0x24dc4); }
+	inline int damageScale() const { return *(int*)(ent + 0x24d74); }  // Raven uses it on non-0 excitement. This value on the attacker player
+	inline int projectileDamageScale() const { return *(int*)(ent + 0x2530); }  // this value on the defender
+	inline int superArmorDamagePercent() const { return *(int*)(ent + 0x9b8); }  // this value on the defender
+	inline BOOL increaseDmgBy50Percent() const { return *(BOOL*)(ent + 0x24cac); }  // no idea. This value on the defender
+	inline int extraInverseProration() const { return *(int*)(ent + 0x24d78); } // this value on the defender
+	inline int dustProration1() const { return *(int*)(ent + 0x2ce50); }  // this value on the defender
+	inline int dustProration2() const { return *(int*)(ent + 0x2ce54); }  // this value on the defender
+	inline bool hellfireState() const { return (*(DWORD*)(ent + 0x4d2c) & 0x4) != 0; }  // this value on the attacker player, but must also check health <= 10%
 	inline bool landed() const { return (*(int*)(ent + 0x234) & 0x4) != 0; }  // is true for only one frame - the frame on which you touched the ground
 	inline bool hitSomethingOnThisFrame() const { return (*(int*)(ent + 0x12c) & 0x20000) != 0; }  // is true for only one frame - the frame on which you hit something
 	inline bool receivedProjectileClashSignal() const { return (*(int*)(ent + 0x12c) & 0x8) != 0; }
 	inline bool inHitstunNextFrame() const { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
 	inline bool inBlockstunNextFrame() const { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
-	inline bool enableGuardBreak() const { return (*(int*)(ent + 0x710 + 0xc) & 0x40000) != 0; }  // i don't know what this is, bbscript calls it enableGuardBreak
 	inline Entity currentRunOnObject() const { return *(Entity*)(ent + 0x2464); }
 	inline bool successfulIB() const { return (*(DWORD*)(ent + 0x23c) & 0x800000) != 0; }  // can be set even on FD IB. Remains set even after blockstun is over.
 	inline HitResult lastHitResult() const { return *(HitResult*)(ent + 0x984); }
-	inline int receivedAttackLevel() const { return *(int*)(ent + 0x710 + 0x4); }
+	inline DWORD lastHitResultFlags() const { return *(DWORD*)(ent + 0x988); }
 	inline bool isTouchingLeftWall() const { return (*(DWORD*)(ent + 0x118) & 0x400000) != 0; }
 	inline bool isTouchingRightWall() const { return (*(DWORD*)(ent + 0x118) & 0x800000) != 0; }
 	inline bool isTouchingLeftScreenEdge() const { return (*(DWORD*)(ent + 0x118) & 0x100000) != 0; }
@@ -663,7 +782,6 @@ public:
 	inline Entity attacker() const { return *(Entity*)(ent + 0x708); }
 	inline bool holdingFD() const { return (*(DWORD*)(ent + 0x23c) & 0x20000000) != 0; }
 	inline int receivedSpeedY() const { return *(int*)(ent + 0x944); }
-	inline bool clashOnly() const { return (*(DWORD*)(ent + 0x44c + 0x14) & 0x1000000) != 0; }  // RTL RideAura has this, Jack O' Aigisfield
 	inline bool superArmorEnabled() const { return (*(DWORD*)(ent + 0x9a4) & 0x2) != 0; }  // by default super armor tanks everything
 	inline SuperArmorType superArmorType() const { return *(SuperArmorType*)(ent + 0x9a8); }
 	inline bool superArmorThrow() const { return (*(DWORD*)(ent + 0x9a4) & 0x40) != 0; }
@@ -699,7 +817,6 @@ public:
 	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }
 	inline const char* gotoLabelRequest() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
 	inline const char* spriteName() const { return (const char*)(ent + 0xa58); }
-	inline const char* attackLockAction() const { return (const char*)(ent + 0x44c + 0x54); }
 	inline int spriteFrameCounter() const { return *(int*)(ent + 0xa78); }
 	inline int spriteFrameCounterMax() const { return *(int*)(ent + 0xa80); }
 	// If playing a sprite, points to the next sprite command that would go after it.
@@ -713,7 +830,6 @@ public:
 	inline int maxDoubleJumps() const { return *(int*)(ent + 0x9888); }
 	inline Entity playerEntity() const { return *(Entity*)(ent + 0x1d0); }
 	inline Entity effectLinkedCollision() const { return *(Entity*)(ent + 0x204); }
-	inline bool collisionForceExpand() const { return (*(DWORD*)(ent + 0x44c + 0x14) & 0x4) != 0; }  // having this flag means you ignore the hitboxes hit detection check
 	inline int pitch() const { return *(int*)(ent + 0x258); }
 	inline int hitboxOffsetX() const { return *(int*)(ent + 0x27c); }
 	inline int hitboxOffsetY() const { return *(int*)(ent + 0x280); }
@@ -722,8 +838,8 @@ public:
 	inline int untechableTime() const { return *(int*)(ent + 0x694); }
 	inline int floorBouncesRemaining() const { return *(int*)(ent + 0x960); }
 	inline bool isOtg() const { return (*(DWORD*)(ent + 0x4d24) & 0x800000) != 0; }
-	inline bool isThrow() const { return (*(DWORD*)(ent + 0x44c + 0x10) & 0x800000) != 0; }
-	inline int atkAngle() const { return *(int*)(ent + 0x44c + 0x164); }
+	inline bool damageToAir() const { return (*(DWORD*)(ent + 0x4d24) & 0x8000) != 0; }  // this is present on Answer Backdash, Faust Pogo, May Horizontal Dolphin first few frames, etc
+	inline bool setOnCmnActDownBoundEntry() const { return (*(DWORD*)(ent + 0x4d24) & 2) != 0; }  // this is set when entering CmnActDownBound animation
 	inline int strikeInvulnFrames() const { return *(int*)(ent + 0x9a0); }
 	inline int throwInvulnFrames() const { return *(int*)(ent + 0x99c); }
 	inline bool strikeInvul() const { return (*(DWORD*)(ent + 0x238) & 0x10) != 0; }
@@ -753,13 +869,17 @@ public:
 	inline int destroyOnBlockOrArmor() const { return *(int*)(ent + 0x2548); }
 	inline int destroyOnHitProjectile() const { return *(int*)(ent + 0x254c); }
 	inline int destroyOnHitPlayer() const { return *(int*)(ent + 0x2544); }
+	inline int guardBalanceDefence() const { return *(int*)(ent + 0x98a4); }
+	inline int blockCount() const { return *(int*)(ent + 0x9fe0); }
+	inline bool lastHitIsMortalCounter() const { return *(int*)(ent + 0x990) == 3; }  // 0 means no counter hit, 2 means counter hit. 1 was never spotted at the end of a tick, it's something intermediate
+	inline bool ignoreRcProration() const { return *(BOOL*)(ent + 0x26200) != 0; }
 	
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	
 	static void getWakeupTimings(CharacterType charType, WakeupTimings* output);
 	void getWakeupTimings(WakeupTimings* output) const;
-	int calculateGuts() const;
+	int calculateGuts(int* gutsLevel = nullptr) const;
 	
 	inline char* operator+(int offset) const { return (char*)(ent + offset); }
 	inline char* operator+(DWORD offset) const { return (char*)(ent + offset); }
@@ -821,6 +941,7 @@ public:
 		bool isInAir,
 		int comboTimer,
 		int* hitstunProration);
+	int calculateComboProration(int risc, AttackType attackType);  // from 0 to 256
 private:
 	friend class Entity;
 	getPos_t getPosX;

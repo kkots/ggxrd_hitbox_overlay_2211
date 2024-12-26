@@ -482,6 +482,11 @@ closingModWindowAlsoHidesFramebar = true
 ; or by hovering your mouse over the 'Startup' or 'Total' fields in the main UI window and reading their tooltip.
 dontShowMoveName = false
 
+; Specify true or false.
+; Setting this to true will modify the RISC gauge so that the middle represents 0 RISC and no combo proration,
+; the right half represents RISC, and the left half represents combo proration.
+showComboProrationInRiscGauge = false
+
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.
 ; If closingModWindowAlsoHidesFramebar is true, then setting showFramebar to true is not enough, as the main

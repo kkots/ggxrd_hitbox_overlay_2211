@@ -4,7 +4,9 @@
 #include "Entity.h"
 #include "PlayerInfo.h"
 
-using determineHitType_t = HitResult(__thiscall*)(void*, void*, BOOL, unsigned int*, unsigned int*);
+using determineHitType_t = HitResult(__thiscall*)(void*, void*, BOOL, DWORD*, int*);
+using copyDealtAtkToReceivedAtk_t = void(__thiscall*)(void*, void*);
+using dealHit_t = void(__thiscall*)(void*, void*, BOOL);
 
 class HitDetector
 {
@@ -20,6 +22,9 @@ public:
 	void drawHits();
 	WasHitInfo wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox);
 	determineHitType_t orig_determineHitType = nullptr;
+	copyDealtAtkToReceivedAtk_t orig_copyDealtAtkToReceivedAtk = nullptr;
+	dealHit_t orig_dealHit = nullptr;
+	uintptr_t activeFrameHit = 0;
 private:
 	
 	struct DetectedHitboxes {
@@ -37,7 +42,9 @@ private:
 	class HookHelp {
 	private:
 		friend class HitDetector;
-		HitResult determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, unsigned int* param3, unsigned int* hpPtr);
+		HitResult determineHitTypeHook(void* defender, BOOL wasItType10Hitbox, DWORD* hitFlags, int* hpPtr);
+		void copyDealtAtkToReceivedAtkHook(void* defender);
+		void dealHitHook(void* attacker, BOOL isInHitstun);
 	};
 
 	struct Rejection {

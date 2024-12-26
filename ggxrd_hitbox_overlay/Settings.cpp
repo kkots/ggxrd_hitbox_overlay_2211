@@ -419,6 +419,10 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(skipGrabsInFramebar), "Skip Grab Animations In Framebar", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will skip grab animations such as ground throw or some supers that connected in the framebar.");
+	registerOtherDescription(settingAndItsName(showComboProrationInRiscGauge), "Show Combo Proration In RISC Gauge", settingsGeneralSettingsStr,
+			"; Specify true or false.\n"
+			"; Setting this to true will modify the RISC gauge so that the middle represents 0 RISC and no combo proration,\n"
+			"; the right half represents RISC, and the left half represents combo proration.");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -684,6 +688,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool skipGrabsInFramebarParsed = false;
 	
+	bool showComboProrationInRiscGaugeParsed = false;
+	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
 	bool modWindowVisibleOnStartParsed = false;
@@ -859,6 +865,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			}
 			if (!skipGrabsInFramebarParsed && _stricmp(keyName.c_str(), "skipGrabsInFramebar") == 0) {
 				skipGrabsInFramebarParsed = parseBoolean("skipGrabsInFramebar", keyValue, skipGrabsInFramebar);
+			}
+			if (!showComboProrationInRiscGaugeParsed && _stricmp(keyName.c_str(), "showComboProrationInRiscGauge") == 0) {
+				showComboProrationInRiscGaugeParsed = parseBoolean("showComboProrationInRiscGauge", keyValue, showComboProrationInRiscGauge);
 			}
 			if (!forceZeroPitchDuringCameraCenteringParsed && _stricmp(keyName.c_str(), "forceZeroPitchDuringCameraCentering") == 0) {
 				forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
@@ -1047,6 +1056,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!skipGrabsInFramebarParsed) {
 		skipGrabsInFramebar = true;
+	}
+	
+	if (!showComboProrationInRiscGaugeParsed) {
+		showComboProrationInRiscGauge = false;
 	}
 	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
@@ -1584,6 +1597,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("drawPushboxCheckSeparately", formatBoolean(drawPushboxCheckSeparately), getOtherINIDescription(&drawPushboxCheckSeparately));
 	replaceOrAddSetting("frameAdvantage_dontUsePreBlockstunTime", formatBoolean(frameAdvantage_dontUsePreBlockstunTime), getOtherINIDescription(&frameAdvantage_dontUsePreBlockstunTime));
 	replaceOrAddSetting("skipGrabsInFramebar", formatBoolean(skipGrabsInFramebar), getOtherINIDescription(&skipGrabsInFramebar));
+	replaceOrAddSetting("showComboProrationInRiscGauge", formatBoolean(showComboProrationInRiscGauge), getOtherINIDescription(&showComboProrationInRiscGauge));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

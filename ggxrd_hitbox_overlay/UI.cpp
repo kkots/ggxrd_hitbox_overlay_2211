@@ -168,7 +168,14 @@ static void printAllCancels(const FrameCancelInfo& cancels,
 	bool insertSeparators);
 static bool prevNamesControl(const PlayerInfo& player, bool includeTitle);
 static void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip);
-void prepareLastNames(const char** lastNames, const PlayerInfo& player);
+static void prepareLastNames(const char** lastNames, const PlayerInfo& player);
+static const char* formatHitResult(HitResult hitResult);
+static const char* formatBlockType(BlockType blockType);
+static int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int attackKezuriStandard);
+static int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int guts, int gutsLevel);
+static int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectile, int projectileDamageScale, HitResult lastHitResult, int superArmorDamagePercent);
+static const char* formatAttackType(AttackType attackType);
+static const char* formatGuardType(GuardType guardType);
 
 bool UI::onDllMain(HMODULE hModule) {
 	
@@ -1260,17 +1267,6 @@ void UI::prepareDrawData() {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.grab));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("grab");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
 					player.sprite.print(strbuf, sizeof strbuf);
 					printNoWordWrap
 					
@@ -1595,16 +1591,23 @@ void UI::prepareDrawData() {
 			}
 			AddTooltip("Displays tension gained from combo and factors that affect tension gain.");
 			ImGui::SameLine();
-			if (ImGui::Button("Speed/Proration")) {
+			if (ImGui::Button("Burst Gain")) {
+				showBurstGain = !showBurstGain;
+			}
+			AddTooltip("Displays burst gained from combo or last hit.");
+			
+			if (ImGui::Button("Speed/Hitstun Proration/Pushback/Wakeup")) {
 				showSpeedsData = !showSpeedsData;
 			}
 			AddTooltip("Display x,y, speed, pushback and protation of hitstun and pushback.");
 			for (int i = 0; i < 2; ++i) {
+				ImGui::PushID("Character Specific");
 				sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
 				if (i != 0) ImGui::SameLine();
 				if (ImGui::Button(strbuf)) {
 					showCharSpecific[i] = !showCharSpecific[i];
 				}
+				ImGui::PopID();
 				AddTooltip("Display of information specific to a character.");
 			}
 			if (ImGui::Button("Box Extents")) {
@@ -1612,6 +1615,7 @@ void UI::prepareDrawData() {
 			}
 			AddTooltip("Shows the minimum and maximum Y (vertical) extents of hurtboxes and hitboxes of each player."
 				" The units are not divided by 100 for viewability.");
+			
 			ImGui::SameLine();
 			for (int i = 0; i < 2; ++i) {
 				sprintf_s(strbuf, "Cancels (P%d)", i + 1);
@@ -1619,6 +1623,17 @@ void UI::prepareDrawData() {
 					showCancels[i] = !showCancels[i];
 				}
 				AddTooltip(thisHelpTextWillRepeat);
+				if (i == 0) ImGui::SameLine();
+			}
+			
+			for (int i = 0; i < 2; ++i) {
+				ImGui::PushID("Damage/RISC Calculation");
+				sprintf_s(strbuf, i == 0 ? "Damage/RISC Calculation (P1)" : "... (P2)");
+				if (ImGui::Button(strbuf)) {
+					showDamageCalculation[i] = !showDamageCalculation[i];
+				}
+				AddTooltip("For the defending player this shows damage and RISC calculation from the last hit and current combo proration.");
+				ImGui::PopID();
 				if (i == 0) ImGui::SameLine();
 			}
 		}
@@ -1998,6 +2013,8 @@ void UI::prepareDrawData() {
 				
 				booleanSettingPreset(settings.dontShowMoveName);
 				
+				booleanSettingPreset(settings.showComboProrationInRiscGauge);
+				
 			}
 		}
 		ImGui::End();
@@ -2055,7 +2072,7 @@ void UI::prepareDrawData() {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					ImGui::TextUnformatted(player.negativePenaltyTimer ? "yes" : "no");
+					ImGui::TextUnformatted(player.negativePenaltyTimer ? "Yes" : "No");
 				}
 				
 				ImGui::TableNextColumn();
@@ -2241,6 +2258,7 @@ void UI::prepareDrawData() {
 					ImGui::TextUnformatted(printdecimalbuf);
 				}
 				
+				float offsets[2];
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted("Tension Gain Max Combo");
 				AddTooltip("The maximum amount of Tension that was gained on an entire performed combo during this training session"
@@ -2249,10 +2267,56 @@ void UI::prepareDrawData() {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
+					offsets[i] = ImGui::GetCursorPosX();
 					printDecimal(player.tensionGainMaxCombo, 2, 0);
 					ImGui::TextUnformatted(printdecimalbuf);
 				}
 				
+				ImGui::EndTable();
+				
+				for (int i = 0; i < 2; ++i) {
+					ImGui::SetCursorPosX(offsets[i]);
+					ImGui::PushID(i);
+					if (ImGui::Button("Clear Max Combo")) {
+						clearTensionGainMaxCombo[i] = true;
+						clearTensionGainMaxComboTimer[i] = 10;
+						stateChanged = true;
+					}
+					AddTooltip("Clear max combo's Tension and Burst gain.");
+					if (i == 0) ImGui::SameLine();
+					ImGui::PopID();
+				}
+			}
+			ImGui::End();
+		}
+		if (showBurstGain) {
+			ImGui::Begin("BurstGain", &showBurstGain);
+			if (endScene.isIGiveUp()) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else
+			if (ImGui::BeginTable("##BurstGain",
+						3,
+						ImGuiTableFlags_Borders
+						| ImGuiTableFlags_RowBg
+						| ImGuiTableFlags_NoSavedSettings
+						| ImGuiTableFlags_NoPadOuterX)
+			) {
+				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
+				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+				
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted("Name");
+				ImGui::TableNextColumn();
+				drawPlayerIconWithTooltip(0);
+				ImGui::SameLine();
+				ImGui::TextUnformatted("P1");
+				ImGui::TableNextColumn();
+				drawPlayerIconWithTooltip(1);
+				ImGui::SameLine();
+				ImGui::TextUnformatted("P2");
+
+
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted("Burst Gain On Last Hit");
 				AddTooltip("How much Burst was gained on a single last hit (either inflicting it or getting hit by it).");
@@ -2273,7 +2337,7 @@ void UI::prepareDrawData() {
 					ImGui::TextUnformatted(printdecimalbuf);
 				}
 				
-				float offsets[2];
+				
 				
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted("Burst Gain Max Combo");
@@ -2283,36 +2347,21 @@ void UI::prepareDrawData() {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					offsets[i] = ImGui::GetCursorPosX();
 					printDecimal(player.burstGainMaxCombo, 2, 0);
 					ImGui::TextUnformatted(printdecimalbuf);
 				}
 				
-				
 				ImGui::EndTable();
-				
-				for (int i = 0; i < 2; ++i) {
-					ImGui::SetCursorPosX(offsets[i]);
-					ImGui::PushID(i);
-					if (ImGui::Button("Clear Max Combo")) {
-						clearTensionGainMaxCombo[i] = true;
-						clearTensionGainMaxComboTimer[i] = 10;
-						stateChanged = true;
-					}
-					AddTooltip("Clear max combo's Tension and Burst gain.");
-					if (i == 0) ImGui::SameLine();
-					ImGui::PopID();
-				}
 			}
 			ImGui::End();
 		}
 		if (showSpeedsData) {
-			ImGui::Begin("Speed/Proration", &showSpeedsData);
+			ImGui::Begin("Speed/Hitstun Proration/...", &showSpeedsData);
 			
 			if (endScene.isIGiveUp()) {
 				ImGui::TextUnformatted("Online non-observer match running.");
 			} else
-			if (ImGui::BeginTable("##TensionData",
+			if (ImGui::BeginTable("##SpeedHitstunProrationDotDotDot",
 						3,
 						ImGuiTableFlags_Borders
 						| ImGuiTableFlags_RowBg
@@ -2430,7 +2479,7 @@ void UI::prepareDrawData() {
 					" Attack pushback modifier on hit depends on the performed move and should only be non-100 when the opponent is in hitstun."
 					" Combo timer modifier depends on combo timer, in frames: >= 480 --> 200%, >= 420 --> 184%, >= 360 --> 166%, >= 300 --> 150%"
 					", >= 240 --> 136%, >= 180 --> 124%, >= 120 --> 114%, >= 60 --> 106%."
-					" IB modifier is non-100 on IB: air IB 90%, ground IB 10%.");
+					" IB modifier is non-100 on IB: air IB 10%, ground IB 90%.");
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
@@ -2519,6 +2568,7 @@ void UI::prepareDrawData() {
 		}
 		for (int i = 0; i < 2; ++i) {
 			if (showCharSpecific[i]) {
+				ImGui::PushID(i);
 				sprintf_s(strbuf, "  Character Specific (P%d)", i + 1);
 				ImGui::Begin(strbuf, showCharSpecific + i);
 				const PlayerInfo& player = endScene.players[i];
@@ -2593,9 +2643,9 @@ void UI::prepareDrawData() {
 						ImGui::TextUnformatted("Is Summoned");
 						ImGui::TableNextColumn();
 						if (!isSummoned) {
-							ImGui::TextUnformatted("no");
+							ImGui::TextUnformatted("No");
 						} else {
-							ImGui::TextUnformatted("yes");
+							ImGui::TextUnformatted("Yes");
 						}
 						
 						ImGui::TableNextColumn();
@@ -2712,6 +2762,7 @@ void UI::prepareDrawData() {
 					ImGui::TextUnformatted("No character specific information to show.");
 				}
 				ImGui::End();
+				ImGui::PopID();
 			}
 		}
 		if (showBoxExtents) {
@@ -2785,6 +2836,7 @@ void UI::prepareDrawData() {
 		}
 		for (int i = 0; i < 2; ++i) {
 			if (showCancels[i]) {
+				ImGui::PushID(i);
 				sprintf_s(strbuf, "  Cancels (P%d)", i + 1);
 				ImGui::SetNextWindowSize({
 					ImGui::GetFontSize() * 35.F,
@@ -2849,6 +2901,951 @@ void UI::prepareDrawData() {
 				ImGui::PopID();
 				AddTooltip(thisHelpTextWillRepeat);
 				ImGui::End();
+				ImGui::PopID();
+			}
+		}
+		for (int i = 0; i < 2; ++i) {
+			if (showDamageCalculation[i]) {
+				ImGui::PushID(i);
+				sprintf_s(strbuf, "  Damage/RISC Calculation (P%d)", i + 1);
+				ImGui::SetNextWindowSize({
+					ImGui::GetFontSize() * 35.F,
+					150.F
+				}, ImGuiCond_FirstUseEver);
+				ImGui::Begin(strbuf, showDamageCalculation + i);
+				drawPlayerIconInWindowTitle(i);
+				
+				const PlayerInfo& player = endScene.players[i];
+				
+				struct ComboProration {
+					const char* name;
+					int val;
+				};
+				ComboProration comboProrations[] {
+					{ "Normal/Special", player.comboProrationNormal },
+					{ "Overdrive", player.comboProrationOverdrive }
+				};
+				
+				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+				for (int comboProrationI = 0; comboProrationI < 2; ++comboProrationI) {
+					const ComboProration& currentProration = comboProrations[comboProrationI];
+					
+					sprintf_s(strbuf, "Current proration (%s): ", currentProration.name);
+					textUnformattedColored(YELLOW_COLOR, strbuf);
+					AddTooltip("Here we display only Dust proration * Proration from initial/forced proration * RISC Damage Scale * Guts * Defense Modifier * RC Proration");
+					
+					int totalProration = 10000;
+					totalProration = totalProration * player.dustProration1 / 100;
+					totalProration = totalProration * player.dustProration2 / 100;
+					totalProration = totalProration * player.proration / 100;
+					totalProration = totalProration * currentProration.val / 256;
+					totalProration = totalProration * player.gutsPercentage / 100;
+					totalProration = totalProration * (player.defenseModifier + 256) / 256;
+					if (player.rcProration) totalProration = totalProration * 80 / 100;
+					
+					sprintf_s(strbuf, "%3d%c", player.dustProration1 * player.dustProration2 / 100, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip("Dust proration");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", player.proration, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip("Initial/forced proration");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", currentProration.val * 100 / 256, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip("RISC Damage Scale");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", player.gutsPercentage, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip("Guts");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", (player.defenseModifier + 256) * 100 / 256, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip("Defense Modifier");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" * ");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(player.rcProration ? " 80%" : "100%");
+					AddTooltip("Roman Cancel Damage Modifier. Applied during Roman Cancel slowdown.");
+					ImGui::SameLine();
+					
+					ImGui::TextUnformatted(" = ");
+					ImGui::SameLine();
+					
+					sprintf_s(strbuf, "%3d%c", totalProration / 100, '%');
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip("Total proration");
+					
+				}
+					
+				ImGui::PopStyleVar();
+				ImGui::Separator();
+				
+				if (!player.dmgCalcs.empty()) {
+					
+					bool isFirst = true;
+					bool needPrintHitNumbers = player.dmgCalcs.size() > 1;
+					bool useSlang = settings.useSlangNames;
+					int hitCounter = player.dmgCalcsSkippedHits + player.dmgCalcs.size() - 1;
+					for (auto it = player.dmgCalcs.begin() + (player.dmgCalcs.size() - 1); ; ) {
+						const DmgCalc& dmgCalc = *it;
+						
+						if (!isFirst) ImGui::Separator();
+						isFirst = false;
+						
+						if (needPrintHitNumbers) {
+							ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+							textUnformattedColored(YELLOW_COLOR, "Hit Number: ");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d", hitCounter + 1);
+							ImGui::TextUnformatted(strbuf);
+							ImGui::PopStyleVar();
+						}
+						--hitCounter;
+						
+						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+						
+						textUnformattedColored(YELLOW_COLOR, "Attack Name: ");
+						ImGui::SameLine();
+						ImGui::TextUnformatted(useSlang && dmgCalc.attackSlangName ? dmgCalc.attackSlangName : dmgCalc.attackName);
+						if (dmgCalc.nameFull || useSlang && dmgCalc.attackSlangName && dmgCalc.attackName) {
+							AddTooltip(dmgCalc.nameFull ? dmgCalc.nameFull : dmgCalc.attackName);
+						}
+						
+						textUnformattedColored(YELLOW_COLOR, "Is Projectile: ");
+						ImGui::SameLine();
+						ImGui::TextUnformatted(dmgCalc.isProjectile ? "Yes" : "No");
+						
+						textUnformattedColored(YELLOW_COLOR, "Guard Type: ");
+						ImGui::SameLine();
+						const char* guardTypeStr;
+						if (dmgCalc.isThrow) {
+							guardTypeStr = "Throw";
+						} else {
+							guardTypeStr = formatGuardType(dmgCalc.guardType);
+						}
+						ImGui::TextUnformatted(guardTypeStr);
+						
+						textUnformattedColored(YELLOW_COLOR, "Requires FD in Air: ");
+						AddTooltip("Is air unblockable - requires Faultless Defense to be blocked in the air.");
+						ImGui::SameLine();
+						ImGui::TextUnformatted(dmgCalc.airUnblockable ? "Yes" : "No");
+						
+						if (dmgCalc.guardCrush) {
+							textUnformattedColored(YELLOW_COLOR, "Guard Crush: ");
+							AddTooltip("Guard break. When blocked, this attack causes the defender to enter hitstun on the next frame.");
+							ImGui::SameLine();
+							ImGui::TextUnformatted(dmgCalc.guardCrush ? "Yes" : "No");
+						}
+						
+						ImGui::PopStyleVar();
+						
+						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+						textUnformattedColored(YELLOW_COLOR, "Last Hit Result: ");
+						ImGui::SameLine();
+						ImGui::TextUnformatted(formatHitResult(dmgCalc.lastHitResult));
+						ImGui::PopStyleVar();
+						
+						if (dmgCalc.lastHitResult == HIT_RESULT_BLOCKED) {
+							ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+							textUnformattedColored(YELLOW_COLOR, "Block Type: ");
+							ImGui::SameLine();
+							ImGui::TextUnformatted(formatBlockType(dmgCalc.blockType));
+							ImGui::PopStyleVar();
+							if (dmgCalc.blockType != BLOCK_TYPE_FAULTLESS) {
+								const DmgCalc::DmgCalcU::DmgCalcBlock& data = dmgCalc.u.block;
+								if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+									ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+									ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+									ImGui::TableHeadersRow();
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Attack Level");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d", data.attackLevelForGuard);
+									ImGui::TextUnformatted(strbuf);
+									if (data.attackLevel != data.attackLevelForGuard) {
+										ImGui::SameLine();
+										ImGui::TextDisabled("(!)");
+										if (ImGui::BeginItemTooltip()) {
+											ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+											sprintf_s(strbuf, "This attack's level on block/armor (%d) is %s than on hit (%d).",
+												data.attackLevelForGuard,
+												data.attackLevelForGuard > data.attackLevel ? "higher" : "lower",
+												data.attackLevel);
+											ImGui::TextUnformatted(strbuf);
+											ImGui::PopTextWrapPos();
+											ImGui::EndTooltip();
+										}
+									}
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									AddTooltip("The base value for determining how much RISC this attack adds on block.");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d", data.riscPlusBase);
+									const char* needHelp = nullptr;
+									if (data.riscPlusBase > data.riscPlusBaseStandard) {
+										textUnformattedColored(RED_COLOR, strbuf);
+										needHelp = "higher";
+									} else if (data.riscPlusBase < data.riscPlusBaseStandard) {
+										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+										needHelp = "lower";
+									} else {
+										ImGui::TextUnformatted(strbuf);
+									}
+									if (needHelp) {
+										ImGui::SameLine();
+										ImGui::TextDisabled("(!)");
+										if (ImGui::BeginItemTooltip()) {
+											ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+											sprintf_s(strbuf, "This attack's RISC+ (%d) is %s than the standard RISC+ (%d) for its attack level %s(%d).",
+												data.riscPlusBase,
+												needHelp,
+												data.riscPlusBaseStandard,
+												data.attackLevel == data.attackLevelForGuard ? "" : "on block/armor",
+												data.attackLevelForGuard);
+											ImGui::TextUnformatted(strbuf);
+											ImGui::PopTextWrapPos();
+											ImGui::EndTooltip();
+										}
+									}
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("RISC Gain Rate");
+									AddTooltip("A per-character constant value that alters incoming values of RISC+."
+										" Depends on the defending player's character.");
+									ImGui::TableNextColumn();
+									printDecimal(data.guardBalanceDefence * 100 / 32, 0, 0, true);
+									sprintf_s(strbuf, "%d (%s)", data.guardBalanceDefence, printdecimalbuf);
+									ImGui::TextUnformatted(strbuf);
+									
+									int x = data.riscPlusBase * 100 * data.guardBalanceDefence / 32;
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+ * Gain Rate");
+									ImGui::TableNextColumn();
+									char* buf = strbuf;
+									size_t bufSize = sizeof strbuf;
+									int result = sprintf_s(buf, bufSize, "%d * %s = ", data.riscPlusBase, printdecimalbuf);
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									sprintf_s(buf, bufSize, "%s", printDecimal(x, 2, 0, false));
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Grounded and Overhead/Low");
+									AddTooltip("The defender was on the ground and the attack was either an overhead or a low."
+										" If yes, the modifier is 75%, otherwise RISC+ is unchanged.");
+									ImGui::TableNextColumn();
+									int oldX = x;
+									if (data.groundedAndOverheadOrLow) {
+										ImGui::TextUnformatted("yes: 75% modifier");
+										x -= x / 4;
+									} else {
+										ImGui::TextUnformatted("no: 100% (no) modifier");
+									}
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+ * Overhead/Low");
+									ImGui::TableNextColumn();
+									buf = strbuf;
+									bufSize = sizeof strbuf;
+									result = sprintf_s(buf, bufSize, "%s * %s = ", printdecimalbuf, data.groundedAndOverheadOrLow ? "75%" : "100%");
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									sprintf_s(buf, bufSize, "%s", printDecimal(x, 2, 0, false));
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Was In Blockstun");
+									AddTooltip("The defender was already in blockstun at the time of attack."
+										" If yes, the modifier is 50%, otherwise RISC+ is unchanged.");
+									ImGui::TableNextColumn();
+									oldX = x;
+									if (data.wasInBlockstun) {
+										ImGui::TextUnformatted("yes: 50% modifier");
+										x /= 2;
+									} else {
+										ImGui::TextUnformatted("no: 100% (no) modifier");
+									}
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+ * Was In Blockstun");
+									AddTooltip("This is the final RISC value that gets added to the RISC gauge.");
+									ImGui::TableNextColumn();
+									buf = strbuf;
+									bufSize = sizeof strbuf;
+									result = sprintf_s(buf, bufSize, "%s * %s = ", printdecimalbuf, data.wasInBlockstun ? "50%" : "100%");
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									sprintf_s(buf, bufSize, "%s", printDecimal(x, 2, 0, false));
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("RISC");
+									AddTooltip("Final value for RISC, without bounds check for [-128.00; 128.00] is"
+										" the old value + change = final value.");
+									ImGui::TableNextColumn();
+									
+									buf = strbuf;
+									bufSize = sizeof strbuf;
+									result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									
+									result = sprintf_s(buf, bufSize, "%s = ", printDecimal(x, 2, 0, false));
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									
+									sprintf_s(buf, bufSize, "%s", printDecimal(data.defenderRisc + x, 2, 0, false));
+									
+									ImGui::TextUnformatted(strbuf);
+									
+									x = data.baseDamage;
+									ImGui::TableNextColumn();
+									textUnformattedColored(YELLOW_COLOR, "Base Damage");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d", x);
+									ImGui::TextUnformatted(strbuf);
+									
+									x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("HP");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d - %d = %d", data.oldHp, x, data.oldHp - x);
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::EndTable();
+								}
+							}
+						} else if (dmgCalc.lastHitResult == HIT_RESULT_ARMORED || dmgCalc.lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+							const DmgCalc::DmgCalcU::DmgCalcArmor& data = dmgCalc.u.armor;
+							if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableHeadersRow();
+								
+								int x = data.baseDamage;
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Base Damage");
+								sprintf_s(strbuf, "%d", data.baseDamage);
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(strbuf);
+								
+								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, dmgCalc.lastHitResult, data.superArmorDamagePercent);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Armor Is Like Block?");
+								AddTooltip("If the armor behaves like blocking when tanking hits, it won't use guts calculation and will use the"
+									" same chip damage calculation as blocking uses. Otherwise it will apply guts and take that as damage.");
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(data.superArmorHeadAttribute ? "Yes" : "No");
+								
+								if (data.superArmorHeadAttribute) {
+									x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);;
+								} else {
+									x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("HP");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d - %d = %d", data.oldHp, x, data.oldHp - x);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::EndTable();
+							}
+						} else if (dmgCalc.lastHitResult == HIT_RESULT_NORMAL) {
+							const DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
+							if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableHeadersRow();
+								
+								int x = data.baseDamage;
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Base Damage");
+								sprintf_s(strbuf, "%d", data.baseDamage);
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(strbuf);
+								
+								if (data.increaseDmgBy50Percent) {
+									x = x * 150 / 100;
+									ImGui::TableNextColumn();
+									textUnformattedColored(YELLOW_COLOR, "Dmg * 150%");
+									AddTooltip("Maybe Dustloop or someone knows what this is.");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d", x);
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								int oldX = x;
+								if (data.extraInverseProration != 100 && data.extraInverseProration != 0) {
+									x = x * 100 / data.extraInverseProration;
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Extra Inverse Modif");
+									AddTooltip("Damage = Damage * 100 / Extra Inverse Modif");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d%c", data.extraInverseProration, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(YELLOW_COLOR, "Dmg / Extra Inv. Modif");
+									AddTooltip("Damage = Damage * 100 / Extra Inverse Modif");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d / %d%c = %d", oldX, data.extraInverseProration, '%', x);
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								oldX = x;
+								if (data.isStylish && data.stylishDamageInverseModifier != 0) {
+									x = x * 100 / data.stylishDamageInverseModifier;
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Stylish Inverse Modifier");
+									AddTooltip("Inverse modifier applied to the damage dealt to the defender for defender using the Stylish mode."
+										" Depends on the defender using the Stylish mode.");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d%c", data.stylishDamageInverseModifier, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(YELLOW_COLOR, "Dmg / Stylish");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d / %d%c = %d", oldX, data.stylishDamageInverseModifier, '%', x);
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								oldX = x;
+								if (data.handicap != 100) {
+									x = x * data.handicap / 100;
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Handicap");
+									AddTooltip("Handicap used by the defender modifies their incoming damage."
+										" Handicap levels:\n"
+										"1) 156%;\n"
+										"2) 125%;\n"
+										"3) 100%;\n"
+										"4) 80%;\n"
+										"5) 64%;");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d%c", data.handicap, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(YELLOW_COLOR, "Dmg * Handicap");
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d * %d%c = %d", oldX, data.handicap, '%', x);
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, HIT_RESULT_NORMAL, 100);
+								
+								oldX = x;
+								if (data.dustProration1 != 100) {
+									x = x * data.dustProration1 / 100;
+									ImGui::TableNextColumn();
+									if (data.dustProration2 != 100) {
+										ImGui::TextUnformatted("Dust Proration #1");
+									} else {
+										ImGui::TextUnformatted("Dust Proration");
+									}
+									sprintf_s(strbuf, "%d%c", data.dustProration1, '%');
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									if (data.dustProration2 != 100) {
+										textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration #1");
+									} else {
+										textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration");
+									}
+									ImGui::TableNextColumn();
+									sprintf_s(strbuf, "%d * %d%c = %d", oldX, data.dustProration1, '%', x);
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								oldX = x;
+								x = x * data.dustProration2 / 100;
+								ImGui::TableNextColumn();
+								if (data.dustProration1 != 100) {
+									ImGui::TextUnformatted("Dust Proration #2");
+								} else {
+									ImGui::TextUnformatted("Dust Proration");
+								}
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.dustProration2, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								if (data.dustProration1 != 100) {
+									textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration #2");
+								} else {
+									textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration");
+								}
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d * %d%c = %d", oldX, data.dustProration2, '%', x);
+								ImGui::TextUnformatted(strbuf);
+								
+								bool hellfire = data.attackerHellfireState && data.attackerHpLessThan10Percent && data.attackHasHellfireEnabled;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Hellfire");
+								AddTooltip("To gain 20% damage bonus, the attacker must have hellfire state enabled, they must have <= 10% HP (<= 42 HP),"
+									" and the attack must be Hellfire-enabled. All overdrives should be Hellfire-enabled.");
+								ImGui::TableNextColumn();
+								if (hellfire) {
+									ImGui::TextUnformatted("yes (120%)");
+								} else if (data.attackerHellfireState && !data.attackerHpLessThan10Percent) {
+									ImGui::TextUnformatted("no, hp>10% (hp>42) (100%)");
+								} else if (data.attackerHellfireState && data.attackerHpLessThan10Percent && !data.attackHasHellfireEnabled) {
+									if (data.attackType == ATTACK_TYPE_OVERDRIVE) {
+										ImGui::TextUnformatted("no, attack lacks hellfire attribute (100%)");
+									} else {
+										ImGui::TextUnformatted("no, not a super (100%)");
+									}
+								} else {
+									ImGui::TextUnformatted("no (100%)");
+								}
+								
+								oldX = x;
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Dmg * Hellfire");
+								ImGui::TableNextColumn();
+								if (hellfire) {
+									x = x * 120 / 100;
+									sprintf_s(strbuf, "%d * 120%c = %d", oldX, '%', x);
+								} else {
+									sprintf_s(strbuf, "%d * 100%c = %d", oldX, '%', x);
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+								if (data.trainingSettingIsForceCounterHit) {
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Attack Can't Counter Hit");
+									AddTooltip("Some attacks cannot be counter hits even when the 'Counter Hit' training setting is set to 'Forced' or 'Forced Mortal Counter'."
+										" However, triggering Danger Time normally and doing the attack still produces the Mortal Counter and gives the 20% damage boost.");
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted(
+										data.attackCounterHitType == COUNTERHIT_TYPE_NO_COUNTER
+											? "Yes"
+											: "No"
+									);
+								}
+								
+								oldX = x;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Danger Time");
+								ImGui::TableNextColumn();
+								if (data.dangerTime) {
+									x = x * 120 / 100;
+									ImGui::TextUnformatted("yes (120%)");
+								} else {
+									ImGui::TextUnformatted("no (100%)");
+								}
+								
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Dmg * Danger Time");
+								ImGui::TableNextColumn();
+								if (data.dangerTime) {
+									sprintf_s(strbuf, "%d * 120%c = %d", oldX, '%', x);
+								} else {
+									sprintf_s(strbuf, "%d * 100%c = %d", oldX, '%', x);
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+								bool rcProration = data.rcDmgProration || data.wasHitDuringRc;
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Current Proration");
+								AddTooltip("Forced/initial proration that was at the moment of impact. Stored in the defender.");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.proration, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("RISC");
+								AddTooltip("RISC that was at the moment of impact.");
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(printDecimal(data.risc, 2, 0, false));
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Is First Hit");
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(data.isFirstHit ? "Yes" : "No");
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Initial Proration");
+								AddTooltip("Depends on the attack. May only be applied on first hit.");
+								ImGui::TableNextColumn();
+								int nextProration = data.proration;
+								const char* nextProrationWhich = nullptr;
+								if (data.isFirstHit) {
+									if (data.initialProration == INT_MAX) {
+										ImGui::TextUnformatted("None (100%)");
+									} else {
+										nextProration = data.initialProration;
+										nextProrationWhich = "initial";
+										sprintf_s(strbuf, "%d%c", data.initialProration, '%');
+										ImGui::TextUnformatted(strbuf);
+									}
+								} else {
+									ImGui::TextUnformatted("Doesn't apply (100%)");
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Forced Proration");
+								AddTooltip("Depends on the attack.");
+								ImGui::TableNextColumn();
+								if (data.forcedProration == INT_MAX) {
+									ImGui::TextUnformatted("None (100%)");
+								} else {
+									if (data.forcedProration < nextProration) {
+										nextProration = data.forcedProration;
+										nextProrationWhich = "forced";
+									}
+									sprintf_s(strbuf, "%d%c", data.forcedProration, '%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Next Proration");
+								AddTooltip("The proration that is chosen out of initial or forced prorations that will apply to the consecutive combo.");
+								ImGui::TableNextColumn();
+								if (!nextProrationWhich) {
+									sprintf_s(strbuf, "Unchanged (%d%c)", data.proration, '%');
+								} else {
+									sprintf_s(strbuf, "%d%c (%s)", nextProration, '%', nextProrationWhich);
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+								if (!data.needReduceRisc) {
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("Attack Reduces RISC");
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("No");
+								} else {
+									int riscMinusTotal = 0;
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC- Initial");
+									AddTooltip("This RISC- is applied on first hit only. Depends on the attack.");
+									ImGui::TableNextColumn();
+									if (!data.isFirstHit) {
+										ImGui::TextUnformatted("Not first hit (0)");
+									} else {
+										riscMinusTotal = data.riscMinusStarter * 100;
+										sprintf_s(strbuf, "%d", data.riscMinusStarter);
+										ImGui::TextUnformatted(strbuf);
+									}
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+									AddTooltip("Depends on the attack.");
+									ImGui::TableNextColumn();
+									riscMinusTotal += data.riscMinus * 100;
+									sprintf_s(strbuf, "%d", data.riscMinus);
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC- Once");
+									AddTooltip("This RISC- may only be applied once. Depends on the attack.");
+									ImGui::TableNextColumn();
+									if (data.riscMinusOnceUsed) {
+										ImGui::TextUnformatted("Already applied (0)");
+									} else if (data.riscMinusOnce == INT_MAX) {
+										ImGui::TextUnformatted("None (0)");
+									} else {
+										riscMinusTotal += data.riscMinusOnce * 100;
+										sprintf_s(strbuf, "%d", data.riscMinusOnce);
+										ImGui::TextUnformatted(strbuf);
+									}
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC > 0 ?");
+									AddTooltip("RISC reduces by 25% extra on each hit when it is positive.");
+									ImGui::TableNextColumn();
+									int riscReductionExtra = 0;
+									if (data.risc > 0) {
+										riscReductionExtra = data.risc >> 3;
+										riscMinusTotal += riscReductionExtra;
+										sprintf_s(strbuf, "yes (extra 'RISC-' = %s)", printDecimal(riscReductionExtra, 2, 0, false));
+										ImGui::TextUnformatted(strbuf);
+									} else {
+										ImGui::TextUnformatted("no (extra 'RISC-' = 0)");
+									}
+									
+									ImGui::TableNextColumn();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC- Total");
+									ImGui::TableNextColumn();
+									char* buf = strbuf;
+									size_t bufSize = sizeof strbuf;
+									int result = sprintf_s(strbuf, "%d + %d + %d + %s = ",
+										data.isFirstHit ? data.riscMinusStarter : 0,
+										data.riscMinus,
+										!data.riscMinusOnceUsed && data.riscMinusOnce != INT_MAX ? data.riscMinusOnce : 0,
+										printDecimal(riscReductionExtra, 2, 0, false));
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									sprintf_s(buf, bufSize, "%s", printDecimal(riscMinusTotal, 2, 0, false));
+									ImGui::TextUnformatted(strbuf);
+									
+									ImGui::TableNextColumn();
+									ImGui::TextUnformatted("RISC");
+									ImGui::TableNextColumn();
+									buf = strbuf;
+									bufSize = sizeof strbuf;
+									result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									result = sprintf_s(buf, bufSize, "%s = ", printDecimal(riscMinusTotal, 2, 0, false));
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									result = sprintf_s(buf, bufSize, "%s", printDecimal(data.risc - riscMinusTotal, 2, 0, false));
+									if (result != -1) {
+										buf += result;
+										bufSize -= result;
+									}
+									ImGui::TextUnformatted(strbuf);
+									
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Attack Type");
+								AddTooltip("Attack type affects which RISC Damage Scaling table is used. Overdrives prorate differently from normals and specials.\n"
+									"More info in the tooltip of the field below.");
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(formatAttackType(data.attackType));
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("RISC Dmg Scaling");
+								AddTooltip("This damage scaling depends on the defender's RISC that was at the moment of impact"
+									" and the attacker's attack type.\n"
+									"Normal and special attacks use this table:\n"
+									"256, 200, 152, 112, 80, 48, 32, 16, 8, 8, 8;\n"
+									"Overdrives use this table:\n"
+									"256, 176, 128, 96, 80, 48, 40, 32, 24, 16, 16;\n"
+									"X = -(RISC/100) - 1; Round the division down. The RISC here is [-12800; +12800].\n"
+									"If RISC >= 0, the table is not used and RISC Damage Scaling is 256 (100%).\n"
+									"Index into the table = X / 16; Round down. Index starts from 0.\n"
+									"M = remainder of division of X by 16. From 0 to 15.\n"
+									"RISC Dmg Scaling (%) = (table[index] * 16 - (table[index] - table[index + 1]) * M) / 16 * 100% / 256;"
+									" Round down both divisions.\n");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.comboProration * 100 / 256, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								int proration = data.proration * data.comboProration / 100;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Current Pror. * RISC Scaling");
+								AddTooltip("Current Proration, which is forced/initial proration that was at the moment of impact,"
+									" * RISC Damage Scaling");
+								ImGui::TableNextColumn();
+								if (data.noDamageScaling) {
+									proration = 256;
+									ImGui::TextUnformatted("No Damage Scaling (100%)");
+									ImGui::SameLine();
+									HelpMarker("Depends on the attack. Attack ignores initial/forced proration and RISC Damage Scaling.");
+								} else {
+									sprintf_s(strbuf, "%d%c * %d%c = %d%c",
+										data.proration,
+										'%',
+										data.comboProration * 100 / 256,
+										'%',
+										proration * 100 / 256,
+										'%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								int damagePriorToProration = x;
+								oldX = x;
+								x = x * proration / 256;
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Dmg * Pror. * Scaling");
+								AddTooltip("Damage * Current proration * RISC Damage Scaling."
+									" Current proration is forced/initial proration that was at the moment of impact.");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d * %d%c = %d",
+										oldX,
+										proration * 100 / 256,
+										'%',
+										x);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Roman Cancel");
+								AddTooltip("Proration resulting from landing a hit during Roman Cancel slowdown.");
+								ImGui::TableNextColumn();
+								if (rcProration) {
+									ImGui::TextUnformatted("yes (80%)");
+								} else {
+									ImGui::TextUnformatted("no (100%)");
+								}
+								
+								oldX = x;
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Damage * RC");
+								AddTooltip("Damage * Roman Cancel proration");
+								ImGui::TableNextColumn();
+								if (rcProration) {
+									x = x * 80 / 100;
+									sprintf_s(strbuf, "%d * 80%c = %d", oldX, '%', x);
+								} else {
+									sprintf_s(strbuf, "Doesn't apply (%d)", x);
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+								if (damagePriorToProration > 0 && x < 1) {
+									x = 1;
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Minimum Dmg %");
+								AddTooltip("Minimum Damage Percent. Calculated from Base Damage. Depends on the attack.");
+								ImGui::TableNextColumn();
+								if (data.minimumDamagePercent == 0) {
+									ImGui::TextUnformatted("None (0%)");
+								} else {
+									sprintf_s(strbuf, "%d%c", data.minimumDamagePercent, '%');
+									ImGui::TextUnformatted(strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Base Dmg * Min Dmg %");
+								ImGui::TableNextColumn();
+								int minDmg = 0;
+								if (data.minimumDamagePercent == 0) {
+									sprintf_s(strbuf, "Doesn't apply (0)");
+								} else {
+									minDmg = data.baseDamage * data.minimumDamagePercent / 100;
+									sprintf_s(strbuf, "%d * %d%c = %d", data.baseDamage, data.minimumDamagePercent, '%', minDmg);
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Damage or Min Dmg");
+								ImGui::TableNextColumn();
+								if (data.minimumDamagePercent != 0 && x < minDmg) x = minDmg;
+								sprintf_s(strbuf, "%d", x);
+								ImGui::TextUnformatted(strbuf);
+								
+								x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("HP<=Dmg and HP>=30%MaxHP");
+								AddTooltip("When HP at the moment of hit is less than or equal to the damage, and HP is greater than or equal to max HP * 30% (HP>=126),"
+									" the damage gets changed to:\n"
+									"Damage = HP - Max HP * 5% or, in other words, Damage = HP - 21");
+								ImGui::TableNextColumn();
+								bool attackIsTooOP = data.hp <= x && data.hp >= data.maxHp * 30 / 100;
+								ImGui::TextUnformatted(attackIsTooOP ? "Yes" : "No");
+								
+								ImGui::TableNextColumn();
+								if (attackIsTooOP) {
+									textUnformattedColored(YELLOW_COLOR, "Damage = HP - 21");
+								} else {
+									textUnformattedColored(YELLOW_COLOR, "Damage");
+								}
+								AddTooltip("Damage after change due to the condition above.");
+								if (attackIsTooOP) {
+									x = data.hp - data.maxHp * 5 / 100;
+									sprintf_s(strbuf, "%d - 21 = %d", data.hp, x);
+								} else {
+									sprintf_s(strbuf, "%d", x);
+								}
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(strbuf);
+								
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Attack Is Kill");
+								AddTooltip("This was observed to not happen immediately when landing an IK, but it does happen during the IK cinematic."
+									" When an attack is a kill, it always deals damage equal to the entire remaining health of the defender no matter what.");
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(data.kill ? "Yes" : "No");
+								
+								ImGui::TableNextColumn();
+								textUnformattedColored(YELLOW_COLOR, "Damage");
+								AddTooltip("Damage after change due to the condition above.");
+								ImGui::TableNextColumn();
+								if (data.kill) x = data.hp;
+								sprintf_s(strbuf, "%d", x);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("HP");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d - %d = %d", data.hp, x, data.hp - x);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::EndTable();
+							}
+						}
+						
+						if (it == player.dmgCalcs.begin()) break;
+						--it;
+					}
+					
+					if (player.dmgCalcsSkippedHits) {
+						ImGui::Separator();
+						sprintf_s(strbuf, "Skipped %d hit%s...", player.dmgCalcsSkippedHits, player.dmgCalcsSkippedHits == 1 ? "" : "s");
+						ImGui::TextUnformatted(strbuf);
+					}
+					
+				} else {
+					
+					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+					textUnformattedColored(YELLOW_COLOR, "Last hit result: ");
+					ImGui::SameLine();
+					ImGui::TextUnformatted(formatHitResult(HIT_RESULT_NONE));
+					ImGui::PopStyleVar();
+					
+					if (!endScene.players[1 - i].dmgCalcs.empty()
+						&& !showDamageCalculation[1 - i]) {
+						ImGui::TextUnformatted("The other player has info in their corresponding window.\n"
+							"You might want to look over there.");
+					}
+				}
+				
+				GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
+				drawGGIcon(scaledIcon);
+				AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
+					" field value) to see their tooltips.");
+				
+				ImGui::End();
+				ImGui::PopID();
 			}
 		}
 		if (showLowProfilePresets) {
@@ -5586,6 +6583,274 @@ void prepareLastNames(const char** lastNames, const PlayerInfo& player) {
 	} else {
 		lastNames[0] = lastName;
 		lastNames[1] = lastName;
+	}
+}
+
+const char* formatHitResult(HitResult hitResult) {
+	switch (hitResult) {
+		case HIT_RESULT_NONE: return "No Hit";
+		case HIT_RESULT_NORMAL: return "Hit";
+		case HIT_RESULT_BLOCKED: return "Blocked";
+		case HIT_RESULT_IGNORED: return "Ignored";
+		case HIT_RESULT_ARMORED: return "Armored";
+		case HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION: return "Armored, but without Armor Damage Reduction";
+		default: return "Unknown";
+	}
+}
+
+const char* formatBlockType(BlockType blockType) {
+	switch (blockType) {
+		case BLOCK_TYPE_NORMAL: return "Normal";
+		case BLOCK_TYPE_FAULTLESS: return "FD";
+		case BLOCK_TYPE_INSTANT: return "IB";
+		default: return "Unknown";
+	}
+}
+
+int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int guts, int gutsLevel) {
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted("Defense Modifier");
+	AddTooltip("Defender's defense modifier, constant per character. Used to scale incoming damage.\n"
+		"The scale = (defense modifier + 256) / 256. First number shown is the defense modifier, without"
+		" addition to 256. The second number is the scale.");
+	ImGui::TableNextColumn();
+	const char* defenseModifierStr = ui.printDecimal((defenseModifier + 256) * 100 / 256, 0, 0, true);
+	sprintf_s(strbuf, "%d (%s)", defenseModifier, defenseModifierStr);
+	ImGui::TextUnformatted(strbuf);
+	
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted("Guts Rating");
+	static const char* gutsHelp = "Guts rating, fixed constant per character. Determines how fast damage scales when HP drops to certain thresholds."
+		"Guts rating table:\n"
+		"Guts Rating 0: 100, 90, 76, 60, 50, 40;\n"
+		"Guts Rating 1: 100, 87, 72, 58, 48, 40;\n"
+		"Guts Rating 2: 100, 84, 68, 56, 46, 38;\n"
+		"Guts Rating 3: 100, 81, 66, 54, 44, 38;\n"
+		"Guts Rating 4: 100, 78, 64, 50, 42, 38;\n"
+		"Guts Rating 5: 100, 75, 60, 48, 40, 36;\n"
+		"Answer, Bedman, Elphelt, Faust, Zato: Guts Rating 0.\n"
+		"Axl, I-No, Ramlethal, Sin, Slayer, Sol, Venom, Dizzy: Guts Rating 1.\n"
+		"Ky, Haehyun, Jack-O': Guts Rating 2.\n"
+		"Johnny, Leo, May, Millia, Potemkin, Jam: Guts Rating 3.\n"
+		"Baiken, Chipp: Guts Rating 4.\n"
+		"Raven: Guts Rating 5.\n"
+		"\n"
+		"HP thresholds: >50% (>210), <=50% (<=210), <=40% (<=168), <=30% (<=126), <=20% (<=84), <=10% (<=42).";
+	AddTooltip(gutsHelp);
+	ImGui::TableNextColumn();
+	sprintf_s(strbuf, "%d", gutsRating);
+	ImGui::TextUnformatted(strbuf);
+	
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted("Guts");
+	AddTooltip(gutsHelp);
+	ImGui::TableNextColumn();
+	if (gutsLevel == 0) {
+		sprintf_s(strbuf, "%d%c (HP > 50%c)", guts, '%', '%');
+	} else {
+		sprintf_s(strbuf, "%d%c (HP <= %d%c)", guts, '%',
+			50 - (gutsLevel - 1) * 10,
+			'%');
+	}
+	ImGui::TextUnformatted(strbuf);
+	
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted("Def.Mod. * Guts");
+	AddTooltip("This equals (defense modifier + 256) * guts / 100. The percentage is shown after division by 256.");
+	ImGui::TableNextColumn();
+	char* buf = strbuf;
+	size_t bufSize = sizeof strbuf;
+	int result = sprintf_s(buf, bufSize, "%s * %d%c = ", defenseModifierStr, guts, '%');
+	if (result != -1) {
+		buf += result;
+		bufSize -= result;
+	}
+	const char* totalGutsStr = ui.printDecimal((defenseModifier + 256) * guts / 256, 0, 0, true);
+	sprintf_s(buf, bufSize, "%s", totalGutsStr);
+	ImGui::TextUnformatted(strbuf);
+	
+	ImGui::TableNextColumn();
+	textUnformattedColored(YELLOW_COLOR, "Damage * (Def.Mod. * Guts)");
+	AddTooltip("This equals (defense modifier + 256) * guts / 100 * damage / 256.");
+	ImGui::TableNextColumn();
+	int oldX = x;
+	x = (defenseModifier + 256) * guts / 100 * x / 256;
+	sprintf_s(strbuf, "%d * %s = %d", oldX, totalGutsStr, x);
+	ImGui::TextUnformatted(strbuf);
+	
+	return x;
+}
+
+int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int attackKezuriStandard) {
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted("Chip Damage Modif");
+	AddTooltip("Chip damage modifier specifies how much of the base damage is applied as chip damage on block."
+		" The standard value for supers and specials is 16 and that amounts to 12.5% and goes linearly up or down from there.");
+	ImGui::TableNextColumn();
+	const char* chipModifStr = ui.printDecimal(attackKezuri * 10000 / 128, 2, 0, true);
+	sprintf_s(strbuf, "%d (%s)", attackKezuri, chipModifStr);
+	
+	const char* needHelp = nullptr;
+	if (attackKezuri > attackKezuriStandard) {
+		textUnformattedColored(RED_COLOR, strbuf);
+		needHelp = "higher";
+	} else if (attackKezuri < attackKezuriStandard) {
+		textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+		needHelp = "lower";
+	} else {
+		ImGui::TextUnformatted(strbuf);
+	}
+	
+	if (attackKezuri != attackKezuriStandard) {
+		ImGui::SameLine();
+		ImGui::TextDisabled("(!)");
+		if (ImGui::BeginItemTooltip()) {
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			sprintf_s(strbuf, "This attack's chip damage modifier (%d) is %s than the standard chip damage modifier (%d) for all specials and overdrives.",
+				attackKezuri,
+				needHelp,
+				attackKezuriStandard);
+			ImGui::TextUnformatted(strbuf);
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+	}
+	
+	ImGui::TableNextColumn();
+	textUnformattedColored(YELLOW_COLOR, "Chip Damage");
+	AddTooltip("Final damage can't be less than 1, if base damage was greater than 0 and chip damage modifier was greater than 0.");
+	ImGui::TableNextColumn();
+	int oldX = x;
+	x = x * attackKezuri / 128;
+	if (x < 1 && attackKezuri > 0 && baseDamage > 0) x = 1;
+	sprintf_s(strbuf, "%d * %s = %d", oldX, chipModifStr, x);
+	ImGui::TextUnformatted(strbuf);
+	
+	return x;
+}
+
+int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectile, int projectileDamageScale, HitResult lastHitResult, int superArmorDamagePercent) {
+	x = x * 10;
+	int oldX = x;
+	CharacterType otherChar = endScene.players[1 - playerIndex].charType;
+	if (otherChar == CHARACTER_TYPE_RAVEN
+			|| endScene.players[playerIndex].charType == CHARACTER_TYPE_RAVEN
+			&& (
+				otherChar == CHARACTER_TYPE_DIZZY
+				|| otherChar == CHARACTER_TYPE_ZATO
+				|| otherChar == CHARACTER_TYPE_LEO
+			)) {
+		ImGui::TableNextColumn();
+		ImGui::TextUnformatted("Damage Scale");
+		AddTooltip("This damage scale is used by Raven when he has excitement.");
+		ImGui::TableNextColumn();
+		sprintf_s(strbuf, "%d%c", damageScale, '%');
+		ImGui::TextUnformatted(strbuf);
+		
+		x = x * damageScale / 100;
+		ImGui::TableNextColumn();
+		textUnformattedColored(YELLOW_COLOR, "Damage * Scale");
+		ImGui::TableNextColumn();
+		
+		char* buf = strbuf;
+		size_t bufSize = sizeof strbuf;
+		int result = sprintf_s(buf, bufSize, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), damageScale, '%');
+		if (result != -1) {
+			buf += result;
+			bufSize -= result;
+		}
+		sprintf_s(buf, bufSize, "%s", ui.printDecimal(x, 1, 0, false));
+		ImGui::TextUnformatted(strbuf);
+	}
+	
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted("Is Projectile");
+	AddTooltip("If the attack is a projectile, the defender's projectile damage scale is applied below.");
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted(isProjectile ? "Yes" : "No");
+	
+	ImGui::TableNextColumn();
+	ImGui::TextUnformatted("Projectile Damage Scale");
+	AddTooltip("Defender's projectile damage scale.");
+	ImGui::TableNextColumn();
+	oldX = x;
+	if (!isProjectile) {
+		ImGui::TextUnformatted("Doesn't apply (100%)");
+	} else {
+		x = x * projectileDamageScale / 100;
+		sprintf_s(strbuf, "%d%c", projectileDamageScale, '%');
+		ImGui::TextUnformatted(strbuf);
+	}
+	
+	ImGui::TableNextColumn();
+	textUnformattedColored(YELLOW_COLOR, "Damage * Proj.Dmg.Scale");
+	AddTooltip("Damage * Defender's projectile damage scale");
+	ImGui::TableNextColumn();
+	if (!isProjectile) {
+		sprintf_s(strbuf, "Doesn't apply (%s)", ui.printDecimal(x, 1, 0, false));
+		ImGui::TextUnformatted(strbuf);
+	} else {
+		char* buf = strbuf;
+		size_t bufSize = sizeof strbuf;
+		int result = sprintf_s(buf, bufSize, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), projectileDamageScale, '%');
+		if (result != -1) {
+			buf += result;
+			bufSize -= result;
+		}
+		sprintf_s(buf, bufSize, "%s", ui.printDecimal(x, 1, 0, false));
+		ImGui::TextUnformatted(strbuf);
+	}
+	
+	oldX = x;
+	if (lastHitResult == HIT_RESULT_ARMORED || lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+		ImGui::TableNextColumn();
+		ImGui::TextUnformatted("Armor Dmg Scale");
+		AddTooltip("Defender's armor damage scale gets applied to the incoming damage.");
+		ImGui::TableNextColumn();
+		if (lastHitResult == HIT_RESULT_ARMORED) {
+			x = x * superArmorDamagePercent / 100;
+			sprintf_s(strbuf, "%d%c", superArmorDamagePercent, '%');
+			ImGui::TextUnformatted(strbuf);
+		} else {
+			ImGui::TextUnformatted("Doesn't apply (100%)");
+		}
+	}
+	x /= 10;
+	
+	if (lastHitResult == HIT_RESULT_ARMORED || lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+		ImGui::TableNextColumn();
+		textUnformattedColored(YELLOW_COLOR, "Damage * Armor Scale");
+		ImGui::TableNextColumn();
+		if (lastHitResult == HIT_RESULT_ARMORED) {
+			sprintf_s(strbuf, "%s * %d%c = %d", ui.printDecimal(oldX, 1, 0, false), superArmorDamagePercent, '%', x);
+			ImGui::TextUnformatted(strbuf);
+		} else {
+			sprintf_s(strbuf, "Doesn't apply (%d)", x);
+			ImGui::TextUnformatted(strbuf);
+		}
+	}
+	
+	return x;
+}
+
+const char* formatAttackType(AttackType attackType) {
+	switch (attackType) {
+		case ATTACK_TYPE_NONE: return "None";
+		case ATTACK_TYPE_NORMAL: return "Normal";
+		case ATTACK_TYPE_EX: return "Special";
+		case ATTACK_TYPE_OVERDRIVE: return "Overdrive";
+		case ATTACK_TYPE_IK: return "Instant Kill";
+		default: return "Unknown";
+	}
+}
+
+const char* formatGuardType(GuardType guardType) {
+	switch (guardType) {
+		case GUARD_TYPE_ANY: return "Any";
+		case GUARD_TYPE_HIGH: return "Overhead";
+		case GUARD_TYPE_LOW: return "Low";
+		case GUARD_TYPE_NONE: return "Unblockable";
+		default: return "Unknown";
 	}
 }
 

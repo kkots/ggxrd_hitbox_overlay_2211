@@ -252,6 +252,14 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
+	move = MoveInfo(GENERAL, "cmn_BurstObjGoldHontai", true);
+	move.framebarName = "Gold Burst";
+	addMove(move);
+	
+	move = MoveInfo(GENERAL, "cmn_BurstObjBlueHontai", true);
+	move.framebarName = "Blue Burst";
+	addMove(move);
+	
 	move = MoveInfo(GENERAL, "CmnDamageBurst");
 	move.displayName = "Blue Burst";
 	move.nameIncludesInputs = true;
@@ -6828,7 +6836,7 @@ bool isDangerous_djavu(Entity ent) {
 }
 
 bool isDangerous_Djavu_D_Ghost(Entity ent) {
-	return !(ent.atkAngle() == -90 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0);
+	return !(ent.dealtAttack()->angle == -90 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0);
 }
 
 bool isDangerous_launchGreatsword(Entity ent) {

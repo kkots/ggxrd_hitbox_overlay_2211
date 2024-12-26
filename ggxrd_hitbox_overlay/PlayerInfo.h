@@ -427,10 +427,6 @@ struct EntityFramebar {
 	virtual const FramebarBase& getHitstop() const = 0;
 	virtual const FramebarBase& getIdle() const = 0;
 	virtual const FramebarBase& getIdleHitstop() const = 0;
-	// maxCodepointCount - pass in a pointer to the maximum number of whole characters (codepoints). This
-	//  number of characters will be included in the byte-length that will be returned via the same
-	//  (maxCodepointCount) pointer.
-	
 	/// <summary>
 	/// Determines the length of the UTF8 encoded string in both bytes, not including the terminating null character,
 	/// and codepoints (whole UTF32 characters), as well as returns the number of bytes, not including the terminating
@@ -736,6 +732,9 @@ struct ProjectileInfo {
 	void printStartup(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
 	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
+	static void determineMoveNameAndSlangName(const MoveInfo* move, Entity ptr, const char** name, const char** slangName);
+	static void determineMoveNameAndSlangName(Entity ptr, const char** name, const char** slangName, const char** framebarNameFull = nullptr);
+	void fillInMove();
 };
 
 struct InvulData {
@@ -747,6 +746,115 @@ struct InvulData {
 	void removeFirstNFrames(int n);
 };
 
+enum BlockType {
+	BLOCK_TYPE_NORMAL,
+	BLOCK_TYPE_INSTANT,
+	BLOCK_TYPE_FAULTLESS
+};
+
+struct DmgCalc {
+	DWORD aswEngineCounter = 0;
+	HitResult lastHitResult = HIT_RESULT_NONE;
+	BlockType blockType = BLOCK_TYPE_NORMAL;
+	const char* attackName = nullptr;
+	const char* attackSlangName = nullptr;
+	const char* nameFull = nullptr;
+	bool isProjectile = false;
+	GuardType guardType = GUARD_TYPE_ANY;
+	bool airUnblockable = false;
+	bool guardCrush = false;
+	bool isThrow = false;
+	union DmgCalcU {
+		struct DmgCalcBlock {
+			int defenderRisc;
+			int riscPlusBase;
+			int attackLevel;
+			int attackLevelForGuard;
+			int riscPlusBaseStandard;
+			int guardBalanceDefence;
+			bool groundedAndOverheadOrLow;
+			bool wasInBlockstun;
+			
+			int baseDamage;
+			int attackKezuri;
+			int attackKezuriStandard;
+			int oldHp;
+		} block;
+		struct DmgCalcArmor {
+			int baseDamage;
+			int damageScale;
+			bool isProjectile;
+			int projectileDamageScale;
+			int superArmorDamagePercent;
+			bool superArmorHeadAttribute;
+			
+			int defenseModifier;
+			int gutsRating;
+			int gutsLevel;
+			int guts;
+			
+			int attackLevel;
+			int attackLevelForGuard;
+			int attackKezuri;
+			int attackKezuriStandard;
+			
+			int oldHp;
+		} armor;
+		struct DmgCalcHit {
+			int baseDamage;
+			bool increaseDmgBy50Percent;
+			int extraInverseProration;
+			bool isStylish;
+			int stylishDamageInverseModifier;
+			int handicap;
+			
+			int damageScale;
+			bool isProjectile;
+			int projectileDamageScale;
+			
+			int dustProration1;
+			int dustProration2;
+			
+			bool attackerHellfireState;
+			bool attackerHpLessThan10Percent;
+			bool attackHasHellfireEnabled;
+			
+			CounterHitType attackCounterHitType;
+			bool trainingSettingIsForceCounterHit;
+			bool dangerTime;
+			bool wasHitDuringRc;
+			bool rcDmgProration;
+			int proration;
+			int risc;
+			bool needReduceRisc;
+			bool guardBreakInitialProrationApplied;
+			bool isFirstHit;
+			int initialProration;
+			int forcedProration;
+			int riscMinusStarter;
+			bool riscMinusOnceUsed;
+			int riscMinusOnce;
+			int riscMinus;
+			
+			AttackType attackType;
+			int comboProration;
+			bool noDamageScaling;
+			
+			int minimumDamagePercent;
+			
+			int defenseModifier;
+			int gutsRating;
+			int gutsLevel;
+			int guts;
+			
+			int hp;
+			int maxHp;
+			
+			bool kill;
+		} hit;
+	} u;
+};
+
 struct PlayerInfo {
 	Entity pawn{ nullptr };
 	int hp = 0;
@@ -754,7 +862,7 @@ struct PlayerInfo {
 	int defenseModifier = 0;  // dmg = dmg * (256 + defenseModifier) / 256
 	int gutsRating = 0;
 	int gutsPercentage = 0;
-	int risc = 0;  // max 12800
+	int risc = 0;  // max 12800, min -12800
 	
 	int tension = 0;  // max 10000
 	int tensionPulse = 0;  // -25000 to 25000. You can read about this in AddTooltip in UI.cpp
@@ -932,6 +1040,10 @@ struct PlayerInfo {
 	unsigned short poisonDurationMax = 0;
 	EddieInfo eddie { 0 };
 	
+	HitResult lastHitResult = HIT_RESULT_NONE;
+	BlockType blockType = BLOCK_TYPE_NORMAL;
+	
+	
 	DWORD moveStartTime_aswEngineTick = 0;
 	AddedMoveData* standingFDMove = nullptr;
 	AddedMoveData* crouchingFDMove = nullptr;
@@ -939,8 +1051,14 @@ struct PlayerInfo {
 	int cancelsTimer = 0;
 	FrameCancelInfo wasCancels;
 	int cancelsCount = 0;
+	std::vector<DmgCalc> dmgCalcs;
+	int dmgCalcsSkippedHits = 0;
+	int proration = 0;
+	int dustProration1 = 0;
+	int dustProration2 = 0;
+	int comboProrationNormal = 0;
+	int comboProrationOverdrive = 0;
 	char grabAnimation[32] { '\0' };
-	bool cancelsOverflow = false;
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };
@@ -1038,6 +1156,12 @@ struct PlayerInfo {
 	bool grab:1;  // this doesn't work on regular ground and air throws
 	bool lastMoveIsPartOfStance:1;
 	bool moveNonEmpty:1;
+	bool increaseDmgBy50Percent:1;
+	bool leftBlockstunHitstun:1;
+	bool cancelsOverflow:1;
+	bool receivedNewDmgCalcOnThisFrame:1;
+	bool blockedAHitOnThisFrame:1;
+	bool rcProration:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
@@ -1075,6 +1199,9 @@ struct PlayerInfo {
 	void appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel);
 	void appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel);
 	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
+	static void determineMoveNameAndSlangName(const MoveInfo* move, bool idle, Entity pawn, const char** name, const char** slangName);
+	static void determineMoveNameAndSlangName(Entity pawn, const char** name, const char** slangName);
 	void onAnimReset();
 	void removeNonStancePrevStartups();
+	void fillInMove();
 };

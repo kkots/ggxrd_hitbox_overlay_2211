@@ -821,11 +821,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				&& player.wasProhibitFDTimer == 0
 				&& ent.dizzyMashAmountLeft() <= 0
 				&& ent.exKizetsu() <= 0;
-			player.moveNonEmpty = moves.getInfo(player.move,
-				player.charType,
-				ent.currentMoveIndex() == -1 ? nullptr : ent.currentMove()->name,
-				ent.animationName(),
-				false);
+			player.fillInMove();
 			bool idleNext = player.move.isIdle(player);
 			if (player.airborne && player.move.forceLandingRecovery) player.moveOriginatedInTheAir = true;
 			bool prevFrameIdle = player.idle;
@@ -874,27 +870,38 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.hitNumber = 0;
 			}
 			
+			if (!player.leftBlockstunHitstun
+					&& !player.receivedNewDmgCalcOnThisFrame
+					&& (
+						player.cmnActIndex == -1
+						|| player.wakeupTiming
+						|| !player.inHitstun
+						&& !player.blockstun
+						&& !player.pawn.blockCount()
+						&& player.cmnActIndex != CmnActAirGuardLoop
+						&& player.cmnActIndex != CmnActAirGuardEnd
+						&& player.cmnActIndex != CmnActCrouchGuardLoop
+						&& player.cmnActIndex != CmnActCrouchGuardEnd
+						&& player.cmnActIndex != CmnActHighGuardLoop
+						&& player.cmnActIndex != CmnActHighGuardEnd
+						&& player.cmnActIndex != CmnActMidGuardLoop
+						&& player.cmnActIndex != CmnActMidGuardEnd
+					)) {
+				player.leftBlockstunHitstun = true;
+			}
+			player.proration = ent.proration();
+			player.dustProration1 = ent.dustProration1();
+			player.dustProration2 = ent.dustProration2();
+			player.comboProrationNormal = entityManager.calculateComboProration(ent.risc(), ATTACK_TYPE_NORMAL);
+			player.comboProrationOverdrive = entityManager.calculateComboProration(ent.risc(), ATTACK_TYPE_OVERDRIVE);
+			player.rcProration = other.pawn.rcSlowdownCounter() != 0 && !other.pawn.ignoreRcProration();
+			
 			if (!player.changedAnimOnThisFrame
 					&& prevFrameIdle
-					&& (
-						// Leaving Ms. Confille stance after spending too much time in it doing nothing
-						player.charType == CHARACTER_TYPE_ELPHELT
-						&& strncmp(player.anim, "Rifle_"_hardcode, 6) == 0
-						&& strncmp(animName, "Rifle_"_hardcode, 6) == 0
-						// gotta type out the names fully for search:
-						// Rifle_Start, Rifle_Reload, Rifle_Reload_Perfect, Rifle_Roman
-						&& (
-							strcmp(player.anim + 6, "Start"_hardcode) == 0
-							&& strcmp(animName + 6, "Start"_hardcode) == 0
-							|| strcmp(player.anim + 6, "Reload"_hardcode) == 0
-							&& strcmp(animName + 6, "Reload"_hardcode) == 0
-							|| strcmp(player.anim + 6, "Reload_Perfect"_hardcode) == 0
-							&& strcmp(animName + 6, "Reload_Perfect"_hardcode) == 0
-							|| strcmp(player.anim + 6, "Roman"_hardcode) == 0
-							&& strcmp(animName + 6, "Roman"_hardcode) == 0
-						)
-						&& !idleNext
-					)
+					// Leaving Rifle or Pogo stance after spending too much time in it
+					&& player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime
+					&& !idleNext
+					&& player.charType != CHARACTER_TYPE_LEO
 				) {
 				player.changedAnimOnThisFrame = true;
 			}
@@ -1003,7 +1010,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.dontRestartTheNonLandingFrameAdvantageCountdownUponNextLanding = false;
 			}
 			memcpy(player.prevAttackLockAction, player.attackLockAction, 32);
-			memcpy(player.attackLockAction, ent.attackLockAction(), 32);
+			memcpy(player.attackLockAction, ent.dealtAttack()->attackLockAction, 32);
 			player.animFrame = ent.currentAnimDuration();
 			player.hitboxesCount = 0;
 			
@@ -1494,11 +1501,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				projectile.fill(projectile.ptr);
 				projectile.markActive = projectile.landedHit;
 				if (projectile.team == 0 || projectile.team == 1) {
-					projectile.moveNonEmpty = moves.getInfo(projectile.move, entityList.slots[projectile.team].characterType(), nullptr, projectile.animName, true);
+					projectile.fillInMove();
 					if (!projectile.moveNonEmpty) {
 						projectile.isDangerous = false;
 					} else {
-						projectile.isDangerous = projectile.move.isDangerous(projectile.ptr);
+						projectile.isDangerous = projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr);
 						if (projectile.isDangerous) {
 							PlayerInfo& player = players[projectile.team];
 							player.hasDangerousProjectiles = true;
@@ -2059,13 +2066,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			int newValue;
 			
 			newValue = getSuperflashCounterAllied();
-			if (!superflashCounterAllied && newValue) {
+			if (newValue > superflashCounterAllied) {
 				superflashCounterAlliedMax = newValue;
 			}
 			superflashCounterAllied = newValue;
 			
 			newValue = getSuperflashCounterOpponent();
-			if (!superflashCounterOpponent && newValue) {
+			if (newValue > superflashCounterOpponent) {
 				superflashCounterOpponentMax = newValue;
 			}
 			superflashCounterOpponent = newValue;
@@ -2879,7 +2886,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool measureInvuls = !(player.hitstop && !isAzami)
 					&& !superflashInstigator
 					&& (player.strikeInvul.active
-						|| player.throwInvul.active
+						|| player.throwInvul.active && !player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // anti Faust-Pogo infinite throw invul
 						|| player.projectileOnlyInvul.active
 						|| player.superArmor.active
 						|| player.reflect.active);
@@ -4112,7 +4119,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		if (defender.isPawn()) {
 			PlayerInfo& defenderPlayer = findPlayer(defender);
 			defenderPlayer.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
-			if (hitResult == HIT_RESULT_ARMORED || hitResult == HIT_RESULT_5) {
+			if (hitResult == HIT_RESULT_ARMORED || hitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
 				defenderPlayer.armoredHitOnThisFrame = true;
 			} else if (hitResult == HIT_RESULT_NORMAL || hitResult == HIT_RESULT_BLOCKED) {
 				defenderPlayer.gotHitOnThisFrame = true;
@@ -4469,6 +4476,8 @@ void EndScene::frameCleanup() {
 		player.baikenReturningToBlockstunAfterAzami = false;
 		memcpy(player.animIntraFrame, player.anim, 32);
 		player.wasCancels.clear();
+		player.receivedNewDmgCalcOnThisFrame = false;
+		player.blockedAHitOnThisFrame = false;
 	}
 	creatingObject = false;
 	events.clear();
@@ -4531,7 +4540,7 @@ void EndScene::HookHelp::logicOnFrameAfterHitHook(bool isAirHit, int param2) {
 
 // Runs on the main thread
 void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) {
-	bool functionWillNotDoAnything = !pawn.inHitstunNextFrame() && (!pawn.enableGuardBreak() || !pawn.inBlockstunNextFrame());
+	bool functionWillNotDoAnything = !pawn.inHitstunNextFrame() && (!pawn.receivedAttack()->enableGuardBreak() || !pawn.inBlockstunNextFrame());
 	orig_logicOnFrameAfterHit((void*)pawn.ent, isAirHit, param2);
 	if (pawn.isPawn() && !functionWillNotDoAnything && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
@@ -4561,25 +4570,25 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) 
 		entityManager.calculateSpeedYProration(
 			pawn.comboCount(),
 			pawn.weight(),
-			pawn.ignoreWeight(),
-			pawn.dontUseComboTimerForSpeedY(),
+			pawn.receivedAttack()->ignoreWeight(),
+			pawn.receivedAttack()->dontUseComboTimerForSpeedY(),
 			&player.receivedSpeedYWeight,
 			&player.receivedSpeedYComboProration);
 		entityManager.calculateHitstunProration(
-			pawn.noHitstunScaling(),
+			pawn.receivedAttack()->noHitstunScaling(),
 			isAirHit,
 			pawn.comboTimer(),
 			&player.hitstunProration);
 		entityManager.calculatePushback(
-			pawn.receivedAttackLevel(),
+			pawn.receivedAttack()->level,
 			pawn.comboTimer(),
-			pawn.dontUseComboTimerForPushback(),
+			pawn.receivedAttack()->dontUseComboTimerForPushback(),
 			pawn.ascending(),
 			pawn.y(),
-			pawn.pushbackModifier(),
-			pawn.airPushbackModifier(),
+			pawn.receivedAttack()->pushbackModifier,
+			pawn.receivedAttack()->airPushbackModifier,
 			true,
-			pawn.pushbackModifierDuringHitstun(),
+			pawn.receivedAttack()->pushbackModifierOnHitstun,
 			&player.basePushback,
 			&player.attackPushbackModifier,
 			&player.hitstunPushbackModifier,
@@ -5016,15 +5025,12 @@ void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 	if (!iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.ibPushbackModifier = 100;
-		char* trainingStruct = game.getTrainingHud();
-		bool isDummy = isDummyPtr(trainingStruct, pawn.team());
-		bool fd = !isDummy ? pawn.holdingFD() : *(DWORD*)(trainingStruct + 0x670 + 4 * pawn.team()) == 2;
 		Entity attacker = pawn.attacker();
 		PlayerInfo& attackerPlayer = findPlayer(attacker);
 		if (attacker) {
 			attackerPlayer.baseFdPushback = 0;
 		}
-		if (fd) {
+		if (isHoldingFD(pawn)) {
 			attackerPlayer.fdPushbackMax = attacker.fdPushback();
 			int dist = pawn.posX() - attacker.posX();
 			if (dist < 0) dist = -dist;
@@ -5040,15 +5046,15 @@ void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 		player.receivedSpeedYValid = false;
 		player.pushbackMax = pawn.pendingPushback();
 		entityManager.calculatePushback(
-			pawn.receivedAttackLevel(),
+			pawn.receivedAttack()->level,
 			pawn.comboTimer(),
-			pawn.dontUseComboTimerForPushback(),
+			pawn.receivedAttack()->dontUseComboTimerForPushback(),
 			pawn.ascending(),
 			pawn.y(),
-			pawn.pushbackModifier(),
-			pawn.airPushbackModifier(),
+			pawn.receivedAttack()->pushbackModifier,
+			pawn.receivedAttack()->airPushbackModifier,
 			pawn.inHitstun(),
-			pawn.pushbackModifierDuringHitstun(),
+			pawn.receivedAttack()->pushbackModifierOnHitstun,
 			&player.basePushback,
 			&player.attackPushbackModifier,
 			&player.hitstunPushbackModifier,
@@ -5434,8 +5440,9 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 	}
 	GatlingOrWhiffCancelInfo& cancel = *ptr;
 	cancel.iterationIndex = iterationIndex;
-	player.moveNonEmpty = moves.getInfo(player.move, player.charType, move->name, move->stateName, false);
-	if (!player.moveNonEmpty || !player.move.getDisplayName(player.idle)) {
+	MoveInfo obtainedInfo;
+	bool moveNonEmpty = moves.getInfo(obtainedInfo, player.charType, move->name, move->stateName, false);
+	if (!moveNonEmpty || !obtainedInfo.getDisplayName(player.idle)) {
 		cancel.name = move->name;
 		int lenTest = strnlen(move->name, 32);
 		if (lenTest >= 32) {
@@ -5443,12 +5450,12 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 		}
 		cancel.nameIncludesInputs = false;
 	} else {
-		cancel.name = player.move.getDisplayName(player.idle);
-		cancel.nameIncludesInputs = player.move.nameIncludesInputs;
+		cancel.name = obtainedInfo.getDisplayName(player.idle);
+		cancel.nameIncludesInputs = obtainedInfo.nameIncludesInputs;
 	}
 	cancel.move = move;
-	cancel.replacementInputs = player.move.replacementInputs;
-	cancel.bufferTime = player.move.replacementBufferTime ? player.move.replacementBufferTime : move->bufferTime;
+	cancel.replacementInputs = obtainedInfo.replacementInputs;
+	cancel.bufferTime = obtainedInfo.replacementBufferTime ? obtainedInfo.replacementBufferTime : move->bufferTime;
 }
 
 void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame) {
@@ -5643,4 +5650,201 @@ int EndScene::getSuperflashCounterAlliedMax() {
 
 Entity EndScene::getLastNonZeroSuperflashInstigator() {
 	return lastNonZeroSuperflashInstigator;
+}
+
+bool EndScene::isHoldingFD(const PlayerInfo& player) const {
+	return isHoldingFD(player.pawn);
+}
+
+bool EndScene::isHoldingFD(Entity pawn) const {
+	char* trainingStruct = game.getTrainingHud();
+	bool isDummy = isDummyPtr(trainingStruct, pawn.team());
+	return !isDummy ? pawn.holdingFD() : *(DWORD*)(trainingStruct + 0x670 + 4 * pawn.team()) == 2;
+}
+
+void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
+	if (iGiveUp || !defenderPtr.isPawn()) return;
+	PlayerInfo& defender = findPlayer(defenderPtr);
+	if (!defender.pawn) return;
+	DWORD tickCount = getAswEngineTick();
+	if (!defender.dmgCalcs.empty()) {
+		if (defender.leftBlockstunHitstun) {
+			defender.dmgCalcs.clear();
+			defender.dmgCalcsSkippedHits = 0;
+		} else {
+			size_t maxCount;
+			if (tickCount - defender.dmgCalcs.back().aswEngineCounter > 3) {
+				maxCount = 10;
+			} else {
+				maxCount = 100;
+			}
+			if (defender.dmgCalcs.size() >= maxCount) {
+				int countToErase = defender.dmgCalcs.size() - maxCount + 1;
+				defender.dmgCalcsSkippedHits += countToErase;
+				defender.dmgCalcs.erase(defender.dmgCalcs.begin(), defender.dmgCalcs.begin() + countToErase);
+			}
+		}
+	}
+	defender.leftBlockstunHitstun = false;
+	defender.receivedNewDmgCalcOnThisFrame = true;
+	defender.dmgCalcs.emplace_back();
+	DmgCalc& newCalc = defender.dmgCalcs.back();
+	newCalc.aswEngineCounter = tickCount;
+	newCalc.lastHitResult = defenderPtr.lastHitResult();
+	const AttackData* attack = defenderPtr.receivedAttack();
+	newCalc.isProjectile = attack->projectileLvl > 0;
+	newCalc.guardType = attack->guardType;
+	newCalc.airUnblockable = attack->airUnblockable();
+	newCalc.guardCrush = attack->enableGuardBreak();
+	newCalc.isThrow = attack->isThrow();
+	if (newCalc.lastHitResult == HIT_RESULT_BLOCKED) {
+		if (isHoldingFD(defenderPtr)) {
+			newCalc.blockType = BLOCK_TYPE_FAULTLESS;
+		} else if (defenderPtr.successfulIB()) {
+			newCalc.blockType = BLOCK_TYPE_INSTANT;
+		} else {
+			newCalc.blockType = BLOCK_TYPE_NORMAL;
+		}
+	}
+	
+	defender.lastHitResult = newCalc.lastHitResult;
+	defender.blockType = newCalc.blockType;
+	
+	if (attackerPtr.isPawn()) {
+		PlayerInfo& attackerPlayer = findPlayer(attackerPtr);
+		if (attackerPlayer.pawn) {
+			attackerPlayer.fillInMove();
+			attackerPlayer.determineMoveNameAndSlangName(&newCalc.attackName, &newCalc.attackSlangName);
+		} else {
+			PlayerInfo::determineMoveNameAndSlangName(attackerPtr, &newCalc.attackName, &newCalc.attackSlangName);
+		}
+		newCalc.nameFull = nullptr;
+	} else {
+		ProjectileInfo::determineMoveNameAndSlangName(attackerPtr, &newCalc.attackName, &newCalc.attackSlangName, &newCalc.nameFull);
+	}
+	if (newCalc.lastHitResult == HIT_RESULT_BLOCKED) {
+		defender.blockedAHitOnThisFrame = true;
+	}
+	if (newCalc.lastHitResult == HIT_RESULT_BLOCKED && newCalc.blockType != BLOCK_TYPE_FAULTLESS) {
+		DmgCalc::DmgCalcU::DmgCalcBlock& data = newCalc.u.block;
+		data.defenderRisc = defenderPtr.risc();
+		data.riscPlusBase = attack->riscPlus;
+		data.attackLevel = attack->level;
+		data.attackLevelForGuard = attack->atkLvlOnBlockOrArmor;
+		static int riscPlusStandard[] = { 3, 6, 10, 14, 20 };
+		data.riscPlusBaseStandard = riscPlusStandard[data.attackLevelForGuard];
+		data.guardBalanceDefence = defenderPtr.guardBalanceDefence();
+		defender.pawn = defenderPtr;
+		GuardType guardType = attack->guardType;
+		data.groundedAndOverheadOrLow = !defender.airborne_insideTick()
+			&& (guardType == GUARD_TYPE_HIGH || guardType == GUARD_TYPE_LOW);
+		data.wasInBlockstun = defenderPtr.blockstun() != 0;
+		
+		data.baseDamage = attack->damage;
+		data.attackKezuri = attack->attackKezuri;
+		data.attackKezuriStandard = 0;
+		AttackType atkType = attack->type;
+		if (atkType == ATTACK_TYPE_EX || atkType == ATTACK_TYPE_OVERDRIVE) {
+			data.attackKezuriStandard = 16;
+		}
+		data.oldHp = defenderPtr.hp();
+	} else if (newCalc.lastHitResult == HIT_RESULT_ARMORED || newCalc.lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+		DmgCalc::DmgCalcU::DmgCalcArmor& data = newCalc.u.armor;
+		data.baseDamage = attack->damage;
+		data.damageScale = attackerPtr.playerEntity().damageScale();
+		data.isProjectile = attack->projectileLvl > 0;
+		data.projectileDamageScale = defenderPtr.projectileDamageScale();
+		data.superArmorDamagePercent = defenderPtr.superArmorDamagePercent();
+		data.superArmorHeadAttribute = (defenderPtr.lastHitResultFlags() & 0x400) != 0;
+		
+		data.defenseModifier = defenderPtr.defenseModifier();
+		data.gutsRating = defenderPtr.gutsRating();
+		data.guts = defenderPtr.calculateGuts(&data.gutsLevel);
+		
+		data.attackLevel = attack->level;
+		data.attackLevelForGuard = attack->atkLvlOnBlockOrArmor;
+		data.attackKezuri = attack->attackKezuri;
+		data.attackKezuriStandard = 0;
+		AttackType atkType = attack->type;
+		if (atkType == ATTACK_TYPE_EX || atkType == ATTACK_TYPE_OVERDRIVE) {
+			data.attackKezuriStandard = 16;
+		}
+		
+		data.oldHp = defenderPtr.hp();
+	}
+}
+
+void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
+	if (iGiveUp || !defenderPtr.isPawn()) return;
+	PlayerInfo& defender = findPlayer(defenderPtr);
+	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().lastHitResult != HIT_RESULT_NORMAL) return;
+	DmgCalc::DmgCalcU::DmgCalcHit& data = defender.dmgCalcs.back().u.hit;
+	const AttackData* attack = defenderPtr.receivedAttack();
+	data.baseDamage = attack->damage;
+	data.increaseDmgBy50Percent = defenderPtr.increaseDmgBy50Percent();
+	data.extraInverseProration = defenderPtr.extraInverseProration();
+	data.isStylish = game.isStylish(defenderPtr);
+	data.stylishDamageInverseModifier = game.getStylishDefenseInverseModifier();
+	data.handicap = game.getHandicap(defenderPtr.team());
+	switch (data.handicap) {
+		case 0: data.handicap = 156; break;
+		case 1: data.handicap = 125; break;
+		case 2: data.handicap = 100; break;
+		case 3: data.handicap = 80; break;
+		case 4: data.handicap = 64; break;
+		default: data.handicap = 100;
+	}
+	
+	data.damageScale = attackerPtr.playerEntity().damageScale();
+	data.isProjectile = attack->projectileLvl > 0;
+	data.projectileDamageScale = defenderPtr.projectileDamageScale();
+	
+	data.dustProration1 = defenderPtr.dustProration1();
+	data.dustProration2 = defenderPtr.dustProration2();
+	
+	data.attackerHellfireState = attackerPtr.playerEntity().hellfireState();
+	data.attackerHpLessThan10Percent = attackerPtr.playerEntity().hp() * 10000 / 420 <= 1000;
+	data.attackHasHellfireEnabled = attack->hellfire();
+	
+	data.attackCounterHitType = attack->counterHitType;
+	data.trainingSettingIsForceCounterHit = false;
+	if (game.isTrainingMode()) {
+		TrainingSettingValue_CounterHit settingValue = (TrainingSettingValue_CounterHit)game.getTrainingSetting(TRAINING_SETTING_COUNTER_HIT);
+		if (settingValue == TRAINING_SETTING_VALUE_COUNTER_HIT_FORCED_MORTAL_COUNTER) {
+			data.trainingSettingIsForceCounterHit = true;
+		}
+	}
+	data.dangerTime = defenderPtr.lastHitIsMortalCounter() || game.getDangerTime() != 0;
+	
+	data.wasHitDuringRc = attack->wasHitDuringRc();
+	data.rcDmgProration = defenderPtr.rcDmgProration() != 0;
+	data.proration = defenderPtr.proration();
+	data.initialProration = attack->initialProration;
+	data.forcedProration = attack->forcedProration;
+	data.needReduceRisc = attackerPtr.defendersRisc() == INT_MAX || attack->prorationTandan();
+	if (data.needReduceRisc) {
+		data.risc = defenderPtr.risc();
+		data.guardBreakInitialProrationApplied = defenderPtr.guardBreakInitialProrationApplied();
+		data.isFirstHit = defenderPtr.comboCount() == 0 && !data.guardBreakInitialProrationApplied;
+		data.riscMinusStarter = attack->riscMinusStarter;
+		data.riscMinusOnceUsed = defenderPtr.riscMinusOnceUsed() != 0;
+		data.riscMinusOnce = attack->riscMinusOnce;
+		data.riscMinus = attack->riscMinus;
+	} else {
+		data.risc = attackerPtr.defendersRisc();
+	}
+	data.attackType = attack->type;
+	data.comboProration = entityManager.calculateComboProration(data.risc, attack->type);
+	data.noDamageScaling = attack->noDamageScaling();
+	data.minimumDamagePercent = attack->minimumDamagePercent;
+	
+	data.defenseModifier = defenderPtr.defenseModifier();
+	data.gutsRating = defenderPtr.gutsRating();
+	data.guts = defenderPtr.calculateGuts(&data.gutsLevel);
+	
+	data.hp = defenderPtr.hp();
+	data.maxHp = defenderPtr.maxHp();
+	
+	data.kill = attack->killType == KILL_TYPE_KILL
+		|| attack->killType == KILL_TYPE_KILL_ALLY && attackerPtr.team() == defenderPtr.team();
 }
