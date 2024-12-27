@@ -109,6 +109,7 @@ public:
 	const char* getOtherUIDescription(void* ptr);
 	const char* getOtherINIDescription(void* ptr);
 	std::string convertToUiDescription(const char* iniDescription);
+	const char* getComboRepresentation(std::vector<int>& toggle);
 private:
 	struct KeyComboToParse {
 		const char* name = nullptr;
@@ -181,7 +182,6 @@ private:
 	void writeSettingsMain();
 	static bool isWhitespace(const char* str);
 	static int compareKeyCombos(const std::vector<int>& left, const std::vector<int>& right);
-	const char* getComboRepresentation(std::vector<int>& toggle);
 	const char* getKeyTxtName(int code);
 	void trashComboRepresentation(std::vector<int>& toggle);
 	struct OtherDescription {

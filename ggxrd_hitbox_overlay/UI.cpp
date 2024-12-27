@@ -135,6 +135,7 @@ static int findCharRev(const char* buf, char c);
 static int findCharRevW(const wchar_t* buf, wchar_t c);
 static void AddTooltip(const char* desc);
 static void HelpMarker(const char* desc);
+static void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey);
 static void RightAlign(float w);
 static void RightAlignedText(const char* txt);
 static void RightAlignedColoredText(const ImVec4& color, const char* txt);
@@ -176,6 +177,8 @@ static int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating
 static int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectile, int projectileDamageScale, HitResult lastHitResult, int superArmorDamagePercent);
 static const char* formatAttackType(AttackType attackType);
 static const char* formatGuardType(GuardType guardType);
+#define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+#define _zerohspacing ImGui::PopStyleVar();
 
 bool UI::onDllMain(HMODULE hModule) {
 	
@@ -1639,7 +1642,7 @@ void UI::prepareDrawData() {
 		}
 		if (ImGui::CollapsingHeader("Hitboxes")) {
 			
-			booleanSettingPreset(settings.dontShowBoxes);
+			booleanSettingPresetWithHotkey(settings.dontShowBoxes, settings.disableHitboxDisplayToggle);
 			
 			stateChanged = ImGui::Checkbox("GIF Mode", &gifModeOn) || stateChanged;
 			ImGui::SameLine();
@@ -1652,7 +1655,7 @@ void UI::prepareDrawData() {
 					"4) Hide HUD\n"
 					"A hotkey can be configured for entering and leaving GIF Mode at \"gifModeToggle\".");
 			}
-			HelpMarker(GIFModeHelp.c_str());
+			HelpMarkerWithHotkey(GIFModeHelp.c_str(), settings.gifModeToggle);
 			
 			stateChanged = ImGui::Checkbox("Black Background", &gifModeToggleBackgroundOnly) || stateChanged;
 			ImGui::SameLine();
@@ -1663,7 +1666,7 @@ void UI::prepareDrawData() {
 					" if Post Effect is turned off in the game's graphics settings).\n"
 					"You can use the \"gifModeToggleBackgroundOnly\" hotkey to toggle this setting.");
 			}
-			HelpMarker(blackBackgroundHelp.c_str());
+			HelpMarkerWithHotkey(blackBackgroundHelp.c_str(), settings.gifModeToggleBackgroundOnly);
 			
 			bool postEffectOn = game.postEffectOn() != 0;
 			if (ImGui::Checkbox("Post-Effect On", &postEffectOn)) {
@@ -1679,7 +1682,7 @@ void UI::prepareDrawData() {
 				" turned off automatically, and when you leave those modes, it gets turned back on.\n"
 				"Or, alternatively, you could use the manual keyboard toggle, set in this mod's \"togglePostEffectOnOff\".");
 			}
-			HelpMarker(postEffectOnHelp.c_str());
+			HelpMarkerWithHotkey(postEffectOnHelp.c_str(), settings.togglePostEffectOnOff);
 			
 			stateChanged = ImGui::Checkbox("Camera Center on Player", &gifModeToggleCameraCenterOnly) || stateChanged;
 			ImGui::SameLine();
@@ -1689,7 +1692,7 @@ void UI::prepareDrawData() {
 					"Centers the camera on you.\n"
 					"You can use the \"gifModeToggleCameraCenterOnly\" hotkey to toggle this setting.");
 			}
-			HelpMarker(cameraCenterHelp.c_str());
+			HelpMarkerWithHotkey(cameraCenterHelp.c_str(), settings.gifModeToggleCameraCenterOnly);
 			
 			stateChanged = ImGui::Checkbox("Camera Center on Opponent", &toggleCameraCenterOpponent) || stateChanged;
 			ImGui::SameLine();
@@ -1699,7 +1702,7 @@ void UI::prepareDrawData() {
 					"Centers the camera on the opponent.\n"
 					"You can use the \"toggleCameraCenterOpponent\" hotkey to toggle this setting.");
 			}
-			HelpMarker(cameraCenterOpponentHelp.c_str());
+			HelpMarkerWithHotkey(cameraCenterOpponentHelp.c_str(), settings.toggleCameraCenterOpponent);
 			
 			stateChanged = ImGui::Checkbox("Hide Opponent", &gifModeToggleHideOpponentOnly) || stateChanged;
 			ImGui::SameLine();
@@ -1709,7 +1712,7 @@ void UI::prepareDrawData() {
 					"Make the opponent invisible and invulnerable.\n"
 					"You can use the \"gifModeToggleHideOpponentOnly\" hotkey to toggle this setting.");
 			}
-			HelpMarker(hideOpponentHelp.c_str());
+			HelpMarkerWithHotkey(hideOpponentHelp.c_str(), settings.gifModeToggleHideOpponentOnly);
 			
 			stateChanged = ImGui::Checkbox("Hide Player", &toggleHidePlayer) || stateChanged;
 			ImGui::SameLine();
@@ -1719,7 +1722,7 @@ void UI::prepareDrawData() {
 					"Make the player invisible and invulnerable.\n"
 					"You can use the \"toggleHidePlayer\" hotkey to toggle this setting.");
 			}
-			HelpMarker(hidePlayerHelp.c_str());
+			HelpMarkerWithHotkey(hidePlayerHelp.c_str(), settings.toggleHidePlayer);
 			
 			stateChanged = ImGui::Checkbox("Hide HUD", &gifModeToggleHudOnly) || stateChanged;
 			ImGui::SameLine();
@@ -1729,7 +1732,7 @@ void UI::prepareDrawData() {
 					"Hides the HUD.\n"
 					"You can use the \"gifModeToggleHudOnly\" hotkey to toggle this setting.");
 			}
-			HelpMarker(hideHUDHelp.c_str());
+			HelpMarkerWithHotkey(hideHUDHelp.c_str(), settings.gifModeToggleHudOnly);
 			
 			stateChanged = ImGui::Checkbox("No Gravity", &noGravityOn) || stateChanged;
 			ImGui::SameLine();
@@ -1739,7 +1742,7 @@ void UI::prepareDrawData() {
 					"Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.\n"
 					"You can use the \"noGravityToggle\" hotkey to toggle this setting.");
 			}
-			HelpMarker(noGravityHelp.c_str());
+			HelpMarkerWithHotkey(noGravityHelp.c_str(), settings.noGravityToggle);
 			
 			bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
 			if (ImGui::Checkbox("Disable Gray Hurtboxes", &neverDisplayGrayHurtboxes)) {
@@ -1755,7 +1758,7 @@ void UI::prepareDrawData() {
 					" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
 					"You can use the \"toggleDisableGrayHurtboxes\" hotkey to toggle this setting.");
 			}
-			HelpMarker(neverDisplayGrayHurtboxesHelp.c_str());
+			HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp.c_str(), settings.toggleDisableGrayHurtboxes);
 			
 			stateChanged = ImGui::Checkbox("Freeze Game", &freezeGame) || stateChanged;
 			ImGui::SameLine();
@@ -1770,9 +1773,32 @@ void UI::prepareDrawData() {
 					"Freezes the current frame of the game and stops gameplay from advancing."
 					" You can advance gameplay to the next frame using the 'Next Frame' button."
 					" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
-					" instead of pressing the button.");
+					" instead of pressing the button, and freezing and unfreezing the game can be achieved with"
+					" the \"freezeGameToggle\" shortcut.");
 			}
-			HelpMarker(freezeGameHelp.c_str());
+			ImGui::TextDisabled("(?)");
+			if (ImGui::BeginItemTooltip()) {
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				
+				const char* hotkeyRepresentation = settings.getComboRepresentation(settings.freezeGameToggle);
+				if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
+					hotkeyRepresentation = "<not set>";
+				}
+				sprintf_s(strbuf, "Freeze Game Hotkey: %s", hotkeyRepresentation);
+				ImGui::TextUnformatted(strbuf);
+				
+				hotkeyRepresentation = settings.getComboRepresentation(settings.allowNextFrameKeyCombo);
+				if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
+					hotkeyRepresentation = "<not set>";
+				}
+				sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", hotkeyRepresentation);
+				ImGui::TextUnformatted(strbuf);
+				
+				ImGui::Separator();
+				ImGui::TextUnformatted(freezeGameHelp.c_str());
+				ImGui::PopTextWrapPos();
+				ImGui::EndTooltip();
+			}
 			
 			stateChanged = ImGui::Checkbox("Slow-Mo Mode", &slowmoGame) || stateChanged;
 			ImGui::SameLine();
@@ -1793,7 +1819,7 @@ void UI::prepareDrawData() {
 					"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
 					"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
 			}
-			HelpMarker(slowmoHelp.c_str());
+			HelpMarkerWithHotkey(slowmoHelp.c_str(), settings.slowmoGameToggle);
 			
 			ImGui::Button("Take Screenshot");
 			if (ImGui::IsItemActivated()) {
@@ -1814,7 +1840,7 @@ void UI::prepareDrawData() {
 					" in the 'Hitbox settings', they're saved there instead.\n"
 					"A hotkey can be configured to take screenshots with, in \"screenshotBtn\".");
 			}
-			HelpMarker(screenshotHelp.c_str());
+			HelpMarkerWithHotkey(screenshotHelp.c_str(), settings.screenshotBtn);
 			
 			stateChanged = ImGui::Checkbox("Continuous Screenshotting Mode", &continuousScreenshotToggle) || stateChanged;
 			ImGui::SameLine();
@@ -1828,7 +1854,7 @@ void UI::prepareDrawData() {
 					"Alternatively, you can use \"continuousScreenshotToggle\" shortcut to toggle a mode where you don't have to hold"
 					" the screenshot button, and screenshots get taken every non frozen (advancing) frame automatically.");
 			}
-			HelpMarker(continuousScreenshottingHelp.c_str());
+			HelpMarkerWithHotkey(continuousScreenshottingHelp.c_str(), settings.continuousScreenshotToggle);
 			
 		}
 		if (ImGui::CollapsingHeader("Settings")) {
@@ -1904,7 +1930,7 @@ void UI::prepareDrawData() {
 				}
 				AddTooltip("Shows the meaning of each frame color/graphic on the framebar.");
 				
-				booleanSettingPreset(settings.neverIgnoreHitstop);
+				booleanSettingPresetWithHotkey(settings.neverIgnoreHitstop, settings.toggleNeverIgnoreHitstop);
 				
 				booleanSettingPreset(settings.ignoreHitstopForBlockingBaiken);
 				
@@ -1920,7 +1946,7 @@ void UI::prepareDrawData() {
 				
 				booleanSettingPreset(settings.useColorblindHelp);
 				
-				booleanSettingPreset(settings.showFramebar);
+				booleanSettingPresetWithHotkey(settings.showFramebar, settings.framebarVisibilityToggle);
 				
 				booleanSettingPreset(settings.showFramebarInTrainingMode);
 				
@@ -3044,10 +3070,10 @@ void UI::prepareDrawData() {
 						}
 						ImGui::TextUnformatted(guardTypeStr);
 						
-						textUnformattedColored(YELLOW_COLOR, "Requires FD in Air: ");
-						AddTooltip("Is air unblockable - requires Faultless Defense to be blocked in the air.");
+						textUnformattedColored(YELLOW_COLOR, "Air Blockable: ");
+						AddTooltip("Is air blockable - if not, then requires Faultless Defense to be blocked in the air.");
 						ImGui::SameLine();
-						ImGui::TextUnformatted(dmgCalc.airUnblockable ? "Yes" : "No");
+						ImGui::TextUnformatted(dmgCalc.airUnblockable ? "No" : "Yes");
 						
 						if (dmgCalc.guardCrush) {
 							textUnformattedColored(YELLOW_COLOR, "Guard Crush: ");
@@ -3058,18 +3084,18 @@ void UI::prepareDrawData() {
 						
 						ImGui::PopStyleVar();
 						
-						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+						zerohspacing
 						textUnformattedColored(YELLOW_COLOR, "Last Hit Result: ");
 						ImGui::SameLine();
 						ImGui::TextUnformatted(formatHitResult(dmgCalc.lastHitResult));
-						ImGui::PopStyleVar();
+						_zerohspacing
 						
 						if (dmgCalc.lastHitResult == HIT_RESULT_BLOCKED) {
-							ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+							zerohspacing
 							textUnformattedColored(YELLOW_COLOR, "Block Type: ");
 							ImGui::SameLine();
 							ImGui::TextUnformatted(formatBlockType(dmgCalc.blockType));
-							ImGui::PopStyleVar();
+							_zerohspacing
 							if (dmgCalc.blockType != BLOCK_TYPE_FAULTLESS) {
 								const DmgCalc::DmgCalcU::DmgCalcBlock& data = dmgCalc.u.block;
 								if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
@@ -3084,7 +3110,13 @@ void UI::prepareDrawData() {
 									ImGui::TextUnformatted(strbuf);
 									if (data.attackLevel != data.attackLevelForGuard) {
 										ImGui::SameLine();
-										ImGui::TextDisabled("(!)");
+										ImVec4* color;
+										if (data.attackLevelForGuard > data.attackLevel) {
+											color = &RED_COLOR;
+										} else {
+											color = &LIGHT_BLUE_COLOR;
+										}
+										textUnformattedColored(*color, "(!)");
 										if (ImGui::BeginItemTooltip()) {
 											ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 											sprintf_s(strbuf, "This attack's level on block/armor (%d) is %s than on hit (%d).",
@@ -3103,18 +3135,17 @@ void UI::prepareDrawData() {
 									ImGui::TableNextColumn();
 									sprintf_s(strbuf, "%d", data.riscPlusBase);
 									const char* needHelp = nullptr;
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+									ImVec4* color = &RED_COLOR;
 									if (data.riscPlusBase > data.riscPlusBaseStandard) {
-										textUnformattedColored(RED_COLOR, strbuf);
 										needHelp = "higher";
 									} else if (data.riscPlusBase < data.riscPlusBaseStandard) {
-										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 										needHelp = "lower";
-									} else {
-										ImGui::TextUnformatted(strbuf);
+										color = &LIGHT_BLUE_COLOR;
 									}
 									if (needHelp) {
 										ImGui::SameLine();
-										ImGui::TextDisabled("(!)");
+										textUnformattedColored(*color, "(!)");
 										if (ImGui::BeginItemTooltip()) {
 											ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 											sprintf_s(strbuf, "This attack's RISC+ (%d) is %s than the standard RISC+ (%d) for its attack level %s(%d).",
@@ -3140,17 +3171,19 @@ void UI::prepareDrawData() {
 									
 									int x = data.riscPlusBase * 100 * data.guardBalanceDefence / 32;
 									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+ * Gain Rate");
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Gain Rate");
+									_zerohspacing
 									ImGui::TableNextColumn();
-									char* buf = strbuf;
-									size_t bufSize = sizeof strbuf;
-									int result = sprintf_s(buf, bufSize, "%d * %s = ", data.riscPlusBase, printdecimalbuf);
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									sprintf_s(buf, bufSize, "%s", printDecimal(x, 2, 0, false));
+									sprintf_s(strbuf, "%d * %s = ", data.riscPlusBase, printdecimalbuf);
+									zerohspacing
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%s", printDecimal(x, 2, 0, false));
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+									_zerohspacing
 									
 									ImGui::TableNextColumn();
 									ImGui::TextUnformatted("Grounded and Overhead/Low");
@@ -3166,17 +3199,18 @@ void UI::prepareDrawData() {
 									}
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+ * Overhead/Low");
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Overhead/Low");
+									_zerohspacing
 									ImGui::TableNextColumn();
-									buf = strbuf;
-									bufSize = sizeof strbuf;
-									result = sprintf_s(buf, bufSize, "%s * %s = ", printdecimalbuf, data.groundedAndOverheadOrLow ? "75%" : "100%");
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									sprintf_s(buf, bufSize, "%s", printDecimal(x, 2, 0, false));
+									zerohspacing
+									sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.groundedAndOverheadOrLow ? "75%" : "100%");
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
+									_zerohspacing
 									
 									ImGui::TableNextColumn();
 									ImGui::TextUnformatted("Was In Blockstun");
@@ -3192,18 +3226,21 @@ void UI::prepareDrawData() {
 									}
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+ * Was In Blockstun");
-									AddTooltip("This is the final RISC value that gets added to the RISC gauge.");
+									const char* tooltip = "This is the final RISC value that gets added to the RISC gauge.";
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Was In Blockstun");
+									AddTooltip(tooltip);
+									_zerohspacing
 									ImGui::TableNextColumn();
-									buf = strbuf;
-									bufSize = sizeof strbuf;
-									result = sprintf_s(buf, bufSize, "%s * %s = ", printdecimalbuf, data.wasInBlockstun ? "50%" : "100%");
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									sprintf_s(buf, bufSize, "%s", printDecimal(x, 2, 0, false));
+									zerohspacing
+									sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.wasInBlockstun ? "50%" : "100%");
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
+									_zerohspacing
 									
 									ImGui::TableNextColumn();
 									ImGui::TextUnformatted("RISC");
@@ -3211,9 +3248,9 @@ void UI::prepareDrawData() {
 										" the old value + change = final value.");
 									ImGui::TableNextColumn();
 									
-									buf = strbuf;
-									bufSize = sizeof strbuf;
-									result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
+									char* buf = strbuf;
+									size_t bufSize = sizeof strbuf;
+									int result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
 									if (result != -1) {
 										buf += result;
 										bufSize -= result;
@@ -3231,10 +3268,14 @@ void UI::prepareDrawData() {
 									
 									x = data.baseDamage;
 									ImGui::TableNextColumn();
-									textUnformattedColored(YELLOW_COLOR, "Base Damage");
+									zerohspacing
+									ImGui::TextUnformatted("Base ");
+									ImGui::SameLine();
+									textUnformattedColored(YELLOW_COLOR, "Damage");
+									_zerohspacing
 									ImGui::TableNextColumn();
 									sprintf_s(strbuf, "%d", x);
-									ImGui::TextUnformatted(strbuf);
+									textUnformattedColored(YELLOW_COLOR, strbuf);
 									
 									x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);
 									
@@ -3256,10 +3297,14 @@ void UI::prepareDrawData() {
 								
 								int x = data.baseDamage;
 								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Base Damage");
+								zerohspacing
+								ImGui::TextUnformatted("Base ");
+								ImGui::SameLine();
+								textUnformattedColored(YELLOW_COLOR, "Damage");
+								_zerohspacing
 								sprintf_s(strbuf, "%d", data.baseDamage);
 								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(strbuf);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
 								
 								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, dmgCalc.lastHitResult, data.superArmorDamagePercent);
 								
@@ -3293,22 +3338,38 @@ void UI::prepareDrawData() {
 								
 								int x = data.baseDamage;
 								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Base Damage");
+								zerohspacing
+								ImGui::TextUnformatted("Base ");
+								ImGui::SameLine();
+								textUnformattedColored(YELLOW_COLOR, "Damage");
+								_zerohspacing
 								sprintf_s(strbuf, "%d", data.baseDamage);
 								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(strbuf);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
 								
+								int oldX = x;
 								if (data.increaseDmgBy50Percent) {
 									x = x * 150 / 100;
 									ImGui::TableNextColumn();
-									textUnformattedColored(YELLOW_COLOR, "Dmg * 150%");
-									AddTooltip("Maybe Dustloop or someone knows what this is.");
+									const char* tooltip = "Maybe Dustloop or someone knows what this is.";
+									zerohspacing
+									textUnformattedColored(YELLOW_COLOR, "Dmg");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * 150%");
+									AddTooltip(tooltip);
+									_zerohspacing
 									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d", x);
+									zerohspacing
+									sprintf_s(strbuf, "%d * 150%c = ", oldX, '%');
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									textUnformattedColored(YELLOW_COLOR, strbuf);
+									_zerohspacing
 								}
 								
-								int oldX = x;
+								oldX = x;
 								if (data.extraInverseProration != 100 && data.extraInverseProration != 0) {
 									x = x * 100 / data.extraInverseProration;
 									ImGui::TableNextColumn();
@@ -3319,11 +3380,22 @@ void UI::prepareDrawData() {
 									ImGui::TextUnformatted(strbuf);
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(YELLOW_COLOR, "Dmg / Extra Inv. Modif");
-									AddTooltip("Damage = Damage * 100 / Extra Inverse Modif");
+									const char* tooltip = "Damage = Damage * 100 / Extra Inverse Modif";
+									zerohspacing
+									textUnformattedColored(YELLOW_COLOR, "Dmg");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" / Extra Inv. Modif");
+									AddTooltip(tooltip);
+									_zerohspacing
 									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d / %d%c = %d", oldX, data.extraInverseProration, '%', x);
+									zerohspacing
+									sprintf_s(strbuf, "%d / %d%c = ", oldX, data.extraInverseProration, '%');
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									textUnformattedColored(YELLOW_COLOR, strbuf);
+									_zerohspacing
 								}
 								
 								oldX = x;
@@ -3338,10 +3410,19 @@ void UI::prepareDrawData() {
 									ImGui::TextUnformatted(strbuf);
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(YELLOW_COLOR, "Dmg / Stylish");
+									zerohspacing
+									textUnformattedColored(YELLOW_COLOR, "Dmg");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" / Stylish");
+									_zerohspacing
 									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d / %d%c = %d", oldX, data.stylishDamageInverseModifier, '%', x);
+									zerohspacing
+									sprintf_s(strbuf, "%d / %d%c = ", oldX, data.stylishDamageInverseModifier, '%');
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									textUnformattedColored(YELLOW_COLOR, strbuf);
+									_zerohspacing
 								}
 								
 								oldX = x;
@@ -3361,10 +3442,19 @@ void UI::prepareDrawData() {
 									ImGui::TextUnformatted(strbuf);
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(YELLOW_COLOR, "Dmg * Handicap");
+									zerohspacing
+									textUnformattedColored(YELLOW_COLOR, "Dmg");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" * Handicap");
+									_zerohspacing
 									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d * %d%c = %d", oldX, data.handicap, '%', x);
+									zerohspacing
+									sprintf_s(strbuf, "%d * %d%c = ", oldX, data.handicap, '%');
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									textUnformattedColored(YELLOW_COLOR, strbuf);
+									_zerohspacing
 								}
 								
 								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, HIT_RESULT_NORMAL, 100);
@@ -3382,14 +3472,23 @@ void UI::prepareDrawData() {
 									ImGui::TextUnformatted(strbuf);
 									
 									ImGui::TableNextColumn();
+									zerohspacing
+									textUnformattedColored(YELLOW_COLOR, "Dmg");
+									ImGui::SameLine();
 									if (data.dustProration2 != 100) {
-										textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration #1");
+										ImGui::TextUnformatted(" * Dust Proration #1");
 									} else {
-										textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration");
+										ImGui::TextUnformatted(" * Dust Proration");
 									}
+									_zerohspacing
 									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d * %d%c = %d", oldX, data.dustProration1, '%', x);
+									zerohspacing
+									sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration1, '%');
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									sprintf_s(strbuf, "%d", x);
+									textUnformattedColored(YELLOW_COLOR, strbuf);
+									_zerohspacing
 								}
 								
 								oldX = x;
@@ -3405,14 +3504,23 @@ void UI::prepareDrawData() {
 								ImGui::TextUnformatted(strbuf);
 								
 								ImGui::TableNextColumn();
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								ImGui::SameLine();
 								if (data.dustProration1 != 100) {
-									textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration #2");
+									ImGui::TextUnformatted(" * Dust Proration #2");
 								} else {
-									textUnformattedColored(YELLOW_COLOR, "Dmg * Dust Proration");
+									ImGui::TextUnformatted(" * Dust Proration");
 								}
+								_zerohspacing
 								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d * %d%c = %d", oldX, data.dustProration2, '%', x);
+								zerohspacing
+								sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration2, '%');
 								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
 								
 								bool hellfire = data.attackerHellfireState && data.attackerHpLessThan10Percent && data.attackHasHellfireEnabled;
 								ImGui::TableNextColumn();
@@ -3436,15 +3544,24 @@ void UI::prepareDrawData() {
 								
 								oldX = x;
 								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Dmg * Hellfire");
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Hellfire");
+								_zerohspacing
 								ImGui::TableNextColumn();
+								zerohspacing
 								if (hellfire) {
 									x = x * 120 / 100;
-									sprintf_s(strbuf, "%d * 120%c = %d", oldX, '%', x);
+									sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
 								} else {
-									sprintf_s(strbuf, "%d * 100%c = %d", oldX, '%', x);
+									sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
 								}
 								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
 								
 								if (data.trainingSettingIsForceCounterHit) {
 									ImGui::TableNextColumn();
@@ -3471,14 +3588,23 @@ void UI::prepareDrawData() {
 								}
 								
 								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Dmg * Danger Time");
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Danger Time");
+								_zerohspacing
 								ImGui::TableNextColumn();
+								zerohspacing
 								if (data.dangerTime) {
-									sprintf_s(strbuf, "%d * 120%c = %d", oldX, '%', x);
+									sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
 								} else {
-									sprintf_s(strbuf, "%d * 100%c = %d", oldX, '%', x);
+									sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
 								}
 								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
 								
 								bool rcProration = data.rcDmgProration || data.wasHitDuringRc;
 								
@@ -3554,15 +3680,27 @@ void UI::prepareDrawData() {
 									int riscMinusTotal = 0;
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC- Initial");
-									AddTooltip("This RISC- is applied on first hit only. Depends on the attack.");
+									const char* tooltip = "This RISC- is applied on first hit only. Depends on the attack.";
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" Initial");
+									AddTooltip(tooltip);
+									_zerohspacing
 									ImGui::TableNextColumn();
 									if (!data.isFirstHit) {
-										ImGui::TextUnformatted("Not first hit (0)");
+										zerohspacing
+										ImGui::TextUnformatted("Not first hit (");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
 									} else {
 										riscMinusTotal = data.riscMinusStarter * 100;
 										sprintf_s(strbuf, "%d", data.riscMinusStarter);
-										ImGui::TextUnformatted(strbuf);
+										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 									}
 									
 									ImGui::TableNextColumn();
@@ -3571,59 +3709,89 @@ void UI::prepareDrawData() {
 									ImGui::TableNextColumn();
 									riscMinusTotal += data.riscMinus * 100;
 									sprintf_s(strbuf, "%d", data.riscMinus);
-									ImGui::TextUnformatted(strbuf);
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC- Once");
-									AddTooltip("This RISC- may only be applied once. Depends on the attack.");
+									tooltip = "This RISC- may only be applied once. Depends on the attack.";
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+									AddTooltip(tooltip);
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" Once");
+									AddTooltip(tooltip);
+									_zerohspacing
 									ImGui::TableNextColumn();
 									if (data.riscMinusOnceUsed) {
-										ImGui::TextUnformatted("Already applied (0)");
+										zerohspacing
+										ImGui::TextUnformatted("Already applied (");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
 									} else if (data.riscMinusOnce == INT_MAX) {
-										ImGui::TextUnformatted("None (0)");
+										zerohspacing
+										ImGui::TextUnformatted("None (");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
 									} else {
 										riscMinusTotal += data.riscMinusOnce * 100;
 										sprintf_s(strbuf, "%d", data.riscMinusOnce);
-										ImGui::TextUnformatted(strbuf);
+										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 									}
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC > 0 ?");
+									ImGui::TextUnformatted("RISC > 0 ?");
 									AddTooltip("RISC reduces by 25% extra on each hit when it is positive.");
 									ImGui::TableNextColumn();
 									int riscReductionExtra = 0;
 									if (data.risc > 0) {
 										riscReductionExtra = data.risc >> 3;
 										riscMinusTotal += riscReductionExtra;
-										sprintf_s(strbuf, "yes (extra 'RISC-' = %s)", printDecimal(riscReductionExtra, 2, 0, false));
-										ImGui::TextUnformatted(strbuf);
+										zerohspacing
+										ImGui::TextUnformatted("yes (extra 'RISC-' = ");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscReductionExtra, 2, 0, false));
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
 									} else {
-										ImGui::TextUnformatted("no (extra 'RISC-' = 0)");
+										zerohspacing
+										ImGui::TextUnformatted("no (extra 'RISC-' = ");
+										ImGui::SameLine();
+										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+										ImGui::SameLine();
+										ImGui::TextUnformatted(")");
+										_zerohspacing
 									}
 									
 									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC- Total");
+									zerohspacing
+									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" Total");
+									_zerohspacing
 									ImGui::TableNextColumn();
-									char* buf = strbuf;
-									size_t bufSize = sizeof strbuf;
-									int result = sprintf_s(strbuf, "%d + %d + %d + %s = ",
+									sprintf_s(strbuf, "%d + %d + %d + %s = ",
 										data.isFirstHit ? data.riscMinusStarter : 0,
 										data.riscMinus,
 										!data.riscMinusOnceUsed && data.riscMinusOnce != INT_MAX ? data.riscMinusOnce : 0,
 										printDecimal(riscReductionExtra, 2, 0, false));
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									sprintf_s(buf, bufSize, "%s", printDecimal(riscMinusTotal, 2, 0, false));
+									zerohspacing
 									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscMinusTotal, 2, 0, false));
+									_zerohspacing
 									
 									ImGui::TableNextColumn();
 									ImGui::TextUnformatted("RISC");
 									ImGui::TableNextColumn();
-									buf = strbuf;
-									bufSize = sizeof strbuf;
-									result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
+									char* buf = strbuf;
+									size_t bufSize = sizeof strbuf;
+									int result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
 									if (result != -1) {
 										buf += result;
 										bufSize -= result;
@@ -3693,16 +3861,26 @@ void UI::prepareDrawData() {
 								oldX = x;
 								x = x * proration / 256;
 								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Dmg * Pror. * Scaling");
-								AddTooltip("Damage * Current proration * RISC Damage Scaling."
-									" Current proration is forced/initial proration that was at the moment of impact.");
+								const char* tooltip = "Damage * Current proration * RISC Damage Scaling."
+									" Current proration is forced/initial proration that was at the moment of impact.";
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Pror. * Scaling");
+								AddTooltip(tooltip);
+								_zerohspacing
 								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d * %d%c = %d",
+								zerohspacing
+								sprintf_s(strbuf, "%d * %d%c = ",
 										oldX,
 										proration * 100 / 256,
-										'%',
-										x);
+										'%');
 								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
 								
 								ImGui::TableNextColumn();
 								ImGui::TextUnformatted("Roman Cancel");
@@ -3716,16 +3894,31 @@ void UI::prepareDrawData() {
 								
 								oldX = x;
 								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Damage * RC");
-								AddTooltip("Damage * Roman Cancel proration");
+								tooltip = "Damage * Roman Cancel proration";
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Damage");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * RC");
+								AddTooltip(tooltip);
+								_zerohspacing
 								ImGui::TableNextColumn();
+								zerohspacing
 								if (rcProration) {
 									x = x * 80 / 100;
-									sprintf_s(strbuf, "%d * 80%c = %d", oldX, '%', x);
+									sprintf_s(strbuf, "%d * 80%c = ", oldX, '%');
+									ImGui::TextUnformatted(strbuf);
 								} else {
-									sprintf_s(strbuf, "Doesn't apply (%d)", x);
+									ImGui::TextUnformatted("Doesn't apply (");
 								}
-								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								if (!rcProration) {
+									ImGui::SameLine();
+									ImGui::TextUnformatted(")");
+								}
+								_zerohspacing
 								
 								if (damagePriorToProration > 0 && x < 1) {
 									x = 1;
@@ -3755,16 +3948,22 @@ void UI::prepareDrawData() {
 								ImGui::TextUnformatted(strbuf);
 								
 								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Damage or Min Dmg");
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Damage");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" or Min ");
+								ImGui::SameLine();
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								_zerohspacing
 								ImGui::TableNextColumn();
 								if (data.minimumDamagePercent != 0 && x < minDmg) x = minDmg;
 								sprintf_s(strbuf, "%d", x);
-								ImGui::TextUnformatted(strbuf);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
 								
 								x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
 								
 								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("HP<=Dmg and HP>=30%MaxHP");
+								ImGui::TextUnformatted("HP<=Dmg and HP>=30% MaxHP");
 								AddTooltip("When HP at the moment of hit is less than or equal to the damage, and HP is greater than or equal to max HP * 30% (HP>=126),"
 									" the damage gets changed to:\n"
 									"Damage = HP - Max HP * 5% or, in other words, Damage = HP - 21");
@@ -3773,20 +3972,27 @@ void UI::prepareDrawData() {
 								ImGui::TextUnformatted(attackIsTooOP ? "Yes" : "No");
 								
 								ImGui::TableNextColumn();
+								tooltip = "Damage after change due to the condition above.";
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Damage");
+								AddTooltip(tooltip);
 								if (attackIsTooOP) {
-									textUnformattedColored(YELLOW_COLOR, "Damage = HP - 21");
-								} else {
-									textUnformattedColored(YELLOW_COLOR, "Damage");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(" = HP - 21");
+									AddTooltip(tooltip);
 								}
-								AddTooltip("Damage after change due to the condition above.");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
 								if (attackIsTooOP) {
 									x = data.hp - data.maxHp * 5 / 100;
-									sprintf_s(strbuf, "%d - 21 = %d", data.hp, x);
-								} else {
-									sprintf_s(strbuf, "%d", x);
+									sprintf_s(strbuf, "%d - 21 = ", data.hp);
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
 								}
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(strbuf);
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
 								
 								
 								ImGui::TableNextColumn();
@@ -3802,7 +4008,7 @@ void UI::prepareDrawData() {
 								ImGui::TableNextColumn();
 								if (data.kill) x = data.hp;
 								sprintf_s(strbuf, "%d", x);
-								ImGui::TextUnformatted(strbuf);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
 								
 								ImGui::TableNextColumn();
 								ImGui::TextUnformatted("HP");
@@ -4715,6 +4921,24 @@ void AddTooltip(const char* desc) {
 void HelpMarker(const char* desc) {
 	ImGui::TextDisabled("(?)");
 	AddTooltip(desc);
+}
+
+void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) {
+	ImGui::TextDisabled("(?)");
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		const char* hotkeyRepresentation = settings.getComboRepresentation(hotkey);
+		if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
+			ImGui::TextUnformatted("Hotkey: <not set>");
+		} else {
+			sprintf_s(strbuf, "Hotkey: %s", hotkeyRepresentation);
+			ImGui::TextUnformatted(strbuf);
+		}
+		ImGui::Separator();
+		ImGui::TextUnformatted(desc);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
 }
 
 void RightAlign(float w) {
@@ -6396,16 +6620,29 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 	}
 }
 
-bool UI::booleanSettingPreset(std::atomic_bool& settingsPtr) {
+bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey) {
 	bool itHappened = false;
-	bool boolValue = settingsPtr;
-	if (ImGui::Checkbox(settings.getOtherUIName(&settingsPtr), &boolValue)) {
-		settingsPtr = boolValue;
+	bool boolValue = settingsRef;
+	if (ImGui::Checkbox(settings.getOtherUIName(&settingsRef), &boolValue)) {
+		settingsRef = boolValue;
 		needWriteSettings = true;
 		itHappened = true;
 	}
 	ImGui::SameLine();
-	HelpMarker(settings.getOtherUIDescription(&settingsPtr));
+	HelpMarkerWithHotkey(settings.getOtherUIDescription(&settingsRef), hotkey);
+	return itHappened;
+}
+
+bool UI::booleanSettingPreset(std::atomic_bool& settingsRef) {
+	bool itHappened = false;
+	bool boolValue = settingsRef;
+	if (ImGui::Checkbox(settings.getOtherUIName(&settingsRef), &boolValue)) {
+		settingsRef = boolValue;
+		needWriteSettings = true;
+		itHappened = true;
+	}
+	ImGui::SameLine();
+	HelpMarker(settings.getOtherUIDescription(&settingsRef));
 	return itHappened;
 }
 
@@ -6670,13 +6907,24 @@ int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int g
 	ImGui::TextUnformatted(strbuf);
 	
 	ImGui::TableNextColumn();
-	textUnformattedColored(YELLOW_COLOR, "Damage * (Def.Mod. * Guts)");
-	AddTooltip("This equals (defense modifier + 256) * guts / 100 * damage / 256.");
+	const char* tooltip = "This equals (defense modifier + 256) * guts / 100 * damage / 256.";
+	zerohspacing
+	textUnformattedColored(YELLOW_COLOR, "Damage");
+	AddTooltip(tooltip);
+	ImGui::SameLine();
+	ImGui::TextUnformatted(" * (Def.Mod. * Guts)");
+	AddTooltip(tooltip);
+	_zerohspacing
 	ImGui::TableNextColumn();
 	int oldX = x;
 	x = (defenseModifier + 256) * guts / 100 * x / 256;
-	sprintf_s(strbuf, "%d * %s = %d", oldX, totalGutsStr, x);
+	zerohspacing
+	sprintf_s(strbuf, "%d * %s = ", oldX, totalGutsStr);
 	ImGui::TextUnformatted(strbuf);
+	ImGui::SameLine();
+	sprintf_s(strbuf, "%d", x);
+	textUnformattedColored(YELLOW_COLOR, strbuf);
+	_zerohspacing
 	
 	return x;
 }
@@ -6691,19 +6939,18 @@ int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int atta
 	sprintf_s(strbuf, "%d (%s)", attackKezuri, chipModifStr);
 	
 	const char* needHelp = nullptr;
+	ImGui::TextUnformatted(strbuf);
+	ImVec4* color = &RED_COLOR;
 	if (attackKezuri > attackKezuriStandard) {
-		textUnformattedColored(RED_COLOR, strbuf);
 		needHelp = "higher";
 	} else if (attackKezuri < attackKezuriStandard) {
-		textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 		needHelp = "lower";
-	} else {
-		ImGui::TextUnformatted(strbuf);
+		color = &LIGHT_BLUE_COLOR;
 	}
 	
 	if (attackKezuri != attackKezuriStandard) {
 		ImGui::SameLine();
-		ImGui::TextDisabled("(!)");
+		textUnformattedColored(*color, "(!)");
 		if (ImGui::BeginItemTooltip()) {
 			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 			sprintf_s(strbuf, "This attack's chip damage modifier (%d) is %s than the standard chip damage modifier (%d) for all specials and overdrives.",
@@ -6717,14 +6964,25 @@ int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int atta
 	}
 	
 	ImGui::TableNextColumn();
-	textUnformattedColored(YELLOW_COLOR, "Chip Damage");
-	AddTooltip("Final damage can't be less than 1, if base damage was greater than 0 and chip damage modifier was greater than 0.");
+	const char* tooltip = "Final damage can't be less than 1, if base damage was greater than 0 and chip damage modifier was greater than 0.";
+	zerohspacing
+	ImGui::TextUnformatted("Chip ");
+	AddTooltip(tooltip);
+	ImGui::SameLine();
+	textUnformattedColored(YELLOW_COLOR, "Damage");
+	AddTooltip(tooltip);
+	_zerohspacing
 	ImGui::TableNextColumn();
 	int oldX = x;
 	x = x * attackKezuri / 128;
 	if (x < 1 && attackKezuri > 0 && baseDamage > 0) x = 1;
-	sprintf_s(strbuf, "%d * %s = %d", oldX, chipModifStr, x);
+	zerohspacing
+	sprintf_s(strbuf, "%d * %s = ", oldX, chipModifStr);
 	ImGui::TextUnformatted(strbuf);
+	ImGui::SameLine();
+	sprintf_s(strbuf, "%d", x);
+	textUnformattedColored(YELLOW_COLOR, strbuf);
+	_zerohspacing
 	
 	return x;
 }
@@ -6749,18 +7007,19 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 		
 		x = x * damageScale / 100;
 		ImGui::TableNextColumn();
-		textUnformattedColored(YELLOW_COLOR, "Damage * Scale");
+		zerohspacing
+		textUnformattedColored(YELLOW_COLOR, "Damage");
+		ImGui::SameLine();
+		ImGui::TextUnformatted(" * Scale");
+		_zerohspacing
 		ImGui::TableNextColumn();
 		
-		char* buf = strbuf;
-		size_t bufSize = sizeof strbuf;
-		int result = sprintf_s(buf, bufSize, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), damageScale, '%');
-		if (result != -1) {
-			buf += result;
-			bufSize -= result;
-		}
-		sprintf_s(buf, bufSize, "%s", ui.printDecimal(x, 1, 0, false));
+		zerohspacing
+		sprintf_s(strbuf, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), damageScale, '%');
 		ImGui::TextUnformatted(strbuf);
+		ImGui::SameLine();
+		textUnformattedColored(YELLOW_COLOR, ui.printDecimal(x, 1, 0, false));
+		_zerohspacing
 	}
 	
 	ImGui::TableNextColumn();
@@ -6783,22 +7042,32 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 	}
 	
 	ImGui::TableNextColumn();
-	textUnformattedColored(YELLOW_COLOR, "Damage * Proj.Dmg.Scale");
-	AddTooltip("Damage * Defender's projectile damage scale");
+	const char* tooltip = "Damage * Defender's projectile damage scale";
+	zerohspacing
+	textUnformattedColored(YELLOW_COLOR, "Damage");
+	AddTooltip(tooltip);
+	ImGui::SameLine();
+	ImGui::TextUnformatted(" * Proj.Dmg.Scale");
+	AddTooltip(tooltip);
+	_zerohspacing
 	ImGui::TableNextColumn();
 	if (!isProjectile) {
-		sprintf_s(strbuf, "Doesn't apply (%s)", ui.printDecimal(x, 1, 0, false));
-		ImGui::TextUnformatted(strbuf);
+		zerohspacing
+		ImGui::TextUnformatted("Doesn't apply (");
+		ImGui::SameLine();
+		textUnformattedColored(YELLOW_COLOR, ui.printDecimal(x, 1, 0, false));
+		ImGui::SameLine();
+		ImGui::TextUnformatted(")");
+		_zerohspacing
 	} else {
-		char* buf = strbuf;
-		size_t bufSize = sizeof strbuf;
-		int result = sprintf_s(buf, bufSize, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), projectileDamageScale, '%');
-		if (result != -1) {
-			buf += result;
-			bufSize -= result;
-		}
-		sprintf_s(buf, bufSize, "%s", ui.printDecimal(x, 1, 0, false));
-		ImGui::TextUnformatted(strbuf);
+		zerohspacing
+		sprintf_s(strbuf, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), projectileDamageScale, '%');
+		ImGui::TextUnformatted("Doesn't apply (");
+		ImGui::SameLine();
+		textUnformattedColored(YELLOW_COLOR, ui.printDecimal(x, 1, 0, false));
+		ImGui::SameLine();
+		ImGui::TextUnformatted(")");
+		_zerohspacing
 	}
 	
 	oldX = x;
@@ -6819,15 +7088,27 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 	
 	if (lastHitResult == HIT_RESULT_ARMORED || lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
 		ImGui::TableNextColumn();
-		textUnformattedColored(YELLOW_COLOR, "Damage * Armor Scale");
+		zerohspacing
+		textUnformattedColored(YELLOW_COLOR, "Damage");
+		ImGui::SameLine();
+		ImGui::TextUnformatted(" * Armor Scale");
+		_zerohspacing
 		ImGui::TableNextColumn();
+		zerohspacing
 		if (lastHitResult == HIT_RESULT_ARMORED) {
-			sprintf_s(strbuf, "%s * %d%c = %d", ui.printDecimal(oldX, 1, 0, false), superArmorDamagePercent, '%', x);
+			sprintf_s(strbuf, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), superArmorDamagePercent, '%');
 			ImGui::TextUnformatted(strbuf);
 		} else {
-			sprintf_s(strbuf, "Doesn't apply (%d)", x);
-			ImGui::TextUnformatted(strbuf);
+			ImGui::TextUnformatted("Doesn't apply (");
 		}
+		ImGui::SameLine();
+		sprintf_s(strbuf, "%d", x);
+		textUnformattedColored(YELLOW_COLOR, strbuf);
+		if (lastHitResult != HIT_RESULT_ARMORED) {
+			ImGui::SameLine();
+			ImGui::TextUnformatted(")");
+		}
+		_zerohspacing
 	}
 	
 	return x;

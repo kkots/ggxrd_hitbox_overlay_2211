@@ -195,7 +195,8 @@ private:
 			return arr[index].name;
 		};
 	};
-	bool booleanSettingPreset(std::atomic_bool& settingsPtr);
+	bool booleanSettingPreset(std::atomic_bool& settingsRef);
+	bool booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey);
 	bool float4SettingPreset(float& settingsPtr);
 	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue);
 	bool showCancels[2] { false, false };
