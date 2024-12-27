@@ -78,3 +78,7 @@ uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_
 uintptr_t sigscanForward(uintptr_t ptr, const std::vector<char>& sig, const std::vector<char>& mask, size_t searchLimit = 1000);
 
 uintptr_t findImportedFunction(const char* module, const char* dll, const char* function);
+
+void sigscanCaseInsensitivePrepare(const char* sig, size_t sigLength, size_t* step);
+
+uintptr_t sigscanCaseInsensitive(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength, size_t* step);

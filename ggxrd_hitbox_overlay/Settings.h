@@ -49,7 +49,6 @@ public:
 	std::atomic_int slowmoTimes = 3;
 	std::atomic_int framebarHeight = 19;
 	std::atomic_int framebarTitleCharsMax = 12;
-	std::atomic_int lowProfileCutoffPoint = 19;
 	const float cameraCenterOffsetX_defaultValue = 0.F;
 	const float cameraCenterOffsetY_defaultValue = 106.4231F;
 	const float cameraCenterOffsetY_WhenForcePitch0_defaultValue = 130.4231F;

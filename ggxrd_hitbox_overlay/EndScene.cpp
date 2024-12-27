@@ -1722,7 +1722,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.lowProfile.active = !player.strikeInvul.active
 					&& !player.airborne
 					&& hurtbox.hitboxCount
-					&& hurtboxBounds.bottom < settings.lowProfileCutoffPoint;
+					&& hurtboxBounds.bottom < 175000;
 				player.frontLegInvul.active = !player.strikeInvul.active
 					&& player.move.frontLegInvul
 					&& player.move.frontLegInvul(player);

@@ -91,7 +91,7 @@ bool Settings::onDllMain() {
 		"; 1) Background becomes black\n"
 		"; 2) Camera is centered on you\n"
 		"; 3) Opponent is invisible and invulnerable\n"
-		"; 4) Hide HUD\n"
+		"; 4) Hide HUD (interface)\n"
 		"; GIF Mode can also be toggled using 'UI - Hitboxes - GIF Mode'.");
 	insertKeyComboToParse("noGravityToggle", "No Gravity Toggle", &noGravityToggle, "F2",
 		"; A keyboard shortcut to toggle No gravity mode\n"
@@ -166,7 +166,7 @@ bool Settings::onDllMain() {
 		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
 		"; This option can be combined with GIF Mode options, by sharing the same key binding for example");
 	insertKeyComboToParse("gifModeToggleHudOnly", "GIF Mode Toggle (HUD Only)", &gifModeToggleHudOnly, "",
-		"; A keyboard shortcut to only toggle the \"hide hud\" part of the \"gifModeToggle\".\n"
+		"; A keyboard shortcut to only toggle the \"hide HUD (interface)\" part of the \"gifModeToggle\".\n"
 		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide HUD' checkbox.\n"
 		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
 		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example");
@@ -218,12 +218,6 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(displayUIOnTopOfPauseMenu), "Display Mod's UI on top of Pause Menu", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
 			"; Display mod's UI on top of the game's Pause Menu.");
-	registerOtherDescription(settingAndItsName(lowProfileCutoffPoint), "Low Profile Cut-Off Height", settingsGeneralSettingsStr,
-			"; Specify a whole number.\n"
-			"; In the UI's 'Invul' field and in the framebar on-mouse-hover info,\n"
-			"; hurtboxes that are below this Y will trigger the display of 'low profile' invulnerability type.\n"
-			"; After changing this value, redo the move to see the updated value.\n"
-			"; You can use the values displayed in the UI - Box Extents as aid to determine this value.");
 	registerOtherDescription(settingAndItsName(neverIgnoreHitstop), "Never Ignore Hitstop", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"
@@ -605,8 +599,6 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 
 	bool framebarTitleCharsMaxParsed = false;
 
-	bool lowProfileCutoffPointParsed = false;
-	
 	bool cameraCenterOffsetXParsed = false;
 	bool cameraCenterOffsetYParsed = false;
 	bool cameraCenterOffsetY_WhenForcePitch0Parsed = false;
@@ -740,9 +732,6 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			}
 			if (!framebarTitleCharsMaxParsed && _stricmp(keyName.c_str(), "framebarTitleCharsMax") == 0) {
 				framebarTitleCharsMaxParsed = parseInteger("framebarTitleCharsMax", keyValue, framebarTitleCharsMax);
-			}
-			if (!lowProfileCutoffPointParsed && _stricmp(keyName.c_str(), "lowProfileCutoffPoint") == 0) {
-				lowProfileCutoffPointParsed = parseInteger("lowProfileCutoffPoint", keyValue, lowProfileCutoffPoint);
 			}
 			if (!cameraCenterOffsetXParsed && _stricmp(keyName.c_str(), "cameraCenterOffsetX") == 0) {
 				cameraCenterOffsetXParsed = parseFloat("cameraCenterOffsetX", keyValue, cameraCenterOffsetX);
@@ -896,10 +885,6 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!framebarTitleCharsMaxParsed) {
 		framebarTitleCharsMax = 12;
-	}
-	
-	if (!lowProfileCutoffPointParsed) {
-		lowProfileCutoffPoint = 175000;
 	}
 	
 	if (!startDisabledParsed) {
@@ -1606,7 +1591,6 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("neverDisplayGrayHurtboxes", formatBoolean(neverDisplayGrayHurtboxes), getOtherINIDescription(&neverDisplayGrayHurtboxes));
 	replaceOrAddSetting("dontShowBoxes", formatBoolean(dontShowBoxes), getOtherINIDescription(&dontShowBoxes));
 	replaceOrAddSetting("displayUIOnTopOfPauseMenu", formatBoolean(displayUIOnTopOfPauseMenu), getOtherINIDescription(&displayUIOnTopOfPauseMenu));
-	replaceOrAddSetting("lowProfileCutoffPoint", formatInteger(lowProfileCutoffPoint).c_str(), getOtherINIDescription(&lowProfileCutoffPoint));
 	replaceOrAddSetting("showFramebar", formatBoolean(showFramebar), getOtherINIDescription(&showFramebar));
 	replaceOrAddSetting("showFramebarInTrainingMode", formatBoolean(showFramebarInTrainingMode), getOtherINIDescription(&showFramebarInTrainingMode));
 	replaceOrAddSetting("showFramebarInReplayMode", formatBoolean(showFramebarInReplayMode), getOtherINIDescription(&showFramebarInReplayMode));

@@ -76,6 +76,7 @@ public:
 	};
 	std::vector<InputName> inputNames{ 0x127 };
 	std::unique_ptr<PngResource> firstFrame;
+	void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth);
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -177,30 +178,63 @@ private:
 	bool showShaderCompilationError = true;
 	const std::string* shaderCompilationError = nullptr;
 	bool needShowFramebar() const;
-	void lowProfileControl();
-	bool imguiActiveTemp;
-	bool showLowProfilePresets = false;
-	void lowProfilePresetsWindow();
-	int currentSelectedLowProfilePreset = -1;
+	int two = 2;
+	bool imguiActiveTemp = false;
+	bool takeScreenshotTemp = false;
 	bool showErrorDialog = false;
 	const char* errorDialogText = nullptr;
 	void* errorDialogPos = nullptr;
 	bool showFramebarHelp = false;
 	void framebarHelpWindow();
-	struct AttackValuePreset {
-		const char* name;
-		int value;
-		static const char* getName(void* userData, int index)  {
-			AttackValuePreset* arr = (AttackValuePreset*)userData;
-			return arr[index].name;
-		};
-	};
 	bool booleanSettingPreset(std::atomic_bool& settingsRef);
 	bool booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey);
 	bool float4SettingPreset(float& settingsPtr);
 	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue);
 	bool showCancels[2] { false, false };
 	bool showDamageCalculation[2] { false, false };
+	void drawSearchableWindows();
+	bool searching = false;
+	bool showSearch = false;
+	char searchString[101] { '\0' };
+	char searchStringOriginal[101] { '\0' };
+	size_t searchStringLen = 0;
+	size_t searchStep[256] { 0 };
+	bool searchStringOk = false;
+	bool showTooFewCharactersError = false;
+	std::string lastFoundTextLeft;
+	std::string lastFoundTextMid;
+	std::string lastFoundTextRight;
+	std::string searchStack[5] { };
+	int searchStackCount = 0;
+	std::string searchField{};
+	struct SearchResult {
+		std::string searchStack[5] { };
+		int searchStackCount = 0;
+		std::string field;
+		std::string foundLeft;
+		std::string foundMid;
+		std::string foundRight;
+	};
+	std::list<SearchResult> searchResults;
+	void pushSearchStack(const char* name);
+	void popSearchStack();
+	const char* searchCollapsibleSection(const char* collapsibleHeaderName);
+	const char* searchFieldTitle(const char* fieldTitle);
+	const char* searchTooltip(const char* tooltip);
+	const char* searchFieldValue(const char* value);
+	const char* searchRawText(const char* txt, const char* txtStart, const char** txtEnd);
+	void searchRawTextMultiResult(const char* txt);
+	const char* rewindToNextUtf8CharStart(const char* ptr, const char* textStart);
+	const char* skipToNextUtf8CharStart(const char* ptr, const char* textEnd);
+	void searchWindow();
+	void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey);
+	void printAllCancels(const FrameCancelInfo& cancels,
+		bool enableSpecialCancel,
+		bool enableJumpCancel,
+		bool enableSpecials,
+		bool hitOccured,
+		bool airborne,
+		bool insertSeparators);
 };
 
 extern UI ui;

@@ -162,6 +162,51 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLen
 	return 0;
 }
 
+/// <summary>
+/// Prepares the step array before searching the same sig in many places.
+/// </summary>
+/// <param name="sig">The needle to search for.</param>
+/// <param name="sigLength">The length of the needle, in bytes.</param>
+/// <param name="step">The array must hold 256 size_t elements.</param>
+void sigscanCaseInsensitivePrepare(const char* sig, size_t sigLength, size_t* step) {
+	// Boyer-Moore-Horspool substring search
+	// A table containing, for each symbol in the alphabet, the number of characters that can safely be skipped
+	for (int i = 0; i < 256; ++i) {
+		step[i] = sigLength;
+	}
+	for (size_t i = 0; i < sigLength - 1; i++) {
+		step[(BYTE)sig[i]] = sigLength - 1 - i;
+	}
+}
+
+uintptr_t sigscanCaseInsensitive(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength, size_t* step) {
+	
+	// Boyer-Moore-Horspool substring search
+	
+	char pNext;
+	char pCheck;
+	end -= sigLength;
+	for (uintptr_t p = start; p <= end; p += step[pNext]) {
+		int j = sigLength - 1;
+		pNext = *(char*)(p + j);
+		if (pNext >= 'A' && pNext <= 'Z') pNext = 'a' + pNext - 'A';
+		if (sig[j] == pNext) {
+			for (--j; j >= 0; --j) {
+				pCheck = *(char*)(p + j);
+				if (pCheck >= 'A' && pCheck <= 'Z') pCheck = 'a' + pCheck - 'A';
+				if (sig[j] != pCheck) {
+					break;
+				}
+			}
+			if (j < 0) {
+				return p;
+			}
+		}
+	}
+
+	return 0;
+}
+
 void splitOutModuleName(const char* name, char* moduleName, char* sectionName) {
 	bool foundColon = false;
 	for (const char* c = name; *c != '\0'; ++c) {

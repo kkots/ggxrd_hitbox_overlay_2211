@@ -135,7 +135,6 @@ static int findCharRev(const char* buf, char c);
 static int findCharRevW(const wchar_t* buf, wchar_t c);
 static void AddTooltip(const char* desc);
 static void HelpMarker(const char* desc);
-static void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey);
 static void RightAlign(float w);
 static void RightAlignedText(const char* txt);
 static void RightAlignedColoredText(const ImVec4& color, const char* txt);
@@ -156,17 +155,10 @@ static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, UI::InputName** motions, int motionCount, UI::InputName** buttons, int buttonsCount);
 static void printChippInvisibility(int current, int max);
 static void textUnformattedColored(ImVec4 color, const char* str);
-static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str);
+static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, bool needSameLine = true);
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame);
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
-static void printAllCancels(const FrameCancelInfo& cancels,
-	bool enableSpecialCancel,
-	bool enableJumpCancel,
-	bool enableSpecials,
-	bool hitOccured,
-	bool airborne,
-	bool insertSeparators);
 static bool prevNamesControl(const PlayerInfo& player, bool includeTitle);
 static void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip);
 static void prepareLastNames(const char** lastNames, const PlayerInfo& player);
@@ -179,6 +171,32 @@ static const char* formatAttackType(AttackType attackType);
 static const char* formatGuardType(GuardType guardType);
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
+#define printWithWordWrap \
+			float w = ImGui::CalcTextSize(strbuf).x; \
+			if (w > ImGui::GetContentRegionAvail().x) { \
+				ImGui::TextWrapped("%s", strbuf); \
+			} else { \
+				if (i == 0) RightAlign(w); \
+				ImGui::TextUnformatted(strbuf); \
+			}
+			
+#define printWithWordWrapArg(a) \
+			float w = ImGui::CalcTextSize(a).x; \
+			if (w > ImGui::GetContentRegionAvail().x) { \
+				ImGui::TextWrapped("%s", a); \
+			} else { \
+				if (i == 0) RightAlign(w); \
+				ImGui::TextUnformatted(a); \
+			}
+			
+#define printNoWordWrap \
+			if (i == 0) RightAlignedText(strbuf); \
+			else ImGui::TextUnformatted(strbuf);
+			
+#define printNoWordWrapArg(a) \
+			if (i == 0) RightAlignedText(a); \
+			else ImGui::TextUnformatted(a);
+
 
 bool UI::onDllMain(HMODULE hModule) {
 	
@@ -744,7 +762,7 @@ void UI::prepareDrawData() {
 	needWriteSettings = false;
 	keyCombosChanged = false;
 	imguiActiveTemp = false;
-	bool takeScreenshotTemp = false;
+	takeScreenshotTemp = false;
 	
 	decrementFlagTimer(allowNextFrameTimer, allowNextFrame);
 	decrementFlagTimer(takeScreenshotTimer, takeScreenshotPress);
@@ -755,3492 +773,16 @@ void UI::prepareDrawData() {
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 	
-	#define printWithWordWrap \
-				float w = ImGui::CalcTextSize(strbuf).x; \
-				if (w > ImGui::GetContentRegionAvail().x) { \
-					ImGui::TextWrapped("%s", strbuf); \
-				} else { \
-					if (i == 0) RightAlign(w); \
-					ImGui::TextUnformatted(strbuf); \
-				}
-				
-	#define printWithWordWrapArg(a) \
-				float w = ImGui::CalcTextSize(a).x; \
-				if (w > ImGui::GetContentRegionAvail().x) { \
-					ImGui::TextWrapped("%s", a); \
-				} else { \
-					if (i == 0) RightAlign(w); \
-					ImGui::TextUnformatted(a); \
-				}
-				
-	#define printNoWordWrap \
-				if (i == 0) RightAlignedText(strbuf); \
-				else ImGui::TextUnformatted(strbuf);
-				
-	#define printNoWordWrapArg(a) \
-				if (i == 0) RightAlignedText(a); \
-				else ImGui::TextUnformatted(a);
-				
 	if (visible) {
-		static std::string windowTitle;
-		if (windowTitle.empty()) {
-			windowTitle = "ggxrd_hitbox_overlay v";
-			windowTitle += VERSION;
-		}
-		ImGui::Begin(windowTitle.c_str(), &visible);
 		
-		if (ImGui::CollapsingHeader("Framedata", ImGuiTreeNodeFlags_DefaultOpen)) {
-			if (endScene.isIGiveUp()) {
-				ImGui::TextUnformatted("Online non-observer match running.");
-			} else
-			if (ImGui::BeginTable("##PayerData",
-						3,
-						ImGuiTableFlags_Borders
-						| ImGuiTableFlags_RowBg
-						| ImGuiTableFlags_NoSavedSettings
-						| ImGuiTableFlags_NoPadOuterX)
-			) {
-				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
-				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
-				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
-				
-				ImGui::TableNextColumn();
-				GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
-				float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
-				RightAlign(w);
-				drawPlayerIconWithTooltip(0);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P1");
-				ImGui::TableNextColumn();
-				scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
-				CenterAlign(scaledIcon.size.x);
-				drawGGIcon(scaledIcon);
-				AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("P2");
-				ImGui::SameLine();
-				drawPlayerIconWithTooltip(1);
-				
-				{
-					PlayerInfo& player = endScene.players[0];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
-					stringArena = strbuf;
-					sprintf_s(strbuf, " (x%s)", printDecimal(player.gutsPercentage, 2, 0));
-					stringArena += strbuf;
-					sprintf_s(strbuf, " %3d", player.hp);
-					stringArena += strbuf;
-					RightAlignedText(stringArena.c_str());
-				}
-				
-				ImGui::TableNextColumn();
-				CenterAlignedText("HP");
-				AddTooltip("HP (x Guts) [x Defense Modifier]\n"
-					"Technically you should divide HP by these values in order to get effective HP, because they're what all damage is multiplied by.");
-				
-				{
-					PlayerInfo& player = endScene.players[1];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%-3d ", player.hp);
-					stringArena = strbuf;
-					sprintf_s(strbuf, "(x%s) ", printDecimal(player.gutsPercentage, 2, 0));
-					stringArena += strbuf;
-					sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
-					stringArena += strbuf;
-					ImGui::TextUnformatted(stringArena.c_str());
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Meter");
-						AddTooltip("Tension");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Burst");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("RISC");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					const char* formatString;
-					if (i == 0) {
-						formatString = "%4d / %4d";
-					} else {
-						formatString = "%-4d / %-4d";
-					}
-					sprintf_s(strbuf, formatString, player.stun, player.stunThreshold * 100);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Stun");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.x, 2, 0);
-					sprintf_s(strbuf, "%s; ", printdecimalbuf);
-					printDecimal(player.y, 2, 0);
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("X; Y");
-						AddTooltip("Position X; Y in the arena. Divided by 100 for viewability.");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.printStartup(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						headerThatCanBeClickedForTooltip("Startup", &showStartupTooltip, false);
-						if (ImGui::BeginItemTooltip()) {
-							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-							if (settings.dontShowMoveName) {
-								if (prevNamesControl(player, true)) {
-									printNoWordWrap
-									ImGui::Separator();
-								}
-							}
-							ImGui::TextUnformatted("Click the field for tooltip.");
-							ImGui::PopTextWrapPos();
-							ImGui::EndTooltip();
-						}
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (player.startedUp || player.startupProj) {
-						printActiveWithMaxHit(player.activesDisp, player.maxHitDisp, player.hitOnFrameDisp);
-					} else {
-						*strbuf = '\0';
-					}
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						headerThatCanBeClickedForTooltip("Active", &showActiveTooltip, true);
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.printRecovery(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Recovery");
-						AddTooltip("Number of recovery frames in the last performed move."
-							" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.\n"
-							"See the tooltip for the 'Total' field for more details.");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.printTotal(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						headerThatCanBeClickedForTooltip("Total", &showTotalTooltip, false);
-						if (ImGui::BeginItemTooltip()) {
-							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-							if (settings.dontShowMoveName) {
-								if (prevNamesControl(player, true)) {
-									printNoWordWrap
-									ImGui::Separator();
-								}
-							}
-							ImGui::TextUnformatted("Click the field for tooltip.");
-							ImGui::PopTextWrapPos();
-							ImGui::EndTooltip();
-						}
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.printInvuls(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						headerThatCanBeClickedForTooltip("Invul", &showInvulTooltip, true);
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					*strbuf = '\0';
-					if (player.displayHitstop) {
-						sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
-					}
-					char* ptrNext = strbuf;
-					int ptrNextSize = sizeof strbuf;
-					if (*strbuf) {
-						ptrNext += strlen(strbuf) + strlen(" + ");
-						*ptrNext = '\0';
-						ptrNextSize -= (ptrNext - strbuf);
-					}
-					size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
-					if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
-						sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.hitstun - (player.hitstop ? 1 : 0), player.hitstunMax);
-					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
-						sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.blockstun - (player.hitstop ? 1 : 0), player.blockstunMax);
-					}
-					if (strbuf != ptrNext && *strbuf && *ptrNext) {
-						ptrNext = strbuf + strlen(strbuf);
-						memcpy(ptrNext, " + ", 3);
-					}
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Hitstop+X-stun");
-						AddTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
-							" max hitstun or blockstun. When there's no + sign, the displayed values could"
-							" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
-							" and the other are on the right.\n"
-							"During Roman Cancel or Mortal Counter slowdown, the actual hitstop and hitstun/etc duration may be longer"
-							" than the displayed value due to slowdown.\n"
-							"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
-							" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
-							" slightly prolonged when transitioning from air blockstun to ground blockstun.");
-					}
-				}
-				
-				const bool dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
-				bool oneWillIncludeParentheses = false;
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					int frameAdvantage = dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage;
-					int landingFrameAdvantage = dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage;
-					if (player.frameAdvantageValid && player.landingFrameAdvantageValid
-							&& frameAdvantage != landingFrameAdvantage) {
-						oneWillIncludeParentheses = true;
-						break;
-					}
-				}
-				
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					
-					ImGui::TableNextColumn();
-					frameAdvantageControl(
-						dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage,
-						dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage,
-						player.frameAdvantageValid,
-						player.landingFrameAdvantageValid,
-						i == 0);
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						headerThatCanBeClickedForTooltip("Frame Adv.", &showFrameAdvTooltip, !oneWillIncludeParentheses);
-						if (oneWillIncludeParentheses) {
-							AddTooltip(
-								"Value in () means frame advantage after landing.\n"
-								"\n"
-								"Click the field for tooltip.");
-						}
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.printGaps(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Gaps");
-						AddTooltip("Each gap is the number of frames from when the opponent left blockstun to when they entered blockstun again.");
-					}
-				}
-				if (!settings.dontShowMoveName) {
-					for (int i = 0; i < 2; ++i) {
-						PlayerInfo& player = endScene.players[i];
-						ImGui::TableNextColumn();
-						if (prevNamesControl(player, false)) {
-							printWithWordWrap
-						}
-						
-						if (i == 0) {
-							ImGui::TableNextColumn();
-							CenterAlignedText("Move");
-							static std::string moveTooltip;
-							if (moveTooltip.empty()) {
-								moveTooltip = settings.convertToUiDescription("The last performed move, data of which is being displayed in the Startup/Active/Recovery/Total field."
-									" If the 'Startup' or 'Total' field is showing multiplie numbers combined with + signs,"
-									" all the moves that are included in those fields are listed here as well, combined with + signs or with *X appended to them,"
-									" *X denoting how many times that move repeats.\n"
-									"The move names might not match the names you may find when hovering your mouse over frames in the framebar to read their"
-									" animation names, because the names here are only updated when a significant enough change in the animation happens.\n"
-									"\n"
-									"To hide this field you can use the \"dontShowMoveName\" setting. Then it will only be shown in the tooltip of 'Startup' and 'Total' fields.");
-							}
-							AddTooltip(moveTooltip.c_str());
-						}
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.inBlockstunNextFrame() : false));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("inBlockstunNextFrame");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.successfulIB() : false));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("successfulIB");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.holdingFD() : false));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("holdingFD");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.idle));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("idle");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("canBlock");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.canFaultlessDefense));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("canFaultlessDefense");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("idlePlus");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("idleLanding");
-					}
-				}
-				const bool useSlang = settings.useSlangNames;
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					const char* names[3] { nullptr };
-					if (player.moveNonEmpty) {
-						names[0] = useSlang ? player.move.getDisplayNameSlang(player.idle) : player.move.getDisplayName(player.idle);
-					}
-					if (player.moveName[0] != '\0') {
-						names[1] = player.moveName;
-					}
-					if (player.anim[0] != '\0') {
-						names[2] = player.anim;
-					}
-					bool isFirst = true;
-					char* buf = strbuf;
-					size_t bufSize = sizeof strbuf;
-					int result;
-					for (int j = 0; j < 3; ++j) {
-						const char* name = names[j];
-						if (!name) continue;
-						
-						bool alreadyIncluded = false;
-						for (int k = 0; k < j; ++k) {
-							if (names[k] && strcmp(names[k], name) == 0) {
-								alreadyIncluded = true;
-								break;
-							}
-						}
-						
-						if (alreadyIncluded) continue;
-						
-						if (!isFirst) {
-							result = sprintf_s(buf, bufSize, " / ");
-							if (result != -1) {
-								buf += result;
-								bufSize -= result;
-							}
-						}
-						isFirst = false;
-						result = sprintf_s(buf, bufSize, "%s", name);
-						if (result != -1) {
-							buf += result;
-							bufSize -= result;
-						}
-					}
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("anim");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.animFrame);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("animFrame");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.sprite.print(strbuf, sizeof strbuf);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("sprite");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.startup);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("startup");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.actives.print(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("active");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.recovery);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("recovery");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.total);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("total");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.startupProj);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("startupProj");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.activesProj.print(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("activesProj");
-					}
-				}
-				Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
-				int slowdown = endScene.getRCSlowdownCounter();
-				int slowdownMax = endScene.getRCSlowdownCounterMax();
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					int flashCurrent = 0;
-					int flashMax = 0;
-					int slowCurrent = !player.immuneToRCSlowdown ? slowdown : 0;
-					int slowMax = player.rcSlowdownMax;
-					if (superflashInstigator == player.pawn) {
-						flashCurrent = endScene.getSuperflashCounterAlliedCached();
-						flashMax = endScene.getSuperflashCounterAlliedMax();
-					} else if (superflashInstigator) {
-						flashCurrent = endScene.getSuperflashCounterOpponentCached();
-						flashMax = endScene.getSuperflashCounterOpponentMax();
-					}
-					if (flashCurrent + flashMax + slowCurrent + slowMax == 0) {
-						strbuf[0] = '\0';
-					} else {
-						sprintf_s(strbuf, "%d/%d+%d/%d", flashCurrent, flashMax, slowCurrent, slowMax);
-					}
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Freeze+RC Slow");
-						AddTooltip("Shows superfreeze current/maximum duration in frames, followed by +, followed by"
-							" Roman Cancel slowdown duration current/maximum in frames."
-							" Both the superfreeze and the Roman Cancel slowdown are always shown."
-							" If either is not present at the moment, 0/0 or 0/X is shown in its place."
-							" If a player is not affected by the superfreeze or Roman Cancel slowdown, 0/0 or 0/X is shown in the place of that.");
-					}
-				}
-				ImGui::EndTable();
-				ImGui::Spacing();
-				if (ImGui::CollapsingHeader("Projectiles")) {
-					if (ImGui::BeginTable("##Projectiles", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
-						ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
-						ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
-						ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.4f);
-						
-						ImGui::TableNextColumn();
-						RightAlignedText("P1");
-						ImGui::TableNextColumn();
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("P2");
-						
-						struct Row {
-							ProjectileInfo* side[2] { nullptr };
-						};
-						std::vector<Row> rows;
-						for (ProjectileInfo& projectile : endScene.projectiles) {
-							bool found = false;
-							for (Row& row : rows) {
-								if (!row.side[projectile.team]) {
-									row.side[projectile.team] = &projectile;
-									found = true;
-									break;
-								}
-							}
-							if (!found) {
-								rows.emplace_back();
-								Row& row = rows.back();
-								row.side[projectile.team] = &projectile;
-							}
-						}
-						bool isFirst = true;
-						for (Row& row : rows) {
-							if (!isFirst) {
-								ImGui::TableNextColumn();
-								ImGui::TableNextColumn();
-								ImGui::TableNextColumn();
-							}
-							isFirst = false;
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									sprintf_s(strbuf, "%p", (void*)projectile.ptr);
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("ptr");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									sprintf_s(strbuf, "%d", projectile.lifeTimeCounter);
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("lifeTimeCounter");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									printNoWordWrapArg(projectile.creatorName)
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("creator");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									printNoWordWrapArg(projectile.animName)
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("anim");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									sprintf_s(strbuf, "%d", projectile.animFrame);
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("animFrame");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									projectile.sprite.print(strbuf, sizeof strbuf);
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("sprite");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									sprintf_s(strbuf, "%d/%d", projectile.hitstop, projectile.hitstopMax);
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("hitstop");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									printActiveWithMaxHit(projectile.actives, projectile.maxHit,
-										!projectile.maxHit.empty() && projectile.maxHit.maxUse <= 1 ? 0 : projectile.hitOnFrame);
-									
-									printWithWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("active");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									projectile.printStartup(strbuf, sizeof strbuf);
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("startup");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									projectile.printTotal(strbuf, sizeof strbuf);
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("total");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									sprintf_s(strbuf, "%s", formatBoolean(projectile.disabled));
-									printNoWordWrap
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("disabled");
-								}
-							}
-							for (int i = 0; i < 2; ++i) {
-								ImGui::TableNextColumn();
-								if (row.side[i]) {
-									ProjectileInfo& projectile = *row.side[i];
-									if (projectile.hitboxTopBottomValid) {
-										sprintf_s(strbuf, "from %d to %d",
-											projectile.hitboxTopY,
-											projectile.hitboxBottomY);
-										printNoWordWrap
-									}
-								}
-								
-								if (i == 0) {
-									ImGui::TableNextColumn();
-									CenterAlignedText("Hitbox Y");
-									AddTooltip("These values display either the current or last valid value and change each frame."
-										" They do not show the total combined bounding box."
-										" To view these values for each frame more easily you could use the frame freeze mode,"
-										" available in the Hitboxes section.\n"
-										"The coordinates shown are relative to the global space.");
-								}
-							}
-						}
-						ImGui::EndTable();
-					}
-				}
-			}
-			if (ImGui::Button("Show Tension Values")) {
-				showTensionData = !showTensionData;
-			}
-			AddTooltip("Displays tension gained from combo and factors that affect tension gain.");
-			ImGui::SameLine();
-			if (ImGui::Button("Burst Gain")) {
-				showBurstGain = !showBurstGain;
-			}
-			AddTooltip("Displays burst gained from combo or last hit.");
-			
-			if (ImGui::Button("Speed/Hitstun Proration/Pushback/Wakeup")) {
-				showSpeedsData = !showSpeedsData;
-			}
-			AddTooltip("Display x,y, speed, pushback and protation of hitstun and pushback.");
-			for (int i = 0; i < 2; ++i) {
-				ImGui::PushID("Character Specific");
-				sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
-				if (i != 0) ImGui::SameLine();
-				if (ImGui::Button(strbuf)) {
-					showCharSpecific[i] = !showCharSpecific[i];
-				}
-				ImGui::PopID();
-				AddTooltip("Display of information specific to a character.");
-			}
-			if (ImGui::Button("Box Extents")) {
-				showBoxExtents = !showBoxExtents;
-			}
-			AddTooltip("Shows the minimum and maximum Y (vertical) extents of hurtboxes and hitboxes of each player."
-				" The units are not divided by 100 for viewability.");
-			
-			ImGui::SameLine();
-			for (int i = 0; i < 2; ++i) {
-				sprintf_s(strbuf, "Cancels (P%d)", i + 1);
-				if (ImGui::Button(strbuf)) {
-					showCancels[i] = !showCancels[i];
-				}
-				AddTooltip(thisHelpTextWillRepeat);
-				if (i == 0) ImGui::SameLine();
-			}
-			
-			for (int i = 0; i < 2; ++i) {
-				ImGui::PushID("Damage/RISC Calculation");
-				sprintf_s(strbuf, i == 0 ? "Damage/RISC Calculation (P1)" : "... (P2)");
-				if (ImGui::Button(strbuf)) {
-					showDamageCalculation[i] = !showDamageCalculation[i];
-				}
-				AddTooltip("For the defending player this shows damage and RISC calculation from the last hit and current combo proration.");
-				ImGui::PopID();
-				if (i == 0) ImGui::SameLine();
-			}
-		}
-		if (ImGui::CollapsingHeader("Hitboxes")) {
-			
-			booleanSettingPresetWithHotkey(settings.dontShowBoxes, settings.disableHitboxDisplayToggle);
-			
-			stateChanged = ImGui::Checkbox("GIF Mode", &gifModeOn) || stateChanged;
-			ImGui::SameLine();
-			static std::string GIFModeHelp;
-			if (GIFModeHelp.empty()) {
-				GIFModeHelp = settings.convertToUiDescription("GIF mode is:\n"
-					"1) Background becomes black\n"
-					"2) Camera is centered on you\n"
-					"3) Opponent is invisible and invulnerable\n"
-					"4) Hide HUD\n"
-					"A hotkey can be configured for entering and leaving GIF Mode at \"gifModeToggle\".");
-			}
-			HelpMarkerWithHotkey(GIFModeHelp.c_str(), settings.gifModeToggle);
-			
-			stateChanged = ImGui::Checkbox("Black Background", &gifModeToggleBackgroundOnly) || stateChanged;
-			ImGui::SameLine();
-			static std::string blackBackgroundHelp;
-			if (blackBackgroundHelp.empty()) {
-				blackBackgroundHelp = settings.convertToUiDescription(
-					"Makes background black (and, for screenshotting purposes, - effectively transparent,"
-					" if Post Effect is turned off in the game's graphics settings).\n"
-					"You can use the \"gifModeToggleBackgroundOnly\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(blackBackgroundHelp.c_str(), settings.gifModeToggleBackgroundOnly);
-			
-			bool postEffectOn = game.postEffectOn() != 0;
-			if (ImGui::Checkbox("Post-Effect On", &postEffectOn)) {
-				game.postEffectOn() = (BOOL)postEffectOn;
-			}
-			ImGui::SameLine();
-			static std::string postEffectOnHelp;
-			if (postEffectOnHelp.empty()) {
-				postEffectOnHelp = settings.convertToUiDescription("Toggles the game's 'Settings - Display Settings - Post-Effect'. Changing it this way does not"
-				" require the current match to be restarted.\n"
-				"Alternatively, you could tick the \"turnOffPostEffectWhenMakingBackgroundBlack\" checkbox,"
-				" so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is"
-				" turned off automatically, and when you leave those modes, it gets turned back on.\n"
-				"Or, alternatively, you could use the manual keyboard toggle, set in this mod's \"togglePostEffectOnOff\".");
-			}
-			HelpMarkerWithHotkey(postEffectOnHelp.c_str(), settings.togglePostEffectOnOff);
-			
-			stateChanged = ImGui::Checkbox("Camera Center on Player", &gifModeToggleCameraCenterOnly) || stateChanged;
-			ImGui::SameLine();
-			static std::string cameraCenterHelp;
-			if (cameraCenterHelp.empty()) {
-				cameraCenterHelp = settings.convertToUiDescription(
-					"Centers the camera on you.\n"
-					"You can use the \"gifModeToggleCameraCenterOnly\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(cameraCenterHelp.c_str(), settings.gifModeToggleCameraCenterOnly);
-			
-			stateChanged = ImGui::Checkbox("Camera Center on Opponent", &toggleCameraCenterOpponent) || stateChanged;
-			ImGui::SameLine();
-			static std::string cameraCenterOpponentHelp;
-			if (cameraCenterOpponentHelp.empty()) {
-				cameraCenterOpponentHelp = settings.convertToUiDescription(
-					"Centers the camera on the opponent.\n"
-					"You can use the \"toggleCameraCenterOpponent\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(cameraCenterOpponentHelp.c_str(), settings.toggleCameraCenterOpponent);
-			
-			stateChanged = ImGui::Checkbox("Hide Opponent", &gifModeToggleHideOpponentOnly) || stateChanged;
-			ImGui::SameLine();
-			static std::string hideOpponentHelp;
-			if (hideOpponentHelp.empty()) {
-				hideOpponentHelp = settings.convertToUiDescription(
-					"Make the opponent invisible and invulnerable.\n"
-					"You can use the \"gifModeToggleHideOpponentOnly\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(hideOpponentHelp.c_str(), settings.gifModeToggleHideOpponentOnly);
-			
-			stateChanged = ImGui::Checkbox("Hide Player", &toggleHidePlayer) || stateChanged;
-			ImGui::SameLine();
-			static std::string hidePlayerHelp;
-			if (hidePlayerHelp.empty()) {
-				hidePlayerHelp = settings.convertToUiDescription(
-					"Make the player invisible and invulnerable.\n"
-					"You can use the \"toggleHidePlayer\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(hidePlayerHelp.c_str(), settings.toggleHidePlayer);
-			
-			stateChanged = ImGui::Checkbox("Hide HUD", &gifModeToggleHudOnly) || stateChanged;
-			ImGui::SameLine();
-			static std::string hideHUDHelp;
-			if (hideHUDHelp.empty()) {
-				hideHUDHelp = settings.convertToUiDescription(
-					"Hides the HUD.\n"
-					"You can use the \"gifModeToggleHudOnly\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(hideHUDHelp.c_str(), settings.gifModeToggleHudOnly);
-			
-			stateChanged = ImGui::Checkbox("No Gravity", &noGravityOn) || stateChanged;
-			ImGui::SameLine();
-			static std::string noGravityHelp;
-			if (noGravityHelp.empty()) {
-				noGravityHelp = settings.convertToUiDescription(
-					"Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.\n"
-					"You can use the \"noGravityToggle\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(noGravityHelp.c_str(), settings.noGravityToggle);
-			
-			bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
-			if (ImGui::Checkbox("Disable Gray Hurtboxes", &neverDisplayGrayHurtboxes)) {
-				settings.neverDisplayGrayHurtboxes = neverDisplayGrayHurtboxes;
-				needWriteSettings = true;
-			}
-			ImGui::SameLine();
-			static std::string neverDisplayGrayHurtboxesHelp;
-			if (neverDisplayGrayHurtboxesHelp.empty()) {
-				neverDisplayGrayHurtboxesHelp = settings.convertToUiDescription(
-					"Disables/enables the display of residual hurtboxes that appear on hit/block and show"
-					" the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but"
-					" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
-					"You can use the \"toggleDisableGrayHurtboxes\" hotkey to toggle this setting.");
-			}
-			HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp.c_str(), settings.toggleDisableGrayHurtboxes);
-			
-			stateChanged = ImGui::Checkbox("Freeze Game", &freezeGame) || stateChanged;
-			ImGui::SameLine();
-			if (ImGui::Button("Next Frame")) {
-				allowNextFrame = true;
-				allowNextFrameTimer = 10;
-			}
-			ImGui::SameLine();
-			static std::string freezeGameHelp;
-			if (freezeGameHelp.empty()) {
-				freezeGameHelp = settings.convertToUiDescription(
-					"Freezes the current frame of the game and stops gameplay from advancing."
-					" You can advance gameplay to the next frame using the 'Next Frame' button."
-					" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
-					" instead of pressing the button, and freezing and unfreezing the game can be achieved with"
-					" the \"freezeGameToggle\" shortcut.");
-			}
-			ImGui::TextDisabled("(?)");
-			if (ImGui::BeginItemTooltip()) {
-				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-				
-				const char* hotkeyRepresentation = settings.getComboRepresentation(settings.freezeGameToggle);
-				if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
-					hotkeyRepresentation = "<not set>";
-				}
-				sprintf_s(strbuf, "Freeze Game Hotkey: %s", hotkeyRepresentation);
-				ImGui::TextUnformatted(strbuf);
-				
-				hotkeyRepresentation = settings.getComboRepresentation(settings.allowNextFrameKeyCombo);
-				if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
-					hotkeyRepresentation = "<not set>";
-				}
-				sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", hotkeyRepresentation);
-				ImGui::TextUnformatted(strbuf);
-				
-				ImGui::Separator();
-				ImGui::TextUnformatted(freezeGameHelp.c_str());
-				ImGui::PopTextWrapPos();
-				ImGui::EndTooltip();
-			}
-			
-			stateChanged = ImGui::Checkbox("Slow-Mo Mode", &slowmoGame) || stateChanged;
-			ImGui::SameLine();
-			int slowmoTimes = settings.slowmoTimes;
-			ImGui::SetNextItemWidth(80.F);
-			if (ImGui::InputInt("Slow-Mo Factor", &slowmoTimes, 1, 1, 0)) {
-				if (slowmoTimes <= 0) {
-					slowmoTimes = 1;
-				}
-				settings.slowmoTimes = slowmoTimes;
-				needWriteSettings = true;
-			}
-			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
-			ImGui::SameLine();
-			static std::string slowmoHelp;
-			if (slowmoHelp.empty()) {
-				slowmoHelp = settings.convertToUiDescription(
-					"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
-					"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
-			}
-			HelpMarkerWithHotkey(slowmoHelp.c_str(), settings.slowmoGameToggle);
-			
-			ImGui::Button("Take Screenshot");
-			if (ImGui::IsItemActivated()) {
-				// Regular ImGui button 'press' (ImGui::Button(...) function returning true) happens when you RELEASE the button,
-				// but to simulate the old keyboard behavior we need this to happen when you PRESS the button
-				takeScreenshotPress = true;
-				takeScreenshotTimer = 10;
-			}
-			takeScreenshotTemp = ImGui::IsItemActive();
-			ImGui::SameLine();
-			static std::string screenshotHelp;
-			if (screenshotHelp.empty()) {
-				screenshotHelp = settings.convertToUiDescription(
-					"Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
-					" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings"
-					" (or use \"togglePostEffectOnOff\" or \"turnOffPostEffectWhenMakingBackgroundBlack\")"
-					", you will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
-					" in the 'Hitbox settings', they're saved there instead.\n"
-					"A hotkey can be configured to take screenshots with, in \"screenshotBtn\".");
-			}
-			HelpMarkerWithHotkey(screenshotHelp.c_str(), settings.screenshotBtn);
-			
-			stateChanged = ImGui::Checkbox("Continuous Screenshotting Mode", &continuousScreenshotToggle) || stateChanged;
-			ImGui::SameLine();
-			static std::string continuousScreenshottingHelp;
-			if (continuousScreenshottingHelp.empty()) {
-				continuousScreenshottingHelp = settings.convertToUiDescription(
-					"When this option is enabled, screenshots will be taken every frame,"
-					" as long as the mod's screenshot button is being help, unless the game is frozen, in which case"
-					" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
-					" the game down significantly. Continuous screenshotting is only allowed in training mode.\n"
-					"Alternatively, you can use \"continuousScreenshotToggle\" shortcut to toggle a mode where you don't have to hold"
-					" the screenshot button, and screenshots get taken every non frozen (advancing) frame automatically.");
-			}
-			HelpMarkerWithHotkey(continuousScreenshottingHelp.c_str(), settings.continuousScreenshotToggle);
-			
-		}
-		if (ImGui::CollapsingHeader("Settings")) {
-			if (ImGui::CollapsingHeader("Hitbox Settings")) {
-				
-				booleanSettingPreset(settings.drawPushboxCheckSeparately);
-				
-				{
-					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
-					size_t newLen = settings.screenshotPath.size();
-					if (newLen > MAX_PATH - 1) {
-						newLen = MAX_PATH - 1;
-					}
-					memcpy(screenshotsPathBuf, settings.screenshotPath.c_str(), newLen);
-					screenshotsPathBuf[newLen] = '\0';
-				}
-				
-				ImGui::Text(settings.getOtherUIName(&settings.screenshotPath));
-				ImGui::SameLine();
-				float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
-				ImGui::SetNextItemWidth(w);
-				if (ImGui::InputText("##Screenshots path", screenshotsPathBuf, MAX_PATH, 0, nullptr, nullptr)) {
-					{
-						std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
-						settings.screenshotPath = screenshotsPathBuf;
-					}
-					if (keyboard.thisProcessWindow) {
-						logwrap(fputs("Posting message 'WM_APP_SCREENSHOT_PATH_UPDATED'\n", logfile));
-						PostMessageW(keyboard.thisProcessWindow, WM_APP_SCREENSHOT_PATH_UPDATED, 0, 0);
-					}
-				}
-				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
-				ImGui::SameLine();
-				if (ImGui::Button("Select", BTN_SIZE) && keyboard.thisProcessWindow) {
-					PostMessageW(keyboard.thisProcessWindow, WM_APP_OPEN_FILE_SELECTION, 0, 0);
-				}
-				ImGui::SameLine();
-				HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
-				
-				booleanSettingPreset(settings.allowContinuousScreenshotting);
-				
-				booleanSettingPreset(settings.dontUseScreenshotTransparency);
-				
-				booleanSettingPreset(settings.useSimplePixelBlender);
-				
-				if (booleanSettingPreset(settings.turnOffPostEffectWhenMakingBackgroundBlack)) {
-					endScene.onGifModeBlackBackgroundChanged();
-				}
-				
-				booleanSettingPreset(settings.forceZeroPitchDuringCameraCentering);
-				
-				ImGui::PushItemWidth(120.F);
-				float4SettingPreset(settings.cameraCenterOffsetY);
-				
-				float4SettingPreset(settings.cameraCenterOffsetY_WhenForcePitch0);
-				
-				float4SettingPreset(settings.cameraCenterOffsetZ);
-				ImGui::PopItemWidth();
-				
-				if (ImGui::Button("Restore Defaults")) {
-					settings.cameraCenterOffsetX = settings.cameraCenterOffsetX_defaultValue;
-					settings.cameraCenterOffsetY = settings.cameraCenterOffsetY_defaultValue;
-					settings.cameraCenterOffsetY_WhenForcePitch0 = settings.cameraCenterOffsetY_WhenForcePitch0_defaultValue;
-					settings.cameraCenterOffsetZ = settings.cameraCenterOffsetZ_defaultValue;
-					needWriteSettings = true;
-				}
-				AddTooltip("Restores the default values for the four settings above.");
-			}
-			if (ImGui::CollapsingHeader("Framebar Settings")) {
-				
-				if (ImGui::Button("Framebar Help")) {
-					showFramebarHelp = !showFramebarHelp;
-				}
-				AddTooltip("Shows the meaning of each frame color/graphic on the framebar.");
-				
-				booleanSettingPresetWithHotkey(settings.neverIgnoreHitstop, settings.toggleNeverIgnoreHitstop);
-				
-				booleanSettingPreset(settings.ignoreHitstopForBlockingBaiken);
-				
-				booleanSettingPreset(settings.considerRunAndWalkNonIdle);
-				
-				booleanSettingPreset(settings.considerCrouchNonIdle);
-				
-				booleanSettingPreset(settings.considerKnockdownWakeupAndAirtechIdle);
-				
-				booleanSettingPreset(settings.considerIdleInvulIdle);
-				
-				booleanSettingPreset(settings.considerDummyPlaybackNonIdle);
-				
-				booleanSettingPreset(settings.useColorblindHelp);
-				
-				booleanSettingPresetWithHotkey(settings.showFramebar, settings.framebarVisibilityToggle);
-				
-				booleanSettingPreset(settings.showFramebarInTrainingMode);
-				
-				booleanSettingPreset(settings.showFramebarInReplayMode);
-				
-				booleanSettingPreset(settings.showFramebarInOtherModes);
-				
-				booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
-				
-				booleanSettingPreset(settings.showStrikeInvulOnFramebar);
-				
-				booleanSettingPreset(settings.showThrowInvulOnFramebar);
-				
-				booleanSettingPreset(settings.showSuperArmorOnFramebar);
-				
-				booleanSettingPreset(settings.showFirstFramesOnFramebar);
-				
-				booleanSettingPreset(settings.considerSimilarFrameTypesSameForFrameCounts);
-				
-				booleanSettingPreset(settings.skipGrabsInFramebar);
-				
-				if (booleanSettingPreset(settings.combineProjectileFramebarsWhenPossible)) {
-					if (settings.combineProjectileFramebarsWhenPossible) {
-						settings.eachProjectileOnSeparateFramebar = false;
-					}
-				}
-				
-				if (booleanSettingPreset(settings.eachProjectileOnSeparateFramebar)) {
-					if (settings.eachProjectileOnSeparateFramebar) {
-						settings.combineProjectileFramebarsWhenPossible = false;
-					}
-				}
-				
-				booleanSettingPreset(settings.dontClearFramebarOnStageReset);
-				
-				booleanSettingPreset(settings.dontTruncateFramebarTitles);
-				
-				booleanSettingPreset(settings.useSlangNames);
-				
-				booleanSettingPreset(settings.allFramebarTitlesDisplayToTheLeft);
-				
-				booleanSettingPreset(settings.showPlayerInFramebarTitle);
-				
-				intSettingPreset(settings.framebarTitleCharsMax, 0);
-				
-				intSettingPreset(settings.framebarHeight, 1);
-				
-				ImGui::PushID(1);
-				lowProfileControl();
-				ImGui::PopID();
-				
-			}
-			if (ImGui::CollapsingHeader("Keyboard Shortcuts")) {
-				keyComboControl(settings.modWindowVisibilityToggle);
-				keyComboControl(settings.framebarVisibilityToggle);
-				keyComboControl(settings.gifModeToggle);
-				keyComboControl(settings.gifModeToggleBackgroundOnly);
-				keyComboControl(settings.togglePostEffectOnOff);
-				keyComboControl(settings.gifModeToggleCameraCenterOnly);
-				keyComboControl(settings.toggleCameraCenterOpponent);
-				keyComboControl(settings.gifModeToggleHideOpponentOnly);
-				keyComboControl(settings.toggleHidePlayer);
-				keyComboControl(settings.gifModeToggleHudOnly);
-				keyComboControl(settings.noGravityToggle);
-				keyComboControl(settings.freezeGameToggle);
-				keyComboControl(settings.slowmoGameToggle);
-				keyComboControl(settings.allowNextFrameKeyCombo);
-				keyComboControl(settings.disableHitboxDisplayToggle);
-				keyComboControl(settings.screenshotBtn);
-				keyComboControl(settings.continuousScreenshotToggle);
-				keyComboControl(settings.toggleDisableGrayHurtboxes);
-				keyComboControl(settings.toggleNeverIgnoreHitstop);
-			}
-			if (ImGui::CollapsingHeader("General Settings")) {
-				booleanSettingPreset(settings.modWindowVisibleOnStart);
-				
-				ImGui::PushID(1);
-				booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
-				ImGui::PopID();
-				
-				booleanSettingPreset(settings.displayUIOnTopOfPauseMenu);
-				
-				lowProfileControl();
-				
-				booleanSettingPreset(settings.frameAdvantage_dontUsePreBlockstunTime);
-				
-				ImGui::PushID(1);
-				booleanSettingPreset(settings.useSlangNames);
-				ImGui::PopID();
-				
-				booleanSettingPreset(settings.dontShowMoveName);
-				
-				booleanSettingPreset(settings.showComboProrationInRiscGauge);
-				
-			}
-		}
-		ImGui::End();
-		if (showTensionData) {
-			ImGui::Begin("Tension Data", &showTensionData);
-			if (endScene.isIGiveUp()) {
-				ImGui::TextUnformatted("Online non-observer match running.");
-			} else
-			if (ImGui::BeginTable("##TensionData",
-						3,
-						ImGuiTableFlags_Borders
-						| ImGuiTableFlags_RowBg
-						| ImGuiTableFlags_NoSavedSettings
-						| ImGuiTableFlags_NoPadOuterX)
-			) {
-				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
-				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Name");
-				ImGui::TableNextColumn();
-				drawPlayerIconWithTooltip(0);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P1");
-				ImGui::TableNextColumn();
-				drawPlayerIconWithTooltip(1);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P2");
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension");
-				AddTooltip("Meter");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.tension, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension Pulse");
-				AddTooltip("Affects how fast you gain tension. Gained on IB, landing attacks, moving forward. Lost when moving back. Decays on its own slowly towards 0."
-					" Tension Pulse Penalty and Corner Penalty may decrease Tension Pulse over time.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%-6d / %d", player.tensionPulse, player.tensionPulse < 0 ? -25000 : 25000);
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Negative Penalty Active");
-				AddTooltip("When Negative Penalty is active, you receive only 20% of the tension you would without it when attacking or moving.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					ImGui::TextUnformatted(player.negativePenaltyTimer ? "Yes" : "No");
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Negative Penalty Time Left");
-				AddTooltip("Timer that counts down how much time is remaining until Negative Penalty wears off.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.negativePenaltyTimer * 100 / 60, 2, 0);
-					sprintf_s(strbuf, "%s sec", printdecimalbuf);
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Negative Penalty Buildup");
-				AddTooltip("Tracks your progress towards reaching Negative Penalty. Negative Penalty is built up by Tension Pulse Penalty being red"
-					" or Corner Penalty being red or by moving back.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s / 100.00", printDecimal(player.negativePenalty, 2, -6));
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension Pulse Penalty");
-				AddTooltip("Reduces Tension Pulse (yellow) and at large enough values (red) increases Negative Penalty Buildup."
-					" Increases constantly by 1. Gets reduced when getting hit, landing hits, getting your attack blocked or moving forward.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%-4d / 1800", player.tensionPulsePenalty);
-					if (player.tensionPulsePenaltySeverity == 0) {
-						ImGui::TextUnformatted(strbuf);
-					} else if (player.tensionPulsePenaltySeverity == 1) {
-						ImGui::TextColored(YELLOW_COLOR, strbuf);
-					} else if (player.tensionPulsePenaltySeverity == 2) {
-						ImGui::TextColored(RED_COLOR, strbuf);
-					}
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Corner Penalty");
-				AddTooltip("Penalty for being in touch with the screen or the wall. Reduces Tension Pulse (yellow) and increases Negative Penalty (red)."
-					" Slowly decays when not in corner and gets reduced when getting hit.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%-3d / 960", player.cornerPenalty);
-					if (player.cornerPenaltySeverity == 0) {
-						ImGui::TextUnformatted(strbuf);
-					} else if (player.cornerPenaltySeverity == 1) {
-						ImGui::TextColored(YELLOW_COLOR, strbuf);
-					} else if (player.cornerPenaltySeverity == 2) {
-						ImGui::TextColored(RED_COLOR, strbuf);
-					}
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Negative Penalty Gain");
-				AddTooltip("Negative Penalty Buildup gain modifier. Affects how fast Negative Penalty Buildup increases.\n"
-					"Negative Penalty Gain Modifier = Distance-Based Modifier * Tension Pulse-Based Modifier.\n"
-					"Distance-Based Modifier - depends on distance to the opponent.\n"
-					"Tension Pulse-Based Modifier - depends on Tension Pulse.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s * %d%c", printDecimal(player.tensionPulsePenaltyGainModifier_distanceModifier, 0, -3, true),
-						player.tensionPulsePenaltyGainModifier_tensionPulseModifier, '%');
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				bool comboHappening = false;
-				for (int i = 0; i < 2; ++i) {
-					if (endScene.players[i].inHitstun) {
-						comboHappening = true;
-						break;
-					}
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension Gain On Attack");
-				AddTooltip("Affects how fast you gain Tension when performing attacks or combos.\n"
-					"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
-					"Distance-Based Modifier - depends on distance to the opponent.\n"
-					"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
-					"Tension Pulse-Based Modifier - depends on Tension Pulse.\n\n"
-					"A fourth modifier may be displayed, which is an extra tension modifier. "
-					"It may be present if you use Stylish mode or playing MOM mode. It will be highlighted in yellow.\n\n"
-					"A fourth or fifth modifier may be displayed, which is a combo hit count-dependent modifier. "
-					"It affects how fast you gain Tension from performing a combo.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s", printDecimal(player.tensionGainModifier_negativePenaltyModifier, 0, -3, true));
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s", printDecimal(player.tensionGainModifier_tensionPulseModifier, 0, -3, true));
-					bool needPop = false;
-					if (player.extraTensionGainModifier != 100) {
-						needPop = true;
-						pushZeroItemSpacingStyle();
-						strcat(strbuf, " * ");
-						ImGui::TextUnformatted(strbuf);
-						sprintf_s(strbuf, "%s", printDecimal(player.extraTensionGainModifier, 0, -3, true));
-						ImGui::SameLine();
-						ImGui::PushStyleColor(ImGuiCol_Text, YELLOW_COLOR);
-						ImGui::TextUnformatted(strbuf);
-						ImGui::PopStyleColor();
-						*strbuf = '\0';
-						ImGui::SameLine();
-					}
-					int total = player.tensionGainModifier_distanceModifier
-						* player.tensionGainModifier_negativePenaltyModifier;
-					total /= 100;
-					total *= player.tensionGainModifier_tensionPulseModifier
-						* player.extraTensionGainModifier;
-					total /= 10000;
-					if (comboHappening) {
-						if (!player.inHitstun) {
-							sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
-								printDecimal(player.dealtComboCountTensionGainModifier, 0, -3, true));
-							total *= player.dealtComboCountTensionGainModifier;
-							total /= 100;
-						}
-					}
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total, '%');
-					ImGui::TextUnformatted(strbuf);
-					if (needPop) {
-						ImGui::PopStyleVar();
-					}
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension Gain On Defense");
-				AddTooltip("Affects how fast you gain Tension when getting hit by attacks or combos.\n"
-					"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
-					"Distance-Based Modifier - depends on distance to the opponent.\n"
-					"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
-					"Tension Pulse-Based Modifier - depends on Tension Pulse.\n\n"
-					"A fourth modifer may be displayed, which happens when you are getting combo'd. It affects how much tension you gain from getting hid by a combo"
-					" and depends on the number of hits.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf),
-						" * %s", printDecimal(player.tensionGainModifier_negativePenaltyModifier, 0, -3, true));
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf),
-						" * %s", printDecimal(player.tensionGainModifier_tensionPulseModifier, 0, -3, true));
-					int total = player.tensionGainModifier_distanceModifier
-						* player.tensionGainModifier_negativePenaltyModifier
-						* player.tensionGainModifier_tensionPulseModifier;
-					total /= 10000;
-					if (comboHappening) {
-						if (player.inHitstun) {
-							sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
-								printDecimal(player.receivedComboCountTensionGainModifier, 0, -3, true));
-							total *= player.receivedComboCountTensionGainModifier;
-							total /= 100;
-						}
-					}
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total, '%');
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension Gain On Last Hit");
-				AddTooltip("How much Tension was gained on a single last hit (either inflicting it or getting hit by it).");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.tensionGainOnLastHit, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension Gain Last Combo");
-				AddTooltip("How much Tension was gained on the entire last performed combo (either inflicting it or getting hit by it).");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.tensionGainLastCombo, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				float offsets[2];
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Tension Gain Max Combo");
-				AddTooltip("The maximum amount of Tension that was gained on an entire performed combo during this training session"
-					" (either inflicting it or getting hit by it).\n"
-					"You can clear this value by pressing a button below this table.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					offsets[i] = ImGui::GetCursorPosX();
-					printDecimal(player.tensionGainMaxCombo, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				ImGui::EndTable();
-				
-				for (int i = 0; i < 2; ++i) {
-					ImGui::SetCursorPosX(offsets[i]);
-					ImGui::PushID(i);
-					if (ImGui::Button("Clear Max Combo")) {
-						clearTensionGainMaxCombo[i] = true;
-						clearTensionGainMaxComboTimer[i] = 10;
-						stateChanged = true;
-					}
-					AddTooltip("Clear max combo's Tension and Burst gain.");
-					if (i == 0) ImGui::SameLine();
-					ImGui::PopID();
-				}
-			}
-			ImGui::End();
-		}
-		if (showBurstGain) {
-			ImGui::Begin("BurstGain", &showBurstGain);
-			if (endScene.isIGiveUp()) {
-				ImGui::TextUnformatted("Online non-observer match running.");
-			} else
-			if (ImGui::BeginTable("##BurstGain",
-						3,
-						ImGuiTableFlags_Borders
-						| ImGuiTableFlags_RowBg
-						| ImGuiTableFlags_NoSavedSettings
-						| ImGuiTableFlags_NoPadOuterX)
-			) {
-				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
-				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Name");
-				ImGui::TableNextColumn();
-				drawPlayerIconWithTooltip(0);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P1");
-				ImGui::TableNextColumn();
-				drawPlayerIconWithTooltip(1);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P2");
-
-
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Burst Gain On Last Hit");
-				AddTooltip("How much Burst was gained on a single last hit (either inflicting it or getting hit by it).");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.burstGainOnLastHit, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Burst Gain Last Combo");
-				AddTooltip("How much Burst was gained on the entire last performed combo (either inflicting it or getting hit by it).");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.burstGainLastCombo, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Burst Gain Max Combo");
-				AddTooltip("The maximum amount of Burst that was gained on an entire performed combo during this training session"
-					" (either inflicting it or getting hit by it).\n"
-					"You can clear this value by pressing a button below this table.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.burstGainMaxCombo, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				ImGui::EndTable();
-			}
-			ImGui::End();
-		}
-		if (showSpeedsData) {
-			ImGui::Begin("Speed/Hitstun Proration/...", &showSpeedsData);
-			
-			if (endScene.isIGiveUp()) {
-				ImGui::TextUnformatted("Online non-observer match running.");
-			} else
-			if (ImGui::BeginTable("##SpeedHitstunProrationDotDotDot",
-						3,
-						ImGuiTableFlags_Borders
-						| ImGuiTableFlags_RowBg
-						| ImGuiTableFlags_NoSavedSettings
-						| ImGuiTableFlags_NoPadOuterX)
-			) {
-				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.f);
-				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Name");
-				ImGui::TableNextColumn();
-				drawPlayerIconWithTooltip(0);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P1");
-				ImGui::TableNextColumn();
-				drawPlayerIconWithTooltip(1);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P2");
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("X; Y");
-				AddTooltip("Position X; Y in the arena. Divided by 100 for viewability.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.x, 2, 0);
-					sprintf_s(strbuf, "%s; ", printdecimalbuf);
-					printDecimal(player.y, 2, 0);
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Speed X; Y");
-				AddTooltip("Speed X; Y in the arena. Divided by 100 for viewability.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.speedX, 2, 0);
-					sprintf_s(strbuf, "%s; ", printdecimalbuf);
-					printDecimal(player.speedY, 2, 0);
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Gravity");
-				AddTooltip("Gravity. Divided by 100 for viewability.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.gravity, 2, 0);
-					ImGui::TextUnformatted(printdecimalbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Combo Timer");
-				AddTooltip("The time, in seconds, of the current combo's duration.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.comboTimer * 100 / 60, 2, 0);
-					sprintf_s(strbuf, "%s sec (%df)", printdecimalbuf, player.comboTimer);
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Pushback");
-				AddTooltip("Pushback. Divided by 100 for viewability.\n"
-					"Format: Current pushback / (Max pushback + FD pushback) (FD pushback base value, FD pushback percentage modifier%).\n"
-					"If last hit was not FD'd, FD values are not displayed.\n"
-					"When you attack an opponent, the opponent has this 'Pushback' value and you only get pushed back if they're in the corner (or close to it)."
-					" If the opponent utilized FD, you will be pushed back regardless of whether the opponent is in the corner."
-					" If they're in the corner and they also FD, the pushback from FD and the pushback from them being in the corner get added together."
-					" The FD pushback base value and modifier % will be listed in (). The base value depends on distance between players. If it's less"
-					" than 385000, the base is 900, otherwise it's 500. The modifier is 130% if the defender was touching the wall, otherwise 100%."
-					" Multiply the base value by the modifier and 175 / 10, round down to get resulting pushback, divide by 100 for viewability.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					printDecimal(player.pushback, 2, 0);
-					sprintf_s(strbuf, !player.baseFdPushback ? "%s / " : "%s / (", printdecimalbuf);
-					printDecimal(player.pushbackMax * 175 / 10, 2, 0);
-					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
-					if (player.baseFdPushback) {
-						printDecimal(player.fdPushbackMax * 175 / 10, 2, 0);
-						sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " + %s)", printdecimalbuf);
-						sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " (%d, %d%c)",
-							player.baseFdPushback, player.oppoWasTouchingWallOnFD ? 130 : 100, '%');
-					}
-					ImGui::TextWrapped("%s", strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Base pushback");
-				AddTooltip("Base pushback on hit/block. Pushback = floor(Base pushback * 175 / 10) (divide by 100 for viewability).\n"
-					"The base values of pushback are, per attack level:\n"
-					"Ground block: 1250, 1375, 1500, 1750, 2000, 2400, 3000;\n"
-					"Air block: 800,  850,  900,  950, 1000, 2400, 3000;\n"
-					"Hit: 1300, 1400, 1500, 1750, 2000, 2400, 3000;\n");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.basePushback);
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Pushback Modifier");
-				AddTooltip("Pushback modifier. Equals Attack pushback modifier % * Attack pushback modifier on hit % * Combo timer modifier %"
-					" * IB modifier %.\n"
-					"Attack pushback modifier depends on the performed move."
-					" Attack pushback modifier on hit depends on the performed move and should only be non-100 when the opponent is in hitstun."
-					" Combo timer modifier depends on combo timer, in frames: >= 480 --> 200%, >= 420 --> 184%, >= 360 --> 166%, >= 300 --> 150%"
-					", >= 240 --> 136%, >= 180 --> 124%, >= 120 --> 114%, >= 60 --> 106%."
-					" IB modifier is non-100 on IB: air IB 10%, ground IB 90%.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d%c * %d%c * %d%c * %d%c = %d%c", player.attackPushbackModifier, '%', player.hitstunPushbackModifier, '%',
-						player.comboTimerPushbackModifier, '%', player.ibPushbackModifier, '%',
-						player.attackPushbackModifier * player.hitstunPushbackModifier / 100
-						* player.comboTimerPushbackModifier / 100
-						* player.ibPushbackModifier / 100, '%');
-					ImGui::TextWrapped("%s", strbuf);
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Received Speed Y");
-				AddTooltip("This is updated only when a hit happens.\n"
-					"Format: Base speed Y * (Weight % * Combo Proration % = Resulting Modifier %) = Resulting speed Y. Base and Final speeds divided by 100 for viewability."
-					" On block, something more is going on, and it's not studied yet, so gained speed Y cannot be displayed."
-					" Modifiers on received speed Y are weight and combo proration, displayed in that order.\n"
-					"The combo proration depends on the number of hits so far at the moment of getting hit, not including the ongoing hit:\n"
-					"6 hits so far -> 59/60 * 100% proration,\n"
-					"5 hits -> 58 / 60 * 100% and so on, up to 30 / 60 * 100%. The rounding of the final speed Y is up.\n"
-					"Some moves could theoretically ignore weight or combo proration, or both. When that happens, 100% will be displayed in place"
-					" of the ignored parameter.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (!player.receivedSpeedYValid) {
-						ImGui::TextUnformatted("???");
-					} else {
-						int mod = player.receivedSpeedYWeight * player.receivedSpeedYComboProration / 100;
-						printDecimal(player.receivedSpeedY * 100 / mod, 2, 0);
-						sprintf_s(strbuf, "%s", printdecimalbuf);
-						printDecimal(player.receivedSpeedY, 2, 0);
-						sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * (%d%c * %d%c = %d%c) = %s",
-							player.receivedSpeedYWeight,
-							'%', player.receivedSpeedYComboProration, '%',
-							mod, '%',
-							printdecimalbuf);
-						ImGui::TextWrapped("%s", strbuf);
-					}
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Hitstun Proration");
-				AddTooltip("This is updated only when a hit happens."
-					" Hitstun proration depends on the duration of an air or ground combo, in frames. For air combo:\n"
-					">= 1080 --> 10%\n"
-					">= 840  --> 60%\n"
-					">= 600  --> 70%\n"
-					">= 420  --> 80%\n"
-					">= 300  --> 90%\n"
-					">= 180  --> 95%\n"
-					"For ground combo it's just:\n"
-					">= 1080 --> 50%\n"
-					"Multiply base hitstun by the percentage using floating point math, then round down to get prorated hitstun.\n"
-					"Some attacks could theoretically ignore hitstun proration. When that happens, 100% is displayed.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (!player.hitstunProrationValid) {
-						ImGui::TextUnformatted("--");
-					} else {
-						sprintf_s(strbuf, "%d%c", player.hitstunProration, '%');
-						ImGui::TextUnformatted(strbuf);
-					}
-				}
-				
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("Wakeup");
-				AddTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
-					" Format: Time remaining until able to act / Total wakeup or airtech time.");
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					
-					int remaining = 0;
-					if (player.wakeupTiming) {
-						remaining = player.wakeupTiming - player.animFrame + 1;
-					}
-					sprintf_s(strbuf, "%d/%d", remaining, player.wakeupTiming);
-					ImGui::TextUnformatted(strbuf);
-				}
-				
-				ImGui::EndTable();
-			}
-			ImGui::End();
-		}
-		for (int i = 0; i < 2; ++i) {
-			if (showCharSpecific[i]) {
-				ImGui::PushID(i);
-				sprintf_s(strbuf, "  Character Specific (P%d)", i + 1);
-				ImGui::Begin(strbuf, showCharSpecific + i);
-				const PlayerInfo& player = endScene.players[i];
-				
-				GGIcon scaledIcon;
-				if (player.charType == CHARACTER_TYPE_SOL && player.playerval0) {
-					scaledIcon = scaleGGIconToHeight(DISolIconRectangular, 14.F);
-				} else {
-					scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
-				}
-				drawPlayerIconInWindowTitle(scaledIcon);
-				
-				if (!*aswEngine || !player.pawn) {
-					ImGui::TextUnformatted("Match not running");
-					ImGui::End();
-					continue;
-				} else if (endScene.isIGiveUp()) {
-					ImGui::TextUnformatted("Online non-observer match running.");
-					ImGui::End();
-					continue;
-				}
-				if (player.charType == CHARACTER_TYPE_SOL) {
-					if (player.playerval0) {
-						GGIcon scaledIcon = scaleGGIconToHeight(DISolIcon, 14.F);
-						drawGGIcon(scaledIcon);
-						ImGui::SameLine();
-						ImGui::TextUnformatted("In Dragon Install");
-						ImGui::Text("Time remaining: %d/%df", player.playerval1, player.maxDI);
-					} else {
-						GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(CHARACTER_TYPE_SOL), 14.F);
-						drawGGIcon(scaledIcon);
-						ImGui::SameLine();
-						ImGui::TextUnformatted("Not in Dragon Install");
-					}
-				} else if (player.charType == CHARACTER_TYPE_KY) {
-					if (!endScene.interRoundValueStorage2Offset) {
-						ImGui::TextUnformatted("Error");
-					} else {
-						DWORD& theValue = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage2Offset + i * 4);
-						if (theValue) {
-							ImGui::TextUnformatted("Hair down");
-						} else {
-							ImGui::TextUnformatted("Hair not down");
-						}
-						if (game.isTrainingMode() && ImGui::Button("Toggle Hair Down")) {
-							theValue = 1 - theValue;
-							endScene.BBScr_callSubroutine((void*)player.pawn.ent, "PonyMeshSetCheck");
-						}
-					}
-				} else if (player.charType == CHARACTER_TYPE_ZATO) {
-					Entity eddie = nullptr;
-					bool isSummoned = player.pawn.playerVal(0);
-					if (isSummoned) {
-						eddie = endScene.getReferredEntity((void*)player.pawn.ent, 4);
-					}
-					
-					ImGui::Text("Eddie Values");
-					sprintf_s(strbuf, "##Zato_P%d", i);
-					if (ImGui::BeginTable(strbuf, 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
-						ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-						ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-						
-						ImGui::TableHeadersRow();
-						
-						ImGui::TableNextColumn();
-						ImGui::Text("Eddie Gauge");
-						AddTooltip("Divided by 10 for readability.");
-						ImGui::TableNextColumn();
-						ImGui::Text("%-3d/%d", player.pawn.exGaugeValue(0) / 10, player.pawn.exGaugeMaxValue(0) / 10);
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Is Summoned");
-						ImGui::TableNextColumn();
-						if (!isSummoned) {
-							ImGui::TextUnformatted("No");
-						} else {
-							ImGui::TextUnformatted("Yes");
-						}
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Shadow Puddle X");
-						ImGui::TableNextColumn();
-						int shadowPuddleX = player.pawn.playerVal(3);
-						if (shadowPuddleX != 3000000) {
-							printDecimal(shadowPuddleX, 2, 0);
-							ImGui::TextUnformatted(printdecimalbuf);
-						}
-						
-						if (!eddie && player.eddie.landminePtr) {
-							eddie = Entity{player.eddie.landminePtr};
-						}
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Startup");
-						ImGui::TableNextColumn();
-						ImGui::Text("%d", player.eddie.startup);
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Active");
-						ImGui::TableNextColumn();
-						printActiveWithMaxHit(player.eddie.actives, player.eddie.maxHit, player.eddie.hitOnFrame);
-						float w = ImGui::CalcTextSize(strbuf).x;
-						if (w > ImGui::GetContentRegionAvail().x) {
-							ImGui::TextWrapped("%s", strbuf);
-						} else {
-							ImGui::TextUnformatted(strbuf);
-						}
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Recovery");
-						ImGui::TableNextColumn();
-						ImGui::Text("%d", player.eddie.recovery);
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Total");
-						ImGui::TableNextColumn();
-						ImGui::Text("%d", player.eddie.total);
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Frame Adv.");
-						ImGui::TableNextColumn();
-						frameAdvantageControl(
-							player.eddie.frameAdvantage,
-							player.eddie.landingFrameAdvantage,
-							player.eddie.frameAdvantageValid,
-							player.eddie.landingFrameAdvantageValid,
-							false);
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Hitstop");
-						ImGui::TableNextColumn();
-						ImGui::Text("%d/%d", player.eddie.hitstop, player.eddie.hitstopMax);
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Last Consumed Eddie Gauge Amount");
-						AddTooltip("Divided by 10 for readability. The amount of consumed Eddie Gauge of the last attack.");
-						ImGui::TableNextColumn();
-						ImGui::Text("%d", player.eddie.consumedResource / 10);
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("X");
-						ImGui::TableNextColumn();
-						if (eddie) {
-							printDecimal(eddie.x(), 2, 0);
-							ImGui::TextUnformatted(printdecimalbuf);
-						}
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Anim");
-						ImGui::TableNextColumn();
-						if (eddie) {
-							ImGui::TextUnformatted(eddie.animationName());
-						}
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Frame");
-						ImGui::TableNextColumn();
-						if (eddie) {
-							ImGui::Text("%d", eddie.currentAnimDuration());
-						}
-						
-						ImGui::TableNextColumn();
-						ImGui::TextUnformatted("Sprite");
-						ImGui::TableNextColumn();
-						if (eddie) {
-							ImGui::Text("%s (%d/%d)", eddie.spriteName(), eddie.spriteFrameCounter(), eddie.spriteFrameCounterMax());
-						}
-						
-						ImGui::EndTable();
-					}
-				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
-					if (player.playerval0) {
-						printChippInvisibility(player.playerval0, player.maxDI);
-					} else {
-						ImGui::TextUnformatted("Not invisible");
-					}
-					if (player.move.caresAboutWall) {
-						ImGui::Text("Wall time: %d/120", player.pawn.mem54());
-					} else {
-						ImGui::TextUnformatted("Not on a wall.");
-					}
-				} else if (player.charType == CHARACTER_TYPE_FAUST) {
-					const PlayerInfo& otherPlayer = endScene.players[1 - player.index];
-					if (!otherPlayer.poisonDuration) {
-						ImGui::TextUnformatted("Opponent not poisoned.");
-					} else {
-						sprintf_s(strbuf, "Poison duration on opponent: %d/%d", otherPlayer.poisonDuration, otherPlayer.poisonDurationMax);
-						ImGui::TextUnformatted(strbuf);
-					}
-				} else {
-					ImGui::TextUnformatted("No character specific information to show.");
-				}
-				ImGui::End();
-				ImGui::PopID();
-			}
-		}
-		if (showBoxExtents) {
-			ImGui::Begin("Box Extents", &showBoxExtents);
-			if (endScene.isIGiveUp()) {
-				ImGui::TextUnformatted("Online non-observer match running.");
-			} else
-			if (ImGui::BeginTable("##PayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
-				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
-				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
-				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
-				
-				ImGui::TableNextColumn();
-				GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
-				float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
-				RightAlign(w);
-				drawPlayerIconWithTooltip(0);
-				ImGui::SameLine();
-				ImGui::TextUnformatted("P1");
-				ImGui::TableNextColumn();
-				ImGui::TableNextColumn();
-				ImGui::TextUnformatted("P2");
-				ImGui::SameLine();
-				drawPlayerIconWithTooltip(1);
-				
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (player.hurtboxTopBottomValid) {
-						sprintf_s(strbuf, "from %d to %d",
-							player.hurtboxTopY,
-							player.hurtboxBottomY);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Hurtbox Y");
-						AddTooltip("These values display either the current or last valid value and change each frame."
-							" They do not show the total combined bounding box."
-							" To view these values for each frame more easily you could use the frame freeze mode,"
-							" available in the Hitboxes section.\n"
-							"The coordinates shown are relative to the global space.");
-					}
-				}
-				for (int i = 0; i < 2; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (player.hitboxTopBottomValid) {
-						sprintf_s(strbuf, "from %d to %d",
-							player.hitboxTopY,
-							player.hitboxBottomY);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Hitbox Y");
-						AddTooltip("These values display either the current or last valid value and change each frame."
-							" They do not show the total combined bounding box."
-							" To view these values for each frame more easily you could use the frame freeze mode,"
-							" available in the Hitboxes section.\n"
-							"The coordinates shown are relative to the global space.\n"
-							"If the coordinates are not shown while an attack is out, that means that attack is a projectile."
-							" To view projectiles' hitbox extents you can see 'Projectiles' in the main UI window.");
-					}
-				}
-				ImGui::EndTable();
-			}
-			ImGui::End();
-		}
-		for (int i = 0; i < 2; ++i) {
-			if (showCancels[i]) {
-				ImGui::PushID(i);
-				sprintf_s(strbuf, "  Cancels (P%d)", i + 1);
-				ImGui::SetNextWindowSize({
-					ImGui::GetFontSize() * 35.F,
-					150.F
-				}, ImGuiCond_FirstUseEver);
-				ImGui::Begin(strbuf, showCancels + i);
-				drawPlayerIconInWindowTitle(i);
-				
-				const float wrapWidth = ImGui::GetContentRegionAvail().x;
-				ImGui::PushTextWrapPos(wrapWidth);
-				
-				const PlayerInfo& player = endScene.players[i];
-				
-				const bool useSlang = settings.useSlangNames;
-				const char* lastNames[2];
-				prepareLastNames(lastNames, player);
-				int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(lastNames,
-					player.superfreezeStartup ? 2 : 1,
-					useSlang);
-				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-				textUnformattedColored(YELLOW_COLOR, animNamesCount ? "Anims: " : "Anim: ");
-				char* buf = strbuf;
-				size_t bufSize = sizeof strbuf;
-				player.prevStartupsDisp.printNames(buf, bufSize, lastNames,
-					player.superfreezeStartup ? 2 : 1,
-					useSlang,
-					false,
-					animNamesCount > 1);
-				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
-				ImGui::PopStyleVar();
-				
-				if (player.cancelsOverflow) {
-					ImGui::TextUnformatted("...Some initial frames skipped...");
-					ImGui::Separator();
-				}
-				bool printedSomething = false;
-				for (int i = 0; i < player.cancelsCount; ++i) {
-					const PlayerCancelInfo& cancels = player.cancels[i];
-					if (cancels.isCompletelyEmpty()) continue;
-					if (printedSomething) {
-						ImGui::Separator();
-					}
-					printedSomething = true;
-					sprintf_s(strbuf, "Frames %d-%d:", cancels.start, cancels.end);
-					textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-					printAllCancels(cancels.cancels,
-						cancels.enableSpecialCancel,
-						cancels.enableJumpCancel,
-						cancels.enableSpecials,
-						cancels.hitOccured,
-						cancels.airborne,
-						false);
-				}
-				if (!printedSomething) {
-					ImGui::TextUnformatted("No cancels available.");
-				}
-				
-				ImGui::PopTextWrapPos();
-				ImGui::PushID(i);
-				GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
-				drawGGIcon(scaledIcon);
-				ImGui::PopID();
-				AddTooltip(thisHelpTextWillRepeat);
-				ImGui::End();
-				ImGui::PopID();
-			}
-		}
-		for (int i = 0; i < 2; ++i) {
-			if (showDamageCalculation[i]) {
-				ImGui::PushID(i);
-				sprintf_s(strbuf, "  Damage/RISC Calculation (P%d)", i + 1);
-				ImGui::SetNextWindowSize({
-					ImGui::GetFontSize() * 35.F,
-					150.F
-				}, ImGuiCond_FirstUseEver);
-				ImGui::Begin(strbuf, showDamageCalculation + i);
-				drawPlayerIconInWindowTitle(i);
-				
-				const PlayerInfo& player = endScene.players[i];
-				
-				struct ComboProration {
-					const char* name;
-					int val;
-				};
-				ComboProration comboProrations[] {
-					{ "Normal/Special", player.comboProrationNormal },
-					{ "Overdrive", player.comboProrationOverdrive }
-				};
-				
-				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-				for (int comboProrationI = 0; comboProrationI < 2; ++comboProrationI) {
-					const ComboProration& currentProration = comboProrations[comboProrationI];
-					
-					sprintf_s(strbuf, "Current proration (%s): ", currentProration.name);
-					textUnformattedColored(YELLOW_COLOR, strbuf);
-					AddTooltip("Here we display only Dust proration * Proration from initial/forced proration * RISC Damage Scale * Guts * Defense Modifier * RC Proration");
-					
-					int totalProration = 10000;
-					totalProration = totalProration * player.dustProration1 / 100;
-					totalProration = totalProration * player.dustProration2 / 100;
-					totalProration = totalProration * player.proration / 100;
-					totalProration = totalProration * currentProration.val / 256;
-					totalProration = totalProration * player.gutsPercentage / 100;
-					totalProration = totalProration * (player.defenseModifier + 256) / 256;
-					if (player.rcProration) totalProration = totalProration * 80 / 100;
-					
-					sprintf_s(strbuf, "%3d%c", player.dustProration1 * player.dustProration2 / 100, '%');
-					ImGui::TextUnformatted(strbuf);
-					AddTooltip("Dust proration");
-					ImGui::SameLine();
-					
-					ImGui::TextUnformatted(" * ");
-					ImGui::SameLine();
-					
-					sprintf_s(strbuf, "%3d%c", player.proration, '%');
-					ImGui::TextUnformatted(strbuf);
-					AddTooltip("Initial/forced proration");
-					ImGui::SameLine();
-					
-					ImGui::TextUnformatted(" * ");
-					ImGui::SameLine();
-					
-					sprintf_s(strbuf, "%3d%c", currentProration.val * 100 / 256, '%');
-					ImGui::TextUnformatted(strbuf);
-					AddTooltip("RISC Damage Scale");
-					ImGui::SameLine();
-					
-					ImGui::TextUnformatted(" * ");
-					ImGui::SameLine();
-					
-					sprintf_s(strbuf, "%3d%c", player.gutsPercentage, '%');
-					ImGui::TextUnformatted(strbuf);
-					AddTooltip("Guts");
-					ImGui::SameLine();
-					
-					ImGui::TextUnformatted(" * ");
-					ImGui::SameLine();
-					
-					sprintf_s(strbuf, "%3d%c", (player.defenseModifier + 256) * 100 / 256, '%');
-					ImGui::TextUnformatted(strbuf);
-					AddTooltip("Defense Modifier");
-					ImGui::SameLine();
-					
-					ImGui::TextUnformatted(" * ");
-					ImGui::SameLine();
-					
-					ImGui::TextUnformatted(player.rcProration ? " 80%" : "100%");
-					AddTooltip("Roman Cancel Damage Modifier. Applied during Roman Cancel slowdown.");
-					ImGui::SameLine();
-					
-					ImGui::TextUnformatted(" = ");
-					ImGui::SameLine();
-					
-					sprintf_s(strbuf, "%3d%c", totalProration / 100, '%');
-					ImGui::TextUnformatted(strbuf);
-					AddTooltip("Total proration");
-					
-				}
-					
-				ImGui::PopStyleVar();
-				ImGui::Separator();
-				
-				if (!player.dmgCalcs.empty()) {
-					
-					bool isFirst = true;
-					bool needPrintHitNumbers = player.dmgCalcs.size() > 1;
-					bool useSlang = settings.useSlangNames;
-					int hitCounter = player.dmgCalcsSkippedHits + player.dmgCalcs.size() - 1;
-					for (auto it = player.dmgCalcs.begin() + (player.dmgCalcs.size() - 1); ; ) {
-						const DmgCalc& dmgCalc = *it;
-						
-						if (!isFirst) ImGui::Separator();
-						isFirst = false;
-						
-						if (needPrintHitNumbers) {
-							ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-							textUnformattedColored(YELLOW_COLOR, "Hit Number: ");
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d", hitCounter + 1);
-							ImGui::TextUnformatted(strbuf);
-							ImGui::PopStyleVar();
-						}
-						--hitCounter;
-						
-						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-						
-						textUnformattedColored(YELLOW_COLOR, "Attack Name: ");
-						ImGui::SameLine();
-						ImGui::TextUnformatted(useSlang && dmgCalc.attackSlangName ? dmgCalc.attackSlangName : dmgCalc.attackName);
-						if (dmgCalc.nameFull || useSlang && dmgCalc.attackSlangName && dmgCalc.attackName) {
-							AddTooltip(dmgCalc.nameFull ? dmgCalc.nameFull : dmgCalc.attackName);
-						}
-						
-						textUnformattedColored(YELLOW_COLOR, "Is Projectile: ");
-						ImGui::SameLine();
-						ImGui::TextUnformatted(dmgCalc.isProjectile ? "Yes" : "No");
-						
-						textUnformattedColored(YELLOW_COLOR, "Guard Type: ");
-						ImGui::SameLine();
-						const char* guardTypeStr;
-						if (dmgCalc.isThrow) {
-							guardTypeStr = "Throw";
-						} else {
-							guardTypeStr = formatGuardType(dmgCalc.guardType);
-						}
-						ImGui::TextUnformatted(guardTypeStr);
-						
-						textUnformattedColored(YELLOW_COLOR, "Air Blockable: ");
-						AddTooltip("Is air blockable - if not, then requires Faultless Defense to be blocked in the air.");
-						ImGui::SameLine();
-						ImGui::TextUnformatted(dmgCalc.airUnblockable ? "No" : "Yes");
-						
-						if (dmgCalc.guardCrush) {
-							textUnformattedColored(YELLOW_COLOR, "Guard Crush: ");
-							AddTooltip("Guard break. When blocked, this attack causes the defender to enter hitstun on the next frame.");
-							ImGui::SameLine();
-							ImGui::TextUnformatted(dmgCalc.guardCrush ? "Yes" : "No");
-						}
-						
-						ImGui::PopStyleVar();
-						
-						zerohspacing
-						textUnformattedColored(YELLOW_COLOR, "Last Hit Result: ");
-						ImGui::SameLine();
-						ImGui::TextUnformatted(formatHitResult(dmgCalc.lastHitResult));
-						_zerohspacing
-						
-						if (dmgCalc.lastHitResult == HIT_RESULT_BLOCKED) {
-							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Block Type: ");
-							ImGui::SameLine();
-							ImGui::TextUnformatted(formatBlockType(dmgCalc.blockType));
-							_zerohspacing
-							if (dmgCalc.blockType != BLOCK_TYPE_FAULTLESS) {
-								const DmgCalc::DmgCalcU::DmgCalcBlock& data = dmgCalc.u.block;
-								if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
-									ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-									ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-									ImGui::TableHeadersRow();
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Attack Level");
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d", data.attackLevelForGuard);
-									ImGui::TextUnformatted(strbuf);
-									if (data.attackLevel != data.attackLevelForGuard) {
-										ImGui::SameLine();
-										ImVec4* color;
-										if (data.attackLevelForGuard > data.attackLevel) {
-											color = &RED_COLOR;
-										} else {
-											color = &LIGHT_BLUE_COLOR;
-										}
-										textUnformattedColored(*color, "(!)");
-										if (ImGui::BeginItemTooltip()) {
-											ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-											sprintf_s(strbuf, "This attack's level on block/armor (%d) is %s than on hit (%d).",
-												data.attackLevelForGuard,
-												data.attackLevelForGuard > data.attackLevel ? "higher" : "lower",
-												data.attackLevel);
-											ImGui::TextUnformatted(strbuf);
-											ImGui::PopTextWrapPos();
-											ImGui::EndTooltip();
-										}
-									}
-									
-									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-									AddTooltip("The base value for determining how much RISC this attack adds on block.");
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d", data.riscPlusBase);
-									const char* needHelp = nullptr;
-									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-									ImVec4* color = &RED_COLOR;
-									if (data.riscPlusBase > data.riscPlusBaseStandard) {
-										needHelp = "higher";
-									} else if (data.riscPlusBase < data.riscPlusBaseStandard) {
-										needHelp = "lower";
-										color = &LIGHT_BLUE_COLOR;
-									}
-									if (needHelp) {
-										ImGui::SameLine();
-										textUnformattedColored(*color, "(!)");
-										if (ImGui::BeginItemTooltip()) {
-											ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-											sprintf_s(strbuf, "This attack's RISC+ (%d) is %s than the standard RISC+ (%d) for its attack level %s(%d).",
-												data.riscPlusBase,
-												needHelp,
-												data.riscPlusBaseStandard,
-												data.attackLevel == data.attackLevelForGuard ? "" : "on block/armor",
-												data.attackLevelForGuard);
-											ImGui::TextUnformatted(strbuf);
-											ImGui::PopTextWrapPos();
-											ImGui::EndTooltip();
-										}
-									}
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("RISC Gain Rate");
-									AddTooltip("A per-character constant value that alters incoming values of RISC+."
-										" Depends on the defending player's character.");
-									ImGui::TableNextColumn();
-									printDecimal(data.guardBalanceDefence * 100 / 32, 0, 0, true);
-									sprintf_s(strbuf, "%d (%s)", data.guardBalanceDefence, printdecimalbuf);
-									ImGui::TextUnformatted(strbuf);
-									
-									int x = data.riscPlusBase * 100 * data.guardBalanceDefence / 32;
-									ImGui::TableNextColumn();
-									zerohspacing
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" * Gain Rate");
-									_zerohspacing
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d * %s = ", data.riscPlusBase, printdecimalbuf);
-									zerohspacing
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									sprintf_s(strbuf, "%s", printDecimal(x, 2, 0, false));
-									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-									_zerohspacing
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Grounded and Overhead/Low");
-									AddTooltip("The defender was on the ground and the attack was either an overhead or a low."
-										" If yes, the modifier is 75%, otherwise RISC+ is unchanged.");
-									ImGui::TableNextColumn();
-									int oldX = x;
-									if (data.groundedAndOverheadOrLow) {
-										ImGui::TextUnformatted("yes: 75% modifier");
-										x -= x / 4;
-									} else {
-										ImGui::TextUnformatted("no: 100% (no) modifier");
-									}
-									
-									ImGui::TableNextColumn();
-									zerohspacing
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" * Overhead/Low");
-									_zerohspacing
-									ImGui::TableNextColumn();
-									zerohspacing
-									sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.groundedAndOverheadOrLow ? "75%" : "100%");
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
-									_zerohspacing
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Was In Blockstun");
-									AddTooltip("The defender was already in blockstun at the time of attack."
-										" If yes, the modifier is 50%, otherwise RISC+ is unchanged.");
-									ImGui::TableNextColumn();
-									oldX = x;
-									if (data.wasInBlockstun) {
-										ImGui::TextUnformatted("yes: 50% modifier");
-										x /= 2;
-									} else {
-										ImGui::TextUnformatted("no: 100% (no) modifier");
-									}
-									
-									ImGui::TableNextColumn();
-									const char* tooltip = "This is the final RISC value that gets added to the RISC gauge.";
-									zerohspacing
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
-									AddTooltip(tooltip);
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" * Was In Blockstun");
-									AddTooltip(tooltip);
-									_zerohspacing
-									ImGui::TableNextColumn();
-									zerohspacing
-									sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.wasInBlockstun ? "50%" : "100%");
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
-									_zerohspacing
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("RISC");
-									AddTooltip("Final value for RISC, without bounds check for [-128.00; 128.00] is"
-										" the old value + change = final value.");
-									ImGui::TableNextColumn();
-									
-									char* buf = strbuf;
-									size_t bufSize = sizeof strbuf;
-									int result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									
-									result = sprintf_s(buf, bufSize, "%s = ", printDecimal(x, 2, 0, false));
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									
-									sprintf_s(buf, bufSize, "%s", printDecimal(data.defenderRisc + x, 2, 0, false));
-									
-									ImGui::TextUnformatted(strbuf);
-									
-									x = data.baseDamage;
-									ImGui::TableNextColumn();
-									zerohspacing
-									ImGui::TextUnformatted("Base ");
-									ImGui::SameLine();
-									textUnformattedColored(YELLOW_COLOR, "Damage");
-									_zerohspacing
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d", x);
-									textUnformattedColored(YELLOW_COLOR, strbuf);
-									
-									x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("HP");
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d - %d = %d", data.oldHp, x, data.oldHp - x);
-									ImGui::TextUnformatted(strbuf);
-									
-									ImGui::EndTable();
-								}
-							}
-						} else if (dmgCalc.lastHitResult == HIT_RESULT_ARMORED || dmgCalc.lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
-							const DmgCalc::DmgCalcU::DmgCalcArmor& data = dmgCalc.u.armor;
-							if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
-								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-								ImGui::TableHeadersRow();
-								
-								int x = data.baseDamage;
-								ImGui::TableNextColumn();
-								zerohspacing
-								ImGui::TextUnformatted("Base ");
-								ImGui::SameLine();
-								textUnformattedColored(YELLOW_COLOR, "Damage");
-								_zerohspacing
-								sprintf_s(strbuf, "%d", data.baseDamage);
-								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								
-								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, dmgCalc.lastHitResult, data.superArmorDamagePercent);
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Armor Is Like Block?");
-								AddTooltip("If the armor behaves like blocking when tanking hits, it won't use guts calculation and will use the"
-									" same chip damage calculation as blocking uses. Otherwise it will apply guts and take that as damage.");
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(data.superArmorHeadAttribute ? "Yes" : "No");
-								
-								if (data.superArmorHeadAttribute) {
-									x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);;
-								} else {
-									x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
-								}
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("HP");
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d - %d = %d", data.oldHp, x, data.oldHp - x);
-								ImGui::TextUnformatted(strbuf);
-								
-								ImGui::EndTable();
-							}
-						} else if (dmgCalc.lastHitResult == HIT_RESULT_NORMAL) {
-							const DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
-							if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
-								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
-								ImGui::TableHeadersRow();
-								
-								int x = data.baseDamage;
-								ImGui::TableNextColumn();
-								zerohspacing
-								ImGui::TextUnformatted("Base ");
-								ImGui::SameLine();
-								textUnformattedColored(YELLOW_COLOR, "Damage");
-								_zerohspacing
-								sprintf_s(strbuf, "%d", data.baseDamage);
-								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								
-								int oldX = x;
-								if (data.increaseDmgBy50Percent) {
-									x = x * 150 / 100;
-									ImGui::TableNextColumn();
-									const char* tooltip = "Maybe Dustloop or someone knows what this is.";
-									zerohspacing
-									textUnformattedColored(YELLOW_COLOR, "Dmg");
-									AddTooltip(tooltip);
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" * 150%");
-									AddTooltip(tooltip);
-									_zerohspacing
-									ImGui::TableNextColumn();
-									zerohspacing
-									sprintf_s(strbuf, "%d * 150%c = ", oldX, '%');
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									sprintf_s(strbuf, "%d", x);
-									textUnformattedColored(YELLOW_COLOR, strbuf);
-									_zerohspacing
-								}
-								
-								oldX = x;
-								if (data.extraInverseProration != 100 && data.extraInverseProration != 0) {
-									x = x * 100 / data.extraInverseProration;
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Extra Inverse Modif");
-									AddTooltip("Damage = Damage * 100 / Extra Inverse Modif");
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d%c", data.extraInverseProration, '%');
-									ImGui::TextUnformatted(strbuf);
-									
-									ImGui::TableNextColumn();
-									const char* tooltip = "Damage = Damage * 100 / Extra Inverse Modif";
-									zerohspacing
-									textUnformattedColored(YELLOW_COLOR, "Dmg");
-									AddTooltip(tooltip);
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" / Extra Inv. Modif");
-									AddTooltip(tooltip);
-									_zerohspacing
-									ImGui::TableNextColumn();
-									zerohspacing
-									sprintf_s(strbuf, "%d / %d%c = ", oldX, data.extraInverseProration, '%');
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									sprintf_s(strbuf, "%d", x);
-									textUnformattedColored(YELLOW_COLOR, strbuf);
-									_zerohspacing
-								}
-								
-								oldX = x;
-								if (data.isStylish && data.stylishDamageInverseModifier != 0) {
-									x = x * 100 / data.stylishDamageInverseModifier;
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Stylish Inverse Modifier");
-									AddTooltip("Inverse modifier applied to the damage dealt to the defender for defender using the Stylish mode."
-										" Depends on the defender using the Stylish mode.");
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d%c", data.stylishDamageInverseModifier, '%');
-									ImGui::TextUnformatted(strbuf);
-									
-									ImGui::TableNextColumn();
-									zerohspacing
-									textUnformattedColored(YELLOW_COLOR, "Dmg");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" / Stylish");
-									_zerohspacing
-									ImGui::TableNextColumn();
-									zerohspacing
-									sprintf_s(strbuf, "%d / %d%c = ", oldX, data.stylishDamageInverseModifier, '%');
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									sprintf_s(strbuf, "%d", x);
-									textUnformattedColored(YELLOW_COLOR, strbuf);
-									_zerohspacing
-								}
-								
-								oldX = x;
-								if (data.handicap != 100) {
-									x = x * data.handicap / 100;
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Handicap");
-									AddTooltip("Handicap used by the defender modifies their incoming damage."
-										" Handicap levels:\n"
-										"1) 156%;\n"
-										"2) 125%;\n"
-										"3) 100%;\n"
-										"4) 80%;\n"
-										"5) 64%;");
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d%c", data.handicap, '%');
-									ImGui::TextUnformatted(strbuf);
-									
-									ImGui::TableNextColumn();
-									zerohspacing
-									textUnformattedColored(YELLOW_COLOR, "Dmg");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" * Handicap");
-									_zerohspacing
-									ImGui::TableNextColumn();
-									zerohspacing
-									sprintf_s(strbuf, "%d * %d%c = ", oldX, data.handicap, '%');
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									sprintf_s(strbuf, "%d", x);
-									textUnformattedColored(YELLOW_COLOR, strbuf);
-									_zerohspacing
-								}
-								
-								x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, HIT_RESULT_NORMAL, 100);
-								
-								oldX = x;
-								if (data.dustProration1 != 100) {
-									x = x * data.dustProration1 / 100;
-									ImGui::TableNextColumn();
-									if (data.dustProration2 != 100) {
-										ImGui::TextUnformatted("Dust Proration #1");
-									} else {
-										ImGui::TextUnformatted("Dust Proration");
-									}
-									sprintf_s(strbuf, "%d%c", data.dustProration1, '%');
-									ImGui::TextUnformatted(strbuf);
-									
-									ImGui::TableNextColumn();
-									zerohspacing
-									textUnformattedColored(YELLOW_COLOR, "Dmg");
-									ImGui::SameLine();
-									if (data.dustProration2 != 100) {
-										ImGui::TextUnformatted(" * Dust Proration #1");
-									} else {
-										ImGui::TextUnformatted(" * Dust Proration");
-									}
-									_zerohspacing
-									ImGui::TableNextColumn();
-									zerohspacing
-									sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration1, '%');
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									sprintf_s(strbuf, "%d", x);
-									textUnformattedColored(YELLOW_COLOR, strbuf);
-									_zerohspacing
-								}
-								
-								oldX = x;
-								x = x * data.dustProration2 / 100;
-								ImGui::TableNextColumn();
-								if (data.dustProration1 != 100) {
-									ImGui::TextUnformatted("Dust Proration #2");
-								} else {
-									ImGui::TextUnformatted("Dust Proration");
-								}
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d%c", data.dustProration2, '%');
-								ImGui::TextUnformatted(strbuf);
-								
-								ImGui::TableNextColumn();
-								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
-								ImGui::SameLine();
-								if (data.dustProration1 != 100) {
-									ImGui::TextUnformatted(" * Dust Proration #2");
-								} else {
-									ImGui::TextUnformatted(" * Dust Proration");
-								}
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration2, '%');
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								_zerohspacing
-								
-								bool hellfire = data.attackerHellfireState && data.attackerHpLessThan10Percent && data.attackHasHellfireEnabled;
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Hellfire");
-								AddTooltip("To gain 20% damage bonus, the attacker must have hellfire state enabled, they must have <= 10% HP (<= 42 HP),"
-									" and the attack must be Hellfire-enabled. All overdrives should be Hellfire-enabled.");
-								ImGui::TableNextColumn();
-								if (hellfire) {
-									ImGui::TextUnformatted("yes (120%)");
-								} else if (data.attackerHellfireState && !data.attackerHpLessThan10Percent) {
-									ImGui::TextUnformatted("no, hp>10% (hp>42) (100%)");
-								} else if (data.attackerHellfireState && data.attackerHpLessThan10Percent && !data.attackHasHellfireEnabled) {
-									if (data.attackType == ATTACK_TYPE_OVERDRIVE) {
-										ImGui::TextUnformatted("no, attack lacks hellfire attribute (100%)");
-									} else {
-										ImGui::TextUnformatted("no, not a super (100%)");
-									}
-								} else {
-									ImGui::TextUnformatted("no (100%)");
-								}
-								
-								oldX = x;
-								ImGui::TableNextColumn();
-								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * Hellfire");
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								if (hellfire) {
-									x = x * 120 / 100;
-									sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
-								} else {
-									sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
-								}
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								_zerohspacing
-								
-								if (data.trainingSettingIsForceCounterHit) {
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Attack Can't Counter Hit");
-									AddTooltip("Some attacks cannot be counter hits even when the 'Counter Hit' training setting is set to 'Forced' or 'Forced Mortal Counter'."
-										" However, triggering Danger Time normally and doing the attack still produces the Mortal Counter and gives the 20% damage boost.");
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted(
-										data.attackCounterHitType == COUNTERHIT_TYPE_NO_COUNTER
-											? "Yes"
-											: "No"
-									);
-								}
-								
-								oldX = x;
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Danger Time");
-								ImGui::TableNextColumn();
-								if (data.dangerTime) {
-									x = x * 120 / 100;
-									ImGui::TextUnformatted("yes (120%)");
-								} else {
-									ImGui::TextUnformatted("no (100%)");
-								}
-								
-								ImGui::TableNextColumn();
-								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * Danger Time");
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								if (data.dangerTime) {
-									sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
-								} else {
-									sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
-								}
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								_zerohspacing
-								
-								bool rcProration = data.rcDmgProration || data.wasHitDuringRc;
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Current Proration");
-								AddTooltip("Forced/initial proration that was at the moment of impact. Stored in the defender.");
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d%c", data.proration, '%');
-								ImGui::TextUnformatted(strbuf);
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("RISC");
-								AddTooltip("RISC that was at the moment of impact.");
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(printDecimal(data.risc, 2, 0, false));
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Is First Hit");
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(data.isFirstHit ? "Yes" : "No");
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Initial Proration");
-								AddTooltip("Depends on the attack. May only be applied on first hit.");
-								ImGui::TableNextColumn();
-								int nextProration = data.proration;
-								const char* nextProrationWhich = nullptr;
-								if (data.isFirstHit) {
-									if (data.initialProration == INT_MAX) {
-										ImGui::TextUnformatted("None (100%)");
-									} else {
-										nextProration = data.initialProration;
-										nextProrationWhich = "initial";
-										sprintf_s(strbuf, "%d%c", data.initialProration, '%');
-										ImGui::TextUnformatted(strbuf);
-									}
-								} else {
-									ImGui::TextUnformatted("Doesn't apply (100%)");
-								}
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Forced Proration");
-								AddTooltip("Depends on the attack.");
-								ImGui::TableNextColumn();
-								if (data.forcedProration == INT_MAX) {
-									ImGui::TextUnformatted("None (100%)");
-								} else {
-									if (data.forcedProration < nextProration) {
-										nextProration = data.forcedProration;
-										nextProrationWhich = "forced";
-									}
-									sprintf_s(strbuf, "%d%c", data.forcedProration, '%');
-									ImGui::TextUnformatted(strbuf);
-								}
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Next Proration");
-								AddTooltip("The proration that is chosen out of initial or forced prorations that will apply to the consecutive combo.");
-								ImGui::TableNextColumn();
-								if (!nextProrationWhich) {
-									sprintf_s(strbuf, "Unchanged (%d%c)", data.proration, '%');
-								} else {
-									sprintf_s(strbuf, "%d%c (%s)", nextProration, '%', nextProrationWhich);
-								}
-								ImGui::TextUnformatted(strbuf);
-								
-								if (!data.needReduceRisc) {
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("Attack Reduces RISC");
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("No");
-								} else {
-									int riscMinusTotal = 0;
-									
-									ImGui::TableNextColumn();
-									const char* tooltip = "This RISC- is applied on first hit only. Depends on the attack.";
-									zerohspacing
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
-									AddTooltip(tooltip);
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" Initial");
-									AddTooltip(tooltip);
-									_zerohspacing
-									ImGui::TableNextColumn();
-									if (!data.isFirstHit) {
-										zerohspacing
-										ImGui::TextUnformatted("Not first hit (");
-										ImGui::SameLine();
-										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-										ImGui::SameLine();
-										ImGui::TextUnformatted(")");
-										_zerohspacing
-									} else {
-										riscMinusTotal = data.riscMinusStarter * 100;
-										sprintf_s(strbuf, "%d", data.riscMinusStarter);
-										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-									}
-									
-									ImGui::TableNextColumn();
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
-									AddTooltip("Depends on the attack.");
-									ImGui::TableNextColumn();
-									riscMinusTotal += data.riscMinus * 100;
-									sprintf_s(strbuf, "%d", data.riscMinus);
-									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-									
-									ImGui::TableNextColumn();
-									tooltip = "This RISC- may only be applied once. Depends on the attack.";
-									zerohspacing
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
-									AddTooltip(tooltip);
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" Once");
-									AddTooltip(tooltip);
-									_zerohspacing
-									ImGui::TableNextColumn();
-									if (data.riscMinusOnceUsed) {
-										zerohspacing
-										ImGui::TextUnformatted("Already applied (");
-										ImGui::SameLine();
-										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-										ImGui::SameLine();
-										ImGui::TextUnformatted(")");
-										_zerohspacing
-									} else if (data.riscMinusOnce == INT_MAX) {
-										zerohspacing
-										ImGui::TextUnformatted("None (");
-										ImGui::SameLine();
-										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-										ImGui::SameLine();
-										ImGui::TextUnformatted(")");
-										_zerohspacing
-									} else {
-										riscMinusTotal += data.riscMinusOnce * 100;
-										sprintf_s(strbuf, "%d", data.riscMinusOnce);
-										textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-									}
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("RISC > 0 ?");
-									AddTooltip("RISC reduces by 25% extra on each hit when it is positive.");
-									ImGui::TableNextColumn();
-									int riscReductionExtra = 0;
-									if (data.risc > 0) {
-										riscReductionExtra = data.risc >> 3;
-										riscMinusTotal += riscReductionExtra;
-										zerohspacing
-										ImGui::TextUnformatted("yes (extra 'RISC-' = ");
-										ImGui::SameLine();
-										textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscReductionExtra, 2, 0, false));
-										ImGui::SameLine();
-										ImGui::TextUnformatted(")");
-										_zerohspacing
-									} else {
-										zerohspacing
-										ImGui::TextUnformatted("no (extra 'RISC-' = ");
-										ImGui::SameLine();
-										textUnformattedColored(LIGHT_BLUE_COLOR, "0");
-										ImGui::SameLine();
-										ImGui::TextUnformatted(")");
-										_zerohspacing
-									}
-									
-									ImGui::TableNextColumn();
-									zerohspacing
-									textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" Total");
-									_zerohspacing
-									ImGui::TableNextColumn();
-									sprintf_s(strbuf, "%d + %d + %d + %s = ",
-										data.isFirstHit ? data.riscMinusStarter : 0,
-										data.riscMinus,
-										!data.riscMinusOnceUsed && data.riscMinusOnce != INT_MAX ? data.riscMinusOnce : 0,
-										printDecimal(riscReductionExtra, 2, 0, false));
-									zerohspacing
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscMinusTotal, 2, 0, false));
-									_zerohspacing
-									
-									ImGui::TableNextColumn();
-									ImGui::TextUnformatted("RISC");
-									ImGui::TableNextColumn();
-									char* buf = strbuf;
-									size_t bufSize = sizeof strbuf;
-									int result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									result = sprintf_s(buf, bufSize, "%s = ", printDecimal(riscMinusTotal, 2, 0, false));
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									result = sprintf_s(buf, bufSize, "%s", printDecimal(data.risc - riscMinusTotal, 2, 0, false));
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
-									ImGui::TextUnformatted(strbuf);
-									
-								}
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Attack Type");
-								AddTooltip("Attack type affects which RISC Damage Scaling table is used. Overdrives prorate differently from normals and specials.\n"
-									"More info in the tooltip of the field below.");
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(formatAttackType(data.attackType));
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("RISC Dmg Scaling");
-								AddTooltip("This damage scaling depends on the defender's RISC that was at the moment of impact"
-									" and the attacker's attack type.\n"
-									"Normal and special attacks use this table:\n"
-									"256, 200, 152, 112, 80, 48, 32, 16, 8, 8, 8;\n"
-									"Overdrives use this table:\n"
-									"256, 176, 128, 96, 80, 48, 40, 32, 24, 16, 16;\n"
-									"X = -(RISC/100) - 1; Round the division down. The RISC here is [-12800; +12800].\n"
-									"If RISC >= 0, the table is not used and RISC Damage Scaling is 256 (100%).\n"
-									"Index into the table = X / 16; Round down. Index starts from 0.\n"
-									"M = remainder of division of X by 16. From 0 to 15.\n"
-									"RISC Dmg Scaling (%) = (table[index] * 16 - (table[index] - table[index + 1]) * M) / 16 * 100% / 256;"
-									" Round down both divisions.\n");
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d%c", data.comboProration * 100 / 256, '%');
-								ImGui::TextUnformatted(strbuf);
-								
-								int proration = data.proration * data.comboProration / 100;
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Current Pror. * RISC Scaling");
-								AddTooltip("Current Proration, which is forced/initial proration that was at the moment of impact,"
-									" * RISC Damage Scaling");
-								ImGui::TableNextColumn();
-								if (data.noDamageScaling) {
-									proration = 256;
-									ImGui::TextUnformatted("No Damage Scaling (100%)");
-									ImGui::SameLine();
-									HelpMarker("Depends on the attack. Attack ignores initial/forced proration and RISC Damage Scaling.");
-								} else {
-									sprintf_s(strbuf, "%d%c * %d%c = %d%c",
-										data.proration,
-										'%',
-										data.comboProration * 100 / 256,
-										'%',
-										proration * 100 / 256,
-										'%');
-									ImGui::TextUnformatted(strbuf);
-								}
-								
-								int damagePriorToProration = x;
-								oldX = x;
-								x = x * proration / 256;
-								ImGui::TableNextColumn();
-								const char* tooltip = "Damage * Current proration * RISC Damage Scaling."
-									" Current proration is forced/initial proration that was at the moment of impact.";
-								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
-								AddTooltip(tooltip);
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * Pror. * Scaling");
-								AddTooltip(tooltip);
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								sprintf_s(strbuf, "%d * %d%c = ",
-										oldX,
-										proration * 100 / 256,
-										'%');
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								_zerohspacing
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Roman Cancel");
-								AddTooltip("Proration resulting from landing a hit during Roman Cancel slowdown.");
-								ImGui::TableNextColumn();
-								if (rcProration) {
-									ImGui::TextUnformatted("yes (80%)");
-								} else {
-									ImGui::TextUnformatted("no (100%)");
-								}
-								
-								oldX = x;
-								ImGui::TableNextColumn();
-								tooltip = "Damage * Roman Cancel proration";
-								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Damage");
-								AddTooltip(tooltip);
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" * RC");
-								AddTooltip(tooltip);
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								if (rcProration) {
-									x = x * 80 / 100;
-									sprintf_s(strbuf, "%d * 80%c = ", oldX, '%');
-									ImGui::TextUnformatted(strbuf);
-								} else {
-									ImGui::TextUnformatted("Doesn't apply (");
-								}
-								ImGui::SameLine();
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								if (!rcProration) {
-									ImGui::SameLine();
-									ImGui::TextUnformatted(")");
-								}
-								_zerohspacing
-								
-								if (damagePriorToProration > 0 && x < 1) {
-									x = 1;
-								}
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Minimum Dmg %");
-								AddTooltip("Minimum Damage Percent. Calculated from Base Damage. Depends on the attack.");
-								ImGui::TableNextColumn();
-								if (data.minimumDamagePercent == 0) {
-									ImGui::TextUnformatted("None (0%)");
-								} else {
-									sprintf_s(strbuf, "%d%c", data.minimumDamagePercent, '%');
-									ImGui::TextUnformatted(strbuf);
-								}
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Base Dmg * Min Dmg %");
-								ImGui::TableNextColumn();
-								int minDmg = 0;
-								if (data.minimumDamagePercent == 0) {
-									sprintf_s(strbuf, "Doesn't apply (0)");
-								} else {
-									minDmg = data.baseDamage * data.minimumDamagePercent / 100;
-									sprintf_s(strbuf, "%d * %d%c = %d", data.baseDamage, data.minimumDamagePercent, '%', minDmg);
-								}
-								ImGui::TextUnformatted(strbuf);
-								
-								ImGui::TableNextColumn();
-								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Damage");
-								ImGui::SameLine();
-								ImGui::TextUnformatted(" or Min ");
-								ImGui::SameLine();
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
-								_zerohspacing
-								ImGui::TableNextColumn();
-								if (data.minimumDamagePercent != 0 && x < minDmg) x = minDmg;
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								
-								x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("HP<=Dmg and HP>=30% MaxHP");
-								AddTooltip("When HP at the moment of hit is less than or equal to the damage, and HP is greater than or equal to max HP * 30% (HP>=126),"
-									" the damage gets changed to:\n"
-									"Damage = HP - Max HP * 5% or, in other words, Damage = HP - 21");
-								ImGui::TableNextColumn();
-								bool attackIsTooOP = data.hp <= x && data.hp >= data.maxHp * 30 / 100;
-								ImGui::TextUnformatted(attackIsTooOP ? "Yes" : "No");
-								
-								ImGui::TableNextColumn();
-								tooltip = "Damage after change due to the condition above.";
-								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Damage");
-								AddTooltip(tooltip);
-								if (attackIsTooOP) {
-									ImGui::SameLine();
-									ImGui::TextUnformatted(" = HP - 21");
-									AddTooltip(tooltip);
-								}
-								_zerohspacing
-								ImGui::TableNextColumn();
-								zerohspacing
-								if (attackIsTooOP) {
-									x = data.hp - data.maxHp * 5 / 100;
-									sprintf_s(strbuf, "%d - 21 = ", data.hp);
-									ImGui::TextUnformatted(strbuf);
-									ImGui::SameLine();
-								}
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								_zerohspacing
-								
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("Attack Is Kill");
-								AddTooltip("This was observed to not happen immediately when landing an IK, but it does happen during the IK cinematic."
-									" When an attack is a kill, it always deals damage equal to the entire remaining health of the defender no matter what.");
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted(data.kill ? "Yes" : "No");
-								
-								ImGui::TableNextColumn();
-								textUnformattedColored(YELLOW_COLOR, "Damage");
-								AddTooltip("Damage after change due to the condition above.");
-								ImGui::TableNextColumn();
-								if (data.kill) x = data.hp;
-								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
-								
-								ImGui::TableNextColumn();
-								ImGui::TextUnformatted("HP");
-								ImGui::TableNextColumn();
-								sprintf_s(strbuf, "%d - %d = %d", data.hp, x, data.hp - x);
-								ImGui::TextUnformatted(strbuf);
-								
-								ImGui::EndTable();
-							}
-						}
-						
-						if (it == player.dmgCalcs.begin()) break;
-						--it;
-					}
-					
-					if (player.dmgCalcsSkippedHits) {
-						ImGui::Separator();
-						sprintf_s(strbuf, "Skipped %d hit%s...", player.dmgCalcsSkippedHits, player.dmgCalcsSkippedHits == 1 ? "" : "s");
-						ImGui::TextUnformatted(strbuf);
-					}
-					
-				} else {
-					
-					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-					textUnformattedColored(YELLOW_COLOR, "Last hit result: ");
-					ImGui::SameLine();
-					ImGui::TextUnformatted(formatHitResult(HIT_RESULT_NONE));
-					ImGui::PopStyleVar();
-					
-					if (!endScene.players[1 - i].dmgCalcs.empty()
-						&& !showDamageCalculation[1 - i]) {
-						ImGui::TextUnformatted("The other player has info in their corresponding window.\n"
-							"You might want to look over there.");
-					}
-				}
-				
-				GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
-				drawGGIcon(scaledIcon);
-				AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
-					" field value) to see their tooltips.");
-				
-				ImGui::End();
-				ImGui::PopID();
-			}
-		}
-		if (showLowProfilePresets) {
-			lowProfilePresetsWindow();
-		}
-		if (showFramebarHelp) {
-			framebarHelpWindow();
-		}
+		drawSearchableWindows();
+		
 		if (showErrorDialog && errorDialogText && *errorDialogText != '\0') {
 			ImGui::SetNextWindowPos(*(ImVec2*)errorDialogPos, ImGuiCond_Appearing);
 			ImGui::Begin("Error", &showErrorDialog);
 			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 			ImGui::TextUnformatted(errorDialogText);
 			ImGui::PopTextWrapPos();
-			ImGui::End();
-		}
-		if (showFrameAdvTooltip) {
-			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("Frame Advantage Help", &showFrameAdvTooltip);
-			ImGui::TextWrapped("%s",
-				"Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
-				" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
-				" Please note that players may become able to block earlier than they become able to attack. This difference will not be displayed, and only the time"
-				" when players become able to attack will be considered for frame advantage calculation.\n\n"
-				"The value in () means frame advantage after yours or your opponent's landing, whatever happened last."
-				" The landing frame advantage is measured against the other player's becoming able to attack after landing or,"
-				" if they never jumped, after them just becoming able to attack."
-				" For example, two players jump one after each other with 1f delay. Both players whiff a j.P in the air and recover in the air, then land"
-				" one after another with 1f delay. The player who landed first will have a +1 'landing' frame advantage and the displayed result will be:"
-				" ??? (+1), where ??? is the 'air' frame advantage (read below), and +1 is the 'landing' frame advantage.\n"
-				"The other value (not in ()) means 'air' frame advantage"
-				" immediately after recovering in the air or on the ground, whichever happened earlier."
-				" 'Air' frame advantage is measured against the other player becoming able to attack in the air or"
-				" on the ground, whichever happened earlier. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
-				" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
-				" +1 (-99). If both you and the opponent jumped, and you recovered in the air 1f before they did, but after they recovered"
-				" it took you 100 frames to fall back down"
-				" and them - only one, then the displayed result for you will be: +1 (-99), and for them: -1 (+99). So, 'air' frame advantage is measured"
-				" against recovering in the air/on the ground, 'landing' frame advantage is measured against recovering on the ground only.\n"
-				"\n"
-				"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.\n"
-				"Frame advantage may go into the past and use time from before the opponent entered blockstun and add that time to your frame advantage,"
-				" if during that time you were idle. For example, if Ky uses j.D, he recovers in the air before it goes active, then opponent gets put into blockstun,"
-				" then all the time that Ky was idle in the air immediately gets included in the frame advantage. For example, if you did a move that let you recover"
-				" in one frame, but it caused the opponent to enter blockstun 100 frames after you started your move, and the opponent spent 1 frame in blockstun,"
-				" you're considered +100 instead of +1. If you do not want to include attacker's pre-blockstun idle time as part of frame advantage,"
-				" then you may untick the 'Settings - General Settings - Frame Advantage: Don't Use Pre-Blockstun Time' checkbox"
-				" (called frameAdvantage_dontUsePreBlockstunTime in the INI file).");
-			ImGui::End();
-		}
-		if (showStartupTooltip) {
-			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("'Startup' Field Help", &showStartupTooltip);
-			ImGui::TextWrapped("%s",
-				"The startup of the last performed move. The last startup frame is also an active frame.\n"
-				"For moves that cause a superfreeze, such as RC, the startup of the superfreeze is displayed.\n"
-				"The startup of the move may consist of multiple numbers, separated by +. In that case:\n"
-				"1) If the move caused a superfreeze, and that superfreeze occured before active frames,"
-				" it's displayed as the startup of the superfreeze + startup after superfreeze;\n"
-				"2) If the move only caused a superfreeze and no attack (for example, it's RC), then only the startup of the superfreeze"
-				" is displayed;\n"
-				"3) If the move can be held, such as Blitz Shield, May 6P, May 6H, Johnny Mist Finer, etc, then the startup is displayed"
-				" as everything up to releasing the button + startup after releasing the button. Except Johnny Mist Finer and many"
-				" other moves additionally"
-				" break up into: the number of frames before the move enters the portion that can be held"
-				" + the amount of frames you held after that + startup after you released the button. Elphelt Ms. Confille breaks up"
-				" into frames it takes to become able to do other moves, and then, over a +, extra frames it takes to become able to"
-				" fire. Other moves may break up similarly;\n"
-				"4) If a move was RC'd, the move's frames are shown first, then +, then RC's frames;\n"
-				"5) If a move is a follow-up move, the first move's frames are shown, then the follow-up's. Not all follow-ups are"
-				" displayed like this - they reset the entire display instead, by restarting the startup/total from 1, without + sign;\n"
-				"6) Baiken canceling Azami into another Azami or the follow-ups, causes them to be displayed in addition to what happened"
-				" before, over a + sign;\n"
-				"7) Some other moves may get combined with the ones they were performed from as well, using the + sign.");
-			ImGui::End();
-		}
-		if (showActiveTooltip) {
-			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("'Active' Field Help", &showActiveTooltip);
-			ImGui::TextWrapped("%s",
-				"Number of active frames in the last performed move.\n"
-				"\n"
-				"Numbers in (), when surrounded by other numbers, mean non-active frames inbetween active frames."
-				" So, for example, 1(2)3 would mean you were active for 1 frame, then were not active for 2 frames, then were active again for 3.\n"
-				"\n"
-				"Numbers separated by a , symbol mean active frames of separate distinct hits, between which there is no gap of non-active frames."
-				" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two."
-				" The attack need not actually land those hits, and some moves may be limited by the max number of hits they can deal, which means"
-				" the displayed number of hits might not represent the actual number of hits dealt.\n"
-				"\n"
-				"(max hits X) may be displayed next to active frames and shows the maximum number of hits the attack can deal."
-				" If the attack has projectiles which are also limited by the number of hits, then there's a max hit number limit conflict,"
-				" and no information about max hits is displayed.\n"
-				"\n"
-				"Sometimes, when the number of hits is too great, an alternative representation of active frames will be displayed over a / sign."
-				" For example: 13 / 1,1,1,1,1,1,1,1,1,1,1,1,1. Means there're 13 active frames, and over the /, each individual hit's active frames"
-				" are shown.\n"
-				"\n"
-				"If the move spawned one or more projectiles, and the hits of projectiles overlap with each other or with the player's hits, then the"
-				" individual hits' information is discarded in only those spans that overlap, and those spans get combined and shown as one hit. For example,"
-				" Sol DI Ground Viper spawns vertical pillars of fire in its path, as Sol himself is hitting from below. The hits of the pillars are"
-				" out of sync with Sol's hits and so everything is displayed as just one number representing the total duration of all active frames.\n"
-				"\n"
-				"If the move spawned one or more projectiles, or Eddie, and that projectile entered hitstop due to the opponent blocking it or"
-				" getting hit by it, then the displayed number of active frames may be larger than it is on whiff, because the hitstop gets added"
-				" to it. When both the player and the projectile enter hitstop, like with Axl Benten, this does not happen and active frames display normally.\n"
-				"\n"
-				"If, while the move was happening, some projectile unrelated to the move had active frames, those are not included in the move's"
-				" active frames.\n"
-				"\n"
-				"If active frames start during superfreeze, the active frames will be 1 greater than real frames to include the frame that happened during"
-				" the superfreeze. For example, a move has superfreeze startup 1"
-				" (meaning superfreeze starts in 1 frame), +0 startup after superfreeze (which means that it starts during the superfreeze),"
-				" and 2 active frames after the superfreeze. The displayed result for active frames will be: 3. If we don't do this, Venom Red Hail hit up close"
-				" will display 0 active frames during superfreeze or on the frame after it.");
-			ImGui::End();
-		}
-		if (showTotalTooltip) {
-			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("'Total' Field Help", &showTotalTooltip);
-			ImGui::TextWrapped("%s",
-				"Total number of frames in the last performed move during which you've been unable to act.\n"
-				"\n"
-				"If the move spawned a projectiled that lasted beyond the boundaries of the move, this field will display"
-				" only the amount of frames it took to recover, from the start of the move."
-				" So for example, if a move's startup is 1, it creates a projectile that lasts 100 frames and recovers instantly,"
-				" on frame 2, then its total frames will be 1, its startup will be 1 and its actives will be 100.\n"
-				"\n"
-				"If you performed an air move that has landing recovery, the"
-				" landing recovery is included in the display as '+X landing'.\n"
-				"\n"
-				"If you performed an air move and recovered in the air, then the time you spent in the air idle is not included"
-				" in the recovery or 'Total' frames. Even if such move had landing recovery, it will display only the frames,"
-				" during which you were 'busy', will not include the idle time spent in the air, and will add a '+X landing'"
-				" to the recovery.\n"
-				"\n"
-				"If you performed an air normal or similar air move without landing recovery, and it got canceled by"
-				" landing, normally there's 1 frame upon landing during which normals can't be used but blocking is possible."
-				" This frame is not included in the total frames as it is not considered part of the move.\n"
-				"\n"
-				"If the move recovery lets you attack first and then some times passes and then it lets you block, or vice versa"
-				" the display will say either 'X can't block+Y can't attack' or 'X can't attack+Y can't block'. In this case"
-				" the first part is the number of frames during which you were unable to block/attack and the second part is"
-				" the number of frames during which you were unable to attack/block.\n"
-				"\n"
-				"If the move was jump canceled, the prejump frames and the jump are not included in neither the recovery nor 'Total'.\n"
-				"\n"
-				"If the move started up during superfreeze, the startup+active+recovery will be = total+1 (see tooltip of 'Active').");
-			ImGui::End();
-		}
-		if (showInvulTooltip) {
-			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("Invul Help", &showInvulTooltip);
-			ImGui::TextWrapped("%s",
-				"Strike invul: invulnerable to strike and projectiles.\n"
-				"Throw invul: invulnerable to throws.\n"
-				"Low profile: low profiles first active frame of Ky f.S"
-				" (read the bottom for how to configure maximum height that determines what 'low profile' is).\n"
-				"Projectile-only invul: only vulnerable to direct player strikes or throws.\n"
-				"Super armor: parry or super armor.\n"
-				"Reflect: able to reflect certain types of projectiles.\n\n"
-				"All given frame ranges begin from the moment you started performing the move or, if"
-				" you performed multiple moves and their display got combined with a + sign in"
-				" the 'Startup' field, then from the start of the first move. If the moves are combined"
-				" in the 'Total' field, but not the 'Startup' field, then the ranges begin from the start"
-				" of the last move.\n\n"
-				"List of moves that are unblockable:\n"
-				"*) Answer Taunt;\n"
-				"*) Axl Haitaka Stance max charge;\n"
-				"*) Bedman Hemi Jack;\n"
-				"*) Dizzy Taunt;\n"
-				"*) Elphelt Ms. Confille maximum charge;\n"
-				"*) Faust Platform;\n"
-				"*) Faust 100-ton Weight;\n"
-				"*) Faust 10,000 Ton Weight;\n"
-				"*) Faust Hack'n'Slash if the opponent is grounded;\n"
-				"*) I-No Sterilization Method;\n"
-				"*) Johnny Bacchus Sigh + Mist Finer if the opponent is airborne;\n"
-				"*) Johnny Treasure Hunt max charge;\n"
-				"*) Kum Enlightened 3000 Palm Strike max charge;\n"
-				"*) Potemkin Slidehead shockwave;\n"
-				"*) Potemkin Heat Knuckle;\n"
-				"*) Potemkin Heavenly Potemkin Buster;\n"
-				"*) Raven S Wachen Zweig;\n"
-				"*) Slayer Undertow.\n"
-				"NOTE: If the super armor properties say it can armor unblockables, but does not mention overdrives, then that means it can't"
-				" armor overdrive unblockables such as Kum Enlightened 3000 Palm Strike max charge.\n"
-				"Some moves such as Kum max charge Falcon Dive cause guard crush and are not \"unblockables\".\n\n"
-				"Low profile invul can be configured using Settings - General Settings - Low Profile Cut-Off Height");
 			ImGui::End();
 		}
 		
@@ -4250,8 +792,13 @@ void UI::prepareDrawData() {
 		if (shaderCompilationError && showShaderCompilationError) {
 			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
 			ImGui::Begin("Shader compilation error", &showShaderCompilationError);
-			ImGui::TextWrapped("%s", shaderCompilationError->c_str());
+			ImGui::PushTextWrapPos(0.F);
+			ImGui::TextUnformatted(shaderCompilationError->c_str());
+			ImGui::PopTextWrapPos();
 			ImGui::End();
+		}
+		if (showSearch) {
+			searchWindow();
 		}
 	}
 	
@@ -4271,6 +818,3585 @@ void UI::prepareDrawData() {
 		PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_STATE_CHANGED, stateChanged, needWriteSettings);
 	}
 	stateChanged = oldStateChanged || stateChanged;
+}
+
+void UI::drawSearchableWindows() {
+	static std::string windowTitle;
+	if (windowTitle.empty()) {
+		windowTitle = "ggxrd_hitbox_overlay v";
+		windowTitle += VERSION;
+	}
+	if (searching) {
+		two = 1;
+		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		ImGui::PushID(34789572);
+	} else {
+		two = 2;
+	}
+	ImGui::Begin(searching ? "search_main" : windowTitle.c_str(), &visible, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+	pushSearchStack("Main UI Window");
+	
+	if (ImGui::CollapsingHeader(searchCollapsibleSection("Framedata"), ImGuiTreeNodeFlags_DefaultOpen) || searching) {
+		if (endScene.isIGiveUp() && !searching) {
+			ImGui::TextUnformatted("Online non-observer match running.");
+		} else
+		if (ImGui::BeginTable("##PayerData",
+					3,
+					ImGuiTableFlags_Borders
+					| ImGuiTableFlags_RowBg
+					| ImGuiTableFlags_NoSavedSettings
+					| ImGuiTableFlags_NoPadOuterX)
+		) {
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
+			
+			ImGui::TableNextColumn();
+			GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
+			float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
+			RightAlign(w);
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
+			ImGui::TableNextColumn();
+			scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
+			CenterAlign(scaledIcon.size.x);
+			drawGGIcon(scaledIcon);
+			AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("P2");
+			ImGui::SameLine();
+			drawPlayerIconWithTooltip(1);
+			
+			{
+				PlayerInfo& player = endScene.players[0];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
+				stringArena = strbuf;
+				sprintf_s(strbuf, " (x%s)", printDecimal(player.gutsPercentage, 2, 0));
+				stringArena += strbuf;
+				sprintf_s(strbuf, " %3d", player.hp);
+				stringArena += strbuf;
+				RightAlignedText(stringArena.c_str());
+			}
+			
+			ImGui::TableNextColumn();
+			CenterAlignedText(searchFieldTitle("HP"));
+			AddTooltip(searchTooltip("HP (x Guts) [x Defense Modifier]\n"
+				"Technically you should divide HP by these values in order to get effective HP, because they're what all damage is multiplied by."));
+			
+			{
+				PlayerInfo& player = endScene.players[1];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%-3d ", player.hp);
+				stringArena = strbuf;
+				sprintf_s(strbuf, "(x%s) ", printDecimal(player.gutsPercentage, 2, 0));
+				stringArena += strbuf;
+				sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
+				stringArena += strbuf;
+				ImGui::TextUnformatted(stringArena.c_str());
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Meter"));
+					AddTooltip(searchTooltip("Tension"));
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Burst"));
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("RISC"));
+				}
+			}
+			for (int i = 0; i < 2; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				const char* formatString;
+				if (i == 0) {
+					formatString = "%4d / %4d";
+				} else {
+					formatString = "%-4d / %-4d";
+				}
+				sprintf_s(strbuf, formatString, player.stun, player.stunThreshold * 100);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Stun"));
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.x, 2, 0);
+				sprintf_s(strbuf, "%s; ", printdecimalbuf);
+				printDecimal(player.y, 2, 0);
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("X; Y"));
+					AddTooltip(searchTooltip("Position X; Y in the arena. Divided by 100 for viewability."));
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.printStartup(strbuf, sizeof strbuf);
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					headerThatCanBeClickedForTooltip(searchFieldTitle("Startup"), &showStartupTooltip, false);
+					if (ImGui::BeginItemTooltip()) {
+						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+						if (settings.dontShowMoveName) {
+							if (prevNamesControl(player, true)) {
+								searchFieldValue(strbuf);
+								printNoWordWrap
+								ImGui::Separator();
+							}
+						}
+						ImGui::TextUnformatted("Click the field for tooltip.");
+						ImGui::PopTextWrapPos();
+						ImGui::EndTooltip();
+					}
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (player.startedUp || player.startupProj) {
+					printActiveWithMaxHit(player.activesDisp, player.maxHitDisp, player.hitOnFrameDisp);
+				} else {
+					*strbuf = '\0';
+				}
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					headerThatCanBeClickedForTooltip(searchFieldTitle("Active"), &showActiveTooltip, true);
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.printRecovery(strbuf, sizeof strbuf);
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Recovery"));
+					AddTooltip(searchTooltip("Number of recovery frames in the last performed move."
+						" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.\n"
+						"See the tooltip for the 'Total' field for more details."));
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.printTotal(strbuf, sizeof strbuf);
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					headerThatCanBeClickedForTooltip(searchFieldTitle("Total"), &showTotalTooltip, false);
+					if (ImGui::BeginItemTooltip()) {
+						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+						if (settings.dontShowMoveName) {
+							if (prevNamesControl(player, true)) {
+								searchFieldValue(strbuf);
+								printNoWordWrap
+								ImGui::Separator();
+							}
+						}
+						ImGui::TextUnformatted("Click the field for tooltip.");
+						ImGui::PopTextWrapPos();
+						ImGui::EndTooltip();
+					}
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.printInvuls(strbuf, sizeof strbuf);
+				searchFieldValue(strbuf);
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					headerThatCanBeClickedForTooltip(searchFieldTitle("Invul"), &showInvulTooltip, true);
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				*strbuf = '\0';
+				if (player.displayHitstop) {
+					sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
+				}
+				char* ptrNext = strbuf;
+				int ptrNextSize = sizeof strbuf;
+				if (*strbuf) {
+					ptrNext += strlen(strbuf) + strlen(" + ");
+					*ptrNext = '\0';
+					ptrNextSize -= (ptrNext - strbuf);
+				}
+				size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
+				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
+					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.hitstun - (player.hitstop ? 1 : 0), player.hitstunMax);
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
+					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.blockstun - (player.hitstop ? 1 : 0), player.blockstunMax);
+				}
+				if (strbuf != ptrNext && *strbuf && *ptrNext) {
+					ptrNext = strbuf + strlen(strbuf);
+					memcpy(ptrNext, " + ", 3);
+				}
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Hitstop+X-stun"));
+					AddTooltip(searchTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
+						" max hitstun or blockstun. When there's no + sign, the displayed values could"
+						" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
+						" and the other are on the right.\n"
+						"During Roman Cancel or Mortal Counter slowdown, the actual hitstop and hitstun/etc duration may be longer"
+						" than the displayed value due to slowdown.\n"
+						"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
+						" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
+						" slightly prolonged when transitioning from air blockstun to ground blockstun."));
+				}
+			}
+			
+			const bool dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
+			bool oneWillIncludeParentheses = false;
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				int frameAdvantage = dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage;
+				int landingFrameAdvantage = dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage;
+				if (player.frameAdvantageValid && player.landingFrameAdvantageValid
+						&& frameAdvantage != landingFrameAdvantage) {
+					oneWillIncludeParentheses = true;
+					break;
+				}
+			}
+			
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				
+				ImGui::TableNextColumn();
+				frameAdvantageControl(
+					dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage,
+					dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage,
+					player.frameAdvantageValid,
+					player.landingFrameAdvantageValid,
+					i == 0);
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					headerThatCanBeClickedForTooltip(searchFieldTitle("Frame Adv."), &showFrameAdvTooltip, !oneWillIncludeParentheses);
+					if (oneWillIncludeParentheses) {
+						AddTooltip(
+							searchTooltip("Value in () means frame advantage after landing.\n"
+							"\n"
+							"Click the field for tooltip."));
+					}
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.printGaps(strbuf, sizeof strbuf);
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Gaps"));
+					AddTooltip(searchTooltip("Each gap is the number of frames from when the opponent left blockstun to when they entered blockstun again."));
+				}
+			}
+			if (!settings.dontShowMoveName) {
+				for (int i = 0; i < 2; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					if (prevNamesControl(player, false)) {
+						printWithWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText(searchFieldTitle("Move"));
+						static std::string moveTooltip;
+						if (moveTooltip.empty()) {
+							moveTooltip = settings.convertToUiDescription(
+								"The last performed move, data of which is being displayed in the Startup/Active/Recovery/Total field."
+								" If the 'Startup' or 'Total' field is showing multiplie numbers combined with + signs,"
+								" all the moves that are included in those fields are listed here as well, combined with + signs or with *X appended to them,"
+								" *X denoting how many times that move repeats.\n"
+								"The move names might not match the names you may find when hovering your mouse over frames in the framebar to read their"
+								" animation names, because the names here are only updated when a significant enough change in the animation happens.\n"
+								"\n"
+								"To hide this field you can use the \"dontShowMoveName\" setting. Then it will only be shown in the tooltip of 'Startup' and 'Total' fields.");
+						}
+						AddTooltip(searchTooltip(moveTooltip.c_str()));
+					}
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.inBlockstunNextFrame() : false));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("inBlockstunNextFrame");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.successfulIB() : false));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("successfulIB");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.holdingFD() : false));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("holdingFD");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", formatBoolean(player.idle));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("idle");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("canBlock");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", formatBoolean(player.canFaultlessDefense));
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("canFaultlessDefense");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("idlePlus");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("idleLanding");
+				}
+			}
+			const bool useSlang = settings.useSlangNames;
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				const char* names[3] { nullptr };
+				if (player.moveNonEmpty) {
+					names[0] = useSlang ? player.move.getDisplayNameSlang(player.idle) : player.move.getDisplayName(player.idle);
+				}
+				if (player.moveName[0] != '\0') {
+					names[1] = player.moveName;
+				}
+				if (player.anim[0] != '\0') {
+					names[2] = player.anim;
+				}
+				bool isFirst = true;
+				char* buf = strbuf;
+				size_t bufSize = sizeof strbuf;
+				int result;
+				for (int j = 0; j < 3; ++j) {
+					const char* name = names[j];
+					if (!name) continue;
+					
+					bool alreadyIncluded = false;
+					for (int k = 0; k < j; ++k) {
+						if (names[k] && strcmp(names[k], name) == 0) {
+							alreadyIncluded = true;
+							break;
+						}
+					}
+					
+					if (alreadyIncluded) continue;
+					
+					if (!isFirst) {
+						result = sprintf_s(buf, bufSize, " / ");
+						if (result != -1) {
+							buf += result;
+							bufSize -= result;
+						}
+					}
+					isFirst = false;
+					result = sprintf_s(buf, bufSize, "%s", name);
+					if (result != -1) {
+						buf += result;
+						bufSize -= result;
+					}
+				}
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("anim");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", player.animFrame);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("animFrame");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.sprite.print(strbuf, sizeof strbuf);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("sprite");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", player.startup);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("startup");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.actives.print(strbuf, sizeof strbuf);
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("active");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", player.recovery);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("recovery");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", player.total);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("total");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", player.startupProj);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("startupProj");
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				player.activesProj.print(strbuf, sizeof strbuf);
+				printWithWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText("activesProj");
+				}
+			}
+			Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
+			int slowdown = endScene.getRCSlowdownCounter();
+			int slowdownMax = endScene.getRCSlowdownCounterMax();
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				int flashCurrent = 0;
+				int flashMax = 0;
+				int slowCurrent = !player.immuneToRCSlowdown ? slowdown : 0;
+				int slowMax = player.rcSlowdownMax;
+				if (superflashInstigator == player.pawn) {
+					flashCurrent = endScene.getSuperflashCounterAlliedCached();
+					flashMax = endScene.getSuperflashCounterAlliedMax();
+				} else if (superflashInstigator) {
+					flashCurrent = endScene.getSuperflashCounterOpponentCached();
+					flashMax = endScene.getSuperflashCounterOpponentMax();
+				}
+				if (flashCurrent + flashMax + slowCurrent + slowMax == 0) {
+					strbuf[0] = '\0';
+				} else {
+					sprintf_s(strbuf, "%d/%d+%d/%d", flashCurrent, flashMax, slowCurrent, slowMax);
+				}
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Freeze+RC Slow"));
+					AddTooltip(searchTooltip("Shows superfreeze current/maximum duration in frames, followed by +, followed by"
+						" Roman Cancel slowdown duration current/maximum in frames."
+						" Both the superfreeze and the Roman Cancel slowdown are always shown."
+						" If either is not present at the moment, 0/0 or 0/X is shown in its place."
+						" If a player is not affected by the superfreeze or Roman Cancel slowdown, 0/0 or 0/X is shown in the place of that."));
+				}
+			}
+			ImGui::EndTable();
+		}
+	}
+	popSearchStack();
+	if (ImGui::CollapsingHeader(searchCollapsibleSection("Projectiles")) || searching) {
+		if (ImGui::BeginTable("##Projectiles", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
+			ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.4f);
+			
+			ImGui::TableNextColumn();
+			RightAlignedText("P1");
+			ImGui::TableNextColumn();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("P2");
+			
+			struct Row {
+				ProjectileInfo* side[2] { nullptr };
+			};
+			std::vector<Row> rows;
+			for (ProjectileInfo& projectile : endScene.projectiles) {
+				bool found = false;
+				for (Row& row : rows) {
+					if (!row.side[projectile.team]) {
+						row.side[projectile.team] = &projectile;
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					rows.emplace_back();
+					Row& row = rows.back();
+					row.side[projectile.team] = &projectile;
+				}
+			}
+			bool isFirst = true;
+			for (Row& row : rows) {
+				if (!isFirst) {
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+				}
+				isFirst = false;
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%p", (void*)projectile.ptr);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("ptr");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%d", projectile.lifeTimeCounter);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("lifeTimeCounter");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						printNoWordWrapArg(projectile.creatorName)
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("creator");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						printNoWordWrapArg(projectile.animName)
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("anim");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%d", projectile.animFrame);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("animFrame");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						projectile.sprite.print(strbuf, sizeof strbuf);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("sprite");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%d/%d", projectile.hitstop, projectile.hitstopMax);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("hitstop");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						printActiveWithMaxHit(projectile.actives, projectile.maxHit,
+							!projectile.maxHit.empty() && projectile.maxHit.maxUse <= 1 ? 0 : projectile.hitOnFrame);
+						
+						printWithWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("active");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						projectile.printStartup(strbuf, sizeof strbuf);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("startup");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						projectile.printTotal(strbuf, sizeof strbuf);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("total");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%s", formatBoolean(projectile.disabled));
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("disabled");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						if (projectile.hitboxTopBottomValid) {
+							sprintf_s(strbuf, "from %d to %d",
+								projectile.hitboxTopY,
+								projectile.hitboxBottomY);
+							printNoWordWrap
+						}
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Hitbox Y");
+						AddTooltip("These values display either the current or last valid value and change each frame."
+							" They do not show the total combined bounding box."
+							" To view these values for each frame more easily you could use the frame freeze mode,"
+							" available in the Hitboxes section.\n"
+							"The coordinates shown are relative to the global space.");
+					}
+				}
+				if (searching) break;
+			}
+			ImGui::EndTable();
+		}
+	}
+	popSearchStack();
+	if (ImGui::Button(searchFieldTitle("Show Tension Values"))) {
+		showTensionData = !showTensionData;
+	}
+	AddTooltip(searchTooltip("Displays tension gained from combo and factors that affect tension gain."));
+	ImGui::SameLine();
+	if (ImGui::Button(searchFieldTitle("Burst Gain"))) {
+		showBurstGain = !showBurstGain;
+	}
+	AddTooltip(searchTooltip("Displays burst gained from combo or last hit."));
+	
+	if (ImGui::Button(searchFieldTitle("Speed/Hitstun Proration/Pushback/Wakeup"))) {
+		showSpeedsData = !showSpeedsData;
+	}
+	AddTooltip(searchTooltip("Display x,y, speed, pushback and protation of hitstun and pushback."));
+	for (int i = 0; i < two; ++i) {
+		ImGui::PushID(searchFieldTitle("Character Specific"));
+		ImGui::PushID(i);
+		sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
+		if (i != 0) ImGui::SameLine();
+		if (ImGui::Button(strbuf)) {
+			showCharSpecific[i] = !showCharSpecific[i];
+		}
+		AddTooltip(searchTooltip("Display of information specific to a character."));
+		ImGui::PopID();
+		ImGui::PopID();
+	}
+	if (ImGui::Button(searchFieldTitle("Box Extents"))) {
+		showBoxExtents = !showBoxExtents;
+	}
+	AddTooltip(searchTooltip("Shows the minimum and maximum Y (vertical) extents of hurtboxes and hitboxes of each player."
+		" The units are not divided by 100 for viewability."));
+	
+	ImGui::SameLine();
+	for (int i = 0; i < two; ++i) {
+		searchFieldTitle("Cancels");
+		sprintf_s(strbuf, "Cancels (P%d)", i + 1);
+		if (ImGui::Button(strbuf)) {
+			showCancels[i] = !showCancels[i];
+		}
+		AddTooltip(searchTooltip(thisHelpTextWillRepeat));
+		if (i == 0) ImGui::SameLine();
+	}
+	
+	for (int i = 0; i < two; ++i) {
+		ImGui::PushID(searchFieldTitle("Damage/RISC Calculation"));
+		ImGui::PushID(i);
+		sprintf_s(strbuf, i == 0 ? "Damage/RISC Calculation (P1)" : "... (P2)");
+		if (ImGui::Button(strbuf)) {
+			showDamageCalculation[i] = !showDamageCalculation[i];
+		}
+		AddTooltip(searchTooltip("For the defending player this shows damage and RISC calculation from the last hit and current combo proration."));
+		ImGui::PopID();
+		ImGui::PopID();
+		if (i == 0) ImGui::SameLine();
+	}
+	if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitboxes")) || searching) {
+		
+		booleanSettingPresetWithHotkey(settings.dontShowBoxes, settings.disableHitboxDisplayToggle);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("GIF Mode"), &gifModeOn) || stateChanged;
+		ImGui::SameLine();
+		static std::string GIFModeHelp;
+		if (GIFModeHelp.empty()) {
+			GIFModeHelp = settings.convertToUiDescription("GIF mode is:\n"
+				"1) Background becomes black\n"
+				"2) Camera is centered on you\n"
+				"3) Opponent is invisible and invulnerable\n"
+				"4) Hide HUD\n"
+				"A hotkey can be configured for entering and leaving GIF Mode at \"gifModeToggle\".");
+		}
+		HelpMarkerWithHotkey(GIFModeHelp.c_str(), settings.gifModeToggle);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Black Background"), &gifModeToggleBackgroundOnly) || stateChanged;
+		ImGui::SameLine();
+		static std::string blackBackgroundHelp;
+		if (blackBackgroundHelp.empty()) {
+			blackBackgroundHelp = settings.convertToUiDescription(
+				"Makes background black (and, for screenshotting purposes, - effectively transparent,"
+				" if Post Effect is turned off in the game's graphics settings).\n"
+				"You can use the \"gifModeToggleBackgroundOnly\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(blackBackgroundHelp.c_str(), settings.gifModeToggleBackgroundOnly);
+		
+		bool postEffectOn = game.postEffectOn() != 0;
+		if (ImGui::Checkbox(searchFieldTitle("Post-Effect On"), &postEffectOn)) {
+			game.postEffectOn() = (BOOL)postEffectOn;
+		}
+		ImGui::SameLine();
+		static std::string postEffectOnHelp;
+		if (postEffectOnHelp.empty()) {
+			postEffectOnHelp = settings.convertToUiDescription("Toggles the game's 'Settings - Display Settings - Post-Effect'. Changing it this way does not"
+			" require the current match to be restarted.\n"
+			"Alternatively, you could tick the \"turnOffPostEffectWhenMakingBackgroundBlack\" checkbox,"
+			" so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is"
+			" turned off automatically, and when you leave those modes, it gets turned back on.\n"
+			"Or, alternatively, you could use the manual keyboard toggle, set in this mod's \"togglePostEffectOnOff\".");
+		}
+		HelpMarkerWithHotkey(postEffectOnHelp.c_str(), settings.togglePostEffectOnOff);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center On Player"), &gifModeToggleCameraCenterOnly) || stateChanged;
+		ImGui::SameLine();
+		static std::string cameraCenterHelp;
+		if (cameraCenterHelp.empty()) {
+			cameraCenterHelp = settings.convertToUiDescription(
+				"Centers the camera on you.\n"
+				"You can use the \"gifModeToggleCameraCenterOnly\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(cameraCenterHelp.c_str(), settings.gifModeToggleCameraCenterOnly);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center on Opponent"), &toggleCameraCenterOpponent) || stateChanged;
+		ImGui::SameLine();
+		static std::string cameraCenterOpponentHelp;
+		if (cameraCenterOpponentHelp.empty()) {
+			cameraCenterOpponentHelp = settings.convertToUiDescription(
+				"Centers the camera on the opponent.\n"
+				"You can use the \"toggleCameraCenterOpponent\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(cameraCenterOpponentHelp.c_str(), settings.toggleCameraCenterOpponent);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Opponent"), &gifModeToggleHideOpponentOnly) || stateChanged;
+		ImGui::SameLine();
+		static std::string hideOpponentHelp;
+		if (hideOpponentHelp.empty()) {
+			hideOpponentHelp = settings.convertToUiDescription(
+				"Make the opponent invisible and invulnerable.\n"
+				"You can use the \"gifModeToggleHideOpponentOnly\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(hideOpponentHelp.c_str(), settings.gifModeToggleHideOpponentOnly);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Player"), &toggleHidePlayer) || stateChanged;
+		ImGui::SameLine();
+		static std::string hidePlayerHelp;
+		if (hidePlayerHelp.empty()) {
+			hidePlayerHelp = settings.convertToUiDescription(
+				"Make the player invisible and invulnerable.\n"
+				"You can use the \"toggleHidePlayer\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(hidePlayerHelp.c_str(), settings.toggleHidePlayer);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide HUD"), &gifModeToggleHudOnly) || stateChanged;
+		ImGui::SameLine();
+		static std::string hideHUDHelp;
+		if (hideHUDHelp.empty()) {
+			hideHUDHelp = settings.convertToUiDescription(
+				"Hides the HUD (interface).\n"
+				"You can use the \"gifModeToggleHudOnly\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(hideHUDHelp.c_str(), settings.gifModeToggleHudOnly);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("No Gravity"), &noGravityOn) || stateChanged;
+		ImGui::SameLine();
+		static std::string noGravityHelp;
+		if (noGravityHelp.empty()) {
+			noGravityHelp = settings.convertToUiDescription(
+				"Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.\n"
+				"You can use the \"noGravityToggle\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(noGravityHelp.c_str(), settings.noGravityToggle);
+		
+		bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
+		if (ImGui::Checkbox(searchFieldTitle("Disable Gray Hurtboxes"), &neverDisplayGrayHurtboxes)) {
+			settings.neverDisplayGrayHurtboxes = neverDisplayGrayHurtboxes;
+			needWriteSettings = true;
+		}
+		ImGui::SameLine();
+		static std::string neverDisplayGrayHurtboxesHelp;
+		if (neverDisplayGrayHurtboxesHelp.empty()) {
+			neverDisplayGrayHurtboxesHelp = settings.convertToUiDescription(
+				"Disables/enables the display of residual hurtboxes that appear on hit/block and show"
+				" the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but"
+				" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
+				"You can use the \"toggleDisableGrayHurtboxes\" hotkey to toggle this setting.");
+		}
+		HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp.c_str(), settings.toggleDisableGrayHurtboxes);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Freeze Game"), &freezeGame) || stateChanged;
+		ImGui::SameLine();
+		if (ImGui::Button(searchFieldTitle("Next Frame"))) {
+			allowNextFrame = true;
+			allowNextFrameTimer = 10;
+		}
+		ImGui::SameLine();
+		static std::string freezeGameHelp;
+		if (freezeGameHelp.empty()) {
+			freezeGameHelp = settings.convertToUiDescription(
+				"Freezes the current frame of the game and stops gameplay from advancing."
+				" You can advance gameplay to the next frame using the 'Next Frame' button."
+				" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
+				" instead of pressing the button, and freezing and unfreezing the game can be achieved with"
+				" the \"freezeGameToggle\" shortcut.");
+		}
+		ImGui::TextDisabled("(?)");
+		if (ImGui::BeginItemTooltip()) {
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			
+			const char* hotkeyRepresentation = settings.getComboRepresentation(settings.freezeGameToggle);
+			if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
+				hotkeyRepresentation = "<not set>";
+			}
+			sprintf_s(strbuf, "Freeze Game Hotkey: %s", hotkeyRepresentation);
+			ImGui::TextUnformatted(searchTooltip(strbuf));
+			
+			hotkeyRepresentation = settings.getComboRepresentation(settings.allowNextFrameKeyCombo);
+			if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
+				hotkeyRepresentation = "<not set>";
+			}
+			sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", hotkeyRepresentation);
+			ImGui::TextUnformatted(searchTooltip(strbuf));
+			
+			ImGui::Separator();
+			ImGui::TextUnformatted(searchTooltip(freezeGameHelp.c_str()));
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Slow-Mo Mode"), &slowmoGame) || stateChanged;
+		ImGui::SameLine();
+		int slowmoTimes = settings.slowmoTimes;
+		ImGui::SetNextItemWidth(80.F);
+		if (ImGui::InputInt(searchFieldTitle("Slow-Mo Factor"), &slowmoTimes, 1, 1, 0)) {
+			if (slowmoTimes <= 0) {
+				slowmoTimes = 1;
+			}
+			settings.slowmoTimes = slowmoTimes;
+			needWriteSettings = true;
+		}
+		imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+		ImGui::SameLine();
+		static std::string slowmoHelp;
+		if (slowmoHelp.empty()) {
+			slowmoHelp = settings.convertToUiDescription(
+				"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
+				"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
+		}
+		HelpMarkerWithHotkey(slowmoHelp.c_str(), settings.slowmoGameToggle);
+		
+		ImGui::Button(searchFieldTitle("Take Screenshot"));
+		if (ImGui::IsItemActivated()) {
+			// Regular ImGui button 'press' (ImGui::Button(...) function returning true) happens when you RELEASE the button,
+			// but to simulate the old keyboard behavior we need this to happen when you PRESS the button
+			takeScreenshotPress = true;
+			takeScreenshotTimer = 10;
+		}
+		if (!searching) {
+			takeScreenshotTemp = ImGui::IsItemActive();
+		}
+		ImGui::SameLine();
+		static std::string screenshotHelp;
+		if (screenshotHelp.empty()) {
+			screenshotHelp = settings.convertToUiDescription(
+				"Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
+				" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings"
+				" (or use \"togglePostEffectOnOff\" or \"turnOffPostEffectWhenMakingBackgroundBlack\")"
+				", you will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
+				" in the 'Hitbox settings', they're saved there instead.\n"
+				"A hotkey can be configured to take screenshots with, in \"screenshotBtn\".");
+		}
+		HelpMarkerWithHotkey(screenshotHelp.c_str(), settings.screenshotBtn);
+		
+		stateChanged = ImGui::Checkbox(searchFieldTitle("Continuous Screenshotting Mode"), &continuousScreenshotToggle) || stateChanged;
+		ImGui::SameLine();
+		static std::string continuousScreenshottingHelp;
+		if (continuousScreenshottingHelp.empty()) {
+			continuousScreenshottingHelp = settings.convertToUiDescription(
+				"When this option is enabled, screenshots will be taken every frame,"
+				" as long as the mod's screenshot button is being help, unless the game is frozen, in which case"
+				" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
+				" the game down significantly. Continuous screenshotting is only allowed in training mode.\n"
+				"Alternatively, you can use \"continuousScreenshotToggle\" shortcut to toggle a mode where you don't have to hold"
+				" the screenshot button, and screenshots get taken every non frozen (advancing) frame automatically.");
+		}
+		HelpMarkerWithHotkey(continuousScreenshottingHelp.c_str(), settings.continuousScreenshotToggle);
+		
+	}
+	popSearchStack();
+	if (ImGui::CollapsingHeader(searchCollapsibleSection("Settings")) || searching) {
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitbox Settings")) || searching) {
+			
+			booleanSettingPreset(settings.drawPushboxCheckSeparately);
+			
+			{
+				std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
+				size_t newLen = settings.screenshotPath.size();
+				if (newLen > MAX_PATH - 1) {
+					newLen = MAX_PATH - 1;
+				}
+				memcpy(screenshotsPathBuf, settings.screenshotPath.c_str(), newLen);
+				screenshotsPathBuf[newLen] = '\0';
+			}
+			
+			ImGui::Text(searchFieldTitle(settings.getOtherUIName(&settings.screenshotPath)));
+			ImGui::SameLine();
+			float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
+			ImGui::SetNextItemWidth(w);
+			if (ImGui::InputText("##Screenshots path", screenshotsPathBuf, MAX_PATH, 0, nullptr, nullptr)) {
+				{
+					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
+					settings.screenshotPath = screenshotsPathBuf;
+				}
+				if (keyboard.thisProcessWindow) {
+					logwrap(fputs("Posting message 'WM_APP_SCREENSHOT_PATH_UPDATED'\n", logfile));
+					PostMessageW(keyboard.thisProcessWindow, WM_APP_SCREENSHOT_PATH_UPDATED, 0, 0);
+				}
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::SameLine();
+			if (ImGui::Button("Select", BTN_SIZE) && keyboard.thisProcessWindow) {
+				PostMessageW(keyboard.thisProcessWindow, WM_APP_OPEN_FILE_SELECTION, 0, 0);
+			}
+			ImGui::SameLine();
+			HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
+			
+			booleanSettingPreset(settings.allowContinuousScreenshotting);
+			
+			booleanSettingPreset(settings.dontUseScreenshotTransparency);
+			
+			booleanSettingPreset(settings.useSimplePixelBlender);
+			
+			if (booleanSettingPreset(settings.turnOffPostEffectWhenMakingBackgroundBlack)) {
+				endScene.onGifModeBlackBackgroundChanged();
+			}
+			
+			booleanSettingPreset(settings.forceZeroPitchDuringCameraCentering);
+			
+			ImGui::PushItemWidth(120.F);
+			float4SettingPreset(settings.cameraCenterOffsetY);
+			
+			float4SettingPreset(settings.cameraCenterOffsetY_WhenForcePitch0);
+			
+			float4SettingPreset(settings.cameraCenterOffsetZ);
+			ImGui::PopItemWidth();
+			
+			if (ImGui::Button("Restore Defaults")) {
+				settings.cameraCenterOffsetX = settings.cameraCenterOffsetX_defaultValue;
+				settings.cameraCenterOffsetY = settings.cameraCenterOffsetY_defaultValue;
+				settings.cameraCenterOffsetY_WhenForcePitch0 = settings.cameraCenterOffsetY_WhenForcePitch0_defaultValue;
+				settings.cameraCenterOffsetZ = settings.cameraCenterOffsetZ_defaultValue;
+				needWriteSettings = true;
+			}
+			AddTooltip(searchTooltip("Restores the default values for the four settings above."));
+		}
+		popSearchStack();
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Framebar Settings")) || searching) {
+			
+			if (ImGui::Button(searchFieldTitle("Framebar Help"))) {
+				showFramebarHelp = !showFramebarHelp;
+			}
+			AddTooltip(searchTooltip("Shows the meaning of each frame color/graphic on the framebar."));
+			
+			booleanSettingPresetWithHotkey(settings.neverIgnoreHitstop, settings.toggleNeverIgnoreHitstop);
+			
+			booleanSettingPreset(settings.ignoreHitstopForBlockingBaiken);
+			
+			booleanSettingPreset(settings.considerRunAndWalkNonIdle);
+			
+			booleanSettingPreset(settings.considerCrouchNonIdle);
+			
+			booleanSettingPreset(settings.considerKnockdownWakeupAndAirtechIdle);
+			
+			booleanSettingPreset(settings.considerIdleInvulIdle);
+			
+			booleanSettingPreset(settings.considerDummyPlaybackNonIdle);
+			
+			booleanSettingPreset(settings.useColorblindHelp);
+			
+			booleanSettingPresetWithHotkey(settings.showFramebar, settings.framebarVisibilityToggle);
+			
+			booleanSettingPreset(settings.showFramebarInTrainingMode);
+			
+			booleanSettingPreset(settings.showFramebarInReplayMode);
+			
+			booleanSettingPreset(settings.showFramebarInOtherModes);
+			
+			booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
+			
+			booleanSettingPreset(settings.showStrikeInvulOnFramebar);
+			
+			booleanSettingPreset(settings.showThrowInvulOnFramebar);
+			
+			booleanSettingPreset(settings.showSuperArmorOnFramebar);
+			
+			booleanSettingPreset(settings.showFirstFramesOnFramebar);
+			
+			booleanSettingPreset(settings.considerSimilarFrameTypesSameForFrameCounts);
+			
+			booleanSettingPreset(settings.skipGrabsInFramebar);
+			
+			if (booleanSettingPreset(settings.combineProjectileFramebarsWhenPossible)) {
+				if (settings.combineProjectileFramebarsWhenPossible) {
+					settings.eachProjectileOnSeparateFramebar = false;
+				}
+			}
+			
+			if (booleanSettingPreset(settings.eachProjectileOnSeparateFramebar)) {
+				if (settings.eachProjectileOnSeparateFramebar) {
+					settings.combineProjectileFramebarsWhenPossible = false;
+				}
+			}
+			
+			booleanSettingPreset(settings.dontClearFramebarOnStageReset);
+			
+			booleanSettingPreset(settings.dontTruncateFramebarTitles);
+			
+			booleanSettingPreset(settings.useSlangNames);
+			
+			booleanSettingPreset(settings.allFramebarTitlesDisplayToTheLeft);
+			
+			booleanSettingPreset(settings.showPlayerInFramebarTitle);
+			
+			intSettingPreset(settings.framebarTitleCharsMax, 0);
+			
+			intSettingPreset(settings.framebarHeight, 1);
+			
+		}
+		popSearchStack();
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Keyboard Shortcuts")) || searching) {
+			keyComboControl(settings.modWindowVisibilityToggle);
+			keyComboControl(settings.framebarVisibilityToggle);
+			keyComboControl(settings.gifModeToggle);
+			keyComboControl(settings.gifModeToggleBackgroundOnly);
+			keyComboControl(settings.togglePostEffectOnOff);
+			keyComboControl(settings.gifModeToggleCameraCenterOnly);
+			keyComboControl(settings.toggleCameraCenterOpponent);
+			keyComboControl(settings.gifModeToggleHideOpponentOnly);
+			keyComboControl(settings.toggleHidePlayer);
+			keyComboControl(settings.gifModeToggleHudOnly);
+			keyComboControl(settings.noGravityToggle);
+			keyComboControl(settings.freezeGameToggle);
+			keyComboControl(settings.slowmoGameToggle);
+			keyComboControl(settings.allowNextFrameKeyCombo);
+			keyComboControl(settings.disableHitboxDisplayToggle);
+			keyComboControl(settings.screenshotBtn);
+			keyComboControl(settings.continuousScreenshotToggle);
+			keyComboControl(settings.toggleDisableGrayHurtboxes);
+			keyComboControl(settings.toggleNeverIgnoreHitstop);
+		}
+		popSearchStack();
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
+			booleanSettingPreset(settings.modWindowVisibleOnStart);
+			
+			ImGui::PushID(1);
+			booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
+			ImGui::PopID();
+			
+			booleanSettingPreset(settings.displayUIOnTopOfPauseMenu);
+			
+			booleanSettingPreset(settings.frameAdvantage_dontUsePreBlockstunTime);
+			
+			ImGui::PushID(1);
+			booleanSettingPreset(settings.useSlangNames);
+			ImGui::PopID();
+			
+			booleanSettingPreset(settings.dontShowMoveName);
+			
+			booleanSettingPreset(settings.showComboProrationInRiscGauge);
+			
+		}
+		popSearchStack();
+	}
+	popSearchStack();
+	if (!searching) {
+		if (ImGui::Button("Search")) {
+			showSearch = !showSearch;
+		}
+		AddTooltip("Searches the UI field names and tooltips for text.");
+	}
+	ImGui::End();
+	popSearchStack();
+	searchCollapsibleSection("Tension Data");
+	if (showTensionData || searching) {
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_tension" : "Tension Data", &showTensionData, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		if (endScene.isIGiveUp() && !searching) {
+			ImGui::TextUnformatted("Online non-observer match running.");
+		} else
+		if (ImGui::BeginTable("##TensionData",
+					3,
+					ImGuiTableFlags_Borders
+					| ImGuiTableFlags_RowBg
+					| ImGuiTableFlags_NoSavedSettings
+					| ImGuiTableFlags_NoPadOuterX)
+		) {
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Name");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(1);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P2");
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension"));
+			AddTooltip(searchTooltip("Meter"));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.tension, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension Pulse"));
+			AddTooltip(searchTooltip("Affects how fast you gain tension. Gained on IB, landing attacks, moving forward. Lost when moving back. Decays on its own slowly towards 0."
+				" Tension Pulse Penalty and Corner Penalty may decrease Tension Pulse over time."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%-6d / %d", player.tensionPulse, player.tensionPulse < 0 ? -25000 : 25000);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Negative Penalty Active"));
+			AddTooltip(searchTooltip("When Negative Penalty is active, you receive only 20% of the tension you would without it when attacking or moving."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(player.negativePenaltyTimer ? "Yes" : "No");
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Negative Penalty Time Left"));
+			AddTooltip(searchTooltip("Timer that counts down how much time is remaining until Negative Penalty wears off."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.negativePenaltyTimer * 100 / 60, 2, 0);
+				sprintf_s(strbuf, "%s sec", printdecimalbuf);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Negative Penalty Buildup"));
+			AddTooltip(searchTooltip("Tracks your progress towards reaching Negative Penalty. Negative Penalty is built up by Tension Pulse Penalty being red"
+				" or Corner Penalty being red or by moving back."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s / 100.00", printDecimal(player.negativePenalty, 2, -6));
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension Pulse Penalty"));
+			AddTooltip(searchTooltip("Reduces Tension Pulse (yellow) and at large enough values (red) increases Negative Penalty Buildup."
+				" Increases constantly by 1. Gets reduced when getting hit, landing hits, getting your attack blocked or moving forward."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%-4d / 1800", player.tensionPulsePenalty);
+				if (player.tensionPulsePenaltySeverity == 0) {
+					ImGui::TextUnformatted(strbuf);
+				} else if (player.tensionPulsePenaltySeverity == 1) {
+					ImGui::TextColored(YELLOW_COLOR, strbuf);
+				} else if (player.tensionPulsePenaltySeverity == 2) {
+					ImGui::TextColored(RED_COLOR, strbuf);
+				}
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Corner Penalty"));
+			AddTooltip(searchTooltip("Penalty for being in touch with the screen or the wall. Reduces Tension Pulse (yellow) and increases Negative Penalty (red)."
+				" Slowly decays when not in corner and gets reduced when getting hit."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%-3d / 960", player.cornerPenalty);
+				if (player.cornerPenaltySeverity == 0) {
+					ImGui::TextUnformatted(strbuf);
+				} else if (player.cornerPenaltySeverity == 1) {
+					ImGui::TextColored(YELLOW_COLOR, strbuf);
+				} else if (player.cornerPenaltySeverity == 2) {
+					ImGui::TextColored(RED_COLOR, strbuf);
+				}
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Negative Penalty Gain"));
+			AddTooltip(searchTooltip("Negative Penalty Buildup gain modifier. Affects how fast Negative Penalty Buildup increases.\n"
+				"Negative Penalty Gain Modifier = Distance-Based Modifier * Tension Pulse-Based Modifier.\n"
+				"Distance-Based Modifier - depends on distance to the opponent.\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s * %d%c", printDecimal(player.tensionPulsePenaltyGainModifier_distanceModifier, 0, -3, true),
+					player.tensionPulsePenaltyGainModifier_tensionPulseModifier, '%');
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			bool comboHappening = false;
+			for (int i = 0; i < two; ++i) {
+				if (endScene.players[i].inHitstun) {
+					comboHappening = true;
+					break;
+				}
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension Gain On Attack"));
+			AddTooltip(searchTooltip("Affects how fast you gain Tension when performing attacks or combos.\n"
+				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
+				"Distance-Based Modifier - depends on distance to the opponent.\n"
+				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse.\n\n"
+				"A fourth modifier may be displayed, which is an extra tension modifier. "
+				"It may be present if you use Stylish mode or playing MOM mode. It will be highlighted in yellow.\n\n"
+				"A fourth or fifth modifier may be displayed, which is a combo hit count-dependent modifier. "
+				"It affects how fast you gain Tension from performing a combo."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s", printDecimal(player.tensionGainModifier_negativePenaltyModifier, 0, -3, true));
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s", printDecimal(player.tensionGainModifier_tensionPulseModifier, 0, -3, true));
+				bool needPop = false;
+				if (player.extraTensionGainModifier != 100) {
+					needPop = true;
+					pushZeroItemSpacingStyle();
+					strcat(strbuf, " * ");
+					ImGui::TextUnformatted(strbuf);
+					sprintf_s(strbuf, "%s", printDecimal(player.extraTensionGainModifier, 0, -3, true));
+					ImGui::SameLine();
+					ImGui::PushStyleColor(ImGuiCol_Text, YELLOW_COLOR);
+					ImGui::TextUnformatted(strbuf);
+					ImGui::PopStyleColor();
+					*strbuf = '\0';
+					ImGui::SameLine();
+				}
+				int total = player.tensionGainModifier_distanceModifier
+					* player.tensionGainModifier_negativePenaltyModifier;
+				total /= 100;
+				total *= player.tensionGainModifier_tensionPulseModifier
+					* player.extraTensionGainModifier;
+				total /= 10000;
+				if (comboHappening) {
+					if (!player.inHitstun) {
+						sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
+							printDecimal(player.dealtComboCountTensionGainModifier, 0, -3, true));
+						total *= player.dealtComboCountTensionGainModifier;
+						total /= 100;
+					}
+				}
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total, '%');
+				ImGui::TextUnformatted(strbuf);
+				if (needPop) {
+					ImGui::PopStyleVar();
+				}
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension Gain On Defense"));
+			AddTooltip(searchTooltip("Affects how fast you gain Tension when getting hit by attacks or combos.\n"
+				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
+				"Distance-Based Modifier - depends on distance to the opponent.\n"
+				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse.\n\n"
+				"A fourth modifer may be displayed, which happens when you are getting combo'd. It affects how much tension you gain from getting hid by a combo"
+				" and depends on the number of hits."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%s", printDecimal(player.tensionGainModifier_distanceModifier, 0, -3, true));
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf),
+					" * %s", printDecimal(player.tensionGainModifier_negativePenaltyModifier, 0, -3, true));
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf),
+					" * %s", printDecimal(player.tensionGainModifier_tensionPulseModifier, 0, -3, true));
+				int total = player.tensionGainModifier_distanceModifier
+					* player.tensionGainModifier_negativePenaltyModifier
+					* player.tensionGainModifier_tensionPulseModifier;
+				total /= 10000;
+				if (comboHappening) {
+					if (player.inHitstun) {
+						sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * %s",
+							printDecimal(player.receivedComboCountTensionGainModifier, 0, -3, true));
+						total *= player.receivedComboCountTensionGainModifier;
+						total /= 100;
+					}
+				}
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total, '%');
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension Gain On Last Hit"));
+			AddTooltip(searchTooltip("How much Tension was gained on a single last hit (either inflicting it or getting hit by it)."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.tensionGainOnLastHit, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension Gain Last Combo"));
+			AddTooltip(searchTooltip("How much Tension was gained on the entire last performed combo (either inflicting it or getting hit by it)."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.tensionGainLastCombo, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			float offsets[2];
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Tension Gain Max Combo"));
+			AddTooltip(searchTooltip("The maximum amount of Tension that was gained on an entire performed combo during this training session"
+				" (either inflicting it or getting hit by it).\n"
+				"You can clear this value by pressing a button below this table."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				offsets[i] = ImGui::GetCursorPosX();
+				printDecimal(player.tensionGainMaxCombo, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::EndTable();
+			
+			for (int i = 0; i < two; ++i) {
+				ImGui::SetCursorPosX(offsets[i]);
+				ImGui::PushID(i);
+				if (ImGui::Button(searchFieldTitle("Clear Max Combo"))) {
+					clearTensionGainMaxCombo[i] = true;
+					clearTensionGainMaxComboTimer[i] = 10;
+					stateChanged = true;
+				}
+				AddTooltip(searchTooltip("Clear max combo's Tension and Burst gain."));
+				if (i == 0) ImGui::SameLine();
+				ImGui::PopID();
+			}
+		}
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Burst Gain");
+	if (showBurstGain || searching) {
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_burst" : "BurstGain", &showBurstGain, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		if (endScene.isIGiveUp() && !searching) {
+			ImGui::TextUnformatted("Online non-observer match running.");
+		} else
+		if (ImGui::BeginTable("##BurstGain",
+					3,
+					ImGuiTableFlags_Borders
+					| ImGuiTableFlags_RowBg
+					| ImGuiTableFlags_NoSavedSettings
+					| ImGuiTableFlags_NoPadOuterX)
+		) {
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Name");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(1);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P2");
+
+
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Burst Gain On Last Hit"));
+			AddTooltip(searchFieldTitle("How much Burst was gained on a single last hit (either inflicting it or getting hit by it)."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.burstGainOnLastHit, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Burst Gain Last Combo"));
+			AddTooltip(searchTooltip("How much Burst was gained on the entire last performed combo (either inflicting it or getting hit by it)."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.burstGainLastCombo, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Burst Gain Max Combo"));
+			AddTooltip(searchTooltip("The maximum amount of Burst that was gained on an entire performed combo during this training session"
+				" (either inflicting it or getting hit by it).\n"
+				"You can clear this value by pressing a button below this table."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.burstGainMaxCombo, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::EndTable();
+		}
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Speed/Hitstun Proration/...");
+	if (showSpeedsData || searching) {
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_speed" : "Speed/Hitstun Proration/...", &showSpeedsData, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		
+		if (endScene.isIGiveUp() && !searching) {
+			ImGui::TextUnformatted("Online non-observer match running.");
+		} else
+		if (ImGui::BeginTable("##SpeedHitstunProrationDotDotDot",
+					3,
+					ImGuiTableFlags_Borders
+					| ImGuiTableFlags_RowBg
+					| ImGuiTableFlags_NoSavedSettings
+					| ImGuiTableFlags_NoPadOuterX)
+		) {
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.f);
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("Name");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(1);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P2");
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("X; Y"));
+			AddTooltip(searchTooltip("Position X; Y in the arena. Divided by 100 for viewability."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.x, 2, 0);
+				sprintf_s(strbuf, "%s; ", printdecimalbuf);
+				printDecimal(player.y, 2, 0);
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Speed X; Y"));
+			AddTooltip(searchTooltip("Speed X; Y in the arena. Divided by 100 for viewability."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.speedX, 2, 0);
+				sprintf_s(strbuf, "%s; ", printdecimalbuf);
+				printDecimal(player.speedY, 2, 0);
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Gravity"));
+			AddTooltip(searchTooltip("Gravity. Divided by 100 for viewability."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.gravity, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Combo Timer"));
+			AddTooltip(searchTooltip("The time, in seconds, of the current combo's duration."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.comboTimer * 100 / 60, 2, 0);
+				sprintf_s(strbuf, "%s sec (%df)", printdecimalbuf, player.comboTimer);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Pushback"));
+			AddTooltip(searchTooltip("Pushback. Divided by 100 for viewability.\n"
+				"Format: Current pushback / (Max pushback + FD pushback) (FD pushback base value, FD pushback percentage modifier%).\n"
+				"If last hit was not FD'd, FD values are not displayed.\n"
+				"When you attack an opponent, the opponent has this 'Pushback' value and you only get pushed back if they're in the corner (or close to it)."
+				" If the opponent utilized FD, you will be pushed back regardless of whether the opponent is in the corner."
+				" If they're in the corner and they also FD, the pushback from FD and the pushback from them being in the corner get added together."
+				" The FD pushback base value and modifier % will be listed in (). The base value depends on distance between players. If it's less"
+				" than 385000, the base is 900, otherwise it's 500. The modifier is 130% if the defender was touching the wall, otherwise 100%."
+				" Multiply the base value by the modifier and 175 / 10, round down to get resulting pushback, divide by 100 for viewability."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.pushback, 2, 0);
+				sprintf_s(strbuf, !player.baseFdPushback ? "%s / " : "%s / (", printdecimalbuf);
+				printDecimal(player.pushbackMax * 175 / 10, 2, 0);
+				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+				if (player.baseFdPushback) {
+					printDecimal(player.fdPushbackMax * 175 / 10, 2, 0);
+					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " + %s)", printdecimalbuf);
+					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " (%d, %d%c)",
+						player.baseFdPushback, player.oppoWasTouchingWallOnFD ? 130 : 100, '%');
+				}
+				ImGui::TextWrapped("%s", strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Base Pushback"));
+			AddTooltip(searchTooltip("Base pushback on hit/block. Pushback = floor(Base pushback * 175 / 10) (divide by 100 for viewability).\n"
+				"The base values of pushback are, per attack level:\n"
+				"Ground block: 1250, 1375, 1500, 1750, 2000, 2400, 3000;\n"
+				"Air block: 800,  850,  900,  950, 1000, 2400, 3000;\n"
+				"Hit: 1300, 1400, 1500, 1750, 2000, 2400, 3000;\n"));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", player.basePushback);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Pushback Modifier"));
+			AddTooltip(searchTooltip("Pushback modifier. Equals Attack pushback modifier % * Attack pushback modifier on hit % * Combo timer modifier %"
+				" * IB modifier %.\n"
+				"Attack pushback modifier depends on the performed move."
+				" Attack pushback modifier on hit depends on the performed move and should only be non-100 when the opponent is in hitstun."
+				" Combo timer modifier depends on combo timer, in frames: >= 480 --> 200%, >= 420 --> 184%, >= 360 --> 166%, >= 300 --> 150%"
+				", >= 240 --> 136%, >= 180 --> 124%, >= 120 --> 114%, >= 60 --> 106%."
+				" IB modifier is non-100 on IB: air IB 10%, ground IB 90%."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d%c * %d%c * %d%c * %d%c = %d%c", player.attackPushbackModifier, '%', player.hitstunPushbackModifier, '%',
+					player.comboTimerPushbackModifier, '%', player.ibPushbackModifier, '%',
+					player.attackPushbackModifier * player.hitstunPushbackModifier / 100
+					* player.comboTimerPushbackModifier / 100
+					* player.ibPushbackModifier / 100, '%');
+				ImGui::TextWrapped("%s", strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Received Speed Y"));
+			AddTooltip(searchTooltip("This is updated only when a hit happens.\n"
+				"Format: Base speed Y * (Weight % * Combo Proration % = Resulting Modifier %) = Resulting speed Y. Base and Final speeds divided by 100 for viewability."
+				" On block, something more is going on, and it's not studied yet, so gained speed Y cannot be displayed."
+				" Modifiers on received speed Y are weight and combo proration, displayed in that order.\n"
+				"The combo proration depends on the number of hits so far at the moment of getting hit, not including the ongoing hit:\n"
+				"6 hits so far -> 59/60 * 100% proration,\n"
+				"5 hits -> 58 / 60 * 100% and so on, up to 30 / 60 * 100%. The rounding of the final speed Y is up.\n"
+				"Some moves could theoretically ignore weight or combo proration, or both. When that happens, 100% will be displayed in place"
+				" of the ignored parameter."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (!player.receivedSpeedYValid) {
+					ImGui::TextUnformatted("???");
+				} else {
+					int mod = player.receivedSpeedYWeight * player.receivedSpeedYComboProration / 100;
+					printDecimal(player.receivedSpeedY * 100 / mod, 2, 0);
+					sprintf_s(strbuf, "%s", printdecimalbuf);
+					printDecimal(player.receivedSpeedY, 2, 0);
+					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * (%d%c * %d%c = %d%c) = %s",
+						player.receivedSpeedYWeight,
+						'%', player.receivedSpeedYComboProration, '%',
+						mod, '%',
+						printdecimalbuf);
+					ImGui::TextWrapped("%s", strbuf);
+				}
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Hitstun Proration"));
+			AddTooltip(searchTooltip("This is updated only when a hit happens."
+				" Hitstun proration depends on the duration of an air or ground combo, in frames. For air combo:\n"
+				">= 1080 --> 10%\n"
+				">= 840  --> 60%\n"
+				">= 600  --> 70%\n"
+				">= 420  --> 80%\n"
+				">= 300  --> 90%\n"
+				">= 180  --> 95%\n"
+				"For ground combo it's just:\n"
+				">= 1080 --> 50%\n"
+				"Multiply base hitstun by the percentage using floating point math, then round down to get prorated hitstun.\n"
+				"Some attacks could theoretically ignore hitstun proration. When that happens, 100% is displayed."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (!player.hitstunProrationValid) {
+					ImGui::TextUnformatted("--");
+				} else {
+					sprintf_s(strbuf, "%d%c", player.hitstunProration, '%');
+					ImGui::TextUnformatted(strbuf);
+				}
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Wakeup"));
+			AddTooltip(searchTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
+				" Format: Time remaining until able to act / Total wakeup or airtech time."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				
+				int remaining = 0;
+				if (player.wakeupTiming) {
+					remaining = player.wakeupTiming - player.animFrame + 1;
+				}
+				sprintf_s(strbuf, "%d/%d", remaining, player.wakeupTiming);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::EndTable();
+		}
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Character Specific");
+	for (int i = 0; i < two; ++i) {
+		if (showCharSpecific[i] || searching) {
+			ImGui::PushID(i);
+			sprintf_s(strbuf, searching ? "search_char%d" : "  Character Specific (P%d)", i + 1);
+			if (searching) {
+				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+			}
+			ImGui::Begin(strbuf, showCharSpecific + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			const PlayerInfo& player = endScene.players[i];
+			
+			GGIcon scaledIcon;
+			if (player.charType == CHARACTER_TYPE_SOL && player.playerval0) {
+				scaledIcon = scaleGGIconToHeight(DISolIconRectangular, 14.F);
+			} else {
+				scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(i), 14.F);
+			}
+			drawPlayerIconInWindowTitle(scaledIcon);
+			
+			if (!*aswEngine || !player.pawn) {
+				ImGui::TextUnformatted("Match not running");
+			} else if (endScene.isIGiveUp() && !searching) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else
+			if (player.charType == CHARACTER_TYPE_SOL) {
+				if (player.playerval0) {
+					GGIcon scaledIcon = scaleGGIconToHeight(DISolIcon, 14.F);
+					drawGGIcon(scaledIcon);
+					ImGui::SameLine();
+					ImGui::TextUnformatted(searchFieldTitle("In Dragon Install"));
+					searchFieldValue("Time remaining:");
+					ImGui::Text("Time remaining: %d/%df", player.playerval1, player.maxDI);
+				} else {
+					GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(CHARACTER_TYPE_SOL), 14.F);
+					drawGGIcon(scaledIcon);
+					ImGui::SameLine();
+					ImGui::TextUnformatted(searchFieldTitle("Not in Dragon Install"));
+				}
+			} else if (player.charType == CHARACTER_TYPE_KY) {
+				if (!endScene.interRoundValueStorage2Offset) {
+					ImGui::TextUnformatted("Error");
+				} else {
+					DWORD& theValue = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage2Offset + i * 4);
+					if (theValue) {
+						ImGui::TextUnformatted(searchFieldTitle("Hair down"));
+					} else {
+						ImGui::TextUnformatted(searchFieldTitle("Hair not down"));
+					}
+					if (game.isTrainingMode() && ImGui::Button(searchFieldTitle("Toggle Hair Down"))) {
+						theValue = 1 - theValue;
+						endScene.BBScr_callSubroutine((void*)player.pawn.ent, "PonyMeshSetCheck");
+					}
+				}
+			} else if (player.charType == CHARACTER_TYPE_ZATO) {
+				Entity eddie = nullptr;
+				bool isSummoned = player.pawn.playerVal(0);
+				if (isSummoned) {
+					eddie = endScene.getReferredEntity((void*)player.pawn.ent, 4);
+				}
+				
+				ImGui::TextUnformatted(searchFieldTitle("Eddie Values"));
+				sprintf_s(strbuf, "##Zato_P%d", i);
+				if (ImGui::BeginTable(strbuf, 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+					ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+					
+					ImGui::TableHeadersRow();
+					
+					ImGui::TableNextColumn();
+					ImGui::Text(searchFieldTitle("Eddie Gauge"));
+					AddTooltip(searchTooltip("Divided by 10 for readability."));
+					ImGui::TableNextColumn();
+					ImGui::Text("%-3d/%d", player.pawn.exGaugeValue(0) / 10, player.pawn.exGaugeMaxValue(0) / 10);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Is Summoned"));
+					ImGui::TableNextColumn();
+					if (!isSummoned) {
+						ImGui::TextUnformatted("No");
+					} else {
+						ImGui::TextUnformatted("Yes");
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Shadow Puddle X"));
+					ImGui::TableNextColumn();
+					int shadowPuddleX = player.pawn.playerVal(3);
+					if (shadowPuddleX != 3000000) {
+						printDecimal(shadowPuddleX, 2, 0);
+						ImGui::TextUnformatted(printdecimalbuf);
+					}
+					
+					if (!eddie && player.eddie.landminePtr) {
+						eddie = Entity{player.eddie.landminePtr};
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Startup"));
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.startup);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Active"));
+					ImGui::TableNextColumn();
+					printActiveWithMaxHit(player.eddie.actives, player.eddie.maxHit, player.eddie.hitOnFrame);
+					float w = ImGui::CalcTextSize(strbuf).x;
+					if (w > ImGui::GetContentRegionAvail().x) {
+						ImGui::TextWrapped("%s", strbuf);
+					} else {
+						ImGui::TextUnformatted(strbuf);
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Recovery"));
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.recovery);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Total"));
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.total);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Frame Adv."));
+					ImGui::TableNextColumn();
+					frameAdvantageControl(
+						player.eddie.frameAdvantage,
+						player.eddie.landingFrameAdvantage,
+						player.eddie.frameAdvantageValid,
+						player.eddie.landingFrameAdvantageValid,
+						false);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Hitstop"));
+					ImGui::TableNextColumn();
+					ImGui::Text("%d/%d", player.eddie.hitstop, player.eddie.hitstopMax);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Last Consumed Eddie Gauge Amount"));
+					AddTooltip(searchTooltip("Divided by 10 for readability. The amount of consumed Eddie Gauge of the last attack."));
+					ImGui::TableNextColumn();
+					ImGui::Text("%d", player.eddie.consumedResource / 10);
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted("X");
+					ImGui::TableNextColumn();
+					if (eddie) {
+						printDecimal(eddie.x(), 2, 0);
+						ImGui::TextUnformatted(printdecimalbuf);
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Anim"));
+					ImGui::TableNextColumn();
+					if (eddie) {
+						ImGui::TextUnformatted(eddie.animationName());
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Frame"));
+					ImGui::TableNextColumn();
+					if (eddie) {
+						ImGui::Text("%d", eddie.currentAnimDuration());
+					}
+					
+					ImGui::TableNextColumn();
+					ImGui::TextUnformatted(searchFieldTitle("Sprite"));
+					ImGui::TableNextColumn();
+					if (eddie) {
+						ImGui::Text("%s (%d/%d)", eddie.spriteName(), eddie.spriteFrameCounter(), eddie.spriteFrameCounterMax());
+					}
+					
+					ImGui::EndTable();
+				}
+			} else if (player.charType == CHARACTER_TYPE_CHIPP) {
+				if (player.playerval0) {
+					printChippInvisibility(player.playerval0, player.maxDI);
+				} else {
+					ImGui::TextUnformatted(searchFieldTitle("Not invisible"));
+				}
+				if (player.move.caresAboutWall) {
+					searchFieldTitle("Wall time:");
+					ImGui::Text("Wall time: %d/120", player.pawn.mem54());
+				} else {
+					ImGui::TextUnformatted(searchFieldTitle("Not on a wall."));
+				}
+			} else if (player.charType == CHARACTER_TYPE_FAUST) {
+				const PlayerInfo& otherPlayer = endScene.players[1 - player.index];
+				if (!otherPlayer.poisonDuration) {
+					ImGui::TextUnformatted(searchFieldTitle("Opponent not poisoned."));
+				} else {
+					sprintf_s(strbuf, "Poison duration on opponent: %d/%d", otherPlayer.poisonDuration, otherPlayer.poisonDurationMax);
+					ImGui::TextUnformatted(searchFieldTitle(strbuf));
+				}
+			} else {
+				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
+			}
+			ImGui::End();
+			ImGui::PopID();
+		}
+	}
+	popSearchStack();
+	searchCollapsibleSection("Box Extents");
+	if (showBoxExtents || searching) {
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_box" : "Box Extents", &showBoxExtents, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		if (endScene.isIGiveUp() && !searching) {
+			ImGui::TextUnformatted("Online non-observer match running.");
+		} else
+		if (ImGui::BeginTable("##PayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
+			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
+			
+			ImGui::TableNextColumn();
+			GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
+			float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
+			RightAlign(w);
+			drawPlayerIconWithTooltip(0);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P1");
+			ImGui::TableNextColumn();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted("P2");
+			ImGui::SameLine();
+			drawPlayerIconWithTooltip(1);
+			
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (player.hurtboxTopBottomValid) {
+					sprintf_s(strbuf, "from %d to %d",
+						player.hurtboxTopY,
+						player.hurtboxBottomY);
+					printNoWordWrap
+				}
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Hurtbox Y"));
+					AddTooltip(searchTooltip("These values display either the current or last valid value and change each frame."
+						" They do not show the total combined bounding box."
+						" To view these values for each frame more easily you could use the frame freeze mode,"
+						" available in the Hitboxes section.\n"
+						"The coordinates shown are relative to the global space."));
+				}
+			}
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (player.hitboxTopBottomValid) {
+					sprintf_s(strbuf, "from %d to %d",
+						player.hitboxTopY,
+						player.hitboxBottomY);
+					printNoWordWrap
+				}
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Hitbox Y"));
+					AddTooltip(searchTooltip("These values display either the current or last valid value and change each frame."
+						" They do not show the total combined bounding box."
+						" To view these values for each frame more easily you could use the frame freeze mode,"
+						" available in the Hitboxes section.\n"
+						"The coordinates shown are relative to the global space.\n"
+						"If the coordinates are not shown while an attack is out, that means that attack is a projectile."
+						" To view projectiles' hitbox extents you can see 'Projectiles' in the main UI window."));
+				}
+			}
+			ImGui::EndTable();
+		}
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Cancels");
+	for (int i = 0; i < two; ++i) {
+		if (showCancels[i] || searching) {
+			ImGui::PushID(i);
+			sprintf_s(strbuf, searching ? "search_cancels%d" : "  Cancels (P%d)", i + 1);
+			ImGui::SetNextWindowSize({
+				ImGui::GetFontSize() * 35.F,
+				150.F
+			}, ImGuiCond_FirstUseEver);
+			if (searching) {
+				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+			}
+			ImGui::Begin(strbuf, showCancels + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			drawPlayerIconInWindowTitle(i);
+			
+			const float wrapWidth = ImGui::GetContentRegionAvail().x;
+			ImGui::PushTextWrapPos(wrapWidth);
+			
+			const PlayerInfo& player = endScene.players[i];
+			
+			const bool useSlang = settings.useSlangNames;
+			const char* lastNames[2];
+			prepareLastNames(lastNames, player);
+			int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(lastNames,
+				player.superfreezeStartup ? 2 : 1,
+				useSlang);
+			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+			textUnformattedColored(YELLOW_COLOR, searchFieldTitle(animNamesCount ? "Anims: " : "Anim: "));
+			char* buf = strbuf;
+			size_t bufSize = sizeof strbuf;
+			player.prevStartupsDisp.printNames(buf, bufSize, lastNames,
+				player.superfreezeStartup ? 2 : 1,
+				useSlang,
+				false,
+				animNamesCount > 1);
+			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
+			ImGui::PopStyleVar();
+			
+			if (player.cancelsOverflow) {
+				ImGui::TextUnformatted("...Some initial frames skipped...");
+				ImGui::Separator();
+			}
+			bool printedSomething = false;
+			for (int i = 0; i < player.cancelsCount; ++i) {
+				const PlayerCancelInfo& cancels = player.cancels[i];
+				if (cancels.isCompletelyEmpty()) continue;
+				if (printedSomething) {
+					ImGui::Separator();
+				}
+				printedSomething = true;
+				sprintf_s(strbuf, "Frames %d-%d:", cancels.start, cancels.end);
+				textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+				printAllCancels(cancels.cancels,
+					cancels.enableSpecialCancel,
+					cancels.enableJumpCancel,
+					cancels.enableSpecials,
+					cancels.hitOccured,
+					cancels.airborne,
+					false);
+			}
+			if (!printedSomething) {
+				ImGui::TextUnformatted("No cancels available.");
+			}
+			
+			ImGui::PopTextWrapPos();
+			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
+			drawGGIcon(scaledIcon);
+			AddTooltip(thisHelpTextWillRepeat);
+			ImGui::End();
+			ImGui::PopID();
+		}
+	}
+	popSearchStack();
+	searchCollapsibleSection("Damage/RISC Calculation");
+	for (int i = 0; i < two; ++i) {
+		if (showDamageCalculation[i] || searching) {
+			ImGui::PushID(i);
+			sprintf_s(strbuf, searching ? "search_damage" : "  Damage/RISC Calculation (P%d)", i + 1);
+			ImGui::SetNextWindowSize({
+				ImGui::GetFontSize() * 35.F,
+				150.F
+			}, ImGuiCond_FirstUseEver);
+			if (searching) {
+				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+			}
+			ImGui::Begin(strbuf, showDamageCalculation + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			drawPlayerIconInWindowTitle(i);
+			
+			const PlayerInfo& player = endScene.players[i];
+			
+			struct ComboProration {
+				const char* name;
+				int val;
+			};
+			ComboProration comboProrations[] {
+				{ "Normal/Special", player.comboProrationNormal },
+				{ "Overdrive", player.comboProrationOverdrive }
+			};
+			
+			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+			for (int comboProrationI = 0; comboProrationI < 2; ++comboProrationI) {
+				const ComboProration& currentProration = comboProrations[comboProrationI];
+				
+				searchFieldTitle("Current proration");
+				sprintf_s(strbuf, "Current proration (%s): ", currentProration.name);
+				textUnformattedColored(YELLOW_COLOR, strbuf);
+				AddTooltip(searchTooltip("Here we display only Dust proration * Proration from initial/forced proration * RISC Damage Scale * Guts * Defense Modifier * RC Proration"));
+				
+				int totalProration = 10000;
+				totalProration = totalProration * player.dustProration1 / 100;
+				totalProration = totalProration * player.dustProration2 / 100;
+				totalProration = totalProration * player.proration / 100;
+				totalProration = totalProration * currentProration.val / 256;
+				totalProration = totalProration * player.gutsPercentage / 100;
+				totalProration = totalProration * (player.defenseModifier + 256) / 256;
+				if (player.rcProration) totalProration = totalProration * 80 / 100;
+				
+				sprintf_s(strbuf, "%3d%c", player.dustProration1 * player.dustProration2 / 100, '%');
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(searchTooltip("Dust proration"));
+				ImGui::SameLine();
+				
+				ImGui::TextUnformatted(" * ");
+				ImGui::SameLine();
+				
+				sprintf_s(strbuf, "%3d%c", player.proration, '%');
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(searchTooltip("Initial/forced proration"));
+				ImGui::SameLine();
+				
+				ImGui::TextUnformatted(" * ");
+				ImGui::SameLine();
+				
+				sprintf_s(strbuf, "%3d%c", currentProration.val * 100 / 256, '%');
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(searchTooltip("RISC Damage Scale"));
+				ImGui::SameLine();
+				
+				ImGui::TextUnformatted(" * ");
+				ImGui::SameLine();
+				
+				sprintf_s(strbuf, "%3d%c", player.gutsPercentage, '%');
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(searchTooltip("Guts"));
+				ImGui::SameLine();
+				
+				ImGui::TextUnformatted(" * ");
+				ImGui::SameLine();
+				
+				sprintf_s(strbuf, "%3d%c", (player.defenseModifier + 256) * 100 / 256, '%');
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(searchTooltip("Defense Modifier"));
+				ImGui::SameLine();
+				
+				ImGui::TextUnformatted(" * ");
+				ImGui::SameLine();
+				
+				ImGui::TextUnformatted(player.rcProration ? " 80%" : "100%");
+				AddTooltip(searchTooltip("Roman Cancel Damage Modifier. Applied during Roman Cancel slowdown."));
+				ImGui::SameLine();
+				
+				ImGui::TextUnformatted(" = ");
+				ImGui::SameLine();
+				
+				sprintf_s(strbuf, "%3d%c", totalProration / 100, '%');
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(searchTooltip("Total proration"));
+				
+			}
+				
+			ImGui::PopStyleVar();
+			ImGui::Separator();
+			
+			static std::vector<DmgCalc> searchDmgCalcs;
+			if (searching && searchDmgCalcs.empty()) {
+				DmgCalc newCalc;
+				newCalc.lastHitResult = HIT_RESULT_BLOCKED;
+				newCalc.blockType = BLOCK_TYPE_NORMAL;
+				searchDmgCalcs.push_back(newCalc);
+				
+				newCalc.lastHitResult = HIT_RESULT_ARMORED;
+				searchDmgCalcs.push_back(newCalc);
+				
+				newCalc.lastHitResult = HIT_RESULT_NORMAL;
+				newCalc.u.hit.extraInverseProration = 80;
+				newCalc.u.hit.stylishDamageInverseModifier = 80;
+				newCalc.u.hit.handicap = 156;
+				newCalc.u.hit.needReduceRisc = true;
+				searchDmgCalcs.push_back(newCalc);
+			}
+			const std::vector<DmgCalc>& dmgCalcsUse = searching ? searchDmgCalcs : player.dmgCalcs;
+			
+			if (!dmgCalcsUse.empty()) {
+				
+				bool isFirst = true;
+				bool needPrintHitNumbers = dmgCalcsUse.size() > 1;
+				bool useSlang = settings.useSlangNames;
+				int hitCounter = (searching ? 0 : player.dmgCalcsSkippedHits) + dmgCalcsUse.size() - 1;
+				for (auto it = dmgCalcsUse.begin() + (dmgCalcsUse.size() - 1); ; ) {
+					const DmgCalc& dmgCalc = *it;
+					
+					if (!isFirst) ImGui::Separator();
+					isFirst = false;
+					
+					if (needPrintHitNumbers) {
+						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Hit Number: "));
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d", hitCounter + 1);
+						ImGui::TextUnformatted(strbuf);
+						ImGui::PopStyleVar();
+					}
+					--hitCounter;
+					
+					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+					
+					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Attack Name: "));
+					ImGui::SameLine();
+					ImGui::TextUnformatted(useSlang && dmgCalc.attackSlangName ? dmgCalc.attackSlangName : dmgCalc.attackName);
+					if (dmgCalc.nameFull || useSlang && dmgCalc.attackSlangName && dmgCalc.attackName) {
+						AddTooltip(dmgCalc.nameFull ? dmgCalc.nameFull : dmgCalc.attackName);
+					}
+					
+					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Is Projectile: "));
+					ImGui::SameLine();
+					ImGui::TextUnformatted(dmgCalc.isProjectile ? "Yes" : "No");
+					
+					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Guard Type: "));
+					ImGui::SameLine();
+					const char* guardTypeStr;
+					if (dmgCalc.isThrow) {
+						guardTypeStr = "Throw";
+					} else {
+						guardTypeStr = formatGuardType(dmgCalc.guardType);
+					}
+					ImGui::TextUnformatted(guardTypeStr);
+					
+					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Air Blockable: "));
+					AddTooltip(searchTooltip("Is air blockable - if not, then requires Faultless Defense to be blocked in the air."));
+					ImGui::SameLine();
+					ImGui::TextUnformatted(dmgCalc.airUnblockable ? "No" : "Yes");
+					
+					if (dmgCalc.guardCrush || searching) {
+						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Guard Crush: "));
+						AddTooltip(searchTooltip("Guard break. When blocked, this attack causes the defender to enter hitstun on the next frame."));
+						ImGui::SameLine();
+						ImGui::TextUnformatted(dmgCalc.guardCrush ? "Yes" : "No");
+					}
+					
+					ImGui::PopStyleVar();
+					
+					zerohspacing
+					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Last Hit Result: "));
+					ImGui::SameLine();
+					ImGui::TextUnformatted(formatHitResult(dmgCalc.lastHitResult));
+					_zerohspacing
+					
+					if (dmgCalc.lastHitResult == HIT_RESULT_BLOCKED) {
+						zerohspacing
+						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Block Type: "));
+						ImGui::SameLine();
+						ImGui::TextUnformatted(formatBlockType(dmgCalc.blockType));
+						_zerohspacing
+						if (dmgCalc.blockType != BLOCK_TYPE_FAULTLESS) {
+							const DmgCalc::DmgCalcU::DmgCalcBlock& data = dmgCalc.u.block;
+							if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+								ImGui::TableHeadersRow();
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Attack Level"));
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d", data.attackLevelForGuard);
+								ImGui::TextUnformatted(strbuf);
+								if (data.attackLevel != data.attackLevelForGuard) {
+									ImGui::SameLine();
+									ImVec4* color;
+									if (data.attackLevelForGuard > data.attackLevel) {
+										color = &RED_COLOR;
+									} else {
+										color = &LIGHT_BLUE_COLOR;
+									}
+									textUnformattedColored(*color, "(!)");
+									if (ImGui::BeginItemTooltip()) {
+										ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+										sprintf_s(strbuf, "This attack's level on block/armor (%d) is %s than on hit (%d).",
+											data.attackLevelForGuard,
+											data.attackLevelForGuard > data.attackLevel ? "higher" : "lower",
+											data.attackLevel);
+										ImGui::TextUnformatted(strbuf);
+										ImGui::PopTextWrapPos();
+										ImGui::EndTooltip();
+									}
+								}
+								
+								ImGui::TableNextColumn();
+								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+								AddTooltip(searchTooltip("The base value for determining how much RISC this attack adds on block."));
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d", data.riscPlusBase);
+								const char* needHelp = nullptr;
+								textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+								ImVec4* color = &RED_COLOR;
+								if (data.riscPlusBase > data.riscPlusBaseStandard) {
+									needHelp = "higher";
+								} else if (data.riscPlusBase < data.riscPlusBaseStandard) {
+									needHelp = "lower";
+									color = &LIGHT_BLUE_COLOR;
+								}
+								if (needHelp) {
+									ImGui::SameLine();
+									textUnformattedColored(*color, "(!)");
+									if (ImGui::BeginItemTooltip()) {
+										ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+										sprintf_s(strbuf, "This attack's RISC+ (%d) is %s than the standard RISC+ (%d) for its attack level %s(%d).",
+											data.riscPlusBase,
+											needHelp,
+											data.riscPlusBaseStandard,
+											data.attackLevel == data.attackLevelForGuard ? "" : "on block/armor",
+											data.attackLevelForGuard);
+										ImGui::TextUnformatted(strbuf);
+										ImGui::PopTextWrapPos();
+										ImGui::EndTooltip();
+									}
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("RISC Gain Rate"));
+								AddTooltip(searchTooltip("A per-character constant value that alters incoming values of RISC+."
+									" Depends on the defending player's character."));
+								ImGui::TableNextColumn();
+								printDecimal(data.guardBalanceDefence * 100 / 32, 0, 0, true);
+								sprintf_s(strbuf, "%d (%s)", data.guardBalanceDefence, printdecimalbuf);
+								ImGui::TextUnformatted(strbuf);
+								
+								int x = data.riscPlusBase * 100 * data.guardBalanceDefence / 32;
+								ImGui::TableNextColumn();
+								zerohspacing
+								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Gain Rate");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d * %s = ", data.riscPlusBase, printdecimalbuf);
+								zerohspacing
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%s", printDecimal(x, 2, 0, false));
+								textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Grounded and Overhead/Low"));
+								AddTooltip(searchTooltip("The defender was on the ground and the attack was either an overhead or a low."
+									" If yes, the modifier is 75%, otherwise RISC+ is unchanged."));
+								ImGui::TableNextColumn();
+								int oldX = x;
+								if (data.groundedAndOverheadOrLow) {
+									ImGui::TextUnformatted("yes: 75% modifier");
+									x -= x / 4;
+								} else {
+									ImGui::TextUnformatted("no: 100% (no) modifier");
+								}
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Overhead/Low");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.groundedAndOverheadOrLow ? "75%" : "100%");
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Was In Blockstun"));
+								AddTooltip(searchTooltip("The defender was already in blockstun at the time of attack."
+									" If yes, the modifier is 50%, otherwise RISC+ is unchanged."));
+								ImGui::TableNextColumn();
+								oldX = x;
+								if (data.wasInBlockstun) {
+									ImGui::TextUnformatted("yes: 50% modifier");
+									x /= 2;
+								} else {
+									ImGui::TextUnformatted("no: 100% (no) modifier");
+								}
+								
+								ImGui::TableNextColumn();
+								searchFieldTitle("RISC+");
+								const char* tooltip = searchTooltip("This is the final RISC value that gets added to the RISC gauge.");
+								zerohspacing
+								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Was In Blockstun");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%s * %s = ", printdecimalbuf, data.wasInBlockstun ? "50%" : "100%");
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(x, 2, 0, false));
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("RISC");
+								AddTooltip(searchTooltip("Final value for RISC, without bounds check for [-128.00; 128.00] is"
+									" the old value + change = final value."));
+								ImGui::TableNextColumn();
+								
+								char* buf = strbuf;
+								size_t bufSize = sizeof strbuf;
+								int result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
+								if (result != -1) {
+									buf += result;
+									bufSize -= result;
+								}
+								
+								result = sprintf_s(buf, bufSize, "%s = ", printDecimal(x, 2, 0, false));
+								if (result != -1) {
+									buf += result;
+									bufSize -= result;
+								}
+								
+								sprintf_s(buf, bufSize, "%s", printDecimal(data.defenderRisc + x, 2, 0, false));
+								
+								ImGui::TextUnformatted(strbuf);
+								
+								x = data.baseDamage;
+								ImGui::TableNextColumn();
+								zerohspacing
+								ImGui::TextUnformatted("Base ");
+								ImGui::SameLine();
+								textUnformattedColored(YELLOW_COLOR, "Damage");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								
+								x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("HP");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d - %d = %d", data.oldHp, x, data.oldHp - x);
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::EndTable();
+							}
+						}
+					} else if (dmgCalc.lastHitResult == HIT_RESULT_ARMORED || dmgCalc.lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+						const DmgCalc::DmgCalcU::DmgCalcArmor& data = dmgCalc.u.armor;
+						if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+							ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+							ImGui::TableHeadersRow();
+							
+							int x = data.baseDamage;
+							ImGui::TableNextColumn();
+							zerohspacing
+							ImGui::TextUnformatted("Base ");
+							ImGui::SameLine();
+							textUnformattedColored(YELLOW_COLOR, "Damage");
+							_zerohspacing
+							sprintf_s(strbuf, "%d", data.baseDamage);
+							ImGui::TableNextColumn();
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							
+							x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, dmgCalc.lastHitResult, data.superArmorDamagePercent);
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Armor Is Like Block?"));
+							AddTooltip(searchTooltip("If the armor behaves like blocking when tanking hits, it won't use guts calculation and will use the"
+								" same chip damage calculation as blocking uses. Otherwise it will apply guts and take that as damage."));
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(data.superArmorHeadAttribute ? "Yes" : "No");
+							
+							if (data.superArmorHeadAttribute) {
+								x = printChipDamageCalculation(x, data.baseDamage, data.attackKezuri, data.attackKezuriStandard);;
+							} else {
+								x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
+							}
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted("HP");
+							ImGui::TableNextColumn();
+							sprintf_s(strbuf, "%d - %d = %d", data.oldHp, x, data.oldHp - x);
+							ImGui::TextUnformatted(strbuf);
+							
+							ImGui::EndTable();
+						}
+					} else if (dmgCalc.lastHitResult == HIT_RESULT_NORMAL) {
+						const DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
+						if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+							ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
+							ImGui::TableHeadersRow();
+							
+							int x = data.baseDamage;
+							ImGui::TableNextColumn();
+							zerohspacing
+							ImGui::TextUnformatted("Base ");
+							ImGui::SameLine();
+							textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Damage"));
+							_zerohspacing
+							sprintf_s(strbuf, "%d", data.baseDamage);
+							ImGui::TableNextColumn();
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							
+							int oldX = x;
+							if (data.increaseDmgBy50Percent) {
+								x = x * 150 / 100;
+								ImGui::TableNextColumn();
+								const char* tooltip = searchTooltip("Maybe Dustloop or someone knows what this is.");
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * 150%");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%d * 150%c = ", oldX, '%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
+							}
+							
+							oldX = x;
+							if (data.extraInverseProration != 100 && data.extraInverseProration != 0) {
+								x = x * 100 / data.extraInverseProration;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Extra Inverse Modif"));
+								AddTooltip("Damage = Damage * 100 / Extra Inverse Modif");
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.extraInverseProration, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								const char* tooltip = "Damage = Damage * 100 / Extra Inverse Modif";
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" / Extra Inv. Modif");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%d / %d%c = ", oldX, data.extraInverseProration, '%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
+							}
+							
+							oldX = x;
+							if (data.isStylish && data.stylishDamageInverseModifier != 0) {
+								x = x * 100 / data.stylishDamageInverseModifier;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Stylish Inverse Modifier"));
+								AddTooltip(searchTooltip("Inverse modifier applied to the damage dealt to the defender for defender using the Stylish mode."
+									" Depends on the defender using the Stylish mode."));
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.stylishDamageInverseModifier, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" / Stylish");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%d / %d%c = ", oldX, data.stylishDamageInverseModifier, '%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
+							}
+							
+							oldX = x;
+							if (data.handicap != 100) {
+								x = x * data.handicap / 100;
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Handicap"));
+								AddTooltip(searchTooltip("Handicap used by the defender modifies their incoming damage."
+									" Handicap levels:\n"
+									"1) 156%;\n"
+									"2) 125%;\n"
+									"3) 100%;\n"
+									"4) 80%;\n"
+									"5) 64%;"));
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d%c", data.handicap, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" * Handicap");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%d * %d%c = ", oldX, data.handicap, '%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
+							}
+							
+							x = printScaleDmgBasic(x, i, data.damageScale, data.isProjectile, data.projectileDamageScale, HIT_RESULT_NORMAL, 100);
+							
+							oldX = x;
+							if (data.dustProration1 != 100) {
+								x = x * data.dustProration1 / 100;
+								ImGui::TableNextColumn();
+								if (data.dustProration2 != 100) {
+									ImGui::TextUnformatted(searchFieldTitle("Dust Proration #1"));
+								} else {
+									ImGui::TextUnformatted(searchFieldTitle("Dust Proration"));
+								}
+								sprintf_s(strbuf, "%d%c", data.dustProration1, '%');
+								ImGui::TextUnformatted(strbuf);
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								ImGui::SameLine();
+								if (data.dustProration2 != 100) {
+									ImGui::TextUnformatted(" * Dust Proration #1");
+								} else {
+									ImGui::TextUnformatted(" * Dust Proration");
+								}
+								_zerohspacing
+								ImGui::TableNextColumn();
+								zerohspacing
+								sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration1, '%');
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								sprintf_s(strbuf, "%d", x);
+								textUnformattedColored(YELLOW_COLOR, strbuf);
+								_zerohspacing
+							}
+							
+							oldX = x;
+							x = x * data.dustProration2 / 100;
+							ImGui::TableNextColumn();
+							if (data.dustProration1 != 100) {
+								ImGui::TextUnformatted(searchFieldTitle("Dust Proration #2"));
+							} else {
+								ImGui::TextUnformatted(searchFieldTitle("Dust Proration"));
+							}
+							ImGui::TableNextColumn();
+							sprintf_s(strbuf, "%d%c", data.dustProration2, '%');
+							ImGui::TextUnformatted(strbuf);
+							
+							ImGui::TableNextColumn();
+							zerohspacing
+							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							ImGui::SameLine();
+							if (data.dustProration1 != 100) {
+								ImGui::TextUnformatted(" * Dust Proration #2");
+							} else {
+								ImGui::TextUnformatted(" * Dust Proration");
+							}
+							_zerohspacing
+							ImGui::TableNextColumn();
+							zerohspacing
+							sprintf_s(strbuf, "%d * %d%c = ", oldX, data.dustProration2, '%');
+							ImGui::TextUnformatted(strbuf);
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							_zerohspacing
+							
+							bool hellfire = data.attackerHellfireState && data.attackerHpLessThan10Percent && data.attackHasHellfireEnabled;
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Hellfire"));
+							AddTooltip(searchTooltip("To gain 20% damage bonus, the attacker must have hellfire state enabled, they must have <= 10% HP (<= 42 HP),"
+								" and the attack must be Hellfire-enabled. All overdrives should be Hellfire-enabled."));
+							ImGui::TableNextColumn();
+							if (hellfire) {
+								ImGui::TextUnformatted("yes (120%)");
+							} else if (data.attackerHellfireState && !data.attackerHpLessThan10Percent) {
+								ImGui::TextUnformatted("no, hp>10% (hp>42) (100%)");
+							} else if (data.attackerHellfireState && data.attackerHpLessThan10Percent && !data.attackHasHellfireEnabled) {
+								if (data.attackType == ATTACK_TYPE_OVERDRIVE) {
+									ImGui::TextUnformatted("no, attack lacks hellfire attribute (100%)");
+								} else {
+									ImGui::TextUnformatted("no, not a super (100%)");
+								}
+							} else {
+								ImGui::TextUnformatted("no (100%)");
+							}
+							
+							oldX = x;
+							ImGui::TableNextColumn();
+							zerohspacing
+							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							ImGui::SameLine();
+							ImGui::TextUnformatted(" * Hellfire");
+							_zerohspacing
+							ImGui::TableNextColumn();
+							zerohspacing
+							if (hellfire) {
+								x = x * 120 / 100;
+								sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
+							} else {
+								sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
+							}
+							ImGui::TextUnformatted(strbuf);
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							_zerohspacing
+							
+							if (data.trainingSettingIsForceCounterHit) {
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(searchFieldTitle("Attack Can't Counter Hit"));
+								AddTooltip(searchTooltip("Some attacks cannot be counter hits even when the 'Counter Hit' training setting is set to 'Forced' or 'Forced Mortal Counter'."
+									" However, triggering Danger Time normally and doing the attack still produces the Mortal Counter and gives the 20% damage boost."));
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted(
+									data.attackCounterHitType == COUNTERHIT_TYPE_NO_COUNTER
+										? "Yes"
+										: "No"
+								);
+							}
+							
+							oldX = x;
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Danger Time"));
+							ImGui::TableNextColumn();
+							if (data.dangerTime) {
+								x = x * 120 / 100;
+								ImGui::TextUnformatted("yes (120%)");
+							} else {
+								ImGui::TextUnformatted("no (100%)");
+							}
+							
+							ImGui::TableNextColumn();
+							zerohspacing
+							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							ImGui::SameLine();
+							ImGui::TextUnformatted(" * Danger Time");
+							_zerohspacing
+							ImGui::TableNextColumn();
+							zerohspacing
+							if (data.dangerTime) {
+								sprintf_s(strbuf, "%d * 120%c = ", oldX, '%');
+							} else {
+								sprintf_s(strbuf, "%d * 100%c = ", oldX, '%');
+							}
+							ImGui::TextUnformatted(strbuf);
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							_zerohspacing
+							
+							bool rcProration = data.rcDmgProration || data.wasHitDuringRc;
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Current Proration"));
+							AddTooltip(searchTooltip("Forced/initial proration that was at the moment of impact. Stored in the defender."));
+							ImGui::TableNextColumn();
+							sprintf_s(strbuf, "%d%c", data.proration, '%');
+							ImGui::TextUnformatted(strbuf);
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("RISC"));
+							AddTooltip(searchTooltip("RISC that was at the moment of impact."));
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(printDecimal(data.risc, 2, 0, false));
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted("Is First Hit");
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(data.isFirstHit ? "Yes" : "No");
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Initial Proration"));
+							AddTooltip(searchTooltip("Depends on the attack. May only be applied on first hit."));
+							ImGui::TableNextColumn();
+							int nextProration = data.proration;
+							const char* nextProrationWhich = nullptr;
+							if (data.isFirstHit) {
+								if (data.initialProration == INT_MAX) {
+									ImGui::TextUnformatted("None (100%)");
+								} else {
+									nextProration = data.initialProration;
+									nextProrationWhich = "initial";
+									sprintf_s(strbuf, "%d%c", data.initialProration, '%');
+									ImGui::TextUnformatted(strbuf);
+								}
+							} else {
+								ImGui::TextUnformatted("Doesn't apply (100%)");
+							}
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Forced Proration"));
+							AddTooltip(searchTooltip("Depends on the attack."));
+							ImGui::TableNextColumn();
+							if (data.forcedProration == INT_MAX) {
+								ImGui::TextUnformatted("None (100%)");
+							} else {
+								if (data.forcedProration < nextProration) {
+									nextProration = data.forcedProration;
+									nextProrationWhich = "forced";
+								}
+								sprintf_s(strbuf, "%d%c", data.forcedProration, '%');
+								ImGui::TextUnformatted(strbuf);
+							}
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Next Proration"));
+							AddTooltip(searchTooltip("The proration that is chosen out of initial or forced prorations that will apply to the consecutive combo."));
+							ImGui::TableNextColumn();
+							if (!nextProrationWhich) {
+								sprintf_s(strbuf, "Unchanged (%d%c)", data.proration, '%');
+							} else {
+								sprintf_s(strbuf, "%d%c (%s)", nextProration, '%', nextProrationWhich);
+							}
+							ImGui::TextUnformatted(strbuf);
+							
+							if (!data.needReduceRisc) {
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("Attack Reduces RISC");
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("No");
+							} else {
+								int riscMinusTotal = 0;
+								
+								ImGui::TableNextColumn();
+								searchFieldTitle("RISC- Initial");
+								const char* tooltip = searchTooltip("This RISC- is applied on first hit only. Depends on the attack.");
+								zerohspacing
+								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" Initial");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								if (!data.isFirstHit) {
+									zerohspacing
+									ImGui::TextUnformatted("Not first hit (");
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(")");
+									_zerohspacing
+								} else {
+									riscMinusTotal = data.riscMinusStarter * 100;
+									sprintf_s(strbuf, "%d", data.riscMinusStarter);
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+								AddTooltip(searchTooltip("Depends on the attack."));
+								ImGui::TableNextColumn();
+								riscMinusTotal += data.riscMinus * 100;
+								sprintf_s(strbuf, "%d", data.riscMinus);
+								textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+								
+								ImGui::TableNextColumn();
+								searchFieldTitle("RISC- Once");
+								tooltip = searchTooltip("This RISC- may only be applied once. Depends on the attack.");
+								zerohspacing
+								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC-");
+								AddTooltip(tooltip);
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" Once");
+								AddTooltip(tooltip);
+								_zerohspacing
+								ImGui::TableNextColumn();
+								if (data.riscMinusOnceUsed) {
+									zerohspacing
+									ImGui::TextUnformatted("Already applied (");
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(")");
+									_zerohspacing
+								} else if (data.riscMinusOnce == INT_MAX) {
+									zerohspacing
+									ImGui::TextUnformatted("None (");
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(")");
+									_zerohspacing
+								} else {
+									riscMinusTotal += data.riscMinusOnce * 100;
+									sprintf_s(strbuf, "%d", data.riscMinusOnce);
+									textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+								}
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("RISC > 0 ?");
+								AddTooltip("RISC reduces by 25% extra on each hit when it is positive.");
+								ImGui::TableNextColumn();
+								int riscReductionExtra = 0;
+								if (data.risc > 0) {
+									riscReductionExtra = data.risc >> 3;
+									riscMinusTotal += riscReductionExtra;
+									zerohspacing
+									ImGui::TextUnformatted("yes (extra 'RISC-' = ");
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscReductionExtra, 2, 0, false));
+									ImGui::SameLine();
+									ImGui::TextUnformatted(")");
+									_zerohspacing
+								} else {
+									zerohspacing
+									ImGui::TextUnformatted("no (extra 'RISC-' = ");
+									ImGui::SameLine();
+									textUnformattedColored(LIGHT_BLUE_COLOR, "0");
+									ImGui::SameLine();
+									ImGui::TextUnformatted(")");
+									_zerohspacing
+								}
+								
+								ImGui::TableNextColumn();
+								zerohspacing
+								textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("RISC-"));
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" Total");
+								_zerohspacing
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%d + %d + %d + %s = ",
+									data.isFirstHit ? data.riscMinusStarter : 0,
+									data.riscMinus,
+									!data.riscMinusOnceUsed && data.riscMinusOnce != INT_MAX ? data.riscMinusOnce : 0,
+									printDecimal(riscReductionExtra, 2, 0, false));
+								zerohspacing
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								textUnformattedColored(LIGHT_BLUE_COLOR, printDecimal(riscMinusTotal, 2, 0, false));
+								_zerohspacing
+								
+								ImGui::TableNextColumn();
+								ImGui::TextUnformatted("RISC");
+								ImGui::TableNextColumn();
+								char* buf = strbuf;
+								size_t bufSize = sizeof strbuf;
+								int result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
+								if (result != -1) {
+									buf += result;
+									bufSize -= result;
+								}
+								result = sprintf_s(buf, bufSize, "%s = ", printDecimal(riscMinusTotal, 2, 0, false));
+								if (result != -1) {
+									buf += result;
+									bufSize -= result;
+								}
+								result = sprintf_s(buf, bufSize, "%s", printDecimal(data.risc - riscMinusTotal, 2, 0, false));
+								if (result != -1) {
+									buf += result;
+									bufSize -= result;
+								}
+								ImGui::TextUnformatted(strbuf);
+								
+							}
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Attack Type"));
+							AddTooltip(searchTooltip("Attack type affects which RISC Damage Scaling table is used. Overdrives prorate differently from normals and specials.\n"
+								"More info in the tooltip of the field below."));
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(formatAttackType(data.attackType));
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("RISC Dmg Scaling"));
+							AddTooltip(searchTooltip("This damage scaling depends on the defender's RISC that was at the moment of impact"
+								" and the attacker's attack type.\n"
+								"Normal and special attacks use this table:\n"
+								"256, 200, 152, 112, 80, 48, 32, 16, 8, 8, 8;\n"
+								"Overdrives use this table:\n"
+								"256, 176, 128, 96, 80, 48, 40, 32, 24, 16, 16;\n"
+								"X = -(RISC/100) - 1; Round the division down. The RISC here is [-12800; +12800].\n"
+								"If RISC >= 0, the table is not used and RISC Damage Scaling is 256 (100%).\n"
+								"Index into the table = X / 16; Round down. Index starts from 0.\n"
+								"M = remainder of division of X by 16. From 0 to 15.\n"
+								"RISC Dmg Scaling (%) = (table[index] * 16 - (table[index] - table[index + 1]) * M) / 16 * 100% / 256;"
+								" Round down both divisions.\n"));
+							ImGui::TableNextColumn();
+							sprintf_s(strbuf, "%d%c", data.comboProration * 100 / 256, '%');
+							ImGui::TextUnformatted(strbuf);
+							
+							int proration = data.proration * data.comboProration / 100;
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Current Pror. * RISC Scaling"));
+							AddTooltip(searchTooltip("Current Proration, which is forced/initial proration that was at the moment of impact,"
+								" * RISC Damage Scaling"));
+							ImGui::TableNextColumn();
+							if (data.noDamageScaling) {
+								proration = 256;
+								ImGui::TextUnformatted("No Damage Scaling (100%)");
+								ImGui::SameLine();
+								HelpMarker("Depends on the attack. Attack ignores initial/forced proration and RISC Damage Scaling.");
+							} else {
+								sprintf_s(strbuf, "%d%c * %d%c = %d%c",
+									data.proration,
+									'%',
+									data.comboProration * 100 / 256,
+									'%',
+									proration * 100 / 256,
+									'%');
+								ImGui::TextUnformatted(strbuf);
+							}
+							
+							int damagePriorToProration = x;
+							oldX = x;
+							x = x * proration / 256;
+							ImGui::TableNextColumn();
+							const char* tooltip = "Damage * Current proration * RISC Damage Scaling."
+								" Current proration is forced/initial proration that was at the moment of impact.";
+							zerohspacing
+							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							AddTooltip(tooltip);
+							ImGui::SameLine();
+							ImGui::TextUnformatted(" * Pror. * Scaling");
+							AddTooltip(tooltip);
+							_zerohspacing
+							ImGui::TableNextColumn();
+							zerohspacing
+							sprintf_s(strbuf, "%d * %d%c = ",
+									oldX,
+									proration * 100 / 256,
+									'%');
+							ImGui::TextUnformatted(strbuf);
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							_zerohspacing
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Roman Cancel"));
+							AddTooltip(searchTooltip("Proration resulting from landing a hit during Roman Cancel slowdown."));
+							ImGui::TableNextColumn();
+							if (rcProration) {
+								ImGui::TextUnformatted("yes (80%)");
+							} else {
+								ImGui::TextUnformatted("no (100%)");
+							}
+							
+							oldX = x;
+							ImGui::TableNextColumn();
+							tooltip = "Damage * Roman Cancel proration";
+							zerohspacing
+							textUnformattedColored(YELLOW_COLOR, "Damage");
+							AddTooltip(tooltip);
+							ImGui::SameLine();
+							ImGui::TextUnformatted(" * RC");
+							AddTooltip(tooltip);
+							_zerohspacing
+							ImGui::TableNextColumn();
+							zerohspacing
+							if (rcProration) {
+								x = x * 80 / 100;
+								sprintf_s(strbuf, "%d * 80%c = ", oldX, '%');
+								ImGui::TextUnformatted(strbuf);
+							} else {
+								ImGui::TextUnformatted("Doesn't apply (");
+							}
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							if (!rcProration) {
+								ImGui::SameLine();
+								ImGui::TextUnformatted(")");
+							}
+							_zerohspacing
+							
+							if (damagePriorToProration > 0 && x < 1) {
+								x = 1;
+							}
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Minimum Dmg %"));
+							AddTooltip(searchTooltip("Minimum Damage Percent. Calculated from Base Damage. Depends on the attack."));
+							ImGui::TableNextColumn();
+							if (data.minimumDamagePercent == 0) {
+								ImGui::TextUnformatted("None (0%)");
+							} else {
+								sprintf_s(strbuf, "%d%c", data.minimumDamagePercent, '%');
+								ImGui::TextUnformatted(strbuf);
+							}
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Base Dmg * Min Dmg %"));
+							ImGui::TableNextColumn();
+							int minDmg = 0;
+							if (data.minimumDamagePercent == 0) {
+								sprintf_s(strbuf, "Doesn't apply (0)");
+							} else {
+								minDmg = data.baseDamage * data.minimumDamagePercent / 100;
+								sprintf_s(strbuf, "%d * %d%c = %d", data.baseDamage, data.minimumDamagePercent, '%', minDmg);
+							}
+							ImGui::TextUnformatted(strbuf);
+							
+							ImGui::TableNextColumn();
+							zerohspacing
+							textUnformattedColored(YELLOW_COLOR, "Damage");
+							ImGui::SameLine();
+							ImGui::TextUnformatted(" or Min ");
+							ImGui::SameLine();
+							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							_zerohspacing
+							ImGui::TableNextColumn();
+							if (data.minimumDamagePercent != 0 && x < minDmg) x = minDmg;
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							
+							x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("HP<=Dmg and HP>=30% MaxHP"));
+							AddTooltip(searchTooltip("When HP at the moment of hit is less than or equal to the damage, and HP is greater than or equal to max HP * 30% (HP>=126),"
+								" the damage gets changed to:\n"
+								"Damage = HP - Max HP * 5% or, in other words, Damage = HP - 21"));
+							ImGui::TableNextColumn();
+							bool attackIsTooOP = data.hp <= x && data.hp >= data.maxHp * 30 / 100;
+							ImGui::TextUnformatted(attackIsTooOP ? "Yes" : "No");
+							
+							ImGui::TableNextColumn();
+							tooltip = "Damage after change due to the condition above.";
+							zerohspacing
+							textUnformattedColored(YELLOW_COLOR, "Damage");
+							AddTooltip(tooltip);
+							if (attackIsTooOP) {
+								ImGui::SameLine();
+								ImGui::TextUnformatted(" = HP - 21");
+								AddTooltip(tooltip);
+							}
+							_zerohspacing
+							ImGui::TableNextColumn();
+							zerohspacing
+							if (attackIsTooOP) {
+								x = data.hp - data.maxHp * 5 / 100;
+								sprintf_s(strbuf, "%d - 21 = ", data.hp);
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+							}
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							_zerohspacing
+							
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(searchFieldTitle("Attack Is Kill"));
+							AddTooltip(searchTooltip("This was observed to not happen immediately when landing an IK, but it does happen during the IK cinematic."
+								" When an attack is a kill, it always deals damage equal to the entire remaining health of the defender no matter what."));
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted(data.kill ? "Yes" : "No");
+							
+							ImGui::TableNextColumn();
+							textUnformattedColored(YELLOW_COLOR, "Damage");
+							AddTooltip("Damage after change due to the condition above.");
+							ImGui::TableNextColumn();
+							if (data.kill) x = data.hp;
+							sprintf_s(strbuf, "%d", x);
+							textUnformattedColored(YELLOW_COLOR, strbuf);
+							
+							ImGui::TableNextColumn();
+							ImGui::TextUnformatted("HP");
+							ImGui::TableNextColumn();
+							sprintf_s(strbuf, "%d - %d = %d", data.hp, x, data.hp - x);
+							ImGui::TextUnformatted(strbuf);
+							
+							ImGui::EndTable();
+						}
+					}
+					
+					if (it == dmgCalcsUse.begin()) break;
+					--it;
+				}
+				
+				if (searching ? 0 : player.dmgCalcsSkippedHits) {
+					ImGui::Separator();
+					sprintf_s(strbuf, "Skipped %d hit%s...", player.dmgCalcsSkippedHits, player.dmgCalcsSkippedHits == 1 ? "" : "s");
+					ImGui::TextUnformatted(strbuf);
+				}
+				
+			} else {
+				
+				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+				textUnformattedColored(YELLOW_COLOR, "Last hit result: ");
+				ImGui::SameLine();
+				ImGui::TextUnformatted(formatHitResult(HIT_RESULT_NONE));
+				ImGui::PopStyleVar();
+				
+				if (!endScene.players[1 - i].dmgCalcs.empty()
+					&& !showDamageCalculation[1 - i]) {
+					ImGui::TextUnformatted("The other player has info in their corresponding window.\n"
+						"You might want to look over there.");
+				}
+			}
+			
+			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
+			drawGGIcon(scaledIcon);
+			AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
+				" field value) to see their tooltips.");
+			
+			ImGui::End();
+			ImGui::PopID();
+		}
+	}
+	popSearchStack();
+	searchCollapsibleSection("Framebar Help");
+	if (showFramebarHelp || searching) {
+		framebarHelpWindow();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Frame Advantage Help");
+	if (showFrameAdvTooltip || searching) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_frame" : "Frame Advantage Help", &showFrameAdvTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		ImGui::PushTextWrapPos(0.F);
+		searchFieldTitle("Help Contents");
+		ImGui::TextUnformatted(searchTooltip(
+			"Frame advantage of this player over the other player, in frames, after doing the last move. Frame advantage is who became able to 5P/j.P earlier"
+			" (or, for stance moves such as Leo backturn, it also includes the ability to do a stance move from such stance)."
+			" Please note that players may become able to block earlier than they become able to attack. This difference will not be displayed, and only the time"
+			" when players become able to attack will be considered for frame advantage calculation.\n\n"
+			"The value in () means frame advantage after yours or your opponent's landing, whatever happened last."
+			" The landing frame advantage is measured against the other player's becoming able to attack after landing or,"
+			" if they never jumped, after them just becoming able to attack."
+			" For example, two players jump one after each other with 1f delay. Both players whiff a j.P in the air and recover in the air, then land"
+			" one after another with 1f delay. The player who landed first will have a +1 'landing' frame advantage and the displayed result will be:"
+			" ??? (+1), where ??? is the 'air' frame advantage (read below), and +1 is the 'landing' frame advantage.\n"
+			"The other value (not in ()) means 'air' frame advantage"
+			" immediately after recovering in the air or on the ground, whichever happened earlier."
+			" 'Air' frame advantage is measured against the other player becoming able to attack in the air or"
+			" on the ground, whichever happened earlier. For example, you do a move in the air and recover on frame 1 in the air. On the next frame, opponent recovers"
+			" as well, but it takes you 100 frames to fall back down. Then you're +1 advantage in the air, but upon landing you're -99, so the displayed result is:"
+			" +1 (-99). If both you and the opponent jumped, and you recovered in the air 1f before they did, but after they recovered"
+			" it took you 100 frames to fall back down"
+			" and them - only one, then the displayed result for you will be: +1 (-99), and for them: -1 (+99). So, 'air' frame advantage is measured"
+			" against recovering in the air/on the ground, 'landing' frame advantage is measured against recovering on the ground only.\n"
+			"\n"
+			"Frame advantage is only updated when both players are in \"not idle\" state simultaneously or one started blocking, or if a player lands from a jump.\n"
+			"Frame advantage may go into the past and use time from before the opponent entered blockstun and add that time to your frame advantage,"
+			" if during that time you were idle. For example, if Ky uses j.D, he recovers in the air before it goes active, then opponent gets put into blockstun,"
+			" then all the time that Ky was idle in the air immediately gets included in the frame advantage. For example, if you did a move that let you recover"
+			" in one frame, but it caused the opponent to enter blockstun 100 frames after you started your move, and the opponent spent 1 frame in blockstun,"
+			" you're considered +100 instead of +1. If you do not want to include attacker's pre-blockstun idle time as part of frame advantage,"
+			" then you may untick the 'Settings - General Settings - Frame Advantage: Don't Use Pre-Blockstun Time' checkbox"
+			" (called frameAdvantage_dontUsePreBlockstunTime in the INI file)."));
+		ImGui::PopTextWrapPos();
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Startup Field's Help");
+	if (showStartupTooltip || searching) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_startup" : "'Startup' Field Help", &showStartupTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		ImGui::PushTextWrapPos(0.F);
+		searchFieldTitle("Help Contents");
+		ImGui::TextUnformatted(searchTooltip(
+			"The startup of the last performed move. The last startup frame is also an active frame.\n"
+			"For moves that cause a superfreeze, such as RC, the startup of the superfreeze is displayed.\n"
+			"The startup of the move may consist of multiple numbers, separated by +. In that case:\n"
+			"1) If the move caused a superfreeze, and that superfreeze occured before active frames,"
+			" it's displayed as the startup of the superfreeze + startup after superfreeze;\n"
+			"2) If the move only caused a superfreeze and no attack (for example, it's RC), then only the startup of the superfreeze"
+			" is displayed;\n"
+			"3) If the move can be held, such as Blitz Shield, May 6P, May 6H, Johnny Mist Finer, etc, then the startup is displayed"
+			" as everything up to releasing the button + startup after releasing the button. Except Johnny Mist Finer and many"
+			" other moves additionally"
+			" break up into: the number of frames before the move enters the portion that can be held"
+			" + the amount of frames you held after that + startup after you released the button. Elphelt Ms. Confille breaks up"
+			" into frames it takes to become able to do other moves, and then, over a +, extra frames it takes to become able to"
+			" fire. Other moves may break up similarly;\n"
+			"4) If a move was RC'd, the move's frames are shown first, then +, then RC's frames;\n"
+			"5) If a move is a follow-up move, the first move's frames are shown, then the follow-up's. Not all follow-ups are"
+			" displayed like this - they reset the entire display instead, by restarting the startup/total from 1, without + sign;\n"
+			"6) Baiken canceling Azami into another Azami or the follow-ups, causes them to be displayed in addition to what happened"
+			" before, over a + sign;\n"
+			"7) Some other moves may get combined with the ones they were performed from as well, using the + sign."));
+		ImGui::PopTextWrapPos();
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Active Field's Help");
+	if (showActiveTooltip || searching) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_active" : "'Active' Field Help", &showActiveTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		searchFieldTitle("Help Contents");
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted(searchTooltip(
+			"Number of active frames in the last performed move.\n"
+			"\n"
+			"Numbers in (), when surrounded by other numbers, mean non-active frames inbetween active frames."
+			" So, for example, 1(2)3 would mean you were active for 1 frame, then were not active for 2 frames, then were active again for 3.\n"
+			"\n"
+			"Numbers separated by a , symbol mean active frames of separate distinct hits, between which there is no gap of non-active frames."
+			" For example, 1,4 would mean that the move is active for 5 frames, and the first frame is hit one, while frames 2-5 are hit two."
+			" The attack need not actually land those hits, and some moves may be limited by the max number of hits they can deal, which means"
+			" the displayed number of hits might not represent the actual number of hits dealt.\n"
+			"\n"
+			"(max hits X) may be displayed next to active frames and shows the maximum number of hits the attack can deal."
+			" If the attack has projectiles which are also limited by the number of hits, then there's a max hit number limit conflict,"
+			" and no information about max hits is displayed.\n"
+			"\n"
+			"Sometimes, when the number of hits is too great, an alternative representation of active frames will be displayed over a / sign."
+			" For example: 13 / 1,1,1,1,1,1,1,1,1,1,1,1,1. Means there're 13 active frames, and over the /, each individual hit's active frames"
+			" are shown.\n"
+			"\n"
+			"If the move spawned one or more projectiles, and the hits of projectiles overlap with each other or with the player's hits, then the"
+			" individual hits' information is discarded in only those spans that overlap, and those spans get combined and shown as one hit. For example,"
+			" Sol DI Ground Viper spawns vertical pillars of fire in its path, as Sol himself is hitting from below. The hits of the pillars are"
+			" out of sync with Sol's hits and so everything is displayed as just one number representing the total duration of all active frames.\n"
+			"\n"
+			"If the move spawned one or more projectiles, or Eddie, and that projectile entered hitstop due to the opponent blocking it or"
+			" getting hit by it, then the displayed number of active frames may be larger than it is on whiff, because the hitstop gets added"
+			" to it. When both the player and the projectile enter hitstop, like with Axl Benten, this does not happen and active frames display normally.\n"
+			"\n"
+			"If, while the move was happening, some projectile unrelated to the move had active frames, those are not included in the move's"
+			" active frames.\n"
+			"\n"
+			"If active frames start during superfreeze, the active frames will be 1 greater than real frames to include the frame that happened during"
+			" the superfreeze. For example, a move has superfreeze startup 1"
+			" (meaning superfreeze starts in 1 frame), +0 startup after superfreeze (which means that it starts during the superfreeze),"
+			" and 2 active frames after the superfreeze. The displayed result for active frames will be: 3. If we don't do this, Venom Red Hail hit up close"
+			" will display 0 active frames during superfreeze or on the frame after it."));
+		ImGui::PopTextWrapPos();
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Total Field's Help");
+	if (showTotalTooltip || searching) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_total" : "'Total' Field Help", &showTotalTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		searchFieldTitle("Help Contents");
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted(searchTooltip(
+			"Total number of frames in the last performed move during which you've been unable to act.\n"
+			"\n"
+			"If the move spawned a projectiled that lasted beyond the boundaries of the move, this field will display"
+			" only the amount of frames it took to recover, from the start of the move."
+			" So for example, if a move's startup is 1, it creates a projectile that lasts 100 frames and recovers instantly,"
+			" on frame 2, then its total frames will be 1, its startup will be 1 and its actives will be 100.\n"
+			"\n"
+			"If you performed an air move that has landing recovery, the"
+			" landing recovery is included in the display as '+X landing'.\n"
+			"\n"
+			"If you performed an air move and recovered in the air, then the time you spent in the air idle is not included"
+			" in the recovery or 'Total' frames. Even if such move had landing recovery, it will display only the frames,"
+			" during which you were 'busy', will not include the idle time spent in the air, and will add a '+X landing'"
+			" to the recovery.\n"
+			"\n"
+			"If you performed an air normal or similar air move without landing recovery, and it got canceled by"
+			" landing, normally there's 1 frame upon landing during which normals can't be used but blocking is possible."
+			" This frame is not included in the total frames as it is not considered part of the move.\n"
+			"\n"
+			"If the move recovery lets you attack first and then some times passes and then it lets you block, or vice versa"
+			" the display will say either 'X can't block+Y can't attack' or 'X can't attack+Y can't block'. In this case"
+			" the first part is the number of frames during which you were unable to block/attack and the second part is"
+			" the number of frames during which you were unable to attack/block.\n"
+			"\n"
+			"If the move was jump canceled, the prejump frames and the jump are not included in neither the recovery nor 'Total'.\n"
+			"\n"
+			"If the move started up during superfreeze, the startup+active+recovery will be = total+1 (see tooltip of 'Active')."));
+		ImGui::PopTextWrapPos();
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Invul Help");
+	if (showInvulTooltip || searching) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_invul" : "Invul Help", &showInvulTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		searchFieldTitle("Help Contents");
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted(searchTooltip(
+			"Strike invul: invulnerable to strike and projectiles.\n"
+			"Throw invul: invulnerable to throws.\n"
+			"Low profile: low profiles first active frame of Ky f.S"
+			" (read the bottom for how to configure maximum height that determines what 'low profile' is).\n"
+			"Projectile-only invul: only vulnerable to direct player strikes or throws.\n"
+			"Super armor: parry or super armor.\n"
+			"Reflect: able to reflect certain types of projectiles.\n\n"
+			"All given frame ranges begin from the moment you started performing the move or, if"
+			" you performed multiple moves and their display got combined with a + sign in"
+			" the 'Startup' field, then from the start of the first move. If the moves are combined"
+			" in the 'Total' field, but not the 'Startup' field, then the ranges begin from the start"
+			" of the last move.\n\n"
+			"List of moves that are unblockable:\n"
+			"*) Answer Taunt;\n"
+			"*) Axl Haitaka Stance max charge;\n"
+			"*) Bedman Hemi Jack;\n"
+			"*) Dizzy Taunt;\n"
+			"*) Elphelt Ms. Confille maximum charge;\n"
+			"*) Faust Platform;\n"
+			"*) Faust 100-ton Weight;\n"
+			"*) Faust 10,000 Ton Weight;\n"
+			"*) Faust Hack'n'Slash if the opponent is grounded;\n"
+			"*) I-No Sterilization Method;\n"
+			"*) Johnny Bacchus Sigh + Mist Finer if the opponent is airborne;\n"
+			"*) Johnny Treasure Hunt max charge;\n"
+			"*) Kum Enlightened 3000 Palm Strike max charge;\n"
+			"*) Potemkin Slidehead shockwave;\n"
+			"*) Potemkin Heat Knuckle;\n"
+			"*) Potemkin Heavenly Potemkin Buster;\n"
+			"*) Raven S Wachen Zweig;\n"
+			"*) Slayer Undertow.\n"
+			"NOTE: If the super armor properties say it can armor unblockables, but does not mention overdrives, then that means it can't"
+			" armor overdrive unblockables such as Kum Enlightened 3000 Palm Strike max charge.\n"
+			"Some moves such as Kum max charge Falcon Dive cause guard crush and are not \"unblockables\".\n\n"
+			"Low profile invul can be configured using Settings - General Settings - Low Profile Cut-Off Height"));
+		ImGui::End();
+	}
+	popSearchStack();
+	if (searching) {
+		ImGui::PopID();
+	}
 }
 
 // Runs on the graphics thread
@@ -4427,7 +4553,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 	bool keyComboChanged = false;
 	
 	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(info.uiName);
+	ImGui::TextUnformatted(searchFieldTitle(info.uiName));
 	ImGui::SameLine();
 	std::string idArena;
 	std::vector<int> indicesToRemove;
@@ -4444,7 +4570,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 		int currentlySelectedKey = keyCombo[i];
 		const char* currentKeyStr = settings.getKeyRepresentation(currentlySelectedKey);
 		ImGui::PushItemWidth(80);
-		if (ImGui::BeginCombo(idArena.c_str(), currentKeyStr))
+		if (ImGui::BeginCombo(idArena.c_str(), searchFieldValue(currentKeyStr)))
 		{
 			ImGui::PushID(-1);
 			if (ImGui::Selectable("Remove this key", false)) {
@@ -4500,7 +4626,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 	}
 	
 	ImGui::SameLine();
-	HelpMarker(info.uiDescription);
+	HelpMarker(searchTooltip(info.uiDescription));
 }
 
 // Runs on the main thread. Called hundreds of times each frame
@@ -4923,21 +5049,21 @@ void HelpMarker(const char* desc) {
 	AddTooltip(desc);
 }
 
-void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) {
+void UI::HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) {
 	ImGui::TextDisabled("(?)");
-	if (ImGui::BeginItemTooltip()) {
+	if (searching || ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 		const char* hotkeyRepresentation = settings.getComboRepresentation(hotkey);
 		if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
 			ImGui::TextUnformatted("Hotkey: <not set>");
 		} else {
 			sprintf_s(strbuf, "Hotkey: %s", hotkeyRepresentation);
-			ImGui::TextUnformatted(strbuf);
+			ImGui::TextUnformatted(searchTooltip(strbuf));
 		}
 		ImGui::Separator();
-		ImGui::TextUnformatted(desc);
+		ImGui::TextUnformatted(searchTooltip(desc));
 		ImGui::PopTextWrapPos();
-		ImGui::EndTooltip();
+		if (!searching) ImGui::EndTooltip();
 	}
 }
 
@@ -5364,7 +5490,10 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 
 void UI::framebarHelpWindow() {
 	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
-	ImGui::Begin("Framebar Help", &showFramebarHelp);
+	if (searching) {
+		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+	}
+	ImGui::Begin(searching ? "search_framebarhelp" : "Framebar Help", &showFramebarHelp, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
 	float wordWrapWidth = ImGui::GetContentRegionAvail().x;
 	ImGui::PushTextWrapPos(wordWrapWidth);
 	
@@ -5404,6 +5533,7 @@ void UI::framebarHelpWindow() {
 			}
 		}
 	}
+	searchFieldTitle("A frame type's description");
 	int index = settings.useColorblindHelp ? 1 : 0;
 	bool needSeparator = false;
 	for (const FramebarHelpElement& elem : framebarHelpContent) {
@@ -5430,9 +5560,9 @@ void UI::framebarHelpWindow() {
 				ImGui::SetCursorPosX(cursorX);
 			}
 			if (theresOnlyOne) {
-				ImGui::TextUnformatted(description);
+				ImGui::TextUnformatted(searchTooltip(description));
 			} else {
-				ImGui::Text("%d) %s", count++, description);
+				ImGui::Text("%d) %s", count++, searchTooltip(description));
 			}
 		}
 		
@@ -5465,8 +5595,8 @@ void UI::framebarHelpWindow() {
 		ImVec4(1, 1, 1, 1));
 	
 	ImGui::SameLine();
-	ImGui::TextUnformatted("A half-filled active frame means an attack's startup or active frame which first begins duing"
-		" a superfreeze.");
+	ImGui::TextUnformatted(searchTooltip("A half-filled active frame means an attack's startup or active frame which first begins duing"
+		" a superfreeze."));
 	
 	ImGui::Separator();
 	
@@ -5508,7 +5638,7 @@ void UI::framebarHelpWindow() {
 			);
 		ImGui::SameLine();
 		ImGui::SetCursorPosY(cursorY);
-		ImGui::TextUnformatted(info.description);
+		ImGui::TextUnformatted(searchTooltip(info.description));
 	}
 	
 	ImGui::Separator();
@@ -5518,10 +5648,10 @@ void UI::framebarHelpWindow() {
 		{ firstFrame->uStart, firstFrame->vStart },
 		{ firstFrame->uEnd, firstFrame->vEnd });
 	ImGui::SameLine();
-	ImGui::TextUnformatted("A first frame, denoting the start of a new animation."
+	ImGui::TextUnformatted(searchTooltip("A first frame, denoting the start of a new animation."
 		" If the animation didn't change, may mean transition to some new state in the animation."
 		" For blockstun and hitstun may mean leaving hitstop or re-entering hitstun/blockstun/hitstop.\n"
-		"Some animation changes are intentionally not shown.");
+		"Some animation changes are intentionally not shown."));
 	
 	ImGui::Separator();
 	
@@ -5596,7 +5726,7 @@ void UI::framebarHelpWindow() {
 		}
 	};
 	ImGui::PopTextWrapPos();
-	imGuiDrawWrappedTextWithIcons(generalFramebarHelp.c_str(),
+	imGuiDrawWrappedTextWithIcons(searchTooltip(generalFramebarHelp.c_str()),
 		generalFramebarHelp.c_str() + generalFramebarHelp.size(),
 		wordWrapWidth,
 		icons,
@@ -5835,269 +5965,12 @@ void imGuiDrawWrappedTextWithIcons(const char* textStart,
 	ImGui::PopStyleVar();
 }
 
-void UI::lowProfilePresetsWindow() {
-	
-	static AttackValuePreset presets[] {
-		{ "Sol c.S: 107000", 107000 },
-		{ "Sol f.S: 133000", 133000 },
-		{ "Sol DAA/6P: 129000", 129000 },
-		{ "Sol Tyrant Rave (Normal/DI): 129000", 129000 },
-		{ "Ky f.S: 175000", 175000 },
-		{ "Ky DAA/6P: 150000", 150000 },
-		{ "Ky SE: 184000", 184000 },
-		{ "Ky CSE: 178000", 178000 },
-		{ "Ky DCCSE Main Shaft: 171000", 171000 },
-		{ "Ky DCCSE Base Ring: 136000", 136000 },
-		{ "Ky Lowest Descending j.D: 160951", 160951 },
-		{ "Ky tk j.D: 247226", 247226 },
-		{ "May c.S: 110000", 110000 },
-		{ "May f.S: 88000", 88000 },
-		{ "May DAA/6P: 180000", 180000 },
-		{ "May Ultimate Whiner: 179000", 179000 },
-		{ "May Ultimate Spinning Whirlwind: 133000", 133000 },
-		{ "May Mr. Dolphin Horizontal (S): 113025", 113025 },
-		{ "May Mr. Dolphin Horizontal (H): 161500", 161500 },
-		{ "Millia c.S: 98000", 98000 },
-		{ "Millia f.S: 103000", 103000 },
-		{ "Millia 6P: 126000", 126000 },
-		{ "Millia 5H: 157000", 157000 },
-		{ "Millia DAA: 194000", 194000 },
-		{ "Millia Tandem Top (S): 225000", 225000 },
-		{ "Millia Tandem Top (H) (Lowest Possible): 208900", 208900 },
-		{ "Zato c.S: 184000", 184000 },
-		{ "Zato f.S: 220000", 220000 },
-		{ "Zato 6P: 166000", 166000 },
-		{ "Zato DAA/2H: 217000", 217000 },
-		{ "Potemkin c.S: 28000", 28000 },
-		{ "Potemkin f.S: 220000", 220000 },
-		{ "Potemkin 6P: 264000", 264000 },
-		{ "Potemkin 5H: 133000", 133000 },
-		{ "Potemkin 6H: 159000", 159000 },
-		{ "Potemkin DAA/5D: 178000", 178000 },
-		{ "Potemkin Hammerfall: 132000", 132000 },
-		{ "Potemkin Giganter Kai: 73000", 73000 },
-		{ "Potemkin F.D.B.: 165000", 165000 },
-		{ "Potemkin F.D.B. Reflected Projectile: 152000", 152000 },
-		{ "Chipp 5K: 140000", 140000 },
-		{ "Chipp c.S: 123000", 123000 },
-		{ "Chipp f.S: 143000", 143000 },
-		{ "Chipp 5H/DAA: 202000", 202000 },
-		{ "Chipp 6P: 161000", 161000 },
-		{ "Chipp tk Alpha Blade: 51751", 51751 },
-		{ "Chipp Zansei Rouga: 130250", 130250 },
-		{ "Faust 5P: 215000", 215000 },
-		{ "Faust f.S: 221000", 221000 },
-		{ "Faust 5H: 205000", 205000 },
-		{ "Faust 6P/DAA: 161000", 161000 },
-		{ "Faust Re-re-re Thrust: 209000", 209000 },
-		{ "Faust Drill (Lowest Possible): 182000", 182000 },
-		{ "Axl 5K: 163000", 163000 },
-		{ "Axl c.S: 107000", 107000 },
-		{ "Axl f.S: 133000", 133000 },
-		{ "Axl 6P/DAA: 244000", 244000 },
-		{ "Venom 5K/DAA: 91000", 91000 },
-		{ "Venom c.S: 137000", 137000 },
-		{ "Venom f.S: 184000", 184000 },
-		{ "Venom 5H: 185000", 185000 },
-		{ "Venom 6P: 273000", 273000 },
-		{ "Venom P Ball hit by 2P (Lowest Possible): 133875", 133875 },
-		{ "Venom Stinger Aim (S/H): 183000", 183000 },
-		{ "Slayer 5K: 184000", 184000 },
-		{ "Slayer 6P/DAA: 85000", 85000 },
-		{ "Slayer c.S: 121000", 121000 },
-		{ "Slayer f.S: 149000", 149000 },
-		{ "Slayer 5H: 78000", 78000 },
-		{ "Slayer Mappa Hunch: 154000", 154000 },
-		{ "Slayer Under Pressure: 100000", 100000 },
-		{ "Slayer Pilebunker: 112000", 112000 },
-		{ "Slayer Dead on Time: 126500", 126500 },
-		{ "Slayer Eternal Wings: 107500", 107500 },
-		{ "I-No 5K: 187000", 187000 },
-		{ "I-No c.S: 116000", 116000 },
-		{ "I-No f.S: 209000", 209000 },
-		{ "I-No 6P/DAA: 147000", 147000 },
-		{ "I-No Longing Desperation: 119000", 119000 },
-		{ "I-No Chemical Love (Horizontal) (Lowest Possible): 299410", 299410 },
-		{ "I-No Antidepressant Scale: 251000", 251000 },
-		{ "Bedman 5K/DAA: 117000", 117000 },
-		{ "Bedman 6P: 172000", 172000 },
-		{ "Bedman c.S: 61000", 61000 },
-		{ "Bedman f.S: 109000", 109000 },
-		{ "Bedman Task A/A' (First Frame): 193000", 193000 },
-		{ "Ramlethal DAA: 107000", 107000 },
-		{ "Ramlethal 5P: 220000", 220000 },
-		{ "Ramlethal 5K: 163000", 163000 },
-		{ "Ramlethal c.S (With/Without Sword): 97000", 97000 },
-		{ "Ramlethal f.S: 123820", 123820 },
-		{ "Ramlethal 6P: 193000", 193000 },
-		{ "Ramlethal f.S (No Sword): 174000", 174000 },
-		{ "Ramlethal 5H (No Sword): 95000", 95000 },
-		{ "Ramlethal Launch Greatsword (S): 92000", 92000 },
-		{ "Ramlethal Launch Greatsword (H): 169000", 169000 },
-		{ "Ramlethal Dauro: 127000", 127000 },
-		{ "Sin 5K: 169000", 169000 },
-		{ "Sin 6P: 224000", 224000 },
-		{ "Sin f.S/DAA: 175000", 175000 },
-		{ "Sin 5H (First Hit. Hard Whiffs on Crouching): 260000", 260000 },
-		{ "Sin Beak Driver (Lowest Possible): 170000", 170000 },
-		{ "Sin Beak Driver (Max Charge): 90000", 90000 },
-		{ "Sin Voltec Dein: 218000", 218000 },
-		{ "Elphelt c.S: 52000", 52000 },
-		{ "Elphelt f.S: 159000", 159000 },
-		{ "Elphelt 5H (Whiffs on Crouching): 244000", 244000 },
-		{ "Elphelt Bridal Express: 52000", 52000 },
-		{ "Elphelt sg.H (Not Max Charge): 41000", 41000 },
-		{ "Elphelt sg.P: 112000", 112000 },
-		{ "Elphelt sg.S: 47000", 47000 },
-		{ "Elphelt DAA/6P: 212000", 212000 },
-		{ "Elphelt j.D YRC (Lowest Possible): 138000", 138000 },
-		{ "Leo 5K: 147000", 147000 },
-		{ "Leo c.S: 148000", 148000 },
-		{ "Leo f.S: 158000", 158000 },
-		{ "Leo 5H: 145000", 145000 },
-		{ "Leo 6P: 196000", 196000 },
-		{ "Leo Kaltes Gest\xc3\xb6\x62\x65r Erst: 133000", 133000 },
-		{ "Leo Kaltes Gest\xc3\xb6\x62\x65r Zweit: 121000", 121000 },
-		{ "Leo bt.P: 142000", 142000 },
-		{ "Leo bt.S: 108000", 108000 },
-		{ "Leo bt.H: 112000", 112000 },
-		{ "Leo Graviert W\xc3\xbcrde (S): 113000", 113000 },
-		{ "Leo Graviert W\xc3\xbcrde (H): 115000", 115000 },
-		{ "Leo Leidenschaft Dirigent: 188000", 188000 },
-		{ "Leo DAA/5D: 131000", 131000 },
-		{ "Johnny 5K: 180000", 180000 },
-		{ "Johnny 6K: 189000", 189000 },
-		{ "Johnny 6P/DAA: 222000", 222000 },
-		{ "Johnny c.S: 66000", 66000 },
-		{ "Johnny f.S: 191000", 191000 },
-		{ "Johnny 5H: 56000", 56000 },
-		{ "Johnny 6H: 97000", 97000 },
-		{ "Johnny 2H: 44951", 44951 },
-		{ "Johnny K Mist Finer (Lv1, Lv2): 210000", 210000 },
-		{ "Johnny K Mist Finer (Lv3): 204000", 204000 },
-		{ "Johnny That's My Name: 187000", 187000 },
-		{ "Jack O' 5K: 173000", 173000 },
-		{ "Jack O' c.S: 70000", 70000 },
-		{ "Jack O' f.S: 106000", 106000 },
-		{ "Jack O' 5H (First Frame of First Hit): 117000", 117000 },
-		{ "Jack O' 4D: 152000", 152000 },
-		{ "Jack O' 6P/DAA: 166000", 166000 },
-		{ "Jack O' 5D: 72000", 72000 },
-		{ "Jack O' 6K: 99000", 99000 },
-		{ "Jam 5K: 61000", 61000 },
-		{ "Jam c.S: 98000", 98000 },
-		{ "Jam f.S/DAA: 134000", 134000 },
-		{ "Jam 5H (First Hit): 164000", 164000 },
-		{ "Jam 6H: 92000", 92000 },
-		{ "Jam 2H (First Hit): 160000", 160000 },
-		{ "Jam Hyappo Shinshou/Senri Shinshou: 81000", 81000 },
-		{ "Jam Choukyaku Hou'oushou: 27000", 27000 },
-		{ "Jam Bao Saishinshou: 89000", 89000 },
-		{ "Haehyun 5K/DAA (Lower Hitbox): 89000", 89000 },
-		{ "Haehyun 6P: 198000", 198000 },
-		{ "Haehyun c.S: 56000", 56000 },
-		{ "Haehyun f.S: 167000", 167000 },
-		{ "Haehyun 6H: 84000", 84000 },
-		{ "Haehyun Falcon Dive: 135000", 135000 },
-		{ "Haehyun Four Tigers Sword (NOT Hold): 45000", 45000 },
-		{ "Haehyun Four Tigers Sword (Reverse Ver.): 60000", 60000 },
-		{ "Haehyun Tuning Ball (S/H): 203000", 203000 },
-		{ "Raven 5K: 118000", 118000 },
-		{ "Raven c.S: 89000", 89000 },
-		{ "Raven f.S: 191000", 191000 },
-		{ "Raven 2S: 78000", 78000 },
-		{ "Raven 5H (First Hit): 151000", 151000 },
-		{ "Raven 5H (Second Hit): 103000", 103000 },
-		{ "Raven Schmerz Berg: 198600", 198600 },
-		{ "Raven IAD: 209000", 209000 },
-		{ "Raven IAD j.P: 206375", 206375 },
-		{ "Raven IAD j.K: 123100", 123100 },
-		{ "Raven IAD j.S: 177325", 177325 },
-		{ "Raven IAD j.H: 145775", 145775 },
-		{ "Raven Scharf Kugel: 296641", 296641 },
-		{ "Raven tk Grausam Impuls: 213801", 213801 },
-		{ "Raven DAA/6P: 183000", 183000 },
-		{ "Dizzy 5K: 161000", 161000 },
-		{ "Dizzy c.S: 91000", 91000 },
-		{ "Dizzy f.S (Lowest Possible): 139000", 139000 },
-		{ "Dizzy 5H: 89000", 89000 },
-		{ "Dizyy 2H: 76000", 76000 },
-		{ "Dizzy 6P/DAA: 160000", 160000 },
-		{ "Dizzy The light was so small in the beginning (Lowest Possible): 139375", 139375 },
-		{ "Dizzy For putting out the light...: 170600", 170600 },
-		{ "Dizzy For searing cod... (First Descent, Lowest Possible): 167500", 167500 },
-		{ "Dizzy For searing cod... (Second Descent, Lowest Possible): 150875", 150875 },
-		{ "Baiken 5K: 109000", 109000 },
-		{ "Baiken 6K: 110000", 110000 },
-		{ "Baiken 2D (First Hit. Second Hit is 18000): 96000", 96000 },
-		{ "Baiken 6P/DAA: 175000", 175000 },
-		{ "Baiken f.S: 142000", 142000 },
-		{ "Baiken 2S: 101000", 101000 },
-		{ "Baiken 5H: 63000", 63000 },
-		{ "Baiken Kabari (H): 154000", 154000 },
-		{ "Baiken Kuchinashi: 210000", 210000 },
-		{ "Baiken Sakura: 145000", 145000 },
-		{ "Baiken Rokkon Sogi: 48000", 48000 },
-		{ "Baiken Tetsuzan Sen: 74000", 74000 },
-		{ "Baiken Tsuranu Sanzu-watashi (First Frame of First Hit): 84000", 84000 },
-		{ "Answer 5K: 152000", 152000 },
-		{ "Answer 6K: 301000", 301000 },
-		{ "Answer c.S (First Hit): 147000", 147000 },
-		{ "Answer c.S (Second Hit): 166000", 166000 },
-		{ "Answer f.S: 115000", 115000 },
-		{ "Answer 5H: 63000", 63000 },
-		{ "Answer 2H: 145000", 145000 },
-		{ "Answer 46P: 88000", 88000 },
-		{ "Answer Low Scroll s.D Horizontal: 188001", 188001 }
-	};
-	
-	ImGui::SetNextWindowSize({ 350.F, 0.F }, ImGuiCond_FirstUseEver);
-	ImGui::Begin("Low Profile Presets", &showLowProfilePresets);
-	ImGui::TextUnformatted("All these values represent the low extent of an attack's hitboxes.");
-	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-	ImGui::ListBox("##PresetsList", &currentSelectedLowProfilePreset, AttackValuePreset::getName, presets, _countof(presets), 12);
-	if (ImGui::Button("Set##LowProfile")) {
-		if (currentSelectedLowProfilePreset == -1) {
-			showErrorDialog = true;
-			errorDialogText = "Please first select a preset.";
-			*(ImVec2*)errorDialogPos = ImGui::GetCursorScreenPos();
-		} else {
-			settings.lowProfileCutoffPoint = presets[currentSelectedLowProfilePreset].value;
-			needWriteSettings = true;
-		}
-	}
-	static std::string lowProfilePresetSetHelp;
-	if (lowProfilePresetSetHelp.empty()) {
-		lowProfilePresetSetHelp = settings.convertToUiDescription("Sets the selected item as the current setting for \"lowProfileCutoffPoint\".");
-	}
-	AddTooltip(lowProfilePresetSetHelp.c_str());
-	ImGui::End();
-}
-
-void UI::lowProfileControl() {
-	
-	int lowProfileCutoffPoint = settings.lowProfileCutoffPoint;
-	ImGui::SetNextItemWidth(200.F);
-	if (ImGui::InputInt(settings.getOtherUIName(&settings.lowProfileCutoffPoint), &lowProfileCutoffPoint, 1000, 10000, 0)) {
-		settings.lowProfileCutoffPoint = lowProfileCutoffPoint;
-		needWriteSettings = true;
-	}
-	imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
-	ImGui::SameLine();
-	HelpMarker(settings.getOtherUIDescription(&settings.lowProfileCutoffPoint));
-	if (ImGui::Button("Presets##LowProfile")) {
-		showLowProfilePresets = !showLowProfilePresets;
-	}
-	AddTooltip("If you don't want to manually enter a value or use 'Box Extents' with frame freeze to determine the right value to enter,"
-		" you may select a preset value from a list of character moves.");
-}
-
 struct FrameDims {
 	float x;
 	float width;
 };
 
-void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
+void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
 	frame.printInvuls(strbuf, sizeof strbuf - 7);
 	if (*strbuf != '\0') {
 		ImGui::Separator();
@@ -6297,7 +6170,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							" In order to block that attack, it must be blocked on this frame, in advance.");
 					}
 					if (playerIndex != -1) {
-						drawPlayerFrameTooltipInfo((const PlayerFrame&)frame, playerIndex, wrapWidth);
+						ui.drawPlayerFrameTooltipInfo((const PlayerFrame&)frame, playerIndex, wrapWidth);
 					}
 					if (playerIndex != -1) {
 						const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
@@ -6542,8 +6415,8 @@ void textUnformattedColored(ImVec4 color, const char* str) {
 	ImGui::PopStyleColor();
 }
 
-void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str) {
-	ImGui::SameLine();
+void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, bool needSameLine) {
+	if (needSameLine) ImGui::SameLine();
 	ImFont* font = ImGui::GetFont();
 	const char* textEnd = str + strlen(str);
 	const char* newlinePos = (const char*)memchr(str, '\n', textEnd - str);
@@ -6623,7 +6496,7 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
-	if (ImGui::Checkbox(settings.getOtherUIName(&settingsRef), &boolValue)) {
+	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUIName(&settingsRef)), &boolValue)) {
 		settingsRef = boolValue;
 		needWriteSettings = true;
 		itHappened = true;
@@ -6636,27 +6509,27 @@ bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vect
 bool UI::booleanSettingPreset(std::atomic_bool& settingsRef) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
-	if (ImGui::Checkbox(settings.getOtherUIName(&settingsRef), &boolValue)) {
+	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUIName(&settingsRef)), &boolValue)) {
 		settingsRef = boolValue;
 		needWriteSettings = true;
 		itHappened = true;
 	}
 	ImGui::SameLine();
-	HelpMarker(settings.getOtherUIDescription(&settingsRef));
+	HelpMarker(searchTooltip(settings.getOtherUIDescription(&settingsRef)));
 	return itHappened;
 }
 
 bool UI::float4SettingPreset(float& settingsPtr) {
 	bool attentionPossiblyNeeded = false;
 	float floatValue = settingsPtr;
-	if (ImGui::InputFloat(settings.getOtherUIName(&settingsPtr), &floatValue, 1.F, 10.F, "%.4f")) {
+	if (ImGui::InputFloat(searchFieldTitle(settings.getOtherUIName(&settingsPtr)), &floatValue, 1.F, 10.F, "%.4f")) {
 		settingsPtr = floatValue;
 		needWriteSettings = true;
 		attentionPossiblyNeeded = true;
 	}
 	imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 	ImGui::SameLine();
-	HelpMarker(settings.getOtherUIDescription(&settingsPtr));
+	HelpMarker(searchTooltip(settings.getOtherUIDescription(&settingsPtr)));
 	return attentionPossiblyNeeded;
 }
 
@@ -6664,7 +6537,7 @@ bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue) {
 	bool isChange = false;
 	int intValue = settingsPtr;
 	ImGui::SetNextItemWidth(80.F);
-	if (ImGui::InputInt(settings.getOtherUIName(&settingsPtr), &intValue, 1, 1, 0)) {
+	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUIName(&settingsPtr)), &intValue, 1, 1, 0)) {
 		if (intValue < minValue) {
 			intValue = minValue;
 		}
@@ -6674,7 +6547,7 @@ bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue) {
 	}
 	imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 	ImGui::SameLine();
-	HelpMarker(settings.getOtherUIDescription(&settingsPtr));
+	HelpMarker(searchTooltip(settings.getOtherUIDescription(&settingsPtr)));
 	return isChange;
 }
 
@@ -6715,7 +6588,7 @@ void drawPlayerIconInWindowTitle(GGIcon& icon) {
 	}
 }
 
-static void printAllCancels(const FrameCancelInfo& cancels,
+void UI::printAllCancels(const FrameCancelInfo& cancels,
 		bool enableSpecialCancel,
 		bool enableJumpCancel,
 		bool enableSpecials,
@@ -6727,6 +6600,11 @@ static void printAllCancels(const FrameCancelInfo& cancels,
 		needUnpush = true;
 		ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 	}
+	searchFieldTitle("Gatlings");
+	searchFieldTitle("Whiff Cancels");
+	searchFieldTitle("Late Cancels");
+	searchFieldTitle("Jump cancel");
+	searchFieldTitle("Specials");
 	if (!cancels.gatlings.empty() || enableSpecialCancel || enableJumpCancel) {
 		if (insertSeparators) ImGui::Separator();
 		textUnformattedColored(YELLOW_COLOR, "Gatlings:");
@@ -7133,6 +7011,259 @@ const char* formatGuardType(GuardType guardType) {
 		case GUARD_TYPE_NONE: return "Unblockable";
 		default: return "Unknown";
 	}
+}
+
+const char* UI::searchCollapsibleSection(const char* collapsibleHeaderName) {
+	if (!searching) return collapsibleHeaderName;
+	searchFieldTitle(collapsibleHeaderName);
+	pushSearchStack(collapsibleHeaderName);
+	return collapsibleHeaderName;
+}
+
+void UI::pushSearchStack(const char* name) {
+	if (!searching) return;
+	searchStack[searchStackCount++] = name;
+}
+
+void UI::popSearchStack() {
+	if (!searching) return;
+	--searchStackCount;
+}
+
+static void replaceNewLinesWithSpaces(std::string& str) {
+	for (auto it = str.begin(); it != str.end(); ++it) {
+		if (*it == '\n') {
+			*it = ' ';
+		}
+	}
+}
+
+void UI::searchRawTextMultiResult(const char* txt) {
+	const char* txtStart = txt;
+	const char* txtEnd = nullptr;
+	do {
+		txt = searchRawText(txt, txtStart, &txtEnd);
+		if (!txt) return;
+		SearchResult newResult;
+		newResult.field = searchField;
+		newResult.foundLeft = lastFoundTextLeft;
+		replaceNewLinesWithSpaces(newResult.foundLeft);
+		newResult.foundMid = lastFoundTextMid;
+		newResult.foundRight = lastFoundTextRight;
+		replaceNewLinesWithSpaces(newResult.foundRight);
+		for (int i = 0; i < searchStackCount; ++i) {
+			newResult.searchStack[i] = searchStack[i];
+		}
+		newResult.searchStackCount = searchStackCount;
+		searchResults.push_back(newResult);
+		txt += searchStringLen;
+	} while (txt != txtEnd);
+}
+
+const char* UI::searchRawText(const char* txt, const char* txtStart, const char** txtEnd) {
+	if (*txtEnd == nullptr) *txtEnd = txt + strlen(txt);
+	const char* const result = (const char* const)sigscanCaseInsensitive((uintptr_t)txt, (uintptr_t)*txtEnd, searchString, searchStringLen, searchStep);
+	if (result) {
+		if (*txt == '\0') return nullptr;
+		
+		
+		lastFoundTextRight.clear();
+		
+		const size_t len = *txtEnd - txt;
+		const int showAheadOrBehindLimit = 15;
+		
+		if (result != txtStart) {
+			int limit = showAheadOrBehindLimit;
+			const char* ptr = result;
+			do {
+				--limit;
+				ptr = rewindToNextUtf8CharStart(ptr, txtStart);
+			} while (limit && ptr != txtStart);
+			lastFoundTextLeft.assign(ptr, result);
+		} else {
+			lastFoundTextLeft.clear();
+		}
+		
+		lastFoundTextMid.assign(result, result + searchStringLen);
+		
+		if (result - txt != len - searchStringLen) {
+			int limit = showAheadOrBehindLimit;
+			const char* ptr = result + searchStringLen;
+			const char* const textEnd = txt + len;
+			do {
+				--limit;
+				ptr = skipToNextUtf8CharStart(ptr, textEnd);
+			} while (limit && ptr != textEnd);
+			if (ptr != textEnd) {
+				lastFoundTextRight.assign(result + searchStringLen, ptr);
+			} else {
+				lastFoundTextRight = result + searchStringLen;
+			}
+		} else {
+			lastFoundTextRight.clear();
+		}
+		return result;
+	}
+	return nullptr;
+}
+
+const char* UI::rewindToNextUtf8CharStart(const char* ptr, const char* textStart) {
+	while (ptr != textStart) {
+		--ptr;
+		if ((*ptr & 0b11000000) != 0b10000000) {
+			return ptr;
+		}
+	}
+	return ptr;
+}
+
+const char* UI::skipToNextUtf8CharStart(const char* ptr, const char* textEnd) {
+	while (ptr != textEnd) {
+		++ptr;
+		if ((*ptr & 0b11000000) != 0b10000000) {
+			return ptr;
+		}
+	}
+	return ptr;
+}
+
+const char* UI::searchFieldTitle(const char* fieldTitle) {
+	if (!searching) return fieldTitle;
+	searchField = fieldTitle;
+	searchRawTextMultiResult(fieldTitle);
+	return fieldTitle;
+}
+
+const char* UI::searchTooltip(const char* tooltip) {
+	if (!searching) return tooltip;
+	searchRawTextMultiResult(tooltip);
+	return tooltip;
+}
+
+const char* UI::searchFieldValue(const char* value) {
+	if (!searching) return value;
+	searchRawTextMultiResult(value);
+	return value;
+}
+
+void UI::searchWindow() {
+	ImGui::Begin("Search", &showSearch);
+	if (ImGui::InputText("##Search string", searchStringOriginal, sizeof searchStringOriginal, 0, nullptr, nullptr)) {
+		showTooFewCharactersError = false;
+		int totalCharacters = 0;
+		const char* c;
+		const char* firstNonWhitespace = nullptr;
+		const char* lastNonWhitespace = nullptr;
+		char* destination = searchString;
+		for (c = searchStringOriginal; *c != '\0'; ++c) {
+			if (*c > 32) {
+				if (firstNonWhitespace == nullptr) firstNonWhitespace = c;
+				lastNonWhitespace = c;
+				++totalCharacters;
+			}
+			char cVal = *c;
+			if (cVal >= 'A' && cVal <= 'Z') cVal = 'a' + cVal - 'A';
+			*destination = cVal;
+			++destination;
+		}
+		*destination = '\0';
+		if (firstNonWhitespace) {
+			size_t newStrLen = lastNonWhitespace - firstNonWhitespace + 1;
+			if (firstNonWhitespace != searchStringOriginal) {
+				memmove(searchString, searchString + (firstNonWhitespace - searchStringOriginal), newStrLen);
+				searchString[newStrLen] = '\0';
+			}
+			searchStringLen = newStrLen;
+		} else {
+			searchStringLen = 0;
+		}
+		searchStringOk = totalCharacters > 1;
+	}
+	imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+	ImGui::SameLine();
+	if (ImGui::Button("Search##TheActualButton")) {
+		if (!searchStringOk) {
+			showTooFewCharactersError = true;
+		} else {
+			showTooFewCharactersError = false;
+			searching = true;
+			searchResults.clear();
+			sigscanCaseInsensitivePrepare(searchString, searchStringLen, searchStep);
+			drawSearchableWindows();
+			searching = false;
+		}
+	}
+	if (showTooFewCharactersError) {
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted("The search text contains too few characters.");
+		ImGui::PopTextWrapPos();
+	}
+	if (ImGui::BeginTable("##SearchResults",
+					3,
+					ImGuiTableFlags_Borders
+					| ImGuiTableFlags_RowBg
+					| ImGuiTableFlags_NoPadOuterX
+					| ImGuiTableFlags_Resizable)
+	) {
+		ImGui::TableSetupColumn("Where", ImGuiTableColumnFlags_WidthStretch, 0.26f);
+		ImGui::TableSetupColumn("Field Name", ImGuiTableColumnFlags_WidthStretch, 0.26f);
+		ImGui::TableSetupColumn("Context", ImGuiTableColumnFlags_WidthStretch, 0.48f);
+		
+		ImGui::TableHeadersRow();
+		
+		ImGui::PushTextWrapPos(0.0f);
+		for (const SearchResult& searchResult : searchResults) {
+			
+			ImGui::TableNextColumn();
+			
+			char* buf = strbuf;
+			size_t bufSize = sizeof strbuf;
+			int result;
+			*strbuf = '\0';
+			for (int i = 0; i < searchResult.searchStackCount; ++i) {
+				if (i > 0) {
+					result = sprintf_s(buf, bufSize, " - ");
+					if (result != -1) {
+						buf += result;
+						bufSize -= result;
+					}
+				}
+				result = sprintf_s(buf, bufSize, "%s", searchResult.searchStack[i].c_str());
+				if (result != -1) {
+					buf += result;
+					bufSize -= result;
+				}
+			}
+			if (*strbuf != '\0') {
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			zerohspacing
+			if (!searchResult.field.empty()) {
+				ImGui::TextUnformatted(searchResult.field.c_str());
+			}
+			
+			ImGui::TableNextColumn();
+			const float wrapWidth = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+			bool needSameLine = false;
+			if (!searchResult.foundLeft.empty()) {
+				ImGui::TextUnformatted(searchResult.foundLeft.c_str());
+				ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, searchResult.foundMid.c_str());
+				ImGui::PopStyleColor();
+			} else {
+				textUnformattedColored(RED_COLOR, searchResult.foundMid.c_str());
+			}
+			if (!searchResult.foundRight.empty()) {
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, searchResult.foundRight.c_str());
+			}
+			_zerohspacing
+		}
+		ImGui::EndTable();
+		ImGui::PopTextWrapPos();
+	}
+	ImGui::End();
 }
 
 void UI::drawFramebars() {
