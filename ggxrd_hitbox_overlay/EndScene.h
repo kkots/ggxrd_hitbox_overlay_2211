@@ -96,7 +96,7 @@ struct ShutdownRenderCommand : FRenderCommand {
 	virtual const wchar_t* DescribeCommand() noexcept override;
 };
 
-struct CheckDeleteAltRenderTargetRenderCommand : FRenderCommand {
+struct HeartbeatRenderCommand : FRenderCommand {
 	virtual unsigned int Execute() override;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept override;
 };
@@ -151,7 +151,6 @@ public:
 	void onHitDetectionEnd(int hitDetectionType);
 	void onUWorld_TickBegin();
 	void onUWorld_Tick();
-	void endSceneHook(IDirect3DDevice9* device);
 	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
 	bool didHit(Entity attacker);
 	void onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(bool isFrozen);
@@ -208,7 +207,7 @@ public:
 	void* iconTexture = nullptr;
 	IDirect3DTexture9* getTextureFromUTexture2D(BYTE* uTex2D);
 	void executeShutdownRenderCommand();
-	void executeCheckDeleteAltRenderTargetRenderCommand();
+	void executeHeartbeatRenderCommand();
 	PlayerInfo& findPlayer(Entity ent);
 	ProjectileInfo& findProjectile(Entity ent);
 	DWORD interRoundValueStorage2Offset = 0;
@@ -216,6 +215,7 @@ public:
 	int getFramebarPosition() const;
 	int getFramebarPositionHitstop() const;
 	bool willEnqueueAndDrawOriginPoints = false;
+	bool endSceneAndPresentHooked = false;
 	BBScr_getAccessedValueImpl_t BBScr_getAccessedValueImpl = nullptr;
 	BBScr_checkMoveConditionImpl_t BBScr_checkMoveConditionImpl = nullptr;
 	bool wasPlayerHadGatling(int playerIndex, const char* name);
@@ -429,6 +429,7 @@ private:
 	bool eachProjectileOnSeparateFramebar = false;
 	bool isHoldingFD(const PlayerInfo& player) const;
 	bool isHoldingFD(Entity pawn) const;
+	bool drawingPostponed() const;
 };
 
 extern EndScene endScene;

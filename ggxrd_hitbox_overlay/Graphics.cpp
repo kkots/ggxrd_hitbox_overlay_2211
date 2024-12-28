@@ -20,6 +20,8 @@
 #include <chrono>
 #endif
 #include <algorithm>
+#include "Direct3DVTable.h"
+#include "Game.h"
 
 Graphics graphics;
 
@@ -167,6 +169,8 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	stack[RENDER_STATE_DRAWING_OUTLINES] = stack[RENDER_STATE_DRAWING_NOTHING];
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE);
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, CUSTOM_PIXEL_SHADER);
+	// in OBS dodging mode, when pixel shader was putting 0 alpha in its output, outlines would be invisible, unless we stop using the pixel shader.
+	// Changing alpha to 1 solved that problem. That problem only occured in OBS dodging, and everywhere else - on the screenshots or when not dodging - the outlines would be fine
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
 	
 	stack[RENDER_STATE_DRAWING_POINTS] = stack[RENDER_STATE_DRAWING_NOTHING];
@@ -226,10 +230,86 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
 	
+	orig_present = (Present_t)direct3DVTable.deviceVtable[17];
+	orig_beginScene = (BeginScene_t)direct3DVTable.deviceVtable[41];
+	responseToImInDanger = CreateEventW(NULL, FALSE, FALSE, NULL);
+	if (!checkAndHookEndSceneAndPresent(true)) error = true;
 	
 	return !error;
 }
 
+bool Graphics::checkCanHookEndSceneAndPresent() {
+	HMODULE obsDll = GetModuleHandleA("graphics-hook32.dll");
+	if (!obsDll || obsDll == INVALID_HANDLE_VALUE) return false;
+	uintptr_t start, end;
+	if (!getModuleBoundsHandle(obsDll, &start, &end)) return false;
+	const BYTE* ptr = (const BYTE*)orig_present;
+	if (*ptr != 0xe9) return false;
+	uintptr_t destination = followRelativeCallNoLogs((uintptr_t)ptr);
+	if (!(destination >= start && destination < end)) return false;
+	return true;
+}
+
+bool Graphics::checkAndHookEndSceneAndPresent(bool transactionActive) {
+	if (!transactionActive && canDrawOnThisFrame()) return true;
+	if (!checkCanHookEndSceneAndPresent()) return true;
+	if (!transactionActive) {
+		if (!detouring.beginTransaction(false)) return false;
+	}
+	bool error = false;
+	
+	if (!detouring.attach(
+		&(PVOID&)(orig_present),
+		presentHook,
+		"Present")) error = true;
+	
+	if (!error && !detouring.attach(
+		&(PVOID&)(orig_beginScene),
+		endSceneHookStatic,
+		"EndScene")) error = true;
+	
+	if (!transactionActive) {
+		if (error) {
+			detouring.cancelTransaction();
+		} else {
+			detouring.endTransaction();
+			endSceneAndPresentHooked = true;
+		}
+	} else {
+		endSceneAndPresentHooked = true;
+	}
+	return !error;
+}
+
+HRESULT __stdcall Graphics::presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion) {
+	graphics.graphicsThreadId = GetCurrentThreadId();
+	graphics.mayRunEndSceneHook = true;
+	return graphics.orig_present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+}
+
+HRESULT __stdcall Graphics::endSceneHookStatic(IDirect3DDevice9* device) {
+	graphics.endSceneHook(device);
+	return graphics.orig_beginScene(device);
+}
+
+void Graphics::endSceneHook(IDirect3DDevice9* device) {
+	graphicsThreadId = GetCurrentThreadId();
+	if (mayRunEndSceneHook) {
+		mayRunEndSceneHook = false;
+		
+		if (drawingPostponed() && !shutdown && !runningOwnBeginScene) {
+			runningOwnBeginScene = true;
+			device->BeginScene();
+			runningOwnBeginScene = false;
+			executeBoxesRenderingCommand(device);
+			if (uiTexture) {
+				ui.onEndScene(device, uiDrawData.data(), uiTexture);
+			}
+			device->EndScene();
+		}
+		
+	}
+}
 // This function is called from the main thread.
 // It 'initializes the D3D device for the current viewport state.'
 void Graphics::HookHelp::UpdateD3DDeviceFromViewportsHook() {
@@ -257,13 +337,18 @@ void Graphics::resetHook() {
 	altRenderTarget = nullptr;
 }
 
+void Graphics::dllDetachPiece() {
+	resetHook();
+	ui.onDllDetachGraphics();
+	receiveDanger();
+}
+
 void Graphics::onDllDetach() {
 	logwrap(fputs("Graphics::onDllDetach called\n", logfile));
 	// this tells various callers to stop trying to use the resources as they're about to be freed
 	shutdown = true;
 	if (!graphicsThreadId) {
-		resetHook();
-		ui.onDllDetachGraphics();
+		dllDetachPiece();
 		return;
 	}
 	HANDLE graphicsThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, graphicsThreadId);
@@ -277,15 +362,13 @@ void Graphics::onDllDetach() {
 		// The logic thread won't be terminated on normal Xrd exit though, because it is the main
 		// thread and the window thread (as in, it pumps messages for windows).
 		logwrap(fprintf(logfile, "Graphics failed to open graphics thread handle: %ls\n", winErr.getMessage()));
-		resetHook();
-		ui.onDllDetachGraphics();
+		dllDetachPiece();
 		return;
 	}
 	if (GetProcessIdOfThread(graphicsThreadHandle) != GetCurrentProcessId()) {
 		CloseHandle(graphicsThreadHandle);
 		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive"));
-		resetHook();
-		ui.onDllDetachGraphics();
+		dllDetachPiece();
 		return;
 	}
 	DWORD exitCode;
@@ -296,8 +379,7 @@ void Graphics::onDllDetach() {
 	
 	if (!stillActive) {
 		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive (2)"));
-		resetHook();
-		ui.onDllDetachGraphics();
+		dllDetachPiece();
 		return;
 	}
 	
@@ -306,8 +388,7 @@ void Graphics::onDllDetach() {
 	if (result != WAIT_OBJECT_0) {
 		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because WaitForSingleObject did not return success"));
 		// We were hoping to free resources on the graphics thread, but if that's not possible, we free them on this thread
-		resetHook();
-		ui.onDllDetachGraphics();
+		dllDetachPiece();
 		return;
 	}
 	logwrap(fprintf(logfile, "Graphics freed resources successfully\n"));
@@ -317,12 +398,22 @@ void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
 	if (shutdown) return;
 	this->device = device;
 	stencil.onEndSceneStart();
+	graphics.receiveDanger();
+	checkAndHookEndSceneAndPresent(false);
 }
 
 void Graphics::onShutdown() {
 	resetHook();
 	ui.onDllDetachGraphics();
+	if (endSceneAndPresentHooked) {
+		const char* hooksToUndetour[] {
+			"EndScene",
+			"Present"
+		};
+		detouring.detachOnlyTheseHooks(hooksToUndetour, _countof(hooksToUndetour));
+	}
 	SetEvent(shutdownFinishedEvent);
+	receiveDanger();
 }
 
 bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect, bool ignoreFill, bool ignoreOutline) {
@@ -704,6 +795,8 @@ void Graphics::drawAllPrepared() {
 }
 
 void Graphics::drawAll() {
+	
+	if (!canDrawOnThisFrame()) return;
 	
 	initializeVertexBuffers();
 	resetVertexBuffer();
@@ -1627,6 +1720,7 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 		takeScreenshotSimple(device);
 		return;
 	}
+	if (imInDangerReceived && settings.dodgeObsRecording && !endSceneAndPresentHooked) return;  // let's not trigger the hook attempt more than once per frame
 	CComPtr<IDirect3DStateBlock9> oldState = nullptr;
 	device->CreateStateBlock(D3DSBT_ALL, &oldState);
 	if (!takeScreenshotBegin(device)) return;
@@ -1988,12 +2082,10 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 	device->SetPixelShaderConstantF(0, screenSizeConstant, 1);
 }
 
-void Graphics::checkAltRenderTargetLifeTime() {
-	if (!altRenderTarget) return;
-	if (--altRenderTargetLifeRemaining < 0) {
-		altRenderTargetLifeRemaining = 0;
-		altRenderTarget = nullptr;
-	}
+void Graphics::heartbeat() {
+	receiveDanger();
+	afterDraw();
+	checkAndHookEndSceneAndPresent(false);
 }
 
 void Graphics::cpuPixelBlenderComplex(void* gameImage, const void* boxesImage, int width, int height) {
@@ -2138,4 +2230,58 @@ char* fnameArray = nullptr;
 const char* readFName(unsigned int fnameId) {
     char* fnamePtr = *(char**)(fnameArray + fnameId * 4);
     return (const char*)(fnamePtr + 0x10);
+}
+
+void Graphics::receiveDanger() {
+	if (imInDanger && !imInDangerReceived) {
+		imInDangerReceived = true;
+		SetEvent(responseToImInDanger);
+	}
+}
+
+void Graphics::afterDraw() {
+	if (altRenderTarget && --altRenderTargetLifeRemaining < 0) {
+		altRenderTargetLifeRemaining = 0;
+		altRenderTarget = nullptr;
+	}
+}
+
+bool Graphics::canDrawOnThisFrame() const {
+	return !(imInDangerReceived && settings.dodgeObsRecording && !endSceneAndPresentHooked);
+}
+
+bool Graphics::drawingPostponed() const {
+	return settings.dodgeObsRecording && endSceneAndPresentHooked;
+}
+
+// Draw boxes, without UI, and take a screenshot if needed
+// Runs on the graphics thread
+void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
+	graphics.graphicsThreadId = GetCurrentThreadId();
+	graphics.onEndSceneStart(device);
+	drawOutlineCallParamsManager.onEndSceneStart();
+	camera.onEndSceneStart();
+
+	bool doYourThing = !settings.dontShowBoxes;
+
+	if (!*aswEngine) {
+		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
+		graphics.drawDataUse.clear();
+	}
+
+	if (doYourThing) {
+		if (graphics.drawDataUse.needTakeScreenshot && !settings.dontUseScreenshotTransparency) {
+			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
+			graphics.takeScreenshotMain(device, false);
+		}
+		graphics.drawAll();
+		if (graphics.drawDataUse.needTakeScreenshot && settings.dontUseScreenshotTransparency) {
+			graphics.takeScreenshotMain(device, true);
+		}
+
+	} else if (graphics.drawDataUse.needTakeScreenshot) {
+		graphics.takeScreenshotMain(device, true);
+	}
+	graphics.afterDraw();
+	graphics.drawDataUse.needTakeScreenshot = false;
 }

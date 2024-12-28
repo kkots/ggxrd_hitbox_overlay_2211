@@ -218,6 +218,15 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(displayUIOnTopOfPauseMenu), "Display Mod's UI on top of Pause Menu", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
 			"; Display mod's UI on top of the game's Pause Menu.");
+	registerOtherDescription(settingAndItsName(dodgeObsRecording), "Dodge OBS Recording", settingsGeneralSettingsStr,
+			"; Specify true or false.\n"
+			"; To have this mod avoid OBS capture set this setting to true and also make sure\n"
+			"; that in OBS, in Sources you selected your Source, clicked Cogwheel and unchecked the\n"
+			"; 'Capture third-party overlays (such as steam)'.\n"
+			"; I am very sorry, but the mod's UI, the framebar and the boxes cannot be drawn under the game's\n"
+			"; Pause Menu and game's own UI while using 'Dodge OBS Recording'.\n"
+			"; Even after closing OBS, if this setting was on for even a second while OBS was open, the mod\n"
+			"; will keep dodging OBS until you turn off this setting or restart the game.");
 	registerOtherDescription(settingAndItsName(neverIgnoreHitstop), "Never Ignore Hitstop", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"
@@ -618,6 +627,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool displayUIOnTopOfPauseMenuParsed = false;
 	
+	bool dodgeObsRecordingParsed = false;
+	
 	bool neverIgnoreHitstopParsed = false;
 	
 	bool ignoreHitstopForBlockingBaikenParsed = false;
@@ -747,6 +758,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			}
 			if (!displayUIOnTopOfPauseMenuParsed && _stricmp(keyName.c_str(), "displayUIOnTopOfPauseMenu") == 0) {
 				displayUIOnTopOfPauseMenuParsed = parseBoolean("displayUIOnTopOfPauseMenu", keyValue, displayUIOnTopOfPauseMenu);
+			}
+			if (!dodgeObsRecordingParsed && _stricmp(keyName.c_str(), "dodgeObsRecording") == 0) {
+				dodgeObsRecordingParsed = parseBoolean("dodgeObsRecording", keyValue, dodgeObsRecording);
 			}
 			if (!neverIgnoreHitstopParsed && _stricmp(keyName.c_str(), "neverIgnoreHitstop") == 0) {
 				neverIgnoreHitstopParsed = parseBoolean("neverIgnoreHitstop", keyValue, neverIgnoreHitstop);
@@ -917,6 +931,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!displayUIOnTopOfPauseMenuParsed) {
 		displayUIOnTopOfPauseMenu = false;
+	}
+	
+	if (!dodgeObsRecordingParsed) {
+		dodgeObsRecording = true;
 	}
 	
 	if (!neverIgnoreHitstopParsed) {
@@ -1591,6 +1609,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("neverDisplayGrayHurtboxes", formatBoolean(neverDisplayGrayHurtboxes), getOtherINIDescription(&neverDisplayGrayHurtboxes));
 	replaceOrAddSetting("dontShowBoxes", formatBoolean(dontShowBoxes), getOtherINIDescription(&dontShowBoxes));
 	replaceOrAddSetting("displayUIOnTopOfPauseMenu", formatBoolean(displayUIOnTopOfPauseMenu), getOtherINIDescription(&displayUIOnTopOfPauseMenu));
+	replaceOrAddSetting("dodgeObsRecording", formatBoolean(dodgeObsRecording), getOtherINIDescription(&dodgeObsRecording));
 	replaceOrAddSetting("showFramebar", formatBoolean(showFramebar), getOtherINIDescription(&showFramebar));
 	replaceOrAddSetting("showFramebarInTrainingMode", formatBoolean(showFramebarInTrainingMode), getOtherINIDescription(&showFramebarInTrainingMode));
 	replaceOrAddSetting("showFramebarInReplayMode", formatBoolean(showFramebarInReplayMode), getOtherINIDescription(&showFramebarInReplayMode));

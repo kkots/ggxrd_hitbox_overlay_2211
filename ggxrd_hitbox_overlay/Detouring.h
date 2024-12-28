@@ -17,6 +17,8 @@ public:
 	bool cancelTransaction();
 	void detachAll(bool freezeAll);
 	void detachAllButThese(bool freezeAll, const std::vector<PVOID>& dontDetachThese = std::vector<PVOID>{});
+	void detachOnlyThisHook(const char* name);
+	void detachOnlyTheseHooks(const char** names, int namesCount);
 	void addInstructionToReplace(uintptr_t addr, const std::vector<char>& bytes);
 private:
 	struct ThingToBeUndetouredAtTheEnd {

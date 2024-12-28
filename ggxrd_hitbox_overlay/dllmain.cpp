@@ -99,6 +99,31 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		
 		closeLog();
 		break;
+	case DLL_THREAD_ATTACH:
+		static HMODULE obsDll = NULL;
+		if (!obsDll) {
+			obsDll = GetModuleHandleA("graphics-hook32.dll");
+			if (obsDll) {
+				// We need to stall the thread that hooks Present
+				// This allows us to warn our own graphics thread that a hostile hook is coming in the near future
+				// So that our friendly code can present its last frame unhooked
+				// And, after that, notify us, to let us know we can let this thread go
+				
+				// If we don't stall this thread
+				// It will hook Present in the middle of a frame
+				// We will have no way of knowing if on that frame Present was already hooked or not
+				// Because OBS hooks Present in a thread-unsafe way, from a thread that is not the graphics thread,
+				// And without freezing all the threads of the process
+				// So it's just poof and suddenly it's hooked in the middle of any instruction
+				// We simply don't know
+				// And that means that whatever we drew on that frame may be visible to OBS
+				// Unless we somehow warn the graphics thread
+				// But of course without stalling the thread that hooks Present this is all a race condition
+				graphics.imInDanger = true;
+				WaitForSingleObject(graphics.responseToImInDanger, INFINITE);
+			}
+		}
+		break;
 	}
 	return TRUE;
 }

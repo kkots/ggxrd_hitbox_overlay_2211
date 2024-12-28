@@ -4,6 +4,7 @@ class Direct3DVTable
 {
 public:
 	bool onDllMain();
+	char** deviceVtable = nullptr;
 	char** d3dManager = nullptr;
 };
 

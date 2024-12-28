@@ -52,7 +52,7 @@ uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<
 /// <param name="byteSpecification">Example: "80 f0 c7 ?? ?? ?? ?? e8"</param>
 uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname);
 
-
+uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr);
 uintptr_t followRelativeCall(uintptr_t relativeCallAddr);
 
 int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinationAddr);

@@ -583,7 +583,7 @@ void EndScene::logic() {
 
 // Runs on the main thread
 void EndScene::prepareDrawData(bool* needClearHitDetection) {
-	logOnce(fputs("endSceneHook called\n", logfile));
+	logOnce(fputs("prepareDrawData called\n", logfile));
 	invisChipp.onEndSceneStart();
 	drawnEntities.clear();
 	
@@ -3392,38 +3392,6 @@ bool EndScene::isEntityAlreadyDrawn(const Entity& ent) const {
 	return std::find(drawnEntities.cbegin(), drawnEntities.cend(), ent) != drawnEntities.cend();
 }
 
-// Draw boxes, without UI, and take a screenshot if needed
-// Runs on the graphics thread
-void EndScene::endSceneHook(IDirect3DDevice9* device) {
-	graphics.graphicsThreadId = GetCurrentThreadId();
-	graphics.onEndSceneStart(device);
-	drawOutlineCallParamsManager.onEndSceneStart();
-	camera.onEndSceneStart();
-
-	bool doYourThing = !settings.dontShowBoxes;
-
-	if (!*aswEngine) {
-		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
-		graphics.drawDataUse.clear();
-	}
-
-	if (doYourThing) {
-		if (graphics.drawDataUse.needTakeScreenshot && !settings.dontUseScreenshotTransparency) {
-			logwrap(fputs("Running the branch with if (needToTakeScreenshot)\n", logfile));
-			graphics.takeScreenshotMain(device, false);
-		}
-		graphics.drawAll();
-		if (graphics.drawDataUse.needTakeScreenshot && settings.dontUseScreenshotTransparency) {
-			graphics.takeScreenshotMain(device, true);
-		}
-
-	} else if (graphics.drawDataUse.needTakeScreenshot) {
-		graphics.takeScreenshotMain(device, true);
-	}
-	graphics.checkAltRenderTargetLifeTime();
-	graphics.drawDataUse.needTakeScreenshot = false;
-}
-
 // Runs on the main thread. Is called from WndProc hook
 void EndScene::processKeyStrokes() {
 	bool trainingMode = game.isTrainingMode();
@@ -4728,6 +4696,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	bool drawBoxesEnqueued = false;
 	bool needEnqueueOriginPoints = false;
 	willEnqueueAndDrawOriginPoints = false;
+	endSceneAndPresentHooked = graphics.endSceneAndPresentHooked;
 	if (!shutdown && !graphics.shutdown) {
 		drawDataPrepared.clear();
 		lastScreenSize = *screenSize;
@@ -4742,7 +4711,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			isFading = game.isFading();
 			logic();
 			if (!gifMode.modDisabled) {
-				if (!settings.dontShowBoxes && !drawDataPrepared.points.empty()) {
+				if (!settings.dontShowBoxes && !drawDataPrepared.points.empty() && !drawingPostponed()) {
 					needEnqueueOriginPoints = true;
 				}
 				Entity instigator = getSuperflashInstigator();
@@ -4807,7 +4776,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		}
 	}
 	if (!shutdown && !graphics.shutdown && !drawBoxesEnqueued) {
-		enqueueRenderCommand<CheckDeleteAltRenderTargetRenderCommand>();
+		enqueueRenderCommand<HeartbeatRenderCommand>();
 	}
 }
 
@@ -4846,12 +4815,12 @@ const wchar_t* ShutdownRenderCommand::DescribeCommand() noexcept {
 }
 
 // Runs on the graphics thread
-unsigned int CheckDeleteAltRenderTargetRenderCommand::Execute() {
-	endScene.executeCheckDeleteAltRenderTargetRenderCommand();
+unsigned int HeartbeatRenderCommand::Execute() {
+	endScene.executeHeartbeatRenderCommand();
 	return sizeof(*this);
 }
-const wchar_t* CheckDeleteAltRenderTargetRenderCommand::DescribeCommand() noexcept {
-	return L"CheckDeleteAltRenderTargetRenderCommand";
+const wchar_t* HeartbeatRenderCommand::DescribeCommand() noexcept {
+	return L"HeartbeatRenderCommand";
 }
 
 // Runs on the graphics thread
@@ -4860,15 +4829,16 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 	graphics.drawDataUse.clear();
 	command->drawData.copyTo(&graphics.drawDataUse);
 	command->cameraValues.copyTo(camera.valuesUse);
+	if (graphics.drawingPostponed()) return;
 	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;
-	endSceneHook(getDevice());
+	graphics.executeBoxesRenderingCommand(getDevice());
 	graphics.noNeedToDrawPoints = false;
 }
 
 // Runs on the graphics thread
 void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command) {
 	if (endScene.shutdown || graphics.shutdown) return;
-	if (settings.dontShowBoxes) return;
+	if (settings.dontShowBoxes || graphics.drawingPostponed()) return;
 	graphics.onlyDrawPoints = true;
 	graphics.drawAll();
 	graphics.onlyDrawPoints = false;
@@ -4959,7 +4929,13 @@ BYTE* EndScene::getIconsUTexture2D() {
 // Runs on the graphics thread
 void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 	if (shutdown || graphics.shutdown) return;
+	if (!graphics.canDrawOnThisFrame()) return;
 	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->iconsUTexture2D);
+	if (graphics.drawingPostponed()) {
+		graphics.uiTexture = tex;
+		graphics.uiDrawData = std::move(command->drawData);
+		return;
+	}
 	ui.onEndScene(getDevice(), command->drawData.data(), tex);
 }
 
@@ -4970,9 +4946,9 @@ void EndScene::executeShutdownRenderCommand() {
 }
 
 // Runs on the graphics thread
-void EndScene::executeCheckDeleteAltRenderTargetRenderCommand() {
-	if (!graphics.shutdown) return;
-	graphics.checkAltRenderTargetLifeTime();
+void EndScene::executeHeartbeatRenderCommand() {
+	if (graphics.shutdown) return;
+	graphics.heartbeat();
 }
 
 // Runs on the graphics thread
@@ -5412,7 +5388,8 @@ bool EndScene::willDrawOriginPoints() {
 			&& !graphics.shutdown
 			&& !drawDataPrepared.points.empty()
 			&& !settings.dontShowBoxes
-			&& !gifMode.modDisabled;
+			&& !gifMode.modDisabled
+			&& !drawingPostponed();
 }
 
 void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move, int iterationIndex) {
@@ -5847,4 +5824,8 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 	
 	data.kill = attack->killType == KILL_TYPE_KILL
 		|| attack->killType == KILL_TYPE_KILL_ALLY && attackerPtr.team() == defenderPtr.team();
+}
+
+bool EndScene::drawingPostponed() const {
+	return settings.dodgeObsRecording && endSceneAndPresentHooked;
 }

@@ -17,6 +17,8 @@
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
 using FSuspendRenderingThreadDestructor_t = void(__thiscall*)(char* thisArg);
+using BeginScene_t = HRESULT(__stdcall*)(IDirect3DDevice9* device);
+using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
 
 class Graphics
 {
@@ -26,13 +28,14 @@ public:
 	void onEndSceneStart(IDirect3DDevice9* device);
 	void onShutdown();
 	void drawAll();
+	void afterDraw();
 	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
 	void resetHook();
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
 	IDirect3DTexture9* getFramesTexture(IDirect3DDevice9* device);
 	// only returns a result once. Provides the error text to other classes
 	void getShaderCompilationError(const std::string** result);
-	void checkAltRenderTargetLifeTime();
+	void heartbeat();
 	
 	DrawData drawDataUse;
 	IDirect3DDevice9* device;
@@ -40,7 +43,20 @@ public:
 	bool shutdown = false;
 	bool onlyDrawPoints = false;
 	bool noNeedToDrawPoints = false;
-
+	
+	Present_t orig_present = nullptr;
+	BeginScene_t orig_beginScene = nullptr;
+	bool endSceneAndPresentHooked = false;
+	bool checkCanHookEndSceneAndPresent();
+	bool imInDanger = false;;
+	HANDLE responseToImInDanger = NULL;
+	bool canDrawOnThisFrame() const;
+	bool drawingPostponed() const;
+	std::vector<BYTE> uiDrawData;
+	IDirect3DTexture9* uiTexture;
+	// Draw boxes, without UI, and take a screenshot if needed
+	// Runs on the graphics thread
+	void executeBoxesRenderingCommand(IDirect3DDevice9* device);
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -313,6 +329,15 @@ private:
 		inline RenderStateValue& operator[](int index) { return values[index]; }
 	};
 	RenderStateValueStack requiredRenderState[SCREENSHOT_STAGE_HOW_MANY_ENUMS_ARE_THERE][RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE];
+	HRESULT static __stdcall endSceneHookStatic(IDirect3DDevice9* device);
+	void endSceneHook(IDirect3DDevice9* device);
+	HRESULT static __stdcall presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
+	bool mayRunEndSceneHook = false;
+	bool checkAndHookEndSceneAndPresent(bool transactionActive);
+	bool imInDangerReceived = false;
+	void receiveDanger();
+	void dllDetachPiece();
+	bool runningOwnBeginScene = false;
 };
 
 extern Graphics graphics;

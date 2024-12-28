@@ -2135,6 +2135,8 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.displayUIOnTopOfPauseMenu);
 			
+			booleanSettingPreset(settings.dodgeObsRecording);
+			
 			booleanSettingPreset(settings.frameAdvantage_dontUsePreBlockstunTime);
 			
 			ImGui::PushID(1);
@@ -7420,11 +7422,14 @@ void UI::drawFramebars() {
 	
 	std::vector<const EntityFramebar*> framebars;
 	const bool eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+	size_t playerFramebarsCount = endScene.playerFramebars.size();
+	if (playerFramebarsCount > 2) playerFramebarsCount = 2;
 	if (eachProjectileOnSeparateFramebar) {
-		framebars.resize(2 + endScene.projectileFramebars.size(), nullptr);
+		framebars.resize(playerFramebarsCount + endScene.projectileFramebars.size(), nullptr);
 	} else {
-		framebars.resize(2 + endScene.combinedFramebars.size(), nullptr);
+		framebars.resize(playerFramebarsCount + endScene.combinedFramebars.size(), nullptr);
 	}
+	if (framebars.empty()) return;
 	int framebarsCount = 0;
 	int playerFramebarLimit = 2;
 	for (const PlayerFramebars& entityFramebar : endScene.playerFramebars) {

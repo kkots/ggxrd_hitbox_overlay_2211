@@ -23,7 +23,7 @@ bool Direct3DVTable::onDllMain() {
 		logwrap(fputs("*d3dManager + 0x24 contains null\n", logfile));
 		return false;
 	}
-	void** deviceVtable = *(void***)(idirect3Ddevice9Ptr);
+	deviceVtable = *(char***)(idirect3Ddevice9Ptr);
 	if (!deviceVtable) {
 		logwrap(fputs("*(*d3dManager + 0x24) contains null\n", logfile));
 		return false;

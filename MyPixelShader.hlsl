@@ -14,6 +14,6 @@ float4 main(float4 pos : VPOS, float4 clr : COLOR0) : COLOR0
 	float sum = absDiff.r + absDiff.g + absDiff.b;
 	
 	float mult = (float)(sum >= 0.0824f); // 21 out of 255
-	return float4(clr.r * mult, clr.g * mult, clr.b * mult, 0.0f);
+	return float4(clr.r * mult, clr.g * mult, clr.b * mult, 1.0f);  // alpha changed from 0 to 1 because in OBS dodging mode outlines would be invisible
 
 }

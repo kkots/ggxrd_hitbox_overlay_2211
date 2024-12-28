@@ -142,10 +142,66 @@ void Detouring::undoPatches() {
 	
 }
 
+void Detouring::detachOnlyThisHook(const char* name) {
+	detachOnlyTheseHooks(&name, 1);
+}
+
+void Detouring::detachOnlyTheseHooks(const char** names, int namesCount) {
+
+	logwrap(fputs("Detouring::detachOnlyTheseHooks(...) called\n", logfile));
+	
+	if (beginTransaction(false)) {
+		undoPatches();
+		
+		bool allSuccess = true;
+
+		auto it = thingsToUndetourAtTheEnd.begin();
+		while (it != thingsToUndetourAtTheEnd.end()) {
+			const ThingToBeUndetouredAtTheEnd& thing = *it;
+			int i;
+			for (i = 0; i < namesCount; ++i) {
+				if (strcmp(thing.name, names[i]) == 0) {
+					break;
+				}
+			}
+			if (i == namesCount) {
+				++it;
+				continue;
+			}
+
+			DWORD detourResult = DetourDetach(
+				thing.ppPointer,
+				thing.pDetour);
+
+			if (detourResult != NO_ERROR) {
+				printDetourDetachError(detourResult);
+				if (thing.name) {
+					logwrap(fprintf(logfile, "Failed to undetour %s\n", thing.name));
+				}
+				allSuccess = false;
+				break;
+			}
+			it = thingsToUndetourAtTheEnd.erase(it);
+		}
+		
+		endTransaction();
+		
+		#ifdef LOG_PATH
+		fprintf(logfile, allSuccess ? "Successfully undetoured hooks " : "Failed to undetour one or more of hooks ");
+		for (int i = 0; i < namesCount; ++i) {
+			if (i == 0) {
+				fprintf(logfile, "%s", names[0]);
+			} else {
+				fprintf(logfile, ", %s", names[i]);
+			}
+		}
+		fputc("\n", logfile);
+		#endif
+	}
+}
+
 void Detouring::detachAllButThese(bool freezeAll, const std::vector<PVOID>& dontDetachThese) {
 	logwrap(fputs("Detouring::detachAllButThese(...) called\n", logfile));
-	
-	DWORD currentThreadId = GetCurrentThreadId();
 
 	for (auto it = thingsToUndetourAtTheEnd.begin(); it != thingsToUndetourAtTheEnd.end(); ++it) {
 		const ThingToBeUndetouredAtTheEnd& thing = *it;

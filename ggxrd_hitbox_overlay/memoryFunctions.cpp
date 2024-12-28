@@ -381,6 +381,11 @@ uintptr_t followRelativeCall(uintptr_t relativeCallAddr) {
 	// Calls can also have absolute addresses so check which one you got
 }
 
+uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr) {
+	return relativeCallAddr + 5 + *(int*)(relativeCallAddr + 1);
+	// Calls can also have absolute addresses so check which one you got
+}
+
 int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinationAddr) {
 	// relativeCallAddr points to the start of a relative call instruction.
 	// destinationAddr points to the function that you would like to call.
