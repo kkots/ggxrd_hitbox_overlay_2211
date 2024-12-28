@@ -205,6 +205,7 @@
     <ClInclude Include="logging.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="memoryFunctions.h" />
+    <ClInclude Include="StringWithLength.h" />
     <ClInclude Include="TexturePacker.h" />
     <ClInclude Include="ThrowInfo.h" />
     <ClInclude Include="Throws.h" />

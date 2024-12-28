@@ -198,6 +198,9 @@
     <ClInclude Include="Hardcode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="StringWithLength.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
