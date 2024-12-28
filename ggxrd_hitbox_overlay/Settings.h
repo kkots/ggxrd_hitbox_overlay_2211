@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <atomic>
+#include "StringWithLength.h"
 
 class Settings
 {
@@ -99,13 +100,17 @@ public:
 	void writeSettings();
 	struct ComboInfo {
 		const char* uiName = nullptr;
+		StringWithLength uiNameWithLength;
 		const char* uiDescription = nullptr;
+		StringWithLength uiDescriptionWithLength;
 	};
 	void onKeyCombosUpdated();
 	void getComboInfo(std::vector<int>& keyCombo, ComboInfo* info);
 	const char* getOtherUIName(void* ptr);
+	StringWithLength getOtherUINameWithLength(void* ptr);
 	const char* getOtherUIFullName(void* ptr);
 	const char* getOtherUIDescription(void* ptr);
+	StringWithLength getOtherUIDescriptionWithLength(void* ptr);
 	const char* getOtherINIDescription(void* ptr);
 	std::string convertToUiDescription(const char* iniDescription);
 	const char* getComboRepresentation(std::vector<int>& toggle);
@@ -188,6 +193,7 @@ private:
 		const char* iniName = nullptr;
 		std::string iniNameAllCaps;
 		const char* uiName = nullptr;
+		StringWithLength uiNameWithLength;
 		std::string uiFullPath;
 		const char* iniDescription = nullptr;
 		std::string uiDescription;

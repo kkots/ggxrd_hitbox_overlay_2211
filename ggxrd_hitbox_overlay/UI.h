@@ -7,6 +7,7 @@
 #include "TexturePacker.h"
 #include "PlayerInfo.h"
 #include <memory>
+#include "StringWithLength.h"
 
 enum UITexture {
 	TEXID_NONE,
@@ -168,8 +169,8 @@ private:
 	std::vector<PngResource> allResources;
 	TexturePacker texturePacker;
 	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
-                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, const char* description);
-	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, const char* description);
+                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, StringWithLength description);
+	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description);
 	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
                  WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind);
 	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions);
@@ -218,16 +219,33 @@ private:
 	std::list<SearchResult> searchResults;
 	void pushSearchStack(const char* name);
 	void popSearchStack();
-	const char* searchCollapsibleSection(const char* collapsibleHeaderName);
-	const char* searchFieldTitle(const char* fieldTitle);
-	const char* searchTooltip(const char* tooltip);
-	const char* searchFieldValue(const char* value);
+	template<size_t size> inline const char* searchCollapsibleSection(const char(&txt)[size]) { return searchCollapsibleSection(txt, txt + size - 1); }
+	template<size_t size> inline const char* searchFieldTitle(const char(&txt)[size]) { return searchFieldTitle(txt, txt + size - 1); }
+	template<size_t size> inline const char* searchTooltip(const char(&txt)[size]) { return searchTooltip(txt, txt + size - 1); }
+	template<size_t size> inline const char* searchFieldValue(const char(&txt)[size]) { return searchFieldValue(txt, txt + size - 1); }
+	const char* searchCollapsibleSection(const char* collapsibleHeaderName, const char* textEnd);
+	const char* searchFieldTitle(const char* fieldTitle, const char* textEnd);
+	const char* searchTooltip(const char* tooltip, const char* textEnd);
+	const char* searchFieldValue(const char* value, const char* textEnd);
+	inline const char* searchCollapsibleSection(const StringWithLength& txt) { return searchCollapsibleSection(txt.txt, txt.txt + txt.length); }
+	inline const char* searchFieldTitle(const StringWithLength& txt) { return searchFieldTitle(txt.txt, txt.txt + txt.length); }
+	inline const char* searchTooltip(const StringWithLength& txt) { return searchTooltip(txt.txt, txt.txt + txt.length); }
+	inline const char* searchFieldValue(const StringWithLength& txt) { return searchFieldValue(txt.txt, txt.txt + txt.length); }
+	inline const char* searchCollapsibleSectionStr(const std::string& txt) { return searchCollapsibleSection(txt.c_str(), txt.c_str() + txt.size()); }
+	inline const char* searchFieldTitleStr(const std::string& txt) { return searchFieldTitle(txt.c_str(), txt.c_str() + txt.size()); }
+	inline const char* searchTooltipStr(const std::string& txt) { return searchTooltip(txt.c_str(), txt.c_str() + txt.size()); }
+	inline const char* searchFieldValueStr(const std::string& txt) { return searchFieldValue(txt.c_str(), txt.c_str() + txt.size()); }
 	const char* searchRawText(const char* txt, const char* txtStart, const char** txtEnd);
-	void searchRawTextMultiResult(const char* txt);
+	void searchRawTextMultiResult(const char* txt, const char* txtEnd = nullptr);
 	const char* rewindToNextUtf8CharStart(const char* ptr, const char* textStart);
 	const char* skipToNextUtf8CharStart(const char* ptr, const char* textEnd);
+	const char* skipToNextUtf8CharStart(const char* ptr);
 	void searchWindow();
-	void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey);
+	void HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey);
+	inline void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc, nullptr, hotkey); }
+	template<size_t size> inline void HelpMarkerWithHotkey(const char(&desc)[size], std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc, desc + size - 1, hotkey); }
+	inline void HelpMarkerWithHotkey(const StringWithLength& desc, std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc.txt, desc.txt + desc.length, hotkey); }
+	inline void HelpMarkerWithHotkey(const std::string& desc, std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc.c_str(), desc.c_str() + desc.size(), hotkey); }
 	void printAllCancels(const FrameCancelInfo& cancels,
 		bool enableSpecialCancel,
 		bool enableJumpCancel,

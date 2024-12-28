@@ -1782,7 +1782,9 @@ void Settings::getComboInfo(std::vector<int>& keyCombo, ComboInfo* info) {
 		KeyComboToParse& combo = it->second;
 		if (combo.keyCombo == &keyCombo) {
 			info->uiName = combo.uiName;
+			info->uiNameWithLength = { info->uiName, strlen(info->uiName) };
 			info->uiDescription = combo.uiDescription.c_str();
+			info->uiDescriptionWithLength = { info->uiDescription, combo.uiDescription.size() };
 			return;
 		}
 	}
@@ -1793,12 +1795,21 @@ const char* Settings::getOtherUIName(void* ptr) {
 	return pointerIntoSettingsIntoDescription[(BYTE*)ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)]->uiName;
 }
 
+StringWithLength Settings::getOtherUINameWithLength(void* ptr) {
+	return pointerIntoSettingsIntoDescription[(BYTE*)ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)]->uiNameWithLength;
+}
+
 const char* Settings::getOtherUIFullName(void* ptr) {
 	return pointerIntoSettingsIntoDescription[(BYTE*)ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)]->uiFullPath.c_str();
 }
 
 const char* Settings::getOtherUIDescription(void* ptr) {
 	return pointerIntoSettingsIntoDescription[(BYTE*)ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)]->uiDescription.c_str();
+}
+
+StringWithLength Settings::getOtherUIDescriptionWithLength(void* ptr) {
+	const std::string& str = pointerIntoSettingsIntoDescription[(BYTE*)ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)]->uiDescription;
+	return { str.c_str(), str.size() };
 }
 
 const char* Settings::getOtherINIDescription(void* ptr) {
@@ -1812,6 +1823,7 @@ void Settings::registerOtherDescription(void* ptr, const char* iniName, const ch
 	desc.iniNameAllCaps = toUppercase(iniName);
 	desc.iniName = iniName;
 	desc.uiName = uiName;
+	desc.uiNameWithLength = { uiName, strlen(uiName) };
 	desc.uiFullPath.reserve(1 + strlen(uiPath) + 3 + strlen(uiName) + 1);
 	desc.uiFullPath = '\'';
 	desc.uiFullPath += uiPath;

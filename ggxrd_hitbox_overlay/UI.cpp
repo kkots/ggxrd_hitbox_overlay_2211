@@ -20,6 +20,9 @@
 #include <commdlg.h>  // for GetOpenFileNameW
 #include "resource.h"
 #include "Graphics.h"
+#ifdef PERFORMANCE_MEASUREMENT
+#include <chrono>
+#endif
 
 UI ui;
 
@@ -64,7 +67,7 @@ static char printdecimalbuf[512];
 static int numDigits(int num);  // For negative numbers does not include the '-'
 struct UVStartEnd { ImVec2 start; ImVec2 end; };
 static UVStartEnd digitUVs[10];
-struct FrameArt { FrameType type; const PngResource* resource; ImVec2 uvStart; ImVec2 uvEnd; const char* description; };
+struct FrameArt { FrameType type; const PngResource* resource; ImVec2 uvStart; ImVec2 uvEnd; StringWithLength description; };
 static FrameArt frameArtNonColorblind[FT_LAST];
 static FrameArt frameArtColorblind[FT_LAST];
 struct FrameMarkerArt { FrameMarkerType type; const PngResource* resource; ImVec2 uvStart; ImVec2 uvEnd; };
@@ -85,7 +88,7 @@ float drawFramebars_y;
 const float innerBorderThickness = 1.F;
 const float innerBorderThicknessHalf = innerBorderThickness * 0.5F;
 float drawFramebars_frameWidthScaled;
-const char* thisHelpTextWillRepeat = "Show available gatlings, whiff cancels, and whether the jump and the special cancels are available,"
+const char thisHelpTextWillRepeat[] = "Show available gatlings, whiff cancels, and whether the jump and the special cancels are available,"
 					" per range of frame for this player.\n"
 					"\n"
 					"The frame numbers start from 1, and start from the first frame of the animation. So, for example, if the"
@@ -197,6 +200,49 @@ static const char* formatGuardType(GuardType guardType);
 			if (i == 0) RightAlignedText(a); \
 			else ImGui::TextUnformatted(a);
 
+
+// THIS PERFORMANCE MEASUREMENT IS NOT THREAD SAFE
+#ifdef PERFORMANCE_MEASUREMENT
+static std::chrono::time_point<std::chrono::system_clock> performanceMeasurementStart;
+#define PERFORMANCE_MEASUREMENT_DECLARE(name) \
+	static unsigned long long performanceMeasurement_##name##_sum = 0; \
+	static unsigned long long performanceMeasurement_##name##_count = 0; \
+	static unsigned long long performanceMeasurement_##name##_average = 0;
+#define PERFORMANCE_MEASUREMENT_ON_EXIT(name) \
+	PerformanceMeasurementEnder performanceMeasurementEnder_##name(performanceMeasurement_##name##_sum, \
+		performanceMeasurement_##name##_count, \
+		performanceMeasurement_##name##_average, \
+		#name);
+#define PERFORMANCE_MEASUREMENT_START performanceMeasurementStart = std::chrono::system_clock::now();
+#define PERFORMANCE_MEASUREMENT_END(name) \
+	{ \
+		PERFORMANCE_MEASUREMENT_ON_EXIT(name) \
+	}
+		
+PERFORMANCE_MEASUREMENT_DECLARE(search)
+
+struct PerformanceMeasurementEnder {
+	PerformanceMeasurementEnder(unsigned long long& sum,
+		unsigned long long& count,
+		unsigned long long& average,
+		const char* name) : sum(sum), count(count), average(average), name(name) { }
+	~PerformanceMeasurementEnder() {
+		unsigned long long duration = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - performanceMeasurementStart).count();
+		sum += duration;
+		++count;
+		average = sum / count;
+		logwrap(fprintf(logfile, "%s took %llu nanoseconds; average: %llu; count: %llu\n", name, duration, average, count));
+	}
+	unsigned long long& sum;
+	unsigned long long& count;
+	unsigned long long& average;
+	const char* name;
+};
+#else
+#define PERFORMANCE_MEASUREMENT_ON_EXIT(name) 
+#define PERFORMANCE_MEASUREMENT_START 
+#define PERFORMANCE_MEASUREMENT_END(name) 
+#endif
 
 bool UI::onDllMain(HMODULE hModule) {
 	
@@ -975,7 +1021,7 @@ void UI::drawSearchableWindows() {
 						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 						if (settings.dontShowMoveName) {
 							if (prevNamesControl(player, true)) {
-								searchFieldValue(strbuf);
+								searchFieldValue(strbuf, nullptr);
 								printNoWordWrap
 								ImGui::Separator();
 							}
@@ -1028,7 +1074,7 @@ void UI::drawSearchableWindows() {
 						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 						if (settings.dontShowMoveName) {
 							if (prevNamesControl(player, true)) {
-								searchFieldValue(strbuf);
+								searchFieldValue(strbuf, nullptr);
 								printNoWordWrap
 								ImGui::Separator();
 							}
@@ -1043,7 +1089,7 @@ void UI::drawSearchableWindows() {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
 				player.printInvuls(strbuf, sizeof strbuf);
-				searchFieldValue(strbuf);
+				searchFieldValue(strbuf, nullptr);
 				printWithWordWrap
 				
 				if (i == 0) {
@@ -1162,7 +1208,7 @@ void UI::drawSearchableWindows() {
 								"\n"
 								"To hide this field you can use the \"dontShowMoveName\" setting. Then it will only be shown in the tooltip of 'Startup' and 'Total' fields.");
 						}
-						AddTooltip(searchTooltip(moveTooltip.c_str()));
+						AddTooltip(searchTooltip(moveTooltip.c_str(), nullptr));
 					}
 				}
 			}
@@ -1713,7 +1759,7 @@ void UI::drawSearchableWindows() {
 				"4) Hide HUD\n"
 				"A hotkey can be configured for entering and leaving GIF Mode at \"gifModeToggle\".");
 		}
-		HelpMarkerWithHotkey(GIFModeHelp.c_str(), settings.gifModeToggle);
+		HelpMarkerWithHotkey(GIFModeHelp, settings.gifModeToggle);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Black Background"), &gifModeToggleBackgroundOnly) || stateChanged;
 		ImGui::SameLine();
@@ -1724,7 +1770,7 @@ void UI::drawSearchableWindows() {
 				" if Post Effect is turned off in the game's graphics settings).\n"
 				"You can use the \"gifModeToggleBackgroundOnly\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(blackBackgroundHelp.c_str(), settings.gifModeToggleBackgroundOnly);
+		HelpMarkerWithHotkey(blackBackgroundHelp, settings.gifModeToggleBackgroundOnly);
 		
 		bool postEffectOn = game.postEffectOn() != 0;
 		if (ImGui::Checkbox(searchFieldTitle("Post-Effect On"), &postEffectOn)) {
@@ -1740,7 +1786,7 @@ void UI::drawSearchableWindows() {
 			" turned off automatically, and when you leave those modes, it gets turned back on.\n"
 			"Or, alternatively, you could use the manual keyboard toggle, set in this mod's \"togglePostEffectOnOff\".");
 		}
-		HelpMarkerWithHotkey(postEffectOnHelp.c_str(), settings.togglePostEffectOnOff);
+		HelpMarkerWithHotkey(postEffectOnHelp, settings.togglePostEffectOnOff);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center On Player"), &gifModeToggleCameraCenterOnly) || stateChanged;
 		ImGui::SameLine();
@@ -1750,7 +1796,7 @@ void UI::drawSearchableWindows() {
 				"Centers the camera on you.\n"
 				"You can use the \"gifModeToggleCameraCenterOnly\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(cameraCenterHelp.c_str(), settings.gifModeToggleCameraCenterOnly);
+		HelpMarkerWithHotkey(cameraCenterHelp, settings.gifModeToggleCameraCenterOnly);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center on Opponent"), &toggleCameraCenterOpponent) || stateChanged;
 		ImGui::SameLine();
@@ -1760,7 +1806,7 @@ void UI::drawSearchableWindows() {
 				"Centers the camera on the opponent.\n"
 				"You can use the \"toggleCameraCenterOpponent\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(cameraCenterOpponentHelp.c_str(), settings.toggleCameraCenterOpponent);
+		HelpMarkerWithHotkey(cameraCenterOpponentHelp, settings.toggleCameraCenterOpponent);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Opponent"), &gifModeToggleHideOpponentOnly) || stateChanged;
 		ImGui::SameLine();
@@ -1770,7 +1816,7 @@ void UI::drawSearchableWindows() {
 				"Make the opponent invisible and invulnerable.\n"
 				"You can use the \"gifModeToggleHideOpponentOnly\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(hideOpponentHelp.c_str(), settings.gifModeToggleHideOpponentOnly);
+		HelpMarkerWithHotkey(hideOpponentHelp, settings.gifModeToggleHideOpponentOnly);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Player"), &toggleHidePlayer) || stateChanged;
 		ImGui::SameLine();
@@ -1780,7 +1826,7 @@ void UI::drawSearchableWindows() {
 				"Make the player invisible and invulnerable.\n"
 				"You can use the \"toggleHidePlayer\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(hidePlayerHelp.c_str(), settings.toggleHidePlayer);
+		HelpMarkerWithHotkey(hidePlayerHelp, settings.toggleHidePlayer);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide HUD"), &gifModeToggleHudOnly) || stateChanged;
 		ImGui::SameLine();
@@ -1790,7 +1836,7 @@ void UI::drawSearchableWindows() {
 				"Hides the HUD (interface).\n"
 				"You can use the \"gifModeToggleHudOnly\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(hideHUDHelp.c_str(), settings.gifModeToggleHudOnly);
+		HelpMarkerWithHotkey(hideHUDHelp, settings.gifModeToggleHudOnly);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("No Gravity"), &noGravityOn) || stateChanged;
 		ImGui::SameLine();
@@ -1800,7 +1846,7 @@ void UI::drawSearchableWindows() {
 				"Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.\n"
 				"You can use the \"noGravityToggle\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(noGravityHelp.c_str(), settings.noGravityToggle);
+		HelpMarkerWithHotkey(noGravityHelp, settings.noGravityToggle);
 		
 		bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
 		if (ImGui::Checkbox(searchFieldTitle("Disable Gray Hurtboxes"), &neverDisplayGrayHurtboxes)) {
@@ -1816,7 +1862,7 @@ void UI::drawSearchableWindows() {
 				" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
 				"You can use the \"toggleDisableGrayHurtboxes\" hotkey to toggle this setting.");
 		}
-		HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp.c_str(), settings.toggleDisableGrayHurtboxes);
+		HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp, settings.toggleDisableGrayHurtboxes);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Freeze Game"), &freezeGame) || stateChanged;
 		ImGui::SameLine();
@@ -1843,17 +1889,17 @@ void UI::drawSearchableWindows() {
 				hotkeyRepresentation = "<not set>";
 			}
 			sprintf_s(strbuf, "Freeze Game Hotkey: %s", hotkeyRepresentation);
-			ImGui::TextUnformatted(searchTooltip(strbuf));
+			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
 			
 			hotkeyRepresentation = settings.getComboRepresentation(settings.allowNextFrameKeyCombo);
 			if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
 				hotkeyRepresentation = "<not set>";
 			}
 			sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", hotkeyRepresentation);
-			ImGui::TextUnformatted(searchTooltip(strbuf));
+			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
 			
 			ImGui::Separator();
-			ImGui::TextUnformatted(searchTooltip(freezeGameHelp.c_str()));
+			ImGui::TextUnformatted(searchTooltipStr(freezeGameHelp));
 			ImGui::PopTextWrapPos();
 			ImGui::EndTooltip();
 		}
@@ -1877,7 +1923,7 @@ void UI::drawSearchableWindows() {
 				"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
 				"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
 		}
-		HelpMarkerWithHotkey(slowmoHelp.c_str(), settings.slowmoGameToggle);
+		HelpMarkerWithHotkey(slowmoHelp, settings.slowmoGameToggle);
 		
 		ImGui::Button(searchFieldTitle("Take Screenshot"));
 		if (ImGui::IsItemActivated()) {
@@ -1900,7 +1946,7 @@ void UI::drawSearchableWindows() {
 				" in the 'Hitbox settings', they're saved there instead.\n"
 				"A hotkey can be configured to take screenshots with, in \"screenshotBtn\".");
 		}
-		HelpMarkerWithHotkey(screenshotHelp.c_str(), settings.screenshotBtn);
+		HelpMarkerWithHotkey(screenshotHelp, settings.screenshotBtn);
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Continuous Screenshotting Mode"), &continuousScreenshotToggle) || stateChanged;
 		ImGui::SameLine();
@@ -1914,7 +1960,7 @@ void UI::drawSearchableWindows() {
 				"Alternatively, you can use \"continuousScreenshotToggle\" shortcut to toggle a mode where you don't have to hold"
 				" the screenshot button, and screenshots get taken every non frozen (advancing) frame automatically.");
 		}
-		HelpMarkerWithHotkey(continuousScreenshottingHelp.c_str(), settings.continuousScreenshotToggle);
+		HelpMarkerWithHotkey(continuousScreenshottingHelp, settings.continuousScreenshotToggle);
 		
 	}
 	popSearchStack();
@@ -1933,7 +1979,7 @@ void UI::drawSearchableWindows() {
 				screenshotsPathBuf[newLen] = '\0';
 			}
 			
-			ImGui::Text(searchFieldTitle(settings.getOtherUIName(&settings.screenshotPath)));
+			ImGui::Text(searchFieldTitle(settings.getOtherUINameWithLength(&settings.screenshotPath)));
 			ImGui::SameLine();
 			float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
 			ImGui::SetNextItemWidth(w);
@@ -2866,7 +2912,7 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(searchFieldTitle("Opponent not poisoned."));
 				} else {
 					sprintf_s(strbuf, "Poison duration on opponent: %d/%d", otherPlayer.poisonDuration, otherPlayer.poisonDurationMax);
-					ImGui::TextUnformatted(searchFieldTitle(strbuf));
+					ImGui::TextUnformatted(searchFieldTitle(strbuf, nullptr));
 				}
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
@@ -2977,7 +3023,7 @@ void UI::drawSearchableWindows() {
 				player.superfreezeStartup ? 2 : 1,
 				useSlang);
 			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-			textUnformattedColored(YELLOW_COLOR, searchFieldTitle(animNamesCount ? "Anims: " : "Anim: "));
+			textUnformattedColored(YELLOW_COLOR, searchFieldTitle(animNamesCount ? "Anims: " : "Anim: ", nullptr));
 			char* buf = strbuf;
 			size_t bufSize = sizeof strbuf;
 			player.prevStartupsDisp.printNames(buf, bufSize, lastNames,
@@ -4553,7 +4599,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 	bool keyComboChanged = false;
 	
 	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(searchFieldTitle(info.uiName));
+	ImGui::TextUnformatted(searchFieldTitle(info.uiNameWithLength));
 	ImGui::SameLine();
 	std::string idArena;
 	std::vector<int> indicesToRemove;
@@ -4570,7 +4616,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 		int currentlySelectedKey = keyCombo[i];
 		const char* currentKeyStr = settings.getKeyRepresentation(currentlySelectedKey);
 		ImGui::PushItemWidth(80);
-		if (ImGui::BeginCombo(idArena.c_str(), searchFieldValue(currentKeyStr)))
+		if (ImGui::BeginCombo(idArena.c_str(), searchFieldValue(currentKeyStr, nullptr)))
 		{
 			ImGui::PushID(-1);
 			if (ImGui::Selectable("Remove this key", false)) {
@@ -4626,7 +4672,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 	}
 	
 	ImGui::SameLine();
-	HelpMarker(searchTooltip(info.uiDescription));
+	HelpMarker(searchTooltip(info.uiDescriptionWithLength));
 }
 
 // Runs on the main thread. Called hundreds of times each frame
@@ -5049,7 +5095,7 @@ void HelpMarker(const char* desc) {
 	AddTooltip(desc);
 }
 
-void UI::HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) {
+void UI::HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey) {
 	ImGui::TextDisabled("(?)");
 	if (searching || ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -5058,10 +5104,10 @@ void UI::HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) {
 			ImGui::TextUnformatted("Hotkey: <not set>");
 		} else {
 			sprintf_s(strbuf, "Hotkey: %s", hotkeyRepresentation);
-			ImGui::TextUnformatted(searchTooltip(strbuf));
+			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
 		}
 		ImGui::Separator();
-		ImGui::TextUnformatted(searchTooltip(desc));
+		ImGui::TextUnformatted(searchTooltip(desc, descEnd));
 		ImGui::PopTextWrapPos();
 		if (!searching) ImGui::EndTooltip();
 	}
@@ -5209,7 +5255,7 @@ int numDigits(int num) {
 	return answer;
 }
 
-void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, const char* description) {
+void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description) {
 	if (!resourceBothVersions) resourceBothVersions = std::make_unique<PngResource>();
 	addImage(hModule, resourceIdBothVersions, resourceBothVersions);
 	frameArtNonColorblind[frameType] = frameArtColorblind[frameType] = {
@@ -5222,7 +5268,7 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBoth
 }
 
 void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
-                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, const char* description) {
+                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, StringWithLength description) {
 	if (!resourceColorblind) resourceColorblind = std::make_unique<PngResource>();
 	if (!resourceNonColorblind) resourceNonColorblind = std::make_unique<PngResource>();
 	assert(&resourceIdColorblind != &resourceIdNonColorblind);
@@ -5500,7 +5546,7 @@ void UI::framebarHelpWindow() {
 	static bool framebarHelpContentGenerated = false;
 	struct FramebarHelpElement {
 		const FrameArt* art[2];
-		std::vector<const char*> meanings;
+		std::vector<StringWithLength*> meanings;
 	};
 	static std::vector<FramebarHelpElement> framebarHelpContent;
 	
@@ -5527,9 +5573,9 @@ void UI::framebarHelpWindow() {
 				FramebarHelpElement& newHelp = framebarHelpContent.back();
 				newHelp.art[0] = &art;
 				newHelp.art[1] = &frameArtColorblind[i];
-				newHelp.meanings.emplace_back(art.description);
+				newHelp.meanings.emplace_back(&art.description);
 			} else {
-				found->meanings.emplace_back(art.description);
+				found->meanings.emplace_back(&art.description);
 			}
 		}
 	}
@@ -5555,14 +5601,14 @@ void UI::framebarHelpWindow() {
 		
 		int count = 1;
 		bool theresOnlyOne = elem.meanings.size() == 1;
-		for (const char* description : elem.meanings) {
+		for (StringWithLength* description : elem.meanings) {
 			if (count != 1) {
 				ImGui::SetCursorPosX(cursorX);
 			}
 			if (theresOnlyOne) {
-				ImGui::TextUnformatted(searchTooltip(description));
+				ImGui::TextUnformatted(searchTooltip(*description));
 			} else {
-				ImGui::Text("%d) %s", count++, searchTooltip(description));
+				ImGui::Text("%d) %s", count++, searchTooltip(*description));
 			}
 		}
 		
@@ -5607,7 +5653,7 @@ void UI::framebarHelpWindow() {
 	struct MarkerHelpInfo {
 		FrameMarkerType type;
 		bool isOnTheBottom;
-		const char* description;
+		StringWithLength description;
 	};
 	MarkerHelpInfo markerHelps[] {
 		{ MARKER_TYPE_STRIKE_INVUL, false, "Strike invulnerability." },
@@ -5726,7 +5772,7 @@ void UI::framebarHelpWindow() {
 		}
 	};
 	ImGui::PopTextWrapPos();
-	imGuiDrawWrappedTextWithIcons(searchTooltip(generalFramebarHelp.c_str()),
+	imGuiDrawWrappedTextWithIcons(searchTooltipStr(generalFramebarHelp),
 		generalFramebarHelp.c_str() + generalFramebarHelp.size(),
 		wordWrapWidth,
 		icons,
@@ -6071,10 +6117,10 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 			}
 			
 			const FrameArt* frameArt = &drawFramebars_frameArtArray[frame.type];
-			const char* description = frameArt->description;
+			const StringWithLength* description = &frameArt->description;
 			if (frame.newHit && frameTypeActive(frame.type)) {
 				frameArt = &drawFramebars_frameArtArray[frame.type - FT_ACTIVE + FT_ACTIVE_NEW_HIT];
-				description = frameArt->description;
+				description = &frameArt->description;
 			}
 			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
 				frameStartVec,
@@ -6123,8 +6169,8 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 						descriptionHeightsInitialized = true;
 						float wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
 						for (int p = 1; p < FT_LAST; ++p) {
-							float currentHeight = ImGui::CalcTextSize(frameArtColorblind[p].description,
-								nullptr, false, wrapWidthUse).y;
+							const StringWithLength* sws = &frameArtColorblind[p].description;
+							float currentHeight = ImGui::CalcTextSize(sws->txt, sws->txt + sws->length, false, wrapWidthUse).y;
 							descriptionHeights[p] = currentHeight;
 							if (p != FT_ACTIVE_NEW_HIT && p != FT_ACTIVE_NEW_HIT_PROJECTILE) {
 								maxDescriptionHeight = max(maxDescriptionHeight, currentHeight);
@@ -6140,7 +6186,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 					}
 					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					float oldCursorPos = ImGui::GetCursorPosY();
-					ImGui::TextUnformatted(description);
+					ImGui::TextUnformatted(description->txt, description->txt + description->length);
 					float newCursorPos = ImGui::GetCursorPosY();
 					float textHeight = newCursorPos - oldCursorPos;
 					float requiredHeight;
@@ -6496,40 +6542,40 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
-	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUIName(&settingsRef)), &boolValue)) {
+	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUINameWithLength(&settingsRef)), &boolValue)) {
 		settingsRef = boolValue;
 		needWriteSettings = true;
 		itHappened = true;
 	}
 	ImGui::SameLine();
-	HelpMarkerWithHotkey(settings.getOtherUIDescription(&settingsRef), hotkey);
+	HelpMarkerWithHotkey(settings.getOtherUIDescriptionWithLength(&settingsRef), hotkey);
 	return itHappened;
 }
 
 bool UI::booleanSettingPreset(std::atomic_bool& settingsRef) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
-	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUIName(&settingsRef)), &boolValue)) {
+	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUINameWithLength(&settingsRef)), &boolValue)) {
 		settingsRef = boolValue;
 		needWriteSettings = true;
 		itHappened = true;
 	}
 	ImGui::SameLine();
-	HelpMarker(searchTooltip(settings.getOtherUIDescription(&settingsRef)));
+	HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settingsRef)));
 	return itHappened;
 }
 
 bool UI::float4SettingPreset(float& settingsPtr) {
 	bool attentionPossiblyNeeded = false;
 	float floatValue = settingsPtr;
-	if (ImGui::InputFloat(searchFieldTitle(settings.getOtherUIName(&settingsPtr)), &floatValue, 1.F, 10.F, "%.4f")) {
+	if (ImGui::InputFloat(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &floatValue, 1.F, 10.F, "%.4f")) {
 		settingsPtr = floatValue;
 		needWriteSettings = true;
 		attentionPossiblyNeeded = true;
 	}
 	imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 	ImGui::SameLine();
-	HelpMarker(searchTooltip(settings.getOtherUIDescription(&settingsPtr)));
+	HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settingsPtr)));
 	return attentionPossiblyNeeded;
 }
 
@@ -6537,7 +6583,7 @@ bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue) {
 	bool isChange = false;
 	int intValue = settingsPtr;
 	ImGui::SetNextItemWidth(80.F);
-	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUIName(&settingsPtr)), &intValue, 1, 1, 0)) {
+	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &intValue, 1, 1, 0)) {
 		if (intValue < minValue) {
 			intValue = minValue;
 		}
@@ -6547,7 +6593,7 @@ bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue) {
 	}
 	imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 	ImGui::SameLine();
-	HelpMarker(searchTooltip(settings.getOtherUIDescription(&settingsPtr)));
+	HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settingsPtr)));
 	return isChange;
 }
 
@@ -7013,9 +7059,9 @@ const char* formatGuardType(GuardType guardType) {
 	}
 }
 
-const char* UI::searchCollapsibleSection(const char* collapsibleHeaderName) {
+const char* UI::searchCollapsibleSection(const char* collapsibleHeaderName, const char* textEnd) {
 	if (!searching) return collapsibleHeaderName;
-	searchFieldTitle(collapsibleHeaderName);
+	searchFieldTitle(collapsibleHeaderName, textEnd);
 	pushSearchStack(collapsibleHeaderName);
 	return collapsibleHeaderName;
 }
@@ -7038,9 +7084,8 @@ static void replaceNewLinesWithSpaces(std::string& str) {
 	}
 }
 
-void UI::searchRawTextMultiResult(const char* txt) {
+void UI::searchRawTextMultiResult(const char* txt, const char* txtEnd) {
 	const char* txtStart = txt;
-	const char* txtEnd = nullptr;
 	do {
 		txt = searchRawText(txt, txtStart, &txtEnd);
 		if (!txt) return;
@@ -7061,15 +7106,35 @@ void UI::searchRawTextMultiResult(const char* txt) {
 }
 
 const char* UI::searchRawText(const char* txt, const char* txtStart, const char** txtEnd) {
-	if (*txtEnd == nullptr) *txtEnd = txt + strlen(txt);
-	const char* const result = (const char* const)sigscanCaseInsensitive((uintptr_t)txt, (uintptr_t)*txtEnd, searchString, searchStringLen, searchStep);
+	const char* result;
+	if (*txtEnd == nullptr) {
+		result = txt;
+		int matchCount = 0;
+		do {
+			char sourceChar = *result;
+			if (sourceChar >= 'A' && sourceChar <= 'Z') sourceChar = 'a' + sourceChar - 'A';
+			if (sourceChar == searchString[matchCount]) {
+				++matchCount;
+				if (matchCount == searchStringLen) {
+					result -= searchStringLen - 1;
+					break;
+				}
+			} else {
+				matchCount = 0;
+			}
+			++result;
+		} while (*result != '\0');
+		if (*result == '\0') result = nullptr;
+	} else {
+		result = (const char*)sigscanCaseInsensitive((uintptr_t)txt, (uintptr_t)*txtEnd, searchString, searchStringLen, searchStep);
+	}
 	if (result) {
 		if (*txt == '\0') return nullptr;
 		
-		
 		lastFoundTextRight.clear();
 		
-		const size_t len = *txtEnd - txt;
+		size_t len = 0;
+		if (*txtEnd) len = *txtEnd - txt;
 		const int showAheadOrBehindLimit = 15;
 		
 		if (result != txtStart) {
@@ -7086,18 +7151,31 @@ const char* UI::searchRawText(const char* txt, const char* txtStart, const char*
 		
 		lastFoundTextMid.assign(result, result + searchStringLen);
 		
-		if (result - txt != len - searchStringLen) {
+		if (!*txtEnd || result - txt != len - searchStringLen) {
 			int limit = showAheadOrBehindLimit;
 			const char* ptr = result + searchStringLen;
-			const char* const textEnd = txt + len;
-			do {
-				--limit;
-				ptr = skipToNextUtf8CharStart(ptr, textEnd);
-			} while (limit && ptr != textEnd);
-			if (ptr != textEnd) {
-				lastFoundTextRight.assign(result + searchStringLen, ptr);
+			if (!*txtEnd) {
+				while (*ptr != '\0' && limit) {
+					--limit;
+					ptr = skipToNextUtf8CharStart(ptr);
+				}
+				if (*ptr == '\0') {
+					*txtEnd = ptr;
+					lastFoundTextRight = result + searchStringLen;
+				} else {
+					lastFoundTextRight.assign(result + searchStringLen, ptr);
+				}
 			} else {
-				lastFoundTextRight = result + searchStringLen;
+				const char* const textEnd = txt + len;
+				do {
+					--limit;
+					ptr = skipToNextUtf8CharStart(ptr, textEnd);
+				} while (limit && ptr != textEnd);
+				if (ptr != textEnd) {
+					lastFoundTextRight.assign(result + searchStringLen, ptr);
+				} else {
+					lastFoundTextRight = result + searchStringLen;
+				}
 			}
 		} else {
 			lastFoundTextRight.clear();
@@ -7117,6 +7195,16 @@ const char* UI::rewindToNextUtf8CharStart(const char* ptr, const char* textStart
 	return ptr;
 }
 
+const char* UI::skipToNextUtf8CharStart(const char* ptr) {
+	while (true) {
+		++ptr;
+		if (*ptr == '\0') return ptr;
+		if ((*ptr & 0b11000000) != 0b10000000) {
+			return ptr;
+		}
+	}
+}
+
 const char* UI::skipToNextUtf8CharStart(const char* ptr, const char* textEnd) {
 	while (ptr != textEnd) {
 		++ptr;
@@ -7127,22 +7215,22 @@ const char* UI::skipToNextUtf8CharStart(const char* ptr, const char* textEnd) {
 	return ptr;
 }
 
-const char* UI::searchFieldTitle(const char* fieldTitle) {
+const char* UI::searchFieldTitle(const char* fieldTitle, const char* textEnd) {
 	if (!searching) return fieldTitle;
 	searchField = fieldTitle;
-	searchRawTextMultiResult(fieldTitle);
+	searchRawTextMultiResult(fieldTitle, textEnd);
 	return fieldTitle;
 }
 
-const char* UI::searchTooltip(const char* tooltip) {
+const char* UI::searchTooltip(const char* tooltip, const char* textEnd) {
 	if (!searching) return tooltip;
-	searchRawTextMultiResult(tooltip);
+	searchRawTextMultiResult(tooltip, textEnd);
 	return tooltip;
 }
 
-const char* UI::searchFieldValue(const char* value) {
+const char* UI::searchFieldValue(const char* value, const char* textEnd) {
 	if (!searching) return value;
-	searchRawTextMultiResult(value);
+	searchRawTextMultiResult(value, textEnd);
 	return value;
 }
 
@@ -7189,7 +7277,9 @@ void UI::searchWindow() {
 			searching = true;
 			searchResults.clear();
 			sigscanCaseInsensitivePrepare(searchString, searchStringLen, searchStep);
+			PERFORMANCE_MEASUREMENT_START
 			drawSearchableWindows();
+			PERFORMANCE_MEASUREMENT_END(search)
 			searching = false;
 		}
 	}
