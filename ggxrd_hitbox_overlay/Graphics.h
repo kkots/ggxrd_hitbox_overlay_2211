@@ -38,6 +38,7 @@ public:
 	void heartbeat();
 	
 	DrawData drawDataUse;
+	bool pauseMenuOpen = false;
 	IDirect3DDevice9* device;
 	DWORD graphicsThreadId = NULL;
 	bool shutdown = false;

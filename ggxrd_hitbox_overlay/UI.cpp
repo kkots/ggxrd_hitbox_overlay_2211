@@ -5417,7 +5417,7 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 }
 
 bool UI::needShowFramebar() const {
-	if (settings.showFramebar && (!settings.closingModWindowAlsoHidesFramebar || visible)) {
+	if (settings.showFramebar && (!settings.closingModWindowAlsoHidesFramebar || visible) && !pauseMenuOpen) {
 		GameMode mode = game.getGameMode();
 		if (mode == GAME_MODE_TRAINING) {
 			return settings.showFramebarInTrainingMode;

@@ -78,6 +78,7 @@ public:
 	std::vector<InputName> inputNames{ 0x127 };
 	std::unique_ptr<PngResource> firstFrame;
 	void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth);
+	bool pauseMenuOpen = false;
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);

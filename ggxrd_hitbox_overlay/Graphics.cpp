@@ -301,8 +301,11 @@ void Graphics::endSceneHook(IDirect3DDevice9* device) {
 			runningOwnBeginScene = true;
 			device->BeginScene();
 			runningOwnBeginScene = false;
-			executeBoxesRenderingCommand(device);
+			if (!pauseMenuOpen) {
+				executeBoxesRenderingCommand(device);
+			}
 			if (uiTexture) {
+				ui.pauseMenuOpen = pauseMenuOpen;
 				ui.onEndScene(device, uiDrawData.data(), uiTexture);
 			}
 			device->EndScene();

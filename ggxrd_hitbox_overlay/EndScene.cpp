@@ -557,6 +557,7 @@ void EndScene::logic() {
 	else {
 		bool isPauseMenu;
 		bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu) || isPauseMenu;
+		pauseMenuOpen = isPauseMenu;
 		bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
 		if (!isRunning && !settings.dontClearFramebarOnStageReset) {
 			playerFramebars.clear();
@@ -4654,6 +4655,7 @@ DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 	endScene.drawDataPrepared.copyTo(&drawData);
 	camera.valuesPrepare.copyTo(cameraValues);
 	noNeedToDrawPoints = endScene.willEnqueueAndDrawOriginPoints;
+	pauseMenuOpen = endScene.pauseMenuOpen;
 }
 
 // Runs on the graphics thread
@@ -4697,6 +4699,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	bool needEnqueueOriginPoints = false;
 	willEnqueueAndDrawOriginPoints = false;
 	endSceneAndPresentHooked = graphics.endSceneAndPresentHooked;
+	pauseMenuOpen = false;
 	if (!shutdown && !graphics.shutdown) {
 		drawDataPrepared.clear();
 		lastScreenSize = *screenSize;
@@ -4829,6 +4832,7 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 	graphics.drawDataUse.clear();
 	command->drawData.copyTo(&graphics.drawDataUse);
 	command->cameraValues.copyTo(camera.valuesUse);
+	graphics.pauseMenuOpen = command->pauseMenuOpen;
 	if (graphics.drawingPostponed()) return;
 	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;
 	graphics.executeBoxesRenderingCommand(getDevice());
@@ -4936,6 +4940,7 @@ void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 		graphics.uiDrawData = std::move(command->drawData);
 		return;
 	}
+	ui.pauseMenuOpen = false;
 	ui.onEndScene(getDevice(), command->drawData.data(), tex);
 }
 

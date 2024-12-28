@@ -75,6 +75,7 @@ struct DrawBoxesRenderCommand : FRenderCommand {
 	DrawData drawData;
 	CameraValues cameraValues;
 	bool noNeedToDrawPoints;
+	bool pauseMenuOpen;
 };
 
 struct DrawOriginPointsRenderCommand : FRenderCommand {
@@ -182,6 +183,7 @@ public:
 	BBScr_setHitstop_t orig_BBScr_setHitstop = nullptr;
 	beginHitstop_t orig_beginHitstop = nullptr;
 	BBScr_ignoreDeactivate_t orig_BBScr_ignoreDeactivate = nullptr;
+	bool pauseMenuOpen = false;
 	
 	std::vector<PlayerInfo> players{2};
 	std::vector<ProjectileInfo> projectiles;
