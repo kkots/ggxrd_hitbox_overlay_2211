@@ -366,8 +366,8 @@ char EntityManager::calculateCornerPenaltySeverity(int cornerPenalty) {
 }
 
 int EntityManager::calculateReceivedComboCountTensionGainModifier(bool inHitstun, int comboCount) {
-	if (!inHitstun) return 400;
-	return (comboCount + 17) * 100 / 16 * 4;
+	if (!inHitstun) return 100;
+	return (comboCount + 17) * 100 / 16;
 }
 
 int EntityManager::calculateDealtComboCountTensionGainModifier(bool inHitstun, int comboCount) {

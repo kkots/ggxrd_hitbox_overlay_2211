@@ -731,12 +731,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.burstGainLastCombo > player.burstGainMaxCombo) {
 				player.burstGainMaxCombo = player.burstGainLastCombo;
 			}
-			player.receivedComboCountTensionGainModifier = entityManager.calculateReceivedComboCountTensionGainModifier(
-				player.inHitstunNowOrNextFrame,
-				ent.comboCount());
-			player.dealtComboCountTensionGainModifier = entityManager.calculateDealtComboCountTensionGainModifier(
-				otherEnt.inHitstun(),
-				otherEnt.comboCount());
 			player.tensionPulsePenaltySeverity = entityManager.calculateTensionPulsePenaltySeverity(player.tensionPulsePenalty);
 			player.cornerPenaltySeverity = entityManager.calculateCornerPenaltySeverity(player.cornerPenalty);
 			
@@ -1470,6 +1464,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 					}
 				}
+			}
+		}
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = players[i];
+			
+			player.receivedComboCountTensionGainModifier = entityManager.calculateReceivedComboCountTensionGainModifier(
+				player.inHitstunNowOrNextFrame,
+				player.pawn.comboCount());
+			player.dealtComboCountTensionGainModifier = entityManager.calculateDealtComboCountTensionGainModifier(
+				players[1 - i].inHitstunNowOrNextFrame,
+				players[1 - i].pawn.comboCount());
+			player.burstGainOnly20Percent = player.pawn.burstGainOnly20Percent();
+			player.burstGainModifier = (player.pawn.comboCount() + 32) * 100 / 32;
+			if (game.isStylish(player.pawn)) {
+				player.stylishBurstGainModifier = game.getStylishBurstGainModifier();
+			} else {
+				player.stylishBurstGainModifier = 100;
 			}
 		}
 		

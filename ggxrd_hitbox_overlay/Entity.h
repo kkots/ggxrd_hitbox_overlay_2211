@@ -895,6 +895,7 @@ public:
 	inline TensionMode tensionMode() const { return *(TensionMode*)(ent + 0x2621c); }
 	inline int dustPropulsion() const { return *(int*)(ent + 0x24de0); }
 	inline int unknownField1() const { return *(int*)(ent + 0x24df0); }
+	inline int burstGainOnly20Percent() const { return *(int*)(ent + 0x2d130); }
 	
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;

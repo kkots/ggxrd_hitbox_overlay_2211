@@ -894,6 +894,8 @@ struct PlayerInfo {
 	int extraTensionGainModifier = 0;
 	int receivedComboCountTensionGainModifier = 0;
 	int dealtComboCountTensionGainModifier = 0;
+	int burstGainModifier = 0;
+	int stylishBurstGainModifier = 0;
 	
 	int tensionGainOnLastHit = 0;
 	int burstGainOnLastHit = 0;
@@ -1177,6 +1179,7 @@ struct PlayerInfo {
 	bool receivedNewDmgCalcOnThisFrame:1;
 	bool blockedAHitOnThisFrame:1;
 	bool rcProration:1;
+	bool burstGainOnly20Percent;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

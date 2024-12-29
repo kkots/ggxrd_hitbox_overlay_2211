@@ -6,6 +6,8 @@
 #include "EndScene.h"
 #include "EntityList.h"
 
+#define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
+
 void ActiveDataArray::addActive(int hitNum, int n, bool forceNewHit) {
 	if (count == 0) {
 		prevHitNum = hitNum;
@@ -416,8 +418,7 @@ int ActiveDataArray::print(char* buf, size_t bufSize) const {
 			result = sprintf_s(buf, bufSize, "(%d)", lastNonActives);
 			if (result != -1) {
 				if ((int)bufSize <= result) return buf - origBuf;
-				buf += result;
-				bufSize -= result;
+				advanceBuf
 			} else return buf - origBuf;
 		} else if (lastActives) {
 			++currentConsecutiveHits;
@@ -441,8 +442,7 @@ int ActiveDataArray::print(char* buf, size_t bufSize) const {
 		result = sprintf_s(buf, bufSize, "%d", elem.actives);
 		if (result != -1) {
 			if ((int)bufSize <= result) return buf - origBuf;
-			buf += result;
-			bufSize -= result;
+			advanceBuf
 		} else return buf - origBuf;
 		lastNonActives = elem.nonActives;
 		lastActives = elem.actives;
@@ -471,9 +471,7 @@ int ActiveDataArray::print(char* buf, size_t bufSize) const {
 		buf += newBufLen;
 		bufSize -= newBufLen;
 		result = sprintf_s(buf, bufSize, " / %s", ownbuf);
-		if (result != -1) {
-			buf += result;
-		}
+		advanceBuf
 	}
 	return buf - origBuf;
 }

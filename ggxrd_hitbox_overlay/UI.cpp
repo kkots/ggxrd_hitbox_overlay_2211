@@ -199,6 +199,7 @@ static const char* formatGuardType(GuardType guardType);
 #define printNoWordWrapArg(a) \
 			if (i == 0) RightAlignedText(a); \
 			else ImGui::TextUnformatted(a);
+#define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
 
 
 // THIS PERFORMANCE MEASUREMENT IS NOT THREAD SAFE
@@ -1334,17 +1335,11 @@ void UI::drawSearchableWindows() {
 					
 					if (!isFirst) {
 						result = sprintf_s(buf, bufSize, " / ");
-						if (result != -1) {
-							buf += result;
-							bufSize -= result;
-						}
+						advanceBuf
 					}
 					isFirst = false;
 					result = sprintf_s(buf, bufSize, "%s", name);
-					if (result != -1) {
-						buf += result;
-						bufSize -= result;
-					}
+					advanceBuf
 				}
 				printWithWordWrap
 				
@@ -2304,11 +2299,25 @@ void UI::drawSearchableWindows() {
 				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
 				"Distance-Based Modifier - depends on distance to the opponent.\n"
 				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
-				"Tension Pulse-Based Modifier - depends on Tension Pulse.\n\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse.\n"
+				"\n"
 				"A fourth modifier may be displayed, which is an extra tension modifier. "
-				"It may be present if you use Stylish mode or playing MOM mode. It will be highlighted in yellow.\n\n"
+				"It may be present if you use Stylish mode or playing MOM mode. It will be highlighted in yellow.\n"
+				"\n"
 				"A fourth or fifth modifier may be displayed, which is a combo hit count-dependent modifier. "
-				"It affects how fast you gain Tension from performing a combo."));
+				"It affects how fast you gain Tension from performing a combo.\n"
+				"\n"
+				"Tension gain on attack depends on 'tensionGainOnConnect' for each move. The standard values are:\n"
+				"Throws: 40 tension gain on connect;\n"
+				"Projectiles: 10;\n"
+				"Non-projectile specials: 60\n"
+				"Attack level 0 normal: 12\n"
+				"Attack level 1 normal: 22\n"
+				"Attack levels 2-4 normal: 32\n"
+				"Overdrives: 0\n"
+				"\nThese values get multiplied by 12 before use.\n"
+				"\n"
+				"If the opponent blocked or armored the move, the tension gain on attack is halved."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -2358,7 +2367,11 @@ void UI::drawSearchableWindows() {
 				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
 				"Tension Pulse-Based Modifier - depends on Tension Pulse.\n\n"
 				"A fourth modifer may be displayed, which happens when you are getting combo'd. It affects how much tension you gain from getting hid by a combo"
-				" and depends on the number of hits."));
+				" and depends on the number of hits.\n"
+				"\n"
+				"Tension gain when being combo'd uses damage * 4 as the base. The damage taken is the base damage, before guts or combo proration scaling.\n"
+				"When blocking, the tension gained is the damage / 3, round down, then * 3. The damage is the base damage, prior to chip damage calculation,"
+				" and doesn't depend on guts."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -2465,8 +2478,35 @@ void UI::drawSearchableWindows() {
 			drawPlayerIconWithTooltip(1);
 			ImGui::SameLine();
 			ImGui::TextUnformatted("P2");
-
-
+			
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Burst Gain Modifier"));
+			AddTooltip(searchFieldTitle("Burst gain depends on the current combo hit count. The more hits the combo has, the faster the defender gains burst.\n"
+				" The amount gained from each hit is based on (damage * 3 + 100) * Burst Gain Modifier.\n"
+				" There are two or three percentages displayed. The first depends on combo count (combo count + 32) / 32, the second depends on some unknown thing"
+				" that scales burst gain by 20%. The third percentage is displayed when you're playing Stylish and is the stylish burst gain modifier."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				char* buf = strbuf;
+				size_t bufSize = sizeof strbuf;
+				int result = sprintf_s(strbuf, "%s", printDecimal(player.burstGainModifier, 0, -3, true));
+				advanceBuf
+				result = sprintf_s(buf, bufSize, " * %s", printDecimal(player.burstGainOnly20Percent ? 20 : 100, 0, -3, true));
+				advanceBuf
+				if (player.stylishBurstGainModifier != 100) {
+					result = sprintf_s(buf, bufSize, " * %s", printDecimal(player.stylishBurstGainModifier, 0, -3, true));
+					advanceBuf
+				}
+				sprintf_s(buf, bufSize, " = %s", printDecimal(
+					player.burstGainModifier * 100
+						* (player.burstGainOnly20Percent ? 20 : 100) / 100
+						* player.stylishBurstGainModifier / 10000,
+					0, 3, true));
+				ImGui::TextUnformatted(strbuf);
+			}
+			
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Burst Gain On Last Hit"));
 			AddTooltip(searchFieldTitle("How much Burst was gained on a single last hit (either inflicting it or getting hit by it)."));
@@ -3393,16 +3433,10 @@ void UI::drawSearchableWindows() {
 								char* buf = strbuf;
 								size_t bufSize = sizeof strbuf;
 								int result = sprintf_s(buf, bufSize, "%s + ", printDecimal(data.defenderRisc, 2, 0, false));
-								if (result != -1) {
-									buf += result;
-									bufSize -= result;
-								}
+								advanceBuf
 								
 								result = sprintf_s(buf, bufSize, "%s = ", printDecimal(x, 2, 0, false));
-								if (result != -1) {
-									buf += result;
-									bufSize -= result;
-								}
+								advanceBuf
 								
 								sprintf_s(buf, bufSize, "%s", printDecimal(data.defenderRisc + x, 2, 0, false));
 								
@@ -3916,20 +3950,11 @@ void UI::drawSearchableWindows() {
 								char* buf = strbuf;
 								size_t bufSize = sizeof strbuf;
 								int result = sprintf_s(strbuf, "%s - ", printDecimal(data.risc, 2, 0, false));
-								if (result != -1) {
-									buf += result;
-									bufSize -= result;
-								}
+								advanceBuf
 								result = sprintf_s(buf, bufSize, "%s = ", printDecimal(riscMinusTotal, 2, 0, false));
-								if (result != -1) {
-									buf += result;
-									bufSize -= result;
-								}
+								advanceBuf
 								result = sprintf_s(buf, bufSize, "%s", printDecimal(data.risc - riscMinusTotal, 2, 0, false));
-								if (result != -1) {
-									buf += result;
-									bufSize -= result;
-								}
+								advanceBuf
 								ImGui::TextUnformatted(strbuf);
 								
 							}
@@ -4179,10 +4204,7 @@ void UI::drawSearchableWindows() {
 										isLessGreater,
 										dmgCalc.scaleDamageWithHp ? " after HP Damage Scale" : "",
 										damageAfterHpScaling);
-									if (result != -1) {
-										buf += result;
-										bufSize -= result;
-									}
+									advanceBuf
 									if (data.throwLockExecute) {
 										sprintf_s(buf, bufSize, "%s", " * 50% (due to throw animation) ).");
 									} else {
@@ -4993,11 +5015,13 @@ char* UI::printDecimal(int num, int numAfterPoint, int padding, bool percentage)
 		divideBy *= 10;
 	}
 	char fmtbuf[9] = "%d.%.";
+	int len;
+	bool insertedPercentage = false;
 	if (numAfterPoint == 0) {
 		if (percentage) {
-			sprintf_s(printdecimalbuf, "%d%c", num, '%');
+			len = sprintf_s(printdecimalbuf, "%d%c", num, '%');
 		} else {
-			sprintf_s(printdecimalbuf, "%d", num);
+			len = sprintf_s(printdecimalbuf, "%d", num);
 		}
 	} else {
 		if (numAfterPoint < 0 || numAfterPoint > 99) {
@@ -5006,29 +5030,32 @@ char* UI::printDecimal(int num, int numAfterPoint, int padding, bool percentage)
 		}
 		sprintf_s(fmtbuf + 5, sizeof fmtbuf - 5, "%dd", numAfterPoint);
 		if (num >= 0) {
-			sprintf_s(printdecimalbuf, fmtbuf, num / divideBy, num % divideBy);
+			len = sprintf_s(printdecimalbuf, fmtbuf, num / divideBy, num % divideBy);
 		} else {
 			num = -num;
-			sprintf_s(printdecimalbuf + 1, sizeof printdecimalbuf - 1, fmtbuf, num / divideBy, num % divideBy);
+			len = sprintf_s(printdecimalbuf + 1, sizeof printdecimalbuf - 1, fmtbuf, num / divideBy, num % divideBy);
+			if (len != -1) ++len;
 			*printdecimalbuf = '-';
 		}
 		if (percentage) {
-			size_t n = strlen(printdecimalbuf);
-			if (n < sizeof printdecimalbuf - 1) {
-				printdecimalbuf[n] = '%';
-			}
-			if (n + 1 < sizeof printdecimalbuf) {
-				printdecimalbuf[n + 1] = '\0';
+			if (len != -1 && len + 1 < sizeof printdecimalbuf) {
+				printdecimalbuf[len] = '%';
+				printdecimalbuf[len + 1] = '\0';
+				insertedPercentage = true;
 			}
 		}
 	}
-	size_t len = strlen(printdecimalbuf);
+	if (len == -1) {
+		*printdecimalbuf = '\0';
+		return printdecimalbuf;
+	}
 	int absPadding = padding;
 	if (absPadding < 0) absPadding = -absPadding;
-	if (len < (size_t)absPadding) {
-		size_t padSize = (size_t)absPadding - len;
-		if ((size_t)(sizeof printdecimalbuf - len - 1) < padSize) {
-			padSize = (size_t)(sizeof printdecimalbuf - len - 1);
+	if (len < absPadding) {
+		int padSize = absPadding - len;
+		if (insertedPercentage) ++len;
+		if (((int)(sizeof printdecimalbuf) - len - 1) < padSize) {
+			padSize = ((int)(sizeof printdecimalbuf) - len - 1);
 		}
 		if (padSize == 0) {
 			return printdecimalbuf;
@@ -5578,10 +5605,7 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 		UI::InputName* desc = motions[i];
 		if (desc->type == UI::InputNameType::MULTIWORD_MOTION) {
 			result = sprintf_s(buf, bufSize, "%s%s", needSpace ? ", " : "", desc->name);
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 			needSpace = true;
 		}
 	}
@@ -5595,10 +5619,7 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 					: needPlus
 						? "+" : ""
 				, desc->name);
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 			needSpace = false;
 			needPlus = true;
 		}
@@ -5612,10 +5633,7 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 				: (desc->type == UI::InputNameType::MULTIWORD_BUTTON || needSpace) && bufOrig != buf
 					? " " : ""
 			, desc->name);
-		if (result != -1) {
-			buf += result;
-			bufSize -= result;
-		}
+		advanceBuf
 		needSpace = false;
 		needPlus = true;
 	}
@@ -5638,10 +5656,7 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 		if (inputType == INPUT_BOOLEAN_OR) {
 			printInputs(buf, bufSize, motions, motionCount, buttons, buttonsCount);
 			result = sprintf_s(buf, bufSize, " or ");
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 			motionCount = 0;
 			buttonsCount = 0;
 			continue;
@@ -5696,10 +5711,7 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 		size_t bufSize = sizeof strbuf;
 		int result;
 		result = sprintf_s(buf, bufSize, "%s", cancel.name);
-		if (result != -1) {
-			buf += result;
-			bufSize -= result;
-		}
+		advanceBuf
 		if (cancel.move->inputs[0] != INPUT_END && bufSize >= 2 && !cancel.nameIncludesInputs) {
 			if (cancel.replacementInputs) {
 				result = sprintf_s(buf + 2, bufSize - 2, "%s", cancel.replacementInputs);
@@ -5726,10 +5738,7 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 			Requirement& req = requirements[i];
 			if ((cancel.move->conditions[req.index] & req.mask) != 0) {
 				result = sprintf_s(buf, bufSize, isFirstCondition ? " (%s" : ", %s", req.description);
-				if (result != -1) {
-					buf += result;
-					bufSize -= result;
-				}
+				advanceBuf
 				isFirstCondition = false;
 				alreadySaidTheWordRequires = req.condition == MOVE_CONDITION_REQUIRES_25_TENSION
 					|| req.condition == MOVE_CONDITION_REQUIRES_50_TENSION
@@ -5742,10 +5751,7 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 			} else {
 				result = sprintf_s(buf, bufSize, isFirstCondition ? " (%s" : ", %s", "requires burst");
 			}
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 			isFirstCondition = false;
 		}
 		if (cancel.move->minimumHeightRequirement) {
@@ -5753,25 +5759,16 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 			result = sprintf_s(buf, bufSize, "%sminimum height requirement: %s",
 				isFirstCondition ? " (" : ", ",
 				printdecimalbuf);
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 			isFirstCondition = false;
 		}
 		if (!isFirstCondition) {
 			result = sprintf_s(buf, bufSize, ")");
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 		}
 		if (cancel.bufferTime && cancel.bufferTime != 3) {
 			result = sprintf_s(buf, bufSize, " (%df buffer)", cancel.bufferTime);
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 		}
 		ImGui::Text("%d) %s;", counter++, strbuf);
 	}
@@ -6735,8 +6732,7 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 	size_t bufSize = sizeof strbuf;
 	int result;
 	result = active.print(buf, bufSize);
-	buf += result;
-	bufSize -= result;
+	advanceBuf
 	if (!maxHit.empty()
 			&& strbuf[0] != '\0'
 			&& !(
@@ -6745,10 +6741,7 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 				|| active.count < maxHit.maxUse
 			)) {
 		result = sprintf_s(buf, bufSize, " (%d hit%s max)", maxHit.maxUse, maxHit.maxUse == 1 ? "" : "s");
-		if (result != -1) {
-			buf += result;
-			bufSize -= result;
-		}
+		advanceBuf
 	}
 	if (hitOnFrame) {
 		const char* ordinalWordEnding;
@@ -6951,10 +6944,7 @@ bool prevNamesControl(const PlayerInfo& player, bool includeTitle) {
 		size_t bufSize = sizeof strbuf;
 		if (includeTitle) {
 			int result = sprintf_s(buf, bufSize, "Move: ");
-			if (result != -1) {
-				buf += result;
-				bufSize -= result;
-			}
+			advanceBuf
 		}
 		const char* lastNames[2];
 		prepareLastNames(lastNames, player);
@@ -7066,10 +7056,7 @@ int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int g
 	char* buf = strbuf;
 	size_t bufSize = sizeof strbuf;
 	int result = sprintf_s(buf, bufSize, "%s * %d%c = ", defenseModifierStr, guts, '%');
-	if (result != -1) {
-		buf += result;
-		bufSize -= result;
-	}
+	advanceBuf
 	const char* totalGutsStr = ui.printDecimal((defenseModifier + 256) * guts / 256, 0, 0, true);
 	sprintf_s(buf, bufSize, "%s", totalGutsStr);
 	ImGui::TextUnformatted(strbuf);
@@ -7557,16 +7544,10 @@ void UI::searchWindow() {
 			for (int i = 0; i < searchResult.searchStackCount; ++i) {
 				if (i > 0) {
 					result = sprintf_s(buf, bufSize, " - ");
-					if (result != -1) {
-						buf += result;
-						bufSize -= result;
-					}
+					advanceBuf
 				}
 				result = sprintf_s(buf, bufSize, "%s", searchResult.searchStack[i].c_str());
-				if (result != -1) {
-					buf += result;
-					bufSize -= result;
-				}
+				advanceBuf
 			}
 			if (*strbuf != '\0') {
 				ImGui::TextUnformatted(strbuf);

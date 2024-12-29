@@ -167,6 +167,7 @@ public:
 	BOOL& postEffectOn();
 	bool isStylish(Entity pawn) const;
 	int getStylishDefenseInverseModifier() const;
+	int getStylishBurstGainModifier() const;
 	int getHandicap(int playerIndex) const;
 	int getTrainingSetting(TrainingSettingId setting) const;
 private:
@@ -227,6 +228,7 @@ private:
 	getRiscForUI_t orig_getRiscForUI_Foreground = nullptr;
 	isStylish_t isStylishPtr = nullptr;
 	uintptr_t stylishDefenseInverseModifierOffset = 0;
+	uintptr_t stylishBurstGainModifierOffset = 0;
 	uintptr_t handicapsOffset = 0;
 	getTrainingSetting_t getTrainingSettingPtr = nullptr;
 };

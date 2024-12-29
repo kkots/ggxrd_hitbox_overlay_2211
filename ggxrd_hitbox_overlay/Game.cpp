@@ -262,6 +262,7 @@ bool Game::sigscanAfterHitDetector() {
 		if (isStylishCallPlace) {
 			isStylishPtr = (isStylish_t)followRelativeCall(isStylishCallPlace);
 			stylishDefenseInverseModifierOffset = *(uintptr_t*)(isStylishCallPlace + 0x17);
+			stylishBurstGainModifierOffset = stylishDefenseInverseModifierOffset + 8;
 			handicapsOffset = *(uintptr_t*)(isStylishCallPlace + 0x23);
 		}
 	}
@@ -745,6 +746,11 @@ bool Game::isStylish(Entity pawn) const {
 int Game::getStylishDefenseInverseModifier() const {
 	if (!stylishDefenseInverseModifierOffset || !aswEngine || !*aswEngine) return 100;
 	return *(int*)(*aswEngine + stylishDefenseInverseModifierOffset);
+}
+
+int Game::getStylishBurstGainModifier() const {
+	if (!stylishBurstGainModifierOffset || !aswEngine || !*aswEngine) return 100;
+	return *(int*)(*aswEngine + stylishBurstGainModifierOffset);
 }
 
 int Game::getHandicap(int playerIndex) const {
