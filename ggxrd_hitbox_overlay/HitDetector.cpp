@@ -226,6 +226,7 @@ void HitDetector::HookHelp::copyDealtAtkToReceivedAtkHook(void* attacker) {
 void HitDetector::HookHelp::dealHitHook(void* attacker, BOOL isInHitstun) {
 	endScene.onDealHit(Entity{(char*)this}, Entity{attacker});
 	hitDetector.orig_dealHit((void*)this, attacker, isInHitstun);
+	endScene.onAfterDealHit(Entity{(char*)this}, Entity{attacker});
 }
 
 HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox) {

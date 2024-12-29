@@ -537,9 +537,13 @@ struct AttackData {
 	inline bool airUnblockable() const { return (flags0xc & 0x100000) != 0; }
 	inline bool easyClash() const { return (flags0xc & 0x1000000) != 0; }
 	DWORD flags0x10;
-	inline bool ignoreWeight() const { return (flags0x10 & 0x1) != 0; }  // noGravityScaling
+	inline bool scaleDamageWithHp() const { return (flags0x10 & 0x1) != 0; }
+	inline bool throwLockExecute() const { return (flags0x10 & 0x4) != 0; }
+	inline bool ignoreWeight() const { return (flags0x10 & 0x8) != 0; }  // noGravityScaling
 	inline bool noHitstunScaling() const { return (flags0x10 & 0x10) != 0; }
 	inline bool dontUseComboTimerForPushback() const { return (flags0x10 & 0x20) != 0; }  // noPushbackScaling
+	inline bool ignoreOtg() const { return (flags0x10 & 0x40) != 0; }
+	inline bool noDustScaling() const { return (flags0x10 & 0x80) != 0; }
 	inline bool noDamageScaling() const { return (flags0x10 & 0x100) != 0; }
 	inline bool dontUseComboTimerForSpeedY() const { return (flags0x10 & 0x400) != 0; }
 	inline bool prorationTandan() const { return (flags0x10 & 0x10000) != 0; }  // this flag is always set on everything, even when not attacking
@@ -568,18 +572,18 @@ struct AttackData {
 	char attackLockAction[32];
 	DWORD undefined1;
 	char undefined2[32];
-	DWORD undefined3;
-	char undefined4[32];
-	int undefined5;
+	DWORD guardEffectParam1;
+	char guardEffect[32];
+	int damageToFaultlessDefense;
 	DWORD undefined6;
 	DWORD attackFrontDirection;
 	int undefined7;
 	KillType killType;
-	char undefined8[32];
-	DWORD undefined9;
-	DWORD undefined10;
-	int undefined11;
-	int undefined12;
+	char nextHitActionName[32];
+	int attackFinishBackground;
+	int attackHitPositionType_param1;
+	int attackHitPositionType_param2;
+	int attackHitPositionType_param3;
 	int varAdd; // attackExHitParam
 	DWORD varEntity;
 	DWORD varFlags;
@@ -589,22 +593,22 @@ struct AttackData {
 	int varMax;
 	int poisonDuration;
 	int poisonPercentage;
-	DWORD undefined20;
+	DWORD throwRejectType;
 	int minimumDamagePercent;
-	int undefined21;
+	int stun;
 	GuardType guardType;
 	char attackLockSprite[32];
 	int pushbackModifier;  // Ky 6K has this set to 65 and bbscript calls it hitPushbackX
 	int pushbackModifierOnHitstun;  // pushbackXForHit
 	int extraCrouchHitstun;  // crouchHitstunAddition
-	DWORD undefined22;
+	int airHitstunFromLandAddition;
 	int angle;
 	int stunmashAmountMax;  // staggerDuration
 	int tensionGainOnConnect;
-	char undefined23[32];
+	char hitSoundEffect[32];
 	char undefined24[32];
-	char undefined25[32];
-	int atkLvlOnBlockOrArmor;
+	char guardSoundEffect[32];
+	int atkLevelOnBlockOrArmor;
 	int riscPlus;
 	int riscMinus;
 	int initialProration;
@@ -621,6 +625,20 @@ struct AttackData {
 	char trialName[32];
 	int airPushbackModifier;  // Has not been spotted yet to not be 0
 	DWORD undefined26;
+};
+
+enum TensionMode {
+	TENSION_MODE_NORMAL,
+	TENSION_MODE_RED_IK_ACTIVE,
+	TENSION_MODE_GOLD_IK_ACTIVE,
+	TENSION_MODE_DISABLED_UNTIL_END_OF_ROUND
+};
+
+enum CounterHitEntityValue {
+	COUNTER_HIT_ENTITY_VALUE_NO_COUNTERHIT,
+	COUNTER_HIT_ENTITY_VALUE_HIT_AFTER_COUNTERHIT,  // seems to be followup hit after a counterhit, but this value was never oberserved to stay at the end of a tick. It gets changed to something else
+	COUNTER_HIT_ENTITY_VALUE_COUNTERHIT,
+	COUNTER_HIT_ENTITY_VALUE_MORTAL_COUNTER
 };
 
 class Entity
@@ -829,6 +847,7 @@ public:
 	inline int maxAirdashes() const { return *(int*)(ent + 0x9884); }
 	inline int maxDoubleJumps() const { return *(int*)(ent + 0x9888); }
 	inline Entity playerEntity() const { return *(Entity*)(ent + 0x1d0); }
+	inline Entity enemyEntity() const { return *(Entity*)(ent + 0x1d8); }
 	inline Entity effectLinkedCollision() const { return *(Entity*)(ent + 0x204); }
 	inline int pitch() const { return *(int*)(ent + 0x258); }
 	inline int hitboxOffsetX() const { return *(int*)(ent + 0x27c); }
@@ -871,8 +890,11 @@ public:
 	inline int destroyOnHitPlayer() const { return *(int*)(ent + 0x2544); }
 	inline int guardBalanceDefence() const { return *(int*)(ent + 0x98a4); }
 	inline int blockCount() const { return *(int*)(ent + 0x9fe0); }
-	inline bool lastHitIsMortalCounter() const { return *(int*)(ent + 0x990) == 3; }  // 0 means no counter hit, 2 means counter hit. 1 was never spotted at the end of a tick, it's something intermediate
+	inline CounterHitEntityValue counterHit() const { return *(CounterHitEntityValue*)(ent + 0x990); }
 	inline bool ignoreRcProration() const { return *(BOOL*)(ent + 0x26200) != 0; }
+	inline TensionMode tensionMode() const { return *(TensionMode*)(ent + 0x2621c); }
+	inline int dustPropulsion() const { return *(int*)(ent + 0x24de0); }
+	inline int unknownField1() const { return *(int*)(ent + 0x24df0); }
 	
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;

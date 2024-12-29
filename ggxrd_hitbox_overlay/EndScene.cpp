@@ -5672,14 +5672,15 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 	defender.dmgCalcs.emplace_back();
 	DmgCalc& newCalc = defender.dmgCalcs.back();
 	newCalc.aswEngineCounter = tickCount;
-	newCalc.lastHitResult = defenderPtr.lastHitResult();
+	newCalc.hitResult = defenderPtr.lastHitResult();
+	const AttackData* dealtAttack = attackerPtr.dealtAttack();
 	const AttackData* attack = defenderPtr.receivedAttack();
 	newCalc.isProjectile = attack->projectileLvl > 0;
 	newCalc.guardType = attack->guardType;
 	newCalc.airUnblockable = attack->airUnblockable();
 	newCalc.guardCrush = attack->enableGuardBreak();
 	newCalc.isThrow = attack->isThrow();
-	if (newCalc.lastHitResult == HIT_RESULT_BLOCKED) {
+	if (newCalc.hitResult == HIT_RESULT_BLOCKED) {
 		if (isHoldingFD(defenderPtr)) {
 			newCalc.blockType = BLOCK_TYPE_FAULTLESS;
 		} else if (defenderPtr.successfulIB()) {
@@ -5689,7 +5690,7 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 		}
 	}
 	
-	defender.lastHitResult = newCalc.lastHitResult;
+	defender.lastHitResult = newCalc.hitResult;
 	defender.blockType = newCalc.blockType;
 	
 	if (attackerPtr.isPawn()) {
@@ -5704,17 +5705,41 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 	} else {
 		ProjectileInfo::determineMoveNameAndSlangName(attackerPtr, &newCalc.attackName, &newCalc.attackSlangName, &newCalc.nameFull);
 	}
-	if (newCalc.lastHitResult == HIT_RESULT_BLOCKED) {
+	if (newCalc.hitResult == HIT_RESULT_BLOCKED) {
 		defender.blockedAHitOnThisFrame = true;
 	}
-	if (newCalc.lastHitResult == HIT_RESULT_BLOCKED && newCalc.blockType != BLOCK_TYPE_FAULTLESS) {
+	
+	
+	newCalc.attackType = attack->type;
+	newCalc.attackLevel = attack->level;
+	newCalc.attackOriginalAttackLevel = dealtAttack->level;
+	newCalc.dealtOriginalDamage = dealtAttack->damage;
+	static int standardDamages[] { 8, 18, 28, 40, 50, 55 };
+	newCalc.standardDamage = standardDamages[newCalc.attackLevel];
+	if (newCalc.dealtOriginalDamage == INT_MAX) {
+		newCalc.dealtOriginalDamage = newCalc.standardDamage;
+	}
+	newCalc.scaleDamageWithHp = attack->scaleDamageWithHp();
+	newCalc.isOtg = defenderPtr.isOtg();
+	newCalc.ignoreOtg = attack->ignoreOtg();
+	newCalc.oldHp = defenderPtr.hp();
+	newCalc.maxHp = defenderPtr.maxHp();
+	newCalc.adds5Dmg = (!newCalc.isOtg || newCalc.ignoreOtg)
+		&& !attack->noDustScaling()
+		&& (attackerPtr.dustPropulsion() || attackerPtr.unknownField1())
+		&& newCalc.attackType == ATTACK_TYPE_NORMAL;
+	newCalc.attackLevelForGuard = attack->atkLevelOnBlockOrArmor;
+	if (newCalc.attackLevelForGuard == -1) {
+		newCalc.attackLevelForGuard = newCalc.attackOriginalAttackLevel;
+	}
+	
+	if (newCalc.hitResult == HIT_RESULT_BLOCKED && newCalc.blockType != BLOCK_TYPE_FAULTLESS) {
 		DmgCalc::DmgCalcU::DmgCalcBlock& data = newCalc.u.block;
 		data.defenderRisc = defenderPtr.risc();
 		data.riscPlusBase = attack->riscPlus;
-		data.attackLevel = attack->level;
-		data.attackLevelForGuard = attack->atkLvlOnBlockOrArmor;
+		data.attackLevel = dealtAttack->level;
 		static int riscPlusStandard[] = { 3, 6, 10, 14, 20 };
-		data.riscPlusBaseStandard = riscPlusStandard[data.attackLevelForGuard];
+		data.riscPlusBaseStandard = riscPlusStandard[newCalc.attackLevelForGuard];
 		data.guardBalanceDefence = defenderPtr.guardBalanceDefence();
 		defender.pawn = defenderPtr;
 		GuardType guardType = attack->guardType;
@@ -5725,12 +5750,10 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 		data.baseDamage = attack->damage;
 		data.attackKezuri = attack->attackKezuri;
 		data.attackKezuriStandard = 0;
-		AttackType atkType = attack->type;
-		if (atkType == ATTACK_TYPE_EX || atkType == ATTACK_TYPE_OVERDRIVE) {
+		if (newCalc.attackType == ATTACK_TYPE_EX || newCalc.attackType == ATTACK_TYPE_OVERDRIVE) {
 			data.attackKezuriStandard = 16;
 		}
-		data.oldHp = defenderPtr.hp();
-	} else if (newCalc.lastHitResult == HIT_RESULT_ARMORED || newCalc.lastHitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+	} else if (newCalc.hitResult == HIT_RESULT_ARMORED || newCalc.hitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
 		DmgCalc::DmgCalcU::DmgCalcArmor& data = newCalc.u.armor;
 		data.baseDamage = attack->damage;
 		data.damageScale = attackerPtr.playerEntity().damageScale();
@@ -5743,23 +5766,18 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 		data.gutsRating = defenderPtr.gutsRating();
 		data.guts = defenderPtr.calculateGuts(&data.gutsLevel);
 		
-		data.attackLevel = attack->level;
-		data.attackLevelForGuard = attack->atkLvlOnBlockOrArmor;
 		data.attackKezuri = attack->attackKezuri;
 		data.attackKezuriStandard = 0;
-		AttackType atkType = attack->type;
-		if (atkType == ATTACK_TYPE_EX || atkType == ATTACK_TYPE_OVERDRIVE) {
+		if (newCalc.attackType == ATTACK_TYPE_EX || newCalc.attackType == ATTACK_TYPE_OVERDRIVE) {
 			data.attackKezuriStandard = 16;
 		}
-		
-		data.oldHp = defenderPtr.hp();
 	}
 }
 
 void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 	if (iGiveUp || !defenderPtr.isPawn()) return;
 	PlayerInfo& defender = findPlayer(defenderPtr);
-	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().lastHitResult != HIT_RESULT_NORMAL) return;
+	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().hitResult != HIT_RESULT_NORMAL) return;
 	DmgCalc::DmgCalcU::DmgCalcHit& data = defender.dmgCalcs.back().u.hit;
 	const AttackData* attack = defenderPtr.receivedAttack();
 	data.baseDamage = attack->damage;
@@ -5796,7 +5814,7 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 			data.trainingSettingIsForceCounterHit = true;
 		}
 	}
-	data.dangerTime = defenderPtr.lastHitIsMortalCounter() || game.getDangerTime() != 0;
+	data.dangerTime = defenderPtr.counterHit() == COUNTER_HIT_ENTITY_VALUE_MORTAL_COUNTER || game.getDangerTime() != 0;
 	
 	data.wasHitDuringRc = attack->wasHitDuringRc();
 	data.rcDmgProration = defenderPtr.rcDmgProration() != 0;
@@ -5815,7 +5833,6 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 	} else {
 		data.risc = attackerPtr.defendersRisc();
 	}
-	data.attackType = attack->type;
 	data.comboProration = entityManager.calculateComboProration(data.risc, attack->type);
 	data.noDamageScaling = attack->noDamageScaling();
 	data.minimumDamagePercent = attack->minimumDamagePercent;
@@ -5824,11 +5841,25 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 	data.gutsRating = defenderPtr.gutsRating();
 	data.guts = defenderPtr.calculateGuts(&data.gutsLevel);
 	
-	data.hp = defenderPtr.hp();
-	data.maxHp = defenderPtr.maxHp();
-	
 	data.kill = attack->killType == KILL_TYPE_KILL
 		|| attack->killType == KILL_TYPE_KILL_ALLY && attackerPtr.team() == defenderPtr.team();
+	
+	data.originalAttackStun = attackerPtr.dealtAttack()->stun;
+	data.throwLockExecute = attack->throwLockExecute();
+}
+
+void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
+	if (iGiveUp || !defenderPtr.isPawn()) return;
+	PlayerInfo& defender = findPlayer(defenderPtr);
+	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().hitResult != HIT_RESULT_NORMAL) return;
+	DmgCalc::DmgCalcU::DmgCalcHit& data = defender.dmgCalcs.back().u.hit;
+	const AttackData* attack = defenderPtr.receivedAttack();
+	data.baseStun = attack->stun;
+	data.comboCount = defenderPtr.comboCount();
+	data.counterHit = defenderPtr.counterHit();
+	data.tensionMode = defenderPtr.enemyEntity().tensionMode();
+	data.oldStun = defenderPtr.stun();
+	data.stunMax = defenderPtr.stunThreshold();
 }
 
 bool EndScene::drawingPostponed() const {

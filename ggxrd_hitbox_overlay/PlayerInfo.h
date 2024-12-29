@@ -754,7 +754,7 @@ enum BlockType {
 
 struct DmgCalc {
 	DWORD aswEngineCounter = 0;
-	HitResult lastHitResult = HIT_RESULT_NONE;
+	HitResult hitResult = HIT_RESULT_NONE;
 	BlockType blockType = BLOCK_TYPE_NORMAL;
 	const char* attackName = nullptr;
 	const char* attackSlangName = nullptr;
@@ -764,12 +764,25 @@ struct DmgCalc {
 	bool airUnblockable = false;
 	bool guardCrush = false;
 	bool isThrow = false;
+	
+	int attackLevel;
+	int attackOriginalAttackLevel;
+	int attackLevelForGuard;
+	int dealtOriginalDamage;
+	int standardDamage;
+	bool scaleDamageWithHp;
+	int oldHp;
+	int maxHp;
+	bool isOtg;
+	bool ignoreOtg;
+	bool adds5Dmg;
+	AttackType attackType;
+	
 	union DmgCalcU {
 		struct DmgCalcBlock {
 			int defenderRisc;
 			int riscPlusBase;
 			int attackLevel;
-			int attackLevelForGuard;
 			int riscPlusBaseStandard;
 			int guardBalanceDefence;
 			bool groundedAndOverheadOrLow;
@@ -778,7 +791,6 @@ struct DmgCalc {
 			int baseDamage;
 			int attackKezuri;
 			int attackKezuriStandard;
-			int oldHp;
 		} block;
 		struct DmgCalcArmor {
 			int baseDamage;
@@ -793,12 +805,8 @@ struct DmgCalc {
 			int gutsLevel;
 			int guts;
 			
-			int attackLevel;
-			int attackLevelForGuard;
 			int attackKezuri;
 			int attackKezuriStandard;
-			
-			int oldHp;
 		} armor;
 		struct DmgCalcHit {
 			int baseDamage;
@@ -836,7 +844,6 @@ struct DmgCalc {
 			int riscMinusOnce;
 			int riscMinus;
 			
-			AttackType attackType;
 			int comboProration;
 			bool noDamageScaling;
 			
@@ -847,10 +854,18 @@ struct DmgCalc {
 			int gutsLevel;
 			int guts;
 			
-			int hp;
-			int maxHp;
-			
 			bool kill;
+			
+			int baseStun;
+			int comboCount;
+			CounterHitEntityValue counterHit;
+			TensionMode tensionMode;
+			int oldStun;
+			int stunMax;
+			
+			bool throwLockExecute;
+			int originalAttackStun;
+			
 		} hit;
 	} u;
 };

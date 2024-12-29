@@ -254,6 +254,8 @@ private:
 		bool hitOccured,
 		bool airborne,
 		bool insertSeparators);
+	int printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale);
+	void printAttackLevel(const DmgCalc& dmgCalc);
 };
 
 extern UI ui;
