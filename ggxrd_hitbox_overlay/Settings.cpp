@@ -1006,7 +1006,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	}
 	
 	if (!combineProjectileFramebarsWhenPossibleParsed) {
-		combineProjectileFramebarsWhenPossible = false;
+		combineProjectileFramebarsWhenPossible = true;
 	}
 	
 	if (!eachProjectileOnSeparateFramebarParsed) {

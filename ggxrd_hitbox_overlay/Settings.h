@@ -82,7 +82,7 @@ public:
 	std::atomic_bool showThrowInvulOnFramebar = true;
 	std::atomic_bool showFirstFramesOnFramebar = true;
 	std::atomic_bool considerSimilarFrameTypesSameForFrameCounts = false;
-	std::atomic_bool combineProjectileFramebarsWhenPossible = false;
+	std::atomic_bool combineProjectileFramebarsWhenPossible = true;
 	std::atomic_bool eachProjectileOnSeparateFramebar = false;
 	std::atomic_bool dontClearFramebarOnStageReset = false;
 	std::atomic_bool useColorblindHelp = false;

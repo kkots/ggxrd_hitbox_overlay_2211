@@ -531,7 +531,7 @@ considerSimilarFrameTypesSameForFrameCounts = true
 
 ; Specify true or false.
 ; When true, two or more projectile framebars will be combined into one if their active/non-active frames don't intersect.
-combineProjectileFramebarsWhenPossible = false
+combineProjectileFramebarsWhenPossible = true
 
 ; Specify true or false.
 ; When true, projectiles will never be combined even if there are very many of them and they're all same.
