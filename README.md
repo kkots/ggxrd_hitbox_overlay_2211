@@ -452,7 +452,7 @@ dontShowBoxes = false
 
 ; Specify true or false.
 ; Display mod's UI on top of the game's Pause Menu.
-displayUIOnTopOfPauseMenu = false
+displayUIOnTopOfPauseMenu = true
 
 ; Specify true or false.
 ; To have this mod avoid OBS capture set this setting to true and also make sure

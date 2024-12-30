@@ -44,7 +44,7 @@ public:
 	std:: mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	std::string screenshotPath;
-	std::atomic_bool displayUIOnTopOfPauseMenu = false;
+	std::atomic_bool displayUIOnTopOfPauseMenu = true;
 	std::atomic_bool dodgeObsRecording = true;
 	std::atomic_bool allowContinuousScreenshotting = false;
 	std::atomic_bool dontUseScreenshotTransparency = false;

@@ -954,7 +954,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	}
 	
 	if (!displayUIOnTopOfPauseMenuParsed) {
-		displayUIOnTopOfPauseMenu = false;
+		displayUIOnTopOfPauseMenu = true;
 	}
 	
 	if (!dodgeObsRecordingParsed) {

@@ -5032,7 +5032,7 @@ void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 		graphics.uiDrawData = std::move(command->drawData);
 		return;
 	}
-	ui.pauseMenuOpen = false;
+	ui.pauseMenuOpen = pauseMenuOpen && settings.displayUIOnTopOfPauseMenu;
 	ui.onEndScene(getDevice(), command->drawData.data(), tex);
 }
 
