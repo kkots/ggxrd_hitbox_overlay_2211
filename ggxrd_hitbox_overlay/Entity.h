@@ -200,6 +200,7 @@ enum MoveCondition {
 	MOVE_CONDITION_PLAYERVAL_3_TRUE = 0xf,
 	MOVE_CONDITION_PLAYERVAL_0_FALSE = 0x10,
 	// PLAYERVAL_1 != 0 means:
+	// For Slayer: Bloodsucking Universe powerup
 	// For Chipp: already used wallcling during airborne state. Gets reset only when landing
 	// For Elphelt: shotgun reached max charge
 	// For Jack-O: a non-airborne house is in range

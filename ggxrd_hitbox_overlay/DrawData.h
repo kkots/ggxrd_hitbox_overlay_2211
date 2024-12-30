@@ -3,6 +3,7 @@
 #include "DrawPointCallParams.h"
 #include "DrawBoxCallParams.h"
 #include <vector>
+#include "InputsDrawingCommand.h"
 
 struct DrawData {
 	std::vector<ComplicatedHurtbox> hurtboxes;
@@ -11,7 +12,11 @@ struct DrawData {
 	std::vector<DrawBoxCallParams> interactionBoxes;
 	std::vector<DrawPointCallParams> points;
 	std::vector<DrawBoxCallParams> throwBoxes;
-	void clear();
+	std::vector<InputsDrawingCommandRow> inputs[2] { };
+	size_t inputsSize[2] { 0 };
+	inline void clear() { clearBoxes(); clearInputs(); }
+	void clearBoxes();
+	void clearInputs();
 	void copyTo(DrawData* destination);
 	bool needTakeScreenshot = false;
 };

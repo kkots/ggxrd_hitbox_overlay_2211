@@ -40,6 +40,7 @@ public:
 	std::vector<int> framebarVisibilityToggle;
 	std::vector<int> toggleDisableGrayHurtboxes;
 	std::vector<int> toggleNeverIgnoreHitstop;
+	std::vector<int> toggleShowInputHistory;
 	std:: mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	std::string screenshotPath;
@@ -95,6 +96,8 @@ public:
 	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = true;
 	std::atomic_bool skipGrabsInFramebar = false;
 	std::atomic_bool showComboProrationInRiscGauge = false;
+	std::atomic_bool displayInputHistoryWhenObserving = true;
+	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

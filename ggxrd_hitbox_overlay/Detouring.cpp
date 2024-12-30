@@ -187,15 +187,19 @@ void Detouring::detachOnlyTheseHooks(const char** names, int namesCount) {
 		endTransaction();
 		
 		#ifdef LOG_PATH
-		fprintf(logfile, allSuccess ? "Successfully undetoured hooks " : "Failed to undetour one or more of hooks ");
-		for (int i = 0; i < namesCount; ++i) {
-			if (i == 0) {
-				fprintf(logfile, "%s", names[0]);
-			} else {
-				fprintf(logfile, ", %s", names[i]);
+		if (logfile) {
+			std::unique_lock<std::mutex> logfileGuard(logfileMutex);
+			fprintf(logfile, allSuccess ? "Successfully undetoured hooks " : "Failed to undetour one or more of hooks ");
+			for (int i = 0; i < namesCount; ++i) {
+				if (i == 0) {
+					fprintf(logfile, "%s", names[0]);
+				} else {
+					fprintf(logfile, ", %s", names[i]);
+				}
 			}
+			fputc("\n", logfile);
+			fflush(logfile);
 		}
-		fputc("\n", logfile);
 		#endif
 	}
 }

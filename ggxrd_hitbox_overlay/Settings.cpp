@@ -189,6 +189,11 @@ bool Settings::onDllMain() {
 		"; A keyboard shortcut.\n"
 		"; Pressing this shortcut will disable/enable the \"neverIgnoreHitstop\" setting which controls whether\n"
 		"; the framebar advances during hitstop.");
+	insertKeyComboToParse("toggleShowInputHistory", "Disable Show Input History", &toggleShowInputHistory, "",
+		"; A keyboard shortcut.\n"
+		"; Pressing this shortcut will disable the input history shown via \"displayInputHistoryWhenObserving\"\n"
+		"; and \"displayInputHistoryInSomeOfflineModes\". It only works when one of those settings is enabled\n"
+		"; and is showing history in corresponding game mode.");
 	
 	static const char* hitboxesStr = "Hitboxes";
 	static const char* settingsHitboxSettingsStr = "Settings - Hitbox Settings";
@@ -426,6 +431,15 @@ bool Settings::onDllMain() {
 			"; Specify true or false.\n"
 			"; Setting this to true will modify the RISC gauge so that the middle represents 0 RISC and no combo proration,\n"
 			"; the right half represents RISC, and the left half represents combo proration.");
+	registerOtherDescription(settingAndItsName(displayInputHistoryWhenObserving), "Display Input History When Observing", settingsGeneralSettingsStr,
+			"; Specify true or false.\n"
+			"; Setting this to true will display both players' input history when observing online matches.\n"
+			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
+	registerOtherDescription(settingAndItsName(displayInputHistoryInSomeOfflineModes), "Display Input History In Some Offline Modes", settingsGeneralSettingsStr,
+			"; Specify true or false.\n"
+			"; Setting this to true will display both players' input history when playing in Episode/Story, offline Versus,\n"
+			"; Tutorial, offline MOM and Mission.\n"
+			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -693,6 +707,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool showComboProrationInRiscGaugeParsed = false;
 	
+	bool displayInputHistoryWhenObservingParsed = false;
+	
+	bool displayInputHistoryInSomeOfflineModesParsed = false;
+	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
 	bool modWindowVisibleOnStartParsed = false;
@@ -871,6 +889,12 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			}
 			if (!showComboProrationInRiscGaugeParsed && _stricmp(keyName.c_str(), "showComboProrationInRiscGauge") == 0) {
 				showComboProrationInRiscGaugeParsed = parseBoolean("showComboProrationInRiscGauge", keyValue, showComboProrationInRiscGauge);
+			}
+			if (!displayInputHistoryWhenObservingParsed && _stricmp(keyName.c_str(), "displayInputHistoryWhenObserving") == 0) {
+				displayInputHistoryWhenObservingParsed = parseBoolean("displayInputHistoryWhenObserving", keyValue, displayInputHistoryWhenObserving);
+			}
+			if (!displayInputHistoryInSomeOfflineModesParsed && _stricmp(keyName.c_str(), "displayInputHistoryInSomeOfflineModes") == 0) {
+				displayInputHistoryInSomeOfflineModesParsed = parseBoolean("displayInputHistoryInSomeOfflineModes", keyValue, displayInputHistoryInSomeOfflineModes);
 			}
 			if (!forceZeroPitchDuringCameraCenteringParsed && _stricmp(keyName.c_str(), "forceZeroPitchDuringCameraCentering") == 0) {
 				forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
@@ -1063,6 +1087,14 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showComboProrationInRiscGaugeParsed) {
 		showComboProrationInRiscGauge = false;
+	}
+	
+	if (!displayInputHistoryWhenObservingParsed) {
+		displayInputHistoryWhenObserving = true;
+	}
+	
+	if (!displayInputHistoryInSomeOfflineModesParsed) {
+		displayInputHistoryInSomeOfflineModes = false;
 	}
 	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
@@ -1601,6 +1633,8 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("frameAdvantage_dontUsePreBlockstunTime", formatBoolean(frameAdvantage_dontUsePreBlockstunTime), getOtherINIDescription(&frameAdvantage_dontUsePreBlockstunTime));
 	replaceOrAddSetting("skipGrabsInFramebar", formatBoolean(skipGrabsInFramebar), getOtherINIDescription(&skipGrabsInFramebar));
 	replaceOrAddSetting("showComboProrationInRiscGauge", formatBoolean(showComboProrationInRiscGauge), getOtherINIDescription(&showComboProrationInRiscGauge));
+	replaceOrAddSetting("displayInputHistoryWhenObserving", formatBoolean(displayInputHistoryWhenObserving), getOtherINIDescription(&displayInputHistoryWhenObserving));
+	replaceOrAddSetting("displayInputHistoryInSomeOfflineModes", formatBoolean(displayInputHistoryInSomeOfflineModes), getOtherINIDescription(&displayInputHistoryInSomeOfflineModes));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

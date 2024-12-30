@@ -9,6 +9,8 @@
 #include "DrawData.h"
 #include <unordered_set>
 #include <memory>
+#include "InputRingBuffer.h"
+#include "InputRingBufferStored.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -76,6 +78,8 @@ struct DrawBoxesRenderCommand : FRenderCommand {
 	CameraValues cameraValues;
 	bool noNeedToDrawPoints;
 	bool pauseMenuOpen;
+	bool dontShowBoxes;
+	BYTE* iconsUTexture2D = nullptr;
 };
 
 struct DrawOriginPointsRenderCommand : FRenderCommand {
@@ -233,6 +237,7 @@ public:
 	int getRCSlowdownCounter();
 	int getRCSlowdownCounterMax();
 	inline bool isIGiveUp() const { return iGiveUp; }
+	bool needDrawInputs = false;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -326,6 +331,7 @@ private:
 	bool burstGainOnLastHitUpdated[2] { 0 };
 	
 	DWORD prevAswEngineTickCount = 0;
+	DWORD prevAswEngineTickCountForInputs = 0;
 	bool shutdown = false;
 	HANDLE shutdownFinishedEvent = NULL;
 	struct RegisteredHit {
@@ -433,6 +439,9 @@ private:
 	bool isHoldingFD(const PlayerInfo& player) const;
 	bool isHoldingFD(Entity pawn) const;
 	bool drawingPostponed() const;
+	void prepareInputs();
+	InputRingBuffer prevInputRingBuffers[2] { };
+	InputRingBufferStored inputRingBuffersStored[2] { };
 };
 
 extern EndScene endScene;

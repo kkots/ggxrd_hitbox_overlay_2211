@@ -1,0 +1,21 @@
+#include "pch.h"
+#include "InputsIcon.h"
+
+const InputsIcon inputsIcon[INPUT_ICON_LAST] {
+	{ 1, 547 }, // INPUT_ICON_NONE
+	{ 295, 547 }, // INPUT_ICON_RIGHT
+	{ 253, 547 }, // INPUT_ICON_UPRIGHT
+	{ 211, 547 }, // INPUT_ICON_UP
+	{ 169, 547 }, // INPUT_ICON_UPLEFT
+	{ 127, 547 }, // INPUT_ICON_LEFT
+	{ 85, 547 }, // INPUT_ICON_DOWNLEFT
+	{ 43, 547 }, // INPUT_ICON_DOWN
+	{ 337, 547 }, // INPUT_ICON_DOWNRIGHT
+	{ 295, 1 }, // INPUT_ICON_PUNCH
+	{ 337, 1 }, // INPUT_ICON_KICK
+	{ 379, 1 }, // INPUT_ICON_SLASH
+	{ 421, 1 }, // INPUT_ICON_HEAVYSLASH
+	{ 463, 1 }, // INPUT_ICON_DUST
+	{ 505, 1 }, // INPUT_ICON_TAUNT
+	{ 253, 1 } // INPUT_ICON_SPECIAL
+};

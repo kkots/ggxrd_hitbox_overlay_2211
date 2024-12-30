@@ -191,6 +191,12 @@
     <ClInclude Include="Hitbox.h" />
     <ClInclude Include="HitDetector.h" />
     <ClInclude Include="Hud.h" />
+    <ClInclude Include="Input.h" />
+    <ClInclude Include="InputRingBuffer.h" />
+    <ClInclude Include="InputRingBufferStored.h" />
+    <ClInclude Include="InputsDrawing.h" />
+    <ClInclude Include="InputsDrawingCommand.h" />
+    <ClInclude Include="InputsIcon.h" />
     <ClInclude Include="InvisChipp.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="Moves.h" />
@@ -255,6 +261,10 @@
     <ClCompile Include="HitDetector.cpp" />
     <ClCompile Include="BoundingRect.cpp" />
     <ClCompile Include="Hud.cpp" />
+    <ClCompile Include="InputRingBuffer.cpp" />
+    <ClCompile Include="InputRingBufferStored.cpp" />
+    <ClCompile Include="InputsDrawing.cpp" />
+    <ClCompile Include="InputsIcon.cpp" />
     <ClCompile Include="InvisChipp.cpp" />
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="logging.cpp" />

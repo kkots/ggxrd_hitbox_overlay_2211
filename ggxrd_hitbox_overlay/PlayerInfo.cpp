@@ -1067,7 +1067,16 @@ bool PlayerInfo::isIdleInNewSection() {
 bool PlayerInfo::isInVariableStartupSection() {
 	return inNewMoveSection
 			&& (move.considerNewSectionAsBeingInVariableStartup
-				|| move.considerIdleInSeparatedSectionAfterThisManyFrames)
+				|| move.considerIdleInSeparatedSectionAfterThisManyFrames
+				&& !(
+					charType == CHARACTER_TYPE_JOHNNY
+					&& pawn
+					&& pawn.mem54()
+					&& (
+						strcmp(anim, "MistFinerLoop") == 0
+						|| strcmp(anim, "AirMistFinerLoop") == 0
+					)
+				))
 			|| move.isInVariableStartupSection
 			&& move.isInVariableStartupSection(*this);
 }

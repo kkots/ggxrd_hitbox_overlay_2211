@@ -169,7 +169,7 @@ struct MoveInfo {
 	CharacterType charType;
 	const char* name;
 	bool isEffect;
-	inline MoveInfo() { }
+	inline MoveInfo() : isIdle(isIdle_default), canBlock(canBlock_default) { }
 	MoveInfo(const MoveInfoStored& info);
 	inline MoveInfo(CharacterType charType, const char* name, bool isEffect = false) : charType(charType), name(name), isEffect(isEffect) { }
 	const char* getFramebarName(Entity ent) const;

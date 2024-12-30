@@ -12,6 +12,7 @@
 #include "EndScene.h"
 #include "memoryFunctions.h"
 #include "EntityList.h"
+#include "InputsIcon.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx9.h"
@@ -1114,7 +1115,11 @@ void UI::drawSearchableWindows() {
 				}
 				size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
 				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
-					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.hitstun - (player.hitstop ? 1 : 0), player.hitstunMax);
+					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.inHitstun
+							? player.hitstun - (player.hitstop ? 1 : 0)
+							: 0,
+						player.hitstunMax);
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
 					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.blockstun - (player.hitstop ? 1 : 0), player.blockstunMax);
 				}
@@ -2119,6 +2124,7 @@ void UI::drawSearchableWindows() {
 			keyComboControl(settings.continuousScreenshotToggle);
 			keyComboControl(settings.toggleDisableGrayHurtboxes);
 			keyComboControl(settings.toggleNeverIgnoreHitstop);
+			keyComboControl(settings.toggleShowInputHistory);
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2141,6 +2147,10 @@ void UI::drawSearchableWindows() {
 			booleanSettingPreset(settings.dontShowMoveName);
 			
 			booleanSettingPreset(settings.showComboProrationInRiscGauge);
+			
+			booleanSettingPresetWithHotkey(settings.displayInputHistoryWhenObserving, settings.toggleShowInputHistory);
+			
+			booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
 			
 		}
 		popSearchStack();

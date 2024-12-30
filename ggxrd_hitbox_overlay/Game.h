@@ -1,6 +1,7 @@
 #pragma once
 #include "gameModes.h"
 #include "Entity.h"
+#include "InputRingBuffer.h"
 
 extern char** aswEngine;
 
@@ -170,6 +171,7 @@ public:
 	int getStylishBurstGainModifier() const;
 	int getHandicap(int playerIndex) const;
 	int getTrainingSetting(TrainingSettingId setting) const;
+	InputRingBuffer* getInputRingBuffers() const;
 private:
 	class HookHelp {
 		friend class Game;
@@ -231,6 +233,7 @@ private:
 	uintptr_t stylishBurstGainModifierOffset = 0;
 	uintptr_t handicapsOffset = 0;
 	getTrainingSetting_t getTrainingSettingPtr = nullptr;
+	uintptr_t inputRingBuffersOffset = 0;
 };
 
 extern Game game;

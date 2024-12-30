@@ -28,6 +28,7 @@
 #include "findMoveByName.h"
 #include "Hardcode.h"
 #include <mutex>
+#include "InputsDrawing.h"
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -494,6 +495,10 @@ bool EndScene::onDllMain() {
 			"beginHitstop")) return false;
 	}
 	
+	for (int i = 0; i < 2; ++i) {
+		inputRingBuffersStored[i].resize(100);
+	}
+	
 	return !error;
 }
 
@@ -564,7 +569,25 @@ void EndScene::logic() {
 			projectileFramebars.clear();
 			combinedFramebars.clear();
 		}
+		needDrawInputs = false;
+		if (gifMode.showInputHistory) {
+			if (settings.displayInputHistoryWhenObserving
+					&& game.currentModeIsOnline()
+					&& game.getPlayerSide() == 2) {
+				needDrawInputs = true;
+			} else if (settings.displayInputHistoryInSomeOfflineModes) {
+				GameMode gameMode = game.getGameMode();
+				if (gameMode == GAME_MODE_ARCADE
+						|| gameMode == GAME_MODE_KENTEI
+						|| gameMode == GAME_MODE_MOM
+						|| gameMode == GAME_MODE_TUTORIAL
+						|| gameMode == GAME_MODE_VERSUS) {
+					needDrawInputs = true;
+				}
+			}
+		}
 		entityList.populate();
+		DWORD aswEngineTickCount = getAswEngineTick();
 		bool areAnimationsNormal = entityList.areAnimationsNormal();
 		if (isNormalMode) {
 			if (!isRunning || !areAnimationsNormal) {
@@ -573,6 +596,10 @@ void EndScene::logic() {
 			else {
 				prepareDrawData(&needToClearHitDetection);
 			}
+		}
+		if (prevAswEngineTickCountForInputs != aswEngineTickCount) {
+			prepareInputs();
+			prevAswEngineTickCountForInputs = aswEngineTickCount;
 		}
 	}
 	if (needToClearHitDetection) {
@@ -1132,11 +1159,33 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.charType == CHARACTER_TYPE_HAEHYUN
 						&& strcmp(player.anim, "AntiAirAttack"_hardcode) != 0
 						&& strcmp(animName, "AntiAir4Hasei"_hardcode) == 0
+						|| player.charType == CHARACTER_TYPE_JOHNNY
+						&& ent.mem54()  // when Mem(54) is set, MistFinerLoop instantly transitions to a chosen Mist Finer. However, in Rev1, it takes one frame
+						&& (
+							strcmp(animName, "MistFinerLoop"_hardcode) == 0
+							|| strcmp(animName, "AirMistFinerLoop"_hardcode) == 0
+						)
 					)
 					|| player.charType == CHARACTER_TYPE_JAM
 					&& strcmp(player.anim, "NeoHochihu"_hardcode) == 0  // 54625 causes NeoHochihu to cancel into itself
 					&& strcmp(animName, "NeoHochihu"_hardcode) == 0
 					&& !player.wasEnableWhiffCancels
+					|| player.charType == CHARACTER_TYPE_JOHNNY
+					&& ent.mem54()
+					&& (
+						strcmp(player.anim, "MistFinerLoop"_hardcode) == 0
+						&& (
+							strncmp(animName, "MistFinerALv"_hardcode, 12) == 0
+							|| strncmp(animName, "MistFinerBLv"_hardcode, 12) == 0
+							|| strncmp(animName, "MistFinerCLv"_hardcode, 12) == 0
+						)
+						|| strcmp(player.anim, "AirMistFinerLoop"_hardcode) == 0
+						&& (
+							strncmp(animName, "AirMistFinerALv"_hardcode, 15) == 0
+							|| strncmp(animName, "AirMistFinerBLv"_hardcode, 15) == 0
+							|| strncmp(animName, "AirMistFinerCLv"_hardcode, 15) == 0
+						)
+					)
 				);
 				if (*player.prevAttackLockAction != '\0' && strcmp(animName, player.prevAttackLockAction) == 0) {
 					player.grab = true;  // this doesn't work on regular ground and air throws
@@ -2828,7 +2877,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.value = min(player.blockstun, 255);
 					currentFrame.stop.valueMax = min(player.blockstunMax, 255);
-				} else if (player.hitstun) {
+				} else if (player.hitstun && player.inHitstun) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = true;
 					currentFrame.stop.value = min(player.hitstun, 255);
@@ -3297,7 +3346,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.hitstop) {
 				player.displayHitstop = true;
 			}
-			if (player.hitstun) {
+			if (player.hitstun && player.inHitstun) {
 				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_HIT;
 			} else if (player.blockstun) {
 				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK;
@@ -3597,6 +3646,15 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Never ignore hitstop = true\n", logfile));
 		}
 		needWriteSettings = true;
+	}
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.toggleShowInputHistory))) {
+		if (gifMode.showInputHistory == true) {
+			gifMode.showInputHistory = false;
+			logwrap(fputs("Show input history = false\n", logfile));
+		} else {
+			gifMode.showInputHistory = true;
+			logwrap(fputs("Show input history = true\n", logfile));
+		}
 	}
 	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.continuousScreenshotToggle) || stateChanged && ui.continuousScreenshotToggle != continuousScreenshotMode)) {
 		if (continuousScreenshotMode) {
@@ -3957,6 +4015,10 @@ void EndScene::onAswEngineDestroyed() {
 		rcSlowdownCounter = 0;
 		rcSlowdownCounterMax = 0;
 		baikenBlockCancels.clear();
+	}
+	memset(prevInputRingBuffers, 0, sizeof prevInputRingBuffers);
+	for (int i = 0; i < 2; ++i) {
+		inputRingBuffersStored[i].clear();
 	}
 }
 
@@ -4664,9 +4726,16 @@ void DrawBoxesRenderCommand::Destructor(BOOL freeMem) noexcept {
 DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 	drawData.clear();
 	endScene.drawDataPrepared.copyTo(&drawData);
+	if (!endScene.needDrawInputs) {
+		for (int i = 0; i < 2; ++i) {
+			drawData.inputsSize[i] = 0;
+		}
+	}
 	camera.valuesPrepare.copyTo(cameraValues);
 	noNeedToDrawPoints = endScene.willEnqueueAndDrawOriginPoints;
 	pauseMenuOpen = endScene.pauseMenuOpen;
+	dontShowBoxes = settings.dontShowBoxes;
+	iconsUTexture2D = endScene.getIconsUTexture2D();
 }
 
 // Runs on the graphics thread
@@ -4712,7 +4781,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	endSceneAndPresentHooked = graphics.endSceneAndPresentHooked;
 	pauseMenuOpen = false;
 	if (!shutdown && !graphics.shutdown) {
-		drawDataPrepared.clear();
+		drawDataPrepared.clearBoxes();
 		lastScreenSize = *screenSize;
 		
 		if (!gifMode.modDisabled) {
@@ -4725,7 +4794,12 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			isFading = game.isFading();
 			logic();
 			if (!gifMode.modDisabled) {
-				if (!settings.dontShowBoxes && !drawDataPrepared.points.empty() && !drawingPostponed()) {
+				if (
+						(
+							!settings.dontShowBoxes && !drawDataPrepared.points.empty()
+							|| (drawDataPrepared.inputsSize[0] || drawDataPrepared.inputsSize[1])
+						) && !drawingPostponed()
+				) {
 					needEnqueueOriginPoints = true;
 				}
 				Entity instigator = getSuperflashInstigator();
@@ -4747,7 +4821,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 						&& strcmp(instigator.animationName(), "Royal_Straight_Flush"_hardcode) == 0  // 632146S super
 						&& instigator.currentAnimDuration() >= 19 && instigator.currentAnimDuration() < 143
 					) {
-						drawDataPrepared.clear();
+						drawDataPrepared.clearBoxes();
 					}
 				} else {
 					for (int i = 0; i < 2 && i < entityList.count; ++i) {
@@ -4755,7 +4829,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 						if (instigator.characterType() == CHARACTER_TYPE_RAVEN
 								&& strcmp(instigator.animationName(), "RevengeAttackEx"_hardcode) == 0  // 214214H super
 								&& instigator.currentAnimDuration() >= 19 && instigator.currentAnimDuration() < 139) {
-							drawDataPrepared.clear();
+							drawDataPrepared.clearBoxes();
 							break;
 						}
 					}
@@ -4843,7 +4917,10 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 	graphics.drawDataUse.clear();
 	command->drawData.copyTo(&graphics.drawDataUse);
 	command->cameraValues.copyTo(camera.valuesUse);
+	graphics.dontShowBoxes = command->dontShowBoxes;
 	graphics.pauseMenuOpen = command->pauseMenuOpen;
+	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->iconsUTexture2D);
+	graphics.iconsTexture = tex;
 	if (graphics.drawingPostponed()) return;
 	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;
 	graphics.executeBoxesRenderingCommand(getDevice());
@@ -4853,7 +4930,11 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 // Runs on the graphics thread
 void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command) {
 	if (endScene.shutdown || graphics.shutdown) return;
-	if (settings.dontShowBoxes || graphics.drawingPostponed()) return;
+	if (settings.dontShowBoxes
+			&& !(
+				(graphics.drawDataUse.inputsSize[0] || graphics.drawDataUse.inputsSize[1])
+			)
+			|| graphics.drawingPostponed()) return;
 	graphics.onlyDrawPoints = true;
 	graphics.drawAll();
 	graphics.onlyDrawPoints = false;
@@ -5402,8 +5483,11 @@ void EndScene::onGifModeBlackBackgroundChanged() {
 bool EndScene::willDrawOriginPoints() {
 	return !shutdown
 			&& !graphics.shutdown
-			&& !drawDataPrepared.points.empty()
-			&& !settings.dontShowBoxes
+			&& (
+				!drawDataPrepared.points.empty()
+				&& !settings.dontShowBoxes
+				|| (drawDataPrepared.inputsSize[0] || drawDataPrepared.inputsSize[1])
+			)
 			&& !gifMode.modDisabled
 			&& !drawingPostponed();
 }
@@ -5875,4 +5959,24 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 
 bool EndScene::drawingPostponed() const {
 	return settings.dodgeObsRecording && endSceneAndPresentHooked;
+}
+
+#ifdef LOG_PATH
+bool loggedDrawingInputsOnce
+#endif
+void EndScene::prepareInputs() {
+	InputRingBuffer* sourceBuffers = game.getInputRingBuffers();
+	if (!sourceBuffers) return;
+	for (int i = 0; i < 2; ++i) {
+		inputRingBuffersStored[i].update(sourceBuffers[i], prevInputRingBuffers[i]);
+		std::vector<InputsDrawingCommandRow>& result = drawDataPrepared.inputs[i];
+		if (result.size() != 100) result.resize(100);
+		drawDataPrepared.inputsSize[i] = 0;
+		memset(result.data(), 0, 100 * sizeof InputsDrawingCommandRow);
+		inputsDrawing.produceData(inputRingBuffersStored[i], result.data(), drawDataPrepared.inputsSize + i, i == 1);
+	}
+	memcpy(prevInputRingBuffers, sourceBuffers, sizeof prevInputRingBuffers);
+	#ifdef LOG_PATH
+	loggedDrawingInputsOnce = true;
+	#endif
 }

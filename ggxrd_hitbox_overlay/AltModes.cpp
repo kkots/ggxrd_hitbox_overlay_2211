@@ -35,8 +35,7 @@ bool AltModes::isGameInNormalMode(bool* needToClearHitDetection, bool* isPauseMe
 		if (needToClearHitDetection) *needToClearHitDetection = true;
 		return false;
 	}
-	if (pauseMenu && *pauseMenu && *(unsigned int*)(*pauseMenu + 0xFC) == 1 && (*(unsigned int*)(*pauseMenu + 0x10) & 0x10000) == 0
-		|| versusModeMenuOpenRef && *versusModeMenuOpenRef) {
+	if (versusModeMenuOpenRef && *versusModeMenuOpenRef) {
 		if (isPauseMenu) *isPauseMenu = true;
 		return false;
 	}

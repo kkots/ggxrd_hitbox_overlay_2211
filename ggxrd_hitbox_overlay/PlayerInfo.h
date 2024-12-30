@@ -204,10 +204,10 @@ inline FrameType frameMap(FrameType type) {
 }
 
 struct FrameStopInfo {
-	unsigned char value:7;  // hitstun, blockstun or hitstop
-	bool isHitstun:1;
-	unsigned char valueMax:7;  // hitstunMax, blockstunMax or hitstopMax
-	bool isBlockstun:1;
+	unsigned short value:15;  // hitstun, blockstun or hitstop
+	unsigned short isHitstun:1;
+	unsigned short valueMax:15;  // hitstunMax, blockstunMax or hitstopMax
+	unsigned short isBlockstun:1;
 };
 
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax);
@@ -1170,7 +1170,7 @@ struct PlayerInfo {
 	bool immuneToRCSlowdown:1;
 	bool wasHitOnPreviousFrame:1;
 	bool wasHitOnThisFrame:1;
-	bool grab:1;  // this doesn't work on regular ground and air throws
+	bool grab:1;  // this doesn't work on regular ground and air throws. This flag means the player is in an attackLockAction
 	bool lastMoveIsPartOfStance:1;
 	bool moveNonEmpty:1;
 	bool increaseDmgBy50Percent:1;

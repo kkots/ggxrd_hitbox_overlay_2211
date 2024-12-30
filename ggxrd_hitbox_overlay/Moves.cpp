@@ -1376,13 +1376,13 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirVaporThrustD");
-	move.displayName = "Air Vapor Thrust";
-	move.slangName = "Air VT";
+	move.displayName = "Air H Vapor Thrust";
+	move.slangName = "Air HVT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirVaporThrust");
-	move.displayName = "Air Vapor Thrust";
-	move.slangName = "Air VT";
+	move.displayName = "Air S Vapor Thrust";
+	move.slangName = "Air SVT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SacredEdge");
@@ -1443,6 +1443,7 @@ bool Moves::onDllMain() {
 	move.framebarName = "j.D";
 	addMove(move);
 	
+	// can't YRC in Rev1. In fact this doesn't even exist in Rev1
 	move = MoveInfo(CHARACTER_TYPE_KY, "DustEffectShot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 9;
@@ -1492,7 +1493,9 @@ bool Moves::onDllMain() {
 	move.combineWithPreviousMove = true;
 	addMove(move);
 	
-	// entered into from MistFinerDehajime, enables whiff cancels on f2
+	// entered into from MistFinerDehajime, enables whiff cancels on f2.
+	// In Rev2 is exited out of instantly into another Mist Finer from things like MistFinerFWalk.
+	// In Rev1 takes one frame to transition.
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerLoop");
 	move.displayName = "Mist Finer Stance";
 	move.slangName = "MF Stance";
@@ -1658,6 +1661,9 @@ bool Moves::onDllMain() {
 	move.combineWithPreviousMove = true;
 	addMove(move);
 	
+	// entered into from AirMistFinerDehajime, enables whiff cancels on f2.
+	// In Rev2 is exited out of instantly into another Mist Finer from things like MistFinerFWalk.
+	// In Rev1 takes one frame to transition.
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerLoop");
 	move.displayName = "Air Mist Finer Stance";
 	move.slangName = "Air MF Stance";
@@ -1942,25 +1948,25 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoD");
 	move.displayName = "H Mr. Dolphin Horizontal";
-	move.slangName = "46H";
+	move.slangName = "[4]6H";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoC");
 	move.displayName = "S Mr. Dolphin Horizontal";
-	move.slangName = "46S";
+	move.slangName = "[4]6S";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateD");
 	move.displayName = "H Mr. Dolphin Vertical";
-	move.slangName = "28H";
+	move.slangName = "[2]8H";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateC");
 	move.displayName = "S Mr. Dolphin Vertical";
-	move.slangName = "28S";
+	move.slangName = "[2]8S";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
@@ -2378,8 +2384,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SugoiNaNaNaNanigaDerukana");
-	move.displayName = "236236236P W-W-What Could This Be?";
-	move.nameIncludesInputs = true;
+	move.displayName = "W-W-What Could This Be? 100% Ver.";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Shigeki");
@@ -2509,14 +2514,14 @@ bool Moves::onDllMain() {
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	addMove(move);
 	
-	// ground flower. The head flower cannot be RC'd
+	// ground flower. The head flower cannot be RC'd. This is not the head flower. This flower can be RC'd, but not in Rev1.
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OreHana_Shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 31;
 	move.framebarName = "Flower";
 	addMove(move);
 	
-	// ground flower maximum
+	// ground flower maximum. Not present in Rev1
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OreHanaBig_Shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 31;
@@ -2976,6 +2981,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 74;
 	move.framebarName = "j.D";
+	// in Rev1 you can't YRC this
 	addMove(move);
 	
 	// Max charge shotgun shot spawns two projectiles: Shotgun_max_1, Shotgun_max_2
@@ -3710,7 +3716,7 @@ bool Moves::onDllMain() {
 	// Millia Roll Roll
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SaiZenten");
 	move.displayName = "Forward Roll Again";
-	move.slangName = "Roll > Roll";
+	move.slangName = "> Roll";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
@@ -3718,7 +3724,7 @@ bool Moves::onDllMain() {
 	// Millia Roll > S
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ZentenShaker");
 	move.displayName = "Lust Shaker (Follow-up)";
-	move.slangName = "Roll > Shaker";
+	move.slangName = "> Shaker";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
@@ -3766,6 +3772,7 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "H-Disc";
 	addMove(move);
 	
+	// Bad Moon does not get a height buff in Rev1
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "BadMoon");
 	move.displayName = "Bad Moon";
 	move.slangName = "BM";
@@ -4634,6 +4641,7 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "Note";
 	addMove(move);
 	
+	// cannot be YRC'd in Rev1
 	move = MoveInfo(CHARACTER_TYPE_INO, "DustObjShot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 56;
@@ -4882,6 +4890,57 @@ bool Moves::onDllMain() {
 	move.framebarId = 67;
 	move.framebarName = "Deja Vu (Task C)";
 	move.framebarSlangName = "DVC";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AirStop");
+	move.displayName = "Hover";
+	move.addForceAddWhiffCancel("7Move");
+	move.addForceAddWhiffCancel("8Move");
+	move.addForceAddWhiffCancel("9Move");
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "9Move");
+	move.displayName = "Hover-9";
+	move.replacementInputs = "Hold 9 for 12f";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "8Move");
+	move.displayName = "Hover-8";
+	move.replacementInputs = "Hold 8 for 12f";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "7Move");
+	move.displayName = "Hover-7";
+	move.replacementInputs = "Hold 7 for 12f";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "6Move");
+	move.displayName = "Hover-6";
+	move.nameIncludesInputs = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "4Move");
+	move.displayName = "Hover-4";
+	move.nameIncludesInputs = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "3Move");
+	move.displayName = "Hover-3";
+	move.nameIncludesInputs = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "2Move");
+	move.displayName = "Hover-2";
+	move.nameIncludesInputs = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "1Move");
+	move.displayName = "Hover-1";
+	move.nameIncludesInputs = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "MerryWarp");
+	move.displayName = "Teleport to Sheep";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk4B");
@@ -5215,6 +5274,12 @@ bool Moves::onDllMain() {
 	move.framebarName = "S Sword";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C_Bunri", true);
+	move.isDangerous = isDangerous_ramSwordMove;
+	move.framebarId = 68;
+	move.framebarName = "2S Sword";
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6CBunriShot_Boss", true);
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
@@ -5225,6 +5290,12 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
 	move.framebarName = "H Sword";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D_Bunri", true);
+	move.isDangerous = isDangerous_ramSwordMove;
+	move.framebarId = 69;
+	move.framebarName = "2H Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6DBunriShot_Boss", true);
@@ -5541,7 +5612,19 @@ bool Moves::onDllMain() {
 	move.slangName = "Command Grab";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrowEx");
+	move.displayName = "H Wachen Zweig";
+	move.slangName = "Command Grab";
+	move.combineWithPreviousMove = true;
+	move.isGrab = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrow");
+	move.displayName = "S Wachen Zweig";
+	move.slangName = "S Grab";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrowEx");
 	move.displayName = "S Wachen Zweig";
 	move.slangName = "S Grab";
 	addMove(move);
@@ -6439,18 +6522,21 @@ void ForceAddedWhiffCancel::clearCachedValues() {
 
 int ForceAddedWhiffCancel::getMoveIndex(Entity ent) {
 	int playerIndex = ent.team();
-	if (moveIndexPerPlayer[playerIndex] != 0) {
-		return moveIndexPerPlayer[playerIndex];
+	int* moveIndex = moveIndexPerPlayer + playerIndex;
+	if (*moveIndex != 0) {
+		if (*moveIndex == -1) return 0;
+		return *moveIndex;
 	}
 	const AddedMoveData* base = ent.movesBase();
 	int* indices = ent.moveIndices();
 	for (int i = ent.moveIndicesCount() - 1; i >= 0; --i) {
 		const AddedMoveData* move = base + indices[i];
 		if (strcmp(move->name, name) == 0) {
-			moveIndexPerPlayer[playerIndex] = i;
+			*moveIndex = i;
 			return i;
 		}
 	}
+	*moveIndex = -1;  // some moves only present in Rev2, won't be found in Rev1
 	return 0;
 }
 

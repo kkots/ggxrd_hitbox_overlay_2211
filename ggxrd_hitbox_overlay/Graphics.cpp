@@ -22,6 +22,7 @@
 #include <algorithm>
 #include "Direct3DVTable.h"
 #include "Game.h"
+#include "InputsIcon.h"
 
 Graphics graphics;
 
@@ -140,48 +141,59 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	
 	renderStateValueHandlers[RenderStateType(D3DRS_STENCILENABLE)] = new RenderStateHandler(D3DRS_STENCILENABLE)(this);
 	renderStateValueHandlers[RenderStateType(D3DRS_ALPHABLENDENABLE)] = new RenderStateHandler(D3DRS_ALPHABLENDENABLE)(this);
-	renderStateValueHandlers[RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = new RenderStateHandler(PIXEL_SHADER_AND_TEXTURE)(this);
+	renderStateValueHandlers[RenderStateType(PIXEL_SHADER)] = new RenderStateHandler(PIXEL_SHADER)(this);
 	renderStateValueHandlers[RenderStateType(TRANSFORM_MATRICES)] = new RenderStateHandler(TRANSFORM_MATRICES)(this);
 	renderStateValueHandlers[RenderStateType(D3DRS_SRCBLEND)] = new RenderStateHandler(D3DRS_SRCBLEND)(this);
 	renderStateValueHandlers[RenderStateType(D3DRS_DESTBLEND)] = new RenderStateHandler(D3DRS_DESTBLEND)(this);
 	renderStateValueHandlers[RenderStateType(D3DRS_SRCBLENDALPHA)] = new RenderStateHandler(D3DRS_SRCBLENDALPHA)(this);
 	renderStateValueHandlers[RenderStateType(D3DRS_DESTBLENDALPHA)] = new RenderStateHandler(D3DRS_DESTBLENDALPHA)(this);
+	renderStateValueHandlers[RenderStateType(VERTEX)] = new RenderStateHandler(VERTEX)(this);
+	renderStateValueHandlers[RenderStateType(TEXTURE)] = new RenderStateHandler(TEXTURE)(this);
 	
 	RenderStateValueStack* stack = requiredRenderState[SCREENSHOT_STAGE_NONE];
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
-	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NONE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NONE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, NONE);
 	
 	stack[RENDER_STATE_DRAWING_ARRAYBOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
 	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, TRUE);
-	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	stack[RENDER_STATE_DRAWING_ARRAYBOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
 	
 	stack[RENDER_STATE_DRAWING_BOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
-	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	stack[RENDER_STATE_DRAWING_BOXES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
 	
 	stack[RENDER_STATE_DRAWING_OUTLINES] = stack[RENDER_STATE_DRAWING_NOTHING];
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE);
-	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, CUSTOM_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, CUSTOM_PIXEL_SHADER);
 	// in OBS dodging mode, when pixel shader was putting 0 alpha in its output, outlines would be invisible, unless we stop using the pixel shader.
 	// Changing alpha to 1 solved that problem. That problem only occured in OBS dodging, and everywhere else - on the screenshots or when not dodging - the outlines would be fine
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 3D);
+	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, FOR_PIXEL_SHADER);
 	
 	stack[RENDER_STATE_DRAWING_POINTS] = stack[RENDER_STATE_DRAWING_NOTHING];
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE);
-	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 2D);
+	
+	stack[RENDER_STATE_DRAWING_TEXTURES] = stack[RENDER_STATE_DRAWING_NOTHING];
+	stack[RENDER_STATE_DRAWING_TEXTURES][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_TEXTURES][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 2D);
+	stack[RENDER_STATE_DRAWING_TEXTURES][RenderStateType(VERTEX)] = RenderStateValue(VERTEX, TEXTURE);
+	stack[RENDER_STATE_DRAWING_TEXTURES][RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, ICONS);
 	
 	stack = requiredRenderState[SCREENSHOT_STAGE_BASE_COLOR];
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, TRUE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
-	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_SRCBLEND)] = RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO);
@@ -197,7 +209,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	stack = requiredRenderState[SCREENSHOT_STAGE_FINAL];
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
-	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
+	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
 	
 	stack[RENDER_STATE_DRAWING_ARRAYBOXES] = stack[RENDER_STATE_DRAWING_NOTHING];
@@ -222,6 +234,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO);
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 	stack[RENDER_STATE_DRAWING_OUTLINES][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	// we're using a CPU pixel blender and drawing onto a completely transparent black image so there's no need for a pixel shader
 	
 	stack[RENDER_STATE_DRAWING_POINTS] = stack[RENDER_STATE_DRAWING_NOTHING];
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, 2D);
@@ -229,6 +242,8 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO);
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 	stack[RENDER_STATE_DRAWING_POINTS][RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+	
+	// textures won't be drawn on screenshot
 	
 	orig_present = (Present_t)direct3DVTable.deviceVtable[17];
 	orig_beginScene = (BeginScene_t)direct3DVTable.deviceVtable[41];
@@ -550,12 +565,50 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 	return drewRect;
 }
 
+void Graphics::prepareTextureBox(const TextureBoxParams& box) {
+	if (lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_TEXTUREBOX) {
+		const bool drew = textureDrawIfOutOfSpace(6);
+		if (!drew) {
+			*textureVertexIt = *(textureVertexIt - 1);
+			++textureVertexIt;
+			const TextureVertex firstVertex{ box.xStart, box.yStart, 0.F, box.uStart, box.vStart, box.color };
+			*textureVertexIt = firstVertex;
+			++textureVertexIt;
+			*textureVertexIt = firstVertex;
+			++textureVertexIt;
+			consumeTextureVertexBufferSpace(6);
+		} else {
+			consumeTextureVertexBufferSpace(4);
+			*textureVertexIt = TextureVertex{ box.xStart, box.yStart, 0.F, box.uStart, box.vStart, box.color };
+			++textureVertexIt;
+		}
+	} else {
+		textureDrawIfOutOfSpace(4);
+		consumeTextureVertexBufferSpace(4);
+		*textureVertexIt = TextureVertex{ box.xStart, box.yStart, 0.F, box.uStart, box.vStart, box.color };
+		++textureVertexIt;
+	}
+	*textureVertexIt = TextureVertex{ box.xEnd, box.yStart, 0.F, box.uEnd, box.vStart, box.color };
+	++textureVertexIt;
+	*textureVertexIt = TextureVertex{ box.xStart, box.yEnd, 0.F, box.uStart, box.vEnd, box.color };
+	++textureVertexIt;
+	*textureVertexIt = TextureVertex{ box.xEnd, box.yEnd, 0.F, box.uEnd, box.vEnd, box.color };
+	++textureVertexIt;
+	++preparedTextureBoxesCount;
+	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_TEXTUREBOX;
+}
+
 void Graphics::sendAllPreparedVertices() {
 	if (vertexBufferSent) return;
 	vertexBufferSent = true;
 	Vertex* buffer = nullptr;
 	if (FAILED(vertexBuffer->Lock(0, 0, (void**)&buffer, D3DLOCK_DISCARD))) return;
-	memcpy(buffer, vertexArena.data(), sizeof(Vertex) * vertexBufferLength);
+	size_t offset = sizeof Vertex * vertexBufferLength;
+	if (preparingTextureVertexBuffer) {
+		size_t textureOffset = sizeof TextureVertex * textureVertexBufferLength;
+		if (textureOffset > offset) offset = textureOffset;
+	}
+	memcpy(buffer, vertexArena.data(), offset);
 	if (FAILED(vertexBuffer->Unlock())) return;
 }
 
@@ -612,6 +665,16 @@ void Graphics::drawAllBoxes() {
 	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, vertexBufferPosition, 2 + (preparedBoxesCount - 1) * 6);
 	vertexBufferPosition += 4 + (preparedBoxesCount - 1) * 6;
 	preparedBoxesCount = 0;
+}
+
+void Graphics::drawAllTextureBoxes() {
+	if (!preparedTextureBoxesCount) return;
+	sendAllPreparedVertices();
+	switchToRenderingTextureVertices();
+	advanceRenderState(RENDER_STATE_DRAWING_TEXTURES);
+	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, textureVertexBufferPosition, 2 + (preparedTextureBoxesCount - 1) * 6);
+	textureVertexBufferPosition += 4 + (preparedTextureBoxesCount - 1) * 6;
+	preparedTextureBoxesCount = 0;
 }
 
 void Graphics::drawOutlinesSection(bool preserveLastTwoVertices) {
@@ -762,8 +825,16 @@ void Graphics::drawAllPoints() {
 
 void Graphics::drawAllPrepared() {
 	if (!loggedDrawingOperationsOnce) {
-		logwrap(fprintf(logfile, "Arrayboxes count: %u\nboxes count (including those in arrayboxes): %u\noutlines count: %u, points count: %u\n",
-			preparedArrayboxes.size(), preparedBoxesCount, preparedOutlines.size(), numberOfPointsPrepared));
+		logwrap(fprintf(logfile, "Arrayboxes count: %u\n"
+			"boxes count (including those in arrayboxes): %u\n"
+			"outlines count: %u\n"
+			"points count: %u\n"
+			"texture boxes count: %u",
+			preparedArrayboxes.size(),
+			preparedBoxesCount,
+			preparedOutlines.size(),
+			numberOfPointsPrepared,
+			preparedTextureBoxesCount));
 	}
 	switch (1) {
 	case 1:
@@ -771,29 +842,63 @@ void Graphics::drawAllPrepared() {
 		drawAllBoxes();
 		if (!drawAllOutlines()) break;
 		drawAllPoints();
+		drawAllTextureBoxes();
 	}
+	
+	bool willMessWithTextureVertexBufferSeparately = preparingTextureVertexBuffer && textureVertexBufferPosition != 0;
+	
 	if (vertexBufferPosition != 0) {
 		if (vertexBufferPosition > vertexBufferLength) {
 			logwrap(fprintf(logfile, "vertexBufferPosition > vertexBufferLength: %u, %u\n", vertexBufferPosition, vertexBufferLength));
+			// this is an error
 		}
 		if (vertexBufferPosition != vertexBufferLength) {
-			auto destinationIt = vertexArena.begin();
-			const auto itEnd = vertexArena.begin() + vertexBufferLength;
-			for (auto it = vertexArena.begin() + vertexBufferPosition; it != itEnd; ++it) {
-				*destinationIt = *it;
-				++destinationIt;
+			memmove(vertexArena.data(), vertexArena.data() + vertexBufferPosition, (vertexBufferLength - vertexBufferPosition) * sizeof Vertex);
+		}
+		
+		int startingTextureVertexBufferLength;
+		int newStartingTextureVertexBufferLength;
+		int freedTextureVertices;
+		if (!willMessWithTextureVertexBufferSeparately) {
+			startingTextureVertexBufferLength = calculateStartingTextureVertexBufferLength();
+		}
+		
+		vertexBufferLength -= vertexBufferPosition;
+		
+		if (!willMessWithTextureVertexBufferSeparately) {
+			newStartingTextureVertexBufferLength = calculateStartingTextureVertexBufferLength();
+			freedTextureVertices = startingTextureVertexBufferLength - newStartingTextureVertexBufferLength;
+			if (freedTextureVertices) {
+				textureVertexBufferRemainingSize += freedTextureVertices;
+				textureVertexBufferLength -= freedTextureVertices;
+				textureVertexIt = (TextureVertex*)vertexArena.data() + textureVertexBufferLength;
+				if (renderingTextureVertices) {
+					textureVertexBufferPosition -= freedTextureVertices;
+				}
 			}
 		}
-		vertexBufferLength -= vertexBufferPosition;
 		vertexBufferPosition = 0;
-		vertexIt = vertexArena.begin() + vertexBufferLength;
+		vertexIt = vertexArena.data() + vertexBufferLength;
 		vertexBufferRemainingSize = vertexBufferSize - vertexBufferLength;
 		if (!loggedDrawingOperationsOnce) {
-			logwrap(fprintf(logfile, "drawAllPrepared: resetting vertex buffer: vertexBufferLength: %u, vertexBufferPosition: 0, vertexIt: %u, vertexBufferRemainingSize: %u\n",
-				vertexBufferLength, vertexIt - vertexArena.begin(), vertexBufferRemainingSize));
+			logwrap(fprintf(logfile, "vertexBufferNewline: resetting vertex buffer: vertexBufferLength: %u,"
+				" vertexBufferPosition: 0, vertex iterator: %u, vertex buffer remaining size: %u\n",
+				vertexBufferLength, it - vertexArena.begin(), vertexBufferRemainingSize));
 		}
-		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 	}
+	if (willMessWithTextureVertexBufferSeparately) {
+		if (textureVertexBufferPosition > textureVertexBufferLength) {
+			logwrap(fprintf(logfile, "textureVertexBufferPosition > textureVertexBufferLength: %u, %u\n", textureVertexBufferPosition, textureVertexBufferLength));
+			// this is an error
+		}
+		// texture vertex buffer can't get stuck in the middle of drawing a primitive, it's always complete boxes
+		// if you started drawing texture vertices, there can be no leftovers from non-texture vertices
+		textureVertexBufferLength = 0;
+		textureVertexBufferPosition = 0;
+		textureVertexIt = (TextureVertex*)vertexArena.data();
+		textureVertexBufferRemainingSize = textureVertexBufferSize;
+	}
+	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 	vertexBufferSent = false;
 }
 
@@ -823,17 +928,20 @@ void Graphics::drawAll() {
 		device->SetRenderState(D3DRS_LIGHTING, FALSE);
 		
 		renderStateValues[RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
-		renderStateValues[RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NONE);
+		renderStateValues[RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NONE);
 		renderStateValues[RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 		renderStateValues[RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
 		
+		device->SetTexture(0, nullptr);
+		renderStateValues[RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, NONE);
 		device->SetVertexShader(nullptr);
 		device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+		renderStateValues[RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
 		device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
 		
 	}
 	
-	if (!onlyDrawPoints) {
+	if (!onlyDrawPoints && !dontShowBoxes) {
 		for (const ComplicatedHurtbox& params : drawDataUse.hurtboxes) {
 			prepareComplicatedHurtbox(params);
 		}
@@ -880,10 +988,17 @@ void Graphics::drawAll() {
 		}
 	}
 	
-	if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR && (!noNeedToDrawPoints || drawDataUse.needTakeScreenshot)) {
+	if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR
+			&& (!noNeedToDrawPoints || drawDataUse.needTakeScreenshot)
+			&& !dontShowBoxes) {
 		for (const DrawPointCallParams& params : drawDataUse.points) {
 			preparePoint(params);
 		}
+	}
+	if ((onlyDrawPoints || drawingPostponed())
+			&& screenshotStage == SCREENSHOT_STAGE_NONE
+			&& (drawDataUse.inputsSize[0] || drawDataUse.inputsSize[1])) {
+		prepareDrawInputs();
 	}
 	drawAllPrepared();
 	
@@ -1013,6 +1128,9 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 
 Graphics::Vertex::Vertex(float x, float y, float z, D3DCOLOR color)
 	: x(x), y(y), z(z), color(color) { }
+
+Graphics::TextureVertex::TextureVertex(float x, float y, float z, float u, float v, D3DCOLOR color)
+	: x(x), y(y), z(z), u(u), v(v), color(color) { }
 
 void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 	if (params.empty()) return;
@@ -1665,12 +1783,6 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	D3DXMatrixMultiply(&view, &mat1, &mat2);
 	device->SetTransform(D3DTS_VIEW, &view);
 	
-	D3DVIEWPORT9 viewport;
-	device->GetViewport(&viewport);
-	float vw = (float)viewport.Width;
-	float vh = (float)viewport.Height;
-	viewportW = vw;
-	viewportH = vh;
 	float t = 1.F / tanf(camera.valuesUse.fov / 360.F * PI);  // this is from Altimor's formula
 	
 	// A thing of note is that D3D automatically divides x and y by z at the end.
@@ -1680,10 +1792,10 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	// Z goes into the screen.
 	D3DXMATRIX projection;
 	projection = {
-		1.F / vw, 1.F / vh,     1.F, 1.F,  // UE3 uses left-hand coordinates, and D3D also uses left-hand
-		t,        0.F,          0.F, 0.F,
-		0.F,      t * vw / vh,  0.F, 0.F,
-		0.F,      0.F,          0.F, 0.F
+		1.F / viewportW, 1.F / viewportH,            1.F, 1.F,  // UE3 uses left-hand coordinates, and D3D also uses left-hand
+		t,               0.F,                        0.F, 0.F,
+		0.F,             t * viewportW / viewportH,  0.F, 0.F,
+		0.F,             0.F,                        0.F, 0.F
 	};  // the "1.F / vw, 1.F / vh" at the top left are from Altimor's formula, because multiplying and dividing them by Z will give us that half a pixel
 	device->SetTransform(D3DTS_PROJECTION, &projection);
 	
@@ -1757,10 +1869,12 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	
 	device->SetVertexShader(nullptr);
 	device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+	renderStateValues[RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
 	device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
-	renderStateValues[RenderStateType(PIXEL_SHADER_AND_TEXTURE)] = RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER);
 	device->SetPixelShader(nullptr);
+	renderStateValues[RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	device->SetTexture(0, nullptr);
+	renderStateValues[RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, NONE);
 	
 	renderStateValues[RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
 	currentTransformSet = CURRENT_TRANSFORM_DEFAULT;
@@ -1813,9 +1927,9 @@ void Graphics::advanceRenderState(RenderStateDrawingWhat newState) {
 bool Graphics::initializeVertexBuffers() {
 	if (failedToCreateVertexBuffers) return false;
 	if (vertexBuffer) return true;
-	if (FAILED(device->CreateVertexBuffer(sizeof(Vertex) * vertexBufferSize, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZRHW | D3DFVF_DIFFUSE, D3DPOOL_DEFAULT, &vertexBuffer, NULL))) {
+	if (FAILED(device->CreateVertexBuffer(sizeof(Vertex) * vertexBufferSize, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZ | D3DFVF_DIFFUSE, D3DPOOL_DEFAULT, &vertexBuffer, NULL))) {
 		logwrap(fputs("CreateVertexBuffer failed\n", logfile));
-		failedToCreateVertexBuffers = false;
+		failedToCreateVertexBuffers = true;
 		return false;
 	}
 	vertexArena.resize(vertexBufferSize);
@@ -1826,12 +1940,14 @@ bool Graphics::initializeVertexBuffers() {
 void Graphics::resetVertexBuffer() {
 	vertexBufferRemainingSize = vertexBufferSize;
 	vertexBufferLength = 0;
-	vertexIt = vertexArena.begin();
+	vertexIt = vertexArena.data();
 	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 	vertexBufferPosition = 0;
+	preparingTextureVertexBuffer = false;
+	renderingTextureVertices = false;
 }
 
-void DrawData::clear() {
+void DrawData::clearBoxes() {
 	hurtboxes.clear();
 	hitboxes.clear();
 	pushboxes.clear();
@@ -1841,8 +1957,23 @@ void DrawData::clear() {
 	needTakeScreenshot = false;
 }
 
+void DrawData::clearInputs() {
+	for (int i = 0; i < 2; ++i) {
+		inputs[i].clear();
+		inputsSize[i] = 0;
+	}
+}
+
 bool Graphics::drawIfOutOfSpace(unsigned int verticesCountRequired) {
 	if (vertexBufferRemainingSize < verticesCountRequired) {
+		drawAllPrepared();
+		return true;
+	}
+	return false;
+}
+
+bool Graphics::textureDrawIfOutOfSpace(unsigned int verticesCountRequired) {
+	if (textureVertexBufferRemainingSize < verticesCountRequired) {
 		drawAllPrepared();
 		return true;
 	}
@@ -1868,12 +1999,16 @@ void Graphics::prepareComplicatedHurtbox(const ComplicatedHurtbox& pairOfBoxesOr
 }
 
 void DrawData::copyTo(DrawData* destination) {
-	destination->hurtboxes.insert(destination->hurtboxes.begin(), hurtboxes.begin(), hurtboxes.end());
-	destination->hitboxes.insert(destination->hitboxes.begin(), hitboxes.begin(), hitboxes.end());
-	destination->pushboxes.insert(destination->pushboxes.begin(), pushboxes.begin(), pushboxes.end());
-	destination->interactionBoxes.insert(destination->interactionBoxes.begin(), interactionBoxes.begin(), interactionBoxes.end());
-	destination->points.insert(destination->points.begin(), points.begin(), points.end());
-	destination->throwBoxes.insert(destination->throwBoxes.begin(), throwBoxes.begin(), throwBoxes.end());
+	destination->hurtboxes = hurtboxes;
+	destination->hitboxes = hitboxes;
+	destination->pushboxes = pushboxes;
+	destination->interactionBoxes = interactionBoxes;
+	destination->points = points;
+	destination->throwBoxes = throwBoxes;
+	for (int i = 0; i < 2; ++i) {
+		destination->inputs[i] = inputs[i];
+		destination->inputsSize[i] = inputsSize[i];
+	}
 	destination->needTakeScreenshot = needTakeScreenshot;
 }
 
@@ -2189,12 +2324,12 @@ void Graphics::RenderStateHandler(D3DRS_ALPHABLENDENABLE)::handleChange(RenderSt
 		case RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE): graphics.device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE); break;
 	}
 }
-void Graphics::RenderStateHandler(PIXEL_SHADER_AND_TEXTURE)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(PIXEL_SHADER)::handleChange(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(PIXEL_SHADER_AND_TEXTURE, CUSTOM_PIXEL_SHADER): graphics.preparePixelShader(graphics.device); break;
-		case RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER):
+		case RenderStateValue(PIXEL_SHADER, CUSTOM_PIXEL_SHADER): graphics.preparePixelShader(graphics.device); break;
+		case RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER):
 			graphics.device->SetPixelShader(nullptr);
-			graphics.device->SetTexture(0, nullptr);
+			// texture will get reset to 0 by the RenderStateValue(TEXTURE) handler
 			break;
 	}
 }
@@ -2228,11 +2363,29 @@ void Graphics::RenderStateHandler(D3DRS_DESTBLENDALPHA)::handleChange(RenderStat
 		case RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO): graphics.device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO); break;
 	}
 }
-
-char* fnameArray = nullptr;
-const char* readFName(unsigned int fnameId) {
-    char* fnamePtr = *(char**)(fnameArray + fnameId * 4);
-    return (const char*)(fnamePtr + 0x10);
+void Graphics::RenderStateHandler(VERTEX)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(VERTEX, NONTEXTURE):
+			graphics.device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+			graphics.device->SetStreamSource(0, graphics.vertexBuffer, 0, sizeof(Vertex));
+			break;
+		case RenderStateValue(VERTEX, TEXTURE):
+			graphics.device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+			graphics.device->SetStreamSource(0, graphics.vertexBuffer, 0, sizeof(TextureVertex));
+			break;
+	}
+}
+void Graphics::RenderStateHandler(TEXTURE)::handleChange(RenderStateValue newValue) {
+	switch (newValue) {
+		case RenderStateValue(TEXTURE, NONE): graphics.device->SetTexture(0, nullptr); break;
+		case RenderStateValue(TEXTURE, FOR_PIXEL_SHADER): break;  // just track the change
+		case RenderStateValue(TEXTURE, ICONS):
+			graphics.device->SetTexture(0, graphics.iconsTexture);
+		    graphics.device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+		    graphics.device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		    graphics.device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
+			break;
+	}
 }
 
 void Graphics::receiveDanger() {
@@ -2264,9 +2417,16 @@ void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
 	graphics.onEndSceneStart(device);
 	drawOutlineCallParamsManager.onEndSceneStart();
 	camera.onEndSceneStart();
-
-	bool doYourThing = !settings.dontShowBoxes;
-
+	
+	D3DVIEWPORT9 viewport;
+	device->GetViewport(&viewport);
+	viewportW = (float)viewport.Width;
+	viewportH = (float)viewport.Height;
+	
+	bool doYourThing = !dontShowBoxes
+		|| (graphics.drawDataUse.inputsSize[0] || graphics.drawDataUse.inputsSize[1])
+		&& !noNeedToDrawPoints;
+		
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
 		graphics.drawDataUse.clear();
@@ -2287,4 +2447,98 @@ void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
 	}
 	graphics.afterDraw();
 	graphics.drawDataUse.needTakeScreenshot = false;
+}
+
+// can't stop preparing texture vertices
+void Graphics::startPreparingTextureVertexBuffer() {
+	if (preparingTextureVertexBuffer) return;
+	textureVertexBufferPosition = 0;
+	textureVertexBufferLength = calculateStartingTextureVertexBufferLength();
+	textureVertexBufferRemainingSize = textureVertexBufferSize - textureVertexBufferLength;
+	textureVertexIt = (TextureVertex*)vertexArena.data() + textureVertexBufferLength;
+	preparingTextureVertexBuffer = true;
+}
+
+// can't switch back
+void Graphics::switchToRenderingTextureVertices() {
+	if (renderingTextureVertices) return;
+	int positionBytes = vertexBufferPosition * sizeof Vertex;
+	int remainder = positionBytes % sizeof TextureVertex;
+	if (remainder) {
+		positionBytes += sizeof TextureVertex - remainder;
+	}
+	textureVertexBufferPosition = positionBytes / sizeof TextureVertex;
+	renderingTextureVertices = true;
+}
+
+void Graphics::prepareDrawInputs() {
+	startPreparingTextureVertexBuffer();
+	
+	TextureBoxParams box;
+	
+	float coefW = viewportW / 1280.F;
+	float invCoefW = 1280.F / viewportW;
+	float extraH_in1280space = (viewportH * invCoefW - 720.0F) * 0.5F;  // if the monitor is wider, this is negative
+	float extraH = extraH_in1280space * viewportH / 1280.F;  // if the monitor is wider, this is negative
+	const float iconSize = 28.F;
+	const float columnWidth = 30.F;
+	const float rowHeight = 32.F;
+	const float iconSizeMult = iconSize * coefW;
+	const float startY = 140.F * coefW + extraH;
+	const float rowHeightMult = rowHeight * coefW;
+	const float columnWidthMult = columnWidth * coefW;
+	
+	for (int i = 0; i < 2; ++i) {
+		size_t inputsSize = drawDataUse.inputsSize[i];
+		const InputsDrawingCommandRow* rows = drawDataUse.inputs[i].data();
+		
+		box.yStart = startY;
+		box.yEnd = box.yStart + iconSizeMult;
+		
+		int rowIndMin = (int)inputsSize - 18;
+		if (rowIndMin < 0) rowIndMin = 0;
+		for (int rowInd = (int)inputsSize - 1; rowInd >= rowIndMin; --rowInd) {
+			const InputsDrawingCommandRow* row = rows +rowInd;
+			
+			float x;
+			if (i == 0) {
+				x = 20.F;
+			} else {
+				x = 1260.F - 30.F * row->count;
+			}
+			box.xStart = x * coefW;
+			box.xEnd = box.xStart + iconSizeMult;
+			
+			for (int column = 0; column < row->count; ++column) {
+				const InputsDrawingCommand* cmd = row->cmds + column;
+				
+				box.color = cmd->dark ? 0xffa0a0a0 : 0xffffffff;
+				
+				const InputsIcon* icon = inputsIcon + cmd->icon;
+				box.uStart = icon->uStart;
+				box.vStart = icon->vStart;
+				box.uEnd = icon->uEnd;
+				box.vEnd = icon->vEnd;
+				prepareTextureBox(box);
+				
+				box.xStart += columnWidthMult;
+				box.xEnd += columnWidthMult;
+			}
+			
+			box.yStart += rowHeightMult;
+			box.yEnd += rowHeightMult;
+		}
+	}
+}
+
+int Graphics::calculateStartingTextureVertexBufferLength() {
+	size_t lengthBytes = vertexBufferLength * sizeof Vertex;
+	size_t remainder = lengthBytes % sizeof TextureVertex;
+	if (remainder) lengthBytes += sizeof TextureVertex - remainder;
+	size_t result = lengthBytes == 0 ? 0 : lengthBytes / sizeof TextureVertex;
+	
+	if (result > textureVertexBufferSize) {
+		return textureVertexBufferSize;
+	}
+	return result;
 }

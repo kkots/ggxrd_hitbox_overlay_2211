@@ -58,6 +58,8 @@ public:
 	// Draw boxes, without UI, and take a screenshot if needed
 	// Runs on the graphics thread
 	void executeBoxesRenderingCommand(IDirect3DDevice9* device);
+	bool dontShowBoxes = false;
+	IDirect3DTexture9* iconsTexture = nullptr;
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -73,6 +75,13 @@ private:
 		DWORD color;
 		Vertex() = default;
 		Vertex(float x, float y, float z, DWORD color);
+	};
+	struct TextureVertex {
+		float x, y, z;
+		DWORD color;
+		float u, v;
+		TextureVertex() = default;
+		TextureVertex(float x, float y, float z, float u, float v, DWORD color);
 	};
 	Stencil stencil;
 	std::vector<DrawOutlineCallParams> outlines;
@@ -134,6 +143,7 @@ private:
 		RENDER_STATE_DRAWING_BOXES,
 		RENDER_STATE_DRAWING_OUTLINES,
 		RENDER_STATE_DRAWING_POINTS,
+		RENDER_STATE_DRAWING_TEXTURES,
 		RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE  // must be last
 	} drawingWhat;
 	void advanceRenderState(RenderStateDrawingWhat newState);
@@ -148,14 +158,27 @@ private:
 	std::vector<Vertex> vertexArena;
 	CComPtr<IDirect3DVertexBuffer9> vertexBuffer;
 	const unsigned int vertexBufferSize = 6 * 200;
+	const unsigned int textureVertexBufferSize = vertexBufferSize * sizeof (Vertex) / sizeof (TextureVertex);
 	unsigned int vertexBufferRemainingSize = 0;
 	unsigned int vertexBufferLength = 0;
+	unsigned int textureVertexBufferRemainingSize = 0;
+	unsigned int textureVertexBufferLength = 0;
 	inline void consumeVertexBufferSpace(int verticesCount) {
 		vertexBufferLength += verticesCount;
 		vertexBufferRemainingSize -= verticesCount;
 	}
-	std::vector<Vertex>::iterator vertexIt;
+	inline void consumeTextureVertexBufferSpace(int verticesCount) {
+		textureVertexBufferLength += verticesCount;
+		textureVertexBufferRemainingSize -= verticesCount;
+	}
+	bool preparingTextureVertexBuffer = false;
+	bool renderingTextureVertices = false;
+	void startPreparingTextureVertexBuffer();  // can't stop preparing texture vertices
+	void switchToRenderingTextureVertices();  // can't switch back
+	Vertex* vertexIt = nullptr;
+	TextureVertex* textureVertexIt = nullptr;
 	unsigned int vertexBufferPosition = 0;
+	unsigned int textureVertexBufferPosition = 0;
 	bool vertexBufferSent = false;
 
 	enum LastThingInVertexBuffer {
@@ -165,6 +188,7 @@ private:
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_BOX,
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_THINLINE,
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE,
+		LAST_THING_IN_VERTEX_BUFFER_END_OF_TEXTUREBOX,
 		LAST_THING_IN_VERTEX_BUFFER_HATCH
 	} lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 
@@ -178,10 +202,12 @@ private:
 	void drawAllBoxes();
 	bool drawAllOutlines();
 	void drawAllPoints();
+	void drawAllTextureBoxes();
 
 	void drawAllPrepared();
 
 	bool drawIfOutOfSpace(unsigned int verticesCountRequired);
+	bool textureDrawIfOutOfSpace(unsigned int verticesCountRequired);
 
 	bool loggedDrawingOperationsOnce = false;
 	
@@ -244,12 +270,14 @@ private:
 	enum TypeOfRenderState {
 		RenderStateType(D3DRS_STENCILENABLE),
 		RenderStateType(D3DRS_ALPHABLENDENABLE),
-		RenderStateType(PIXEL_SHADER_AND_TEXTURE),
+		RenderStateType(PIXEL_SHADER),
 		RenderStateType(TRANSFORM_MATRICES),
 		RenderStateType(D3DRS_SRCBLEND),
 		RenderStateType(D3DRS_DESTBLEND),
 		RenderStateType(D3DRS_SRCBLENDALPHA),
 		RenderStateType(D3DRS_DESTBLENDALPHA),
+		RenderStateType(VERTEX),
+		RenderStateType(TEXTURE),
 		RENDER_STATE_TYPE_LAST  // must always be last
 	};
 	enum RenderStateValue {
@@ -257,9 +285,9 @@ private:
 		RenderStateValue(D3DRS_STENCILENABLE, TRUE),
 		RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE),
 		RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE),
-		RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NONE),
-		RenderStateValue(PIXEL_SHADER_AND_TEXTURE, CUSTOM_PIXEL_SHADER),
-		RenderStateValue(PIXEL_SHADER_AND_TEXTURE, NO_PIXEL_SHADER),
+		RenderStateValue(PIXEL_SHADER, NONE),
+		RenderStateValue(PIXEL_SHADER, CUSTOM_PIXEL_SHADER),
+		RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER),
 		RenderStateValue(TRANSFORM_MATRICES, NONE),
 		RenderStateValue(TRANSFORM_MATRICES, 3D),
 		RenderStateValue(TRANSFORM_MATRICES, 2D),
@@ -270,7 +298,12 @@ private:
 		RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE),
 		RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO),
 		RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA),
-		RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO)
+		RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO),
+		RenderStateValue(VERTEX, NONTEXTURE),
+		RenderStateValue(VERTEX, TEXTURE),
+		RenderStateValue(TEXTURE, NONE),
+		RenderStateValue(TEXTURE, FOR_PIXEL_SHADER),
+		RenderStateValue(TEXTURE, ICONS)
 	};
 	RenderStateValue renderStateValues[RENDER_STATE_TYPE_LAST];
 	class RenderStateValueHandler {
@@ -290,9 +323,9 @@ private:
 		inheritConstructor(RenderStateHandler(D3DRS_ALPHABLENDENABLE))
 		void handleChange(RenderStateValue newValue) override;
 	};
-	class RenderStateHandler(PIXEL_SHADER_AND_TEXTURE) : public RenderStateValueHandler {
+	class RenderStateHandler(PIXEL_SHADER) : public RenderStateValueHandler {
 	public:
-		inheritConstructor(RenderStateHandler(PIXEL_SHADER_AND_TEXTURE))
+		inheritConstructor(RenderStateHandler(PIXEL_SHADER))
 		void handleChange(RenderStateValue newValue) override;
 	};
 	class RenderStateHandler(TRANSFORM_MATRICES) : public RenderStateValueHandler {
@@ -320,6 +353,16 @@ private:
 		inheritConstructor(RenderStateHandler(D3DRS_DESTBLENDALPHA))
 		void handleChange(RenderStateValue newValue) override;
 	};
+	class RenderStateHandler(VERTEX) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(VERTEX))
+		void handleChange(RenderStateValue newValue) override;
+	};
+	class RenderStateHandler(TEXTURE) : public RenderStateValueHandler {
+	public:
+		inheritConstructor(RenderStateHandler(TEXTURE))
+		void handleChange(RenderStateValue newValue) override;
+	};
 	#undef inheritConstructor
 	RenderStateValueHandler* renderStateValueHandlers[RENDER_STATE_TYPE_LAST];
 	struct RenderStateValueStack {
@@ -339,6 +382,21 @@ private:
 	void receiveDanger();
 	void dllDetachPiece();
 	bool runningOwnBeginScene = false;
+	struct TextureBoxParams {
+		float xStart;
+		float yStart;
+		float xEnd;
+		float yEnd;
+		float uStart;
+		float vStart;
+		float uEnd;
+		float vEnd;
+		DWORD color;
+	};
+	unsigned int preparedTextureBoxesCount = 0;
+	void prepareTextureBox(const TextureBoxParams& box);
+	void prepareDrawInputs();
+	int calculateStartingTextureVertexBufferLength();
 };
 
 extern Graphics graphics;

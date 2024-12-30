@@ -235,6 +235,13 @@ bool Game::onDllMain() {
 			"getRiscForUIForeground");
 	}
 	
+	// Thanks to WorseThanYou for finding the location of the input ring buffers, their sizes and their structure
+	inputRingBuffersOffset = (unsigned int)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"8b 44 24 14 8b d7 6b d2 7e 56 8d 8c 02 ?? ?? ?? ?? e8 ?? ?? ?? ?? 66 89 74 7c 18",
+		{ 13, 0 },
+		nullptr, "inputRingBuffersOffset");
+	
 	return !error;
 }
 
@@ -761,4 +768,9 @@ int Game::getHandicap(int playerIndex) const {
 int Game::getTrainingSetting(TrainingSettingId setting) const {
 	if (!getTrainingSettingPtr || !getTrainingHud) return 0;
 	return getTrainingSettingPtr(getTrainingHud(), setting, 0);
+}
+
+InputRingBuffer* Game::getInputRingBuffers() const {
+	if (!aswEngine || !*aswEngine) return nullptr;
+	return (InputRingBuffer*)(*aswEngine + 4 + inputRingBuffersOffset);
 }
