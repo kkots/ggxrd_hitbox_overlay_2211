@@ -1221,6 +1221,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						)
 					)
 				);
+				if (!player.changedAnimFiltered) {
+					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName, &player.lastPerformedMoveSlangName);
+				}
 				if (*player.prevAttackLockAction != '\0' && strcmp(animName, player.prevAttackLockAction) == 0) {
 					player.grab = true;  // this doesn't work on regular ground and air throws
 					memcpy(player.grabAnimation, player.prevAttackLockAction, 32);

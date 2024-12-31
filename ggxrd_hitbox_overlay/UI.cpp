@@ -168,9 +168,9 @@ static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth,
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame);
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
-static bool prevNamesControl(const PlayerInfo& player, bool includeTitle);
+static bool prevNamesControl(const PlayerInfo& player, bool includeTitle, bool disableSlang);
 static void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip);
-static void prepareLastNames(const char** lastNames, const PlayerInfo& player);
+static void prepareLastNames(const char** lastNames, const PlayerInfo& player, bool disableSlang);
 static const char* formatHitResult(HitResult hitResult);
 static const char* formatBlockType(BlockType blockType);
 static int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int attackKezuriStandard);
@@ -1037,7 +1037,7 @@ void UI::drawSearchableWindows() {
 					if (ImGui::BeginItemTooltip()) {
 						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 						if (settings.dontShowMoveName) {
-							if (prevNamesControl(player, true)) {
+							if (prevNamesControl(player, true, false)) {
 								searchFieldValue(strbuf, nullptr);
 								printNoWordWrap
 								ImGui::Separator();
@@ -1090,7 +1090,7 @@ void UI::drawSearchableWindows() {
 					if (ImGui::BeginItemTooltip()) {
 						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 						if (settings.dontShowMoveName) {
-							if (prevNamesControl(player, true)) {
+							if (prevNamesControl(player, true, false)) {
 								searchFieldValue(strbuf, nullptr);
 								printNoWordWrap
 								ImGui::Separator();
@@ -1240,8 +1240,17 @@ void UI::drawSearchableWindows() {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					if (prevNamesControl(player, false)) {
+					if (prevNamesControl(player, false, false)) {
 						printWithWordWrap
+						if (settings.useSlangNames) {
+							if (ImGui::BeginItemTooltip()) {
+								ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+								prevNamesControl(player, false, true);
+								ImGui::TextUnformatted(strbuf);
+								ImGui::PopTextWrapPos();
+								ImGui::EndTooltip();
+							}
+						}
 					}
 					
 					if (i == 0) {
@@ -3115,7 +3124,7 @@ void UI::drawSearchableWindows() {
 			
 			const bool useSlang = settings.useSlangNames;
 			const char* lastNames[2];
-			prepareLastNames(lastNames, player);
+			prepareLastNames(lastNames, player, false);
 			int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(lastNames,
 				player.superfreezeStartup ? 2 : 1,
 				useSlang);
@@ -7078,7 +7087,7 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 	}
 }
 
-bool prevNamesControl(const PlayerInfo& player, bool includeTitle) {
+bool prevNamesControl(const PlayerInfo& player, bool includeTitle, bool disableSlang) {
 	if (player.canPrintTotal() || player.startupType() != -1) {
 		*strbuf = '\0';
 		char* buf = strbuf;
@@ -7088,8 +7097,8 @@ bool prevNamesControl(const PlayerInfo& player, bool includeTitle) {
 			advanceBuf
 		}
 		const char* lastNames[2];
-		prepareLastNames(lastNames, player);
-		player.prevStartupsDisp.printNames(buf, bufSize, lastNames, player.superfreezeStartup ? 2 : 1, settings.useSlangNames);
+		prepareLastNames(lastNames, player, disableSlang);
+		player.prevStartupsDisp.printNames(buf, bufSize, lastNames, player.superfreezeStartup ? 2 : 1, disableSlang ? false : settings.useSlangNames.load());
 		return true;
 	}
 	return false;
@@ -7107,8 +7116,13 @@ void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityV
 	}
 }
 
-void prepareLastNames(const char** lastNames, const PlayerInfo& player) {
-	const char* lastName = settings.useSlangNames && player.lastPerformedMoveSlangName ? player.lastPerformedMoveSlangName : player.lastPerformedMoveName;
+void prepareLastNames(const char** lastNames, const PlayerInfo& player, bool disableSlang) {
+	const char* lastName;
+	if (!disableSlang && settings.useSlangNames && player.lastPerformedMoveSlangName) {
+		lastName = player.lastPerformedMoveSlangName;
+	} else {
+		lastName = player.lastPerformedMoveName;
+	}
 	if (player.superfreezeStartup) {
 		lastNameSuperfreeze = lastName;
 		lastNameSuperfreeze += " Superfreeze Startup";
