@@ -54,7 +54,7 @@ static ImVec4 YELLOW_COLOR = RGBToVec(0xF9EA6C);
 static ImVec4 GREEN_COLOR = RGBToVec(0x5AE976);
 static ImVec4 BLACK_COLOR = RGBToVec(0);
 static ImVec4 WHITE_COLOR = RGBToVec(0xFFFFFF);
-static ImVec4 SLIGHTLY_GRAY = RGBToVec(0xc2c2c2);
+static ImVec4 SLIGHTLY_GRAY = RGBToVec(0xc2c2c2);  // it reads slightly "GRAY"
 static ImVec4 LIGHT_BLUE_COLOR = RGBToVec(0x72bcf2);
 static ImVec4 P1_COLOR = RGBToVec(0xff944f);
 static ImVec4 P1_OUTLINE_COLOR = RGBToVec(0xd73833);
@@ -173,6 +173,14 @@ static int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating
 static int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectile, int projectileDamageScale, HitResult hitResult, int superArmorDamagePercent);
 static const char* formatAttackType(AttackType attackType);
 static const char* formatGuardType(GuardType guardType);
+struct ImDrawListBackup {
+	std::vector<ImDrawCmd> CmdBuffer;
+    std::vector<ImDrawIdx> IdxBuffer;
+    std::vector<ImDrawVert> VtxBuffer;
+};
+static void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList);
+static void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawData* referenceDrawData, ImDrawListBackup** drawLists, int drawListsCount);
+
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
 #define printWithWordWrap \
@@ -782,7 +790,9 @@ void UI::onDllDetachNonGraphics() {
 
 // Runs on the main thread
 void UI::prepareDrawData() {
-	if (!visible && !needShowFramebar() || gifMode.modDisabled) {
+	drewFramebar = false;
+	drewFrameTooltip = false;
+	if (!visible && !needShowFramebarCached || gifMode.modDisabled) {
 		takeScreenshot = false;
 		takeScreenshotPress = false;
 		imguiActive = false;
@@ -850,7 +860,7 @@ void UI::prepareDrawData() {
 		}
 	}
 	
-	if (needShowFramebar()) {
+	if (needShowFramebarCached) {
 		drawFramebars();
 	}
 	
@@ -4723,7 +4733,7 @@ void UI::drawSearchableWindows() {
 
 // Runs on the graphics thread
 void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture) {
-	if (!visible && !needShowFramebar() || !imguiInitialized || gifMode.modDisabled || !drawData) {
+	if (!imguiInitialized || gifMode.modDisabled || !drawData) {
 		return;
 	}
 	std::unique_lock<std::mutex> uiGuard(lock);
@@ -4736,7 +4746,7 @@ void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9*
 // Runs on the main thread
 // Must be performed while holding the -lock- mutex.
 void UI::initialize() {
-	if (imguiInitialized || !visible && !needShowFramebar() || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
+	if (imguiInitialized || !visible && !needShowFramebarCached || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
@@ -4760,6 +4770,12 @@ void UI::initialize() {
 												 // give it credit by making it visible in some git tools that it's a link to their repo.
 												 // For now, we keep the current imGui D3D9 implementation which stores pointers in tex IDs.
 												 // So we must swap out the pointers every time imGui D3D9 implementation interacts with them.
+	
+	
+	framebarWindowDrawDataCopy.resize(sizeof ImDrawListBackup);
+	framebarTooltipDrawDataCopy.resize(sizeof ImDrawListBackup);
+	new (framebarWindowDrawDataCopy.data()) ImDrawListBackup();
+	new (framebarTooltipDrawDataCopy.data()) ImDrawListBackup();
 	
 	imguiInitialized = true;
 }
@@ -5091,8 +5107,7 @@ void UI::copyDrawDataTo(std::vector<BYTE>& destinationBuffer) {
 	if (!oldData->Valid) return;
 	
 	size_t requiredSize = sizeof ImDrawData
-		+ sizeof (CustomImDrawList*) * oldData->CmdListsCount
-		+ sizeof CustomImDrawList * oldData->CmdListsCount;
+		+ (sizeof (CustomImDrawList*) + sizeof CustomImDrawList) * oldData->CmdListsCount;
 	
 	for (int i = 0; i < oldData->CmdListsCount; ++i) {
 		const ImDrawList* cmdList = oldData->CmdLists[i];
@@ -5116,30 +5131,86 @@ void UI::copyDrawDataTo(std::vector<BYTE>& destinationBuffer) {
 	for (int i = 0; i < oldData->CmdListsCount; ++i) {
 		newData->CmdLists.Data[i] = (ImDrawList*)p;
 		
+		const ImDrawList* oldDrawList = oldData->CmdLists[i];
 		CustomImDrawList* newCmdList = (CustomImDrawList*)p;
-		const ImDrawList* oldCmdList = oldData->CmdLists[i];
 		
-		newCmdList->CmdBuffer.Size = oldCmdList->CmdBuffer.Size;
-		newCmdList->IdxBuffer.Size = oldCmdList->IdxBuffer.Size;
-		newCmdList->VtxBuffer.Size = oldCmdList->VtxBuffer.Size;
+		newCmdList->CmdBuffer.Size = oldDrawList->CmdBuffer.Size;
+		newCmdList->IdxBuffer.Size = oldDrawList->IdxBuffer.Size;
+		newCmdList->VtxBuffer.Size = oldDrawList->VtxBuffer.Size;
 		p += sizeof CustomImDrawList;
 		
 		newCmdList->CmdBuffer.Data = (ImDrawCmd*)p;
-		size_t cmdsSize = oldCmdList->CmdBuffer.Size * sizeof ImDrawCmd;
-		memcpy(p, oldCmdList->CmdBuffer.Data, cmdsSize);
+		size_t cmdsSize = oldDrawList->CmdBuffer.Size * sizeof ImDrawCmd;
+		memcpy(p, oldDrawList->CmdBuffer.Data, cmdsSize);
 		p += cmdsSize;
 		
 		newCmdList->IdxBuffer.Data = (ImDrawIdx*)p;
-		size_t idxSize = oldCmdList->IdxBuffer.Size * sizeof ImDrawIdx;
-		memcpy(p, oldCmdList->IdxBuffer.Data, idxSize);
+		size_t idxSize = oldDrawList->IdxBuffer.Size * sizeof ImDrawIdx;
+		memcpy(p, oldDrawList->IdxBuffer.Data, idxSize);
 		p += idxSize;
 		
 		newCmdList->VtxBuffer.Data = (ImDrawVert*)p;
-		size_t vtxSize = oldCmdList->VtxBuffer.Size * sizeof ImDrawVert;
-		memcpy(p, oldCmdList->VtxBuffer.Data, vtxSize);
+		size_t vtxSize = oldDrawList->VtxBuffer.Size * sizeof ImDrawVert;
+		memcpy(p, oldDrawList->VtxBuffer.Data, vtxSize);
 		p += vtxSize;
 	}
 	
+}
+
+void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawData* referenceDrawData, ImDrawListBackup** drawLists, int drawListsCount) {
+	
+	if (!referenceDrawData->Valid) return;
+	
+	size_t requiredSize = sizeof ImDrawData
+		+ (sizeof (CustomImDrawList*) + sizeof CustomImDrawList) * drawListsCount;
+	
+	int totalIdxCount = 0;
+	int totalVtxCount = 0;
+	
+	for (int i = 0; i < drawListsCount; ++i) {
+		const ImDrawListBackup* cmdList = drawLists[i];
+		totalIdxCount += cmdList->IdxBuffer.size();
+		totalVtxCount += cmdList->VtxBuffer.size();
+	}
+	
+	destination.resize(requiredSize);
+	BYTE* p = destination.data();
+	
+	memcpy(p, referenceDrawData, sizeof ImDrawData);
+	ImDrawData* newData = (ImDrawData*)p;
+	p += sizeof ImDrawData;
+	
+	newData->CmdListsCount = drawListsCount;
+	newData->CmdLists.Size = drawListsCount;
+	newData->TotalIdxCount = totalIdxCount;
+	newData->TotalVtxCount = totalIdxCount;
+	newData->CmdLists.Data = (ImDrawList**)p;
+	p += sizeof (CustomImDrawList*) * drawListsCount;
+	
+	for (int i = 0; i < drawListsCount; ++i) {
+		newData->CmdLists.Data[i] = (ImDrawList*)p;
+		
+		ImDrawListBackup* drawList = drawLists[i];
+		CustomImDrawList* newCmdList = (CustomImDrawList*)p;
+		
+		newCmdList->CmdBuffer.Size = drawList->CmdBuffer.size();
+		newCmdList->IdxBuffer.Size = drawList->IdxBuffer.size();
+		newCmdList->VtxBuffer.Size = drawList->VtxBuffer.size();
+		newCmdList->CmdBuffer.Data = drawList->CmdBuffer.data();
+		newCmdList->IdxBuffer.Data = drawList->IdxBuffer.data();
+		newCmdList->VtxBuffer.Data = drawList->VtxBuffer.data();
+		p += sizeof CustomImDrawList;
+	}
+	
+}
+
+void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList) {
+	destination.CmdBuffer.resize(drawList->CmdBuffer.Size);
+	destination.IdxBuffer.resize(drawList->IdxBuffer.Size);
+	destination.VtxBuffer.resize(drawList->VtxBuffer.Size);
+	memcpy(destination.CmdBuffer.data(), drawList->CmdBuffer.Data, sizeof ImDrawCmd * drawList->CmdBuffer.Size);
+	memcpy(destination.IdxBuffer.data(), drawList->IdxBuffer.Data, sizeof ImDrawIdx * drawList->IdxBuffer.Size);
+	memcpy(destination.VtxBuffer.data(), drawList->VtxBuffer.Data, sizeof ImDrawVert * drawList->VtxBuffer.Size);
 }
 
 // Runs on the graphics thread
@@ -5686,7 +5757,8 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 bool UI::needShowFramebar() const {
 	if (settings.showFramebar
 			&& (!settings.closingModWindowAlsoHidesFramebar || visible)
-			&& !pauseMenuOpen) {
+			&& !(drawingPostponed && pauseMenuOpen)
+			&& !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
 		GameMode mode = game.getGameMode();
 		if (mode == GAME_MODE_TRAINING) {
 			return settings.showFramebarInTrainingMode;
@@ -6507,7 +6579,14 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 					}
 					ImGui::PopTextWrapPos();
 					ImGui::PopStyleVar();
+					ImDrawList* drawList = ImGui::GetWindowDrawList();
 					ImGui::EndTooltip();
+					if (ui.needSplitFramebar) {
+						copyDrawList(*(ImDrawListBackup*)ui.framebarTooltipDrawDataCopy.data(), drawList);
+						drawList->CmdBuffer.clear();
+						drawList->IdxBuffer.clear();
+						drawList->VtxBuffer.clear();
+					}
 				}
 			}
 		}
@@ -7812,6 +7891,25 @@ void SkippedFramesInfo::print(bool canBlockButNotFD) const {
 	}
 }
 
+void UI::getFramebarDrawData(std::vector<BYTE>& dData, std::vector<BYTE>& framebarWindow, std::vector<BYTE>& framebarTooltip) {
+	dData.clear();
+	framebarWindow.clear();
+	framebarTooltip.clear();
+	if (!drawData) return;
+	
+	ImDrawListBackup* lists[2] { nullptr };
+	int listsCount = 0;
+	if (drewFramebar) {
+		lists[listsCount++] = (ImDrawListBackup*)framebarWindowDrawDataCopy.data();
+	}
+	if (drewFrameTooltip) {
+		lists[listsCount++] = (ImDrawListBackup*)framebarTooltipDrawDataCopy.data();
+	};
+	if (!listsCount) return;
+	
+	makeRenderDataFromDrawLists(dData, (const ImDrawData*)drawData, lists, listsCount);
+}
+
 void UI::drawFramebars() {
 	static ImVec2 selStart { 0.F, 0.F };
 	static ImVec2 selEnd { 0.F, 0.F };
@@ -7951,6 +8049,7 @@ void UI::drawFramebars() {
 		// don't add imgui window padding here
 	});
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.F, 2.F });
+	drewFramebar = true;
 	ImGui::Begin("Framebar", nullptr,
 		ImGuiWindowFlags_NoBackground
 		| ImGuiWindowFlags_NoCollapse
@@ -7969,7 +8068,6 @@ void UI::drawFramebars() {
 	
 	drawFramebars_drawList = ImGui::GetWindowDrawList();
 	
-	ImDrawList* foregroundFrawList = ImGui::GetForegroundDrawList();
 	if (ImGui::GetScrollMaxY() > 0.001F || drawFullBorder) {
 		drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x, drawFramebars_windowPos.y + 1.F },
 			{ drawFramebars_windowPos.x + windowWidth, drawFramebars_windowPos.y + 1.F },
@@ -8384,8 +8482,10 @@ void UI::drawFramebars() {
 	}
 	
 	if (drawFramebars_hoveredFrameIndex != -1) {
+		drewFrameTooltip = true;
 		const FrameDims& dims = preppedDims[drawFramebars_hoveredFrameIndex];
-		foregroundFrawList->AddRectFilled(
+		drawFramebars_drawList->PushClipRect(ImVec2{ 0.F, 0.F }, ImVec2{ 10000.F, 10000.F }, false);
+		drawFramebars_drawList->AddRectFilled(
 			{
 				dims.x - hoveredFrameHighlightPaddingX,
 				drawFramebars_hoveredFrameY - hoveredFrameHighlightPaddingY
@@ -8395,7 +8495,13 @@ void UI::drawFramebars() {
 				drawFramebars_hoveredFrameY + oneFramebarHeight + hoveredFrameHighlightPaddingY - 1.F
 			},
 			ImGui::GetColorU32(IM_COL32(255, 255, 255, 60)));
+		drawFramebars_drawList->PopClipRect();
 	}
-	
 	ImGui::End();
+	if (needSplitFramebar) {
+		copyDrawList(*(ImDrawListBackup*)framebarWindowDrawDataCopy.data(), drawFramebars_drawList);
+		drawFramebars_drawList->CmdBuffer.clear();
+		drawFramebars_drawList->IdxBuffer.clear();
+		drawFramebars_drawList->VtxBuffer.clear();
+	}
 }

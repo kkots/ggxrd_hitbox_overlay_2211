@@ -222,16 +222,15 @@ bool Settings::onDllMain() {
 			"; a match (training session) isn't currently running (for example on character selection screen).");
 	registerOtherDescription(settingAndItsName(displayUIOnTopOfPauseMenu), "Display Mod's UI on top of Pause Menu", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
-			"; Display mod's UI on top of the game's Pause Menu.");
+			"; Display mod's UI on top of the game's Pause Menu. This setting has no effect when \"dodgeObsRecording\" is true and\n"
+			"; an OBS is connected to the game.");
 	registerOtherDescription(settingAndItsName(dodgeObsRecording), "Dodge OBS Recording", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
 			"; To have this mod avoid OBS capture set this setting to true and also make sure\n"
 			"; that in OBS, in Sources you selected your Source, clicked Cogwheel and unchecked the\n"
 			"; 'Capture third-party overlays (such as steam)'.\n"
 			"; I am very sorry, but the mod's UI, the framebar and the boxes cannot be drawn under the game's\n"
-			"; Pause Menu and game's own UI while using 'Dodge OBS Recording'.\n"
-			"; Even after closing OBS, if this setting was on for even a second while OBS was open, the mod\n"
-			"; will keep dodging OBS until you turn off this setting or restart the game.");
+			"; Pause Menu and game's own UI while using 'Dodge OBS Recording'.");
 	registerOtherDescription(settingAndItsName(neverIgnoreHitstop), "Never Ignore Hitstop", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"

@@ -580,7 +580,7 @@ void EndScene::logic() {
 			combinedFramebars.clear();
 		}
 		needDrawInputs = false;
-		if (gifMode.showInputHistory) {
+		if (gifMode.showInputHistory && !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
 			if (settings.displayInputHistoryWhenObserving
 					&& game.currentModeIsOnline()
 					&& game.getPlayerSide() == 2) {
@@ -591,7 +591,9 @@ void EndScene::logic() {
 						|| gameMode == GAME_MODE_KENTEI
 						|| gameMode == GAME_MODE_MOM
 						|| gameMode == GAME_MODE_TUTORIAL
-						|| gameMode == GAME_MODE_VERSUS) {
+						|| gameMode == GAME_MODE_VERSUS
+						// REMOVE THIS
+						|| gameMode == GAME_MODE_TRAINING) {
 					needDrawInputs = true;
 				}
 			}
@@ -4781,6 +4783,8 @@ void DrawBoxesRenderCommand::Destructor(BOOL freeMem) noexcept {
 // Runs on the main thread
 DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 	drawData.clear();
+	drawingPostponed = endScene.drawingPostponed();
+	obsStoppedCapturing = endScene.obsStoppedCapturing;
 	endScene.drawDataPrepared.copyTo(&drawData);
 	if (!endScene.needDrawInputs) {
 		for (int i = 0; i < 2; ++i) {
@@ -4817,8 +4821,14 @@ void DrawImGuiRenderCommand::Destructor(BOOL freeMem) noexcept {
 }
 // Runs on the main thread
 DrawImGuiRenderCommand::DrawImGuiRenderCommand() {
-	ui.copyDrawDataTo(drawData);
 	iconsUTexture2D = endScene.getIconsUTexture2D();
+	drawingPostponed = endScene.drawingPostponed();
+	obsStoppedCapturing = endScene.obsStoppedCapturing;
+	if (endScene.queueingFramebarDrawCommand && endScene.uiWillBeDrawnOnTopOfPauseMenu) {
+		ui.getFramebarDrawData(drawData, framebarWindowDrawDataCopy, framebarTooltipDrawDataCopy);
+	} else {
+		ui.copyDrawDataTo(drawData);
+	}
 }
 
 // Runs on the main thread
@@ -4835,7 +4845,10 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	bool needEnqueueOriginPoints = false;
 	willEnqueueAndDrawOriginPoints = false;
 	endSceneAndPresentHooked = graphics.endSceneAndPresentHooked;
+	obsStoppedCapturing = graphics.obsStoppedCapturing;
 	pauseMenuOpen = false;
+	uiWillBeDrawnOnTopOfPauseMenu = !*aswEngine || isFading || settings.displayUIOnTopOfPauseMenu && ui.visible;
+	bool drawingPostponedLocal;
 	if (!shutdown && !graphics.shutdown) {
 		drawDataPrepared.clearBoxes();
 		lastScreenSize = *screenSize;
@@ -4849,12 +4862,23 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		if (*aswEngine) {
 			isFading = game.isFading();
 			logic();
+		}
+		drawingPostponedLocal = drawingPostponed();
+		if (!shutdown && !graphics.shutdown) {
+			ui.drawData = nullptr;
+			ui.pauseMenuOpen = pauseMenuOpen;
+			ui.drawingPostponed = drawingPostponedLocal;
+			ui.needSplitFramebar = uiWillBeDrawnOnTopOfPauseMenu && !drawingPostponedLocal && pauseMenuOpen && ui.visible;
+			ui.needShowFramebarCached = ui.needShowFramebar();
+			ui.prepareDrawData();
+		}
+		if (*aswEngine) {
 			if (!gifMode.modDisabled) {
 				if (
 						(
 							!settings.dontShowBoxes && !drawDataPrepared.points.empty()
 							|| (drawDataPrepared.inputsSize[0] || drawDataPrepared.inputsSize[1])
-						) && !drawingPostponed()
+						) && !drawingPostponedLocal
 				) {
 					needEnqueueOriginPoints = true;
 				}
@@ -4900,24 +4924,27 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			enqueueRenderCommand<DrawBoxesRenderCommand>();
 			drawBoxesEnqueued = true;
 			
-			if (!isFading && !settings.displayUIOnTopOfPauseMenu) {
+			if (ui.drawData
+					&& (!uiWillBeDrawnOnTopOfPauseMenu || ui.drewFramebar && ui.needSplitFramebar)
+					&& !drawingPostponedLocal) {
 				queueUIDrawingDummyCommand();
 			}
 		}
 		if (needEnqueueOriginPoints) {
 			queueOriginPointDrawingDummyCommandAndInitializeIcon();
 		}
+	} else {
+		drawingPostponedLocal = drawingPostponed();
 	}
+	queueingFramebarDrawCommand = false;
 	orig_REDAnywhereDispDraw(canvas, screenSize);  // calls drawQuadExecHook
+	queueingFramebarDrawCommand = false;
 	
-	if (!shutdown && !graphics.shutdown && (!*aswEngine || isFading || settings.displayUIOnTopOfPauseMenu)) {
-		ui.drawData = nullptr;
-		ui.prepareDrawData();
-		if (ui.drawData) {
-			FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
-			                           // items might still be drawn on top of yours
-			enqueueRenderCommand<DrawImGuiRenderCommand>();
-		}
+	if (!shutdown && !graphics.shutdown
+			&& (uiWillBeDrawnOnTopOfPauseMenu || drawingPostponedLocal)) {
+		FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
+		                           // items might still be drawn on top of yours
+		enqueueRenderCommand<DrawImGuiRenderCommand>();
 	}
 	if (!shutdown && !graphics.shutdown && !drawBoxesEnqueued) {
 		enqueueRenderCommand<HeartbeatRenderCommand>();
@@ -4977,6 +5004,9 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 	graphics.pauseMenuOpen = command->pauseMenuOpen;
 	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->iconsUTexture2D);
 	graphics.iconsTexture = tex;
+	graphics.endSceneIsAwareOfDrawingPostponement = command->drawingPostponed;
+	graphics.obsStoppedCapturingFromEndScenesPerspective = command->obsStoppedCapturing;
+	if (command->drawingPostponed) return;
 	if (graphics.drawingPostponed()) return;
 	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;
 	graphics.executeBoxesRenderingCommand(getDevice());
@@ -4989,8 +5019,7 @@ void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderComman
 	if (settings.dontShowBoxes
 			&& !(
 				(graphics.drawDataUse.inputsSize[0] || graphics.drawDataUse.inputsSize[1])
-			)
-			|| graphics.drawingPostponed()) return;
+			)) return;
 	graphics.onlyDrawPoints = true;
 	graphics.drawAll();
 	graphics.onlyDrawPoints = false;
@@ -5059,14 +5088,12 @@ void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item,
 	if (item->count == 4 && (unsigned int&)item->vertices[0].x == getDummyCmdUInt(dummyDrawUIX)) {  // avoid floating point comparison as it may be slower
 		if (!shutdown
 				&& !graphics.shutdown
-				&& !gifMode.modDisabled) {
-			ui.drawData = nullptr;
-			ui.prepareDrawData();
-			if (ui.drawData) {
-				FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
-				                           // items might still be drawn on top of yours
-				enqueueRenderCommand<DrawImGuiRenderCommand>();
-			}
+				&& !gifMode.modDisabled
+				&& ui.drawData) {
+			queueingFramebarDrawCommand = true;
+			FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
+			                           // items might still be drawn on top of yours
+			enqueueRenderCommand<DrawImGuiRenderCommand>();
 		}
 		return;  // can safely omit items
 	}
@@ -5083,12 +5110,16 @@ void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 	if (shutdown || graphics.shutdown) return;
 	if (!graphics.canDrawOnThisFrame()) return;
 	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->iconsUTexture2D);
-	if (graphics.drawingPostponed()) {
+	graphics.endSceneIsAwareOfDrawingPostponement = command->drawingPostponed;
+	graphics.obsStoppedCapturingFromEndScenesPerspective = command->obsStoppedCapturing;
+	if (command->drawingPostponed) {
 		graphics.uiTexture = tex;
 		graphics.uiDrawData = std::move(command->drawData);
 		return;
 	}
-	ui.pauseMenuOpen = pauseMenuOpen && settings.displayUIOnTopOfPauseMenu;
+	if (graphics.drawingPostponed()) {
+		return;
+	}
 	ui.onEndScene(getDevice(), command->drawData.data(), tex);
 }
 
@@ -6014,7 +6045,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 }
 
 bool EndScene::drawingPostponed() const {
-	return settings.dodgeObsRecording && endSceneAndPresentHooked;
+	return settings.dodgeObsRecording && endSceneAndPresentHooked && !obsStoppedCapturing;
 }
 
 #ifdef LOG_PATH

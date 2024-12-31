@@ -79,6 +79,15 @@ public:
 	std::unique_ptr<PngResource> firstFrame;
 	void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth);
 	bool pauseMenuOpen = false;
+	bool isDisplayingOnTop = false;
+	bool drewFramebar = false;
+	bool drewFrameTooltip = false;
+	bool drawingPostponed = false;
+	bool needSplitFramebar = false;
+	void getFramebarDrawData(std::vector<BYTE>& dData, std::vector<BYTE>& framebarWindow, std::vector<BYTE>& framebarTooltip);
+	std::vector<BYTE> framebarTooltipDrawDataCopy;
+	bool needShowFramebar() const;
+	bool needShowFramebarCached = false;
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -179,7 +188,6 @@ private:
 	void drawFramebars();
 	bool showShaderCompilationError = true;
 	const std::string* shaderCompilationError = nullptr;
-	bool needShowFramebar() const;
 	int two = 2;
 	bool imguiActiveTemp = false;
 	bool takeScreenshotTemp = false;
@@ -256,6 +264,7 @@ private:
 		bool insertSeparators);
 	int printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale);
 	void printAttackLevel(const DmgCalc& dmgCalc);
+	std::vector<BYTE> framebarWindowDrawDataCopy;
 };
 
 extern UI ui;

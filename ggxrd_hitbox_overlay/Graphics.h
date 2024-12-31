@@ -48,6 +48,8 @@ public:
 	Present_t orig_present = nullptr;
 	BeginScene_t orig_beginScene = nullptr;
 	bool endSceneAndPresentHooked = false;
+	bool obsStoppedCapturing = false;
+	bool obsStoppedCapturingFromEndScenesPerspective = false;
 	bool checkCanHookEndSceneAndPresent();
 	bool imInDanger = false;;
 	HANDLE responseToImInDanger = NULL;
@@ -60,6 +62,9 @@ public:
 	void executeBoxesRenderingCommand(IDirect3DDevice9* device);
 	bool dontShowBoxes = false;
 	IDirect3DTexture9* iconsTexture = nullptr;
+	bool endSceneIsAwareOfDrawingPostponement = false;
+	bool obsDisappeared = false;
+	bool obsReappeared = false;
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;

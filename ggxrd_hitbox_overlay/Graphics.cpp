@@ -23,6 +23,7 @@
 #include "Direct3DVTable.h"
 #include "Game.h"
 #include "InputsIcon.h"
+#include <WinError.h>
 
 Graphics graphics;
 
@@ -73,6 +74,8 @@ struct PerformanceMeasurementEnder {
 #define PERFORMANCE_MEASUREMENT_START 
 #define PERFORMANCE_MEASUREMENT_END(name) 
 #endif
+
+#define PIPE_NAME "CaptureHook_Pipe"  // from obs-studio\plugins\win-capture\graphics-hook-info.h
 
 static D3DXMATRIX identity;
 
@@ -312,7 +315,43 @@ void Graphics::endSceneHook(IDirect3DDevice9* device) {
 	if (mayRunEndSceneHook) {
 		mayRunEndSceneHook = false;
 		
-		if (drawingPostponed() && !shutdown && !runningOwnBeginScene) {
+		static char obsPipeName[512] { '\0' };
+		if (obsPipeName[0] == '\0') {
+			snprintf(obsPipeName, sizeof(obsPipeName), "\\\\.\\pipe\\%s%lu", PIPE_NAME, GetCurrentProcessId());
+		}
+			
+		HANDLE obsPipe = CreateFileA(obsPipeName, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
+		if (obsPipe == NULL || obsPipe == INVALID_HANDLE_VALUE) {
+			DWORD errorCode = GetLastError();
+			// ERROR_FILE_NOT_FOUND (0x2): The system cannot find the file specified.
+			// ERROR_PIPE_BUSY (0xe7): All pipe instances are busy.
+			if (errorCode == ERROR_FILE_NOT_FOUND) {
+				if (!obsStoppedCapturing) obsDisappeared = true;
+			} else if (errorCode == ERROR_PIPE_BUSY) {
+				if (obsStoppedCapturing) obsReappeared = true;
+			}
+		} else {
+			CloseHandle(obsPipe);
+		}
+		
+		if (obsDisappeared) {
+			obsDisappeared = false;
+			obsStoppedCapturing = true;
+		}
+		
+		if (obsReappeared) {
+			obsReappeared = false;
+			obsStoppedCapturing = false;
+		}
+		
+		bool drawingPostponedLocal = drawingPostponed();
+		
+		if (drawingPostponedLocal
+				&& endSceneIsAwareOfDrawingPostponement == drawingPostponedLocal
+				&& obsStoppedCapturingFromEndScenesPerspective == obsStoppedCapturing
+				&& !shutdown
+				&& !runningOwnBeginScene) {
+			
 			runningOwnBeginScene = true;
 			device->BeginScene();
 			runningOwnBeginScene = false;
@@ -320,7 +359,6 @@ void Graphics::endSceneHook(IDirect3DDevice9* device) {
 				executeBoxesRenderingCommand(device);
 			}
 			if (uiTexture) {
-				ui.pauseMenuOpen = pauseMenuOpen;
 				ui.onEndScene(device, uiDrawData.data(), uiTexture);
 			}
 			device->EndScene();
@@ -1835,7 +1873,7 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 		takeScreenshotSimple(device);
 		return;
 	}
-	if (imInDangerReceived && settings.dodgeObsRecording && !endSceneAndPresentHooked) return;  // let's not trigger the hook attempt more than once per frame
+	if (!canDrawOnThisFrame()) return;  // let's not trigger the hook attempt more than once per frame
 	CComPtr<IDirect3DStateBlock9> oldState = nullptr;
 	device->CreateStateBlock(D3DSBT_ALL, &oldState);
 	if (!takeScreenshotBegin(device)) return;
@@ -2403,11 +2441,17 @@ void Graphics::afterDraw() {
 }
 
 bool Graphics::canDrawOnThisFrame() const {
-	return !(imInDangerReceived && settings.dodgeObsRecording && !endSceneAndPresentHooked);
+	return !(
+		imInDangerReceived
+		&& settings.dodgeObsRecording
+		&& (
+			!endSceneAndPresentHooked
+			|| obsStoppedCapturing != obsStoppedCapturingFromEndScenesPerspective
+		));
 }
 
 bool Graphics::drawingPostponed() const {
-	return settings.dodgeObsRecording && endSceneAndPresentHooked;
+	return settings.dodgeObsRecording && endSceneAndPresentHooked && !obsStoppedCapturing;
 }
 
 // Draw boxes, without UI, and take a screenshot if needed

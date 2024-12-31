@@ -74,6 +74,8 @@ struct DrawBoxesRenderCommand : FRenderCommand {
 	virtual unsigned int Execute() override;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept override;
 	DrawBoxesRenderCommand();  // Runs on the main thread
+	bool drawingPostponed;
+	bool obsStoppedCapturing;
 	DrawData drawData;
 	CameraValues cameraValues;
 	bool noNeedToDrawPoints;
@@ -93,6 +95,10 @@ struct DrawImGuiRenderCommand : FRenderCommand {
 	virtual const wchar_t* DescribeCommand() noexcept override;
 	DrawImGuiRenderCommand();  // Runs on the main thread
 	std::vector<BYTE> drawData;
+	std::vector<BYTE> framebarWindowDrawDataCopy;
+	std::vector<BYTE> framebarTooltipDrawDataCopy;
+	bool drawingPostponed = false;
+	bool obsStoppedCapturing = false;
 	BYTE* iconsUTexture2D = nullptr;
 };
 
@@ -260,6 +266,10 @@ public:
 	inline bool isIGiveUp() const { return iGiveUp; }
 	bool needDrawInputs = false;
 	const std::vector<SkippedFramesInfo>& getSkippedFrames(bool hitstop) const;
+	bool queueingFramebarDrawCommand = false;
+	bool drawingPostponed() const;
+	bool uiWillBeDrawnOnTopOfPauseMenu = false;
+	bool obsStoppedCapturing = false;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -460,7 +470,6 @@ private:
 	bool eachProjectileOnSeparateFramebar = false;
 	bool isHoldingFD(const PlayerInfo& player) const;
 	bool isHoldingFD(Entity pawn) const;
-	bool drawingPostponed() const;
 	void prepareInputs();
 	InputRingBuffer prevInputRingBuffers[2] { };
 	InputRingBufferStored inputRingBuffersStored[2] { };
