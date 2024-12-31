@@ -1256,14 +1256,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					            // that the animation changed to whatever other one and be sure that the player being busy on the ground now is not
 					            // part of a custom landing animation 100%.
 					            // This assignment is not higher above because some animations I just consider an inseparable part of another animation.
-					if (!player.isLandingOrPreJump
+		            bool conditionPartOne = !player.isLandingOrPreJump
 							&& player.cmnActIndex != CmnActJump
-							&& (!player.idlePlus || player.forceBusy)
-							&& !(
+							&& (!player.idlePlus || player.forceBusy);
+		            bool conditionPartTwo = !(
 								!player.wasIdle
 								&& player.cmnActIndex == CmnActRomanCancel
 								&& player.startedUp
-							)) {
+							);
+					if (conditionPartOne && conditionPartTwo) {
+						
 						if (!player.baikenReturningToBlockstunAfterAzami  // technically Baiken changes animation when she puts herself into blockstun from a successful Azami with no followup,
 						                                                  // and normally we stop displaying old hitstop when the animation changes, but in this case we should keep it
 								&& !dontResetHitstopMax) {  // for CmnActBDownUpper changing to CmnActBDownDown losing hitstop display
@@ -1409,6 +1411,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (player.cmnActIndex != CmnActRomanCancel) {
 							needDisableProjectiles = true;
 						}
+					} else if (conditionPartOne && !conditionPartTwo) {
+						// Jam Hououshou final grounded leg kick RRC its startup - without this fix the frame after RRC superfreeze will be skipped
+						// and the frame tooltip after will say "skipped: 1 super, 18 superfreeze, 1 super" which is very weird
+						player.performingASuper = false;
+						other.gettingHitBySuper = false;
 					}
 				}
 			}
