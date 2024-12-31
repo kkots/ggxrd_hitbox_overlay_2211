@@ -1109,6 +1109,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.wasHitOnPreviousFrame = player.wasHitOnThisFrame;
 			player.wasHitOnThisFrame = isHitOnThisFrame;
 			
+			bool clearSuperStuff = false;
+			if (player.inHitstunNowOrNextFrame && !(player.wasEnableAirtech && player.hitstun == 0)) {
+				if (!player.gettingHitBySuper
+						&& other.move.forceSuperHitAnyway
+						&& other.move.forceSuperHitAnyway(other)) {
+					player.gettingHitBySuper = true;
+				} else if (player.gettingHitBySuper
+						&& (
+							other.recovery
+							&& other.move.iKnowExactlyWhenTheRecoveryOfThisMoveIs
+							&& other.move.iKnowExactlyWhenTheRecoveryOfThisMoveIs(other)
+							|| other.landingRecovery
+						)) {
+					clearSuperStuff = true;
+				}
+			} else {
+				clearSuperStuff = true;
+			}
+			if (clearSuperStuff) {
+				player.gettingHitBySuper = false;
+				player.startedSuperWhenComboing = false;
+			}
+			
 			player.gettingUp = ent.gettingUp();
 			bool idlePlus = player.idle
 				|| player.idleInNewSection
@@ -1339,6 +1362,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.totalCanBlock = 0;
 						player.totalCanFD = 0;
 						player.ignoreNextInabilityToBlockOrAttack = false;
+						player.performingASuper = player.pawn.dealtAttack()->type == ATTACK_TYPE_OVERDRIVE
+							&& !player.move.dontSkipSuper;
+						if (player.performingASuper) {
+							player.startedSuperWhenComboing = other.pawn.comboCount() > 1;
+						} else {
+							player.startedSuperWhenComboing = false;
+						}
+						other.gettingHitBySuper = false;
 						
 						player.dontRestartTheNonLandingFrameAdvantageCountdownUponNextLanding = false;
 						
@@ -1389,6 +1420,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| player.wasIdle && changedAnim  // needed for linking a normal with a forward dash
 				)) {
 				player.ignoreNextInabilityToBlockOrAttack = true;
+				player.performingASuper = false;
+				other.gettingHitBySuper = false;
 			}
 			
 			// This is needed for animations that create projectiles on frame 1
@@ -1866,21 +1899,71 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool atLeastOneBusy = false;
 			bool atLeastOneDangerousProjectilePresent = false;
 			bool atLeastOneDoingGrab = false;
+			bool atLeastOneGettingHitBySuper = false;
+			bool atLeastOneStartedGettingHitBySuperOnThisFrame = false;
+			bool hasDangerousProjectiles[2] { false };
+			
+			for (ProjectileInfo& projectile : projectiles) {
+				if (projectile.team != 0 && projectile.team != 1) {
+					continue;
+				}
+				
+				bool needUseHitstop = false;
+				bool isDangerous = false;
+				
+				if (projectile.markActive || projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr)) {
+					isDangerous = true;
+					needUseHitstop = true;
+				}
+				
+				if (isDangerous) {
+					hasDangerousProjectiles[projectile.team] = true;
+					atLeastOneDangerousProjectilePresent = true;
+				}
+				
+				if (needUseHitstop && !projectile.hitstop) {
+					atLeastOneNotInHitstop = true;
+				}
+			}
+			
+			bool playerCantRc[2] { false };
+			
 			for (int i = 0; i < 2; ++i) {
 				PlayerInfo& player = players[i];
-				atLeastOneDiedThisFrame = player.hp == 0 && player.prevHp != 0;
+				if (player.pawn.performingThrow()) {
+					playerCantRc[i] = true;
+				} else if (player.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED) {
+					playerCantRc[i] = true;
+				}
+			}
+			
+			for (int i = 0; i < 2; ++i) {
+				PlayerInfo& player = players[i];
+				atLeastOneGettingHitBySuper = atLeastOneGettingHitBySuper
+					|| playerCantRc[1 - i]
+					&& player.gettingHitBySuper
+					&& !hasDangerousProjectiles[i];
+				atLeastOneStartedGettingHitBySuperOnThisFrame = atLeastOneStartedGettingHitBySuperOnThisFrame
+					|| player.gettingHitBySuper
+					&& !player.prevGettingHitBySuper;
+				atLeastOneDiedThisFrame = atLeastOneDiedThisFrame || player.hp == 0 && player.prevHp != 0;
 				atLeastOneDead = atLeastOneDead || player.hp == 0;
 				if (
 						(
 							player.grab
-							|| player.move.isGrab
+							|| player.move.isGrab && !(player.move.forceLandingRecovery && player.landingRecovery)
 						)
 						&& !(
 							!player.wasCancels.gatlings.empty()
 							|| !player.wasCancels.whiffCancels.empty()
 						)
+						&& playerCantRc[i]
 				) {
-					atLeastOneDoingGrab = true;
+					if (player.pawn.dealtAttack()->type == ATTACK_TYPE_OVERDRIVE) {
+						atLeastOneGettingHitBySuper = true;
+					} else {
+						atLeastOneDoingGrab = true;
+					}
 				}
 				if (!player.hitstop
 						|| player.charType == CHARACTER_TYPE_BAIKEN
@@ -1974,31 +2057,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					atLeastOneBusy = true;
 				}
 			}
-			for (ProjectileInfo& projectile : projectiles) {
-				if (projectile.team != 0 && projectile.team != 1) {
-					continue;
-				}
-				
-				bool needUseHitstop = false;
-				bool isDangerous = false;
-				
-				if (projectile.markActive || projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr)) {
-					isDangerous = true;
-					needUseHitstop = true;
-				}
-				
-				if (isDangerous) {
-					atLeastOneDangerousProjectilePresent = true;
-				}
-				
-				if (needUseHitstop && !projectile.hitstop) {
-					atLeastOneNotInHitstop = true;
-				}
-			}
 			
 			SkippedFramesType skippedType = SKIPPED_FRAMES_HITSTOP;
-			if (atLeastOneDoingGrab) {
-				skippedType = SKIPPED_FRAMES_GRAB;
+			SkippedFramesType skippedGrabType = SKIPPED_FRAMES_GRAB;
+			if (atLeastOneGettingHitBySuper && !atLeastOneStartedGettingHitBySuperOnThisFrame) {
+				atLeastOneDoingGrab = true;
+				skippedGrabType = SKIPPED_FRAMES_SUPER;
+			}
+			if (atLeastOneDoingGrab && settings.skipGrabsInFramebar) {
+				skippedType = skippedGrabType;
 				atLeastOneBusy = false;
 				atLeastOneNotInHitstop = false;
 				atLeastOneDangerousProjectilePresent = false;
@@ -2427,6 +2494,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				Frame& currentFrame = framebar[framebarPos];
 				
 				currentFrame.type = FT_IDLE_PROJECTILE;
+				currentFrame.activeDuringSuperfreeze = false;
+				currentFrame.animName = nullptr;
+				currentFrame.animSlangName = nullptr;
+				currentFrame.hitstop = 0;
+				currentFrame.hitstopMax = 0;
+				currentFrame.hitConnected = false;
+				currentFrame.rcSlowdown = 0;
+				currentFrame.rcSlowdownMax = 0;
+				currentFrame.activeDuringSuperfreeze = false;
 				
 				copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
 					framebarAdvanced,
@@ -3415,6 +3491,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			} else if (player.blockstun) {
 				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK;
 			}
+			player.prevGettingHitBySuper = player.gettingHitBySuper;
 		}
 		
 		for (auto it = projectileFramebars.begin(); it != projectileFramebars.end(); ) {
@@ -5457,28 +5534,32 @@ CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFrame
 		id = INT_MAX - 1 + source.playerIndex;
 	}
 	const bool combineProjectileFramebarsWhenPossible = settings.combineProjectileFramebarsWhenPossible;
-	const bool eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
-	if (!eachProjectileOnSeparateFramebar) {
-		for (CombinedProjectileFramebar& bar : combinedFramebars) {
-			if (combineProjectileFramebarsWhenPossible
-					? bar.canBeCombined(hitstop ? source.hitstop : source.main)
-					: bar.playerIndex == source.playerIndex && bar.id == id
-			) {
-				if (!(bar.moveFramebarId != -1 && source.moveFramebarId == -1)) {
-					bar.moveFramebarId = source.moveFramebarId;
-				}
-				if (!(
-						*bar.titleShort != '\0'
-						&& bar.moveFramebarId != -1
-						&& (
-							*source.titleShort == '\0'
-							|| source.moveFramebarId == -1
-						)
-					)) {
-					bar.copyTitle(source);
-				}
-				return bar;
+	for (CombinedProjectileFramebar& bar : combinedFramebars) {
+		if (
+				bar.playerIndex == source.playerIndex
+				&& (
+					(
+						combineProjectileFramebarsWhenPossible
+							? bar.canBeCombined(hitstop ? source.hitstop : source.main)
+							: false
+					)
+					|| bar.id == id
+				)
+		) {
+			if (!(bar.moveFramebarId != -1 && source.moveFramebarId == -1)) {
+				bar.moveFramebarId = source.moveFramebarId;
 			}
+			if (!(
+					*bar.titleShort != '\0'
+					&& bar.moveFramebarId != -1
+					&& (
+						*source.titleShort == '\0'
+						|| source.moveFramebarId == -1
+					)
+				)) {
+				bar.copyTitle(source);
+			}
+			return bar;
 		}
 	}
 	combinedFramebars.emplace_back();
@@ -5966,7 +6047,8 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 	if (iGiveUp || !defenderPtr.isPawn()) return;
 	PlayerInfo& defender = findPlayer(defenderPtr);
 	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().hitResult != HIT_RESULT_NORMAL) return;
-	DmgCalc::DmgCalcU::DmgCalcHit& data = defender.dmgCalcs.back().u.hit;
+	DmgCalc& dmgCalc = defender.dmgCalcs.back();
+	DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
 	const AttackData* attack = defenderPtr.receivedAttack();
 	data.baseDamage = attack->damage;
 	data.increaseDmgBy50Percent = defenderPtr.increaseDmgBy50Percent();
@@ -5983,6 +6065,33 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 		default: data.handicap = 100;
 	}
 	
+	if (attack->type == ATTACK_TYPE_OVERDRIVE && !dmgCalc.isOtg) {
+		bool superHasBeenGoingOnForTooLong = false;
+		bool superCanIgnoreBeingTooLong = false;
+		
+		bool attackerPerformingSuper = false;
+		PlayerInfo& attacker = findPlayer(attackerPtr.playerEntity());
+		if (attacker.pawn) {
+			attackerPerformingSuper = attacker.performingASuper;
+			superHasBeenGoingOnForTooLong = attacker.activesDisp.count > 2 || attacker.activesDisp.total() > 14 || attacker.recovery;
+			superCanIgnoreBeingTooLong = attacker.startedSuperWhenComboing;
+		}
+		
+		bool isADisabledProjectile = false;
+		if (!attackerPtr.isPawn()) {
+			ProjectileInfo& projectile = findProjectile(attackerPtr);
+			if (projectile.ptr && projectile.disabled && attackerPtr.lifeTimeCounter() != 0) {
+				isADisabledProjectile = true;
+			}
+		}
+		if (!isADisabledProjectile
+				&& attackerPerformingSuper
+				&& !(
+					superHasBeenGoingOnForTooLong
+					&& !superCanIgnoreBeingTooLong)) {
+			defender.gettingHitBySuper = true;
+		}
+	}
 	data.damageScale = attackerPtr.playerEntity().damageScale();
 	data.isProjectile = attack->projectileLvl > 0;
 	data.projectileDamageScale = defenderPtr.projectileDamageScale();

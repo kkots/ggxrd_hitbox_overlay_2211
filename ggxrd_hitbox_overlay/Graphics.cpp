@@ -251,7 +251,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	orig_present = (Present_t)direct3DVTable.deviceVtable[17];
 	orig_beginScene = (BeginScene_t)direct3DVTable.deviceVtable[41];
 	responseToImInDanger = CreateEventW(NULL, FALSE, FALSE, NULL);
-	if (!checkAndHookEndSceneAndPresent(true)) error = true;
+	if (!checkAndHookBeginSceneAndPresent(true)) error = true;
 	
 	return !error;
 }
@@ -268,7 +268,7 @@ bool Graphics::checkCanHookEndSceneAndPresent() {
 	return true;
 }
 
-bool Graphics::checkAndHookEndSceneAndPresent(bool transactionActive) {
+bool Graphics::checkAndHookBeginSceneAndPresent(bool transactionActive) {
 	if (!transactionActive && canDrawOnThisFrame()) return true;
 	if (!checkCanHookEndSceneAndPresent()) return true;
 	if (!transactionActive) {
@@ -283,8 +283,8 @@ bool Graphics::checkAndHookEndSceneAndPresent(bool transactionActive) {
 	
 	if (!error && !detouring.attach(
 		&(PVOID&)(orig_beginScene),
-		endSceneHookStatic,
-		"EndScene")) error = true;
+		beginSceneHookStatic,
+		"BeginScene")) error = true;
 	
 	if (!transactionActive) {
 		if (error) {
@@ -301,19 +301,26 @@ bool Graphics::checkAndHookEndSceneAndPresent(bool transactionActive) {
 
 HRESULT __stdcall Graphics::presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion) {
 	graphics.graphicsThreadId = GetCurrentThreadId();
-	graphics.mayRunEndSceneHook = true;
+	graphics.mayRunBeginSceneHook = true;
+	// When the application starts, the first barbarian that hooks it is Steam, who installs into Present.
+	// Inside Present hook, before actual Present runs, Steam does a BeginScene, draws its overlay, and
+	// calls EndScene. We hook the one BeginScene that runs in Steam's Present hook.
+	// OBS also hooks Present after Steam and does capturing when it starts. OBS does capturing
+	// before running what it thinks is the "real" Present, so anything Steam (or we) draw is invisible to OBS.
+	// OBS has a setting to do capturing at the end of Present though, so it is still possible to record
+	// Steam overlay and what we draw.
 	return graphics.orig_present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
 
-HRESULT __stdcall Graphics::endSceneHookStatic(IDirect3DDevice9* device) {
-	graphics.endSceneHook(device);
+HRESULT __stdcall Graphics::beginSceneHookStatic(IDirect3DDevice9* device) {
+	graphics.beginSceneHook(device);
 	return graphics.orig_beginScene(device);
 }
 
-void Graphics::endSceneHook(IDirect3DDevice9* device) {
+void Graphics::beginSceneHook(IDirect3DDevice9* device) {
 	graphicsThreadId = GetCurrentThreadId();
-	if (mayRunEndSceneHook) {
-		mayRunEndSceneHook = false;
+	if (mayRunBeginSceneHook) {
+		mayRunBeginSceneHook = false;
 		
 		static char obsPipeName[512] { '\0' };
 		if (obsPipeName[0] == '\0') {
@@ -455,7 +462,7 @@ void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
 	this->device = device;
 	stencil.onEndSceneStart();
 	graphics.receiveDanger();
-	checkAndHookEndSceneAndPresent(false);
+	checkAndHookBeginSceneAndPresent(false);
 }
 
 void Graphics::onShutdown() {
@@ -463,7 +470,7 @@ void Graphics::onShutdown() {
 	ui.onDllDetachGraphics();
 	if (endSceneAndPresentHooked) {
 		const char* hooksToUndetour[] {
-			"EndScene",
+			"BeginScene",
 			"Present"
 		};
 		detouring.detachOnlyTheseHooks(hooksToUndetour, _countof(hooksToUndetour));
@@ -2261,7 +2268,7 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 void Graphics::heartbeat() {
 	receiveDanger();
 	afterDraw();
-	checkAndHookEndSceneAndPresent(false);
+	checkAndHookBeginSceneAndPresent(false);
 }
 
 void Graphics::cpuPixelBlenderComplex(void* gameImage, const void* boxesImage, int width, int height) {

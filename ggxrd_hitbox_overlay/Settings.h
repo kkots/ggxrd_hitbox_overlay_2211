@@ -94,7 +94,7 @@ public:
 	std::atomic_bool considerKnockdownWakeupAndAirtechIdle = false;
 	std::atomic_bool considerIdleInvulIdle = true;
 	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = true;
-	std::atomic_bool skipGrabsInFramebar = false;
+	std::atomic_bool skipGrabsInFramebar = true;
 	std::atomic_bool showComboProrationInRiscGauge = false;
 	std::atomic_bool displayInputHistoryWhenObserving = true;
 	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;

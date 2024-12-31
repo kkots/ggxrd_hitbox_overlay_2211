@@ -423,7 +423,7 @@ bool Settings::onDllMain() {
 			"; Setting this to false will cause the idle time that you spent before the opponent entered blockstun to not be included\n"
 			"; in your frame advantage, and your frame advantage in the example above will be just +1.\n"
 			"; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.");
-	registerOtherDescription(settingAndItsName(skipGrabsInFramebar), "Skip Grab Animations In Framebar", settingsFramebarSettingsStr,
+	registerOtherDescription(settingAndItsName(skipGrabsInFramebar), "Skip Grab/Super Animations In Framebar", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will skip grab animations such as ground throw or some supers that connected in the framebar.");
 	registerOtherDescription(settingAndItsName(showComboProrationInRiscGauge), "Show Combo Proration In RISC Gauge", settingsGeneralSettingsStr,

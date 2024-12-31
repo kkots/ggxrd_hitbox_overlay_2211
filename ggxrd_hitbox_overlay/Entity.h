@@ -642,6 +642,13 @@ enum CounterHitEntityValue {
 	COUNTER_HIT_ENTITY_VALUE_MORTAL_COUNTER
 };
 
+enum RomanCancelAvailability {
+	ROMAN_CANCEL_DISALLOWED,
+	ROMAN_CANCEL_ALLOWED,
+	ROMAN_CANCEL_DISALLOWED_WITH_X_MARK,
+	ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK
+};
+
 class Entity
 {
 public:
@@ -684,6 +691,7 @@ public:
 
 	void pushboxLeftRight(int* left, int* right) const;
 	
+	inline bool performingThrow() const { return (*(DWORD*)(ent + 0x23c) & 0x1000) != 0; }  // this flag appears when starting a throw or throw-like move and stays until first hit connects
 	inline unsigned int currentAnimDuration() const { return *(const unsigned int*)(ent + 0x130); }
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
@@ -760,6 +768,7 @@ public:
 	inline bool ascending() const { return (*(DWORD*)(ent + 0x234) & 0x1) != 0; }  // this does not mean prejump. It is set on the initial 7 frames of May jump, 10 Ky jump.
 	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
 	inline bool displayModel() const { return *(bool*)(ent + 0x2814); }
+	inline bool hideUI() const { return (*(DWORD*)(ent + 0x11c) & 0x4000) != 0; }
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
@@ -787,6 +796,7 @@ public:
 	inline bool hitSomethingOnThisFrame() const { return (*(int*)(ent + 0x12c) & 0x20000) != 0; }  // is true for only one frame - the frame on which you hit something
 	inline bool receivedProjectileClashSignal() const { return (*(int*)(ent + 0x12c) & 0x8) != 0; }
 	inline bool inHitstunNextFrame() const { return (*(int*)(ent + 0x23c) & 0x2) != 0; }  // is true for only one frame - the frame on which you get hit
+	inline bool inHitstunThisOrNextFrame() const { return inHitstun(); }
 	inline bool inBlockstunNextFrame() const { return (*(int*)(ent + 0x23c) & 0x1000000) != 0; }  // is true for only one frame - the frame on which you block a hit
 	inline Entity currentRunOnObject() const { return *(Entity*)(ent + 0x2464); }
 	inline bool successfulIB() const { return (*(DWORD*)(ent + 0x23c) & 0x800000) != 0; }  // can be set even on FD IB. Remains set even after blockstun is over.
@@ -897,6 +907,7 @@ public:
 	inline int dustPropulsion() const { return *(int*)(ent + 0x24de0); }
 	inline int unknownField1() const { return *(int*)(ent + 0x24df0); }
 	inline int burstGainOnly20Percent() const { return *(int*)(ent + 0x2d130); }
+	inline RomanCancelAvailability romanCancelAvailability() const { return *(RomanCancelAvailability*)(ent + 0x26214); }
 	
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;

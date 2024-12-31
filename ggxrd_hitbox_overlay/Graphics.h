@@ -378,11 +378,11 @@ private:
 		inline RenderStateValue& operator[](int index) { return values[index]; }
 	};
 	RenderStateValueStack requiredRenderState[SCREENSHOT_STAGE_HOW_MANY_ENUMS_ARE_THERE][RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE];
-	HRESULT static __stdcall endSceneHookStatic(IDirect3DDevice9* device);
-	void endSceneHook(IDirect3DDevice9* device);
+	HRESULT static __stdcall beginSceneHookStatic(IDirect3DDevice9* device);
+	void beginSceneHook(IDirect3DDevice9* device);
 	HRESULT static __stdcall presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
-	bool mayRunEndSceneHook = false;
-	bool checkAndHookEndSceneAndPresent(bool transactionActive);
+	bool mayRunBeginSceneHook = false;
+	bool checkAndHookBeginSceneAndPresent(bool transactionActive);
 	bool imInDangerReceived = false;
 	void receiveDanger();
 	void dllDetachPiece();

@@ -72,6 +72,7 @@ static bool isDangerous_card(Entity ent);
 static bool isDangerous_kum5D(Entity ent);
 static bool isDangerous_rsfMeishi(Entity ent);
 static bool isDangerous_displayModel(Entity ent);
+static bool isDangerous_vacuumAtk(Entity ent);
 
 static const char* nameSelector_iceSpike(Entity ent);
 static const char* slangNameSelector_iceSpike(Entity ent);
@@ -118,6 +119,17 @@ static DWORD zatoHoldLevel_breakTheLaw(PlayerInfo& ent);
 static bool conditionForAddingWhiffCancels_blockingBaiken(PlayerInfo& ent);
 
 static bool secondaryStartup_saishingeki(PlayerInfo& ent);
+
+static bool isRecovery_daisenpu(PlayerInfo& ent);
+static bool isRecovery_RTL(PlayerInfo& ent);
+static bool isRecovery_sinRTL(PlayerInfo& ent);
+static bool isRecovery_recovery(PlayerInfo& ent);
+static bool isRecovery_zanseiRouga(PlayerInfo& ent);
+static bool isRecovery_land(PlayerInfo& ent);
+static bool isRecovery_byakueRenshou(PlayerInfo& ent);
+
+static bool forceSuperHitAnyway_zanseiRouga(PlayerInfo& ent);
+static bool forceSuperHitAnyway_hououshou(PlayerInfo& ent);
 
 static inline MoveInfoProperty& newProperty(MoveInfoStored* move, MoveInfoPropertyType property) {
 	if (!move->count) move->startInd = allProperties.size();
@@ -202,6 +214,9 @@ void Moves::addMove(const MoveInfo& move) {
 	nameRepeatsALot(forceLandingRecovery, boolValue)
 	nameRepeatsALot(isGrab, boolValue)
 	nameRepeatsALot(partOfStance, boolValue)
+	nameRepeatsALot(dontSkipSuper, boolValue)
+	nameRepeatsALot(iKnowExactlyWhenTheRecoveryOfThisMoveIs, isIdleValue)
+	nameRepeatsALot(forceSuperHitAnyway, isIdleValue)
 	#undef nameRepeatsALot
 	
 	map.insert( {
@@ -213,6 +228,73 @@ void Moves::addMove(const MoveInfo& move) {
 		,
 		newMove
 	} );
+}
+
+MoveInfo::MoveInfo(const MoveInfoStored& info) {
+	const MoveInfoProperty* prop = info.startPtr;
+	for (int i = 0; i < info.count; ++i) {
+		switch (prop->type) {
+			#define repeatsABit(name, valueProperty) case MoveInfoPropertyType_##name: name = prop->u.valueProperty; break;
+			repeatsABit(combineWithPreviousMove, boolValue)
+			repeatsABit(usePlusSignInCombination, boolValue)
+			repeatsABit(displayName, strValue)
+			repeatsABit(slangName, strValue)
+			repeatsABit(sectionSeparator, sectionSeparatorValue)
+			repeatsABit(sectionSeparatorProjectile, sectionSeparatorProjectileValue)
+			repeatsABit(considerIdleInSeparatedSectionAfterThisManyFrames, boolValue)
+			repeatsABit(preservesNewSection, boolValue)
+			repeatsABit(isIdle, isIdleValue)
+			repeatsABit(canBlock, isIdleValue)
+			repeatsABit(isDangerous, isDangerousValue)
+			repeatsABit(framebarId, intValue)
+			repeatsABit(framebarName, strValue)
+			repeatsABit(framebarNameUncombined, strValue)
+			repeatsABit(framebarSlangNameUncombined, strValue)
+			repeatsABit(framebarSlangName, strValue)
+			repeatsABit(framebarNameFull, strValue)
+			repeatsABit(framebarNameSelector, selectFramebarNameValue)
+			repeatsABit(framebarSlangNameSelector, selectFramebarNameValue)
+			repeatsABit(isInVariableStartupSection, isIdleValue)
+			repeatsABit(canStopHolding, isIdleValue)
+			repeatsABit(aSectionBeforeVariableStartup, isIdleValue)
+			repeatsABit(considerNewSectionAsBeingInVariableStartup, boolValue)
+			repeatsABit(considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot, boolValue)
+			repeatsABit(considerVariableStartupAsStanceForFramebar, boolValue)
+			repeatsABit(canBeUnableToBlockIndefinitelyOrForVeryLongTime, boolValue)
+			repeatsABit(isRecoveryHasGatlings, isIdleValue)
+			repeatsABit(isRecoveryCanAct, isIdleValue)
+			repeatsABit(canFaultlessDefend, isIdleValue)
+			repeatsABit(nameIncludesInputs, boolValue)
+			repeatsABit(ignoresHitstop, boolValue)
+			repeatsABit(frontLegInvul, isIdleValue)
+			repeatsABit(forceAddWhiffCancelsStart, intValue)
+			repeatsABit(forceAddWhiffCancelsCount, intValue)
+			repeatsABit(isRecoveryCanReload, isIdleValue)
+			repeatsABit(onlyAddForceWhiffCancelsOnFirstFrameOfSprite, strValue)
+			repeatsABit(zatoHoldLevel, zatoHoldLevelValue)
+			repeatsABit(conditionForAddingWhiffCancels, isIdleValue)
+			repeatsABit(caresAboutWall, boolValue)
+			repeatsABit(faustPogo, boolValue)
+			repeatsABit(displayNameIfIdle, strValue)
+			repeatsABit(displayNameIfIdleSlang, strValue)
+			repeatsABit(butForFramebarDontCombineWithPreviousMove, boolValue)
+			repeatsABit(replacementInputs, strValue)
+			repeatsABit(replacementBufferTime, intValue)
+			repeatsABit(whiffCancelsNote, strValue)
+			repeatsABit(secondaryStartup, isIdleValue)
+			repeatsABit(forceLandingRecovery, boolValue)
+			repeatsABit(isGrab, boolValue)
+			repeatsABit(partOfStance, boolValue)
+			repeatsABit(dontSkipSuper, boolValue)
+			repeatsABit(iKnowExactlyWhenTheRecoveryOfThisMoveIs, isIdleValue)
+			repeatsABit(forceSuperHitAnyway, isIdleValue)
+			#undef repeatsABit
+		}
+		++prop;
+	}
+	if (!canBlock && isIdle) canBlock = isIdle;
+	if (!isIdle) isIdle = isIdle_default;
+	if (!canBlock) canBlock = canBlock_default;
 }
 
 void MoveInfo::addForceAddWhiffCancel(const char* name) {
@@ -1246,16 +1328,19 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave");
 	move.displayName = "Tyrant Rave";
 	move.slangName = "TR";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave_DI");
 	move.displayName = "DI Tyrant Rave";
 	move.slangName = "DI TR";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_recovery;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRaveBurst");
 	move.displayName = "Burst Tyrant Rave";
 	move.slangName = "Burst TR";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "DragonInstall");
@@ -1387,26 +1472,31 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SacredEdge");
 	move.displayName = "Sacred Edge";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "RideTheLightning");
 	move.displayName = "Ride The Lightning";
 	move.slangName = "RTL";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "RideTheLightningBurst");
 	move.displayName = "Burst Ride The Lightning";
 	move.slangName = "Burst RTL";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirRideTheLightning");
 	move.displayName = "Air Ride The Lightning";
 	move.slangName = "Air RTL";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirRideTheLightningBurst");
 	move.displayName = "Air Burst Ride The Lightning";
 	move.slangName = "Air Burst RTL";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdgeObj", true);
@@ -2025,16 +2115,19 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Daisenpu");
 	move.displayName = "Ultimate Spinning Whirlwind";
 	move.slangName = "USW";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_daisenpu;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Yamada");
 	move.displayName = "Great Yamada Attack";
 	move.slangName = "Yamada";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "YamadaBurst");
 	move.displayName = "Burst Great Yamada Attack";
 	move.slangName = "Burst Yamada";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLA_Hold");
@@ -2248,6 +2341,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "6wayKunai");
 	move.displayName = "Ryuu Yanagi";
 	move.slangName = "Ryuu";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "BankiMessai");
@@ -2258,11 +2352,15 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ZanseiRouga");
 	move.displayName = "Zansei Rouga";
 	move.slangName = "Zansei";
+	move.forceLandingRecovery = true;
+	move.forceSuperHitAnyway = forceSuperHitAnyway_zanseiRouga;
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_zanseiRouga;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ZanseiRougaBurst");
 	move.displayName = "Burst Zansei Rouga";
 	move.slangName = "Burst Zansei";
+	move.forceLandingRecovery = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ShurikenObj", true);
@@ -2381,20 +2479,22 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NaNaNaNanigaDerukana");
 	move.displayName = "W-W-What Could This Be?";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SugoiNaNaNaNanigaDerukana");
 	move.displayName = "W-W-What Could This Be? 100% Ver.";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Shigeki");
 	move.displayName = "Stimulating Fists of Annihilation";
-	move.slangName = "236236S";
+	move.slangName = "Fists";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ShigekiBurst");
 	move.displayName = "Burst Stimulating Fists of Annihilation";
-	move.slangName = "236236D";
+	move.slangName = "Burst Fists";
 	addMove(move);
 	
 	// Pogo P
@@ -2647,6 +2747,12 @@ bool Moves::onDllMain() {
 	move.framebarNameUncombined = "Love Explosion";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "ShigekiJibakuObj", true);
+	move.framebarId = 108;
+	move.framebarName = "Stimulating Fists of Annihilation Self-Destruct";
+	move.framebarSlangName = "Self-Destuct";
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "NmlAtk5CNearHasei");
 	move.displayName = "c.S";
 	move.nameIncludesInputs = true;
@@ -2714,10 +2820,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueRenshou");
 	move.displayName = "Sickle Storm";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_byakueRenshou;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueRenshouBurst");
 	move.displayName = "Burst Sickle Storm";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_byakueRenshou;
 	addMove(move);
 	
 	// Axl Rensen
@@ -2942,16 +3050,19 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka");
 	move.displayName = "Genoverse";
+	move.dontSkipSuper = true;
 	addMove(move);
-
+	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Judge_BetterHalf");
 	move.displayName = "Judge Better Half";
 	move.slangName = "JBH";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Judge_BetterHalfBurst");
 	move.displayName = "Burst Judge Better Half";
 	move.slangName = "Burst JBH";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb", true);
@@ -3133,14 +3244,17 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Gorengeki");
 	move.displayName = "Leidenschaft Dirigent";
 	move.slangName = "Leidenschaft";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakusei");
 	move.displayName = "Stahl Wirbel";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakuseiBurst");
 	move.displayName = "Burst Stahl Wirbel";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeFDashStep");
@@ -3380,11 +3494,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Hououshou");
 	move.displayName = "Choukyaku Hou'oushou";
 	move.slangName = "Choukyaku";
+	move.forceSuperHitAnyway = forceSuperHitAnyway_hououshou;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "HououshouBurst");
 	move.displayName = "Burst Choukyaku Hou'oushou";
 	move.slangName = "Burst Choukyaku";
+	move.forceSuperHitAnyway = forceSuperHitAnyway_hououshou;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Saishingeki");
@@ -3536,16 +3652,19 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Meteor");
 	move.displayName = "Air Dead Stock Ninpo: Firesale";
 	move.slangName = "Air Firesale";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush");
 	move.displayName = "Dead Stock Ninpo: Firesale";
 	move.slangName = "Firesale";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush_Burst");
 	move.displayName = "Burst Dead Stock Ninpo: Firesale";
 	move.slangName = "Burst Firesale";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	// Answer scroll cling idle. Happens from an s.D if not holding D
@@ -3818,6 +3937,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRain");
 	move.displayName = "Emerald Rain";
 	move.slangName = "ER";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ChromingRose");
@@ -3827,10 +3947,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "Winger");
 	move.displayName = "Winger";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "WingerBurst");
 	move.displayName = "Burst Winger";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	// each ring of the 236236S super is separately named
@@ -3940,6 +4062,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Executer");
 	move.displayName = "Executor";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Amorphous");
@@ -3952,10 +4075,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "MegalithHead");
 	move.displayName = "Great White";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "MegalithHead2");
 	move.displayName = "Great White";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	// Zato 214K
@@ -4104,6 +4229,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Giganter");
 	move.displayName = "Giganter Kai";
 	move.slangName = "Giganter";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "GiganObj", true);
@@ -4115,6 +4241,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "GiganticBullet");
 	move.displayName = "Gigantic Bullet Kai";
 	move.slangName = "Bullet";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Bomb", true);
@@ -4333,16 +4460,19 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngel");
 	move.displayName = "Dark Angel";
 	move.slangName = "DA";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBurst");
 	move.displayName = "Burst Dark Angel";
 	move.slangName = "Burst DA";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "SummonGoldBall");
 	move.displayName = "Bishop Runout";
 	move.slangName = "Bishop";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	// created before Dark Angel comes out
@@ -4466,6 +4596,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "EienNoTsubasa");
 	move.displayName = "Eternal Wings";
 	move.slangName = "EW";
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "DeadOnTime");
@@ -4601,16 +4732,19 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "Madogiwa");
 	move.displayName = "Longing Desperation";
 	move.slangName = "Desperation";
+	move.dontSkipSuper = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_INO, "MadogiwaBurst");
 	move.displayName = "Burst Longing Desperation";
 	move.slangName = "Burst Desperation";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Genkai");
 	move.displayName = "Ultimate Fortissimo";
 	move.slangName = "Fortissimo";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "BChemiLaser", true);
@@ -4762,20 +4896,24 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Alarm");
 	move.displayName = "Sinusoidal Helios";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AlarmBurst");
 	move.displayName = "Burst Sinusoidal Helios";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Merry");
 	move.displayName = "Hemi Jack";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	// Bedman Teleporting from the boomerang head hitting
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "BWarp");
 	move.displayName = "Task A' Teleport";
 	move.combineWithPreviousMove = true;
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Aralm_Obj", true);
@@ -5385,24 +5523,28 @@ bool Moves::onDllMain() {
 	move.displayName = "R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "RideTheLightningBurst");
 	move.displayName = "Burst R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "AirRideTheLightning");
 	move.displayName = "Air R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "AirRideTheLightningBurst");
 	move.displayName = "Air Burst R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Ashibarai");
@@ -5422,11 +5564,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Land");
 	move.displayName = "Voltec Dein";
 	move.slangName = "Voltec";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Air");
 	move.displayName = "Air Voltec Dein";
 	move.slangName = "Air Voltec";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "SuperShotStart", true);
@@ -5536,25 +5680,35 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "BlackHoleAttackBurst");
 	move.displayName = "Burst Enlightened 3000 Palm Strike";
 	move.slangName = "Burst Clap";
+	move.sectionSeparator = sectionSeparator_blackHoleAttack;
+	move.isInVariableStartupSection = isInVariableStartupSection_blackHoleAttack;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperHomingEnergy");
 	move.displayName = "Celestial Tuning Ball";
 	move.slangName = "Super Ball";
+	move.dontSkipSuper = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "VacuumAtk", true);
+	move.isDangerous = isDangerous_vacuumAtk;
+	move.framebarId = 107;
+	move.framebarName = "Enlightened 3000 Palm Strike Vacuum";
+	move.framebarSlangName = "Vacuum";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "EnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 89;
 	move.framebarName = "Tuning Ball";
-	move.slangName = "Fireball";
+	move.framebarSlangName = "Fireball";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperEnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 90;
 	move.framebarName = "Celestial Tuning Ball";
-	move.slangName = "Super Ball";
+	move.framebarSlangName = "Super Ball";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "kum_205shot", true);
@@ -5632,11 +5786,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandDashAttack");
 	move.displayName = "Verzweifelt";
 	move.slangName = "Dash Super";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirDashAttack");
 	move.displayName = "Air Verzweifelt";
 	move.slangName = "Air Dash Super";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "RevengeAttack");
@@ -5815,15 +5971,18 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRay");
 	move.displayName = "Imperial Ray";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBurst");
 	move.displayName = "Burst Imperial Ray";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KirikaeshiKakusei");
 	move.displayName = "Don't be overprotective";
 	move.slangName = "Mirror";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Tossin");
@@ -5922,6 +6081,8 @@ bool Moves::onDllMain() {
 	move.displayName = "Metsudo Kushodo";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.forceLandingRecovery = true;
+	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TsuraneSanzuWatashi");
@@ -6159,10 +6320,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Calvados");
 	move.displayName = "Calvados";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosBurst");
 	move.displayName = "Burst Calvados";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ScrewPileDriver");
@@ -6184,10 +6347,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirCalvados");
 	move.displayName = "Air Calvados";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirCalvadosBurst");
 	move.displayName = "Air Burst Calvados";
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantA", true);
@@ -6510,6 +6675,11 @@ void Moves::onAswEngineDestroyed() {
 	armorDance2EndOffset = 0;
 	saishingeki_SaishintuikaOffset = 0;
 	saishingeki_SaishintuikaEndOffset = 0;
+	zanseiRougaRecoveryOffset = 0;
+	for (int i = 0; i < 2; ++i) {
+		sinRtl_end_air_offset[i] = 0;
+	}
+	hououshouHitOffset = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -6569,70 +6739,6 @@ bool Moves::getInfo(MoveInfo& returnValue, CharacterType charType, const char* n
 		}
 	}
 	return false;
-}
-
-MoveInfo::MoveInfo(const MoveInfoStored& info) {
-	const MoveInfoProperty* prop = info.startPtr;
-	for (int i = 0; i < info.count; ++i) {
-		switch (prop->type) {
-			#define repeatsABit(name, valueProperty) case MoveInfoPropertyType_##name: name = prop->u.valueProperty; break;
-			repeatsABit(combineWithPreviousMove, boolValue)
-			repeatsABit(usePlusSignInCombination, boolValue)
-			repeatsABit(displayName, strValue)
-			repeatsABit(slangName, strValue)
-			repeatsABit(sectionSeparator, sectionSeparatorValue)
-			repeatsABit(sectionSeparatorProjectile, sectionSeparatorProjectileValue)
-			repeatsABit(considerIdleInSeparatedSectionAfterThisManyFrames, boolValue)
-			repeatsABit(preservesNewSection, boolValue)
-			repeatsABit(isIdle, isIdleValue)
-			repeatsABit(canBlock, isIdleValue)
-			repeatsABit(isDangerous, isDangerousValue)
-			repeatsABit(framebarId, intValue)
-			repeatsABit(framebarName, strValue)
-			repeatsABit(framebarNameUncombined, strValue)
-			repeatsABit(framebarSlangNameUncombined, strValue)
-			repeatsABit(framebarSlangName, strValue)
-			repeatsABit(framebarNameFull, strValue)
-			repeatsABit(framebarNameSelector, selectFramebarNameValue)
-			repeatsABit(framebarSlangNameSelector, selectFramebarNameValue)
-			repeatsABit(isInVariableStartupSection, isIdleValue)
-			repeatsABit(canStopHolding, isIdleValue)
-			repeatsABit(aSectionBeforeVariableStartup, isIdleValue)
-			repeatsABit(considerNewSectionAsBeingInVariableStartup, boolValue)
-			repeatsABit(considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot, boolValue)
-			repeatsABit(considerVariableStartupAsStanceForFramebar, boolValue)
-			repeatsABit(canBeUnableToBlockIndefinitelyOrForVeryLongTime, boolValue)
-			repeatsABit(isRecoveryHasGatlings, isIdleValue)
-			repeatsABit(isRecoveryCanAct, isIdleValue)
-			repeatsABit(canFaultlessDefend, isIdleValue)
-			repeatsABit(nameIncludesInputs, boolValue)
-			repeatsABit(ignoresHitstop, boolValue)
-			repeatsABit(frontLegInvul, isIdleValue)
-			repeatsABit(forceAddWhiffCancelsStart, intValue)
-			repeatsABit(forceAddWhiffCancelsCount, intValue)
-			repeatsABit(isRecoveryCanReload, isIdleValue)
-			repeatsABit(onlyAddForceWhiffCancelsOnFirstFrameOfSprite, strValue)
-			repeatsABit(zatoHoldLevel, zatoHoldLevelValue)
-			repeatsABit(conditionForAddingWhiffCancels, isIdleValue)
-			repeatsABit(caresAboutWall, boolValue)
-			repeatsABit(faustPogo, boolValue)
-			repeatsABit(displayNameIfIdle, strValue)
-			repeatsABit(displayNameIfIdleSlang, strValue)
-			repeatsABit(butForFramebarDontCombineWithPreviousMove, boolValue)
-			repeatsABit(replacementInputs, strValue)
-			repeatsABit(replacementBufferTime, intValue)
-			repeatsABit(whiffCancelsNote, strValue)
-			repeatsABit(secondaryStartup, isIdleValue)
-			repeatsABit(forceLandingRecovery, boolValue)
-			repeatsABit(isGrab, boolValue)
-			repeatsABit(partOfStance, boolValue)
-			#undef repeatsABit
-		}
-		++prop;
-	}
-	if (!canBlock && isIdle) canBlock = isIdle;
-	if (!isIdle) isIdle = isIdle_default;
-	if (!canBlock) canBlock = canBlock_default;
 }
 
 bool sectionSeparator_enableWhiffCancels(PlayerInfo& ent) {
@@ -6829,20 +6935,6 @@ BYTE* Moves::findCreateObj(BYTE* in, const char* name) const {
 	}
 }
 
-BYTE* Moves::findSpriteNull(BYTE* in) const {
-	while (true) {
-		InstructionType type = instructionType(in);
-		if (type == instr_endState) {
-			return nullptr;
-		}
-		if (type == instr_sprite
-				&& strcmp((const char*)(in + 4), "null") == 0) {
-			return in;
-		}
-		in += bbscrInstructionSizes[type];
-	}
-}
-
 BYTE* Moves::findSpriteNonNull(BYTE* in) const {
 	while (true) {
 		InstructionType type = instructionType(in);
@@ -6851,6 +6943,20 @@ BYTE* Moves::findSpriteNonNull(BYTE* in) const {
 		}
 		if (type == instr_sprite
 				&& strcmp((const char*)(in + 4), "null") != 0) {
+			return in;
+		}
+		in += bbscrInstructionSizes[type];
+	}
+}
+
+BYTE* Moves::findSprite(BYTE* in, const char* name) const {
+	while (true) {
+		InstructionType type = instructionType(in);
+		if (type == instr_endState) {
+			return nullptr;
+		}
+		if (type == instr_sprite
+				&& strcmp((const char*)(in + 4), name) == 0) {
 			return in;
 		}
 		in += bbscrInstructionSizes[type];
@@ -6985,6 +7091,10 @@ bool isDangerous_rsfMeishi(Entity ent) {
 
 bool isDangerous_displayModel(Entity ent) {
 	return ent.displayModel();
+}
+bool isDangerous_vacuumAtk(Entity ent) {
+	return ent.currentHitNum() > 0 && ent.hitOccured() < ent.theValueHitOccuredIsComparedAgainst()
+		|| ent.currentHitNum() == 0 && ent.currentAnimDuration() <= 2 && ent.enemyEntity().inHitstun();
 }
 
 const char* nameSelector_iceSpike(Entity ent) {
@@ -7183,4 +7293,59 @@ bool secondaryStartup_saishingeki(PlayerInfo& ent) {
 		return currentInstr >= funcStart + moves.saishingeki_SaishintuikaOffset
 			&& currentInstr < funcStart + moves.saishingeki_SaishintuikaEndOffset;
 	}
+}
+
+bool isRecovery_daisenpu(PlayerInfo& ent) {
+	return ent.pawn.currentHitNum() >= 10;
+}
+bool isRecovery_RTL(PlayerInfo& ent) {
+	return ent.pawn.currentHitNum();
+}
+bool isRecovery_sinRTL(PlayerInfo& ent) {
+	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
+	bool isAir = strncmp(ent.pawn.animationName(), "Air", 3) == 0;
+	int* offset = moves.sinRtl_end_air_offset + isAir;
+	if (*offset == 0) {
+		BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "end_air");
+		if (!markerPos) return false;
+		*offset = markerPos - funcStart;
+	}
+	if (*offset == 0) return false;
+	BYTE* currentInstr = ent.pawn.bbscrCurrentInstr();
+	return currentInstr >= funcStart + *offset;
+}
+bool isRecovery_recovery(PlayerInfo& ent) {
+	return ent.pawn.isRecoveryState();
+}
+bool isRecovery_zanseiRouga(PlayerInfo& ent) {
+	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
+	if (moves.zanseiRougaRecoveryOffset == 0) {
+		BYTE* spritePos = moves.findSprite(funcStart, "chp431_17");
+		if (!spritePos) return false;
+		moves.zanseiRougaRecoveryOffset = spritePos - funcStart;
+	}
+	if (!moves.zanseiRougaRecoveryOffset) return false;
+	BYTE* currentInstr = ent.pawn.bbscrCurrentInstr();
+	return currentInstr > funcStart + moves.zanseiRougaRecoveryOffset;
+}
+bool isRecovery_land(PlayerInfo& ent) {
+	return ent.pawn.y() == 0;
+}
+bool isRecovery_byakueRenshou(PlayerInfo& ent) {
+	return ent.wasEnableWhiffCancels;
+}
+
+bool forceSuperHitAnyway_zanseiRouga(PlayerInfo& ent) {
+	return ent.pawn.hideUI();
+}
+bool forceSuperHitAnyway_hououshou(PlayerInfo& ent) {
+	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
+	if (moves.hououshouHitOffset == 0) {
+		BYTE* markerPos = moves.findSetMarker(funcStart, "hit");
+		if (!markerPos) return false;
+		moves.hououshouHitOffset = markerPos - funcStart;
+	}
+	if (!moves.hououshouHitOffset) return false;
+	BYTE* currentInstr = ent.pawn.bbscrCurrentInstr();
+	return currentInstr >= funcStart + moves.hououshouHitOffset;
 }

@@ -88,7 +88,10 @@ enum MoveInfoPropertyType {
 	MoveInfoPropertyType_secondaryStartup,
 	MoveInfoPropertyType_forceLandingRecovery,
 	MoveInfoPropertyType_isGrab,
-	MoveInfoPropertyType_partOfStance
+	MoveInfoPropertyType_partOfStance,
+	MoveInfoPropertyType_dontSkipSuper,
+	MoveInfoPropertyType_iKnowExactlyWhenTheRecoveryOfThisMoveIs,
+	MoveInfoPropertyType_forceSuperHitAnyway,
 };
 
 struct MoveInfoProperty {
@@ -115,6 +118,11 @@ struct MoveInfoStored {
 };
 
 struct MoveInfo {
+	CharacterType charType;
+	const char* name;
+	bool isEffect;
+	
+	
 	bool combineWithPreviousMove = false;
 	bool usePlusSignInCombination = false;
 	const char* displayName = nullptr;
@@ -165,10 +173,10 @@ struct MoveInfo {
 	bool forceLandingRecovery = false;
 	bool isGrab = false;
 	bool partOfStance = false;
+	bool dontSkipSuper = false;
+	isIdle_t iKnowExactlyWhenTheRecoveryOfThisMoveIs = nullptr;
+	isIdle_t forceSuperHitAnyway = nullptr;
 	
-	CharacterType charType;
-	const char* name;
-	bool isEffect;
 	inline MoveInfo() : isIdle(isIdle_default), canBlock(canBlock_default) { }
 	MoveInfo(const MoveInfoStored& info);
 	inline MoveInfo(CharacterType charType, const char* name, bool isEffect = false) : charType(charType), name(name), isEffect(isEffect) { }
@@ -197,12 +205,16 @@ public:
 	BYTE* findSetMarker(BYTE* in, const char* name) const;
 	BYTE* findNextMarker(BYTE* in, const char** name) const;
 	BYTE* findCreateObj(BYTE* in, const char* name) const;
-	BYTE* findSpriteNull(BYTE* in) const;
+	BYTE* findSprite(BYTE* in, const char* name) const;
+	inline BYTE* findSpriteNull(BYTE* in) const { return findSprite(in, "null"); }
 	BYTE* findSpriteNonNull(BYTE* in) const;
 	int armorDanceEndOffset = 0;  // in number of bytes
 	int armorDance2EndOffset = 0;
 	int saishingeki_SaishintuikaOffset = 0;
 	int saishingeki_SaishintuikaEndOffset = 0;
+	int sinRtl_end_air_offset[2] = { 0 };
+	int zanseiRougaRecoveryOffset = 0;
+	int hououshouHitOffset = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

@@ -6072,7 +6072,10 @@ void UI::framebarHelpWindow() {
 			" By default it is set to true, meaning similar frame types of startup or recovery are counted as one range of frames."
 			" When the number of frames is double or triple digit"
 			" and does not fit, it may be broken up into 1-2 digit on one side + 1-2 digits on the other side. The way you should"
-			" read this is as one whole number: the pieces on the right are the higher digits, and pieces on the left are the lower ones."
+			" read this is as one whole number: the pieces on the right are the higher digits, and pieces on the left are the lower ones.\n"
+			"\n"
+			"When using \"skipGrabsInFramebar\", which is the default, white stitches will be displayed on the framebar in places where"
+			" a grab or a super animation was skipped."
 		);
 	}
 	
@@ -7862,6 +7865,7 @@ static const char* skippedFramesTypeToString(SkippedFramesType type) {
 		case SKIPPED_FRAMES_SUPERFREEZE: return "superfreeze";
 		case SKIPPED_FRAMES_HITSTOP: return "hitstop";
 		case SKIPPED_FRAMES_GRAB: return "grab anim";
+		case SKIPPED_FRAMES_SUPER: return "super";
 		default: return "something";
 	}
 }
@@ -8464,21 +8468,87 @@ void UI::drawFramebars() {
 	}
 	
 	if (framesXEnd > framesX) {
+		float highlighterStartY = currentPositionHighlighterStartY
+					- outerBorderThickness
+					- framebarCurrentPositionHighlighterStickoutDistance;
+		
+		float highlighterEndY = drawFramebars_y
+					- outerBorderThickness
+					- paddingBetweenFramebars
+					+ framebarCurrentPositionHighlighterStickoutDistance;
+		
 		drawFramebars_drawList->AddRectFilled(
 			{
 				highlighterStartX,
-				currentPositionHighlighterStartY
-					- outerBorderThickness
-					- framebarCurrentPositionHighlighterStickoutDistance
+				highlighterStartY
 			},
 			{
 				highlighterEndX,
-				drawFramebars_y
-					- outerBorderThickness
-					- paddingBetweenFramebars
-					+ framebarCurrentPositionHighlighterStickoutDistance
+				highlighterEndY
 			},
 			ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));
+		
+		bool needInitStitchParams = true;
+		static const float distanceBetweenStitches = 4.F;
+		static const float stitchSize = 3.F;
+		static int visiblePreviousStitchesAtTheTopOfAStitch = -1;
+		static const float stitchThickness = 1.F;
+		float stitchStartYWithWindowClipping;
+		int stitchCount;
+		
+		for (int i = 0; i < _countof(Framebar::frames); ++i) {
+			
+			const SkippedFramesInfo& skippedInfo = skippedFrames[i];
+			if (!skippedInfo.count) {
+				continue;
+			}
+			SkippedFramesType skippedType = skippedInfo.elements[skippedInfo.count - 1].type;
+			if (!(skippedInfo.overflow || skippedType == SKIPPED_FRAMES_GRAB || skippedType == SKIPPED_FRAMES_SUPER)) {
+				continue;
+			}
+			if (needInitStitchParams) {
+				if (visiblePreviousStitchesAtTheTopOfAStitch == -1) {
+					if (distanceBetweenStitches >= stitchSize) {
+						visiblePreviousStitchesAtTheTopOfAStitch = 0;
+					} else {
+						visiblePreviousStitchesAtTheTopOfAStitch = (int)std::floor(stitchSize / distanceBetweenStitches);
+					}
+				}
+				needInitStitchParams = false;
+				float windowViewableRegionStartY = drawFramebars_windowPos.y;
+				float windowViewableRegionEndY = drawFramebars_windowPos.y + windowHeight;
+				stitchStartYWithWindowClipping = highlighterStartY;
+				float stitchEndYWithWindowClipping = highlighterEndY;
+				if (stitchStartYWithWindowClipping < windowViewableRegionStartY) {
+					float countFitIn = std::floor((windowViewableRegionStartY - stitchStartYWithWindowClipping) / distanceBetweenStitches);
+					stitchStartYWithWindowClipping += countFitIn * distanceBetweenStitches;
+				}
+				if (stitchEndYWithWindowClipping > windowViewableRegionEndY) {
+					stitchEndYWithWindowClipping = windowViewableRegionEndY;
+				}
+				stitchCount = (int)std::ceil((stitchEndYWithWindowClipping - stitchStartYWithWindowClipping) / distanceBetweenStitches);
+				if (stitchCount <= 0) break;
+				stitchStartYWithWindowClipping -= (float)visiblePreviousStitchesAtTheTopOfAStitch * distanceBetweenStitches;
+				stitchCount += visiblePreviousStitchesAtTheTopOfAStitch;
+			}
+			float stitchY = stitchStartYWithWindowClipping;
+			float stitchX = preppedDims[i].x - stitchSize * 0.5F;
+			float stitchEndX = preppedDims[i].x + stitchSize * 0.5F;
+			for (int j = 0; j < stitchCount; ++j) {
+				drawFramebars_drawList->AddLine(
+					{
+						stitchX,
+						stitchY
+					},
+					{
+						stitchX + stitchSize,
+						stitchY + stitchSize
+					},
+					ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)),
+					stitchThickness);
+				stitchY += distanceBetweenStitches;
+			}
+		}
 	}
 	
 	if (drawFramebars_hoveredFrameIndex != -1) {

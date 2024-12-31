@@ -1176,7 +1176,11 @@ struct PlayerInfo {
 	bool receivedNewDmgCalcOnThisFrame:1;
 	bool blockedAHitOnThisFrame:1;
 	bool rcProration:1;
-	bool burstGainOnly20Percent;
+	bool burstGainOnly20Percent:1;
+	bool performingASuper:1;
+	bool startedSuperWhenComboing:1;
+	bool prevGettingHitBySuper:1;
+	bool gettingHitBySuper:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
