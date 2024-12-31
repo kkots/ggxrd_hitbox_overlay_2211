@@ -144,6 +144,27 @@ using FRenderCommandDestructor_t = void(__thiscall*)(void* thisArg, BOOL freeMem
 
 LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+enum SkippedFramesType : char {
+	SKIPPED_FRAMES_SUPERFREEZE,
+	SKIPPED_FRAMES_HITSTOP,
+	SKIPPED_FRAMES_GRAB
+};
+
+struct SkippedFramesElement {
+	SkippedFramesType type;
+	unsigned short count;
+};
+
+struct SkippedFramesInfo {
+	SkippedFramesElement elements[4];
+	char count:7;
+	char overflow:1;
+	void addFrame(SkippedFramesType type);
+	void clear();
+	void transitionToOverflow();
+	void print(bool canBlockButNotFD) const;
+};
+
 class EndScene
 {
 public:
@@ -238,6 +259,7 @@ public:
 	int getRCSlowdownCounterMax();
 	inline bool isIGiveUp() const { return iGiveUp; }
 	bool needDrawInputs = false;
+	const std::vector<SkippedFramesInfo>& getSkippedFrames(bool hitstop) const;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -442,6 +464,14 @@ private:
 	void prepareInputs();
 	InputRingBuffer prevInputRingBuffers[2] { };
 	InputRingBufferStored inputRingBuffersStored[2] { };
+	std::vector<SkippedFramesInfo> skippedFrames;
+	std::vector<SkippedFramesInfo> skippedFramesIdle;
+	std::vector<SkippedFramesInfo> skippedFramesHitstop;
+	std::vector<SkippedFramesInfo> skippedFramesIdleHitstop;
+	SkippedFramesInfo nextSkippedFrames;
+	SkippedFramesInfo nextSkippedFramesIdle;
+	SkippedFramesInfo nextSkippedFramesHitstop;
+	SkippedFramesInfo nextSkippedFramesIdleHitstop;
 };
 
 extern EndScene endScene;

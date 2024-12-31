@@ -221,11 +221,9 @@ struct FrameBase {
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
 struct Frame : public FrameBase {
-	short skippedSuperfreeze;  // this value is same for all framebars and happens rarely. However if we start allocating vectors for each nuance like this how much will we actually save?
 	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
 	unsigned char hitstopMax;
-	unsigned char skippedHitstop;
 	unsigned short rcSlowdown:6;
 	unsigned short isFirst:1;
 	unsigned short hitConnected:1;  // true only for the frame on which a hit connected
@@ -244,13 +242,11 @@ struct PlayerFrame : public FrameBase {
 		ChippInfo chippInfo;
 		DIInfo diInfo;
 	} u;
-	short skippedSuperfreeze;
 	short poisonDuration;
 	FrameStopInfo stop;
 	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
 	unsigned char hitstopMax;
-	unsigned char skippedHitstop;
 	unsigned char rcSlowdown;
 	unsigned char rcSlowdownMax;
 	unsigned char doubleJumps:4;
@@ -319,7 +315,6 @@ struct FramebarBase {
 	virtual FrameBase& getFrame(int index) = 0;
 	FrameType preFrame = FT_NONE;
 	DWORD preFrameLength = 0;
-	int skippedHitstop = 0;
 	bool requestFirstFrame = false;
 	bool requestNextHit = false;
 	bool completelyEmpty = false;
@@ -415,6 +410,7 @@ struct EntityFramebar {
 		bool stopAtFirstFrame = false) = 0;
 	static int confinePos(int pos);
 	inline static int posMinusOne(int pos) { if (pos == 0) return _countof(PlayerFramebar::frames) - 1; else return pos - 1; }
+	inline static int posPlusOne(int pos) { if (pos == _countof(PlayerFramebar::frames) - 1) return 0; else return pos + 1; }
 	inline static void decrementPos(int& pos) { if (pos == 0) pos = _countof(PlayerFramebar::frames) - 1; else --pos; }
 	inline static void incrementPos(int& pos) { if (pos == _countof(PlayerFramebar::frames) - 1) pos = 0; else ++pos; }
 	inline bool belongsToProjectile() const { return id != -1; }

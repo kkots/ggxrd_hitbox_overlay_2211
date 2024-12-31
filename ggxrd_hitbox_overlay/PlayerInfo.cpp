@@ -1905,10 +1905,6 @@ inline void processRequests(FramebarT* framebar, FrameT& destinationFrame) {
 		destinationFrame.isFirst = true;
 		framebar->requestFirstFrame = false;
 	}
-	if (framebar->skippedHitstop) {
-		destinationFrame.skippedHitstop = framebar->skippedHitstop;
-		framebar->skippedHitstop = 0;
-	}
 	if (framebar->requestNextHit) {
 		destinationFrame.newHit = true;
 		framebar->requestNextHit = false;
@@ -2078,11 +2074,12 @@ void Framebar::catchUpToIdle(FramebarBase& source, int destinationStartingPositi
 
 void PlayerFramebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) {
 	PlayerFramebar& cast = (PlayerFramebar&) source;
+	int ind = EntityFramebar::posPlusOne(destinationStartingPosition);
 	for (int i = 1; i <= framesToCatchUpFor; ++i) {
-		int ind = (destinationStartingPosition + i) % _countof(Framebar::frames);
 		soakUpIntoPreFrame(frames[ind]);
 		frames[ind] = cast[ind];
 		frames[ind].cancels = cast[ind].cancels;
+		EntityFramebar::incrementPos(ind);
 	}
 	copyRequests(source);
 }
@@ -2229,8 +2226,6 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 		df.newHit = df.newHit | sf.newHit;
 		df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
 		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
-		df.skippedHitstop = sf.skippedHitstop;
-		df.skippedSuperfreeze = sf.skippedSuperfreeze;
 		df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
 	}
 	if (source.preFrameLength) {

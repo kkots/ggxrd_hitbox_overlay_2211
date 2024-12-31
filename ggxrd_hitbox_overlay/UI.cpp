@@ -6348,7 +6348,8 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 }
 
 template<typename FramebarT, typename FrameT>
-inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex) {
+inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
+			const std::vector<SkippedFramesInfo>& skippedFrames) {
 	const bool useSlang = settings.useSlangNames;
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
 		const FrameT& frame = framebar[i];
@@ -6485,26 +6486,11 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							ImGui::TextUnformatted(strbuf);
 						}
 					}
-					if (frame.skippedSuperfreeze || frame.skippedHitstop || frame.rcSlowdown || frame.hitConnected || frame.newHit) {
+					const SkippedFramesInfo& skippedFramesElem = skippedFrames[i];
+					if (skippedFramesElem.count || frame.rcSlowdown || frame.hitConnected || frame.newHit) {
 						ImGui::Separator();
-						if (frame.skippedSuperfreeze && frame.skippedHitstop) {
-							textUnformattedColored(YELLOW_COLOR, "Since previous displayed frame, skipped:");
-							sprintf_s(strbuf, "%df superfreeze;", frame.skippedSuperfreeze);
-							ImGui::TextUnformatted(strbuf);
-							sprintf_s(strbuf, "%df hitstop.", frame.skippedHitstop);
-							ImGui::TextUnformatted(strbuf);
-						} else if (frame.skippedSuperfreeze || frame.skippedHitstop) {
-							sprintf_s(strbuf, "Since previous displayed frame, skipped %df %s.",
-								frame.skippedSuperfreeze + frame.skippedHitstop,
-								frame.skippedSuperfreeze ? "superfreeze" : "hitstop");
-							ImGui::TextUnformatted(strbuf);
-							if (frameAssumesCanBlockButCantFDAfterSuperfreeze(frame.type)) {
-								ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-								ImGui::TextUnformatted("Note that cancelling a dash into FD or covering a jump with FD or using FD in general,"
-									" including to avoid chip damage, is impossible on this frame, because it immediately follows a superfreeze."
-									" Generally doing anything except throw or normal block/IB is impossible in such situations.");
-								ImGui::PopStyleColor();
-							}
+						if (skippedFramesElem.count) {
+							skippedFramesElem.print(frameAssumesCanBlockButCantFDAfterSuperfreeze(frame.type));
 						}
 						if (frame.newHit) {
 							ImGui::TextUnformatted("A new (potential) hit starts on this frame.");
@@ -6528,12 +6514,14 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 	}
 }
 
-void drawPlayerFramebar(const PlayerFramebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex) {
-	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, framebarPosition, tintDarker, playerIndex);
+void drawPlayerFramebar(const PlayerFramebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
+			const std::vector<SkippedFramesInfo>& skippedFrames) {
+	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, framebarPosition, tintDarker, playerIndex, skippedFrames);
 }
 
-void drawProjectileFramebar(const Framebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker) {
-	drawFramebar<Framebar, Frame>(framebar, preppedDims, framebarPosition, tintDarker, -1);
+void drawProjectileFramebar(const Framebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker,
+			const std::vector<SkippedFramesInfo>& skippedFrames) {
+	drawFramebar<Framebar, Frame>(framebar, preppedDims, framebarPosition, tintDarker, -1, skippedFrames);
 }
 
 template<typename FramebarT, typename FrameT>
@@ -7790,6 +7778,40 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 	return x;
 }
 
+static const char* skippedFramesTypeToString(SkippedFramesType type) {
+	switch (type) {
+		case SKIPPED_FRAMES_SUPERFREEZE: return "superfreeze";
+		case SKIPPED_FRAMES_HITSTOP: return "hitstop";
+		case SKIPPED_FRAMES_GRAB: return "grab anim";
+		default: return "something";
+	}
+}
+
+void SkippedFramesInfo::print(bool canBlockButNotFD) const {
+	if (overflow) {
+		sprintf_s(strbuf, "Since previous displayed frame, skipped %df", elements[0].count);
+		ImGui::TextUnformatted(strbuf);
+		return;
+	}
+	if (count == 1) {
+		sprintf_s(strbuf, "Since previous displayed frame, skipped %df %s", elements[0].count, skippedFramesTypeToString(elements[0].type));
+		ImGui::TextUnformatted(strbuf);
+	} else {
+		textUnformattedColored(YELLOW_COLOR, "Since previous displayed frame, skipped:");
+		for (int i = 0; i < count; ++i) {
+			sprintf_s(strbuf, "%df %s;", elements[i].count, skippedFramesTypeToString(elements[i].type));
+			ImGui::TextUnformatted(strbuf);
+		}
+	}
+	if (elements[count - 1].type == SKIPPED_FRAMES_SUPERFREEZE && canBlockButNotFD) {
+		ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+		ImGui::TextUnformatted("Note that cancelling a dash into FD or covering a jump with FD or using FD in general,"
+			" including to avoid chip damage, is impossible on this frame, because it immediately follows a superfreeze."
+			" Generally doing anything except throw or normal block/IB is impossible in such situations.");
+		ImGui::PopStyleColor();
+	}
+}
+
 void UI::drawFramebars() {
 	static ImVec2 selStart { 0.F, 0.F };
 	static ImVec2 selEnd { 0.F, 0.F };
@@ -8051,6 +8073,7 @@ void UI::drawFramebars() {
 	
 	const bool showPlayerInFramebarTitle = settings.showPlayerInFramebarTitle;
 	const int framebarTitleCharsMax = settings.framebarTitleCharsMax;
+	const std::vector<SkippedFramesInfo>& skippedFrames = endScene.getSkippedFrames(settings.neverIgnoreHitstop);
 	
 	if (showPlayerInFramebarTitle || framebarTitleCharsMax > 0) {
 		ImGui::PushClipRect(
@@ -8240,9 +8263,9 @@ void UI::drawFramebars() {
 		if (framesXEnd > framesX) {
 			
 			if (entityFramebar.belongsToPlayer()) {
-				drawPlayerFramebar((const PlayerFramebar&)framebar, preppedDims, framebarPosition, tintDarker, entityFramebar.playerIndex);
+				drawPlayerFramebar((const PlayerFramebar&)framebar, preppedDims, framebarPosition, tintDarker, entityFramebar.playerIndex, skippedFrames);
 			} else {
-				drawProjectileFramebar((const Framebar&)framebar, preppedDims, framebarPosition, tintDarker);
+				drawProjectileFramebar((const Framebar&)framebar, preppedDims, framebarPosition, tintDarker, skippedFrames);
 			}
 			
 			{

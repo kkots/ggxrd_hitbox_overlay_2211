@@ -499,6 +499,16 @@ bool EndScene::onDllMain() {
 		inputRingBuffersStored[i].resize(100);
 	}
 	
+	#define initializeSkippedFrames(skippedF) \
+		skippedF.resize(_countof(Framebar::frames)); \
+		memset(skippedF.data(), 0, _countof(Framebar::frames) * sizeof SkippedFramesInfo);
+		
+	initializeSkippedFrames(skippedFrames)
+	initializeSkippedFrames(skippedFramesIdle)
+	initializeSkippedFrames(skippedFramesHitstop)
+	initializeSkippedFrames(skippedFramesIdleHitstop)
+	#undef initializeSkippedFrames
+	
 	return !error;
 }
 
@@ -1851,7 +1861,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool atLeastOneNotInHitstop = false;
 			bool atLeastOneBusy = false;
 			bool atLeastOneDangerousProjectilePresent = false;
-			bool atLeastDoingGrab = false;
+			bool atLeastOneDoingGrab = false;
 			for (int i = 0; i < 2; ++i) {
 				PlayerInfo& player = players[i];
 				if (
@@ -1864,7 +1874,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							|| !player.wasCancels.whiffCancels.empty()
 						)
 				) {
-					atLeastDoingGrab = true;
+					atLeastOneDoingGrab = true;
 				}
 				if (!player.hitstop
 						|| player.charType == CHARACTER_TYPE_BAIKEN
@@ -1980,14 +1990,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			
-			if (atLeastDoingGrab) {
+			SkippedFramesType skippedType = SKIPPED_FRAMES_HITSTOP;
+			if (atLeastOneDoingGrab) {
+				skippedType = SKIPPED_FRAMES_GRAB;
 				atLeastOneBusy = false;
 				atLeastOneNotInHitstop = false;
+				atLeastOneDangerousProjectilePresent = false;
 			}
 			
 			if (getSuperflashInstigator() == nullptr) {
 				if (atLeastOneBusy || atLeastOneDangerousProjectilePresent) {
 					if (framebarIdleHitstopFor > framebarIdleForLimit) {
+						
+						memset(skippedFramesHitstop.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+						memset(skippedFramesIdleHitstop.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+						
+						nextSkippedFramesHitstop.clear();
+						nextSkippedFramesIdleHitstop.clear();
+						
 						framebarPositionHitstop = 0;
 						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
@@ -2001,6 +2021,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 					} else {
 						if (framebarIdleHitstopFor) {
+							
+							int ind = EntityFramebar::posPlusOne(framebarPositionHitstop);
+							for (int i = 1; i <= framebarIdleHitstopFor; ++i) {
+								skippedFramesHitstop[ind] = skippedFramesIdleHitstop[ind];
+								EntityFramebar::incrementPos(ind);
+							}
+							nextSkippedFramesHitstop = nextSkippedFramesIdleHitstop;
+							
 							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 								bool isPlayer = entityFramebar.belongsToPlayer();
@@ -2010,6 +2038,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							framebarPositionHitstop %= _countof(Framebar::frames);
 						}
 						EntityFramebar::incrementPos(framebarPositionHitstop);
+						
+						skippedFramesHitstop[framebarPositionHitstop] = nextSkippedFramesHitstop;
+						nextSkippedFramesHitstop.clear();
+						skippedFramesIdleHitstop[framebarPositionHitstop] = nextSkippedFramesIdleHitstop;
+						nextSkippedFramesIdleHitstop.clear();
+						
 						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 							entityFramebar.getHitstop().soakUpIntoPreFrame(entityFramebar.getHitstop().getFrame(framebarPositionHitstop));
@@ -2028,6 +2062,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					
 					if (atLeastOneNotInHitstop) {
 						if (framebarIdleFor > framebarIdleForLimit) {
+							
+							memset(skippedFrames.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+							memset(skippedFramesIdle.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+							
+							nextSkippedFrames.clear();
+							nextSkippedFramesIdle.clear();
+							
 							framebarPosition = 0;
 							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
@@ -2041,6 +2082,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							}
 						} else {
 							if (framebarIdleFor) {
+								
+								int ind = EntityFramebar::posPlusOne(framebarPosition);
+								for (int i = 1; i <= framebarIdleFor; ++i) {
+									skippedFrames[ind] = skippedFramesIdle[ind];
+									EntityFramebar::incrementPos(ind);
+								}
+								nextSkippedFrames = nextSkippedFramesIdle;
+								
 								for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 									EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 									bool isPlayer = entityFramebar.belongsToPlayer();
@@ -2050,6 +2099,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								framebarPosition %= _countof(Framebar::frames);
 							}
 							EntityFramebar::incrementPos(framebarPosition);
+							
+							skippedFrames[framebarPosition] = nextSkippedFrames;
+							nextSkippedFrames.clear();
+							skippedFramesIdle[framebarPosition] = nextSkippedFramesIdle;
+							nextSkippedFramesIdle.clear();
+							
 							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 								FrameBase& mainFrame = entityFramebar.getMain().getFrame(framebarPosition);
@@ -2066,19 +2121,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						framebarIdleFor = 0;
 						framebarAdvanced = true;
 						framebarAdvancedIdle = true;
-					} else {
-						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
-							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-							++entityFramebar.getMain().skippedHitstop;
-							++entityFramebar.getIdle().skippedHitstop;
-						}
+					} else {  // if not  atLeastOneNotInHitstop
+						nextSkippedFrames.addFrame(SKIPPED_FRAMES_HITSTOP);
+						nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_HITSTOP);
 					}
-				} else {
+				} else {  // if not atLeastOneBusy || atLeastOneDangerousProjectilePresent
 					framebarAdvancedIdleHitstop = true;
 					++framebarIdleHitstopFor;
+					int confinedPos = EntityFramebar::confinePos(framebarPositionHitstop + framebarIdleHitstopFor);
+					skippedFramesIdleHitstop[confinedPos] = nextSkippedFramesIdleHitstop;
+					nextSkippedFramesIdleHitstop.clear();
 					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-						int confinedPos = EntityFramebar::confinePos(framebarPositionHitstop + framebarIdleHitstopFor);
 						entityFramebar.getIdleHitstop().soakUpIntoPreFrame(entityFramebar.getIdleHitstop().getFrame(confinedPos));
 						if (entityFramebar.belongsToPlayer()) {
 							PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
@@ -2088,25 +2142,28 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (atLeastOneNotInHitstop) {
 						framebarAdvancedIdle = true;
 						++framebarIdleFor;
+						confinedPos = EntityFramebar::confinePos(framebarPosition + framebarIdleFor);
+						skippedFramesIdle[confinedPos] = nextSkippedFramesIdle;
+						nextSkippedFramesIdle.clear();
 						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-							int confinedPos = EntityFramebar::confinePos(framebarPosition + framebarIdleFor);
 							FrameBase& frame = entityFramebar.getIdle().getFrame(confinedPos);
 							entityFramebar.getIdle().soakUpIntoPreFrame(frame);
-							entityFramebar.getMain().skippedHitstop = 0;
 							if (entityFramebar.belongsToPlayer()) {
 								PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
 								framebarCast.idle.clearCancels(confinedPos);
 							}
 						}
-					} else {
-						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
-							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-							++entityFramebar.getMain().skippedHitstop;
-							++entityFramebar.getIdle().skippedHitstop;
-						}
+					} else {  // if not atLeastOneNotInHitstop
+						nextSkippedFrames.addFrame(skippedType);
+						nextSkippedFramesIdle.addFrame(skippedType);
 					}
 				}
+			} else {  // if not getSuperflashInstigator() == nullptr
+				nextSkippedFrames.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
+				nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
+				nextSkippedFramesHitstop.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
+				nextSkippedFramesIdleHitstop.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
 			}
 		}
 		
@@ -2869,7 +2926,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.enableSpecials = false;
 				player.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
 				currentFrame.cancels = player.wasCancels;
-				currentFrame.skippedSuperfreeze = min(superfreezeHasBeenGoingFor, SHRT_MAX);
 				currentFrame.hitstop = player.hitstop;
 				currentFrame.hitstopMax = player.hitstopMax;
 				if (player.blockstun) {
@@ -5979,4 +6035,42 @@ void EndScene::prepareInputs() {
 	#ifdef LOG_PATH
 	loggedDrawingInputsOnce = true;
 	#endif
+}
+
+const std::vector<SkippedFramesInfo>& EndScene::getSkippedFrames(bool hitstop) const {
+	return hitstop ? skippedFramesHitstop : skippedFrames;
+}
+
+void SkippedFramesInfo::addFrame(SkippedFramesType type) {
+	if (overflow) {
+		++elements[0].count;
+		return;
+	}
+	if (count == _countof(elements)) {
+		if (elements[_countof(elements) - 1].type == type) {
+			++elements[_countof(elements) - 1].count;
+		} else {
+			transitionToOverflow();
+			addFrame(type);
+			return;
+		}
+	} else if (count && elements[count - 1].type == type) {
+		++elements[count - 1].count;
+	} else {
+		elements[count].type = type;
+		elements[count].count = 1;
+		++count;
+	}
+}
+
+void SkippedFramesInfo::clear() {
+	count = 0;
+	overflow = false;
+}
+
+void SkippedFramesInfo::transitionToOverflow() {
+	overflow = true;
+	for (int i = 1; i < count; ++i) {
+		elements[0].count += elements[i].count;
+	}
 }
