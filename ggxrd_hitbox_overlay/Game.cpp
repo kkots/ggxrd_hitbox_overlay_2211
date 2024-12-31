@@ -28,7 +28,7 @@ bool Game::onDllMain() {
 		"GuiltyGearXrd.exe",
 		"33 C0 38 41 44 0F 95 C0 C3 CC",
 		{-4, 0},
-		NULL, "gameDataPtr");
+		&error, "gameDataPtr");
 
 	playerSideNetworkHolder = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -127,7 +127,10 @@ bool Game::onDllMain() {
 		"8d bd a4 04 00 00 bd 02 00 00 00 90 8b 0f 3b cb 74 05 e8 ?? ?? ?? ?? 83 c7 04 4d 75 ef ff 86",
 		{ 31, 0 },
 		&error, "aswEngineTickCountOffset");
-	if (aswEngineTickCountOffset) dangerTimeOffset = aswEngineTickCountOffset - 0x2dc;
+	if (aswEngineTickCountOffset) {
+		dangerTimeOffset = aswEngineTickCountOffset - 0x2dc;
+		matchInfoOffset = aswEngineTickCountOffset + 0x284;
+	}
 	
 
 	std::vector<char> sig;
@@ -433,7 +436,7 @@ char Game::getPlayerSide() const {
 		if (!playerSideNetworkHolder) return 2;
 		// Big thanks to WorseThanYou for finding this value
 		return *(char*)(*playerSideNetworkHolder + 0x1734);  // 0 for p1 side, 1 for p2 side, 2 for observer
-	} else if (gameDataPtr && *gameDataPtr) {
+	} else if (*gameDataPtr) {
 		return *(char*)(*gameDataPtr + 0x44);  // this makes sense for training mode for example (maybe only all single player modes)
 	} else {
 		return 2;
@@ -441,13 +444,13 @@ char Game::getPlayerSide() const {
 }
 
 GameMode Game::getGameMode() const {
-	if (!gameDataPtr || !(*gameDataPtr)) return GAME_MODE_TRAINING;
+	if (!*gameDataPtr) return GAME_MODE_TRAINING;
 	return (GameMode)*(*gameDataPtr + 0x45);
 }
 
 bool Game::isMatchRunning() const {
 	if (!*aswEngine) return false;
-	return *(unsigned int*)(*aswEngine + 4 + 0x1c71f0 + 0x12C) != 0; // thanks to WorseThanYou for finding this
+	return *(unsigned int*)(*aswEngine + 4 + matchInfoOffset + 0x12C) != 0; // thanks to WorseThanYou for finding this
 }
 
 bool Game::isTrainingMode() const {
@@ -751,17 +754,17 @@ bool Game::isStylish(Entity pawn) const {
 }
 
 int Game::getStylishDefenseInverseModifier() const {
-	if (!stylishDefenseInverseModifierOffset || !aswEngine || !*aswEngine) return 100;
+	if (!stylishDefenseInverseModifierOffset || !*aswEngine) return 100;
 	return *(int*)(*aswEngine + stylishDefenseInverseModifierOffset);
 }
 
 int Game::getStylishBurstGainModifier() const {
-	if (!stylishBurstGainModifierOffset || !aswEngine || !*aswEngine) return 100;
+	if (!stylishBurstGainModifierOffset || !*aswEngine) return 100;
 	return *(int*)(*aswEngine + stylishBurstGainModifierOffset);
 }
 
 int Game::getHandicap(int playerIndex) const {
-	if (!handicapsOffset || !aswEngine || !*aswEngine) return 2;
+	if (!handicapsOffset || !*aswEngine) return 2;
 	return *(int*)(*aswEngine + handicapsOffset + playerIndex * 4);
 }
 
@@ -771,6 +774,11 @@ int Game::getTrainingSetting(TrainingSettingId setting) const {
 }
 
 InputRingBuffer* Game::getInputRingBuffers() const {
-	if (!aswEngine || !*aswEngine) return nullptr;
+	if (!*aswEngine) return nullptr;
 	return (InputRingBuffer*)(*aswEngine + 4 + inputRingBuffersOffset);
+}
+
+int Game::getMatchTimer() const {
+	if (!*aswEngine) return 0;
+	return *(int*)(*aswEngine + 4 + matchInfoOffset + 0xc);
 }

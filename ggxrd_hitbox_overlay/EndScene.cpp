@@ -591,9 +591,7 @@ void EndScene::logic() {
 						|| gameMode == GAME_MODE_KENTEI
 						|| gameMode == GAME_MODE_MOM
 						|| gameMode == GAME_MODE_TUTORIAL
-						|| gameMode == GAME_MODE_VERSUS
-						// REMOVE THIS
-						|| gameMode == GAME_MODE_TRAINING) {
+						|| gameMode == GAME_MODE_VERSUS) {
 					needDrawInputs = true;
 				}
 			}
@@ -705,6 +703,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			PlayerInfo& other = players[1 - i];
 			Entity ent = player.pawn;
 			Entity otherEnt = other.pawn;
+			player.prevHp = player.hp;
 			player.hp = ent.hp();
 			player.gutsRating = ent.gutsRating();
 			player.gutsPercentage = ent.calculateGuts();
@@ -1860,12 +1859,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	if (frameHasChanged && !iGiveUp) {
 		
 		if (!dontAdvanceFramePosition) {
+			bool matchTimerZero = game.getMatchTimer() == 0;
+			bool atLeastOneDiedThisFrame = false;
+			bool atLeastOneDead = false;
 			bool atLeastOneNotInHitstop = false;
 			bool atLeastOneBusy = false;
 			bool atLeastOneDangerousProjectilePresent = false;
 			bool atLeastOneDoingGrab = false;
 			for (int i = 0; i < 2; ++i) {
 				PlayerInfo& player = players[i];
+				atLeastOneDiedThisFrame = player.hp == 0 && player.prevHp != 0;
+				atLeastOneDead = atLeastOneDead || player.hp == 0;
 				if (
 						(
 							player.grab
@@ -2000,7 +2004,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				atLeastOneDangerousProjectilePresent = false;
 			}
 			
-			if (getSuperflashInstigator() == nullptr) {
+			if ((atLeastOneDead || matchTimerZero) && !atLeastOneDiedThisFrame) {
+				// do nothing
+			} else if (getSuperflashInstigator() == nullptr) {
 				if (atLeastOneBusy || atLeastOneDangerousProjectilePresent) {
 					if (framebarIdleHitstopFor > framebarIdleForLimit) {
 						

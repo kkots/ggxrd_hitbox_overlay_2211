@@ -868,6 +868,7 @@ struct DmgCalc {
 
 struct PlayerInfo {
 	Entity pawn{ nullptr };
+	int prevHp = 0;
 	int hp = 0;
 	int maxHp = 0;
 	int defenseModifier = 0;  // dmg = dmg * (256 + defenseModifier) / 256

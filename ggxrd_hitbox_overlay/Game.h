@@ -172,6 +172,8 @@ public:
 	int getHandicap(int playerIndex) const;
 	int getTrainingSetting(TrainingSettingId setting) const;
 	InputRingBuffer* getInputRingBuffers() const;
+	DWORD matchInfoOffset = 0;
+	int getMatchTimer() const;
 private:
 	class HookHelp {
 		friend class Game;
