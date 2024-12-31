@@ -159,7 +159,12 @@ static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, UI::InputName** motions, int motionCount, UI::InputName** buttons, int buttonsCount);
 static void printChippInvisibility(int current, int max);
 static void textUnformattedColored(ImVec4 color, const char* str);
-static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, bool needSameLine = true);
+static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth,
+		const char* str,
+		const char* strEnd = nullptr,
+		bool needSameLine = true,
+		bool needManualMultilineOutput = false,
+		bool isLastLine = true);
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame);
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
@@ -1102,7 +1107,37 @@ void UI::drawSearchableWindows() {
 				ImGui::TableNextColumn();
 				player.printInvuls(strbuf, sizeof strbuf);
 				searchFieldValue(strbuf, nullptr);
-				printWithWordWrap
+				float w = ImGui::CalcTextSize(strbuf).x;
+				const char* cantPos = strstr(strbuf, "can't armor unblockables");
+				float wrapWidth = ImGui::GetContentRegionAvail().x;
+				if (w > wrapWidth) {
+					wrapWidth += ImGui::GetCursorPosX();
+					if (cantPos) {
+						zerohspacing
+						drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf, cantPos, false, true, false);
+						ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+						drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, "can't", nullptr, true, true, false);
+						ImGui::PopStyleColor();
+						drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, cantPos + 5, nullptr, true, true, true);
+						_zerohspacing
+					} else {
+						ImGui::TextWrapped("%s", strbuf);
+					}
+				} else {
+					if (i == 0) RightAlign(w);
+					if (cantPos) {
+						zerohspacing
+						ImGui::TextUnformatted(strbuf, cantPos);
+						ImGui::SameLine();
+						textUnformattedColored(RED_COLOR, "can't");
+						ImGui::SameLine();
+						ImGui::TextUnformatted(cantPos + 5);
+						_zerohspacing
+					} else {
+						ImGui::TextUnformatted(strbuf);
+					}
+					
+				}
 				
 				if (i == 0) {
 					ImGui::TableNextColumn();
@@ -6349,7 +6384,18 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	if (*strbuf != '\0') {
 		ImGui::Separator();
 		textUnformattedColored(YELLOW_COLOR, "Invul: ");
-		drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
+		const char* cantPos = strstr(strbuf, "can't armor unblockables");
+		if (cantPos) {
+			zerohspacing
+			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf, cantPos, true, true, false);
+			ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, "can't", nullptr, true, true, false);
+			ImGui::PopStyleColor();
+			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, cantPos + 5, nullptr, true, true, true);
+			_zerohspacing
+		} else {
+			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
+		}
 	}
 	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1) {
 		ImGui::Separator();
@@ -6784,15 +6830,16 @@ void textUnformattedColored(ImVec4 color, const char* str) {
 	ImGui::PopStyleColor();
 }
 
-void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, bool needSameLine) {
+void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, const char* strEnd, bool needSameLine, bool needManualMultilineOutput, bool isLastLine) {
 	if (needSameLine) ImGui::SameLine();
 	ImFont* font = ImGui::GetFont();
-	const char* textEnd = str + strlen(str);
+	const char* textEnd = strEnd ? strEnd : str + strlen(str);
 	const char* newlinePos = (const char*)memchr(str, '\n', textEnd - str);
 	if (newlinePos == nullptr) newlinePos = textEnd;
-	const char* wrapPos = font->CalcWordWrapPositionA(1.F, str, textEnd, wrapWidth - ImGui::GetCursorPosX());
+	float wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
+	const char* wrapPos = font->CalcWordWrapPositionA(1.F, str, textEnd, wrapWidthUse);
 	if (wrapPos == textEnd) {
-		ImGui::TextUnformatted(str);
+		ImGui::TextUnformatted(str, textEnd);
 		return;
 	} else {
 		float itemSpacing = ImGui::GetStyle().ItemSpacing.y;
@@ -6801,11 +6848,23 @@ void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, b
 		while (wrapPos < textEnd && *wrapPos <= 32) {
 			++wrapPos;
 		}
-		if (wrapPos != textEnd) {
+		if (needManualMultilineOutput) {
+			wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
+			while (wrapPos != textEnd) {
+				str = wrapPos;
+				wrapPos = font->CalcWordWrapPositionA(1.F, str, textEnd, wrapWidthUse);
+				ImGui::TextUnformatted(str, wrapPos);
+				while (wrapPos < textEnd && *wrapPos <= 32) {
+					++wrapPos;
+				}
+			}
+		} else if (wrapPos != textEnd) {
 			ImGui::TextUnformatted(wrapPos, textEnd);
 		}
 		ImGui::PopStyleVar();
-		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + itemSpacing);
+		if (isLastLine) {
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + itemSpacing);
+		}
 	}
 }
 
