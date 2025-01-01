@@ -3864,22 +3864,26 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		ui.allowNextFrame = false;
 	}
 	if (allowNextFrameIsHeld) {
-		bool allowPress = false;
-		if (allowNextFrameBeenHeldFor == 0) {
-			allowPress = true;
-		} else if (allowNextFrameBeenHeldFor >= 40) {
-			allowNextFrameBeenHeldFor = 40;
-			++allowNextFrameCounter;
-			if (allowNextFrameCounter >= 10) {
+		if (!freezeGame || allowNextFrameBeenHeldFor == -1) {
+			allowNextFrameBeenHeldFor = -1;
+		} else {
+			bool allowPress = false;
+			if (allowNextFrameBeenHeldFor == 0) {
 				allowPress = true;
-				allowNextFrameCounter = 0;
+			} else if (allowNextFrameBeenHeldFor >= 40) {
+				allowNextFrameBeenHeldFor = 40;
+				++allowNextFrameCounter;
+				if (allowNextFrameCounter >= 10) {
+					allowPress = true;
+					allowNextFrameCounter = 0;
+				}
 			}
+			if (trainingMode && allowPress) {
+				game.allowNextFrame = true;
+				logwrap(fputs("allowNextFrame set to true\n", logfile));
+			}
+			++allowNextFrameBeenHeldFor;
 		}
-		if (trainingMode && allowPress) {
-			game.allowNextFrame = true;
-			logwrap(fputs("allowNextFrame set to true\n", logfile));
-		}
-		++allowNextFrameBeenHeldFor;
 	} else {
 		allowNextFrameBeenHeldFor = 0;
 		allowNextFrameCounter = 0;
@@ -3901,7 +3905,7 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 			&& !screenshotPathEmpty) {
 		needContinuouslyTakeScreens = true;
 	}
-	game.freezeGame = (allowNextFrameIsHeld || freezeGame) && trainingMode && !gifMode.modDisabled;
+	game.freezeGame = freezeGame && trainingMode && !gifMode.modDisabled;
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		ui.gifModeOn = false;
