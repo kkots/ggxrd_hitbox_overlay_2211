@@ -6847,6 +6847,14 @@ void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, c
 	if (newlinePos == nullptr) newlinePos = textEnd;
 	float wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
 	const char* wrapPos = font->CalcWordWrapPositionA(1.F, str, textEnd, wrapWidthUse);
+	if (wrapPos != textEnd && (wrapPos == str || wrapPos == str + 1 && *wrapPos > 32) && needSameLine) {
+		ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.F);
+		ImGui::NewLine();
+		ImGui::PopStyleVar();
+		float wrapWidthNew = wrapWidth - ImGui::GetCursorPosX();
+		wrapWidthUse = wrapWidthNew;
+		wrapPos = font->CalcWordWrapPositionA(1.F, str, textEnd, wrapWidthUse);
+	}
 	if (wrapPos == textEnd) {
 		ImGui::TextUnformatted(str, textEnd);
 		return;
