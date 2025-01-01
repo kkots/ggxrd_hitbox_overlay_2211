@@ -150,19 +150,24 @@ void Throws::hitDetectionMainHook() {
 				throwInfo.leftUnlimited = false;
 				throwInfo.rightUnlimited = false;
 			}
-
+			
 			if (throwMinY < throwMaxY) {
-				throwInfo.hasYCheck = true;
 				const int throwMinYInSpace = posY + throwMinY;
 				const int throwMaxYInSpace = posY + throwMaxY;
-				throwInfo.minY = throwMinYInSpace;
-				throwInfo.maxY = throwMaxYInSpace;
-
-				throwInfo.topUnlimited = false;
-				throwInfo.bottomUnlimited = false;
-
-				throwInfo.top = throwMaxYInSpace;
-				throwInfo.bottom = throwMinYInSpace;
+				if (!ent.dealtAttack()->onlyHitGround()
+						|| throwMinYInSpace > 0 && throwMaxYInSpace > 0
+						|| throwMinYInSpace < 0 && throwMaxYInSpace < 0
+						|| ent.y() > 0) {
+					throwInfo.hasYCheck = true;
+					throwInfo.minY = throwMinYInSpace;
+					throwInfo.maxY = throwMaxYInSpace;
+	
+					throwInfo.topUnlimited = false;
+					throwInfo.bottomUnlimited = false;
+	
+					throwInfo.top = throwMaxYInSpace;
+					throwInfo.bottom = throwMinYInSpace;
+				}
 			}
 
 			for (auto it = infos.begin(); it != infos.end(); ++it) {

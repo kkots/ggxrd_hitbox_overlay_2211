@@ -550,10 +550,10 @@ struct AttackData {
 	inline bool prorationTandan() const { return (flags0x10 & 0x10000) != 0; }  // this flag is always set on everything, even when not attacking
 	inline bool isThrow() const { return (flags0x10 & 0x800000) != 0; }
 	DWORD flags0x14;
-	inline bool collisionForceExpand() const { return (flags0x14 & 4) != 0; }
-	inline bool onlyHitGround() const { return (flags0x14 & 10) != 0; }
-	inline bool onlyHitAir() const { return (flags0x14 & 20) != 0; }
-	inline bool whiffCrouch() const { return (flags0x14 & 40) != 0; }
+	inline bool collisionForceExpand() const { return (flags0x14 & 0x4) != 0; }
+	inline bool onlyHitGround() const { return (flags0x14 & 0x10) != 0; }
+	inline bool onlyHitAir() const { return (flags0x14 & 0x20) != 0; }
+	inline bool whiffCrouch() const { return (flags0x14 & 0x40) != 0; }
 	inline bool clashOnly() const { return (flags0x14 & 0x1000000) != 0; }  // RTL RideAura has this, Jack O' "Aigisfield" (sic)
 	inline bool attackMultiHit() const { return (flags0x14 & 0x4000000) != 0; }  // Elphelt grenade, Elphelt shotgun, Oil Fire, 100-t Weight, Stahl Wirbel, etc. Lets you hit multiple entities in one frame
 	inline bool wasHitDuringRc() const { return (flags0x14 & 0x20000000) != 0; }

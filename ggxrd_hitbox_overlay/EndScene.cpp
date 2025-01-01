@@ -1857,7 +1857,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.lowProfile.active = true;
 					} else if (hurtboxBounds.bottom < 175000) {
 						player.somewhatLowProfile.active = true;
-					} else if (hurtboxBounds.bottom <= 232000 && !player.pawn.crouching()) {
+					} else if (hurtboxBounds.bottom <= 232000
+							&& !player.pawn.crouching()
+							&& player.pawn.blockstun() == 0
+							&& !player.inHitstunNowOrNextFrame) {
 						player.upperBodyInvul.active = true;
 					}
 					if (hurtboxBounds.top >= 174000) {
