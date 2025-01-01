@@ -173,7 +173,7 @@ public:
 	int getTrainingSetting(TrainingSettingId setting) const;
 	InputRingBuffer* getInputRingBuffers() const;
 	DWORD matchInfoOffset = 0;
-	int getMatchTimer() const;
+	int getMatchTimer() const;  // decrements at the start of logic tick
 private:
 	class HookHelp {
 		friend class Game;

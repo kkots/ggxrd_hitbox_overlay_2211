@@ -1239,6 +1239,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							|| !prevFrameCanBlock
 							&& !prevFrameIgnoreNextInabilityToBlockOrAttack
 						)
+						&& !player.prejumped
 					) {
 					// do nothing
 				} else {
@@ -1249,7 +1250,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					            // that the animation changed to whatever other one and be sure that the player being busy on the ground now is not
 					            // part of a custom landing animation 100%.
 					            // This assignment is not higher above because some animations I just consider an inseparable part of another animation.
-		            bool conditionPartOne = !player.isLandingOrPreJump
+		            bool conditionPartOne = !(
+		            			player.isLandingOrPreJump
+		            			&& !(
+									player.charType == CHARACTER_TYPE_SLAYER
+				        			&& cmnActIndex == CmnActJumpPre
+				        			&& prevFrameCmnActIndex == CmnActBDash
+			        			)
+		            		)
 							&& player.cmnActIndex != CmnActJump
 							&& (!player.idlePlus || player.forceBusy);
 		            bool conditionPartTwo = !(
@@ -1312,7 +1320,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								)
 								|| !player.wasIdle
 								&& player.cmnActIndex == CmnActRomanCancel
-								&& !player.startedUp) {
+								&& !player.startedUp
+								|| player.charType == CHARACTER_TYPE_SLAYER
+			        			&& (
+			        				player.performingBDC
+			        				&& prevFrameCmnActIndex == CmnActJumpPre
+			        				&& !player.airborne
+			        				|| prevFrameCmnActIndex == CmnActBDash
+		        				)
+		        				&& !idleNext
+		        				&& !player.inHitstunNowOrNextFrame) {
 							if (player.superfreezeStartup) {
 								player.prevStartups.add(player.superfreezeStartup,
 									player.lastMoveIsPartOfStance,
@@ -1373,6 +1390,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						player.hitboxTopBottomValid = false;
 						player.hurtboxTopBottomValid = false;
+						player.prejumped = false;
+						player.performingBDC = player.charType == CHARACTER_TYPE_SLAYER
+		        			&& cmnActIndex == CmnActJumpPre
+		        			&& prevFrameCmnActIndex == CmnActBDash;
 						
 						if (player.animFrame == 1) {
 							int actualMoveIndex = player.pawn.currentMoveIndex();
@@ -1422,6 +1443,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.ignoreNextInabilityToBlockOrAttack = true;
 				player.performingASuper = false;
 				other.gettingHitBySuper = false;
+			}
+			if (player.cmnActIndex == CmnActJumpPre && !player.performingBDC) {
+				player.prejumped = true;
 			}
 			
 			// This is needed for animations that create projectiles on frame 1
@@ -3131,8 +3155,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !player.ignoreNextInabilityToBlockOrAttack;
 			} else if (!(player.hitstop && !isAzami)
 					&& !(superflashInstigator && superflashInstigator != ent)
-					&& !(player.cmnActIndex == CmnActJump && player.canFaultlessDefense)
-					&& player.cmnActIndex != CmnActJumpPre
+					&& !(player.cmnActIndex == CmnActJump && player.canFaultlessDefense && !player.performingBDC)
+					&& (player.cmnActIndex != CmnActJumpPre || player.performingBDC)
 					&& !player.isLanding) {
 				if (
 						(
@@ -3356,8 +3380,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			if (!(player.hitstop && !isAzami)
 					&& !superflashInstigator
-					&& !(player.cmnActIndex == CmnActJump && player.canFaultlessDefense)
-					&& player.cmnActIndex != CmnActJumpPre
+					&& !(player.cmnActIndex == CmnActJump && player.canFaultlessDefense && !player.performingBDC)
+					&& (player.cmnActIndex != CmnActJumpPre || player.performingBDC)
 					&& !player.isLanding
 					&& (!player.ignoreNextInabilityToBlockOrAttack || player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime)) {
 				PlayerCancelInfo newCancelInfo;

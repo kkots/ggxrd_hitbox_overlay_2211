@@ -1227,6 +1227,8 @@ struct PlayerInfo {
 	bool startedSuperWhenComboing:1;
 	bool prevGettingHitBySuper:1;
 	bool gettingHitBySuper:1;
+	bool prejumped:1;  // this is to fix normal - jump cancel - FD displaying as frames of the normal up to the jump cancel + FD (jump startup is skipped)
+	bool performingBDC:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

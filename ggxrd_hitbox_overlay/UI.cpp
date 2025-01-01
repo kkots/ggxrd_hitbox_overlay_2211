@@ -1036,12 +1036,10 @@ void UI::drawSearchableWindows() {
 					headerThatCanBeClickedForTooltip(searchFieldTitle("Startup"), &showStartupTooltip, false);
 					if (ImGui::BeginItemTooltip()) {
 						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						if (settings.dontShowMoveName) {
-							if (prevNamesControl(player, true, false)) {
-								searchFieldValue(strbuf, nullptr);
-								printNoWordWrap
-								ImGui::Separator();
-							}
+						if (prevNamesControl(player, true, false)) {
+							searchFieldValue(strbuf, nullptr);
+							printNoWordWrap
+							ImGui::Separator();
 						}
 						ImGui::TextUnformatted("Click the field for tooltip.");
 						ImGui::PopTextWrapPos();
@@ -1089,12 +1087,10 @@ void UI::drawSearchableWindows() {
 					headerThatCanBeClickedForTooltip(searchFieldTitle("Total"), &showTotalTooltip, false);
 					if (ImGui::BeginItemTooltip()) {
 						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						if (settings.dontShowMoveName) {
-							if (prevNamesControl(player, true, false)) {
-								searchFieldValue(strbuf, nullptr);
-								printNoWordWrap
-								ImGui::Separator();
-							}
+						if (prevNamesControl(player, true, false)) {
+							searchFieldValue(strbuf, nullptr);
+							printNoWordWrap
+							ImGui::Separator();
 						}
 						ImGui::TextUnformatted("Click the field for tooltip.");
 						ImGui::PopTextWrapPos();
