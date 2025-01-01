@@ -870,7 +870,7 @@ public:
 	inline bool isOtg() const { return (*(DWORD*)(ent + 0x4d24) & 0x800000) != 0; }
 	inline bool damageToAir() const { return (*(DWORD*)(ent + 0x4d24) & 0x8000) != 0; }  // this is present on Answer Backdash, Faust Pogo, May Horizontal Dolphin first few frames, etc
 	inline bool crouching() const { return (*(DWORD*)(ent + 0x4d24) & 1) != 0; }
-	inline bool setOnCmnActDownBoundEntry() const { return (*(DWORD*)(ent + 0x4d24) & 2) != 0; }  // this is set when entering CmnActDownBound animation
+	inline bool setOnCmnActDownBoundEntry() const { return (*(DWORD*)(ent + 0x4d24) & 2) != 0; }  // this is set when entering CmnActDownBound animation. Also present in all of hitstun animations
 	inline int strikeInvulnFrames() const { return *(int*)(ent + 0x9a0); }
 	inline int throwInvulnFrames() const { return *(int*)(ent + 0x99c); }
 	inline bool strikeInvul() const { return (*(DWORD*)(ent + 0x238) & 0x10) != 0; }

@@ -24,10 +24,12 @@
 #ifdef PERFORMANCE_MEASUREMENT
 #include <chrono>
 #endif
+#include "colors.h"
 
 UI ui;
 
 static ImVec4 RGBToVec(DWORD color);
+static ImVec4 ARGBToVec(DWORD color);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 // The following functions are from imgui_internal.h
 IMGUI_API int           ImTextCharFromUtf8(unsigned int* out_char, const char* in_text, const char* in_text_end);               // read one character. return input UTF-8 bytes count
@@ -112,6 +114,17 @@ const char thisHelpTextWillRepeat[] = "Show available gatlings, whiff cancels, a
 					" animation names, because the names here are only updated when a significant enough change in the animation happens.";
 static std::string lastNameSuperfreeze;
 static std::string lastNameAfterSuperfreeze;
+#define ARGB_to_ABGR(clr) ((clr & 0xff00ff00) | ((clr & 0xff) << 16) | ((clr & 0xffffff) >> 16))
+static ImVec4 COLOR_PUSHBOX_IMGUI = RGBToVec((DWORD)COLOR_PUSHBOX);
+static ImVec4 COLOR_HURTBOX_IMGUI = RGBToVec((DWORD)COLOR_HURTBOX);
+static ImVec4 COLOR_HURTBOX_COUNTERHIT_IMGUI = RGBToVec((DWORD)COLOR_HURTBOX_COUNTERHIT);
+static ImVec4 COLOR_HURTBOX_OLD_IMGUI = RGBToVec((DWORD)COLOR_HURTBOX_OLD);
+static ImVec4 COLOR_HITBOX_IMGUI = RGBToVec((DWORD)COLOR_HITBOX);
+static ImVec4 COLOR_THROW_IMGUI = RGBToVec((DWORD)COLOR_THROW);
+static ImVec4 COLOR_THROW_PUSHBOX_IMGUI = RGBToVec((DWORD)COLOR_THROW_PUSHBOX);
+static ImVec4 COLOR_THROW_XYORIGIN_IMGUI = RGBToVec((DWORD)COLOR_THROW_XYORIGIN);
+static ImVec4 COLOR_REJECTION_IMGUI = RGBToVec((DWORD)COLOR_REJECTION);
+static ImVec4 COLOR_INTERACTION_IMGUI = RGBToVec((DWORD)COLOR_INTERACTION);
 
 struct CustomImDrawList {
 	ImVector<ImDrawCmd> CmdBuffer;
@@ -2016,6 +2029,10 @@ void UI::drawSearchableWindows() {
 	popSearchStack();
 	if (ImGui::CollapsingHeader(searchCollapsibleSection("Settings")) || searching) {
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitbox Settings")) || searching) {
+			
+			if (ImGui::Button(searchFieldTitle("Hitboxes Help"))) {
+				showBoxesHelp = !showBoxesHelp;
+			}
 			
 			booleanSettingPreset(settings.drawPushboxCheckSeparately);
 			
@@ -4554,6 +4571,11 @@ void UI::drawSearchableWindows() {
 		framebarHelpWindow();
 	}
 	popSearchStack();
+	searchCollapsibleSection("Hitboxes Help");
+	if (showBoxesHelp || searching) {
+		hitboxesHelpWindow();
+	}
+	popSearchStack();
 	searchCollapsibleSection("Frame Advantage Help");
 	if (showFrameAdvTooltip || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
@@ -5545,15 +5567,26 @@ const GGIcon& getPlayerCharIcon(int playerSide) {
 	return getCharIcon(getPlayerCharacter(playerSide));
 }
 
+static const float inverse_255 = 1.F / 255.F;
 // color = 0xRRGGBB
 ImVec4 RGBToVec(DWORD color) {
 	// they also wrote it as r, g, b, a... just in struct form
-	static const float inverse = 1.F / 255.F;
 	return {
-		(float)((color >> 16) & 0xff) * inverse,  // red
-		(float)((color >> 8) & 0xff) * inverse,  // green
-		(float)(color & 0xff) * inverse,  // blue
+		(float)((color >> 16) & 0xff) * inverse_255,  // red
+		(float)((color >> 8) & 0xff) * inverse_255,  // green
+		(float)(color & 0xff) * inverse_255,  // blue
 		1.F  // alpha
+	};
+}
+
+// color = 0xAARRGGBB
+ImVec4 ARGBToVec(DWORD color) {
+	// they also wrote it as r, g, b, a... just in struct form
+	return {
+		(float)((color >> 16) & 0xff) * inverse_255,  // red
+		(float)((color >> 8) & 0xff) * inverse_255,  // green
+		(float)(color & 0xff) * inverse_255,  // blue
+		(float)(color >> 24) * inverse_255  // alpha
 	};
 }
 
@@ -5901,6 +5934,180 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 	return counter - 1;
 }
 
+void UI::hitboxesHelpWindow() {
+	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
+	if (searching) {
+		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+	}
+	ImGui::Begin(searching ? "search_hitboxeshelp" : "Hitboxes Help", &showBoxesHelp, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+	ImGui::PushTextWrapPos(0.F);
+	static std::string boxesDesc1;
+	if (boxesDesc1.empty()) {
+		boxesDesc1 = settings.convertToUiDescription("Boxes are only displayed when \"dontShowBoxes\" is disabled.");
+	}
+	ImGui::TextUnformatted(boxesDesc1.c_str(), boxesDesc1.c_str() + boxesDesc1.size());
+	textUnformattedColored(YELLOW_COLOR, "Box colors and what they mean:");
+	ImGui::Separator();
+	
+	textUnformattedColored(COLOR_HITBOX_IMGUI, "Red: ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Hitboxes.");
+	ImGui::TextUnformatted("Strike and projectile non-throw hitboxes are shown in red."
+		" Clash-only hitboxes are shown in more transparent red with thinner outline."
+		" Hitboxes' fills may never be absent.");
+	ImGui::Separator();
+	
+	textUnformattedColored(COLOR_HURTBOX_IMGUI, "Green: ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Hurtboxes.");
+	ImGui::TextUnformatted("Normally hurtboxes display in green."
+		" The rules in general are such, that when a hitbox (red) makes contact with hurtbox, a hit occurs.\n"
+		" If a hurtbox is displayed fully transparent (i.e. shows outline only), that means strike invulnerability."
+		" If a hurtbox is hatched with diagonal lines, that means some form of super armor is active:"
+		" it could be parry (Jam 46P), projectile reflection (Zato Drunkard Shade), super armor"
+		" (Potemkin Hammerfall), or projectile-only invulnerability (Ky Ride the Lightning),"
+		" or direct player attacks-only invulnerability (Ky j.D). This visual hatching effect"
+		" can be combined with the hurtbox being not filled in, meaning strike"
+		" invulerability + super armor/other.\n"
+		"For Jack O's and Bedman's summons the hurtbox's outline may be thin to create less clutter on the screen.");
+	ImGui::Separator();
+	
+	textUnformattedColored(COLOR_HURTBOX_COUNTERHIT_IMGUI, "Light-blue: ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Would-be counterhit hurtboxes.");
+	ImGui::TextUnformatted("If your hurtbox is displaying light blue, that means,"
+		" should you get hit, you would enter counterhit state. It means that moves"
+		" that have light blue hurtbox on recovery are more punishable.\n"
+		"If a hurtbox is hatched with diagonal lines, that means some form of super armor is active:"
+		" it could be parry (Jam 46P), projectile reflection (Zato Drunkard Shade), super armor"
+		" (Potemkin Hammerfall), or projectile-only invulnerability (Ky Ride the Lightning),"
+		" or direct player attacks-only invulnerability (Ky j.D).");
+	ImGui::Separator();
+	
+	textUnformattedColored(COLOR_HURTBOX_OLD_IMGUI, "Gray: ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Pre-hit hurtboxes.");
+	ImGui::TextUnformatted("When you get hit a gray outline appears on top"
+		" of your current hurtbox. This outline represents the previous state of your hurtbox,"
+		" before you got hit. Its purpose is to make it easier to see how or why you got hit.");
+	static std::string turnOffGrayBoxes;
+	if (turnOffGrayBoxes.empty()) {
+		turnOffGrayBoxes = settings.convertToUiDescription("The display of gray hurtboxes can be disabled using the"
+			" \"neverDisplayGrayHurtboxes\" setting.");
+	}
+	ImGui::TextUnformatted(turnOffGrayBoxes.c_str(), turnOffGrayBoxes.c_str() + turnOffGrayBoxes.size());
+	ImGui::Separator();
+	
+	textUnformattedColored(COLOR_PUSHBOX_IMGUI, "Yellow: ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Pushboxes.");
+	ImGui::TextUnformatted("Each player has a pushbox. When two pushboxes collide,"
+		" the players get pushed apart until their pushboxes no longer collide."
+		" Pushbox widths also affect throw range - more on that in next section(s).\n"
+		"If a pushbox is displayed fully transparent (i.e. shows outline only), that means throw invulnerability."
+		" Pushbox outline is always thin.");
+	ImGui::Separator();
+	
+	ImGui::TextUnformatted("+ (Point/cross): ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Origin point.");
+	ImGui::TextUnformatted("Each player and entity has an origin point which is shown as"
+		" a black-white cross on the ground between their feet. When players jump, the origin"
+		" point tracks their location. Origin points play a key role in throw hit detection.");
+	ImGui::Separator();
+	
+	textUnformattedColored(COLOR_REJECTION_IMGUI, "Blue: ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("(Blue) Rejection boxes.");
+	ImGui::TextUnformatted("When a Blitz Shield meets a projectile it displays"
+		" a square blue box around the rejecting player, and if the opponent's origin point"
+		" is within that box the opponent enters rejected state. The box does not show when"
+		" rejecting normal, melee attacks because those cause rejection no matter the distance."
+		" Pushboxes and their sizes do not affect the distance check in any way, i.e. only the"
+		" X and Y distances between the players' origin points are checked.");
+	ImGui::Separator();
+	
+	if (settings.drawPushboxCheckSeparately) {
+		
+		textUnformattedColored(COLOR_THROW_PUSHBOX_IMGUI, "Blue: ");
+		ImGui::SameLine();
+		static std::string throwBoxSeparatePushbox;
+		if (throwBoxSeparatePushbox.empty()) {
+			throwBoxSeparatePushbox = settings.convertToUiDescription("(Blue) Throw box pushbox check (when \"drawPushboxCheckSeparately\" is checked - the default).");
+		}
+		ImGui::TextUnformatted(throwBoxSeparatePushbox.c_str(), throwBoxSeparatePushbox.c_str() + throwBoxSeparatePushbox.size());
+		ImGui::TextUnformatted(
+			"When a player does a throw he displays a throw box which may either be represented as"
+			" one blue box, one purple box or one blue and one purple box. Throw boxes are usually"
+			" only active for one frame (that's when they display semi-transparent)."
+			" This period is so brief throw boxes have to show for a few extra frames, but"
+			" during those frames they're no longer active and so they display fully transparent (outline only).\n"
+			" The blue part of the box shows the pushbox-checking throw box. It is never limited vertically,"
+			" because it only checks the horizontal distance between pushboxes. The rule is if this blue"
+			" throw box touches the yellow pushbox of the opponent, the pushbox-checking part of the throw is satisfied.\n"
+			"But there may be another part of the throw that checks the X and/or Y of the opponent's origin point (shown in purple)."
+			" If such a part of the throw box is present, it must also be satisfied, or else the throw won't connect.");
+		ImGui::Separator();
+		
+		textUnformattedColored(COLOR_THROW_XYORIGIN_IMGUI, "Purple: ");
+		ImGui::SameLine();
+		static std::string throwBoxSeparateOriginPoint;
+		if (throwBoxSeparateOriginPoint.empty()) {
+			throwBoxSeparateOriginPoint = settings.convertToUiDescription("Throw box origin point check (when \"drawPushboxCheckSeparately\" is checked - the default).");
+		}
+		ImGui::TextUnformatted(throwBoxSeparateOriginPoint.c_str(), throwBoxSeparateOriginPoint.c_str() + throwBoxSeparateOriginPoint.size());
+		ImGui::TextUnformatted(
+			"The purple part of the throw box displays the region where the opponent's origin point must be"
+			" in order for this part of the throw check to connect.\n"
+			"If there's a pushbox-proximity-checking part of the throw (blue), then satisfying the origin point"
+			" check (purple) is not enough - the pushbox check must be passed as well."
+			" The pushbox-checking part of the throw displays in blue and is described in the section above.");
+		ImGui::Separator();
+		
+	} else {
+		
+		textUnformattedColored(COLOR_THROW_IMGUI, "Blue: ");
+		ImGui::SameLine();
+		static std::string throwBox;
+		if (throwBox.empty()) {
+			throwBox = settings.convertToUiDescription("(Blue) Throw boxes (when \"drawPushboxCheckSeparately\" = false).");
+		}
+		ImGui::TextUnformatted(throwBox.c_str(), throwBox.c_str() + throwBox.size());
+		ImGui::TextUnformatted(
+			"Combined throw box which only checks the opponent's origin point. This box may depend on the width"
+			" of the opponent's pushbox, so beware! (Try make your opponent crouch and see your throw box get bigger."
+			" An alternative way of displaying throwboxes using the setting mentioned earlier avoid this problem.)\n"
+			"Throw boxes are usually only active for one frame (that's when they display semi-transparent)."
+			" This period is so brief throw boxes have to show for a few extra frames,"
+			" but during those frames they're no longer active and so they display fully transparent (outline only).");
+		ImGui::Separator();
+		
+	}
+	
+	textUnformattedColored(COLOR_INTERACTION_IMGUI, "White: ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Interaction box");
+	ImGui::TextUnformatted(
+		"Boxes like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against"
+		" the opponent's origin point. If the opponent's origin point is within the box, the check is satisfied.");
+	ImGui::Separator();
+	
+	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");
+	ImGui::TextUnformatted("If a box's outline is thick, it lies within that box's bounds,"
+		" meaning that two boxes intersect if either their fills or outlines touch or both. This"
+		" is relevant for throwboxes too.\n"
+		"If a box's outline is thin, like that of a pushbox or a clash-only hitbox for example,"
+		" then that outline lies on the edge of the box. For Jack O's and Bedman's summons"
+		" the hurtbox's outline may be thin to create less clutter on the screen.");
+	ImGui::Separator();
+	
+	textUnformattedColored(YELLOW_COLOR, "General notes about throw boxes");
+	ImGui::TextUnformatted("If a move (like Riot Stamp) has a throw box as well as hitbox - both the hitbox and the throw boxes must connect.");
+	
+	ImGui::PopTextWrapPos();
+	ImGui::End();
+}
+	
 void UI::framebarHelpWindow() {
 	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
 	if (searching) {

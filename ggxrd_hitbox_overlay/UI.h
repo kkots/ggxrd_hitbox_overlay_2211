@@ -195,7 +195,9 @@ private:
 	const char* errorDialogText = nullptr;
 	void* errorDialogPos = nullptr;
 	bool showFramebarHelp = false;
+	bool showBoxesHelp = false;
 	void framebarHelpWindow();
+	void hitboxesHelpWindow();
 	bool booleanSettingPreset(std::atomic_bool& settingsRef);
 	bool booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey);
 	bool float4SettingPreset(float& settingsPtr);

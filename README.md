@@ -160,6 +160,10 @@ This mode of showing throw boxes shows them like this:
 
 ![Screenshot can't be viewed](throw_box_drawPushboxCheckSeparately_false.jpg)
 
+### White - Interaction boxes
+
+Boxes like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against the opponent's origin point. If the opponent's origin point is within the box, the check is satisfied.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
@@ -169,7 +173,7 @@ If a box's outline is thin, like that of a pushbox or a clash-only hitbox for ex
 
 For some command throws such as Sol's Wild Throw a purple box is displayed, which supposedly checks the Y of the origin point of the opponent. This doesn't really make sense since Wild Throw only connects on grounded opponents. If anyone has information on this, I would gladly listen.
 
-If a command throw has a throw box as well as hitbox, such as Raven's command throw, - for such moves I haven't fully studied the conditions under which they connect - but it's likely that the hitbox doesn't matter and only the throw box has to connect, since it was already proven that Potemkin Buster's hitbox does not matter - only the throw box (proof: <https://youtu.be/59uc9h6KKIE>).
+If a move has a throw box as well as hitbox - both the hitbox and the throw boxes must connect. By the way, Potemkin Buster's hitbox does not matter - only the throw box (proof: <https://youtu.be/59uc9h6KKIE>).
 
 ### Frame-by-frame animation playback
 
