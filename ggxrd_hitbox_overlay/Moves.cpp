@@ -131,7 +131,7 @@ static bool isRecovery_byakueRenshou(PlayerInfo& ent);
 static bool forceSuperHitAnyway_zanseiRouga(PlayerInfo& ent);
 static bool forceSuperHitAnyway_hououshou(PlayerInfo& ent);
 
-static inline MoveInfoProperty& newProperty(MoveInfoStored* move, MoveInfoPropertyType property) {
+static inline MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (!move->count) move->startInd = allProperties.size();
 	++move->count;
 	allProperties.emplace_back();
@@ -162,62 +162,11 @@ void Moves::addMove(const MoveInfo& move) {
 	#endif
 	
 	MoveInfoStored newMove;
-	#define nameRepeatsALot(name, propertyName) if (move.name) newProperty(&newMove, MoveInfoPropertyType_##name).u.propertyName = move.name;
-	nameRepeatsALot(combineWithPreviousMove, boolValue)
-	nameRepeatsALot(usePlusSignInCombination, boolValue)
-	nameRepeatsALot(displayName, strValue)
-	nameRepeatsALot(slangName, strValue)
-	nameRepeatsALot(sectionSeparator, sectionSeparatorValue)
-	nameRepeatsALot(sectionSeparatorProjectile, sectionSeparatorProjectileValue)
-	nameRepeatsALot(considerIdleInSeparatedSectionAfterThisManyFrames, intValue)
-	nameRepeatsALot(preservesNewSection, boolValue)
-	nameRepeatsALot(isIdle, isIdleValue)
-	if (move.canBlock) newProperty(&newMove, MoveInfoPropertyType_canBlock).u.isIdleValue = move.canBlock;
-	else if (move.isIdle) newProperty(&newMove, MoveInfoPropertyType_canBlock).u.isIdleValue = move.isIdle;
-	nameRepeatsALot(isDangerous, isDangerousValue)
-	if (move.framebarId != -1) newProperty(&newMove, MoveInfoPropertyType_framebarId).u.intValue = move.framebarId;
-	nameRepeatsALot(framebarName, strValue)
-	nameRepeatsALot(framebarNameUncombined, strValue)
-	nameRepeatsALot(framebarSlangNameUncombined, strValue)
-	nameRepeatsALot(framebarSlangName, strValue)
-	nameRepeatsALot(framebarNameFull, strValue)
-	nameRepeatsALot(framebarNameSelector, selectFramebarNameValue)
-	nameRepeatsALot(framebarSlangNameSelector, selectFramebarNameValue)
-	nameRepeatsALot(isInVariableStartupSection, isIdleValue)
-	nameRepeatsALot(canStopHolding, isIdleValue)
-	nameRepeatsALot(aSectionBeforeVariableStartup, isIdleValue)
-	nameRepeatsALot(considerNewSectionAsBeingInVariableStartup, boolValue)
-	nameRepeatsALot(considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot, boolValue)
-	nameRepeatsALot(considerVariableStartupAsStanceForFramebar, boolValue)
-	nameRepeatsALot(canBeUnableToBlockIndefinitelyOrForVeryLongTime, boolValue)
-	nameRepeatsALot(isRecoveryHasGatlings, isIdleValue)
-	nameRepeatsALot(isRecoveryCanAct, isIdleValue)
-	nameRepeatsALot(canFaultlessDefend, isIdleValue)
-	nameRepeatsALot(nameIncludesInputs, boolValue)
-	nameRepeatsALot(ignoresHitstop, boolValue)
-	nameRepeatsALot(frontLegInvul, isIdleValue)
-	nameRepeatsALot(forceAddWhiffCancelsStart, intValue)
-	nameRepeatsALot(forceAddWhiffCancelsCount, intValue)
-	nameRepeatsALot(isRecoveryCanReload, isIdleValue)
-	nameRepeatsALot(onlyAddForceWhiffCancelsOnFirstFrameOfSprite, strValue)
-	nameRepeatsALot(zatoHoldLevel, zatoHoldLevelValue)
-	nameRepeatsALot(conditionForAddingWhiffCancels, isIdleValue)
-	nameRepeatsALot(caresAboutWall, boolValue)
-	nameRepeatsALot(faustPogo, boolValue)
-	nameRepeatsALot(displayNameIfIdle, strValue)
-	nameRepeatsALot(displayNameIfIdleSlang, strValue)
-	nameRepeatsALot(butForFramebarDontCombineWithPreviousMove, boolValue)
-	nameRepeatsALot(replacementInputs, strValue)
-	nameRepeatsALot(replacementBufferTime, intValue)
-	nameRepeatsALot(whiffCancelsNote, strValue)
-	nameRepeatsALot(secondaryStartup, isIdleValue)
-	nameRepeatsALot(forceLandingRecovery, boolValue)
-	nameRepeatsALot(isGrab, boolValue)
-	nameRepeatsALot(partOfStance, boolValue)
-	nameRepeatsALot(dontSkipSuper, boolValue)
-	nameRepeatsALot(iKnowExactlyWhenTheRecoveryOfThisMoveIs, isIdleValue)
-	nameRepeatsALot(forceSuperHitAnyway, isIdleValue)
-	#undef nameRepeatsALot
+	#define MOVE_INFO_EXEC(type, prop, name, defaultValue) if (move.name != defaultValue) newProperty(&newMove, offsetof(MoveInfo, name)).u.prop = move.name;
+	MOVE_INFO_PROPERTY_TABLE
+	#undef MOVE_INFO_EXEC
+	
+	if (!move.canBlock && move.isIdle) newProperty(&newMove, offsetof(MoveInfo, canBlock)).u.isIdleValue = move.isIdle;
 	
 	map.insert( {
 		#ifdef _DEBUG
@@ -234,61 +183,9 @@ MoveInfo::MoveInfo(const MoveInfoStored& info) {
 	const MoveInfoProperty* prop = info.startPtr;
 	for (int i = 0; i < info.count; ++i) {
 		switch (prop->type) {
-			#define repeatsABit(name, valueProperty) case MoveInfoPropertyType_##name: name = prop->u.valueProperty; break;
-			repeatsABit(combineWithPreviousMove, boolValue)
-			repeatsABit(usePlusSignInCombination, boolValue)
-			repeatsABit(displayName, strValue)
-			repeatsABit(slangName, strValue)
-			repeatsABit(sectionSeparator, sectionSeparatorValue)
-			repeatsABit(sectionSeparatorProjectile, sectionSeparatorProjectileValue)
-			repeatsABit(considerIdleInSeparatedSectionAfterThisManyFrames, boolValue)
-			repeatsABit(preservesNewSection, boolValue)
-			repeatsABit(isIdle, isIdleValue)
-			repeatsABit(canBlock, isIdleValue)
-			repeatsABit(isDangerous, isDangerousValue)
-			repeatsABit(framebarId, intValue)
-			repeatsABit(framebarName, strValue)
-			repeatsABit(framebarNameUncombined, strValue)
-			repeatsABit(framebarSlangNameUncombined, strValue)
-			repeatsABit(framebarSlangName, strValue)
-			repeatsABit(framebarNameFull, strValue)
-			repeatsABit(framebarNameSelector, selectFramebarNameValue)
-			repeatsABit(framebarSlangNameSelector, selectFramebarNameValue)
-			repeatsABit(isInVariableStartupSection, isIdleValue)
-			repeatsABit(canStopHolding, isIdleValue)
-			repeatsABit(aSectionBeforeVariableStartup, isIdleValue)
-			repeatsABit(considerNewSectionAsBeingInVariableStartup, boolValue)
-			repeatsABit(considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot, boolValue)
-			repeatsABit(considerVariableStartupAsStanceForFramebar, boolValue)
-			repeatsABit(canBeUnableToBlockIndefinitelyOrForVeryLongTime, boolValue)
-			repeatsABit(isRecoveryHasGatlings, isIdleValue)
-			repeatsABit(isRecoveryCanAct, isIdleValue)
-			repeatsABit(canFaultlessDefend, isIdleValue)
-			repeatsABit(nameIncludesInputs, boolValue)
-			repeatsABit(ignoresHitstop, boolValue)
-			repeatsABit(frontLegInvul, isIdleValue)
-			repeatsABit(forceAddWhiffCancelsStart, intValue)
-			repeatsABit(forceAddWhiffCancelsCount, intValue)
-			repeatsABit(isRecoveryCanReload, isIdleValue)
-			repeatsABit(onlyAddForceWhiffCancelsOnFirstFrameOfSprite, strValue)
-			repeatsABit(zatoHoldLevel, zatoHoldLevelValue)
-			repeatsABit(conditionForAddingWhiffCancels, isIdleValue)
-			repeatsABit(caresAboutWall, boolValue)
-			repeatsABit(faustPogo, boolValue)
-			repeatsABit(displayNameIfIdle, strValue)
-			repeatsABit(displayNameIfIdleSlang, strValue)
-			repeatsABit(butForFramebarDontCombineWithPreviousMove, boolValue)
-			repeatsABit(replacementInputs, strValue)
-			repeatsABit(replacementBufferTime, intValue)
-			repeatsABit(whiffCancelsNote, strValue)
-			repeatsABit(secondaryStartup, isIdleValue)
-			repeatsABit(forceLandingRecovery, boolValue)
-			repeatsABit(isGrab, boolValue)
-			repeatsABit(partOfStance, boolValue)
-			repeatsABit(dontSkipSuper, boolValue)
-			repeatsABit(iKnowExactlyWhenTheRecoveryOfThisMoveIs, isIdleValue)
-			repeatsABit(forceSuperHitAnyway, isIdleValue)
-			#undef repeatsABit
+			#define MOVE_INFO_EXEC(type, propName, name, defaultValue) case offsetof(MoveInfo, name): name = prop->u.propName; break;
+			MOVE_INFO_PROPERTY_TABLE
+			#undef MOVE_INFO_EXEC
 		}
 		++prop;
 	}

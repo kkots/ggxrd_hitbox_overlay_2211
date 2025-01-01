@@ -26,76 +26,8 @@ private:
 	int moveIndexPerPlayer[2];
 };
 
-enum MoveInfoPropertyType {
-	MoveInfoPropertyType_combineWithPreviousMove,
-	// This is needed for Johnny becoming able to use Mist Finer from his MistFinerLoop animation.
-	// We want to write X+possibly infinite frames as long as you're holding, where X is the startup of
-	// the availability of Mist Finer attack.
-	MoveInfoPropertyType_usePlusSignInCombination,
-	MoveInfoPropertyType_displayName,
-	MoveInfoPropertyType_slangName,
-	// A section is what I call separating frames with a + sign in the startup, recovery or total display.
-	// This is useful for some moves that can be held or charged, because if you treat the part of the
-	// animation that starts after you release the button as separate and show it with a "frames from before
-	// that part" + "frames after that part", then you will be able to tell what the startup of the move is
-	// after you release the button
-	MoveInfoPropertyType_sectionSeparator,
-	MoveInfoPropertyType_sectionSeparatorProjectile,
-	// If PlayerInfo::inNewMoveSection == true for this many frames, the player is considered 'idle' in all respects.
-	MoveInfoPropertyType_considerIdleInSeparatedSectionAfterThisManyFrames,
-	// This is needed for Johnny walking back and forth in Mist Finer because he can start walking
-	// as soon as he can do Mist Finer attack, but we still want the new section because we treat
-	// walking same way as standing in Mist Finer
-	MoveInfoPropertyType_preservesNewSection,
-	MoveInfoPropertyType_isIdle,
-	MoveInfoPropertyType_canBlock,
-	MoveInfoPropertyType_isDangerous,
-	MoveInfoPropertyType_framebarId,
-	MoveInfoPropertyType_framebarName,
-	MoveInfoPropertyType_framebarNameUncombined,
-	MoveInfoPropertyType_framebarSlangNameUncombined,
-	MoveInfoPropertyType_framebarSlangName,
-	MoveInfoPropertyType_framebarNameFull,
-	MoveInfoPropertyType_framebarNameSelector,
-	MoveInfoPropertyType_framebarSlangNameSelector,
-	MoveInfoPropertyType_isInVariableStartupSection,
-	MoveInfoPropertyType_canStopHolding,
-	MoveInfoPropertyType_aSectionBeforeVariableStartup,
-	MoveInfoPropertyType_considerNewSectionAsBeingInVariableStartup,
-	MoveInfoPropertyType_considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot,
-	MoveInfoPropertyType_considerVariableStartupAsStanceForFramebar,
-	MoveInfoPropertyType_canBeUnableToBlockIndefinitelyOrForVeryLongTime,
-	MoveInfoPropertyType_isRecoveryHasGatlings,
-	MoveInfoPropertyType_isRecoveryCanAct,
-	MoveInfoPropertyType_canFaultlessDefend,
-	MoveInfoPropertyType_nameIncludesInputs,
-	MoveInfoPropertyType_ignoresHitstop,
-	MoveInfoPropertyType_frontLegInvul,
-	MoveInfoPropertyType_forceAddWhiffCancelsStart,
-	MoveInfoPropertyType_forceAddWhiffCancelsCount,
-	MoveInfoPropertyType_isRecoveryCanReload,
-	MoveInfoPropertyType_onlyAddForceWhiffCancelsOnFirstFrameOfSprite,
-	MoveInfoPropertyType_zatoHoldLevel,
-	MoveInfoPropertyType_conditionForAddingWhiffCancels,
-	MoveInfoPropertyType_caresAboutWall,
-	MoveInfoPropertyType_faustPogo,
-	MoveInfoPropertyType_displayNameIfIdle,
-	MoveInfoPropertyType_displayNameIfIdleSlang,
-	MoveInfoPropertyType_butForFramebarDontCombineWithPreviousMove,
-	MoveInfoPropertyType_replacementInputs,
-	MoveInfoPropertyType_replacementBufferTime,
-	MoveInfoPropertyType_whiffCancelsNote,
-	MoveInfoPropertyType_secondaryStartup,
-	MoveInfoPropertyType_forceLandingRecovery,
-	MoveInfoPropertyType_isGrab,
-	MoveInfoPropertyType_partOfStance,
-	MoveInfoPropertyType_dontSkipSuper,
-	MoveInfoPropertyType_iKnowExactlyWhenTheRecoveryOfThisMoveIs,
-	MoveInfoPropertyType_forceSuperHitAnyway,
-};
-
 struct MoveInfoProperty {
-	MoveInfoPropertyType type;
+	DWORD type;
 	union {
 		bool boolValue;
 		const char* strValue;
@@ -117,65 +49,81 @@ struct MoveInfoStored {
 	int count = 0;
 };
 
+#define MOVE_INFO_PROPERTY_TABLE \
+	MOVE_INFO_EXEC(bool, boolValue, combineWithPreviousMove, false) \
+	/* This is needed for Johnny becoming able to use Mist Finer from his MistFinerLoop animation.
+	 We want to write X+possibly infinite frames as long as you're holding, where X is the startup of
+	 the availability of Mist Finer attack.
+*/	MOVE_INFO_EXEC(bool, boolValue, usePlusSignInCombination, false) \
+	MOVE_INFO_EXEC(const char*, strValue, displayName, nullptr) \
+	MOVE_INFO_EXEC(const char*, strValue, slangName, nullptr) \
+	/* A section is what I call separating frames with a + sign in the startup, recovery or total display.
+	This is useful for some moves that can be held or charged, because if you treat the part of the
+	animation that starts after you release the button as separate and show it with a "frames from before
+	that part" + "frames after that part", then you will be able to tell what the startup of the move is
+	after you release the button
+*/	MOVE_INFO_EXEC(sectionSeparator_t, sectionSeparatorValue, sectionSeparator, nullptr) \
+	MOVE_INFO_EXEC(sectionSeparatorProjectile_t, sectionSeparatorProjectileValue, sectionSeparatorProjectile, nullptr) \
+	/* If PlayerInfo::inNewMoveSection == true for this many frames, the player is considered 'idle' in all respects.
+*/	MOVE_INFO_EXEC(int, intValue, considerIdleInSeparatedSectionAfterThisManyFrames, 0) \
+	/* This is needed for Johnny walking back and forth in Mist Finer because he can start walking
+	as soon as he can do Mist Finer attack, but we still want the new section because we treat
+	walking same way as standing in Mist Finer
+*/	MOVE_INFO_EXEC(bool, boolValue, preservesNewSection, false) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isIdle, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canBlock, nullptr) \
+	MOVE_INFO_EXEC(isDangerous_t, isDangerousValue, isDangerous, nullptr) \
+	MOVE_INFO_EXEC(int, intValue, framebarId, -1) \
+	MOVE_INFO_EXEC(const char*, strValue, framebarName, nullptr) \
+	MOVE_INFO_EXEC(const char*, strValue, framebarNameUncombined, nullptr) \
+	MOVE_INFO_EXEC(const char*, strValue, framebarSlangNameUncombined, nullptr) \
+	MOVE_INFO_EXEC(const char*, strValue, framebarSlangName, nullptr) \
+	MOVE_INFO_EXEC(const char*, strValue, framebarNameFull, nullptr) \
+	MOVE_INFO_EXEC(selectFramebarName_t, selectFramebarNameValue, framebarNameSelector, nullptr) \
+	MOVE_INFO_EXEC(selectFramebarName_t, selectFramebarNameValue, framebarSlangNameSelector, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isInVariableStartupSection, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canStopHolding, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, aSectionBeforeVariableStartup, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, considerNewSectionAsBeingInVariableStartup, false) \
+	MOVE_INFO_EXEC(bool, boolValue, considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot, false) \
+	MOVE_INFO_EXEC(bool, boolValue, considerVariableStartupAsStanceForFramebar, false) \
+	MOVE_INFO_EXEC(bool, boolValue, canBeUnableToBlockIndefinitelyOrForVeryLongTime, false) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isRecoveryHasGatlings, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isRecoveryCanAct, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canFaultlessDefend, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, nameIncludesInputs, false) \
+	MOVE_INFO_EXEC(bool, boolValue, ignoresHitstop, false) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, frontLegInvul, nullptr) \
+	MOVE_INFO_EXEC(int, intValue, forceAddWhiffCancelsStart, 0) \
+	MOVE_INFO_EXEC(int, intValue, forceAddWhiffCancelsCount, 0) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isRecoveryCanReload, nullptr) \
+	MOVE_INFO_EXEC(const char*, strValue, onlyAddForceWhiffCancelsOnFirstFrameOfSprite, nullptr) \
+	MOVE_INFO_EXEC(zatoHoldLevel_t, zatoHoldLevelValue, zatoHoldLevel, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, conditionForAddingWhiffCancels, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, caresAboutWall, false) \
+	MOVE_INFO_EXEC(bool, boolValue, faustPogo, false) \
+	MOVE_INFO_EXEC(const char*, strValue, displayNameIfIdle, nullptr) \
+	MOVE_INFO_EXEC(const char*, strValue, displayNameIfIdleSlang, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, butForFramebarDontCombineWithPreviousMove, false) \
+	MOVE_INFO_EXEC(const char*, strValue, replacementInputs, nullptr) \
+	MOVE_INFO_EXEC(int, intValue, replacementBufferTime, 0) \
+	MOVE_INFO_EXEC(const char*, strValue, whiffCancelsNote, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, secondaryStartup, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, forceLandingRecovery, false) \
+	MOVE_INFO_EXEC(bool, boolValue, isGrab, false) \
+	MOVE_INFO_EXEC(bool, boolValue, partOfStance, false) \
+	MOVE_INFO_EXEC(bool, boolValue, dontSkipSuper, false) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, iKnowExactlyWhenTheRecoveryOfThisMoveIs, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, forceSuperHitAnyway, nullptr)
+
 struct MoveInfo {
 	CharacterType charType;
 	const char* name;
 	bool isEffect;
 	
-	
-	bool combineWithPreviousMove = false;
-	bool usePlusSignInCombination = false;
-	const char* displayName = nullptr;
-	const char* slangName = nullptr;
-	sectionSeparator_t sectionSeparator = nullptr;
-	sectionSeparatorProjectile_t sectionSeparatorProjectile = nullptr;
-	int considerIdleInSeparatedSectionAfterThisManyFrames = 0;
-	bool preservesNewSection = false;
-	isIdle_t isIdle = nullptr;
-	isIdle_t canBlock = nullptr;
-	isDangerous_t isDangerous = nullptr;
-	int framebarId = -1;
-	const char* framebarName = nullptr;
-	const char* framebarNameUncombined = nullptr;
-	const char* framebarSlangNameUncombined = nullptr;
-	const char* framebarSlangName = nullptr;
-	const char* framebarNameFull = nullptr;
-	selectFramebarName_t framebarNameSelector = nullptr;
-	selectFramebarName_t framebarSlangNameSelector = nullptr;
-	isIdle_t isInVariableStartupSection = nullptr;
-	isIdle_t canStopHolding = nullptr;
-	isIdle_t aSectionBeforeVariableStartup = nullptr;
-	bool considerNewSectionAsBeingInVariableStartup = false;
-	bool considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = false;
-	bool considerVariableStartupAsStanceForFramebar = false;
-	bool canBeUnableToBlockIndefinitelyOrForVeryLongTime = false;
-	isIdle_t isRecoveryHasGatlings = nullptr;
-	isIdle_t isRecoveryCanAct = nullptr;
-	isIdle_t canFaultlessDefend = nullptr;
-	bool nameIncludesInputs = false;
-	bool ignoresHitstop = false;
-	isIdle_t frontLegInvul = nullptr;
-	int forceAddWhiffCancelsStart = 0;
-	int forceAddWhiffCancelsCount = 0;
-	isIdle_t isRecoveryCanReload = nullptr;
-	const char* onlyAddForceWhiffCancelsOnFirstFrameOfSprite = nullptr;
-	zatoHoldLevel_t zatoHoldLevel = nullptr;
-	isIdle_t conditionForAddingWhiffCancels = nullptr;
-	bool caresAboutWall = false;
-	bool faustPogo = false;
-	const char* displayNameIfIdle = nullptr;
-	const char* displayNameIfIdleSlang = nullptr;
-	bool butForFramebarDontCombineWithPreviousMove = false;
-	const char* replacementInputs = nullptr;
-	int replacementBufferTime = 0;
-	const char* whiffCancelsNote = nullptr;
-	isIdle_t secondaryStartup = nullptr;
-	bool forceLandingRecovery = false;
-	bool isGrab = false;
-	bool partOfStance = false;
-	bool dontSkipSuper = false;
-	isIdle_t iKnowExactlyWhenTheRecoveryOfThisMoveIs = nullptr;
-	isIdle_t forceSuperHitAnyway = nullptr;
+	#define MOVE_INFO_EXEC(type, prop, name, defaultValue) type name = defaultValue;
+	MOVE_INFO_PROPERTY_TABLE
+	#undef MOVE_INFO_EXEC
 	
 	inline MoveInfo() : isIdle(isIdle_default), canBlock(canBlock_default) { }
 	MoveInfo(const MoveInfoStored& info);
