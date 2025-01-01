@@ -1336,34 +1336,11 @@ static inline int determineFrameLevel(FrameType type) {
 
 enum SortItemType {
 	// if you change the order of these elements you must also change the order of elements in SortItem items[] in printInvuls()
-	STRIKE_INVUL,
-	THROW_INVUL,
-	SUPER_LOW_PROFILE,
-	LOW_PROFILE,
-	SOMEWHAT_LOW_PROFILE,
-	UPPER_BODY_INVUL,
-	TOE_INVUL,
-	FOOT_INVUL,
-	LEG_INVUL,
-	AIRBORNE_INVUL,
-	AIRBORNE_BUT_WONT_GO_OVER_LOWS,
-	CONSIDERED_AIRBORNE,
-	FRONT_LEG_INVUL,
-	PROJECTILE_ONLY_INVUL,
-	SUPER_ARMOR,
-	// If you add super armor types or change their order, you need to change the code that relies on SUPER_ARMOR_THROW being first and SUPER_ARMOR_OVERDRIVE being last
-	SUPER_ARMOR_THROW,
-	SUPER_ARMOR_BURST,
-	SUPER_ARMOR_MID,
-	SUPER_ARMOR_OVERHEAD,
-	SUPER_ARMOR_LOW,
-	SUPER_ARMOR_GUARD_IMPOSSIBLE,
-	SUPER_ARMOR_OBJECT_ATTACCK,
-	SUPER_ARMOR_HONTAI_ATTACCK,
-	SUPER_ARMOR_PROJECTILE_LEVEL_0,
-	SUPER_ARMOR_OVERDRIVE,
-	SUPER_ARMOR_BLITZ_BREAK,
-	REFLECT
+	
+	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) enumName,
+	INVUL_TYPES_TABLE
+	#undef INVUL_TYPES_EXEC
+	
 };
 const SortItemType SUPER_ARMOR_FIRST = SUPER_ARMOR_THROW;
 const SortItemType SUPER_ARMOR_LAST = SUPER_ARMOR_BLITZ_BREAK;
