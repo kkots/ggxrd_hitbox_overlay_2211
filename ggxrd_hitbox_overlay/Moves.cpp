@@ -2479,11 +2479,13 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NaNaNaNanigaDerukana");
 	move.displayName = "W-W-What Could This Be?";
+	move.slangName = "Super Toss";
 	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SugoiNaNaNaNanigaDerukana");
 	move.displayName = "W-W-What Could This Be? 100% Ver.";
+	move.slangName = "Max Super Toss";
 	move.dontSkipSuper = true;
 	addMove(move);
 	

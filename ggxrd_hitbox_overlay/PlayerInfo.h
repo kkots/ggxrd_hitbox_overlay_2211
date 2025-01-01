@@ -202,6 +202,52 @@ inline FrameType frameMap(FrameType type) {
 		default:                                    return FT_NONE;
 	}
 }
+inline FrameType frameMapNoIdle(FrameType type) {
+	switch (type) {
+		case FT_NONE:                               return FT_NONE;
+		case FT_IDLE:                               return FT_IDLE;
+		case FT_IDLE_ACTIVE_IN_SUPERFREEZE:         return FT_IDLE_ACTIVE_IN_SUPERFREEZE;
+		case FT_IDLE_PROJECTILE:                    return FT_IDLE_PROJECTILE;
+		case FT_IDLE_CANT_BLOCK:                    return FT_IDLE_CANT_BLOCK;
+		case FT_IDLE_CANT_FD:                       return FT_IDLE_CANT_FD;
+		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK;
+		case FT_IDLE_ELPHELT_RIFLE:                 return FT_IDLE_ELPHELT_RIFLE;
+		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE_ELPHELT_RIFLE_READY;
+		case FT_HITSTOP:                            return FT_HITSTOP;
+		case FT_ACTIVE:                             return FT_ACTIVE;
+		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
+		case FT_ACTIVE_HITSTOP:                     return FT_ACTIVE_HITSTOP;
+		case FT_ACTIVE_HITSTOP_PROJECTILE:          return FT_ACTIVE_HITSTOP_PROJECTILE;
+		case FT_ACTIVE_NEW_HIT:                     return FT_ACTIVE_NEW_HIT;
+		case FT_ACTIVE_NEW_HIT_PROJECTILE:          return FT_ACTIVE_NEW_HIT_PROJECTILE;
+		case FT_STARTUP:                            return FT_STARTUP;
+		case FT_STARTUP_ANYTIME_NOW:                return FT_STARTUP;
+		case FT_STARTUP_ANYTIME_NOW_CAN_ACT:        return FT_STARTUP;
+		case FT_STARTUP_STANCE:                     return FT_STARTUP;
+		case FT_STARTUP_STANCE_CAN_STOP_HOLDING:    return FT_STARTUP;
+		case FT_STARTUP_CAN_BLOCK:                  return FT_STARTUP;
+		case FT_STARTUP_CAN_BLOCK_AND_CANCEL:       return FT_STARTUP;
+		case FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN:  return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE2:          return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE3:          return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED: return FT_STARTUP;
+		case FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED: return FT_STARTUP;
+		case FT_RECOVERY:                           return FT_RECOVERY;
+		case FT_RECOVERY_HAS_GATLINGS:              return FT_RECOVERY;
+		case FT_RECOVERY_CAN_ACT:                   return FT_RECOVERY;
+		case FT_RECOVERY_CAN_RELOAD:                return FT_RECOVERY;
+		case FT_NON_ACTIVE:                         return FT_NON_ACTIVE;
+		case FT_NON_ACTIVE_PROJECTILE:              return FT_NON_ACTIVE_PROJECTILE;
+		case FT_PROJECTILE:                         return FT_PROJECTILE;
+		case FT_LANDING_RECOVERY:                   return FT_LANDING_RECOVERY;
+		case FT_LANDING_RECOVERY_CAN_CANCEL:        return FT_LANDING_RECOVERY;
+		case FT_XSTUN:                              return FT_XSTUN;
+		case FT_XSTUN_CAN_CANCEL:                   return FT_XSTUN;
+		case FT_XSTUN_HITSTOP:                      return FT_XSTUN_HITSTOP;
+		case FT_GRAYBEAT_AIR_HITSTUN:               return FT_GRAYBEAT_AIR_HITSTUN;
+		default:                                    return FT_NONE;
+	}
+}
 
 struct FrameStopInfo {
 	unsigned short value:15;  // hitstun, blockstun or hitstop

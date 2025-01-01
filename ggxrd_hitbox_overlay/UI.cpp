@@ -2128,6 +2128,8 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.considerSimilarFrameTypesSameForFrameCounts);
 			
+			booleanSettingPreset(settings.considerSimilarIdleFramesSameForFrameCounts);
+			
 			booleanSettingPreset(settings.skipGrabsInFramebar);
 			
 			if (booleanSettingPreset(settings.combineProjectileFramebarsWhenPossible)) {
@@ -6112,9 +6114,13 @@ void UI::framebarHelpWindow() {
 			"\n"
 			"Numbers on the framebar mean the number of same-type frames in a row, until a 'first frame' marker (^img0;) is encountered."
 			" The numbers do not reset (do not restart counting) when a \"next hit\" active frame (^img1;) is encountered."
-			" The \"considerSimilarFrameTypesSameForFrameCounts\" setting may help broaden the range of situations where the numbers get reset (restart counting)."
-			" By default it is set to true, meaning similar frame types of startup or recovery are counted as one range of frames."
-			" When the number of frames is double or triple digit"
+			" The \"considerSimilarFrameTypesSameForFrameCounts\" and \"considerSimilarIdleFramesSameForFrameCounts\" settings"
+			" may help narrow the range of situations where the numbers get reset (restart counting)."
+			" By default \"considerSimilarFrameTypesSameForFrameCounts\" is set to true and \"considerSimilarIdleFramesSameForFrameCounts\" is set to false,"
+			" meaning similar frame types of startup or recovery are counted as one range of frames, but breaks in ranges of idle frames are counted"
+			"as different frame ranges.\n"
+			"\n"
+			"WWhen the number of frames is double or triple digit"
 			" and does not fit, it may be broken up into 1-2 digit on one side + 1-2 digits on the other side. The way you should"
 			" read this is as one whole number: the pieces on the right are the higher digits, and pieces on the left are the lower ones.\n"
 			"\n"
@@ -6664,6 +6670,7 @@ void drawProjectileFramebar(const Framebar& framebar, FrameDims* preppedDims, in
 template<typename FramebarT, typename FrameT>
 void drawFirstFrames(const FramebarT& framebar, int framebarPosition, FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
+	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
 	const ImVec2 firstFrameUVStart = { ui.firstFrame->uStart, ui.firstFrame->vStart };
 	const ImVec2 firstFrameUVEnd = { ui.firstFrame->uEnd, ui.firstFrame->vEnd };
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
@@ -6672,7 +6679,7 @@ void drawFirstFrames(const FramebarT& framebar, int framebarPosition, FrameDims*
 		
 		if (frame.isFirst
 				&& !(
-					considerSimilarFrameTypesSameForFrameCounts
+					considerSimilarIdleFramesSameForFrameCounts
 						?
 							i == framebarPosition
 								?
@@ -6706,10 +6713,11 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* prep
 	
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
+	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
 	
 	FrameType lastFrameType = framebar.preFrame;
 	if (considerSimilarFrameTypesSameForFrameCounts) {
-		lastFrameType = frameMap(lastFrameType);
+		lastFrameType = considerSimilarIdleFramesSameForFrameCounts ? frameMap(lastFrameType) : frameMapNoIdle(lastFrameType);
 	}
 	int sameFrameTypeCount = framebar.preFrameLength;
 	int visualFrameCount = 0;
@@ -6728,7 +6736,7 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* prep
 		
 		FrameType currentType = frame.type;
 		if (considerSimilarFrameTypesSameForFrameCounts) {
-			currentType = frameMap(currentType);
+			currentType = considerSimilarIdleFramesSameForFrameCounts ? frameMap(currentType) : frameMapNoIdle(currentType);
 		} else if (currentType == FT_IDLE_ACTIVE_IN_SUPERFREEZE) {
 			currentType = FT_IDLE_PROJECTILE;
 		}
@@ -6737,7 +6745,7 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* prep
 		if (showFirstFrames) {
 			isFirst = frame.isFirst
 				&& !(
-					considerSimilarFrameTypesSameForFrameCounts
+					considerSimilarIdleFramesSameForFrameCounts
 						?
 							i == 0
 								?

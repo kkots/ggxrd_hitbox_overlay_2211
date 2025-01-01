@@ -332,11 +332,16 @@ bool Settings::onDllMain() {
 			"; Specify true or false.\n"
 			"; When a player's animation changes from one to another, except in certain cases, the first frame of the new animation is denoted with\n"
 			"; a ' mark before that frame. For some animations a first frame is denoted even when\n"
-			"; the animation didn't change, but instead reached some important point. This includes entering and leaving hitstop.");
+			"; the animation didn't change, but instead reached some important point. This includes entering hitstop.");
 	registerOtherDescription(settingAndItsName(considerSimilarFrameTypesSameForFrameCounts), "Consider Similar Frame Types Same For Frame Count", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; This affects the frame counts that are displayed on the framebar. If true, the frame counter will not reset\n"
-			"; between different frame graphics that all mean recovery or all mean startup or all mean idle and so on.");
+			"; between different frame graphics that all mean recovery or all mean startup and so on. Idle frames are not\n"
+			"; affected by this and for them you should use the \"considerSimilarIdleFramesSameForFrameCounts\" setting.");
+	registerOtherDescription(settingAndItsName(considerSimilarIdleFramesSameForFrameCounts), "Consider Similar Idle Frames Same For Frame Count", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; This affects the frame counts that are displayed on the framebar. If true, the frame counter will not reset\n"
+			"; between different frame graphics that all mean idle.");
 	registerOtherDescription(settingAndItsName(combineProjectileFramebarsWhenPossible), "Combine Projectile Framebars When Possible", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; When true, two or more projectile framebars will be combined into one if their active/non-active frames don't intersect.");
@@ -486,8 +491,9 @@ bool Settings::onDllMain() {
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));
 	for (OtherDescription& desc : otherDescriptions) {
 		pointerIntoSettingsIntoDescription[(BYTE*)desc.ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)] = &desc;
+		settingNameToOffset[desc.iniNameAllCaps] = (BYTE*)desc.ptr - (BYTE*)this;
 		iniNameToUiNameMap.insert(
-			{ 
+			{
 				desc.iniNameAllCaps.c_str(),
 				{ desc.uiFullPath.c_str(), desc.uiName }
 			});
@@ -680,6 +686,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool considerSimilarFrameTypesSameForFrameCountsParsed = false;
 	
+	bool considerSimilarIdleFramesSameForFrameCountsParsed = false;
+	
 	bool combineProjectileFramebarsWhenPossibleParsed = false;
 	
 	bool eachProjectileOnSeparateFramebarParsed = false;
@@ -751,161 +759,276 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 			auto found = keyCombosToParse.find(keyNameUpper);
 			if (found != keyCombosToParse.end()) {
 				found->second.isParsed = parseKeys(found->second.name, keyValue, *found->second.keyCombo);
-			}
-			if (!slowmoTimesParsed && _stricmp(keyName.c_str(), "slowmoTimes") == 0) {
-				slowmoTimesParsed = parseInteger("slowmoTimes", keyValue, slowmoTimes);
-			}
-			if (!framebarHeightParsed && _stricmp(keyName.c_str(), "framebarHeight") == 0) {
-				framebarHeightParsed = parseInteger("framebarHeight", keyValue, framebarHeight);
-			}
-			if (!framebarTitleCharsMaxParsed && _stricmp(keyName.c_str(), "framebarTitleCharsMax") == 0) {
-				framebarTitleCharsMaxParsed = parseInteger("framebarTitleCharsMax", keyValue, framebarTitleCharsMax);
-			}
-			if (!cameraCenterOffsetXParsed && _stricmp(keyName.c_str(), "cameraCenterOffsetX") == 0) {
-				cameraCenterOffsetXParsed = parseFloat("cameraCenterOffsetX", keyValue, cameraCenterOffsetX);
-			}
-			if (!cameraCenterOffsetYParsed && _stricmp(keyName.c_str(), "cameraCenterOffsetY") == 0) {
-				cameraCenterOffsetYParsed = parseFloat("cameraCenterOffsetY", keyValue, cameraCenterOffsetY);
-			}
-			if (!cameraCenterOffsetY_WhenForcePitch0Parsed && _stricmp(keyName.c_str(), "cameraCenterOffsetY_WhenForcePitch0") == 0) {
-				cameraCenterOffsetY_WhenForcePitch0Parsed = parseFloat("cameraCenterOffsetY_WhenForcePitch0", keyValue, cameraCenterOffsetY_WhenForcePitch0);
-			}
-			if (!cameraCenterOffsetZParsed && _stricmp(keyName.c_str(), "cameraCenterOffsetZ") == 0) {
-				cameraCenterOffsetZParsed = parseFloat("cameraCenterOffsetZ", keyValue, cameraCenterOffsetZ);
-			}
-			if (!displayUIOnTopOfPauseMenuParsed && _stricmp(keyName.c_str(), "displayUIOnTopOfPauseMenu") == 0) {
-				displayUIOnTopOfPauseMenuParsed = parseBoolean("displayUIOnTopOfPauseMenu", keyValue, displayUIOnTopOfPauseMenu);
-			}
-			if (!dodgeObsRecordingParsed && _stricmp(keyName.c_str(), "dodgeObsRecording") == 0) {
-				dodgeObsRecordingParsed = parseBoolean("dodgeObsRecording", keyValue, dodgeObsRecording);
-			}
-			if (!neverIgnoreHitstopParsed && _stricmp(keyName.c_str(), "neverIgnoreHitstop") == 0) {
-				neverIgnoreHitstopParsed = parseBoolean("neverIgnoreHitstop", keyValue, neverIgnoreHitstop);
-			}
-			if (!ignoreHitstopForBlockingBaikenParsed && _stricmp(keyName.c_str(), "ignoreHitstopForBlockingBaiken") == 0) {
-				ignoreHitstopForBlockingBaikenParsed = parseBoolean("ignoreHitstopForBlockingBaiken", keyValue, ignoreHitstopForBlockingBaiken);
-			}
-			if (!considerRunAndWalkNonIdleParsed && _stricmp(keyName.c_str(), "considerRunAndWalkNonIdle") == 0) {
-				considerRunAndWalkNonIdleParsed = parseBoolean("considerRunAndWalkNonIdle", keyValue, considerRunAndWalkNonIdle);
-			}
-			if (!considerCrouchNonIdleParsed && _stricmp(keyName.c_str(), "considerCrouchNonIdle") == 0) {
-				considerCrouchNonIdleParsed = parseBoolean("considerCrouchNonIdle", keyValue, considerCrouchNonIdle);
-			}
-			if (!considerDummyPlaybackNonIdleParsed && _stricmp(keyName.c_str(), "considerDummyPlaybackNonIdle") == 0) {
-				considerDummyPlaybackNonIdleParsed = parseBoolean("considerDummyPlaybackNonIdle", keyValue, considerDummyPlaybackNonIdle);
-			}
-			if (!considerKnockdownWakeupAndAirtechIdleParsed && _stricmp(keyName.c_str(), "considerKnockdownWakeupAndAirtechIdle") == 0) {
-				considerKnockdownWakeupAndAirtechIdleParsed = parseBoolean("considerKnockdownWakeupAndAirtechIdle", keyValue, considerKnockdownWakeupAndAirtechIdle);
-			}
-			if (!considerIdleInvulIdleParsed && _stricmp(keyName.c_str(), "considerIdleInvulIdle") == 0) {
-				considerIdleInvulIdleParsed = parseBoolean("considerIdleInvulIdle", keyValue, considerIdleInvulIdle);
-			}
-			if (!useSimplePixelBlenderParsed && _stricmp(keyName.c_str(), "useSimplePixelBlender") == 0) {
-				useSimplePixelBlenderParsed = parseBoolean("useSimplePixelBlender", keyValue, useSimplePixelBlender);
-			}
-			if (!dontShowBoxesParsed && _stricmp(keyName.c_str(), "dontShowBoxes") == 0) {
-				dontShowBoxesParsed = parseBoolean("dontShowBoxes", keyValue, dontShowBoxes);
-			}
-			if (!neverDisplayGrayHurtboxesParsed && _stricmp(keyName.c_str(), "neverDisplayGrayHurtboxes") == 0) {
-				neverDisplayGrayHurtboxesParsed = parseBoolean("neverDisplayGrayHurtboxes", keyValue, neverDisplayGrayHurtboxes);
-			}
-			if (!showFramebarParsed && _stricmp(keyName.c_str(), "showFramebar") == 0) {
-				showFramebarParsed = parseBoolean("showFramebar", keyValue, showFramebar);
-			}
-			if (!showFramebarInTrainingModeParsed && _stricmp(keyName.c_str(), "showFramebarInTrainingMode") == 0) {
-				showFramebarInTrainingModeParsed = parseBoolean("showFramebarInTrainingMode", keyValue, showFramebarInTrainingMode);
-			}
-			if (!showFramebarInReplayModeParsed && _stricmp(keyName.c_str(), "showFramebarInReplayMode") == 0) {
-				showFramebarInReplayModeParsed = parseBoolean("showFramebarInReplayMode", keyValue, showFramebarInReplayMode);
-			}
-			if (!showFramebarInOtherModesParsed && _stricmp(keyName.c_str(), "showFramebarInOtherModes") == 0) {
-				showFramebarInOtherModesParsed = parseBoolean("showFramebarInOtherModes", keyValue, showFramebarInOtherModes);
-			}
-			if (!showStrikeInvulOnFramebarParsed && _stricmp(keyName.c_str(), "showStrikeInvulOnFramebar") == 0) {
-				showStrikeInvulOnFramebarParsed = parseBoolean("showStrikeInvulOnFramebar", keyValue, showStrikeInvulOnFramebar);
-			}
-			if (!showSuperArmorOnFramebarParsed && _stricmp(keyName.c_str(), "showSuperArmorOnFramebar") == 0) {
-				showSuperArmorOnFramebarParsed = parseBoolean("showSuperArmorOnFramebar", keyValue, showSuperArmorOnFramebar);
-			}
-			if (!showThrowInvulOnFramebarParsed && _stricmp(keyName.c_str(), "showThrowInvulOnFramebar") == 0) {
-				showThrowInvulOnFramebarParsed = parseBoolean("showThrowInvulOnFramebar", keyValue, showThrowInvulOnFramebar);
-			}
-			if (!showFirstFramesOnFramebarParsed && _stricmp(keyName.c_str(), "showFirstFramesOnFramebar") == 0) {
-				showFirstFramesOnFramebarParsed = parseBoolean("showFirstFramesOnFramebar", keyValue, showFirstFramesOnFramebar);
-			}
-			if (!considerSimilarFrameTypesSameForFrameCountsParsed && _stricmp(keyName.c_str(), "considerSimilarFrameTypesSameForFrameCounts") == 0) {
-				considerSimilarFrameTypesSameForFrameCountsParsed = parseBoolean("considerSimilarFrameTypesSameForFrameCounts", keyValue, considerSimilarFrameTypesSameForFrameCounts);
-			}
-			if (!combineProjectileFramebarsWhenPossibleParsed && _stricmp(keyName.c_str(), "combineProjectileFramebarsWhenPossible") == 0) {
-				combineProjectileFramebarsWhenPossibleParsed = parseBoolean("combineProjectileFramebarsWhenPossible", keyValue, combineProjectileFramebarsWhenPossible);
-			}
-			if (!eachProjectileOnSeparateFramebarParsed && _stricmp(keyName.c_str(), "eachProjectileOnSeparateFramebar") == 0) {
-				eachProjectileOnSeparateFramebarParsed = parseBoolean("eachProjectileOnSeparateFramebar", keyValue, eachProjectileOnSeparateFramebar);
-			}
-			if (!dontClearFramebarOnStageResetParsed && _stricmp(keyName.c_str(), "dontClearFramebarOnStageReset") == 0) {
-				dontClearFramebarOnStageResetParsed = parseBoolean("dontClearFramebarOnStageReset", keyValue, dontClearFramebarOnStageReset);
-			}
-			if (!dontTruncateFramebarTitlesParsed && _stricmp(keyName.c_str(), "dontTruncateFramebarTitles") == 0) {
-				dontTruncateFramebarTitlesParsed = parseBoolean("dontTruncateFramebarTitles", keyValue, dontTruncateFramebarTitles);
-			}
-			if (!useSlangNamesParsed && _stricmp(keyName.c_str(), "useSlangNames") == 0) {
-				useSlangNamesParsed = parseBoolean("useSlangNames", keyValue, useSlangNames);
-			}
-			if (!allFramebarTitlesDisplayToTheLeftParsed && _stricmp(keyName.c_str(), "allFramebarTitlesDisplayToTheLeft") == 0) {
-				allFramebarTitlesDisplayToTheLeftParsed = parseBoolean("allFramebarTitlesDisplayToTheLeft", keyValue, allFramebarTitlesDisplayToTheLeft);
-			}
-			if (!showPlayerInFramebarTitleParsed && _stricmp(keyName.c_str(), "showPlayerInFramebarTitle") == 0) {
-				showPlayerInFramebarTitleParsed = parseBoolean("showPlayerInFramebarTitle", keyValue, showPlayerInFramebarTitle);
-			}
-			if (!useColorblindHelpParsed && _stricmp(keyName.c_str(), "useColorblindHelp") == 0) {
-				useColorblindHelpParsed = parseBoolean("useColorblindHelp", keyValue, useColorblindHelp);
-			}
-			if (!allowContinuousScreenshottingParsed && _stricmp(keyName.c_str(), "allowContinuousScreenshotting") == 0) {
-				allowContinuousScreenshottingParsed = parseBoolean("allowContinuousScreenshotting", keyValue, allowContinuousScreenshotting);
-			}
-			if (!turnOffPostEffectWhenMakingBackgroundBlackParsed && _stricmp(keyName.c_str(), "turnOffPostEffectWhenMakingBackgroundBlack") == 0) {
-				turnOffPostEffectWhenMakingBackgroundBlackParsed = parseBoolean("turnOffPostEffectWhenMakingBackgroundBlack", keyValue, turnOffPostEffectWhenMakingBackgroundBlack);
-			}
-			if (!startDisabledParsed && _stricmp(keyName.c_str(), "startDisabled") == 0) {
-				startDisabledParsed = parseBoolean("startDisabled", keyValue, startDisabled);
-			}
-			if (!screenshotPathParsed && _stricmp(keyName.c_str(), "screenshotPath") == 0) {
-				screenshotPathParsed = true;
-				screenshotPath = keyValue;  // in UTF-8
-				logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
-			}
-			if (!dontUseScreenshotTransparencyParsed && _stricmp(keyName.c_str(), "dontUseScreenshotTransparency") == 0) {
-				dontUseScreenshotTransparencyParsed = parseBoolean("dontUseScreenshotTransparency", keyValue, dontUseScreenshotTransparency);
-			}
-			if (!drawPushboxCheckSeparatelyParsed && _stricmp(keyName.c_str(), "drawPushboxCheckSeparately") == 0) {
-				drawPushboxCheckSeparatelyParsed = parseBoolean("drawPushboxCheckSeparately", keyValue, drawPushboxCheckSeparately);
-			}
-			if (!frameAdvantage_dontUsePreBlockstunTimeParsed && _stricmp(keyName.c_str(), "frameAdvantage_dontUsePreBlockstunTime") == 0) {
-				frameAdvantage_dontUsePreBlockstunTimeParsed = parseBoolean("frameAdvantage_dontUsePreBlockstunTime", keyValue, frameAdvantage_dontUsePreBlockstunTime);
-			}
-			if (!skipGrabsInFramebarParsed && _stricmp(keyName.c_str(), "skipGrabsInFramebar") == 0) {
-				skipGrabsInFramebarParsed = parseBoolean("skipGrabsInFramebar", keyValue, skipGrabsInFramebar);
-			}
-			if (!showComboProrationInRiscGaugeParsed && _stricmp(keyName.c_str(), "showComboProrationInRiscGauge") == 0) {
-				showComboProrationInRiscGaugeParsed = parseBoolean("showComboProrationInRiscGauge", keyValue, showComboProrationInRiscGauge);
-			}
-			if (!displayInputHistoryWhenObservingParsed && _stricmp(keyName.c_str(), "displayInputHistoryWhenObserving") == 0) {
-				displayInputHistoryWhenObservingParsed = parseBoolean("displayInputHistoryWhenObserving", keyValue, displayInputHistoryWhenObserving);
-			}
-			if (!displayInputHistoryInSomeOfflineModesParsed && _stricmp(keyName.c_str(), "displayInputHistoryInSomeOfflineModes") == 0) {
-				displayInputHistoryInSomeOfflineModesParsed = parseBoolean("displayInputHistoryInSomeOfflineModes", keyValue, displayInputHistoryInSomeOfflineModes);
-			}
-			if (!forceZeroPitchDuringCameraCenteringParsed && _stricmp(keyName.c_str(), "forceZeroPitchDuringCameraCentering") == 0) {
-				forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
-			}
-			if (!modWindowVisibleOnStartParsed && _stricmp(keyName.c_str(), "modWindowVisibleOnStart") == 0) {
-				modWindowVisibleOnStartParsed = parseBoolean("modWindowVisibleOnStart", keyValue, modWindowVisibleOnStart);
-			}
-			if (!closingModWindowAlsoHidesFramebarParsed && _stricmp(keyName.c_str(), "closingModWindowAlsoHidesFramebar") == 0) {
-				closingModWindowAlsoHidesFramebarParsed = parseBoolean("closingModWindowAlsoHidesFramebar", keyValue, closingModWindowAlsoHidesFramebar);
-			}
-			if (!dontShowMoveNameParsed && _stricmp(keyName.c_str(), "dontShowMoveName") == 0) {
-				dontShowMoveNameParsed = parseBoolean("dontShowMoveName", keyValue, dontShowMoveName);
+			} else {
+				auto foundOffsetIt = settingNameToOffset.find(keyNameUpper);
+				DWORD foundOffset = 0xffffffff;
+				if (foundOffsetIt != settingNameToOffset.end()) {
+					foundOffset = foundOffsetIt->second;
+					switch (foundOffset) {
+						case offsetof(Settings, slowmoTimes):
+							if (!slowmoTimesParsed) {
+								slowmoTimesParsed = parseInteger("slowmoTimes", keyValue, slowmoTimes);
+							}
+							break;
+						case offsetof(Settings, framebarHeight):
+							if (!framebarHeightParsed) {
+								framebarHeightParsed = parseInteger("framebarHeight", keyValue, framebarHeight);
+							}
+							break;
+						case offsetof(Settings, framebarTitleCharsMax):
+							if (!framebarTitleCharsMaxParsed) {
+								framebarTitleCharsMaxParsed = parseInteger("framebarTitleCharsMax", keyValue, framebarTitleCharsMax);
+							}
+							break;
+						case offsetof(Settings, cameraCenterOffsetX):
+							if (!cameraCenterOffsetXParsed) {
+								cameraCenterOffsetXParsed = parseFloat("cameraCenterOffsetX", keyValue, cameraCenterOffsetX);
+							}
+							break;
+						case offsetof(Settings, cameraCenterOffsetY):
+							if (!cameraCenterOffsetYParsed) {
+								cameraCenterOffsetYParsed = parseFloat("cameraCenterOffsetY", keyValue, cameraCenterOffsetY);
+							}
+							break;
+						case offsetof(Settings, cameraCenterOffsetY_WhenForcePitch0):
+							if (!cameraCenterOffsetY_WhenForcePitch0Parsed) {
+								cameraCenterOffsetY_WhenForcePitch0Parsed = parseFloat("cameraCenterOffsetY_WhenForcePitch0", keyValue, cameraCenterOffsetY_WhenForcePitch0);
+							}
+							break;
+						case offsetof(Settings, cameraCenterOffsetZ):
+							if (!cameraCenterOffsetZParsed) {
+								cameraCenterOffsetZParsed = parseFloat("cameraCenterOffsetZ", keyValue, cameraCenterOffsetZ);
+							}
+							break;
+						case offsetof(Settings, displayUIOnTopOfPauseMenu):
+							if (!displayUIOnTopOfPauseMenuParsed) {
+								displayUIOnTopOfPauseMenuParsed = parseBoolean("displayUIOnTopOfPauseMenu", keyValue, displayUIOnTopOfPauseMenu);
+							}
+							break;
+						case offsetof(Settings, dodgeObsRecording):
+							if (!dodgeObsRecordingParsed) {
+								dodgeObsRecordingParsed = parseBoolean("dodgeObsRecording", keyValue, dodgeObsRecording);
+							}
+							break;
+						case offsetof(Settings, neverIgnoreHitstop):
+							if (!neverIgnoreHitstopParsed) {
+								neverIgnoreHitstopParsed = parseBoolean("neverIgnoreHitstop", keyValue, neverIgnoreHitstop);
+							}
+							break;
+						case offsetof(Settings, ignoreHitstopForBlockingBaiken):
+							if (!ignoreHitstopForBlockingBaikenParsed) {
+								ignoreHitstopForBlockingBaikenParsed = parseBoolean("ignoreHitstopForBlockingBaiken", keyValue, ignoreHitstopForBlockingBaiken);
+							}
+							break;
+						case offsetof(Settings, considerRunAndWalkNonIdle):
+							if (!considerRunAndWalkNonIdleParsed) {
+								considerRunAndWalkNonIdleParsed = parseBoolean("considerRunAndWalkNonIdle", keyValue, considerRunAndWalkNonIdle);
+							}
+							break;
+						case offsetof(Settings, considerCrouchNonIdle):
+							if (!considerCrouchNonIdleParsed) {
+								considerCrouchNonIdleParsed = parseBoolean("considerCrouchNonIdle", keyValue, considerCrouchNonIdle);
+							}
+							break;
+						case offsetof(Settings, considerDummyPlaybackNonIdle):
+							if (!considerDummyPlaybackNonIdleParsed) {
+								considerDummyPlaybackNonIdleParsed = parseBoolean("considerDummyPlaybackNonIdle", keyValue, considerDummyPlaybackNonIdle);
+							}
+							break;
+						case offsetof(Settings, considerKnockdownWakeupAndAirtechIdle):
+							if (!considerKnockdownWakeupAndAirtechIdleParsed) {
+								considerKnockdownWakeupAndAirtechIdleParsed = parseBoolean("considerKnockdownWakeupAndAirtechIdle", keyValue, considerKnockdownWakeupAndAirtechIdle);
+							}
+							break;
+						case offsetof(Settings, considerIdleInvulIdle):
+							if (!considerIdleInvulIdleParsed) {
+								considerIdleInvulIdleParsed = parseBoolean("considerIdleInvulIdle", keyValue, considerIdleInvulIdle);
+							}
+							break;
+						case offsetof(Settings, useSimplePixelBlender):
+							if (!useSimplePixelBlenderParsed) {
+								useSimplePixelBlenderParsed = parseBoolean("useSimplePixelBlender", keyValue, useSimplePixelBlender);
+							}
+							break;
+						case offsetof(Settings, dontShowBoxes):
+							if (!dontShowBoxesParsed) {
+								dontShowBoxesParsed = parseBoolean("dontShowBoxes", keyValue, dontShowBoxes);
+							}
+							break;
+						case offsetof(Settings, neverDisplayGrayHurtboxes):
+							if (!neverDisplayGrayHurtboxesParsed) {
+								neverDisplayGrayHurtboxesParsed = parseBoolean("neverDisplayGrayHurtboxes", keyValue, neverDisplayGrayHurtboxes);
+							}
+							break;
+						case offsetof(Settings, showFramebar):
+							if (!showFramebarParsed) {
+								showFramebarParsed = parseBoolean("showFramebar", keyValue, showFramebar);
+							}
+							break;
+						case offsetof(Settings, showFramebarInTrainingMode):
+							if (!showFramebarInTrainingModeParsed) {
+								showFramebarInTrainingModeParsed = parseBoolean("showFramebarInTrainingMode", keyValue, showFramebarInTrainingMode);
+							}
+							break;
+						case offsetof(Settings, showFramebarInReplayMode):
+							if (!showFramebarInReplayModeParsed) {
+								showFramebarInReplayModeParsed = parseBoolean("showFramebarInReplayMode", keyValue, showFramebarInReplayMode);
+							}
+							break;
+						case offsetof(Settings, showFramebarInOtherModes):
+							if (!showFramebarInOtherModesParsed) {
+								showFramebarInOtherModesParsed = parseBoolean("showFramebarInOtherModes", keyValue, showFramebarInOtherModes);
+							}
+							break;
+						case offsetof(Settings, showStrikeInvulOnFramebar):
+							if (!showStrikeInvulOnFramebarParsed) {
+								showStrikeInvulOnFramebarParsed = parseBoolean("showStrikeInvulOnFramebar", keyValue, showStrikeInvulOnFramebar);
+							}
+							break;
+						case offsetof(Settings, showSuperArmorOnFramebar):
+							if (!showSuperArmorOnFramebarParsed) {
+								showSuperArmorOnFramebarParsed = parseBoolean("showSuperArmorOnFramebar", keyValue, showSuperArmorOnFramebar);
+							}
+							break;
+						case offsetof(Settings, showThrowInvulOnFramebar):
+							if (!showThrowInvulOnFramebarParsed) {
+								showThrowInvulOnFramebarParsed = parseBoolean("showThrowInvulOnFramebar", keyValue, showThrowInvulOnFramebar);
+							}
+							break;
+						case offsetof(Settings, showFirstFramesOnFramebar):
+							if (!showFirstFramesOnFramebarParsed) {
+								showFirstFramesOnFramebarParsed = parseBoolean("showFirstFramesOnFramebar", keyValue, showFirstFramesOnFramebar);
+							}
+							break;
+						case offsetof(Settings, considerSimilarFrameTypesSameForFrameCounts):
+							if (!considerSimilarFrameTypesSameForFrameCountsParsed) {
+								considerSimilarFrameTypesSameForFrameCountsParsed = parseBoolean("considerSimilarFrameTypesSameForFrameCounts", keyValue, considerSimilarFrameTypesSameForFrameCounts);
+							}
+							break;
+						case offsetof(Settings, considerSimilarIdleFramesSameForFrameCounts):
+							if (!considerSimilarIdleFramesSameForFrameCountsParsed) {
+								considerSimilarIdleFramesSameForFrameCountsParsed = parseBoolean("considerSimilarIdleFramesSameForFrameCounts", keyValue, considerSimilarIdleFramesSameForFrameCounts);
+							}
+							break;
+						case offsetof(Settings, combineProjectileFramebarsWhenPossible):
+							if (!combineProjectileFramebarsWhenPossibleParsed) {
+								combineProjectileFramebarsWhenPossibleParsed = parseBoolean("combineProjectileFramebarsWhenPossible", keyValue, combineProjectileFramebarsWhenPossible);
+							}
+							break;
+						case offsetof(Settings, eachProjectileOnSeparateFramebar):
+							if (!eachProjectileOnSeparateFramebarParsed) {
+								eachProjectileOnSeparateFramebarParsed = parseBoolean("eachProjectileOnSeparateFramebar", keyValue, eachProjectileOnSeparateFramebar);
+							}
+							break;
+						case offsetof(Settings, dontClearFramebarOnStageReset):
+							if (!dontClearFramebarOnStageResetParsed) {
+								dontClearFramebarOnStageResetParsed = parseBoolean("dontClearFramebarOnStageReset", keyValue, dontClearFramebarOnStageReset);
+							}
+							break;
+						case offsetof(Settings, dontTruncateFramebarTitles):
+							if (!dontTruncateFramebarTitlesParsed) {
+								dontTruncateFramebarTitlesParsed = parseBoolean("dontTruncateFramebarTitles", keyValue, dontTruncateFramebarTitles);
+							}
+							break;
+						case offsetof(Settings, useSlangNames):
+							if (!useSlangNamesParsed) {
+								useSlangNamesParsed = parseBoolean("useSlangNames", keyValue, useSlangNames);
+							}
+							break;
+						case offsetof(Settings, allFramebarTitlesDisplayToTheLeft):
+							if (!allFramebarTitlesDisplayToTheLeftParsed) {
+								allFramebarTitlesDisplayToTheLeftParsed = parseBoolean("allFramebarTitlesDisplayToTheLeft", keyValue, allFramebarTitlesDisplayToTheLeft);
+							}
+							break;
+						case offsetof(Settings, showPlayerInFramebarTitle):
+							if (!showPlayerInFramebarTitleParsed) {
+								showPlayerInFramebarTitleParsed = parseBoolean("showPlayerInFramebarTitle", keyValue, showPlayerInFramebarTitle);
+							}
+							break;
+						case offsetof(Settings, useColorblindHelp):
+							if (!useColorblindHelpParsed) {
+								useColorblindHelpParsed = parseBoolean("useColorblindHelp", keyValue, useColorblindHelp);
+							}
+							break;
+						case offsetof(Settings, allowContinuousScreenshotting):
+							if (!allowContinuousScreenshottingParsed) {
+								allowContinuousScreenshottingParsed = parseBoolean("allowContinuousScreenshotting", keyValue, allowContinuousScreenshotting);
+							}
+							break;
+						case offsetof(Settings, turnOffPostEffectWhenMakingBackgroundBlack):
+							if (!turnOffPostEffectWhenMakingBackgroundBlackParsed) {
+								turnOffPostEffectWhenMakingBackgroundBlackParsed = parseBoolean("turnOffPostEffectWhenMakingBackgroundBlack", keyValue, turnOffPostEffectWhenMakingBackgroundBlack);
+							}
+							break;
+						case offsetof(Settings, startDisabled):
+							if (!startDisabledParsed) {
+								startDisabledParsed = parseBoolean("startDisabled", keyValue, startDisabled);
+							}
+							break;
+						case offsetof(Settings, screenshotPath):
+							if (!screenshotPathParsed) {
+								screenshotPathParsed = true;
+								screenshotPath = keyValue;  // in UTF-8
+								logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
+							}
+							break;
+						case offsetof(Settings, dontUseScreenshotTransparency):
+							if (!dontUseScreenshotTransparencyParsed) {
+								dontUseScreenshotTransparencyParsed = parseBoolean("dontUseScreenshotTransparency", keyValue, dontUseScreenshotTransparency);
+							}
+							break;
+						case offsetof(Settings, drawPushboxCheckSeparately):
+							if (!drawPushboxCheckSeparatelyParsed) {
+								drawPushboxCheckSeparatelyParsed = parseBoolean("drawPushboxCheckSeparately", keyValue, drawPushboxCheckSeparately);
+							}
+							break;
+						case offsetof(Settings, frameAdvantage_dontUsePreBlockstunTime):
+							if (!frameAdvantage_dontUsePreBlockstunTimeParsed) {
+								frameAdvantage_dontUsePreBlockstunTimeParsed = parseBoolean("frameAdvantage_dontUsePreBlockstunTime", keyValue, frameAdvantage_dontUsePreBlockstunTime);
+							}
+							break;
+						case offsetof(Settings, skipGrabsInFramebar):
+							if (!skipGrabsInFramebarParsed) {
+								skipGrabsInFramebarParsed = parseBoolean("skipGrabsInFramebar", keyValue, skipGrabsInFramebar);
+							}
+							break;
+						case offsetof(Settings, showComboProrationInRiscGauge):
+							if (!showComboProrationInRiscGaugeParsed) {
+								showComboProrationInRiscGaugeParsed = parseBoolean("showComboProrationInRiscGauge", keyValue, showComboProrationInRiscGauge);
+							}
+							break;
+						case offsetof(Settings, displayInputHistoryWhenObserving):
+							if (!displayInputHistoryWhenObservingParsed) {
+								displayInputHistoryWhenObservingParsed = parseBoolean("displayInputHistoryWhenObserving", keyValue, displayInputHistoryWhenObserving);
+							}
+							break;
+						case offsetof(Settings, displayInputHistoryInSomeOfflineModes):
+							if (!displayInputHistoryInSomeOfflineModesParsed) {
+								displayInputHistoryInSomeOfflineModesParsed = parseBoolean("displayInputHistoryInSomeOfflineModes", keyValue, displayInputHistoryInSomeOfflineModes);
+							}
+							break;
+						case offsetof(Settings, forceZeroPitchDuringCameraCentering):
+							if (!forceZeroPitchDuringCameraCenteringParsed) {
+								forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
+							}
+							break;
+						case offsetof(Settings, modWindowVisibleOnStart):
+							if (!modWindowVisibleOnStartParsed) {
+								modWindowVisibleOnStartParsed = parseBoolean("modWindowVisibleOnStart", keyValue, modWindowVisibleOnStart);
+							}
+							break;
+						case offsetof(Settings, closingModWindowAlsoHidesFramebar):
+							if (!closingModWindowAlsoHidesFramebarParsed) {
+								closingModWindowAlsoHidesFramebarParsed = parseBoolean("closingModWindowAlsoHidesFramebar", keyValue, closingModWindowAlsoHidesFramebar);
+							}
+							break;
+						case offsetof(Settings, dontShowMoveName):
+							if (!dontShowMoveNameParsed) {
+								dontShowMoveNameParsed = parseBoolean("dontShowMoveName", keyValue, dontShowMoveName);
+							}
+							break;
+					}
+				}
 			}
 			if (feof(file)) break;
 		}
@@ -1025,7 +1148,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	}
 	
 	if (!considerSimilarFrameTypesSameForFrameCountsParsed) {
-		considerSimilarFrameTypesSameForFrameCounts = false;
+		considerSimilarFrameTypesSameForFrameCounts = true;
+	}
+	
+	if (!considerSimilarIdleFramesSameForFrameCountsParsed) {
+		considerSimilarIdleFramesSameForFrameCounts = false;
 	}
 	
 	if (!combineProjectileFramebarsWhenPossibleParsed) {
@@ -1652,6 +1779,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("showThrowInvulOnFramebar", formatBoolean(showThrowInvulOnFramebar), getOtherINIDescription(&showThrowInvulOnFramebar));
 	replaceOrAddSetting("showFirstFramesOnFramebar", formatBoolean(showFirstFramesOnFramebar), getOtherINIDescription(&showFirstFramesOnFramebar));
 	replaceOrAddSetting("considerSimilarFrameTypesSameForFrameCounts", formatBoolean(considerSimilarFrameTypesSameForFrameCounts), getOtherINIDescription(&considerSimilarFrameTypesSameForFrameCounts));
+	replaceOrAddSetting("considerSimilarIdleFramesSameForFrameCounts", formatBoolean(considerSimilarIdleFramesSameForFrameCounts), getOtherINIDescription(&considerSimilarIdleFramesSameForFrameCounts));
 	replaceOrAddSetting("combineProjectileFramebarsWhenPossible", formatBoolean(combineProjectileFramebarsWhenPossible), getOtherINIDescription(&combineProjectileFramebarsWhenPossible));
 	replaceOrAddSetting("eachProjectileOnSeparateFramebar", formatBoolean(eachProjectileOnSeparateFramebar), getOtherINIDescription(&eachProjectileOnSeparateFramebar));
 	replaceOrAddSetting("dontClearFramebarOnStageReset", formatBoolean(dontClearFramebarOnStageReset), getOtherINIDescription(&dontClearFramebarOnStageReset));

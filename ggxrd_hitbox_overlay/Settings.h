@@ -82,7 +82,8 @@ public:
 	std::atomic_bool showSuperArmorOnFramebar = true;
 	std::atomic_bool showThrowInvulOnFramebar = true;
 	std::atomic_bool showFirstFramesOnFramebar = true;
-	std::atomic_bool considerSimilarFrameTypesSameForFrameCounts = false;
+	std::atomic_bool considerSimilarFrameTypesSameForFrameCounts = true;
+	std::atomic_bool considerSimilarIdleFramesSameForFrameCounts = false;
 	std::atomic_bool combineProjectileFramebarsWhenPossible = true;
 	std::atomic_bool eachProjectileOnSeparateFramebar = false;
 	std::atomic_bool dontClearFramebarOnStageReset = false;
@@ -205,6 +206,7 @@ private:
 	std::vector<OtherDescription> otherDescriptions;
 	void registerOtherDescription(void* ptr, const char* iniName, const char* uiName, const char* uiPath, const char* iniDescription);
 	std::vector<OtherDescription*> pointerIntoSettingsIntoDescription;
+	std::unordered_map<std::string, DWORD> settingNameToOffset;  // case-insensitive
 };
 
 extern Settings settings;
