@@ -1369,33 +1369,11 @@ const SortItemType SUPER_ARMOR_FIRST = SUPER_ARMOR_THROW;
 const SortItemType SUPER_ARMOR_LAST = SUPER_ARMOR_BLITZ_BREAK;
 
 struct InvulFlags {
-	bool strikeInvul:1;
-	bool throwInvul:1;
-	bool superLowProfile:1;
-	bool lowProfile:1;
-	bool somewhatLowProfile:1;
-	bool upperBodyInvul:1;
-	bool toeInvul:1;
-	bool footInvul:1;
-	bool legInvul:1;
-	bool airborneInvul:1;
-	bool airborneButWontGoOverLows:1;
-	bool consideredAirborne:1;
-	bool frontLegInvul:1;
-	bool projectileOnlyInvul:1;
-	bool superArmor:1;
-	bool superArmorThrow:1;
-	bool superArmorBurst:1;
-	bool superArmorMid:1;
-	bool superArmorOverhead:1;
-	bool superArmorLow:1;
-	bool superArmorGuardImpossible:1;
-	bool superArmorObjectAttacck:1;
-	bool superArmorHontaiAttacck:1;
-	bool superArmorProjectileLevel0:1;
-	bool superArmorOverdrive:1;
-	bool superArmorBlitzBreak:1;
-	bool reflect:1;
+	
+	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) bool fieldName:1;
+	INVUL_TYPES_TABLE
+	#undef INVUL_TYPES_EXEC
+	
 	int print(char* buf,
 		size_t bufSize,
 		bool includeASpaceAtTheStart,
@@ -1437,33 +1415,11 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 	
 	SortItem items[] {
 		// the types must go in the same order as the elements of SortItemType enum
-		{ STRIKE_INVUL, &strikeInvul },
-		{ THROW_INVUL, &throwInvul },
-		{ SUPER_LOW_PROFILE, &superLowProfile },
-		{ LOW_PROFILE, &lowProfile },
-		{ SOMEWHAT_LOW_PROFILE, &somewhatLowProfile },
-		{ UPPER_BODY_INVUL, &upperBodyInvul },
-		{ TOE_INVUL, &toeInvul },
-		{ FOOT_INVUL, &footInvul },
-		{ LEG_INVUL, &legInvul },
-		{ AIRBORNE_INVUL, &airborneInvul },
-		{ AIRBORNE_BUT_WONT_GO_OVER_LOWS, &airborneButWontGoOverLows },
-		{ CONSIDERED_AIRBORNE, &consideredAirborne },
-		{ FRONT_LEG_INVUL, &frontLegInvul },
-		{ PROJECTILE_ONLY_INVUL, &projectileOnlyInvul },
-		{ SUPER_ARMOR, &superArmor },
-		{ SUPER_ARMOR_THROW, &superArmorThrow },
-		{ SUPER_ARMOR_BURST, &superArmorBurst },
-		{ SUPER_ARMOR_MID, &superArmorMid },
-		{ SUPER_ARMOR_OVERHEAD, &superArmorOverhead },
-		{ SUPER_ARMOR_LOW, &superArmorLow },
-		{ SUPER_ARMOR_GUARD_IMPOSSIBLE, &superArmorGuardImpossible },
-		{ SUPER_ARMOR_OBJECT_ATTACCK, &superArmorObjectAttacck },
-		{ SUPER_ARMOR_HONTAI_ATTACCK, &superArmorHontaiAttacck },
-		{ SUPER_ARMOR_PROJECTILE_LEVEL_0, &superArmorProjectileLevel0 },
-		{ SUPER_ARMOR_OVERDRIVE, &superArmorOverdrive },
-		{ SUPER_ARMOR_BLITZ_BREAK, &superArmorBlitzBreak },
-		{ REFLECT, &reflect }
+		
+		#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) { enumName, &fieldName },
+		INVUL_TYPES_TABLE
+		#undef INVUL_TYPES_EXEC
+		
 	};
 	int count = _countof(items);
 	
@@ -1554,33 +1510,10 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 		}
 		
 		InvulFlags flags;
-		flags.strikeInvul = items[STRIKE_INVUL].included;
-		flags.throwInvul = items[THROW_INVUL].included;
-		flags.superLowProfile = items[SUPER_LOW_PROFILE].included;
-		flags.lowProfile = items[LOW_PROFILE].included;
-		flags.somewhatLowProfile = items[SOMEWHAT_LOW_PROFILE].included;
-		flags.upperBodyInvul = items[UPPER_BODY_INVUL].included;
-		flags.toeInvul = items[TOE_INVUL].included;
-		flags.footInvul = items[FOOT_INVUL].included;
-		flags.legInvul = items[LEG_INVUL].included;
-		flags.airborneInvul = items[AIRBORNE_INVUL].included;
-		flags.airborneButWontGoOverLows = items[AIRBORNE_BUT_WONT_GO_OVER_LOWS].included;
-		flags.consideredAirborne = items[CONSIDERED_AIRBORNE].included;
-		flags.frontLegInvul = items[FRONT_LEG_INVUL].included;
-		flags.projectileOnlyInvul = items[PROJECTILE_ONLY_INVUL].included;
-		flags.superArmor = items[SUPER_ARMOR].included;
-		flags.superArmorThrow = items[SUPER_ARMOR_THROW].included;
-		flags.superArmorBurst = items[SUPER_ARMOR_BURST].included;
-		flags.superArmorMid = items[SUPER_ARMOR_MID].included;
-		flags.superArmorOverhead = items[SUPER_ARMOR_OVERHEAD].included;
-		flags.superArmorLow = items[SUPER_ARMOR_LOW].included;
-		flags.superArmorGuardImpossible = items[SUPER_ARMOR_GUARD_IMPOSSIBLE].included;
-		flags.superArmorObjectAttacck = items[SUPER_ARMOR_OBJECT_ATTACCK].included;
-		flags.superArmorHontaiAttacck = items[SUPER_ARMOR_HONTAI_ATTACCK].included;
-		flags.superArmorProjectileLevel0 = items[SUPER_ARMOR_PROJECTILE_LEVEL_0].included;
-		flags.superArmorOverdrive = items[SUPER_ARMOR_OVERDRIVE].included;
-		flags.superArmorBlitzBreak = items[SUPER_ARMOR_BLITZ_BREAK].included;
-		flags.reflect = items[REFLECT].included;
+		
+		#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) flags.fieldName = items[enumName].included;
+		INVUL_TYPES_TABLE
+		#undef INVUL_TYPES_EXEC
 		
 		int printedChars = flags.print(buf,
 			bufSize,
@@ -1643,33 +1576,10 @@ void PlayerFrame::printInvuls(char* buf, size_t bufSize) const {
 	*buf = '\0';
 	
 	InvulFlags flags;
-	flags.strikeInvul = strikeInvul;
-	flags.throwInvul = throwInvul;
-	flags.superLowProfile = superLowProfile;
-	flags.lowProfile = lowProfile;
-	flags.somewhatLowProfile = somewhatLowProfile;
-	flags.upperBodyInvul = upperBodyInvul;
-	flags.toeInvul = toeInvul;
-	flags.footInvul = footInvul;
-	flags.legInvul = legInvul;
-	flags.airborneInvul = airborneInvul;
-	flags.airborneButWontGoOverLows = airborneButWontGoOverLows;
-	flags.consideredAirborne = consideredAirborne;
-	flags.frontLegInvul = frontLegInvul;
-	flags.projectileOnlyInvul = projectileOnlyInvul;
-	flags.superArmor = superArmor;
-	flags.superArmorThrow = superArmorThrow;
-	flags.superArmorBurst = superArmorBurst;
-	flags.superArmorMid = superArmorMid;
-	flags.superArmorOverhead = superArmorOverhead;
-	flags.superArmorLow = superArmorLow;
-	flags.superArmorGuardImpossible = superArmorGuardImpossible;
-	flags.superArmorObjectAttacck = superArmorObjectAttacck;
-	flags.superArmorHontaiAttacck = superArmorHontaiAttacck;
-	flags.superArmorProjectileLevel0 = superArmorProjectileLevel0;
-	flags.superArmorOverdrive = superArmorOverdrive;
-	flags.superArmorBlitzBreak = superArmorBlitzBreak;
-	flags.reflect = reflect;
+	
+	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) flags.fieldName = fieldName;
+	INVUL_TYPES_TABLE
+	#undef INVUL_TYPES_EXEC
 	
 	flags.print(buf,
 		bufSize,
@@ -1733,33 +1643,11 @@ int InvulFlags::print(char* buf,
 	
 	SortItem items[] {
 		// the types must go in the same order as the elements of SortItemType enum
-		{ STRIKE_INVUL, "strike", strikeInvul },
-		{ THROW_INVUL, "throw", throwInvul },
-		{ SUPER_LOW_PROFILE, "super low profile", superLowProfile },
-		{ LOW_PROFILE, "low profile", lowProfile },
-		{ SOMEWHAT_LOW_PROFILE, "somewhat low profile", somewhatLowProfile },
-		{ UPPER_BODY_INVUL, "upper body", upperBodyInvul },
-		{ TOE_INVUL, "toe", toeInvul },
-		{ FOOT_INVUL, "foot", footInvul },
-		{ LEG_INVUL, "leg", legInvul },
-		{ AIRBORNE_INVUL, "airborne", airborneInvul },
-		{ AIRBORNE_BUT_WONT_GO_OVER_LOWS, "airborne, but won't go over lows", airborneButWontGoOverLows },
-		{ CONSIDERED_AIRBORNE, "considered airborne", consideredAirborne },
-		{ FRONT_LEG_INVUL, "front leg invul", frontLegInvul },
-		{ PROJECTILE_ONLY_INVUL, "projectile only", projectileOnlyInvul },
-		{ SUPER_ARMOR, "super armor", superArmor },
-		{ SUPER_ARMOR_THROW, "throws", superArmorThrow },
-		{ SUPER_ARMOR_BURST, "burst", superArmorBurst },
-		{ SUPER_ARMOR_MID, "mids", superArmorMid },
-		{ SUPER_ARMOR_OVERHEAD, "overheads", superArmorOverhead },
-		{ SUPER_ARMOR_LOW, "lows", superArmorLow },
-		{ SUPER_ARMOR_GUARD_IMPOSSIBLE, "unblockables", superArmorGuardImpossible },
-		{ SUPER_ARMOR_OBJECT_ATTACCK, "projectiles only", superArmorObjectAttacck },
-		{ SUPER_ARMOR_HONTAI_ATTACCK, "non-projectiles only", superArmorHontaiAttacck },
-		{ SUPER_ARMOR_PROJECTILE_LEVEL_0, "error ERROR", superArmorProjectileLevel0 },
-		{ SUPER_ARMOR_OVERDRIVE, "overdrives", superArmorOverdrive },
-		{ SUPER_ARMOR_BLITZ_BREAK, "max charge blitz or overdrives", superArmorBlitzBreak },
-		{ REFLECT, "reflect", reflect }
+		
+		#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) { enumName, stringDesc, fieldName },
+		INVUL_TYPES_TABLE
+		#undef INVUL_TYPES_EXEC
+		
 	};
 	int count = _countof(items);
 	
@@ -2486,33 +2374,9 @@ void ProjectileInfo::determineMoveNameAndSlangName(const MoveInfo* move, Entity 
 void PlayerInfo::onAnimReset() {
 	prevStartups.clear();
 	
-	strikeInvul.clear();
-	throwInvul.clear();
-	superLowProfile.clear();
-	lowProfile.clear();
-	somewhatLowProfile.clear();
-	upperBodyInvul.clear();
-	toeInvul.clear();
-	footInvul.clear();
-	legInvul.clear();
-	airborneInvul.clear();
-	airborneButWontGoOverLows.clear();
-	consideredAirborne.clear();
-	frontLegInvul.clear();
-	projectileOnlyInvul.clear();
-	superArmor.clear();
-	superArmorThrow.clear();
-	superArmorBurst.clear();
-	superArmorMid.clear();
-	superArmorOverhead.clear();
-	superArmorLow.clear();
-	superArmorGuardImpossible.clear();
-	superArmorObjectAttacck.clear();
-	superArmorHontaiAttacck.clear();
-	superArmorProjectileLevel0.clear();
-	superArmorOverdrive.clear();
-	superArmorBlitzBreak.clear();
-	reflect.clear();
+	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) fieldName.clear();
+	INVUL_TYPES_TABLE
+	#undef INVUL_TYPES_EXEC
 	
 	cancelsTimer = 0;
 	cancelsCount = 0;
@@ -2562,33 +2426,10 @@ void PlayerInfo::removeNonStancePrevStartups() {
 	}
 	cancelsTimer -= amountToRemove;
 	
-	strikeInvul.removeFirstNFrames(amountToRemove);
-	throwInvul.removeFirstNFrames(amountToRemove);
-	superLowProfile.removeFirstNFrames(amountToRemove);
-	lowProfile.removeFirstNFrames(amountToRemove);
-	somewhatLowProfile.removeFirstNFrames(amountToRemove);
-	upperBodyInvul.removeFirstNFrames(amountToRemove);
-	toeInvul.removeFirstNFrames(amountToRemove);
-	footInvul.removeFirstNFrames(amountToRemove);
-	legInvul.removeFirstNFrames(amountToRemove);
-	airborneInvul.removeFirstNFrames(amountToRemove);
-	airborneButWontGoOverLows.removeFirstNFrames(amountToRemove);
-	consideredAirborne.removeFirstNFrames(amountToRemove);
-	frontLegInvul.removeFirstNFrames(amountToRemove);
-	projectileOnlyInvul.removeFirstNFrames(amountToRemove);
-	superArmor.removeFirstNFrames(amountToRemove);
-	superArmorThrow.removeFirstNFrames(amountToRemove);
-	superArmorBurst.removeFirstNFrames(amountToRemove);
-	superArmorMid.removeFirstNFrames(amountToRemove);
-	superArmorOverhead.removeFirstNFrames(amountToRemove);
-	superArmorLow.removeFirstNFrames(amountToRemove);
-	superArmorGuardImpossible.removeFirstNFrames(amountToRemove);
-	superArmorObjectAttacck.removeFirstNFrames(amountToRemove);
-	superArmorHontaiAttacck.removeFirstNFrames(amountToRemove);
-	superArmorProjectileLevel0.removeFirstNFrames(amountToRemove);
-	superArmorOverdrive.removeFirstNFrames(amountToRemove);
-	superArmorBlitzBreak.removeFirstNFrames(amountToRemove);
-	reflect.removeFirstNFrames(amountToRemove);
+	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) fieldName.removeFirstNFrames(amountToRemove);
+	INVUL_TYPES_TABLE
+	#undef INVUL_TYPES_EXEC
+	
 }
 
 void InvulData::removeFirstNFrames(int n) {

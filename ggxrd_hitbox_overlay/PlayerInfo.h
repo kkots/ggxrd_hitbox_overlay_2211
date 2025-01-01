@@ -4,6 +4,36 @@
 #include <string>
 #include <vector>
 
+#define INVUL_TYPES_TABLE \
+	INVUL_TYPES_EXEC(STRIKE_INVUL, "strike", strikeInvul) \
+	INVUL_TYPES_EXEC(THROW_INVUL, "throw", throwInvul) \
+	INVUL_TYPES_EXEC(SUPER_LOW_PROFILE, "super low profile", superLowProfile) \
+	INVUL_TYPES_EXEC(LOW_PROFILE, "low profile", lowProfile) \
+	INVUL_TYPES_EXEC(SOMEWHAT_LOW_PROFILE, "somewhat low profile", somewhatLowProfile) \
+	INVUL_TYPES_EXEC(UPPER_BODY_INVUL, "upper body", upperBodyInvul) \
+	INVUL_TYPES_EXEC(TOE_INVUL, "toe", toeInvul) \
+	INVUL_TYPES_EXEC(FOOT_INVUL, "foot", footInvul) \
+	INVUL_TYPES_EXEC(LEG_INVUL, "leg", legInvul) \
+	INVUL_TYPES_EXEC(AIRBORNE_INVUL, "airborne", airborneInvul) \
+	INVUL_TYPES_EXEC(AIRBORNE_BUT_WONT_GO_OVER_LOWS, "airborne, but won't go over lows", airborneButWontGoOverLows) \
+	INVUL_TYPES_EXEC(CONSIDERED_AIRBORNE, "considered airborne", consideredAirborne) \
+	INVUL_TYPES_EXEC(FRONT_LEG_INVUL, "front leg invul", frontLegInvul) \
+	INVUL_TYPES_EXEC(PROJECTILE_ONLY_INVUL, "projectile only", projectileOnlyInvul) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR, "super armor", superArmor) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_THROW, "throws", superArmorThrow) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_BURST, "burst", superArmorBurst) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_MID, "mids", superArmorMid) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_OVERHEAD, "overheads", superArmorOverhead) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_LOW, "lows", superArmorLow) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_GUARD_IMPOSSIBLE, "unblockables", superArmorGuardImpossible) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_OBJECT_ATTACCK, "projectiles only", superArmorObjectAttacck) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_HONTAI_ATTACCK, "non-projectiles only", superArmorHontaiAttacck) \
+	/* this flag only matters when it is absent, and it is present by default. Level 0 are unflickable projectiles
+*/	INVUL_TYPES_EXEC(SUPER_ARMOR_PROJECTILE_LEVEL_0, "error ERROR", superArmorProjectileLevel0) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_OVERDRIVE, "overdrives", superArmorOverdrive) \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_BLITZ_BREAK, "max charge blitz or overdrives", superArmorBlitzBreak) \
+	INVUL_TYPES_EXEC(REFLECT, "reflect", reflect)
+
 struct CanProgramSecretGardenInfo {
 	DWORD can:1;
 	DWORD inputs:3;
@@ -313,33 +343,9 @@ struct PlayerFrame : public FrameBase {
 	bool superArmorActiveInGeneral:1;
 	bool superArmorActiveInGeneral_IsFull:1;
 	
-	bool strikeInvul:1;
-	bool throwInvul:1;
-	bool superLowProfile:1;
-	bool lowProfile:1;
-	bool somewhatLowProfile:1;
-	bool upperBodyInvul:1;
-	bool toeInvul:1;
-	bool footInvul:1;
-	bool legInvul:1;
-	bool airborneInvul:1;
-	bool airborneButWontGoOverLows:1;
-	bool consideredAirborne:1;
-	bool frontLegInvul:1;
-	bool projectileOnlyInvul:1;
-	bool superArmor:1;
-	bool superArmorThrow:1;
-	bool superArmorBurst:1;
-	bool superArmorMid:1;
-	bool superArmorOverhead:1;
-	bool superArmorLow:1;
-	bool superArmorGuardImpossible:1;
-	bool superArmorObjectAttacck:1;
-	bool superArmorHontaiAttacck:1;
-	bool superArmorProjectileLevel0:1;
-	bool superArmorOverdrive:1;
-	bool superArmorBlitzBreak:1;
-	bool reflect:1;
+	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) bool fieldName:1;
+	INVUL_TYPES_TABLE
+	#undef INVUL_TYPES_EXEC
 	
 	bool hitOccured:1;  // stays true for the remainder of the move
 	bool enableSpecialCancel:1;
@@ -1065,33 +1071,9 @@ struct PlayerInfo {
 	//  it's a copy of previous startups of that projectile
 	PrevStartupsInfo prevStartupsProj { 0 };
 	
-	InvulData strikeInvul { 0 };
-	InvulData throwInvul { 0 };
-	InvulData superLowProfile { 0 };
-	InvulData lowProfile { 0 };
-	InvulData somewhatLowProfile { 0 };
-	InvulData upperBodyInvul { 0 };
-	InvulData toeInvul { 0 };
-	InvulData footInvul { 0 };
-	InvulData legInvul { 0 };
-	InvulData airborneInvul { 0 };
-	InvulData airborneButWontGoOverLows { 0 };
-	InvulData consideredAirborne { 0 };
-	InvulData frontLegInvul { 0 };
-	InvulData projectileOnlyInvul { 0 };
-	InvulData superArmor { 0 };
-	InvulData superArmorThrow { 0 };
-	InvulData superArmorBurst { 0 };
-	InvulData superArmorMid { 0 };
-	InvulData superArmorOverhead { 0 };
-	InvulData superArmorLow { 0 };
-	InvulData superArmorGuardImpossible { 0 };
-	InvulData superArmorObjectAttacck { 0 };
-	InvulData superArmorHontaiAttacck { 0 };
-	InvulData superArmorProjectileLevel0 { 0 };  // this flag only matters when it is absent, and it is present by default. Level 0 are unflickable projectiles
-	InvulData superArmorOverdrive { 0 };
-	InvulData superArmorBlitzBreak { 0 };
-	InvulData reflect { 0 };
+	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) InvulData fieldName { 0 };
+	INVUL_TYPES_TABLE
+	#undef INVUL_TYPES_EXEC
 	
 	int landingRecovery = 0;  // number of landing recovery frames. Either current or of the last performed move
 	int animFrame = 0;

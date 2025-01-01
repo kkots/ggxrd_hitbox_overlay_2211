@@ -861,6 +861,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool prevFrameIgnoreNextInabilityToBlockOrAttack = player.ignoreNextInabilityToBlockOrAttack;
 			bool prevFrameCanBlock = player.canBlock;
 			player.canBlock = player.move.canBlock(player);
+			
+			#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) player.fieldName.active = false;
+			INVUL_TYPES_TABLE
+			#undef INVUL_TYPES_EXEC
+			
 			player.projectileOnlyInvul.active = !ent.strikeInvul()
 				&& ent.strikeInvulnFrames() <= 0
 				&& !player.wasFullInvul
@@ -880,31 +885,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& ent.superArmorType() == SUPER_ARMOR_DODGE
 					&& ent.superArmorForReflect()
 				);
-			player.strikeInvul.active = false;
-			player.throwInvul.active = false;
-			player.superLowProfile.active = false;
-			player.lowProfile.active = false;
-			player.somewhatLowProfile.active = false;
-			player.upperBodyInvul.active = false;
-			player.toeInvul.active = false;
-			player.footInvul.active = false;
-			player.legInvul.active = false;
-			player.airborneInvul.active = false;
-			player.airborneButWontGoOverLows.active = false;
-			player.consideredAirborne.active = false;
-			player.frontLegInvul.active = false;
-			player.superArmor.active = false;
-			player.superArmorThrow.active = false;
-			player.superArmorBurst.active = false;
-			player.superArmorMid.active = false;
-			player.superArmorOverhead.active = false;
-			player.superArmorLow.active = false;
-			player.superArmorGuardImpossible.active = false;
-			player.superArmorObjectAttacck.active = false;
-			player.superArmorHontaiAttacck.active = false;
-			player.superArmorProjectileLevel0.active = false;
-			player.superArmorOverdrive.active = false;
-			player.superArmorBlitzBreak.active = false;
+			
 			player.counterhit = false;
 			
 			if (player.changedAnimOnThisFrame) {
@@ -3010,33 +2991,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.throwInvulInGeneral = player.throwInvul.active;
 				currentFrame.superArmorActiveInGeneral = player.superArmor.active || player.projectileOnlyInvul.active || player.reflect.active;
 				
-				currentFrame.strikeInvul = player.strikeInvul.active;
-				currentFrame.throwInvul = player.throwInvul.active;
-				currentFrame.superLowProfile = player.superLowProfile.active;
-				currentFrame.lowProfile = player.lowProfile.active;
-				currentFrame.somewhatLowProfile = player.somewhatLowProfile.active;
-				currentFrame.upperBodyInvul = player.upperBodyInvul.active;
-				currentFrame.toeInvul = player.toeInvul.active;
-				currentFrame.footInvul = player.footInvul.active;
-				currentFrame.legInvul = player.legInvul.active;
-				currentFrame.airborneInvul = player.airborneInvul.active;
-				currentFrame.airborneButWontGoOverLows = player.airborneButWontGoOverLows.active;
-				currentFrame.consideredAirborne = player.consideredAirborne.active;
-				currentFrame.frontLegInvul = player.frontLegInvul.active;
-				currentFrame.projectileOnlyInvul = player.projectileOnlyInvul.active;
-				currentFrame.superArmor = player.superArmor.active;
-				currentFrame.superArmorThrow = player.superArmorThrow.active;
-				currentFrame.superArmorBurst = player.superArmorBurst.active;
-				currentFrame.superArmorMid = player.superArmorMid.active;
-				currentFrame.superArmorOverhead = player.superArmorOverhead.active;
-				currentFrame.superArmorLow = player.superArmorLow.active;
-				currentFrame.superArmorGuardImpossible = player.superArmorGuardImpossible.active;
-				currentFrame.superArmorObjectAttacck = player.superArmorObjectAttacck.active;
-				currentFrame.superArmorHontaiAttacck = player.superArmorHontaiAttacck.active;
-				currentFrame.superArmorProjectileLevel0 = player.superArmorProjectileLevel0.active;
-				currentFrame.superArmorOverdrive = player.superArmorOverdrive.active;
-				currentFrame.superArmorBlitzBreak = player.superArmorBlitzBreak.active;
-				currentFrame.reflect = player.reflect.active;
+				#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) currentFrame.fieldName = player.fieldName.active;
+				INVUL_TYPES_TABLE
+				#undef INVUL_TYPES_EXEC
 				
 				currentFrame.superArmorActiveInGeneral_IsFull =
 					currentFrame.superArmorActiveInGeneral
@@ -3424,33 +3381,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			
 			if (measureInvuls) {
 				int prevTotal = player.prevStartups.total() + player.total;
-				player.strikeInvul.addInvulFrame(prevTotal);
-				player.throwInvul.addInvulFrame(prevTotal);
-				player.superLowProfile.addInvulFrame(prevTotal);
-				player.lowProfile.addInvulFrame(prevTotal);
-				player.somewhatLowProfile.addInvulFrame(prevTotal);
-				player.upperBodyInvul.addInvulFrame(prevTotal);
-				player.toeInvul.addInvulFrame(prevTotal);
-				player.footInvul.addInvulFrame(prevTotal);
-				player.legInvul.addInvulFrame(prevTotal);
-				player.airborneInvul.addInvulFrame(prevTotal);
-				player.airborneButWontGoOverLows.addInvulFrame(prevTotal);
-				player.consideredAirborne.addInvulFrame(prevTotal);
-				player.frontLegInvul.addInvulFrame(prevTotal);
-				player.projectileOnlyInvul.addInvulFrame(prevTotal);
-				player.superArmor.addInvulFrame(prevTotal);
-				player.superArmorThrow.addInvulFrame(prevTotal);
-				player.superArmorBurst.addInvulFrame(prevTotal);
-				player.superArmorMid.addInvulFrame(prevTotal);
-				player.superArmorOverhead.addInvulFrame(prevTotal);
-				player.superArmorLow.addInvulFrame(prevTotal);
-				player.superArmorGuardImpossible.addInvulFrame(prevTotal);
-				player.superArmorObjectAttacck.addInvulFrame(prevTotal);
-				player.superArmorHontaiAttacck.addInvulFrame(prevTotal);
-				player.superArmorProjectileLevel0.addInvulFrame(prevTotal);
-				player.superArmorOverdrive.addInvulFrame(prevTotal);
-				player.superArmorBlitzBreak.addInvulFrame(prevTotal);
-				player.reflect.addInvulFrame(prevTotal);
+				
+				#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) player.fieldName.addInvulFrame(prevTotal);
+				INVUL_TYPES_TABLE
+				#undef INVUL_TYPES_EXEC
+				
 			}
 		}
 		
