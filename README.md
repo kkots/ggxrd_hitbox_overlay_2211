@@ -171,8 +171,6 @@ If a box's outline is thin, like that of a pushbox or a clash-only hitbox for ex
 
 ### General notes about throw boxes
 
-For some command throws such as Sol's Wild Throw a purple box is displayed, which supposedly checks the Y of the origin point of the opponent. This doesn't really make sense since Wild Throw only connects on grounded opponents. If anyone has information on this, I would gladly listen.
-
 If a move has a throw box as well as hitbox - both the hitbox and the throw boxes must connect. By the way, Potemkin Buster's hitbox does not matter - only the throw box (proof: <https://youtu.be/59uc9h6KKIE>).
 
 ### Frame-by-frame animation playback
