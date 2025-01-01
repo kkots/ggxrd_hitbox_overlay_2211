@@ -269,7 +269,16 @@ struct PlayerFrame : public FrameBase {
 	
 	bool strikeInvul:1;
 	bool throwInvul:1;
+	bool superLowProfile:1;
 	bool lowProfile:1;
+	bool somewhatLowProfile:1;
+	bool upperBodyInvul:1;
+	bool toeInvul:1;
+	bool footInvul:1;
+	bool legInvul:1;
+	bool airborneInvul:1;
+	bool airborneButWontGoOverLows:1;
+	bool consideredAirborne:1;
 	bool frontLegInvul:1;
 	bool projectileOnlyInvul:1;
 	bool superArmor:1;
@@ -1012,7 +1021,16 @@ struct PlayerInfo {
 	
 	InvulData strikeInvul { 0 };
 	InvulData throwInvul { 0 };
+	InvulData superLowProfile { 0 };
 	InvulData lowProfile { 0 };
+	InvulData somewhatLowProfile { 0 };
+	InvulData upperBodyInvul { 0 };
+	InvulData toeInvul { 0 };
+	InvulData footInvul { 0 };
+	InvulData legInvul { 0 };
+	InvulData airborneInvul { 0 };
+	InvulData airborneButWontGoOverLows { 0 };
+	InvulData consideredAirborne { 0 };
 	InvulData frontLegInvul { 0 };
 	InvulData projectileOnlyInvul { 0 };
 	InvulData superArmor { 0 };

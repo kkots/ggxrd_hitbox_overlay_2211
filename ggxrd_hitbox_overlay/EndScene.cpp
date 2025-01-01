@@ -882,7 +882,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				);
 			player.strikeInvul.active = false;
 			player.throwInvul.active = false;
+			player.superLowProfile.active = false;
 			player.lowProfile.active = false;
+			player.somewhatLowProfile.active = false;
+			player.upperBodyInvul.active = false;
+			player.toeInvul.active = false;
+			player.footInvul.active = false;
+			player.legInvul.active = false;
+			player.airborneInvul.active = false;
+			player.airborneButWontGoOverLows.active = false;
+			player.consideredAirborne.active = false;
 			player.frontLegInvul.active = false;
 			player.superArmor.active = false;
 			player.superArmorThrow.active = false;
@@ -1834,10 +1843,36 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				player.strikeInvul.active = entityState.strikeInvuln;
 				player.throwInvul.active = entityState.throwInvuln;
-				player.lowProfile.active = !player.strikeInvul.active
-					&& !player.airborne
-					&& hurtbox.hitboxCount
-					&& hurtboxBounds.bottom < 175000;
+				if (!player.strikeInvul.active
+						&& !player.airborne
+						&& hurtbox.hitboxCount) {
+					if (hurtboxBounds.bottom <= 88000) {
+						player.superLowProfile.active = true;
+					} else if (hurtboxBounds.bottom <= 159000) {
+						player.lowProfile.active = true;
+					} else if (hurtboxBounds.bottom < 175000) {
+						player.somewhatLowProfile.active = true;
+					} else if (hurtboxBounds.bottom <= 232000 && !player.pawn.crouching()) {
+						player.upperBodyInvul.active = true;
+					}
+					if (hurtboxBounds.top >= 174000) {
+						player.legInvul.active = true;
+					} else if (hurtboxBounds.top >= 84000) {
+						player.footInvul.active = true;
+					} else if (hurtboxBounds.top >= 20000) {
+						player.toeInvul.active = true;
+					}
+				}
+				if (player.airborne && !player.strikeInvul.active && hurtbox.hitboxCount && !player.moveOriginatedInTheAir) {
+					if (hurtboxBounds.top < 20000) {
+						player.airborneButWontGoOverLows.active = true;
+					} else {
+						player.airborneInvul.active = true;
+					}
+				}
+				if (player.pawn.damageToAir() && !player.airborne && !player.strikeInvul.active) {
+					player.consideredAirborne.active = true;
+				}
 				player.frontLegInvul.active = !player.strikeInvul.active
 					&& player.move.frontLegInvul
 					&& player.move.frontLegInvul(player);
@@ -2977,7 +3012,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				currentFrame.strikeInvul = player.strikeInvul.active;
 				currentFrame.throwInvul = player.throwInvul.active;
+				currentFrame.superLowProfile = player.superLowProfile.active;
 				currentFrame.lowProfile = player.lowProfile.active;
+				currentFrame.somewhatLowProfile = player.somewhatLowProfile.active;
+				currentFrame.upperBodyInvul = player.upperBodyInvul.active;
+				currentFrame.toeInvul = player.toeInvul.active;
+				currentFrame.footInvul = player.footInvul.active;
+				currentFrame.legInvul = player.legInvul.active;
+				currentFrame.airborneInvul = player.airborneInvul.active;
+				currentFrame.airborneButWontGoOverLows = player.airborneButWontGoOverLows.active;
+				currentFrame.consideredAirborne = player.consideredAirborne.active;
 				currentFrame.frontLegInvul = player.frontLegInvul.active;
 				currentFrame.projectileOnlyInvul = player.projectileOnlyInvul.active;
 				currentFrame.superArmor = player.superArmor.active;
@@ -3382,7 +3426,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				int prevTotal = player.prevStartups.total() + player.total;
 				player.strikeInvul.addInvulFrame(prevTotal);
 				player.throwInvul.addInvulFrame(prevTotal);
+				player.superLowProfile.addInvulFrame(prevTotal);
 				player.lowProfile.addInvulFrame(prevTotal);
+				player.somewhatLowProfile.addInvulFrame(prevTotal);
+				player.upperBodyInvul.addInvulFrame(prevTotal);
+				player.toeInvul.addInvulFrame(prevTotal);
+				player.footInvul.addInvulFrame(prevTotal);
+				player.legInvul.addInvulFrame(prevTotal);
+				player.airborneInvul.addInvulFrame(prevTotal);
+				player.airborneButWontGoOverLows.addInvulFrame(prevTotal);
+				player.consideredAirborne.addInvulFrame(prevTotal);
 				player.frontLegInvul.addInvulFrame(prevTotal);
 				player.projectileOnlyInvul.addInvulFrame(prevTotal);
 				player.superArmor.addInvulFrame(prevTotal);

@@ -1338,7 +1338,16 @@ enum SortItemType {
 	// if you change the order of these elements you must also change the order of elements in SortItem items[] in printInvuls()
 	STRIKE_INVUL,
 	THROW_INVUL,
+	SUPER_LOW_PROFILE,
 	LOW_PROFILE,
+	SOMEWHAT_LOW_PROFILE,
+	UPPER_BODY_INVUL,
+	TOE_INVUL,
+	FOOT_INVUL,
+	LEG_INVUL,
+	AIRBORNE_INVUL,
+	AIRBORNE_BUT_WONT_GO_OVER_LOWS,
+	CONSIDERED_AIRBORNE,
 	FRONT_LEG_INVUL,
 	PROJECTILE_ONLY_INVUL,
 	SUPER_ARMOR,
@@ -1362,7 +1371,16 @@ const SortItemType SUPER_ARMOR_LAST = SUPER_ARMOR_BLITZ_BREAK;
 struct InvulFlags {
 	bool strikeInvul:1;
 	bool throwInvul:1;
+	bool superLowProfile:1;
 	bool lowProfile:1;
+	bool somewhatLowProfile:1;
+	bool upperBodyInvul:1;
+	bool toeInvul:1;
+	bool footInvul:1;
+	bool legInvul:1;
+	bool airborneInvul:1;
+	bool airborneButWontGoOverLows:1;
+	bool consideredAirborne:1;
 	bool frontLegInvul:1;
 	bool projectileOnlyInvul:1;
 	bool superArmor:1;
@@ -1421,7 +1439,16 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 		// the types must go in the same order as the elements of SortItemType enum
 		{ STRIKE_INVUL, &strikeInvul },
 		{ THROW_INVUL, &throwInvul },
+		{ SUPER_LOW_PROFILE, &superLowProfile },
 		{ LOW_PROFILE, &lowProfile },
+		{ SOMEWHAT_LOW_PROFILE, &somewhatLowProfile },
+		{ UPPER_BODY_INVUL, &upperBodyInvul },
+		{ TOE_INVUL, &toeInvul },
+		{ FOOT_INVUL, &footInvul },
+		{ LEG_INVUL, &legInvul },
+		{ AIRBORNE_INVUL, &airborneInvul },
+		{ AIRBORNE_BUT_WONT_GO_OVER_LOWS, &airborneButWontGoOverLows },
+		{ CONSIDERED_AIRBORNE, &consideredAirborne },
 		{ FRONT_LEG_INVUL, &frontLegInvul },
 		{ PROJECTILE_ONLY_INVUL, &projectileOnlyInvul },
 		{ SUPER_ARMOR, &superArmor },
@@ -1529,7 +1556,16 @@ void PlayerInfo::printInvuls(char* buf, size_t bufSize) const {
 		InvulFlags flags;
 		flags.strikeInvul = items[STRIKE_INVUL].included;
 		flags.throwInvul = items[THROW_INVUL].included;
+		flags.superLowProfile = items[SUPER_LOW_PROFILE].included;
 		flags.lowProfile = items[LOW_PROFILE].included;
+		flags.somewhatLowProfile = items[SOMEWHAT_LOW_PROFILE].included;
+		flags.upperBodyInvul = items[UPPER_BODY_INVUL].included;
+		flags.toeInvul = items[TOE_INVUL].included;
+		flags.footInvul = items[FOOT_INVUL].included;
+		flags.legInvul = items[LEG_INVUL].included;
+		flags.airborneInvul = items[AIRBORNE_INVUL].included;
+		flags.airborneButWontGoOverLows = items[AIRBORNE_BUT_WONT_GO_OVER_LOWS].included;
+		flags.consideredAirborne = items[CONSIDERED_AIRBORNE].included;
 		flags.frontLegInvul = items[FRONT_LEG_INVUL].included;
 		flags.projectileOnlyInvul = items[PROJECTILE_ONLY_INVUL].included;
 		flags.superArmor = items[SUPER_ARMOR].included;
@@ -1609,7 +1645,16 @@ void PlayerFrame::printInvuls(char* buf, size_t bufSize) const {
 	InvulFlags flags;
 	flags.strikeInvul = strikeInvul;
 	flags.throwInvul = throwInvul;
+	flags.superLowProfile = superLowProfile;
 	flags.lowProfile = lowProfile;
+	flags.somewhatLowProfile = somewhatLowProfile;
+	flags.upperBodyInvul = upperBodyInvul;
+	flags.toeInvul = toeInvul;
+	flags.footInvul = footInvul;
+	flags.legInvul = legInvul;
+	flags.airborneInvul = airborneInvul;
+	flags.airborneButWontGoOverLows = airborneButWontGoOverLows;
+	flags.consideredAirborne = consideredAirborne;
 	flags.frontLegInvul = frontLegInvul;
 	flags.projectileOnlyInvul = projectileOnlyInvul;
 	flags.superArmor = superArmor;
@@ -1690,7 +1735,16 @@ int InvulFlags::print(char* buf,
 		// the types must go in the same order as the elements of SortItemType enum
 		{ STRIKE_INVUL, "strike", strikeInvul },
 		{ THROW_INVUL, "throw", throwInvul },
+		{ SUPER_LOW_PROFILE, "super low profile", superLowProfile },
 		{ LOW_PROFILE, "low profile", lowProfile },
+		{ SOMEWHAT_LOW_PROFILE, "somewhat low profile", somewhatLowProfile },
+		{ UPPER_BODY_INVUL, "upper body", upperBodyInvul },
+		{ TOE_INVUL, "toe", toeInvul },
+		{ FOOT_INVUL, "foot", footInvul },
+		{ LEG_INVUL, "leg", legInvul },
+		{ AIRBORNE_INVUL, "airborne", airborneInvul },
+		{ AIRBORNE_BUT_WONT_GO_OVER_LOWS, "airborne, but won't go over lows", airborneButWontGoOverLows },
+		{ CONSIDERED_AIRBORNE, "considered airborne", consideredAirborne },
 		{ FRONT_LEG_INVUL, "front leg invul", frontLegInvul },
 		{ PROJECTILE_ONLY_INVUL, "projectile only", projectileOnlyInvul },
 		{ SUPER_ARMOR, "super armor", superArmor },
@@ -2434,7 +2488,16 @@ void PlayerInfo::onAnimReset() {
 	
 	strikeInvul.clear();
 	throwInvul.clear();
+	superLowProfile.clear();
 	lowProfile.clear();
+	somewhatLowProfile.clear();
+	upperBodyInvul.clear();
+	toeInvul.clear();
+	footInvul.clear();
+	legInvul.clear();
+	airborneInvul.clear();
+	airborneButWontGoOverLows.clear();
+	consideredAirborne.clear();
 	frontLegInvul.clear();
 	projectileOnlyInvul.clear();
 	superArmor.clear();
@@ -2501,7 +2564,16 @@ void PlayerInfo::removeNonStancePrevStartups() {
 	
 	strikeInvul.removeFirstNFrames(amountToRemove);
 	throwInvul.removeFirstNFrames(amountToRemove);
+	superLowProfile.removeFirstNFrames(amountToRemove);
 	lowProfile.removeFirstNFrames(amountToRemove);
+	somewhatLowProfile.removeFirstNFrames(amountToRemove);
+	upperBodyInvul.removeFirstNFrames(amountToRemove);
+	toeInvul.removeFirstNFrames(amountToRemove);
+	footInvul.removeFirstNFrames(amountToRemove);
+	legInvul.removeFirstNFrames(amountToRemove);
+	airborneInvul.removeFirstNFrames(amountToRemove);
+	airborneButWontGoOverLows.removeFirstNFrames(amountToRemove);
+	consideredAirborne.removeFirstNFrames(amountToRemove);
 	frontLegInvul.removeFirstNFrames(amountToRemove);
 	projectileOnlyInvul.removeFirstNFrames(amountToRemove);
 	superArmor.removeFirstNFrames(amountToRemove);
