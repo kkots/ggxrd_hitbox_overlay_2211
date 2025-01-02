@@ -99,6 +99,7 @@ public:
 	std::atomic_bool showComboProrationInRiscGauge = false;
 	std::atomic_bool displayInputHistoryWhenObserving = true;
 	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;
+	std::atomic_bool useAlternativeStaggerMashProgressDisplay = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

@@ -444,6 +444,11 @@ bool Settings::onDllMain() {
 			"; Setting this to true will display both players' input history when playing in Episode/Story, offline Versus,\n"
 			"; Tutorial, offline MOM and Mission.\n"
 			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
+	registerOtherDescription(settingAndItsName(useAlternativeStaggerMashProgressDisplay), "Use Alternative Stagger Mash Progress Display", "Main UI Window - Stun/Stagger Mash",
+			"; Specify true or false.\n"
+			"; Setting this to true will display Progress differently in Stun/Stagger Mash window.\n"
+			"; Instead of displaying it as Mashed + Animation Duration / Stagger Duration - 4, it will\n"
+			"; display as Animation Duration / Stagger Duration - 4 - Mashed");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -717,6 +722,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool displayInputHistoryWhenObservingParsed = false;
 	
 	bool displayInputHistoryInSomeOfflineModesParsed = false;
+	
+	bool useAlternativeStaggerMashProgressDisplayParsed = false;
 	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
@@ -1007,6 +1014,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								displayInputHistoryInSomeOfflineModesParsed = parseBoolean("displayInputHistoryInSomeOfflineModes", keyValue, displayInputHistoryInSomeOfflineModes);
 							}
 							break;
+						case offsetof(Settings, useAlternativeStaggerMashProgressDisplay):
+							if (!useAlternativeStaggerMashProgressDisplayParsed) {
+								useAlternativeStaggerMashProgressDisplayParsed = parseBoolean("useAlternativeStaggerMashProgressDisplay", keyValue, useAlternativeStaggerMashProgressDisplay);
+							}
+							break;
 						case offsetof(Settings, forceZeroPitchDuringCameraCentering):
 							if (!forceZeroPitchDuringCameraCenteringParsed) {
 								forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
@@ -1221,6 +1233,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!displayInputHistoryInSomeOfflineModesParsed) {
 		displayInputHistoryInSomeOfflineModes = false;
+	}
+	
+	if (!useAlternativeStaggerMashProgressDisplayParsed) {
+		useAlternativeStaggerMashProgressDisplay = false;
 	}
 	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
@@ -1761,6 +1777,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("showComboProrationInRiscGauge", formatBoolean(showComboProrationInRiscGauge), getOtherINIDescription(&showComboProrationInRiscGauge));
 	replaceOrAddSetting("displayInputHistoryWhenObserving", formatBoolean(displayInputHistoryWhenObserving), getOtherINIDescription(&displayInputHistoryWhenObserving));
 	replaceOrAddSetting("displayInputHistoryInSomeOfflineModes", formatBoolean(displayInputHistoryInSomeOfflineModes), getOtherINIDescription(&displayInputHistoryInSomeOfflineModes));
+	replaceOrAddSetting("useAlternativeStaggerMashProgressDisplay", formatBoolean(useAlternativeStaggerMashProgressDisplay), getOtherINIDescription(&useAlternativeStaggerMashProgressDisplay));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

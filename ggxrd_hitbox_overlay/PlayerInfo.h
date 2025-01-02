@@ -282,8 +282,9 @@ inline FrameType frameMapNoIdle(FrameType type) {
 struct FrameStopInfo {
 	unsigned short value:15;  // hitstun, blockstun or hitstop
 	unsigned short isHitstun:1;
-	unsigned short valueMax:15;  // hitstunMax, blockstunMax or hitstopMax
+	unsigned short valueMax:14;  // hitstunMax, blockstunMax or hitstopMax
 	unsigned short isBlockstun:1;
+	unsigned short isStagger:1;
 };
 
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax);
@@ -1004,6 +1005,8 @@ struct PlayerInfo {
 	int hitstopMaxSuperArmor = 0;  // for super armors showing correct hitstop max
 	int blockstun = 0;
 	int hitstun = 0;
+	int stagger = 0;
+	int staggerMax = 0;
 	int hitstop = 0;
 	int clashHitstop = 0;
 	int burst = 0;  // max 15000
@@ -1080,7 +1083,8 @@ struct PlayerInfo {
 	enum XstunDisplay {
 		XSTUN_DISPLAY_NONE,
 		XSTUN_DISPLAY_HIT,  // hitstun
-		XSTUN_DISPLAY_BLOCK  // blockstun
+		XSTUN_DISPLAY_BLOCK,  // blockstun
+		XSTUN_DISPLAY_STAGGER  // stagger
 	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
 	int timeInNewSection = 0;
@@ -1088,6 +1092,8 @@ struct PlayerInfo {
 	SpriteFrameInfo sprite;
 	MoveInfo move {};
 	
+	int prevBbscrvar = 0;
+	int prevBbscrvar5 = 0;
 	int playerval0 = 0;
 	int playerval1 = 0;
 	int maxDI = 0;
@@ -1229,6 +1235,7 @@ struct PlayerInfo {
 	bool gettingHitBySuper:1;
 	bool prejumped:1;  // this is to fix normal - jump cancel - FD displaying as frames of the normal up to the jump cancel + FD (jump startup is skipped)
 	bool performingBDC:1;
+	bool staggerMaxFixed:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

@@ -1168,7 +1168,13 @@ void UI::drawSearchableWindows() {
 					ptrNextSize -= (ptrNext - strbuf);
 				}
 				size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
-				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
+				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER) {
+					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.cmnActIndex == CmnActJitabataLoop
+							? player.stagger
+							: 0,
+						player.staggerMax);
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
 					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
 						player.inHitstun
 							? player.hitstun - (player.hitstop ? 1 : 0)
@@ -1807,6 +1813,20 @@ void UI::drawSearchableWindows() {
 		ImGui::PopID();
 		if (i == 0) ImGui::SameLine();
 	}
+	
+	for (int i = 0; i < two; ++i) {
+		ImGui::PushID(searchFieldTitle("Stun/Stagger Mash"));
+		ImGui::PushID(i);
+		sprintf_s(strbuf, i == 0 ? "Stun/Stagger Mash (P1)" : "... (P2)");
+		if (ImGui::Button(strbuf)) {
+			showStunmash[i] = !showStunmash[i];
+		}
+		AddTooltip(searchTooltip("The progress on your stun or stagger mash."));
+		ImGui::PopID();
+		ImGui::PopID();
+		if (i == 0) ImGui::SameLine();
+	}
+	
 	if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitboxes")) || searching) {
 		
 		booleanSettingPresetWithHotkey(settings.dontShowBoxes, settings.disableHitboxDisplayToggle);
@@ -4566,6 +4586,210 @@ void UI::drawSearchableWindows() {
 		}
 	}
 	popSearchStack();
+	searchCollapsibleSection("Stun/Stagger Mash");
+	bool useAlternativeStaggerMashProgressDisplayUse = settings.useAlternativeStaggerMashProgressDisplay;
+	for (int i = 0; i < two; ++i) {
+		if (showStunmash[i] || searching) {
+			ImGui::PushID(i);
+			sprintf_s(strbuf, searching ? "search_stunmash" : "  Stun/Stagger Mash (P%d)", i + 1);
+			ImGui::SetNextWindowSize({
+				ImGui::GetFontSize() * 35.F,
+				180.F
+			}, ImGuiCond_FirstUseEver);
+			if (searching) {
+				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+			}
+			ImGui::Begin(strbuf, showStunmash + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			drawPlayerIconInWindowTitle(i);
+			
+			const PlayerInfo& player = endScene.players[i];
+			
+			bool kizetsu = player.pawn.dizzyMashAmountLeft() > 0 || player.cmnActIndex == CmnActKizetsu;
+			if (!player.pawn) {
+				ImGui::TextUnformatted("A match isn't currently running");
+			} else if (player.cmnActIndex != CmnActJitabataLoop && !kizetsu) {
+				ImGui::TextUnformatted(searchFieldTitle("Not in stagger/stun"));
+			} else if (kizetsu) {
+				zerohspacing
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("In hitstop: "));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.hitstop ? "Yes (1/3 multiplier)" : "No");
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Stunmash Remaining: "));
+				AddTooltip("For every left/right direction press you get a 15 point reduction."
+					" For every frame that any of PKSHD buttons is pressed you get a 15 point reduction."
+					" Pressing a direction AND a button on the same frame combines these reductions."
+					" If you're in hitstop, in both cases you get a 5 reduction instead of 15, and"
+					" you can still combine both direction and a button press to get 5+5=10 reduction on that frame."
+					" When not in hitstop, the stunmash remaining automatically decreases by 10 each frame and this can be combined"
+					" with your own input of direction and button presses for a maximum of 40 reduction per frame."
+					" Pressing multiple buttons on the same frame does not yield any extra bonuses than pressing one"
+					" button on that frame."
+					" The direction and button presses cannot be buffered. Starting a mash before faint begins"
+					" does not translate to having a headstart on the mash progress.");
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", player.pawn.dizzyMashAmountLeft(), player.pawn.dizzyMashAmountMax());
+				ImGui::TextUnformatted(strbuf);
+				
+				BYTE* funcStart = player.pawn.bbscrCurrentFunc();
+				if (strcmp((const char*)(funcStart + 4), "CmnActKizetsu") == 0) {
+					BYTE* markerPos = moves.findSetMarker(funcStart, "_End");
+					if (markerPos) {
+						BYTE* currentInst = player.pawn.bbscrCurrentInstr();
+						int currentDuration = 0;
+						int totalDuration = 0;
+						int lastDuration = 0;
+						BYTE* instIt = moves.skipInstruction(markerPos);
+						while (moves.instructionType(instIt) != Moves::instr_endState) {
+							lastDuration = *(int*)(instIt + 4 + 32);
+							totalDuration += lastDuration;
+							if (instIt < currentInst) {
+								currentDuration += lastDuration;
+							}
+							instIt = moves.skipInstruction(instIt);
+						}
+						
+						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Recovery Animation: "));
+						ImGui::SameLine();
+						int recoveryElapsed = 0;
+						if (currentInst > markerPos) {
+							recoveryElapsed = currentDuration - lastDuration + player.sprite.frame + 1;
+						}
+						sprintf_s(strbuf, "%d/%d", recoveryElapsed, totalDuration > 6 ? 6 : totalDuration);
+						ImGui::TextUnformatted(strbuf);
+						ImGui::SameLine();
+						ImGui::TextUnformatted(" (Fully actionable)");
+						AddTooltip("Recovery from faint is always fully actionable.");
+					}
+				}
+				_zerohspacing
+				
+			} else {
+				zerohspacing
+				int mashMax = player.pawn.receivedAttack()->staggerDuration;
+				int mashedAmount = mashMax - player.pawn.bbscrvar5() / 10;
+				int mashedAmountPrev = mashMax - player.prevBbscrvar5 / 10;
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Stagger Duration: "));
+				AddTooltip(searchTooltip("The original amount of stagger inflicted by the attack."));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d", mashMax);
+				ImGui::TextUnformatted(strbuf);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Mashed: "));
+				AddTooltip(searchTooltip("How much you've mashed vs how much you can possibly mash. Mashing above the limit achieves no extra stagger reduction."));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", mashedAmount, player.pawn.bbscrvar3());
+				ImGui::TextUnformatted(strbuf);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Animation Duration: "));
+				AddTooltip(searchTooltip("The current stagger animation's duration."));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d%s", player.animFrame, player.hitstop ? " (is in hitstop)" : "");
+				ImGui::TextUnformatted(strbuf);
+				
+				float cursorY = ImGui::GetCursorPosY();
+				ImGuiStyle& style = ImGui::GetStyle();
+				ImGui::SetCursorPosY(cursorY + style.FramePadding.y);
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Progress Previous: "));
+				AddTooltip(searchTooltip("The progress 'previous' includes both the current duration of the stagger animation, as it is on THIS frame,"
+					" and a snapshot or a saved value of how much you've mashed so far, as it was on the PREVIOUS frame.\n"
+					" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
+					" is the value of 'Progress Previous'.\n"
+					" Note that stagger animation does not progress during hitstop, so it is possible to start mashing before the stagger animation"
+					" goes past its first frame."));
+				ImGui::SameLine();
+				int progress;
+				int progressMax;
+				if (useAlternativeStaggerMashProgressDisplayUse) {
+					progress = player.pawn.currentAnimDuration();
+					progressMax = mashMax - 4
+								+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop()
+								- mashedAmountPrev;
+				} else {
+					progress = mashedAmountPrev + player.pawn.currentAnimDuration();
+					progressMax = mashMax - 4
+								+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
+				}
+				sprintf_s(strbuf, "%d/%d", progress > progressMax ? progressMax : progress, progressMax);
+				ImGui::TextUnformatted(strbuf);
+				
+				_zerohspacing
+				ImGui::SameLine();
+				
+				static std::string stunmashSetting;
+				if (stunmashSetting.empty()) {
+					stunmashSetting += settings.getOtherUIName(&settings.useAlternativeStaggerMashProgressDisplay);
+					stunmashSetting += '\n';
+					stunmashSetting += settings.getOtherUIDescription(&settings.useAlternativeStaggerMashProgressDisplay);
+				}
+				
+				searchFieldTitle(settings.getOtherUINameWithLength(&settings.useAlternativeStaggerMashProgressDisplay));
+				searchTooltip(settings.getOtherUIDescriptionWithLength(&settings.useAlternativeStaggerMashProgressDisplay));
+				
+				ImGui::SetCursorPosY(cursorY);
+				bool useAlternativeStaggerMashProgressDisplay = settings.useAlternativeStaggerMashProgressDisplay;
+				if (ImGui::Checkbox("##useAlternativeStaggerMashProgressDisplay", &useAlternativeStaggerMashProgressDisplay)) {
+					settings.useAlternativeStaggerMashProgressDisplay = useAlternativeStaggerMashProgressDisplay;
+					needWriteSettings = true;
+				}
+				AddTooltip(stunmashSetting.c_str());
+				zerohspacing
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Progress Now: "));
+				AddTooltip(searchTooltip("The progress 'now' includes both the current duration of the stagger animation, as it is on THIS frame,"
+					" and how much you've mashed so far, including THIS frame's delta-progress.\n"
+					" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
+					" is the value of 'Progress Previous'.\n"
+					" Note that stagger animation does not progress during hitstop, so it is possible to start mashing before the stagger animation"
+					" goes past its first frame."));
+				ImGui::SameLine();
+				if (useAlternativeStaggerMashProgressDisplayUse) {
+					progress = player.pawn.currentAnimDuration();
+					progressMax = mashMax - 4
+								+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop()
+								- mashedAmount;
+				} else {
+					progress = mashedAmount + player.pawn.currentAnimDuration();
+					progressMax = mashMax - 4
+								+ player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
+				}
+				sprintf_s(strbuf, "%d/%d", progress > progressMax ? progressMax : progress, progressMax);
+				ImGui::TextUnformatted(strbuf);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Started Recovery: "));
+				AddTooltip(searchTooltip("Has the 4f stagger recovery animation started?"));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.pawn.bbscrvar() ? "Yes" : "No");
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Recovery Animation: "));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/4", !player.pawn.bbscrvar() ? 0 : player.pawn.bbscrvar2() - 1);
+				ImGui::TextUnformatted(strbuf);
+				
+				drawGGIcon(scaleGGIconToHeight(tipsIcon, 14.F));
+				AddTooltip("Every frame that a PKSHD button is pressed, Progress and Mashed increase by 3."
+					" Progress also increases by an extra 1 each non-hitstop/superfreeze/RC-slow-eaten frame,"
+					" and that means, if the attack applied hitstop to you, it is possible to start mashing before the stagger"
+					" animation goes past its first frame. After hitstop is over, progress will increase by 4 on every frame you"
+					" pressed a button, and by 1 on every frame you didn't."
+					" You can't increase Mashed by more than half the original stagger duration."
+					" That means there's a minimum amount of stagger animation you have to play,"
+					" and that amount can be almost doubled by RC slowdown."
+					" Progress goes up to Stagger Duration - 4 - 1 (the - 1 is applied only if stagger was entered into without hitstop)."
+					" When it reaches that, you enter a 4f stagger recovery that cannot be sped up by mash and has fixed length.\n"
+					"The mash cannot be buffered. Starting to mash before stagger begins does not start it at a reduced value."
+					" Pressing multiple buttons on the same frame does not yield any extra bonuses than pressing one"
+					" button on that frame.");
+				
+				_zerohspacing
+			}
+			
+			ImGui::End();
+			ImGui::PopID();
+		}
+	}
+	popSearchStack();
 	searchCollapsibleSection("Framebar Help");
 	if (showFramebarHelp || searching) {
 		framebarHelpWindow();
@@ -6813,7 +7037,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 					}
 					if (playerIndex != -1) {
 						const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
-						if (playerFrame.hitstop || playerFrame.stop.isHitstun || playerFrame.stop.isBlockstun) {
+						if (playerFrame.hitstop || playerFrame.stop.isHitstun || playerFrame.stop.isBlockstun || playerFrame.stop.isStagger) {
 							ImGui::Separator();
 							printFameStop(strbuf, sizeof strbuf, &playerFrame.stop, playerFrame.hitstop, playerFrame.hitstopMax);
 							ImGui::TextUnformatted(strbuf);

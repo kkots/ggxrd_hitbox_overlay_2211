@@ -604,7 +604,7 @@ struct AttackData {
 	int extraCrouchHitstun;  // crouchHitstunAddition
 	int airHitstunFromLandAddition;
 	int angle;
-	int stunmashAmountMax;  // staggerDuration
+	int staggerDuration;
 	int tensionGainOnConnect;
 	char hitSoundEffect[32];
 	char undefined24[32];
@@ -708,6 +708,7 @@ public:
 	inline int tensionPulsePenalty() const { return *(int*)(ent + 0x2d140); }  // reduces tension pulse and increases negative penalty
 	inline int negativePenalty() const { return *(int*)(ent + 0x2d144); }  // progress towards negative penalty
 	inline int cornerPenalty() const { return *(int*)(ent + 0x2d14c); }  // penalty for touching the wall
+	inline int stunmashCeiling() const { return *(int*)(ent + 0x24e04); }
 	inline int risc() const { return *(DWORD*)(ent + 0x24e30); }
 	inline int riscResidual() const { return *(DWORD*)(ent + 0x24e34); }  // the value that UI shows in the dark red part of the RISC gauge
 	inline int hp() const { return *(int*)(ent + 0x9cc); }
@@ -783,7 +784,21 @@ public:
 	// Is 0 on stagger hits (Ky CH 5H for ex.) and is not used for stagger mashing
 	inline int dizzyMashAmountLeft() const { return *(int*)(ent + 0x9fcc); }
 	inline int dizzyMashAmountMax() const { return *(int*)(ent + 0x9fd0); }
-	inline int exKizetsu() const { return *(int*)(ent + 0x24dc4); }
+	inline int exKizetsu() const { return *(int*)(ent + 0x24dc4); }  // special-faint (DI recovery)
+	// these variables mean different things in different CmnAct animations
+	// CmnActJitabataLoop: 0 or 1 - has started the 4f recovery animation
+	inline int bbscrvar() const { return *(int*)(ent + 0x24df4); }
+	// CmnActJitabataLoop: ongoing recovery animation duration so far. Maximum 4. On 5 you should be in neutral already
+	inline int bbscrvar2() const { return *(int*)(ent + 0x24df8); }
+	// CmnActJitabataLoop: initially set to half the staggerDuration. If current animation duration reaches this, the combo is graybeat,
+	// and you can't mash bbscrvar5 below this. bbscrvar3 does not change
+	inline int bbscrvar3() const { return *(int*)(ent + 0x24dfc); }
+	// CmnActRomanCancel: pending slowdown (YRC - 19, PRC - 40, RRC - 60)
+	inline int bbscrvar4() const { return *(int*)(ent + 0x24e00); }
+	// CmnActJitabataLoop: initially set to staggerDuration * 10. This is compared to current animation duration to determine if recovery animation should play.
+	// it is reduced every frame there's a PKSHD button press by 30
+	inline int bbscrvar5() const { return *(int*)(ent + 0x24e04); }
+	inline int bbscrvar6() const { return *(int*)(ent + 0x24e08); }
 	inline int damageScale() const { return *(int*)(ent + 0x24d74); }  // Raven uses it on non-0 excitement. This value on the attacker player
 	inline int projectileDamageScale() const { return *(int*)(ent + 0x2530); }  // this value on the defender
 	inline int superArmorDamagePercent() const { return *(int*)(ent + 0x9b8); }  // this value on the defender
@@ -876,10 +891,13 @@ public:
 	inline bool strikeInvul() const { return (*(DWORD*)(ent + 0x238) & 0x10) != 0; }
 	inline bool throwInvul() const { return (*(DWORD*)(ent + 0x238) & 0x20) != 0; }
 	inline bool fullInvul() const { return (*(DWORD*)(ent + 0x238) & 0x40) != 0; }  // all projectiles by default will have this flag
+	inline int thisIsMinusOneIfEnteredHitstunWithoutHitstop() const { return *(int*)(ent + 0x262dc); }  // 0 otherwise
 	inline int createArgHikitsukiVal1() const { return *(int*)(ent + 0x2660 + 0x34); }
 	// this is > 0 in hitstun, blockstun,
 	// including 6f after hitstun, 5f after blockstun and 9f after wakeup
 	inline int throwProtection() const { return *(unsigned int*)(ent + 0x9fE4) > 0; }
+	inline bool yellowRomanCancel() const { return (*(DWORD*)(ent + 0x24c0 + 0x20) & 0x800000) != 0; }
+	inline bool purpleRomanCancel() const { return (*(DWORD*)(ent + 0x24c0 + 0x20) & 0x1000000) != 0; }
 	inline int currentMoveIndex() const { return *(int*)(ent + 0x24c0 + 0x44); }  // currentMoveIndex() MAY BE -1!!!
 	inline int* moveIndices() const { return (int*)(ent + 0xa020 + 0x16530); }  // used to iterate moves
 	inline int moveIndicesCount() const { return *(int*)(ent + 0xa020 + 0x16800); }  // iterate from the end (count - 1) to 0

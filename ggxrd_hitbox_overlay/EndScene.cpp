@@ -820,6 +820,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.hitstop = player.lastHitstopBeforeWipe;
 				}
 			}
+			
+			if (ent.cmnActIndex() == CmnActJitabataLoop) {
+				int bbscrvar = player.pawn.bbscrvar();
+				if (player.changedAnimOnThisFrame) {
+					player.staggerMaxFixed = false;
+					player.prevBbscrvar = 0;
+					player.prevBbscrvar5 = player.pawn.receivedAttack()->staggerDuration * 10;
+				}
+				int staggerMax = player.prevBbscrvar5 / 10 + player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
+				int animDur = player.pawn.currentAnimDuration();
+				if (!bbscrvar) {
+					player.staggerMax = staggerMax;
+				} else if (!player.prevBbscrvar) {
+					player.staggerMaxFixed = true;
+					if (staggerMax - 4 < animDur) {
+						staggerMax = animDur + 4;
+					}
+					player.staggerMax = staggerMax;
+				}
+				player.stagger = player.staggerMax - (player.pawn.currentAnimDuration() - 1);
+				player.prevBbscrvar = bbscrvar;
+			}
+			
 			player.airborne = player.airborne_afterTick();
 			int prevFrameWakeupTiming = player.wakeupTiming;
 			player.wakeupTiming = 0;
@@ -3050,19 +3073,27 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.cancels = player.wasCancels;
 				currentFrame.hitstop = player.hitstop;
 				currentFrame.hitstopMax = player.hitstopMax;
-				if (player.blockstun) {
+				if (player.stagger && player.cmnActIndex == CmnActJitabataLoop) {
+					currentFrame.stop.isBlockstun = false;
+					currentFrame.stop.isHitstun = false;
+					currentFrame.stop.isStagger = true;
+					currentFrame.stop.value = min(player.stagger, 32767);
+					currentFrame.stop.valueMax = min(player.staggerMax, 16383);
+				} else if (player.blockstun) {
 					currentFrame.stop.isBlockstun = true;
 					currentFrame.stop.isHitstun = false;
-					currentFrame.stop.value = min(player.blockstun, 255);
-					currentFrame.stop.valueMax = min(player.blockstunMax, 255);
+					currentFrame.stop.isStagger = false;
+					currentFrame.stop.value = min(player.blockstun, 32767);
+					currentFrame.stop.valueMax = min(player.blockstunMax, 16383);
 				} else if (player.hitstun && player.inHitstun) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = true;
-					currentFrame.stop.value = min(player.hitstun, 255);
-					currentFrame.stop.valueMax = min(player.hitstunMax, 255);
+					currentFrame.stop.value = min(player.hitstun, 32767);
+					currentFrame.stop.valueMax = min(player.hitstunMax, 16383);
 				} else {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
+					currentFrame.stop.isStagger = false;
 				}
 				
 				if (!player.airborne || player.airborne && player.y == 0 && player.speedY != 0 && !player.pawn.ascending()) {
@@ -3511,7 +3542,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.hitstop) {
 				player.displayHitstop = true;
 			}
-			if (player.hitstun && player.inHitstun) {
+			if (player.stagger && player.cmnActIndex == CmnActJitabataLoop) {
+				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_STAGGER;
+			} else if (player.hitstun && player.inHitstun) {
 				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_HIT;
 			} else if (player.blockstun) {
 				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK;
@@ -4662,6 +4695,7 @@ void EndScene::frameCleanup() {
 		++it;
 	}
 	for (PlayerInfo& player : players) {
+		player.prevBbscrvar5 = player.pawn ? player.pawn.bbscrvar5() : 0;
 		player.setHitstopMax = false;
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = false;

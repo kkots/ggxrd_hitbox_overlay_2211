@@ -204,6 +204,7 @@ private:
 	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue);
 	bool showCancels[2] { false, false };
 	bool showDamageCalculation[2] { false, false };
+	bool showStunmash[2] { false, false };
 	void drawSearchableWindows();
 	bool searching = false;
 	bool showSearch = false;

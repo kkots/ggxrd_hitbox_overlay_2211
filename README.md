@@ -518,6 +518,12 @@ displayInputHistoryWhenObserving = true
 ; Tutorial, offline MOM and Mission.
 displayInputHistoryInSomeOfflineModes = false
 
+; Specify true or false.
+; Setting this to true will display Progress differently in Stun/Stagger Mash window.
+; Instead of displaying it as Mashed + Animation Duration / Stagger Duration - 4, it will
+; display as Animation Duration / Stagger Duration - 4 - Mashed
+useAlternativeStaggerMashProgressDisplay = false
+
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.
 ; If closingModWindowAlsoHidesFramebar is true, then setting showFramebar to true is not enough, as the main

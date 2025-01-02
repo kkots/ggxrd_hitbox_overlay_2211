@@ -1572,7 +1572,7 @@ void PlayerFrame::printInvuls(char* buf, size_t bufSize) const {
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax) {
 	if (!bufSize) return;
 	*buf = '\0';
-	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun) : false;
+	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun || stopInfo->isStagger) : false;
 	if (!hitstop && !hasStop) return;
 	int result;
 	
@@ -1592,8 +1592,15 @@ void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int
 		}
 	}
 	if (hasStop) {
-		result = sprintf_s(buf, bufSize, "%d/%d %s", stopInfo->value - (hitstop ? 1 : 0), stopInfo->valueMax,
-			stopInfo->isHitstun ? "hitstun" : "blockstun");
+		const char* stunName;
+		if (stopInfo->isHitstun) {
+			stunName = "hitstun";
+		} else if (stopInfo->isBlockstun) {
+			stunName = "blockstun";
+		} else {
+			stunName = "stagger";
+		}
+		result = sprintf_s(buf, bufSize, "%d/%d %s", stopInfo->value - (hitstop ? 1 : 0), stopInfo->valueMax, stunName);
 		if (result != -1) {
 			buf += result;
 			bufSize -= result;

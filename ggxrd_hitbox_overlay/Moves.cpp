@@ -569,7 +569,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActJitabataLoop");
-	move.displayName = "Lost Balance";
+	move.displayName = "Stagger";
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActKizetsu");
