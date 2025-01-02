@@ -768,6 +768,8 @@ struct ProjectileInfo {
 	int framebarId = -1;
 	char creatorName[32] { 0 };
 	Entity creator { nullptr };
+	char rcSlowedDownCounter = 0;
+	char rcSlowedDownMax = 0;
 	char animName[32] { 0 };
 	bool markActive:1;  // cleared at the start of prepareDrawData. True means hitboxes were found on this frame, or on this logic tick this projectile registered a hit.
 	bool startedUp:1;  // cleared upon disabling. True means active frames have started.
@@ -777,7 +779,7 @@ struct ProjectileInfo {
 	bool isDangerous:1;
 	bool superArmorActive:1;
 	bool clashedOnThisFrame:1;
-	bool immuneToRCSlowdown:1;
+	bool rcSlowedDown:1;
 	bool moveNonEmpty:1;
 	ProjectileInfo() :
 		markActive(false),
@@ -1101,8 +1103,10 @@ struct PlayerInfo {
 	char remainingAirDashes = 0;
 	char wasProhibitFDTimer = 0;
 	char rcSlowdownCounter = 0;
-	char rcSlowdownCounterUse = 0;
+	char rcSlowdownMaxLastSet = 0;
 	char rcSlowdownMax = 0;
+	char rcSlowedDownCounter = 0;
+	char rcSlowedDownMax = 0;
 	unsigned short poisonDuration = 0;
 	unsigned short poisonDurationMax = 0;
 	EddieInfo eddie { 0 };
@@ -1217,7 +1221,7 @@ struct PlayerInfo {
 	// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
 	bool wasSuperArmorEnabled:1;
 	bool wasFullInvul:1;
-	bool immuneToRCSlowdown:1;
+	bool rcSlowedDown:1;
 	bool wasHitOnPreviousFrame:1;
 	bool wasHitOnThisFrame:1;
 	bool grab:1;  // this doesn't work on regular ground and air throws. This flag means the player is in an attackLockAction

@@ -789,6 +789,7 @@ public:
 	// CmnActJitabataLoop: 0 or 1 - has started the 4f recovery animation
 	inline int bbscrvar() const { return *(int*)(ent + 0x24df4); }
 	// CmnActJitabataLoop: ongoing recovery animation duration so far. Maximum 4. On 5 you should be in neutral already
+	// CmnActRomanCancel: RC startup. Gets decremented when bbscrvar is 0 until it reaches 0, then bbscrvar becomes 1
 	inline int bbscrvar2() const { return *(int*)(ent + 0x24df8); }
 	// CmnActJitabataLoop: initially set to half the staggerDuration. If current animation duration reaches this, the combo is graybeat,
 	// and you can't mash bbscrvar5 below this. bbscrvar3 does not change
@@ -797,6 +798,7 @@ public:
 	inline int bbscrvar4() const { return *(int*)(ent + 0x24e00); }
 	// CmnActJitabataLoop: initially set to staggerDuration * 10. This is compared to current animation duration to determine if recovery animation should play.
 	// it is reduced every frame there's a PKSHD button press by 30
+	// CmnActRomanCancel: custom frame counter that counts the number of idling signals. Is incremented at the end of idling handler
 	inline int bbscrvar5() const { return *(int*)(ent + 0x24e04); }
 	inline int bbscrvar6() const { return *(int*)(ent + 0x24e08); }
 	inline int damageScale() const { return *(int*)(ent + 0x24d74); }  // Raven uses it on non-0 excitement. This value on the attacker player
@@ -807,6 +809,7 @@ public:
 	inline int dustProration1() const { return *(int*)(ent + 0x2ce50); }  // this value on the defender
 	inline int dustProration2() const { return *(int*)(ent + 0x2ce54); }  // this value on the defender
 	inline bool hellfireState() const { return (*(DWORD*)(ent + 0x4d2c) & 0x4) != 0; }  // this value on the attacker player, but must also check health <= 10%
+	inline bool performingSuperOrIK() const { return (*(DWORD*)(ent + 0x4d2c) & 0x4000) != 0; }
 	inline bool landed() const { return (*(int*)(ent + 0x234) & 0x4) != 0; }  // is true for only one frame - the frame on which you touched the ground
 	inline bool hitSomethingOnThisFrame() const { return (*(int*)(ent + 0x12c) & 0x20000) != 0; }  // is true for only one frame - the frame on which you hit something
 	inline bool receivedProjectileClashSignal() const { return (*(int*)(ent + 0x12c) & 0x8) != 0; }

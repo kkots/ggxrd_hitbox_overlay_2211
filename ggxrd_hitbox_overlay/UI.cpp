@@ -1516,7 +1516,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TableNextColumn();
 				int flashCurrent = 0;
 				int flashMax = 0;
-				int slowCurrent = player.rcSlowdownCounterUse;
+				int slowCurrent = player.rcSlowdownCounter;
 				int slowMax = player.rcSlowdownMax;
 				if (superflashInstigator == player.pawn) {
 					flashCurrent = endScene.getSuperflashCounterAlliedCached();

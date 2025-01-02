@@ -226,14 +226,25 @@ bool EndScene::onDllMain() {
 			"drawQuadExec")) return false;
 	}
 	
-	superflashInstigatorOffset = sigscanOffset(
+	uintptr_t superflashInstigatorUsage = sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"8b 86 ?? ?? ?? ?? 3b c3 74 09 ff 48 24 89 9e ?? ?? ?? ?? 89 be ?? ?? ?? ?? ff 47 24 8b 8f bc 01 00 00 49 89 8e ?? ?? ?? ?? 8b 97 c0 01 00 00 4a",
-		{ 37, 0 },
 		NULL, "superflashInstigatorOffset");
-	if (superflashInstigatorOffset) {
+	if (superflashInstigatorUsage) {
+		superflashInstigatorOffset = *(DWORD*)(superflashInstigatorUsage + 37);
 		superflashCounterOpponentOffset = superflashInstigatorOffset + 4;
 		superflashCounterAlliedOffset = superflashInstigatorOffset + 8;
+		uintptr_t setSuperFreezeAndRCSlowdownFlagsUsage = sigscanForward(superflashInstigatorUsage, "8b ce e8", 0x7f + 3);
+		if (setSuperFreezeAndRCSlowdownFlagsUsage) {
+			orig_setSuperFreezeAndRCSlowdownFlags = (setSuperFreezeAndRCSlowdownFlags_t)followRelativeCall(setSuperFreezeAndRCSlowdownFlagsUsage + 2);
+		}
+	}
+	
+	if (orig_setSuperFreezeAndRCSlowdownFlags) {
+		void (HookHelp::*setSuperFreezeAndRCSlowdownFlagsHookPtr)() = &HookHelp::setSuperFreezeAndRCSlowdownFlagsHook;
+		if (!detouring.attach(&(PVOID&)orig_setSuperFreezeAndRCSlowdownFlags,
+			(PVOID&)setSuperFreezeAndRCSlowdownFlagsHookPtr,
+			"setSuperFreezeAndRCSlowdownFlags")) return false;
 	}
 	
 	shutdownFinishedEvent = CreateEventW(NULL, FALSE, FALSE, NULL);
@@ -286,6 +297,7 @@ bool EndScene::onDllMain() {
 	digUpBBScrFunction(uintptr_t, BBScr_whiffCancelOptionBufferTime, 1630)
 	digUpBBScrFunctionAndHook(BBScr_setHitstop_t, BBScr_setHitstop, 2263, (int))
 	digUpBBScrFunctionAndHook(BBScr_ignoreDeactivate_t, BBScr_ignoreDeactivate, 298, ())
+	digUpBBScrFunctionAndHook(BBScr_timeSlow_t, BBScr_timeSlow, 2201, (int))
 	
 	if (orig_BBScr_sendSignal) {
 		getReferredEntity = (getReferredEntity_t)followRelativeCall((uintptr_t)orig_BBScr_sendSignal + 5);
@@ -792,9 +804,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					cmnActIndex == CmnActBDownBound
 					|| cmnActIndex == CmnActFDownBound
 					|| cmnActIndex == CmnActVDownBound)) {
-				player.hitstunMax = ent.hitstun() - (ent.hitstop() ? 1 : 0);  // some code in CmnActFDownBound, CmnActBDownBound and CmnActVDownBound increments hitstun by 10
-				                                                              // try this with Sol Kudakero airhit floorbounce. Potemkin ICPM ground hit may also do this
-				                                                              // Greed Sever airhit does this
+				player.hitstunMax += 10;  // some code in CmnActFDownBound, CmnActBDownBound and CmnActVDownBound increments hitstun by 10
+				                          // try this with Sol Kudakero airhit floorbounce. Potemkin ICPM ground hit may also do this
+				                          // Greed Sever airhit does this
 			}
 			int hitstop = ent.hitstop();
 			int clashHitstop = ent.clashHitstop();
@@ -2351,50 +2363,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			superflashCounterOpponent = 0;
 		}
 		
-		for (PlayerInfo& player : players) {
-			player.immuneToRCSlowdown = true;
-		}
-		for (ProjectileInfo& projectile : projectiles) {
-			projectile.immuneToRCSlowdown = true;
-		}
-		
-		for (PlayerInfo& player : players) {
-			int slowdown = player.pawn.rcSlowdownCounter();
-			if (slowdown) {
-				if (slowdown > player.rcSlowdownCounter || player.cmnActIndex == CmnActRomanCancel) {
-					player.rcSlowdownMax = player.pawn.bbscrvar4();
-				}
-				player.rcSlowdownCounter = min(127, slowdown);
-				player.rcSlowdownCounterUse = slowdown + 1;
-			} else if (player.rcSlowdownCounter) {
-				PlayerInfo& other = players[1 - player.index];
-				player.rcSlowdownCounterUse = (
-						player.pawn.inHitstunNextFrame()
-						|| player.pawn.inBlockstunNextFrame()
-						|| other.pawn.inHitstunNextFrame()
-						|| other.pawn.inBlockstunNextFrame()
-					) ? 0 : 1;
-				player.rcSlowdownCounter = 0;
-			} else {
-				player.rcSlowdownCounterUse = 0;
-			}
-			if (player.rcSlowdownCounterUse) {
-				for (PlayerInfo& other : players) {
-					bool isAffected = other.pawn != player.pawn && other.pawn != superflashInstigator && !other.pawn.immuneToRCSlowdown();
-					if (isAffected) {
-						other.immuneToRCSlowdown = false;
-					}
-				}
-				for (ProjectileInfo& projectile : projectiles) {
-					if (!projectile.ptr) continue;
-					bool isAffected = !projectile.ptr.immuneToRCSlowdown();
-					if (isAffected) {
-						projectile.immuneToRCSlowdown = false;
-					}
-				}
-			}
-		}
-		
 		for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 			EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 			entityFramebar.foundOnThisFrame = false;
@@ -2446,8 +2414,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.hitConnected = projectile.ptr ? projectile.ptr.hitSomethingOnThisFrame() : projectile.landedHit
 					|| projectile.clashedOnThisFrame;
 				PlayerInfo& enemy = (projectile.team == 0 || projectile.team == 1) ? players[1 - projectile.team] : players[0];
-				currentFrame.rcSlowdown = projectile.immuneToRCSlowdown ? 0 : enemy.rcSlowdownCounterUse;
-				currentFrame.rcSlowdownMax = projectile.immuneToRCSlowdown ? 0 : enemy.rcSlowdownMax;
+				currentFrame.rcSlowdown = projectile.rcSlowedDownCounter;
+				currentFrame.rcSlowdownMax = projectile.rcSlowedDownMax;
 				currentFrame.activeDuringSuperfreeze = false;
 			}
 			
@@ -3087,8 +3055,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.crossupProtectionIsOdd = 0;
 					currentFrame.crossupProtectionIsAbove1 = 0;
 				}
-				currentFrame.rcSlowdown = player.immuneToRCSlowdown ? 0 : other.rcSlowdownCounterUse;
-				currentFrame.rcSlowdownMax = player.immuneToRCSlowdown ? 0 : other.rcSlowdownMax;
+				currentFrame.rcSlowdown = player.rcSlowedDownCounter;
+				currentFrame.rcSlowdownMax = player.rcSlowedDownMax;
 				
 				currentFrame.poisonDuration = player.poisonDuration;
 				
@@ -6261,4 +6229,71 @@ void SkippedFramesInfo::transitionToOverflow() {
 	for (int i = 1; i < count; ++i) {
 		elements[0].count += elements[i].count;
 	}
+}
+
+void EndScene::HookHelp::setSuperFreezeAndRCSlowdownFlagsHook() {
+	endScene.setSuperFreezeAndRCSlowdownFlagsHook((char*)this);
+}
+
+// This function determines if you're superfrozen or slowed down by RC
+// It runs before hitDetectionMain
+// On hit RC slowdown from mortal counter may be applied, or RC slowdown may be canceled
+// Those things happen after RC slowdown is already decided
+// We're seeing obsolete values at the end of a tick that don't matter anymore
+// And there're too many ways for those values to change
+// That's why we need these hooks
+void EndScene::setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine) {
+	
+	for (PlayerInfo& player : players) {
+		player.rcSlowedDown = false;
+		player.rcSlowedDownCounter = 0;
+		player.rcSlowedDownMax = 0;
+	}
+	for (ProjectileInfo& projectile : projectiles) {
+		projectile.rcSlowedDown = false;
+		projectile.rcSlowedDownCounter = 0;
+		projectile.rcSlowedDownMax = 0;
+	}
+	
+	entityList.populate();
+	Entity superflashInstigator = getSuperflashInstigator();
+	for (int i = 0; i < 2; ++i) {
+		PlayerInfo& player = players[i];
+		Entity pawn = entityList.slots[i];
+		player.rcSlowdownCounter = pawn.rcSlowdownCounter();
+		player.rcSlowdownMax = player.rcSlowdownMaxLastSet;
+		if (player.rcSlowdownCounter) {
+			for (int j = 0; j < entityList.count; ++j) {
+				Entity ent = entityList.list[j];
+				if (ent != pawn && ent != superflashInstigator && !ent.immuneToRCSlowdown()) {
+					ProjectileInfo& foundProjectile = findProjectile(ent);
+					if (foundProjectile.ptr) {
+						foundProjectile.rcSlowedDown = true;
+						foundProjectile.rcSlowedDownCounter = max(foundProjectile.rcSlowedDownCounter, player.rcSlowdownCounter);
+						foundProjectile.rcSlowedDownMax = max(foundProjectile.rcSlowedDownMax, player.rcSlowdownMax);
+					} else {
+						PlayerInfo& foundPlayer = findPlayer(ent);
+						if (foundPlayer.pawn) {
+							foundPlayer.rcSlowedDown = true;
+							foundPlayer.rcSlowedDownCounter = max(foundProjectile.rcSlowedDownCounter, player.rcSlowdownCounter);
+							foundPlayer.rcSlowedDownMax = max(foundProjectile.rcSlowedDownMax, player.rcSlowdownMax);
+						}
+					}
+				}
+			}
+		}
+	}
+	orig_setSuperFreezeAndRCSlowdownFlags(asw_subengine);
+}
+
+void EndScene::HookHelp::BBScr_timeSlowHook(int duration) {
+	endScene.BBScr_timeSlowHook(Entity{(void*)this}, duration);
+}
+
+void EndScene::BBScr_timeSlowHook(Entity pawn, int duration) {
+	if (duration != 0) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.rcSlowdownMaxLastSet = duration;
+	}
+	orig_BBScr_timeSlow((void*)pawn.ent, duration);
 }

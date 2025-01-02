@@ -34,6 +34,8 @@ using beginHitstop_t = void(__thiscall*)(void* pawn);
 using BBScr_ignoreDeactivate_t = void(__thiscall*)(void* pawn);
 using BBScr_getAccessedValueImpl_t = int(__thiscall*)(void* pawn, int tag, int id);
 using BBScr_checkMoveConditionImpl_t = int(__thiscall*)(void* pawn, MoveCondition condition);
+using setSuperFreezeAndRCSlowdownFlags_t = void(__thiscall*)(void* asw_subengine);
+using BBScr_timeSlow_t = void(__thiscall*)(void* pawn, int duration);
 
 struct FVector2D {
 	float X;
@@ -217,6 +219,7 @@ public:
 	beginHitstop_t orig_beginHitstop = nullptr;
 	BBScr_ignoreDeactivate_t orig_BBScr_ignoreDeactivate = nullptr;
 	bool pauseMenuOpen = false;
+	BBScr_timeSlow_t orig_BBScr_timeSlow = nullptr;
 	
 	std::vector<PlayerInfo> players{2};
 	std::vector<ProjectileInfo> projectiles;
@@ -269,6 +272,7 @@ public:
 	bool drawingPostponed() const;
 	bool uiWillBeDrawnOnTopOfPauseMenu = false;
 	bool obsStoppedCapturing = false;
+	setSuperFreezeAndRCSlowdownFlags_t orig_setSuperFreezeAndRCSlowdownFlags = nullptr;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -294,7 +298,10 @@ private:
 		void BBScr_ignoreDeactivateHook();
 		void beginHitstopHook();
 		void BBScr_createObjectHook_piece();
+		void setSuperFreezeAndRCSlowdownFlagsHook();
+		void BBScr_timeSlowHook(int duration);
 	};
+	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
 	void onObjectCreated(Entity pawn, Entity createdPawn, const char* animName);
@@ -312,6 +319,7 @@ private:
 	void handleUponHook(Entity pawn, int signal);
 	void BBScr_setHitstopHook(Entity pawn, int hitstop);
 	void BBScr_ignoreDeactivateHook(Entity pawn);
+	void BBScr_timeSlowHook(Entity pawn, int duration);
 	void beginHitstopHook(Entity pawn);
 	
 	void prepareDrawData(bool* needClearHitDetection);
