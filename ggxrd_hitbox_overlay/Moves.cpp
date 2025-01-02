@@ -3408,6 +3408,7 @@ bool Moves::onDllMain() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_saishingeki;
 	move.secondaryStartup = secondaryStartup_saishingeki;
+	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Hold_End");
