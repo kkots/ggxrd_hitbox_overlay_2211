@@ -196,7 +196,7 @@ private:
 	TickActors_FDeferredTickList_FGlobalActorIterator_t orig_TickActors_FDeferredTickList_FGlobalActorIterator = nullptr;
 	updateBattleOfflineVer_t orig_updateBattleOfflineVer = nullptr;
 	TickActorComponents_t orig_TickActorComponents = nullptr;
-	char** gameDataPtr = nullptr;
+	char** gameDataPtr = nullptr;  // REDGameCommon
 	char** playerSideNetworkHolder = nullptr;
 	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;

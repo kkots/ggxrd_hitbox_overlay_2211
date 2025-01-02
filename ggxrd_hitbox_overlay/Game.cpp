@@ -23,7 +23,8 @@ bool Game::onDllMain() {
 		"85 C0 78 74 83 F8 01",
 		{-4, 0},
 		&error, "aswEngine");
-
+	
+	// gameDataPtr is of type REDGameCommon** when not dereferenced
 	gameDataPtr = (char**)sigscanOffset(
 		"GuiltyGearXrd.exe",
 		"33 C0 38 41 44 0F 95 C0 C3 CC",
