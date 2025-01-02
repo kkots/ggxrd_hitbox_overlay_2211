@@ -280,11 +280,12 @@ inline FrameType frameMapNoIdle(FrameType type) {
 }
 
 struct FrameStopInfo {
-	unsigned short value:15;  // hitstun, blockstun or hitstop
+	unsigned short value:14;  // hitstun, blockstun or hitstop
 	unsigned short isHitstun:1;
-	unsigned short valueMax:14;  // hitstunMax, blockstunMax or hitstopMax
-	unsigned short isBlockstun:1;
 	unsigned short isStagger:1;
+	unsigned short valueMax:11;  // hitstunMax, blockstunMax or hitstopMax
+	unsigned short valueMaxExtra:4;  // hitstunMaxFloorbounceExtra, blockstunMaxLandExtra
+	unsigned short isBlockstun:1;
 };
 
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax);
@@ -1001,6 +1002,8 @@ struct PlayerInfo {
 	int stun = 0;
 	int stunThreshold = 0;
 	int hitstunMax = 0;
+	int hitstunMaxFloorbounceExtra = 0;
+	int blockstunMaxLandExtra = 0;
 	int lastHitstopBeforeWipe = 0;
 	int blockstunMax = 0;
 	int hitstopMax = 0;

@@ -36,6 +36,7 @@ using BBScr_getAccessedValueImpl_t = int(__thiscall*)(void* pawn, int tag, int i
 using BBScr_checkMoveConditionImpl_t = int(__thiscall*)(void* pawn, MoveCondition condition);
 using setSuperFreezeAndRCSlowdownFlags_t = void(__thiscall*)(void* asw_subengine);
 using BBScr_timeSlow_t = void(__thiscall*)(void* pawn, int duration);
+using onCmnActXGuardLoop_t = void(__thiscall*)(void* pawn, int signal, int type, int thisIs0);
 
 struct FVector2D {
 	float X;
@@ -220,6 +221,7 @@ public:
 	BBScr_ignoreDeactivate_t orig_BBScr_ignoreDeactivate = nullptr;
 	bool pauseMenuOpen = false;
 	BBScr_timeSlow_t orig_BBScr_timeSlow = nullptr;
+	onCmnActXGuardLoop_t orig_onCmnActXGuardLoop = nullptr;
 	
 	std::vector<PlayerInfo> players{2};
 	std::vector<ProjectileInfo> projectiles;
@@ -300,6 +302,7 @@ private:
 		void BBScr_createObjectHook_piece();
 		void setSuperFreezeAndRCSlowdownFlagsHook();
 		void BBScr_timeSlowHook(int duration);
+		void onCmnActXGuardLoopHook(int signal, int type, int thisIs0);
 	};
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
 	void drawTrainingHudHook(char* thisArg);
@@ -321,6 +324,7 @@ private:
 	void BBScr_ignoreDeactivateHook(Entity pawn);
 	void BBScr_timeSlowHook(Entity pawn, int duration);
 	void beginHitstopHook(Entity pawn);
+	void onCmnActXGuardLoopHook(Entity pawn, int signal, int type, int thisIs0);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {

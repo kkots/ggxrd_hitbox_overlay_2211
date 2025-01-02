@@ -198,6 +198,8 @@ struct ImDrawListBackup {
 };
 static void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList);
 static void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawData* referenceDrawData, ImDrawListBackup** drawLists, int drawListsCount);
+static void printExtraHitstunTooltip(int amount);
+static void printExtraBlockstunTooltip(int amount);
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -1157,37 +1159,99 @@ void UI::drawSearchableWindows() {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
 				*strbuf = '\0';
+				int strbufLen = 0;
 				if (player.displayHitstop) {
-					sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
+					strbufLen = sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
 				}
 				char* ptrNext = strbuf;
 				int ptrNextSize = sizeof strbuf;
 				if (*strbuf) {
-					ptrNext += strlen(strbuf) + strlen(" + ");
+					ptrNext += strbufLen + 3;  // strlen(" + ")
 					*ptrNext = '\0';
 					ptrNextSize -= (ptrNext - strbuf);
 				}
 				size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
+				ptrNextSize = 0;
+				bool displayFloorbounceQuestionMark = false;
+				int displayFloorbounceQuestionMarkValue = 0;
+				bool displayBlockstunLandQuestionMark = false;
+				int displayBlockstunLandQuestionMarkValue = 0;
 				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER) {
-					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
 						player.cmnActIndex == CmnActJitabataLoop
 							? player.stagger
 							: 0,
 						player.staggerMax);
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
-					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-						player.inHitstun
+					int currentHitstun = player.inHitstun
 							? player.hitstun - (player.hitstop ? 1 : 0)
-							: 0,
-						player.hitstunMax);
+							: 0;
+					if (player.hitstunMaxFloorbounceExtra) {
+						displayFloorbounceQuestionMarkValue = player.hitstunMaxFloorbounceExtra;
+						displayFloorbounceQuestionMark = true;
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)",
+							currentHitstun,
+							player.hitstunMax,
+							player.hitstunMaxFloorbounceExtra);
+					} else {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							currentHitstun,
+							player.hitstunMax);
+					}
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
-					sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", player.blockstun - (player.hitstop ? 1 : 0), player.blockstunMax);
+					int currentBlockstun = player.blockstun - (player.hitstop ? 1 : 0);
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", currentBlockstun, player.blockstunMax);
+					if (player.blockstunMaxLandExtra) {
+						displayBlockstunLandQuestionMarkValue = player.blockstunMaxLandExtra;
+						displayBlockstunLandQuestionMark = true;
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)",
+							currentBlockstun,
+							player.blockstunMax,
+							player.blockstunMaxLandExtra);
+					} else {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							currentBlockstun,
+							player.blockstunMax);
+					}
 				}
-				if (strbuf != ptrNext && *strbuf && *ptrNext) {
-					ptrNext = strbuf + strlen(strbuf);
-					memcpy(ptrNext, " + ", 3);
+				
+				if (strbuf != ptrNext && ptrNextSize > 0 && ptrNextSizeCap) {
+					memcpy(strbuf + strbufLen, " + ", 3);
+					strbufLen += 3 + ptrNextSize;
+				} else if (ptrNextSize > 0) {
+					strbufLen = ptrNextSize;
 				}
-				printNoWordWrap
+				if (displayFloorbounceQuestionMark || displayBlockstunLandQuestionMark) {
+					zerohspacing
+					if (i == 0) {
+						ptrNext = strbuf + strbufLen;
+						ptrNextSizeCap -= ptrNextSize;
+						if (ptrNextSizeCap > 5) {
+							strcpy(ptrNext, " (?)");
+							ptrNextSizeCap -= 4;
+						}
+						const float w = ImGui::CalcTextSize(strbuf, strbuf + strbufLen + 4).x;
+						const float rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth();
+						const float posX = (rightEdge - w);
+						ImGui::SetCursorPosX(posX);
+					}
+					ImGui::TextUnformatted(strbuf, strbuf + strbufLen);
+					if (displayFloorbounceQuestionMark) {
+						printExtraHitstunTooltip(displayFloorbounceQuestionMarkValue);
+					} else {
+						printExtraBlockstunTooltip(displayBlockstunLandQuestionMarkValue);
+					}
+					ImGui::SameLine();
+					textUnformattedColored(SLIGHTLY_GRAY, " (?)");
+					if (displayFloorbounceQuestionMark) {
+						printExtraHitstunTooltip(displayFloorbounceQuestionMarkValue);
+					} else {
+						printExtraBlockstunTooltip(displayBlockstunLandQuestionMarkValue);
+					}
+					_zerohspacing
+				} else {
+					printWithWordWrap
+				}
 				
 				if (i == 0) {
 					ImGui::TableNextColumn();
@@ -5752,8 +5816,8 @@ void UI::HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector
 }
 
 void RightAlign(float w) {
-	const auto rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth();
-	const auto posX = (rightEdge - w);
+	const float rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth();
+	const float posX = (rightEdge - w);
 	ImGui::SetCursorPosX(posX);
 }
 
@@ -8426,6 +8490,26 @@ void UI::getFramebarDrawData(std::vector<BYTE>& dData, std::vector<BYTE>& frameb
 	if (!listsCount) return;
 	
 	makeRenderDataFromDrawLists(dData, (const ImDrawData*)drawData, lists, listsCount);
+}
+
+void printExtraHitstunTooltip(int amount) {
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		sprintf_s(strbuf, "The extra %d hitstun is applied from a floor bounce.", amount);
+		ImGui::TextUnformatted(strbuf);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+}
+
+void printExtraBlockstunTooltip(int amount) {
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		sprintf_s(strbuf, "The extra %d blockstun is applied from landing while in blockstun.", amount);
+		ImGui::TextUnformatted(strbuf);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
 }
 
 void UI::drawFramebars() {

@@ -1600,7 +1600,13 @@ void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int
 		} else {
 			stunName = "stagger";
 		}
-		result = sprintf_s(buf, bufSize, "%d/%d %s", stopInfo->value - (hitstop ? 1 : 0), stopInfo->valueMax, stunName);
+		if (stopInfo->valueMaxExtra) {
+			result = sprintf_s(buf, bufSize, "%d/(%d+%d) %s", stopInfo->value - (hitstop ? 1 : 0),
+				stopInfo->valueMax, stopInfo->valueMaxExtra, stunName);
+		} else {
+			result = sprintf_s(buf, bufSize, "%d/%d %s", stopInfo->value - (hitstop ? 1 : 0),
+				stopInfo->valueMax, stunName);
+		}
 		if (result != -1) {
 			buf += result;
 			bufSize -= result;

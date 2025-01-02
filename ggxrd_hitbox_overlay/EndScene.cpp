@@ -521,6 +521,21 @@ bool EndScene::onDllMain() {
 	initializeSkippedFrames(skippedFramesIdleHitstop)
 	#undef initializeSkippedFrames
 	
+	uintptr_t onCmnActXGuardLoopPiece = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"8b 86 54 4d 00 00 8b ce 3b c5 7e 16 83 c0 04 89 86 54 4d 00 00",
+		&error, "onCmnActXGuardLoop");
+	if (onCmnActXGuardLoopPiece) {
+		orig_onCmnActXGuardLoop = (onCmnActXGuardLoop_t)sigscanBackwards(onCmnActXGuardLoopPiece,
+			"83 ec ?? a1 ?? ?? ?? ?? 33 c4", 0x616);
+	}
+	if (orig_onCmnActXGuardLoop) {
+		void (HookHelp::*onCmnActXGuardLoopHookPtr)(int signal, int type, int thisIs0) = &HookHelp::onCmnActXGuardLoopHook;
+		if (!detouring.attach(&(PVOID&)orig_onCmnActXGuardLoop,
+			(PVOID&)onCmnActXGuardLoopHookPtr,
+			"onCmnActXGuardLoop")) return false;
+	}
+	
 	return !error;
 }
 
@@ -804,9 +819,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					cmnActIndex == CmnActBDownBound
 					|| cmnActIndex == CmnActFDownBound
 					|| cmnActIndex == CmnActVDownBound)) {
-				player.hitstunMax += 10;  // some code in CmnActFDownBound, CmnActBDownBound and CmnActVDownBound increments hitstun by 10
-				                          // try this with Sol Kudakero airhit floorbounce. Potemkin ICPM ground hit may also do this
-				                          // Greed Sever airhit does this
+				player.hitstunMaxFloorbounceExtra += 10;  // some code in CmnActFDownBound, CmnActBDownBound and CmnActVDownBound increments hitstun by 10
+				                                          // try this with Sol Kudakero airhit floorbounce. Potemkin ICPM ground hit may also do this
+				                                          // Greed Sever airhit does this
 			}
 			int hitstop = ent.hitstop();
 			int clashHitstop = ent.clashHitstop();
@@ -871,6 +886,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			if (player.cmnActIndex == CmnActKirimomiUpper && ent.currentAnimDuration() == 2) {
 				player.hitstunMax = player.hitstun;  // 5D6 hitstun
+				player.hitstunMaxFloorbounceExtra = 0;
 			}
 			player.inBlockstunNextFrame = ent.inBlockstunNextFrame();
 			const char* animName = ent.animationName();
@@ -1084,6 +1100,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							}
 							if (player.setHitstunMax) {
 								player.hitstunMax = ent.hitstun();
+								player.hitstunMaxFloorbounceExtra = 0;
 								if (ent.inHitstunNextFrame() && player.lastHitstopBeforeWipe
 										|| ent.hitstop()) {
 									--player.hitstunMax;
@@ -3028,19 +3045,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = true;
-					currentFrame.stop.value = min(player.stagger, 32767);
-					currentFrame.stop.valueMax = min(player.staggerMax, 16383);
+					currentFrame.stop.value = min(player.stagger, 16383);
+					currentFrame.stop.valueMax = min(player.staggerMax, 2047);
+					currentFrame.stop.valueMaxExtra = 0;
 				} else if (player.blockstun) {
 					currentFrame.stop.isBlockstun = true;
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = false;
-					currentFrame.stop.value = min(player.blockstun, 32767);
-					currentFrame.stop.valueMax = min(player.blockstunMax, 16383);
+					currentFrame.stop.value = min(player.blockstun, 16383);
+					currentFrame.stop.valueMax = min(player.blockstunMax, 2047);
+					currentFrame.stop.valueMaxExtra = min(player.blockstunMaxLandExtra, 15);
 				} else if (player.hitstun && player.inHitstun) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = true;
-					currentFrame.stop.value = min(player.hitstun, 32767);
-					currentFrame.stop.valueMax = min(player.hitstunMax, 16383);
+					currentFrame.stop.isStagger = false;
+					currentFrame.stop.value = min(player.hitstun, 16383);
+					currentFrame.stop.valueMax = min(player.hitstunMax, 2047);
+					currentFrame.stop.valueMaxExtra = min(player.hitstunMaxFloorbounceExtra, 15);
 				} else {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
@@ -4554,6 +4575,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 		if (blockstun && (player.inBlockstunNextFrame || player.baikenReturningToBlockstunAfterAzami)) {
 			// defender was observed to not be in hitstop at this point, but having blockstun nonetheless
 			player.blockstunMax = blockstun;
+			player.blockstunMaxLandExtra = 0;
 			player.setBlockstunMax = true;
 		}
 	}
@@ -6296,4 +6318,19 @@ void EndScene::BBScr_timeSlowHook(Entity pawn, int duration) {
 		player.rcSlowdownMaxLastSet = duration;
 	}
 	orig_BBScr_timeSlow((void*)pawn.ent, duration);
+}
+
+void EndScene::HookHelp::onCmnActXGuardLoopHook(int signal, int type, int thisIs0) {
+	endScene.onCmnActXGuardLoopHook(Entity{(void*)this}, signal, type, thisIs0);
+}
+
+void EndScene::onCmnActXGuardLoopHook(Entity pawn, int signal, int type, int thisIs0) {
+	int oldBlockstun = pawn.blockstun();
+	orig_onCmnActXGuardLoop((void*)pawn.ent, signal, type, thisIs0);
+	int newBlockstun = pawn.blockstun();
+	
+	if (newBlockstun == oldBlockstun + 4) {
+		PlayerInfo& player = findPlayer(pawn);
+		player.blockstunMaxLandExtra = 4;
+	}
 }
