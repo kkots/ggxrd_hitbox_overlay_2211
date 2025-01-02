@@ -2358,24 +2358,27 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			projectile.immuneToRCSlowdown = true;
 		}
 		
-		rcSlowdownCounter = 0;
 		for (PlayerInfo& player : players) {
 			int slowdown = player.pawn.rcSlowdownCounter();
 			if (slowdown) {
+				if (slowdown > player.rcSlowdownCounter || player.cmnActIndex == CmnActRomanCancel) {
+					player.rcSlowdownMax = player.pawn.bbscrvar4();
+				}
 				player.rcSlowdownCounter = min(127, slowdown);
-				++slowdown;
+				player.rcSlowdownCounterUse = slowdown + 1;
 			} else if (player.rcSlowdownCounter) {
-				player.rcSlowdownCounter = 0;
 				PlayerInfo& other = players[1 - player.index];
-				slowdown = slowdown == 0 && (
-						player.pawn.inHitstunThisFrame()
+				player.rcSlowdownCounterUse = (
+						player.pawn.inHitstunNextFrame()
 						|| player.pawn.inBlockstunNextFrame()
-						|| other.pawn.inHitstunThisFrame()
+						|| other.pawn.inHitstunNextFrame()
 						|| other.pawn.inBlockstunNextFrame()
 					) ? 0 : 1;
+				player.rcSlowdownCounter = 0;
+			} else {
+				player.rcSlowdownCounterUse = 0;
 			}
-			if (slowdown) {
-				rcSlowdownCounter = max(rcSlowdownCounter, slowdown);
+			if (player.rcSlowdownCounterUse) {
 				for (PlayerInfo& other : players) {
 					bool isAffected = other.pawn != player.pawn && other.pawn != superflashInstigator && !other.pawn.immuneToRCSlowdown();
 					if (isAffected) {
@@ -2389,27 +2392,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						projectile.immuneToRCSlowdown = false;
 					}
 				}
-			}
-		}
-		
-		if (!superflashInstigator && superfreezeHasBeenGoingFor) {
-			rcSlowdownCounterMax = 0;
-			for (PlayerInfo& player : players) {
-				rcSlowdownCounterMax = max(rcSlowdownCounterMax, player.pawn.rcSlowdownCounter());
-			}
-			if (rcSlowdownCounterMax) ++rcSlowdownCounterMax;
-			for (PlayerInfo& player : players) {
-				if (player.immuneToRCSlowdown) {
-					player.rcSlowdownMax = 0;
-				} else {
-					player.rcSlowdownMax = min(127, rcSlowdownCounterMax);
-				}
-			}
-		}
-		
-		if (superflashInstigator && !superfreezeHasBeenGoingFor) {
-			for (PlayerInfo& player : players) {
-				player.rcSlowdownMax = 0;
 			}
 		}
 		
@@ -2463,8 +2445,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.hitstopMax = projectile.hitstopMax;
 				currentFrame.hitConnected = projectile.ptr ? projectile.ptr.hitSomethingOnThisFrame() : projectile.landedHit
 					|| projectile.clashedOnThisFrame;
-				currentFrame.rcSlowdown = projectile.immuneToRCSlowdown ? 0 : rcSlowdownCounter;
-				currentFrame.rcSlowdownMax = projectile.immuneToRCSlowdown ? 0 : rcSlowdownCounterMax;
+				PlayerInfo& enemy = (projectile.team == 0 || projectile.team == 1) ? players[1 - projectile.team] : players[0];
+				currentFrame.rcSlowdown = projectile.immuneToRCSlowdown ? 0 : enemy.rcSlowdownCounterUse;
+				currentFrame.rcSlowdownMax = projectile.immuneToRCSlowdown ? 0 : enemy.rcSlowdownMax;
 				currentFrame.activeDuringSuperfreeze = false;
 			}
 			
@@ -3104,8 +3087,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.crossupProtectionIsOdd = 0;
 					currentFrame.crossupProtectionIsAbove1 = 0;
 				}
-				currentFrame.rcSlowdown = player.immuneToRCSlowdown ? 0 : rcSlowdownCounter;
-				currentFrame.rcSlowdownMax = player.immuneToRCSlowdown ? 0 : rcSlowdownCounterMax;
+				currentFrame.rcSlowdown = player.immuneToRCSlowdown ? 0 : other.rcSlowdownCounterUse;
+				currentFrame.rcSlowdownMax = player.immuneToRCSlowdown ? 0 : other.rcSlowdownMax;
 				
 				currentFrame.poisonDuration = player.poisonDuration;
 				
@@ -4215,8 +4198,6 @@ void EndScene::onAswEngineDestroyed() {
 		superflashCounterAlliedMax = 0;
 		superflashCounterOpponent = 0;
 		superflashCounterOpponentMax = 0;
-		rcSlowdownCounter = 0;
-		rcSlowdownCounterMax = 0;
 		baikenBlockCancels.clear();
 	}
 	memset(prevInputRingBuffers, 0, sizeof prevInputRingBuffers);
@@ -5942,14 +5923,6 @@ EntityFramebar& EndScene::getFramebar(int totalIndex) {
 	} else {
 		return playerFramebars[totalIndex];
 	}
-}
-
-int EndScene::getRCSlowdownCounter() {
-	return rcSlowdownCounter;
-}
-
-int EndScene::getRCSlowdownCounterMax() {
-	return rcSlowdownCounterMax;
 }
 
 int EndScene::getSuperflashCounterOpponentCached() {

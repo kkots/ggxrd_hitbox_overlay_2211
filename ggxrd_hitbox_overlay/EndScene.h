@@ -262,8 +262,6 @@ public:
 	int getSuperflashCounterOpponentMax();
 	int getSuperflashCounterAlliedMax();
 	Entity getLastNonZeroSuperflashInstigator();
-	int getRCSlowdownCounter();
-	int getRCSlowdownCounterMax();
 	inline bool isIGiveUp() const { return iGiveUp; }
 	bool needDrawInputs = false;
 	const std::vector<SkippedFramesInfo>& getSkippedFrames(bool hitstop) const;
@@ -460,8 +458,6 @@ private:
 	int superflashCounterAlliedMax = 0;
 	int superflashCounterOpponent = 0;
 	int superflashCounterOpponentMax = 0;
-	int rcSlowdownCounter = 0;
-	int rcSlowdownCounterMax = 0;
 	void onProjectileHit(Entity ent);
 	Entity lastNonZeroSuperflashInstigator;
 	bool iGiveUp = false;

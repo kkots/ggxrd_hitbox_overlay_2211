@@ -1101,6 +1101,7 @@ struct PlayerInfo {
 	char remainingAirDashes = 0;
 	char wasProhibitFDTimer = 0;
 	char rcSlowdownCounter = 0;
+	char rcSlowdownCounterUse = 0;
 	char rcSlowdownMax = 0;
 	unsigned short poisonDuration = 0;
 	unsigned short poisonDurationMax = 0;

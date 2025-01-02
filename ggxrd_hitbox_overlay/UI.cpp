@@ -1511,14 +1511,12 @@ void UI::drawSearchableWindows() {
 				}
 			}
 			Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
-			int slowdown = endScene.getRCSlowdownCounter();
-			int slowdownMax = endScene.getRCSlowdownCounterMax();
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
 				int flashCurrent = 0;
 				int flashMax = 0;
-				int slowCurrent = !player.immuneToRCSlowdown ? slowdown : 0;
+				int slowCurrent = player.rcSlowdownCounterUse;
 				int slowMax = player.rcSlowdownMax;
 				if (superflashInstigator == player.pawn) {
 					flashCurrent = endScene.getSuperflashCounterAlliedCached();
