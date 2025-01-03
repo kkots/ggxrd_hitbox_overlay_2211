@@ -160,7 +160,7 @@ private:
 	bool failedToCreateVertexBuffers = false;
 	bool initializeVertexBuffers();
 
-	std::vector<Vertex> vertexArena;
+	std::vector<BYTE> vertexArena;
 	CComPtr<IDirect3DVertexBuffer9> vertexBuffer;
 	const unsigned int vertexBufferSize = 6 * 200;
 	const unsigned int textureVertexBufferSize = vertexBufferSize * sizeof (Vertex) / sizeof (TextureVertex);
@@ -178,8 +178,10 @@ private:
 	}
 	bool preparingTextureVertexBuffer = false;
 	bool renderingTextureVertices = false;
-	void startPreparingTextureVertexBuffer();  // can't stop preparing texture vertices
-	void switchToRenderingTextureVertices();  // can't switch back
+	void startPreparingTextureVertexBuffer();
+	void stopPreparingTextureVertexBuffer();
+	void switchToRenderingTextureVertices();
+	void switchToRenderingNonTextureVertices();
 	Vertex* vertexIt = nullptr;
 	TextureVertex* textureVertexIt = nullptr;
 	unsigned int vertexBufferPosition = 0;
@@ -402,6 +404,7 @@ private:
 	void prepareTextureBox(const TextureBoxParams& box);
 	void prepareDrawInputs();
 	int calculateStartingTextureVertexBufferLength();
+	int calculateStartingVertexBufferLength();
 };
 
 extern Graphics graphics;

@@ -855,6 +855,7 @@ bool Graphics::drawAllOutlines() {
 void Graphics::drawAllPoints() {
 	if (!numberOfPointsPrepared) return;
 	sendAllPreparedVertices();
+	switchToRenderingNonTextureVertices();
 	advanceRenderState(RENDER_STATE_DRAWING_POINTS);
 
 	for (unsigned int i = numberOfPointsPrepared; i != 0; --i) {
@@ -886,62 +887,48 @@ void Graphics::drawAllPrepared() {
 		if (!drawAllArrayboxes()) break;
 		drawAllBoxes();
 		if (!drawAllOutlines()) break;
-		drawAllPoints();
 		drawAllTextureBoxes();
+		drawAllPoints();
 	}
 	
-	bool willMessWithTextureVertexBufferSeparately = preparingTextureVertexBuffer && textureVertexBufferPosition != 0;
+	int maxBufferPositionBytes = vertexBufferPosition * sizeof Vertex;
+	int otherBufferPositionBytes = textureVertexBufferPosition * sizeof TextureVertex;
+	if (otherBufferPositionBytes > maxBufferPositionBytes) maxBufferPositionBytes = otherBufferPositionBytes;
 	
-	if (vertexBufferPosition != 0) {
-		if (vertexBufferPosition > vertexBufferLength) {
-			logwrap(fprintf(logfile, "vertexBufferPosition > vertexBufferLength: %u, %u\n", vertexBufferPosition, vertexBufferLength));
-			// this is an error
+	
+	if (maxBufferPositionBytes != 0) {
+		int bufferLengthBytes;
+		if (preparingTextureVertexBuffer) {
+			bufferLengthBytes = textureVertexBufferLength * sizeof TextureVertex;
+		} else {
+			bufferLengthBytes = vertexBufferLength * sizeof Vertex;
 		}
-		if (vertexBufferPosition != vertexBufferLength) {
-			memmove(vertexArena.data(), vertexArena.data() + vertexBufferPosition, (vertexBufferLength - vertexBufferPosition) * sizeof Vertex);
-		}
-		
-		int startingTextureVertexBufferLength;
-		int newStartingTextureVertexBufferLength;
-		int freedTextureVertices;
-		if (!willMessWithTextureVertexBufferSeparately) {
-			startingTextureVertexBufferLength = calculateStartingTextureVertexBufferLength();
+		if (maxBufferPositionBytes != bufferLengthBytes) {
+			memmove(vertexArena.data(), vertexArena.data() + maxBufferPositionBytes, bufferLengthBytes - maxBufferPositionBytes);
 		}
 		
-		vertexBufferLength -= vertexBufferPosition;
-		
-		if (!willMessWithTextureVertexBufferSeparately) {
-			newStartingTextureVertexBufferLength = calculateStartingTextureVertexBufferLength();
-			freedTextureVertices = startingTextureVertexBufferLength - newStartingTextureVertexBufferLength;
-			if (freedTextureVertices) {
-				textureVertexBufferRemainingSize += freedTextureVertices;
-				textureVertexBufferLength -= freedTextureVertices;
-				textureVertexIt = (TextureVertex*)vertexArena.data() + textureVertexBufferLength;
-				if (renderingTextureVertices) {
-					textureVertexBufferPosition -= freedTextureVertices;
-				}
-			}
+		int remainder;
+		int roundDown;
+		if (preparingTextureVertexBuffer) {
+			remainder = maxBufferPositionBytes % sizeof TextureVertex;
+			roundDown = maxBufferPositionBytes / sizeof TextureVertex;
+			if (remainder) ++roundDown;
+			if (roundDown > (int)textureVertexBufferLength) roundDown = textureVertexBufferLength;
+			textureVertexBufferLength -= roundDown;
+			textureVertexIt = (TextureVertex*)vertexArena.data() + textureVertexBufferLength;
+			textureVertexBufferRemainingSize = textureVertexBufferSize - textureVertexBufferLength;
+		} else {
+			remainder = maxBufferPositionBytes % sizeof Vertex;
+			roundDown = maxBufferPositionBytes / sizeof Vertex;
+			if (remainder) ++roundDown;
+			if (roundDown > (int)vertexBufferLength) roundDown = vertexBufferLength;
+			vertexBufferLength -= roundDown;
+			vertexIt = (Vertex*)vertexArena.data() + vertexBufferLength;
+			vertexBufferRemainingSize = vertexBufferSize - vertexBufferLength;
 		}
-		vertexBufferPosition = 0;
-		vertexIt = vertexArena.data() + vertexBufferLength;
-		vertexBufferRemainingSize = vertexBufferSize - vertexBufferLength;
-		if (!loggedDrawingOperationsOnce) {
-			logwrap(fprintf(logfile, "vertexBufferNewline: resetting vertex buffer: vertexBufferLength: %u,"
-				" vertexBufferPosition: 0, vertex iterator: %u, vertex buffer remaining size: %u\n",
-				vertexBufferLength, it - vertexArena.begin(), vertexBufferRemainingSize));
-		}
-	}
-	if (willMessWithTextureVertexBufferSeparately) {
-		if (textureVertexBufferPosition > textureVertexBufferLength) {
-			logwrap(fprintf(logfile, "textureVertexBufferPosition > textureVertexBufferLength: %u, %u\n", textureVertexBufferPosition, textureVertexBufferLength));
-			// this is an error
-		}
-		// texture vertex buffer can't get stuck in the middle of drawing a primitive, it's always complete boxes
-		// if you started drawing texture vertices, there can be no leftovers from non-texture vertices
-		textureVertexBufferLength = 0;
 		textureVertexBufferPosition = 0;
-		textureVertexIt = (TextureVertex*)vertexArena.data();
-		textureVertexBufferRemainingSize = textureVertexBufferSize;
+		vertexBufferPosition = 0;
+		
 	}
 	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 	vertexBufferSent = false;
@@ -1033,6 +1020,12 @@ void Graphics::drawAll() {
 		}
 	}
 	
+	if ((onlyDrawPoints || drawingPostponed())
+			&& screenshotStage == SCREENSHOT_STAGE_NONE
+			&& (drawDataUse.inputsSize[0] || drawDataUse.inputsSize[1])) {
+		prepareDrawInputs();
+	}
+	
 	if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR
 			&& (!noNeedToDrawPoints || drawDataUse.needTakeScreenshot)
 			&& !dontShowBoxes) {
@@ -1040,11 +1033,7 @@ void Graphics::drawAll() {
 			preparePoint(params);
 		}
 	}
-	if ((onlyDrawPoints || drawingPostponed())
-			&& screenshotStage == SCREENSHOT_STAGE_NONE
-			&& (drawDataUse.inputsSize[0] || drawDataUse.inputsSize[1])) {
-		prepareDrawInputs();
-	}
+	
 	drawAllPrepared();
 	
 	outlines.clear();
@@ -1435,6 +1424,7 @@ bool Graphics::worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out) {
 }
 
 void Graphics::preparePoint(const DrawPointCallParams& params) {
+	stopPreparingTextureVertexBuffer();
 	D3DXVECTOR3 p{ (float)params.posX, (float)params.posY, 0.F };
 	logOnce(fprintf(logfile, "drawPoint called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
 	
@@ -1977,7 +1967,7 @@ bool Graphics::initializeVertexBuffers() {
 		failedToCreateVertexBuffers = true;
 		return false;
 	}
-	vertexArena.resize(vertexBufferSize);
+	vertexArena.resize(vertexBufferSize * sizeof Vertex);
 
 	return true;
 }
@@ -1985,7 +1975,7 @@ bool Graphics::initializeVertexBuffers() {
 void Graphics::resetVertexBuffer() {
 	vertexBufferRemainingSize = vertexBufferSize;
 	vertexBufferLength = 0;
-	vertexIt = vertexArena.data();
+	vertexIt = (Vertex*)vertexArena.data();
 	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 	vertexBufferPosition = 0;
 	preparingTextureVertexBuffer = false;
@@ -2500,7 +2490,6 @@ void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
 	graphics.drawDataUse.needTakeScreenshot = false;
 }
 
-// can't stop preparing texture vertices
 void Graphics::startPreparingTextureVertexBuffer() {
 	if (preparingTextureVertexBuffer) return;
 	textureVertexBufferPosition = 0;
@@ -2510,7 +2499,15 @@ void Graphics::startPreparingTextureVertexBuffer() {
 	preparingTextureVertexBuffer = true;
 }
 
-// can't switch back
+void Graphics::stopPreparingTextureVertexBuffer() {
+	if (!preparingTextureVertexBuffer) return;
+	vertexBufferPosition = 0;
+	vertexBufferLength = calculateStartingVertexBufferLength();
+	vertexBufferRemainingSize = vertexBufferSize - vertexBufferLength;
+	vertexIt = (Vertex*)vertexArena.data() + vertexBufferLength;
+	preparingTextureVertexBuffer = false;
+}
+
 void Graphics::switchToRenderingTextureVertices() {
 	if (renderingTextureVertices) return;
 	int positionBytes = vertexBufferPosition * sizeof Vertex;
@@ -2520,6 +2517,17 @@ void Graphics::switchToRenderingTextureVertices() {
 	}
 	textureVertexBufferPosition = positionBytes / sizeof TextureVertex;
 	renderingTextureVertices = true;
+}
+
+void Graphics::switchToRenderingNonTextureVertices() {
+	if (!renderingTextureVertices) return;
+	int positionBytes = textureVertexBufferPosition * sizeof TextureVertex;
+	int remainder = positionBytes % sizeof Vertex;
+	if (remainder) {
+		positionBytes += sizeof Vertex - remainder;
+	}
+	vertexBufferPosition = positionBytes / sizeof Vertex;
+	renderingTextureVertices = false;
 }
 
 void Graphics::prepareDrawInputs() {
@@ -2590,6 +2598,18 @@ int Graphics::calculateStartingTextureVertexBufferLength() {
 	
 	if (result > textureVertexBufferSize) {
 		return textureVertexBufferSize;
+	}
+	return result;
+}
+
+int Graphics::calculateStartingVertexBufferLength() {
+	size_t lengthBytes = textureVertexBufferLength * sizeof TextureVertex;
+	size_t remainder = lengthBytes % sizeof Vertex;
+	if (remainder) lengthBytes += sizeof Vertex - remainder;
+	size_t result = lengthBytes == 0 ? 0 : lengthBytes / sizeof Vertex;
+	
+	if (result > vertexBufferSize) {
+		return vertexBufferSize;
 	}
 	return result;
 }
