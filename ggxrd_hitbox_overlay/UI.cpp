@@ -3223,7 +3223,7 @@ void UI::drawSearchableWindows() {
 			const char* lastNames[2];
 			prepareLastNames(lastNames, player, false);
 			int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(lastNames,
-				player.superfreezeStartup ? 2 : 1,
+				lastNames[1] ? 2 : 1,
 				useSlang);
 			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 			textUnformattedColored(YELLOW_COLOR, searchFieldTitle(animNamesCount ? "Anims: " : "Anim: ", nullptr));
@@ -7603,7 +7603,7 @@ bool prevNamesControl(const PlayerInfo& player, bool includeTitle, bool disableS
 		}
 		const char* lastNames[2];
 		prepareLastNames(lastNames, player, disableSlang);
-		player.prevStartupsDisp.printNames(buf, bufSize, lastNames, player.superfreezeStartup ? 2 : 1, disableSlang ? false : settings.useSlangNames.load());
+		player.prevStartupsDisp.printNames(buf, bufSize, lastNames, lastNames[1] ? 2 : 1, disableSlang ? false : settings.useSlangNames.load());
 		return true;
 	}
 	return false;
@@ -7628,7 +7628,7 @@ void prepareLastNames(const char** lastNames, const PlayerInfo& player, bool dis
 	} else {
 		lastName = player.lastPerformedMoveName;
 	}
-	if (player.superfreezeStartup) {
+	if (player.startupType() == 0) {
 		lastNameSuperfreeze = lastName;
 		lastNameSuperfreeze += " Superfreeze Startup";
 		lastNameAfterSuperfreeze = lastName;
@@ -7637,7 +7637,7 @@ void prepareLastNames(const char** lastNames, const PlayerInfo& player, bool dis
 		lastNames[1] = lastNameAfterSuperfreeze.c_str();
 	} else {
 		lastNames[0] = lastName;
-		lastNames[1] = lastName;
+		lastNames[1] = nullptr;
 	}
 }
 
