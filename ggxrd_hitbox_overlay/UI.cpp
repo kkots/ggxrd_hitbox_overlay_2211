@@ -341,6 +341,8 @@ bool UI::onDllMain(HMODULE hModule) {
 	addImage(hModule, IDB_DIGIT_8, digitFrame[8]);
 	addImage(hModule, IDB_DIGIT_9, digitFrame[9]);
 	addImage(hModule, IDB_FIRST_FRAME, firstFrame);
+	addImage(hModule, IDB_HIT_CONNECTED_FRAME, hitConnectedFrame);
+	addImage(hModule, IDB_HIT_CONNECTED_FRAME_BLACK, hitConnectedFrameBlack);
 	addFrameArt(hModule, FT_IDLE, IDB_IDLE_FRAME, idleFrame,
 		"Idle: can attack, block and FD.");
 	addFrameArt(hModule, FT_IDLE_CANT_BLOCK,
@@ -1274,8 +1276,6 @@ void UI::drawSearchableWindows() {
 						" max hitstun or blockstun. When there's no + sign, the displayed values could"
 						" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
 						" and the other are on the right.\n"
-						"During Roman Cancel or Mortal Counter slowdown, the actual hitstop and hitstun/etc duration may be longer"
-						" than the displayed value due to slowdown.\n"
 						"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
 						" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
 						" slightly prolonged when transitioning from air blockstun to ground blockstun."));
@@ -3264,7 +3264,7 @@ void UI::drawSearchableWindows() {
 					cancels.enableSpecialCancel,
 					cancels.enableJumpCancel,
 					cancels.enableSpecials,
-					cancels.hitOccured,
+					cancels.hitAlreadyHappened,
 					cancels.airborne,
 					false);
 			}
@@ -6381,9 +6381,9 @@ void UI::hitboxesHelpWindow() {
 	
 	textUnformattedColored(COLOR_INTERACTION_IMGUI, "White: ");
 	ImGui::SameLine();
-	ImGui::TextUnformatted("Interaction box");
+	ImGui::TextUnformatted("Interaction boxes/circles");
 	ImGui::TextUnformatted(
-		"Boxes like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against"
+		"Boxes/circles like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against"
 		" the opponent's origin point. If the opponent's origin point is within the box, the check is satisfied.");
 	ImGui::Separator();
 	
@@ -6570,6 +6570,17 @@ void UI::framebarHelpWindow() {
 	
 	ImGui::Separator();
 	
+	ImGui::Image((ImTextureID)TEXID_FRAMES,
+		{ frameWidthOriginal, firstFrameHeight },
+		{ hitConnectedFrame->uStart, hitConnectedFrame->vStart },
+		{ hitConnectedFrame->uEnd, hitConnectedFrame->vEnd });
+	ImGui::SameLine();
+	ImGui::TextUnformatted(searchTooltip("A frame on which an attack connected and a hit occured."
+		" In order to improve visibility, this white outline is instead made black when drawn on top"
+		" of frames that are non-dark yellow"));
+	
+	ImGui::Separator();
+	
 	static std::string generalFramebarHelp;
 	if (generalFramebarHelp.empty()) {
 		generalFramebarHelp = settings.convertToUiDescription(
@@ -6611,14 +6622,15 @@ void UI::framebarHelpWindow() {
 			"You can hover your mouse over individual frames in the framebar to reveal additional information about them.\n"
 			"\n"
 			"Numbers on the framebar mean the number of same-type frames in a row, until a 'first frame' marker (^img0;) is encountered."
-			" The numbers do not reset (do not restart counting) when a \"next hit\" active frame (^img1;) is encountered."
+			" The numbers do not reset (do not restart counting) when a \"next hit\" active frame (^img1;) is encountered or on frames"
+			" where an attack connected with an opponent."
 			" The \"considerSimilarFrameTypesSameForFrameCounts\" and \"considerSimilarIdleFramesSameForFrameCounts\" settings"
 			" may help narrow the range of situations where the numbers get reset (restart counting)."
 			" By default \"considerSimilarFrameTypesSameForFrameCounts\" is set to true and \"considerSimilarIdleFramesSameForFrameCounts\" is set to false,"
 			" meaning similar frame types of startup or recovery are counted as one range of frames, but breaks in ranges of idle frames are counted"
 			"as different frame ranges.\n"
 			"\n"
-			"WWhen the number of frames is double or triple digit"
+			"When the number of frames is double or triple digit"
 			" and does not fit, it may be broken up into 1-2 digit on one side + 1-2 digits on the other side. The way you should"
 			" read this is as one whole number: the pieces on the right are the higher digits, and pieces on the left are the lower ones.\n"
 			"\n"
@@ -6921,7 +6933,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			frame.enableSpecialCancel,
 			frame.enableJumpCancel,
 			frame.enableSpecials,
-			frame.hitOccured,
+			frame.hitAlreadyHappened,
 			frame.airborne,
 			true);
 	if (frame.needShowAirOptions) {
@@ -7030,6 +7042,23 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 						superfreezeActiveArt.uvStart.y
 					},
 					superfreezeActiveArt.uvEnd,
+					tint);
+			}
+			
+			if (frame.hitConnected) {
+				const PngResource* art;
+				if (frame.type == FT_XSTUN
+						|| frame.type == FT_XSTUN_CAN_CANCEL
+						|| frame.type == FT_GRAYBEAT_AIR_HITSTUN) {
+					art = ui.hitConnectedFrameBlack.get();
+				} else {
+					art = ui.hitConnectedFrame.get();
+				}
+				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+					frameStartVec,
+					frameEndVec,
+					{ art->uStart, art->vStart },
+					{ art->uEnd, art->vEnd },
 					tint);
 			}
 			
@@ -7543,7 +7572,7 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 		bool enableSpecialCancel,
 		bool enableJumpCancel,
 		bool enableSpecials,
-		bool hitOccured,
+		bool hitAlreadyHappened,
 		bool airborne,
 		bool insertSeparators) {
 	bool needUnpush = false;
@@ -7572,7 +7601,7 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 	}
 	if (!cancels.whiffCancels.empty() || enableSpecials) {
 		if (insertSeparators) ImGui::Separator();
-		if (hitOccured) {
+		if (hitAlreadyHappened) {
 			textUnformattedColored(YELLOW_COLOR, "Late cancels:");
 		} else {
 			textUnformattedColored(YELLOW_COLOR, "Whiff cancels:");
@@ -7593,7 +7622,7 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 			&& cancels.whiffCancels.empty() && !enableSpecials
 			&& cancels.whiffCancelsNote) {
 		if (insertSeparators) ImGui::Separator();
-		if (hitOccured) {
+		if (hitAlreadyHappened) {
 			textUnformattedColored(YELLOW_COLOR, "Late cancels:");
 		} else {
 			textUnformattedColored(YELLOW_COLOR, "Whiff cancels:");

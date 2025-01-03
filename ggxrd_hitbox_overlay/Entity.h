@@ -906,8 +906,8 @@ public:
 	inline int moveIndicesCount() const { return *(int*)(ent + 0xa020 + 0x16800); }  // iterate from the end (count - 1) to 0
 	inline const AddedMoveData* movesBase() const { return (const AddedMoveData*)(ent + 0xa020); }
 	inline const AddedMoveData* currentMove() const { return movesBase() + currentMoveIndex(); }  // currentMoveIndex() MAY BE -1!!!
-	inline int hitOccured() const { return *(int*)(ent + 0x444); }  // equal to 10 when occured, 0 when not
-	inline int theValueHitOccuredIsComparedAgainst() const { return *(int*)(ent + 0x448); }  // always 10
+	inline int hitAlreadyHappened() const { return *(int*)(ent + 0x444); }  // equal to 10 when occured, 0 when not
+	inline int theValueHitAlreadyHappenedIsComparedAgainst() const { return *(int*)(ent + 0x448); }  // always 10
 	inline int crossupProtection() const { return *(int*)(ent + 0xa010); }
 	inline bool immuneToRCSlowdown() const { return (*(DWORD*)(ent + 0x11c) & 0x10000000) != 0; }
 	inline int rcSlowdownCounter() const { return *(int*)(ent + 0x261fc); }

@@ -330,6 +330,8 @@
     <Image Include="..\images\FirstFrame.png" />
     <Image Include="..\images\GraybeatAirHitstunFrame.png" />
     <Image Include="..\images\GraybeatAirHitstun_NonColorblind.png" />
+    <Image Include="..\images\HitConnectedFrame.png" />
+    <Image Include="..\images\HitConnectedFrameBlack.png" />
     <Image Include="..\images\IdleFrame.png" />
     <Image Include="..\images\IdleFrame_CantBlock.png" />
     <Image Include="..\images\IdleFrame_CantBlock_NonColorblind.png" />

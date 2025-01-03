@@ -68,14 +68,16 @@
 #define IDB_XSTUN_FRAME_HITSTOP         177
 #define IDB_XSTUN_FRAME_HITSTOP_NON_COLORBLIND 178
 #define IDB_XSTUN_FRAME_CAN_CANCEL      187
-#define IDB_PNG2                        188
 #define IDB_XSTUN_FRAME_CAN_CANCEL_NON_COLORBLIND 188
+#define IDB_HIT_CONNECTED_FRAME         189
+#define IDB_PNG1                        190
+#define IDB_HIT_CONNECTED_FRAME_BLACK   190
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        189
+#define _APS_NEXT_RESOURCE_VALUE        191
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101

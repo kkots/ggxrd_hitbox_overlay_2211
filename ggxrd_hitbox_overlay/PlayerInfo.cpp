@@ -2152,8 +2152,6 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 		sources[i] = dad;
 		if (determineFrameLevel(sf.type) >= determineFrameLevel(df.type)) {
 			df.type = sf.type;
-		}
-		if (!df.animName) {
 			df.animName = sf.animName;
 			df.animSlangName = sf.animSlangName;
 		}
@@ -2235,7 +2233,7 @@ void PlayerCancelInfo::clear() {
 	enableJumpCancel = false;
 	enableSpecialCancel = false;
 	enableSpecials = false;
-	hitOccured = false;
+	hitAlreadyHappened = false;
 }
 
 void PlayerInfo::appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel) {

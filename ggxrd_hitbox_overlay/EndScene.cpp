@@ -2939,7 +2939,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool enableSpecialCancel = player.wasEnableSpecialCancel
 					&& player.wasAttackCollidedSoCanCancelNow
 					&& player.wasEnableGatlings;
-			bool hitOccured = player.pawn.hitOccured() >= player.pawn.theValueHitOccuredIsComparedAgainst()
+			bool hitAlreadyHappened = player.pawn.hitAlreadyHappened() >= player.pawn.theValueHitAlreadyHappenedIsComparedAgainst()
 					|| !player.pawn.currentHitNum();
 			
 			if (framebarAdvancedIdleHitstop) {
@@ -3092,7 +3092,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !player.reflect.active;
 				
 				currentFrame.airborne = player.airborne;
-				currentFrame.hitOccured = hitOccured;
+				currentFrame.hitAlreadyHappened = hitAlreadyHappened;
 				currentFrame.hitConnected = player.pawn.hitSomethingOnThisFrame()
 					|| player.pawn.inBlockstunNextFrame()
 					|| player.pawn.inHitstunNextFrame()
@@ -3486,7 +3486,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newCancelInfo.enableJumpCancel = player.wasEnableJumpCancel;
 				newCancelInfo.cancels = player.wasCancels;
 				newCancelInfo.enableSpecials = false;
-				newCancelInfo.hitOccured = hitOccured;
+				newCancelInfo.hitAlreadyHappened = hitAlreadyHappened;
 				newCancelInfo.airborne = player.airborne;
 				player.appendPlayerCancelInfo(newCancelInfo);
 			}

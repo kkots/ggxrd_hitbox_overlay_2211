@@ -160,9 +160,9 @@ This mode of showing throw boxes shows them like this:
 
 ![Screenshot can't be viewed](throw_box_drawPushboxCheckSeparately_false.jpg)
 
-### White - Interaction boxes
+### White - Interaction boxes/circles
 
-Boxes like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against the opponent's origin point. If the opponent's origin point is within the box, the check is satisfied.
+Boxes or circles like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against the opponent's origin point. If the opponent's origin point is within the box, the check is satisfied.
 
 ### Outlines lie within their boxes/on the edge
 

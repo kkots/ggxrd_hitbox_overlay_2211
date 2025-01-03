@@ -77,6 +77,8 @@ public:
 	};
 	std::vector<InputName> inputNames{ 0x127 };
 	std::unique_ptr<PngResource> firstFrame;
+	std::unique_ptr<PngResource> hitConnectedFrame;
+	std::unique_ptr<PngResource> hitConnectedFrameBlack;
 	void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth);
 	bool pauseMenuOpen = false;
 	bool isDisplayingOnTop = false;

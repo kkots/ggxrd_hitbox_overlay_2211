@@ -77,7 +77,7 @@ struct PlayerCancelInfo {
 	bool enableSpecialCancel:1;
 	bool enableSpecials:1;
 	bool airborne:1;
-	bool hitOccured:1;
+	bool hitAlreadyHappened:1;
 	
 	bool cancelsEqual(const PlayerCancelInfo& other) const;
 	void clear();
@@ -350,7 +350,7 @@ struct PlayerFrame : public FrameBase {
 	INVUL_TYPES_TABLE
 	#undef INVUL_TYPES_EXEC
 	
-	bool hitOccured:1;  // stays true for the remainder of the move
+	bool hitAlreadyHappened:1;  // stays true for the remainder of the move
 	bool enableSpecialCancel:1;
 	bool enableSpecials:1;
 	bool enableJumpCancel:1;

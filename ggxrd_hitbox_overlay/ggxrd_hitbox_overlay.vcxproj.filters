@@ -583,6 +583,12 @@
     <Image Include="..\images\XStunFrame_CanCancel_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\images\HitConnectedFrame.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\HitConnectedFrameBlack.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\MyPixelShader.hlsl">

@@ -1443,6 +1443,13 @@ bool Moves::onDllMain() {
 	move.framebarName = "Sacred Edge";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_KY, "SPSacredEdgeObj", true);
+	move.isDangerous = isDangerous_notInRecovery;
+	move.framebarId = 10;
+	move.framebarName = "Fortified Sacred Edge";
+	move.framebarSlangName = "DC Sacred Edge";
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "GlitterIsGold");
 	move.displayName = "Glitter Is Gold";
 	move.slangName = "Coin";
@@ -6993,7 +7000,7 @@ bool isDangerous_displayModel(Entity ent) {
 	return ent.displayModel();
 }
 bool isDangerous_vacuumAtk(Entity ent) {
-	return ent.currentHitNum() > 0 && ent.hitOccured() < ent.theValueHitOccuredIsComparedAgainst()
+	return ent.currentHitNum() > 0 && ent.hitAlreadyHappened() < ent.theValueHitAlreadyHappenedIsComparedAgainst()
 		|| ent.currentHitNum() == 0 && ent.currentAnimDuration() <= 2 && ent.enemyEntity().inHitstun();
 }
 
