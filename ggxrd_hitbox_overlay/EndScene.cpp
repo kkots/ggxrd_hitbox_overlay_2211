@@ -725,6 +725,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
+		Entity superflashInstigator = getSuperflashInstigator();
+		
 		for (int i = 0; i < 2; ++i) {
 			PlayerInfo& player = players[i];
 			PlayerInfo& other = players[1 - i];
@@ -827,11 +829,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			int clashHitstop = ent.clashHitstop();
 			if (!player.clashHitstop && clashHitstop) {
 				player.hitstopMax = 0;
+				player.hitstopElapsed = 0;
 			}
 			if (player.clashHitstop) {
 				int val = clashHitstop + hitstop;
 				if (val > player.hitstopMax) {
 					player.hitstopMax = val;
+					player.hitstopElapsed = 0;
 				}
 			}
 			player.clashHitstop = clashHitstop;
@@ -839,22 +843,30 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.hitstop = 0;
 				player.hitstopMax = hitstop + clashHitstop - 1;
 				if (player.hitstopMax < 0) player.hitstopMax = 0;
+				player.hitstopElapsed = 0;
 			} else if (player.armoredHitOnThisFrame && !player.gotHitOnThisFrame && player.setHitstopMaxSuperArmor) {
 				player.hitstopMax = player.hitstopMaxSuperArmor - 1;
+				player.hitstopElapsed = 0;
 			} else {
 				player.hitstop = hitstop + clashHitstop;
 				if (!player.hitstop) {
 					player.hitstop = player.lastHitstopBeforeWipe;
 				}
 			}
+			if (player.blockstun && !player.hitstop && !superflashInstigator) {
+				++player.blockstunElapsed;
+				if (player.rcSlowedDown) player.blockstunContaminatedByRCSlowdown = true;
+			}
 			
 			if (ent.cmnActIndex() == CmnActJitabataLoop) {
 				int bbscrvar = player.pawn.bbscrvar();
 				if (player.changedAnimOnThisFrame) {
+					player.staggerElapsed = 0;
 					player.staggerMaxFixed = false;
 					player.prevBbscrvar = 0;
 					player.prevBbscrvar5 = player.pawn.receivedAttack()->staggerDuration * 10;
 				}
+				if (!player.hitstop && !superflashInstigator) ++player.staggerElapsed;
 				int staggerMax = player.prevBbscrvar5 / 10 + player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
 				int animDur = player.pawn.currentAnimDuration();
 				if (!bbscrvar) {
@@ -884,8 +896,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			} else if (cmnActIndex == CmnActUkemi) {
 				player.wakeupTiming = 9;
 			}
-			if (player.cmnActIndex == CmnActKirimomiUpper && ent.currentAnimDuration() == 2) {
+			if (!prevFrameWakeupTiming && player.wakeupTiming) {
+				player.wakeupTimingElapsed = 0;
+			}
+			if (player.wakeupTiming && !superflashInstigator) ++player.wakeupTimingElapsed;
+			if (player.cmnActIndex == CmnActKirimomiUpper && ent.currentAnimDuration() == 2 && !ent.isRCFrozen()) {
 				player.hitstunMax = player.hitstun;  // 5D6 hitstun
+				player.hitstunElapsed = 0;
+				player.hitstunContaminatedByRCSlowdown = false;
 				player.hitstunMaxFloorbounceExtra = 0;
 			}
 			player.inBlockstunNextFrame = ent.inBlockstunNextFrame();
@@ -1095,11 +1113,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.startedDefending = true;
 						if (player.cmnActIndex != CmnActUkemi && !player.baikenReturningToBlockstunAfterAzami) {
 							player.hitstopMax = player.hitstop;
+							player.hitstopElapsed = 0;
 							if (player.setBlockstunMax) {
 								--player.blockstunMax;  // this is the line PlayerInfo.h:PlayerInfo::inBlockstunNextFrame refers to
 							}
 							if (player.setHitstunMax) {
 								player.hitstunMax = ent.hitstun();
+								player.hitstunElapsed = 0;
+								player.hitstunContaminatedByRCSlowdown = false;
 								player.hitstunMaxFloorbounceExtra = 0;
 								if (ent.inHitstunNextFrame() && player.lastHitstopBeforeWipe
 										|| ent.hitstop()) {
@@ -1124,6 +1145,50 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					other.landingFrameAdvantageIncludesIdlenessInNewSection = false;
 					other.landingFrameAdvantageIncludesIdlenessInNewSection = false;
 				}
+			}
+			if (player.hitstun && !player.hitstop && !superflashInstigator) {
+				++player.hitstunElapsed;
+				if (player.rcSlowedDown) player.hitstunContaminatedByRCSlowdown = true;
+			}
+			if (player.hitstop && !superflashInstigator) ++player.hitstopElapsed;
+			int newSlow;
+			int unused;
+			PlayerInfo::calculateSlow(player.hitstopElapsed,
+				player.hitstop,
+				player.rcSlowedDownCounter,
+				&player.hitstopWithSlow,
+				&player.hitstopMaxWithSlow,
+				&newSlow);
+			PlayerInfo::calculateSlow(player.hitstunElapsed,
+				player.inHitstun
+					? (
+						player.hitstun - (player.hitstop ? 1 : 0)
+					) : 0,
+				newSlow,
+				&player.hitstunWithSlow,
+				&player.hitstunMaxWithSlow,
+				&unused);
+			PlayerInfo::calculateSlow(player.blockstunElapsed,
+				player.blockstun - (player.hitstop ? 1 : 0),
+				newSlow,
+				&player.blockstunWithSlow,
+				&player.blockstunMaxWithSlow,
+				&unused);
+			if (player.cmnActIndex == CmnActJitabataLoop) {
+				PlayerInfo::calculateSlow(player.staggerElapsed,
+					player.stagger,
+					newSlow,
+					&player.staggerWithSlow,
+					&player.staggerMaxWithSlow,
+					&unused);
+			}
+			if (player.wakeupTiming) {
+				PlayerInfo::calculateSlow(player.wakeupTimingElapsed,
+					player.wakeupTiming - player.animFrame + 1,
+					player.rcSlowedDownCounter,
+					&player.wakeupTimingWithSlow,
+					&player.wakeupTimingMaxWithSlow,
+					&unused);
 			}
 			int playerval0 = ent.playerVal(0);
 			int playerval1 = ent.playerVal(1);
@@ -1679,7 +1744,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				it = projectiles.erase(it);
 			} else {
-				projectile.fill(projectile.ptr);
+				projectile.fill(projectile.ptr, superflashInstigator);
 				projectile.markActive = projectile.landedHit;
 				if (projectile.team == 0 || projectile.team == 1) {
 					projectile.fillInMove();
@@ -1768,7 +1833,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
-		Entity superflashInstigator = getSuperflashInstigator();
 		if (!superflashInstigator) {
 			for (ProjectileInfo& projectile : projectiles) {
 				if (!projectile.startedUp) {
@@ -3045,27 +3109,51 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = true;
-					currentFrame.stop.value = min(player.stagger, 16383);
-					currentFrame.stop.valueMax = min(player.staggerMax, 2047);
+					currentFrame.stop.isWakeup = false;
+					currentFrame.stop.value = min(player.staggerWithSlow, 8192);
+					currentFrame.stop.valueMax = min(player.staggerMaxWithSlow, 2047);
 					currentFrame.stop.valueMaxExtra = 0;
 				} else if (player.blockstun) {
 					currentFrame.stop.isBlockstun = true;
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = false;
-					currentFrame.stop.value = min(player.blockstun, 16383);
-					currentFrame.stop.valueMax = min(player.blockstunMax, 2047);
-					currentFrame.stop.valueMaxExtra = min(player.blockstunMaxLandExtra, 15);
+					currentFrame.stop.isWakeup = false;
+					if (player.blockstunContaminatedByRCSlowdown) {
+						currentFrame.stop.value = min(player.blockstunWithSlow, 8192);
+						currentFrame.stop.valueMax = min(player.blockstunMaxWithSlow, 2047);
+						currentFrame.stop.valueMaxExtra = 0;
+					} else {
+						currentFrame.stop.value = min(player.blockstun, 8192);
+						currentFrame.stop.valueMax = min(player.blockstunMax, 2047);
+						currentFrame.stop.valueMaxExtra = min(player.blockstunMaxLandExtra, 15);
+					}
 				} else if (player.hitstun && player.inHitstun) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = true;
 					currentFrame.stop.isStagger = false;
-					currentFrame.stop.value = min(player.hitstun, 16383);
-					currentFrame.stop.valueMax = min(player.hitstunMax, 2047);
-					currentFrame.stop.valueMaxExtra = min(player.hitstunMaxFloorbounceExtra, 15);
+					currentFrame.stop.isWakeup = false;
+					if (player.hitstunContaminatedByRCSlowdown) {
+						currentFrame.stop.value = min(player.hitstunWithSlow, 8192);
+						currentFrame.stop.valueMax = min(player.hitstunMaxWithSlow, 2047);
+						currentFrame.stop.valueMaxExtra = 0;
+					} else {
+						currentFrame.stop.value = min(player.hitstun, 8192);
+						currentFrame.stop.valueMax = min(player.hitstunMax, 2047);
+						currentFrame.stop.valueMaxExtra = min(player.hitstunMaxFloorbounceExtra, 15);
+					}
+				} else if (player.wakeupTiming) {
+					currentFrame.stop.isBlockstun = false;
+					currentFrame.stop.isHitstun = false;
+					currentFrame.stop.isStagger = false;
+					currentFrame.stop.isWakeup = true;
+					currentFrame.stop.value = min(player.wakeupTimingWithSlow, 8192);
+					currentFrame.stop.valueMax = min(player.wakeupTimingMaxWithSlow, 2047);
+					currentFrame.stop.valueMaxExtra = 0;
 				} else {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = false;
+					currentFrame.stop.isWakeup = false;
 				}
 				
 				if (!player.airborne || player.airborne && player.y == 0 && player.speedY != 0 && !player.pawn.ascending()) {
@@ -3515,11 +3603,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.displayHitstop = true;
 			}
 			if (player.stagger && player.cmnActIndex == CmnActJitabataLoop) {
-				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_STAGGER;
+				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_STAGGER_WITH_SLOW;
 			} else if (player.hitstun && player.inHitstun) {
-				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_HIT;
+				if (player.rcSlowedDown || player.hitstunContaminatedByRCSlowdown) {
+					player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW;
+				} else {
+					player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_HIT;
+				}
 			} else if (player.blockstun) {
-				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK;
+				if (player.rcSlowedDown || player.blockstunContaminatedByRCSlowdown) {
+					player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK_WITH_SLOW;
+				} else {
+					player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK;
+				}
 			}
 			player.prevGettingHitBySuper = player.gettingHitBySuper;
 		}
@@ -4310,7 +4406,7 @@ void EndScene::onHitDetectionEnd(int hitDetectionType) {
 void EndScene::onProjectileHit(Entity ent) {
 	ProjectileInfo& projectile = findProjectile(ent);
 	if (projectile.ptr) {
-		projectile.fill(ent);
+		projectile.fill(ent, getSuperflashInstigator());
 		projectile.hitstop = ent.hitstop() + ent.clashHitstop();
 		projectile.landedHit = true;
 		projectile.markActive = true;
@@ -4323,7 +4419,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 	registeredHits.emplace_back();
 	RegisteredHit& hit = registeredHits.back();
 	if (!iGiveUp) {
-		hit.projectile.fill(attacker);
+		hit.projectile.fill(attacker, getSuperflashInstigator());
 		hit.isPawn = attacker.isPawn();
 		hit.hitResult = hitResult;
 		hit.hasHitbox = hasHitbox;
@@ -4459,7 +4555,7 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 	}
 	projectiles.emplace_back();
 	ProjectileInfo& projectile = projectiles.back();
-	projectile.fill(createdPawn);
+	projectile.fill(createdPawn, getSuperflashInstigator());
 	bool ownerFound = false;
 	ProjectileInfo& creatorProjectile = findProjectile(pawn);
 	if (creatorProjectile.ptr) {
@@ -4575,6 +4671,8 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 		if (blockstun && (player.inBlockstunNextFrame || player.baikenReturningToBlockstunAfterAzami)) {
 			// defender was observed to not be in hitstop at this point, but having blockstun nonetheless
 			player.blockstunMax = blockstun;
+			player.blockstunElapsed = 0;
+			player.blockstunContaminatedByRCSlowdown = 0;
 			player.blockstunMaxLandExtra = 0;
 			player.setBlockstunMax = true;
 		}
@@ -4762,6 +4860,7 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) 
 	if (pawn.isPawn() && !functionWillNotDoAnything && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = pawn.startingHitstop();
+		player.hitstopElapsed = 0;
 		player.lastHitstopBeforeWipe = player.hitstopMax;  // try Sol Gunflame YRC delay 1f 5P:
 			// on connection frame, inHitstunNextFrame flag is set. On the connection frame attacker gains hitstop instantly and defender doesn't.
 			// On the frame after, this function fires and sets startingHitstop for the defender.
@@ -5419,6 +5518,7 @@ void EndScene::BBScr_setHitstopHook(Entity pawn, int hitstop) {
 	if (!shutdown && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		player.hitstopMax = hitstop;
+		player.hitstopElapsed = 0;
 		player.setHitstopMax = true;
 		player.setHitstopMaxSuperArmor = false;
 	}
@@ -6259,8 +6359,11 @@ void EndScene::HookHelp::setSuperFreezeAndRCSlowdownFlagsHook() {
 
 // This function determines if you're superfrozen or slowed down by RC
 // It runs before hitDetectionMain
-// On hit RC slowdown from mortal counter may be applied, or RC slowdown may be canceled
-// Those things happen after RC slowdown is already decided
+// On hit RC slowdown from mortal counter may be applied, or RC slowdown may be cancelled by starting a super or IK
+// Initially RC is set after an RC animation finishes its superfreeze and does an idling event
+// But if both players YRC at 1f offset from each other, it may take more than 1f after the superfreeze is over for the idling event to occur and initial RC to be set
+// So, some RC changes happen after RC slowdown is already decided
+// Even if not interrupted by anything, RC counter decrements by 1 after this function is already over
 // We're seeing obsolete values at the end of a tick that don't matter anymore
 // And there're too many ways for those values to change
 // That's why we need these hooks

@@ -280,9 +280,10 @@ inline FrameType frameMapNoIdle(FrameType type) {
 }
 
 struct FrameStopInfo {
-	unsigned short value:14;  // hitstun, blockstun or hitstop
+	unsigned short value:13;  // hitstun, blockstun or hitstop
 	unsigned short isHitstun:1;
 	unsigned short isStagger:1;
+	unsigned short isWakeup:1;
 	unsigned short valueMax:11;  // hitstunMax, blockstunMax or hitstopMax
 	unsigned short valueMaxExtra:4;  // hitstunMaxFloorbounceExtra, blockstunMaxLandExtra
 	unsigned short isBlockstun:1;
@@ -746,7 +747,10 @@ struct ProjectileInfo {
 	int lifeTimeCounter = 0;  // updated every frame
 	int animFrame = 0;  // updated every frame
 	int hitstop = 0;  // updated every frame
+	int hitstopElapsed = 0;
 	int hitstopMax = 0;
+	int hitstopWithSlow = 0;
+	int hitstopMaxWithSlow = 0;
 	int clashHitstop = 0;
 	int startup = 0;  // if active frames have not started yet, is equal to total. Otherwise, means time since the owning player has started their last move until active frames, inclusive
 	int hitOnFrame = 0;
@@ -789,7 +793,7 @@ struct ProjectileInfo {
 		disabled(false)
 	{
 	}
-	void fill(Entity ent);
+	void fill(Entity ent, Entity superflashInstigator);
 	void printStartup(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
 	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
@@ -1003,16 +1007,28 @@ struct PlayerInfo {
 	int stunThreshold = 0;
 	int hitstunMax = 0;
 	int hitstunMaxFloorbounceExtra = 0;
-	int blockstunMaxLandExtra = 0;
+	int hitstunMaxWithSlow = 0;
 	int lastHitstopBeforeWipe = 0;
 	int blockstunMax = 0;
+	int blockstunMaxLandExtra = 0;
+	int blockstunMaxWithSlow = 0;
 	int hitstopMax = 0;
 	int hitstopMaxSuperArmor = 0;  // for super armors showing correct hitstop max
+	int hitstopMaxWithSlow = 0;
 	int blockstun = 0;
+	int blockstunElapsed = 0;
+	int blockstunWithSlow = 0;
 	int hitstun = 0;
+	int hitstunElapsed = 0;
+	int hitstunWithSlow = 0;
 	int stagger = 0;
+	int staggerElapsed = 0;
+	int staggerWithSlow = 0;
 	int staggerMax = 0;
+	int staggerMaxWithSlow = 0;
 	int hitstop = 0;
+	int hitstopElapsed = 0;
+	int hitstopWithSlow = 0;
 	int clashHitstop = 0;
 	int burst = 0;  // max 15000
 	int comboCountBurstGainModifier = 0;
@@ -1027,6 +1043,9 @@ struct PlayerInfo {
 	int timeSinceLastGap = 0;
 	int weight = 0;
 	int wakeupTiming = 0;
+	int wakeupTimingElapsed = 0;
+	int wakeupTimingWithSlow = 0;
+	int wakeupTimingMaxWithSlow = 0;
 	WakeupTimings wakeupTimings;
 	
 	// time passed since a change in idlePlus. If it's false, this measures the time you've been busy for.
@@ -1088,8 +1107,11 @@ struct PlayerInfo {
 	enum XstunDisplay {
 		XSTUN_DISPLAY_NONE,
 		XSTUN_DISPLAY_HIT,  // hitstun
+		XSTUN_DISPLAY_HIT_WITH_SLOW,  // hitstun
 		XSTUN_DISPLAY_BLOCK,  // blockstun
-		XSTUN_DISPLAY_STAGGER  // stagger
+		XSTUN_DISPLAY_BLOCK_WITH_SLOW,  // blockstun
+		XSTUN_DISPLAY_STAGGER,  // stagger
+		XSTUN_DISPLAY_STAGGER_WITH_SLOW  // stagger
 	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
 	int timeInNewSection = 0;
@@ -1244,6 +1266,8 @@ struct PlayerInfo {
 	bool prejumped:1;  // this is to fix normal - jump cancel - FD displaying as frames of the normal up to the jump cancel + FD (jump startup is skipped)
 	bool performingBDC:1;
 	bool staggerMaxFixed:1;
+	bool hitstunContaminatedByRCSlowdown:1;
+	bool blockstunContaminatedByRCSlowdown:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
@@ -1286,4 +1310,5 @@ struct PlayerInfo {
 	void onAnimReset();
 	void removeNonStancePrevStartups();
 	void fillInMove();
+	static void calculateSlow(int valueElapsed, int valueRemaining, int slowRemaining, int* result, int* resultMax, int *newSlowRemaining);
 };

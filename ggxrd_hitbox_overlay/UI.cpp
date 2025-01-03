@@ -1161,7 +1161,7 @@ void UI::drawSearchableWindows() {
 				*strbuf = '\0';
 				int strbufLen = 0;
 				if (player.displayHitstop) {
-					strbufLen = sprintf_s(strbuf, "%d/%d", player.hitstop, player.hitstopMax);
+					strbufLen = sprintf_s(strbuf, "%d/%d", player.hitstopWithSlow, player.hitstopMaxWithSlow);
 				}
 				char* ptrNext = strbuf;
 				int ptrNextSize = sizeof strbuf;
@@ -1182,6 +1182,12 @@ void UI::drawSearchableWindows() {
 							? player.stagger
 							: 0,
 						player.staggerMax);
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER_WITH_SLOW) {
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.cmnActIndex == CmnActJitabataLoop
+							? player.staggerWithSlow
+							: 0,
+						player.staggerMaxWithSlow);
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
 					int currentHitstun = player.inHitstun
 							? player.hitstun - (player.hitstop ? 1 : 0)
@@ -1198,6 +1204,10 @@ void UI::drawSearchableWindows() {
 							currentHitstun,
 							player.hitstunMax);
 					}
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW) {
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.hitstunWithSlow,
+						player.hitstunMaxWithSlow);
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
 					int currentBlockstun = player.blockstun - (player.hitstop ? 1 : 0);
 					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", currentBlockstun, player.blockstunMax);
@@ -1213,6 +1223,10 @@ void UI::drawSearchableWindows() {
 							currentBlockstun,
 							player.blockstunMax);
 					}
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK_WITH_SLOW) {
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.blockstunWithSlow,
+						player.blockstunMaxWithSlow);
 				}
 				
 				if (strbuf != ptrNext && ptrNextSize > 0 && ptrNextSizeCap) {
@@ -1354,34 +1368,34 @@ void UI::drawSearchableWindows() {
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.inBlockstunNextFrame() : false));
+				sprintf_s(strbuf, "%d", player.hitstunElapsed);
 				printNoWordWrap
 				
 				if (i == 0) {
 					ImGui::TableNextColumn();
-					CenterAlignedText("inBlockstunNextFrame");
+					CenterAlignedText("hitstunElapsed");
 				}
 			}
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.successfulIB() : false));
+				sprintf_s(strbuf, "%d", player.blockstunElapsed);
 				printNoWordWrap
 				
 				if (i == 0) {
 					ImGui::TableNextColumn();
-					CenterAlignedText("successfulIB");
+					CenterAlignedText("blockstunElapsed");
 				}
 			}
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", formatBoolean(player.pawn ? player.pawn.holdingFD() : false));
+				sprintf_s(strbuf, "%d", player.staggerElapsed);
 				printNoWordWrap
 				
 				if (i == 0) {
 					ImGui::TableNextColumn();
-					CenterAlignedText("holdingFD");
+					CenterAlignedText("staggerElapsed");
 				}
 			}
 			for (int i = 0; i < two; ++i) {
@@ -1729,7 +1743,7 @@ void UI::drawSearchableWindows() {
 					ImGui::TableNextColumn();
 					if (row.side[i]) {
 						ProjectileInfo& projectile = *row.side[i];
-						sprintf_s(strbuf, "%d/%d", projectile.hitstop, projectile.hitstopMax);
+						sprintf_s(strbuf, "%d/%d", projectile.hitstopWithSlow, projectile.hitstopMaxWithSlow);
 						printNoWordWrap
 					}
 					
@@ -2909,12 +2923,7 @@ void UI::drawSearchableWindows() {
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
-				
-				int remaining = 0;
-				if (player.wakeupTiming) {
-					remaining = player.wakeupTiming - player.animFrame + 1;
-				}
-				sprintf_s(strbuf, "%d/%d", remaining, player.wakeupTiming);
+				sprintf_s(strbuf, "%2d/%2d", player.wakeupTiming ? player.wakeupTimingWithSlow : 0, player.wakeupTimingMaxWithSlow);
 				ImGui::TextUnformatted(strbuf);
 			}
 			
@@ -7099,7 +7108,11 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 					}
 					if (playerIndex != -1) {
 						const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
-						if (playerFrame.hitstop || playerFrame.stop.isHitstun || playerFrame.stop.isBlockstun || playerFrame.stop.isStagger) {
+						if (playerFrame.hitstop
+								|| playerFrame.stop.isHitstun
+								|| playerFrame.stop.isBlockstun
+								|| playerFrame.stop.isStagger
+								|| playerFrame.stop.isWakeup) {
 							ImGui::Separator();
 							printFameStop(strbuf, sizeof strbuf, &playerFrame.stop, playerFrame.hitstop, playerFrame.hitstopMax);
 							ImGui::TextUnformatted(strbuf);

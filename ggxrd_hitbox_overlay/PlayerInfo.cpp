@@ -589,16 +589,18 @@ void ActiveDataArray::removeSeparateHits(int* outIndex) {
 	count = index + 1;
 }
 
-void ProjectileInfo::fill(Entity ent) {
+void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 	ptr = ent;
 	team = ent.team();
 	animFrame = ent.currentAnimDuration();
-	if (animFrame == 1 && !ent.isRCFrozen()) {
+	int prevLifetimeCounter = lifeTimeCounter;
+	lifeTimeCounter = ent.lifeTimeCounter();
+	if (lifeTimeCounter == 0) {
 		maxHit.clear();
 		hitNumber = 0;
 		hitOnFrame = 0;
+		hitstopElapsed = 0;
 	}
-	lifeTimeCounter = ent.lifeTimeCounter();
 	int prevFrameHitstop = hitstop;
 	int clashHitstop = ent.clashHitstop();
 	clashedOnThisFrame = clashHitstop && !this->clashHitstop;
@@ -606,10 +608,21 @@ void ProjectileInfo::fill(Entity ent) {
 		hitstop = ent.hitstop() + clashHitstop;
 	} else {
 		hitstop = 0;
+		hitstopElapsed = 0;
 	}
 	if (!prevFrameHitstop && hitstop) {
 		hitstopMax = hitstop;
 	}
+	if (hitstop && !superflashInstigator && prevLifetimeCounter != lifeTimeCounter) ++hitstopElapsed;
+	
+	int unused;
+	PlayerInfo::calculateSlow(hitstopElapsed,
+		hitstop,
+		rcSlowedDownCounter,
+		&hitstopWithSlow,
+		&hitstopMaxWithSlow,
+		&unused);
+	
 	this->clashHitstop = clashHitstop;
 	int currentHitNum = ent.currentHitNum();
 	maxHit.fill(ent, currentHitNum);
@@ -1572,7 +1585,7 @@ void PlayerFrame::printInvuls(char* buf, size_t bufSize) const {
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax) {
 	if (!bufSize) return;
 	*buf = '\0';
-	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun || stopInfo->isStagger) : false;
+	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun || stopInfo->isStagger || stopInfo->isWakeup) : false;
 	if (!hitstop && !hasStop) return;
 	int result;
 	
@@ -1597,8 +1610,10 @@ void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int
 			stunName = "hitstun";
 		} else if (stopInfo->isBlockstun) {
 			stunName = "blockstun";
-		} else {
+		} else if (stopInfo->isStagger) {
 			stunName = "stagger";
+		} else {
+			stunName = "wakeup";
 		}
 		if (stopInfo->valueMaxExtra) {
 			result = sprintf_s(buf, bufSize, "%d/(%d+%d) %s", stopInfo->value - (hitstop ? 1 : 0),
@@ -2481,4 +2496,24 @@ void ProjectileInfo::fillInMove() {
 		nullptr,
 		animName,
 		true);
+}
+
+void PlayerInfo::calculateSlow(int valueElapsed, int valueRemaining, int slowRemaining, int* result, int* resultMax, int *newSlowRemaining) {
+	if (valueElapsed != 0 && valueRemaining) {
+		--valueElapsed;
+	}
+	if (!slowRemaining || !valueRemaining) {
+		*result = valueRemaining;
+		*resultMax = valueElapsed + valueRemaining;
+		*newSlowRemaining = slowRemaining;
+		return;
+	}
+	bool slowIsOdd = slowRemaining & 1;
+	int extraNewFrames = (slowRemaining >> 1) + slowIsOdd;
+	if (extraNewFrames > valueRemaining) extraNewFrames = valueRemaining;
+	int rm = valueElapsed + valueRemaining + extraNewFrames - slowIsOdd;
+	int r = rm - valueElapsed;
+	*result = r;
+	*resultMax = rm;
+	*newSlowRemaining = slowRemaining - r;
 }
