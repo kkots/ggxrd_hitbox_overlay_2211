@@ -200,6 +200,7 @@ static void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawLi
 static void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawData* referenceDrawData, ImDrawListBackup** drawLists, int drawListsCount);
 static void printExtraHitstunTooltip(int amount);
 static void printExtraBlockstunTooltip(int amount);
+static const char* comborepr(std::vector<int>& combo);
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -1897,7 +1898,17 @@ void UI::drawSearchableWindows() {
 		if (ImGui::Button(strbuf)) {
 			showStunmash[i] = !showStunmash[i];
 		}
-		AddTooltip(searchTooltip("The progress on your stun or stagger mash."));
+		if (ImGui::BeginItemTooltip()) {
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			sprintf_s(strbuf, "The progress on your stun or stagger mash."
+				" It might be too difficult to use this window in real-time, so please consider additionally using"
+				" the Hitboxes - Freeze Game checkbox (Hotkey: %s) and the Next Frame button next to it (Hotkey: %s).",
+				comborepr(settings.freezeGameToggle),
+				comborepr(settings.allowNextFrameKeyCombo));
+			ImGui::TextUnformatted(searchTooltip(strbuf));
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
 		ImGui::PopID();
 		ImGui::PopID();
 		if (i == 0) ImGui::SameLine();
@@ -2043,18 +2054,10 @@ void UI::drawSearchableWindows() {
 		if (ImGui::BeginItemTooltip()) {
 			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 			
-			const char* hotkeyRepresentation = settings.getComboRepresentation(settings.freezeGameToggle);
-			if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
-				hotkeyRepresentation = "<not set>";
-			}
-			sprintf_s(strbuf, "Freeze Game Hotkey: %s", hotkeyRepresentation);
+			sprintf_s(strbuf, "Freeze Game Hotkey: %s", comborepr(settings.freezeGameToggle));
 			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
 			
-			hotkeyRepresentation = settings.getComboRepresentation(settings.allowNextFrameKeyCombo);
-			if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
-				hotkeyRepresentation = "<not set>";
-			}
-			sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", hotkeyRepresentation);
+			sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", comborepr(settings.allowNextFrameKeyCombo));
 			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
 			
 			ImGui::Separator();
@@ -4676,7 +4679,9 @@ void UI::drawSearchableWindows() {
 			const PlayerInfo& player = endScene.players[i];
 			
 			bool kizetsu = player.pawn.dizzyMashAmountLeft() > 0 || player.cmnActIndex == CmnActKizetsu;
-			if (!player.pawn) {
+			if (endScene.isIGiveUp() && !searching) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else if (!player.pawn) {
 				ImGui::TextUnformatted("A match isn't currently running");
 			} else if (player.cmnActIndex != CmnActJitabataLoop && !kizetsu) {
 				ImGui::TextUnformatted(searchFieldTitle("Not in stagger/stun"));
@@ -4687,7 +4692,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(player.hitstop ? "Yes (1/3 multiplier)" : "No");
 				
 				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Stunmash Remaining: "));
-				AddTooltip("For every left/right direction press you get a 15 point reduction."
+				AddTooltip(searchTooltip("For every left/right direction press you get a 15 point reduction."
 					" For every frame that any of PKSHD buttons is pressed you get a 15 point reduction."
 					" Pressing a direction AND a button on the same frame combines these reductions."
 					" If you're in hitstop, in both cases you get a 5 reduction instead of 15, and"
@@ -4697,7 +4702,7 @@ void UI::drawSearchableWindows() {
 					" Pressing multiple buttons on the same frame does not yield any extra bonuses than pressing one"
 					" button on that frame."
 					" The direction and button presses cannot be buffered. Starting a mash before faint begins"
-					" does not translate to having a headstart on the mash progress.");
+					" does not translate to having a headstart on the mash progress."));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/%d", player.pawn.dizzyMashAmountLeft(), player.pawn.dizzyMashAmountMax());
 				ImGui::TextUnformatted(strbuf);
@@ -4730,7 +4735,7 @@ void UI::drawSearchableWindows() {
 						ImGui::TextUnformatted(strbuf);
 						ImGui::SameLine();
 						ImGui::TextUnformatted(" (Fully actionable)");
-						AddTooltip("Recovery from faint is always fully actionable.");
+						AddTooltip(searchTooltip("Recovery from faint is always fully actionable."));
 					}
 				}
 				_zerohspacing
@@ -4839,7 +4844,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(strbuf);
 				
 				drawGGIcon(scaleGGIconToHeight(tipsIcon, 14.F));
-				AddTooltip("Every frame that a PKSHD button is pressed, Progress and Mashed increase by 3."
+				AddTooltip(searchTooltip("Every frame that a PKSHD button is pressed, Progress and Mashed increase by 3."
 					" Progress also increases by an extra 1 each non-hitstop/superfreeze/RC-slow-eaten frame,"
 					" and that means, if the attack applied hitstop to you, it is possible to start mashing before the stagger"
 					" animation goes past its first frame. After hitstop is over, progress will increase by 4 on every frame you"
@@ -4851,7 +4856,7 @@ void UI::drawSearchableWindows() {
 					" When it reaches that, you enter a 4f stagger recovery that cannot be sped up by mash and has fixed length.\n"
 					"The mash cannot be buffered. Starting to mash before stagger begins does not start it at a reduced value."
 					" Pressing multiple buttons on the same frame does not yield any extra bonuses than pressing one"
-					" button on that frame.");
+					" button on that frame."));
 				
 				_zerohspacing
 			}
@@ -5810,12 +5815,9 @@ void UI::HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector
 	ImGui::TextDisabled("(?)");
 	if (searching || ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-		const char* hotkeyRepresentation = settings.getComboRepresentation(hotkey);
-		if (!hotkeyRepresentation || *hotkeyRepresentation == '\0') {
-			ImGui::TextUnformatted("Hotkey: <not set>");
-		} else {
-			sprintf_s(strbuf, "Hotkey: %s", hotkeyRepresentation);
-			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
+		int result = sprintf_s(strbuf, "Hotkey: %s", comborepr(hotkey));
+		if (result != -1) {
+			ImGui::TextUnformatted(searchTooltip(strbuf, strbuf + result), strbuf + result);
 		}
 		ImGui::Separator();
 		ImGui::TextUnformatted(searchTooltip(desc, descEnd));
@@ -8552,6 +8554,12 @@ void printExtraBlockstunTooltip(int amount) {
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
+}
+
+const char* comborepr(std::vector<int>& combo) {
+	const char* repr = settings.getComboRepresentation(combo);
+	if (repr[0] == '\0') return "<not set>";
+	return repr;
 }
 
 void UI::drawFramebars() {
