@@ -1736,7 +1736,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			if (!found) {
-				if (projectile.landedHit) {
+				if (projectile.landedHit || projectile.gotHitOnThisFrame) {
 					projectile.ptr = nullptr;
 					projectile.markActive = true;
 					++it;
@@ -2492,12 +2492,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				projectile.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
 				currentFrame.hitstop = projectile.hitstop;
 				currentFrame.hitstopMax = projectile.hitstopMax;
-				currentFrame.hitConnected = projectile.ptr ? projectile.ptr.hitSomethingOnThisFrame() : projectile.landedHit
-					|| projectile.clashedOnThisFrame;
+				currentFrame.hitConnected = projectile.hitConnectedForFramebar();
 				PlayerInfo& enemy = (projectile.team == 0 || projectile.team == 1) ? players[1 - projectile.team] : players[0];
 				currentFrame.rcSlowdown = projectile.rcSlowedDownCounter;
 				currentFrame.rcSlowdownMax = projectile.rcSlowedDownMax;
 				currentFrame.activeDuringSuperfreeze = false;
+			} else if (superflashInstigator && projectile.gotHitOnThisFrame) {
+				currentFrame.hitConnected = true;
+				if (currentFrame.type == FT_NONE) {
+					currentFrame.type = FT_IDLE_PROJECTILE;
+				}
 			}
 			
 			if (!projectile.markActive) {
@@ -2536,7 +2540,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					framebar.requestNextHit = true;
 				}
 				projectile.actives.addActive(projectile.hitNumber);
-				if (!projectile.hitOnFrame && (projectile.ptr ? projectile.ptr.hitSomethingOnThisFrame() : projectile.landedHit)) {
+				if (!projectile.hitOnFrame && projectile.hitConnectedForFramebar()) {
 					projectile.hitOnFrame = projectile.actives.total();
 					if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
 						PlayerInfo& player = players[projectile.team];
@@ -2548,17 +2552,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (framebarAdvancedIdleHitstop) {
 					currentFrame.type = projectile.hitstop ? FT_ACTIVE_HITSTOP_PROJECTILE : FT_ACTIVE_PROJECTILE;
 				}
+				if (superflashInstigator && !framebarAdvancedIdleHitstop) {
+					currentFrame.activeDuringSuperfreeze = true;
+					if (projectile.hitConnectedForFramebar()) {
+						currentFrame.hitConnected = true;
+					}
+					if (currentFrame.type == FT_IDLE_PROJECTILE || currentFrame.type == FT_NONE) {
+						currentFrame.type = FT_IDLE_ACTIVE_IN_SUPERFREEZE;
+					}
+				}
 				if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
 					PlayerInfo& player = players[projectile.team];
 					if (!player.hitstop) {
 						if (superflashInstigator) {
 							player.activesProj.addSuperfreezeActive(projectile.hitNumber);
-							if (!framebarAdvancedIdleHitstop) {
-								currentFrame.activeDuringSuperfreeze = true;
-								if (currentFrame.type == FT_IDLE_PROJECTILE || currentFrame.type == FT_NONE) {
-									currentFrame.type = FT_IDLE_ACTIVE_IN_SUPERFREEZE;
-								}
-							}
 						} else {
 							player.activesProj.addActive(projectile.hitNumber);
 						}
@@ -2749,7 +2756,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.eddie.actives.addNonActive(player.eddie.recovery);
 							player.eddie.recovery = 0;
 						}
-						if (!player.eddie.hitOnFrame && (projectile.ptr ? projectile.ptr.hitSomethingOnThisFrame() : projectile.landedHit)) {
+						if (!player.eddie.hitOnFrame && projectile.hitConnectedForFramebar()) {
 							player.eddie.hitOnFrame = player.eddie.total - player.eddie.startup + 1;
 						}
 						player.eddie.maxHit = projectile.maxHit;
@@ -3093,7 +3100,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				currentFrame.airborne = player.airborne;
 				currentFrame.hitAlreadyHappened = hitAlreadyHappened;
-				currentFrame.hitConnected = player.pawn.hitSomethingOnThisFrame()
+				currentFrame.hitConnected = (
+						player.pawn.hitSomethingOnThisFrame()
+						|| player.pawn.dealtAttack()->attackMultiHit() && player.hitSomething
+					)
 					|| player.pawn.inBlockstunNextFrame()
 					|| player.pawn.inHitstunNextFrame()
 					|| player.armoredHitOnThisFrame
@@ -3173,6 +3183,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.doubleJumps = player.remainingDoubleJumps;
 				currentFrame.airDashes = player.remainingAirDashes;
 				currentFrame.activeDuringSuperfreeze = false;
+			} else if (superflashInstigator && player.gotHitOnThisFrame) {
+				currentFrame.hitConnected = true;
 			}
 			
 			FrameType recoveryFrameType = defaultRecoveryFrameType;
@@ -3336,6 +3348,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.type = defaultActiveFrame;
 						if (superflashInstigator && !framebarAdvancedIdleHitstop && currentFrame.type != FT_NONE) {
 							currentFrame.activeDuringSuperfreeze = true;
+							if (player.pawn.hitSomethingOnThisFrame()
+									|| player.pawn.dealtAttack()->attackMultiHit() && player.hitSomething) {
+								currentFrame.hitConnected = true;
+							}
 						}
 					} else if (!superflashInstigator) {
 						if (player.recovery + player.landingRecovery) {
@@ -4435,6 +4451,11 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 			} else if (hitResult == HIT_RESULT_NORMAL || hitResult == HIT_RESULT_BLOCKED) {
 				defenderPlayer.gotHitOnThisFrame = true;
 			}
+		} else {
+			ProjectileInfo& defendingProjectile = findProjectile(defender);
+			if (defendingProjectile.ptr) {
+				defendingProjectile.gotHitOnThisFrame = true;
+			}
 		}
 		if (attacker.isPawn() && hasHitbox) {
 			PlayerInfo& attackerPlayer = findPlayer(attacker);
@@ -4545,7 +4566,7 @@ void EndScene::HookHelp::BBScr_createObjectHook_piece() {
 void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName) {
 	for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
 		if (it->ptr == createdPawn) {
-			if (it->landedHit) {
+			if (it->landedHit || it->gotHitOnThisFrame) {
 				it->ptr = nullptr;
 			} else {
 				projectiles.erase(it);
@@ -4748,6 +4769,7 @@ void EndScene::frameCleanup() {
 	for (auto it = projectiles.begin(); it != projectiles.end();) {
 		ProjectileInfo& projectile = *it;
 		projectile.landedHit = false;
+		projectile.gotHitOnThisFrame = false;
 		bool found = false;
 		if (projectile.ptr) {
 			for (int i = 2; i < entityList.count; ++i) {

@@ -779,6 +779,7 @@ struct ProjectileInfo {
 	bool markActive:1;  // cleared at the start of prepareDrawData. True means hitboxes were found on this frame, or on this logic tick this projectile registered a hit.
 	bool startedUp:1;  // cleared upon disabling. True means active frames have started.
 	bool landedHit:1;  // cleared at the start of each logic tick. Set to true from a hit registering function hook.
+	bool gotHitOnThisFrame:1;
 	bool disabled:1;  // set to true for all projectiles belonging to a player when the player starts a new move.
 	bool inNewSection:1;
 	bool isDangerous:1;
@@ -790,6 +791,7 @@ struct ProjectileInfo {
 		markActive(false),
 		startedUp(false),
 		landedHit(false),
+		gotHitOnThisFrame(false),
 		disabled(false)
 	{
 	}
@@ -800,6 +802,7 @@ struct ProjectileInfo {
 	static void determineMoveNameAndSlangName(const MoveInfo* move, Entity ptr, const char** name, const char** slangName);
 	static void determineMoveNameAndSlangName(Entity ptr, const char** name, const char** slangName, const char** framebarNameFull = nullptr);
 	void fillInMove();
+	bool hitConnectedForFramebar() const;
 };
 
 struct InvulData {

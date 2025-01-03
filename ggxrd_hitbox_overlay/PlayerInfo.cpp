@@ -2078,9 +2078,10 @@ void ProjectileFramebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) c
 
 template<typename FrameT>
 inline void copyActiveDuringSuperfreeze(FrameT& destFrame, const FrameT& srcFrame) {
-	if (srcFrame.type == FT_NONE || !srcFrame.activeDuringSuperfreeze) return;
+	if (!(srcFrame.type != FT_NONE && (srcFrame.activeDuringSuperfreeze || srcFrame.hitConnected))) return;
 	if (destFrame.type == FT_NONE) destFrame.type = srcFrame.type;
-	destFrame.activeDuringSuperfreeze = srcFrame.activeDuringSuperfreeze;
+	destFrame.activeDuringSuperfreeze |= srcFrame.activeDuringSuperfreeze;
+	destFrame.hitConnected |= srcFrame.hitConnected;
 }
 
 void PlayerFramebars::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
@@ -2167,8 +2168,8 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 				}
 			}
 		}
-		df.hitConnected = df.hitConnected | sf.hitConnected;
-		df.newHit = df.newHit | sf.newHit;
+		df.hitConnected |= sf.hitConnected;
+		df.newHit |= sf.newHit;
 		df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
 		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
 		df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
@@ -2514,4 +2515,12 @@ void PlayerInfo::calculateSlow(int valueElapsed, int valueRemaining, int slowRem
 	*result = r;
 	*resultMax = rm;
 	*newSlowRemaining = slowRemaining - r;
+}
+
+bool ProjectileInfo::hitConnectedForFramebar() const {
+	if (ptr && !ptr.dealtAttack()->attackMultiHit()) {
+		return ptr.hitSomethingOnThisFrame();
+	} else {
+		return landedHit || clashedOnThisFrame;
+	}
 }
