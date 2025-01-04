@@ -2884,7 +2884,11 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted("???");
 				} else {
 					int mod = player.receivedSpeedYWeight * player.receivedSpeedYComboProration / 100;
-					printDecimal(player.receivedSpeedY * 100 / mod, 2, 0);
+					if (mod == 0) {
+						printDecimal(0, 2, 0);
+					} else {
+						printDecimal(player.receivedSpeedY * 100 / mod, 2, 0);  // program crashed here
+					}
 					sprintf_s(strbuf, "%s", printdecimalbuf);
 					printDecimal(player.receivedSpeedY, 2, 0);
 					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " * (%d%c * %d%c = %d%c) = %s",
