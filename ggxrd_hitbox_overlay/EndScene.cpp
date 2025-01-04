@@ -601,10 +601,18 @@ void EndScene::logic() {
 		bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu) || isPauseMenu;
 		pauseMenuOpen = isPauseMenu;
 		bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
-		if (!isRunning && !settings.dontClearFramebarOnStageReset) {
+		if (!isRunning && !settings.dontClearFramebarOnStageReset && !iGiveUp) {
 			playerFramebars.clear();
 			projectileFramebars.clear();
 			combinedFramebars.clear();
+		}
+		if (!isRunning && !iGiveUp) {
+			for (int i = 0; i < 2; ++i) {
+				PlayerInfo& player = players[i];
+				player.inputs.clear();
+				player.prevInput = Input{0x0000};
+				player.inputsOverflow = false;
+			}
 		}
 		needDrawInputs = false;
 		if (gifMode.showInputHistory && !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
@@ -652,7 +660,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	invisChipp.onEndSceneStart();
 	drawnEntities.clear();
 	
-	bool dontAdvanceFramePosition = false;
+	bool isTheFirstFrameInTheMatch = false;
 	if (playerFramebars.empty() && !iGiveUp) {
 		playerFramebars.emplace_back();
 		{
@@ -668,9 +676,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			framebar.setTitle("Player 2");
 		}
 		
-		framebarPosition = 0;
-		dontAdvanceFramePosition = true;
+		framebarPosition = _countof(Framebar::frames) - 1;
+		framebarPositionHitstop = _countof(Framebar::frames) - 1;
 		framebarIdleFor = 0;
+		framebarIdleHitstopFor = 0;
+		isTheFirstFrameInTheMatch = true;
 	}
 	bool framebarAdvanced = false;
 	bool framebarAdvancedHitstop = false;
@@ -2060,355 +2070,353 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	
 	if (frameHasChanged && !iGiveUp) {
 		
-		if (!dontAdvanceFramePosition) {
-			bool matchTimerZero = game.getMatchTimer() == 0;
-			bool atLeastOneDiedThisFrame = false;
-			bool atLeastOneDead = false;
-			bool atLeastOneNotInHitstop = false;
-			bool atLeastOneBusy = false;
-			bool atLeastOneDangerousProjectilePresent = false;
-			bool atLeastOneDoingGrab = false;
-			bool atLeastOneGettingHitBySuper = false;
-			bool atLeastOneStartedGettingHitBySuperOnThisFrame = false;
-			bool hasDangerousProjectiles[2] { false };
-			
-			for (ProjectileInfo& projectile : projectiles) {
-				if (projectile.team != 0 && projectile.team != 1) {
-					continue;
-				}
-				
-				bool needUseHitstop = false;
-				bool isDangerous = false;
-				
-				if (projectile.markActive || projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr)) {
-					isDangerous = true;
-					needUseHitstop = true;
-				}
-				
-				if (isDangerous) {
-					hasDangerousProjectiles[projectile.team] = true;
-					atLeastOneDangerousProjectilePresent = true;
-				}
-				
-				if (needUseHitstop && !projectile.hitstop) {
-					atLeastOneNotInHitstop = true;
-				}
+		bool matchTimerZero = game.getMatchTimer() == 0;
+		bool atLeastOneDiedThisFrame = false;
+		bool atLeastOneDead = false;
+		bool atLeastOneNotInHitstop = false;
+		bool atLeastOneBusy = false;
+		bool atLeastOneDangerousProjectilePresent = false;
+		bool atLeastOneDoingGrab = false;
+		bool atLeastOneGettingHitBySuper = false;
+		bool atLeastOneStartedGettingHitBySuperOnThisFrame = false;
+		bool hasDangerousProjectiles[2] { false };
+		
+		for (ProjectileInfo& projectile : projectiles) {
+			if (projectile.team != 0 && projectile.team != 1) {
+				continue;
 			}
 			
-			bool playerCantRc[2] { false };
+			bool needUseHitstop = false;
+			bool isDangerous = false;
 			
-			for (int i = 0; i < 2; ++i) {
-				PlayerInfo& player = players[i];
-				if (player.pawn.performingThrow()) {
-					playerCantRc[i] = true;
-				} else if (player.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED) {
-					playerCantRc[i] = true;
-				}
+			if (projectile.markActive || projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr)) {
+				isDangerous = true;
+				needUseHitstop = true;
 			}
 			
-			for (int i = 0; i < 2; ++i) {
-				PlayerInfo& player = players[i];
-				atLeastOneGettingHitBySuper = atLeastOneGettingHitBySuper
-					|| playerCantRc[1 - i]
-					&& player.gettingHitBySuper
-					&& !hasDangerousProjectiles[i];
-				atLeastOneStartedGettingHitBySuperOnThisFrame = atLeastOneStartedGettingHitBySuperOnThisFrame
-					|| player.gettingHitBySuper
-					&& !player.prevGettingHitBySuper;
-				atLeastOneDiedThisFrame = atLeastOneDiedThisFrame || player.hp == 0 && player.prevHp != 0;
-				atLeastOneDead = atLeastOneDead || player.hp == 0;
-				if (
-						(
-							player.grab
-							|| player.move.isGrab && !(player.move.forceLandingRecovery && player.landingRecovery)
-						)
-						&& !(
-							!player.wasCancels.gatlings.empty()
-							|| !player.wasCancels.whiffCancels.empty()
-						)
-						&& playerCantRc[i]
-				) {
-					if (player.pawn.dealtAttack()->type == ATTACK_TYPE_OVERDRIVE) {
-						atLeastOneGettingHitBySuper = true;
-					} else {
-						atLeastOneDoingGrab = true;
-					}
+			if (isDangerous) {
+				hasDangerousProjectiles[projectile.team] = true;
+				atLeastOneDangerousProjectilePresent = true;
+			}
+			
+			if (needUseHitstop && !projectile.hitstop) {
+				atLeastOneNotInHitstop = true;
+			}
+		}
+		
+		bool playerCantRc[2] { false };
+		
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = players[i];
+			if (player.pawn.performingThrow()) {
+				playerCantRc[i] = true;
+			} else if (player.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED) {
+				playerCantRc[i] = true;
+			}
+		}
+		
+		for (int i = 0; i < 2; ++i) {
+			PlayerInfo& player = players[i];
+			atLeastOneGettingHitBySuper = atLeastOneGettingHitBySuper
+				|| playerCantRc[1 - i]
+				&& player.gettingHitBySuper
+				&& !hasDangerousProjectiles[i];
+			atLeastOneStartedGettingHitBySuperOnThisFrame = atLeastOneStartedGettingHitBySuperOnThisFrame
+				|| player.gettingHitBySuper
+				&& !player.prevGettingHitBySuper;
+			atLeastOneDiedThisFrame = atLeastOneDiedThisFrame || player.hp == 0 && player.prevHp != 0;
+			atLeastOneDead = atLeastOneDead || player.hp == 0;
+			if (
+					(
+						player.grab
+						|| player.move.isGrab && !(player.move.forceLandingRecovery && player.landingRecovery)
+					)
+					&& !(
+						!player.wasCancels.gatlings.empty()
+						|| !player.wasCancels.whiffCancels.empty()
+					)
+					&& playerCantRc[i]
+			) {
+				if (player.pawn.dealtAttack()->type == ATTACK_TYPE_OVERDRIVE) {
+					atLeastOneGettingHitBySuper = true;
+				} else {
+					atLeastOneDoingGrab = true;
 				}
-				if (!player.hitstop
-						|| player.charType == CHARACTER_TYPE_BAIKEN
-						&& (
-							!settings.ignoreHitstopForBlockingBaiken && player.blockstun > 0
-							|| player.move.ignoresHitstop
-						)) {
-					atLeastOneNotInHitstop = true;
-				}
-				if (
+			}
+			if (!player.hitstop
+					|| player.charType == CHARACTER_TYPE_BAIKEN
+					&& (
+						!settings.ignoreHitstopForBlockingBaiken && player.blockstun > 0
+						|| player.move.ignoresHitstop
+					)) {
+				atLeastOneNotInHitstop = true;
+			}
+			if (
+					(
 						(
-							(
-								!(
-									!settings.considerKnockdownWakeupAndAirtechIdle
-									&& (
-										player.idleLanding
-										|| player.idle
-										&& player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // Chipp Wall Climb
-									)
-									|| settings.considerKnockdownWakeupAndAirtechIdle
-									&& (player.airteched ? player.idlePlus : player.idleLanding)
+							!(
+								!settings.considerKnockdownWakeupAndAirtechIdle
+								&& (
+									player.idleLanding
+									|| player.idle
+									&& player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // Chipp Wall Climb
 								)
-								|| (!player.canBlock || !player.canFaultlessDefense)
-								&& !player.ignoreNextInabilityToBlockOrAttack
-								&& !player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime
-							) && !(
-								!settings.considerRunAndWalkNonIdle
-								&& player.charType == CHARACTER_TYPE_LEO
-								&& player.cmnActIndex == CmnActFDash
+								|| settings.considerKnockdownWakeupAndAirtechIdle
+								&& (player.airteched ? player.idlePlus : player.idleLanding)
+							)
+							|| (!player.canBlock || !player.canFaultlessDefense)
+							&& !player.ignoreNextInabilityToBlockOrAttack
+							&& !player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime
+						) && !(
+							!settings.considerRunAndWalkNonIdle
+							&& player.charType == CHARACTER_TYPE_LEO
+							&& player.cmnActIndex == CmnActFDash
+						)
+						|| (
+							(
+								player.strikeInvul.active
+								|| player.throwInvul.active
+							) && (
+								!settings.considerKnockdownWakeupAndAirtechIdle
+								|| !player.wokeUp
+								&& (player.airteched ? player.idlePlus : player.idleLanding)
+							)
+							|| player.projectileOnlyInvul.active
+							|| player.superArmor.active
+							|| player.reflect.active
+						)
+						&& !settings.considerIdleInvulIdle
+						|| settings.considerRunAndWalkNonIdle
+						&& (
+							player.cmnActIndex == CmnActFWalk
+							|| player.cmnActIndex == CmnActBWalk
+							|| player.cmnActIndex == CmnActFDash
+							|| player.cmnActIndex == CmnActFDashStop
+							|| player.charType == CHARACTER_TYPE_LEO
+							&& strcmp(player.anim, "Semuke"_hardcode) == 0
+							&& (
+								strcmp(player.pawn.gotoLabelRequest(), "SemukeFrontWalk"_hardcode) == 0
+								|| strcmp(player.pawn.gotoLabelRequest(), "SemukeBackWalk"_hardcode) == 0
+								|| player.pawn.speedX() != 0
 							)
 							|| (
-								(
-									player.strikeInvul.active
-									|| player.throwInvul.active
-								) && (
-									!settings.considerKnockdownWakeupAndAirtechIdle
-									|| !player.wokeUp
-									&& (player.airteched ? player.idlePlus : player.idleLanding)
-								)
-								|| player.projectileOnlyInvul.active
-								|| player.superArmor.active
-								|| player.reflect.active
+								player.charType == CHARACTER_TYPE_FAUST
+								|| player.charType == CHARACTER_TYPE_BEDMAN
+							) && (
+								strcmp(player.anim, "CrouchFWalk"_hardcode) == 0
+								|| strcmp(player.anim, "CrouchBWalk"_hardcode) == 0
 							)
-							&& !settings.considerIdleInvulIdle
-							|| settings.considerRunAndWalkNonIdle
-							&& (
-								player.cmnActIndex == CmnActFWalk
-								|| player.cmnActIndex == CmnActBWalk
-								|| player.cmnActIndex == CmnActFDash
-								|| player.cmnActIndex == CmnActFDashStop
-								|| player.charType == CHARACTER_TYPE_LEO
-								&& strcmp(player.anim, "Semuke"_hardcode) == 0
-								&& (
-									strcmp(player.pawn.gotoLabelRequest(), "SemukeFrontWalk"_hardcode) == 0
-									|| strcmp(player.pawn.gotoLabelRequest(), "SemukeBackWalk"_hardcode) == 0
-									|| player.pawn.speedX() != 0
-								)
-								|| (
-									player.charType == CHARACTER_TYPE_FAUST
-									|| player.charType == CHARACTER_TYPE_BEDMAN
-								) && (
-									strcmp(player.anim, "CrouchFWalk"_hardcode) == 0
-									|| strcmp(player.anim, "CrouchBWalk"_hardcode) == 0
-								)
-								|| player.charType == CHARACTER_TYPE_HAEHYUN
-								&& strcmp(player.anim, "CrouchFDash"_hardcode) == 0
-							)
-							|| settings.considerCrouchNonIdle
-							&& misterPlayerIsManuallyCrouching(player)
-							|| player.forceBusy
-							|| settings.considerDummyPlaybackNonIdle
-							&& game.isTrainingMode() && game.getDummyRecordingMode() == DUMMY_MODE_PLAYING_BACK
+							|| player.charType == CHARACTER_TYPE_HAEHYUN
+							&& strcmp(player.anim, "CrouchFDash"_hardcode) == 0
 						)
-						&& (
-							!settings.considerKnockdownWakeupAndAirtechIdle
-							|| !(
-								(
-									player.cmnActIndex == CmnActBDownBound
-									|| player.cmnActIndex == CmnActFDownBound
-									|| player.cmnActIndex == CmnActVDownBound
-								)
-								&& player.pawn.isOtg()
-								|| (
-									player.cmnActIndex == CmnActBDownLoop
-									|| player.cmnActIndex == CmnActFDownLoop
-									|| player.cmnActIndex == CmnActVDownLoop
-								)
-								|| player.wakeupTiming  // CmnActFDown2Stand, CmnActBDown2Stand, CmnActWallHaritsukiGetUp, CmnActUkemi
+						|| settings.considerCrouchNonIdle
+						&& misterPlayerIsManuallyCrouching(player)
+						|| player.forceBusy
+						|| settings.considerDummyPlaybackNonIdle
+						&& game.isTrainingMode() && game.getDummyRecordingMode() == DUMMY_MODE_PLAYING_BACK
+					)
+					&& (
+						!settings.considerKnockdownWakeupAndAirtechIdle
+						|| !(
+							(
+								player.cmnActIndex == CmnActBDownBound
+								|| player.cmnActIndex == CmnActFDownBound
+								|| player.cmnActIndex == CmnActVDownBound
 							)
-						)) {
-					atLeastOneBusy = true;
-				}
+							&& player.pawn.isOtg()
+							|| (
+								player.cmnActIndex == CmnActBDownLoop
+								|| player.cmnActIndex == CmnActFDownLoop
+								|| player.cmnActIndex == CmnActVDownLoop
+							)
+							|| player.wakeupTiming  // CmnActFDown2Stand, CmnActBDown2Stand, CmnActWallHaritsukiGetUp, CmnActUkemi
+						)
+					)) {
+				atLeastOneBusy = true;
 			}
-			
-			SkippedFramesType skippedType = SKIPPED_FRAMES_HITSTOP;
-			SkippedFramesType skippedGrabType = SKIPPED_FRAMES_GRAB;
-			if (atLeastOneGettingHitBySuper && !atLeastOneStartedGettingHitBySuperOnThisFrame) {
-				atLeastOneDoingGrab = true;
-				skippedGrabType = SKIPPED_FRAMES_SUPER;
-			}
-			if (atLeastOneDoingGrab && settings.skipGrabsInFramebar) {
-				skippedType = skippedGrabType;
-				atLeastOneBusy = false;
-				atLeastOneNotInHitstop = false;
-				atLeastOneDangerousProjectilePresent = false;
-			}
-			
-			if ((atLeastOneDead || matchTimerZero) && !atLeastOneDiedThisFrame) {
-				// do nothing
-			} else if (getSuperflashInstigator() == nullptr) {
-				if (atLeastOneBusy || atLeastOneDangerousProjectilePresent) {
-					if (framebarIdleHitstopFor > framebarIdleForLimit) {
+		}
+		
+		SkippedFramesType skippedType = SKIPPED_FRAMES_HITSTOP;
+		SkippedFramesType skippedGrabType = SKIPPED_FRAMES_GRAB;
+		if (atLeastOneGettingHitBySuper && !atLeastOneStartedGettingHitBySuperOnThisFrame) {
+			atLeastOneDoingGrab = true;
+			skippedGrabType = SKIPPED_FRAMES_SUPER;
+		}
+		if (atLeastOneDoingGrab && settings.skipGrabsInFramebar) {
+			skippedType = skippedGrabType;
+			atLeastOneBusy = false;
+			atLeastOneNotInHitstop = false;
+			atLeastOneDangerousProjectilePresent = false;
+		}
+		
+		if ((atLeastOneDead || matchTimerZero) && !atLeastOneDiedThisFrame) {
+			// do nothing
+		} else if (getSuperflashInstigator() == nullptr) {
+			if (atLeastOneBusy || atLeastOneDangerousProjectilePresent) {
+				if (framebarIdleHitstopFor > framebarIdleForLimit) {
+					
+					memset(skippedFramesHitstop.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+					memset(skippedFramesIdleHitstop.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+					
+					nextSkippedFramesHitstop.clear();
+					nextSkippedFramesIdleHitstop.clear();
+					
+					framebarPositionHitstop = 0;
+					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+						entityFramebar.getHitstop().clear();
+						entityFramebar.getIdleHitstop().clear();
+						if (entityFramebar.belongsToPlayer()) {
+							PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+							framebarCast.hitstop.clearCancels();
+							framebarCast.idleHitstop.clearCancels();
+						}
+					}
+				} else {
+					if (framebarIdleHitstopFor) {
 						
-						memset(skippedFramesHitstop.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
-						memset(skippedFramesIdleHitstop.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+						int ind = EntityFramebar::posPlusOne(framebarPositionHitstop);
+						for (int i = 1; i <= framebarIdleHitstopFor; ++i) {
+							skippedFramesHitstop[ind] = skippedFramesIdleHitstop[ind];
+							EntityFramebar::incrementPos(ind);
+						}
+						nextSkippedFramesHitstop = nextSkippedFramesIdleHitstop;
 						
-						nextSkippedFramesHitstop.clear();
-						nextSkippedFramesIdleHitstop.clear();
-						
-						framebarPositionHitstop = 0;
 						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-							entityFramebar.getHitstop().clear();
-							entityFramebar.getIdleHitstop().clear();
+							bool isPlayer = entityFramebar.belongsToPlayer();
+							entityFramebar.getHitstop().catchUpToIdle(entityFramebar.getIdleHitstop(), framebarPositionHitstop, framebarIdleHitstopFor);
+						}
+						framebarPositionHitstop += framebarIdleHitstopFor;
+						framebarPositionHitstop %= _countof(Framebar::frames);
+					}
+					EntityFramebar::incrementPos(framebarPositionHitstop);
+					
+					skippedFramesHitstop[framebarPositionHitstop] = nextSkippedFramesHitstop;
+					nextSkippedFramesHitstop.clear();
+					skippedFramesIdleHitstop[framebarPositionHitstop] = nextSkippedFramesIdleHitstop;
+					nextSkippedFramesIdleHitstop.clear();
+					
+					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+						entityFramebar.getHitstop().soakUpIntoPreFrame(entityFramebar.getHitstop().getFrame(framebarPositionHitstop));
+						entityFramebar.getIdleHitstop().soakUpIntoPreFrame(entityFramebar.getIdleHitstop().getFrame(framebarPositionHitstop));
+						if (entityFramebar.belongsToPlayer()) {
+							PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+							framebarCast.hitstop.clearCancels(framebarPositionHitstop);
+							framebarCast.idleHitstop.clearCancels(framebarPositionHitstop);
+						}
+					}
+					
+				}
+				framebarIdleHitstopFor = 0;
+				framebarAdvancedHitstop = true;
+				framebarAdvancedIdleHitstop = true;
+				
+				if (atLeastOneNotInHitstop) {
+					if (framebarIdleFor > framebarIdleForLimit) {
+						
+						memset(skippedFrames.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+						memset(skippedFramesIdle.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
+						
+						nextSkippedFrames.clear();
+						nextSkippedFramesIdle.clear();
+						
+						framebarPosition = 0;
+						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+							entityFramebar.getMain().clear();
+							entityFramebar.getIdle().clear();
 							if (entityFramebar.belongsToPlayer()) {
 								PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
-								framebarCast.hitstop.clearCancels();
-								framebarCast.idleHitstop.clearCancels();
+								framebarCast.main.clearCancels();
+								framebarCast.idle.clearCancels();
 							}
 						}
 					} else {
-						if (framebarIdleHitstopFor) {
+						if (framebarIdleFor) {
 							
-							int ind = EntityFramebar::posPlusOne(framebarPositionHitstop);
-							for (int i = 1; i <= framebarIdleHitstopFor; ++i) {
-								skippedFramesHitstop[ind] = skippedFramesIdleHitstop[ind];
+							int ind = EntityFramebar::posPlusOne(framebarPosition);
+							for (int i = 1; i <= framebarIdleFor; ++i) {
+								skippedFrames[ind] = skippedFramesIdle[ind];
 								EntityFramebar::incrementPos(ind);
 							}
-							nextSkippedFramesHitstop = nextSkippedFramesIdleHitstop;
+							nextSkippedFrames = nextSkippedFramesIdle;
 							
 							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 								bool isPlayer = entityFramebar.belongsToPlayer();
-								entityFramebar.getHitstop().catchUpToIdle(entityFramebar.getIdleHitstop(), framebarPositionHitstop, framebarIdleHitstopFor);
+								entityFramebar.getMain().catchUpToIdle(entityFramebar.getIdle(), framebarPosition, framebarIdleFor);
 							}
-							framebarPositionHitstop += framebarIdleHitstopFor;
-							framebarPositionHitstop %= _countof(Framebar::frames);
+							framebarPosition += framebarIdleFor;
+							framebarPosition %= _countof(Framebar::frames);
 						}
-						EntityFramebar::incrementPos(framebarPositionHitstop);
+						EntityFramebar::incrementPos(framebarPosition);
 						
-						skippedFramesHitstop[framebarPositionHitstop] = nextSkippedFramesHitstop;
-						nextSkippedFramesHitstop.clear();
-						skippedFramesIdleHitstop[framebarPositionHitstop] = nextSkippedFramesIdleHitstop;
-						nextSkippedFramesIdleHitstop.clear();
-						
-						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
-							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-							entityFramebar.getHitstop().soakUpIntoPreFrame(entityFramebar.getHitstop().getFrame(framebarPositionHitstop));
-							entityFramebar.getIdleHitstop().soakUpIntoPreFrame(entityFramebar.getIdleHitstop().getFrame(framebarPositionHitstop));
-							if (entityFramebar.belongsToPlayer()) {
-								PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
-								framebarCast.hitstop.clearCancels(framebarPositionHitstop);
-								framebarCast.idleHitstop.clearCancels(framebarPositionHitstop);
-							}
-						}
-						
-					}
-					framebarIdleHitstopFor = 0;
-					framebarAdvancedHitstop = true;
-					framebarAdvancedIdleHitstop = true;
-					
-					if (atLeastOneNotInHitstop) {
-						if (framebarIdleFor > framebarIdleForLimit) {
-							
-							memset(skippedFrames.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
-							memset(skippedFramesIdle.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
-							
-							nextSkippedFrames.clear();
-							nextSkippedFramesIdle.clear();
-							
-							framebarPosition = 0;
-							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
-								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-								entityFramebar.getMain().clear();
-								entityFramebar.getIdle().clear();
-								if (entityFramebar.belongsToPlayer()) {
-									PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
-									framebarCast.main.clearCancels();
-									framebarCast.idle.clearCancels();
-								}
-							}
-						} else {
-							if (framebarIdleFor) {
-								
-								int ind = EntityFramebar::posPlusOne(framebarPosition);
-								for (int i = 1; i <= framebarIdleFor; ++i) {
-									skippedFrames[ind] = skippedFramesIdle[ind];
-									EntityFramebar::incrementPos(ind);
-								}
-								nextSkippedFrames = nextSkippedFramesIdle;
-								
-								for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
-									EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-									bool isPlayer = entityFramebar.belongsToPlayer();
-									entityFramebar.getMain().catchUpToIdle(entityFramebar.getIdle(), framebarPosition, framebarIdleFor);
-								}
-								framebarPosition += framebarIdleFor;
-								framebarPosition %= _countof(Framebar::frames);
-							}
-							EntityFramebar::incrementPos(framebarPosition);
-							
-							skippedFrames[framebarPosition] = nextSkippedFrames;
-							nextSkippedFrames.clear();
-							skippedFramesIdle[framebarPosition] = nextSkippedFramesIdle;
-							nextSkippedFramesIdle.clear();
-							
-							for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
-								EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-								FrameBase& mainFrame = entityFramebar.getMain().getFrame(framebarPosition);
-								FrameBase& idleFrame = entityFramebar.getMain().getFrame(framebarPosition);
-								entityFramebar.getMain().soakUpIntoPreFrame(mainFrame);
-								entityFramebar.getIdle().soakUpIntoPreFrame(idleFrame);
-								if (entityFramebar.belongsToPlayer()) {
-									PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
-									framebarCast.main.clearCancels(framebarPosition);
-									framebarCast.idle.clearCancels(framebarPosition);
-								}
-							}
-						}
-						framebarIdleFor = 0;
-						framebarAdvanced = true;
-						framebarAdvancedIdle = true;
-					} else {  // if not  atLeastOneNotInHitstop
-						nextSkippedFrames.addFrame(SKIPPED_FRAMES_HITSTOP);
-						nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_HITSTOP);
-					}
-				} else {  // if not atLeastOneBusy || atLeastOneDangerousProjectilePresent
-					framebarAdvancedIdleHitstop = true;
-					++framebarIdleHitstopFor;
-					int confinedPos = EntityFramebar::confinePos(framebarPositionHitstop + framebarIdleHitstopFor);
-					skippedFramesIdleHitstop[confinedPos] = nextSkippedFramesIdleHitstop;
-					nextSkippedFramesIdleHitstop.clear();
-					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
-						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-						entityFramebar.getIdleHitstop().soakUpIntoPreFrame(entityFramebar.getIdleHitstop().getFrame(confinedPos));
-						if (entityFramebar.belongsToPlayer()) {
-							PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
-							framebarCast.idleHitstop.clearCancels(confinedPos);
-						}
-					}
-					if (atLeastOneNotInHitstop) {
-						framebarAdvancedIdle = true;
-						++framebarIdleFor;
-						confinedPos = EntityFramebar::confinePos(framebarPosition + framebarIdleFor);
-						skippedFramesIdle[confinedPos] = nextSkippedFramesIdle;
+						skippedFrames[framebarPosition] = nextSkippedFrames;
+						nextSkippedFrames.clear();
+						skippedFramesIdle[framebarPosition] = nextSkippedFramesIdle;
 						nextSkippedFramesIdle.clear();
+						
 						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
-							FrameBase& frame = entityFramebar.getIdle().getFrame(confinedPos);
-							entityFramebar.getIdle().soakUpIntoPreFrame(frame);
+							FrameBase& mainFrame = entityFramebar.getMain().getFrame(framebarPosition);
+							FrameBase& idleFrame = entityFramebar.getMain().getFrame(framebarPosition);
+							entityFramebar.getMain().soakUpIntoPreFrame(mainFrame);
+							entityFramebar.getIdle().soakUpIntoPreFrame(idleFrame);
 							if (entityFramebar.belongsToPlayer()) {
 								PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
-								framebarCast.idle.clearCancels(confinedPos);
+								framebarCast.main.clearCancels(framebarPosition);
+								framebarCast.idle.clearCancels(framebarPosition);
 							}
 						}
-					} else {  // if not atLeastOneNotInHitstop
-						nextSkippedFrames.addFrame(skippedType);
-						nextSkippedFramesIdle.addFrame(skippedType);
+					}
+					framebarIdleFor = 0;
+					framebarAdvanced = true;
+					framebarAdvancedIdle = true;
+				} else {  // if not  atLeastOneNotInHitstop
+					nextSkippedFrames.addFrame(SKIPPED_FRAMES_HITSTOP);
+					nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_HITSTOP);
+				}
+			} else {  // if not atLeastOneBusy || atLeastOneDangerousProjectilePresent
+				framebarAdvancedIdleHitstop = true;
+				++framebarIdleHitstopFor;
+				int confinedPos = EntityFramebar::confinePos(framebarPositionHitstop + framebarIdleHitstopFor);
+				skippedFramesIdleHitstop[confinedPos] = nextSkippedFramesIdleHitstop;
+				nextSkippedFramesIdleHitstop.clear();
+				for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+					EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+					entityFramebar.getIdleHitstop().soakUpIntoPreFrame(entityFramebar.getIdleHitstop().getFrame(confinedPos));
+					if (entityFramebar.belongsToPlayer()) {
+						PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+						framebarCast.idleHitstop.clearCancels(confinedPos);
 					}
 				}
-			} else {  // if not getSuperflashInstigator() == nullptr
-				nextSkippedFrames.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
-				nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
-				nextSkippedFramesHitstop.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
-				nextSkippedFramesIdleHitstop.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
+				if (atLeastOneNotInHitstop) {
+					framebarAdvancedIdle = true;
+					++framebarIdleFor;
+					confinedPos = EntityFramebar::confinePos(framebarPosition + framebarIdleFor);
+					skippedFramesIdle[confinedPos] = nextSkippedFramesIdle;
+					nextSkippedFramesIdle.clear();
+					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
+						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
+						FrameBase& frame = entityFramebar.getIdle().getFrame(confinedPos);
+						entityFramebar.getIdle().soakUpIntoPreFrame(frame);
+						if (entityFramebar.belongsToPlayer()) {
+							PlayerFramebars& framebarCast = (PlayerFramebars&)entityFramebar;
+							framebarCast.idle.clearCancels(confinedPos);
+						}
+					}
+				} else {  // if not atLeastOneNotInHitstop
+					nextSkippedFrames.addFrame(skippedType);
+					nextSkippedFramesIdle.addFrame(skippedType);
+				}
 			}
+		} else {  // if not getSuperflashInstigator() == nullptr
+			nextSkippedFrames.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
+			nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
+			nextSkippedFramesHitstop.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
+			nextSkippedFramesIdleHitstop.addFrame(SKIPPED_FRAMES_SUPERFREEZE);
 		}
 		
 		Entity superflashInstigator = getSuperflashInstigator();
@@ -2948,6 +2956,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& player.wasEnableGatlings;
 			bool hitAlreadyHappened = player.pawn.hitAlreadyHappened() >= player.pawn.theValueHitAlreadyHappenedIsComparedAgainst()
 					|| !player.pawn.currentHitNum();
+			const InputRingBuffer* ringBuffer = game.getInputRingBuffers() + player.index;
+			if (isTheFirstFrameInTheMatch) {
+				int inputsCount = ringBuffer->calculateLength();
+				player.inputs.reserve(inputsCount);
+				int index = ringBuffer->index - inputsCount + 1;
+				if (index < 0) index += 30;
+				for (int i = 0; i < inputsCount; ++i) {
+					player.inputs.push_back(ringBuffer->inputs[index]);
+					if (index == 29) index = 0;
+					else ++index;
+				}
+			} else if (player.inputs.size() < 80) {
+				player.inputs.push_back(ringBuffer->inputs[ringBuffer->index]);
+			} else {
+				player.inputsOverflow = true;
+			}
 			
 			if (framebarAdvancedIdleHitstop) {
 				
@@ -3188,6 +3212,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.doubleJumps = player.remainingDoubleJumps;
 				currentFrame.airDashes = player.remainingAirDashes;
 				currentFrame.activeDuringSuperfreeze = false;
+				currentFrame.inputs = player.inputs;
+				currentFrame.prevInput = player.prevInput;
+				currentFrame.inputsOverflow = player.inputsOverflow;
+				if (player.inputs.empty()) {
+					player.prevInput = Input{0x0000};
+				} else {
+					player.prevInput = player.inputs.back();
+				}
+				player.inputsOverflow = false;
+				player.inputs.clear();
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}
@@ -4275,6 +4309,8 @@ void EndScene::drawTexts() {
 // Called when switching characters, exiting the match.
 // Runs on the main thread
 void EndScene::onAswEngineDestroyed() {
+	prevAswEngineTickCount = 0xffffffff;
+	prevAswEngineTickCountForInputs = 0xffffffff;
 	drawDataPrepared.clear();
 	clearContinuousScreenshotMode();
 	registeredHits.clear();
@@ -5764,7 +5800,7 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getHitstop().copyRequests(framebar);
+		entityFramebar.getHitstop().copyRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	int idlePos = (framebarPosition + framebarIdleFor) % _countof(Framebar::frames);
 	destinationFrame = &entityFramebar.getIdle().getFrame(idlePos);
@@ -5775,7 +5811,7 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getIdle().copyRequests(framebar);
+		entityFramebar.getIdle().copyRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	destinationFrame = &entityFramebar.getMain().getFrame(framebarPosition);
 	if (framebarAdvanced) {
@@ -5785,7 +5821,7 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getMain().copyRequests(framebar);
+		entityFramebar.getMain().copyRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	if (framebarAdvancedIdle) {
 		entityFramebar.getIdle().clearRequests();

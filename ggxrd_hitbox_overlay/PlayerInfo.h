@@ -3,6 +3,7 @@
 #include "Moves.h"
 #include <string>
 #include <vector>
+#include "Input.h"
 
 #define INVUL_TYPES_TABLE \
 	INVUL_TYPES_EXEC(STRIKE_INVUL, "strike", strikeInvul) \
@@ -316,6 +317,8 @@ struct Frame : public FrameBase {
 // This means that types like std::vector are not allowed.
 struct PlayerFrame : public FrameBase {
 	FrameCancelInfo cancels;
+	std::vector<Input> inputs;
+	Input prevInput;
 	union {
 		CanProgramSecretGardenInfo canProgramSecretGarden;
 		ChippInfo chippInfo;
@@ -358,6 +361,7 @@ struct PlayerFrame : public FrameBase {
 	
 	bool crossupProtectionIsOdd:1;
 	bool crossupProtectionIsAbove1:1;
+	bool inputsOverflow:1;
 	
 	void printInvuls(char* buf, size_t bufSize) const;
 	void clear();
@@ -373,7 +377,8 @@ struct FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) = 0;
 	virtual void processRequests(FrameBase& destinationFrame) = 0;
 	virtual void processRequests(int destinationPosition) = 0;
-	virtual void copyRequests(FramebarBase& source) = 0;
+	virtual void copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) = 0;
+	virtual void cloneRequests(FramebarBase& source) = 0;
 	virtual void clearRequests() = 0;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) = 0;
 	virtual FrameBase& getFrame(int index) = 0;
@@ -397,7 +402,8 @@ struct Framebar : public FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
 	virtual void processRequests(FrameBase& destinationFrame) override;
 	virtual void processRequests(int destinationPosition) override;
-	virtual void copyRequests(FramebarBase& source) override;
+	virtual void copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
+	virtual void cloneRequests(FramebarBase& source) override;
 	virtual void clearRequests() override;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
 	virtual FrameBase& getFrame(int index) override;
@@ -416,12 +422,17 @@ struct PlayerFramebar : public FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
 	virtual void processRequests(FrameBase& destinationFrame) override;
 	virtual void processRequests(int destinationPosition) override;
-	virtual void copyRequests(FramebarBase& source) override;
+	virtual void copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
+	virtual void cloneRequests(FramebarBase& source) override;
 	virtual void clearRequests() override;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
 	virtual FrameBase& getFrame(int index) override;
 	void clearCancels();
 	void clearCancels(int index);
+	std::vector<Input> inputs;
+	Input prevInput{0x0000};
+	bool inputsOverflow = false;
+	bool prevInputCopied = false;
 };
 
 struct EntityFramebar {
@@ -1151,6 +1162,8 @@ struct PlayerInfo {
 	FrameCancelInfo wasCancels;
 	int cancelsCount = 0;
 	std::vector<DmgCalc> dmgCalcs;
+	std::vector<Input> inputs;
+	Input prevInput;
 	int dmgCalcsSkippedHits = 0;
 	int proration = 0;
 	int dustProration1 = 0;
@@ -1271,6 +1284,7 @@ struct PlayerInfo {
 	bool staggerMaxFixed:1;
 	bool hitstunContaminatedByRCSlowdown:1;
 	bool blockstunContaminatedByRCSlowdown:1;
+	bool inputsOverflow:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

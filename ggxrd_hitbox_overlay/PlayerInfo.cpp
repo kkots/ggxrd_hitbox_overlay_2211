@@ -689,6 +689,8 @@ void PlayerInfo::clear() {
 	cancelsOffset += sizeof cancelsCount;
 	dmgCalcs.clear();
 	cancelsOffset += sizeof dmgCalcs;
+	inputs.clear();
+	cancelsOffset += sizeof inputs;
 	memset(this, 0, sizeof PlayerInfo - cancelsOffset);
 }
 
@@ -1863,7 +1865,17 @@ void Framebar::processRequests(FrameBase& destinationFrame) {
 }
 
 void PlayerFramebar::processRequests(FrameBase& destinationFrame) {
-	::processRequests<PlayerFramebar, PlayerFrame>(this, (PlayerFrame&)destinationFrame);
+	PlayerFrame& frame = (PlayerFrame&)destinationFrame;
+	::processRequests<PlayerFramebar, PlayerFrame>(this, frame);
+	if (!inputs.empty()) {
+		frame.inputs.insert(frame.inputs.begin(), inputs.begin(), inputs.end());
+		frame.prevInput = prevInput;
+		frame.inputsOverflow = inputsOverflow;
+		inputs.clear();
+	}
+	inputsOverflow = false;
+	prevInputCopied = false;
+	prevInput = Input{0x0000};
 }
 
 void Framebar::processRequests(int destinationPosition) {
@@ -1880,12 +1892,52 @@ inline void copyRequests(FramebarT* destination, FramebarT& source) {
 	destination->requestNextHit |= source.requestNextHit;
 }
 
-void Framebar::copyRequests(FramebarBase& source) {
+template<typename FramebarT>
+inline void cloneRequests(FramebarT* destination, FramebarT& source) {
+	destination->requestFirstFrame = source.requestFirstFrame;
+	destination->requestNextHit = source.requestNextHit;
+}
+
+
+void Framebar::cloneRequests(FramebarBase& source) {
+	::cloneRequests<Framebar>(this, (Framebar&)source);
+}
+
+void PlayerFramebar::cloneRequests(FramebarBase& source) {
+	PlayerFramebar& cast = (PlayerFramebar&)source;
+	::cloneRequests<PlayerFramebar>(this, cast);
+	inputs = cast.inputs;
+	inputsOverflow = cast.inputsOverflow;
+	prevInputCopied = cast.prevInputCopied;
+	prevInput = cast.prevInput;
+}
+
+void Framebar::copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
 	::copyRequests<Framebar>(this, (Framebar&)source);
 }
 
-void PlayerFramebar::copyRequests(FramebarBase& source) {
+void PlayerFramebar::copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
 	::copyRequests<PlayerFramebar>(this, (PlayerFramebar&)source);
+	if (framebarAdvancedIdleHitstop) {
+		const PlayerFrame& frame = (const PlayerFrame&)sourceFrame;
+		if (frame.type != FT_NONE && !frame.inputs.empty()) {
+			if (!prevInputCopied) {
+				prevInputCopied = true;
+				prevInput = frame.prevInput;
+			}
+			if (inputs.size() >= 80) {
+				inputsOverflow = true;
+			} else {
+				size_t frameInputsSize = frame.inputs.size();
+				if (frameInputsSize + inputs.size() <= 80) {
+					inputs.insert(inputs.end(), frame.inputs.begin(), frame.inputs.end());
+				} else {
+					frameInputsSize = 80 - inputs.size();
+					inputs.insert(inputs.end(), frame.inputs.begin(), frame.inputs.begin() + frameInputsSize);
+				}
+			}
+		}
+	}
 }
 
 template<typename FramebarT>
@@ -1900,6 +1952,10 @@ void Framebar::clearRequests() {
 
 void PlayerFramebar::clearRequests() {
 	::clearRequests<PlayerFramebar>(this);
+	inputsOverflow = false;
+	inputs.clear();
+	prevInputCopied = false;
+	prevInput = Input{0x0000};
 }
 
 void PlayerInfo::setMoveName(char* destination, Entity ent) {
@@ -2006,6 +2062,8 @@ void PlayerFrame::clear() {
 	memset(this, 0, pos);
 	cancels.clear();
 	pos += sizeof cancels;
+	inputs.clear();
+	pos += sizeof inputs;
 	memset((BYTE*)this + pos, 0, sizeof *this - pos);
 }
 
@@ -2016,7 +2074,7 @@ void Framebar::catchUpToIdle(FramebarBase& source, int destinationStartingPositi
 		soakUpIntoPreFrame(frames[ind]);
 		frames[ind] = cast[ind];
 	}
-	copyRequests(cast);
+	cloneRequests(source);
 }
 
 void PlayerFramebar::catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) {
@@ -2028,7 +2086,7 @@ void PlayerFramebar::catchUpToIdle(FramebarBase& source, int destinationStarting
 		frames[ind].cancels = cast[ind].cancels;
 		EntityFramebar::incrementPos(ind);
 	}
-	copyRequests(source);
+	cloneRequests(source);
 }
 
 FrameBase& Framebar::getFrame(int index) { return (FrameBase&)frames[index]; }

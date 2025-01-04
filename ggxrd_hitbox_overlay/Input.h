@@ -18,4 +18,6 @@ struct Input {
 	inline bool operator==(const Input& other) const { return (unsigned short&)*this == (unsigned short&)other; }
 	inline bool operator!=(const Input& other) const { return (unsigned short&)*this != (unsigned short&)other; }
 	inline operator unsigned int() const { return (unsigned int)(unsigned short&)*this; }
+	inline Input() = default;
+	inline Input(unsigned short value) { *this = (Input&)value; }
 };

@@ -128,3 +128,8 @@ void InputRingBufferStored::clear() {
 	isCleared = true;
 	memset(&data.front(), 0, sizeof(InputFramesHeld) * data.size());
 }
+
+Input InputRingBufferStored::lastInput() const {
+	if (isCleared || !data[index].framesHeld) return Input{0x0000};
+	return data[index].input;
+}

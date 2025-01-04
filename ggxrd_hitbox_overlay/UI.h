@@ -80,6 +80,7 @@ public:
 	std::unique_ptr<PngResource> hitConnectedFrame;
 	std::unique_ptr<PngResource> hitConnectedFrameBlack;
 	void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth);
+	void drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex);
 	bool pauseMenuOpen = false;
 	bool isDisplayingOnTop = false;
 	bool drewFramebar = false;

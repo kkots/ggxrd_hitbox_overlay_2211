@@ -8,6 +8,7 @@ public:
 	void update(const InputRingBuffer& inputRingBuffer, const InputRingBuffer& prevInputRingBuffer);
 	inline void resize(unsigned int newSize) { data.resize(newSize); }
 	void clear();
+	Input lastInput() const;
 private:
 	bool isCleared = true;
 	friend class InputsDrawing;

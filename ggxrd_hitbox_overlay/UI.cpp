@@ -64,6 +64,7 @@ static ImVec4 P2_COLOR = RGBToVec(0x78d6ff);
 static ImVec4 P2_OUTLINE_COLOR = RGBToVec(0x525fdf);
 static ImVec4* P1P2_COLOR[2] = { &P1_COLOR, &P2_COLOR };
 static ImVec4* P1P2_OUTLINE_COLOR[2] = { &P1_OUTLINE_COLOR, &P2_OUTLINE_COLOR };
+static ImVec4 inputsDark = RGBToVec(0xa0a0a0);
 static char strbuf[512];
 static std::string stringArena;
 static char printdecimalbuf[512];
@@ -6912,6 +6913,265 @@ struct FrameDims {
 	float width;
 };
 
+#define PRINT_INPUT_BUTTON(name, ENUM_NAME) \
+	if (row.name) { \
+		const InputsIcon& icon = inputsIcon[ENUM_NAME]; \
+		drawList->AddImage((ImTextureID)TEXID_GGICON, \
+			{ x, y }, \
+			{ x + framebarTooltipInputIconSize.x, y + framebarTooltipInputIconSize.y }, \
+			{ icon.uStart, icon.vStart }, \
+			{ icon.uEnd, icon.vEnd }, \
+			prevRow.name ? darkTint : -1); \
+		x += framebarTooltipInputIconSize.x + spacing; \
+	}
+
+static inline const InputsIcon* determineDirectionIcon(Input row) {
+	if (row.right) {
+		if (row.up) {
+			return inputsIcon + INPUT_ICON_UPRIGHT;
+		} else if (row.down) {
+			return inputsIcon + INPUT_ICON_DOWNRIGHT;
+		} else {
+			return inputsIcon + INPUT_ICON_RIGHT;
+		}
+	} else if (row.left) {
+		if (row.up) {
+			return inputsIcon + INPUT_ICON_UPLEFT;
+		} else if (row.down) {
+			return inputsIcon + INPUT_ICON_DOWNLEFT;
+		} else {
+			return inputsIcon + INPUT_ICON_LEFT;
+		}
+	} else if (row.up) {
+		return inputsIcon + INPUT_ICON_UP;
+	} else if (row.down) {
+		return inputsIcon + INPUT_ICON_DOWN;
+	} else {
+		return nullptr;
+	}
+}
+
+static inline void drawDirectionIcon(ImDrawList* drawList, float& x, float y,
+		float spacing, Input row, Input prevRow, ImVec2& framebarTooltipInputIconSize,
+		ImU32 darkTint) {
+	const InputsIcon* rowDirection = determineDirectionIcon(row);
+	if (rowDirection) {
+		drawList->AddImage((ImTextureID)TEXID_GGICON,
+			{ x, y },
+			{ x + framebarTooltipInputIconSize.x, y + framebarTooltipInputIconSize.y },
+			{ rowDirection->uStart, rowDirection->vStart },
+			{ rowDirection->uEnd, rowDirection->vEnd },
+			(((unsigned short)row & 0xf) == ((unsigned short)prevRow & 0xf))
+				? darkTint : -1);
+		x += framebarTooltipInputIconSize.x + spacing;
+	}
+}
+
+static inline void printInputsRowP1(ImDrawList* drawList, float x, float y,
+			float spacing, int frameCount, Input row, Input prevRow, ImVec2& framebarTooltipInputIconSize,
+			float textPaddingY, ImU32 darkTint, bool printFrameCounts, float maxTextSize) {
+	int textLength;
+	if (printFrameCounts) {
+		textLength = sprintf_s(strbuf, "(%d)", frameCount);
+		if (textLength != -1) {
+			drawList->AddText({ x, y + textPaddingY }, -1, strbuf, strbuf + textLength);
+		}
+		x += maxTextSize + spacing;
+	}
+	
+	drawDirectionIcon(drawList, x, y, spacing, row, prevRow, framebarTooltipInputIconSize, darkTint);
+	PRINT_INPUT_BUTTON(punch, INPUT_ICON_PUNCH)
+	PRINT_INPUT_BUTTON(kick, INPUT_ICON_KICK)
+	PRINT_INPUT_BUTTON(slash, INPUT_ICON_SLASH)
+	PRINT_INPUT_BUTTON(heavySlash, INPUT_ICON_HEAVYSLASH)
+	PRINT_INPUT_BUTTON(dust, INPUT_ICON_DUST)
+	PRINT_INPUT_BUTTON(taunt, INPUT_ICON_TAUNT)
+	PRINT_INPUT_BUTTON(special, INPUT_ICON_SPECIAL)
+}
+
+static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
+		float spacing, int frameCount, Input row, Input prevRow, ImVec2& framebarTooltipInputIconSize,
+		float textPaddingY, ImU32 darkTint, bool printFrameCounts, float maxTextSize) {
+	
+	int count = 0;
+	if (((unsigned short)row & 0xf) != 0) ++count;
+	if (row.punch) ++count;
+	if (row.kick) ++count;
+	if (row.slash) ++count;
+	if (row.heavySlash) ++count;
+	if (row.dust) ++count;
+	if (row.taunt) ++count;
+	if (row.special) ++count;
+	
+	x = x + ImGui::GetContentRegionAvail().x
+		- (
+			count == 0
+				? 0
+				: printFrameCounts
+					? count * (framebarTooltipInputIconSize.x + spacing)
+					: count * framebarTooltipInputIconSize.x + (count - 1) * spacing
+		)
+		- maxTextSize;
+	
+	PRINT_INPUT_BUTTON(special, INPUT_ICON_SPECIAL)
+	PRINT_INPUT_BUTTON(taunt, INPUT_ICON_TAUNT)
+	PRINT_INPUT_BUTTON(dust, INPUT_ICON_DUST)
+	PRINT_INPUT_BUTTON(heavySlash, INPUT_ICON_HEAVYSLASH)
+	PRINT_INPUT_BUTTON(slash, INPUT_ICON_SLASH)
+	PRINT_INPUT_BUTTON(kick, INPUT_ICON_KICK)
+	PRINT_INPUT_BUTTON(punch, INPUT_ICON_PUNCH)
+	drawDirectionIcon(drawList, x, y, spacing, row, prevRow, framebarTooltipInputIconSize, darkTint);
+	
+	if (printFrameCounts) {
+		int textLength = sprintf_s(strbuf, "(%d)", frameCount);
+		if (textLength != -1) {
+			drawList->AddText({ x, y + textPaddingY }, -1, strbuf, strbuf + textLength);
+		}
+	}
+	
+}
+
+#undef PRINT_INPUT_BUTTON
+
+void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex) {
+	const std::vector<Input>& inputs = frame.inputs;
+	if (!inputs.empty() && !(inputs.size() == 1 && inputs[0] == Input{0x0000})) {
+		ImGui::Separator();
+		
+		float framebarTooltipInputIconSizeFloat = 20.F;
+		ImVec2 framebarTooltipInputIconSize{ framebarTooltipInputIconSizeFloat, framebarTooltipInputIconSizeFloat };
+		
+		int frameCount = 1;
+		const Input* it = inputs.data() + (inputs.size() - 1);
+		Input currentInput = *it;
+		
+		float spacing = 1.F;
+		
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		float textPaddingY = (framebarTooltipInputIconSizeFloat - ImGui::GetFontSize()) * 0.5F;
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		float oneLineHeight = ImGui::GetTextLineHeightWithSpacing() + 2.F;
+		float x = windowPos.x + cursorPos.x;
+		float y = windowPos.y + cursorPos.y;
+		ImU32 darkTint = ImGui::GetColorU32(inputsDark);
+		int rowCount = 0;
+		const int rowLimit = 12;
+		bool overflow = false;
+		
+		bool printFrameCounts = inputs.size() > 1;
+		
+		float maxTextSize;
+		if (printFrameCounts) {
+			int maxFrameCount = 0;
+			if (inputs.size() != 1) {
+				const Input* startIt = inputs.data() - 1;
+				for (; it != startIt; --it) {
+					Input nextInput = *it;
+					if (nextInput != currentInput) {
+						if (rowCount >= rowLimit) {
+							overflow = true;
+							break;
+						}
+						if (frameCount > maxFrameCount) maxFrameCount = frameCount;
+						++rowCount;
+						currentInput = nextInput;
+						frameCount = 1;
+					} else {
+						++frameCount;
+					}
+				}
+			}
+			if (!overflow && rowCount < rowLimit) {
+				if (frameCount > maxFrameCount) maxFrameCount = frameCount;
+			}
+			
+			frameCount = 1;
+			rowCount = 0;
+			overflow = false;
+			it = inputs.data() + (inputs.size() - 1);
+			currentInput = *it;
+			
+			char* buf = strbuf;
+			size_t bufSize = sizeof strbuf;
+			int result = sprintf_s(strbuf, "(");
+			advanceBuf
+			do {
+				result = sprintf_s(buf, bufSize, "9");
+				advanceBuf
+				maxFrameCount /= 10;
+			} while (maxFrameCount);
+			result = sprintf_s(buf, bufSize, ")");
+			advanceBuf
+			
+			if (buf == strbuf) {
+				maxTextSize = 0.F;
+			} else {
+				maxTextSize = ImGui::CalcTextSize(strbuf, buf).x;
+			}
+		} else {
+			maxTextSize = 0.F;
+		}
+		
+		float startY = y;
+		
+		#define piece(funcname) \
+			if (inputs.size() != 1) { \
+				--it; \
+				const Input* startIt = inputs.data() - 1; \
+				for (; it != startIt; --it) { \
+					Input nextInput = *it; \
+					if (nextInput != currentInput) { \
+						if (rowCount >= rowLimit) { \
+							overflow = true; \
+							break; \
+						} \
+						funcname(drawList, x, y, spacing, frameCount, currentInput, nextInput, framebarTooltipInputIconSize, textPaddingY, darkTint, printFrameCounts, maxTextSize); \
+						y += oneLineHeight; \
+						++rowCount; \
+						currentInput = nextInput; \
+						frameCount = 1; \
+					} else { \
+						++frameCount; \
+					} \
+				} \
+			} \
+			if (!overflow) { \
+				if (rowCount >= rowLimit) { \
+					overflow = true; \
+				} else { \
+					funcname(drawList, x, y, spacing, frameCount, currentInput, frame.prevInput, framebarTooltipInputIconSize, textPaddingY, darkTint, printFrameCounts, maxTextSize); \
+					y += oneLineHeight; \
+					++rowCount; \
+				} \
+			}
+			
+		
+		if (playerIndex == 0) {
+			piece(printInputsRowP1)
+		} else {
+			piece(printInputsRowP2)
+		}
+		
+		if (y != startY) {
+			ImGui::InvisibleButton("##PlayerInputsRender",
+				{
+					1.F,
+					y - startY
+				});
+		}
+		
+		if (overflow || frame.inputsOverflow) {
+			static StringWithLength txt = "Remaining inputs not shown...";
+			if (playerIndex == 1) {
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(txt.txt, txt.txt + txt.length).x);
+			}
+			ImGui::TextUnformatted(txt.txt, txt.txt + txt.length);
+		}
+	}
+	
+}
+
 void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
 	frame.printInvuls(strbuf, sizeof strbuf - 7);
 	if (*strbuf != '\0') {
@@ -7185,6 +7445,9 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							sprintf_s(strbuf, "%d/%d", frame.rcSlowdown, frame.rcSlowdownMax);
 							ImGui::TextUnformatted(strbuf);
 						}
+					}
+					if (playerIndex != -1) {
+						ui.drawPlayerFrameInputsInTooltip((const PlayerFrame&)frame, playerIndex);
 					}
 					ImGui::PopTextWrapPos();
 					ImGui::PopStyleVar();
