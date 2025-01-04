@@ -2958,12 +2958,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| !player.pawn.currentHitNum();
 			const InputRingBuffer* ringBuffer = game.getInputRingBuffers() + player.index;
 			if (isTheFirstFrameInTheMatch) {
+				player.inputs.reserve(80);
 				int inputsCount = ringBuffer->calculateLength();
-				player.inputs.reserve(inputsCount);
 				int index = ringBuffer->index - inputsCount + 1;
 				if (index < 0) index += 30;
 				for (int i = 0; i < inputsCount; ++i) {
-					player.inputs.push_back(ringBuffer->inputs[index]);
+					Input input = ringBuffer->inputs[index];
+					int framesHeld = ringBuffer->framesHeld[index];
+					bool needBreak = false;
+					for (int j = 0; j < framesHeld; ++j) {
+						player.inputs.push_back(input);
+						if (player.inputs.size() >= 80) {
+							needBreak = true;
+							break;
+						}
+					}
+					if (needBreak) break;
 					if (index == 29) index = 0;
 					else ++index;
 				}
