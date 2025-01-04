@@ -88,8 +88,9 @@ ImVec2 drawFramebars_windowPos;
 int drawFramebars_hoveredFrameIndex;
 float drawFramebars_hoveredFrameY;
 float drawFramebars_y;
-const float innerBorderThickness = 1.F;
-const float innerBorderThicknessHalf = innerBorderThickness * 0.5F;
+const float innerBorderThicknessUnscaled = 1.F;
+float drawFramebars_innerBorderThickness;
+float drawFramebars_innerBorderThicknessHalf;
 float drawFramebars_frameWidthScaled;
 const char thisHelpTextWillRepeat[] = "Show available gatlings, whiff cancels, and whether the jump and the special cancels are available,"
 					" per range of frame for this player.\n"
@@ -6800,11 +6801,6 @@ const char* imGuiDrawWrappedTextWithIcons_CalcWordWrapPositionA(float scale,
 	
     // Wrap_width is too small to fit anything. Force displaying 1 character to minimize the height discontinuity.
     // +1 may not be a character start point in UTF-8 but it's ok because caller loops use (text >= word_wrap_eol).
-    /*
-			ImGui::Image((ImTextureID)TEXID_FRAMES,
-				{ frameWidthOriginal, frameHeightOriginal },
-				newHitArt->uvStart,
-				newHitArt->uvEnd);*/
     if (s == text && text < text_end)
         return s + 1;
     return s;
@@ -7243,11 +7239,11 @@ void drawFirstFrames(const FramebarT& framebar, int framebarPosition, FrameDims*
 				)) {
 			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
 				{
-					dims.x - innerBorderThicknessHalf - dims.width * 0.5F,
+					dims.x - drawFramebars_innerBorderThicknessHalf - dims.width * 0.5F,
 					firstFrameTopY
 				},
 				{
-					dims.x - innerBorderThicknessHalf + dims.width * 0.5F,
+					dims.x - drawFramebars_innerBorderThicknessHalf + dims.width * 0.5F,
 					firstFrameBottomY
 				},
 				firstFrameUVStart,
@@ -8588,39 +8584,56 @@ void UI::drawFramebars() {
 	const bool showStrikeInvulOnFramebar = settings.showStrikeInvulOnFramebar;
 	const bool showSuperArmorOnFramebar = settings.showSuperArmorOnFramebar;
 	const bool showThrowInvulOnFramebar = settings.showThrowInvulOnFramebar;
-	float settingsFramebarHeight = (float)settings.framebarHeight;
+	ImGuiIO& io = ImGui::GetIO();
+	float settingsFramebarHeight = (float)settings.framebarHeight * io.DisplaySize.y / 720.F;
 	if (settingsFramebarHeight < 5.F) {
 		settingsFramebarHeight = 5.F;
 	}
+	const float scale = settingsFramebarHeight / 19.F;
 	
-	static const float outerBorderThickness = 2.F;
+	static const float outerBorderThicknessUnscaled = 2.F;
+	float outerBorderThickness = outerBorderThicknessUnscaled * scale;
+	if (outerBorderThickness < 2.F) outerBorderThickness = 2.F;
 	drawFramebars_frameItselfHeight = settingsFramebarHeight - outerBorderThickness - outerBorderThickness;
 	static const float frameNumberHeightOriginal = 11.F;
-	static const float frameMarkerWidthOffset = (frameMarkerWidthOriginal - frameWidthOriginal) * 0.5F;
 	static const float frameMarkerSideHeightOriginal = 3.F;
 	float frameMarkerHeight = frameMarkerHeightOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
 	if (frameMarkerHeight < 5.F) {
 		frameMarkerHeight = 5.F;
 	}
 	float frameMarkerSideHeight = frameMarkerSideHeightOriginal * frameMarkerHeight / frameMarkerHeightOriginal;
-	static const float markerPaddingHeight = -1.F;
-	static const float paddingBetweenFramebarsOriginal = 5.F;
-	static const float paddingBetweenFramebarsMin = 3.F;
-	static const float paddingBetweenTextAndFramebar = 5.F;
-	static const float textPadding = 2.F;
-	static const float firstFrameHeightDiff = firstFrameHeight - frameHeightOriginal;
+	static const float markerPaddingHeightUnscaled = -1.F;
+	const float markerPaddingHeight = markerPaddingHeightUnscaled * scale;
+	static const float paddingBetweenFramebarsOriginalUnscaled = 5.F;
+	const float paddingBetweenFramebarsOriginal = paddingBetweenFramebarsOriginalUnscaled * scale;
+	static const float paddingBetweenFramebarsMinUnscaled = 3.F;
+	const float paddingBetweenFramebarsMin = paddingBetweenFramebarsMinUnscaled * scale;
+	static const float paddingBetweenTextAndFramebarUnscaled = 5.F;
+	const float paddingBetweenTextAndFramebar = paddingBetweenTextAndFramebarUnscaled * scale;
+	static const float textPaddingUnscaled = 2.F;
+	const float textPadding = textPaddingUnscaled * scale;
+	const float firstFrameHeightScaled = firstFrameHeight * scale;
+	static const float firstFrameHeightDiff = firstFrameHeightScaled - drawFramebars_frameItselfHeight;
 	drawFramebars_frameWidthScaled = frameWidthOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
 	static const float frameNumberPaddingY = 2.F;
-	static const float highlighterWidth = 2.F;
-	static const float hoveredFrameHighlightPaddingX = 3.F;
-	static const float hoveredFrameHighlightPaddingY = 3.F;
-	static const float framebarCurrentPositionHighlighterStickoutDistance = 2.F;
+	static const float highlighterWidthUnscaled = 2.F;
+	const float highlighterWidth = highlighterWidthUnscaled * scale;
+	static const float hoveredFrameHighlightPaddingXUnscaled = 3.F;
+	const float hoveredFrameHighlightPaddingX = hoveredFrameHighlightPaddingXUnscaled * scale;
+	static const float hoveredFrameHighlightPaddingYUnscaled = 3.F;
+	const float hoveredFrameHighlightPaddingY = hoveredFrameHighlightPaddingYUnscaled * scale;
+	static const float framebarCurrentPositionHighlighterStickoutDistanceUnscaled = 2.F;
+	const float framebarCurrentPositionHighlighterStickoutDistance = framebarCurrentPositionHighlighterStickoutDistanceUnscaled * scale;
+	drawFramebars_innerBorderThickness = innerBorderThicknessUnscaled * scale;
+	if (drawFramebars_innerBorderThickness < 1.F) drawFramebars_innerBorderThickness = 1.F;
+	drawFramebars_innerBorderThicknessHalf = drawFramebars_innerBorderThickness * 0.5F;
 	
 	float maxTopPadding;
 	if (!showFirstFrames) {
 		maxTopPadding = 0.F;
 	} else {
-		maxTopPadding = firstFrameHeightDiff - outerBorderThickness;
+		maxTopPadding = firstFrameHeightDiff * 0.5F;
+		if (maxTopPadding < 0.F) maxTopPadding = 0.F;
 	}
 	const float otherTopPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight;
 	if (otherTopPadding > maxTopPadding && (showStrikeInvulOnFramebar || showSuperArmorOnFramebar)) {
@@ -8693,7 +8706,6 @@ void UI::drawFramebars() {
 	if (framebarsCount) {
 		framebarsPaddingYTotal = (float)(framebarsCount - 1) * paddingBetweenFramebars;
 	}
-	ImGuiIO& io = ImGui::GetIO();
 	ImGui::SetNextWindowSize({ 880.F / 1280.F * io.DisplaySize.x,
 		2.F  // imgui window padding
 		+ 1.F
@@ -8764,7 +8776,7 @@ void UI::drawFramebars() {
 		+ ImGui::GetContentRegionMax().x
 		+ 5.F  // window padding? (it was 8. close enough)
 		- outerBorderThickness
-		+ innerBorderThickness;
+		+ drawFramebars_innerBorderThickness;
 	
 	const float scrollY = ImGui::GetScrollY();
 	drawFramebars_y = drawFramebars_windowPos.y 
@@ -8815,7 +8827,7 @@ void UI::drawFramebars() {
 			x = thisFrameXEnd;
 		}
 		
-		highlighterStartX = preppedDims[EntityFramebar::confinePos(framebarPosition + 1)].x - innerBorderThickness;
+		highlighterStartX = preppedDims[EntityFramebar::confinePos(framebarPosition + 1)].x - drawFramebars_innerBorderThickness;
 		highlighterEndX = highlighterStartX + highlighterWidth;
 		
 	}
@@ -9117,8 +9129,8 @@ void UI::drawFramebars() {
 			
 			if (showFirstFrames) {
 				
-				const float firstFrameTopY = drawFramebars_y - firstFrameHeightDiff;
-				const float firstFrameBottomY = drawFramebars_y + firstFrameHeight;
+				const float firstFrameTopY = drawFramebars_y - outerBorderThickness - firstFrameHeightDiff * 0.5F;
+				const float firstFrameBottomY = firstFrameTopY + firstFrameHeightScaled;
 				
 				if (entityFramebar.belongsToPlayer()) {
 					drawFirstFrames<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, framebarPosition, preppedDims, firstFrameTopY, firstFrameBottomY);
