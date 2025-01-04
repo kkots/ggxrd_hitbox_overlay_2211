@@ -665,7 +665,7 @@ bool UI::onDllMain(HMODULE hModule) {
 	inputNames[INPUT_236236] = { "236236", MOTION };
 	inputNames[INPUT_214214] = { "214214", MOTION };
 	inputNames[INPUT_4123641236] = { "4123641236", MOTION };
-	inputNames[INPUT_624624] = { "624624", MOTION };
+	inputNames[INPUT_6321463214] = { "6321463214", MOTION };
 	inputNames[INPUT_632146] = { "632146", MOTION };
 	inputNames[INPUT_641236] = { "641236", MOTION };
 	inputNames[INPUT_2141236] = { "2141236", MOTION };
@@ -676,7 +676,7 @@ bool UI::onDllMain(HMODULE hModule) {
 	inputNames[INPUT_CHARGE_DOWN_UP_30F] = { "charge down 30f -> up", MULTIWORD_MOTION };
 	inputNames[INPUT_6428] = { "6428", MOTION };
 	inputNames[INPUT_CHARGE_BACK_UP_30F] = { "charge back 30f -> up", MULTIWORD_MOTION };
-	inputNames[INPUT_646426] = { "646426", MOTION };
+	inputNames[INPUT_64641236] = { "64641236", MOTION };
 	inputNames[INPUT_342646] = { "342646", MOTION };
 	inputNames[INPUT_28] = { "28", MOTION };
 	inputNames[INPUT_646] = { "646", MOTION };
@@ -6649,7 +6649,17 @@ void UI::framebarHelpWindow() {
 			" read this is as one whole number: the pieces on the right are the higher digits, and pieces on the left are the lower ones.\n"
 			"\n"
 			"When using \"skipGrabsInFramebar\", which is the default, white stitches will be displayed on the framebar in places where"
-			" a grab or a super animation was skipped."
+			" a grab or a super animation was skipped.\n"
+			"\n"
+			"Inside a frame's tooltip that appears on mouse hover there may be a display of input history."
+			" If that frame follows some skipped hitstop, superfreeze, grab/super or roundstart, there may be more than"
+			" one frame of inputs. In this case, frame numbers are displayed next to rows of inputs."
+			" The frame number next to a row means the duration of that input row in frames."
+			" The row shows directions and buttons in either normal or dark color. If the color is dark,"
+			" that means that that direction was not changed by that row of input, or that button was not pressed"
+			" on that row of input. If the color is not dark, then for a direction that means it was changed"
+			" by that row of input from some previous one that was different, and for a button that means it was"
+			" pressed on that row of input."
 		);
 	}
 	
