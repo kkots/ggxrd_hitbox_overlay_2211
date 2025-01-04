@@ -490,6 +490,7 @@ private:
 	SkippedFramesInfo nextSkippedFramesIdle;
 	SkippedFramesInfo nextSkippedFramesHitstop;
 	SkippedFramesInfo nextSkippedFramesIdleHitstop;
+	bool needEnqueueUiWithPoints = false;
 };
 
 extern EndScene endScene;

@@ -1401,6 +1401,11 @@ bool Moves::onDllMain() {
 	move.framebarId = 6;
 	move.framebarName = "Stun Edge";
 	move.framebarSlangName = "SE";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_KY, "Mahojin", true);
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPStunEdgeObj", true);
@@ -1415,6 +1420,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 7;
 	move.framebarName = "CSE";
 	move.framebarNameFull = "Charged Stun Edge";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPChargedStunEdgeObj", true);
@@ -1441,6 +1447,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 10;
 	move.framebarName = "Sacred Edge";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPSacredEdgeObj", true);
@@ -1458,6 +1465,10 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "BucchusSigh");
 	move.displayName = "Bacchus Sigh";
 	move.slangName = "Bacchus";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// the initial move of grounded Mist Finer, is 1f long
@@ -1849,6 +1860,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_aboveGround;
 	move.framebarId = 11;
 	move.framebarName = "Dolphin";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "MayBallA", true);
@@ -1856,6 +1868,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 12;
 	move.framebarName = "Beach Ball";
 	move.framebarSlangName = "Ball";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "MayBallB", true);
@@ -1863,6 +1876,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 12;
 	move.framebarName = "Beach Ball";
 	move.framebarSlangName = "Ball";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6A");
@@ -2534,10 +2548,19 @@ bool Moves::onDllMain() {
 	move.framebarName = "Flower";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Oilcan", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Bomb", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 32;
 	move.framebarName = "Bomb";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_BlackHole", true);
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// fire created when setting oil on fire
@@ -2552,6 +2575,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 34;
 	move.framebarName = "Meteor";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MeteoInseki", true);
@@ -2560,10 +2584,15 @@ bool Moves::onDllMain() {
 	move.framebarName = "Meteor";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Helium", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Hammer", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 35;
 	move.framebarName = "Hammer";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_ChibiFaust", true);
@@ -2571,12 +2600,30 @@ bool Moves::onDllMain() {
 	move.framebarId = 36;
 	move.framebarName = "Small Faust";
 	move.framebarSlangName = "Mini Faust";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Frasco", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 37;
 	move.framebarName = "Poison";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Chocolate", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_BestChocolate", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Donut", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_ManyDonut", true);
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// the poison cloud created when poison flask lands
@@ -2590,6 +2637,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 38;
 	move.framebarName = "Platform";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_100t", true);
@@ -2597,12 +2645,14 @@ bool Moves::onDllMain() {
 	move.framebarId = 39;
 	move.framebarName = "100-ton Weight";
 	move.framebarSlangName = "Weight";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_FireWorks", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 40;
 	move.framebarName = "Fireworks";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Armageddon", true);
@@ -2623,12 +2673,14 @@ bool Moves::onDllMain() {
 	move.framebarId = 42;
 	move.framebarName = "Golden Hammer";
 	move.framebarSlangName = "Gold Hammer";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_BigFaust", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 43;
 	move.framebarName = "Huge Faust";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Golden100t", true);
@@ -2636,6 +2688,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 44;
 	move.framebarName = "10,000 Ton Weight";
 	move.framebarSlangName = "Gold Weight";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// the initial projectile Faust drops
@@ -2643,6 +2696,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 45;
 	move.framebarName = "Love";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// the explosion created when Love touches the ground
@@ -2976,6 +3030,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 73;
 	move.framebarName = "Berry Pine";
 	move.framebarSlangName = "Berry";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// This explosion results from the timer running out normally
@@ -3691,12 +3746,17 @@ bool Moves::onDllMain() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi", true);
 	move.isDangerous = isDangerous_card;
 	move.framebarId = 103;
 	move.framebarName = "BN: Caltrops";
 	move.framebarSlangName = "Card";
 	move.framebarNameFull = "Business Ninpo: Caltrops";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Nin_Jitsu", true);
@@ -3768,6 +3828,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 14;
 	move.framebarName = "Silent Force";
 	move.framebarSlangName = "Pin";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// s-disc
@@ -3902,6 +3963,38 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 19;
 	move.framebarName = "Rose";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "KageDamari", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieA", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieB", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieC", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieD", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Fly");
@@ -4355,6 +4448,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_active;
 	move.framebarId = 49;
 	move.framebarName = "Balls";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// every QV when released creates this shockwave and it persists on RC
@@ -4395,6 +4489,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 51;
 	move.framebarName = "Dark Angel";
 	move.framebarSlangName = "DA";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk6B");
@@ -4843,12 +4938,14 @@ bool Moves::onDllMain() {
 	move.framebarId = 61;
 	move.framebarName = "Task A";
 	move.framebarSlangName = "Boomerang";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 61;
 	move.framebarName = "Task A";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// created when doing Deja Vu (Task A). Creates either Boomerang_A_Djavu or Boomerang_A_Djavu_Air
@@ -4865,6 +4962,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 62;
 	move.framebarName = "Deja Vu (Task A)";
 	move.framebarSlangName = "DVA";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Djavu_Air", true);
@@ -4872,18 +4970,21 @@ bool Moves::onDllMain() {
 	move.framebarId = 62;
 	move.framebarName = "Deja Vu (Air Task A)";
 	move.framebarSlangName = "DVA";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 63;
 	move.framebarName = "Task A'";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 63;
 	move.framebarName = "Task A'";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// created when doing Deja Vu (Task A'). Creates either Boomerang_B_Djavu or Boomerang_B_Djavu_Air
@@ -4900,6 +5001,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 64;
 	move.framebarName = "Deja Vu (Task A')";
 	move.framebarSlangName = "DVA'";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Djavu_Air", true);
@@ -4907,6 +5009,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 64;
 	move.framebarName = "Deja Vu (Air Task A')";
 	move.framebarSlangName = "DVA'";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_C_Ghost", true);
@@ -5744,6 +5847,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 90;
 	move.framebarName = "Schmerz Berg";
 	move.framebarSlangName = "Needle";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "SlowNeeldeObjAir", true);
@@ -5751,6 +5855,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 90;
 	move.framebarName = "Grebechlich Licht";
 	move.framebarSlangName = "Needle";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSettingTypeNeedleObj", true);
@@ -6104,6 +6209,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 102;
 	move.framebarName = "Tatami Gaeshi";
 	move.framebarSlangName = "Tatami";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "DustAtk");
@@ -6336,18 +6442,21 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
 	move.framebarName = "Ghost";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostB", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
 	move.framebarName = "Ghost";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostC", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
 	move.framebarName = "Ghost";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Suicidal_explosion", true);
@@ -6411,6 +6520,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 95;
 	move.framebarName = "For roasting chestnuts...";
 	move.framebarSlangName = "Fire Spears";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro2", true);
@@ -6418,6 +6528,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 95;
 	move.framebarName = "For roasting chestnuts...";
 	move.framebarSlangName = "Fire Spears";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro3", true);
@@ -6425,6 +6536,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 95;
 	move.framebarName = "For roasting chestnuts...";
 	move.framebarSlangName = "Fire Spears";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecrobomb", true);

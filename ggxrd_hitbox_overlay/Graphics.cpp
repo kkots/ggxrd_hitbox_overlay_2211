@@ -869,16 +869,32 @@ void Graphics::drawAllPoints() {
 
 }
 
+void Graphics::drawAllSmallPoints() {
+	if (!numberOfSmallPointsPrepared) return;
+	sendAllPreparedVertices();
+	switchToRenderingNonTextureVertices();
+	advanceRenderState(RENDER_STATE_DRAWING_POINTS);
+	
+	int verticesNum = 10 * numberOfSmallPointsPrepared + 2 * (numberOfSmallPointsPrepared - 1);
+	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, vertexBufferPosition, verticesNum - 2);
+	vertexBufferPosition += verticesNum;
+	
+	numberOfSmallPointsPrepared = 0;
+
+}
+
 void Graphics::drawAllPrepared() {
 	if (!loggedDrawingOperationsOnce) {
 		logwrap(fprintf(logfile, "Arrayboxes count: %u\n"
 			"boxes count (including those in arrayboxes): %u\n"
 			"outlines count: %u\n"
+			"small points count: %u\n"
 			"points count: %u\n"
 			"texture boxes count: %u",
 			preparedArrayboxes.size(),
 			preparedBoxesCount,
 			preparedOutlines.size(),
+			numberOfSmallPointsPrepared,
 			numberOfPointsPrepared,
 			preparedTextureBoxesCount));
 	}
@@ -888,6 +904,7 @@ void Graphics::drawAllPrepared() {
 		drawAllBoxes();
 		if (!drawAllOutlines()) break;
 		drawAllTextureBoxes();
+		drawAllSmallPoints();
 		drawAllPoints();
 	}
 	
@@ -1030,7 +1047,14 @@ void Graphics::drawAll() {
 			&& (!noNeedToDrawPoints || drawDataUse.needTakeScreenshot)
 			&& !dontShowBoxes) {
 		for (const DrawPointCallParams& params : drawDataUse.points) {
-			preparePoint(params);
+			if (params.isProjectile) {
+				prepareSmallPoint(params);
+			}
+		}
+		for (const DrawPointCallParams& params : drawDataUse.points) {
+			if (!params.isProjectile) {
+				preparePoint(params);
+			}
 		}
 	}
 	
@@ -1516,6 +1540,60 @@ void Graphics::preparePoint(const DrawPointCallParams& params) {
 	*vertexIt = Vertex{ sp.x, sp.y + 4, 0.F, outlineColor };
 	++vertexIt;
 	++numberOfPointsPrepared;
+	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_POINT;
+}
+
+void Graphics::prepareSmallPoint(const DrawPointCallParams& params) {
+	stopPreparingTextureVertexBuffer();
+	D3DXVECTOR3 p{ (float)params.posX, (float)params.posY, 0.F };
+	logOnce(fprintf(logfile, "drawPoint called x: %f; y: %f; z: %f\n", p.x, p.y, p.z));
+	
+	D3DXVECTOR3 sp;
+	if (!worldToScreen(p, &sp)) return;
+	
+	const D3DCOLOR fillColor = params.fillColor;
+	
+	const Vertex firstVertex = Vertex{ sp.x - 1, sp.y - 1, 0.F, fillColor };
+	
+	bool needPadding = lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT;
+	if (drawIfOutOfSpace(10 + (needPadding ? 2 : 0))) {
+		needPadding = false;
+	}
+	consumeVertexBufferSpace(10 + (needPadding ? 2 : 0));
+	if (needPadding) {
+		*vertexIt = *(vertexIt - 1);
+		++vertexIt;
+		*vertexIt = firstVertex;
+		++vertexIt;
+	}
+	
+	*vertexIt = firstVertex;
+	++vertexIt;
+	*vertexIt = Vertex{ sp.x - 1, sp.y + 3, 0.F, fillColor };
+	++vertexIt;
+	*vertexIt = Vertex{ sp.x + 3, sp.y - 1, 0.F, fillColor };
+	++vertexIt;
+	*vertexIt = Vertex{ sp.x + 3, sp.y + 3, 0.F, fillColor };
+	++vertexIt;
+
+	// PADDING
+	*vertexIt = Vertex{ sp.x + 3, sp.y + 3, 0.F, fillColor };
+	++vertexIt;
+	*vertexIt = Vertex{ sp.x, sp.y, 0.F, fillColor };
+	++vertexIt;
+
+	const D3DCOLOR outlineColor = params.outlineColor;
+
+	*vertexIt = Vertex{ sp.x, sp.y, 0.F, outlineColor };
+	++vertexIt;
+	*vertexIt = Vertex{ sp.x, sp.y + 2, 0.F, outlineColor };
+	++vertexIt;
+	*vertexIt = Vertex{ sp.x + 2, sp.y, 0.F, outlineColor };
+	++vertexIt;
+	*vertexIt = Vertex{ sp.x + 2, sp.y + 2, 0.F, outlineColor };
+	++vertexIt;
+	++numberOfSmallPointsPrepared;
+	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT;
 }
 
 IDirect3DSurface9* Graphics::getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr) {

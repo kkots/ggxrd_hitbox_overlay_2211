@@ -128,6 +128,8 @@ private:
 
 	unsigned int numberOfPointsPrepared = 0;
 	void preparePoint(const DrawPointCallParams& params);
+	unsigned int numberOfSmallPointsPrepared = 0;
+	void prepareSmallPoint(const DrawPointCallParams& params);
 
 	bool worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out);
 	bool takeScreenshotBegin(IDirect3DDevice9* device);
@@ -196,6 +198,8 @@ private:
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_THINLINE,
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE,
 		LAST_THING_IN_VERTEX_BUFFER_END_OF_TEXTUREBOX,
+		LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT,
+		LAST_THING_IN_VERTEX_BUFFER_POINT,
 		LAST_THING_IN_VERTEX_BUFFER_HATCH
 	} lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 
@@ -209,6 +213,7 @@ private:
 	void drawAllBoxes();
 	bool drawAllOutlines();
 	void drawAllPoints();
+	void drawAllSmallPoints();
 	void drawAllTextureBoxes();
 
 	void drawAllPrepared();

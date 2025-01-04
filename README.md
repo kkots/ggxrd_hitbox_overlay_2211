@@ -119,7 +119,11 @@ Pushbox outline is always thin.
 
 ### Point/Cross - Origin points
 
-Each player and entity has an origin point which is shown as a black-white cross on the ground between their feet. When players jump, the origin point tracks their location. Origin points play a key role in throw hit detection.
+Each player has an origin point which is shown as a black-white cross on the ground between their feet. When players jump, the origin point tracks their location. Origin points play a key role in throw hit detection.
+
+### Small black & white dot - Projectile origin points
+
+Projectiles whose origin points were deemed to be important enough to be shown will display them as black and white tiny square points. They visualize the projectiles' position which may be used in some range or interaction checks.
 
 ### Blue - Rejection boxes
 
@@ -162,7 +166,7 @@ This mode of showing throw boxes shows them like this:
 
 ### White - Interaction boxes/circles
 
-Boxes or circles like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against the opponent's origin point. If the opponent's origin point is within the box, the check is satisfied.
+Boxes or circles like this are displayed when a move is checking ranges. They may be checking distance to a player's origin point or to their 'center', depending on the type of move or projectile. All types of displayed interactions will be listed here down below.
 
 ### Outlines lie within their boxes/on the edge
 

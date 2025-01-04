@@ -114,7 +114,8 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(bool, boolValue, partOfStance, false) \
 	MOVE_INFO_EXEC(bool, boolValue, dontSkipSuper, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, iKnowExactlyWhenTheRecoveryOfThisMoveIs, nullptr) \
-	MOVE_INFO_EXEC(isIdle_t, isIdleValue, forceSuperHitAnyway, nullptr)
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, forceSuperHitAnyway, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, drawProjectileOriginPoint, false)
 
 struct MoveInfo {
 	CharacterType charType;

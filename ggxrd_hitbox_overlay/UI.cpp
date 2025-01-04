@@ -6308,9 +6308,17 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("+ (Point/cross): ");
 	ImGui::SameLine();
 	ImGui::TextUnformatted("Origin point.");
-	ImGui::TextUnformatted("Each player and entity has an origin point which is shown as"
+	ImGui::TextUnformatted("Each player has an origin point which is shown as"
 		" a black-white cross on the ground between their feet. When players jump, the origin"
 		" point tracks their location. Origin points play a key role in throw hit detection.");
+	ImGui::Separator();
+	
+	ImGui::TextUnformatted(". (Tiny black & white dot): ");
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Projectile origin point.");
+	ImGui::TextUnformatted("Projectiles whose origin points were deemed to be important enough"
+		" to be shown will display them as black and white tiny square points. They visualize"
+		" the projectiles' position which may be used in some range or interaction checks.");
 	ImGui::Separator();
 	
 	textUnformattedColored(COLOR_REJECTION_IMGUI, "Blue: ");
@@ -6385,8 +6393,9 @@ void UI::hitboxesHelpWindow() {
 	ImGui::SameLine();
 	ImGui::TextUnformatted("Interaction boxes/circles");
 	ImGui::TextUnformatted(
-		"Boxes/circles like this are displayed when a move is checking ranges. They are displayed in such way that the check is always against"
-		" the opponent's origin point. If the opponent's origin point is within the box, the check is satisfied.");
+		"Boxes or circles like this are displayed when a move is checking ranges."
+		" They may be checking distance to a player's origin point or to their 'center',"
+		" depending on the type of move or projectile. All types of displayed interactions will be listed here down below.");
 	ImGui::Separator();
 	
 	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");
@@ -6531,7 +6540,8 @@ void UI::framebarHelpWindow() {
 		{ MARKER_TYPE_THROW_INVUL, true, "Throw invulnerability." },
 		{ MARKER_TYPE_SUPER_ARMOR, false, "Super armor, parry, azami,"
 			" projectile-only invulnerability, reflect or flick, or a combination of those." },
-		{ MARKER_TYPE_SUPER_ARMOR_FULL, false, "Red Blitz charge super armor or air Blitz super armor." }
+		{ MARKER_TYPE_SUPER_ARMOR_FULL, false, "Red Blitz charge super armor or air Blitz super armor."
+			" Or Faust 5D homerun reflect frames." }
 	};
 	
 	for (int i = 0; i < _countof(markerHelps); ++i) {
@@ -6991,6 +7001,12 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 					ImGui::Text("%d/120", frame.u.chippInfo.wallTime);
 				}
 			}
+		}
+	} else if (charType == CHARACTER_TYPE_FAUST) {
+		if (frame.superArmorActiveInGeneral_IsFull && strcmp(frame.animName, "5D") == 0) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("If Faust gets hit by a reflectable projectile on this frame,"
+				" the reflection will be a homerun.");
 		}
 	}
 }

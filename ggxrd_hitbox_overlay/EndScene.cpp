@@ -3086,17 +3086,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				currentFrame.superArmorActiveInGeneral_IsFull =
 					currentFrame.superArmorActiveInGeneral
-					&& player.superArmorMid.active
-					&& player.superArmorLow.active
-					&& player.superArmorOverhead.active
 					&& (
-						strcmp(player.anim, "CounterGuardStand"_hardcode) == 0
-						|| strcmp(player.anim, "CounterGuardCrouch"_hardcode) == 0
-						|| strcmp(player.anim, "CounterGuardAir"_hardcode) == 0
-					)
-					&& player.superArmorHontaiAttacck.active
-					&& !player.projectileOnlyInvul.active
-					&& !player.reflect.active;
+						player.superArmorMid.active
+						&& player.superArmorLow.active
+						&& player.superArmorOverhead.active
+						&& (
+							strcmp(player.anim, "CounterGuardStand"_hardcode) == 0
+							|| strcmp(player.anim, "CounterGuardCrouch"_hardcode) == 0
+							|| strcmp(player.anim, "CounterGuardAir"_hardcode) == 0
+						)
+						&& player.superArmorHontaiAttacck.active
+						&& !player.projectileOnlyInvul.active
+						&& !player.reflect.active
+						|| player.charType == CHARACTER_TYPE_FAUST
+						&& strcmp(player.anim, "NmlAtk5E") == 0
+						&& strcmp(player.sprite.name, "fau205_05") == 0
+					);
 				
 				currentFrame.airborne = player.airborne;
 				currentFrame.hitAlreadyHappened = hitAlreadyHappened;
@@ -5085,8 +5090,9 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	endSceneAndPresentHooked = graphics.endSceneAndPresentHooked;
 	obsStoppedCapturing = graphics.obsStoppedCapturing;
 	pauseMenuOpen = false;
-	uiWillBeDrawnOnTopOfPauseMenu = !*aswEngine || isFading || settings.displayUIOnTopOfPauseMenu && ui.visible;
+	uiWillBeDrawnOnTopOfPauseMenu = false;
 	bool drawingPostponedLocal;
+	needEnqueueUiWithPoints = false;
 	if (!shutdown && !graphics.shutdown) {
 		drawDataPrepared.clearBoxes();
 		lastScreenSize = *screenSize;
@@ -5100,6 +5106,9 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		if (*aswEngine) {
 			isFading = game.isFading();
 			logic();
+			uiWillBeDrawnOnTopOfPauseMenu = isFading || settings.displayUIOnTopOfPauseMenu && pauseMenuOpen && ui.visible;
+		} else {
+			uiWillBeDrawnOnTopOfPauseMenu = true;
 		}
 		drawingPostponedLocal = drawingPostponed();
 		if (!shutdown && !graphics.shutdown) {
@@ -5109,6 +5118,13 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			ui.needSplitFramebar = uiWillBeDrawnOnTopOfPauseMenu && !drawingPostponedLocal && pauseMenuOpen && ui.visible;
 			ui.needShowFramebarCached = ui.needShowFramebar();
 			ui.prepareDrawData();
+			needEnqueueUiWithPoints = *aswEngine
+				&& ui.drawData
+				&& (!uiWillBeDrawnOnTopOfPauseMenu || ui.drewFramebar && ui.needSplitFramebar)
+				&& !drawingPostponedLocal;
+		}
+		if (needEnqueueUiWithPoints) {
+			needEnqueueOriginPoints = true;
 		}
 		if (*aswEngine) {
 			if (!gifMode.modDisabled) {
@@ -5162,11 +5178,6 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			enqueueRenderCommand<DrawBoxesRenderCommand>();
 			drawBoxesEnqueued = true;
 			
-			if (ui.drawData
-					&& (!uiWillBeDrawnOnTopOfPauseMenu || ui.drewFramebar && ui.needSplitFramebar)
-					&& !drawingPostponedLocal) {
-				queueUIDrawingDummyCommand();
-			}
 		}
 		if (needEnqueueOriginPoints) {
 			queueOriginPointDrawingDummyCommandAndInitializeIcon();
@@ -5319,6 +5330,11 @@ void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item,
 	if (item->count == 4 && (unsigned int&)item->vertices[0].x == getDummyCmdUInt(dummyOriginPointX)) {  // avoid floating point comparison as it may be slower
 		if (willDrawOriginPoints()) {
 			FCanvas_Flush(canvas, 0);
+			if (needEnqueueUiWithPoints) {
+				needEnqueueUiWithPoints = false;
+				queueingFramebarDrawCommand = true;
+				enqueueRenderCommand<DrawImGuiRenderCommand>();
+			}
 			enqueueRenderCommand<DrawOriginPointsRenderCommand>();
 		}
 		return;  // can safely omit items

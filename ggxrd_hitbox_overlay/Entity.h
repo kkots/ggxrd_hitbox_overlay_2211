@@ -18,7 +18,7 @@ enum HitboxType : char {
 	HITBOXTYPE_ABDOMEN,
 	HITBOXTYPE_R_LEG,
 	HITBOXTYPE_L_LEG,
-	HITBOXTYPE_PRIVATE0,
+	HITBOXTYPE_PRIVATE0,  // Bedman: boomerang head calculates its distance to this point of Bedman
 	HITBOXTYPE_PRIVATE1,
 	HITBOXTYPE_PRIVATE2,
 	HITBOXTYPE_PRIVATE3,

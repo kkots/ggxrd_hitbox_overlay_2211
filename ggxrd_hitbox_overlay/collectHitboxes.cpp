@@ -6,6 +6,7 @@
 #include "Hitbox.h"
 #include "colors.h"
 #include "Hardcode.h"
+#include "Moves.h"
 
 void collectHitboxes(Entity ent,
 		const bool active,
@@ -182,8 +183,16 @@ void collectHitboxes(Entity ent,
 		hitboxes->push_back(callParams);
 	}
 	
-	if (points && !state.isASummon && isNotZeroScaled) {
+	MoveInfo move;
+	if (points && isNotZeroScaled
+			&& (
+				!state.isASummon
+				|| moves.getInfo(move, ownerType, nullptr, ent.animationName(), true)
+				&& move.drawProjectileOriginPoint
+			)
+	) {
 		DrawPointCallParams pointCallParams;
+		pointCallParams.isProjectile = state.isASummon;
 		pointCallParams.posX = params.posX;
 		pointCallParams.posY = params.posY;
 		points->push_back(pointCallParams);
