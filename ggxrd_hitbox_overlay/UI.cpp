@@ -7094,15 +7094,24 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 			
 			char* buf = strbuf;
 			size_t bufSize = sizeof strbuf;
-			int result = sprintf_s(strbuf, "(");
-			advanceBuf
+			if (bufSize >= 2) {
+				*strbuf = '(';
+				++buf;
+				--bufSize;
+			}
 			do {
-				result = sprintf_s(buf, bufSize, "9");
-				advanceBuf
+				if (bufSize < 2) break;
+				*buf = '9';
+				++buf;
+				--bufSize;
 				maxFrameCount /= 10;
 			} while (maxFrameCount);
-			result = sprintf_s(buf, bufSize, ")");
-			advanceBuf
+			if (bufSize >= 2) {
+				*buf = ')';
+				++buf;
+				--bufSize;
+			}
+			if (bufSize) *buf = '\0';
 			
 			if (buf == strbuf) {
 				maxTextSize = 0.F;
