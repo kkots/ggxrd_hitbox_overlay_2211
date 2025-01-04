@@ -377,7 +377,7 @@ struct FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) = 0;
 	virtual void processRequests(FrameBase& destinationFrame) = 0;
 	virtual void processRequests(int destinationPosition) = 0;
-	virtual void copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) = 0;
+	virtual void collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) = 0;
 	virtual void cloneRequests(FramebarBase& source) = 0;
 	virtual void clearRequests() = 0;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) = 0;
@@ -402,7 +402,7 @@ struct Framebar : public FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
 	virtual void processRequests(FrameBase& destinationFrame) override;
 	virtual void processRequests(int destinationPosition) override;
-	virtual void copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
+	virtual void collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
 	virtual void cloneRequests(FramebarBase& source) override;
 	virtual void clearRequests() override;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
@@ -422,7 +422,7 @@ struct PlayerFramebar : public FramebarBase {
 	virtual void soakUpIntoPreFrame(const FrameBase& srcFrame) override;
 	virtual void processRequests(FrameBase& destinationFrame) override;
 	virtual void processRequests(int destinationPosition) override;
-	virtual void copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
+	virtual void collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) override;
 	virtual void cloneRequests(FramebarBase& source) override;
 	virtual void clearRequests() override;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;

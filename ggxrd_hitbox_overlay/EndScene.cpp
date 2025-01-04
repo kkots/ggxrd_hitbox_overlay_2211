@@ -5800,7 +5800,7 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getHitstop().copyRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
+		entityFramebar.getHitstop().collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	int idlePos = (framebarPosition + framebarIdleFor) % _countof(Framebar::frames);
 	destinationFrame = &entityFramebar.getIdle().getFrame(idlePos);
@@ -5811,7 +5811,7 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getIdle().copyRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
+		entityFramebar.getIdle().collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	destinationFrame = &entityFramebar.getMain().getFrame(framebarPosition);
 	if (framebarAdvanced) {
@@ -5821,7 +5821,7 @@ void EndScene::copyIdleHitstopFrameToTheRestOfSubframebars(EntityFramebar& entit
 		if (!framebarAdvancedIdleHitstop) {
 			entityFramebar.copyActiveDuringSuperfreeze(*destinationFrame, currentFrame);
 		}
-		entityFramebar.getMain().copyRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
+		entityFramebar.getMain().collectRequests(framebar, framebarAdvancedIdleHitstop, currentFrame);
 	}
 	if (framebarAdvancedIdle) {
 		entityFramebar.getIdle().clearRequests();

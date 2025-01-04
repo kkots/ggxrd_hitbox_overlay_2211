@@ -1887,7 +1887,7 @@ void PlayerFramebar::processRequests(int destinationPosition) {
 }
 
 template<typename FramebarT>
-inline void copyRequests(FramebarT* destination, FramebarT& source) {
+inline void collectRequests(FramebarT* destination, FramebarT& source) {
 	destination->requestFirstFrame |= source.requestFirstFrame;
 	destination->requestNextHit |= source.requestNextHit;
 }
@@ -1912,12 +1912,12 @@ void PlayerFramebar::cloneRequests(FramebarBase& source) {
 	prevInput = cast.prevInput;
 }
 
-void Framebar::copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
-	::copyRequests<Framebar>(this, (Framebar&)source);
+void Framebar::collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
+	::collectRequests<Framebar>(this, (Framebar&)source);
 }
 
-void PlayerFramebar::copyRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
-	::copyRequests<PlayerFramebar>(this, (PlayerFramebar&)source);
+void PlayerFramebar::collectRequests(FramebarBase& source, bool framebarAdvancedIdleHitstop, const FrameBase& sourceFrame) {
+	::collectRequests<PlayerFramebar>(this, (PlayerFramebar&)source);
 	if (framebarAdvancedIdleHitstop) {
 		const PlayerFrame& frame = (const PlayerFrame&)sourceFrame;
 		if (frame.type != FT_NONE && !frame.inputs.empty()) {
