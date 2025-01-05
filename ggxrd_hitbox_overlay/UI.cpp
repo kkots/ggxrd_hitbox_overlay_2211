@@ -9025,7 +9025,11 @@ void UI::drawFramebars() {
 		&& ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true)
 		&& ImGui::IsWindowFocused();
 	ImGui::PopStyleVar();
-	
+	if (scale > 1.F) {
+		ImGui::SetWindowFontScale(scale);
+	} else {
+		ImGui::SetWindowFontScale(1.F);
+	}
 	drawFramebars_windowPos = ImGui::GetWindowPos();
 	const float windowWidth = ImGui::GetWindowWidth();
 	const float windowHeight = ImGui::GetWindowHeight();
