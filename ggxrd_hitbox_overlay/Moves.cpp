@@ -1956,25 +1956,25 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoD");
 	move.displayName = "H Mr. Dolphin Horizontal";
-	move.slangName = "[4]6H";
+	move.slangName = "H Dolphin";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoC");
 	move.displayName = "S Mr. Dolphin Horizontal";
-	move.slangName = "[4]6S";
+	move.slangName = "S Dolphin";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateD");
 	move.displayName = "H Mr. Dolphin Vertical";
-	move.slangName = "[2]8H";
+	move.slangName = "H Updolphin";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateC");
 	move.displayName = "S Mr. Dolphin Vertical";
-	move.slangName = "[2]8S";
+	move.slangName = "S Updolphin";
 	move.forceLandingRecovery = true;
 	addMove(move);
 	
