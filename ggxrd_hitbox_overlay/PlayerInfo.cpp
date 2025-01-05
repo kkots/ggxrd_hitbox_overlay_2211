@@ -2345,10 +2345,11 @@ bool PlayerCancelInfo::isCompletelyEmpty() const {
 	return cancels.gatlings.empty() && cancels.whiffCancels.empty() && !enableJumpCancel && !enableSpecialCancel && !enableSpecials;
 }
 
-void PlayerInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) const {
-	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, idle, pawn, name, slangName);
+void PlayerInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) {
+	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, idle, *this, name, slangName);
 }
 
+static std::unique_ptr<PlayerInfo> dummyPlayer = nullptr;
 void PlayerInfo::determineMoveNameAndSlangName(Entity pawn, const char** name, const char** slangName) {
 	MoveInfo moveInfo;
 	bool moveNonEmpty = moves.getInfo(moveInfo,
@@ -2357,32 +2358,31 @@ void PlayerInfo::determineMoveNameAndSlangName(Entity pawn, const char** name, c
 		pawn.animationName(),
 		false);
 	bool idle = false;
+	if (!dummyPlayer) {
+		dummyPlayer = std::make_unique<PlayerInfo>();
+	}
+	dummyPlayer->pawn = pawn;
+	dummyPlayer->wasEnableWhiffCancels = pawn.enableWhiffCancels();
+	dummyPlayer->wasForceDisableFlags = pawn.forceDisableFlags();
 	if (moveNonEmpty) {
-		static std::unique_ptr<PlayerInfo> dummyPlayer = nullptr;
-		if (!dummyPlayer) {
-			dummyPlayer = std::make_unique<PlayerInfo>();
-		}
-		dummyPlayer->pawn = pawn;
-		dummyPlayer->wasEnableWhiffCancels = pawn.enableWhiffCancels();
-		dummyPlayer->wasForceDisableFlags = pawn.forceDisableFlags();
 		idle = moveInfo.isIdle(*dummyPlayer);
 	}
-	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, idle, pawn, name, slangName);
+	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, idle, *dummyPlayer, name, slangName);
 }
 
-void PlayerInfo::determineMoveNameAndSlangName(const MoveInfo* move, bool idle, Entity pawn, const char** name, const char** slangName) {
+void PlayerInfo::determineMoveNameAndSlangName(const MoveInfo* move, bool idle, PlayerInfo& pawn, const char** name, const char** slangName) {
 	if (name) *name = nullptr;
 	if (slangName) *slangName = nullptr;
 	if (move) {
-		if (name) *name = move->getDisplayName(idle);
-		if (slangName) *slangName = move->getDisplayNameSlang(idle);
+		if (name) *name = move->getDisplayName(pawn);
+		if (slangName) *slangName = move->getDisplayNameSlang(pawn);
 	}
 	if (name && !*name) {
-		int moveIndex = pawn.currentMoveIndex();
+		int moveIndex = pawn.pawn.currentMoveIndex();
 		if (moveIndex == -1) {
-			*name = (const char*)(pawn.bbscrCurrentFunc() + 4);
+			*name = (const char*)(pawn.pawn.bbscrCurrentFunc() + 4);
 		} else {
-			const AddedMoveData* actualMove = pawn.movesBase() + moveIndex;
+			const AddedMoveData* actualMove = pawn.pawn.movesBase() + moveIndex;
 			*name = actualMove->name;
 		}
 	}

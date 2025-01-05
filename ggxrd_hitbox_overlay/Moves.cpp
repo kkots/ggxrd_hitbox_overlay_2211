@@ -131,6 +131,29 @@ static bool isRecovery_byakueRenshou(PlayerInfo& ent);
 static bool forceSuperHitAnyway_zanseiRouga(PlayerInfo& ent);
 static bool forceSuperHitAnyway_hououshou(PlayerInfo& ent);
 
+static const char* displayNameSelector_pogoEntry(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogoEntry(PlayerInfo& ent);
+static const char* displayNameSelector_pogoA(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogoA(PlayerInfo& ent);
+static const char* displayNameSelector_pogo9(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogo9(PlayerInfo& ent);
+static const char* displayNameSelector_pogo44(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogo44(PlayerInfo& ent);
+static const char* displayNameSelector_pogo66(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogo66(PlayerInfo& ent);
+static const char* displayNameSelector_pogoB(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogoB(PlayerInfo& ent);
+static const char* displayNameSelector_pogoC(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogoC(PlayerInfo& ent);
+static const char* displayNameSelector_pogoD(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogoD(PlayerInfo& ent);
+static const char* displayNameSelector_pogoE(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogoE(PlayerInfo& ent);
+static const char* displayNameSelector_pogo8(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pogo8(PlayerInfo& ent);
+static const char* displayNameSelector_RC(PlayerInfo& ent);
+static const char* displaySlangNameSelector_RC(PlayerInfo& ent);
+
 static inline MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (!move->count) move->startInd = allProperties.size();
 	++move->count;
@@ -226,8 +249,8 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "RomanCancelHit");
-	move.displayName = "Roman Cancel";
-	move.slangName = "RC";
+	move.displayNameSelector = displayNameSelector_RC;
+	move.displaySlangNameSelector = displaySlangNameSelector_RC;
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
@@ -1092,6 +1115,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame");
 	move.displayName = "Gunflame";
 	move.slangName = "GF";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame_DI");
@@ -1226,18 +1250,21 @@ bool Moves::onDllMain() {
 	move.displayName = "Tyrant Rave";
 	move.slangName = "TR";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave_DI");
 	move.displayName = "DI Tyrant Rave";
 	move.slangName = "DI TR";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_recovery;
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRaveBurst");
 	move.displayName = "Burst Tyrant Rave";
 	move.slangName = "Burst TR";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "DragonInstall");
@@ -1246,7 +1273,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "ExKizetsu");
-	move.displayName = "Dragon Uninstall";
+	move.displayName = "DI Recovery";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BukkiraExe");
@@ -2325,14 +2352,12 @@ bool Moves::onDllMain() {
 	// Faust Pogo
 	// Pogo entry
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten");
-	move.displayName = "Spear Point Centripetal Dance Entry";
-	move.slangName = "Pogo Entry";
+	move.displayNameSelector = displayNameSelector_pogoEntry;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoEntry;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenCancel");
@@ -2419,112 +2444,94 @@ bool Moves::onDllMain() {
 	
 	// Pogo P
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenA");
-	move.displayName = "Just A Taste!";
-	move.slangName = "Pogo-P";
+	move.displayNameSelector = displayNameSelector_pogoA;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoA;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Pogo hop
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten9");
-	move.displayName = "Short Hop";
-	move.slangName = "Pogo-9";
+	move.displayNameSelector = displayNameSelector_pogo9;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo9;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Pogo 44
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten44");
-	move.displayName = "Backward Movement";
-	move.slangName = "Pogo-44";
+	move.displayNameSelector = displayNameSelector_pogo44;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo44;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Pogo 66
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten66");
-	move.displayName = "Forward Movement";
-	move.slangName = "Pogo-66";
+	move.displayNameSelector = displayNameSelector_pogo66;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo66;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Pogo K (head flower)
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenB");
-	move.displayName = "Growing Flower";
-	move.slangName = "Pogo-K";
+	move.displayNameSelector = displayNameSelector_pogoB;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoB;
 	move.sectionSeparator = sectionSeparator_soutenBC;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_soutenBC;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Pogo S (ground flower)
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenC");
-	move.displayName = "See? I'm a Flower!";
-	move.slangName = "Pogo-S";
+	move.displayNameSelector = displayNameSelector_pogoC;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoC;
 	move.sectionSeparator = sectionSeparator_soutenBC;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_soutenBC;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Pogo Going My Way
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenD");
-	move.displayName = "Spear Point Centripetal Dance Going My Way";
-	move.slangName = "Pogo-H";
+	move.displayNameSelector = displayNameSelector_pogoD;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoD;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenE");
-	move.displayName = "Spear Point Centripetal Dance What Could This Be?";
-	move.slangName = "Pogo-D";
+	move.displayNameSelector = displayNameSelector_pogoE;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoE;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Faust Pogo Helicopter
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten8");
-	move.displayName = "Doctor-Copter";
-	move.slangName = "Pogo-8";
+	move.displayNameSelector = displayNameSelector_pogo8;
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo8;
 	move.isIdle = hasWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.displayNameIfIdle = "Spear Point Centripetal Dance Idle";
-	move.displayNameIfIdleSlang = "Pogo Stance";
 	addMove(move);
 	
 	// Faust 41236K (long ass fishing pole poke that drags you) succeeeding
@@ -7367,4 +7374,79 @@ bool forceSuperHitAnyway_hououshou(PlayerInfo& ent) {
 	if (!moves.hououshouHitOffset) return false;
 	BYTE* currentInstr = ent.pawn.bbscrCurrentInstr();
 	return currentInstr >= funcStart + moves.hououshouHitOffset;
+}
+
+const char* displayNameSelector_pogoEntry(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Spear Point Centripetal Dance Entry";
+}
+const char* displaySlangNameSelector_pogoEntry(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Idle" : "Pogo Entry";
+}
+const char* displayNameSelector_pogoA(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Just A Taste!";
+}
+const char* displaySlangNameSelector_pogoA(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-P";
+}
+const char* displayNameSelector_pogo9(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Short Hop";
+}
+const char* displaySlangNameSelector_pogo9(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-9";
+}
+const char* displayNameSelector_pogo44(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Backward Movement";
+}
+const char* displaySlangNameSelector_pogo44(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-44";
+}
+const char* displayNameSelector_pogo66(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Forward Movement";
+}
+const char* displaySlangNameSelector_pogo66(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-66";
+}
+const char* displayNameSelector_pogoB(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Growing Flower";
+}
+const char* displaySlangNameSelector_pogoB(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-K";
+}
+const char* displayNameSelector_pogoC(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "See? I'm a Flower!";
+}
+const char* displaySlangNameSelector_pogoC(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-S";
+}
+const char* displayNameSelector_pogoD(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Spear Point Centripetal Dance Going My Way";
+}
+const char* displaySlangNameSelector_pogoD(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-H";
+}
+const char* displayNameSelector_pogoE(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Spear Point Centripetal Dance What Could This Be?";
+}
+const char* displaySlangNameSelector_pogoE(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-D";
+}
+const char* displayNameSelector_pogo8(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Doctor-Copter";
+}
+const char* displaySlangNameSelector_pogo8(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-8";
+}
+const char* displayNameSelector_RC(PlayerInfo& ent) {
+	return ent.pawn.yellowRomanCancel()
+		? "Yellow Roman Cancel"
+		: ent.pawn.purpleRomanCancel()
+			? "Purple Roman Cancel"
+			: "Red Roman Cancel";
+}
+const char* displaySlangNameSelector_RC(PlayerInfo& ent) {
+	return ent.pawn.yellowRomanCancel()
+		? "YRC"
+		: ent.pawn.purpleRomanCancel()
+			? "PRC"
+			: "RRC";
 }

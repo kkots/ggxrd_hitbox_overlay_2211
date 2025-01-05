@@ -603,10 +603,10 @@ void EndScene::logic() {
 		bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
 		if (!isRunning && !iGiveUp) {
 			if (!settings.dontClearFramebarOnStageReset) {
-			playerFramebars.clear();
-			projectileFramebars.clear();
-			combinedFramebars.clear();
-		}
+				playerFramebars.clear();
+				projectileFramebars.clear();
+				combinedFramebars.clear();
+			}
 			startedNewRound = true;
 		}
 		if (!isRunning && !iGiveUp) {
@@ -695,8 +695,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	if (startedNewRound) {
 		startedNewRound = false;
 		if (!iGiveUp) {
-		isTheFirstFrameInTheMatch = true;
-	}
+			isTheFirstFrameInTheMatch = true;
+		}
 	}
 	if (isTheFirstFrameInTheMatch) {
 		for (int i = 0; i < 2; ++i) {
@@ -804,7 +804,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.comboTimer = ent.comboTimer();
 			player.pushback = ent.pushback();
 			
-			player.hasDangerousProjectiles = false;
+			player.prevFrameHadDangerousNonDisabledProjectiles = player.hasDangerousNonDisabledProjectiles;
+			player.hasDangerousNonDisabledProjectiles = false;
+			player.createdDangerousProjectile = false;
 			
 			if (comboStarted) {
 				if (tensionGainOnLastHitUpdated[i]) {
@@ -1786,9 +1788,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						projectile.isDangerous = false;
 					} else {
 						projectile.isDangerous = projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr);
-						if (projectile.isDangerous) {
+						if (projectile.isDangerous && !projectile.disabled) {
 							PlayerInfo& player = players[projectile.team];
-							player.hasDangerousProjectiles = true;
+							player.hasDangerousNonDisabledProjectiles = true;
+							if (projectile.lifeTimeCounter == 0
+									&& projectile.creator == player.pawn
+									&& !player.idle) {
+								player.createdDangerousProjectile = true;
+							}
 						}
 					}
 				}
@@ -3246,6 +3253,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.doubleJumps = player.remainingDoubleJumps;
 				currentFrame.airDashes = player.remainingAirDashes;
 				currentFrame.activeDuringSuperfreeze = false;
+				
 				currentFrame.inputs = player.inputs;
 				currentFrame.prevInput = player.prevInput;
 				currentFrame.inputsOverflow = player.inputsOverflow;
@@ -3256,6 +3264,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				player.inputsOverflow = false;
 				player.inputs.clear();
+				
+				currentFrame.canYrc = player.wasCanYrc;
+				currentFrame.canYrcProjectile = player.prevFrameHadDangerousNonDisabledProjectiles
+					&& player.hasDangerousNonDisabledProjectiles
+					&& player.wasCanYrc
+					&& player.move.canYrcProjectile
+					&& player.move.canYrcProjectile(player);
+				currentFrame.createdDangerousProjectile = player.createdDangerousProjectile;
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}
@@ -4875,6 +4891,7 @@ void EndScene::frameCleanup() {
 		player.wasEnableAirtech = false;
 		player.wasAttackCollidedSoCanCancelNow = false;
 		player.wasEnableNormals = false;
+		player.wasCanYrc = false;
 		player.wasProhibitFDTimer = 1;
 		player.wasEnableWhiffCancels = false;
 		player.wasEnableSpecials = false;
@@ -5603,6 +5620,21 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (player.pawn) {
 			player.wasEnableNormals = pawn.enableNormals();
+			entityList.populate();
+			Entity other = entityList.slots[1 - player.index];
+			player.wasCanYrc = player.pawn.romanCancelAvailability() == ROMAN_CANCEL_ALLOWED
+				&& !pawn.defaultYrcWindowOver()
+				&& !pawn.overridenYrcWindowOver()
+				&& !(
+					other.inHitstun()
+					|| other.blockstun() > 0
+					|| other.inBlockstunNextFrame()
+					|| other.hitstunOrBlockstunTypeKindOfState()
+					|| (
+						other.currentMoveIndex() != -1
+						&& other.movesBase()[other.currentMoveIndex()].type == MOVE_TYPE_BLUE_BURST
+					)
+				);
 			player.wasProhibitFDTimer = min(127, pawn.prohibitFDTimer());
 			player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
 			player.wasEnableWhiffCancels = player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels();
@@ -5945,7 +5977,7 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 	cancel.iterationIndex = iterationIndex;
 	MoveInfo obtainedInfo;
 	bool moveNonEmpty = moves.getInfo(obtainedInfo, player.charType, move->name, move->stateName, false);
-	if (!moveNonEmpty || !obtainedInfo.getDisplayName(player.idle)) {
+	if (!moveNonEmpty || !obtainedInfo.getDisplayName(player)) {
 		cancel.name = move->name;
 		int lenTest = strnlen(move->name, 32);
 		if (lenTest >= 32) {
@@ -5953,7 +5985,7 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 		}
 		cancel.nameIncludesInputs = false;
 	} else {
-		cancel.name = obtainedInfo.getDisplayName(player.idle);
+		cancel.name = obtainedInfo.getDisplayName(player);
 		cancel.nameIncludesInputs = obtainedInfo.nameIncludesInputs;
 	}
 	cancel.move = move;

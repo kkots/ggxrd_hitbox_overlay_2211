@@ -1462,7 +1462,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TableNextColumn();
 				const char* names[3] { nullptr };
 				if (player.moveNonEmpty) {
-					names[0] = useSlang ? player.move.getDisplayNameSlang(player.idle) : player.move.getDisplayName(player.idle);
+					names[0] = useSlang ? player.move.getDisplayNameSlang(player) : player.move.getDisplayName(player);
 				}
 				if (player.moveName[0] != '\0') {
 					names[1] = player.moveName;
@@ -2950,7 +2950,7 @@ void UI::drawSearchableWindows() {
 				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 			}
 			ImGui::Begin(strbuf, showCharSpecific + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
-			const PlayerInfo& player = endScene.players[i];
+			PlayerInfo& player = endScene.players[i];
 			
 			GGIcon scaledIcon;
 			if (player.charType == CHARACTER_TYPE_SOL && player.playerval0) {
@@ -2979,6 +2979,69 @@ void UI::drawSearchableWindows() {
 					ImGui::SameLine();
 					ImGui::TextUnformatted(searchFieldTitle("Not in Dragon Install"));
 				}
+				int timeRemainingMax = 0;
+				int slowMax = 0;
+				for (int j = 0; j < entityList.count; ++j) {
+					Entity ent = entityList.list[j];
+					if (ent.isActive() && ent.team() == i && strcmp(ent.animationName(), "GunFlameHibashira") == 0) {
+						int timeRemaining = 0;
+						
+						if (player.gunflameParams.totalSpriteLengthUntilCreation == 0) {
+							BYTE* func = ent.bbscrCurrentFunc();
+							BYTE* foundPos = moves.findSpriteNonNull(func);
+							if (!foundPos) break;
+							bool created = false;
+							Moves::InstructionType lastType = Moves::instr_sprite;
+							int lastSpriteLength = 0;
+							for (BYTE* instr = foundPos; lastType != Moves::instr_endState; ) {
+								if (lastType == Moves::instr_sprite) {
+									lastSpriteLength = *(int*)(instr + 4 + 32);
+									if (!created) {
+										player.gunflameParams.totalSpriteLengthUntilCreation += lastSpriteLength;
+									}
+									player.gunflameParams.totalSpriteLengthUntilReenabled += lastSpriteLength;
+								} else if (lastType == Moves::instr_createObjectWithArg) {
+									if (!created) {
+										player.gunflameParams.totalSpriteLengthUntilCreation =
+											player.gunflameParams.totalSpriteLengthUntilCreation - lastSpriteLength + 1;
+										created = true;
+									}
+								} else if (lastType == Moves::instr_deleteMoveForceDisableFlag) {
+									player.gunflameParams.totalSpriteLengthUntilReenabled =
+										player.gunflameParams.totalSpriteLengthUntilReenabled - lastSpriteLength + 1;
+									break;
+								}
+								instr = moves.skipInstruction(instr);
+								lastType = moves.instructionType(instr);
+							}
+						}
+						if (player.gunflameParams.totalSpriteLengthUntilCreation == 0) break;
+						
+						bool canCreateNewOne = ent.createArgHikitsukiVal1() <= 3
+							&& (int)ent.currentAnimDuration() < player.gunflameParams.totalSpriteLengthUntilCreation
+							&& !ent.mem46();
+						if (canCreateNewOne) {
+							timeRemaining = player.gunflameParams.totalSpriteLengthUntilCreation - 1 - ent.currentAnimDuration()
+								+ (3 - ent.createArgHikitsukiVal1()) * (player.gunflameParams.totalSpriteLengthUntilCreation - 1)
+								+ player.gunflameParams.totalSpriteLengthUntilReenabled + 1;
+						} else {
+							timeRemaining = player.gunflameParams.totalSpriteLengthUntilReenabled - ent.currentAnimDuration() + 1;
+						}
+						if (timeRemaining > timeRemainingMax) timeRemainingMax = timeRemaining;
+						
+						ProjectileInfo& projectile = endScene.findProjectile(ent);
+						if (projectile.ptr) {
+							if (projectile.rcSlowedDownCounter > slowMax) {
+								slowMax = projectile.rcSlowedDownCounter;
+							}
+						}
+					}
+				}
+				textUnformattedColored(YELLOW_COLOR, "Time until can do another gunflame: ");
+				int unused;
+				PlayerInfo::calculateSlow(0, timeRemainingMax, slowMax, &timeRemainingMax, &unused, &unused);
+				sprintf_s(strbuf, "%df or until hits/gets blocked/gets erased", timeRemainingMax);
+				ImGui::TextUnformatted(strbuf);
 			} else if (player.charType == CHARACTER_TYPE_KY) {
 				if (!endScene.interRoundValueStorage2Offset) {
 					ImGui::TextUnformatted("Error");
@@ -7076,6 +7139,8 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 		bool printFrameCounts = inputs.size() > 1;
 		
 		float maxTextSize;
+		bool allInputsAreJustOneEmptyRow = false;  // with possible overflow
+		int allInputsAreJustOneEmptyRow_frameCount = 0;
 		if (printFrameCounts) {
 			int maxFrameCount = 0;
 			if (inputs.size() != 1) {
@@ -7098,6 +7163,12 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 			}
 			if (!overflow && rowCount < rowLimit) {
 				if (frameCount > maxFrameCount) maxFrameCount = frameCount;
+				++rowCount;
+			}
+			
+			allInputsAreJustOneEmptyRow = rowCount == 1 && (unsigned int)inputs.back() == 0;
+			if (allInputsAreJustOneEmptyRow) {
+				allInputsAreJustOneEmptyRow_frameCount = frameCount;
 			}
 			
 			frameCount = 1;
@@ -7106,82 +7177,92 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 			it = inputs.data() + (inputs.size() - 1);
 			currentInput = *it;
 			
-			char* buf = strbuf;
-			size_t bufSize = sizeof strbuf;
-			if (bufSize >= 2) {
-				*strbuf = '(';
-				++buf;
-				--bufSize;
-			}
-			do {
-				if (bufSize < 2) break;
-				*buf = '9';
-				++buf;
-				--bufSize;
-				maxFrameCount /= 10;
-			} while (maxFrameCount);
-			if (bufSize >= 2) {
-				*buf = ')';
-				++buf;
-				--bufSize;
-			}
-			if (bufSize) *buf = '\0';
-			
-			if (buf == strbuf) {
-				maxTextSize = 0.F;
+			if (!allInputsAreJustOneEmptyRow) {
+				char* buf = strbuf;
+				size_t bufSize = sizeof strbuf;
+				if (bufSize >= 2) {
+					*strbuf = '(';
+					++buf;
+					--bufSize;
+				}
+				do {
+					if (bufSize < 2) break;
+					*buf = '9';
+					++buf;
+					--bufSize;
+					maxFrameCount /= 10;
+				} while (maxFrameCount);
+				if (bufSize >= 2) {
+					*buf = ')';
+					++buf;
+					--bufSize;
+				}
+				if (bufSize) *buf = '\0';
+				
+				if (buf == strbuf) {
+					maxTextSize = 0.F;
+				} else {
+					maxTextSize = ImGui::CalcTextSize(strbuf, buf).x;
+				}
 			} else {
-				maxTextSize = ImGui::CalcTextSize(strbuf, buf).x;
+				maxTextSize = 0.F;
 			}
 		} else {
 			maxTextSize = 0.F;
 		}
 		
-		float startY = y;
-		
-		#define piece(funcname) \
-			if (inputs.size() != 1) { \
-				--it; \
-				const Input* startIt = inputs.data() - 1; \
-				for (; it != startIt; --it) { \
-					Input nextInput = *it; \
-					if (nextInput != currentInput) { \
-						if (rowCount >= rowLimit) { \
-							overflow = true; \
-							break; \
+		if (!allInputsAreJustOneEmptyRow) {
+			float startY = y;
+			
+			#define piece(funcname) \
+				if (inputs.size() != 1) { \
+					--it; \
+					const Input* startIt = inputs.data() - 1; \
+					for (; it != startIt; --it) { \
+						Input nextInput = *it; \
+						if (nextInput != currentInput) { \
+							if (rowCount >= rowLimit) { \
+								overflow = true; \
+								break; \
+							} \
+							funcname(drawList, x, y, spacing, frameCount, currentInput, nextInput, framebarTooltipInputIconSize, textPaddingY, darkTint, printFrameCounts, maxTextSize); \
+							y += oneLineHeight; \
+							++rowCount; \
+							currentInput = nextInput; \
+							frameCount = 1; \
+						} else { \
+							++frameCount; \
 						} \
-						funcname(drawList, x, y, spacing, frameCount, currentInput, nextInput, framebarTooltipInputIconSize, textPaddingY, darkTint, printFrameCounts, maxTextSize); \
-						y += oneLineHeight; \
-						++rowCount; \
-						currentInput = nextInput; \
-						frameCount = 1; \
-					} else { \
-						++frameCount; \
 					} \
 				} \
-			} \
-			if (!overflow) { \
-				if (rowCount >= rowLimit) { \
-					overflow = true; \
-				} else { \
-					funcname(drawList, x, y, spacing, frameCount, currentInput, frame.prevInput, framebarTooltipInputIconSize, textPaddingY, darkTint, printFrameCounts, maxTextSize); \
-					y += oneLineHeight; \
-					++rowCount; \
-				} \
-			}
+				if (!overflow) { \
+					if (rowCount >= rowLimit) { \
+						overflow = true; \
+					} else { \
+						funcname(drawList, x, y, spacing, frameCount, currentInput, frame.prevInput, framebarTooltipInputIconSize, textPaddingY, darkTint, printFrameCounts, maxTextSize); \
+						y += oneLineHeight; \
+						++rowCount; \
+					} \
+				}
+				
 			
+			if (playerIndex == 0) {
+				piece(printInputsRowP1)
+			} else {
+				piece(printInputsRowP2)
+			}
+			#undef piece
 		
-		if (playerIndex == 0) {
-			piece(printInputsRowP1)
+			if (y != startY) {
+				ImGui::InvisibleButton("##PlayerInputsRender",
+					{
+						1.F,
+						y - startY
+					});
+			}
 		} else {
-			piece(printInputsRowP2)
-		}
-		
-		if (y != startY) {
-			ImGui::InvisibleButton("##PlayerInputsRender",
-				{
-					1.F,
-					y - startY
-				});
+			sprintf_s(strbuf, "(%d) <no inputs>", allInputsAreJustOneEmptyRow_frameCount);
+			ImGui::TextUnformatted(strbuf);
 		}
 		
 		if (overflow || frame.inputsOverflow) {
@@ -7219,6 +7300,17 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
 		ImGui::TextUnformatted(strbuf);
+	}
+	if (frame.canYrc || frame.canYrcProjectile || frame.createdDangerousProjectile) {
+		ImGui::Separator();
+		if (frame.canYrcProjectile) {
+			ImGui::TextUnformatted("Can YRC, and projectile will stay");
+		} else if (frame.canYrc) {
+			ImGui::TextUnformatted("Can YRC");
+		}
+		if (frame.createdDangerousProjectile) {
+			ImGui::TextUnformatted("Created a projectile on this frame");
+		}
 	}
 	printAllCancels(frame.cancels,
 			frame.enableSpecialCancel,

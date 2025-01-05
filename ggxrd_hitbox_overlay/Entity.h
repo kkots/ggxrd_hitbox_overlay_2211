@@ -742,6 +742,8 @@ public:
 	inline int comboCount() const { return *(int*)(ent + 0x9F28); }  // this is set on the one getting combo'd
 	inline bool isCpu() const { return (*(DWORD*)(ent + 0x4d28) & 0x1000) != 0; }
 	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
+	inline bool defaultYrcWindowOver() const { return (*(DWORD*)(ent + 0x4d28) & 0x8000000) != 0; }  // this is for moves that don't use yrcWindowLength
+	inline bool overridenYrcWindowOver() const { return (*(DWORD*)(ent + 0x4d28) & 0x10000000) != 0; }  // but this is only for moves that use yrcWindowLength
 	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }  // the last created entity by this entity
 	inline Entity stackEntity(int index) const { return Entity{*(char**)(ent + 0x210 + index * 4)}; }  // STACK_0..7 from bbscript
 	inline int& scaleX() { return *(int*)(ent + 0x264); }
@@ -753,10 +755,11 @@ public:
 	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
 	inline int scaleDefault() const { return *(int*)(ent + 0x2594); }
 	inline int defendersRisc() const { return *(int*)(ent + 0x25b0); }
+	inline int forceDisableFlagsIndividual() const { return *(int*)(ent + 0x25c0); }  // these flags combine from all entities belonging to a player's team into the player's main entity's forceDisableFlags()
 	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
 	inline int scaleDefault2() const { return *(int*)(ent + 0x2664); }
-	inline int& scaleForParticles() { return *(int*)(ent + 0x2618); }
-	inline int scaleForParticles() const { return *(int*)(ent + 0x2618); }
+	inline int& scaleForParticles() { return *(int*)(ent + 0x2614 + 0x4); }
+	inline int scaleForParticles() const { return *(int*)(ent + 0x2614 + 0x4); }
 	inline int speedX() const { return *(int*)(ent + 0x2fc); }
 	inline int speedY() const { return *(int*)(ent + 0x300); }
 	inline int& speedY() { return *(int*)(ent + 0x300); }
@@ -809,6 +812,7 @@ public:
 	inline int extraInverseProration() const { return *(int*)(ent + 0x24d78); } // this value on the defender
 	inline int dustProration1() const { return *(int*)(ent + 0x2ce50); }  // this value on the defender
 	inline int dustProration2() const { return *(int*)(ent + 0x2ce54); }  // this value on the defender
+	inline int hitstunOrBlockstunTypeKindOfState() const { return *(int*)(ent + 0x2ce5c); }
 	inline bool hellfireState() const { return (*(DWORD*)(ent + 0x4d2c) & 0x4) != 0; }  // this value on the attacker player, but must also check health <= 10%
 	inline bool performingSuperOrIK() const { return (*(DWORD*)(ent + 0x4d2c) & 0x4000) != 0; }
 	inline bool landed() const { return (*(int*)(ent + 0x234) & 0x4) != 0; }  // is true for only one frame - the frame on which you touched the ground

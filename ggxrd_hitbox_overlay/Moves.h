@@ -12,6 +12,7 @@ using isIdle_t = bool(*)(PlayerInfo& ent);
 using isDangerous_t = bool(*)(Entity ent);
 using selectFramebarName_t = const char*(*)(Entity ent);
 using zatoHoldLevel_t = DWORD(*)(PlayerInfo& ent);
+using selectDisplayName_t = const char*(*)(PlayerInfo& ent);
 
 bool isIdle_default(PlayerInfo& player);
 bool canBlock_default(PlayerInfo& player);
@@ -37,6 +38,7 @@ struct MoveInfoProperty {
 		isIdle_t isIdleValue;
 		isDangerous_t isDangerousValue;
 		selectFramebarName_t selectFramebarNameValue;
+		selectDisplayName_t selectDisplayNameValue;
 		zatoHoldLevel_t zatoHoldLevelValue;
 	} u;
 };
@@ -102,8 +104,6 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, conditionForAddingWhiffCancels, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, caresAboutWall, false) \
 	MOVE_INFO_EXEC(bool, boolValue, faustPogo, false) \
-	MOVE_INFO_EXEC(const char*, strValue, displayNameIfIdle, nullptr) \
-	MOVE_INFO_EXEC(const char*, strValue, displayNameIfIdleSlang, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, butForFramebarDontCombineWithPreviousMove, false) \
 	MOVE_INFO_EXEC(const char*, strValue, replacementInputs, nullptr) \
 	MOVE_INFO_EXEC(int, intValue, replacementBufferTime, 0) \
@@ -115,7 +115,10 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(bool, boolValue, dontSkipSuper, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, iKnowExactlyWhenTheRecoveryOfThisMoveIs, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, forceSuperHitAnyway, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, drawProjectileOriginPoint, false)
+	MOVE_INFO_EXEC(bool, boolValue, drawProjectileOriginPoint, false) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canYrcProjectile, nullptr) \
+	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
+	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displaySlangNameSelector, nullptr)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -132,8 +135,8 @@ struct MoveInfo {
 	const char* getFramebarName(Entity ent) const;
 	void addForceAddWhiffCancel(const char* name);
 	ForceAddedWhiffCancel* getForceAddWhiffCancel(int index) const;
-	inline const char* getDisplayName(bool isIdle) const { return isIdle && displayNameIfIdle ? displayNameIfIdle : displayName; }
-	inline const char* getDisplayNameSlang(bool isIdle) const { return isIdle && displayNameIfIdleSlang ? displayNameIfIdleSlang : slangName; }
+	inline const char* getDisplayName(PlayerInfo& ent) const { return displayNameSelector ? displayNameSelector(ent) : displayName; }
+	inline const char* getDisplayNameSlang(PlayerInfo& ent) const { return displaySlangNameSelector ? displaySlangNameSelector(ent) : slangName; }
 };
 class Moves {
 public:
@@ -148,7 +151,9 @@ public:
 		instr_endState = 1,
 		instr_sprite = 2,
 		instr_setMarker = 11,
+		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
+		instr_deleteMoveForceDisableFlag = 1603,
 	};
 	inline InstructionType instructionType(BYTE* in) const;
 	BYTE* findSetMarker(BYTE* in, const char* name) const;

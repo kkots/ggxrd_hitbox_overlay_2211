@@ -362,6 +362,9 @@ struct PlayerFrame : public FrameBase {
 	bool crossupProtectionIsOdd:1;
 	bool crossupProtectionIsAbove1:1;
 	bool inputsOverflow:1;
+	bool canYrc:1;
+	bool canYrcProjectile:1;
+	bool createdDangerousProjectile:1;
 	
 	void printInvuls(char* buf, size_t bufSize) const;
 	void clear();
@@ -1138,6 +1141,10 @@ struct PlayerInfo {
 	int playerval0 = 0;
 	int playerval1 = 0;
 	int maxDI = 0;
+	struct {
+		int totalSpriteLengthUntilCreation = 0;
+		int totalSpriteLengthUntilReenabled = 0;
+	} gunflameParams;
 	char remainingDoubleJumps = 0;
 	char remainingAirDashes = 0;
 	char wasProhibitFDTimer = 0;
@@ -1238,6 +1245,7 @@ struct PlayerInfo {
 	bool wasEnableSpecialCancel:1;
 	bool wasEnableJumpCancel:1;
 	bool wasEnableAirtech:1;
+	bool wasCanYrc:1;
 	bool wasAttackCollidedSoCanCancelNow:1;
 	bool obtainedForceDisableFlags:1;
 	
@@ -1255,7 +1263,8 @@ struct PlayerInfo {
 	bool inBlockstunNextFrame:1;  // This flag is needed so that when you transfer blockstun from air to ground the blockstunMax doesn't get reset,
 	                              // because normally it would, because technically you changed animation and we don't treat all blockstun animations
 	                              // as the same animation yet. If we allow such reset we will wrongfully decrement blockstunMax by 1 in our next prepareDrawData call
-	bool hasDangerousProjectiles:1;
+	bool hasDangerousNonDisabledProjectiles:1;
+	bool prevFrameHadDangerousNonDisabledProjectiles:1;
 	
 	bool counterhit:1;
 	
@@ -1285,6 +1294,7 @@ struct PlayerInfo {
 	bool hitstunContaminatedByRCSlowdown:1;
 	bool blockstunContaminatedByRCSlowdown:1;
 	bool inputsOverflow:1;
+	bool createdDangerousProjectile:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
@@ -1321,8 +1331,8 @@ struct PlayerInfo {
 	CanProgramSecretGardenInfo canProgramSecretGarden() const;
 	void appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel);
 	void appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel);
-	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
-	static void determineMoveNameAndSlangName(const MoveInfo* move, bool idle, Entity pawn, const char** name, const char** slangName);
+	void determineMoveNameAndSlangName(const char** name, const char** slangName);
+	static void determineMoveNameAndSlangName(const MoveInfo* move, bool idle, PlayerInfo& pawn, const char** name, const char** slangName);
 	static void determineMoveNameAndSlangName(Entity pawn, const char** name, const char** slangName);
 	void onAnimReset();
 	void removeNonStancePrevStartups();
