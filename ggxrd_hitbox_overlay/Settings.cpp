@@ -439,9 +439,9 @@ bool Settings::onDllMain() {
 			"; Specify true or false.\n"
 			"; Setting this to true will display both players' input history when observing online matches.\n"
 			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
-	registerOtherDescription(settingAndItsName(displayInputHistoryInSomeOfflineModes), "Display Input History In Some Offline Modes", settingsGeneralSettingsStr,
+	registerOtherDescription(settingAndItsName(displayInputHistoryInSomeOfflineModes), "Display Input History In Some Offline Modes Vs CPU", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
-			"; Setting this to true will display both players' input history when playing in Episode/Story, offline Versus,\n"
+			"; Setting this to true will display both players' input history when playing against CPU in Episode/Story, offline Versus,\n"
 			"; Tutorial, offline MOM and Mission.\n"
 			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
 	registerOtherDescription(settingAndItsName(useAlternativeStaggerMashProgressDisplay), "Use Alternative Stagger Mash Progress Display", "Main UI Window - Stun/Stagger Mash",

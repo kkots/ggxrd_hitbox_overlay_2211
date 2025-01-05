@@ -615,6 +615,7 @@ void EndScene::logic() {
 			}
 		}
 		needDrawInputs = false;
+		entityList.populate();
 		if (gifMode.showInputHistory && !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
 			if (settings.displayInputHistoryWhenObserving
 					&& game.currentModeIsOnline()
@@ -624,14 +625,20 @@ void EndScene::logic() {
 				GameMode gameMode = game.getGameMode();
 				if (gameMode == GAME_MODE_ARCADE
 						|| gameMode == GAME_MODE_KENTEI
-						|| gameMode == GAME_MODE_MOM
 						|| gameMode == GAME_MODE_TUTORIAL
-						|| gameMode == GAME_MODE_VERSUS) {
+						|| (
+							gameMode == GAME_MODE_MOM
+							|| gameMode == GAME_MODE_VERSUS
+						) && (
+							entityList.count >= 1
+							&& entityList.slots[0].isCpu()
+							|| entityList.count >= 2
+							&& entityList.slots[1].isCpu()
+						)) {
 					needDrawInputs = true;
 				}
 			}
 		}
-		entityList.populate();
 		DWORD aswEngineTickCount = getAswEngineTick();
 		bool areAnimationsNormal = entityList.areAnimationsNormal();
 		if (isNormalMode) {

@@ -740,6 +740,7 @@ public:
 	inline bool inHitstun() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }
 	inline bool inHitstunThisFrame() const { return (*(DWORD*)(ent + 0x23c) & 0x4) != 0; }
 	inline int comboCount() const { return *(int*)(ent + 0x9F28); }  // this is set on the one getting combo'd
+	inline bool isCpu() const { return (*(DWORD*)(ent + 0x4d28) & 0x1000) != 0; }
 	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
 	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }  // the last created entity by this entity
 	inline Entity stackEntity(int index) const { return Entity{*(char**)(ent + 0x210 + index * 4)}; }  // STACK_0..7 from bbscript
