@@ -601,10 +601,13 @@ void EndScene::logic() {
 		bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu) || isPauseMenu;
 		pauseMenuOpen = isPauseMenu;
 		bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
-		if (!isRunning && !settings.dontClearFramebarOnStageReset && !iGiveUp) {
+		if (!isRunning && !iGiveUp) {
+			if (!settings.dontClearFramebarOnStageReset) {
 			playerFramebars.clear();
 			projectileFramebars.clear();
 			combinedFramebars.clear();
+		}
+			startedNewRound = true;
 		}
 		if (!isRunning && !iGiveUp) {
 			for (int i = 0; i < 2; ++i) {
@@ -669,6 +672,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	
 	bool isTheFirstFrameInTheMatch = false;
 	if (playerFramebars.empty() && !iGiveUp) {
+		isTheFirstFrameInTheMatch = true;
 		playerFramebars.emplace_back();
 		{
 			PlayerFramebars& framebar = playerFramebars.back();
@@ -687,7 +691,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		framebarPositionHitstop = _countof(Framebar::frames) - 1;
 		framebarIdleFor = 0;
 		framebarIdleHitstopFor = 0;
+	}
+	if (startedNewRound) {
+		startedNewRound = false;
+		if (!iGiveUp) {
 		isTheFirstFrameInTheMatch = true;
+	}
+	}
+	if (isTheFirstFrameInTheMatch) {
+		for (int i = 0; i < 2; ++i) {
+			// on the first frame of a round people can't act. At all
+			// without this fix, the mod thinks normals are enabled except on the very first of a match where it thinks they're not
+			PlayerInfo& player = players[i];
+			player.wasEnableNormals = false;
+		}
 	}
 	bool framebarAdvanced = false;
 	bool framebarAdvancedHitstop = false;

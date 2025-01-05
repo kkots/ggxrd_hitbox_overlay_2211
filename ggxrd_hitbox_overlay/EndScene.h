@@ -493,6 +493,8 @@ private:
 	SkippedFramesInfo nextSkippedFramesIdle;
 	SkippedFramesInfo nextSkippedFramesHitstop;
 	SkippedFramesInfo nextSkippedFramesIdleHitstop;
+	bool isFirstTickOfAMatch = false;
+	bool startedNewRound = false;
 };
 
 extern EndScene endScene;
