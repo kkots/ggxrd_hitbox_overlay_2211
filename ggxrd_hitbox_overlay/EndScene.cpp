@@ -5073,7 +5073,7 @@ const wchar_t* DrawBoxesRenderCommand::DescribeCommand() noexcept {
 	return L"DrawBoxesRenderCommand";
 }
 void DrawBoxesRenderCommand::Destructor(BOOL freeMem) noexcept {
-	drawData.~DrawData();
+	DrawBoxesRenderCommand::~DrawBoxesRenderCommand();
 	FRenderCommand::Destructor(freeMem);
 }
 // Runs on the main thread
@@ -5094,6 +5094,10 @@ DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 	iconsUTexture2D = endScene.getIconsUTexture2D();
 }
 
+void DrawOriginPointsRenderCommand::Destructor(BOOL freeMem) noexcept {
+	DrawOriginPointsRenderCommand::~DrawOriginPointsRenderCommand();
+	FRenderCommand::Destructor(freeMem);
+}
 // Runs on the graphics thread
 unsigned int DrawOriginPointsRenderCommand::Execute() {
 	endScene.executeDrawOriginPointsRenderCommand(this);
@@ -5112,16 +5116,17 @@ const wchar_t* DrawImGuiRenderCommand::DescribeCommand() noexcept {
 	return L"DrawImGuiRenderCommand";
 }
 void DrawImGuiRenderCommand::Destructor(BOOL freeMem) noexcept {
-	drawData.~vector<BYTE>();
+	DrawImGuiRenderCommand::~DrawImGuiRenderCommand();
 	FRenderCommand::Destructor(freeMem);
 }
 // Runs on the main thread
-DrawImGuiRenderCommand::DrawImGuiRenderCommand() {
+UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRenderCommand) {
+	if (calledFromDrawOriginPointsRenderCommand && !endScene.needEnqueueUiWithPoints) return;
 	iconsUTexture2D = endScene.getIconsUTexture2D();
 	drawingPostponed = endScene.drawingPostponed();
 	obsStoppedCapturing = endScene.obsStoppedCapturing;
 	if (endScene.queueingFramebarDrawCommand && endScene.uiWillBeDrawnOnTopOfPauseMenu) {
-		ui.getFramebarDrawData(drawData, framebarWindowDrawDataCopy, framebarTooltipDrawDataCopy);
+		ui.getFramebarDrawData(drawData);
 	} else {
 		ui.copyDrawDataTo(drawData);
 	}
@@ -5318,13 +5323,30 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 // Runs on the graphics thread
 void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command) {
 	if (endScene.shutdown || graphics.shutdown) return;
+	
+	bool hasFramebarDrawData = !command->uiOrFramebarDrawData.drawData.empty()
+		&& !command->uiOrFramebarDrawData.drawingPostponed
+		&& !graphics.drawingPostponed();
+	
 	if (settings.dontShowBoxes
 			&& !(
 				(graphics.drawDataUse.inputsSize[0] || graphics.drawDataUse.inputsSize[1])
-			)) return;
+			)
+			&& !hasFramebarDrawData) return;
+	
+	if (hasFramebarDrawData) {
+		IDirect3DTexture9* tex = getTextureFromUTexture2D(command->uiOrFramebarDrawData.iconsUTexture2D);
+		graphics.endSceneIsAwareOfDrawingPostponement = command->uiOrFramebarDrawData.drawingPostponed;
+		graphics.obsStoppedCapturingFromEndScenesPerspective = command->uiOrFramebarDrawData.obsStoppedCapturing;
+		graphics.uiFramebarDrawData = command->uiOrFramebarDrawData.drawData;
+		graphics.uiTexture = tex;
+		graphics.needDrawFramebarWithPoints = true;
+	}
+	
 	graphics.onlyDrawPoints = true;
 	graphics.drawAll();
 	graphics.onlyDrawPoints = false;
+	graphics.needDrawFramebarWithPoints = false;
 }
 
 // Runs on the main thread
@@ -5341,11 +5363,6 @@ void EndScene::queueOriginPointDrawingDummyCommandAndInitializeIcon() {
 		strcat(plusSign, "^mAtk1;");
 	}
 	queueDummyCommand(177, dummyOriginPointX, plusSign);
-}
-
-void EndScene::queueUIDrawingDummyCommand() {
-	char safeToOverwriteMemory[2] = ".";
-	queueDummyCommand(182, dummyDrawUIX, safeToOverwriteMemory);  // 181 or 182 is Raven excitement sparkles
 }
 
 void EndScene::queueDummyCommand(int layer, float x, char* txt) {
@@ -5384,23 +5401,10 @@ void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item,
 		if (willDrawOriginPoints()) {
 			FCanvas_Flush(canvas, 0);
 			if (needEnqueueUiWithPoints) {
-				needEnqueueUiWithPoints = false;
 				queueingFramebarDrawCommand = true;
-				enqueueRenderCommand<DrawImGuiRenderCommand>();
 			}
 			enqueueRenderCommand<DrawOriginPointsRenderCommand>();
-		}
-		return;  // can safely omit items
-	}
-	if (item->count == 4 && (unsigned int&)item->vertices[0].x == getDummyCmdUInt(dummyDrawUIX)) {  // avoid floating point comparison as it may be slower
-		if (!shutdown
-				&& !graphics.shutdown
-				&& !gifMode.modDisabled
-				&& ui.drawData) {
-			queueingFramebarDrawCommand = true;
-			FCanvas_Flush(canvas, 0);  // for things to be drawn on top of anything drawn so far, need to flush canvas, otherwise some
-			                           // items might still be drawn on top of yours
-			enqueueRenderCommand<DrawImGuiRenderCommand>();
+			needEnqueueUiWithPoints = false;
 		}
 		return;  // can safely omit items
 	}
@@ -5416,18 +5420,18 @@ BYTE* EndScene::getIconsUTexture2D() {
 void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 	if (shutdown || graphics.shutdown) return;
 	if (!graphics.canDrawOnThisFrame()) return;
-	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->iconsUTexture2D);
-	graphics.endSceneIsAwareOfDrawingPostponement = command->drawingPostponed;
-	graphics.obsStoppedCapturingFromEndScenesPerspective = command->obsStoppedCapturing;
-	if (command->drawingPostponed) {
+	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->uiOrFramebarDrawData.iconsUTexture2D);
+	graphics.endSceneIsAwareOfDrawingPostponement = command->uiOrFramebarDrawData.drawingPostponed;
+	graphics.obsStoppedCapturingFromEndScenesPerspective = command->uiOrFramebarDrawData.obsStoppedCapturing;
+	if (command->uiOrFramebarDrawData.drawingPostponed) {
 		graphics.uiTexture = tex;
-		graphics.uiDrawData = std::move(command->drawData);
+		graphics.uiDrawData = std::move(command->uiOrFramebarDrawData.drawData);
 		return;
 	}
 	if (graphics.drawingPostponed()) {
 		return;
 	}
-	ui.onEndScene(getDevice(), command->drawData.data(), tex);
+	ui.onEndScene(getDevice(), command->uiOrFramebarDrawData.drawData.data(), tex);
 }
 
 // Runs on the graphics thread

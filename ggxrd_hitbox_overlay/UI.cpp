@@ -8815,10 +8815,8 @@ void SkippedFramesInfo::print(bool canBlockButNotFD) const {
 	}
 }
 
-void UI::getFramebarDrawData(std::vector<BYTE>& dData, std::vector<BYTE>& framebarWindow, std::vector<BYTE>& framebarTooltip) {
+void UI::getFramebarDrawData(std::vector<BYTE>& dData) {
 	dData.clear();
-	framebarWindow.clear();
-	framebarTooltip.clear();
 	if (!drawData) return;
 	
 	ImDrawListBackup* lists[2] { nullptr };

@@ -362,11 +362,14 @@ void Graphics::beginSceneHook(IDirect3DDevice9* device) {
 			runningOwnBeginScene = true;
 			device->BeginScene();
 			runningOwnBeginScene = false;
-			if (!pauseMenuOpen) {
+			if (pauseMenuOpen) {
+				if (uiTexture) {
+					ui.onEndScene(device, uiDrawData.data(), uiTexture);
+				}
+			} else {
+				needDrawWholeUiWithPoints = true;
 				executeBoxesRenderingCommand(device);
-			}
-			if (uiTexture) {
-				ui.onEndScene(device, uiDrawData.data(), uiTexture);
+				needDrawWholeUiWithPoints = false;
 			}
 			device->EndScene();
 		}
@@ -904,6 +907,7 @@ void Graphics::drawAllPrepared() {
 		drawAllBoxes();
 		if (!drawAllOutlines()) break;
 		drawAllTextureBoxes();
+		drawAllFramebarDrawData();
 		drawAllSmallPoints();
 		drawAllPoints();
 	}
@@ -1041,6 +1045,15 @@ void Graphics::drawAll() {
 			&& screenshotStage == SCREENSHOT_STAGE_NONE
 			&& (drawDataUse.inputsSize[0] || drawDataUse.inputsSize[1])) {
 		prepareDrawInputs();
+	}
+	
+	if (
+			(
+				needDrawFramebarWithPoints
+				|| needDrawWholeUiWithPoints
+			) && screenshotStage == SCREENSHOT_STAGE_NONE
+	) {
+		prepareFramebarDrawData();
 	}
 	
 	if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR
@@ -2690,4 +2703,16 @@ int Graphics::calculateStartingVertexBufferLength() {
 		return vertexBufferSize;
 	}
 	return result;
+}
+
+void Graphics::drawAllFramebarDrawData() {
+	if (!framebarDrawDataPrepared) return;
+	void* ddUse;
+	if (needDrawWholeUiWithPoints) {
+		ddUse = uiDrawData.data();
+	} else {
+		ddUse = uiFramebarDrawData.data();
+	}
+	ui.onEndScene(device, ddUse, uiTexture);
+	framebarDrawDataPrepared = false;
 }

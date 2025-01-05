@@ -87,7 +87,7 @@ public:
 	bool drewFrameTooltip = false;
 	bool drawingPostponed = false;
 	bool needSplitFramebar = false;
-	void getFramebarDrawData(std::vector<BYTE>& dData, std::vector<BYTE>& framebarWindow, std::vector<BYTE>& framebarTooltip);
+	void getFramebarDrawData(std::vector<BYTE>& dData);
 	std::vector<BYTE> framebarTooltipDrawDataCopy;
 	bool needShowFramebar() const;
 	bool needShowFramebarCached = false;

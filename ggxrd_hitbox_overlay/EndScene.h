@@ -87,22 +87,26 @@ struct DrawBoxesRenderCommand : FRenderCommand {
 	BYTE* iconsUTexture2D = nullptr;
 };
 
+struct UiOrFramebarDrawData {
+	UiOrFramebarDrawData(bool calledFromDrawOriginPointsRenderCommand);
+	std::vector<BYTE> drawData;
+	bool drawingPostponed = false;
+	bool obsStoppedCapturing = false;
+	BYTE* iconsUTexture2D = nullptr;
+};
+
 struct DrawOriginPointsRenderCommand : FRenderCommand {
+	virtual void Destructor(BOOL freeMem) noexcept override;
 	virtual unsigned int Execute() override;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept override;
+	UiOrFramebarDrawData uiOrFramebarDrawData{true};
 };
 
 struct DrawImGuiRenderCommand : FRenderCommand {
 	virtual void Destructor(BOOL freeMem) noexcept override;
 	virtual unsigned int Execute() override;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept override;
-	DrawImGuiRenderCommand();  // Runs on the main thread
-	std::vector<BYTE> drawData;
-	std::vector<BYTE> framebarWindowDrawDataCopy;
-	std::vector<BYTE> framebarTooltipDrawDataCopy;
-	bool drawingPostponed = false;
-	bool obsStoppedCapturing = false;
-	BYTE* iconsUTexture2D = nullptr;
+	UiOrFramebarDrawData uiOrFramebarDrawData{false};
 };
 
 struct ShutdownRenderCommand : FRenderCommand {
@@ -275,6 +279,7 @@ public:
 	bool uiWillBeDrawnOnTopOfPauseMenu = false;
 	bool obsStoppedCapturing = false;
 	setSuperFreezeAndRCSlowdownFlags_t orig_setSuperFreezeAndRCSlowdownFlags = nullptr;
+	bool needEnqueueUiWithPoints = false;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -405,13 +410,11 @@ private:
 		const unsigned int getDummyCmdUInt(name) = *(unsigned int*)&name##OneGreater;
 		
 	makeDummyCmdConst(dummyOriginPointX, -615530.F)
-	makeDummyCmdConst(dummyDrawUIX, -615529.F)
 	
 	#undef makeDummyCmdConst
 	
 	
 	void queueOriginPointDrawingDummyCommandAndInitializeIcon();
-	void queueUIDrawingDummyCommand();
 	void queueDummyCommand(int layer, float x, char* txt);
 	struct OccuredEvent {
 		enum OccuredEventType {
@@ -490,7 +493,6 @@ private:
 	SkippedFramesInfo nextSkippedFramesIdle;
 	SkippedFramesInfo nextSkippedFramesHitstop;
 	SkippedFramesInfo nextSkippedFramesIdleHitstop;
-	bool needEnqueueUiWithPoints = false;
 };
 
 extern EndScene endScene;

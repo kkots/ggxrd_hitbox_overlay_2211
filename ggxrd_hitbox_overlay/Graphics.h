@@ -44,6 +44,7 @@ public:
 	bool shutdown = false;
 	bool onlyDrawPoints = false;
 	bool noNeedToDrawPoints = false;
+	bool needDrawFramebarWithPoints = false;
 	
 	Present_t orig_present = nullptr;
 	BeginScene_t orig_beginScene = nullptr;
@@ -55,6 +56,7 @@ public:
 	HANDLE responseToImInDanger = NULL;
 	bool canDrawOnThisFrame() const;
 	bool drawingPostponed() const;
+	std::vector<BYTE> uiFramebarDrawData;
 	std::vector<BYTE> uiDrawData;
 	IDirect3DTexture9* uiTexture;
 	// Draw boxes, without UI, and take a screenshot if needed
@@ -410,6 +412,10 @@ private:
 	void prepareDrawInputs();
 	int calculateStartingTextureVertexBufferLength();
 	int calculateStartingVertexBufferLength();
+	bool framebarDrawDataPrepared = false;
+	inline void prepareFramebarDrawData() { framebarDrawDataPrepared = true; }
+	void drawAllFramebarDrawData();
+	bool needDrawWholeUiWithPoints = false;
 };
 
 extern Graphics graphics;
