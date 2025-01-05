@@ -691,7 +691,7 @@ void PlayerInfo::clear() {
 	cancelsOffset += sizeof dmgCalcs;
 	inputs.clear();
 	cancelsOffset += sizeof inputs;
-	memset(this, 0, sizeof PlayerInfo - cancelsOffset);
+	memset((BYTE*)this + cancelsOffset, 0, sizeof PlayerInfo - cancelsOffset);
 }
 
 void PlayerInfo::copyTo(PlayerInfo& dest) {
