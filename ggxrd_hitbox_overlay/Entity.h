@@ -792,7 +792,7 @@ public:
 	// these variables mean different things in different CmnAct animations
 	// CmnActJitabataLoop: 0 or 1 - has started the 4f recovery animation
 	inline int bbscrvar() const { return *(int*)(ent + 0x24df4); }
-	// CmnActJitabataLoop: ongoing recovery animation duration so far. Maximum 4. On 5 you should be in neutral already
+	// CmnActJitabataLoop: ongoing recovery animation duration so far. Maximum 5. On 6 you should be in neutral already
 	// CmnActRomanCancel: RC startup. Gets decremented when bbscrvar is 0 until it reaches 0, then bbscrvar becomes 1
 	inline int bbscrvar2() const { return *(int*)(ent + 0x24df8); }
 	// CmnActJitabataLoop: initially set to half the staggerDuration. If current animation duration reaches this, the combo is graybeat,
@@ -800,7 +800,7 @@ public:
 	inline int bbscrvar3() const { return *(int*)(ent + 0x24dfc); }
 	// CmnActRomanCancel: pending slowdown (YRC - 19, PRC - 40, RRC - 60)
 	inline int bbscrvar4() const { return *(int*)(ent + 0x24e00); }
-	// CmnActJitabataLoop: initially set to staggerDuration * 10. This is compared to current animation duration to determine if recovery animation should play.
+	// CmnActJitabataLoop: initially set to staggerDuration * 10. This / 10 is compared to current animation duration to determine if recovery animation should play.
 	// it is reduced every frame there's a PKSHD button press by 30
 	// CmnActRomanCancel: custom frame counter that counts the number of idling signals. Is incremented at the end of idling handler
 	inline int bbscrvar5() const { return *(int*)(ent + 0x24e04); }
