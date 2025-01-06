@@ -6706,6 +6706,12 @@ void Moves::onAswEngineDestroyed() {
 		sinRtl_end_air_offset[i] = 0;
 	}
 	hououshouHitOffset = 0;
+	stunEdgeMahojinDistX = 0;
+	stunEdgeMahojinDistY = 0;
+	chargedStunEdgeMahojinDistX = 0;
+	chargedStunEdgeMahojinDistY = 0;
+	sacredEdgeMahojinDistX = 0;
+	sacredEdgeMahojinDistY = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}

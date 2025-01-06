@@ -525,3 +525,33 @@ bool AddedMoveData::hasCondition(MoveCondition condition) const {
 	int index = condition >> 5;
 	return (conditions[index] & (1 << (condition & 31))) != 0;
 }
+
+BYTE* Entity::findFunctionStart(const char* name) const {
+	DWORD hash = 0;
+	for (const char* c = name; *c != '\0'; ++c) {
+		char cVal = *c;
+		if (cVal >= 'A' && cVal <= 'Z') cVal = 'a' + cVal - 'A';
+		hash = hash * 0x89 + cVal;
+	}
+	
+	int start = 0;
+	int middle;
+	const BBScrHashtable& table = *bbscrInfo()->functionStarts;
+	int end = table.currentSize - 1;
+	int found = -1;
+	do {
+		middle = (start + end) / 2;
+		DWORD currentHash = table.ptr[middle].hashValue;
+		if (currentHash == hash) {
+			found = table.ptr[middle].addressInCommands;
+			break;
+		} else if (currentHash < hash) {
+			start = middle + 1;
+		} else {
+			end = middle - 1;
+		}
+	} while (start <= end);
+	
+	if (found == -1) return nullptr;
+	return bbscrInfo()->afterJumptable + found;
+}

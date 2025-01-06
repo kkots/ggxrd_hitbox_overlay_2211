@@ -4352,8 +4352,8 @@ void EndScene::onAswEngineDestroyed() {
 	registeredHits.clear();
 	needFrameCleanup = false;
 	creatingObject = false;
+	moves.onAswEngineDestroyed();
 	if (!iGiveUp) {
-		moves.onAswEngineDestroyed();
 		measuringFrameAdvantage = false;
 		measuringLandingFrameAdvantage = -1;
 		memset(tensionGainOnLastHit, 0, sizeof tensionGainOnLastHit);

@@ -150,6 +150,7 @@ public:
 	enum InstructionType {
 		instr_endState = 1,
 		instr_sprite = 2,
+		instr_ifOperation = 6,
 		instr_setMarker = 11,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
@@ -169,6 +170,12 @@ public:
 	int sinRtl_end_air_offset[2] = { 0 };
 	int zanseiRougaRecoveryOffset = 0;
 	int hououshouHitOffset = 0;
+	int stunEdgeMahojinDistX = 0;
+	int stunEdgeMahojinDistY = 0;
+	int chargedStunEdgeMahojinDistX = 0;
+	int chargedStunEdgeMahojinDistY = 0;
+	int sacredEdgeMahojinDistX = 0;
+	int sacredEdgeMahojinDistY = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

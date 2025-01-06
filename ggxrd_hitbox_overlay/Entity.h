@@ -649,6 +649,28 @@ enum RomanCancelAvailability {
 	ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK
 };
 
+struct BBScrHashtableElement {
+	void* vtable;
+	DWORD hashValue;
+	int addressInCommands;
+};
+
+struct BBScrHashtable {
+	void* vtable;
+	BBScrHashtableElement* ptr;
+	size_t currentSize;
+	size_t maxSize;
+};
+
+struct BBScrInfo {
+	BYTE* base;
+	BYTE* afterJumptable;
+	DWORD jumptableEntryCount;
+	BYTE* jumptableStart;
+	BBScrHashtable* functionStarts;
+	BBScrHashtable* functionIndices;
+};
+
 class Entity
 {
 public:
@@ -935,7 +957,12 @@ public:
 	inline int unknownField1() const { return *(int*)(ent + 0x24df0); }
 	inline int burstGainOnly20Percent() const { return *(int*)(ent + 0x2d130); }
 	inline RomanCancelAvailability romanCancelAvailability() const { return *(RomanCancelAvailability*)(ent + 0x26214); }
-	
+	inline int gtmpX() const { return *(int*)(ent + 0x262bc); }
+	inline int gtmpY() const { return *(int*)(ent + 0x262c0); }
+	inline int mem64() const { return *(int*)(ent + 0x262c8); }
+	inline BBScrInfo* bbscrInfo() const { return *(BBScrInfo**)(ent + 0xa48); }
+	BYTE* findFunctionStart(const char* name) const;
+	inline BOOL destructionRequested() const { return *(BOOL*)(ent + 0x2538); }
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	

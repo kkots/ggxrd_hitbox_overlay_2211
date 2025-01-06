@@ -8,6 +8,8 @@
 #include "Hardcode.h"
 #include "Moves.h"
 
+static void getMahojinDistXY(BYTE* functionStart, int* x, int* y);
+
 void collectHitboxes(Entity ent,
 		const bool active,
 		DrawHitboxArrayCallParams* const hurtbox,
@@ -199,32 +201,96 @@ void collectHitboxes(Entity ent,
 	}
 	
 	if (interactionBoxes) {
-		if (ownerType == CHARACTER_TYPE_FAUST && !ent.mem50() && ent.y() == 0) {
-			int rangeX = 0;
-			if (strcmp(ent.animationName(), "Item_Chocolate"_hardcode) == 0) {
-				rangeX = 84000;
-			} else if (strcmp(ent.animationName(), "Item_BestChocolate"_hardcode) == 0) {
-				rangeX = 168000;
-			} else if (strcmp(ent.animationName(), "Item_Donut"_hardcode) == 0) {
-				rangeX = 84000;
-			} else if (strcmp(ent.animationName(), "Item_ManyDonut"_hardcode) == 0) {
-				rangeX = 168000;
+		if (ownerType == CHARACTER_TYPE_FAUST) {
+			if (!ent.mem50() && ent.y() == 0) {
+				int rangeX = 0;
+				if (strcmp(ent.animationName(), "Item_Chocolate"_hardcode) == 0) {
+					rangeX = 84000;
+				} else if (strcmp(ent.animationName(), "Item_BestChocolate"_hardcode) == 0) {
+					rangeX = 168000;
+				} else if (strcmp(ent.animationName(), "Item_Donut"_hardcode) == 0) {
+					rangeX = 84000;
+				} else if (strcmp(ent.animationName(), "Item_ManyDonut"_hardcode) == 0) {
+					rangeX = 168000;
+				}
+				if (rangeX) {
+					DrawBoxCallParams interactionBoxParams;
+					interactionBoxParams.left = params.posX - rangeX;
+					interactionBoxParams.right = params.posX + rangeX;
+					interactionBoxParams.top = params.posY + 10000000;
+					interactionBoxParams.bottom = params.posY - 10000000;
+					interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
+					interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+					interactionBoxParams.thickness = THICKNESS_INTERACTION;
+					interactionBoxParams.hatched = false;
+					interactionBoxParams.originX = params.posX;
+					interactionBoxParams.originY = params.posY;
+					interactionBoxes->push_back(interactionBoxParams);
+				}
 			}
-			if (rangeX) {
+		} else if (ownerType == CHARACTER_TYPE_KY) {
+			int mahojinX = 0;
+			int mahojinY = 0;
+			int* mahojinCacheVarX = nullptr;
+			int* mahojinCacheVarY = nullptr;
+			if (ent.mem45()) {
+				if (strcmp(ent.animationName(), "StunEdgeObj") == 0) {
+					mahojinCacheVarX = &moves.stunEdgeMahojinDistX;
+					mahojinCacheVarY = &moves.stunEdgeMahojinDistY;
+				} else if (strcmp(ent.animationName(), "ChargedStunEdgeObj") == 0) {
+					mahojinCacheVarX = &moves.chargedStunEdgeMahojinDistX;
+					mahojinCacheVarY = &moves.chargedStunEdgeMahojinDistY;
+				} else if (strcmp(ent.animationName(), "SacredEdgeObj") == 0) {
+					mahojinCacheVarX = &moves.sacredEdgeMahojinDistX;
+					mahojinCacheVarY = &moves.sacredEdgeMahojinDistY;
+				}
+			}
+			if (mahojinCacheVarX && mahojinCacheVarY) {
+				for (int i = 0; i < entityList.count; ++i) {
+					Entity it = entityList.list[i];
+					if (!it.destructionRequested() && it.team() == ent.team() && strcmp(it.animationName(), "Mahojin") == 0) {
+						if (it.mem45()) {
+							if (!*mahojinCacheVarX) {
+								getMahojinDistXY(ent.bbscrCurrentFunc(), mahojinCacheVarX, mahojinCacheVarY);
+							}
+							mahojinX = *mahojinCacheVarX;
+							mahojinY = *mahojinCacheVarY;
+						}
+						break;
+					}
+				}
+			}
+			if (mahojinX && mahojinY) {
 				DrawBoxCallParams interactionBoxParams;
-				interactionBoxParams.left = params.posX - rangeX;
-				interactionBoxParams.right = params.posX + rangeX;
-				interactionBoxParams.top = params.posY + 10000000;
-				interactionBoxParams.bottom = params.posY - 10000000;
+				interactionBoxParams.left = params.posX - mahojinX;
+				interactionBoxParams.right = params.posX + mahojinX;
+				interactionBoxParams.top = params.posY + mahojinY;
+				interactionBoxParams.bottom = params.posY - mahojinY;
 				interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
 				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
 				interactionBoxParams.thickness = THICKNESS_INTERACTION;
-				interactionBoxParams.hatched = false;
-				interactionBoxParams.originX = params.posX;
-				interactionBoxParams.originY = params.posY;
 				interactionBoxes->push_back(interactionBoxParams);
 			}
 		}
 	}
 	
+}
+
+void getMahojinDistXY(BYTE* functionStart, int* x, int* y) {
+	for (BYTE* instr = functionStart; moves.instructionType(instr) != Moves::instr_endState; instr = moves.skipInstruction(instr)) {
+		if (moves.instructionType(instr) == Moves::instr_ifOperation
+				&& *(int*)(instr + 0x4) == 11    // IS_LESSER
+				&& *(int*)(instr + 0x8) == 2) {  // tag: variable
+			if (*(int*)(instr + 0xc) == 62  // GTMP_Y
+					&& *(int*)(instr + 0x10) == 0  // tag: value
+					&& *(int*)(instr + 0x14) != 0) {
+				*x = *(int*)(instr + 0x14);
+			} else if (*(int*)(instr + 0xc) == 64  // MEM(64)
+					&& *(int*)(instr + 0x10) == 0  // tag: value
+					&& *(int*)(instr + 0x14) != 0) {
+				*y = *(int*)(instr + 0x14);
+				return;
+			}
+		}
+	}
 }
