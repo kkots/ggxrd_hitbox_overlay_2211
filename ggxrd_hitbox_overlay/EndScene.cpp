@@ -943,6 +943,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.hitstunMaxFloorbounceExtra = 0;
 			}
 			player.inBlockstunNextFrame = ent.inBlockstunNextFrame();
+			if (player.inBlockstunNextFrame) {
+				player.lastBlockWasFD = isHoldingFD(ent);
+				player.lastBlockWasIB = !player.lastBlockWasFD && ent.successfulIB();
+			}
 			const char* animName = ent.animationName();
 			player.onTheDefensive = player.blockstun
 				|| player.inHitstun
@@ -3235,6 +3239,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isStagger = false;
 					currentFrame.stop.isWakeup = false;
 				}
+				currentFrame.IBdOnThisFrame = player.inBlockstunNextFrame
+					&& player.lastBlockWasIB;
+				currentFrame.FDdOnThisFrame = player.inBlockstunNextFrame
+					&& player.lastBlockWasFD;
+				currentFrame.blockedOnThisFrame = player.inBlockstunNextFrame;
+				currentFrame.lastBlockWasIB = player.lastBlockWasIB;
+				currentFrame.lastBlockWasFD = player.lastBlockWasFD;
 				
 				if (!player.airborne || player.airborne && player.y == 0 && player.speedY != 0 && !player.pawn.ascending()) {
 					int crossupProtection = player.pawn.crossupProtection();

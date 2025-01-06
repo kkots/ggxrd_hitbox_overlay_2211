@@ -290,7 +290,7 @@ struct FrameStopInfo {
 	unsigned short isBlockstun:1;
 };
 
-void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax);
+void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD);
 
 struct FrameBase {
 	DWORD aswEngineTick;
@@ -365,6 +365,11 @@ struct PlayerFrame : public FrameBase {
 	bool canYrc:1;
 	bool canYrcProjectile:1;
 	bool createdDangerousProjectile:1;
+	bool IBdOnThisFrame:1;
+	bool FDdOnThisFrame:1;
+	bool blockedOnThisFrame:1;
+	bool lastBlockWasFD:1;
+	bool lastBlockWasIB:1;
 	
 	void printInvuls(char* buf, size_t bufSize) const;
 	void clear();
@@ -1295,6 +1300,8 @@ struct PlayerInfo {
 	bool blockstunContaminatedByRCSlowdown:1;
 	bool inputsOverflow:1;
 	bool createdDangerousProjectile:1;
+	bool lastBlockWasIB:1;
+	bool lastBlockWasFD:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

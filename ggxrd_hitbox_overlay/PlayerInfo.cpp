@@ -1584,7 +1584,7 @@ void PlayerFrame::printInvuls(char* buf, size_t bufSize) const {
 	
 }
 
-void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax) {
+void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD) {
 	if (!bufSize) return;
 	*buf = '\0';
 	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun || stopInfo->isStagger || stopInfo->isWakeup) : false;
@@ -1611,7 +1611,13 @@ void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int
 		if (stopInfo->isHitstun) {
 			stunName = "hitstun";
 		} else if (stopInfo->isBlockstun) {
-			stunName = "blockstun";
+			if (lastBlockWasIB) {
+				stunName = "blockstun (IB)";
+			} else if (lastBlockWasFD) {
+				stunName = "blockstun (FD)";
+			} else {
+				stunName = "blockstun";
+			}
 		} else if (stopInfo->isStagger) {
 			stunName = "stagger";
 		} else {

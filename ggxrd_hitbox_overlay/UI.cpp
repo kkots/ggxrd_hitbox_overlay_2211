@@ -201,7 +201,9 @@ struct ImDrawListBackup {
 static void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList);
 static void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawData* referenceDrawData, ImDrawListBackup** drawLists, int drawListsCount);
 static void printExtraHitstunTooltip(int amount);
+static void printExtraHitstunText(int amount);
 static void printExtraBlockstunTooltip(int amount);
+static void printExtraBlockstunText(int amount);
 static const char* comborepr(std::vector<int>& combo);
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
@@ -1160,6 +1162,26 @@ void UI::drawSearchableWindows() {
 					headerThatCanBeClickedForTooltip(searchFieldTitle("Invul"), &showInvulTooltip, true);
 				}
 			}
+			struct {
+				bool displayFloorbounceQuestionMark = false;
+				int displayFloorbounceQuestionMarkValue = 0;
+				bool displayBlockstunLandQuestionMark = false;
+				int displayBlockstunLandQuestionMarkValue = 0;
+			} playerBlocks[2];
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
+					if (player.hitstunMaxFloorbounceExtra) {
+						playerBlocks[i].displayFloorbounceQuestionMarkValue = player.hitstunMaxFloorbounceExtra;
+						playerBlocks[i].displayFloorbounceQuestionMark = true;
+					}
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
+					if (player.blockstunMaxLandExtra) {
+						playerBlocks[i].displayBlockstunLandQuestionMarkValue = player.blockstunMaxLandExtra;
+						playerBlocks[i].displayBlockstunLandQuestionMark = true;
+					}
+				}
+			}
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -1177,10 +1199,14 @@ void UI::drawSearchableWindows() {
 				}
 				size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
 				ptrNextSize = 0;
-				bool displayFloorbounceQuestionMark = false;
-				int displayFloorbounceQuestionMarkValue = 0;
-				bool displayBlockstunLandQuestionMark = false;
-				int displayBlockstunLandQuestionMarkValue = 0;
+				const char* blockType;
+				if (player.lastBlockWasIB) {
+					blockType = " (IB)";
+				} else if (player.lastBlockWasFD) {
+					blockType = " (FD)";
+				} else {
+					blockType = "";
+				}
 				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER) {
 					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
 						player.cmnActIndex == CmnActJitabataLoop
@@ -1198,8 +1224,6 @@ void UI::drawSearchableWindows() {
 							? player.hitstun - (player.hitstop ? 1 : 0)
 							: 0;
 					if (player.hitstunMaxFloorbounceExtra) {
-						displayFloorbounceQuestionMarkValue = player.hitstunMaxFloorbounceExtra;
-						displayFloorbounceQuestionMark = true;
 						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)",
 							currentHitstun,
 							player.hitstunMax,
@@ -1215,23 +1239,23 @@ void UI::drawSearchableWindows() {
 						player.hitstunMaxWithSlow);
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
 					int currentBlockstun = player.blockstun - (player.hitstop ? 1 : 0);
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d", currentBlockstun, player.blockstunMax);
 					if (player.blockstunMaxLandExtra) {
-						displayBlockstunLandQuestionMarkValue = player.blockstunMaxLandExtra;
-						displayBlockstunLandQuestionMark = true;
-						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)",
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)%s",
 							currentBlockstun,
 							player.blockstunMax,
-							player.blockstunMaxLandExtra);
+							player.blockstunMaxLandExtra,
+							blockType);
 					} else {
-						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d%s",
 							currentBlockstun,
-							player.blockstunMax);
+							player.blockstunMax,
+							blockType);
 					}
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK_WITH_SLOW) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d%s",
 						player.blockstunWithSlow,
-						player.blockstunMaxWithSlow);
+						player.blockstunMaxWithSlow,
+						blockType);
 				}
 				
 				if (strbuf != ptrNext && ptrNextSize > 0 && ptrNextSizeCap) {
@@ -1240,48 +1264,49 @@ void UI::drawSearchableWindows() {
 				} else if (ptrNextSize > 0) {
 					strbufLen = ptrNextSize;
 				}
-				if (displayFloorbounceQuestionMark || displayBlockstunLandQuestionMark) {
-					zerohspacing
-					if (i == 0) {
-						ptrNext = strbuf + strbufLen;
-						ptrNextSizeCap -= ptrNextSize;
-						if (ptrNextSizeCap > 5) {
-							strcpy(ptrNext, " (?)");
-							ptrNextSizeCap -= 4;
-						}
-						const float w = ImGui::CalcTextSize(strbuf, strbuf + strbufLen + 4).x;
-						const float rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth();
-						const float posX = (rightEdge - w);
-						ImGui::SetCursorPosX(posX);
-					}
-					ImGui::TextUnformatted(strbuf, strbuf + strbufLen);
-					if (displayFloorbounceQuestionMark) {
-						printExtraHitstunTooltip(displayFloorbounceQuestionMarkValue);
-					} else {
-						printExtraBlockstunTooltip(displayBlockstunLandQuestionMarkValue);
-					}
-					ImGui::SameLine();
-					textUnformattedColored(SLIGHTLY_GRAY, " (?)");
-					if (displayFloorbounceQuestionMark) {
-						printExtraHitstunTooltip(displayFloorbounceQuestionMarkValue);
-					} else {
-						printExtraBlockstunTooltip(displayBlockstunLandQuestionMarkValue);
-					}
-					_zerohspacing
-				} else {
-					printWithWordWrap
+				printWithWordWrap
+				if (playerBlocks[i].displayFloorbounceQuestionMark) {
+					printExtraHitstunTooltip(playerBlocks[i].displayFloorbounceQuestionMarkValue);
+				} else if (playerBlocks[i].displayBlockstunLandQuestionMark) {
+					printExtraBlockstunTooltip(playerBlocks[i].displayBlockstunLandQuestionMarkValue);
 				}
 				
 				if (i == 0) {
 					ImGui::TableNextColumn();
 					CenterAlignedText(searchFieldTitle("Hitstop+X-stun"));
-					AddTooltip(searchTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
-						" max hitstun or blockstun. When there's no + sign, the displayed values could"
-						" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
-						" and the other are on the right.\n"
-						"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
-						" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
-						" slightly prolonged when transitioning from air blockstun to ground blockstun."));
+					if (ImGui::BeginItemTooltip()) {
+						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+						bool needSeparator = false;
+						for (int j = 0; j < 2; ++j) {
+							if (playerBlocks[j].displayFloorbounceQuestionMark) {
+								zerohspacing
+								sprintf_s(strbuf, "Player %d: ", j + 1);
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								printExtraHitstunText(playerBlocks[j].displayFloorbounceQuestionMarkValue);
+								_zerohspacing
+								needSeparator = true;
+							} else if (playerBlocks[j].displayBlockstunLandQuestionMark) {
+								zerohspacing
+								sprintf_s(strbuf, "Player %d: ", j + 1);
+								ImGui::TextUnformatted(strbuf);
+								ImGui::SameLine();
+								printExtraBlockstunText(playerBlocks[j].displayBlockstunLandQuestionMarkValue);
+								_zerohspacing
+								needSeparator = true;
+							}
+						}
+						if (needSeparator) ImGui::Separator();
+						ImGui::TextUnformatted(searchTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
+							" max hitstun or blockstun. When there's no + sign, the displayed values could"
+							" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
+							" and the other are on the right.\n"
+							"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
+							" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
+							" slightly prolonged when transitioning from air blockstun to ground blockstun."));
+						ImGui::PopTextWrapPos();
+						ImGui::EndTooltip();
+					}
 				}
 			}
 			
@@ -7144,6 +7169,7 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 		if (printFrameCounts) {
 			int maxFrameCount = 0;
 			if (inputs.size() != 1) {
+				--it;
 				const Input* startIt = inputs.data() - 1;
 				for (; it != startIt; --it) {
 					Input nextInput = *it;
@@ -7532,13 +7558,13 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 								|| playerFrame.stop.isStagger
 								|| playerFrame.stop.isWakeup) {
 							ImGui::Separator();
-							printFameStop(strbuf, sizeof strbuf, &playerFrame.stop, playerFrame.hitstop, playerFrame.hitstopMax);
+							printFameStop(strbuf, sizeof strbuf, &playerFrame.stop, playerFrame.hitstop, playerFrame.hitstopMax, playerFrame.lastBlockWasIB, playerFrame.lastBlockWasFD);
 							ImGui::TextUnformatted(strbuf);
 						}
 					} else {
 						if (frame.hitstop) {
 							ImGui::Separator();
-							printFameStop(strbuf, sizeof strbuf, nullptr, frame.hitstop, frame.hitstopMax);
+							printFameStop(strbuf, sizeof strbuf, nullptr, frame.hitstop, frame.hitstopMax, false, false);
 							ImGui::TextUnformatted(strbuf);
 						}
 					}
@@ -7551,7 +7577,16 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 						if (frame.newHit) {
 							ImGui::TextUnformatted("A new (potential) hit starts on this frame.");
 						}
-						if (frame.hitConnected) {
+						if (playerIndex != -1 && ((const PlayerFrame&)frame).blockedOnThisFrame) {
+							const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
+							if (playerFrame.lastBlockWasIB) {
+								ImGui::TextUnformatted("IB'd a hit on this frame");
+							} else if (playerFrame.lastBlockWasFD) {
+								ImGui::TextUnformatted("FD'd a hit on this frame");
+							} else {
+								ImGui::TextUnformatted("Blocked a hit on this frame");
+							}
+						} else if (frame.hitConnected) {
 							ImGui::TextUnformatted("A hit connected on this frame.");
 						}
 						if (frame.rcSlowdown) {
@@ -8927,21 +8962,29 @@ void UI::getFramebarDrawData(std::vector<BYTE>& dData) {
 void printExtraHitstunTooltip(int amount) {
 	if (ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-		sprintf_s(strbuf, "The extra %d hitstun is applied from a floor bounce.", amount);
-		ImGui::TextUnformatted(strbuf);
+		printExtraHitstunText(amount);
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
 }
 
+void printExtraHitstunText(int amount) {
+	sprintf_s(strbuf, "The extra %d hitstun is applied from a floor bounce.", amount);
+	ImGui::TextUnformatted(strbuf);
+}
+
 void printExtraBlockstunTooltip(int amount) {
 	if (ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-		sprintf_s(strbuf, "The extra %d blockstun is applied from landing while in blockstun.", amount);
-		ImGui::TextUnformatted(strbuf);
+		printExtraBlockstunText(amount);
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
+}
+
+void printExtraBlockstunText(int amount) {
+	sprintf_s(strbuf, "The extra %d blockstun is applied from landing while in blockstun.", amount);
+	ImGui::TextUnformatted(strbuf);
 }
 
 const char* comborepr(std::vector<int>& combo) {
