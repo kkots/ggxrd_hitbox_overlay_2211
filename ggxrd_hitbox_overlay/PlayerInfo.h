@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "Input.h"
+#include "InputRingBuffer.h"
 
 #define INVUL_TYPES_TABLE \
 	INVUL_TYPES_EXEC(STRIKE_INVUL, "strike", strikeInvul) \
@@ -371,6 +372,8 @@ struct PlayerFrame : public FrameBase {
 	bool lastBlockWasFD:1;
 	bool lastBlockWasIB:1;
 	
+	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
+	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
 	void printInvuls(char* buf, size_t bufSize) const;
 	void clear();
 };
@@ -1345,4 +1348,5 @@ struct PlayerInfo {
 	void removeNonStancePrevStartups();
 	void fillInMove();
 	static void calculateSlow(int valueElapsed, int valueRemaining, int slowRemaining, int* result, int* resultMax, int *newSlowRemaining);
+	void getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFrameInTheMatch);
 };

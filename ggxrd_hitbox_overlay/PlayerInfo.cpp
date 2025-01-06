@@ -1874,9 +1874,9 @@ void PlayerFramebar::processRequests(FrameBase& destinationFrame) {
 	PlayerFrame& frame = (PlayerFrame&)destinationFrame;
 	::processRequests<PlayerFramebar, PlayerFrame>(this, frame);
 	if (!inputs.empty()) {
-		frame.inputs.insert(frame.inputs.begin(), inputs.begin(), inputs.end());
-		frame.prevInput = prevInput;
-		frame.inputsOverflow = inputsOverflow;
+		bool overflow = false;
+		PlayerFrame::shoveMoreInputsAtTheStart(frame.prevInput, frame.inputs, prevInput, inputs, &overflow);
+		frame.inputsOverflow |= inputsOverflow | overflow;
 		inputs.clear();
 	}
 	inputsOverflow = false;
@@ -1927,21 +1927,9 @@ void PlayerFramebar::collectRequests(FramebarBase& source, bool framebarAdvanced
 	if (framebarAdvancedIdleHitstop) {
 		const PlayerFrame& frame = (const PlayerFrame&)sourceFrame;
 		if (frame.type != FT_NONE && !frame.inputs.empty()) {
-			if (!prevInputCopied) {
-				prevInputCopied = true;
-				prevInput = frame.prevInput;
-			}
-			if (inputs.size() >= 80) {
-				inputsOverflow = true;
-			} else {
-				size_t frameInputsSize = frame.inputs.size();
-				if (frameInputsSize + inputs.size() <= 80) {
-					inputs.insert(inputs.end(), frame.inputs.begin(), frame.inputs.end());
-				} else {
-					frameInputsSize = 80 - inputs.size();
-					inputs.insert(inputs.end(), frame.inputs.begin(), frame.inputs.begin() + frameInputsSize);
-				}
-			}
+			bool overflow = false;
+			PlayerFrame::shoveMoreInputs(prevInput, inputs, frame.prevInput, frame.inputs, &overflow);
+			if (overflow || frame.inputsOverflow) inputsOverflow = true;
 		}
 	}
 }
@@ -2571,6 +2559,20 @@ void PlayerInfo::calculateSlow(int valueElapsed, int valueRemaining, int slowRem
 		*newSlowRemaining = slowRemaining;
 		return;
 	}
+	/*
+	| slowRemaining | valueElapsed | valueRemaining | didn't advance on this frame |
+	| ---------------------------------------------------------------------------- |
+	| 8             | 0            | 3              | 0                            |
+	| 7             | 0            | 3              | 1                            |
+	| 6             | 1            | 2              | 0                            |
+	| 5             | 1            | 2              | 1                            |
+	| 4             | 2            | 1              | 0                            |
+	| 3             | 2            | 1              | 1                            |
+	| 2             | 3            | 0              | 0                            |
+	| 1             |              |                | 1                            |
+	| 0             |              |                | 0                            |
+	| ---------------------------------------------------------------------------- |
+	*/
 	bool slowIsOdd = slowRemaining & 1;
 	int extraNewFrames = (slowRemaining >> 1) + slowIsOdd;
 	if (extraNewFrames > valueRemaining) extraNewFrames = valueRemaining;
@@ -2586,5 +2588,120 @@ bool ProjectileInfo::hitConnectedForFramebar() const {
 		return ptr.hitSomethingOnThisFrame();
 	} else {
 		return landedHit || clashedOnThisFrame;
+	}
+}
+
+void PlayerFrame::shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow) {
+	if (destination.size() == 80) {
+		if (!source.empty() && overflow) *overflow = true;
+		return;
+	}
+	int totalSize = (int)destination.size() + (int)source.size();
+	if (totalSize > 80) {
+		if (overflow) *overflow = true;
+		int framesToShove = totalSize - 80;
+		size_t oldSize = destination.size();
+		destination.resize(80);
+		memmove(destination.data() + framesToShove, destination.data(), oldSize * sizeof Input);
+		memcpy(destination.data(), source.data() + source.size() - framesToShove, framesToShove * sizeof Input);
+		prevInput = source[source.size() - framesToShove - 1];
+	} else {
+		destination.insert(destination.begin(), source.begin(), source.end());
+		prevInput = sourcePrevInput;
+	}
+}
+
+void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow) {
+	int totalSize = (int)destination.size() + (int)source.size();
+	if (totalSize > 80) {
+		if (overflow) *overflow = true;
+		int indexToTakeFrom = totalSize - 80 - 1;  // in the would-be combined, size-unrestrained array of destination+srouce where destination's elements go first and then source's
+		prevInput = destination[indexToTakeFrom];
+		size_t oldSize = destination.size();
+		if (indexToTakeFrom + 1 < (int)oldSize) {
+			int elementsMoved = (int)oldSize - indexToTakeFrom - 1;
+			memmove(destination.data(), destination.data() + indexToTakeFrom + 1, elementsMoved * sizeof Input);
+			destination.resize(80);
+			memcpy(destination.data() + elementsMoved, source.data(), source.size() * sizeof Input);
+		} else {
+			destination = source;
+		}
+	} else {
+		if (destination.empty()) prevInput = sourcePrevInput;
+		destination.insert(destination.end(), source.begin(), source.end());
+	}
+}
+
+void PlayerInfo::getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFrameInTheMatch) {
+	if (isTheFirstFrameInTheMatch) {
+		inputs.reserve(80);
+		int inputsCount = ringBuffer->calculateLength();
+		int index = ringBuffer->index;
+		
+		int sumFramesHeld = 0;
+		bool overflow = false;
+		int i;
+		for (i = 0; i < inputsCount; ++i) {
+			Input input = ringBuffer->inputs[index];
+			// framesHeld won't be 0 because we did a check for that in the call to ringBuffer->calculateLength()
+			const int sumFramesHeldNew = sumFramesHeld + ringBuffer->framesHeld[index];
+			if (sumFramesHeldNew > 80) {
+				overflow = true;
+				break;
+			}
+			sumFramesHeld = sumFramesHeldNew;
+			if (index == 0) index = 29;
+			else --index;
+		}
+		
+		if (!overflow) {
+			
+			index = ringBuffer->index - inputsCount + 1;
+			if (index < 0) index += 30;
+			
+			for (int i = 0; i < inputsCount; ++i) {
+				Input input = ringBuffer->inputs[index];
+				int framesHeld = ringBuffer->framesHeld[index];
+				// framesHeld won't be 0 because we did a check for that in the call to ringBuffer->calculateLength()
+				for (int j = 0; j < framesHeld; ++j) {
+					inputs.push_back(input);
+				}
+				if (index == 29) index = 0;
+				else ++index;
+			}
+		} else {
+			
+			if (sumFramesHeld != 80) {
+				int framesHeldLimited = 80 - sumFramesHeld;
+				Input input = ringBuffer->inputs[index];
+				for (int j = 0; j < framesHeldLimited; ++j) {
+					inputs.push_back(input);
+				}
+			}
+			
+			if (i != 0) {
+				if (index == 29) index = 0;
+				else ++index;
+				--i;
+				
+				for (; i >= 0; --i) {
+					Input input = ringBuffer->inputs[index];
+					int framesHeld = ringBuffer->framesHeld[index];
+					// framesHeld won't be 0 because we did a check for that in the call to ringBuffer->calculateLength()
+					for (int j = 0; j < framesHeld; ++j) {
+						inputs.push_back(input);
+					}
+					if (index == 29) index = 0;
+					else ++index;
+				}
+			}
+			
+		}
+	} else if (inputs.size() < 80) {
+		inputs.push_back(ringBuffer->inputs[ringBuffer->index]);
+	} else {
+		memmove(inputs.data(), inputs.data() + 1, 79 * sizeof Input);
+		inputs[79] = ringBuffer->inputs[ringBuffer->index];
+		inputsOverflow = true;
 	}
 }
