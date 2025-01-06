@@ -1094,7 +1094,7 @@ struct PlayerInfo {
 	
 	int totalFD = 0;  // number of frames for which you were holding FD
 	
-	PrevStartupsInfo prevStartups { 0 };  // startups of moves that you whiff canceled from
+	PrevStartupsInfo prevStartups { 0 };  // startups of moves that you whiff cancelled from
 	const char* lastPerformedMoveName = nullptr;
 	const char* lastPerformedMoveSlangName = nullptr;
 	

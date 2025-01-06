@@ -1298,7 +1298,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				&& player.blockstun == 0
 				&& (
 					!player.idle  // idle check needed because proxyguard also triggers these animations
-					|| !player.canBlock  // block check also needed because 5D6 cannot be immediately FD canceled
+					|| !player.canBlock  // block check also needed because 5D6 cannot be immediately FD cancelled
 					&& !player.ignoreNextInabilityToBlockOrAttack  // this check must always follow the canBlock check
 				);
 			bool needDisableProjectiles = false;

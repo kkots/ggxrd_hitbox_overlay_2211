@@ -108,7 +108,7 @@ const char thisHelpTextWillRepeat[] = "Show available gatlings, whiff cancels, a
 					" the cancels in this window would show that they start on f11, because it counts from the first move (the one that is 9 total in the "
 					"overall total 9+4).\n"
 					"\n"
-					"Available cancels may change between hit and whiff, and if the animation is canceled prematurely, not all cancels, that are still there in the move,"
+					"Available cancels may change between hit and whiff, and if the animation is canceled prematurely, not all cancells, that are still there in the move,"
 					" may be displayed, because the information is being gathered from the player character directly every frame and not by reading"
 					" the move's script (bbscript) ahead or in advance.\n"
 					"\n"
@@ -429,7 +429,7 @@ bool UI::onDllMain(HMODULE hModule) {
 	addFrameArt(hModule, FT_XSTUN_CAN_CANCEL,
 		IDB_XSTUN_FRAME_CAN_CANCEL, xstunFrameCanCancel,
 		IDB_XSTUN_FRAME_CAN_CANCEL_NON_COLORBLIND, xstunFrameCanCancelNonColorblind,
-		"Blockstun that can be canceled into some specials: can't perform regular attacks.");
+		"Blockstun that can be cancelled into some specials: can't perform regular attacks.");
 	addFrameArt(hModule, FT_XSTUN_HITSTOP,
 		IDB_XSTUN_FRAME_HITSTOP, xstunFrameHitstop,
 		IDB_XSTUN_FRAME_HITSTOP_NON_COLORBLIND, xstunFrameHitstopNonColorblind,
@@ -5039,7 +5039,7 @@ void UI::drawSearchableWindows() {
 			"4) If a move was RC'd, the move's frames are shown first, then +, then RC's frames;\n"
 			"5) If a move is a follow-up move, the first move's frames are shown, then the follow-up's. Not all follow-ups are"
 			" displayed like this - they reset the entire display instead, by restarting the startup/total from 1, without + sign;\n"
-			"6) Baiken canceling Azami into another Azami or the follow-ups, causes them to be displayed in addition to what happened"
+			"6) Baiken cancelling Azami into another Azami or the follow-ups, causes them to be displayed in addition to what happened"
 			" before, over a + sign;\n"
 			"7) Some other moves may get combined with the ones they were performed from as well, using the + sign."));
 		ImGui::PopTextWrapPos();
@@ -5120,7 +5120,7 @@ void UI::drawSearchableWindows() {
 			" during which you were 'busy', will not include the idle time spent in the air, and will add a '+X landing'"
 			" to the recovery.\n"
 			"\n"
-			"If you performed an air normal or similar air move without landing recovery, and it got canceled by"
+			"If you performed an air normal or similar air move without landing recovery, and it got cancelled by"
 			" landing, normally there's 1 frame upon landing during which normals can't be used but blocking is possible."
 			" This frame is not included in the total frames as it is not considered part of the move.\n"
 			"\n"
@@ -5129,7 +5129,7 @@ void UI::drawSearchableWindows() {
 			" the first part is the number of frames during which you were unable to block/attack and the second part is"
 			" the number of frames during which you were unable to attack/block.\n"
 			"\n"
-			"If the move was jump canceled, the prejump frames and the jump are not included in neither the recovery nor 'Total'.\n"
+			"If the move was jump cancelled, the prejump frames and the jump are not included in neither the recovery nor 'Total'.\n"
 			"\n"
 			"If the move started up during superfreeze, the startup+active+recovery will be = total+1 (see tooltip of 'Active')."));
 		ImGui::PopTextWrapPos();
