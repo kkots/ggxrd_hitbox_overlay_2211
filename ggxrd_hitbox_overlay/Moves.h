@@ -179,6 +179,8 @@ public:
 	int sacredEdgeMahojinDistY = 0;
 	int spChargedStunEdgeKowareSpriteDuration = 0;
 	int stunEdgeDeleteSpriteSum = 0;
+	int laserFishCreateLaserOffset = 0;
+	int ky5DDustEffectShot_firstSpriteAfter_Offset = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

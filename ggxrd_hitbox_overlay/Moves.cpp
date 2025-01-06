@@ -155,6 +155,7 @@ static const char* displayNameSelector_RC(PlayerInfo& ent);
 static const char* displaySlangNameSelector_RC(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
+static bool createdProjectile_ky5D(PlayerInfo& ent);
 static bool canYrcProjectile_ky5D(PlayerInfo& ent);
 static bool createdProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
@@ -1479,6 +1480,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtk5E");
 	move.displayName = "5D";
 	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_ky5D;
 	move.canYrcProjectile = canYrcProjectile_ky5D;
 	addMove(move);
 	
@@ -6739,6 +6741,8 @@ void Moves::onAswEngineDestroyed() {
 	sacredEdgeMahojinDistY = 0;
 	spChargedStunEdgeKowareSpriteDuration = 0;
 	stunEdgeDeleteSpriteSum = 0;
+	laserFishCreateLaserOffset = 0;
+	ky5DDustEffectShot_firstSpriteAfter_Offset = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7119,11 +7123,14 @@ bool isDangerous_kFish(Entity ent) {
 }
 
 bool isDangerous_laserFish(Entity ent) {
-	BYTE* markerPos = moves.findCreateObj(ent.bbscrCurrentFunc(), "Laser");
-	if (!markerPos) {
-		return false;
+	BYTE* func = ent.bbscrCurrentFunc();
+	if (moves.laserFishCreateLaserOffset == 0) {
+		BYTE* markerPos = moves.findCreateObj(func, "Laser");
+		if (!markerPos) return false;
+		moves.laserFishCreateLaserOffset = markerPos - func;
 	}
-	return ent.bbscrCurrentInstr() < markerPos;
+	if (!moves.laserFishCreateLaserOffset) return false;
+	return ent.bbscrCurrentInstr() < func + moves.laserFishCreateLaserOffset;
 }
 
 bool isDangerous_card(Entity ent) {
@@ -7488,16 +7495,32 @@ bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
 		&& player.hasDangerousNonDisabledProjectiles;
 }
+bool createdProjectile_ky5D(PlayerInfo& player) {
+	return player.pawn.previousEntity()
+		&& player.pawn.previousEntity().lifeTimeCounter() == 0
+		&& !player.pawn.isRCFrozen()
+		&& (
+			strcmp(player.pawn.previousEntity().animationName(), "Mahojin") == 0
+			|| strcmp(player.pawn.previousEntity().animationName(), "DustEffectShot") == 0
+		);
+}
 bool canYrcProjectile_ky5D(PlayerInfo& player) {
-	entityList.populate();
-	for (int i = 0; i < entityList.count; ++i) {
-		Entity p = entityList.list[i];
-		if (p.isActive() && p.team() == player.index && !p.isPawn()
-				&& strcmp(p.animationName(), "DustEffectShot") == 0) {
-			return p.lifeTimeCounter() > 0;
+	// STACK_1 seems to hold the ground mahojin
+	if (moves.ky5DDustEffectShot_firstSpriteAfter_Offset == -1) return canYrcProjectile_default(player); // rev1
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset) {
+		BYTE* pos = moves.findCreateObj(func, "DustEffectShot");
+		if (!pos) {
+			moves.ky5DDustEffectShot_firstSpriteAfter_Offset = -1;
+			return canYrcProjectile_default(player); // rev1
 		}
+		pos = moves.findSpriteNonNull(pos);
+		if (pos) moves.ky5DDustEffectShot_firstSpriteAfter_Offset = pos - func;
 	}
-	return false;
+	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset) return false;
+	return player.pawn.bbscrCurrentInstr() > func + moves.ky5DDustEffectShot_firstSpriteAfter_Offset
+		|| player.pawn.bbscrCurrentInstr() == func + moves.ky5DDustEffectShot_firstSpriteAfter_Offset
+		&& player.pawn.spriteFrameCounter() > 0;
 }
 bool createdProjectile_splitCiel(PlayerInfo& player) {
 	return player.pawn.previousEntity()
