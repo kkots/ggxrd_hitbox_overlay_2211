@@ -254,6 +254,7 @@ public:
 	void executeHeartbeatRenderCommand();
 	PlayerInfo& findPlayer(Entity ent);
 	ProjectileInfo& findProjectile(Entity ent);
+	DWORD interRoundValueStorage1Offset = 0;
 	DWORD interRoundValueStorage2Offset = 0;
 	bool isEntityHidden(const Entity& ent);
 	int getFramebarPosition() const;

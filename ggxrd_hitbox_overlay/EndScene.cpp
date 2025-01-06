@@ -356,6 +356,7 @@ bool EndScene::onDllMain() {
 		uintptr_t interroundValueStorage2Use = sigscanForward(interroundValueStorage2CodeStart, sig, mask);
 		if (interroundValueStorage2Use) {
 			interRoundValueStorage2Offset = *(DWORD*)(interroundValueStorage2Use + 9);
+			interRoundValueStorage1Offset = interRoundValueStorage2Offset - 0x8;
 		}
 	}
 	

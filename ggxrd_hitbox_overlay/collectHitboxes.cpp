@@ -248,7 +248,7 @@ void collectHitboxes(Entity ent,
 			if (mahojinCacheVarX && mahojinCacheVarY) {
 				for (int i = 0; i < entityList.count; ++i) {
 					Entity it = entityList.list[i];
-					if (!it.destructionRequested() && it.team() == ent.team() && strcmp(it.animationName(), "Mahojin") == 0) {
+					if (!it.destructionRequested() && it.team() == ent.team() && !it.isPawn() && strcmp(it.animationName(), "Mahojin") == 0) {
 						if (it.mem45()) {
 							if (!*mahojinCacheVarX) {
 								getMahojinDistXY(ent.bbscrCurrentFunc(), mahojinCacheVarX, mahojinCacheVarY);

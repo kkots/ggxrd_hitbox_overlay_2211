@@ -6712,6 +6712,8 @@ void Moves::onAswEngineDestroyed() {
 	chargedStunEdgeMahojinDistY = 0;
 	sacredEdgeMahojinDistX = 0;
 	sacredEdgeMahojinDistY = 0;
+	spChargedStunEdgeKowareSpriteDuration = 0;
+	stunEdgeDeleteSpriteSum = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}

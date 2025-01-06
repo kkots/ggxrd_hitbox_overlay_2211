@@ -3071,17 +3071,137 @@ void UI::drawSearchableWindows() {
 				if (!endScene.interRoundValueStorage2Offset) {
 					ImGui::TextUnformatted("Error");
 				} else {
-					DWORD& theValue = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage2Offset + i * 4);
-					if (theValue) {
+					DWORD& theValue1 = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage1Offset + i * 4);
+					DWORD& theValue2 = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage2Offset + i * 4);
+					if (theValue2) {
 						ImGui::TextUnformatted(searchFieldTitle("Hair down"));
 					} else {
 						ImGui::TextUnformatted(searchFieldTitle("Hair not down"));
 					}
 					if (game.isTrainingMode() && ImGui::Button(searchFieldTitle("Toggle Hair Down"))) {
-						theValue = 1 - theValue;
+						theValue2 = 1 - theValue2;
 						endScene.BBScr_callSubroutine((void*)player.pawn.ent, "PonyMeshSetCheck");
 					}
+					if (game.isTrainingMode() && ImGui::Button(
+							theValue1 >= 6
+								? searchFieldTitle("Allow Hair Falling Down")
+								: searchFieldTitle("Prevent Hair Falling Down"))) {
+						if (theValue1 >= 6) {
+							theValue1 = 0;
+						} else {
+							theValue1 = 100;
+						}
+					}
+					AddTooltip(searchTooltip("Hair falls down on the 6'th knockdown if on it HP is >= 252."));
 				}
+				zerohspacing
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Time until can do another stun edge: "));
+				ImGui::SameLine();
+				bool hasForceDisableFlag1 = (player.wasForceDisableFlags & 0x1) != 0;
+				if (!hasForceDisableFlag1) {
+					ImGui::TextUnformatted("0f");
+				} else {
+					bool hasStunEdge = false;
+					bool hasChargedStunEdge = false;
+					bool hasSPChargedStunEdge = false;
+					int stunEdgeDeleteFrame = -1;
+					int stunEdgeDeleteSlow = 0;
+					int spChargedStunEdgeKowareFrame = -1;
+					int spChargedStunEdgeKowareFrameMax = -1;
+					int spChargedStunEdgeKowareSlow = 0;
+					for (int j = 0; j < entityList.count; ++j) {
+						Entity p = entityList.list[j];
+						if (p.isActive() && p.team() == i && !p.isPawn()) {
+							if (strcmp(p.animationName(), "StunEdgeObj") == 0) {
+								hasStunEdge = true;
+								if (moves.stunEdgeDeleteSpriteSum == 0) {
+									BYTE* funcStart = p.findFunctionStart("StunEdgeDelete");
+									if (funcStart) {
+										for (BYTE* instr = moves.skipInstruction(funcStart);
+												moves.instructionType(instr) != Moves::instr_endState;
+												instr = moves.skipInstruction(instr)) {
+											if (moves.instructionType(instr) == Moves::instr_sprite) {
+												moves.stunEdgeDeleteSpriteSum += *(int*)(instr + 4 + 32);
+											}
+										}
+									}
+								}
+							} else if (strcmp(p.animationName(), "ChargedStunEdgeObj") == 0) {
+								hasChargedStunEdge = true;
+							} else if (strcmp(p.animationName(), "SPChargedStunEdgeObj") == 0) {
+								if (moves.instructionType(p.bbscrCurrentInstr()) == Moves::instr_endState) {
+									spChargedStunEdgeKowareFrame = p.spriteFrameCounter();
+									spChargedStunEdgeKowareFrameMax = p.spriteFrameCounterMax();
+									ProjectileInfo& projectile = endScene.findProjectile(p);
+									if (projectile.ptr) spChargedStunEdgeKowareSlow = projectile.rcSlowedDownCounter;
+								} else {
+									hasSPChargedStunEdge = true;
+									if (moves.spChargedStunEdgeKowareSpriteDuration == 0) {
+										BYTE* lastSprite = nullptr;
+										BYTE* instr = p.bbscrCurrentInstr();
+										do {
+											if (moves.instructionType(instr) == Moves::instr_sprite) {
+												lastSprite = instr;
+											}
+											instr = moves.skipInstruction(instr);
+										} while (moves.instructionType(instr) != Moves::instr_endState);
+										if (lastSprite) {
+											moves.spChargedStunEdgeKowareSpriteDuration = *(int*)(lastSprite + 4 + 32);
+										}
+									}
+								}
+							} else if (strcmp(p.animationName(), "StunEdgeDelete") == 0) {
+								stunEdgeDeleteFrame = p.currentAnimDuration();
+								ProjectileInfo& projectile = endScene.findProjectile(p);
+								if (projectile.ptr) stunEdgeDeleteSlow = projectile.rcSlowedDownCounter;
+							}
+						}
+					}
+					
+					int waitTime = 0;
+					int unused;
+					if (hasStunEdge) {
+						sprintf_s(strbuf, "???+%df", moves.stunEdgeDeleteSpriteSum + 1);
+						ImGui::TextUnformatted(strbuf);
+					} else if (hasChargedStunEdge) {
+						ImGui::TextUnformatted("???f");
+					} else if (hasSPChargedStunEdge) {
+						sprintf_s(strbuf, "???+%df", moves.spChargedStunEdgeKowareSpriteDuration + 1);
+						ImGui::TextUnformatted(strbuf);
+					} else if (stunEdgeDeleteFrame != -1) {
+						PlayerInfo::calculateSlow(stunEdgeDeleteFrame,
+							moves.stunEdgeDeleteSpriteSum - stunEdgeDeleteFrame + 1,
+							stunEdgeDeleteSlow,
+							&waitTime,
+							&unused,
+							&unused);
+						++waitTime;
+					} else if (spChargedStunEdgeKowareFrame != -1) {
+						PlayerInfo::calculateSlow(spChargedStunEdgeKowareFrame + 1,
+							spChargedStunEdgeKowareFrameMax - spChargedStunEdgeKowareFrame,
+							spChargedStunEdgeKowareSlow,
+							&waitTime,
+							&unused,
+							&unused);
+						++waitTime;
+					} else {
+						// nothing found? Projectile is probably already destroyed. But force disable flags will only apply on the next frame
+						ImGui::TextUnformatted("1f");
+					}
+					if (waitTime) {
+						sprintf_s(strbuf, "%df", waitTime);
+						ImGui::TextUnformatted(strbuf);
+					}
+				}
+				_zerohspacing
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Has used j.D:"));
+				const char* tooltip = searchTooltip("You can only use j.D once in the air. j.D gets reenabled when you land.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				bool hasForceDisableFlag2 = (player.wasForceDisableFlags & 0x2) != 0;
+				ImGui::TextUnformatted(hasForceDisableFlag2 ? "Yes" : "No");
+				AddTooltip(tooltip);
 			} else if (player.charType == CHARACTER_TYPE_ZATO) {
 				Entity eddie = nullptr;
 				bool isSummoned = player.pawn.playerVal(0);
@@ -6490,6 +6610,8 @@ void UI::hitboxesHelpWindow() {
 		"Boxes or circles like this are displayed when a move is checking ranges."
 		" They may be checking distance to a player's origin point or to their 'center',"
 		" depending on the type of move or projectile. All types of displayed interactions will be listed here down below.");
+	textUnformattedColored(YELLOW_COLOR, "Ky Stun Edge, Charged Stun Edge and Sacred Edge:");
+	ImGui::TextUnformatted("The box shows the range in which Ciel's origin point must be in order for the projectile to become Fortified.");
 	ImGui::Separator();
 	
 	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");

@@ -168,6 +168,8 @@ This mode of showing throw boxes shows them like this:
 
 Boxes or circles like this are displayed when a move is checking ranges. They may be checking distance to a player's origin point or to their 'center', depending on the type of move or projectile. All types of displayed interactions will be listed here down below.
 
+- Ky Stun Edge, Charged Stun Edge and Sacred Edge: the box shows the range in which Ciel's origin point must be in order for the projectile to become Fortified.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
