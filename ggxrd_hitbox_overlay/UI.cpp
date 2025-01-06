@@ -7452,12 +7452,12 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	if (frame.canYrc || frame.canYrcProjectile || frame.createdDangerousProjectile) {
 		ImGui::Separator();
 		if (frame.canYrcProjectile) {
-			ImGui::TextUnformatted("Can YRC, and projectile will stay");
+			ImGui::TextUnformatted("Can YRC, and projectile/powerup will stay");
 		} else if (frame.canYrc) {
 			ImGui::TextUnformatted("Can YRC");
 		}
 		if (frame.createdDangerousProjectile) {
-			ImGui::TextUnformatted("Created a projectile on this frame");
+			ImGui::TextUnformatted("Created a projectile/powerup on this frame");
 		}
 	}
 	printAllCancels(frame.cancels,

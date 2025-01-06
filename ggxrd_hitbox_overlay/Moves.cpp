@@ -154,6 +154,11 @@ static const char* displaySlangNameSelector_pogo8(PlayerInfo& ent);
 static const char* displayNameSelector_RC(PlayerInfo& ent);
 static const char* displaySlangNameSelector_RC(PlayerInfo& ent);
 
+static bool canYrcProjectile_default(PlayerInfo& ent);
+static bool canYrcProjectile_ky5D(PlayerInfo& ent);
+static bool createdProjectile_splitCiel(PlayerInfo& ent);
+static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
+
 static inline MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (!move->count) move->startInd = allProperties.size();
 	++move->count;
@@ -1115,7 +1120,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame");
 	move.displayName = "Gunflame";
 	move.slangName = "GF";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame_DI");
@@ -1250,21 +1255,21 @@ bool Moves::onDllMain() {
 	move.displayName = "Tyrant Rave";
 	move.slangName = "TR";
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave_DI");
 	move.displayName = "DI Tyrant Rave";
 	move.slangName = "DI TR";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_recovery;
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRaveBurst");
 	move.displayName = "Burst Tyrant Rave";
 	move.slangName = "Burst TR";
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "DragonInstall");
@@ -1345,11 +1350,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge2");
 	move.displayName = "Charged Stun Edge";
 	move.slangName = "CSE";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge1");
 	move.displayName = "Stun Edge";
 	move.slangName = "SE";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunDipper");
@@ -1358,6 +1365,8 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "HolyBrand");
 	move.displayName = "Split Ciel";
+	move.createdProjectile = createdProjectile_splitCiel;
+	move.canYrcProjectile = canYrcProjectile_splitCiel;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "GreedSaber");
@@ -1367,11 +1376,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirStunEdge2");
 	move.displayName = "Air H Stun Edge";
 	move.slangName = "Air H SE";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirStunEdge1");
 	move.displayName = "Air S Stun Edge";
 	move.slangName = "Air S SE";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "VaporThrustD");
@@ -1397,6 +1408,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "SacredEdge");
 	move.displayName = "Sacred Edge";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "RideTheLightning");
@@ -1461,6 +1473,19 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 8;
 	move.framebarName = "j.D";
+	move.canYrcProjectile = canYrcProjectile_default;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtk5E");
+	move.displayName = "5D";
+	move.nameIncludesInputs = true;
+	move.canYrcProjectile = canYrcProjectile_ky5D;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtkAir5E");
+	move.displayName = "j.D";
+	move.nameIncludesInputs = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// can't YRC in Rev1. In fact this doesn't even exist in Rev1
@@ -7457,4 +7482,31 @@ const char* displaySlangNameSelector_RC(PlayerInfo& ent) {
 		: ent.pawn.purpleRomanCancel()
 			? "PRC"
 			: "RRC";
+}
+
+bool canYrcProjectile_default(PlayerInfo& player) {
+	return player.prevFrameHadDangerousNonDisabledProjectiles
+		&& player.hasDangerousNonDisabledProjectiles;
+}
+bool canYrcProjectile_ky5D(PlayerInfo& player) {
+	entityList.populate();
+	for (int i = 0; i < entityList.count; ++i) {
+		Entity p = entityList.list[i];
+		if (p.isActive() && p.team() == player.index && !p.isPawn()
+				&& strcmp(p.animationName(), "DustEffectShot") == 0) {
+			return p.lifeTimeCounter() > 0;
+		}
+	}
+	return false;
+}
+bool createdProjectile_splitCiel(PlayerInfo& player) {
+	return player.pawn.previousEntity()
+		&& strcmp(player.pawn.previousEntity().animationName(), "Mahojin") == 0
+		&& player.pawn.previousEntity().lifeTimeCounter() == 0
+		&& !player.pawn.isRCFrozen();
+}
+bool canYrcProjectile_splitCiel(PlayerInfo& player) {
+	return player.pawn.previousEntity()
+		&& strcmp(player.pawn.previousEntity().animationName(), "Mahojin") == 0
+		&& player.pawn.previousEntity().lifeTimeCounter() > 0;
 }

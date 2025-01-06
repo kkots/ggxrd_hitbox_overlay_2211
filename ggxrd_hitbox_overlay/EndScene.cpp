@@ -808,6 +808,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFrameHadDangerousNonDisabledProjectiles = player.hasDangerousNonDisabledProjectiles;
 			player.hasDangerousNonDisabledProjectiles = false;
 			player.createdDangerousProjectile = false;
+			player.createdProjectileThatSometimesCanBeDangerous = false;
 			
 			if (comboStarted) {
 				if (tensionGainOnLastHitUpdated[i]) {
@@ -1793,13 +1794,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						projectile.isDangerous = false;
 					} else {
 						projectile.isDangerous = projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr);
-						if (projectile.isDangerous && !projectile.disabled) {
+						if (!projectile.disabled) {
 							PlayerInfo& player = players[projectile.team];
-							player.hasDangerousNonDisabledProjectiles = true;
+							if (projectile.isDangerous) {
+								player.hasDangerousNonDisabledProjectiles = true;
+							}
 							if (projectile.lifeTimeCounter == 0
 									&& projectile.creator == player.pawn
 									&& !player.idle) {
-								player.createdDangerousProjectile = true;
+								if (projectile.isDangerous) {
+									player.createdDangerousProjectile = true;
+								} else {
+									player.createdProjectileThatSometimesCanBeDangerous = true;
+								}
 							}
 						}
 					}
@@ -3253,12 +3260,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.inputs.clear();
 				
 				currentFrame.canYrc = player.wasCanYrc;
-				currentFrame.canYrcProjectile = player.prevFrameHadDangerousNonDisabledProjectiles
-					&& player.hasDangerousNonDisabledProjectiles
-					&& player.wasCanYrc
+				currentFrame.canYrcProjectile = player.wasCanYrc
 					&& player.move.canYrcProjectile
 					&& player.move.canYrcProjectile(player);
-				currentFrame.createdDangerousProjectile = player.createdDangerousProjectile;
+				currentFrame.createdDangerousProjectile = player.createdDangerousProjectile
+					|| player.createdProjectileThatSometimesCanBeDangerous  // for Ky 5D
+					|| player.move.createdProjectile
+					&& player.move.createdProjectile(player);
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}

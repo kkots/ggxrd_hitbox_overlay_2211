@@ -1303,6 +1303,7 @@ struct PlayerInfo {
 	bool blockstunContaminatedByRCSlowdown:1;
 	bool inputsOverflow:1;
 	bool createdDangerousProjectile:1;
+	bool createdProjectileThatSometimesCanBeDangerous:1;
 	bool lastBlockWasIB:1;
 	bool lastBlockWasFD:1;
 	
