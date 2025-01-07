@@ -9,12 +9,15 @@
 #include "Moves.h"
 
 static void getMahojinDistXY(BYTE* functionStart, int* x, int* y);
+static void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpConnectPtr, int* mayBallJumpConnectRangePtr);
 
 void collectHitboxes(Entity ent,
 		const bool active,
 		DrawHitboxArrayCallParams* const hurtbox,
 		std::vector<DrawHitboxArrayCallParams>* const hitboxes,
 		std::vector<DrawPointCallParams>* const points,
+		std::vector<DrawLineCallParams>* const lines,
+		std::vector<DrawCircleCallParams>* const circles,
 		std::vector<DrawBoxCallParams>* const pushboxes,
 		std::vector<DrawBoxCallParams>* const interactionBoxes,
 		int* numHitboxes,
@@ -193,11 +196,88 @@ void collectHitboxes(Entity ent,
 				&& move.drawProjectileOriginPoint
 			)
 	) {
-		DrawPointCallParams pointCallParams;
-		pointCallParams.isProjectile = state.isASummon;
-		pointCallParams.posX = params.posX;
-		pointCallParams.posY = params.posY;
-		points->push_back(pointCallParams);
+		int* mayBallJumpConnectPtr = nullptr;
+		int* mayBallJumpConnectRangePtr = nullptr;
+		if (ownerType == CHARACTER_TYPE_MAY) {
+			if (strcmp(ent.animationName(), "MayBallA") == 0) {
+				mayBallJumpConnectPtr = &moves.mayPBallJumpConnectOffset;
+				mayBallJumpConnectRangePtr = &moves.mayPBallJumpConnectRange;
+			} else if (strcmp(ent.animationName(), "MayBallB") == 0) {
+				mayBallJumpConnectPtr = &moves.mayKBallJumpConnectOffset;
+				mayBallJumpConnectRangePtr = &moves.mayKBallJumpConnectRange;
+			}
+		}
+		if (mayBallJumpConnectPtr) {
+			DrawPointCallParams pointCallParams;
+			pointCallParams.isProjectile = true;
+			pointCallParams.posX = params.posX;
+			pointCallParams.posY = params.posY - ent.landingHeight();
+			points->push_back(pointCallParams);
+			
+			if (ent.hasUpon(3)) {
+				getMayBallJumpConnectOffsetYAndRange(ent.bbscrCurrentFunc(), mayBallJumpConnectPtr, mayBallJumpConnectRangePtr);
+				DrawPointCallParams pointCallParams;
+				pointCallParams.isProjectile = true;
+				pointCallParams.posX = params.posX;
+				pointCallParams.posY = params.posY + *mayBallJumpConnectPtr;
+				points->push_back(pointCallParams);
+				
+				if (*mayBallJumpConnectRangePtr > 0) {
+					DrawCircleCallParams circleCallParams;
+					circleCallParams.posX = params.posX;
+					circleCallParams.posY = params.posY + *mayBallJumpConnectPtr;
+					circleCallParams.radius = *mayBallJumpConnectRangePtr;
+					circles->push_back(circleCallParams);
+				}
+			}
+		} else {
+			DrawPointCallParams pointCallParams;
+			pointCallParams.isProjectile = state.isASummon;
+			pointCallParams.posX = params.posX;
+			pointCallParams.posY = params.posY;
+			points->push_back(pointCallParams);
+			
+			if (ent.characterType() == CHARACTER_TYPE_MAY
+					&& !(params.posY == 0 && ent.speedY() == 0)
+					&& !ent.inHitstun()) {
+				int* mayBallJumpConnectPtr = nullptr;
+				int* mayBallJumpConnectRangePtr = nullptr;
+				Entity mayBall;
+				for (int i = 0; i < entityList.count; ++i) {
+					Entity p = entityList.list[i];
+					if (p.isActive() && p.team() == state.team && !p.isPawn() && p.hasUpon(3)) {
+						if (strcmp(p.animationName(), "MayBallA") == 0) {
+							mayBall = p;
+							mayBallJumpConnectPtr = &moves.mayPBallJumpConnectOffset;
+							mayBallJumpConnectRangePtr = &moves.mayPBallJumpConnectRange;
+							break;
+						} else if (strcmp(p.animationName(), "MayBallB") == 0) {
+							mayBall = p;
+							mayBallJumpConnectPtr = &moves.mayKBallJumpConnectOffset;
+							mayBallJumpConnectRangePtr = &moves.mayKBallJumpConnectRange;
+							break;
+						}
+					}
+				}
+				if (mayBallJumpConnectPtr) {
+					DrawPointCallParams pointCallParams;
+					pointCallParams.isProjectile = true;
+					pointCallParams.posX = params.posX;
+					pointCallParams.posY = ent.getCenterOffsetY() + params.posY;
+					points->push_back(pointCallParams);
+					
+					getMayBallJumpConnectOffsetYAndRange(mayBall.bbscrCurrentFunc(), mayBallJumpConnectPtr, mayBallJumpConnectRangePtr);
+					if (lines) {
+						DrawLineCallParams lineCallParams;
+						lineCallParams.posX1 = pointCallParams.posX;
+						lineCallParams.posY1 = pointCallParams.posY;
+						lineCallParams.posX2 = mayBall.x();
+						lineCallParams.posY2 = mayBall.y() + *mayBallJumpConnectPtr;
+						lines->push_back(lineCallParams);
+					}
+				}
+			}
+		}
 	}
 	
 	if (interactionBoxes) {
@@ -274,6 +354,38 @@ void collectHitboxes(Entity ent,
 		}
 	}
 	
+}
+
+void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpConnectPtr, int* mayBallJumpConnectRangePtr) {
+	if (*mayBallJumpConnectPtr == 0) {
+		bool foundY = false;
+		bool foundRange = false;
+		for (
+				BYTE* instr = moves.skipInstruction(functionStart);
+				moves.instructionType(instr) != Moves::instr_endState;
+				instr = moves.skipInstruction(instr)
+		) {
+			if (!foundY) {
+				if (moves.instructionType(instr) == Moves::instr_exPointFReset
+						&& *(int*)(instr + 4) == 100) {  // ORIGIN
+					*mayBallJumpConnectPtr = *(int*)(instr + 0xc);
+					foundY = true;
+					if (foundRange) break;
+				}
+			}
+			if (!foundRange) {
+				if (moves.instructionType(instr) == Moves::instr_ifOperation
+						&& *(int*)(instr + 4) == 11  // IS_LESSER
+						&& *(int*)(instr + 8) == 2  // tag: variable
+						&& *(int*)(instr + 0xc) == 0) {  // Mem(ACCUMULATOR)
+					// skip tag: literal
+					*mayBallJumpConnectRangePtr = *(int*)(instr + 0x14);
+					foundRange = true;
+					if (foundY) break;
+				}
+			}
+		}
+	}
 }
 
 void getMahojinDistXY(BYTE* functionStart, int* x, int* y) {

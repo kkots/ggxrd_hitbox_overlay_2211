@@ -1800,7 +1800,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								player.hasDangerousNonDisabledProjectiles = true;
 							}
 							if (projectile.lifeTimeCounter == 0
-									&& projectile.creator == player.pawn
+									//&& projectile.creator == player.pawn  // May Beach Ball is not directly created by the player
 									&& !player.idle) {
 								if (projectile.isDangerous) {
 									player.createdDangerousProjectile = true;
@@ -1916,6 +1916,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
 		size_t hitboxesPrevSize = drawDataPrepared.hitboxes.size();
 		size_t pointsPrevSize = drawDataPrepared.points.size();
+		size_t linesPrevSize = drawDataPrepared.lines.size();
+		size_t circlesPrevSize = drawDataPrepared.circles.size();
 		size_t pushboxesPrevSize = drawDataPrepared.pushboxes.size();
 		size_t interactionBoxesPrevSize = drawDataPrepared.interactionBoxes.size();
 		
@@ -1945,6 +1947,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			&hurtbox,
 			&drawDataPrepared.hitboxes,
 			&drawDataPrepared.points,
+			&drawDataPrepared.lines,
+			&drawDataPrepared.circles,
 			&drawDataPrepared.pushboxes,
 			&drawDataPrepared.interactionBoxes,
 			&hitboxesCount,
@@ -1974,6 +1978,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				&attachedHurtbox,
 				&drawDataPrepared.hitboxes,
 				&drawDataPrepared.points,
+				&drawDataPrepared.lines,
+				&drawDataPrepared.circles,
 				&drawDataPrepared.pushboxes,
 				&drawDataPrepared.interactionBoxes,
 				&hitboxesCount,
@@ -2100,6 +2106,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			drawDataPrepared.hurtboxes.resize(hurtboxesPrevSize);
 			drawDataPrepared.hitboxes.resize(hitboxesPrevSize);
 			drawDataPrepared.points.resize(pointsPrevSize);
+			drawDataPrepared.lines.resize(linesPrevSize);
+			drawDataPrepared.circles.resize(circlesPrevSize);
 			drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
 			drawDataPrepared.interactionBoxes.resize(interactionBoxesPrevSize);
 		}

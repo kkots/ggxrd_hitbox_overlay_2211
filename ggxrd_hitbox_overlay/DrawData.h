@@ -11,6 +11,8 @@ struct DrawData {
 	std::vector<DrawBoxCallParams> pushboxes;
 	std::vector<DrawBoxCallParams> interactionBoxes;
 	std::vector<DrawPointCallParams> points;
+	std::vector<DrawCircleCallParams> circles;
+	std::vector<DrawLineCallParams> lines;
 	std::vector<DrawBoxCallParams> throwBoxes;
 	std::vector<InputsDrawingCommandRow> inputs[2] { };
 	size_t inputsSize[2] { 0 };

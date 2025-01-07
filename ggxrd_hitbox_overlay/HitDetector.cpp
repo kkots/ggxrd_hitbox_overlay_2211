@@ -153,6 +153,8 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 					nullptr,
 					nullptr,
 					nullptr,
+					nullptr,
+					nullptr,
 					&hitboxesCount);
 				
 				if (!theHitbox.empty()) {
@@ -175,6 +177,8 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				collectHitboxes(otherEntity,
 					true,
 					&theHurtbox,
+					nullptr,
+					nullptr,
 					nullptr,
 					nullptr,
 					nullptr,

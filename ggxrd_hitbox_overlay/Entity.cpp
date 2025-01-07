@@ -540,7 +540,7 @@ BYTE* Entity::findFunctionStart(const char* name) const {
 	int end = table.currentSize - 1;
 	int found = -1;
 	do {
-		middle = (start + end) / 2;
+		middle = (start + end) >> 1;
 		DWORD currentHash = table.ptr[middle].hashValue;
 		if (currentHash == hash) {
 			found = table.ptr[middle].addressInCommands;
@@ -554,4 +554,11 @@ BYTE* Entity::findFunctionStart(const char* name) const {
 	
 	if (found == -1) return nullptr;
 	return bbscrInfo()->afterJumptable + found;
+}
+
+int Entity::getCenterOffsetY() const {
+	if (!isPawn()) return 0;
+	if (crouching()) return 90000;
+	if (lying()) return 40000;
+	return 200000;
 }

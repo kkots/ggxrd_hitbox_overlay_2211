@@ -253,6 +253,13 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	responseToImInDanger = CreateEventW(NULL, FALSE, FALSE, NULL);
 	if (!checkAndHookBeginSceneAndPresent(true)) error = true;
 	
+	static const int sinArrayStart[] = { 0,1,3,5,6,8,10,12,13,15,17,19,20,22,24,26 };
+	sinTable = (const int*)sigscan("GuiltyGearXrd.exe:.rdata", (const char*)sinArrayStart, sizeof sinArrayStart);
+	if (!sinTable) {
+		logwrap(fputs("sinTable not found", logfile));
+		error = true;
+	}
+	
 	return !error;
 }
 
@@ -663,6 +670,7 @@ void Graphics::sendAllPreparedVertices() {
 bool Graphics::drawAllArrayboxes() {
 	if (preparedArrayboxes.empty()) return true;
 	advanceRenderState(RENDER_STATE_DRAWING_ARRAYBOXES);
+	ensureWorldMatrixWorldCenterIsZero();
 	sendAllPreparedVertices();
 	for (auto it = preparedArrayboxes.begin(); it != preparedArrayboxes.end(); ++it) {
 		if (it->boxesPreparedSoFar) {
@@ -710,6 +718,7 @@ void Graphics::drawAllBoxes() {
 	}
 	sendAllPreparedVertices();
 	advanceRenderState(RENDER_STATE_DRAWING_BOXES);
+	ensureWorldMatrixWorldCenterIsZero();
 	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, vertexBufferPosition, 2 + (preparedBoxesCount - 1) * 6);
 	vertexBufferPosition += 4 + (preparedBoxesCount - 1) * 6;
 	preparedBoxesCount = 0;
@@ -747,6 +756,7 @@ bool Graphics::drawAllOutlines() {
 	if (preparedOutlines.empty()) return true;
 	sendAllPreparedVertices();
 	advanceRenderState(RENDER_STATE_DRAWING_OUTLINES);
+	ensureWorldMatrixWorldCenterIsZero();
 	
 	if (!loggedDrawingOperationsOnce) {
 		logwrap(fprintf(logfile, "drawAllOutlines: vertexBufferPosition: %u\n", vertexBufferPosition));
@@ -886,6 +896,20 @@ void Graphics::drawAllSmallPoints() {
 
 }
 
+void Graphics::drawAllLines() {
+	if (!linesPrepared) return;
+	sendAllPreparedVertices();
+	switchToRenderingNonTextureVertices();
+	advanceRenderState(RENDER_STATE_DRAWING_OUTLINES);
+	ensureWorldMatrixWorldCenterIsZero();
+	
+	device->DrawPrimitive(D3DPT_LINELIST, vertexBufferPosition, linesPrepared);
+	vertexBufferPosition += 2 * linesPrepared;
+	
+	linesPrepared = 0;
+
+}
+
 void Graphics::drawAllPrepared() {
 	if (!loggedDrawingOperationsOnce) {
 		logwrap(fprintf(logfile, "Arrayboxes count: %u\n"
@@ -905,7 +929,10 @@ void Graphics::drawAllPrepared() {
 	case 1:
 		if (!drawAllArrayboxes()) break;
 		drawAllBoxes();
+		drawAllCircles();
 		if (!drawAllOutlines()) break;
+		drawAllCircleOutlines();
+		drawAllLines();
 		drawAllTextureBoxes();
 		drawAllFramebarDrawData();
 		drawAllSmallPoints();
@@ -982,6 +1009,7 @@ void Graphics::drawAll() {
 		
 		renderStateValues[RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
 		renderStateValues[RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NONE);
+		preparedPixelShaderOnThisFrame = false;
 		renderStateValues[RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 		renderStateValues[RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
 		
@@ -991,6 +1019,7 @@ void Graphics::drawAll() {
 		device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
 		renderStateValues[RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
 		device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
+		worldMatrixHasShiftedWorldCenter = false;
 		
 	}
 	
@@ -1034,9 +1063,18 @@ void Graphics::drawAll() {
 		for (const DrawBoxCallParams& params : drawDataUse.interactionBoxes) {
 			prepareBox(params);
 		}
+		for (const DrawCircleCallParams& params : drawDataUse.circles) {
+			prepareCircle(params);
+		}
 		if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR) {
 			for (DrawOutlineCallParams& params : outlines) {
 				prepareOutline(params);
+			}
+			for (const DrawCircleCallParams& params : drawDataUse.circles) {
+				prepareCircleOutline(params);
+			}
+			for (const DrawLineCallParams& params : drawDataUse.lines) {
+				prepareLine(params);
 			}
 		}
 	}
@@ -1853,14 +1891,8 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	
 	rememberTransforms(device);
 	
-	float m = camera.valuesUse.coordCoefficient / 1000.F;
-	D3DXMATRIX world {
-		m,   0.F, 0.F, 0.F,
-		0.F, 0.F, m,   0.F,
-		0.F, m,   0.F, 0.F,
-		0.F, 0.F, 0.F, 1.F
-	};
-	device->SetTransform(D3DTS_WORLD, &world);
+	setWorld3DMatrix();
+	worldMatrixHasShiftedWorldCenter = false;
 	
 	// D3D axes:
 	// Z points into the screen
@@ -1881,7 +1913,7 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	// pitch goes from positive direction of x to positive direction of z
 	// roll goes from positive direction of z to positive direction of y
 	
-	m = PI / 32768.F;
+	float m = PI / 32768.F;
 	D3DXMATRIX view;
 	D3DXMATRIX mat1;
 	// The reason we apply translation first is because we need to move everything to where the camera is before rotating.
@@ -1947,6 +1979,7 @@ void Graphics::setTransformMatricesPlain2D(IDirect3DDevice9* device) {
     device->SetTransform(D3DTS_PROJECTION, &projection);
     
     currentTransformSet = CURRENT_TRANSFORM_2D_PROJECTION;
+    worldMatrixHasShiftedWorldCenter = false;
 }
 
 void Graphics::rememberTransforms(IDirect3DDevice9* device) {
@@ -1998,12 +2031,14 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	renderStateValues[RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
 	device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
 	device->SetPixelShader(nullptr);
+	preparedPixelShaderOnThisFrame = false;
 	renderStateValues[RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	device->SetTexture(0, nullptr);
 	renderStateValues[RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, NONE);
 	
 	renderStateValues[RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
 	currentTransformSet = CURRENT_TRANSFORM_DEFAULT;
+	worldMatrixHasShiftedWorldCenter = false;
 	
 	screenshotStage = SCREENSHOT_STAGE_BASE_COLOR;
 	
@@ -2079,6 +2114,8 @@ void DrawData::clearBoxes() {
 	pushboxes.clear();
 	interactionBoxes.clear();
 	points.clear();
+	lines.clear();
+	circles.clear();
 	throwBoxes.clear();
 	needTakeScreenshot = false;
 }
@@ -2130,6 +2167,8 @@ void DrawData::copyTo(DrawData* destination) {
 	destination->pushboxes = pushboxes;
 	destination->interactionBoxes = interactionBoxes;
 	destination->points = points;
+	destination->circles = circles;
+	destination->lines = lines;
 	destination->throwBoxes = throwBoxes;
 	for (int i = 0; i < 2; ++i) {
 		destination->inputs[i] = inputs[i];
@@ -2314,36 +2353,41 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 	
 	IDirect3DTexture9* tex = getOutlinesRTSamplingTexture(device);
 	if (!tex) return;
-	CComPtr<IDirect3DSurface9> renderTarget;
-	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
-		logwrap(fputs("GetRenderTarget failed\n", logfile));
-		return;
+	
+	if (!preparedPixelShaderOnThisFrame) {
+		CComPtr<IDirect3DSurface9> renderTarget;
+		if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+			logwrap(fputs("GetRenderTarget failed\n", logfile));
+			return;
+		}
+		CComPtr<IDirect3DSurface9> surfaceLevel;
+		if (FAILED(tex->GetSurfaceLevel(0, &surfaceLevel))) {
+			logwrap(fputs("GetSurfaceLevel failed\n", logfile));
+			return;
+		}
+		if (FAILED(device->StretchRect(renderTarget, NULL, surfaceLevel, NULL, D3DTEXF_NONE))) {
+			logwrap(fputs("StretchRect failed\n", logfile));
+			return;
+		}
+		
+		D3DSURFACE_DESC renderTargetDesc;
+		SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
+		if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+			logwrap(fputs("GetDesc failed\n", logfile));
+			return;
+		}
+		screenSizeConstant[0] = (float)renderTargetDesc.Width;
+		screenSizeConstant[1] = (float)renderTargetDesc.Height;
+		
+		compilePixelShader();
 	}
-	CComPtr<IDirect3DSurface9> surfaceLevel;
-	if (FAILED(tex->GetSurfaceLevel(0, &surfaceLevel))) {
-		logwrap(fputs("GetSurfaceLevel failed\n", logfile));
-		return;
-	}
-	if (FAILED(device->StretchRect(renderTarget, NULL, surfaceLevel, NULL, D3DTEXF_NONE))) {
-		logwrap(fputs("StretchRect failed\n", logfile));
-		return;
-	}
-	compilePixelShader();
 	IDirect3DPixelShader9* shader = getPixelShader(device);
 	if (!shader) return;
 	
 	device->SetPixelShader(shader);
 	device->SetTexture(0, tex);
-	
-	
-	D3DSURFACE_DESC renderTargetDesc;
-	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
-	if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
-		logwrap(fputs("GetDesc failed\n", logfile));
-		return;
-	}
-	float screenSizeConstant[4] { (float)renderTargetDesc.Width, (float)renderTargetDesc.Height, 0.F, 0.F };
 	device->SetPixelShaderConstantF(0, screenSizeConstant, 1);
+	preparedPixelShaderOnThisFrame = true;
 }
 
 void Graphics::heartbeat() {
@@ -2715,4 +2759,294 @@ void Graphics::drawAllFramebarDrawData() {
 	}
 	ui.onEndScene(device, ddUse, uiTexture);
 	framebarDrawDataPrepared = false;
+}
+
+void Graphics::prepareLine(const DrawLineCallParams& params) {
+	stopPreparingTextureVertexBuffer();
+	drawIfOutOfSpace(2);
+	consumeVertexBufferSpace(2);
+	*vertexIt = Vertex{ (float)params.posX1, (float)params.posY1, 0.F, params.color };
+	++vertexIt;
+	*vertexIt = Vertex{ (float)params.posX2, (float)params.posY2, 0.F, params.color };
+	++vertexIt;
+	++linesPrepared;
+	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
+}
+
+void Graphics::prepareCircle(const DrawCircleCallParams& params) {
+	if ((params.fillColor & 0xff000000) == 0) return;
+	stopPreparingTextureVertexBuffer();
+	
+	int nextInd = setupCircle(params.radius, params.fillColor, params.outlineColor);
+	
+	Vertex firstVertex{ (float)params.posX, (float)params.posY, 0.F, params.fillColor };
+	const CircleCacheElement& elem = circleCache[nextInd - 1];
+	const Vertex* lastSourceVtx = elem.vertices.data();
+	int remainingVertices = elem.vertices.size();
+	while (remainingVertices) {
+		if (vertexBufferRemainingSize < 3) {
+			drawIfOutOfSpace(3);
+		}
+		if (vertexBufferRemainingSize >= (unsigned int)remainingVertices + 1) {
+			consumeVertexBufferSpace(remainingVertices + 1);
+			*vertexIt = firstVertex;
+			++vertexIt;
+			memcpy(vertexIt, lastSourceVtx, remainingVertices * sizeof Vertex);
+			vertexIt += remainingVertices;
+			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
+			
+			preparedCircles.emplace_back();
+			PreparedCircle& newCircle = preparedCircles.back();
+			newCircle.x = params.posX;
+			newCircle.y = params.posY;
+			newCircle.verticesCount = remainingVertices + 1;
+			
+			return;
+		}
+		unsigned int oldSize = vertexBufferRemainingSize;
+		consumeVertexBufferSpace(oldSize);
+		*vertexIt = firstVertex;
+		++vertexIt;
+		memcpy(vertexIt, lastSourceVtx, oldSize - 1);
+		vertexIt += oldSize - 1;
+		lastSourceVtx += oldSize - 1;
+		remainingVertices -= oldSize - 1;
+		
+		preparedCircles.emplace_back();
+		PreparedCircle& newCircle = preparedCircles.back();
+		newCircle.x = params.posX;
+		newCircle.y = params.posY;
+		newCircle.verticesCount = remainingVertices + 1;
+		
+		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
+	}
+}
+
+void Graphics::prepareCircleOutline(const DrawCircleCallParams& params) {
+	if ((params.outlineColor & 0xff000000) == 0) return;
+	
+	int nextInd = setupCircle(params.radius, params.fillColor, params.outlineColor);
+	
+	const CircleCacheElement& elem = circleCache[nextInd - 1];
+	const std::vector<Vertex>* vecPtr;
+	if ((params.fillColor & 0xff000000) != 0 && params.fillColor == params.outlineColor) {
+		vecPtr = &elem.vertices;
+	} else {
+		vecPtr = &elem.outlineVertices;
+	}
+	const Vertex* lastSourceVtx = vecPtr->data();
+	int remainingVertices = vecPtr->size();
+	while (remainingVertices) {
+		if (vertexBufferRemainingSize < 2) {
+			drawIfOutOfSpace(2);
+		}
+		if (vertexBufferRemainingSize >= (unsigned int)remainingVertices) {
+			consumeVertexBufferSpace(remainingVertices);
+			memcpy(vertexIt, lastSourceVtx, remainingVertices * sizeof Vertex);
+			vertexIt += remainingVertices;
+			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
+			
+			preparedCircleOutlines.emplace_back();
+			PreparedCircle& newCircle = preparedCircleOutlines.back();
+			newCircle.x = params.posX;
+			newCircle.y = params.posY;
+			newCircle.verticesCount = remainingVertices;
+			
+			return;
+		}
+		unsigned int oldSize = vertexBufferRemainingSize;
+		consumeVertexBufferSpace(oldSize);
+		memcpy(vertexIt, lastSourceVtx, oldSize);
+		vertexIt += oldSize;
+		lastSourceVtx += oldSize - 1;
+		remainingVertices -= oldSize - 1;
+		
+		preparedCircleOutlines.emplace_back();
+		PreparedCircle& newCircle = preparedCircleOutlines.back();
+		newCircle.x = params.posX;
+		newCircle.y = params.posY;
+		newCircle.verticesCount = oldSize;
+		
+		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
+	}
+}
+
+void Graphics::drawAllCircles() {
+	if (preparedCircles.empty()) return;
+	if (screenshotStage == SCREENSHOT_STAGE_BASE_COLOR) {
+		stencil.initialize(device);
+	}
+	sendAllPreparedVertices();
+	advanceRenderState(RENDER_STATE_DRAWING_BOXES);
+	for (const PreparedCircle& circle : preparedCircles) {
+		setWorld3DMatrix(circle.x, circle.y);
+		worldMatrixHasShiftedWorldCenter = true;
+		device->DrawPrimitive(D3DPT_TRIANGLEFAN, vertexBufferPosition, circle.verticesCount - 2);
+		vertexBufferPosition += circle.verticesCount;
+	}
+	preparedCircles.clear();
+}
+
+void Graphics::drawAllCircleOutlines() {
+	if (preparedCircleOutlines.empty()) return;
+	sendAllPreparedVertices();
+	advanceRenderState(RENDER_STATE_DRAWING_OUTLINES);
+	for (const PreparedCircle& circle : preparedCircleOutlines) {
+		setWorld3DMatrix(circle.x, circle.y);
+		worldMatrixHasShiftedWorldCenter = true;
+		device->DrawPrimitive(D3DPT_LINESTRIP, vertexBufferPosition, circle.verticesCount - 1);
+		vertexBufferPosition += circle.verticesCount;
+	}
+	preparedCircleOutlines.clear();
+}
+
+int Graphics::getCos(int degrees) {
+	return getSin(degrees + 900);
+}
+
+int Graphics::getSin(int degrees) {
+	int i = degrees % 3600;
+	if (i < 0) i += 3600;
+	if (i < 900) return sinTable[i];
+	if (i < 1800) return sinTable[899 - (i - 900)];
+	if (i < 2700) return -sinTable[i - 1800];
+	return -sinTable[899 - (i - 2700)];
+}
+
+int Graphics::setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor) {
+	if (circleCacheHashmap.empty()) {
+		circleCacheHashmap.resize(100);
+	}
+	int cacheIndex = (radius / 1000) % 100;
+	int lastInd = 0;
+	int nextInd = circleCacheHashmap[cacheIndex];
+	while (nextInd) {
+		lastInd = nextInd;
+		const CircleCacheElement& seekElem = circleCache[nextInd - 1];
+		if (seekElem.radius == radius
+				&& seekElem.fillColor == fillColor
+				&& seekElem.outlineColor == outlineColor) {
+			break;
+		}
+		nextInd = seekElem.next;
+	}
+	if (nextInd == 0 || circleCache[nextInd - 1].vertices.empty()) {
+		// approximate conversion of ArcSys size to the on-screen size in pixels at 1280x720 resolution
+		unsigned int totalCircumference = (unsigned int)radius * 229U / 266000U;
+		if (totalCircumference > 68356) {
+			totalCircumference = (unsigned int)(2.F * PI * (float)totalCircumference);
+		} else {
+			totalCircumference = 2U * 31416U * totalCircumference / 10000U;
+		}
+		int segments;
+		if (totalCircumference > 1000) {
+			segments = totalCircumference / 20;  // 20px long line segments in the circle
+		} else if (totalCircumference > 500) {
+			segments = totalCircumference / 10;
+		} else {
+			segments = totalCircumference / 4;
+		}
+		if (segments < 4) segments = 4;
+		CircleCacheElement* newElemPtr;
+		if (nextInd == 0) {
+			if (lastInd == 0) {
+				circleCacheHashmap[cacheIndex] = circleCache.size() + 1;
+			} else {
+				circleCache[lastInd - 1].next = circleCache.size() + 1;
+			}
+			nextInd = circleCache.size() + 1;
+			circleCache.emplace_back();
+			newElemPtr = &circleCache.back();
+		} else {
+			newElemPtr = &circleCache[nextInd - 1];
+		}
+		CircleCacheElement& newElem = *newElemPtr;
+		newElem.radius = radius;
+		newElem.fillColor = fillColor;
+		newElem.outlineColor = outlineColor;
+		if (fillColor != outlineColor && (fillColor & 0xff000000) != 0 && (outlineColor & 0xff000000) != 0) {
+			newElem.outlineVertices.resize(segments + 1);
+			newElem.vertices.resize(segments + 1);
+			Vertex* currentOutlineVert = newElem.outlineVertices.data();
+			Vertex* currentVert = newElem.vertices.data();
+			Vertex vtx;
+			for (int i = 0; i < segments; ++i) {
+				int angle = 3600 * i / segments;
+				vtx = Vertex{
+					(float)(getCos(angle) * radius / 1000),
+					(float)(getSin(angle) * radius / 1000),
+					0.F,
+					fillColor
+				};
+				*currentVert = vtx;
+				++currentVert;
+				vtx.color = outlineColor;
+				*currentOutlineVert = vtx;
+				++currentOutlineVert;
+			}
+			vtx = Vertex{
+				(float)radius,
+				0.F,
+				0.F,
+				fillColor
+			};
+			*currentVert = vtx;
+			vtx.color = outlineColor;
+			*currentOutlineVert = vtx;
+		} else if ((fillColor & 0xff000000) != 0 || (outlineColor & 0xff000000) != 0) {
+			std::vector<Vertex>* vec;
+			D3DCOLOR color;
+			if ((fillColor & 0xff000000) != 0) {
+				vec = &newElem.vertices;
+				color = fillColor;
+			} else {
+				vec = &newElem.outlineVertices;
+				color = outlineColor;
+			}
+			vec->resize(segments + 1);
+			Vertex* currentVert = vec->data();
+			for (int i = 0; i < segments; ++i) {
+				int angle = 3600 * i / segments;
+				*currentVert = Vertex{
+					(float)(getCos(angle) * radius / 1000),
+					(float)(getSin(angle) * radius / 1000),
+					0.F,
+					color
+				};
+				++currentVert;
+			}
+			*currentVert = Vertex{
+				(float)radius,
+				0.F,
+				0.F,
+				color
+			};
+		}
+	}
+	return nextInd;
+}
+
+void Graphics::ensureWorldMatrixWorldCenterIsZero() {
+	if (worldMatrixHasShiftedWorldCenter) {
+		worldMatrixHasShiftedWorldCenter = false;
+		setWorld3DMatrix();
+	}
+}
+
+void Graphics::setWorld3DMatrix(int worldCenterShiftX, int worldCenterShiftY) {
+	if (currentTransformSet == CURRENT_TRANSFORM_3D_PROJECTION
+			&& currentWorld3DMatrixWorldShiftX == worldCenterShiftX
+			&& currentWorld3DMatrixWorldShiftY == worldCenterShiftY) return;
+	
+	currentWorld3DMatrixWorldShiftX = worldCenterShiftX;
+	currentWorld3DMatrixWorldShiftY = worldCenterShiftY;
+	
+	float m = camera.valuesUse.coordCoefficient / 1000.F;
+	D3DXMATRIX world {
+		m,                            0.F, 0.F,                          0.F,
+		0.F,                          0.F, m,                            0.F,
+		0.F,                          m,   0.F,                          0.F,
+		(float)worldCenterShiftX * m, 0.F, (float)worldCenterShiftY * m, 1.F
+	};
+	device->SetTransform(D3DTS_WORLD, &world);
 }

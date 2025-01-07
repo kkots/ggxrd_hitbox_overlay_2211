@@ -3202,6 +3202,37 @@ void UI::drawSearchableWindows() {
 				bool hasForceDisableFlag2 = (player.wasForceDisableFlags & 0x2) != 0;
 				ImGui::TextUnformatted(hasForceDisableFlag2 ? "Yes" : "No");
 				AddTooltip(tooltip);
+			} else if (player.charType == CHARACTER_TYPE_MAY) {
+				bool hasForceDisableFlag2 = (player.wasForceDisableFlags & 0x2) != 0;
+				if (!hasForceDisableFlag2) {
+					textUnformattedColored(YELLOW_COLOR, "Time until can do Beach Ball:");
+					ImGui::SameLine();
+					ImGui::TextUnformatted("0f");
+				} else {
+					bool foundBeachBall = false;
+					for (int j = 0; j < entityList.count; ++j) {
+						Entity p = entityList.list[j];
+						if (p.isActive() && p.team() == i && !p.isPawn()
+								&& (
+									strcmp(p.animationName(), "MayBallA") == 0
+									|| strcmp(p.animationName(), "MayBallB") == 0
+								)) {
+							foundBeachBall = true;
+							textUnformattedColored(YELLOW_COLOR, "Beach Ball bounces left:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/3", 3 - p.mem45());
+							ImGui::TextUnformatted(strbuf);
+							break;
+						}
+					}
+					if (!foundBeachBall) {
+						// Nothing found, but still can't do a Beach Ball on this frame?
+						// Probably, a Ball has just been deleted, and the lack of its forceDisableFlags will only take effect on the next frame...
+						textUnformattedColored(YELLOW_COLOR, "Time until can do Beach Ball:");
+						ImGui::SameLine();
+						ImGui::TextUnformatted("1f");
+					}
+				}
 			} else if (player.charType == CHARACTER_TYPE_ZATO) {
 				Entity eddie = nullptr;
 				bool isSummoned = player.pawn.playerVal(0);
@@ -6532,7 +6563,11 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("Projectile origin point.");
 	ImGui::TextUnformatted("Projectiles whose origin points were deemed to be important enough"
 		" to be shown will display them as black and white tiny square points. They visualize"
-		" the projectiles' position which may be used in some range or interaction checks.");
+		" the projectiles' position which may be used in some range or interaction checks.\n"
+		"\n"
+		"Player center of body or other point. These points may be important in some kind"
+		" of interactions, but they're not the origin point, and to distinguish that they're"
+		" drawn using the style of projectile origin points so that they look smaller and less important.");
 	ImGui::Separator();
 	
 	textUnformattedColored(COLOR_REJECTION_IMGUI, "Blue: ");
@@ -6610,8 +6645,17 @@ void UI::hitboxesHelpWindow() {
 		"Boxes or circles like this are displayed when a move is checking ranges."
 		" They may be checking distance to a player's origin point or to their 'center',"
 		" depending on the type of move or projectile. All types of displayed interactions will be listed here down below.");
+	
 	textUnformattedColored(YELLOW_COLOR, "Ky Stun Edge, Charged Stun Edge and Sacred Edge:");
-	ImGui::TextUnformatted("The box shows the range in which Ciel's origin point must be in order for the projectile to become Fortified.");
+	ImGui::TextUnformatted("The box shows the area in which Ciel's origin point must be in order for the projectile to become Fortified.");
+	
+	textUnformattedColored(YELLOW_COLOR, "May Beach Ball:");
+	ImGui::TextUnformatted("The circle shows the range in which May's center of body must be in order to jump on the ball."
+		" May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point."
+		" Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's"
+		" point that is at the center of the circle. This line serves no purpose other than to remind the user that the range"
+		" check of the circle is done against the center of body point of May, not her origin point.");
+	
 	ImGui::Separator();
 	
 	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");

@@ -6743,6 +6743,10 @@ void Moves::onAswEngineDestroyed() {
 	stunEdgeDeleteSpriteSum = 0;
 	laserFishCreateLaserOffset = 0;
 	ky5DDustEffectShot_firstSpriteAfter_Offset = 0;
+	mayPBallJumpConnectOffset = 0;
+	mayKBallJumpConnectOffset = 0;
+	mayPBallJumpConnectRange = 0;
+	mayKBallJumpConnectRange = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}

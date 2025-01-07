@@ -156,6 +156,7 @@ public:
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
 		instr_deleteMoveForceDisableFlag = 1603,
+		instr_exPointFReset = 2161,
 	};
 	inline InstructionType instructionType(BYTE* in) const;
 	BYTE* findSetMarker(BYTE* in, const char* name) const;
@@ -181,6 +182,10 @@ public:
 	int stunEdgeDeleteSpriteSum = 0;
 	int laserFishCreateLaserOffset = 0;
 	int ky5DDustEffectShot_firstSpriteAfter_Offset = 0;
+	int mayPBallJumpConnectOffset = 0;
+	int mayKBallJumpConnectOffset = 0;
+	int mayPBallJumpConnectRange = 0;
+	int mayKBallJumpConnectRange = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

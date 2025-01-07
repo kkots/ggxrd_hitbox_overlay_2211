@@ -123,7 +123,9 @@ Each player has an origin point which is shown as a black-white cross on the gro
 
 ### Small black & white dot - Projectile origin points
 
-Projectiles whose origin points were deemed to be important enough to be shown will display them as black and white tiny square points. They visualize the projectiles' position which may be used in some range or interaction checks.
+Projectiles whose origin points were deemed to be important enough to be shown will display them as black and white tiny square points. They visualize the projectiles' position which may be used in some range or interaction checks.  
+
+Player center of body or other point. These points may be important in some kind of interactions, but they're not the origin point, and to distinguish that they're drawn using the style of projectile origin points so that they look smaller and less important.
 
 ### Blue - Rejection boxes
 
@@ -168,7 +170,9 @@ This mode of showing throw boxes shows them like this:
 
 Boxes or circles like this are displayed when a move is checking ranges. They may be checking distance to a player's origin point or to their 'center', depending on the type of move or projectile. All types of displayed interactions will be listed here down below.
 
-- Ky Stun Edge, Charged Stun Edge and Sacred Edge: the box shows the range in which Ciel's origin point must be in order for the projectile to become Fortified.
+- Ky Stun Edge, Charged Stun Edge and Sacred Edge: The box shows the area in which Ciel's origin point must be in order for the projectile to become Fortified.
+
+- May Beach Ball: The circle shows the range in which May's center of body must be in order to jump on the ball. May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point. Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's point that is at the center of the circle. This line serves no purpose other than to remind the user that the range check of the circle is done against the center of body point of May, not her origin point.
 
 ### Outlines lie within their boxes/on the edge
 

@@ -269,6 +269,8 @@ private:
 		CURRENT_TRANSFORM_3D_PROJECTION,
 		CURRENT_TRANSFORM_2D_PROJECTION
 	} currentTransformSet;
+	int currentWorld3DMatrixWorldShiftX = 0;
+	int currentWorld3DMatrixWorldShiftY = 0;
 	void rememberTransforms(IDirect3DDevice9* device);
 	void bringBackOldTransform(IDirect3DDevice9* device);
 	D3DMATRIX prevWorld;
@@ -416,6 +418,39 @@ private:
 	inline void prepareFramebarDrawData() { framebarDrawDataPrepared = true; }
 	void drawAllFramebarDrawData();
 	bool needDrawWholeUiWithPoints = false;
+	int linesPrepared = 0;
+	void prepareLine(const DrawLineCallParams& params);
+	void drawAllLines();
+	float screenSizeConstant[4] { 0.F, 0.F, 0.F, 0.F };
+	bool preparedPixelShaderOnThisFrame = false;
+	struct PreparedCircle {
+		int x;
+		int y;
+		int verticesCount;
+	};
+	std::vector<PreparedCircle> preparedCircles;
+	void prepareCircle(const DrawCircleCallParams& params);
+	void drawAllCircles();
+	std::vector<PreparedCircle> preparedCircleOutlines;
+	void prepareCircleOutline(const DrawCircleCallParams& params);
+	void drawAllCircleOutlines();
+	struct CircleCacheElement {
+		int radius = 0;
+		D3DCOLOR fillColor = 0;
+		D3DCOLOR outlineColor = 0;
+		std::vector<Vertex> vertices;
+		std::vector<Vertex> outlineVertices;
+		int next = 0;
+	};
+	std::vector<int> circleCacheHashmap;
+	std::vector<CircleCacheElement> circleCache;
+	const int* sinTable = nullptr;
+	int getSin(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
+	int getCos(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
+	int setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor);
+	bool worldMatrixHasShiftedWorldCenter = false;
+	void ensureWorldMatrixWorldCenterIsZero();
+	void setWorld3DMatrix(int worldCenterShiftX = 0, int worldCenterShiftY = 0);
 };
 
 extern Graphics graphics;
