@@ -2904,6 +2904,7 @@ int Graphics::getCos(int degrees) {
 	return getSin(degrees + 900);
 }
 
+// This function produces wrong results but it is a copy of FUN_00d712b0 from the game itself
 int Graphics::getSin(int degrees) {
 	int i = degrees % 3600;
 	if (i < 0) i += 3600;
