@@ -7048,7 +7048,7 @@ void UI::framebarHelpWindow() {
 	static std::string generalFramebarHelp;
 	if (generalFramebarHelp.empty()) {
 		generalFramebarHelp = settings.convertToUiDescription(
-			"Note: due to rollback, framebar cannot function properly in online play and is disabled there.\n"
+			"Note: due to rollback, framebar cannot function properly in online play and is disabled there (but it works when observing a match).\n"
 			"\n"
 			"The game runs at 60FPS. If the computer can't handle the game's required processing at the required FPS,"
 			" frames do not get skipped. Instead, the game slows down, and every frame is always displayed on the screen without skipping."
