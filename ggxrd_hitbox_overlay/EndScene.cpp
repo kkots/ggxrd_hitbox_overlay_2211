@@ -730,8 +730,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	bool frameHasChanged = prevAswEngineTickCount != aswEngineTickCount && !game.isRoundend();
 	prevAswEngineTickCount = aswEngineTickCount;
 	
-	if (frameHasChanged && !iGiveUp) {
-		bool needCatchEntities = false;
+	bool needCatchEntities = false;
+	if (frameHasChanged) {
 		for (int i = 0; i < 2; ++i) {
 			PlayerInfo& player = players[i];
 			if (!player.pawn) {
@@ -740,6 +740,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				needCatchEntities = true;
 			}
 		}
+	}
+	if (frameHasChanged && !iGiveUp) {
 		if (needCatchEntities && projectiles.empty()) {
 			// probably the mod was loaded in mid-game
 			for (int i = 2; i < entityList.count; ++i) {
@@ -1934,7 +1936,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		bool useTheseValues = false;
 		bool isSuperArmor;
 		bool isFullInvul;
-		if (!iGiveUp && i < 2 && (team == 0 || team == 1)) {
+		if (i < 2 && (team == 0 || team == 1)) {
 			const PlayerInfo& player = players[team];
 			isSuperArmor = player.wasSuperArmorEnabled;
 			isFullInvul = player.wasFullInvul;
@@ -4953,6 +4955,8 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 			event.u.signal.to = pawn;
 			memcpy(event.u.signal.fromAnim, sendSignalStack.back().animationName(), 32);
 		}
+	}
+	if (!shutdown) {
 		// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
 		if (signal == 0x27  // PRE_DRAW
 				&& pawn.isPawn()
