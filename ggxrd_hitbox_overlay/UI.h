@@ -179,6 +179,7 @@ private:
 	std::unique_ptr<PngResource> zatoBreakTheLawStage2ReleasedFrameNonColorblind;
 	std::unique_ptr<PngResource> zatoBreakTheLawStage3ReleasedFrame;
 	std::unique_ptr<PngResource> zatoBreakTheLawStage3ReleasedFrameNonColorblind;
+	std::unique_ptr<PngResource> powerupFrame;
 	std::vector<PngResource> allResources;
 	TexturePacker texturePacker;
 	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,

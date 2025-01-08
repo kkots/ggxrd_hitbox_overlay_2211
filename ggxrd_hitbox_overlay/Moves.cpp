@@ -160,6 +160,8 @@ static bool canYrcProjectile_ky5D(PlayerInfo& ent);
 static bool createdProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
 
+static bool powerup_may6P(PlayerInfo& ent);
+
 static inline MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (!move->count) move->startInd = allProperties.size();
 	++move->count;
@@ -1908,6 +1910,10 @@ bool Moves::onDllMain() {
 	move.isGrab = true;
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTsubureru_tama", true);
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
 	// this dolphin is created on 41236P/K/S/H. When ridden it disappears
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanRidingObject", true);
 	move.sectionSeparatorProjectile = sectionSeparatorProjectile_dolphin;
@@ -1938,6 +1944,7 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_may6P;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
+	move.powerup = powerup_may6P;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6D");
@@ -2035,11 +2042,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallB");
 	move.displayName = "K Don't Miss It";
 	move.slangName = "K Ball";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallA");
 	move.displayName = "P Don't Miss It";
 	move.slangName = "P Ball";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "OverHeadKiss");
@@ -2057,21 +2066,25 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateBShoukan");
 	move.displayName = "H Applause for the Victim";
 	move.slangName = "H-Hoop";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoBShoukan");
 	move.displayName = "S Applause for the Victim";
 	move.slangName = "S-Hoop";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateAShoukan");
 	move.displayName = "K Applause for the Victim";
 	move.slangName = "K-Hoop";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoAShoukan");
 	move.displayName = "P Applause for the Victim";
 	move.slangName = "P-Hoop";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "DivingAttack");
@@ -6747,6 +6760,10 @@ void Moves::onAswEngineDestroyed() {
 	mayKBallJumpConnectOffset = 0;
 	mayPBallJumpConnectRange = 0;
 	mayKBallJumpConnectRange = 0;
+	mayIrukasanRidingObjectYokoA.clear();
+	mayIrukasanRidingObjectYokoB.clear();
+	mayIrukasanRidingObjectTateA.clear();
+	mayIrukasanRidingObjectTateB.clear();
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7536,4 +7553,8 @@ bool canYrcProjectile_splitCiel(PlayerInfo& player) {
 	return player.pawn.previousEntity()
 		&& strcmp(player.pawn.previousEntity().animationName(), "Mahojin") == 0
 		&& player.pawn.previousEntity().lifeTimeCounter() > 0;
+}
+
+bool powerup_may6P(PlayerInfo& player) {
+	return player.pawn.dealtAttack()->stun > player.prevFrameStunValue;
 }

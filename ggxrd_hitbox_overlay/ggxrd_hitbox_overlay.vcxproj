@@ -350,6 +350,7 @@
     <Image Include="..\images\NonActiveFrame_CanCancel_NonColorblind.png" />
     <Image Include="..\images\NonActiveFrame_NonColorblind.png" />
     <Image Include="..\images\NoneFrame.png" />
+    <Image Include="..\images\Powerup.png" />
     <Image Include="..\images\ProjectileFrame.png" />
     <Image Include="..\images\ProjectileFrame_NonColorblind.png" />
     <Image Include="..\images\RecoveryFrame.png" />

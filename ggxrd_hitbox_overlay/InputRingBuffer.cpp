@@ -32,3 +32,36 @@ unsigned short InputRingBuffer::calculateLength() const {
 
 	return sourceLength;
 }
+
+int InputRingBuffer::parseCharge(ChargeType type, bool isFacingLeft) const {
+	int idx = (int)index;
+	if (!framesHeld[idx]) return 0;
+	
+	int accumulatedCharge = 0;
+	
+	int framesRemaining = 10 - framesHeld[idx];
+	bool dirMatches = false;
+	int limit = 30;
+	do {
+		const Input* input = inputs + idx;
+		if (type == CHARGE_TYPE_HORIZONTAL) {
+			if (!isFacingLeft) {
+				dirMatches = input->left;
+			} else {
+				dirMatches = input->right;
+			}
+		} else {
+			dirMatches = input->down;
+		}
+		
+		if (!dirMatches) break;
+		accumulatedCharge += framesHeld[idx];
+		if (limit == 0) break;
+		--limit;
+		--idx;
+		if (idx < 0) idx = 29;
+		if (framesHeld[idx] == 0) break;
+		
+	} while (dirMatches);
+	return accumulatedCharge;
+}

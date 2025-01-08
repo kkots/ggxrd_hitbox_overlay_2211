@@ -3277,6 +3277,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| player.createdProjectileThatSometimesCanBeDangerous  // for Ky 5D
 					|| player.move.createdProjectile
 					&& player.move.createdProjectile(player);
+				
+				const InputRingBuffer* ringBuffer = game.getInputRingBuffers() + player.index;
+				int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false);
+				currentFrame.chargeLeft = charge > 254 ? 255 : charge;
+				charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true);
+				currentFrame.chargeRight = charge > 254 ? 255 : charge;
+				charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false);
+				currentFrame.chargeDown = charge > 254 ? 255 : charge;
+				
+				currentFrame.powerup = player.move.powerup && player.move.powerup(player);
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}
@@ -3728,6 +3738,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			player.prevGettingHitBySuper = player.gettingHitBySuper;
+			player.prevFrameStunValue = player.pawn.dealtAttack()->stun;
 		}
 		
 		for (auto it = projectileFramebars.begin(); it != projectileFramebars.end(); ) {

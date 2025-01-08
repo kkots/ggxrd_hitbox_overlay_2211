@@ -278,6 +278,32 @@ void collectHitboxes(Entity ent,
 						lines->push_back(lineCallParams);
 					}
 				}
+				
+				Entity dolphin = ent.stackEntity(0);
+				if (dolphin && dolphin.isActive() && dolphin.mem46()) {
+					DrawPointCallParams pointCallParams;
+					pointCallParams.isProjectile = true;
+					pointCallParams.posX = params.posX + 140000 * (int)params.flip;
+					pointCallParams.posY = params.posY + 50000;
+					points->push_back(pointCallParams);
+					
+					DrawCircleCallParams circleCallParams;
+					circleCallParams.posX = dolphin.x();
+					circleCallParams.posY = dolphin.y();
+					circleCallParams.radius = 230000;
+					if (circles) {
+						circles->push_back(circleCallParams);
+					}
+					
+					if (lines) {
+						DrawLineCallParams lineCallParams;
+						lineCallParams.posX1 = pointCallParams.posX;
+						lineCallParams.posY1 = pointCallParams.posY;
+						lineCallParams.posX2 = circleCallParams.posX;
+						lineCallParams.posY2 = circleCallParams.posY;
+						lines->push_back(lineCallParams);
+					}
+				}
 			}
 		}
 	}

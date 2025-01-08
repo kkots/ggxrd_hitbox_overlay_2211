@@ -589,6 +589,9 @@
     <Image Include="..\images\HitConnectedFrameBlack.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\images\Powerup.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\MyPixelShader.hlsl">

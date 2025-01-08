@@ -332,6 +332,9 @@ struct PlayerFrame : public FrameBase {
 	unsigned char hitstopMax;
 	unsigned char rcSlowdown;
 	unsigned char rcSlowdownMax;
+	unsigned char chargeLeft;
+	unsigned char chargeRight;
+	unsigned char chargeDown;
 	unsigned char doubleJumps:4;
 	unsigned char airDashes:3;
 	unsigned char needShowAirOptions:1;
@@ -371,6 +374,7 @@ struct PlayerFrame : public FrameBase {
 	bool blockedOnThisFrame:1;
 	bool lastBlockWasFD:1;
 	bool lastBlockWasIB:1;
+	bool powerup:1;
 	
 	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
 	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
@@ -1185,6 +1189,7 @@ struct PlayerInfo {
 	int dustProration2 = 0;
 	int comboProrationNormal = 0;
 	int comboProrationOverdrive = 0;
+	int prevFrameStunValue = 0;
 	char grabAnimation[32] { '\0' };
 	
 	char attackLockAction[32] { '\0' };

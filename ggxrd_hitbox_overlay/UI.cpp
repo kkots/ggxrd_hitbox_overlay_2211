@@ -81,6 +81,8 @@ static const float frameWidthOriginal = 9.F;
 static const float frameHeightOriginal = 15.F;
 static const float frameMarkerWidthOriginal = 11.F;
 static const float frameMarkerHeightOriginal = 6.F;
+static const float powerupWidthOriginal = 7.F;
+static const float powerupHeightOriginal = 7.F;
 static const float firstFrameHeight = 19.F;
 float drawFramebars_frameItselfHeight;
 const FrameArt* drawFramebars_frameArtArray;
@@ -460,6 +462,8 @@ bool UI::onDllMain(HMODULE hModule) {
 		IDB_ZATO_BREAK_THE_LAW_STAGE3_RELEASED_NON_COLORBLIND, zatoBreakTheLawStage3ReleasedFrameNonColorblind,
 		"Performing a move that can be held: the move had been held long enough to have an even longer recovery upon release."
 			" Can't block or FD or perform attacks.");
+	
+	addImage(hModule, IDB_POWERUP, powerupFrame);
 	
 	packedTexture = std::make_unique<PngResource>();
 	*packedTexture = texturePacker.getTexture();
@@ -3237,6 +3241,153 @@ void UI::drawSearchableWindows() {
 				}
 				
 				booleanSettingPreset(settings.dontShowMayInteractionChecks);
+				
+				ImGui::PushTextWrapPos(0.F);
+				ImGui::TextUnformatted("When entering the valid Beach Ball jump range, on the next frame you can't do the Ball Jump,"
+					" and on the next frame you become able to do it.");
+				ImGui::TextUnformatted("Enter Range -> Can't Jump Yet -> Can Jump");
+				ImGui::PopTextWrapPos();
+				
+				bool hasForceDisableFlag1 = (player.wasForceDisableFlags & 0x1) != 0;
+				if (!hasForceDisableFlag1) {
+					textUnformattedColored(YELLOW_COLOR, "Time until can do Hoop:");
+					ImGui::SameLine();
+					ImGui::TextUnformatted("0f");
+				} else {
+					Entity dolphin = player.pawn.stackEntity(0);
+					if (dolphin && dolphin.isActive()) {
+						ProjectileInfo& projectile = endScene.findProjectile(dolphin);
+						BYTE* currentInstr = dolphin.bbscrCurrentInstr();
+						BYTE* func = dolphin.bbscrCurrentFunc();
+						int currentOffset = currentInstr - func;
+						Moves::MayIrukasanRidingObjectInfo* ar[4] {
+							&moves.mayIrukasanRidingObjectYokoA,
+							&moves.mayIrukasanRidingObjectYokoB,
+							&moves.mayIrukasanRidingObjectTateA,
+							&moves.mayIrukasanRidingObjectTateB
+						};
+						int arInd = 0;
+						if (moves.mayIrukasanRidingObjectYokoA.offset == 0) {
+							BYTE* pos = moves.findSetMarker(func, "moveYokoA");
+							if (pos) {
+								BYTE* instr = moves.skipInstruction(pos);
+								moves.mayIrukasanRidingObjectYokoA.offset = pos - func;
+								int totalSoFar = 0;
+								bool lastSpriteWasNull = false;
+								while (moves.instructionType(instr) != Moves::instr_endState) {
+									Moves::InstructionType type = moves.instructionType(instr);
+									if (type == Moves::instr_sprite) {
+										if (!ar[arInd]->frames.empty()) {
+											ar[arInd]->frames.back().offset = instr - func;
+										}
+										if (strcmp((const char*)(instr + 4), "null") == 0) {
+											lastSpriteWasNull = true;
+										} else {
+											int spriteLength = *(int*)(instr + 4 + 32);
+											ar[arInd]->frames.emplace_back();
+											Moves::MayIrukasanRidingObjectFrames& newObj = ar[arInd]->frames.back();
+											newObj.offset = instr - func;
+											newObj.frames = totalSoFar;
+											totalSoFar += spriteLength;
+										}
+									} else if (type == Moves::instr_exitState && !lastSpriteWasNull && !ar[arInd]->frames.empty()) {
+										ar[arInd]->frames.back().offset = instr - func;
+									} else if (type == Moves::instr_setMarker) {
+										ar[arInd]->totalFrames = totalSoFar;
+										if (arInd == 3) break;
+										++arInd;
+										totalSoFar = 0;
+										lastSpriteWasNull = false;
+										ar[arInd]->offset = instr - func;
+									}
+									instr = moves.skipInstruction(instr);
+								}
+								arInd = 0;
+							}
+						}
+						if (moves.mayIrukasanRidingObjectYokoA.offset != 0) {
+							for ( ; arInd < 4; ++arInd) {
+								if (currentOffset > ar[3 - arInd]->offset) {
+									arInd = 3 - arInd;
+									break;
+								}
+							}
+						} else {
+							arInd = 4;
+						}
+						int frames = 0;
+						int totalFrames = 0;
+						if (arInd != 4) {
+							const Moves::MayIrukasanRidingObjectInfo& info = *ar[arInd];
+							totalFrames = info.totalFrames;
+							for (const Moves::MayIrukasanRidingObjectFrames& framesElem : info.frames) {
+								if (framesElem.offset == currentOffset) {
+									frames = framesElem.frames;
+									break;
+								}
+							}
+						}
+						textUnformattedColored(YELLOW_COLOR, "Time until can do Hoop:");
+						ImGui::SameLine();
+						if (frames) {
+							int timeRemaining = totalFrames - frames - dolphin.spriteFrameCounter() + 1;
+							if (projectile.ptr) {
+								int unused;
+								PlayerInfo::calculateSlow(
+									0,
+									timeRemaining,
+									projectile.rcSlowedDownCounter,
+									&timeRemaining,
+									&unused,
+									&unused);
+							}
+							sprintf_s(strbuf, "%df", timeRemaining);
+							ImGui::TextUnformatted(strbuf);
+						} else {
+							ImGui::TextUnformatted("???");
+						}
+					} else {
+						textUnformattedColored(YELLOW_COLOR, "Time until can do Hoop:");
+						ImGui::SameLine();
+						
+						bool foundIrukasanTsubureru_tama = false;
+						for (int j = 0; j < entityList.count; ++j) {
+							Entity p = entityList.list[j];
+							if (p.isActive() && p.team() == i && !p.isPawn()
+									&& strcmp(p.animationName(), "IrukasanTsubureru_tama") == 0) {
+								foundIrukasanTsubureru_tama = true;
+								if (p.y() >= 0 || p.speedY() >= 0) {
+									ImGui::TextUnformatted("Until Dolphin lands+2f");
+								} else {
+									ImGui::TextUnformatted("2-1f");
+								}
+								break;
+							}
+						}
+						if (!foundIrukasanTsubureru_tama) {
+							ImGui::TextUnformatted("1f");
+						}
+					}
+				}
+				
+				const InputRingBuffer* ringBuffer = game.getInputRingBuffers();
+				if (ringBuffer) {
+					ringBuffer += i;
+					textUnformattedColored(YELLOW_COLOR, "Charge (left):");
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false));
+					ImGui::TextUnformatted(strbuf);
+					
+					textUnformattedColored(YELLOW_COLOR, "Charge (right):");
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true));
+					ImGui::TextUnformatted(strbuf);
+					
+					textUnformattedColored(YELLOW_COLOR, "Charge (down):");
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false));
+					ImGui::TextUnformatted(strbuf);
+				}
 				
 			} else if (player.charType == CHARACTER_TYPE_ZATO) {
 				Entity eddie = nullptr;
@@ -6666,6 +6817,18 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(mayBeachBall.c_str());
 	
+	textUnformattedColored(YELLOW_COLOR, "May Dolphin:");
+	static std::string mayDolphin;
+	if (mayDolphin.empty()) {
+		mayDolphin = settings.convertToUiDescription("The circle shows the range in which May's behind the body point must be"
+			" in order to ride the Dolphin. The point behind May's body depends on May's facing, and not the Dolphin's."
+			" Additionally, a line connecting May's behind the body point and the origin point of the Dolphin is shown."
+			" It serves no purpose other than to remind the user that the distance check is performed against May's"
+			" behind the body point, and not her origin point.\n"
+			"The display of all this can be disabled with \"dontShowMayInteractionChecks\".");
+	}
+	ImGui::TextUnformatted(mayDolphin.c_str());
+	
 	ImGui::Separator();
 	
 	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");
@@ -6791,7 +6954,7 @@ void UI::framebarHelpWindow() {
 		ImVec4(1, 1, 1, 1));
 	
 	ImGui::SameLine();
-	ImGui::TextUnformatted(searchTooltip("A half-filled active frame means an attack's startup or active frame which first begins duing"
+	ImGui::TextUnformatted(searchTooltip("A half-filled active frame means an attack's startup or active frame which first begins during"
 		" a superfreeze."));
 	
 	ImGui::Separator();
@@ -6838,6 +7001,25 @@ void UI::framebarHelpWindow() {
 		ImGui::TextUnformatted(searchTooltip(info.description));
 	}
 	
+	float cursorY = ImGui::GetCursorPosY();
+	ImGui::SetCursorPosY(cursorY + (ImGui::GetTextLineHeightWithSpacing() - powerupHeightOriginal) * 0.5F);
+	ImGui::Image((ImTextureID)TEXID_FRAMES,
+		{ powerupWidthOriginal, powerupHeightOriginal },
+		{
+			powerupFrame->uStart,
+			powerupFrame->vStart
+		},
+		ImVec2{
+			powerupFrame->uEnd,
+			powerupFrame->vEnd
+		}
+	);
+	ImGui::SameLine();
+	ImGui::SetCursorPosY(cursorY);
+	ImGui::TextUnformatted(searchTooltip("The move reached some kind of powerup on this frame. For example, for May 6P it means that,"
+		" starting from this frame, it deals more stun and has more pushback, while for Venom QV it means the ball has become"
+		" bigger, and so on."));
+		
 	ImGui::Separator();
 	
 	ImGui::Image((ImTextureID)TEXID_FRAMES,
@@ -7131,7 +7313,10 @@ void imGuiDrawWrappedTextWithIcons(const char* textStart,
 		} else {
 			if (!prevWasIcon && currentTextPos.y != yStart) {
 				sprintf_s(gianttextid + 11, sizeof gianttextid - 11, "%d", invisButtonCount++);
-				ImGui::InvisibleButton(gianttextid, { wordWrapWidthUseOrig, currentTextPos.y - yStart }, ImGuiButtonFlags_None);
+				ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.F);
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + currentTextPos.y - yStart - 1.F);
+				ImGui::InvisibleButton(gianttextid, { 1.F, 1.F });
+				ImGui::PopStyleVar();
 			}
 			bool needSameLine = prevWasIcon;
 			if (lineEnd != lineStart) {
@@ -7181,7 +7366,10 @@ void imGuiDrawWrappedTextWithIcons(const char* textStart,
 	}
 	if (currentTextPos.y != yStart) {
 		sprintf_s(gianttextid + 11, sizeof gianttextid - 11, "%d", invisButtonCount++);
-		ImGui::InvisibleButton(gianttextid, { wordWrapWidthUseOrig, currentTextPos.y - yStart }, ImGuiButtonFlags_None);
+		ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.F);
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + currentTextPos.y - yStart - 1.F);
+		ImGui::InvisibleButton(gianttextid, { 1.F, 1.F });
+		ImGui::PopStyleVar();
 	}
 	ImGui::PopStyleVar();
 }
@@ -7540,6 +7728,10 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::TextUnformatted(strbuf);
 	}
 	CharacterType charType = endScene.players[playerIndex].charType;
+	if (frame.powerup) {
+		ImGui::Separator();
+		ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
+	}
 	if (charType == CHARACTER_TYPE_SOL) {
 		if (frame.u.diInfo.current) {
 			ImGui::Separator();
@@ -7580,6 +7772,93 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::Separator();
 			ImGui::TextUnformatted("If Faust gets hit by a reflectable projectile on this frame,"
 				" the reflection will be a homerun.");
+		}
+	}
+	bool showHorizCharge = false;
+	int horizChargeMax = 0;
+	int horizChargeMin = 0;
+	bool showVertCharge = false;
+	int vertChargeMax = 0;
+	int vertChargeMin = 0;
+	
+	if (charType == CHARACTER_TYPE_LEO || charType == CHARACTER_TYPE_VENOM) {
+		showHorizCharge = true;
+		horizChargeMax = 40;
+		horizChargeMin = 40;
+		showVertCharge = true;
+		vertChargeMax = 40;
+		vertChargeMin = 40;
+	} else if (charType == CHARACTER_TYPE_MAY) {
+		showHorizCharge = true;
+		horizChargeMax = 30;
+		horizChargeMin = 30;
+		showVertCharge = true;
+		vertChargeMax = 30;
+		vertChargeMin = 30;
+	} else if (charType == CHARACTER_TYPE_POTEMKIN || charType == CHARACTER_TYPE_AXL) {
+		showHorizCharge = true;
+		horizChargeMax = 30;
+		horizChargeMin = 30;
+	}
+	
+	if (showHorizCharge || showVertCharge) {
+		ImGui::Separator();
+		if (showHorizCharge) {
+			zerohspacing
+			textUnformattedColored(YELLOW_COLOR, "Charge (left): ");
+			ImGui::SameLine();
+			if (frame.chargeLeft == 255) {
+				if (horizChargeMax == horizChargeMin) {
+					sprintf_s(strbuf, "244+/%d", horizChargeMin);
+				} else {
+					sprintf_s(strbuf, "244+/%d-%d", horizChargeMin, horizChargeMax);
+				}
+			} else {
+				if (horizChargeMax == horizChargeMin) {
+					sprintf_s(strbuf, "%d/%d", frame.chargeLeft, horizChargeMin);
+				} else {
+					sprintf_s(strbuf, "%d/%d-%d", frame.chargeLeft, horizChargeMin, horizChargeMax);
+				}
+			}
+			ImGui::TextUnformatted(strbuf);
+			
+			textUnformattedColored(YELLOW_COLOR, "Charge (right): ");
+			ImGui::SameLine();
+			if (frame.chargeRight == 255) {
+				if (horizChargeMax == horizChargeMin) {
+					sprintf_s(strbuf, "244+/%d", horizChargeMin);
+				} else {
+					sprintf_s(strbuf, "244+/%d-%d", horizChargeMin, horizChargeMax);
+				}
+			} else {
+				if (horizChargeMax == horizChargeMin) {
+					sprintf_s(strbuf, "%d/%d", frame.chargeRight, horizChargeMin);
+				} else {
+					sprintf_s(strbuf, "%d/%d-%d", frame.chargeRight, horizChargeMin, horizChargeMax);
+				}
+			}
+			ImGui::TextUnformatted(strbuf);
+			_zerohspacing
+		}
+		if (showVertCharge) {
+			zerohspacing
+			textUnformattedColored(YELLOW_COLOR, "Charge (down): ");
+			ImGui::SameLine();
+			if (frame.chargeDown == 255) {
+				if (vertChargeMax == vertChargeMin) {
+					sprintf_s(strbuf, "244+/%d", vertChargeMin);
+				} else {
+					sprintf_s(strbuf, "244+/%d-%d", vertChargeMin, vertChargeMax);
+				}
+			} else {
+				if (vertChargeMax == vertChargeMin) {
+					sprintf_s(strbuf, "%d/%d", frame.chargeDown, vertChargeMin);
+				} else {
+					sprintf_s(strbuf, "%d/%d-%d", frame.chargeDown, vertChargeMin, vertChargeMax);
+				}
+			}
+			ImGui::TextUnformatted(strbuf);
+			_zerohspacing
 		}
 	}
 }
@@ -9197,6 +9476,10 @@ void UI::drawFramebars() {
 		frameMarkerHeight = 5.F;
 	}
 	float frameMarkerSideHeight = frameMarkerSideHeightOriginal * frameMarkerHeight / frameMarkerHeightOriginal;
+	float powerupHeight = powerupHeightOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
+	if (powerupHeight < 4.F) {
+		powerupHeight = 4.F;
+	}
 	static const float markerPaddingHeightUnscaled = -1.F;
 	const float markerPaddingHeight = markerPaddingHeightUnscaled * scale;
 	static const float paddingBetweenFramebarsOriginalUnscaled = 5.F;
@@ -9672,6 +9955,7 @@ void UI::drawFramebars() {
 				const float yTopRow = drawFramebars_y - markerPaddingHeight - frameMarkerHeight;
 				const float markerEndY = yTopRow + frameMarkerHeight;
 				const float thisMarkerWidthPremult = frameMarkerWidthOriginal / frameWidthOriginal;
+				const float powerupWidthPremult = powerupWidthOriginal / frameWidthOriginal;
 				
 				if (entityFramebar.belongsToPlayer()) {
 					const PlayerFramebar& framebarCast = (const PlayerFramebar&)framebar;
@@ -9688,6 +9972,29 @@ void UI::drawFramebars() {
 						float thisMarkerWidthOffset = (thisMarkerWidth - dims.width) * 0.5F;
 						ImVec2 markerStart { dims.x - thisMarkerWidthOffset, yTopRow };
 						ImVec2 markerEnd { dims.x + dims.width + thisMarkerWidthOffset, markerEndY };
+						
+						if (frame.powerup) {
+							float powerupWidthOffset = (powerupWidthPremult * dims.width - dims.width) * 0.5F;
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								{
+									dims.x - powerupWidthOffset,
+									yTopRow
+								},
+								{
+									dims.x + dims.width + powerupWidthOffset,
+									yTopRow + powerupHeight
+								},
+								{
+									powerupFrame->uStart,
+									powerupFrame->vStart
+									
+								},
+								{
+									powerupFrame->uEnd,
+									powerupFrame->vEnd
+								},
+								tint);
+						}
 						
 						if (frame.strikeInvulInGeneral && showStrikeInvulOnFramebar) {
 							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,

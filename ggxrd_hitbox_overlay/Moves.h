@@ -119,7 +119,8 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canYrcProjectile, nullptr) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displaySlangNameSelector, nullptr) \
-	MOVE_INFO_EXEC(isIdle_t, isIdleValue, createdProjectile, nullptr)
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, createdProjectile, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -151,8 +152,10 @@ public:
 	enum InstructionType {
 		instr_endState = 1,
 		instr_sprite = 2,
+		instr_spriteEnd = 3,
 		instr_ifOperation = 6,
 		instr_setMarker = 11,
+		instr_exitState = 18,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
 		instr_deleteMoveForceDisableFlag = 1603,
@@ -186,6 +189,20 @@ public:
 	int mayKBallJumpConnectOffset = 0;
 	int mayPBallJumpConnectRange = 0;
 	int mayKBallJumpConnectRange = 0;
+	struct MayIrukasanRidingObjectFrames {
+		int offset = 0;
+		int frames = 0;
+	};
+	struct MayIrukasanRidingObjectInfo {
+		int offset = 0;
+		int totalFrames = 0;
+		std::vector<MayIrukasanRidingObjectFrames> frames;
+		inline void clear() { offset = 0; totalFrames = 0; frames.clear(); }
+	};
+	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectYokoA { 0 };
+	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectYokoB { 0 };
+	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectTateA { 0 };
+	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectTateB { 0 };
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {
