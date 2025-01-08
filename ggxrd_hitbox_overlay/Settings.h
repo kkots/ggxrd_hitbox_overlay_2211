@@ -100,6 +100,7 @@ public:
 	std::atomic_bool displayInputHistoryWhenObserving = true;
 	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;
 	std::atomic_bool useAlternativeStaggerMashProgressDisplay = false;
+	std::atomic_bool dontShowMayInteractionChecks = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

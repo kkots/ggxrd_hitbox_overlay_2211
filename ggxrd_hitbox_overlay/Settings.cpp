@@ -449,6 +449,12 @@ bool Settings::onDllMain() {
 			"; Setting this to true will display Progress differently in Stun/Stagger Mash window.\n"
 			"; Instead of displaying it as Mashed + Animation Duration / Stagger Duration - 4, it will\n"
 			"; display as Animation Duration / Stagger Duration - 4 - Mashed");
+	registerOtherDescription(settingAndItsName(dontShowMayInteractionChecks), "Don't Show May Interaction Checks", settingsHitboxSettingsStr,
+			"; Specify true or false.\n"
+			"; When a May P or K Ball is on the screen, a circle is drawn around it, an extra point is displayed on the Ball,\n"
+			"; and, when May is airborne, an extra point is displayed in the center of body of May, and a line connecting that\n"
+			"; point to the extra point on the Ball is displayed.\n"
+			"; When this setting is true, none of this is displayed.");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -724,6 +730,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool displayInputHistoryInSomeOfflineModesParsed = false;
 	
 	bool useAlternativeStaggerMashProgressDisplayParsed = false;
+	
+	bool dontShowMayInteractionChecksParsed = false;
 	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
@@ -1019,6 +1027,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								useAlternativeStaggerMashProgressDisplayParsed = parseBoolean("useAlternativeStaggerMashProgressDisplay", keyValue, useAlternativeStaggerMashProgressDisplay);
 							}
 							break;
+						case offsetof(Settings, dontShowMayInteractionChecks):
+							if (!dontShowMayInteractionChecksParsed) {
+								dontShowMayInteractionChecksParsed = parseBoolean("dontShowMayInteractionChecks", keyValue, dontShowMayInteractionChecks);
+							}
+							break;
 						case offsetof(Settings, forceZeroPitchDuringCameraCentering):
 							if (!forceZeroPitchDuringCameraCenteringParsed) {
 								forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
@@ -1237,6 +1250,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!useAlternativeStaggerMashProgressDisplayParsed) {
 		useAlternativeStaggerMashProgressDisplay = false;
+	}
+	
+	if (!dontShowMayInteractionChecksParsed) {
+		dontShowMayInteractionChecks = true;
 	}
 	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
@@ -1778,6 +1795,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("displayInputHistoryWhenObserving", formatBoolean(displayInputHistoryWhenObserving), getOtherINIDescription(&displayInputHistoryWhenObserving));
 	replaceOrAddSetting("displayInputHistoryInSomeOfflineModes", formatBoolean(displayInputHistoryInSomeOfflineModes), getOtherINIDescription(&displayInputHistoryInSomeOfflineModes));
 	replaceOrAddSetting("useAlternativeStaggerMashProgressDisplay", formatBoolean(useAlternativeStaggerMashProgressDisplay), getOtherINIDescription(&useAlternativeStaggerMashProgressDisplay));
+	replaceOrAddSetting("dontShowMayInteractionChecks", formatBoolean(dontShowMayInteractionChecks), getOtherINIDescription(&dontShowMayInteractionChecks));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

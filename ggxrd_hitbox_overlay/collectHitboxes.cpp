@@ -7,6 +7,7 @@
 #include "colors.h"
 #include "Hardcode.h"
 #include "Moves.h"
+#include "Settings.h"
 
 static void getMahojinDistXY(BYTE* functionStart, int* x, int* y);
 static void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpConnectPtr, int* mayBallJumpConnectRangePtr);
@@ -214,7 +215,7 @@ void collectHitboxes(Entity ent,
 			pointCallParams.posY = params.posY - ent.landingHeight();
 			points->push_back(pointCallParams);
 			
-			if (ent.hasUpon(3)) {
+			if (ent.hasUpon(3) && !settings.dontShowMayInteractionChecks) {
 				getMayBallJumpConnectOffsetYAndRange(ent.bbscrCurrentFunc(), mayBallJumpConnectPtr, mayBallJumpConnectRangePtr);
 				DrawPointCallParams pointCallParams;
 				pointCallParams.isProjectile = true;
@@ -238,6 +239,7 @@ void collectHitboxes(Entity ent,
 			points->push_back(pointCallParams);
 			
 			if (ent.characterType() == CHARACTER_TYPE_MAY
+					&& !settings.dontShowMayInteractionChecks
 					&& !(params.posY == 0 && ent.speedY() == 0)
 					&& !ent.inHitstun()) {
 				int* mayBallJumpConnectPtr = nullptr;

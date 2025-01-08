@@ -2347,6 +2347,8 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
 			
+			booleanSettingPreset(settings.dontShowMayInteractionChecks);
+			
 		}
 		popSearchStack();
 	}
@@ -3233,6 +3235,9 @@ void UI::drawSearchableWindows() {
 						ImGui::TextUnformatted("1f");
 					}
 				}
+				
+				booleanSettingPreset(settings.dontShowMayInteractionChecks);
+				
 			} else if (player.charType == CHARACTER_TYPE_ZATO) {
 				Entity eddie = nullptr;
 				bool isSummoned = player.pawn.playerVal(0);
@@ -6650,11 +6655,16 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("The box shows the area in which Ciel's origin point must be in order for the projectile to become Fortified.");
 	
 	textUnformattedColored(YELLOW_COLOR, "May Beach Ball:");
-	ImGui::TextUnformatted("The circle shows the range in which May's center of body must be in order to jump on the ball."
-		" May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point."
-		" Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's"
-		" point that is at the center of the circle. This line serves no purpose other than to remind the user that the range"
-		" check of the circle is done against the center of body point of May, not her origin point.");
+	static std::string mayBeachBall;
+	if (mayBeachBall.empty()) {
+		mayBeachBall = settings.convertToUiDescription("The circle shows the range in which May's center of body must be in order to jump on the ball."
+			" May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point."
+			" Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's"
+			" point that is at the center of the circle. This line serves no purpose other than to remind the user that the range"
+			" check of the circle is done against the center of body point of May, not her origin point.\n"
+			"The display of all this can be disabled with \"dontShowMayInteractionChecks\".");
+	}
+	ImGui::TextUnformatted(mayBeachBall.c_str());
 	
 	ImGui::Separator();
 	

@@ -172,7 +172,7 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Ky Stun Edge, Charged Stun Edge and Sacred Edge: The box shows the area in which Ciel's origin point must be in order for the projectile to become Fortified.
 
-- May Beach Ball: The circle shows the range in which May's center of body must be in order to jump on the ball. May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point. Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's point that is at the center of the circle. This line serves no purpose other than to remind the user that the range check of the circle is done against the center of body point of May, not her origin point.
+- May Beach Ball: The circle shows the range in which May's center of body must be in order to jump on the ball. May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point. Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's point that is at the center of the circle. This line serves no purpose other than to remind the user that the range check of the circle is done against the center of body point of May, not her origin point. The display of all this can be disabled with dontShowMayInteractionChecks setting ('Settings - Hitboxes - Don't Show May Interaction Checks' in mod's UI).
 
 ### Outlines lie within their boxes/on the edge
 
@@ -533,6 +533,13 @@ displayInputHistoryInSomeOfflineModes = false
 ; Instead of displaying it as Mashed + Animation Duration / Stagger Duration - 4, it will
 ; display as Animation Duration / Stagger Duration - 4 - Mashed
 useAlternativeStaggerMashProgressDisplay = false
+
+; Specify true or false.
+; When a May P or K Ball is on the screen, a circle is drawn around it, an extra point is displayed on the Ball,
+; and, when May is airborne, an extra point is displayed in the center of body of May, and a line connecting that
+; point to the extra point on the Ball is displayed.
+; When this setting is true, none of this is displayed.
+dontShowMayInteractionChecks = true
 
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.
