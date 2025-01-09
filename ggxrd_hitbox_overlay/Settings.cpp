@@ -454,7 +454,15 @@ bool Settings::onDllMain() {
 			"; When a May P or K Ball is on the screen, a circle is drawn around it, an extra point is displayed on the Ball,\n"
 			"; and, when May is airborne, an extra point is displayed in the center of body of May, and a line connecting that\n"
 			"; point to the extra point on the Ball is displayed.\n"
+			"; For Dolphin, this displays an extra point on May, a line connecting that point to the origin point of the Dolphin,\n"
+			"; and a circle around the Dolphin denoting the range in which May's extra point must be in order for May to hop\n"
+			"; on the Dolphin.\n"
 			"; When this setting is true, none of this is displayed.");
+	registerOtherDescription(settingAndItsName(showMilliaBadMoonBuffHeight), "Show Millia Bad Moon Buff Height (Rev2 only)", settingsHitboxSettingsStr,
+			"; Specify true or false.\n"
+			"; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,\n"
+			"; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.\n"
+			"; Millia's origin point must be above the line in order to gain the powerup.");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -732,6 +740,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool useAlternativeStaggerMashProgressDisplayParsed = false;
 	
 	bool dontShowMayInteractionChecksParsed = false;
+	
+	bool showMilliaBadMoonBuffHeightParsed = false;
 	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
@@ -1032,6 +1042,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								dontShowMayInteractionChecksParsed = parseBoolean("dontShowMayInteractionChecks", keyValue, dontShowMayInteractionChecks);
 							}
 							break;
+						case offsetof(Settings, showMilliaBadMoonBuffHeight):
+							if (!showMilliaBadMoonBuffHeightParsed) {
+								showMilliaBadMoonBuffHeightParsed = parseBoolean("showMilliaBadMoonBuffHeight", keyValue, showMilliaBadMoonBuffHeight);
+							}
+							break;
 						case offsetof(Settings, forceZeroPitchDuringCameraCentering):
 							if (!forceZeroPitchDuringCameraCenteringParsed) {
 								forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
@@ -1254,6 +1269,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!dontShowMayInteractionChecksParsed) {
 		dontShowMayInteractionChecks = true;
+	}
+	
+	if (!showMilliaBadMoonBuffHeightParsed) {
+		showMilliaBadMoonBuffHeight = false;
 	}
 	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
@@ -1796,6 +1815,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("displayInputHistoryInSomeOfflineModes", formatBoolean(displayInputHistoryInSomeOfflineModes), getOtherINIDescription(&displayInputHistoryInSomeOfflineModes));
 	replaceOrAddSetting("useAlternativeStaggerMashProgressDisplay", formatBoolean(useAlternativeStaggerMashProgressDisplay), getOtherINIDescription(&useAlternativeStaggerMashProgressDisplay));
 	replaceOrAddSetting("dontShowMayInteractionChecks", formatBoolean(dontShowMayInteractionChecks), getOtherINIDescription(&dontShowMayInteractionChecks));
+	replaceOrAddSetting("showMilliaBadMoonBuffHeight", formatBoolean(showMilliaBadMoonBuffHeight), getOtherINIDescription(&showMilliaBadMoonBuffHeight));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

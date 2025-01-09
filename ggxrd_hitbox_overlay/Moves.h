@@ -156,6 +156,7 @@ public:
 		instr_ifOperation = 6,
 		instr_setMarker = 11,
 		instr_exitState = 18,
+		instr_storeValue = 46,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
 		instr_deleteMoveForceDisableFlag = 1603,
@@ -205,6 +206,12 @@ public:
 	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectTateB { 0 };
 	int may6H_6DHoldOffset = 0;
 	int may6H_6DHoldAttackOffset = 0;
+	enum TriBool : char {
+		TRIBOOL_DUNNO,
+		TRIBOOL_FALSE,
+		TRIBOOL_TRUE
+	};
+	TriBool milliaIsRev2 = TRIBOOL_DUNNO;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

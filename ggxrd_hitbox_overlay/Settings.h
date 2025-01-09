@@ -101,6 +101,7 @@ public:
 	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;
 	std::atomic_bool useAlternativeStaggerMashProgressDisplay = false;
 	std::atomic_bool dontShowMayInteractionChecks = false;
+	std::atomic_bool showMilliaBadMoonBuffHeight = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

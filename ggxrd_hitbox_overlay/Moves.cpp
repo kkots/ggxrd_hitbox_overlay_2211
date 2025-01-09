@@ -155,6 +155,8 @@ static const char* displayNameSelector_RC(PlayerInfo& ent);
 static const char* displaySlangNameSelector_RC(PlayerInfo& ent);
 static const char* displayNameSelector_may6P(PlayerInfo& ent);
 static const char* displayNameSelector_may6H(PlayerInfo& ent);
+static const char* displayNameSelector_badMoon(PlayerInfo& ent);
+static const char* displaySlangNameSelector_badMoon(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool createdProjectile_ky5D(PlayerInfo& ent);
@@ -3857,7 +3859,7 @@ bool Moves::onDllMain() {
 	// Millia Roll Roll
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SaiZenten");
 	move.displayName = "Forward Roll Again";
-	move.slangName = "> Roll";
+	move.slangName = "Doubleroll";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
@@ -3890,6 +3892,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopC");
 	move.displayName = "S Tandem Top";
 	move.slangName = "S-Disc";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	// s-disc
@@ -3904,6 +3907,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopD");
 	move.displayName = "H Tandem Top";
 	move.framebarSlangName = "H-Disc";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	// h-disc
@@ -3917,7 +3921,9 @@ bool Moves::onDllMain() {
 	// Bad Moon does not get a height buff in Rev1
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "BadMoon");
 	move.displayName = "Bad Moon";
+	move.displayNameSelector = displayNameSelector_badMoon;
 	move.slangName = "BM";
+	move.displaySlangNameSelector = displaySlangNameSelector_badMoon;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SecretGarden");
@@ -3945,11 +3951,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce2");
 	move.displayName = "H Silent Force";
 	move.slangName = "H-Pin";
+	move.canYrcProjectile = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce");
 	move.displayName = "S Silent Force";
 	move.slangName = "S-Pin";
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "KousokuRakka");
@@ -3961,6 +3969,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Emerald Rain";
 	move.slangName = "ER";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ChromingRose");
@@ -6774,6 +6783,7 @@ void Moves::onAswEngineDestroyed() {
 	mayIrukasanRidingObjectTateB.clear();
 	may6H_6DHoldOffset = 0;
 	may6H_6DHoldAttackOffset = 0;
+	milliaIsRev2 = TRIBOOL_DUNNO;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7554,6 +7564,12 @@ const char* displayNameSelector_may6H(PlayerInfo& ent) {
 	} else {
 		return "6H";
 	}
+}
+const char* displayNameSelector_badMoon(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "Bad Moon (Height Buff)" : "Bad Moon";
+}
+const char* displaySlangNameSelector_badMoon(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "BM (Height Buff)" : "BM";
 }
 
 bool canYrcProjectile_default(PlayerInfo& player) {

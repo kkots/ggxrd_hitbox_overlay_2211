@@ -36,10 +36,12 @@
 	INVUL_TYPES_EXEC(SUPER_ARMOR_BLITZ_BREAK, "max charge blitz or overdrives", superArmorBlitzBreak) \
 	INVUL_TYPES_EXEC(REFLECT, "reflect", reflect)
 
-struct CanProgramSecretGardenInfo {
-	DWORD can:1;
-	DWORD inputs:3;
-	DWORD inputsMax:3;
+struct MilliaInfo {
+	DWORD canProgramSecretGarden:1;
+	DWORD SGInputs:3;
+	DWORD SGInputsMax:3;
+	DWORD chromingRose:9;
+	DWORD chromingRoseMax:9;
 };
 
 struct ChippInfo {
@@ -321,7 +323,7 @@ struct PlayerFrame : public FrameBase {
 	std::vector<Input> inputs;
 	Input prevInput;
 	union {
-		CanProgramSecretGardenInfo canProgramSecretGarden;
+		MilliaInfo milliaInfo;
 		ChippInfo chippInfo;
 		DIInfo diInfo;
 	} u;
@@ -1191,6 +1193,7 @@ struct PlayerInfo {
 	int comboProrationOverdrive = 0;
 	int prevFrameStunValue = 0;
 	int prevFrameMem45 = 0;
+	int playervalSetterOffset = 0;
 	char grabAnimation[32] { '\0' };
 	
 	char attackLockAction[32] { '\0' };
@@ -1345,7 +1348,7 @@ struct PlayerInfo {
 	bool wasHadWhiffCancel(const char* name) const;
 	bool wasHadGatlings() const;
 	bool wasHadWhiffCancels() const;
-	CanProgramSecretGardenInfo canProgramSecretGarden() const;
+	MilliaInfo canProgramSecretGarden() const;
 	void appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel);
 	void appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel);
 	void determineMoveNameAndSlangName(const char** name, const char** slangName);
@@ -1356,4 +1359,5 @@ struct PlayerInfo {
 	void fillInMove();
 	static void calculateSlow(int valueElapsed, int valueRemaining, int slowRemaining, int* result, int* resultMax, int *newSlowRemaining);
 	void getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFrameInTheMatch);
+	void fillInPlayervalSetter(int playervalNum);
 };

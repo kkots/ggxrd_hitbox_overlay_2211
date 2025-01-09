@@ -1996,17 +1996,17 @@ bool PlayerInfo::wasHadWhiffCancels() const {
 	return endScene.wasPlayerHadWhiffCancels(index);
 }
 
-CanProgramSecretGardenInfo PlayerInfo::canProgramSecretGarden() const {
+MilliaInfo PlayerInfo::canProgramSecretGarden() const {
 	for (int i = 2; i < entityList.count; ++i) {
 		Entity e = entityList.list[i];
 		if (e
 				&& e.isActive()
 				&& e.team() == index
 				&& strcmp(e.animationName(), "SecretGardenBall") == 0) {
-			CanProgramSecretGardenInfo response;
-			response.can = e.mem50();
-			response.inputs = e.mem51();
-			response.inputsMax = 4;
+			MilliaInfo response;
+			response.canProgramSecretGarden = e.mem50();
+			response.SGInputs = e.mem51();
+			response.SGInputsMax = 4;
 			return response;
 		}
 	}
@@ -2704,4 +2704,30 @@ void PlayerInfo::getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFra
 		inputs[79] = ringBuffer->inputs[ringBuffer->index];
 		inputsOverflow = true;
 	}
+}
+
+void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
+	if (playervalSetterOffset) return;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	BYTE* instr = moves.skipInstruction(func);
+	Moves::InstructionType type = moves.instructionType(instr);
+	bool found = false;
+	bool foundSpriteEnd = false;
+	while (type != Moves::instr_endState) {
+		if (!found
+				&& type == Moves::instr_storeValue
+				&& *(int*)(instr + 4) == 2  // tag: variable
+				&& *(int*)(instr + 8) == 3 + playervalNum
+				&& *(int*)(instr + 0xc) == 0) {  // tag: literal
+			found = true;
+		} else if (found && type == Moves::instr_sprite || foundSpriteEnd) {
+			playervalSetterOffset = instr - func;
+			return;
+		} else if (found && type == Moves::instr_spriteEnd) {
+			foundSpriteEnd = true;
+		}
+		instr = moves.skipInstruction(instr);
+		type = moves.instructionType(instr);
+	}
+	playervalSetterOffset = instr - func;
 }

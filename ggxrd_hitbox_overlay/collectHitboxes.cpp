@@ -8,6 +8,7 @@
 #include "Hardcode.h"
 #include "Moves.h"
 #include "Settings.h"
+#include "findMoveByName.h"
 
 static void getMahojinDistXY(BYTE* functionStart, int* x, int* y);
 static void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpConnectPtr, int* mayBallJumpConnectRangePtr);
@@ -304,12 +305,50 @@ void collectHitboxes(Entity ent,
 						lines->push_back(lineCallParams);
 					}
 				}
+			} else if (state.charType == CHARACTER_TYPE_MILLIA
+				&& lines
+				&& settings.showMilliaBadMoonBuffHeight
+				&& (
+					entityList.slots[1 - state.team].characterType() != CHARACTER_TYPE_MILLIA
+					|| state.team == 0
+				)) {
+				bool isRev2;
+				if (moves.milliaIsRev2 == Moves::TRIBOOL_DUNNO) {
+					isRev2 = findMoveByName((void*)ent.ent, "SilentForce2", 0) != nullptr;
+					if (isRev2) {
+						moves.milliaIsRev2 = Moves::TRIBOOL_TRUE;
+					} else {
+						moves.milliaIsRev2 = Moves::TRIBOOL_FALSE;
+					}
+				} else {
+					isRev2 = moves.milliaIsRev2 == Moves::TRIBOOL_TRUE;
+				}
+				if (isRev2) {
+					DrawLineCallParams lineCallParams;
+					lineCallParams.posX1 = -1600000;
+					lineCallParams.posY1 = 500000;
+					lineCallParams.posX2 = 1600000;
+					lineCallParams.posY2 = 500000;
+					lines->push_back(lineCallParams);
+				}
 			}
 		}
 	}
 	
 	if (interactionBoxes) {
-		if (ownerType == CHARACTER_TYPE_FAUST) {
+		if (ownerType == CHARACTER_TYPE_MILLIA) {
+			if (ent.mem52() && strcmp(ent.animationName(), "SilentForceKnife") == 0) {
+				DrawBoxCallParams interactionBoxParams;
+				interactionBoxParams.left = params.posX - 180000;
+				interactionBoxParams.right = params.posX + 180000;
+				interactionBoxParams.top = params.posY + 10000000;
+				interactionBoxParams.bottom = params.posY - 10000000;
+				interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
+				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+				interactionBoxParams.thickness = THICKNESS_INTERACTION;
+				interactionBoxes->push_back(interactionBoxParams);
+			}
+		} else if (ownerType == CHARACTER_TYPE_FAUST) {
 			if (!ent.mem50() && ent.y() == 0) {
 				int rangeX = 0;
 				if (strcmp(ent.animationName(), "Item_Chocolate"_hardcode) == 0) {

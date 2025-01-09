@@ -1236,11 +1236,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			int playerval0 = ent.playerVal(0);
 			int playerval1 = ent.playerVal(1);
-			if (!player.playerval0 && playerval0) {
-				if (player.charType == CHARACTER_TYPE_SOL) {
-					player.maxDI = playerval1;
-				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
-					player.maxDI = playerval0;
+			const char* playervalSetterName = nullptr;
+			int playervalNum = 1;
+			if (player.charType == CHARACTER_TYPE_SOL) {
+				playervalSetterName = "DragonInstall";
+			} else if (player.charType == CHARACTER_TYPE_CHIPP) {
+				playervalSetterName = "Meisai";
+				playervalNum = 0;
+			} else if (player.charType == CHARACTER_TYPE_MILLIA) {
+				playervalSetterName = "ChromingRose";
+			}
+			if (playervalSetterName && strcmp(animName, playervalSetterName) == 0) {
+				player.fillInPlayervalSetter(playervalNum);
+				if (player.pawn.bbscrCurrentInstr() - player.pawn.bbscrCurrentFunc() == player.playervalSetterOffset
+						&& !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0) {
+					player.maxDI = player.pawn.playerVal(playervalNum);
 				}
 			}
 			player.playerval1 = playerval1;
@@ -3025,10 +3035,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 				}
 				
-				CanProgramSecretGardenInfo canProgramSecretGarden { 0 };
+				MilliaInfo milliaInfo { 0 };
 				if (player.charType == CHARACTER_TYPE_MILLIA) {
-					canProgramSecretGarden = player.canProgramSecretGarden();
-					currentFrame.u.canProgramSecretGarden = canProgramSecretGarden;
+					milliaInfo = player.canProgramSecretGarden();
+					milliaInfo.chromingRose = player.playerval1;
+					milliaInfo.chromingRoseMax = player.maxDI;
+					currentFrame.u.milliaInfo = milliaInfo;
 				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
 					currentFrame.u.chippInfo.invis = player.playerval0;
 					currentFrame.u.chippInfo.wallTime = 0;
@@ -3041,7 +3053,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.u.diInfo.current = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
 					currentFrame.u.diInfo.max = player.maxDI;
 				} else {
-					currentFrame.u.canProgramSecretGarden = canProgramSecretGarden;
+					currentFrame.u.milliaInfo = milliaInfo;
 				}
 				
 				if (player.move.butForFramebarDontCombineWithPreviousMove
@@ -3099,11 +3111,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						} else if (zatoFrameType != FT_NONE) {
 							defaultStartupFrame = zatoFrameType;
 							overrideStartupFrame = true;
-						} else if (canProgramSecretGarden.can) {
+						} else if (milliaInfo.canProgramSecretGarden) {
 							overrideStartupFrame = true;
 							defaultStartupFrame = FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN;
 						}
-						if (!isInVariableStartupSection && !isInASectionBeforeVariableStartup && !canProgramSecretGarden.can && zatoFrameType == FT_NONE) {
+						if (!isInVariableStartupSection && !isInASectionBeforeVariableStartup && !milliaInfo.canProgramSecretGarden && zatoFrameType == FT_NONE) {
 							defaultStartupFrame = startupFrameType;
 						}
 					}

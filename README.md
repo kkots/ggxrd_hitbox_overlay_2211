@@ -176,6 +176,13 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - May Dolphin: The circle shows the range in which May's behind the body point must be in order to ride the Dolphin. The point behind May's body depends on May's facing, and not the Dolphin's. Additionally, a line connecting May's behind the body point and the origin point of the Dolphin is shown. It serves no purpose other than to remind the user that the distance check is performed against May's behind the body point, and not her origin point. The display of all this can be disabled with dontShowMayInteractionChecks setting ('Settings - Hitboxes - Don't Show May Interaction Checks' in mod's UI).
 
+- Millia Pin: The infinite vertical box shows the range in which Millia's origin point must be in order for the Pin to be picked up. Millia must be in either of the following animations:
+  - Stand to Crouch
+  - Crouch
+  - Crouch Turn (as of Rev2)
+  - Roll (as of Rev2)
+  - Doubleroll (as of Rev2)
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  

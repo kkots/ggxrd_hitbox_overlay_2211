@@ -25,6 +25,7 @@
 #include <chrono>
 #endif
 #include "colors.h"
+#include "findMoveByName.h"
 
 UI ui;
 
@@ -2353,6 +2354,8 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.dontShowMayInteractionChecks);
 			
+			booleanSettingPreset(settings.showMilliaBadMoonBuffHeight);
+			
 		}
 		popSearchStack();
 	}
@@ -3388,7 +3391,32 @@ void UI::drawSearchableWindows() {
 					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false));
 					ImGui::TextUnformatted(strbuf);
 				}
+			
+			} else if (player.charType == CHARACTER_TYPE_MILLIA) {
+				ImGui::PushTextWrapPos(0.F);
+				ImGui::TextUnformatted("To pick up the knife you must be in either of the animations:");
+				ImGui::PopTextWrapPos();
+				ImGui::TextUnformatted("*) Stand transitioning to Crouch;");
+				ImGui::TextUnformatted("*) Crouch;");
+				bool isRev2 = findMoveByName((void*)player.pawn.ent, "SilentForce2", 0) != nullptr;
+				if (isRev2) {
+					ImGui::TextUnformatted("*) Crouch Turn;");
+					ImGui::TextUnformatted("*) Roll;");
+					ImGui::TextUnformatted("*) Doubleroll.");
+				}
+				ImGui::PushTextWrapPos(0.F);
+				ImGui::TextUnformatted("Displayed Pin range checks for your origin point, not the pushbox.");
+				ImGui::PopTextWrapPos();
 				
+				textUnformattedColored(YELLOW_COLOR, "Chroming Rose:");
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%df", player.pawn.playerVal(1), player.maxDI);
+				ImGui::TextUnformatted(strbuf);
+				
+				if (isRev2) {
+					booleanSettingPreset(settings.showMilliaBadMoonBuffHeight);
+				}
+			
 			} else if (player.charType == CHARACTER_TYPE_ZATO) {
 				Entity eddie = nullptr;
 				bool isSummoned = player.pawn.playerVal(0);
@@ -6829,6 +6857,15 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(mayDolphin.c_str());
 	
+	textUnformattedColored(YELLOW_COLOR, "Millia Pin:");
+	ImGui::TextUnformatted("The infinite vertical box shows the range in which Millia's origin point must be in order"
+		" for the Pin to be picked up. Millia must be in either of the following animations:");
+  	ImGui::TextUnformatted("*) Stand to Crouch;");
+  	ImGui::TextUnformatted("*) Crouch;");
+  	ImGui::TextUnformatted("*) Crouch Turn (as of Rev2);");
+  	ImGui::TextUnformatted("*) Roll (as of Rev2);");
+  	ImGui::TextUnformatted("*) Doubleroll (as of Rev2).");
+	
 	ImGui::Separator();
 	
 	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");
@@ -7744,12 +7781,22 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_MILLIA) {
-		if (frame.u.canProgramSecretGarden.can || frame.u.canProgramSecretGarden.inputs) {
+		bool insertedSeparator = false;
+		if (frame.u.milliaInfo.canProgramSecretGarden || frame.u.milliaInfo.SGInputs) {
 			ImGui::Separator();
+			insertedSeparator = true;
 			ImGui::Text("%sInputs %d/%d",
-				frame.u.canProgramSecretGarden.can ? "Can program Secret Garden. " : "Secret Garden ",
-				frame.u.canProgramSecretGarden.inputs,
-				frame.u.canProgramSecretGarden.inputsMax);
+				frame.u.milliaInfo.canProgramSecretGarden ? "Can program Secret Garden. " : "Secret Garden ",
+				frame.u.milliaInfo.SGInputs,
+				frame.u.milliaInfo.SGInputsMax);
+		}
+		if (frame.u.milliaInfo.chromingRose) {
+			if (!insertedSeparator) {
+				ImGui::Separator();
+				textUnformattedColored(YELLOW_COLOR, "ChromingRose: ");
+				ImGui::SameLine();
+				ImGui::Text("%d/%d", frame.u.milliaInfo.chromingRose, frame.u.milliaInfo.chromingRoseMax);
+			}
 		}
 	} else if (charType == CHARACTER_TYPE_CHIPP) {
 		if (frame.u.chippInfo.invis || frame.u.chippInfo.wallTime) {

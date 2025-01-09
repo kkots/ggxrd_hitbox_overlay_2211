@@ -881,6 +881,7 @@ public:
 	inline int mem49() const { return *(int*)(ent + 0x15c); }
 	inline int mem50() const { return *(int*)(ent + 0x160); }
 	inline int mem51() const { return *(int*)(ent + 0x164); }
+	inline int mem52() const { return *(int*)(ent + 0x168); }
 	inline int mem54() const { return *(int*)(ent + 0x170); }
 	inline int mem57() const { return *(int*)(ent + 0x17c); }
 	inline int mem58() const { return *(int*)(ent + 0x180); }
