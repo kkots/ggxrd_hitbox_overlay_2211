@@ -3739,6 +3739,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.prevGettingHitBySuper = player.gettingHitBySuper;
 			player.prevFrameStunValue = player.pawn.dealtAttack()->stun;
+			player.prevFrameMem45 = player.pawn.mem45();
 		}
 		
 		for (auto it = projectileFramebars.begin(); it != projectileFramebars.end(); ) {

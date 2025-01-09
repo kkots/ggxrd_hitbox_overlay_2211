@@ -203,6 +203,8 @@ public:
 	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectYokoB { 0 };
 	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectTateA { 0 };
 	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectTateB { 0 };
+	int may6H_6DHoldOffset = 0;
+	int may6H_6DHoldAttackOffset = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

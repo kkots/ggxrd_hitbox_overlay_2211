@@ -1190,6 +1190,7 @@ struct PlayerInfo {
 	int comboProrationNormal = 0;
 	int comboProrationOverdrive = 0;
 	int prevFrameStunValue = 0;
+	int prevFrameMem45 = 0;
 	char grabAnimation[32] { '\0' };
 	
 	char attackLockAction[32] { '\0' };

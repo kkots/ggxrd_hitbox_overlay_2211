@@ -153,6 +153,8 @@ static const char* displayNameSelector_pogo8(PlayerInfo& ent);
 static const char* displaySlangNameSelector_pogo8(PlayerInfo& ent);
 static const char* displayNameSelector_RC(PlayerInfo& ent);
 static const char* displaySlangNameSelector_RC(PlayerInfo& ent);
+static const char* displayNameSelector_may6P(PlayerInfo& ent);
+static const char* displayNameSelector_may6H(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool createdProjectile_ky5D(PlayerInfo& ent);
@@ -161,6 +163,9 @@ static bool createdProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
+static bool powerup_may6H(PlayerInfo& ent);
+
+static void fillMay6HOffsets(BYTE* func);
 
 static inline MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (!move->count) move->startInd = allProperties.size();
@@ -1941,6 +1946,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6A");
 	move.displayName = "6P";
+	move.displayNameSelector = displayNameSelector_may6P;
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_may6P;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
@@ -1949,9 +1955,11 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6D");
 	move.displayName = "6H";
+	move.displayNameSelector = displayNameSelector_may6H;
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_may6H;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
+	move.powerup = powerup_may6H;
 	addMove(move);
 	
 	// May riding horizontal Dolphin
@@ -6764,6 +6772,8 @@ void Moves::onAswEngineDestroyed() {
 	mayIrukasanRidingObjectYokoB.clear();
 	mayIrukasanRidingObjectTateA.clear();
 	mayIrukasanRidingObjectTateB.clear();
+	may6H_6DHoldOffset = 0;
+	may6H_6DHoldAttackOffset = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7511,6 +7521,40 @@ const char* displaySlangNameSelector_RC(PlayerInfo& ent) {
 			? "PRC"
 			: "RRC";
 }
+const char* displayNameSelector_may6P(PlayerInfo& ent) {
+	struct May6PElement {
+		const char* name;
+		int stun;
+	};
+	static const May6PElement ar[] {
+		{ "6P", 88 },
+		{ "6P (Lvl1)", 110 },
+		{ "6P (Lvl2)", 121 },
+		{ "6P (Lvl3)", 132 },
+		{ "6P Max", 143 }
+	};
+	for (int i = 0; i < _countof(ar); ++i) {
+		if (ent.pawn.dealtAttack()->stun == ar[i].stun) {
+			return ar[i].name;
+		}
+	}
+	return ar[0].name;
+}
+const char* displayNameSelector_may6H(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.gotoLabelRequest(), "6DHoldAttack") == 0) {
+		return "6H Slightly Held";
+	}
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	fillMay6HOffsets(func);
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.may6H_6DHoldOffset && offset < moves.may6H_6DHoldAttackOffset) {
+		return ent.pawn.mem45() == 0 ? "6H Max" : "6H Hold";
+	} else if (offset > moves.may6H_6DHoldAttackOffset) {
+		return "6H Slightly Held";
+	} else {
+		return "6H";
+	}
+}
 
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
@@ -7557,4 +7601,20 @@ bool canYrcProjectile_splitCiel(PlayerInfo& player) {
 
 bool powerup_may6P(PlayerInfo& player) {
 	return player.pawn.dealtAttack()->stun > player.prevFrameStunValue;
+}
+bool powerup_may6H(PlayerInfo& player) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	fillMay6HOffsets(func);
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.may6H_6DHoldOffset && offset < moves.may6H_6DHoldAttackOffset) {
+		return player.prevFrameMem45 == 1 && player.pawn.mem45() == 0;
+	}
+	return false;
+}
+
+void fillMay6HOffsets(BYTE* func) {
+	if (moves.may6H_6DHoldOffset == 0) {
+		moves.may6H_6DHoldOffset = moves.findSetMarker(func, "6DHold") - func;
+		moves.may6H_6DHoldAttackOffset = moves.findSetMarker(func, "6DHoldAttack") - func;
+	}
 }
