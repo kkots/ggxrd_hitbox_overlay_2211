@@ -3951,7 +3951,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce2");
 	move.displayName = "H Silent Force";
 	move.slangName = "H-Pin";
-	move.canYrcProjectile = true;
+	move.canYrcProjectile = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce");
@@ -4027,6 +4027,12 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 19;
 	move.framebarName = "Rose";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "ChouDoriru", true);
+	move.isDangerous = isDangerous_notNull;
+	move.framebarName = "Giga Drill";
+	move.framebarId = 109;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "KageDamari", true);
