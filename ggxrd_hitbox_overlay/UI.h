@@ -282,6 +282,8 @@ private:
 			" The frame when it is filled in is when it is active, and the other frames are just for visual clarity,"
 			" so you could have enough time to actually see the circle.";
 	std::string faust5D;
+	void printChargeInFrameTooltip(const char* title, unsigned char value, unsigned char valueMax, unsigned char valueLast);
+	void printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVert, int maxCharge);
 };
 
 extern UI ui;

@@ -374,6 +374,9 @@ struct PlayerFrame : public FrameBase {
 	unsigned char chargeLeft;
 	unsigned char chargeRight;
 	unsigned char chargeDown;
+	unsigned char chargeLeftLast;
+	unsigned char chargeRightLast;
+	unsigned char chargeDownLast;
 	unsigned char doubleJumps:4;
 	unsigned char airDashes:3;
 	unsigned char needShowAirOptions:1;
@@ -414,6 +417,9 @@ struct PlayerFrame : public FrameBase {
 	bool lastBlockWasFD:1;
 	bool lastBlockWasIB:1;
 	bool powerup:1;
+	bool airthrowDisabled:1;
+	bool running:1;
+	bool cantBackdash:1;
 	
 	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
 	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
@@ -1234,7 +1240,11 @@ struct PlayerInfo {
 	int prevFrameStunValue = 0;
 	int prevFrameMem45 = 0;
 	int playervalSetterOffset = 0;
+	int wasCantBackdashTimer = 0;
 	char grabAnimation[32] { '\0' };
+	unsigned char chargeLeftLast;
+	unsigned char chargeRightLast;
+	unsigned char chargeDownLast;
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };
@@ -1303,6 +1313,7 @@ struct PlayerInfo {
 	bool wasEnableJumpCancel:1;
 	bool wasEnableAirtech:1;
 	bool wasCanYrc:1;
+	bool wasEnableThrow:1;
 	bool wasAttackCollidedSoCanCancelNow:1;
 	bool obtainedForceDisableFlags:1;
 	

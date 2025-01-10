@@ -3404,24 +3404,7 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				
-				const InputRingBuffer* ringBuffer = game.getInputRingBuffers();
-				if (ringBuffer) {
-					ringBuffer += i;
-					textUnformattedColored(YELLOW_COLOR, "Charge (left):");
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false));
-					ImGui::TextUnformatted(strbuf);
-					
-					textUnformattedColored(YELLOW_COLOR, "Charge (right):");
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true));
-					ImGui::TextUnformatted(strbuf);
-					
-					textUnformattedColored(YELLOW_COLOR, "Charge (down):");
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false));
-					ImGui::TextUnformatted(strbuf);
-				}
+				printChargeInCharSpecific(i, true, true, 30);
 			
 			} else if (player.charType == CHARACTER_TYPE_MILLIA) {
 				ImGui::PushTextWrapPos(0.F);
@@ -3597,19 +3580,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
 				
 			} else if (player.charType == CHARACTER_TYPE_POTEMKIN) {
-				const InputRingBuffer* ringBuffer = game.getInputRingBuffers();
-				if (ringBuffer) {
-					ringBuffer += i;
-					textUnformattedColored(YELLOW_COLOR, "Charge (left):");
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false));
-					ImGui::TextUnformatted(strbuf);
-					
-					textUnformattedColored(YELLOW_COLOR, "Charge (right):");
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true));
-					ImGui::TextUnformatted(strbuf);
-				}
+				printChargeInCharSpecific(i, true, false, 30);
 			} else if (player.charType == CHARACTER_TYPE_FAUST) {
 				const PlayerInfo& otherPlayer = endScene.players[1 - player.index];
 				if (!otherPlayer.poisonDuration) {
@@ -7885,6 +7856,27 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::Separator();
 		ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
 	}
+	if (frame.airthrowDisabled || frame.running || frame.cantBackdash) {
+		ImGui::Separator();
+		if (frame.airthrowDisabled) {
+			ImGui::TextUnformatted("Airthrow disabled.");
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::TextUnformatted("Airdashing disables airthrow for the remainder of being in the air.");
+			ImGui::PopStyleColor();
+		}
+		if (frame.running) {
+			ImGui::TextUnformatted("Throw disabled.");
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::TextUnformatted("Running without FD brake disables throw for a bit.");
+			ImGui::PopStyleColor();
+		}
+		if (frame.cantBackdash) {
+			ImGui::TextUnformatted("Backdash disabled.");
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::TextUnformatted("Can't backdash again for 4f after previous backdash is over.");
+			ImGui::PopStyleColor();
+		}
+	}
 	if (charType == CHARACTER_TYPE_SOL) {
 		if (frame.u.diInfo.current) {
 			ImGui::Separator();
@@ -7944,90 +7936,35 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 	bool showHorizCharge = false;
 	int horizChargeMax = 0;
-	int horizChargeMin = 0;
 	bool showVertCharge = false;
 	int vertChargeMax = 0;
-	int vertChargeMin = 0;
 	
 	if (charType == CHARACTER_TYPE_LEO || charType == CHARACTER_TYPE_VENOM) {
 		showHorizCharge = true;
 		horizChargeMax = 40;
-		horizChargeMin = 40;
 		showVertCharge = true;
 		vertChargeMax = 40;
-		vertChargeMin = 40;
 	} else if (charType == CHARACTER_TYPE_MAY) {
 		showHorizCharge = true;
 		horizChargeMax = 30;
-		horizChargeMin = 30;
 		showVertCharge = true;
 		vertChargeMax = 30;
-		vertChargeMin = 30;
 	} else if (charType == CHARACTER_TYPE_POTEMKIN || charType == CHARACTER_TYPE_AXL) {
 		showHorizCharge = true;
 		horizChargeMax = 30;
-		horizChargeMin = 30;
 	}
 	
 	if (showHorizCharge || showVertCharge) {
 		ImGui::Separator();
+		zerohspacing
 		if (showHorizCharge) {
-			zerohspacing
-			textUnformattedColored(YELLOW_COLOR, "Charge (left): ");
-			ImGui::SameLine();
-			if (frame.chargeLeft == 255) {
-				if (horizChargeMax == horizChargeMin) {
-					sprintf_s(strbuf, "254+/%d", horizChargeMin);
-				} else {
-					sprintf_s(strbuf, "254+/%d-%d", horizChargeMin, horizChargeMax);
-				}
-			} else {
-				if (horizChargeMax == horizChargeMin) {
-					sprintf_s(strbuf, "%d/%d", frame.chargeLeft, horizChargeMin);
-				} else {
-					sprintf_s(strbuf, "%d/%d-%d", frame.chargeLeft, horizChargeMin, horizChargeMax);
-				}
-			}
-			ImGui::TextUnformatted(strbuf);
-			
-			textUnformattedColored(YELLOW_COLOR, "Charge (right): ");
-			ImGui::SameLine();
-			if (frame.chargeRight == 255) {
-				if (horizChargeMax == horizChargeMin) {
-					sprintf_s(strbuf, "254+/%d", horizChargeMin);
-				} else {
-					sprintf_s(strbuf, "254+/%d-%d", horizChargeMin, horizChargeMax);
-				}
-			} else {
-				if (horizChargeMax == horizChargeMin) {
-					sprintf_s(strbuf, "%d/%d", frame.chargeRight, horizChargeMin);
-				} else {
-					sprintf_s(strbuf, "%d/%d-%d", frame.chargeRight, horizChargeMin, horizChargeMax);
-				}
-			}
-			ImGui::TextUnformatted(strbuf);
-			_zerohspacing
+			printChargeInFrameTooltip("Charge (left): ", frame.chargeLeft, horizChargeMax, frame.chargeLeftLast);
+			printChargeInFrameTooltip("Charge (right): ", frame.chargeRight, horizChargeMax, frame.chargeRightLast);
 		}
 		if (showVertCharge) {
-			zerohspacing
-			textUnformattedColored(YELLOW_COLOR, "Charge (down): ");
-			ImGui::SameLine();
-			if (frame.chargeDown == 255) {
-				if (vertChargeMax == vertChargeMin) {
-					sprintf_s(strbuf, "254+/%d", vertChargeMin);
-				} else {
-					sprintf_s(strbuf, "254+/%d-%d", vertChargeMin, vertChargeMax);
-				}
-			} else {
-				if (vertChargeMax == vertChargeMin) {
-					sprintf_s(strbuf, "%d/%d", frame.chargeDown, vertChargeMin);
-				} else {
-					sprintf_s(strbuf, "%d/%d-%d", frame.chargeDown, vertChargeMin, vertChargeMax);
-				}
-			}
-			ImGui::TextUnformatted(strbuf);
-			_zerohspacing
+			printChargeInFrameTooltip("Charge (down): ", frame.chargeDown, vertChargeMax, frame.chargeDownLast);
 		}
+		_zerohspacing
 	}
 }
 
@@ -9614,6 +9551,59 @@ const char* comborepr(std::vector<int>& combo) {
 	const char* repr = settings.getComboRepresentation(combo);
 	if (repr[0] == '\0') return "<not set>";
 	return repr;
+}
+
+void UI::printChargeInFrameTooltip(const char* title, unsigned char value, unsigned char valueMax, unsigned char valueLast) {
+	textUnformattedColored(YELLOW_COLOR, title);
+	ImGui::SameLine();
+	if (value == 255) {
+		sprintf_s(strbuf, "254+/%d", valueMax);
+	} else if (value == 0) {
+		sprintf_s(strbuf, "0/%d (last %d)", valueMax, valueLast);
+	} else {
+		sprintf_s(strbuf, "%d/%d", value, valueMax);
+	}
+	ImGui::TextUnformatted(strbuf);
+}
+
+void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVert, int maxCharge) {
+	const InputRingBuffer* ringBuffer = game.getInputRingBuffers();
+	if (ringBuffer) {
+		ringBuffer += playerIndex;
+		if (showHoriz) {
+			textUnformattedColored(YELLOW_COLOR, "Charge (left):");
+			ImGui::SameLine();
+			int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false);
+			if (charge != 0) {
+				sprintf_s(strbuf, "%2d/%d", charge, maxCharge);
+			} else {
+				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.players[playerIndex].chargeLeftLast);
+			}
+			ImGui::TextUnformatted(strbuf);
+			
+			textUnformattedColored(YELLOW_COLOR, "Charge (right):");
+			ImGui::SameLine();
+			charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true);
+			if (charge != 0) {
+				sprintf_s(strbuf, "%2d/%d", charge, maxCharge);
+			} else {
+				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.players[playerIndex].chargeRightLast);
+			}
+			ImGui::TextUnformatted(strbuf);
+		}
+		
+		if (showVert) {
+			textUnformattedColored(YELLOW_COLOR, "Charge (down):");
+			ImGui::SameLine();
+			int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false);
+			if (charge != 0) {
+				sprintf_s(strbuf, "%2d/%d", charge, maxCharge);
+			} else {
+				sprintf_s(strbuf, " 0/%d (last %d)", maxCharge, endScene.players[playerIndex].chargeDownLast);
+			}
+			ImGui::TextUnformatted(strbuf);
+		}
+	}
 }
 
 void UI::drawFramebars() {

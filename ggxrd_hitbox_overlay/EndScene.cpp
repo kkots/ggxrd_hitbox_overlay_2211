@@ -3335,12 +3335,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				const InputRingBuffer* ringBuffer = game.getInputRingBuffers() + player.index;
 				int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false);
 				currentFrame.chargeLeft = charge > 254 ? 255 : charge;
+				if (charge) player.chargeLeftLast = charge;
+				currentFrame.chargeLeftLast = player.chargeLeftLast;
 				charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true);
 				currentFrame.chargeRight = charge > 254 ? 255 : charge;
+				currentFrame.chargeRightLast = player.chargeRightLast;
+				if (charge) player.chargeRightLast = charge;
 				charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false);
 				currentFrame.chargeDown = charge > 254 ? 255 : charge;
+				if (charge) player.chargeDownLast = charge;
+				currentFrame.chargeDownLast = player.chargeDownLast;
 				
 				currentFrame.powerup = player.move.powerup && player.move.powerup(player);
+				currentFrame.airthrowDisabled = player.airborne && player.pawn.airthrowDisabled();
+				currentFrame.running = player.pawn.running();
+				currentFrame.cantBackdash = player.wasCantBackdashTimer != 0;
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}
@@ -5722,6 +5731,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 				player.wasCancels.clear();
 			}
 			collectFrameCancels(player, player.wasCancels);
+			player.wasCantBackdashTimer = pawn.cantBackdashTimer();
 		}
 	}
 	return result;

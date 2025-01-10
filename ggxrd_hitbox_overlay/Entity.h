@@ -762,8 +762,10 @@ public:
 	inline bool inHitstun() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }
 	inline bool inHitstunThisFrame() const { return (*(DWORD*)(ent + 0x23c) & 0x4) != 0; }
 	inline int comboCount() const { return *(int*)(ent + 0x9F28); }  // this is set on the one getting combo'd
+	inline bool running() const { return (*(DWORD*)(ent + 0x4d28) & 0x400) != 0; }
 	inline bool isCpu() const { return (*(DWORD*)(ent + 0x4d28) & 0x1000) != 0; }
 	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
+	inline bool airthrowDisabled() const { return (*(DWORD*)(ent + 0x4d28) & 0x400000) != 0; }
 	inline bool defaultYrcWindowOver() const { return (*(DWORD*)(ent + 0x4d28) & 0x8000000) != 0; }  // this is for moves that don't use yrcWindowLength
 	inline bool overridenYrcWindowOver() const { return (*(DWORD*)(ent + 0x4d28) & 0x10000000) != 0; }  // but this is only for moves that use yrcWindowLength
 	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }  // the last created entity by this entity
@@ -799,6 +801,7 @@ public:
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
+	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }
 	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
 	inline const AttackData* dealtAttack() const { return (const AttackData*)(ent + 0x44c); }
 	inline const AttackData* receivedAttack() const { return (const AttackData*)(ent + 0x710); }
