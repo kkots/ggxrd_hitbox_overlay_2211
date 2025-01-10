@@ -3430,6 +3430,11 @@ void UI::drawSearchableWindows() {
 				if (isRev2) {
 					booleanSettingPreset(settings.showMilliaBadMoonBuffHeight);
 				}
+				
+				textUnformattedColored(YELLOW_COLOR, "Can do S/H Disc or Garden:");
+				ImGui::SameLine();
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
 			
 			} else if (player.charType == CHARACTER_TYPE_ZATO) {
 				Entity eddie = nullptr;
