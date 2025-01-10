@@ -172,9 +172,9 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Ky Stun Edge, Charged Stun Edge and Sacred Edge: The box shows the area in which Ciel's origin point must be in order for the projectile to become Fortified.
 
-- May Beach Ball: The circle shows the range in which May's center of body must be in order to jump on the ball. May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point. Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's point that is at the center of the circle. This line serves no purpose other than to remind the user that the range check of the circle is done against the center of body point of May, not her origin point. The display of all this can be disabled with dontShowMayInteractionChecks setting ('Settings - Hitboxes - Don't Show May Interaction Checks' in mod's UI).
+- May Beach Ball: The circle shows the range in which May's center of body must be in order to jump on the ball. May's center of body is additionally displayed as a smaller point, instead of like a cross, like her origin point. Now, this may be a bit much, but a white line is also displayed connecting May's center of body point to the ball's point that is at the center of the circle. This line serves no purpose other than to remind the user that the range check of the circle is done against the center of body point of May, not her origin point. The display of all this needs to be enabled with dontShowMayInteractionChecks setting ('Settings - Hitboxes - Don't Show May Interaction Checks' in mod's UI).
 
-- May Dolphin: The circle shows the range in which May's behind the body point must be in order to ride the Dolphin. The point behind May's body depends on May's facing, and not the Dolphin's. Additionally, a line connecting May's behind the body point and the origin point of the Dolphin is shown. It serves no purpose other than to remind the user that the distance check is performed against May's behind the body point, and not her origin point. The display of all this can be disabled with dontShowMayInteractionChecks setting ('Settings - Hitboxes - Don't Show May Interaction Checks' in mod's UI).
+- May Dolphin: The circle shows the range in which May's behind the body point must be in order to ride the Dolphin. The point behind May's body depends on May's facing, and not the Dolphin's. Additionally, a line connecting May's behind the body point and the origin point of the Dolphin is shown. It serves no purpose other than to remind the user that the distance check is performed against May's behind the body point, and not her origin point. The display of all this needs to be enabled with dontShowMayInteractionChecks setting ('Settings - Hitboxes - Don't Show May Interaction Checks' in mod's UI).
 
 - Millia Pin: The infinite vertical box shows the range in which Millia's origin point must be in order for the Pin to be picked up. Millia must be in either of the following animations:
   - Stand to Crouch
@@ -182,6 +182,10 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
   - Crouch Turn (as of Rev2)
   - Roll (as of Rev2)
   - Doubleroll (as of Rev2)
+  
+- Millia Bad Moon Buff Height: The infinite horizontal line shows the height above which Millia's origin point must be in order for Bad Moon to get some attack powerup. However, Bad Moon is limited by the maximum number of hits it can deal, which increases with height (the buff height is 500000, next buffs are at 650000, 800000, 950000, 1100000, 1250000, 1400000). The display of the height line must be enabled with showMilliaBadMoonBuffHeight setting ('UI - Character specific - Show Millia Bad Moon Buff Height (Rev2 only)').
+  
+- Faust 5D: The inner circle shows the range in which the thrown item's origin point must be in order to achieve a homerun hit. The outer circles shows the range in which the thrown item's origin point must be in order to achieve a non-homerun hit. This display needs to be enabled with showFaustOwnFlickRanges setting ('UI - Character specific - Show Faust Own Projectile Flick Ranges'). The circle is displayed for more than one frame, but it is filled in on only one. The frame when it is filled in is when it is active, and the other frames are just for visual clarity, so you could have enough time to actually see the circle.
 
 ### Outlines lie within their boxes/on the edge
 

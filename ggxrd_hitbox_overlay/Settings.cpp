@@ -458,11 +458,15 @@ bool Settings::onDllMain() {
 			"; and a circle around the Dolphin denoting the range in which May's extra point must be in order for May to hop\n"
 			"; on the Dolphin.\n"
 			"; When this setting is true, none of this is displayed.");
-	registerOtherDescription(settingAndItsName(showMilliaBadMoonBuffHeight), "Show Millia Bad Moon Buff Height (Rev2 only)", settingsHitboxSettingsStr,
+	registerOtherDescription(settingAndItsName(showMilliaBadMoonBuffHeight), "Show Millia Bad Moon Buff Height (Rev2 only)", "UI - Character specific",
 			"; Specify true or false.\n"
 			"; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,\n"
 			"; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.\n"
 			"; Millia's origin point must be above the line in order to gain the powerup.");
+	registerOtherDescription(settingAndItsName(showFaustOwnFlickRanges), "Show Faust Own Projectile Flick Ranges", "UI - Character specific",
+			"; Specify true or false.\n"
+			"; When this setting is on, when Faust does a 5D, two ranges are should around his flickpoint,\n"
+			"; denoting ranges in which his thrown items' origin points must be to get either hit or homerun hit.");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -742,6 +746,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool dontShowMayInteractionChecksParsed = false;
 	
 	bool showMilliaBadMoonBuffHeightParsed = false;
+	
+	bool showFaustOwnFlickRangesParsed = false;
 	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
@@ -1047,6 +1053,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								showMilliaBadMoonBuffHeightParsed = parseBoolean("showMilliaBadMoonBuffHeight", keyValue, showMilliaBadMoonBuffHeight);
 							}
 							break;
+						case offsetof(Settings, showFaustOwnFlickRanges):
+							if (!showFaustOwnFlickRangesParsed) {
+								showFaustOwnFlickRangesParsed = parseBoolean("showFaustOwnFlickRanges", keyValue, showFaustOwnFlickRanges);
+							}
+							break;
 						case offsetof(Settings, forceZeroPitchDuringCameraCentering):
 							if (!forceZeroPitchDuringCameraCenteringParsed) {
 								forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
@@ -1273,6 +1284,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showMilliaBadMoonBuffHeightParsed) {
 		showMilliaBadMoonBuffHeight = false;
+	}
+	
+	if (!showFaustOwnFlickRangesParsed) {
+		showFaustOwnFlickRanges = false;
 	}
 	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
@@ -1816,6 +1831,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("useAlternativeStaggerMashProgressDisplay", formatBoolean(useAlternativeStaggerMashProgressDisplay), getOtherINIDescription(&useAlternativeStaggerMashProgressDisplay));
 	replaceOrAddSetting("dontShowMayInteractionChecks", formatBoolean(dontShowMayInteractionChecks), getOtherINIDescription(&dontShowMayInteractionChecks));
 	replaceOrAddSetting("showMilliaBadMoonBuffHeight", formatBoolean(showMilliaBadMoonBuffHeight), getOtherINIDescription(&showMilliaBadMoonBuffHeight));
+	replaceOrAddSetting("showFaustOwnFlickRanges", formatBoolean(showFaustOwnFlickRanges), getOtherINIDescription(&showFaustOwnFlickRanges));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

@@ -214,6 +214,8 @@ public:
 		TRIBOOL_TRUE
 	};
 	TriBool milliaIsRev2 = TRIBOOL_DUNNO;
+	int faust5DExPointX = -1;
+	int faust5DExPointY = -1;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

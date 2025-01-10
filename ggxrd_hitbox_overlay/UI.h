@@ -274,6 +274,14 @@ private:
 	int printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale);
 	void printAttackLevel(const DmgCalc& dmgCalc);
 	std::vector<BYTE> framebarWindowDrawDataCopy;
+	bool showHowFlickingWorks[2] { false };
+	const char* faust5DHelp = "The inner circle shows the range in which the thrown item's origin point must be in order to achieve a homerun hit."
+			" The outer circles shows the range in which the thrown item's origin point must be in order to achieve a non-homerun"
+			" hit. This display needs to be enabled with \"showFaustOwnFlickRanges\" setting.\n"
+			"The circle is displayed for more than one frame, but it is filled in on only one."
+			" The frame when it is filled in is when it is active, and the other frames are just for visual clarity,"
+			" so you could have enough time to actually see the circle.";
+	std::string faust5D;
 };
 
 extern UI ui;

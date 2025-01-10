@@ -164,6 +164,7 @@ static bool createdProjectile_ky5D(PlayerInfo& ent);
 static bool canYrcProjectile_ky5D(PlayerInfo& ent);
 static bool createdProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
+static bool canYrcProjectile_flower(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -2391,6 +2392,12 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "Ryuu";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "NmlAtk5E");
+	move.displayName = "5D";
+	move.nameIncludesInputs = true;
+	move.canYrcProjectile = canYrcProjectile_default;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "CrouchFWalk");
 	move.displayName = "Crouchwalk Forward";
 	move.slangName = "3";
@@ -2427,6 +2434,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NanigaDerukana");
 	move.displayName = "What Could This Be?";
 	move.slangName = "Toss";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Oissu");
@@ -2467,6 +2475,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Ai");
 	move.displayName = "Love";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "RerereNoTsuki");
@@ -2478,12 +2487,14 @@ bool Moves::onDllMain() {
 	move.displayName = "W-W-What Could This Be?";
 	move.slangName = "Super Toss";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SugoiNaNaNaNanigaDerukana");
 	move.displayName = "W-W-What Could This Be? 100% Ver.";
 	move.slangName = "Max Super Toss";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Shigeki");
@@ -2557,6 +2568,7 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_soutenBC;
 	move.faustPogo = true;
+	move.canYrcProjectile = canYrcProjectile_flower;
 	addMove(move);
 	
 	// Pogo Going My Way
@@ -2576,6 +2588,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// Faust Pogo Helicopter
@@ -6855,6 +6868,8 @@ void Moves::onAswEngineDestroyed() {
 	may6H_6DHoldOffset = 0;
 	may6H_6DHoldAttackOffset = 0;
 	milliaIsRev2 = TRIBOOL_DUNNO;
+	faust5DExPointX = -1;
+	faust5DExPointY = -1;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7693,6 +7708,20 @@ bool canYrcProjectile_splitCiel(PlayerInfo& player) {
 	return player.pawn.previousEntity()
 		&& strcmp(player.pawn.previousEntity().animationName(), "Mahojin") == 0
 		&& player.pawn.previousEntity().lifeTimeCounter() > 0;
+}
+bool canYrcProjectile_flower(PlayerInfo& player) {
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity p = entityList.list[i];
+		if (p.isActive() && p.team() == player.index && !p.isPawn()
+				&& (
+					strcmp(p.animationName(), "OreHanaBig_Shot") == 0
+					|| strcmp(p.animationName(), "OreHana_Shot") == 0
+				)
+				&& p.lifeTimeCounter() > 0) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool powerup_may6P(PlayerInfo& player) {

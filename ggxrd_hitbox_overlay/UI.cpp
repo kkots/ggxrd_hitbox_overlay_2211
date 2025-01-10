@@ -3618,6 +3618,45 @@ void UI::drawSearchableWindows() {
 					sprintf_s(strbuf, "Poison duration on opponent: %d/%d", otherPlayer.poisonDuration, otherPlayer.poisonDurationMax);
 					ImGui::TextUnformatted(searchFieldTitle(strbuf, nullptr));
 				}
+				
+				textUnformattedColored(YELLOW_COLOR, "Can throw item:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
+				
+				textUnformattedColored(YELLOW_COLOR, "Can throw Love:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x2) == 0 ? "Yes" : "No");
+				
+				if (ImGui::Button("How Flicking Works")) {
+					showHowFlickingWorks[i] = !showHowFlickingWorks[i];
+				}
+				if (showHowFlickingWorks[i]) {
+					ImGui::PushTextWrapPos(0.F);
+					ImGui::TextUnformatted("The mechanics are different when flicking your own thrown item and when flicking"
+						" an enemy's projectile.");
+					ImGui::TextUnformatted("To flick an enemy projectile, it must come in contact with your hurtbox while"
+						" you have super armor. If it hits you on the first two frames of super armor, colored red in the framebar,"
+						" the reflect will be a homerun. Otherwise it will be a non-homerun reflect.\n"
+						"Flicking enemy projectiles was added in Rev2.");
+					ImGui::TextUnformatted("When reflecting your own throw item, there's a point somewhere in front of you,"
+						" and when a particular frame of animation is played, a signal is sent to the thrown item to check"
+						" how far it is from that point. If it is < 100000 range, the hit is a homerun."
+						" If the range is 300000, the hit is not a homerun.");
+					ImGui::PopTextWrapPos();
+				}
+				
+				booleanSettingPreset(settings.showFaustOwnFlickRanges);
+				
+				if (settings.showFaustOwnFlickRanges) {
+					ImGui::PushTextWrapPos(0.F);
+					textUnformattedColored(YELLOW_COLOR, "Faust 5D:");
+					if (faust5D.empty()) {
+						faust5D = settings.convertToUiDescription(faust5DHelp);
+					}
+					ImGui::TextUnformatted(faust5D.c_str());
+					ImGui::PopTextWrapPos();
+				}	
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
@@ -6925,6 +6964,23 @@ void UI::hitboxesHelpWindow() {
   	ImGui::TextUnformatted("*) Crouch Turn (as of Rev2);");
   	ImGui::TextUnformatted("*) Roll (as of Rev2);");
   	ImGui::TextUnformatted("*) Doubleroll (as of Rev2).");
+  	
+	textUnformattedColored(YELLOW_COLOR, "Millia Bad Moon Buff Height:");
+	static std::string milliaBadMoonHeightBuff;
+	if (milliaBadMoonHeightBuff.empty()) {
+		milliaBadMoonHeightBuff = settings.convertToUiDescription(
+			"The infinite horizontal line shows the height above which Millia's origin point must be in order for Bad Moon"
+			" to get some attack powerup. However, Bad Moon is limited by the maximum number of hits it can deal,"
+			" which increases with height (the buff height is 500000, next buffs are at 650000, 800000, 950000, 1100000, 1250000, 1400000)."
+			" The display of the height line must be enabled with \"showMilliaBadMoonBuffHeight\" setting.");
+	}
+	ImGui::TextUnformatted(milliaBadMoonHeightBuff.c_str());
+	
+	textUnformattedColored(YELLOW_COLOR, "Faust 5D:");
+	if (faust5D.empty()) {
+		faust5D = settings.convertToUiDescription(faust5DHelp);
+	}
+	ImGui::TextUnformatted(faust5D.c_str());
 	
 	ImGui::Separator();
 	

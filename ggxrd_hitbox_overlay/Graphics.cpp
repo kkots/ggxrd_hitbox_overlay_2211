@@ -2779,7 +2779,7 @@ void Graphics::prepareCircle(const DrawCircleCallParams& params) {
 	
 	int nextInd = setupCircle(params.radius, params.fillColor, params.outlineColor);
 	
-	Vertex firstVertex{ (float)params.posX, (float)params.posY, 0.F, params.fillColor };
+	Vertex firstVertex{ 0.F, 0.F, 0.F, params.fillColor };
 	const CircleCacheElement& elem = circleCache[nextInd - 1];
 	const Vertex* lastSourceVtx = elem.vertices.data();
 	int remainingVertices = elem.vertices.size();
@@ -2807,16 +2807,16 @@ void Graphics::prepareCircle(const DrawCircleCallParams& params) {
 		consumeVertexBufferSpace(oldSize);
 		*vertexIt = firstVertex;
 		++vertexIt;
-		memcpy(vertexIt, lastSourceVtx, oldSize - 1);
+		memcpy(vertexIt, lastSourceVtx, (oldSize - 1) * sizeof Vertex);
 		vertexIt += oldSize - 1;
-		lastSourceVtx += oldSize - 1;
-		remainingVertices -= oldSize - 1;
+		lastSourceVtx += oldSize - 2;
+		remainingVertices -= oldSize - 2;
 		
 		preparedCircles.emplace_back();
 		PreparedCircle& newCircle = preparedCircles.back();
 		newCircle.x = params.posX;
 		newCircle.y = params.posY;
-		newCircle.verticesCount = remainingVertices + 1;
+		newCircle.verticesCount = oldSize;
 		
 		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
 	}

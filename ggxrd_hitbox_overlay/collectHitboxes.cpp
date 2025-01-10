@@ -349,8 +349,9 @@ void collectHitboxes(Entity ent,
 				interactionBoxes->push_back(interactionBoxParams);
 			}
 		} else if (ownerType == CHARACTER_TYPE_FAUST) {
+			int rangeX = 0;
+			int circleRadius = 0;
 			if (!ent.mem50() && ent.y() == 0) {
-				int rangeX = 0;
 				if (strcmp(ent.animationName(), "Item_Chocolate"_hardcode) == 0) {
 					rangeX = 84000;
 				} else if (strcmp(ent.animationName(), "Item_BestChocolate"_hardcode) == 0) {
@@ -360,20 +361,30 @@ void collectHitboxes(Entity ent,
 				} else if (strcmp(ent.animationName(), "Item_ManyDonut"_hardcode) == 0) {
 					rangeX = 168000;
 				}
-				if (rangeX) {
-					DrawBoxCallParams interactionBoxParams;
-					interactionBoxParams.left = params.posX - rangeX;
-					interactionBoxParams.right = params.posX + rangeX;
-					interactionBoxParams.top = params.posY + 10000000;
-					interactionBoxParams.bottom = params.posY - 10000000;
-					interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
-					interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
-					interactionBoxParams.thickness = THICKNESS_INTERACTION;
-					interactionBoxParams.hatched = false;
-					interactionBoxParams.originX = params.posX;
-					interactionBoxParams.originY = params.posY;
-					interactionBoxes->push_back(interactionBoxParams);
-				}
+			}
+			if (ent.hasUpon(3) && strcmp(ent.animationName(), "Item_Helium"_hardcode) == 0) {
+				circleRadius = 100000;
+			}
+			if (rangeX) {
+				DrawBoxCallParams interactionBoxParams;
+				interactionBoxParams.left = params.posX - rangeX;
+				interactionBoxParams.right = params.posX + rangeX;
+				interactionBoxParams.top = params.posY + 10000000;
+				interactionBoxParams.bottom = params.posY - 10000000;
+				interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
+				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+				interactionBoxParams.thickness = THICKNESS_INTERACTION;
+				interactionBoxParams.hatched = false;
+				interactionBoxParams.originX = params.posX;
+				interactionBoxParams.originY = params.posY;
+				interactionBoxes->push_back(interactionBoxParams);
+			}
+			if (circleRadius && circles) {
+				DrawCircleCallParams circleCallParams;
+				circleCallParams.posX = params.posX;
+				circleCallParams.posY = params.posY;
+				circleCallParams.radius = circleRadius;
+				circles->push_back(circleCallParams);
 			}
 		} else if (ownerType == CHARACTER_TYPE_KY) {
 			int mahojinX = 0;
@@ -417,6 +428,63 @@ void collectHitboxes(Entity ent,
 				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
 				interactionBoxParams.thickness = THICKNESS_INTERACTION;
 				interactionBoxes->push_back(interactionBoxParams);
+			}
+		}
+	}
+	if (circles) {
+		bool needShow = false;
+		bool needFill = false;
+		if (state.charType == CHARACTER_TYPE_FAUST
+				&& settings.showFaustOwnFlickRanges
+				&& strcmp(ent.animationName(), "NmlAtk5E") == 0) {
+			if (strcmp(ent.spriteName(), "fau205_05") == 0) {
+				needShow = true;
+			} else if (strcmp(ent.spriteName(), "fau205_06") == 0) {
+				needShow = true;
+				needFill = ent.spriteFrameCounter() == 0 && !ent.isRCFrozen();
+				if (moves.faust5DExPointX == -1) {
+					HitboxType hitboxType = HITBOXTYPE_EX_POINT;
+					int count = ent.hitboxCount(HITBOXTYPE_EX_POINT);
+					if (count == 0) {
+						hitboxType = HITBOXTYPE_EX_POINT_EXTENDED;
+						count = ent.hitboxCount(HITBOXTYPE_EX_POINT_EXTENDED);
+					}
+					if (count) {
+						DrawHitboxArrayCallParams dummyParams;
+						dummyParams.hitboxData = ent.hitboxData(hitboxType);
+						dummyParams.hitboxCount = 1;
+						dummyParams.params = params;
+						
+						RECT boxBounds = dummyParams.getWorldBounds(0);
+						moves.faust5DExPointX = (boxBounds.left - params.posX) * (int)params.flip;
+						moves.faust5DExPointY = boxBounds.top - params.posY;
+					}
+				}
+			} else if (strcmp(ent.spriteName(), "fau205_07") == 0
+					|| strcmp(ent.spriteName(), "fau205_08") == 0 && ent.spriteFrameCounter() < 6) {
+				needShow = true;
+			}
+		}
+		if (needShow && moves.faust5DExPointX != -1) {
+			
+			DrawCircleCallParams circleCallParams;
+			circleCallParams.posX = params.posX + moves.faust5DExPointX * (int)params.flip;
+			circleCallParams.posY = params.posY + moves.faust5DExPointY;
+			circleCallParams.radius = 100000;
+			if (needFill) {
+				circleCallParams.fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
+			}
+			circles->push_back(circleCallParams);
+			
+			circleCallParams.radius = 300000;
+			circles->push_back(circleCallParams);
+			
+			if (points) {
+				DrawPointCallParams pointCallParams;
+				pointCallParams.isProjectile = true;
+				pointCallParams.posX = circleCallParams.posX;
+				pointCallParams.posY = circleCallParams.posY;
+				points->push_back(pointCallParams);
 			}
 		}
 	}
