@@ -3570,6 +3570,15 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::EndTable();
 				}
+				
+				textUnformattedColored(YELLOW_COLOR, "Can perform S Drill:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
+				
+				textUnformattedColored(YELLOW_COLOR, "Can perform H Drill:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x2) == 0 ? "Yes" : "No");
+				
 			} else if (player.charType == CHARACTER_TYPE_CHIPP) {
 				if (player.playerval0) {
 					printChippInvisibility(player.playerval0, player.maxDI);
@@ -3582,6 +3591,11 @@ void UI::drawSearchableWindows() {
 				} else {
 					ImGui::TextUnformatted(searchFieldTitle("Not on a wall."));
 				}
+				
+				textUnformattedColored(YELLOW_COLOR, "Can perform Gamma Blade:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
+				
 			} else if (player.charType == CHARACTER_TYPE_POTEMKIN) {
 				const InputRingBuffer* ringBuffer = game.getInputRingBuffers();
 				if (ringBuffer) {
