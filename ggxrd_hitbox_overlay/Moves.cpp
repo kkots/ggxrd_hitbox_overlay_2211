@@ -7654,10 +7654,44 @@ const char* displayNameSelector_may6H(PlayerInfo& ent) {
 	}
 }
 const char* displayNameSelector_badMoon(PlayerInfo& ent) {
-	return ent.pawn.mem46() ? "Bad Moon (Height Buff)" : "Bad Moon";
+	int maxHit = ent.maxHit.max;
+	if (maxHit == 10) {
+		return "Bad Moon (Height Buff, 10 hits)";
+	} else if (maxHit == 9) {
+		return "Bad Moon (Height Buff, 9 hits)";
+	} else if (maxHit == 8) {
+		return "Bad Moon (Height Buff, 8 hits)";
+	} else if (maxHit == 7) {
+		return "Bad Moon (Height Buff, 7 hits)";
+	} else if (maxHit == 6) {
+		return "Bad Moon (Height Buff, 6 hits)";
+	} else if (maxHit == 5) {
+		return "Bad Moon (Height Buff, 5 hits)";
+	} else if (ent.pawn.mem46()) {
+		return "Bad Moon (Height Buff)";
+	} else {
+		return "Bad Moon";
+	}
 }
 const char* displaySlangNameSelector_badMoon(PlayerInfo& ent) {
-	return ent.pawn.mem46() ? "BM (Height Buff)" : "BM";
+	int maxHit = ent.maxHit.max;
+	if (maxHit == 10) {
+		return "BM (Height Buff, 10 hits)";
+	} else if (maxHit == 9) {
+		return "BM (Height Buff, 9 hits)";
+	} else if (maxHit == 8) {
+		return "BM (Height Buff, 8 hits)";
+	} else if (maxHit == 7) {
+		return "BM (Height Buff, 7 hits)";
+	} else if (maxHit == 6) {
+		return "BM (Height Buff, 6 hits)";
+	} else if (maxHit == 5) {
+		return "BM (Height Buff, 5 hits)";
+	} else if (ent.pawn.mem46()) {
+		return "BM (Height Buff, 4 hits)";
+	} else {
+		return "BM";
+	}
 }
 
 bool canYrcProjectile_default(PlayerInfo& player) {
