@@ -120,7 +120,8 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displaySlangNameSelector, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, createdProjectile, nullptr) \
-	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr)
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, isEddie, false)
 
 struct MoveInfo {
 	CharacterType charType;

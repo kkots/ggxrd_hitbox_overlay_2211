@@ -1198,7 +1198,36 @@ int PlayerFramebar::findTickNoGreaterThan(int startingPos, DWORD tick) const {
 	return ::findTickNoGreaterThan<PlayerFramebar>(this, startingPos, tick);
 }
 
-template<typename EntFramebarT, typename FrameT>
+template<typename EntFramebarT, typename FramebarT, typename FrameT>
+static inline void changePreviousFrames_piece(EntFramebarT* framebars,
+			FrameType* prevTypes,
+			int prevTypesCount,
+			int pos,
+			FramebarT& bar,
+			DWORD aswEngineTick,
+			FrameType newType) {
+	
+	if (pos != -1) {
+		FrameT& otherFrame = bar[pos];
+		if (otherFrame.aswEngineTick == aswEngineTick) {
+			int j;
+			for (j = 0; j < prevTypesCount; ++j) {
+				if (otherFrame.type == prevTypes[j]) {
+					otherFrame.type = newType;
+					framebars->decrementPos(pos);
+					break;
+				}
+			}
+			if (j == prevTypesCount) {
+				pos = -1;
+			}
+		} else if (otherFrame.aswEngineTick > aswEngineTick) {
+			framebars->decrementPos(pos);
+		}
+	}
+}
+
+template<typename EntFramebarT, typename FramebarT, typename FrameT>
 inline void changePreviousFrames(EntFramebarT* framebars,
 		FrameType* prevTypes,
 		int prevTypesCount,
@@ -1224,31 +1253,22 @@ inline void changePreviousFrames(EntFramebarT* framebars,
 		
 		if (stopAtFirstFrame && frame.isFirst) break;
 		
-		int i, j;
+		int i;
 		for (i = 0; i < prevTypesCount; ++i) {
 			if (frame.type == prevTypes[i]) {
 				frame.type = newType;
 				
-				#define piece(posName, barName) \
-					if (posName != -1) { \
-						FrameT& otherFrame = barName[posName]; \
-						if (otherFrame.aswEngineTick == frame.aswEngineTick) { \
-							for (j = 0; j < prevTypesCount; ++j) { \
-								if (otherFrame.type == prevTypes[j]) { \
-									otherFrame.type = newType; \
-									framebars->decrementPos(posName); \
-									break; \
-								} \
-							} \
-							if (j == prevTypesCount) { \
-								posName = -1; \
-							} \
-						} else if (otherFrame.aswEngineTick > frame.aswEngineTick) { \
-							framebars->decrementPos(posName); \
-						} \
-					}
+				#define piece(pos, bar) \
+					changePreviousFrames_piece<EntFramebarT, FramebarT, FrameT>( \
+						framebars, \
+						prevTypes, \
+						prevTypesCount, \
+						pos, \
+						bar, \
+						frame.aswEngineTick, \
+						newType);
 				
-				piece(hitstopPos, framebars->hitstop)	
+				piece(hitstopPos, framebars->hitstop)
 				piece(idlePos, framebars->idle)
 				piece(mainPos, framebars->main)
 				
@@ -1274,7 +1294,7 @@ void ProjectileFramebar::changePreviousFrames(FrameType* prevTypes,
 		int position,
 		int maxCount,
 		bool stopAtFirstFrame) {
-	::changePreviousFrames<ProjectileFramebar, Frame>(this,
+	::changePreviousFrames<ProjectileFramebar, Framebar, Frame>(this,
 		prevTypes,
 		prevTypesCount,
 		newType,
@@ -1306,7 +1326,7 @@ void PlayerFramebars::changePreviousFrames(FrameType* prevTypes,
 		int position,
 		int maxCount,
 		bool stopAtFirstFrame) {
-	::changePreviousFrames<PlayerFramebars, PlayerFrame>(this,
+	::changePreviousFrames<PlayerFramebars, PlayerFramebar, PlayerFrame>(this,
 		prevTypes,
 		prevTypesCount,
 		newType,
@@ -1337,6 +1357,9 @@ void PlayerFramebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
 }
 
 static inline int determineFrameLevel(FrameType type) {
+	if (isEddieFrame(type)) {
+		return 4;
+	}
 	if (type == FT_ACTIVE_PROJECTILE) {
 		return 3;
 	}
@@ -1350,12 +1373,9 @@ static inline int determineFrameLevel(FrameType type) {
 }
 
 enum SortItemType {
-	// if you change the order of these elements you must also change the order of elements in SortItem items[] in printInvuls()
-	
 	#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) enumName,
 	INVUL_TYPES_TABLE
 	#undef INVUL_TYPES_EXEC
-	
 };
 const SortItemType SUPER_ARMOR_FIRST = SUPER_ARMOR_THROW;
 const SortItemType SUPER_ARMOR_LAST = SUPER_ARMOR_BLITZ_BREAK;
@@ -2730,4 +2750,19 @@ void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
 		type = moves.instructionType(instr);
 	}
 	playervalSetterOffset = instr - func;
+}
+
+void Framebar::modifyFrame(int pos, DWORD aswEngineTick, FrameType newType) {
+	int ind = pos;
+	for (int i = 0; i < _countof(Framebar::frames); ++i) {
+		Frame& f = frames[ind];
+		if (f.type == FT_NONE) break;
+		if (f.aswEngineTick == aswEngineTick) {
+			f.type = newType;
+			break;
+		}
+		if (f.aswEngineTick < aswEngineTick) break;
+		--ind;
+		if (ind < 0) ind = _countof(Framebar::frames) - 1;
+	}
 }

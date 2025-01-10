@@ -99,13 +99,17 @@ enum FrameType : char {
 	FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK,
 	FT_IDLE_ELPHELT_RIFLE,
 	FT_IDLE_ELPHELT_RIFLE_READY,
+	FT_EDDIE_IDLE,
 	FT_HITSTOP,
 	FT_ACTIVE,
 	FT_ACTIVE_PROJECTILE,
+	FT_EDDIE_ACTIVE,
 	FT_ACTIVE_HITSTOP,
 	FT_ACTIVE_HITSTOP_PROJECTILE,
+	FT_EDDIE_ACTIVE_HITSTOP,
 	FT_ACTIVE_NEW_HIT,
 	FT_ACTIVE_NEW_HIT_PROJECTILE,
+	FT_EDDIE_ACTIVE_NEW_HIT,
 	FT_STARTUP,
 	FT_STARTUP_ANYTIME_NOW,
 	FT_STARTUP_ANYTIME_NOW_CAN_ACT,
@@ -114,6 +118,7 @@ enum FrameType : char {
 	FT_STARTUP_CAN_BLOCK,
 	FT_STARTUP_CAN_BLOCK_AND_CANCEL,
 	FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN,
+	FT_EDDIE_STARTUP,
 	FT_ZATO_BREAK_THE_LAW_STAGE2,
 	FT_ZATO_BREAK_THE_LAW_STAGE3,
 	FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED,
@@ -122,6 +127,7 @@ enum FrameType : char {
 	FT_RECOVERY_HAS_GATLINGS,
 	FT_RECOVERY_CAN_ACT,
 	FT_RECOVERY_CAN_RELOAD,
+	FT_EDDIE_RECOVERY,
 	FT_NON_ACTIVE,
 	FT_NON_ACTIVE_PROJECTILE,
 	FT_PROJECTILE,
@@ -165,7 +171,7 @@ inline bool frameTypeAssumesCantAttack(FrameType type) {
 		|| type == FT_GRAYBEAT_AIR_HITSTUN;
 }
 inline bool frameTypeActive(FrameType type) {
-	return type == FT_ACTIVE || type == FT_ACTIVE_PROJECTILE;
+	return type == FT_ACTIVE || type == FT_ACTIVE_PROJECTILE || type == FT_EDDIE_ACTIVE;
 }
 static FrameType landingRecoveryTypes[] {
 	FT_LANDING_RECOVERY,
@@ -183,8 +189,27 @@ static FrameType projectileFrameTypes[] {
 	FT_ACTIVE_PROJECTILE,
 	FT_ACTIVE_NEW_HIT_PROJECTILE,
 	FT_ACTIVE_HITSTOP_PROJECTILE,
-	FT_NON_ACTIVE_PROJECTILE
+	FT_NON_ACTIVE_PROJECTILE,
+	FT_EDDIE_IDLE,
+	FT_EDDIE_STARTUP,
+	FT_EDDIE_ACTIVE,
+	FT_EDDIE_ACTIVE_NEW_HIT,
+	FT_EDDIE_ACTIVE_HITSTOP,
+	FT_EDDIE_RECOVERY
 };
+inline bool isEddieFrame(FrameType type) {
+	return type == FT_EDDIE_IDLE
+			|| type == FT_EDDIE_STARTUP
+			|| type == FT_EDDIE_ACTIVE
+			|| type == FT_EDDIE_ACTIVE_NEW_HIT
+			|| type == FT_EDDIE_ACTIVE_HITSTOP
+			|| type == FT_EDDIE_RECOVERY;
+};
+inline bool isNewHitType(FrameType type) {
+	return type == FT_ACTIVE_NEW_HIT
+		|| type == FT_ACTIVE_NEW_HIT_PROJECTILE
+		|| type == FT_EDDIE_ACTIVE_NEW_HIT;
+}
 inline bool frameAssumesCanBlockButCantFDAfterSuperfreeze(FrameType type) {
 	return type == FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK
 		|| type == FT_STARTUP_CAN_BLOCK
@@ -201,13 +226,17 @@ inline FrameType frameMap(FrameType type) {
 		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE;
 		case FT_IDLE_ELPHELT_RIFLE:                 return FT_STARTUP;
 		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE;
+		case FT_EDDIE_IDLE:                         return FT_EDDIE_IDLE;
 		case FT_HITSTOP:                            return FT_HITSTOP;
 		case FT_ACTIVE:                             return FT_ACTIVE;
 		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
+		case FT_EDDIE_ACTIVE:                       return FT_EDDIE_ACTIVE;
 		case FT_ACTIVE_HITSTOP:                     return FT_ACTIVE_HITSTOP;
 		case FT_ACTIVE_HITSTOP_PROJECTILE:          return FT_ACTIVE_HITSTOP_PROJECTILE;
+		case FT_EDDIE_ACTIVE_HITSTOP:               return FT_EDDIE_ACTIVE_HITSTOP;
 		case FT_ACTIVE_NEW_HIT:                     return FT_ACTIVE_NEW_HIT;
 		case FT_ACTIVE_NEW_HIT_PROJECTILE:          return FT_ACTIVE_NEW_HIT_PROJECTILE;
+		case FT_EDDIE_ACTIVE_NEW_HIT:               return FT_EDDIE_ACTIVE_NEW_HIT;
 		case FT_STARTUP:                            return FT_STARTUP;
 		case FT_STARTUP_ANYTIME_NOW:                return FT_STARTUP;
 		case FT_STARTUP_ANYTIME_NOW_CAN_ACT:        return FT_STARTUP;
@@ -216,6 +245,7 @@ inline FrameType frameMap(FrameType type) {
 		case FT_STARTUP_CAN_BLOCK:                  return FT_STARTUP;
 		case FT_STARTUP_CAN_BLOCK_AND_CANCEL:       return FT_STARTUP;
 		case FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN:  return FT_STARTUP;
+		case FT_EDDIE_STARTUP:                      return FT_EDDIE_STARTUP;
 		case FT_ZATO_BREAK_THE_LAW_STAGE2:          return FT_STARTUP;
 		case FT_ZATO_BREAK_THE_LAW_STAGE3:          return FT_STARTUP;
 		case FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED: return FT_STARTUP;
@@ -224,6 +254,7 @@ inline FrameType frameMap(FrameType type) {
 		case FT_RECOVERY_HAS_GATLINGS:              return FT_RECOVERY;
 		case FT_RECOVERY_CAN_ACT:                   return FT_RECOVERY;
 		case FT_RECOVERY_CAN_RELOAD:                return FT_RECOVERY;
+		case FT_EDDIE_RECOVERY:                     return FT_EDDIE_RECOVERY;
 		case FT_NON_ACTIVE:                         return FT_NON_ACTIVE;
 		case FT_NON_ACTIVE_PROJECTILE:              return FT_NON_ACTIVE_PROJECTILE;
 		case FT_PROJECTILE:                         return FT_PROJECTILE;
@@ -247,13 +278,17 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK;
 		case FT_IDLE_ELPHELT_RIFLE:                 return FT_IDLE_ELPHELT_RIFLE;
 		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE_ELPHELT_RIFLE_READY;
+		case FT_EDDIE_IDLE:                         return FT_EDDIE_IDLE;
 		case FT_HITSTOP:                            return FT_HITSTOP;
 		case FT_ACTIVE:                             return FT_ACTIVE;
 		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
+		case FT_EDDIE_ACTIVE:                       return FT_EDDIE_ACTIVE;
 		case FT_ACTIVE_HITSTOP:                     return FT_ACTIVE_HITSTOP;
 		case FT_ACTIVE_HITSTOP_PROJECTILE:          return FT_ACTIVE_HITSTOP_PROJECTILE;
+		case FT_EDDIE_ACTIVE_HITSTOP:               return FT_EDDIE_ACTIVE_HITSTOP;
 		case FT_ACTIVE_NEW_HIT:                     return FT_ACTIVE_NEW_HIT;
 		case FT_ACTIVE_NEW_HIT_PROJECTILE:          return FT_ACTIVE_NEW_HIT_PROJECTILE;
+		case FT_EDDIE_ACTIVE_NEW_HIT:               return FT_EDDIE_ACTIVE_NEW_HIT;
 		case FT_STARTUP:                            return FT_STARTUP;
 		case FT_STARTUP_ANYTIME_NOW:                return FT_STARTUP;
 		case FT_STARTUP_ANYTIME_NOW_CAN_ACT:        return FT_STARTUP;
@@ -262,6 +297,7 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		case FT_STARTUP_CAN_BLOCK:                  return FT_STARTUP;
 		case FT_STARTUP_CAN_BLOCK_AND_CANCEL:       return FT_STARTUP;
 		case FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN:  return FT_STARTUP;
+		case FT_EDDIE_STARTUP:                      return FT_EDDIE_STARTUP;
 		case FT_ZATO_BREAK_THE_LAW_STAGE2:          return FT_STARTUP;
 		case FT_ZATO_BREAK_THE_LAW_STAGE3:          return FT_STARTUP;
 		case FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED: return FT_STARTUP;
@@ -270,6 +306,7 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		case FT_RECOVERY_HAS_GATLINGS:              return FT_RECOVERY;
 		case FT_RECOVERY_CAN_ACT:                   return FT_RECOVERY;
 		case FT_RECOVERY_CAN_RELOAD:                return FT_RECOVERY;
+		case FT_EDDIE_RECOVERY:                     return FT_EDDIE_RECOVERY;
 		case FT_NON_ACTIVE:                         return FT_NON_ACTIVE;
 		case FT_NON_ACTIVE_PROJECTILE:              return FT_NON_ACTIVE_PROJECTILE;
 		case FT_PROJECTILE:                         return FT_PROJECTILE;
@@ -424,6 +461,7 @@ struct Framebar : public FramebarBase {
 	virtual void clearRequests() override;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
 	virtual FrameBase& getFrame(int index) override;
+	void modifyFrame(int pos, DWORD aswEngineTick, FrameType newType);
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
@@ -544,6 +582,7 @@ struct ProjectileFramebar : public EntityFramebar {
 	                               // Hence this framebar works in parallel with the main one, with the one difference that it always records hitstop
 	Framebar idleHitstop { };  // information from this gets copied to the hitstop framebar when the omitted idle frames are needed as
 	                                   // described in the 'idle' framebar
+	bool isEddie = false;
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
 	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
@@ -753,6 +792,7 @@ struct EddieInfo {
 	int landingFrameAdvantageCanBlock = 0;
 	
 	char anim[32] { '\0' };
+	int prevAnimFrame = 0;
 	int prevResource = 0;
 	int consumedResource = 0;
 	

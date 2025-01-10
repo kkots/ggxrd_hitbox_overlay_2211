@@ -2748,7 +2748,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				bool idleNext = !player.eddie.ptr ? false : !player.pawn.playerVal(2);
 				ProjectileInfo& projectile = !player.eddie.ptr ? findProjectile(landminePtr) : findProjectile(player.eddie.ptr);
-				if (created || strcmp(player.eddie.anim, projectile.animName) != 0) {
+				if (created || strcmp(player.eddie.anim, projectile.animName) != 0 || !idleNext && projectile.animFrame < player.eddie.prevAnimFrame) {
 					memcpy(player.eddie.anim, projectile.animName, 32);
 					
 					if (created || !idleNext && player.eddie.ptr) {
@@ -2775,6 +2775,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.eddie.prevEnemyIdleLanding = enemy.idleLanding;
 					}
 				}
+				player.eddie.prevAnimFrame = projectile.animFrame;
 				
 				if (created || player.eddie.idle != idleNext) {
 					player.eddie.idle = idleNext;
@@ -2837,6 +2838,41 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				
 				++player.eddie.timePassed;
+				
+				ProjectileFramebar& entityFramebar = findProjectileFramebar(projectile, true);
+				Framebar& framebar = entityFramebar.idleHitstop;
+				Frame& currentFrame = framebar[framebarPos];
+				if (framebarAdvancedIdleHitstop) {
+					FrameType oldType = currentFrame.type;
+					if (idleNext) {
+						currentFrame.type = FT_EDDIE_IDLE;
+					} else if (!player.eddie.actives.count) {
+						currentFrame.type = FT_EDDIE_STARTUP;
+					} else if (!player.eddie.recovery) {
+						currentFrame.type = player.eddie.hitstop ? FT_EDDIE_ACTIVE_HITSTOP : FT_EDDIE_ACTIVE;
+					} else {
+						currentFrame.type = FT_EDDIE_RECOVERY;
+					}
+					if (oldType != currentFrame.type) {
+						if (oldType == FT_NONE) {
+							// the framebar was created by us, the Eddie-specific code
+							copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
+								framebarAdvanced,
+								framebarAdvancedIdle,
+								framebarAdvancedHitstop,
+								framebarAdvancedIdleHitstop);
+						} else {
+							// the framebar was created by projectile-handling code, and all framebars are already caught up.
+							// copyIdleHitstopFrameToTheRestOfSubframebars function should not be called more than once per frame
+							entityFramebar.hitstop.modifyFrame(framebarPositionHitstop, currentFrame.aswEngineTick, currentFrame.type);
+							entityFramebar.idle.modifyFrame(
+								EntityFramebar::confinePos(framebarPosition + framebarIdleFor),
+								currentFrame.aswEngineTick, currentFrame.type);
+							entityFramebar.main.modifyFrame(framebarPosition, currentFrame.aswEngineTick, currentFrame.type);
+						}
+					}
+				}
+				
 			}
 		}
 		for (int i = 0; i < 2; ++i) {
@@ -3052,6 +3088,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else if (player.charType == CHARACTER_TYPE_SOL) {
 					currentFrame.u.diInfo.current = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
 					currentFrame.u.diInfo.max = player.maxDI;
+				} else if (player.charType == CHARACTER_TYPE_ZATO) {
+					currentFrame.u.diInfo.current = player.pawn.exGaugeValue(0);
+					currentFrame.u.diInfo.max = 6000;
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -5804,7 +5843,15 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 		dontReplaceTitle = true;
 	}
 	for (ProjectileFramebar& bar : projectileFramebars) {
-		if (bar.playerIndex == projectile.team && bar.id == projectile.framebarId) {
+		if (bar.playerIndex == projectile.team
+				&& (
+					projectile.move.isEddie
+						? bar.isEddie
+						:
+							!bar.isEddie
+							&& bar.id == projectile.framebarId
+				)
+			) {
 			if (!(bar.moveFramebarId != -1 && projectile.move.framebarId == -1)) {
 				bar.moveFramebarId = projectile.move.framebarId;
 			}
@@ -5828,6 +5875,7 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 	ProjectileFramebar& bar = projectileFramebars.back();
 	bar.playerIndex = projectile.team;
 	bar.id = nextFramebarId;
+	bar.isEddie = projectile.move.isEddie;
 	projectile.framebarId = nextFramebarId;
 	incrementNextFramebarIdSmartly();
 	bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull);
@@ -5875,6 +5923,7 @@ CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFrame
 	CombinedProjectileFramebar& bar = combinedFramebars.back();
 	bar.playerIndex = source.playerIndex;
 	bar.id = id;
+	bar.isEddie = source.isEddie;
 	bar.copyTitle(source);
 	bar.moveFramebarId = source.moveFramebarId;
 	return bar;

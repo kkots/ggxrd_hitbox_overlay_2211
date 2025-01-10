@@ -2052,13 +2052,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallB");
 	move.displayName = "K Don't Miss It";
 	move.slangName = "K Ball";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallA");
 	move.displayName = "P Don't Miss It";
 	move.slangName = "P Ball";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "OverHeadKiss");
@@ -2076,25 +2076,25 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateBShoukan");
 	move.displayName = "H Applause for the Victim";
 	move.slangName = "H-Hoop";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoBShoukan");
 	move.displayName = "S Applause for the Victim";
 	move.slangName = "S-Hoop";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateAShoukan");
 	move.displayName = "K Applause for the Victim";
 	move.slangName = "K-Hoop";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoAShoukan");
 	move.displayName = "P Applause for the Victim";
 	move.slangName = "P-Hoop";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "DivingAttack");
@@ -2117,12 +2117,14 @@ bool Moves::onDllMain() {
 	move.displayName = "Great Yamada Attack";
 	move.slangName = "Yamada";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "YamadaBurst");
 	move.displayName = "Burst Great Yamada Attack";
 	move.slangName = "Burst Yamada";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLA_Hold");
@@ -3892,7 +3894,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopC");
 	move.displayName = "S Tandem Top";
 	move.slangName = "S-Disc";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// s-disc
@@ -3907,7 +3909,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopD");
 	move.displayName = "H Tandem Top";
 	move.framebarSlangName = "H-Disc";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// h-disc
@@ -3951,13 +3953,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce2");
 	move.displayName = "H Silent Force";
 	move.slangName = "H-Pin";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce");
 	move.displayName = "S Silent Force";
 	move.slangName = "S-Pin";
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "KousokuRakka");
@@ -3969,7 +3971,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Emerald Rain";
 	move.slangName = "ER";
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ChromingRose");
@@ -4029,10 +4031,18 @@ bool Moves::onDllMain() {
 	move.framebarName = "Rose";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieMegalithHead", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Great White";
+	move.framebarId = 109;
+	move.isEddie = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "ChouDoriru", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarName = "Giga Drill";
 	move.framebarId = 109;
+	move.isEddie = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "KageDamari", true);
@@ -4041,30 +4051,66 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieA", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = "Eddie";
+	move.framebarName = "Eddie P";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieB", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = "Eddie";
+	move.framebarName = "Eddie K";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieC", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = "Eddie";
+	move.framebarName = "Eddie S";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieD", true);
 	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie H";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieE", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie D";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie4", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie 4";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie", true);
+	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = "Eddie";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie6", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Eddie 6";
+	move.framebarId = 109;
+	move.drawProjectileOriginPoint = true;
+	move.isEddie = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Fly");
@@ -4084,21 +4130,25 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD");
 	move.displayName = "Summon Eddie Shadow Dive";
 	move.slangName = "Summon";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonC");
 	move.displayName = "Summon Eddie Anti-air Attack";
 	move.slangName = "Nobiru";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonB");
 	move.displayName = "Summon Eddie Traversing Attack";
 	move.slangName = "Mawaru";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonA");
 	move.displayName = "Summon Eddie Small Attack";
 	move.slangName = "P Summon";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieReturn");
@@ -4109,6 +4159,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD2");
 	move.displayName = "Shadow Puddle Eddie Summon";
 	move.slangName = "Puddle Summon";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrunkerdShade");
@@ -4137,6 +4188,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Amorphous");
 	move.displayName = "Amorphous";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "AmorphousBurst");

@@ -327,6 +327,8 @@
     <Image Include="..\images\Digit7.png" />
     <Image Include="..\images\Digit8.png" />
     <Image Include="..\images\Digit9.png" />
+    <Image Include="..\images\EddieIdleFrame.png" />
+    <Image Include="..\images\EddieIdleFrame_NonColorblind.png" />
     <Image Include="..\images\FirstFrame.png" />
     <Image Include="..\images\GraybeatAirHitstunFrame.png" />
     <Image Include="..\images\GraybeatAirHitstun_NonColorblind.png" />

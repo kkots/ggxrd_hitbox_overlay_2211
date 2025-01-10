@@ -463,6 +463,10 @@ bool UI::onDllMain(HMODULE hModule) {
 		IDB_ZATO_BREAK_THE_LAW_STAGE3_RELEASED_NON_COLORBLIND, zatoBreakTheLawStage3ReleasedFrameNonColorblind,
 		"Performing a move that can be held: the move had been held long enough to have an even longer recovery upon release."
 			" Can't block or FD or perform attacks.");
+	addFrameArt(hModule, FT_EDDIE_IDLE,
+		IDB_EDDIE_IDLE_FRAME, eddieIdleFrame,
+		IDB_EDDIE_IDLE_FRAME_NON_COLORBLIND, eddieIdleFrameNonColorblind,
+		"Eddie is idle.");
 	
 	addImage(hModule, IDB_POWERUP, powerupFrame);
 	
@@ -553,6 +557,33 @@ bool UI::onDllMain(HMODULE hModule) {
 		airborneIdleCanGroundBlock.description = "Idle while airborne on the pre-landing (last airborne) frame:"
 			" can block grounded on this frame and regular (without FD) block ground attacks that require FD to be blocked in the air."
 			" Can attack, block and FD.";
+		
+		FrameArt& eddieStartup = theArray[FT_EDDIE_STARTUP];
+		eddieStartup = arrays[i][FT_STARTUP];
+		eddieStartup.description = "Eddie's attack is in startup.";
+		
+		FrameArt& eddieActive = theArray[FT_EDDIE_ACTIVE];
+		eddieActive = arrays[i][FT_ACTIVE];
+		eddieActive.description = "Eddie's attack is active.";
+		
+		FrameArt& eddieActiveHitstop = theArray[FT_EDDIE_ACTIVE_HITSTOP];
+		eddieActiveHitstop = arrays[i][FT_ACTIVE_HITSTOP];
+		eddieActiveHitstop.description = "Eddie's attack is active, but Eddie is in hitstop:"
+			" during it, his attack can't hurt anybody and Eddie doesn't move.";
+		
+		FrameArt& eddieActiveNewHit = theArray[FT_EDDIE_ACTIVE_NEW_HIT];
+		eddieActiveNewHit = arrays[i][FT_ACTIVE_NEW_HIT];
+		eddieActiveNewHit.description = "Eddie's attack is active, and a new (potential) hit starts on this frame."
+			" The black shadow on the left side of the frame denotes the start of a new (potential) hit."
+			" Eddie may be capable of doing fewer hits than 1+the number of \"new hits\" displayed,"
+			" and the first actual hit may occur on any active frame independent of \"new hit\" frames."
+			" \"New hit\" frame merely means that the hit #2, #3 and so on can only happen after a \"new hit\" frame,"
+			" and, between the first hit and the next \"new hit\", Eddie is inactive (even though he's displayed as active)."
+			" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on.";
+		
+		FrameArt& eddieRecovery = theArray[FT_EDDIE_RECOVERY];
+		eddieRecovery = arrays[i][FT_RECOVERY];
+		eddieRecovery.description = "Eddie's attack is in recovery.";
 		
 		for (int j = 1; j < _countof(frameArtNonColorblind); ++j) {
 			FrameArt& art = theArray[j];
@@ -3434,9 +3465,8 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::TableNextColumn();
 					ImGui::Text(searchFieldTitle("Eddie Gauge"));
-					AddTooltip(searchTooltip("Divided by 10 for readability."));
 					ImGui::TableNextColumn();
-					ImGui::Text("%-3d/%d", player.pawn.exGaugeValue(0) / 10, player.pawn.exGaugeMaxValue(0) / 10);
+					ImGui::Text("%-4d/%d", player.pawn.exGaugeValue(0), player.pawn.exGaugeMaxValue(0));
 					
 					ImGui::TableNextColumn();
 					ImGui::TextUnformatted(searchFieldTitle("Is Summoned"));
@@ -3503,9 +3533,9 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::TableNextColumn();
 					ImGui::TextUnformatted(searchFieldTitle("Last Consumed Eddie Gauge Amount"));
-					AddTooltip(searchTooltip("Divided by 10 for readability. The amount of consumed Eddie Gauge of the last attack."));
+					AddTooltip(searchTooltip("The amount of consumed Eddie Gauge by the last attack."));
 					ImGui::TableNextColumn();
-					ImGui::Text("%d", player.eddie.consumedResource / 10);
+					ImGui::Text("%d", player.eddie.consumedResource);
 					
 					ImGui::TableNextColumn();
 					ImGui::TextUnformatted("X");
@@ -3517,6 +3547,8 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::TableNextColumn();
 					ImGui::TextUnformatted(searchFieldTitle("Anim"));
+					AddTooltip(searchTooltip("This is the current animation, and might not be the same animation that"
+						" is shown in Startup/Active/Recovery/Total fields."));
 					ImGui::TableNextColumn();
 					if (eddie) {
 						ImGui::TextUnformatted(eddie.animationName());
@@ -7814,6 +7846,11 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				}
 			}
 		}
+	} else if (charType == CHARACTER_TYPE_ZATO) {
+		ImGui::Separator();
+		textUnformattedColored(YELLOW_COLOR, "Eddie Gauge: ");
+		ImGui::SameLine();
+		ImGui::Text("%d/6000", frame.u.diInfo.current);
 	} else if (charType == CHARACTER_TYPE_FAUST) {
 		if (frame.superArmorActiveInGeneral_IsFull && strcmp(frame.animName, "5D") == 0) {
 			ImGui::Separator();
@@ -8006,14 +8043,14 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							const StringWithLength* sws = &frameArtColorblind[p].description;
 							float currentHeight = ImGui::CalcTextSize(sws->txt, sws->txt + sws->length, false, wrapWidthUse).y;
 							descriptionHeights[p] = currentHeight;
-							if (p != FT_ACTIVE_NEW_HIT && p != FT_ACTIVE_NEW_HIT_PROJECTILE) {
+							if (!isNewHitType((FrameType)p)) {
 								maxDescriptionHeight = max(maxDescriptionHeight, currentHeight);
 							}
 						}
 						for (int p = 0; p < _countof(projectileFrameTypes); ++p) {
 							FrameType ptype = projectileFrameTypes[p];
 							float currentHeight = descriptionHeights[ptype];
-							if (ptype != FT_ACTIVE_NEW_HIT && ptype != FT_ACTIVE_NEW_HIT_PROJECTILE) {
+							if (!isNewHitType(ptype)) {
 								maxDescriptionHeightProjectiles = max(maxDescriptionHeightProjectiles, currentHeight);
 							}
 						}
