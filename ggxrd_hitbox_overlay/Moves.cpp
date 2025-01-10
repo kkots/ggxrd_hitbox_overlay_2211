@@ -159,6 +159,7 @@ static const char* displayNameSelector_badMoon(PlayerInfo& ent);
 static const char* displaySlangNameSelector_badMoon(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
+static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
 static bool createdProjectile_ky5D(PlayerInfo& ent);
 static bool canYrcProjectile_ky5D(PlayerInfo& ent);
 static bool createdProjectile_splitCiel(PlayerInfo& ent);
@@ -4246,6 +4247,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "SlideHead");
 	move.displayName = "Slide Head";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "MegaFistFront");
@@ -4295,20 +4297,29 @@ bool Moves::onDllMain() {
 	move.displayName = "F.D.B.";
 	move.sectionSeparator = sectionSeparator_FDB;
 	move.isInVariableStartupSection = isInVariableStartupSection_fdb;
+	move.canYrcProjectile = canYrcProjectile_default;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB_obj", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "F.D.B.";
+	move.framebarId = 110;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Anti_AirExplode");
 	move.displayName = "Trishula";
+	move.canYrcProjectile = canYrcProjectile_prevNoLinkDestroyOnStateChange;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "RocketDive");
 	move.displayName = "I.C.P.M.";
+	move.dontSkipGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "RocketDiveExe");
 	move.displayName = "I.C.P.M.";
 	move.combineWithPreviousMove = true;
-	move.isGrab = true;
+	move.dontSkipGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeavenlyPBuster");
@@ -4352,6 +4363,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Giganter Kai";
 	move.slangName = "Giganter";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "GiganObj", true);
@@ -7633,6 +7645,15 @@ const char* displaySlangNameSelector_badMoon(PlayerInfo& ent) {
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
 		&& player.hasDangerousNonDisabledProjectiles;
+}
+bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& player) {
+	return player.prevFrameHadDangerousNonDisabledProjectiles
+		&& player.hasDangerousNonDisabledProjectiles
+		&& (
+			player.pawn.previousEntity() == nullptr
+			|| player.pawn.previousEntity().linkObjectDestroyOnStateChange() != player.pawn
+		)
+		&& !player.prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer;
 }
 bool createdProjectile_ky5D(PlayerInfo& player) {
 	return player.pawn.previousEntity()

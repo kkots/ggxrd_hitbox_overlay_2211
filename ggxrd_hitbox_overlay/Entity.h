@@ -969,6 +969,7 @@ public:
 	inline BOOL destructionRequested() const { return *(BOOL*)(ent + 0x2538); }
 	inline int landingHeight() const { return *(int*)(ent + 0x1cc); }
 	int getCenterOffsetY() const;
+	inline Entity linkObjectDestroyOnStateChange() const { return *(Entity*)(ent + 0x1f0); }
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	

@@ -808,6 +808,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.pushback = ent.pushback();
 			
 			player.prevFrameHadDangerousNonDisabledProjectiles = player.hasDangerousNonDisabledProjectiles;
+			player.prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer = player.pawn.previousEntity()
+				&& player.pawn.previousEntity().linkObjectDestroyOnStateChange() == player.pawn;
 			player.hasDangerousNonDisabledProjectiles = false;
 			player.createdDangerousProjectile = false;
 			player.createdProjectileThatSometimesCanBeDangerous = false;
@@ -1385,7 +1387,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (!player.changedAnimFiltered) {
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName, &player.lastPerformedMoveSlangName);
 				}
-				if (*player.prevAttackLockAction != '\0' && strcmp(animName, player.prevAttackLockAction) == 0) {
+				if (*player.prevAttackLockAction != '\0' && strcmp(animName, player.prevAttackLockAction) == 0
+						&& !player.move.dontSkipGrab) {
 					player.grab = true;  // this doesn't work on regular ground and air throws
 					memcpy(player.grabAnimation, player.prevAttackLockAction, 32);
 				}

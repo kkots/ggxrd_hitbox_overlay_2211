@@ -3582,6 +3582,20 @@ void UI::drawSearchableWindows() {
 				} else {
 					ImGui::TextUnformatted(searchFieldTitle("Not on a wall."));
 				}
+			} else if (player.charType == CHARACTER_TYPE_POTEMKIN) {
+				const InputRingBuffer* ringBuffer = game.getInputRingBuffers();
+				if (ringBuffer) {
+					ringBuffer += i;
+					textUnformattedColored(YELLOW_COLOR, "Charge (left):");
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false));
+					ImGui::TextUnformatted(strbuf);
+					
+					textUnformattedColored(YELLOW_COLOR, "Charge (right):");
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%2d/30", ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true));
+					ImGui::TextUnformatted(strbuf);
+				}
 			} else if (player.charType == CHARACTER_TYPE_FAUST) {
 				const PlayerInfo& otherPlayer = endScene.players[1 - player.index];
 				if (!otherPlayer.poisonDuration) {
@@ -7893,9 +7907,9 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::SameLine();
 			if (frame.chargeLeft == 255) {
 				if (horizChargeMax == horizChargeMin) {
-					sprintf_s(strbuf, "244+/%d", horizChargeMin);
+					sprintf_s(strbuf, "254+/%d", horizChargeMin);
 				} else {
-					sprintf_s(strbuf, "244+/%d-%d", horizChargeMin, horizChargeMax);
+					sprintf_s(strbuf, "254+/%d-%d", horizChargeMin, horizChargeMax);
 				}
 			} else {
 				if (horizChargeMax == horizChargeMin) {
@@ -7910,9 +7924,9 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::SameLine();
 			if (frame.chargeRight == 255) {
 				if (horizChargeMax == horizChargeMin) {
-					sprintf_s(strbuf, "244+/%d", horizChargeMin);
+					sprintf_s(strbuf, "254+/%d", horizChargeMin);
 				} else {
-					sprintf_s(strbuf, "244+/%d-%d", horizChargeMin, horizChargeMax);
+					sprintf_s(strbuf, "254+/%d-%d", horizChargeMin, horizChargeMax);
 				}
 			} else {
 				if (horizChargeMax == horizChargeMin) {
@@ -7930,9 +7944,9 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::SameLine();
 			if (frame.chargeDown == 255) {
 				if (vertChargeMax == vertChargeMin) {
-					sprintf_s(strbuf, "244+/%d", vertChargeMin);
+					sprintf_s(strbuf, "254+/%d", vertChargeMin);
 				} else {
-					sprintf_s(strbuf, "244+/%d-%d", vertChargeMin, vertChargeMax);
+					sprintf_s(strbuf, "254+/%d-%d", vertChargeMin, vertChargeMax);
 				}
 			} else {
 				if (vertChargeMax == vertChargeMin) {

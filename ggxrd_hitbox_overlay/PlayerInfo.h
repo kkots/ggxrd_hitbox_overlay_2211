@@ -1322,6 +1322,7 @@ struct PlayerInfo {
 	                              // as the same animation yet. If we allow such reset we will wrongfully decrement blockstunMax by 1 in our next prepareDrawData call
 	bool hasDangerousNonDisabledProjectiles:1;
 	bool prevFrameHadDangerousNonDisabledProjectiles:1;
+	bool prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer:1;
 	
 	bool counterhit:1;
 	
