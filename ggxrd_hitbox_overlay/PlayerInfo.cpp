@@ -1202,7 +1202,7 @@ template<typename EntFramebarT, typename FramebarT, typename FrameT>
 static inline void changePreviousFrames_piece(EntFramebarT* framebars,
 			FrameType* prevTypes,
 			int prevTypesCount,
-			int pos,
+			int& pos,
 			FramebarT& bar,
 			DWORD aswEngineTick,
 			FrameType newType) {

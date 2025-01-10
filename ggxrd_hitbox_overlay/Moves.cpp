@@ -2866,6 +2866,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Rensengeki");
 	move.displayName = "Sickle Flash";
 	move.slangName = "Rensen";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// Axl Rensen + 2 followup
@@ -2888,6 +2889,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Rashosen");
 	move.displayName = "Spindle Spinner";
 	move.slangName = "Rashousen";
+	move.isGrab = true;
 	addMove(move);
 	
 	// the command grab

@@ -3628,6 +3628,8 @@ void UI::drawSearchableWindows() {
 					ImGui::PopTextWrapPos();
 				}	
 				
+			} else if (player.charType == CHARACTER_TYPE_AXL) {
+				printChargeInCharSpecific(i, true, false, 30);
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
