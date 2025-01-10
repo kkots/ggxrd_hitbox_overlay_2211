@@ -2130,19 +2130,16 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLA_Hold");
 	move.displayName = "Left Wall Climb";
-	move.nameIncludesInputs = true;
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLC_Hold");
 	move.displayName = "Left Wall Climb";
-	move.nameIncludesInputs = true;
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLD_Hold");
 	move.displayName = "Left Wall Climb";
-	move.nameIncludesInputs = true;
 	move.caresAboutWall = true;
 	addMove(move);
 	
@@ -2217,6 +2214,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiB");
 	move.displayName = "w.K";
 	move.caresAboutWall = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiA");
@@ -2291,11 +2289,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Shuriken");
 	move.displayName = "Shuriken";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Meisai");
 	move.displayName = "Tsuyoshi-shiki Meisai";
-	move.slangName = "214K";
+	move.slangName = "Meisai";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Tobiagari");
@@ -2334,12 +2333,14 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GammaBlade");
 	move.displayName = "Gamma Blade";
 	move.slangName = "Gamma";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "6wayKunai");
 	move.displayName = "Ryuu Yanagi";
 	move.slangName = "Ryuu";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "BankiMessai");
