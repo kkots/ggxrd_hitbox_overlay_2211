@@ -463,7 +463,7 @@ bool Settings::onDllMain() {
 			"; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,\n"
 			"; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.\n"
 			"; Millia's origin point must be above the line in order to gain the powerup.");
-	registerOtherDescription(settingAndItsName(showFaustOwnFlickRanges), "Show Faust Own Projectile Flick Ranges", "UI - Character specific",
+	registerOtherDescription(settingAndItsName(showFaustOwnFlickRanges), "Show Faust Thrown Item Flick Ranges", "UI - Character specific",
 			"; Specify true or false.\n"
 			"; When this setting is on, when Faust does a 5D, two ranges are should around his flickpoint,\n"
 			"; denoting ranges in which his thrown items' origin points must be to get either hit or homerun hit.");
