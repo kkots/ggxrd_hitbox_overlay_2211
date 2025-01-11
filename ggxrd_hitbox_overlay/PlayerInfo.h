@@ -1239,6 +1239,7 @@ struct PlayerInfo {
 	int comboProrationOverdrive = 0;
 	int prevFrameStunValue = 0;
 	int prevFrameMem45 = 0;
+	int prevFrameMem46 = 0;
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
 	char grabAnimation[32] { '\0' };

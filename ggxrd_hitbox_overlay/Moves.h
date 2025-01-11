@@ -158,6 +158,7 @@ public:
 		instr_ifOperation = 6,
 		instr_setMarker = 11,
 		instr_exitState = 18,
+		instr_clearUpon = 23,
 		instr_storeValue = 46,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
@@ -216,6 +217,8 @@ public:
 	TriBool milliaIsRev2 = TRIBOOL_DUNNO;
 	int faust5DExPointX = -1;
 	int faust5DExPointY = -1;
+	int venomQvClearUponAfterExitOffset = 0;
+	int venomBishopCreateOffset = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

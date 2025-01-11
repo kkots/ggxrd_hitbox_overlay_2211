@@ -157,6 +157,14 @@ static const char* displayNameSelector_may6P(PlayerInfo& ent);
 static const char* displayNameSelector_may6H(PlayerInfo& ent);
 static const char* displayNameSelector_badMoon(PlayerInfo& ent);
 static const char* displaySlangNameSelector_badMoon(PlayerInfo& ent);
+static const char* displayNameSelector_carcassRaidS(PlayerInfo& ent);
+static const char* displaySlangNameSelector_carcassRaidS(PlayerInfo& ent);
+static const char* displayNameSelector_carcassRaidH(PlayerInfo& ent);
+static const char* displaySlangNameSelector_carcassRaidH(PlayerInfo& ent);
+static const char* displayNameSelector_stingerS(PlayerInfo& ent);
+static const char* displaySlangNameSelector_stingerS(PlayerInfo& ent);
+static const char* displayNameSelector_stingerH(PlayerInfo& ent);
+static const char* displaySlangNameSelector_stingerH(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -165,9 +173,13 @@ static bool canYrcProjectile_ky5D(PlayerInfo& ent);
 static bool createdProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_flower(PlayerInfo& ent);
+static bool canYrcProjectile_qv(PlayerInfo& ent);
+static bool createdProjectile_bishop(PlayerInfo& ent);
+static bool canYrcProjectile_bishop(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
+static bool powerup_qv(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -4410,6 +4422,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiA_Hold");
@@ -4422,6 +4435,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiB");
@@ -4434,6 +4448,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiB_Hold");
@@ -4446,6 +4461,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiC");
@@ -4458,6 +4474,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiC_Hold");
@@ -4470,6 +4487,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiD");
@@ -4482,6 +4500,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiD_Hold");
@@ -4494,26 +4513,31 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiA");
 	move.displayName = "Air P Ball Set";
 	move.slangName = "Air P Ball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiB");
 	move.displayName = "Air K Ball Set";
 	move.slangName = "Air K Ball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiC");
 	move.displayName = "Air S Ball Set";
 	move.slangName = "Air S Ball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiD");
 	move.displayName = "Air H Ball Set";
 	move.slangName = "Air H Ball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "MadStrugguleD");
@@ -4545,22 +4569,34 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimD");
 	move.displayName = "H Stinger Aim";
+	move.displayNameSelector = displayNameSelector_stingerH;
 	move.slangName = "H Stinger";
+	move.displaySlangNameSelector = displaySlangNameSelector_stingerH;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimC");
 	move.displayName = "S Stinger Aim";
+	move.displayNameSelector = displayNameSelector_stingerS;
 	move.slangName = "S Stinger";
+	move.displaySlangNameSelector = displaySlangNameSelector_stingerS;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidD");
 	move.displayName = "H Carcass Raid";
+	move.displayNameSelector = displayNameSelector_carcassRaidH;
 	move.slangName = "H Carcass";
+	move.displayNameSelector = displaySlangNameSelector_carcassRaidH;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidC");
 	move.displayName = "S Carcass Raid";
+	move.displayNameSelector = displayNameSelector_carcassRaidS;
 	move.slangName = "S Carcass";
+	move.displayNameSelector = displaySlangNameSelector_carcassRaidS;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// Venom QV
@@ -4568,28 +4604,37 @@ bool Moves::onDllMain() {
 	move.displayName = "P QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
+	move.canYrcProjectile = canYrcProjectile_qv;
+	move.powerup = powerup_qv;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveB");
 	move.displayName = "K QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
+	move.canYrcProjectile = canYrcProjectile_qv;
+	move.powerup = powerup_qv;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveC");
 	move.displayName = "S QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
+	move.canYrcProjectile = canYrcProjectile_qv;
+	move.powerup = powerup_qv;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveD");
 	move.displayName = "H QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
+	move.canYrcProjectile = canYrcProjectile_qv;
+	move.powerup = powerup_qv;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "RedHail");
 	move.displayName = "Red Hail";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// this is Stinger and Carcass Raid balls, ball set, including when such balls are launched.
@@ -4612,18 +4657,22 @@ bool Moves::onDllMain() {
 	move.displayName = "Dark Angel";
 	move.slangName = "DA";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBurst");
 	move.displayName = "Burst Dark Angel";
 	move.slangName = "Burst DA";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "SummonGoldBall");
 	move.displayName = "Bishop Runout";
 	move.slangName = "Bishop";
 	move.dontSkipSuper = true;
+	move.createdProjectile = createdProjectile_bishop;
+	move.canYrcProjectile = canYrcProjectile_bishop;
 	addMove(move);
 	
 	// created before Dark Angel comes out
@@ -6872,6 +6921,8 @@ void Moves::onAswEngineDestroyed() {
 	milliaIsRev2 = TRIBOOL_DUNNO;
 	faust5DExPointX = -1;
 	faust5DExPointY = -1;
+	venomQvClearUponAfterExitOffset = 0;
+	venomBishopCreateOffset = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7693,6 +7744,66 @@ const char* displaySlangNameSelector_badMoon(PlayerInfo& ent) {
 		return "BM";
 	}
 }
+const char* displayNameSelector_carcassRaidS(PlayerInfo& ent) {
+	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
+			&& ent.pawn.venomBallArg3() == 164) {
+		return "S Carcass Raid With Spin";
+	} else {
+		return "S Carcass Raid";
+	}
+}
+const char* displaySlangNameSelector_carcassRaidS(PlayerInfo& ent) {
+	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
+			&& ent.pawn.venomBallArg3() == 164) {
+		return "S Carcass With Spin";
+	} else {
+		return "S Carcass";
+	}
+}
+const char* displayNameSelector_carcassRaidH(PlayerInfo& ent) {
+	if (ent.pawn.venomBallArg3() == 2724) {
+		return "H Carcass Raid With Spin";
+	} else {
+		return "H Carcass Raid";
+	}
+}
+const char* displaySlangNameSelector_carcassRaidH(PlayerInfo& ent) {
+	if (ent.pawn.venomBallArg3() == 2724) {
+		return "H Carcass With Spin";
+	} else {
+		return "H Carcass";
+	}
+}
+const char* displayNameSelector_stingerS(PlayerInfo& ent) {
+	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
+			&& ent.pawn.venomBallArg3() == 164) {
+		return "S Stinger Aim With Spin";
+	} else {
+		return "S Stinger Aim";
+	}
+}
+const char* displaySlangNameSelector_stingerS(PlayerInfo& ent) {
+	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
+			&& ent.pawn.venomBallArg3() == 164) {
+		return "S Stinger With Spin";
+	} else {
+		return "S Stinger";
+	}
+}
+const char* displayNameSelector_stingerH(PlayerInfo& ent) {
+	if (ent.pawn.venomBallArg3() == 164) {
+		return "H Stinger Aim With Spin";
+	} else {
+		return "H Stinger Aim";
+	}
+}
+const char* displaySlangNameSelector_stingerH(PlayerInfo& ent) {
+	if (ent.pawn.venomBallArg3() == 164) {
+		return "H Stinger With Spin";
+	} else {
+		return "H Stinger";
+	}
+}
 
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
@@ -7753,11 +7864,52 @@ bool canYrcProjectile_flower(PlayerInfo& player) {
 					strcmp(p.animationName(), "OreHanaBig_Shot") == 0
 					|| strcmp(p.animationName(), "OreHana_Shot") == 0
 				)
-				&& p.lifeTimeCounter() > 0) {
+				&& p.lifeTimeCounter() > 0
+				&& !p.isActiveFrames()) {  // the last check against potential get on pogo -> flower -> YRC -> get on pogo -> flower again
 			return true;
 		}
 	}
 	return false;
+}
+bool canYrcProjectile_qv(PlayerInfo& player) {
+	if (moves.venomQvClearUponAfterExitOffset == 0) {
+		BYTE* func = player.pawn.bbscrCurrentFunc();
+		for (BYTE* instr = moves.skipInstruction(func);
+				moves.instructionType(instr) != Moves::instr_endState;
+				instr = moves.skipInstruction(instr)) {
+			if (moves.instructionType(instr) == Moves::instr_clearUpon && *(int*)(instr + 4) == 47) {  // AFTER_EXIT
+				moves.venomQvClearUponAfterExitOffset = instr - func;
+				break;
+			}
+		}
+	}
+	if (!moves.venomQvClearUponAfterExitOffset) return false;
+	BYTE* currentInstr = player.pawn.bbscrCurrentInstr();
+	BYTE* minInstr = moves.skipInstruction(player.pawn.bbscrCurrentFunc() + moves.venomQvClearUponAfterExitOffset);
+	return currentInstr == minInstr
+		&& player.pawn.spriteFrameCounter() != 0
+		|| currentInstr > minInstr;
+}
+bool createdProjectile_bishop(PlayerInfo& player) {
+	return player.pawn.previousEntity() && player.pawn.previousEntity().lifeTimeCounter() == 0;
+}
+bool canYrcProjectile_bishop(PlayerInfo& player) {
+	if (moves.venomBishopCreateOffset == 0) {
+		BYTE* func = player.pawn.bbscrCurrentFunc();
+		bool found = false;
+		for (BYTE* instr = moves.skipInstruction(func);
+				moves.instructionType(instr) != Moves::instr_endState;
+				instr = moves.skipInstruction(instr)) {
+			if (moves.instructionType(instr) == Moves::instr_createObjectWithArg && strcmp((const char*)(instr + 4), "Ball") == 0) {
+				found = true;
+			} else if (found && moves.instructionType(instr) == Moves::instr_sprite) {
+				moves.venomBishopCreateOffset = instr - func;
+				break;
+			}
+		}
+	}
+	if (!moves.venomBishopCreateOffset) return false;
+	return player.pawn.bbscrCurrentInstr() - player.pawn.bbscrCurrentFunc() > moves.venomBishopCreateOffset;
 }
 
 bool powerup_may6P(PlayerInfo& player) {
@@ -7771,6 +7923,9 @@ bool powerup_may6H(PlayerInfo& player) {
 		return player.prevFrameMem45 == 1 && player.pawn.mem45() == 0;
 	}
 	return false;
+}
+bool powerup_qv(PlayerInfo& player) {
+	return player.prevFrameMem46 != player.pawn.mem46();
 }
 
 void fillMay6HOffsets(BYTE* func) {

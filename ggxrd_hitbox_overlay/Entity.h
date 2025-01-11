@@ -135,11 +135,11 @@ enum CmnActIndex {
 	CmnActEntry = 0x55,  // don't know
 	CmnActRoundWin = 0x56,  // round win
 	CmnActMatchWin = 0x57,  // match victory animation
-	CmnActLose = 0x58,  // don't know
+	CmnActLose = 0x58,  // lose round due to timeout
 	CmnActResultWin = 0x59,  // static pose that happens on victory quote screen
 	CmnActResultLose = 0x5a,  // static pose that happens on victory quote screen
 	CmnActEntryWait = 0x5b,  // you're invisible
-	CmnActExDamage = 0x5c,  // getting hit by Elphelt 236236K
+	CmnActExDamage = 0x5c,  // getting hit by Elphelt 236236K or Venom throw
 	CmnActExDamageLand = 0x5d,  // don't know
 	NotACmnAct = 0xffffffff
 };
@@ -973,6 +973,8 @@ public:
 	inline int landingHeight() const { return *(int*)(ent + 0x1cc); }
 	int getCenterOffsetY() const;
 	inline Entity linkObjectDestroyOnStateChange() const { return *(Entity*)(ent + 0x1f0); }
+	inline int venomBallArg3() const { return *(int*)(ent + 0x25bc); }
+	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	

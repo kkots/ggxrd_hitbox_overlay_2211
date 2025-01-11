@@ -3635,6 +3635,14 @@ void UI::drawSearchableWindows() {
 				
 			} else if (player.charType == CHARACTER_TYPE_AXL) {
 				printChargeInCharSpecific(i, true, false, 30);
+			} else if (player.charType == CHARACTER_TYPE_VENOM) {
+				printChargeInCharSpecific(i, true, true, 40);
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x2) != 0;
+				textUnformattedColored(YELLOW_COLOR, "Can do Bishop Runout:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
