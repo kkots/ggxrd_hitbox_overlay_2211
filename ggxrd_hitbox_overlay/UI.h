@@ -284,6 +284,7 @@ private:
 	std::string faust5D;
 	void printChargeInFrameTooltip(const char* title, unsigned char value, unsigned char valueMax, unsigned char valueLast);
 	void printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVert, int maxCharge);
+	bool printSlayerBuffedMoves[2] { false };
 };
 
 extern UI ui;

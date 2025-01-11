@@ -13,6 +13,7 @@
 	INVUL_TYPES_EXEC(LOW_PROFILE, "low profile", lowProfile) \
 	INVUL_TYPES_EXEC(SOMEWHAT_LOW_PROFILE, "somewhat low profile", somewhatLowProfile) \
 	INVUL_TYPES_EXEC(UPPER_BODY_INVUL, "upper body", upperBodyInvul) \
+	INVUL_TYPES_EXEC(ABOVE_WAIST_INVUL, "above waist", aboveWaistInvul) \
 	INVUL_TYPES_EXEC(TOE_INVUL, "toe", toeInvul) \
 	INVUL_TYPES_EXEC(FOOT_INVUL, "foot", footInvul) \
 	INVUL_TYPES_EXEC(LEG_INVUL, "leg", legInvul) \

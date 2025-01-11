@@ -1247,10 +1247,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				playervalNum = 0;
 			} else if (player.charType == CHARACTER_TYPE_MILLIA) {
 				playervalSetterName = "ChromingRose";
+			} else if (player.charType == CHARACTER_TYPE_SLAYER) {
+				playervalSetterName = "ChiwosuuUchuuExe";
 			}
 			if (playervalSetterName && strcmp(animName, playervalSetterName) == 0) {
 				player.fillInPlayervalSetter(playervalNum);
-				if (player.pawn.bbscrCurrentInstr() - player.pawn.bbscrCurrentFunc() == player.playervalSetterOffset
+				if (player.playervalSetterOffset != -1
+						&& player.pawn.bbscrCurrentInstr() - player.pawn.bbscrCurrentFunc() == player.playervalSetterOffset
 						&& !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0) {
 					player.maxDI = player.pawn.playerVal(playervalNum);
 				}
@@ -2052,6 +2055,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							&& player.pawn.blockstun() == 0
 							&& !player.inHitstunNowOrNextFrame) {
 						player.upperBodyInvul.active = true;
+					} else if (hurtboxBounds.bottom <= 274000
+							&& !player.pawn.crouching()
+							&& player.pawn.blockstun() == 0
+							&& !player.inHitstunNowOrNextFrame) {
+						player.aboveWaistInvul.active = true;
 					}
 					if (hurtboxBounds.top >= 174000) {
 						player.legInvul.active = true;
@@ -3094,6 +3102,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else if (player.charType == CHARACTER_TYPE_ZATO) {
 					currentFrame.u.diInfo.current = player.pawn.exGaugeValue(0);
 					currentFrame.u.diInfo.max = 6000;
+				} else if (player.charType == CHARACTER_TYPE_SLAYER) {
+					currentFrame.u.diInfo.current = player.playerval1;
+					currentFrame.u.diInfo.max = player.maxDI;
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}

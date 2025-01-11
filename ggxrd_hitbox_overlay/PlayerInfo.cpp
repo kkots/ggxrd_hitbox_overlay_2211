@@ -2749,7 +2749,11 @@ void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
 		instr = moves.skipInstruction(instr);
 		type = moves.instructionType(instr);
 	}
-	playervalSetterOffset = instr - func;
+	if (found) {
+		playervalSetterOffset = instr - func;
+	} else {
+		playervalSetterOffset = -1;  // rev1. For example, in Rev1, Slayer doesn't have the blood infused buff
+	}
 }
 
 void Framebar::modifyFrame(int pos, DWORD aswEngineTick, FrameType newType) {

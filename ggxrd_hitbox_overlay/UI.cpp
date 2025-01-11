@@ -3013,7 +3013,7 @@ void UI::drawSearchableWindows() {
 	}
 	popSearchStack();
 	searchCollapsibleSection("Character Specific");
-	for (int i = 0; i < two; ++i) {
+	for (int i = 0; i < 2; ++i) {
 		if (showCharSpecific[i] || searching) {
 			ImGui::PushID(i);
 			sprintf_s(strbuf, searching ? "search_char%d" : "  Character Specific (P%d)", i + 1);
@@ -3601,29 +3601,29 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(searchFieldTitle(strbuf, nullptr));
 				}
 				
-				textUnformattedColored(YELLOW_COLOR, "Can throw item:");
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can throw item:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
 				
-				textUnformattedColored(YELLOW_COLOR, "Can throw Love:");
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can throw Love:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x2) == 0 ? "Yes" : "No");
 				
-				if (ImGui::Button("How Flicking Works")) {
+				if (ImGui::Button(searchFieldTitle("How Flicking Works"))) {
 					showHowFlickingWorks[i] = !showHowFlickingWorks[i];
 				}
-				if (showHowFlickingWorks[i]) {
+				if (showHowFlickingWorks[i] || searching) {
 					ImGui::PushTextWrapPos(0.F);
-					ImGui::TextUnformatted("The mechanics are different when flicking your own thrown item and when flicking"
-						" an enemy's projectile.");
-					ImGui::TextUnformatted("To flick an enemy projectile, it must come in contact with your hurtbox while"
+					ImGui::TextUnformatted(searchTooltip("The mechanics are different when flicking your own thrown item and when flicking"
+						" an enemy's projectile."));
+					ImGui::TextUnformatted(searchTooltip("To flick an enemy projectile, it must come in contact with your hurtbox while"
 						" you have super armor. If it hits you on the first two frames of super armor, colored red in the framebar,"
 						" the reflect will be a homerun. Otherwise it will be a non-homerun reflect.\n"
-						"Flicking enemy projectiles was added in Rev2.");
-					ImGui::TextUnformatted("When reflecting your own throw item, there's a point somewhere in front of you,"
+						"Flicking enemy projectiles was added in Rev2."));
+					ImGui::TextUnformatted(searchTooltip("When reflecting your own throw item, there's a point somewhere in front of you,"
 						" and when a particular frame of animation is played, a signal is sent to the thrown item to check"
 						" how far it is from that point. If it is < 100000 range, the hit is a homerun."
-						" If the range is 300000, the hit is not a homerun.");
+						" If the range is 300000, the hit is not a homerun."));
 					ImGui::PopTextWrapPos();
 				}
 				
@@ -3631,11 +3631,11 @@ void UI::drawSearchableWindows() {
 				
 				if (settings.showFaustOwnFlickRanges) {
 					ImGui::PushTextWrapPos(0.F);
-					textUnformattedColored(YELLOW_COLOR, "Faust 5D:");
+					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Faust 5D:"));
 					if (faust5D.empty()) {
 						faust5D = settings.convertToUiDescription(faust5DHelp);
 					}
-					ImGui::TextUnformatted(faust5D.c_str());
+					ImGui::TextUnformatted(searchTooltip(faust5D.c_str(), faust5D.c_str() + faust5D.size()));
 					ImGui::PopTextWrapPos();
 				}	
 				
@@ -3645,9 +3645,42 @@ void UI::drawSearchableWindows() {
 				printChargeInCharSpecific(i, true, true, 40);
 				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x2) != 0;
-				textUnformattedColored(YELLOW_COLOR, "Can do Bishop Runout:");
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can do Bishop Runout:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				
+			} else if (player.charType == CHARACTER_TYPE_SLAYER) {
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Bloodsucking Universe Buff (Rev2 only):"));
+				const char* tooltip = searchTooltip("Bloodsucking Universe makes the next special or super guaranteed to do a counterhit.");
+				AddTooltip(tooltip);
+				sprintf_s(strbuf, "%d/%df", player.playerval1, player.maxDI);
+				ImGui::TextUnformatted(strbuf);
+				
+				if (ImGui::Button(searchFieldTitle("Show Buffed Moves"))) {
+					printSlayerBuffedMoves[i] = !printSlayerBuffedMoves[i];
+				}
+				AddTooltip(tooltip);
+				
+				if (printSlayerBuffedMoves[i] || searching) {
+					static StringWithLength buffedMoveNames[] {
+						"*) P Mappa;",
+						"*) K Mappa;",
+						"*) Pilebunker;",
+						"*) Crosswise Heel;",
+						"*) Under Pressure;",
+						"*) It's Late;",
+						"*) Helter Skelter;",
+						"*) Footloose Journey;",
+						"*) Undertow;",
+						"*) Dead on Time;",
+						"*) Eternal Wings;",
+						"*) Straight-Down Dandy."
+					};
+					for (int j = 0; j < _countof(buffedMoveNames); ++j) {
+						ImGui::TextUnformatted(searchTooltip(buffedMoveNames[j]));
+					}
+				}
 				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
@@ -7954,6 +7987,11 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("If Faust gets hit by a reflectable projectile on this frame,"
 				" the reflection will be a homerun.");
 		}
+	} else if (charType == CHARACTER_TYPE_SLAYER) {
+		ImGui::Separator();
+		textUnformattedColored(YELLOW_COLOR, "Bloodsucking Universe Buff: ");
+		ImGui::SameLine();
+		ImGui::Text("%d/%d", frame.u.diInfo.current, frame.u.diInfo.max);
 	}
 	bool showHorizCharge = false;
 	int horizChargeMax = 0;
@@ -9592,7 +9630,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 	if (ringBuffer) {
 		ringBuffer += playerIndex;
 		if (showHoriz) {
-			textUnformattedColored(YELLOW_COLOR, "Charge (left):");
+			textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Charge (left):"));
 			ImGui::SameLine();
 			int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false);
 			if (charge != 0) {
@@ -9602,7 +9640,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 			}
 			ImGui::TextUnformatted(strbuf);
 			
-			textUnformattedColored(YELLOW_COLOR, "Charge (right):");
+			textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Charge (right):"));
 			ImGui::SameLine();
 			charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true);
 			if (charge != 0) {
@@ -9614,7 +9652,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 		}
 		
 		if (showVert) {
-			textUnformattedColored(YELLOW_COLOR, "Charge (down):");
+			textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Charge (down):"));
 			ImGui::SameLine();
 			int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false);
 			if (charge != 0) {

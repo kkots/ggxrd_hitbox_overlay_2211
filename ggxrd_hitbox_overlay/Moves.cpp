@@ -4737,6 +4737,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Helter";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "Retro", true);
@@ -4792,6 +4793,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChokkagataDandy");
 	move.displayName = "Straight-Down Dandy";
 	move.slangName = "SDD";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "EienNoTsubasa");
