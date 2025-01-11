@@ -4181,7 +4181,9 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		drawDataPrepared.needTakeScreenshot = true;
 	}
 	bool screenshotPathEmpty = false;
-	{
+	if (settings.ignoreScreenshotPathAndSaveToClipboard) {
+		screenshotPathEmpty = true;
+	} else {
 		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
 		screenshotPathEmpty = settings.screenshotPath.empty();
 	}

@@ -402,6 +402,10 @@ screenshotBtn = F8
 screenshotPath = ;C:\Users\yourUser\Desktop\test screenshot name.png   don't forget to uncomment (; is a comment)
 
 ; Specify true or false.
+; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.
+ignoreScreenshotPathAndSaveToClipboard = false
+
+; Specify true or false.
 ; When this is true that means screenshots are being taken every game loop logical frame as
 ; long as the screenshotBtn is being held. Game loop logical frame means that if the game is
 ; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.

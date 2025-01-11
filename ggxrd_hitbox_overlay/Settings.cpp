@@ -467,6 +467,9 @@ bool Settings::onDllMain() {
 			"; Specify true or false.\n"
 			"; When this setting is on, when Faust does a 5D, two ranges are should around his flickpoint,\n"
 			"; denoting ranges in which his thrown items' origin points must be to get either hit or homerun hit.");
+	registerOtherDescription(settingAndItsName(ignoreScreenshotPathAndSaveToClipboard), "Ignore Screenshot Path And Save To Clipboard", settingsHitboxSettingsStr,
+			"; Specify true or false.\n"
+			"; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.");
 	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -748,6 +751,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool showMilliaBadMoonBuffHeightParsed = false;
 	
 	bool showFaustOwnFlickRangesParsed = false;
+	
+	bool ignoreScreenshotPathAndSaveToClipboardParsed = false;
 	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
 	
@@ -1058,6 +1063,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								showFaustOwnFlickRangesParsed = parseBoolean("showFaustOwnFlickRanges", keyValue, showFaustOwnFlickRanges);
 							}
 							break;
+						case offsetof(Settings, ignoreScreenshotPathAndSaveToClipboard):
+							if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
+								ignoreScreenshotPathAndSaveToClipboardParsed = parseBoolean("ignoreScreenshotPathAndSaveToClipboard", keyValue, ignoreScreenshotPathAndSaveToClipboard);
+							}
+							break;
 						case offsetof(Settings, forceZeroPitchDuringCameraCentering):
 							if (!forceZeroPitchDuringCameraCenteringParsed) {
 								forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
@@ -1288,6 +1298,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showFaustOwnFlickRangesParsed) {
 		showFaustOwnFlickRanges = false;
+	}
+	
+	if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
+		ignoreScreenshotPathAndSaveToClipboard = false;
 	}
 	
 	if (!forceZeroPitchDuringCameraCenteringParsed) {
@@ -1819,6 +1833,7 @@ void Settings::writeSettingsMain() {
 		li.commentPos = li.equalSignPos + 2;
 		li.comment = ";C:\\Users\\yourUser\\Desktop\\test screenshot name.png   don't forget to uncomment (; is a comment)";
 	}
+	replaceOrAddSetting("ignoreScreenshotPathAndSaveToClipboard", formatBoolean(ignoreScreenshotPathAndSaveToClipboard), getOtherINIDescription(&ignoreScreenshotPathAndSaveToClipboard));
 	
 	replaceOrAddSetting("dontUseScreenshotTransparency", formatBoolean(dontUseScreenshotTransparency), getOtherINIDescription(&dontUseScreenshotTransparency));
 	replaceOrAddSetting("turnOffPostEffectWhenMakingBackgroundBlack", formatBoolean(turnOffPostEffectWhenMakingBackgroundBlack), getOtherINIDescription(&turnOffPostEffectWhenMakingBackgroundBlack));

@@ -40,6 +40,7 @@ int PngRelated::findRev(const wchar_t* path, wchar_t charToFind) const {
 }
 
 std::wstring PngRelated::getScreenshotSavingPath() {
+	if (settings.ignoreScreenshotPathAndSaveToClipboard) return std::wstring{};
 	std::wstring pathUncounted;
 	{
 		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
@@ -174,7 +175,9 @@ bool PngRelated::writePngToMemory(HGLOBAL* handleToGlobalAlloc, unsigned int wid
 // May overwrite data in -buffer-
 void PngRelated::saveScreenshotData(unsigned int width, unsigned int height, void* buffer) {
 	bool screenshotPathEmpty = false;
-	{
+	if (settings.ignoreScreenshotPathAndSaveToClipboard) {
+		screenshotPathEmpty = true;
+	} else {
 		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
 		screenshotPathEmpty = settings.screenshotPath.empty();
 	}

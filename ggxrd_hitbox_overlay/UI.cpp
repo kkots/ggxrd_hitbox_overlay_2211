@@ -2173,6 +2173,10 @@ void UI::drawSearchableWindows() {
 		}
 		HelpMarkerWithHotkey(screenshotHelp, settings.screenshotBtn);
 		
+		ImGui::PushID(1);
+		booleanSettingPreset(settings.ignoreScreenshotPathAndSaveToClipboard);
+		ImGui::PopID();
+		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Continuous Screenshotting Mode"), &continuousScreenshotToggle) || stateChanged;
 		ImGui::SameLine();
 		static std::string continuousScreenshottingHelp;
@@ -2229,6 +2233,8 @@ void UI::drawSearchableWindows() {
 			}
 			ImGui::SameLine();
 			HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
+			
+			booleanSettingPreset(settings.ignoreScreenshotPathAndSaveToClipboard);
 			
 			booleanSettingPreset(settings.allowContinuousScreenshotting);
 			

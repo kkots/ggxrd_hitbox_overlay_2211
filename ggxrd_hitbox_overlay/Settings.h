@@ -103,6 +103,7 @@ public:
 	std::atomic_bool dontShowMayInteractionChecks = false;
 	std::atomic_bool showMilliaBadMoonBuffHeight = false;
 	std::atomic_bool showFaustOwnFlickRanges = false;
+	std::atomic_bool ignoreScreenshotPathAndSaveToClipboard = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);
