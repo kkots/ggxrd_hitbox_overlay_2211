@@ -1757,6 +1757,25 @@ void UI::drawSearchableWindows() {
 					ImGui::TableNextColumn();
 					if (row.side[i]) {
 						ProjectileInfo& projectile = *row.side[i];
+						char* buf = strbuf;
+						size_t bufSize = sizeof strbuf;
+						printDecimal(projectile.x, 2, 0, false);
+						int result = sprintf_s(strbuf, "%s; ", printdecimalbuf);
+						advanceBuf
+						printDecimal(projectile.y, 2, 0, false);
+						sprintf_s(buf, bufSize, "%s", printdecimalbuf);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("pos");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
 						printNoWordWrapArg(projectile.creatorName)
 					}
 					
@@ -2389,9 +2408,11 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
 			
-			booleanSettingPreset(settings.dontShowMayInteractionChecks);
-			
-			booleanSettingPreset(settings.showMilliaBadMoonBuffHeight);
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::PushTextWrapPos(0.F);
+			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above)."));
+			ImGui::PopTextWrapPos();
+			ImGui::PopStyleColor();
 			
 		}
 		popSearchStack();
@@ -3695,9 +3716,9 @@ void UI::drawSearchableWindows() {
 					" under right circumstances to still get an airdash, and not hoverdown. This happens because the"
 					" height and speed requirements for an airdash are such:\n"
 					"If your speed Y is directed upwards, your Y must be > airdash minimum height, which is 105000 for I-No.\n"
-					"If your speed Y is <= 0, your Y must be > 70000 and > -speedY. Also note that movement occurs at the end of"
-					" a logic tick, so on the screen you always see positions that are not what they were when deciding if"
-					" airdash is possible. Let's now look at downhover's height requirement.\n"
+					"If your speed Y is <= 0, your Y must be > 70000 and > -speedY. Also note that movement occurs after"
+					" deciding what move should be performed, so on the screen you always see positions that are not what"
+					" they were when deciding if an airdash is possible. Let's now look at downhover's height requirement.\n"
 					"The hoverdown's height requirement is always 105000 (note that this height requirement is the same as for an"
 					" \"ascending\" airdash), regardless of whether your speed Y is directed up or down.\n"
 					"This makes it possible to airdash even after pressing 3 during hoverdash, if you started going down and are below"
@@ -3824,6 +3845,62 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(txt);
 				}
 				AddTooltip(tooltip);
+				
+			} else if (player.charType == CHARACTER_TYPE_BEDMAN) {
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can throw head:"));
+				const char* tooltip = searchTooltip("If you have the head, you can perform the following moves:\n"
+					"*) Task A;\n"
+					"*) Task A';\n"
+					"*) D\xc3\xa9j\xc3\xa0 Vu A;\n"
+					"*) D\xc3\xa9j\xc3\xa0 Vu A'.\n"
+					"If you don't have the head you can't perform them.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				AddTooltip(tooltip);
+				
+				hasForceDisableFlag = (player.wasForceDisableFlags & 0x2) != 0;
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can do D\xc3\xa9j\xc3\xa0 Vu B or C:"));
+				tooltip = searchTooltip("This controls whether you can perform the following moves:\n"
+					"*) D\xc3\xa9j\xc3\xa0 Vu B;\n"
+					"*) D\xc3\xa9j\xc3\xa0 Vu C.\n"
+					"Only one of these can be performed at a time.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				AddTooltip(tooltip);
+				
+				hasForceDisableFlag = (player.wasForceDisableFlags & 0x4) != 0;
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can do Sheep:"));
+				tooltip = searchTooltip("This controls whether you can perform the following moves:\n"
+					"*) Hemi Jack.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				AddTooltip(tooltip);
+				
+				booleanSettingPreset(settings.showBedmanTaskCHeightBuffY);
+				
+				struct SealInfo {
+					const char* uiName;
+					unsigned short& timer;
+					unsigned short& timerMax;
+				};
+				SealInfo seals[4] {
+					{ "Task A Seal Timer:", player.bedmanInfo.sealA, player.bedmanInfo.sealAMax },
+					{ "Task A' Seal Timer:", player.bedmanInfo.sealB, player.bedmanInfo.sealBMax },
+					{ "Task B Seal Timer:", player.bedmanInfo.sealC, player.bedmanInfo.sealCMax },
+					{ "Task C Seal Timer:", player.bedmanInfo.sealD, player.bedmanInfo.sealDMax }
+				};
+				for (int j = 0; j < 4; ++j) {
+					SealInfo& seal = seals[j];
+					textUnformattedColored(YELLOW_COLOR, seal.uiName);
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%d/%d", seal.timer, seal.timerMax);
+					ImGui::TextUnformatted(strbuf);
+				}
 				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
@@ -7146,6 +7223,16 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(faust5D.c_str());
 	
+	textUnformattedColored(YELLOW_COLOR, "Bedman Task C Height Buff:");
+	static std::string bedmanTaskCHeightBuff;
+	if (bedmanTaskCHeightBuff.empty()) {
+		bedmanTaskCHeightBuff = settings.convertToUiDescription(
+			"The infinite horizontal line shows the height above which Bedman's origin point must be in order for Task C"
+			" to gain a powerup that makes it slam the ground harder. That height is 700000."
+			" The display of the height line must be enabled with \"showBedmanTaskCHeightBuffY\" setting.");
+	}
+	ImGui::TextUnformatted(bedmanTaskCHeightBuff.c_str());
+	
 	ImGui::Separator();
 	
 	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");
@@ -7335,7 +7422,10 @@ void UI::framebarHelpWindow() {
 	ImGui::SetCursorPosY(cursorY);
 	ImGui::TextUnformatted(searchTooltip("The move reached some kind of powerup on this frame. For example, for May 6P it means that,"
 		" starting from this frame, it deals more stun and has more pushback, while for Venom QV it means the ball has become"
-		" bigger, and so on."));
+		" bigger, and so on.\n"
+		"\n"
+		"For Bedman's \x44\xC3\xA9\x6A\xC3\xA0 Vus it means the \x44\xC3\xA9\x6A\xC3\xA0 Vu is checking the existence of the"
+		" corresponding seal on that frame."));
 		
 	ImGui::Separator();
 	
@@ -7817,6 +7907,49 @@ static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
 #undef PRINT_INPUT_BUTTON
 
 void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex) {
+	CharacterType charType = endScene.players[playerIndex].charType;
+	
+	printAllCancels(frame.cancels,
+			frame.enableSpecialCancel,
+			frame.enableJumpCancel,
+			frame.enableSpecials,
+			frame.hitAlreadyHappened,
+			frame.airborne,
+			true);
+	
+	bool showHorizCharge = false;
+	int horizChargeMax = 0;
+	bool showVertCharge = false;
+	int vertChargeMax = 0;
+	
+	if (charType == CHARACTER_TYPE_LEO || charType == CHARACTER_TYPE_VENOM) {
+		showHorizCharge = true;
+		horizChargeMax = 40;
+		showVertCharge = true;
+		vertChargeMax = 40;
+	} else if (charType == CHARACTER_TYPE_MAY) {
+		showHorizCharge = true;
+		horizChargeMax = 30;
+		showVertCharge = true;
+		vertChargeMax = 30;
+	} else if (charType == CHARACTER_TYPE_POTEMKIN || charType == CHARACTER_TYPE_AXL) {
+		showHorizCharge = true;
+		horizChargeMax = 30;
+	}
+	
+	if (showHorizCharge || showVertCharge) {
+		ImGui::Separator();
+		zerohspacing
+		if (showHorizCharge) {
+			printChargeInFrameTooltip("Charge (left): ", frame.chargeLeft, horizChargeMax, frame.chargeLeftLast);
+			printChargeInFrameTooltip("Charge (right): ", frame.chargeRight, horizChargeMax, frame.chargeRightLast);
+		}
+		if (showVertCharge) {
+			printChargeInFrameTooltip("Charge (down): ", frame.chargeDown, vertChargeMax, frame.chargeDownLast);
+		}
+		_zerohspacing
+	}
+	
 	const std::vector<Input>& inputs = frame.inputs;
 	if (!inputs.empty() && !(inputs.size() == 1 && inputs[0] == Input{0x0000})) {
 		ImGui::Separator();
@@ -8001,13 +8134,6 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
 		}
 	}
-	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1) {
-		ImGui::Separator();
-		textUnformattedColored(YELLOW_COLOR, "Crossup protection: ");
-		ImGui::SameLine();
-		sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
-		ImGui::TextUnformatted(strbuf);
-	}
 	if (frame.canYrc || frame.canYrcProjectile || frame.createdDangerousProjectile) {
 		ImGui::Separator();
 		if (frame.canYrcProjectile) {
@@ -8019,13 +8145,6 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("Created a projectile/powerup on this frame");
 		}
 	}
-	printAllCancels(frame.cancels,
-			frame.enableSpecialCancel,
-			frame.enableJumpCancel,
-			frame.enableSpecials,
-			frame.hitAlreadyHappened,
-			frame.airborne,
-			true);
 	if (frame.needShowAirOptions) {
 		ImGui::Separator();
 		const PlayerInfo& player = endScene.players[playerIndex];
@@ -8047,7 +8166,21 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	CharacterType charType = endScene.players[playerIndex].charType;
 	if (frame.powerup) {
 		ImGui::Separator();
-		ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
+		if (charType == CHARACTER_TYPE_BEDMAN
+				&& (
+					strcmp(frame.animSlangName, "DVA") == 0
+					|| strcmp(frame.animSlangName, "j.DVA") == 0
+					|| strcmp(frame.animSlangName, "DVA'") == 0
+					|| strcmp(frame.animSlangName, "j.DVA'") == 0
+					|| strcmp(frame.animSlangName, "DVB") == 0
+					|| strcmp(frame.animSlangName, "j.DVB") == 0
+					|| strcmp(frame.animSlangName, "DVC") == 0
+					|| strcmp(frame.animSlangName, "j.DVC") == 0
+				)) {
+			ImGui::TextUnformatted("On this frame, \x44\xC3\xA9\x6A\xC3\xA0 Vu checks the existence of the seal.");
+		} else {
+			ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
+		}
 	}
 	if (frame.airthrowDisabled || frame.running || frame.cantBackdash) {
 		ImGui::Separator();
@@ -8143,38 +8276,42 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("While airdash is active, speed Y is continuously set to 0.");
 			ImGui::PopStyleColor();
 		}
+	} else if (charType == CHARACTER_TYPE_BEDMAN) {
+		if (frame.u.bedmanInfo.sealA || frame.u.bedmanInfo.sealB || frame.u.bedmanInfo.sealC || frame.u.bedmanInfo.sealD) {
+			ImGui::Separator();
+			struct SealInfo {
+				const char* txt;
+				const unsigned short& timer;
+				const unsigned short& timerMax;
+			};
+			SealInfo seals[4] {
+				{ "Task A Seal: ", frame.u.bedmanInfo.sealA, frame.u.bedmanInfo.sealAMax },
+				{ "Task A' Seal: ", frame.u.bedmanInfo.sealB, frame.u.bedmanInfo.sealBMax },
+				{ "Task B Seal: ", frame.u.bedmanInfo.sealC, frame.u.bedmanInfo.sealCMax },
+				{ "Task C Seal: ", frame.u.bedmanInfo.sealD, frame.u.bedmanInfo.sealDMax }
+			};
+			for (int i = 0; i < 4; ++i) {
+				SealInfo& seal = seals[i];
+				if (seal.timer) {
+					textUnformattedColored(YELLOW_COLOR, seal.txt);
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%d/%d", seal.timer, seal.timerMax);
+					ImGui::TextUnformatted(strbuf);
+				}
+			}
+		}
 	}
-	bool showHorizCharge = false;
-	int horizChargeMax = 0;
-	bool showVertCharge = false;
-	int vertChargeMax = 0;
 	
-	if (charType == CHARACTER_TYPE_LEO || charType == CHARACTER_TYPE_VENOM) {
-		showHorizCharge = true;
-		horizChargeMax = 40;
-		showVertCharge = true;
-		vertChargeMax = 40;
-	} else if (charType == CHARACTER_TYPE_MAY) {
-		showHorizCharge = true;
-		horizChargeMax = 30;
-		showVertCharge = true;
-		vertChargeMax = 30;
-	} else if (charType == CHARACTER_TYPE_POTEMKIN || charType == CHARACTER_TYPE_AXL) {
-		showHorizCharge = true;
-		horizChargeMax = 30;
-	}
-	
-	if (showHorizCharge || showVertCharge) {
+	if (frame.suddenlyTeleported) {
 		ImGui::Separator();
-		zerohspacing
-		if (showHorizCharge) {
-			printChargeInFrameTooltip("Charge (left): ", frame.chargeLeft, horizChargeMax, frame.chargeLeftLast);
-			printChargeInFrameTooltip("Charge (right): ", frame.chargeRight, horizChargeMax, frame.chargeRightLast);
-		}
-		if (showVertCharge) {
-			printChargeInFrameTooltip("Charge (down): ", frame.chargeDown, vertChargeMax, frame.chargeDownLast);
-		}
-		_zerohspacing
+		ImGui::TextUnformatted("Suddenly teleported.");
+	}
+	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1) {
+		ImGui::Separator();
+		textUnformattedColored(YELLOW_COLOR, "Crossup protection: ");
+		ImGui::SameLine();
+		sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
+		ImGui::TextUnformatted(strbuf);
 	}
 }
 

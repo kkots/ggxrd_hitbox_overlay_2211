@@ -3127,6 +3127,52 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else if (player.charType == CHARACTER_TYPE_INO) {
 					currentFrame.u.inoInfo.airdashTimer = player.wasProhibitFDTimer;
 					currentFrame.u.inoInfo.noteTime = player.noteTime == -1 ? player.lastNoteTime : player.noteTime;
+				} else if (player.charType == CHARACTER_TYPE_BEDMAN) {
+					struct SealInfo {
+						Moves::MayIrukasanRidingObjectInfo& info;
+						unsigned short& sealTimer;
+						unsigned short& sealTimerMax;
+						const char* stateName;
+						int signal;
+					};
+					SealInfo seals[4] {
+						{ moves.bedmanSealA, player.bedmanInfo.sealA, player.bedmanInfo.sealAMax, "DejavIconBoomerangA", 29 },
+						{ moves.bedmanSealB, player.bedmanInfo.sealB, player.bedmanInfo.sealBMax, "DejavIconBoomerangB", 31 },
+						{ moves.bedmanSealC, player.bedmanInfo.sealC, player.bedmanInfo.sealCMax, "DejavIconSpiralBed", 32 },
+						{ moves.bedmanSealD, player.bedmanInfo.sealD, player.bedmanInfo.sealDMax, "DejavIconFlyingBed", 30 }
+					};
+					for (int j = 0; j < 4; ++j) {
+						seals[j].sealTimer = 0;
+					}
+					int n = 4;
+					for (ProjectileInfo& projectile : projectiles) {
+						if (projectile.team != player.index) continue;
+						for (int j = 0; j < n; ++j) {
+							SealInfo& seal = seals[j];
+							if (strcmp(projectile.animName, seal.stateName) == 0) {
+								int remainingFrames = moves.getBedmanSealRemainingFrames(projectile, seal.info, seal.signal);
+								int calculatedResult;
+								int calculatedResultMax;
+								int unused;
+								PlayerInfo::calculateSlow(
+									projectile.bedmanSealElapsedTime + 1,
+									remainingFrames,
+									projectile.rcSlowedDownCounter,
+									&calculatedResult,
+									&calculatedResultMax,
+									&unused);
+								seal.sealTimer = calculatedResult > 0xffff ? 0xffff : calculatedResult;
+								seal.sealTimerMax = calculatedResultMax > 0xffff ? 0xffff : calculatedResultMax;
+								if (j + 1 < n) {
+									memmove(seals + j, seals + j + 1, (n - j - 1) * sizeof SealInfo);
+								}
+								--n;
+								break;
+							}
+						}
+						if (n == 0) break;
+					}
+					currentFrame.u.bedmanInfo = player.bedmanInfo;
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -3383,6 +3429,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.airthrowDisabled = player.airborne && player.pawn.airthrowDisabled();
 				currentFrame.running = player.pawn.running();
 				currentFrame.cantBackdash = player.wasCantBackdashTimer != 0;
+				if (player.x == player.prevPosX) {
+					currentFrame.suddenlyTeleported = false;
+				} else if (player.x > player.prevPosX) {
+					currentFrame.suddenlyTeleported = player.x - player.prevPosX >= player.speedX + 122499;
+				} else {
+					currentFrame.suddenlyTeleported = player.prevPosX - player.x >= -player.speedX + 122499;
+				}
+				if (player.y != player.prevPosY) {
+					if (player.y > player.prevPosY) {
+						currentFrame.suddenlyTeleported = currentFrame.suddenlyTeleported || (
+							player.y - player.prevPosY >= player.speedY + 122499
+						);
+					} else {
+						currentFrame.suddenlyTeleported = currentFrame.suddenlyTeleported || (
+							player.prevPosY - player.y >= -player.speedY + 122499
+						);
+					}
+				}
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}
@@ -3841,6 +3905,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFrameGroundBounceCount = player.pawn.groundBounceCount();
 			player.prevFrameTumbleDuration = player.pawn.tumbleDuration();
 			player.prevFrameMaxHit = player.pawn.maxHit();
+			player.prevPosX = player.x;
+			player.prevPosY = player.y;
 			
 		}
 		

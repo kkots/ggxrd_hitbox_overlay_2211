@@ -467,6 +467,11 @@ bool Settings::onDllMain() {
 			"; Specify true or false.\n"
 			"; When this setting is on, when Faust does a 5D, two ranges are should around his flickpoint,\n"
 			"; denoting ranges in which his thrown items' origin points must be to get either hit or homerun hit.");
+	registerOtherDescription(settingAndItsName(showBedmanTaskCHeightBuffY), "Show Bedman Task C Height Buff Y", "UI - Character specific",
+			"; Specify true or false.\n"
+			"; When this setting is on, a horizontal line is constantly shown on the screen at the height above which\n"
+			"; Bedman's Task C gains a buff.\n"
+			"; This line is so high you can't see it unless you jump.");
 	registerOtherDescription(settingAndItsName(ignoreScreenshotPathAndSaveToClipboard), "Ignore Screenshot Path And Save To Clipboard", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.");
@@ -751,6 +756,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool showMilliaBadMoonBuffHeightParsed = false;
 	
 	bool showFaustOwnFlickRangesParsed = false;
+	
+	bool showBedmanTaskCHeightBuffYParsed = false;
 	
 	bool ignoreScreenshotPathAndSaveToClipboardParsed = false;
 	
@@ -1063,6 +1070,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								showFaustOwnFlickRangesParsed = parseBoolean("showFaustOwnFlickRanges", keyValue, showFaustOwnFlickRanges);
 							}
 							break;
+						case offsetof(Settings, showBedmanTaskCHeightBuffY):
+							if (!showBedmanTaskCHeightBuffYParsed) {
+								showBedmanTaskCHeightBuffYParsed = parseBoolean("showBedmanTaskCHeightBuffY", keyValue, showBedmanTaskCHeightBuffY);
+							}
+							break;
 						case offsetof(Settings, ignoreScreenshotPathAndSaveToClipboard):
 							if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
 								ignoreScreenshotPathAndSaveToClipboardParsed = parseBoolean("ignoreScreenshotPathAndSaveToClipboard", keyValue, ignoreScreenshotPathAndSaveToClipboard);
@@ -1298,6 +1310,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showFaustOwnFlickRangesParsed) {
 		showFaustOwnFlickRanges = false;
+	}
+	
+	if (!showBedmanTaskCHeightBuffYParsed) {
+		showBedmanTaskCHeightBuffY = false;
 	}
 	
 	if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
@@ -1847,6 +1863,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("dontShowMayInteractionChecks", formatBoolean(dontShowMayInteractionChecks), getOtherINIDescription(&dontShowMayInteractionChecks));
 	replaceOrAddSetting("showMilliaBadMoonBuffHeight", formatBoolean(showMilliaBadMoonBuffHeight), getOtherINIDescription(&showMilliaBadMoonBuffHeight));
 	replaceOrAddSetting("showFaustOwnFlickRanges", formatBoolean(showFaustOwnFlickRanges), getOtherINIDescription(&showFaustOwnFlickRanges));
+	replaceOrAddSetting("showBedmanTaskCHeightBuffY", formatBoolean(showBedmanTaskCHeightBuffY), getOtherINIDescription(&showBedmanTaskCHeightBuffY));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

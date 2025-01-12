@@ -162,11 +162,14 @@ public:
 		instr_ifOperation = 6,
 		instr_setMarker = 11,
 		instr_exitState = 18,
+		instr_upon = 21,
+		instr_endUpon = 22,
 		instr_clearUpon = 23,
 		instr_storeValue = 46,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
 		instr_deleteMoveForceDisableFlag = 1603,
+		instr_sendSignal = 1766,
 		instr_exPointFReset = 2161,
 	};
 	inline InstructionType instructionType(BYTE* in) const;
@@ -224,6 +227,11 @@ public:
 	int venomQvClearUponAfterExitOffset = 0;
 	int venomBishopCreateOffset = 0;
 	int ino5DCreateDustObjShotOffset = 0;
+	MayIrukasanRidingObjectInfo bedmanSealA { 0 };
+	MayIrukasanRidingObjectInfo bedmanSealB { 0 };
+	MayIrukasanRidingObjectInfo bedmanSealC { 0 };
+	MayIrukasanRidingObjectInfo bedmanSealD { 0 };
+	int getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal);
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

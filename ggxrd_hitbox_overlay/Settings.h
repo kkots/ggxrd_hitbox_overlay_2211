@@ -104,6 +104,7 @@ public:
 	std::atomic_bool showMilliaBadMoonBuffHeight = false;
 	std::atomic_bool showFaustOwnFlickRanges = false;
 	std::atomic_bool ignoreScreenshotPathAndSaveToClipboard = false;
+	std::atomic_bool showBedmanTaskCHeightBuffY = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

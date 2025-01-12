@@ -600,6 +600,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 		hitNumber = 0;
 		hitOnFrame = 0;
 		hitstopElapsed = 0;
+		bedmanSealElapsedTime = 0;
 	}
 	int prevFrameHitstop = hitstop;
 	int clashHitstop = ent.clashHitstop();
@@ -615,6 +616,32 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 	}
 	if (hitstop && !superflashInstigator && prevLifetimeCounter != lifeTimeCounter) {
 		++hitstopElapsed;
+	}
+	if ((team == 0 || team == 1)
+			&& endScene.players[team].charType == CHARACTER_TYPE_BEDMAN
+			&& (
+				prevLifetimeCounter != lifeTimeCounter
+				&& lifeTimeCounter != 0
+			)
+			&& !superflashInstigator) {
+		struct SealInfo {
+			Moves::MayIrukasanRidingObjectInfo& info;
+			const char* stateName;
+			int signal;
+		};
+		SealInfo seals[4] {
+			{ moves.bedmanSealA, "DejavIconBoomerangA", 29 },
+			{ moves.bedmanSealB, "DejavIconBoomerangB", 31 },
+			{ moves.bedmanSealC, "DejavIconSpiralBed", 32 },
+			{ moves.bedmanSealD, "DejavIconFlyingBed", 30 }
+		};
+		for (int i = 0; i < 4; ++i) {
+			if (strcmp(ent.animationName(), seals[i].stateName) == 0) {
+				int remainingFrames = moves.getBedmanSealRemainingFrames(*this, seals[i].info, seals[i].signal);
+				if (remainingFrames > 0) ++bedmanSealElapsedTime;
+				break;
+			}
+		}
 	}
 	
 	int unused;
@@ -634,6 +661,9 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 	sprite.fill(ent);
 	memcpy(animName, ent.animationName(), 32);
 	determineMoveNameAndSlangName(&lastName, &lastSlangName);
+	
+	x = ptr.posX();
+	y = ptr.posY();
 }
 
 void PlayerInfo::addGap(int length) {

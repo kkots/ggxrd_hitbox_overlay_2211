@@ -116,9 +116,10 @@ void collectHitboxes(Entity ent,
 		DWORD alpha = 64;
 		if (state.strikeInvuln) {
 			alpha = 0;
-		} else if (THICKNESS_WAY_TOO_NUMEROUS_SUMMONS
+		}
+		if (THICKNESS_WAY_TOO_NUMEROUS_SUMMONS
 				&& state.isASummon && (state.ownerCharType == CHARACTER_TYPE_JACKO || state.ownerCharType == CHARACTER_TYPE_BEDMAN)) {
-			alpha = 32;
+			if (alpha > 32) alpha = 32;
 			callParams.thickness = THICKNESS_WAY_TOO_NUMEROUS_SUMMONS;
 		}
 		if (state.counterhit) {
@@ -331,6 +332,19 @@ void collectHitboxes(Entity ent,
 					lineCallParams.posY2 = 500000;
 					lines->push_back(lineCallParams);
 				}
+			} else if (state.charType == CHARACTER_TYPE_BEDMAN
+				&& lines
+				&& settings.showBedmanTaskCHeightBuffY
+				&& (
+					entityList.slots[1 - state.team].characterType() != CHARACTER_TYPE_BEDMAN
+					|| state.team == 0
+				)) {
+				DrawLineCallParams lineCallParams;
+				lineCallParams.posX1 = -1600000;
+				lineCallParams.posY1 = 700000;
+				lineCallParams.posX2 = 1600000;
+				lineCallParams.posY2 = 700000;
+				lines->push_back(lineCallParams);
 			}
 		}
 	}

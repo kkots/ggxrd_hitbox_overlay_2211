@@ -187,6 +187,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
   
 - Faust 5D: The inner circle shows the range in which the thrown item's origin point must be in order to achieve a homerun hit. The outer circles shows the range in which the thrown item's origin point must be in order to achieve a non-homerun hit. This display needs to be enabled with showFaustOwnFlickRanges setting ('UI - Character specific - Show Faust Own Projectile Flick Ranges'). The circle is displayed for more than one frame, but it is filled in on only one. The frame when it is filled in is when it is active, and the other frames are just for visual clarity, so you could have enough time to actually see the circle.
 
+- Bedman Task C Height Buff: The infinite horizontal line shows the height above which Bedman's origin point must be in order for Task C to gain a powerup that makes it slam the ground harder. That height is 700000. The display of the height line must be enabled with showBedmanTaskCHeightBuffY INI setting (located in UI in Character Specific - Show Bedman Height Buff Y).
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  

@@ -60,6 +60,17 @@ struct InoInfo {
 	unsigned short noteTime;
 };
 
+struct BedmanInfo {
+	unsigned short sealA;
+	unsigned short sealAMax;
+	unsigned short sealB;
+	unsigned short sealBMax;
+	unsigned short sealC;
+	unsigned short sealCMax;
+	unsigned short sealD;
+	unsigned short sealDMax;
+};
+
 struct GatlingOrWhiffCancelInfo {
 	const char* name;
 	const char* replacementInputs;
@@ -371,6 +382,7 @@ struct PlayerFrame : public FrameBase {
 		ChippInfo chippInfo;
 		DIInfo diInfo;
 		InoInfo inoInfo;
+		BedmanInfo bedmanInfo;
 	} u;
 	short poisonDuration;
 	FrameStopInfo stop;
@@ -428,6 +440,7 @@ struct PlayerFrame : public FrameBase {
 	bool airthrowDisabled:1;
 	bool running:1;
 	bool cantBackdash:1;
+	bool suddenlyTeleported:1;
 	
 	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
 	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
@@ -843,11 +856,14 @@ struct ProjectileInfo {
 	int total = 0;  // time since the owning player started their last move
 	int hitNumber = 0;  // updated every frame
 	int numberOfHits = 0;
+	int bedmanSealElapsedTime = 0;
+	
+	int x = 0;
+	int y = 0;
 	
 	int hitboxTopY = 0;
 	int hitboxBottomY = 0;
 	MaxHitInfo maxHit;
-	bool hitboxTopBottomValid = false;
 	
 	DWORD creationTime_aswEngineTick = 0;
 	ActiveDataArray actives;
@@ -873,6 +889,7 @@ struct ProjectileInfo {
 	bool clashedOnThisFrame:1;
 	bool rcSlowedDown:1;
 	bool moveNonEmpty:1;
+	bool hitboxTopBottomValid:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -1261,6 +1278,9 @@ struct PlayerInfo {
 	int wasCantBackdashTimer = 0;
 	int lastNoteTime = 0;
 	int noteTime = 0;
+	int prevPosX = 0;
+	int prevPosY = 0;
+	BedmanInfo bedmanInfo;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;

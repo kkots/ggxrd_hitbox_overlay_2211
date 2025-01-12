@@ -78,6 +78,8 @@ static const char* nameSelector_iceSpike(Entity ent);
 static const char* slangNameSelector_iceSpike(Entity ent);
 static const char* nameSelector_iceScythe(Entity ent);
 static const char* slangNameSelector_iceScythe(Entity ent);
+static const char* framebarNameSelector_djvuD(Entity ent);
+static const char* framebarSlangNameSelector_djvuD(Entity ent);
 
 static bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent);
 static bool isInVariableStartupSection_zweiLand(PlayerInfo& ent);
@@ -165,6 +167,8 @@ static const char* displayNameSelector_stingerS(PlayerInfo& ent);
 static const char* displaySlangNameSelector_stingerS(PlayerInfo& ent);
 static const char* displayNameSelector_stingerH(PlayerInfo& ent);
 static const char* displaySlangNameSelector_stingerH(PlayerInfo& ent);
+static const char* displayNameSelector_taskCAir(PlayerInfo& ent);
+static const char* displaySlangNameSelector_taskCAir(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -187,6 +191,7 @@ static bool powerup_kyougenB(PlayerInfo& ent);
 static bool powerup_kyougenC(PlayerInfo& ent);
 static bool powerup_kyougenD(PlayerInfo& ent);
 static bool powerup_onpu(ProjectileInfo& projectile);
+static bool powerup_dvaju(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -5077,11 +5082,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A");
 	move.displayName = "P \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVA";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A_Air");
 	move.displayName = "P Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVA";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B");
@@ -5097,11 +5104,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B");
 	move.displayName = "K \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVA'";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B_Air");
 	move.displayName = "K Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVA'";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed");
@@ -5117,11 +5126,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C");
 	move.displayName = "S \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVB";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C_Air");
 	move.displayName = "S Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVB";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed");
@@ -5131,32 +5142,41 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed_Air");
 	move.displayName = "Air Task C";
+	move.displayNameSelector = displayNameSelector_taskCAir;
 	move.slangName = "Air Bed Slam";
+	move.displaySlangNameSelector = displaySlangNameSelector_taskCAir;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D");
 	move.displayName = "H \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVC";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D_Air");
 	move.displayName = "H Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVC";
+	move.powerup = powerup_dvaju;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Alarm");
 	move.displayName = "Sinusoidal Helios";
+	move.slangName = "Clock Super";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AlarmBurst");
 	move.displayName = "Burst Sinusoidal Helios";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Merry");
 	move.displayName = "Hemi Jack";
+	move.slangName = "Sheep Super";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// Bedman Teleporting from the boomerang head hitting
@@ -5286,6 +5306,8 @@ bool Moves::onDllMain() {
 	move.framebarId = 67;
 	move.framebarName = "Deja Vu (Task C)";
 	move.framebarSlangName = "DVC";
+	move.framebarNameSelector = framebarNameSelector_djvuD;
+	move.framebarSlangNameSelector = framebarSlangNameSelector_djvuD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AirStop");
@@ -6973,6 +6995,10 @@ void Moves::onAswEngineDestroyed() {
 	venomQvClearUponAfterExitOffset = 0;
 	venomBishopCreateOffset = 0;
 	ino5DCreateDustObjShotOffset = 0;
+	bedmanSealA.clear();
+	bedmanSealB.clear();
+	bedmanSealC.clear();
+	bedmanSealD.clear();
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7400,7 +7426,6 @@ const char* nameSelector_iceSpike(Entity ent) {
 		return "I used this to catch fish";
 	}
 }
-
 const char* slangNameSelector_iceSpike(Entity ent) {
 	if (ent.createArgHikitsukiVal1() == 1) {
 		return "Fire Pillar";
@@ -7408,7 +7433,6 @@ const char* slangNameSelector_iceSpike(Entity ent) {
 		return "Ice Spike";
 	}
 }
-
 const char* nameSelector_iceScythe(Entity ent) {
 	if (ent.createArgHikitsukiVal1() == 1) {
 		return "For putting out the light...";
@@ -7416,12 +7440,33 @@ const char* nameSelector_iceScythe(Entity ent) {
 		return "The light was so small in the beginning";
 	}
 }
-
 const char* slangNameSelector_iceScythe(Entity ent) {
 	if (ent.createArgHikitsukiVal1() == 1) {
 		return "Ice Scythe";
 	} else {
 		return "Fire Scythe";
+	}
+}
+const char* framebarNameSelector_djvuD(Entity ent) {
+	bool hasHeightBuff = ent.mem45();
+	if (ent.currentAnimDuration() <= 7) {
+		hasHeightBuff = ent.y() >= 700000;
+	}
+	if (hasHeightBuff) {
+		return "Deja Vu (Task C) Buffed";
+	} else {
+		return "Deja Vu (Task C)";
+	}
+}
+const char* framebarSlangNameSelector_djvuD(Entity ent) {
+	bool hasHeightBuff = ent.mem45();
+	if (ent.currentAnimDuration() <= 7) {
+		hasHeightBuff = ent.y() >= 700000;
+	}
+	if (hasHeightBuff) {
+		return "DVC Buffed";
+	} else {
+		return "DVC";
 	}
 }
 
@@ -7854,6 +7899,20 @@ const char* displaySlangNameSelector_stingerH(PlayerInfo& ent) {
 		return "H Stinger";
 	}
 }
+const char* displayNameSelector_taskCAir(PlayerInfo& ent) {
+	if (ent.pawn.mem45()) {
+		return "Air Task C Buffed";
+	} else {
+		return "Air Task C";
+	}
+}
+const char* displaySlangNameSelector_taskCAir(PlayerInfo& ent) {
+	if (ent.pawn.mem45()) {
+		return "Air Bed Slam Buffed";
+	} else {
+		return "Air Bed Slam";
+	}
+}
 
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
@@ -8026,10 +8085,90 @@ bool powerup_onpu(ProjectileInfo& projectile) {
 			&& strcmp(projectile.ptr.gotoLabelRequest(), "hit") != 0
 		);
 }
+bool powerup_dvaju(PlayerInfo& ent) {
+	return ent.animFrame == 6 && !ent.pawn.isRCFrozen();
+}
 
 void fillMay6HOffsets(BYTE* func) {
 	if (moves.may6H_6DHoldOffset == 0) {
 		moves.may6H_6DHoldOffset = moves.findSetMarker(func, "6DHold") - func;
 		moves.may6H_6DHoldAttackOffset = moves.findSetMarker(func, "6DHoldAttack") - func;
 	}
+}
+
+int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal) {
+	BYTE* func = projectile.ptr.bbscrCurrentFunc();
+	if (info.totalFrames == 0) {
+		BYTE* instr;
+		bool metSprite = false;
+		bool metSpriteEnd = false;
+		bool metSendSignal = false;
+		int lastSpriteLength = 0;
+		bool isInsideUpon = false;
+		for (
+				instr = moves.skipInstruction(func);
+				moves.instructionType(instr) != Moves::instr_endState;
+				instr = moves.skipInstruction(instr)
+		) {
+			InstructionType type = moves.instructionType(instr);
+			if (metSpriteEnd) {
+				if (metSprite) {
+					info.frames.back().offset = instr - func;
+				}
+				metSprite = false;
+				metSpriteEnd = false;
+			}
+			if (type == instr_sprite) {
+				if (metSprite) {
+					info.frames.back().offset = instr - func;
+				}
+				info.frames.emplace_back();
+				MayIrukasanRidingObjectFrames& newThing = info.frames.back();
+				newThing.frames = info.totalFrames;
+				if (!metSendSignal) {
+					lastSpriteLength = *(int*)(instr + 4 + 32);
+					info.totalFrames += lastSpriteLength;
+				}
+				metSprite = true;
+			} else if (type == instr_spriteEnd) {
+				metSpriteEnd = true;
+			} else if (type == instr_sendSignal
+					&& *(int*)(instr + 4) == 3  // PLAYER
+					&& *(int*)(instr + 8) == signal
+					&& !metSendSignal
+					&& !isInsideUpon) {
+				metSendSignal = true;
+				info.totalFrames -= lastSpriteLength;
+			} else if (type == instr_upon && *(int*)(instr + 4) == 1) {  // BEFORE_EXIT
+				isInsideUpon = true;
+			} else if (type == instr_endUpon) {
+				isInsideUpon = false;
+			}
+		}
+		if (metSprite) {
+			info.frames.back().offset = instr - func;
+		}
+		info.totalFrames +=
+			1;  // add one, because you need to advance the frame one more, to the
+			    // sprite: s32'bde417_Dejav', 3
+			    // sendSignal: (PLAYER), (CUSTOM_SIGNAL_6)
+			    // code.
+			    // Players' bbscript runs before projectiles', which means
+			    // that Deja Vu checking for Mem(54) would have already
+			    // happened. Setting Mem(54) to 0x80000001 will only
+			    // have an impact on the next frame.
+	}
+	
+	BYTE* currentInstr = projectile.ptr.bbscrCurrentInstr();
+	int currentOffset = currentInstr - func;
+	int timer = 0;
+	for (const MayIrukasanRidingObjectFrames& elem : info.frames) {
+		if (currentOffset == elem.offset) {
+			timer = elem.frames;
+			break;
+		}
+	}
+	timer += projectile.ptr.spriteFrameCounter();
+	if (timer >= info.totalFrames) return 0;
+	return info.totalFrames - timer;
 }
