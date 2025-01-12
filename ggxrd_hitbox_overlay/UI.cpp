@@ -2921,8 +2921,8 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Pushback Modifier"));
 			AddTooltip(searchTooltip("Pushback modifier. Equals Attack pushback modifier % * Attack pushback modifier on hit % * Combo timer modifier %"
 				" * IB modifier %.\n"
-				"Attack pushback modifier depends on the performed move."
-				" Attack pushback modifier on hit depends on the performed move and should only be non-100 when the opponent is in hitstun."
+				"'Attack pushback modifier' depends on the performed move."
+				" 'Attack pushback modifier on hit' depends on the performed move and should only be non-100 when the opponent is in hitstun."
 				" Combo timer modifier depends on combo timer, in frames: >= 480 --> 200%, >= 420 --> 184%, >= 360 --> 166%, >= 300 --> 150%"
 				", >= 240 --> 136%, >= 180 --> 124%, >= 120 --> 114%, >= 60 --> 106%."
 				" IB modifier is non-100 on IB: air IB 10%, ground IB 90%."));
@@ -3681,6 +3681,149 @@ void UI::drawSearchableWindows() {
 						ImGui::TextUnformatted(searchTooltip(buffedMoveNames[j]));
 					}
 				}
+			} else if (player.charType == CHARACTER_TYPE_INO) {
+				
+				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+				ImGui::PushTextWrapPos(0.F);
+				ImGui::TextUnformatted("Hover-3 and S-CL having lower speed Y only applies to Rev2.");
+				ImGui::PopTextWrapPos();
+				ImGui::PopStyleColor();
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Hoverdashed down:"));
+				const char* tooltip = searchTooltip("Pressed 3 during hoverdash."
+					" Doing so replaces your airdash (66) with a downward hover. However, it's possible"
+					" under right circumstances to still get an airdash, and not hoverdown. This happens because the"
+					" height and speed requirements for an airdash are such:\n"
+					"If your speed Y is directed upwards, your Y must be > airdash minimum height, which is 105000 for I-No.\n"
+					"If your speed Y is <= 0, your Y must be > 70000 and > -speedY. Also note that movement occurs at the end of"
+					" a logic tick, so on the screen you always see positions that are not what they were when deciding if"
+					" airdash is possible. Let's now look at downhover's height requirement.\n"
+					"The hoverdown's height requirement is always 105000 (note that this height requirement is the same as for an"
+					" \"ascending\" airdash), regardless of whether your speed Y is directed up or down.\n"
+					"This makes it possible to airdash even after pressing 3 during hoverdash, if you started going down and are below"
+					" the \"ascending\" minimum airdash height.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.playerval0 ? "Yes" : "No");
+				AddTooltip(tooltip);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Airdash active timer:"));
+				tooltip = searchTooltip("Some people call this state 'fast fall'."
+					" This timer is set when initiaing an airdash, and it counts the time"
+					" during which it continuously sets speed Y to 0. When this timer runs out,"
+					" airdash no longer sets speed Y to 0 each frame. This setting speed Y to 0 beats out"
+					" and takes priority over any move that would like to change speed Y to something else."
+					" Meaning that airdashing and performing some move that would lift you upwards or "
+					" pull you downwards would not move you up or down when this timer is still active.\n"
+					"The Airdash timer is not specific or exclusive to I-No: all characters, except Potemkin, Bedman"
+					" and Raven on his forward dash, have it.\n"
+					"The airdash timer decrements not by 1, but by 2 on the last frame of the airdash, and this"
+					" is not a bug, it is intentional. Performing a move from the airdash and not letting the airdash"
+					" animation simply play to that frame prevents it. That's right: you get 1 less frame of airtime"
+					" from an airdash if you don't press any buttons during it. I am very sorry if this caused"
+					" any confusion for you.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%df", player.wasProhibitFDTimer);
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(tooltip);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Airdash becoming horizontal timer:"));
+				tooltip = searchTooltip("While this timer is active, airdash sets speed not exactly to 0, but:\n"
+					"New Speed Y = Old Speed Y - Old Speed Y / 8;\n"
+					"So it's bringing it gradually to 0."
+					" After this timer becomes 0, the speed will be set to 0 as long as 'Airdash active timer'"
+					" is active.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%df", player.wasAirdashHorizontallingTimer);
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(tooltip);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("S-CL will have reduced speed Y:"));
+				tooltip = searchTooltip("Some people call this state 'fast fall'"
+					" If performing S Chemical Love from a hoverdash-3-66, it won't bring you up as much."
+					" Additionally, if performing S Chemical Love after a hoverdash-3-66 + j.S (first few frames),"
+					" it will achieve the same effect of reducing S Chemical Love's upwards momentum.\n"
+					"If both this 'Fast Fall' state, and the 'Airdash active timer' are active,"
+					" then the airdash timer takes priority and the resulting speed Y of"
+					" S Chemical Love is 0.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				
+				const char* txt = "No";
+				bool wellThen_IsItFastFallState_QuestionMark = false;
+				if (strcmp(player.anim, "NmlAtkAir5C") == 0) {
+					if (player.pawn.mem53()) {
+						txt = "Yes";
+					} else {
+						txt = "No";
+					}
+				} else if (strcmp(player.anim, "AirFDash_Under") == 0) {
+					txt = "Yes";
+				}
+				if (player.wasProhibitFDTimer) {
+					if (player.wasAirdashHorizontallingTimer) {
+						txt = "Yes, inches to 0";
+					} else {
+						txt = "Yes, 0";
+					}
+				}
+					
+				ImGui::TextUnformatted(txt);
+				AddTooltip(tooltip);
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can cast Note:"));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				
+				int timeDuration = player.noteTime == -1 ? player.lastNoteTime : player.noteTime;
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Note time elapsed:"));
+				tooltip = searchTooltip("Advances slower during RC slowdown.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%df", timeDuration);
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(tooltip);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Note level:"));
+				tooltip = searchTooltip("Depends on time since creation of the Note and until its collision.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				if (timeDuration >= 68) {
+					txt = "5";
+				} else if (timeDuration >= 56) {
+					txt = "4";
+				} else if (timeDuration >= 44) {
+					txt = "3";
+				} else if (timeDuration >= 32) {
+					txt = "2";
+				} else {
+					txt = "1";
+				}
+				ImGui::TextUnformatted(txt);
+				
+				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Note next level at:"));
+				tooltip = searchTooltip("How much time must elapse since the creation of the Note in order to reach the next level.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				if (timeDuration >= 68) {
+					ImGui::TextUnformatted("Reached max");
+				} else {
+					if (timeDuration >= 56) {
+						txt = "68f";
+					} else if (timeDuration >= 44) {
+						txt = "56f";
+					} else if (timeDuration >= 32) {
+						txt = "44f";
+					} else {
+						txt = "32f";
+					}
+					ImGui::TextUnformatted(txt);
+				}
+				AddTooltip(tooltip);
 				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
@@ -3987,6 +4130,8 @@ void UI::drawSearchableWindows() {
 						AddTooltip(dmgCalc.nameFull ? dmgCalc.nameFull : dmgCalc.attackName);
 					}
 					
+					printAttackLevel(dmgCalc);
+					
 					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Is Projectile: "));
 					ImGui::SameLine();
 					ImGui::TextUnformatted(dmgCalc.isProjectile ? "Yes" : "No");
@@ -4033,8 +4178,6 @@ void UI::drawSearchableWindows() {
 								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 								ImGui::TableHeadersRow();
-								
-								printAttackLevel(dmgCalc);
 								
 								ImGui::TableNextColumn();
 								textUnformattedColored(LIGHT_BLUE_COLOR, "RISC+");
@@ -4188,8 +4331,6 @@ void UI::drawSearchableWindows() {
 							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 							ImGui::TableHeadersRow();
 							
-							printAttackLevel(dmgCalc);
-							
 							int x = printBaseDamageCalc(dmgCalc, nullptr);
 							int baseDamage = x;
 							
@@ -4222,8 +4363,6 @@ void UI::drawSearchableWindows() {
 							ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 							ImGui::TableHeadersRow();
-							
-							printAttackLevel(dmgCalc);
 							
 							int damageAfterHpScaling;
 							int x = printBaseDamageCalc(dmgCalc, &damageAfterHpScaling);
@@ -7988,10 +8127,22 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				" the reflection will be a homerun.");
 		}
 	} else if (charType == CHARACTER_TYPE_SLAYER) {
-		ImGui::Separator();
-		textUnformattedColored(YELLOW_COLOR, "Bloodsucking Universe Buff: ");
-		ImGui::SameLine();
-		ImGui::Text("%d/%d", frame.u.diInfo.current, frame.u.diInfo.max);
+		if (frame.u.diInfo.current) {
+			ImGui::Separator();
+			textUnformattedColored(YELLOW_COLOR, "Bloodsucking Universe Buff: ");
+			ImGui::SameLine();
+			ImGui::Text("%d/%d", frame.u.diInfo.current, frame.u.diInfo.max);
+		}
+	} else if (charType == CHARACTER_TYPE_INO) {
+		if (frame.u.inoInfo.airdashTimer) {
+			ImGui::Separator();
+			textUnformattedColored(YELLOW_COLOR, "Airdash active timer: ");
+			ImGui::SameLine();
+			ImGui::Text("%d", frame.u.inoInfo.airdashTimer);
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::TextUnformatted("While airdash is active, speed Y is continuously set to 0.");
+			ImGui::PopStyleColor();
+		}
 	}
 	bool showHorizCharge = false;
 	int horizChargeMax = 0;
@@ -8029,10 +8180,11 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 
 template<typename FramebarT, typename FrameT>
 inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
-			const std::vector<SkippedFramesInfo>& skippedFrames) {
+			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar, CharacterType owningPlayerCharType) {
 	const bool useSlang = settings.useSlangNames;
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
 		const FrameT& frame = framebar[i];
+		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[i];
 		const FrameDims& dims = preppedDims[i];
 		
 		ImU32 tint = -1;
@@ -8168,6 +8320,29 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 					}
 					if (playerIndex != -1) {
 						ui.drawPlayerFrameTooltipInfo((const PlayerFrame&)frame, playerIndex, wrapWidth);
+					} else if (frame.powerup) {
+						ImGui::Separator();
+						ImGui::TextUnformatted("The projectile reached some kind of powerup on this frame.");
+					}
+					if (playerIndex == -1) {
+						const Frame& projectileFrame = (const Frame&)frame;
+						if (owningPlayerCharType == CHARACTER_TYPE_INO
+								&& projectileFrame.animSlangName
+								&& strcmp(projectileFrame.animSlangName, "Note") == 0) {
+							// I am a dirty scumbar
+							ImGui::Separator();
+							textUnformattedColored(YELLOW_COLOR, "Note elapsed time: ");
+							ImGui::SameLine();
+							int lvl;
+							int time = correspondingPlayersFrame.u.inoInfo.noteTime;
+							if (time >= 68) lvl = 5;
+							else if (time >= 56) lvl = 4;
+							else if (time >= 44) lvl = 3;
+							else if (time >= 32) lvl = 2;
+							else lvl = 1;
+							sprintf_s(strbuf, "%d (Lvl %d)", time, lvl);
+							ImGui::TextUnformatted(strbuf);
+						}
 					}
 					if (playerIndex != -1) {
 						const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
@@ -8235,13 +8410,13 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 }
 
 void drawPlayerFramebar(const PlayerFramebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
-			const std::vector<SkippedFramesInfo>& skippedFrames) {
-	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, framebarPosition, tintDarker, playerIndex, skippedFrames);
+			const std::vector<SkippedFramesInfo>& skippedFrames, CharacterType charType) {
+	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, framebarPosition, tintDarker, playerIndex, skippedFrames, framebar, charType);
 }
 
 void drawProjectileFramebar(const Framebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker,
-			const std::vector<SkippedFramesInfo>& skippedFrames) {
-	drawFramebar<Framebar, Frame>(framebar, preppedDims, framebarPosition, tintDarker, -1, skippedFrames);
+			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar, CharacterType owningPlayerCharType) {
+	drawFramebar<Framebar, Frame>(framebar, preppedDims, framebarPosition, tintDarker, -1, skippedFrames, correspondingPlayersFramebar, owningPlayerCharType);
 }
 
 template<typename FramebarT, typename FrameT>
@@ -8254,21 +8429,23 @@ void drawFirstFrames(const FramebarT& framebar, int framebarPosition, FrameDims*
 		const FrameT& frame = framebar[i];
 		const FrameDims& dims = preppedDims[i];
 		
-		if (frame.isFirst
-				&& !(
-					considerSimilarIdleFramesSameForFrameCounts
-						?
-							i == framebarPosition
-								?
-									framebar.preFrame != FT_NONE
-									&& frameMap(frame.type) == frameMap(framebar.preFrame)
-									&& frameMap(frame.type) == FT_IDLE
-								:
-									frameMap(frame.type) == frameMap(framebar[i == 0 ? _countof(Framebar::frames) - 1 : i - 1].type)
-									&& frameMap(frame.type) == FT_IDLE
-						:
-							false
-				)) {
+		bool isFirst = frame.isFirst;
+		if (isFirst && considerSimilarFrameTypesSameForFrameCounts && considerSimilarIdleFramesSameForFrameCounts) {
+			if (i == framebarPosition) {
+				isFirst = !(
+					framebar.preFrame != FT_NONE
+					&& frameMap(frame.type) == framebar.preFrameMapped
+					&& framebar.preFrameMapped == FT_IDLE
+				);
+			} else {
+				FrameType frameTypeMapped = frameMap(frame.type);
+				isFirst = !(
+					frameTypeMapped == frameMap(framebar[i == 0 ? _countof(Framebar::frames) - 1 : i - 1].type)
+					&& frameTypeMapped == FT_IDLE
+				);
+			}
+		}
+		if (isFirst) {
 			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
 				{
 					dims.x - drawFramebars_innerBorderThicknessHalf - dims.width * 0.5F,
@@ -8292,11 +8469,20 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* prep
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
 	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
 	
-	FrameType lastFrameType = framebar.preFrame;
+	FrameType lastFrameType;
+	int sameFrameTypeCount;
 	if (considerSimilarFrameTypesSameForFrameCounts) {
-		lastFrameType = considerSimilarIdleFramesSameForFrameCounts ? frameMap(lastFrameType) : frameMapNoIdle(lastFrameType);
+		if (considerSimilarIdleFramesSameForFrameCounts) {
+			lastFrameType = framebar.preFrameMapped;
+			sameFrameTypeCount = framebar.preFrameMappedLength;
+		} else {
+			lastFrameType = framebar.preFrameMappedNoIdle;
+			sameFrameTypeCount = framebar.preFrameMappedNoIdleLength;
+		}
+	} else {
+		lastFrameType = framebar.preFrame;
+		sameFrameTypeCount = framebar.preFrameLength;
 	}
-	int sameFrameTypeCount = framebar.preFrameLength;
 	int visualFrameCount = 0;
 	
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
@@ -8320,21 +8506,22 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* prep
 		
 		bool isFirst;
 		if (showFirstFrames) {
-			isFirst = frame.isFirst
-				&& !(
-					considerSimilarIdleFramesSameForFrameCounts
-						?
-							i == 0
-								?
-									framebar.preFrame != FT_NONE
-									&& frameMap(frame.type) == frameMap(framebar.preFrame)
-									&& frameMap(frame.type) == FT_IDLE
-								:
-									frameMap(frame.type) == frameMap(framebar[ind == 0 ? _countof(Framebar::frames) - 1 : ind - 1].type)
-									&& frameMap(frame.type) == FT_IDLE
-						:
-							false
-				);
+			isFirst = frame.isFirst;
+			if (isFirst && considerSimilarFrameTypesSameForFrameCounts && considerSimilarIdleFramesSameForFrameCounts) {
+				if (i == 0) {
+					isFirst = !(
+						framebar.preFrameMapped != FT_NONE
+						&& frameMap(frame.type) == framebar.preFrameMapped
+						&& framebar.preFrameMapped == FT_IDLE
+					);
+				} else {
+					FrameType frameTypeMapped = frameMap(frame.type);
+					isFirst = !(
+						frameTypeMapped == frameMap(framebar[ind == 0 ? _countof(Framebar::frames) - 1 : ind - 1].type)
+						&& frameTypeMapped == FT_IDLE
+					);
+				}
+			}
 		} else {
 			isFirst = false;
 		}
@@ -9331,9 +9518,8 @@ void UI::searchWindow() {
 
 void UI::printAttackLevel(const DmgCalc& dmgCalc) {
 	
-	ImGui::TableNextColumn();
-	ImGui::TextUnformatted(searchFieldTitle("Attack Level"));
-	ImGui::TableNextColumn();
+	textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Attack Level: "));
+	ImGui::SameLine();
 	sprintf_s(strbuf, "%d", dmgCalc.attackLevel);
 	ImGui::TextUnformatted(strbuf);
 	if (dmgCalc.attackOriginalAttackLevel != dmgCalc.attackLevelForGuard) {
@@ -10140,9 +10326,16 @@ void UI::drawFramebars() {
 		if (framesXEnd > framesX) {
 			
 			if (entityFramebar.belongsToPlayer()) {
-				drawPlayerFramebar((const PlayerFramebar&)framebar, preppedDims, framebarPosition, tintDarker, entityFramebar.playerIndex, skippedFrames);
+				drawPlayerFramebar((const PlayerFramebar&)framebar, preppedDims, framebarPosition, tintDarker, entityFramebar.playerIndex, skippedFrames,
+					endScene.players[entityFramebar.playerIndex].charType);
 			} else {
-				drawProjectileFramebar((const Framebar&)framebar, preppedDims, framebarPosition, tintDarker, skippedFrames);
+				const PlayerFramebars& correspondingPlayersFramebars = endScene.playerFramebars[entityFramebar.playerIndex];
+				
+				drawProjectileFramebar((const Framebar&)framebar, preppedDims, framebarPosition, tintDarker, skippedFrames,
+					settings.neverIgnoreHitstop
+						? (const PlayerFramebar&)correspondingPlayersFramebars.getHitstop()
+						: (const PlayerFramebar&)correspondingPlayersFramebars.getMain(),
+					endScene.players[entityFramebar.playerIndex].charType);
 			}
 			
 			{
@@ -10174,10 +10367,13 @@ void UI::drawFramebars() {
 				const float thisMarkerWidthPremult = frameMarkerWidthOriginal / frameWidthOriginal;
 				const float powerupWidthPremult = powerupWidthOriginal / frameWidthOriginal;
 				
-				if (entityFramebar.belongsToPlayer()) {
-					const PlayerFramebar& framebarCast = (const PlayerFramebar&)framebar;
+				bool isPlayer = entityFramebar.belongsToPlayer();
+				{
+					const PlayerFramebar& framebarPlayer = (const PlayerFramebar&)framebar;
+					const Framebar& framebarProjectile = (const Framebar&)framebar;
 					for (int i = 0; i < _countof(Framebar::frames); ++i) {
-						const PlayerFrame& frame = framebarCast[i];
+						const PlayerFrame& playerFrame = framebarPlayer[i];
+						const Frame& projectileFrame = framebarProjectile[i];
 						const FrameDims& dims = preppedDims[i];
 						
 						ImU32 tint = -1;
@@ -10190,7 +10386,7 @@ void UI::drawFramebars() {
 						ImVec2 markerStart { dims.x - thisMarkerWidthOffset, yTopRow };
 						ImVec2 markerEnd { dims.x + dims.width + thisMarkerWidthOffset, markerEndY };
 						
-						if (frame.powerup) {
+						if (isPlayer ? playerFrame.powerup : projectileFrame.powerup) {
 							float powerupWidthOffset = (powerupWidthPremult * dims.width - dims.width) * 0.5F;
 							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
 								{
@@ -10213,38 +10409,44 @@ void UI::drawFramebars() {
 								tint);
 						}
 						
-						if (frame.strikeInvulInGeneral && showStrikeInvulOnFramebar) {
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-								markerStart,
-								markerEnd,
-								strikeInvulMarker.uvStart,
-								strikeInvulMarker.uvEnd,
-								tint);
+						if (isPlayer) {
+							if (playerFrame.strikeInvulInGeneral && showStrikeInvulOnFramebar) {
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+									markerStart,
+									markerEnd,
+									strikeInvulMarker.uvStart,
+									strikeInvulMarker.uvEnd,
+									tint);
+								
+								markerStart.y += frameMarkerSideHeight;
+								markerEnd.y += frameMarkerSideHeight;
+							}
+							if (playerFrame.superArmorActiveInGeneral && showSuperArmorOnFramebar) {
+								const FrameMarkerArt& markerArt = frameMarkerArtArray[
+										playerFrame.superArmorActiveInGeneral_IsFull
+											? MARKER_TYPE_SUPER_ARMOR_FULL
+											: MARKER_TYPE_SUPER_ARMOR
+								];
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+									markerStart,
+									markerEnd,
+									markerArt.uvStart,
+									markerArt.uvEnd,
+									tint);
+							}
 							
-							markerStart.y += frameMarkerSideHeight;
-							markerEnd.y += frameMarkerSideHeight;
-						}
-						if (frame.superArmorActiveInGeneral && showSuperArmorOnFramebar) {
-							const FrameMarkerArt& markerArt = frameMarkerArtArray[frame.superArmorActiveInGeneral_IsFull ? MARKER_TYPE_SUPER_ARMOR_FULL : MARKER_TYPE_SUPER_ARMOR];
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-								markerStart,
-								markerEnd,
-								markerArt.uvStart,
-								markerArt.uvEnd,
-								tint);
-						}
-						
-						if (frame.throwInvulInGeneral && showThrowInvulOnFramebar) {
-							
-							markerStart.y = drawFramebars_y + drawFramebars_frameItselfHeight + markerPaddingHeight;
-							markerEnd.y = markerStart.y + frameMarkerHeight;
-							
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-								markerStart,
-								markerEnd,
-								throwInvulMarker.uvStart,
-								throwInvulMarker.uvEnd,
-								tint);
+							if (playerFrame.throwInvulInGeneral && showThrowInvulOnFramebar) {
+								
+								markerStart.y = drawFramebars_y + drawFramebars_frameItselfHeight + markerPaddingHeight;
+								markerEnd.y = markerStart.y + frameMarkerHeight;
+								
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+									markerStart,
+									markerEnd,
+									throwInvulMarker.uvStart,
+									throwInvulMarker.uvEnd,
+									tint);
+							}
 						}
 					}
 				}

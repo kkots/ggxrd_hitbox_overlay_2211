@@ -2575,10 +2575,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.hitstop = projectile.hitstop;
 				currentFrame.hitstopMax = projectile.hitstopMax;
 				currentFrame.hitConnected = projectile.hitConnectedForFramebar();
-				PlayerInfo& enemy = (projectile.team == 0 || projectile.team == 1) ? players[1 - projectile.team] : players[0];
 				currentFrame.rcSlowdown = projectile.rcSlowedDownCounter;
 				currentFrame.rcSlowdownMax = projectile.rcSlowedDownMax;
 				currentFrame.activeDuringSuperfreeze = false;
+				currentFrame.powerup = projectile.move.projectilePowerup && projectile.move.projectilePowerup(projectile);
 			} else if (superflashInstigator && projectile.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 				if (currentFrame.type == FT_NONE) {
@@ -2700,6 +2700,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.rcSlowdown = 0;
 				currentFrame.rcSlowdownMax = 0;
 				currentFrame.activeDuringSuperfreeze = false;
+				currentFrame.powerup = false;
 				
 				copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
 					framebarAdvanced,
@@ -2961,6 +2962,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 			}
 			
+			if (player.charType == CHARACTER_TYPE_INO) {
+				player.noteTime = -1;
+				for (int j = 2; j < entityList.count; ++j) {
+					Entity p = entityList.list[j];
+					if (p.isActive() && p.team() == player.index && !p.isPawn() && strcmp(p.animationName(), "Onpu") == 0) {
+						if (!(
+									p.mem45() && strcmp(p.gotoLabelRequest(), "hit") != 0
+						)) {
+							player.noteTime = p.currentAnimDuration();
+						}
+						break;
+					}
+				}
+				if (player.noteTime != -1) {
+					player.lastNoteTime = player.noteTime;
+				}
+			}
+			
 			PlayerFramebars& entityFramebar = playerFramebars[player.index];
 			PlayerFramebar& framebar = entityFramebar.idleHitstop;
 			
@@ -3105,6 +3124,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else if (player.charType == CHARACTER_TYPE_SLAYER) {
 					currentFrame.u.diInfo.current = player.playerval1;
 					currentFrame.u.diInfo.max = player.maxDI;
+				} else if (player.charType == CHARACTER_TYPE_INO) {
+					currentFrame.u.inoInfo.airdashTimer = player.wasProhibitFDTimer;
+					currentFrame.u.inoInfo.noteTime = player.noteTime == -1 ? player.lastNoteTime : player.noteTime;
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -3815,6 +3837,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFrameStunValue = player.pawn.dealtAttack()->stun;
 			player.prevFrameMem45 = player.pawn.mem45();
 			player.prevFrameMem46 = player.pawn.mem46();
+			player.prevFrameGroundHitEffect = player.pawn.groundHitEffect();
+			player.prevFrameGroundBounceCount = player.pawn.groundBounceCount();
+			player.prevFrameTumbleDuration = player.pawn.tumbleDuration();
+			player.prevFrameMaxHit = player.pawn.maxHit();
+			
 		}
 		
 		for (auto it = projectileFramebars.begin(); it != projectileFramebars.end(); ) {
@@ -4987,6 +5014,7 @@ void EndScene::frameCleanup() {
 		player.wasEnableNormals = false;
 		player.wasCanYrc = false;
 		player.wasProhibitFDTimer = 1;
+		player.wasAirdashHorizontallingTimer = 0;
 		player.wasEnableWhiffCancels = false;
 		player.wasEnableSpecials = false;
 		player.wasEnableSpecialCancel = false;
@@ -5732,6 +5760,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 					)
 				);
 			player.wasProhibitFDTimer = min(127, pawn.prohibitFDTimer());
+			player.wasAirdashHorizontallingTimer = min(127, pawn.airdashHorizontallingTimer());
 			player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
 			player.wasEnableWhiffCancels = player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels();
 			player.wasEnableSpecials = player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();

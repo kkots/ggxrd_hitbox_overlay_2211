@@ -55,6 +55,11 @@ struct DIInfo {
 	unsigned short max;
 };
 
+struct InoInfo {
+	unsigned short airdashTimer;
+	unsigned short noteTime;
+};
+
 struct GatlingOrWhiffCancelInfo {
 	const char* name;
 	const char* replacementInputs;
@@ -340,7 +345,7 @@ struct FrameBase {
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
-// This means that types like std::vector are not allowed.
+// This means that types like std::vector require special handling in the clear() method.
 struct Frame : public FrameBase {
 	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
@@ -352,10 +357,11 @@ struct Frame : public FrameBase {
 	unsigned short hitstopConflict:1;
 	unsigned short newHit:1;
 	bool activeDuringSuperfreeze:1;
+	bool powerup:1;
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
-// This means that types like std::vector are not allowed.
+// This means that types like std::vector require special handling in the clear() method.
 struct PlayerFrame : public FrameBase {
 	FrameCancelInfo cancels;
 	std::vector<Input> inputs;
@@ -364,6 +370,7 @@ struct PlayerFrame : public FrameBase {
 		MilliaInfo milliaInfo;
 		ChippInfo chippInfo;
 		DIInfo diInfo;
+		InoInfo inoInfo;
 	} u;
 	short poisonDuration;
 	FrameStopInfo stop;
@@ -444,7 +451,11 @@ struct FramebarBase {
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) = 0;
 	virtual FrameBase& getFrame(int index) = 0;
 	FrameType preFrame = FT_NONE;
+	FrameType preFrameMapped = FT_NONE;
+	FrameType preFrameMappedNoIdle = FT_NONE;
 	DWORD preFrameLength = 0;
+	DWORD preFrameMappedLength = 0;
+	DWORD preFrameMappedNoIdleLength = 0;
 	bool requestFirstFrame = false;
 	bool requestNextHit = false;
 	bool completelyEmpty = false;
@@ -1209,6 +1220,7 @@ struct PlayerInfo {
 	char remainingDoubleJumps = 0;
 	char remainingAirDashes = 0;
 	char wasProhibitFDTimer = 0;
+	char wasAirdashHorizontallingTimer = 0;
 	char rcSlowdownCounter = 0;
 	char rcSlowdownMaxLastSet = 0;
 	char rcSlowdownMax = 0;
@@ -1241,8 +1253,14 @@ struct PlayerInfo {
 	int prevFrameStunValue = 0;
 	int prevFrameMem45 = 0;
 	int prevFrameMem46 = 0;
+	int prevFrameGroundHitEffect = 0;
+	int prevFrameGroundBounceCount = 0;
+	int prevFrameTumbleDuration = 0;
+	int prevFrameMaxHit = 0;
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
+	int lastNoteTime = 0;
+	int noteTime = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;

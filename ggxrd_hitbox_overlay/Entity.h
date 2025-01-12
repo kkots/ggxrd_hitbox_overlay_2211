@@ -801,6 +801,7 @@ public:
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
+	inline int airdashHorizontallingTimer() const { return *(int*)(ent + 0x24db8); }
 	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }
 	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
 	inline const AttackData* dealtAttack() const { return (const AttackData*)(ent + 0x44c); }
@@ -885,6 +886,7 @@ public:
 	inline int mem50() const { return *(int*)(ent + 0x160); }
 	inline int mem51() const { return *(int*)(ent + 0x164); }
 	inline int mem52() const { return *(int*)(ent + 0x168); }
+	inline int mem53() const { return *(int*)(ent + 0x16c); }
 	inline int mem54() const { return *(int*)(ent + 0x170); }
 	inline int mem57() const { return *(int*)(ent + 0x17c); }
 	inline int mem58() const { return *(int*)(ent + 0x180); }
@@ -975,6 +977,10 @@ public:
 	inline Entity linkObjectDestroyOnStateChange() const { return *(Entity*)(ent + 0x1f0); }
 	inline int venomBallArg3() const { return *(int*)(ent + 0x25bc); }
 	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }
+	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }
+	inline int groundHitEffect() const { return *(int*)(ent + 0x6a4); }
+	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }
+	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	

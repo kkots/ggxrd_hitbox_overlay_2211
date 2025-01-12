@@ -5,6 +5,7 @@
 #include <vector>
 
 struct PlayerInfo;
+struct ProjectileInfo;
 
 using sectionSeparator_t = bool(*)(PlayerInfo& ent);
 using sectionSeparatorProjectile_t = bool(*)(Entity ent);
@@ -13,6 +14,7 @@ using isDangerous_t = bool(*)(Entity ent);
 using selectFramebarName_t = const char*(*)(Entity ent);
 using zatoHoldLevel_t = DWORD(*)(PlayerInfo& ent);
 using selectDisplayName_t = const char*(*)(PlayerInfo& ent);
+using projectileFunc_t = bool(*)(ProjectileInfo& projectile);
 
 bool isIdle_default(PlayerInfo& player);
 bool canBlock_default(PlayerInfo& player);
@@ -40,6 +42,7 @@ struct MoveInfoProperty {
 		selectFramebarName_t selectFramebarNameValue;
 		selectDisplayName_t selectDisplayNameValue;
 		zatoHoldLevel_t zatoHoldLevelValue;
+		projectileFunc_t projectileFuncValue;
 	} u;
 };
 
@@ -121,6 +124,7 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displaySlangNameSelector, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, createdProjectile, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr) \
+	MOVE_INFO_EXEC(projectileFunc_t, projectileFuncValue, projectilePowerup, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
 	MOVE_INFO_EXEC(bool, boolValue, dontSkipGrab, false)
 
@@ -219,6 +223,7 @@ public:
 	int faust5DExPointY = -1;
 	int venomQvClearUponAfterExitOffset = 0;
 	int venomBishopCreateOffset = 0;
+	int ino5DCreateDustObjShotOffset = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

@@ -176,10 +176,17 @@ static bool canYrcProjectile_flower(PlayerInfo& ent);
 static bool canYrcProjectile_qv(PlayerInfo& ent);
 static bool createdProjectile_bishop(PlayerInfo& ent);
 static bool canYrcProjectile_bishop(PlayerInfo& ent);
+static bool createdProjectile_ino5D(PlayerInfo& ent);
+static bool canYrcProjectile_ino5D(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
 static bool powerup_qv(PlayerInfo& ent);
+static bool powerup_kyougenA(PlayerInfo& ent);
+static bool powerup_kyougenB(PlayerInfo& ent);
+static bool powerup_kyougenC(PlayerInfo& ent);
+static bool powerup_kyougenD(PlayerInfo& ent);
+static bool powerup_onpu(ProjectileInfo& projectile);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -4819,19 +4826,28 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "SDD";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_INO, "NmlAtk5E");
+	move.displayName = "5D";
+	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_ino5D;
+	move.canYrcProjectile = canYrcProjectile_ino5D;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_INO, "AirFDash_Under");
-	move.displayName = "Airdash Down Forward";
-	move.slangName = "ADF";
+	move.displayName = "Downwards Dash";
+	move.slangName = "Hoverdown";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkai");
 	move.displayName = "Antidepressant Scale";
 	move.slangName = "Note";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkaiAir");
 	move.displayName = "Air Antidepressant Scale";
 	move.slangName = "Air Note";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// I-No Sultry Performance
@@ -4842,6 +4858,7 @@ bool Moves::onDllMain() {
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
+	move.powerup = powerup_kyougenA;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenB");
@@ -4851,6 +4868,7 @@ bool Moves::onDllMain() {
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
+	move.powerup = powerup_kyougenB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenC");
@@ -4860,6 +4878,7 @@ bool Moves::onDllMain() {
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
+	move.powerup = powerup_kyougenC;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenD");
@@ -4869,6 +4888,7 @@ bool Moves::onDllMain() {
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
+	move.powerup = powerup_kyougenD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "CommandThrow");
@@ -4908,21 +4928,25 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalB");
 	move.displayName = "Chemical Love";
 	move.slangName = "HCL";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirB");
 	move.displayName = "Air Chemical Love";
 	move.slangName = "Air HCL";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalC");
 	move.displayName = "Vertical Chemical Love";
 	move.slangName = "VCL";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirC");
 	move.displayName = "Air Vertical Chemical Love";
 	move.slangName = "Air VCL";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAdd");
@@ -4930,24 +4954,28 @@ bool Moves::onDllMain() {
 	move.slangName = "214K~214S";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
+	move.canYrcProjectile = canYrcProjectile_default;  // typically opponent will be in blockstun, but I did a hacktest and ye you can YRC this
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Madogiwa");
 	move.displayName = "Longing Desperation";
 	move.slangName = "Desperation";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_INO, "MadogiwaBurst");
 	move.displayName = "Burst Longing Desperation";
 	move.slangName = "Burst Desperation";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Genkai");
 	move.displayName = "Ultimate Fortissimo";
 	move.slangName = "Fortissimo";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "BChemiLaser", true);
@@ -4976,6 +5004,25 @@ bool Moves::onDllMain() {
 	move.framebarId = 55;
 	move.framebarName = "Antidepressant Scale";
 	move.framebarSlangName = "Note";
+	move.projectilePowerup = powerup_onpu;
+	addMove(move);
+	
+	// Boss version only
+	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu2", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = 55;
+	move.framebarName = "Antidepressant Scale";
+	move.framebarSlangName = "Note";
+	move.projectilePowerup = powerup_onpu;
+	addMove(move);
+	
+	// Boss version only
+	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu3", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = 55;
+	move.framebarName = "Antidepressant Scale";
+	move.framebarSlangName = "Note";
+	move.projectilePowerup = powerup_onpu;
 	addMove(move);
 	
 	// cannot be YRC'd in Rev1
@@ -6925,6 +6972,7 @@ void Moves::onAswEngineDestroyed() {
 	faust5DExPointY = -1;
 	venomQvClearUponAfterExitOffset = 0;
 	venomBishopCreateOffset = 0;
+	ino5DCreateDustObjShotOffset = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -7831,7 +7879,7 @@ bool createdProjectile_ky5D(PlayerInfo& player) {
 }
 bool canYrcProjectile_ky5D(PlayerInfo& player) {
 	// STACK_1 seems to hold the ground mahojin
-	if (moves.ky5DDustEffectShot_firstSpriteAfter_Offset == -1) return canYrcProjectile_default(player); // rev1
+	if (moves.ky5DDustEffectShot_firstSpriteAfter_Offset == -1) return false; // rev1
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset) {
 		BYTE* pos = moves.findCreateObj(func, "DustEffectShot");
@@ -7913,6 +7961,29 @@ bool canYrcProjectile_bishop(PlayerInfo& player) {
 	if (!moves.venomBishopCreateOffset) return false;
 	return player.pawn.bbscrCurrentInstr() - player.pawn.bbscrCurrentFunc() > moves.venomBishopCreateOffset;
 }
+bool createdProjectile_ino5D(PlayerInfo& player) {
+	return player.pawn.previousEntity()
+		&& player.pawn.previousEntity().lifeTimeCounter() == 0
+		&& !player.pawn.isRCFrozen()
+		&& strcmp(player.pawn.previousEntity().animationName(), "DustObjShot") == 0;
+}
+bool canYrcProjectile_ino5D(PlayerInfo& player) {
+	if (moves.ino5DCreateDustObjShotOffset == -1) return false; // rev1
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.ino5DCreateDustObjShotOffset) {
+		BYTE* pos = moves.findCreateObj(func, "DustObjShot");
+		if (!pos) {
+			moves.ino5DCreateDustObjShotOffset = -1;
+			return canYrcProjectile_default(player); // rev1
+		}
+		pos = moves.findSpriteNonNull(pos);
+		if (pos) moves.ino5DCreateDustObjShotOffset = pos - func;
+	}
+	if (!moves.ino5DCreateDustObjShotOffset) return false;
+	return player.pawn.bbscrCurrentInstr() > func + moves.ino5DCreateDustObjShotOffset
+		|| player.pawn.bbscrCurrentInstr() == func + moves.ino5DCreateDustObjShotOffset
+		&& player.pawn.spriteFrameCounter() > 0;
+}
 
 bool powerup_may6P(PlayerInfo& player) {
 	return player.pawn.dealtAttack()->stun > player.prevFrameStunValue;
@@ -7928,6 +7999,32 @@ bool powerup_may6H(PlayerInfo& player) {
 }
 bool powerup_qv(PlayerInfo& player) {
 	return player.prevFrameMem46 != player.pawn.mem46();
+}
+bool powerup_kyougenA(PlayerInfo& ent) {
+	return ent.prevFrameGroundHitEffect != 8 && ent.pawn.groundHitEffect() == 8;
+}
+bool powerup_kyougenB(PlayerInfo& ent) {
+	return ent.prevFrameGroundBounceCount != 1 && ent.pawn.groundBounceCount() == 1;
+}
+bool powerup_kyougenC(PlayerInfo& ent) {
+	return ent.prevFrameTumbleDuration == INT_MAX && ent.pawn.tumbleDuration() != INT_MAX;
+}
+bool powerup_kyougenD(PlayerInfo& ent) {
+	return ent.prevFrameMaxHit != 5 && ent.pawn.maxHit() == 5;
+}
+bool powerup_onpu(ProjectileInfo& projectile) {
+	return !(projectile.ptr && projectile.ptr.isRCFrozen())
+		&& (
+			projectile.animFrame == 32
+			|| projectile.animFrame == 44
+			|| projectile.animFrame == 56
+			|| projectile.animFrame == 68
+		)
+		&& !(
+			projectile.ptr
+			&& projectile.ptr.mem45()
+			&& strcmp(projectile.ptr.gotoLabelRequest(), "hit") != 0
+		);
 }
 
 void fillMay6HOffsets(BYTE* func) {

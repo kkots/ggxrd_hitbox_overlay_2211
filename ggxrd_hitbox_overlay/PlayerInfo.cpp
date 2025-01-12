@@ -613,7 +613,9 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 	if (!prevFrameHitstop && hitstop) {
 		hitstopMax = hitstop;
 	}
-	if (hitstop && !superflashInstigator && prevLifetimeCounter != lifeTimeCounter) ++hitstopElapsed;
+	if (hitstop && !superflashInstigator && prevLifetimeCounter != lifeTimeCounter) {
+		++hitstopElapsed;
+	}
 	
 	int unused;
 	PlayerInfo::calculateSlow(hitstopElapsed,
@@ -1345,6 +1347,21 @@ inline void soakUpIntoPreFrame(FramebarT* framebar, const FrameT& srcFrame) {
 	} else {
 		framebar->preFrame = srcFrame.type;
 		framebar->preFrameLength = 1;
+	}
+	// I was so naive (discovered that I have to do this purely by accident)
+	FrameType type = frameMap(srcFrame.type);
+	if (framebar->preFrameMapped == type && !srcFrame.isFirst) {
+		++framebar->preFrameMappedLength;
+	} else {
+		framebar->preFrameMapped = type;
+		framebar->preFrameMappedLength = 1;
+	}
+	type = frameMapNoIdle(srcFrame.type);
+	if (framebar->preFrameMappedNoIdle == type && !srcFrame.isFirst) {
+		++framebar->preFrameMappedNoIdleLength;
+	} else {
+		framebar->preFrameMappedNoIdle = type;
+		framebar->preFrameMappedNoIdleLength = 1;
 	}
 }
 
@@ -2245,6 +2262,7 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 		df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
 		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
 		df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
+		df.powerup |= sf.powerup;
 	}
 	if (source.preFrameLength) {
 		if (source.preFrame != main.preFrame) {
@@ -2254,6 +2272,26 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 			}
 		} else if (source.preFrameLength > main.preFrameLength) {
 			main.preFrameLength = source.preFrameLength;
+		}
+	}
+	if (source.preFrameMappedLength) {
+		if (source.preFrameMapped != main.preFrameMapped) {
+			if (determineFrameLevel(source.preFrameMapped) >= determineFrameLevel(main.preFrameMapped)) {
+				main.preFrameMapped = source.preFrameMapped;
+				main.preFrameMappedLength = source.preFrameMappedLength;
+			}
+		} else if (source.preFrameMappedLength > main.preFrameMappedLength) {
+			main.preFrameMappedLength = source.preFrameMappedLength;
+		}
+	}
+	if (source.preFrameMappedNoIdleLength) {
+		if (source.preFrameMappedNoIdle != main.preFrameMappedNoIdle) {
+			if (determineFrameLevel(source.preFrameMappedNoIdle) >= determineFrameLevel(main.preFrameMappedNoIdle)) {
+				main.preFrameMappedNoIdle = source.preFrameMappedNoIdle;
+				main.preFrameMappedNoIdleLength = source.preFrameMappedNoIdleLength;
+			}
+		} else if (source.preFrameMappedNoIdleLength > main.preFrameMappedNoIdleLength) {
+			main.preFrameMappedNoIdleLength = source.preFrameMappedNoIdleLength;
 		}
 	}
 }
