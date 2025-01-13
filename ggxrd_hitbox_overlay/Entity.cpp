@@ -114,7 +114,9 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 	state->isGettingThrown = isGettingThrown();
 	logOnce(fprintf(logfile, "isGettingThrown: %d\n", (int)state->isGettingThrown));
 
-	state->inHitstunBlockstun = throwProtection();
+	state->inHitstunBlockstun = throwProtection() > 0  // these are from FUN_00deca70, called from FUN_00f6bcd0
+		|| inHitstun()
+		|| blockstun() > 0;
 
 	state->posY = posY();
 
