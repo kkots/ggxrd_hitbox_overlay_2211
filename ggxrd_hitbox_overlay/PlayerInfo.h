@@ -345,6 +345,8 @@ struct FrameStopInfo {
 	unsigned short valueMax:11;  // hitstunMax, blockstunMax or hitstopMax
 	unsigned short valueMaxExtra:4;  // hitstunMaxFloorbounceExtra, blockstunMaxLandExtra
 	unsigned short isBlockstun:1;
+	unsigned short tumble;
+	unsigned short tumbleMax;
 };
 
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD);
@@ -376,6 +378,7 @@ struct Frame : public FrameBase {
 struct PlayerFrame : public FrameBase {
 	FrameCancelInfo cancels;
 	std::vector<Input> inputs;
+	const char* powerupExplanation;
 	Input prevInput;
 	union {
 		MilliaInfo milliaInfo;
@@ -412,6 +415,7 @@ struct PlayerFrame : public FrameBase {
 	
 	bool strikeInvulInGeneral:1;
 	bool throwInvulInGeneral:1;
+	bool OTGInGeneral:1;
 	bool superArmorActiveInGeneral:1;
 	bool superArmorActiveInGeneral_IsFull:1;
 	
@@ -441,6 +445,7 @@ struct PlayerFrame : public FrameBase {
 	bool running:1;
 	bool cantBackdash:1;
 	bool suddenlyTeleported:1;
+	bool dontShowPowerupGraphic:1;
 	
 	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
 	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
@@ -857,6 +862,7 @@ struct ProjectileInfo {
 	int hitNumber = 0;  // updated every frame
 	int numberOfHits = 0;
 	int bedmanSealElapsedTime = 0;
+	int elapsedTime = 0;
 	
 	int x = 0;
 	int y = 0;
@@ -1114,6 +1120,8 @@ struct PlayerInfo {
 	int hitstunMax = 0;
 	int hitstunMaxFloorbounceExtra = 0;
 	int hitstunMaxWithSlow = 0;
+	int tumbleMax = 0;
+	int tumbleMaxWithSlow = 0;
 	int lastHitstopBeforeWipe = 0;
 	int blockstunMax = 0;
 	int blockstunMaxLandExtra = 0;
@@ -1127,6 +1135,9 @@ struct PlayerInfo {
 	int hitstun = 0;
 	int hitstunElapsed = 0;
 	int hitstunWithSlow = 0;
+	int tumble = 0;
+	int tumbleElapsed = 0;
+	int tumbleWithSlow = 0;
 	int stagger = 0;
 	int staggerElapsed = 0;
 	int staggerWithSlow = 0;
@@ -1355,6 +1366,7 @@ struct PlayerInfo {
 	bool wasCanYrc:1;
 	bool wasEnableThrow:1;
 	bool wasAttackCollidedSoCanCancelNow:1;
+	bool wasOtg:1;
 	bool obtainedForceDisableFlags:1;
 	
 	bool enableBlock:1;  // this holds the raw value of ent.enableBlock() flag
@@ -1401,12 +1413,15 @@ struct PlayerInfo {
 	bool performingBDC:1;
 	bool staggerMaxFixed:1;
 	bool hitstunContaminatedByRCSlowdown:1;
+	bool tumbleContaminatedByRCSlowdown:1;
 	bool blockstunContaminatedByRCSlowdown:1;
 	bool inputsOverflow:1;
 	bool createdDangerousProjectile:1;
 	bool createdProjectileThatSometimesCanBeDangerous:1;
 	bool lastBlockWasIB:1;
 	bool lastBlockWasFD:1;
+	bool displayTumble:1;
+	bool tumbleStartedInHitstop:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

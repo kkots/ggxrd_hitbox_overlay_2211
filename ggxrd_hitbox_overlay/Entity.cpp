@@ -133,7 +133,7 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 	state->throwInvuln = throwIF > 0
 		|| throwInvul()
 		|| isFullInvul
-		|| otg
+		//|| otg  // this turned out to not be the case, because OTG Blue Burst can be thrown
 		|| state->inHitstunBlockstun
 		|| clashHitstop()
 		|| (

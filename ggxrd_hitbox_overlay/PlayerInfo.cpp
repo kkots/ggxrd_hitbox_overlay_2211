@@ -601,6 +601,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 		hitOnFrame = 0;
 		hitstopElapsed = 0;
 		bedmanSealElapsedTime = 0;
+		elapsedTime = 0;
 	}
 	int prevFrameHitstop = hitstop;
 	int clashHitstop = ent.clashHitstop();
@@ -642,6 +643,9 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 				break;
 			}
 		}
+	}
+	if (prevLifetimeCounter != lifeTimeCounter && lifeTimeCounter != 0 && !hitstop && !superflashInstigator) {
+		++elapsedTime;
 	}
 	
 	int unused;
@@ -1651,7 +1655,8 @@ void PlayerFrame::printInvuls(char* buf, size_t bufSize) const {
 	
 }
 
-void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD) {
+void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo,
+					int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD) {
 	if (!bufSize) return;
 	*buf = '\0';
 	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun || stopInfo->isStagger || stopInfo->isWakeup) : false;

@@ -26,6 +26,7 @@
 #endif
 #include "colors.h"
 #include "findMoveByName.h"
+#include "Hardcode.h"
 
 UI ui;
 
@@ -176,7 +177,8 @@ static int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels);
 static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, UI::InputName** motions, int motionCount, UI::InputName** buttons, int buttonsCount);
 static void printChippInvisibility(int current, int max);
-static void textUnformattedColored(ImVec4 color, const char* str);
+static void textUnformattedColored(ImVec4 color, const char* str, const char* strEnd = nullptr);
+static void yellowText(const char* str, const char* strEnd = nullptr);
 static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth,
 		const char* str,
 		const char* strEnd = nullptr,
@@ -425,6 +427,7 @@ bool UI::onDllMain(HMODULE hModule) {
 		IDB_SUPER_ARMOR_ACTIVE_FULL, superArmorFrameFull,
 		IDB_SUPER_ARMOR_ACTIVE_FULL_NON_COLORBLIND, superArmorFrameFullNonColorblind);
 	addFrameMarkerArt(hModule, MARKER_TYPE_THROW_INVUL, IDB_THROW_INVUL, throwInvulFrame);
+	addFrameMarkerArt(hModule, MARKER_TYPE_OTG, IDB_OTG, OTGFrame);
 	addFrameArt(hModule, FT_XSTUN,
 		IDB_XSTUN_FRAME, xstunFrame,
 		IDB_XSTUN_FRAME_NON_COLORBLIND, xstunFrameNonColorblind,
@@ -1301,6 +1304,13 @@ void UI::drawSearchableWindows() {
 					strbufLen = ptrNextSize;
 				}
 				printWithWordWrap
+				if (player.displayTumble && (
+						player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
+						|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
+				)) {
+					sprintf_s(strbuf, "%d/%d tumble", player.tumbleWithSlow, player.tumbleMaxWithSlow);
+					printNoWordWrap
+				}
 				if (playerBlocks[i].displayFloorbounceQuestionMark) {
 					printExtraHitstunTooltip(playerBlocks[i].displayFloorbounceQuestionMarkValue);
 				} else if (playerBlocks[i].displayBlockstunLandQuestionMark) {
@@ -1427,39 +1437,6 @@ void UI::drawSearchableWindows() {
 						}
 						AddTooltip(searchTooltip(moveTooltip.c_str(), nullptr));
 					}
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.hitstunElapsed);
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("hitstunElapsed");
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.blockstunElapsed);
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("blockstunElapsed");
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.staggerElapsed);
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("staggerElapsed");
 				}
 			}
 			for (int i = 0; i < two; ++i) {
@@ -2322,6 +2299,8 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.showThrowInvulOnFramebar);
 			
+			booleanSettingPreset(settings.showOTGOnFramebar);
+			
 			booleanSettingPreset(settings.showSuperArmorOnFramebar);
 			
 			booleanSettingPreset(settings.showFirstFramesOnFramebar);
@@ -3129,7 +3108,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 				}
-				textUnformattedColored(YELLOW_COLOR, "Time until can do another gunflame: ");
+				yellowText("Time until can do another gunflame: ");
 				int unused;
 				PlayerInfo::calculateSlow(0, timeRemainingMax, slowMax, &timeRemainingMax, &unused, &unused);
 				sprintf_s(strbuf, "%df or until hits/gets blocked/gets erased", timeRemainingMax);
@@ -3162,7 +3141,7 @@ void UI::drawSearchableWindows() {
 					AddTooltip(searchTooltip("Hair falls down on the 6'th knockdown if on it HP is >= 252."));
 				}
 				zerohspacing
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Time until can do another stun edge: "));
+				yellowText(searchFieldTitle("Time until can do another stun edge: "));
 				ImGui::SameLine();
 				bool hasForceDisableFlag1 = (player.wasForceDisableFlags & 0x1) != 0;
 				if (!hasForceDisableFlag1) {
@@ -3262,7 +3241,7 @@ void UI::drawSearchableWindows() {
 				}
 				_zerohspacing
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Has used j.D:"));
+				yellowText(searchFieldTitle("Has used j.D:"));
 				const char* tooltip = searchTooltip("You can only use j.D once in the air. j.D gets reenabled when you land.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
@@ -3272,7 +3251,7 @@ void UI::drawSearchableWindows() {
 			} else if (player.charType == CHARACTER_TYPE_MAY) {
 				bool hasForceDisableFlag2 = (player.wasForceDisableFlags & 0x2) != 0;
 				if (!hasForceDisableFlag2) {
-					textUnformattedColored(YELLOW_COLOR, "Time until can do Beach Ball:");
+					yellowText("Time until can do Beach Ball:");
 					ImGui::SameLine();
 					ImGui::TextUnformatted("0f");
 				} else {
@@ -3285,7 +3264,7 @@ void UI::drawSearchableWindows() {
 									|| strcmp(p.animationName(), "MayBallB") == 0
 								)) {
 							foundBeachBall = true;
-							textUnformattedColored(YELLOW_COLOR, "Beach Ball bounces left:");
+							yellowText("Beach Ball bounces left:");
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/3", 3 - p.mem45());
 							ImGui::TextUnformatted(strbuf);
@@ -3295,7 +3274,7 @@ void UI::drawSearchableWindows() {
 					if (!foundBeachBall) {
 						// Nothing found, but still can't do a Beach Ball on this frame?
 						// Probably, a Ball has just been deleted, and the lack of its forceDisableFlags will only take effect on the next frame...
-						textUnformattedColored(YELLOW_COLOR, "Time until can do Beach Ball:");
+						yellowText("Time until can do Beach Ball:");
 						ImGui::SameLine();
 						ImGui::TextUnformatted("1f");
 					}
@@ -3311,7 +3290,7 @@ void UI::drawSearchableWindows() {
 				
 				bool hasForceDisableFlag1 = (player.wasForceDisableFlags & 0x1) != 0;
 				if (!hasForceDisableFlag1) {
-					textUnformattedColored(YELLOW_COLOR, "Time until can do Hoop:");
+					yellowText("Time until can do Hoop:");
 					ImGui::SameLine();
 					ImGui::TextUnformatted("0f");
 				} else {
@@ -3388,7 +3367,7 @@ void UI::drawSearchableWindows() {
 								}
 							}
 						}
-						textUnformattedColored(YELLOW_COLOR, "Time until can do Hoop:");
+						yellowText("Time until can do Hoop:");
 						ImGui::SameLine();
 						if (frames) {
 							int timeRemaining = totalFrames - frames - dolphin.spriteFrameCounter() + 1;
@@ -3408,7 +3387,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted("???");
 						}
 					} else {
-						textUnformattedColored(YELLOW_COLOR, "Time until can do Hoop:");
+						yellowText("Time until can do Hoop:");
 						ImGui::SameLine();
 						
 						bool foundIrukasanTsubureru_tama = false;
@@ -3449,7 +3428,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted("Displayed Pin range checks for your origin point, not the pushbox.");
 				ImGui::PopTextWrapPos();
 				
-				textUnformattedColored(YELLOW_COLOR, "Chroming Rose:");
+				yellowText("Chroming Rose:");
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/%df", player.pawn.playerVal(1), player.maxDI);
 				ImGui::TextUnformatted(strbuf);
@@ -3458,7 +3437,7 @@ void UI::drawSearchableWindows() {
 					booleanSettingPreset(settings.showMilliaBadMoonBuffHeight);
 				}
 				
-				textUnformattedColored(YELLOW_COLOR, "Can do S/H Disc or Garden:");
+				yellowText("Can do S/H Disc or Garden:");
 				ImGui::SameLine();
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
@@ -3586,11 +3565,11 @@ void UI::drawSearchableWindows() {
 					ImGui::EndTable();
 				}
 				
-				textUnformattedColored(YELLOW_COLOR, "Can perform S Drill:");
+				yellowText("Can perform S Drill:");
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
 				
-				textUnformattedColored(YELLOW_COLOR, "Can perform H Drill:");
+				yellowText("Can perform H Drill:");
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x2) == 0 ? "Yes" : "No");
 				
@@ -3607,7 +3586,7 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(searchFieldTitle("Not on a wall."));
 				}
 				
-				textUnformattedColored(YELLOW_COLOR, "Can perform Gamma Blade:");
+				yellowText("Can perform Gamma Blade:");
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
 				
@@ -3622,11 +3601,11 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(searchFieldTitle(strbuf, nullptr));
 				}
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can throw item:"));
+				yellowText(searchFieldTitle("Can throw item:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can throw Love:"));
+				yellowText(searchFieldTitle("Can throw Love:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x2) == 0 ? "Yes" : "No");
 				
@@ -3652,7 +3631,7 @@ void UI::drawSearchableWindows() {
 				
 				if (settings.showFaustOwnFlickRanges) {
 					ImGui::PushTextWrapPos(0.F);
-					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Faust 5D:"));
+					yellowText(searchFieldTitle("Faust 5D:"));
 					if (faust5D.empty()) {
 						faust5D = settings.convertToUiDescription(faust5DHelp);
 					}
@@ -3666,13 +3645,105 @@ void UI::drawSearchableWindows() {
 				printChargeInCharSpecific(i, true, true, 40);
 				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x2) != 0;
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can do Bishop Runout:"));
+				yellowText(searchFieldTitle("Can do Bishop Runout:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
 				
+				struct VenomBallInfo {
+					StringWithLength title;
+					int stackIndex;
+					bool isBishop;
+				};
+				VenomBallInfo venomBalls[] {
+					{ "P Ball:", 0, false },
+					{ "K Ball:", 1, false },
+					{ "S Ball:", 2, false },
+					{ "H Ball:", 3, false },
+					{ "Last Stinger Ball:", 4, false },
+					{ "Bishop:", 7, true }
+				};
+				for (int i = 0; i < _countof(venomBalls); ++i) {
+					VenomBallInfo& info = venomBalls[i];
+					Entity p = player.pawn.stackEntity(info.stackIndex);
+					if (p && p.isActive()) {
+						yellowText(searchFieldTitle(info.title));
+						ImGui::Indent();
+						if (!info.isBishop) {
+							textUnformattedColored(LIGHT_BLUE_COLOR, "Level:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/4", p.storage(0));
+							ImGui::TextUnformatted(strbuf);
+						}
+						if (info.isBishop) {
+							textUnformattedColored(LIGHT_BLUE_COLOR, "Bishop Level:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/5", p.storage(1));
+							ImGui::TextUnformatted(strbuf);
+						}
+						
+						int elapsedTime = 0;
+						int slowdown = 0;
+						ProjectileInfo& projectile = endScene.findProjectile(p);
+						if (projectile.ptr) {
+							slowdown = projectile.rcSlowedDownCounter;
+							elapsedTime = projectile.elapsedTime;
+						}
+						
+						int timerOrig = p.mem47();
+						int timer = timerOrig;
+						int unused;
+						int result;
+						int resultMax;
+						if (!info.isBishop) {
+							PlayerInfo::calculateSlow(
+								elapsedTime,
+								timer,
+								slowdown,
+								&result,
+								&resultMax,
+								&unused);
+							textUnformattedColored(LIGHT_BLUE_COLOR, "Timer:");
+							ImGui::SameLine();
+							if (timerOrig) {
+								sprintf_s(strbuf, "%d/%d", result, resultMax);
+								ImGui::TextUnformatted(strbuf);
+							} else {
+								ImGui::TextUnformatted("Active");
+							}
+						}
+						
+						if (info.isBishop) {
+							timer = p.mem53();
+							PlayerInfo::calculateSlow(
+								elapsedTime,
+								timer,
+								slowdown,
+								&result,
+								&resultMax,
+								&unused);
+							textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("Bishop Timer:"));
+							const char* tooltip = searchTooltip("While the text is grayed out, Bishop cannot be destroyed even if Bishop Timer ran out."
+								" After Bishop stops being active, though, it can still be destroyed.");
+							AddTooltip(tooltip);
+							ImGui::SameLine();
+							bool isGrayedOut = p.mem54() == 0;
+							if (isGrayedOut) {
+								ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+							}
+							sprintf_s(strbuf, "%d/%d", result, resultMax);
+							ImGui::TextUnformatted(strbuf);
+							AddTooltip(tooltip);
+							if (isGrayedOut) {
+								ImGui::PopStyleColor();
+							}
+						}
+						ImGui::Unindent();
+					}
+				}
+				
 			} else if (player.charType == CHARACTER_TYPE_SLAYER) {
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Bloodsucking Universe Buff (Rev2 only):"));
+				yellowText(searchFieldTitle("Bloodsucking Universe Buff (Rev2 only):"));
 				const char* tooltip = searchTooltip("Bloodsucking Universe makes the next special or super guaranteed to do a counterhit.");
 				AddTooltip(tooltip);
 				sprintf_s(strbuf, "%d/%df", player.playerval1, player.maxDI);
@@ -3710,7 +3781,7 @@ void UI::drawSearchableWindows() {
 				ImGui::PopTextWrapPos();
 				ImGui::PopStyleColor();
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Hoverdashed down:"));
+				yellowText(searchFieldTitle("Hoverdashed down:"));
 				const char* tooltip = searchTooltip("Pressed 3 during hoverdash."
 					" Doing so replaces your airdash (66) with a downward hover. However, it's possible"
 					" under right circumstances to still get an airdash, and not hoverdown. This happens because the"
@@ -3728,7 +3799,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(player.playerval0 ? "Yes" : "No");
 				AddTooltip(tooltip);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Airdash active timer:"));
+				yellowText(searchFieldTitle("Airdash active timer:"));
 				tooltip = searchTooltip("Some people call this state 'fast fall'."
 					" This timer is set when initiaing an airdash, and it counts the time"
 					" during which it continuously sets speed Y to 0. When this timer runs out,"
@@ -3749,7 +3820,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(strbuf);
 				AddTooltip(tooltip);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Airdash becoming horizontal timer:"));
+				yellowText(searchFieldTitle("Airdash becoming horizontal timer:"));
 				tooltip = searchTooltip("While this timer is active, airdash sets speed not exactly to 0, but:\n"
 					"New Speed Y = Old Speed Y - Old Speed Y / 8;\n"
 					"So it's bringing it gradually to 0."
@@ -3761,7 +3832,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(strbuf);
 				AddTooltip(tooltip);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("S-CL will have reduced speed Y:"));
+				yellowText(searchFieldTitle("S-CL will have reduced speed Y:"));
 				tooltip = searchTooltip("Some people call this state 'fast fall'"
 					" If performing S Chemical Love from a hoverdash-3-66, it won't bring you up as much."
 					" Additionally, if performing S Chemical Love after a hoverdash-3-66 + j.S (first few frames),"
@@ -3795,13 +3866,13 @@ void UI::drawSearchableWindows() {
 				AddTooltip(tooltip);
 				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can cast Note:"));
+				yellowText(searchFieldTitle("Can cast Note:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
 				
 				int timeDuration = player.noteTime == -1 ? player.lastNoteTime : player.noteTime;
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Note time elapsed:"));
+				yellowText(searchFieldTitle("Note time elapsed:"));
 				tooltip = searchTooltip("Advances slower during RC slowdown.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
@@ -3809,7 +3880,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(strbuf);
 				AddTooltip(tooltip);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Note level:"));
+				yellowText(searchFieldTitle("Note's max number of hits:"));
 				tooltip = searchTooltip("Depends on time since creation of the Note and until its collision.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
@@ -3826,7 +3897,7 @@ void UI::drawSearchableWindows() {
 				}
 				ImGui::TextUnformatted(txt);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Note next level at:"));
+				yellowText(searchFieldTitle("Note next level at:"));
 				tooltip = searchTooltip("How much time must elapse since the creation of the Note in order to reach the next level.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
@@ -3849,7 +3920,7 @@ void UI::drawSearchableWindows() {
 			} else if (player.charType == CHARACTER_TYPE_BEDMAN) {
 				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can throw head:"));
+				yellowText(searchFieldTitle("Can throw head:"));
 				const char* tooltip = searchTooltip("If you have the head, you can perform the following moves:\n"
 					"*) Task A;\n"
 					"*) Task A';\n"
@@ -3862,7 +3933,7 @@ void UI::drawSearchableWindows() {
 				AddTooltip(tooltip);
 				
 				hasForceDisableFlag = (player.wasForceDisableFlags & 0x2) != 0;
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can do D\xc3\xa9j\xc3\xa0 Vu B or C:"));
+				yellowText(searchFieldTitle("Can do D\xc3\xa9j\xc3\xa0 Vu B or C:"));
 				tooltip = searchTooltip("This controls whether you can perform the following moves:\n"
 					"*) D\xc3\xa9j\xc3\xa0 Vu B;\n"
 					"*) D\xc3\xa9j\xc3\xa0 Vu C.\n"
@@ -3873,7 +3944,7 @@ void UI::drawSearchableWindows() {
 				AddTooltip(tooltip);
 				
 				hasForceDisableFlag = (player.wasForceDisableFlags & 0x4) != 0;
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Can do Sheep:"));
+				yellowText(searchFieldTitle("Can do Sheep:"));
 				tooltip = searchTooltip("This controls whether you can perform the following moves:\n"
 					"*) Hemi Jack.");
 				AddTooltip(tooltip);
@@ -3896,7 +3967,7 @@ void UI::drawSearchableWindows() {
 				};
 				for (int j = 0; j < 4; ++j) {
 					SealInfo& seal = seals[j];
-					textUnformattedColored(YELLOW_COLOR, seal.uiName);
+					yellowText(seal.uiName);
 					ImGui::SameLine();
 					sprintf_s(strbuf, "%d/%d", seal.timer, seal.timerMax);
 					ImGui::TextUnformatted(strbuf);
@@ -4011,7 +4082,7 @@ void UI::drawSearchableWindows() {
 				lastNames[1] ? 2 : 1,
 				useSlang);
 			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-			textUnformattedColored(YELLOW_COLOR, searchFieldTitle(animNamesCount ? "Anims: " : "Anim: ", nullptr));
+			yellowText(searchFieldTitle(animNamesCount ? "Anims: " : "Anim: ", nullptr));
 			char* buf = strbuf;
 			size_t bufSize = sizeof strbuf;
 			player.prevStartupsDisp.printNames(buf, bufSize, lastNames,
@@ -4089,7 +4160,7 @@ void UI::drawSearchableWindows() {
 				
 				searchFieldTitle("Current proration");
 				sprintf_s(strbuf, "Current proration (%s): ", currentProration.name);
-				textUnformattedColored(YELLOW_COLOR, strbuf);
+				yellowText(strbuf);
 				AddTooltip(searchTooltip("Here we display only Dust proration * Proration from initial/forced proration * RISC Damage Scale * Guts * Defense Modifier * RC Proration"));
 				
 				int totalProration = 10000;
@@ -4190,7 +4261,7 @@ void UI::drawSearchableWindows() {
 					
 					if (needPrintHitNumbers) {
 						ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Hit Number: "));
+						yellowText(searchFieldTitle("Hit Number: "));
 						ImGui::SameLine();
 						sprintf_s(strbuf, "%d", hitCounter + 1);
 						ImGui::TextUnformatted(strbuf);
@@ -4200,7 +4271,7 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 					
-					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Attack Name: "));
+					yellowText(searchFieldTitle("Attack Name: "));
 					ImGui::SameLine();
 					ImGui::TextUnformatted(useSlang && dmgCalc.attackSlangName ? dmgCalc.attackSlangName : dmgCalc.attackName);
 					if (dmgCalc.nameFull || useSlang && dmgCalc.attackSlangName && dmgCalc.attackName) {
@@ -4209,11 +4280,11 @@ void UI::drawSearchableWindows() {
 					
 					printAttackLevel(dmgCalc);
 					
-					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Is Projectile: "));
+					yellowText(searchFieldTitle("Is Projectile: "));
 					ImGui::SameLine();
 					ImGui::TextUnformatted(dmgCalc.isProjectile ? "Yes" : "No");
 					
-					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Guard Type: "));
+					yellowText(searchFieldTitle("Guard Type: "));
 					ImGui::SameLine();
 					const char* guardTypeStr;
 					if (dmgCalc.isThrow) {
@@ -4223,13 +4294,13 @@ void UI::drawSearchableWindows() {
 					}
 					ImGui::TextUnformatted(guardTypeStr);
 					
-					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Air Blockable: "));
+					yellowText(searchFieldTitle("Air Blockable: "));
 					AddTooltip(searchTooltip("Is air blockable - if not, then requires Faultless Defense to be blocked in the air."));
 					ImGui::SameLine();
 					ImGui::TextUnformatted(dmgCalc.airUnblockable ? "No" : "Yes");
 					
 					if (dmgCalc.guardCrush || searching) {
-						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Guard Crush: "));
+						yellowText(searchFieldTitle("Guard Crush: "));
 						AddTooltip(searchTooltip("Guard break. When blocked, this attack causes the defender to enter hitstun on the next frame."));
 						ImGui::SameLine();
 						ImGui::TextUnformatted(dmgCalc.guardCrush ? "Yes" : "No");
@@ -4238,14 +4309,14 @@ void UI::drawSearchableWindows() {
 					ImGui::PopStyleVar();
 					
 					zerohspacing
-					textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Last Hit Result: "));
+					yellowText(searchFieldTitle("Last Hit Result: "));
 					ImGui::SameLine();
 					ImGui::TextUnformatted(formatHitResult(dmgCalc.hitResult));
 					_zerohspacing
 					
 					if (dmgCalc.hitResult == HIT_RESULT_BLOCKED) {
 						zerohspacing
-						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Block Type: "));
+						yellowText(searchFieldTitle("Block Type: "));
 						ImGui::SameLine();
 						ImGui::TextUnformatted(formatBlockType(dmgCalc.blockType));
 						_zerohspacing
@@ -4451,7 +4522,7 @@ void UI::drawSearchableWindows() {
 								ImGui::TableNextColumn();
 								const char* tooltip = searchTooltip("Maybe Dustloop or someone knows what this is.");
 								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								yellowText("Dmg");
 								AddTooltip(tooltip);
 								ImGui::SameLine();
 								ImGui::TextUnformatted(" * 150%");
@@ -4463,7 +4534,7 @@ void UI::drawSearchableWindows() {
 								ImGui::TextUnformatted(strbuf);
 								ImGui::SameLine();
 								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
+								yellowText(strbuf);
 								_zerohspacing
 							}
 							
@@ -4480,7 +4551,7 @@ void UI::drawSearchableWindows() {
 								ImGui::TableNextColumn();
 								const char* tooltip = "Damage = Damage * 100 / Extra Inverse Modif";
 								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								yellowText("Dmg");
 								AddTooltip(tooltip);
 								ImGui::SameLine();
 								ImGui::TextUnformatted(" / Extra Inv. Modif");
@@ -4492,7 +4563,7 @@ void UI::drawSearchableWindows() {
 								ImGui::TextUnformatted(strbuf);
 								ImGui::SameLine();
 								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
+								yellowText(strbuf);
 								_zerohspacing
 							}
 							
@@ -4509,7 +4580,7 @@ void UI::drawSearchableWindows() {
 								
 								ImGui::TableNextColumn();
 								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								yellowText("Dmg");
 								ImGui::SameLine();
 								ImGui::TextUnformatted(" / Stylish");
 								_zerohspacing
@@ -4519,7 +4590,7 @@ void UI::drawSearchableWindows() {
 								ImGui::TextUnformatted(strbuf);
 								ImGui::SameLine();
 								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
+								yellowText(strbuf);
 								_zerohspacing
 							}
 							
@@ -4541,7 +4612,7 @@ void UI::drawSearchableWindows() {
 								
 								ImGui::TableNextColumn();
 								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								yellowText("Dmg");
 								ImGui::SameLine();
 								ImGui::TextUnformatted(" * Handicap");
 								_zerohspacing
@@ -4551,7 +4622,7 @@ void UI::drawSearchableWindows() {
 								ImGui::TextUnformatted(strbuf);
 								ImGui::SameLine();
 								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
+								yellowText(strbuf);
 								_zerohspacing
 							}
 							
@@ -4571,7 +4642,7 @@ void UI::drawSearchableWindows() {
 								
 								ImGui::TableNextColumn();
 								zerohspacing
-								textUnformattedColored(YELLOW_COLOR, "Dmg");
+								yellowText("Dmg");
 								ImGui::SameLine();
 								if (data.dustProration2 != 100) {
 									ImGui::TextUnformatted(" * Dust Proration #1");
@@ -4585,7 +4656,7 @@ void UI::drawSearchableWindows() {
 								ImGui::TextUnformatted(strbuf);
 								ImGui::SameLine();
 								sprintf_s(strbuf, "%d", x);
-								textUnformattedColored(YELLOW_COLOR, strbuf);
+								yellowText(strbuf);
 								_zerohspacing
 							}
 							
@@ -4603,7 +4674,7 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							yellowText("Dmg");
 							ImGui::SameLine();
 							if (data.dustProration1 != 100) {
 								ImGui::TextUnformatted(" * Dust Proration #2");
@@ -4617,7 +4688,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted(strbuf);
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							_zerohspacing
 							
 							bool hellfire = data.attackerHellfireState && data.attackerHpLessThan10Percent && data.attackHasHellfireEnabled;
@@ -4643,7 +4714,7 @@ void UI::drawSearchableWindows() {
 							oldX = x;
 							ImGui::TableNextColumn();
 							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							yellowText("Dmg");
 							ImGui::SameLine();
 							ImGui::TextUnformatted(" * Hellfire");
 							_zerohspacing
@@ -4658,7 +4729,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted(strbuf);
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							_zerohspacing
 							
 							if (data.trainingSettingIsForceCounterHit) {
@@ -4687,7 +4758,7 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							yellowText("Dmg");
 							ImGui::SameLine();
 							ImGui::TextUnformatted(" * Danger Time");
 							_zerohspacing
@@ -4701,7 +4772,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted(strbuf);
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							_zerohspacing
 							
 							bool rcProration = data.rcDmgProration || data.wasHitDuringRc;
@@ -4955,7 +5026,7 @@ void UI::drawSearchableWindows() {
 							const char* tooltip = "Damage * Current proration * RISC Damage Scaling."
 								" Current proration is forced/initial proration that was at the moment of impact.";
 							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							yellowText("Dmg");
 							AddTooltip(tooltip);
 							ImGui::SameLine();
 							ImGui::TextUnformatted(" * Pror. * Scaling");
@@ -4970,7 +5041,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted(strbuf);
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							_zerohspacing
 							
 							ImGui::TableNextColumn();
@@ -4987,7 +5058,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TableNextColumn();
 							tooltip = "Damage * Roman Cancel proration";
 							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Damage");
+							yellowText("Damage");
 							AddTooltip(tooltip);
 							ImGui::SameLine();
 							ImGui::TextUnformatted(" * RC");
@@ -5004,7 +5075,7 @@ void UI::drawSearchableWindows() {
 							}
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							if (!rcProration) {
 								ImGui::SameLine();
 								ImGui::TextUnformatted(")");
@@ -5040,16 +5111,16 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Damage");
+							yellowText("Damage");
 							ImGui::SameLine();
 							ImGui::TextUnformatted(" or Min ");
 							ImGui::SameLine();
-							textUnformattedColored(YELLOW_COLOR, "Dmg");
+							yellowText("Dmg");
 							_zerohspacing
 							ImGui::TableNextColumn();
 							if (data.minimumDamagePercent != 0 && x < minDmg) x = minDmg;
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							
 							x = printDamageGutsCalculation(x, data.defenseModifier, data.gutsRating, data.guts, data.gutsLevel);
 							
@@ -5065,7 +5136,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TableNextColumn();
 							tooltip = "Damage after change due to the condition above.";
 							zerohspacing
-							textUnformattedColored(YELLOW_COLOR, "Damage");
+							yellowText("Damage");
 							AddTooltip(tooltip);
 							if (attackIsTooOP) {
 								ImGui::SameLine();
@@ -5082,7 +5153,7 @@ void UI::drawSearchableWindows() {
 								ImGui::SameLine();
 							}
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							_zerohspacing
 							
 							
@@ -5094,12 +5165,12 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted(data.kill ? "Yes" : "No");
 							
 							ImGui::TableNextColumn();
-							textUnformattedColored(YELLOW_COLOR, "Damage");
+							yellowText("Damage");
 							AddTooltip("Damage after change due to the condition above.");
 							ImGui::TableNextColumn();
 							if (data.kill) x = dmgCalc.oldHp;
 							sprintf_s(strbuf, "%d", x);
-							textUnformattedColored(YELLOW_COLOR, strbuf);
+							yellowText(strbuf);
 							
 							ImGui::TableNextColumn();
 							ImGui::TextUnformatted("HP");
@@ -5407,7 +5478,7 @@ void UI::drawSearchableWindows() {
 			} else {
 				
 				ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-				textUnformattedColored(YELLOW_COLOR, "Last hit result: ");
+				yellowText("Last hit result: ");
 				ImGui::SameLine();
 				ImGui::TextUnformatted(formatHitResult(HIT_RESULT_NONE));
 				ImGui::PopStyleVar();
@@ -5456,11 +5527,11 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(searchFieldTitle("Not in stagger/stun"));
 			} else if (kizetsu) {
 				zerohspacing
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("In hitstop: "));
+				yellowText(searchFieldTitle("In hitstop: "));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.hitstop ? "Yes (1/3 multiplier)" : "No");
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Stunmash Remaining: "));
+				yellowText(searchFieldTitle("Stunmash Remaining: "));
 				AddTooltip(searchTooltip("For every left/right direction press you get a 15 point reduction."
 					" For every frame that any of PKSHD buttons is pressed you get a 15 point reduction."
 					" Pressing a direction AND a button on the same frame combines these reductions."
@@ -5494,7 +5565,7 @@ void UI::drawSearchableWindows() {
 							instIt = moves.skipInstruction(instIt);
 						}
 						
-						textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Recovery Animation: "));
+						yellowText(searchFieldTitle("Recovery Animation: "));
 						ImGui::SameLine();
 						int recoveryElapsed = 0;
 						if (currentInst > markerPos) {
@@ -5515,19 +5586,19 @@ void UI::drawSearchableWindows() {
 				int mashedAmount = mashMax - player.pawn.bbscrvar5() / 10;
 				int mashedAmountPrev = mashMax - player.prevBbscrvar5 / 10;
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Stagger Duration: "));
+				yellowText(searchFieldTitle("Stagger Duration: "));
 				AddTooltip(searchTooltip("The original amount of stagger inflicted by the attack."));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d", mashMax);
 				ImGui::TextUnformatted(strbuf);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Mashed: "));
+				yellowText(searchFieldTitle("Mashed: "));
 				AddTooltip(searchTooltip("How much you've mashed vs how much you can possibly mash. Mashing above the limit achieves no extra stagger reduction."));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/%d", mashedAmount, player.pawn.bbscrvar3());
 				ImGui::TextUnformatted(strbuf);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Animation Duration: "));
+				yellowText(searchFieldTitle("Animation Duration: "));
 				AddTooltip(searchTooltip("The current stagger animation's duration."));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d%s", player.animFrame, player.hitstop ? " (is in hitstop)" : "");
@@ -5536,7 +5607,7 @@ void UI::drawSearchableWindows() {
 				float cursorY = ImGui::GetCursorPosY();
 				ImGuiStyle& style = ImGui::GetStyle();
 				ImGui::SetCursorPosY(cursorY + style.FramePadding.y);
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Progress Previous: "));
+				yellowText(searchFieldTitle("Progress Previous: "));
 				AddTooltip(searchTooltip("The progress 'previous' includes both the current duration of the stagger animation, as it is on THIS frame,"
 					" and a snapshot or a saved value of how much you've mashed so far, as it was on the PREVIOUS frame.\n"
 					" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
@@ -5581,7 +5652,7 @@ void UI::drawSearchableWindows() {
 				AddTooltip(stunmashSetting.c_str());
 				zerohspacing
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Progress Now: "));
+				yellowText(searchFieldTitle("Progress Now: "));
 				AddTooltip(searchTooltip("The progress 'now' includes both the current duration of the stagger animation, as it is on THIS frame,"
 					" and how much you've mashed so far, including THIS frame's delta-progress.\n"
 					" The value that the game checks for whether to decide if you should enter the stagger recovery animation or not,"
@@ -5602,12 +5673,12 @@ void UI::drawSearchableWindows() {
 				sprintf_s(strbuf, "%d/%d", progress > progressMax ? progressMax : progress, progressMax);
 				ImGui::TextUnformatted(strbuf);
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Started Recovery: "));
+				yellowText(searchFieldTitle("Started Recovery: "));
 				AddTooltip(searchTooltip("Has the 4f stagger recovery animation started?"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.pawn.bbscrvar() ? "Yes" : "No");
 				
-				textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Recovery Animation: "));
+				yellowText(searchFieldTitle("Recovery Animation: "));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/4", !player.pawn.bbscrvar() ? 0 : player.pawn.bbscrvar2() - 1);
 				ImGui::TextUnformatted(strbuf);
@@ -7012,7 +7083,7 @@ void UI::hitboxesHelpWindow() {
 		boxesDesc1 = settings.convertToUiDescription("Boxes are only displayed when \"dontShowBoxes\" is disabled.");
 	}
 	ImGui::TextUnformatted(boxesDesc1.c_str(), boxesDesc1.c_str() + boxesDesc1.size());
-	textUnformattedColored(YELLOW_COLOR, "Box colors and what they mean:");
+	yellowText("Box colors and what they mean:");
 	ImGui::Separator();
 	
 	textUnformattedColored(COLOR_HITBOX_IMGUI, "Red: ");
@@ -7170,10 +7241,10 @@ void UI::hitboxesHelpWindow() {
 		" They may be checking distance to a player's origin point or to their 'center',"
 		" depending on the type of move or projectile. All types of displayed interactions will be listed here down below.");
 	
-	textUnformattedColored(YELLOW_COLOR, "Ky Stun Edge, Charged Stun Edge and Sacred Edge:");
+	yellowText("Ky Stun Edge, Charged Stun Edge and Sacred Edge:");
 	ImGui::TextUnformatted("The box shows the area in which Ciel's origin point must be in order for the projectile to become Fortified.");
 	
-	textUnformattedColored(YELLOW_COLOR, "May Beach Ball:");
+	yellowText("May Beach Ball:");
 	static std::string mayBeachBall;
 	if (mayBeachBall.empty()) {
 		mayBeachBall = settings.convertToUiDescription("The circle shows the range in which May's center of body must be in order to jump on the ball."
@@ -7185,7 +7256,7 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(mayBeachBall.c_str());
 	
-	textUnformattedColored(YELLOW_COLOR, "May Dolphin:");
+	yellowText("May Dolphin:");
 	static std::string mayDolphin;
 	if (mayDolphin.empty()) {
 		mayDolphin = settings.convertToUiDescription("The circle shows the range in which May's behind the body point must be"
@@ -7197,7 +7268,7 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(mayDolphin.c_str());
 	
-	textUnformattedColored(YELLOW_COLOR, "Millia Pin:");
+	yellowText("Millia Pin:");
 	ImGui::TextUnformatted("The infinite vertical box shows the range in which Millia's origin point must be in order"
 		" for the Pin to be picked up. Millia must be in either of the following animations:");
   	ImGui::TextUnformatted("*) Stand to Crouch;");
@@ -7206,7 +7277,7 @@ void UI::hitboxesHelpWindow() {
   	ImGui::TextUnformatted("*) Roll (as of Rev2);");
   	ImGui::TextUnformatted("*) Doubleroll (as of Rev2).");
   	
-	textUnformattedColored(YELLOW_COLOR, "Millia Bad Moon Buff Height:");
+	yellowText("Millia Bad Moon Buff Height:");
 	static std::string milliaBadMoonHeightBuff;
 	if (milliaBadMoonHeightBuff.empty()) {
 		milliaBadMoonHeightBuff = settings.convertToUiDescription(
@@ -7217,13 +7288,13 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(milliaBadMoonHeightBuff.c_str());
 	
-	textUnformattedColored(YELLOW_COLOR, "Faust 5D:");
+	yellowText("Faust 5D:");
 	if (faust5D.empty()) {
 		faust5D = settings.convertToUiDescription(faust5DHelp);
 	}
 	ImGui::TextUnformatted(faust5D.c_str());
 	
-	textUnformattedColored(YELLOW_COLOR, "Bedman Task C Height Buff:");
+	yellowText("Bedman Task C Height Buff:");
 	static std::string bedmanTaskCHeightBuff;
 	if (bedmanTaskCHeightBuff.empty()) {
 		bedmanTaskCHeightBuff = settings.convertToUiDescription(
@@ -7235,7 +7306,7 @@ void UI::hitboxesHelpWindow() {
 	
 	ImGui::Separator();
 	
-	textUnformattedColored(YELLOW_COLOR, "Outlines lie within their boxes/on the edge");
+	yellowText("Outlines lie within their boxes/on the edge");
 	ImGui::TextUnformatted("If a box's outline is thick, it lies within that box's bounds,"
 		" meaning that two boxes intersect if either their fills or outlines touch or both. This"
 		" is relevant for throwboxes too.\n"
@@ -7244,7 +7315,7 @@ void UI::hitboxesHelpWindow() {
 		" the hurtbox's outline may be thin to create less clutter on the screen.");
 	ImGui::Separator();
 	
-	textUnformattedColored(YELLOW_COLOR, "General notes about throw boxes");
+	yellowText("General notes about throw boxes");
 	ImGui::TextUnformatted("If a move (like Riot Stamp) has a throw box as well as hitbox - both the hitbox and the throw boxes must connect.");
 	
 	ImGui::PopTextWrapPos();
@@ -7375,6 +7446,7 @@ void UI::framebarHelpWindow() {
 	MarkerHelpInfo markerHelps[] {
 		{ MARKER_TYPE_STRIKE_INVUL, false, "Strike invulnerability." },
 		{ MARKER_TYPE_THROW_INVUL, true, "Throw invulnerability." },
+		{ MARKER_TYPE_OTG, true, "OTG state - getting hit in this state reduces hitstun, damage and stun." },
 		{ MARKER_TYPE_SUPER_ARMOR, false, "Super armor, parry, azami,"
 			" projectile-only invulnerability, reflect or flick, or a combination of those." },
 		{ MARKER_TYPE_SUPER_ARMOR_FULL, false, "Red Blitz charge super armor or air Blitz super armor."
@@ -7422,10 +7494,7 @@ void UI::framebarHelpWindow() {
 	ImGui::SetCursorPosY(cursorY);
 	ImGui::TextUnformatted(searchTooltip("The move reached some kind of powerup on this frame. For example, for May 6P it means that,"
 		" starting from this frame, it deals more stun and has more pushback, while for Venom QV it means the ball has become"
-		" bigger, and so on.\n"
-		"\n"
-		"For Bedman's \x44\xC3\xA9\x6A\xC3\xA0 Vus it means the \x44\xC3\xA9\x6A\xC3\xA0 Vu is checking the existence of the"
-		" corresponding seal on that frame."));
+		" bigger, and so on.\n"));
 		
 	ImGui::Separator();
 	
@@ -8118,20 +8187,25 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 
 void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
 	frame.printInvuls(strbuf, sizeof strbuf - 7);
-	if (*strbuf != '\0') {
+	if (*strbuf != '\0' || frame.OTGInGeneral) {
 		ImGui::Separator();
-		textUnformattedColored(YELLOW_COLOR, "Invul: ");
-		const char* cantPos = strstr(strbuf, "can't armor unblockables");
-		if (cantPos) {
-			zerohspacing
-			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf, cantPos, true, true, false);
-			ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
-			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, "can't", nullptr, true, true, false);
-			ImGui::PopStyleColor();
-			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, cantPos + 5, nullptr, true, true, true);
-			_zerohspacing
-		} else {
-			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
+		if (*strbuf != '\0') {
+			yellowText("Invul: ");
+			const char* cantPos = strstr(strbuf, "can't armor unblockables");
+			if (cantPos) {
+				zerohspacing
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf, cantPos, true, true, false);
+				ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, "can't", nullptr, true, true, false);
+				ImGui::PopStyleColor();
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, cantPos + 5, nullptr, true, true, true);
+				_zerohspacing
+			} else {
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
+			}
+		}
+		if (frame.OTGInGeneral) {
+			ImGui::TextUnformatted("OTG state.");
 		}
 	}
 	if (frame.canYrc || frame.canYrcProjectile || frame.createdDangerousProjectile) {
@@ -8158,7 +8232,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 	if (frame.poisonDuration) {
 		ImGui::Separator();
-		textUnformattedColored(YELLOW_COLOR, "Poison duration: ");
+		yellowText("Poison duration: ");
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d/360", frame.poisonDuration);
 		ImGui::TextUnformatted(strbuf);
@@ -8166,18 +8240,21 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	CharacterType charType = endScene.players[playerIndex].charType;
 	if (frame.powerup) {
 		ImGui::Separator();
-		if (charType == CHARACTER_TYPE_BEDMAN
-				&& (
-					strcmp(frame.animSlangName, "DVA") == 0
-					|| strcmp(frame.animSlangName, "j.DVA") == 0
-					|| strcmp(frame.animSlangName, "DVA'") == 0
-					|| strcmp(frame.animSlangName, "j.DVA'") == 0
-					|| strcmp(frame.animSlangName, "DVB") == 0
-					|| strcmp(frame.animSlangName, "j.DVB") == 0
-					|| strcmp(frame.animSlangName, "DVC") == 0
-					|| strcmp(frame.animSlangName, "j.DVC") == 0
-				)) {
-			ImGui::TextUnformatted("On this frame, \x44\xC3\xA9\x6A\xC3\xA0 Vu checks the existence of the seal.");
+		if (frame.powerupExplanation && *frame.powerupExplanation != '\0') {
+			const char* newlinePos = nullptr;
+			static const char titleOverride[] = "//Title override: ";
+			if (strncmp(frame.powerupExplanation, titleOverride, sizeof titleOverride - 1) == 0) {
+				newlinePos = strchr(frame.powerupExplanation, '\n');
+			}
+			if (newlinePos) {
+				if (newlinePos != frame.powerupExplanation + sizeof titleOverride - 1) {
+					yellowText(frame.powerupExplanation + sizeof titleOverride - 1, newlinePos);
+				}
+				ImGui::TextUnformatted(newlinePos + 1);
+			} else {
+				yellowText("Reached powerup:");
+				ImGui::TextUnformatted(frame.powerupExplanation);
+			}
 		} else {
 			ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
 		}
@@ -8206,7 +8283,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	if (charType == CHARACTER_TYPE_SOL) {
 		if (frame.u.diInfo.current) {
 			ImGui::Separator();
-			textUnformattedColored(YELLOW_COLOR, "Dragon Install: ");
+			yellowText("Dragon Install: ");
 			ImGui::SameLine();
 			if (frame.u.diInfo.current == USHRT_MAX) {
 				ImGui::Text("overdue/%d", frame.u.diInfo.max);
@@ -8227,7 +8304,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.u.milliaInfo.chromingRose) {
 			if (!insertedSeparator) {
 				ImGui::Separator();
-				textUnformattedColored(YELLOW_COLOR, "ChromingRose: ");
+				yellowText("ChromingRose: ");
 				ImGui::SameLine();
 				ImGui::Text("%d/%d", frame.u.milliaInfo.chromingRose, frame.u.milliaInfo.chromingRoseMax);
 			}
@@ -8239,7 +8316,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				printChippInvisibility(frame.u.chippInfo.invis, endScene.players[playerIndex].maxDI);
 			}
 			if (frame.u.chippInfo.wallTime) {
-				textUnformattedColored(YELLOW_COLOR, "Wall time: ");
+				yellowText("Wall time: ");
 				ImGui::SameLine();
 				if (frame.u.chippInfo.wallTime == USHRT_MAX) {
 					ImGui::TextUnformatted("0/120");
@@ -8250,7 +8327,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		}
 	} else if (charType == CHARACTER_TYPE_ZATO) {
 		ImGui::Separator();
-		textUnformattedColored(YELLOW_COLOR, "Eddie Gauge: ");
+		yellowText("Eddie Gauge: ");
 		ImGui::SameLine();
 		ImGui::Text("%d/6000", frame.u.diInfo.current);
 	} else if (charType == CHARACTER_TYPE_FAUST) {
@@ -8262,14 +8339,14 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	} else if (charType == CHARACTER_TYPE_SLAYER) {
 		if (frame.u.diInfo.current) {
 			ImGui::Separator();
-			textUnformattedColored(YELLOW_COLOR, "Bloodsucking Universe Buff: ");
+			yellowText("Bloodsucking Universe Buff: ");
 			ImGui::SameLine();
 			ImGui::Text("%d/%d", frame.u.diInfo.current, frame.u.diInfo.max);
 		}
 	} else if (charType == CHARACTER_TYPE_INO) {
 		if (frame.u.inoInfo.airdashTimer) {
 			ImGui::Separator();
-			textUnformattedColored(YELLOW_COLOR, "Airdash active timer: ");
+			yellowText("Airdash active timer: ");
 			ImGui::SameLine();
 			ImGui::Text("%d", frame.u.inoInfo.airdashTimer);
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
@@ -8293,7 +8370,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			for (int i = 0; i < 4; ++i) {
 				SealInfo& seal = seals[i];
 				if (seal.timer) {
-					textUnformattedColored(YELLOW_COLOR, seal.txt);
+					yellowText(seal.txt);
 					ImGui::SameLine();
 					sprintf_s(strbuf, "%d/%d", seal.timer, seal.timerMax);
 					ImGui::TextUnformatted(strbuf);
@@ -8308,7 +8385,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1) {
 		ImGui::Separator();
-		textUnformattedColored(YELLOW_COLOR, "Crossup protection: ");
+		yellowText("Crossup protection: ");
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
 		ImGui::TextUnformatted(strbuf);
@@ -8446,7 +8523,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 					}
 					if (name && *name != '\0') {
 						ImGui::Separator();
-						textUnformattedColored(YELLOW_COLOR, "Anim: ");
+						yellowText("Anim: ");
 						ImGui::SameLine();
 						ImGui::TextUnformatted(name);
 					}
@@ -8459,16 +8536,20 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 						ui.drawPlayerFrameTooltipInfo((const PlayerFrame&)frame, playerIndex, wrapWidth);
 					} else if (frame.powerup) {
 						ImGui::Separator();
-						ImGui::TextUnformatted("The projectile reached some kind of powerup on this frame.");
+						if (owningPlayerCharType == CHARACTER_TYPE_INO) {
+							ImGui::TextUnformatted("The note reached the next level on this frame: it will deal one more hit.");
+						} else {
+							ImGui::TextUnformatted("The projectile reached some kind of powerup on this frame.");
+						}
 					}
 					if (playerIndex == -1) {
 						const Frame& projectileFrame = (const Frame&)frame;
 						if (owningPlayerCharType == CHARACTER_TYPE_INO
 								&& projectileFrame.animSlangName
-								&& strcmp(projectileFrame.animSlangName, "Note") == 0) {
+								&& strcmp(projectileFrame.animSlangName, "Note"_hardcode) == 0) {
 							// I am a dirty scumbar
 							ImGui::Separator();
-							textUnformattedColored(YELLOW_COLOR, "Note elapsed time: ");
+							yellowText("Note elapsed time: ");
 							ImGui::SameLine();
 							int lvl;
 							int time = correspondingPlayersFrame.u.inoInfo.noteTime;
@@ -8477,7 +8558,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							else if (time >= 44) lvl = 3;
 							else if (time >= 32) lvl = 2;
 							else lvl = 1;
-							sprintf_s(strbuf, "%d (Lvl %d)", time, lvl);
+							sprintf_s(strbuf, "%d (%d hits)", time, lvl);
 							ImGui::TextUnformatted(strbuf);
 						}
 					}
@@ -8487,10 +8568,27 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 								|| playerFrame.stop.isHitstun
 								|| playerFrame.stop.isBlockstun
 								|| playerFrame.stop.isStagger
-								|| playerFrame.stop.isWakeup) {
+								|| playerFrame.stop.isWakeup
+								|| playerFrame.stop.tumble) {
 							ImGui::Separator();
-							printFameStop(strbuf, sizeof strbuf, &playerFrame.stop, playerFrame.hitstop, playerFrame.hitstopMax, playerFrame.lastBlockWasIB, playerFrame.lastBlockWasFD);
-							ImGui::TextUnformatted(strbuf);
+							if (playerFrame.hitstop
+									|| playerFrame.stop.isHitstun
+									|| playerFrame.stop.isBlockstun
+									|| playerFrame.stop.isStagger
+									|| playerFrame.stop.isWakeup) {
+								printFameStop(strbuf,
+										sizeof strbuf,
+										&playerFrame.stop,
+										playerFrame.hitstop,
+										playerFrame.hitstopMax,
+										playerFrame.lastBlockWasIB,
+										playerFrame.lastBlockWasFD);
+								ImGui::TextUnformatted(strbuf);
+							}
+							if (playerFrame.stop.tumble) {
+								sprintf_s(strbuf, "%d/%d tumble", playerFrame.stop.tumble, playerFrame.stop.tumbleMax);
+								ImGui::TextUnformatted(strbuf);
+							}
 						}
 					} else {
 						if (frame.hitstop) {
@@ -8521,7 +8619,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							ImGui::TextUnformatted("A hit connected on this frame.");
 						}
 						if (frame.rcSlowdown) {
-							textUnformattedColored(YELLOW_COLOR, "RC-slowed down: ");
+							yellowText("RC-slowed down: ");
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", frame.rcSlowdown, frame.rcSlowdownMax);
 							ImGui::TextUnformatted(strbuf);
@@ -8734,7 +8832,7 @@ void printChippInvisibility(int current, int max) {
 		percentage = 120 - percentage;
 	}
 	percentage = 100 * percentage / 55;
-	textUnformattedColored(YELLOW_COLOR, "Invisibility: ");
+	yellowText("Invisibility: ");
 	ImGui::SameLine();
 	ImGui::Text("%s (%d/%d)",
 		ui.printDecimal(percentage, 0, 3, true),
@@ -8742,9 +8840,15 @@ void printChippInvisibility(int current, int max) {
 		max);
 }
 
-void textUnformattedColored(ImVec4 color, const char* str) {
+void textUnformattedColored(ImVec4 color, const char* str, const char* strEnd) {
 	ImGui::PushStyleColor(ImGuiCol_Text, color);
-	ImGui::TextUnformatted(str);
+	ImGui::TextUnformatted(str, strEnd);
+	ImGui::PopStyleColor();
+}
+
+void yellowText(const char* str, const char* strEnd) {
+	ImGui::PushStyleColor(ImGuiCol_Text, YELLOW_COLOR);
+	ImGui::TextUnformatted(str, strEnd);
 	ImGui::PopStyleColor();
 }
 
@@ -8957,7 +9061,7 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 	searchFieldTitle("Specials");
 	if (!cancels.gatlings.empty() || enableSpecialCancel || enableJumpCancel) {
 		if (insertSeparators) ImGui::Separator();
-		textUnformattedColored(YELLOW_COLOR, "Gatlings:");
+		yellowText("Gatlings:");
 		int count = 1;
 		if (!cancels.gatlings.empty()) {
 			count += printCancels(cancels.gatlings);
@@ -8972,9 +9076,9 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 	if (!cancels.whiffCancels.empty() || enableSpecials) {
 		if (insertSeparators) ImGui::Separator();
 		if (hitAlreadyHappened) {
-			textUnformattedColored(YELLOW_COLOR, "Late cancels:");
+			yellowText("Late cancels:");
 		} else {
-			textUnformattedColored(YELLOW_COLOR, "Whiff cancels:");
+			yellowText("Whiff cancels:");
 		}
 		int count = 1;
 		if (!cancels.whiffCancels.empty()) {
@@ -8993,9 +9097,9 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 			&& cancels.whiffCancelsNote) {
 		if (insertSeparators) ImGui::Separator();
 		if (hitAlreadyHappened) {
-			textUnformattedColored(YELLOW_COLOR, "Late cancels:");
+			yellowText("Late cancels:");
 		} else {
-			textUnformattedColored(YELLOW_COLOR, "Whiff cancels:");
+			yellowText("Whiff cancels:");
 		}
 		ImGui::TextUnformatted(cancels.whiffCancelsNote);
 	}
@@ -9136,7 +9240,7 @@ int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int g
 	ImGui::TableNextColumn();
 	const char* tooltip = "This equals (defense modifier + 256) * guts / 100 * damage / 256.";
 	zerohspacing
-	textUnformattedColored(YELLOW_COLOR, "Damage");
+	yellowText("Damage");
 	AddTooltip(tooltip);
 	ImGui::SameLine();
 	ImGui::TextUnformatted(" * (Def.Mod. * Guts)");
@@ -9150,7 +9254,7 @@ int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int g
 	ImGui::TextUnformatted(strbuf);
 	ImGui::SameLine();
 	sprintf_s(strbuf, "%d", x);
-	textUnformattedColored(YELLOW_COLOR, strbuf);
+	yellowText(strbuf);
 	_zerohspacing
 	
 	return x;
@@ -9196,7 +9300,7 @@ int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int atta
 	ImGui::TextUnformatted("Chip ");
 	AddTooltip(tooltip);
 	ImGui::SameLine();
-	textUnformattedColored(YELLOW_COLOR, "Damage");
+	yellowText("Damage");
 	AddTooltip(tooltip);
 	_zerohspacing
 	ImGui::TableNextColumn();
@@ -9208,7 +9312,7 @@ int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int atta
 	ImGui::TextUnformatted(strbuf);
 	ImGui::SameLine();
 	sprintf_s(strbuf, "%d", x);
-	textUnformattedColored(YELLOW_COLOR, strbuf);
+	yellowText(strbuf);
 	_zerohspacing
 	
 	return x;
@@ -9235,7 +9339,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 		x = x * damageScale / 100;
 		ImGui::TableNextColumn();
 		zerohspacing
-		textUnformattedColored(YELLOW_COLOR, "Damage");
+		yellowText("Damage");
 		ImGui::SameLine();
 		ImGui::TextUnformatted(" * Scale");
 		_zerohspacing
@@ -9245,7 +9349,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 		sprintf_s(strbuf, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), damageScale, '%');
 		ImGui::TextUnformatted(strbuf);
 		ImGui::SameLine();
-		textUnformattedColored(YELLOW_COLOR, ui.printDecimal(x, 1, 0, false));
+		yellowText(ui.printDecimal(x, 1, 0, false));
 		_zerohspacing
 	}
 	
@@ -9271,7 +9375,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 	ImGui::TableNextColumn();
 	const char* tooltip = "Damage * Defender's projectile damage scale";
 	zerohspacing
-	textUnformattedColored(YELLOW_COLOR, "Damage");
+	yellowText("Damage");
 	AddTooltip(tooltip);
 	ImGui::SameLine();
 	ImGui::TextUnformatted(" * Proj.Dmg.Scale");
@@ -9282,7 +9386,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 		zerohspacing
 		ImGui::TextUnformatted("Doesn't apply (");
 		ImGui::SameLine();
-		textUnformattedColored(YELLOW_COLOR, ui.printDecimal(x, 1, 0, false));
+		yellowText(ui.printDecimal(x, 1, 0, false));
 		ImGui::SameLine();
 		ImGui::TextUnformatted(")");
 		_zerohspacing
@@ -9291,7 +9395,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 		sprintf_s(strbuf, "%s * %d%c = ", ui.printDecimal(oldX, 1, 0, false), projectileDamageScale, '%');
 		ImGui::TextUnformatted("Doesn't apply (");
 		ImGui::SameLine();
-		textUnformattedColored(YELLOW_COLOR, ui.printDecimal(x, 1, 0, false));
+		yellowText(ui.printDecimal(x, 1, 0, false));
 		ImGui::SameLine();
 		ImGui::TextUnformatted(")");
 		_zerohspacing
@@ -9316,7 +9420,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 	if (hitResult == HIT_RESULT_ARMORED || hitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
 		ImGui::TableNextColumn();
 		zerohspacing
-		textUnformattedColored(YELLOW_COLOR, "Damage");
+		yellowText("Damage");
 		ImGui::SameLine();
 		ImGui::TextUnformatted(" * Armor Scale");
 		_zerohspacing
@@ -9330,7 +9434,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 		}
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d", x);
-		textUnformattedColored(YELLOW_COLOR, strbuf);
+		yellowText(strbuf);
 		if (hitResult != HIT_RESULT_ARMORED) {
 			ImGui::SameLine();
 			ImGui::TextUnformatted(")");
@@ -9655,7 +9759,7 @@ void UI::searchWindow() {
 
 void UI::printAttackLevel(const DmgCalc& dmgCalc) {
 	
-	textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Attack Level: "));
+	yellowText(searchFieldTitle("Attack Level: "));
 	ImGui::SameLine();
 	sprintf_s(strbuf, "%d", dmgCalc.attackLevel);
 	ImGui::TextUnformatted(strbuf);
@@ -9705,12 +9809,12 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 	zerohspacing
 	ImGui::TextUnformatted("Base ");
 	ImGui::SameLine();
-	textUnformattedColored(YELLOW_COLOR, "Damage");
+	yellowText("Damage");
 	_zerohspacing
 	
 	ImGui::TableNextColumn();
 	sprintf_s(strbuf, "%d", dmgCalc.dealtOriginalDamage);
-	textUnformattedColored(YELLOW_COLOR, strbuf);
+	yellowText(strbuf);
 	if (dmgCalc.dealtOriginalDamage != dmgCalc.standardDamage) {
 		ImGui::SameLine();
 		ImVec4* color;
@@ -9770,7 +9874,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 		
 		ImGui::TableNextColumn();
 		zerohspacing
-		textUnformattedColored(YELLOW_COLOR, "Damage");
+		yellowText("Damage");
 		AddTooltip(tooltip);
 		ImGui::SameLine();
 		ImGui::TextUnformatted(" * HP Scale");
@@ -9783,7 +9887,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 		ImGui::TextUnformatted(strbuf);
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d", x);
-		textUnformattedColored(YELLOW_COLOR, strbuf);
+		yellowText(strbuf);
 		_zerohspacing
 	}
 	
@@ -9794,7 +9898,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 		searchFieldTitle("Damage + 5");
 		zerohspacing
 		const char* tooltip = searchTooltip("In certain dust situations, the attack gains 5 extra damage.");
-		textUnformattedColored(YELLOW_COLOR, "Damage");
+		yellowText("Damage");
 		AddTooltip(tooltip);
 		ImGui::SameLine();
 		ImGui::TextUnformatted(" + 5");
@@ -9807,7 +9911,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 		ImGui::SameLine();
 		x += 5;
 		sprintf_s(strbuf, "%d", x);
-		textUnformattedColored(YELLOW_COLOR, strbuf);
+		yellowText(strbuf);
 	}
 	
 	if (dmgCalc.hitResult == HIT_RESULT_NORMAL) {
@@ -9832,7 +9936,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 		ImGui::TableNextColumn();
 		searchFieldTitle("Damage * OTG");
 		zerohspacing
-		textUnformattedColored(YELLOW_COLOR, "Damage");
+		yellowText("Damage");
 		ImGui::SameLine();
 		ImGui::TextUnformatted(" * OTG");
 		_zerohspacing
@@ -9842,7 +9946,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 		ImGui::TextUnformatted(strbuf);
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d", x);
-		textUnformattedColored(YELLOW_COLOR, strbuf);
+		yellowText(strbuf);
 		_zerohspacing
 	}
 	
@@ -9869,7 +9973,7 @@ void SkippedFramesInfo::print(bool canBlockButNotFD) const {
 		sprintf_s(strbuf, "Since previous displayed frame, skipped %df %s", elements[0].count, skippedFramesTypeToString(elements[0].type));
 		ImGui::TextUnformatted(strbuf);
 	} else {
-		textUnformattedColored(YELLOW_COLOR, "Since previous displayed frame, skipped:");
+		yellowText("Since previous displayed frame, skipped:");
 		for (int i = 0; i < count; ++i) {
 			sprintf_s(strbuf, "%df %s;", elements[i].count, skippedFramesTypeToString(elements[i].type));
 			ImGui::TextUnformatted(strbuf);
@@ -9936,7 +10040,7 @@ const char* comborepr(std::vector<int>& combo) {
 }
 
 void UI::printChargeInFrameTooltip(const char* title, unsigned char value, unsigned char valueMax, unsigned char valueLast) {
-	textUnformattedColored(YELLOW_COLOR, title);
+	yellowText(title);
 	ImGui::SameLine();
 	if (value == 255) {
 		sprintf_s(strbuf, "254+/%d", valueMax);
@@ -9953,7 +10057,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 	if (ringBuffer) {
 		ringBuffer += playerIndex;
 		if (showHoriz) {
-			textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Charge (left):"));
+			yellowText(searchFieldTitle("Charge (left):"));
 			ImGui::SameLine();
 			int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false);
 			if (charge != 0) {
@@ -9963,7 +10067,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 			}
 			ImGui::TextUnformatted(strbuf);
 			
-			textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Charge (right):"));
+			yellowText(searchFieldTitle("Charge (right):"));
 			ImGui::SameLine();
 			charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, true);
 			if (charge != 0) {
@@ -9975,7 +10079,7 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 		}
 		
 		if (showVert) {
-			textUnformattedColored(YELLOW_COLOR, searchFieldTitle("Charge (down):"));
+			yellowText(searchFieldTitle("Charge (down):"));
 			ImGui::SameLine();
 			int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_VERTICAL, false);
 			if (charge != 0) {
@@ -9998,6 +10102,7 @@ void UI::drawFramebars() {
 	const bool showStrikeInvulOnFramebar = settings.showStrikeInvulOnFramebar;
 	const bool showSuperArmorOnFramebar = settings.showSuperArmorOnFramebar;
 	const bool showThrowInvulOnFramebar = settings.showThrowInvulOnFramebar;
+	const bool showOTGOnFramebar = settings.showOTGOnFramebar;
 	ImGuiIO& io = ImGui::GetIO();
 	float settingsFramebarHeight = (float)settings.framebarHeight * io.DisplaySize.y / 720.F;
 	if (settingsFramebarHeight < 5.F) {
@@ -10058,7 +10163,7 @@ void UI::drawFramebars() {
 		maxTopPadding = otherTopPadding;
 	}
 	float bottomPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight;
-	if (bottomPadding < 0.F || !showThrowInvulOnFramebar) {
+	if (bottomPadding < 0.F || !showThrowInvulOnFramebar && !showOTGOnFramebar) {
 		bottomPadding = 0.F;
 	}
 	
@@ -10267,6 +10372,7 @@ void UI::drawFramebars() {
 	const FrameMarkerArt* frameMarkerArtArray = settings.useColorblindHelp ? frameMarkerArtColorblind : frameMarkerArtNonColorblind;
 	const FrameMarkerArt& strikeInvulMarker = frameMarkerArtArray[MARKER_TYPE_STRIKE_INVUL];
 	const FrameMarkerArt& throwInvulMarker = frameMarkerArtArray[MARKER_TYPE_THROW_INVUL];
+	const FrameMarkerArt& OTGMarker = frameMarkerArtArray[MARKER_TYPE_OTG];
 	
 	drawFramebars_hoveredFrameIndex = -1;
 	const float currentPositionHighlighterStartY = drawFramebars_y;
@@ -10497,10 +10603,12 @@ void UI::drawFramebars() {
 				}
 			}
 			
-			if (showStrikeInvulOnFramebar || showSuperArmorOnFramebar || showThrowInvulOnFramebar) {
+			if (showStrikeInvulOnFramebar || showSuperArmorOnFramebar || showThrowInvulOnFramebar || showOTGOnFramebar) {
 				
 				const float yTopRow = drawFramebars_y - markerPaddingHeight - frameMarkerHeight;
 				const float markerEndY = yTopRow + frameMarkerHeight;
+				const float yBottomRow = drawFramebars_y + drawFramebars_frameItselfHeight + markerPaddingHeight;
+				const float markerBottomEndY = yBottomRow + frameMarkerHeight;
 				const float thisMarkerWidthPremult = frameMarkerWidthOriginal / frameWidthOriginal;
 				const float powerupWidthPremult = powerupWidthOriginal / frameWidthOriginal;
 				
@@ -10522,8 +10630,10 @@ void UI::drawFramebars() {
 						float thisMarkerWidthOffset = (thisMarkerWidth - dims.width) * 0.5F;
 						ImVec2 markerStart { dims.x - thisMarkerWidthOffset, yTopRow };
 						ImVec2 markerEnd { dims.x + dims.width + thisMarkerWidthOffset, markerEndY };
+						ImVec2 bottomBarkerStart { markerStart.x, yBottomRow };
+						ImVec2 bottomBarkerEnd { markerEnd.x, markerBottomEndY };
 						
-						if (isPlayer ? playerFrame.powerup : projectileFrame.powerup) {
+						if (isPlayer ? playerFrame.powerup && !playerFrame.dontShowPowerupGraphic : projectileFrame.powerup) {
 							float powerupWidthOffset = (powerupWidthPremult * dims.width - dims.width) * 0.5F;
 							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
 								{
@@ -10574,14 +10684,24 @@ void UI::drawFramebars() {
 							
 							if (playerFrame.throwInvulInGeneral && showThrowInvulOnFramebar) {
 								
-								markerStart.y = drawFramebars_y + drawFramebars_frameItselfHeight + markerPaddingHeight;
-								markerEnd.y = markerStart.y + frameMarkerHeight;
-								
 								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-									markerStart,
-									markerEnd,
+									bottomBarkerStart,
+									bottomBarkerEnd,
 									throwInvulMarker.uvStart,
 									throwInvulMarker.uvEnd,
+									tint);
+								
+								bottomBarkerStart.y -= frameMarkerSideHeight;
+								bottomBarkerEnd.y -= frameMarkerSideHeight;
+							}
+							
+							if (playerFrame.OTGInGeneral && showOTGOnFramebar) {
+								
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+									bottomBarkerStart,
+									bottomBarkerEnd,
+									OTGMarker.uvStart,
+									OTGMarker.uvEnd,
 									tint);
 							}
 						}

@@ -817,9 +817,12 @@ public:
 	inline int exKizetsu() const { return *(int*)(ent + 0x24dc4); }  // special-faint (DI recovery)
 	// these variables mean different things in different CmnAct animations
 	// CmnActJitabataLoop: 0 or 1 - has started the 4f recovery animation
+	// CmnActKorogari: 0 or 2. On 1 waits for currentAnimDuration() to reach tumble, then proceeds to 2.
+	//                 On 2 waits 30 frames, then proceeds to CmnActBDownLoop
 	inline int bbscrvar() const { return *(int*)(ent + 0x24df4); }
 	// CmnActJitabataLoop: ongoing recovery animation duration so far. Maximum 5. On 6 you should be in neutral already
 	// CmnActRomanCancel: RC startup. Gets decremented when bbscrvar is 0 until it reaches 0, then bbscrvar becomes 1
+	// CmnActKorogari: this counts time to 30 when bbscrvar() is 2
 	inline int bbscrvar2() const { return *(int*)(ent + 0x24df8); }
 	// CmnActJitabataLoop: initially set to half the staggerDuration. If current animation duration reaches this, the combo is graybeat,
 	// and you can't mash bbscrvar5 below this. bbscrvar3 does not change
@@ -892,7 +895,7 @@ public:
 	inline int mem58() const { return *(int*)(ent + 0x180); }
 	inline int mem59() const { return *(int*)(ent + 0x184); }
 	inline int mem60() const { return *(int*)(ent + 0x188); }
-	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }
+	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }  // bbscript numbers them from 1, I number them from 0, so subtract 1 from the bbscript number
 	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }
 	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }
 	inline const char* gotoLabelRequest() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
@@ -980,7 +983,8 @@ public:
 	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }
 	inline int groundHitEffect() const { return *(int*)(ent + 0x6a4); }
 	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }
-	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }
+	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
+	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	

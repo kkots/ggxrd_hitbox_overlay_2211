@@ -21,6 +21,7 @@ enum FrameMarkerType {
 	MARKER_TYPE_SUPER_ARMOR,
 	MARKER_TYPE_SUPER_ARMOR_FULL,
 	MARKER_TYPE_THROW_INVUL,
+	MARKER_TYPE_OTG,
 	MARKER_TYPE_LAST
 };
 
@@ -158,6 +159,7 @@ private:
 	std::unique_ptr<PngResource> idleFrameElpheltRifleCanStopHolding;
 	std::unique_ptr<PngResource> strikeInvulFrame;
 	std::unique_ptr<PngResource> throwInvulFrame;
+	std::unique_ptr<PngResource> OTGFrame;
 	std::unique_ptr<PngResource> superArmorFrame;
 	std::unique_ptr<PngResource> superArmorFrameNonColorblind;
 	std::unique_ptr<PngResource> superArmorFrameFull;

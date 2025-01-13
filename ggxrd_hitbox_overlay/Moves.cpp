@@ -4,7 +4,10 @@
 #include "memoryFunctions.h"
 #include "EntityList.h"
 #include <vector>
+#include "EndScene.h"  // that's right, I'm including what I probably shouldn't and bypassing having to provide dependencies in function arguments
 // this whole, entire file is hardcode
+// !!! SOME SLANG NAMES FROM THIS FILE ARE HARDCODED IN UI.cpp!!!
+// Such names MUST be marked as being used elsewhere using this comment: // SLANGNAMEHARDCODE (with a space inbetween)
 
 Moves moves;
 
@@ -22,6 +25,8 @@ static bool sectionSeparator_breakTheLaw(PlayerInfo& ent);
 static bool sectionSeparator_FDB(PlayerInfo& ent);
 static bool sectionSeparator_soutenBC(PlayerInfo& ent);
 static bool sectionSeparator_QV(PlayerInfo& ent);
+static bool sectionSeparator_stingerS(PlayerInfo& ent);
+static bool sectionSeparator_stingerH(PlayerInfo& ent);
 static bool sectionSeparator_sultryPerformance(PlayerInfo& ent);
 static bool sectionSeparator_beakDriver(PlayerInfo& ent);
 static bool sectionSeparator_rifle(PlayerInfo& ent);
@@ -92,6 +97,7 @@ static bool isInVariableStartupSection_organOpen(PlayerInfo& ent);
 static bool isInVariableStartupSection_breakTheLaw(PlayerInfo& ent);
 static bool isInVariableStartupSection_fdb(PlayerInfo& ent);
 static bool isInVariableStartupSection_qv(PlayerInfo& ent);
+static bool isInVariableStartupSection_stinger(PlayerInfo& ent);
 static bool isInVariableStartupSection_inoDivekick(PlayerInfo& ent);
 static bool isInVariableStartupSection_sinRTL(PlayerInfo& ent);
 static bool isInVariableStartupSection_falconDive(PlayerInfo& ent);
@@ -169,6 +175,8 @@ static const char* displayNameSelector_stingerH(PlayerInfo& ent);
 static const char* displaySlangNameSelector_stingerH(PlayerInfo& ent);
 static const char* displayNameSelector_taskCAir(PlayerInfo& ent);
 static const char* displaySlangNameSelector_taskCAir(PlayerInfo& ent);
+static const char* framebarNameSelector_blueBurst(Entity ent);
+static const char* displayNameSelector_blueBurst(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -185,13 +193,27 @@ static bool canYrcProjectile_ino5D(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
+static const char* powerupExplanation_may6P(PlayerInfo& ent);
+static const char* powerupExplanation_may6H(PlayerInfo& ent);
 static bool powerup_qv(PlayerInfo& ent);
+static const char* powerupExplanation_qvA(PlayerInfo& ent);
+static const char* powerupExplanation_qvB(PlayerInfo& ent);
+static const char* powerupExplanation_qvC(PlayerInfo& ent);
+static const char* powerupExplanation_qvD(PlayerInfo& ent);
 static bool powerup_kyougenA(PlayerInfo& ent);
 static bool powerup_kyougenB(PlayerInfo& ent);
 static bool powerup_kyougenC(PlayerInfo& ent);
 static bool powerup_kyougenD(PlayerInfo& ent);
+static const char* powerupExplanation_kyougenA(PlayerInfo& ent);
+static const char* powerupExplanation_kyougenB(PlayerInfo& ent);
+static const char* powerupExplanation_kyougenC(PlayerInfo& ent);
+static const char* powerupExplanation_kyougenD(PlayerInfo& ent);
 static bool powerup_onpu(ProjectileInfo& projectile);
-static bool powerup_dvaju(PlayerInfo& ent);
+static bool powerup_djavu(PlayerInfo& ent);
+static const char* powerupExplanation_djavu(PlayerInfo& ent);
+static bool powerup_stingerS(PlayerInfo& ent);
+static bool powerup_stingerH(PlayerInfo& ent);
+static const char* powerupExplanation_stinger(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -297,14 +319,31 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "cmn_BurstObjGoldHontai", true);
 	move.framebarName = "Gold Burst";
+	move.framebarId = 111;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "cmn_BurstObjBlueHontai", true);
 	move.framebarName = "Blue Burst";
+	move.framebarNameSelector = framebarNameSelector_blueBurst;
+	move.framebarId = 111;
+	addMove(move);
+	
+	// This was spotted when throwing Blue Burst on the very frame it comes out
+	move = MoveInfo(GENERAL, "cmn_BurstObjBlueObject", true);
+	move.framebarName = "Blue Burst";
+	move.framebarNameSelector = framebarNameSelector_blueBurst;
+	move.framebarId = 111;
+	addMove(move);
+	
+	// This was spotted when throwing Gold Burst on the very frame it comes out
+	move = MoveInfo(GENERAL, "cmn_BurstObjGoldObject", true);
+	move.framebarName = "Gold Burst";
+	move.framebarId = 111;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnDamageBurst");
 	move.displayName = "Blue Burst";
+	move.displayNameSelector = displayNameSelector_blueBurst;
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
@@ -625,7 +664,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActWallHaritsukiLand");
-	move.displayName = "Slumping Down Wall or Lying After Wallslump";
+	move.displayName = "Landed From Wallslump";
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActWallHaritsukiGetUp");
@@ -1979,6 +2018,7 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_may6P;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
 	move.powerup = powerup_may6P;
+	move.powerupExplanation = powerupExplanation_may6P;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6D");
@@ -1988,6 +2028,7 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_may6H;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
 	move.powerup = powerup_may6H;
+	move.powerupExplanation = powerupExplanation_may6H;
 	addMove(move);
 	
 	// May riding horizontal Dolphin
@@ -4583,16 +4624,24 @@ bool Moves::onDllMain() {
 	move.displayName = "H Stinger Aim";
 	move.displayNameSelector = displayNameSelector_stingerH;
 	move.slangName = "H Stinger";
+	move.sectionSeparator = sectionSeparator_stingerH;
+	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
 	move.displaySlangNameSelector = displaySlangNameSelector_stingerH;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.powerup = powerup_stingerH;
+	move.powerupExplanation = powerupExplanation_stinger;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimC");
 	move.displayName = "S Stinger Aim";
 	move.displayNameSelector = displayNameSelector_stingerS;
 	move.slangName = "S Stinger";
+	move.sectionSeparator = sectionSeparator_stingerS;
+	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
 	move.displaySlangNameSelector = displaySlangNameSelector_stingerS;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.powerup = powerup_stingerS;
+	move.powerupExplanation = powerupExplanation_stinger;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidD");
@@ -4618,6 +4667,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
+	move.powerupExplanation = powerupExplanation_qvA;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveB");
@@ -4626,6 +4676,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
+	move.powerupExplanation = powerupExplanation_qvB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveC");
@@ -4634,6 +4685,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
+	move.powerupExplanation = powerupExplanation_qvC;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveD");
@@ -4642,6 +4694,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
+	move.powerupExplanation = powerupExplanation_qvD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "RedHail");
@@ -4845,7 +4898,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkai");
 	move.displayName = "Antidepressant Scale";
-	move.slangName = "Note";
+	move.slangName = "Note";  // SLANGNAMEHARDCODE
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
@@ -4864,6 +4917,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenA;
+	move.powerupExplanation = powerupExplanation_kyougenA;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenB");
@@ -4874,6 +4928,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenB;
+	move.powerupExplanation = powerupExplanation_kyougenB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenC");
@@ -4884,6 +4939,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenC;
+	move.powerupExplanation = powerupExplanation_kyougenC;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenD");
@@ -4894,6 +4950,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenD;
+	move.powerupExplanation = powerupExplanation_kyougenD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "CommandThrow");
@@ -5082,13 +5139,17 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A");
 	move.displayName = "P \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVA";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A_Air");
 	move.displayName = "P Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVA";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B");
@@ -5104,13 +5165,17 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B");
 	move.displayName = "K \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVA'";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B_Air");
 	move.displayName = "K Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVA'";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed");
@@ -5126,13 +5191,17 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C");
 	move.displayName = "S \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVB";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C_Air");
 	move.displayName = "S Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVB";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed");
@@ -5150,13 +5219,17 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D");
 	move.displayName = "H \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "DVC";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D_Air");
 	move.displayName = "H Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
 	move.slangName = "j.DVC";
-	move.powerup = powerup_dvaju;
+	move.powerup = powerup_djavu;
+	move.powerupExplanation = powerupExplanation_djavu;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Alarm");
@@ -7103,6 +7176,14 @@ bool sectionSeparator_QV(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "End") == 0
 		|| !ent.pawn.mem45() && ent.pawn.currentAnimDuration() > 12;
 }
+bool sectionSeparator_stingerS(PlayerInfo& ent) {
+	return strcmp(ent.pawn.gotoLabelRequest(), "Shot") == 0
+		|| !ent.pawn.hasUpon(3) && ent.pawn.currentAnimDuration() > 9;
+}
+bool sectionSeparator_stingerH(PlayerInfo& ent) {
+	return strcmp(ent.pawn.gotoLabelRequest(), "Shot") == 0
+		|| !ent.pawn.hasUpon(3) && ent.pawn.currentAnimDuration() > 3;
+}
 bool sectionSeparator_sultryPerformance(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0
 		|| !ent.pawn.hasUpon(3) && ent.pawn.currentAnimDuration() > 9;
@@ -7513,6 +7594,9 @@ bool isInVariableStartupSection_fdb(PlayerInfo& ent) {
 bool isInVariableStartupSection_qv(PlayerInfo& ent) {
 	return ent.pawn.mem45() && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
+bool isInVariableStartupSection_stinger(PlayerInfo& ent) {
+	return ent.pawn.hasUpon(3) && ent.pawn.gotoLabelRequest()[0] == '\0';
+}
 bool isInVariableStartupSection_inoDivekick(PlayerInfo& ent) {
 	return ent.pawn.hasUpon(3) && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
@@ -7913,6 +7997,14 @@ const char* displaySlangNameSelector_taskCAir(PlayerInfo& ent) {
 		return "Air Bed Slam";
 	}
 }
+const char* framebarNameSelector_blueBurst(Entity ent) {
+	int team = ent.team();
+	if (!(team == 0 || team == 1)) return "Blue Burst";
+	return endScene.players[team].wasOtg ? "OTG Burst" : "Blue Burst";
+}
+const char* displayNameSelector_blueBurst(PlayerInfo& ent) {
+	return ent.wasOtg ? "OTG Burst" : "Blue Burst";
+}
 
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
@@ -8047,6 +8139,20 @@ bool canYrcProjectile_ino5D(PlayerInfo& player) {
 bool powerup_may6P(PlayerInfo& player) {
 	return player.pawn.dealtAttack()->stun > player.prevFrameStunValue;
 }
+const char* powerupExplanation_may6P(PlayerInfo& player) {
+	int stun = player.pawn.dealtAttack()->stun;
+	if (stun == 110) {
+		return "Base Stun Value increased from 88 to 110. Blockstun increased from 16 to 23. Pushback modifier increased from 100% to 125%.";
+	} else if (stun == 121) {
+		return "Base Stun Value increased from 110 to 121. Blockstun increased from 23 to 26. Pushback modifier increased from 125% to 150%.";
+	} else if (stun == 132) {
+		return "Base Stun Value increased from 121 to 132. Blockstun increased from 26 to 30. Pushback modifier increased from 150% to 175%.";
+	} else if (stun == 143) {
+		return "Base Stun Value increased from 132 to 143. Blockstun increased from 30 to 34. Pushback modifier increased from 175% to 200%."
+			" Gives wallstick in the corner.";
+	}
+	return "";
+}
 bool powerup_may6H(PlayerInfo& player) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	fillMay6HOffsets(func);
@@ -8056,17 +8162,144 @@ bool powerup_may6H(PlayerInfo& player) {
 	}
 	return false;
 }
+const char* powerupExplanation_may6H(PlayerInfo& player) {
+	return "Became an overhead.";
+}
 bool powerup_qv(PlayerInfo& player) {
 	return player.prevFrameMem46 != player.pawn.mem46();
+}
+const char* powerupExplanation_qv(int level) {
+	if (level == 1) return "Ball reached level 1.";
+	if (level == 2) return "Ball reached level 2.";
+	if (level == 3) return "Ball reached level 3.";
+	if (level == 4) return "Ball reached level 4.";
+	if (level == 5) return "Ball reached level 5.";
+	return "Ball reached level ???.";
+}
+const char* powerupExplanation_qvA(PlayerInfo& player) {
+	int level = 0;
+	Entity p = player.pawn.stackEntity(0);
+	if (p) {
+		level = p.storage(0);
+	}
+	return powerupExplanation_qv(level);
+}
+const char* powerupExplanation_qvB(PlayerInfo& player) {
+	int level = 0;
+	Entity p = player.pawn.stackEntity(1);
+	if (p) {
+		level = p.storage(0);
+	}
+	return powerupExplanation_qv(level);
+}
+const char* powerupExplanation_qvC(PlayerInfo& player) {
+	int level = 0;
+	Entity p = player.pawn.stackEntity(2);
+	if (p) {
+		level = p.storage(0);
+	}
+	return powerupExplanation_qv(level);
+}
+const char* powerupExplanation_qvD(PlayerInfo& player) {
+	int level = 0;
+	Entity p = player.pawn.stackEntity(3);
+	if (p) {
+		level = p.storage(0);
+	}
+	return powerupExplanation_qv(level);
+}
+void Moves::fillInVenomStingerPowerup(BYTE* func, std::vector<int>& powerups) {
+	if (!powerups.empty()) return;
+	bool foundSendSignal = false;
+	BYTE* instr;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sendSignal) {
+			foundSendSignal = true;
+		} else if (foundSendSignal && type == instr_sprite) {
+			powerups.push_back(instr - func);
+			foundSendSignal = false;
+		}
+	}
+}
+const char* powerupExplanation_stinger(PlayerInfo& player) {
+	int level = 0;
+	Entity p = player.pawn.stackEntity(4);
+	if (p) level = p.storage(0);
+	if (level == 5) return "Ball reached level 5.";
+	if (level == 4) return "Ball reached level 4.";
+	if (level == 3) return "Ball reached level 3.";
+	if (level == 2) return "Ball reached level 2.";
+	if (level == 1) return "Ball reached level 1.";
+	return "Ball reached level ???.";
+}
+bool powerup_stinger(PlayerInfo& player, std::vector<int>& powerups) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	moves.fillInVenomStingerPowerup(func, powerups);
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	for (int i = 0; i < (int)powerups.size(); ++i) {
+		if (offset == powerups[i]) {
+			return !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0;
+		}
+	}
+	return false;
+}
+bool powerup_stingerS(PlayerInfo& player) {
+	return powerup_stinger(player, moves.venomStingerSPowerups);
+}
+bool powerup_stingerH(PlayerInfo& player) {
+	return powerup_stinger(player, moves.venomStingerHPowerups);
 }
 bool powerup_kyougenA(PlayerInfo& ent) {
 	return ent.prevFrameGroundHitEffect != 8 && ent.pawn.groundHitEffect() == 8;
 }
+const char* powerupExplanation_kyougenA(PlayerInfo& ent) {
+	return "Ground bounces on hit.";
+}
 bool powerup_kyougenB(PlayerInfo& ent) {
 	return ent.prevFrameGroundBounceCount != 1 && ent.pawn.groundBounceCount() == 1;
 }
+const char* powerupExplanation_kyougenB(PlayerInfo& ent) {
+	return "Without the powerup, this move doesn't ground bounce, but KDs on normal hit."
+	" It ground bounces on CH with -350.00 starting speed Y and 227.50 starting speed X."
+	" You can combo from this if it was an airhit, and if it was a ground hit, you might need RRC.\n"
+	"With the powerup, it ground bounces even on normal hit,"
+	" with -250.00 starting speed Y and 175.00 starting speed X, and is very easy to combo from"
+	" on both air and ground hits.\n"
+	"With the powerup and the counterhit, it launches with -300.00 starting speed Y"
+	" and 50.00 starting speed X.";
+}
 bool powerup_kyougenC(PlayerInfo& ent) {
 	return ent.prevFrameTumbleDuration == INT_MAX && ent.pawn.tumbleDuration() != INT_MAX;
+}
+const char* powerupExplanation_kyougenC(PlayerInfo& ent) {
+	return "Without the powerup, this move doesn't ground bounce, but KDs on normal ground hit"
+	" and wallbounces on normal air hit, with no KD, and you can't combo from that without RRC.\n"
+	"On air CH, it ground bounces and then wall bounces, and can be easily combo'd from both midscreen and in the corner.\n"
+	"On ground CH, it ground bounces, and can be combo'd from with a fast move both midscreen and in the corner.\n"
+	"With the powerup, on normal air or ground hit, it tumbles at 300.00 starting speed X and gives 51-52 tumble frames.\n"
+	"With the powerup, on CH air or ground hit, it tumbles at 245.00 starting speed X and gives 69-70 tumble frames.";
+}
+const char* powerupExplanation_kyougenD(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	BYTE* instr = moves.skipInstruction(func);
+	instr = moves.skipInstruction(instr);
+	instr = moves.skipInstruction(instr);
+	instr = moves.skipInstruction(instr);
+	instr = moves.skipInstruction(instr);
+	bool isRev2 = moves.instructionType(instr) == Moves::instr_hitAirPushbackX;
+	if (isRev2) {
+		return "Increases maximum number of hits from 3 to 5 and removes landing recovery.";
+	} else {
+		return "Increases maximum number of hits from 3 to 5 and increases speed X and Y"
+			" that is given to the opponent on hit from:\n"
+			"70.00 speed X, 175.00 speed Y without the powerup to\n"
+			"140.00 speed X, 180.00 speed Y with the powerup.";
+	}
 }
 bool powerup_kyougenD(PlayerInfo& ent) {
 	return ent.prevFrameMaxHit != 5 && ent.pawn.maxHit() == 5;
@@ -8085,8 +8318,12 @@ bool powerup_onpu(ProjectileInfo& projectile) {
 			&& strcmp(projectile.ptr.gotoLabelRequest(), "hit") != 0
 		);
 }
-bool powerup_dvaju(PlayerInfo& ent) {
+bool powerup_djavu(PlayerInfo& ent) {
 	return ent.animFrame == 6 && !ent.pawn.isRCFrozen();
+}
+const char* powerupExplanation_djavu(PlayerInfo& ent) {
+	return "//Title override: \n"
+		"On this frame \x44\xC3\xA9\x6A\xC3\xA0 Vu checks for the existence of the seal.";
 }
 
 void fillMay6HOffsets(BYTE* func) {

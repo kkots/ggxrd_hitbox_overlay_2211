@@ -858,7 +858,35 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.blockstun = ent.blockstun();
 			int prevFrameHitstun = player.hitstun;
 			player.hitstun = ent.hitstun();
+			player.tumble = 0;
+			player.displayTumble = false;
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
+			if (cmnActIndex == CmnActBDownLoop
+					|| cmnActIndex == CmnActFDownLoop
+					|| cmnActIndex == CmnActVDownLoop
+					|| cmnActIndex == CmnActBDown2Stand
+					|| cmnActIndex == CmnActFDown2Stand
+					|| cmnActIndex == CmnActWallHaritsukiLand
+					|| cmnActIndex == CmnActWallHaritsukiGetUp
+					|| cmnActIndex == CmnActKizetsu) {
+				player.hitstun = 0;
+			}
+			if (cmnActIndex == CmnActKorogari) {
+				if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
+					player.tumbleContaminatedByRCSlowdown = false;
+					player.tumbleMax = ent.tumble() + 30 - 1;
+					player.tumbleStartedInHitstop = ent.hitstop() > 0;
+					player.tumbleElapsed = 0;
+				}
+				player.displayTumble = true;
+				if (ent.bbscrvar() == 0) {
+					int animDur = ent.currentAnimDuration();
+					player.tumble = ent.tumble() - (animDur == 1 ? 1 : player.tumbleStartedInHitstop ? animDur - 1 : animDur) + 30
+						+ (!player.tumbleStartedInHitstop ? 1 : 0);
+				} else {
+					player.tumble = 30 - ent.bbscrvar2() + 1;
+				}
+			}
 			if (player.hitstun == prevFrameHitstun + 9 && (
 					cmnActIndex == CmnActBDownBound
 					|| cmnActIndex == CmnActFDownBound
@@ -1196,6 +1224,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				++player.hitstunElapsed;
 				if (player.rcSlowedDown) player.hitstunContaminatedByRCSlowdown = true;
 			}
+			if (player.tumble && !player.hitstop && !superflashInstigator) {
+				++player.tumbleElapsed;
+				if (player.rcSlowedDown) player.tumbleContaminatedByRCSlowdown = true;
+			}
 			if (player.hitstop && !superflashInstigator) ++player.hitstopElapsed;
 			int newSlow;
 			int unused;
@@ -1213,6 +1245,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newSlow,
 				&player.hitstunWithSlow,
 				&player.hitstunMaxWithSlow,
+				&unused);
+			PlayerInfo::calculateSlow(player.tumbleElapsed,
+				player.tumble,
+				newSlow,
+				&player.tumbleWithSlow,
+				&player.tumbleMaxWithSlow,
 				&unused);
 			PlayerInfo::calculateSlow(player.blockstunElapsed,
 				player.blockstun - (player.hitstop ? 1 : 0),
@@ -3273,6 +3311,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.canBlock = player.canBlock;
 				currentFrame.strikeInvulInGeneral = player.strikeInvul.active;
 				currentFrame.throwInvulInGeneral = player.throwInvul.active;
+				currentFrame.OTGInGeneral = player.wasOtg;
 				currentFrame.superArmorActiveInGeneral = player.superArmor.active || player.projectileOnlyInvul.active || player.reflect.active;
 				
 				#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) currentFrame.fieldName = player.fieldName.active;
@@ -3323,6 +3362,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.value = min(player.staggerWithSlow, 8192);
 					currentFrame.stop.valueMax = min(player.staggerMaxWithSlow, 2047);
 					currentFrame.stop.valueMaxExtra = 0;
+					currentFrame.stop.tumble = 0;
 				} else if (player.blockstun) {
 					currentFrame.stop.isBlockstun = true;
 					currentFrame.stop.isHitstun = false;
@@ -3337,6 +3377,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.stop.valueMax = min(player.blockstunMax, 2047);
 						currentFrame.stop.valueMaxExtra = min(player.blockstunMaxLandExtra, 15);
 					}
+					currentFrame.stop.tumble = 0;
 				} else if (player.hitstun && player.inHitstun) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = true;
@@ -3351,6 +3392,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.stop.valueMax = min(player.hitstunMax, 2047);
 						currentFrame.stop.valueMaxExtra = min(player.hitstunMaxFloorbounceExtra, 15);
 					}
+					if (player.cmnActIndex == CmnActKorogari) {
+						currentFrame.stop.tumble = min(player.tumbleWithSlow, 0xffff);
+						currentFrame.stop.tumbleMax = min(player.tumbleMaxWithSlow, 0xffff);
+					} else {
+						currentFrame.stop.tumble = 0;
+						currentFrame.stop.tumbleMax = 0;
+					}
 				} else if (player.wakeupTiming) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
@@ -3359,11 +3407,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.value = min(player.wakeupTimingWithSlow, 8192);
 					currentFrame.stop.valueMax = min(player.wakeupTimingMaxWithSlow, 2047);
 					currentFrame.stop.valueMaxExtra = 0;
+					currentFrame.stop.tumble = 0;
+					currentFrame.stop.tumbleMax = 0;
 				} else {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = false;
 					currentFrame.stop.isWakeup = false;
+					if (player.cmnActIndex == CmnActKorogari) {
+						currentFrame.stop.tumble = min(player.tumbleWithSlow, 0xffff);
+						currentFrame.stop.tumbleMax = min(player.tumbleMaxWithSlow, 0xffff);
+					} else {
+						currentFrame.stop.tumble = 0;
+						currentFrame.stop.tumbleMax = 0;
+					}
 				}
 				currentFrame.IBdOnThisFrame = player.inBlockstunNextFrame
 					&& player.lastBlockWasIB;
@@ -3426,6 +3483,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.chargeDownLast = player.chargeDownLast;
 				
 				currentFrame.powerup = player.move.powerup && player.move.powerup(player);
+				if (currentFrame.powerup) {
+					currentFrame.powerupExplanation = player.move.powerupExplanation ? player.move.powerupExplanation(player) : nullptr;
+					currentFrame.dontShowPowerupGraphic = player.move.dontShowPowerupGraphic ? player.move.dontShowPowerupGraphic(player) : false;
+				} else {
+					currentFrame.powerupExplanation = nullptr;
+					currentFrame.dontShowPowerupGraphic = false;
+				}
 				currentFrame.airthrowDisabled = player.airborne && player.pawn.airthrowDisabled();
 				currentFrame.running = player.pawn.running();
 				currentFrame.cantBackdash = player.wasCantBackdashTimer != 0;
@@ -5841,6 +5905,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			}
 			collectFrameCancels(player, player.wasCancels);
 			player.wasCantBackdashTimer = pawn.cantBackdashTimer();
+			player.wasOtg = pawn.isOtg();
 		}
 	}
 	return result;

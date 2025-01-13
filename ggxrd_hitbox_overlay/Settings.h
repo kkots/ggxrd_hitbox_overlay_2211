@@ -81,6 +81,7 @@ public:
 	std::atomic_bool showStrikeInvulOnFramebar = true;
 	std::atomic_bool showSuperArmorOnFramebar = true;
 	std::atomic_bool showThrowInvulOnFramebar = true;
+	std::atomic_bool showOTGOnFramebar = true;
 	std::atomic_bool showFirstFramesOnFramebar = true;
 	std::atomic_bool considerSimilarFrameTypesSameForFrameCounts = true;
 	std::atomic_bool considerSimilarIdleFramesSameForFrameCounts = false;

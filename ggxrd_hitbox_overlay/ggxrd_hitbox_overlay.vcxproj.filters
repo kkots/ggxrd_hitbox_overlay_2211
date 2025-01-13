@@ -598,6 +598,9 @@
     <Image Include="..\images\EddieIdleFrame_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\images\OTG.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\MyPixelShader.hlsl">

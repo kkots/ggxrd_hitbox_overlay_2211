@@ -126,7 +126,9 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr) \
 	MOVE_INFO_EXEC(projectileFunc_t, projectileFuncValue, projectilePowerup, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
-	MOVE_INFO_EXEC(bool, boolValue, dontSkipGrab, false)
+	MOVE_INFO_EXEC(bool, boolValue, dontSkipGrab, false) \
+	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, powerupExplanation, nullptr) \
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, dontShowPowerupGraphic, nullptr)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -168,6 +170,7 @@ public:
 		instr_storeValue = 46,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
+		instr_hitAirPushbackX = 754,
 		instr_deleteMoveForceDisableFlag = 1603,
 		instr_sendSignal = 1766,
 		instr_exPointFReset = 2161,
@@ -232,6 +235,9 @@ public:
 	MayIrukasanRidingObjectInfo bedmanSealC { 0 };
 	MayIrukasanRidingObjectInfo bedmanSealD { 0 };
 	int getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal);
+	std::vector<int> venomStingerSPowerups;
+	std::vector<int> venomStingerHPowerups;
+	void fillInVenomStingerPowerup(BYTE* func, std::vector<int>& powerups);
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

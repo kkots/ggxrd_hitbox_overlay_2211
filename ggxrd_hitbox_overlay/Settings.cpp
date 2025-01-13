@@ -328,6 +328,9 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(showThrowInvulOnFramebar), "Show Throw Invul", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; Throw invul will be displayed using a yellow v underneath a frame.");
+	registerOtherDescription(settingAndItsName(showOTGOnFramebar), "Show OTG", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; OTG state will be displayed using a gray v underneath a frame.");
 	registerOtherDescription(settingAndItsName(showFirstFramesOnFramebar), "Show First Frames", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
 			"; When a player's animation changes from one to another, except in certain cases, the first frame of the new animation is denoted with\n"
@@ -713,6 +716,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool showThrowInvulOnFramebarParsed = false;
 	
+	bool showOTGOnFramebarParsed = false;
+	
 	bool showFirstFramesOnFramebarParsed = false;
 	
 	bool considerSimilarFrameTypesSameForFrameCountsParsed = false;
@@ -936,6 +941,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						case offsetof(Settings, showThrowInvulOnFramebar):
 							if (!showThrowInvulOnFramebarParsed) {
 								showThrowInvulOnFramebarParsed = parseBoolean("showThrowInvulOnFramebar", keyValue, showThrowInvulOnFramebar);
+							}
+							break;
+						case offsetof(Settings, showOTGOnFramebar):
+							if (!showOTGOnFramebarParsed) {
+								showOTGOnFramebarParsed = parseBoolean("showOTGOnFramebar", keyValue, showOTGOnFramebar);
 							}
 							break;
 						case offsetof(Settings, showFirstFramesOnFramebar):
@@ -1214,6 +1224,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showThrowInvulOnFramebarParsed) {
 		showThrowInvulOnFramebar = true;
+	}
+	
+	if (!showOTGOnFramebarParsed) {
+		showOTGOnFramebar = true;
 	}
 	
 	if (!showFirstFramesOnFramebarParsed) {
@@ -1880,6 +1894,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("showStrikeInvulOnFramebar", formatBoolean(showStrikeInvulOnFramebar), getOtherINIDescription(&showStrikeInvulOnFramebar));
 	replaceOrAddSetting("showSuperArmorOnFramebar", formatBoolean(showSuperArmorOnFramebar), getOtherINIDescription(&showSuperArmorOnFramebar));
 	replaceOrAddSetting("showThrowInvulOnFramebar", formatBoolean(showThrowInvulOnFramebar), getOtherINIDescription(&showThrowInvulOnFramebar));
+	replaceOrAddSetting("showOTGOnFramebar", formatBoolean(showOTGOnFramebar), getOtherINIDescription(&showOTGOnFramebar));
 	replaceOrAddSetting("showFirstFramesOnFramebar", formatBoolean(showFirstFramesOnFramebar), getOtherINIDescription(&showFirstFramesOnFramebar));
 	replaceOrAddSetting("considerSimilarFrameTypesSameForFrameCounts", formatBoolean(considerSimilarFrameTypesSameForFrameCounts), getOtherINIDescription(&considerSimilarFrameTypesSameForFrameCounts));
 	replaceOrAddSetting("considerSimilarIdleFramesSameForFrameCounts", formatBoolean(considerSimilarIdleFramesSameForFrameCounts), getOtherINIDescription(&considerSimilarIdleFramesSameForFrameCounts));
