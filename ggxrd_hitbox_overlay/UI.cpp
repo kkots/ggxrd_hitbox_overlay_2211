@@ -3870,51 +3870,22 @@ void UI::drawSearchableWindows() {
 				ImGui::SameLine();
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
 				
-				int timeDuration = player.noteTime == -1 ? player.lastNoteTime : player.noteTime;
+				int timeDuration = player.noteTimeWithSlow;
 				
 				yellowText(searchFieldTitle("Note time elapsed:"));
-				tooltip = searchTooltip("Advances slower during RC slowdown.");
+				tooltip = searchTooltip("Format: How much time must elapse since the creation of the Note /"
+					" How much time must elapse since the creation of the Note in order to reach the next level.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
-				sprintf_s(strbuf, "%df", timeDuration);
+				
+				if (player.noteLevel == 5) {
+					txt = "Reached max";
+				} else {
+					txt = printDecimal(player.noteTimeWithSlowMax, 0, 0, false);
+				}
+				
+				sprintf_s(strbuf, "%d/%s (%d hits)", timeDuration, txt, player.noteLevel);
 				ImGui::TextUnformatted(strbuf);
-				AddTooltip(tooltip);
-				
-				yellowText(searchFieldTitle("Note's max number of hits:"));
-				tooltip = searchTooltip("Depends on time since creation of the Note and until its collision.");
-				AddTooltip(tooltip);
-				ImGui::SameLine();
-				if (timeDuration >= 68) {
-					txt = "5";
-				} else if (timeDuration >= 56) {
-					txt = "4";
-				} else if (timeDuration >= 44) {
-					txt = "3";
-				} else if (timeDuration >= 32) {
-					txt = "2";
-				} else {
-					txt = "1";
-				}
-				ImGui::TextUnformatted(txt);
-				
-				yellowText(searchFieldTitle("Note next level at:"));
-				tooltip = searchTooltip("How much time must elapse since the creation of the Note in order to reach the next level.");
-				AddTooltip(tooltip);
-				ImGui::SameLine();
-				if (timeDuration >= 68) {
-					ImGui::TextUnformatted("Reached max");
-				} else {
-					if (timeDuration >= 56) {
-						txt = "68f";
-					} else if (timeDuration >= 44) {
-						txt = "56f";
-					} else if (timeDuration >= 32) {
-						txt = "44f";
-					} else {
-						txt = "32f";
-					}
-					ImGui::TextUnformatted(txt);
-				}
 				AddTooltip(tooltip);
 				
 			} else if (player.charType == CHARACTER_TYPE_BEDMAN) {
@@ -8551,14 +8522,15 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							ImGui::Separator();
 							yellowText("Note elapsed time: ");
 							ImGui::SameLine();
-							int lvl;
 							int time = correspondingPlayersFrame.u.inoInfo.noteTime;
-							if (time >= 68) lvl = 5;
-							else if (time >= 56) lvl = 4;
-							else if (time >= 44) lvl = 3;
-							else if (time >= 32) lvl = 2;
-							else lvl = 1;
-							sprintf_s(strbuf, "%d (%d hits)", time, lvl);
+							int timeMax = correspondingPlayersFrame.u.inoInfo.noteTimeMax;
+							const char* txt;
+							if (correspondingPlayersFrame.u.inoInfo.noteLevel == 5) {
+								txt = "Reached max";
+							} else {
+								txt = ui.printDecimal(correspondingPlayersFrame.u.inoInfo.noteTimeMax, 0, 0, false);
+							}
+							sprintf_s(strbuf, "%d/%s (%d hits)", time, txt, correspondingPlayersFrame.u.inoInfo.noteLevel);
 							ImGui::TextUnformatted(strbuf);
 						}
 					}

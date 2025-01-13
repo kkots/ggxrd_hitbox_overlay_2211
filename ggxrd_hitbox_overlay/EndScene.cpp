@@ -3002,6 +3002,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			
 			if (player.charType == CHARACTER_TYPE_INO) {
 				player.noteTime = -1;
+				int noteElapsedTime = 0;
+				int noteSlowdown = 0;
 				for (int j = 2; j < entityList.count; ++j) {
 					Entity p = entityList.list[j];
 					if (p.isActive() && p.team() == player.index && !p.isPawn() && strcmp(p.animationName(), "Onpu") == 0) {
@@ -3009,12 +3011,50 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 									p.mem45() && strcmp(p.gotoLabelRequest(), "hit") != 0
 						)) {
 							player.noteTime = p.currentAnimDuration();
+							ProjectileInfo& projectile = findProjectile(p);
+							if (projectile.ptr) {
+								noteElapsedTime = projectile.elapsedTime + 1;
+								noteSlowdown = projectile.rcSlowedDownCounter;
+							}
 						}
 						break;
 					}
 				}
 				if (player.noteTime != -1) {
 					player.lastNoteTime = player.noteTime;
+					if (player.noteTime >= 68) {
+						player.noteLevel = 5;
+						player.noteTimeMax = -1;
+					} else if (player.noteTime >= 56) {
+						player.noteLevel = 4;
+						player.noteTimeMax = 68;
+					} else if (player.noteTime >= 44) {
+						player.noteLevel = 3;
+						player.noteTimeMax = 56;
+					} else if (player.noteTime >= 32) {
+						player.noteLevel = 2;
+						player.noteTimeMax = 44;
+					} else {
+						player.noteLevel = 1;
+						player.noteTimeMax = 32;
+					}
+					
+					if (player.noteTimeMax != -1) {
+						int result;
+						int unused;
+						PlayerInfo::calculateSlow(
+							noteElapsedTime,
+							player.noteTimeMax - player.noteTime,
+							noteSlowdown,
+							&result,
+							&unused,
+							&unused);
+						player.noteTimeWithSlow = noteElapsedTime;
+						player.noteTimeWithSlowMax = noteElapsedTime + result;
+					} else {
+						player.noteTimeWithSlow = noteElapsedTime;
+						player.noteTimeWithSlowMax = -1;
+					}
 				}
 			}
 			
@@ -3164,7 +3204,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.u.diInfo.max = player.maxDI;
 				} else if (player.charType == CHARACTER_TYPE_INO) {
 					currentFrame.u.inoInfo.airdashTimer = player.wasProhibitFDTimer;
-					currentFrame.u.inoInfo.noteTime = player.noteTime == -1 ? player.lastNoteTime : player.noteTime;
+					currentFrame.u.inoInfo.noteTime = player.noteTimeWithSlow;
+					currentFrame.u.inoInfo.noteTimeMax = player.noteTimeWithSlowMax;
+					currentFrame.u.inoInfo.noteLevel = player.noteLevel;
 				} else if (player.charType == CHARACTER_TYPE_BEDMAN) {
 					struct SealInfo {
 						Moves::MayIrukasanRidingObjectInfo& info;

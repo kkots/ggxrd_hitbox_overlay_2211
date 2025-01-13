@@ -56,8 +56,10 @@ struct DIInfo {
 };
 
 struct InoInfo {
-	unsigned short airdashTimer;
-	unsigned short noteTime;
+	unsigned short airdashTimer:13;
+	unsigned short noteLevel:3;
+	unsigned char noteTime;
+	unsigned char noteTimeMax;
 };
 
 struct BedmanInfo {
@@ -1288,7 +1290,14 @@ struct PlayerInfo {
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
 	int lastNoteTime = 0;
+	int lastNoteTimeMax = 0;
+	int lastNoteTimeWithSlow = 0;
+	int lastNoteTimeWithSlowMax = 0;
 	int noteTime = 0;
+	int noteTimeMax = 0;
+	int noteTimeWithSlow = 0;
+	int noteTimeWithSlowMax = 0;
+	int noteLevel = 0;
 	int prevPosX = 0;
 	int prevPosY = 0;
 	BedmanInfo bedmanInfo;
