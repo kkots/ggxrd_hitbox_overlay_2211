@@ -318,6 +318,7 @@ bool Detouring::endTransaction() {
 
 bool Detouring::cancelTransaction() {
 	if (!beganTransaction) return true;
+	undoPatches();
 	DetourTransactionAbort();
 	closeAllThreadHandles();
 	beganTransaction = false;
