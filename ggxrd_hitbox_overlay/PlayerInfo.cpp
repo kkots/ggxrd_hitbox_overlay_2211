@@ -622,6 +622,8 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 				|| strcmp(ent.animationName(), "BitF6D") == 0
 				|| strcmp(ent.animationName(), "BitN2C_Bunri") == 0
 				|| strcmp(ent.animationName(), "BitF2D_Bunri") == 0
+				|| strcmp(ent.animationName(), "Bit4C") == 0
+				|| strcmp(ent.animationName(), "Bit4D") == 0
 			)) {
 		ramlethalSwordElapsedTime = 0;
 		dontAdvanceRamlethalTime = true;
@@ -675,6 +677,8 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 			|| strcmp(ent.animationName(), "BitF6D") == 0
 			|| strcmp(ent.animationName(), "BitN2C_Bunri") == 0
 			|| strcmp(ent.animationName(), "BitF2D_Bunri") == 0
+			|| strcmp(ent.animationName(), "Bit4C") == 0
+			|| strcmp(ent.animationName(), "Bit4D") == 0
 		)) {
 			++ramlethalSwordElapsedTime;
 		}

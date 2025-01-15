@@ -1951,10 +1951,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				int slowdown;
 				bool isKowareSonoba;
 				int elapsed;
+				bool isTrance;
+				bool isCalvados;
 				
 				struct BitInfo {
 					StringWithLength stateName;
 					StringWithLength stateName2;
+					StringWithLength stateName3;
 					int hasSword;
 					int swordDeployed;
 					int stackIndex;
@@ -1969,6 +1972,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					{
 						"BitN6C",
 						"BitN2C_Bunri",
+						"Bit4C",
 						playerval0,
 						playerval1,
 						0,
@@ -1982,6 +1986,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					{
 						"BitF6D",
 						"BitF2D_Bunri",
+						"Bit4D",
 						playerval2,
 						playerval3,
 						1,
@@ -2021,16 +2026,30 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					BitInfo& bitInfo = bitInfos[j];
 					
 					anim = "???";
-					subAnim = "None";
+					subAnim = nullptr;
 					timeLeft = 0;
 					slowdown = 0;
 					isKowareSonoba = false;
 					elapsed = 0;
+					isTrance = false;
+					isCalvados = false;
 					
 					Entity p = player.pawn.stackEntity(bitInfo.stackIndex);
 					
 					if (p && p.isActive()) {
 						anim = p.animationName();
+						if (bitInfo.stackIndex == 0) {
+							isTrance = strcmp(anim, "BitSpiral_NSpiral") == 0;
+						} else {
+							isTrance = strcmp(anim, "BitSpiral_FSpiral") == 0;
+						}
+						if (!isTrance) {
+							if (bitInfo.stackIndex == 0) {
+								isTrance = strcmp(anim, "BitSpiral_NSpiral") == 0;
+							} else {
+								isTrance = strcmp(anim, "BitSpiral_FSpiral") == 0;
+							}
+						}
 						ProjectileInfo& projectile = endScene.findProjectile(p);
 						if (projectile.ptr && projectile.move.displayName) {
 							elapsed = projectile.ramlethalSwordElapsedTime;
@@ -2089,6 +2108,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 									break;
 								}
 							}
+						} else if (strcmp(p.animationName(), bitInfo.stateName3.txt) == 0) {
+							timeLeft = 7 - p.currentAnimDuration() + 1;
+							if (projectile.ptr) {
+								slowdown = projectile.rcSlowedDownCounter;
+							}
 						}
 					}
 					
@@ -2096,7 +2120,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					*bitInfo.anim = anim;
 					
 					bool timerActive = timeLeft
-							|| !(bitInfo.swordDeployed || bitInfo.hasSword);
+							|| !(bitInfo.swordDeployed || bitInfo.hasSword)
+							&& !isTrance
+							&& !isCalvados;
 					
 					if (bitInfo.stackIndex == 0) {
 						player.ramlethalSSwordTimerActive = timerActive;

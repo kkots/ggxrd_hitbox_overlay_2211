@@ -190,6 +190,11 @@ static bool createdProjectile_bishop(PlayerInfo& ent);
 static bool canYrcProjectile_bishop(PlayerInfo& ent);
 static bool createdProjectile_ino5D(PlayerInfo& ent);
 static bool canYrcProjectile_ino5D(PlayerInfo& ent);
+static bool createdProjectile_onf5(PlayerInfo& ent);
+static bool canYrcProjectile_onf5(PlayerInfo& ent);
+static bool createdProjectile_onf7(PlayerInfo& ent);
+static bool canYrcProjectile_onf7(PlayerInfo& ent);
+static bool canYrcProjectile_onf9(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -5663,6 +5668,8 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Land");
 	move.displayName = "H Launch Greatsword";
 	move.slangName = "6H";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5DBunri");
@@ -5673,17 +5680,23 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Land");
 	move.displayName = "H Launch Greatsword (Already Deployed)";
 	move.slangName = "6H";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Land");
 	move.displayName = "H Recover Greatsword";
 	move.slangName = "4H";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Land");
 	move.displayName = "2H Launch Greatsword";
 	move.slangName = "2H Summon";
 	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_onf7;
+	move.canYrcProjectile = canYrcProjectile_onf7;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5C");
@@ -5694,6 +5707,8 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Land");
 	move.displayName = "S Launch Greatsword";
 	move.slangName = "6S";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5CBunri");
@@ -5704,22 +5719,30 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Land");
 	move.displayName = "S Launch Greatsword (Already Deployed)";
 	move.slangName = "6S";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Land");
 	move.displayName = "S Recover Greatsword";
 	move.slangName = "4S";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Land");
 	move.displayName = "2S Launch Greatsword";
 	move.slangName = "2S Summon";
 	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_onf7;
+	move.canYrcProjectile = canYrcProjectile_onf7;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Air");
 	move.displayName = "Air H Launch Greatsword";
 	move.slangName = "Air 6H";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtkAir5DBunri");
@@ -5730,22 +5753,30 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Air");
 	move.displayName = "Air H Launch Greatsword (Already Deployed)";
 	move.slangName = "Air 6H";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Air");
 	move.displayName = "Air 2H Launch Greatsword";
 	move.slangName = "Air 2H Summon";
 	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Air");
 	move.displayName = "Air H Recover Greatsword";
 	move.slangName = "Air 4H";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Air");
 	move.displayName = "Air S Launch Greatsword";
 	move.slangName = "Air 6S";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtkAir5CBunri");
@@ -5756,17 +5787,23 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Air");
 	move.displayName = "Air S Launch Greatsword (Already Deployed)";
 	move.slangName = "Air 6S";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Air");
 	move.displayName = "Air 2S Launch Greatsword";
 	move.slangName = "Air 2S Summon";
 	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Air");
 	move.displayName = "Air S Recover Greatsword";
 	move.slangName = "Air 4S";
+	move.createdProjectile = createdProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBA");
@@ -5946,26 +5983,32 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser");
 	move.displayName = "Calvados";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBurst");
 	move.displayName = "Burst Calvados";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBoss");
 	move.displayName = "Calvados (Boss Ver.)";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBossBurst");
 	move.displayName = "Burst Calvados (Boss Ver.)";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral");
 	move.displayName = "Trance";
+	move.canYrcProjectile = canYrcProjectile_onf9;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiralBoss");
 	move.displayName = "Trance (Boss Ver.)";
+	move.canYrcProjectile = canYrcProjectile_onf9;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6C", true);
@@ -8369,6 +8412,23 @@ bool canYrcProjectile_ino5D(PlayerInfo& player) {
 	return player.pawn.bbscrCurrentInstr() > func + moves.ino5DCreateDustObjShotOffset
 		|| player.pawn.bbscrCurrentInstr() == func + moves.ino5DCreateDustObjShotOffset
 		&& player.pawn.spriteFrameCounter() > 0;
+}
+bool createdProjectile_onf5(PlayerInfo& ent) {
+	return ent.pawn.currentAnimDuration() == 5 && !ent.pawn.isRCFrozen();
+}
+bool canYrcProjectile_onf5(PlayerInfo& ent) {
+	return ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
+		|| ent.pawn.currentAnimDuration() > 5;
+}
+bool createdProjectile_onf7(PlayerInfo& ent) {
+	return ent.pawn.currentAnimDuration() == 7 && !ent.pawn.isRCFrozen();
+}
+bool canYrcProjectile_onf7(PlayerInfo& ent) {
+	return ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
+		|| ent.pawn.currentAnimDuration() > 7;
+}
+bool canYrcProjectile_onf9(PlayerInfo& ent) {
+	return ent.pawn.currentAnimDuration() > 9;
 }
 
 bool powerup_may6P(PlayerInfo& player) {
