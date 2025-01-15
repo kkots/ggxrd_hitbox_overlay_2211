@@ -5214,6 +5214,7 @@ bool Moves::onDllMain() {
 	move.displayNameSelector = displayNameSelector_taskCAir;
 	move.slangName = "Air Bed Slam";
 	move.displaySlangNameSelector = displaySlangNameSelector_taskCAir;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D");
@@ -5364,14 +5365,14 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 66;
 	move.framebarName = "Task C Shockwave";
-	move.framebarSlangName = "DVH Shockwave";
+	move.framebarSlangName = "Shockwave";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "bomb2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 66;
 	move.framebarName = "Task C Shockwave";
-	move.framebarSlangName = "DVH Shockwave";
+	move.framebarSlangName = "Shockwave";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_D_Ghost", true);
@@ -5432,6 +5433,226 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "MerryWarp");
 	move.displayName = "Teleport to Sheep";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN", true);
+	move.displayName = "Stand";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNBack", true);
+	move.displayName = "Back";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNForward", true);
+	move.displayName = "Forward";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNUp", true);
+	move.displayName = "Jump Up";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNUpEnd", true);
+	move.displayName = "Jump End";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNDown", true);
+	move.displayName = "Jump Down";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNCrouch", true);
+	move.displayName = "Crouch";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNTurn", true);
+	move.displayName = "Turn";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNDamage", true);
+	move.displayName = "Damage";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN5C", true);
+	move.displayName = "f.S";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNAir5C", true);
+	move.displayName = "j.S";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNAir5C_Boss", true);
+	move.displayName = "j.S (Boss)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C", true);
+	move.displayName = "2S";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C_Boss", true);
+	move.displayName = "2S (Boss)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNBunri", true);
+	move.displayName = "Deployed";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFBunri", true);
+	move.displayName = "Deployed";
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Bit4C", true);
+	move.displayName = "Recall";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNLaser", true);
+	move.displayName = "Calvados";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_Sword", true);
+	move.displayName = "Marteli";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_Sword_Bunri", true);
+	move.displayName = "Marteli (Slow)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_SwordAir", true);
+	move.displayName = "Air Marteli";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_SwordAir_Bunri", true);
+	move.displayName = "Air Marteli (Slow)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitActionNeutral", true);
+	move.displayName = "Neutral";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeA", true);
+	move.displayName = "Victory";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeABunri", true);
+	move.displayName = "Victory Deployed";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeB", true);
+	move.displayName = "Victory";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeBBunri", true);
+	move.displayName = "Victory Deployed";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN5C_Boss", true);
+	move.displayName = "f.S (Boss)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF", true);
+	move.displayName = "Stand";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFBack", true);
+	move.displayName = "Back";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFForward", true);
+	move.displayName = "Forward";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFUp", true);
+	move.displayName = "Jump Up";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFUpEnd", true);
+	move.displayName = "Jump End";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFDown", true);
+	move.displayName = "Jump Down";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFCrouch", true);
+	move.displayName = "Crouch";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFTurn", true);
+	move.displayName = "Turn";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFDamage", true);
+	move.displayName = "Damage";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFAir5D", true);
+	move.displayName = "j.H";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFAir5D_Boss", true);
+	move.displayName = "j.H (Boss)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D", true);
+	move.displayName = "2H";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D_Boss", true);
+	move.displayName = "2H (Boss)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF5D", true);
+	move.displayName = "5H";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Bit4D", true);
+	move.displayName = "Recall";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFLaser", true);
+	move.displayName = "Calvados";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_Sword", true);
+	move.displayName = "Forpeli";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_Sword_Bunri", true);
+	move.displayName = "Forpeli (Slow)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_SwordAir", true);
+	move.displayName = "Air Forpeli";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_SwordAir_Bunri", true);
+	move.displayName = "Air Forpeli (Slow)";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeA", true);
+	move.displayName = "Victory";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeABunri", true);
+	move.displayName = "Victory Deployed";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeB", true);
+	move.displayName = "Victory";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeBBunri", true);
+	move.displayName = "Victory Deployed";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk4B");
@@ -5748,60 +5969,74 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6C", true);
+	move.displayName = "6S";
 	move.isDangerous = isDangerous_launchGreatsword;
 	move.framebarId = 68;
 	move.framebarName = "S Sword";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6D", true);
+	move.displayName = "6H";
 	move.isDangerous = isDangerous_launchGreatsword;
 	move.framebarId = 69;
 	move.framebarName = "H Sword";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6CBunriShot", true);
+	move.displayName = "Sword Spinny Attack";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
 	move.framebarName = "S Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C_Bunri", true);
+	move.displayName = "2S Deployed";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
 	move.framebarName = "2S Sword";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6CBunriShot_Boss", true);
+	move.displayName = "Sword Spinny Attack (Boss)";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
 	move.framebarName = "S Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6DBunriShot", true);
+	move.displayName = "Sword Spinny Attack";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
 	move.framebarName = "H Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D_Bunri", true);
+	move.displayName = "2H Deployed";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
 	move.framebarName = "2H Sword";
+	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6DBunriShot_Boss", true);
+	move.displayName = "Sword Spinny Attack (Boss)";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
 	move.framebarName = "H Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral_NSpiral", true);
+	move.displayName = "Trance";
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 68;
 	move.framebarName = "S Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral_FSpiral", true);
+	move.displayName = "Trance";
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 69;
 	move.framebarName = "H Sword";
@@ -8333,7 +8568,7 @@ void fillMay6HOffsets(BYTE* func) {
 	}
 }
 
-int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal) {
+int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal, bool* isFrameAfter) {
 	BYTE* func = projectile.ptr.bbscrCurrentFunc();
 	if (info.totalFrames == 0) {
 		BYTE* instr;
@@ -8385,27 +8620,144 @@ int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanR
 		if (metSprite) {
 			info.frames.back().offset = instr - func;
 		}
-		info.totalFrames +=
-			1;  // add one, because you need to advance the frame one more, to the
-			    // sprite: s32'bde417_Dejav', 3
-			    // sendSignal: (PLAYER), (CUSTOM_SIGNAL_6)
-			    // code.
-			    // Players' bbscript runs before projectiles', which means
-			    // that Deja Vu checking for Mem(54) would have already
-			    // happened. Setting Mem(54) to 0x80000001 will only
-			    // have an impact on the next frame.
 	}
 	
 	BYTE* currentInstr = projectile.ptr.bbscrCurrentInstr();
 	int currentOffset = currentInstr - func;
 	int timer = 0;
-	for (const MayIrukasanRidingObjectFrames& elem : info.frames) {
+	for (int i = 0; i < (int)info.frames.size(); ++i) {
+		const MayIrukasanRidingObjectFrames& elem = info.frames[i];
 		if (currentOffset == elem.offset) {
 			timer = elem.frames;
+			*isFrameAfter = i == 3 && projectile.ptr.spriteFrameCounter() == 0 && !projectile.ptr.isRCFrozen();
 			break;
 		}
 	}
 	timer += projectile.ptr.spriteFrameCounter();
 	if (timer >= info.totalFrames) return 0;
 	return info.totalFrames - timer;
+}
+
+void Moves::fillInKyMahojin(BYTE* func) {
+	if (kyMahojin.totalFrames != 0) return;
+	bool metSprite = false;  //
+	bool metSpriteEnd = false;
+	int lastSpriteLength = 0;
+	BYTE* instr;
+	for (instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)) {
+		InstructionType type = instructionType(instr);
+		if (metSpriteEnd) {
+			kyMahojin.frames.emplace_back();
+			MayIrukasanRidingObjectFrames& newFrames = kyMahojin.frames.back();
+			newFrames.frames = kyMahojin.totalFrames;
+			newFrames.offset = instr - func;
+			kyMahojin.totalFrames += lastSpriteLength;
+			metSpriteEnd = false;
+			metSprite = false;
+		}
+		if (type == instr_sprite) {
+			if (metSprite) {
+				kyMahojin.frames.emplace_back();
+				MayIrukasanRidingObjectFrames& newFrames = kyMahojin.frames.back();
+				newFrames.frames = kyMahojin.totalFrames;
+				newFrames.offset = instr - func;
+				kyMahojin.totalFrames += lastSpriteLength;
+				metSprite = false;
+			}
+			lastSpriteLength = *(int*)(instr + 4 + 32);
+			metSprite = true;
+		} else if (type == instr_spriteEnd) {
+			metSpriteEnd = true;
+		}
+	}
+}
+
+int Moves::MayIrukasanRidingObjectInfo::remainingTime(int offset, int spriteFrame) const {
+	for (int i = 0; i < (int)frames.size(); ++i) {
+		if (offset == frames[i].offset) {
+			int total = frames[i].frames + spriteFrame;
+			if (total >= totalFrames) return 0;
+			return totalFrames - total;
+		}
+	}
+	return 0;
+}
+
+void Moves::fillInRamlethalBitN6C_F6D(BYTE* func, std::vector<RamlethalSwordInfo>& ramlethalBit) {
+	if (!ramlethalBit.empty()) return;
+	BYTE* instr;
+	ramlethalBit.emplace_back();
+	RamlethalSwordInfo* currentElem = &ramlethalBit.back();
+	currentElem->state = ram_teleport;
+	int lastSpriteLengthSoubi = 0;
+	int lastSpriteLengthBunri = 0;
+	bool metSprite = false;
+	bool metSpriteEnd = false;
+	bool metSetMarker = false;
+	bool metJumpToState = false;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (metSpriteEnd) {
+			if (metSprite) {
+				currentElem->addFrames(instr - func, lastSpriteLengthSoubi, lastSpriteLengthBunri);
+				metSprite = false;
+			}
+			metSpriteEnd = false;
+		}
+		if (type == instr_sprite) {
+			if (metSprite) {
+				currentElem->addFrames(instr - func, lastSpriteLengthSoubi, lastSpriteLengthBunri);
+			}
+			if (metSetMarker) {
+				RamlethalStateName prevState = currentElem->state;
+				ramlethalBit.emplace_back();
+				currentElem = &ramlethalBit.back();
+				currentElem->state = (RamlethalStateName)((int)prevState + 1);
+				metSetMarker = false;
+			}
+			lastSpriteLengthSoubi = *(int*)(instr + 4 + 32);
+			lastSpriteLengthBunri = lastSpriteLengthSoubi;
+			metSprite = true;
+		} else if (type == instr_overrideSpriteLengthIf) {
+			lastSpriteLengthBunri = *(int*)(instr + 4);
+		} else if (type == instr_setMarker) {
+			if (metJumpToState) {
+				metJumpToState = false;
+				if (metSetMarker) {
+					RamlethalStateName prevState = currentElem->state;
+					ramlethalBit.emplace_back();
+					currentElem = &ramlethalBit.back();
+					currentElem->state = (RamlethalStateName)((int)prevState + 1);
+				}
+			}
+			metSetMarker = true;
+		} else if (type == instr_jumpToState
+				|| type == instr_callSubroutine
+				&& strcmp((const char*)(instr + 4), "BitActionNeutral") == 0) {
+			metSprite = false;
+			metJumpToState = true;
+		} else if (type == instr_spriteEnd) {
+			metSpriteEnd = true;
+		}
+	}
+}
+
+void Moves::RamlethalSwordInfo::addFrames(int offset, int lengthSoubi, int lengthBunri) {
+	framesSoubi.frames.emplace_back();
+	MayIrukasanRidingObjectFrames* newFrames = &framesSoubi.frames.back();
+	newFrames->offset = offset;
+	newFrames->frames = framesSoubi.totalFrames;
+	framesSoubi.totalFrames += lengthSoubi;
+	
+	framesBunri.frames.emplace_back();
+	newFrames = &framesBunri.frames.back();
+	newFrames->offset = offset;
+	newFrames->frames = framesBunri.totalFrames;
+	framesBunri.totalFrames += lengthBunri;
 }

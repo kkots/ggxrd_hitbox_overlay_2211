@@ -189,6 +189,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Bedman Task C Height Buff: The infinite horizontal line shows the height above which Bedman's origin point must be in order for Task C to gain a powerup that makes it slam the ground harder. That height is 700000. The display of the height line must be enabled with showBedmanTaskCHeightBuffY INI setting (located in UI in Character Specific - Show Bedman Height Buff Y).
 
+- Ramlethal Sword Re-Deploy No-Teleport Distance: The infinite vertical boxes around the swords show the distance in which the opponent's origin point must be in order for the sword to not spend extra time teleporting to the opponent when you re-deploy it. This can be disabled using the showRamlethalSwordRedeployNoTeleportDistance setting (located in UI - Character Specific).
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
@@ -559,6 +561,47 @@ useAlternativeStaggerMashProgressDisplay = false
 ; point to the extra point on the Ball is displayed.
 ; When this setting is true, none of this is displayed.
 dontShowMayInteractionChecks = true
+
+; Specify true or false.
+; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,
+; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.
+; Millia's origin point must be above the line in order to gain the powerup.
+showMilliaBadMoonBuffHeight = false
+
+; Specify true or false.
+; When this setting is on, when Faust does a 5D, two ranges are shown around his flickpoint,
+; denoting ranges in which his thrown items' origin points must be to get either hit or homerun hit.
+showFaustOwnFlickRanges = true
+
+; Specify true or false.
+; When this setting is on, a horizontal line is constantly shown on the screen at the height above which
+; Bedman's Task C gains a buff.
+; This line is so high you can't see it unless you jump.
+showBedmanTaskCHeightBuffY = false
+
+; Specify true or false.
+; When this setting is on, an infinite vertical white box is drawn around the S and H swords,
+; showing the range in which the opponent's origin point must be so that,
+; should you re-deploy the sword with 6S, 6H, 2S, 2H, j.6S, j.6H,
+; j.2S or j.2H, it won't take the extra time to teleport to the opponent.
+showRamlethalSwordRedeployNoTeleportDistance = true
+
+; Specify true or false.
+; When this setting is on, and the "showRamlethalSwordRedeployNoTeleportDistance" is also on,
+; the infinite vertical white box is around the S and H swords is only shown when re-deploying the swords.
+onlyShowRamlethalSwordRedeployDistanceWhenRedeploying = true
+
+; Specify true or false.
+; When this setting is on, and the "showRamlethalSwordRedeployNoTeleportDistance" is also on,
+; the infinite vertical white box is around the S and H swords may be shown for P1.
+; Disable this to never show it for P1.
+showRamlethalSwordRedeployDistanceForP1 = true
+
+; Specify true or false.
+; When this setting is on, and the "showRamlethalSwordRedeployNoTeleportDistance" is also on,
+; the infinite vertical white box is around the S and H swords may be shown for P2.
+; Disable this to never show it for P2.
+showRamlethalSwordRedeployDistanceForP2 = true
 
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.

@@ -135,7 +135,21 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 		}
 	}
 
-	bool hasHitbox = false;
+	int hitboxesCount = 0;
+	std::vector<DrawHitboxArrayCallParams> theHitbox;
+	collectHitboxes(thisEntity,
+		true,
+		nullptr,
+		&theHitbox,
+		nullptr,
+		nullptr,
+		nullptr,
+		nullptr,
+		nullptr,
+		&hitboxesCount);
+	
+	
+	bool hasHitbox = !theHitbox.empty();
 	
 	if ((result == HIT_RESULT_NORMAL || result == HIT_RESULT_BLOCKED || result == HIT_RESULT_ARMORED)
 			&& (DISPLAY_DURATION_HITBOX_THAT_HIT || DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT)) {
@@ -143,33 +157,16 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 		otherEntity.getState(&state);
 		if (!state.strikeInvuln) {
 
-			if (DISPLAY_DURATION_HITBOX_THAT_HIT) {
-				int hitboxesCount = 0;
-				std::vector<DrawHitboxArrayCallParams> theHitbox;
-				collectHitboxes(thisEntity,
-					true,
-					nullptr,
-					&theHitbox,
-					nullptr,
-					nullptr,
-					nullptr,
-					nullptr,
-					nullptr,
-					&hitboxesCount);
-				
-				if (!theHitbox.empty()) {
-					DetectedHitboxes boxes;
-					boxes.entity = thisEntity;
-					boxes.isPawn = thisEntity.isPawn();
-					boxes.team = thisEntity.team();
-					boxes.hitboxes = theHitbox.front();
-					boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
-					boxes.previousTime = thisEntity.currentAnimDuration();
-					boxes.hitboxesCount = hitboxesCount;
-					hasHitbox = true;
-
-					hitDetector.hitboxesThatHit.push_back(boxes);
-				}
+			if (DISPLAY_DURATION_HITBOX_THAT_HIT && hasHitbox) {
+				DetectedHitboxes boxes;
+				boxes.entity = thisEntity;
+				boxes.isPawn = thisEntity.isPawn();
+				boxes.team = thisEntity.team();
+				boxes.hitboxes = theHitbox.front();
+				boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
+				boxes.previousTime = thisEntity.currentAnimDuration();
+				boxes.hitboxesCount = hitboxesCount;
+				hitDetector.hitboxesThatHit.push_back(boxes);
 			}
 
 			if (DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {
@@ -212,7 +209,8 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 	if (result == HIT_RESULT_NORMAL
 			|| result == HIT_RESULT_BLOCKED
 			|| result == HIT_RESULT_ARMORED
-			|| result == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
+			|| result == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION
+			|| result == HIT_RESULT_IGNORED && (*hitFlags & 0x40) != 0) {  // flag 0x40 set when it needs to destroy the projectile that got hit
 		endScene.registerHit(result, hasHitbox, thisEntity, otherEntity);
 	}
 

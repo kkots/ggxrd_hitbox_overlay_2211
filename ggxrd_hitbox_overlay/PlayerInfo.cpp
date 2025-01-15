@@ -589,19 +589,42 @@ void ActiveDataArray::removeSeparateHits(int* outIndex) {
 	count = index + 1;
 }
 
-void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
+void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreated) {
 	ptr = ent;
 	team = ent.team();
+	CharacterType ownerType = (CharacterType)-1;
+	if (team == 0 || team == 1) {
+		ownerType = endScene.players[team].charType;
+	}
 	animFrame = ent.currentAnimDuration();
 	int prevLifetimeCounter = lifeTimeCounter;
 	lifeTimeCounter = ent.lifeTimeCounter();
-	if (lifeTimeCounter == 0) {
+	bool dontAdvanceRamlethalTime = false;
+	if (lifeTimeCounter == 0 || isCreated) {
 		maxHit.clear();
 		hitNumber = 0;
 		hitOnFrame = 0;
 		hitstopElapsed = 0;
 		bedmanSealElapsedTime = 0;
 		elapsedTime = 0;
+	}
+	if (ownerType == CHARACTER_TYPE_RAMLETHAL) {
+		Entity owner = endScene.players[team].pawn;
+		isRamlethalSword = owner && (
+				owner.stackEntity(0) == ent
+				|| owner.stackEntity(1) == ent
+			);
+	} else {
+		isRamlethalSword = false;
+	}
+	if (animFrame == 1 && !ent.isRCFrozen() && isRamlethalSword && (
+				strcmp(ent.animationName(), "BitN6C") == 0
+				|| strcmp(ent.animationName(), "BitF6D") == 0
+				|| strcmp(ent.animationName(), "BitN2C_Bunri") == 0
+				|| strcmp(ent.animationName(), "BitF2D_Bunri") == 0
+			)) {
+		ramlethalSwordElapsedTime = 0;
+		dontAdvanceRamlethalTime = true;
 	}
 	int prevFrameHitstop = hitstop;
 	int clashHitstop = ent.clashHitstop();
@@ -619,7 +642,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 		++hitstopElapsed;
 	}
 	if ((team == 0 || team == 1)
-			&& endScene.players[team].charType == CHARACTER_TYPE_BEDMAN
+			&& ownerType == CHARACTER_TYPE_BEDMAN
 			&& (
 				prevLifetimeCounter != lifeTimeCounter
 				&& lifeTimeCounter != 0
@@ -638,7 +661,8 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 		};
 		for (int i = 0; i < 4; ++i) {
 			if (strcmp(ent.animationName(), seals[i].stateName) == 0) {
-				int remainingFrames = moves.getBedmanSealRemainingFrames(*this, seals[i].info, seals[i].signal);
+				bool isFrameAfter = false;
+				int remainingFrames = moves.getBedmanSealRemainingFrames(*this, seals[i].info, seals[i].signal, &isFrameAfter);
 				if (remainingFrames > 0) ++bedmanSealElapsedTime;
 				break;
 			}
@@ -646,6 +670,14 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator) {
 	}
 	if (prevLifetimeCounter != lifeTimeCounter && lifeTimeCounter != 0 && !hitstop && !superflashInstigator) {
 		++elapsedTime;
+		if (!dontAdvanceRamlethalTime && isRamlethalSword && (
+			strcmp(ent.animationName(), "BitN6C") == 0
+			|| strcmp(ent.animationName(), "BitF6D") == 0
+			|| strcmp(ent.animationName(), "BitN2C_Bunri") == 0
+			|| strcmp(ent.animationName(), "BitF2D_Bunri") == 0
+		)) {
+			++ramlethalSwordElapsedTime;
+		}
 	}
 	
 	int unused;
@@ -1409,12 +1441,15 @@ void PlayerFramebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
 
 static inline int determineFrameLevel(FrameType type) {
 	if (isEddieFrame(type)) {
-		return 4;
+		return 5;
 	}
 	if (type == FT_ACTIVE_PROJECTILE) {
-		return 3;
+		return 4;
 	}
 	if (type == FT_NON_ACTIVE_PROJECTILE) {
+		return 3;
+	}
+	if (type == FT_IDLE_PROJECTILE_HITTABLE) {
 		return 2;
 	}
 	if (type == FT_IDLE_PROJECTILE || type == FT_IDLE_ACTIVE_IN_SUPERFREEZE) {

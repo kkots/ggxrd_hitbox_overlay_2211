@@ -162,11 +162,16 @@ public:
 		instr_sprite = 2,
 		instr_spriteEnd = 3,
 		instr_ifOperation = 6,
+		instr_else = 9,
+		instr_endElse = 10,
 		instr_setMarker = 11,
+		instr_callSubroutine = 17,
 		instr_exitState = 18,
 		instr_upon = 21,
 		instr_endUpon = 22,
 		instr_clearUpon = 23,
+		instr_overrideSpriteLengthIf = 26,
+		instr_jumpToState = 27,
 		instr_storeValue = 46,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
@@ -212,6 +217,7 @@ public:
 		int totalFrames = 0;
 		std::vector<MayIrukasanRidingObjectFrames> frames;
 		inline void clear() { offset = 0; totalFrames = 0; frames.clear(); }
+		int remainingTime(int offset, int spriteFrame) const;
 	};
 	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectYokoA { 0 };
 	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectYokoB { 0 };
@@ -234,10 +240,50 @@ public:
 	MayIrukasanRidingObjectInfo bedmanSealB { 0 };
 	MayIrukasanRidingObjectInfo bedmanSealC { 0 };
 	MayIrukasanRidingObjectInfo bedmanSealD { 0 };
-	int getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal);
+	int getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal, bool* isFrameAfter);
 	std::vector<int> venomStingerSPowerups;
 	std::vector<int> venomStingerHPowerups;
 	void fillInVenomStingerPowerup(BYTE* func, std::vector<int>& powerups);
+	MayIrukasanRidingObjectInfo kyMahojin { 0 };
+	void fillInKyMahojin(BYTE* func);
+	enum RamlethalStateName {
+		ram_undefined,
+		ram_teleport,
+		ram_Attack,
+		ram_koware_soubi,
+		ram_koware_sonoba,
+		ram_loop,
+		ram_landing,
+		ram_koware_nokezori,
+		ram_Win,
+		ram_number_of_elements
+	};
+	enum RamlethalStateName2 {
+		ram2_undefined,
+		ram2_teleport,
+		ram2_Attack,
+		ram2_Win,
+		ram2_koware,
+		ram2_loop,
+		ram2_landing,
+		ram2_koware_nokezori,
+		ram2_number_of_elements
+	};
+	struct RamlethalSwordInfo {
+		union {
+			RamlethalStateName state;
+			RamlethalStateName2 state2;
+		};
+		MayIrukasanRidingObjectInfo framesSoubi;
+		MayIrukasanRidingObjectInfo framesBunri;
+		void addFrames(int offset, int lengthSoubi, int lengthBunri);
+		inline const MayIrukasanRidingObjectInfo& select(bool mem45) const { return mem45 ? framesBunri : framesSoubi; }
+	};
+	std::vector<RamlethalSwordInfo> ramlethalBitN6C;
+	std::vector<RamlethalSwordInfo> ramlethalBitF6D;
+	std::vector<RamlethalSwordInfo> ramlethalBitN2C;
+	std::vector<RamlethalSwordInfo> ramlethalBitF2D;
+	void fillInRamlethalBitN6C_F6D(BYTE* func, std::vector<RamlethalSwordInfo>& ramlethalBit);
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

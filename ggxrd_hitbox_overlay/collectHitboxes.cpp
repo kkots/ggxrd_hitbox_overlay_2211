@@ -9,6 +9,7 @@
 #include "Moves.h"
 #include "Settings.h"
 #include "findMoveByName.h"
+#include "GifMode.h"
 
 static void getMahojinDistXY(BYTE* functionStart, int* x, int* y);
 static void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpConnectPtr, int* mayBallJumpConnectRangePtr);
@@ -26,19 +27,30 @@ void collectHitboxes(Entity ent,
 		int* lastIgnoredHitNum,
 		EntityState* entityState,
 		bool* wasSuperArmorEnabled,
-		bool* wasFullInvul) {
+		bool* wasFullInvul,
+		int scaleX,
+		int scaleY) {
 	
 	CharacterType ownerType = (CharacterType)-1;
+	Entity owner { nullptr };
 	if (!ent.isPawn()
 			&& (ent.team() == 0 || ent.team() == 1)) {
-		ownerType = entityList.slots[ent.team()].characterType();
+		owner = entityList.slots[ent.team()];
+		ownerType = owner.characterType();
 	}
+	const char* animName = ent.animationName();
 	if (ownerType == CHARACTER_TYPE_JACKO
 			&& !ent.displayModel()
 			|| ent.y() < -3000000  // needed for May [2]8S/H
 			|| ent.isHidden()  // needed for super animations
 			|| ownerType == CHARACTER_TYPE_LEO
-			&& strcmp(ent.animationName(), "Semuke5E_Reflect"_hardcode) == 0) {
+			&& strcmp(animName, "Semuke5E_Reflect"_hardcode) == 0
+			|| ownerType == CHARACTER_TYPE_BEDMAN
+			&& (
+				memcmp(animName, "Djavu_", 6) == 0
+				&& memcmp(animName + 7, "_Ghost", 6) == 0
+				&& animName[13] == '\0'  // "Djavu_A_Ghost"_hardcode, "Djavu_B_Ghost"_hardcode, "Djavu_C_Ghost"_hardcode, "Djavu_D_Ghost"_hardcode
+			)) {
 		return;
 	}
 	
@@ -63,7 +75,7 @@ void collectHitboxes(Entity ent,
 	// yellow - pushbox
 	// blue/purple - throwbox
 
-	bool isNotZeroScaled = *(int*)(ent + 0x2594) != 0;
+	bool isNotZeroScaled = *(int*)(ent + 0x2594) != 0 || scaleX != INT_MAX;
 
 	if (pushboxes && !state.isASummon && isNotZeroScaled) {
 		logOnce(fputs("Need pushbox\n", logfile));
@@ -99,8 +111,8 @@ void collectHitboxes(Entity ent,
 	logOnce(fprintf(logfile, "hurtbox_count: %d; hitbox_count: %d\n", hurtboxCount, hitboxCount));
 
 	// Thanks to jedpossum on dustloop for these offsets
-	params.scaleX = ent.scaleX();
-	params.scaleY = ent.scaleY();
+	params.scaleX = scaleX == INT_MAX ? ent.scaleX() : scaleX;
+	params.scaleY = scaleY == INT_MAX ? ent.scaleY() : scaleY;
 	logOnce(fprintf(logfile, "scale_x: %d; scale_y: %d\n", *(int*)(ent + 0x264), *(int*)(ent + 0x268)));
 	
 	DrawHitboxArrayCallParams callParams;
@@ -119,7 +131,11 @@ void collectHitboxes(Entity ent,
 		}
 		if (THICKNESS_WAY_TOO_NUMEROUS_SUMMONS
 				&& state.isASummon && (state.ownerCharType == CHARACTER_TYPE_JACKO || state.ownerCharType == CHARACTER_TYPE_BEDMAN)) {
-			if (alpha > 32) alpha = 32;
+			if (state.ownerCharType == CHARACTER_TYPE_BEDMAN) {
+				if (alpha > 48) alpha = 48;
+			} else {
+				if (alpha > 32) alpha = 32;
+			}
 			callParams.thickness = THICKNESS_WAY_TOO_NUMEROUS_SUMMONS;
 		}
 		if (state.counterhit) {

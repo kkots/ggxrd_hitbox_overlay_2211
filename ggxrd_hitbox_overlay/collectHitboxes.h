@@ -18,4 +18,6 @@ void collectHitboxes(Entity ent,
 		int* lastIgnoredHitNum = nullptr,
 		EntityState* entityState = nullptr,
 		bool* wasSuperArmorEnabled = nullptr,
-		bool* wasFullInvul = nullptr);
+		bool* wasFullInvul = nullptr,
+		int scaleX = INT_MAX,
+		int scaleY = INT_MAX);

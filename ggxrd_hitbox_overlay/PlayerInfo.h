@@ -73,6 +73,15 @@ struct BedmanInfo {
 	unsigned short sealDMax;
 };
 
+struct RamlethalInfo {
+	unsigned char sSwordTime;
+	unsigned char sSwordTimeMax;
+	unsigned char hSwordTime;
+	unsigned char hSwordTimeMax;
+	const char* sSwordSubAnim;
+	const char* hSwordSubAnim;
+};
+
 struct GatlingOrWhiffCancelInfo {
 	const char* name;
 	const char* replacementInputs;
@@ -113,6 +122,7 @@ enum FrameType : char {
 	// this frame type is only intended to prevent projectiles' framebars that existed only during a superfreeze from being erased due to their framebar being completely empty
 	FT_IDLE_ACTIVE_IN_SUPERFREEZE,
 	FT_IDLE_PROJECTILE,
+	FT_IDLE_PROJECTILE_HITTABLE,
 	FT_IDLE_CANT_BLOCK,
 	FT_IDLE_CANT_FD,
 	FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK,
@@ -158,7 +168,7 @@ enum FrameType : char {
 	FT_GRAYBEAT_AIR_HITSTUN,
 	FT_LAST  // must always be last
 };
-inline bool frameTypeDiscardable(FrameType type) {
+inline bool frameTypeDiscardable(FrameType type) {  // disposable types, framebars wholly consisting of only these frame types can be deleted
 	return type == FT_NONE || type == FT_IDLE || type == FT_IDLE_PROJECTILE;
 }
 inline bool frameTypeAssumesCantAttack(FrameType type) {
@@ -205,6 +215,7 @@ static FrameType recoveryFrameTypes[] {
 static FrameType projectileFrameTypes[] {
 	FT_IDLE_ACTIVE_IN_SUPERFREEZE,
 	FT_IDLE_PROJECTILE,
+	FT_IDLE_PROJECTILE_HITTABLE,
 	FT_ACTIVE_PROJECTILE,
 	FT_ACTIVE_NEW_HIT_PROJECTILE,
 	FT_ACTIVE_HITSTOP_PROJECTILE,
@@ -240,6 +251,7 @@ inline FrameType frameMap(FrameType type) {
 		case FT_IDLE:                               return FT_IDLE;
 		case FT_IDLE_ACTIVE_IN_SUPERFREEZE:         return FT_IDLE_PROJECTILE;
 		case FT_IDLE_PROJECTILE:                    return FT_IDLE_PROJECTILE;
+		case FT_IDLE_PROJECTILE_HITTABLE:           return FT_IDLE_PROJECTILE_HITTABLE;
 		case FT_IDLE_CANT_BLOCK:                    return FT_IDLE;
 		case FT_IDLE_CANT_FD:                       return FT_IDLE;
 		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE;
@@ -292,6 +304,7 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		case FT_IDLE:                               return FT_IDLE;
 		case FT_IDLE_ACTIVE_IN_SUPERFREEZE:         return FT_IDLE_ACTIVE_IN_SUPERFREEZE;
 		case FT_IDLE_PROJECTILE:                    return FT_IDLE_PROJECTILE;
+		case FT_IDLE_PROJECTILE_HITTABLE:           return FT_IDLE_PROJECTILE_HITTABLE;
 		case FT_IDLE_CANT_BLOCK:                    return FT_IDLE_CANT_BLOCK;
 		case FT_IDLE_CANT_FD:                       return FT_IDLE_CANT_FD;
 		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK;
@@ -388,6 +401,7 @@ struct PlayerFrame : public FrameBase {
 		DIInfo diInfo;
 		InoInfo inoInfo;
 		BedmanInfo bedmanInfo;
+		RamlethalInfo ramlethalInfo;
 	} u;
 	short poisonDuration;
 	FrameStopInfo stop;
@@ -863,7 +877,10 @@ struct ProjectileInfo {
 	int total = 0;  // time since the owning player started their last move
 	int hitNumber = 0;  // updated every frame
 	int numberOfHits = 0;
-	int bedmanSealElapsedTime = 0;
+	union {
+		int bedmanSealElapsedTime = 0;
+		int ramlethalSwordElapsedTime;
+	};
 	int elapsedTime = 0;
 	
 	int x = 0;
@@ -898,6 +915,8 @@ struct ProjectileInfo {
 	bool rcSlowedDown:1;
 	bool moveNonEmpty:1;
 	bool hitboxTopBottomValid:1;
+	bool isRamlethalSword:1;
+	bool strikeInvul:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -906,7 +925,7 @@ struct ProjectileInfo {
 		disabled(false)
 	{
 	}
-	void fill(Entity ent, Entity superflashInstigator);
+	void fill(Entity ent, Entity superflashInstigator, bool isCreated);
 	void printStartup(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
 	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
@@ -1245,7 +1264,7 @@ struct PlayerInfo {
 	int maxDI = 0;
 	struct {
 		int totalSpriteLengthUntilCreation = 0;
-		int totalSpriteLengthUntilReenabled = 0;
+		int totalSpriteLength = 0;
 	} gunflameParams;
 	char remainingDoubleJumps = 0;
 	char remainingAirDashes = 0;
@@ -1300,7 +1319,20 @@ struct PlayerInfo {
 	int noteLevel = 0;
 	int prevPosX = 0;
 	int prevPosY = 0;
+	int ramlethalBitNStartPos = 0;
+	int ramlethalBitFStartPos = 0;
+	int wasPlayerval[4] { 0 };
+	int wasPlayerval1Idling = 0;
+	int milliaChromingRoseTimeLeft = 0;
 	BedmanInfo bedmanInfo;
+	const char* ramlethalSSwordAnim = nullptr;
+	const char* ramlethalHSwordAnim = nullptr;
+	const char* ramlethalSSwordSubanim = nullptr;
+	const char* ramlethalHSwordSubanim = nullptr;
+	int ramlethalSSwordTime = 0;
+	int ramlethalSSwordTimeMax = 0;
+	int ramlethalHSwordTime = 0;
+	int ramlethalHSwordTimeMax = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
@@ -1431,6 +1463,10 @@ struct PlayerInfo {
 	bool lastBlockWasFD:1;
 	bool displayTumble:1;
 	bool tumbleStartedInHitstop:1;
+	bool ramlethalSSwordTimerActive:1;
+	bool ramlethalHSwordTimerActive:1;
+	bool ramlethalSSwordKowareSonoba:1;
+	bool ramlethalHSwordKowareSonoba:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
