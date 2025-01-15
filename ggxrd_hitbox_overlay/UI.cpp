@@ -4110,13 +4110,19 @@ void UI::drawSearchableWindows() {
 				int playerval3 = player.wasPlayerval[3];
 				
 				yellowText(searchFieldTitle("Can do Calvados:"));
+				const char* tooltip = searchTooltip("You can do Calvados if you have both swords equipped.");
+				AddTooltip(tooltip);
 				ImGui::SameLine();
 				ImGui::TextUnformatted(!hasForceDisableFlag && playerval0 && playerval2 ? "Yes" : "No");
+				AddTooltip(tooltip);
 				
 				hasForceDisableFlag = (player.wasForceDisableFlags & 0x10) != 0;
 				yellowText(searchFieldTitle("Can do Trance:"));
+				tooltip = searchTooltip("You can do Trance if you don't have any of the swords, even if they're not fully deployed yet.");
+				AddTooltip(tooltip);
 				ImGui::SameLine();
 				ImGui::TextUnformatted(!hasForceDisableFlag && !playerval0 && !playerval2 ? "Yes" : "No");
+				AddTooltip(tooltip);
 				
 				hasForceDisableFlag = (player.wasForceDisableFlags & 0x8) != 0;
 				yellowText(searchFieldTitle("Can do Cassius:"));
@@ -4125,8 +4131,10 @@ void UI::drawSearchableWindows() {
 				
 				struct BitInfo {
 					StringWithLength hasSwordTitle;
+					StringWithLength hasSwordWhatItMeans;
 					int hasSword;
 					StringWithLength swordDeployedTitle;
+					StringWithLength deployedSwordWhatItMeans;
 					int swordDeployed;
 					StringWithLength animTitle;
 					bool kowareSonoba;
@@ -4139,8 +4147,29 @@ void UI::drawSearchableWindows() {
 				BitInfo bitInfos[2] {
 					{
 						"Has S Sword:",
+						"This controls the availability of the following moves:\n"
+							"*) f.S with Sword;\n"
+							"*) f.S without Sword;\n"
+							"*) 2S with Sword;\n"
+							"*) 6S Summon (makes recovery shorter);\n"
+							"*) j.S with Sword;\n"
+							"*) j.S without Sword;\n"
+							"*) j.6S Summon (makes recovery shorter, airstalls more);\n"
+							"*) Marteli (makes startup faster);\n"
+							"*) Air Marteli (makes startup faster);\n"
+							"*) Calvados (if you also have H Sword);\n"
+							"*) Trance (if you don't have H Sword either).",
 						playerval0,
 						"S Sword Deployed:",
+						"This controls the availability of the following moves:\n"
+							"*) 6S Summon (maker recovery longer)\n;"
+							"*) 2S Summon\n;"
+							"*) 4S Recall\n;"
+							"*) j.6S Summon (makes recovery longer, airstalls less)\n;"
+							"*) j.2S Summon\n;"
+							"*) j.4S Recall\n;"
+							"*) Marteli (makes startup slower)\n;"
+							"*) Air Marteli (makes startup slower).",
 						playerval1,
 						"S Sword Anim:",
 						player.ramlethalSSwordKowareSonoba,
@@ -4152,8 +4181,29 @@ void UI::drawSearchableWindows() {
 					},
 					{
 						"Has H Sword:",
+						"This controls the availability of the following moves:\n"
+							"*) 5H with Sword;\n"
+							"*) 5H without Sword;\n"
+							"*) 6H Summon (maker recovery shorter);\n"
+							"*) 2H with Sword;\n"
+							"*) j.H (with Sword);\n"
+							"*) j.H (without Sword);\n"
+							"*) j.6H Summon (makes recovery shorter, airstalls more);\n"
+							"*) Forpeli (makes startup faster);\n"
+							"*) Air Forpeli (makes startup faster);\n"
+							"*) Calvados (if you also have S Sword);\n"
+							"*) Trance (if you don't have S Sword either).",
 						playerval2,
 						"H Sword Deployed:",
+						"This controls the availability of the following moves:\n"
+							"*) 6H Summon (maker recovery longer);\n"
+							"*) 4H Recall;\n"
+							"*) 2H Summon;\n"
+							"*) j.6H Summon (makes recovery longer, airstalls less);\n"
+							"*) j.2H Summon;\n"
+							"*) j.4H Recall;\n"
+							"*) Forpeli (makes startup slower);\n"
+							"*) Air Forpeli (makes startup slower).",
 						playerval3,
 						"H Sword Anim:",
 						player.ramlethalHSwordKowareSonoba,
@@ -4171,12 +4221,18 @@ void UI::drawSearchableWindows() {
 					ImGui::Separator();
 					
 					yellowText(searchFieldTitle(bitInfo.hasSwordTitle));
+					tooltip = searchTooltip(bitInfo.hasSwordWhatItMeans);
+					AddTooltip(tooltip);
 					ImGui::SameLine();
 					ImGui::TextUnformatted(bitInfo.hasSword ? "Yes" : "No");
+					AddTooltip(tooltip);
 					
 					yellowText(searchFieldTitle(bitInfo.swordDeployedTitle));
+					tooltip = searchTooltip(bitInfo.deployedSwordWhatItMeans);
+					AddTooltip(tooltip);
 					ImGui::SameLine();
 					ImGui::TextUnformatted(bitInfo.swordDeployed ? "Yes" : "No");
+					AddTooltip(tooltip);
 					
 					yellowText(searchFieldTitle(bitInfo.animTitle));
 					ImGui::SameLine();
@@ -8482,8 +8538,13 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 					});
 			}
 		} else {
-			sprintf_s(strbuf, "(%d) <no inputs>", allInputsAreJustOneEmptyRow_frameCount);
-			ImGui::TextUnformatted(strbuf);
+			int result = sprintf_s(strbuf, "(%d) <no inputs>", allInputsAreJustOneEmptyRow_frameCount);
+			if (result != -1) {
+				if (playerIndex == 1) {
+					ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize(strbuf, strbuf + result).x);
+				}
+				ImGui::TextUnformatted(strbuf);
+			}
 		}
 		
 		if (overflow || frame.inputsOverflow) {

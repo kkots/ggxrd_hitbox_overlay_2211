@@ -5903,6 +5903,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "MiddleShot");
 	move.displayName = "Cassius";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BanditRevolverLand");
