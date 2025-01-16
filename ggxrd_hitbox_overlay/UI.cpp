@@ -4263,6 +4263,22 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.showRamlethalSwordRedeployDistanceForP2);
 				
+			} else if (player.charType == CHARACTER_TYPE_SIN) {
+				
+				yellowText(searchFieldTitle("Calorie Gauge:"));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/16000", player.pawn.exGaugeValue(0));
+				ImGui::TextUnformatted(strbuf);
+				
+				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+				ImGui::PushTextWrapPos(0.F);
+				ImGui::TextUnformatted("When doing Hawk Baker, the horizontal line displayed leads to the wall"
+					" in front of you. If you're close enough to it, you get a \"red\" hit."
+					" If you're not close to the wall, then opponent's origin point must be within the"
+					" infinite vertical box around you, in order to get the \"red\" hit.");
+				ImGui::PopTextWrapPos();
+				ImGui::PopStyleColor();
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}

@@ -496,6 +496,8 @@ private:
 	SkippedFramesInfo nextSkippedFramesIdleHitstop;
 	bool isFirstTickOfAMatch = false;
 	bool startedNewRound = false;
+	DWORD leftEdgeOfArenaOffset = 0;
+	DWORD rightEdgeOfArenaOffset = 0;
 };
 
 extern EndScene endScene;

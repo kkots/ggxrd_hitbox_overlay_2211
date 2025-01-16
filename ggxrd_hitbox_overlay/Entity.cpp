@@ -118,6 +118,7 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 		|| inHitstun()
 		|| blockstun() > 0;
 
+	state->posX = posX();
 	state->posY = posY();
 
 	const auto otg = isOtg();

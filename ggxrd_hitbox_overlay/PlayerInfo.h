@@ -1333,6 +1333,7 @@ struct PlayerInfo {
 	int ramlethalSSwordTimeMax = 0;
 	int ramlethalHSwordTime = 0;
 	int ramlethalHSwordTimeMax = 0;
+	int sinHawkBakerStartX;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;

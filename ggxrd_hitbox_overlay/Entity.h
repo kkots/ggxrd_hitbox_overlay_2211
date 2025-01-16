@@ -38,6 +38,7 @@ struct EntityState {
 	bool isGettingThrown;
 	unsigned int flagsField;
 	bool inHitstunBlockstun;
+	int posX;
 	int posY;
 };
 

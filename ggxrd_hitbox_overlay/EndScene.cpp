@@ -306,6 +306,45 @@ bool EndScene::onDllMain() {
 	if (BBScr_createArgHikitsukiVal) {
 		BBScr_getAccessedValueImpl = (BBScr_getAccessedValueImpl_t)followRelativeCall(BBScr_createArgHikitsukiVal + 15);
 	}
+	uintptr_t BBScr_getAccessedValueImplJumptable = 0;
+	if (BBScr_getAccessedValueImpl) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("83 ec 1c", sig, mask);
+		uintptr_t ptr = (uintptr_t)BBScr_getAccessedValueImpl;
+		bool ok = memcmp((void*)ptr, sig.data(), 3) == 0;
+		ptr += 3;
+		if (ok) {
+			ok = *(BYTE*)ptr == 0xa1;
+			++ptr;
+		}
+		if (ok) {
+			byteSpecificationToSigMask("8b 0d ?? ?? ?? ?? 3d ec 00 00 00 0f 87", sig, mask);
+			substituteWildcard(sig.data(), mask.data(), 0, game.gameDataPtr);
+			ptr = sigscanForward(ptr, sig.data(), mask.data(), 0x40);
+			ok = ptr != 0;
+			ptr += 13;
+		}
+		if (ok) {
+			ptr = sigscanForward(ptr, "ff 24 85", 0x40);
+			ok = ptr != 0;
+		}
+		if (ok) {
+			BBScr_getAccessedValueImplJumptable = *(uintptr_t*)(ptr + 3);
+		}
+	}
+	if (BBScr_getAccessedValueImplJumptable) {
+		uintptr_t entryPtr = *(uintptr_t*)(BBScr_getAccessedValueImplJumptable + 4 * 0x14);  // DISTANCE_TO_WALL_IN_FRONT
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("8b 0d ?? ?? ?? ?? 8b 91 ?? ?? ?? ??", sig, mask);
+		substituteWildcard(sig.data(), mask.data(), 0, aswEngine);
+		uintptr_t aswEngUsage = sigscanForward(entryPtr, sig.data(), mask.data(), 0x1e);
+		if (aswEngUsage) {
+			leftEdgeOfArenaOffset = *(DWORD*)(aswEngUsage + 8);
+			rightEdgeOfArenaOffset = leftEdgeOfArenaOffset + 4;
+		}
+	}
 	if (BBScr_checkMoveCondition) {
 		BBScr_checkMoveConditionImpl = (BBScr_checkMoveConditionImpl_t)followRelativeCall(BBScr_checkMoveCondition + 14);
 	}
@@ -2252,6 +2291,105 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			useTheseValues ? &isFullInvul : nullptr,
 			scaleX,
 			scaleY);
+		
+		if (ent.isPawn()
+				&& ent.characterType() == CHARACTER_TYPE_SIN
+				&& strcmp(ent.animationName(), "UkaseWaza") == 0) {
+			int animFrame = ent.currentAnimDuration();
+			if (animFrame >= 7 && animFrame < 27) {
+				
+				PlayerInfo& player = players[ent.team()];
+				DrawLineCallParams* newLine;
+				DrawPointCallParams* newPoint;
+				DrawBoxCallParams* newBox;
+				
+				if (leftEdgeOfArenaOffset) {
+					
+					int wallX;
+					int wallOff;
+					int pnt = player.sinHawkBakerStartX;
+					if (player.pawn.isFacingLeft()) {
+						wallX = *(int*)(*aswEngine + leftEdgeOfArenaOffset) * 1000;
+						wallOff = wallX + 360000;
+						if (pnt < wallOff) pnt = wallOff;
+						wallX += 20000;
+					} else {
+						wallX = *(int*)(*aswEngine + rightEdgeOfArenaOffset) * 1000;
+						wallOff = wallX - 360000;
+						if (pnt > wallOff) pnt = wallOff;
+						wallX -= 20000;
+					}
+					
+					int centerOffsetY = ent.getCenterOffsetY();
+					int centerY = entityState.posY + centerOffsetY;
+					int sinBottomY = entityState.posY - 30000;
+					int sinTopY = entityState.posY + centerOffsetY + centerOffsetY + 30000;
+					int wallBottomY = centerY - 20000;
+					int wallTopY = centerY + 20000;
+					
+					// Sin vertical line
+					drawDataPrepared.lines.emplace_back();
+					newLine = &drawDataPrepared.lines.back();
+					newLine->posX1 = player.sinHawkBakerStartX;
+					newLine->posY1 = sinBottomY;
+					newLine->posX2 = player.sinHawkBakerStartX;
+					newLine->posY2 = sinTopY;
+					
+					// Wall vertical line
+					drawDataPrepared.lines.emplace_back();
+					newLine = &drawDataPrepared.lines.back();
+					newLine->posX1 = wallX;
+					newLine->posY1 = wallBottomY;
+					newLine->posX2 = wallX;
+					newLine->posY2 = wallTopY;
+					
+					// Wall +- 360000 vertical line
+					drawDataPrepared.lines.emplace_back();
+					newLine = &drawDataPrepared.lines.back();
+					newLine->posX1 = wallOff;
+					newLine->posY1 = wallBottomY;
+					newLine->posX2 = wallOff;
+					newLine->posY2 = wallTopY;
+					
+					// Sin center point
+					drawDataPrepared.points.emplace_back();
+					newPoint = &drawDataPrepared.points.back();
+					newPoint->isProjectile = true;
+					newPoint->posX = player.sinHawkBakerStartX;
+					newPoint->posY = centerY;
+					
+					// Wall center point
+					drawDataPrepared.points.emplace_back();
+					newPoint = &drawDataPrepared.points.back();
+					newPoint->isProjectile = true;
+					newPoint->posX = wallX;
+					newPoint->posY = centerY;
+					
+					// Line from Wall center to either Sin center or, if he's too close, to wall X +- 360000
+					drawDataPrepared.lines.emplace_back();
+					newLine = &drawDataPrepared.lines.back();
+					newLine->posX1 = wallX;
+					newLine->posY1 = centerY;
+					newLine->posX2 = pnt;
+					newLine->posY2 = centerY;
+					
+					drawDataPrepared.interactionBoxes.emplace_back();
+					newBox = &drawDataPrepared.interactionBoxes.back();
+					newBox->bottom = -1000000;
+					newBox->top = 10000000;
+					newBox->left = player.sinHawkBakerStartX - 200000;
+					newBox->right = player.sinHawkBakerStartX + 200000;
+					if (animFrame == 7 && !ent.isRCFrozen()) {
+						newBox->fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
+					} else {
+						newBox->fillColor = 0;
+					}
+					newBox->outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+					newBox->thickness = 1;
+					
+				}
+			}
+		}
 		
 		if (settings.showRamlethalSwordRedeployNoTeleportDistance
 				&& !ent.isPawn()
@@ -5648,7 +5786,7 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 								|| strcmp(animName, "BitN2C_Bunri") == 0
 							)
 					) {
-						player.ramlethalBitNStartPos = p.x();
+						player.ramlethalBitNStartPos = p.posX();
 					}
 				}
 				p = pawn.stackEntity(1);
@@ -5661,8 +5799,13 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 								|| strcmp(animName, "BitF2D_Bunri") == 0
 							)
 					) {
-						player.ramlethalBitFStartPos = p.x();
+						player.ramlethalBitFStartPos = p.posX();
 					}
+				}
+			} else if (pawn.characterType() == CHARACTER_TYPE_SIN) {
+				if (strcmp(pawn.animationName(), "UkaseWaza") == 0
+						&& pawn.currentAnimDuration() == 7 && !pawn.isRCFrozen()) {
+					player.sinHawkBakerStartX = pawn.posX();
 				}
 			}
 		}

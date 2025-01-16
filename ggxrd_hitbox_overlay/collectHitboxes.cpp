@@ -61,7 +61,7 @@ void collectHitboxes(Entity ent,
 	int currentHitNum = ent.currentHitNum();
 	
 	DrawHitboxArrayParams params;
-	params.posX = ent.posX();
+	params.posX = state.posX;
 	params.posY = state.posY;
 	logOnce(fprintf(logfile, "pox_x: %d\n", params.posX));
 	logOnce(fprintf(logfile, "pox_y: %d\n", params.posY));

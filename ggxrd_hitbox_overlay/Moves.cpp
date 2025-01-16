@@ -6197,12 +6197,14 @@ bool Moves::onDllMain() {
 	move.displayName = "Voltec Dein";
 	move.slangName = "Voltec";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Air");
 	move.displayName = "Air Voltec Dein";
 	move.slangName = "Air Voltec";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "SuperShotStart", true);

@@ -174,6 +174,7 @@ public:
 	InputRingBuffer* getInputRingBuffers() const;
 	DWORD matchInfoOffset = 0;
 	int getMatchTimer() const;  // decrements at the start of logic tick
+	char** gameDataPtr = nullptr;  // REDGameCommon
 private:
 	class HookHelp {
 		friend class Game;
@@ -196,7 +197,6 @@ private:
 	TickActors_FDeferredTickList_FGlobalActorIterator_t orig_TickActors_FDeferredTickList_FGlobalActorIterator = nullptr;
 	updateBattleOfflineVer_t orig_updateBattleOfflineVer = nullptr;
 	TickActorComponents_t orig_TickActorComponents = nullptr;
-	char** gameDataPtr = nullptr;  // REDGameCommon
 	char** playerSideNetworkHolder = nullptr;
 	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;
