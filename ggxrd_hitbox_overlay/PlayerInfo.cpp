@@ -1219,7 +1219,8 @@ void EntityFramebar::setTitle(const char* text,
 			const char* slangName,
 			const char* nameUncombined,
 			const char* slangNameUncombined,
-			const char* textFull) {
+			const char* textFull,
+			bool landedHit) {
 	
 	if (text && *text == '\0') text = nullptr;
 	if (slangName && *slangName == '\0') slangName = nullptr;
@@ -1231,6 +1232,7 @@ void EntityFramebar::setTitle(const char* text,
 	titleUncombined = nameUncombined;
 	titleSlangUncombined = slangNameUncombined;
 	titleFull = textFull;
+	titleLandedHit = landedHit;
 }
 
 void EntityFramebar::copyTitle(const EntityFramebar& source) {
@@ -1239,6 +1241,7 @@ void EntityFramebar::copyTitle(const EntityFramebar& source) {
 	titleUncombined = source.titleUncombined;
 	titleSlangUncombined = source.titleSlangUncombined;
 	titleFull = source.titleFull;
+	titleLandedHit = source.titleLandedHit;
 }
 
 int EntityFramebar::confinePos(int pos) {
@@ -2313,8 +2316,16 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 	for (int i = 0; i < _countof(source.frames); ++i) {
 		const Frame& sf = source[i];
 		Frame& df = main[i];
-		sources[i] = dad;
-		if (determineFrameLevel(sf.type) >= determineFrameLevel(df.type)) {
+		if (!(
+				sources[i]
+				&& sources[i]->titleLandedHit
+				&& !dad->titleLandedHit
+		)) {
+			sources[i] = dad;
+		}
+		int sfLvl = determineFrameLevel(sf.type);
+		int dfLvl = determineFrameLevel(df.type);
+		if (sfLvl > dfLvl || sfLvl == dfLvl && !(df.hitConnected && !sf.hitConnected)) {
 			df.type = sf.type;
 			df.animName = sf.animName;
 			df.animSlangName = sf.animSlangName;
@@ -2881,4 +2892,17 @@ void Framebar::modifyFrame(int pos, DWORD aswEngineTick, FrameType newType) {
 		--ind;
 		if (ind < 0) ind = _countof(Framebar::frames) - 1;
 	}
+}
+
+int PlayerInfo::getElpheltRifle_AimMem46() const {
+	if (charType == CHARACTER_TYPE_ELPHELT && move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot) {
+		for (int i = 2; i < entityList.count; ++i) {
+			Entity p = entityList.list[i];
+			if (p.isActive() && p.team() == index && !p.isPawn()
+					&& strcmp(p.animationName(), "Rifle_Aim") == 0) {
+				return p.mem46();
+			}
+		}
+	}
+	return 0;
 }

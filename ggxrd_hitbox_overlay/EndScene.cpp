@@ -1881,7 +1881,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (!found) {
 				if (projectile.landedHit || projectile.gotHitOnThisFrame) {
 					projectile.ptr = nullptr;
-					projectile.markActive = true;
+					projectile.markActive = projectile.landedHit;
 					++it;
 					continue;
 				}
@@ -2191,6 +2191,72 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					
 				}
 				
+			} else if (player.charType == CHARACTER_TYPE_ELPHELT) {
+				
+				bool foundGrenadeInGeneral = false;
+				bool foundGrenade = false;
+				int grenadeSlowdown = 0;
+				int grenadeTimeRemaining = 0;
+				
+				for (ProjectileInfo& projectile : projectiles) {
+					if (projectile.team != player.index || !projectile.ptr) continue;
+					if (strcmp(projectile.animName, "GrenadeBomb") == 0) {
+						foundGrenadeInGeneral = true;
+						if (!projectile.ptr.hasUpon(35)) {
+							foundGrenade = true;
+							grenadeSlowdown = projectile.rcSlowedDownCounter;
+							if (projectile.sprite.frameMax == 1) {
+								grenadeTimeRemaining = 30;
+							} else {
+								grenadeTimeRemaining = 29 - projectile.sprite.frame;
+							}
+						}
+					} else if (strcmp(projectile.animName, "GrenadeBomb_Ready") == 0) {
+						foundGrenadeInGeneral = true;
+						if (projectile.sprite.frameMax == 1) {
+							grenadeTimeRemaining = 31;
+							foundGrenade = true;
+						} else if (projectile.sprite.frameMax == 30) {
+							grenadeTimeRemaining = 30 - projectile.sprite.frame;
+							foundGrenade = true;
+						}
+					}
+				}
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				if (!foundGrenade) {
+					if (foundGrenadeInGeneral && hasForceDisableFlag) {
+						player.elpheltGrenadeRemainingWithSlow = 255;
+						player.elpheltGrenadeMaxWithSlow = 255;
+					} else if (hasForceDisableFlag) {
+						player.elpheltGrenadeRemainingWithSlow = 1;
+					} else {
+						player.elpheltGrenadeRemainingWithSlow = 0;
+					}
+					player.elpheltGrenadeElapsed = 0;
+				} else {
+					int result;
+					int resultMax;
+					int unused;
+					PlayerInfo::calculateSlow(
+						player.elpheltGrenadeElapsed + 1,
+						grenadeTimeRemaining,
+						grenadeSlowdown,
+						&result,
+						&resultMax,
+						&unused);
+					
+					if (superflashInstigator == nullptr) ++player.elpheltGrenadeElapsed;
+					
+					if (result || hasForceDisableFlag) ++result;
+					++resultMax;
+					
+					player.elpheltGrenadeRemainingWithSlow = result;
+					player.elpheltGrenadeMaxWithSlow = resultMax;
+				}
+				
+				player.elpheltRifle_AimMem46 = player.getElpheltRifle_AimMem46();
+				
 			}
 		}
 		
@@ -2389,6 +2455,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					
 				}
 			}
+		}
+		
+		if (ent.isPawn() && ent.characterType() == CHARACTER_TYPE_ELPHELT
+				&& strcmp(ent.animationName(), "Shotgun_Fire_MAX") == 0) {
+			PlayerInfo& player = players[ent.team()];
+			drawDataPrepared.interactionBoxes.emplace_back();
+			DrawBoxCallParams& newBox = drawDataPrepared.interactionBoxes.back();
+			newBox.bottom = -1000000;
+			newBox.top = 10000000;
+			newBox.left = player.elpheltShotgunX - 300000;
+			newBox.right = player.elpheltShotgunX + 300000;
+			newBox.thickness = 1;
+			if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
+				newBox.fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
+			} else {
+				newBox.fillColor = 0;
+			}
+			newBox.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
 		}
 		
 		if (settings.showRamlethalSwordRedeployNoTeleportDistance
@@ -2647,7 +2731,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool needUseHitstop = false;
 			bool isDangerous = false;
 			
-			if (projectile.markActive || projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr)) {
+			if (projectile.markActive
+					|| projectile.gotHitOnThisFrame
+					|| projectile.move.isDangerous
+					&& projectile.move.isDangerous(projectile.ptr)) {
 				isDangerous = true;
 				needUseHitstop = true;
 			}
@@ -2772,6 +2859,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						|| player.forceBusy
 						|| settings.considerDummyPlaybackNonIdle
 						&& game.isTrainingMode() && game.getDummyRecordingMode() == DUMMY_MODE_PLAYING_BACK
+						|| player.charType == CHARACTER_TYPE_ELPHELT
+						&& (
+							player.playerval0
+							&& (
+								!player.playerval1
+								|| player.playerval1 && !player.prevFramePlayerval1
+							)
+							&& (
+								player.cmnActIndex == CmnActStand
+								|| player.cmnActIndex == CmnActCrouch2Stand
+							)
+							|| player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // rifle stance
+							&& (
+								!player.elpheltRifle_AimMem46
+								|| player.elpheltRifle_AimMem46
+								&& !player.prevFrameElpheltRifle_AimMem46
+							)
+						)
 					)
 					&& (
 						!settings.considerKnockdownWakeupAndAirtechIdle
@@ -3038,10 +3143,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					);
 			}
 			
+			PlayerInfo& player = players[projectile.team == 0 || projectile.team == 1 ? projectile.team : 0];
 			if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1)
 					&& !projectile.prevStartups.empty()
 					&& !ignoreThisForPlayer) {
-				PlayerInfo& player = players[projectile.team];
+				
 				player.prevStartupsProj = projectile.prevStartups;
 				for (int i = 0; i < player.prevStartupsProj.count; ++i) {
 					player.prevStartupsProj[i].moveName = nullptr;
@@ -3050,10 +3156,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			
 			bool projectileCanBeHit = false;
-			if (projectile.isRamlethalSword && !projectile.strikeInvul) {
+			if ((
+					projectile.isRamlethalSword
+					|| player.charType == CHARACTER_TYPE_ELPHELT
+					&& strcmp(projectile.animName, "GrenadeBomb") == 0
+				) && !projectile.strikeInvul
+				|| projectile.gotHitOnThisFrame) {
 				projectileCanBeHit = true;
 			}
-			ProjectileFramebar& entityFramebar = findProjectileFramebar(projectile, projectile.markActive || projectileCanBeHit);
+			ProjectileFramebar& entityFramebar = findProjectileFramebar(projectile,
+				projectile.markActive
+				|| projectile.gotHitOnThisFrame
+				|| projectileCanBeHit);
 			entityFramebar.foundOnThisFrame = true;
 			Framebar& framebar = entityFramebar.idleHitstop;
 			Frame& currentFrame = framebar[framebarPos];
@@ -3087,7 +3201,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			} else if (!superflashInstigator || !projectile.startedUp) {
 				if (!projectile.startedUp) {
 					if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
-						PlayerInfo& player = players[projectile.team];
 						if (!player.startupProj) {
 							player.startupProj = projectile.startup;
 						}
@@ -3116,7 +3229,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (!projectile.hitOnFrame && projectile.hitConnectedForFramebar()) {
 					projectile.hitOnFrame = projectile.actives.total();
 					if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
-						PlayerInfo& player = players[projectile.team];
 						if (!player.hitOnFrameProj) {
 							player.hitOnFrameProj = projectile.hitOnFrame;
 						}
@@ -3135,7 +3247,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 				}
 				if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
-					PlayerInfo& player = players[projectile.team];
 					if (!player.hitstop) {
 						if (superflashInstigator) {
 							player.activesProj.addSuperfreezeActive(projectile.hitNumber);
@@ -3756,6 +3867,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.u.ramlethalInfo.hSwordTimeMax = 0;
 						currentFrame.u.ramlethalInfo.hSwordSubAnim = nullptr;
 					}
+				} else if (player.charType == CHARACTER_TYPE_ELPHELT) {
+					currentFrame.u.elpheltInfo.grenadeTimer = player.wasResource;
+					currentFrame.u.elpheltInfo.grenadeDisabledTimer = min(255, player.elpheltGrenadeRemainingWithSlow);
+					currentFrame.u.elpheltInfo.grenadeDisabledTimerMax = min(255, player.elpheltGrenadeMaxWithSlow);
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -4514,6 +4629,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFrameGroundBounceCount = player.pawn.groundBounceCount();
 			player.prevFrameTumbleDuration = player.pawn.tumbleDuration();
 			player.prevFrameMaxHit = player.pawn.maxHit();
+			player.prevFramePlayerval0 = player.playerval0;
+			player.prevFramePlayerval1 = player.playerval1;
+			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
 			player.prevPosX = player.x;
 			player.prevPosY = player.y;
 			
@@ -5764,6 +5882,7 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 			// we need the original value
 			PlayerInfo& player = findPlayer(pawn);
 			player.wasPlayerval1Idling = pawn.playerVal(1);
+			player.wasResource = pawn.exGaugeValue(0);
 		}
 		// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
 		if (signal == 0x27  // PRE_DRAW
@@ -5806,6 +5925,10 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 				if (strcmp(pawn.animationName(), "UkaseWaza") == 0
 						&& pawn.currentAnimDuration() == 7 && !pawn.isRCFrozen()) {
 					player.sinHawkBakerStartX = pawn.posX();
+				}
+			} else if (pawn.characterType() == CHARACTER_TYPE_ELPHELT) {
+				if (strcmp(pawn.animationName(), "Shotgun_Fire_MAX") == 0 && pawn.currentAnimDuration() == 1 && !pawn.isRCFrozen()) {
+					player.elpheltShotgunX = pawn.posX();
 				}
 			}
 		}
@@ -6651,8 +6774,12 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 						|| *name == '\0'
 						|| dontReplaceTitle
 					)
+				)
+				&& !(
+					bar.titleLandedHit
+					&& !projectile.landedHit
 				)) {
-				bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull);
+				bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull, projectile.landedHit);
 			}
 			return bar;
 		}
@@ -6667,7 +6794,7 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 	bar.isEddie = projectile.move.isEddie;
 	projectile.framebarId = nextFramebarId;
 	incrementNextFramebarIdSmartly();
-	bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull);
+	bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull, projectile.landedHit);
 	bar.moveFramebarId = projectile.move.framebarId;
 	return bar;
 }
@@ -6702,7 +6829,12 @@ CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFrame
 						*source.titleShort == '\0'
 						|| source.moveFramebarId == -1
 					)
-				)) {
+				)
+				&& !(
+					bar.titleLandedHit
+					&& !source.titleLandedHit
+				)
+			) {
 				bar.copyTitle(source);
 			}
 			return bar;

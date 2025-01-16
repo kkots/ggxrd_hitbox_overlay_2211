@@ -191,6 +191,10 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Ramlethal Sword Re-Deploy No-Teleport Distance: The infinite vertical boxes around the swords show the distance in which the opponent's origin point must be in order for the sword to not spend extra time teleporting to the opponent when you re-deploy it. This can be disabled using the showRamlethalSwordRedeployNoTeleportDistance setting (located in UI - Character Specific).
 
+- Sin Hawk Baker Red Hit Box: The line connecting Sin to the wall that he's facing has a marking on it denoting the maximum distance he must be from the wall, as one of two possible ways to get a red hit. The distance marker checks for Sin's origin point, not his pushbox. If Sin is too far from the wall that he is facing, the other way to get a red hit is for the opponent's origin point to be close to Sin, inside the infinite white vertical box drawn around him. If Sin is neither close to the wall he's facing nor close enough to the opponent, the hit is blue.
+
+- Elphelt Max Charge Shotgun: If the opponent's origin point is within the infinite white vertical box around Elphelt, then the shotgun shot gets the maximum possible powerup.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  

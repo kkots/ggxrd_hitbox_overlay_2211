@@ -82,6 +82,12 @@ struct RamlethalInfo {
 	const char* hSwordSubAnim;
 };
 
+struct ElpheltInfo {
+	unsigned short grenadeTimer;
+	unsigned char grenadeDisabledTimer;
+	unsigned char grenadeDisabledTimerMax;
+};
+
 struct GatlingOrWhiffCancelInfo {
 	const char* name;
 	const char* replacementInputs;
@@ -402,6 +408,7 @@ struct PlayerFrame : public FrameBase {
 		InoInfo inoInfo;
 		BedmanInfo bedmanInfo;
 		RamlethalInfo ramlethalInfo;
+		ElpheltInfo elpheltInfo;
 	} u;
 	short poisonDuration;
 	FrameStopInfo stop;
@@ -553,6 +560,7 @@ struct EntityFramebar {
 	const char* titleUncombined = nullptr;
 	const char* titleSlangUncombined = nullptr;
 	const char* titleFull = nullptr;
+	bool titleLandedHit = false;
 	bool foundOnThisFrame = false;
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const = 0;
@@ -561,7 +569,8 @@ struct EntityFramebar {
 		const char* slangName = nullptr,
 		const char* nameUncombined = nullptr,
 		const char* slangNameUncombined = nullptr,
-		const char* textFull = nullptr);
+		const char* textFull = nullptr,
+		bool landedHit = false);
 	void copyTitle(const EntityFramebar& source);
 	inline void changePreviousFramesOneType(FrameType prevType,
 			FrameType newType,
@@ -1306,6 +1315,9 @@ struct PlayerInfo {
 	int prevFrameGroundBounceCount = 0;
 	int prevFrameTumbleDuration = 0;
 	int prevFrameMaxHit = 0;
+	int prevFramePlayerval0 = 0;
+	int prevFramePlayerval1 = 0;
+	int prevFrameElpheltRifle_AimMem46 = 0;
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
 	int lastNoteTime = 0;
@@ -1323,6 +1335,7 @@ struct PlayerInfo {
 	int ramlethalBitFStartPos = 0;
 	int wasPlayerval[4] { 0 };
 	int wasPlayerval1Idling = 0;
+	int wasResource = 0;
 	int milliaChromingRoseTimeLeft = 0;
 	BedmanInfo bedmanInfo;
 	const char* ramlethalSSwordAnim = nullptr;
@@ -1334,6 +1347,11 @@ struct PlayerInfo {
 	int ramlethalHSwordTime = 0;
 	int ramlethalHSwordTimeMax = 0;
 	int sinHawkBakerStartX;
+	int elpheltGrenadeElapsed = 0;
+	int elpheltGrenadeRemainingWithSlow = 0;
+	int elpheltGrenadeMaxWithSlow = 0;
+	int elpheltShotgunX = 0;
+	int elpheltRifle_AimMem46 = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
@@ -1513,4 +1531,5 @@ struct PlayerInfo {
 	static void calculateSlow(int valueElapsed, int valueRemaining, int slowRemaining, int* result, int* resultMax, int *newSlowRemaining);
 	void getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFrameInTheMatch);
 	void fillInPlayervalSetter(int playervalNum);
+	int getElpheltRifle_AimMem46() const;
 };

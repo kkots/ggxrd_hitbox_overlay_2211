@@ -1954,9 +1954,9 @@ void UI::drawSearchableWindows() {
 	}
 	
 	for (int i = 0; i < two; ++i) {
-		ImGui::PushID(searchFieldTitle("Damage/RISC Calculation"));
+		ImGui::PushID(searchFieldTitle("Damage/RISC/Stun Calculation"));
 		ImGui::PushID(i);
-		sprintf_s(strbuf, i == 0 ? "Damage/RISC Calculation (P1)" : "... (P2)");
+		sprintf_s(strbuf, i == 0 ? "Damage/RISC/Stun Calculation (P1)" : "... (P2)");
 		if (ImGui::Button(strbuf)) {
 			showDamageCalculation[i] = !showDamageCalculation[i];
 		}
@@ -4279,6 +4279,73 @@ void UI::drawSearchableWindows() {
 				ImGui::PopTextWrapPos();
 				ImGui::PopStyleColor();
 				
+			} else if (player.charType == CHARACTER_TYPE_ELPHELT) {
+				
+				yellowText(searchFieldTitle("Berry Timer:"));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/180", player.wasResource);
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText(searchFieldTitle("Can pull Berry in:"));
+				ImGui::SameLine();
+				char* buf = strbuf;
+				size_t bufSize = sizeof strbuf;
+				int result;
+				if (player.elpheltGrenadeRemainingWithSlow == 255) {
+					result = sprintf_s(buf, bufSize, "%s", "???");
+				} else {
+					result = sprintf_s(buf, bufSize, "%d", player.elpheltGrenadeRemainingWithSlow);
+				}
+				advanceBuf
+				if (player.elpheltGrenadeMaxWithSlow == 255) {
+					result = sprintf_s(buf, bufSize, "/%s", "???");
+				} else {
+					result = sprintf_s(buf, bufSize, "/%d", player.elpheltGrenadeMaxWithSlow);
+				}
+				ImGui::TextUnformatted(strbuf);
+				
+				if (ImGui::Button(searchFieldTitle("Ms. Travailler Powerup Explanation"))) {
+					printElpheltShotgunPowerup[i] = !printElpheltShotgunPowerup[i];
+				}
+				if (printElpheltShotgunPowerup[i]) {
+					ImGui::PushTextWrapPos(0.F);
+					ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+					ImGui::TextUnformatted(searchTooltip("There're three levels of powerup of Elphelt's Max Charge Shotgun:\n"
+						"1) The attack has two hitboxes. When only the far hitbox connects, and the close one doesn't, the hit has:\n"
+						"1.a) Attack level 4;\n"
+						"1.b) The shot is unflickable;\n"
+						"1.c) 35 damage;\n"
+						"1.d) 50% as chip damage;\n"
+						"1.e) Blows away on counterhit;\n"
+						"1.f) 300.00 speed X to the opponent;\n"
+						"1.g) 160.00 speed Y to the opponent;\n"
+						"1.h) 33f untechable time;\n"
+						"1.i) The close shot's hitbox is multihit, it can hit up to 10 things on the same frame,"
+						" in addition to the far hitbox hitting something;\n"
+						"2) When the close hitbox connects, no matter if the far one connected or not, the hit additionally gets:\n"
+						"2.) Nothing;\n"
+						"3) If the opponent's origin point is within the infinite vertical white box displayed around Elphelt"
+						" at the moment of the shot, the hit changes some properties to the following:\n"
+						"3.c) 55 damage;\n"
+						"3.h) 36f untechable time;\n"
+						"New properties:\n"
+						"3.j) Prorates combo more: RISC- becomes 9, instead of 6;\n"
+						"3.k) Deals 86 more stun (example calculated on the first hit of a combo, this value is presented here"
+						" for comparison purposes only): 40 base stun value instead of 35 base stun value;\n"
+						"3.l) 38f wallstick;\n"
+						"3.m) 76f tumble on counterhit;\n"));
+					ImGui::PopStyleColor();
+					ImGui::PopTextWrapPos();
+				}
+				
+				yellowText("Ms. Travailler Stance:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.playerval0 ? "Yes" : "No");
+				
+				yellowText("Ms. Travailler Max Charge:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.playerval1 ? "Yes" : "No");
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
@@ -4434,11 +4501,11 @@ void UI::drawSearchableWindows() {
 		}
 	}
 	popSearchStack();
-	searchCollapsibleSection("Damage/RISC Calculation");
+	searchCollapsibleSection("Damage/RISC/Stun Calculation");
 	for (int i = 0; i < two; ++i) {
 		if (showDamageCalculation[i] || searching) {
 			ImGui::PushID(i);
-			sprintf_s(strbuf, searching ? "search_damage" : "  Damage/RISC Calculation (P%d)", i + 1);
+			sprintf_s(strbuf, searching ? "search_damage" : "  Damage/RISC/Stun Calculation (P%d)", i + 1);
 			ImGui::SetNextWindowSize({
 				ImGui::GetFontSize() * 35.F,
 				150.F
@@ -5432,7 +5499,8 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							ImGui::TextUnformatted(searchFieldTitle("HP<=Dmg and HP>=30% MaxHP"));
-							AddTooltip(searchTooltip("When HP at the moment of hit is less than or equal to the damage, and HP is greater than or equal to max HP * 30% (HP>=126),"
+							AddTooltip(searchTooltip("When HP at the moment of hit is less than or equal to the damage,"
+								" and HP is greater than or equal to max HP * 30% (i.e. HP>=126),"
 								" the damage gets changed to:\n"
 								"Damage = HP - Max HP * 5% or, in other words, Damage = HP - 21"));
 							ImGui::TableNextColumn();
@@ -5736,7 +5804,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TableNextColumn();
 							zerohspacing
 							searchFieldTitle("Attack Stun * 17.25");
-							tooltip = searchTooltip("This multiplier is fixed and is always applied. Attack's stun is limited in [0; 15000].");
+							tooltip = searchTooltip("This multiplier is fixed and is always applied. Attack's stun must be within [0; 15000].");
 							ImGui::TextUnformatted("Attack ");
 							AddTooltip(tooltip);
 							ImGui::SameLine();
@@ -7688,6 +7756,28 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(ramlethalSword.c_str());
 	
+	yellowText("Sin Hawk Baker Red Hit Box:");
+	static std::string sinHawkBaker;
+	if (sinHawkBaker.empty()) {
+		sinHawkBaker = settings.convertToUiDescription(
+			"The line connecting Sin to the wall that he's facing has a marking on it denoting the maximum"
+			" distance he must be from the wall, as one of two possible ways to get a red hit."
+			" The distance marker checks for Sin's origin point, not his pushbox. If Sin is too far from"
+			" the wall that he is facing, the other way to get a red hit is for the opponent's origin point"
+			" to be close to Sin, inside the infinite white vertical box drawn around him. If Sin is neither"
+			" close to the wall he's facing nor close enough to the opponent, the hit is blue.");
+	}
+	ImGui::TextUnformatted(sinHawkBaker.c_str());
+	
+	yellowText("Elphelt Max Charge Shotgun:");
+	static std::string elpheltShotgun;
+	if (elpheltShotgun.empty()) {
+		elpheltShotgun = settings.convertToUiDescription(
+			"If the opponent's origin point is within the infinite white vertical box around Elphelt,"
+			" then the shotgun shot gets the maximum possible powerup.");
+	}
+	ImGui::TextUnformatted(elpheltShotgun.c_str());
+	
 	ImGui::Separator();
 	
 	yellowText("Outlines lie within their boxes/on the edge");
@@ -8817,6 +8907,32 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				}
 			}
 		}
+	} else if (charType == CHARACTER_TYPE_ELPHELT) {
+		if (frame.u.elpheltInfo.grenadeTimer) {
+			yellowText("Berry Timer: ");
+			ImGui::SameLine();
+			sprintf_s(strbuf, "%d/180", frame.u.elpheltInfo.grenadeTimer);
+			ImGui::TextUnformatted(strbuf);
+		}
+		if (frame.u.elpheltInfo.grenadeDisabledTimer) {
+			yellowText("Can pull Berry in: ");
+			ImGui::SameLine();
+			char* buf = strbuf;
+			size_t bufSize = sizeof strbuf;
+			int result;
+			if (frame.u.elpheltInfo.grenadeDisabledTimer == 255) {
+				result = sprintf_s(buf, bufSize, "%s", "???");
+			} else {
+				result = sprintf_s(buf, bufSize, "%d", frame.u.elpheltInfo.grenadeDisabledTimer);
+			}
+			advanceBuf
+			if (frame.u.elpheltInfo.grenadeDisabledTimerMax == 255) {
+				sprintf_s(buf, bufSize, "/%s", "???");
+			} else {
+				sprintf_s(buf, bufSize, "/%d", frame.u.elpheltInfo.grenadeDisabledTimerMax);
+			}
+			ImGui::TextUnformatted(strbuf);
+		}
 	}
 	
 	if (frame.suddenlyTeleported) {
@@ -9034,6 +9150,15 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 								sprintf_s(strbuf, "until landing + %d", ramlethalTime);
 							}
 							ImGui::TextUnformatted(strbuf);
+						} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT
+								&& projectileFrame.animSlangName
+								&& strcmp(projectileFrame.animSlangName, "Berry"_hardcode) == 0) {
+							
+							yellowText("Berry Timer: ");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/180", correspondingPlayersFrame.u.elpheltInfo.grenadeTimer);
+							ImGui::TextUnformatted(strbuf);
+							
 						}
 					}
 					if (playerIndex != -1) {
@@ -9666,7 +9791,7 @@ int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int g
 	ImGui::TableNextColumn();
 	ImGui::TextUnformatted("Guts Rating");
 	static const char* gutsHelp = "Guts rating, fixed constant per character. Determines how fast damage scales when HP drops to certain thresholds."
-		"Guts rating table:\n"
+		" Guts rating table:\n"
 		"Guts Rating 0: 100, 90, 76, 60, 50, 40;\n"
 		"Guts Rating 1: 100, 87, 72, 58, 48, 40;\n"
 		"Guts Rating 2: 100, 84, 68, 56, 46, 38;\n"

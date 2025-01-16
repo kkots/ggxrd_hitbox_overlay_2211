@@ -167,6 +167,60 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				boxes.previousTime = thisEntity.currentAnimDuration();
 				boxes.hitboxesCount = hitboxesCount;
 				hitDetector.hitboxesThatHit.push_back(boxes);
+				
+				if (!boxes.isPawn && (boxes.team == 0 || boxes.team == 1)) {
+					entityList.populate();
+					if (entityList.slots[boxes.team].characterType() == CHARACTER_TYPE_ELPHELT) {
+						const char* animName = thisEntity.animationName();
+						if (
+							strncmp(animName, "Shotgun_min_", 12) == 0
+							|| strncmp(animName, "Shotgun_max_", 12) == 0
+						) {
+							bool isMax = animName[10] == 'x';
+							int index = animName[12] - '1';
+							
+							const char* other;
+							if (isMax) {
+								if (index == 0) other = "Shotgun_max_2";
+								else other = "Shotgun_max_1";
+							} else if (index == 0) other = "Shotgun_min_2";
+							else other = "Shotgun_min_1";
+							
+							for (int i = 2; i < entityList.count; ++i) {
+								Entity p = entityList.list[i];
+								if (p && p.isActive() && p.team() == boxes.team && !p.isPawn()
+										&& strcmp(p.animationName(), other) == 0) {
+									
+									
+									int otherHitboxesCount = 0;
+									std::vector<DrawHitboxArrayCallParams> theOtherHitbox;
+									collectHitboxes(p,
+										true,
+										nullptr,
+										&theOtherHitbox,
+										nullptr,
+										nullptr,
+										nullptr,
+										nullptr,
+										nullptr,
+										&otherHitboxesCount);
+									
+									
+									boxes.entity = p;
+									boxes.isPawn = false;
+									boxes.team = boxes.team;
+									boxes.hitboxes = theOtherHitbox.front();
+									boxes.counter = DISPLAY_DURATION_HITBOX_THAT_HIT;
+									boxes.previousTime = p.currentAnimDuration();
+									boxes.hitboxesCount = otherHitboxesCount;
+									hitDetector.hitboxesThatHit.push_back(boxes);
+									break;
+								}
+							}
+						}
+					}
+				}
+				
 			}
 
 			if (DISPLAY_DURATION_HURTBOX_THAT_GOT_HIT) {

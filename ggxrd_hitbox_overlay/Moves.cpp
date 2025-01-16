@@ -7,7 +7,7 @@
 #include "EndScene.h"  // that's right, I'm including what I probably shouldn't and bypassing having to provide dependencies in function arguments
 // this whole, entire file is hardcode
 // !!! SOME SLANG NAMES FROM THIS FILE ARE HARDCODED IN UI.cpp!!!
-// Such names MUST be marked as being used elsewhere using this comment: // SLANGNAMEHARDCODE (with a space inbetween)
+// Such names MUST be marked as being used elsewhere using this comment: // SLANGNAMEHARDCODE (with a space between // and SLANGNAMEHARDCODE)
 
 Moves moves;
 
@@ -65,6 +65,7 @@ static bool isDangerous_not_hasHitNumButNoHitboxes(Entity ent);
 static bool isDangerous_amorphous(Entity ent);
 static bool isDangerous_active(Entity ent);
 static bool isDangerous_hasNotCreatedAnythingYet(Entity ent);
+static bool isDangerous_grenade(Entity ent);
 static bool isDangerous_djavu(Entity ent);
 static bool isDangerous_Djavu_D_Ghost(Entity ent);
 static bool isDangerous_launchGreatsword(Entity ent);
@@ -85,6 +86,7 @@ static const char* nameSelector_iceScythe(Entity ent);
 static const char* slangNameSelector_iceScythe(Entity ent);
 static const char* framebarNameSelector_djvuD(Entity ent);
 static const char* framebarSlangNameSelector_djvuD(Entity ent);
+static const char* framebarNameSelector_closeShot(Entity ent);
 
 static bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent);
 static bool isInVariableStartupSection_zweiLand(PlayerInfo& ent);
@@ -177,6 +179,14 @@ static const char* displayNameSelector_taskCAir(PlayerInfo& ent);
 static const char* displaySlangNameSelector_taskCAir(PlayerInfo& ent);
 static const char* framebarNameSelector_blueBurst(Entity ent);
 static const char* displayNameSelector_blueBurst(PlayerInfo& ent);
+static const char* displayNameSelector_rifleStart(PlayerInfo& ent);
+static const char* displaySlangNameSelector_rifleStart(PlayerInfo& ent);
+static const char* displayNameSelector_rifleReload(PlayerInfo& ent);
+static const char* displaySlangNameSelector_rifleReload(PlayerInfo& ent);
+static const char* displayNameSelector_riflePerfectReload(PlayerInfo& ent);
+static const char* displaySlangNameSelector_riflePerfectReload(PlayerInfo& ent);
+static const char* displayNameSelector_rifleRC(PlayerInfo& ent);
+static const char* displaySlangNameSelector_rifleRC(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -195,6 +205,8 @@ static bool canYrcProjectile_onf5(PlayerInfo& ent);
 static bool createdProjectile_onf7(PlayerInfo& ent);
 static bool canYrcProjectile_onf7(PlayerInfo& ent);
 static bool canYrcProjectile_onf9(PlayerInfo& ent);
+static bool createdProjectile_elpheltjD(PlayerInfo& ent);
+static bool canYrcProjectile_elpheltjD(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -219,6 +231,13 @@ static const char* powerupExplanation_djavu(PlayerInfo& ent);
 static bool powerup_stingerS(PlayerInfo& ent);
 static bool powerup_stingerH(PlayerInfo& ent);
 static const char* powerupExplanation_stinger(PlayerInfo& ent);
+static bool powerup_closeShot(ProjectileInfo& ent);
+static bool powerup_chargeShotgun(PlayerInfo& ent);
+static const char* powerupExplanation_chargeShotgun(PlayerInfo& ent);
+static bool powerup_rifle(PlayerInfo& ent);
+static const char* powerupExplanation_rifle(PlayerInfo& ent);
+static bool powerup_beakDriver(PlayerInfo& ent);
+static const char* powerupExplanation_beakDriver(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -2992,30 +3011,61 @@ bool Moves::onDllMain() {
 	move.framebarName = "Sickle Storm";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "NmlAtkAir5E");
+	move.displayName = "j.D";
+	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_elpheltjD;
+	move.canYrcProjectile = canYrcProjectile_elpheltjD;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActStand");
+	move.displayName = "Stand";
+	move.nameIncludesInputs = true;
+	move.powerup = powerup_chargeShotgun;
+	move.powerupExplanation = powerupExplanation_chargeShotgun;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActCrouch2Stand");
+	move.displayName = "Crouch to Stand";
+	move.nameIncludesInputs = true;
+	move.powerup = powerup_chargeShotgun;
+	move.powerupExplanation = powerupExplanation_chargeShotgun;
+	addMove(move);
+	
 	// Elphelt Ms. Confille (rifle)
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Start");
 	move.displayName = "Aim Ms. Confille";
+	move.displayNameSelector = displayNameSelector_rifleStart;
 	move.slangName = "Rifle";
+	move.displaySlangNameSelector = displaySlangNameSelector_rifleStart;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
 	move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = true;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
+	move.powerup = powerup_rifle;
+	move.powerupExplanation = powerupExplanation_rifle;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Reload");
 	move.displayName = "Ms. Confille Reload";
+	move.displayNameSelector = displayNameSelector_rifleReload;
 	move.slangName = "Reload";
+	move.displaySlangNameSelector = displaySlangNameSelector_rifleReload;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
 	move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = true;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
+	move.powerup = powerup_rifle;
+	move.powerupExplanation = powerupExplanation_rifle;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Perfect");
 	move.displayName = "Ms. Confille Perfect Reload";
+	move.displayNameSelector = displayNameSelector_riflePerfectReload;
 	move.slangName = "Perfect Reload";
+	move.displaySlangNameSelector = displaySlangNameSelector_riflePerfectReload;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
@@ -3023,24 +3073,31 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.replacementInputs = "46S. S must be either on the same frame as 6 or on the frame after";
 	move.replacementBufferTime = 1;
+	move.powerup = powerup_rifle;
+	move.powerupExplanation = powerupExplanation_rifle;
 	addMove(move);
 	
 	// Entered into from CmnActRomanCancel if its performed during rifle stance either after entering the stance or after firing or after reloading.
 	// On f1 whiff cancels are not enabled yet, on f2 enabled
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Roman");
 	move.displayName = "Ms. Confille Roman Cancel";
+	move.displayNameSelector = displayNameSelector_rifleRC;
 	move.slangName = "Rifle RC";
+	move.displaySlangNameSelector = displaySlangNameSelector_rifleRC;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
 	move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = true;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
+	move.powerup = powerup_rifle;
+	move.powerupExplanation = powerupExplanation_rifle;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire");
 	move.displayName = "Ms. Confille Fire";
 	move.slangName = "Fire";
 	move.isRecoveryCanReload = isRecoveryCanReload_rifle;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MIN");
@@ -3077,26 +3134,31 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Upper");
 	move.displayName = "High Toss";
 	move.slangName = "4Toss";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Upper");
 	move.displayName = "Ms. Travailler Stance High Toss";
 	move.slangName = "4Toss";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Throw");
 	move.displayName = "Air High Toss";
 	move.slangName = "Air Toss";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Down");
 	move.displayName = "Low Toss";
 	move.slangName = "2Toss";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Down");
 	move.displayName = "Ms. Travailler Stance Low Toss";
 	move.slangName = "2Toss";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_CQC");
@@ -3157,6 +3219,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka");
 	move.displayName = "Genoverse";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Judge_BetterHalf");
@@ -3172,11 +3235,18 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb", true);
-	move.isDangerous = isDangerous_notInRecovery;
+	move.isDangerous = isDangerous_grenade;
 	move.framebarId = 73;
 	move.framebarName = "Berry Pine";
-	move.framebarSlangName = "Berry";
+	move.framebarSlangName = "Berry";  // SLANGNAMEHARDCODE
 	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Ready", true);
+	move.isDangerous = isDangerous_grenade;
+	move.framebarId = 73;
+	move.framebarName = "Self-Detonate";
+	move.framebarSlangName = "Self-Detonate";
 	addMove(move);
 	
 	// This explosion results from the timer running out normally
@@ -3206,26 +3276,27 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_max_1", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 75;
-	move.framebarName = "Shotgun";
+	move.framebarNameSelector = framebarNameSelector_closeShot;
+	move.projectilePowerup = powerup_closeShot;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_max_2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 75;
-	move.framebarName = "Shotgun";
+	move.framebarName = "Max Far Shot";
 	addMove(move);
 	
 	// Shotgun shot spawns two projectiles: Shotgun_min_1, Shotgun_min_2
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_min_1", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 75;
-	move.framebarName = "Shotgun";
+	move.framebarName = "Close Shot";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_min_2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 75;
-	move.framebarName = "Shotgun";
+	move.framebarName = "Far Shot";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka_Fire", true);
@@ -3244,7 +3315,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 77;
 	move.framebarName = "Ms. Confille Shot";
-	move.framebarSlangName = "Rifleshot";
+	move.framebarSlangName = "Max Rifleshot";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire_MIN", true);
@@ -6144,6 +6215,8 @@ bool Moves::onDllMain() {
 	move.slangName = "Beak";
 	move.isInVariableStartupSection = isInVariableStartupSection_beakDriver;
 	move.sectionSeparator = sectionSeparator_beakDriver;
+	move.powerup = powerup_beakDriver;
+	move.powerupExplanation = powerupExplanation_beakDriver;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Air");
@@ -7667,6 +7740,10 @@ bool isDangerous_notInRecovery(Entity ent) {
 	return !ent.isRecoveryState();
 }
 
+bool isDangerous_grenade(Entity ent) {
+	return ent.hasUpon(35);
+}
+
 bool isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery(Entity ent) {
 	return !ent.isRecoveryState() && (ent.playerEntity().cmnActIndex() == CmnActRomanCancel || ent.hasActiveFlag());
 }
@@ -7830,6 +7907,13 @@ const char* framebarSlangNameSelector_djvuD(Entity ent) {
 	} else {
 		return "DVC";
 	}
+}
+const char* framebarNameSelector_closeShot(Entity ent) {
+	entityList.populate();
+	int dist = ent.enemyEntity().posX() - ent.posX();
+	if (dist < 0) dist = -dist;
+	if (dist >= 300000) return "Max Close Shot";
+	return "Max Close Shot Buffed";
 }
 
 const char* MoveInfo::getFramebarName(Entity ent) const {
@@ -8286,6 +8370,30 @@ const char* framebarNameSelector_blueBurst(Entity ent) {
 const char* displayNameSelector_blueBurst(PlayerInfo& ent) {
 	return ent.wasOtg ? "OTG Burst" : "Blue Burst";
 }
+const char* displayNameSelector_rifleStart(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Aim Ms. Confille Until Able to Cancel" : "Aim Ms. Confille Until Able to Fire";
+}
+const char* displaySlangNameSelector_rifleStart(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Rifle Until Able to Cancel" : "Rifle Until Able to Fire";
+}
+const char* displayNameSelector_rifleReload(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Ms. Confille Reload Until Able to Cancel" : "Ms. Confille Reload Until Able to Fire";
+}
+const char* displaySlangNameSelector_rifleReload(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Reload Until Able to Cancel" : "Reload Until Able to Fire";
+}
+const char* displayNameSelector_riflePerfectReload(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Ms. Confille Perfect Reload Until Able to Cancel" : "Ms. Confille Perfect Reload Until Able to Fire";
+}
+const char* displaySlangNameSelector_riflePerfectReload(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Perfect Reload Until Able to Cancel" : "Perfect Reload Until Able to Fire";
+}
+const char* displayNameSelector_rifleRC(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Ms. Confille Roman Cancel Until Able to Cancel" : "Ms. Confille Roman Cancel Until Able to Fire";
+}
+const char* displaySlangNameSelector_rifleRC(PlayerInfo& ent) {
+	return !ent.inNewMoveSection ? "Rifle RC Until Able to Cancel" : "Rifle RC Until Able to Fire";
+}
 
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
@@ -8432,6 +8540,35 @@ bool canYrcProjectile_onf7(PlayerInfo& ent) {
 }
 bool canYrcProjectile_onf9(PlayerInfo& ent) {
 	return ent.pawn.currentAnimDuration() > 9;
+}
+bool createdProjectile_elpheltjD(PlayerInfo& player) {
+	if (player.pawn.previousEntity()
+			&& player.pawn.previousEntity().lifeTimeCounter() == 0
+			&& !player.pawn.isRCFrozen()) {
+		for (int i = 2; i < entityList.count; ++i) {
+			Entity p = entityList.list[i];
+			if (p.isActive() && p.team() == player.index && !p.isPawn()
+					&& strcmp(p.animationName(), "HandGun_air_shot") == 0
+					&& p.lifeTimeCounter() == 0) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+bool canYrcProjectile_elpheltjD(PlayerInfo& player) {
+	if (player.pawn.effectLinkedCollision() != nullptr
+			&& player.pawn.previousEntity()
+			&& player.pawn.previousEntity().lifeTimeCounter() > 0) {
+		for (int i = 2; i < entityList.count; ++i) {
+			Entity p = entityList.list[i];
+			if (p.isActive() && p.team() == player.index && !p.isPawn()
+					&& strcmp(p.animationName(), "HandGun_air_shot") == 0) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 bool powerup_may6P(PlayerInfo& player) {
@@ -8622,6 +8759,46 @@ bool powerup_djavu(PlayerInfo& ent) {
 const char* powerupExplanation_djavu(PlayerInfo& ent) {
 	return "//Title override: \n"
 		"On this frame \x44\xC3\xA9\x6A\xC3\xA0 Vu checks for the existence of the seal.";
+}
+bool powerup_closeShot(ProjectileInfo& projectile) {
+	entityList.populate();
+	if (!projectile.ptr) {
+		if (projectile.landedHit) {
+			int team = projectile.team;
+			if (team == 0 || team == 1) {
+				int opponentX = entityList.slots[1 - team].posX();
+				int thisX = projectile.x;
+				int dist = opponentX - thisX;
+				if (dist < 0) dist = -dist;
+				return dist < 300000;
+			}
+		}
+		return false;
+	}
+	if (projectile.ptr.currentAnimDuration() == 1 && !projectile.ptr.isRCFrozen()) {
+		int dist = projectile.ptr.enemyEntity().posX() - projectile.ptr.posX();
+		if (dist < 0) dist = -dist;
+		return dist < 300000;
+	}
+	return false;
+}
+bool powerup_chargeShotgun(PlayerInfo& ent) {
+	return ent.playerval0 && !ent.prevFramePlayerval1 && ent.playerval1;
+}
+const char* powerupExplanation_chargeShotgun(PlayerInfo& ent) {
+	return "Ms. Travailler reached maximum charge.";
+}
+bool powerup_rifle(PlayerInfo& ent) {
+	return !ent.prevFrameElpheltRifle_AimMem46 && ent.elpheltRifle_AimMem46;
+}
+const char* powerupExplanation_rifle(PlayerInfo& ent) {
+	return "Ms. Confille reached maximum charge.";
+}
+bool powerup_beakDriver(PlayerInfo& ent) {
+	return !ent.prevFrameMem45 && ent.pawn.mem45();
+}
+const char* powerupExplanation_beakDriver(PlayerInfo& ent) {
+	return "Will perform the maximum power attack upon release.";
 }
 
 void fillMay6HOffsets(BYTE* func) {
