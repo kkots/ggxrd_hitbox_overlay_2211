@@ -4702,15 +4702,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		combinedFramebars.reserve(projectileFramebars.size());
 		if (!eachProjectileOnSeparateFramebar) {
 			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop ? true : false;
+			int framebarPositionUse;
+			if (combinedFramebarMustIncludeHitstop) {
+				framebarPositionUse = framebarPosition;
+			} else {
+				framebarPositionUse = framebarPositionHitstop;
+			}
 			for (const ProjectileFramebar& source : projectileFramebars) {
 				const Framebar& from = combinedFramebarMustIncludeHitstop ? source.hitstop : source.main;
 				if (!from.completelyEmpty) {
 					CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(source, combinedFramebarMustIncludeHitstop);
-					entityFramebar.combineFramebar(from, &source);
+					entityFramebar.combineFramebar(framebarPositionUse, from, &source);
 				}
 			}
 			for (CombinedProjectileFramebar& entityFramebar : combinedFramebars) {
-				entityFramebar.determineName();
+				entityFramebar.determineName(framebarPositionUse);
 			}
 		}
 	}
@@ -6774,12 +6780,8 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 						|| *name == '\0'
 						|| dontReplaceTitle
 					)
-				)
-				&& !(
-					bar.titleLandedHit
-					&& !projectile.landedHit
 				)) {
-				bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull, projectile.landedHit);
+				bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull);
 			}
 			return bar;
 		}
@@ -6794,7 +6796,7 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 	bar.isEddie = projectile.move.isEddie;
 	projectile.framebarId = nextFramebarId;
 	incrementNextFramebarIdSmartly();
-	bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull, projectile.landedHit);
+	bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull);
 	bar.moveFramebarId = projectile.move.framebarId;
 	return bar;
 }
@@ -6829,10 +6831,6 @@ CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFrame
 						*source.titleShort == '\0'
 						|| source.moveFramebarId == -1
 					)
-				)
-				&& !(
-					bar.titleLandedHit
-					&& !source.titleLandedHit
 				)
 			) {
 				bar.copyTitle(source);

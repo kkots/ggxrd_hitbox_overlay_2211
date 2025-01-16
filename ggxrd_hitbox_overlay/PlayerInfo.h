@@ -561,7 +561,6 @@ struct EntityFramebar {
 	const char* titleUncombined = nullptr;
 	const char* titleSlangUncombined = nullptr;
 	const char* titleFull = nullptr;
-	bool titleLandedHit = false;
 	bool foundOnThisFrame = false;
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const = 0;
@@ -570,8 +569,7 @@ struct EntityFramebar {
 		const char* slangName = nullptr,
 		const char* nameUncombined = nullptr,
 		const char* slangNameUncombined = nullptr,
-		const char* textFull = nullptr,
-		bool landedHit = false);
+		const char* textFull = nullptr);
 	void copyTitle(const EntityFramebar& source);
 	inline void changePreviousFramesOneType(FrameType prevType,
 			FrameType newType,
@@ -690,8 +688,8 @@ struct CombinedProjectileFramebar : public ProjectileFramebar {
 	virtual const FramebarBase& getIdle() const override;
 	virtual const FramebarBase& getIdleHitstop() const override;
 	bool canBeCombined(const Framebar& source) const;
-	void combineFramebar(const Framebar& source, const ProjectileFramebar* dad);
-	void determineName();
+	void combineFramebar(int framebarPosition, const Framebar& source, const ProjectileFramebar* dad);
+	void determineName(int framebarPosition);
 };
 
 struct PlayerFramebars : public EntityFramebar {

@@ -1219,8 +1219,7 @@ void EntityFramebar::setTitle(const char* text,
 			const char* slangName,
 			const char* nameUncombined,
 			const char* slangNameUncombined,
-			const char* textFull,
-			bool landedHit) {
+			const char* textFull) {
 	
 	if (text && *text == '\0') text = nullptr;
 	if (slangName && *slangName == '\0') slangName = nullptr;
@@ -1232,7 +1231,6 @@ void EntityFramebar::setTitle(const char* text,
 	titleUncombined = nameUncombined;
 	titleSlangUncombined = slangNameUncombined;
 	titleFull = textFull;
-	titleLandedHit = landedHit;
 }
 
 void EntityFramebar::copyTitle(const EntityFramebar& source) {
@@ -1241,7 +1239,6 @@ void EntityFramebar::copyTitle(const EntityFramebar& source) {
 	titleUncombined = source.titleUncombined;
 	titleSlangUncombined = source.titleSlangUncombined;
 	titleFull = source.titleFull;
-	titleLandedHit = source.titleLandedHit;
 }
 
 int EntityFramebar::confinePos(int pos) {
@@ -1448,9 +1445,12 @@ void PlayerFramebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
 
 static inline int determineFrameLevel(FrameType type) {
 	if (isEddieFrame(type)) {
-		return 5;
+		return 6;
 	}
 	if (type == FT_ACTIVE_PROJECTILE) {
+		return 5;
+	}
+	if (type == FT_ACTIVE_HITSTOP_PROJECTILE) {
 		return 4;
 	}
 	if (type == FT_NON_ACTIVE_PROJECTILE) {
@@ -2306,29 +2306,47 @@ void FrameCancelInfo::clear() {
 }
 
 bool CombinedProjectileFramebar::canBeCombined(const Framebar& source) const {
-	for (int i = 0; i < _countof(source.frames); ++i) {
+	for (int i = 0; i < (int)_countof(source.frames); ++i) {
 		if (!frameTypeDiscardable(main[i].type) && !frameTypeDiscardable(source[i].type)) return false;
 	}
 	return true;
 }
 
-void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const ProjectileFramebar* dad) {
-	for (int i = 0; i < _countof(source.frames); ++i) {
-		const Frame& sf = source[i];
-		Frame& df = main[i];
-		if (!(
-				sources[i]
-				&& sources[i]->titleLandedHit
-				&& !dad->titleLandedHit
-		)) {
-			sources[i] = dad;
-		}
+void CombinedProjectileFramebar::combineFramebar(int framebarPosition, const Framebar& source, const ProjectileFramebar* dad) {
+	const ProjectileFramebar* lastConnectedSource = nullptr;
+	const char* lastConnectedAnimName = nullptr;
+	const char* lastConnectedAnimSlangName = nullptr;
+	
+	for (int i = 0; i < (int)_countof(source.frames); ++i) {
+		
+		int pos = i - (int)_countof(main.frames) + 1 + framebarPosition;
+		if (pos >= (int)_countof(main.frames)) pos -= (int)_countof(main.frames);
+		else if (pos < 0) pos += (int)_countof(main.frames);
+		
+		const Frame& sf = source[pos];
+		Frame& df = main[pos];
+		
 		int sfLvl = determineFrameLevel(sf.type);
 		int dfLvl = determineFrameLevel(df.type);
-		if (sfLvl > dfLvl || sfLvl == dfLvl && !(df.hitConnected && !sf.hitConnected)) {
-			df.type = sf.type;
+		bool repeatLast = !df.hitConnected && !sf.hitConnected && df.type == FT_IDLE_PROJECTILE && sf.type == FT_IDLE_PROJECTILE;
+		bool sWin = sfLvl > dfLvl || sfLvl == dfLvl && !(df.hitConnected && !sf.hitConnected);
+		if (repeatLast && lastConnectedSource) {
+			sources[pos] = lastConnectedSource;
+		} else if (sWin) {
+			sources[pos] = dad;
+		}
+		if (repeatLast && lastConnectedAnimName) {
+			df.animName = lastConnectedAnimName;
+		} else if (sWin) {
 			df.animName = sf.animName;
+		}
+		if (repeatLast && lastConnectedAnimSlangName) {
+			df.animSlangName = lastConnectedAnimSlangName;
+		} else if (sWin) {
 			df.animSlangName = sf.animSlangName;
+		}
+		if (sWin) {
+			df.type = sf.type;
 		}
 		if (!df.hitstopConflict) {
 			if (df.hitstop != sf.hitstop || df.hitstopMax != sf.hitstopMax) {
@@ -2343,6 +2361,15 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 			}
 		}
 		df.hitConnected |= sf.hitConnected;
+		if (df.hitConnected) {
+			lastConnectedSource = sources[pos];
+			lastConnectedAnimName = df.animName;
+			lastConnectedAnimSlangName = df.animSlangName;
+		} else {
+			if (sources[pos] != lastConnectedSource) lastConnectedSource = nullptr;
+			if (df.animName != lastConnectedAnimName) lastConnectedAnimName = nullptr;
+			if (df.animSlangName != lastConnectedAnimSlangName) lastConnectedAnimSlangName = nullptr;
+		}
 		df.newHit |= sf.newHit;
 		df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
 		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
@@ -2381,9 +2408,14 @@ void CombinedProjectileFramebar::combineFramebar(const Framebar& source, const P
 	}
 }
 
-void CombinedProjectileFramebar::determineName() {
-	for (int i = _countof(main.frames) - 1; i >= 0; --i) {
-		const ProjectileFramebar* source = sources[i];
+void CombinedProjectileFramebar::determineName(int framebarPosition) {
+	for (int i = (int)_countof(main.frames) - 1; i >= 0; --i) {
+		
+		int pos = i - (int)_countof(main.frames) + 1 + framebarPosition;
+		if (pos >= (int)_countof(main.frames)) pos -= (int)_countof(main.frames);
+		else if (pos < 0) pos += (int)_countof(main.frames);
+		
+		const ProjectileFramebar* source = sources[pos];
 		if (source) {
 			copyTitle(*source);
 			moveFramebarId = source->moveFramebarId;
