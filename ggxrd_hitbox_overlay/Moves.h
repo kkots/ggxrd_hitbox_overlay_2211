@@ -284,6 +284,12 @@ public:
 	std::vector<RamlethalSwordInfo> ramlethalBitN2C;
 	std::vector<RamlethalSwordInfo> ramlethalBitF2D;
 	void fillInRamlethalBitN6C_F6D(BYTE* func, std::vector<RamlethalSwordInfo>& ramlethalBit);
+	int elpheltRifleStartEndMarkerOffset = 0;
+	int elpheltRifleReloadEndMarkerOffset = 0;
+	int elpheltRifleReloadPerfectEndMarkerOffset = 0;
+	int elpheltRifleRomanEndMarkerOffset = 0;
+	void fillInFindMarker(BYTE* func, int* result, const char* markerName);
+	const char* rifleAutoExit(PlayerInfo& player, int* offsetStorage, const char* moveName);
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

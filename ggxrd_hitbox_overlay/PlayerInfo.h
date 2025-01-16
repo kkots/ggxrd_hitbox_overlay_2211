@@ -90,6 +90,7 @@ struct ElpheltInfo {
 
 struct GatlingOrWhiffCancelInfo {
 	const char* name;
+	const char* slangName;
 	const char* replacementInputs;
 	const AddedMoveData* move;
 	int iterationIndex;

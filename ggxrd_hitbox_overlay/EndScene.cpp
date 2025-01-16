@@ -6980,6 +6980,7 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 	bool moveNonEmpty = moves.getInfo(obtainedInfo, player.charType, move->name, move->stateName, false);
 	if (!moveNonEmpty || !obtainedInfo.getDisplayName(player)) {
 		cancel.name = move->name;
+		cancel.slangName = nullptr;
 		int lenTest = strnlen(move->name, 32);
 		if (lenTest >= 32) {
 			int somethingBad = 1;
@@ -6987,6 +6988,7 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 		cancel.nameIncludesInputs = false;
 	} else {
 		cancel.name = obtainedInfo.getDisplayName(player);
+		cancel.slangName = obtainedInfo.getDisplayNameSlang(player);
 		cancel.nameIncludesInputs = obtainedInfo.nameIncludesInputs;
 	}
 	cancel.move = move;

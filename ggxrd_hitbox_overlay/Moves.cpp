@@ -8371,27 +8371,51 @@ const char* displayNameSelector_blueBurst(PlayerInfo& ent) {
 	return ent.wasOtg ? "OTG Burst" : "Blue Burst";
 }
 const char* displayNameSelector_rifleStart(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleStartEndMarkerOffset, "Ms. Confille");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Aim Ms. Confille Until Able to Cancel" : "Aim Ms. Confille Until Able to Fire";
 }
 const char* displaySlangNameSelector_rifleStart(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleStartEndMarkerOffset, "Rifle Autoexit");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Rifle Until Able to Cancel" : "Rifle Until Able to Fire";
 }
 const char* displayNameSelector_rifleReload(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadEndMarkerOffset, "Ms. Confille Autoexit");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Ms. Confille Reload Until Able to Cancel" : "Ms. Confille Reload Until Able to Fire";
 }
 const char* displaySlangNameSelector_rifleReload(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadEndMarkerOffset, "Rifle Autoexit");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Reload Until Able to Cancel" : "Reload Until Able to Fire";
 }
 const char* displayNameSelector_riflePerfectReload(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadPerfectEndMarkerOffset, "Ms. Confille Autoexit");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Ms. Confille Perfect Reload Until Able to Cancel" : "Ms. Confille Perfect Reload Until Able to Fire";
 }
 const char* displaySlangNameSelector_riflePerfectReload(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadPerfectEndMarkerOffset, "Rifle Autoexit");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Perfect Reload Until Able to Cancel" : "Perfect Reload Until Able to Fire";
 }
 const char* displayNameSelector_rifleRC(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleRomanEndMarkerOffset, "Ms. Confille Autoexit");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Ms. Confille Roman Cancel Until Able to Cancel" : "Ms. Confille Roman Cancel Until Able to Fire";
 }
 const char* displaySlangNameSelector_rifleRC(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleRomanEndMarkerOffset, "Rifle Autoexit");
+	if (response) return response;
 	return !ent.inNewMoveSection ? "Rifle RC Until Able to Cancel" : "Rifle RC Until Able to Fire";
 }
 
@@ -9000,4 +9024,21 @@ void Moves::RamlethalSwordInfo::addFrames(int offset, int lengthSoubi, int lengt
 	newFrames->offset = offset;
 	newFrames->frames = framesBunri.totalFrames;
 	framesBunri.totalFrames += lengthBunri;
+}
+
+void Moves::fillInFindMarker(BYTE* func, int* result, const char* markerName) {
+	if (*result != 0) return;
+	BYTE* pos = findSetMarker(func, markerName);
+	if (pos) {
+		*result = pos - func;
+	}
+}
+
+const char* Moves::rifleAutoExit(PlayerInfo& player, int* offsetStorage, const char* moveName) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	moves.fillInFindMarker(func, offsetStorage, "End");
+	if (*offsetStorage && player.pawn.bbscrCurrentInstr() - func > *offsetStorage) {
+		return moveName;
+	}
+	return nullptr;
 }

@@ -7443,11 +7443,12 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 		{ MOVE_CONDITION_IS_TOUCHING_WALL, "must touch arena's wall", 1, 0x10000000 }
 	};
 	int counter = 1;
+	bool useSlang = settings.useSlangNames;
 	for (const GatlingOrWhiffCancelInfo& cancel : cancels) {
 		char* buf = strbuf;
 		size_t bufSize = sizeof strbuf;
 		int result;
-		result = sprintf_s(buf, bufSize, "%s", cancel.name);
+		result = sprintf_s(buf, bufSize, "%s", useSlang && cancel.slangName ? cancel.slangName : cancel.name);
 		advanceBuf
 		if (cancel.move->inputs[0] != INPUT_END && bufSize >= 2 && !cancel.nameIncludesInputs) {
 			if (cancel.replacementInputs) {
