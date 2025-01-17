@@ -117,7 +117,10 @@ void collectHitboxes(Entity ent,
 	
 	DrawHitboxArrayCallParams callParams;
 	
-	if (hurtbox && isNotZeroScaled && hurtboxCount) {
+	if (hurtbox && isNotZeroScaled && hurtboxCount && !(
+			ownerType == CHARACTER_TYPE_ELPHELT
+			&& !(ent.displayModel() && strcmp(ent.animationName(), "GrenadeBomb_Ready") != 0 || !state.strikeInvuln)
+		)) {
 		callParams.thickness = THICKNESS_HURTBOX;
 		callParams.hitboxData = hurtboxData;
 		callParams.hitboxCount = hurtboxCount;

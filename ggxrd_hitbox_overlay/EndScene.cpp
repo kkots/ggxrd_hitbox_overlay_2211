@@ -3160,6 +3160,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					projectile.isRamlethalSword
 					|| player.charType == CHARACTER_TYPE_ELPHELT
 					&& strcmp(projectile.animName, "GrenadeBomb") == 0
+					&& projectile.ptr
+					&& projectile.ptr.hasUpon(35)
 				) && !projectile.strikeInvul
 				|| projectile.gotHitOnThisFrame) {
 				projectileCanBeHit = true;
