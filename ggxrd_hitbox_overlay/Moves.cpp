@@ -6110,7 +6110,7 @@ bool Moves::onDllMain() {
 	move.displayName = "2S Deployed";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
-	move.framebarName = "2S Sword";
+	move.framebarName = "S Sword";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -6132,7 +6132,7 @@ bool Moves::onDllMain() {
 	move.displayName = "2H Deployed";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
-	move.framebarName = "2H Sword";
+	move.framebarName = "H Sword";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	

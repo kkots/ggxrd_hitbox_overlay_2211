@@ -4255,14 +4255,6 @@ void UI::drawSearchableWindows() {
 					
 				}
 				
-				booleanSettingPreset(settings.showRamlethalSwordRedeployNoTeleportDistance);
-				
-				booleanSettingPreset(settings.onlyShowRamlethalSwordRedeployDistanceWhenRedeploying);
-				
-				booleanSettingPreset(settings.showRamlethalSwordRedeployDistanceForP1);
-				
-				booleanSettingPreset(settings.showRamlethalSwordRedeployDistanceForP2);
-				
 			} else if (player.charType == CHARACTER_TYPE_SIN) {
 				
 				yellowText(searchFieldTitle("Calorie Gauge:"));
@@ -7752,8 +7744,7 @@ void UI::hitboxesHelpWindow() {
 		ramlethalSword = settings.convertToUiDescription(
 			"The infinite vertical boxes around the swords show the distance in which the opponent's"
 			" origin point must be in order for the sword to not spend extra time teleporting to the"
-			" opponent when you re-deploy it.\n"
-			"This can be disabled using the \"showRamlethalSwordRedeployNoTeleportDistance\" setting.");
+			" opponent when you re-deploy it.");
 	}
 	ImGui::TextUnformatted(ramlethalSword.c_str());
 	

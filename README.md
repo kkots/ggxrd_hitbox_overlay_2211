@@ -189,7 +189,7 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Bedman Task C Height Buff: The infinite horizontal line shows the height above which Bedman's origin point must be in order for Task C to gain a powerup that makes it slam the ground harder. That height is 700000. The display of the height line must be enabled with showBedmanTaskCHeightBuffY INI setting (located in UI in Character Specific - Show Bedman Height Buff Y).
 
-- Ramlethal Sword Re-Deploy No-Teleport Distance: The infinite vertical boxes around the swords show the distance in which the opponent's origin point must be in order for the sword to not spend extra time teleporting to the opponent when you re-deploy it. This can be disabled using the showRamlethalSwordRedeployNoTeleportDistance setting (located in UI - Character Specific).
+- Ramlethal Sword Re-Deploy No-Teleport Distance: The infinite vertical boxes around the swords show the distance in which the opponent's origin point must be in order for the sword to not spend extra time teleporting to the opponent when you re-deploy it.
 
 - Sin Hawk Baker Red Hit Box: The line connecting Sin to the wall that he's facing has a marking on it denoting the maximum distance he must be from the wall, as one of two possible ways to get a red hit. The distance marker checks for Sin's origin point, not his pushbox. If Sin is too far from the wall that he is facing, the other way to get a red hit is for the opponent's origin point to be close to Sin, inside the infinite white vertical box drawn around him. If Sin is neither close to the wall he's facing nor close enough to the opponent, the hit is blue.
 
@@ -582,30 +582,6 @@ showFaustOwnFlickRanges = true
 ; Bedman's Task C gains a buff.
 ; This line is so high you can't see it unless you jump.
 showBedmanTaskCHeightBuffY = false
-
-; Specify true or false.
-; When this setting is on, an infinite vertical white box is drawn around the S and H swords,
-; showing the range in which the opponent's origin point must be so that,
-; should you re-deploy the sword with 6S, 6H, 2S, 2H, j.6S, j.6H,
-; j.2S or j.2H, it won't take the extra time to teleport to the opponent.
-showRamlethalSwordRedeployNoTeleportDistance = true
-
-; Specify true or false.
-; When this setting is on, and the "showRamlethalSwordRedeployNoTeleportDistance" is also on,
-; the infinite vertical white box is around the S and H swords is only shown when re-deploying the swords.
-onlyShowRamlethalSwordRedeployDistanceWhenRedeploying = true
-
-; Specify true or false.
-; When this setting is on, and the "showRamlethalSwordRedeployNoTeleportDistance" is also on,
-; the infinite vertical white box is around the S and H swords may be shown for P1.
-; Disable this to never show it for P1.
-showRamlethalSwordRedeployDistanceForP1 = true
-
-; Specify true or false.
-; When this setting is on, and the "showRamlethalSwordRedeployNoTeleportDistance" is also on,
-; the infinite vertical white box is around the S and H swords may be shown for P2.
-; Disable this to never show it for P2.
-showRamlethalSwordRedeployDistanceForP2 = true
 
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.

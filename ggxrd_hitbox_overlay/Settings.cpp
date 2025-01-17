@@ -476,26 +476,6 @@ bool Settings::onDllMain() {
 			"; When this setting is on, a horizontal line is constantly shown on the screen at the height above which\n"
 			"; Bedman's Task C gains a buff.\n"
 			"; This line is so high you can't see it unless you jump.");
-	registerOtherDescription(settingAndItsName(showRamlethalSwordRedeployNoTeleportDistance), "Show Ramlethal Sword Redeployment No-Teleport Distance", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, an infinite vertical white box is drawn around the S and H swords,\n"
-			"; showing the range in which the opponent's origin point must be so that,\n"
-			"; should you re-deploy the sword with 6S, 6H, 2S, 2H, j.6S, j.6H,\n"
-			"; j.2S or j.2H, it won't take the extra time to teleport to the opponent.");
-	registerOtherDescription(settingAndItsName(onlyShowRamlethalSwordRedeployDistanceWhenRedeploying), "Only Show Ramlethal Sword Redeployment Distance When Redeploying", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, and the \"showRamlethalSwordRedeployNoTeleportDistance\" is also on,\n"
-			"; the infinite vertical white box around the S and H swords is only shown when re-deploying the swords.");
-	registerOtherDescription(settingAndItsName(showRamlethalSwordRedeployDistanceForP1), "Show Ramlethal Sword Redeploy Distance For P1", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, and the \"showRamlethalSwordRedeployNoTeleportDistance\" is also on,\n"
-			"; the infinite vertical white box around the S and H swords may be shown for P1.\n"
-			"; Disable this to never show it for P1.");
-	registerOtherDescription(settingAndItsName(showRamlethalSwordRedeployDistanceForP2), "Show Ramlethal Sword Redeploy Distance For P2", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, and the \"showRamlethalSwordRedeployNoTeleportDistance\" is also on,\n"
-			"; the infinite vertical white box around the S and H swords may be shown for P2.\n"
-			"; Disable this to never show it for P2.");
 	registerOtherDescription(settingAndItsName(ignoreScreenshotPathAndSaveToClipboard), "Ignore Screenshot Path And Save To Clipboard", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.");
@@ -784,14 +764,6 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool showFaustOwnFlickRangesParsed = false;
 	
 	bool showBedmanTaskCHeightBuffYParsed = false;
-	
-	bool showRamlethalSwordRedeployNoTeleportDistanceParsed = false;
-	
-	bool onlyShowRamlethalSwordRedeployDistanceWhenRedeployingParsed = false;
-	
-	bool showRamlethalSwordRedeployDistanceForP1Parsed = false;
-	
-	bool showRamlethalSwordRedeployDistanceForP2Parsed = false;
 	
 	bool ignoreScreenshotPathAndSaveToClipboardParsed = false;
 	
@@ -1114,26 +1086,6 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								showBedmanTaskCHeightBuffYParsed = parseBoolean("showBedmanTaskCHeightBuffY", keyValue, showBedmanTaskCHeightBuffY);
 							}
 							break;
-						case offsetof(Settings, showRamlethalSwordRedeployNoTeleportDistance):
-							if (!showRamlethalSwordRedeployNoTeleportDistanceParsed) {
-								showRamlethalSwordRedeployNoTeleportDistanceParsed = parseBoolean("showRamlethalSwordRedeployNoTeleportDistance", keyValue, showRamlethalSwordRedeployNoTeleportDistance);
-							}
-							break;
-						case offsetof(Settings, onlyShowRamlethalSwordRedeployDistanceWhenRedeploying):
-							if (!onlyShowRamlethalSwordRedeployDistanceWhenRedeployingParsed) {
-								onlyShowRamlethalSwordRedeployDistanceWhenRedeployingParsed = parseBoolean("onlyShowRamlethalSwordRedeployDistanceWhenRedeploying", keyValue, onlyShowRamlethalSwordRedeployDistanceWhenRedeploying);
-							}
-							break;
-						case offsetof(Settings, showRamlethalSwordRedeployDistanceForP1):
-							if (!showRamlethalSwordRedeployDistanceForP1Parsed) {
-								showRamlethalSwordRedeployDistanceForP1Parsed = parseBoolean("showRamlethalSwordRedeployDistanceForP1", keyValue, showRamlethalSwordRedeployDistanceForP1);
-							}
-							break;
-						case offsetof(Settings, showRamlethalSwordRedeployDistanceForP2):
-							if (!showRamlethalSwordRedeployDistanceForP2Parsed) {
-								showRamlethalSwordRedeployDistanceForP2Parsed = parseBoolean("showRamlethalSwordRedeployDistanceForP2", keyValue, showRamlethalSwordRedeployDistanceForP2);
-							}
-							break;
 						case offsetof(Settings, ignoreScreenshotPathAndSaveToClipboard):
 							if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
 								ignoreScreenshotPathAndSaveToClipboardParsed = parseBoolean("ignoreScreenshotPathAndSaveToClipboard", keyValue, ignoreScreenshotPathAndSaveToClipboard);
@@ -1377,22 +1329,6 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showBedmanTaskCHeightBuffYParsed) {
 		showBedmanTaskCHeightBuffY = false;
-	}
-	
-	if (!showRamlethalSwordRedeployNoTeleportDistanceParsed) {
-		showRamlethalSwordRedeployNoTeleportDistance = true;
-	}
-	
-	if (!onlyShowRamlethalSwordRedeployDistanceWhenRedeployingParsed) {
-		onlyShowRamlethalSwordRedeployDistanceWhenRedeploying = true;
-	}
-	
-	if (!showRamlethalSwordRedeployDistanceForP1Parsed) {
-		showRamlethalSwordRedeployDistanceForP1 = true;
-	}
-	
-	if (!showRamlethalSwordRedeployDistanceForP2Parsed) {
-		showRamlethalSwordRedeployDistanceForP2 = true;
 	}
 	
 	if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
@@ -1943,10 +1879,6 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("showMilliaBadMoonBuffHeight", formatBoolean(showMilliaBadMoonBuffHeight), getOtherINIDescription(&showMilliaBadMoonBuffHeight));
 	replaceOrAddSetting("showFaustOwnFlickRanges", formatBoolean(showFaustOwnFlickRanges), getOtherINIDescription(&showFaustOwnFlickRanges));
 	replaceOrAddSetting("showBedmanTaskCHeightBuffY", formatBoolean(showBedmanTaskCHeightBuffY), getOtherINIDescription(&showBedmanTaskCHeightBuffY));
-	replaceOrAddSetting("showRamlethalSwordRedeployNoTeleportDistance", formatBoolean(showRamlethalSwordRedeployNoTeleportDistance), getOtherINIDescription(&showRamlethalSwordRedeployNoTeleportDistance));
-	replaceOrAddSetting("onlyShowRamlethalSwordRedeployDistanceWhenRedeploying", formatBoolean(onlyShowRamlethalSwordRedeployDistanceWhenRedeploying), getOtherINIDescription(&onlyShowRamlethalSwordRedeployDistanceWhenRedeploying));
-	replaceOrAddSetting("showRamlethalSwordRedeployDistanceForP1", formatBoolean(showRamlethalSwordRedeployDistanceForP1), getOtherINIDescription(&showRamlethalSwordRedeployDistanceForP1));
-	replaceOrAddSetting("showRamlethalSwordRedeployDistanceForP2", formatBoolean(showRamlethalSwordRedeployDistanceForP2), getOtherINIDescription(&showRamlethalSwordRedeployDistanceForP2));
 	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
 	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
 	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));

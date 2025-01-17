@@ -2475,8 +2475,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			newBox.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
 		}
 		
-		if (settings.showRamlethalSwordRedeployNoTeleportDistance
-				&& !ent.isPawn()
+		if (!ent.isPawn()
 				&& (ent.team() == 0 || ent.team() == 1)) {
 			PlayerInfo& player = players[ent.team()];
 			if (player.charType == CHARACTER_TYPE_RAMLETHAL) {
@@ -2487,26 +2486,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				bool animMatches = bitNumber == 1
 								&& (
 									strcmp(animName, "BitN6C") == 0
+									&& ent.mem45()  // bunri only
 									|| strcmp(animName, "BitN2C_Bunri") == 0
 								)
 								|| bitNumber == 2
 								&& (
 									strcmp(animName, "BitF6D") == 0
+									&& ent.mem45()  // bunri only
 									|| strcmp(animName, "BitF2D_Bunri") == 0
 								);
 				int animDuration = ent.currentAnimDuration();
-				if (bitNumber && settings.onlyShowRamlethalSwordRedeployDistanceWhenRedeploying) {
-					if (!(animMatches && animDuration < 20)) {
-						bitNumber = 0;
-					}
-				}
-				if (bitNumber
-						&& (
-							!settings.showRamlethalSwordRedeployDistanceForP1
-							&& ent.team() == 0
-							|| !settings.showRamlethalSwordRedeployDistanceForP2
-							&& ent.team() == 1
-						)) {
+				if (bitNumber && !(animMatches && animDuration < 20)) {
 					bitNumber = 0;
 				}
 				if (bitNumber) {
