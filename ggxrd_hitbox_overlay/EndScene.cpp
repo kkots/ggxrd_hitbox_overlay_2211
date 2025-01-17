@@ -6154,7 +6154,7 @@ DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 		}
 	}
 	camera.valuesPrepare.copyTo(cameraValues);
-	noNeedToDrawPoints = endScene.willEnqueueAndDrawOriginPoints;
+	noNeedToDrawPoints = endScene.willEnqueueAndDrawOriginPoints;  // drawing points may also draw inputs
 	pauseMenuOpen = endScene.pauseMenuOpen;
 	dontShowBoxes = settings.dontShowBoxes;
 	inputHistoryIsSplitOut = endScene.requestedInputHistoryDraw;
@@ -6411,7 +6411,7 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 	graphics.inputHistoryIsSplitOut = command->inputHistoryIsSplitOut;
 	if (command->drawingPostponed) return;
 	if (graphics.drawingPostponed()) return;
-	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;
+	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;  // drawing points may also draw inputs
 	graphics.executeBoxesRenderingCommand(getDevice());
 	graphics.noNeedToDrawPoints = false;
 }
@@ -6444,9 +6444,9 @@ void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderComman
 	}
 	
 	graphics.inputHistoryIsSplitOut = command->uiOrFramebarDrawData.inputHistoryIsSplitOut;
-	graphics.onlyDrawPoints = true;
+	graphics.onlyDrawPoints = true;  // drawing points may also draw inputs
 	graphics.drawAllFromOutside(getDevice());
-	graphics.onlyDrawPoints = false;
+	graphics.onlyDrawPoints = false;  // drawing points may also draw inputs
 	graphics.needDrawFramebarWithPoints = false;
 }
 

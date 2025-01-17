@@ -1099,6 +1099,9 @@ void Graphics::drawAll() {
 		}
 	}
 	
+	// a special command that draws only the points may also draw inputs
+	// this is caused by points needing to be drawn on top of the tension bars, while boxes are under the tension bar
+	// well, inputs also need to be on top of the tension bar so we lumped them into one FRenderCommand
 	if ((onlyDrawInputHistory || onlyDrawPoints || drawingPostponed())
 			&& screenshotStage == SCREENSHOT_STAGE_NONE
 			&& (drawDataUse.inputsSize[0] || drawDataUse.inputsSize[1])
@@ -2620,7 +2623,13 @@ void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
 	
 	bool doYourThing = !dontShowBoxes && !onlyDrawInputHistory
 		|| (graphics.drawDataUse.inputsSize[0] || graphics.drawDataUse.inputsSize[1])
-		&& (onlyDrawInputHistory || !noNeedToDrawPoints && !inputHistoryIsSplitOut);
+		&& (
+			onlyDrawInputHistory
+			
+			// drawing points may also draw inputs. So no need to draw points = no need to draw inputs
+			|| !noNeedToDrawPoints
+		)
+		&& !inputHistoryIsSplitOut;
 		
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them

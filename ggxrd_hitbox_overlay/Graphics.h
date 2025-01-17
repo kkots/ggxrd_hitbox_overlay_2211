@@ -42,8 +42,8 @@ public:
 	IDirect3DDevice9* device;
 	DWORD graphicsThreadId = NULL;
 	bool shutdown = false;
-	bool onlyDrawPoints = false;
-	bool noNeedToDrawPoints = false;
+	bool onlyDrawPoints = false;  // drawing points may also draw inputs
+	bool noNeedToDrawPoints = false;  // this will also affect drawing of inputs that are drawn together with points
 	bool needDrawFramebarWithPoints = false;
 	
 	Present_t orig_present = nullptr;
@@ -72,7 +72,7 @@ public:
 	bool obsDisappeared = false;
 	bool obsReappeared = false;
 	bool onlyDrawInputHistory = false;
-	bool inputHistoryIsSplitOut = false;
+	bool inputHistoryIsSplitOut = false;  // if true, inputs must only be drawn using a dedicated FRenderCommand and nowhere else
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;

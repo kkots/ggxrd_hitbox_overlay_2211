@@ -317,7 +317,7 @@ public:
 	bool needEnqueueUiWithPoints = false;
 	drawTrainingHudInputHistory_t orig_drawTrainingHudInputHistory = nullptr;
 	GameModeFast getGameModeFast() const;
-	bool requestedInputHistoryDraw = false;
+	bool requestedInputHistoryDraw = false;  // if true, inputs must only be drawn using a dedicated FRenderCommand and nowhere else
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
