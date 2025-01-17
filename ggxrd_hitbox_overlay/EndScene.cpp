@@ -6205,6 +6205,7 @@ void DrawImGuiRenderCommand::Destructor(BOOL freeMem) noexcept {
 }
 // Runs on the main thread
 UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRenderCommand) {
+	inputHistoryIsSplitOut = endScene.requestedInputHistoryDraw;
 	if (calledFromDrawOriginPointsRenderCommand && !endScene.needEnqueueUiWithPoints) return;
 	iconsUTexture2D = endScene.getIconsUTexture2D();
 	endScene.fillInFontInfo(&staticFontTexture2D,
@@ -6218,7 +6219,6 @@ UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRender
 	} else {
 		ui.copyDrawDataTo(drawData);
 	}
-	inputHistoryIsSplitOut = endScene.requestedInputHistoryDraw;
 }
 
 // Runs on the main thread
@@ -6427,6 +6427,7 @@ void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderComman
 	if (settings.dontShowBoxes
 			&& !(
 				(graphics.drawDataUse.inputsSize[0] || graphics.drawDataUse.inputsSize[1])
+				&& !command->uiOrFramebarDrawData.inputHistoryIsSplitOut
 			)
 			&& !hasFramebarDrawData) return;
 	
