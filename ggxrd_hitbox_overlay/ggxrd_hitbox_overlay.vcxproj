@@ -164,6 +164,7 @@
     <ClInclude Include="AltModes.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="characterTypes.h" />
+    <ClInclude Include="CharInfo.h" />
     <ClInclude Include="collectHitboxes.h" />
     <ClInclude Include="colors.h" />
     <ClInclude Include="ComplicatedHurtbox.h" />

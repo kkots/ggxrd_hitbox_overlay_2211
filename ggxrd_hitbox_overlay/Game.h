@@ -175,6 +175,7 @@ public:
 	DWORD matchInfoOffset = 0;
 	int getMatchTimer() const;  // decrements at the start of logic tick
 	char** gameDataPtr = nullptr;  // REDGameCommon
+	BYTE* getStaticFont() const;
 private:
 	class HookHelp {
 		friend class Game;

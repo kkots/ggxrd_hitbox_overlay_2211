@@ -447,6 +447,9 @@ bool Settings::onDllMain() {
 			"; Setting this to true will display both players' input history when playing against CPU in Episode/Story, offline Versus,\n"
 			"; Tutorial, offline MOM and Mission.\n"
 			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
+	registerOtherDescription(settingAndItsName(showDurationsInInputHistory), "Display Durations In Input History", settingsGeneralSettingsStr,
+			"; Specify true or false.\n"
+			"; Setting this to true will display the duration of each input, in frames, in the input history.");
 	registerOtherDescription(settingAndItsName(useAlternativeStaggerMashProgressDisplay), "Use Alternative Stagger Mash Progress Display", "Main UI Window - Stun/Stagger Mash",
 			"; Specify true or false.\n"
 			"; Setting this to true will display Progress differently in Stun/Stagger Mash window.\n"
@@ -755,6 +758,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool displayInputHistoryInSomeOfflineModesParsed = false;
 	
+	bool showDurationsInInputHistoryParsed = false;
+	
 	bool useAlternativeStaggerMashProgressDisplayParsed = false;
 	
 	bool dontShowMayInteractionChecksParsed = false;
@@ -1061,6 +1066,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								displayInputHistoryInSomeOfflineModesParsed = parseBoolean("displayInputHistoryInSomeOfflineModes", keyValue, displayInputHistoryInSomeOfflineModes);
 							}
 							break;
+						case offsetof(Settings, showDurationsInInputHistory):
+							if (!showDurationsInInputHistoryParsed) {
+								showDurationsInInputHistoryParsed = parseBoolean("showDurationsInInputHistory", keyValue, showDurationsInInputHistory);
+							}
+							break;
 						case offsetof(Settings, useAlternativeStaggerMashProgressDisplay):
 							if (!useAlternativeStaggerMashProgressDisplayParsed) {
 								useAlternativeStaggerMashProgressDisplayParsed = parseBoolean("useAlternativeStaggerMashProgressDisplay", keyValue, useAlternativeStaggerMashProgressDisplay);
@@ -1309,6 +1319,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!displayInputHistoryInSomeOfflineModesParsed) {
 		displayInputHistoryInSomeOfflineModes = false;
+	}
+	
+	if (!showDurationsInInputHistoryParsed) {
+		showDurationsInInputHistory = false;
 	}
 	
 	if (!useAlternativeStaggerMashProgressDisplayParsed) {
@@ -1874,6 +1888,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("showComboProrationInRiscGauge", formatBoolean(showComboProrationInRiscGauge), getOtherINIDescription(&showComboProrationInRiscGauge));
 	replaceOrAddSetting("displayInputHistoryWhenObserving", formatBoolean(displayInputHistoryWhenObserving), getOtherINIDescription(&displayInputHistoryWhenObserving));
 	replaceOrAddSetting("displayInputHistoryInSomeOfflineModes", formatBoolean(displayInputHistoryInSomeOfflineModes), getOtherINIDescription(&displayInputHistoryInSomeOfflineModes));
+	replaceOrAddSetting("showDurationsInInputHistory", formatBoolean(showDurationsInInputHistory), getOtherINIDescription(&showDurationsInInputHistory));
 	replaceOrAddSetting("useAlternativeStaggerMashProgressDisplay", formatBoolean(useAlternativeStaggerMashProgressDisplay), getOtherINIDescription(&useAlternativeStaggerMashProgressDisplay));
 	replaceOrAddSetting("dontShowMayInteractionChecks", formatBoolean(dontShowMayInteractionChecks), getOtherINIDescription(&dontShowMayInteractionChecks));
 	replaceOrAddSetting("showMilliaBadMoonBuffHeight", formatBoolean(showMilliaBadMoonBuffHeight), getOtherINIDescription(&showMilliaBadMoonBuffHeight));

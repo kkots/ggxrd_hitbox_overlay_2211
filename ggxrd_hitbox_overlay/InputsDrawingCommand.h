@@ -26,6 +26,7 @@ struct InputsDrawingCommand {
 	InputsDrawingCommand(InputsDrawingCommandIcon icon, bool dark) : icon(icon), dark(dark) { }
 };
 struct InputsDrawingCommandRow {
+	unsigned short duration = 0;
 	unsigned char count = 0;
 	InputsDrawingCommand cmds[8];
 };

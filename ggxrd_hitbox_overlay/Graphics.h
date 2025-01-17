@@ -13,6 +13,7 @@
 #include "characterTypes.h"
 #include "PlayerInfo.h"
 #include "DrawData.h"
+#include "CharInfo.h"
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
@@ -25,9 +26,8 @@ class Graphics
 public:
 	bool onDllMain(HMODULE hInstance);
 	void onDllDetach();
-	void onEndSceneStart(IDirect3DDevice9* device);
 	void onShutdown();
-	void drawAll();
+	void drawAllFromOutside(IDirect3DDevice9* device);
 	void afterDraw();
 	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
 	void resetHook();
@@ -59,6 +59,10 @@ public:
 	std::vector<BYTE> uiFramebarDrawData;
 	std::vector<BYTE> uiDrawData;
 	IDirect3DTexture9* uiTexture;
+	IDirect3DTexture9* staticFontTexture;
+	CharInfo staticFontOpenParenthesis;
+	CharInfo staticFontCloseParenthesis;
+	CharInfo staticFontDigit[10];
 	// Draw boxes, without UI, and take a screenshot if needed
 	// Runs on the graphics thread
 	void executeBoxesRenderingCommand(IDirect3DDevice9* device);
@@ -67,6 +71,8 @@ public:
 	bool endSceneIsAwareOfDrawingPostponement = false;
 	bool obsDisappeared = false;
 	bool obsReappeared = false;
+	bool onlyDrawInputHistory = false;
+	bool inputHistoryIsSplitOut = false;
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -153,6 +159,7 @@ private:
 		RENDER_STATE_DRAWING_OUTLINES,
 		RENDER_STATE_DRAWING_POINTS,
 		RENDER_STATE_DRAWING_TEXTURES,
+		RENDER_STATE_DRAWING_TEXT,
 		RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE  // must be last
 	} drawingWhat;
 	void advanceRenderState(RenderStateDrawingWhat newState);
@@ -204,6 +211,7 @@ private:
 		LAST_THING_IN_VERTEX_BUFFER_POINT,
 		LAST_THING_IN_VERTEX_BUFFER_HATCH
 	} lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_NOTHING;
+	bool lastTextureIsFont = false;
 
 	unsigned int preparedBoxesCount = 0;
 	bool prepareBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect = nullptr, bool ignoreFill = false, bool ignoreOutline = false);
@@ -319,7 +327,8 @@ private:
 		RenderStateValue(VERTEX, TEXTURE),
 		RenderStateValue(TEXTURE, NONE),
 		RenderStateValue(TEXTURE, FOR_PIXEL_SHADER),
-		RenderStateValue(TEXTURE, ICONS)
+		RenderStateValue(TEXTURE, ICONS),
+		RenderStateValue(TEXTURE, FONT)
 	};
 	RenderStateValue renderStateValues[RENDER_STATE_TYPE_LAST];
 	class RenderStateValueHandler {
@@ -410,7 +419,8 @@ private:
 		DWORD color;
 	};
 	unsigned int preparedTextureBoxesCount = 0;
-	void prepareTextureBox(const TextureBoxParams& box);
+	unsigned int preparedTextureBoxesCountWithFont = 0;
+	void prepareTextureBox(const TextureBoxParams& box, bool isFont);
 	void prepareDrawInputs();
 	int calculateStartingTextureVertexBufferLength();
 	int calculateStartingVertexBufferLength();
@@ -451,6 +461,35 @@ private:
 	bool worldMatrixHasShiftedWorldCenter = false;
 	void ensureWorldMatrixWorldCenterIsZero();
 	void setWorld3DMatrix(int worldCenterShiftX = 0, int worldCenterShiftY = 0);
+	
+	const float charInfoOffsetScale = 1.52F;
+	void calcTextSize(const char* txt, float coef, float textScale, bool outline, float* sizeX, float* sizeY);
+	/// <summary>
+	/// Prepares texture vertices that contain data needed to draw the requested text.
+	/// The text will be drawn with a black outline.
+	/// </summary>
+	/// <param name="x">Position of the top left corner of the text. Must be already multiplied by coefW.</param>
+	/// <param name="y">Position of the top left corner of the text. Must be already multiplied by coefH and include extraH.</param>
+	/// <param name="txt">The text to draw.</param>
+	/// <param name="coef">The scaling factor for the text and outline size. Scaling of 1.F is used when screen width is 1280.F.</param>
+	/// <param name="textScale">The scaling factor for text only. Gets combined with coef.</param>
+	void printTextWithOutline(float x, float y, const char* txt, float coef, float textScale);
+	
+	/// <summary>
+	/// Prepares texture vertices that contain data needed to draw the requested text.
+	/// The text will be drawn with a black outline.
+	/// </summary>
+	/// <param name="x">Position of the top left corner of the text. Must be already multiplied by coefW.</param>
+	/// <param name="y">Position of the top left corner of the text. Must be already multiplied by coefH and include extraH.</param>
+	/// <param name="txt">The text to draw.</param>
+	/// <param name="coef">The scaling factor for the text and outline size. Scaling of 1.F is used when screen width is 1280.F.</param>
+	/// <param name="textScale">The scaling factor for text only. Gets combined with coef.</param>
+	/// <param name="color">The tint of the text.</param>
+	void printText(float x, float y, const char* txt, float coef, float textScale, DWORD color);
+	void drawAll();
+	void drawAllInit(IDirect3DDevice9* device);
+	void onEndSceneStart(IDirect3DDevice9* device);
+	
 };
 
 extern Graphics graphics;

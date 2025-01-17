@@ -12,10 +12,10 @@ void Graphics::dumpTextures(IDirect3DDevice9* device) {
 	
 	uintptr_t start, end;
 	getModuleBounds("GuiltyGearXrd.exe:all", &start, &end);
-	// Font* StaticFont: 0x01B34F5C
+	// Font* StaticFont: 0x01f34f5c
 	// Font::0x3c - TArray<FontCharacter>. (For StaticFont) First three chars unknown, then space, then !.
-	// Font* StaticREDFont: 0x01B34F60
-	// Font* ProfileFont: 0x01B34F64
+	// Font* StaticREDFont: 0x01f34f60
+	// Font* ProfileFont: 0x01f34f64
 	
 	fnameArray = *(char**)(start + 0x16C42D0);
 	struct TextureArrayItem {

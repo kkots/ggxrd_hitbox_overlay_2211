@@ -558,6 +558,10 @@ displayInputHistoryWhenObserving = true
 displayInputHistoryInSomeOfflineModes = false
 
 ; Specify true or false.
+; Setting this to true will display the duration of each input, in frames, in the input history.
+showDurationsInInputHistory = false
+
+; Specify true or false.
 ; Setting this to true will display Progress differently in Stun/Stagger Mash window.
 ; Instead of displaying it as Mashed + Animation Duration / Stagger Duration - 4, it will
 ; display as Animation Duration / Stagger Duration - 4 - Mashed

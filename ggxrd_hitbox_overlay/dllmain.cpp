@@ -23,6 +23,8 @@
 #include "Moves.h"
 
 static void closeLog();
+static bool initialized = false;
+static HMODULE obsDll = NULL;
 
 BOOL APIENTRY DllMain( HMODULE hModule,
 					   DWORD  ul_reason_for_call,
@@ -61,6 +63,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 			terminate
 		}
 		if (!detouring.beginTransaction(true)) terminate
+		obsDll = GetModuleHandleA("graphics-hook32.dll");
+		if (obsDll) graphics.imInDanger = true;
 		if (!settings.onDllMain()) terminate
 		if (!game.onDllMain()) terminate
 		if (!camera.onDllMain()) terminate
@@ -77,6 +81,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!hud.onDllMain()) terminate
 		if (!moves.onDllMain()) terminate
 		if (!detouring.endTransaction()) terminate
+		initialized = true;
 		break;
 	}
 	case DLL_PROCESS_DETACH:
@@ -100,7 +105,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		closeLog();
 		break;
 	case DLL_THREAD_ATTACH:
-		static HMODULE obsDll = NULL;
 		if (!obsDll) {
 			obsDll = GetModuleHandleA("graphics-hook32.dll");
 			if (obsDll) {
@@ -120,7 +124,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 				// Unless we somehow warn the graphics thread
 				// But of course without stalling the thread that hooks Present this is all a race condition
 				graphics.imInDanger = true;
-				WaitForSingleObject(graphics.responseToImInDanger, INFINITE);
+				if (initialized) {
+					WaitForSingleObject(graphics.responseToImInDanger, INFINITE);
+				}
 			}
 		}
 		break;

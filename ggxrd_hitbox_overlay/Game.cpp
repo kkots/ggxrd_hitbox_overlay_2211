@@ -783,3 +783,7 @@ int Game::getMatchTimer() const {
 	if (!*aswEngine) return 0;
 	return *(int*)(*aswEngine + 4 + matchInfoOffset + 0xc);
 }
+
+BYTE* Game::getStaticFont() const {
+	return *(BYTE**)(*gameDataPtr + 0x68);
+}

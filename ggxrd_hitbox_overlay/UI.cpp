@@ -2451,6 +2451,8 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
 			
+			booleanSettingPreset(settings.showDurationsInInputHistory);
+			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
 			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above)."));

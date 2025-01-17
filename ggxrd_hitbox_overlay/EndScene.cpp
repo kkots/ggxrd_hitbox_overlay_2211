@@ -320,8 +320,8 @@ bool EndScene::onDllMain() {
 		}
 		if (ok) {
 			byteSpecificationToSigMask("8b 0d ?? ?? ?? ?? 3d ec 00 00 00 0f 87", sig, mask);
-			substituteWildcard(sig.data(), mask.data(), 0, game.gameDataPtr);
-			ptr = sigscanForward(ptr, sig.data(), mask.data(), 0x40);
+			substituteWildcard(sig, mask, 0, game.gameDataPtr);
+			ptr = sigscanForward(ptr, sig, mask, 0x40);
 			ok = ptr != 0;
 			ptr += 13;
 		}
@@ -338,8 +338,8 @@ bool EndScene::onDllMain() {
 		std::vector<char> sig;
 		std::vector<char> mask;
 		byteSpecificationToSigMask("8b 0d ?? ?? ?? ?? 8b 91 ?? ?? ?? ??", sig, mask);
-		substituteWildcard(sig.data(), mask.data(), 0, aswEngine);
-		uintptr_t aswEngUsage = sigscanForward(entryPtr, sig.data(), mask.data(), 0x1e);
+		substituteWildcard(sig, mask, 0, aswEngine);
+		uintptr_t aswEngUsage = sigscanForward(entryPtr, sig, mask, 0x1e);
 		if (aswEngUsage) {
 			leftEdgeOfArenaOffset = *(DWORD*)(aswEngUsage + 8);
 			rightEdgeOfArenaOffset = leftEdgeOfArenaOffset + 4;
@@ -450,7 +450,7 @@ bool EndScene::onDllMain() {
 		std::vector<char> sig;
 		std::vector<char> mask;
 		byteSpecificationToSigMask("68 ?? ?? ?? ?? e8", sig, mask);
-		substituteWildcard(sig.data(), mask.data(), 0, (void*)iconStringAddr);
+		substituteWildcard(sig, mask, 0, (void*)iconStringAddr);
 		iconStringUsage = sigscanOffset(
 			"GuiltyGearXrd.exe",
 			sig,
@@ -463,6 +463,7 @@ bool EndScene::onDllMain() {
 	if (iconStringUsage) {
 		iconTexture = *(void**)(iconStringUsage + 1);
 	}
+	if (!iconTexture) error = true;
 	
 	uintptr_t backPushbackApplierPiece = sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -576,6 +577,63 @@ bool EndScene::onDllMain() {
 			"onCmnActXGuardLoop")) return false;
 	}
 	
+	uintptr_t atkIconNamesLoc = 0;
+	static const char atkSig[] = "Atk1\x00\x00\x00\x00"
+		"Atk2\x00\x00\x00\x00"
+		"Atk3\x00\x00\x00\x00"
+		"Atk4\x00\x00\x00\x00"
+		"Atk5\x00\x00\x00\x00"
+		"Atk6\x00\x00\x00\x00"
+		"Atk7\x00\x00\x00\x00"
+		"Atk8\x00\x00\x00\x00"
+		"Atk9\x00\x00\x00\x00"
+		"AtkP\x00\x00\x00\x00"
+		"AtkK\x00\x00\x00\x00"
+		"AtkS\x00\x00\x00\x00"
+		"AtkH\x00\x00\x00\x00"
+		"AtkD\x00\x00\x00\x00"
+		"AtkC\x00\x00\x00\x00"
+		"AtkO\x00\x00\x00\x00";
+	
+	atkIconNamesLoc = sigscan(
+		"GuiltyGearXrd.exe:.rdata",
+		atkSig,
+		sizeof atkSig - 1);
+	
+	uintptr_t atkIconNamesUsage = 0;
+	if (atkIconNamesLoc) {
+		std::vector<char> sig;
+		std::vector<char> mask;
+		byteSpecificationToSigMask("c7 00 ?? ?? ?? ?? e8", sig, mask);
+		substituteWildcard(sig, mask, 0, (void*)atkIconNamesLoc);
+		atkIconNamesUsage = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			sig,
+			mask,
+			nullptr, "AtkIconNamesUsage");
+	}
+	if (atkIconNamesUsage) {
+		uintptr_t instrPos = sigscanBackwards(atkIconNamesUsage,
+			"55"
+			" 8b ec"
+			" 83 e4 f0"
+			" 81 ec",
+			0xc0);
+		
+		orig_drawTrainingHudInputHistory = (drawTrainingHudInputHistory_t)instrPos;
+		
+		gameModeFast = *(GameModeFast**)(instrPos + 0x1b);
+		drawTrainingHudInputHistoryVal2 = *(int**)(instrPos + 0x2f);
+		drawTrainingHudInputHistoryVal3 = *(int**)(instrPos + 0x3c);
+		
+	}
+	if (orig_drawTrainingHudInputHistory) {
+		void (HookHelp::*drawTrainingHudInputHistoryHookPtr)(unsigned int layer) = &HookHelp::drawTrainingHudInputHistoryHook;
+		if (!detouring.attach(&(PVOID&)orig_drawTrainingHudInputHistory,
+			(PVOID&)drawTrainingHudInputHistoryHookPtr,
+			"drawTrainingHudInputHistory")) return false;
+	}
+	
 	return !error;
 }
 
@@ -659,6 +717,7 @@ void EndScene::logic() {
 		}
 		needDrawInputs = false;
 		entityList.populate();
+		if (requestedInputHistoryDraw) needDrawInputs = true;
 		if (gifMode.showInputHistory && !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
 			if (settings.displayInputHistoryWhenObserving
 					&& game.currentModeIsOnline()
@@ -5486,6 +5545,7 @@ void EndScene::onUWorld_TickBegin() {
 	drewExGaugeHud = false;
 	camera.grabbedValues = false;
 	iGiveUp = game.getGameMode() == GAME_MODE_NETWORK && game.getPlayerSide() != 2;
+	requestedInputHistoryDraw = false;
 }
 
 // Called at the end of an UE3 engine tick.
@@ -6088,7 +6148,7 @@ DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 	drawingPostponed = endScene.drawingPostponed();
 	obsStoppedCapturing = endScene.obsStoppedCapturing;
 	endScene.drawDataPrepared.copyTo(&drawData);
-	if (!endScene.needDrawInputs) {
+	if (!endScene.needDrawInputs && !endScene.requestedInputHistoryDraw) {
 		for (int i = 0; i < 2; ++i) {
 			drawData.inputsSize[i] = 0;
 		}
@@ -6097,7 +6157,12 @@ DrawBoxesRenderCommand::DrawBoxesRenderCommand() {
 	noNeedToDrawPoints = endScene.willEnqueueAndDrawOriginPoints;
 	pauseMenuOpen = endScene.pauseMenuOpen;
 	dontShowBoxes = settings.dontShowBoxes;
+	inputHistoryIsSplitOut = endScene.requestedInputHistoryDraw;
 	iconsUTexture2D = endScene.getIconsUTexture2D();
+	endScene.fillInFontInfo(&staticFontTexture2D,
+		&openParenthesis,
+		&closeParenthesis,
+		digit);
 }
 
 void DrawOriginPointsRenderCommand::Destructor(BOOL freeMem) noexcept {
@@ -6111,6 +6176,19 @@ unsigned int DrawOriginPointsRenderCommand::Execute() {
 }
 const wchar_t* DrawOriginPointsRenderCommand::DescribeCommand() noexcept {
 	return L"DrawOriginPointsRenderCommand";
+}
+
+void DrawInputHistoryRenderCommand::Destructor(BOOL freeMem) noexcept {
+	DrawInputHistoryRenderCommand::~DrawInputHistoryRenderCommand();
+	FRenderCommand::Destructor(freeMem);
+}
+// Runs on the graphics thread
+unsigned int DrawInputHistoryRenderCommand::Execute() {
+	endScene.executeDrawInputHistoryRenderCommand(this);
+	return sizeof(*this);
+}
+const wchar_t* DrawInputHistoryRenderCommand::DescribeCommand() noexcept {
+	return L"DrawInputHistoryRenderCommand";
 }
 
 // Runs on the graphics thread
@@ -6129,6 +6207,10 @@ void DrawImGuiRenderCommand::Destructor(BOOL freeMem) noexcept {
 UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRenderCommand) {
 	if (calledFromDrawOriginPointsRenderCommand && !endScene.needEnqueueUiWithPoints) return;
 	iconsUTexture2D = endScene.getIconsUTexture2D();
+	endScene.fillInFontInfo(&staticFontTexture2D,
+		&openParenthesis,
+		&closeParenthesis,
+		digit);
 	drawingPostponed = endScene.drawingPostponed();
 	obsStoppedCapturing = endScene.obsStoppedCapturing;
 	if (endScene.queueingFramebarDrawCommand && endScene.uiWillBeDrawnOnTopOfPauseMenu) {
@@ -6136,6 +6218,7 @@ UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRender
 	} else {
 		ui.copyDrawDataTo(drawData);
 	}
+	inputHistoryIsSplitOut = endScene.requestedInputHistoryDraw;
 }
 
 // Runs on the main thread
@@ -6158,6 +6241,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	bool drawingPostponedLocal;
 	needEnqueueUiWithPoints = false;
 	if (!shutdown && !graphics.shutdown) {
+		drawDataPrepared.gameModeFast = getGameModeFast();
 		drawDataPrepared.clearBoxes();
 		lastScreenSize = *screenSize;
 		
@@ -6196,6 +6280,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 						(
 							!settings.dontShowBoxes && !drawDataPrepared.points.empty()
 							|| (drawDataPrepared.inputsSize[0] || drawDataPrepared.inputsSize[1])
+							&& !requestedInputHistoryDraw
 						) && !drawingPostponedLocal
 				) {
 					needEnqueueOriginPoints = true;
@@ -6317,8 +6402,13 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 	graphics.pauseMenuOpen = command->pauseMenuOpen;
 	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->iconsUTexture2D);
 	graphics.iconsTexture = tex;
+	graphics.staticFontTexture = getTextureFromUTexture2D(command->staticFontTexture2D);
+	graphics.staticFontOpenParenthesis = command->openParenthesis;
+	graphics.staticFontCloseParenthesis = command->closeParenthesis;
+	memcpy(graphics.staticFontDigit, command->digit, sizeof graphics.staticFontDigit);
 	graphics.endSceneIsAwareOfDrawingPostponement = command->drawingPostponed;
 	graphics.obsStoppedCapturingFromEndScenesPerspective = command->obsStoppedCapturing;
+	graphics.inputHistoryIsSplitOut = command->inputHistoryIsSplitOut;
 	if (command->drawingPostponed) return;
 	if (graphics.drawingPostponed()) return;
 	graphics.noNeedToDrawPoints = command->noNeedToDrawPoints;
@@ -6341,18 +6431,31 @@ void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderComman
 			&& !hasFramebarDrawData) return;
 	
 	if (hasFramebarDrawData) {
-		IDirect3DTexture9* tex = getTextureFromUTexture2D(command->uiOrFramebarDrawData.iconsUTexture2D);
 		graphics.endSceneIsAwareOfDrawingPostponement = command->uiOrFramebarDrawData.drawingPostponed;
 		graphics.obsStoppedCapturingFromEndScenesPerspective = command->uiOrFramebarDrawData.obsStoppedCapturing;
 		graphics.uiFramebarDrawData = command->uiOrFramebarDrawData.drawData;
-		graphics.uiTexture = tex;
+		graphics.uiTexture = getTextureFromUTexture2D(command->uiOrFramebarDrawData.iconsUTexture2D);
+		graphics.staticFontTexture = getTextureFromUTexture2D(command->uiOrFramebarDrawData.staticFontTexture2D);
+		graphics.staticFontOpenParenthesis = command->uiOrFramebarDrawData.openParenthesis;
+		graphics.staticFontCloseParenthesis = command->uiOrFramebarDrawData.closeParenthesis;
+		memcpy(graphics.staticFontDigit, command->uiOrFramebarDrawData.digit, sizeof graphics.staticFontDigit);
 		graphics.needDrawFramebarWithPoints = true;
 	}
 	
+	graphics.inputHistoryIsSplitOut = command->uiOrFramebarDrawData.inputHistoryIsSplitOut;
 	graphics.onlyDrawPoints = true;
-	graphics.drawAll();
+	graphics.drawAllFromOutside(getDevice());
 	graphics.onlyDrawPoints = false;
 	graphics.needDrawFramebarWithPoints = false;
+}
+
+// Runs on the graphics thread
+void EndScene::executeDrawInputHistoryRenderCommand(DrawInputHistoryRenderCommand* command) {
+	if (endScene.shutdown || graphics.shutdown) return;
+	
+	graphics.onlyDrawInputHistory = true;
+	graphics.drawAllFromOutside(getDevice());
+	graphics.onlyDrawInputHistory = false;
 }
 
 // Runs on the main thread
@@ -6414,6 +6517,11 @@ void EndScene::drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item,
 		}
 		return;  // can safely omit items
 	}
+	if (item->count == 4 && (unsigned int&)item->vertices[0].x == getDummyCmdUInt(dummyInputHistory)) {  // avoid floating point comparison as it may be slower
+		FCanvas_Flush(canvas, 0);
+		enqueueRenderCommand<DrawInputHistoryRenderCommand>();
+		return;  // can safely omit items
+	}
 	call_orig_drawQuadExec(orig_drawQuadExec, screenSize, item, canvas);
 }
 
@@ -6431,7 +6539,12 @@ void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 	graphics.obsStoppedCapturingFromEndScenesPerspective = command->uiOrFramebarDrawData.obsStoppedCapturing;
 	if (command->uiOrFramebarDrawData.drawingPostponed) {
 		graphics.uiTexture = tex;
+		graphics.staticFontTexture = getTextureFromUTexture2D(command->uiOrFramebarDrawData.staticFontTexture2D);
+		graphics.staticFontOpenParenthesis = command->uiOrFramebarDrawData.openParenthesis;
+		graphics.staticFontCloseParenthesis = command->uiOrFramebarDrawData.closeParenthesis;
+		memcpy(graphics.staticFontDigit, command->uiOrFramebarDrawData.digit, sizeof graphics.staticFontDigit);
 		graphics.uiDrawData = std::move(command->uiOrFramebarDrawData.drawData);
+		graphics.inputHistoryIsSplitOut = command->uiOrFramebarDrawData.inputHistoryIsSplitOut;
 		return;
 	}
 	if (graphics.drawingPostponed()) {
@@ -6475,6 +6588,13 @@ IDirect3DTexture9* EndScene::getTextureFromUTexture2D(BYTE* uTex2D) {
 	//      ReferencedType* Reference;
 	//  };
 	return *(IDirect3DTexture9**)(next + -0xc + 0x8);
+}
+
+BYTE* EndScene::getUTexture2DFromFont(BYTE* font) {
+	if (*(int*)(font + 0x48 + 4) >= 1) {
+		return **(BYTE***)(font + 0x48);  // element 0
+	}
+	return nullptr;
 }
 
 void EndScene::HookHelp::backPushbackApplierHook() {
@@ -7438,13 +7558,15 @@ bool loggedDrawingInputsOnce
 void EndScene::prepareInputs() {
 	InputRingBuffer* sourceBuffers = game.getInputRingBuffers();
 	if (!sourceBuffers) return;
+	bool withDurations = settings.showDurationsInInputHistory;
 	for (int i = 0; i < 2; ++i) {
 		inputRingBuffersStored[i].update(sourceBuffers[i], prevInputRingBuffers[i]);
 		std::vector<InputsDrawingCommandRow>& result = drawDataPrepared.inputs[i];
 		if (result.size() != 100) result.resize(100);
 		drawDataPrepared.inputsSize[i] = 0;
 		memset(result.data(), 0, 100 * sizeof InputsDrawingCommandRow);
-		inputsDrawing.produceData(inputRingBuffersStored[i], result.data(), drawDataPrepared.inputsSize + i, i == 1);
+		inputsDrawing.produceData(inputRingBuffersStored[i], result.data(), drawDataPrepared.inputsSize + i, i == 1, withDurations);
+		drawDataPrepared.inputsContainsDurations = withDurations;
 	}
 	memcpy(prevInputRingBuffers, sourceBuffers, sizeof prevInputRingBuffers);
 	#ifdef LOG_PATH
@@ -7573,4 +7695,110 @@ void EndScene::onCmnActXGuardLoopHook(Entity pawn, int signal, int type, int thi
 		PlayerInfo& player = findPlayer(pawn);
 		player.blockstunMaxLandExtra = 4;
 	}
+}
+
+void EndScene::fillInFontInfo(BYTE** staticFontTexture2D,
+		CharInfo* openParenthesis,
+		CharInfo* closeParenthesis,
+		CharInfo* digit) {
+	BYTE* staticFontVal = game.getStaticFont();
+	*staticFontTexture2D = getUTexture2DFromFont(staticFontVal);
+	BYTE* tArrayFontCharacter = (BYTE*)(staticFontVal + 0x3c);
+	FontCharacter* arrayData = *(FontCharacter**)tArrayFontCharacter;
+	int arrayNum = *(int*)(tArrayFontCharacter + 0x4);
+	
+	if (!obtainedStaticFontCharInfos) {
+		obtainedStaticFontCharInfos = true;
+		struct IndexToChar {
+			int index = 0;
+			CharInfo* info = nullptr;
+			int offsetY = 0;
+			int extraSpaceRight = 0;
+		};
+		IndexToChar infos[12];
+		infos[0] = {
+			4 + 8 - 1,
+			&staticFontOpenParenthesis,
+			0,
+			0
+		};
+		infos[1] = {
+			4 + 9 - 1,
+			&staticFontCloseParenthesis,
+			0,
+			0
+		};
+		for (int i = 0; i < 10; ++i) {
+			infos[2 + i] = { 4 + 16 + i - 1, staticFontDigit + i };
+		}
+		
+		// 1
+		infos[3].offsetY = 1;
+		infos[3].extraSpaceRight = 2;
+		
+		// 2
+		infos[4].extraSpaceRight = -1;
+		
+		// 4
+		infos[6].offsetY = 2;
+		infos[6].extraSpaceRight = -2;
+		
+		// 5
+		infos[7].offsetY = 1;
+		
+		// 6
+		infos[8].offsetY = 1;
+		
+		// 7
+		infos[9].offsetY = 2;
+		
+		const float width = 4096.F;
+		const float height = 2048.F;
+		for (int i = 0; i < 12; ++i) {
+			const IndexToChar& src = infos[i];
+			if (src.index < arrayNum) {
+				FontCharacter* fontCharacter = arrayData + src.index;
+				CharInfo* dst = src.info;
+				dst->uStart = (float)fontCharacter->StartU / width;
+				dst->vStart = (float)fontCharacter->StartV / height;
+				dst->uEnd = (float)(fontCharacter->StartU + fontCharacter->USize) / width;
+				dst->vEnd = (float)(fontCharacter->StartV + fontCharacter->VSize) / height;
+				dst->sizeX = fontCharacter->USize;
+				dst->sizeY = fontCharacter->VSize;
+				dst->offsetY = src.offsetY;
+				dst->extraSpaceRight = src.extraSpaceRight;
+			}
+		}
+	}
+	
+	*openParenthesis = staticFontOpenParenthesis;
+	*closeParenthesis = staticFontCloseParenthesis;
+	memcpy(digit, staticFontDigit, sizeof staticFontDigit);
+	
+}
+
+void EndScene::HookHelp::drawTrainingHudInputHistoryHook(unsigned int layer) {
+	endScene.drawTrainingHudInputHistoryHook((void*)this, layer);
+}
+
+void EndScene::drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer) {
+	GameModeFast gameMode = *gameModeFast;
+	int DAT_01edb6f0 = *drawTrainingHudInputHistoryVal2;
+	int DAT_01edb6ec = *drawTrainingHudInputHistoryVal3;
+	int iVar3 = DAT_01edb6f0;
+	bool willDraw = gameMode == GAME_MODE_FAST_CHALLENGE
+			? DAT_01edb6f0 != 0
+			: gameMode != GAME_MODE_FAST_KENTEI || DAT_01edb6ec;
+	if (willDraw && settings.showDurationsInInputHistory) {
+		char buf[9] = "+";
+		queueDummyCommand(layer, dummyInputHistory, buf);
+		requestedInputHistoryDraw = true;
+	} else {
+		orig_drawTrainingHudInputHistory(trainingHud, layer);
+	}
+}
+
+GameModeFast EndScene::getGameModeFast() const {
+	if (gameModeFast) return *gameModeFast;
+	return GAME_MODE_FAST_NORMAL;
 }

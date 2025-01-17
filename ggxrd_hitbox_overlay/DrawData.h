@@ -5,6 +5,13 @@
 #include <vector>
 #include "InputsDrawingCommand.h"
 
+enum GameModeFast {
+	GAME_MODE_FAST_NORMAL,
+	GAME_MODE_FAST_TUTORIAL,
+	GAME_MODE_FAST_CHALLENGE,
+	GAME_MODE_FAST_KENTEI
+};
+
 struct DrawData {
 	std::vector<ComplicatedHurtbox> hurtboxes;
 	std::vector<DrawHitboxArrayCallParams> hitboxes;
@@ -15,7 +22,9 @@ struct DrawData {
 	std::vector<DrawLineCallParams> lines;
 	std::vector<DrawBoxCallParams> throwBoxes;
 	std::vector<InputsDrawingCommandRow> inputs[2] { };
+	bool inputsContainsDurations = false;
 	size_t inputsSize[2] { 0 };
+	GameModeFast gameModeFast;
 	inline void clear() { clearBoxes(); clearInputs(); }
 	void clearBoxes();
 	void clearInputs();

@@ -11,6 +11,7 @@
 #include <memory>
 #include "InputRingBuffer.h"
 #include "InputRingBufferStored.h"
+#include "CharInfo.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -37,10 +38,21 @@ using BBScr_checkMoveConditionImpl_t = int(__thiscall*)(void* pawn, MoveConditio
 using setSuperFreezeAndRCSlowdownFlags_t = void(__thiscall*)(void* asw_subengine);
 using BBScr_timeSlow_t = void(__thiscall*)(void* pawn, int duration);
 using onCmnActXGuardLoop_t = void(__thiscall*)(void* pawn, int signal, int type, int thisIs0);
+using drawTrainingHudInputHistory_t = void(__thiscall*)(void* trainingHud, unsigned int layer);
 
 struct FVector2D {
 	float X;
 	float Y;
+};
+
+struct FontCharacter {
+	int StartU;
+	int StartV;
+	int USize;
+	int VSize;
+	unsigned char TextureIndex;
+	char padding[3];
+	int VerticalOffset;
 };
 
 struct FRingBuffer_AllocationContext {
@@ -84,7 +96,12 @@ struct DrawBoxesRenderCommand : FRenderCommand {
 	bool noNeedToDrawPoints;
 	bool pauseMenuOpen;
 	bool dontShowBoxes;
+	bool inputHistoryIsSplitOut;
 	BYTE* iconsUTexture2D = nullptr;
+	BYTE* staticFontTexture2D = nullptr;
+	CharInfo openParenthesis;
+	CharInfo closeParenthesis;
+	CharInfo digit[10];
 };
 
 struct UiOrFramebarDrawData {
@@ -93,6 +110,11 @@ struct UiOrFramebarDrawData {
 	bool drawingPostponed = false;
 	bool obsStoppedCapturing = false;
 	BYTE* iconsUTexture2D = nullptr;
+	BYTE* staticFontTexture2D = nullptr;
+	CharInfo openParenthesis;
+	CharInfo closeParenthesis;
+	CharInfo digit[10];
+	bool inputHistoryIsSplitOut;
 };
 
 struct DrawOriginPointsRenderCommand : FRenderCommand {
@@ -100,6 +122,12 @@ struct DrawOriginPointsRenderCommand : FRenderCommand {
 	virtual unsigned int Execute() override;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept override;
 	UiOrFramebarDrawData uiOrFramebarDrawData{true};
+};
+
+struct DrawInputHistoryRenderCommand : FRenderCommand {
+	virtual void Destructor(BOOL freeMem) noexcept override;
+	virtual unsigned int Execute() override;  // Runs on the graphics thread
+	virtual const wchar_t* DescribeCommand() noexcept override;
 };
 
 struct DrawImGuiRenderCommand : FRenderCommand {
@@ -243,13 +271,19 @@ public:
 	bool* GIsThreadedRendering = 0;
 	void executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command);
 	void executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command);
+	void executeDrawInputHistoryRenderCommand(DrawInputHistoryRenderCommand* command);
 	IDirect3DDevice9* getDevice();
 	FVector2D lastScreenSize { 0.F, 0.F };
 	void drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas);
 	BYTE* getIconsUTexture2D();
+	void fillInFontInfo(BYTE** staticFontTexture2D,
+		CharInfo* openParenthesis,
+		CharInfo* closeParenthesis,
+		CharInfo* digit);
 	void executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command);
 	void* iconTexture = nullptr;
 	IDirect3DTexture9* getTextureFromUTexture2D(BYTE* uTex2D);
+	BYTE* getUTexture2DFromFont(BYTE* font);
 	void executeShutdownRenderCommand();
 	void executeHeartbeatRenderCommand();
 	PlayerInfo& findPlayer(Entity ent);
@@ -281,6 +315,9 @@ public:
 	bool obsStoppedCapturing = false;
 	setSuperFreezeAndRCSlowdownFlags_t orig_setSuperFreezeAndRCSlowdownFlags = nullptr;
 	bool needEnqueueUiWithPoints = false;
+	drawTrainingHudInputHistory_t orig_drawTrainingHudInputHistory = nullptr;
+	GameModeFast getGameModeFast() const;
+	bool requestedInputHistoryDraw = false;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -309,7 +346,9 @@ private:
 		void setSuperFreezeAndRCSlowdownFlagsHook();
 		void BBScr_timeSlowHook(int duration);
 		void onCmnActXGuardLoopHook(int signal, int type, int thisIs0);
+		void drawTrainingHudInputHistoryHook(unsigned int layer);
 	};
+	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
@@ -411,6 +450,7 @@ private:
 		const unsigned int getDummyCmdUInt(name) = *(unsigned int*)&name##OneGreater;
 		
 	makeDummyCmdConst(dummyOriginPointX, -615530.F)
+	makeDummyCmdConst(dummyInputHistory, -615529.F)
 	
 	#undef makeDummyCmdConst
 	
@@ -498,6 +538,13 @@ private:
 	bool startedNewRound = false;
 	DWORD leftEdgeOfArenaOffset = 0;
 	DWORD rightEdgeOfArenaOffset = 0;
+	CharInfo staticFontOpenParenthesis;
+	CharInfo staticFontCloseParenthesis;
+	CharInfo staticFontDigit[10];
+	bool obtainedStaticFontCharInfos = false;
+	GameModeFast* gameModeFast = nullptr;
+	int* drawTrainingHudInputHistoryVal2 = nullptr;
+	int* drawTrainingHudInputHistoryVal3 = nullptr;
 };
 
 extern EndScene endScene;

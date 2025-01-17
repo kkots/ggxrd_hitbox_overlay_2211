@@ -193,6 +193,9 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	stack[RENDER_STATE_DRAWING_TEXTURES][RenderStateType(VERTEX)] = RenderStateValue(VERTEX, TEXTURE);
 	stack[RENDER_STATE_DRAWING_TEXTURES][RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, ICONS);
 	
+	stack[RENDER_STATE_DRAWING_TEXT] = stack[RENDER_STATE_DRAWING_TEXTURES];
+	stack[RENDER_STATE_DRAWING_TEXT][RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, FONT);
+	
 	stack = requiredRenderState[SCREENSHOT_STAGE_BASE_COLOR];
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, TRUE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -620,8 +623,8 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 	return drewRect;
 }
 
-void Graphics::prepareTextureBox(const TextureBoxParams& box) {
-	if (lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_TEXTUREBOX) {
+void Graphics::prepareTextureBox(const TextureBoxParams& box, bool isFont) {
+	if (lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_TEXTUREBOX && lastTextureIsFont == isFont) {
 		const bool drew = textureDrawIfOutOfSpace(6);
 		if (!drew) {
 			*textureVertexIt = *(textureVertexIt - 1);
@@ -649,8 +652,13 @@ void Graphics::prepareTextureBox(const TextureBoxParams& box) {
 	++textureVertexIt;
 	*textureVertexIt = TextureVertex{ box.xEnd, box.yEnd, 0.F, box.uEnd, box.vEnd, box.color };
 	++textureVertexIt;
-	++preparedTextureBoxesCount;
+	if (!isFont) {
+		++preparedTextureBoxesCount;
+	} else {
+		++preparedTextureBoxesCountWithFont;
+	}
 	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_TEXTUREBOX;
+	lastTextureIsFont = isFont;
 }
 
 void Graphics::sendAllPreparedVertices() {
@@ -725,13 +733,23 @@ void Graphics::drawAllBoxes() {
 }
 
 void Graphics::drawAllTextureBoxes() {
-	if (!preparedTextureBoxesCount) return;
+	if (!preparedTextureBoxesCount && !preparedTextureBoxesCountWithFont) return;
 	sendAllPreparedVertices();
 	switchToRenderingTextureVertices();
-	advanceRenderState(RENDER_STATE_DRAWING_TEXTURES);
-	device->DrawPrimitive(D3DPT_TRIANGLESTRIP, textureVertexBufferPosition, 2 + (preparedTextureBoxesCount - 1) * 6);
-	textureVertexBufferPosition += 4 + (preparedTextureBoxesCount - 1) * 6;
-	preparedTextureBoxesCount = 0;
+	
+	if (preparedTextureBoxesCount) {
+		advanceRenderState(RENDER_STATE_DRAWING_TEXTURES);
+		device->DrawPrimitive(D3DPT_TRIANGLESTRIP, textureVertexBufferPosition, 2 + (preparedTextureBoxesCount - 1) * 6);
+		textureVertexBufferPosition += 4 + (preparedTextureBoxesCount - 1) * 6;
+		preparedTextureBoxesCount = 0;
+	}
+	
+	if (preparedTextureBoxesCountWithFont) {
+		advanceRenderState(RENDER_STATE_DRAWING_TEXT);
+		device->DrawPrimitive(D3DPT_TRIANGLESTRIP, textureVertexBufferPosition, 2 + (preparedTextureBoxesCountWithFont - 1) * 6);
+		textureVertexBufferPosition += 4 + (preparedTextureBoxesCountWithFont - 1) * 6;
+		preparedTextureBoxesCountWithFont = 0;
+	}
 }
 
 void Graphics::drawOutlinesSection(bool preserveLastTwoVertices) {
@@ -917,13 +935,15 @@ void Graphics::drawAllPrepared() {
 			"outlines count: %u\n"
 			"small points count: %u\n"
 			"points count: %u\n"
-			"texture boxes count: %u",
+			"texture boxes count: %u\n"
+			"texture boxes count with font: %u",
 			preparedArrayboxes.size(),
 			preparedBoxesCount,
 			preparedOutlines.size(),
 			numberOfSmallPointsPrepared,
 			numberOfPointsPrepared,
-			preparedTextureBoxesCount));
+			preparedTextureBoxesCount,
+			preparedTextureBoxesCountWithFont));
 	}
 	switch (1) {
 	case 1:
@@ -1023,7 +1043,7 @@ void Graphics::drawAll() {
 		
 	}
 	
-	if (!onlyDrawPoints && !dontShowBoxes) {
+	if (!onlyDrawPoints && !dontShowBoxes && !onlyDrawInputHistory) {
 		for (const ComplicatedHurtbox& params : drawDataUse.hurtboxes) {
 			prepareComplicatedHurtbox(params);
 		}
@@ -1079,14 +1099,16 @@ void Graphics::drawAll() {
 		}
 	}
 	
-	if ((onlyDrawPoints || drawingPostponed())
+	if ((onlyDrawInputHistory || onlyDrawPoints || drawingPostponed())
 			&& screenshotStage == SCREENSHOT_STAGE_NONE
-			&& (drawDataUse.inputsSize[0] || drawDataUse.inputsSize[1])) {
+			&& (drawDataUse.inputsSize[0] || drawDataUse.inputsSize[1])
+			&& (onlyDrawInputHistory || !inputHistoryIsSplitOut)) {
 		prepareDrawInputs();
 	}
 	
 	if (
-			(
+			!onlyDrawInputHistory
+			&& (
 				needDrawFramebarWithPoints
 				|| needDrawWholeUiWithPoints
 			) && screenshotStage == SCREENSHOT_STAGE_NONE
@@ -1094,7 +1116,8 @@ void Graphics::drawAll() {
 		prepareFramebarDrawData();
 	}
 	
-	if (screenshotStage != SCREENSHOT_STAGE_BASE_COLOR
+	if (!onlyDrawInputHistory
+			&& screenshotStage != SCREENSHOT_STAGE_BASE_COLOR
 			&& (!noNeedToDrawPoints || drawDataUse.needTakeScreenshot)
 			&& !dontShowBoxes) {
 		for (const DrawPointCallParams& params : drawDataUse.points) {
@@ -2125,6 +2148,7 @@ void DrawData::clearInputs() {
 		inputs[i].clear();
 		inputsSize[i] = 0;
 	}
+	inputsContainsDurations = false;
 }
 
 bool Graphics::drawIfOutOfSpace(unsigned int verticesCountRequired) {
@@ -2174,7 +2198,9 @@ void DrawData::copyTo(DrawData* destination) {
 		destination->inputs[i] = inputs[i];
 		destination->inputsSize[i] = inputsSize[i];
 	}
+	destination->inputsContainsDurations = inputsContainsDurations;
 	destination->needTakeScreenshot = needTakeScreenshot;
+	destination->gameModeFast = gameModeFast;
 }
 
 void Graphics::HookHelp::FSuspendRenderingThreadHook(unsigned int InSuspendThreadFlags) {
@@ -2549,8 +2575,9 @@ void Graphics::RenderStateHandler(TEXTURE)::handleChange(RenderStateValue newVal
 	switch (newValue) {
 		case RenderStateValue(TEXTURE, NONE): graphics.device->SetTexture(0, nullptr); break;
 		case RenderStateValue(TEXTURE, FOR_PIXEL_SHADER): break;  // just track the change
+		case RenderStateValue(TEXTURE, FONT):
 		case RenderStateValue(TEXTURE, ICONS):
-			graphics.device->SetTexture(0, graphics.iconsTexture);
+			graphics.device->SetTexture(0, newValue == RenderStateValue(TEXTURE, ICONS) ? graphics.iconsTexture : graphics.staticFontTexture);
 		    graphics.device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 		    graphics.device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
 		    graphics.device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
@@ -2589,19 +2616,11 @@ bool Graphics::drawingPostponed() const {
 // Draw boxes, without UI, and take a screenshot if needed
 // Runs on the graphics thread
 void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
-	graphics.graphicsThreadId = GetCurrentThreadId();
-	graphics.onEndSceneStart(device);
-	drawOutlineCallParamsManager.onEndSceneStart();
-	camera.onEndSceneStart();
+	drawAllInit(device);
 	
-	D3DVIEWPORT9 viewport;
-	device->GetViewport(&viewport);
-	viewportW = (float)viewport.Width;
-	viewportH = (float)viewport.Height;
-	
-	bool doYourThing = !dontShowBoxes
+	bool doYourThing = !dontShowBoxes && !onlyDrawInputHistory
 		|| (graphics.drawDataUse.inputsSize[0] || graphics.drawDataUse.inputsSize[1])
-		&& !noNeedToDrawPoints;
+		&& (onlyDrawInputHistory || !noNeedToDrawPoints && !inputHistoryIsSplitOut);
 		
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
@@ -2670,19 +2689,23 @@ void Graphics::prepareDrawInputs() {
 	
 	TextureBoxParams box;
 	
-	float coefW = viewportW / 1280.F;
-	float invCoefW = 1280.F / viewportW;
-	float extraH_in1280space = (viewportH * invCoefW - 720.0F) * 0.5F;  // if the monitor is wider, this is negative
+	float coef = viewportW / 1280.F;
+	float invCoef = 1280.F / viewportW;
+	float extraH_in1280space = (viewportH * invCoef - 720.0F) * 0.5F;  // if the monitor is wider, this is negative
 	float extraH = extraH_in1280space * viewportH / 1280.F;  // if the monitor is wider, this is negative
 	const float iconSize = 28.F;
 	const float columnWidth = 30.F;
 	const float rowHeight = 32.F;
-	const float iconSizeMult = iconSize * coefW;
-	const float startY = 140.F * coefW + extraH;
-	const float rowHeightMult = rowHeight * coefW;
-	const float columnWidthMult = columnWidth * coefW;
+	const float iconSizeMult = iconSize * coef;
+	const float startY = 140.F * coef + extraH;
+	const float rowHeightMult = rowHeight * coef;
+	const float columnWidthMult = columnWidth * coef;
 	
-	for (int i = 0; i < 2; ++i) {
+	char strbuf[10] { '\0' };
+	const float textScale = 0.6538F;
+	const float coef3 = coef * 3.F;
+	
+	for (int i = 0; i == 0 || i == 1 && drawDataUse.gameModeFast == GAME_MODE_FAST_NORMAL; ++i) {
 		size_t inputsSize = drawDataUse.inputsSize[i];
 		const InputsDrawingCommandRow* rows = drawDataUse.inputs[i].data();
 		
@@ -2691,20 +2714,46 @@ void Graphics::prepareDrawInputs() {
 		
 		int rowIndMin = (int)inputsSize - 18;
 		if (rowIndMin < 0) rowIndMin = 0;
+		
+		float textWMax = 0.F;
+		if (drawDataUse.inputsContainsDurations) {
+			int maxDuration = 0;
+			for (int rowInd = (int)inputsSize - 1; rowInd >= rowIndMin; --rowInd) {
+				const InputsDrawingCommandRow* row = rows + rowInd;
+				if (row->duration > maxDuration) maxDuration = row->duration;
+			}
+			
+			int digitCount = 0;
+			do {
+				++digitCount;
+				maxDuration /= 10;
+			} while (maxDuration);
+			
+			textWMax = (float)digitCount * 19.F * coef * textScale + (float)(digitCount - 1) * coef3 + coef + coef;
+		}
+		
 		for (int rowInd = (int)inputsSize - 1; rowInd >= rowIndMin; --rowInd) {
-			const InputsDrawingCommandRow* row = rows +rowInd;
+			const InputsDrawingCommandRow* row = rows + rowInd;
 			
 			float x;
-			if (i == 0) {
+			if (i == 0 && drawDataUse.gameModeFast == GAME_MODE_FAST_NORMAL) {
 				x = 20.F;
+				if (drawDataUse.inputsContainsDurations) {
+					x += coef3 + textWMax;
+				}
 			} else {
 				x = 1260.F - 30.F * row->count;
+				if (drawDataUse.inputsContainsDurations) {
+					x -= coef3 + textWMax;
+				}
 			}
-			box.xStart = x * coefW;
+			box.xStart = x * coef;
 			box.xEnd = box.xStart + iconSizeMult;
 			
+			bool inReverse = drawDataUse.gameModeFast != GAME_MODE_FAST_NORMAL;
+			
 			for (int column = 0; column < row->count; ++column) {
-				const InputsDrawingCommand* cmd = row->cmds + column;
+				const InputsDrawingCommand* cmd = inReverse ? row->cmds + row->count - 1 - column : row->cmds + column;
 				
 				box.color = cmd->dark ? 0xffa0a0a0 : 0xffffffff;
 				
@@ -2713,7 +2762,7 @@ void Graphics::prepareDrawInputs() {
 				box.vStart = icon->vStart;
 				box.uEnd = icon->uEnd;
 				box.vEnd = icon->vEnd;
-				prepareTextureBox(box);
+				prepareTextureBox(box, false);
 				
 				box.xStart += columnWidthMult;
 				box.xEnd += columnWidthMult;
@@ -2723,6 +2772,42 @@ void Graphics::prepareDrawInputs() {
 			box.yEnd += rowHeightMult;
 		}
 	}
+	
+	if (drawDataUse.inputsContainsDurations) {
+		
+		for (int i = 0; i == 0 || i == 1 && drawDataUse.gameModeFast == GAME_MODE_FAST_NORMAL; ++i) {
+			size_t inputsSize = drawDataUse.inputsSize[i];
+			const InputsDrawingCommandRow* rows = drawDataUse.inputs[i].data();
+			
+			float yIter = startY;
+			
+			int rowIndMin = (int)inputsSize - 18;
+			if (rowIndMin < 0) rowIndMin = 0;
+			
+			for (int rowInd = (int)inputsSize - 1; rowInd >= rowIndMin; --rowInd) {
+				const InputsDrawingCommandRow* row = rows + rowInd;
+				
+				sprintf_s(strbuf, "%d", row->duration);
+				float textW, textH;
+				calcTextSize(strbuf, coef, textScale, true, &textW, &textH);
+				
+				float x, y;
+				if (i == 0 && drawDataUse.gameModeFast == GAME_MODE_FAST_NORMAL) {
+					x = 20.F * coef;
+				} else {
+					x = 1260.F * coef - textW + coef;
+				}
+				
+				y = yIter + (rowHeightMult - textH) * 0.5F + coef;
+				
+				printTextWithOutline(x, y, strbuf, coef, textScale);
+				
+				yIter += rowHeightMult;
+			}
+				
+		}
+	}
+	
 }
 
 int Graphics::calculateStartingTextureVertexBufferLength() {
@@ -3050,4 +3135,113 @@ void Graphics::setWorld3DMatrix(int worldCenterShiftX, int worldCenterShiftY) {
 		(float)worldCenterShiftX * m, 0.F, (float)worldCenterShiftY * m, 1.F
 	};
 	device->SetTransform(D3DTS_WORLD, &world);
+}
+
+void Graphics::calcTextSize(const char* txt, float coef, float textScale, bool outline, float* sizeX, float* sizeY) {
+	float totalWidth = 0.F;
+	float prevExtraSpaceRight = 0.F;
+	float coef3 = coef * 3.F;
+	float coefPremult = coef * textScale;
+	bool isFirst = true;
+	bool prevCharSkipped = false;
+	for (const char* c = txt; *c != '\0'; ++c) {
+		char cVal = *c;
+		if (!prevCharSkipped) {
+			if (!isFirst) {
+				totalWidth += coef3 + prevExtraSpaceRight;
+			}
+			isFirst = false;
+		}
+		const CharInfo* info = nullptr;
+		if (cVal == '(') {
+			info = &staticFontOpenParenthesis;
+		} else if (cVal == ')') {
+			info = &staticFontCloseParenthesis;
+		} else if (cVal >= '0' && cVal <= '9') {
+			info = staticFontDigit + (cVal - '0');
+		}
+		if (info) {
+			prevCharSkipped = false;
+			prevExtraSpaceRight = (float)info->extraSpaceRight * charInfoOffsetScale * coefPremult;
+			totalWidth += (float)info->sizeX * coefPremult;
+		} else {
+			prevCharSkipped = true;
+		}
+	}
+	if (outline) {
+		if (totalWidth) totalWidth += coef + coef;
+	}
+	*sizeX = totalWidth;
+	*sizeY = (outline ? 28.F : 26.F) * coefPremult;
+}
+
+void Graphics::printTextWithOutline(float x, float y, const char* txt, float coef, float textScale) {
+	DWORD black = D3DCOLOR_ARGB(255, 0, 0, 0);
+	printText(x - coef, y - coef, txt, coef, textScale, black);
+	printText(x - coef, y + coef, txt, coef, textScale, black);
+	printText(x + coef, y - coef, txt, coef, textScale, black);
+	printText(x + coef, y + coef, txt, coef, textScale, black);
+	printText(x, y, txt, coef, textScale, (DWORD)-1);
+}
+
+void Graphics::printText(float x, float y, const char* txt, float coef, float textScale, DWORD color) {
+	bool isFirst = true;
+	float prevExtraSpaceRight = 0.F;
+	bool prevCharSkipped = false;
+	float coef3 = coef * 3.F;
+	float coefPremult = coef * textScale;
+	for (const char* c = txt; *c != '\0'; ++c) {
+		char cVal = *c;
+		if (!prevCharSkipped) {
+			if (!isFirst) {
+				x += coef3 + prevExtraSpaceRight;
+			}
+			isFirst = false;
+		}
+		const CharInfo* info = nullptr;
+		if (cVal == '(') {
+			info = &staticFontOpenParenthesis;
+		} else if (cVal == ')') {
+			info = &staticFontCloseParenthesis;
+		} else if (cVal >= '0' && cVal <= '9') {
+			info = staticFontDigit + (cVal - '0');
+		}
+		if (info) {
+			prevCharSkipped = false;
+			prevExtraSpaceRight = (float)info->extraSpaceRight * charInfoOffsetScale * coefPremult;
+			
+			TextureBoxParams box;
+			box.color = color;
+			box.xStart = x;
+			x += (float)info->sizeX * coefPremult;
+			box.xEnd = x;
+			box.yStart = y + (float)info->offsetY * charInfoOffsetScale * coefPremult;
+			box.yEnd = box.yStart + (float)info->sizeY * coefPremult;
+			box.uStart = info->uStart;
+			box.uEnd = info->uEnd;
+			box.vStart = info->vStart;
+			box.vEnd = info->vEnd;
+			prepareTextureBox(box, true);
+			
+		} else {
+			prevCharSkipped = true;
+		}
+	}
+}
+
+void Graphics::drawAllFromOutside(IDirect3DDevice9* device) {
+	drawAllInit(device);
+	drawAll();
+}
+
+void Graphics::drawAllInit(IDirect3DDevice9* device) {
+	graphics.graphicsThreadId = GetCurrentThreadId();
+	graphics.onEndSceneStart(device);
+	drawOutlineCallParamsManager.onEndSceneStart();
+	camera.onEndSceneStart();
+	
+	D3DVIEWPORT9 viewport;
+	device->GetViewport(&viewport);
+	viewportW = (float)viewport.Width;
+	viewportH = (float)viewport.Height;
 }

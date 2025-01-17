@@ -100,6 +100,7 @@ public:
 	std::atomic_bool showComboProrationInRiscGauge = false;
 	std::atomic_bool displayInputHistoryWhenObserving = true;
 	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;
+	std::atomic_bool showDurationsInInputHistory = false;
 	std::atomic_bool useAlternativeStaggerMashProgressDisplay = false;
 	std::atomic_bool dontShowMayInteractionChecks = false;
 	std::atomic_bool showMilliaBadMoonBuffHeight = false;

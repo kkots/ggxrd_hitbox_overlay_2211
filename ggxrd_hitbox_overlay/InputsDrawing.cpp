@@ -10,7 +10,8 @@ InputsDrawing inputsDrawing;
 #ifdef LOG_PATH
 extern bool loggedDrawingInputsOnce;
 #endif
-void InputsDrawing::produceData(const InputRingBufferStored& inputRingBufferStored, InputsDrawingCommandRow* result, unsigned int* const resultSize, bool rightSide) {
+void InputsDrawing::produceData(const InputRingBufferStored& inputRingBufferStored, InputsDrawingCommandRow* result,
+								unsigned int* const resultSize, bool rightSide, bool withDurations) {
 	const unsigned int dataSize = inputRingBufferStored.data.size();
 	unsigned int index = (inputRingBufferStored.index + 1) % dataSize;
 	InputsDrawingCommandIcon prevDirection = INPUT_ICON_NONE;
@@ -36,7 +37,7 @@ void InputsDrawing::produceData(const InputRingBufferStored& inputRingBufferStor
 			}
 			#endif
 
-			produceDataFromInput(input, framesHeld, &prevDirection, &prevInput, &prevFramesHeld, &result, resultSize, rightSide);
+			produceDataFromInput(input, framesHeld, &prevDirection, &prevInput, &prevFramesHeld, &result, resultSize, rightSide, withDurations);
 		}
 
 		++index;
@@ -45,7 +46,8 @@ void InputsDrawing::produceData(const InputRingBufferStored& inputRingBufferStor
 }
 
 inline void InputsDrawing::produceDataFromInput(const Input& input, unsigned short framesHeld, InputsDrawingCommandIcon* const prevDirection,
-		const Input** const prevInput, unsigned short* const prevFramesHeld, InputsDrawingCommandRow** const result, unsigned int* const resultSize, bool rightSide) {
+		const Input** const prevInput, unsigned short* const prevFramesHeld, InputsDrawingCommandRow** const result,
+		unsigned int* const resultSize, bool rightSide, bool withDurations) {
 	InputsDrawingCommandIcon direction = INPUT_ICON_NONE;
 	if (input.right) {
 		if (input.up) {
@@ -141,16 +143,21 @@ inline void InputsDrawing::produceDataFromInput(const Input& input, unsigned sho
 			punchPressed, kickPressed, slashPressed, heavySlashPressed, dustPressed, specialPressed, tauntPressed));
 	}
 	#endif
-
-	if (direction && direction != *prevDirection
-		|| punchPressed
-		|| kickPressed
-		|| slashPressed
-		|| heavySlashPressed
-		|| dustPressed
-		|| specialPressed
-		|| tauntPressed) {
-		if (*prevFramesHeld > 40
+	
+	if (!withDurations
+		? 
+			direction && direction != *prevDirection
+			|| punchPressed
+			|| kickPressed
+			|| slashPressed
+			|| heavySlashPressed
+			|| dustPressed
+			|| specialPressed
+			|| tauntPressed
+		:
+			prevInputInput == nullptr || *prevInputInput != input) {
+		if (!withDurations
+			&& *prevFramesHeld > 40
 			&& !*prevDirection
 			&& !prevInputInput->punch
 			&& !prevInputInput->kick
@@ -171,6 +178,7 @@ inline void InputsDrawing::produceDataFromInput(const Input& input, unsigned sho
 		}
 
 		InputsDrawingCommandRow& row = **result;
+		row.duration = framesHeld;
 		if (!rightSide) {
 			if (direction) addToResult(row, direction, direction == *prevDirection);
 			if (input.punch) addToResult(row, INPUT_ICON_PUNCH, !punchPressed);
@@ -192,6 +200,14 @@ inline void InputsDrawing::produceDataFromInput(const Input& input, unsigned sho
 		}
 		++(*result);
 		++(*resultSize);
+	} else if (withDurations && *resultSize) {
+		InputsDrawingCommandRow& row = *(*result - 1);
+		unsigned int dur = (unsigned int)row.duration + (unsigned int)framesHeld;
+		if (dur >= 0xffff) {
+			row.duration = 0xffff;
+		} else {
+			row.duration = dur;
+		}
 	}
 
 	*prevFramesHeld = framesHeld;
