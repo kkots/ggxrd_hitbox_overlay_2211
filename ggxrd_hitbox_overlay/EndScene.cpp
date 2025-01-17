@@ -1047,7 +1047,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					player.staggerMax = staggerMax;
 				}
-				player.stagger = player.staggerMax - (player.pawn.currentAnimDuration() - 1);
+				player.stagger = player.staggerMax - (animDur - 1) - (player.hitstop ? 1 : 0);
 				player.prevBbscrvar = bbscrvar;
 			}
 			

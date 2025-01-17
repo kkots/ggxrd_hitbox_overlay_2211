@@ -5971,7 +5971,13 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(strbuf);
 				
 				yellowText(searchFieldTitle("Animation Duration: "));
-				AddTooltip(searchTooltip("The current stagger animation's duration."));
+				AddTooltip(searchTooltip("The current stagger animation's duration. Does not advance during hitstop."
+					" Something of note is that it always starts on 1. So when you leave hitstop, it's already on 2."
+					" That means you get one free frame of stagger progress, which means that stagger will always last"
+					" 1 frame less than what is formally declared in the attack, even if you don't mash."
+					" And if you entered stagger without hitstop, like on Bacchus Sigh-buffed Mist Finer blocked hit,"
+					" the game forcibly deducts 1 frame anyway. So it's always 1 frame less than declared, with"
+					" or without hitstop."));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d%s", player.animFrame, player.hitstop ? " (is in hitstop)" : "");
 				ImGui::TextUnformatted(strbuf);
