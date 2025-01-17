@@ -4338,6 +4338,10 @@ void UI::drawSearchableWindows() {
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.playerval1 ? "Yes" : "No");
 				
+			} else if (player.charType == CHARACTER_TYPE_LEO) {
+				
+				printChargeInCharSpecific(i, true, true, 40);
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}

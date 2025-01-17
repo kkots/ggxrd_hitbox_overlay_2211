@@ -3362,11 +3362,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tobidogu2");
 	move.displayName = "H Graviert W\xc3\xbcrde";
 	move.slangName = "H Fireball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tobidogu1");
 	move.displayName = "S Graviert W\xc3\xbcrde";
 	move.slangName = "S Fireball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "AntiAirAttack2");
@@ -3428,11 +3430,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakusei");
 	move.displayName = "Stahl Wirbel";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakuseiBurst");
 	move.displayName = "Burst Stahl Wirbel";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeFDashStep");
