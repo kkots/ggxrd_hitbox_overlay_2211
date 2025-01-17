@@ -106,10 +106,6 @@ public:
 	std::atomic_bool showFaustOwnFlickRanges = true;
 	std::atomic_bool ignoreScreenshotPathAndSaveToClipboard = false;
 	std::atomic_bool showBedmanTaskCHeightBuffY = false;
-	std::atomic_bool showRamlethalSwordRedeployNoTeleportDistance = true;
-	std::atomic_bool onlyShowRamlethalSwordRedeployDistanceWhenRedeploying = true;
-	std::atomic_bool showRamlethalSwordRedeployDistanceForP1 = true;
-	std::atomic_bool showRamlethalSwordRedeployDistanceForP2 = true;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);
