@@ -7728,6 +7728,12 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(faust5D.c_str());
 	
+	yellowText("Faust Food Items:");
+	ImGui::TextUnformatted("The white box shows where a player's origin point must be in order to pick up the food item.");
+	
+	yellowText("Faust Helium:");
+	ImGui::TextUnformatted("The circle shows the range in which opponent's or Faust's origin point must be in order to pick up the Helium.");
+	
 	yellowText("Bedman Task C Height Buff:");
 	static std::string bedmanTaskCHeightBuff;
 	if (bedmanTaskCHeightBuff.empty()) {

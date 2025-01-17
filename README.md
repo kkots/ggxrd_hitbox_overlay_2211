@@ -185,6 +185,10 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
   
 - Millia Bad Moon Buff Height: The infinite horizontal line shows the height above which Millia's origin point must be in order for Bad Moon to get some attack powerup. However, Bad Moon is limited by the maximum number of hits it can deal, which increases with height (the buff height is 500000, next buffs are at 650000, 800000, 950000, 1100000, 1250000, 1400000). The display of the height line must be enabled with showMilliaBadMoonBuffHeight setting ('UI - Character specific - Show Millia Bad Moon Buff Height (Rev2 only)').
   
+- Faust Food Items: The white box shows where a player's origin point must be in order to pick up the food item.
+  
+- Faust Helium: The circle shows the range in which opponent's or Faust's origin point must be in order to pick up the Helium.
+  
 - Faust 5D: The inner circle shows the range in which the thrown item's origin point must be in order to achieve a homerun hit. The outer circles shows the range in which the thrown item's origin point must be in order to achieve a non-homerun hit. This display needs to be enabled with showFaustOwnFlickRanges setting ('UI - Character specific - Show Faust Own Projectile Flick Ranges'). The circle is displayed for more than one frame, but it is filled in on only one. The frame when it is filled in is when it is active, and the other frames are just for visual clarity, so you could have enough time to actually see the circle.
 
 - Bedman Task C Height Buff: The infinite horizontal line shows the height above which Bedman's origin point must be in order for Task C to gain a powerup that makes it slam the ground harder. That height is 700000. The display of the height line must be enabled with showBedmanTaskCHeightBuffY INI setting (located in UI in Character Specific - Show Bedman Height Buff Y).
