@@ -199,6 +199,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Elphelt Max Charge Shotgun: If the opponent's origin point is within the infinite white vertical box around Elphelt, then the shotgun shot gets the maximum possible powerup.
 
+- Johnny Bacchus Sigh: If the opponent's center of body (marked with an extra small point) is within the circle, Bacchus Sigh will connect on the next frame.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  

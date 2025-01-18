@@ -470,6 +470,10 @@ bool UI::onDllMain(HMODULE hModule) {
 		IDB_EDDIE_IDLE_FRAME, eddieIdleFrame,
 		IDB_EDDIE_IDLE_FRAME_NON_COLORBLIND, eddieIdleFrameNonColorblind,
 		"Eddie is idle.");
+	addFrameArt(hModule, FT_BACCHUS_SIGH,
+		IDB_BACCHUS_SIGH_FRAME, bacchusSighFrame,
+		IDB_BACCHUS_SIGH_FRAME_NON_COLORBLIND, bacchusSighFrameNonColorblind,
+		"Bacchus Sigh is ready to hit the opponent when in range.");
 	
 	addImage(hModule, IDB_POWERUP, powerupFrame);
 	
@@ -523,7 +527,7 @@ bool UI::onDllMain(HMODULE hModule) {
 		
 		FrameArt& startupAnytimeNow = theArray[FT_STARTUP_ANYTIME_NOW];
 		startupAnytimeNow = arrays[i][FT_IDLE_ELPHELT_RIFLE];
-		startupAnytimeNow.description = "Startup of a chargeable move: can release the button any time to either attack or cancel the move."
+		startupAnytimeNow.description = "Startup of a holdable move: can release the button any time to either attack or cancel the move."
 			" Can't block or FD or perform normal attacks.";
 		
 		FrameArt& startupProgramSecretGarden = theArray[FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN];
@@ -551,7 +555,7 @@ bool UI::onDllMain(HMODULE hModule) {
 		
 		FrameArt& startupAnytimeNowCanAct = theArray[FT_STARTUP_ANYTIME_NOW_CAN_ACT];
 		startupAnytimeNowCanAct = arrays[i][FT_IDLE_CANT_BLOCK];
-		startupAnytimeNowCanAct.description = "Startup of a chargeable move: can release the button any time to either attack or cancel the move,"
+		startupAnytimeNowCanAct.description = "Startup of a holdable move: can release the button any time to either attack or cancel the move,"
 			" and can also cancel into other moves."
 			" Can't block or FD or perform normal attacks.";
 		
@@ -3757,8 +3761,10 @@ void UI::drawSearchableWindows() {
 				if (!otherPlayer.poisonDuration) {
 					ImGui::TextUnformatted(searchFieldTitle("Opponent not poisoned."));
 				} else {
-					sprintf_s(strbuf, "Poison duration on opponent: %d/%d", otherPlayer.poisonDuration, otherPlayer.poisonDurationMax);
-					ImGui::TextUnformatted(searchFieldTitle(strbuf, nullptr));
+					yellowText(searchFieldTitle("Poison Duration On Opponent:"));
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%d/%d", otherPlayer.poisonDuration, otherPlayer.poisonDurationMax);
+					ImGui::TextUnformatted(strbuf);
 				}
 				
 				yellowText(searchFieldTitle("Can throw item:"));
@@ -4343,6 +4349,64 @@ void UI::drawSearchableWindows() {
 			} else if (player.charType == CHARACTER_TYPE_LEO) {
 				
 				printChargeInCharSpecific(i, true, true, 40);
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				yellowText(searchFieldTitle("Can do Graviert W\xc3\xbcrde:"));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				
+			} else if (player.charType == CHARACTER_TYPE_JOHNNY) {
+				
+				yellowText(searchFieldTitle("Bacchus Projectile Timer:"));
+				AddTooltip(searchTooltip("You can't perform another Bacchus Sigh until this timer exprites, plus one extra frame"
+					" after it expires.\n"
+					"This timer counts down the time until the Bacchus Sigh projectile stops existing. The 'projectile' means"
+					" it has not made contact with the opponent yet."));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", player.johnnyMistTimerWithSlow, player.johnnyMistTimerMaxWithSlow);
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText(searchFieldTitle("Bacchus Debuff On Opponent:"));
+				AddTooltip(searchTooltip("This timer counts down the time while the opponent has the Bacchus Sigh effect on them."
+					" Mist Finer checks this effect shortly before its active frames start and then re-checks it every frame."
+					" However, if Mist Finer caught this effect once, it becomes a Guard Break or an unblockable, and when"
+					" the next time it checks it and the effect is not there, neither the Guard Break nor unblockable"
+					" properties are removed. They merely stop updating. If the opponent is airborne while the"
+					" effect is on, Mist Finer becomes an unblockable, and if the opponent is on the ground,"
+					" Mist Finer is Guard Break. This can change every frame as long as the effect is on, except that"
+					" the Guard Break property cannot be removed, only the unblockable one."));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", player.johnnyMistKuttsukuTimerWithSlow, player.johnnyMistKuttsukuTimerMaxWithSlow);
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText(searchFieldTitle("Mist Finer is unblockable:"));
+				AddTooltip(searchTooltip("Mist Finer is a true unblockable. "
+					" While Bacchus Debuff Timer debuff is active and Johnny is in Mist Finer animation, every frame he checks"
+					" if the opponent is in the air or not, and if yes, Mist Finer's attack is set to be a true unblockable,"
+					" but if the opponent is on the ground, Mist Finer's attack is either an overhead, a mid or a low, depending"
+					" its type, and a Guard Break property is applied instead to the attack.\n"
+					" When Bacchus Debuff Timer runs out, Johnny stops updating the properties of his Mist Finer,"
+					" and it stays on the last values that were set."
+					" It means, that if Mist Finer becomes a true unblockable, and then Bacchus Debuff Timer runs out,"
+					" then, even if the opponent lands, Mist Finer will continue to be an unblockable, and not a"
+					" Guard Break."));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE ? "Yes" : "No");
+				
+				yellowText(searchFieldTitle("Mist Finer is Guard Break:"));
+				AddTooltip(searchTooltip("The Guard Break can only be applied to non-airborne opponents.\n"
+					"While Bacchus Debuff Timer debuff is active and Johnny is in Mist Finer animation, every frame he checks"
+					" if the opponent is in the air or not, and if yes, Mist Finer's attack is set to be a true unblockable,"
+					" but if the opponent is on the ground, Mist Finer's attack is either an overhead, a mid or a low, depending"
+					" its type, and a Guard Break property is applied instead to the attack.\n"
+					" When Bacchus Debuff Timer runs out, Johnny stops updating the properties of his Mist Finer,"
+					" and it stays on the last values that were set."
+					" It means, that if Mist Finer acquires the Guard Break property, and then Bacchus Debuff Timer runs out,"
+					" then, even if the opponent jumps, Mist Finer will not be an unblockable, and the opponent will be"
+					" able to FD it in the air, get hit by Guard Break anyway, but since there's no air stagger animation,"
+					" opponent will quickly be able to tech."));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.pawn.dealtAttack()->enableGuardBreak() ? "Yes" : "No");
 				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
@@ -7788,6 +7852,10 @@ void UI::hitboxesHelpWindow() {
 	}
 	ImGui::TextUnformatted(elpheltShotgun.c_str());
 	
+	yellowText("Johnny Bacchus Sigh:");
+	ImGui::TextUnformatted("If the opponent's center of body (marked with an extra small point)"
+		" is within the circle, Bacchus Sigh will connect on the next frame.");
+	
 	ImGui::Separator();
 	
 	yellowText("Outlines lie within their boxes/on the edge");
@@ -8721,10 +8789,12 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 	if (frame.poisonDuration) {
 		ImGui::Separator();
-		yellowText("Poison duration: ");
+		
+		yellowText(frame.poisonIsBacchusSigh ? "Bacchus Debuff On You: " : "Poison duration: ");
 		ImGui::SameLine();
-		sprintf_s(strbuf, "%d/360", frame.poisonDuration);
+		sprintf_s(strbuf, "%d/%d", frame.poisonDuration, frame.poisonMax);
 		ImGui::TextUnformatted(strbuf);
+		
 	}
 	CharacterType charType = endScene.players[playerIndex].charType;
 	if (frame.powerup) {
@@ -8799,16 +8869,16 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.u.milliaInfo.chromingRose) {
 			if (!insertedSeparator) {
 				ImGui::Separator();
-				yellowText("Chroming Rose: ");
-				ImGui::SameLine();
-				ImGui::Text("%d/%d", frame.u.milliaInfo.chromingRose, frame.u.milliaInfo.chromingRoseMax);
-				
-				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-				ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
-					" at half the speed when slowed down by opponent's RC.");
-				ImGui::PopStyleColor();
-				
 			}
+			yellowText("Chroming Rose: ");
+			ImGui::SameLine();
+			ImGui::Text("%d/%d", frame.u.milliaInfo.chromingRose, frame.u.milliaInfo.chromingRoseMax);
+			
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
+				" at half the speed when slowed down by opponent's RC.");
+			ImGui::PopStyleColor();
+			
 		}
 	} else if (charType == CHARACTER_TYPE_CHIPP) {
 		if (frame.u.chippInfo.invis || frame.u.chippInfo.wallTime) {
@@ -8918,6 +8988,9 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_ELPHELT) {
+		if (frame.u.elpheltInfo.grenadeTimer || frame.u.elpheltInfo.grenadeDisabledTimer) {
+			ImGui::Separator();
+		}
 		if (frame.u.elpheltInfo.grenadeTimer) {
 			yellowText("Berry Timer: ");
 			ImGui::SameLine();
@@ -8943,6 +9016,22 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			}
 			ImGui::TextUnformatted(strbuf);
 		}
+	} else if (charType == CHARACTER_TYPE_JOHNNY) {
+		if (frame.u.johnnyInfo.mistTimer || frame.u.johnnyInfo.mistTimerMax) {
+			ImGui::Separator();
+		}
+		if (frame.u.johnnyInfo.mistTimer) {
+			yellowText("Bacchus Sigh Projectile Timer: ");
+			sprintf_s(strbuf, "%d/%d", frame.u.johnnyInfo.mistTimer, frame.u.johnnyInfo.mistTimerMax);
+			ImGui::TextUnformatted(strbuf);
+		}
+		
+		if (frame.u.johnnyInfo.mistKuttsukuTimer) {
+			yellowText("Bacchus Sigh Debuff On Opponent: ");
+			sprintf_s(strbuf, "%d/%d", frame.u.johnnyInfo.mistKuttsukuTimer, frame.u.johnnyInfo.mistKuttsukuTimerMax);
+			ImGui::TextUnformatted(strbuf);
+		}
+		
 	}
 	
 	if (frame.suddenlyTeleported) {
@@ -9167,6 +9256,16 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							yellowText("Berry Timer: ");
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/180", correspondingPlayersFrame.u.elpheltInfo.grenadeTimer);
+							ImGui::TextUnformatted(strbuf);
+							
+						} else if (owningPlayerCharType == CHARACTER_TYPE_JOHNNY
+								&& projectileFrame.animSlangName
+								&& strcmp(projectileFrame.animSlangName, "Bacchus"_hardcode) == 0) {
+							
+							yellowText("Bacchus Sigh Projectile Timer: ");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.johnnyInfo.mistTimer,
+								correspondingPlayersFrame.u.johnnyInfo.mistTimerMax);
 							ImGui::TextUnformatted(strbuf);
 							
 						}

@@ -79,6 +79,7 @@ static bool isDangerous_kum5D(Entity ent);
 static bool isDangerous_rsfMeishi(Entity ent);
 static bool isDangerous_displayModel(Entity ent);
 static bool isDangerous_vacuumAtk(Entity ent);
+static bool isDangerous_mistKuttsuku(Entity ent);
 
 static const char* nameSelector_iceSpike(Entity ent);
 static const char* slangNameSelector_iceSpike(Entity ent);
@@ -187,6 +188,26 @@ static const char* displayNameSelector_riflePerfectReload(PlayerInfo& ent);
 static const char* displaySlangNameSelector_riflePerfectReload(PlayerInfo& ent);
 static const char* displayNameSelector_rifleRC(PlayerInfo& ent);
 static const char* displaySlangNameSelector_rifleRC(PlayerInfo& ent);
+static const char* displayNameSelector_mistEntry(PlayerInfo& ent);
+static const char* displaySlangNameSelector_mistEntry(PlayerInfo& ent);
+static const char* displayNameSelector_mistLoop(PlayerInfo& ent);
+static const char* displaySlangNameSelector_mistLoop(PlayerInfo& ent);
+static const char* displayNameSelector_mistWalkForward(PlayerInfo& ent);
+static const char* displaySlangNameSelector_mistWalkForward(PlayerInfo& ent);
+static const char* displayNameSelector_mistWalkBackward(PlayerInfo& ent);
+static const char* displaySlangNameSelector_mistWalkBackward(PlayerInfo& ent);
+static const char* displayNameSelector_mistDash(PlayerInfo& ent);
+static const char* displaySlangNameSelector_mistDash(PlayerInfo& ent);
+static const char* displayNameSelector_mistBackdash(PlayerInfo& ent);
+static const char* displaySlangNameSelector_mistBackdash(PlayerInfo& ent);
+static const char* displayNameSelector_airMistEntry(PlayerInfo& ent);
+static const char* displaySlangNameSelector_airMistEntry(PlayerInfo& ent);
+static const char* displayNameSelector_airMistLoop(PlayerInfo& ent);
+static const char* displaySlangNameSelector_airMistLoop(PlayerInfo& ent);
+static const char* displayNameSelector_airMistDash(PlayerInfo& ent);
+static const char* displaySlangNameSelector_airMistDash(PlayerInfo& ent);
+static const char* displayNameSelector_airMistBackdash(PlayerInfo& ent);
+static const char* displaySlangNameSelector_airMistBackdash(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -238,6 +259,8 @@ static bool powerup_rifle(PlayerInfo& ent);
 static const char* powerupExplanation_rifle(PlayerInfo& ent);
 static bool powerup_beakDriver(PlayerInfo& ent);
 static const char* powerupExplanation_beakDriver(PlayerInfo& ent);
+static bool powerup_mistFiner(PlayerInfo& ent);
+static const char* powerupExplanation_mistFiner(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -1612,40 +1635,61 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "GlitterIsGold");
 	move.displayName = "Glitter Is Gold";
 	move.slangName = "Coin";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "BucchusSigh");
 	move.displayName = "Bacchus Sigh";
 	move.slangName = "Bacchus";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarName = "Bacchus Sigh";
+	move.framebarSlangName = "Bacchus";  // SLANGNAMEHARDCODE
+	move.framebarId = 112;
 	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistKuttsuku", true);
+	move.isDangerous = isDangerous_mistKuttsuku;
+	move.framebarName = "Bacchus Sigh Debuff";
+	move.framebarSlangName = "Bacchus";
+	move.framebarId = 112;
 	addMove(move);
 	
 	// the initial move of grounded Mist Finer, is 1f long
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerA");
 	move.displayName = "P Mist Finer Stance Entry";
+	move.displayNameSelector = displayNameSelector_mistEntry;
 	move.slangName = "PMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerB");
 	move.displayName = "K Mist Finer Stance Entry";
+	move.displayNameSelector = displayNameSelector_mistEntry;
 	move.slangName = "KMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerC");
 	move.displayName = "S Mist Finer Stance Entry";
+	move.displayNameSelector = displayNameSelector_mistEntry;
 	move.slangName = "SMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	// is entered into from MistFinerA/B/C, has variable duration depending on Mist Finer level
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerDehajime");
 	move.displayName = "Mist Finer Entry";
+	move.displayNameSelector = displayNameSelector_mistEntry;
 	move.slangName = "MF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	addMove(move);
@@ -1655,7 +1699,9 @@ bool Moves::onDllMain() {
 	// In Rev1 takes one frame to transition.
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerLoop");
 	move.displayName = "Mist Finer Stance";
+	move.displayNameSelector = displayNameSelector_mistLoop;
 	move.slangName = "MF Stance";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistLoop;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.sectionSeparator = sectionSeparator_enableWhiffCancels;
@@ -1670,14 +1716,18 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerALv1");
 	move.displayName = "Lv2 P Mist Finer";
-	move.slangName = "LV2 PMF";
+	move.slangName = "Lv2 PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerALv2");
@@ -1686,6 +1736,8 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv0");
@@ -1694,6 +1746,8 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv1");
@@ -1702,6 +1756,8 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv2");
@@ -1710,6 +1766,8 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv0");
@@ -1718,6 +1776,8 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv1");
@@ -1726,6 +1786,8 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv2");
@@ -1734,6 +1796,8 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	// backdash during grounded Mist Finer
@@ -1750,7 +1814,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerFDash");
 	move.displayName = "Mist Finer Forward Dash";
+	move.displayNameSelector = displayNameSelector_mistDash;
 	move.slangName = "MF Dash";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistDash;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -1761,7 +1827,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBWalk");
 	move.displayName = "Mist Finer Walk Back";
+	move.displayNameSelector = displayNameSelector_mistWalkBackward;
 	move.slangName = "MF Walk Back";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistWalkBackward;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -1773,7 +1841,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerFWalk");
 	move.displayName = "Mist Finer Walk Forward";
+	move.displayNameSelector = displayNameSelector_mistWalkForward;
 	move.slangName = "MF Walk Forward";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistWalkForward;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -1794,26 +1864,34 @@ bool Moves::onDllMain() {
 	// the initial move of air Mist Finer, is 1f long
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerA");
 	move.displayName = "Air P Mist Finer Stance Entry";
-	move.slangName = "Air PMF Entry";
+	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.PMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerB");
 	move.displayName = "Air K Mist Finer Stance Entry";
-	move.slangName = "Air KMF Entry";
+	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.KMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerC");
 	move.displayName = "Air S Mist Finer Stance Entry";
-	move.slangName = "Air SMF Entry";
+	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.SMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	// is entered into from MistFinerA/B/C, has variable duration depending on Mist Finer level
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerDehajime");
 	move.displayName = "Air Mist Finer Entry";
-	move.slangName = "Air MF Entry";
+	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.MF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	addMove(move);
@@ -1823,7 +1901,9 @@ bool Moves::onDllMain() {
 	// In Rev1 takes one frame to transition.
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerLoop");
 	move.displayName = "Air Mist Finer Stance";
-	move.slangName = "Air MF Stance";
+	move.displayNameSelector = displayNameSelector_airMistLoop;
+	move.slangName = "j.MF Stance";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistLoop;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.sectionSeparator = sectionSeparator_enableWhiffCancels;
@@ -1834,7 +1914,9 @@ bool Moves::onDllMain() {
 	// forward dash during air Mist Finer
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerFDashAir");
 	move.displayName = "Air Mist Finer Forward Dash";
-	move.slangName = "Air MF Forward Dash";
+	move.displayNameSelector = displayNameSelector_airMistDash;
+	move.slangName = "j.MF Forward Dash";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistDash;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -1845,7 +1927,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBDashAir");
 	move.displayName = "Air Mist Finer Backdash";
-	move.slangName = "Air MF BD";
+	move.displayNameSelector = displayNameSelector_airMistBackdash;
+	move.slangName = "j.MF BD";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistBackdash;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -1857,79 +1941,97 @@ bool Moves::onDllMain() {
 	// performed when releasing the Mist Finer attack
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv0");
 	move.displayName = "Lv1 Air P Mist Finer";
-	move.slangName = "Lv1 Air PMF";
+	move.slangName = "Lv1 j.PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv1");
 	move.displayName = "Lv2 Air P Mist Finer";
-	move.slangName = "Lv2 Air PMF";
+	move.slangName = "Lv2 j.PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv2");
 	move.displayName = "Lv3 Air P Mist Finer";
-	move.slangName = "Lv3 Air PMF";
+	move.slangName = "Lv3 j.PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv0");
 	move.displayName = "Lv1 Air K Mist Finer";
-	move.slangName = "Lv1 Air KMF";
+	move.slangName = "Lv1 j.KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv1");
 	move.displayName = "Lv2 Air K Mist Finer";
-	move.slangName = "Lv2 Air KMF";
+	move.slangName = "Lv2 j.KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv2");
 	move.displayName = "Lv3 Air K Mist Finer";
-	move.slangName = "Lv3 Air KMF";
+	move.slangName = "Lv3 j.KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv0");
 	move.displayName = "Lv1 Air S Mist Finer";
-	move.slangName = "Lv1 Air SMF";
+	move.slangName = "Lv1 j.SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv1");
 	move.displayName = "Lv2 Air S Mist Finer";
-	move.slangName = "Lv2 Air SMF";
+	move.slangName = "Lv2 j.SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv2");
 	move.displayName = "Lv3 Air S Mist Finer";
-	move.slangName = "Lv3 Air SMF";
+	move.slangName = "Lv3 j.SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.powerup = powerup_mistFiner;
+	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCancel");
 	move.displayName = "Air Mist Finer Cancel";
-	move.slangName = "Air MFC";
+	move.slangName = "j.MFC";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1968,11 +2070,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot");
 	move.displayName = "Zwei Hander Attack";
 	move.slangName = "Zwei K";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Air");
 	move.displayName = "Air Zwei Hander";
 	move.slangName = "j.Z";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot2", true);
@@ -7861,6 +7965,9 @@ bool isDangerous_vacuumAtk(Entity ent) {
 	return ent.currentHitNum() > 0 && ent.hitAlreadyHappened() < ent.theValueHitAlreadyHappenedIsComparedAgainst()
 		|| ent.currentHitNum() == 0 && ent.currentAnimDuration() <= 2 && ent.enemyEntity().inHitstun();
 }
+bool isDangerous_mistKuttsuku(Entity ent) {
+	return ent.lifeTimeCounter() == 0;
+}
 
 const char* nameSelector_iceSpike(Entity ent) {
 	if (ent.createArgHikitsukiVal1() == 1) {
@@ -8422,6 +8529,554 @@ const char* displaySlangNameSelector_rifleRC(PlayerInfo& ent) {
 	if (response) return response;
 	return !ent.inNewMoveSection ? "Rifle RC Until Able to Cancel" : "Rifle RC Until Able to Fire";
 }
+const char* displayNameSelector_mistEntry(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Entry";
+		if (lvl == 1) return "Lv2 P Mist Finer Entry";
+		if (lvl == 2) return "Lv3 P Mist Finer Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Entry";
+		if (lvl == 1) return "Lv2 K Mist Finer Entry";
+		if (lvl == 2) return "Lv3 K Mist Finer Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Entry";
+		if (lvl == 1) return "Lv2 S Mist Finer Entry";
+		if (lvl == 2) return "Lv3 S Mist Finer Entry";
+	}
+	return "Mist Finer Entry";
+}
+const char* displaySlangNameSelector_mistEntry(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Entry";
+		if (lvl == 1) return "Lv2 PMF Entry";
+		if (lvl == 2) return "Lv3 PMF Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Entry";
+		if (lvl == 1) return "Lv2 KMF Entry";
+		if (lvl == 2) return "Lv3 KMF Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Entry";
+		if (lvl == 1) return "Lv2 SMF Entry";
+		if (lvl == 2) return "Lv3 SMF Entry";
+	}
+	return "MF Entry";
+}
+const char* displayNameSelector_mistLoop(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (ent.pawn.mem54()) {
+		// it is possible to end up here only in Rev1
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 P Mist Finer";
+			if (lvl == 1) return "Lv2 P Mist Finer";
+			if (lvl == 2) return "Lv3 P Mist Finer";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 K Mist Finer";
+			if (lvl == 1) return "Lv2 K Mist Finer";
+			if (lvl == 2) return "Lv3 K Mist Finer";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 S Mist Finer";
+			if (lvl == 1) return "Lv2 S Mist Finer";
+			if (lvl == 2) return "Lv3 S Mist Finer";
+		}
+		return "Mist Finer";
+	}
+	if (!ent.inNewMoveSection) {
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 P Mist Finer Entry";
+			if (lvl == 1) return "Lv2 P Mist Finer Entry";
+			if (lvl == 2) return "Lv3 P Mist Finer Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 K Mist Finer Entry";
+			if (lvl == 1) return "Lv2 K Mist Finer Entry";
+			if (lvl == 2) return "Lv3 K Mist Finer Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 S Mist Finer Entry";
+			if (lvl == 1) return "Lv2 S Mist Finer Entry";
+			if (lvl == 2) return "Lv3 S Mist Finer Entry";
+		}
+		return "Mist Finer Entry";
+	}
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Stance";
+		if (lvl == 1) return "Lv2 P Mist Finer Stance";
+		if (lvl == 2) return "Lv3 P Mist Finer Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Stance";
+		if (lvl == 1) return "Lv2 K Mist Finer Stance";
+		if (lvl == 2) return "Lv3 K Mist Finer Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Stance";
+		if (lvl == 1) return "Lv2 S Mist Finer Stance";
+		if (lvl == 2) return "Lv3 S Mist Finer Stance";
+	}
+	return "Mist Finer Stance";
+}
+const char* displaySlangNameSelector_mistLoop(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (ent.pawn.mem54()) {
+		// it is possible to end up here only in Rev1
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 PMF";
+			if (lvl == 1) return "Lv2 PMF";
+			if (lvl == 2) return "Lv3 PMF";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 KMF";
+			if (lvl == 1) return "Lv2 KMF";
+			if (lvl == 2) return "Lv3 KMF";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 SMF";
+			if (lvl == 1) return "Lv2 SMF";
+			if (lvl == 2) return "Lv3 SMF";
+		}
+		return "MF";
+	}
+	if (!ent.inNewMoveSection) {
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 PMF Entry";
+			if (lvl == 1) return "Lv2 PMF Entry";
+			if (lvl == 2) return "Lv3 PMF Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 KMF Entry";
+			if (lvl == 1) return "Lv2 KMF Entry";
+			if (lvl == 2) return "Lv3 KMF Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 SMF Entry";
+			if (lvl == 1) return "Lv2 SMF Entry";
+			if (lvl == 2) return "Lv3 SMF Entry";
+		}
+		return "MF Entry";
+	}
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Stance";
+		if (lvl == 1) return "Lv2 PMF Stance";
+		if (lvl == 2) return "Lv3 PMF Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Stance";
+		if (lvl == 1) return "Lv2 KMF Stance";
+		if (lvl == 2) return "Lv3 KMF Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Stance";
+		if (lvl == 1) return "Lv2 SMF Stance";
+		if (lvl == 2) return "Lv3 SMF Stance";
+	}
+	return "MF Stance";
+}
+const char* displayNameSelector_mistWalkForward(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Walk Forward";
+		if (lvl == 1) return "Lv2 P Mist Finer Walk Forward";
+		if (lvl == 2) return "Lv3 P Mist Finer Walk Forward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Walk Forward";
+		if (lvl == 1) return "Lv2 K Mist Finer Walk Forward";
+		if (lvl == 2) return "Lv3 K Mist Finer Walk Forward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Walk Forward";
+		if (lvl == 1) return "Lv2 S Mist Finer Walk Forward";
+		if (lvl == 2) return "Lv3 S Mist Finer Walk Forward";
+	}
+	return "Mist Finer Walk Forward";
+}
+const char* displaySlangNameSelector_mistWalkForward(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Walk Forward";
+		if (lvl == 1) return "Lv2 PMF Walk Forward";
+		if (lvl == 2) return "Lv3 PMF Walk Forward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Walk Forward";
+		if (lvl == 1) return "Lv2 KMF Walk Forward";
+		if (lvl == 2) return "Lv3 KMF Walk Forward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Walk Forward";
+		if (lvl == 1) return "Lv2 SMF Walk Forward";
+		if (lvl == 2) return "Lv3 SMF Walk Forward";
+	}
+	return "MF Walk Forward";
+}
+const char* displayNameSelector_mistWalkBackward(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Walk Backward";
+		if (lvl == 1) return "Lv2 P Mist Finer Walk Backward";
+		if (lvl == 2) return "Lv3 P Mist Finer Walk Backward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Walk Backward";
+		if (lvl == 1) return "Lv2 K Mist Finer Walk Backward";
+		if (lvl == 2) return "Lv3 K Mist Finer Walk Backward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Walk Backward";
+		if (lvl == 1) return "Lv2 S Mist Finer Walk Backward";
+		if (lvl == 2) return "Lv3 S Mist Finer Walk Backward";
+	}
+	return "Mist Finer Walk Backward";
+}
+const char* displaySlangNameSelector_mistWalkBackward(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Walk Backward";
+		if (lvl == 1) return "Lv2 PMF Walk Backward";
+		if (lvl == 2) return "Lv3 PMF Walk Backward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Walk Backward";
+		if (lvl == 1) return "Lv2 KMF Walk Backward";
+		if (lvl == 2) return "Lv3 KMF Walk Backward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Walk Backward";
+		if (lvl == 1) return "Lv2 SMF Walk Backward";
+		if (lvl == 2) return "Lv3 SMF Walk Backward";
+	}
+	return "MF Walk Backward";
+}
+const char* displayNameSelector_mistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Dash";
+		if (lvl == 1) return "Lv2 P Mist Finer Dash";
+		if (lvl == 2) return "Lv3 P Mist Finer Dash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Dash";
+		if (lvl == 1) return "Lv2 K Mist Finer Dash";
+		if (lvl == 2) return "Lv3 K Mist Finer Dash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Dash";
+		if (lvl == 1) return "Lv2 S Mist Finer Dash";
+		if (lvl == 2) return "Lv3 S Mist Finer Dash";
+	}
+	return "Mist Finer Dash";
+}
+const char* displaySlangNameSelector_mistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Dash";
+		if (lvl == 1) return "Lv2 PMF Dash";
+		if (lvl == 2) return "Lv3 PMF Dash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Dash";
+		if (lvl == 1) return "Lv2 KMF Dash";
+		if (lvl == 2) return "Lv3 KMF Dash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Dash";
+		if (lvl == 1) return "Lv2 SMF Dash";
+		if (lvl == 2) return "Lv3 SMF Dash";
+	}
+	return "MF Dash";
+}
+const char* displayNameSelector_mistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Backdash";
+		if (lvl == 1) return "Lv2 P Mist Finer Backdash";
+		if (lvl == 2) return "Lv3 P Mist Finer Backdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Backdash";
+		if (lvl == 1) return "Lv2 K Mist Finer Backdash";
+		if (lvl == 2) return "Lv3 K Mist Finer Backdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Backdash";
+		if (lvl == 1) return "Lv2 S Mist Finer Backdash";
+		if (lvl == 2) return "Lv3 S Mist Finer Backdash";
+	}
+	return "Mist Finer Backdash";
+}
+const char* displaySlangNameSelector_mistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Backdash";
+		if (lvl == 1) return "Lv2 PMF Backdash";
+		if (lvl == 2) return "Lv3 PMF Backdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Backdash";
+		if (lvl == 1) return "Lv2 KMF Backdash";
+		if (lvl == 2) return "Lv3 KMF Backdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Backdash";
+		if (lvl == 1) return "Lv2 SMF Backdash";
+		if (lvl == 2) return "Lv3 SMF Backdash";
+	}
+	return "MF Backdash";
+}
+const char* displayNameSelector_airMistEntry(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Entry";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Entry";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Entry";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Entry";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Entry";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Entry";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Entry";
+	}
+	return "Air Mist Finer Entry";
+}
+const char* displaySlangNameSelector_airMistEntry(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Entry";
+		if (lvl == 1) return "Lv2 j.PMF Entry";
+		if (lvl == 2) return "Lv3 j.PMF Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Entry";
+		if (lvl == 1) return "Lv2 j.KMF Entry";
+		if (lvl == 2) return "Lv3 j.KMF Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Entry";
+		if (lvl == 1) return "Lv2 j.SMF Entry";
+		if (lvl == 2) return "Lv3 j.SMF Entry";
+	}
+	return "j.MF Entry";
+}
+const char* displayNameSelector_airMistLoop(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (ent.pawn.mem54()) {
+		// it is possible to end up here only in Rev1
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 Air P Mist Finer";
+			if (lvl == 1) return "Lv2 Air P Mist Finer";
+			if (lvl == 2) return "Lv3 Air P Mist Finer";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 Air K Mist Finer";
+			if (lvl == 1) return "Lv2 Air K Mist Finer";
+			if (lvl == 2) return "Lv3 Air K Mist Finer";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 Air S Mist Finer";
+			if (lvl == 1) return "Lv2 Air S Mist Finer";
+			if (lvl == 2) return "Lv3 Air S Mist Finer";
+		}
+		return "Air Mist Finer";
+	}
+	if (!ent.inNewMoveSection) {
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 Air P Mist Finer Entry";
+			if (lvl == 1) return "Lv2 Air P Mist Finer Entry";
+			if (lvl == 2) return "Lv3 Air P Mist Finer Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 Air K Mist Finer Entry";
+			if (lvl == 1) return "Lv2 Air K Mist Finer Entry";
+			if (lvl == 2) return "Lv3 Air K Mist Finer Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 Air S Mist Finer Entry";
+			if (lvl == 1) return "Lv2 Air S Mist Finer Entry";
+			if (lvl == 2) return "Lv3 Air S Mist Finer Entry";
+		}
+		return "Air Mist Finer Entry";
+	}
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Stance";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Stance";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Stance";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Stance";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Stance";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Stance";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Stance";
+	}
+	return "Air Mist Finer Stance";
+}
+const char* displaySlangNameSelector_airMistLoop(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (ent.pawn.mem54()) {
+		// it is possible to end up here only in Rev1
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 j.PMF";
+			if (lvl == 1) return "Lv2 j.PMF";
+			if (lvl == 2) return "Lv3 j.PMF";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 j.KMF";
+			if (lvl == 1) return "Lv2 j.KMF";
+			if (lvl == 2) return "Lv3 j.KMF";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 j.SMF";
+			if (lvl == 1) return "Lv2 j.SMF";
+			if (lvl == 2) return "Lv3 j.SMF";
+		}
+		return "j.MF";
+	}
+	if (!ent.inNewMoveSection) {
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 j.PMF Entry";
+			if (lvl == 1) return "Lv2 j.PMF Entry";
+			if (lvl == 2) return "Lv3 j.PMF Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 j.KMF Entry";
+			if (lvl == 1) return "Lv2 j.KMF Entry";
+			if (lvl == 2) return "Lv3 j.KMF Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 j.SMF Entry";
+			if (lvl == 1) return "Lv2 j.SMF Entry";
+			if (lvl == 2) return "Lv3 j.SMF Entry";
+		}
+		return "j.MF Entry";
+	}
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Stance";
+		if (lvl == 1) return "Lv2 j.PMF Stance";
+		if (lvl == 2) return "Lv3 j.PMF Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Stance";
+		if (lvl == 1) return "Lv2 j.KMF Stance";
+		if (lvl == 2) return "Lv3 j.KMF Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Stance";
+		if (lvl == 1) return "Lv2 j.SMF Stance";
+		if (lvl == 2) return "Lv3 j.SMF Stance";
+	}
+	return "j.MF Stance";
+}
+const char* displayNameSelector_airMistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Airdash";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Airdash";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Airdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Airdash";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Airdash";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Airdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Airdash";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Airdash";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Airdash";
+	}
+	return "Air Mist Finer Airdash";
+}
+const char* displaySlangNameSelector_airMistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Airdash";
+		if (lvl == 1) return "Lv2 j.PMF Airdash";
+		if (lvl == 2) return "Lv3 j.PMF Airdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Airdash";
+		if (lvl == 1) return "Lv2 j.KMF Airdash";
+		if (lvl == 2) return "Lv3 j.KMF Airdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Airdash";
+		if (lvl == 1) return "Lv2 j.SMF Airdash";
+		if (lvl == 2) return "Lv3 j.SMF Airdash";
+	}
+	return "j.MF Airdash";
+}
+const char* displayNameSelector_airMistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Airdash Back";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Airdash Back";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Airdash Back";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Airdash Back";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Airdash Back";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Airdash Back";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Airdash Back";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Airdash Back";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Airdash Back";
+	}
+	return "Air Mist Finer Airdash Back";
+}
+const char* displaySlangNameSelector_airMistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Airdash Back";
+		if (lvl == 1) return "Lv2 j.PMF Airdash Back";
+		if (lvl == 2) return "Lv3 j.PMF Airdash Back";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Airdash Back";
+		if (lvl == 1) return "Lv2 j.KMF Airdash Back";
+		if (lvl == 2) return "Lv3 j.KMF Airdash Back";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Airdash Back";
+		if (lvl == 1) return "Lv2 j.SMF Airdash Back";
+		if (lvl == 2) return "Lv3 j.SMF Airdash Back";
+	}
+	return "j.MF Airdash Back";
+}
 
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
@@ -8827,6 +9482,16 @@ bool powerup_beakDriver(PlayerInfo& ent) {
 }
 const char* powerupExplanation_beakDriver(PlayerInfo& ent) {
 	return "Will perform the maximum power attack upon release.";
+}
+bool powerup_mistFiner(PlayerInfo& ent) {
+	return ent.johnnyMistFinerBuffedOnThisFrame;
+}
+const char* powerupExplanation_mistFiner(PlayerInfo& ent) {
+	if (ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE) {
+		return "Mist Finer became unblockable and may change to Guard Break instead, if the opponent lands.";
+	} else {
+		return "Mist Finer acquired Guard Break property and may change to an unblockable, if the opponent jumps.";
+	}
 }
 
 void fillMay6HOffsets(BYTE* func) {

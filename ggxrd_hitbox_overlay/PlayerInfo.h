@@ -50,6 +50,7 @@ struct ChippInfo {
 	unsigned short wallTime;
 };
 
+// Also used by some other chars
 struct DIInfo {
 	unsigned short current;
 	unsigned short max;
@@ -86,6 +87,13 @@ struct ElpheltInfo {
 	unsigned short grenadeTimer;
 	unsigned char grenadeDisabledTimer;
 	unsigned char grenadeDisabledTimerMax;
+};
+
+struct JohnnyInfo {
+	unsigned short mistTimer:10;
+	unsigned short mistTimerMax:10;
+	unsigned short mistKuttsukuTimer:10;
+	unsigned short mistKuttsukuTimerMax:10;
 };
 
 struct GatlingOrWhiffCancelInfo {
@@ -136,6 +144,7 @@ enum FrameType : char {
 	FT_IDLE_ELPHELT_RIFLE,
 	FT_IDLE_ELPHELT_RIFLE_READY,
 	FT_EDDIE_IDLE,
+	FT_BACCHUS_SIGH,
 	FT_HITSTOP,
 	FT_ACTIVE,
 	FT_ACTIVE_PROJECTILE,
@@ -227,6 +236,7 @@ static FrameType projectileFrameTypes[] {
 	FT_ACTIVE_NEW_HIT_PROJECTILE,
 	FT_ACTIVE_HITSTOP_PROJECTILE,
 	FT_NON_ACTIVE_PROJECTILE,
+	FT_BACCHUS_SIGH,
 	FT_EDDIE_IDLE,
 	FT_EDDIE_STARTUP,
 	FT_EDDIE_ACTIVE,
@@ -265,6 +275,7 @@ inline FrameType frameMap(FrameType type) {
 		case FT_IDLE_ELPHELT_RIFLE:                 return FT_STARTUP;
 		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE;
 		case FT_EDDIE_IDLE:                         return FT_EDDIE_IDLE;
+		case FT_BACCHUS_SIGH:                         return FT_BACCHUS_SIGH;
 		case FT_HITSTOP:                            return FT_HITSTOP;
 		case FT_ACTIVE:                             return FT_ACTIVE;
 		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
@@ -318,6 +329,7 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		case FT_IDLE_ELPHELT_RIFLE:                 return FT_IDLE_ELPHELT_RIFLE;
 		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE_ELPHELT_RIFLE_READY;
 		case FT_EDDIE_IDLE:                         return FT_EDDIE_IDLE;
+		case FT_BACCHUS_SIGH:                       return FT_BACCHUS_SIGH;
 		case FT_HITSTOP:                            return FT_HITSTOP;
 		case FT_ACTIVE:                             return FT_ACTIVE;
 		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
@@ -405,13 +417,16 @@ struct PlayerFrame : public FrameBase {
 	union {
 		MilliaInfo milliaInfo;
 		ChippInfo chippInfo;
-		DIInfo diInfo;
+		DIInfo diInfo;  // Also used by some other chars
 		InoInfo inoInfo;
 		BedmanInfo bedmanInfo;
 		RamlethalInfo ramlethalInfo;
 		ElpheltInfo elpheltInfo;
+		JohnnyInfo johnnyInfo;
 	} u;
 	short poisonDuration;
+	short poisonMax:15;
+	short poisonIsBacchusSigh:1;
 	FrameStopInfo stop;
 	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
@@ -1269,7 +1284,7 @@ struct PlayerInfo {
 	int prevBbscrvar5 = 0;
 	int playerval0 = 0;
 	int playerval1 = 0;
-	int maxDI = 0;
+	int maxDI = 0;  // Also used by some other chars
 	struct {
 		int totalSpriteLengthUntilCreation = 0;
 		int totalSpriteLength = 0;
@@ -1316,6 +1331,7 @@ struct PlayerInfo {
 	int prevFrameMaxHit = 0;
 	int prevFramePlayerval0 = 0;
 	int prevFramePlayerval1 = 0;
+	int prevFramePlayerval2 = 0;
 	int prevFrameElpheltRifle_AimMem46 = 0;
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
@@ -1351,6 +1367,12 @@ struct PlayerInfo {
 	int elpheltGrenadeMaxWithSlow = 0;
 	int elpheltShotgunX = 0;
 	int elpheltRifle_AimMem46 = 0;
+	int johnnyMistElapsed = 0;
+	int johnnyMistTimerWithSlow = 0;
+	int johnnyMistTimerMaxWithSlow = 0;
+	int johnnyMistKuttsukuElapsed = 0;
+	int johnnyMistKuttsukuTimerWithSlow = 0;
+	int johnnyMistKuttsukuTimerMaxWithSlow = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
@@ -1485,6 +1507,8 @@ struct PlayerInfo {
 	bool ramlethalHSwordTimerActive:1;
 	bool ramlethalSSwordKowareSonoba:1;
 	bool ramlethalHSwordKowareSonoba:1;
+	bool johnnyMistFinerBuffed:1;
+	bool johnnyMistFinerBuffedOnThisFrame:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

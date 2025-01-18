@@ -1445,18 +1445,21 @@ void PlayerFramebar::soakUpIntoPreFrame(const FrameBase& srcFrame) {
 
 static inline int determineFrameLevel(FrameType type) {
 	if (isEddieFrame(type)) {
-		return 6;
+		return 7;
 	}
 	if (type == FT_ACTIVE_PROJECTILE) {
-		return 5;
+		return 6;
 	}
 	if (type == FT_ACTIVE_HITSTOP_PROJECTILE) {
-		return 4;
+		return 5;
 	}
 	if (type == FT_NON_ACTIVE_PROJECTILE) {
-		return 3;
+		return 4;
 	}
 	if (type == FT_IDLE_PROJECTILE_HITTABLE) {
+		return 3;
+	}
+	if (type == FT_BACCHUS_SIGH) {
 		return 2;
 	}
 	if (type == FT_IDLE_PROJECTILE || type == FT_IDLE_ACTIVE_IN_SUPERFREEZE) {

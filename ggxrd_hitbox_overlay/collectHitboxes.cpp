@@ -220,7 +220,54 @@ void collectHitboxes(Entity ent,
 	) {
 		int* mayBallJumpConnectPtr = nullptr;
 		int* mayBallJumpConnectRangePtr = nullptr;
-		if (ownerType == CHARACTER_TYPE_MAY) {
+		if (ownerType == CHARACTER_TYPE_JOHNNY) {
+			if (circles && strcmp(ent.animationName(), "Mist") == 0) {
+				BYTE* func = ent.bbscrCurrentFunc();
+				BYTE* instr;
+				int radius = 0;
+				for (
+						instr = moves.skipInstruction(func);
+						moves.instructionType(instr) != Moves::instr_endState;
+						instr = moves.skipInstruction(instr)
+				) {
+					if (moves.instructionType(instr) == Moves::instr_ifOperation
+							&& *(int*)(instr + 4) == 13  // IS_LESSER_OR_EQUAL
+							&& *(int*)(instr + 8) == 2  // tag: variable
+							&& *(int*)(instr + 0xc) == 96  // DISTANCE_FROM_THIS_CENTER_TO_ENEMY_CENTER_DUPLICATE
+							&& *(int*)(instr + 0x10) == 0) {  // tag: literal
+						radius = *(int*)(instr + 0x14);
+						break;
+					}
+				}
+				
+				if (radius) {
+					DrawCircleCallParams newCircle;
+					newCircle.posX = state.posX;
+					newCircle.posY = state.posY;
+					newCircle.radius = radius;
+					newCircle.fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
+					newCircle.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+					circles->push_back(newCircle);
+					
+					Entity opponent = entityList.slots[1 - ent.team()];
+					DrawPointCallParams newPoint;
+					newPoint.isProjectile = true;
+					newPoint.posX = opponent.posX();
+					newPoint.posY = opponent.posY() + opponent.getCenterOffsetY();
+					points->push_back(newPoint);
+					
+					if (lines) {
+						DrawLineCallParams newLine;
+						newLine.posX1 = newPoint.posX;
+						newLine.posY1 = newPoint.posY;
+						newLine.posX2 = newCircle.posX;
+						newLine.posY2 = newCircle.posY;
+						lines->push_back(newLine);
+					}
+					
+				}
+			}
+		} else if (ownerType == CHARACTER_TYPE_MAY) {
 			if (strcmp(ent.animationName(), "MayBallA") == 0) {
 				mayBallJumpConnectPtr = &moves.mayPBallJumpConnectOffset;
 				mayBallJumpConnectRangePtr = &moves.mayPBallJumpConnectRange;

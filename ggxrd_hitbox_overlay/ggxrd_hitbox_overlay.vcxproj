@@ -318,6 +318,8 @@
     <Image Include="..\images\ActiveFrame_NewHit.png" />
     <Image Include="..\images\ActiveFrame_NewHit_NonColorblind.png" />
     <Image Include="..\images\ActiveFrame_NonColorblind.png" />
+    <Image Include="..\images\BacchusSighFrame.png" />
+    <Image Include="..\images\BacchusSighFrame_NonColorblind.png" />
     <Image Include="..\images\Digit0.png" />
     <Image Include="..\images\Digit1.png" />
     <Image Include="..\images\Digit2.png" />

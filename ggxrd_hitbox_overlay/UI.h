@@ -184,6 +184,8 @@ private:
 	std::unique_ptr<PngResource> powerupFrame;
 	std::unique_ptr<PngResource> eddieIdleFrame;
 	std::unique_ptr<PngResource> eddieIdleFrameNonColorblind;
+	std::unique_ptr<PngResource> bacchusSighFrame;
+	std::unique_ptr<PngResource> bacchusSighFrameNonColorblind;
 	std::vector<PngResource> allResources;
 	TexturePacker texturePacker;
 	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,

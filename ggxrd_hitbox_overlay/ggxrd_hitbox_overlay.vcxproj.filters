@@ -604,6 +604,12 @@
     <Image Include="..\images\OTG.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\images\BacchusSighFrame.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\BacchusSighFrame_NonColorblind.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\MyPixelShader.hlsl">

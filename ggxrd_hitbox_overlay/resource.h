@@ -74,14 +74,16 @@
 #define IDB_POWERUP                     191
 #define IDB_EDDIE_IDLE_FRAME            192
 #define IDB_EDDIE_IDLE_FRAME_NON_COLORBLIND 193
-#define IDB_PNG1                        194
 #define IDB_OTG                         194
+#define IDB_BACCHUS_SIGH_FRAME          195
+#define IDB_PNG2                        196
+#define IDB_BACCHUS_SIGH_FRAME_NON_COLORBLIND 196
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        195
+#define _APS_NEXT_RESOURCE_VALUE        197
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101

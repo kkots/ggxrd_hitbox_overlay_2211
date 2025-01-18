@@ -1287,7 +1287,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (player.cmnActIndex != CmnActUkemi && !player.baikenReturningToBlockstunAfterAzami) {
 							player.hitstopMax = player.hitstop;
 							player.hitstopElapsed = 0;
-							if (player.setBlockstunMax) {
+							if (player.setBlockstunMax && player.hitstop) {  // may enter blockstun without hitstop due to Mist Finer Bacchus Sigh-buffed airhit when it glitches out and does not become unblockable
 								--player.blockstunMax;  // this is the line PlayerInfo.h:PlayerInfo::inBlockstunNextFrame refers to
 							}
 							if (player.setHitstunMax) {
@@ -1502,7 +1502,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& strcmp(player.anim, "AntiAirAttack"_hardcode) != 0
 						&& strcmp(animName, "AntiAir4Hasei"_hardcode) == 0
 						|| player.charType == CHARACTER_TYPE_JOHNNY
-						&& ent.mem54()  // when Mem(54) is set, MistFinerLoop instantly transitions to a chosen Mist Finer. However, in Rev1, it takes one frame
+						&& ent.mem54()  // when Mem(54) is set, MistFinerLoop/AirMistFinerLoop instantly transitions to a chosen Mist Finer. However, in Rev1, it takes one frame
 						&& (
 							strcmp(animName, "MistFinerLoop"_hardcode) == 0
 							|| strcmp(animName, "AirMistFinerLoop"_hardcode) == 0
@@ -2316,6 +2316,103 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				player.elpheltRifle_AimMem46 = player.getElpheltRifle_AimMem46();
 				
+			} else if (player.charType == CHARACTER_TYPE_JOHNNY) {
+				
+				{
+					bool johnnyMistFinerBuffed = player.pawn.dealtAttack()->enableGuardBreak()
+						|| player.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE;
+					player.johnnyMistFinerBuffedOnThisFrame = !player.johnnyMistFinerBuffed && johnnyMistFinerBuffed;
+					player.johnnyMistFinerBuffed = johnnyMistFinerBuffed;
+					
+					int playerval2 = player.wasPlayerval[2];
+					int currentPlayerval2 = player.pawn.playerVal(2);
+					
+					int slowdown = 0;
+					for (ProjectileInfo& projectile : projectiles) {
+						if (projectile.team == player.index && strcmp(projectile.animName, "MistKuttsuku") == 0) {
+							slowdown = projectile.rcSlowedDownCounter;
+							if (projectile.lifeTimeCounter == 0) {
+								player.johnnyMistKuttsukuElapsed = 0;
+							} else if (!superflashInstigator) {
+								++player.johnnyMistKuttsukuElapsed;
+							}
+							break;
+						}
+					}
+					
+					int timeRemaining = currentPlayerval2;
+					int unused;
+					PlayerInfo::calculateSlow(
+						player.johnnyMistKuttsukuElapsed + 1,
+						timeRemaining,
+						slowdown,
+						&player.johnnyMistKuttsukuTimerWithSlow,
+						&player.johnnyMistKuttsukuTimerMaxWithSlow,
+						&unused);
+					
+					if (player.johnnyMistKuttsukuTimerMaxWithSlow <= 2) {
+						player.johnnyMistKuttsukuTimerWithSlow = 0;
+						player.johnnyMistKuttsukuTimerMaxWithSlow = 0;
+					} else {
+						++player.johnnyMistKuttsukuTimerMaxWithSlow;
+						if (player.johnnyMistKuttsukuTimerWithSlow || !currentPlayerval2 && playerval2) {
+							++player.johnnyMistKuttsukuTimerWithSlow;
+						}
+					}
+				}
+				
+				{
+					int maxTime = -1;
+					int animFrame = -1;
+					int slowdown = 0;
+					bool isFrozen = false;
+					for (ProjectileInfo& projectile : projectiles) {
+						if (projectile.team == player.index && projectile.ptr && strcmp(projectile.animName, "Mist") == 0) {
+							animFrame = projectile.animFrame;
+							isFrozen = projectile.ptr.isRCFrozen();
+							BYTE* func = projectile.ptr.bbscrCurrentFunc();
+							BYTE* instr;
+							for (
+									instr = moves.skipInstruction(func);
+									moves.instructionType(instr) != Moves::instr_endState;
+									instr = moves.skipInstruction(instr)
+							) {
+								if (moves.instructionType(instr) == Moves::instr_ifOperation
+										&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
+										&& *(int*)(instr + 8) == 2  // tag: variable
+										&& *(int*)(instr + 0xc) == 13) {  // FRAMES_PLAYED_IN_STATE
+									// skip tag: literal
+									maxTime = *(int*)(instr + 0x14);
+									break;
+								}
+							}
+							slowdown = projectile.rcSlowedDownCounter;
+							break;
+						}
+					}
+					
+					if (maxTime == -1) {
+						player.johnnyMistTimerWithSlow = 0;
+					} else {
+						
+						if (animFrame == 1 && !isFrozen) {
+							player.johnnyMistElapsed = 0;
+						} else if (!superflashInstigator) {
+							++player.johnnyMistElapsed;
+						}
+						
+						int timeRemaining = maxTime - animFrame;
+						int unused;
+						PlayerInfo::calculateSlow(
+							player.johnnyMistElapsed + 1,
+							timeRemaining,
+							slowdown,
+							&player.johnnyMistTimerWithSlow,
+							&player.johnnyMistTimerMaxWithSlow,
+							&unused);
+						
+					}
+				}
 			}
 		}
 		
@@ -3178,8 +3275,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			
 		for (ProjectileInfo& projectile : projectiles) {
 			bool ignoreThisForPlayer = false;
+			PlayerInfo& player = projectile.team == 0 || projectile.team == 1 ? players[projectile.team] : players[0];
 			if (projectile.team == 0 || projectile.team == 1) {
-				PlayerInfo& player = players[projectile.team];
 				ignoreThisForPlayer = 
 					player.charType == CHARACTER_TYPE_JACKO
 					&& (
@@ -3192,7 +3289,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					);
 			}
 			
-			PlayerInfo& player = players[projectile.team == 0 || projectile.team == 1 ? projectile.team : 0];
 			if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1)
 					&& !projectile.prevStartups.empty()
 					&& !ignoreThisForPlayer) {
@@ -3215,22 +3311,49 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				|| projectile.gotHitOnThisFrame) {
 				projectileCanBeHit = true;
 			}
+			
+			bool isMist;
+			bool isMistKuttsuku;
+			if (player.charType == CHARACTER_TYPE_JOHNNY) {
+				if (strcmp(projectile.animName, "Mist") == 0) {
+					isMist = true;
+					isMistKuttsuku = false;
+				} else if (strcmp(projectile.animName, "MistKuttsuku") == 0) {
+					isMist = false;
+					isMistKuttsuku = projectile.animFrame == 1 && (!projectile.ptr || !projectile.ptr.isRCFrozen());
+				} else {
+					isMist = false;
+					isMistKuttsuku = false;
+				}
+			} else {
+				isMist = false;
+				isMistKuttsuku = false;
+			}
+			
 			ProjectileFramebar& entityFramebar = findProjectileFramebar(projectile,
 				projectile.markActive
 				|| projectile.gotHitOnThisFrame
-				|| projectileCanBeHit);
+				|| projectileCanBeHit
+				|| isMist
+				|| isMistKuttsuku);
 			entityFramebar.foundOnThisFrame = true;
 			Framebar& framebar = entityFramebar.idleHitstop;
 			Frame& currentFrame = framebar[framebarPos];
 			
-			FrameType defaultIdleFrame = projectileCanBeHit ? FT_IDLE_PROJECTILE_HITTABLE : FT_IDLE_PROJECTILE;
+			FrameType defaultIdleFrame;
+			if (isMist || isMistKuttsuku) {
+				defaultIdleFrame = FT_BACCHUS_SIGH;
+			} else {
+				defaultIdleFrame = projectileCanBeHit ? FT_IDLE_PROJECTILE_HITTABLE : FT_IDLE_PROJECTILE;
+			}
 			
 			if (framebarAdvancedIdleHitstop) {
 				currentFrame.type = defaultIdleFrame;
 				projectile.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
 				currentFrame.hitstop = projectile.hitstop;
 				currentFrame.hitstopMax = projectile.hitstopMax;
-				currentFrame.hitConnected = projectile.hitConnectedForFramebar() || projectile.gotHitOnThisFrame;
+				currentFrame.hitConnected = projectile.hitConnectedForFramebar() || projectile.gotHitOnThisFrame
+					|| isMistKuttsuku;
 				currentFrame.rcSlowdown = projectile.rcSlowedDownCounter;
 				currentFrame.rcSlowdownMax = projectile.rcSlowedDownMax;
 				currentFrame.activeDuringSuperfreeze = false;
@@ -3922,6 +4045,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.u.elpheltInfo.grenadeTimer = player.wasResource;
 					currentFrame.u.elpheltInfo.grenadeDisabledTimer = min(255, player.elpheltGrenadeRemainingWithSlow);
 					currentFrame.u.elpheltInfo.grenadeDisabledTimerMax = min(255, player.elpheltGrenadeMaxWithSlow);
+				} else if (player.charType == CHARACTER_TYPE_JOHNNY) {
+					currentFrame.u.johnnyInfo.mistTimer = player.johnnyMistTimerWithSlow;
+					currentFrame.u.johnnyInfo.mistTimerMax = player.johnnyMistTimerMaxWithSlow;
+					currentFrame.u.johnnyInfo.mistKuttsukuTimer = player.johnnyMistKuttsukuTimerWithSlow;
+					currentFrame.u.johnnyInfo.mistKuttsukuTimerMax = player.johnnyMistKuttsukuTimerMaxWithSlow;
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -4152,7 +4280,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.rcSlowdown = player.rcSlowedDownCounter;
 				currentFrame.rcSlowdownMax = player.rcSlowedDownMax;
 				
-				currentFrame.poisonDuration = player.poisonDuration;
+				if (player.poisonDuration) {
+					currentFrame.poisonDuration = player.poisonDuration;
+					currentFrame.poisonMax = 360;
+					currentFrame.poisonIsBacchusSigh = false;
+				} else if (other.charType == CHARACTER_TYPE_JOHNNY) {
+					currentFrame.poisonDuration = other.johnnyMistKuttsukuTimerWithSlow;
+					currentFrame.poisonMax = other.johnnyMistKuttsukuTimerMaxWithSlow;
+					currentFrame.poisonIsBacchusSigh = true;
+				} else {
+					currentFrame.poisonDuration = 0;
+					currentFrame.poisonMax = 0;
+					currentFrame.poisonIsBacchusSigh = false;
+				}
 				
 				currentFrame.needShowAirOptions = player.regainedAirOptions;
 				currentFrame.doubleJumps = player.remainingDoubleJumps;
@@ -4682,6 +4822,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFrameMaxHit = player.pawn.maxHit();
 			player.prevFramePlayerval0 = player.playerval0;
 			player.prevFramePlayerval1 = player.playerval1;
+			player.prevFramePlayerval2 = player.wasPlayerval[2];
 			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
 			player.prevPosX = player.x;
 			player.prevPosY = player.y;
