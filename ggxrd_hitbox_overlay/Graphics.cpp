@@ -2714,6 +2714,8 @@ void Graphics::prepareDrawInputs() {
 	const float textScale = 0.6538F;
 	const float coef3 = coef * 3.F;
 	
+	float textWs[2] { 0.F, 0.F };
+	
 	for (int i = 0; i == 0 || i == 1 && drawDataUse.gameModeFast == GAME_MODE_FAST_NORMAL; ++i) {
 		size_t inputsSize = drawDataUse.inputsSize[i];
 		const InputsDrawingCommandRow* rows = drawDataUse.inputs[i].data();
@@ -2739,6 +2741,7 @@ void Graphics::prepareDrawInputs() {
 			} while (maxDuration);
 			
 			textWMax = (float)digitCount * 19.F * coef * textScale + (float)(digitCount - 1) * coef3 + coef + coef;
+			textWs[i] = textWMax;
 		}
 		
 		for (int rowInd = (int)inputsSize - 1; rowInd >= rowIndMin; --rowInd) {
@@ -2788,7 +2791,7 @@ void Graphics::prepareDrawInputs() {
 			size_t inputsSize = drawDataUse.inputsSize[i];
 			const InputsDrawingCommandRow* rows = drawDataUse.inputs[i].data();
 			
-			float yIter = startY;
+			float y = startY + coef + (rowHeightMult - 26.F * textScale * coef) * 0.5F;
 			
 			int rowIndMin = (int)inputsSize - 18;
 			if (rowIndMin < 0) rowIndMin = 0;
@@ -2796,22 +2799,17 @@ void Graphics::prepareDrawInputs() {
 			for (int rowInd = (int)inputsSize - 1; rowInd >= rowIndMin; --rowInd) {
 				const InputsDrawingCommandRow* row = rows + rowInd;
 				
-				sprintf_s(strbuf, "%d", row->duration);
-				float textW, textH;
-				calcTextSize(strbuf, coef, textScale, true, &textW, &textH);
-				
-				float x, y;
+				float x;
 				if (i == 0 && drawDataUse.gameModeFast == GAME_MODE_FAST_NORMAL) {
 					x = 20.F * coef;
 				} else {
-					x = 1260.F * coef - textW + coef;
+					x = 1260.F * coef - textWs[i] + coef;
 				}
 				
-				y = yIter + (rowHeightMult - textH) * 0.5F + coef;
-				
+				sprintf_s(strbuf, "%d", row->duration);
 				printTextWithOutline(x, y, strbuf, coef, textScale);
 				
-				yIter += rowHeightMult;
+				y += rowHeightMult;
 			}
 				
 		}
