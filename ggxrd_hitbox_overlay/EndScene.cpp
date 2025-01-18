@@ -2782,7 +2782,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.toeInvul.active = true;
 					}
 				}
-				if (player.airborne && !player.strikeInvul.active && hurtbox.hitboxCount && !player.moveOriginatedInTheAir) {
+				if (player.y > 0 && !player.strikeInvul.active && hurtbox.hitboxCount && !player.moveOriginatedInTheAir) {
 					if (hurtboxBounds.top < 20000) {
 						player.airborneButWontGoOverLows.active = true;
 					} else {
