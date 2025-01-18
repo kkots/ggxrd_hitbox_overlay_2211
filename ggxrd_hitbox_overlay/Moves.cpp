@@ -5364,12 +5364,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed");
 	move.displayName = "Task B";
-	move.slangName = "Beyblade";
+	move.slangName = "Task B";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed_Air");
 	move.displayName = "Air Task B";
-	move.slangName = "Air Beyblade";
+	move.slangName = "Air Task B";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C");
@@ -5390,13 +5390,13 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed");
 	move.displayName = "Task C";
-	move.slangName = "Bed Slam";
+	move.slangName = "Task C";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed_Air");
 	move.displayName = "Air Task C";
 	move.displayNameSelector = displayNameSelector_taskCAir;
-	move.slangName = "Air Bed Slam";
+	move.slangName = "Air Task C";
 	move.displaySlangNameSelector = displaySlangNameSelector_taskCAir;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
@@ -8468,9 +8468,9 @@ const char* displayNameSelector_taskCAir(PlayerInfo& ent) {
 }
 const char* displaySlangNameSelector_taskCAir(PlayerInfo& ent) {
 	if (ent.pawn.mem45()) {
-		return "Air Bed Slam Buffed";
+		return "Air Task C Buffed";
 	} else {
-		return "Air Bed Slam";
+		return "Air Task C";
 	}
 }
 const char* framebarNameSelector_blueBurst(Entity ent) {
