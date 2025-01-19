@@ -2941,3 +2941,17 @@ int PlayerInfo::getElpheltRifle_AimMem46() const {
 	}
 	return 0;
 }
+
+bool FrameCancelInfo::hasCancel(const char* skillName) const {
+	for (const GatlingOrWhiffCancelInfo& info : gatlings) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			return true;
+		}
+	}
+	for (const GatlingOrWhiffCancelInfo& info : whiffCancels) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			return true;
+		}
+	}
+	return false;
+}

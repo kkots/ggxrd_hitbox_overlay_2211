@@ -8834,7 +8834,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
 		}
 	}
-	if (frame.airthrowDisabled || frame.running || frame.cantBackdash) {
+	if (frame.airthrowDisabled || frame.running || frame.cantBackdash || frame.cantAirdash) {
 		ImGui::Separator();
 		if (frame.airthrowDisabled) {
 			ImGui::TextUnformatted("Airthrow disabled.");
@@ -8853,6 +8853,9 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::TextUnformatted("Can't backdash again for 4f after previous backdash is over.");
 			ImGui::PopStyleColor();
+		}
+		if (frame.cantAirdash) {
+			ImGui::TextUnformatted("Can't airdash due to minimum height requirement.");
 		}
 	}
 	if (charType == CHARACTER_TYPE_SOL) {

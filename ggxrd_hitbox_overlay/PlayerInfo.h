@@ -114,6 +114,7 @@ struct FrameCancelInfo {
 	const char* whiffCancelsNote = nullptr;
 	FrameCancelInfo() = default;
 	void clear();
+	bool hasCancel(const char* skillName) const;
 };
 
 struct PlayerCancelInfo {
@@ -129,6 +130,7 @@ struct PlayerCancelInfo {
 	bool cancelsEqual(const PlayerCancelInfo& other) const;
 	void clear();
 	bool isCompletelyEmpty() const;
+	inline bool hasCancel(const char* skillName) const { return cancels.hasCancel(skillName); }
 };
 
 enum FrameType : char {
@@ -485,6 +487,7 @@ struct PlayerFrame : public FrameBase {
 	bool cantBackdash:1;
 	bool suddenlyTeleported:1;
 	bool dontShowPowerupGraphic:1;
+	bool cantAirdash:1;
 	
 	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
 	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
@@ -1448,6 +1451,7 @@ struct PlayerInfo {
 	bool wasEnableThrow:1;
 	bool wasAttackCollidedSoCanCancelNow:1;
 	bool wasOtg:1;
+	bool wasCantAirdash:1;
 	bool obtainedForceDisableFlags:1;
 	
 	bool enableBlock:1;  // this holds the raw value of ent.enableBlock() flag

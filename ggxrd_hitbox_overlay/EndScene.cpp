@@ -4341,6 +4341,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.powerupExplanation = nullptr;
 					currentFrame.dontShowPowerupGraphic = false;
 				}
+				currentFrame.cantAirdash = player.airborne && player.wasCantAirdash;
 				currentFrame.airthrowDisabled = player.airborne && player.pawn.airthrowDisabled();
 				currentFrame.running = player.pawn.running();
 				currentFrame.cantBackdash = player.wasCantBackdashTimer != 0;
@@ -6012,6 +6013,7 @@ void EndScene::frameCleanup() {
 		player.wasEnableAirtech = false;
 		player.wasAttackCollidedSoCanCancelNow = false;
 		player.wasEnableNormals = false;
+		player.wasCantAirdash = true;
 		player.wasCanYrc = false;
 		player.wasProhibitFDTimer = 1;
 		player.wasAirdashHorizontallingTimer = 0;
@@ -6858,6 +6860,16 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			player.wasPlayerval[2] = pawn.playerVal(2);
 			player.wasPlayerval[3] = pawn.playerVal(3);
 			player.wasEnableNormals = pawn.enableNormals();
+			int speedY = pawn.speedY();
+			int posY = pawn.posY();
+			int airDashMinimumHeight = pawn.airDashMinimumHeight();
+			bool airdashHeightOk;
+			if (speedY > 0) {
+				airdashHeightOk = posY > airDashMinimumHeight;
+			} else {
+				airdashHeightOk = posY > 70000 && posY > -speedY;
+			}
+			player.wasCantAirdash = pawn.remainingAirDashes() && !airdashHeightOk;
 			entityList.populate();
 			Entity other = entityList.slots[1 - player.index];
 			player.wasCanYrc = player.pawn.romanCancelAvailability() == ROMAN_CANCEL_ALLOWED

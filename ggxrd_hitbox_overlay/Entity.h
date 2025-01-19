@@ -986,6 +986,7 @@ public:
 	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }
 	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
 	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
+	inline int airDashMinimumHeight() const { return *(int*)(ent + 0x9864); }
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	
