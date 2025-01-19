@@ -4408,6 +4408,22 @@ void UI::drawSearchableWindows() {
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.pawn.dealtAttack()->enableGuardBreak() ? "Yes" : "No");
 				
+			} else if (player.charType == CHARACTER_TYPE_JACKO) {
+				
+				const char* gaugeNames[4] {
+					"Organ P Cooldown:",
+					"Organ K Cooldown:",
+					"Organ S Cooldown:",
+					"Organ H Cooldown:",
+				};
+				
+				for (int i = 0; i < 4; ++i) {
+					textUnformattedColored(YELLOW_COLOR, gaugeNames[i]);
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%d/%d", player.pawn.exGaugeValue(i), player.pawn.exGaugeMaxValue(i));
+					ImGui::TextUnformatted(strbuf);
+				}
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
