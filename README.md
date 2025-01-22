@@ -201,6 +201,12 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Johnny Bacchus Sigh: If the opponent's center of body (marked with an extra small point) is within the circle, Bacchus Sigh will connect on the next frame.
 
+- Jack-O' Ghost Pickup Range: The displayed vertical box around each Ghost (house) shows the range in which Jack-O's origin point must be in order to pick up the Ghost or gain Tension from it. This is only displayed when the 'showJackoGhostPickupRange' setting in the INI is on (in UI it's located at main mod's UI - Character Specific - Show Jack-O' Ghost Pickup Range).
+
+- Jack-O' Aegis Field Range: The white circle shows the range where the Ghosts' or Servants' origin points must be in order for them to receive protection of the Field. This display must be enabled with the 'showJackoAegisFieldRange' setting in the INI file (located in mod's UI - Character Specific - Show Jack-O' Aegis Field Range).
+
+- Jack-O' Servant Attack Range: The white box around each Servant shows the area where the opponent's player's origin point must be in order for the Servant to initiate an attack. This display must be enabled with the 'showJackoServantAttackRange' setting in the INI file (located in mod's UI - Character Specific - Show Jack-O' Servant Attack Range).
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
@@ -592,6 +598,26 @@ showFaustOwnFlickRanges = true
 ; Bedman's Task C gains a buff.
 ; This line is so high you can't see it unless you jump.
 showBedmanTaskCHeightBuffY = false
+
+; Specify true or false.
+; When this setting is on, an infinite vertical box around each Ghost (house) denotes the range in which
+; Jack-O's origin point must be in order to pick up the Ghost or gain Tension from it.
+showJackoGhostPickupRange = false
+
+; Specify true or false.
+; When this setting is on, yellow pushboxes are drawn around the Servants and the Ghosts, similar to how they're drawn
+; around the players.
+showJackoSummonsPushboxes = false
+
+; Specify true or false.
+; When this setting is on, the white circle around Jack-O' shows the range where the Servants' and the Ghosts'
+; origin point must be in order to receive protection from Aegis Field.
+showJackoAegisFieldRange = false
+
+; Specify true or false.
+; When this setting is on, the white box around each Servant shows the area where the opponent's player's
+; origin point must be in order for the Servant to initiate an attack.
+showJackoServantAttackRange = false
 
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.

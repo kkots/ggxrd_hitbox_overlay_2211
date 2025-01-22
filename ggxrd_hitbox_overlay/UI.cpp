@@ -395,18 +395,20 @@ bool UI::onDllMain(HMODULE hModule) {
 	addFrameArt(hModule, FT_RECOVERY,
 		IDB_RECOVERY_FRAME, recoveryFrame,
 		IDB_RECOVERY_FRAME_NON_COLORBLIND, recoveryFrameNonColorblind,
-		"Recovery: an attack's active frames are already over. Can't perform another attack."
+		"Recovery: an attack's active frames are already over or projectile active frames have started. Can't perform another attack."
 		blockFDNotice);
 	addFrameArt(hModule, FT_RECOVERY_HAS_GATLINGS,
 		IDB_RECOVERY_FRAME_HAS_GATLINGS, recoveryFrameHasGatlings,
 		IDB_RECOVERY_FRAME_HAS_GATLINGS_NON_COLORBLIND, recoveryFrameHasGatlingsNonColorblind,
-		"Recovery, but can gatling or cancel or release: an attack's active frames are already over but can gatling or cancel into some other attacks"
+		"Recovery, but can gatling or cancel or release: an attack's active frames are already over 9or projectile active frames have started),"
+		" but can gatling or cancel into some other attacks"
 		" or release the button to end the attack sooner."
 		blockFDNotice);
 	addFrameArt(hModule, FT_RECOVERY_CAN_ACT,
 		IDB_RECOVERY_FRAME_CAN_ACT, recoveryFrameCanAct,
 		IDB_RECOVERY_FRAME_CAN_ACT_NON_COLORBLIND, recoveryFrameCanActNonColorblind,
-		"Recovery, but can gatling or cancel or more: an attack's active frames are already over but can gatling into some other attacks or do other actions."
+		"Recovery, but can gatling or cancel or more: an attack's active frames are already over (or projectile active frames have started),"
+		" but can gatling into some other attacks or do other actions."
 		blockFDNotice);
 	addFrameArt(hModule, FT_STARTUP,
 		IDB_STARTUP_FRAME, startupFrame,
@@ -498,7 +500,7 @@ bool UI::onDllMain(HMODULE hModule) {
 		idleProjectile = arrays[i][FT_IDLE];
 		idleProjectile.description = "Projectile is not active.";
 		
-		FrameArt& idleSuperfreeze = theArray[FT_IDLE_ACTIVE_IN_SUPERFREEZE];
+		FrameArt& idleSuperfreeze = theArray[FT_IDLE_NO_DISPOSE];
 		idleSuperfreeze = arrays[i][FT_IDLE];
 		idleSuperfreeze.description = "Projectile is not active.";
 		
@@ -3243,7 +3245,7 @@ void UI::drawSearchableWindows() {
 							if (strcmp(p.animationName(), "StunEdgeObj") == 0) {
 								hasStunEdge = true;
 								if (moves.stunEdgeDeleteSpriteSum == 0) {
-									BYTE* funcStart = p.findFunctionStart("StunEdgeDelete");
+									BYTE* funcStart = p.findStateStart("StunEdgeDelete");
 									if (funcStart) {
 										for (BYTE* instr = moves.skipInstruction(funcStart);
 												moves.instructionType(instr) != Moves::instr_endState;
@@ -4410,6 +4412,19 @@ void UI::drawSearchableWindows() {
 				
 			} else if (player.charType == CHARACTER_TYPE_JACKO) {
 				
+				booleanSettingPreset(settings.showJackoGhostPickupRange);
+				
+				booleanSettingPreset(settings.showJackoSummonsPushboxes);
+				
+				booleanSettingPreset(settings.showJackoAegisFieldRange);
+				
+				booleanSettingPreset(settings.showJackoServantAttackRange);
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				yellowText("Can do j.D:");
+				ImGui::SameLine();
+				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
+				
 				const char* gaugeNames[4] {
 					"Organ P Cooldown:",
 					"Organ K Cooldown:",
@@ -4417,11 +4432,416 @@ void UI::drawSearchableWindows() {
 					"Organ H Cooldown:",
 				};
 				
-				for (int i = 0; i < 4; ++i) {
-					textUnformattedColored(YELLOW_COLOR, gaugeNames[i]);
+				for (int j = 0; j < 4; ++j) {
+					textUnformattedColored(YELLOW_COLOR, gaugeNames[j]);
 					ImGui::SameLine();
-					sprintf_s(strbuf, "%d/%d", player.pawn.exGaugeValue(i), player.pawn.exGaugeMaxValue(i));
+					sprintf_s(strbuf, "%d/%d", player.pawn.exGaugeValue(j), player.pawn.exGaugeMaxValue(j));
 					ImGui::TextUnformatted(strbuf);
+				}
+				
+				yellowText("Aegis Field:");
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", player.jackoAegisTimeWithSlow, player.jackoAegisTimeMaxWithSlow);
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText("Holding Ghost:");
+				AddTooltip("If a cutscene is not currently playing, you gain 0.01 meter per frame for holding a Ghost.");
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.pawn.playerVal(0) ? "Yes" : "No");
+				
+				yellowText("Ghost Nearby:");
+				AddTooltip("Means you can pick up a Ghost."
+					" If in addition to being in range you're not airborne and a cutscene is not currently playing, you gain 0.03 meter per frame.");
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.pawn.playerVal(1) ? "Yes" : "No");
+				
+				struct GhostInfo {
+					std::vector<int>& offsets;
+					StringWithLength title;
+					DWORD maskExplode;
+					DWORD maskClockUp;
+					int* exp;
+					int* creationTimer;
+					int* healingTimer;
+					const char* dummyName;
+					int* dummyTotalFrames;
+					const char* servantCooldownName;
+					int* servantCooldownTimes;
+				};
+				GhostInfo ghosts[3] {
+					{
+						moves.ghostAStateOffsets,
+						"P Ghost:",
+						2048,
+						16384,
+						moves.jackoGhostAExp,
+						moves.jackoGhostACreationTimer,
+						moves.jackoGhostAHealingTimer,
+						"GhostADummy",
+						&moves.ghostADummyTotalFrames,
+						"ServantCoolTimeA",
+						moves.servantCooldownA
+					},
+					{
+						moves.ghostBStateOffsets,
+						"K Ghost:",
+						4096,
+						32768,
+						moves.jackoGhostBExp,
+						moves.jackoGhostBCreationTimer,
+						moves.jackoGhostBHealingTimer,
+						"GhostBDummy",
+						&moves.ghostBDummyTotalFrames,
+						"ServantCoolTimeB",
+						moves.servantCooldownB
+					},
+					{
+						moves.ghostCStateOffsets,
+						"S Ghost:",
+						8192,
+						65536,
+						moves.jackoGhostCExp,
+						moves.jackoGhostCCreationTimer,
+						moves.jackoGhostCHealingTimer,
+						"GhostCDummy",
+						&moves.ghostCDummyTotalFrames,
+						"ServantCoolTimeC",
+						moves.servantCooldownC
+					}
+				};
+				static const char* ghostStateNames[] {
+					"Appear",
+					"Land",
+					"Reappear",
+					"Idle",
+					"Create",
+					"Create",
+					"Pick Up",
+					"Hold",
+					"Put",
+					"Throw",
+					"Throw",
+					"Drop",
+					"Damage"
+				};
+				DWORD playerval2 = (DWORD)player.pawn.playerVal(2);
+				for (int j = 0; j < 3; ++j) {
+					GhostInfo& info = ghosts[j];
+					textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle(info.title));
+					Entity p = player.pawn.stackEntity(j);
+					if (p && p.isActive()) {
+						yellowText("HP:");
+						ImGui::SameLine();
+						int maxHits = p.numberOfHits();
+						sprintf_s(strbuf, "%d/%d", maxHits - p.numberOfHitsTaken(), maxHits);
+						ImGui::TextUnformatted(strbuf);
+						
+						yellowText("Level:");
+						ImGui::SameLine();
+						moves.fillJackoGhostExp(p.bbscrCurrentFunc(), info.exp);
+						if (p.mem53() != 2) {
+							sprintf_s(strbuf, "%d/3 (EXP: %d/%d)",
+								1 + p.mem53(),
+								p.mem46(),
+								info.exp[p.mem53()]);
+							ImGui::TextUnformatted(strbuf);
+						} else {
+							ImGui::TextUnformatted("3/3");
+						}
+						
+						yellowText("Production Timer:");
+						ImGui::SameLine();
+						moves.fillJackoGhostCreationTimer(p.bbscrCurrentFunc(), info.creationTimer);
+						int minVal = info.creationTimer[0];
+						bool isFast = false;
+						if (p.mem60()) {
+							if (info.creationTimer[1] < minVal) minVal = info.creationTimer[1];
+							isFast = true;
+						}
+						if (p.mem56()) {
+							if (info.creationTimer[2] < minVal) minVal = info.creationTimer[2];
+							isFast = true;
+						}
+						sprintf_s(strbuf, "%d/%d%s", p.mem57(), minVal, isFast ? " (Fast Production)" : "");
+						ImGui::TextUnformatted(strbuf);
+						
+						yellowText("Servants:");
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d/2", p.mem47());
+						ImGui::TextUnformatted(strbuf);
+						
+						int maxAnimFrame = 0;
+						int maxRemainingTime = 0;
+						int maxTotalCooldown = 0;
+						for (int k = 2; k < entityList.count; ++k) {
+							Entity serv = entityList.list[k];
+							if (serv.isActive() && serv.team() == i && !serv.isPawn()
+									&& strcmp(serv.animationName(), info.servantCooldownName) == 0) {
+								moves.fillServantCooldown(serv.bbscrCurrentFunc(), info.servantCooldownTimes);
+								int totalCooldown = info.servantCooldownTimes[0]
+									+ (
+										serv.createArgHikitsukiVal1() != 1
+											? info.servantCooldownTimes[1]
+											: 0
+									);
+								int animFrame = serv.currentAnimDuration();
+								if (totalCooldown - animFrame > maxRemainingTime) {
+									maxRemainingTime = totalCooldown - animFrame;
+									maxAnimFrame = animFrame;
+									maxTotalCooldown = totalCooldown;
+								}
+							}
+						}
+						if (maxRemainingTime && maxAnimFrame <= maxTotalCooldown) {
+							bool isGray = p.mem47() < 2;
+							if (isGray) {
+								ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+								ImGui::TextUnformatted("Production Cooldown:");
+							} else {
+								yellowText("Production Cooldown:");
+							}
+							const char* tooltip = "This Production Cooldown timer only matters if the Ghost has 2 Servants.";
+							AddTooltip(tooltip);
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", maxAnimFrame, maxTotalCooldown);
+							ImGui::TextUnformatted(strbuf);
+							AddTooltip(tooltip);
+							if (isGray) {
+								ImGui::PopStyleColor();
+							}
+						}
+						
+						moves.fillJackoGhostHealingTimer(p.bbscrCurrentFunc(), info.healingTimer);
+						if (info.healingTimer[0] != -1  // if -1, then it's Rev1, which doesn't have Healing Timer
+								&& p.mem55()
+								&& player.playerval0) {
+							yellowText("Healing Timer:");
+							ImGui::SameLine();
+							int nextTimer = 0;
+							int mem48 = p.mem48();
+							for (int k = 0; k < 6; ++k) {
+								if (mem48 <= info.healingTimer[k]) {
+									nextTimer = info.healingTimer[k];
+									break;
+								}
+							}
+							if (!nextTimer) {
+								sprintf_s(strbuf, "%d/Never", mem48);
+							} else {
+								sprintf_s(strbuf, "%d/%d", mem48, nextTimer);
+							}
+							ImGui::TextUnformatted(strbuf);
+						}
+						
+						if ((playerval2 & info.maskClockUp) != 0) {
+							moves.fillJackoGhostBuffTimer(p.bbscrCurrentFunc());
+							yellowText("Clock Up Timer:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", p.mem52(), moves.jackoGhostBuffTimer);
+							ImGui::TextUnformatted(strbuf);
+						}
+						
+						if ((playerval2 & info.maskExplode) != 0) {
+							moves.fillJackoGhostExplodeTimer(p.bbscrCurrentFunc());
+							yellowText("Explode Timer:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", p.mem49(), moves.jackoGhostExplodeTimer);
+							ImGui::TextUnformatted(strbuf);
+						}
+						
+						yellowText("Anim:");
+						ImGui::SameLine();
+						BYTE* func = p.bbscrCurrentFunc();
+						moves.fillGhostStateOffsets(func, info.offsets);
+						int stateInd = moves.findGhostState(p.bbscrCurrentInstr() - func, info.offsets);
+						if (stateInd >= 0 && stateInd < _countof(ghostStateNames)) {
+							ImGui::TextUnformatted(ghostStateNames[stateInd]);
+						} else {
+							ImGui::TextUnformatted("???");
+						}
+						
+					} else {
+						int duration = 0;
+						for (int k = 2; k < entityList.count; ++k) {
+							p = entityList.list[k];
+							if (p.isActive() && p.team() == i && !p.isPawn()
+									&& strcmp(p.animationName(), info.dummyName) == 0) {
+								if (*info.dummyTotalFrames == 0) {
+									BYTE* func = p.bbscrCurrentFunc();
+									BYTE* instr;
+									for (
+											instr = moves.skipInstruction(func);
+											moves.instructionType(instr) != Moves::instr_endState;
+											instr = moves.skipInstruction(instr)
+									) {
+										if (moves.instructionType(instr) == Moves::instr_sprite) {
+											(*info.dummyTotalFrames) += *(int*)(instr + 4 + 32);
+										}
+									}
+								}
+								duration = p.currentAnimDuration();
+								break;
+							}
+						}
+						if (duration) {
+							yellowText("Set a Ghost Cooldown:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", duration - 1, *info.dummyTotalFrames - 1);
+							ImGui::TextUnformatted(strbuf);
+						} else {
+							ImGui::TextUnformatted("Not set");
+						}
+					}
+					
+				}
+				
+				struct ServantInfo {
+					const char* servantTitle[2];
+					DWORD mask;
+					std::vector<int>& offsets;
+					const char** stateNames;
+					int stateNamesCount;
+					Moves::MayIrukasanRidingObjectInfo* servantAtk;
+				};
+				static const char* servantStateNames[] {
+					"Spawn",
+					"Move",
+					"Move",
+					"Turn",
+					"Attack",
+					"Attack",
+					"Attack",
+					"Damage",
+					"Death",
+					"Death",
+					"Wave Goodbye",
+					"Waiting",
+					"Lose",
+					"Win"
+				};
+				static const char* servantStateNamesSpearman[] {
+					"Spawn",
+					"Move",
+					"Move",
+					"Turn",
+					"Attack",
+					"Attack",
+					"Attack",
+					"Damage",
+					"Damage",
+					"Damage",
+					"Death",
+					"Death",
+					"Wave Goodbye",
+					"Waiting",
+					"Lose",
+					"Win"
+				};
+				ServantInfo servants[3] {
+					{
+						{ "Knight #1:", "Knight #2:" },
+						0x800000,
+						moves.servantAStateOffsets,
+						servantStateNames,
+						_countof(servantStateNames),
+						moves.servantAAtk
+					},
+					{
+						{ "Spearman #1:", "Spearman #2:" },
+						0x1000000,
+						moves.servantBStateOffsets,
+						servantStateNamesSpearman,
+						_countof(servantStateNamesSpearman),
+						moves.servantBAtk
+					},
+					{
+						{ "Magician #1:", "Magician #2:" },
+						0x2000000,
+						moves.servantCStateOffsets,
+						servantStateNames,
+						_countof(servantStateNames),
+						moves.servantCAtk
+					}
+				};
+				for (int j = 0; j < 3; ++j) {
+					ServantInfo& servant = servants[j];
+					for (int k = 1; k <= 2; ++k) {
+						ProjectileInfo* projectile = nullptr;
+						for (ProjectileInfo& iter : endScene.projectiles) {
+							if (iter.ptr && iter.team == i && (*(DWORD*)(iter.ptr + 0x120) & servant.mask) != 0
+									&& iter.ptr.mem47() == k) {
+								projectile = &iter;
+								break;
+							}
+						}
+						if (!projectile) continue;
+						
+						textUnformattedColored(LIGHT_BLUE_COLOR, servant.servantTitle[k - 1]);
+						
+						yellowText("HP:");
+						ImGui::SameLine();
+						int maxHits = projectile->ptr.numberOfHits();
+						sprintf_s(strbuf, "%d/%d", maxHits - projectile->ptr.numberOfHitsTaken(), maxHits);
+						ImGui::TextUnformatted(strbuf);
+						
+						yellowText("Level:");
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d", projectile->ptr.createArgHikitsukiVal1() + 1);
+						ImGui::TextUnformatted(strbuf);
+						
+						BYTE* func = projectile->ptr.bbscrCurrentFunc();
+						moves.fillServantTimeoutTimer(func);
+						yellowText("Timeout Timer:");
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d/%d", projectile->ptr.framesSinceRegisteringForTheIdlingSignal(), moves.servantTimeoutTimer);
+						ImGui::TextUnformatted(strbuf);
+						
+						if (projectile->ptr.mem48()) {
+							moves.fillServantClockUpTimer(func);
+							yellowText("Clock Up Timer:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", projectile->ptr.mem49(), moves.servantClockUpTimer);
+							ImGui::TextUnformatted(strbuf);
+						}
+						
+						if (projectile->ptr.mem53()) {
+							moves.fillServantExplosionTimer(func);
+							yellowText("Explosion Timer:");
+							ImGui::SameLine();
+							sprintf_s(strbuf, "%d/%d", projectile->ptr.mem54(), moves.servantExplosionTimer);
+							ImGui::TextUnformatted(strbuf);
+						}
+						
+						moves.fillGhostStateOffsets(func, servant.offsets);
+						int state = moves.findGhostState(projectile->ptr.bbscrCurrentInstr() - func, servant.offsets);
+						if (state >= 0 && state < servant.stateNamesCount) {
+							yellowText("Anim:");
+							ImGui::SameLine();
+							ImGui::TextUnformatted(servant.stateNames[state]);
+							if (state >= 4 && state <= 6) {
+								moves.fillServantAtk(func, servant.servantAtk);
+								const Moves::MayIrukasanRidingObjectInfo& frames = servant.servantAtk[2 * (state - 4)];
+								const Moves::MayIrukasanRidingObjectInfo& framesExtra = servant.servantAtk[2 * (state - 4) + 1];
+								int time;
+								int totalTime;
+								int offset = projectile->ptr.bbscrCurrentInstr() - func;
+								if (offset >= framesExtra.frames.front().offset) {
+									time = framesExtra.remainingTime(offset, projectile->ptr.spriteFrameCounter());
+									totalTime = frames.totalFrames + framesExtra.totalFrames;
+								} else if (!projectile->ptr.mem48()) {
+									time = frames.remainingTime(offset, projectile->ptr.spriteFrameCounter()) + framesExtra.totalFrames;
+									totalTime = frames.totalFrames + framesExtra.totalFrames;
+								} else {
+									time = frames.remainingTime(offset, projectile->ptr.spriteFrameCounter());
+									totalTime = frames.totalFrames;
+								}
+								ImGui::SameLine();
+								sprintf_s(strbuf, "(%d/%d)", totalTime - time, totalTime);
+								ImGui::TextUnformatted(strbuf);
+							}
+						}
+						
+					}
 				}
 				
 			} else {
@@ -7872,6 +8292,34 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("If the opponent's center of body (marked with an extra small point)"
 		" is within the circle, Bacchus Sigh will connect on the next frame.");
 	
+	yellowText("Jack-O' Ghost Pickup Range:");
+	static std::string jackoGhostPickup;
+	if (jackoGhostPickup.empty()) {
+		jackoGhostPickup = settings.convertToUiDescription("The displayed vertical box around each Ghost"
+			" (house) shows the range in which Jack-O's origin point must be in order to pick up the"
+			" Ghost or gain Tension from it.\n"
+			"This is only displayed when the \"showJackoGhostPickupRange\" setting is on.");
+	}
+	ImGui::TextUnformatted(jackoGhostPickup.c_str());
+	
+	yellowText("Jack-O' Aegis Field Range:");
+	static std::string jackoAegisField;
+	if (jackoAegisField.empty()) {
+		jackoAegisField = settings.convertToUiDescription("The white circle shows the range where the Ghosts'"
+			" or Servants' origin points must be in order for them to receive protection of the Field.\n"
+			"This is only displayed when the \"showJackoAegisFieldRange\" setting is on.");
+	}
+	ImGui::TextUnformatted(jackoAegisField.c_str());
+	
+	yellowText("Jack-O' Servant Attack Range:");
+	static std::string jackoServantAttack;
+	if (jackoServantAttack.empty()) {
+		jackoServantAttack = settings.convertToUiDescription("The white box around each Servant shows the area where"
+			" the opponent's player's origin point must be in order for the Servant to initiate an attack.\n"
+			"This is only displayed when the \"showJackoServantAttackRange\" setting is on.");
+	}
+	ImGui::TextUnformatted(jackoServantAttack.c_str());
+	
 	ImGui::Separator();
 	
 	yellowText("Outlines lie within their boxes/on the edge");
@@ -9287,6 +9735,10 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 								correspondingPlayersFrame.u.johnnyInfo.mistTimerMax);
 							ImGui::TextUnformatted(strbuf);
 							
+						} else if (frame.type == FT_IDLE_NO_DISPOSE
+										&& owningPlayerCharType == CHARACTER_TYPE_JACKO
+										&& strcmp(projectileFrame.animName, "Ghost"_hardcode) == 0) {
+							ImGui::TextUnformatted("The Ghost is strike invulnerable.");
 						}
 					}
 					if (playerIndex != -1) {
@@ -9462,7 +9914,7 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* prep
 		FrameType currentType = frame.type;
 		if (considerSimilarFrameTypesSameForFrameCounts) {
 			currentType = considerSimilarIdleFramesSameForFrameCounts ? frameMap(currentType) : frameMapNoIdle(currentType);
-		} else if (currentType == FT_IDLE_ACTIVE_IN_SUPERFREEZE) {
+		} else if (currentType == FT_IDLE_NO_DISPOSE) {
 			currentType = FT_IDLE_PROJECTILE;
 		}
 		
@@ -11383,18 +11835,26 @@ void UI::drawFramebars() {
 								tint);
 						}
 						
+						if (
+								(
+									isPlayer
+										? playerFrame.strikeInvulInGeneral
+										: projectileFrame.type == FT_IDLE_NO_DISPOSE
+											&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_JACKO
+											&& strcmp(projectileFrame.animName, "Ghost"_hardcode) == 0
+								) && showStrikeInvulOnFramebar
+						) {
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								markerStart,
+								markerEnd,
+								strikeInvulMarker.uvStart,
+								strikeInvulMarker.uvEnd,
+								tint);
+							
+							markerStart.y += frameMarkerSideHeight;
+							markerEnd.y += frameMarkerSideHeight;
+						}
 						if (isPlayer) {
-							if (playerFrame.strikeInvulInGeneral && showStrikeInvulOnFramebar) {
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-									markerStart,
-									markerEnd,
-									strikeInvulMarker.uvStart,
-									strikeInvulMarker.uvEnd,
-									tint);
-								
-								markerStart.y += frameMarkerSideHeight;
-								markerEnd.y += frameMarkerSideHeight;
-							}
 							if (playerFrame.superArmorActiveInGeneral && showSuperArmorOnFramebar) {
 								const FrameMarkerArt& markerArt = frameMarkerArtArray[
 										playerFrame.superArmorActiveInGeneral_IsFull

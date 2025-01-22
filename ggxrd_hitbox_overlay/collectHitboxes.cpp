@@ -40,7 +40,11 @@ void collectHitboxes(Entity ent,
 	}
 	const char* animName = ent.animationName();
 	if (ownerType == CHARACTER_TYPE_JACKO
-			&& !ent.displayModel()
+			&& (
+				!ent.displayModel()
+				|| strncmp(animName, "Ghost", 5) == 0  // "GhostADummy"_hardcode, "GhostBDummy"_hardcode, "GhostCDummy"_hardcode
+				&& strncmp(animName + 6, "Dummy", 6) == 0  // "GhostADummy"_hardcode, "GhostBDummy"_hardcode, "GhostCDummy"_hardcode
+			)
 			|| ent.y() < -3000000  // needed for May [2]8S/H
 			|| ent.isHidden()  // needed for super animations
 			|| ownerType == CHARACTER_TYPE_LEO
@@ -77,19 +81,28 @@ void collectHitboxes(Entity ent,
 
 	bool isNotZeroScaled = *(int*)(ent + 0x2594) != 0 || scaleX != INT_MAX;
 
-	if (pushboxes && !state.isASummon && isNotZeroScaled) {
+	if (pushboxes && (
+			!state.isASummon
+			|| ownerType == CHARACTER_TYPE_JACKO
+			&& settings.showJackoSummonsPushboxes
+			&& (ent.servant() || ent.ghost())
+	) && isNotZeroScaled) {
 		logOnce(fputs("Need pushbox\n", logfile));
 		// Draw pushbox and throw box
 		/*if (is_push_active(asw_data))
 		{*/
-		const auto pushboxTop = ent.pushboxTop();
-		const auto pushboxBottom = ent.pushboxBottom();
-
+		int pushboxTop = ent.pushboxTop();
+		int pushboxBottom = ent.pushboxBottom();
+		
+		if (state.isASummon && pushboxTop == 100 && pushboxBottom == 0) {
+			pushboxTop = 20000;
+		}
+		
 		DrawBoxCallParams pushboxParams;
 		ent.pushboxLeftRight(&pushboxParams.left, &pushboxParams.right);
 		pushboxParams.top = params.posY + pushboxTop;
 		pushboxParams.bottom = params.posY - pushboxBottom;
-		pushboxParams.fillColor = replaceAlpha(state.throwInvuln ? 0 : 64, COLOR_PUSHBOX);
+		pushboxParams.fillColor = replaceAlpha(state.throwInvuln ? 0 : state.isASummon ? 16 : 64, COLOR_PUSHBOX);
 		pushboxParams.outlineColor = replaceAlpha(255, COLOR_PUSHBOX);
 		pushboxParams.thickness = THICKNESS_PUSHBOX;
 		pushboxParams.hatched = false;
@@ -216,6 +229,13 @@ void collectHitboxes(Entity ent,
 				!state.isASummon
 				|| moves.getInfo(move, ownerType, nullptr, ent.animationName(), true)
 				&& move.drawProjectileOriginPoint
+				|| ownerType == CHARACTER_TYPE_JACKO
+				&& ent.servant()
+				&& (
+					settings.showJackoAegisFieldRange
+					&& owner.invulnForAegisField()
+					|| settings.showJackoServantAttackRange
+				)
 			)
 	) {
 		int* mayBallJumpConnectPtr = nullptr;
@@ -509,62 +529,200 @@ void collectHitboxes(Entity ent,
 				interactionBoxParams.thickness = THICKNESS_INTERACTION;
 				interactionBoxes->push_back(interactionBoxParams);
 			}
+		} else if (ownerType == CHARACTER_TYPE_JACKO) {
+			if (ent.ghost() && ent.y() == 0 && ent.displayModel() && settings.showJackoGhostPickupRange) {
+				if (moves.ghostPickupRange == 0) {
+					BYTE* func = owner.findSubroutineStart("OnFrameStep");
+					if (func) {
+						BYTE* instr;
+						for (
+								instr = moves.skipInstruction(func);
+								moves.instructionType(instr) != Moves::instr_endState;
+								instr = moves.skipInstruction(instr)
+						) {
+							if (moves.instructionType(instr) == Moves::instr_ifOperation
+									&& *(int*)(instr + 4) == 11  // IS_LESSER
+									&& *(int*)(instr + 8) == 2  // tag:variable
+									&& *(int*)(instr + 0xc) == 53  // Mem(53)
+									&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+								moves.ghostPickupRange = *(int*)(instr + 0x14);
+								break;
+							}
+						}
+					}
+				}
+				DrawBoxCallParams interactionBoxParams;
+				interactionBoxParams.left = params.posX - moves.ghostPickupRange;
+				interactionBoxParams.right = params.posX + moves.ghostPickupRange;
+				interactionBoxParams.top = params.posY + 10000000;
+				interactionBoxParams.bottom = params.posY - 1000000;
+				interactionBoxParams.fillColor = replaceAlpha(16, COLOR_INTERACTION);
+				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+				interactionBoxParams.thickness = THICKNESS_INTERACTION;
+				interactionBoxes->push_back(interactionBoxParams);
+			} else if (ent.servant() && ent.displayModel() && settings.showJackoServantAttackRange) {
+				int mem45 = ent.mem45();
+				if (mem45 != 0  // spawn
+						&& mem45 != 4) {  // death of various kinds
+					int* aggroX = nullptr;
+					int* aggroY = nullptr;
+					if (ent.servantA()) {
+						aggroX = &moves.jackoServantAAggroX;
+						aggroY = &moves.jackoServantAAggroY;
+					} else if (ent.servantB()) {
+						aggroX = &moves.jackoServantBAggroX;
+						aggroY = &moves.jackoServantBAggroY;
+					} else if (ent.servantC()) {
+						aggroX = &moves.jackoServantCAggroX;
+						aggroY = &moves.jackoServantCAggroY;
+					}
+					
+					if (*aggroX == 0) {
+						BYTE* func = ent.bbscrCurrentFunc();
+						BYTE* instr;
+						for (
+								instr = moves.skipInstruction(func);
+								moves.instructionType(instr) != Moves::instr_endState;
+								instr = moves.skipInstruction(instr)
+						) {
+							if (moves.instructionType(instr) == Moves::instr_ifOperation
+									&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
+									&& *(int*)(instr + 8) == 2  // tag:variable
+									&& *(int*)(instr + 0xc) == 104  // OPPONENT_X_OFFSET_TOWARDS_FACING
+									&& *(int*)(instr + 0x10) == 0  // tag:literal
+									&& *(int*)(instr + 0x14) == 0  // 0
+									&& moves.instructionType(instr + 0x18) == Moves::instr_ifOperation
+									&& *(int*)(instr + 0x1c) == 13  // IS_LESSER_OR_EQUAL
+									&& *(int*)(instr + 0x20) == 2  // tag:variable
+									&& *(int*)(instr + 0x24) == 104  // OPPONENT_X_OFFSET_TOWARDS_FACING
+									&& *(int*)(instr + 0x28) == 0  // tag:literal
+									// skip the value of the literal - we'll read it later
+									&& moves.instructionType(instr + 0x30) == Moves::instr_ifOperation
+									&& *(int*)(instr + 0x34) == 13  // IS_LESSER_OR_EQUAL
+									&& *(int*)(instr + 0x38) == 2  // tag:variable
+									&& *(int*)(instr + 0x3c) == 15  // OPPONENT_Y_DISTANCE
+									&& *(int*)(instr + 0x40) == 0) {  // tag:literal
+								*aggroX = *(int*)(instr + 0x2c);
+								*aggroY = *(int*)(instr + 0x44);
+								break;
+							}
+						}
+					}
+					
+					DrawBoxCallParams interactionBoxParams;
+					interactionBoxParams.left = params.posX - *aggroX;
+					interactionBoxParams.right = params.posX + *aggroX;
+					interactionBoxParams.top = params.posY + *aggroY;
+					interactionBoxParams.bottom = params.posY - *aggroY;
+					interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+					interactionBoxParams.thickness = THICKNESS_INTERACTION;
+					interactionBoxes->push_back(interactionBoxParams);
+				}
+			}
 		}
 	}
 	if (circles) {
-		bool needShow = false;
-		bool needFill = false;
-		if (state.charType == CHARACTER_TYPE_FAUST
-				&& settings.showFaustOwnFlickRanges
-				&& strcmp(ent.animationName(), "NmlAtk5E") == 0) {
-			if (strcmp(ent.spriteName(), "fau205_05") == 0) {
-				needShow = true;
-			} else if (strcmp(ent.spriteName(), "fau205_06") == 0) {
-				needShow = true;
-				needFill = ent.spriteFrameCounter() == 0 && !ent.isRCFrozen();
-				if (moves.faust5DExPointX == -1) {
-					HitboxType hitboxType = HITBOXTYPE_EX_POINT;
-					int count = ent.hitboxCount(HITBOXTYPE_EX_POINT);
-					if (count == 0) {
-						hitboxType = HITBOXTYPE_EX_POINT_EXTENDED;
-						count = ent.hitboxCount(HITBOXTYPE_EX_POINT_EXTENDED);
+		if (state.charType == CHARACTER_TYPE_FAUST) {
+			bool needShow = false;
+			bool needFill = false;
+			if (settings.showFaustOwnFlickRanges && strcmp(ent.animationName(), "NmlAtk5E") == 0) {
+				if (strcmp(ent.spriteName(), "fau205_05") == 0) {
+					needShow = true;
+				} else if (strcmp(ent.spriteName(), "fau205_06") == 0) {
+					needShow = true;
+					needFill = ent.spriteFrameCounter() == 0 && !ent.isRCFrozen();
+					if (moves.faust5DExPointX == -1) {
+						HitboxType hitboxType = HITBOXTYPE_EX_POINT;
+						int count = ent.hitboxCount(HITBOXTYPE_EX_POINT);
+						if (count == 0) {
+							hitboxType = HITBOXTYPE_EX_POINT_EXTENDED;
+							count = ent.hitboxCount(HITBOXTYPE_EX_POINT_EXTENDED);
+						}
+						if (count) {
+							DrawHitboxArrayCallParams dummyParams;
+							dummyParams.hitboxData = ent.hitboxData(hitboxType);
+							dummyParams.hitboxCount = 1;
+							dummyParams.params = params;
+							
+							RECT boxBounds = dummyParams.getWorldBounds(0);
+							moves.faust5DExPointX = (boxBounds.left - params.posX) * (int)params.flip;
+							moves.faust5DExPointY = boxBounds.top - params.posY;
+						}
 					}
-					if (count) {
-						DrawHitboxArrayCallParams dummyParams;
-						dummyParams.hitboxData = ent.hitboxData(hitboxType);
-						dummyParams.hitboxCount = 1;
-						dummyParams.params = params;
-						
-						RECT boxBounds = dummyParams.getWorldBounds(0);
-						moves.faust5DExPointX = (boxBounds.left - params.posX) * (int)params.flip;
-						moves.faust5DExPointY = boxBounds.top - params.posY;
+				} else if (strcmp(ent.spriteName(), "fau205_07") == 0
+						|| strcmp(ent.spriteName(), "fau205_08") == 0 && ent.spriteFrameCounter() < 6) {
+					needShow = true;
+				}
+			}
+			if (needShow && moves.faust5DExPointX != -1) {
+				
+				DrawCircleCallParams circleCallParams;
+				circleCallParams.posX = params.posX + moves.faust5DExPointX * (int)params.flip;
+				circleCallParams.posY = params.posY + moves.faust5DExPointY;
+				circleCallParams.radius = 100000;
+				if (needFill) {
+					circleCallParams.fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
+				}
+				circles->push_back(circleCallParams);
+				
+				circleCallParams.radius = 300000;
+				circles->push_back(circleCallParams);
+				
+				if (points) {
+					DrawPointCallParams pointCallParams;
+					pointCallParams.isProjectile = true;
+					pointCallParams.posX = circleCallParams.posX;
+					pointCallParams.posY = circleCallParams.posY;
+					points->push_back(pointCallParams);
+				}
+			}
+		} else if (ownerType == CHARACTER_TYPE_JACKO
+				&& strcmp(ent.animationName(), "Aigisfield") == 0
+				&& settings.showJackoAegisFieldRange) {
+			if (moves.jackoAegisFieldRange == 0) {
+				BYTE* func = ent.findStateStart("ServantA");
+				if (func) {
+					BYTE* instr;
+					for (
+							instr = moves.skipInstruction(func);
+							moves.instructionType(instr) != Moves::instr_endState;
+							instr = moves.skipInstruction(instr)
+					) {
+						if (moves.instructionType(instr) == Moves::instr_calcDistance
+								&& *(int*)(instr + 4) == 3  // PLAYER
+								&& *(int*)(instr + 8) == 103  // CENTER
+								&& *(int*)(instr + 0xc) == 23  // SELF
+								&& *(int*)(instr + 0x10) == 103  // CENTER
+								&& moves.instructionType(instr + 0x14) == Moves::instr_ifOperation
+								&& *(int*)(instr + 0x18) == 11  // IS_LESSER
+								&& *(int*)(instr + 0x1c) == 2  // tag:variable
+								&& *(int*)(instr + 0x20) == 0  // Mem(ACCUMULATOR)
+								&& *(int*)(instr + 0x24) == 0) {  // tag:literal
+							moves.jackoAegisFieldRange = *(int*)(instr + 0x28);
+							break;
+						}
 					}
 				}
-			} else if (strcmp(ent.spriteName(), "fau205_07") == 0
-					|| strcmp(ent.spriteName(), "fau205_08") == 0 && ent.spriteFrameCounter() < 6) {
-				needShow = true;
 			}
-		}
-		if (needShow && moves.faust5DExPointX != -1) {
-			
-			DrawCircleCallParams circleCallParams;
-			circleCallParams.posX = params.posX + moves.faust5DExPointX * (int)params.flip;
-			circleCallParams.posY = params.posY + moves.faust5DExPointY;
-			circleCallParams.radius = 100000;
-			if (needFill) {
-				circleCallParams.fillColor = D3DCOLOR_ARGB(64, 255, 255, 255);
-			}
-			circles->push_back(circleCallParams);
-			
-			circleCallParams.radius = 300000;
-			circles->push_back(circleCallParams);
-			
-			if (points) {
-				DrawPointCallParams pointCallParams;
-				pointCallParams.isProjectile = true;
-				pointCallParams.posX = circleCallParams.posX;
-				pointCallParams.posY = circleCallParams.posY;
-				points->push_back(pointCallParams);
+			if (moves.jackoAegisFieldRange) {
+				int centerX = owner.posX();
+				int centerY = owner.posY() + owner.getCenterOffsetY();
+				if (points) {
+					DrawPointCallParams pointCallParams;
+					pointCallParams.isProjectile = true;
+					pointCallParams.posX = centerX;
+					pointCallParams.posY = centerY;
+					points->push_back(pointCallParams);
+				}
+				
+				
+				DrawCircleCallParams circleCallParams;
+				circleCallParams.posX = centerX;
+				circleCallParams.posY = centerY;
+				circleCallParams.radius = moves.jackoAegisFieldRange;
+				circleCallParams.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+				circles->push_back(circleCallParams);
+				
 			}
 		}
 	}

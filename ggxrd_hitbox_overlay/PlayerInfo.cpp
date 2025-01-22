@@ -1462,7 +1462,7 @@ static inline int determineFrameLevel(FrameType type) {
 	if (type == FT_BACCHUS_SIGH) {
 		return 2;
 	}
-	if (type == FT_IDLE_PROJECTILE || type == FT_IDLE_ACTIVE_IN_SUPERFREEZE) {
+	if (type == FT_IDLE_PROJECTILE || type == FT_IDLE_NO_DISPOSE) {
 		return 1;
 	}
 	return 0;

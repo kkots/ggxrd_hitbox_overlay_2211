@@ -107,6 +107,10 @@ public:
 	std::atomic_bool showFaustOwnFlickRanges = true;
 	std::atomic_bool ignoreScreenshotPathAndSaveToClipboard = false;
 	std::atomic_bool showBedmanTaskCHeightBuffY = false;
+	std::atomic_bool showJackoGhostPickupRange = false;
+	std::atomic_bool showJackoSummonsPushboxes = false;
+	std::atomic_bool showJackoAegisFieldRange = false;
+	std::atomic_bool showJackoServantAttackRange = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

@@ -479,6 +479,22 @@ bool Settings::onDllMain() {
 			"; When this setting is on, a horizontal line is constantly shown on the screen at the height above which\n"
 			"; Bedman's Task C gains a buff.\n"
 			"; This line is so high you can't see it unless you jump.");
+	registerOtherDescription(settingAndItsName(showJackoGhostPickupRange), "Show Jack-O' Ghost Pickup Range", "UI - Character specific",
+			"; Specify true or false.\n"
+			"; When this setting is on, an infinite vertical box around each Ghost (house) denotes the range in which\n"
+			"; Jack-O's origin point must be in order to pick up the Ghost or gain Tension from it.");
+	registerOtherDescription(settingAndItsName(showJackoSummonsPushboxes), "Show Jack-O' Summons' Pushboxes", "UI - Character specific",
+			"; Specify true or false.\n"
+			"; When this setting is on, yellow pushboxes are drawn around the Servants and the Ghosts, similar to how they're drawn\n"
+			"; around the players.");
+	registerOtherDescription(settingAndItsName(showJackoAegisFieldRange), "Show Jack-O' Aegis Field Range", "UI - Character specific",
+			"; Specify true or false.\n"
+			"; When this setting is on, the white circle around Jack-O' shows the range where the Servants' and the Ghosts'\n"
+			"; origin point must be in order to receive protection from Aegis Field.");
+	registerOtherDescription(settingAndItsName(showJackoServantAttackRange), "Show Jack-O' Servant Attack Range", "UI - Character specific",
+			"; Specify true or false.\n"
+			"; When this setting is on, the white box around each Servant shows the area where the opponent's player's\n"
+			"; origin point must be in order for the Servant to initiate an attack.");
 	registerOtherDescription(settingAndItsName(ignoreScreenshotPathAndSaveToClipboard), "Ignore Screenshot Path And Save To Clipboard", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.");
@@ -770,6 +786,14 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool showBedmanTaskCHeightBuffYParsed = false;
 	
+	bool showJackoGhostPickupRangeParsed = false;
+	
+	bool showJackoSummonsPushboxesParsed = false;
+	
+	bool showJackoAegisFieldRangeParsed = false;
+	
+	bool showJackoServantAttackRangeParsed = false;
+	
 	bool ignoreScreenshotPathAndSaveToClipboardParsed = false;
 	
 	bool forceZeroPitchDuringCameraCenteringParsed = false;
@@ -819,6 +843,13 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 				if (foundOffsetIt != settingNameToOffset.end()) {
 					foundOffset = foundOffsetIt->second;
 					switch (foundOffset) {
+						#define booleanPreset(name) \
+							case offsetof(Settings, name): \
+								if (!name##Parsed) { \
+									name##Parsed = parseBoolean(#name, keyValue, name); \
+								} \
+								break;
+							
 						case offsetof(Settings, slowmoTimes):
 							if (!slowmoTimesParsed) {
 								slowmoTimesParsed = parseInteger("slowmoTimes", keyValue, slowmoTimes);
@@ -854,176 +885,40 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								cameraCenterOffsetZParsed = parseFloat("cameraCenterOffsetZ", keyValue, cameraCenterOffsetZ);
 							}
 							break;
-						case offsetof(Settings, displayUIOnTopOfPauseMenu):
-							if (!displayUIOnTopOfPauseMenuParsed) {
-								displayUIOnTopOfPauseMenuParsed = parseBoolean("displayUIOnTopOfPauseMenu", keyValue, displayUIOnTopOfPauseMenu);
-							}
-							break;
-						case offsetof(Settings, dodgeObsRecording):
-							if (!dodgeObsRecordingParsed) {
-								dodgeObsRecordingParsed = parseBoolean("dodgeObsRecording", keyValue, dodgeObsRecording);
-							}
-							break;
-						case offsetof(Settings, neverIgnoreHitstop):
-							if (!neverIgnoreHitstopParsed) {
-								neverIgnoreHitstopParsed = parseBoolean("neverIgnoreHitstop", keyValue, neverIgnoreHitstop);
-							}
-							break;
-						case offsetof(Settings, ignoreHitstopForBlockingBaiken):
-							if (!ignoreHitstopForBlockingBaikenParsed) {
-								ignoreHitstopForBlockingBaikenParsed = parseBoolean("ignoreHitstopForBlockingBaiken", keyValue, ignoreHitstopForBlockingBaiken);
-							}
-							break;
-						case offsetof(Settings, considerRunAndWalkNonIdle):
-							if (!considerRunAndWalkNonIdleParsed) {
-								considerRunAndWalkNonIdleParsed = parseBoolean("considerRunAndWalkNonIdle", keyValue, considerRunAndWalkNonIdle);
-							}
-							break;
-						case offsetof(Settings, considerCrouchNonIdle):
-							if (!considerCrouchNonIdleParsed) {
-								considerCrouchNonIdleParsed = parseBoolean("considerCrouchNonIdle", keyValue, considerCrouchNonIdle);
-							}
-							break;
-						case offsetof(Settings, considerDummyPlaybackNonIdle):
-							if (!considerDummyPlaybackNonIdleParsed) {
-								considerDummyPlaybackNonIdleParsed = parseBoolean("considerDummyPlaybackNonIdle", keyValue, considerDummyPlaybackNonIdle);
-							}
-							break;
-						case offsetof(Settings, considerKnockdownWakeupAndAirtechIdle):
-							if (!considerKnockdownWakeupAndAirtechIdleParsed) {
-								considerKnockdownWakeupAndAirtechIdleParsed = parseBoolean("considerKnockdownWakeupAndAirtechIdle", keyValue, considerKnockdownWakeupAndAirtechIdle);
-							}
-							break;
-						case offsetof(Settings, considerIdleInvulIdle):
-							if (!considerIdleInvulIdleParsed) {
-								considerIdleInvulIdleParsed = parseBoolean("considerIdleInvulIdle", keyValue, considerIdleInvulIdle);
-							}
-							break;
-						case offsetof(Settings, useSimplePixelBlender):
-							if (!useSimplePixelBlenderParsed) {
-								useSimplePixelBlenderParsed = parseBoolean("useSimplePixelBlender", keyValue, useSimplePixelBlender);
-							}
-							break;
-						case offsetof(Settings, dontShowBoxes):
-							if (!dontShowBoxesParsed) {
-								dontShowBoxesParsed = parseBoolean("dontShowBoxes", keyValue, dontShowBoxes);
-							}
-							break;
-						case offsetof(Settings, neverDisplayGrayHurtboxes):
-							if (!neverDisplayGrayHurtboxesParsed) {
-								neverDisplayGrayHurtboxesParsed = parseBoolean("neverDisplayGrayHurtboxes", keyValue, neverDisplayGrayHurtboxes);
-							}
-							break;
-						case offsetof(Settings, showFramebar):
-							if (!showFramebarParsed) {
-								showFramebarParsed = parseBoolean("showFramebar", keyValue, showFramebar);
-							}
-							break;
-						case offsetof(Settings, showFramebarInTrainingMode):
-							if (!showFramebarInTrainingModeParsed) {
-								showFramebarInTrainingModeParsed = parseBoolean("showFramebarInTrainingMode", keyValue, showFramebarInTrainingMode);
-							}
-							break;
-						case offsetof(Settings, showFramebarInReplayMode):
-							if (!showFramebarInReplayModeParsed) {
-								showFramebarInReplayModeParsed = parseBoolean("showFramebarInReplayMode", keyValue, showFramebarInReplayMode);
-							}
-							break;
-						case offsetof(Settings, showFramebarInOtherModes):
-							if (!showFramebarInOtherModesParsed) {
-								showFramebarInOtherModesParsed = parseBoolean("showFramebarInOtherModes", keyValue, showFramebarInOtherModes);
-							}
-							break;
-						case offsetof(Settings, showStrikeInvulOnFramebar):
-							if (!showStrikeInvulOnFramebarParsed) {
-								showStrikeInvulOnFramebarParsed = parseBoolean("showStrikeInvulOnFramebar", keyValue, showStrikeInvulOnFramebar);
-							}
-							break;
-						case offsetof(Settings, showSuperArmorOnFramebar):
-							if (!showSuperArmorOnFramebarParsed) {
-								showSuperArmorOnFramebarParsed = parseBoolean("showSuperArmorOnFramebar", keyValue, showSuperArmorOnFramebar);
-							}
-							break;
-						case offsetof(Settings, showThrowInvulOnFramebar):
-							if (!showThrowInvulOnFramebarParsed) {
-								showThrowInvulOnFramebarParsed = parseBoolean("showThrowInvulOnFramebar", keyValue, showThrowInvulOnFramebar);
-							}
-							break;
-						case offsetof(Settings, showOTGOnFramebar):
-							if (!showOTGOnFramebarParsed) {
-								showOTGOnFramebarParsed = parseBoolean("showOTGOnFramebar", keyValue, showOTGOnFramebar);
-							}
-							break;
-						case offsetof(Settings, showFirstFramesOnFramebar):
-							if (!showFirstFramesOnFramebarParsed) {
-								showFirstFramesOnFramebarParsed = parseBoolean("showFirstFramesOnFramebar", keyValue, showFirstFramesOnFramebar);
-							}
-							break;
-						case offsetof(Settings, considerSimilarFrameTypesSameForFrameCounts):
-							if (!considerSimilarFrameTypesSameForFrameCountsParsed) {
-								considerSimilarFrameTypesSameForFrameCountsParsed = parseBoolean("considerSimilarFrameTypesSameForFrameCounts", keyValue, considerSimilarFrameTypesSameForFrameCounts);
-							}
-							break;
-						case offsetof(Settings, considerSimilarIdleFramesSameForFrameCounts):
-							if (!considerSimilarIdleFramesSameForFrameCountsParsed) {
-								considerSimilarIdleFramesSameForFrameCountsParsed = parseBoolean("considerSimilarIdleFramesSameForFrameCounts", keyValue, considerSimilarIdleFramesSameForFrameCounts);
-							}
-							break;
-						case offsetof(Settings, combineProjectileFramebarsWhenPossible):
-							if (!combineProjectileFramebarsWhenPossibleParsed) {
-								combineProjectileFramebarsWhenPossibleParsed = parseBoolean("combineProjectileFramebarsWhenPossible", keyValue, combineProjectileFramebarsWhenPossible);
-							}
-							break;
-						case offsetof(Settings, eachProjectileOnSeparateFramebar):
-							if (!eachProjectileOnSeparateFramebarParsed) {
-								eachProjectileOnSeparateFramebarParsed = parseBoolean("eachProjectileOnSeparateFramebar", keyValue, eachProjectileOnSeparateFramebar);
-							}
-							break;
-						case offsetof(Settings, dontClearFramebarOnStageReset):
-							if (!dontClearFramebarOnStageResetParsed) {
-								dontClearFramebarOnStageResetParsed = parseBoolean("dontClearFramebarOnStageReset", keyValue, dontClearFramebarOnStageReset);
-							}
-							break;
-						case offsetof(Settings, dontTruncateFramebarTitles):
-							if (!dontTruncateFramebarTitlesParsed) {
-								dontTruncateFramebarTitlesParsed = parseBoolean("dontTruncateFramebarTitles", keyValue, dontTruncateFramebarTitles);
-							}
-							break;
-						case offsetof(Settings, useSlangNames):
-							if (!useSlangNamesParsed) {
-								useSlangNamesParsed = parseBoolean("useSlangNames", keyValue, useSlangNames);
-							}
-							break;
-						case offsetof(Settings, allFramebarTitlesDisplayToTheLeft):
-							if (!allFramebarTitlesDisplayToTheLeftParsed) {
-								allFramebarTitlesDisplayToTheLeftParsed = parseBoolean("allFramebarTitlesDisplayToTheLeft", keyValue, allFramebarTitlesDisplayToTheLeft);
-							}
-							break;
-						case offsetof(Settings, showPlayerInFramebarTitle):
-							if (!showPlayerInFramebarTitleParsed) {
-								showPlayerInFramebarTitleParsed = parseBoolean("showPlayerInFramebarTitle", keyValue, showPlayerInFramebarTitle);
-							}
-							break;
-						case offsetof(Settings, useColorblindHelp):
-							if (!useColorblindHelpParsed) {
-								useColorblindHelpParsed = parseBoolean("useColorblindHelp", keyValue, useColorblindHelp);
-							}
-							break;
-						case offsetof(Settings, allowContinuousScreenshotting):
-							if (!allowContinuousScreenshottingParsed) {
-								allowContinuousScreenshottingParsed = parseBoolean("allowContinuousScreenshotting", keyValue, allowContinuousScreenshotting);
-							}
-							break;
-						case offsetof(Settings, turnOffPostEffectWhenMakingBackgroundBlack):
-							if (!turnOffPostEffectWhenMakingBackgroundBlackParsed) {
-								turnOffPostEffectWhenMakingBackgroundBlackParsed = parseBoolean("turnOffPostEffectWhenMakingBackgroundBlack", keyValue, turnOffPostEffectWhenMakingBackgroundBlack);
-							}
-							break;
-						case offsetof(Settings, startDisabled):
-							if (!startDisabledParsed) {
-								startDisabledParsed = parseBoolean("startDisabled", keyValue, startDisabled);
-							}
-							break;
+						booleanPreset(displayUIOnTopOfPauseMenu)
+						booleanPreset(dodgeObsRecording)
+						booleanPreset(neverIgnoreHitstop)
+						booleanPreset(ignoreHitstopForBlockingBaiken)
+						booleanPreset(considerRunAndWalkNonIdle)
+						booleanPreset(considerCrouchNonIdle)
+						booleanPreset(considerDummyPlaybackNonIdle)
+						booleanPreset(considerKnockdownWakeupAndAirtechIdle)
+						booleanPreset(considerIdleInvulIdle)
+						booleanPreset(useSimplePixelBlender)
+						booleanPreset(dontShowBoxes)
+						booleanPreset(neverDisplayGrayHurtboxes)
+						booleanPreset(showFramebar)
+						booleanPreset(showFramebarInTrainingMode)
+						booleanPreset(showFramebarInReplayMode)
+						booleanPreset(showFramebarInOtherModes)
+						booleanPreset(showStrikeInvulOnFramebar)
+						booleanPreset(showSuperArmorOnFramebar)
+						booleanPreset(showThrowInvulOnFramebar)
+						booleanPreset(showOTGOnFramebar)
+						booleanPreset(showFirstFramesOnFramebar)
+						booleanPreset(considerSimilarFrameTypesSameForFrameCounts)
+						booleanPreset(considerSimilarIdleFramesSameForFrameCounts)
+						booleanPreset(combineProjectileFramebarsWhenPossible)
+						booleanPreset(eachProjectileOnSeparateFramebar)
+						booleanPreset(dontClearFramebarOnStageReset)
+						booleanPreset(dontTruncateFramebarTitles)
+						booleanPreset(useSlangNames)
+						booleanPreset(allFramebarTitlesDisplayToTheLeft)
+						booleanPreset(showPlayerInFramebarTitle)
+						booleanPreset(useColorblindHelp)
+						booleanPreset(allowContinuousScreenshotting)
+						booleanPreset(turnOffPostEffectWhenMakingBackgroundBlack)
+						booleanPreset(startDisabled)
 						case offsetof(Settings, screenshotPath):
 							if (!screenshotPathParsed) {
 								screenshotPathParsed = true;
@@ -1031,96 +926,29 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
 							}
 							break;
-						case offsetof(Settings, dontUseScreenshotTransparency):
-							if (!dontUseScreenshotTransparencyParsed) {
-								dontUseScreenshotTransparencyParsed = parseBoolean("dontUseScreenshotTransparency", keyValue, dontUseScreenshotTransparency);
-							}
-							break;
-						case offsetof(Settings, drawPushboxCheckSeparately):
-							if (!drawPushboxCheckSeparatelyParsed) {
-								drawPushboxCheckSeparatelyParsed = parseBoolean("drawPushboxCheckSeparately", keyValue, drawPushboxCheckSeparately);
-							}
-							break;
-						case offsetof(Settings, frameAdvantage_dontUsePreBlockstunTime):
-							if (!frameAdvantage_dontUsePreBlockstunTimeParsed) {
-								frameAdvantage_dontUsePreBlockstunTimeParsed = parseBoolean("frameAdvantage_dontUsePreBlockstunTime", keyValue, frameAdvantage_dontUsePreBlockstunTime);
-							}
-							break;
-						case offsetof(Settings, skipGrabsInFramebar):
-							if (!skipGrabsInFramebarParsed) {
-								skipGrabsInFramebarParsed = parseBoolean("skipGrabsInFramebar", keyValue, skipGrabsInFramebar);
-							}
-							break;
-						case offsetof(Settings, showComboProrationInRiscGauge):
-							if (!showComboProrationInRiscGaugeParsed) {
-								showComboProrationInRiscGaugeParsed = parseBoolean("showComboProrationInRiscGauge", keyValue, showComboProrationInRiscGauge);
-							}
-							break;
-						case offsetof(Settings, displayInputHistoryWhenObserving):
-							if (!displayInputHistoryWhenObservingParsed) {
-								displayInputHistoryWhenObservingParsed = parseBoolean("displayInputHistoryWhenObserving", keyValue, displayInputHistoryWhenObserving);
-							}
-							break;
-						case offsetof(Settings, displayInputHistoryInSomeOfflineModes):
-							if (!displayInputHistoryInSomeOfflineModesParsed) {
-								displayInputHistoryInSomeOfflineModesParsed = parseBoolean("displayInputHistoryInSomeOfflineModes", keyValue, displayInputHistoryInSomeOfflineModes);
-							}
-							break;
-						case offsetof(Settings, showDurationsInInputHistory):
-							if (!showDurationsInInputHistoryParsed) {
-								showDurationsInInputHistoryParsed = parseBoolean("showDurationsInInputHistory", keyValue, showDurationsInInputHistory);
-							}
-							break;
-						case offsetof(Settings, useAlternativeStaggerMashProgressDisplay):
-							if (!useAlternativeStaggerMashProgressDisplayParsed) {
-								useAlternativeStaggerMashProgressDisplayParsed = parseBoolean("useAlternativeStaggerMashProgressDisplay", keyValue, useAlternativeStaggerMashProgressDisplay);
-							}
-							break;
-						case offsetof(Settings, dontShowMayInteractionChecks):
-							if (!dontShowMayInteractionChecksParsed) {
-								dontShowMayInteractionChecksParsed = parseBoolean("dontShowMayInteractionChecks", keyValue, dontShowMayInteractionChecks);
-							}
-							break;
-						case offsetof(Settings, showMilliaBadMoonBuffHeight):
-							if (!showMilliaBadMoonBuffHeightParsed) {
-								showMilliaBadMoonBuffHeightParsed = parseBoolean("showMilliaBadMoonBuffHeight", keyValue, showMilliaBadMoonBuffHeight);
-							}
-							break;
-						case offsetof(Settings, showFaustOwnFlickRanges):
-							if (!showFaustOwnFlickRangesParsed) {
-								showFaustOwnFlickRangesParsed = parseBoolean("showFaustOwnFlickRanges", keyValue, showFaustOwnFlickRanges);
-							}
-							break;
-						case offsetof(Settings, showBedmanTaskCHeightBuffY):
-							if (!showBedmanTaskCHeightBuffYParsed) {
-								showBedmanTaskCHeightBuffYParsed = parseBoolean("showBedmanTaskCHeightBuffY", keyValue, showBedmanTaskCHeightBuffY);
-							}
-							break;
-						case offsetof(Settings, ignoreScreenshotPathAndSaveToClipboard):
-							if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
-								ignoreScreenshotPathAndSaveToClipboardParsed = parseBoolean("ignoreScreenshotPathAndSaveToClipboard", keyValue, ignoreScreenshotPathAndSaveToClipboard);
-							}
-							break;
-						case offsetof(Settings, forceZeroPitchDuringCameraCentering):
-							if (!forceZeroPitchDuringCameraCenteringParsed) {
-								forceZeroPitchDuringCameraCenteringParsed = parseBoolean("forceZeroPitchDuringCameraCentering", keyValue, forceZeroPitchDuringCameraCentering);
-							}
-							break;
-						case offsetof(Settings, modWindowVisibleOnStart):
-							if (!modWindowVisibleOnStartParsed) {
-								modWindowVisibleOnStartParsed = parseBoolean("modWindowVisibleOnStart", keyValue, modWindowVisibleOnStart);
-							}
-							break;
-						case offsetof(Settings, closingModWindowAlsoHidesFramebar):
-							if (!closingModWindowAlsoHidesFramebarParsed) {
-								closingModWindowAlsoHidesFramebarParsed = parseBoolean("closingModWindowAlsoHidesFramebar", keyValue, closingModWindowAlsoHidesFramebar);
-							}
-							break;
-						case offsetof(Settings, dontShowMoveName):
-							if (!dontShowMoveNameParsed) {
-								dontShowMoveNameParsed = parseBoolean("dontShowMoveName", keyValue, dontShowMoveName);
-							}
-							break;
+						booleanPreset(dontUseScreenshotTransparency)
+						booleanPreset(drawPushboxCheckSeparately)
+						booleanPreset(frameAdvantage_dontUsePreBlockstunTime)
+						booleanPreset(skipGrabsInFramebar)
+						booleanPreset(showComboProrationInRiscGauge)
+						booleanPreset(displayInputHistoryWhenObserving)
+						booleanPreset(displayInputHistoryInSomeOfflineModes)
+						booleanPreset(showDurationsInInputHistory)
+						booleanPreset(useAlternativeStaggerMashProgressDisplay)
+						booleanPreset(dontShowMayInteractionChecks)
+						booleanPreset(showMilliaBadMoonBuffHeight)
+						booleanPreset(showFaustOwnFlickRanges)
+						booleanPreset(showBedmanTaskCHeightBuffY)
+						booleanPreset(showJackoGhostPickupRange)
+						booleanPreset(showJackoSummonsPushboxes)
+						booleanPreset(showJackoAegisFieldRange)
+						booleanPreset(showJackoServantAttackRange)
+						booleanPreset(ignoreScreenshotPathAndSaveToClipboard)
+						booleanPreset(forceZeroPitchDuringCameraCentering)
+						booleanPreset(modWindowVisibleOnStart)
+						booleanPreset(closingModWindowAlsoHidesFramebar)
+						booleanPreset(dontShowMoveName)
+						#undef booleanPreset
 					}
 				}
 			}
@@ -1343,6 +1171,22 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showBedmanTaskCHeightBuffYParsed) {
 		showBedmanTaskCHeightBuffY = false;
+	}
+	
+	if (!showJackoGhostPickupRangeParsed) {
+		showJackoGhostPickupRange = false;
+	}
+	
+	if (!showJackoSummonsPushboxesParsed) {
+		showJackoSummonsPushboxes = false;
+	}
+	
+	if (!showJackoAegisFieldRangeParsed) {
+		showJackoAegisFieldRange = false;
+	}
+	
+	if (!showJackoServantAttackRangeParsed) {
+		showJackoServantAttackRange = false;
 	}
 	
 	if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
@@ -1657,7 +1501,7 @@ void Settings::writeSettingsMain() {
 		std::string keyUpper;
 		std::string value;
 		std::string comment;
-		bool needReform = false;
+		bool needReform = false;  // we gettin political ove here
 	};
 	std::unordered_map<std::string, LineInfo*> keyToLine;
 	int lineNumber = 0;
@@ -1864,9 +1708,30 @@ void Settings::writeSettingsMain() {
 		}
 	};
 	
+	if (lines.empty()) {
+		lines.emplace_back();
+		lines.back().line = "; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod."
+			" Allowed key names: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up,"
+			" Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply,"
+			" NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock,"
+			" Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2,"
+			" 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.";
+		lines.emplace_back();
+		lines.emplace_back();
+		lines.back().line = "; Key combinations can be specified by separating key names with '+' sign.";
+		lines.emplace_back();
+		lines.back().line = "; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.";
+		lines.emplace_back();
+		lines.back().line = "; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.";
+		lines.emplace_back();
+		lines.emplace_back();
+		lines.back().line = "; All of these settings can be changed using the mod's UI which can be seen in the game if you press ESC (by default, see modWindowVisibilityToggle).";
+	}
+	
+	#define booleanPreset(name) replaceOrAddSetting(#name, formatBoolean(name), getOtherINIDescription(&name));
 	replaceOrAddSetting("slowmoTimes", formatInteger(slowmoTimes).c_str(), getOtherINIDescription(&slowmoTimes));
-	replaceOrAddSetting("allowContinuousScreenshotting", formatBoolean(allowContinuousScreenshotting), getOtherINIDescription(&allowContinuousScreenshotting));
-	replaceOrAddSetting("startDisabled", formatBoolean(startDisabled), getOtherINIDescription(&startDisabled));
+	booleanPreset(allowContinuousScreenshotting)
+	booleanPreset(startDisabled)
 	std::string scrPathCpy;
 	{
 		std::unique_lock<std::mutex> screenshotGuard(screenshotPathMutex);
@@ -1878,63 +1743,68 @@ void Settings::writeSettingsMain() {
 		li.commentPos = li.equalSignPos + 2;
 		li.comment = ";C:\\Users\\yourUser\\Desktop\\test screenshot name.png   don't forget to uncomment (; is a comment)";
 	}
-	replaceOrAddSetting("ignoreScreenshotPathAndSaveToClipboard", formatBoolean(ignoreScreenshotPathAndSaveToClipboard), getOtherINIDescription(&ignoreScreenshotPathAndSaveToClipboard));
+	booleanPreset(ignoreScreenshotPathAndSaveToClipboard)
 	
-	replaceOrAddSetting("dontUseScreenshotTransparency", formatBoolean(dontUseScreenshotTransparency), getOtherINIDescription(&dontUseScreenshotTransparency));
-	replaceOrAddSetting("turnOffPostEffectWhenMakingBackgroundBlack", formatBoolean(turnOffPostEffectWhenMakingBackgroundBlack), getOtherINIDescription(&turnOffPostEffectWhenMakingBackgroundBlack));
-	replaceOrAddSetting("drawPushboxCheckSeparately", formatBoolean(drawPushboxCheckSeparately), getOtherINIDescription(&drawPushboxCheckSeparately));
-	replaceOrAddSetting("frameAdvantage_dontUsePreBlockstunTime", formatBoolean(frameAdvantage_dontUsePreBlockstunTime), getOtherINIDescription(&frameAdvantage_dontUsePreBlockstunTime));
-	replaceOrAddSetting("skipGrabsInFramebar", formatBoolean(skipGrabsInFramebar), getOtherINIDescription(&skipGrabsInFramebar));
-	replaceOrAddSetting("showComboProrationInRiscGauge", formatBoolean(showComboProrationInRiscGauge), getOtherINIDescription(&showComboProrationInRiscGauge));
-	replaceOrAddSetting("displayInputHistoryWhenObserving", formatBoolean(displayInputHistoryWhenObserving), getOtherINIDescription(&displayInputHistoryWhenObserving));
-	replaceOrAddSetting("displayInputHistoryInSomeOfflineModes", formatBoolean(displayInputHistoryInSomeOfflineModes), getOtherINIDescription(&displayInputHistoryInSomeOfflineModes));
-	replaceOrAddSetting("showDurationsInInputHistory", formatBoolean(showDurationsInInputHistory), getOtherINIDescription(&showDurationsInInputHistory));
-	replaceOrAddSetting("useAlternativeStaggerMashProgressDisplay", formatBoolean(useAlternativeStaggerMashProgressDisplay), getOtherINIDescription(&useAlternativeStaggerMashProgressDisplay));
-	replaceOrAddSetting("dontShowMayInteractionChecks", formatBoolean(dontShowMayInteractionChecks), getOtherINIDescription(&dontShowMayInteractionChecks));
-	replaceOrAddSetting("showMilliaBadMoonBuffHeight", formatBoolean(showMilliaBadMoonBuffHeight), getOtherINIDescription(&showMilliaBadMoonBuffHeight));
-	replaceOrAddSetting("showFaustOwnFlickRanges", formatBoolean(showFaustOwnFlickRanges), getOtherINIDescription(&showFaustOwnFlickRanges));
-	replaceOrAddSetting("showBedmanTaskCHeightBuffY", formatBoolean(showBedmanTaskCHeightBuffY), getOtherINIDescription(&showBedmanTaskCHeightBuffY));
-	replaceOrAddSetting("forceZeroPitchDuringCameraCentering", formatBoolean(forceZeroPitchDuringCameraCentering), getOtherINIDescription(&forceZeroPitchDuringCameraCentering));
-	replaceOrAddSetting("useSimplePixelBlender", formatBoolean(useSimplePixelBlender), getOtherINIDescription(&useSimplePixelBlender));
-	replaceOrAddSetting("modWindowVisibleOnStart", formatBoolean(modWindowVisibleOnStart), getOtherINIDescription(&modWindowVisibleOnStart));
-	replaceOrAddSetting("closingModWindowAlsoHidesFramebar", formatBoolean(closingModWindowAlsoHidesFramebar), getOtherINIDescription(&closingModWindowAlsoHidesFramebar));
-	replaceOrAddSetting("dontShowMoveName", formatBoolean(dontShowMoveName), getOtherINIDescription(&dontShowMoveName));
-	replaceOrAddSetting("neverDisplayGrayHurtboxes", formatBoolean(neverDisplayGrayHurtboxes), getOtherINIDescription(&neverDisplayGrayHurtboxes));
-	replaceOrAddSetting("dontShowBoxes", formatBoolean(dontShowBoxes), getOtherINIDescription(&dontShowBoxes));
-	replaceOrAddSetting("displayUIOnTopOfPauseMenu", formatBoolean(displayUIOnTopOfPauseMenu), getOtherINIDescription(&displayUIOnTopOfPauseMenu));
-	replaceOrAddSetting("dodgeObsRecording", formatBoolean(dodgeObsRecording), getOtherINIDescription(&dodgeObsRecording));
-	replaceOrAddSetting("showFramebar", formatBoolean(showFramebar), getOtherINIDescription(&showFramebar));
-	replaceOrAddSetting("showFramebarInTrainingMode", formatBoolean(showFramebarInTrainingMode), getOtherINIDescription(&showFramebarInTrainingMode));
-	replaceOrAddSetting("showFramebarInReplayMode", formatBoolean(showFramebarInReplayMode), getOtherINIDescription(&showFramebarInReplayMode));
-	replaceOrAddSetting("showFramebarInOtherModes", formatBoolean(showFramebarInOtherModes), getOtherINIDescription(&showFramebarInOtherModes));
-	replaceOrAddSetting("showStrikeInvulOnFramebar", formatBoolean(showStrikeInvulOnFramebar), getOtherINIDescription(&showStrikeInvulOnFramebar));
-	replaceOrAddSetting("showSuperArmorOnFramebar", formatBoolean(showSuperArmorOnFramebar), getOtherINIDescription(&showSuperArmorOnFramebar));
-	replaceOrAddSetting("showThrowInvulOnFramebar", formatBoolean(showThrowInvulOnFramebar), getOtherINIDescription(&showThrowInvulOnFramebar));
-	replaceOrAddSetting("showOTGOnFramebar", formatBoolean(showOTGOnFramebar), getOtherINIDescription(&showOTGOnFramebar));
-	replaceOrAddSetting("showFirstFramesOnFramebar", formatBoolean(showFirstFramesOnFramebar), getOtherINIDescription(&showFirstFramesOnFramebar));
-	replaceOrAddSetting("considerSimilarFrameTypesSameForFrameCounts", formatBoolean(considerSimilarFrameTypesSameForFrameCounts), getOtherINIDescription(&considerSimilarFrameTypesSameForFrameCounts));
-	replaceOrAddSetting("considerSimilarIdleFramesSameForFrameCounts", formatBoolean(considerSimilarIdleFramesSameForFrameCounts), getOtherINIDescription(&considerSimilarIdleFramesSameForFrameCounts));
-	replaceOrAddSetting("combineProjectileFramebarsWhenPossible", formatBoolean(combineProjectileFramebarsWhenPossible), getOtherINIDescription(&combineProjectileFramebarsWhenPossible));
-	replaceOrAddSetting("eachProjectileOnSeparateFramebar", formatBoolean(eachProjectileOnSeparateFramebar), getOtherINIDescription(&eachProjectileOnSeparateFramebar));
-	replaceOrAddSetting("dontClearFramebarOnStageReset", formatBoolean(dontClearFramebarOnStageReset), getOtherINIDescription(&dontClearFramebarOnStageReset));
-	replaceOrAddSetting("dontTruncateFramebarTitles", formatBoolean(dontTruncateFramebarTitles), getOtherINIDescription(&dontTruncateFramebarTitles));
-	replaceOrAddSetting("useSlangNames", formatBoolean(useSlangNames), getOtherINIDescription(&useSlangNames));
-	replaceOrAddSetting("allFramebarTitlesDisplayToTheLeft", formatBoolean(allFramebarTitlesDisplayToTheLeft), getOtherINIDescription(&allFramebarTitlesDisplayToTheLeft));
-	replaceOrAddSetting("showPlayerInFramebarTitle", formatBoolean(showPlayerInFramebarTitle), getOtherINIDescription(&showPlayerInFramebarTitle));
+	booleanPreset(dontUseScreenshotTransparency)
+	booleanPreset(turnOffPostEffectWhenMakingBackgroundBlack)
+	booleanPreset(drawPushboxCheckSeparately)
+	booleanPreset(frameAdvantage_dontUsePreBlockstunTime)
+	booleanPreset(skipGrabsInFramebar)
+	booleanPreset(showComboProrationInRiscGauge)
+	booleanPreset(displayInputHistoryWhenObserving)
+	booleanPreset(displayInputHistoryInSomeOfflineModes)
+	booleanPreset(showDurationsInInputHistory)
+	booleanPreset(useAlternativeStaggerMashProgressDisplay)
+	booleanPreset(dontShowMayInteractionChecks)
+	booleanPreset(showMilliaBadMoonBuffHeight)
+	booleanPreset(showFaustOwnFlickRanges)
+	booleanPreset(showBedmanTaskCHeightBuffY)
+	booleanPreset(showJackoGhostPickupRange)
+	booleanPreset(showJackoSummonsPushboxes)
+	booleanPreset(showJackoAegisFieldRange)
+	booleanPreset(showJackoServantAttackRange)
+	booleanPreset(forceZeroPitchDuringCameraCentering)
+	booleanPreset(useSimplePixelBlender)
+	booleanPreset(modWindowVisibleOnStart)
+	booleanPreset(closingModWindowAlsoHidesFramebar)
+	booleanPreset(dontShowMoveName)
+	booleanPreset(neverDisplayGrayHurtboxes)
+	booleanPreset(dontShowBoxes)
+	booleanPreset(displayUIOnTopOfPauseMenu)
+	booleanPreset(dodgeObsRecording)
+	booleanPreset(showFramebar)
+	booleanPreset(showFramebarInTrainingMode)
+	booleanPreset(showFramebarInReplayMode)
+	booleanPreset(showFramebarInOtherModes)
+	booleanPreset(showStrikeInvulOnFramebar)
+	booleanPreset(showSuperArmorOnFramebar)
+	booleanPreset(showThrowInvulOnFramebar)
+	booleanPreset(showOTGOnFramebar)
+	booleanPreset(showFirstFramesOnFramebar)
+	booleanPreset(considerSimilarFrameTypesSameForFrameCounts)
+	booleanPreset(considerSimilarIdleFramesSameForFrameCounts)
+	booleanPreset(combineProjectileFramebarsWhenPossible)
+	booleanPreset(eachProjectileOnSeparateFramebar)
+	booleanPreset(dontClearFramebarOnStageReset)
+	booleanPreset(dontTruncateFramebarTitles)
+	booleanPreset(useSlangNames)
+	booleanPreset(allFramebarTitlesDisplayToTheLeft)
+	booleanPreset(showPlayerInFramebarTitle)
 	replaceOrAddSetting("framebarHeight", formatInteger(framebarHeight).c_str(), getOtherINIDescription(&framebarHeight));
 	replaceOrAddSetting("framebarTitleCharsMax", formatInteger(framebarTitleCharsMax).c_str(), getOtherINIDescription(&framebarTitleCharsMax));
-	replaceOrAddSetting("neverIgnoreHitstop", formatBoolean(neverIgnoreHitstop), getOtherINIDescription(&neverIgnoreHitstop));
-	replaceOrAddSetting("ignoreHitstopForBlockingBaiken", formatBoolean(ignoreHitstopForBlockingBaiken), getOtherINIDescription(&ignoreHitstopForBlockingBaiken));
-	replaceOrAddSetting("considerRunAndWalkNonIdle", formatBoolean(considerRunAndWalkNonIdle), getOtherINIDescription(&considerRunAndWalkNonIdle));
-	replaceOrAddSetting("considerCrouchNonIdle", formatBoolean(considerCrouchNonIdle), getOtherINIDescription(&considerCrouchNonIdle));
-	replaceOrAddSetting("considerDummyPlaybackNonIdle", formatBoolean(considerDummyPlaybackNonIdle), getOtherINIDescription(&considerDummyPlaybackNonIdle));
-	replaceOrAddSetting("considerKnockdownWakeupAndAirtechIdle", formatBoolean(considerKnockdownWakeupAndAirtechIdle), getOtherINIDescription(&considerKnockdownWakeupAndAirtechIdle));
-	replaceOrAddSetting("considerIdleInvulIdle", formatBoolean(considerIdleInvulIdle), getOtherINIDescription(&considerIdleInvulIdle));
-	replaceOrAddSetting("useColorblindHelp", formatBoolean(useColorblindHelp), getOtherINIDescription(&useColorblindHelp));
+	booleanPreset(neverIgnoreHitstop)
+	booleanPreset(ignoreHitstopForBlockingBaiken)
+	booleanPreset(considerRunAndWalkNonIdle)
+	booleanPreset(considerCrouchNonIdle)
+	booleanPreset(considerDummyPlaybackNonIdle)
+	booleanPreset(considerKnockdownWakeupAndAirtechIdle)
+	booleanPreset(considerIdleInvulIdle)
+	booleanPreset(useColorblindHelp)
 	replaceOrAddSetting("cameraCenterOffsetX", formatFloat(cameraCenterOffsetX).c_str(), getOtherINIDescription(&cameraCenterOffsetX));
 	replaceOrAddSetting("cameraCenterOffsetY", formatFloat(cameraCenterOffsetY).c_str(), getOtherINIDescription(&cameraCenterOffsetY));
 	replaceOrAddSetting("cameraCenterOffsetY_WhenForcePitch0", formatFloat(cameraCenterOffsetY_WhenForcePitch0).c_str(), getOtherINIDescription(&cameraCenterOffsetY_WhenForcePitch0));
 	replaceOrAddSetting("cameraCenterOffsetZ", formatFloat(cameraCenterOffsetZ).c_str(), getOtherINIDescription(&cameraCenterOffsetZ));
+	#undef booleanPreset
 	
 	SetFilePointer(file, 0, NULL, FILE_BEGIN);
 	

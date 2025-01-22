@@ -2252,6 +2252,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 			} else if (player.charType == CHARACTER_TYPE_ELPHELT) {
 				
+				bool grenadeFrozen = false;
 				bool foundGrenadeInGeneral = false;
 				bool foundGrenade = false;
 				int grenadeSlowdown = 0;
@@ -2263,6 +2264,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						foundGrenadeInGeneral = true;
 						if (!projectile.ptr.hasUpon(35)) {
 							foundGrenade = true;
+							grenadeFrozen = projectile.ptr.isSuperFrozen();
 							grenadeSlowdown = projectile.rcSlowedDownCounter;
 							if (projectile.sprite.frameMax == 1) {
 								grenadeTimeRemaining = 30;
@@ -2275,9 +2277,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (projectile.sprite.frameMax == 1) {
 							grenadeTimeRemaining = 31;
 							foundGrenade = true;
+							grenadeFrozen = projectile.ptr && projectile.ptr.isSuperFrozen();
 						} else if (projectile.sprite.frameMax == 30) {
 							grenadeTimeRemaining = 30 - projectile.sprite.frame;
 							foundGrenade = true;
+							grenadeFrozen = projectile.ptr && projectile.ptr.isSuperFrozen();
 						}
 					}
 				}
@@ -2305,7 +2309,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&resultMax,
 						&unused);
 					
-					if (superflashInstigator == nullptr) ++player.elpheltGrenadeElapsed;
+					if (!grenadeFrozen) ++player.elpheltGrenadeElapsed;
 					
 					if (result || hasForceDisableFlag) ++result;
 					++resultMax;
@@ -2333,7 +2337,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							slowdown = projectile.rcSlowedDownCounter;
 							if (projectile.lifeTimeCounter == 0) {
 								player.johnnyMistKuttsukuElapsed = 0;
-							} else if (!superflashInstigator) {
+							} else if (!(projectile.ptr && projectile.ptr.isSuperFrozen())) {
 								++player.johnnyMistKuttsukuElapsed;
 							}
 							break;
@@ -2365,11 +2369,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					int maxTime = -1;
 					int animFrame = -1;
 					int slowdown = 0;
+					bool isSuperFrozen = false;
 					bool isFrozen = false;
 					for (ProjectileInfo& projectile : projectiles) {
 						if (projectile.team == player.index && projectile.ptr && strcmp(projectile.animName, "Mist") == 0) {
 							animFrame = projectile.animFrame;
 							isFrozen = projectile.ptr.isRCFrozen();
+							isSuperFrozen = projectile.ptr.isSuperFrozen();
 							BYTE* func = projectile.ptr.bbscrCurrentFunc();
 							BYTE* instr;
 							for (
@@ -2397,7 +2403,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						if (animFrame == 1 && !isFrozen) {
 							player.johnnyMistElapsed = 0;
-						} else if (!superflashInstigator) {
+						} else if (!isSuperFrozen) {
 							++player.johnnyMistElapsed;
 						}
 						
@@ -2413,6 +2419,51 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 					}
 				}
+				
+			} else if (player.charType == CHARACTER_TYPE_JACKO) {
+				
+				int slowdown = 0;
+				int timeRemaining = 0;
+				Entity p = player.pawn.stackEntity(3);
+				if (p && p.isActive()) {
+					int frames = p.framesSinceRegisteringForTheIdlingSignal() - 1;
+					if (moves.jackoAegisMax == 0) {
+						BYTE* func = p.bbscrCurrentFunc();
+						BYTE* instr;
+						for (
+								instr = moves.skipInstruction(func);
+								moves.instructionType(instr) != Moves::instr_endState;
+								instr = moves.skipInstruction(instr)
+						) {
+							if (moves.instructionType(instr) == Moves::instr_ifOperation
+									&& *(int*)(instr + 4) == 9  // IS_EQUAL
+									&& *(int*)(instr + 8) == 2  // id: variable
+									&& *(int*)(instr + 0xc) == 105  // FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
+									&& *(int*)(instr + 0x10) == 0) {  // id:literal
+								moves.jackoAegisMax = *(int*)(instr + 0x14);
+								break;
+							}
+						}
+					}
+					if (p.lifeTimeCounter() == 0) player.jackoAegisElapsed = 0;
+					else if (!p.isSuperFrozen()) {
+						++player.jackoAegisElapsed;
+					}
+					ProjectileInfo& projectile = findProjectile(p);
+					if (projectile.ptr) {
+						slowdown = projectile.rcSlowedDownCounter;
+					}
+					timeRemaining = moves.jackoAegisMax - frames;
+				}
+				int unused;
+				PlayerInfo::calculateSlow(
+					player.jackoAegisElapsed + 1,
+					timeRemaining,
+					slowdown,
+					&player.jackoAegisTimeWithSlow,
+					&player.jackoAegisTimeMaxWithSlow,
+					&unused);
+				if (player.jackoAegisTimeMaxWithSlow <= 2) player.jackoAegisTimeMaxWithSlow = 0;
 			}
 		}
 		
@@ -3307,11 +3358,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& strcmp(projectile.animName, "GrenadeBomb") == 0
 					&& projectile.ptr
 					&& projectile.ptr.hasUpon(35)
+					|| player.charType == CHARACTER_TYPE_JACKO
+					&& projectile.ptr
+					&& projectile.ptr.servant()
 				) && !projectile.strikeInvul
 				|| projectile.gotHitOnThisFrame) {
 				projectileCanBeHit = true;
 			}
-			
+			bool isHouseInvul = player.charType == CHARACTER_TYPE_JACKO && projectile.ptr && projectile.ptr.ghost()
+				&& projectile.strikeInvul && projectile.ptr.displayModel()
+				&& projectile.ptr.mem45() != 0  // first-time create
+				&& projectile.ptr.mem45() != 3;  // second-time create of a previously retrieved house
 			bool isMist;
 			bool isMistKuttsuku;
 			if (player.charType == CHARACTER_TYPE_JOHNNY) {
@@ -3335,13 +3392,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				|| projectile.gotHitOnThisFrame
 				|| projectileCanBeHit
 				|| isMist
-				|| isMistKuttsuku);
+				|| isMistKuttsuku
+				|| isHouseInvul);
 			entityFramebar.foundOnThisFrame = true;
 			Framebar& framebar = entityFramebar.idleHitstop;
 			Frame& currentFrame = framebar[framebarPos];
 			
 			FrameType defaultIdleFrame;
-			if (isMist || isMistKuttsuku) {
+			if (isHouseInvul && !projectileCanBeHit) {
+				defaultIdleFrame = FT_IDLE_NO_DISPOSE;
+			} else if (isMist || isMistKuttsuku) {
 				defaultIdleFrame = FT_BACCHUS_SIGH;
 			} else {
 				defaultIdleFrame = projectileCanBeHit ? FT_IDLE_PROJECTILE_HITTABLE : FT_IDLE_PROJECTILE;
@@ -3417,7 +3477,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.hitConnected = true;
 					}
 					if (currentFrame.type == defaultIdleFrame || currentFrame.type == FT_NONE) {
-						currentFrame.type = FT_IDLE_ACTIVE_IN_SUPERFREEZE;
+						currentFrame.type = FT_IDLE_NO_DISPOSE;
 					}
 				}
 				if (!projectile.disabled && (projectile.team == 0 || projectile.team == 1) && !ignoreThisForPlayer) {
@@ -4314,10 +4374,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.canYrcProjectile = player.wasCanYrc
 					&& player.move.canYrcProjectile
 					&& player.move.canYrcProjectile(player);
-				currentFrame.createdDangerousProjectile = player.createdDangerousProjectile
-					|| player.createdProjectileThatSometimesCanBeDangerous  // for Ky 5D
-					|| player.move.createdProjectile
-					&& player.move.createdProjectile(player);
+				currentFrame.createdDangerousProjectile = player.move.createdProjectile
+					? player.move.createdProjectile(player)
+					: player.createdDangerousProjectile
+						|| player.createdProjectileThatSometimesCanBeDangerous;
 				
 				const InputRingBuffer* ringBuffer = game.getInputRingBuffers() + player.index;
 				int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false);
@@ -7798,6 +7858,7 @@ void EndScene::setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine) {
 	for (int i = 0; i < 2; ++i) {
 		PlayerInfo& player = players[i];
 		Entity pawn = entityList.slots[i];
+		
 		player.rcSlowdownCounter = pawn.rcSlowdownCounter();
 		player.rcSlowdownMax = player.rcSlowdownMaxLastSet;
 		if (player.rcSlowdownCounter) {
@@ -7820,7 +7881,9 @@ void EndScene::setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine) {
 				}
 			}
 		}
+		
 	}
+	
 	orig_setSuperFreezeAndRCSlowdownFlags(asw_subengine);
 }
 

@@ -668,8 +668,8 @@ struct BBScrInfo {
 	BYTE* afterJumptable;
 	DWORD jumptableEntryCount;
 	BYTE* jumptableStart;
-	BBScrHashtable* functionStarts;
-	BBScrHashtable* functionIndices;
+	BBScrHashtable* stateMap;
+	BBScrHashtable* subroutineMap;
 };
 
 class Entity
@@ -719,6 +719,11 @@ public:
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
 	inline bool guardBreakInitialProrationApplied() const { return (*(DWORD*)(ent + 0x120) & 0x1000) != 0; }
+	inline bool servant() const { return (*(DWORD*)(ent + 0x120) & 0x3800000) != 0; }  // 0x800000 servant A, 0x1000000 servant B, 0x2000000 servant C
+	inline bool servantA() const { return (*(DWORD*)(ent + 0x120) & 0x800000) != 0; }
+	inline bool servantB() const { return (*(DWORD*)(ent + 0x120) & 0x1000000) != 0; }
+	inline bool servantC() const { return (*(DWORD*)(ent + 0x120) & 0x2000000) != 0; }
+	inline bool ghost() const { return (*(DWORD*)(ent + 0x120) & 0x400000) != 0; }
 	inline int hitstop() const { return *(int*)(ent + 0x1ac); }
 	inline int clashHitstop() const { return *(int*)(ent + 0x1b0); }
 	inline bool needSetHitstop() const { return *(DWORD*)(ent + 0x1b8) != 0; }
@@ -855,6 +860,8 @@ public:
 	inline bool successfulIB() const { return (*(DWORD*)(ent + 0x23c) & 0x800000) != 0; }  // can be set even on FD IB. Remains set even after blockstun is over.
 	inline HitResult lastHitResult() const { return *(HitResult*)(ent + 0x984); }
 	inline DWORD lastHitResultFlags() const { return *(DWORD*)(ent + 0x988); }
+	inline bool immuneToSuperfreeze() const { return (*(DWORD*)(ent + 0x118) & 0x4000) != 0; }
+	inline bool immuneToAlliedSuperfreeze() const { return (*(DWORD*)(ent + 0x118) & 0x2000000) != 0; }
 	inline bool isTouchingLeftWall() const { return (*(DWORD*)(ent + 0x118) & 0x400000) != 0; }
 	inline bool isTouchingRightWall() const { return (*(DWORD*)(ent + 0x118) & 0x800000) != 0; }
 	inline bool isTouchingLeftScreenEdge() const { return (*(DWORD*)(ent + 0x118) & 0x100000) != 0; }
@@ -882,21 +889,29 @@ public:
 	// Having this flag without superArmorEnabled is useless because you just get hit by the projectile
 	inline bool invulnForAegisField() const { return (*(DWORD*)(ent + 0x238) & 0x400) != 0; }
 	bool hasUpon(int index) const;
-	inline int mem45() const { return *(int*)(ent + 0x14c); }
-	inline int mem46() const { return *(int*)(ent + 0x150); }
-	inline int mem47() const { return *(int*)(ent + 0x154); }
-	inline int mem48() const { return *(int*)(ent + 0x158); }
-	inline int mem49() const { return *(int*)(ent + 0x15c); }
-	inline int mem50() const { return *(int*)(ent + 0x160); }
-	inline int mem51() const { return *(int*)(ent + 0x164); }
-	inline int mem52() const { return *(int*)(ent + 0x168); }
+	inline int mem45() const { return *(int*)(ent + 0x14c); }  // Reset on state change
+	inline int mem46() const { return *(int*)(ent + 0x150); }  // Reset on state change
+	inline int mem47() const { return *(int*)(ent + 0x154); }  // Reset on state change
+	inline int mem48() const { return *(int*)(ent + 0x158); }  // Reset on state change
+	inline int mem49() const { return *(int*)(ent + 0x15c); }  // Reset on state change
+	inline int mem50() const { return *(int*)(ent + 0x160); }  // Reset on state change
+	inline int mem51() const { return *(int*)(ent + 0x164); }  // Reset on state change
+	inline int mem52() const { return *(int*)(ent + 0x168); }  // Reset on state change
 	inline int mem53() const { return *(int*)(ent + 0x16c); }
 	inline int mem54() const { return *(int*)(ent + 0x170); }
+	inline int mem55() const { return *(int*)(ent + 0x174); }
+	inline int mem56() const { return *(int*)(ent + 0x178); }
 	inline int mem57() const { return *(int*)(ent + 0x17c); }
 	inline int mem58() const { return *(int*)(ent + 0x180); }
 	inline int mem59() const { return *(int*)(ent + 0x184); }
 	inline int mem60() const { return *(int*)(ent + 0x188); }
-	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }  // bbscript numbers them from 1, I number them from 0, so subtract 1 from the bbscript number
+	inline int mem201() const { return *(int*)(ent + 0x24c60); }
+	inline int mem202() const { return *(int*)(ent + 0x24c64); }
+	inline int mem203() const { return *(int*)(ent + 0x24c68); }
+	
+	// bbscript numbers them from 1, I number them from 0, so subtract 1 from the bbscript number
+	// indices 0-3 are reset on state change
+	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }  
 	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }
 	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }
 	inline const char* gotoLabelRequest() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
@@ -958,6 +973,7 @@ public:
 	inline int numberOfHitsTaken() const { return *(int*)(ent + 0x253c); }
 	inline int numberOfHits() const { return *(int*)(ent + 0x2540); }
 	inline bool notDestroyOnMaxNumOfHits() const { return (*(DWORD*)(ent + 0x240) & 0x20000000) != 0; }
+	inline bool destroyOnPlayerStateChange() const { return (*(DWORD*)(ent + 0x240) & 0x1000000) != 0; }
 	inline int destroyOnBlockOrArmor() const { return *(int*)(ent + 0x2548); }
 	inline int destroyOnHitProjectile() const { return *(int*)(ent + 0x254c); }
 	inline int destroyOnHitPlayer() const { return *(int*)(ent + 0x2544); }
@@ -974,7 +990,8 @@ public:
 	inline int gtmpY() const { return *(int*)(ent + 0x262c0); }
 	inline int mem64() const { return *(int*)(ent + 0x262c8); }
 	inline BBScrInfo* bbscrInfo() const { return *(BBScrInfo**)(ent + 0xa48); }
-	BYTE* findFunctionStart(const char* name) const;
+	BYTE* findStateStart(const char* name) const;
+	BYTE* findSubroutineStart(const char* name) const;
 	inline BOOL destructionRequested() const { return *(BOOL*)(ent + 0x2538); }
 	inline int landingHeight() const { return *(int*)(ent + 0x1cc); }
 	int getCenterOffsetY() const;
@@ -987,6 +1004,7 @@ public:
 	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
 	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
 	inline int airDashMinimumHeight() const { return *(int*)(ent + 0x9864); }
+	inline int framesSinceRegisteringForTheIdlingSignal() const { return *(int*)(ent + 0x140); }  // unfortunately, this value is +1 at the end of the tick more than what it was during an idling event. Luckily, you can just -1 from it before using
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	

@@ -137,7 +137,7 @@ enum FrameType : char {
 	FT_NONE,
 	FT_IDLE,
 	// this frame type is only intended to prevent projectiles' framebars that existed only during a superfreeze from being erased due to their framebar being completely empty
-	FT_IDLE_ACTIVE_IN_SUPERFREEZE,
+	FT_IDLE_NO_DISPOSE,
 	FT_IDLE_PROJECTILE,
 	FT_IDLE_PROJECTILE_HITTABLE,
 	FT_IDLE_CANT_BLOCK,
@@ -231,7 +231,7 @@ static FrameType recoveryFrameTypes[] {
 	FT_RECOVERY_CAN_RELOAD
 };
 static FrameType projectileFrameTypes[] {
-	FT_IDLE_ACTIVE_IN_SUPERFREEZE,
+	FT_IDLE_NO_DISPOSE,
 	FT_IDLE_PROJECTILE,
 	FT_IDLE_PROJECTILE_HITTABLE,
 	FT_ACTIVE_PROJECTILE,
@@ -268,7 +268,7 @@ inline FrameType frameMap(FrameType type) {
 	switch (type) {
 		case FT_NONE:                               return FT_NONE;
 		case FT_IDLE:                               return FT_IDLE;
-		case FT_IDLE_ACTIVE_IN_SUPERFREEZE:         return FT_IDLE_PROJECTILE;
+		case FT_IDLE_NO_DISPOSE:                    return FT_IDLE_PROJECTILE;
 		case FT_IDLE_PROJECTILE:                    return FT_IDLE_PROJECTILE;
 		case FT_IDLE_PROJECTILE_HITTABLE:           return FT_IDLE_PROJECTILE_HITTABLE;
 		case FT_IDLE_CANT_BLOCK:                    return FT_IDLE;
@@ -322,7 +322,7 @@ inline FrameType frameMapNoIdle(FrameType type) {
 	switch (type) {
 		case FT_NONE:                               return FT_NONE;
 		case FT_IDLE:                               return FT_IDLE;
-		case FT_IDLE_ACTIVE_IN_SUPERFREEZE:         return FT_IDLE_ACTIVE_IN_SUPERFREEZE;
+		case FT_IDLE_NO_DISPOSE:                    return FT_IDLE_PROJECTILE;
 		case FT_IDLE_PROJECTILE:                    return FT_IDLE_PROJECTILE;
 		case FT_IDLE_PROJECTILE_HITTABLE:           return FT_IDLE_PROJECTILE_HITTABLE;
 		case FT_IDLE_CANT_BLOCK:                    return FT_IDLE_CANT_BLOCK;
@@ -1376,6 +1376,9 @@ struct PlayerInfo {
 	int johnnyMistKuttsukuElapsed = 0;
 	int johnnyMistKuttsukuTimerWithSlow = 0;
 	int johnnyMistKuttsukuTimerMaxWithSlow = 0;
+	int jackoAegisElapsed = 0;
+	int jackoAegisTimeWithSlow = 0;
+	int jackoAegisTimeMaxWithSlow = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;

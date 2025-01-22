@@ -158,13 +158,16 @@ public:
 	unsigned short* bbscrInstructionSizes = nullptr;
 	inline BYTE* skipInstruction(BYTE* in) const;
 	enum InstructionType {
+		// these are from bbscript database: https://github.com/super-continent/bbscript
 		instr_endState = 1,
 		instr_sprite = 2,
 		instr_spriteEnd = 3,
+		instr_if = 4,
 		instr_ifOperation = 6,
 		instr_else = 9,
 		instr_endElse = 10,
 		instr_setMarker = 11,
+		instr_goToMarker = 12,
 		instr_callSubroutine = 17,
 		instr_exitState = 18,
 		instr_upon = 21,
@@ -173,11 +176,13 @@ public:
 		instr_overrideSpriteLengthIf = 26,
 		instr_jumpToState = 27,
 		instr_storeValue = 46,
+		instr_calcDistance = 60,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
 		instr_hitAirPushbackX = 754,
 		instr_deleteMoveForceDisableFlag = 1603,
 		instr_sendSignal = 1766,
+		instr_sendSignalToAction = 1771,
 		instr_exPointFReset = 2161,
 	};
 	inline InstructionType instructionType(BYTE* in) const;
@@ -290,6 +295,59 @@ public:
 	int elpheltRifleRomanEndMarkerOffset = 0;
 	void fillInFindMarker(BYTE* func, int* result, const char* markerName);
 	const char* rifleAutoExit(PlayerInfo& player, int* offsetStorage, const char* moveName);
+	int jackoAegisMax = 0;
+	std::vector<int> ghostAStateOffsets;
+	std::vector<int> ghostBStateOffsets;
+	std::vector<int> ghostCStateOffsets;
+	void fillGhostStateOffsets(BYTE* func, std::vector<int>& offsets);
+	int findGhostState(int offset, const std::vector<int>& offsets);
+	int jackoThrowGhostOffset = 0;
+	int jackoAirThrowGhostOffset = 0;
+	void fillJackoThrowGhostOffset(BYTE* func, int* offset);
+	int jackoGhostAExp[2] { 0 };
+	int jackoGhostBExp[2] { 0 };
+	int jackoGhostCExp[2] { 0 };
+	void fillJackoGhostExp(BYTE* func, int* jackoGhostExp);
+	int jackoGhostACreationTimer[3] { 0 };
+	int jackoGhostBCreationTimer[3] { 0 };
+	int jackoGhostCCreationTimer[3] { 0 };
+	void fillJackoGhostCreationTimer(BYTE* func, int* jackoGhostCreationTimer);
+	int jackoGhostAHealingTimer[6] { 0 };
+	int jackoGhostBHealingTimer[6] { 0 };
+	int jackoGhostCHealingTimer[6] { 0 };
+	void fillJackoGhostHealingTimer(BYTE* func, int* jackoGhostHealingTimer);
+	int jackoGhostBuffTimer = 0;
+	void fillJackoGhostBuffTimer(BYTE* func);
+	int jackoGhostExplodeTimer = 0;
+	void fillJackoGhostExplodeTimer(BYTE* func);
+	std::vector<int> servantAStateOffsets;
+	std::vector<int> servantBStateOffsets;
+	std::vector<int> servantCStateOffsets;
+	int ghostADummyTotalFrames = 0;
+	int ghostBDummyTotalFrames = 0;
+	int ghostCDummyTotalFrames = 0;
+	int servantCooldownA[2] { 0 };
+	int servantCooldownB[2] { 0 };
+	int servantCooldownC[2] { 0 };
+	void fillServantCooldown(BYTE* func, int* servantCooldown);
+	int servantClockUpTimer = 0;
+	void fillServantClockUpTimer(BYTE* func);
+	int servantExplosionTimer = 0;
+	void fillServantExplosionTimer(BYTE* func);
+	int servantTimeoutTimer = 0;
+	void fillServantTimeoutTimer(BYTE* func);
+	MayIrukasanRidingObjectInfo servantAAtk[6] { 0 };
+	MayIrukasanRidingObjectInfo servantBAtk[6] { 0 };
+	MayIrukasanRidingObjectInfo servantCAtk[6] { 0 };
+	void fillServantAtk(BYTE* func, MayIrukasanRidingObjectInfo* servantAtk);
+	int ghostPickupRange = 0;
+	int jackoAegisFieldRange = 0;
+	int jackoServantAAggroX = 0;
+	int jackoServantAAggroY = 0;
+	int jackoServantBAggroX = 0;
+	int jackoServantBAggroY = 0;
+	int jackoServantCAggroX = 0;
+	int jackoServantCAggroY = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

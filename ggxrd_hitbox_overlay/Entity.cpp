@@ -529,7 +529,7 @@ bool AddedMoveData::hasCondition(MoveCondition condition) const {
 	return (conditions[index] & (1 << (condition & 31))) != 0;
 }
 
-BYTE* Entity::findFunctionStart(const char* name) const {
+static BYTE* findInBBScrHashmap(const char* name, const BBScrInfo* bbscrInfo, const BBScrHashtable* table) {
 	DWORD hash = 0;
 	for (const char* c = name; *c != '\0'; ++c) {
 		char cVal = *c;
@@ -539,14 +539,13 @@ BYTE* Entity::findFunctionStart(const char* name) const {
 	
 	int start = 0;
 	int middle;
-	const BBScrHashtable& table = *bbscrInfo()->functionStarts;
-	int end = table.currentSize - 1;
+	int end = table->currentSize - 1;
 	int found = -1;
 	do {
 		middle = (start + end) >> 1;
-		DWORD currentHash = table.ptr[middle].hashValue;
+		DWORD currentHash = table->ptr[middle].hashValue;
 		if (currentHash == hash) {
-			found = table.ptr[middle].addressInCommands;
+			found = table->ptr[middle].addressInCommands;
 			break;
 		} else if (currentHash < hash) {
 			start = middle + 1;
@@ -556,7 +555,15 @@ BYTE* Entity::findFunctionStart(const char* name) const {
 	} while (start <= end);
 	
 	if (found == -1) return nullptr;
-	return bbscrInfo()->afterJumptable + found;
+	return bbscrInfo->afterJumptable + found;
+}
+
+BYTE* Entity::findStateStart(const char* name) const {
+	return findInBBScrHashmap(name, bbscrInfo(), bbscrInfo()->stateMap);
+}
+
+BYTE* Entity::findSubroutineStart(const char* name) const {
+	return findInBBScrHashmap(name, bbscrInfo(), bbscrInfo()->subroutineMap);
 }
 
 int Entity::getCenterOffsetY() const {

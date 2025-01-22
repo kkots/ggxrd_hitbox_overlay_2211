@@ -6,8 +6,8 @@
 #include <vector>
 #include "EndScene.h"  // that's right, I'm including what I probably shouldn't and bypassing having to provide dependencies in function arguments
 // this whole, entire file is hardcode
-// !!! SOME SLANG NAMES FROM THIS FILE ARE HARDCODED IN UI.cpp!!!
-// Such names MUST be marked as being used elsewhere using this comment: // SLANGNAMEHARDCODE (with a space between // and SLANGNAMEHARDCODE)
+// !!! SOME NAMES FROM THIS FILE ARE HARDCODED IN UI.cpp!!!
+// Such names MUST be marked as being used elsewhere using this comment: // NAMEHARDCODE (with a space between // and NAMEHARDCODE)
 
 Moves moves;
 
@@ -228,6 +228,16 @@ static bool canYrcProjectile_onf7(PlayerInfo& ent);
 static bool canYrcProjectile_onf9(PlayerInfo& ent);
 static bool createdProjectile_elpheltjD(PlayerInfo& ent);
 static bool canYrcProjectile_elpheltjD(PlayerInfo& ent);
+static bool createdProjectile_PGhost(PlayerInfo& ent);
+static bool canYrcProjectile_PGhost(PlayerInfo& ent);
+static bool createdProjectile_KGhost(PlayerInfo& ent);
+static bool canYrcProjectile_KGhost(PlayerInfo& ent);
+static bool createdProjectile_SGhost(PlayerInfo& ent);
+static bool canYrcProjectile_SGhost(PlayerInfo& ent);
+static bool createdProjectile_ThrowGhost(PlayerInfo& ent);
+static bool canYrcProjectile_ThrowGhost(PlayerInfo& ent);
+static bool createdProjectile_AirThrowGhost(PlayerInfo& ent);
+static bool canYrcProjectile_AirThrowGhost(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -1647,7 +1657,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = "Bacchus Sigh";
-	move.framebarSlangName = "Bacchus";  // SLANGNAMEHARDCODE
+	move.framebarSlangName = "Bacchus";  // NAMEHARDCODE
 	move.framebarId = 112;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -3342,7 +3352,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = 73;
 	move.framebarName = "Berry Pine";
-	move.framebarSlangName = "Berry";  // SLANGNAMEHARDCODE
+	move.framebarSlangName = "Berry";  // NAMEHARDCODE
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -5082,7 +5092,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkai");
 	move.displayName = "Antidepressant Scale";
-	move.slangName = "Note";  // SLANGNAMEHARDCODE
+	move.slangName = "Note";  // NAMEHARDCODE
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
@@ -7054,6 +7064,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "UntieKiron'sChain");
 	move.displayName = "j.D";
 	move.nameIncludesInputs = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirIronballGenocide");
@@ -7089,10 +7100,14 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ThorwGhost");
 	move.displayName = "Throw Ghost";
+	move.createdProjectile = createdProjectile_ThrowGhost;
+	move.canYrcProjectile = canYrcProjectile_ThrowGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirThorwGhost");
 	move.displayName = "Air Throw Ghost";
+	move.createdProjectile = createdProjectile_AirThrowGhost;
+	move.canYrcProjectile = canYrcProjectile_AirThrowGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "PickUpGhost");
@@ -7118,14 +7133,20 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostA");
 	move.displayName = "Set P Ghost";
+	move.createdProjectile = createdProjectile_PGhost;
+	move.canYrcProjectile = canYrcProjectile_PGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostB");
 	move.displayName = "Set K Ghost";
+	move.createdProjectile = createdProjectile_KGhost;
+	move.canYrcProjectile = canYrcProjectile_KGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostC");
 	move.displayName = "Set S Ghost";
+	move.createdProjectile = createdProjectile_SGhost;
+	move.canYrcProjectile = canYrcProjectile_SGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "OrganOpen");
@@ -7139,11 +7160,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Calvados");
 	move.displayName = "Calvados";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosBurst");
 	move.displayName = "Burst Calvados";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ScrewPileDriver");
@@ -7185,6 +7208,13 @@ bool Moves::onDllMain() {
 	move.framebarId = 82;
 	move.framebarName = "Sword/Spear men";
 	move.framebarNameUncombined = "Lancer";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantC", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = 83;
+	move.framebarName = "Magicians";
+	move.framebarNameUncombined = "Magician";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "magicAtkLv1", true);
@@ -7246,21 +7276,21 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostA", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = "Ghost";
+	move.framebarName = "Ghost";  // NAMEHARDCODE
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostB", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = "Ghost";
+	move.framebarName = "Ghost";  // NAMEHARDCODE
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostC", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = "Ghost";
+	move.framebarName = "Ghost";  // NAMEHARDCODE
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -7534,6 +7564,67 @@ void Moves::onAswEngineDestroyed() {
 	bedmanSealB.clear();
 	bedmanSealC.clear();
 	bedmanSealD.clear();
+	venomStingerSPowerups.clear();
+	venomStingerHPowerups.clear();
+	kyMahojin.clear();
+	ramlethalBitN6C.clear();
+	ramlethalBitF6D.clear();
+	ramlethalBitN2C.clear();
+	ramlethalBitF2D.clear();
+	elpheltRifleStartEndMarkerOffset = 0;
+	elpheltRifleReloadEndMarkerOffset = 0;
+	elpheltRifleReloadPerfectEndMarkerOffset = 0;
+	elpheltRifleRomanEndMarkerOffset = 0;
+	jackoAegisMax = 0;
+	ghostAStateOffsets.clear();
+	ghostBStateOffsets.clear();
+	ghostCStateOffsets.clear();
+	jackoThrowGhostOffset = 0;
+	jackoAirThrowGhostOffset = 0;
+	for (int i = 0; i < 2; ++i) {
+		jackoGhostAExp[i] = 0;
+		jackoGhostBExp[i] = 0;
+		jackoGhostCExp[i] = 0;
+	}
+	for (int i = 0; i < 3; ++i) {
+		jackoGhostACreationTimer[i] = 0;
+		jackoGhostBCreationTimer[i] = 0;
+		jackoGhostCCreationTimer[i] = 0;
+	}
+	for (int i = 0; i < 6; ++i) {
+		jackoGhostAHealingTimer[i] = 0;
+		jackoGhostBHealingTimer[i] = 0;
+		jackoGhostCHealingTimer[i] = 0;
+	}
+	jackoGhostBuffTimer = 0;
+	jackoGhostExplodeTimer = 0;
+	servantAStateOffsets.clear();
+	servantBStateOffsets.clear();
+	servantCStateOffsets.clear();
+	ghostADummyTotalFrames = 0;
+	ghostBDummyTotalFrames = 0;
+	ghostCDummyTotalFrames = 0;
+	for (int i = 0; i < 2; ++i) {
+		servantCooldownA[i] = 0;
+		servantCooldownB[i] = 0;
+		servantCooldownC[i] = 0;
+	}
+	servantExplosionTimer = 0;
+	servantClockUpTimer = 0;
+	servantTimeoutTimer = 0;
+	for (int i = 0; i < 6; ++i) {
+		servantAAtk[i].clear();
+		servantBAtk[i].clear();
+		servantCAtk[i].clear();
+	}
+	ghostPickupRange = 0;
+	jackoAegisFieldRange = 0;
+	jackoServantAAggroX = 0;
+	jackoServantAAggroY = 0;
+	jackoServantBAggroX = 0;
+	jackoServantBAggroY = 0;
+	jackoServantCAggroX = 0;
+	jackoServantCAggroY = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -9253,6 +9344,57 @@ bool canYrcProjectile_elpheltjD(PlayerInfo& player) {
 	}
 	return false;
 }
+bool createdProjectile_Ghost(PlayerInfo& player, int index) {
+	Entity p = player.pawn.stackEntity(index);
+	return p && p.isActive() && p.displayModel() && p.posY() == 0 && p.mem45() != 1 && !player.pawn.isRCFrozen();
+}
+bool canYrcProjectile_Ghost(PlayerInfo& player, int index) {
+	Entity p = player.pawn.stackEntity(index);
+	return p && p.isActive() && p.displayModel() && p.mem45() == 1;
+}
+bool createdProjectile_PGhost(PlayerInfo& player) {
+	return createdProjectile_Ghost(player, 0);
+}
+bool canYrcProjectile_PGhost(PlayerInfo& player) {
+	return canYrcProjectile_Ghost(player, 0);
+}
+bool createdProjectile_KGhost(PlayerInfo& player) {
+	return createdProjectile_Ghost(player, 1);
+}
+bool canYrcProjectile_KGhost(PlayerInfo& player) {
+	return canYrcProjectile_Ghost(player, 1);
+}
+bool createdProjectile_SGhost(PlayerInfo& player) {
+	return createdProjectile_Ghost(player, 2);
+}
+bool canYrcProjectile_SGhost(PlayerInfo& player) {
+	return canYrcProjectile_Ghost(player, 2);
+}
+bool createdProjectile_XThrowGhost(PlayerInfo& player, int* offset) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	moves.fillJackoThrowGhostOffset(func, offset);
+	return player.pawn.bbscrCurrentInstr() - func == *offset && !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0;
+}
+bool canYrcProjectile_XThrowGhost(PlayerInfo& player, int* offset) {
+	int mem59 = player.pawn.mem59();
+	if (mem59 != 1 && mem59 != 2 && mem59 != 3) return false;
+	Entity p = player.pawn.stackEntity(mem59 - 1);
+	if (!p || !p.isActive()) return false;
+	return !createdProjectile_XThrowGhost(player, offset)
+		&& p.isActiveFrames();
+}
+bool createdProjectile_ThrowGhost(PlayerInfo& player) {
+	return createdProjectile_XThrowGhost(player, &moves.jackoThrowGhostOffset);
+}
+bool canYrcProjectile_ThrowGhost(PlayerInfo& player) {
+	return canYrcProjectile_XThrowGhost(player, &moves.jackoThrowGhostOffset);
+}
+bool createdProjectile_AirThrowGhost(PlayerInfo& player) {
+	return createdProjectile_XThrowGhost(player, &moves.jackoAirThrowGhostOffset);
+}
+bool canYrcProjectile_AirThrowGhost(PlayerInfo& player) {
+	return canYrcProjectile_XThrowGhost(player, &moves.jackoAirThrowGhostOffset);
+}
 
 bool powerup_may6P(PlayerInfo& player) {
 	return player.pawn.dealtAttack()->stun > player.prevFrameStunValue;
@@ -9710,4 +9852,333 @@ const char* Moves::rifleAutoExit(PlayerInfo& player, int* offsetStorage, const c
 		return moveName;
 	}
 	return nullptr;
+}
+
+void Moves::fillGhostStateOffsets(BYTE* func, std::vector<int>& offsets) {
+	if (!offsets.empty()) return;
+	BYTE* instr;
+	bool metSprite = false;
+	bool metSpriteEnd = false;
+	bool metSetMarker = false;
+	int lastOffset = 0;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (metSpriteEnd) {
+			metSprite = false;
+			metSpriteEnd = false;
+			lastOffset = instr - func;
+		}
+		if (type == instr_sprite) {
+			if (metSprite) {
+				lastOffset = instr - func;
+			}
+			if (metSetMarker) {
+				metSetMarker = false;
+				offsets.push_back(lastOffset);
+			}
+			metSprite = true;
+		} else if (type == instr_spriteEnd) {
+			metSpriteEnd = true;
+		} else if (type == instr_setMarker) {
+			metSetMarker = true;
+		}
+	}
+	if (metSetMarker) {
+		offsets.push_back(instr - func);
+	}
+}
+
+int Moves::findGhostState(int offset, const std::vector<int>& offsets) {
+	if (offsets.empty()) return 0;
+	if (offset <= offsets[0]) return 0;
+	for (int i = (int)offsets.size() - 1; i >= 0; --i) {
+		if (offset > offsets[i]) {
+			return i + 1;
+		}
+	}
+	return 0;
+}
+
+void Moves::fillJackoThrowGhostOffset(BYTE* func, int* offset) {
+	if (*offset != 0) return;
+	BYTE* instr;
+	bool found = false;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sendSignalToAction) {
+			found = true;
+		} else if (type == instr_sprite && found) {
+			*offset = instr - func;
+			return;
+		}
+	}
+}
+
+void Moves::fillJackoGhostExp(BYTE* func, int* jackoGhostExp) {
+	if (jackoGhostExp[0] != 0) return;
+	BYTE* instr;
+	int counter = 2;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 9  // IS_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 46  // Mem(46)
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			*jackoGhostExp = *(int*)(instr + 0x14);
+			++jackoGhostExp;
+			--counter;
+			if (counter == 0) return;
+		}
+	}
+}
+
+void Moves::fillJackoGhostCreationTimer(BYTE* func, int* jackoGhostCreationTimer) {
+	if (jackoGhostCreationTimer[0] != 0) return;
+	BYTE* instr;
+	int counter = 3;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 57  // Mem(57)
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			*jackoGhostCreationTimer = *(int*)(instr + 0x14);
+			++jackoGhostCreationTimer;
+			--counter;
+			if (counter == 0) return;
+		}
+	}
+}
+
+void Moves::fillJackoGhostHealingTimer(BYTE* func, int* jackoGhostHealingTimer) {
+	if (jackoGhostHealingTimer[0] != 0) return;
+	int* jackoGhostHealingTimerOrig = jackoGhostHealingTimer;
+	BYTE* instr;
+	int counter = 6;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 9  // IS_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 48  // Mem(48)
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			*jackoGhostHealingTimer = *(int*)(instr + 0x14);
+			++jackoGhostHealingTimer;
+			--counter;
+			if (counter == 0) return;
+		}
+	}
+	jackoGhostHealingTimerOrig[0] = -1;  // Rev1
+}
+
+void Moves::fillJackoGhostBuffTimer(BYTE* func) {
+	if (jackoGhostBuffTimer != 0) return;
+	BYTE* instr;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 9  // IS_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 52  // Mem(52)
+				&& *(int*)(instr + 0x10) == 0  // tag:literal
+				&& *(int*)(instr + 0x14) != 1) {
+			jackoGhostBuffTimer = *(int*)(instr + 0x14);
+			return;
+		}
+	}
+}
+
+void Moves::fillJackoGhostExplodeTimer(BYTE* func) {
+	if (jackoGhostExplodeTimer != 0) return;
+	BYTE* instr;
+	int counter = 4;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 9  // IS_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 49  // Mem(49)
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			--counter;
+			if (counter == 0) {
+				jackoGhostExplodeTimer = *(int*)(instr + 0x14);
+				return;
+			}
+		}
+	}
+}
+
+void Moves::fillServantCooldown(BYTE* func, int* servantCooldown) {
+	if (servantCooldown[0] != 0) return;
+	BYTE* instr;
+	int counter = 2;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sprite) {
+			*servantCooldown = *(int*)(instr + 4 + 32);
+			++servantCooldown;
+			--counter;
+			if(counter == 0) return;
+		}
+	}
+}
+
+void Moves::fillServantExplosionTimer(BYTE* func) {
+	if (servantExplosionTimer != 0) return;
+	BYTE* instr;
+	int counter = 4;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 9  // IS_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 54  // Mem(54)
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			--counter;
+			if(counter == 0) {
+				servantExplosionTimer = *(int*)(instr + 0x14);
+				return;
+			}
+		}
+	}
+}
+
+void Moves::fillServantClockUpTimer(BYTE* func) {
+	if (servantClockUpTimer != 0) return;
+	BYTE* instr;
+	int counter = 2;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 9  // IS_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 49  // Mem(49)
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			--counter;
+			if(counter == 0) {
+				servantClockUpTimer = *(int*)(instr + 0x14);
+				return;
+			}
+		}
+	}
+}
+
+void Moves::fillServantTimeoutTimer(BYTE* func) {
+	if (servantTimeoutTimer != 0) return;
+	BYTE* instr;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 105  // FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			servantTimeoutTimer = *(int*)(instr + 0x14);
+			return;
+		}
+	}
+}
+
+void Moves::fillServantAtk(BYTE* func, MayIrukasanRidingObjectInfo* servantAtk) {
+	if (servantAtk[0].totalFrames != 0) return;
+	BYTE* instr;
+	bool start = false;
+	bool metSprite = false;
+	bool metSpriteEnd = false;
+	bool metSetMarker = false;
+	int lastSpriteLength = 0;
+	int counter = 6;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_setMarker && strcmp((const char*)(instr + 4), "AtkLv1") == 0) {
+			start = true;
+			instr = skipInstruction(instr);
+			break;
+		}
+	}
+	if (!start) return;
+	for (
+			;
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (metSpriteEnd) {
+			servantAtk->frames.emplace_back();
+			MayIrukasanRidingObjectFrames& newFrames = servantAtk->frames.back();
+			newFrames.offset = instr - func;
+			newFrames.frames = servantAtk->totalFrames;
+			servantAtk->totalFrames += lastSpriteLength;
+			
+			metSpriteEnd = false;
+			metSprite = false;
+		}
+		if (type == instr_sprite) {
+			if (metSprite) {
+				servantAtk->frames.emplace_back();
+				MayIrukasanRidingObjectFrames& newFrames = servantAtk->frames.back();
+				newFrames.offset = instr - func;
+				newFrames.frames = servantAtk->totalFrames;
+				servantAtk->totalFrames += lastSpriteLength;
+			}
+			lastSpriteLength = *(int*)(instr + 4 + 32);
+			metSprite = true;
+		} else if (type == instr_spriteEnd) {
+			metSpriteEnd = true;
+		} else if (type == instr_goToMarker) {
+			++servantAtk;
+			--counter;
+			if (counter == 0) return;
+		}
+	}
 }
