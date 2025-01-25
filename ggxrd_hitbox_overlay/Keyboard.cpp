@@ -2,6 +2,7 @@
 #include "Keyboard.h"
 #include "logging.h"
 #include "Settings.h"
+#include "memoryFunctions.h"
 
 Keyboard keyboard;
 
@@ -25,6 +26,13 @@ bool Keyboard::onDllMain() {
 	if (!thisProcessWindow) {
 		logwrap(fputs("Could not find this process' window\n", logfile));
 	}
+	
+	UWindowsClient_Joysticks = (BYTE*)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"69 ff fc 01 00 00 03 3d ?? ?? ?? ?? 68 10 01 00 00",
+		{ 8, 0 },
+		nullptr, "UWindowsClient_Joysticks");
+	
 	return true;
 }
 
@@ -34,9 +42,96 @@ void Keyboard::updateKeyStatuses() {
 		guard = std::unique_lock<std::mutex>(mutex);
 	
 	const bool windowActive = isWindowActive();
+	DIJOYSTATE2 joy;
+	if (windowActive && !statuses.empty()) {
+		getJoyState(&joy);
+	}
 	for (KeyStatus& status : statuses) {
 		status.gotPressed = false;
-		const bool isPressed = windowActive && isKeyCodePressed(status.code);
+		bool isPressed;
+		if (!windowActive) {
+			isPressed = false;
+		} else {
+			switch (status.code) {
+				case JOY_BTN_0:
+				case JOY_BTN_1:
+				case JOY_BTN_2:
+				case JOY_BTN_3:
+				case JOY_BTN_4:
+				case JOY_BTN_5:
+				case JOY_BTN_6:
+				case JOY_BTN_7:
+				case JOY_BTN_8:
+				case JOY_BTN_9:
+				case JOY_BTN_10:
+				case JOY_BTN_11:
+				case JOY_BTN_12:
+				case JOY_BTN_13:
+				case JOY_BTN_14:
+				case JOY_BTN_15:
+					isPressed = joy.rgbButtons[status.code - JOY_BTN_0];
+					break;
+				case JOY_LEFT_STICK_LEFT:
+					isPressed = joy.lX < 32767 - 3000;
+					break;
+				case JOY_LEFT_STICK_UP:
+					isPressed = joy.lY < 32767 - 3000;
+					break;
+				case JOY_LEFT_STICK_RIGHT:
+					isPressed = joy.lX > 32767 + 3000;
+					break;
+				case JOY_LEFT_STICK_DOWN:
+					isPressed = joy.lY > 32767 + 3000;
+					break;
+				case JOY_DPAD_LEFT:
+					isPressed = joy.rgdwPOV[0] == 31500
+						|| joy.rgdwPOV[0] == 27000
+						|| joy.rgdwPOV[0] == 22500;
+					break;
+				case JOY_DPAD_UP:
+					isPressed = joy.rgdwPOV[0] == 0
+						|| joy.rgdwPOV[0] == 31500
+						|| joy.rgdwPOV[0] == 4500;
+					break;
+				case JOY_DPAD_RIGHT:
+					isPressed = joy.rgdwPOV[0] == 4500
+						|| joy.rgdwPOV[0] == 9000
+						|| joy.rgdwPOV[0] == 13500;
+					break;
+				case JOY_DPAD_DOWN:
+					isPressed = joy.rgdwPOV[0] == 22500
+						|| joy.rgdwPOV[0] == 18000
+						|| joy.rgdwPOV[0] == 13500;
+					break;
+				case JOY_PS4_DUALSHOCK_RIGHT_STICK_LEFT:
+					isPressed = joy.lZ < 32767 - 3000;
+					break;
+				case JOY_PS4_DUALSHOCK_RIGHT_STICK_UP:
+					isPressed = joy.lRz < 32767 - 3000;
+					break;
+				case JOY_PS4_DUALSHOCK_RIGHT_STICK_RIGHT:
+					isPressed = joy.lZ > 32767 + 3000;
+					break;
+				case JOY_PS4_DUALSHOCK_RIGHT_STICK_DOWN:
+					isPressed = joy.lRz > 32767 + 3000;
+					break;
+				case JOY_XBOX_TYPE_S_RIGHT_STICK_LEFT:
+					isPressed = joy.lRx < 32767 - 3000;
+					break;
+				case JOY_XBOX_TYPE_S_RIGHT_STICK_UP:
+					isPressed = joy.lRy < 32767 - 3000;
+					break;
+				case JOY_XBOX_TYPE_S_RIGHT_STICK_RIGHT:
+					isPressed = joy.lRx > 32767 + 3000;
+					break;
+				case JOY_XBOX_TYPE_S_RIGHT_STICK_DOWN:
+					isPressed = joy.lRy > 32767 + 3000;
+					break;
+				default:
+					isPressed = isKeyCodePressed(status.code);
+					break;
+			}
+		}
 		if (isPressed && !status.isPressed) {
 			status.gotPressed = true;
 		}
@@ -66,7 +161,7 @@ void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 			}
 		}
 		if (found == statuses.end()) {
-			statuses.push_back(KeyStatus{ code, isKeyCodePressed(code), false });
+			statuses.push_back(KeyStatus{ code, false, false });
 		}
 	}
 }
@@ -154,4 +249,28 @@ Keyboard::MutexLockedFromOutsideGuard::MutexLockedFromOutsideGuard() {
 
 Keyboard::MutexLockedFromOutsideGuard::~MutexLockedFromOutsideGuard() {
 	keyboard.mutexLockedFromOutside = false;
+}
+
+void Keyboard::getJoyState(DIJOYSTATE2* state) const {
+	
+	memset(state, 0, sizeof DIJOYSTATE2);
+	state->lX = 32767;
+	state->lY = 32767;
+	state->rgdwPOV[0] = -1;
+	
+	if (!UWindowsClient_Joysticks) return;
+	
+	int ArrayNum = *(int*)(UWindowsClient_Joysticks + 4);
+	BYTE* FJoystickInfo = *(BYTE**)UWindowsClient_Joysticks;
+	while (ArrayNum >= 0) {
+		if (*(void**)FJoystickInfo != nullptr  // LPDIRECTINPUTDEVICE8W DirectInput8Joystick
+				&& *(BOOL*)(FJoystickInfo + 0x1f0)) {  // BOOL bIsConnected
+			*state = *(DIJOYSTATE2*)(FJoystickInfo + 0xd0);
+			return;
+		}
+		
+		FJoystickInfo += 0x1fc;
+		--ArrayNum;
+	}
+	
 }

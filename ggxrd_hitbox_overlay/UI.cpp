@@ -2916,7 +2916,7 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Speed X; Y"));
-			AddTooltip(searchTooltip("Speed X; Y in the arena. Divided by 100 for viewability."));
+			AddTooltip(searchTooltip("Speed X; Y. Divided by 100 for viewability."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -2924,6 +2924,17 @@ void UI::drawSearchableWindows() {
 				sprintf_s(strbuf, "%s; ", printdecimalbuf);
 				printDecimal(player.speedY, 2, 0);
 				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Dash Speed"));
+			AddTooltip(searchTooltip("Dash Speed X. Divided by 100 for viewability."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.pawn ? player.pawn.dashSpeed() : 0, 2, 0);
+				sprintf_s(strbuf, "%s", printdecimalbuf);
 				ImGui::TextUnformatted(strbuf);
 			}
 			
@@ -7013,6 +7024,9 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 			ImGui::EndCombo();
 		}
 		ImGui::PopItemWidth();
+		if (*currentKeyStr != '\0') {
+			AddTooltip(currentKeyStr);
+		}
 		ImGui::SameLine();
 	}
 	if (!keyCombo.empty()) {

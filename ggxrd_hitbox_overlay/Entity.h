@@ -793,6 +793,7 @@ public:
 	inline int speedX() const { return *(int*)(ent + 0x2fc); }
 	inline int speedY() const { return *(int*)(ent + 0x300); }
 	inline int& speedY() { return *(int*)(ent + 0x300); }
+	inline int dashSpeed() const { return *(int*)(ent + 0x2f4); }
 	inline int gravity() const { return *(int*)(ent + 0x304); }
 	inline int comboTimer() const { return *(int*)(ent + 0x9f50); }
 	inline BOOL riscMinusOnceUsed() const { return *(BOOL*)(ent + 0x9f54); }

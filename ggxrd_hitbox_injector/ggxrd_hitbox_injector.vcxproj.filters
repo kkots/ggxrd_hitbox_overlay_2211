@@ -26,11 +26,19 @@
     <ClInclude Include="WinError.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\launch_ggxrd_hitbox_injector_linux.sh" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ggxrd_hitbox_injector.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

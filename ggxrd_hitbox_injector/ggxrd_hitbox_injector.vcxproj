@@ -131,6 +131,7 @@
     <ClCompile Include="WinError.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
     <ClInclude Include="WinError.h" />
   </ItemGroup>
   <ItemGroup>
@@ -139,6 +140,9 @@
       <FileType>Script</FileType>
     </CopyFileToFolders>
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ggxrd_hitbox_injector.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

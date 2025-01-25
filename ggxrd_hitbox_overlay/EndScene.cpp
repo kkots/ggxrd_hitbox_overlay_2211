@@ -5442,11 +5442,7 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 			settings.readSettings(true);
 		}
 		
-		if (message == WM_KEYDOWN
-				|| message == WM_KEYUP
-				|| message == WM_SYSKEYDOWN
-				|| message == WM_SYSKEYUP
-				|| message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
+		if (message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
 			processKeyStrokes();
 		}
 		if (message == WM_APP_TURN_OFF_POST_EFFECT_SETTING_CHANGED) {
@@ -6426,6 +6422,9 @@ UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRender
 
 // Runs on the main thread
 void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
+	if (!shutdown && !graphics.shutdown) {
+		processKeyStrokes();
+	}
 	if (graphics.shutdown) {
 		static bool graphicsOnShutdownCalled = false;
 		if (!graphicsOnShutdownCalled) {

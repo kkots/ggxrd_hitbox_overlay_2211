@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <mutex>
+#include <dinput.h>
 
 class Keyboard
 {
@@ -31,6 +32,8 @@ private:
 	bool isWindowActive() const;
 	bool isModifierKey(int code) const;
 	KeyStatus* getStatus(int code);
+	BYTE* UWindowsClient_Joysticks = nullptr;
+	void getJoyState(DIJOYSTATE2* state) const;
 };
 
 extern Keyboard keyboard;
