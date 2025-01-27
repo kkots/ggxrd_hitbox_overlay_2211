@@ -208,6 +208,12 @@ static const char* displayNameSelector_airMistDash(PlayerInfo& ent);
 static const char* displaySlangNameSelector_airMistDash(PlayerInfo& ent);
 static const char* displayNameSelector_airMistBackdash(PlayerInfo& ent);
 static const char* displaySlangNameSelector_airMistBackdash(PlayerInfo& ent);
+static const char* displayNameSelector_gekirinLv2or3(PlayerInfo& ent);
+static const char* displayNameSelector_airGekirinLv2or3(PlayerInfo& ent);
+static const char* displayNameSelector_ryujinLv2or3(PlayerInfo& ent);
+static const char* displayNameSelector_airRyujinLv2or3(PlayerInfo& ent);
+static const char* displayNameSelector_kenroukakuLv2or3(PlayerInfo& ent);
+static const char* displayNameSelector_airKenroukakuLv2or3(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -271,6 +277,8 @@ static bool powerup_beakDriver(PlayerInfo& ent);
 static const char* powerupExplanation_beakDriver(PlayerInfo& ent);
 static bool powerup_mistFiner(PlayerInfo& ent);
 static const char* powerupExplanation_mistFiner(PlayerInfo& ent);
+static bool powerup_eatMeat(PlayerInfo& ent);
+static const char* powerupExplanation_eatMeat(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -3712,19 +3720,22 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinHasei");
-	move.displayName = "Chained Ryuujin";
+	move.displayName = "Ryuujin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinKyoukaLand");
 	move.displayName = "Carded Ryuujin";
+	move.displayNameSelector = displayNameSelector_ryujinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinKyoukaAir");
 	move.displayName = "Carded Air Ryuujin";
+	move.displayNameSelector = displayNameSelector_airRyujinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinKyoukaHasei");
-	move.displayName = "Carded Chained Ryuujin";
+	move.displayName = "Carded Ryuujin";
+	move.displayNameSelector = displayNameSelector_ryujinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinLand");
@@ -3736,19 +3747,22 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinHasei");
-	move.displayName = "Chained Gekirin";
+	move.displayName = "Gekirin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinKyoukaLand");
 	move.displayName = "Carded Gekirin";
+	move.displayNameSelector = displayNameSelector_gekirinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinKyoukaAir");
 	move.displayName = "Carded Air Gekirin";
+	move.displayNameSelector = displayNameSelector_airGekirinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinKyoukaHasei");
-	move.displayName = "Carded Chained Gekirin";
+	move.displayName = "Carded Gekirin";
+	move.displayNameSelector = displayNameSelector_gekirinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuLand");
@@ -3760,19 +3774,22 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuHasei");
-	move.displayName = "Chained Kenroukaku";
+	move.displayName = "Kenroukaku";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuKyoukaLand");
 	move.displayName = "Carded Kenroukaku";
+	move.displayNameSelector = displayNameSelector_kenroukakuLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuKyoukaAir");
 	move.displayName = "Carded Air Kenroukaku";
+	move.displayNameSelector = displayNameSelector_airKenroukakuLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuKyoukaHasei");
-	move.displayName = "Carded Chained Kenroukaku";
+	move.displayName = "Carded Kenroukaku";
+	move.displayNameSelector = displayNameSelector_kenroukakuLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Renhoukyaku");
@@ -6314,6 +6331,8 @@ bool Moves::onDllMain() {
 	move.slangName = "Eat";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.powerup = powerup_eatMeat;
+	move.powerupExplanation = powerupExplanation_eatMeat;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "EatMeat_Okawari");
@@ -6321,6 +6340,8 @@ bool Moves::onDllMain() {
 	move.slangName = "Mash Eat";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.powerup = powerup_eatMeat;
+	move.powerupExplanation = powerupExplanation_eatMeat;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakiage");
@@ -9168,6 +9189,42 @@ const char* displaySlangNameSelector_airMistBackdash(PlayerInfo& ent) {
 	}
 	return "j.MF Airdash Back";
 }
+const char* displayNameSelector_gekirinLv2or3(PlayerInfo& ent) {
+	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Gekirin") == 0) {
+		return "Lv3 Gekirin";
+	}
+	return "Lv2 Gekirin";
+}
+const char* displayNameSelector_airGekirinLv2or3(PlayerInfo& ent) {
+	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Gekirin") == 0) {
+		return "Lv3 Air Gekirin";
+	}
+	return "Lv2 Air Gekirin";
+}
+const char* displayNameSelector_ryujinLv2or3(PlayerInfo& ent) {
+	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Ryujin") == 0) {
+		return "Lv3 Ryuujin";
+	}
+	return "Lv2 Ryuujin";
+}
+const char* displayNameSelector_airRyujinLv2or3(PlayerInfo& ent) {
+	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Ryujin") == 0) {
+		return "Lv3 Air Ryuujin";
+	}
+	return "Lv2 Air Ryuujin";
+}
+const char* displayNameSelector_kenroukakuLv2or3(PlayerInfo& ent) {
+	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Kenroukaku") == 0) {
+		return "Lv3 Kenroukaku";
+	}
+	return "Lv2 Kenroukaku";
+}
+const char* displayNameSelector_airKenroukakuLv2or3(PlayerInfo& ent) {
+	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Kenroukaku") == 0) {
+		return "Lv3 Air Kenroukaku";
+	}
+	return "Lv2 Air Kenroukaku";
+}
 
 bool canYrcProjectile_default(PlayerInfo& player) {
 	return player.prevFrameHadDangerousNonDisabledProjectiles
@@ -9634,6 +9691,12 @@ const char* powerupExplanation_mistFiner(PlayerInfo& ent) {
 	} else {
 		return "Mist Finer acquired Guard Break property and may change to an unblockable, if the opponent jumps.";
 	}
+}
+bool powerup_eatMeat(PlayerInfo& ent) {
+	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource;
+}
+const char* powerupExplanation_eatMeat(PlayerInfo& ent) {
+	return "Restored Calorie Gauge";
 }
 
 void fillMay6HOffsets(BYTE* func) {

@@ -1336,6 +1336,7 @@ struct PlayerInfo {
 	int prevFramePlayerval1 = 0;
 	int prevFramePlayerval2 = 0;
 	int prevFrameElpheltRifle_AimMem46 = 0;
+	int prevFrameResource = 0;
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
 	int lastNoteTime = 0;
@@ -1386,6 +1387,7 @@ struct PlayerInfo {
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };
+	char labelAtTheStartOfTheMove[32] { '\0' };
 	char tensionPulsePenaltySeverity = 0;  // the higher, the worse
 	char cornerPenaltySeverity = 0;  // the higher, the worse
 	bool frameAdvantageValid:1;

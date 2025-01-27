@@ -1678,6 +1678,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.onAnimReset();
 						}
 						
+						memcpy(player.labelAtTheStartOfTheMove, player.pawn.gotoLabelRequest(), 32);
 						player.airteched = player.cmnActIndex == CmnActUkemi;
 						player.moveStartTime_aswEngineTick = player.startup;
 						player.startup = 0;
@@ -4885,6 +4886,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFramePlayerval1 = player.playerval1;
 			player.prevFramePlayerval2 = player.wasPlayerval[2];
 			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
+			player.prevFrameResource = player.pawn.exGaugeValue(0);
 			player.prevPosX = player.x;
 			player.prevPosY = player.y;
 			
