@@ -7691,6 +7691,7 @@ void Moves::onAswEngineDestroyed() {
 	jackoServantBAggroY = 0;
 	jackoServantCAggroX = 0;
 	jackoServantCAggroY = 0;
+	jamSaishingekiY = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
