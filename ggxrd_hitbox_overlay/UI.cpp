@@ -27,6 +27,7 @@
 #include "colors.h"
 #include "findMoveByName.h"
 #include "Hardcode.h"
+#include "InputNames.h"
 
 UI ui;
 
@@ -175,7 +176,7 @@ static bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton m
 static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels);
 static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
-static void printInputs(char*&buf, size_t& bufSize, UI::InputName** motions, int motionCount, UI::InputName** buttons, int buttonsCount);
+static void printInputs(char*&buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount);
 static void printChippInvisibility(int current, int max);
 static void textUnformattedColored(ImVec4 color, const char* str, const char* strEnd = nullptr);
 static void yellowText(const char* str, const char* strEnd = nullptr);
@@ -631,183 +632,6 @@ bool UI::onDllMain(HMODULE hModule) {
 			{ res.uEnd, res.vEnd }
 		};
 	}
-	
-	inputNames[INPUT_HOLD_P] = { "[P]", BUTTON };
-	inputNames[INPUT_P_STRICT_PRESS] = { "S (no buffer)",  BUTTON };
-	inputNames[INPUT_P_STRICT_RELEASE] = { "]S[ (no buffer)",  BUTTON };
-	inputNames[INPUT_PRESS_P] = { "P",  BUTTON };
-	inputNames[INPUT_NOT_HOLD_P] = { "don't hold P",  MULTIWORD_BUTTON };
-	inputNames[INPUT_RELEASE_P] = { "]P[",  BUTTON };
-	inputNames[INPUT_HOLD_K] = { "[K]", BUTTON };
-	inputNames[INPUT_K_STRICT_PRESS] = { "K (no buffer)", BUTTON };
-	inputNames[INPUT_K_STRICT_RELEASE] = { "]K[ (no buffer)", BUTTON };
-	inputNames[INPUT_PRESS_K] = { "K", BUTTON };
-	inputNames[INPUT_NOT_HOLD_K] = { "don't hold K", MULTIWORD_BUTTON };
-	inputNames[INPUT_RELEASE_K] = { "]K[", BUTTON };
-	inputNames[INPUT_HOLD_S] = { "[S]", BUTTON };
-	inputNames[INPUT_S_STRICT_PRESS] = { "S (no buffer)", BUTTON };
-	inputNames[INPUT_S_STRICT_RELEASE] = { "]S[ (no buffer)", BUTTON };
-	inputNames[INPUT_PRESS_S] = { "S", BUTTON };
-	inputNames[INPUT_NOT_HOLD_S] = { "don't hold S", MULTIWORD_BUTTON };
-	inputNames[INPUT_RELEASE_S] = { "]S[", BUTTON };
-	inputNames[INPUT_HOLD_H] = { "[H]", BUTTON };
-	inputNames[INPUT_H_STRICT_PRESS] = { "H (no buffer)", BUTTON };
-	inputNames[INPUT_H_STRICT_RELEASE] = { "]H[ (no buffer)", BUTTON };
-	inputNames[INPUT_PRESS_H] = { "H", BUTTON };
-	inputNames[INPUT_NOT_HOLD_H] = { "don't hold H", MULTIWORD_BUTTON };
-	inputNames[INPUT_RELEASE_H] = { "]H[", BUTTON };
-	inputNames[INPUT_HOLD_D] = { "[D]", BUTTON };
-	inputNames[INPUT_D_STRICT_PRESS] = { "D (no buffer)", BUTTON };
-	inputNames[INPUT_D_STRICT_RELEASE] = { "]D[ (no buffer)", BUTTON };
-	inputNames[INPUT_PRESS_D] = { "D", BUTTON };
-	inputNames[INPUT_NOT_HOLD_D] = { "don't hold D", MULTIWORD_BUTTON };
-	inputNames[INPUT_RELEASE_D] = { "]D[", BUTTON };
-	inputNames[INPUT_HOLD_TAUNT] = { "[Taunt]", BUTTON };
-	inputNames[INPUT_TAUNT_STRICT_PRESS] = { "Taunt (no buffer)", BUTTON };
-	inputNames[INPUT_TAUNT_STRICT_RELEASE] = { "]Taunt[ (no buffer)", BUTTON };
-	inputNames[INPUT_PRESS_TAUNT] = { "Taunt", BUTTON };
-	inputNames[INPUT_NOT_HOLD_TAUNT] = { "don't hold Taunt", MULTIWORD_BUTTON };
-	inputNames[INPUT_RELEASE_TAUNT] = { "Taunt", BUTTON };
-	inputNames[INPUT_1] = { "1", MOTION };
-	inputNames[INPUT_4_OR_1_OR_2] = { "4/1/2", MOTION };
-	inputNames[INPUT_NOT_1] = { "don't hold 1", MULTIWORD_MOTION };
-	inputNames[INPUT_NOT_4_OR_1_OR_2] = { "don't hold 4/1/2", MULTIWORD_MOTION };
-	inputNames[INPUT_2] = { "2", MOTION };
-	inputNames[INPUT_ANYDOWN] = { "1/2/3", MOTION };
-	inputNames[INPUT_ANYDOWN_STRICT_PRESS] = { "press 1/2/3 (no buffer)", MULTIWORD_BUTTON };
-	inputNames[INPUT_NOT_2] = { "don't hold 2", MULTIWORD_MOTION };
-	inputNames[INPUT_NOTANYDOWN] = { "don't hold 1/2/3", MULTIWORD_MOTION };
-	inputNames[INPUT_3] = { "3", MOTION };
-	inputNames[INPUT_6_OR_3_OR_2] = { "6/3/2", MOTION };
-	inputNames[INPUT_NOT_3] = { "don't hold 3", MULTIWORD_MOTION };
-	inputNames[INPUT_NOT_6_OR_3_OR_2] = { "don't hold 6/3/2", MULTIWORD_MOTION };
-	inputNames[INPUT_4] = { "4", MOTION };
-	inputNames[INPUT_ANYBACK] = { "7/4/1", MOTION };
-	inputNames[INPUT_ANYBACK_STRICT_PRESS] = { "press 7/4/1 (no buffer)", MULTIWORD_BUTTON };
-	inputNames[INPUT_NOT_4] = { "don't hold 4", MULTIWORD_MOTION };
-	inputNames[INPUT_NOTANYBACK] = { "don't hold 7/4/1", MULTIWORD_MOTION };
-	inputNames[INPUT_5] = { "5", MOTION };
-	inputNames[INPUT_ALWAYS_TRUE_DUPLICATE] = { "nullptr", MULTIWORD_MOTION };
-	inputNames[INPUT_NOT_5] = { "don't hold 5", MULTIWORD_MOTION };
-	inputNames[INPUT_6] = { "6", MOTION };
-	inputNames[INPUT_ANYFORWARD] = { "9/6/3", MOTION };
-	inputNames[INPUT_ANYFORWARD_STRICT_PRESS] = { "press 9/6/3 (no buffer)", MULTIWORD_BUTTON };
-	inputNames[INPUT_NOT_6] = { "don't hold 6", MULTIWORD_MOTION };
-	inputNames[INPUT_NOTANYFORWARD] = { "don't hold 9/6/3", MULTIWORD_MOTION };
-	inputNames[INPUT_7] = { "7", MOTION };
-	inputNames[INPUT_4_OR_7_OR_8] = { "4/7/8", MOTION };
-	inputNames[INPUT_NOT_7] = { "don't hold 7", MULTIWORD_MOTION };
-	inputNames[INPUT_NOT_4_OR_7_OR_8] = { "don't hold 4/7/8", MULTIWORD_MOTION };
-	inputNames[INPUT_8] = { "8", MOTION };
-	inputNames[INPUT_ANYUP] = { "7/8/9", MOTION };
-	inputNames[INPUT_ANYUP_STRICT_PRESS] = { "press 7/8/9 (no buffer)", MULTIWORD_BUTTON };
-	inputNames[INPUT_NOT_8] = { "don't hold 8", MULTIWORD_MOTION };
-	inputNames[INPUT_NOTANYUP] = { "don't hold 7/8/9", MULTIWORD_MOTION };
-	inputNames[INPUT_9] = { "9", MOTION };
-	inputNames[INPUT_6_OR_9_OR_8] = { "6/9/8", MOTION };
-	inputNames[INPUT_NOT_9] = { "don't hold 9", MULTIWORD_MOTION };
-	inputNames[INPUT_NOT_6_OR_9_OR_8] = { "don't hold 6/9/8", MULTIWORD_MOTION };
-	inputNames[INPUT_236] = { "236", MOTION };
-	inputNames[INPUT_623] = { "623", MOTION };
-	inputNames[INPUT_214] = { "214", MOTION };
-	inputNames[INPUT_41236] = { "41236", MOTION };
-	inputNames[INPUT_421] = { "421", MOTION };
-	inputNames[INPUT_63214] = { "63214", MOTION };
-	inputNames[INPUT_236236] = { "236236", MOTION };
-	inputNames[INPUT_214214] = { "214214", MOTION };
-	inputNames[INPUT_4123641236] = { "4123641236", MOTION };
-	inputNames[INPUT_6321463214] = { "6321463214", MOTION };
-	inputNames[INPUT_632146] = { "632146", MOTION };
-	inputNames[INPUT_641236] = { "641236", MOTION };
-	inputNames[INPUT_2141236] = { "2141236", MOTION };
-	inputNames[INPUT_2363214] = { "2363214", MOTION };
-	inputNames[INPUT_22] = { "22", MOTION };
-	inputNames[INPUT_46] = { "46", MOTION };
-	inputNames[INPUT_CHARGE_BACK_FORWARD_30F] = { "charge back 30f -> forward", MULTIWORD_MOTION };
-	inputNames[INPUT_CHARGE_DOWN_UP_30F] = { "charge down 30f -> up", MULTIWORD_MOTION };
-	inputNames[INPUT_6428] = { "6428", MOTION };
-	inputNames[INPUT_CHARGE_BACK_UP_30F] = { "charge back 30f -> up", MULTIWORD_MOTION };
-	inputNames[INPUT_64641236] = { "64641236", MOTION };
-	inputNames[INPUT_342646] = { "342646", MOTION };
-	inputNames[INPUT_28] = { "28", MOTION };
-	inputNames[INPUT_646] = { "646", MOTION };
-	inputNames[INPUT_P_MASH] = { "mash (press 5 times) P", MULTIWORD_BUTTON };
-	inputNames[INPUT_K_MASH] = { "mash (press 5 times) K", MULTIWORD_BUTTON };
-	inputNames[INPUT_S_MASH] = { "mash (press 5 times) S", MULTIWORD_BUTTON };
-	inputNames[INPUT_H_MASH] = { "mash (press 5 times) H", MULTIWORD_BUTTON };
-	inputNames[INPUT_D_MASH] = { "mash (press 5 times) D", MULTIWORD_BUTTON };
-	inputNames[INPUT_CIRCLE] = { "circle", MULTIWORD_MOTION };
-	inputNames[INPUT_222] = { "222", MOTION };
-	inputNames[INPUT_2222] = { "2222", MOTION };
-	inputNames[INPUT_236236_STRICTER] = { "236236", MOTION };
-	inputNames[INPUT_PRESS_D_DUPLICATE] = { "D", BUTTON };
-	inputNames[INPUT_HOLD_6_OR_3_AND_PRESS_TWO_OF_PKSH] = { "6/3+any two of PKSH", MULTIWORD_BUTTON };
-	inputNames[INPUT_ROMAN_CANCEL] = { "Roman Cancel", MULTIWORD_BUTTON };
-	inputNames[INPUT_SUPERJUMP] = { "Superjump", BUTTON };
-	inputNames[INPUT_ANYUP_STRICT_PRESS_DUPLICATE] = { "press 7/8/9 (no buffer)", MULTIWORD_BUTTON };
-	inputNames[INPUT_FORWARD_DASH] = { "66", MOTION };
-	inputNames[INPUT_BACKDASH] = { "44", MOTION };
-	inputNames[INPUT_BLOCK_WITH_CROSSUP_PROTECTION] = { "hold block (when crossup immunity (3f) is in effect, both directions of block will suffice or even not blocking"
-		" at all and simply having held block within the past 6f."
-		" If in the air and the opponent is behind you, you may hold block in either direction)", MULTIWORD_MOTION };
-	inputNames[INPUT_BLOCK_OR_CROSSUP_AIR_BLOCK] = { "hold block (or if in the air and the opponent is behind you, then you may hold block in either direction)", MULTIWORD_MOTION };
-	inputNames[INPUT_151] = { "151", MOTION };
-	inputNames[INPUT_252] = { "252", MOTION };
-	inputNames[INPUT_353] = { "353", MOTION };
-	inputNames[INPUT_454] = { "454", MOTION };
-	inputNames[INPUT_66_QUICK] = { "66", MOTION };
-	inputNames[INPUT_757] = { "757", MOTION };
-	inputNames[INPUT_858] = { "858", MOTION };
-	inputNames[INPUT_959] = { "959", MOTION };
-	inputNames[INPUT_ALWAYS_TRUE_DUPLICATE2] = { "nullptr", MULTIWORD_MOTION };
-	inputNames[INPUT_ALWAYS_FALSE_DUPLICATE] = { "nullptr", MULTIWORD_MOTION };
-	inputNames[INPUT_623_LENIENT] = { "623", MOTION };
-	inputNames[INPUT_22_LENIENT] = { "22", MOTION };
-	inputNames[INPUT_5_OR_4_OR_ANY_UP] = { "5/4/7/8/9", MOTION };
-	inputNames[INPUT_5_OR_ANY_UP] = { "5/7/8/9", MOTION };
-	inputNames[INPUT_5_OR_6_OR_ANY_UP] = { "5/6/7/8/9", MOTION };
-	inputNames[INPUT_5_OR_4_OR_7_OR_8] = { "5/4/7/8", MOTION };
-	inputNames[INPUT_421_LENIENT] = { "421", MOTION };
-	inputNames[INPUT_16243] = { "16243", MOTION };
-	inputNames[INPUT_546] = { "546", MOTION };
-	inputNames[INPUT_5_ANYBACK_ANYFORWARD_STRICTER] = { "5(7/4/1)(9/6/3)", MOTION };
-	inputNames[INPUT_5_ANYFORWARD_ANYBACK] = { "5(9/6/3)(7/4/1)", MOTION };
-	inputNames[INPUT_CHARGE_BACK_FORWARD_40F] = { "charge back 40f -> forward", MULTIWORD_MOTION };
-	inputNames[INPUT_CHARGE_DOWN_UP_40F] = { "charge down 40f -> up", MULTIWORD_MOTION };
-	inputNames[INPUT_CHARGE_BACK_FORWARD_45F] = { "charge back 45f -> forward", MULTIWORD_MOTION };
-	inputNames[INPUT_CHARGE_DOWN_UP_45F] = { "charge down 45f -> up", MULTIWORD_MOTION };
-	inputNames[INPUT_236236236] = { "236236236", MOTION };
-	inputNames[INPUT_623_WITHIN_LAST_3F] = { "623 (3f buffer)", MULTIWORD_MOTION };
-	inputNames[INPUT_5_ANYBACK_ANYFORWARD_WITHIN_LAST_2F] = { "5(7/4/1)(9/6/3) (2f buffer)", MULTIWORD_MOTION };
-	inputNames[INPUT_NOTANYDOWN_2] = { "(not 1/2/3) -> 2", MULTIWORD_MOTION };
-	inputNames[INPUT_46_WITHIN_LAST_1F] = { "46 (no buffer)", MULTIWORD_MOTION };
-	inputNames[INPUT_CHARGE_DOWN_10F] = { "charge down 10f", MULTIWORD_MOTION };
-	inputNames[INPUT_546_BUTNOT_54_ANYDOWN_6] = { "(546, but not 54(1/2/3)6)", MOTION };
-	inputNames[INPUT_5_ANYBACK_ANYFORWARD_LENIENT] = { "5(7/4/1)(9/6/3)", MOTION };
-	inputNames[INPUT_BURST] = { "Burst", BUTTON };
-	inputNames[INPUT_HOLD_TWO_OR_MORE_OF_PKSH] = { "hold two or more of PKSH", MULTIWORD_BUTTON };
-	inputNames[INPUT_PRESS_TWO_OR_MORE_OF_PKSH_GLITCHED] = { "press two or more of PKSH (obsolete)", MULTIWORD_BUTTON };  // why it's glitched? I think it relies on a 2f buttonpress buffer. Rn it's 3. So it gets its flag set on f1 of press and then on f2 it's unset and on f3 it's set again and then you need to press the button again to continue it switching on and off each frame. Activating twice from one press on frames 1 and 3 is a glitch thank you for reading this far I hope you're happy and all is well
-	inputNames[INPUT_PRESS_ANYBACK_WITHIN_LAST_8F_NO_MASH_ALLOWED] = { "7/4/1 within last 8f no mash allowed", MULTIWORD_BUTTON };
-	inputNames[INPUT_P_OR_K_OR_S_OR_H] = { "P/K/S/H", BUTTON };
-	inputNames[INPUT_BOOLEAN_OR] = { "or", BUTTON };
-	inputNames[INPUT_HAS_PRECEDING_5] = { "preceding 5", MULTIWORD_MOTION };
-	inputNames[INPUT_ITEM] = { "Item", BUTTON };
-	inputNames[INPUT_HOLD_SPECIAL] = { "[Sp]", BUTTON };
-	inputNames[INPUT_SPECIAL_STRICT_PRESS] = { "Sp (no buffer)", BUTTON };
-	inputNames[INPUT_SPECIAL_STRICT_RELEASE] = { "]Sp[ (no buffer)", BUTTON };
-	inputNames[INPUT_PRESS_SPECIAL] = { "Sp", BUTTON };
-	inputNames[INPUT_NOT_HOLD_SPECIAL] = { "don't hold Sp", MULTIWORD_BUTTON };
-	inputNames[INPUT_RELEASE_SPECIAL] = { "]Sp[", BUTTON };
-	inputNames[INPUT_ANY_TWO_OF_PKSH] = { "any two of PKSH", MULTIWORD_BUTTON };
-	inputNames[INPUT_ROMAN_CANCEL_DUPLICATE] = { "Roman Cancel", MULTIWORD_BUTTON };
-	inputNames[INPUT_MOM_TAUNT] = { "MOM Taunt", MULTIWORD_BUTTON };
-	inputNames[INPUT_FORWARD_DASH_WITHIN_LAST_2F] = { "66 (2f buffer)", MULTIWORD_MOTION };
-	inputNames[INPUT_BACKDASH_WITHIN_LAST_2F] = { "44 (2f buffer)", MULTIWORD_MOTION };
-	inputNames[INPUT_P_OR_K_OR_S_OR_H_OR_D_STRICT_PRESS] = { "P/K/S/H/D (no buffer)", BUTTON };
-	inputNames[INPUT_ALWAYS_FALSE] = { "nullptr", MULTIWORD_MOTION };
-	inputNames[INPUT_PRESS_TAUNT_DUPLICATE] = { "Taunt", BUTTON };
-	inputNames[INPUT_HOLD_ONE_OR_MORE_OF_PKSH] = { "hold one or more of P/K/S/H", MULTIWORD_BUTTON };
-	inputNames[INPUT_HOLD_ONE_OR_MORE_OF_PKSH_OR_D] = { "hold one or more of P/K/S/H/D", MULTIWORD_BUTTON };
 	
 	errorDialogPos = new ImVec2();
 	
@@ -7782,13 +7606,13 @@ void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD r
 	
 }
 
-void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motionCount, UI::InputName** buttons, int buttonsCount) {
+void printInputs(char*& buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount) {
 	char* bufOrig = buf;
 	int result;
 	bool needSpace = false;
 	for (int i = 0; i < motionCount; ++i) {
-		UI::InputName* desc = motions[i];
-		if (strstr(desc->name, "don't") == nullptr && desc->type == UI::InputNameType::MULTIWORD_MOTION) {
+		InputName* desc = motions[i];
+		if (strstr(desc->name, "don't") == nullptr && desc->type == InputNameType::MULTIWORD_MOTION) {
 			result = sprintf_s(buf, bufSize, "%s%s", needSpace ? ", " : "", desc->name);
 			advanceBuf
 			needSpace = true;
@@ -7796,8 +7620,8 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 	}
 	bool needPlus = false;
 	for (int i = 0; i < motionCount; ++i) {
-		UI::InputName* desc = motions[i];
-		if (strstr(desc->name, "don't") == nullptr && desc->type == UI::InputNameType::MOTION) {
+		InputName* desc = motions[i];
+		if (strstr(desc->name, "don't") == nullptr && desc->type == InputNameType::MOTION) {
 			result = sprintf_s(buf, bufSize, "%s%s",
 				needSpace
 					? ", "
@@ -7811,12 +7635,12 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 	}
 	needPlus = false;
 	for (int i = 0; i < buttonsCount; ++i) {
-		UI::InputName* desc = buttons[i];
+		InputName* desc = buttons[i];
 		if (strstr(desc->name, "don't") == nullptr) {
 			result = sprintf_s(buf, bufSize, "%s%s",
 				needPlus
 					? "+"
-					: desc->type == UI::InputNameType::MULTIWORD_BUTTON && bufOrig != buf
+					: desc->type == InputNameType::MULTIWORD_BUTTON && bufOrig != buf
 						? ", "
 						: needSpace
 							? " "
@@ -7829,8 +7653,8 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 	}
 	bool madeOne = false;
 	for (int i = 0; i < motionCount; ++i) {
-		UI::InputName* desc = motions[i];
-		if (strstr(desc->name, "don't") != nullptr && desc->type == UI::InputNameType::MULTIWORD_MOTION) {
+		InputName* desc = motions[i];
+		if (strstr(desc->name, "don't") != nullptr && desc->type == InputNameType::MULTIWORD_MOTION) {
 			if (buf != bufOrig) { needPlus = false; needSpace = true; }
 			result = sprintf_s(buf, bufSize, "%s%s", needSpace ? ", " : "", desc->name);
 			advanceBuf
@@ -7839,8 +7663,8 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 		}
 	}
 	for (int i = 0; i < motionCount; ++i) {
-		UI::InputName* desc = motions[i];
-		if (strstr(desc->name, "don't") != nullptr && desc->type == UI::InputNameType::MOTION) {
+		InputName* desc = motions[i];
+		if (strstr(desc->name, "don't") != nullptr && desc->type == InputNameType::MOTION) {
 			if (buf != bufOrig) { needPlus = false; needSpace = true; }
 			result = sprintf_s(buf, bufSize, "%s%s",
 				needSpace
@@ -7858,13 +7682,13 @@ void printInputs(char*& buf, size_t& bufSize, UI::InputName** motions, int motio
 		needPlus = false;
 	}
 	for (int i = 0; i < buttonsCount; ++i) {
-		UI::InputName* desc = buttons[i];
+		InputName* desc = buttons[i];
 		if (strstr(desc->name, "don't") != nullptr) {
 			if (buf != bufOrig) { needPlus = false; needSpace = true; }
 			result = sprintf_s(buf, bufSize, "%s%s",
 				needPlus
 					? "+"
-					: (desc->type == UI::InputNameType::MULTIWORD_BUTTON || needSpace) && bufOrig != buf
+					: (desc->type == InputNameType::MULTIWORD_BUTTON || needSpace) && bufOrig != buf
 						? ", " : ""
 				, desc->name);
 			advanceBuf
@@ -7878,9 +7702,9 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 	if (!bufSize) return 0;
 	*buf = '\0';
 	char* origBuf = buf;
-	UI::InputName* motions[16] { nullptr };
+	InputName* motions[16] { nullptr };
 	int motionCount = 0;
-	UI::InputName* buttons[16] { nullptr };
+	InputName* buttons[16] { nullptr };
 	int buttonsCount = 0;
 	int result;
 	char* lastOrPrint = nullptr;
@@ -7905,11 +7729,11 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 			buttonsCount = 0;
 			continue;
 		}
-		UI::InputName& info = ui.inputNames[inputType];
-		if (info.type == UI::InputNameType::MOTION || info.type == UI::InputNameType::MULTIWORD_MOTION) {
+		InputName& info = inputNames[inputType];
+		if (info.type == InputNameType::MOTION || info.type == InputNameType::MULTIWORD_MOTION) {
 			motions[motionCount++] = &info;
 		}
-		if (info.type == UI::InputNameType::BUTTON || info.type == UI::InputNameType::MULTIWORD_BUTTON) {
+		if (info.type == InputNameType::BUTTON || info.type == InputNameType::MULTIWORD_BUTTON) {
 			buttons[buttonsCount++] = &info;
 		}
 	}
@@ -8022,10 +7846,8 @@ int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
 			result = sprintf_s(buf, bufSize, ")");
 			advanceBuf
 		}
-		if (cancel.bufferTime && cancel.bufferTime != 3) {
-			result = sprintf_s(buf, bufSize, " (%df buffer)", cancel.bufferTime);
-			advanceBuf
-		}
+		result = sprintf_s(buf, bufSize, " (%df buffer)", cancel.bufferTime);
+		advanceBuf
 		ImGui::Text("%d) %s;", counter++, strbuf);
 	}
 	return counter - 1;
@@ -8333,6 +8155,10 @@ void UI::hitboxesHelpWindow() {
 			"This is only displayed when the \"showJackoServantAttackRange\" setting is on.");
 	}
 	ImGui::TextUnformatted(jackoServantAttack.c_str());
+	
+	yellowText("Jam Bao Saishinshou:");
+	ImGui::TextUnformatted("The white box shows the vertical range where the opponent's origin point be upon"
+		" the hit connecting in order to be vacuumed by the attack.");
 	
 	ImGui::Separator();
 	

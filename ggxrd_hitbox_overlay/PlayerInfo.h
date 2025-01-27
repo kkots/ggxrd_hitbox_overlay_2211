@@ -1337,7 +1337,7 @@ struct PlayerInfo {
 	int prevFramePlayerval1 = 0;
 	int prevFramePlayerval2 = 0;
 	int prevFrameElpheltRifle_AimMem46 = 0;
-	int prevFrameResource = 0;
+	int prevFrameResource[4] { 0 };
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
 	int lastNoteTime = 0;

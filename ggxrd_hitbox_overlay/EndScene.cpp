@@ -29,6 +29,7 @@
 #include "Hardcode.h"
 #include <mutex>
 #include "InputsDrawing.h"
+#include "InputNames.h"
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -1095,7 +1096,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				&& ent.fdNegativeCheck() == 0
 				&& player.wasProhibitFDTimer == 0
 				&& ent.dizzyMashAmountLeft() <= 0
-				&& ent.exKizetsu() <= 0;
+				&& ent.exKizetsu() <= 0
+				|| player.move.canFaultlessDefend && player.move.canFaultlessDefend(player);
 			player.fillInMove();
 			bool idleNext = player.move.isIdle(player);
 			if (player.airborne && player.move.forceLandingRecovery) player.moveOriginatedInTheAir = true;
@@ -3001,6 +3003,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								!settings.considerKnockdownWakeupAndAirtechIdle
 								&& (
 									player.idleLanding
+									&& !(
+										player.charType == CHARACTER_TYPE_JAM
+										&& strcmp(player.anim, "NeoHochihu") == 0
+									)
 									|| player.idle
 									&& player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // Chipp Wall Climb
 								)
@@ -3239,7 +3245,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					nextSkippedFrames.addFrame(SKIPPED_FRAMES_HITSTOP);
 					nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_HITSTOP);
 				}
-			} else {  // if not atLeastOneBusy || atLeastOneDangerousProjectilePresent
+			} else if (atLeastOneDoingGrab) {  // if not atLeastOneBusy || atLeastOneDangerousProjectilePresent
+				nextSkippedFrames.addFrame(skippedType);
+				nextSkippedFramesIdle.addFrame(skippedType);
+				nextSkippedFramesHitstop.addFrame(skippedType);
+				nextSkippedFramesIdleHitstop.addFrame(skippedType);
+			} else {
 				framebarAdvancedIdleHitstop = true;
 				++framebarIdleHitstopFor;
 				int confinedPos = EntityFramebar::confinePos(framebarPositionHitstop + framebarIdleHitstopFor);
@@ -4888,7 +4899,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFramePlayerval1 = player.playerval1;
 			player.prevFramePlayerval2 = player.wasPlayerval[2];
 			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
-			player.prevFrameResource = player.pawn.exGaugeValue(0);
+			for (int k = 0; k < 4; ++k) {
+				player.prevFrameResource[k] = player.pawn.exGaugeValue(k);
+			}
 			player.prevPosX = player.x;
 			player.prevPosY = player.y;
 			
@@ -7314,13 +7327,46 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 		}
 		cancel.nameIncludesInputs = false;
 	} else {
+		moves.forCancels = true;
 		cancel.name = obtainedInfo.getDisplayName(player);
 		cancel.slangName = obtainedInfo.getDisplayNameSlang(player);
+		moves.forCancels = false;
 		cancel.nameIncludesInputs = obtainedInfo.nameIncludesInputs;
 	}
 	cancel.move = move;
 	cancel.replacementInputs = obtainedInfo.replacementInputs;
-	cancel.bufferTime = obtainedInfo.replacementBufferTime ? obtainedInfo.replacementBufferTime : move->bufferTime;
+	if (obtainedInfo.replacementBufferTime) {
+		cancel.bufferTime = obtainedInfo.replacementBufferTime;
+	} else {
+		int bufferTime = move->bufferTime;
+		if (move->type == MOVE_TYPE_BACKWARD_SUPER_JUMP
+				|| move->type == MOVE_TYPE_FORWARD_SUPER_JUMP
+				|| move->type == MOVE_TYPE_NEUTRAL_SUPER_JUMP) {
+			bufferTime += 2;
+		}
+		if ((player.pawn.relatedToBufferTime1() != 0
+				|| player.pawn.relatedToBufferTime2() != 0
+				|| player.pawn.relatedToBufferTime3() != 0)
+				&& move->type != MOVE_TYPE_FORWARD_WALK
+				&& move->type != MOVE_TYPE_BACKWARD_WALK) {
+			bufferTime += player.pawn.toAddToBufferTime() + 13;
+		}
+		if (player.pawn.ensureAtLeast3fBufferForNormalsWhenJumping() != 0
+				&& move->type == MOVE_TYPE_NORMAL
+				&& move->characterState == MOVE_CHARACTER_STATE_JUMPING
+				&& bufferTime < 3) {
+			bufferTime = 3;
+		}
+		
+		int minBufTime = getMinBufferTime(move->inputs);
+		if (minBufTime != -1) {
+			bufferTime += minBufTime;
+		} else {
+			bufferTime += 1;
+		}
+		
+		cancel.bufferTime = bufferTime;
+	}
 }
 
 void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame) {
@@ -8021,4 +8067,27 @@ void EndScene::drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int l
 GameModeFast EndScene::getGameModeFast() const {
 	if (gameModeFast) return *gameModeFast;
 	return GAME_MODE_FAST_NORMAL;
+}
+
+int EndScene::getMinBufferTime(const InputType* inputs) {
+	int minLength = -1;
+	int currentLength = -1;
+	for (int i = 0; i < 16; ++i) {
+		InputType inputType = inputs[i];
+		if (inputType == INPUT_END) {
+			if (currentLength != -1 && (minLength == -1 || currentLength < minLength)) return currentLength;
+			return minLength;
+		}
+		if (inputType == INPUT_BOOLEAN_OR) {
+			if (currentLength != -1 && (minLength == -1 || currentLength < minLength)) {
+				minLength = currentLength;
+			}
+			currentLength = -1;
+		}
+		int bufferTime = inputNames[inputType].bufferTime;
+		if (bufferTime != -1 && (currentLength == -1 || bufferTime < currentLength)) {
+			currentLength = bufferTime;
+		}
+	}
+	return minLength;
 }

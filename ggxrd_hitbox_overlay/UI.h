@@ -66,17 +66,6 @@ public:
 	void copyDrawDataTo(std::vector<BYTE>& destinationBuffer);
 	void substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture);
 	const PngResource& getPackedFramesTexture() const;
-	enum InputNameType {
-		BUTTON,
-		MULTIWORD_BUTTON,
-		MOTION,
-		MULTIWORD_MOTION
-	};
-	struct InputName {
-		const char* name;
-		InputNameType type;
-	};
-	std::vector<InputName> inputNames{ 0x127 };
 	std::unique_ptr<PngResource> firstFrame;
 	std::unique_ptr<PngResource> hitConnectedFrame;
 	std::unique_ptr<PngResource> hitConnectedFrameBlack;

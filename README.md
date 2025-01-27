@@ -212,6 +212,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Jack-O' Servant Attack Range: The white box around each Servant shows the area where the opponent's player's origin point must be in order for the Servant to initiate an attack. This display must be enabled with the 'showJackoServantAttackRange' setting in the INI file (located in mod's UI - Character Specific - Show Jack-O' Servant Attack Range).
 
+- Jam Bao Saishinshou: The white box shows the vertical range where the opponent's origin point be upon the hit connecting in order to be vacuumed by the attack.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  

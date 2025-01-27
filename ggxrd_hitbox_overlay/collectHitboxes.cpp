@@ -619,6 +619,22 @@ void collectHitboxes(Entity ent,
 					interactionBoxes->push_back(interactionBoxParams);
 				}
 			}
+		} else if (state.charType == CHARACTER_TYPE_JAM
+				&& strcmp(ent.animationName(), "Saishingeki") == 0
+				&& ent.currentHitNum() == 2
+				&& hitboxCount) {
+			moves.fillInJamSaishingekiY(ent.bbscrCurrentFunc());
+			
+			DrawBoxCallParams interactionBoxParams;
+			interactionBoxParams.left = params.posX - 10000000;
+			interactionBoxParams.right = params.posX + 10000000;
+			interactionBoxParams.top = params.posY + moves.jamSaishingekiY;
+			interactionBoxParams.bottom = params.posY;
+			interactionBoxParams.fillColor = replaceAlpha(64, COLOR_INTERACTION);
+			interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+			interactionBoxParams.thickness = THICKNESS_INTERACTION;
+			interactionBoxes->push_back(interactionBoxParams);
+			
 		}
 	}
 	if (circles) {

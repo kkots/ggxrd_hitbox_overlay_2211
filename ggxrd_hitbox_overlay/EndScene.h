@@ -545,6 +545,7 @@ private:
 	GameModeFast* gameModeFast = nullptr;
 	int* drawTrainingHudInputHistoryVal2 = nullptr;
 	int* drawTrainingHudInputHistoryVal3 = nullptr;
+	int getMinBufferTime(const InputType* inputs);
 };
 
 extern EndScene endScene;

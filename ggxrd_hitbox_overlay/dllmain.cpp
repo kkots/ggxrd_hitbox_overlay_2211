@@ -21,6 +21,7 @@
 #include "UI.h"
 #include "WinError.h"
 #include "Moves.h"
+#include "InputNames.h"
 
 static void closeLog();
 static bool initialized = false;
@@ -81,6 +82,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!hud.onDllMain()) terminate
 		if (!moves.onDllMain()) terminate
 		if (!detouring.endTransaction()) terminate
+		fillInInputNames();
 		initialized = true;
 		break;
 	}

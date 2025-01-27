@@ -279,6 +279,10 @@ static bool powerup_mistFiner(PlayerInfo& ent);
 static const char* powerupExplanation_mistFiner(PlayerInfo& ent);
 static bool powerup_eatMeat(PlayerInfo& ent);
 static const char* powerupExplanation_eatMeat(PlayerInfo& ent);
+static bool powerup_cardK(PlayerInfo& ent);
+static bool powerup_cardS(PlayerInfo& ent);
+static bool powerup_cardH(PlayerInfo& ent);
+static const char* powerupExplanation_card(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -2651,6 +2655,8 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Oissu");
 	move.displayName = "Hello!";
 	move.slangName = "236P";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "KoegaChiisai");
@@ -2817,6 +2823,8 @@ bool Moves::onDllMain() {
 	move.displayName = "Pull Back";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	// ground flower. The head flower cannot be RC'd. This is not the head flower. This flower can be RC'd, but not in Rev1.
@@ -3225,11 +3233,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MIN");
 	move.displayName = "sg.H";
 	move.nameIncludesInputs = true;
+	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MAX");
 	move.displayName = "Max Charge sg.H";
 	move.nameIncludesInputs = true;
+	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Reload");
@@ -3699,16 +3709,22 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiB");
 	move.displayName = "K Asanagi no Kokyuu";
 	move.slangName = "K-Card";
+	move.powerup = powerup_cardK;
+	move.powerupExplanation = powerupExplanation_card;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiC");
 	move.displayName = "S Asanagi no Kokyuu";
 	move.slangName = "S-Card";
+	move.powerup = powerup_cardS;
+	move.powerupExplanation = powerupExplanation_card;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiD");
 	move.displayName = "H Asanagi no Kokyuu";
 	move.slangName = "H-Card";
+	move.powerup = powerup_cardH;
+	move.powerupExplanation = powerupExplanation_card;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinLand");
@@ -3795,6 +3811,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Renhoukyaku");
 	move.displayName = "Renhoukyaku";
 	move.slangName = "Super Puffball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RenhoukyakuObj", true);
@@ -3882,41 +3899,57 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandA");
 	move.displayName = "P Savvy Ninpo: Request for Approval";
 	move.slangName = "P Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandB");
 	move.displayName = "K Savvy Ninpo: Request for Approval";
 	move.slangName = "K Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandC");
 	move.displayName = "S Savvy Ninpo: Request for Approval";
 	move.slangName = "S Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandD");
 	move.displayName = "H Savvy Ninpo: Request for Approval";
 	move.slangName = "H Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirA");
 	move.displayName = "P Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air P Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirB");
 	move.displayName = "K Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air K Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirC");
 	move.displayName = "S Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air S Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirD");
 	move.displayName = "H Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air H Scroll";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Land");
@@ -4563,6 +4596,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeatExtend");
 	move.displayName = "Heat Extend";
+	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "PotemkinBuster");
@@ -5317,6 +5351,13 @@ bool Moves::onDllMain() {
 	move.framebarId = 58;
 	move.framebarName = "Longing Desperation";
 	move.framebarSlangName = "Desperation";
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "CmnActFDash");
+	move.displayName = "Forward Dash";
+	move.nameIncludesInputs = true;
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "NmlAtk6D_2");
@@ -6164,6 +6205,8 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "FujinStep");
 	move.displayName = "Fujin Step";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "EasyFujinken");
@@ -6466,6 +6509,8 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlowAttack");
 	move.displayName = "Falcon Dive";
 	move.slangName = "Hayabusa";
+	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AirBlowAttack");
@@ -8597,12 +8642,14 @@ const char* displayNameSelector_rifleStart(PlayerInfo& ent) {
 	if (ent.idle) return "Ms. Confille";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleStartEndMarkerOffset, "Ms. Confille");
 	if (response) return response;
+	if (moves.forCancels) return "Aim Ms. Confille";
 	return !ent.inNewMoveSection ? "Aim Ms. Confille Until Able to Cancel" : "Aim Ms. Confille Until Able to Fire";
 }
 const char* displaySlangNameSelector_rifleStart(PlayerInfo& ent) {
 	if (ent.idle) return "Rifle";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleStartEndMarkerOffset, "Rifle Autoexit");
 	if (response) return response;
+	if (moves.forCancels) return "Rifle";
 	return !ent.inNewMoveSection ? "Rifle Until Able to Cancel" : "Rifle Until Able to Fire";
 }
 const char* displayNameSelector_rifleReload(PlayerInfo& ent) {
@@ -9693,10 +9740,22 @@ const char* powerupExplanation_mistFiner(PlayerInfo& ent) {
 	}
 }
 bool powerup_eatMeat(PlayerInfo& ent) {
-	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource;
+	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0];
 }
 const char* powerupExplanation_eatMeat(PlayerInfo& ent) {
-	return "Restored Calorie Gauge";
+	return "Restored Calorie Gauge.";
+}
+bool powerup_cardK(PlayerInfo& ent) {
+	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0];
+}
+bool powerup_cardS(PlayerInfo& ent) {
+	return ent.pawn.exGaugeValue(1) > ent.prevFrameResource[1];
+}
+bool powerup_cardH(PlayerInfo& ent) {
+	return ent.pawn.exGaugeValue(2) > ent.prevFrameResource[2];
+}
+const char* powerupExplanation_card(PlayerInfo& ent) {
+	return "Obtained Card.";
 }
 
 void fillMay6HOffsets(BYTE* func) {
@@ -10242,6 +10301,43 @@ void Moves::fillServantAtk(BYTE* func, MayIrukasanRidingObjectInfo* servantAtk) 
 			++servantAtk;
 			--counter;
 			if (counter == 0) return;
+		}
+	}
+}
+
+void Moves::fillInJamSaishingekiY(BYTE* func) {
+	if (jamSaishingekiY != 0) return;
+	int counter = 2;
+	bool inUponHitTheEnemyPlayer = false;
+	BYTE* instr;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_upon && *(int*)(instr + 4) == 10) {  // HIT_THE_ENEMY_PLAYER
+			--counter;
+			if (counter == 0) {
+				inUponHitTheEnemyPlayer = true;
+				break;
+			}
+		}
+	}
+	if (!inUponHitTheEnemyPlayer) return;
+	for (
+			;
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& *(int*)(instr + 4) == 11  // IS_LESSER
+				&& *(int*)(instr + 8) == 2  // tag:variable
+				&& *(int*)(instr + 0xc) == 35  // OPPONENT_Y_OFFSET
+				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+			jamSaishingekiY = *(int*)(instr + 0x14);
+			return;
 		}
 	}
 }

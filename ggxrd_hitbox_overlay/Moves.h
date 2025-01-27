@@ -348,6 +348,9 @@ public:
 	int jackoServantBAggroY = 0;
 	int jackoServantCAggroX = 0;
 	int jackoServantCAggroY = 0;
+	bool forCancels = false;
+	int jamSaishingekiY = 0;
+	void fillInJamSaishingekiY(BYTE* func);
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {
