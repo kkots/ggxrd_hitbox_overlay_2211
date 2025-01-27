@@ -9222,7 +9222,7 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 
 void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
 	frame.printInvuls(strbuf, sizeof strbuf - 7);
-	if (*strbuf != '\0' || frame.OTGInGeneral) {
+	if (*strbuf != '\0' || frame.OTGInGeneral || frame.counterhit) {
 		ImGui::Separator();
 		if (*strbuf != '\0') {
 			yellowText("Invul: ");
@@ -9241,6 +9241,9 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		}
 		if (frame.OTGInGeneral) {
 			ImGui::TextUnformatted("OTG state.");
+		}
+		if (frame.counterhit) {
+			ImGui::TextUnformatted("Counterhit state.");
 		}
 	}
 	if (frame.canYrc || frame.canYrcProjectile || frame.createdDangerousProjectile) {
@@ -9307,7 +9310,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.running) {
 			ImGui::TextUnformatted("Throw disabled.");
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-			ImGui::TextUnformatted("Running without FD brake disables throw for a bit.");
+			ImGui::TextUnformatted("Cannot throw while running.");
 			ImGui::PopStyleColor();
 		}
 		if (frame.cantBackdash) {

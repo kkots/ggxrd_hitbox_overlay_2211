@@ -4424,6 +4424,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						);
 					}
 				}
+				
+				currentFrame.counterhit = player.counterhit;
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}
@@ -7715,7 +7717,7 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 			data.trainingSettingIsForceCounterHit = true;
 		}
 	}
-	data.dangerTime = defenderPtr.counterHit() == COUNTER_HIT_ENTITY_VALUE_MORTAL_COUNTER || game.getDangerTime() != 0;
+	data.dangerTime = defenderPtr.receivedCounterHit() == COUNTER_HIT_ENTITY_VALUE_MORTAL_COUNTER || game.getDangerTime() != 0;
 	
 	data.wasHitDuringRc = attack->wasHitDuringRc();
 	data.rcDmgProration = defenderPtr.rcDmgProration() != 0;
@@ -7757,7 +7759,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 	const AttackData* attack = defenderPtr.receivedAttack();
 	data.baseStun = attack->stun;
 	data.comboCount = defenderPtr.comboCount();
-	data.counterHit = defenderPtr.counterHit();
+	data.counterHit = defenderPtr.receivedCounterHit();
 	data.tensionMode = defenderPtr.enemyEntity().tensionMode();
 	data.oldStun = defenderPtr.stun();
 	data.stunMax = defenderPtr.stunThreshold();

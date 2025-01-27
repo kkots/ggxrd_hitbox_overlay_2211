@@ -168,7 +168,7 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 		state->ownerCharType = entityList.slots[state->team].characterType();
 	}
 	logOnce(fprintf(logfile, "isASummon: %u\n", (int)state->isASummon));
-	state->counterhit = (*(int*)(ent + 0x234) & 256) != 0  // Thanks to WorseThanYou for finding this
+	state->counterhit = counterHitState()
 		&& !state->strikeInvuln
 		&& !state->isASummon;
 	logOnce(fprintf(logfile, "counterhit: %u\n", (int)state->counterhit));

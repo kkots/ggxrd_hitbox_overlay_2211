@@ -2777,8 +2777,8 @@ void PlayerFrame::shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>
 	int totalSize = (int)destination.size() + (int)source.size();
 	if (totalSize > 80) {
 		if (overflow) *overflow = true;
-		int framesToShove = totalSize - 80;
 		size_t oldSize = destination.size();
+		int framesToShove = 80 - (int)oldSize;
 		destination.resize(80);
 		memmove(destination.data() + framesToShove, destination.data(), oldSize * sizeof Input);
 		memcpy(destination.data(), source.data() + source.size() - framesToShove, framesToShove * sizeof Input);
@@ -2793,13 +2793,13 @@ void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destinat
 	int totalSize = (int)destination.size() + (int)source.size();
 	if (totalSize > 80) {
 		if (overflow) *overflow = true;
-		int indexToTakeFrom = totalSize - 80 - 1;  // in the would-be combined, size-unrestrained array of destination+srouce where destination's elements go first and then source's
+		int indexToTakeFrom = totalSize - 80 - 1;  // in the would-be combined, size-unrestrained array of destination+source where destination's elements go first and then source's
 		prevInput = destination[indexToTakeFrom];
 		size_t oldSize = destination.size();
 		if (indexToTakeFrom + 1 < (int)oldSize) {
 			int elementsMoved = (int)oldSize - indexToTakeFrom - 1;
 			memmove(destination.data(), destination.data() + indexToTakeFrom + 1, elementsMoved * sizeof Input);
-			destination.resize(80);
+			if (oldSize != 80U) destination.resize(80);
 			memcpy(destination.data() + elementsMoved, source.data(), source.size() * sizeof Input);
 		} else {
 			destination = source;

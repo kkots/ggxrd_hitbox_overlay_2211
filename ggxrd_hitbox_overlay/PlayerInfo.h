@@ -488,6 +488,7 @@ struct PlayerFrame : public FrameBase {
 	bool suddenlyTeleported:1;
 	bool dontShowPowerupGraphic:1;
 	bool cantAirdash:1;
+	bool counterhit:1;
 	
 	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
 	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
