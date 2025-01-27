@@ -279,6 +279,7 @@ private:
 	void printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVert, int maxCharge);
 	bool printSlayerBuffedMoves[2] { false };
 	bool printElpheltShotgunPowerup[2] { false };
+	BYTE* jamPantyPtr = nullptr;
 };
 
 extern UI ui;

@@ -633,6 +633,12 @@ bool UI::onDllMain(HMODULE hModule) {
 		};
 	}
 	
+	jamPantyPtr = (BYTE*)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"8d 4a ff 85 c0 79 04 33 c0 eb 06 3b c1 7c 02 8b c1",
+		{ -10, 0 },
+		nullptr, "JamPanty");
+	
 	errorDialogPos = new ImVec2();
 	
 	return true;
@@ -4678,6 +4684,23 @@ void UI::drawSearchableWindows() {
 						
 					}
 				}
+				
+			} else if (player.charType == CHARACTER_TYPE_JAM && jamPantyPtr) {
+				
+				ImGui::PushItemWidth(80);
+				sprintf_s(strbuf, "%d", *jamPantyPtr);
+				if (ImGui::BeginCombo("Panty", strbuf)) {
+					for (int i = 0; i <= 7; ++i) {
+						ImGui::PushID(i);
+						sprintf_s(strbuf, "%d", i);
+						if (ImGui::Selectable(strbuf, i == *jamPantyPtr)) {
+							*jamPantyPtr = i;
+						}
+						ImGui::PopID();
+					}
+					ImGui::EndCombo();
+				}
+				ImGui::PopItemWidth();
 				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));

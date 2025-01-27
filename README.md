@@ -68,7 +68,7 @@ This mod is totally compatible with:
 
 All of the mods mentioned above are also compatible with each other.
 
-The following mods must be used with caution. If you load both this mod and the one specified, then you must unload them in the reverse order as you loaded them. For example, if you first load hitbox overlay, then one of the specified mods, then you must unload the specified mod first, then hitbox overlay last, or else you will get a crash.
+The following mods are incompatible and will refuse to work properly and crash:
 
 - Freecam mod: <https://github.com/kkots/ggxrd_freecam>
 
