@@ -2615,6 +2615,110 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.haehyunBallRemainingTimeWithSlow = 0;
 				}
 				
+			} else if (player.charType == CHARACTER_TYPE_RAVEN) {
+				
+				int timeRemaining = 0;
+				int slowdown = 0;
+				int needleTimeRemaining = 0;
+				int needleSlowdown = 0;
+				bool foundNeedleButNotNull = false;
+				Entity needleObj = nullptr;
+				for (int j = 2; j < entityList.count; ++j) {
+					Entity p = entityList.list[j];
+					if (p.isActive() && p.team() == player.index && !p.isPawn()) {
+						bool checkNeedleSlowdown = false;
+						if (strcmp(p.animationName(), "SlowEffect") == 0
+								&& p.createArgHikitsukiVal1() == 0) {
+							if (p.lifeTimeCounter() == 0) {
+								player.slowTimeElapsed = 0;
+							} else if (!p.isSuperFrozen()) {
+								++player.slowTimeElapsed;
+							}
+							int timeMax;
+							if (player.wasResource >= 6) {
+								timeMax = 150;
+							} else if (player.wasResource >= 3) {
+								timeMax = 120;
+							} else {
+								timeMax = 90;
+							}
+							timeRemaining = timeMax - p.framesSinceRegisteringForTheIdlingSignal() + 1;
+							
+							ProjectileInfo& projectile = findProjectile(p);
+							if (projectile.ptr) {
+								slowdown = projectile.rcSlowedDownCounter;
+							}
+						} else if (strcmp(p.animationName(), "SlowNeeldeObjLand") == 0
+								|| strcmp(p.animationName(), "SlowNeeldeObjAir") == 0) {
+							if (strcmp(p.spriteName(), "null") == 0 && p.spriteFrameCounterMax() == 14) {
+								needleTimeRemaining = p.spriteFrameCounterMax() - p.spriteFrameCounter();
+								checkNeedleSlowdown = true;
+							} else {
+								foundNeedleButNotNull = true;
+								needleTimeRemaining = 14;
+							}
+							needleObj = p;
+						} else if (strcmp(p.animationName(), "LandSettingTypeNeedleObj") == 0
+								|| strcmp(p.animationName(), "AirSettingTypeNeedleObj") == 0) {
+							if (strcmp(p.spriteName(), "null") == 0 && p.spriteFrameCounterMax() == 15) {
+								needleTimeRemaining = p.spriteFrameCounterMax() - p.spriteFrameCounter();
+								checkNeedleSlowdown = true;
+							} else {
+								foundNeedleButNotNull = true;
+								needleTimeRemaining = 15;
+							}
+							needleObj = p;
+						}
+						if (checkNeedleSlowdown) {
+							ProjectileInfo& projectile = findProjectile(p);
+							if (projectile.ptr) {
+								needleSlowdown = projectile.rcSlowedDownCounter;
+							}
+						}
+					}
+				}
+				
+				int result;
+				int resultMax;
+				int unused;
+				PlayerInfo::calculateSlow(
+					player.slowTimeElapsed + 1,
+					timeRemaining,
+					slowdown,
+					&result,
+					&resultMax,
+					&unused);
+				player.ravenInfo.slowTime = result;
+				player.ravenInfo.slowTimeMax = resultMax > 1 ? resultMax : 0;
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				
+				if (foundNeedleButNotNull) {
+					player.ravenNeedleTime = needleTimeRemaining + 1;
+					player.ravenNeedleTimeMax = -1;
+					if (needleObj.lifeTimeCounter() == 0) {
+						player.ravenNeedleElapsed = 0;
+					}
+				} else if (needleObj) {
+					if (!needleObj.isSuperFrozen()) {
+						++player.ravenNeedleElapsed;
+					}
+					PlayerInfo::calculateSlow(
+						player.ravenNeedleElapsed,
+						needleTimeRemaining,
+						needleSlowdown,
+						&player.ravenNeedleTime,
+						&player.ravenNeedleTimeMax,
+						&unused);
+					if (player.ravenNeedleTimeMax <= 1) player.ravenNeedleTimeMax = 0;
+					else ++player.ravenNeedleTimeMax;
+					if (hasForceDisableFlag || player.ravenNeedleTime) ++player.ravenNeedleTime;
+				} else if (hasForceDisableFlag) {
+					player.ravenNeedleTime = 1;
+				} else {
+					player.ravenNeedleTime = 0;
+				}
+				
 			}
 		}
 		
@@ -4270,6 +4374,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.u.johnnyInfo.mistTimerMax = player.johnnyMistTimerMaxWithSlow;
 					currentFrame.u.johnnyInfo.mistKuttsukuTimer = player.johnnyMistKuttsukuTimerWithSlow;
 					currentFrame.u.johnnyInfo.mistKuttsukuTimerMax = player.johnnyMistKuttsukuTimerMaxWithSlow;
+				} else if (player.charType == CHARACTER_TYPE_RAVEN) {
+					currentFrame.u.ravenInfo.slowTime = player.ravenInfo.slowTime;
+					currentFrame.u.ravenInfo.slowTimeMax = player.ravenInfo.slowTimeMax;
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -4504,14 +4611,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.poisonDuration = player.poisonDuration;
 					currentFrame.poisonMax = 360;
 					currentFrame.poisonIsBacchusSigh = false;
+					currentFrame.poisonIsRavenSlow = false;
 				} else if (other.charType == CHARACTER_TYPE_JOHNNY) {
 					currentFrame.poisonDuration = other.johnnyMistKuttsukuTimerWithSlow;
 					currentFrame.poisonMax = other.johnnyMistKuttsukuTimerMaxWithSlow;
 					currentFrame.poisonIsBacchusSigh = true;
+					currentFrame.poisonIsRavenSlow = false;
+				} else if (other.charType == CHARACTER_TYPE_RAVEN) {
+					currentFrame.poisonDuration = other.ravenInfo.slowTime;
+					currentFrame.poisonMax = other.ravenInfo.slowTimeMax;
+					currentFrame.poisonIsBacchusSigh = false;
+					currentFrame.poisonIsRavenSlow = true;
 				} else {
 					currentFrame.poisonDuration = 0;
 					currentFrame.poisonMax = 0;
 					currentFrame.poisonIsBacchusSigh = false;
+					currentFrame.poisonIsRavenSlow = false;
 				}
 				
 				currentFrame.needShowAirOptions = player.regainedAirOptions;

@@ -4743,6 +4743,68 @@ void UI::drawSearchableWindows() {
 					AddTooltip(tooltip);
 				}
 				
+			} else if (player.charType == CHARACTER_TYPE_RAVEN) {
+				
+				yellowText(searchFieldTitle("Excitement:"));
+				sprintf_s(strbuf, "%d ticks", player.wasResource);
+				ImGui::SameLine();
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText(searchFieldTitle("Excitement Timer:"));
+				AddTooltip(searchTooltip("Excitement timer counts time until you start losing excitement."
+					" Excitement is lost only in Rev2. Once it reaches 600, you lose excitement every 20 frames."
+					" When in hitstun, Excitement Timer is paused. The Timer keeps counting even during hitstop or superfreeze."));
+				int mem55 = player.pawn.mem55();
+				int memMax;
+				if (mem55 <= 600) memMax = 600;
+				else if (mem55 <= 620) memMax = 620;
+				else if (mem55 <= 640) memMax = 640;
+				else if (mem55 <= 660) memMax = 660;
+				else if (mem55 <= 680) memMax = 680;
+				else if (mem55 <= 700) memMax = 700;
+				else if (mem55 <= 720) memMax = 720;
+				else if (mem55 <= 740) memMax = 740;
+				else if (mem55 <= 760) memMax = 760;
+				else if (mem55 <= 780) memMax = 780;
+				else if (mem55 <= 800) memMax = 800;
+				sprintf_s(strbuf, "%d/%d", mem55, memMax);
+				ImGui::SameLine();
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText(searchFieldTitle("Damage Multiplier:"));
+				sprintf_s(strbuf, "%d%c", player.pawn.damageScale(), '%');
+				ImGui::SameLine();
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText(searchFieldTitle("Slow Time On Opponent:"));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", player.ravenInfo.slowTime, player.ravenInfo.slowTimeMax);
+				ImGui::TextUnformatted(strbuf);
+				
+				yellowText(searchFieldTitle("Can Do Needle/Orb In:"));
+				ImGui::SameLine();
+				if (player.ravenNeedleTimeMax == -1) {
+					sprintf_s(strbuf, "Until destroyed+%df", player.ravenNeedleTime);
+				} else {
+					sprintf_s(strbuf, "%d/%df", player.ravenNeedleTime, player.ravenNeedleTimeMax);
+				}
+				ImGui::TextUnformatted(strbuf);
+				
+				if (ImGui::Button(searchFieldTitle("Moves Buffed By Excitement"))) {
+					printRavenBuffedMoves[i] = !printRavenBuffedMoves[i];
+				}
+				
+				if (printRavenBuffedMoves[i]) {
+					yellowText("At 3 or 6 ticks of Excitement:");
+					ImGui::TextUnformatted("Ground and Air Scratch;\n"
+						"Ground and Air Command Grabs;\n"
+						"Needle Slowdown Duration;\n"
+						"Orb Number of Hits.\n");
+					yellowText("At 3, 6 or other amount of ticks:");
+					ImGui::TextUnformatted("Supers\n"
+						"Damage of all attacks.");
+				}
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
@@ -9166,7 +9228,15 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	if (frame.poisonDuration) {
 		ImGui::Separator();
 		
-		yellowText(frame.poisonIsBacchusSigh ? "Bacchus Debuff On You: " : "Poison duration: ");
+		const char* poisonTitle;
+		if (frame.poisonIsBacchusSigh) {
+			poisonTitle = "Bacchus Debuff On You: ";
+		} else if (frame.poisonIsRavenSlow) {
+			poisonTitle = "Slow Timer: ";
+		} else {
+			poisonTitle = "Poison Duration: ";
+		}
+		yellowText(poisonTitle);
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d/%d", frame.poisonDuration, frame.poisonMax);
 		ImGui::TextUnformatted(strbuf);
@@ -9408,6 +9478,14 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.u.johnnyInfo.mistKuttsukuTimer) {
 			yellowText("Bacchus Sigh Debuff On Opponent: ");
 			sprintf_s(strbuf, "%d/%d", frame.u.johnnyInfo.mistKuttsukuTimer, frame.u.johnnyInfo.mistKuttsukuTimerMax);
+			ImGui::TextUnformatted(strbuf);
+		}
+	} else if (charType == CHARACTER_TYPE_RAVEN) {
+		if (frame.u.ravenInfo.slowTime) {
+			ImGui::Separator();
+			yellowText("Slow Timer On Opponent: ");
+			ImGui::SameLine();
+			sprintf_s(strbuf, "%d/%d", frame.u.ravenInfo.slowTime, frame.u.ravenInfo.slowTimeMax);
 			ImGui::TextUnformatted(strbuf);
 		}
 		
@@ -11724,29 +11802,6 @@ void UI::drawFramebars() {
 						ImVec2 bottomBarkerStart { markerStart.x, yBottomRow };
 						ImVec2 bottomBarkerEnd { markerEnd.x, markerBottomEndY };
 						
-						if (isPlayer ? playerFrame.powerup && !playerFrame.dontShowPowerupGraphic : projectileFrame.powerup) {
-							float powerupWidthOffset = (powerupWidthPremult * dims.width - dims.width) * 0.5F;
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-								{
-									dims.x - powerupWidthOffset,
-									yTopRow
-								},
-								{
-									dims.x + dims.width + powerupWidthOffset,
-									yTopRow + powerupHeight
-								},
-								{
-									powerupFrame->uStart,
-									powerupFrame->vStart
-									
-								},
-								{
-									powerupFrame->uEnd,
-									powerupFrame->vEnd
-								},
-								tint);
-						}
-						
 						if (
 								(
 									isPlayer
@@ -11804,6 +11859,30 @@ void UI::drawFramebars() {
 									tint);
 							}
 						}
+						
+						if (isPlayer ? playerFrame.powerup && !playerFrame.dontShowPowerupGraphic : projectileFrame.powerup) {
+							float powerupWidthOffset = (powerupWidthPremult * dims.width - dims.width) * 0.5F;
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								{
+									dims.x - powerupWidthOffset,
+									isPlayer && playerFrame.superArmorActiveInGeneral ? yTopRow + frameMarkerSideHeight : yTopRow
+								},
+								{
+									dims.x + dims.width + powerupWidthOffset,
+									isPlayer && playerFrame.superArmorActiveInGeneral ? yTopRow + powerupHeight + frameMarkerSideHeight : yTopRow + powerupHeight
+								},
+								{
+									powerupFrame->uStart,
+									powerupFrame->vStart
+									
+								},
+								{
+									powerupFrame->uEnd,
+									powerupFrame->vEnd
+								},
+								tint);
+						}
+						
 					}
 				}
 			}

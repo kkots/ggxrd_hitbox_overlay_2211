@@ -762,6 +762,7 @@ public:
 	inline bool enableBlock() const { return (*(DWORD*)(ent + 0x4d3c) & 0x10000) != 0; }
 	inline int prohibitFDTimer() const { return *(int*)(ent + 0x4d60); }
 	inline int fdNegativeCheck() const { return *(int*)(ent + 0x2ce60); }
+	inline int slowSpeedPercentage() const { return *(int*)(ent + 0x2ce64); }
 	inline bool enableCrouch() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2) != 0; }
 	inline bool enableWalkBack() const { return (*(DWORD*)(ent + 0x4d3c) & 0x20) != 0; }
 	inline int lifeTimeCounter() const { return *(int*)(ent + 0x18); }

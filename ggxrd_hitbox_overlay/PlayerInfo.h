@@ -96,6 +96,11 @@ struct JohnnyInfo {
 	unsigned short mistKuttsukuTimerMax:10;
 };
 
+struct RavenInfo {
+	unsigned short slowTime;
+	unsigned short slowTimeMax;
+};
+
 struct GatlingOrWhiffCancelInfo {
 	const char* name;
 	const char* slangName;
@@ -425,10 +430,12 @@ struct PlayerFrame : public FrameBase {
 		RamlethalInfo ramlethalInfo;
 		ElpheltInfo elpheltInfo;
 		JohnnyInfo johnnyInfo;
+		RavenInfo ravenInfo;
 	} u;
 	short poisonDuration;
-	short poisonMax:15;
+	short poisonMax:14;
 	short poisonIsBacchusSigh:1;
+	short poisonIsRavenSlow:1;
 	FrameStopInfo stop;
 	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
@@ -1390,6 +1397,11 @@ struct PlayerInfo {
 	int haehyunSuperBallRemainingElapsed[10] { 0 };
 	int haehyunSuperBallRemainingTimeWithSlow[10] { 0 };
 	int haehyunSuperBallRemainingTimeMaxWithSlow[10] { 0 };
+	int ravenNeedleElapsed = 0;
+	int ravenNeedleTime = 0;
+	int ravenNeedleTimeMax = 0;
+	RavenInfo ravenInfo { 0 };
+	int slowTimeElapsed = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;

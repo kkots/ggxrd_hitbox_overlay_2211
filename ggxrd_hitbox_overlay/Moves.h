@@ -351,6 +351,7 @@ public:
 	bool forCancels = false;
 	int jamSaishingekiY = 0;
 	void fillInJamSaishingekiY(BYTE* func);
+	int kum5Dcreation = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

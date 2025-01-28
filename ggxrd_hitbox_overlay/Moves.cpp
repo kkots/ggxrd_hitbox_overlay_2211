@@ -244,6 +244,8 @@ static bool createdProjectile_ThrowGhost(PlayerInfo& ent);
 static bool canYrcProjectile_ThrowGhost(PlayerInfo& ent);
 static bool createdProjectile_AirThrowGhost(PlayerInfo& ent);
 static bool canYrcProjectile_AirThrowGhost(PlayerInfo& ent);
+static bool createdProjectile_kum5D(PlayerInfo& ent);
+static bool canYrcProjectile_kum5D(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -289,6 +291,8 @@ static bool powerup_hayabusaHeld(PlayerInfo& ent);
 static const char* powerupExplanation_hayabusaHeld(PlayerInfo& ent);
 static bool powerup_grampaMax(PlayerInfo& ent);
 static const char* powerupExplanation_grampaMax(PlayerInfo& ent);
+static bool powerup_armorDance(PlayerInfo& ent);
+static const char* powerupExplanation_armorDance(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -6496,6 +6500,13 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "Voltec";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "NmlAtk5E");
+	move.displayName = "5D";
+	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_kum5D;
+	move.canYrcProjectile = canYrcProjectile_kum5D;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "CrouchFDash");
 	move.displayName = "Crouchwalk";
 	move.slangName = "3";
@@ -6634,6 +6645,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSettingTypeNeedle");
 	move.displayName = "Scharf Kugel";
 	move.slangName = "Orb";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandBlowAttack");
@@ -6644,11 +6656,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSlowNeedle");
 	move.displayName = "Schmerz Berg";
 	move.slangName = "Needle";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSettingTypeNeedle");
 	move.displayName = "Air Scharf Kugel";
 	move.slangName = "Air Orb";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirBlowAttack");
@@ -6659,11 +6673,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSlowNeedleB");
 	move.displayName = "K Grebechlich Licht";
 	move.slangName = "Air K Needle";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSlowNeedleA");
 	move.displayName = "P Grebechlich Licht";
 	move.slangName = "Air P Needle";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrow");
@@ -6725,6 +6741,8 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canStopHolding = canStopHolding_armorDance;
+	move.powerup = powerup_armorDance;
+	move.powerupExplanation = powerupExplanation_armorDance;
 	addMove(move);
 	
 	// Raven stance after armoring a hit in ArmorDance
@@ -6735,6 +6753,8 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canStopHolding = canStopHolding_armorDance;
+	move.powerup = powerup_armorDance;
+	move.powerupExplanation = powerupExplanation_armorDance;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "SlowNeeldeObjLand", true);
@@ -7706,6 +7726,7 @@ void Moves::onAswEngineDestroyed() {
 	jackoServantCAggroX = 0;
 	jackoServantCAggroY = 0;
 	jamSaishingekiY = 0;
+	kum5Dcreation = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -9514,6 +9535,29 @@ bool createdProjectile_AirThrowGhost(PlayerInfo& player) {
 bool canYrcProjectile_AirThrowGhost(PlayerInfo& player) {
 	return canYrcProjectile_XThrowGhost(player, &moves.jackoAirThrowGhostOffset);
 }
+bool createdProjectile_kum5D(PlayerInfo& player) {
+	return player.pawn.previousEntity()
+		&& player.pawn.previousEntity().lifeTimeCounter() == 0
+		&& !player.pawn.isRCFrozen()
+		&& strcmp(player.pawn.previousEntity().animationName(), "kum_205shot") == 0;
+}
+bool canYrcProjectile_kum5D(PlayerInfo& player) {
+	if (moves.kum5Dcreation == -1) return false; // rev1
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.kum5Dcreation) {
+		BYTE* pos = moves.findCreateObj(func, "kum_205shot");
+		if (!pos) {
+			moves.kum5Dcreation = -1;
+			return canYrcProjectile_default(player); // rev1
+		}
+		pos = moves.findSpriteNonNull(pos);
+		if (pos) moves.kum5Dcreation = pos - func;
+	}
+	if (!moves.kum5Dcreation) return false;
+	return player.pawn.bbscrCurrentInstr() > func + moves.kum5Dcreation
+		|| player.pawn.bbscrCurrentInstr() == func + moves.kum5Dcreation
+		&& player.pawn.spriteFrameCounter() > 0;
+}
 
 bool powerup_may6P(PlayerInfo& player) {
 	return player.pawn.dealtAttack()->stun > player.prevFrameStunValue;
@@ -9789,6 +9833,12 @@ bool powerup_grampaMax(PlayerInfo& ent) {
 }
 const char* powerupExplanation_grampaMax(PlayerInfo& ent) {
 	return "Reached maximum charge.";
+}
+bool powerup_armorDance(PlayerInfo& ent) {
+	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0];
+}
+const char* powerupExplanation_armorDance(PlayerInfo& ent) {
+	return "Gained Excitement.";
 }
 
 void fillMay6HOffsets(BYTE* func) {

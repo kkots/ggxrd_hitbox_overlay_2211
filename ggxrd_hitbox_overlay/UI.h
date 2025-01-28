@@ -280,6 +280,7 @@ private:
 	bool printSlayerBuffedMoves[2] { false };
 	bool printElpheltShotgunPowerup[2] { false };
 	BYTE* jamPantyPtr = nullptr;
+	bool printRavenBuffedMoves[2] { false };
 };
 
 extern UI ui;
