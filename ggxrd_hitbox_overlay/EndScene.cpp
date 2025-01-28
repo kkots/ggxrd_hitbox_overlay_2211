@@ -49,6 +49,8 @@ void __cdecl drawQuadExecHookAsm(REDDrawQuadCommand* item, void* canvas);  // de
 extern "C"
 void __cdecl call_orig_drawQuadExec(void* orig_drawQuadExec, FVector2D *screenSize, REDDrawQuadCommand *item, void* canvas);  // defined in drawQuadExecHook.asm
 
+static int __cdecl LifeTimeCounterCompare(void const*, void const*);
+
 bool EndScene::onDllMain() {
 	bool error = false;
 	
@@ -2467,6 +2469,152 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&player.jackoAegisTimeMaxWithSlow,
 					&unused);
 				if (player.jackoAegisTimeMaxWithSlow <= 2) player.jackoAegisTimeMaxWithSlow = 0;
+				
+			} else if (player.charType == CHARACTER_TYPE_HAEHYUN) {
+				
+				bool foundActualBall = false;
+				bool foundProjectile = false;
+				bool hasIndividualFlag = false;
+				int projectileTimeLeft = 0;
+				int slowdown = 0;
+				bool createdOnThisFrame = false;
+				int prevFoundAnimDur = -1;
+				bool actualBallCreatedThisFrame = false;
+				bool hitstop = false;
+				Entity superBalls[10] { nullptr };
+				int superBallsCount = 0;
+				int unused;
+				bool ballFrozen = false;
+				bool actualBallFrozen = false;
+				
+				for (int j = 2; j < entityList.count; ++j) {
+					Entity p = entityList.list[j];
+					if (p.isActive() && p.team() == player.index && !p.isPawn()) {
+						bool checkSlowdown = false;
+						if (strcmp(p.animationName(), "yudodan_end") == 0) {
+							if (prevFoundAnimDur == -1 || prevFoundAnimDur > (int)p.currentAnimDuration()) {
+								prevFoundAnimDur = p.currentAnimDuration();
+							} else {
+								continue;
+							}
+							hasIndividualFlag = (p.forceDisableFlagsIndividual() & 0x1) != 0;
+							if (!hasIndividualFlag) continue;
+							foundProjectile = true;
+							checkSlowdown = true;
+							projectileTimeLeft = 7 + 14 - p.currentAnimDuration() + 1;
+							createdOnThisFrame = p.currentAnimDuration() == 1 && !p.isRCFrozen();
+							ballFrozen = p.isSuperFrozen();
+						} else if (strcmp(p.animationName(), "EnergyBall") == 0) {
+							actualBallCreatedThisFrame = p.currentAnimDuration() == 1 && !p.isRCFrozen();
+							if (actualBallCreatedThisFrame) player.haehyunBallElapsed = 0;
+							foundActualBall = true;
+							checkSlowdown = true;
+							projectileTimeLeft = 150 - p.framesSinceRegisteringForTheIdlingSignal() + 1;
+							hitstop = p.hitstop() > 0 && !p.hitSomethingOnThisFrame();
+							actualBallFrozen = p.isSuperFrozen();
+						} else if (strcmp(p.animationName(), "SuperEnergyBall") == 0) {
+							superBalls[superBallsCount++] = p;
+						}
+						if (checkSlowdown) {
+							ProjectileInfo& projectile = findProjectile(p);
+							if (projectile.ptr) slowdown = projectile.rcSlowedDownCounter;
+						}
+						if (foundActualBall) break;
+					}
+				}
+				
+				if (superBallsCount) {
+					qsort(superBalls, superBallsCount, sizeof Entity, LifeTimeCounterCompare);
+					for (int j = 0; j < superBallsCount; ++j) {
+						Entity superBall = superBalls[j];
+						if (superBall.lifeTimeCounter() == 0) {
+							player.haehyunSuperBallRemainingElapsed[j] = 0;
+						} else if (!superBall.isSuperFrozen() && !(superBall.hitstop() && !superBall.hitSomethingOnThisFrame())) {
+							++player.haehyunSuperBallRemainingElapsed[j];
+						}
+						
+						int superBallSlowdown = 0;
+						ProjectileInfo& projectile = findProjectile(superBall);
+						if (projectile.ptr) {
+							superBallSlowdown = projectile.rcSlowedDownCounter;
+						}
+						
+						PlayerInfo::calculateSlow(
+							player.haehyunSuperBallRemainingElapsed[j] + 1,
+							240 - superBall.framesSinceRegisteringForTheIdlingSignal() + 1,
+							superBallSlowdown,
+							player.haehyunSuperBallRemainingTimeWithSlow + j,
+							player.haehyunSuperBallRemainingTimeMaxWithSlow + j,
+							&unused);
+					}
+				}
+				
+				if (superBallsCount != 10) {
+					player.haehyunSuperBallRemainingTimeWithSlow[superBallsCount] = 0;
+				}
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
+				
+				if (hasForceDisableFlag) {
+					if (!ballFrozen && !foundActualBall && !createdOnThisFrame) {
+					 	++player.haehyunBallElapsed;
+					}
+				} else {
+					player.haehyunBallElapsed = 0;
+				}
+				
+				if (!foundProjectile && !foundActualBall) {
+					if (hasForceDisableFlag) {
+						player.haehyunBallTimeWithSlow = 1;
+					} else {
+						player.haehyunBallTimeWithSlow = 0;
+					}
+					
+					player.haehyunBallRemainingElapsed = 0;
+					player.haehyunBallRemainingTimeWithSlow = 0;
+				} else if (foundActualBall) {
+					PlayerInfo::calculateSlow(
+						1,
+						7 + 14,
+						slowdown,
+						&unused,
+						&player.haehyunBallTimeMaxWithSlow,
+						&unused);
+					player.haehyunBallTimeWithSlow = -1;
+					++player.haehyunBallTimeMaxWithSlow;
+					
+					if (!actualBallCreatedThisFrame && !actualBallFrozen && !hitstop) {
+						++player.haehyunBallRemainingElapsed;
+					}
+					
+					PlayerInfo::calculateSlow(
+						player.haehyunBallRemainingElapsed + 1,
+						projectileTimeLeft,
+						slowdown,
+						&player.haehyunBallRemainingTimeWithSlow,
+						&player.haehyunBallRemainingTimeMaxWithSlow,
+						&unused);
+				} else {
+					
+					if (foundActualBall) {
+						projectileTimeLeft = 7 + 14;
+					}
+					
+					int unused;
+					PlayerInfo::calculateSlow(
+						player.haehyunBallElapsed + 1,
+						projectileTimeLeft,
+						slowdown,
+						&player.haehyunBallTimeWithSlow,
+						&player.haehyunBallTimeMaxWithSlow,
+						&unused);
+					++player.haehyunBallTimeWithSlow;
+					++player.haehyunBallTimeMaxWithSlow;
+					
+					player.haehyunBallRemainingElapsed = 0;
+					player.haehyunBallRemainingTimeWithSlow = 0;
+				}
+				
 			}
 		}
 		
@@ -8090,4 +8238,10 @@ int EndScene::getMinBufferTime(const InputType* inputs) {
 		}
 	}
 	return minLength;
+}
+
+int __cdecl LifeTimeCounterCompare(void const* p1Ptr, void const* p2Ptr) {
+	Entity p1Ent = *(Entity*)p1Ptr;
+	Entity p2Ent = *(Entity*)p2Ptr;
+	return p2Ent.lifeTimeCounter() - p1Ent.lifeTimeCounter();
 }

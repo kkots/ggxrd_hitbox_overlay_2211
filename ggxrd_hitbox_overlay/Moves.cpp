@@ -283,6 +283,12 @@ static bool powerup_cardK(PlayerInfo& ent);
 static bool powerup_cardS(PlayerInfo& ent);
 static bool powerup_cardH(PlayerInfo& ent);
 static const char* powerupExplanation_card(PlayerInfo& ent);
+static bool powerup_hayabusaRev(PlayerInfo& ent);
+static const char* powerupExplanation_hayabusaRev(PlayerInfo& ent);
+static bool powerup_hayabusaHeld(PlayerInfo& ent);
+static const char* powerupExplanation_hayabusaHeld(PlayerInfo& ent);
+static bool powerup_grampaMax(PlayerInfo& ent);
+static const char* powerupExplanation_grampaMax(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -6499,11 +6505,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "HomingEnergyC");
 	move.displayName = "S Tuning Ball";
 	move.slangName = "S Fireball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "HomingEnergyD");
 	move.displayName = "H Tuning Ball";
 	move.slangName = "H Fireball";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlowAttack");
@@ -6532,6 +6540,8 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_falconDive;
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
+	move.powerup = powerup_hayabusaRev;
+	move.powerupExplanation = powerupExplanation_hayabusaRev;
 	addMove(move);
 	
 	// Haehyun 214[K]
@@ -6541,6 +6551,8 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_falconDive;
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
+	move.powerup = powerup_hayabusaHeld;
+	move.powerupExplanation = powerupExplanation_hayabusaHeld;
 	addMove(move);
 	
 	// Haehyun 623[K]
@@ -6549,6 +6561,8 @@ bool Moves::onDllMain() {
 	move.slangName = "Grampa Viper";
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
+	move.powerup = powerup_grampaMax;
+	move.powerupExplanation = powerupExplanation_grampaMax;
 	addMove(move);
 	
 	// Haehyun 623[4K]
@@ -9757,6 +9771,24 @@ bool powerup_cardH(PlayerInfo& ent) {
 }
 const char* powerupExplanation_card(PlayerInfo& ent) {
 	return "Obtained Card.";
+}
+bool powerup_hayabusaRev(PlayerInfo& ent) {
+	return ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0;
+}
+const char* powerupExplanation_hayabusaRev(PlayerInfo& ent) {
+	return "Acquired Guard Break property.";
+}
+bool powerup_hayabusaHeld(PlayerInfo& ent) {
+	return ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0;
+}
+const char* powerupExplanation_hayabusaHeld(PlayerInfo& ent) {
+	return "Reached maximum charge.";
+}
+bool powerup_grampaMax(PlayerInfo& ent) {
+	return ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0;
+}
+const char* powerupExplanation_grampaMax(PlayerInfo& ent) {
+	return "Reached maximum charge.";
 }
 
 void fillMay6HOffsets(BYTE* func) {

@@ -1381,6 +1381,15 @@ struct PlayerInfo {
 	int jackoAegisElapsed = 0;
 	int jackoAegisTimeWithSlow = 0;
 	int jackoAegisTimeMaxWithSlow = 0;
+	int haehyunBallElapsed = 0;
+	int haehyunBallTimeWithSlow = 0;
+	int haehyunBallTimeMaxWithSlow = 0;
+	int haehyunBallRemainingElapsed = 0;
+	int haehyunBallRemainingTimeWithSlow = 0;
+	int haehyunBallRemainingTimeMaxWithSlow = 0;
+	int haehyunSuperBallRemainingElapsed[10] { 0 };
+	int haehyunSuperBallRemainingTimeWithSlow[10] { 0 };
+	int haehyunSuperBallRemainingTimeMaxWithSlow[10] { 0 };
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;

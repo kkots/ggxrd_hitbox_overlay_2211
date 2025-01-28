@@ -619,22 +619,22 @@ void collectHitboxes(Entity ent,
 					interactionBoxes->push_back(interactionBoxParams);
 				}
 			}
-		} else if (state.charType == CHARACTER_TYPE_JAM
-				&& strcmp(ent.animationName(), "Saishingeki") == 0
-				&& ent.currentHitNum() == 2
-				&& hitboxCount) {
-			moves.fillInJamSaishingekiY(ent.bbscrCurrentFunc());
-			
-			DrawBoxCallParams interactionBoxParams;
-			interactionBoxParams.left = params.posX - 10000000;
-			interactionBoxParams.right = params.posX + 10000000;
-			interactionBoxParams.top = params.posY + moves.jamSaishingekiY;
-			interactionBoxParams.bottom = params.posY;
-			interactionBoxParams.fillColor = replaceAlpha(64, COLOR_INTERACTION);
-			interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
-			interactionBoxParams.thickness = THICKNESS_INTERACTION;
-			interactionBoxes->push_back(interactionBoxParams);
-			
+		} else if (state.charType == CHARACTER_TYPE_JAM) {
+			if (strcmp(ent.animationName(), "Saishingeki") == 0
+					&& ent.currentHitNum() == 2
+					&& hitboxCount) {
+				moves.fillInJamSaishingekiY(ent.bbscrCurrentFunc());
+				
+				DrawBoxCallParams interactionBoxParams;
+				interactionBoxParams.left = params.posX - 10000000;
+				interactionBoxParams.right = params.posX + 10000000;
+				interactionBoxParams.top = params.posY + moves.jamSaishingekiY;
+				interactionBoxParams.bottom = params.posY;
+				interactionBoxParams.fillColor = replaceAlpha(64, COLOR_INTERACTION);
+				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+				interactionBoxParams.thickness = THICKNESS_INTERACTION;
+				interactionBoxes->push_back(interactionBoxParams);
+			}
 		}
 	}
 	if (circles) {
@@ -692,50 +692,87 @@ void collectHitboxes(Entity ent,
 					points->push_back(pointCallParams);
 				}
 			}
-		} else if (ownerType == CHARACTER_TYPE_JACKO
-				&& strcmp(ent.animationName(), "Aigisfield") == 0
-				&& settings.showJackoAegisFieldRange) {
-			if (moves.jackoAegisFieldRange == 0) {
-				BYTE* func = ent.findStateStart("ServantA");
-				if (func) {
-					BYTE* instr;
-					for (
-							instr = moves.skipInstruction(func);
-							moves.instructionType(instr) != Moves::instr_endState;
-							instr = moves.skipInstruction(instr)
-					) {
-						if (moves.instructionType(instr) == Moves::instr_calcDistance
-								&& *(int*)(instr + 4) == 3  // PLAYER
-								&& *(int*)(instr + 8) == 103  // CENTER
-								&& *(int*)(instr + 0xc) == 23  // SELF
-								&& *(int*)(instr + 0x10) == 103  // CENTER
-								&& moves.instructionType(instr + 0x14) == Moves::instr_ifOperation
-								&& *(int*)(instr + 0x18) == 11  // IS_LESSER
-								&& *(int*)(instr + 0x1c) == 2  // tag:variable
-								&& *(int*)(instr + 0x20) == 0  // Mem(ACCUMULATOR)
-								&& *(int*)(instr + 0x24) == 0) {  // tag:literal
-							moves.jackoAegisFieldRange = *(int*)(instr + 0x28);
-							break;
+		} else if (ownerType == CHARACTER_TYPE_JACKO) {
+			if (strcmp(ent.animationName(), "Aigisfield") == 0
+					&& settings.showJackoAegisFieldRange) {
+				if (moves.jackoAegisFieldRange == 0) {
+					BYTE* func = ent.findStateStart("ServantA");
+					if (func) {
+						BYTE* instr;
+						for (
+								instr = moves.skipInstruction(func);
+								moves.instructionType(instr) != Moves::instr_endState;
+								instr = moves.skipInstruction(instr)
+						) {
+							if (moves.instructionType(instr) == Moves::instr_calcDistance
+									&& *(int*)(instr + 4) == 3  // PLAYER
+									&& *(int*)(instr + 8) == 103  // CENTER
+									&& *(int*)(instr + 0xc) == 23  // SELF
+									&& *(int*)(instr + 0x10) == 103  // CENTER
+									&& moves.instructionType(instr + 0x14) == Moves::instr_ifOperation
+									&& *(int*)(instr + 0x18) == 11  // IS_LESSER
+									&& *(int*)(instr + 0x1c) == 2  // tag:variable
+									&& *(int*)(instr + 0x20) == 0  // Mem(ACCUMULATOR)
+									&& *(int*)(instr + 0x24) == 0) {  // tag:literal
+								moves.jackoAegisFieldRange = *(int*)(instr + 0x28);
+								break;
+							}
 						}
 					}
 				}
+				if (moves.jackoAegisFieldRange) {
+					int centerX = owner.posX();
+					int centerY = owner.posY() + owner.getCenterOffsetY();
+					if (points) {
+						DrawPointCallParams pointCallParams;
+						pointCallParams.isProjectile = true;
+						pointCallParams.posX = centerX;
+						pointCallParams.posY = centerY;
+						points->push_back(pointCallParams);
+					}
+					
+					
+					DrawCircleCallParams circleCallParams;
+					circleCallParams.posX = centerX;
+					circleCallParams.posY = centerY;
+					circleCallParams.radius = moves.jackoAegisFieldRange;
+					circleCallParams.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+					circles->push_back(circleCallParams);
+					
+				}
 			}
-			if (moves.jackoAegisFieldRange) {
-				int centerX = owner.posX();
-				int centerY = owner.posY() + owner.getCenterOffsetY();
+		} else if (state.charType == CHARACTER_TYPE_HAEHYUN) {
+			if (strcmp(ent.animationName(), "BlackHoleAttack") == 0 && ent.mem45() && ent.hasUpon(3)) {
+				int centerX = ent.posX();
+				int centerY = ent.posY() + ent.getCenterOffsetY();
+				Entity opponent = ent.enemyEntity();
+				int centerX2 = opponent.posX();
+				int centerY2 = opponent.posY() + opponent.getCenterOffsetY();
 				if (points) {
 					DrawPointCallParams pointCallParams;
 					pointCallParams.isProjectile = true;
 					pointCallParams.posX = centerX;
 					pointCallParams.posY = centerY;
 					points->push_back(pointCallParams);
+					
+					pointCallParams.isProjectile = true;
+					pointCallParams.posX = centerX2;
+					pointCallParams.posY = centerY2;
+					points->push_back(pointCallParams);
 				}
-				
+				if (lines) {
+					DrawLineCallParams lineCallParams;
+					lineCallParams.posX1 = centerX;
+					lineCallParams.posY1 = centerY;
+					lineCallParams.posX2 = centerX2;
+					lineCallParams.posY2 = centerY2;
+					lines->push_back(lineCallParams);
+				}
 				
 				DrawCircleCallParams circleCallParams;
 				circleCallParams.posX = centerX;
 				circleCallParams.posY = centerY;
-				circleCallParams.radius = moves.jackoAegisFieldRange;
+				circleCallParams.radius = 1100000;
 				circleCallParams.outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
 				circles->push_back(circleCallParams);
 				

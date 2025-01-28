@@ -465,7 +465,20 @@ bool Settings::onDllMain() {
 			"; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.");
 	registerOtherDescription(settingAndItsName(skipGrabsInFramebar), "Skip Grab/Super Animations In Framebar", settingsFramebarSettingsStr,
 			"; Specify true or false.\n"
-			"; Setting this to true will skip grab animations such as ground throw or some supers that connected in the framebar.");
+			"; Setting this to true (default) will skip grab animations such as ground throw or some supers that connected in the framebar.");
+	registerOtherDescription(settingAndItsName(showFramebarHatchedLineWhenSkippingGrab), "Show Hatched/Dashed Slicing Line When Skipping Grab/Super In Framebar", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; When this setting is true (default), if a grab or super is skipped because of the \"skipGrabsInFramebar\" setting,\n"
+			"; a white line made out of small diagonal hatches will be displayed on the framebar in places where the grab or super was skipped.");
+	registerOtherDescription(settingAndItsName(showFramebarHatchedLineWhenSkippingHitstop), "Show Hatched/Dashed Slicing Line When Skipping Hitstop In Framebar", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; When this setting is true (which is not the default), if hitstop is skipped because of the \"neverIgnoreHitstop\"\n"
+			"; setting being false,\n"
+			"; a white line made out of small diagonal hatches will be displayed on the framebar in places where hitstop was skipped.");
+	registerOtherDescription(settingAndItsName(showFramebarHatchedLineWhenSkippingSuperfreeze), "Show Hatched/Dashed Slicing Line When Skipping Superfreeze In Framebar", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; When this setting is true (default), if superfreeze (also called superflash) is skipped, which is always the case,\n"
+			"; a white line made out of small diagonal hatches will be displayed on the framebar in places where superfreeze was skipped.");
 	registerOtherDescription(settingAndItsName(showComboProrationInRiscGauge), "Show Combo Proration In RISC Gauge", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will modify the RISC gauge so that the middle represents 0 RISC and no combo proration,\n"
@@ -800,6 +813,12 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool skipGrabsInFramebarParsed = false;
 	
+	bool showFramebarHatchedLineWhenSkippingGrabParsed = false;
+	
+	bool showFramebarHatchedLineWhenSkippingHitstopParsed = false;
+	
+	bool showFramebarHatchedLineWhenSkippingSuperfreezeParsed = false;
+	
 	bool showComboProrationInRiscGaugeParsed = false;
 	
 	bool displayInputHistoryWhenObservingParsed = false;
@@ -962,6 +981,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(drawPushboxCheckSeparately)
 						booleanPreset(frameAdvantage_dontUsePreBlockstunTime)
 						booleanPreset(skipGrabsInFramebar)
+						booleanPreset(showFramebarHatchedLineWhenSkippingGrab)
+						booleanPreset(showFramebarHatchedLineWhenSkippingHitstop)
+						booleanPreset(showFramebarHatchedLineWhenSkippingSuperfreeze)
 						booleanPreset(showComboProrationInRiscGauge)
 						booleanPreset(displayInputHistoryWhenObserving)
 						booleanPreset(displayInputHistoryInSomeOfflineModes)
@@ -1150,7 +1172,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	}
 	
 	if (!considerIdleInvulIdleParsed) {
-		considerIdleInvulIdle = true;
+		considerIdleInvulIdle = false;
 	}
 	
 	if (!dontUseScreenshotTransparencyParsed) {
@@ -1167,6 +1189,18 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!skipGrabsInFramebarParsed) {
 		skipGrabsInFramebar = true;
+	}
+	
+	if (!showFramebarHatchedLineWhenSkippingGrabParsed) {
+		showFramebarHatchedLineWhenSkippingGrab = true;
+	}
+	
+	if (!showFramebarHatchedLineWhenSkippingHitstopParsed) {
+		showFramebarHatchedLineWhenSkippingHitstop = false;
+	}
+	
+	if (!showFramebarHatchedLineWhenSkippingSuperfreezeParsed) {
+		showFramebarHatchedLineWhenSkippingSuperfreeze = true;
 	}
 	
 	if (!showComboProrationInRiscGaugeParsed) {
@@ -1782,6 +1816,9 @@ void Settings::writeSettingsMain() {
 	booleanPreset(drawPushboxCheckSeparately)
 	booleanPreset(frameAdvantage_dontUsePreBlockstunTime)
 	booleanPreset(skipGrabsInFramebar)
+	booleanPreset(showFramebarHatchedLineWhenSkippingGrab)
+	booleanPreset(showFramebarHatchedLineWhenSkippingHitstop)
+	booleanPreset(showFramebarHatchedLineWhenSkippingSuperfreeze)
 	booleanPreset(showComboProrationInRiscGauge)
 	booleanPreset(displayInputHistoryWhenObserving)
 	booleanPreset(displayInputHistoryInSomeOfflineModes)

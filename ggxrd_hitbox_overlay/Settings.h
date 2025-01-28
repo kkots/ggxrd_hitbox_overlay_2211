@@ -127,9 +127,12 @@ public:
 	std::atomic_bool allFramebarTitlesDisplayToTheLeft = true;
 	std::atomic_bool showPlayerInFramebarTitle = true;
 	std::atomic_bool considerKnockdownWakeupAndAirtechIdle = false;
-	std::atomic_bool considerIdleInvulIdle = true;
+	std::atomic_bool considerIdleInvulIdle = false;
 	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = true;
 	std::atomic_bool skipGrabsInFramebar = true;
+	std::atomic_bool showFramebarHatchedLineWhenSkippingGrab = true;
+	std::atomic_bool showFramebarHatchedLineWhenSkippingHitstop = false;
+	std::atomic_bool showFramebarHatchedLineWhenSkippingSuperfreeze = true;
 	std::atomic_bool showComboProrationInRiscGauge = false;
 	std::atomic_bool displayInputHistoryWhenObserving = true;
 	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;

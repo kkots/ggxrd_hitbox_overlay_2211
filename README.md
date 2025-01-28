@@ -214,6 +214,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Jam Bao Saishinshou: The white box shows the vertical range where the opponent's origin point be upon the hit connecting in order to be vacuumed by the attack.
 
+- Haehyun Enlightened 3000 Palm Strike: The giant circle shows where the opponent's center of body point has to be in order to be vacuumed. The center of body points of both players are shown and a line connecting them is shown as a guide for what exact distance is being measured by the game.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
@@ -728,6 +730,17 @@ frameAdvantage_dontUsePreBlockstunTime = false
 ; Specify true or false.
 ; Setting this to true will skip grab animations such as ground throw or some supers that connected in the framebar.
 skipGrabsInFramebar = true
+
+; Specify true or false.
+; When this setting is true, if a grab or super is skipped because of the "skipGrabsInFramebar" setting,
+; a white line made out of small diagonal hatches will be displayed on the framebar in places where the grab or super was skipped.
+showFramebarHatchedLineWhenSkippingGrab = true
+
+; Specify true or false.
+; When this setting is true (which is not the default), if hitstop is skipped because of the "neverIgnoreHitstop"
+; setting being false,
+; a white line made out of small diagonal hatches will be displayed on the framebar in places where hitstop was skipped.
+showFramebarHatchedLineWhenSkippingHitstop = false
 
 ; Specify true or false.
 ; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,

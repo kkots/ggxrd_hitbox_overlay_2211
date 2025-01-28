@@ -2211,6 +2211,12 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.skipGrabsInFramebar);
 			
+			booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingGrab);
+			
+			booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingHitstop);
+			
+			booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingSuperfreeze);
+			
 			if (booleanSettingPreset(settings.combineProjectileFramebarsWhenPossible)) {
 				if (settings.combineProjectileFramebarsWhenPossible) {
 					settings.eachProjectileOnSeparateFramebar = false;
@@ -2857,8 +2863,9 @@ void UI::drawSearchableWindows() {
 				" On block, something more is going on, and it's not studied yet, so gained speed Y cannot be displayed."
 				" Modifiers on received speed Y are weight and combo proration, displayed in that order.\n"
 				"The combo proration depends on the number of hits so far at the moment of getting hit, not including the ongoing hit:\n"
+				"5 hits and below -> no proration,\n"
 				"6 hits so far -> 59/60 * 100% proration,\n"
-				"5 hits -> 58 / 60 * 100% and so on, up to 30 / 60 * 100%. The rounding of the final speed Y is up.\n"
+				"7 hits -> 58 / 60 * 100% and so on, up to 30 / 60 * 100%. The rounding of the final speed Y is up.\n"
 				"Some moves could theoretically ignore weight or combo proration, or both. When that happens, 100% will be displayed in place"
 				" of the ignored parameter."));
 			for (int i = 0; i < two; ++i) {
@@ -4701,6 +4708,40 @@ void UI::drawSearchableWindows() {
 					ImGui::EndCombo();
 				}
 				ImGui::PopItemWidth();
+				
+			} else if (player.charType == CHARACTER_TYPE_HAEHYUN) {
+				
+				yellowText(searchFieldTitle("Ball Time Remaining:"));
+				const char* tooltip = searchTooltip("This timer does not decrement during superfreeze"
+					" or when the ball is in hitstop, from clashing or from hitting someone.");
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%df", player.haehyunBallRemainingTimeWithSlow, player.haehyunBallRemainingTimeMaxWithSlow);
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(tooltip);
+				
+				yellowText(searchFieldTitle("Can Do Ball In:"));
+				ImGui::SameLine();
+				if ((player.wasForceDisableFlags & 0x1) == 0) {
+					ImGui::TextUnformatted("0f");
+				} else if (player.haehyunBallTimeWithSlow == -1) {
+					sprintf_s(strbuf, "until destroyed+%d/%df", player.haehyunBallTimeMaxWithSlow, player.haehyunBallTimeMaxWithSlow);
+					ImGui::TextUnformatted(strbuf);
+				} else {
+					sprintf_s(strbuf, "%d/%df", player.haehyunBallTimeWithSlow, player.haehyunBallTimeMaxWithSlow);
+					ImGui::TextUnformatted(strbuf);
+				}
+				
+				for (int j = 0; j < 10; ++j) {
+					if (player.haehyunSuperBallRemainingTimeWithSlow[j] == 0) break;
+					sprintf_s(strbuf, "Super Ball #%d Time Remaining:", j + 1);
+					yellowText(strbuf);
+					AddTooltip(tooltip);
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%d/%df", player.haehyunSuperBallRemainingTimeWithSlow[j], player.haehyunSuperBallRemainingTimeMaxWithSlow[j]);
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(tooltip);
+				}
 				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
@@ -8182,6 +8223,11 @@ void UI::hitboxesHelpWindow() {
 	yellowText("Jam Bao Saishinshou:");
 	ImGui::TextUnformatted("The white box shows the vertical range where the opponent's origin point be upon"
 		" the hit connecting in order to be vacuumed by the attack.");
+	
+	yellowText("Haehyun Enlightened 3000 Palm Strike:");
+	ImGui::TextUnformatted("The giant circle shows where the opponent's center of body point has to be in order to be vacuumed."
+		" The center of body points of both players are shown and a line connecting them is shown as a guide for what exact"
+		" distance is being measured by the game.");
 	
 	ImGui::Separator();
 	
@@ -11806,6 +11852,9 @@ void UI::drawFramebars() {
 		static const float stitchThickness = 1.F;
 		float stitchStartYWithWindowClipping;
 		int stitchCount;
+		bool showFramebarHatchedLineWhenSkippingGrab = settings.showFramebarHatchedLineWhenSkippingGrab;
+		bool showFramebarHatchedLineWhenSkippingHitstop = settings.showFramebarHatchedLineWhenSkippingHitstop;
+		bool showFramebarHatchedLineWhenSkippingSuperfreeze = settings.showFramebarHatchedLineWhenSkippingSuperfreeze;
 		
 		for (int i = 0; i < _countof(Framebar::frames); ++i) {
 			
@@ -11814,7 +11863,16 @@ void UI::drawFramebars() {
 				continue;
 			}
 			SkippedFramesType skippedType = skippedInfo.elements[skippedInfo.count - 1].type;
-			if (!(skippedInfo.overflow || skippedType == SKIPPED_FRAMES_GRAB || skippedType == SKIPPED_FRAMES_SUPER)) {
+			if (!(
+				skippedInfo.overflow || (
+					skippedType == SKIPPED_FRAMES_GRAB || skippedType == SKIPPED_FRAMES_SUPER
+				)
+				&& showFramebarHatchedLineWhenSkippingGrab
+				|| skippedType == SKIPPED_FRAMES_HITSTOP
+				&& showFramebarHatchedLineWhenSkippingHitstop
+				|| skippedType == SKIPPED_FRAMES_SUPERFREEZE
+				&& showFramebarHatchedLineWhenSkippingSuperfreeze
+			)) {
 				continue;
 			}
 			if (needInitStitchParams) {
