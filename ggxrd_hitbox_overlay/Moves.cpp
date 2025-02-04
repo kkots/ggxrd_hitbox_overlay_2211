@@ -297,6 +297,8 @@ static bool powerup_armorDance(PlayerInfo& ent);
 static const char* powerupExplanation_armorDance(PlayerInfo& ent);
 static bool powerup_fireSpear(PlayerInfo& ent);
 static const char* powerupExplanation_fireSpear(PlayerInfo& ent);
+static bool powerup_zweit(PlayerInfo& ent);
+static const char* powerupExplanation_zweit(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -3530,6 +3532,9 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin2");
 	move.displayName = "Kaltes Gest\xc3\xb6\x62\x65r Zweit";
 	move.slangName = "Zweit";
+	move.powerup = powerup_zweit;
+	move.powerupExplanation = powerupExplanation_zweit;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin1");
@@ -9893,6 +9898,22 @@ bool powerup_fireSpear(PlayerInfo& ent) {
 }
 const char* powerupExplanation_fireSpear(PlayerInfo& ent) {
 	return "Created the next fire spear.";
+}
+bool powerup_zweit(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.gotoLabelRequest(), "FrontEnd") == 0) return true;
+	if (!ent.pawn.hasUpon(3)) return false;
+	BYTE* instr = ent.pawn.uponStruct(3)->uponInstrPtr;
+	instr = moves.skipInstruction(instr);
+	if (moves.instructionType(instr) == Moves::instr_ifOperation
+			&& *(int*)(instr + 4) == 12) {  // IS_GREATER_OR_EQUAL
+		return true;
+	}
+	return false;
+}
+const char* powerupExplanation_zweit(PlayerInfo& ent) {
+	return "//Title override: \n"
+		"On this frame checks if Leo's origin point is still not behind opponent's origin point."
+		" If on any of these frames Leo failed to cross his opponent up, he will transition to non-backturn ender.";
 }
 
 void fillMay6HOffsets(BYTE* func) {

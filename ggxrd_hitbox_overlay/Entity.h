@@ -678,6 +678,15 @@ enum TeamSwap {
 	TEAM_SWAP_NEITHER
 };
 
+struct UponInfo {
+	BYTE* uponInstrPtr;  // used if bbscrNeedExecuteUpon (hasUpon) is set
+	char stateToGoTo[32];  // used if bbscrNeedGoToStateUpon is set. Name of anim
+	int fireOnThisValue;  // for upon 0xd it's frame number, for upon 0x4 it's speedY
+	int fireOnThisValue2;
+	char markerToGoTo[32];  // used if bbscrNeedGoToMarkerUpon is set. Marker name
+	DWORD flags;
+};
+
 class Entity
 {
 public:
@@ -900,6 +909,7 @@ public:
 	// Having this flag without superArmorEnabled is useless because you just get hit by the projectile
 	inline bool invulnForAegisField() const { return (*(DWORD*)(ent + 0x238) & 0x400) != 0; }
 	bool hasUpon(int index) const;
+	const UponInfo* uponStruct(int index) const { return (const UponInfo*)(ent + 0xb70) + index; }
 	inline int mem45() const { return *(int*)(ent + 0x14c); }  // Reset on state change
 	inline int mem46() const { return *(int*)(ent + 0x150); }  // Reset on state change
 	inline int mem47() const { return *(int*)(ent + 0x154); }  // Reset on state change
