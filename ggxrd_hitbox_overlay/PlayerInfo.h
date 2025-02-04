@@ -101,6 +101,10 @@ struct RavenInfo {
 	unsigned short slowTimeMax;
 };
 
+struct DizzyInfo {
+	bool shieldFishSuperArmor;
+};
+
 struct GatlingOrWhiffCancelInfo {
 	const char* name;
 	const char* slangName;
@@ -431,6 +435,7 @@ struct PlayerFrame : public FrameBase {
 		ElpheltInfo elpheltInfo;
 		JohnnyInfo johnnyInfo;
 		RavenInfo ravenInfo;
+		DizzyInfo dizzyInfo;
 	} u;
 	short poisonDuration;
 	short poisonMax:14;
@@ -1402,6 +1407,22 @@ struct PlayerInfo {
 	int ravenNeedleTimeMax = 0;
 	RavenInfo ravenInfo { 0 };
 	int slowTimeElapsed = 0;
+	int dizzyFireSpearElapsed = 0;
+	int dizzyFireSpearTime = 0;
+	int dizzyFireSpearTimeMax = 0;
+	int dizzySpearX = 0;
+	int dizzySpearY = 0;
+	int dizzySpearSpeedX = 0;
+	int dizzySpearSpeedY = 0;
+	int dizzyScytheElapsed = 0;
+	int dizzyScytheTime = 0;
+	int dizzyScytheTimeMax = 0;
+	int dizzyFishElapsed = 0;
+	int dizzyFishTime = 0;
+	int dizzyFishTimeMax = 0;
+	int dizzyBubbleElapsed = 0;
+	int dizzyBubbleTime = 0;
+	int dizzyBubbleTimeMax = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
@@ -1540,6 +1561,8 @@ struct PlayerInfo {
 	bool ramlethalHSwordKowareSonoba:1;
 	bool johnnyMistFinerBuffed:1;
 	bool johnnyMistFinerBuffedOnThisFrame:1;
+	bool dizzySpearIsIce:1;
+	bool dizzyShieldFishSuperArmor:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

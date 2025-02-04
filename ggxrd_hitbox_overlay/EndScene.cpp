@@ -51,6 +51,11 @@ void __cdecl call_orig_drawQuadExec(void* orig_drawQuadExec, FVector2D *screenSi
 
 static int __cdecl LifeTimeCounterCompare(void const*, void const*);
 
+static inline bool isDizzyBubble(const char* name) {
+	return (*(DWORD*)name & 0xffffff) == ('A' | ('w'<<8) | ('a'<<16))
+		&& *(DWORD*)(name + 4) == ('O' | ('b'<<8) | ('j'<<16));
+}
+
 bool EndScene::onDllMain() {
 	bool error = false;
 	
@@ -635,6 +640,18 @@ bool EndScene::onDllMain() {
 		if (!detouring.attach(&(PVOID&)orig_drawTrainingHudInputHistory,
 			(PVOID&)drawTrainingHudInputHistoryHookPtr,
 			"drawTrainingHudInputHistory")) return false;
+	}
+	
+	uintptr_t hitDetectionHitOwnEffects = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"83 bf 3c 28 00 00 2c",
+		{ -4 },
+		nullptr, "hitDetectionHitOwnEffects");
+	if (hitDetectionHitOwnEffects) {
+		uintptr_t hitDetectionUsage = sigscanForward(hitDetectionHitOwnEffects, "6a 00 6a 00 6a 00 6a 01 56 8b cf e8 ?? ?? ?? ??", 0xa2);
+		if (hitDetectionUsage) {
+			hitDetectionFunc = (hitDetection_t)followRelativeCall(hitDetectionUsage + 11);
+		}
 	}
 	
 	return !error;
@@ -1925,6 +1942,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
+		checkDizzyBubblePops();
+		
 		// This is down here because throughout the logic tick in various hooks we gather
 		// events that refer to objects via pointer, and some objects like May beachball
 		// can get deleted on the same frame they receive a signal if they also happen
@@ -2719,6 +2738,412 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.ravenNeedleTime = 0;
 				}
 				
+			} else if (player.charType == CHARACTER_TYPE_DIZZY) {
+				
+				{  // spears
+					bool foundThing = false;
+					bool thingIsBomb = false;
+					int slowdown = 0;
+					int timeRemaining = 0;
+					bool hasForceDisableFlag = (player.wasForceDisableFlags & 4096) != 0;
+					int fireSpearLifetime = -1;
+					player.dizzySpearIsIce = false;
+					player.dizzyFireSpearTimeMax = 0;
+					for (int j = 2; j < entityList.count; ++j) {
+						Entity p = entityList.list[j];
+						if (p.isActive() && p.team() == player.index && !p.isPawn()) {
+							bool checkSlowdown = false;
+							const char* anim = p.animationName();
+							if (strncmp(p.animationName(), "KinomiObj", 9) == 0) {
+								if (anim[9] == 'N'
+										&& anim[10] == 'e'
+										&& anim[11] == 'c'
+										&& anim[12] == 'r'
+										&& anim[13] == 'o') {
+									if (anim[14] == 'b' && anim[15] == 'o' && anim[16] == 'm' && anim[17] == 'b' && anim[18] == '\0') {
+										BYTE* func = p.bbscrCurrentFunc();
+										moves.fillDizzyKinomiNecrobomb(func);
+										int newTime = moves.dizzyKinomiNecrobomb.remainingTime(p.bbscrCurrentInstr() - func, p.spriteFrameCounter());
+										if (newTime > timeRemaining) {
+											timeRemaining = newTime;
+											checkSlowdown = true;
+										}
+										foundThing = true;
+										thingIsBomb = true;
+									} else if (!(foundThing && thingIsBomb)) {
+										
+										int index;
+										if (anim[14] == '\0') index = 0;
+										else index = anim[14] - '2' + 1;
+										
+										int* bombMarker = moves.dizzyKinomiNecroBombMarker + index;
+										int* createBomb = moves.dizzyKinomiNecroCreateBomb + index;
+										
+										BYTE* func = p.bbscrCurrentFunc();
+										moves.fillDizzyKinomiNecro(func, bombMarker, createBomb);
+										
+										foundThing = true;
+										thingIsBomb = false;
+										int offset = p.bbscrCurrentInstr() - func;
+										if (offset > *bombMarker && offset < *createBomb && timeRemaining != -1) {
+											int newTime = 2 - p.spriteFrameCounter();
+											
+											BYTE* func2 = p.findStateStart("KinomiObjNecrobomb");  // we need this
+											moves.fillDizzyKinomiNecrobomb(func2);
+											
+											if (newTime > timeRemaining) {
+												timeRemaining = newTime;
+												checkSlowdown = true;
+											}
+										} else {
+											timeRemaining = -1;
+										}
+										
+										int lifetime = p.lifeTimeCounter();
+										if (fireSpearLifetime == -1 || lifetime < fireSpearLifetime) {
+											fireSpearLifetime = lifetime;
+											player.dizzySpearX = p.x();
+											player.dizzySpearY = p.y();
+											player.dizzySpearSpeedX = p.speedX();
+											player.dizzySpearSpeedY = p.speedY();
+										}
+										
+									}
+								} else {
+									player.dizzySpearIsIce = true;
+									player.dizzySpearX = p.x();
+									player.dizzySpearY = p.y();
+									player.dizzySpearSpeedX = p.speedX();
+									player.dizzySpearSpeedY = p.speedY();
+								}
+							}
+							if (checkSlowdown) {
+								ProjectileInfo& projectile = findProjectile(p);
+								if (projectile.ptr) {
+									slowdown = projectile.rcSlowedDownCounter;
+								}
+							}
+						}
+					}
+					
+					if (!hasForceDisableFlag) player.dizzyFireSpearElapsed = 0;
+					
+					int unused;
+					if (foundThing && !thingIsBomb) {
+						if (timeRemaining == -1) {
+							player.dizzyFireSpearTimeMax = -1;
+						} else {
+							timeRemaining += moves.dizzyKinomiNecrobomb.totalFrames;
+							++player.dizzyFireSpearElapsed;
+							PlayerInfo::calculateSlow(
+								player.dizzyFireSpearElapsed,
+								timeRemaining,
+								slowdown,
+								&player.dizzyFireSpearTime,
+								&player.dizzyFireSpearTimeMax,
+								&unused);
+						}
+					} else if (foundThing && thingIsBomb) {
+						++player.dizzyFireSpearElapsed;
+						PlayerInfo::calculateSlow(
+							player.dizzyFireSpearElapsed,
+							timeRemaining,
+							slowdown,
+							&player.dizzyFireSpearTime,
+							&player.dizzyFireSpearTimeMax,
+							&unused);
+					} else {
+						player.dizzyFireSpearTime = 0;
+					}
+					
+					if (player.dizzyFireSpearTime || hasForceDisableFlag) {
+						++player.dizzyFireSpearTime;
+					}
+					if (player.dizzyFireSpearTimeMax != -1) {
+						++player.dizzyFireSpearTimeMax;
+					}
+				}  // spears
+				
+				{  // scythes
+					bool found = false;
+					int remainingTime = -1;
+					int slowdown = 0;
+					for (int j = 2; j < entityList.count; ++j) {
+						Entity p = entityList.list[j];
+						if (!(
+								p.isActive() && p.team() == player.index && !p.isPawn()
+								&& strcmp(p.animationName(), "AkariObj") == 0
+						)) continue;
+						
+						found = true;
+						
+						BYTE* func = p.bbscrCurrentFunc();
+						moves.fillDizzyAkari(func);
+						
+						int offset = p.bbscrCurrentInstr() - func;
+						const Moves::MayIrukasanRidingObjectInfo* foundInfo = nullptr;
+						
+						// Index 0: Necro Startup
+						// Index 1: Necro Loop
+						// Index 2: Undine Startup (includes Undine travelling portion)
+						// Index 3: Finish (can be entered into by timer from Necro or naturally from Undine. Is entered into on hit)
+						int foundInfoIndex = -1;
+						for (int k = 0; k < (int)moves.dizzyAkari.size(); ++k) {
+							const Moves::MayIrukasanRidingObjectInfo& info = moves.dizzyAkari[k];
+							if (offset >= info.frames.front().offset && offset <= info.frames.back().offset) {
+								foundInfo = &info;
+								foundInfoIndex = k;
+								break;
+							}
+						}
+						if (!foundInfo) continue;
+						
+						ProjectileInfo& projectile = findProjectile(p);
+						if (!projectile.ptr) continue;
+						
+						int animDur = p.currentAnimDuration();
+						bool isNecro = p.createArgHikitsukiVal1() == 0;
+						bool isKoware = strcmp(p.gotoLabelRequest(), "koware") == 0;
+						if (p.lifeTimeCounter() == 0) {
+							player.dizzyScytheElapsed = 0;
+						}
+						
+						if (!p.isSuperFrozen()) ++player.dizzyScytheElapsed;
+						
+						if (isNecro) {
+							if (!isKoware && foundInfoIndex != 3) {
+								remainingTime = 76 + moves.dizzyAkari[3].totalFrames - animDur + 1;
+							} else if (isKoware) {
+								remainingTime = 1 + moves.dizzyAkari[3].totalFrames;
+							} else {
+								remainingTime = moves.dizzyAkari[3].remainingTime(offset, p.spriteFrameCounter());
+							}
+						// Undine
+						} else if (isKoware) {
+							remainingTime = 1 + moves.dizzyAkari[3].totalFrames;
+						} else if (foundInfoIndex == 3) {
+							remainingTime = moves.dizzyAkari[3].remainingTime(offset, p.spriteFrameCounter());
+						} else {
+							remainingTime = 1  // one extra frame, because at the start it goes gotoLabelRequests: s32'Undine', which takes 1f to take effect
+								+ moves.dizzyAkari[2].totalFrames + moves.dizzyAkari[3].totalFrames - animDur + 1;
+						}
+						
+						slowdown = projectile.rcSlowedDownCounter;
+					}
+					
+					bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x800) != 0;
+					if (!found) {
+						player.dizzyScytheTime = hasForceDisableFlag ? 1 : 0;
+					} else {
+						int unused;
+						PlayerInfo::calculateSlow(
+							player.dizzyScytheElapsed,
+							remainingTime,
+							slowdown,
+							&player.dizzyScytheTime,
+							&player.dizzyScytheTimeMax,
+							&unused);
+						if (player.dizzyScytheTime || hasForceDisableFlag) {
+							++player.dizzyScytheTime;
+						}
+						++player.dizzyScytheTimeMax;
+					}
+				}  // scythes
+				
+				{  // fish
+					
+					player.dizzyShieldFishSuperArmor = false;
+					bool foundFish = false;
+					bool fishEnding = false;
+					int timeRemaining = -1;
+					int slowdown = 0;
+					bool frozen = false;
+					for (int j = 2; j < entityList.count; ++j) {
+						Entity p = entityList.list[j];
+						if (!(
+							p.isActive() && p.team() == player.index && !p.isPawn()
+						)) continue;
+						
+						Moves::MayIrukasanRidingObjectInfo* fishData = nullptr;
+						bool fireFish = false;
+						int* normal = nullptr;
+						int* alt = nullptr;
+						BYTE* func;
+						const char* animName = p.animationName();
+						if (strncmp(animName, "Hanashi", 7) == 0) {
+							if (strcmp(animName, "HanashiObjC") == 0) {
+								normal = &moves.dizzySFishNormal;
+								alt = &moves.dizzySFishAlt;
+								fireFish = true;
+							} else if (strcmp(animName, "HanashiObjD") == 0) {
+								normal = &moves.dizzyHFishNormal;
+								alt = &moves.dizzyHFishAlt;
+								fireFish = true;
+							} else if (strcmp(animName, "HanashiObjA") == 0) {
+								fishData = &moves.dizzyPFishEnd;
+							} else if (strcmp(animName, "HanashiObjB") == 0) {
+								fishData = &moves.dizzyKFishEnd;
+							} else if (strcmp(animName, "HanashiObjE") == 0) {
+								fishData = &moves.dizzyDFishEnd;
+								player.dizzyShieldFishSuperArmor = p.superArmorEnabled();
+							} else if (strcmp(animName, "HanashiKoware") == 0) {
+								func = p.bbscrCurrentFunc();
+								
+								int totalLength = 0;
+								BYTE* instr;
+								for (
+									instr = moves.skipInstruction(func);
+									moves.instructionType(instr) != Moves::instr_endState;
+									instr = moves.skipInstruction(instr)
+								) {
+									if (moves.instructionType(instr) == Moves::instr_sprite) {
+										totalLength += *(int*)(instr + 4 + 32);
+									}
+								}
+								
+								foundFish = true;
+								fishEnding = true;
+								int newTime = totalLength - p.currentAnimDuration() + 1;
+								if (timeRemaining == -1 || newTime > timeRemaining) {
+									ProjectileInfo& projectile = findProjectile(p);
+									if (projectile.ptr) slowdown = projectile.rcSlowedDownCounter;
+									else slowdown = 0;
+									timeRemaining = newTime;
+									frozen = p.isSuperFrozen();
+								}
+								continue;
+							} else {
+								continue;
+							}
+							
+							foundFish = true;
+							
+							if (fireFish) {
+								func = p.bbscrCurrentFunc();
+								moves.fillDizzyLaserFish(func, normal, alt);
+								
+								bool isAlt = p.createArgHikitsukiVal1() != 0;
+								fishEnding = true;
+								int newTime = (isAlt ? *alt : *normal) - p.currentAnimDuration() + 1;
+								if (timeRemaining == -1 || newTime > timeRemaining) {
+									ProjectileInfo& projectile = findProjectile(p);
+									if (projectile.ptr) slowdown = projectile.rcSlowedDownCounter;
+									else slowdown = 0;
+									timeRemaining = newTime;
+									frozen = p.isSuperFrozen();
+								}
+								continue;
+							}
+							
+							func = p.bbscrCurrentFunc();
+							moves.fillDizzyFish(func, *fishData);
+							
+							int offset = p.bbscrCurrentInstr() - func;
+							if (offset >= fishData->frames.front().offset) {
+								fishEnding = true;
+								int newTime = fishData->remainingTime(offset, p.spriteFrameCounter());
+								if (timeRemaining == -1 || newTime > timeRemaining) {
+									ProjectileInfo& projectile = findProjectile(p);
+									if (projectile.ptr) slowdown = projectile.rcSlowedDownCounter;
+									else slowdown = 0;
+									timeRemaining = newTime;
+									frozen = p.isSuperFrozen();
+								}
+							}
+						}
+						
+					}
+					
+					bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x400) != 0;
+					if (!foundFish) {
+						player.dizzyFishTime = hasForceDisableFlag ? 1 : 0;
+						if (player.dizzyFishTimeMax == -1) player.dizzyFishTimeMax = 9999;
+					} else if (fishEnding) {
+						if (player.dizzyFishTime == 0) player.dizzyFishElapsed = 0;
+						if (!frozen) ++player.dizzyFishElapsed;
+						
+						int unused;
+						PlayerInfo::calculateSlow(
+							player.dizzyFishElapsed,
+							timeRemaining,
+							slowdown,
+							&player.dizzyFishTime,
+							&player.dizzyFishTimeMax,
+							&unused);
+						
+						if (player.dizzyFishTime || hasForceDisableFlag) ++player.dizzyFishTime;
+						
+						if (player.dizzyFishTimeMax <= 2) player.dizzyFishTimeMax = 0;
+						else ++player.dizzyFishTimeMax;
+					} else {
+						player.dizzyFishTimeMax = -1;
+					}
+					
+				}  // fish
+				
+				{  // bubbles
+					bool foundBubble = false;
+					int timeRemaining = -1;
+					int slowdown = 0;
+					for (int j = 2; j < entityList.count; ++j) {
+						Entity p = entityList.list[j];
+						if (!(
+							p.isActive() && p.team() == player.index && !p.isPawn()
+						)) continue;
+						
+						const char* animName = p.animationName();
+						int* koware = nullptr;
+						Moves::MayIrukasanRidingObjectInfo* bomb = nullptr;
+						BYTE* func = p.bbscrCurrentFunc();
+						if (strcmp(animName, "AwaPObj") == 0) {
+							koware = &moves.dizzyAwaPKoware;
+							bomb = &moves.dizzyAwaPBomb;
+						} else if (strcmp(animName, "AwaKObj") == 0) {
+							koware = &moves.dizzyAwaKKoware;
+							bomb = &moves.dizzyAwaKBomb;
+						}
+						if (koware) {
+							if (p.lifeTimeCounter() == 0) player.dizzyBubbleElapsed = 0;
+							moves.fillDizzyAwaKoware(func, koware);
+							moves.fillDizzyAwaBomb(func, *bomb);
+							foundBubble = true;
+							int offset = p.bbscrCurrentInstr() - func;
+							if (strcmp(p.gotoLabelRequest(), "bomb") == 0) {
+								timeRemaining = 1 + bomb->totalFrames;
+							} else if (offset >= bomb->frames.front().offset) {
+								timeRemaining = bomb->remainingTime(offset, p.spriteFrameCounter());
+							} else {
+								timeRemaining = 160 + *koware - p.currentAnimDuration() + 1;
+							}
+							ProjectileInfo& projectile = findProjectile(p);
+							if (projectile.ptr) {
+								slowdown = projectile.rcSlowedDownCounter;
+							}
+						}
+					}
+					
+					bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x2000) != 0;
+					if (!foundBubble) {
+						player.dizzyBubbleTime = hasForceDisableFlag ? 1 : 0;
+					} else {
+						++player.dizzyBubbleElapsed;
+						
+						int unused;
+						PlayerInfo::calculateSlow(
+							player.dizzyBubbleElapsed,
+							timeRemaining,
+							slowdown,
+							&player.dizzyBubbleTime,
+							&player.dizzyBubbleTimeMax,
+							&unused);
+						
+						if (player.dizzyBubbleTime || hasForceDisableFlag) {
+							++player.dizzyBubbleTime;
+						}
+						if (player.dizzyBubbleTimeMax <= 2) player.dizzyBubbleTimeMax = 0;
+						else ++player.dizzyBubbleTimeMax;
+					}
+				}  // bubbles
 			}
 		}
 		
@@ -3625,8 +4050,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| player.charType == CHARACTER_TYPE_JACKO
 					&& projectile.ptr
 					&& projectile.ptr.servant()
+					|| player.charType == CHARACTER_TYPE_DIZZY
+					&& strncmp(projectile.animName, "HanashiObj", 10) == 0
 				) && !projectile.strikeInvul
-				|| projectile.gotHitOnThisFrame) {
+				|| projectile.gotHitOnThisFrame && !isDizzyBubble(projectile.animName)) {
 				projectileCanBeHit = true;
 			}
 			bool isHouseInvul = player.charType == CHARACTER_TYPE_JACKO && projectile.ptr && projectile.ptr.ghost()
@@ -3663,7 +4090,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			Frame& currentFrame = framebar[framebarPos];
 			
 			FrameType defaultIdleFrame;
-			if (isHouseInvul && !projectileCanBeHit) {
+			if (isHouseInvul && !projectileCanBeHit || projectile.gotHitOnThisFrame && isDizzyBubble(projectile.animName)) {
 				defaultIdleFrame = FT_IDLE_NO_DISPOSE;
 			} else if (isMist || isMistKuttsuku) {
 				defaultIdleFrame = FT_BACCHUS_SIGH;
@@ -4377,6 +4804,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else if (player.charType == CHARACTER_TYPE_RAVEN) {
 					currentFrame.u.ravenInfo.slowTime = player.ravenInfo.slowTime;
 					currentFrame.u.ravenInfo.slowTimeMax = player.ravenInfo.slowTimeMax;
+				} else if (player.charType == CHARACTER_TYPE_DIZZY) {
+					currentFrame.u.dizzyInfo.shieldFishSuperArmor = player.dizzyShieldFishSuperArmor;
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -7155,9 +7584,8 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) 
 	if (!iGiveUp) {
 		Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
 		
-		bool isDizzyBubblePopping = referredEntity == pawn && signal == 0x17  // HIT_OR_BLOCK
-				&& (strcmp(pawn.animationName(), "AwaPObj"_hardcode) == 0  // Dizzy bubble
-					|| strcmp(pawn.animationName(), "AwaKObj"_hardcode) == 0);
+		bool isDizzyBubblePopping = referredEntity == pawn && signal == 0x17  // CUSTOM_SIGNAL_1
+				&& isDizzyBubble(pawn.animationName());
 		
 		if (!shutdown && referredEntity && !isDizzyBubblePopping) {
 			ProjectileInfo& projectile = findProjectile(referredEntity);
@@ -8359,4 +8787,58 @@ int __cdecl LifeTimeCounterCompare(void const* p1Ptr, void const* p2Ptr) {
 	Entity p1Ent = *(Entity*)p1Ptr;
 	Entity p2Ent = *(Entity*)p2Ptr;
 	return p2Ent.lifeTimeCounter() - p1Ent.lifeTimeCounter();
+}
+
+// Kinda copy of hitDetectionHitOwnEffects function, with some filters which are explained in comments
+// The original function runs at the start of a logic tick, but we run it at the end of the current tick, which is probably the exact same
+// Runs on the main thread
+void EndScene::checkDizzyBubblePops() {
+	if (!hitDetectionFunc) return;
+	for (int i = 0; i < entityList.count; ++i) {
+		Entity attacker = entityList.list[i];
+		if (!attacker.isActive()) continue;  // this check is not in the original
+		if (attacker.signalToSendToYourOwnEffectsWhenHittingThem() != 0x17) {  // CUSTOM_SIGNAL_0. The real function checks == 0x2c, so opposite sign, and a different value
+			continue;
+		}
+		if ((attacker.isPawn() ? attacker.characterType() : attacker.playerEntity().characterType()) != CHARACTER_TYPE_DIZZY) continue;  // this check is not in the original
+		for (int j = 0; j < entityList.count; ++j) {
+			Entity defender = entityList.list[j];
+			if (defender != attacker
+					&& defender.isActive()  // this check is not in the original
+					&& defender.naguriNagurareru()
+					&& attacker.teamSwap() != TEAM_SWAP_NEITHER
+					&& defender.teamSwap() != TEAM_SWAP_NEITHER) {
+				int attackerTeam;
+				if (attacker.teamSwap() == TEAM_SWAP_NORMAL) {
+					attackerTeam = attacker.team();
+				} else {
+					attackerTeam = 1 - attacker.team();
+				}
+				int defenderTeam;
+				if (defender.teamSwap() == TEAM_SWAP_NORMAL) {
+					defenderTeam = defender.team();
+				} else {
+					defenderTeam = 1 - defender.team();
+				}
+				ProjectileInfo& defenderProj = findProjectile(defender);
+				if (!(  // this skip (entire 'if') is not in the original
+					defenderProj.ptr && isDizzyBubble(defender.animationName())
+				)) continue;
+				if (attackerTeam == defenderTeam
+						&& hitDetectionFunc((void*)attacker.ent, (void*)defender.ent, HITBOXTYPE_HITBOX, HITBOXTYPE_HURTBOX, nullptr, nullptr)) {
+					// in the original, the attacker.signalToSendToYourOwnEffectsWhenHittingThem() signal is sent instead
+					defenderProj.gotHitOnThisFrame = true;
+					ProjectileInfo& attackerProj = findProjectile(attacker);
+					if (attackerProj.ptr) {
+						attackerProj.landedHit = true;
+					} else {
+						PlayerInfo& player = findPlayer(attacker);
+						if (player.pawn) {
+							player.hitSomething = true;
+						}
+					}
+				}
+			}
+		}
+	}
 }

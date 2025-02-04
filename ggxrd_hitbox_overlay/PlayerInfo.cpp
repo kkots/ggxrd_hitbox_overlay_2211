@@ -1177,7 +1177,11 @@ int PrevStartupsInfo::total() const {
 }
 
 void SpriteFrameInfo::print(char* buf, size_t bufSize) const {
-	sprintf_s(buf, bufSize, "%s (%d/%d)", name, frame, frameMax);
+	if (frameMax == 2147483647) {
+		sprintf_s(buf, bufSize, "%s (%d/inf)", name, frame);
+	} else {
+		sprintf_s(buf, bufSize, "%s (%d/%d)", name, frame, frameMax);
+	}
 }
 
 void SpriteFrameInfo::fill(Entity ent) {

@@ -352,6 +352,28 @@ public:
 	int jamSaishingekiY = 0;
 	void fillInJamSaishingekiY(BYTE* func);
 	int kum5Dcreation = 0;
+	int dizzyKinomiNecroBombMarker[3] { 0 };
+	int dizzyKinomiNecroCreateBomb[3] { 0 };
+	void fillDizzyKinomiNecro(BYTE* func, int* bombMarker, int* createBomb);
+	MayIrukasanRidingObjectInfo dizzyKinomiNecrobomb;
+	void fillDizzyKinomiNecrobomb(BYTE* func);
+	std::vector<MayIrukasanRidingObjectInfo> dizzyAkari;
+	void fillDizzyAkari(BYTE* func);
+	MayIrukasanRidingObjectInfo dizzyPFishEnd { 0 };
+	MayIrukasanRidingObjectInfo dizzyKFishEnd { 0 };
+	MayIrukasanRidingObjectInfo dizzyDFishEnd { 0 };
+	void fillDizzyFish(BYTE* func, MayIrukasanRidingObjectInfo& fish);
+	int dizzySFishNormal = 0;
+	int dizzySFishAlt = 0;
+	int dizzyHFishNormal = 0;
+	int dizzyHFishAlt = 0;
+	void fillDizzyLaserFish(BYTE* func, int* normal, int* alt);
+	int dizzyAwaPKoware;
+	MayIrukasanRidingObjectInfo dizzyAwaPBomb;
+	int dizzyAwaKKoware;
+	MayIrukasanRidingObjectInfo dizzyAwaKBomb;
+	void fillDizzyAwaKoware(BYTE* func, int* koware);
+	void fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info);
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

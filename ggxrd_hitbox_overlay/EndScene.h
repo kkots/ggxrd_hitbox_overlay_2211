@@ -39,6 +39,7 @@ using setSuperFreezeAndRCSlowdownFlags_t = void(__thiscall*)(void* asw_subengine
 using BBScr_timeSlow_t = void(__thiscall*)(void* pawn, int duration);
 using onCmnActXGuardLoop_t = void(__thiscall*)(void* pawn, int signal, int type, int thisIs0);
 using drawTrainingHudInputHistory_t = void(__thiscall*)(void* trainingHud, unsigned int layer);
+using hitDetection_t = BOOL(__thiscall*)(void* attacker, void* defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
 
 struct FVector2D {
 	float X;
@@ -546,6 +547,8 @@ private:
 	int* drawTrainingHudInputHistoryVal2 = nullptr;
 	int* drawTrainingHudInputHistoryVal3 = nullptr;
 	int getMinBufferTime(const InputType* inputs);
+	hitDetection_t hitDetectionFunc = nullptr;
+	void checkDizzyBubblePops();
 };
 
 extern EndScene endScene;

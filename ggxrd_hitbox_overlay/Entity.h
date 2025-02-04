@@ -672,6 +672,12 @@ struct BBScrInfo {
 	BBScrHashtable* subroutineMap;
 };
 
+enum TeamSwap {
+	TEAM_SWAP_NORMAL,
+	TEAM_SWAP_OPPOSITE,
+	TEAM_SWAP_NEITHER
+};
+
 class Entity
 {
 public:
@@ -718,6 +724,7 @@ public:
 	inline unsigned int currentAnimDuration() const { return *(const unsigned int*)(ent + 0x130); }
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
+	inline bool naguriNagurareru() const { return (*(DWORD*)(ent + 0x120) & 0x100) != 0; }
 	inline bool guardBreakInitialProrationApplied() const { return (*(DWORD*)(ent + 0x120) & 0x1000) != 0; }
 	inline bool servant() const { return (*(DWORD*)(ent + 0x120) & 0x3800000) != 0; }  // 0x800000 servant A, 0x1000000 servant B, 0x2000000 servant C
 	inline bool servantA() const { return (*(DWORD*)(ent + 0x120) & 0x800000) != 0; }
@@ -805,12 +812,14 @@ public:
 	inline bool ascending() const { return (*(DWORD*)(ent + 0x234) & 0x1) != 0; }  // this does not mean prejump. It is set on the initial 7 frames of May jump, 10 Ky jump.
 	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
 	inline bool displayModel() const { return *(bool*)(ent + 0x2814); }
+	inline int signalToSendToYourOwnEffectsWhenHittingThem() const { return *(bool*)(ent + 0x283c); }
 	inline bool hideUI() const { return (*(DWORD*)(ent + 0x11c) & 0x4000) != 0; }
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
 	inline int airdashHorizontallingTimer() const { return *(int*)(ent + 0x24db8); }
 	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }
+	inline TeamSwap teamSwap() const { return *(TeamSwap*)(ent + 0x26ac); }
 	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
 	inline const AttackData* dealtAttack() const { return (const AttackData*)(ent + 0x44c); }
 	inline const AttackData* receivedAttack() const { return (const AttackData*)(ent + 0x710); }

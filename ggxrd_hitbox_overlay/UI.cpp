@@ -4805,6 +4805,118 @@ void UI::drawSearchableWindows() {
 						"Damage of all attacks.");
 				}
 				
+			} else if (player.charType == CHARACTER_TYPE_DIZZY) {
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 4096) != 0;
+				bool showSpearParameters = player.dizzySpearIsIce || player.dizzyFireSpearTimeMax == -1;
+				yellowText("Can Do Ice/Fire Spear:");
+				ImGui::SameLine();
+				if (hasForceDisableFlag) {
+					if (!showSpearParameters && player.dizzyFireSpearElapsed) {
+						sprintf_s(strbuf, "%d/%d", player.dizzyFireSpearTime, player.dizzyFireSpearTimeMax);
+						ImGui::TextUnformatted(strbuf);
+					} else {
+						ImGui::TextUnformatted("After leaves arena");
+					}
+				} else {
+					ImGui::TextUnformatted("Yes");
+				}
+				
+				struct StringTableElem {
+					const char* x;
+					const char* y;
+					const char* speed;
+				};
+				StringTableElem stringTbl[2] {
+					{
+						"Ice Spear X:",
+						"Ice Spear Y:",
+						"Ice Spear Speed:"
+					},
+					{
+						"Fire Spear X:",
+						"Fire Spear Y:",
+						"Fire Spear Speed"
+					}
+				};
+				
+				StringTableElem& elem = stringTbl[player.dizzySpearIsIce ? 0 : 1];
+				
+				const char* tooltip;
+				if (showSpearParameters) {
+					
+					yellowText(elem.x);
+					ImGui::SameLine();
+					printDecimal(player.dizzySpearX, 2, 0, false);
+					sprintf_s(strbuf, "%s/%s", printdecimalbuf, player.dizzySpearSpeedX < 0 ? "-17000.00" : "17000.00");
+					ImGui::TextUnformatted(strbuf);
+					
+					yellowText(elem.y);
+					ImGui::SameLine();
+					printDecimal(player.dizzySpearY, 2, 0, false);
+					sprintf_s(strbuf, "%s/%s", printdecimalbuf, player.dizzySpearSpeedY < 0 ? "-1000.00" : "5000.00");
+					ImGui::TextUnformatted(strbuf);
+					
+					yellowText(elem.speed);
+					tooltip = "Speed X; Speed Y";
+					AddTooltip(tooltip);
+					ImGui::SameLine();
+					printDecimal(player.dizzySpearSpeedX, 2, 0, false);
+					char* buf = strbuf;
+					size_t bufSize = sizeof strbuf;
+					int result = sprintf_s(buf, bufSize, "%s", printdecimalbuf);
+					advanceBuf
+					printDecimal(player.dizzySpearSpeedY, 2, 0, false);
+					sprintf_s(buf, bufSize, "; %s", printdecimalbuf);
+					ImGui::TextUnformatted(strbuf);
+					AddTooltip(tooltip);
+					
+				}
+				
+				yellowText("Can Do Ice/Fire Scythe:");
+				tooltip = "Time remaining, in frames, until you can perform 'For putting out the light...'"
+					" or 'The light was so small in the beginning'.";
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%df", player.dizzyScytheTime, player.dizzyScytheTimeMax);
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(tooltip);
+				
+				yellowText("Can Do Fish:");
+				tooltip = "Time remaining, in frames, until you can perform 'We talked a lot together'"
+					" or 'We fought a lot together'. If it says 'No' then idk how long it might take and it will become clearer once"
+					" the fish enters a portion of the animation that is more predetermined and depends on fewer variables.";
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				if (player.dizzyFishTimeMax == -1) {
+					ImGui::TextUnformatted("No");
+				} else if (player.dizzyFishTimeMax == 9999) {
+					sprintf_s(strbuf, "%d/???f", player.dizzyFishTime);
+					ImGui::TextUnformatted(strbuf);
+				} else {
+					sprintf_s(strbuf, "%d/%df", player.dizzyFishTime, player.dizzyFishTimeMax);
+					ImGui::TextUnformatted(strbuf);
+				}
+				AddTooltip(tooltip);
+				
+				yellowText("Can Do Bubble:");
+				tooltip = "Time remaining, in frames, until you can perform 'Please, leave me alone'"
+					" or 'What happens when I'm TOO alone'.";
+				AddTooltip(tooltip);
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%df", player.dizzyBubbleTime, player.dizzyBubbleTimeMax);
+				ImGui::TextUnformatted(strbuf);
+				AddTooltip(tooltip);
+				
+				if (game.isTrainingMode()) {
+					if (ImGui::Button("Costume")) {
+						DWORD& theValue = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage1Offset + i * 4);
+						theValue = 1 - theValue;
+						endScene.BBScr_callSubroutine((void*)player.pawn.ent, "UndressCheck");
+					}
+					AddTooltip("Innocuous button.");
+				}
+				
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
@@ -9698,6 +9810,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 							sprintf_s(strbuf, "%d/%s (%d hits)", time, txt, correspondingPlayersFrame.u.inoInfo.noteLevel);
 							ImGui::TextUnformatted(strbuf);
 						} else if (ramlethalTime) {
+							ImGui::Separator();
 							yellowText("Time Remaining: ");
 							ImGui::SameLine();
 							if (ramlethalTimeMax) {
@@ -9710,6 +9823,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 								&& projectileFrame.animSlangName
 								&& strcmp(projectileFrame.animSlangName, "Berry"_hardcode) == 0) {
 							
+							ImGui::Separator();
 							yellowText("Berry Timer: ");
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/180", correspondingPlayersFrame.u.elpheltInfo.grenadeTimer);
@@ -9719,6 +9833,7 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 								&& projectileFrame.animSlangName
 								&& strcmp(projectileFrame.animSlangName, "Bacchus"_hardcode) == 0) {
 							
+							ImGui::Separator();
 							yellowText("Bacchus Sigh Projectile Timer: ");
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.johnnyInfo.mistTimer,
@@ -9728,7 +9843,14 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 						} else if (frame.type == FT_IDLE_NO_DISPOSE
 										&& owningPlayerCharType == CHARACTER_TYPE_JACKO
 										&& strcmp(projectileFrame.animName, "Ghost"_hardcode) == 0) {
+							ImGui::Separator();
 							ImGui::TextUnformatted("The Ghost is strike invulnerable.");
+							
+						} else if (frame.type == FT_IDLE_PROJECTILE_HITTABLE
+										&& owningPlayerCharType == CHARACTER_TYPE_DIZZY
+										&& correspondingPlayersFrame.u.dizzyInfo.shieldFishSuperArmor) {
+							ImGui::Separator();
+							ImGui::TextUnformatted("Shield Fish super armor active.");
 						}
 					}
 					if (playerIndex != -1) {
@@ -11856,6 +11978,26 @@ void UI::drawFramebars() {
 									bottomBarkerEnd,
 									OTGMarker.uvStart,
 									OTGMarker.uvEnd,
+									tint);
+							}
+						} else if (projectileFrame.type == FT_IDLE_PROJECTILE_HITTABLE
+								&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_DIZZY
+								&& showSuperArmorOnFramebar) {
+							
+							const PlayerFramebars& correspondingPlayersFramebars = endScene.playerFramebars[entityFramebar.playerIndex];
+							const PlayerFramebar& correspondingPlayersFramebar =
+								settings.neverIgnoreHitstop
+									? (const PlayerFramebar&)correspondingPlayersFramebars.getHitstop()
+									: (const PlayerFramebar&)correspondingPlayersFramebars.getMain();
+									
+							const PlayerFrame& correspondingPlayerFrame = correspondingPlayersFramebar[i];
+							if (correspondingPlayerFrame.u.dizzyInfo.shieldFishSuperArmor) {
+								const FrameMarkerArt& markerArt = frameMarkerArtArray[MARKER_TYPE_SUPER_ARMOR];
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+									markerStart,
+									markerEnd,
+									markerArt.uvStart,
+									markerArt.uvEnd,
 									tint);
 							}
 						}

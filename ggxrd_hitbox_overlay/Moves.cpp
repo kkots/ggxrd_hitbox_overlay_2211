@@ -73,7 +73,9 @@ static bool isDangerous_ramSwordMove(Entity ent);
 static bool isDangerous_hasHitboxes(Entity ent);
 static bool isDangerous_bubble(Entity ent);
 static bool isDangerous_laserFish(Entity ent);
+static bool isDangerous_pFish(Entity ent);
 static bool isDangerous_kFish(Entity ent);
+static bool isDangerous_dFish(Entity ent);
 static bool isDangerous_card(Entity ent);
 static bool isDangerous_kum5D(Entity ent);
 static bool isDangerous_rsfMeishi(Entity ent);
@@ -293,6 +295,8 @@ static bool powerup_grampaMax(PlayerInfo& ent);
 static const char* powerupExplanation_grampaMax(PlayerInfo& ent);
 static bool powerup_armorDance(PlayerInfo& ent);
 static const char* powerupExplanation_armorDance(PlayerInfo& ent);
+static bool powerup_fireSpear(PlayerInfo& ent);
+static const char* powerupExplanation_fireSpear(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -6825,62 +6829,74 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD");
 	move.displayName = "H We fought a lot together";
-	move.slangName = "H Fire Fish";
+	move.slangName = "H Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD_Air");
 	move.displayName = "H Air We fought a lot together...";
-	move.slangName = "Air H Fire Fish";
+	move.slangName = "Air H Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiC");
 	move.displayName = "S We fought a lot together";
-	move.slangName = "S Fire Fish";
+	move.slangName = "S Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiC_Air");
 	move.displayName = "S Air We fought a lot together";
-	move.slangName = "Air S Fire Fish";
+	move.slangName = "Air S Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiB");
 	move.displayName = "K We talked a lot together";
-	move.slangName = "K Blue Fish";
+	move.slangName = "K Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiB_Air");
 	move.displayName = "K Air We talked a lot together";
-	move.slangName = "Air K Blue Fish";
+	move.slangName = "Air K Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiA");
 	move.displayName = "P We talked a lot together";
-	move.slangName = "P Blue Fish";
+	move.slangName = "P Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiA_Air");
 	move.displayName = "P Air We talked a lot together";
-	move.slangName = "Air P Blue Fish";
+	move.slangName = "Air P Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiE");
 	move.displayName = "D We fought a lot together";
 	move.slangName = "Shield Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiE_Air");
 	move.displayName = "D Air We fought a lot together";
 	move.slangName = "Air Shield Fish";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaP");
 	move.displayName = "Please, leave me alone";
 	move.slangName = "Bubble";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaK");
 	move.displayName = "What happens when I'm TOO alone";
 	move.slangName = "Fire Bubble";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// Dizzy 421H
@@ -6889,21 +6905,27 @@ bool Moves::onDllMain() {
 	move.slangName = "Fire Spears";
 	move.sectionSeparator = sectionSeparator_kinomiNecro;
 	move.isInVariableStartupSection = isInVariableStartupSection_kinomiNecro;
+	move.powerup = powerup_fireSpear;
+	move.powerupExplanation = powerupExplanation_fireSpear;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Kinomi");
 	move.displayName = "I use this to pick fruit";
 	move.slangName = "Ice Spear";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRay");
 	move.displayName = "Imperial Ray";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBurst");
 	move.displayName = "Burst Imperial Ray";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KirikaeshiKakusei");
@@ -7420,6 +7442,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 92;
 	move.framebarNameSelector = nameSelector_iceSpike;
 	move.framebarSlangNameSelector = slangNameSelector_iceSpike;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariObj", true);
@@ -7427,6 +7450,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 93;
 	move.framebarNameSelector = nameSelector_iceScythe;
 	move.framebarSlangNameSelector = slangNameSelector_iceScythe;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaPObj", true);
@@ -7483,7 +7507,7 @@ bool Moves::onDllMain() {
 	
 	// P fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjA", true);
-	move.isDangerous = isDangerous_not_hasHitNumButInactive;
+	move.isDangerous = isDangerous_pFish;
 	move.framebarId = 96;
 	move.framebarName = "We talked a lot together";
 	move.framebarSlangName = "P Blue Fish";
@@ -7523,7 +7547,7 @@ bool Moves::onDllMain() {
 	
 	// Shield fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjE", true);
-	move.isDangerous = isDangerous_notInRecovery;
+	move.isDangerous = isDangerous_dFish;
 	move.framebarId = 96;
 	move.framebarName = "We fought a lot together";
 	move.framebarSlangName = "Shield Fish";
@@ -7727,6 +7751,23 @@ void Moves::onAswEngineDestroyed() {
 	jackoServantCAggroY = 0;
 	jamSaishingekiY = 0;
 	kum5Dcreation = 0;
+	for (int i = 0; i < 3; ++i) {
+		dizzyKinomiNecroBombMarker[i] = 0;
+		dizzyKinomiNecroCreateBomb[i] = 0;
+	}
+	dizzyKinomiNecrobomb.clear();
+	dizzyAkari.clear();
+	dizzyPFishEnd.clear();
+	dizzyKFishEnd.clear();
+	dizzyDFishEnd.clear();
+	dizzySFishNormal = 0;
+	dizzySFishAlt = 0;
+	dizzyHFishNormal = 0;
+	dizzyHFishAlt = 0;
+	dizzyAwaPKoware = 0;
+	dizzyAwaPBomb.clear();
+	dizzyAwaKKoware = 0;
+	dizzyAwaKBomb.clear();
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -8094,16 +8135,13 @@ bool isDangerous_launchGreatsword(Entity ent) {
 	return !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0
 		|| !ent.hasUpon(38));
 }
-
 bool isDangerous_ramSwordMove(Entity ent) {
 	return !(ent.currentHitNum() == 3 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0
 		|| !ent.hasUpon(38));
 }
-
 bool isDangerous_hasHitboxes(Entity ent) {
 	return ent.hitboxCount(HITBOXTYPE_HITBOX) > 0;
 }
-
 bool isDangerous_bubble(Entity ent) {
 	BYTE* markerPos = moves.findSetMarker(ent.bbscrCurrentFunc(), "bomb");
 	if (!markerPos) {
@@ -8113,11 +8151,14 @@ bool isDangerous_bubble(Entity ent) {
 		&& !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
 		|| strcmp(ent.gotoLabelRequest(), "bomb") == 0;
 }
-
 bool isDangerous_kFish(Entity ent) {
-	return !(ent.currentHitNum() == 2 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0);
+	return !(ent.currentHitNum() == 2 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
+		|| !ent.fullInvul();
 }
-
+bool isDangerous_pFish(Entity ent) {
+	return !(ent.currentHitNum() != 0 && !ent.hasActiveFlag())
+		|| !ent.fullInvul();
+}
 bool isDangerous_laserFish(Entity ent) {
 	BYTE* func = ent.bbscrCurrentFunc();
 	if (moves.laserFishCreateLaserOffset == 0) {
@@ -8126,7 +8167,12 @@ bool isDangerous_laserFish(Entity ent) {
 		moves.laserFishCreateLaserOffset = markerPos - func;
 	}
 	if (!moves.laserFishCreateLaserOffset) return false;
-	return ent.bbscrCurrentInstr() < func + moves.laserFishCreateLaserOffset;
+	return ent.bbscrCurrentInstr() < func + moves.laserFishCreateLaserOffset
+		|| !ent.fullInvul();
+}
+bool isDangerous_dFish(Entity ent) {
+	return !ent.isRecoveryState()
+		|| !ent.fullInvul();
 }
 
 bool isDangerous_card(Entity ent) {
@@ -9840,6 +9886,14 @@ bool powerup_armorDance(PlayerInfo& ent) {
 const char* powerupExplanation_armorDance(PlayerInfo& ent) {
 	return "Gained Excitement.";
 }
+bool powerup_fireSpear(PlayerInfo& ent) {
+	return ent.pawn.previousEntity()
+		&& ent.pawn.previousEntity().lifeTimeCounter() == 0
+		&& strcmp(ent.pawn.previousEntity().animationName(), "KinomiObjNecro") != 0;  // ignore the first spear
+}
+const char* powerupExplanation_fireSpear(PlayerInfo& ent) {
+	return "Created the next fire spear.";
+}
 
 void fillMay6HOffsets(BYTE* func) {
 	if (moves.may6H_6DHoldOffset == 0) {
@@ -10422,5 +10476,205 @@ void Moves::fillInJamSaishingekiY(BYTE* func) {
 			jamSaishingekiY = *(int*)(instr + 0x14);
 			return;
 		}
+	}
+}
+
+void Moves::fillDizzyKinomiNecro(BYTE* func, int* bombMarker, int* createBomb) {
+	if (*bombMarker != 0) return;
+	BYTE* pos = findSetMarker(func, "bomb");
+	if (!pos) return;
+	pos = findSpriteNonNull(pos);
+	if (!pos) return;
+	*bombMarker = pos - func;
+	pos = findCreateObj(pos, "KinomiObjNecrobomb");
+	if (!pos) return;
+	*createBomb = pos - func;
+}
+
+void Moves::fillDizzyKinomiNecrobomb(BYTE* func) {
+	if (dizzyKinomiNecrobomb.totalFrames != 0) return;
+	BYTE* instr;
+	bool metSprite = false;
+	int lastSpriteLength = 0;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		if (instructionType(instr) == instr_sprite) {
+			if (metSprite) {
+				dizzyKinomiNecrobomb.frames.emplace_back();
+				MayIrukasanRidingObjectFrames& newFrames = dizzyKinomiNecrobomb.frames.back();
+				newFrames.frames = dizzyKinomiNecrobomb.totalFrames;
+				dizzyKinomiNecrobomb.totalFrames += lastSpriteLength;
+				newFrames.offset = instr - func;
+			}
+			metSprite = true;
+			lastSpriteLength = *(int*)(instr + 4 + 32);
+		}
+	}
+	if (metSprite) {
+		dizzyKinomiNecrobomb.frames.emplace_back();
+		MayIrukasanRidingObjectFrames& newFrames = dizzyKinomiNecrobomb.frames.back();
+		newFrames.frames = dizzyKinomiNecrobomb.totalFrames;
+		dizzyKinomiNecrobomb.totalFrames += lastSpriteLength;
+		newFrames.offset = instr - func;
+	}
+}
+
+void Moves::fillDizzyAkari(BYTE* func) {
+	if (!dizzyAkari.empty()) return;
+	BYTE* instr;
+	int lastSpriteLength = 0;
+	bool metSprite = false;
+	bool metSpriteEnd = false;
+	bool metSetMarker = false;
+	dizzyAkari.emplace_back();
+	MayIrukasanRidingObjectInfo* elem = &dizzyAkari.back();
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (metSpriteEnd) {
+			elem->frames.emplace_back();
+			MayIrukasanRidingObjectFrames& newFrames = elem->frames.back();
+			newFrames.frames = elem->totalFrames;
+			newFrames.offset = instr - func;
+			elem->totalFrames += lastSpriteLength;
+			metSprite = false;
+			metSpriteEnd = false;
+		}
+		if (type == instr_sprite) {
+			if (metSprite) {
+				elem->frames.emplace_back();
+				MayIrukasanRidingObjectFrames& newFrames = elem->frames.back();
+				newFrames.frames = elem->totalFrames;
+				newFrames.offset = instr - func;
+				elem->totalFrames += lastSpriteLength;
+			}
+			if (metSetMarker) {
+				dizzyAkari.emplace_back();
+				elem = &dizzyAkari.back();
+				metSetMarker = false;
+			}
+			metSprite = true;
+			lastSpriteLength = *(int*)(instr + 4 + 32);
+		} else if (type == instr_spriteEnd) {
+			metSpriteEnd = true;
+		} else if (type == instr_setMarker) {
+			metSetMarker = true;
+		}
+	}
+	if (metSprite) {
+		elem->frames.emplace_back();
+		MayIrukasanRidingObjectFrames& newFrames = elem->frames.back();
+		newFrames.frames = elem->totalFrames;
+		newFrames.offset = instr - func;
+		elem->totalFrames += lastSpriteLength;
+	}
+}
+
+void Moves::fillDizzyFish(BYTE* func, MayIrukasanRidingObjectInfo& fish) {
+	if (fish.totalFrames != 0) return;
+	BYTE* instr = findSetMarker(func, "end");
+	if (!instr) return;
+	bool metSprite = false;
+	int lastSpriteLength = 0;
+	for (
+			instr = skipInstruction(instr);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sprite) {
+			if (metSprite) {
+				fish.frames.emplace_back();
+				MayIrukasanRidingObjectFrames& newFrames = fish.frames.back();
+				newFrames.frames = fish.totalFrames;
+				newFrames.offset = instr - func;
+				fish.totalFrames += lastSpriteLength;
+			}
+			lastSpriteLength = *(int*)(instr + 4 + 32);
+			metSprite = true;
+		}
+	}
+	if (metSprite) {
+		fish.frames.emplace_back();
+		MayIrukasanRidingObjectFrames& newFrames = fish.frames.back();
+		newFrames.frames = fish.totalFrames;
+		newFrames.offset = instr - func;
+		fish.totalFrames += lastSpriteLength;
+	}
+}
+
+void Moves::fillDizzyLaserFish(BYTE* func, int* normal, int* alt) {
+	if (*normal != 0) return;
+	BYTE* instr;
+	int lastSpriteLength = 0;
+	for (
+			instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sprite) {
+			lastSpriteLength = *(int*)(instr + 4 + 32);
+			*normal += lastSpriteLength;
+			*alt += lastSpriteLength;
+		} else if (type == instr_overrideSpriteLengthIf) {
+			*alt = *alt - lastSpriteLength + *(int*)(instr + 4);
+		}
+	}
+}
+
+void Moves::fillDizzyAwaKoware(BYTE* func, int* koware) {
+	if (*koware != 0) return;
+	BYTE* instr = findSetMarker(func, "koware");
+	if (!instr) return;
+	for (
+			instr = skipInstruction(instr);
+			true;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_exitState || type == instr_endState) return;
+		if (type == instr_sprite) {
+			*koware += *(int*)(instr + 4 + 32);
+		}
+	}
+}
+
+void Moves::fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info) {
+	if (info.totalFrames != 0) return;
+	BYTE* instr = findSetMarker(func, "bomb");
+	if (!instr) return;
+	bool metSprite = false;
+	int lastSpriteLength = 0;
+	for (
+			instr = skipInstruction(instr);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sprite) {
+			if (metSprite) {
+				info.frames.emplace_back();
+				MayIrukasanRidingObjectFrames& newFrames = info.frames.back();
+				newFrames.frames = info.totalFrames;
+				newFrames.offset = instr - func;
+				info.totalFrames += lastSpriteLength;
+			}
+			lastSpriteLength = *(int*)(instr + 4 + 32);
+			metSprite = true;
+		}
+	}
+	if (metSprite) {
+		info.frames.emplace_back();
+		MayIrukasanRidingObjectFrames& newFrames = info.frames.back();
+		newFrames.frames = info.totalFrames;
+		newFrames.offset = instr - func;
+		info.totalFrames += lastSpriteLength;
 	}
 }
