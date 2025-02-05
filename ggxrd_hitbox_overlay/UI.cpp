@@ -2892,6 +2892,18 @@ void UI::drawSearchableWindows() {
 			}
 			
 			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Last Hit Combo Timer"));
+			AddTooltip(searchTooltip("This is updated only when a hit happens."
+				"Combo timer at the time of the hit affects hitstun proration (see Hitstun Proration's tooltip for info)."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				printDecimal(player.lastHitComboTimer * 100 / 60, 2, 0);
+				sprintf_s(strbuf, "%s sec (%df)", printdecimalbuf, player.lastHitComboTimer);
+				ImGui::TextUnformatted(strbuf);
+			}
+			
+			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Hitstun Proration"));
 			AddTooltip(searchTooltip("This is updated only when a hit happens."
 				" Hitstun proration depends on the duration of an air or ground combo, in frames. For air combo:\n"

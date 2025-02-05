@@ -1162,6 +1162,7 @@ struct PlayerInfo {
 	int fdPushback = 0;
 	int fdPushbackMax = 0;
 	int comboTimer = 0;
+	int lastHitComboTimer = 0;
 	int attackPushbackModifier = 100;
 	int hitstunPushbackModifier = 100;
 	int comboTimerPushbackModifier = 100;

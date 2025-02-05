@@ -6944,10 +6944,11 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) 
 			pawn.receivedAttack()->dontUseComboTimerForSpeedY(),
 			&player.receivedSpeedYWeight,
 			&player.receivedSpeedYComboProration);
+		player.lastHitComboTimer = pawn.comboTimer();
 		entityManager.calculateHitstunProration(
 			pawn.receivedAttack()->noHitstunScaling(),
 			isAirHit,
-			pawn.comboTimer(),
+			player.lastHitComboTimer,
 			&player.hitstunProration);
 		entityManager.calculatePushback(
 			pawn.receivedAttack()->level,
