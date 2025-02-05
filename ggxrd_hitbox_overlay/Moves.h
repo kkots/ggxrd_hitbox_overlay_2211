@@ -374,6 +374,7 @@ public:
 	MayIrukasanRidingObjectInfo dizzyAwaKBomb;
 	void fillDizzyAwaKoware(BYTE* func, int* koware);
 	void fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info);
+	int baiken5Dcreation = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 private:
 	struct MyKey {

@@ -251,6 +251,8 @@ static bool createdProjectile_AirThrowGhost(PlayerInfo& ent);
 static bool canYrcProjectile_AirThrowGhost(PlayerInfo& ent);
 static bool createdProjectile_kum5D(PlayerInfo& ent);
 static bool canYrcProjectile_kum5D(PlayerInfo& ent);
+static bool createdProjectile_baiken5D(PlayerInfo& ent);
+static bool canYrcProjectile_baiken5D(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -7011,11 +7013,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiLand");
 	move.displayName = "Tatami Gaeshi";
 	move.slangName = "Tatami";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiAir");
 	move.displayName = "Air Tatami Gaeshi";
 	move.slangName = "Air Tatami";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "YouZanSen");
@@ -7125,6 +7129,14 @@ bool Moves::onDllMain() {
 	move.displayName = "Yasha Gatana";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.canYrcProjectile = canYrcProjectile_default;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtk5E");
+	move.displayName = "5D";
+	move.nameIncludesInputs = true;
+	move.createdProjectile = createdProjectile_baiken5D;
+	move.canYrcProjectile = canYrcProjectile_baiken5D;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtk5EShotObj", true);
@@ -7779,6 +7791,7 @@ void Moves::onAswEngineDestroyed() {
 	dizzyAwaPBomb.clear();
 	dizzyAwaKKoware = 0;
 	dizzyAwaKBomb.clear();
+	baiken5Dcreation = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -8118,7 +8131,10 @@ bool isDangerous_not_hasHitNumButInactive(Entity ent) {
 }
 
 bool isDangerous_not_hasHitNumButNoHitboxes(Entity ent) {
-	return !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0);
+	return !(ent.currentHitNum() != 0 && !(
+		ent.hitboxCount(HITBOXTYPE_HITBOX) != 0
+		&& ent.isActiveFrames()
+	));
 }
 
 bool isDangerous_amorphous(Entity ent) {
@@ -9622,6 +9638,32 @@ bool canYrcProjectile_kum5D(PlayerInfo& player) {
 	if (!moves.kum5Dcreation) return false;
 	return player.pawn.bbscrCurrentInstr() > func + moves.kum5Dcreation
 		|| player.pawn.bbscrCurrentInstr() == func + moves.kum5Dcreation
+		&& player.pawn.spriteFrameCounter() > 0;
+}
+bool createdProjectile_baiken5D(PlayerInfo& player) {
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity p = entityList.list[i];
+		if (p.isActive() && p.team() == player.index && !p.isPawn() && strcmp(p.animationName(), "NmlAtk5EShotObj") == 0) {
+			return p.lifeTimeCounter() == 0;
+		}
+	}
+	return false;
+}
+bool canYrcProjectile_baiken5D(PlayerInfo& player) {
+	if (moves.baiken5Dcreation == -1) return false; // error
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.baiken5Dcreation) {
+		BYTE* pos = moves.findCreateObj(func, "NmlAtk5EShotObj");
+		if (!pos) {
+			moves.baiken5Dcreation = -1;
+			return canYrcProjectile_default(player); // error
+		}
+		pos = moves.findSpriteNonNull(pos);
+		if (pos) moves.baiken5Dcreation = pos - func;
+	}
+	if (!moves.baiken5Dcreation) return false;
+	return player.pawn.bbscrCurrentInstr() > func + moves.baiken5Dcreation
+		|| player.pawn.bbscrCurrentInstr() == func + moves.baiken5Dcreation
 		&& player.pawn.spriteFrameCounter() > 0;
 }
 
