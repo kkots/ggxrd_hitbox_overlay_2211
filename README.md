@@ -216,6 +216,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Haehyun Enlightened 3000 Palm Strike: The giant circle shows where the opponent's center of body point has to be in order to be vacuumed. The center of body points of both players are shown and a line connecting them is shown as a guide for what exact distance is being measured by the game.
 
+- Baiken Metsudo Kushodo: The white box shows the area where opponent's origin point must be at the moment the move is performed, in order for Baiken to shoot out ropes and travel to the opposite wall.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  

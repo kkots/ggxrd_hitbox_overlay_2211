@@ -5058,7 +5058,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.poisonIsRavenSlow = false;
 				}
 				
-				currentFrame.needShowAirOptions = player.regainedAirOptions;
+				currentFrame.needShowAirOptions = player.regainedAirOptions && player.airborne;
 				currentFrame.doubleJumps = player.remainingDoubleJumps;
 				currentFrame.airDashes = player.remainingAirDashes;
 				currentFrame.activeDuringSuperfreeze = false;

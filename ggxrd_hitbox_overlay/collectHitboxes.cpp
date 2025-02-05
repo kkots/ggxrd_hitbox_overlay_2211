@@ -635,6 +635,20 @@ void collectHitboxes(Entity ent,
 				interactionBoxParams.thickness = THICKNESS_INTERACTION;
 				interactionBoxes->push_back(interactionBoxParams);
 			}
+		} else if (state.charType == CHARACTER_TYPE_BAIKEN) {
+			if (strcmp(ent.animationName(), "BlockingKakusei") == 0 && ent.currentAnimDuration() <= 6) {
+				DrawBoxCallParams interactionBoxParams;
+				interactionBoxParams.left = params.posX - 500000;
+				interactionBoxParams.right = params.posX + 500000;
+				interactionBoxParams.top = params.posY + 400000;
+				interactionBoxParams.bottom = params.posY - 400000;
+				if (ent.currentAnimDuration() == 1) {
+					interactionBoxParams.fillColor = replaceAlpha(64, COLOR_INTERACTION);
+				}
+				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+				interactionBoxParams.thickness = THICKNESS_INTERACTION;
+				interactionBoxes->push_back(interactionBoxParams);
+			}
 		}
 	}
 	if (circles) {

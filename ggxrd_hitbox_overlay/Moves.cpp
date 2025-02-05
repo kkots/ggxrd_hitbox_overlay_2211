@@ -216,6 +216,9 @@ static const char* displayNameSelector_ryujinLv2or3(PlayerInfo& ent);
 static const char* displayNameSelector_airRyujinLv2or3(PlayerInfo& ent);
 static const char* displayNameSelector_kenroukakuLv2or3(PlayerInfo& ent);
 static const char* displayNameSelector_airKenroukakuLv2or3(PlayerInfo& ent);
+static const char* displayNameSelector_standingAzami(PlayerInfo& ent);
+static const char* displayNameSelector_crouchingAzami(PlayerInfo& ent);
+static const char* displayNameSelector_airAzami(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -7064,6 +7067,7 @@ bool Moves::onDllMain() {
 	// Baiken Azami
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingStand");
 	move.displayName = "Standing Azami";
+	move.displayNameSelector = displayNameSelector_standingAzami;
 	move.sectionSeparator = sectionSeparator_azami;
 	move.canBlock = canBlock_default;
 	move.ignoresHitstop = true;
@@ -7074,6 +7078,7 @@ bool Moves::onDllMain() {
 	// Baiken Azami
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingCrouch");
 	move.displayName = "Crouching Azami";
+	move.displayNameSelector = displayNameSelector_crouchingAzami;
 	move.sectionSeparator = sectionSeparator_azami;
 	move.canBlock = canBlock_default;
 	move.ignoresHitstop = true;
@@ -7084,6 +7089,7 @@ bool Moves::onDllMain() {
 	// Baiken Azami
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingAir");
 	move.displayName = "Aerial Azami";
+	move.displayNameSelector = displayNameSelector_airAzami;
 	move.sectionSeparator = sectionSeparator_azami;
 	move.canBlock = canBlock_default;
 	move.ignoresHitstop = true;
@@ -9358,6 +9364,15 @@ const char* displayNameSelector_airKenroukakuLv2or3(PlayerInfo& ent) {
 		return "Lv3 Air Kenroukaku";
 	}
 	return "Lv2 Air Kenroukaku";
+}
+const char* displayNameSelector_standingAzami(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "Standing Red Azami" : "Standing Azami";
+}
+const char* displayNameSelector_crouchingAzami(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "Crouching Red Azami" : "Crouching Azami";
+}
+const char* displayNameSelector_airAzami(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "Aerial Red Azami" : "Aerial Azami";
 }
 
 bool canYrcProjectile_default(PlayerInfo& player) {

@@ -3047,7 +3047,7 @@ void UI::drawSearchableWindows() {
 						}
 					}
 				}
-				yellowText("Time until can do another gunflame: ");
+				yellowText(searchFieldTitle("Time until can do another gunflame:"));
 				if (!hasForceDisableFlag1) {
 					ImGui::TextUnformatted("0f");
 				} else {
@@ -3229,7 +3229,7 @@ void UI::drawSearchableWindows() {
 			} else if (player.charType == CHARACTER_TYPE_MAY) {
 				bool hasForceDisableFlag2 = (player.wasForceDisableFlags & 0x2) != 0;
 				if (!hasForceDisableFlag2) {
-					yellowText("Time until can do Beach Ball:");
+					yellowText(searchFieldTitle("Time until can do Beach Ball:"));
 					ImGui::SameLine();
 					ImGui::TextUnformatted("0f");
 				} else {
@@ -3242,7 +3242,7 @@ void UI::drawSearchableWindows() {
 									|| strcmp(p.animationName(), "MayBallB") == 0
 								)) {
 							foundBeachBall = true;
-							yellowText("Beach Ball bounces left:");
+							yellowText(searchFieldTitle("Beach Ball bounces left:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/3", 3 - p.mem45());
 							ImGui::TextUnformatted(strbuf);
@@ -3252,7 +3252,7 @@ void UI::drawSearchableWindows() {
 					if (!foundBeachBall) {
 						// Nothing found, but still can't do a Beach Ball on this frame?
 						// Probably, a Ball has just been deleted, and the lack of its forceDisableFlags will only take effect on the next frame...
-						yellowText("Time until can do Beach Ball:");
+						yellowText(searchFieldTitle("Time until can do Beach Ball:"));
 						ImGui::SameLine();
 						ImGui::TextUnformatted("1f");
 					}
@@ -3260,15 +3260,16 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.dontShowMayInteractionChecks);
 				
+				searchFieldTitle("Jump on Beach Ball range explanation");
 				ImGui::PushTextWrapPos(0.F);
-				ImGui::TextUnformatted("When entering the valid Beach Ball jump range, on the next frame you can't do the Ball Jump,"
-					" and on the next frame you become able to do it.");
-				ImGui::TextUnformatted("Enter Range -> Can't Jump Yet -> Can Jump");
+				ImGui::TextUnformatted(searchTooltip("When entering the valid Beach Ball jump range, on the next frame you can't do the Ball Jump,"
+					" and on the next frame you become able to do it."));
+				ImGui::TextUnformatted(searchTooltip("Enter Range -> Can't Balljump Yet -> Can Balljump"));
 				ImGui::PopTextWrapPos();
 				
 				bool hasForceDisableFlag1 = (player.wasForceDisableFlags & 0x1) != 0;
 				if (!hasForceDisableFlag1) {
-					yellowText("Time until can do Hoop:");
+					yellowText(searchFieldTitle("Time until can do Hoop:"));
 					ImGui::SameLine();
 					ImGui::TextUnformatted("0f");
 				} else {
@@ -3345,7 +3346,7 @@ void UI::drawSearchableWindows() {
 								}
 							}
 						}
-						yellowText("Time until can do Hoop:");
+						yellowText(searchFieldTitle("Time until can do Hoop:"));
 						ImGui::SameLine();
 						if (frames) {
 							int timeRemaining = totalFrames - frames - dolphin.spriteFrameCounter();
@@ -3366,7 +3367,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted("???");
 						}
 					} else {
-						yellowText("Time until can do Hoop:");
+						yellowText(searchFieldTitle("Time until can do Hoop:"));
 						ImGui::SameLine();
 						
 						bool foundIrukasanTsubureru_tama = false;
@@ -3392,8 +3393,9 @@ void UI::drawSearchableWindows() {
 				printChargeInCharSpecific(i, true, true, 30);
 			
 			} else if (player.charType == CHARACTER_TYPE_MILLIA) {
+				searchFieldTitle("Pin pickup range explanation");
 				ImGui::PushTextWrapPos(0.F);
-				ImGui::TextUnformatted("To pick up the knife you must be in either of the animations:");
+				ImGui::TextUnformatted(searchTooltip("To pick up the knife you must be in either of the animations:"));
 				ImGui::PopTextWrapPos();
 				ImGui::TextUnformatted("*) Stand transitioning to Crouch;");
 				ImGui::TextUnformatted("*) Crouch;");
@@ -3404,18 +3406,18 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted("*) Doubleroll.");
 				}
 				ImGui::PushTextWrapPos(0.F);
-				ImGui::TextUnformatted("Displayed Pin range checks for your origin point, not the pushbox.");
+				ImGui::TextUnformatted(searchTooltip("Displayed Pin range checks for your origin point, not the pushbox."));
 				ImGui::PopTextWrapPos();
 				
-				yellowText("Chroming Rose:");
+				yellowText(searchFieldTitle("Chroming Rose:"));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/%df", player.milliaChromingRoseTimeLeft, player.maxDI);
 				ImGui::TextUnformatted(strbuf);
 				
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
-				ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
-					" at half the speed when slowed down by opponent's RC.");
+				ImGui::TextUnformatted(searchTooltip("This value doesn't decrease in hitstop and superfreeze and decreases"
+					" at half the speed when slowed down by opponent's RC."));
 				ImGui::PopTextWrapPos();
 				ImGui::PopStyleColor();
 				
@@ -3423,7 +3425,7 @@ void UI::drawSearchableWindows() {
 					booleanSettingPreset(settings.showMilliaBadMoonBuffHeight);
 				}
 				
-				yellowText("Can do S/H Disc or Garden:");
+				yellowText(searchFieldTitle("Can do S/H Disc or Garden:"));
 				ImGui::SameLine();
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
@@ -3586,11 +3588,11 @@ void UI::drawSearchableWindows() {
 					ImGui::EndTable();
 				}
 				
-				yellowText("Can perform S Drill:");
+				yellowText(searchFieldTitle("Can perform S Drill:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
 				
-				yellowText("Can perform H Drill:");
+				yellowText(searchFieldTitle("Can perform H Drill:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x2) == 0 ? "Yes" : "No");
 				
@@ -3612,7 +3614,7 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(searchFieldTitle("Not on a wall."));
 				}
 				
-				yellowText("Can perform Gamma Blade:");
+				yellowText(searchFieldTitle("Can perform Gamma Blade:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x1) == 0 ? "Yes" : "No");
 				
@@ -3697,13 +3699,13 @@ void UI::drawSearchableWindows() {
 						yellowText(searchFieldTitle(info.title));
 						ImGui::Indent();
 						if (!info.isBishop) {
-							textUnformattedColored(LIGHT_BLUE_COLOR, "Level:");
+							textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("Level:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/4", p.storage(0));
 							ImGui::TextUnformatted(strbuf);
 						}
 						if (info.isBishop) {
-							textUnformattedColored(LIGHT_BLUE_COLOR, "Bishop Level:");
+							textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("Bishop Level:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/5", p.storage(1));
 							ImGui::TextUnformatted(strbuf);
@@ -3730,7 +3732,7 @@ void UI::drawSearchableWindows() {
 								&result,
 								&resultMax,
 								&unused);
-							textUnformattedColored(LIGHT_BLUE_COLOR, "Timer:");
+							textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("Timer:"));
 							ImGui::SameLine();
 							if (timerOrig) {
 								sprintf_s(strbuf, "%d/%d", result, resultMax);
@@ -3959,10 +3961,10 @@ void UI::drawSearchableWindows() {
 					unsigned short& timerMax;
 				};
 				SealInfo seals[4] {
-					{ "Task A Seal Timer:", player.bedmanInfo.sealA, player.bedmanInfo.sealAMax },
-					{ "Task A' Seal Timer:", player.bedmanInfo.sealB, player.bedmanInfo.sealBMax },
-					{ "Task B Seal Timer:", player.bedmanInfo.sealC, player.bedmanInfo.sealCMax },
-					{ "Task C Seal Timer:", player.bedmanInfo.sealD, player.bedmanInfo.sealDMax }
+					{ searchFieldTitle("Task A Seal Timer:"), player.bedmanInfo.sealA, player.bedmanInfo.sealAMax },
+					{ searchFieldTitle("Task A' Seal Timer:"), player.bedmanInfo.sealB, player.bedmanInfo.sealBMax },
+					{ searchFieldTitle("Task B Seal Timer:"), player.bedmanInfo.sealC, player.bedmanInfo.sealCMax },
+					{ searchFieldTitle("Task C Seal Timer:"), player.bedmanInfo.sealD, player.bedmanInfo.sealDMax }
 				};
 				for (int j = 0; j < 4; ++j) {
 					SealInfo& seal = seals[j];
@@ -4200,11 +4202,11 @@ void UI::drawSearchableWindows() {
 					ImGui::PopTextWrapPos();
 				}
 				
-				yellowText("Ms. Travailler Stance:");
+				yellowText(searchFieldTitle("Ms. Travailler Stance:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.playerval0 ? "Yes" : "No");
 				
-				yellowText("Ms. Travailler Max Charge:");
+				yellowText(searchFieldTitle("Ms. Travailler Max Charge:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.playerval1 ? "Yes" : "No");
 				
@@ -4281,15 +4283,15 @@ void UI::drawSearchableWindows() {
 				booleanSettingPreset(settings.showJackoServantAttackRange);
 				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
-				yellowText("Can do j.D:");
+				yellowText(searchFieldTitle("Can do j.D:"));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
 				
 				const char* gaugeNames[4] {
-					"Organ P Cooldown:",
-					"Organ K Cooldown:",
-					"Organ S Cooldown:",
-					"Organ H Cooldown:",
+					searchFieldTitle("Organ P Cooldown:"),
+					searchFieldTitle("Organ K Cooldown:"),
+					searchFieldTitle("Organ S Cooldown:"),
+					searchFieldTitle("Organ H Cooldown:")
 				};
 				
 				for (int j = 0; j < 4; ++j) {
@@ -4299,19 +4301,19 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(strbuf);
 				}
 				
-				yellowText("Aegis Field:");
+				yellowText(searchFieldTitle("Aegis Field:"));
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/%d", player.jackoAegisTimeWithSlow, player.jackoAegisTimeMaxWithSlow);
 				ImGui::TextUnformatted(strbuf);
 				
-				yellowText("Holding Ghost:");
-				AddTooltip("If a cutscene is not currently playing, you gain 0.01 meter per frame for holding a Ghost.");
+				yellowText(searchFieldTitle("Holding Ghost:"));
+				AddTooltip(searchTooltip("If a cutscene is not currently playing, you gain 0.01 meter per frame for holding a Ghost."));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.pawn.playerVal(0) ? "Yes" : "No");
 				
-				yellowText("Ghost Nearby:");
-				AddTooltip("Means you can pick up a Ghost."
-					" If in addition to being in range you're not airborne and a cutscene is not currently playing, you gain 0.03 meter per frame.");
+				yellowText(searchFieldTitle("Ghost Nearby:"));
+				AddTooltip(searchTooltip("Means you can pick up a Ghost."
+					" If in addition to being in range you're not airborne and a cutscene is not currently playing, you gain 0.03 meter per frame."));
 				ImGui::SameLine();
 				ImGui::TextUnformatted(player.pawn.playerVal(1) ? "Yes" : "No");
 				
@@ -4390,13 +4392,13 @@ void UI::drawSearchableWindows() {
 					textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle(info.title));
 					Entity p = player.pawn.stackEntity(j);
 					if (p && p.isActive()) {
-						yellowText("HP:");
+						yellowText(searchFieldTitle("HP:"));
 						ImGui::SameLine();
 						int maxHits = p.numberOfHits();
 						sprintf_s(strbuf, "%d/%d", maxHits - p.numberOfHitsTaken(), maxHits);
 						ImGui::TextUnformatted(strbuf);
 						
-						yellowText("Level:");
+						yellowText(searchFieldTitle("Level:"));
 						ImGui::SameLine();
 						moves.fillJackoGhostExp(p.bbscrCurrentFunc(), info.exp);
 						if (p.mem53() != 2) {
@@ -4409,7 +4411,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TextUnformatted("3/3");
 						}
 						
-						yellowText("Production Timer:");
+						yellowText(searchFieldTitle("Production Timer:"));
 						ImGui::SameLine();
 						moves.fillJackoGhostCreationTimer(p.bbscrCurrentFunc(), info.creationTimer);
 						int minVal = info.creationTimer[0];
@@ -4425,7 +4427,7 @@ void UI::drawSearchableWindows() {
 						sprintf_s(strbuf, "%d/%d%s", p.mem57(), minVal, isFast ? " (Fast Production)" : "");
 						ImGui::TextUnformatted(strbuf);
 						
-						yellowText("Servants:");
+						yellowText(searchFieldTitle("Servants:"));
 						ImGui::SameLine();
 						sprintf_s(strbuf, "%d/2", p.mem47());
 						ImGui::TextUnformatted(strbuf);
@@ -4456,11 +4458,11 @@ void UI::drawSearchableWindows() {
 							bool isGray = p.mem47() < 2;
 							if (isGray) {
 								ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-								ImGui::TextUnformatted("Production Cooldown:");
+								ImGui::TextUnformatted(searchFieldTitle("Production Cooldown:"));
 							} else {
-								yellowText("Production Cooldown:");
+								yellowText(searchFieldTitle("Production Cooldown:"));
 							}
-							const char* tooltip = "This Production Cooldown timer only matters if the Ghost has 2 Servants.";
+							const char* tooltip = searchTooltip("This Production Cooldown timer only matters if the Ghost has 2 Servants.");
 							AddTooltip(tooltip);
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", maxAnimFrame, maxTotalCooldown);
@@ -4475,7 +4477,7 @@ void UI::drawSearchableWindows() {
 						if (info.healingTimer[0] != -1  // if -1, then it's Rev1, which doesn't have Healing Timer
 								&& p.mem55()
 								&& player.playerval0) {
-							yellowText("Healing Timer:");
+							yellowText(searchFieldTitle("Healing Timer:"));
 							ImGui::SameLine();
 							int nextTimer = 0;
 							int mem48 = p.mem48();
@@ -4495,7 +4497,7 @@ void UI::drawSearchableWindows() {
 						
 						if ((playerval2 & info.maskClockUp) != 0) {
 							moves.fillJackoGhostBuffTimer(p.bbscrCurrentFunc());
-							yellowText("Clock Up Timer:");
+							yellowText(searchFieldTitle("Clock Up Timer:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", p.mem52(), moves.jackoGhostBuffTimer);
 							ImGui::TextUnformatted(strbuf);
@@ -4503,7 +4505,7 @@ void UI::drawSearchableWindows() {
 						
 						if ((playerval2 & info.maskExplode) != 0) {
 							moves.fillJackoGhostExplodeTimer(p.bbscrCurrentFunc());
-							yellowText("Explode Timer:");
+							yellowText(searchFieldTitle("Explode Timer:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", p.mem49(), moves.jackoGhostExplodeTimer);
 							ImGui::TextUnformatted(strbuf);
@@ -4544,7 +4546,7 @@ void UI::drawSearchableWindows() {
 							}
 						}
 						if (duration) {
-							yellowText("Set a Ghost Cooldown:");
+							yellowText(searchFieldTitle("Set a Ghost Cooldown:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", duration - 1, *info.dummyTotalFrames - 1);
 							ImGui::TextUnformatted(strbuf);
@@ -4599,7 +4601,7 @@ void UI::drawSearchableWindows() {
 				};
 				ServantInfo servants[3] {
 					{
-						{ "Knight #1:", "Knight #2:" },
+						{ searchFieldTitle("Knight #1:"), searchFieldTitle("Knight #2:") },
 						0x800000,
 						moves.servantAStateOffsets,
 						servantStateNames,
@@ -4607,7 +4609,7 @@ void UI::drawSearchableWindows() {
 						moves.servantAAtk
 					},
 					{
-						{ "Spearman #1:", "Spearman #2:" },
+						{ searchFieldTitle("Spearman #1:"), searchFieldTitle("Spearman #2:") },
 						0x1000000,
 						moves.servantBStateOffsets,
 						servantStateNamesSpearman,
@@ -4615,7 +4617,7 @@ void UI::drawSearchableWindows() {
 						moves.servantBAtk
 					},
 					{
-						{ "Magician #1:", "Magician #2:" },
+						{ searchFieldTitle("Magician #1:"), searchFieldTitle("Magician #2:") },
 						0x2000000,
 						moves.servantCStateOffsets,
 						servantStateNames,
@@ -4638,27 +4640,27 @@ void UI::drawSearchableWindows() {
 						
 						textUnformattedColored(LIGHT_BLUE_COLOR, servant.servantTitle[k - 1]);
 						
-						yellowText("HP:");
+						yellowText(searchFieldTitle("HP:"));
 						ImGui::SameLine();
 						int maxHits = projectile->ptr.numberOfHits();
 						sprintf_s(strbuf, "%d/%d", maxHits - projectile->ptr.numberOfHitsTaken(), maxHits);
 						ImGui::TextUnformatted(strbuf);
 						
-						yellowText("Level:");
+						yellowText(searchFieldTitle("Level:"));
 						ImGui::SameLine();
 						sprintf_s(strbuf, "%d", projectile->ptr.createArgHikitsukiVal1() + 1);
 						ImGui::TextUnformatted(strbuf);
 						
 						BYTE* func = projectile->ptr.bbscrCurrentFunc();
 						moves.fillServantTimeoutTimer(func);
-						yellowText("Timeout Timer:");
+						yellowText(searchFieldTitle("Timeout Timer:"));
 						ImGui::SameLine();
 						sprintf_s(strbuf, "%d/%d", projectile->ptr.framesSinceRegisteringForTheIdlingSignal(), moves.servantTimeoutTimer);
 						ImGui::TextUnformatted(strbuf);
 						
 						if (projectile->ptr.mem48()) {
 							moves.fillServantClockUpTimer(func);
-							yellowText("Clock Up Timer:");
+							yellowText(searchFieldTitle("Clock Up Timer:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", projectile->ptr.mem49(), moves.servantClockUpTimer);
 							ImGui::TextUnformatted(strbuf);
@@ -4666,7 +4668,7 @@ void UI::drawSearchableWindows() {
 						
 						if (projectile->ptr.mem53()) {
 							moves.fillServantExplosionTimer(func);
-							yellowText("Explosion Timer:");
+							yellowText(searchFieldTitle("Explosion Timer:"));
 							ImGui::SameLine();
 							sprintf_s(strbuf, "%d/%d", projectile->ptr.mem54(), moves.servantExplosionTimer);
 							ImGui::TextUnformatted(strbuf);
@@ -4708,7 +4710,7 @@ void UI::drawSearchableWindows() {
 				
 				ImGui::PushItemWidth(80);
 				sprintf_s(strbuf, "%d", *jamPantyPtr);
-				if (ImGui::BeginCombo("Panty", strbuf)) {
+				if (ImGui::BeginCombo(searchFieldTitle("Panty"), strbuf)) {
 					for (int i = 0; i <= 7; ++i) {
 						ImGui::PushID(i);
 						sprintf_s(strbuf, "%d", i);
@@ -4821,7 +4823,7 @@ void UI::drawSearchableWindows() {
 				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 4096) != 0;
 				bool showSpearParameters = player.dizzySpearIsIce || player.dizzyFireSpearTimeMax == -1;
-				yellowText("Can Do Ice/Fire Spear:");
+				yellowText(searchFieldTitle("Can Do Ice/Fire Spear:"));
 				ImGui::SameLine();
 				if (hasForceDisableFlag) {
 					if (!showSpearParameters && player.dizzyFireSpearElapsed) {
@@ -4841,14 +4843,14 @@ void UI::drawSearchableWindows() {
 				};
 				StringTableElem stringTbl[2] {
 					{
-						"Ice Spear X:",
-						"Ice Spear Y:",
-						"Ice Spear Speed:"
+						searchFieldTitle("Ice Spear X:"),
+						searchFieldTitle("Ice Spear Y:"),
+						searchFieldTitle("Ice Spear Speed:")
 					},
 					{
-						"Fire Spear X:",
-						"Fire Spear Y:",
-						"Fire Spear Speed"
+						searchFieldTitle("Fire Spear X:"),
+						searchFieldTitle("Fire Spear Y:"),
+						searchFieldTitle("Fire Spear Speed")
 					}
 				};
 				
@@ -4885,19 +4887,19 @@ void UI::drawSearchableWindows() {
 					
 				}
 				
-				yellowText("Can Do Ice/Fire Scythe:");
-				tooltip = "Time remaining, in frames, until you can perform 'For putting out the light...'"
-					" or 'The light was so small in the beginning'.";
+				yellowText(searchFieldTitle("Can Do Ice/Fire Scythe:"));
+				tooltip = searchTooltip("Time remaining, in frames, until you can perform 'For putting out the light...'"
+					" or 'The light was so small in the beginning'.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/%df", player.dizzyScytheTime, player.dizzyScytheTimeMax);
 				ImGui::TextUnformatted(strbuf);
 				AddTooltip(tooltip);
 				
-				yellowText("Can Do Fish:");
-				tooltip = "Time remaining, in frames, until you can perform 'We talked a lot together'"
+				yellowText(searchFieldTitle("Can Do Fish:"));
+				tooltip = searchTooltip("Time remaining, in frames, until you can perform 'We talked a lot together'"
 					" or 'We fought a lot together'. If it says 'No' then idk how long it might take and it will become clearer once"
-					" the fish enters a portion of the animation that is more predetermined and depends on fewer variables.";
+					" the fish enters a portion of the animation that is more predetermined and depends on fewer variables.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
 				if (player.dizzyFishTimeMax == -1) {
@@ -4911,9 +4913,9 @@ void UI::drawSearchableWindows() {
 				}
 				AddTooltip(tooltip);
 				
-				yellowText("Can Do Bubble:");
-				tooltip = "Time remaining, in frames, until you can perform 'Please, leave me alone'"
-					" or 'What happens when I'm TOO alone'.";
+				yellowText(searchFieldTitle("Can Do Bubble:"));
+				tooltip = searchTooltip("Time remaining, in frames, until you can perform 'Please, leave me alone'"
+					" or 'What happens when I'm TOO alone'.");
 				AddTooltip(tooltip);
 				ImGui::SameLine();
 				sprintf_s(strbuf, "%d/%df", player.dizzyBubbleTime, player.dizzyBubbleTimeMax);
@@ -4921,12 +4923,110 @@ void UI::drawSearchableWindows() {
 				AddTooltip(tooltip);
 				
 				if (game.isTrainingMode()) {
-					if (ImGui::Button("Costume")) {
+					if (ImGui::Button(searchFieldTitle("Costume"))) {
 						DWORD& theValue = *(DWORD*)(*aswEngine + endScene.interRoundValueStorage1Offset + i * 4);
 						theValue = 1 - theValue;
 						endScene.BBScr_callSubroutine((void*)player.pawn.ent, "UndressCheck");
 					}
 					AddTooltip("Innocuous button.");
+				}
+				
+			} else if (player.charType == CHARACTER_TYPE_BAIKEN) {
+				
+				yellowText(searchFieldTitle("Successful Azami:"));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(player.wasPlayerval[1] ? "Yes" : "No");
+				
+				yellowText(searchFieldTitle("Azami Follow-Ups Enabled:"));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(
+					player.wasCancels.hasCancel("SakuraGuard")
+						|| player.wasCancels.hasCancel("Sakura")
+					? "Yes" : "No");
+				
+				if (ImGui::Button(searchFieldTitle("How Azami Works"))) {
+					printHowAzamiWorks[i] = !printHowAzamiWorks[i];
+				}
+				
+				if (printHowAzamiWorks[i]) {
+					ImGui::PushTextWrapPos(0.F);
+					ImGui::TextUnformatted("Pressing S+H performs a parry move called Azami.\n"
+						"5/8/4/7 S+H is Standing Azami.\n"
+						"2/1 S+H is Crouching Azami.\n"
+						"5/7/4/1 S+H in the air is Aerial Azami.\n"
+						"\n"
+						"The super armor from Azami is instant, meaning it can be used as a reversal."
+						" If you tap Azami, you get super armor for 12f and a recovery of 22f (24 for Aerial Azami)."
+						" If you hold Azami, you get super armor for up to 100f and a recovery of 22f (24 for Aerial Azami)."
+						" If you held Azami for more than 11f, after you release the button, you have super armor"
+						" for one more frame and then it's recovery."
+						" The recovery is always the same duration."
+						" Aerial Azami has an extra, landing recovery of 6f. It is possible to recover before landing and use that opportunity to"
+						" double jump or airdash. If you double jumped, there's no landing recovery when you land. If you airdash,"
+						" the landing recovery is still there.\n"
+						"\n"
+						"If you successfully parry a hit, you lose super armor, gain ability to do Azami follow-ups (starting on the next frame - see Note),"
+						" and enter hitstop, and for the duration of the hitstop you are throw invulnerable."
+						" You cannot parry again unless you re-enter Azami. If you fail to re-enter Azami and another hit connects,"
+						" you will simply block it automatically, meaning you don't necessarily have to hold block in order to block it."
+						" You can switch block between high and low during hitstop and after it and you can block low by just holding 2 (not just 1).\n"
+						"If you fail to re-enter Azami by the time hitstop ends, you enter blockstun for the duration you normally would"
+						" had you not parried, and you remain throw invulnerable and can still do Azami follow-ups"
+						" or re-enter Azami for the entire duration of the blockstun.\n"
+						"\n"
+						"Note about how quickly Azami follow-ups become available:\n"
+						"If you successfully parry a hit, and immediately on the next frame attempt to re-enter Azami"
+						" by holding 8/4/7/1 S+H and simultaneously try to do a follow-up by pressing P, K or D on the same frame (or buffering the button press),"
+						" the Azami re-entry takes priority over the follow-up for that frame (the frame that is immediately after the hit connects),"
+						" and the follow-up comes out on the NEXT frame thanks to its button press still remaining in the buffer."
+						" So the follow-up CAN be delayed by 1f if you were holding Azami with 8/4/7/1. This does not happen if you let"
+						" yourself re-enter Azami first, and attempt the follow-up at on later frame.\n"
+						"\n"
+						"There's a number of ways you can re-enter Azami.\n"
+						"*) During hitstop.\n"
+						"   If you're in hitstop, you can re-enter Azami by:\n"
+						"  *) Hold 8/4/7 + one or more of P/K/S/H/D for Standing Azami;\n"
+						"  *) Hold 1 + one or more of P/K/S/H/D for Crouching Azami;\n"
+						"  *) Hold 7/4/1 + one or more of P/K/S/H/D for Aerial Azami;\n"
+						"  *) 5/8/4/7 + PRESS S+H for Standing Azami;\n"
+						"  *) 2/1 + PRESS S+H for Crouching Azami;\n"
+						"  *) 5/7/4/1 + PRESS S+H for Aerial Azami;\n"
+						"*) After hitstop.\n"
+						"   After hitstop ends, you gain extra ways to re-enter Azami:\n"
+						"  *) Hold 5 + one or more of P/K/S/H/D for Standing Azami;\n"
+						"  *) Hold 2 + one or more of P/K/S/H/D for Crouching Azami;\n"
+						"  *) Hold 5 + one or more of P/K/S/H/D for Aerial Azami;\n"
+						"\n"
+						"This means it is possible to get hit a second time during hitstop and not parry that hit, if you were not holding 8/4/7/1 + P/K/S/H/D"
+						" and were instead holding, for example, 5 P/K/S/H/D."
+						" Certain projectiles can hit you during hitstop, and projectile YRC can create situations where you get hit during hitstop.\n"
+						"\n"
+						"As soon as you re-enter Azami, you:\n"
+						"*) Lose throw invul (see Note below);\n"
+						"*) Regain super armor.\n"
+						"\n"
+						"Note: If you enter or re-enter Azami from blockstun, then you have the standard 5f throw protection from leaving blockstun."
+						" Similarly, if you enter Azami after hitstun or wakeup, you have the standard throw protection that lasts"
+						" from the moment you leave hitstun/wakeup and for 6f for hitstun and 9f for wakeup. Azami does not disrupt (or extend) that.\n"
+						"\n"
+						"If you re-enter Azami by pressing S+H, then you:\n"
+						"*) Lose ability to do Azami follow-ups.\n"
+						"This only happens if you use inputs that involve pressing S+H, such as 5/8/4/7 + press S+H, and does not happen with inputs that involve holding S+H.\n"
+						"\n"
+						"Red Azami.\n"
+						"If you're in blockstun, and that blockstun is not caused by leaving another Azami, then cancelling said blockstun"
+						" into an Azami produces a Red Azami, with a distinctive colored flash. You can cancel into a Red Azami even during hitstop,"
+						" but for some reason, the first 2f of initial hitstop cannot be cancelled into Red Azami (the button press gets buffered and carries"
+						" over to the 3rd frame where you can cancel, so no worries).\n"
+						"Tapping or holding Red Azami for 1-3f gives you 3f super armor (does not depend on how long you tapped/held for,"
+						" as long as the tap/hold is in 1-3f range), followed by 43f recovery.\n"
+						"Holding Red Azami for 4-5f gives 6f super armor, followed by 40f recovery.\n"
+						"Holding Red Azami for 6f gives 7f super armor, followed by 40f recovery.\n"
+						"Holding Red Azami for 7f gives 8f super armor, followed by 40f recovery.\n"
+						"Holding Red Azami for 8f gives 8f super armor, followed by 41f recovery.\n"
+						"You cannot hold Red Azami for more than 8f. 8f is the maximum duration of super armor you can get.\n"
+						"Successfully parrying a hit with Red Azami produces the same result as parrying with a non-Red Azami.");
+					ImGui::PopTextWrapPos();
 				}
 				
 			} else {
@@ -8414,6 +8514,10 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("The giant circle shows where the opponent's center of body point has to be in order to be vacuumed."
 		" The center of body points of both players are shown and a line connecting them is shown as a guide for what exact"
 		" distance is being measured by the game.");
+	
+	yellowText("Baiken Metsudo Kushodo:");
+	ImGui::TextUnformatted("The white box shows the area where opponent's origin point must be at the moment the move is performed,"
+		" in order for Baiken to shoot out ropes and travel to the opposite wall.");
 	
 	ImGui::Separator();
 	
