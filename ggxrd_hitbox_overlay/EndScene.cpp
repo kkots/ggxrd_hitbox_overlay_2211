@@ -981,6 +981,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.displayTumble = false;
 			player.wallstick = 0;
 			player.displayWallstick = false;
+			player.knockdown = 0;
+			player.displayKnockdown = false;
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
 			if (cmnActIndex == CmnActBDownLoop
 					|| cmnActIndex == CmnActFDownLoop
@@ -1018,6 +1020,34 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.wallstick = ent.wallstick() + 1 - ent.bbscrvar();
 				} else {
 					player.wallstick = 0;
+				}
+			} else if (cmnActIndex == CmnActFDownLoop
+					|| cmnActIndex == CmnActBDownLoop
+					|| cmnActIndex == CmnActVDownLoop) {
+				int knockdownDur;
+				if (ent.hp() * 10000 / 420 > 0) {
+					knockdownDur = 11;
+					if (ent.infiniteKd()) {
+						knockdownDur = -1;
+					}
+					int customKd = ent.knockdown();
+					if (customKd != 0) {
+						knockdownDur = customKd;
+					}
+					int frame = ent.currentAnimDuration();
+					if (knockdownDur != -1) {
+						if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
+							player.knockdownContaminatedByRCSlowdown = false;
+							player.knockdownMax = knockdownDur;
+							player.knockdownElapsed = 0;
+						}
+						player.displayKnockdown = true;
+						player.knockdown = knockdownDur + 1 - frame;
+					} else {
+						player.knockdown = 0;
+					}
+				} else {
+					player.knockdown = 0;
 				}
 			}
 			if (player.hitstun == prevFrameHitstun + 9 && (
@@ -1366,6 +1396,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				++player.wallstickElapsed;
 				if (player.rcSlowedDown) player.wallstickContaminatedByRCSlowdown = true;
 			}
+			if (player.knockdown && !player.hitstop && !superflashInstigator) {
+				++player.knockdownElapsed;
+				if (player.rcSlowedDown) player.knockdownContaminatedByRCSlowdown = true;
+			}
 			if (player.hitstop && !superflashInstigator) ++player.hitstopElapsed;
 			int newSlow;
 			int unused;
@@ -1395,6 +1429,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newSlow,
 				&player.wallstickWithSlow,
 				&player.wallstickMaxWithSlow,
+				&unused);
+			PlayerInfo::calculateSlow(player.knockdownElapsed,
+				player.knockdown,
+				newSlow,
+				&player.knockdownWithSlow,
+				&player.knockdownMaxWithSlow,
 				&unused);
 			PlayerInfo::calculateSlow(player.blockstunElapsed,
 				player.blockstun - (player.hitstop ? 1 : 0),
@@ -5077,10 +5117,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.stop.tumble = min(player.tumbleWithSlow, 0xffff);
 						currentFrame.stop.tumbleMax = min(player.tumbleMaxWithSlow, 0xffff);
 						currentFrame.stop.tumbleIsWallstick = false;
+						currentFrame.stop.tumbleIsKnockdown = false;
 					} else if (player.cmnActIndex == CmnActWallHaritsuki) {
 						currentFrame.stop.tumble = min(player.wallstickWithSlow, 0xffff);
 						currentFrame.stop.tumbleMax = min(player.wallstickMaxWithSlow, 0xffff);
 						currentFrame.stop.tumbleIsWallstick = true;
+						currentFrame.stop.tumbleIsKnockdown = false;
+					} else if (player.cmnActIndex == CmnActFDownLoop
+							|| player.cmnActIndex == CmnActBDownLoop
+							|| player.cmnActIndex == CmnActVDownLoop) {
+						currentFrame.stop.tumble = min(player.knockdownWithSlow, 0xffff);
+						currentFrame.stop.tumbleMax = min(player.knockdownMaxWithSlow, 0xffff);
+						currentFrame.stop.tumbleIsWallstick = false;
+						currentFrame.stop.tumbleIsKnockdown = true;
 					} else {
 						currentFrame.stop.tumble = 0;
 						currentFrame.stop.tumbleMax = 0;
@@ -5104,10 +5153,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.stop.tumble = min(player.tumbleWithSlow, 0xffff);
 						currentFrame.stop.tumbleMax = min(player.tumbleMaxWithSlow, 0xffff);
 						currentFrame.stop.tumbleIsWallstick = false;
+						currentFrame.stop.tumbleIsKnockdown = false;
 					} else if (player.cmnActIndex == CmnActWallHaritsuki) {
 						currentFrame.stop.tumble = min(player.wallstickWithSlow, 0xffff);
 						currentFrame.stop.tumbleMax = min(player.wallstickMaxWithSlow, 0xffff);
 						currentFrame.stop.tumbleIsWallstick = true;
+						currentFrame.stop.tumbleIsKnockdown = false;
+					} else if (player.cmnActIndex == CmnActFDownLoop
+							|| player.cmnActIndex == CmnActBDownLoop
+							|| player.cmnActIndex == CmnActVDownLoop) {
+						currentFrame.stop.tumble = min(player.knockdownWithSlow, 0xffff);
+						currentFrame.stop.tumbleMax = min(player.knockdownMaxWithSlow, 0xffff);
+						currentFrame.stop.tumbleIsWallstick = false;
+						currentFrame.stop.tumbleIsKnockdown = true;
 					} else {
 						currentFrame.stop.tumble = 0;
 						currentFrame.stop.tumbleMax = 0;

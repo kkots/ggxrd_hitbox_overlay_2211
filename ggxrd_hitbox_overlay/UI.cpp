@@ -1160,6 +1160,13 @@ void UI::drawSearchableWindows() {
 					sprintf_s(strbuf, "%d/%d wallstick", player.wallstickWithSlow, player.wallstickMaxWithSlow);
 					printNoWordWrap
 				}
+				if (player.displayKnockdown && (
+						player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
+						|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
+				)) {
+					sprintf_s(strbuf, "%d/%d knockdown", player.knockdownWithSlow, player.knockdownMaxWithSlow);
+					printNoWordWrap
+				}
 				if (playerBlocks[i].displayFloorbounceQuestionMark) {
 					printExtraHitstunTooltip(playerBlocks[i].displayFloorbounceQuestionMarkValue);
 				} else if (playerBlocks[i].displayBlockstunLandQuestionMark) {
@@ -10083,8 +10090,15 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 								ImGui::TextUnformatted(strbuf);
 							}
 							if (playerFrame.stop.tumble) {
-								sprintf_s(strbuf, "%d/%d %s", playerFrame.stop.tumble, playerFrame.stop.tumbleMax,
-									playerFrame.stop.tumbleIsWallstick ? "wallstick" : "tumble");
+								const char* tumbleName;
+								if (playerFrame.stop.tumbleIsWallstick) {
+									tumbleName = "wallstick";
+								} else if (playerFrame.stop.tumbleIsKnockdown) {
+									tumbleName = "knockdown";
+								} else {
+									tumbleName = "tumble";
+								}
+								sprintf_s(strbuf, "%d/%d %s", playerFrame.stop.tumble, playerFrame.stop.tumbleMax, tumbleName);
 								ImGui::TextUnformatted(strbuf);
 							}
 						}

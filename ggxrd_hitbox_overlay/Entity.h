@@ -788,6 +788,7 @@ public:
 	inline bool running() const { return (*(DWORD*)(ent + 0x4d28) & 0x400) != 0; }
 	inline bool isCpu() const { return (*(DWORD*)(ent + 0x4d28) & 0x1000) != 0; }
 	inline bool gettingUp() const { return (*(DWORD*)(ent + 0x4d28) & 0x4000) != 0; }
+	inline bool infiniteKd() const { return (*(DWORD*)(ent + 0x4d28) & 0x80000) != 0; }
 	inline bool airthrowDisabled() const { return (*(DWORD*)(ent + 0x4d28) & 0x400000) != 0; }
 	inline bool defaultYrcWindowOver() const { return (*(DWORD*)(ent + 0x4d28) & 0x8000000) != 0; }  // this is for moves that don't use yrcWindowLength
 	inline bool overridenYrcWindowOver() const { return (*(DWORD*)(ent + 0x4d28) & 0x10000000) != 0; }  // but this is only for moves that use yrcWindowLength
@@ -1025,7 +1026,8 @@ public:
 	inline int groundHitEffect() const { return *(int*)(ent + 0x6a4); }
 	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }
 	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
-	inline int wallstick() const { return *(int*)(ent + 0x970); }
+	inline int knockdown() const { return *(int*)(ent + 0x964); }  // received knockdown duration maximum, does not decrement over time
+	inline int wallstick() const { return *(int*)(ent + 0x970); }  // received wallstick duration maximum, does not decrement over time
 	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
 	inline int airDashMinimumHeight() const { return *(int*)(ent + 0x9864); }
 	inline int framesSinceRegisteringForTheIdlingSignal() const { return *(int*)(ent + 0x140); }  // unfortunately, this value is +1 at the end of the tick more than what it was during an idling event. Luckily, you can just -1 from it before using
