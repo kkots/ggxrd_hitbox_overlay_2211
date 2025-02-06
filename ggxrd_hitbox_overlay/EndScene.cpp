@@ -3919,6 +3919,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				framebarAdvancedIdleHitstop = true;
 				
 				if (atLeastOneNotInHitstop) {
+					ui.resetFrameSelection();
 					if (framebarIdleFor > framebarIdleForLimit) {
 						
 						memset(skippedFrames.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));

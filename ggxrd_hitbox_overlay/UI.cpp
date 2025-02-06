@@ -172,8 +172,8 @@ static void pushZeroItemSpacingStyle();
 static float getItemSpacing();
 static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
 static GGIcon DISolIconRectangular = coordsToGGIcon(179, 1095, 37, 37);
-static bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_button, bool* isDragging);
 static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
+static void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels);
 static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount);
@@ -768,6 +768,8 @@ void UI::prepareDrawData() {
 	
 	if (needShowFramebarCached) {
 		drawFramebars();
+	} else {
+		resetFrameSelection();
 	}
 	
 	takeScreenshot = takeScreenshotTemp;
@@ -7886,24 +7888,6 @@ float getItemSpacing() {
 	return ImGui::GetStyle().ItemSpacing.x;
 }
 
-bool SelectionRect(ImVec2* start_pos, ImVec2* end_pos, ImGuiMouseButton mouse_button, bool* isDragging)
-{
-	/*IM_ASSERT(start_pos != NULL);
-	IM_ASSERT(end_pos != NULL);
-	if (ImGui::IsMouseClicked(mouse_button))
-		*start_pos = ImGui::GetMousePos();
-	if (ImGui::IsMouseDown(mouse_button))
-	{
-		*isDragging = true;
-		*end_pos = ImGui::GetMousePos();
-		ImDrawList* draw_list = ImGui::GetForegroundDrawList(); //ImGui::GetWindowDrawList();
-		draw_list->AddRect(*start_pos, *end_pos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 255)));   // Border
-		draw_list->AddRectFilled(*start_pos, *end_pos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 50)));	// Background
-	}
-	return ImGui::IsMouseReleased(mouse_button);*/
-	return false;
-}
-
 bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource) {
 	if (!resource) resource = std::make_unique<PngResource>();
 	if (!loadPngResource(hModule, resourceId, *resource)) return false;
@@ -7945,6 +7929,22 @@ void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineCo
 		ImGui::TextUnformatted(text);
     	ImGui::PopStyleColor();
 	}
+}
+
+void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
+	if (!color) color = &WHITE_COLOR;
+	if (!outlineColor) outlineColor = &BLACK_COLOR;
+	
+	ImU32 clr = ImGui::GetColorU32(*color);
+	ImU32 outlineClr = ImGui::GetColorU32(*outlineColor);
+	
+	drawList->AddText({ pos.x, pos.y - 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x, pos.y + 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x - 1.F, pos.y - 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x + 1.F, pos.y - 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x - 1.F, pos.y + 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x + 1.F, pos.y + 1.F }, outlineClr, text);
+	drawList->AddText(pos, clr, text);
 }
 
 const PngResource& UI::getPackedFramesTexture() const {
@@ -9149,11 +9149,6 @@ void imGuiDrawWrappedTextWithIcons(const char* textStart,
 	ImGui::PopStyleVar();
 }
 
-struct FrameDims {
-	float x;
-	float width;
-};
-
 #define PRINT_INPUT_BUTTON(name, ENUM_NAME) \
 	if (row.name) { \
 		const InputsIcon& icon = inputsIcon[ENUM_NAME]; \
@@ -9821,14 +9816,14 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 }
 
 template<typename FramebarT, typename FrameT>
-inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
+inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar, CharacterType owningPlayerCharType) {
 	const bool useSlang = settings.useSlangNames;
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
 		const FrameT& frame = framebar[i];
 		const Frame& projectileFrame = (const Frame&)frame;
 		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[i];
-		const FrameDims& dims = preppedDims[i];
+		const UI::FrameDims& dims = preppedDims[i];
 		
 		ImU32 tint = -1;
 		if (i > framebarPosition) {
@@ -10139,25 +10134,25 @@ inline void drawFramebar(const FramebarT& framebar, FrameDims* preppedDims, int 
 	}
 }
 
-void drawPlayerFramebar(const PlayerFramebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
+void drawPlayerFramebar(const PlayerFramebar& framebar, UI::FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, CharacterType charType) {
 	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, framebarPosition, tintDarker, playerIndex, skippedFrames, framebar, charType);
 }
 
-void drawProjectileFramebar(const Framebar& framebar, FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker,
+void drawProjectileFramebar(const Framebar& framebar, UI::FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar, CharacterType owningPlayerCharType) {
 	drawFramebar<Framebar, Frame>(framebar, preppedDims, framebarPosition, tintDarker, -1, skippedFrames, correspondingPlayersFramebar, owningPlayerCharType);
 }
 
 template<typename FramebarT, typename FrameT>
-void drawFirstFrames(const FramebarT& framebar, int framebarPosition, FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
+void drawFirstFrames(const FramebarT& framebar, int framebarPosition, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
 	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
 	const ImVec2 firstFrameUVStart = { ui.firstFrame->uStart, ui.firstFrame->vStart };
 	const ImVec2 firstFrameUVEnd = { ui.firstFrame->uEnd, ui.firstFrame->vEnd };
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
 		const FrameT& frame = framebar[i];
-		const FrameDims& dims = preppedDims[i];
+		const UI::FrameDims& dims = preppedDims[i];
 		
 		bool isFirst = frame.isFirst;
 		if (isFirst && considerSimilarFrameTypesSameForFrameCounts && considerSimilarIdleFramesSameForFrameCounts) {
@@ -10193,7 +10188,7 @@ void drawFirstFrames(const FramebarT& framebar, int framebarPosition, FrameDims*
 }
 
 template<typename FramebarT, typename FrameT>
-void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom) {
+void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom) {
 	
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
@@ -10287,7 +10282,7 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, FrameDims* prep
 				
 				const UVStartEnd& digitImg = digitUVs[remainder];
 				
-				const FrameDims& prevDim = preppedDims[EntityFramebar::confinePos(displayPos - prevIndCounter)];
+				const UI::FrameDims& prevDim = preppedDims[EntityFramebar::confinePos(displayPos - prevIndCounter)];
 				float digitX = prevDim.x;
 				float digitWidth = prevDim.width;
 				
@@ -11587,11 +11582,35 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 	}
 }
 
+void UI::resetFrameSelection() {
+	selectingFrames = false;
+	selectedFrameStart = -1;
+	selectedFrameEnd = -1;
+}
+
+int UI::findHoveredFrame(float x, FrameDims* dims) {
+	if (x < dims[1].x) {
+		return 0;
+	} else if (x >= dims[_countof(Framebar::frames) - 1].x) {
+		return _countof(Framebar::frames) - 1;
+	} else {
+		int start, end, mid;
+		start = 0;
+		end = _countof(Framebar::frames) - 1;
+		do {
+			mid = (start + end) >> 1;
+			if (x < dims[mid].x) {
+				end = mid - 1;
+			} else {
+				start = mid;
+			}
+		} while (end - start > 1);
+		if (start == end || x < dims[end].x) return start;
+		return end;
+	}
+}
+
 void UI::drawFramebars() {
-	static ImVec2 selStart { 0.F, 0.F };
-	static ImVec2 selEnd { 0.F, 0.F };
-	static bool isDragging = false;
-	SelectionRect(&selStart, &selEnd, ImGuiMouseButton_Left, &isDragging);
 	
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool showStrikeInvulOnFramebar = settings.showStrikeInvulOnFramebar;
@@ -11752,7 +11771,6 @@ void UI::drawFramebars() {
 		ImGuiWindowFlags_NoBackground
 		| ImGuiWindowFlags_NoCollapse
 		| ImGuiWindowFlags_NoTitleBar
-		| (isDragging ? ImGuiWindowFlags_NoMove : 0)
 		| ImGuiWindowFlags_NoBringToFrontOnFocus
 		| ImGuiWindowFlags_NoFocusOnAppearing);
 	bool drawFullBorder = ImGui::IsMouseDown(ImGuiMouseButton_Left)
@@ -12249,15 +12267,19 @@ void UI::drawFramebars() {
 		drawFramebars_y += oneFramebarHeight + paddingBetweenFramebars;
 	}
 	
+	float highlighterStartY = currentPositionHighlighterStartY
+				- outerBorderThickness
+				- framebarCurrentPositionHighlighterStickoutDistance;
+	
+	float highlighterEndY = drawFramebars_y
+				- outerBorderThickness
+				- paddingBetweenFramebars
+				+ framebarCurrentPositionHighlighterStickoutDistance;
+	
+	float windowViewableRegionStartY = drawFramebars_windowPos.y;
+	float windowViewableRegionEndY = drawFramebars_windowPos.y + windowHeight;
+	
 	if (framesXEnd > framesX) {
-		float highlighterStartY = currentPositionHighlighterStartY
-					- outerBorderThickness
-					- framebarCurrentPositionHighlighterStickoutDistance;
-		
-		float highlighterEndY = drawFramebars_y
-					- outerBorderThickness
-					- paddingBetweenFramebars
-					+ framebarCurrentPositionHighlighterStickoutDistance;
 		
 		drawFramebars_drawList->AddRectFilled(
 			{
@@ -12309,8 +12331,6 @@ void UI::drawFramebars() {
 					}
 				}
 				needInitStitchParams = false;
-				float windowViewableRegionStartY = drawFramebars_windowPos.y;
-				float windowViewableRegionEndY = drawFramebars_windowPos.y + windowHeight;
 				stitchStartYWithWindowClipping = highlighterStartY;
 				float stitchEndYWithWindowClipping = highlighterEndY;
 				if (stitchStartYWithWindowClipping < windowViewableRegionStartY) {
@@ -12345,7 +12365,19 @@ void UI::drawFramebars() {
 		}
 	}
 	
+	bool clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+	bool mouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
 	if (drawFramebars_hoveredFrameIndex != -1) {
+		if (!selectingFrames) {
+			if (clicked) {
+				io.MouseClicked[0] = false;  // *shaking* I feel violated. This is not good
+				selectingFrames = true;
+				selectedFrameStart = drawFramebars_hoveredFrameIndex;
+				selectedFrameEnd = drawFramebars_hoveredFrameIndex;
+			}
+		} else if (mouseDown) {
+			selectedFrameEnd = drawFramebars_hoveredFrameIndex;
+		}
 		drewFrameTooltip = true;
 		const FrameDims& dims = preppedDims[drawFramebars_hoveredFrameIndex];
 		drawFramebars_drawList->PushClipRect(ImVec2{ 0.F, 0.F }, ImVec2{ 10000.F, 10000.F }, false);
@@ -12360,7 +12392,80 @@ void UI::drawFramebars() {
 			},
 			ImGui::GetColorU32(IM_COL32(255, 255, 255, 60)));
 		drawFramebars_drawList->PopClipRect();
+		
+	} else if (clicked || !(framesXEnd > framesX)) {
+		resetFrameSelection();
+	} else if (mouseDown && selectingFrames) {
+		ImVec2 mousePos = ImGui::GetMousePos();
+		selectedFrameEnd = findHoveredFrame(mousePos.x, preppedDims);
 	}
+	if (!mouseDown && selectingFrames) {
+		selectingFrames = false;
+	}
+	
+	if (selectedFrameStart != -1 && selectedFrameEnd != -1) {
+		ImVec2 startPos;
+		ImVec2 endPos;
+		
+		float selectionBoxStartY = highlighterStartY + framebarCurrentPositionHighlighterStickoutDistance;
+		float selectionBoxEndY = highlighterEndY - framebarCurrentPositionHighlighterStickoutDistance;
+		
+		int selFrameStart;
+		int selFrameEnd;
+		if (selectedFrameStart <= selectedFrameEnd) {
+			selFrameStart = selectedFrameStart;
+			selFrameEnd = selectedFrameEnd;
+		} else {
+			selFrameEnd = selectedFrameStart;
+			selFrameStart = selectedFrameEnd;
+		}
+		
+		#pragma warning(suppress:6001)
+		startPos.x = selFrameStart == 0
+			? preppedDims[0].x - outerBorderThickness
+			: preppedDims[selFrameStart - 1].x + preppedDims[selFrameStart - 1].width;
+		
+		if (selectionBoxStartY < drawFramebars_windowPos.y) {
+			startPos.y = drawFramebars_windowPos.y;
+		} else {
+			startPos.y = selectionBoxStartY;
+		}
+		
+		endPos.x = selFrameEnd == _countof(Framebar::frames) - 1
+			? preppedDims[_countof(Framebar::frames) - 1].x + preppedDims[_countof(Framebar::frames) - 1].width + outerBorderThickness
+			: preppedDims[selFrameEnd + 1].x;
+		if (selectionBoxEndY > windowViewableRegionEndY) {
+			endPos.y = windowViewableRegionEndY;
+		} else {
+			endPos.y = selectionBoxEndY;
+		}
+		
+		drawFramebars_drawList->PushClipRect(ImVec2{ 0.F, 0.F }, ImVec2{ 10000.F, 10000.F }, false);
+		drawFramebars_drawList->AddRect(startPos, endPos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 255)));   // Border
+		drawFramebars_drawList->AddRect({ startPos.x - 1.F, startPos.y - 1.F},
+			{ endPos.x + 1.F, endPos.y + 1.F},
+			ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));   // Border
+		drawFramebars_drawList->AddRect({ startPos.x - 2.F, startPos.y - 2.F},
+			{ endPos.x + 2.F, endPos.y + 2.F},
+			ImGui::GetColorU32(IM_COL32(0, 130, 216, 255)));   // Border
+		drawFramebars_drawList->AddRectFilled(startPos, endPos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 50)));	// Background
+		
+		ImGui::SetWindowFontScale(1.F);
+		sprintf_s(strbuf, "%d frames selected", selFrameEnd - selFrameStart + 1);
+		ImVec2 textSize = ImGui::CalcTextSize(strbuf);
+		ImVec2 textPos;
+		textPos.x = preppedDims[0].x;
+		if (drawFramebars_windowPos.y < textSize.y) {
+			textPos.y = selectionBoxEndY;
+		} else {
+			textPos.y = drawFramebars_windowPos.y - textSize.y;
+		}
+		
+		outlinedTextRaw(drawFramebars_drawList, textPos, strbuf);
+		
+		drawFramebars_drawList->PopClipRect();
+	}
+	
 	ImGui::End();
 	if (needSplitFramebar) {
 		copyDrawList(*(ImDrawListBackup*)framebarWindowDrawDataCopy.data(), drawFramebars_drawList);

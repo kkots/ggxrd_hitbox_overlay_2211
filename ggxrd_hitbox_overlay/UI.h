@@ -38,7 +38,12 @@ public:
 	void handleResetBefore();
 	void handleResetAfter();
 	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);
+	void resetFrameSelection();
 	
+	struct FrameDims {
+		float x;
+		float width;
+	};
 	bool visible = true;
 	bool stateChanged = false;
 	bool gifModeOn = false;
@@ -282,6 +287,10 @@ private:
 	BYTE* jamPantyPtr = nullptr;
 	bool printRavenBuffedMoves[2] { false };
 	bool printHowAzamiWorks[2] { false };
+	bool selectingFrames = false;
+	int selectedFrameStart = -1;
+	int selectedFrameEnd = -1;
+	int findHoveredFrame(float x, FrameDims* dims);
 };
 
 extern UI ui;
