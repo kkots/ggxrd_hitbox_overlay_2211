@@ -391,7 +391,8 @@ struct FrameStopInfo {
 	unsigned short valueMaxExtra:4;  // hitstunMaxFloorbounceExtra, blockstunMaxLandExtra
 	unsigned short isBlockstun:1;
 	unsigned short tumble;
-	unsigned short tumbleMax;
+	unsigned short tumbleMax:15;
+	unsigned short tumbleIsWallstick:1;
 };
 
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD);
@@ -1184,6 +1185,8 @@ struct PlayerInfo {
 	int hitstunMaxWithSlow = 0;
 	int tumbleMax = 0;
 	int tumbleMaxWithSlow = 0;
+	int wallstickMax = 0;
+	int wallstickMaxWithSlow = 0;
 	int lastHitstopBeforeWipe = 0;
 	int blockstunMax = 0;
 	int blockstunMaxLandExtra = 0;
@@ -1200,6 +1203,9 @@ struct PlayerInfo {
 	int tumble = 0;
 	int tumbleElapsed = 0;
 	int tumbleWithSlow = 0;
+	int wallstick = 0;
+	int wallstickElapsed = 0;
+	int wallstickWithSlow = 0;
 	int stagger = 0;
 	int staggerElapsed = 0;
 	int staggerWithSlow = 0;
@@ -1552,6 +1558,7 @@ struct PlayerInfo {
 	bool staggerMaxFixed:1;
 	bool hitstunContaminatedByRCSlowdown:1;
 	bool tumbleContaminatedByRCSlowdown:1;
+	bool wallstickContaminatedByRCSlowdown:1;
 	bool blockstunContaminatedByRCSlowdown:1;
 	bool inputsOverflow:1;
 	bool createdDangerousProjectile:1;
@@ -1559,6 +1566,7 @@ struct PlayerInfo {
 	bool lastBlockWasIB:1;
 	bool lastBlockWasFD:1;
 	bool displayTumble:1;
+	bool displayWallstick:1;
 	bool tumbleStartedInHitstop:1;
 	bool ramlethalSSwordTimerActive:1;
 	bool ramlethalHSwordTimerActive:1;

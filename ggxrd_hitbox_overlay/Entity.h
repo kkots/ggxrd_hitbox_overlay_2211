@@ -1025,6 +1025,7 @@ public:
 	inline int groundHitEffect() const { return *(int*)(ent + 0x6a4); }
 	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }
 	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
+	inline int wallstick() const { return *(int*)(ent + 0x970); }
 	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
 	inline int airDashMinimumHeight() const { return *(int*)(ent + 0x9864); }
 	inline int framesSinceRegisteringForTheIdlingSignal() const { return *(int*)(ent + 0x140); }  // unfortunately, this value is +1 at the end of the tick more than what it was during an idling event. Luckily, you can just -1 from it before using

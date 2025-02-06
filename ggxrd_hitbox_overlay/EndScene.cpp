@@ -979,6 +979,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.hitstun = ent.hitstun();
 			player.tumble = 0;
 			player.displayTumble = false;
+			player.wallstick = 0;
+			player.displayWallstick = false;
 			CmnActIndex cmnActIndex = ent.cmnActIndex();
 			if (cmnActIndex == CmnActBDownLoop
 					|| cmnActIndex == CmnActFDownLoop
@@ -1004,6 +1006,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						+ (!player.tumbleStartedInHitstop ? 1 : 0);
 				} else {
 					player.tumble = 30 - ent.bbscrvar2() + 1;
+				}
+			} else if (cmnActIndex == CmnActWallHaritsuki) {
+				if (ent.bbscrvar2() == 0) {
+					if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
+						player.wallstickContaminatedByRCSlowdown = false;
+						player.wallstickMax = ent.wallstick() + 30 - 1;
+						player.wallstickElapsed = 0;
+					}
+					player.displayWallstick = true;
+					player.wallstick = ent.wallstick() + 1 - ent.bbscrvar();
+				} else {
+					player.wallstick = 0;
 				}
 			}
 			if (player.hitstun == prevFrameHitstun + 9 && (
@@ -1348,6 +1362,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				++player.tumbleElapsed;
 				if (player.rcSlowedDown) player.tumbleContaminatedByRCSlowdown = true;
 			}
+			if (player.wallstick && !player.hitstop && !superflashInstigator) {
+				++player.wallstickElapsed;
+				if (player.rcSlowedDown) player.wallstickContaminatedByRCSlowdown = true;
+			}
 			if (player.hitstop && !superflashInstigator) ++player.hitstopElapsed;
 			int newSlow;
 			int unused;
@@ -1371,6 +1389,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newSlow,
 				&player.tumbleWithSlow,
 				&player.tumbleMaxWithSlow,
+				&unused);
+			PlayerInfo::calculateSlow(player.wallstickElapsed,
+				player.wallstick,
+				newSlow,
+				&player.wallstickWithSlow,
+				&player.wallstickMaxWithSlow,
 				&unused);
 			PlayerInfo::calculateSlow(player.blockstunElapsed,
 				player.blockstun - (player.hitstop ? 1 : 0),
@@ -5052,6 +5076,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (player.cmnActIndex == CmnActKorogari) {
 						currentFrame.stop.tumble = min(player.tumbleWithSlow, 0xffff);
 						currentFrame.stop.tumbleMax = min(player.tumbleMaxWithSlow, 0xffff);
+						currentFrame.stop.tumbleIsWallstick = false;
+					} else if (player.cmnActIndex == CmnActWallHaritsuki) {
+						currentFrame.stop.tumble = min(player.wallstickWithSlow, 0xffff);
+						currentFrame.stop.tumbleMax = min(player.wallstickMaxWithSlow, 0xffff);
+						currentFrame.stop.tumbleIsWallstick = true;
 					} else {
 						currentFrame.stop.tumble = 0;
 						currentFrame.stop.tumbleMax = 0;
@@ -5074,6 +5103,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (player.cmnActIndex == CmnActKorogari) {
 						currentFrame.stop.tumble = min(player.tumbleWithSlow, 0xffff);
 						currentFrame.stop.tumbleMax = min(player.tumbleMaxWithSlow, 0xffff);
+						currentFrame.stop.tumbleIsWallstick = false;
+					} else if (player.cmnActIndex == CmnActWallHaritsuki) {
+						currentFrame.stop.tumble = min(player.wallstickWithSlow, 0xffff);
+						currentFrame.stop.tumbleMax = min(player.wallstickMaxWithSlow, 0xffff);
+						currentFrame.stop.tumbleIsWallstick = true;
 					} else {
 						currentFrame.stop.tumble = 0;
 						currentFrame.stop.tumbleMax = 0;
