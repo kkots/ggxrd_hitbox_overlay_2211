@@ -4137,7 +4137,8 @@ void UI::drawSearchableWindows() {
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
 				ImGui::TextUnformatted("When doing Hawk Baker, the horizontal line displayed leads to the wall"
-					" in front of you. If you're close enough to it, you get a \"red\" hit."
+					" in front of you. There's a separator on that line. If your origin point is between that"
+					" separator and the wall then you're close enough to the wall to get a \"red\" hit."
 					" If you're not close to the wall, then opponent's origin point must be within the"
 					" infinite vertical box around you, in order to get the \"red\" hit.");
 				ImGui::PopTextWrapPos();
@@ -5027,6 +5028,81 @@ void UI::drawSearchableWindows() {
 						"You cannot hold Red Azami for more than 8f. 8f is the maximum duration of super armor you can get.\n"
 						"Successfully parrying a hit with Red Azami produces the same result as parrying with a non-Red Azami.");
 					ImGui::PopTextWrapPos();
+				}
+			
+			} else if (player.charType == CHARACTER_TYPE_ANSWER) {
+				
+				Entity p;
+				
+				const char* scrollTitles[8] {
+					searchFieldTitle("Scroll 1:"),
+					searchFieldTitle("Scroll 2:"),
+					searchFieldTitle("Scroll 3:"),
+					searchFieldTitle("Scroll 4:"),
+					searchFieldTitle("Scroll 5:"),
+					searchFieldTitle("Scroll 6:"),
+					searchFieldTitle("Scroll 7:"),
+					searchFieldTitle("Scroll 8:")
+				};
+				const char* tooltip;
+				
+				tooltip = searchTooltip("Time remaining until scroll disappears.");
+				for (int j = 0; j < 8; ++j) {
+					p = player.pawn.stackEntity(j);
+					if (p && p.isActive() && !p.mem45()) {
+						yellowText(scrollTitles[j]);
+						AddTooltip(tooltip);
+						ImGui::SameLine();
+						sprintf_s(strbuf, "%d/720f", p.currentAnimDuration());
+						ImGui::TextUnformatted(strbuf);
+						AddTooltip(tooltip);
+					}
+				}
+				
+				yellowText(searchFieldTitle("Scroll Cling Ends In:"));
+				ImGui::SameLine();
+				if (strcmp(player.anim, "Ami_Hold") == 0 && player.pawn.hasUpon(3)) {
+					sprintf_s(strbuf, "%d/120f", player.animFrame);
+					ImGui::TextUnformatted(strbuf);
+				} else {
+					ImGui::TextUnformatted("Not on scroll");
+				}
+				
+				yellowText(searchFieldTitle("Can Do Card In:"));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%df", player.answerCantCardTime, player.answerCantCardTimeMax);
+				ImGui::TextUnformatted(strbuf);
+				
+				struct CardInfo {
+					StringWithLength title;
+					int timer;
+				};
+				CardInfo cards[2] {
+					{
+						"S Card:",
+						-1
+					},
+					{
+						"H Card:",
+						-1
+					}
+				};
+				for (int j = 2; j < entityList.count; ++j) {
+					p = entityList.list[j];
+					if (p.isActive() && p.team() == i && !p.isPawn() && strcmp(p.animationName(), "Meishi") == 0 && p.spriteFrameCounterMax() == 720) {
+						cards[p.createArgHikitsukiVal2()].timer = p.currentAnimDuration();
+					}
+				}
+				
+				for (int j = 0; j < 2; ++j) {
+					yellowText(searchFieldTitle(cards[j].title));
+					ImGui::SameLine();
+					if (cards[j].timer == -1) {
+						ImGui::TextUnformatted("Not present");
+					} else {
+						sprintf_s(strbuf, "%d/720f", cards[j].timer);
+						ImGui::TextUnformatted(strbuf);
+					}
 				}
 				
 			} else {
@@ -8519,6 +8595,14 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("The white box shows the area where opponent's origin point must be at the moment the move is performed,"
 		" in order for Baiken to shoot out ropes and travel to the opposite wall.");
 	
+	yellowText("Answer Scroll:");
+	ImGui::TextUnformatted("The white box around the scroll shows the area where Answer's origin point must be in order to cling to the scroll."
+		" After entering the area, you are able to cling only on the frame after the next one. So Enter range -> Wait -> Cling.");
+	
+	yellowText("Answer Card:");
+	ImGui::TextUnformatted("The infinite vertical white box around the card shows the area where the opponent's origin point must be"
+		" in order for the Clone to track to their position.");
+	
 	ImGui::Separator();
 	
 	yellowText("Outlines lie within their boxes/on the edge");
@@ -9723,12 +9807,16 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::Separator();
 		ImGui::TextUnformatted("Suddenly teleported.");
 	}
-	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1) {
+	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1 || frame.crossedUp) {
 		ImGui::Separator();
-		yellowText("Crossup protection: ");
-		ImGui::SameLine();
-		sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
-		ImGui::TextUnformatted(strbuf);
+		if (frame.crossedUp) {
+			ImGui::TextUnformatted("Crossed up");
+		} else {
+			yellowText("Crossup protection: ");
+			ImGui::SameLine();
+			sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
+			ImGui::TextUnformatted(strbuf);
+		}
 	}
 }
 

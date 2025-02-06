@@ -649,6 +649,30 @@ void collectHitboxes(Entity ent,
 				interactionBoxParams.thickness = THICKNESS_INTERACTION;
 				interactionBoxes->push_back(interactionBoxParams);
 			}
+		} else if (ownerType == CHARACTER_TYPE_ANSWER) {
+			if (strcmp(ent.animationName(), "Ami") == 0) {
+				DrawBoxCallParams interactionBoxParams;
+				interactionBoxParams.left = params.posX - 150000;
+				interactionBoxParams.right = params.posX + 150000;
+				interactionBoxParams.top = params.posY + 50000;
+				interactionBoxParams.bottom = params.posY - 350000;
+				interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
+				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+				interactionBoxParams.thickness = THICKNESS_INTERACTION;
+				interactionBoxes->push_back(interactionBoxParams);
+			} else if (strcmp(ent.animationName(), "Meishi") == 0) {
+				if (ent.displayModel()) {
+					DrawBoxCallParams interactionBoxParams;
+					interactionBoxParams.left = params.posX - 350000;
+					interactionBoxParams.right = params.posX + 350000;
+					interactionBoxParams.top = params.posY + 10000000;
+					interactionBoxParams.bottom = params.posY - 1000000;
+					interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
+					interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+					interactionBoxParams.thickness = THICKNESS_INTERACTION;
+					interactionBoxes->push_back(interactionBoxParams);
+				}
+			}
 		}
 	}
 	if (circles) {

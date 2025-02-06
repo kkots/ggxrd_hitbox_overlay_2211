@@ -484,6 +484,7 @@ struct PlayerFrame : public FrameBase {
 	
 	bool crossupProtectionIsOdd:1;
 	bool crossupProtectionIsAbove1:1;
+	bool crossedUp:1;
 	bool inputsOverflow:1;
 	bool canYrc:1;
 	bool canYrcProjectile:1;
@@ -1424,6 +1425,9 @@ struct PlayerInfo {
 	int dizzyBubbleElapsed = 0;
 	int dizzyBubbleTime = 0;
 	int dizzyBubbleTimeMax = 0;
+	int answerCantCardElapsed = 0;
+	int answerCantCardTime = 0;
+	int answerCantCardTimeMax = 0;
 	char grabAnimation[32] { '\0' };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
@@ -1564,6 +1568,8 @@ struct PlayerInfo {
 	bool johnnyMistFinerBuffedOnThisFrame:1;
 	bool dizzySpearIsIce:1;
 	bool dizzyShieldFishSuperArmor:1;
+	bool answerPrevFrameRSFStart:1;
+	bool answerCreatedRSFStart:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

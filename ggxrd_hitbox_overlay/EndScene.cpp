@@ -2749,6 +2749,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					int fireSpearLifetime = -1;
 					player.dizzySpearIsIce = false;
 					player.dizzyFireSpearTimeMax = 0;
+					bool frozen = false;
 					for (int j = 2; j < entityList.count; ++j) {
 						Entity p = entityList.list[j];
 						if (p.isActive() && p.team() == player.index && !p.isPawn()) {
@@ -2822,11 +2823,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								if (projectile.ptr) {
 									slowdown = projectile.rcSlowedDownCounter;
 								}
+								frozen = p.isSuperFrozen();
 							}
 						}
 					}
 					
-					if (!hasForceDisableFlag) player.dizzyFireSpearElapsed = 0;
+					if (!hasForceDisableFlag) player.dizzyFireSpearElapsed = frozen ? 1 : 0;
 					
 					int unused;
 					if (foundThing && !thingIsBomb) {
@@ -2834,7 +2836,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.dizzyFireSpearTimeMax = -1;
 						} else {
 							timeRemaining += moves.dizzyKinomiNecrobomb.totalFrames;
-							++player.dizzyFireSpearElapsed;
+							if (!frozen) ++player.dizzyFireSpearElapsed;
 							PlayerInfo::calculateSlow(
 								player.dizzyFireSpearElapsed,
 								timeRemaining,
@@ -2844,7 +2846,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								&unused);
 						}
 					} else if (foundThing && thingIsBomb) {
-						++player.dizzyFireSpearElapsed;
+						if (!frozen) ++player.dizzyFireSpearElapsed;
 						PlayerInfo::calculateSlow(
 							player.dizzyFireSpearElapsed,
 							timeRemaining,
@@ -2908,7 +2910,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.dizzyScytheElapsed = 0;
 						}
 						
-						if (!p.isSuperFrozen()) ++player.dizzyScytheElapsed;
+						if (!p.isSuperFrozen() || p.lifeTimeCounter() == 0) ++player.dizzyScytheElapsed;
 						
 						if (isNecro) {
 							if (!isKoware && foundInfoIndex != 3) {
@@ -3059,7 +3061,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.dizzyFishTime = hasForceDisableFlag ? 1 : 0;
 						if (player.dizzyFishTimeMax == -1) player.dizzyFishTimeMax = 9999;
 					} else if (fishEnding) {
-						if (player.dizzyFishTime == 0) player.dizzyFishElapsed = 0;
+						if (player.dizzyFishTime == 0) player.dizzyFishElapsed = frozen ? 1 : 0;
 						if (!frozen) ++player.dizzyFishElapsed;
 						
 						int unused;
@@ -3085,6 +3087,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					bool foundBubble = false;
 					int timeRemaining = -1;
 					int slowdown = 0;
+					bool frozen = false;
 					for (int j = 2; j < entityList.count; ++j) {
 						Entity p = entityList.list[j];
 						if (!(
@@ -3103,10 +3106,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							bomb = &moves.dizzyAwaKBomb;
 						}
 						if (koware) {
-							if (p.lifeTimeCounter() == 0) player.dizzyBubbleElapsed = 0;
+							if (p.lifeTimeCounter() == 0) player.dizzyBubbleElapsed = p.isSuperFrozen() ? 1 : 0;
 							moves.fillDizzyAwaKoware(func, koware);
 							moves.fillDizzyAwaBomb(func, *bomb);
 							foundBubble = true;
+							frozen = p.isSuperFrozen();
 							int offset = p.bbscrCurrentInstr() - func;
 							if (strcmp(p.gotoLabelRequest(), "bomb") == 0) {
 								timeRemaining = 1 + bomb->totalFrames;
@@ -3126,7 +3130,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (!foundBubble) {
 						player.dizzyBubbleTime = hasForceDisableFlag ? 1 : 0;
 					} else {
-						++player.dizzyBubbleElapsed;
+						if (!frozen) ++player.dizzyBubbleElapsed;
 						
 						int unused;
 						PlayerInfo::calculateSlow(
@@ -3144,6 +3148,63 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						else ++player.dizzyBubbleTimeMax;
 					}
 				}  // bubbles
+				
+			} else if (player.charType == CHARACTER_TYPE_ANSWER) {
+				
+				int timeRemaining = -1;
+				int slowdown = 0;
+				bool frozen = false;
+				for (int j = 2; j < entityList.count; ++j) {
+					Entity p = entityList.list[j];
+					if (!(
+						p.isActive() && p.team() == player.index && !p.isPawn()
+							&& strcmp(p.animationName(), "Nin_Jitsu") == 0
+					)) continue;
+					
+					frozen = p.isSuperFrozen();
+					if (p.lifeTimeCounter() == 0) player.answerCantCardElapsed = frozen ? 1 : 0;
+					
+					timeRemaining = 43 - p.currentAnimDuration() + 1;
+					ProjectileInfo& projectile = findProjectile(p);
+					if (projectile.ptr) slowdown = projectile.rcSlowedDownCounter;
+				}
+				
+				bool hasForceDisableFlag = (player.wasForceDisableFlags & 1) != 0;
+				if (timeRemaining == -1) {
+					player.answerCantCardTime = hasForceDisableFlag ? 1 : 0;
+				} else {
+					if (!frozen) ++player.answerCantCardElapsed;
+					int unused;
+					PlayerInfo::calculateSlow(
+						player.answerCantCardElapsed,
+						timeRemaining,
+						slowdown,
+						&player.answerCantCardTime,
+						&player.answerCantCardTimeMax,
+						&unused);
+					if (hasForceDisableFlag || player.answerCantCardTime) ++player.answerCantCardTime;
+					if (player.answerCantCardTimeMax <= 2) player.answerCantCardTimeMax = 0;
+					else ++player.answerCantCardTimeMax;
+				}
+				
+				
+				bool hasRSFStart = false;
+				if (strcmp(player.anim, "Royal_Straight_Flush") == 0) {
+					if (player.animFrame > 4) {
+						Entity prev = player.pawn.previousEntity();
+						if (prev && strcmp(prev.animationName(), "RSF_Start") == 0) {
+							Entity link = prev.linkObjectDestroyOnStateChange();
+							if (!link) hasRSFStart = true;
+						}
+					}
+				}
+				if (player.answerPrevFrameRSFStart != hasRSFStart) {
+					player.answerPrevFrameRSFStart = hasRSFStart;
+					player.answerCreatedRSFStart = hasRSFStart;
+				} else {
+					player.answerCreatedRSFStart = false;
+				}
+				
 			}
 		}
 		
@@ -5029,9 +5090,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					int crossupProtection = player.pawn.crossupProtection();
 					currentFrame.crossupProtectionIsOdd = (crossupProtection & 1);
 					currentFrame.crossupProtectionIsAbove1 = (crossupProtection & 2) >> 1;
+					currentFrame.crossedUp = false;
 				} else {
 					currentFrame.crossupProtectionIsOdd = 0;
 					currentFrame.crossupProtectionIsAbove1 = 0;
+					currentFrame.crossedUp = player.pawn.crossupProtection() == 3;
 				}
 				currentFrame.rcSlowdown = player.rcSlowedDownCounter;
 				currentFrame.rcSlowdownMax = player.rcSlowedDownMax;

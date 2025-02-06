@@ -918,20 +918,20 @@ public:
 	inline int mem50() const { return *(int*)(ent + 0x160); }  // Reset on state change
 	inline int mem51() const { return *(int*)(ent + 0x164); }  // Reset on state change
 	inline int mem52() const { return *(int*)(ent + 0x168); }  // Reset on state change
-	inline int mem53() const { return *(int*)(ent + 0x16c); }
-	inline int mem54() const { return *(int*)(ent + 0x170); }
-	inline int mem55() const { return *(int*)(ent + 0x174); }
-	inline int mem56() const { return *(int*)(ent + 0x178); }
-	inline int mem57() const { return *(int*)(ent + 0x17c); }
-	inline int mem58() const { return *(int*)(ent + 0x180); }
-	inline int mem59() const { return *(int*)(ent + 0x184); }
-	inline int mem60() const { return *(int*)(ent + 0x188); }
-	inline int mem201() const { return *(int*)(ent + 0x24c60); }
+	inline int mem53() const { return *(int*)(ent + 0x16c); }  // Does not reset on stage change
+	inline int mem54() const { return *(int*)(ent + 0x170); }  // Does not reset on stage change
+	inline int mem55() const { return *(int*)(ent + 0x174); }  // Does not reset on stage change
+	inline int mem56() const { return *(int*)(ent + 0x178); }  // Does not reset on stage change
+	inline int mem57() const { return *(int*)(ent + 0x17c); }  // Does not reset on stage change
+	inline int mem58() const { return *(int*)(ent + 0x180); }  // Does not reset on stage change
+	inline int mem59() const { return *(int*)(ent + 0x184); }  // Does not reset on stage change
+	inline int mem60() const { return *(int*)(ent + 0x188); }  // Does not reset on stage change
+	inline int mem201() const { return *(int*)(ent + 0x24c60); }  // idk
 	inline int mem202() const { return *(int*)(ent + 0x24c64); }
 	inline int mem203() const { return *(int*)(ent + 0x24c68); }
 	
 	// bbscript numbers them from 1, I number them from 0, so subtract 1 from the bbscript number
-	// indices 0-3 are reset on state change
+	// indices 0-3 are reset on state change, 4-7 are not
 	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }  
 	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }
 	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }
@@ -970,6 +970,7 @@ public:
 	inline bool fullInvul() const { return (*(DWORD*)(ent + 0x238) & 0x40) != 0; }  // all projectiles by default will have this flag
 	inline int thisIsMinusOneIfEnteredHitstunWithoutHitstop() const { return *(int*)(ent + 0x262dc); }  // 0 otherwise
 	inline int createArgHikitsukiVal1() const { return *(int*)(ent + 0x2660 + 0x34); }
+	inline int createArgHikitsukiVal2() const { return *(int*)(ent + 0x2660 + 0x38); }
 	// this is > 0 in hitstun, blockstun,
 	// including 6f after hitstun, 5f after blockstun and 9f after wakeup
 	inline int throwProtection() const { return *(unsigned int*)(ent + 0x9fE4) > 0; }

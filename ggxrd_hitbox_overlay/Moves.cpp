@@ -253,6 +253,9 @@ static bool createdProjectile_kum5D(PlayerInfo& ent);
 static bool canYrcProjectile_kum5D(PlayerInfo& ent);
 static bool createdProjectile_baiken5D(PlayerInfo& ent);
 static bool canYrcProjectile_baiken5D(PlayerInfo& ent);
+static bool canYrcProjectile_scroll(PlayerInfo& ent);
+static bool createdProjectile_firesale(PlayerInfo& ent);
+static bool canYrcProjectile_firesale(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -3913,11 +3916,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowA");
 	move.displayName = "S Business Ninpo: Caltrops";
 	move.slangName = "S Card";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowB");
 	move.displayName = "H Business Ninpo: Caltrops";
 	move.slangName = "H Card";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandA");
@@ -3925,6 +3930,7 @@ bool Moves::onDllMain() {
 	move.slangName = "P Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandB");
@@ -3932,6 +3938,7 @@ bool Moves::onDllMain() {
 	move.slangName = "K Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandC");
@@ -3939,6 +3946,7 @@ bool Moves::onDllMain() {
 	move.slangName = "S Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandD");
@@ -3946,6 +3954,7 @@ bool Moves::onDllMain() {
 	move.slangName = "H Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirA");
@@ -3953,6 +3962,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Air P Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirB");
@@ -3960,6 +3970,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Air K Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirC");
@@ -3967,6 +3978,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Air S Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirD");
@@ -3974,6 +3986,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Air H Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Land");
@@ -4003,11 +4016,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Nin_JitsuA");
 	move.displayName = "S Business Ninpo: Under the Bus";
 	move.slangName = "S Clone";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Nin_JitsuB");
 	move.displayName = "H Business Ninpo: Under the Bus";
 	move.slangName = "H Clone";
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Human_Suriken");
@@ -4024,18 +4039,42 @@ bool Moves::onDllMain() {
 	move.displayName = "Air Dead Stock Ninpo: Firesale";
 	move.slangName = "Air Firesale";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meteor", true);
+	move.framebarName = "Air Dead Stock Ninpo: Firesale";
+	move.framebarSlangName = "Air Firesale";
+	move.framebarNameUncombined = "Air Dead Stock Ninpo: Firesale Card";
+	move.framebarSlangNameUncombined = "Firesale Card";
+	move.isDangerous = isDangerous_notInRecovery;
+	move.framebarId = 113;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Suriken", true);
+	move.framebarName = "Air Dead Stock Ninpo: Firesale";
+	move.framebarSlangName = "Air Firesale";
+	move.framebarNameUncombined = "Air Dead Stock Ninpo: Firesale Shuriken";
+	move.framebarSlangNameUncombined = "Shuriken";
+	move.isDangerous = isDangerous_notInRecovery;
+	move.framebarId = 113;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush");
 	move.displayName = "Dead Stock Ninpo: Firesale";
 	move.slangName = "Firesale";
 	move.dontSkipSuper = true;
+	move.createdProjectile = createdProjectile_firesale;
+	move.canYrcProjectile = canYrcProjectile_firesale;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush_Burst");
 	move.displayName = "Burst Dead Stock Ninpo: Firesale";
 	move.slangName = "Burst Firesale";
 	move.dontSkipSuper = true;
+	move.canYrcProjectile = canYrcProjectile_default;
+	move.createdProjectile = createdProjectile_firesale;
+	move.canYrcProjectile = canYrcProjectile_firesale;
 	addMove(move);
 	
 	// Answer scroll cling idle. Happens from an s.D if not holding D
@@ -4199,7 +4238,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 106;
 	move.framebarName = "Dead Stock Ninpo: Firesale";
 	move.framebarSlangName = "Firesale";
-	move.framebarSlangNameUncombined = "Firesale Shuriken";
+	move.framebarSlangNameUncombined = "Shuriken";
 	move.framebarNameUncombined = "Dead Stock Ninpo: Firesale Shuriken";
 	addMove(move);
 	
@@ -9665,6 +9704,32 @@ bool canYrcProjectile_baiken5D(PlayerInfo& player) {
 	return player.pawn.bbscrCurrentInstr() > func + moves.baiken5Dcreation
 		|| player.pawn.bbscrCurrentInstr() == func + moves.baiken5Dcreation
 		&& player.pawn.spriteFrameCounter() > 0;
+}
+bool canYrcProjectile_scroll(PlayerInfo& player) {
+	return player.pawn.currentAnimDuration() > 7
+		|| player.pawn.currentAnimDuration() == 7
+		&& !player.pawn.isSuperFrozen()
+		&& player.pawn.isRCFrozen();
+}
+bool createdProjectile_firesale(PlayerInfo& player) {
+	return player.pawn.currentAnimDuration() < 100
+		? player.answerCreatedRSFStart
+		: player.createdDangerousProjectile
+						|| player.createdProjectileThatSometimesCanBeDangerous;
+}
+bool canYrcProjectile_firesale(PlayerInfo& player) {
+	if (player.pawn.currentAnimDuration() < 100) {
+		for (int i = 2; i < entityList.count; ++i) {
+			Entity p = entityList.list[i];
+			if (p.isActive() && p.team() == player.index && !p.isPawn()
+					&& strcmp(p.animationName(), "RSF_Start") == 0) {
+				return p.linkObjectDestroyOnStateChange() == nullptr;
+			}
+		}
+		return false;
+	} else {
+		return canYrcProjectile_default(player);
+	}
 }
 
 bool powerup_may6P(PlayerInfo& player) {

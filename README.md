@@ -218,6 +218,10 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Baiken Metsudo Kushodo: The white box shows the area where opponent's origin point must be at the moment the move is performed, in order for Baiken to shoot out ropes and travel to the opposite wall.
 
+- Answer Scroll: The white box around the scroll shows the area where Answer's origin point must be in order to cling to the scroll. After entering the area, you are able to cling only on the frame after the next one. So Enter range -> Wait -> Cling.
+
+- Answer Card: The infinite vertical white box around the card shows the area where the opponent's origin point must be in order for the Clone to track to their position.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
@@ -226,6 +230,8 @@ If a box's outline is thin, like that of a pushbox or a clash-only hitbox for ex
 ### General notes about throw boxes
 
 If a move has a throw box as well as hitbox - both the hitbox and the throw boxes must connect. By the way, Potemkin Buster's hitbox does not matter - only the throw box (proof: <https://youtu.be/59uc9h6KKIE>).
+
+Answer's and I-No's air command grabs cannot grab behind them.
 
 ### Frame-by-frame animation playback
 
