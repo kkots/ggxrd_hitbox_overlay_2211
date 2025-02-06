@@ -85,6 +85,8 @@ public:
 	std::atomic_int slowmoTimes = 3;
 	std::atomic_int framebarHeight = 19;
 	std::atomic_int framebarTitleCharsMax = 12;
+	std::atomic_int positionResetDistBetweenPlayers = 105000;
+	std::atomic_int positionResetDistFromCorner = 0;
 	const float cameraCenterOffsetX_defaultValue = 0.F;
 	const float cameraCenterOffsetY_defaultValue = 106.4231F;
 	const float cameraCenterOffsetY_WhenForcePitch0_defaultValue = 130.4231F;
@@ -147,6 +149,7 @@ public:
 	std::atomic_bool showJackoSummonsPushboxes = false;
 	std::atomic_bool showJackoAegisFieldRange = false;
 	std::atomic_bool showJackoServantAttackRange = false;
+	std::atomic_bool usePositionResetMod = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

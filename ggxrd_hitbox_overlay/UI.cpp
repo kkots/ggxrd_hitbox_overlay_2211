@@ -2311,6 +2311,11 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.showDurationsInInputHistory);
 			
+			booleanSettingPreset(settings.usePositionResetMod);
+			
+			intSettingPreset(settings.positionResetDistBetweenPlayers, 0, 1000, 10000, 120.F);
+			intSettingPreset(settings.positionResetDistFromCorner, 0, 1000, 10000, 120.F);
+			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
 			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above)."));
@@ -10503,11 +10508,11 @@ bool UI::float4SettingPreset(float& settingsPtr) {
 	return attentionPossiblyNeeded;
 }
 
-bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue) {
+bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth) {
 	bool isChange = false;
 	int intValue = settingsPtr;
-	ImGui::SetNextItemWidth(80.F);
-	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &intValue, 1, 1, 0)) {
+	ImGui::SetNextItemWidth(fieldWidth);
+	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &intValue, step, stepFast, 0)) {
 		if (intValue < minValue) {
 			intValue = minValue;
 		}

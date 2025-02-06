@@ -246,6 +246,37 @@ bool Game::onDllMain() {
 		{ 13, 0 },
 		nullptr, "inputRingBuffersOffset");
 	
+	// If WTY's position reset patch is applied, this function won't be found
+	orig_setPositionResetType = (setPositionResetType_t)sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"6a 02 56 e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ?? 85 c0 74 13 e8 ?? ?? ?? ?? f7 d8 1b c0 f7 d8 40 a3 ?? ?? ?? ?? 5e c3 8b 0d ?? ?? ?? ?? 6a 08 56 e8",
+		{ -14 },
+		nullptr, "setPositionResetType");
+	if (orig_setPositionResetType) {
+		detouring.attach(&(PVOID&)(orig_setPositionResetType),
+			setPositionResetTypeHookStatic,
+			"setPositionResetType");
+		
+		getPlayerPadID = (getPlayerPadID_t)followRelativeCall((uintptr_t)orig_setPositionResetType + 1);
+		
+		uintptr_t roundInitUsage = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			"c7 44 24 08 00 00 00 00 c7 44 24 0c 00 00 00 00 c7 44 24 10 d5 04 00 00 c7 44 24 14 b7 05 00 00 "
+			"c7 44 24 18 d2 05 00 00 c7 44 24 1c 3b 06 00 00 c7 44 24 20 49 fa ff ff c7 44 24 24 2b fb ff ff "
+			"c7 44 24 28 c5 f9 ff ff c7 44 24 2c 2e fa ff ff c7 44 24 30 98 ff ff ff c7 44 24 34 68 00 00 00 "
+			"c7 44 24 38 e0 fc ff ff c7 44 24 3c 20 03 00 00 c7 44 24 40 ff ff ff ff c7 44 24 44 01 00 00 00",
+			nullptr, "roundInitUsage");
+		
+		if (!roundInitUsage) return false;
+		orig_roundInit = (roundInit_t)sigscanBackwards(roundInitUsage, "83 ec", 0x1f0);
+		if (!orig_roundInit) return false;
+		
+		void(HookHelp::*roundInitHookPtr)() = &HookHelp::roundInitHook;
+		detouring.attach(&(PVOID&)(orig_roundInit),
+			(PVOID&)roundInitHookPtr,
+			"roundInit");
+	}
+	
 	return !error;
 }
 
@@ -277,6 +308,7 @@ bool Game::sigscanAfterHitDetector() {
 			handicapsOffset = *(uintptr_t*)(isStylishCallPlace + 0x23);
 		}
 	}
+	cameraCenterXOffset = endScene.leftEdgeOfArenaOffset - 8;
 	
 	return true;
 }
@@ -483,6 +515,8 @@ void Game::destroyAswEngineHook() {
 		if (*aswEngine) {
 			logwrap(fputs("Asw Engine destroyed\n", logfile));
 			endScene.onAswEngineDestroyed();
+			game.lastSavedPositionX[0] = -252000;
+			game.lastSavedPositionX[1] = 252000;
 		}
 	}
 	game.orig_destroyAswEngine();
@@ -615,6 +649,13 @@ bool Game::buttonPressed(int padInd, bool isMenu, DWORD code) {
 	return (inputs & code) != 0;
 }
 
+DWORD Game::getPressedButtons(int padInd, bool isMenu) {
+	if (!inputsHolder) return false;
+	BYTE* step1 = *(BYTE**)inputsHolder;
+	BYTE* step2 = *(BYTE**)(step1 + 0x28);
+	return *(DWORD*)(step2 + 0x38 + 0x38 * padInd + !isMenu * 0x1c + 0x10);
+}
+
 bool Game::buttonHeld(int padInd, bool isMenu, DWORD code) {
 	if (!inputsHolder) return false;
 	BYTE* step1 = *(BYTE**)inputsHolder;
@@ -622,6 +663,14 @@ bool Game::buttonHeld(int padInd, bool isMenu, DWORD code) {
 	BYTE* step3 = *(BYTE**)(step2 + 0x38 + 0x38 * padInd + !isMenu * 0x1c + 0x8);
 	DWORD inputs = *(DWORD*)(step3 + 0xc);
 	return (inputs & code) != 0;
+}
+
+DWORD Game::getHeldButtons(int padInd, bool isMenu) {
+	if (!inputsHolder) return false;
+	BYTE* step1 = *(BYTE**)inputsHolder;
+	BYTE* step2 = *(BYTE**)(step1 + 0x28);
+	BYTE* step3 = *(BYTE**)(step2 + 0x38 + 0x38 * padInd + !isMenu * 0x1c + 0x8);
+	return *(DWORD*)(step3 + 0xc);
 }
 
 void Game::setButtonPressed(int padInd, bool isMenu, DWORD code) {
@@ -786,4 +835,81 @@ int Game::getMatchTimer() const {
 
 BYTE* Game::getStaticFont() const {
 	return *(BYTE**)(*gameDataPtr + 0x68);
+}
+
+void Game::setPositionResetTypeHookStatic() {
+	game.setPositionResetTypeHook();
+}
+
+void Game::setPositionResetTypeHook() {
+	orig_setPositionResetType();
+	if (!isTrainingMode() || !settings.usePositionResetMod) return;
+	int padID = getPlayerPadID();
+	DWORD heldBtns = getHeldButtons(padID, true);
+	entityList.populate();
+	int playerSide = getPlayerSide();
+	bool needCorner = false;
+	bool needLeftCorner = false;
+	bool swapPlayers = false;
+	if ((heldBtns & BUTTON_CODE_MENU_RIGHT) != 0) {
+		if ((heldBtns & BUTTON_CODE_MENU_UP) != 0) {
+			for (int i = 0; i < 2 && i < entityList.count; ++i) {
+				Entity p = entityList.slots[i];
+				if (p) {
+					lastSavedPositionX[i] = p.x();
+				}
+			}
+		} else {
+			needCorner = true;
+			swapPlayers = (heldBtns & BUTTON_CODE_MENU_DOWN) != 0;
+		}
+	} else if ((heldBtns & BUTTON_CODE_MENU_LEFT) != 0) {
+		if ((heldBtns & BUTTON_CODE_MENU_UP) != 0) {
+			// do nothing
+		} else {
+			needCorner = true;
+			needLeftCorner = true;
+			swapPlayers = (heldBtns & BUTTON_CODE_MENU_DOWN) != 0;
+		}
+	} else if ((heldBtns & BUTTON_CODE_MENU_UP) != 0) {
+		lastSavedPositionX[1] = -252000;
+		lastSavedPositionX[0] = 252000;
+	} else if ((heldBtns & BUTTON_CODE_MENU_DOWN) != 0) {
+		lastSavedPositionX[0] = -252000;
+		lastSavedPositionX[1] = 252000;
+	} else {
+		// do nothing
+	}
+	
+	if (needCorner) {
+		if (swapPlayers) playerSide = 1 - playerSide;
+		int cornerClose = 1515000 - settings.positionResetDistFromCorner;
+		int cornerFar = cornerClose - settings.positionResetDistBetweenPlayers;
+		lastSavedPositionX[1 - playerSide] = cornerClose * (needLeftCorner ? -1 : 1);
+		lastSavedPositionX[playerSide] = cornerFar * (needLeftCorner ? -1 : 1);
+	}
+	
+	numberOfPlayersReset = 0;
+	
+}
+
+void Game::HookHelp::roundInitHook() {
+	return game.roundInitHook(Entity{(char*)this});
+}
+
+void Game::roundInitHook(Entity pawn) {
+	orig_roundInit((void*)pawn.ent);
+	if (isTrainingMode() && settings.usePositionResetMod) {
+		int team = pawn.team();
+		int thisX = lastSavedPositionX[team];
+		pawn.x() = thisX;
+		int otherX = lastSavedPositionX[1 - team];
+		bool facing = otherX < thisX;
+		pawn.inputsFacingLeft() = facing;
+		pawn.isFacingLeft() = facing;
+		if (numberOfPlayersReset == 0) {
+			*(int*)(*aswEngine + cameraCenterXOffset) = (lastSavedPositionX[0] + lastSavedPositionX[1]) / 2000;
+		}
+		++numberOfPlayersReset;
+	}
 }

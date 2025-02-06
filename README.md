@@ -7,6 +7,7 @@
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
 Also can freeze the game and play it frame-by-frame (with box display turned off for example).  
 Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).
+Also contains position reset mod (based on the mod made by WorseThanYou. You can get it on his website). If WorseThanYou's mod is used, it takes priority over this one.
 
 ## Credits
 
@@ -585,6 +586,33 @@ displayInputHistoryInSomeOfflineModes = false
 ; Specify true or false.
 ; Setting this to true will display the duration of each input, in frames, in the input history.
 showDurationsInInputHistory = false
+
+; Specify true or false.
+; Setting this to true will override the game's default behavior of position reset (stage reset) in offline Training Mode.
+; 2+Reset: non-swapped roundstart position;
+; 8+Reset: swapped roundstart position;
+; 4+Reset: left corner. Human Player outside the corner, CPU inside;
+; 1+Reset: left corner. Human Player inside the corner, CPU outside;
+; 6+Reset: right corner. Human Player outside the corner, CPU inside;
+; 3+Reset: right corner. Human Player inside the corner, CPU outside;
+; 5+Reset: reset to last used position;
+; 9+Reset: set current arbitrary position of both players as 'last used position'.
+; You can use the "positionResetDistBetweenPlayers" and "positionResetDistFromCorner" settings to tweak
+; the default positions in the corner.
+usePositionResetMod = false
+
+; A number.
+; Specifies the distance between the two players, not divided by 100, when resetting position into the corner.
+; This setting is only used when "usePositionResetMod" setting is enabled.
+; The default value of this field is 105000.
+positionResetDistBetweenPlayers = 105000
+
+; A number.
+; Specifies the distance of the player closest to the corner, from said corner, not divided by 100,
+; when resetting position into the corner.
+; This setting is only used when "usePositionResetMod" setting is enabled.
+; The default value of this field is 0.
+positionResetDistFromCorner = 0
 
 ; Specify true or false.
 ; Setting this to true will display Progress differently in Stun/Stagger Mash window.

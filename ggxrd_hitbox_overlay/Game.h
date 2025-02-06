@@ -2,6 +2,7 @@
 #include "gameModes.h"
 #include "Entity.h"
 #include "InputRingBuffer.h"
+#include <limits.h>
 
 extern char** aswEngine;
 
@@ -134,6 +135,9 @@ using getExtraGameState_t = char*(__cdecl*)();
 using getRiscForUI_t = float(__thiscall*)(char* thisArg);
 using isStylish_t = BOOL(__thiscall*)(void*);
 using getTrainingSetting_t = int(__thiscall*)(void* trainingStruct, TrainingSettingId setting, BOOL outsideTraining);
+using setPositionResetType_t = void(__cdecl*)();
+using getPlayerPadID_t = int(__cdecl*)();
+using roundInit_t = void(__thiscall*)(void* thisArg);
 
 class Game {
 public:
@@ -176,6 +180,9 @@ public:
 	int getMatchTimer() const;  // decrements at the start of logic tick
 	char** gameDataPtr = nullptr;  // REDGameCommon
 	BYTE* getStaticFont() const;
+	setPositionResetType_t orig_setPositionResetType = nullptr;
+	getPlayerPadID_t getPlayerPadID = nullptr;
+	roundInit_t orig_roundInit = nullptr;
 private:
 	class HookHelp {
 		friend class Game;
@@ -185,6 +192,7 @@ private:
 		bool UWorld_IsPausedHook();
 		float getRiscForUI_BackgroundHook();
 		float getRiscForUI_ForegroundHook();
+		void roundInitHook();
 	};
 	bool sigscanFrameByFraming();
 	void hookFrameByFraming();
@@ -195,6 +203,10 @@ private:
 	void TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int param2, int param3, int param4);
 	void TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty();
 	static void destroyAswEngineHook();
+	void roundInitHook(Entity pawn);
+	
+	static void setPositionResetTypeHookStatic();
+	void setPositionResetTypeHook();
 	TickActors_FDeferredTickList_FGlobalActorIterator_t orig_TickActors_FDeferredTickList_FGlobalActorIterator = nullptr;
 	updateBattleOfflineVer_t orig_updateBattleOfflineVer = nullptr;
 	TickActorComponents_t orig_TickActorComponents = nullptr;
@@ -219,7 +231,9 @@ private:
 	bool resetPressed[4] { false };
 	bool unknownPressed[4] { false };
 	bool buttonPressed(int padInd, bool isMenu, DWORD code);
+	DWORD getPressedButtons(int padInd, bool isMenu);
 	bool buttonHeld(int padInd, bool isMenu, DWORD code);
+	DWORD getHeldButtons(int padInd, bool isMenu);
 	void setButtonPressed(int padInd, bool isMenu, DWORD code);
 	void onNeedRememberPress(int padInd, bool* pressed, ButtonCodeMenu code);
 	void onNeedRememberPress(int padInd, bool* pressed, ButtonCode code);
@@ -237,6 +251,9 @@ private:
 	uintptr_t handicapsOffset = 0;
 	getTrainingSetting_t getTrainingSettingPtr = nullptr;
 	uintptr_t inputRingBuffersOffset = 0;
+	int lastSavedPositionX[2] { -252000, 252000 };
+	DWORD cameraCenterXOffset = 0;
+	int numberOfPlayersReset = 0;
 };
 
 extern Game game;

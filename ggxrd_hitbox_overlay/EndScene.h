@@ -319,6 +319,8 @@ public:
 	drawTrainingHudInputHistory_t orig_drawTrainingHudInputHistory = nullptr;
 	GameModeFast getGameModeFast() const;
 	bool requestedInputHistoryDraw = false;  // if true, inputs must only be drawn using a dedicated FRenderCommand and nowhere else
+	DWORD leftEdgeOfArenaOffset = 0;
+	DWORD rightEdgeOfArenaOffset = 0;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -537,8 +539,6 @@ private:
 	SkippedFramesInfo nextSkippedFramesIdleHitstop;
 	bool isFirstTickOfAMatch = false;
 	bool startedNewRound = false;
-	DWORD leftEdgeOfArenaOffset = 0;
-	DWORD rightEdgeOfArenaOffset = 0;
 	CharInfo staticFontOpenParenthesis;
 	CharInfo staticFontCloseParenthesis;
 	CharInfo staticFontDigit[10];

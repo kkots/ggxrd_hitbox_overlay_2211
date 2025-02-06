@@ -243,6 +243,15 @@ bool Settings::onDllMain() {
 			"; This does not include the \"P1 \" and \"P2 \" additional text that is displayed when \"showPlayerInFramebarTitle\" is true.\n"
 			"; You can use \"useSlangNames\" to help reduce the lengths of text displayed in framebar titles.\n"
 			"; The standard value is 12.");
+	registerOtherDescription(settingAndItsName(positionResetDistBetweenPlayers), "Position Reset Corner - Distance Between Players", settingsFramebarSettingsStr, "; A number.\n"
+			"; Specifies the distance between the two players, not divided by 100, when resetting position into the corner.\n"
+			"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
+			"; The default value of this field is 105000.");
+	registerOtherDescription(settingAndItsName(positionResetDistFromCorner), "Position Reset Corner - Distance From Corner", settingsFramebarSettingsStr, "; A number.\n"
+			"; Specifies the distance of the player closest to the corner, from said corner, not divided by 100,\n"
+			"; when resetting position into the corner.\n"
+			"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
+			"; The default value of this field is 0.");
 	registerOtherDescription(settingAndItsName(allowContinuousScreenshotting), "Allow Continuous Screenshotting When Button Is Held", settingsHitboxSettingsStr,
 			"; Specify true or false.\n"
 			"; When this is true that means screenshots are being taken every game loop logical frame as\n"
@@ -495,6 +504,19 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(showDurationsInInputHistory), "Display Durations In Input History", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will display the duration of each input, in frames, in the input history.");
+	registerOtherDescription(settingAndItsName(usePositionResetMod), "Use Position Reset Mod", settingsGeneralSettingsStr,
+			"; Specify true or false.\n"
+			"; Setting this to true will override the game's default behavior of position reset (stage reset) in offline Training Mode.\n"
+			"; 2+Reset: non-swapped roundstart position;\n"
+			"; 8+Reset: swapped roundstart position;\n"
+			"; 4+Reset: left corner. Human Player outside the corner, CPU inside;\n"
+			"; 1+Reset: left corner. Human Player inside the corner, CPU outside;\n"
+			"; 6+Reset: right corner. Human Player outside the corner, CPU inside;\n"
+			"; 3+Reset: right corner. Human Player inside the corner, CPU outside;\n"
+			"; 5+Reset: reset to last used position;\n"
+			"; 9+Reset: set current arbitrary position of both players as 'last used position'.\n"
+			"; You can use the \"positionResetDistBetweenPlayers\" and \"positionResetDistFromCorner\" settings to tweak\n"
+			"; the default positions in the corner.");
 	registerOtherDescription(settingAndItsName(useAlternativeStaggerMashProgressDisplay), "Use Alternative Stagger Mash Progress Display", "Main UI Window - Stun/Stagger Mash",
 			"; Specify true or false.\n"
 			"; Setting this to true will display Progress differently in Stun/Stagger Mash window.\n"
@@ -726,6 +748,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 
 	bool framebarTitleCharsMaxParsed = false;
 
+	bool positionResetDistBetweenPlayersParsed = false;
+	bool positionResetDistFromCornerParsed = false;
+
 	bool cameraCenterOffsetXParsed = false;
 	bool cameraCenterOffsetYParsed = false;
 	bool cameraCenterOffsetY_WhenForcePitch0Parsed = false;
@@ -827,6 +852,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool showDurationsInInputHistoryParsed = false;
 	
+	bool usePositionResetModParsed = false;
+	
 	bool useAlternativeStaggerMashProgressDisplayParsed = false;
 	
 	bool dontShowMayInteractionChecksParsed = false;
@@ -916,6 +943,16 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 								framebarTitleCharsMaxParsed = parseInteger("framebarTitleCharsMax", keyValue, framebarTitleCharsMax);
 							}
 							break;
+						case offsetof(Settings, positionResetDistBetweenPlayers):
+							if (!positionResetDistBetweenPlayersParsed) {
+								positionResetDistBetweenPlayersParsed = parseInteger("positionResetDistBetweenPlayers", keyValue, positionResetDistBetweenPlayers);
+							}
+							break;
+						case offsetof(Settings, positionResetDistFromCorner):
+							if (!positionResetDistFromCornerParsed) {
+								positionResetDistFromCornerParsed = parseInteger("positionResetDistFromCorner", keyValue, positionResetDistFromCorner);
+							}
+							break;
 						case offsetof(Settings, cameraCenterOffsetX):
 							if (!cameraCenterOffsetXParsed) {
 								cameraCenterOffsetXParsed = parseFloat("cameraCenterOffsetX", keyValue, cameraCenterOffsetX);
@@ -988,6 +1025,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(displayInputHistoryWhenObserving)
 						booleanPreset(displayInputHistoryInSomeOfflineModes)
 						booleanPreset(showDurationsInInputHistory)
+						booleanPreset(usePositionResetMod)
 						booleanPreset(useAlternativeStaggerMashProgressDisplay)
 						booleanPreset(dontShowMayInteractionChecks)
 						booleanPreset(showMilliaBadMoonBuffHeight)
@@ -1021,6 +1059,14 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!framebarTitleCharsMaxParsed) {
 		framebarTitleCharsMax = 12;
+	}
+	
+	if (!positionResetDistBetweenPlayersParsed) {
+		positionResetDistBetweenPlayers = 105000;
+	}
+	
+	if (!positionResetDistFromCornerParsed) {
+		positionResetDistFromCorner = 0;
 	}
 	
 	if (!startDisabledParsed) {
@@ -1217,6 +1263,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showDurationsInInputHistoryParsed) {
 		showDurationsInInputHistory = false;
+	}
+	
+	if (!usePositionResetModParsed) {
+		usePositionResetMod = false;
 	}
 	
 	if (!useAlternativeStaggerMashProgressDisplayParsed) {
@@ -1823,6 +1873,7 @@ void Settings::writeSettingsMain() {
 	booleanPreset(displayInputHistoryWhenObserving)
 	booleanPreset(displayInputHistoryInSomeOfflineModes)
 	booleanPreset(showDurationsInInputHistory)
+	booleanPreset(usePositionResetMod)
 	booleanPreset(useAlternativeStaggerMashProgressDisplay)
 	booleanPreset(dontShowMayInteractionChecks)
 	booleanPreset(showMilliaBadMoonBuffHeight)
@@ -1861,6 +1912,8 @@ void Settings::writeSettingsMain() {
 	booleanPreset(showPlayerInFramebarTitle)
 	replaceOrAddSetting("framebarHeight", formatInteger(framebarHeight).c_str(), getOtherINIDescription(&framebarHeight));
 	replaceOrAddSetting("framebarTitleCharsMax", formatInteger(framebarTitleCharsMax).c_str(), getOtherINIDescription(&framebarTitleCharsMax));
+	replaceOrAddSetting("positionResetDistBetweenPlayers", formatInteger(positionResetDistBetweenPlayers).c_str(), getOtherINIDescription(&positionResetDistBetweenPlayers));
+	replaceOrAddSetting("positionResetDistFromCorner", formatInteger(positionResetDistFromCorner).c_str(), getOtherINIDescription(&positionResetDistFromCorner));
 	booleanPreset(neverIgnoreHitstop)
 	booleanPreset(ignoreHitstopForBlockingBaiken)
 	booleanPreset(considerRunAndWalkNonIdle)

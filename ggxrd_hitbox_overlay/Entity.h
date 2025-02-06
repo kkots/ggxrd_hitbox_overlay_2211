@@ -712,12 +712,16 @@ public:
 	
 	inline int x() const { return *(int*)(ent + 0x24c); }
 	inline int y() const { return *(int*)(ent + 0x250); }
+	inline int& x() { return *(int*)(ent + 0x24c); }
+	inline int& y() { return *(int*)(ent + 0x250); }
 	// This function is for hitbox calculation only. To obtain raw x position, use x()
 	int posX() const;
 	// This function is for hitbox calculation only. To obtain raw y position, use y()
 	int posY() const;
 	
-	inline bool isFacingLeft() const { return *(int*)(ent + 0x248) == 1; }
+	inline bool isFacingLeft() const { return *(int*)(ent + 0x248) == 1; }  // the graphical facing
+	inline BOOL& isFacingLeft() { return *(BOOL*)(ent + 0x248); }  // the graphical facing
+	inline BOOL& inputsFacingLeft() { return *(BOOL*)(ent + 0x4d38); }  // the facing for input motions interpreting
 
 	bool isGettingThrown() const;
 
