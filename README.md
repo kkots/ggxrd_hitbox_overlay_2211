@@ -5,10 +5,10 @@
 ## Description
 
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
-Adds framebar and framedata display (see `Framebar` section).
-Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see `Default Hotkeys` section).  
+Adds framebar and framedata display (see [Framebar](#framebar) section).
+Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see [Default Hotkeys](#default-hotkeys) section).  
 Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).
-Also contains position reset mod (see `Position Reset Mod` section).
+Also contains position reset mod (see [Position Reset Mod](#position-reset-mod) section).
 Also contain input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches.
 The mod hides its output from OBS recording, and this can be turned off in 'UI - Settings - General Settings - Dodge OBS Recording' or by going to OBS and checking the 'Capture third-party overlays (such as steam)' checkbox.
 
@@ -35,9 +35,9 @@ For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (
 
 3. Start a match. Hitboxes should display.
 
-Read the `Hitboxes` section to understand what the colors mean.  
-Read the `Default Hotkeys` section to know what the default hotkeys are.  
-You can also play the game frame-by-frame (described in `Default Hotkeys`).
+Read the [Hitboxes](#hitboxes) section to understand what the colors mean.  
+Read the [Default Hotkeys](#default-hotkeys) section to know what the default hotkeys are.  
+You can also play the game frame-by-frame (described in [Default Hotkeys](#default-hotkeys)).
 
 To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.
 
@@ -59,45 +59,9 @@ If it doesn't work, you can use the patcher:
 If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
 The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
 If the DLL is not found when the game launches, it will just run normally, without the mod.  
-Normally you can run the injector to unload the mod, but if for whatever reason you can't run it on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
+Normally you can run the injector to unload the mod, but if for whatever reason you can't run it on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in [Hotkey configuration](#hotkey-configuration) section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
 
 If Steam Proton is taking forever to launch the game, patched or not, then rename the mod's dll and put the original, unpatched version of the game executable back, then try switching the Proton version in Steam's settings and agree to restart Steam. After restarting Steam will start downloading two things related to Guilty Gear Xrd and will launch GGXrd automatically (even though you didn't tell it to). GGXrd should work. Quit GGXrd. Place the patched version of the game executable and the mod's dll back and restart GGXrd. GGXrd will launch with the mod. Idk what causes this.
-
-## Mod compatibility
-
-If trying to use the mod with a game version that it doesn't fit, the game may crash. The version of the game it's meant for is 2211. This is the number that is displayed in the bottom right corner of the main menu screen after you launch the game.
-
-The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
-
-This mod is totally compatible with:
-
-- PCvolt's Labtool: <https://github.com/PCvolt/rev2-Labtool>
-- Iquis' Wakeup Tool: <https://github.com/Iquis/rev2-wakeup-tool>
-- GGXrdMirrorColorSelect: <https://github.com/kkots/GGXrdMirrorColorSelect>
-- GGXrdAdjustConnectionTiers: <https://github.com/kkots/GGXrdAdjustConnectionTiers>
-- Worse Than You's delay mod patch and all of his other patches. If WorseThanYou's position reset patch is applied, then this mod's position reset mod will silently not work, and everything else will work fine, and WorseThanYou's patch will keep working together with all the other features of this mod.
-- Whatever you run on Cheat Engine (unless you patch the functions I need)
-- OBS, Windows Gamebar, Nvidia Shadowplay, other recording software
-- Steam overlay and anything that Steam does
-
-All of the mods mentioned above are also compatible with each other.
-
-The following mods are incompatible and will refuse to work properly and crash:
-
-- Freecam mod: <https://github.com/kkots/ggxrd_freecam>
-
-This is caused by those mods hooking the same functions as hitbox overlay.
-
-Mods that are likely not compatible and may or will crash (I'm going to be honest, I haven't recently tested these, but remember them crashing when combined with this):
-
-- Replay mod: <https://github.com/kkots/ggxrd_replay_mod>
-
-Iffy, 50/50, haven't tested yet but likely to crash or not work properly:
-
-- Pangaea's Guilty Gear Rev2 Mod: <https://github.com/super-continent/ggxrd-mod>  
-It hooks the same functions that I use, namely FN_DEINIT_GAMESTATE. It might be possible to first load his mod, then mine, because I sigscan a small portion of the function that doesn't change after anyone's hook. If you load my mod first, his mod won't find the function.
-
-In a bright future where the Detours library evolves to have a ~~brain~~ *mandatory DLL* and creates detouring functions that allow multiple ~~modders~~ *hackers* to sigscan and hook the same function without getting stupid conflicts, combining all mods will be possible.
 
 ## Hitboxes
 
@@ -159,7 +123,7 @@ If there's a pushbox-proximity-checking part of the throw (blue), then satisfyin
 
 ### Blue - Throw boxes (when drawPushboxCheckSeparately = false)
 
-There's an alternative mode in the mod to show the part of the throw box that checks pushbox proximity (blue) and the part of the throw box that checks the X and Y of the opponent's origin point (purple) as a single blue throw box which only checks the opponent's origin point. To turn this mode on place the `.ini` file described in `Hotkey configuration` into the folder with the game executable and change `drawPushboxCheckSeparately = true` to be `drawPushboxCheckSeparately = false`. (Reloading the mod is unnecessary.)
+There's an alternative mode in the mod to show the part of the throw box that checks pushbox proximity (blue) and the part of the throw box that checks the X and Y of the opponent's origin point (purple) as a single blue throw box which only checks the opponent's origin point. To turn this mode on place the `.ini` file described in [Hotkey configuration](#hotkey-configuration) into the folder with the game executable and change `drawPushboxCheckSeparately = true` to be `drawPushboxCheckSeparately = false`. (Reloading the mod is unnecessary.)
 
 In this mode, when a player does a throw he displays a throw box in blue color. Throw boxes are usually only active for one frame (that's when they display semi-transparent). This period is so brief throw boxes have to show for a few extra frames, but during those frames they're no longer active and so they display fully transparent (outline only).
 
@@ -242,35 +206,35 @@ Answer's and I-No's air command grabs cannot grab behind them.
 
 ### Frame-by-frame animation playback
 
-You can force the game to play one frame at a time (in training mode only). Read on in `F3 - Freeze game` section and sections after that.
+You can force the game to play one frame at a time (in training mode only). Read on in [F3 - Freeze game](#f3---freeze-game) section and sections after that.
 
 ### F1 - GIF mode
 
 In training mode (only) you can press F1 to enter "GIF mode", which makes the background black, centers the camera on you, hides all of the HUD and makes opponent invisible and unhittable.  
 Press the key again to turn off the mode.  
 GIF mode can be broken down into separate toggles for each of its functionalities.  
-Section "Hotkey configuration" describes how to configure hotkeys.
+Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
 
 ### F2 - No gravity mode
 
 In training mode (only) you can press F2 to enter "No gravity mode" which makes your vertical speed always 0, i.e. you become unable to fall. This may be useful for screenshotting some air moves.  
 Press the key again to turn off the mode.  
-Section "Hotkey configuration" describes how to configure hotkeys.
+Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
 
 ### F3 - Freeze game
 
 Freezes the game and stops animations and game logic from advancing.  
-Section "Hotkey configuration" describes how to configure hotkeys.
+Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
 
 ### F4 - Slow-motion mode
 
 Plays the game at 3 times (the default) slower rate. You configure the rate in settings (read on in `Hotkey configuration`), but the `slowmoTimes` must be a whole, round number greater than 1. I.e. the game can only be slowed down 2, 3, 4, etc times.  
-Section "Hotkey configuration" describes how to configure hotkeys.
+Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
 
 ### F5 - Advance to next frame
 
 While the game is frozen using `Freeze game` feature, advances the game forward by 1 frame. Does nothing if the game is not currently frozen.  
-Section "Hotkey configuration" describes how to configure hotkeys.
+Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
 
 ### F6 - Disable mod
 
@@ -283,7 +247,7 @@ Since the `Disable mod` toggle disables the whole mod, this toggle only disables
 
 ### F8 - Take transparent/non-transparent screenshot
 
-This is a big section that is described in `Taking transparent/non-transparent screenshots` section. Basically this is a button to take a screenshot of the game with transparency enabled/disabled. Transparency only works under conditions described in that section.
+This is a big section that is described in [Taking transparent/non-transparent screenshots](#taking-transparentnon-transparent-screenshots) section. Basically this is a button to take a screenshot of the game with transparency enabled/disabled. Transparency only works under conditions described in that section.
 
 ### ESC - Show/hide mod's UI
 
@@ -293,6 +257,9 @@ By default when you start the mod it will open a UI window in-game that has all 
 
 If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, you can use the mod's UI that you can see in the game's window when you load the mod. All other settings are also located in various parts of the UI. Or you can configure all settings by creating a text file named `ggxrd_hitbox_overlay.ini` and placing it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
 Here's an example of the `.ini` file:
+
+<details>
+  <summary>Here's an example of the `.ini` file:</summary>
 
 ```ini
 ; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod. Allowed key names: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4, JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10, JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp, LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp, PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight, XboxTypeSRightStickDown.
@@ -847,6 +814,8 @@ useColorblindHelp = false
 
 ```
 
+</details>
+
 You can specify a combination of keys, separated by `+` sign. You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.  
 Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4, JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10, JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp, LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp, PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight, XboxTypeSRightStickDown.
 
@@ -1044,7 +1013,7 @@ The `libpng` series of projects is an outside repository that we depend on that 
 
 `zlib` is a compression library needed for libpng. Unlike libpng, it *is* included as a git submodule here. Please also refrain from modifying it.
 
-The dependency projects are better described in *Development dependencies*.
+The dependency projects are better described in [Development dependencies](#development-dependencies).
 
 ## Development dependencies
 
@@ -1064,6 +1033,42 @@ Dependencies are better described in each project's README.md. Short version is,
 - `D3DCompiler_43.dll` - used for compiling a custom pixel shader. A .LIB file for it, d3dcompiler.lib, is taken from Microsoft's legacy DirectX Software Development Kit and included in this project in the `d3d9` folder. The .LIB file allows the functions from the DLL to be used directly, without LoadLibraryA and GetProcAddress, and the DLL itself, which gets loaded by the mod on startup automatically, is shipped with Guilty Gear Xrd and resides in its Binaries\\Win32 folder.
 
 - `D3DX9_43.dll` - used for matrix math. It is used by the project the exact same way as D3DCompiler_43.dll, and its .LIB file is d3dx9.lib.
+
+## Mod compatibility
+
+If trying to use the mod with a game version that it doesn't fit, the game may crash. The version of the game it's meant for is 2211. This is the number that is displayed in the bottom right corner of the main menu screen after you launch the game.
+
+The mod should be possible to combine with other mods, but there might be some mods that can't be combined with this one (if they hook or sigscan the same functions).
+
+This mod is totally compatible with:
+
+- PCvolt's Labtool: <https://github.com/PCvolt/rev2-Labtool>
+- Iquis' Wakeup Tool: <https://github.com/Iquis/rev2-wakeup-tool>
+- GGXrdMirrorColorSelect: <https://github.com/kkots/GGXrdMirrorColorSelect>
+- GGXrdAdjustConnectionTiers: <https://github.com/kkots/GGXrdAdjustConnectionTiers>
+- Worse Than You's delay mod patch and all of his other patches. If WorseThanYou's position reset patch is applied, then this mod's position reset mod will silently not work, and everything else will work fine, and WorseThanYou's patch will keep working together with all the other features of this mod.
+- Whatever you run on Cheat Engine (unless you patch the functions I need)
+- OBS, Windows Gamebar, Nvidia Shadowplay, other recording software
+- Steam overlay and anything that Steam does
+
+All of the mods mentioned above are also compatible with each other.
+
+The following mods are incompatible and will refuse to work properly and crash:
+
+- Freecam mod: <https://github.com/kkots/ggxrd_freecam>
+
+This is caused by those mods hooking the same functions as hitbox overlay.
+
+Mods that are likely not compatible and may or will crash (I'm going to be honest, I haven't recently tested these, but remember them crashing when combined with this):
+
+- Replay mod: <https://github.com/kkots/ggxrd_replay_mod>
+
+Iffy, 50/50, haven't tested yet but likely to crash or not work properly:
+
+- Pangaea's Guilty Gear Rev2 Mod: <https://github.com/super-continent/ggxrd-mod>  
+It hooks the same functions that I use, namely FN_DEINIT_GAMESTATE. It might be possible to first load his mod, then mine, because I sigscan a small portion of the function that doesn't change after anyone's hook. If you load my mod first, his mod won't find the function.
+
+In a bright future where the Detours library evolves to have a ~~brain~~ *mandatory DLL* and creates detouring functions that allow multiple ~~modders~~ *hackers* to sigscan and hook the same function without getting stupid conflicts, combining all mods will be possible.
 
 ## Changelog
 
@@ -1143,3 +1148,4 @@ Dependencies are better described in each project's README.md. Short version is,
 - 2024 December: Fixed the display of invulnerability after rejecting something with a Blitz Shield - there's no longer one frame of supposed vulnerability (in reality, you can do backdash/DP/Super from a reject and not be vulnerable for a single frame).
 - 2025 January 1-7: Removed Y check from some command grabs that are ground-only, except Genrou Zan. Added a new type of boxes/circles that are white - interaction boxes/circles, and projectile origin points.
 - 2025 January 1: can now use gamepad buttons and inputs as hotkeys
+- 2024 February 7: releasing framebar, framedata display, with input history mod and position reset mod
