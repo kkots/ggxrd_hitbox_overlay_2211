@@ -882,7 +882,7 @@ It will modify training mode's and combo mode's display of input history like so
 
 You can enable the display of input history in modes like Offline Versus, Episode, Tutorial, Mission, using 'Display Input History In Some Offline Modes Vs CPU' setting (in INI it's called 'displayInputHistoryInSomeOfflineModes').
 
-And by default enable the display of input history when observing online matches is enabled. You can disable it using the 'Display Input History When Observing' setting (called 'displayInputHistoryWhenObserving' in INI).
+And by default the display of input history when observing online matches is enabled. You can disable it using the 'Display Input History When Observing' setting (called 'displayInputHistoryWhenObserving' in INI).
 
 ## Taking transparent/non-transparent screenshots
 
