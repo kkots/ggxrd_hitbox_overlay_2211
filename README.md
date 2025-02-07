@@ -7,9 +7,9 @@
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
 Adds framebar and framedata display (see [Framebar](#framebar) section).
 Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see [Default Hotkeys](#default-hotkeys) section).  
-Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).
-Also contains position reset mod (see [Position Reset Mod](#position-reset-mod) section).
-Also contain input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches.
+Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).  
+Also contains position reset mod (see [Position Reset Mod](#position-reset-mod) section).  
+Also contains input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches.  
 The mod hides its output from OBS recording, and this can be turned off in 'UI - Settings - General Settings - Dodge OBS Recording' or by going to OBS and checking the 'Capture third-party overlays (such as steam)' checkbox.
 
 ## Credits
