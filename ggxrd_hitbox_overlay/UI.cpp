@@ -189,6 +189,7 @@ static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth,
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame);
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
+static void drawTextInWindowTitle(const char* txt);
 static bool prevNamesControl(const PlayerInfo& player, bool includeTitle, bool disableSlang);
 static void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip);
 static void prepareLastNames(const char** lastNames, const PlayerInfo& player, bool disableSlang);
@@ -799,7 +800,9 @@ void UI::drawSearchableWindows() {
 	} else {
 		two = 2;
 	}
-	ImGui::Begin(searching ? "search_main" : windowTitle.c_str(), &visible, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+	
+	ImGui::Begin(searching ? "search_main" : "##ggxrd_hitbox_overlay_main_window", &visible, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+	drawTextInWindowTitle(windowTitle.c_str());
 	pushSearchStack("Main UI Window");
 	
 	if (ImGui::CollapsingHeader(searchCollapsibleSection("Framedata"), ImGuiTreeNodeFlags_DefaultOpen) || searching) {
@@ -10561,6 +10564,31 @@ bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, 
 void drawPlayerIconInWindowTitle(int playerIndex) {
 	GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(playerIndex), 14.F);
 	drawPlayerIconInWindowTitle(scaledIcon);
+}
+
+void drawTextInWindowTitle(const char* txt) {
+	ImVec2 windowPos = ImGui::GetWindowPos();
+	float windowWidth = ImGui::GetWindowWidth();
+	ImGuiStyle& style = ImGui::GetStyle();
+	const float fontSize = ImGui::GetFontSize();
+	ImVec2 startPos {
+		windowPos.x + style.FramePadding.x + fontSize + style.ItemInnerSpacing.x,
+		windowPos.y + style.FramePadding.y
+	};
+	ImVec2 clipEnd {
+		windowPos.x + windowWidth - style.FramePadding.x - fontSize - style.ItemInnerSpacing.x,
+		startPos.y + 1000.F  // ImGui::CalcTextSize(txt).y produces height that was too small, and tails of y's were cut off
+	};
+	if (clipEnd.x > startPos.x) {
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		drawList->PushClipRect(startPos,
+			clipEnd,
+			false);
+		drawList->AddText(startPos,
+			ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)),
+			txt);
+		drawList->PopClipRect();
+	}
 }
 
 void drawPlayerIconInWindowTitle(GGIcon& icon) {
