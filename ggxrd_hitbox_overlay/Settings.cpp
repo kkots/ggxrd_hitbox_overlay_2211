@@ -607,6 +607,9 @@ bool Settings::onDllMain() {
 			"; that the mod decided to combine together. That text can get pretty long. If you set this setting to true,\n"
 			"; then that field will be hidden, and you will only be able to see moves' names either in 'Cancels (P1/P2)' window,\n"
 			"; or by hovering your mouse over the 'Startup' or 'Total' fields in the main UI window and reading their tooltip.");
+	registerOtherDescription(settingAndItsName(showDebugFields), "Show Debug Fields", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true will add a number of extra fields to the UI that display debug or miscellaneous information.");
 	#undef settingAndItsName
 	
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));
@@ -881,6 +884,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool closingModWindowAlsoHidesFramebarParsed = false;
 
 	bool dontShowMoveNameParsed = false;
+	
+	bool showDebugFieldsParsed = false;
 
 	std::string accum;
 	char buf[128];
@@ -1040,6 +1045,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(modWindowVisibleOnStart)
 						booleanPreset(closingModWindowAlsoHidesFramebar)
 						booleanPreset(dontShowMoveName)
+						booleanPreset(showDebugFields)
 						#undef booleanPreset
 					}
 				}
@@ -1325,8 +1331,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 		dontShowMoveName = false;
 	}
 	
-	if (!dontShowMoveNameParsed) {
-		dontShowMoveName = false;
+	if (!showDebugFieldsParsed) {
+		showDebugFields = false;
 	}
 	
 	if (firstSettingsParse) {
@@ -1831,7 +1837,12 @@ void Settings::writeSettingsMain() {
 			" Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply,"
 			" NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock,"
 			" Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2,"
-			" 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.";
+			" 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4,"
+			" JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10,"
+			" JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp,"
+			" LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp,"
+			" PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight,"
+			" XboxTypeSRightStickDown.";
 		lines.emplace_back();
 		lines.emplace_back();
 		lines.back().line = "; Key combinations can be specified by separating key names with '+' sign.";
@@ -1888,6 +1899,7 @@ void Settings::writeSettingsMain() {
 	booleanPreset(modWindowVisibleOnStart)
 	booleanPreset(closingModWindowAlsoHidesFramebar)
 	booleanPreset(dontShowMoveName)
+	booleanPreset(showDebugFields)
 	booleanPreset(neverDisplayGrayHurtboxes)
 	booleanPreset(dontShowBoxes)
 	booleanPreset(displayUIOnTopOfPauseMenu)

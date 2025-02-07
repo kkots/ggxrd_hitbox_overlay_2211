@@ -5,9 +5,12 @@
 ## Description
 
 Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
-Also can freeze the game and play it frame-by-frame (with box display turned off for example).  
+Adds framebar and framedata display (see `Framebar` section).
+Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see `Default Hotkeys` section).  
 Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).
-Also contains position reset mod (based on the mod made by WorseThanYou. You can get it on his website). If WorseThanYou's mod is used, it takes priority over this one.
+Also contains position reset mod (see `Position Reset Mod` section).
+Also contain input history mod (see `Input History Mod` section) which can display input history when observing online matches.
+The mod hides its output from OBS recording, and this can be turned off in 'UI - Settings - General Settings - Dodge OBS Recording' or by going to OBS and checking the 'Capture third-party overlays (such as steam)' checkbox.
 
 ## Credits
 
@@ -32,8 +35,9 @@ For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (
 
 3. Start a match. Hitboxes should display.
 
-Read the `Features` section to understand what the colors mean and what the hotkeys are.  
-You can also play the game frame-by-frame (described in `Features`).
+Read the `Hitboxes` section to understand what the colors mean.  
+Read the `Default Hotkeys` section to know what the default hotkeys are.  
+You can also play the game frame-by-frame (described in `Default Hotkeys`).
 
 To turn off the mod you can launch `ggxrd_hitbox_injector.exe` again.
 
@@ -50,6 +54,15 @@ On Ubuntu/Linux the injector won't work on its own. You need to cd into the mod'
 This will launch the injector (the .exe one) on the same Wine server that Guilty Gear runs on. Assuming you're running the game using Steam Proton, and its version is supported, everything should work.  
 If it doesn't work, you can use the patcher:
 
+## Patching the game to always launch with the mod
+
+If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
+The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
+If the DLL is not found when the game launches, it will just run normally, without the mod.  
+Normally you can run the injector to unload the mod, but if for whatever reason you can't run it on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
+
+If Steam Proton is taking forever to launch the game, patched or not, then rename the mod's dll and put the original, unpatched version of the game executable back, then try switching the Proton version in Steam's settings and agree to restart Steam. After restarting Steam will start downloading two things related to Guilty Gear Xrd and will launch GGXrd automatically (even though you didn't tell it to). GGXrd should work. Quit GGXrd. Place the patched version of the game executable and the mod's dll back and restart GGXrd. GGXrd will launch with the mod. Idk what causes this.
+
 ## Mod compatibility
 
 If trying to use the mod with a game version that it doesn't fit, the game may crash. The version of the game it's meant for is 2211. This is the number that is displayed in the bottom right corner of the main menu screen after you launch the game.
@@ -62,7 +75,7 @@ This mod is totally compatible with:
 - Iquis' Wakeup Tool: <https://github.com/Iquis/rev2-wakeup-tool>
 - GGXrdMirrorColorSelect: <https://github.com/kkots/GGXrdMirrorColorSelect>
 - GGXrdAdjustConnectionTiers: <https://github.com/kkots/GGXrdAdjustConnectionTiers>
-- Worse Than You's delay mod patch and all of his other patches
+- Worse Than You's delay mod patch and all of his other patches. If WorseThanYou's position reset patch is applied, then this mod's position reset mod will silently not work, and everything else will work fine, and WorseThanYou's patch will keep working together with all the other features of this mod.
 - Whatever you run on Cheat Engine (unless you patch the functions I need)
 - OBS, Windows Gamebar, Nvidia Shadowplay, other recording software
 - Steam overlay and anything that Steam does
@@ -86,16 +99,7 @@ It hooks the same functions that I use, namely FN_DEINIT_GAMESTATE. It might be 
 
 In a bright future where the Detours library evolves to have a ~~brain~~ *mandatory DLL* and creates detouring functions that allow multiple ~~modders~~ *hackers* to sigscan and hook the same function without getting stupid conflicts, combining all mods will be possible.
 
-## Patching the game to always launch with the mod
-
-If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
-The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
-If the DLL is not found when the game launches, it will just run normally, without the mod.  
-Normally you can run the injector to unload the mod, but if for whatever reason you can't run it on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in `Hotkey configuration` section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
-
-If Steam Proton is taking forever to launch the game, patched or not, then rename the mod's dll and put the original, unpatched version of the game executable back, then try switching the Proton version in Steam's settings and agree to restart Steam. After restarting Steam will start downloading two things related to Guilty Gear Xrd and will launch GGXrd automatically (even though you didn't tell it to). GGXrd should work. Quit GGXrd. Place the patched version of the game executable and the mod's dll back and restart GGXrd. GGXrd will launch with the mod. Idk what causes this.
-
-## Features
+## Hitboxes
 
 ### Red - Hitboxes
 
@@ -233,6 +237,8 @@ If a box's outline is thin, like that of a pushbox or a clash-only hitbox for ex
 If a move has a throw box as well as hitbox - both the hitbox and the throw boxes must connect. By the way, Potemkin Buster's hitbox does not matter - only the throw box (proof: <https://youtu.be/59uc9h6KKIE>).
 
 Answer's and I-No's air command grabs cannot grab behind them.
+
+## Default Hotkeys
 
 ### Frame-by-frame animation playback
 
@@ -842,11 +848,72 @@ useColorblindHelp = false
 ```
 
 You can specify a combination of keys, separated by `+` sign. You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.  
-Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt.
+Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4, JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10, JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp, LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp, PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight, XboxTypeSRightStickDown.
 
 If the mod is already running you don't need to do anything in order to apply the new hotkeys and settings. The mod can reread the settings on the fly, without reloading the mod or restarting the game (this was tested to work even on Ubuntu/Linux running GGXrd under Steam Proton).
 
 `slowmoTimes` is not a key combination, it must be a round integer number.
+
+## Framebar
+
+The framebar is displayed by default. To turn it off, you can go to mod's UI - Settings - Framebar Settings - Show Framebar (in the INI it is called 'showFramebar').
+
+![Screenshot can't be viewed](framebar_example.jpg)
+
+Here's a basic rundown of frame colors (there're way more than those listed):
+
+![Screenshot can't be viewed](frames_card.png)
+
+Hovering over a frame in the framebar will display a tooltip with extra information about a frame:
+
+![Screenshot can't be viewed](frame_tooltip.png)
+
+The tooltip includes the name of the current animation, brief or general information about the state of the player on that frame and input history for that frame, among other info.
+
+White ticks inbetween frames (they look like `'`) denote the start of a new animation or an important subsection of an animation.
+
+Frame numbers are displayed on the framebar, showing the number of frames in a span of same-colored frames. By default, frames that have a black triangle in their lower-right corner and denote 'Has whiff cancels' are considered 'same color' as the same-colored frames without that triangle. This can be changed using settings.
+
+By pressing down the left mouse button over one of the frames, holding it and dragging it, you can select a range of frames, and a text telling the count of selected frames will be shown.
+
+The framebar can be repositioned by dragging it anywhere but on the frames (try inbetween the rows of framebars), and it can be resized by dragging its edges, which become visible when dragging it (if the edges are invisible due to you not currently dragging the framebar, they can still be dragged to resize the framebar, you just need to know/guess where they are and land your mouse on them).
+
+The height of the rows of framebars can be adjusted using the 'UI - Settings - Framebar Settings - Framebar Height' (INI file - 'framebarHeight'), among other settings.
+
+The framebar skips hitstop, but that can be adjusted using settings. Framebar skips grab animations, which can be adjusted using settings. Framebar also skips superfreeze, and that cannot be adjusted. When skipping a grab or a superfreeze, but not hitstop, a white vertical stitch line will be displayed on the framebar at the place of the skip, and this can be adjusted using settings (including for skipping hitstop).
+
+You can read more about the framebar by going to UI - Settings - Framebar Settings - Framebar Help.
+
+## Position Reset Mod
+
+Position reset mod is disabled by default and must be enabled using 'mod's main window UI - Settings - General Settings - Use Position Reset Mod' setting. In the INI this setting is called 'usePositionResetMod'.
+
+The controls become as follows:
+
+- 2+Reset: non-swapped roundstart position;
+- 8+Reset: swapped roundstart position;
+- 4+Reset: left corner. Human Player outside the corner, CPU inside;
+- 1+Reset: left corner. Human Player inside the corner, CPU outside;
+- 6+Reset: right corner. Human Player outside the corner, CPU inside;
+- 3+Reset: right corner. Human Player inside the corner, CPU outside;
+- 5+Reset: reset to last used position;
+- 9+Reset: set current arbitrary position of both players as 'last used position'.
+
+For the corner positions, you can tweak the distance from the corner and the distance between players using the two settings below 'Use Position Reset Mod' in the UI: 'Position Reset Corner - Distance Between Players' and 'Position Reset Corner - Distance From Corner'. In the INI they're called respectively 'positionResetDistBetweenPlayers' and 'positionResetDistFromCorner'.
+
+BIG Thanks to WorseThanYou for making his own, original position reset mod, which was used as the source of information to make this one! You can get his mod at his website: <https://worsety.github.io/>. If you're using his mod, then hitbox_overlay's position reset won't work. All other features of hitbox_overlay will keep working, and WorseThanYou's position reset will keep working together with all the other features of hitbox_overlay.
+
+## Input History Mod
+
+Input history mod is disabled by default and must be enabled using 'mod's main window UI - Settings - General Settings - Display Durations In Input History' setting. In the INI this setting is called 'showDurationsInInputHistory'.
+
+It will modify training mode's and combo mode's display of input history like so:
+
+![Screenshot can't be viewed](input_history.jpg)
+
+You can enable the display of input history in modes like Offline Versus, Episode, Tutorial, Mission, using 'Display Input History In Some Offline Modes Vs CPU' setting (in INI it's called 'displayInputHistoryInSomeOfflineModes').
+
+And you can enable the display of input history when observing online matches using the 'Display Input History When Observing' setting (called 'displayInputHistoryWhenObserving' in INI).
 
 ## Taking transparent/non-transparent screenshots
 

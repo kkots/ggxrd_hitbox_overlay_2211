@@ -107,6 +107,7 @@ private:
 	bool showTensionData = false;
 	bool showBurstGain = false;
 	bool showSpeedsData = false;
+	bool showProjectiles = false;
 	bool showBoxExtents = false;
 	bool showFrameAdvTooltip = false;
 	bool showStartupTooltip = false;
@@ -291,6 +292,7 @@ private:
 	int selectedFrameStart = -1;
 	int selectedFrameEnd = -1;
 	int findHoveredFrame(float x, FrameDims* dims);
+	void drawRightAlignedP1TitleWithCharIcon();
 };
 
 extern UI ui;

@@ -818,14 +818,9 @@ void UI::drawSearchableWindows() {
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 			
 			ImGui::TableNextColumn();
-			GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
-			float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
-			RightAlign(w);
-			drawPlayerIconWithTooltip(0);
-			ImGui::SameLine();
-			ImGui::TextUnformatted("P1");
+			drawRightAlignedP1TitleWithCharIcon();
 			ImGui::TableNextColumn();
-			scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
+			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
 			CenterAlign(scaledIcon.size.x);
 			drawGGIcon(scaledIcon);
 			AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
@@ -1295,194 +1290,196 @@ void UI::drawSearchableWindows() {
 					}
 				}
 			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", formatBoolean(player.idle));
-				printNoWordWrap
-				
-				if (i == 0) {
+			if (settings.showDebugFields) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("idle");
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("canBlock");
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", formatBoolean(player.canFaultlessDefense));
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("canFaultlessDefense");
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("idlePlus");
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("idleLanding");
-				}
-			}
-			const bool useSlang = settings.useSlangNames;
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				const char* names[3] { nullptr };
-				if (player.moveNonEmpty) {
-					names[0] = useSlang ? player.move.getDisplayNameSlang(player) : player.move.getDisplayName(player);
-				}
-				if (player.moveName[0] != '\0') {
-					names[1] = player.moveName;
-				}
-				if (player.anim[0] != '\0') {
-					names[2] = player.anim;
-				}
-				bool isFirst = true;
-				char* buf = strbuf;
-				size_t bufSize = sizeof strbuf;
-				int result;
-				for (int j = 0; j < 3; ++j) {
-					const char* name = names[j];
-					if (!name) continue;
+					sprintf_s(strbuf, "%s", formatBoolean(player.idle));
+					printNoWordWrap
 					
-					bool alreadyIncluded = false;
-					for (int k = 0; k < j; ++k) {
-						if (names[k] && strcmp(names[k], name) == 0) {
-							alreadyIncluded = true;
-							break;
-						}
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("idle");
 					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
+					printNoWordWrap
 					
-					if (alreadyIncluded) continue;
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("canBlock");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "%s", formatBoolean(player.canFaultlessDefense));
+					printNoWordWrap
 					
-					if (!isFirst) {
-						result = sprintf_s(buf, bufSize, " / ");
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("canFaultlessDefense");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("idlePlus");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("idleLanding");
+					}
+				}
+				const bool useSlang = settings.useSlangNames;
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					const char* names[3] { nullptr };
+					if (player.moveNonEmpty) {
+						names[0] = useSlang ? player.move.getDisplayNameSlang(player) : player.move.getDisplayName(player);
+					}
+					if (player.moveName[0] != '\0') {
+						names[1] = player.moveName;
+					}
+					if (player.anim[0] != '\0') {
+						names[2] = player.anim;
+					}
+					bool isFirst = true;
+					char* buf = strbuf;
+					size_t bufSize = sizeof strbuf;
+					int result;
+					for (int j = 0; j < 3; ++j) {
+						const char* name = names[j];
+						if (!name) continue;
+						
+						bool alreadyIncluded = false;
+						for (int k = 0; k < j; ++k) {
+							if (names[k] && strcmp(names[k], name) == 0) {
+								alreadyIncluded = true;
+								break;
+							}
+						}
+						
+						if (alreadyIncluded) continue;
+						
+						if (!isFirst) {
+							result = sprintf_s(buf, bufSize, " / ");
+							advanceBuf
+						}
+						isFirst = false;
+						result = sprintf_s(buf, bufSize, "%s", name);
 						advanceBuf
 					}
-					isFirst = false;
-					result = sprintf_s(buf, bufSize, "%s", name);
-					advanceBuf
+					printWithWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("anim");
+					}
 				}
-				printWithWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("anim");
+					sprintf_s(strbuf, "%d", player.animFrame);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("animFrame");
+					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.animFrame);
-				printNoWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("animFrame");
+					player.sprite.print(strbuf, sizeof strbuf);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("sprite");
+					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.sprite.print(strbuf, sizeof strbuf);
-				printNoWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("sprite");
+					sprintf_s(strbuf, "%d", player.startup);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("startup");
+					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.startup);
-				printNoWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("startup");
+					player.actives.print(strbuf, sizeof strbuf);
+					printWithWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("active");
+					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.actives.print(strbuf, sizeof strbuf);
-				printWithWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("active");
+					sprintf_s(strbuf, "%d", player.recovery);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("recovery");
+					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.recovery);
-				printNoWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("recovery");
+					sprintf_s(strbuf, "%d", player.total);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("total");
+					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.total);
-				printNoWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("total");
+					sprintf_s(strbuf, "%d", player.startupProj);
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("startupProj");
+					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%d", player.startupProj);
-				printNoWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText("startupProj");
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.activesProj.print(strbuf, sizeof strbuf);
-				printWithWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText("activesProj");
+					player.activesProj.print(strbuf, sizeof strbuf);
+					printWithWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("activesProj");
+					}
 				}
 			}
 			Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
@@ -1521,247 +1518,6 @@ void UI::drawSearchableWindows() {
 		}
 	}
 	popSearchStack();
-	if (ImGui::CollapsingHeader(searchCollapsibleSection("Projectiles")) || searching) {
-		if (ImGui::BeginTable("##Projectiles", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
-			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
-			ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
-			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.4f);
-			
-			ImGui::TableNextColumn();
-			RightAlignedText("P1");
-			ImGui::TableNextColumn();
-			ImGui::TableNextColumn();
-			ImGui::TextUnformatted("P2");
-			
-			struct Row {
-				ProjectileInfo* side[2] { nullptr };
-			};
-			std::vector<Row> rows;
-			for (ProjectileInfo& projectile : endScene.projectiles) {
-				bool found = false;
-				for (Row& row : rows) {
-					if (!row.side[projectile.team]) {
-						row.side[projectile.team] = &projectile;
-						found = true;
-						break;
-					}
-				}
-				if (!found) {
-					rows.emplace_back();
-					Row& row = rows.back();
-					row.side[projectile.team] = &projectile;
-				}
-			}
-			bool isFirst = true;
-			for (Row& row : rows) {
-				if (!isFirst) {
-					ImGui::TableNextColumn();
-					ImGui::TableNextColumn();
-					ImGui::TableNextColumn();
-				}
-				isFirst = false;
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						sprintf_s(strbuf, "%p", (void*)projectile.ptr);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("ptr");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						sprintf_s(strbuf, "%d", projectile.lifeTimeCounter);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("lifeTimeCounter");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						char* buf = strbuf;
-						size_t bufSize = sizeof strbuf;
-						printDecimal(projectile.x, 2, 0, false);
-						int result = sprintf_s(strbuf, "%s; ", printdecimalbuf);
-						advanceBuf
-						printDecimal(projectile.y, 2, 0, false);
-						sprintf_s(buf, bufSize, "%s", printdecimalbuf);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("pos");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						printNoWordWrapArg(projectile.creatorName)
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("creator");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						printNoWordWrapArg(projectile.animName)
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("anim");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						printNoWordWrapArg(projectile.ptr ? projectile.ptr.gotoLabelRequest() : "")
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("gotoLabelRequest");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						sprintf_s(strbuf, "%d", projectile.animFrame);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("animFrame");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						projectile.sprite.print(strbuf, sizeof strbuf);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("sprite");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						sprintf_s(strbuf, "%d/%d", projectile.hitstopWithSlow, projectile.hitstopMaxWithSlow);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("hitstop");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						printActiveWithMaxHit(projectile.actives, projectile.maxHit,
-							!projectile.maxHit.empty() && projectile.maxHit.maxUse <= 1 ? 0 : projectile.hitOnFrame);
-						
-						printWithWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("active");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						projectile.printStartup(strbuf, sizeof strbuf);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("startup");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						projectile.printTotal(strbuf, sizeof strbuf);
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("total");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						sprintf_s(strbuf, "%s", formatBoolean(projectile.disabled));
-						printNoWordWrap
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("disabled");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					ImGui::TableNextColumn();
-					if (row.side[i]) {
-						ProjectileInfo& projectile = *row.side[i];
-						if (projectile.hitboxTopBottomValid) {
-							sprintf_s(strbuf, "from %d to %d",
-								projectile.hitboxTopY,
-								projectile.hitboxBottomY);
-							printNoWordWrap
-						}
-					}
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("Hitbox Y");
-						AddTooltip("These values display either the current or last valid value and change each frame."
-							" They do not show the total combined bounding box."
-							" To view these values for each frame more easily you could use the frame freeze mode,"
-							" available in the Hitboxes section.\n"
-							"The coordinates shown are relative to the global space.");
-					}
-				}
-				if (searching) break;
-			}
-			ImGui::EndTable();
-		}
-	}
-	popSearchStack();
 	if (ImGui::Button(searchFieldTitle("Show Tension Values"))) {
 		showTensionData = !showTensionData;
 	}
@@ -1776,6 +1532,11 @@ void UI::drawSearchableWindows() {
 		showSpeedsData = !showSpeedsData;
 	}
 	AddTooltip(searchTooltip("Display x,y, speed, pushback and protation of hitstun and pushback."));
+	
+	if (ImGui::Button(searchFieldTitle("Projectiles"))) {
+		showProjectiles = !showProjectiles;
+	}
+	AddTooltip(searchTooltip("Display the list of current projectiles present on the current frame, for both players."));
 	for (int i = 0; i < two; ++i) {
 		ImGui::PushID(searchFieldTitle("Character Specific"));
 		ImGui::PushID(i);
@@ -2315,6 +2076,8 @@ void UI::drawSearchableWindows() {
 			
 			intSettingPreset(settings.positionResetDistBetweenPlayers, 0, 1000, 10000, 120.F);
 			intSettingPreset(settings.positionResetDistFromCorner, 0, 1000, 10000, 120.F);
+			
+			booleanSettingPreset(settings.showDebugFields);
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
@@ -2960,6 +2723,275 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(strbuf);
 			}
 			
+			ImGui::EndTable();
+		}
+		ImGui::End();
+	}
+	popSearchStack();
+	searchCollapsibleSection("Projectiles");
+	if (showProjectiles || searching) {
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::Begin(searching ? "search_projectiles" : "Projectiles", &showProjectiles, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		
+		if (ImGui::BeginTable("##Projectiles", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
+			ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
+			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.4f);
+			
+			ImGui::TableNextColumn();
+			drawRightAlignedP1TitleWithCharIcon();
+			ImGui::SameLine();
+			RightAlignedText("P1");
+			ImGui::TableNextColumn();
+			ImGui::TableNextColumn();
+			drawPlayerIconWithTooltip(1);
+			ImGui::SameLine();
+			ImGui::TextUnformatted("P2");
+			
+			struct Row {
+				ProjectileInfo* side[2] { nullptr };
+			};
+			std::vector<Row> rows;
+			for (ProjectileInfo& projectile : endScene.projectiles) {
+				bool found = false;
+				for (Row& row : rows) {
+					if (!row.side[projectile.team]) {
+						row.side[projectile.team] = &projectile;
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					rows.emplace_back();
+					Row& row = rows.back();
+					row.side[projectile.team] = &projectile;
+				}
+			}
+			bool isFirst = true;
+			for (Row& row : rows) {
+				if (!isFirst) {
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+					ImGui::TableNextColumn();
+				}
+				isFirst = false;
+				if (settings.showDebugFields) {
+					for (int i = 0; i < two; ++i) {
+						ImGui::TableNextColumn();
+						if (row.side[i]) {
+							ProjectileInfo& projectile = *row.side[i];
+							sprintf_s(strbuf, "%p", (void*)projectile.ptr);
+							printNoWordWrap
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("ptr");
+						}
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%d", projectile.lifeTimeCounter);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Lifetime Counter");
+						AddTooltip("Time, in frames, since creation. Does not reset when switching states.");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						char* buf = strbuf;
+						size_t bufSize = sizeof strbuf;
+						printDecimal(projectile.x, 2, 0, false);
+						int result = sprintf_s(strbuf, "%s; ", printdecimalbuf);
+						advanceBuf
+						printDecimal(projectile.y, 2, 0, false);
+						sprintf_s(buf, bufSize, "%s", printdecimalbuf);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Pos");
+						AddTooltip("Position X; Y");
+					}
+				}
+				if (settings.showDebugFields) {
+					for (int i = 0; i < two; ++i) {
+						ImGui::TableNextColumn();
+						if (row.side[i]) {
+							ProjectileInfo& projectile = *row.side[i];
+							printNoWordWrapArg(projectile.creatorName)
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("Creator");
+							AddTooltip("The name of state that created this projectile.");
+						}
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						printNoWordWrapArg(projectile.animName)
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Anim");
+						AddTooltip("The name of the current state of this projectile.");
+					}
+				}
+				if (settings.showDebugFields) {
+					for (int i = 0; i < two; ++i) {
+						ImGui::TableNextColumn();
+						if (row.side[i]) {
+							ProjectileInfo& projectile = *row.side[i];
+							printNoWordWrapArg(projectile.ptr ? projectile.ptr.gotoLabelRequest() : "")
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("gotoLabelRequest");
+							AddTooltip("On the next frame, this projectile will change to a sub-state of the given name.");
+						}
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%d", projectile.animFrame);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Anim Frame");
+						AddTooltip("Current time spent in the current state, in frames, not including hitstop and superfreeze. Starts from 1 when entering a new state.");
+					}
+				}
+				if (settings.showDebugFields) {
+					for (int i = 0; i < two; ++i) {
+						ImGui::TableNextColumn();
+						if (row.side[i]) {
+							ProjectileInfo& projectile = *row.side[i];
+							projectile.sprite.print(strbuf, sizeof strbuf);
+							printNoWordWrap
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("Sprite");
+						}
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						sprintf_s(strbuf, "%d/%d", projectile.hitstopWithSlow, projectile.hitstopMaxWithSlow);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Hitstop");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						printActiveWithMaxHit(projectile.actives, projectile.maxHit,
+							!projectile.maxHit.empty() && projectile.maxHit.maxUse <= 1 ? 0 : projectile.hitOnFrame);
+						
+						printWithWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Active");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						projectile.printStartup(strbuf, sizeof strbuf);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Startup");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						projectile.printTotal(strbuf, sizeof strbuf);
+						printNoWordWrap
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Total");
+					}
+				}
+				if (settings.showDebugFields) {
+					for (int i = 0; i < two; ++i) {
+						ImGui::TableNextColumn();
+						if (row.side[i]) {
+							ProjectileInfo& projectile = *row.side[i];
+							sprintf_s(strbuf, "%s", formatBoolean(projectile.disabled));
+							printNoWordWrap
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("Ignored");
+							AddTooltip("This means that the projectile does not count towards the display of 'Active' frames in the mod's main UI window for the player.");
+						}
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					ImGui::TableNextColumn();
+					if (row.side[i]) {
+						ProjectileInfo& projectile = *row.side[i];
+						if (projectile.hitboxTopBottomValid) {
+							sprintf_s(strbuf, "from %d to %d",
+								projectile.hitboxTopY,
+								projectile.hitboxBottomY);
+							printNoWordWrap
+						}
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("Hitbox Y");
+						AddTooltip("These values display either the current or last valid value and change each frame."
+							" They do not show the total combined bounding box."
+							" To view these values for each frame more easily you could use the frame freeze mode,"
+							" available in the Hitboxes section.\n"
+							"The coordinates shown are relative to the global space.");
+					}
+				}
+				if (searching) break;
+			}
 			ImGui::EndTable();
 		}
 		ImGui::End();
@@ -11639,6 +11671,15 @@ int UI::findHoveredFrame(float x, FrameDims* dims) {
 		if (start == end || x < dims[end].x) return start;
 		return end;
 	}
+}
+
+void UI::drawRightAlignedP1TitleWithCharIcon() {
+	GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
+	float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
+	RightAlign(w);
+	drawPlayerIconWithTooltip(0);
+	ImGui::SameLine();
+	ImGui::TextUnformatted("P1");
 }
 
 void UI::drawFramebars() {

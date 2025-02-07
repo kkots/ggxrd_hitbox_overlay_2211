@@ -150,6 +150,7 @@ public:
 	std::atomic_bool showJackoAegisFieldRange = false;
 	std::atomic_bool showJackoServantAttackRange = false;
 	std::atomic_bool usePositionResetMod = false;
+	std::atomic_bool showDebugFields = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);
