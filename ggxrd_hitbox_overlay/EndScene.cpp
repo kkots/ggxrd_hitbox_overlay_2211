@@ -5747,6 +5747,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFramePlayerval1 = player.playerval1;
 			player.prevFramePlayerval2 = player.wasPlayerval[2];
 			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
+			player.prevBbscrvar5 = player.pawn.bbscrvar5();
 			for (int k = 0; k < 4; ++k) {
 				player.prevFrameResource[k] = player.pawn.exGaugeValue(k);
 			}
@@ -6407,6 +6408,11 @@ void EndScene::onAswEngineDestroyed() {
 	needFrameCleanup = false;
 	creatingObject = false;
 	moves.onAswEngineDestroyed();
+	
+	// do this even if 'give up'
+	for (int i = 0; i < 2; ++i) {
+		players[i].clear();
+	}
 	if (!iGiveUp) {
 		measuringFrameAdvantage = false;
 		measuringLandingFrameAdvantage = -1;
@@ -6414,9 +6420,6 @@ void EndScene::onAswEngineDestroyed() {
 		memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
 		memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
 		memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
-		for (int i = 0; i < 2; ++i) {
-			players[i].clear();
-		}
 		projectiles.clear();
 		sendSignalStack.clear();
 		events.clear();
@@ -6920,7 +6923,6 @@ void EndScene::frameCleanup() {
 		++it;
 	}
 	for (PlayerInfo& player : players) {
-		player.prevBbscrvar5 = player.pawn ? player.pawn.bbscrvar5() : 0;
 		player.setHitstopMax = false;
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = false;
