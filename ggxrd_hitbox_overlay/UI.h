@@ -38,7 +38,6 @@ public:
 	void handleResetBefore();
 	void handleResetAfter();
 	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);
-	void resetFrameSelection();
 	
 	struct FrameDims {
 		float x;
@@ -86,6 +85,20 @@ public:
 	std::vector<BYTE> framebarTooltipDrawDataCopy;
 	bool needShowFramebar() const;
 	bool needShowFramebarCached = false;
+	// At the time of calling this function FramebarSettings framebarSettings must already be updated.
+	void onFramebarReset();
+	// At the time of calling this function FramebarSettings framebarSettings must already be updated.
+	void onFramebarAdvanced();
+	// Since UI may change some of the settings right before it draws the framebar,
+	// while combined projectile framebars may have been prepared or not prepared
+	// according to settings before the change, we need to store a snapshot
+	// of those settings that are needed to draw the framebar and which
+	// are used in both EndScene::prepareDrawData() and UI::drawFramebars().
+	// These values are filled in by EndScene::prepareDrawData().
+	struct FramebarSettings {
+		bool neverIgnoreHitstop = false;
+		bool eachProjectileOnSeparateFramebar = false;
+	} framebarSettings;
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -102,7 +115,7 @@ private:
 	static SHORT WINAPI hook_GetKeyState(int nVirtKey);
 	void decrementFlagTimer(int& timer, bool& flag);
 	void frameAdvantageControl(int frameAdvantage, int landingFrameAdvantage, bool frameAdvantageValid, bool landingFrameAdvantageValid, bool rightAlign);
-	void frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
+	int frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
 	void frameAdvantageText(int frameAdv);
 	bool showTensionData = false;
 	bool showBurstGain = false;
@@ -206,7 +219,7 @@ private:
 	bool booleanSettingPreset(std::atomic_bool& settingsRef);
 	bool booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey);
 	bool float4SettingPreset(float& settingsPtr);
-	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F);
+	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX);
 	bool showCancels[2] { false, false };
 	bool showDamageCalculation[2] { false, false };
 	bool showStunmash[2] { false, false };
@@ -273,6 +286,7 @@ private:
 	int printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale);
 	void printAttackLevel(const DmgCalc& dmgCalc);
 	std::vector<BYTE> framebarWindowDrawDataCopy;
+	std::vector<BYTE> framebarHorizontalScrollbarDrawDataCopy;
 	bool showHowFlickingWorks[2] { false };
 	const char* faust5DHelp = "The inner circle shows the range in which the thrown item's origin point must be in order to achieve a homerun hit."
 			" The outer circles shows the range in which the thrown item's origin point must be in order to achieve a non-homerun"
@@ -290,9 +304,15 @@ private:
 	bool printHowAzamiWorks[2] { false };
 	bool selectingFrames = false;
 	int selectedFrameStart = -1;
+	// Inclusive.
 	int selectedFrameEnd = -1;
 	int findHoveredFrame(float x, FrameDims* dims);
 	void drawRightAlignedP1TitleWithCharIcon();
+	float framebarScrollX = 0.F;  // this scroll is obsolete 2 frames. We store this because we keep framebar's horizontal scrollbar in a separate window
+	float framebarMaxScrollX = 0.F;  // this scroll max is obsolete 2 frames. We store this because framebar window might get resized and our scroll is from 2 frames ago
+	bool framebarAutoScroll = false;
+	void resetFrameSelection();
+	bool dontUsePreBlockstunTime = false;
 };
 
 extern UI ui;

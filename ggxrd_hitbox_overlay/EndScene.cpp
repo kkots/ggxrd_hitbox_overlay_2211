@@ -55,6 +55,7 @@ static inline bool isDizzyBubble(const char* name) {
 	return (*(DWORD*)name & 0xffffff) == ('A' | ('w'<<8) | ('a'<<16))
 		&& *(DWORD*)(name + 4) == ('O' | ('b'<<8) | ('j'<<16));
 }
+static void increaseFramesCountUnlimited(int& counterUnlimited, int incrBy, int displayedFrames);
 
 bool EndScene::onDllMain() {
 	bool error = false;
@@ -709,7 +710,7 @@ void EndScene::HookHelp::drawTrainingHudHook() {
 // Runs on the main thread. Called once every frame when a match is running, including freeze mode or when Pause menu is open
 void EndScene::logic() {
 	actUponKeyStrokesThatAlreadyHappened();
-
+	
 	bool needToClearHitDetection = false;
 	if (gifMode.modDisabled) {
 		needToClearHitDetection = true;
@@ -796,20 +797,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		{
 			PlayerFramebars& framebar = playerFramebars.back();
 			framebar.playerIndex = 0;
-			framebar.setTitle("Player 1");
 		}
 		
 		playerFramebars.emplace_back();
 		{
 			PlayerFramebars& framebar = playerFramebars.back();
 			framebar.playerIndex = 1;
-			framebar.setTitle("Player 2");
 		}
 		
 		framebarPosition = _countof(Framebar::frames) - 1;
+		framebarTotalFramesUnlimited = 0;
 		framebarPositionHitstop = _countof(Framebar::frames) - 1;
+		framebarTotalFramesHitstopUnlimited = 0;
 		framebarIdleFor = 0;
 		framebarIdleHitstopFor = 0;
+		ui.onFramebarReset();
 	}
 	if (startedNewRound) {
 		startedNewRound = false;
@@ -3921,6 +3923,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		if ((atLeastOneDead || matchTimerZero) && !atLeastOneDiedThisFrame) {
 			// do nothing
 		} else if (getSuperflashInstigator() == nullptr) {
+			int displayedFrames = settings.framebarDisplayedFramesCount;
+			if (displayedFrames < 1) {
+				displayedFrames = 1;
+			}
+			int storedFrames = settings.framebarStoredFramesCount;
+			if (storedFrames < 1) {
+				storedFrames = 1;
+			}
+			if (storedFrames > _countof(Framebar::frames)) {
+				storedFrames = _countof(Framebar::frames);
+			}
+			if (displayedFrames > storedFrames) {
+				displayedFrames = storedFrames;
+			}
+			
 			if (atLeastOneBusy || atLeastOneDangerousProjectilePresent) {
 				if (framebarIdleHitstopFor > framebarIdleForLimit) {
 					
@@ -3931,6 +3948,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					nextSkippedFramesIdleHitstop.clear();
 					
 					framebarPositionHitstop = 0;
+					framebarTotalFramesHitstopUnlimited = 0;
 					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 						entityFramebar.getHitstop().clear();
@@ -3960,6 +3978,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						framebarPositionHitstop %= _countof(Framebar::frames);
 					}
 					EntityFramebar::incrementPos(framebarPositionHitstop);
+					increaseFramesCountUnlimited(framebarTotalFramesHitstopUnlimited,
+						1 + framebarIdleHitstopFor,
+						displayedFrames);
 					
 					skippedFramesHitstop[framebarPositionHitstop] = nextSkippedFramesHitstop;
 					nextSkippedFramesHitstop.clear();
@@ -3983,7 +4004,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				framebarAdvancedIdleHitstop = true;
 				
 				if (atLeastOneNotInHitstop) {
-					ui.resetFrameSelection();
 					if (framebarIdleFor > framebarIdleForLimit) {
 						
 						memset(skippedFrames.data(), 0, sizeof SkippedFramesInfo * _countof(Framebar::frames));
@@ -3993,6 +4013,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						nextSkippedFramesIdle.clear();
 						
 						framebarPosition = 0;
+						framebarTotalFramesUnlimited = 0;
 						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 							entityFramebar.getMain().clear();
@@ -4022,6 +4043,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							framebarPosition %= _countof(Framebar::frames);
 						}
 						EntityFramebar::incrementPos(framebarPosition);
+						increaseFramesCountUnlimited(framebarTotalFramesUnlimited,
+							1 + framebarIdleFor,
+							displayedFrames);
 						
 						skippedFrames[framebarPosition] = nextSkippedFrames;
 						nextSkippedFrames.clear();
@@ -4044,10 +4068,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					framebarIdleFor = 0;
 					framebarAdvanced = true;
 					framebarAdvancedIdle = true;
+					if (!settings.neverIgnoreHitstop) ui.onFramebarAdvanced();
 				} else {  // if not  atLeastOneNotInHitstop
 					nextSkippedFrames.addFrame(SKIPPED_FRAMES_HITSTOP);
 					nextSkippedFramesIdle.addFrame(SKIPPED_FRAMES_HITSTOP);
 				}
+				if (settings.neverIgnoreHitstop) ui.onFramebarAdvanced();
 			} else if (atLeastOneDoingGrab) {  // if not atLeastOneBusy || atLeastOneDangerousProjectilePresent
 				nextSkippedFrames.addFrame(skippedType);
 				nextSkippedFramesIdle.addFrame(skippedType);
@@ -4235,6 +4261,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.rcSlowdownMax = projectile.rcSlowedDownMax;
 				currentFrame.activeDuringSuperfreeze = false;
 				currentFrame.powerup = projectile.move.projectilePowerup && projectile.move.projectilePowerup(projectile);
+				if (!projectile.dontReplaceFramebarTitle
+						|| currentFrame.title.text == nullptr || *currentFrame.title.text == '\0') {
+					currentFrame.title = projectile.framebarTitle;
+				} else if (framebarPos != 0 || framebarTotalFramesHitstopUnlimited > 0 || framebarIdleHitstopFor > 0) {
+					currentFrame.title = framebar[
+						framebarPos == 0
+							? _countof(Framebar::frames) - 1
+							: framebarPos - 1
+					].title;
+				}
 			} else if (superflashInstigator && projectile.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 				if (currentFrame.type == FT_NONE) {
@@ -4338,7 +4374,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		if (framebarAdvancedIdleHitstop) {
 			for (ProjectileFramebar& entityFramebar : projectileFramebars) {
-				if(entityFramebar.foundOnThisFrame) continue;
+				if (entityFramebar.foundOnThisFrame) continue;
 				
 				Framebar& framebar = entityFramebar.idleHitstop;
 				Frame& currentFrame = framebar[framebarPos];
@@ -4354,6 +4390,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.rcSlowdownMax = 0;
 				currentFrame.activeDuringSuperfreeze = false;
 				currentFrame.powerup = false;
+				
+				if (framebarPos != 0 || framebarTotalFramesHitstopUnlimited > 0 || framebarIdleHitstopFor > 0) {
+					currentFrame.title = framebar[
+						framebarPos == 0
+							? _countof(Framebar::frames) - 1
+							: framebarPos - 1
+					].title;
+				}
 				
 				copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
 					framebarAdvanced,
@@ -5285,6 +5329,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				
 				currentFrame.counterhit = player.counterhit;
+				
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 			}
@@ -5609,12 +5654,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.appendPlayerCancelInfo(newCancelInfo);
 			}
 			
-			copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
-				framebarAdvanced,
-				framebarAdvancedIdle,
-				framebarAdvancedHitstop,
-				framebarAdvancedIdleHitstop);
-			
 			if (measureInvuls) {
 				int prevTotal = player.prevStartups.total() + player.total;
 				
@@ -5625,6 +5664,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
+		const bool dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 		for (PlayerInfo& player : players) {
 			player.startupDisp = 0;
 			player.activesDisp.clear();
@@ -5716,6 +5756,44 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.prevStartupsTotalDisp = player.prevStartups;
 				player.totalDisp = player.total;
 			}
+			
+			PlayerFramebars& entityFramebar = playerFramebars[player.index];
+			PlayerFramebar& framebar = entityFramebar.idleHitstop;
+			PlayerFrame& currentFrame = framebar[framebarPos];
+			
+			int value;
+			
+			value = player.printStartupForFramebar();
+			currentFrame.startup = value > SHRT_MAX ? SHRT_MAX : value;
+			
+			value = player.activesDisp.total();
+			currentFrame.active = value > SHRT_MAX ? SHRT_MAX : value;
+			
+			value = player.printRecoveryForFramebar();
+			currentFrame.recovery = value > SHRT_MAX ? SHRT_MAX : value;
+			
+			int frameAdvantage = dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage;
+			int landingFrameAdvantage = dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage;
+			if (player.frameAdvantageValid && player.landingFrameAdvantageValid && frameAdvantage != landingFrameAdvantage) {
+				currentFrame.frameAdvantage = frameAdvantage;
+				currentFrame.landingFrameAdvantage = landingFrameAdvantage;
+			} else if (player.frameAdvantageValid || player.landingFrameAdvantageValid) {
+				int frameAdvantageUse = player.frameAdvantageValid ? frameAdvantage : landingFrameAdvantage;
+				currentFrame.frameAdvantage = frameAdvantageUse;
+				currentFrame.landingFrameAdvantage = SHRT_MIN;
+			} else {
+				currentFrame.frameAdvantage = SHRT_MIN;
+				currentFrame.landingFrameAdvantage = SHRT_MIN;
+			}
+			
+			value = player.totalDisp;
+			currentFrame.total = value > SHRT_MAX ? SHRT_MAX : value;
+			
+			copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
+				framebarAdvanced,
+				framebarAdvancedIdle,
+				framebarAdvancedHitstop,
+				framebarAdvancedIdleHitstop);
 			
 			if (player.hitstop) {
 				player.displayHitstop = true;
@@ -5816,11 +5894,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		neverIgnoreHitstop = settings.neverIgnoreHitstop;
 		combinedFramebarsSettingsChanged = true;
 	}
+	
+	// Let UI know which settings we actually used, because UI may change them before drawing the framebar
+	ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
+	ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+	
 	if ((combinedFramebarsSettingsChanged || frameHasChanged) && !iGiveUp) {
 		combinedFramebars.clear();
 		combinedFramebars.reserve(projectileFramebars.size());
 		if (!eachProjectileOnSeparateFramebar) {
-			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop ? true : false;
+			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop;
 			int framebarPositionUse;
 			if (combinedFramebarMustIncludeHitstop) {
 				framebarPositionUse = framebarPosition;
@@ -5835,7 +5918,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			for (CombinedProjectileFramebar& entityFramebar : combinedFramebars) {
-				entityFramebar.determineName(framebarPositionUse);
+				entityFramebar.determineName(framebarPositionUse, combinedFramebarMustIncludeHitstop);
 			}
 		}
 	}
@@ -7952,6 +8035,15 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 		nameFull = nullptr;
 		dontReplaceTitle = true;
 	}
+	
+	// We will dump this into a frame
+	projectile.framebarTitle.text = name;
+	projectile.framebarTitle.slang = slangName;
+	projectile.framebarTitle.uncombined = nameUncombined;
+	projectile.framebarTitle.slangUncombined = slangNameUncombined;
+	projectile.framebarTitle.full = nameFull;
+	projectile.dontReplaceFramebarTitle = dontReplaceTitle;
+	
 	for (ProjectileFramebar& bar : projectileFramebars) {
 		if (bar.playerIndex == projectile.team
 				&& (
@@ -7964,16 +8056,6 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 			) {
 			if (!(bar.moveFramebarId != -1 && projectile.move.framebarId == -1)) {
 				bar.moveFramebarId = projectile.move.framebarId;
-			}
-			if (!(
-					*bar.titleShort != '\0'
-					&& (
-						name == nullptr
-						|| *name == '\0'
-						|| dontReplaceTitle
-					)
-				)) {
-				bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull);
 			}
 			return bar;
 		}
@@ -7988,7 +8070,6 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 	bar.isEddie = projectile.move.isEddie;
 	projectile.framebarId = nextFramebarId;
 	incrementNextFramebarIdSmartly();
-	bar.setTitle(name, slangName, nameUncombined, slangNameUncombined, nameFull);
 	bar.moveFramebarId = projectile.move.framebarId;
 	return bar;
 }
@@ -8016,17 +8097,6 @@ CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFrame
 			if (!(bar.moveFramebarId != -1 && source.moveFramebarId == -1)) {
 				bar.moveFramebarId = source.moveFramebarId;
 			}
-			if (!(
-					*bar.titleShort != '\0'
-					&& bar.moveFramebarId != -1
-					&& (
-						*source.titleShort == '\0'
-						|| source.moveFramebarId == -1
-					)
-				)
-			) {
-				bar.copyTitle(source);
-			}
 			return bar;
 		}
 	}
@@ -8035,7 +8105,6 @@ CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFrame
 	bar.playerIndex = source.playerIndex;
 	bar.id = id;
 	bar.isEddie = source.isEddie;
-	bar.copyTitle(source);
 	bar.moveFramebarId = source.moveFramebarId;
 	return bar;
 }
@@ -8999,5 +9068,16 @@ void EndScene::checkDizzyBubblePops() {
 				}
 			}
 		}
+	}
+}
+
+void increaseFramesCountUnlimited(int& counterUnlimited, int incrBy, int displayedFrames) {
+	if (INT_MAX - counterUnlimited < incrBy) {
+		int currentRemainder = counterUnlimited % displayedFrames;
+		int remainder = _countof(Framebar::frames) % displayedFrames;
+		counterUnlimited = _countof(Framebar::frames) + displayedFrames - remainder
+			+ currentRemainder;
+	} else {
+		counterUnlimited += incrBy;
 	}
 }

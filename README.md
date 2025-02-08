@@ -722,6 +722,21 @@ framebarHeight = 19
 ; The standard value is 12.
 framebarTitleCharsMax = 12
 
+; A number.
+; Specifies the maximum number of frames that will be displayed on the screen at a time.
+; If there're more frames stored (see "framebarStoredFramesCount") in the framebar than this number,
+; a horizontal scrollbar will be displayed.
+; This value can't be more than 200.
+; The standard value is 80.
+framebarDisplayedFramesCount = 80
+
+; A number.
+; Specifies the maximum number of past frames that can be viewed by scrolling the framebar horizontally,
+; including frames that are visible without having to scroll.
+; This value can't be more than 200.
+; The standard value is 200.
+framebarStoredFramesCount = 200
+
 ; Specify true or false.
 ; This setting will affect how the 'Frame Advantage' field in the UI is calculated.
 ; Normally, attacks put your opponent in blockstun right away, however, there are some moves that
@@ -750,6 +765,19 @@ showFramebarHatchedLineWhenSkippingGrab = true
 ; setting being false,
 ; a white line made out of small diagonal hatches will be displayed on the framebar in places where hitstop was skipped.
 showFramebarHatchedLineWhenSkippingHitstop = false
+
+; Specify true or false.
+; When this setting is true (default), if superfreeze (also called superflash) is skipped, which is always the case,
+; a white line made out of small diagonal hatches will be displayed on the framebar in places where superfreeze was skipped.
+showFramebarHatchedLineWhenSkippingSuperfreeze = true
+
+; Specify true or false.
+; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed on top of P1's framebar.
+showP1FramedataInFramebar = true
+
+; Specify true or false.
+; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar..
+showP2FramedataInFramebar = true
 
 ; Specify true or false.
 ; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,
@@ -845,7 +873,13 @@ Frame numbers are displayed on the framebar, showing the number of frames in a s
 
 By pressing down the left mouse button over one of the frames, holding it and dragging it, you can select a range of frames, and a text telling the count of selected frames will be shown.
 
-The framebar can be repositioned by dragging it anywhere but on the frames (try inbetween the rows of framebars), and it can be resized by dragging its edges, which become visible when dragging it (if the edges are invisible due to you not currently dragging the framebar, they can still be dragged to resize the framebar, you just need to know/guess where they are and land your mouse on them).
+The framebar can be repositioned by dragging it anywhere but on the frames (try inbetween the rows of framebars), and it can be resized by dragging its edges, which become visible when dragging it (if the edges are invisible due to you not currently dragging the framebar, they can still be dragged to resize the framebar, you just need to land your mouse on them correctly).
+
+Projectiles on the framebar get their own separate framebars. If the framebar window cannot hold all of the projectile framebars, a vertical scrollbar appears that you can scroll with the mouse wheel or by dragging it.
+
+Once the framebar accumulates more frames than it can display, it circles around, but also a horizontal scrollbar appears, and when it is scrolled, it lets you revert the state of the framebar into the past, up to a certain extent. This can be turned off using settings.
+
+Framedata in the form of Startup/Active/Recovery/Total/Advantage is shown on top of P1's framebar and under P2's framebar, with projectile framebars going below all that. Framedata display in the framebar can be disabled in the settings.
 
 The height of the rows of framebars can be adjusted using the 'UI - Settings - Framebar Settings - Framebar Height' (INI file - 'framebarHeight'), among other settings.
 
@@ -1147,5 +1181,6 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2024 November 12: made hitboxes' outline change to black when drawing over similarly colored background. For example, previously, when the character is red, the hitbox outline would not be visible on top of them, but now the outline will be black in this particular case.
 - 2024 December: Fixed the display of invulnerability after rejecting something with a Blitz Shield - there's no longer one frame of supposed vulnerability (in reality, you can do backdash/DP/Super from a reject and not be vulnerable for a single frame).
 - 2025 January 1-7: Removed Y check from some command grabs that are ground-only, except Genrou Zan. Added a new type of boxes/circles that are white - interaction boxes/circles, and projectile origin points.
-- 2025 January 1: can now use gamepad buttons and inputs as hotkeys
-- 2024 February 7: releasing framebar, framedata display, with input history mod and position reset mod
+- 2025 February 1: can now use gamepad buttons and inputs as hotkeys
+- 2025 February 7: releasing framebar, framedata display, with input history mod and position reset mod
+- 2025 February 8: added horizontal scrollbar to framebar, fixed crash in online, added framedata display on top of and under player framebars

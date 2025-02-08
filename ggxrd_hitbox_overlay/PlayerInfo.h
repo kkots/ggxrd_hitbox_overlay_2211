@@ -398,6 +398,14 @@ struct FrameStopInfo {
 
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD);
 
+struct FramebarTitle {
+	const char* text = nullptr;  // non-slang short title
+	const char* slang = nullptr;  // slang short title
+	const char* uncombined = nullptr;  // short title for 'display each projectile on a separate framebar'
+	const char* slangUncombined = nullptr;  // short slang title for 'display each projectile on a separate framebar'
+	const char* full = nullptr;  // tooltip text (full title) for when mouse is hovered over the short title
+};
+
 struct FrameBase {
 	DWORD aswEngineTick;
 	const char* animName;
@@ -407,6 +415,7 @@ struct FrameBase {
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector require special handling in the clear() method.
 struct Frame : public FrameBase {
+	FramebarTitle title;  // title is stored in a frame, instead of (whole) framebar, so that titles could change as we horizontally scroll the framebar through its history
 	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
 	unsigned char hitstopMax;
@@ -443,6 +452,14 @@ struct PlayerFrame : public FrameBase {
 	short poisonMax:14;
 	short poisonIsBacchusSigh:1;
 	short poisonIsRavenSlow:1;
+	short startup;
+	short active;
+	short recovery;
+	short frameAdvantage;
+	short landingFrameAdvantage;
+	short frameAdvantageNoPreBlockstun;
+	short landingFrameAdvantageNoPreBlockstun;
+	short total;
 	FrameStopInfo stop;
 	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
@@ -526,6 +543,8 @@ struct FramebarBase {
 	virtual void clearRequests() = 0;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) = 0;
 	virtual FrameBase& getFrame(int index) = 0;
+	virtual const FrameBase& getFrame(int index) const = 0;
+	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const = 0;
 	FrameType preFrame = FT_NONE;
 	FrameType preFrameMapped = FT_NONE;
 	FrameType preFrameMappedNoIdle = FT_NONE;
@@ -540,7 +559,7 @@ struct FramebarBase {
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
 struct Framebar : public FramebarBase {
-	Frame frames[80] { Frame{} };
+	Frame frames[200] { Frame{} };
 	inline Frame& operator[](int index) { return frames[index]; }
 	inline const Frame& operator[](int index) const { return frames[index]; }
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
@@ -555,13 +574,15 @@ struct Framebar : public FramebarBase {
 	virtual void clearRequests() override;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
 	virtual FrameBase& getFrame(int index) override;
+	virtual const FrameBase& getFrame(int index) const override;
+	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const override;
 	void modifyFrame(int pos, DWORD aswEngineTick, FrameType newType);
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector are not allowed.
 struct PlayerFramebar : public FramebarBase {
-	PlayerFrame frames[80] { PlayerFrame{} };
+	PlayerFrame frames[200] { PlayerFrame{} };
 	inline PlayerFrame& operator[](int index) { return frames[index]; }
 	inline const PlayerFrame& operator[](int index) const { return frames[index]; }
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
@@ -576,6 +597,8 @@ struct PlayerFramebar : public FramebarBase {
 	virtual void clearRequests() override;
 	virtual void catchUpToIdle(FramebarBase& source, int destinationStartingPosition, int framesToCatchUpFor) override;
 	virtual FrameBase& getFrame(int index) override;
+	virtual const FrameBase& getFrame(int index) const override;
+	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const override;
 	void clearCancels();
 	void clearCancels(int index);
 	std::vector<Input> inputs;
@@ -590,21 +613,10 @@ struct EntityFramebar {
 	int playerIndex = -1;
 	int id = -1;
 	int moveFramebarId = -1;
-	const char* titleShort = nullptr;
-	const char* titleSlang = nullptr;
-	const char* titleUncombined = nullptr;
-	const char* titleSlangUncombined = nullptr;
-	const char* titleFull = nullptr;
 	bool foundOnThisFrame = false;
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const = 0;
 	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const = 0;
-	void setTitle(const char* text,
-		const char* slangName = nullptr,
-		const char* nameUncombined = nullptr,
-		const char* slangNameUncombined = nullptr,
-		const char* textFull = nullptr);
-	void copyTitle(const EntityFramebar& source);
 	inline void changePreviousFramesOneType(FrameType prevType,
 			FrameType newType,
 			int positionHitstopIdle,
@@ -633,6 +645,7 @@ struct EntityFramebar {
 		int maxCount,
 		bool stopAtFirstFrame = false) = 0;
 	static int confinePos(int pos);
+	static int confinePos(int pos, int size);
 	inline static int posMinusOne(int pos) { if (pos == 0) return _countof(PlayerFramebar::frames) - 1; else return pos - 1; }
 	inline static int posPlusOne(int pos) { if (pos == _countof(PlayerFramebar::frames) - 1) return 0; else return pos + 1; }
 	inline static void decrementPos(int& pos) { if (pos == 0) pos = _countof(PlayerFramebar::frames) - 1; else --pos; }
@@ -699,11 +712,15 @@ struct ProjectileFramebar : public EntityFramebar {
 	virtual const FramebarBase& getIdleHitstop() const override;
 };
 	
-struct CombinedProjectileFramebar : public ProjectileFramebar {
+struct CombinedProjectileFramebar : public EntityFramebar {
 	CombinedProjectileFramebar() = default;
-	CombinedProjectileFramebar(int playerIndex, int id) : ProjectileFramebar(playerIndex, id) {}
+	CombinedProjectileFramebar(int playerIndex, int id) : EntityFramebar(playerIndex, id) {}
 	Framebar main { };  // the one framebar that is displayed
+	bool isEddie = false;
 	const ProjectileFramebar* sources[_countof(Framebar::frames)] { nullptr };
+	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
+	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
+	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void changePreviousFrames(FrameType* prevTypes,
 		int prevTypesCount,
 		FrameType newType,
@@ -723,7 +740,7 @@ struct CombinedProjectileFramebar : public ProjectileFramebar {
 	virtual const FramebarBase& getIdleHitstop() const override;
 	bool canBeCombined(const Framebar& source) const;
 	void combineFramebar(int framebarPosition, const Framebar& source, const ProjectileFramebar* dad);
-	void determineName(int framebarPosition);
+	void determineName(int framebarPosition, bool isHitstop);
 };
 
 struct PlayerFramebars : public EntityFramebar {
@@ -942,6 +959,7 @@ struct ProjectileInfo {
 	int framebarId = -1;
 	char creatorName[32] { 0 };
 	Entity creator { nullptr };
+	FramebarTitle framebarTitle { nullptr };
 	char rcSlowedDownCounter = 0;
 	char rcSlowedDownMax = 0;
 	char animName[32] { 0 };
@@ -959,6 +977,7 @@ struct ProjectileInfo {
 	bool hitboxTopBottomValid:1;
 	bool isRamlethalSword:1;
 	bool strikeInvul:1;
+	bool dontReplaceFramebarTitle:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -1600,7 +1619,9 @@ struct PlayerInfo {
 	void copyTo(PlayerInfo& dest);
 	int startupType() const;
 	void printStartup(char* buf, size_t bufSize);
+	int printStartupForFramebar();
 	void printRecovery(char* buf, size_t bufSize);
+	int printRecoveryForFramebar();
 	void printTotal(char* buf, size_t bufSize);
 	void printInvuls(char* buf, size_t bufSize) const;
 	bool isIdleInNewSection();

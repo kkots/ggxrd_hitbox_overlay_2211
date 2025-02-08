@@ -978,6 +978,21 @@ void PlayerInfo::printStartup(char* buf, size_t bufSize) {
 	}
 }
 
+int PlayerInfo::printStartupForFramebar() {
+	int uhh = startupType();
+	if (uhh == -1) return 0;
+	int result = prevStartupsDisp.total();
+	if (uhh == 0) {
+		return result + startupDisp;
+	} else if (uhh == 1) {
+		return result + superfreezeStartup;
+	} else if (uhh == 2) {
+		return result + startupDisp;
+	} else {
+		return 0;
+	}
+}
+
 void ProjectileInfo::printStartup(char* buf, size_t bufSize) {
 	if (!bufSize) return;
 	*buf = '\0';
@@ -991,8 +1006,9 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 	int charsPrinted = 0;
 	bool printedTheMainThing = false;
 	bool mentionedCantAttack = false;
+	bool answerTaunt = recoveryDispCanBlock != -1 && recoveryDisp == 0;
 	if ((startedUp || startupProj) && !(recoveryDisp == 0 && landingRecovery)) {
-		if (recoveryDispCanBlock == -1 || recoveryDisp != 0) {
+		if (!answerTaunt) {
 			if (totalCanBlock < totalDisp && recoveryDisp - (totalDisp - totalCanBlock) > 0) {
 				charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack",
 					recoveryDisp - (totalDisp - totalCanBlock),
@@ -1009,7 +1025,7 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 		bufSize -= charsPrinted;
 		printedTheMainThing = true;
 	}
-	if (printedTheMainThing && totalCanBlock > totalDisp && !(recoveryDispCanBlock != -1 && recoveryDisp == 0)) {
+	if (printedTheMainThing && totalCanBlock > totalDisp && !answerTaunt) {
 		charsPrinted = sprintf_s(buf, bufSize, "%s%s%d can't block",
 			mentionedCantAttack ? " can't attack" : "",
 			charsPrinted ? "+" : "",
@@ -1024,7 +1040,7 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 			&& totalCanFD > maxOfTheTwo
 			&& maxOfTheTwo != 0
 			&& totalCanBlock != 0
-			&& !(recoveryDispCanBlock != -1 && recoveryDisp == 0)
+			&& !answerTaunt
 	) {
 		charsPrinted = sprintf_s(buf, bufSize, "%s%s%d can't FD",
 			mentionedCantAttack ? " can't attack" : "",
@@ -1048,6 +1064,37 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 		}
 		sprintf_s(buf, bufSize, "%d FD", totalFD);
 	}
+}
+
+int PlayerInfo::printRecoveryForFramebar() {
+	int result = 0;
+	bool printedTheMainThing = false;
+	bool answerTaunt = recoveryDispCanBlock != -1 && recoveryDisp == 0;
+	if ((startedUp || startupProj) && !(recoveryDisp == 0 && landingRecovery)) {
+		if (!answerTaunt) {
+			result = recoveryDisp;
+		} else {
+			result = recoveryDispCanBlock;
+		}
+		printedTheMainThing = true;
+	}
+	if (printedTheMainThing && totalCanBlock > totalDisp && !answerTaunt) {
+		result += totalCanBlock - totalDisp;
+	}
+	int maxOfTheTwo = max(totalCanBlock, totalDisp);
+	if (printedTheMainThing
+			&& totalCanFD > maxOfTheTwo
+			&& maxOfTheTwo != 0
+			&& totalCanBlock != 0
+			&& !answerTaunt
+	) {
+		result += totalCanFD - maxOfTheTwo;
+	}
+	result += landingRecovery;
+	if (printedTheMainThing && totalFD) {
+		result += totalFD;
+	}
+	return result;
 }
 
 void PlayerInfo::printTotal(char* buf, size_t bufSize) {
@@ -1219,37 +1266,19 @@ void EntityFramebar::utf8len(const char* txt, int* byteLen, int* cpCountTotal, i
 	*cpCountTotal = cpCount;
 }
 
-void EntityFramebar::setTitle(const char* text,
-			const char* slangName,
-			const char* nameUncombined,
-			const char* slangNameUncombined,
-			const char* textFull) {
-	
-	if (text && *text == '\0') text = nullptr;
-	if (slangName && *slangName == '\0') slangName = nullptr;
-	if (nameUncombined && *nameUncombined == '\0') nameUncombined = nullptr;
-	if (slangNameUncombined && *slangNameUncombined == '\0') slangNameUncombined = nullptr;
-	if (textFull && *textFull == '\0') textFull = nullptr;
-	titleShort = text;
-	titleSlang = slangName;
-	titleUncombined = nameUncombined;
-	titleSlangUncombined = slangNameUncombined;
-	titleFull = textFull;
-}
-
-void EntityFramebar::copyTitle(const EntityFramebar& source) {
-	titleShort = source.titleShort;
-	titleSlang = source.titleSlang;
-	titleUncombined = source.titleUncombined;
-	titleSlangUncombined = source.titleSlangUncombined;
-	titleFull = source.titleFull;
-}
-
 int EntityFramebar::confinePos(int pos) {
 	if (pos < 0) {
 		return (int)_countof(Framebar::frames) + (pos + 1) % (int)_countof(Framebar::frames) - 1;  // (int) very important x_x (all covered in bruises) (written in blood)
 	} else {
 		return pos % _countof(Framebar::frames);
+	}
+}
+
+int EntityFramebar::confinePos(int pos, int size) {
+	if (pos < 0) {
+		return size + (pos + 1) % size - 1;
+	} else {
+		return pos % size;
 	}
 }
 
@@ -2206,6 +2235,27 @@ void PlayerFramebar::catchUpToIdle(FramebarBase& source, int destinationStarting
 
 FrameBase& Framebar::getFrame(int index) { return (FrameBase&)frames[index]; }
 FrameBase& PlayerFramebar::getFrame(int index) { return (FrameBase&)frames[index]; }
+const FrameBase& Framebar::getFrame(int index) const { return (const FrameBase&)frames[index]; }
+const FrameBase& PlayerFramebar::getFrame(int index) const { return (const FrameBase&)frames[index]; }
+
+template<typename T>
+bool lastNFramesCompletelyEmpty(const T* framebar, int framebarPosition, int n) {
+	int pos = framebarPosition;
+	for (int i = 0; i < n; ++i) {
+		if (!frameTypeDiscardable(framebar->frames[pos].type)) return false;
+		if (pos == 0) pos = _countof(Framebar::frames);
+		else --pos;
+	}
+	return true;
+}
+
+bool Framebar::lastNFramesCompletelyEmpty(int framebarPosition, int n) const {
+	return ::lastNFramesCompletelyEmpty<Framebar>(this, framebarPosition, n);
+}
+
+bool PlayerFramebar::lastNFramesCompletelyEmpty(int framebarPosition, int n) const {
+	return ::lastNFramesCompletelyEmpty<PlayerFramebar>(this, framebarPosition, n);
+}
 
 void PlayerFramebar::clearCancels() {
 	for (int i = 0; i < _countof(frames); ++i) {
@@ -2241,11 +2291,19 @@ void ProjectileFramebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFra
 	(Frame&)destFrame = (const Frame&)srcFrame;
 }
 
+void CombinedProjectileFramebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	(Frame&)destFrame = (const Frame&)srcFrame;
+}
+
 void PlayerFramebars::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
 	(PlayerFrame&)destFrame = (PlayerFrame&&)srcFrame;
 }
 
 void ProjectileFramebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
+	(Frame&)destFrame = (Frame&&)srcFrame;
+}
+
+void CombinedProjectileFramebar::copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const {
 	(Frame&)destFrame = (Frame&&)srcFrame;
 }
 
@@ -2262,6 +2320,10 @@ void PlayerFramebars::copyActiveDuringSuperfreeze(FrameBase& destFrame, const Fr
 }
 
 void ProjectileFramebar::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
+	::copyActiveDuringSuperfreeze((Frame&)destFrame, (const Frame&)srcFrame);
+}
+
+void CombinedProjectileFramebar::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
 	::copyActiveDuringSuperfreeze((Frame&)destFrame, (const Frame&)srcFrame);
 }
 
@@ -2313,7 +2375,7 @@ void FrameCancelInfo::clear() {
 }
 
 bool CombinedProjectileFramebar::canBeCombined(const Framebar& source) const {
-	for (int i = 0; i < (int)_countof(source.frames); ++i) {
+	for (int i = 0; i < (int)_countof(Framebar::frames); ++i) {
 		if (!frameTypeDiscardable(main[i].type) && !frameTypeDiscardable(source[i].type)) return false;
 	}
 	return true;
@@ -2324,11 +2386,17 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, const Fra
 	const char* lastConnectedAnimName = nullptr;
 	const char* lastConnectedAnimSlangName = nullptr;
 	
-	for (int i = 0; i < (int)_countof(source.frames); ++i) {
+	int posNext = framebarPosition == _countof(Framebar::frames) - 1
+		? 0
+		: framebarPosition + 1;
+	int pos;
+	
+	for (int i = 0; i < (int)_countof(Framebar::frames); ++i) {
 		
-		int pos = i - (int)_countof(main.frames) + 1 + framebarPosition;
-		if (pos >= (int)_countof(main.frames)) pos -= (int)_countof(main.frames);
-		else if (pos < 0) pos += (int)_countof(main.frames);
+		pos = posNext;
+		posNext = posNext == _countof(Framebar::frames) - 1
+			? 0
+			: posNext + 1;
 		
 		const Frame& sf = source[pos];
 		Frame& df = main[pos];
@@ -2382,6 +2450,7 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, const Fra
 		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
 		df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
 		df.powerup |= sf.powerup;
+		df.title = sf.title;  // will get corrected in determineName
 	}
 	if (source.preFrameLength) {
 		if (source.preFrame != main.preFrame) {
@@ -2415,18 +2484,29 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, const Fra
 	}
 }
 
-void CombinedProjectileFramebar::determineName(int framebarPosition) {
-	for (int i = (int)_countof(main.frames) - 1; i >= 0; --i) {
+void CombinedProjectileFramebar::determineName(int framebarPosition, bool isHitstop) {
+	int posNext = framebarPosition == _countof(Framebar::frames) - 1
+		? 0
+		: framebarPosition + 1;
+	int pos;
+	const FramebarTitle* title = nullptr;
+	
+	for (int i = 0; i < _countof(Framebar::frames); ++i) {
 		
-		int pos = i - (int)_countof(main.frames) + 1 + framebarPosition;
-		if (pos >= (int)_countof(main.frames)) pos -= (int)_countof(main.frames);
-		else if (pos < 0) pos += (int)_countof(main.frames);
+		pos = posNext;
+		posNext = posNext == _countof(Framebar::frames) - 1
+			? 0
+			: posNext + 1;
 		
 		const ProjectileFramebar* source = sources[pos];
 		if (source) {
-			copyTitle(*source);
-			moveFramebarId = source->moveFramebarId;
-			return;
+			const Framebar& framebar = isHitstop ? source->hitstop : source->main;
+			moveFramebarId = source->moveFramebarId;  // why do I need this on a combined framebar?
+			title = &framebar[pos].title;
+		}
+		
+		if (title) {
+			main[pos].title = *title;
 		}
 	}
 }

@@ -294,6 +294,8 @@ public:
 	bool isEntityHidden(const Entity& ent);
 	int getFramebarPosition() const;
 	int getFramebarPositionHitstop() const;
+	int getTotalFramesUnlimited() const { return framebarTotalFramesUnlimited; }
+	int getTotalFramesHitstopUnlimited() const { return framebarTotalFramesHitstopUnlimited; }
 	bool willEnqueueAndDrawOriginPoints = false;
 	bool endSceneAndPresentHooked = false;
 	BBScr_getAccessedValueImpl_t BBScr_getAccessedValueImpl = nullptr;
@@ -483,7 +485,9 @@ private:
 	std::vector<OccuredEvent> events;
 	std::vector<Entity> sendSignalStack;
 	int framebarPosition = 0;
+	int framebarTotalFramesUnlimited = 0;
 	int framebarPositionHitstop = 0;
+	int framebarTotalFramesHitstopUnlimited = 0;
 	int framebarIdleFor = 0;
 	int framebarIdleHitstopFor = 0;
 	const int framebarIdleForLimit = 30;

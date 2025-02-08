@@ -10,6 +10,7 @@
 #include "CustomWindowMessages.h"
 #include <unordered_map>
 #include <functional>
+#include "PlayerInfo.h"
 
 Settings settings;
 
@@ -243,6 +244,17 @@ bool Settings::onDllMain() {
 			"; This does not include the \"P1 \" and \"P2 \" additional text that is displayed when \"showPlayerInFramebarTitle\" is true.\n"
 			"; You can use \"useSlangNames\" to help reduce the lengths of text displayed in framebar titles.\n"
 			"; The standard value is 12.");
+	registerOtherDescription(settingAndItsName(framebarDisplayedFramesCount), "Number Of Displayed Frames", settingsFramebarSettingsStr, "; A number.\n"
+			"; Specifies the maximum number of frames that will be displayed on the screen at a time.\n"
+			"; If there're more frames stored (see \"framebarStoredFramesCount\") in the framebar than this number,\n"
+			"; a horizontal scrollbar will be displayed.\n"
+			"; This value can't be more than 200.\n"
+			"; The standard value is 80.");
+	registerOtherDescription(settingAndItsName(framebarStoredFramesCount), "Number Of Stored Frames", settingsFramebarSettingsStr, "; A number.\n"
+			"; Specifies the maximum number of past frames that can be viewed by scrolling the framebar horizontally,\n"
+			"; including frames that are visible without having to scroll.\n"
+			"; This value can't be more than 200.\n"
+			"; The standard value is 200.");
 	registerOtherDescription(settingAndItsName(positionResetDistBetweenPlayers), "Position Reset Corner - Distance Between Players", settingsFramebarSettingsStr, "; A number.\n"
 			"; Specifies the distance between the two players, not divided by 100, when resetting position into the corner.\n"
 			"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
@@ -488,6 +500,12 @@ bool Settings::onDllMain() {
 			"; Specify true or false.\n"
 			"; When this setting is true (default), if superfreeze (also called superflash) is skipped, which is always the case,\n"
 			"; a white line made out of small diagonal hatches will be displayed on the framebar in places where superfreeze was skipped.");
+	registerOtherDescription(settingAndItsName(showP1FramedataInFramebar), "Show P1 Framedata In Framebar", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed on top of P1's framebar.");
+	registerOtherDescription(settingAndItsName(showP2FramedataInFramebar), "Show P2 Framedata In Framebar", settingsFramebarSettingsStr,
+			"; Specify true or false.\n"
+			"; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar.");
 	registerOtherDescription(settingAndItsName(showComboProrationInRiscGauge), "Show Combo Proration In RISC Gauge", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will modify the RISC gauge so that the middle represents 0 RISC and no combo proration,\n"
@@ -748,8 +766,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool slowmoTimesParsed = false;
 	
 	bool framebarHeightParsed = false;
-
 	bool framebarTitleCharsMaxParsed = false;
+	bool framebarDisplayedFramesCountParsed = false;
+	bool framebarStoredFramesCountParsed = false;
 
 	bool positionResetDistBetweenPlayersParsed = false;
 	bool positionResetDistFromCornerParsed = false;
@@ -847,6 +866,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool showFramebarHatchedLineWhenSkippingSuperfreezeParsed = false;
 	
+	bool showP1FramedataInFramebarParsed = false;
+	
+	bool showP2FramedataInFramebarParsed = false;
+	
 	bool showComboProrationInRiscGaugeParsed = false;
 	
 	bool displayInputHistoryWhenObservingParsed = false;
@@ -932,32 +955,21 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 									name##Parsed = parseBoolean(#name, keyValue, name); \
 								} \
 								break;
+								
+						#define integerPreset(name) \
+							case offsetof(Settings, name): \
+							if (!name##Parsed) { \
+								name##Parsed = parseInteger(#name, keyValue, name); \
+							} \
+							break;
 							
-						case offsetof(Settings, slowmoTimes):
-							if (!slowmoTimesParsed) {
-								slowmoTimesParsed = parseInteger("slowmoTimes", keyValue, slowmoTimes);
-							}
-							break;
-						case offsetof(Settings, framebarHeight):
-							if (!framebarHeightParsed) {
-								framebarHeightParsed = parseInteger("framebarHeight", keyValue, framebarHeight);
-							}
-							break;
-						case offsetof(Settings, framebarTitleCharsMax):
-							if (!framebarTitleCharsMaxParsed) {
-								framebarTitleCharsMaxParsed = parseInteger("framebarTitleCharsMax", keyValue, framebarTitleCharsMax);
-							}
-							break;
-						case offsetof(Settings, positionResetDistBetweenPlayers):
-							if (!positionResetDistBetweenPlayersParsed) {
-								positionResetDistBetweenPlayersParsed = parseInteger("positionResetDistBetweenPlayers", keyValue, positionResetDistBetweenPlayers);
-							}
-							break;
-						case offsetof(Settings, positionResetDistFromCorner):
-							if (!positionResetDistFromCornerParsed) {
-								positionResetDistFromCornerParsed = parseInteger("positionResetDistFromCorner", keyValue, positionResetDistFromCorner);
-							}
-							break;
+						integerPreset(slowmoTimes)
+						integerPreset(framebarHeight)
+						integerPreset(framebarTitleCharsMax)
+						integerPreset(framebarDisplayedFramesCount)
+						integerPreset(framebarStoredFramesCount)
+						integerPreset(positionResetDistBetweenPlayers)
+						integerPreset(positionResetDistFromCorner)
 						case offsetof(Settings, cameraCenterOffsetX):
 							if (!cameraCenterOffsetXParsed) {
 								cameraCenterOffsetXParsed = parseFloat("cameraCenterOffsetX", keyValue, cameraCenterOffsetX);
@@ -1026,6 +1038,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(showFramebarHatchedLineWhenSkippingGrab)
 						booleanPreset(showFramebarHatchedLineWhenSkippingHitstop)
 						booleanPreset(showFramebarHatchedLineWhenSkippingSuperfreeze)
+						booleanPreset(showP1FramedataInFramebar)
+						booleanPreset(showP2FramedataInFramebar)
 						booleanPreset(showComboProrationInRiscGauge)
 						booleanPreset(displayInputHistoryWhenObserving)
 						booleanPreset(displayInputHistoryInSomeOfflineModes)
@@ -1047,6 +1061,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(dontShowMoveName)
 						booleanPreset(showDebugFields)
 						#undef booleanPreset
+						#undef integerPreset
 					}
 				}
 			}
@@ -1065,6 +1080,28 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!framebarTitleCharsMaxParsed) {
 		framebarTitleCharsMax = 12;
+	}
+	
+	if (!framebarDisplayedFramesCountParsed) {
+		framebarDisplayedFramesCount = 80;
+	}
+	
+	if (!framebarStoredFramesCountParsed) {
+		framebarStoredFramesCount = 200;
+	}
+	
+	if (framebarStoredFramesCount < 1) {
+		framebarStoredFramesCount = 1;
+	}
+	if (framebarStoredFramesCount > _countof(Framebar::frames)) {
+		framebarStoredFramesCount = _countof(Framebar::frames);
+	}
+	
+	if (framebarDisplayedFramesCount < 1) {
+		framebarDisplayedFramesCount = 1;
+	}
+	if (framebarDisplayedFramesCount.load() > framebarStoredFramesCount.load()) {
+		framebarDisplayedFramesCount = framebarStoredFramesCount.load();
 	}
 	
 	if (!positionResetDistBetweenPlayersParsed) {
@@ -1253,6 +1290,14 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showFramebarHatchedLineWhenSkippingSuperfreezeParsed) {
 		showFramebarHatchedLineWhenSkippingSuperfreeze = true;
+	}
+	
+	if (!showP1FramedataInFramebarParsed) {
+		showP1FramedataInFramebar = true;
+	}
+	
+	if (!showP2FramedataInFramebarParsed) {
+		showP2FramedataInFramebar = true;
 	}
 	
 	if (!showComboProrationInRiscGaugeParsed) {
@@ -1856,7 +1901,8 @@ void Settings::writeSettingsMain() {
 	}
 	
 	#define booleanPreset(name) replaceOrAddSetting(#name, formatBoolean(name), getOtherINIDescription(&name));
-	replaceOrAddSetting("slowmoTimes", formatInteger(slowmoTimes).c_str(), getOtherINIDescription(&slowmoTimes));
+	#define integerPreset(name) replaceOrAddSetting(#name, formatInteger(name).c_str(), getOtherINIDescription(&name));
+	integerPreset(slowmoTimes)
 	booleanPreset(allowContinuousScreenshotting)
 	booleanPreset(startDisabled)
 	std::string scrPathCpy;
@@ -1880,6 +1926,8 @@ void Settings::writeSettingsMain() {
 	booleanPreset(showFramebarHatchedLineWhenSkippingGrab)
 	booleanPreset(showFramebarHatchedLineWhenSkippingHitstop)
 	booleanPreset(showFramebarHatchedLineWhenSkippingSuperfreeze)
+	booleanPreset(showP1FramedataInFramebar)
+	booleanPreset(showP2FramedataInFramebar)
 	booleanPreset(showComboProrationInRiscGauge)
 	booleanPreset(displayInputHistoryWhenObserving)
 	booleanPreset(displayInputHistoryInSomeOfflineModes)
@@ -1922,10 +1970,12 @@ void Settings::writeSettingsMain() {
 	booleanPreset(useSlangNames)
 	booleanPreset(allFramebarTitlesDisplayToTheLeft)
 	booleanPreset(showPlayerInFramebarTitle)
-	replaceOrAddSetting("framebarHeight", formatInteger(framebarHeight).c_str(), getOtherINIDescription(&framebarHeight));
-	replaceOrAddSetting("framebarTitleCharsMax", formatInteger(framebarTitleCharsMax).c_str(), getOtherINIDescription(&framebarTitleCharsMax));
-	replaceOrAddSetting("positionResetDistBetweenPlayers", formatInteger(positionResetDistBetweenPlayers).c_str(), getOtherINIDescription(&positionResetDistBetweenPlayers));
-	replaceOrAddSetting("positionResetDistFromCorner", formatInteger(positionResetDistFromCorner).c_str(), getOtherINIDescription(&positionResetDistFromCorner));
+	integerPreset(framebarHeight)
+	integerPreset(framebarTitleCharsMax)
+	integerPreset(framebarDisplayedFramesCount)
+	integerPreset(framebarStoredFramesCount)
+	integerPreset(positionResetDistBetweenPlayers)
+	integerPreset(positionResetDistFromCorner)
 	booleanPreset(neverIgnoreHitstop)
 	booleanPreset(ignoreHitstopForBlockingBaiken)
 	booleanPreset(considerRunAndWalkNonIdle)
@@ -1939,6 +1989,7 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("cameraCenterOffsetY_WhenForcePitch0", formatFloat(cameraCenterOffsetY_WhenForcePitch0).c_str(), getOtherINIDescription(&cameraCenterOffsetY_WhenForcePitch0));
 	replaceOrAddSetting("cameraCenterOffsetZ", formatFloat(cameraCenterOffsetZ).c_str(), getOtherINIDescription(&cameraCenterOffsetZ));
 	#undef booleanPreset
+	#undef integerPreset
 	
 	SetFilePointer(file, 0, NULL, FILE_BEGIN);
 	

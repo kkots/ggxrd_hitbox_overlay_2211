@@ -85,6 +85,8 @@ public:
 	std::atomic_int slowmoTimes = 3;
 	std::atomic_int framebarHeight = 19;
 	std::atomic_int framebarTitleCharsMax = 12;
+	std::atomic_int framebarDisplayedFramesCount = 80;
+	std::atomic_int framebarStoredFramesCount = 200;
 	std::atomic_int positionResetDistBetweenPlayers = 105000;
 	std::atomic_int positionResetDistFromCorner = 0;
 	const float cameraCenterOffsetX_defaultValue = 0.F;
@@ -135,6 +137,8 @@ public:
 	std::atomic_bool showFramebarHatchedLineWhenSkippingGrab = true;
 	std::atomic_bool showFramebarHatchedLineWhenSkippingHitstop = false;
 	std::atomic_bool showFramebarHatchedLineWhenSkippingSuperfreeze = true;
+	std::atomic_bool showP1FramedataInFramebar = true;
+	std::atomic_bool showP2FramedataInFramebar = true;
 	std::atomic_bool showComboProrationInRiscGauge = false;
 	std::atomic_bool displayInputHistoryWhenObserving = true;
 	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;

@@ -98,6 +98,34 @@ const float innerBorderThicknessUnscaled = 1.F;
 float drawFramebars_innerBorderThickness;
 float drawFramebars_innerBorderThicknessHalf;
 float drawFramebars_frameWidthScaled;
+// The total number of frames that can be displayed
+int drawFramebars_framesCount;
+// The framebar position with horizontal scrolling already applied to it
+// Is in [0;_countof(Framebar::frames)] coordinate space, its range of possible values is [0;_countof(Framebar::frames)-1]
+int drawFramebars_framebarPosition;
+// Is in [0;drawFramebars_framesCount] coordinate space, its range of possible values is [0;drawFramebars_framesCount-1]
+// It is the result of converting drawFramebars_framebarPosition from [0;_countof(Framebar::frames)] coordinate space to [0;drawFramebars_framesCount] coordinate space
+int drawFramebars_framebarPositionDisplay;
+static int inline iterateVisualFramesFrom0_getInitialInternalInd() {
+	int result = drawFramebars_framebarPosition - drawFramebars_framebarPositionDisplay;
+	if (result < 0) {
+		return result + _countof(Framebar::frames);
+	} else {
+		return result;
+	}
+}
+static void inline incrementInternalInd(int& internalInd) {
+	if (internalInd == drawFramebars_framebarPosition) {
+		internalInd = drawFramebars_framebarPosition - drawFramebars_framesCount + 1;
+		if (internalInd < 0) {
+			internalInd += _countof(Framebar::frames);
+		}
+	} else if (internalInd == _countof(Framebar::frames) - 1) {
+		internalInd = 0;
+	} else {
+		++internalInd;
+	}
+}
 const char thisHelpTextWillRepeat[] = "Show available gatlings, whiff cancels, and whether the jump and the special cancels are available,"
 					" per range of frame for this player.\n"
 					"\n"
@@ -168,12 +196,12 @@ static const GGIcon& getCharIcon(CharacterType charType);
 static const GGIcon& getPlayerCharIcon(int playerSide);
 ImVec4 RGBToVec(DWORD color);  // color = 0xRRGGBB
 static const char* formatBoolean(bool value);
-static void pushZeroItemSpacingStyle();
 static float getItemSpacing();
 static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
 static GGIcon DISolIconRectangular = coordsToGGIcon(179, 1095, 37, 37);
 static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
+static void outlinedTextRawHighQuality(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels);
 static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount);
@@ -1210,7 +1238,7 @@ void UI::drawSearchableWindows() {
 				}
 			}
 			
-			const bool dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
+			dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 			bool oneWillIncludeParentheses = false;
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
@@ -2023,6 +2051,18 @@ void UI::drawSearchableWindows() {
 			
 			intSettingPreset(settings.framebarHeight, 1);
 			
+			booleanSettingPreset(settings.showP1FramedataInFramebar);
+			
+			booleanSettingPreset(settings.showP2FramedataInFramebar);
+			
+			if (intSettingPreset(settings.framebarStoredFramesCount, 1, 1, 1, 80.F, _countof(Framebar::frames))) {
+				if (settings.framebarDisplayedFramesCount.load() > settings.framebarStoredFramesCount.load()) {
+					settings.framebarDisplayedFramesCount = settings.framebarStoredFramesCount.load();
+				}
+			}
+			
+			intSettingPreset(settings.framebarDisplayedFramesCount, 1, 1, 1, 80.F, settings.framebarStoredFramesCount);
+			
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Keyboard Shortcuts")) || searching) {
@@ -2273,7 +2313,7 @@ void UI::drawSearchableWindows() {
 				bool needPop = false;
 				if (player.extraTensionGainModifier != 100) {
 					needPop = true;
-					pushZeroItemSpacingStyle();
+					zerohspacing
 					strcat(strbuf, " * ");
 					ImGui::TextUnformatted(strbuf);
 					sprintf_s(strbuf, "%s", printDecimal(player.extraTensionGainModifier, 0, -3, true));
@@ -2301,7 +2341,7 @@ void UI::drawSearchableWindows() {
 				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), " = %d%c", total, '%');
 				ImGui::TextUnformatted(strbuf);
 				if (needPop) {
-					ImGui::PopStyleVar();
+					_zerohspacing
 				}
 			}
 			
@@ -7171,8 +7211,10 @@ void UI::initialize() {
 												 // So we must swap out the pointers every time imGui D3D9 implementation interacts with them.
 	
 	
+	framebarHorizontalScrollbarDrawDataCopy.resize(sizeof ImDrawListBackup);
 	framebarWindowDrawDataCopy.resize(sizeof ImDrawListBackup);
 	framebarTooltipDrawDataCopy.resize(sizeof ImDrawListBackup);
+	new (framebarHorizontalScrollbarDrawDataCopy.data()) ImDrawListBackup();
 	new (framebarWindowDrawDataCopy.data()) ImDrawListBackup();
 	new (framebarTooltipDrawDataCopy.data()) ImDrawListBackup();
 	
@@ -7396,7 +7438,7 @@ void UI::frameAdvantageControl(int frameAdvantage, int landingFrameAdvantage, bo
 		frameAdvantageTextFormat(landingFrameAdvantage, strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf));
 		strcat(strbuf, ")");
 		if (rightAlign) RightAlign(ImGui::CalcTextSize(strbuf).x);
-		pushZeroItemSpacingStyle();
+		zerohspacing
 		frameAdvantageText(frameAdvantage);
 		ImGui::SameLine();
 		ImGui::TextUnformatted(" (");
@@ -7404,7 +7446,7 @@ void UI::frameAdvantageControl(int frameAdvantage, int landingFrameAdvantage, bo
 		frameAdvantageText(landingFrameAdvantage);
 		ImGui::SameLine();
 		ImGui::TextUnformatted(")");
-		ImGui::PopStyleVar();
+		_zerohspacing
 	} else if (frameAdvantageValid || landingFrameAdvantageValid) {
 		int frameAdvantageLocal = frameAdvantageValid ? frameAdvantage : landingFrameAdvantage;
 		frameAdvantageTextFormat(frameAdvantageLocal, strbuf, sizeof strbuf);
@@ -7414,11 +7456,11 @@ void UI::frameAdvantageControl(int frameAdvantage, int landingFrameAdvantage, bo
 }
 
 // Runs on the main thread
-void UI::frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize) {
+int UI::frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize) {
 	if (frameAdv > 0) {
-		sprintf_s(buf, bufSize, "+%d", frameAdv);
+		return sprintf_s(buf, bufSize, "+%d", frameAdv);
 	} else {
-		sprintf_s(buf, bufSize, "%d", frameAdv);
+		return sprintf_s(buf, bufSize, "%d", frameAdv);
 	}
 }
 
@@ -7931,13 +7973,6 @@ const char* formatBoolean(bool value) {
 	return value ? trueStr : falseStr;
 }
 
-void pushZeroItemSpacingStyle() {
-	ImGuiStyle& style = ImGui::GetStyle();  // it's a reference
-	ImVec2 itemSpacing = style.ItemSpacing;
-	itemSpacing.x = 0;
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, itemSpacing);
-}
-
 float getItemSpacing() {
 	return ImGui::GetStyle().ItemSpacing.x;
 }
@@ -7994,6 +8029,24 @@ void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4*
 	
 	drawList->AddText({ pos.x, pos.y - 1.F }, outlineClr, text);
 	drawList->AddText({ pos.x, pos.y + 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x - 1.F, pos.y - 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x + 1.F, pos.y - 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x - 1.F, pos.y + 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x + 1.F, pos.y + 1.F }, outlineClr, text);
+	drawList->AddText(pos, clr, text);
+}
+
+void outlinedTextRawHighQuality(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
+	if (!color) color = &WHITE_COLOR;
+	if (!outlineColor) outlineColor = &BLACK_COLOR;
+	
+	ImU32 clr = ImGui::GetColorU32(*color);
+	ImU32 outlineClr = ImGui::GetColorU32(*outlineColor);
+	
+	drawList->AddText({ pos.x, pos.y - 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x, pos.y + 1.F }, outlineClr, text);
+	drawList->AddText({ pos.x - 1.F, pos.y }, outlineClr, text);
+	drawList->AddText({ pos.x + 1.F, pos.y }, outlineClr, text);
 	drawList->AddText({ pos.x - 1.F, pos.y - 1.F }, outlineClr, text);
 	drawList->AddText({ pos.x + 1.F, pos.y - 1.F }, outlineClr, text);
 	drawList->AddText({ pos.x - 1.F, pos.y + 1.F }, outlineClr, text);
@@ -8906,9 +8959,18 @@ void UI::framebarHelpWindow() {
 			"When a projectile appears, a new sub-framebar is created for it. It may not be visible if it doesn't fit in the 'framebar window'."
 			" If there are more sub-framebars than the framebar window can show, a vertical scrollbar will appear on its right side that can be used"
 			" to scroll it with the mouse wheel or by dragging the scrollbar with the mouse."
-			" The framebar window has an invisible border which can be resized using the mouse. Try to find where the border is by following towards the top"
-			" from the 'Player 1' title text. You can resize the framebar so that it is large enough to fit all its sub-framebars in it without having to scroll."
-			" Framebar can be dragged by clicking anywhere on it with the mouse, holding and moving.\n"
+			" The framebar window has an invisible border which can be resized using the mouse. You can see the border when you drag the framebar window."
+			" You can resize the framebar so that it is large enough to fit all its sub-framebars in it without having to scroll.\n"
+			"\n"
+			"Framebar can be dragged by clicking anywhere on it with the mouse, holding the mouse button and moving the mouse.\n"
+			"\n"
+			"The framebar can actually hold more frames than displayed. When that happens, a horizontal scrollbar appear on top"
+			" of the framebar. Scrolling it to the right by either dragging it with the mouse or using Shift + Mouse Wheel,"
+			" has the framebar travel into the past to remember one of its older states and revert to that."
+			" The framebar can only be horizontally scrolled when both players are idle or the game is paused or the match is already over."
+			" Horizontal scrollbar can be disabled by changing \"framebarStoredFramesCount\" and \"framebarDisplayedFramesCount\" settings"
+			" so that they are equal.\n"
+			"\n"
 			"Similar projectiles may be combined into single sub-framebars. The \"combineProjectileFramebarsWhenPossible\" and \"eachProjectileOnSeparateFramebar\""
 			" settings control how projectile sub-framebars are combined.\n"
 			"\n"
@@ -8926,6 +8988,9 @@ void UI::framebarHelpWindow() {
 			"Pressing the left mouse button over a frame on the framebar, holding it and then dragging selects a range of frames, and a text is displayed"
 			" telling the count of selected frames. Even though multiple rows at once are being selected, the displayed count includes"
 			" only the horizontal spaces shared among all rows.\n"
+			"\n"
+			"Startup/Active/Recovery/Total/Advantage text on top of and below the players' framebars can be disabled using"
+			"\"showP1FramedataInFramebar\" and \"showP2FramedataInFramebar\" settings.\n"
 			"\n"
 			"When the number of frames is double or triple digit"
 			" and does not fit, it may be broken up into 1-2 digit on one side + 1-2 digits on the other side. The way you should"
@@ -9873,18 +9938,39 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 }
 
+/// <summary>
+/// Draws backgrounds of frames - the base frame graphics. Also registers mouse hovering over a frame and draws the frame tooltip window.
+/// </summary>
+/// <typeparam name="FramebarT">Possible values: PlayerFramebar, Framebar</typeparam>
+/// <typeparam name="FrameT">Possible values: PlayerFrame, Frame</typeparam>
+/// <param name="framebar">Either main or hitstop framebar</param>
+/// <param name="preppedDims">X positions and widths of each on-screen frame</param>
+/// <param name="tintDarker">Color to be used as the tint for darkened, older frames that are behind drawFramebars_framebarPosition</param>
+/// <param name="playerIndex">Index of the player. 0 or 1. For projectiles it is -1</param>
+/// <param name="skippedFrames">Contains _countof(Framebar::frames) elements. For each frame, describes whether hitstop/superfreeze/etc was skipped and how many frames were skipped</param>
+/// <param name="correspondingPlayersFramebar">If this is a projectile framebar, then framebar of the player that corresponds to or owns this projectile is given</param>
+/// <param name="owningPlayerCharType">If this is a projectile, then this is the character type of the corresponding or owner player</param>
 template<typename FramebarT, typename FrameT>
-inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
+inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar, CharacterType owningPlayerCharType) {
 	const bool useSlang = settings.useSlangNames;
-	for (int i = 0; i < _countof(Framebar::frames); ++i) {
-		const FrameT& frame = framebar[i];
+	const int framesCount = settings.framebarDisplayedFramesCount;
+	
+	int internalINext = iterateVisualFramesFrom0_getInitialInternalInd();
+	int internalI;
+	
+	for (int visualI = 0; visualI < drawFramebars_framesCount; ++visualI) {
+		
+		internalI = internalINext;
+		incrementInternalInd(internalINext);
+		
+		const FrameT& frame = framebar[internalI];
 		const Frame& projectileFrame = (const Frame&)frame;
-		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[i];
-		const UI::FrameDims& dims = preppedDims[i];
+		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[internalI];
+		const UI::FrameDims& dims = preppedDims[visualI];
 		
 		ImU32 tint = -1;
-		if (i > framebarPosition) {
+		if (visualI > drawFramebars_framebarPositionDisplay) {
 			tint = tintDarker;
 		}
 		
@@ -9892,8 +9978,8 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 			ImVec2 frameStartVec { dims.x, drawFramebars_y };
 			ImVec2 frameEndVec { dims.x + dims.width, drawFramebars_y + drawFramebars_frameItselfHeight };
 			ImVec2 frameEndVecForTooltip;
-			if (i < _countof(Framebar::frames) - 1) {
-				frameEndVecForTooltip = { preppedDims[i + 1].x, frameEndVec.y };
+			if (visualI < drawFramebars_framesCount - 1) {
+				frameEndVecForTooltip = { preppedDims[visualI + 1].x, frameEndVec.y };
 			} else {
 				frameEndVecForTooltip = frameEndVec;
 			}
@@ -9955,7 +10041,7 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 			};
 			
 			if (drawFramebars_hoveredFrameIndex == -1 && ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(mouseRectStart, mouseRectEnd, true)) {
-				drawFramebars_hoveredFrameIndex = i;
+				drawFramebars_hoveredFrameIndex = visualI;
 				drawFramebars_hoveredFrameY = drawFramebars_y;
 				if (ImGui::BeginTooltip()) {
 					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
@@ -10153,7 +10239,7 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 							ImGui::TextUnformatted(strbuf);
 						}
 					}
-					const SkippedFramesInfo& skippedFramesElem = skippedFrames[i];
+					const SkippedFramesInfo& skippedFramesElem = skippedFrames[internalI];
 					if (skippedFramesElem.count || frame.rcSlowdown || frame.hitConnected || frame.newHit) {
 						ImGui::Separator();
 						if (skippedFramesElem.count) {
@@ -10200,40 +10286,44 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 	}
 }
 
-void drawPlayerFramebar(const PlayerFramebar& framebar, UI::FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker, int playerIndex,
+void drawPlayerFramebar(const PlayerFramebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, CharacterType charType) {
-	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, framebarPosition, tintDarker, playerIndex, skippedFrames, framebar, charType);
+	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, tintDarker, playerIndex, skippedFrames, framebar, charType);
 }
 
-void drawProjectileFramebar(const Framebar& framebar, UI::FrameDims* preppedDims, int framebarPosition, ImU32 tintDarker,
+void drawProjectileFramebar(const Framebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar, CharacterType owningPlayerCharType) {
-	drawFramebar<Framebar, Frame>(framebar, preppedDims, framebarPosition, tintDarker, -1, skippedFrames, correspondingPlayersFramebar, owningPlayerCharType);
+	drawFramebar<Framebar, Frame>(framebar, preppedDims, tintDarker, -1, skippedFrames, correspondingPlayersFramebar, owningPlayerCharType);
 }
 
 template<typename FramebarT, typename FrameT>
-void drawFirstFrames(const FramebarT& framebar, int framebarPosition, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
+void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
 	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
 	const ImVec2 firstFrameUVStart = { ui.firstFrame->uStart, ui.firstFrame->vStart };
 	const ImVec2 firstFrameUVEnd = { ui.firstFrame->uEnd, ui.firstFrame->vEnd };
-	for (int i = 0; i < _countof(Framebar::frames); ++i) {
-		const FrameT& frame = framebar[i];
-		const UI::FrameDims& dims = preppedDims[i];
+	const int startFrame = drawFramebars_framebarPosition == _countof(Framebar::frames) - 1
+					? 0
+					: drawFramebars_framebarPosition + 1;
+	int internalIndNext = iterateVisualFramesFrom0_getInitialInternalInd();
+	int internalInd;
+	for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
+		
+		internalInd = internalIndNext;
+		incrementInternalInd(internalIndNext);
+		
+		const FrameT& frame = framebar[internalInd];
+		const UI::FrameDims& dims = preppedDims[internalInd];
 		
 		bool isFirst = frame.isFirst;
-		if (isFirst && considerSimilarFrameTypesSameForFrameCounts && considerSimilarIdleFramesSameForFrameCounts) {
-			if (i == framebarPosition) {
-				isFirst = !(
-					framebar.preFrame != FT_NONE
-					&& frameMap(frame.type) == framebar.preFrameMapped
-					&& framebar.preFrameMapped == FT_IDLE
-				);
+		if (isFirst
+				&& considerSimilarFrameTypesSameForFrameCounts
+				&& considerSimilarIdleFramesSameForFrameCounts
+				&& frameMap(frame.type) == FT_IDLE) {
+			if (internalInd == startFrame) {
+				isFirst = framebar.preFrameMapped != FT_IDLE;
 			} else {
-				FrameType frameTypeMapped = frameMap(frame.type);
-				isFirst = !(
-					frameTypeMapped == frameMap(framebar[i == 0 ? _countof(Framebar::frames) - 1 : i - 1].type)
-					&& frameTypeMapped == FT_IDLE
-				);
+				isFirst = frameMap(framebar[internalInd == 0 ? _countof(Framebar::frames) - 1 : internalInd - 1].type) != FT_IDLE;
 			}
 		}
 		if (isFirst) {
@@ -10253,8 +10343,9 @@ void drawFirstFrames(const FramebarT& framebar, int framebarPosition, UI::FrameD
 	}
 }
 
+// Draws frame counts of contiguous groups of similarly-typed frames, on top of the frames
 template<typename FramebarT, typename FrameT>
-void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom) {
+void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom) {
 	
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
@@ -10275,18 +10366,61 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* 
 		sameFrameTypeCount = framebar.preFrameLength;
 	}
 	int visualFrameCount = 0;
+	bool indInView = false;
+	int visualInd;
+	int internalIndNext = drawFramebars_framebarPosition == _countof(Framebar::frames) - 1
+		? 0
+		: drawFramebars_framebarPosition + 1;
+	int internalInd;
+	bool prevIndInView = false;
+	int prevVisualInd;
 	
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
-		int ind = (framebarPosition + 1 + i) % _countof(Framebar::frames);
-		const FrameT& frame = framebar[ind];
+		
+		internalInd = internalIndNext;
+		if (internalIndNext == _countof(Framebar::frames) - 1) {
+			internalIndNext = 0;
+		} else {
+			++internalIndNext;
+		}
+		
+		prevIndInView = indInView;
+		if (indInView) {
+			prevVisualInd = visualInd;
+		}
+		
+		if (drawFramebars_framebarPosition >= drawFramebars_framesCount - 1) {
+			if (internalInd <= drawFramebars_framebarPosition) {
+				indInView = internalInd >= drawFramebars_framebarPosition - drawFramebars_framesCount + 1;
+				if (indInView) {
+					visualInd = drawFramebars_framebarPositionDisplay - (drawFramebars_framebarPosition - internalInd);
+				}
+			} else {
+				indInView = false;
+			}
+		} else if (internalInd <= drawFramebars_framebarPosition) {
+			indInView = true;
+			visualInd = drawFramebars_framebarPositionDisplay - (drawFramebars_framebarPosition - internalInd);
+		} else {
+			int startInd = drawFramebars_framebarPosition - drawFramebars_framesCount + 1 + _countof(Framebar::frames);
+			indInView = internalInd >= startInd;
+			if (indInView) {
+				visualInd = drawFramebars_framebarPositionDisplay - drawFramebars_framesCount + 1
+					+ (internalInd - startInd);
+			}
+		}
+		
+		if (indInView && visualInd < 0) {
+			visualInd += drawFramebars_framesCount;
+		}
+		
+		const FrameT& frame = framebar[internalInd];
 		
 		enum DivisionType {
 			DIVISION_TYPE_NONE,
 			DIVISION_TYPE_DIFFERENT_TYPES,
 			DIVISION_TYPE_REACHED_END
 		} divisionType = DIVISION_TYPE_NONE;
-		
-		int displayPos = ind - 1;
 		
 		FrameType currentType = frame.type;
 		if (considerSimilarFrameTypesSameForFrameCounts) {
@@ -10308,7 +10442,7 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* 
 				} else {
 					FrameType frameTypeMapped = frameMap(frame.type);
 					isFirst = !(
-						frameTypeMapped == frameMap(framebar[ind == 0 ? _countof(Framebar::frames) - 1 : ind - 1].type)
+						frameTypeMapped == frameMap(framebar[internalInd == 0 ? _countof(Framebar::frames) - 1 : internalInd - 1].type)
 						&& frameTypeMapped == FT_IDLE
 					);
 				}
@@ -10317,12 +10451,17 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* 
 			isFirst = false;
 		}
 		
+		int displayPos = -1;
+		if (prevIndInView) {
+			displayPos = prevVisualInd;
+		}
+		
 		if (currentType == lastFrameType
 				&& !isFirst
 				&& i == _countof(Framebar::frames) - 1
 				&& lastFrameType != FT_NONE) {
 			divisionType = DIVISION_TYPE_REACHED_END;
-			++displayPos;
+			displayPos = visualInd;
 			++sameFrameTypeCount;
 			++visualFrameCount;
 		} else if (!(currentType == lastFrameType && !isFirst)
@@ -10333,12 +10472,12 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* 
 		
 		if (
 				divisionType != DIVISION_TYPE_NONE
-				&& (sameFrameTypeCount > 3 || sameFrameTypeCount > 1 && i == 0 && divisionType == DIVISION_TYPE_DIFFERENT_TYPES)
+				&& sameFrameTypeCount > 3
 				&& numDigits(sameFrameTypeCount) <= visualFrameCount
+				&& displayPos != -1
 			) {
 			
-			displayPos = EntityFramebar::confinePos(displayPos);
-			
+			int displayPosIter = displayPos;
 			int prevIndCounter = 0;
 			int sameFrameTypeCountModif = sameFrameTypeCount;
 			while (sameFrameTypeCountModif) {
@@ -10348,7 +10487,7 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* 
 				
 				const UVStartEnd& digitImg = digitUVs[remainder];
 				
-				const UI::FrameDims& prevDim = preppedDims[EntityFramebar::confinePos(displayPos - prevIndCounter)];
+				const UI::FrameDims& prevDim = preppedDims[displayPosIter];
 				float digitX = prevDim.x;
 				float digitWidth = prevDim.width;
 				
@@ -10364,16 +10503,23 @@ void drawDigits(const FramebarT& framebar, int framebarPosition, UI::FrameDims* 
 					digitImg.end);
 				
 				++prevIndCounter;
+				if (displayPosIter == 0) {
+					displayPosIter = drawFramebars_framesCount - 1;
+				} else {
+					--displayPosIter;
+				}
 			}
 		}
 		
 		if (currentType == lastFrameType && !isFirst) {
 			++sameFrameTypeCount;
-			++visualFrameCount;
+			if (prevIndInView) {
+				++visualFrameCount;
+			}
 		} else {
 			lastFrameType = currentType;
 			sameFrameTypeCount = 1;
-			visualFrameCount = 1;
+			visualFrameCount = prevIndInView ? 1 : 0;
 		}
 	}
 }
@@ -10543,13 +10689,16 @@ bool UI::float4SettingPreset(float& settingsPtr) {
 	return attentionPossiblyNeeded;
 }
 
-bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth) {
+bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth, int maxValue) {
 	bool isChange = false;
 	int intValue = settingsPtr;
 	ImGui::SetNextItemWidth(fieldWidth);
 	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &intValue, step, stepFast, 0)) {
 		if (intValue < minValue) {
 			intValue = minValue;
+		}
+		if (intValue > maxValue) {
+			intValue = maxValue;
 		}
 		settingsPtr = intValue;
 		needWriteSettings = true;
@@ -11573,9 +11722,10 @@ void UI::getFramebarDrawData(std::vector<BYTE>& dData) {
 	dData.clear();
 	if (!drawData) return;
 	
-	ImDrawListBackup* lists[2] { nullptr };
+	ImDrawListBackup* lists[3] { nullptr };
 	int listsCount = 0;
 	if (drewFramebar) {
+		lists[listsCount++] = (ImDrawListBackup*)framebarHorizontalScrollbarDrawDataCopy.data();
 		lists[listsCount++] = (ImDrawListBackup*)framebarWindowDrawDataCopy.data();
 	}
 	if (drewFrameTooltip) {
@@ -11680,14 +11830,15 @@ void UI::resetFrameSelection() {
 }
 
 int UI::findHoveredFrame(float x, FrameDims* dims) {
+	if (drawFramebars_framesCount <= 1) return 0;
 	if (x < dims[1].x) {
 		return 0;
-	} else if (x >= dims[_countof(Framebar::frames) - 1].x) {
-		return _countof(Framebar::frames) - 1;
+	} else if (x >= dims[drawFramebars_framesCount - 1].x) {
+		return drawFramebars_framesCount - 1;
 	} else {
 		int start, end, mid;
 		start = 0;
-		end = _countof(Framebar::frames) - 1;
+		end = drawFramebars_framesCount - 1;
 		do {
 			mid = (start + end) >> 1;
 			if (x < dims[mid].x) {
@@ -11708,6 +11859,17 @@ void UI::drawRightAlignedP1TitleWithCharIcon() {
 	drawPlayerIconWithTooltip(0);
 	ImGui::SameLine();
 	ImGui::TextUnformatted("P1");
+}
+
+void UI::onFramebarReset() {
+	onFramebarAdvanced();
+	framebarAutoScroll = true;
+}
+
+void UI::onFramebarAdvanced() {
+	resetFrameSelection();
+	framebarScrollX = 0.F;
+	framebarAutoScroll = true;
 }
 
 void UI::drawFramebars() {
@@ -11761,10 +11923,12 @@ void UI::drawFramebars() {
 	const float hoveredFrameHighlightPaddingY = hoveredFrameHighlightPaddingYUnscaled * scale;
 	static const float framebarCurrentPositionHighlighterStickoutDistanceUnscaled = 2.F;
 	const float framebarCurrentPositionHighlighterStickoutDistance = framebarCurrentPositionHighlighterStickoutDistanceUnscaled * scale;
+	static const float framedataBottomPadding = 2.F;
 	drawFramebars_innerBorderThickness = innerBorderThicknessUnscaled * scale;
 	if (drawFramebars_innerBorderThickness < 1.F) drawFramebars_innerBorderThickness = 1.F;
 	drawFramebars_innerBorderThicknessHalf = drawFramebars_innerBorderThickness * 0.5F;
 	
+	// Space reserved on top of a framebar for top markers and first frame indicator
 	float maxTopPadding;
 	if (!showFirstFrames) {
 		maxTopPadding = 0.F;
@@ -11772,30 +11936,161 @@ void UI::drawFramebars() {
 		maxTopPadding = firstFrameHeightDiff * 0.5F;
 		if (maxTopPadding < 0.F) maxTopPadding = 0.F;
 	}
-	const float otherTopPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight;
-	if (otherTopPadding > maxTopPadding && (showStrikeInvulOnFramebar || showSuperArmorOnFramebar)) {
-		maxTopPadding = otherTopPadding;
+	if (showStrikeInvulOnFramebar || showSuperArmorOnFramebar) {
+		const float otherTopPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight;
+		if (otherTopPadding > maxTopPadding) {
+			maxTopPadding = otherTopPadding;
+		}
 	}
+	// Space reserved under a framebar for bottom markers
 	float bottomPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight;
 	if (bottomPadding < 0.F || !showThrowInvulOnFramebar && !showOTGOnFramebar) {
 		bottomPadding = 0.F;
 	}
 	
 	float paddingBetweenFramebars = paddingBetweenFramebarsOriginal;
-	if (paddingBetweenFramebars - (maxTopPadding + bottomPadding) < paddingBetweenFramebarsMin) {
-		paddingBetweenFramebars = paddingBetweenFramebarsMin + (maxTopPadding + bottomPadding);
+	const float minPaddingBetweenFramebars = paddingBetweenFramebarsMin + (maxTopPadding + bottomPadding);
+	if (paddingBetweenFramebars < minPaddingBetweenFramebars) {
+		paddingBetweenFramebars = minPaddingBetweenFramebars;
 	}
 	
 	const float oneFramebarHeight = outerBorderThickness
 		+ drawFramebars_frameItselfHeight
 		+ outerBorderThickness;
 	
+	float framebarFrameDataHeight = 0.F;
+	bool needShowFramebarFrameDataP1 = settings.showP1FramedataInFramebar;
+	bool needShowFramebarFrameDataP2 = settings.showP2FramedataInFramebar;
+	if (needShowFramebarFrameDataP1 || needShowFramebarFrameDataP2) {
+		framebarFrameDataHeight = ImGui::GetTextLineHeight() + 3.F;  // for whatever reason it's missing ~3px for the tails of letters like y and g
+		// also we're going to add a 1px outline all around the text, so that adds 2 more pixels
+	}
+	
+	drawFramebars_framesCount = settings.framebarDisplayedFramesCount;
+	int storedFramesCount = settings.framebarStoredFramesCount;
+	if (storedFramesCount < 1) {
+		storedFramesCount = 1;
+	}
+	if (storedFramesCount > _countof(Framebar::frames)) {
+		storedFramesCount = _countof(Framebar::frames);
+	}
+	if (drawFramebars_framesCount > storedFramesCount) {
+		drawFramebars_framesCount = storedFramesCount;
+	}
+	if (drawFramebars_framesCount < 1) {
+		drawFramebars_framesCount = 1;
+	}
+	
+	int framebarTotalFramesUnlimited = framebarSettings.neverIgnoreHitstop
+		? endScene.getTotalFramesHitstopUnlimited()
+		: endScene.getTotalFramesUnlimited();
+	
+	// Capped between 0 and storedFramesCount, inclusive
+	int framebarTotalFramesCapped;
+	if (framebarTotalFramesUnlimited > storedFramesCount) {
+		framebarTotalFramesCapped = storedFramesCount;
+	} else {
+		framebarTotalFramesCapped = framebarTotalFramesUnlimited;
+	}
+	
+	
+	const float framesCountFloat = (float)drawFramebars_framesCount;
+	
+	// this value is in [0;_countof(Framebar::frames)] coordinate space, its possible range of values is [0;_countof(Framebar::frames)-1]
+	// It does not have horizontal scrolling applied to it
+	const int framebarPosition = framebarSettings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
+	
+	int scrollXInFrames;
+	if (framebarTotalFramesCapped > drawFramebars_framesCount) {
+		
+		int totalScrollableFrames = framebarTotalFramesCapped  // total number of frames
+			- drawFramebars_framesCount;  // number of visible frames
+		
+		if (framebarAutoScroll) {
+			scrollXInFrames = 0;
+		} else {
+			scrollXInFrames = std::lroundf(
+				(float)(totalScrollableFrames + 1)  // adding one to give an even chance to frames that are on the edges
+					* framebarScrollX / framebarMaxScrollX  // scroll ratio: from 0.F to 1.F
+				- 0.5F
+			);
+			if (scrollXInFrames < 0) {
+				scrollXInFrames = 0;
+			}
+			if (scrollXInFrames > totalScrollableFrames) {
+				scrollXInFrames = totalScrollableFrames;
+			}
+		}
+		
+	} else {
+		scrollXInFrames = 0;
+	}
+	
+	drawFramebars_framebarPosition = framebarPosition - scrollXInFrames;
+	if (drawFramebars_framebarPosition < 0) {
+		drawFramebars_framebarPosition += _countof(Framebar::frames);
+	}
+	
+	int framebarTotalFramesUnlimited_withScroll;
+	if (framebarTotalFramesUnlimited < scrollXInFrames) {
+		framebarTotalFramesUnlimited_withScroll = 0;
+	} else {
+		framebarTotalFramesUnlimited_withScroll = framebarTotalFramesUnlimited - scrollXInFrames;
+	}
+	
+	drawFramebars_framebarPositionDisplay = framebarTotalFramesUnlimited_withScroll == 0
+		? 0
+		: (framebarTotalFramesUnlimited_withScroll - 1) % drawFramebars_framesCount;
+	
+	bool recheckCompletelyEmpty = drawFramebars_framesCount != _countof(Framebar::frames);
+	const bool eachProjectileOnSeparateFramebar = framebarSettings.eachProjectileOnSeparateFramebar;
+	
+	std::vector<bool> framebarsCompletelyEmpty;
+	if (recheckCompletelyEmpty) {
+		if (eachProjectileOnSeparateFramebar) {
+			framebarsCompletelyEmpty.resize(endScene.projectileFramebars.size());
+			int index = 0;
+			for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
+				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+				framebarsCompletelyEmpty[index++] = framebar.lastNFramesCompletelyEmpty(drawFramebars_framebarPosition, drawFramebars_framesCount);
+			}
+		} else {
+			framebarsCompletelyEmpty.resize(endScene.combinedFramebars.size());
+			int index = 0;
+			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
+				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+				framebarsCompletelyEmpty[index++] = framebar.lastNFramesCompletelyEmpty(drawFramebars_framebarPosition, drawFramebars_framesCount);
+			}
+		}
+	}
+	
 	std::vector<const EntityFramebar*> framebars;
-	const bool eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
 	size_t playerFramebarsCount = endScene.playerFramebars.size();
 	if (playerFramebarsCount > 2) playerFramebarsCount = 2;
 	if (eachProjectileOnSeparateFramebar) {
-		framebars.resize(playerFramebarsCount + endScene.projectileFramebars.size(), nullptr);
+		size_t nonEmptyCount = 0;
+		int index = 0;
+		for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
+			const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+			if (!(
+					framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
+			)) {
+				++nonEmptyCount;
+			}
+			++index;
+		}
+		framebars.resize(playerFramebarsCount + nonEmptyCount, nullptr);
+	} else if (recheckCompletelyEmpty) {
+		size_t nonEmptyCount = 0;
+		int index = 0;
+		for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
+			const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+			if (!framebarsCompletelyEmpty[index]) {
+				++nonEmptyCount;
+			}
+			++index;
+		}
+		framebars.resize(playerFramebarsCount + nonEmptyCount, nullptr);
 	} else {
 		framebars.resize(playerFramebarsCount + endScene.combinedFramebars.size(), nullptr);
 	}
@@ -11809,30 +12104,45 @@ void UI::drawFramebars() {
 	}
 	for (int i = 0; i < 2; ++i) {
 		if (eachProjectileOnSeparateFramebar) {
+			int index = 0;
 			for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
-				if (entityFramebar.playerIndex == i) {
+				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+				if (entityFramebar.playerIndex == i && !(
+						framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
+				)) {
 					framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
 				}
+				++index;
 			}
 		} else {
+			int index = 0;
 			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
-				if (entityFramebar.playerIndex == i) {
+				if (entityFramebar.playerIndex == i && !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
 					framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
 				}
+				++index;
 			}
 		}
 	}
 	if (eachProjectileOnSeparateFramebar) {
+		int index = 0;
 		for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
-			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1) {
+			const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1 && !(
+					framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
+			)) {
 				framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
 			}
+			++index;
 		}
 	} else {
+		int index = 0;
 		for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
-			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1) {
+			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1
+					&& !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
 				framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
 			}
+			++index;
 		}
 	}
 	if (framebarsCount != framebars.size()) {
@@ -11847,8 +12157,9 @@ void UI::drawFramebars() {
 		2.F  // imgui window padding
 		+ 1.F
 		+ maxTopPadding
-		+ oneFramebarHeight
-		* 2.F
+		+ oneFramebarHeight * 2.F
+		+ (needShowFramebarFrameDataP1 ? framebarFrameDataHeight : 0.F)
+		+ (needShowFramebarFrameDataP2 ? framebarFrameDataHeight : 0.F)
 		+ (framebarsCount <= 1 ? 0.F : paddingBetweenFramebars)
 		+ bottomPadding
 		+ 1.F
@@ -11858,8 +12169,9 @@ void UI::drawFramebars() {
 		// don't add imgui window padding here
 		+ 1.F
 		+ maxTopPadding
-		+ oneFramebarHeight
-		* (float)framebarsCount
+		+ oneFramebarHeight * (float)framebarsCount
+		+ (needShowFramebarFrameDataP1 && playerFramebarsCount > 0 ? framebarFrameDataHeight : 0.F)
+		+ (needShowFramebarFrameDataP2 && playerFramebarsCount > 1 ? framebarFrameDataHeight : 0.F)
 		+ framebarsPaddingYTotal
 		+ bottomPadding
 		+ 1.F
@@ -11877,7 +12189,8 @@ void UI::drawFramebars() {
 		&& ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true)
 		&& ImGui::IsWindowFocused();
 	ImGui::PopStyleVar();
-	if (scale > 1.F) {
+	bool scaledText = scale > 1.F;
+	if (scaledText) {
 		ImGui::SetWindowFontScale(scale);
 	} else {
 		ImGui::SetWindowFontScale(1.F);
@@ -11918,16 +12231,18 @@ void UI::drawFramebars() {
 		- outerBorderThickness
 		+ drawFramebars_innerBorderThickness;
 	
+	const float framesXMask = framesX - outerBorderThickness;
+	const float framesXEndMask = framesXEnd - drawFramebars_innerBorderThickness + outerBorderThickness;
+	
 	const float scrollY = ImGui::GetScrollY();
 	drawFramebars_y = drawFramebars_windowPos.y 
 		+ 2.F  // imgui window padding
 		+ 1.F
 		+ maxTopPadding
 		+ outerBorderThickness
-		- scrollY;
+		- scrollY
+		+ (needShowFramebarFrameDataP1 && playerFramebarsCount > 0 ? framebarFrameDataHeight : 0.F);
 	
-	static const float framesCountFloat = (float)_countof(Framebar::frames);
-	const int framebarPosition = settings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
 	ImU32 tintDarker = ImGui::GetColorU32(IM_COL32(128, 128, 128, 255));
 	
 	
@@ -11944,39 +12259,60 @@ void UI::drawFramebars() {
 	}
 	const float frameNumberHeight = drawFramebars_frameItselfHeight - frameNumberPaddingYUse - frameNumberPaddingYUse;
 	
-	FrameDims preppedDims[_countof(Framebar::frames)];
-	float highlighterStartX;
-	float highlighterEndX;
+	FrameDims preppedDims[_countof(Framebar::frames)];  // we're only going to use drawFramebars_framesCount of these
+	float highlighterStartX[2] { 0.F, 0.F };
+	int highlighterCount = 0;
 	
 	if (framesXEnd > framesX) {
+		FrameDims* dims;
 		float x = framesX;
-		for (int i = 0; i < _countof(Framebar::frames); ++i) {
-			float thisFrameXEnd = std::round((framesXEnd - framesX) * (float)(i + 1) / framesCountFloat + framesX);
+		const float totalVisibleFramesWidth = framesXEnd - framesX;
+		
+		for (int i = 0; i < drawFramebars_framesCount - 1; ++i) {
+			
+			float thisFrameXEnd = std::round(totalVisibleFramesWidth * (float)(i + 1) / framesCountFloat + framesX);
 			float thisFrameWidth = thisFrameXEnd - x;
-			float thisFrameWidthWithoutOutline = thisFrameWidth - 1.F;
+			float thisFrameWidthWithoutOutline = thisFrameWidth - drawFramebars_innerBorderThickness;
 			
 			if (thisFrameWidth < 0.99F) {
 				thisFrameWidth = 1.F;
 				thisFrameWidthWithoutOutline = 1.F;
 			}
 			
-			FrameDims& dims = preppedDims[i];
-			dims.x = x;
-			dims.width = thisFrameWidthWithoutOutline;
+			dims = preppedDims + i;
+			dims->x = x;
+			dims->width = thisFrameWidthWithoutOutline;
 			
 			x = thisFrameXEnd;
 		}
 		
-		highlighterStartX = preppedDims[EntityFramebar::confinePos(framebarPosition + 1)].x - drawFramebars_innerBorderThickness;
-		highlighterEndX = highlighterStartX + highlighterWidth;
+		dims = preppedDims + (drawFramebars_framesCount - 1);
+		dims->x = x;
+		x = framesXEnd;
+		dims->width = x - drawFramebars_innerBorderThickness - dims->x;
+		
+		int highlighterPos = (
+			drawFramebars_framebarPositionDisplay == drawFramebars_framesCount - 1
+				? 0
+				: drawFramebars_framebarPositionDisplay + 1
+			);
+		highlighterStartX[0] = preppedDims[highlighterPos].x - drawFramebars_innerBorderThickness;
+		++highlighterCount;
+		
+		if (drawFramebars_framebarPositionDisplay == drawFramebars_framesCount - 1) {
+			highlighterStartX[1] = framesXEnd - drawFramebars_innerBorderThickness;
+			++highlighterCount;
+		}
 		
 	}
 	
 	static float P1P2TextSizeWithSpace;
 	static float P1P2TextSize;
 	static bool P1P2TextSizeCalculated = false;
-	if (!P1P2TextSizeCalculated) {
+	static float P1P2TextScale = 1.F;
+	if (!P1P2TextSizeCalculated || P1P2TextScale != scale) {
 		P1P2TextSizeCalculated = true;
+		P1P2TextScale = scale;
 		P1P2TextSizeWithSpace = ImGui::CalcTextSize("P1 ").x;
 		P1P2TextSize = ImGui::CalcTextSize("P1").x;
 	}
@@ -11988,12 +12324,26 @@ void UI::drawFramebars() {
 	const FrameMarkerArt& OTGMarker = frameMarkerArtArray[MARKER_TYPE_OTG];
 	
 	drawFramebars_hoveredFrameIndex = -1;
-	const float currentPositionHighlighterStartY = drawFramebars_y;
+	const float currentPositionHighlighter_Strip1_StartY = drawFramebars_y;
+	float currentPositionHighlighter_Strip1_EndY = drawFramebars_y;
+	float currentPositionHighlighter_Strip2_StartY = drawFramebars_y;
 	
 	const bool showPlayerInFramebarTitle = settings.showPlayerInFramebarTitle;
 	const int framebarTitleCharsMax = settings.framebarTitleCharsMax;
-	const std::vector<SkippedFramesInfo>& skippedFrames = endScene.getSkippedFrames(settings.neverIgnoreHitstop);
+	const std::vector<SkippedFramesInfo>& skippedFrames = endScene.getSkippedFrames(framebarSettings.neverIgnoreHitstop);
 	
+	// we're positioned after outerBorderThickness of the next framebar
+	const float offsetAfterP2Framedata =
+		// imaginary (we don't actually do this): -outerBorderThickness
+		-paddingBetweenFramebars
+		+ bottomPadding
+		+ framebarFrameDataHeight
+		+ framedataBottomPadding
+		+ maxTopPadding
+		// imaginary: + outerBorderThickness   ; drawFramebars_y must always point to the top Y of frame's graphical art, not it's outer border
+		;
+	
+	bool lastWasP2Framedata = false;
 	if (showPlayerInFramebarTitle || framebarTitleCharsMax > 0) {
 		ImGui::PushClipRect(
 			{
@@ -12012,28 +12362,46 @@ void UI::drawFramebars() {
 		const bool useSlang = settings.useSlangNames;
 		for (const EntityFramebar* entityFramebarPtr : framebars) {
 			const EntityFramebar& entityFramebar = *entityFramebarPtr;
+			const Frame* frame = nullptr;  // I initialize this variable because of compiler warning C4703 'potentially uninitialized variable used' which can't be removed even with const bool check in the if
+			
+			if (lastWasP2Framedata) {
+				titleY += offsetAfterP2Framedata;
+				lastWasP2Framedata = false;
+			}
+			
 			const char* title = nullptr;
 			const char* titleFull = nullptr;
 			static std::string titleShortStr;
-			if (framebarTitleCharsMax <= 0) {
+			
+			const bool hasTitleInFrame = framebarTitleCharsMax > 0 && !entityFramebar.belongsToPlayer();
+			if (!hasTitleInFrame) {
 				title = nullptr;
 			} else {
+				const Framebar* framebar;
+				if (eachProjectileOnSeparateFramebar) {
+					const ProjectileFramebar& projectileFramebar = (const ProjectileFramebar&)entityFramebar;
+					framebar = framebarSettings.neverIgnoreHitstop ? &projectileFramebar.hitstop : &projectileFramebar.main;
+				} else {
+					const CombinedProjectileFramebar& combinedProjectileFramebar = (const CombinedProjectileFramebar&)entityFramebar;
+					framebar = &combinedProjectileFramebar.main;
+				}
+				frame = &(*framebar)[drawFramebars_framebarPosition];
 				const char* selectedTitle = nullptr;
 				if (eachProjectileOnSeparateFramebar) {
 					if (useSlang) {
-						selectedTitle = entityFramebar.titleSlangUncombined;
+						selectedTitle = frame->title.slangUncombined;
 					}
-					if (!selectedTitle) selectedTitle = entityFramebar.titleUncombined;
-					titleFull = entityFramebar.titleUncombined;
+					if (!selectedTitle) selectedTitle = frame->title.uncombined;
+					titleFull = frame->title.uncombined;
 				}
 				if (!selectedTitle) {
 					if (useSlang) {
-						selectedTitle = entityFramebar.titleSlang;
+						selectedTitle = frame->title.slang;
 					}
-					if (!selectedTitle) selectedTitle = entityFramebar.titleShort;
+					if (!selectedTitle) selectedTitle = frame->title.text;
 				}
 				if (!titleFull && useSlang) {
-					titleFull = entityFramebar.titleShort;
+					titleFull = frame->title.text;
 				}
 				if (selectedTitle) {
 					if (!dontTruncateFramebarTitles) {
@@ -12056,7 +12424,11 @@ void UI::drawFramebars() {
 			if (!title) {
 				title = "???";
 			}
-			if (entityFramebar.titleFull && *entityFramebar.titleFull != '\0') titleFull = entityFramebar.titleFull;
+			if (hasTitleInFrame
+					&& frame->title.full
+					&& *frame->title.full != '\0') {
+				titleFull = frame->title.full;
+			}
 			float textX;
 			bool isOnTheLeft = true;
 			ImVec2 textSize;
@@ -12079,7 +12451,8 @@ void UI::drawFramebars() {
 			
 			bool hoveredExtra = false;
 			
-			if (showPlayerInFramebarTitle) {
+			bool drewTitle = false;
+			if (showPlayerInFramebarTitle && (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)) {
 				
 				ImVec4* P1P2Clr = P1P2_COLOR[entityFramebar.playerIndex];
 				ImVec4* P1P2OutlineClr = P1P2_OUTLINE_COLOR[entityFramebar.playerIndex];
@@ -12127,8 +12500,10 @@ void UI::drawFramebars() {
 					const char* P1P2Str;
 					if (entityFramebar.playerIndex == 0) {
 						P1P2Str = "P1";
+						titleFull = "Player 1";
 					} else {
 						P1P2Str = "P2";
+						titleFull = "Player 2";
 					}
 					
 					outlinedText({
@@ -12141,6 +12516,7 @@ void UI::drawFramebars() {
 						P1P2Clr,
 						P1P2OutlineClr);
 				}
+				drewTitle = true;
 			} else if (title) {
 				outlinedText({
 					isOnTheLeft
@@ -12149,9 +12525,10 @@ void UI::drawFramebars() {
 					textY
 				},
 				title);
+				drewTitle = true;
 			}
 			if (titleFull
-					&& (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly) || hoveredExtra)
+					&& (drewTitle && ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly) || hoveredExtra)
 					&& !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)
 					&& ImGui::BeginTooltip()) {
 				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -12164,34 +12541,141 @@ void UI::drawFramebars() {
 				ImGui::EndTooltip();
 			}
 			titleY += oneFramebarHeight + paddingBetweenFramebars;
+			if (needShowFramebarFrameDataP2
+					&& entityFramebar.belongsToPlayer()
+					&& entityFramebar.playerIndex == 1) {
+				lastWasP2Framedata = true;
+			}
 		}
 		ImGui::PopClipRect();
 	}
 	
+	#define pushFramesClipRect(intersect_with_current_clip_rect) \
+		drawFramebars_drawList->PushClipRect({ \
+				framesXMask, \
+				-10000.F \
+			}, \
+			{ \
+				framesXEndMask, \
+				10000.F \
+			}, \
+			intersect_with_current_clip_rect);
+	
+	pushFramesClipRect(true)
+	
+	bool has2StripsOfCurrentPositionHighlighter = false;
+	lastWasP2Framedata = false;
 	for (const EntityFramebar* entityFramebarPtr : framebars) {
 		const EntityFramebar& entityFramebar = *entityFramebarPtr;
-		const FramebarBase& framebar = settings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+		const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
 		
-		if (framesXEnd > framesX) {
+		if (lastWasP2Framedata) {
+			drawFramebars_y += offsetAfterP2Framedata;
+			currentPositionHighlighter_Strip2_StartY = drawFramebars_y;
+			has2StripsOfCurrentPositionHighlighter = true;
+			lastWasP2Framedata = false;
+		}
+		
+		if ((
+					needShowFramebarFrameDataP1
+					&& entityFramebar.playerIndex == 0
+					|| needShowFramebarFrameDataP2
+					&& entityFramebar.playerIndex == 1
+				)
+				&& entityFramebar.belongsToPlayer()) {
+			const PlayerFramebar& playerFramebar = (const PlayerFramebar&)framebar;
+			const PlayerFrame& playerFrame = playerFramebar[drawFramebars_framebarPosition];
+			sprintf_s(strbuf, "Startup: %d, Active: %d, Recovery: %d, Total: %d, Advantage: ",
+				playerFrame.startup,
+				playerFrame.active,
+				playerFrame.recovery,
+				playerFrame.total);
+			if (scaledText) {
+				ImGui::SetWindowFontScale(1.F);
+			}
+			ImVec2 textSize = ImGui::CalcTextSize(strbuf);
+			ImVec2 textPos;
+			textPos.x = framesXMask;
+			if (entityFramebar.playerIndex == 0) {
+				textPos.y = drawFramebars_y - outerBorderThickness - framebarFrameDataHeight - maxTopPadding;
+			} else {
+				textPos.y = drawFramebars_y - outerBorderThickness + oneFramebarHeight + bottomPadding;
+			}
+			outlinedTextRawHighQuality(drawFramebars_drawList, textPos, strbuf, nullptr, nullptr);
+			textPos.x += textSize.x;
+			short frameAdvantage = dontUsePreBlockstunTime ? playerFrame.frameAdvantageNoPreBlockstun : playerFrame.frameAdvantage;
+			short landingFrameAdvantage = dontUsePreBlockstunTime ? playerFrame.landingFrameAdvantageNoPreBlockstun : playerFrame.landingFrameAdvantage;
+			
+			if (frameAdvantage == SHRT_MIN) {
+				outlinedTextRawHighQuality(drawFramebars_drawList, textPos, "?", nullptr, nullptr);
+			} else {
+				char* buf = strbuf;
+				size_t bufSize = sizeof strbuf;
+				int result = frameAdvantageTextFormat(frameAdvantage, strbuf, sizeof strbuf);
+				advanceBuf
+				if (landingFrameAdvantage != SHRT_MIN && bufSize > 2) {
+					buf[result] = ' ';
+					buf[result + 1] = '\0';
+				}
+				ImVec4* color;
+				if (frameAdvantage > 0) {
+					color = &GREEN_COLOR;
+				} else if (frameAdvantage < 0) {
+					color = &RED_COLOR;
+				} else {
+					color = nullptr;
+				}
+				outlinedTextRawHighQuality(drawFramebars_drawList, textPos, strbuf, color, nullptr);
+				if (landingFrameAdvantage != SHRT_MIN) {
+					textSize = ImGui::CalcTextSize(strbuf);
+					textPos.x += textSize.x;
+					outlinedTextRawHighQuality(drawFramebars_drawList, textPos, "(", nullptr, nullptr);
+					textSize = ImGui::CalcTextSize("(");
+					textPos.x += textSize.x;
+					frameAdvantageTextFormat(landingFrameAdvantage, strbuf, sizeof strbuf);
+					advanceBuf
+					if (frameAdvantage > 0) {
+						color = &GREEN_COLOR;
+					} else if (frameAdvantage < 0) {
+						color = &RED_COLOR;
+					} else {
+						color = nullptr;
+					}
+					outlinedTextRawHighQuality(drawFramebars_drawList, textPos, strbuf, color, nullptr);
+					textSize = ImGui::CalcTextSize(strbuf);
+					textPos.x += textSize.x;
+					outlinedTextRawHighQuality(drawFramebars_drawList, textPos, ")", nullptr, nullptr);
+				}
+			}
+			if (scaledText) {
+				ImGui::SetWindowFontScale(scale);
+			}
+		}
+		
+		if (framesXEndMask > framesXMask && framesXEnd > framesX) {
 			drawFramebars_drawList->AddRectFilled(
-				{ framesX - outerBorderThickness, drawFramebars_y - outerBorderThickness },
-				{ framesXEnd, drawFramebars_y - outerBorderThickness + oneFramebarHeight },
+				{ framesXMask, drawFramebars_y - outerBorderThickness },
+				{ framesXEndMask, drawFramebars_y - outerBorderThickness + oneFramebarHeight },
 				ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)));
 		}
 		
 		if (framesXEnd > framesX) {
 			
 			if (entityFramebar.belongsToPlayer()) {
-				drawPlayerFramebar((const PlayerFramebar&)framebar, preppedDims, framebarPosition, tintDarker, entityFramebar.playerIndex, skippedFrames,
-					endScene.players[entityFramebar.playerIndex].charType);
+				drawPlayerFramebar((const PlayerFramebar&)framebar, preppedDims, tintDarker, entityFramebar.playerIndex, skippedFrames,
+					entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1
+						? endScene.players[entityFramebar.playerIndex].charType
+						: (CharacterType)-1);
 			} else {
 				const PlayerFramebars& correspondingPlayersFramebars = endScene.playerFramebars[entityFramebar.playerIndex];
 				
-				drawProjectileFramebar((const Framebar&)framebar, preppedDims, framebarPosition, tintDarker, skippedFrames,
-					settings.neverIgnoreHitstop
+				drawProjectileFramebar((const Framebar&)framebar, preppedDims, tintDarker, skippedFrames,
+					framebarSettings.neverIgnoreHitstop
 						? (const PlayerFramebar&)correspondingPlayersFramebars.getHitstop()
 						: (const PlayerFramebar&)correspondingPlayersFramebars.getMain(),
-					endScene.players[entityFramebar.playerIndex].charType);
+					entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1
+						? endScene.players[entityFramebar.playerIndex].charType
+						: (CharacterType)-1);
 			}
 			
 			{
@@ -12210,9 +12694,9 @@ void UI::drawFramebars() {
 				}
 				
 				if (entityFramebar.belongsToPlayer()) {
-					drawDigits<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, framebarPosition, preppedDims, frameNumberYTop, frameNumberYBottom);
+					drawDigits<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, frameNumberYTop, frameNumberYBottom);
 				} else {
-					drawDigits<Framebar, Frame>((const Framebar&)framebar, framebarPosition, preppedDims, frameNumberYTop, frameNumberYBottom);
+					drawDigits<Framebar, Frame>((const Framebar&)framebar, preppedDims, frameNumberYTop, frameNumberYBottom);
 				}
 			}
 			
@@ -12229,13 +12713,19 @@ void UI::drawFramebars() {
 				{
 					const PlayerFramebar& framebarPlayer = (const PlayerFramebar&)framebar;
 					const Framebar& framebarProjectile = (const Framebar&)framebar;
-					for (int i = 0; i < _countof(Framebar::frames); ++i) {
-						const PlayerFrame& playerFrame = framebarPlayer[i];
-						const Frame& projectileFrame = framebarProjectile[i];
-						const FrameDims& dims = preppedDims[i];
+					int internalIndNext = iterateVisualFramesFrom0_getInitialInternalInd();
+					int internalInd;
+					for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
+						
+						internalInd = internalIndNext;
+						incrementInternalInd(internalIndNext);
+						
+						const PlayerFrame& playerFrame = framebarPlayer[internalInd];
+						const Frame& projectileFrame = framebarProjectile[internalInd];
+						const FrameDims& dims = preppedDims[visualInd];
 						
 						ImU32 tint = -1;
-						if (i > framebarPosition) {
+						if (visualInd > drawFramebars_framebarPositionDisplay) {
 							tint = tintDarker;
 						}
 						
@@ -12251,6 +12741,7 @@ void UI::drawFramebars() {
 									isPlayer
 										? playerFrame.strikeInvulInGeneral
 										: projectileFrame.type == FT_IDLE_NO_DISPOSE
+											&& (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)
 											&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_JACKO
 											&& strcmp(projectileFrame.animName, "Ghost"_hardcode) == 0
 								) && showStrikeInvulOnFramebar
@@ -12303,16 +12794,17 @@ void UI::drawFramebars() {
 									tint);
 							}
 						} else if (projectileFrame.type == FT_IDLE_PROJECTILE_HITTABLE
+								&& (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)
 								&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_DIZZY
 								&& showSuperArmorOnFramebar) {
 							
 							const PlayerFramebars& correspondingPlayersFramebars = endScene.playerFramebars[entityFramebar.playerIndex];
 							const PlayerFramebar& correspondingPlayersFramebar =
-								settings.neverIgnoreHitstop
+								framebarSettings.neverIgnoreHitstop
 									? (const PlayerFramebar&)correspondingPlayersFramebars.getHitstop()
 									: (const PlayerFramebar&)correspondingPlayersFramebars.getMain();
 									
-							const PlayerFrame& correspondingPlayerFrame = correspondingPlayersFramebar[i];
+							const PlayerFrame& correspondingPlayerFrame = correspondingPlayersFramebar[internalInd];
 							if (correspondingPlayerFrame.u.dizzyInfo.shieldFishSuperArmor) {
 								const FrameMarkerArt& markerArt = frameMarkerArtArray[MARKER_TYPE_SUPER_ARMOR];
 								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
@@ -12357,55 +12849,99 @@ void UI::drawFramebars() {
 				const float firstFrameBottomY = firstFrameTopY + firstFrameHeightScaled;
 				
 				if (entityFramebar.belongsToPlayer()) {
-					drawFirstFrames<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, framebarPosition, preppedDims, firstFrameTopY, firstFrameBottomY);
+					drawFirstFrames<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY);
 				} else {
-					drawFirstFrames<Framebar, Frame>((const Framebar&)framebar, framebarPosition, preppedDims, firstFrameTopY, firstFrameBottomY);
+					drawFirstFrames<Framebar, Frame>((const Framebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY);
 				}
 			}
 		}
 		
 		drawFramebars_y += oneFramebarHeight + paddingBetweenFramebars;
+		if (needShowFramebarFrameDataP2
+				&& entityFramebar.belongsToPlayer()
+				&& entityFramebar.playerIndex == 1) {
+			lastWasP2Framedata = true;
+			currentPositionHighlighter_Strip1_EndY = drawFramebars_y;  // leave paddingBetweenFramebars in
+		}
 	}
 	
-	float highlighterStartY = currentPositionHighlighterStartY
-				- outerBorderThickness
-				- framebarCurrentPositionHighlighterStickoutDistance;
+	const int highlighterStripCount = has2StripsOfCurrentPositionHighlighter ? 2 : 1;
+	struct HighlighterStartEnd {
+		float start;
+		float end;
+	};
+	HighlighterStartEnd curPosStripRaw[2];
+	if (!has2StripsOfCurrentPositionHighlighter) {
+		curPosStripRaw[0] = {
+			currentPositionHighlighter_Strip1_StartY,
+			drawFramebars_y
+		};
+	} else {
+		curPosStripRaw[0] = {
+			currentPositionHighlighter_Strip1_StartY,
+			currentPositionHighlighter_Strip1_EndY
+		};
+		curPosStripRaw[1] = {
+			currentPositionHighlighter_Strip2_StartY,
+			drawFramebars_y
+		};
+	}
 	
-	float highlighterEndY = drawFramebars_y
-				- outerBorderThickness
-				- paddingBetweenFramebars
-				+ framebarCurrentPositionHighlighterStickoutDistance;
+	HighlighterStartEnd highlighterStartEnd[2];
+	for (int i = 0; i < highlighterStripCount; ++i) {
+		highlighterStartEnd[i].start = curPosStripRaw[i].start
+					- outerBorderThickness
+					- framebarCurrentPositionHighlighterStickoutDistance;
+		
+		highlighterStartEnd[i].end = curPosStripRaw[i].end
+					- outerBorderThickness
+					- paddingBetweenFramebars
+					+ framebarCurrentPositionHighlighterStickoutDistance;
+	}
 	
 	float windowViewableRegionStartY = drawFramebars_windowPos.y;
 	float windowViewableRegionEndY = drawFramebars_windowPos.y + windowHeight;
 	
 	if (framesXEnd > framesX) {
 		
-		drawFramebars_drawList->AddRectFilled(
-			{
-				highlighterStartX,
-				highlighterStartY
-			},
-			{
-				highlighterEndX,
-				highlighterEndY
-			},
-			ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));
+		for (int i = 0; i < highlighterCount; ++i) {
+			for (int j = 0; j < highlighterStripCount; ++j) {
+				drawFramebars_drawList->AddRectFilled(
+					{
+						highlighterStartX[i],
+						highlighterStartEnd[j].start
+					},
+					{
+						highlighterStartX[i] + highlighterWidth,
+						highlighterStartEnd[j].end
+					},
+					ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));
+			}
+		}
 		
 		bool needInitStitchParams = true;
 		static const float distanceBetweenStitches = 4.F;
 		static const float stitchSize = 3.F;
 		static int visiblePreviousStitchesAtTheTopOfAStitch = -1;
 		static const float stitchThickness = 1.F;
-		float stitchStartYWithWindowClipping;
-		int stitchCount;
+		struct StitchParams {
+			float startY;
+			int count;
+		};
+		StitchParams stitchParams[2];
 		bool showFramebarHatchedLineWhenSkippingGrab = settings.showFramebarHatchedLineWhenSkippingGrab;
 		bool showFramebarHatchedLineWhenSkippingHitstop = settings.showFramebarHatchedLineWhenSkippingHitstop;
 		bool showFramebarHatchedLineWhenSkippingSuperfreeze = settings.showFramebarHatchedLineWhenSkippingSuperfreeze;
 		
-		for (int i = 0; i < _countof(Framebar::frames); ++i) {
+		int internalIndNext = iterateVisualFramesFrom0_getInitialInternalInd();
+		int internalInd;
+		
+		for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
 			
-			const SkippedFramesInfo& skippedInfo = skippedFrames[i];
+			internalInd = internalIndNext;
+			incrementInternalInd(internalIndNext);
+			
+			const SkippedFramesInfo& skippedInfo = skippedFrames[internalInd];
 			if (!skippedInfo.count) {
 				continue;
 			}
@@ -12431,45 +12967,53 @@ void UI::drawFramebars() {
 					}
 				}
 				needInitStitchParams = false;
-				stitchStartYWithWindowClipping = highlighterStartY;
-				float stitchEndYWithWindowClipping = highlighterEndY;
-				if (stitchStartYWithWindowClipping < windowViewableRegionStartY) {
-					float countFitIn = std::floor((windowViewableRegionStartY - stitchStartYWithWindowClipping) / distanceBetweenStitches);
-					stitchStartYWithWindowClipping += countFitIn * distanceBetweenStitches;
+				for (int j = 0; j < highlighterStripCount; ++j) {
+					StitchParams& params = stitchParams[j];
+					params.startY = highlighterStartEnd[j].start;
+					float stitchEndYWithWindowClipping = highlighterStartEnd[j].end;
+					if (params.startY < windowViewableRegionStartY) {
+						float countFitIn = std::floor((windowViewableRegionStartY - params.startY) / distanceBetweenStitches);
+						params.startY += countFitIn * distanceBetweenStitches;
+					}
+					if (stitchEndYWithWindowClipping > windowViewableRegionEndY) {
+						stitchEndYWithWindowClipping = windowViewableRegionEndY;
+					}
+					params.count = (int)std::ceil((stitchEndYWithWindowClipping - params.startY) / distanceBetweenStitches);
+					if (params.count <= 0) continue;
+					params.startY -= (float)visiblePreviousStitchesAtTheTopOfAStitch * distanceBetweenStitches;
+					params.count += visiblePreviousStitchesAtTheTopOfAStitch;
 				}
-				if (stitchEndYWithWindowClipping > windowViewableRegionEndY) {
-					stitchEndYWithWindowClipping = windowViewableRegionEndY;
-				}
-				stitchCount = (int)std::ceil((stitchEndYWithWindowClipping - stitchStartYWithWindowClipping) / distanceBetweenStitches);
-				if (stitchCount <= 0) break;
-				stitchStartYWithWindowClipping -= (float)visiblePreviousStitchesAtTheTopOfAStitch * distanceBetweenStitches;
-				stitchCount += visiblePreviousStitchesAtTheTopOfAStitch;
 			}
-			float stitchY = stitchStartYWithWindowClipping;
-			float stitchX = preppedDims[i].x - stitchSize * 0.5F;
-			float stitchEndX = preppedDims[i].x + stitchSize * 0.5F;
-			for (int j = 0; j < stitchCount; ++j) {
-				drawFramebars_drawList->AddLine(
-					{
-						stitchX,
-						stitchY
-					},
-					{
-						stitchX + stitchSize,
-						stitchY + stitchSize
-					},
-					ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)),
-					stitchThickness);
-				stitchY += distanceBetweenStitches;
+			for (int j = 0; j < highlighterStripCount; ++j) {
+				StitchParams& params = stitchParams[j];
+				float stitchY = params.startY;
+				float stitchX = preppedDims[visualInd].x - stitchSize * 0.5F;
+				float stitchEndX = preppedDims[visualInd].x + stitchSize * 0.5F;
+				for (int k = 0; k < params.count; ++k) {
+					drawFramebars_drawList->AddLine(
+						{
+							stitchX,
+							stitchY
+						},
+						{
+							stitchX + stitchSize,
+							stitchY + stitchSize
+						},
+						ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)),
+						stitchThickness);
+					stitchY += distanceBetweenStitches;
+				}
 			}
 		}
 	}
+	drawFramebars_drawList->PopClipRect();
 	
 	bool clicked = ImGui::IsMouseClicked(ImGuiMouseButton_Left);
 	bool mouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
 	if (drawFramebars_hoveredFrameIndex != -1) {
 		if (!selectingFrames) {
 			if (clicked) {
+				// This needs to be done to stop the window from getting drag-moved
 				io.MouseClicked[0] = false;  // *shaking* I feel violated. This is not good
 				selectingFrames = true;
 				selectedFrameStart = drawFramebars_hoveredFrameIndex;
@@ -12507,8 +13051,12 @@ void UI::drawFramebars() {
 		ImVec2 startPos;
 		ImVec2 endPos;
 		
-		float selectionBoxStartY = highlighterStartY + framebarCurrentPositionHighlighterStickoutDistance;
-		float selectionBoxEndY = highlighterEndY - framebarCurrentPositionHighlighterStickoutDistance;
+		float selectionBoxStartY = highlighterStartEnd[0].start + framebarCurrentPositionHighlighterStickoutDistance;
+		float selectionBoxEndY = (
+				has2StripsOfCurrentPositionHighlighter
+					? highlighterStartEnd[1].end
+					: highlighterStartEnd[0].end
+			) - framebarCurrentPositionHighlighterStickoutDistance;
 		
 		int selFrameStart;
 		int selFrameEnd;
@@ -12521,9 +13069,12 @@ void UI::drawFramebars() {
 		}
 		
 		#pragma warning(suppress:6001)
-		startPos.x = selFrameStart == 0
-			? preppedDims[0].x - outerBorderThickness
-			: preppedDims[selFrameStart - 1].x + preppedDims[selFrameStart - 1].width;
+		if (selFrameStart == 0) {
+			startPos.x = framesXMask;
+		} else {
+			FrameDims& dims = preppedDims[selFrameStart - 1];
+			startPos.x = dims.x + dims.width;
+		}
 		
 		if (selectionBoxStartY < drawFramebars_windowPos.y) {
 			startPos.y = drawFramebars_windowPos.y;
@@ -12531,9 +13082,12 @@ void UI::drawFramebars() {
 			startPos.y = selectionBoxStartY;
 		}
 		
-		endPos.x = selFrameEnd == _countof(Framebar::frames) - 1
-			? preppedDims[_countof(Framebar::frames) - 1].x + preppedDims[_countof(Framebar::frames) - 1].width + outerBorderThickness
-			: preppedDims[selFrameEnd + 1].x;
+		if (selFrameEnd == drawFramebars_framesCount - 1) {
+			endPos.x = framesXEndMask;
+		} else {
+			FrameDims& dims = preppedDims[selFrameEnd + 1];
+			endPos.x = dims.x;
+		}
 		if (selectionBoxEndY > windowViewableRegionEndY) {
 			endPos.y = windowViewableRegionEndY;
 		} else {
@@ -12551,8 +13105,14 @@ void UI::drawFramebars() {
 		drawFramebars_drawList->AddRectFilled(startPos, endPos, ImGui::GetColorU32(IM_COL32(0, 130, 216, 50)));	// Background
 		
 		ImGui::SetWindowFontScale(1.F);
-		sprintf_s(strbuf, "%d frames selected", selFrameEnd - selFrameStart + 1);
-		ImVec2 textSize = ImGui::CalcTextSize(strbuf);
+		const char* txt;
+		if (selFrameEnd == selFrameStart) {
+			txt = "1 frame selected";
+		} else {
+			sprintf_s(strbuf, "%d frames selected", selFrameEnd - selFrameStart + 1);
+			txt = strbuf;
+		}
+		ImVec2 textSize = ImGui::CalcTextSize(txt);
 		ImVec2 textPos;
 		textPos.x = preppedDims[0].x;
 		if (drawFramebars_windowPos.y < textSize.y) {
@@ -12561,11 +13121,13 @@ void UI::drawFramebars() {
 			textPos.y = drawFramebars_windowPos.y - textSize.y;
 		}
 		
-		outlinedTextRaw(drawFramebars_drawList, textPos, strbuf);
+		outlinedTextRaw(drawFramebars_drawList, textPos, txt);
 		
 		drawFramebars_drawList->PopClipRect();
 	}
-	
+	bool transferHorizScroll = ImGui::IsWindowHovered()
+			&& io.MouseWheel != 0.F
+			&& io.KeyShift;
 	ImGui::End();
 	if (needSplitFramebar) {
 		copyDrawList(*(ImDrawListBackup*)framebarWindowDrawDataCopy.data(), drawFramebars_drawList);
@@ -12573,4 +13135,56 @@ void UI::drawFramebars() {
 		drawFramebars_drawList->IdxBuffer.clear();
 		drawFramebars_drawList->VtxBuffer.clear();
 	}
+	
+	ImGui::SetNextWindowPos({
+			drawFramebars_windowPos.x,
+			drawFramebars_windowPos.y - 30.F
+		},
+		ImGuiCond_Always);
+	ImGui::SetNextWindowSize({
+			windowWidth,
+			30.F
+		},
+		ImGuiCond_Always);
+	ImGui::SetNextWindowContentSize({
+			(windowWidth - 16.F)  // this is the maximum content width where we don't get a horizontal scrollbar
+				* (float)framebarTotalFramesCapped / framesCountFloat,
+			0.F
+		});
+	float prevScroll = framebarScrollX;
+	if (framebarAutoScroll) {
+		ImGui::SetNextWindowScroll({
+			0.F,
+			0.F
+		});
+	}
+	ImGui::Begin("Framebar Horizontal Scrollbar",nullptr,
+		ImGuiWindowFlags_NoBackground
+		| ImGuiWindowFlags_NoCollapse
+		| ImGuiWindowFlags_NoTitleBar
+		| ImGuiWindowFlags_NoBringToFrontOnFocus
+		| ImGuiWindowFlags_NoFocusOnAppearing
+		| ImGuiWindowFlags_NoSavedSettings
+		| ImGuiWindowFlags_HorizontalScrollbar
+		| ImGuiWindowFlags_NoMove
+		| ImGuiWindowFlags_NoResize);
+	framebarScrollX = ImGui::GetScrollX();
+	if (framebarAutoScroll && framebarScrollX != prevScroll) {
+		framebarAutoScroll = false;
+	}
+	framebarMaxScrollX = ImGui::GetScrollMaxX();
+	if (transferHorizScroll) {
+		// this function does not clamp the scroll value, so we can't just grab the new scrollX, we have to wait for the next frame
+		ImGui::SetScrollX(ImGui::GetScrollX() - io.MouseWheel * 2 * ImGui::GetFontSize());
+		framebarAutoScroll = false;  // we can however makes ourselves aware of user's intention to manually scroll
+	}
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	ImGui::End();
+	if (needSplitFramebar) {
+		copyDrawList(*(ImDrawListBackup*)framebarHorizontalScrollbarDrawDataCopy.data(), drawList);
+		drawList->CmdBuffer.clear();
+		drawList->IdxBuffer.clear();
+		drawList->VtxBuffer.clear();
+	}
+	#undef pushFramesClipRect
 }
