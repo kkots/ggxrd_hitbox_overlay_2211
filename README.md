@@ -879,6 +879,8 @@ Projectiles on the framebar get their own separate framebars. If the framebar wi
 
 Once the framebar accumulates more frames than it can display, it circles around, but also a horizontal scrollbar appears, and when it is scrolled, it lets you revert the state of the framebar into the past, up to a certain extent. This can be turned off using settings.
 
+To move the horizontal scrollbar you can either drag it with the left mouse button, or you can hold down Shift and rotate the mouse wheel down.
+
 Framedata in the form of Startup/Active/Recovery/Total/Advantage is shown on top of P1's framebar and under P2's framebar, with projectile framebars going below all that. Framedata display in the framebar can be disabled in the settings.
 
 The height of the rows of framebars can be adjusted using the 'UI - Settings - Framebar Settings - Framebar Height' (INI file - 'framebarHeight'), among other settings.
