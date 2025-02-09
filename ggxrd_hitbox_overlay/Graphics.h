@@ -35,7 +35,7 @@ public:
 	IDirect3DTexture9* getFramesTexture(IDirect3DDevice9* device);
 	// only returns a result once. Provides the error text to other classes
 	void getShaderCompilationError(const std::string** result);
-	void heartbeat();
+	void heartbeat(IDirect3DDevice9* device);
 	
 	DrawData drawDataUse;
 	bool pauseMenuOpen = false;
@@ -489,7 +489,8 @@ private:
 	void drawAll();
 	void drawAllInit(IDirect3DDevice9* device);
 	void onEndSceneStart(IDirect3DDevice9* device);
-	
+	void fillInScreenSize(IDirect3DDevice9* device);
+	void initViewport(IDirect3DDevice9* device);
 };
 
 extern Graphics graphics;

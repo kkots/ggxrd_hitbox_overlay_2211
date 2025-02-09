@@ -1,2 +1,2 @@
 #pragma once
-#define VERSION "6.1"
+#define VERSION "6.2"

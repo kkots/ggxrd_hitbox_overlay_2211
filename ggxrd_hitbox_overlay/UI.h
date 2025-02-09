@@ -99,6 +99,10 @@ public:
 		bool neverIgnoreHitstop = false;
 		bool eachProjectileOnSeparateFramebar = false;
 	} framebarSettings;
+	
+	bool screenSizeKnown = false;
+	float screenWidth = 0.F;
+	float screenHeight = 0.F;
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -313,6 +317,7 @@ private:
 	bool framebarAutoScroll = false;
 	void resetFrameSelection();
 	bool dontUsePreBlockstunTime = false;
+	void interjectIntoImGui();
 };
 
 extern UI ui;

@@ -7725,7 +7725,7 @@ void EndScene::executeShutdownRenderCommand() {
 // Runs on the graphics thread
 void EndScene::executeHeartbeatRenderCommand() {
 	if (graphics.shutdown) return;
-	graphics.heartbeat();
+	graphics.heartbeat(getDevice());
 }
 
 // Runs on the graphics thread

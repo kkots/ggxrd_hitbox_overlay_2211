@@ -1186,3 +1186,5 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 1: can now use gamepad buttons and inputs as hotkeys
 - 2025 February 7: releasing framebar, framedata display, with input history mod and position reset mod
 - 2025 February 8: added horizontal scrollbar to framebar, fixed crash in online, added framedata display on top of and under player framebars
+- 2025 February 9: Fixed behavior of 'Show Player In Framebar Title' being off (displayed "???" in the titles for P1's and P2's framebars).
+                   Fixed mouse cursor position not being in sync with where the mod's UI thinks it is on 1440p resolution in windowed mode

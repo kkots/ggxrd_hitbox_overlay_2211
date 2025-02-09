@@ -28,6 +28,7 @@
 #include "findMoveByName.h"
 #include "Hardcode.h"
 #include "InputNames.h"
+#include "ImGuiCorrecter.h"
 
 UI ui;
 
@@ -725,6 +726,7 @@ void UI::onDllDetachNonGraphics() {
 
 // Runs on the main thread
 void UI::prepareDrawData() {
+	if (!screenSizeKnown) return;
 	dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 	drewFramebar = false;
 	drewFrameTooltip = false;
@@ -741,6 +743,7 @@ void UI::prepareDrawData() {
 			// The cause of this is unknown, I haven't tried reproducing it yet and I think it may be related to not doing an ImGui frame every frame.
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
+			interjectIntoImGui();
 			ImGui::EndFrame();
 		}
 		return;
@@ -765,6 +768,7 @@ void UI::prepareDrawData() {
 	}
 	
 	ImGui_ImplWin32_NewFrame();
+	interjectIntoImGui();
 	ImGui::NewFrame();
 	
 	if (visible) {
@@ -13183,4 +13187,9 @@ void UI::drawFramebars() {
 		drawList->VtxBuffer.clear();
 	}
 	#undef pushFramesClipRect
+}
+
+// Interject between Win32 backend and ImGui::NewFrame
+void UI::interjectIntoImGui() {
+	imGuiCorrecter.interjectIntoImGui(screenWidth, screenHeight);
 }

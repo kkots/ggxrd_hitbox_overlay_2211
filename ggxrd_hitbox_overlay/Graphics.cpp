@@ -2419,7 +2419,9 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 	preparedPixelShaderOnThisFrame = true;
 }
 
-void Graphics::heartbeat() {
+void Graphics::heartbeat(IDirect3DDevice9* device) {
+	initViewport(device);
+	fillInScreenSize(device);
 	receiveDanger();
 	afterDraw();
 	checkAndHookBeginSceneAndPresent(false);
@@ -3242,13 +3244,23 @@ void Graphics::drawAllFromOutside(IDirect3DDevice9* device) {
 }
 
 void Graphics::drawAllInit(IDirect3DDevice9* device) {
-	graphics.graphicsThreadId = GetCurrentThreadId();
-	graphics.onEndSceneStart(device);
+	graphicsThreadId = GetCurrentThreadId();
+	onEndSceneStart(device);
 	drawOutlineCallParamsManager.onEndSceneStart();
 	camera.onEndSceneStart();
-	
+	initViewport(device);
+	fillInScreenSize(device);
+}
+
+void Graphics::initViewport(IDirect3DDevice9* device) {
 	D3DVIEWPORT9 viewport;
 	device->GetViewport(&viewport);
 	viewportW = (float)viewport.Width;
 	viewportH = (float)viewport.Height;
+}
+
+void Graphics::fillInScreenSize(IDirect3DDevice9* device) {
+	ui.screenSizeKnown = true;
+	ui.screenWidth = viewportW;
+	ui.screenHeight = viewportH;
 }
