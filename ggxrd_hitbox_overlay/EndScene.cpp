@@ -5664,7 +5664,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
-		const bool dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 		for (PlayerInfo& player : players) {
 			player.startupDisp = 0;
 			player.activesDisp.clear();
@@ -5772,18 +5771,28 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			value = player.printRecoveryForFramebar();
 			currentFrame.recovery = value > SHRT_MAX ? SHRT_MAX : value;
 			
-			int frameAdvantage = dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage;
-			int landingFrameAdvantage = dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage;
-			if (player.frameAdvantageValid && player.landingFrameAdvantageValid && frameAdvantage != landingFrameAdvantage) {
-				currentFrame.frameAdvantage = frameAdvantage;
-				currentFrame.landingFrameAdvantage = landingFrameAdvantage;
+			if (player.frameAdvantageValid && player.landingFrameAdvantageValid && player.frameAdvantage != player.landingFrameAdvantage) {
+				currentFrame.frameAdvantage = player.frameAdvantage;
+				currentFrame.landingFrameAdvantage = player.landingFrameAdvantage;
 			} else if (player.frameAdvantageValid || player.landingFrameAdvantageValid) {
-				int frameAdvantageUse = player.frameAdvantageValid ? frameAdvantage : landingFrameAdvantage;
+				int frameAdvantageUse = player.frameAdvantageValid ? player.frameAdvantage : player.landingFrameAdvantage;
 				currentFrame.frameAdvantage = frameAdvantageUse;
 				currentFrame.landingFrameAdvantage = SHRT_MIN;
 			} else {
 				currentFrame.frameAdvantage = SHRT_MIN;
 				currentFrame.landingFrameAdvantage = SHRT_MIN;
+			}
+			
+			if (player.frameAdvantageValid && player.landingFrameAdvantageValid && player.frameAdvantageNoPreBlockstun != player.landingFrameAdvantageNoPreBlockstun) {
+				currentFrame.frameAdvantageNoPreBlockstun = player.frameAdvantageNoPreBlockstun;
+				currentFrame.landingFrameAdvantageNoPreBlockstun = player.landingFrameAdvantageNoPreBlockstun;
+			} else if (player.frameAdvantageValid || player.landingFrameAdvantageValid) {
+				int frameAdvantageUse = player.frameAdvantageValid ? player.frameAdvantageNoPreBlockstun : player.landingFrameAdvantageNoPreBlockstun;
+				currentFrame.frameAdvantageNoPreBlockstun = frameAdvantageUse;
+				currentFrame.landingFrameAdvantageNoPreBlockstun = SHRT_MIN;
+			} else {
+				currentFrame.frameAdvantageNoPreBlockstun = SHRT_MIN;
+				currentFrame.landingFrameAdvantageNoPreBlockstun = SHRT_MIN;
 			}
 			
 			value = player.totalDisp;

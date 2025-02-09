@@ -725,6 +725,7 @@ void UI::onDllDetachNonGraphics() {
 
 // Runs on the main thread
 void UI::prepareDrawData() {
+	dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 	drewFramebar = false;
 	drewFrameTooltip = false;
 	if (!visible && !needShowFramebarCached || gifMode.modDisabled) {
@@ -1238,7 +1239,6 @@ void UI::drawSearchableWindows() {
 				}
 			}
 			
-			dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 			bool oneWillIncludeParentheses = false;
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
@@ -10313,7 +10313,7 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 		incrementInternalInd(internalIndNext);
 		
 		const FrameT& frame = framebar[internalInd];
-		const UI::FrameDims& dims = preppedDims[internalInd];
+		const UI::FrameDims& dims = preppedDims[visualInd];
 		
 		bool isFirst = frame.isFirst;
 		if (isFirst
@@ -12609,13 +12609,10 @@ void UI::drawFramebars() {
 			if (frameAdvantage == SHRT_MIN) {
 				outlinedTextRawHighQuality(drawFramebars_drawList, textPos, "?", nullptr, nullptr);
 			} else {
-				char* buf = strbuf;
-				size_t bufSize = sizeof strbuf;
 				int result = frameAdvantageTextFormat(frameAdvantage, strbuf, sizeof strbuf);
-				advanceBuf
-				if (landingFrameAdvantage != SHRT_MIN && bufSize > 2) {
-					buf[result] = ' ';
-					buf[result + 1] = '\0';
+				if (landingFrameAdvantage != SHRT_MIN) {
+					strbuf[result] = ' ';
+					strbuf[result + 1] = '\0';
 				}
 				ImVec4* color;
 				if (frameAdvantage > 0) {
@@ -12633,7 +12630,6 @@ void UI::drawFramebars() {
 					textSize = ImGui::CalcTextSize("(");
 					textPos.x += textSize.x;
 					frameAdvantageTextFormat(landingFrameAdvantage, strbuf, sizeof strbuf);
-					advanceBuf
 					if (frameAdvantage > 0) {
 						color = &GREEN_COLOR;
 					} else if (frameAdvantage < 0) {
