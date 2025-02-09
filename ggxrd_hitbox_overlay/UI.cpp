@@ -12517,7 +12517,7 @@ void UI::drawFramebars() {
 						P1P2OutlineClr);
 				}
 				drewTitle = true;
-			} else if (title) {
+			} else if (!entityFramebar.belongsToPlayer() && title) {
 				outlinedText({
 					isOnTheLeft
 						? textX - textSize.x
