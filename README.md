@@ -799,14 +799,14 @@ ignoreHitstopForBlockingBaiken = false
 ; Normally we consider running and walking as being idle, which does not advance the framebar forward.
 ; The framebar only advances when one of the players is "busy".
 ; If this is set to true, then one player running or walking will be treated same way as "busy" and will advance the framebar.
-considerRunAndWalkNonIdle = true
+considerRunAndWalkNonIdle = false
 
 ; Specify true or false.
 ; Normally we consider crouching as being idle, which does not advance the framebar forward.
 ; The framebar only advances when one of the players is "busy".
 ; If this is set to true, then one player crouching or walking will be treated same way as "busy" and will advance the framebar.
 ; A dummy who is crouching automatically due to training settings will still not be considered "busy" no matter what.
-considerCrouchNonIdle = true
+considerCrouchNonIdle = false
 
 ; Specify true or false
 ; This controls whether a character being knocked down, waking up or air recovering causes the framebar to advance forward (if you're also idle).
@@ -1189,3 +1189,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 9: Version 6.2. Fixed behavior of 'Show Player In Framebar Title' being off (displayed "???" in the titles for P1's and P2's framebars).
                    Fixed mouse cursor position not being in sync with where the mod's UI thinks it is on 1440p resolution in windowed mode
 - 2025 February 10: Version 6.3: Fixed mouse cursor position not being in sync with where the mod's UI thinks it is (again)
+- 2025 February 10: Version 6.4: Fixed display of frame advantage in framebar for moves that are very minus (previously was showing '?')
