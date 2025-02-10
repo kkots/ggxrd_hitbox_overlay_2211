@@ -12,6 +12,8 @@ void ImGuiCorrecter::interjectIntoImGui(float screenWidth, float screenHeight,
 	ImGuiContext* g = ImGui::GetCurrentContext();
 	
 	ImVec2 oldDisplaySize = io.DisplaySize;
+	bool widthsDiffer;
+	bool heightsDiffer;
 	
 	if (usePresentRect) {
 		io.DisplaySize.x = screenWidth;
@@ -20,11 +22,19 @@ void ImGuiCorrecter::interjectIntoImGui(float screenWidth, float screenHeight,
 		float presentRectWF = (float)presentRectW;
 		float presentRectHF = (float)presentRectH;
 		
+		widthsDiffer = screenWidth != presentRectWF;
+		heightsDiffer = screenHeight != presentRectHF;
+		if (!widthsDiffer && !heightsDiffer) return;
+		
 		for (int i = 0; i < g->InputEventsQueue.Size; ++i) {
 			ImGuiInputEvent* e = &g->InputEventsQueue[i];
 			if (e->Type == ImGuiInputEventType_MousePos && !eventProcessed(e->EventId)) {
-				e->MousePos.PosX = std::floorf(e->MousePos.PosX * screenWidth / presentRectWF);
-				e->MousePos.PosY = std::floorf(e->MousePos.PosY * screenHeight / presentRectHF);
+				if (widthsDiffer) {
+					e->MousePos.PosX = std::floorf(e->MousePos.PosX * screenWidth / presentRectWF);
+				}
+				if (heightsDiffer) {
+					e->MousePos.PosY = std::floorf(e->MousePos.PosY * screenHeight / presentRectHF);
+				}
 				addProcessedEvent(e->EventId);
 			}
 		}
@@ -32,8 +42,8 @@ void ImGuiCorrecter::interjectIntoImGui(float screenWidth, float screenHeight,
 		return;
 	}
 	
-	bool widthsDiffer = screenWidth != oldDisplaySize.x;
-	bool heightsDiffer = screenHeight != oldDisplaySize.y;
+	widthsDiffer = screenWidth != oldDisplaySize.x;
+	heightsDiffer = screenHeight != oldDisplaySize.y;
 	if (!widthsDiffer && !heightsDiffer) return;
 	
 	io.DisplaySize.x = screenWidth;
