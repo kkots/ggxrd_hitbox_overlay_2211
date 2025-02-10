@@ -1184,7 +1184,8 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2024 December: Fixed the display of invulnerability after rejecting something with a Blitz Shield - there's no longer one frame of supposed vulnerability (in reality, you can do backdash/DP/Super from a reject and not be vulnerable for a single frame).
 - 2025 January 1-7: Removed Y check from some command grabs that are ground-only, except Genrou Zan. Added a new type of boxes/circles that are white - interaction boxes/circles, and projectile origin points.
 - 2025 February 1: can now use gamepad buttons and inputs as hotkeys
-- 2025 February 7: releasing framebar, framedata display, with input history mod and position reset mod
-- 2025 February 8: added horizontal scrollbar to framebar, fixed crash in online, added framedata display on top of and under player framebars
-- 2025 February 9: Fixed behavior of 'Show Player In Framebar Title' being off (displayed "???" in the titles for P1's and P2's framebars).
+- 2025 February 7: Version 6.0. Releasing framebar, framedata display, with input history mod and position reset mod
+- 2025 February 8: Version 6.1. Added horizontal scrollbar to framebar, fixed crash in online, added framedata display on top of and under player framebars
+- 2025 February 9: Version 6.2. Fixed behavior of 'Show Player In Framebar Title' being off (displayed "???" in the titles for P1's and P2's framebars).
                    Fixed mouse cursor position not being in sync with where the mod's UI thinks it is on 1440p resolution in windowed mode
+- 2025 February 10: Version 6.3: Fixed mouse cursor position not being in sync with where the mod's UI thinks it is (again)

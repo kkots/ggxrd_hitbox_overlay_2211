@@ -6,10 +6,31 @@
 
 ImGuiCorrecter imGuiCorrecter;
 
-void ImGuiCorrecter::interjectIntoImGui(float screenWidth, float screenHeight) {
+void ImGuiCorrecter::interjectIntoImGui(float screenWidth, float screenHeight,
+										bool usePresentRect, int presentRectW, int presentRectH) {
 	ImGuiIO& io = ImGui::GetIO();
+	ImGuiContext* g = ImGui::GetCurrentContext();
 	
 	ImVec2 oldDisplaySize = io.DisplaySize;
+	
+	if (usePresentRect) {
+		io.DisplaySize.x = screenWidth;
+		io.DisplaySize.y = screenHeight;
+		
+		float presentRectWF = (float)presentRectW;
+		float presentRectHF = (float)presentRectH;
+		
+		for (int i = 0; i < g->InputEventsQueue.Size; ++i) {
+			ImGuiInputEvent* e = &g->InputEventsQueue[i];
+			if (e->Type == ImGuiInputEventType_MousePos && !eventProcessed(e->EventId)) {
+				e->MousePos.PosX = std::floorf(e->MousePos.PosX * screenWidth / presentRectWF);
+				e->MousePos.PosY = std::floorf(e->MousePos.PosY * screenHeight / presentRectHF);
+				addProcessedEvent(e->EventId);
+			}
+		}
+		
+		return;
+	}
 	
 	bool widthsDiffer = screenWidth != oldDisplaySize.x;
 	bool heightsDiffer = screenHeight != oldDisplaySize.y;
@@ -18,17 +39,40 @@ void ImGuiCorrecter::interjectIntoImGui(float screenWidth, float screenHeight) {
 	io.DisplaySize.x = screenWidth;
 	io.DisplaySize.y = screenHeight;
 	
-	ImGuiContext* g = ImGui::GetCurrentContext();
+	
 	
 	for (int i = 0; i < g->InputEventsQueue.Size; ++i) {
 		ImGuiInputEvent* e = &g->InputEventsQueue[i];
-		if (e->Type == ImGuiInputEventType_MousePos) {
+		if (e->Type == ImGuiInputEventType_MousePos && !eventProcessed(e->EventId)) {
 			if (widthsDiffer) {
 				e->MousePos.PosX = std::floorf(e->MousePos.PosX * screenWidth / oldDisplaySize.x);
 			}
 			if (heightsDiffer) {
 				e->MousePos.PosY = std::floorf(e->MousePos.PosY * screenHeight / oldDisplaySize.y);
 			}
+			addProcessedEvent(e->EventId);
 		}
+	}
+}
+
+bool ImGuiCorrecter::eventProcessed(int id) const {
+	if (processedIdsCount == 0) return false;
+	int index = processedIdsIndex;
+	for (int i = 0; i < processedIdsCount; ++i) {
+		if (index == 0) index = _countof(processedIds) - 1;
+		else --index;
+		
+		if (processedIds[index] == id) return true;
+	}
+	return false;
+}
+
+void ImGuiCorrecter::addProcessedEvent(int id) {
+	processedIds[processedIdsIndex] = id;
+	if (processedIdsIndex == _countof(processedIds) - 1) processedIdsIndex = 0;
+	else ++processedIdsIndex;
+	
+	if (processedIdsCount < _countof(processedIds)) {
+		++processedIdsCount;
 	}
 }

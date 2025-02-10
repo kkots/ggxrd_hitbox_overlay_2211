@@ -263,6 +263,16 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 		error = true;
 	}
 	
+	uintptr_t presentRectUsage = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"8b 15 ?? ?? ?? ?? a1 ?? ?? ?? ?? 89 5c 24 38 89 5c 24 34 3b d3 75 03 8b 47 10",
+		&error, "presentRectUsage");
+	if (presentRectUsage) {
+		usePresentRectPtr = *(BOOL**)(presentRectUsage + 2);
+		presentRectWPtr = *(int**)(presentRectUsage + 7);
+		presentRectHPtr = presentRectWPtr + 1;
+	}
+	
 	return !error;
 }
 
@@ -3263,4 +3273,7 @@ void Graphics::fillInScreenSize(IDirect3DDevice9* device) {
 	ui.screenSizeKnown = true;
 	ui.screenWidth = viewportW;
 	ui.screenHeight = viewportH;
+	ui.usePresentRect = *usePresentRectPtr != 0;
+	ui.presentRectW = *presentRectWPtr;
+	ui.presentRectH = *presentRectHPtr;
 }

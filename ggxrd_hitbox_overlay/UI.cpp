@@ -13191,5 +13191,6 @@ void UI::drawFramebars() {
 
 // Interject between Win32 backend and ImGui::NewFrame
 void UI::interjectIntoImGui() {
-	imGuiCorrecter.interjectIntoImGui(screenWidth, screenHeight);
+	imGuiCorrecter.interjectIntoImGui(screenWidth, screenHeight,
+		usePresentRect, presentRectW, presentRectH);
 }

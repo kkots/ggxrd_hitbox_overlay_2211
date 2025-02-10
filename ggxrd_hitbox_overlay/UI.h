@@ -103,6 +103,9 @@ public:
 	bool screenSizeKnown = false;
 	float screenWidth = 0.F;
 	float screenHeight = 0.F;
+	bool usePresentRect = false;
+	int presentRectW = 0;
+	int presentRectH = 0;
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);

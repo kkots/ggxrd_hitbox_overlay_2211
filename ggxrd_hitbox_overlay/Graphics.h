@@ -491,6 +491,11 @@ private:
 	void onEndSceneStart(IDirect3DDevice9* device);
 	void fillInScreenSize(IDirect3DDevice9* device);
 	void initViewport(IDirect3DDevice9* device);
+	
+	BOOL* usePresentRectPtr = nullptr;
+	int* presentRectWPtr = nullptr;
+	int* presentRectHPtr = nullptr;
+	
 };
 
 extern Graphics graphics;
