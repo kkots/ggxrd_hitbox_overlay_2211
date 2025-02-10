@@ -5771,29 +5771,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			value = player.printRecoveryForFramebar();
 			currentFrame.recovery = value > SHRT_MAX ? SHRT_MAX : value;
 			
-			if (player.frameAdvantageValid && player.landingFrameAdvantageValid && player.frameAdvantage != player.landingFrameAdvantage) {
-				currentFrame.frameAdvantage = player.frameAdvantage;
-				currentFrame.landingFrameAdvantage = player.landingFrameAdvantage;
-			} else if (player.frameAdvantageValid || player.landingFrameAdvantageValid) {
-				int frameAdvantageUse = player.frameAdvantageValid ? player.frameAdvantage : player.landingFrameAdvantage;
-				currentFrame.frameAdvantage = frameAdvantageUse;
-				currentFrame.landingFrameAdvantage = SHRT_MIN;
-			} else {
-				currentFrame.frameAdvantage = SHRT_MIN;
-				currentFrame.landingFrameAdvantage = SHRT_MIN;
-			}
-			
-			if (player.frameAdvantageValid && player.landingFrameAdvantageValid && player.frameAdvantageNoPreBlockstun != player.landingFrameAdvantageNoPreBlockstun) {
-				currentFrame.frameAdvantageNoPreBlockstun = player.frameAdvantageNoPreBlockstun;
-				currentFrame.landingFrameAdvantageNoPreBlockstun = player.landingFrameAdvantageNoPreBlockstun;
-			} else if (player.frameAdvantageValid || player.landingFrameAdvantageValid) {
-				int frameAdvantageUse = player.frameAdvantageValid ? player.frameAdvantageNoPreBlockstun : player.landingFrameAdvantageNoPreBlockstun;
-				currentFrame.frameAdvantageNoPreBlockstun = frameAdvantageUse;
-				currentFrame.landingFrameAdvantageNoPreBlockstun = SHRT_MIN;
-			} else {
-				currentFrame.frameAdvantageNoPreBlockstun = SHRT_MIN;
-				currentFrame.landingFrameAdvantageNoPreBlockstun = SHRT_MIN;
-			}
+			FrameAdvantageForFramebarResult advRes;
+			player.calcFrameAdvantageForFramebar(&advRes);
+			currentFrame.frameAdvantage = advRes.frameAdvantage;
+			currentFrame.landingFrameAdvantage = advRes.landingFrameAdvantage;
+			currentFrame.frameAdvantageNoPreBlockstun = advRes.frameAdvantageNoPreBlockstun;
+			currentFrame.landingFrameAdvantageNoPreBlockstun = advRes.landingFrameAdvantageNoPreBlockstun;
 			
 			value = player.totalDisp;
 			currentFrame.total = value > SHRT_MAX ? SHRT_MAX : value;

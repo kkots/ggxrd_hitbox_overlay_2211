@@ -12607,8 +12607,31 @@ void UI::drawFramebars() {
 			}
 			outlinedTextRawHighQuality(drawFramebars_drawList, textPos, strbuf, nullptr, nullptr);
 			textPos.x += textSize.x;
-			short frameAdvantage = dontUsePreBlockstunTime ? playerFrame.frameAdvantageNoPreBlockstun : playerFrame.frameAdvantage;
-			short landingFrameAdvantage = dontUsePreBlockstunTime ? playerFrame.landingFrameAdvantageNoPreBlockstun : playerFrame.landingFrameAdvantage;
+			
+			short frameAdvantage;
+			short landingFrameAdvantage;
+			if (drawFramebars_framebarPosition == framebarPosition) {
+				// get the current frame advantage if the framebar playhead position is the latest one
+				FrameAdvantageForFramebarResult advRes;
+				endScene.players[entityFramebar.playerIndex].calcFrameAdvantageForFramebar(&advRes);
+				
+				frameAdvantage = dontUsePreBlockstunTime
+					? advRes.frameAdvantageNoPreBlockstun
+					: advRes.frameAdvantage;
+					
+				landingFrameAdvantage = dontUsePreBlockstunTime
+					? advRes.landingFrameAdvantageNoPreBlockstun
+					: advRes.landingFrameAdvantage;
+				
+			} else {
+				frameAdvantage = dontUsePreBlockstunTime
+					? playerFrame.frameAdvantageNoPreBlockstun
+					: playerFrame.frameAdvantage;
+					
+				landingFrameAdvantage = dontUsePreBlockstunTime
+					? playerFrame.landingFrameAdvantageNoPreBlockstun
+					: playerFrame.landingFrameAdvantage;
+			}
 			
 			if (frameAdvantage == SHRT_MIN) {
 				outlinedTextRawHighQuality(drawFramebars_drawList, textPos, "?", nullptr, nullptr);

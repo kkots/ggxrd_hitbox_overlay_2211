@@ -1129,6 +1129,13 @@ struct DmgCalc {
 	} u;
 };
 
+struct FrameAdvantageForFramebarResult {
+	short frameAdvantage;
+	short landingFrameAdvantage;
+	short frameAdvantageNoPreBlockstun;
+	short landingFrameAdvantageNoPreBlockstun;
+};
+
 struct PlayerInfo {
 	Entity pawn{ nullptr };
 	int prevHp = 0;
@@ -1653,4 +1660,5 @@ struct PlayerInfo {
 	void getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFrameInTheMatch);
 	void fillInPlayervalSetter(int playervalNum);
 	int getElpheltRifle_AimMem46() const;
+	void calcFrameAdvantageForFramebar(FrameAdvantageForFramebarResult* result) const;
 };

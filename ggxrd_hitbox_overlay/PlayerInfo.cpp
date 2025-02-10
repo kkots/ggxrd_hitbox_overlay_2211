@@ -3039,3 +3039,29 @@ bool FrameCancelInfo::hasCancel(const char* skillName) const {
 	}
 	return false;
 }
+
+void PlayerInfo::calcFrameAdvantageForFramebar(FrameAdvantageForFramebarResult* result) const {
+	if (frameAdvantageValid && landingFrameAdvantageValid && frameAdvantage != landingFrameAdvantage) {
+		result->frameAdvantage = frameAdvantage;
+		result->landingFrameAdvantage = landingFrameAdvantage;
+	} else if (frameAdvantageValid || landingFrameAdvantageValid) {
+		int frameAdvantageUse = frameAdvantageValid ? frameAdvantage : landingFrameAdvantage;
+		result->frameAdvantage = frameAdvantageUse;
+		result->landingFrameAdvantage = SHRT_MIN;
+	} else {
+		result->frameAdvantage = SHRT_MIN;
+		result->landingFrameAdvantage = SHRT_MIN;
+	}
+	
+	if (frameAdvantageValid && landingFrameAdvantageValid && frameAdvantageNoPreBlockstun != landingFrameAdvantageNoPreBlockstun) {
+		result->frameAdvantageNoPreBlockstun = frameAdvantageNoPreBlockstun;
+		result->landingFrameAdvantageNoPreBlockstun = landingFrameAdvantageNoPreBlockstun;
+	} else if (frameAdvantageValid || landingFrameAdvantageValid) {
+		int frameAdvantageUse = frameAdvantageValid ? frameAdvantageNoPreBlockstun : landingFrameAdvantageNoPreBlockstun;
+		result->frameAdvantageNoPreBlockstun = frameAdvantageUse;
+		result->landingFrameAdvantageNoPreBlockstun = SHRT_MIN;
+	} else {
+		result->frameAdvantageNoPreBlockstun = SHRT_MIN;
+		result->landingFrameAdvantageNoPreBlockstun = SHRT_MIN;
+	}
+}
