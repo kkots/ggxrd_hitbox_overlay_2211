@@ -12610,7 +12610,7 @@ void UI::drawFramebars() {
 			
 			short frameAdvantage;
 			short landingFrameAdvantage;
-			if (drawFramebars_framebarPosition == framebarPosition) {
+			if (scrollXInFrames == 0) {
 				// get the current frame advantage if the framebar playhead position is the latest one
 				FrameAdvantageForFramebarResult advRes;
 				endScene.players[entityFramebar.playerIndex].calcFrameAdvantageForFramebar(&advRes);
