@@ -1654,6 +1654,13 @@ void UI::drawSearchableWindows() {
 		}
 		HelpMarkerWithHotkey(GIFModeHelp, settings.gifModeToggle);
 		
+		ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted("You can take screenshots with transparency as long as GIF Mode or Black Background"
+			" is enabled, using the 'Take Screenshot' button in this section below.");
+		ImGui::PopTextWrapPos();
+		ImGui::PopStyleColor();
+		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Black Background"), &gifModeToggleBackgroundOnly) || stateChanged;
 		ImGui::SameLine();
 		static std::string blackBackgroundHelp;
