@@ -492,6 +492,11 @@ private:
 	void fillInScreenSize(IDirect3DDevice9* device);
 	void initViewport(IDirect3DDevice9* device);
 	
+	// These things are added by ArcSys into the UE3 source code
+	// They call IDirect3DDevice9::Present with a second argument - the destination rectangle
+	// That argument tells on which portion of the window to draw the graphics, and it is in window client coordinates
+	// Normally they provide the result of GetClientRect call into the second argument of Present, but
+	// if *usePresentRectPtr is TRUE, they replace the W and H of that rect with *presentRectW/HPtr
 	BOOL* usePresentRectPtr = nullptr;
 	int* presentRectWPtr = nullptr;
 	int* presentRectHPtr = nullptr;
