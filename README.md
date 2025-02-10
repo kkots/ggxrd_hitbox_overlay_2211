@@ -1191,3 +1191,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 10: Version 6.3: Fixed mouse cursor position not being in sync with where the mod's UI thinks it is (again)
 - 2025 February 10: Version 6.4: Fixed display of frame advantage in framebar for moves that are very minus (previously was showing '?')
 - 2025 February 10: Version 6.5: Fixed red/green color for landing frame advantage (displayed in '(...)') in the framebar
+- 2025 February 10: Version 6.6: Fixed framebar displaying the very first frame on the far right instead of at the start

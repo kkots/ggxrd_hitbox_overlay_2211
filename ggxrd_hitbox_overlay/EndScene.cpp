@@ -3948,7 +3948,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					nextSkippedFramesIdleHitstop.clear();
 					
 					framebarPositionHitstop = 0;
-					framebarTotalFramesHitstopUnlimited = 0;
+					framebarTotalFramesHitstopUnlimited = 1;
 					for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 						EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 						entityFramebar.getHitstop().clear();
@@ -4013,7 +4013,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						nextSkippedFramesIdle.clear();
 						
 						framebarPosition = 0;
-						framebarTotalFramesUnlimited = 0;
+						framebarTotalFramesUnlimited = 1;
 						for (int totalFramebarIndex = 0; totalFramebarIndex < totalFramebarCount(); ++totalFramebarIndex) {
 							EntityFramebar& entityFramebar = getFramebar(totalFramebarIndex);
 							entityFramebar.getMain().clear();
