@@ -12657,9 +12657,9 @@ void UI::drawFramebars() {
 					textSize = ImGui::CalcTextSize("(");
 					textPos.x += textSize.x;
 					frameAdvantageTextFormat(landingFrameAdvantage, strbuf, sizeof strbuf);
-					if (frameAdvantage > 0) {
+					if (landingFrameAdvantage > 0) {
 						color = &GREEN_COLOR;
-					} else if (frameAdvantage < 0) {
+					} else if (landingFrameAdvantage < 0) {
 						color = &RED_COLOR;
 					} else {
 						color = nullptr;
