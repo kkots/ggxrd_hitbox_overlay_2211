@@ -780,6 +780,7 @@ void EndScene::logic() {
 	if (needToClearHitDetection) {
 		hitDetector.clearAllBoxes();
 		throws.clearAllBoxes();
+		leoParries.clear();
 	}
 	// Camera values are updated separately, in a updateCameraHook call, which happens before this is called
 }
@@ -3705,6 +3706,32 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			drawDataPrepared.circles.resize(circlesPrevSize);
 			drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
 			drawDataPrepared.interactionBoxes.resize(interactionBoxesPrevSize);
+		}
+	}
+	
+	for (const LeoParry& parry : leoParries) {
+		DrawBoxCallParams interactionBoxParams;
+		interactionBoxParams.left = parry.x - 400000;
+		interactionBoxParams.right = parry.x + 400000;
+		interactionBoxParams.top = parry.y + 500000;
+		interactionBoxParams.bottom = parry.y - 500000;
+		if (parry.timer == 0) {
+			interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
+		}
+		interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+		interactionBoxParams.thickness = THICKNESS_INTERACTION;
+		drawDataPrepared.interactionBoxes.push_back(interactionBoxParams);
+	}
+	
+	if (getSuperflashInstigator() == nullptr && frameHasChanged) {
+		for (auto it = leoParries.begin(); it != leoParries.end(); ) {
+			LeoParry& parry = *it;
+			++parry.timer;
+			if (parry.timer >= 12) {
+				it = leoParries.erase(it);
+			} else {
+				++it;
+			}
 		}
 	}
 	
@@ -6643,6 +6670,15 @@ void EndScene::onProjectileHit(Entity ent) {
 void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender) {
 	registeredHits.emplace_back();
 	RegisteredHit& hit = registeredHits.back();
+	if (hitResult == HIT_RESULT_ARMORED && attacker.isPawn() && defender.isPawn()
+			&& defender.characterType() == CHARACTER_TYPE_LEO
+			&& strcmp(defender.animationName(), "Semuke5E") == 0) {
+		LeoParry newParry;
+		newParry.x = defender.x();
+		newParry.y = defender.y();
+		newParry.timer = 0;
+		leoParries.push_back(newParry);
+	}
 	if (!iGiveUp) {
 		if (attacker.isPawn()) {
 			hit.projectile.fill(attacker, getSuperflashInstigator(), false);

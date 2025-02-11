@@ -1192,3 +1192,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 10: Version 6.4: Fixed display of frame advantage in framebar for moves that are very minus (previously was showing '?')
 - 2025 February 10: Version 6.5: Fixed red/green color for landing frame advantage (displayed in '(...)') in the framebar
 - 2025 February 10: Version 6.6: Fixed framebar displaying the very first frame on the far right instead of at the start
+- 2025 February 12: Version 6.7: Added interaction box (white) for Leo bt.D successful parry that shows the distance where the opponent's origin point must be in order to get vaccuumed. Fixed the active frames of I-No ground Sterilization Method (previously was not registering any active frames.)

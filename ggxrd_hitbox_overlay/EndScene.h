@@ -436,6 +436,12 @@ private:
 		bool isPawn;
 	};
 	std::vector<RegisteredHit> registeredHits;
+	struct LeoParry {
+		int x;
+		int y;
+		int timer;
+	};
+	std::vector<LeoParry> leoParries;
 	
 	void initializePawn(PlayerInfo& player, Entity ent);
 	bool needFrameCleanup = false;

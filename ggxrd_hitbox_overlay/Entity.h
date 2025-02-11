@@ -551,6 +551,7 @@ struct AttackData {
 	inline bool prorationTandan() const { return (flags0x10 & 0x10000) != 0; }  // this flag is always set on everything, even when not attacking
 	inline bool isThrow() const { return (flags0x10 & 0x800000) != 0; }
 	DWORD flags0x14;
+	inline bool canGrab() const { return (flags0x14 & 1) != 0; }
 	inline bool collisionForceExpand() const { return (flags0x14 & 0x4) != 0; }
 	inline bool onlyHitGround() const { return (flags0x14 & 0x10) != 0; }
 	inline bool onlyHitAir() const { return (flags0x14 & 0x20) != 0; }
