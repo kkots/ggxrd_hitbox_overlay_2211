@@ -16,6 +16,8 @@
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
 using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
+using BBScr_linkParticle_t = void(__thiscall*)(void* pawn, const char* name);
+using BBScr_linkParticle_t = void(__thiscall*)(void* pawn, const char* name);
 using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
 using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
 using logicOnFrameAfterHit_t = void(__thiscall*)(void* pawn, bool isAirHit, int param2);
@@ -232,6 +234,8 @@ public:
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
 	BBScr_createObjectWithArg_t orig_BBScr_createObject = nullptr;
 	BBScr_createParticleWithArg_t orig_BBScr_createParticleWithArg = nullptr;
+	BBScr_linkParticle_t orig_BBScr_linkParticle = nullptr;
+	BBScr_linkParticle_t orig_BBScr_linkParticleWithArg2 = nullptr;
 	setAnim_t orig_setAnim = nullptr;
 	pawnInitialize_t orig_pawnInitialize = nullptr;
 	logicOnFrameAfterHit_t orig_logicOnFrameAfterHit = nullptr;
@@ -334,6 +338,8 @@ private:
 		void BBScr_createObjectHook(const char* animName, unsigned int posType);
 		void BBScr_createObjectWithArgHook(const char* animName, unsigned int posType);
 		void BBScr_createParticleWithArgHook(const char* animName, unsigned int posType);
+		void BBScr_linkParticleHook(const char* name);
+		void BBScr_linkParticleWithArg2Hook(const char* name);
 		void setAnimHook(const char* animName);
 		void pawnInitializeHook(void* initializationParams);
 		void logicOnFrameAfterHitHook(bool isAirHit, int param2);
@@ -357,6 +363,8 @@ private:
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
 	void drawTrainingHudHook(char* thisArg);
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
+	void BBScr_linkParticleHook(Entity pawn, const char* name);
+	void BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name);
 	void onObjectCreated(Entity pawn, Entity createdPawn, const char* animName);
 	void setAnimHook(Entity pawn, const char* animName);
 	void pawnInitializeHook(Entity createdObj, void* initializationParams);

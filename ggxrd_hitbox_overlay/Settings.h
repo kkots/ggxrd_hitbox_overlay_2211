@@ -74,6 +74,7 @@ public:
 	std::vector<int> toggleDisableGrayHurtboxes;
 	std::vector<int> toggleNeverIgnoreHitstop;
 	std::vector<int> toggleShowInputHistory;
+	std::vector<int> toggleAllowCreateParticles;
 	std:: mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	std::string screenshotPath;

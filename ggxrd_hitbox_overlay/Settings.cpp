@@ -227,6 +227,11 @@ bool Settings::onDllMain() {
 		"; Pressing this shortcut will disable the input history shown via \"displayInputHistoryWhenObserving\"\n"
 		"; and \"displayInputHistoryInSomeOfflineModes\". It only works when one of those settings is enabled\n"
 		"; and is showing history in corresponding game mode.");
+	insertKeyComboToParse("toggleAllowCreateParticles", "Allow Creation Of Particles", &toggleAllowCreateParticles, "",
+		"; A keyboard shortcut.\n"
+		"; Pressing this shortcut will disable/enable creation of particle effects such as superfreeze flash.\n"
+		"; It will not remove particles that are already created or make particles that have already\n"
+		"; not been created appear.");
 	
 	static const char* hitboxesStr = "Hitboxes";
 	static const char* settingsHitboxSettingsStr = "Settings - Hitbox Settings";

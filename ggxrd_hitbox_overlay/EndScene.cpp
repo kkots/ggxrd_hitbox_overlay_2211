@@ -294,6 +294,8 @@ bool EndScene::onDllMain() {
 	digUpBBScrFunctionAndHook(BBScr_createObjectWithArg_t, BBScr_createObjectWithArg, 445, (const char*, unsigned int))
 	digUpBBScrFunctionAndHook(BBScr_createObjectWithArg_t, BBScr_createObject, 446, (const char*, unsigned int))
 	digUpBBScrFunctionAndHook(BBScr_createParticleWithArg_t, BBScr_createParticleWithArg, 449, (const char*, unsigned int))
+	digUpBBScrFunctionAndHook(BBScr_linkParticle_t, BBScr_linkParticle, 450, (const char*))
+	digUpBBScrFunctionAndHook(BBScr_linkParticle_t, BBScr_linkParticleWithArg2, 1923, (const char*))
 	digUpBBScrFunctionAndHook(BBScr_runOnObject_t, BBScr_runOnObject, 41, (int))
 	digUpBBScrFunctionAndHook(BBScr_sendSignal_t, BBScr_sendSignal, 1766, (int, int))
 	digUpBBScrFunctionAndHook(BBScr_sendSignalToAction_t, BBScr_sendSignalToAction, 1771, (const char*, int))
@@ -6167,6 +6169,15 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Show input history = true\n", logfile));
 		}
 	}
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.toggleAllowCreateParticles))) {
+		if (gifMode.allowCreateParticles == true) {
+			gifMode.allowCreateParticles = false;
+			logwrap(fputs("Allow create particles = false\n", logfile));
+		} else {
+			gifMode.allowCreateParticles = true;
+			logwrap(fputs("Allow create particles = true\n", logfile));
+		}
+	}
 	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.continuousScreenshotToggle) || stateChanged && ui.continuousScreenshotToggle != continuousScreenshotMode)) {
 		if (continuousScreenshotMode) {
 			continuousScreenshotMode = false;
@@ -6983,7 +6994,20 @@ void EndScene::HookHelp::BBScr_createParticleWithArgHook(const char* animName, u
 }
 
 // Runs on the main thread
+void EndScene::HookHelp::BBScr_linkParticleHook(const char* name) {
+	endScene.BBScr_linkParticleHook(Entity{(char*)this}, name);
+}
+
+// Runs on the main thread
+void EndScene::HookHelp::BBScr_linkParticleWithArg2Hook(const char* name) {
+	endScene.BBScr_linkParticleWithArg2Hook(Entity{(char*)this}, name);
+}
+
+// Runs on the main thread
 void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType) {
+	if (!gifMode.modDisabled && !gifMode.allowCreateParticles) {
+		return;
+	}
 	if (!gifMode.modDisabled && game.isTrainingMode() && pawn.isPawn()) {
 		int playerSide = game.getPlayerSide();
 		if (playerSide == 2) playerSide = 0;
@@ -6997,6 +7021,22 @@ void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName
 		}
 	}
 	orig_BBScr_createParticleWithArg((void*)pawn, animName, posType);
+}
+
+// Runs on the main thread
+void EndScene::BBScr_linkParticleHook(Entity pawn, const char* name) {
+	if (!gifMode.modDisabled && !gifMode.allowCreateParticles) {
+		return;
+	}
+	orig_BBScr_linkParticle((void*)pawn, name);
+}
+
+// Runs on the main thread
+void EndScene::BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name) {
+	if (!gifMode.modDisabled && !gifMode.allowCreateParticles) {
+		return;
+	}
+	orig_BBScr_linkParticleWithArg2((void*)pawn, name);
 }
 
 // Called before a logic tick happens. Doesn't run when the pause menu is open or a match is not running.

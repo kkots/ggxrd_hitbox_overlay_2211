@@ -18,6 +18,7 @@ public:
 	std::atomic_bool dontHidePlayersBoxes{ false };
 	std::atomic_bool gifModeToggleHudOnly{ false };
 	std::atomic_bool showInputHistory{ true };
+	std::atomic_bool allowCreateParticles{ true };
 };
 
 extern GifMode gifMode;

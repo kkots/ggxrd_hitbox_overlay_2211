@@ -1906,6 +1906,21 @@ void UI::drawSearchableWindows() {
 		}
 		HelpMarkerWithHotkey(continuousScreenshottingHelp, settings.continuousScreenshotToggle);
 		
+		bool allowCreateParticles = gifMode.allowCreateParticles;
+		if (ImGui::Checkbox(searchFieldTitle("Allow Creation Of Particles"), &allowCreateParticles)) {
+			gifMode.allowCreateParticles = allowCreateParticles;
+		}
+		ImGui::SameLine();
+		static std::string allowCreateParticlesHelp;
+		if (allowCreateParticlesHelp.empty()) {
+			allowCreateParticlesHelp = settings.convertToUiDescription(
+				"When this option is enabled, particle effects such as superfreeze flash, can be created."
+				" Turning this option on or off does not remove particles that have already been created,"
+				" or make appear those particles which have already not been created.\n"
+				"You can use the \"toggleAllowCreateParticles\" shortcut to toggle this option.");
+		}
+		HelpMarkerWithHotkey(allowCreateParticlesHelp, settings.toggleAllowCreateParticles);
+		
 	}
 	popSearchStack();
 	if (ImGui::CollapsingHeader(searchCollapsibleSection("Settings")) || searching) {
@@ -2097,6 +2112,7 @@ void UI::drawSearchableWindows() {
 			keyComboControl(settings.toggleDisableGrayHurtboxes);
 			keyComboControl(settings.toggleNeverIgnoreHitstop);
 			keyComboControl(settings.toggleShowInputHistory);
+			keyComboControl(settings.toggleAllowCreateParticles);
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
