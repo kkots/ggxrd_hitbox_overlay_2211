@@ -447,6 +447,7 @@ private:
 		int x;
 		int y;
 		int timer;
+		DWORD aswEngTick;
 	};
 	std::vector<LeoParry> leoParries;
 	

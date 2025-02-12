@@ -191,6 +191,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Answer Card: The infinite vertical white box around the card shows the area where the opponent's origin point must be in order for the Clone to track to their position.
 
+- Leo bt.D successful parry: The white box around Leo shows where the origin point of the opponent must be in order to get vaccuumed.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  

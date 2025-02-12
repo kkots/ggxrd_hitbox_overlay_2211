@@ -8737,6 +8737,9 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("The infinite vertical white box around the card shows the area where the opponent's origin point must be"
 		" in order for the Clone to track to their position.");
 	
+	yellowText("Leo bt.D successful parry:");
+	ImGui::TextUnformatted("The white box around Leo shows where the origin point of the opponent must be in order to get vaccuumed.");
+	
 	ImGui::Separator();
 	
 	yellowText("Outlines lie within their boxes/on the edge");

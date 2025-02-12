@@ -3717,7 +3717,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		interactionBoxParams.right = parry.x + 400000;
 		interactionBoxParams.top = parry.y + 500000;
 		interactionBoxParams.bottom = parry.y - 500000;
-		if (parry.timer == 0) {
+		if (parry.aswEngTick >= aswEngineTickCount - 1) {
 			interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
 		}
 		interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
@@ -6688,6 +6688,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		newParry.x = defender.x();
 		newParry.y = defender.y();
 		newParry.timer = 0;
+		newParry.aswEngTick = getAswEngineTick();
 		leoParries.push_back(newParry);
 	}
 	if (!iGiveUp) {
