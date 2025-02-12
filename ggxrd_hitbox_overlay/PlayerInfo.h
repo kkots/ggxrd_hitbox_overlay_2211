@@ -1390,6 +1390,7 @@ struct PlayerInfo {
 	int prevFramePlayerval2 = 0;
 	int prevFrameElpheltRifle_AimMem46 = 0;
 	int prevFrameResource[4] { 0 };
+	RomanCancelAvailability prevFrameRomanCancelAvailability = ROMAN_CANCEL_DISALLOWED;
 	int playervalSetterOffset = 0;
 	int wasCantBackdashTimer = 0;
 	int lastNoteTime = 0;

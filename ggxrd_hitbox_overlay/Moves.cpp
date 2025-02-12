@@ -287,6 +287,7 @@ static bool powerup_rifle(PlayerInfo& ent);
 static const char* powerupExplanation_rifle(PlayerInfo& ent);
 static bool powerup_beakDriver(PlayerInfo& ent);
 static const char* powerupExplanation_beakDriver(PlayerInfo& ent);
+static bool dontShowPowerupGraphic_beakDriver(PlayerInfo& ent);
 static bool powerup_mistFiner(PlayerInfo& ent);
 static const char* powerupExplanation_mistFiner(PlayerInfo& ent);
 static bool powerup_eatMeat(PlayerInfo& ent);
@@ -307,6 +308,8 @@ static bool powerup_fireSpear(PlayerInfo& ent);
 static const char* powerupExplanation_fireSpear(PlayerInfo& ent);
 static bool powerup_zweit(PlayerInfo& ent);
 static const char* powerupExplanation_zweit(PlayerInfo& ent);
+static bool powerup_kuuhuku(PlayerInfo& ent);
+static const char* powerupExplanation_kuuhuku(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -6418,6 +6421,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakitsuke");
 	move.displayName = "Bull Bash";
+	move.powerup = powerup_kuuhuku;
+	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "TobiagariA");
@@ -6453,6 +6459,9 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakiage");
 	move.displayName = "Vulture Seize";
 	move.slangName = "Vulture";
+	move.powerup = powerup_kuuhuku;
+	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver");
@@ -6462,11 +6471,15 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_beakDriver;
 	move.powerup = powerup_beakDriver;
 	move.powerupExplanation = powerupExplanation_beakDriver;
+	move.dontShowPowerupGraphic = dontShowPowerupGraphic_beakDriver;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Air");
 	move.displayName = "Air Beak Driver";
 	move.slangName = "Air Beak";
+	move.powerup = powerup_kuuhuku;
+	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "RideTheLightning");
@@ -6500,15 +6513,24 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Ashibarai");
 	move.displayName = "Elk Hunt";
 	move.slangName = "Elk";
+	move.powerup = powerup_kuuhuku;
+	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "UkaseWaza");
 	move.displayName = "Hawk Baker";
+	move.powerup = powerup_kuuhuku;
+	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Renda");
 	move.displayName = "Beak Driver Mash";
 	move.slangName = "Beak Mash";
+	move.powerup = powerup_kuuhuku;
+	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Land");
@@ -9956,10 +9978,24 @@ const char* powerupExplanation_rifle(PlayerInfo& ent) {
 	return "Ms. Confille reached maximum charge.";
 }
 bool powerup_beakDriver(PlayerInfo& ent) {
-	return !ent.prevFrameMem45 && ent.pawn.mem45();
+	return !ent.prevFrameMem45 && ent.pawn.mem45()
+		|| ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
 }
 const char* powerupExplanation_beakDriver(PlayerInfo& ent) {
-	return "Will perform the maximum power attack upon release.";
+	if (ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK) {
+		if (ent.prevFrameRomanCancelAvailability != ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK) {
+			return "//Title override: \n"
+				"Starting on this frame, can't RC, unless opponent is in hitstun or blockstun.";
+		} else {
+			return "//Title override: \n"
+				"Can't RC, unless opponent is in hitstun or blockstun.";
+		}
+	} else {
+		return "Will perform the maximum power attack upon release.";
+	}
+}
+bool dontShowPowerupGraphic_beakDriver(PlayerInfo& ent) {
+	return ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
 }
 bool powerup_mistFiner(PlayerInfo& ent) {
 	return ent.johnnyMistFinerBuffedOnThisFrame;
@@ -10036,6 +10072,18 @@ const char* powerupExplanation_zweit(PlayerInfo& ent) {
 	return "//Title override: \n"
 		"On this frame checks if Leo's origin point is still not behind opponent's origin point."
 		" If on any of these frames Leo failed to cross his opponent up, he will transition to non-backturn ender.";
+}
+bool powerup_kuuhuku(PlayerInfo& ent) {
+	return ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
+}
+const char* powerupExplanation_kuuhuku(PlayerInfo& ent) {
+	if (ent.prevFrameRomanCancelAvailability != ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK) {
+		return "//Title override: \n"
+			"Starting on this frame, can't RC, unless opponent is in hitstun or blockstun.";
+	} else {
+		return "//Title override: \n"
+			"Can't RC, unless opponent is in hitstun or blockstun.";
+	}
 }
 
 void fillMay6HOffsets(BYTE* func) {

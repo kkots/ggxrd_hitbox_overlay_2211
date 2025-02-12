@@ -5846,6 +5846,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFramePlayerval1 = player.playerval1;
 			player.prevFramePlayerval2 = player.wasPlayerval[2];
 			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
+			player.prevFrameRomanCancelAvailability = player.pawn.romanCancelAvailability();
 			player.prevBbscrvar5 = player.pawn.bbscrvar5();
 			for (int k = 0; k < 4; ++k) {
 				player.prevFrameResource[k] = player.pawn.exGaugeValue(k);
