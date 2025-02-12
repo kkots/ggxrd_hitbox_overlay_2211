@@ -4,7 +4,7 @@
 
 ## Description
 
-Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 3'rd January 2024).  
+Adds hitboxes overlaid on top of characters/projectiles for Guilty Gear Xrd Rev2 version 2211 (as of 12'th February 2025).  
 Adds framebar and framedata display (see [Framebar](#framebar) section).
 Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see [Default Hotkeys](#default-hotkeys) section).  
 Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).  
@@ -1192,4 +1192,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 10: Version 6.4: Fixed display of frame advantage in framebar for moves that are very minus (previously was showing '?')
 - 2025 February 10: Version 6.5: Fixed red/green color for landing frame advantage (displayed in '(...)') in the framebar
 - 2025 February 10: Version 6.6: Fixed framebar displaying the very first frame on the far right instead of at the start
-- 2025 February 12: Version 6.7: Added interaction box (white) for Leo bt.D successful parry that shows the distance where the opponent's origin point must be in order to get vaccuumed. Fixed the active frames of I-No ground Sterilization Method (previously was not registering any active frames.)
+- 2025 February 12: Version 6.7: Added interaction box (white) for Leo bt.D successful parry that shows the distance where the opponent's origin point must be in order to get vaccuumed. Fixed the active frames of I-No ground Sterilization Method (previously was not registering any active frames.). Added a toggle to disable particle effect creation, to get cleaner screenshots of just the models.
