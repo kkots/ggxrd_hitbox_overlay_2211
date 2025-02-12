@@ -17,7 +17,6 @@ using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
 using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
 using BBScr_linkParticle_t = void(__thiscall*)(void* pawn, const char* name);
-using BBScr_linkParticle_t = void(__thiscall*)(void* pawn, const char* name);
 using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
 using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
 using logicOnFrameAfterHit_t = void(__thiscall*)(void* pawn, bool isAirHit, int param2);
