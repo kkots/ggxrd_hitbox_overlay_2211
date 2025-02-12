@@ -6475,7 +6475,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Air");
-	move.displayName = "Air Beak Driver";
+	move.displayName = "Aerial Beak Driver";
 	move.slangName = "Air Beak";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
@@ -6526,7 +6526,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Renda");
-	move.displayName = "Beak Driver Mash";
+	move.displayName = "I'm Sure I'll Hit Something";
 	move.slangName = "Beak Mash";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
