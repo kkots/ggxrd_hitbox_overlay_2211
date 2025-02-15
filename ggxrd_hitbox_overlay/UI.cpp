@@ -4345,6 +4345,11 @@ void UI::drawSearchableWindows() {
 				
 			} else if (player.charType == CHARACTER_TYPE_JOHNNY) {
 				
+				yellowText(searchFieldTitle("Mist Finer Level:"));
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d", player.pawn.playerVal(1) + 1);
+				ImGui::TextUnformatted(strbuf);
+				
 				yellowText(searchFieldTitle("Bacchus Projectile Timer:"));
 				AddTooltip(searchTooltip("You can't perform another Bacchus Sigh until this timer exprites, plus one extra frame"
 					" after it expires.\n"
