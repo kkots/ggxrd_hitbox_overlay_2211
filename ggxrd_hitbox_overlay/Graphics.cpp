@@ -2641,7 +2641,9 @@ void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
 			// drawing points may also draw inputs. So no need to draw points = no need to draw inputs
 			|| !noNeedToDrawPoints
 		)
-		&& !inputHistoryIsSplitOut;
+		&& !inputHistoryIsSplitOut
+		|| needDrawWholeUiWithPoints && !uiDrawData.empty()
+		|| needDrawFramebarWithPoints && !uiFramebarDrawData.empty();
 		
 	if (!*aswEngine) {
 		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them

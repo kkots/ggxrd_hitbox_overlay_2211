@@ -8274,6 +8274,7 @@ bool EndScene::willDrawOriginPoints() {
 				!drawDataPrepared.points.empty()
 				&& !settings.dontShowBoxes
 				|| (drawDataPrepared.inputsSize[0] || drawDataPrepared.inputsSize[1])
+				|| needEnqueueUiWithPoints
 			)
 			&& !gifMode.modDisabled
 			&& !drawingPostponed();
