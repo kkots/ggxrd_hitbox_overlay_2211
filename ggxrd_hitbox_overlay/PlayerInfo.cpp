@@ -700,6 +700,9 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	}
 	sprite.fill(ent);
 	memcpy(animName, ent.animationName(), 32);
+	if (team == 0 || team == 1) {
+		fillInMove();
+	}
 	determineMoveNameAndSlangName(&lastName, &lastSlangName);
 	
 	x = ptr.posX();

@@ -2042,7 +2042,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				projectile.fill(projectile.ptr, superflashInstigator, false);
 				projectile.markActive = projectile.landedHit;
 				if (projectile.team == 0 || projectile.team == 1) {
-					projectile.fillInMove();
 					if (!projectile.moveNonEmpty) {
 						projectile.isDangerous = false;
 					} else {
@@ -6693,7 +6692,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		leoParries.push_back(newParry);
 	}
 	if (!iGiveUp) {
-		if (attacker.isPawn()) {
+		if (!attacker.isPawn()) {
 			hit.projectile.fill(attacker, getSuperflashInstigator(), false);
 		}
 		hit.isPawn = attacker.isPawn();

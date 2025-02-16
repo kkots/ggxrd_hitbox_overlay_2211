@@ -1009,6 +1009,7 @@ public:
 	inline int blockCount() const { return *(int*)(ent + 0x9fe0); }
 	inline CounterHitEntityValue receivedCounterHit() const { return *(CounterHitEntityValue*)(ent + 0x990); }
 	inline bool counterHitState() const { return (*(DWORD*)(ent + 0x234) & 0x100) != 0; }  // Thanks to WorseThanYou for finding this
+	inline bool jitabataLoop() const { return (*(DWORD*)(ent + 0x234) & 0x20000000) != 0; }
 	inline bool ignoreRcProration() const { return *(BOOL*)(ent + 0x26200) != 0; }
 	inline TensionMode tensionMode() const { return *(TensionMode*)(ent + 0x2621c); }
 	inline int dustPropulsion() const { return *(int*)(ent + 0x24de0); }
