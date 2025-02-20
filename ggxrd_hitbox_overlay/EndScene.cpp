@@ -722,7 +722,12 @@ void EndScene::logic() {
 		bool isPauseMenu;
 		bool isNormalMode = altModes.isGameInNormalMode(&needToClearHitDetection, &isPauseMenu) || isPauseMenu;
 		pauseMenuOpen = isPauseMenu;
-		bool isRunning = game.isMatchRunning() || altModes.roundendCameraFlybyType() != 8;
+		bool isRunning = (
+				game.isMatchRunning()
+				|| players[0].gotHitOnThisFrame  // fix for death by DoT
+				|| players[1].gotHitOnThisFrame  // fix for death by DoT
+			)
+			|| altModes.roundendCameraFlybyType() != 8;
 		if (!isRunning && !iGiveUp) {
 			if (!settings.dontClearFramebarOnStageReset) {
 				playerFramebars.clear();
