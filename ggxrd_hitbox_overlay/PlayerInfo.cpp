@@ -589,7 +589,7 @@ void ActiveDataArray::removeSeparateHits(int* outIndex) {
 	count = index + 1;
 }
 
-void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreated) {
+void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreated, bool fillName) {
 	ptr = ent;
 	team = ent.team();
 	CharacterType ownerType = (CharacterType)-1;
@@ -617,7 +617,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	} else {
 		isRamlethalSword = false;
 	}
-	if (animFrame == 1 && !ent.isRCFrozen() && isRamlethalSword && (
+	if (fillName && animFrame == 1 && !ent.isRCFrozen() && isRamlethalSword && (
 				strcmp(ent.animationName(), "BitN6C") == 0
 				|| strcmp(ent.animationName(), "BitF6D") == 0
 				|| strcmp(ent.animationName(), "BitN2C_Bunri") == 0
@@ -698,12 +698,14 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	if (maxHit.currentUse == -1 || maxHit.currentUse > 0 && !(maxHit.maxUse == 1 && hitNumber > 0)) {
 		hitNumber = currentHitNum;
 	}
-	sprite.fill(ent);
-	memcpy(animName, ent.animationName(), 32);
-	if (team == 0 || team == 1) {
-		fillInMove();
+	if (fillName) {
+		sprite.fill(ent);
+		memcpy(animName, ent.animationName(), 32);
+		if (team == 0 || team == 1) {
+			fillInMove();
+		}
+		determineMoveNameAndSlangName(&lastName, &lastSlangName);
 	}
-	determineMoveNameAndSlangName(&lastName, &lastSlangName);
 	
 	x = ptr.posX();
 	y = ptr.posY();

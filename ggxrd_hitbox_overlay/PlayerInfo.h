@@ -986,7 +986,7 @@ struct ProjectileInfo {
 		disabled(false)
 	{
 	}
-	void fill(Entity ent, Entity superflashInstigator, bool isCreated);
+	void fill(Entity ent, Entity superflashInstigator, bool isCreated, bool fillName = true);
 	void printStartup(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
 	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;

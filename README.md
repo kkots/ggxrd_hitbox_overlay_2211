@@ -1198,3 +1198,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 15: Version 6.8: Added info in frame tooltip about when Sin enters starving animation and can't RC it. Added Johnny Mist Finer Level to Johnny's Character Specific UI window.
 - 2025 February 16: Version 6.9: Fixing mistakes: Stagger animation was erroneously displaying as throw invulnerable. Projectiles that hit on the same frame as they get created and instantly disappear, would show up on the framebar, but their name would always be just "Projectiles". Name of such projectiles displays correctly now.
 - 2025 February 16: Version 6.10: Fix framebar and/or mod's UI not displaying when hitbox display is turned off, in both OBS dodging mode and without it.
+- 2025 February 20: Version 6.11: Fixed crash when an Elphelt shotgun is fired in observer multiplayer or single player modes.

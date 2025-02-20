@@ -2298,7 +2298,7 @@ IDirect3DTexture9* Graphics::getOutlinesRTSamplingTexture(IDirect3DDevice9* devi
 
 void Graphics::compilePixelShader() {
 	
-	if (failedToCompilePixelShader || pixelShaderCode) return;
+	if (failedToCompilePixelShader || !pixelShaderCode.empty()) return;
 	
 	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
 	if (!resourceInfoHandle) {
@@ -2357,14 +2357,8 @@ void Graphics::compilePixelShader() {
 	SIZE_T shaderSize = code->GetBufferSize();
 	const DWORD* codeData = (const DWORD*)code->GetBufferPointer();
 	
-	pixelShaderCode = malloc(shaderSize);
-	if (!pixelShaderCode) {
-		logwrap(fprintf(logfile, "malloc(code->GetBufferSize()) failed: %u\n", pixelShaderCodeSize));
-		failedToCompilePixelShader = true;
-		return;
-	}
-	pixelShaderCodeSize = shaderSize;
-	memcpy(pixelShaderCode, codeData, pixelShaderCodeSize);
+	pixelShaderCode.resize(shaderSize);
+	memcpy(pixelShaderCode.data(), codeData, pixelShaderCode.size());
 }
 
 void Graphics::getShaderCompilationError(const std::string** result) {
@@ -2376,11 +2370,11 @@ void Graphics::getShaderCompilationError(const std::string** result) {
 IDirect3DPixelShader9* Graphics::getPixelShader(IDirect3DDevice9* device) {
 	if (failedToCreatePixelShader) return nullptr;
 	if (pixelShader) return pixelShader;
-	if (!pixelShaderCode) {
+	if (pixelShaderCode.empty()) {
 		failedToCreatePixelShader = true;
 		return nullptr;
 	}
-	if (FAILED(device->CreatePixelShader((const DWORD*)pixelShaderCode, &pixelShader))) {
+	if (FAILED(device->CreatePixelShader((const DWORD*)pixelShaderCode.data(), &pixelShader))) {
 		failedToCreatePixelShader = true;
 		logwrap(fprintf(logfile, "CreatePixelShader failed\n"));
 		return nullptr;

@@ -380,6 +380,7 @@ bool EndScene::onDllMain() {
 	if (PawnVtable) {
 		orig_setAnim = *(setAnim_t*)(PawnVtable + 0x44);
 		orig_pawnInitialize = *(pawnInitialize_t*)(PawnVtable);
+		checkFirePerFrameUponsWrapper = *(checkFirePerFrameUponsWrapper_t*)(PawnVtable + 0x10);
 		orig_handleUpon = *(handleUpon_t*)(PawnVtable + 0x3c);
 		getAccessedValueAddr = *(uintptr_t*)(PawnVtable + 0x4c);
 	}
@@ -6823,7 +6824,7 @@ void EndScene::HookHelp::BBScr_createObjectHook_piece() {
 }
 
 // Runs on the main thread
-void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName) {
+ProjectileInfo& EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName) {
 	for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
 		if (it->ptr == createdPawn) {
 			if (it->landedHit || it->gotHitOnThisFrame) {
@@ -6836,7 +6837,7 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 	}
 	projectiles.emplace_back();
 	ProjectileInfo& projectile = projectiles.back();
-	projectile.fill(createdPawn, getSuperflashInstigator(), true);
+	projectile.fill(createdPawn, getSuperflashInstigator(), true, fillName);
 	bool ownerFound = false;
 	ProjectileInfo& creatorProjectile = findProjectile(pawn);
 	if (creatorProjectile.ptr) {
@@ -6860,6 +6861,7 @@ void EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* anim
 		memcpy(projectile.creatorName, player.anim, 32);
 		projectile.creator = player.pawn;
 	}
+	return projectile;
 }
 
 // Runs on the main thread
@@ -7124,10 +7126,12 @@ void EndScene::HookHelp::handleUponHook(int signal) {
 // Runs on the main thread
 // This is also for effects
 void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams) { 
+	Entity newProjectilePtr { nullptr };
 	if (!shutdown && creatingObject) {
 		creatingObject = false;
 		if (!iGiveUp) {
-			onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim);
+			ProjectileInfo& newProjectileInfo = onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim, false);
+			newProjectilePtr = newProjectileInfo.ptr;
 			events.emplace_back();
 			OccuredEvent& event = events.back();
 			event.type = OccuredEvent::SIGNAL;
@@ -7136,7 +7140,26 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 			memcpy(event.u.signal.fromAnim, creatorOfCreatedObject.animationName(), 32);
 		}
 	}
-	endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
+	BOOL* advanceFramePtr = (BOOL*)((BYTE*)initializationParams + 0x38);
+	if (*advanceFramePtr != 0 && newProjectilePtr) {
+		BOOL oldVal = *advanceFramePtr;
+		*advanceFramePtr = FALSE;
+		endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
+		ProjectileInfo& projectile = findProjectile(newProjectilePtr);
+		if (projectile.ptr) {
+			projectile.fill(createdObj, getSuperflashInstigator(), true);
+		}
+		*advanceFramePtr = oldVal;
+		checkFirePerFrameUponsWrapper((void*)createdObj.ent);
+	} else {
+		endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
+		if (newProjectilePtr) {
+			ProjectileInfo& projectile = findProjectile(newProjectilePtr);
+			if (projectile.ptr) {
+				projectile.fill(createdObj, getSuperflashInstigator(), true);
+			}
+		}
+	}
 }
 
 // Runs on the main thread
@@ -9147,7 +9170,6 @@ void increaseFramesCountUnlimited(int& counterUnlimited, int incrBy, int display
 		int remainder = _countof(Framebar::frames) % displayedFrames;
 		counterUnlimited = _countof(Framebar::frames) + displayedFrames - remainder
 			+ currentRemainder;
-	} else {
-		counterUnlimited += incrBy;
 	}
+	counterUnlimited += incrBy;
 }

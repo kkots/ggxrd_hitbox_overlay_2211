@@ -41,6 +41,7 @@ using BBScr_timeSlow_t = void(__thiscall*)(void* pawn, int duration);
 using onCmnActXGuardLoop_t = void(__thiscall*)(void* pawn, int signal, int type, int thisIs0);
 using drawTrainingHudInputHistory_t = void(__thiscall*)(void* trainingHud, unsigned int layer);
 using hitDetection_t = BOOL(__thiscall*)(void* attacker, void* defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
+using checkFirePerFrameUponsWrapper_t = void(__thiscall*)(void* ent);
 
 struct FVector2D {
 	float X;
@@ -67,7 +68,7 @@ struct FRingBuffer_AllocationContext {
 	inline ~FRingBuffer_AllocationContext() { Commit(); }
 	FRingBuffer_AllocationContext& operator=(const FRingBuffer_AllocationContext& other) = delete;
 	FRingBuffer_AllocationContext& operator=(FRingBuffer_AllocationContext&& other) noexcept {
-		memmove(this, &other, sizeof(*this));
+		memcpy(this, &other, sizeof(*this));
 		other.AllocationStart = 0;
 		return *this;
 	}
@@ -237,6 +238,7 @@ public:
 	BBScr_linkParticle_t orig_BBScr_linkParticleWithArg2 = nullptr;
 	setAnim_t orig_setAnim = nullptr;
 	pawnInitialize_t orig_pawnInitialize = nullptr;
+	checkFirePerFrameUponsWrapper_t checkFirePerFrameUponsWrapper = nullptr;
 	logicOnFrameAfterHit_t orig_logicOnFrameAfterHit = nullptr;
 	BBScr_runOnObject_t orig_BBScr_runOnObject = nullptr;
 	REDAnywhereDispDraw_t orig_REDAnywhereDispDraw = nullptr;
@@ -364,7 +366,7 @@ private:
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
 	void BBScr_linkParticleHook(Entity pawn, const char* name);
 	void BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name);
-	void onObjectCreated(Entity pawn, Entity createdPawn, const char* animName);
+	ProjectileInfo& onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName = true);
 	void setAnimHook(Entity pawn, const char* animName);
 	void pawnInitializeHook(Entity createdObj, void* initializationParams);
 	void logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2);

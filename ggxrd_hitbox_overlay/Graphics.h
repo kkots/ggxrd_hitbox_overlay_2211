@@ -256,8 +256,7 @@ private:
 	HMODULE hInstance = NULL;
 	void compilePixelShader();
 	bool failedToCompilePixelShader = false;
-	void* pixelShaderCode = nullptr;
-	size_t pixelShaderCodeSize = 0;
+	std::vector<char> pixelShaderCode;
 	
 	std::string shaderCompilationError;
 	
