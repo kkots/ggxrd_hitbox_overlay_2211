@@ -9,7 +9,7 @@ struct InputRingBuffer {
 	void stepBack();
 	unsigned short calculateLength() const;
 	inline bool empty() const { return framesHeld[index] == 0; }
-	inline bool hasJustBeenReset() const { return index == 0 && framesHeld[0] == 1 && framesHeld[29] == 0; }
+	inline bool hasJustBeenReset() const { return framesHeld[index] == 1 && framesHeld[index == 0 ? 29 : index - 1] == 0; }  // it starts with index 1, not 0. Let's just make this universal
 	enum ChargeType {
 		CHARGE_TYPE_HORIZONTAL,
 		CHARGE_TYPE_VERTICAL

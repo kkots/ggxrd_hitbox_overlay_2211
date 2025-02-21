@@ -1200,3 +1200,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 16: Version 6.10: Fix framebar and/or mod's UI not displaying when hitbox display is turned off, in both OBS dodging mode and without it.
 - 2025 February 20: Version 6.11: Fixed crash when an Elphelt shotgun is fired in observer multiplayer or single player modes.
 - 2025 February 20: Version 6.12: Fixed framebar emptying when a player died by DoT.
+- 2025 February 21: Version 6.13: Fixed input history reverting to an older state on round end.

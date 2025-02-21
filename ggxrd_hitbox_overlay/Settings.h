@@ -102,7 +102,7 @@ public:
 	std::atomic_bool drawPushboxCheckSeparately = true;
 	std::atomic_bool forceZeroPitchDuringCameraCentering = true;
 	std::atomic_bool modWindowVisibleOnStart = true;
-	std::atomic_bool closingModWindowAlsoHidesFramebar = false;
+	std::atomic_bool closingModWindowAlsoHidesFramebar = true;
 	std::atomic_bool dontShowMoveName = true;
 	std::atomic_bool neverIgnoreHitstop = false;
 	std::atomic_bool ignoreHitstopForBlockingBaiken = false;
