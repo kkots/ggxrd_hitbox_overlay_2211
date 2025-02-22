@@ -2248,7 +2248,7 @@ bool lastNFramesCompletelyEmpty(const T* framebar, int framebarPosition, int n) 
 	int pos = framebarPosition;
 	for (int i = 0; i < n; ++i) {
 		if (!frameTypeDiscardable(framebar->frames[pos].type)) return false;
-		if (pos == 0) pos = _countof(Framebar::frames);
+		if (pos == 0) pos = _countof(Framebar::frames) - 1;
 		else --pos;
 	}
 	return true;
