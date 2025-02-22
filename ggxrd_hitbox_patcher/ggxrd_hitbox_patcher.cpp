@@ -216,11 +216,11 @@ bool writeStringToFile(FILE* file, size_t pos, const std::string& stringToWrite,
     return true;
 }
 
-int calculateRelativeCall(uintptr_t callInstructionAddress, uintptr_t calledAddress) {
+int calculateRelativeCall(DWORD callInstructionAddress, DWORD calledAddress) {
     return (int)calledAddress - (int)(callInstructionAddress + 5);
 }
 
-uintptr_t followRelativeCall(uintptr_t callInstructionAddress, const char* callInstructionAddressInRam) {
+DWORD followRelativeCall(DWORD callInstructionAddress, const char* callInstructionAddressInRam) {
     int offset = *(int*)(callInstructionAddressInRam + 1);
     return callInstructionAddress + 5 + offset;
 }
@@ -234,29 +234,29 @@ struct Section {
 	// Note that the .exe, although it does specify a base virtual address for itself on the disk,
 	// may actually be loaded anywhere in the RAM once it's launched, and that RAM location will
 	// become its base virtual address.
-    uintptr_t relativeVirtualAddress = 0;
+    DWORD relativeVirtualAddress = 0;
     
 	// VA. Virtual address within the .exe.
 	// A virtual address is the location of something within the .exe once it's loaded into memory.
 	// An on-disk, file .exe is usually smaller than when it's loaded so it creates this distinction
 	// between raw address and virtual address.
-    uintptr_t virtualAddress = 0;
+    DWORD virtualAddress = 0;
     
 	// The size in terms of virtual address space.
-    uintptr_t virtualSize = 0;
+    DWORD virtualSize = 0;
     
 	// Actual position of the start of this section's data within the file.
-    uintptr_t rawAddress = 0;
+    DWORD rawAddress = 0;
     
 	// Size of this section's data on disk in the file.
-    uintptr_t rawSize = 0;
+    DWORD rawSize = 0;
 };
 
 std::vector<Section> readSections(FILE* file) {
 
     std::vector<Section> result;
 
-    uintptr_t peHeaderStart = 0;
+    DWORD peHeaderStart = 0;
     fseek(file, 0x3C, SEEK_SET);
     fread(&peHeaderStart, 4, 1, file);
 
@@ -264,18 +264,18 @@ std::vector<Section> readSections(FILE* file) {
     fseek(file, peHeaderStart + 0x6, SEEK_SET);
     fread(&numberOfSections, 2, 1, file);
 
-    uintptr_t optionalHeaderStart = peHeaderStart + 0x18;
+    DWORD optionalHeaderStart = peHeaderStart + 0x18;
 
     unsigned short optionalHeaderSize = 0;
     fseek(file, peHeaderStart + 0x14, SEEK_SET);
     fread(&optionalHeaderSize, 2, 1, file);
 
-    uintptr_t imageBase = 0;
+    DWORD imageBase = 0;
     fseek(file, peHeaderStart + 0x34, SEEK_SET);
     fread(&imageBase, 4, 1, file);
 
-    uintptr_t sectionsStart = optionalHeaderStart + optionalHeaderSize;
-    uintptr_t sectionStart = sectionsStart;
+    DWORD sectionsStart = optionalHeaderStart + optionalHeaderSize;
+    DWORD sectionStart = sectionsStart;
     for (size_t sectionCounter = numberOfSections; sectionCounter != 0; --sectionCounter) {
         Section newSection;
         fseek(file, sectionStart, SEEK_SET);
@@ -294,7 +294,7 @@ std::vector<Section> readSections(FILE* file) {
     return result;
 }
 
-uintptr_t rawToVa(const std::vector<Section>& sections, uintptr_t rawAddr) {
+DWORD rawToVa(const std::vector<Section>& sections, DWORD rawAddr) {
     if (sections.empty()) return 0;
     auto it = sections.cend();
     --it;
@@ -309,7 +309,7 @@ uintptr_t rawToVa(const std::vector<Section>& sections, uintptr_t rawAddr) {
     return 0;
 }
 
-uintptr_t vaToRaw(const std::vector<Section>& sections, uintptr_t va) {
+DWORD vaToRaw(const std::vector<Section>& sections, DWORD va) {
     if (sections.empty()) return 0;
     auto it = sections.cend();
     --it;
@@ -498,7 +498,7 @@ void meatOfTheProgram() {
         CrossPlatformCout << "Failed to find LoadLibraryA calling place\n";
         return;
     }
-    uintptr_t loadLibraryAPtr = *(uintptr_t*)(wholeFileBegin + loadLibraryAPlace + 5);
+    DWORD loadLibraryAPtr = *(DWORD*)(wholeFileBegin + loadLibraryAPlace + 5);
     CrossPlatformCout << "Found LoadLibraryA pointer value: 0x" << std::hex << loadLibraryAPtr << std::dec << std::endl;
 
     // JMP rel32: e9 [little endian 4 bytes relative address of the destination from the instruction after the jmp]
@@ -549,14 +549,14 @@ void meatOfTheProgram() {
     CrossPlatformCout << "\n]\n";
     CrossPlatformCout << std::dec;
 
-    uintptr_t codeInsertionPlacePtr = codeInsertionPlace;
+    DWORD codeInsertionPlacePtr = (DWORD)codeInsertionPlace;
     fseek(file, codeInsertionPlacePtr, SEEK_SET);
     fwrite("\xE8", 1, 1, file);
-    uintptr_t callAddress = followRelativeCall(patchingPlace, wholeFileBegin + patchingPlace);
+    DWORD callAddress = followRelativeCall(patchingPlace, wholeFileBegin + patchingPlace);
     int newOffset = calculateRelativeCall(codeInsertionPlacePtr, callAddress);
     fwrite(&newOffset, 4, 1, file);
     codeInsertionPlacePtr += 5;
-    uintptr_t stringInsertionPlaceVa = rawToVa(sections, stringInsertionPlace);
+    DWORD stringInsertionPlaceVa = rawToVa(sections, stringInsertionPlace);
     fwrite("\x68", 1, 1, file);
     fwrite(&stringInsertionPlaceVa, 4, 1, file);
     codeInsertionPlacePtr += 5;
@@ -572,27 +572,27 @@ void meatOfTheProgram() {
     jumpOffset = calculateRelativeCall(patchingPlace, codeInsertionPlace);
     fwrite(&jumpOffset, 4, 1, file);
 
-    uintptr_t peHeaderStart = 0;
+    DWORD peHeaderStart = 0;
     fseek(file, 0x3C, SEEK_SET);
     fread(&peHeaderStart, 4, 1, file);
 
     fseek(file, peHeaderStart + 0xA0, SEEK_SET);
-    uintptr_t relocRva = 0;
+    DWORD relocRva = 0;
     fread(&relocRva, 4, 1, file);
-    size_t relocSize = 0;
+    DWORD relocSize = 0;
     fread(&relocSize, 4, 1, file);
     fseek(file, -4, SEEK_CUR);
-    size_t newRelocSize = relocSize + 12;  // into the relocation table we'll insert both the PUSH string and the LoadLibraryA call into a single block
+    DWORD newRelocSize = relocSize + 12;  // into the relocation table we'll insert both the PUSH string and the LoadLibraryA call into a single block
     fwrite(&newRelocSize, 4, 1, file);
 
-    uintptr_t relocInFile = rvaToRaw(sections, relocRva) + relocSize;
+    DWORD relocInFile = rvaToRaw(sections, relocRva) + relocSize;
     fseek(file, relocInFile, SEEK_SET);
 
 
-    uintptr_t codeInsertionPlaceVa = rawToVa(sections, codeInsertionPlace);
-    uintptr_t newRelocBlockRva = codeInsertionPlaceVa & 0xFFFFF000;
+    DWORD codeInsertionPlaceVa = rawToVa(sections, codeInsertionPlace);
+    DWORD newRelocBlockRva = codeInsertionPlaceVa & 0xFFFFF000;
     fwrite(&newRelocBlockRva, 4, 1, file);
-    size_t newRelocBlockSize = 12;
+    DWORD newRelocBlockSize = 12;
     fwrite(&newRelocBlockSize, 4, 1, file);
     writeRelocEntry(file, 3, codeInsertionPlaceVa + 6);  // codeInsertionPlace + 6 is the pointer to string in our PUSH instruction
     writeRelocEntry(file, 3, codeInsertionPlaceVa + 12);  // codeInsertionPlace + 12 is the [KERNEL32.DLL::LoadLibraryA] in our CALL instruction
