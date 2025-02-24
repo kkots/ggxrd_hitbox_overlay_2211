@@ -252,7 +252,7 @@ struct Section {
     DWORD rawSize = 0;
 };
 
-std::vector<Section> readSections(FILE* file) {
+std::vector<Section> readSections(FILE* file, DWORD* imageBase) {
 
     std::vector<Section> result;
 
@@ -270,9 +270,8 @@ std::vector<Section> readSections(FILE* file) {
     fseek(file, peHeaderStart + 0x14, SEEK_SET);
     fread(&optionalHeaderSize, 2, 1, file);
 
-    DWORD imageBase = 0;
     fseek(file, peHeaderStart + 0x34, SEEK_SET);
-    fread(&imageBase, 4, 1, file);
+    fread(imageBase, 4, 1, file);
 
     DWORD sectionsStart = optionalHeaderStart + optionalHeaderSize;
     DWORD sectionStart = sectionsStart;
@@ -284,7 +283,7 @@ std::vector<Section> readSections(FILE* file) {
         newSection.name.resize(strlen(newSection.name.c_str()));
         fread(&newSection.virtualSize, 4, 1, file);
         fread(&newSection.relativeVirtualAddress, 4, 1, file);
-        newSection.virtualAddress = imageBase + newSection.relativeVirtualAddress;
+        newSection.virtualAddress = *imageBase + newSection.relativeVirtualAddress;
         fread(&newSection.rawSize, 4, 1, file);
         fread(&newSection.rawAddress, 4, 1, file);
         result.push_back(newSection);
@@ -324,6 +323,14 @@ DWORD vaToRaw(const std::vector<Section>& sections, DWORD va) {
     return 0;
 }
 
+DWORD vaToRva(DWORD va, DWORD imageBase) {
+	return va - imageBase;
+}
+
+DWORD rvaToVa(DWORD rva, DWORD imageBase) {
+	return rva + imageBase;
+}
+
 uintptr_t rvaToRaw(const std::vector<Section>& sections, uintptr_t rva) {
     if (sections.empty()) return 0;
     auto it = sections.cend();
@@ -339,8 +346,13 @@ uintptr_t rvaToRaw(const std::vector<Section>& sections, uintptr_t rva) {
     return 0;
 }
 
-void writeRelocEntry(FILE* file, char relocType, uintptr_t va) {
-    uintptr_t vaMemoryPage = va & 0xFFFFF000;
+/// <summary>
+/// Writes a relocation entry at the current file position.
+/// </summary>
+/// <param name="relocType">See macros starting with IMAGE_REL_BASED_</param>
+/// <param name="va">Virtual address of the place to be relocated by the reloc.</param>
+void writeRelocEntry(FILE* file, char relocType, DWORD va) {
+    DWORD vaMemoryPage = va & 0xFFFFF000;
     unsigned short relocEntry = (relocType << 12) | ((va - vaMemoryPage) & 0x0FFF);
     fwrite(&relocEntry, 2, 1, file);
 }
@@ -525,8 +537,9 @@ void meatOfTheProgram() {
         return;
     }
     CrossPlatformCout << "Found code insertion place: 0x" << std::hex << codeInsertionPlace << std::dec << std::endl;
-
-    std::vector<Section> sections = readSections(file);
+	
+	DWORD imageBase;
+    std::vector<Section> sections = readSections(file, &imageBase);
     if (sections.empty()) {
         CrossPlatformCout << "Failed to read sections\n";
         return;
@@ -582,15 +595,17 @@ void meatOfTheProgram() {
     DWORD relocSize = 0;
     fread(&relocSize, 4, 1, file);
     fseek(file, -4, SEEK_CUR);
-    DWORD newRelocSize = relocSize + 12;  // into the relocation table we'll insert both the PUSH string and the LoadLibraryA call into a single block
+    // "Each block must start on a 32-bit boundary." - Microsoft
+    DWORD relocSizeRoundUp = (relocSize + 3) & ~3;
+    DWORD newRelocSize = relocSizeRoundUp + 12;  // into the relocation table we'll insert both the PUSH string and the LoadLibraryA call into a single block
     fwrite(&newRelocSize, 4, 1, file);
 
-    DWORD relocInFile = rvaToRaw(sections, relocRva) + relocSize;
+    DWORD relocInFile = rvaToRaw(sections, relocRva) + relocSizeRoundUp;
     fseek(file, relocInFile, SEEK_SET);
 
 
     DWORD codeInsertionPlaceVa = rawToVa(sections, codeInsertionPlace);
-    DWORD newRelocBlockRva = codeInsertionPlaceVa & 0xFFFFF000;
+    DWORD newRelocBlockRva = vaToRva(codeInsertionPlaceVa & 0xFFFFF000, imageBase);
     fwrite(&newRelocBlockRva, 4, 1, file);
     DWORD newRelocBlockSize = 12;
     fwrite(&newRelocBlockSize, 4, 1, file);
