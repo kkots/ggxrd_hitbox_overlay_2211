@@ -48,6 +48,7 @@ The mod may show up as a virus. I swear this is not a virus, check the source co
 On Ubuntu/Linux the injector won't work on its own. You need to cd into the mod's directory and type into the console:
 
 ```bash
+chmod u+x launch_ggxrd_hitbox_injector_linux.sh
 .\launch_ggxrd_hitbox_injector_linux.sh
 ```
 
@@ -56,7 +57,7 @@ If it doesn't work, you can use the patcher:
 
 ## Patching the game to always launch with the mod
 
-If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
+If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. (If on Linux the patcher doesn't start, you might need to do `chmod u+x ggxrd_hitbox_patcher`.) The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
 The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
 If the DLL is not found when the game launches, it will just run normally, without the mod.  
 Normally you can run the injector to unload the mod, but if for whatever reason you can't run it on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in [Hotkey configuration](#hotkey-configuration) section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
