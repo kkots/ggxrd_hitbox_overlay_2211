@@ -8,6 +8,7 @@
 #else
 #include <fstream>
 #include <string.h>
+#include <stdint.h>
 #endif
 #include <vector>
 
@@ -27,6 +28,7 @@
 #define CrossPlatformCin std::cin
 #define CrossPlatformCout std::cout
 #define CrossPlatformNumberToString std::to_string
+typedef unsigned int DWORD;
 #endif
 
 bool hasAtLeastOneBackslash(const CrossPlatformString& path) {
@@ -399,7 +401,12 @@ void copyFileLinux(const std::string& pathSource, const std::string& pathDestina
 
 void meatOfTheProgram() {
     CrossPlatformString ignoreLine;
+	#ifndef FOR_LINUX
     CrossPlatformCout << CrossPlatformText("Please select a path to your GuiltyGearXrd.exe file that will be patched...\n");
+	#else
+	CrossPlatformCout << CrossPlatformText("Please type in/paste a path, without quotes, to your GuiltyGearXrd.exe file"
+		" (including the file name and extension) that will be patched...\n");
+	#endif
 
     #ifndef FOR_LINUX
     std::wstring szFile;
