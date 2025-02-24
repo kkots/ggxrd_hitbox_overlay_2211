@@ -1201,3 +1201,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 20: Version 6.11: Fixed crash when an Elphelt shotgun is fired in observer multiplayer or single player modes.
 - 2025 February 20: Version 6.12: Fixed framebar emptying when a player died by DoT.
 - 2025 February 21: Version 6.13: Fixed input history reverting to an older state on round end.
+- 2025 February 25: Version 6.14: Fixed a potential issue of the patcher not working with ASLR, and projectile framebars sometimes appearing even if empty.
