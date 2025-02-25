@@ -29,11 +29,13 @@ For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (
 
 ## Quickstart for Windows
 
-1. Launch the game. Or you can do the next step at any point while the game is running.
+1. Download the latest release from the `Releases` section on the right side of this page.
 
-2. Go to downloaded folder and launch `ggxrd_hitbox_injector.exe`.
+2. Launch the game. Or you can do the next step at any point while the game is running.
 
-3. Start a match. Hitboxes should display.
+3. Go to downloaded folder and launch `ggxrd_hitbox_injector.exe`.
+
+4. Start a match. Hitboxes should display.
 
 Read the [Hitboxes](#hitboxes) section to understand what the colors mean.  
 Read the [Default Hotkeys](#default-hotkeys) section to know what the default hotkeys are.  
