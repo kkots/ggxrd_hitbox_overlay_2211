@@ -250,7 +250,7 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 		kernel32 = LoadLibraryA(unscramble(vec, kernel32Name, kernel32Key));
 	}
 	
-	HMODULE hMod[1024];
+	HMODULE hModule;
 	DWORD bytesReturned = 0;
 	
 	EnumProcessModulesExPtr = (BOOL (__stdcall*)(HANDLE, HMODULE*, DWORD, LPDWORD, DWORD))
@@ -267,7 +267,7 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 	}
 	
 	CloseHandlePtr = (BOOL (__stdcall*)(HANDLE))GetProcAddress(kernel32, unscramble(vec, CloseHandleName, CloseHandleKey));
-	if (!(*EnumProcessModulesExPtr)(proc, hMod, sizeof hMod, &bytesReturned, LIST_MODULES_32BIT)) {
+	if (!(*EnumProcessModulesExPtr)(proc, &hModule, sizeof HMODULE, &bytesReturned, LIST_MODULES_32BIT)) {
 		WinError winErr;
 		std::wcout << L"Failed to enum modules: " << winErr << std::endl;
 		(*CloseHandlePtr)(proc);
@@ -279,8 +279,6 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 		(*CloseHandlePtr)(proc);
 		return 0;
 	}
-	
-	HMODULE hModule = hMod[0];
 	
 	MODULEINFO info;
 	
