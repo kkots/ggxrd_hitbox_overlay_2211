@@ -617,7 +617,9 @@ void doTask(DWORD procId) {
 					GetProcAddress(kernel32, unscramble(vec, CreateRemoteThreadName, CreateRemoteThreadKey));
 				
 				#if defined( _WIN64 )
-				FreeLibraryPtr = (BOOL(__stdcall*)(HMODULE))findImportedFunctionExtra(cleanup.proc, "KERNEL32.DLL", "FreeLibrary");
+				std::vector<char> FreeLibraryVec;
+				unscramble(FreeLibraryVec, FreeLibraryName, FreeLibraryKey);
+				FreeLibraryPtr = (BOOL(__stdcall*)(HMODULE))findImportedFunctionExtra(cleanup.proc, unscramble(vec, kernel32Name, kernel32Key), FreeLibraryVec.data());
 				if (!FreeLibraryPtr) {
 					WinError winErr;
 					std::wcout << L"Failed to find free library function in the process.\n";
@@ -710,7 +712,9 @@ void doTask(DWORD procId) {
 		GetProcAddress(kernel32, unscramble(vec, CreateRemoteThreadName, CreateRemoteThreadKey));
 	
 	#if defined( _WIN64 )
-	LoadLibraryWPtr = (HMODULE(__stdcall*)(LPCWSTR))findImportedFunctionExtra(cleanup.proc, "KERNEL32.DLL", "LoadLibraryW");
+	std::vector<char> LoadLibraryWVec;
+	unscramble(LoadLibraryWVec, LoadLibraryWName, LoadLibraryWKey);
+	LoadLibraryWPtr = (HMODULE(__stdcall*)(LPCWSTR))findImportedFunctionExtra(cleanup.proc, unscramble(vec, kernel32Name, kernel32Key), LoadLibraryWVec.data());
 	if (!LoadLibraryWPtr) {
 		WinError winErr;
 		std::wcout << L"Failed to find load library w function in the process.\n";
