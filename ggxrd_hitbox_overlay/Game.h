@@ -154,6 +154,7 @@ public:
 	bool isRoundend() const;
 	DummyRecordingMode getDummyRecordingMode() const;
 	int getDangerTime() const;
+	bool bothPlayersHuman() const;
 	bool freezeGame = false;
 	bool slowmoGame = false;
 	bool allowNextFrame = false;

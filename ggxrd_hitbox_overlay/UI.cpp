@@ -8324,7 +8324,15 @@ bool UI::needShowFramebar() const {
 			return settings.showFramebarInTrainingMode;
 		} else if (mode == GAME_MODE_REPLAY) {
 			return settings.showFramebarInReplayMode;
-		} else if (!(mode == GAME_MODE_NETWORK && game.getPlayerSide() != 2)) {  // if (!(you're playing online as a non-observer)) {
+		} else if (
+			!(
+				mode == GAME_MODE_NETWORK
+				&& game.getPlayerSide() != 2  // 2 means observer
+			) && !(
+				mode == GAME_MODE_VERSUS
+				&& game.bothPlayersHuman()
+			)
+		) {
 			return settings.showFramebarInOtherModes;
 		} else {
 			return false;

@@ -188,6 +188,7 @@
     <ClInclude Include="GifMode.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="BoundingRect.h" />
+    <ClInclude Include="HandleWrapper.h" />
     <ClInclude Include="Hardcode.h" />
     <ClInclude Include="Hitbox.h" />
     <ClInclude Include="HitDetector.h" />
@@ -260,6 +261,7 @@
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GifMode.cpp" />
     <ClCompile Include="Graphics.cpp" />
+    <ClCompile Include="HandleWrapper.cpp" />
     <ClCompile Include="Hitbox.cpp" />
     <ClCompile Include="HitDetector.cpp" />
     <ClCompile Include="BoundingRect.cpp" />

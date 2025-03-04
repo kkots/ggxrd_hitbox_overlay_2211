@@ -476,6 +476,14 @@ char Game::getPlayerSide() const {
 	}
 }
 
+bool Game::bothPlayersHuman() const {
+	if (!*aswEngine) return false;
+	entityList.populate();
+	return entityList.count >= 2
+		&& !entityList.slots[0].isCpu()
+		&& !entityList.slots[1].isCpu();
+}
+
 GameMode Game::getGameMode() const {
 	if (!*gameDataPtr) return GAME_MODE_TRAINING;
 	return (GameMode)*(*gameDataPtr + 0x45);

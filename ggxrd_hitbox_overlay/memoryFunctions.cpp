@@ -15,7 +15,7 @@ bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
 {
 	char moduleName[256] {0};
 	char sectionName[16] {0};
-	splitOutModuleName(name, moduleName, sectionName);
+	splitOutModuleName(name, moduleName, _countof(moduleName), sectionName, _countof(sectionName));
 	if (sectionName[0] == '\0') {
 		strncpy_s(sectionName, ".text", 5);
 	}
@@ -207,19 +207,25 @@ uintptr_t sigscanCaseInsensitive(uintptr_t start, uintptr_t end, const char* sig
 	return 0;
 }
 
-void splitOutModuleName(const char* name, char* moduleName, char* sectionName) {
+void splitOutModuleName(const char* name, char* moduleName, size_t moduleNameBufSize, char* sectionName, size_t sectionNameBufSize) {
 	bool foundColon = false;
 	for (const char* c = name; *c != '\0'; ++c) {
 		if (*c == ':') {
 			foundColon = true;
 		} else if (!foundColon) {
+			if (moduleNameBufSize <= 1) continue;
 			*moduleName = *c;
 			++moduleName;
+			--moduleNameBufSize;
 		} else {
+			if (sectionNameBufSize <= 1) continue;
 			*sectionName = *c;
 			++sectionName;
+			--sectionNameBufSize;
 		}
 	}
+	*moduleName = '\0';
+	*sectionName = '\0';
 }
 
 uintptr_t sigscan(const char* name, const char* sig, const char* mask)

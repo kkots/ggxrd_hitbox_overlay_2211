@@ -24,6 +24,7 @@
 #include "Game.h"
 #include "InputsIcon.h"
 #include <WinError.h>
+#include "HandleWrapper.h"
 
 Graphics graphics;
 
@@ -451,6 +452,8 @@ void Graphics::onDllDetach() {
 		dllDetachPiece();
 		return;
 	}
+	// What if it closes that thread and opens a new one with the exact same ID in the same process?
+	// So like we found it, but it's not the graphics thread anymore, hmm
 	if (GetProcessIdOfThread(graphicsThreadHandle) != GetCurrentProcessId()) {
 		CloseHandle(graphicsThreadHandle);
 		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive"));

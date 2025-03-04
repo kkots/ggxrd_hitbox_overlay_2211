@@ -14,6 +14,7 @@
 #include "PlayerInfo.h"
 #include "DrawData.h"
 #include "CharInfo.h"
+#include "HandleWrapper.h"
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
@@ -53,7 +54,7 @@ public:
 	bool obsStoppedCapturingFromEndScenesPerspective = false;
 	bool checkCanHookEndSceneAndPresent();
 	bool imInDanger = false;;
-	HANDLE responseToImInDanger = NULL;
+	HandleWrapper responseToImInDanger = NULL;
 	bool canDrawOnThisFrame() const;
 	bool drawingPostponed() const;
 	std::vector<BYTE> uiFramebarDrawData;
@@ -243,7 +244,7 @@ private:
 	CComPtr<IDirect3DSurface9> altRenderTarget;
 	int altRenderTargetLifeRemaining = 0;
 	
-	HANDLE shutdownFinishedEvent = NULL;
+	HandleWrapper shutdownFinishedEvent = NULL;
 	DWORD suspenderThreadId = NULL;
 	
 	CComPtr<IDirect3DTexture9> framesTexture = nullptr;

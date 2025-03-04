@@ -14,7 +14,7 @@ bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* 
 // mask vector will be terminated with an extra 0 byte.
 void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask);
 
-void splitOutModuleName(const char* name, char* moduleName, char* sectionName);
+void splitOutModuleName(const char* name, char* moduleName, size_t moduleNameBufSize, char* sectionName, size_t sectionNameBufSize);
 
 uintptr_t sigscan(const char* name, const char* sig, size_t sigLength);
 

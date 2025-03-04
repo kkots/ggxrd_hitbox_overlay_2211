@@ -7,15 +7,11 @@
 # This mod does not depend on any additional runtimes
 
 # This mod's tool that we want to launch.
-TOOLNAME="${1-ggxrd_hitbox_injector.exe}"  # ${VARNAME-DEFAULTVALUE} substitutes DEFAULTVALUE in case the variable is empty
+TOOLNAME32="${1-ggxrd_hitbox_injector.exe}"  # ${VARNAME-DEFAULTVALUE} substitutes DEFAULTVALUE in case the variable is empty
+TOOLNAME64="${1-ggxrd_hitbox_injector64bit.exe}"
 ONLY_PRINT_WINEPREFIX=false
 if [ "$1" == "--only-print-wineprefix" ]; then
   ONLY_PRINT_WINEPREFIX=true
-fi
-
-if [ ONLY_PRINT_WINEPREFIX == false ] && [ ! -f "$TOOLNAME" ]; then
-    echo "$TOOLNAME" not found in the current directory. Please cd into this script\'s directory and launch it again.
-    exit 1
 fi
 
 GUILTYGEAR_PID=$(pidof -s GuiltyGearXrd.exe)
@@ -73,6 +69,17 @@ GUILTYGEAR_WINELOADER=$(
 )
 if [ "$GUILTYGEAR_WINELOADER" == "" ]; then
     echo "Couldn't determine Guilty Gear Xrd's WINELOADER."
+    exit 1
+fi
+
+if [ -d "$GUILTYGEAR_WINEPREFIX/drive_c/windows/syswow64" ]; then
+  TOOLNAME=$TOOLNAME64
+else
+  TOOLNAME=$TOOLNAME32
+fi
+
+if [ ONLY_PRINT_WINEPREFIX == false ] && [ ! -f "$TOOLNAME" ]; then
+    echo "$TOOLNAME" not found in the current directory. Please cd into this script\'s directory and launch it again.
     exit 1
 fi
 

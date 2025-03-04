@@ -4959,7 +4959,7 @@ bool Moves::onDllMain() {
 	move.displayName = "H Carcass Raid";
 	move.displayNameSelector = displayNameSelector_carcassRaidH;
 	move.slangName = "H Carcass";
-	move.displayNameSelector = displaySlangNameSelector_carcassRaidH;
+	move.displaySlangNameSelector = displaySlangNameSelector_carcassRaidH;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
@@ -4967,7 +4967,7 @@ bool Moves::onDllMain() {
 	move.displayName = "S Carcass Raid";
 	move.displayNameSelector = displayNameSelector_carcassRaidS;
 	move.slangName = "S Carcass";
-	move.displayNameSelector = displaySlangNameSelector_carcassRaidS;
+	move.displaySlangNameSelector = displaySlangNameSelector_carcassRaidS;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	

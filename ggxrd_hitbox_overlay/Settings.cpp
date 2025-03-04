@@ -716,10 +716,9 @@ void Settings::onDllDetach() {
 				if (waitResult == WAIT_OBJECT_0) break;
 			}
 		}
-		CloseHandle(changeListenerExitedEvent);
-		CloseHandle(changesListener);
-		CloseHandle(changesListenerWakeEvent);
-		changesListener = NULL;
+		changeListenerExitedEvent.close();
+		changesListener.close();
+		changesListenerWakeEvent.close();
 	}
 }
 

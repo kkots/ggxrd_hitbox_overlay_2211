@@ -12,6 +12,7 @@
 #include "InputRingBuffer.h"
 #include "InputRingBufferStored.h"
 #include "CharInfo.h"
+#include "HandleWrapper.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -435,7 +436,7 @@ private:
 	DWORD prevAswEngineTickCount = 0;
 	DWORD prevAswEngineTickCountForInputs = 0;
 	bool shutdown = false;
-	HANDLE shutdownFinishedEvent = NULL;
+	HandleWrapper shutdownFinishedEvent = NULL;
 	struct RegisteredHit {
 		ProjectileInfo projectile;
 		HitResult hitResult;

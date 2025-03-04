@@ -6,6 +6,7 @@
 #include <mutex>
 #include <atomic>
 #include "StringWithLength.h"
+#include "HandleWrapper.h"
 
 const int JOY_BTN_0 = 0x107;
 const int JOY_BTN_1 = 0x108;
@@ -236,10 +237,10 @@ private:
 	bool firstSettingsParse = true;
 	HANDLE directoryChangeHandle = NULL;
 	bool lastCallFailedToGetTime = false;
-	HANDLE changesListener = NULL;
+	HandleWrapper changesListener = NULL;
 	bool changesListenerStarted = false;
-	HANDLE changesListenerWakeEvent = NULL;
-	HANDLE changeListenerExitedEvent = NULL;
+	HandleWrapper changesListenerWakeEvent = NULL;
+	HandleWrapper changeListenerExitedEvent = NULL;
 	enum ChangesListenerWakeType {
 		WAKE_TYPE_EXIT,
 		WAKE_TYPE_WRITING_FILE

@@ -35,7 +35,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH: {
-		DisableThreadLibraryCalls(hModule);
 #ifdef LOG_PATH
 		{
 			HANDLE fileHandle = CreateFileW(
