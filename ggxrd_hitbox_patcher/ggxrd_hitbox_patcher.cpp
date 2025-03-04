@@ -31,6 +31,8 @@
 typedef unsigned int DWORD;
 #endif
 
+char exeName[] = "\x3d\x6b\x5f\x62\x6a\x6f\x3d\x5b\x57\x68\x4e\x68\x5a\x24\x5b\x6e\x5b\xf6";
+
 bool hasAtLeastOneBackslash(const CrossPlatformString& path) {
     
     for (auto it = path.cbegin(); it != path.cend(); ++it) {
@@ -402,9 +404,9 @@ void copyFileLinux(const std::string& pathSource, const std::string& pathDestina
 void meatOfTheProgram() {
     CrossPlatformString ignoreLine;
 	#ifndef FOR_LINUX
-    CrossPlatformCout << CrossPlatformText("Please select a path to your GuiltyGearXrd.exe file that will be patched...\n");
+    CrossPlatformCout << CrossPlatformText("Please select a path to your ") << exeName << CrossPlatformText(" file that will be patched...\n");
 	#else
-	CrossPlatformCout << CrossPlatformText("Please type in/paste a path, without quotes, to your GuiltyGearXrd.exe file"
+	CrossPlatformCout << CrossPlatformText("Please type in/paste a path, without quotes, to your ") << exeName << CrossPlatformText(" file"
 		" (including the file name and extension) that will be patched...\n");
 	#endif
 
@@ -418,7 +420,19 @@ void meatOfTheProgram() {
     selectedFiles.lpstrFile = &szFile.front();
     selectedFiles.lpstrFile[0] = L'\0';
     selectedFiles.nMaxFile = szFile.size() + 1;
-    selectedFiles.lpstrFilter = L"Windows Executable\0*.EXE\0";
+	char scramble[] =
+		"\x4d\xf6\x5f\xf6\x64\xf6\x5a\xf6\x65\xf6\x6d\xf6\x69\xf6\x16\xf6\x3b\xf6"
+		"\x6e\xf6\x5b\xf6\x59\xf6\x6b\xf6\x6a\xf6\x57\xf6\x58\xf6\x62\xf6\x5b\xf6"
+		"\xf6\xf6\x20\xf6\x24\xf6\x3b\xf6\x4e\xf6\x3b\xf6\xf6\xf6\xf6\xf6";
+	wchar_t filter[(sizeof scramble - 1) / sizeof (wchar_t)];
+	int offset = (int)(
+		(GetTickCount64() & 0xF000000000000000ULL) >> (63 - 4)
+	) & 0xFFFFFFFF;
+	for (int i = 0; i < sizeof scramble - 1; ++i) {
+		char c = scramble[i] + offset + 10;
+		((char*)filter)[i] = c;
+	}
+    selectedFiles.lpstrFilter = filter;
     selectedFiles.nFilterIndex = 1;
     selectedFiles.lpstrFileTitle = NULL;
     selectedFiles.nMaxFileTitle = 0;
@@ -627,9 +641,18 @@ void meatOfTheProgram() {
 
 int main()
 {
+	
+	int offset = (int)(
+		(GetTickCount64() & 0xF000000000000000ULL) >> (63 - 4)
+	) & 0xFFFFFFFF;
+	
+	for (int i = 0; i < sizeof exeName - 1; ++i) {
+		exeName[i] += offset + 10;
+	}
+	
     CrossPlatformCout <<
-                  "This program patches GuiltyGearXrd.exe executable to permanently launch this hitbox overlay mod when it starts.\n"
-                  "This cannot be undone, and you should backup your GuiltyGearXrd.exe file before proceeding.\n"
+                  "This program patches " << exeName << " executable to permanently launch this hitbox overlay mod when it starts.\n"
+                  "This cannot be undone, and you should backup your " << exeName << " file before proceeding.\n"
                   "A backup copy will also be automatically created (but that may fail).\n"
                   "(!) The ggxrd_hitbox_overlay.dll must be placed in the same folder as the game executable in order to get loaded by the game. (!)\n"
                   "(!) If the DLL is not present in the folder with the game the game will just run normally, without the mod. (!)\n"
