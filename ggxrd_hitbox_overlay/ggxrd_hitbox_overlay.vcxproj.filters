@@ -120,7 +120,7 @@
     <ClInclude Include="gameModes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="WinError.h">
+    <ClInclude Include="..\common\WinError.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GifMode.h">
@@ -300,7 +300,7 @@
     <ClCompile Include="Throws.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="WinError.cpp">
+    <ClCompile Include="..\common\WinError.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GifMode.cpp">
@@ -381,6 +381,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+    <None Include="prebuild.ps1" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini" />

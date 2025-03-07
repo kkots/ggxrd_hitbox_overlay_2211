@@ -1,4 +1,4 @@
-# ggxrd_hitbox_injector
+# ggxrd_hitbox_injector (Commandline version)
 
 ## Credits
 

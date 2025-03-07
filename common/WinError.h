@@ -1,6 +1,5 @@
 #pragma once
-#include "framework.h"
-// This is an exact copy-paste of the WinError.h file from ggxrd_hitbox_injector project
+#include "pch.h"
 
 class WinError {
 public:

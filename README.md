@@ -1042,7 +1042,9 @@ The `ggxrd_hitbox_injector` project builds an application that will inject a dll
 
 The `ggxrd_hitbox_overlay` project builds the dll that's responsible for drawing the hitboxes.
 
-The `ggxrd_hitbox_patcher` project is cross-platform for Windows and Ubuntu/Linux and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed in case injector doesn't work on Ubuntu/Linux (there is a launcher script for it though, try that) or to make the game always start with the mod on Windows.
+The `ggxrd_hitbox_patcher_console` project is cross-platform, but is intended exclusively for Ubuntu/Linux and does the same thing as `ggxrd_hitbox_patcher`.
+
+ The `ggxrd_hitbox_patcher` is a desktop window application project that is intended exclusively for Windows and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed in case injector doesn't work on Ubuntu/Linux (there is a launcher script for it though, try that) or to make the game always start with the mod on Windows.
 
 Each project should have its own separate README.md.
 
@@ -1206,3 +1208,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 February 21: Version 6.13: Fixed input history reverting to an older state on round end.
 - 2025 February 25: Version 6.14: Fixed a potential issue of the patcher not working with ASLR, and projectile framebars sometimes appearing even if empty.
 - 2025 March 4: Version 6.15: Fixed Carcass Raid name being in slang (for ex. "S Carcass", no Raid) even when slang names are turned off. Made framebar not display in offline human versus human. Added 64-bit injector and modified .sh script for Linux so that it chooses 64-bit or 32-bit injector based on whether the Wine prefix is 64-bit or 32-bit. Started self-signing the injector, the DLL, and the patcher, and added VERSIONINFO to all of them, replaced most function calls in the injector with GetProcAddress with name obfuscation, in the hopes that it will reduce the frequency of Windows Defender aggro.
+- 2025 March ???: Version 6.16: Removed commandline versions of the injector and the patcher and replaced them with window versions in hopes of avoiding virus detection. The injector and the patcher will now have their versions numbered separately from the DLL, starting from "mk2". The Linux patcher will still be commandline based.

@@ -72,11 +72,11 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);..\common;..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
     <LibraryPath>..\d3d9;..\Detours\lib.X86;..\Debug Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir);..\common;..\imgui;..\imgui\backends;..\dxsdk\Include;..\Detours\include;..\libpng;$(IncludePath)</IncludePath>
     <LibraryPath>..\d3d9;..\Detours\lib.X86;..\Release Library;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -94,6 +94,12 @@
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PreBuildEvent>
+      <Command>powershell -File prebuild.ps1</Command>
+    </PreBuildEvent>
+    <PreBuildEvent>
+      <Message>Update overlay's version in .rc file</Message>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -117,6 +123,10 @@
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;detours.lib;libpng16.lib;zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
+    <PreBuildEvent>
+      <Message>Update overlay's version in .rc file</Message>
+      <Command>powershell -File prebuild.ps1</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -221,7 +231,7 @@
     <ClInclude Include="Throws.h" />
     <ClInclude Include="UI.h" />
     <ClInclude Include="Version.h" />
-    <ClInclude Include="WinError.h" />
+    <ClInclude Include="..\common\WinError.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\imgui\backends\imgui_impl_dx9.cpp">
@@ -292,7 +302,7 @@
     <ClCompile Include="TexturePacker.cpp" />
     <ClCompile Include="Throws.cpp" />
     <ClCompile Include="UI.cpp" />
-    <ClCompile Include="WinError.cpp" />
+    <ClCompile Include="..\common\WinError.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini">
@@ -302,6 +312,7 @@
     <MASM Include="drawQuadExecHook.asm">
       <FileType>Document</FileType>
     </MASM>
+    <None Include="prebuild.ps1" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
