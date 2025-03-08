@@ -6532,28 +6532,26 @@ void EndScene::onAswEngineDestroyed() {
 	for (int i = 0; i < 2; ++i) {
 		players[i].clear();
 	}
-	if (!iGiveUp) {
-		measuringFrameAdvantage = false;
-		measuringLandingFrameAdvantage = -1;
-		memset(tensionGainOnLastHit, 0, sizeof tensionGainOnLastHit);
-		memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
-		memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
-		memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
-		projectiles.clear();
-		sendSignalStack.clear();
-		events.clear();
-		playerFramebars.clear();
-		projectileFramebars.clear();
-		combinedFramebars.clear();
-		superfreezeHasBeenGoingFor = 0;
-		lastNonZeroSuperflashInstigator = nullptr;
-		superfreezeHasBeenGoingFor = 0;
-		superflashCounterAllied = 0;
-		superflashCounterAlliedMax = 0;
-		superflashCounterOpponent = 0;
-		superflashCounterOpponentMax = 0;
-		baikenBlockCancels.clear();
-	}
+	measuringFrameAdvantage = false;
+	measuringLandingFrameAdvantage = -1;
+	memset(tensionGainOnLastHit, 0, sizeof tensionGainOnLastHit);
+	memset(burstGainOnLastHit, 0, sizeof burstGainOnLastHit);
+	memset(tensionGainOnLastHitUpdated, 0, sizeof tensionGainOnLastHitUpdated);
+	memset(burstGainOnLastHitUpdated, 0, sizeof burstGainOnLastHitUpdated);
+	projectiles.clear();
+	sendSignalStack.clear();
+	events.clear();
+	playerFramebars.clear();
+	projectileFramebars.clear();
+	combinedFramebars.clear();
+	superfreezeHasBeenGoingFor = 0;
+	lastNonZeroSuperflashInstigator = nullptr;
+	superfreezeHasBeenGoingFor = 0;
+	superflashCounterAllied = 0;
+	superflashCounterAlliedMax = 0;
+	superflashCounterOpponent = 0;
+	superflashCounterOpponentMax = 0;
+	baikenBlockCancels.clear();
 	memset(prevInputRingBuffers, 0, sizeof prevInputRingBuffers);
 	for (int i = 0; i < 2; ++i) {
 		inputRingBuffersStored[i].clear();
