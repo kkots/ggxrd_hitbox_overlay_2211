@@ -42,7 +42,7 @@ LRESULT __stdcall TextEditSubclass(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 void onGetLine(WPARAM wParam);
 int countChar(const char* text, int chr);
 void onCommand(WPARAM wParam, LPARAM lParam, LRESULT* lResult);
-void onKeyDown(WPARAM wParam, LRESULT* lResult);
+void onKeyDown(WPARAM wParam, LRESULT* lResult, bool handleEventOnYourOwn);
 void onSize(WPARAM wParam, LPARAM lParam, LRESULT* lResult);
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -162,7 +162,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 			onCommand(wParam, lParam, &result);
 			break;
 		case WM_CHAR:
-			onKeyDown(wParam, &result);
+			onKeyDown(wParam, &result, true);
 			return DefWindowProcW(hWnd, message, wParam, lParam);
 		case WM_SIZE:
 			onSize(wParam, lParam, &result);
@@ -240,7 +240,7 @@ void onCommand(WPARAM wParam, LPARAM lParam, LRESULT* lResult) {
 	}
 }
 
-void onKeyDown(WPARAM wParam, LRESULT* lResult) {
+void onKeyDown(WPARAM wParam, LRESULT* lResult, bool handleEventOnYourOwn) {
 	if (wParam == L'\r' && getLineLine) {
 		std::vector<wchar_t> buf;
 		size_t length = GetWindowTextLengthW(textEdit);
@@ -261,6 +261,10 @@ void onKeyDown(WPARAM wParam, LRESULT* lResult) {
 			*getLineLine = ptr + 1;
 		}
 		getLineLine = nullptr;
+		if (handleEventOnYourOwn) {
+			SendMessageW(textEdit, EM_SETREADONLY, TRUE, 0);
+			SetEvent(eventToInjectorThread);
+		}
 	}
 	if (wantAnyKey
 			&& wParam != 9) {  // TAB, as in Alt+TAB
@@ -408,7 +412,7 @@ LRESULT __stdcall TextEditSubclass(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 	bool wasNotNull = getLineLine != nullptr;
 	if (hWnd == textEdit && uIdSubclass == 1 && uMsg == WM_CHAR) {
 		LRESULT unused;
-		onKeyDown(wParam, &unused);
+		onKeyDown(wParam, &unused, false);
 	}
 	LRESULT result = DefSubclassProc(hWnd, uMsg, wParam, lParam);
 	if (getLineLine == nullptr && wasNotNull) {

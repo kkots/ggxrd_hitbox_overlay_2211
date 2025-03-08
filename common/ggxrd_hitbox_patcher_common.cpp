@@ -389,19 +389,30 @@ void trimRight(std::string& str) {
 #endif
 
 bool crossPlatformOpenFile(FILE** file, const CrossPlatformString& path) {
-    #ifndef FOR_LINUX
-    if (_wfopen_s(file, path.c_str(), CrossPlatformText("r+b")) || !*file) {
-        if (*file) {
-            fclose(*file);
-        }
-        return false;
-    }
-    return true;
-    #else
-    *file = fopen(path.c_str(), "r+b");
-    if (!*file) return false;
-    return true;
-    #endif
+	#ifndef FOR_LINUX
+	errno_t errorCode = _wfopen_s(file, path.c_str(), CrossPlatformText("r+b"));
+	if (errorCode != 0 || !*file) {
+		if (errorCode != 0) {
+			wchar_t buf[1024];
+			_wcserror_s(buf, errorCode);
+			CrossPlatformCout << L"Failed to open file: " << buf << L'\n';
+		} else {
+			CrossPlatformCout << L"Failed to open file.\n";
+		}
+		if (*file) {
+			fclose(*file);
+		}
+		return false;
+	}
+	return true;
+	#else
+	*file = fopen(path.c_str(), "r+b");
+	if (!*file) {
+		perror("Failed to open file");
+		return false;
+	}
+	return true;
+	#endif
 }
 
 #ifdef FOR_LINUX
@@ -505,10 +516,7 @@ void meatOfTheProgram() {
     #endif
 
     FILE* file = nullptr;
-    if (!crossPlatformOpenFile(&file, szFile)) {
-        CrossPlatformPerror(CrossPlatformText("Failed to open file"));
-        return;
-    }
+    if (!crossPlatformOpenFile(&file, szFile)) return;
 
     std::vector<char> wholeFile;
     if (!readWholeFile(file, wholeFile)) return;
