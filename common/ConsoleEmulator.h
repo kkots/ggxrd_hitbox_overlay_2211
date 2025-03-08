@@ -43,7 +43,7 @@ extern unsigned long __stdcall taskThreadProc(LPVOID unused);  // must post WM_T
 extern bool parseArgs(int argc, LPWSTR* argv, int* exitCode);
 
 // Set default values for these, like for constants, so that by the time wWinMain launches, they're already initialized
-extern bool forceAllowed;  // this means that if force is true, the window will acknowledge it and now show up for the first 8 seconds
+extern bool forceAllowed;  // this means that if force is true, the window will acknowledge it and won't show up for the first 8 seconds
 extern UINT windowAppTitleResourceId;
 extern UINT windowClassNameResourceId;
 extern LPCWSTR windowIconId;
