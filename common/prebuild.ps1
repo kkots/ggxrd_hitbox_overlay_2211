@@ -39,11 +39,11 @@ function replace_about_dlg($content_lines) {
 		} elseif ($inside_dialog -and ($line -match ("\s*LTEXT\s+`"\S+\s+[^`"\s]+`""))) {
 			$pos1 = $line.IndexOf("`"");
 			++$pos1;  # skip quote
-			while ($line[$pos] -gt 32) {
-				++$pos;
+			while ($line[$pos1] -gt 32) {
+				++$pos1;
 			}
-			while ($line[$pos] -le 32) {
-				++$pos;
+			while ($line[$pos1] -le 32) {
+				++$pos1;
 			}
 			$pos2 = $line.IndexOf("`"", $pos1);
 			$old_version = $line.Substring($pos1, $pos2 - $pos1);
