@@ -2,7 +2,8 @@
 cmake_minimum_required(VERSION "${MIN_VER_CMAKE}" FATAL_ERROR)
 project(ggxrd_hitbox_patcher_console)
 set(CMAKE_CXX_STANDARD 14)
-include_directories(${PROJECT_SOURCE_DIR}/../common)
+include_directories(${PROJECT_SOURCE_DIR}
+	${PROJECT_SOURCE_DIR}/../common)
 add_executable(ggxrd_hitbox_patcher_console
 	ggxrd_hitbox_patcher_console.cpp
 	${PROJECT_SOURCE_DIR}/../common/ggxrd_hitbox_patcher_common.cpp
