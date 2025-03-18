@@ -124,20 +124,20 @@ void Detouring::detachAll(bool freezeAll) {
 
 // This is separate, because if we call VirtualProtect a second time to restore old protection, Detours won't be able to write to the program anymore.
 void Detouring::undoPatches() {
-	if (instructionsToReplace.empty()) return;
+	if (instructionsToReplaceWhenUnhooking.empty()) return;
 	
 	HANDLE thisProcess = GetCurrentProcess();
 	
-	for (InstructionToReplace& bytes : instructionsToReplace) {
+	for (InstructionToReplace& bytes : instructionsToReplaceWhenUnhooking) {
 		// If Detours already changed this page's protection prior to us, oldProtect will hold
 		// the value that Detours set, and then we will restore the page to that protection.
 		// It will be Detours' job to put the original-original protection on the page
 		DWORD oldProtect;
-		VirtualProtect((void*)bytes.addr, bytes.bytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect);
-		memcpy((void*)bytes.addr, bytes.bytes.data(), bytes.bytes.size());
-		FlushInstructionCache(thisProcess, (void*)bytes.addr, bytes.bytes.size());
+		VirtualProtect((void*)bytes.addr, bytes.origBytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect);
+		memcpy((void*)bytes.addr, bytes.origBytes.data(), bytes.origBytes.size());
+		FlushInstructionCache(thisProcess, (void*)bytes.addr, bytes.origBytes.size());
 		DWORD unused;
-		VirtualProtect((void*)bytes.addr, bytes.bytes.size(), oldProtect, &unused);
+		VirtualProtect((void*)bytes.addr, bytes.origBytes.size(), oldProtect, &unused);
 	}
 	
 }
@@ -333,9 +333,23 @@ void Detouring::closeAllThreadHandles() {
 	suspendedThreads.clear();
 }
 
-void Detouring::addInstructionToReplace(uintptr_t addr, const std::vector<char>& bytes) {
-	instructionsToReplace.emplace_back();
-	InstructionToReplace& elem = instructionsToReplace.back();
+void Detouring::addInstructionToReplaceWhenUnhooking(uintptr_t addr, const std::vector<char>& origBytes) {
+	instructionsToReplaceWhenUnhooking.emplace_back();
+	InstructionToReplace& elem = instructionsToReplaceWhenUnhooking.back();
 	elem.addr = addr;
-	elem.bytes = bytes;
+	elem.origBytes = origBytes;
+}
+
+bool Detouring::patchPlace(uintptr_t addr, const std::vector<char>& newBytes) {
+	std::vector<char> origBytes;
+	origBytes.resize(newBytes.size());
+	memcpy(origBytes.data(), (void*)addr, newBytes.size());
+	detouring.addInstructionToReplaceWhenUnhooking(addr, origBytes);
+	DWORD oldProtect;
+	if (!VirtualProtect((void*)addr, newBytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect)) return false;
+	memcpy((void*)addr, newBytes.data(), newBytes.size());
+	DWORD unused;
+	if (!VirtualProtect((void*)addr, newBytes.size(), oldProtect, &unused)) return false;
+	FlushInstructionCache(GetCurrentProcess(), (void*)addr, newBytes.size());  // don't care about failure
+	return true;
 }

@@ -29,6 +29,8 @@
 #include "Hardcode.h"
 #include "InputNames.h"
 #include "ImGuiCorrecter.h"
+#include <array>
+#include "SpecificFramebarIds.h"
 
 UI ui;
 
@@ -70,6 +72,8 @@ static ImVec4* P1P2_COLOR[2] = { &P1_COLOR, &P2_COLOR };
 static ImVec4* P1P2_OUTLINE_COLOR[2] = { &P1_OUTLINE_COLOR, &P2_OUTLINE_COLOR };
 static ImVec4 inputsDark = RGBToVec(0xa0a0a0);
 static char strbuf[512];
+static char strbuf2[512];
+static char* strbufs[2] { strbuf, strbuf2 };
 static std::string stringArena;
 static char printdecimalbuf[512];
 static int numDigits(int num);  // For negative numbers does not include the '-'
@@ -161,6 +165,7 @@ static ImVec4 COLOR_THROW_PUSHBOX_IMGUI = RGBToVec((DWORD)COLOR_THROW_PUSHBOX);
 static ImVec4 COLOR_THROW_XYORIGIN_IMGUI = RGBToVec((DWORD)COLOR_THROW_XYORIGIN);
 static ImVec4 COLOR_REJECTION_IMGUI = RGBToVec((DWORD)COLOR_REJECTION);
 static ImVec4 COLOR_INTERACTION_IMGUI = RGBToVec((DWORD)COLOR_INTERACTION);
+static std::array<std::vector<NameDuration>, 2> nameParts;
 
 struct CustomImDrawList {
 	ImVector<ImDrawCmd> CmdBuffer;
@@ -219,9 +224,12 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
 static void drawTextInWindowTitle(const char* txt);
-static bool prevNamesControl(const PlayerInfo& player, bool includeTitle, bool disableSlang);
+static bool printMoveFieldTooltip(const PlayerInfo& player);
+static bool printMoveField(const PlayerInfo& player);
 static void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip);
-static void prepareLastNames(const char** lastNames, const PlayerInfo& player, bool disableSlang);
+static void prepareLastNames(const char** lastName, const PlayerInfo& player, bool disableSlang,
+							int* lastNameDuration);
+static bool printNameParts(int playerIndex, std::vector<NameDuration>& elems, char* buf, size_t bufSize);
 static const char* formatHitResult(HitResult hitResult);
 static const char* formatBlockType(BlockType blockType);
 static int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int attackKezuriStandard);
@@ -254,12 +262,15 @@ static const char* comborepr(std::vector<int>& combo);
 			}
 			
 #define printWithWordWrapArg(a) \
-			float w = ImGui::CalcTextSize(a).x; \
-			if (w > ImGui::GetContentRegionAvail().x) { \
-				ImGui::TextWrapped("%s", a); \
-			} else { \
-				if (i == 0) RightAlign(w); \
-				ImGui::TextUnformatted(a); \
+			{ \
+				const char* aStr = (a); \
+				float w = ImGui::CalcTextSize(aStr).x; \
+				if (w > ImGui::GetContentRegionAvail().x) { \
+					ImGui::TextWrapped("%s", aStr); \
+				} else { \
+					if (i == 0) RightAlign(w); \
+					ImGui::TextUnformatted(aStr); \
+				} \
 			}
 			
 #define printNoWordWrap \
@@ -335,18 +346,12 @@ bool UI::onDllMain(HMODULE hModule) {
 			{ 2 },
 			nullptr, "GetKeyStateCallPlace");
 		if (GetKeyStateCallPlace) {
-			std::vector<char> origBytes;
-			origBytes.resize(4);
-			memcpy(origBytes.data(), &GetKeyStateRData, 4);
-			detouring.addInstructionToReplace(GetKeyStateCallPlace, origBytes);
-			DWORD oldProtect;
-			VirtualProtect((void*)GetKeyStateCallPlace, 4, PAGE_EXECUTE_READWRITE, &oldProtect);
 			hook_GetKeyStatePtr = hook_GetKeyState;
 			void** hook_GetKeyStatePtrPtr = &hook_GetKeyStatePtr;
-			memcpy((void*)GetKeyStateCallPlace, &hook_GetKeyStatePtrPtr, 4);
-			DWORD unused;
-			VirtualProtect((void*)GetKeyStateCallPlace, 4, oldProtect, &unused);
-			FlushInstructionCache(GetCurrentProcess(), (void*)GetKeyStateCallPlace, 4);
+			std::vector<char> newBytes;
+			newBytes.resize(4);
+			memcpy(newBytes.data(), &hook_GetKeyStatePtrPtr, 4);
+			detouring.patchPlace(GetKeyStateCallPlace, newBytes);
 		}
 	}
 	#define blockFDNotice " May or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD."
@@ -942,6 +947,12 @@ void UI::drawSearchableWindows() {
 				if (i == 0) {
 					ImGui::TableNextColumn();
 					CenterAlignedText(searchFieldTitle("Stun"));
+					AddTooltip("When not in hitstun, not in OTG state and not waking up, stun decays each frame by 4.\n"
+						"When in OTG state or waking up, stun decays each frame by 10.\n"
+						"Stun does not decay when in hitstun.\n"
+						"Stun decay happens even when in hitstop or superfreeze, and is unaffected by RC slowdown.\n"
+						"When an unknown condition is met, and not in hitstun, OTG or wakeup, stun decreases by 8 each frame, instead of 4."
+						" It was never observed.");
 				}
 			}
 			for (int i = 0; i < two; ++i) {
@@ -961,26 +972,9 @@ void UI::drawSearchableWindows() {
 			}
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.printStartup(strbuf, sizeof strbuf);
-				printWithWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					headerThatCanBeClickedForTooltip(searchFieldTitle("Startup"), &showStartupTooltip, false);
-					if (ImGui::BeginItemTooltip()) {
-						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						if (prevNamesControl(player, true, false)) {
-							searchFieldValue(strbuf, nullptr);
-							printNoWordWrap
-							ImGui::Separator();
-						}
-						ImGui::TextUnformatted("Click the field for tooltip.");
-						ImGui::PopTextWrapPos();
-						ImGui::EndTooltip();
-					}
-				}
+				player.printStartup(strbufs[i], sizeof strbuf, &nameParts[i]);
 			}
+			startupOrTotal(two, "Startup", &showStartupTooltip);
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -1012,26 +1006,9 @@ void UI::drawSearchableWindows() {
 			}
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.printTotal(strbuf, sizeof strbuf);
-				printWithWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					headerThatCanBeClickedForTooltip(searchFieldTitle("Total"), &showTotalTooltip, false);
-					if (ImGui::BeginItemTooltip()) {
-						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						if (prevNamesControl(player, true, false)) {
-							searchFieldValue(strbuf, nullptr);
-							printNoWordWrap
-							ImGui::Separator();
-						}
-						ImGui::TextUnformatted("Click the field for tooltip.");
-						ImGui::PopTextWrapPos();
-						ImGui::EndTooltip();
-					}
-				}
+				player.printTotal(strbufs[i], sizeof strbuf, &nameParts[i]);
 			}
+			startupOrTotal(two, "Total", &showTotalTooltip);
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -1293,12 +1270,12 @@ void UI::drawSearchableWindows() {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					if (prevNamesControl(player, false, false)) {
+					if (printMoveField(player)) {
 						printWithWordWrap
 						if (settings.useSlangNames) {
 							if (ImGui::BeginItemTooltip()) {
 								ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-								prevNamesControl(player, false, true);
+								printMoveFieldTooltip(player);
 								ImGui::TextUnformatted(strbuf);
 								ImGui::PopTextWrapPos();
 								ImGui::EndTooltip();
@@ -1316,10 +1293,15 @@ void UI::drawSearchableWindows() {
 								" If the 'Startup' or 'Total' field is showing multiplie numbers combined with + signs,"
 								" all the moves that are included in those fields are listed here as well, combined with + signs or with *X appended to them,"
 								" *X denoting how many times that move repeats.\n"
-								"The move names might not match the names you may find when hovering your mouse over frames in the framebar to read their"
+								"\n"
+								"Notes:\n"
+								"1) If one of the moves is a super or caused a superfreeze, it may be shown as one move, while in the Startup/Total field"
+								" it is split into parts using + sign - this is one possible discrepancy.\n"
+								"2) The move names might not match the names you may find when hovering your mouse over frames in the framebar to read their"
 								" animation names, because the names here are only updated when a significant enough change in the animation happens.\n"
 								"\n"
-								"To hide this field you can use the \"dontShowMoveName\" setting. Then it will only be shown in the tooltip of 'Startup' and 'Total' fields.");
+								"To hide this field you can use the \"dontShowMoveName\" setting."
+								" Then it will only be shown in the tooltip of 'Startup' and 'Total' fields.");
 						}
 						AddTooltip(searchTooltip(moveTooltip.c_str(), nullptr));
 					}
@@ -1563,6 +1545,16 @@ void UI::drawSearchableWindows() {
 	}
 	AddTooltip(searchTooltip("Displays burst gained from combo or last hit."));
 	
+	if (ImGui::Button(searchFieldTitle("Combo Damage & Combo Stun (P1)"))) {
+		showComboDamage[0] = !showComboDamage[0];
+	}
+	AddTooltip(searchTooltip("Displays combo damage and maximum total stun achieved during the last performed combo for P1."));
+	ImGui::SameLine();
+	if (ImGui::Button(searchFieldTitle(".. (P2)"))) {
+		showComboDamage[1] = !showComboDamage[1];
+	}
+	AddTooltip(searchTooltip("...for P2."));
+	
 	if (ImGui::Button(searchFieldTitle("Speed/Hitstun Proration/Pushback/Wakeup"))) {
 		showSpeedsData = !showSpeedsData;
 	}
@@ -1608,9 +1600,18 @@ void UI::drawSearchableWindows() {
 		if (ImGui::Button(strbuf)) {
 			showDamageCalculation[i] = !showDamageCalculation[i];
 		}
-		AddTooltip(searchTooltip("For the defending player this shows damage and RISC calculation from the last hit and current combo proration."));
+		AddTooltip(searchTooltip("For the attacking player this shows damage, RISC and stun calculation from the last hit and current combo proration."));
 		ImGui::PopID();
 		ImGui::PopID();
+		if (i == 0) ImGui::SameLine();
+	}
+	
+	for (int i = 0; i < two; ++i) {
+		sprintf_s(strbuf, "Combo Recipe (P%d)", i + 1);
+		if (ImGui::Button(searchFieldTitle(strbuf))) {
+			showComboRecipe[i] = !showComboRecipe[i];
+		}
+		AddTooltip(searchTooltip("Displays actions performed by this player as the attacker during the last combo."));
 		if (i == 0) ImGui::SameLine();
 	}
 	
@@ -2149,6 +2150,9 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.showDebugFields);
 			
+			booleanSettingPreset(settings.ignoreNumpadEnterKey);
+			booleanSettingPreset(settings.ignoreRegularEnterKey);
+			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
 			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above)."));
@@ -2559,6 +2563,56 @@ void UI::drawSearchableWindows() {
 		ImGui::End();
 	}
 	popSearchStack();
+	searchCollapsibleSection("Combo Damage & Combo Stun");
+	for (int i = 0; i < two; ++i) {
+		if (showComboDamage[i] || searching) {
+			ImGui::PushID(i);
+			sprintf_s(strbuf, searching ? "search_combodmg%d" : "  Combo Damage & Combo Stun (P%d)", i + 1);
+			if (searching) {
+				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+			}
+			ImGui::Begin(strbuf, showComboDamage + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			PlayerInfo& player = endScene.players[i];
+			PlayerInfo& opponent = endScene.players[1 - i];
+			
+			drawPlayerIconInWindowTitle(i);
+			
+			if (!*aswEngine) {
+				ImGui::TextUnformatted("Match isn't running.");
+			} else
+			if (ImGui::BeginTable("##ComboDmgStun",
+						2,
+						ImGuiTableFlags_Borders
+						| ImGuiTableFlags_RowBg
+						| ImGuiTableFlags_NoSavedSettings
+						| ImGuiTableFlags_NoPadOuterX)
+			) {
+				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5F);
+				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5F);
+				
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(searchFieldTitle("Combo Damage"));
+				AddTooltip(searchFieldTitle("Total damage done by this player as the attacker during the last combo."));
+				ImGui::TableNextColumn();
+				if (opponent.pawn) {
+					sprintf_s(strbuf, "%d", opponent.pawn.TrainingEtc_ComboDamage());
+					ImGui::TextUnformatted(strbuf);
+				}
+				
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(searchFieldTitle("Combo Stun"));
+				AddTooltip(searchFieldTitle("Maximum total stun reached by the opponent during the last combo that was done by this player as the attacker."));
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", opponent.stunCombo);
+				ImGui::TextUnformatted(strbuf);
+				
+				ImGui::EndTable();
+			}
+			ImGui::End();
+			ImGui::PopID();
+		}
+	}
+	popSearchStack();
 	searchCollapsibleSection("Speed/Hitstun Proration/...");
 	if (showSpeedsData || searching) {
 		if (searching) {
@@ -2636,6 +2690,16 @@ void UI::drawSearchableWindows() {
 				ImGui::TableNextColumn();
 				printDecimal(player.gravity, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Weight"));
+			AddTooltip(searchTooltip("Weight is the percentage multiplier applied to received speed Y."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d", player.weight);
+				ImGui::TextUnformatted(strbuf);
 			}
 			
 			ImGui::TableNextColumn();
@@ -2915,13 +2979,19 @@ void UI::drawSearchableWindows() {
 					ImGui::TableNextColumn();
 					if (row.side[i]) {
 						ProjectileInfo& projectile = *row.side[i];
-						printNoWordWrapArg(projectile.animName)
+						if (projectile.trialName[0] == '\0') {
+							printNoWordWrapArg(projectile.animName)
+						} else {
+							sprintf_s(strbuf, "%s (%s)", projectile.animName, projectile.trialName);
+							printNoWordWrap
+						}
 					}
 					
 					if (i == 0) {
 						ImGui::TableNextColumn();
 						CenterAlignedText("Anim");
-						AddTooltip("The name of the current state of this projectile.");
+						AddTooltip("The name of the current state of this projectile. If an alternative name is given"
+							" in parentheses, that is a 'trial' name.");
 					}
 				}
 				if (settings.showDebugFields) {
@@ -3102,7 +3172,7 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 					ImGui::PushTextWrapPos(0.F);
-					ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
+					ImGui::TextUnformatted("This value doesn't decrease during hitstop and superfreeze and decreases"
 						" at half the speed when slowed down by opponent's RC.");
 					ImGui::PopTextWrapPos();
 					ImGui::PopStyleColor();
@@ -5336,20 +5406,20 @@ void UI::drawSearchableWindows() {
 			const PlayerInfo& player = endScene.players[i];
 			
 			const bool useSlang = settings.useSlangNames;
-			const char* lastNames[2];
-			prepareLastNames(lastNames, player, false);
-			int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(lastNames,
-				lastNames[1] ? 2 : 1,
-				useSlang);
+			const char* lastName = nullptr;
+			int lastNameDuration = 0;
+			prepareLastNames(&lastName, player, false, &lastNameDuration);
+			int animNamesCount = player.prevStartupsDisp.countOfNonEmptyUniqueNames(&lastName, 1, useSlang);
 			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-			yellowText(searchFieldTitle(animNamesCount ? "Anims: " : "Anim: ", nullptr));
+			yellowText(searchFieldTitle(animNamesCount > 1 ? "Anims: " : "Anim: ", nullptr));
 			char* buf = strbuf;
 			size_t bufSize = sizeof strbuf;
-			player.prevStartupsDisp.printNames(buf, bufSize, lastNames,
-				player.superfreezeStartup ? 2 : 1,
+			player.prevStartupsDisp.printNames(buf, bufSize, &lastName,
+				1,
 				useSlang,
 				false,
-				animNamesCount > 1);
+				animNamesCount > 1,
+				&lastNameDuration);
 			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf);
 			ImGui::PopStyleVar();
 			
@@ -5403,7 +5473,7 @@ void UI::drawSearchableWindows() {
 			ImGui::Begin(strbuf, showDamageCalculation + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
 			drawPlayerIconInWindowTitle(i);
 			
-			const PlayerInfo& player = endScene.players[i];
+			const PlayerInfo& player = endScene.players[1 - i];
 			
 			struct ComboProration {
 				const char* name;
@@ -6744,11 +6814,6 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(formatHitResult(HIT_RESULT_NONE));
 				ImGui::PopStyleVar();
 				
-				if (!endScene.players[1 - i].dmgCalcs.empty()
-					&& !showDamageCalculation[1 - i]) {
-					ImGui::TextUnformatted("The other player has info in their corresponding window.\n"
-						"You might want to look over there.");
-				}
 			}
 			
 			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
@@ -6968,6 +7033,75 @@ void UI::drawSearchableWindows() {
 				_zerohspacing
 			}
 			
+			ImGui::End();
+			ImGui::PopID();
+		}
+	}
+	popSearchStack();
+	searchCollapsibleSection("Combo Recipe");
+	for (int i = 0; i < two; ++i) {
+		if (showComboRecipe[i] || searching) {
+			ImGui::PushID(i);
+			sprintf_s(strbuf, searching ? "search_comborecipe%d" : "  Combo Recipe (P%d)", i + 1);
+			if (searching) {
+				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+			}
+			ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
+			ImGui::Begin(strbuf, showComboRecipe + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			PlayerInfo& player = endScene.players[i];
+			
+			drawPlayerIconInWindowTitle(i);
+			
+			if (ImGui::BeginTable("##ComboRecipe",
+						1,
+						ImGuiTableFlags_Borders
+						| ImGuiTableFlags_RowBg
+						| ImGuiTableFlags_NoSavedSettings
+						| ImGuiTableFlags_NoPadOuterX)
+			) {
+				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.F);
+				
+				for (size_t j = 0; j < player.comboRecipe.size(); ++j) {
+					const ComboRecipeElement& elem = player.comboRecipe[j];
+					ImGui::TableNextColumn();
+					const char* chosenName;
+					if (settings.useSlangNames && elem.slangName) {
+						chosenName = elem.slangName;
+					} else {
+						chosenName = elem.name;
+					}
+					sprintf_s(strbuf, "%u)", j + 1);
+					yellowText(strbuf);
+					ImGui::SameLine();
+					
+					if (!elem.dashDuration) {
+						const char* lastSuffix = "";
+						if (elem.whiffed && elem.isMeleeAttack) {
+							lastSuffix = " (Whiff)";
+						} else if (elem.otg) {
+							lastSuffix = " (OTG)";
+						} else if (elem.counterhit) {
+							lastSuffix = " (Counterhit)";
+						}
+						sprintf_s(strbuf, "%s%s%s",
+							chosenName,
+							elem.isProjectile ? " (Hit)" : "",
+							lastSuffix);
+					} else {
+						sprintf_s(strbuf, "%df %s",
+							elem.dashDuration,
+							elem.dashDuration >= 10 ? "Dash" : "Micordash");
+					}
+					
+					if (elem.isProjectile) {
+						textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+					} else {
+						ImGui::TextUnformatted(strbuf);
+					}
+				}
+				
+				ImGui::EndTable();
+			}
 			ImGui::End();
 			ImGui::PopID();
 		}
@@ -10180,7 +10314,7 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 					if (playerIndex == -1) {
 						if (owningPlayerCharType == CHARACTER_TYPE_INO
 								&& projectileFrame.animSlangName
-								&& strcmp(projectileFrame.animSlangName, "Note"_hardcode) == 0) {
+								&& strcmp(projectileFrame.animSlangName, MOVE_NAME_NOTE) == 0) {
 							// I am a dirty scumbar
 							ImGui::Separator();
 							yellowText("Note elapsed time: ");
@@ -10207,7 +10341,7 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 							ImGui::TextUnformatted(strbuf);
 						} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT
 								&& projectileFrame.animSlangName
-								&& strcmp(projectileFrame.animSlangName, "Berry"_hardcode) == 0) {
+								&& strcmp(projectileFrame.animSlangName, PROJECTILE_NAME_BERRY) == 0) {
 							
 							ImGui::Separator();
 							yellowText("Berry Timer: ");
@@ -10217,7 +10351,7 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 							
 						} else if (owningPlayerCharType == CHARACTER_TYPE_JOHNNY
 								&& projectileFrame.animSlangName
-								&& strcmp(projectileFrame.animSlangName, "Bacchus"_hardcode) == 0) {
+								&& strcmp(projectileFrame.animSlangName, PROJECTILE_NAME_BACCHUS) == 0) {
 							
 							ImGui::Separator();
 							yellowText("Bacchus Sigh Projectile Timer: ");
@@ -10228,7 +10362,7 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 							
 						} else if (frame.type == FT_IDLE_NO_DISPOSE
 										&& owningPlayerCharType == CHARACTER_TYPE_JACKO
-										&& strcmp(projectileFrame.animName, "Ghost"_hardcode) == 0) {
+										&& strcmp(projectileFrame.animName, PROJECTILE_NAME_GHOST) == 0) {
 							ImGui::Separator();
 							ImGui::TextUnformatted("The Ghost is strike invulnerable.");
 							
@@ -10692,6 +10826,46 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 	}
 }
 
+void UI::startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag) {
+	for (int i = 0; i < two; ++i) {
+		PlayerInfo& player = endScene.players[i];
+		ImGui::TableNextColumn();
+		printWithWordWrapArg(strbufs[i])
+		if (ImGui::BeginItemTooltip()) {
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			if (printNameParts(-1, nameParts[i], strbuf, sizeof strbuf)) {
+				searchFieldValue(strbuf, nullptr);
+				ImGui::TextUnformatted(strbuf);
+			}
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+		
+		if (i == 0) {
+			ImGui::TableNextColumn();
+			headerThatCanBeClickedForTooltip(searchFieldTitle(title), showTooltipFlag, false);
+			if (ImGui::BeginItemTooltip()) {
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				for (int j = 0; j < 2; ++j) {
+					if (!nameParts[j].empty()) {
+						char* buf = strbuf;
+						size_t bufSize = sizeof strbuf;
+						int result = sprintf_s(buf, bufSize, "Player %d Move: ", j + 1);
+						advanceBuf
+						printNameParts(j, nameParts[j], buf, bufSize);
+						searchFieldValue(strbuf, nullptr);
+						ImGui::TextUnformatted(strbuf);
+					}
+				}
+				ImGui::Separator();
+				ImGui::TextUnformatted("Click the field for tooltip.");
+				ImGui::PopTextWrapPos();
+				ImGui::EndTooltip();
+			}
+		}
+	}
+}
+
 bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
@@ -10841,6 +11015,7 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 		}
 		if (enableSpecialCancel) {
 			ImGui::Text("%d) Specials", count);
+			++count;
 		}
 		if (enableJumpCancel) {
 			ImGui::Text("%d) Jump cancel", count);
@@ -10881,18 +11056,38 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 	}
 }
 
-bool prevNamesControl(const PlayerInfo& player, bool includeTitle, bool disableSlang) {
+bool printMoveFieldTooltip(const PlayerInfo& player) {
 	if (player.canPrintTotal() || player.startupType() != -1) {
 		*strbuf = '\0';
 		char* buf = strbuf;
 		size_t bufSize = sizeof strbuf;
-		if (includeTitle) {
-			int result = sprintf_s(buf, bufSize, "Move: ");
-			advanceBuf
-		}
-		const char* lastNames[2];
-		prepareLastNames(lastNames, player, disableSlang);
-		player.prevStartupsDisp.printNames(buf, bufSize, lastNames, lastNames[1] ? 2 : 1, disableSlang ? false : settings.useSlangNames.load());
+		const char* lastName = nullptr;
+		int lastNameDuration = 0;
+		prepareLastNames(&lastName, player, true, &lastNameDuration);
+		player.prevStartupsDisp.printNames(buf, bufSize, &lastName,
+				1,
+				false,
+				true,
+				&lastNameDuration);
+		return true;
+	}
+	return false;
+}
+
+bool printMoveField(const PlayerInfo& player) {
+	if (player.canPrintTotal() || player.startupType() != -1) {
+		*strbuf = '\0';
+		char* buf = strbuf;
+		size_t bufSize = sizeof strbuf;
+		const char* lastName = nullptr;
+		int lastNameDuration = 0;
+		prepareLastNames(&lastName, player, false, &lastNameDuration);
+		player.prevStartupsDisp.printNames(buf, bufSize, &lastName,
+				1,
+				settings.useSlangNames.load(),
+				true,
+				false,
+				&lastNameDuration);
 		return true;
 	}
 	return false;
@@ -10910,24 +11105,44 @@ void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityV
 	}
 }
 
-void prepareLastNames(const char** lastNames, const PlayerInfo& player, bool disableSlang) {
-	const char* lastName;
-	if (!disableSlang && settings.useSlangNames && player.lastPerformedMoveSlangName) {
-		lastName = player.lastPerformedMoveSlangName;
+void prepareLastNames(const char** lastName, const PlayerInfo& player, bool disableSlang,
+						int* lastNameDuration) {
+	*lastName = player.getLastPerformedMoveName(disableSlang);
+	int startupType = player.startupType();
+	if (startupType == 1) {
+		*lastNameDuration = player.superfreezeStartup;
+	} else if (startupType == 0 || startupType == 2) {
+		
+		int lowestStartup = INT_MAX;
+		if (player.startedUp) {
+			lowestStartup = player.startupDisp - player.superfreezeStartup;
+		}
+		if (player.startupProj && player.startupProj < lowestStartup) {
+			lowestStartup = player.startupProj;
+		}
+		
+		if (lowestStartup != INT_MAX) {
+			*lastNameDuration = lowestStartup;
+		} else {
+			*lastNameDuration = 0;
+		}
 	} else {
-		lastName = player.lastPerformedMoveName;
+		*lastNameDuration = 0;
 	}
-	if (player.startupType() == 0) {
-		lastNameSuperfreeze = lastName;
-		lastNameSuperfreeze += " Superfreeze Startup";
-		lastNameAfterSuperfreeze = lastName;
-		lastNameAfterSuperfreeze += " After Superfreeze";
-		lastNames[0] = lastNameSuperfreeze.c_str();
-		lastNames[1] = lastNameAfterSuperfreeze.c_str();
-	} else {
-		lastNames[0] = lastName;
-		lastNames[1] = nullptr;
+}
+
+static bool printNameParts(int playerIndex, std::vector<NameDuration>& elems, char* buf, size_t bufSize) {
+	int result;
+	bool isFirst = true;
+	for (const NameDuration& elem : elems) {
+		result = sprintf_s(buf, bufSize, "%s%df (%s)",
+			isFirst ? "" : "+",
+			elem.duration,
+			elem.name);
+		advanceBuf
+		isFirst = false;
 	}
+	return !isFirst;
 }
 
 const char* formatHitResult(HitResult hitResult) {
@@ -12805,7 +13020,7 @@ void UI::drawFramebars() {
 										: projectileFrame.type == FT_IDLE_NO_DISPOSE
 											&& (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)
 											&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_JACKO
-											&& strcmp(projectileFrame.animName, "Ghost"_hardcode) == 0
+											&& strcmp(projectileFrame.animName, PROJECTILE_NAME_GHOST) == 0
 								) && showStrikeInvulOnFramebar
 						) {
 							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,

@@ -321,6 +321,9 @@ private:
 	void resetFrameSelection();
 	bool dontUsePreBlockstunTime = false;
 	void interjectIntoImGui();
+	void startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag);
+	bool showComboDamage[2] { false };
+	bool showComboRecipe[2] { false };
 };
 
 extern UI ui;

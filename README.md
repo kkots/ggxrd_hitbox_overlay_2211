@@ -9,7 +9,8 @@ Adds framebar and framedata display (see [Framebar](#framebar) section).
 Also can freeze the game and play it frame-by-frame (with box display turned off for example) (see [Default Hotkeys](#default-hotkeys) section).  
 Also can screenshot the game with transparency enabled/disabled (made with help from WorseThanYou (visit his website! <https://worsety.github.io/>)).  
 Also contains position reset mod (see [Position Reset Mod](#position-reset-mod) section).  
-Also contains input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches.  
+Also contains input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches, and it can display durations of each input in the input history.  
+Also it can hide the main Enter key or numpad Enter key presses from the game, or both (in General Settings).  
 The mod hides its output from OBS recording, and this can be turned off in 'UI - Settings - General Settings - Dodge OBS Recording' or by going to OBS and checking the 'Capture third-party overlays (such as steam)' checkbox.
 
 ## Credits
@@ -1210,4 +1211,19 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 March 4: Version 6.15: Fixed Carcass Raid name being in slang (for ex. "S Carcass", no Raid) even when slang names are turned off. Made framebar not display in offline human versus human. Added 64-bit injector and modified .sh script for Linux so that it chooses 64-bit or 32-bit injector based on whether the Wine prefix is 64-bit or 32-bit. Started self-signing the injector, the DLL, and the patcher, and added VERSIONINFO to all of them, replaced most function calls in the injector with GetProcAddress with name obfuscation, in the hopes that it will reduce the frequency of Windows Defender aggro.
 - 2025 March 7: Version 6.16: Removed commandline versions of the injector and the patcher and replaced them with window versions in hopes of avoiding virus detection. The injector and the patcher will now have their versions numbered separately from the DLL, starting from "mk2". The Linux patcher will still be commandline based.
 - 2025 March 8: Version 6.16 mk3: Fixed a situation in the window versions of patcher and injector where you could get stuck after having pressed Enter after a "Press Enter to exit..." prompt. Patcher will now print errors if it failed to open the GuiltyGearXrd.exe file instead of simply saying "Press Enter to exit...". None of these issues affect the Linux version of the patcher.
-- 2025 Next Update: Version ???: Fixed an issue when if showFramebarInOtherModes setting is true, framebar would get stuck on screen after finishing a non-observer online match in a rematch lobby.
+- 2025 March 19: Version 6.17:
+  1) Fixed an issue when if showFramebarInOtherModes setting is true, framebar would get stuck on screen after finishing a non-observer online match in a rematch lobby.
+  2) Added Combo Recipe panel.
+  3) Added "Combo Damage & Combo Stun" panel which displays the total achieved combo stun and combo damage.
+  4) Fixed an issue when some moves that can have multiple names (like May 6H, May Max 6H, etc) would select and show an incorrect version of the name all the time.
+  5) Remade the 'Move' field: now it shows does not split supers into two different moves (before superfreeze and after superfreeze).
+  6) Added tooltips to the left and to the right of the 'Startup' and 'Total' fields and if you hover over the title of the field itself as well, which shows the names of moves or parts of moves that make up the startup or the total, with the exact duration of each part.
+  7) Fixed an issue when projectiles that disappear on hit during superfreeze, specifically Red Hail balls, would initially display '???' in the corresponding framebar's title.
+  8) Added more names to Venom Balls, now Bishop Runout and Red Hail balls are distinguished by name in the framebar, Sol Gunflame done from a dash will be named Runflame, added distinguishment in the name of the move between Tap, Charge and Max Charge Blitz Shields, added distinguishment in the name of the move between Slayer Pilebunker, Crosswise Heel and Under Pressure done from P Dandy Step and K Dandy Step.
+  9) Added a checkbox that turns on a feature that makes the game ignore either the main Enter key, or the numpad Enter key, or none, or both.
+  10) In the Cancels panel, if a super or Blitz Shield is performed, fixed the name of the move showing "(frames 1+)" at the end. Now, first off, it won't even break supers into two moves, and moves that are broken up, will display frame ranges correctly.
+  11) In the 'Invul' field and in invul description in a frame's tooltip will now print an extra "can't armor overdrives" if it's not clear enough that the super armor can't armor overdrives.
+  12) Added a tooltip for the 'Stun' field that explains how stun decays.
+  13) Added a 'Weight' field to the "Speed/Hitstun Proration/..." panel.
+  14) If 'Show debug fields' checkbox is checked, will now show a 'trial' name in the 'Anim' field in parentheses, if present. For example, Venom Bishop Runout and Red Hail balls have 'trial' names.
+  15) "Damage/RISC/Stun Calculation" panels have been swapped for Player 1 and Player 2. Now you need to click the player that was the attacker to see what damage their hits dealt.

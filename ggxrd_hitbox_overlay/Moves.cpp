@@ -6,8 +6,7 @@
 #include <vector>
 #include "EndScene.h"  // that's right, I'm including what I probably shouldn't and bypassing having to provide dependencies in function arguments
 // this whole, entire file is hardcode
-// !!! SOME NAMES FROM THIS FILE ARE HARDCODED IN UI.cpp!!!
-// Such names MUST be marked as being used elsewhere using this comment: // NAMEHARDCODE (with a space between // and NAMEHARDCODE)
+#include "SpecificFramebarIds.h"
 
 Moves moves;
 
@@ -90,6 +89,10 @@ static const char* slangNameSelector_iceScythe(Entity ent);
 static const char* framebarNameSelector_djvuD(Entity ent);
 static const char* framebarSlangNameSelector_djvuD(Entity ent);
 static const char* framebarNameSelector_closeShot(Entity ent);
+static const char* framebarNameSelector_gunflameProjectile(Entity ent);
+static const char* framebarSlangNameSelector_gunflameProjectile(Entity ent);
+static const char* framebarNameSelector_venomBall(Entity ent);
+static const char* framebarSlangNameSelector_venomBall(Entity ent);
 
 static bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent);
 static bool isInVariableStartupSection_zweiLand(PlayerInfo& ent);
@@ -219,6 +222,20 @@ static const char* displayNameSelector_airKenroukakuLv2or3(PlayerInfo& ent);
 static const char* displayNameSelector_standingAzami(PlayerInfo& ent);
 static const char* displayNameSelector_crouchingAzami(PlayerInfo& ent);
 static const char* displayNameSelector_airAzami(PlayerInfo& ent);
+static const char* displayNameSelector_gunflame(PlayerInfo& ent);
+static const char* displaySlangNameSelector_gunflame(PlayerInfo& ent);
+static const char* displayNameSelector_gunflameDI(PlayerInfo& ent);
+static const char* displaySlangNameSelector_gunflameDI(PlayerInfo& ent);
+static const char* displayNameSelector_standingBlitzShield(PlayerInfo& ent);
+static const char* displaySlangNameSelector_standingBlitzShield(PlayerInfo& ent);
+static const char* displayNameSelector_crouchingBlitzShield(PlayerInfo& ent);
+static const char* displaySlangNameSelector_crouchingBlitzShield(PlayerInfo& ent);
+static const char* displayNameSelector_pilebunker(PlayerInfo& ent);
+static const char* displaySlangNameSelector_pilebunker(PlayerInfo& ent);
+static const char* displayNameSelector_crosswise(PlayerInfo& ent);
+static const char* displaySlangNameSelector_crosswise(PlayerInfo& ent);
+static const char* displayNameSelector_underPressure(PlayerInfo& ent);
+static const char* displaySlangNameSelector_underPressure(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -408,7 +425,9 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "RomanCancelHit");
+	move.displayName = "Roman Cancel";
 	move.displayNameSelector = displayNameSelector_RC;
+	move.slangName = "RC";
 	move.displaySlangNameSelector = displaySlangNameSelector_RC;
 	move.nameIncludesInputs = true;
 	addMove(move);
@@ -1258,7 +1277,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CounterGuardStand");
 	move.displayName = "Standing Blitz Shield";
+	move.displayNameSelector = displayNameSelector_standingBlitzShield;
 	move.slangName = "Standing Blitz";
+	move.displaySlangNameSelector = displaySlangNameSelector_standingBlitzShield;
 	move.sectionSeparator = sectionSeparator_blitzShield;
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
@@ -1266,7 +1287,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CounterGuardCrouch");
 	move.displayName = "Crouching Blitz Shield";
+	move.displayNameSelector = displayNameSelector_crouchingBlitzShield;
 	move.slangName = "Crouching Blitz";
+	move.displaySlangNameSelector = displaySlangNameSelector_crouchingBlitzShield;
 	move.sectionSeparator = sectionSeparator_blitzShield;
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
@@ -1290,13 +1313,17 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame");
 	move.displayName = "Gunflame";
+	move.displayNameSelector = displayNameSelector_gunflame;
 	move.slangName = "GF";
+	move.displaySlangNameSelector = displaySlangNameSelector_gunflame;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame_DI");
 	move.displayName = "DI Gunflame";
+	move.displayNameSelector = displayNameSelector_gunflameDI;
 	move.slangName = "DI GF";
+	move.displaySlangNameSelector = displaySlangNameSelector_gunflameDI;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverAir");
@@ -1344,22 +1371,22 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandHS");
 	move.displayName = "H Volcanic Viper";
-	move.slangName = "HVV";
+	move.slangName = "hVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandHS_DI");
 	move.displayName = "DI H Volcanic Viper";
-	move.slangName = "DI HVV";
+	move.slangName = "DI hVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandS");
 	move.displayName = "S Volcanic Viper";
-	move.slangName = "SVV";
+	move.slangName = "sVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandS_DI");
 	move.displayName = "DI S Volcanic Viper";
-	move.slangName = "DI SVV";
+	move.slangName = "DI sVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "AirCommandThrow");
@@ -1468,14 +1495,18 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_gunflame;
 	move.framebarId = 1;
 	move.framebarName = "Gunflame";
+	move.framebarNameSelector = framebarNameSelector_gunflameProjectile;
 	move.framebarSlangName = "GF";
+	move.framebarSlangNameSelector = framebarSlangNameSelector_gunflameProjectile;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameHibashira_DI", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 1;
 	move.framebarName = "Gunflame";
+	move.framebarNameSelector = framebarNameSelector_gunflameProjectile;
 	move.framebarSlangName = "GF";
+	move.framebarSlangNameSelector = framebarSlangNameSelector_gunflameProjectile;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRavePunch2", true);
@@ -1509,6 +1540,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 4;
 	move.framebarName = "Riot Stamp";
 	move.framebarSlangName = "RS";
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GroundViperDash_DI", true);
@@ -1516,6 +1548,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 5;
 	move.framebarName = "GV Fire Pillars";
 	move.framebarNameFull = "Ground Viper Fire Pillars";
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge2");
@@ -1696,7 +1729,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = "Bacchus Sigh";
-	move.framebarSlangName = "Bacchus";  // NAMEHARDCODE
+	move.framebarSlangName = PROJECTILE_NAME_BACCHUS;
 	move.framebarId = 112;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -2632,6 +2665,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 30;
 	move.framebarName = "Ryuu Yanagi";
 	move.framebarSlangName = "Ryuu";
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NmlAtk5E");
@@ -2655,7 +2689,9 @@ bool Moves::onDllMain() {
 	// Faust Pogo
 	// Pogo entry
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten");
+	move.displayName = "Spear Point Centripetal Dance";
 	move.displayNameSelector = displayNameSelector_pogoEntry;
+	move.slangName = "Pogo";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogoEntry;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2753,7 +2789,9 @@ bool Moves::onDllMain() {
 	
 	// Pogo P
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenA");
+	move.displayName = "Just A Taste!";
 	move.displayNameSelector = displayNameSelector_pogoA;
+	move.slangName = "Pogo-P";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogoA;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2763,7 +2801,9 @@ bool Moves::onDllMain() {
 	
 	// Pogo hop
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten9");
+	move.displayName = "Short Hop";
 	move.displayNameSelector = displayNameSelector_pogo9;
+	move.slangName = "Pogo-9";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogo9;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2772,7 +2812,9 @@ bool Moves::onDllMain() {
 	
 	// Pogo 44
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten44");
+	move.displayName = "Backward Movement";
 	move.displayNameSelector = displayNameSelector_pogo44;
+	move.slangName = "Pogo-44";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogo44;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2782,7 +2824,9 @@ bool Moves::onDllMain() {
 	
 	// Pogo 66
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten66");
+	move.displayName = "Forward Movement";
 	move.displayNameSelector = displayNameSelector_pogo66;
+	move.slangName = "Pogo-66";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogo66;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2792,7 +2836,9 @@ bool Moves::onDllMain() {
 	
 	// Pogo K (head flower)
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenB");
+	move.displayName = "Growing Flower";
 	move.displayNameSelector = displayNameSelector_pogoB;
+	move.slangName = "Pogo-K";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogoB;
 	move.sectionSeparator = sectionSeparator_soutenBC;
 	move.isIdle = isIdle_enableWhiffCancels;
@@ -2804,7 +2850,9 @@ bool Moves::onDllMain() {
 	
 	// Pogo S (ground flower)
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenC");
+	move.displayName = "See? I'm a Flower!";
 	move.displayNameSelector = displayNameSelector_pogoC;
+	move.slangName = "Pogo-S";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogoC;
 	move.sectionSeparator = sectionSeparator_soutenBC;
 	move.isIdle = isIdle_enableWhiffCancels;
@@ -2817,7 +2865,9 @@ bool Moves::onDllMain() {
 	
 	// Pogo Going My Way
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenD");
+	move.displayName = "Spear Point Centripetal Dance Going My Way";
 	move.displayNameSelector = displayNameSelector_pogoD;
+	move.slangName = "Pogo-H";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogoD;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2826,7 +2876,9 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenE");
+	move.displayName = "Spear Point Centripetal Dance What Could This Be?";
 	move.displayNameSelector = displayNameSelector_pogoE;
+	move.slangName = "Pogo-D";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogoE;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2837,7 +2889,9 @@ bool Moves::onDllMain() {
 	
 	// Faust Pogo Helicopter
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten8");
+	move.displayName = "Doctor-Copter";
 	move.displayNameSelector = displayNameSelector_pogo8;
+	move.slangName = "Pogo-8";
 	move.displaySlangNameSelector = displaySlangNameSelector_pogo8;
 	move.isIdle = hasWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2902,6 +2956,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 34;
 	move.framebarName = "Meteor";
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Helium", true);
@@ -3397,8 +3452,9 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = 73;
 	move.framebarName = "Berry Pine";
-	move.framebarSlangName = "Berry";  // NAMEHARDCODE
+	move.framebarSlangName = PROJECTILE_NAME_BERRY;
 	move.drawProjectileOriginPoint = true;
+	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Ready", true);
@@ -3870,6 +3926,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_saishingeki;
 	move.secondaryStartup = secondaryStartup_saishingeki;
 	move.dontSkipSuper = true;
+	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Hold_End");
@@ -4052,6 +4109,7 @@ bool Moves::onDllMain() {
 	move.framebarSlangNameUncombined = "Firesale Card";
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 113;
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Suriken", true);
@@ -4220,7 +4278,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "RSF_Start", true);
 	move.isDangerous = isDangerous_card;
-	move.framebarId = 106;
+	move.framebarId = ANSWER_RSF_FRAMEBAR_ID;
 	move.framebarName = "Dead Stock Ninpo: Firesale";
 	move.framebarSlangName = "Firesale";
 	move.framebarSlangNameUncombined = "Firesale Start";
@@ -4229,7 +4287,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "RSF_Meishi", true);
 	move.isDangerous = isDangerous_rsfMeishi;
-	move.framebarId = 106;
+	move.framebarId = ANSWER_RSF_FRAMEBAR_ID;
 	move.framebarName = "Dead Stock Ninpo: Firesale";
 	move.framebarSlangName = "Firesale";
 	move.framebarSlangNameUncombined = "Firesale Card";
@@ -4238,7 +4296,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "RSF_Finish", true);
 	move.isDangerous = isDangerous_rsfMeishi;
-	move.framebarId = 106;
+	move.framebarId = ANSWER_RSF_FRAMEBAR_ID;
 	move.framebarName = "Dead Stock Ninpo: Firesale";
 	move.framebarSlangName = "Firesale";
 	move.framebarSlangNameUncombined = "Shuriken";
@@ -4414,6 +4472,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 18;
 	move.framebarName = "Secret Garden";
 	move.framebarSlangName = "Garden";
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	// a rose created during Rose Install. Many of these can be on the screen at the same time
@@ -4428,6 +4487,7 @@ bool Moves::onDllMain() {
 	move.framebarName = "Great White";
 	move.framebarId = 109;
 	move.isEddie = true;
+	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "ChouDoriru", true);
@@ -4934,9 +4994,9 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimD");
 	move.displayName = "H Stinger Aim";
 	move.displayNameSelector = displayNameSelector_stingerH;
-	move.slangName = "H Stinger";
 	move.sectionSeparator = sectionSeparator_stingerH;
 	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
+	move.slangName = "H Stinger";
 	move.displaySlangNameSelector = displaySlangNameSelector_stingerH;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_stingerH;
@@ -4946,9 +5006,9 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimC");
 	move.displayName = "S Stinger Aim";
 	move.displayNameSelector = displayNameSelector_stingerS;
-	move.slangName = "S Stinger";
 	move.sectionSeparator = sectionSeparator_stingerS;
 	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
+	move.slangName = "S Stinger";
 	move.displaySlangNameSelector = displaySlangNameSelector_stingerS;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_stingerS;
@@ -5019,6 +5079,9 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_active;
 	move.framebarId = 49;
 	move.framebarName = "Balls";
+	move.framebarNameSelector = framebarNameSelector_venomBall;
+	move.framebarSlangName = "Balls";
+	move.framebarSlangNameSelector = framebarSlangNameSelector_venomBall;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -5089,14 +5152,18 @@ bool Moves::onDllMain() {
 	// Slayer dandy step follow-ups
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "CrossWise");
 	move.displayName = "Crosswise Heel";
+	move.displayNameSelector = displayNameSelector_crosswise;
 	move.slangName = "CW";
+	move.displaySlangNameSelector = displaySlangNameSelector_crosswise;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "UnderPressure");
 	move.displayName = "Under Pressure";
+	move.displayNameSelector = displayNameSelector_underPressure;
 	move.slangName = "UP";
+	move.displaySlangNameSelector = displaySlangNameSelector_underPressure;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	move.considerVariableStartupAsStanceForFramebar = true;
@@ -5125,7 +5192,9 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "PileBunker");
 	move.displayName = "Pilebunker";
+	move.displayNameSelector = displayNameSelector_pilebunker;
 	move.slangName = "Pile";
+	move.displaySlangNameSelector = displaySlangNameSelector_pilebunker;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	addMove(move);
@@ -5209,7 +5278,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkai");
 	move.displayName = "Antidepressant Scale";
-	move.slangName = "Note";  // NAMEHARDCODE
+	move.slangName = MOVE_NAME_NOTE;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
@@ -7407,6 +7476,8 @@ bool Moves::onDllMain() {
 	move.framebarId = 82;
 	move.framebarName = "Sword/Spear men";
 	move.framebarNameUncombined = "Knight";
+	move.combineHitsFromDifferentProjectiles = true;  // we need this because we don't want two knights attacking simultaneously displayed as two hits
+	move.showMultipleHitsFromOneAttack = true;  // we need this because it's the same guy attacking over and over
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantB", true);
@@ -7414,32 +7485,34 @@ bool Moves::onDllMain() {
 	move.framebarId = 82;
 	move.framebarName = "Sword/Spear men";
 	move.framebarNameUncombined = "Lancer";
+	move.combineHitsFromDifferentProjectiles = true;
+	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantC", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = 83;
+	move.framebarId = MAGICIAN_FRAMEBAR_ID;
 	move.framebarName = "Magicians";
 	move.framebarNameUncombined = "Magician";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "magicAtkLv1", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = 83;
+	move.framebarId = MAGICIAN_FRAMEBAR_ID;
 	move.framebarName = "Magicians";
 	move.framebarNameUncombined = "Magician Lv1";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "magicAtkLv2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = 83;
+	move.framebarId = MAGICIAN_FRAMEBAR_ID;
 	move.framebarName = "Magicians";
 	move.framebarNameUncombined = "Magician Lv2";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "magicAtkLv3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = 83;
+	move.framebarId = MAGICIAN_FRAMEBAR_ID;
 	move.framebarName = "Magicians";
 	move.framebarNameUncombined = "Magician Lv3";
 	addMove(move);
@@ -7448,6 +7521,7 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 84;
 	move.framebarName = "j.D";
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosObj", true);
@@ -7482,21 +7556,21 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostA", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = "Ghost";  // NAMEHARDCODE
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostB", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = "Ghost";  // NAMEHARDCODE
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostC", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = "Ghost";  // NAMEHARDCODE
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -7560,7 +7634,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = 95;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
 	move.framebarName = "For roasting chestnuts...";
 	move.framebarSlangName = "Fire Spears";
 	move.drawProjectileOriginPoint = true;
@@ -7568,7 +7642,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = 95;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
 	move.framebarName = "For roasting chestnuts...";
 	move.framebarSlangName = "Fire Spears";
 	move.drawProjectileOriginPoint = true;
@@ -7576,7 +7650,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = 95;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
 	move.framebarName = "For roasting chestnuts...";
 	move.framebarSlangName = "Fire Spears";
 	move.drawProjectileOriginPoint = true;
@@ -7584,7 +7658,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecrobomb", true);
 	move.isDangerous = isDangerous_not_hasHitNumButInactive;
-	move.framebarId = 95;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
 	move.framebarName = "For roasting chestnuts...";
 	move.framebarSlangName = "Fire Spears";
 	addMove(move);
@@ -7595,6 +7669,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 96;
 	move.framebarName = "We talked a lot together";
 	move.framebarSlangName = "P Blue Fish";
+	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
 	// K fish
@@ -7603,6 +7678,7 @@ bool Moves::onDllMain() {
 	move.framebarId = 96;
 	move.framebarName = "We talked a lot together";
 	move.framebarSlangName = "K Blue Fish";
+	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
 	// S laser fish
@@ -7647,18 +7723,19 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 97;
 	move.framebarName = "Imperial Ray";
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaser", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = 98;
+	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
 	move.framebarName = "Gamma Ray";
 	move.framebarNameUncombined = "Gamma Ray Laser";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaserMax", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = 98;
+	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
 	move.framebarName = "Gamma Ray";
 	move.framebarNameUncombined = "Gamma Ray Max Laser";
 	addMove(move);
@@ -8353,10 +8430,53 @@ const char* framebarNameSelector_closeShot(Entity ent) {
 	if (dist >= 300000) return "Max Close Shot";
 	return "Max Close Shot Buffed";
 }
+const char* framebarNameSelector_gunflameProjectile(Entity ent) {
+	Entity player = ent.playerEntity();
+	if (player) {
+		if (strcmp(player.animationName(), "GunFlame") == 0
+				&& strcmp(player.previousAnimName(), "CmnActFDash") == 0) {
+			return "Runflame";
+		}
+	}
+	return "Gunflame";
+}
+const char* framebarSlangNameSelector_gunflameProjectile(Entity ent) {
+	Entity player = ent.playerEntity();
+	if (player) {
+		if (strcmp(player.animationName(), "GunFlame") == 0
+				&& strcmp(player.previousAnimName(), "CmnActFDash") == 0) {
+			return "Runflame";
+		}
+	}
+	return "GF";
+}
+const char* framebarNameSelector_venomBall(Entity ent) {
+	if (strcmp(ent.dealtAttack()->trialName, "Ball_RedHail") == 0) {
+		return "Red Hail";
+	} else if (strcmp(ent.dealtAttack()->trialName, "Ball_Gold") == 0) {
+		return "Bishop Runout";
+	} else {
+		return "Balls";
+	}
+}
+const char* framebarSlangNameSelector_venomBall(Entity ent) {
+	if (strcmp(ent.dealtAttack()->trialName, "Ball_RedHail") == 0) {
+		return "Red Hail";
+	} else if (strcmp(ent.dealtAttack()->trialName, "Ball_Gold") == 0) {
+		return "Bishop";
+	} else {
+		return "Balls";
+	}
+}
 
 const char* MoveInfo::getFramebarName(Entity ent) const {
 	if (framebarNameSelector && ent) return framebarNameSelector(ent);
 	return framebarName;
+}
+
+const char* MoveInfo::getFramebarSlangName(Entity ent) const {
+	if (framebarSlangNameSelector && ent) return framebarSlangNameSelector(ent);
+	return framebarSlangName;
 }
 
 bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent) {
@@ -8826,36 +8946,42 @@ const char* displayNameSelector_rifleReload(PlayerInfo& ent) {
 	if (ent.idle) return "Ms. Confille";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadEndMarkerOffset, "Ms. Confille Autoexit");
 	if (response) return response;
+	if (moves.forCancels) return "Ms. Confille Reload";
 	return !ent.inNewMoveSection ? "Ms. Confille Reload Until Able to Cancel" : "Ms. Confille Reload Until Able to Fire";
 }
 const char* displaySlangNameSelector_rifleReload(PlayerInfo& ent) {
 	if (ent.idle) return "Rifle";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadEndMarkerOffset, "Rifle Autoexit");
 	if (response) return response;
+	if (moves.forCancels) return "Reload";
 	return !ent.inNewMoveSection ? "Reload Until Able to Cancel" : "Reload Until Able to Fire";
 }
 const char* displayNameSelector_riflePerfectReload(PlayerInfo& ent) {
 	if (ent.idle) return "Ms. Confille";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadPerfectEndMarkerOffset, "Ms. Confille Autoexit");
 	if (response) return response;
+	if (moves.forCancels) return "Ms. Confille Perfect Reload";
 	return !ent.inNewMoveSection ? "Ms. Confille Perfect Reload Until Able to Cancel" : "Ms. Confille Perfect Reload Until Able to Fire";
 }
 const char* displaySlangNameSelector_riflePerfectReload(PlayerInfo& ent) {
 	if (ent.idle) return "Rifle";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadPerfectEndMarkerOffset, "Rifle Autoexit");
 	if (response) return response;
+	if (moves.forCancels) return "Perfect Reload";
 	return !ent.inNewMoveSection ? "Perfect Reload Until Able to Cancel" : "Perfect Reload Until Able to Fire";
 }
 const char* displayNameSelector_rifleRC(PlayerInfo& ent) {
 	if (ent.idle) return "Ms. Confille";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleRomanEndMarkerOffset, "Ms. Confille Autoexit");
 	if (response) return response;
+	if (moves.forCancels) return "Ms. Confille Roman Cancel";
 	return !ent.inNewMoveSection ? "Ms. Confille Roman Cancel Until Able to Cancel" : "Ms. Confille Roman Cancel Until Able to Fire";
 }
 const char* displaySlangNameSelector_rifleRC(PlayerInfo& ent) {
 	if (ent.idle) return "Rifle";
 	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleRomanEndMarkerOffset, "Rifle Autoexit");
 	if (response) return response;
+	if (moves.forCancels) return "Rifle RC";
 	return !ent.inNewMoveSection ? "Rifle RC Until Able to Cancel" : "Rifle RC Until Able to Fire";
 }
 const char* displayNameSelector_mistEntry(PlayerInfo& ent) {
@@ -9450,6 +9576,114 @@ const char* displayNameSelector_crouchingAzami(PlayerInfo& ent) {
 }
 const char* displayNameSelector_airAzami(PlayerInfo& ent) {
 	return ent.pawn.mem46() ? "Aerial Red Azami" : "Aerial Azami";
+}
+const char* displayNameSelector_gunflame(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
+		return "Runflame";
+	}
+	return "Gunflame";
+}
+const char* displaySlangNameSelector_gunflame(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
+		return "Runflame";
+	}
+	return "GF";
+}
+const char* displayNameSelector_gunflameDI(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
+		return "DI Runflame";
+	}
+	return "DI Gunflame";
+}
+const char* displaySlangNameSelector_gunflameDI(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
+		return "DI Runflame";
+	}
+	return "DI GF";
+}
+const char* displayNameSelector_standingBlitzShield(PlayerInfo& ent) {
+	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
+		return "Max Charge Standing Blitz Shield";
+	}
+	if (ent.pawn.mem48()) {
+		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
+			return "Max Charge Standing Blitz Shield";
+		}
+		return "Charge Standing Blitz Shield";
+	}
+	return "Tap Standing Blitz Shield";
+}
+const char* displaySlangNameSelector_standingBlitzShield(PlayerInfo& ent) {
+	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
+		return "Max Standing Blitz";
+	}
+	if (ent.pawn.mem48()) {
+		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
+			return "Max Standing Blitz";
+		}
+		return "Charge Standing Blitz";
+	}
+	return "Tap Standing Blitz";
+}
+const char* displayNameSelector_crouchingBlitzShield(PlayerInfo& ent) {
+	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
+		return "Max Charge Crouching Blitz Shield";
+	}
+	if (ent.pawn.mem48()) {
+		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
+			return "Max Charge Crouching Blitz Shield";
+		}
+		return "Charge Crouching Blitz Shield";
+	}
+	return "Tap Crouching Blitz Shield";
+}
+const char* displaySlangNameSelector_crouchingBlitzShield(PlayerInfo& ent) {
+	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
+		return "Max Crouching Blitz";
+	}
+	if (ent.pawn.mem48()) {
+		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
+			return "Max Crouching Blitz";
+		}
+		return "Charge Crouching Blitz";
+	}
+	return "Tap Crouching Blitz";
+}
+const char* displayNameSelector_pilebunker(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P Pilebunker";
+	}
+	return "K Pilebunker";
+}
+const char* displaySlangNameSelector_pilebunker(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P Pile";
+	}
+	return "K Pile";
+}
+const char* displayNameSelector_crosswise(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P Crosswise Heel";
+	}
+	return "K Crosswise Heel";
+}
+const char* displaySlangNameSelector_crosswise(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P CW";
+	}
+	return "K CW";
+}
+const char* displayNameSelector_underPressure(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P Under Pressure";
+	}
+	return "K Under Pressure";
+}
+const char* displaySlangNameSelector_underPressure(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P UP";
+	}
+	return "K UP";
 }
 
 bool canYrcProjectile_default(PlayerInfo& player) {

@@ -845,6 +845,12 @@ struct PrevStartupsInfoElem {
 	short startup = 0;
 };
 
+// a name and a duration
+struct NameDuration {
+	const char* name;
+	int duration;
+};
+
 struct PrevStartupsInfo {
 	PrevStartupsInfoElem startups[10] { 0 };
 	char count = 0;
@@ -854,8 +860,11 @@ struct PrevStartupsInfo {
 	}
 	inline void clear() { count = 0; initialSkip = 0; }
 	void add(short n, bool partOfStance, const char* name, const char* slangName);
-	void print(char*& buf, size_t& bufSize) const;
-	void printNames(char*& buf, size_t& bufSize, const char** lastNames, int lastNamesCount, bool slang, bool useMultiplicationSign = true, bool printFrames = false) const;
+	void print(char*& buf, size_t& bufSize, std::vector<NameDuration>* elems = nullptr) const;
+	void printNames(char*& buf, size_t& bufSize, const char** lastNames, int lastNamesCount,
+					bool slang, bool useMultiplicationSign = true,
+					bool printFrames = false,
+					int* lastNamesDurations = nullptr) const;
 	int countOfNonEmptyUniqueNames(const char** lastNames, int lastNamesCount, bool slang) const;
 	int total() const;
 	inline bool empty() const { return count == 0; }
@@ -963,6 +972,7 @@ struct ProjectileInfo {
 	char rcSlowedDownCounter = 0;
 	char rcSlowedDownMax = 0;
 	char animName[32] { 0 };
+	char trialName[32] { 0 };
 	bool markActive:1;  // cleared at the start of prepareDrawData. True means hitboxes were found on this frame, or on this logic tick this projectile registered a hit.
 	bool startedUp:1;  // cleared upon disabling. True means active frames have started.
 	bool landedHit:1;  // cleared at the start of each logic tick. Set to true from a hit registering function hook.
@@ -978,6 +988,8 @@ struct ProjectileInfo {
 	bool isRamlethalSword:1;
 	bool strikeInvul:1;
 	bool dontReplaceFramebarTitle:1;
+	bool titleIsFromAFrameThatHitSomething:1;
+	bool alreadyIncludedInComboRecipe:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -1136,6 +1148,24 @@ struct FrameAdvantageForFramebarResult {
 	short landingFrameAdvantageNoPreBlockstun;
 };
 
+// instances of this class are being moved between each other using memmove and sorted using c runtime library's qsort function which does it in a similar way
+struct ComboRecipeElement {
+	char stateName[32] { '\0' };  // for projectiles
+	char trialName[32] { '\0' };  // for projectiles
+	const char* name = nullptr;
+	const char* slangName = nullptr;
+	int dashDuration = 0;
+	DWORD timestamp = 0;  // might mean either earliest hit or the time the move was initiated
+	int framebarId = 0;  // for projectiles
+	bool whiffed = true;
+	bool counterhit = false;
+	bool otg = false;
+	bool isMeleeAttack = false;
+	bool isProjectile = false;
+	bool artificial = false;
+};
+
+// This struct is cleared using memset to 0. If you add complex elements, add them into the clear() method as well
 struct PlayerInfo {
 	Entity pawn{ nullptr };
 	int prevHp = 0;
@@ -1170,6 +1200,7 @@ struct PlayerInfo {
 	int burstGainLastCombo = 0;
 	int tensionGainMaxCombo = 0;
 	int burstGainMaxCombo = 0;
+	int stunCombo = 0;
 	
 	int x = 0;
 	int y = 0;
@@ -1371,6 +1402,9 @@ struct PlayerInfo {
 	int cancelsCount = 0;
 	std::vector<DmgCalc> dmgCalcs;
 	std::vector<Input> inputs;
+	std::string lastMoveNameBeforeSuperfreeze;
+	std::string lastMoveNameAfterSuperfreeze;
+	std::vector<ComboRecipeElement> comboRecipe;
 	Input prevInput;
 	int dmgCalcsSkippedHits = 0;
 	int proration = 0;
@@ -1468,6 +1502,7 @@ struct PlayerInfo {
 	int answerCantCardTime = 0;
 	int answerCantCardTimeMax = 0;
 	char grabAnimation[32] { '\0' };
+	DWORD timePassedInNonFrozenFramesSinceStartOfAnim = 0;  // for combo recipe - needed to not show 1-2f of a move that gets kara cancelled into something else
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;
@@ -1613,6 +1648,16 @@ struct PlayerInfo {
 	bool dizzyShieldFishSuperArmor:1;
 	bool answerPrevFrameRSFStart:1;
 	bool answerCreatedRSFStart:1;
+	bool lastPerformedMoveNameIsInComboRecipe:1;
+	bool jumpNonCancel:1;  // for combo recipe
+	bool superJumpNonCancel:1;  // for combo recipe
+	bool jumpCancelled:1;  // for combo recipe
+	bool superJumpCancelled:1;  // for combo recipe
+	bool doubleJumped:1;  // for combo recipe
+	bool startedRunning:1;
+	bool isRunning:1;
+	bool jumpInstalled:1;
+	bool superJumpInstalled:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
@@ -1626,11 +1671,13 @@ struct PlayerInfo {
 	void clear();
 	void copyTo(PlayerInfo& dest);
 	int startupType() const;
-	void printStartup(char* buf, size_t bufSize);
+	void updateLastMoveNameBeforeAfterSuperfreeze(bool disableSlang);
+	const char* getLastPerformedMoveName(bool disableSlang) const;
+	void printStartup(char* buf, size_t bufSize, std::vector<NameDuration>* elems = nullptr);
 	int printStartupForFramebar();
 	void printRecovery(char* buf, size_t bufSize);
 	int printRecoveryForFramebar();
-	void printTotal(char* buf, size_t bufSize);
+	void printTotal(char* buf, size_t bufSize, std::vector<NameDuration>* elems = nullptr);
 	void printInvuls(char* buf, size_t bufSize) const;
 	bool isIdleInNewSection();
 	bool isInVariableStartupSection();
@@ -1662,4 +1709,8 @@ struct PlayerInfo {
 	void fillInPlayervalSetter(int playervalNum);
 	int getElpheltRifle_AimMem46() const;
 	void calcFrameAdvantageForFramebar(FrameAdvantageForFramebarResult* result) const;
+	void bringComboElementToEnd(ComboRecipeElement* modifiedElement);
+	ComboRecipeElement* findLastNonProjectileComboElement();
+	ComboRecipeElement* findLastDash();
+	bool lastComboHitEqualsProjectile(Entity ptr, int framebarId) const;
 };

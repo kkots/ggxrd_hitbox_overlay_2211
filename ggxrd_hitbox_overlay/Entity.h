@@ -688,6 +688,14 @@ struct UponInfo {
 	DWORD flags;
 };
 
+struct ScheduledAnim {
+	char animName[32];
+	DWORD requestActionFlag;
+	char markerName[32];
+	int moveIndex;
+	int nonZeroOnAnimChange;
+};
+
 class Entity
 {
 public:
@@ -776,6 +784,8 @@ public:
 	inline bool enableWhiffCancels() const { return (*(DWORD*)(ent + 0x4d48) & 0x2) != 0; }
 	inline bool enableSpecialCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x4) != 0; }
 	inline bool enableJumpCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x8) != 0; }
+	inline bool enableJump() const { return (*(DWORD*)(ent + 0x4d3c) & 0x100) != 0; }
+	inline bool enableAirOptions() const { return (*(DWORD*)(ent + 0x4d3c) & 0x400) != 0; }
 	inline bool enableNormals() const { return (*(DWORD*)(ent + 0x4d3c) & 0x1000) != 0; }
 	inline bool enableSpecials() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2000) != 0; }
 	inline bool enableGatlings() const { return (*(DWORD*)(ent + 0x4d48) & 0x1) != 0; }
@@ -1042,6 +1052,8 @@ public:
 	inline int relatedToBufferTime3() const { return *(int*)(ent + 0x24dd4); }
 	inline int toAddToBufferTime() const { return *(int*)(ent + 0x24dd8); }
 	inline int ensureAtLeast3fBufferForNormalsWhenJumping() const { return *(int*)(ent + 0x262f4); }
+	inline const ScheduledAnim* nextAnim() const { return (ScheduledAnim*)(ent + 0x2474); }
+	inline int TrainingEtc_ComboDamage() const { return *(int*)(ent + 0x9f44); }
 	
 	void getState(EntityState* state, bool* wasSuperArmorEnabled = nullptr, bool* wasFullInvul = nullptr) const;
 	

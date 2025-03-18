@@ -231,6 +231,9 @@
     <ClInclude Include="HandleWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SpecificFramebarIds.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

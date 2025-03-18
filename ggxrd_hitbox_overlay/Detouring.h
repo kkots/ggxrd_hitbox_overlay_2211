@@ -19,7 +19,7 @@ public:
 	void detachAllButThese(bool freezeAll, const std::vector<PVOID>& dontDetachThese = std::vector<PVOID>{});
 	void detachOnlyThisHook(const char* name);
 	void detachOnlyTheseHooks(const char** names, int namesCount);
-	void addInstructionToReplace(uintptr_t addr, const std::vector<char>& bytes);
+	bool patchPlace(uintptr_t addr, const std::vector<char>& newBytes);
 private:
 	struct ThingToBeUndetouredAtTheEnd {
 		PVOID* ppPointer = nullptr;  // pointer to a pointer to the original function
@@ -62,15 +62,16 @@ private:
 	void enumerateThreadsRecursively(suspendThreadCallback_t callback);
 	void closeAllThreadHandles();
 	void undoPatches();
+	void addInstructionToReplaceWhenUnhooking(uintptr_t addr, const std::vector<char>& origBytes);
 	bool beganTransaction = false;
 	std::vector<DWORD> suspendedThreads;
 	std::vector<HANDLE> suspendedThreadHandles;
 
 	struct InstructionToReplace {
 		uintptr_t addr = 0;
-		std::vector<char> bytes;
+		std::vector<char> origBytes;
 	};
-	std::vector<InstructionToReplace> instructionsToReplace;
+	std::vector<InstructionToReplace> instructionsToReplaceWhenUnhooking;
 };
 
 extern Detouring detouring;

@@ -387,6 +387,10 @@ uintptr_t followRelativeCall(uintptr_t relativeCallAddr) {
 	// Calls can also have absolute addresses so check which one you got
 }
 
+uintptr_t followSinglyByteJump(uintptr_t jumpInstrAddr) {
+	return jumpInstrAddr + 2 + *(char*)(jumpInstrAddr + 1);
+}
+
 uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr) {
 	return relativeCallAddr + 5 + *(int*)(relativeCallAddr + 1);
 	// Calls can also have absolute addresses so check which one you got
@@ -582,4 +586,41 @@ uintptr_t findImportedFunction(const char* module, const char* dll, const char* 
 		return 0;
 	}
 	return 0;
+}
+
+bool isMovInstructionFromRegToReg(BYTE* ptr, Register* registerDst, Register* registerSrc) {
+	BYTE instr = *ptr;
+	// xrd doesn't even use the 0x89 mov instruction
+	if (instr != 0x89 && instr != 0x8b) return false;
+	++ptr;
+	BYTE val = *ptr;
+	if ((val & 0b11000000) != 0b11000000) return false;
+	if (instr == 0x8b) {
+		Register* tmp = registerDst;
+		registerDst = registerSrc;
+		registerSrc = tmp;
+	}
+	if (registerDst) *registerDst = (Register)(val & 0b111);
+	if (registerSrc) *registerSrc = (Register)((val & 0b111000) >> 3);
+	return true;
+}
+
+int isTestInstructionRegImm(BYTE* ptr, Register* registerLeft, DWORD* offset, DWORD* imm) {
+	if (*ptr != 0xf7) return false;
+	++ptr;
+	BYTE val = *ptr;
+	BYTE upper4Bits = (val & 0xf0) >> 4;
+	if (upper4Bits != 4 && upper4Bits != 8) return false;
+	BYTE reg = val & 0x0f;
+	if (reg > 7) return false;
+	if (registerLeft) *registerLeft = (Register)reg;
+	if (upper4Bits == 4) {
+		if (offset) *offset = *(ptr + 1);
+		if (imm) *imm = *(DWORD*)(ptr + 2);
+		return 7;
+	} else {
+		if (offset) *offset = *(DWORD*)(ptr + 1);
+		if (imm) *imm = *(DWORD*)(ptr + 5);
+		return 10;
+	}
 }

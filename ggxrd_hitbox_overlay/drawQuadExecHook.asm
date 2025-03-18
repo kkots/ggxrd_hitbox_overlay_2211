@@ -9,6 +9,16 @@
 ; It's a cdecl with 3 args
 extrn _drawQuadExecHook:proc
 
+; reference to a C function declared in C code - in EndScene.cpp, called "increaseStunHook"
+; It's a cdecl with 2 args
+extrn _increaseStunHook:proc
+
+extrn @jumpInstallNormalJumpHook@4:proc
+extrn @jumpInstallSuperJumpHook@4:proc
+
+extern _restoreDoubleJumps:dword
+extern _restoreAirDash:dword
+
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
 ; Runs on the main thread
 _drawQuadExecHookAsm proc
@@ -40,5 +50,36 @@ _call_orig_drawQuadExec proc
   ; cdecl ecx - first arg, esp+4,esp+8 - second and third args
   jmp edx
 _call_orig_drawQuadExec endp
+
+_increaseStunHookAsm proc
+	PUSH ECX
+	PUSH EDX
+	PUSH EAX
+	PUSH EAX
+	PUSH ESI
+	call _increaseStunHook
+	ADD ESP,08h
+	POP EAX
+	ADD dword ptr [ESI + 09fc4h],EAX
+	POP EDX
+	POP ECX
+	RET
+_increaseStunHookAsm endp
+
+_jumpInstallNormalJumpHookAsm proc
+	PUSH ECX
+	CALL @jumpInstallNormalJumpHook@4
+	POP ECX
+	CALL dword ptr[_restoreDoubleJumps]
+	RET
+_jumpInstallNormalJumpHookAsm endp
+
+_jumpInstallSuperJumpHookAsm proc
+	PUSH ECX
+	CALL @jumpInstallSuperJumpHook@4
+	POP ECX
+	CALL dword ptr[_restoreAirDash]
+	RET
+_jumpInstallSuperJumpHookAsm endp
 
 end

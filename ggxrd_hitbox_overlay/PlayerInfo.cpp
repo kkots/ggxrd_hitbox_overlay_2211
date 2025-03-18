@@ -5,6 +5,7 @@
 #include "findMoveByName.h"
 #include "EndScene.h"
 #include "EntityList.h"
+#include "Settings.h"
 
 #define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
 
@@ -601,12 +602,16 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	lifeTimeCounter = ent.lifeTimeCounter();
 	bool dontAdvanceRamlethalTime = false;
 	if (lifeTimeCounter == 0 || isCreated) {
+		if (isCreated) {
+			alreadyIncludedInComboRecipe = false;
+		}
 		maxHit.clear();
 		hitNumber = 0;
 		hitOnFrame = 0;
 		hitstopElapsed = 0;
 		bedmanSealElapsedTime = 0;
 		elapsedTime = 0;
+		titleIsFromAFrameThatHitSomething = false;
 	}
 	if (ownerType == CHARACTER_TYPE_RAMLETHAL) {
 		Entity owner = endScene.players[team].pawn;
@@ -701,6 +706,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	if (fillName) {
 		sprite.fill(ent);
 		memcpy(animName, ent.animationName(), 32);
+		memcpy(trialName, ent.dealtAttack()->trialName, 32);
 		if (team == 0 || team == 1) {
 			fillInMove();
 		}
@@ -709,6 +715,10 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	
 	x = ptr.posX();
 	y = ptr.posY();
+	
+	if (animFrame == 1 && titleIsFromAFrameThatHitSomething) {
+		titleIsFromAFrameThatHitSomething = hitConnectedForFramebar();
+	}
 }
 
 void PlayerInfo::addGap(int length) {
@@ -752,23 +762,29 @@ void PlayerInfo::printGaps(char* buf, size_t bufSize) {
 }
 
 void PlayerInfo::clear() {
-	size_t cancelsOffset = offsetof(PlayerInfo, cancels);
-	memset(this, 0, cancelsOffset);
+	size_t offset = offsetof(PlayerInfo, cancels);
+	memset(this, 0, offset);
 	for (int i = 0; i < _countof(cancels); ++i) {
 		cancels[i].clear();
 	}
-	cancelsOffset += sizeof cancels;
+	offset += sizeof cancels;
 	cancelsTimer = 0;
-	cancelsOffset += sizeof cancelsTimer;
+	offset += sizeof cancelsTimer;
 	wasCancels.clear();
-	cancelsOffset += sizeof wasCancels;
+	offset += sizeof wasCancels;
 	cancelsCount = 0;
-	cancelsOffset += sizeof cancelsCount;
+	offset += sizeof cancelsCount;
 	dmgCalcs.clear();
-	cancelsOffset += sizeof dmgCalcs;
+	offset += sizeof dmgCalcs;
 	inputs.clear();
-	cancelsOffset += sizeof inputs;
-	memset((BYTE*)this + cancelsOffset, 0, sizeof PlayerInfo - cancelsOffset);
+	offset += sizeof inputs;
+	lastMoveNameBeforeSuperfreeze.clear();
+	offset += sizeof lastMoveNameBeforeSuperfreeze;
+	lastMoveNameAfterSuperfreeze.clear();
+	offset += sizeof lastMoveNameAfterSuperfreeze;
+	comboRecipe.clear();
+	offset += sizeof comboRecipe;
+	memset((BYTE*)this + offset, 0, sizeof PlayerInfo - offset);
 }
 
 void PlayerInfo::copyTo(PlayerInfo& dest) {
@@ -790,11 +806,14 @@ void PrevStartupsInfo::add(short n, bool partOfStance, const char* name, const c
 	++count;
 }
 
-void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
+void PrevStartupsInfo::print(char*& buf, size_t& bufSize, std::vector<NameDuration>* elems) const {
 	if (!count) return;
 	int charsPrinted;
 	
 	if (initialSkip) {
+		if (elems) {
+			elems->push_back({ "<skipped>", initialSkip });
+		}
 		charsPrinted = sprintf_s(buf, bufSize, "%d", initialSkip);
 		if (charsPrinted == -1) return;
 		buf += charsPrinted;
@@ -802,7 +821,16 @@ void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
 	}
 	
 	for (int i = 0; i < count; ++i) {
-		charsPrinted = sprintf_s(buf, bufSize, i == 0 && !initialSkip ? "%d" : "+%d", startups[i].startup);
+		const PrevStartupsInfoElem& elem = startups[i];
+		if (elems) {
+			elems->push_back({
+				settings.useSlangNames && elem.moveSlangName
+					? elem.moveSlangName
+					: elem.moveName,
+				elem.startup
+			});
+		}
+		charsPrinted = sprintf_s(buf, bufSize, i == 0 && !initialSkip ? "%d" : "+%d", elem.startup);
 		if (charsPrinted == -1) return;
 		buf += charsPrinted;
 		bufSize -= charsPrinted;
@@ -811,6 +839,24 @@ void PrevStartupsInfo::print(char*& buf, size_t& bufSize) const {
 	if (charsPrinted == -1) return;
 	buf += charsPrinted;
 	bufSize -= charsPrinted;
+}
+
+const char* PlayerInfo::getLastPerformedMoveName(bool disableSlang) const { 
+	if (!disableSlang && settings.useSlangNames && lastPerformedMoveSlangName) {
+		return lastPerformedMoveSlangName;
+	} else {
+		return lastPerformedMoveName;
+	}
+}
+
+void PlayerInfo::updateLastMoveNameBeforeAfterSuperfreeze(bool disableSlang) {
+	const char* name = getLastPerformedMoveName(disableSlang);
+	
+	lastMoveNameBeforeSuperfreeze = name;
+	lastMoveNameBeforeSuperfreeze += " Superfreeze Startup";
+	
+	lastMoveNameAfterSuperfreeze = name;
+	lastMoveNameAfterSuperfreeze += " After Superfreeze";
 }
 
 int PrevStartupsInfo::countOfNonEmptyUniqueNames(const char** lastNames, int lastNamesCount, bool slang) const {
@@ -852,7 +898,8 @@ int PrevStartupsInfo::countOfNonEmptyUniqueNames(const char** lastNames, int las
 	return answer;
 }
 
-void PrevStartupsInfo::printNames(char*& buf, size_t& bufSize, const char** lastNames, int lastNamesCount, bool slang, bool useMultiplicationSign, bool printFrames) const {
+void PrevStartupsInfo::printNames(char*& buf, size_t& bufSize, const char** lastNames, int lastNamesCount, bool slang, bool useMultiplicationSign,
+								bool printFrames, int* lastNamesDurations) const {
 	int charsPrinted;
 	bool isFirst = true;
 	
@@ -877,6 +924,9 @@ void PrevStartupsInfo::printNames(char*& buf, size_t& bufSize, const char** last
 		const char* selectedName;
 		if (i >= count) {
 			selectedName = lastNames[i - count];
+			if (lastNamesDurations) {
+				currentEnd += lastNamesDurations[i - count];
+			}
 		} else {
 			selectedName = startups[i].selectName(slang);
 			currentEnd += startups[i].startup;
@@ -921,7 +971,7 @@ void PrevStartupsInfo::printNames(char*& buf, size_t& bufSize, const char** last
 		}
 		
 		if (printFrames) {
-			if (i >= count) {
+			if (i >= count && !lastNamesDurations) {
 				charsPrinted = sprintf_s(buf, bufSize, " (frames %d+)", currentStart);
 			} else {
 				charsPrinted = sprintf_s(buf, bufSize, " (frames %d-%d)", currentStart, currentEnd - 1);
@@ -948,19 +998,32 @@ int PlayerInfo::startupType() const {
 	}
 }
 
-void PlayerInfo::printStartup(char* buf, size_t bufSize) {
+void PlayerInfo::printStartup(char* buf, size_t bufSize, std::vector<NameDuration>* elems) {
+	if (elems) elems->clear();
 	if (!bufSize) return;
 	*buf = '\0';
 	int uhh = startupType();
 	if (uhh == -1) return;
-	prevStartupsDisp.print(buf, bufSize);
+	prevStartupsDisp.print(buf, bufSize, elems);
+	const char* lastName = getLastPerformedMoveName(false);
+	updateLastMoveNameBeforeAfterSuperfreeze(false);
 	for (int i = 0; ; ++i) {
 		int charsPrinted = -1;
 		if (uhh == 0) {
+			if (elems) {
+				elems->push_back({ lastMoveNameBeforeSuperfreeze.c_str(), superfreezeStartup });
+				elems->push_back({ lastMoveNameAfterSuperfreeze.c_str(), startupDisp - superfreezeStartup });
+			}
 			charsPrinted = sprintf_s(buf, bufSize, "%d+%d", superfreezeStartup, startupDisp - superfreezeStartup);
 		} else if (uhh == 1) {
+			if (elems) {
+				elems->push_back({ lastName, superfreezeStartup });
+			}
 			charsPrinted = sprintf_s(buf, bufSize, "%d", superfreezeStartup);
 		} else if (uhh == 2) {
+			if (elems) {
+				elems->push_back({ lastName, startupDisp });
+			}
 			if (prevStartupsDisp.count && superfreezeStartup) {
 				charsPrinted = sprintf_s(buf, bufSize, "%d (superfreeze happens on frame %d)", startupDisp, prevStartupsDisp.total() + superfreezeStartup);
 			} else {
@@ -1102,7 +1165,8 @@ int PlayerInfo::printRecoveryForFramebar() {
 	return result;
 }
 
-void PlayerInfo::printTotal(char* buf, size_t bufSize) {
+void PlayerInfo::printTotal(char* buf, size_t bufSize, std::vector<NameDuration>* elems) {
+	if (elems) elems->clear();
 	if (!bufSize) return;
 	char* origBuf = buf;
 	*buf = '\0';
@@ -1114,14 +1178,21 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 	int maxOfTheTwo = max(totalCanBlock, totalDisp);
 	if (canPrintTotal()) {
 		printedMainPart = true;
-		prevStartupsTotalDisp.print(buf, bufSize);
+		prevStartupsTotalDisp.print(buf, bufSize, elems);
 		partsTotal = prevStartupsTotalDisp.total();
 		partsCount += prevStartupsTotalDisp.count;
 		if (totalCanBlock < totalDisp && totalCanBlock != 0) {
+			if (elems) {
+				elems->push_back({ "can't block", totalCanBlock });
+				elems->push_back({ "can't attack", totalDisp - totalCanBlock });
+			}
 			charsPrinted = sprintf_s(buf, bufSize, "%d can't block+%d can't attack", totalCanBlock, totalDisp - totalCanBlock);
 			partsCount += 2;
 			mentionedCantAttack = true;
 		} else {
+			if (elems) {
+				elems->push_back({ getLastPerformedMoveName(false), totalDisp });
+			}
 			charsPrinted = sprintf_s(buf, bufSize, "%d", totalDisp);
 			++partsCount;
 		}
@@ -1131,6 +1202,9 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 		bufSize -= charsPrinted;
 		
 		if (totalCanBlock > totalDisp) {
+			if (elems) {
+				elems->push_back({ "can't block", totalCanBlock - totalDisp });
+			}
 			charsPrinted = sprintf_s(buf, bufSize, " can't attack+%d can't block", totalCanBlock - totalDisp);
 			mentionedCantAttack = true;
 			++partsCount;
@@ -1140,6 +1214,9 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 		}
 		
 		if (totalCanFD > maxOfTheTwo && maxOfTheTwo != 0 && totalCanBlock != 0) {
+			if (elems) {
+				elems->push_back({ "can't FD", totalCanFD - maxOfTheTwo });
+			}
 			charsPrinted = sprintf_s(buf, bufSize, "%s+%d can't FD",
 				mentionedCantAttack ? "" : " can't attack",
 				totalCanFD - maxOfTheTwo);
@@ -1149,6 +1226,9 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 		}
 		
 		if (landingRecovery) {
+			if (elems) {
+				elems->push_back({ "landing", landingRecovery });
+			}
 			charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
 			if (charsPrinted == -1) return;
 			buf += charsPrinted;
@@ -1156,6 +1236,9 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize) {
 		}
 	}
 	if (totalFD) {
+		if (elems) {
+			elems->push_back({ "FD", totalFD });
+		}
 		charsPrinted = sprintf_s(buf, bufSize, "%s%d FD", printedMainPart ? "+" : "", totalFD);
 		if (charsPrinted == -1) return;
 		buf += charsPrinted;
@@ -1916,6 +1999,7 @@ int InvulFlags::print(char* buf,
 						}
 					}
 					
+					bool gaveHintThatCantArmorSupers = false;
 					for (int j = SUPER_ARMOR_FIRST; j <= SUPER_ARMOR_LAST; ++j) {
 						SortItem& superArmorType = items[j];
 						if (!superArmorType.active
@@ -1953,6 +2037,7 @@ int InvulFlags::print(char* buf,
 						// all overdrives are blitz breaks by default
 						if (j == SUPER_ARMOR_GUARD_IMPOSSIBLE && (!superArmorOverdrive || !superArmorBlitzBreak)) {
 							result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "unblockables, but not overdrive unblockables");
+							gaveHintThatCantArmorSupers = true;
 							if (result != -1) {
 								needSubplus = true;
 								buf += result;
@@ -1980,6 +2065,18 @@ int InvulFlags::print(char* buf,
 							"can't armor unblockables",
 							guardImpossibleTooltipHelp);
 						if (advisedToReadGuardImpossibleTooltip) *advisedToReadGuardImpossibleTooltip = true;
+						if (result != -1) {
+							needSubplus = true;
+							buf += result;
+							bufSize -= result;
+						}
+					}
+					// Blitz shield has the overdrive armor flag, but not blitz break armor flag
+					// However, all supers by default have the blitz break property
+					// So blitz shield having the overdrive armor flag still does not mean it can armor overdrives
+					if ((!superArmorOverdrive || !superArmorBlitzBreak) && !gaveHintThatCantArmorSupers) {
+						result = sprintf_s(buf, bufSize, needSubplus ? ", %s" : "%s", "can't armor overdrives");
+						gaveHintThatCantArmorSupers = true;
 						if (result != -1) {
 							needSubplus = true;
 							buf += result;
@@ -2320,16 +2417,25 @@ inline void copyActiveDuringSuperfreeze(FrameT& destFrame, const FrameT& srcFram
 	destFrame.hitConnected |= srcFrame.hitConnected;
 }
 
+void copyActiveDuringSuperfreezeProjectile(Frame& destFrame, const Frame& srcFrame) {
+	copyActiveDuringSuperfreeze(destFrame, srcFrame);
+	if (destFrame.title.text == nullptr || srcFrame.hitConnected) {
+		destFrame.title = srcFrame.title;
+		destFrame.animName = srcFrame.animName;
+		destFrame.animSlangName = srcFrame.animSlangName;
+	}
+}
+
 void PlayerFramebars::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
 	::copyActiveDuringSuperfreeze((PlayerFrame&)destFrame, (const PlayerFrame&)srcFrame);
 }
 
 void ProjectileFramebar::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
-	::copyActiveDuringSuperfreeze((Frame&)destFrame, (const Frame&)srcFrame);
+	copyActiveDuringSuperfreezeProjectile((Frame&)destFrame, (const Frame&)srcFrame);
 }
 
 void CombinedProjectileFramebar::copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const {
-	::copyActiveDuringSuperfreeze((Frame&)destFrame, (const Frame&)srcFrame);
+	copyActiveDuringSuperfreezeProjectile((Frame&)destFrame, (const Frame&)srcFrame);
 }
 
 void MaxHitInfo::fill(Entity ent, int currentHitNum) {
@@ -3069,4 +3175,50 @@ void PlayerInfo::calcFrameAdvantageForFramebar(FrameAdvantageForFramebarResult* 
 		result->frameAdvantageNoPreBlockstun = SHRT_MIN;
 		result->landingFrameAdvantageNoPreBlockstun = SHRT_MIN;
 	}
+}
+
+ComboRecipeElement* PlayerInfo::findLastNonProjectileComboElement() {
+	if (comboRecipe.empty()) return nullptr;
+	for (int i = (int)comboRecipe.size() - 1; i >= 0; --i) {
+		ComboRecipeElement& elem = comboRecipe[i];
+		if (!elem.isProjectile && !elem.artificial) {
+			return &elem;
+		}
+	}
+	return nullptr;
+}
+
+ComboRecipeElement* PlayerInfo::findLastDash() {
+	if (comboRecipe.empty()) return nullptr;
+	for (int i = (int)comboRecipe.size() - 1; i >= 0; --i) {
+		ComboRecipeElement& elem = comboRecipe[i];
+		if (elem.dashDuration) {
+			return &elem;
+		}
+	}
+	return nullptr;
+}
+
+void PlayerInfo::bringComboElementToEnd(ComboRecipeElement* modifiedElement) {
+	if (comboRecipe.empty()) return;
+	for (int i = (int)comboRecipe.size() - 1; i >= 0; --i) {
+		if (&comboRecipe[i] == modifiedElement) {
+			if (i == (int)comboRecipe.size() - 1) return;
+			ComboRecipeElement temp = comboRecipe[i];
+			int numElementsMoved = (int)comboRecipe.size() - i - 1;
+			memmove(comboRecipe.data() + i, comboRecipe.data() + i + 1, numElementsMoved * sizeof (ComboRecipeElement));
+			comboRecipe[comboRecipe.size() - 1] = temp;
+		}
+	}
+}
+
+bool PlayerInfo::lastComboHitEqualsProjectile(Entity ptr, int framebarId) const {
+	if (comboRecipe.empty()) return false;
+	const ComboRecipeElement& lastElem = comboRecipe.back();
+	return
+		lastElem.isProjectile
+		&& (
+			strcmp(lastElem.stateName, ptr.animationName()) == 0
+			&& strcmp(lastElem.trialName, ptr.dealtAttack()->trialName) == 0
+		);
 }

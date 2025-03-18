@@ -213,6 +213,7 @@
     <ClInclude Include="InputsIcon.h" />
     <ClInclude Include="InvisChipp.h" />
     <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="SpecificFramebarIds.h" />
     <ClInclude Include="Moves.h" />
     <ClInclude Include="pi.h" />
     <ClInclude Include="PlayerInfo.h" />

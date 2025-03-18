@@ -443,6 +443,7 @@ void meatOfTheProgram() {
     selectedFiles.lpstrFile = &szFile.front();
     selectedFiles.lpstrFile[0] = L'\0';
     selectedFiles.nMaxFile = szFile.size() + 1;
+    // it says "Windows Executable\0*.EXE\0"
 	char scramble[] =
 		"\x4d\xf6\x5f\xf6\x64\xf6\x5a\xf6\x65\xf6\x6d\xf6\x69\xf6\x16\xf6\x3b\xf6"
 		"\x6e\xf6\x5b\xf6\x59\xf6\x6b\xf6\x6a\xf6\x57\xf6\x58\xf6\x62\xf6\x5b\xf6"

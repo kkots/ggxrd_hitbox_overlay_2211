@@ -223,6 +223,12 @@ void Throws::drawThrows() {
 					if (throwInfo.owner == entityList.slots[i]) {
 						PlayerInfo& player = endScene.players[i];
 						++player.hitboxesCount;
+						if (player.lastPerformedMoveNameIsInComboRecipe) {
+							ComboRecipeElement* lastItem = player.findLastNonProjectileComboElement();
+							if (lastItem) {
+								lastItem->isMeleeAttack = true;
+							}
+						}
 						break;
 					}
 				}

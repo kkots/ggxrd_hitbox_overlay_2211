@@ -260,11 +260,11 @@ bool Settings::onDllMain() {
 			"; including frames that are visible without having to scroll.\n"
 			"; This value can't be more than 200.\n"
 			"; The standard value is 200.");
-	registerOtherDescription(settingAndItsName(positionResetDistBetweenPlayers), "Position Reset Corner - Distance Between Players", settingsFramebarSettingsStr, "; A number.\n"
+	registerOtherDescription(settingAndItsName(positionResetDistBetweenPlayers), "Position Reset Corner - Distance Between Players", settingsGeneralSettingsStr, "; A number.\n"
 			"; Specifies the distance between the two players, not divided by 100, when resetting position into the corner.\n"
 			"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
 			"; The default value of this field is 105000.");
-	registerOtherDescription(settingAndItsName(positionResetDistFromCorner), "Position Reset Corner - Distance From Corner", settingsFramebarSettingsStr, "; A number.\n"
+	registerOtherDescription(settingAndItsName(positionResetDistFromCorner), "Position Reset Corner - Distance From Corner", settingsGeneralSettingsStr, "; A number.\n"
 			"; Specifies the distance of the player closest to the corner, from said corner, not divided by 100,\n"
 			"; when resetting position into the corner.\n"
 			"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
@@ -633,6 +633,12 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(showDebugFields), "Show Debug Fields", settingsGeneralSettingsStr,
 		"; Specify true or false.\n"
 		"; Setting this to true will add a number of extra fields to the UI that display debug or miscellaneous information.");
+	registerOtherDescription(settingAndItsName(ignoreNumpadEnterKey), "Ignore Numpad Enter Key", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true will hide the numpad Enter key presses from the game.");
+	registerOtherDescription(settingAndItsName(ignoreRegularEnterKey), "Ignore Regular Enter Key", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true will hide the non-numpad Enter key presses from the game.");
 	#undef settingAndItsName
 	
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));
@@ -913,6 +919,9 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool dontShowMoveNameParsed = false;
 	
 	bool showDebugFieldsParsed = false;
+	
+	bool ignoreNumpadEnterKeyParsed = false;
+	bool ignoreRegularEnterKeyParsed = false;
 
 	std::string accum;
 	char buf[128];
@@ -1064,6 +1073,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(closingModWindowAlsoHidesFramebar)
 						booleanPreset(dontShowMoveName)
 						booleanPreset(showDebugFields)
+						booleanPreset(ignoreNumpadEnterKey)
+						booleanPreset(ignoreRegularEnterKey)
 						#undef booleanPreset
 						#undef integerPreset
 					}
@@ -1382,6 +1393,14 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!showDebugFieldsParsed) {
 		showDebugFields = false;
+	}
+	
+	if (!ignoreNumpadEnterKeyParsed) {
+		ignoreNumpadEnterKey = false;
+	}
+	
+	if (!ignoreRegularEnterKeyParsed) {
+		ignoreRegularEnterKey = false;
 	}
 	
 	if (firstSettingsParse) {
@@ -1952,6 +1971,8 @@ void Settings::writeSettingsMain() {
 	booleanPreset(closingModWindowAlsoHidesFramebar)
 	booleanPreset(dontShowMoveName)
 	booleanPreset(showDebugFields)
+	booleanPreset(ignoreNumpadEnterKey)
+	booleanPreset(ignoreRegularEnterKey)
 	booleanPreset(neverDisplayGrayHurtboxes)
 	booleanPreset(dontShowBoxes)
 	booleanPreset(displayUIOnTopOfPauseMenu)

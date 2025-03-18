@@ -54,6 +54,7 @@ uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const s
 
 uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr);
 uintptr_t followRelativeCall(uintptr_t relativeCallAddr);
+uintptr_t followSinglyByteJump(uintptr_t jumpInstrAddr);
 
 int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinationAddr);
 
@@ -82,3 +83,20 @@ uintptr_t findImportedFunction(const char* module, const char* dll, const char* 
 void sigscanCaseInsensitivePrepare(const char* sig, size_t sigLength, size_t* step);
 
 uintptr_t sigscanCaseInsensitive(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength, size_t* step);
+
+enum Register {
+	REGISTER_EAX,
+	REGISTER_ECX,
+	REGISTER_EDX,
+	REGISTER_EBX,
+	REGISTER_ESP,
+	REGISTER_EBP,
+	REGISTER_ESI,
+	REGISTER_EDI
+};
+
+// length of the instruction is always 2
+bool isMovInstructionFromRegToReg(BYTE* ptr, Register* registerDst = nullptr, Register* registerSrc = nullptr);
+
+// returns length of the instruction in bytes, if successful
+int isTestInstructionRegImm(BYTE* ptr, Register* registerLeft = nullptr, DWORD* offset = nullptr, DWORD* imm = nullptr);

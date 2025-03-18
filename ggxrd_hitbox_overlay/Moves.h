@@ -58,23 +58,23 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(bool, boolValue, combineWithPreviousMove, false) \
 	/* This is needed for Johnny becoming able to use Mist Finer from his MistFinerLoop animation.
 	 We want to write X+possibly infinite frames as long as you're holding, where X is the startup of
-	 the availability of Mist Finer attack.
-*/	MOVE_INFO_EXEC(bool, boolValue, usePlusSignInCombination, false) \
+	 the availability of Mist Finer attack. */ \
+	MOVE_INFO_EXEC(bool, boolValue, usePlusSignInCombination, false) \
 	MOVE_INFO_EXEC(const char*, strValue, displayName, nullptr) \
 	MOVE_INFO_EXEC(const char*, strValue, slangName, nullptr) \
 	/* A section is what I call separating frames with a + sign in the startup, recovery or total display.
 	This is useful for some moves that can be held or charged, because if you treat the part of the
 	animation that starts after you release the button as separate and show it with a "frames from before
 	that part" + "frames after that part", then you will be able to tell what the startup of the move is
-	after you release the button
-*/	MOVE_INFO_EXEC(sectionSeparator_t, sectionSeparatorValue, sectionSeparator, nullptr) \
+	after you release the button */ \
+	MOVE_INFO_EXEC(sectionSeparator_t, sectionSeparatorValue, sectionSeparator, nullptr) \
 	MOVE_INFO_EXEC(sectionSeparatorProjectile_t, sectionSeparatorProjectileValue, sectionSeparatorProjectile, nullptr) \
-	/* If PlayerInfo::inNewMoveSection == true for this many frames, the player is considered 'idle' in all respects.
-*/	MOVE_INFO_EXEC(int, intValue, considerIdleInSeparatedSectionAfterThisManyFrames, 0) \
+	/* If PlayerInfo::inNewMoveSection == true for this many frames, the player is considered 'idle' in all respects. */ \
+	MOVE_INFO_EXEC(int, intValue, considerIdleInSeparatedSectionAfterThisManyFrames, 0) \
 	/* This is needed for Johnny walking back and forth in Mist Finer because he can start walking
 	as soon as he can do Mist Finer attack, but we still want the new section because we treat
-	walking same way as standing in Mist Finer
-*/	MOVE_INFO_EXEC(bool, boolValue, preservesNewSection, false) \
+	walking same way as standing in Mist Finer */ \
+	MOVE_INFO_EXEC(bool, boolValue, preservesNewSection, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isIdle, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canBlock, nullptr) \
 	MOVE_INFO_EXEC(isDangerous_t, isDangerousValue, isDangerous, nullptr) \
@@ -128,7 +128,10 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
 	MOVE_INFO_EXEC(bool, boolValue, dontSkipGrab, false) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, powerupExplanation, nullptr) \
-	MOVE_INFO_EXEC(isIdle_t, isIdleValue, dontShowPowerupGraphic, nullptr)
+	MOVE_INFO_EXEC(isIdle_t, isIdleValue, dontShowPowerupGraphic, nullptr) \
+	/* for combo recipe */ \
+	MOVE_INFO_EXEC(bool, boolValue, combineHitsFromDifferentProjectiles, false) \
+	MOVE_INFO_EXEC(bool, boolValue, showMultipleHitsFromOneAttack, false)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -143,10 +146,13 @@ struct MoveInfo {
 	MoveInfo(const MoveInfoStored& info);
 	inline MoveInfo(CharacterType charType, const char* name, bool isEffect = false) : charType(charType), name(name), isEffect(isEffect) { }
 	const char* getFramebarName(Entity ent) const;
+	const char* getFramebarSlangName(Entity ent) const;
 	void addForceAddWhiffCancel(const char* name);
 	ForceAddedWhiffCancel* getForceAddWhiffCancel(int index) const;
 	inline const char* getDisplayName(PlayerInfo& ent) const { return displayNameSelector ? displayNameSelector(ent) : displayName; }
 	inline const char* getDisplayNameSlang(PlayerInfo& ent) const { return displaySlangNameSelector ? displaySlangNameSelector(ent) : slangName; }
+	inline const char* getDisplayNameNoScripts(PlayerInfo& ent) const { return displayName; }
+	inline const char* getDisplayNameSlangNoScripts(PlayerInfo& ent) const { return slangName; }
 };
 class Moves {
 public:

@@ -30,6 +30,7 @@
 #include <mutex>
 #include "InputsDrawing.h"
 #include "InputNames.h"
+#include "SpecificFramebarIds.h"
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -40,6 +41,8 @@ findMoveByName_t findMoveByName = nullptr;
 // Runs on the main thread
 extern "C"
 void __cdecl drawQuadExecHook(FVector2D* screenSize, REDDrawQuadCommand* item, void* canvas);  // defined here
+extern "C"
+void __cdecl increaseStunHook(Entity pawn, int stunAdd);  // defined here
 
 // Runs on the main thread
 extern "C"
@@ -49,7 +52,18 @@ void __cdecl drawQuadExecHookAsm(REDDrawQuadCommand* item, void* canvas);  // de
 extern "C"
 void __cdecl call_orig_drawQuadExec(void* orig_drawQuadExec, FVector2D *screenSize, REDDrawQuadCommand *item, void* canvas);  // defined in drawQuadExecHook.asm
 
+// Runs on the main thread
+extern "C"
+void __cdecl increaseStunHookAsm();  // defined in drawQuadExecHook.asm
+
 static int __cdecl LifeTimeCounterCompare(void const*, void const*);
+
+extern "C" DWORD restoreDoubleJumps = 0;  // for use by jumpInstallNormalJumpHookAsm
+extern "C" void jumpInstallNormalJumpHookAsm(void* pawn);  // defined in drawQuadExecHook.asm
+extern "C" void __fastcall jumpInstallNormalJumpHook(void* pawn);  // defined here
+extern "C" DWORD restoreAirDash = 0;  // for use by jumpInstallSuperJumpHookAsm
+extern "C" void jumpInstallSuperJumpHookAsm(void* pawn);  // defined in drawQuadExecHook.asm
+extern "C" void __fastcall jumpInstallSuperJumpHook(void* pawn);  // defined here
 
 static inline bool isDizzyBubble(const char* name) {
 	return (*(DWORD*)name & 0xffffff) == ('A' | ('w'<<8) | ('a'<<16))
@@ -658,6 +672,63 @@ bool EndScene::onDllMain() {
 		}
 	}
 	
+	uintptr_t stunIncrementPlace = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"01 86 c4 9f 00 00 8b 8e c8 9f 00 00",
+		nullptr,
+		"StunIncrementPlace");
+	if (stunIncrementPlace) {
+		void* increaseStunHookAsmPtr = (void*)increaseStunHookAsm;
+		std::vector<char> newBytes;
+		newBytes.resize(6);
+		newBytes[0] = '\xe8';  // relative call
+		int offset = calculateRelativeCallOffset(stunIncrementPlace, (uintptr_t)increaseStunHookAsm);
+		memcpy(newBytes.data() + 1, &offset, 4);
+		newBytes[5] = '\x90';  // NOP
+		detouring.patchPlace(stunIncrementPlace, newBytes);
+	}
+	
+	uintptr_t jumpInstallPlace = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		// it could also be mov eax,dword [esp+0x6c] which 8b ?? 6c does not cover (it is 8B 44 24 6C) but I won't bother with that
+		"8b ?? 6c 83 f8 08 74 6a 83 f8 09 74 65 83 f8 0a 74 60 83 f8 05 74 0a 83 f8 06 74 05 83 f8 07 75 74"
+			" f7 86 24 4d 00 00 00 04 00 00 75 68",
+		nullptr,
+		"JumpInstallPlace");
+	if (jumpInstallPlace) {
+		uintptr_t jumpInstallPlaceOrig = jumpInstallPlace;
+		jumpInstallPlace += 0x2d;
+		Register dstReg;
+		if (isMovInstructionFromRegToReg((BYTE*)jumpInstallPlace, &dstReg, nullptr) && dstReg == REGISTER_ECX
+				&& *(BYTE*)(jumpInstallPlace + 2) == 0xe8) {
+			jumpInstallPlace += 2;
+			restoreDoubleJumps = followRelativeCall(jumpInstallPlace);
+			
+			std::vector<char> newBytes;
+			newBytes.resize(5);
+			newBytes[0] = '\xe8';  // relative call
+			int offset = calculateRelativeCallOffset(jumpInstallPlace, (uintptr_t)jumpInstallNormalJumpHookAsm);
+			memcpy(newBytes.data() + 1, &offset, 4);
+			detouring.patchPlace(jumpInstallPlace, newBytes);
+			
+		}
+		
+		jumpInstallPlace = followSinglyByteJump(jumpInstallPlaceOrig + 6);
+		if (isMovInstructionFromRegToReg((BYTE*)jumpInstallPlace, &dstReg, nullptr) && dstReg == REGISTER_ECX
+				&& *(BYTE*)(jumpInstallPlace + 2) == 0xe8) {
+			jumpInstallPlace += 2;
+			restoreAirDash = followRelativeCall(jumpInstallPlace);
+			
+			std::vector<char> newBytes;
+			newBytes.resize(5);
+			newBytes[0] = '\xe8';  // relative call
+			int offset = calculateRelativeCallOffset(jumpInstallPlace, (uintptr_t)jumpInstallSuperJumpHookAsm);
+			memcpy(newBytes.data() + 1, &offset, 4);
+			detouring.patchPlace(jumpInstallPlace, newBytes);
+			
+		}
+	}
+	
 	return !error;
 }
 
@@ -944,6 +1015,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.createdDangerousProjectile = false;
 			player.createdProjectileThatSometimesCanBeDangerous = false;
 			
+			player.inHitstunNowOrNextFrame = ent.inHitstun();
+			player.inHitstun = ent.inHitstunThisFrame();
+			bool needResetStun = false;
 			if (comboStarted) {
 				if (tensionGainOnLastHitUpdated[i]) {
 					player.tensionGainLastCombo = tensionGainOnLastHit[i];
@@ -957,9 +1031,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else {
 					player.burstGainLastCombo = 0;
 				}
+				if (player.inHitstunNowOrNextFrame) {
+					needResetStun = true;
+				}
 			}
-			player.inHitstunNowOrNextFrame = ent.inHitstun();
-			player.inHitstun = ent.inHitstunThisFrame();
+			// I'm checking both players because comboStarted means either player in being combo'd right now,
+			// and I just want to check if a combo is going on right now
 			if (player.inHitstunNowOrNextFrame || otherEnt.inHitstun()) {
 				player.tensionGainLastCombo += tensionGain;
 				player.burstGainLastCombo += burstGain;
@@ -981,7 +1058,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			tensionGainOnLastHitUpdated[i] = false;
 			burstGainOnLastHitUpdated[i] = false;
-	
+			
+			if (player.inHitstunNowOrNextFrame) {
+				int newStun;
+				if (reachedMaxStun[i] != -1) {
+					newStun = reachedMaxStun[i];
+				} else {
+					newStun = ent.stun();
+				}
+				if (newStun != -1 && (needResetStun || newStun > player.stunCombo)) {
+					player.stunCombo = newStun;
+				}
+			}
+			
 			player.stun = ent.stun();
 			player.stunThreshold = ent.stunThreshold();
 			int prevFrameBlockstun = player.blockstun;
@@ -1100,6 +1189,25 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.blockstun && !player.hitstop && !superflashInstigator) {
 				++player.blockstunElapsed;
 				if (player.rcSlowedDown) player.blockstunContaminatedByRCSlowdown = true;
+			}
+			
+			if (player.changedAnimOnThisFrame) {
+				player.isRunning = player.startedRunning;
+				if (player.startedRunning && otherEnt.inHitstun()) {
+					player.comboRecipe.emplace_back();
+					ComboRecipeElement& newComboElem = player.comboRecipe.back();
+					newComboElem.name = "";
+					newComboElem.timestamp = aswEngineTickCount;
+					newComboElem.framebarId = -1;
+					newComboElem.dashDuration = 1;
+				}
+			}
+			
+			if (player.isRunning && !player.hitstop && !superflashInstigator && !player.startedRunning && otherEnt.inHitstun()) {
+				ComboRecipeElement* lastElem = player.findLastDash();
+				if (lastElem) {
+					++lastElem->dashDuration;
+				}
 			}
 			
 			if (ent.cmnActIndex() == CmnActJitabataLoop) {
@@ -1560,17 +1668,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				);
 			bool needDisableProjectiles = false;
 			player.changedAnimFiltered = false;
-			bool changedAnim = player.changedAnimOnThisFrame;
-			if (changedAnim) {
-				if (player.cmnActIndex == CmnActJump && !player.canFaultlessDefense) {
-					changedAnim = false;
-				}
-			} else if (player.cmnActIndex == CmnActJump
-					&& prevFrameCmnActIndex == CmnActJump
-					&& !prevFrameCanFaultlessDefense
-					&& player.canFaultlessDefense) {
-			}
-			if (changedAnim) {
+			if (player.changedAnimOnThisFrame
+					&& !(player.cmnActIndex == CmnActJump && !player.canFaultlessDefense)) {
 				player.wokeUp = prevFrameWakeupTiming && !player.wakeupTiming && idleNext;
 				if (!player.move.preservesNewSection) {
 					player.inNewMoveSection = false;
@@ -1636,6 +1735,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (strcmp(animName, player.grabAnimation) != 0) {
 					player.grab = false;
 				}
+				if (player.idle && (
+						player.canBlock && player.canFaultlessDefense
+						|| player.wasIdle  // needed for linking a normal with a forward dash
+					)) {
+					player.ignoreNextInabilityToBlockOrAttack = true;
+					player.performingASuper = false;
+					other.gettingHitBySuper = false;
+				}
 				if (
 						!player.changedAnimFiltered
 						&& !(
@@ -1656,6 +1763,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						)
 						&& !player.prejumped
 					) {
+					if (!player.isInFDWithoutBlockstun && player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
+						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
+						if (lastElem) {
+							lastElem->name = player.lastPerformedMoveName;
+							lastElem->slangName = player.lastPerformedMoveSlangName;
+						}
+					}
 					// do nothing
 				} else {
 					player.moveOriginatedInTheAir = false;
@@ -1783,8 +1897,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.maxHit.clear();
 						player.recovery = 0;
 						player.total = 0;
+						player.timePassedInNonFrozenFramesSinceStartOfAnim = 0;
 						player.lastMoveIsPartOfStance = player.move.partOfStance;
 						player.determineMoveNameAndSlangName(&player.lastPerformedMoveName, &player.lastPerformedMoveSlangName);
+						player.lastPerformedMoveNameIsInComboRecipe = false;
 						player.hitOnFrame = 0;
 						player.totalFD = 0;
 						player.totalCanBlock = 0;
@@ -1846,20 +1962,83 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						// and the frame tooltip after will say "skipped: 1 super, 18 superfreeze, 1 super" which is very weird
 						player.performingASuper = false;
 						other.gettingHitBySuper = false;
+						
+						// and this is from combo recipe window to display RCs
+						if (other.pawn.inHitstun()) {
+							player.comboRecipe.emplace_back();
+							ComboRecipeElement& newComboElem = player.comboRecipe.back();
+							player.determineMoveNameAndSlangName(&newComboElem.name, &newComboElem.slangName);
+							newComboElem.whiffed = true;
+							newComboElem.timestamp = aswEngineTickCount;
+							newComboElem.framebarId = -1;
+							player.lastPerformedMoveNameIsInComboRecipe = true;
+						}
+						
 					}
 				}
 			}
 			memcpy(player.anim, animName, 32);
 			player.setMoveName(player.moveName, ent);
 			
-			if (player.idle && (
-					player.canBlock && player.canFaultlessDefense
-					|| player.wasIdle && changedAnim  // needed for linking a normal with a forward dash
-				)) {
-				player.ignoreNextInabilityToBlockOrAttack = true;
-				player.performingASuper = false;
-				other.gettingHitBySuper = false;
+			if (other.pawn.inHitstun()) {
+				// this should happen in the animation change registration above, but
+				// we need an animFrame 3 check because things can be kara cancelled into FD, Blitz, specials, Burst, IK, supers (by completing motions)
+				// so there are not many places we can go after changing animation, right?
+				// what could happen inbetween that prevents us from reaching animFrame 3, besides kara cancelling and getting hit by something?
+				// other than that animation starting outside of a combo, then ending, then combo starting and we hitting animFrame 3 on CmnActStand?
+				// that we can filter with timePassedInNonFrozenFramesSinceStartOfAnim
+				if ((
+						player.animFrame == 3
+						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 2
+						// specials, supers and IKs cannot be kara cancelled at all
+						|| player.animFrame == 1
+						&& player.pawn.dealtAttack()->type > ATTACK_TYPE_NORMAL
+						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 0
+					)
+					&& !player.lastPerformedMoveNameIsInComboRecipe
+				) {
+					player.comboRecipe.emplace_back();
+					ComboRecipeElement& newComboElem = player.comboRecipe.back();
+					newComboElem.name = player.lastPerformedMoveName;
+					newComboElem.slangName = player.lastPerformedMoveSlangName;
+					newComboElem.whiffed = !player.hitSomething;
+					newComboElem.timestamp = aswEngineTickCount;
+					newComboElem.framebarId = -1;
+					player.lastPerformedMoveNameIsInComboRecipe = true;
+				}
+				
+				if (player.jumpCancelled
+						|| player.superJumpCancelled
+						|| player.jumpNonCancel
+						|| player.superJumpNonCancel
+						|| player.doubleJumped) {
+					player.comboRecipe.emplace_back();
+					ComboRecipeElement& newComboElem = player.comboRecipe.back();
+					
+					if (player.superJumpCancelled) {
+						newComboElem.name = "Super Jump Cancel";
+					} else if (player.jumpCancelled) {
+						newComboElem.name = "Jump Cancel";
+					} else if (player.jumpNonCancel) {
+						newComboElem.name = "Jump";
+					} else if (player.superJumpNonCancel) {
+						newComboElem.name = "Super Jump";
+					} else if (player.doubleJumped) {
+						newComboElem.name = "Double Jump";
+					}
+					newComboElem.timestamp = aswEngineTickCount;
+					newComboElem.framebarId = -1;
+					newComboElem.artificial = true;
+					
+					player.jumpCancelled = false;
+					player.superJumpCancelled = false;
+					player.jumpNonCancel = false;
+					player.superJumpNonCancel = false;
+					player.doubleJumped = false;
+				}
+				
 			}
+			
 			if (player.cmnActIndex == CmnActJumpPre && !player.performingBDC) {
 				player.prejumped = true;
 			}
@@ -1955,6 +2134,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					player.startup = 0;
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName, &player.lastPerformedMoveSlangName);
+					if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
+						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
+						if (lastElem) {
+							lastElem->name = player.lastPerformedMoveName;
+							lastElem->slangName = player.lastPerformedMoveSlangName;
+						}
+					}
 					player.total = 0;
 					player.hitOnFrame = 0;
 					player.totalCanBlock = 0;
@@ -1997,6 +2183,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 					}
 				}
+			}
+			
+			if (frameHasChanged && !ent.isSuperFrozen() && !ent.isRCFrozen() && !player.hitstop
+					&& player.timePassedInNonFrozenFramesSinceStartOfAnim != 0xFFFFFFFF) {
+				++player.timePassedInNonFrozenFramesSinceStartOfAnim;
 			}
 		}
 		for (int i = 0; i < 2; ++i) {
@@ -3606,6 +3797,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (i < 2) {
 				PlayerInfo& player = players[team];
 				player.hitboxesCount += hitboxesCount;
+				if (
+						player.hitboxesCount
+						&& !player.comboRecipe.empty()
+						&& player.lastPerformedMoveNameIsInComboRecipe
+				) {
+					ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
+					if (lastElem) {
+						lastElem->isMeleeAttack = true;
+					}
+				}
 				if (hitboxesCount && oldHitboxesSize != drawDataPrepared.hitboxes.size()) {
 					player.hitboxTopY = hitboxesBoundsTotal.top;
 					player.hitboxBottomY = hitboxesBoundsTotal.bottom;
@@ -4284,9 +4485,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				defaultIdleFrame = projectileCanBeHit ? FT_IDLE_PROJECTILE_HITTABLE : FT_IDLE_PROJECTILE;
 			}
 			
-			if (framebarAdvancedIdleHitstop) {
+			if (framebarAdvancedIdleHitstop
+					|| (
+						projectile.markActive
+						&& !projectile.startedUp
+						&& superflashInstigator
+					)) {
 				currentFrame.type = defaultIdleFrame;
-				projectile.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
+				if (projectile.ptr || !projectile.lastName) {
+					projectile.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
+				} else {
+					currentFrame.animName = projectile.lastName;
+					currentFrame.animSlangName = projectile.lastSlangName;
+				}
 				currentFrame.hitstop = projectile.hitstop;
 				currentFrame.hitstopMax = projectile.hitstopMax;
 				currentFrame.hitConnected = projectile.hitConnectedForFramebar() || projectile.gotHitOnThisFrame
@@ -4305,7 +4516,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							: framebarPos - 1
 					].title;
 				}
-			} else if (superflashInstigator && projectile.gotHitOnThisFrame) {
+			}
+			if (!framebarAdvancedIdleHitstop && superflashInstigator && projectile.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
 				if (currentFrame.type == FT_NONE) {
 					currentFrame.type = defaultIdleFrame;
@@ -4360,9 +4572,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				if (superflashInstigator && !framebarAdvancedIdleHitstop) {
 					currentFrame.activeDuringSuperfreeze = true;
-					if (projectile.hitConnectedForFramebar()) {
-						currentFrame.hitConnected = true;
-					}
 					if (currentFrame.type == defaultIdleFrame || currentFrame.type == FT_NONE) {
 						currentFrame.type = FT_IDLE_NO_DISPOSE;
 					}
@@ -4495,6 +4704,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					memcpy(player.eddie.anim, projectile.animName, 32);
 					
 					if (created || !idleNext && player.eddie.ptr) {
+						projectile.alreadyIncludedInComboRecipe = false;
 						player.eddie.total = 0;
 						player.eddie.hitOnFrame = 0;
 						player.eddie.moveStartTime_aswEngineTick = aswEngineTickCount;
@@ -6416,9 +6626,15 @@ LRESULT CALLBACK hook_WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 	if (!shutdown) {
 		if (ui.WndProc(hWnd, message, wParam, lParam)) {
-			return TRUE;
+			return 0;
 		}
-		
+		if (message == WM_KEYDOWN && wParam == 13) {
+			bool isExtended = (lParam & 0x1000000) != 0;
+			if (isExtended && settings.ignoreNumpadEnterKey
+					|| !isExtended && settings.ignoreRegularEnterKey) {
+				return 0;  // 'Application should return 0 if it processes this message' - Microsoft
+			}
+		}
 		if (message == WM_DESTROY) {
 			keyboard.thisProcessWindow = NULL;
 		}
@@ -6531,6 +6747,7 @@ void EndScene::onAswEngineDestroyed() {
 	// do this even if 'give up'
 	for (int i = 0; i < 2; ++i) {
 		players[i].clear();
+		reachedMaxStun[i] = -1;
 	}
 	measuringFrameAdvantage = false;
 	measuringLandingFrameAdvantage = -1;
@@ -6632,6 +6849,7 @@ void EndScene::onHitDetectionStart(int hitDetectionType) {
 				burstGainOnLastHit[i] = 0;
 				tensionGainOnLastHitUpdated[i] = false;
 				burstGainOnLastHitUpdated[i] = false;
+				reachedMaxStun[i] = -1;
 			}
 		}
 		registeredHits.clear();
@@ -6930,6 +7148,92 @@ void EndScene::HookHelp::setAnimHook(const char* animName) {
 }
 
 // Runs on the main thread
+void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animName) {
+	// for combo recipe - register a jump cancel
+	// even air jump cancel starts with prejump
+	if (strcmp(animName, "CmnActJumpPre") == 0) {
+		
+		struct RemoveFlagsOnExit {
+			~RemoveFlagsOnExit() {
+				player.jumpInstalled = false;
+				player.superJumpInstalled = false;
+			}
+			PlayerInfo& player;
+			RemoveFlagsOnExit(PlayerInfo& player) : player(player) { }
+		} flagRemover(player);
+		
+		bool inAir = !(pawn.posY() == 0 && !pawn.ascending());
+		bool isSuperJump = false;
+		if (!inAir) {
+			const AddedMoveData* move = pawn.currentMove();
+			if (move && strcmp(move->name + 4, "HighJump") == 0) {
+				isSuperJump = true;
+			}
+			if (pawn.enemyEntity() && pawn.enemyEntity().inHitstun() && isSuperJump && player.jumpInstalled) {
+				player.comboRecipe.emplace_back();
+				ComboRecipeElement& newElem = player.comboRecipe.back();
+				newElem.artificial = true;
+				newElem.name = "Jump Install";
+				newElem.timestamp = getAswEngineTick();
+			}
+			bool canJump = pawn.enableJump() || pawn.enableAirOptions();
+			if (!canJump) {
+				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVJump", 0);
+				if (foundMove) {
+					canJump = foundMove->whiffCancelOption();
+				}
+			}
+			if (canJump) {
+				if (isSuperJump) {
+					player.superJumpNonCancel = true;
+				} else {
+					player.jumpNonCancel = true;
+				}
+				return;
+			}
+		} else {
+			bool canJump = pawn.enableAirOptions();
+			if (!canJump) {
+				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVAirJump", 0);
+				if (foundMove) {
+					canJump = foundMove->whiffCancelOption();
+				}
+			}
+			if (canJump) {
+				player.doubleJumped = true;
+				return;
+			}
+		}
+		
+		if (pawn.enableJumpCancel()) {
+			if (isSuperJump) {
+				player.superJumpCancelled = true;
+			} else {
+				player.jumpCancelled = true;
+			}
+		}
+		
+	} else if ((player.jumpInstalled || player.superJumpInstalled) && pawn.enemyEntity() && pawn.enemyEntity().inHitstun()) {
+		
+		player.comboRecipe.emplace_back();
+		ComboRecipeElement& newElem = player.comboRecipe.back();
+		newElem.artificial = true;
+		newElem.name = player.jumpInstalled ? "Jump Install" : "Super Jump Install";
+		newElem.timestamp = getAswEngineTick();
+		
+		player.jumpInstalled = false;
+		player.superJumpInstalled = false;
+	}
+}
+
+// Runs on the main thread
+void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName) {
+	if (strcmp(animName, "CmnActFDash") == 0) {
+		player.startedRunning = true;
+	}
+}
+
+// Runs on the main thread
 // This hook does not work on projectiles
 void EndScene::setAnimHook(Entity pawn, const char* animName) {
 	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled && !iGiveUp) {
@@ -6948,6 +7252,9 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 			event.type = OccuredEvent::SET_ANIM;
 			event.u.setAnim.pawn = pawn;
 			memcpy(event.u.setAnim.fromAnim, pawn.animationName(), 32);
+			
+			registerJump(player, pawn, animName);
+			registerRun(player, pawn, animName);
 		}
 	}
 	orig_setAnim((void*)pawn, animName);
@@ -7080,6 +7387,12 @@ void EndScene::frameCleanup() {
 		++it;
 	}
 	for (PlayerInfo& player : players) {
+		player.jumpNonCancel = false;
+		player.superJumpNonCancel = false;
+		player.jumpCancelled = false;
+		player.superJumpCancelled = false;
+		player.doubleJumped = false;
+		player.startedRunning = false;
 		player.setHitstopMax = false;
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = false;
@@ -8105,7 +8418,12 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 	
 	if (projectile.moveNonEmpty) {
 		
-		const char* framebarName = projectile.move.getFramebarName(projectile.ptr);
+		const char* framebarName;
+		if (projectile.ptr) {
+			framebarName = projectile.move.getFramebarName(projectile.ptr);
+		} else {
+			framebarName = projectile.lastName;
+		}
 		
 		if (framebarName) {
 			name = framebarName;
@@ -8115,7 +8433,11 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 			dontReplaceTitle = true;
 		}
 		
-		slangName = projectile.move.framebarSlangNameSelector ? projectile.move.framebarSlangNameSelector(projectile.ptr) : projectile.move.framebarSlangName;
+		if (projectile.ptr) {
+			slangName = projectile.move.getFramebarSlangName(projectile.ptr);
+		} else {
+			slangName = projectile.lastSlangName;
+		}
 		nameUncombined = projectile.move.framebarNameUncombined;
 		slangNameUncombined = projectile.move.framebarSlangNameUncombined;
 		
@@ -8131,13 +8453,19 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 		dontReplaceTitle = true;
 	}
 	
-	// We will dump this into a frame
-	projectile.framebarTitle.text = name;
-	projectile.framebarTitle.slang = slangName;
-	projectile.framebarTitle.uncombined = nameUncombined;
-	projectile.framebarTitle.slangUncombined = slangNameUncombined;
-	projectile.framebarTitle.full = nameFull;
-	projectile.dontReplaceFramebarTitle = dontReplaceTitle;
+	bool hitConnectedNow = projectile.hitConnectedForFramebar();
+	if (!(projectile.titleIsFromAFrameThatHitSomething && !hitConnectedNow)
+			|| projectile.framebarTitle.text == nullptr
+			|| projectile.framebarTitle.text[0] == '\0') {
+		// We will dump this into a frame
+		projectile.titleIsFromAFrameThatHitSomething = hitConnectedNow;
+		projectile.framebarTitle.text = name;
+		projectile.framebarTitle.slang = slangName;
+		projectile.framebarTitle.uncombined = nameUncombined;
+		projectile.framebarTitle.slangUncombined = slangNameUncombined;
+		projectile.framebarTitle.full = nameFull;
+		projectile.dontReplaceFramebarTitle = dontReplaceTitle;
+	}
 	
 	for (ProjectileFramebar& bar : projectileFramebars) {
 		if (bar.playerIndex == projectile.team
@@ -8333,7 +8661,8 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 	cancel.iterationIndex = iterationIndex;
 	MoveInfo obtainedInfo;
 	bool moveNonEmpty = moves.getInfo(obtainedInfo, player.charType, move->name, move->stateName, false);
-	if (!moveNonEmpty || !obtainedInfo.getDisplayName(player)) {
+	// name selectors don't work properly when the player is not in the state that the move corresponds to
+	if (!moveNonEmpty || !obtainedInfo.getDisplayNameNoScripts(player)) {
 		cancel.name = move->name;
 		cancel.slangName = nullptr;
 		int lenTest = strnlen(move->name, 32);
@@ -8342,10 +8671,8 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 		}
 		cancel.nameIncludesInputs = false;
 	} else {
-		moves.forCancels = true;
-		cancel.name = obtainedInfo.getDisplayName(player);
-		cancel.slangName = obtainedInfo.getDisplayNameSlang(player);
-		moves.forCancels = false;
+		cancel.name = obtainedInfo.getDisplayNameNoScripts(player);
+		cancel.slangName = obtainedInfo.getDisplayNameSlangNoScripts(player);
 		cancel.nameIncludesInputs = obtainedInfo.nameIncludesInputs;
 	}
 	cancel.move = move;
@@ -8592,7 +8919,7 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 		} else {
 			size_t maxCount;
 			if (tickCount - defender.dmgCalcs.back().aswEngineCounter > 3) {
-				maxCount = 10;
+				maxCount = 100;
 			} else {
 				maxCount = 100;
 			}
@@ -8712,6 +9039,7 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 
 void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 	if (iGiveUp || !defenderPtr.isPawn()) return;
+	PlayerInfo& attacker = findPlayer(attackerPtr.playerEntity());
 	PlayerInfo& defender = findPlayer(defenderPtr);
 	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().hitResult != HIT_RESULT_NORMAL) return;
 	DmgCalc& dmgCalc = defender.dmgCalcs.back();
@@ -8735,9 +9063,8 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 	if (attack->type == ATTACK_TYPE_OVERDRIVE && !dmgCalc.isOtg) {
 		bool superHasBeenGoingOnForTooLong = false;
 		bool superCanIgnoreBeingTooLong = false;
-		
 		bool attackerPerformingSuper = false;
-		PlayerInfo& attacker = findPlayer(attackerPtr.playerEntity());
+		
 		if (attacker.pawn) {
 			attackerPerformingSuper = attacker.performingASuper;
 			superHasBeenGoingOnForTooLong = attacker.activesDisp.count > 2 || attacker.activesDisp.total() > 14 || attacker.recovery;
@@ -8814,9 +9141,11 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 
 void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 	if (iGiveUp || !defenderPtr.isPawn()) return;
+	PlayerInfo& attacker = findPlayer(attackerPtr.playerEntity());
 	PlayerInfo& defender = findPlayer(defenderPtr);
 	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().hitResult != HIT_RESULT_NORMAL) return;
-	DmgCalc::DmgCalcU::DmgCalcHit& data = defender.dmgCalcs.back().u.hit;
+	DmgCalc& dmgCalc = defender.dmgCalcs.back();
+	DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
 	const AttackData* attack = defenderPtr.receivedAttack();
 	data.baseStun = attack->stun;
 	data.comboCount = defenderPtr.comboCount();
@@ -8824,6 +9153,129 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 	data.tensionMode = defenderPtr.enemyEntity().tensionMode();
 	data.oldStun = defenderPtr.stun();
 	data.stunMax = defenderPtr.stunThreshold();
+	
+	ProjectileInfo* projectile = nullptr;
+	MoveInfo* projectileMovePtr = nullptr;
+	bool projectileMoveNonEmpty = false;
+	int framebarId = -1;
+	if (!attackerPtr.isPawn()) {
+		projectile = &findProjectile(attackerPtr);
+		if (projectile->ptr && projectile->moveNonEmpty) {
+			projectileMoveNonEmpty = true;
+			projectileMovePtr = &projectile->move;
+			framebarId = projectile->move.framebarId;
+		} else {
+			static MoveInfo projectileMove;
+			projectileMovePtr = &projectileMove;
+			projectileMoveNonEmpty = moves.getInfo(projectileMove,
+				attackerPtr.playerEntity().characterType(),
+				nullptr,
+				attackerPtr.animationName(),
+				true);
+			if (projectileMoveNonEmpty) {
+				framebarId = projectileMove.framebarId;
+			}
+		}
+	}
+	// we check for hitstun and not for comboCount == 1, because some hits don't increment the combo count
+	bool isFirstHit = !defenderPtr.inHitstun();
+	if (isFirstHit) {
+		attacker.comboRecipe.clear();
+	}
+	if (isFirstHit
+			// Answer Firesale does an invisible hit after playing a portion of the superfreeze
+			// we need to ignore that
+			|| attackerPtr.dealtAttack()->isThrow()
+			|| !attackerPtr.dealtAttack()->collisionForceExpand()
+	) {
+		if (attackerPtr.isPawn()) {
+			const AttackData* dealtAttack = attackerPtr.dealtAttack();
+			if (!(
+				// If we do Slayer 5H RRC walk ground throw, we get 5H 6H Ground Throw. It even erases RRC
+				dealtAttack->isThrow()
+				&& dealtAttack->type == ATTACK_TYPE_NORMAL
+				&& attackerPtr.currentAnimDuration() == 1
+			)) {
+				bool needAddNew = false;
+				bool needMarkAsNotWhiff = false;
+				
+				ComboRecipeElement* lastElem = nullptr;
+				if (attacker.lastPerformedMoveNameIsInComboRecipe) {
+					lastElem = attacker.findLastNonProjectileComboElement();
+				}
+				
+				if (
+						attacker.lastPerformedMoveNameIsInComboRecipe
+						&& lastElem && lastElem->whiffed) {
+					needMarkAsNotWhiff = true;
+				} else if (!attacker.lastPerformedMoveNameIsInComboRecipe
+						|| !lastElem
+						|| !lastElem->whiffed
+						&& attacker.moveNonEmpty
+						&& attacker.move.showMultipleHitsFromOneAttack) {
+					needAddNew = true;
+				}
+				
+				if (needMarkAsNotWhiff) {
+					attacker.determineMoveNameAndSlangName(&lastElem->name, &lastElem->slangName);
+					lastElem->counterhit = data.counterHit;
+					lastElem->otg = dmgCalc.isOtg;
+					lastElem->whiffed = false;
+					lastElem->timestamp = getAswEngineTick();
+					attacker.bringComboElementToEnd(lastElem);
+				} else if (needAddNew) {
+					// for moves that can hit before animation frame 3
+					// and also for moves that are allowed to register multiple hits
+					attacker.comboRecipe.emplace_back();
+					ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
+					attacker.determineMoveNameAndSlangName(&newComboElem.name, &newComboElem.slangName);
+					newComboElem.counterhit = data.counterHit;
+					newComboElem.whiffed = false;
+					newComboElem.otg = dmgCalc.isOtg;
+					newComboElem.timestamp = getAswEngineTick();
+					newComboElem.framebarId = -1;
+					attacker.lastPerformedMoveNameIsInComboRecipe = true;
+				}
+			}
+		} else {
+			if (
+					(
+						isFirstHit
+						|| !projectile->ptr
+						|| !projectile->alreadyIncludedInComboRecipe
+						|| projectileMoveNonEmpty
+						&& projectileMovePtr->showMultipleHitsFromOneAttack
+						|| attacker.charType == CHARACTER_TYPE_VENOM
+						&& strcmp(attackerPtr.dealtAttack()->trialName, "Ball_Gold") == 0
+					)
+					&& !(
+						(
+							projectileMoveNonEmpty
+							&& projectileMovePtr->combineHitsFromDifferentProjectiles
+							|| attacker.charType == CHARACTER_TYPE_VENOM
+							&& strcmp(attackerPtr.dealtAttack()->trialName, "Ball_RedHail") == 0
+						)
+						&& attacker.lastComboHitEqualsProjectile(attackerPtr, framebarId)
+						|| !attacker.comboRecipe.empty()
+						&& attacker.comboRecipe.back().framebarId == framebarId
+						&& combineHitsFromFramebarId(framebarId)
+					)) {
+				if (projectile->ptr) projectile->alreadyIncludedInComboRecipe = true;
+				attacker.comboRecipe.emplace_back();
+				ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
+				newComboElem.name = dmgCalc.attackName;
+				newComboElem.slangName = dmgCalc.attackSlangName;
+				newComboElem.whiffed = false;
+				newComboElem.timestamp = getAswEngineTick();
+				newComboElem.isProjectile = true;
+				newComboElem.counterhit = data.counterHit;
+				newComboElem.otg = dmgCalc.isOtg;
+				newComboElem.framebarId = framebarId;
+				memcpy(newComboElem.stateName, attackerPtr.animationName(), 32);
+				memcpy(newComboElem.trialName, attackerPtr.dealtAttack()->trialName, 32);
+			}
+		}
+	}
 }
 
 bool EndScene::drawingPostponed() const {
@@ -8831,7 +9283,7 @@ bool EndScene::drawingPostponed() const {
 }
 
 #ifdef LOG_PATH
-bool loggedDrawingInputsOnce
+bool loggedDrawingInputsOnce = false;
 #endif
 void EndScene::prepareInputs() {
 	InputRingBuffer* sourceBuffers = game.getInputRingBuffers();
@@ -9175,4 +9627,35 @@ void increaseFramesCountUnlimited(int& counterUnlimited, int incrBy, int display
 			+ currentRemainder;
 	}
 	counterUnlimited += incrBy;
+}
+
+// Runs on the main thread. Called from _increaseStunHookAsm, declared in drawQuadExecHook.asm
+void increaseStunHook(Entity pawn, int stunAdd) {
+	endScene.increaseStunHook(pawn, stunAdd);
+}
+
+void EndScene::increaseStunHook(Entity pawn, int stunAdd) {
+	if ((pawn.stun() + stunAdd) / 100 >= pawn.stunThreshold()) {
+		reachedMaxStun[pawn.team()] = pawn.stun() + stunAdd;
+	}
+}
+
+extern "C" void __fastcall jumpInstallNormalJumpHook(void* pawn) {
+	endScene.jumpInstallNormalJumpHook(Entity{ pawn });
+}
+
+void EndScene::jumpInstallNormalJumpHook(Entity pawn) {
+	PlayerInfo& player = findPlayer(pawn);
+	if (!player.pawn) return;
+	player.jumpInstalled = true;
+}
+
+extern "C" void __fastcall jumpInstallSuperJumpHook(void* pawn) {
+	endScene.jumpInstallSuperJumpHook(Entity{ pawn });
+}
+
+void EndScene::jumpInstallSuperJumpHook(Entity pawn) {
+	PlayerInfo& player = findPlayer(pawn);
+	if (!player.pawn) return;
+	player.superJumpInstalled = true;
 }

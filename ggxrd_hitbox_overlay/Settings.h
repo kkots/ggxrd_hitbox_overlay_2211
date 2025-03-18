@@ -157,6 +157,8 @@ public:
 	std::atomic_bool showJackoServantAttackRange = false;
 	std::atomic_bool usePositionResetMod = false;
 	std::atomic_bool showDebugFields = false;
+	std::atomic_bool ignoreNumpadEnterKey = false;
+	std::atomic_bool ignoreRegularEnterKey = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

@@ -329,6 +329,9 @@ public:
 	bool requestedInputHistoryDraw = false;  // if true, inputs must only be drawn using a dedicated FRenderCommand and nowhere else
 	DWORD leftEdgeOfArenaOffset = 0;
 	DWORD rightEdgeOfArenaOffset = 0;
+	void increaseStunHook(Entity pawn, int stunAdd);
+	void jumpInstallNormalJumpHook(Entity pawn);
+	void jumpInstallSuperJumpHook(Entity pawn);
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -570,6 +573,9 @@ private:
 	int getMinBufferTime(const InputType* inputs);
 	hitDetection_t hitDetectionFunc = nullptr;
 	void checkDizzyBubblePops();
+	int reachedMaxStun[2] { -1, -1 };  // on this frame
+	void registerJump(PlayerInfo& player, Entity pawn, const char* animName);
+	void registerRun(PlayerInfo& player, Entity pawn, const char* animName);
 };
 
 extern EndScene endScene;
