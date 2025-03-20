@@ -186,7 +186,7 @@ uintptr_t sigscanCaseInsensitive(uintptr_t start, uintptr_t end, const char* sig
 	char pNext;
 	char pCheck;
 	end -= sigLength;
-	for (uintptr_t p = start; p <= end; p += step[pNext]) {
+	for (uintptr_t p = start; p <= end; p += step[(BYTE)pNext]) {
 		int j = sigLength - 1;
 		pNext = *(char*)(p + j);
 		if (pNext >= 'A' && pNext <= 'Z') pNext = 'a' + pNext - 'A';
