@@ -2485,9 +2485,10 @@ void FrameCancelInfo::clear() {
 	whiffCancelsNote = nullptr;
 }
 
-bool CombinedProjectileFramebar::canBeCombined(const Framebar& source) const {
+bool CombinedProjectileFramebar::canBeCombined(const Framebar& source, int sourceId) const {
 	for (int i = 0; i < (int)_countof(Framebar::frames); ++i) {
-		if (!frameTypeDiscardable(main[i].type) && !frameTypeDiscardable(source[i].type)) return false;
+		if (!frameTypeDiscardable(main[i].type) && !frameTypeDiscardable(source[i].type)
+				&& (sources[i] == nullptr || sourceId != sources[i]->idForCombinedFramebar())) return false;
 	}
 	return true;
 }

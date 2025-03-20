@@ -1194,6 +1194,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.changedAnimOnThisFrame) {
 				player.isRunning = player.startedRunning;
 				if (player.startedRunning && otherEnt.inHitstun()) {
+					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 					player.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = player.comboRecipe.back();
 					newComboElem.name = "";
@@ -1965,6 +1966,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						// and this is from combo recipe window to display RCs
 						if (other.pawn.inHitstun()) {
+							ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 							player.comboRecipe.emplace_back();
 							ComboRecipeElement& newComboElem = player.comboRecipe.back();
 							player.determineMoveNameAndSlangName(&newComboElem.name, &newComboElem.slangName);
@@ -1997,6 +1999,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					)
 					&& !player.lastPerformedMoveNameIsInComboRecipe
 				) {
+					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 					player.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = player.comboRecipe.back();
 					newComboElem.name = player.lastPerformedMoveName;
@@ -2012,6 +2015,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						|| player.jumpNonCancel
 						|| player.superJumpNonCancel
 						|| player.doubleJumped) {
+					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 					player.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = player.comboRecipe.back();
 					
@@ -3741,7 +3745,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		
 		HitDetector::WasHitInfo wasHitResult = hitDetector.wasThisHitPreviously(ent, hurtbox);
-		if (!wasHitResult.wasHit || settings.neverDisplayGrayHurtboxes) {
+		if (!wasHitResult.wasHit || settings.neverDisplayGrayHurtboxes
+				|| ent.isHidden()  // for when supers hide the defender. This is needed to not show hitboxes during a super cinematic
+		) {
 			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
 		}
 		else {
@@ -6132,24 +6138,55 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		combinedFramebarsSettingsChanged = true;
 	}
 	
+	
+	int newFramesCount = settings.framebarDisplayedFramesCount;
+	int newStoredFramesCount = settings.framebarStoredFramesCount;
+	if (newStoredFramesCount < 1) {
+		newStoredFramesCount = 1;
+	}
+	if (newStoredFramesCount > _countof(Framebar::frames)) {
+		newStoredFramesCount = _countof(Framebar::frames);
+	}
+	if (newFramesCount > newStoredFramesCount) {
+		newFramesCount = newStoredFramesCount;
+	}
+	if (newFramesCount < 1) {
+		newFramesCount = 1;
+	}
+	
+	if (newFramesCount != framesCount) {
+		framesCount = newFramesCount;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
+	if (newStoredFramesCount != storedFramesCount) {
+		storedFramesCount = newStoredFramesCount;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
 	// Let UI know which settings we actually used, because UI may change them before drawing the framebar
 	ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
 	ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+	ui.framebarSettings.framesCount = framesCount;
+	ui.framebarSettings.storedFramesCount = storedFramesCount;
 	
 	if ((combinedFramebarsSettingsChanged || frameHasChanged) && !iGiveUp) {
+		
+		const bool recheckCompletelyEmpty = framesCount != _countof(Framebar::frames);
+		int framebarPositionUse;
+		if (neverIgnoreHitstop) {
+			framebarPositionUse = framebarPositionHitstop;
+		} else {
+			framebarPositionUse = framebarPosition;
+		}
+		
 		combinedFramebars.clear();
 		combinedFramebars.reserve(projectileFramebars.size());
 		if (!eachProjectileOnSeparateFramebar) {
 			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop;
-			int framebarPositionUse;
-			if (combinedFramebarMustIncludeHitstop) {
-				framebarPositionUse = framebarPosition;
-			} else {
-				framebarPositionUse = framebarPositionHitstop;
-			}
 			for (const ProjectileFramebar& source : projectileFramebars) {
 				const Framebar& from = combinedFramebarMustIncludeHitstop ? source.hitstop : source.main;
-				if (!from.completelyEmpty) {
+				if (!(from.completelyEmpty || recheckCompletelyEmpty && from.lastNFramesCompletelyEmpty(framebarPositionUse, framesCount))) {
 					CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(source, combinedFramebarMustIncludeHitstop);
 					entityFramebar.combineFramebar(framebarPositionUse, from, &source);
 				}
@@ -6630,8 +6667,9 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		}
 		if (message == WM_KEYDOWN && wParam == 13) {
 			bool isExtended = (lParam & 0x1000000) != 0;
-			if (isExtended && settings.ignoreNumpadEnterKey
-					|| !isExtended && settings.ignoreRegularEnterKey) {
+			if ((isExtended && settings.ignoreNumpadEnterKey
+					|| !isExtended && settings.ignoreRegularEnterKey)
+					&& shouldIgnoreEnterKey()) {
 				return 0;  // 'Application should return 0 if it processes this message' - Microsoft
 			}
 		}
@@ -7170,6 +7208,7 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 				isSuperJump = true;
 			}
 			if (pawn.enemyEntity() && pawn.enemyEntity().inHitstun() && isSuperJump && player.jumpInstalled) {
+				ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 				player.comboRecipe.emplace_back();
 				ComboRecipeElement& newElem = player.comboRecipe.back();
 				newElem.artificial = true;
@@ -7215,6 +7254,7 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 		
 	} else if ((player.jumpInstalled || player.superJumpInstalled) && pawn.enemyEntity() && pawn.enemyEntity().inHitstun()) {
 		
+		ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 		player.comboRecipe.emplace_back();
 		ComboRecipeElement& newElem = player.comboRecipe.back();
 		newElem.artificial = true;
@@ -8498,23 +8538,15 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 }
 
 CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFramebar& source, bool hitstop) {
-	int id;
-	if (source.moveFramebarId != -1) {
-		id = source.moveFramebarId;
-	} else {
-		id = INT_MAX - 1 + source.playerIndex;
-	}
+	int id = source.idForCombinedFramebar();
 	const bool combineProjectileFramebarsWhenPossible = settings.combineProjectileFramebarsWhenPossible;
 	for (CombinedProjectileFramebar& bar : combinedFramebars) {
 		if (
 				bar.playerIndex == source.playerIndex
 				&& (
-					(
-						combineProjectileFramebarsWhenPossible
-							? bar.canBeCombined(hitstop ? source.hitstop : source.main)
-							: false
-					)
-					|| bar.id == id
+					bar.id == id
+					|| combineProjectileFramebarsWhenPossible
+					&& bar.canBeCombined(hitstop ? source.hitstop : source.main, id)
 				)
 		) {
 			if (!(bar.moveFramebarId != -1 && source.moveFramebarId == -1)) {
@@ -9226,6 +9258,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 				} else if (needAddNew) {
 					// for moves that can hit before animation frame 3
 					// and also for moves that are allowed to register multiple hits
+					ui.comboRecipeUpdatedOnThisFrame[attacker.index] = true;
 					attacker.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
 					attacker.determineMoveNameAndSlangName(&newComboElem.name, &newComboElem.slangName);
@@ -9261,6 +9294,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 						&& combineHitsFromFramebarId(framebarId)
 					)) {
 				if (projectile->ptr) projectile->alreadyIncludedInComboRecipe = true;
+				ui.comboRecipeUpdatedOnThisFrame[attacker.index] = true;
 				attacker.comboRecipe.emplace_back();
 				ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
 				newComboElem.name = dmgCalc.attackName;
@@ -9658,4 +9692,12 @@ void EndScene::jumpInstallSuperJumpHook(Entity pawn) {
 	PlayerInfo& player = findPlayer(pawn);
 	if (!player.pawn) return;
 	player.superJumpInstalled = true;
+}
+
+bool EndScene::shouldIgnoreEnterKey() const {
+	if (!*aswEngine) return false;
+	GameMode gameMode = game.getGameMode();
+	if (gameMode == GAME_MODE_NETWORK && game.getPlayerSide() == 2) return false;
+	if (gameMode == GAME_MODE_REPLAY) return false;
+	return true;
 }

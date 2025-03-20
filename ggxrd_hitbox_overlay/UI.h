@@ -98,7 +98,10 @@ public:
 	struct FramebarSettings {
 		bool neverIgnoreHitstop = false;
 		bool eachProjectileOnSeparateFramebar = false;
+		int framesCount = -1;
+		int storedFramesCount = -1;
 	} framebarSettings;
+	bool comboRecipeUpdatedOnThisFrame[2] { false, false };
 	
 	bool screenSizeKnown = false;
 	float screenWidth = 0.F;

@@ -710,6 +710,7 @@ struct ProjectileFramebar : public EntityFramebar {
 	virtual const FramebarBase& getHitstop() const override;
 	virtual const FramebarBase& getIdle() const override;
 	virtual const FramebarBase& getIdleHitstop() const override;
+	inline int idForCombinedFramebar() const { if (moveFramebarId == -1) return INT_MAX - 1 + playerIndex; else return moveFramebarId; }
 };
 	
 struct CombinedProjectileFramebar : public EntityFramebar {
@@ -718,6 +719,7 @@ struct CombinedProjectileFramebar : public EntityFramebar {
 	Framebar main { };  // the one framebar that is displayed
 	bool isEddie = false;
 	const ProjectileFramebar* sources[_countof(Framebar::frames)] { nullptr };
+	int combinedIds[_countof(Framebar::frames)] { 0 };
 	virtual void copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const override;
 	virtual void copyFrame(FrameBase& destFrame, FrameBase&& srcFrame) const override;
 	virtual void copyActiveDuringSuperfreeze(FrameBase& destFrame, const FrameBase& srcFrame) const override;
@@ -738,7 +740,7 @@ struct CombinedProjectileFramebar : public EntityFramebar {
 	virtual const FramebarBase& getHitstop() const override;
 	virtual const FramebarBase& getIdle() const override;
 	virtual const FramebarBase& getIdleHitstop() const override;
-	bool canBeCombined(const Framebar& source) const;
+	bool canBeCombined(const Framebar& source, int sourceId) const;
 	void combineFramebar(int framebarPosition, const Framebar& source, const ProjectileFramebar* dad);
 	void determineName(int framebarPosition, bool isHitstop);
 };

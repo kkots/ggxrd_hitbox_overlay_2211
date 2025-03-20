@@ -1227,3 +1227,8 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   13) Added a 'Weight' field to the "Speed/Hitstun Proration/..." panel.
   14) If 'Show debug fields' checkbox is checked, will now show a 'trial' name in the 'Anim' field in parentheses, if present. For example, Venom Bishop Runout and Red Hail balls have 'trial' names.
   15) "Damage/RISC/Stun Calculation" panels have been swapped for Player 1 and Player 2. Now you need to click the player that was the attacker to see what damage their hits dealt.
+  - 2025 March 20: Version 6.18:
+  1) The feature that lets you ignore Enter key presses will now only work during matches, except when observing an online match or replay mode.
+  2) Fixed a situation which happened while the checkbox 'Combine Projectile Framebars When Possible' is checked (which is the default), in which repeat projectiles like DI Ground Viper Explosions would associate themselves with a framebar of another projectile, like a Gold Burst for example, and then the next projectiles of the exact same type (more explosions) would refuse to go onto that framebar and instead place themselves onto a new one, thus having 2 framebars shown for DI Ground Viper Explosions, which should all be on one framebar.
+  3) Combo Recipe panel will autoscroll to the bottom whenever a new action is added to it.
+  4) Fixed an issue when using the search button would permanently render all elements stuck close to each other horizontally until the mod is uninjected and injected again.

@@ -7102,6 +7102,17 @@ void UI::drawSearchableWindows() {
 				
 				ImGui::EndTable();
 			}
+			float totalViewableArea = ImGui::GetWindowHeight() - ImGui::GetStyle().FramePadding.y * 2 - ImGui::GetFontSize();
+			float totalContentSize = ImGui::GetCursorPosY();
+			if (comboRecipeUpdatedOnThisFrame[i]) {
+				comboRecipeUpdatedOnThisFrame[i] = false;
+				// simply calling ImGui::GetScrollY(ImGui::GetScrollMaxY()) made it scroll to the penultimate line
+				// probably because ImGui::GetScrollMaxY() returns the value from the ImGui::Begin call so it can be compared to ImGui::GetScrollY(),
+				// also from that call
+				if (totalContentSize > totalViewableArea) {
+					ImGui::SetScrollY(totalContentSize - totalViewableArea);
+				}
+			}
 			ImGui::End();
 			ImGui::PopID();
 		}
@@ -11900,6 +11911,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 		x += 5;
 		sprintf_s(strbuf, "%d", x);
 		yellowText(strbuf);
+		_zerohspacing
 	}
 	
 	if (dmgCalc.hitResult == HIT_RESULT_NORMAL) {
@@ -12224,29 +12236,16 @@ void UI::drawFramebars() {
 		// also we're going to add a 1px outline all around the text, so that adds 2 more pixels
 	}
 	
-	drawFramebars_framesCount = settings.framebarDisplayedFramesCount;
-	int storedFramesCount = settings.framebarStoredFramesCount;
-	if (storedFramesCount < 1) {
-		storedFramesCount = 1;
-	}
-	if (storedFramesCount > _countof(Framebar::frames)) {
-		storedFramesCount = _countof(Framebar::frames);
-	}
-	if (drawFramebars_framesCount > storedFramesCount) {
-		drawFramebars_framesCount = storedFramesCount;
-	}
-	if (drawFramebars_framesCount < 1) {
-		drawFramebars_framesCount = 1;
-	}
+	drawFramebars_framesCount = framebarSettings.framesCount;
 	
 	int framebarTotalFramesUnlimited = framebarSettings.neverIgnoreHitstop
 		? endScene.getTotalFramesHitstopUnlimited()
 		: endScene.getTotalFramesUnlimited();
 	
-	// Capped between 0 and storedFramesCount, inclusive
+	// Capped between 0 and framebarSettings.storedFramesCount, inclusive
 	int framebarTotalFramesCapped;
-	if (framebarTotalFramesUnlimited > storedFramesCount) {
-		framebarTotalFramesCapped = storedFramesCount;
+	if (framebarTotalFramesUnlimited > framebarSettings.storedFramesCount) {
+		framebarTotalFramesCapped = framebarSettings.storedFramesCount;
 	} else {
 		framebarTotalFramesCapped = framebarTotalFramesUnlimited;
 	}

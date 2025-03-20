@@ -548,6 +548,8 @@ private:
 	bool neverIgnoreHitstop = false;
 	bool combineProjectileFramebarsWhenPossible = false;
 	bool eachProjectileOnSeparateFramebar = false;
+	int framesCount = -1;
+	int storedFramesCount = -1;
 	bool isHoldingFD(const PlayerInfo& player) const;
 	bool isHoldingFD(Entity pawn) const;
 	void prepareInputs();
@@ -576,6 +578,7 @@ private:
 	int reachedMaxStun[2] { -1, -1 };  // on this frame
 	void registerJump(PlayerInfo& player, Entity pawn, const char* animName);
 	void registerRun(PlayerInfo& player, Entity pawn, const char* animName);
+	bool shouldIgnoreEnterKey() const;
 };
 
 extern EndScene endScene;
