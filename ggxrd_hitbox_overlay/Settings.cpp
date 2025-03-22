@@ -4,7 +4,7 @@
 #include "Keyboard.h"
 #include "GifMode.h"
 #include "Detouring.h"
-#include "WinError.h"
+#include "WError.h"
 #include <list>
 #include "UI.h"
 #include "CustomWindowMessages.h"

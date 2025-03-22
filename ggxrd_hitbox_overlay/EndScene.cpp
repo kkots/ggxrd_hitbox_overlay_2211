@@ -19,7 +19,7 @@
 #include "Keyboard.h"
 #include "GifMode.h"
 #include "memoryFunctions.h"
-#include "WinError.h"
+#include "WError.h"
 #include "UI.h"
 #include "CustomWindowMessages.h"
 #include "Hud.h"
@@ -1191,9 +1191,31 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (player.rcSlowedDown) player.blockstunContaminatedByRCSlowdown = true;
 			}
 			
+			bool startedRunOrWalkOnThisFrame = false;
 			if (player.changedAnimOnThisFrame) {
-				player.isRunning = player.startedRunning;
-				if (player.startedRunning && otherEnt.inHitstun()) {
+				
+				bool oldIsRunning = player.isRunning;
+				bool oldIsWalkingForward = player.isWalkingForward;
+				bool oldIsWalkingBackward = player.isWalkingBackward;
+				
+				player.isRunning = false;
+				player.isWalkingForward = false;
+				player.isWalkingBackward = false;
+				if (player.startedRunning) {
+					player.isRunning = true;
+				} else if (player.startedWalkingForward) {
+					player.isWalkingForward = true;
+				} else if (player.startedWalkingBackward) {
+					player.isWalkingBackward = true;
+				}
+					
+				if ((
+						player.startedRunning && !oldIsRunning
+						|| player.startedWalkingForward && !oldIsWalkingForward  // for combining Faust 3 and 6 walks
+						|| player.startedWalkingBackward && !oldIsWalkingBackward
+					) && otherEnt.inHitstun()
+				) {
+					startedRunOrWalkOnThisFrame = true;
 					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 					player.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = player.comboRecipe.back();
@@ -1201,13 +1223,31 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					newComboElem.timestamp = aswEngineTickCount;
 					newComboElem.framebarId = -1;
 					newComboElem.dashDuration = 1;
+					if (player.startedRunning) {
+						// do nothing
+					} else if (player.startedWalkingForward) {
+						newComboElem.isWalkForward = true;
+					} else if (player.startedWalkingBackward) {
+						newComboElem.isWalkBackward = true;
+					}
 				}
 			}
 			
-			if (player.isRunning && !player.hitstop && !superflashInstigator && !player.startedRunning && otherEnt.inHitstun()) {
+			if ((player.isRunning || player.isWalkingForward || player.isWalkingBackward)
+					&& !player.hitstop && !superflashInstigator && !startedRunOrWalkOnThisFrame && otherEnt.inHitstun()) {
 				ComboRecipeElement* lastElem = player.findLastDash();
 				if (lastElem) {
-					++lastElem->dashDuration;
+					bool ok = false;
+					if (player.isRunning) {
+						ok = !lastElem->isWalkForward && !lastElem->isWalkBackward;
+					} else if (player.isWalkingForward) {
+						ok = lastElem->isWalkForward;
+					} else if (player.isWalkingBackward) {
+						ok = lastElem->isWalkBackward;
+					}
+					if (ok) {
+						++lastElem->dashDuration;
+					}
 				}
 			}
 			
@@ -7270,6 +7310,10 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName) {
 	if (strcmp(animName, "CmnActFDash") == 0) {
 		player.startedRunning = true;
+	} else if (strcmp(animName, "CrouchFWalk") == 0 || strcmp(animName, "CmnActFWalk") == 0) {
+		player.startedWalkingForward = true;
+	} else if (strcmp(animName, "CrouchBWalk") == 0 || strcmp(animName, "CmnActBWalk") == 0) {
+		player.startedWalkingBackward = true;
 	}
 }
 
@@ -7433,6 +7477,8 @@ void EndScene::frameCleanup() {
 		player.superJumpCancelled = false;
 		player.doubleJumped = false;
 		player.startedRunning = false;
+		player.startedWalkingForward = false;
+		player.startedWalkingBackward = false;
 		player.setHitstopMax = false;
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = false;

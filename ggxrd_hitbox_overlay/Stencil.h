@@ -6,6 +6,8 @@
 class Stencil
 {
 public:
+	DWORD lastWidth = 0;
+	DWORD lastHeight = 0;
 private:
 	friend class Graphics;
 	void onEndSceneStart();

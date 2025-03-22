@@ -6,7 +6,7 @@
 #include "EndScene.h"
 #include "Camera.h"
 #include "GifMode.h"
-#include "WinError.h"
+#include "WError.h"
 #include "EntityList.h"
 #include "AltModes.h"
 #include "HitDetector.h"

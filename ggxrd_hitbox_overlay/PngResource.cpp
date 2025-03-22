@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "PngResource.h"
-#include "WinError.h"
+#include "WError.h"
 #include "png.h"
 #include <vector>
 #include "logging.h"

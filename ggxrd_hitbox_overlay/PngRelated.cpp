@@ -3,7 +3,7 @@
 #include "logging.h"
 #include "Settings.h"
 #include "png.h"
-#include "WinError.h"
+#include "WError.h"
 
 PngRelated pngRelated;
 

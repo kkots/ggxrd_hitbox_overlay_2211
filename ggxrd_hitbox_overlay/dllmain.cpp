@@ -19,7 +19,7 @@
 #include <fcntl.h>  // for _O_APPEND
 #include "imgui.h"
 #include "UI.h"
-#include "WinError.h"
+#include "WError.h"
 #include "Moves.h"
 #include "InputNames.h"
 

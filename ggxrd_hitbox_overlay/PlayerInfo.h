@@ -1156,7 +1156,7 @@ struct ComboRecipeElement {
 	char trialName[32] { '\0' };  // for projectiles
 	const char* name = nullptr;
 	const char* slangName = nullptr;
-	int dashDuration = 0;
+	int dashDuration = 0;  // also used for walk forward and walk backward
 	DWORD timestamp = 0;  // might mean either earliest hit or the time the move was initiated
 	int framebarId = 0;  // for projectiles
 	bool whiffed = true;
@@ -1165,6 +1165,8 @@ struct ComboRecipeElement {
 	bool isMeleeAttack = false;
 	bool isProjectile = false;
 	bool artificial = false;
+	bool isWalkForward = false;
+	bool isWalkBackward = false;
 };
 
 // This struct is cleared using memset to 0. If you add complex elements, add them into the clear() method as well
@@ -1660,6 +1662,10 @@ struct PlayerInfo {
 	bool isRunning:1;
 	bool jumpInstalled:1;
 	bool superJumpInstalled:1;
+	bool startedWalkingForward:1;
+	bool isWalkingForward:1;
+	bool startedWalkingBackward:1;
+	bool isWalkingBackward:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

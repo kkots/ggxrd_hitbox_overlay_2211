@@ -4,7 +4,7 @@
 #include "logging.h"
 #include "Settings.h"
 #include "CustomWindowMessages.h"
-#include "WinError.h"
+#include "WError.h"
 #include "Detouring.h"
 #include "GifMode.h"
 #include "Game.h"
@@ -1921,6 +1921,16 @@ void UI::drawSearchableWindows() {
 				"You can use the \"toggleAllowCreateParticles\" shortcut to toggle this option.");
 		}
 		HelpMarkerWithHotkey(allowCreateParticlesHelp, settings.toggleAllowCreateParticles);
+		
+		if (settings.showDebugFields) {
+			bool usePixelShader = graphics.usePixelShader;
+			if (ImGui::Checkbox(searchFieldTitle("Use Pixel Shader"), &usePixelShader)) {
+				graphics.usePixelShader = usePixelShader;
+			}
+			ImGui::SameLine();
+			HelpMarker(searchTooltip("The pixel shader is used to draw the outlines of red hitboxes"
+				" on top of red background using black color, for example."));
+		}
 		
 	}
 	popSearchStack();
@@ -7091,10 +7101,18 @@ void UI::drawSearchableWindows() {
 							chosenName,
 							elem.isProjectile ? " (Hit)" : "",
 							lastSuffix);
+					} else if (elem.isWalkForward) {
+						sprintf_s(strbuf, "%df %s",
+							elem.dashDuration,
+							elem.dashDuration >= 10 ? "Walk" : "Microwalk");
+					} else if (elem.isWalkBackward) {
+						sprintf_s(strbuf, "%df %s",
+							elem.dashDuration,
+							elem.dashDuration >= 10 ? "Walk Back" : "Microwalk Back");
 					} else {
 						sprintf_s(strbuf, "%df %s",
 							elem.dashDuration,
-							elem.dashDuration >= 10 ? "Dash" : "Micordash");
+							elem.dashDuration >= 10 ? "Dash" : "Microdash");
 					}
 					
 					if (elem.isProjectile) {

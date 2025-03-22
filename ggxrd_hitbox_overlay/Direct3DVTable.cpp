@@ -30,3 +30,8 @@ bool Direct3DVTable::onDllMain() {
 	}
 	return true;
 }
+
+// using this method as an alternative to the standard device->GetRenderTarget() eventually causes the application to freeze, I don't know why
+IDirect3DSurface9* Direct3DVTable::getRenderTarget() {
+	return *(IDirect3DSurface9**)(*(char**)(*d3dManager + 0x28) + 0x8);
+}

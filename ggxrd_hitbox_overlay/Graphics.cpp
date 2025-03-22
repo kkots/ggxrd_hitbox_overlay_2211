@@ -12,7 +12,7 @@
 #include "Settings.h"
 #include "UI.h"
 #include "resource.h"
-#include "WinError.h"
+#include "WError.h"
 #include <d3dcompiler.h>
 #include "resource.h"
 #include <D3DX9Shader.h>
@@ -330,7 +330,16 @@ HRESULT __stdcall Graphics::presentHook(IDirect3DDevice9* device, const RECT* pS
 	// before running what it thinks is the "real" Present, so anything Steam (or we) draw is invisible to OBS.
 	// OBS has a setting to do capturing at the end of Present though, so it is still possible to record
 	// Steam overlay and what we draw.
-	return graphics.orig_present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	HRESULT result = graphics.orig_present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	graphics.mayRunBeginSceneHook = false;  // sometimes when unlocking the Windows machine while OBS is on and OBS dodging is on,
+	// Steam does not run its BeginScene inside Present,
+	// so we must unset our flag and wait for better days, until Steam does decide to run it.
+	// If we don't unset our flag, the next BeginScene call, that is not inside a Present, will happen from the game itself,
+	// and the render target is wrong at that moment. It is some smaller sized render target that is definitely not the game's
+	// screen or the like. The alternative method of obtaining the "correct" render target, direct3DVTable.getRenderTarget(), leads to
+	// unconditional freezing (I, however, spent 5 minutes investigating it, so there may be a way to actually use it),
+	// so we're at the mercy of using whatever render target the game decides to give us at the moment of our shitty hook
+	return result;
 }
 
 HRESULT __stdcall Graphics::beginSceneHookStatic(IDirect3DDevice9* device) {
@@ -1031,6 +1040,8 @@ void Graphics::drawAll() {
 		renderStateValues[RenderStateType(TRANSFORM_MATRICES)] = RenderStateValue(TRANSFORM_MATRICES, NONE);
 		device->CreateStateBlock(D3DSBT_ALL, &oldState);
 		device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);
+		device->SetRenderState(D3DRS_STENCILREF, 0);
+		device->SetRenderState(D3DRS_STENCILMASK, 0xFFFFFFFF);
 		device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCRSAT);
 		device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 		renderStateValues[RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -1040,10 +1051,14 @@ void Graphics::drawAll() {
 		renderStateValues[RenderStateType(D3DRS_DESTBLEND)] = RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 		device->SetRenderState(D3DRS_LIGHTING, FALSE);
 		
+		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		renderStateValues[RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
+		device->SetPixelShader(nullptr);
 		renderStateValues[RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NONE);
 		preparedPixelShaderOnThisFrame = false;
+		device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 		renderStateValues[RenderStateType(D3DRS_SRCBLENDALPHA)] = RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
+		device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
 		renderStateValues[RenderStateType(D3DRS_DESTBLENDALPHA)] = RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA);
 		
 		device->SetTexture(0, nullptr);
@@ -1689,7 +1704,7 @@ void Graphics::prepareSmallPoint(const DrawPointCallParams& params) {
 IDirect3DSurface9* Graphics::getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr) {
 	D3DSURFACE_DESC renderTargetDesc;
 	if (!renderTargetDescPtr) {
-		CComPtr<IDirect3DSurface9> renderTarget;
+		CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();  // this will AddRef
 		if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
 			logwrap(fputs("GetRenderTarget failed\n", logfile));
 			return nullptr;
@@ -1731,8 +1746,9 @@ bool Graphics::takeScreenshotBegin(IDirect3DDevice9* device) {
 	}
 	
 	D3DSURFACE_DESC renderTargetDesc;
+	CComPtr<IDirect3DSurface9> gameRenderTarget = direct3DVTable.getRenderTarget();  // this will AddRef
 	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
-	if (FAILED(oldRenderTarget->GetDesc(&renderTargetDesc))) {
+	if (FAILED(gameRenderTarget->GetDesc(&renderTargetDesc))) {
 		logwrap(fputs("GetDesc failed\n", logfile));
 		return false;
 	}
@@ -1776,7 +1792,7 @@ bool Graphics::takeScreenshotBegin(IDirect3DDevice9* device) {
 	}
 	
 	setOldRenderTargetOnFail.success = true;
-	gamesRenderTarget = oldRenderTarget;
+	whateverOldRenderTarget = oldRenderTarget;
 	return true;
 }
 
@@ -1794,6 +1810,7 @@ void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
 	PERFORMANCE_MEASUREMENT_START
 	
 	CComPtr<IDirect3DSurface9> renderTarget;
+	// this is actually correct, we want the render target that we just drew boxes into
 	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
 		logwrap(fputs("GetRenderTarget failed\n", logfile));
 		return;
@@ -1807,9 +1824,9 @@ void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
 	std::vector<unsigned char> boxesImage;
 	if (!getFramebufferData(device, boxesImage, renderTarget, &renderTargetDesc)) return;
 
-
+	CComPtr<IDirect3DSurface9> gameRenderTarget = direct3DVTable.getRenderTarget();  // this will AddRef
 	std::vector<unsigned char> gameImage;
-	if (!getFramebufferData(device, gameImage, gamesRenderTarget, &renderTargetDesc)) return;
+	if (!getFramebufferData(device, gameImage, gameRenderTarget, &renderTargetDesc)) return;
 	
 	PERFORMANCE_MEASUREMENT_END(takeScreenshotEnd_getFramebufferData)
 	
@@ -1831,7 +1848,7 @@ void Graphics::takeScreenshotEnd(IDirect3DDevice9* device) {
 }
 
 void Graphics::takeScreenshotSimple(IDirect3DDevice9* device) {
-	CComPtr<IDirect3DSurface9> renderTarget;
+	CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();  // this will AddRef
 	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
 		logwrap(fputs("GetRenderTarget failed\n", logfile));
 		return;
@@ -1878,6 +1895,7 @@ bool Graphics::getFramebufferData(IDirect3DDevice9* device,
 		unsigned int* heightPtr) {
 	CComPtr<IDirect3DSurface9> renderTargetComPtr;
 	if (!renderTarget) {
+		renderTargetComPtr;// = direct3DVTable.getRenderTarget();  // this will AddRef
 		if (FAILED(device->GetRenderTarget(0, &renderTargetComPtr))) {
 			logwrap(fputs("GetRenderTarget failed\n", logfile));
 			return false;
@@ -1899,7 +1917,7 @@ bool Graphics::getFramebufferData(IDirect3DDevice9* device,
 	IDirect3DSurface9* offscreenSurface = getOffscreenSurface(renderTargetDescPtr);
 	if (!offscreenSurface) return false;
 	if (FAILED(device->GetRenderTargetData(renderTarget, offscreenSurface))) {
-		logwrap(fprintf(logfile, "GetRenderTargetData failed. renderTarget is: %p. offscreenSurface is %p. gamesRenderTarget is %p\n", renderTarget, offscreenSurface, gamesRenderTarget.p));
+		logwrap(fprintf(logfile, "GetRenderTargetData failed. renderTarget is: %p. offscreenSurface is %p\n", renderTarget, offscreenSurface));
 		return false;
 	}
 
@@ -2101,8 +2119,8 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	
 	takeScreenshotEnd(device);
 	screenshotStage = SCREENSHOT_STAGE_NONE;
-	device->SetRenderTarget(0, gamesRenderTarget);
-	gamesRenderTarget = nullptr;
+	device->SetRenderTarget(0, whateverOldRenderTarget);
+	whateverOldRenderTarget = nullptr;
 	stencil.onEndSceneEnd(device);
 	oldState->Apply();
 	bringBackOldTransform(device);
@@ -2277,7 +2295,8 @@ IDirect3DTexture9* Graphics::getOutlinesRTSamplingTexture(IDirect3DDevice9* devi
 	if (outlinesRTSamplingTexture) return outlinesRTSamplingTexture;
 	
 	D3DSURFACE_DESC renderTargetDesc;
-	CComPtr<IDirect3DSurface9> renderTarget;
+	CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();  // this will AddRef
+	// This render target is just wrong sometimes. It has wrong size and everything
 	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
 		failedToCreateOutlinesRTSamplingTexture = true;
 		logwrap(fputs("GetRenderTarget failed\n", logfile));
@@ -2391,7 +2410,7 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 	if (!tex) return;
 	
 	if (!preparedPixelShaderOnThisFrame) {
-		CComPtr<IDirect3DSurface9> renderTarget;
+		CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();
 		if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
 			logwrap(fputs("GetRenderTarget failed\n", logfile));
 			return;
@@ -2534,7 +2553,13 @@ void Graphics::RenderStateHandler(D3DRS_ALPHABLENDENABLE)::handleChange(RenderSt
 }
 void Graphics::RenderStateHandler(PIXEL_SHADER)::handleChange(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(PIXEL_SHADER, CUSTOM_PIXEL_SHADER): graphics.preparePixelShader(graphics.device); break;
+		case RenderStateValue(PIXEL_SHADER, CUSTOM_PIXEL_SHADER):
+			if (graphics.usePixelShader) {
+				graphics.preparePixelShader(graphics.device);
+			} else {
+				graphics.device->SetPixelShader(nullptr);
+			}
+			break;
 		case RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER):
 			graphics.device->SetPixelShader(nullptr);
 			// texture will get reset to 0 by the RenderStateValue(TEXTURE) handler

@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "WinError.h"
+#include "WError.h"
 
 // This is an almost exact copy-paste of the WinError.cpp file from ggxrd_hitbox_injector project
 

@@ -75,8 +75,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{0DEB3A
 		common\InjectorCommonOut.cpp = common\InjectorCommonOut.cpp
 		common\InjectorCommonOut.h = common\InjectorCommonOut.h
 		common\prebuild.ps1 = common\prebuild.ps1
+		common\WError.h = common\WError.h
 		common\WinError.cpp = common\WinError.cpp
-		common\WinError.h = common\WinError.h
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ggxrd_hitbox_patcher", "ggxrd_hitbox_patcher\ggxrd_hitbox_patcher.vcxproj", "{43818491-8440-401E-8D2A-BCD3311609FF}"

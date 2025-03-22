@@ -74,6 +74,7 @@ public:
 	bool obsReappeared = false;
 	bool onlyDrawInputHistory = false;
 	bool inputHistoryIsSplitOut = false;  // if true, inputs must only be drawn using a dedicated FRenderCommand and nowhere else
+	bool usePixelShader = true;
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -151,7 +152,7 @@ private:
 		unsigned int* widthPtr = nullptr,
 		unsigned int* heightPtr = nullptr);
 	void takeScreenshotSimple(IDirect3DDevice9* device);
-	CComPtr<IDirect3DSurface9> gamesRenderTarget = nullptr;
+	CComPtr<IDirect3DSurface9> whateverOldRenderTarget = nullptr;  // just to put it back after we're done, we don't know what this is, it might be some weird smaller sized render target
 	
 	enum RenderStateDrawingWhat {
 		RENDER_STATE_DRAWING_NOTHING,

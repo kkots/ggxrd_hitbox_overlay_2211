@@ -186,7 +186,7 @@
     <ClInclude Include="InjectorConsoleVersion.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="..\common\WinError.h" />
+    <ClInclude Include="..\common\WError.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="prebuild.ps1" />

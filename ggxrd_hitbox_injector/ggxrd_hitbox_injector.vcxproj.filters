@@ -27,7 +27,7 @@
     <ClInclude Include="ggxrd_hitbox_injector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\WinError.h">
+    <ClInclude Include="..\common\WError.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="pch.h">

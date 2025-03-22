@@ -2,7 +2,7 @@
 #include "ggxrd_hitbox_injector_common.h"
 #include "Psapi.h"
 #include <string>
-#include "WinError.h"
+#include "WError.h"
 #include "InjectorCommonOut.h"
 
 InjectorCommonOut outputObject;

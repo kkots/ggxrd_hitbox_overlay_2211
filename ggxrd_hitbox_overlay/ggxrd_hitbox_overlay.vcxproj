@@ -232,7 +232,7 @@
     <ClInclude Include="Throws.h" />
     <ClInclude Include="UI.h" />
     <ClInclude Include="Version.h" />
-    <ClInclude Include="..\common\WinError.h" />
+    <ClInclude Include="..\common\WError.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\imgui\backends\imgui_impl_dx9.cpp">

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Stencil.h"
 #include "logging.h"
+#include "Direct3DVTable.h"
 
 void Stencil::onEndSceneStart() {
 	initialized = false;
@@ -61,7 +62,7 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 		SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
 		DWORD renderTargetIndex = 0;
 		for (; ; ++renderTargetIndex) {
-			CComPtr<IDirect3DSurface9> renderTarget;
+			CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();  // this will AddRef
 			HRESULT getRenderTargetResult = device->GetRenderTarget(renderTargetIndex, &renderTarget);
 			if (getRenderTargetResult == D3DERR_NOTFOUND) {
 				break;
@@ -70,7 +71,7 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 				logOnce(fputs("GetRenderTarget failed\n", logfile));
 				direct3DError = true;
 				return;
-			}
+			}//
 
 			if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
 				logOnce(fputs("GetDesc failed\n", logfile));
@@ -94,7 +95,9 @@ void Stencil::initialize(IDirect3DDevice9* device) {
 		else {
 			logOnce(fputs("CheckDepthStencilMatch succeeded\n", logfile));
 		}
-
+		
+		lastWidth = renderTargetDesc.Width;
+		lastHeight = renderTargetDesc.Height;
 		if (FAILED(device->CreateDepthStencilSurface(
 			renderTargetDesc.Width,
 			renderTargetDesc.Height,

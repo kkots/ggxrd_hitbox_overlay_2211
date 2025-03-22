@@ -5,7 +5,7 @@
 #include <algorithm>
 #include "memoryFunctions.h"
 #ifdef LOG_PATH
-#include "WinError.h"
+#include "WError.h"
 #endif
 
 Detouring detouring;
