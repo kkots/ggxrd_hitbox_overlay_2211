@@ -330,6 +330,8 @@ HRESULT __stdcall Graphics::presentHook(IDirect3DDevice9* device, const RECT* pS
 	// before running what it thinks is the "real" Present, so anything Steam (or we) draw is invisible to OBS.
 	// OBS has a setting to do capturing at the end of Present though, so it is still possible to record
 	// Steam overlay and what we draw.
+	
+	// If Pangaea's mod is installed, its hook will be before Steam's.
 	HRESULT result = graphics.orig_present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 	graphics.mayRunBeginSceneHook = false;  // sometimes when unlocking the Windows machine while OBS is on and OBS dodging is on,
 	// Steam does not run its BeginScene inside Present,

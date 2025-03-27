@@ -639,6 +639,29 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(ignoreRegularEnterKey), "Ignore Regular Enter Key", settingsGeneralSettingsStr,
 		"; Specify true or false.\n"
 		"; Setting this to true will hide the non-numpad Enter key presses from the game.");
+	
+	const char* comboRecipeSettingsStr = "Combo Recipe";
+	registerOtherDescription(settingAndItsName(comboRecipe_showDelaysBetweenCancels), "Show Delays Between Cancels", comboRecipeSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true (default) will show delays on dedicated separate lines in gray text in the following format: '(Delay #f)',\n"
+		"; where # is a number.");
+	registerOtherDescription(settingAndItsName(comboRecipe_showIdleTimeBetweenMoves), "Show Idle Time Between Moves", comboRecipeSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true (default) will show idle time on dedicated separate lines in gray text in the following format: '(Idle #f)',\n"
+		"; where # is a number.");
+	registerOtherDescription(settingAndItsName(comboRecipe_showDashes), "Show Microdashes/Dashes", comboRecipeSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true (default) will show microdashes and dashes on dedicated separate lines in the following format:\n"
+		"; '#f Microdash/Dash', where # is a number.");
+	registerOtherDescription(settingAndItsName(comboRecipe_showWalks), "Show Microwalks/Walks", comboRecipeSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true (default) will show microwalks and walks on dedicated separate lines in the following format:\n"
+		"; '#f Microwalk/Walk/Microwalk Back/Walk Back', where # is a number.");
+	
+	registerOtherDescription(settingAndItsName(startingTensionPulse), "Starting Tension Pulse", settingsGeneralSettingsStr,
+		"; A number.\n"
+		"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.\n"
+		"; Must be in the range [-25000; +25000].");
 	#undef settingAndItsName
 	
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));
@@ -922,6 +945,11 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool ignoreNumpadEnterKeyParsed = false;
 	bool ignoreRegularEnterKeyParsed = false;
+	
+	bool comboRecipe_showDelaysBetweenCancelsParsed = false;
+	bool comboRecipe_showIdleTimeBetweenMovesParsed = false;
+	bool comboRecipe_showDashesParsed = false;
+	bool comboRecipe_showWalksParsed = false;
 
 	std::string accum;
 	char buf[128];
@@ -1075,6 +1103,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(showDebugFields)
 						booleanPreset(ignoreNumpadEnterKey)
 						booleanPreset(ignoreRegularEnterKey)
+						booleanPreset(comboRecipe_showDelaysBetweenCancels)
+						booleanPreset(comboRecipe_showIdleTimeBetweenMoves)
+						booleanPreset(comboRecipe_showDashes)
+						booleanPreset(comboRecipe_showWalks)
 						#undef booleanPreset
 						#undef integerPreset
 					}
@@ -1401,6 +1433,22 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!ignoreRegularEnterKeyParsed) {
 		ignoreRegularEnterKey = false;
+	}
+	
+	if (!comboRecipe_showDelaysBetweenCancelsParsed) {
+		comboRecipe_showDelaysBetweenCancels = true;
+	}
+	
+	if (!comboRecipe_showIdleTimeBetweenMovesParsed) {
+		comboRecipe_showIdleTimeBetweenMoves = true;
+	}
+	
+	if (!comboRecipe_showDashesParsed) {
+		comboRecipe_showDashes = true;
+	}
+	
+	if (!comboRecipe_showWalksParsed) {
+		comboRecipe_showWalks = true;
 	}
 	
 	if (firstSettingsParse) {
@@ -1973,6 +2021,10 @@ void Settings::writeSettingsMain() {
 	booleanPreset(showDebugFields)
 	booleanPreset(ignoreNumpadEnterKey)
 	booleanPreset(ignoreRegularEnterKey)
+	booleanPreset(comboRecipe_showDelaysBetweenCancels)
+	booleanPreset(comboRecipe_showIdleTimeBetweenMoves)
+	booleanPreset(comboRecipe_showDashes)
+	booleanPreset(comboRecipe_showWalks)
 	booleanPreset(neverDisplayGrayHurtboxes)
 	booleanPreset(dontShowBoxes)
 	booleanPreset(displayUIOnTopOfPauseMenu)

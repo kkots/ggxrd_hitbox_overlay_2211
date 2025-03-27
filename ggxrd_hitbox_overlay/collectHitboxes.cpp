@@ -636,18 +636,32 @@ void collectHitboxes(Entity ent,
 				interactionBoxes->push_back(interactionBoxParams);
 			}
 		} else if (state.charType == CHARACTER_TYPE_BAIKEN) {
-			if (strcmp(ent.animationName(), "BlockingKakusei") == 0 && ent.currentAnimDuration() <= 6) {
-				DrawBoxCallParams interactionBoxParams;
-				interactionBoxParams.left = params.posX - 500000;
-				interactionBoxParams.right = params.posX + 500000;
-				interactionBoxParams.top = params.posY + 400000;
-				interactionBoxParams.bottom = params.posY - 400000;
-				if (ent.currentAnimDuration() == 1) {
-					interactionBoxParams.fillColor = replaceAlpha(64, COLOR_INTERACTION);
+			if (strcmp(ent.animationName(), "BlockingKakusei") == 0) {
+				if (ent.currentAnimDuration() <= 6) {
+					DrawBoxCallParams interactionBoxParams;
+					interactionBoxParams.left = params.posX - 500000;
+					interactionBoxParams.right = params.posX + 500000;
+					interactionBoxParams.top = params.posY + 400000;
+					interactionBoxParams.bottom = params.posY - 400000;
+					if (ent.currentAnimDuration() == 1) {
+						interactionBoxParams.fillColor = replaceAlpha(64, COLOR_INTERACTION);
+					}
+					interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+					interactionBoxParams.thickness = THICKNESS_INTERACTION;
+					interactionBoxes->push_back(interactionBoxParams);
 				}
-				interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
-				interactionBoxParams.thickness = THICKNESS_INTERACTION;
-				interactionBoxes->push_back(interactionBoxParams);
+			} else if (strcmp(ent.animationName(), "TsuraneSanzuWatashi") == 0) {
+				if (ent.mem46() == 1 && ent.mem47()) {
+					DrawBoxCallParams interactionBoxParams;
+					interactionBoxParams.left = params.posX;
+					interactionBoxParams.right = params.posX - 500000 * params.flip;
+					interactionBoxParams.top = params.posY + 300000;
+					interactionBoxParams.bottom = params.posY - 300000;
+					interactionBoxParams.fillColor = replaceAlpha(32, COLOR_INTERACTION);
+					interactionBoxParams.outlineColor = replaceAlpha(255, COLOR_INTERACTION);
+					interactionBoxParams.thickness = THICKNESS_INTERACTION;
+					interactionBoxes->push_back(interactionBoxParams);
+				}
 			}
 		} else if (ownerType == CHARACTER_TYPE_ANSWER) {
 			if (strcmp(ent.animationName(), "Ami") == 0) {

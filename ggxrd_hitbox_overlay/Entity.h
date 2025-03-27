@@ -691,6 +691,7 @@ struct UponInfo {
 struct ScheduledAnim {
 	char animName[32];
 	DWORD requestActionFlag;
+	inline bool isPerformedRaw() const { return (requestActionFlag & 0x2000) != 0; }  // means move was not cancelled into and is performed from neutral stance
 	char markerName[32];
 	int moveIndex;
 	int nonZeroOnAnimChange;
@@ -761,6 +762,7 @@ public:
 	inline int blockstun() const { return *(int*)(ent + 0x4d54); }
 	inline int tension() const { return *(int*)(ent + 0x2d134); }  // meter
 	inline int tensionPulse() const { return *(int*)(ent + 0x2d128); }  // affects how fast you gain tension
+	inline int& tensionPulse() { return *(int*)(ent + 0x2d128); }  // affects how fast you gain tension
 	inline int negativePenaltyTimer() const { return *(int*)(ent + 0x2d12c); }  // starts after you reach negative penalty
 	inline int tensionPulsePenalty() const { return *(int*)(ent + 0x2d140); }  // reduces tension pulse and increases negative penalty
 	inline int negativePenalty() const { return *(int*)(ent + 0x2d144); }  // progress towards negative penalty
@@ -903,7 +905,7 @@ public:
 	inline bool isTouchingLeftScreenEdge() const { return (*(DWORD*)(ent + 0x118) & 0x100000) != 0; }
 	inline bool isTouchingRightScreenEdge() const { return (*(DWORD*)(ent + 0x118) & 0x200000) != 0; }
 	inline bool isSuperFrozen() const { return (*(DWORD*)(ent + 0x118) & 0x4000000) != 0; }
-	inline bool isRCFrozen() const { return (*(DWORD*)(ent + 0x11c) & 0x200000) != 0; }
+	inline bool isRCFrozen() const { return (*(DWORD*)(ent + 0x11c) & 0x200000) != 0; }  // true on every second frame of RC slowdown, when that frame got skippped
 	inline Entity attacker() const { return *(Entity*)(ent + 0x708); }
 	inline bool holdingFD() const { return (*(DWORD*)(ent + 0x23c) & 0x20000000) != 0; }
 	inline int receivedSpeedY() const { return *(int*)(ent + 0x944); }
@@ -972,6 +974,8 @@ public:
 	inline int hitboxOffsetY() const { return *(int*)(ent + 0x280); }
 	inline int hitboxCount(HitboxType type) const { return *(int*)(ent + 0xa0 + (int)type * 4); }
 	inline const Hitbox* hitboxData(HitboxType type) const { return *(const Hitbox**)(ent + 0x58 + (int)type * 4); }
+	inline int hitAirPushbackX() const { return *(int*)(ent + 0x67c); }
+	inline int hitAirPushbackY() const { return *(int*)(ent + 0x680); }
 	inline int untechableTime() const { return *(int*)(ent + 0x694); }
 	inline int floorBouncesRemaining() const { return *(int*)(ent + 0x960); }
 	inline bool isOtg() const { return (*(DWORD*)(ent + 0x4d24) & 0x800000) != 0; }
@@ -1052,6 +1056,7 @@ public:
 	inline int relatedToBufferTime3() const { return *(int*)(ent + 0x24dd4); }
 	inline int toAddToBufferTime() const { return *(int*)(ent + 0x24dd8); }
 	inline int ensureAtLeast3fBufferForNormalsWhenJumping() const { return *(int*)(ent + 0x262f4); }
+	inline const ScheduledAnim* currentAnimData() const { return (ScheduledAnim*)(ent + 0x24c0); }
 	inline const ScheduledAnim* nextAnim() const { return (ScheduledAnim*)(ent + 0x2474); }
 	inline int TrainingEtc_ComboDamage() const { return *(int*)(ent + 0x9f44); }
 	

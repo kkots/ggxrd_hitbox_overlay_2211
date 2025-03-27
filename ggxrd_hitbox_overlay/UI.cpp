@@ -182,6 +182,7 @@ struct GGIcon {
 static GGIcon coordsToGGIcon(int x, int y, int w, int h);
 static GGIcon questionMarkIcon = coordsToGGIcon(1104, 302, 20, 28);
 static GGIcon tipsIcon = coordsToGGIcon(253, 1093, 62, 41);
+static GGIcon cogwheelIcon = coordsToGGIcon(1, 379, 41, 41);
 static GGIcon characterIcons[25];
 static GGIcon characterIconsBorderless[25];
 static void drawGGIcon(const GGIcon& icon);
@@ -770,6 +771,7 @@ void UI::prepareDrawData() {
 	decrementFlagTimer(takeScreenshotTimer, takeScreenshotPress);
 	for (int i = 0; i < 2; ++i) {
 		decrementFlagTimer(clearTensionGainMaxComboTimer[i], clearTensionGainMaxCombo[i]);
+		decrementFlagTimer(clearBurstGainMaxComboTimer[i], clearBurstGainMaxCombo[i]);
 	}
 	
 	ImGui_ImplWin32_NewFrame();
@@ -1548,7 +1550,8 @@ void UI::drawSearchableWindows() {
 	if (ImGui::Button(searchFieldTitle("Combo Damage & Combo Stun (P1)"))) {
 		showComboDamage[0] = !showComboDamage[0];
 	}
-	AddTooltip(searchTooltip("Displays combo damage and maximum total stun achieved during the last performed combo for P1."));
+	AddTooltip(searchTooltip("Displays combo damage and maximum total stun achieved during the last performed combo for P1.\n"
+		"Also shows the total tension gained during last combo by you and the total burst gained during last combo by the opponent."));
 	ImGui::SameLine();
 	if (ImGui::Button(searchFieldTitle(".. (P2)"))) {
 		showComboDamage[1] = !showComboDamage[1];
@@ -2163,9 +2166,12 @@ void UI::drawSearchableWindows() {
 			booleanSettingPreset(settings.ignoreNumpadEnterKey);
 			booleanSettingPreset(settings.ignoreRegularEnterKey);
 			
+			intSettingPreset(settings.startingTensionPulse, -25000, 100, 1000, 120.F, 25000);
+			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
-			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above)."));
+			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
+				"Combo Recipe settings are only found in the cogwheel on the Combo Recipe panel."));
 			ImGui::PopTextWrapPos();
 			ImGui::PopStyleColor();
 			
@@ -2197,6 +2203,7 @@ void UI::drawSearchableWindows() {
 					| ImGuiTableFlags_NoSavedSettings
 					| ImGuiTableFlags_NoPadOuterX)
 		) {
+			
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -2324,9 +2331,17 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Tension Gain On Attack"));
 			AddTooltip(searchTooltip("Affects how fast you gain Tension when performing attacks or combos.\n"
 				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
-				"Distance-Based Modifier - depends on distance to the opponent.\n"
+				"Distance-Based Modifier - depends on distance to the opponent. Can only be 60% (distance >= 1312500),"
+				" 80% (distance >= 875000) or 100%.\n"
 				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
-				"Tension Pulse-Based Modifier - depends on Tension Pulse.\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse. The values are listed immediately below:\n"
+				"Tension Pulse < -12500 ==> 25%\n"
+				"Tension Pulse < -7500 ==> 50%\n"
+				"Tension Pulse < -3750 ==> 75%\n"
+				"Tension Pulse < -1250 ==> 90%\n"
+				"Tension Pulse < 1250 ==> 100%\n"
+				"Tension Pulse < 5000 ==> 125%\n"
+				"Tension Pulse >= 5000 ==> 150%\n"
 				"\n"
 				"A fourth modifier may be displayed, which is an extra tension modifier. "
 				"It may be present if you use Stylish mode or playing MOM mode. It will be highlighted in yellow.\n"
@@ -2334,7 +2349,7 @@ void UI::drawSearchableWindows() {
 				"A fourth or fifth modifier may be displayed, which is a combo hit count-dependent modifier. "
 				"It affects how fast you gain Tension from performing a combo.\n"
 				"\n"
-				"Tension gain on attack depends on 'tensionGainOnConnect' for each move. The standard values are:\n"
+				"The exact amount of tension gained on attack depends on 'tensionGainOnConnect' for each move. The standard values are:\n"
 				"Throws: 40 tension gain on connect;\n"
 				"Projectiles: 10;\n"
 				"Non-projectile specials: 60\n"
@@ -2390,9 +2405,9 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Tension Gain On Defense"));
 			AddTooltip(searchTooltip("Affects how fast you gain Tension when getting hit by attacks or combos.\n"
 				"Tension Gain Modifier = Distance-Based Modifier * Negative Penalty Modifier * Tension Pulse-Based Modifier.\n"
-				"Distance-Based Modifier - depends on distance to the opponent.\n"
+				"Distance-Based Modifier - depends on distance to the opponent. (The value ranges are the same as for 'Tension Gain On Attack'.)\n"
 				"Negative Penalty Modifier - if a Negative Penalty is active, the modifier is 20%, otherwise it's 100%.\n"
-				"Tension Pulse-Based Modifier - depends on Tension Pulse.\n\n"
+				"Tension Pulse-Based Modifier - depends on Tension Pulse. (The value ranges are the same as for 'Tension Gain On Attack'.)\n\n"
 				"A fourth modifer may be displayed, which happens when you are getting combo'd. It affects how much tension you gain from getting hid by a combo"
 				" and depends on the number of hits.\n"
 				"\n"
@@ -2443,12 +2458,12 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(printdecimalbuf);
 			}
 			
-			float offsets[2];
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Tension Gain Max Combo"));
 			AddTooltip(searchTooltip("The maximum amount of Tension that was gained on an entire performed combo during this training session"
 				" (either inflicting it or getting hit by it).\n"
 				"You can clear this value by pressing a button below this table."));
+			float offsets[2];
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -2467,11 +2482,13 @@ void UI::drawSearchableWindows() {
 					clearTensionGainMaxComboTimer[i] = 10;
 					stateChanged = true;
 				}
-				AddTooltip(searchTooltip("Clear max combo's Tension and Burst gain."));
+				AddTooltip(searchTooltip("Clear max combo's Tension gain."));
 				if (i == 0) ImGui::SameLine();
 				ImGui::PopID();
 			}
+			
 		}
+		
 		ImGui::End();
 	}
 	popSearchStack();
@@ -2480,7 +2497,7 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_burst" : "BurstGain", &showBurstGain, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		ImGui::Begin(searching ? "search_burst" : "Burst Gain", &showBurstGain, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
@@ -2561,14 +2578,29 @@ void UI::drawSearchableWindows() {
 			AddTooltip(searchTooltip("The maximum amount of Burst that was gained on an entire performed combo during this training session"
 				" (either inflicting it or getting hit by it).\n"
 				"You can clear this value by pressing a button below this table."));
+			float offsets[2];
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
+				offsets[i] = ImGui::GetCursorPosX();
 				printDecimal(player.burstGainMaxCombo, 2, 0);
 				ImGui::TextUnformatted(printdecimalbuf);
 			}
 			
 			ImGui::EndTable();
+			
+			for (int i = 0; i < two; ++i) {
+				ImGui::SetCursorPosX(offsets[i]);
+				ImGui::PushID(i);
+				if (ImGui::Button(searchFieldTitle("Clear Max Combo##Burst"))) {
+					clearBurstGainMaxCombo[i] = true;
+					clearBurstGainMaxComboTimer[i] = 10;
+					stateChanged = true;
+				}
+				AddTooltip(searchTooltip("Clear max combo's Burst gain."));
+				if (i == 0) ImGui::SameLine();
+				ImGui::PopID();
+			}
 		}
 		ImGui::End();
 	}
@@ -2615,6 +2647,22 @@ void UI::drawSearchableWindows() {
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d", opponent.stunCombo);
 				ImGui::TextUnformatted(strbuf);
+				
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(searchFieldTitle("Tension Gained Last Combo"));
+				AddTooltip(searchFieldTitle("The total amount of tension gained during the last combo by this player as the attacker.\n"
+					"This value is in units from 0.00 (no tension) to 100.00 (full tension)."));
+				ImGui::TableNextColumn();
+				printDecimal(player.tensionGainLastCombo, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
+				
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(searchFieldTitle("Burst Gained Last Combo"));
+				AddTooltip(searchFieldTitle("The total amount of burst gained during the last combo by the opponent as the defender.\n"
+					"This value is in units from 0.00 (no burst) to 150.00 (full burst)."));
+				ImGui::TableNextColumn();
+				printDecimal(opponent.burstGainLastCombo, 2, 0);
+				ImGui::TextUnformatted(printdecimalbuf);
 				
 				ImGui::EndTable();
 			}
@@ -7066,6 +7114,57 @@ void UI::drawSearchableWindows() {
 			
 			drawPlayerIconInWindowTitle(i);
 			
+			ImVec2 cursorPosStart = ImGui::GetCursorPos();
+			
+			GGIcon scaledIcon = scaleGGIconToHeight(cogwheelIcon, 16.F);
+			const ImVec2& itemSpacing = ImGui::GetStyle().ItemSpacing;
+			const bool showingSettings = showComboRecipeSettings[i];
+			if (showingSettings) {
+				ImGui::SetCursorPosY(cursorPosStart.y + scaledIcon.size.y + itemSpacing.y * 3.F);
+				booleanSettingPreset(settings.comboRecipe_showDelaysBetweenCancels);
+				booleanSettingPreset(settings.comboRecipe_showIdleTimeBetweenMoves);
+				booleanSettingPreset(settings.comboRecipe_showDashes);
+				booleanSettingPreset(settings.comboRecipe_showWalks);
+			}
+			
+			ImVec2 cursorPosForTable = ImGui::GetCursorPos();
+			
+			ImVec2 buttonCursorPos = {
+				cursorPosStart.x + (
+					showingSettings
+						? 0.F
+						: (ImGui::GetContentRegionAvail().x - scaledIcon.size.x - itemSpacing.x * 2.F)
+				),
+				cursorPosStart.y
+			};
+			ImGui::SetCursorPos(buttonCursorPos);
+			bool isClicked = false;
+			if (ImGui::Button("##ComboRecipeCogwheel",
+				{
+					scaledIcon.size.x + itemSpacing.x * 2.F,
+					scaledIcon.size.y + itemSpacing.y * 2.F
+				})) {
+				showComboRecipeSettings[i] = !showComboRecipeSettings[i];
+				isClicked = true;
+			}
+			AddTooltip("Settings for the Combo Recipe panel.\n"
+				"The settings are shared between P1 and P2.");
+			bool isHovered = ImGui::IsItemHovered();
+			bool mousePressed = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+			ImGui::SetCursorPos({
+				buttonCursorPos.x + itemSpacing.x,
+				buttonCursorPos.y + itemSpacing.y + (isHovered && mousePressed ? 1.F : 0.F)
+			});
+			ImVec4 tint { 1.F, 1.F, 1.F, 1.F };
+			if (isHovered && mousePressed) {
+				tint = { 0.5F, 0.5F, 0.5F, 1.F };
+			} else if (isHovered) {
+				tint = { 0.75F, 0.75F, 1.F, 1.F };
+			}
+			ImGui::Image((ImTextureID)TEXID_GGICON, scaledIcon.size, scaledIcon.uvStart, scaledIcon.uvEnd, tint);
+			
+			ImGui::SetCursorPos(cursorPosForTable);
+			
 			if (ImGui::BeginTable("##ComboRecipe",
 						1,
 						ImGuiTableFlags_Borders
@@ -7075,18 +7174,77 @@ void UI::drawSearchableWindows() {
 			) {
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.F);
 				
-				for (size_t j = 0; j < player.comboRecipe.size(); ++j) {
+				int rowCount = 1;
+				size_t nextJ = 0;
+				size_t comboRecipeSize = player.comboRecipe.size();
+				
+				enum IsLinkEnum {
+					IS_LINK_UNKNOWN,
+					IS_LINK_NO,
+					IS_LINK_YES
+				} isLink = IS_LINK_UNKNOWN;
+				
+				for (size_t j = 0; j < comboRecipeSize; ++j) {
 					const ComboRecipeElement& elem = player.comboRecipe[j];
-					ImGui::TableNextColumn();
+					
+					if (j == nextJ) {
+						isLink = IS_LINK_UNKNOWN;
+						for (++nextJ; nextJ != comboRecipeSize; ++nextJ) {
+							const ComboRecipeElement& nextElem = player.comboRecipe[nextJ];
+							if (!nextElem.isProjectile && !nextElem.artificial) {
+								isLink = nextElem.doneAfterIdle ? IS_LINK_YES : IS_LINK_NO;
+								break;
+							}
+						}
+					}
+					
+					if (elem.cancelDelayedBy
+							&& (
+								elem.doneAfterIdle
+									? settings.comboRecipe_showIdleTimeBetweenMoves
+									: settings.comboRecipe_showDelaysBetweenCancels
+							)) {
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "%u)", rowCount++);
+						yellowText(strbuf);
+						ImGui::SameLine();
+						
+						ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+						if (elem.doneAfterIdle) {
+							sprintf_s(strbuf, "(Idle %df)", elem.cancelDelayedBy);
+						} else {
+							sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
+						}
+						ImGui::TextUnformatted(strbuf);
+						ImGui::PopStyleColor();
+					}
+					
+					if (elem.dashDuration) {
+						if (elem.isWalkForward || elem.isWalkBackward) {
+							if (!settings.comboRecipe_showWalks) continue;
+						} else if (!settings.comboRecipe_showDashes) continue;
+					}
+					
 					const char* chosenName;
 					if (settings.useSlangNames && elem.slangName) {
 						chosenName = elem.slangName;
 					} else {
 						chosenName = elem.name;
 					}
-					sprintf_s(strbuf, "%u)", j + 1);
+					
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "%u)", rowCount++);
 					yellowText(strbuf);
 					ImGui::SameLine();
+					
+					const char* linkText = "";
+					if (!elem.isProjectile && !elem.artificial && isLink != IS_LINK_UNKNOWN) {
+						if (isLink == IS_LINK_YES) {
+							linkText = ",";
+						} else {
+							linkText = " >";
+						}
+					}
 					
 					if (!elem.dashDuration) {
 						const char* lastSuffix = "";
@@ -7097,22 +7255,26 @@ void UI::drawSearchableWindows() {
 						} else if (elem.counterhit) {
 							lastSuffix = " (Counterhit)";
 						}
-						sprintf_s(strbuf, "%s%s%s",
+						sprintf_s(strbuf, "%s%s%s%s",
 							chosenName,
 							elem.isProjectile ? " (Hit)" : "",
-							lastSuffix);
+							lastSuffix,
+							linkText);
 					} else if (elem.isWalkForward) {
-						sprintf_s(strbuf, "%df %s",
+						sprintf_s(strbuf, "%df %s%s",
 							elem.dashDuration,
-							elem.dashDuration >= 10 ? "Walk" : "Microwalk");
+							elem.dashDuration >= 10 ? "Walk" : "Microwalk",
+							linkText);
 					} else if (elem.isWalkBackward) {
-						sprintf_s(strbuf, "%df %s",
+						sprintf_s(strbuf, "%df %s%s",
 							elem.dashDuration,
-							elem.dashDuration >= 10 ? "Walk Back" : "Microwalk Back");
+							elem.dashDuration >= 10 ? "Walk Back" : "Microwalk Back",
+							linkText);
 					} else {
-						sprintf_s(strbuf, "%df %s",
+						sprintf_s(strbuf, "%df %s%s",
 							elem.dashDuration,
-							elem.dashDuration >= 10 ? "Dash" : "Microdash");
+							elem.dashDuration >= 10 ? "Dash" : "Microdash",
+							linkText);
 					}
 					
 					if (elem.isProjectile) {
@@ -7124,6 +7286,7 @@ void UI::drawSearchableWindows() {
 				
 				ImGui::EndTable();
 			}
+			
 			float totalViewableArea = ImGui::GetWindowHeight() - ImGui::GetStyle().FramePadding.y * 2 - ImGui::GetFontSize();
 			float totalContentSize = ImGui::GetCursorPosY();
 			if (comboRecipeUpdatedOnThisFrame[i]) {
@@ -7135,6 +7298,7 @@ void UI::drawSearchableWindows() {
 					ImGui::SetScrollY(totalContentSize - totalViewableArea);
 				}
 			}
+			
 			ImGui::End();
 			ImGui::PopID();
 		}
@@ -8509,7 +8673,7 @@ bool UI::needShowFramebar() const {
 	}
 }
 
-int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels) {
+int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos& cancels) {
 	struct Requirement {
 		MoveCondition condition;
 		const char* description;
@@ -8755,6 +8919,7 @@ void UI::hitboxesHelpWindow() {
 		
 	}
 	
+	// these notes are also repeated in README.md in the solution's root directory
 	textUnformattedColored(COLOR_INTERACTION_IMGUI, "White: ");
 	ImGui::SameLine();
 	ImGui::TextUnformatted("Interaction boxes/circles");
@@ -8919,6 +9084,11 @@ void UI::hitboxesHelpWindow() {
 	
 	yellowText("Leo bt.D successful parry:");
 	ImGui::TextUnformatted("The white box around Leo shows where the origin point of the opponent must be in order to get vaccuumed.");
+	
+	yellowText("Baiken Tsurane Sanzu-watashi:");
+	ImGui::TextUnformatted("The white box in front of Baiken shows where the origin point of the opponent must be at the moment"
+			" of the second hit in order to trigger the secondary super cinematic. An extra condition for the cinematic to be"
+			" triggered is also that the first hit of the super connected, but the distance on it is not checked.");
 	
 	ImGui::Separator();
 	
@@ -9909,7 +10079,11 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.airthrowDisabled) {
 			ImGui::TextUnformatted("Airthrow disabled.");
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-			ImGui::TextUnformatted("Airdashing disables airthrow for the remainder of being in the air.");
+			if (endScene.players[playerIndex].charType == CHARACTER_TYPE_BEDMAN) {
+				ImGui::TextUnformatted("Hover disables airthrow for the remainder of being in the air.");
+			} else {
+				ImGui::TextUnformatted("Airdashing disables airthrow for the remainder of being in the air.");
+			}
 			ImGui::PopStyleColor();
 		}
 		if (frame.running) {

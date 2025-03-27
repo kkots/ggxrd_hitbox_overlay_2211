@@ -61,6 +61,8 @@ public:
 	int takeScreenshotTimer = 0;
 	bool clearTensionGainMaxCombo[2] { false };
 	int clearTensionGainMaxComboTimer[2] { 0 };
+	bool clearBurstGainMaxCombo[2] { false };
+	int clearBurstGainMaxComboTimer[2] { 0 };
 	bool slowmoGame = false;
 	bool continuousScreenshotToggle = false;
 	std::mutex lock;
@@ -327,6 +329,7 @@ private:
 	void startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag);
 	bool showComboDamage[2] { false };
 	bool showComboRecipe[2] { false };
+	bool showComboRecipeSettings[2] { false };
 };
 
 extern UI ui;

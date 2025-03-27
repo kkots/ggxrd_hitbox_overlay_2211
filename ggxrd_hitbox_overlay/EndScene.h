@@ -239,7 +239,7 @@ public:
 	BBScr_linkParticle_t orig_BBScr_linkParticleWithArg2 = nullptr;
 	setAnim_t orig_setAnim = nullptr;
 	pawnInitialize_t orig_pawnInitialize = nullptr;
-	checkFirePerFrameUponsWrapper_t checkFirePerFrameUponsWrapper = nullptr;
+	checkFirePerFrameUponsWrapper_t orig_checkFirePerFrameUponsWrapper = nullptr;
 	logicOnFrameAfterHit_t orig_logicOnFrameAfterHit = nullptr;
 	BBScr_runOnObject_t orig_BBScr_runOnObject = nullptr;
 	REDAnywhereDispDraw_t orig_REDAnywhereDispDraw = nullptr;
@@ -363,6 +363,7 @@ private:
 		void BBScr_timeSlowHook(int duration);
 		void onCmnActXGuardLoopHook(int signal, int type, int thisIs0);
 		void drawTrainingHudInputHistoryHook(unsigned int layer);
+		void checkFirePerFrameUponsWrapperHook();
 	};
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
@@ -388,6 +389,7 @@ private:
 	void BBScr_timeSlowHook(Entity pawn, int duration);
 	void beginHitstopHook(Entity pawn);
 	void onCmnActXGuardLoopHook(Entity pawn, int signal, int type, int thisIs0);
+	void checkFirePerFrameUponsWrapperHook(Entity pawn);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
@@ -529,8 +531,9 @@ private:
 	bool isInDarkenModePlusTurnOffPostEffect = false;
 	bool postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect = false;
 	bool willDrawOriginPoints();
-	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame);
-	void collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move, int iterationIndex);
+	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame, bool inHitstopFreeze);
+	void collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos& vec, const AddedMoveData* move,
+								int iterationIndex, bool inHitstopFreeze);
 	bool checkMoveConditions(PlayerInfo& player, const AddedMoveData* move);
 	bool whiffCancelIntoFDEnabled(PlayerInfo& player);
 	Entity getSuperflashInstigator();

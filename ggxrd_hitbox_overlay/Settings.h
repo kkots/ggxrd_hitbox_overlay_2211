@@ -91,6 +91,7 @@ public:
 	std::atomic_int framebarStoredFramesCount = 200;
 	std::atomic_int positionResetDistBetweenPlayers = 105000;
 	std::atomic_int positionResetDistFromCorner = 0;
+	std::atomic_int startingTensionPulse = 0;
 	const float cameraCenterOffsetX_defaultValue = 0.F;
 	const float cameraCenterOffsetY_defaultValue = 106.4231F;
 	const float cameraCenterOffsetY_WhenForcePitch0_defaultValue = 130.4231F;
@@ -159,6 +160,10 @@ public:
 	std::atomic_bool showDebugFields = false;
 	std::atomic_bool ignoreNumpadEnterKey = false;
 	std::atomic_bool ignoreRegularEnterKey = false;
+	std::atomic_bool comboRecipe_showDelaysBetweenCancels = true;
+	std::atomic_bool comboRecipe_showIdleTimeBetweenMoves = true;
+	std::atomic_bool comboRecipe_showDashes = true;
+	std::atomic_bool comboRecipe_showWalks = true;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

@@ -772,6 +772,8 @@ void PlayerInfo::clear() {
 	offset += sizeof cancelsTimer;
 	wasCancels.clear();
 	offset += sizeof wasCancels;
+	prevFrameCancels.clear();
+	offset += sizeof prevFrameCancels;
 	cancelsCount = 0;
 	offset += sizeof cancelsCount;
 	dmgCalcs.clear();
@@ -3138,14 +3140,26 @@ int PlayerInfo::getElpheltRifle_AimMem46() const {
 	return 0;
 }
 
-bool FrameCancelInfo::hasCancel(const char* skillName) const {
+bool FixedArrayOfGatlingOrWhiffCancelInfos::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr) const {
+	for (const GatlingOrWhiffCancelInfo& info : *this) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FrameCancelInfo::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr) const {
 	for (const GatlingOrWhiffCancelInfo& info : gatlings) {
 		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
 			return true;
 		}
 	}
 	for (const GatlingOrWhiffCancelInfo& info : whiffCancels) {
 		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
 			return true;
 		}
 	}
@@ -3223,3 +3237,77 @@ bool PlayerInfo::lastComboHitEqualsProjectile(Entity ptr, int framebarId) const 
 			&& strcmp(lastElem.trialName, ptr.dealtAttack()->trialName) == 0
 		);
 }
+
+void FrameCancelInfo::unsetWasFoundOnThisFrame(bool unsetCountersIncremented) {
+	for (GatlingOrWhiffCancelInfo& info : gatlings) {
+		info.foundOnThisFrame = false;
+		if (unsetCountersIncremented) {
+			info.countersIncremented = false;
+		}
+	}
+	for (GatlingOrWhiffCancelInfo& info : whiffCancels) {
+		info.foundOnThisFrame = false;
+		if (unsetCountersIncremented) {
+			info.countersIncremented = false;
+		}
+	}
+}
+
+void FrameCancelInfo::deleteThatWhichWasNotFound() {
+	size_t counter;
+	size_t i;
+	if (!gatlings.empty()) {
+		for (counter = gatlings.size(); counter != 0; --counter) {
+			i = counter - 1;
+			if (!gatlings[i].foundOnThisFrame) {
+				gatlings.erase(gatlings.begin() + i);
+			}
+		}
+	}
+	if (!whiffCancels.empty()) {
+		for (counter = whiffCancels.size(); counter != 0; --counter) {
+			i = counter - 1;
+			if (!whiffCancels[i].foundOnThisFrame) {
+				whiffCancels.erase(whiffCancels.begin() + i);
+			}
+		}
+	}
+}
+
+ComboRecipeElement::ComboRecipeElement()
+	: whiffed(true),
+	counterhit(false),
+	otg(false),
+	isMeleeAttack(false),
+	isProjectile(false),
+	artificial(false),
+	isWalkForward(false),
+	isWalkBackward(false),
+	doneAfterIdle(false) {
+}
+
+GatlingOrWhiffCancelInfo* FixedArrayOfGatlingOrWhiffCancelInfos::erase(GatlingOrWhiffCancelInfo* ptr) {
+	int index = ptr - elems;
+	if (count - index > 1) {
+		memmove(ptr, ptr + 1, sizeof GatlingOrWhiffCancelInfo * (count - index - 1));
+	}
+	--count;
+	return elems + index;
+}
+
+void FixedArrayOfGatlingOrWhiffCancelInfos::emplace(GatlingOrWhiffCancelInfo* ptr) {
+	if (count == _countof(elems)) return;
+	int index = ptr - elems;
+	if (index == count) {
+		++count;
+		return;
+	}
+	memmove(ptr + 1, ptr, sizeof GatlingOrWhiffCancelInfo * (count - index));
+	++count;
+}
+
+GatlingOrWhiffCancelInfo::GatlingOrWhiffCancelInfo()
+		: nameIncludesInputs(false),
+		wasAddedDuringHitstopFreeze(false),
+		foundOnThisFrame(false),
+		countersIncremented(false) { }

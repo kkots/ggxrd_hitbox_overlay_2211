@@ -197,6 +197,8 @@ Boxes or circles like this are displayed when a move is checking ranges. They ma
 
 - Leo bt.D successful parry: The white box around Leo shows where the origin point of the opponent must be in order to get vaccuumed.
 
+- Baiken Tsurane Sanzu-watashi: The white box in front of Baiken shows where the origin point of the opponent must be at the moment of the second hit in order to trigger the secondary super cinematic. An extra condition for the cinematic to be triggered is also that the first hit of the super connected, but the distance on it is not checked.
+
 ### Outlines lie within their boxes/on the edge
 
 If a box's outline is thick, it lies within that box's bounds, meaning that two boxes intersect if either their fills or outlines touch or both. This is relevant for throwboxes too.  
@@ -846,6 +848,26 @@ considerDummyPlaybackNonIdle = true
 ; To scale the framebar you can drag its right edge.
 useColorblindHelp = false
 
+; Specify true or false.
+; Setting this to true (default) will show delays on dedicated separate lines in gray text in the following format: '(Delay #f)',
+; where # is a number.
+comboRecipe_showDelaysBetweenCancels = true
+
+; Specify true or false.
+; Setting this to true (default) will show idle time on dedicated separate lines in gray text in the following format: '(Idle #f)',
+; where # is a number.
+comboRecipe_showIdleTimeBetweenMoves = true
+
+; Specify true or false.
+; Setting this to true (default) will show microdashes and dashes on dedicated separate lines in the following format:
+; '#f Microdash/Dash', where # is a number.
+comboRecipe_showDashes = true
+
+; Specify true or false.
+; Setting this to true (default) will show microwalks and walks on dedicated separate lines in the following format:
+; '#f Microwalk/Walk/Microwalk Back/Walk Back', where # is a number.
+comboRecipe_showWalks = true
+
 ```
 
 </details>
@@ -1233,3 +1255,11 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   3) Combo Recipe panel will autoscroll to the bottom whenever a new action is added to it.
   4) Fixed an issue when using the search button would permanently render all elements stuck close to each other horizontally until the mod is uninjected and injected again. Also when using the search outside of a match, the game would crash.
 - 2025 March 22: Version 6.19: Fixed an issue when hitboxes would be drawn fully transparent while OBS is on, OBS dodging is enabled and either alt-tabbing during fullscreen is performed, or the Windows machine is unlocked, or resolution is changed. Fixed the 'Micordash' typo. Combo Recipe panel now registers microwalks.
+- 2025 March 28: Version 6.20:
+  1) Added Baiken Tsurane Sanzu-watashi interaction (white) box.
+  2) Fixed Combo Recipe not registering Ground/Air Throw if it's the first hit in a combo.
+  3) In the 'Tension Values' panel, in its 'Tension Gain On Attack' field, added a list of ranges of values of Tension Pulse and their corresponding tension gain modifiers.
+  4) Combo Recipe now displays delay cancels and idle times. The display of delay cancels, idle times, microwalks and microdashes can be turned off, each separately.
+  5) The 'Combo Damage & Combo Stun' panel now displays the tension gained by you and the burst gained by your opponent during the last combo.
+  6) There is a new setting in Settings - General Settings, called 'Starting Tension Pulse', ranging from -25000 to 25000, which lets you set the initial Tension Pulse upon stage reset in Training Mode.
+  7) Fixed Combo Recipe panel registering I-No's dash twice.

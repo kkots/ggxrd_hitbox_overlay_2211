@@ -236,6 +236,8 @@ static const char* displayNameSelector_crosswise(PlayerInfo& ent);
 static const char* displaySlangNameSelector_crosswise(PlayerInfo& ent);
 static const char* displayNameSelector_underPressure(PlayerInfo& ent);
 static const char* displaySlangNameSelector_underPressure(PlayerInfo& ent);
+static const char* displayNameSelector_jacko4D(PlayerInfo& ent);
+static const char* displayNameSelector_jackoj4D(PlayerInfo& ent);
 
 static bool canYrcProjectile_default(PlayerInfo& ent);
 static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
@@ -7313,14 +7315,15 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocideEx");
-	move.displayName = "4D Strong";
+	move.displayName = "4D";
+	move.displayNameSelector = displayNameSelector_jacko4D;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocideEx_Weak");
-	move.displayName = "4D Weak";
+	move.displayName = "4D (Weak)";
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
@@ -7348,14 +7351,15 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirIronballGenocideEx");
-	move.displayName = "j.4D Strong";
+	move.displayName = "j.4D";
+	move.displayNameSelector = displayNameSelector_jackoj4D;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirIronballGenocideEx_Weak");
-	move.displayName = "j.4D Weak";
+	move.displayName = "j.4D (Weak)";
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
@@ -9684,6 +9688,86 @@ const char* displaySlangNameSelector_underPressure(PlayerInfo& ent) {
 		return "P UP";
 	}
 	return "K UP";
+}
+const char* displayNameSelector_jacko4D(PlayerInfo& ent) {
+	int x = ent.pawn.hitAirPushbackX();
+	int y = ent.pawn.hitAirPushbackY();
+	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return "4D";
+	y -= 20000;
+	
+	enum Dir {
+		DIRX_PLUS = 0,
+		DIRX_NEUTRAL = 1,
+		DIRX_MINUS = 2,
+		DIRY_PLUS = (0 << 4),
+		DIRY_NEUTRAL = (1 << 4),
+		DIRY_MINUS = (2 << 4)
+	};
+	
+	Dir dirX;
+	Dir dirY;
+	
+	if (x > 0) dirX = DIRX_PLUS;
+	else if (x == 0) dirX = DIRX_NEUTRAL;
+	else dirX = DIRX_MINUS;
+	
+	if (y > 0) dirY = DIRY_PLUS;
+	else if (y == 0) dirY = DIRY_NEUTRAL;
+	else dirY = DIRY_MINUS;
+	
+	switch (
+		dirX | dirY
+	) {
+		case DIRX_MINUS | DIRY_MINUS: return "4D1";
+		case DIRX_NEUTRAL | DIRY_MINUS: return "4D2";
+		case DIRX_PLUS | DIRY_MINUS: return "4D3";
+		case DIRX_MINUS | DIRY_NEUTRAL: return "4D4";
+		case DIRX_PLUS | DIRY_NEUTRAL: return "4D6";
+		case DIRX_MINUS | DIRY_PLUS: return "4D7";
+		case DIRX_NEUTRAL | DIRY_PLUS: return "4D8";
+		case DIRX_PLUS | DIRY_PLUS: return "4D9";
+		default: return "4D";
+	}
+}
+const char* displayNameSelector_jackoj4D(PlayerInfo& ent) {
+	int x = ent.pawn.hitAirPushbackX();
+	int y = ent.pawn.hitAirPushbackY();
+	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return "j.4D";
+	y -= 25000;
+	
+	enum Dir {
+		DIRX_PLUS = 0,
+		DIRX_NEUTRAL = 1,
+		DIRX_MINUS = 2,
+		DIRY_PLUS = (0 << 4),
+		DIRY_NEUTRAL = (1 << 4),
+		DIRY_MINUS = (2 << 4)
+	};
+	
+	Dir dirX;
+	Dir dirY;
+	
+	if (x > 0) dirX = DIRX_PLUS;
+	else if (x == 0) dirX = DIRX_NEUTRAL;
+	else dirX = DIRX_MINUS;
+	
+	if (y > 0) dirY = DIRY_PLUS;
+	else if (y == 0) dirY = DIRY_NEUTRAL;
+	else dirY = DIRY_MINUS;
+	
+	switch (
+		dirX | dirY
+	) {
+		case DIRX_MINUS | DIRY_MINUS: return "j.4D1";
+		case DIRX_NEUTRAL | DIRY_MINUS: return "j.4D2";
+		case DIRX_PLUS | DIRY_MINUS: return "j.4D3";
+		case DIRX_MINUS | DIRY_NEUTRAL: return "j.4D4";
+		case DIRX_PLUS | DIRY_NEUTRAL: return "j.4D6";
+		case DIRX_MINUS | DIRY_PLUS: return "j.4D7";
+		case DIRX_NEUTRAL | DIRY_PLUS: return "j.4D8";
+		case DIRX_PLUS | DIRY_PLUS: return "j.4D9";
+		default: return "j.4D";
+	}
 }
 
 bool canYrcProjectile_default(PlayerInfo& player) {

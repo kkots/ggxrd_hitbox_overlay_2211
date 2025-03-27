@@ -394,7 +394,13 @@ bool EndScene::onDllMain() {
 	if (PawnVtable) {
 		orig_setAnim = *(setAnim_t*)(PawnVtable + 0x44);
 		orig_pawnInitialize = *(pawnInitialize_t*)(PawnVtable);
-		checkFirePerFrameUponsWrapper = *(checkFirePerFrameUponsWrapper_t*)(PawnVtable + 0x10);
+		orig_checkFirePerFrameUponsWrapper = *(checkFirePerFrameUponsWrapper_t*)(PawnVtable + 0x10);
+		
+		void (HookHelp::*checkFirePerFrameUponsWrapperHookPtr)() = &HookHelp::checkFirePerFrameUponsWrapperHook;
+		if (!detouring.attach(&(PVOID&)orig_checkFirePerFrameUponsWrapper,
+			(PVOID&)checkFirePerFrameUponsWrapperHookPtr,
+			"checkFirePerFrameUponsWrapper")) return false;
+		
 		orig_handleUpon = *(handleUpon_t*)(PawnVtable + 0x3c);
 		getAccessedValueAddr = *(uintptr_t*)(PawnVtable + 0x4c);
 	}
@@ -900,6 +906,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 	}
 	if (isTheFirstFrameInTheMatch) {
+		if (game.isTrainingMode() && settings.startingTensionPulse) {
+			int val = settings.startingTensionPulse;
+			if (val > 25000) val = 25000;
+			if (val < -25000) val = -25000;
+			for (int i = 0; i < 2; ++i) {
+				entityList.slots[i].tensionPulse() = settings.startingTensionPulse;
+			}
+		}
 		for (int i = 0; i < 2; ++i) {
 			// on the first frame of a round people can't act. At all
 			// without this fix, the mod thinks normals are enabled except on the very first of a match where it thinks they're not
@@ -940,6 +954,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				needCatchEntities = true;
 				projectiles.clear();
 			}
+			player.wasCancels.deleteThatWhichWasNotFound();
 		}
 	}
 	if (frameHasChanged && !iGiveUp) {
@@ -1229,6 +1244,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						newComboElem.isWalkForward = true;
 					} else if (player.startedWalkingBackward) {
 						newComboElem.isWalkBackward = true;
+					}
+					
+					if (!player.pawn.currentAnimData()->isPerformedRaw()) {
+						const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
+						if (player.prevFrameCancels.hasCancel(player.pawn.currentMove()->name, &foundCancel)
+								&& foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze > 0
+								&& !(
+									foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze == 1
+									&& foundCancel->wasAddedDuringHitstopFreeze
+								)
+						) {
+							newComboElem.cancelDelayedBy = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
+						}
+					} else {
+						newComboElem.doneAfterIdle = true;
+						newComboElem.cancelDelayedBy = player.timePassedPureIdle;
 					}
 				}
 			}
@@ -1942,6 +1973,40 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.lastMoveIsPartOfStance = player.move.partOfStance;
 						player.determineMoveNameAndSlangName(&player.lastPerformedMoveName, &player.lastPerformedMoveSlangName);
 						player.lastPerformedMoveNameIsInComboRecipe = false;
+						
+						player.delayLastMoveWasCancelledIntoWith = 0;
+						if (!player.pawn.currentAnimData()->isPerformedRaw()) {
+							player.delayInTheLastMoveIsAfterIdle = false;
+							if (!(
+									player.charType == CHARACTER_TYPE_LEO
+									&& strcmp(player.pawn.previousAnimName(), "CmnActFDash"_hardcode) == 0
+								)) {
+								const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
+								if (player.prevFrameCancels.hasCancel(player.pawn.currentMove()->name, &foundCancel)) {
+									if (foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze > 0
+											&& !(
+												foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze == 1
+												&& foundCancel->wasAddedDuringHitstopFreeze
+											)) {
+										player.delayLastMoveWasCancelledIntoWith = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
+										player.delayInTheLastMoveIsAfterIdle = false;
+									}
+								} else if (
+										(player.timeSinceWasEnableSpecialCancel || player.timeSinceWasEnableSpecials)
+										&& player.pawn.dealtAttack()->type >= ATTACK_TYPE_EX
+										&& player.timeSinceWasEnableSpecialCancel
+								) {
+									player.delayLastMoveWasCancelledIntoWith = player.timeSinceWasEnableSpecialCancel;
+									player.delayInTheLastMoveIsAfterIdle = false;
+								}
+							}
+						} else {
+							player.delayLastMoveWasCancelledIntoWith = player.timePassedPureIdle;
+							player.delayInTheLastMoveIsAfterIdle = true;
+						}
+						
+						player.timeSinceWasEnableSpecialCancel = 0;
+						player.timeSinceWasEnableSpecials = 0;
 						player.hitOnFrame = 0;
 						player.totalFD = 0;
 						player.totalCanBlock = 0;
@@ -2004,13 +2069,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.performingASuper = false;
 						other.gettingHitBySuper = false;
 						
-						// and this is from combo recipe window to display RCs
+						// and this is for combo recipe window to display RCs
 						if (other.pawn.inHitstun()) {
 							ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 							player.comboRecipe.emplace_back();
 							ComboRecipeElement& newComboElem = player.comboRecipe.back();
 							player.determineMoveNameAndSlangName(&newComboElem.name, &newComboElem.slangName);
-							newComboElem.whiffed = true;
 							newComboElem.timestamp = aswEngineTickCount;
 							newComboElem.framebarId = -1;
 							player.lastPerformedMoveNameIsInComboRecipe = true;
@@ -2022,32 +2086,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			memcpy(player.anim, animName, 32);
 			player.setMoveName(player.moveName, ent);
 			
-			if (other.pawn.inHitstun()) {
-				// this should happen in the animation change registration above, but
-				// we need an animFrame 3 check because things can be kara cancelled into FD, Blitz, specials, Burst, IK, supers (by completing motions)
-				// so there are not many places we can go after changing animation, right?
-				// what could happen inbetween that prevents us from reaching animFrame 3, besides kara cancelling and getting hit by something?
-				// other than that animation starting outside of a combo, then ending, then combo starting and we hitting animFrame 3 on CmnActStand?
-				// that we can filter with timePassedInNonFrozenFramesSinceStartOfAnim
-				if ((
-						player.animFrame == 3
-						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 2
-						// specials, supers and IKs cannot be kara cancelled at all
-						|| player.animFrame == 1
-						&& player.pawn.dealtAttack()->type > ATTACK_TYPE_NORMAL
-						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 0
-					)
-					&& !player.lastPerformedMoveNameIsInComboRecipe
-				) {
-					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
-					player.comboRecipe.emplace_back();
-					ComboRecipeElement& newComboElem = player.comboRecipe.back();
-					newComboElem.name = player.lastPerformedMoveName;
-					newComboElem.slangName = player.lastPerformedMoveSlangName;
-					newComboElem.whiffed = !player.hitSomething;
-					newComboElem.timestamp = aswEngineTickCount;
-					newComboElem.framebarId = -1;
-					player.lastPerformedMoveNameIsInComboRecipe = true;
+			if (other.pawn.inHitstun() && !startedRunOrWalkOnThisFrame
+					
+					// isRunning check needed to not register I-No's dash twice - it's already being registered in the run check,
+					// and her dash is considered a move because she's not idle during it
+					&& !player.isRunning) {
+				
+				// needed for Jack-O 4D1/2/3/4/6/7/8/9 - the name updates as the move goes on, without creating a new section or entering a new animation
+				// a more universal mechanism will be added only if more characters need this
+				if (player.charType == CHARACTER_TYPE_JACKO
+						&& !player.idle && !player.isInFDWithoutBlockstun
+						&& !player.comboRecipe.empty()
+						&& (
+							strcmp(player.anim, "IronballGenocideEx"_hardcode) == 0
+							|| strcmp(player.anim, "AirIronballGenocideEx"_hardcode) == 0
+						)) {
+					ComboRecipeElement& lastElem = player.comboRecipe.back();
+					player.determineMoveNameAndSlangName(&lastElem.name, &lastElem.slangName);
 				}
 				
 				if (player.jumpCancelled
@@ -2074,11 +2129,49 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					newComboElem.framebarId = -1;
 					newComboElem.artificial = true;
 					
+					// Jack-O 5H is not seen as a jump cancel, but as a 'Jump'
+					if (player.timeSinceWasEnableJumpCancel) {
+						newComboElem.cancelDelayedBy = player.timeSinceWasEnableJumpCancel;
+					} else if (player.jumpNonCancel || player.superJumpNonCancel || player.doubleJumped) {
+						newComboElem.doneAfterIdle = true;
+						newComboElem.cancelDelayedBy = player.timePassedPureIdle;
+					}
+					
 					player.jumpCancelled = false;
 					player.superJumpCancelled = false;
 					player.jumpNonCancel = false;
 					player.superJumpNonCancel = false;
 					player.doubleJumped = false;
+					
+				}
+				
+				// this should happen in the animation change registration above, but
+				// we need an animFrame 3 check because things can be kara cancelled into FD, Blitz, specials, Burst, IK, supers (by completing motions)
+				// so there are not many places we can go after changing animation, right?
+				// what could happen inbetween that prevents us from reaching animFrame 3, besides kara cancelling and getting hit by something?
+				// other than that animation starting outside of a combo, then ending, then combo starting and we hitting animFrame 3 on CmnActStand?
+				// that we can filter with timePassedInNonFrozenFramesSinceStartOfAnim
+				if ((
+						player.animFrame == 3
+						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 2
+						// specials, supers and IKs cannot be kara cancelled at all
+						|| player.animFrame == 1
+						&& player.pawn.dealtAttack()->type > ATTACK_TYPE_NORMAL
+						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 0
+					)
+					&& !player.lastPerformedMoveNameIsInComboRecipe
+				) {
+					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
+					player.comboRecipe.emplace_back();
+					ComboRecipeElement& newComboElem = player.comboRecipe.back();
+					newComboElem.name = player.lastPerformedMoveName;
+					newComboElem.slangName = player.lastPerformedMoveSlangName;
+					newComboElem.whiffed = !player.hitSomething;
+					newComboElem.timestamp = aswEngineTickCount;
+					newComboElem.framebarId = -1;
+					newComboElem.cancelDelayedBy = player.delayLastMoveWasCancelledIntoWith;
+					newComboElem.doneAfterIdle = player.delayInTheLastMoveIsAfterIdle;
+					player.lastPerformedMoveNameIsInComboRecipe = true;
 				}
 				
 			}
@@ -2229,10 +2322,39 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			
-			if (frameHasChanged && !ent.isSuperFrozen() && !ent.isRCFrozen() && !player.hitstop
+			if (!ent.isSuperFrozen() && !ent.isRCFrozen() && !player.hitstop
 					&& player.timePassedInNonFrozenFramesSinceStartOfAnim != 0xFFFFFFFF) {
 				++player.timePassedInNonFrozenFramesSinceStartOfAnim;
 			}
+			
+			if (player.wasEnableSpecialCancel
+					&& player.wasEnableGatlings
+					&& player.wasAttackCollidedSoCanCancelNow) {
+				if (!player.hitstop && !superflashInstigator) {
+					++player.timeSinceWasEnableSpecialCancel;
+				}
+			} else {
+				player.timeSinceWasEnableSpecialCancel = 0;
+			}
+			
+			if (player.wasEnableSpecials) {
+				if (!player.hitstop && !superflashInstigator) {
+					++player.timeSinceWasEnableSpecials;
+				}
+			} else {
+				player.timeSinceWasEnableSpecials = 0;
+			}
+			
+			if (player.wasEnableJumpCancel
+					|| player.wasCancels.hasCancel("CmnVJump")
+					|| player.wasCancels.hasCancel("CmnVAirJump")) {
+				if (!player.hitstop && !superflashInstigator) {
+					++player.timeSinceWasEnableJumpCancel;
+				}
+			} else {
+				player.timeSinceWasEnableJumpCancel = 0;
+			}
+			
 		}
 		for (int i = 0; i < 2; ++i) {
 			PlayerInfo& player = players[i];
@@ -4879,6 +5001,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			PlayerInfo& other = players[1 - i];
 			
 			if (!superflashInstigator) {
+				if (player.idle && !player.isRunning && !player.isWalkingForward && !player.isWalkingBackward) {
+					if (!player.hitstop) {
+						++player.timePassedPureIdle;
+					}
+				} else {
+					player.timePassedPureIdle = 0;
+				}
 				++player.timePassed;
 				++player.timePassedLanding;
 				if (player.inNewMoveSection) {
@@ -5883,7 +6012,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							&& overridePrevRecoveryFrames
 							&& player.recovery == 1) {
 						const FrameCancelInfo& cancelInfo = prevFrame.cancels;
-						// needed for whiff 5P to not show first recovery frame as cancelable (it is not)
+						// needed for whiff 5P to not show first recovery frame as cancellable (it is not)
 						if (!cancelInfo.gatlings.empty()
 								|| !cancelInfo.whiffCancels.empty()
 								|| prevFrame.enableSpecialCancel  // for Ky 3H
@@ -6114,6 +6243,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.prevPosX = player.x;
 			player.prevPosY = player.y;
+			player.prevFrameCancels = player.wasCancels;
 			
 		}
 		
@@ -6490,8 +6620,11 @@ void EndScene::processKeyStrokes() {
 			if (ui.clearTensionGainMaxCombo[i]) {
 				ui.clearTensionGainMaxCombo[i] = false;
 				players[i].tensionGainMaxCombo = 0;
-				players[i].burstGainMaxCombo = 0;
 				players[i].tensionGainLastCombo = 0;
+			}
+			if (ui.clearBurstGainMaxCombo[i]) {
+				ui.clearBurstGainMaxCombo[i] = false;
+				players[i].burstGainMaxCombo = 0;
 				players[i].burstGainLastCombo = 0;
 			}
 		}
@@ -7242,6 +7375,7 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 		
 		bool inAir = !(pawn.posY() == 0 && !pawn.ascending());
 		bool isSuperJump = false;
+		bool enableGatlings = pawn.enableGatlings() && pawn.attackCollidedSoCanCancelNow();
 		if (!inAir) {
 			const AddedMoveData* move = pawn.currentMove();
 			if (move && strcmp(move->name + 4, "HighJump") == 0) {
@@ -7259,14 +7393,24 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 			if (!canJump) {
 				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVJump", 0);
 				if (foundMove) {
-					canJump = foundMove->whiffCancelOption();
+					canJump = foundMove->whiffCancelOption()
+						|| foundMove->gatlingOption() && enableGatlings;  // Jack-O 5H jump cancel
 				}
 			}
 			if (canJump) {
 				if (isSuperJump) {
-					player.superJumpNonCancel = true;
+					if (!pawn.enableSpecials()) {
+						player.superJumpCancelled = true;
+					} else {
+						player.superJumpNonCancel = true;
+					}
 				} else {
-					player.jumpNonCancel = true;
+					// correction for Jack-O 5H jump cancel
+					if (!pawn.enableSpecials()) {
+						player.jumpCancelled = true;
+					} else {
+						player.jumpNonCancel = true;
+					}
 				}
 				return;
 			}
@@ -7275,7 +7419,8 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 			if (!canJump) {
 				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVAirJump", 0);
 				if (foundMove) {
-					canJump = foundMove->whiffCancelOption();
+					canJump = foundMove->whiffCancelOption()
+						|| foundMove->gatlingOption() && enableGatlings;  // anything similar to Jack-O 5H jump cancel
 				}
 			}
 			if (canJump) {
@@ -7314,6 +7459,38 @@ void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName
 		player.startedWalkingForward = true;
 	} else if (strcmp(animName, "CrouchBWalk") == 0 || strcmp(animName, "CmnActBWalk") == 0) {
 		player.startedWalkingBackward = true;
+		
+	// Bedman is idle during the entirety of 1/2/3/4/6/7/8/9Move, and it can be cancelled into a normal or special immediately.
+	// We wouldn't even notice it if we don't register it here.
+	// This is needed only for the Combo Recipe panel.
+	} else if (pawn.characterType() == CHARACTER_TYPE_BEDMAN
+						&& animName[0] >= '1'
+						&& animName[0] <= '9'
+						&& strcmp(animName + 1, "Move") == 0) {
+		ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
+		player.comboRecipe.emplace_back();
+		ComboRecipeElement& newComboElem = player.comboRecipe.back();
+		PlayerInfo::determineMoveNameAndSlangName(pawn, &newComboElem.name, &newComboElem.slangName);
+		newComboElem.timestamp = getAswEngineTick();
+		newComboElem.framebarId = -1;
+		
+		const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
+		if (player.wasCancels.hasCancel(pawn.currentMove()->name, &foundCancel)) {
+			int delay = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
+			if (delay > 0) {
+				// we're decrementing, because this hook runs after collecting frame cancels, and the 1/2/3/4/6/7/8/9Move is already in there
+				--delay;
+				if (
+					delay > 0
+					&& !(
+						delay == 1
+						&& foundCancel->wasAddedDuringHitstopFreeze
+					)
+				) {
+					newComboElem.cancelDelayedBy = delay;
+				}
+			}
+		}
 	}
 }
 
@@ -7471,6 +7648,7 @@ void EndScene::frameCleanup() {
 		++it;
 	}
 	for (PlayerInfo& player : players) {
+		player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame = true;
 		player.jumpNonCancel = false;
 		player.superJumpNonCancel = false;
 		player.jumpCancelled = false;
@@ -7507,7 +7685,7 @@ void EndScene::frameCleanup() {
 		player.gotHitOnThisFrame = false;
 		player.baikenReturningToBlockstunAfterAzami = false;
 		memcpy(player.animIntraFrame, player.anim, 32);
-		player.wasCancels.clear();
+		player.wasCancels.unsetWasFoundOnThisFrame(true);
 		player.receivedNewDmgCalcOnThisFrame = false;
 		player.blockedAHitOnThisFrame = false;
 	}
@@ -7552,7 +7730,7 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 			projectile.fill(createdObj, getSuperflashInstigator(), true);
 		}
 		*advanceFramePtr = oldVal;
-		checkFirePerFrameUponsWrapper((void*)createdObj.ent);
+		orig_checkFirePerFrameUponsWrapper((void*)createdObj.ent);
 	} else {
 		endScene.orig_pawnInitialize(createdObj.ent, initializationParams);
 		if (newProjectilePtr) {
@@ -8400,9 +8578,9 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			player.wasForceDisableFlags = pawn.forceDisableFlags();
 			player.obtainedForceDisableFlags = true;
 			if (pawn.currentAnimDuration() == 1) {
-				player.wasCancels.clear();
+				player.wasCancels.unsetWasFoundOnThisFrame(false);
 			}
-			collectFrameCancels(player, player.wasCancels);
+			collectFrameCancels(player, player.wasCancels, player.wasInHitstopFreezeDuringSkillCheck);
 			player.wasCantBackdashTimer = pawn.cantBackdashTimer();
 			player.wasOtg = pawn.isOtg();
 		}
@@ -8712,18 +8890,31 @@ bool EndScene::willDrawOriginPoints() {
 			&& !drawingPostponed();
 }
 
-void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move, int iterationIndex) {
-	bool foundTheMove = false;
+void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos& vec, const AddedMoveData* move,
+		int iterationIndex, bool inHitstopFreeze) {
 	int vecPos = -1;
-	for (const GatlingOrWhiffCancelInfo& existingElem : vec) {
+	for (GatlingOrWhiffCancelInfo& existingElem : vec) {
 		if (existingElem.move == move) {
-			foundTheMove = true;
+			if (!existingElem.foundOnThisFrame) {
+				if (!existingElem.countersIncremented) {
+					existingElem.countersIncremented = true;
+					if (!inHitstopFreeze) {
+						if (existingElem.wasAddedDuringHitstopFreeze) {
+							existingElem.wasAddedDuringHitstopFreeze = false;
+						} else {
+							++existingElem.framesBeenAvailableForNotIncludingHitstopFreeze;
+						}
+					}
+					++existingElem.framesBeenAvailableFor;
+				}
+				existingElem.foundOnThisFrame = true;
+			}
+			return;
 		}
 		if (existingElem.iterationIndex < iterationIndex) {
 			vecPos = &existingElem - vec.data();
 		}
 	}
-	if (foundTheMove) return;
 	GatlingOrWhiffCancelInfo* ptr = nullptr;
 	if (vecPos == -1 && !vec.empty()) {
 		vec.emplace(vec.begin());
@@ -8736,6 +8927,10 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 		ptr = &vec[vecPos + 1];
 	}
 	GatlingOrWhiffCancelInfo& cancel = *ptr;
+	cancel.foundOnThisFrame = true;
+	cancel.framesBeenAvailableFor = 1;
+	cancel.framesBeenAvailableForNotIncludingHitstopFreeze = 1;
+	cancel.wasAddedDuringHitstopFreeze = inHitstopFreeze;
 	cancel.iterationIndex = iterationIndex;
 	MoveInfo obtainedInfo;
 	bool moveNonEmpty = moves.getInfo(obtainedInfo, player.charType, move->name, move->stateName, false);
@@ -8789,7 +8984,7 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, std::vector<GatlingOr
 	}
 }
 
-void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame) {
+void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame, bool inHitstopFreeze) {
 	if (player.moveNonEmpty) frame.whiffCancelsNote = player.move.whiffCancelsNote;
 	const AddedMoveData* base = player.pawn.movesBase();
 	int* indices = player.pawn.moveIndices();
@@ -8825,7 +9020,7 @@ void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame) {
 			int moveIndex = cancel.getMoveIndex(player.pawn);
 			const AddedMoveData* move = base + indices[moveIndex];
 			if (checkMoveConditions(player, move)) {
-				collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex);
+				collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex, inHitstopFreeze);
 			}
 		}
 		return;
@@ -8838,31 +9033,30 @@ void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame) {
 		bool isWhiffCancel = move->whiffCancelOption() && enableWhiffCancels;
 		if ((isGatling || isWhiffCancel) && checkMoveConditions(player, move)) {
 			if (isGatling) {
-				collectFrameCancelsPart(player, frame.gatlings, move, i);
+				collectFrameCancelsPart(player, frame.gatlings, move, i, inHitstopFreeze);
 			}
 			if (isWhiffCancel) {
-				collectFrameCancelsPart(player, frame.whiffCancels, move, i);
+				collectFrameCancelsPart(player, frame.whiffCancels, move, i, inHitstopFreeze);
 			}
 		}
 	}
-	if (player.moveNonEmpty && enableWhiffCancels) {
-		if (player.move.onlyAddForceWhiffCancelsOnFirstFrameOfSprite
+	if (player.moveNonEmpty && enableWhiffCancels
+			&& player.move.onlyAddForceWhiffCancelsOnFirstFrameOfSprite
 				?
 					!player.pawn.isRCFrozen()
 					&& player.sprite.frame == 0
 					&& strcmp(player.sprite.name, player.move.onlyAddForceWhiffCancelsOnFirstFrameOfSprite) == 0
 				:
 					true
-				&& player.move.conditionForAddingWhiffCancels
-					? player.move.conditionForAddingWhiffCancels(player)
-					: true
-		) {
-			for (int i = 0; i < player.move.forceAddWhiffCancelsCount; ++i) {
-				ForceAddedWhiffCancel* cancel = player.move.getForceAddWhiffCancel(i);
-				int moveIndex = cancel->getMoveIndex(player.pawn);
-				const AddedMoveData* move = base + indices[moveIndex];
-				collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex);
-			}
+			&& player.move.conditionForAddingWhiffCancels
+				? player.move.conditionForAddingWhiffCancels(player)
+				: true
+	) {
+		for (int i = 0; i < player.move.forceAddWhiffCancelsCount; ++i) {
+			ForceAddedWhiffCancel* cancel = player.move.getForceAddWhiffCancel(i);
+			int moveIndex = cancel->getMoveIndex(player.pawn);
+			const AddedMoveData* move = base + indices[moveIndex];
+			collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex, inHitstopFreeze);
 		}
 	}
 }
@@ -9268,12 +9462,15 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 	) {
 		if (attackerPtr.isPawn()) {
 			const AttackData* dealtAttack = attackerPtr.dealtAttack();
-			if (!(
+			bool isNormalThrow = dealtAttack->isThrow()
+					&& dealtAttack->type == ATTACK_TYPE_NORMAL
+					&& attackerPtr.currentAnimDuration() == 1;
+			if (
 				// If we do Slayer 5H RRC walk ground throw, we get 5H 6H Ground Throw. It even erases RRC
-				dealtAttack->isThrow()
-				&& dealtAttack->type == ATTACK_TYPE_NORMAL
-				&& attackerPtr.currentAnimDuration() == 1
-			)) {
+				!isNormalThrow
+				// I added this because I could not see ground throw as a starter in any of the combo recipes, it would just be nothing
+				|| isFirstHit
+			) {
 				bool needAddNew = false;
 				bool needMarkAsNotWhiff = false;
 				
@@ -9307,7 +9504,15 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 					ui.comboRecipeUpdatedOnThisFrame[attacker.index] = true;
 					attacker.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
-					attacker.determineMoveNameAndSlangName(&newComboElem.name, &newComboElem.slangName);
+					if (isNormalThrow) {
+						if (attackerPtr.y() != 0 || attackerPtr.ascending()) {
+							newComboElem.name = "Air Throw";
+						} else {
+							newComboElem.name = "Ground Throw";
+						}
+					} else {
+						attacker.determineMoveNameAndSlangName(&newComboElem.name, &newComboElem.slangName);
+					}
 					newComboElem.counterhit = data.counterHit;
 					newComboElem.whiffed = false;
 					newComboElem.otg = dmgCalc.isOtg;
@@ -9746,4 +9951,23 @@ bool EndScene::shouldIgnoreEnterKey() const {
 	if (gameMode == GAME_MODE_NETWORK && game.getPlayerSide() == 2) return false;
 	if (gameMode == GAME_MODE_REPLAY) return false;
 	return true;
+}
+
+void EndScene::HookHelp::checkFirePerFrameUponsWrapperHook() {
+	endScene.checkFirePerFrameUponsWrapperHook(Entity{(char*)this});
+}
+
+void EndScene::checkFirePerFrameUponsWrapperHook(Entity pawn) {
+	if (pawn.isPawn()) {
+		PlayerInfo& player = findPlayer(pawn);
+		if (player.pawn) {
+			if (player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame) {
+				player.wasInHitstopFreezeDuringSkillCheck = pawn.hitstop() != 0
+					|| pawn.isSuperFrozen();
+				player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame = false;
+				player.wasCancels.unsetWasFoundOnThisFrame(true);
+			}
+		}
+	}
+	orig_checkFirePerFrameUponsWrapper((void*)pawn);
 }

@@ -111,19 +111,53 @@ struct GatlingOrWhiffCancelInfo {
 	const char* replacementInputs;
 	const AddedMoveData* move;
 	int iterationIndex;
-	bool nameIncludesInputs;
 	int bufferTime;
+	int framesBeenAvailableFor = 0;  // starts from 1 on the frame 
+	int framesBeenAvailableForNotIncludingHitstopFreeze = 0;  // but includes RC slowdown
+	bool nameIncludesInputs:1;
+	bool wasAddedDuringHitstopFreeze:1;  // if framesBeenAvailableFor/framesBeenAvailableForNotIncludingHitstopFreeze says 1, should we increment it next time we leave hitstop and freeze?
+	bool foundOnThisFrame:1;
+	bool countersIncremented:1;
+	GatlingOrWhiffCancelInfo();
 	inline bool operator==(const GatlingOrWhiffCancelInfo& other) const { return move == other.move && bufferTime == other.bufferTime; }
 	inline bool operator!=(const GatlingOrWhiffCancelInfo& other) const { return !(*this == other); }
 };
 
+// *cosplaying std::vector*
+struct FixedArrayOfGatlingOrWhiffCancelInfos {
+	GatlingOrWhiffCancelInfo elems[30] { };
+	int count;
+	inline bool empty() const { return count == 0; }
+	// (reads online how to implement a custom iterator) "holy fucking shit this can be way more complicated than it needs to"
+	inline GatlingOrWhiffCancelInfo* begin() { return elems; }
+	inline GatlingOrWhiffCancelInfo* end() { return elems + count; }
+	inline const GatlingOrWhiffCancelInfo* begin() const { return elems; }
+	inline const GatlingOrWhiffCancelInfo* end() const { return elems + count; }
+	inline size_t size() const { return (size_t)count; }
+	GatlingOrWhiffCancelInfo* erase(GatlingOrWhiffCancelInfo* ptr);
+	inline void clear() { count = 0; }
+	inline void emplace_back() { if (count != _countof(elems)) { ++count; } }
+	void emplace(GatlingOrWhiffCancelInfo* ptr);
+	inline GatlingOrWhiffCancelInfo& front() { return elems[0]; }
+	inline const GatlingOrWhiffCancelInfo& front() const { return elems[0]; }
+	inline GatlingOrWhiffCancelInfo& back() { return elems[count - 1]; }
+	inline const GatlingOrWhiffCancelInfo& back() const { return elems[count - 1]; }
+	inline GatlingOrWhiffCancelInfo& operator[](int index) { return elems[index]; }
+	inline const GatlingOrWhiffCancelInfo& operator[](int index) const { return elems[index]; }
+	inline GatlingOrWhiffCancelInfo* data() { return elems; }
+	inline const GatlingOrWhiffCancelInfo* data() const { return elems; }
+	bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const;
+};
+
 struct FrameCancelInfo {
-	std::vector<GatlingOrWhiffCancelInfo> gatlings;
-	std::vector<GatlingOrWhiffCancelInfo> whiffCancels;
+	FixedArrayOfGatlingOrWhiffCancelInfos gatlings;
+	FixedArrayOfGatlingOrWhiffCancelInfos whiffCancels;
 	const char* whiffCancelsNote = nullptr;
 	FrameCancelInfo() = default;
 	void clear();
-	bool hasCancel(const char* skillName) const;
+	bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const;
+	void unsetWasFoundOnThisFrame(bool unsetCountersIncremented);
+	void deleteThatWhichWasNotFound();
 };
 
 struct PlayerCancelInfo {
@@ -1159,14 +1193,17 @@ struct ComboRecipeElement {
 	int dashDuration = 0;  // also used for walk forward and walk backward
 	DWORD timestamp = 0;  // might mean either earliest hit or the time the move was initiated
 	int framebarId = 0;  // for projectiles
-	bool whiffed = true;
-	bool counterhit = false;
-	bool otg = false;
-	bool isMeleeAttack = false;
-	bool isProjectile = false;
-	bool artificial = false;
-	bool isWalkForward = false;
-	bool isWalkBackward = false;
+	int cancelDelayedBy = 0;
+	bool whiffed:1;
+	bool counterhit:1;
+	bool otg:1;
+	bool isMeleeAttack:1;
+	bool isProjectile:1;
+	bool artificial:1;
+	bool isWalkForward:1;
+	bool isWalkBackward:1;
+	bool doneAfterIdle:1;
+	ComboRecipeElement();
 };
 
 // This struct is cleared using memset to 0. If you add complex elements, add them into the clear() method as well
@@ -1402,6 +1439,7 @@ struct PlayerInfo {
 	AddedMoveData* crouchingFDMove = nullptr;
 	PlayerCancelInfo cancels[10] { };
 	int cancelsTimer = 0;
+	FrameCancelInfo prevFrameCancels;
 	FrameCancelInfo wasCancels;
 	int cancelsCount = 0;
 	std::vector<DmgCalc> dmgCalcs;
@@ -1507,6 +1545,11 @@ struct PlayerInfo {
 	int answerCantCardTimeMax = 0;
 	char grabAnimation[32] { '\0' };
 	DWORD timePassedInNonFrozenFramesSinceStartOfAnim = 0;  // for combo recipe - needed to not show 1-2f of a move that gets kara cancelled into something else
+	int delayLastMoveWasCancelledIntoWith = 0;
+	int timeSinceWasEnableSpecialCancel = 0;
+	int timeSinceWasEnableSpecials = 0;
+	int timeSinceWasEnableJumpCancel = 0;
+	int timePassedPureIdle = 0;  // time passed since last change in 'idle' property from false to true, in frames no including superfreeze and hitstop. For combo recipe. The reason we take pure 'idle' and not 'idlePlus' is because we want to start measuring idle time after landing separately
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;
@@ -1666,6 +1709,9 @@ struct PlayerInfo {
 	bool isWalkingForward:1;
 	bool startedWalkingBackward:1;
 	bool isWalkingBackward:1;
+	bool isFirstCheckFirePerFrameUponsWrapperOfTheFrame:1;
+	bool wasInHitstopFreezeDuringSkillCheck:1;
+	bool delayInTheLastMoveIsAfterIdle:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
