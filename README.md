@@ -868,6 +868,11 @@ comboRecipe_showDashes = true
 ; '#f Microwalk/Walk/Microwalk Back/Walk Back', where # is a number.
 comboRecipe_showWalks = true
 
+; A number.
+; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.
+; Must be in the range [-25000; +25000].
+startingTensionPulse = 0
+
 ```
 
 </details>
