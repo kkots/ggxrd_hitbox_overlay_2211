@@ -1203,6 +1203,7 @@ struct ComboRecipeElement {
 	bool isWalkForward:1;
 	bool isWalkBackward:1;
 	bool doneAfterIdle:1;
+	bool isJump:1;
 	ComboRecipeElement();
 };
 

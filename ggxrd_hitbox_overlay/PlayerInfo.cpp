@@ -3283,7 +3283,8 @@ ComboRecipeElement::ComboRecipeElement()
 	artificial(false),
 	isWalkForward(false),
 	isWalkBackward(false),
-	doneAfterIdle(false) {
+	doneAfterIdle(false),
+	isJump(false) {
 }
 
 GatlingOrWhiffCancelInfo* FixedArrayOfGatlingOrWhiffCancelInfos::erase(GatlingOrWhiffCancelInfo* ptr) {

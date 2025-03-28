@@ -7191,7 +7191,7 @@ void UI::drawSearchableWindows() {
 						isLink = IS_LINK_UNKNOWN;
 						for (++nextJ; nextJ != comboRecipeSize; ++nextJ) {
 							const ComboRecipeElement& nextElem = player.comboRecipe[nextJ];
-							if (!nextElem.isProjectile && !nextElem.artificial) {
+							if (!nextElem.isProjectile && (!nextElem.artificial || nextElem.isJump)) {
 								isLink = nextElem.doneAfterIdle ? IS_LINK_YES : IS_LINK_NO;
 								break;
 							}
@@ -7238,7 +7238,7 @@ void UI::drawSearchableWindows() {
 					ImGui::SameLine();
 					
 					const char* linkText = "";
-					if (!elem.isProjectile && !elem.artificial && isLink != IS_LINK_UNKNOWN) {
+					if (!elem.isProjectile && (!elem.artificial || elem.isJump) && isLink != IS_LINK_UNKNOWN) {
 						if (isLink == IS_LINK_YES) {
 							linkText = ",";
 						} else {

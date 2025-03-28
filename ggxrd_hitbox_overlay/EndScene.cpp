@@ -2128,6 +2128,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					newComboElem.timestamp = aswEngineTickCount;
 					newComboElem.framebarId = -1;
 					newComboElem.artificial = true;
+					newComboElem.isJump = true;
 					
 					// Jack-O 5H is not seen as a jump cancel, but as a 'Jump'
 					if (player.timeSinceWasEnableJumpCancel) {
