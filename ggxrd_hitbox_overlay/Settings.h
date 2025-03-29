@@ -164,6 +164,7 @@ public:
 	std::atomic_bool comboRecipe_showIdleTimeBetweenMoves = true;
 	std::atomic_bool comboRecipe_showDashes = true;
 	std::atomic_bool comboRecipe_showWalks = true;
+	std::atomic_bool comboRecipe_showSuperJumpInstalls = true;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

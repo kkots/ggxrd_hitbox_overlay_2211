@@ -124,8 +124,9 @@ struct GatlingOrWhiffCancelInfo {
 };
 
 // *cosplaying std::vector*
+template<size_t size>
 struct FixedArrayOfGatlingOrWhiffCancelInfos {
-	GatlingOrWhiffCancelInfo elems[30] { };
+	GatlingOrWhiffCancelInfo elems[size] { };  // the maximum number of moves in the game
 	int count;
 	inline bool empty() const { return count == 0; }
 	// (reads online how to implement a custom iterator) "holy fucking shit this can be way more complicated than it needs to"
@@ -134,10 +135,28 @@ struct FixedArrayOfGatlingOrWhiffCancelInfos {
 	inline const GatlingOrWhiffCancelInfo* begin() const { return elems; }
 	inline const GatlingOrWhiffCancelInfo* end() const { return elems + count; }
 	inline size_t size() const { return (size_t)count; }
-	GatlingOrWhiffCancelInfo* erase(GatlingOrWhiffCancelInfo* ptr);
+	inline GatlingOrWhiffCancelInfo* erase(GatlingOrWhiffCancelInfo* ptr) {
+		int index = ptr - elems;
+		if (count - index > 1) {
+			const size_t elemSize = sizeof (GatlingOrWhiffCancelInfo);
+			memmove(ptr, ptr + 1, elemSize * (count - index - 1));
+		}
+		--count;
+		return elems + index;
+	}
 	inline void clear() { count = 0; }
 	inline void emplace_back() { if (count != _countof(elems)) { ++count; } }
-	void emplace(GatlingOrWhiffCancelInfo* ptr);
+	inline void emplace(GatlingOrWhiffCancelInfo* ptr) {
+		if (count == _countof(elems)) return;
+		int index = ptr - elems;
+		if (index == count) {
+			++count;
+			return;
+		}
+		const size_t elemSize = sizeof (GatlingOrWhiffCancelInfo);
+		memmove(ptr + 1, ptr, elemSize * (count - index));
+		++count;
+	}
 	inline GatlingOrWhiffCancelInfo& front() { return elems[0]; }
 	inline const GatlingOrWhiffCancelInfo& front() const { return elems[0]; }
 	inline GatlingOrWhiffCancelInfo& back() { return elems[count - 1]; }
@@ -146,24 +165,98 @@ struct FixedArrayOfGatlingOrWhiffCancelInfos {
 	inline const GatlingOrWhiffCancelInfo& operator[](int index) const { return elems[index]; }
 	inline GatlingOrWhiffCancelInfo* data() { return elems; }
 	inline const GatlingOrWhiffCancelInfo* data() const { return elems; }
-	bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const;
+	inline bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const {
+		for (const GatlingOrWhiffCancelInfo& info : *this) {
+			if (strcmp(info.move->name, skillName) == 0) {
+				if (infoPtr) *infoPtr = &info;
+				return true;
+			}
+		}
+		return false;
+	}
 };
 
+template<size_t size>
 struct FrameCancelInfo {
-	FixedArrayOfGatlingOrWhiffCancelInfos gatlings;
-	FixedArrayOfGatlingOrWhiffCancelInfos whiffCancels;
+	FixedArrayOfGatlingOrWhiffCancelInfos<size> gatlings;
+	FixedArrayOfGatlingOrWhiffCancelInfos<size> whiffCancels;
 	const char* whiffCancelsNote = nullptr;
 	FrameCancelInfo() = default;
-	void clear();
-	bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const;
-	void unsetWasFoundOnThisFrame(bool unsetCountersIncremented);
-	void deleteThatWhichWasNotFound();
+	inline void clear() {
+		gatlings.clear();
+		whiffCancels.clear();
+		whiffCancelsNote = nullptr;
+	}
+	inline bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const {
+		for (const GatlingOrWhiffCancelInfo& info : gatlings) {
+			if (strcmp(info.move->name, skillName) == 0) {
+				if (infoPtr) *infoPtr = &info;
+				return true;
+			}
+		}
+		for (const GatlingOrWhiffCancelInfo& info : whiffCancels) {
+			if (strcmp(info.move->name, skillName) == 0) {
+				if (infoPtr) *infoPtr = &info;
+				return true;
+			}
+		}
+		return false;
+	}
+	inline void unsetWasFoundOnThisFrame(bool unsetCountersIncremented) {
+		for (GatlingOrWhiffCancelInfo& info : gatlings) {
+			info.foundOnThisFrame = false;
+			if (unsetCountersIncremented) {
+				info.countersIncremented = false;
+			}
+		}
+		for (GatlingOrWhiffCancelInfo& info : whiffCancels) {
+			info.foundOnThisFrame = false;
+			if (unsetCountersIncremented) {
+				info.countersIncremented = false;
+			}
+		}
+	}
+	inline void deleteThatWhichWasNotFound() {
+		size_t counter;
+		size_t i;
+		if (!gatlings.empty()) {
+			for (counter = gatlings.size(); counter != 0; --counter) {
+				i = counter - 1;
+				if (!gatlings[i].foundOnThisFrame) {
+					gatlings.erase(gatlings.begin() + i);
+				}
+			}
+		}
+		if (!whiffCancels.empty()) {
+			for (counter = whiffCancels.size(); counter != 0; --counter) {
+				i = counter - 1;
+				if (!whiffCancels[i].foundOnThisFrame) {
+					whiffCancels.erase(whiffCancels.begin() + i);
+				}
+			}
+		}
+	}
+	template<size_t srcSize>
+	inline void copyFromAnotherSizedArray(FrameCancelInfo<srcSize>& src) {
+		copyCancelsFromAnotherSizePart<srcSize>(gatlings, src.gatlings);
+		copyCancelsFromAnotherSizePart<srcSize>(whiffCancels, src.whiffCancels);
+	}
+	template<size_t srcSize>
+	inline void copyCancelsFromAnotherSizePart(FixedArrayOfGatlingOrWhiffCancelInfos<size>& dest,
+			FixedArrayOfGatlingOrWhiffCancelInfos<srcSize>& src) {
+		size_t elemsToCopy = src.size();
+		if (elemsToCopy > size) {
+			elemsToCopy = size;
+		}
+		dest.count = src.count;
+		memcpy(dest.elems, src.elems, sizeof (GatlingOrWhiffCancelInfo) * elemsToCopy);
+	}
 };
 
 struct PlayerCancelInfo {
 	int start = 0;
 	int end = 0; // inclusive
-	FrameCancelInfo cancels;
+	FrameCancelInfo<30> cancels;
 	bool enableJumpCancel:1;
 	bool enableSpecialCancel:1;
 	bool enableSpecials:1;
@@ -466,7 +559,7 @@ struct Frame : public FrameBase {
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector require special handling in the clear() method.
 struct PlayerFrame : public FrameBase {
-	FrameCancelInfo cancels;
+	FrameCancelInfo<30> cancels;
 	std::vector<Input> inputs;
 	const char* powerupExplanation;
 	Input prevInput;
@@ -509,6 +602,8 @@ struct PlayerFrame : public FrameBase {
 	unsigned char doubleJumps:4;
 	unsigned char airDashes:3;
 	unsigned char needShowAirOptions:1;
+	unsigned char dustGatlingTimer;
+	unsigned char dustGatlingTimerMax;
 	
 	bool isFirst:1;
 	bool hitConnected:1;  // true only for the frame on which a hit connected
@@ -1204,6 +1299,7 @@ struct ComboRecipeElement {
 	bool isWalkBackward:1;
 	bool doneAfterIdle:1;
 	bool isJump:1;
+	bool isSuperJumpInstall:1;
 	ComboRecipeElement();
 };
 
@@ -1440,8 +1536,8 @@ struct PlayerInfo {
 	AddedMoveData* crouchingFDMove = nullptr;
 	PlayerCancelInfo cancels[10] { };
 	int cancelsTimer = 0;
-	FrameCancelInfo prevFrameCancels;
-	FrameCancelInfo wasCancels;
+	FrameCancelInfo<180> prevFrameCancels;
+	FrameCancelInfo<180> wasCancels;
 	int cancelsCount = 0;
 	std::vector<DmgCalc> dmgCalcs;
 	std::vector<Input> inputs;
@@ -1551,6 +1647,8 @@ struct PlayerInfo {
 	int timeSinceWasEnableSpecials = 0;
 	int timeSinceWasEnableJumpCancel = 0;
 	int timePassedPureIdle = 0;  // time passed since last change in 'idle' property from false to true, in frames no including superfreeze and hitstop. For combo recipe. The reason we take pure 'idle' and not 'idlePlus' is because we want to start measuring idle time after landing separately
+	int dustGatlingTimer = 0;
+	int dustGatlingTimerMax = 0;
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;
@@ -1706,6 +1804,8 @@ struct PlayerInfo {
 	bool isRunning:1;
 	bool jumpInstalled:1;
 	bool superJumpInstalled:1;
+	bool jumpInstalledStage2:1;
+	bool superJumpInstalledStage2:1;
 	bool startedWalkingForward:1;
 	bool isWalkingForward:1;
 	bool startedWalkingBackward:1;
@@ -1713,6 +1813,8 @@ struct PlayerInfo {
 	bool isFirstCheckFirePerFrameUponsWrapperOfTheFrame:1;
 	bool wasInHitstopFreezeDuringSkillCheck:1;
 	bool delayInTheLastMoveIsAfterIdle:1;
+	bool lastMoveWasJumpInstalled:1;
+	bool lastMoveWasSuperJumpInstalled:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
@@ -1756,6 +1858,7 @@ struct PlayerInfo {
 	void determineMoveNameAndSlangName(const char** name, const char** slangName);
 	static void determineMoveNameAndSlangName(const MoveInfo* move, bool idle, PlayerInfo& pawn, const char** name, const char** slangName);
 	static void determineMoveNameAndSlangName(Entity pawn, const char** name, const char** slangName);
+	static bool determineMove(Entity pawn, MoveInfo* destination);
 	void onAnimReset();
 	void removeNonStancePrevStartups();
 	void fillInMove();

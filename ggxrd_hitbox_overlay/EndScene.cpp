@@ -1206,6 +1206,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (player.rcSlowedDown) player.blockstunContaminatedByRCSlowdown = true;
 			}
 			
+			bool jumpInstalledStage2 = player.jumpInstalledStage2;
+			bool superJumpInstalledStage2 = player.superJumpInstalledStage2;
+			player.jumpInstalledStage2 = false;
+			player.superJumpInstalledStage2 = false;
+			
 			bool startedRunOrWalkOnThisFrame = false;
 			if (player.changedAnimOnThisFrame) {
 				
@@ -1534,6 +1539,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			memcpy(player.attackLockAction, ent.dealtAttack()->attackLockAction, 32);
 			player.animFrame = ent.currentAnimDuration();
 			player.hitboxesCount = 0;
+			
+			player.dustGatlingTimer = player.pawn.dustGatlingTimer();
+			if (!player.dustGatlingTimer) player.dustGatlingTimer = player.pawn.dustPropulsion();
+			if (!player.dustGatlingTimer) player.dustGatlingTimerMax = 0;
+			if (player.dustGatlingTimer > player.dustGatlingTimerMax) player.dustGatlingTimerMax = player.dustGatlingTimer;
 			
 			if (idleNext != player.idle || player.wasIdle && !idleNext || (player.setBlockstunMax || player.setHitstunMax) && !idleNext) {
 				player.idle = idleNext;
@@ -2005,6 +2015,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.delayInTheLastMoveIsAfterIdle = true;
 						}
 						
+						player.lastMoveWasJumpInstalled = jumpInstalledStage2;
+						player.lastMoveWasSuperJumpInstalled = superJumpInstalledStage2;
+						
 						player.timeSinceWasEnableSpecialCancel = 0;
 						player.timeSinceWasEnableSpecials = 0;
 						player.hitOnFrame = 0;
@@ -2162,6 +2175,25 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					)
 					&& !player.lastPerformedMoveNameIsInComboRecipe
 				) {
+					
+					if ((player.lastMoveWasJumpInstalled || player.lastMoveWasSuperJumpInstalled)
+							&& !(
+								charDoesNotCareAboutSuperJumpInstalls[player.charType]
+								|| player.move.ignoreJumpInstalls
+								|| player.move.ignoreSuperJumpInstalls
+								&& player.lastMoveWasSuperJumpInstalled
+								&& !player.lastMoveWasJumpInstalled
+							)) {
+						player.comboRecipe.emplace_back();
+						ComboRecipeElement& newElem = player.comboRecipe.back();
+						newElem.artificial = true;
+						newElem.name = player.lastMoveWasJumpInstalled ? "Jump Install" : "Super Jump Install";
+						newElem.timestamp = aswEngineTickCount;
+						if (player.lastMoveWasSuperJumpInstalled) {
+							newElem.isSuperJumpInstall = true;
+						}
+					}
+					
 					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 					player.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = player.comboRecipe.back();
@@ -5238,8 +5270,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			Entity ent = entityList.slots[i];
 			bool hasHitboxes = player.hitboxesCount > 0;
 			bool enableSpecialCancel = player.wasEnableSpecialCancel
-					&& player.wasAttackCollidedSoCanCancelNow
-					&& player.wasEnableGatlings;
+					&& player.wasAttackCollidedSoCanCancelNow;
+					//&& player.wasEnableGatlings;  // Jack-O 5H can special cancel even without this flag
+					// I also checked the game's code and it does not use the gatlings flag for special cancels
 			bool hitAlreadyHappened = player.pawn.hitAlreadyHappened() >= player.pawn.theValueHitAlreadyHappenedIsComparedAgainst()
 					|| !player.pawn.currentHitNum();
 			player.getInputs(game.getInputRingBuffers() + player.index, isTheFirstFrameInTheMatch);
@@ -5536,7 +5569,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.enableJumpCancel = player.wasEnableJumpCancel;
 				currentFrame.enableSpecials = false;
 				player.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
-				currentFrame.cancels = player.wasCancels;
+				currentFrame.cancels.copyFromAnotherSizedArray(player.wasCancels);
+				currentFrame.dustGatlingTimer = player.dustGatlingTimer;
+				currentFrame.dustGatlingTimerMax = player.dustGatlingTimerMax;
 				currentFrame.hitstop = player.hitstop;
 				currentFrame.hitstopMax = player.hitstopMax;
 				if (player.stagger && player.cmnActIndex == CmnActJitabataLoop) {
@@ -6012,7 +6047,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (recoveryMode
 							&& overridePrevRecoveryFrames
 							&& player.recovery == 1) {
-						const FrameCancelInfo& cancelInfo = prevFrame.cancels;
+						const FrameCancelInfo<30>& cancelInfo = prevFrame.cancels;
 						// needed for whiff 5P to not show first recovery frame as cancellable (it is not)
 						if (!cancelInfo.gatlings.empty()
 								|| !cancelInfo.whiffCancels.empty()
@@ -6067,7 +6102,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newCancelInfo.end = player.cancelsTimer;
 				newCancelInfo.enableSpecialCancel = enableSpecialCancel;
 				newCancelInfo.enableJumpCancel = player.wasEnableJumpCancel;
-				newCancelInfo.cancels = player.wasCancels;
+				newCancelInfo.cancels.copyFromAnotherSizedArray(player.wasCancels);
 				newCancelInfo.enableSpecials = false;
 				newCancelInfo.hitAlreadyHappened = hitAlreadyHappened;
 				newCancelInfo.airborne = player.airborne;
@@ -7438,17 +7473,17 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 			}
 		}
 		
-	} else if ((player.jumpInstalled || player.superJumpInstalled) && pawn.enemyEntity() && pawn.enemyEntity().inHitstun()) {
+	} else if (pawn.enemyEntity() && pawn.enemyEntity().inHitstun()) {
 		
-		ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
-		player.comboRecipe.emplace_back();
-		ComboRecipeElement& newElem = player.comboRecipe.back();
-		newElem.artificial = true;
-		newElem.name = player.jumpInstalled ? "Jump Install" : "Super Jump Install";
-		newElem.timestamp = getAswEngineTick();
+		if (player.jumpInstalled) {
+			player.jumpInstalledStage2 = true;
+			player.jumpInstalled = false;
+			player.superJumpInstalled = false;
+		} else if (player.superJumpInstalled) {
+			player.superJumpInstalledStage2 = true;
+			player.superJumpInstalled = false;
+		}
 		
-		player.jumpInstalled = false;
-		player.superJumpInstalled = false;
 	}
 }
 
@@ -8891,7 +8926,7 @@ bool EndScene::willDrawOriginPoints() {
 			&& !drawingPostponed();
 }
 
-void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos& vec, const AddedMoveData* move,
+void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<180>& vec, const AddedMoveData* move,
 		int iterationIndex, bool inHitstopFreeze) {
 	int vecPos = -1;
 	for (GatlingOrWhiffCancelInfo& existingElem : vec) {
@@ -8985,7 +9020,7 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOr
 	}
 }
 
-void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame, bool inHitstopFreeze) {
+void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze) {
 	if (player.moveNonEmpty) frame.whiffCancelsNote = player.move.whiffCancelsNote;
 	const AddedMoveData* base = player.pawn.movesBase();
 	int* indices = player.pawn.moveIndices();
@@ -9932,7 +9967,10 @@ extern "C" void __fastcall jumpInstallNormalJumpHook(void* pawn) {
 
 void EndScene::jumpInstallNormalJumpHook(Entity pawn) {
 	PlayerInfo& player = findPlayer(pawn);
-	if (!player.pawn) return;
+	if (!player.pawn
+			|| pawn.remainingAirDashes() == pawn.maxAirdashes()
+			&& pawn.remainingDoubleJumps() == pawn.maxDoubleJumps()
+			|| pawn.characterType() == CHARACTER_TYPE_BEDMAN) return;
 	player.jumpInstalled = true;
 }
 
@@ -9942,7 +9980,9 @@ extern "C" void __fastcall jumpInstallSuperJumpHook(void* pawn) {
 
 void EndScene::jumpInstallSuperJumpHook(Entity pawn) {
 	PlayerInfo& player = findPlayer(pawn);
-	if (!player.pawn) return;
+	if (!player.pawn
+			|| pawn.remainingAirDashes() == pawn.maxAirdashes()
+			|| pawn.characterType() == CHARACTER_TYPE_BEDMAN) return;
 	player.superJumpInstalled = true;
 }
 

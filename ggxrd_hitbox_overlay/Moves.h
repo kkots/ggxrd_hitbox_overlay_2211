@@ -20,6 +20,8 @@ bool isIdle_default(PlayerInfo& player);
 bool canBlock_default(PlayerInfo& player);
 bool isDangerous_default(Entity ent);
 
+extern bool charDoesNotCareAboutSuperJumpInstalls[25];
+
 class ForceAddedWhiffCancel {
 public:
 	const char* name;
@@ -131,7 +133,12 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, dontShowPowerupGraphic, nullptr) \
 	/* for combo recipe */ \
 	MOVE_INFO_EXEC(bool, boolValue, combineHitsFromDifferentProjectiles, false) \
-	MOVE_INFO_EXEC(bool, boolValue, showMultipleHitsFromOneAttack, false)
+	MOVE_INFO_EXEC(bool, boolValue, showMultipleHitsFromOneAttack, false) \
+	/* there is no way to route from this move into a jump cancel, so we should ignore if it's jump installed. */ \
+	/* A Roman Cancel would return you to neutral so there's no way to use jump installs done prior to it. */ \
+	/* This means that even if you RC this move, we should still ignore jump installs on it. */ \
+	MOVE_INFO_EXEC(bool, boolValue, ignoreJumpInstalls, false) \
+	MOVE_INFO_EXEC(bool, boolValue, ignoreSuperJumpInstalls, false)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -391,7 +398,8 @@ private:
 	static int hashString(const char* str, int startingHash = 0);
 	struct MyHashFunction {
 		inline std::size_t operator()(const MyKey& k) const {
-			return hashString(k.name);
+			// added character type into hash to compare NmlAtk6K and the like of different chars faster
+			return k.charType * 0x89 + hashString(k.name);
 		}
 	};
 	struct MyCompareFunction {

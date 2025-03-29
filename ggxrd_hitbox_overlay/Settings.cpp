@@ -657,6 +657,10 @@ bool Settings::onDllMain() {
 		"; Specify true or false.\n"
 		"; Setting this to true (default) will show microwalks and walks on dedicated separate lines in the following format:\n"
 		"; '#f Microwalk/Walk/Microwalk Back/Walk Back', where # is a number.");
+	registerOtherDescription(settingAndItsName(comboRecipe_showSuperJumpInstalls), "Show Super Jump Installs", comboRecipeSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true (default) will show super jump installs on dedicated separate lines in the following format: 'Super Jump Install'.\n"
+		"; This setting does not affect the display of (regular) jump installs, which are always displayed.");
 	
 	registerOtherDescription(settingAndItsName(startingTensionPulse), "Starting Tension Pulse", settingsGeneralSettingsStr,
 		"; A number.\n"
@@ -950,6 +954,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool comboRecipe_showIdleTimeBetweenMovesParsed = false;
 	bool comboRecipe_showDashesParsed = false;
 	bool comboRecipe_showWalksParsed = false;
+	bool comboRecipe_showSuperJumpInstallsParsed = false;
 
 	std::string accum;
 	char buf[128];
@@ -1107,6 +1112,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(comboRecipe_showIdleTimeBetweenMoves)
 						booleanPreset(comboRecipe_showDashes)
 						booleanPreset(comboRecipe_showWalks)
+						booleanPreset(comboRecipe_showSuperJumpInstalls)
 						#undef booleanPreset
 						#undef integerPreset
 					}
@@ -1449,6 +1455,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!comboRecipe_showWalksParsed) {
 		comboRecipe_showWalks = true;
+	}
+	
+	if (!comboRecipe_showSuperJumpInstallsParsed) {
+		comboRecipe_showSuperJumpInstalls = true;
 	}
 	
 	if (firstSettingsParse) {
@@ -2025,6 +2035,7 @@ void Settings::writeSettingsMain() {
 	booleanPreset(comboRecipe_showIdleTimeBetweenMoves)
 	booleanPreset(comboRecipe_showDashes)
 	booleanPreset(comboRecipe_showWalks)
+	booleanPreset(comboRecipe_showSuperJumpInstalls)
 	booleanPreset(neverDisplayGrayHurtboxes)
 	booleanPreset(dontShowBoxes)
 	booleanPreset(displayUIOnTopOfPauseMenu)

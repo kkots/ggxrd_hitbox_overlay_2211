@@ -560,6 +560,7 @@ struct AttackData {
 	inline bool attackMultiHit() const { return (flags0x14 & 0x4000000) != 0; }  // Elphelt grenade, Elphelt shotgun, Oil Fire, 100-t Weight, Stahl Wirbel, etc. Lets you hit multiple entities in one frame
 	inline bool wasHitDuringRc() const { return (flags0x14 & 0x20000000) != 0; }
 	DWORD flags0x18;
+	inline bool dustAttack() const { return (flags0x18 & 0x4) != 0; }
 	int extraHitstops[3];  // [2] is extra CH hitstop
 	int hitstop;
 	int attackLockWaitTime;
@@ -794,6 +795,7 @@ public:
 	inline DWORD forceDisableFlags() const { return *(DWORD*)(ent + 0x24e3c); }
 	inline bool enableBlock() const { return (*(DWORD*)(ent + 0x4d3c) & 0x10000) != 0; }
 	inline int prohibitFDTimer() const { return *(int*)(ent + 0x4d60); }
+	inline int dustGatlingTimer() const { return *(int*)(ent + 0x2ce40); }  // for hotizontal dust only
 	inline int fdNegativeCheck() const { return *(int*)(ent + 0x2ce60); }
 	inline int slowSpeedPercentage() const { return *(int*)(ent + 0x2ce64); }
 	inline bool enableCrouch() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2) != 0; }
@@ -1026,7 +1028,7 @@ public:
 	inline bool jitabataLoop() const { return (*(DWORD*)(ent + 0x234) & 0x20000000) != 0; }
 	inline bool ignoreRcProration() const { return *(BOOL*)(ent + 0x26200) != 0; }
 	inline TensionMode tensionMode() const { return *(TensionMode*)(ent + 0x2621c); }
-	inline int dustPropulsion() const { return *(int*)(ent + 0x24de0); }
+	inline int dustPropulsion() const { return *(int*)(ent + 0x24de8); }  // a timer that decrements. For vertical dust only
 	inline int unknownField1() const { return *(int*)(ent + 0x24df0); }
 	inline int burstGainOnly20Percent() const { return *(int*)(ent + 0x2d130); }
 	inline RomanCancelAvailability romanCancelAvailability() const { return *(RomanCancelAvailability*)(ent + 0x26214); }

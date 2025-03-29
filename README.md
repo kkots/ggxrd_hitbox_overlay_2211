@@ -868,6 +868,11 @@ comboRecipe_showDashes = true
 ; '#f Microwalk/Walk/Microwalk Back/Walk Back', where # is a number.
 comboRecipe_showWalks = true
 
+; Specify true or false.
+; Setting this to true (default) will show super jump installs on dedicated separate lines in the following format: 'Super Jump Install'.
+; This setting does not affect the display of (regular) jump installs, which are always displayed.
+comboRecipe_showSuperJumpInstalls = true
+
 ; A number.
 ; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.
 ; Must be in the range [-25000; +25000].
@@ -1268,3 +1273,8 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   5) The 'Combo Damage & Combo Stun' panel now displays the tension gained by you and the burst gained by your opponent during the last combo.
   6) There is a new setting in Settings - General Settings, called 'Starting Tension Pulse', ranging from -25000 to 25000, which lets you set the initial Tension Pulse upon stage reset in Training Mode.
   7) Fixed Combo Recipe panel registering I-No's dash twice.
+  - 2025 March 28: Version 6.21:
+  1) The Combo Recipe panel will now ignore jump or superjump installs selectively depending on the move that is being (super)jump installed. There is a new setting to not display super jump installs. Jump installs now won't be registered more than once during the same string of moves (unless it's a super jump install followed by a regular jump install). Jump installs now won't be registered for Bedman at all.
+  2) Fixed Jack-O 5H not displaying special cancels in the framebar or the Cancels panel.
+  3) Added a new display to the framebar tooltips: they now show the dust combo gatling cancel timer. While this timer is above zero, if any normal attack connects, all the non-followup non-super non-IK moves get added as gatlings.
+  4) Fixed an problem when delay cancels would not be displayed correctly for some moves if there're more than 30 cancels available from a move.

@@ -288,13 +288,14 @@ private:
 	template<size_t size> inline void HelpMarkerWithHotkey(const char(&desc)[size], std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc, desc + size - 1, hotkey); }
 	inline void HelpMarkerWithHotkey(const StringWithLength& desc, std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc.txt, desc.txt + desc.length, hotkey); }
 	inline void HelpMarkerWithHotkey(const std::string& desc, std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc.c_str(), desc.c_str() + desc.size(), hotkey); }
-	void printAllCancels(const FrameCancelInfo& cancels,
+	void printAllCancels(const FrameCancelInfo<30>& cancels,
 		bool enableSpecialCancel,
 		bool enableJumpCancel,
 		bool enableSpecials,
 		bool hitOccured,
 		bool airborne,
-		bool insertSeparators);
+		bool insertSeparators,
+		bool useMaxY);
 	int printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale);
 	void printAttackLevel(const DmgCalc& dmgCalc);
 	std::vector<BYTE> framebarWindowDrawDataCopy;

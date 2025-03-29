@@ -12,6 +12,7 @@ Moves moves;
 
 static const CharacterType GENERAL = (CharacterType)-1;
 static std::vector<MoveInfoProperty> allProperties;
+bool charDoesNotCareAboutSuperJumpInstalls[25] { false };
 
 static bool sectionSeparator_enableWhiffCancels(PlayerInfo& ent);
 static bool sectionSeparator_mistFinerAirDash(PlayerInfo& ent);
@@ -419,11 +420,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(GENERAL, "CmnStandForce");
 	move.displayName = "Stand";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnNeutral");
 	move.displayName = "Neutral";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "RomanCancelHit");
@@ -462,11 +465,13 @@ bool Moves::onDllMain() {
 	move.displayName = "Blue Burst";
 	move.displayNameSelector = displayNameSelector_blueBurst;
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnMaximumBurst");
 	move.displayName = "Gold Burst";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "FaultlessDefenceCrouch");
@@ -491,48 +496,57 @@ bool Moves::onDllMain() {
 	move.displayName = "Dead Angle Attack";
 	move.slangName = "DAA";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "IchigekiJunbi");
 	move.displayName = "Instant Kill Activation";
 	move.slangName = "IK Activation";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "Ichigeki");
 	move.displayName = "Instant Kill";
 	move.slangName = "IK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActStand");
 	move.displayName = "Stand";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActStandTurn");
 	move.displayName = "Stand Turn";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActStand2Crouch");
 	move.displayName = "Stand to Crouch";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActCrouch");
 	move.displayName = "Crouch";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActCrouchTurn");
 	move.displayName = "Crouch Turn";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActCrouch2Stand");
 	move.displayName = "Crouch to Stand";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActJumpPre");
@@ -547,45 +561,54 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActJumpLanding");
 	move.displayName = "Landing";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActLandingStiff");
 	move.displayName = "Landing Recovery";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActFWalk");
 	move.displayName = "Walk Forward";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnFWalk");
 	move.displayName = "Walk Forward";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActBWalk");
 	move.displayName = "Walk Back";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnBWalk");
 	move.displayName = "Walk Back";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActFDash");
 	move.displayName = "Forward Dash";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(GENERAL, "CmnFDash");
 	move.displayName = "Forward Dash";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActFDashStop");
 	move.displayName = "Forward Dash Stop";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActBDash");
@@ -626,70 +649,87 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "HomingDash2");
 	move.displayName = "Homing Dash";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(GENERAL, "HomingJump");
 	move.displayName = "Homing Jump";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriHighLv1");
 	move.displayName = "Hitstun High Lv1";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriHighLv2");
 	move.displayName = "Hitstun High Lv2";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriHighLv3");
 	move.displayName = "Hitstun High Lv3";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriHighLv4");
 	move.displayName = "Hitstun High Lv4";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriHighLv5");
 	move.displayName = "Hitstun High Lv5";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriLowLv1");
 	move.displayName = "Hitstun Low Lv1";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriLowLv2");
 	move.displayName = "Hitstun Low Lv2";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriLowLv3");
 	move.displayName = "Hitstun Low Lv3";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriLowLv4");
 	move.displayName = "Hitstun Low Lv4";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriLowLv5");
 	move.displayName = "Hitstun Low Lv5";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriCrouchLv1");
 	move.displayName = "Hitstun Crouch Lv1";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriCrouchLv2");
 	move.displayName = "Hitstun Crouch Lv2";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriCrouchLv3");
 	move.displayName = "Hitstun Crouch Lv3";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriCrouchLv4");
 	move.displayName = "Hitstun Crouch Lv4";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActNokezoriCrouchLv5");
 	move.displayName = "Hitstun Crouch Lv5";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActBDownUpper");
@@ -710,10 +750,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActBDownLoop");
 	move.displayName = "Lying On The Back";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActBDown2Stand");
 	move.displayName = "Waking Up On The Back";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActFDownUpper");
@@ -730,14 +772,17 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActFDownBound");
 	move.displayName = "Fell Down Forward";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActFDownLoop");
 	move.displayName = "Lying On The Face";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActFDown2Stand");
 	move.displayName = "Waking Up Face Down";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActVDownUpper");
@@ -754,10 +799,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActVDownBound");
 	move.displayName = "Fell Down Vertical";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActVDownLoop");
 	move.displayName = "Lying On The Face (From Vertical Fall)";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActBlowoff");
@@ -782,26 +829,32 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActWallHaritsukiLand");
 	move.displayName = "Landed From Wallslump";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActWallHaritsukiGetUp");
 	move.displayName = "Waking Up From Wallslump";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActJitabataLoop");
 	move.displayName = "Stagger";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActKizetsu");
 	move.displayName = "Faint";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActHizakuzure");
 	move.displayName = "Crumple";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActKorogari");
 	move.displayName = "Tumble";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActZSpin");
@@ -863,10 +916,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActHajikareStand");
 	move.displayName = "Stand Rejected";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActHajikareCrouch");
 	move.displayName = "Crouch Rejected";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActHajikareAir");
@@ -879,6 +934,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActLockWait");
 	move.displayName = "Grabbed";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActLockReject");
@@ -901,6 +957,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(GENERAL, "CmnActBurst");
 	move.displayName = "Burst";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActRomanCancel");
@@ -911,38 +968,47 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(GENERAL, "CmnActEntry");
 	move.displayName = "CmnActEntry";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActRoundWin");
 	move.displayName = "Round Win";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActMatchWin");
 	move.displayName = "Match Win";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActLose");
 	move.displayName = "CmnActLose";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActResultWin");
 	move.displayName = "Victory Screen Win";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActResultLose");
 	move.displayName = "Victory Screen Lose";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActEntryWait");
 	move.displayName = "Invisible";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActExDamage");
 	move.displayName = "Ex Damage";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActExDamageLand");
 	move.displayName = "CmnActExDamageLand";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(GENERAL, "NmlAtk5A");
@@ -1285,6 +1351,7 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_blitzShield;
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CounterGuardCrouch");
@@ -1295,6 +1362,7 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_blitzShield;
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CounterGuardAir");
@@ -1306,11 +1374,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverLand");
 	move.displayName = "Bandit Revolver";
 	move.slangName = "BR";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverLand_DI");
 	move.displayName = "DI Bandit Revolver";
 	move.slangName = "DI BR";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame");
@@ -1319,6 +1389,7 @@ bool Moves::onDllMain() {
 	move.slangName = "GF";
 	move.displaySlangNameSelector = displaySlangNameSelector_gunflame;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame_DI");
@@ -1326,6 +1397,7 @@ bool Moves::onDllMain() {
 	move.displayNameSelector = displayNameSelector_gunflameDI;
 	move.slangName = "DI GF";
 	move.displaySlangNameSelector = displaySlangNameSelector_gunflameDI;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverAir");
@@ -1361,6 +1433,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameFeint");
 	move.displayName = "Gunflame Feint";
 	move.slangName = "GF Feint";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "Kudakero");
@@ -1423,22 +1496,26 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "Fefnir");
 	move.displayName = "Fafnir";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "Fefnir_DI");
 	move.displayName = "DI Fafnir";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditBringer");
 	move.displayName = "Bandit Bringer";
 	move.slangName = "BB";
 	move.combineWithPreviousMove = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditBringer_DI");
 	move.displayName = "DI Bandit Bringer";
 	move.slangName = "DI BB";
 	move.combineWithPreviousMove = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperKick");
@@ -1456,6 +1533,7 @@ bool Moves::onDllMain() {
 	move.slangName = "TR";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave_DI");
@@ -1463,6 +1541,7 @@ bool Moves::onDllMain() {
 	move.slangName = "DI TR";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_recovery;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRaveBurst");
@@ -1470,15 +1549,18 @@ bool Moves::onDllMain() {
 	move.slangName = "Burst TR";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "DragonInstall");
 	move.displayName = "Dragon Install";
 	move.slangName = "DI";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "ExKizetsu");
 	move.displayName = "DI Recovery";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BukkiraExe");
@@ -1486,11 +1568,13 @@ bool Moves::onDllMain() {
 	move.slangName = "WT";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BukkirabouNiNageru");
 	move.displayName = "Wild Throw";
 	move.slangName = "WT";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameHibashira", true);
@@ -1557,26 +1641,31 @@ bool Moves::onDllMain() {
 	move.displayName = "Charged Stun Edge";
 	move.slangName = "CSE";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge1");
 	move.displayName = "Stun Edge";
 	move.slangName = "SE";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunDipper");
 	move.displayName = "Stun Dipper";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "HolyBrand");
 	move.displayName = "Split Ciel";
 	move.createdProjectile = createdProjectile_splitCiel;
 	move.canYrcProjectile = canYrcProjectile_splitCiel;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "GreedSaber");
 	move.displayName = "Greed Sever";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirStunEdge2");
@@ -1615,18 +1704,21 @@ bool Moves::onDllMain() {
 	move.displayName = "Sacred Edge";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "RideTheLightning");
 	move.displayName = "Ride The Lightning";
 	move.slangName = "RTL";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "RideTheLightningBurst");
 	move.displayName = "Burst Ride The Lightning";
 	move.slangName = "Burst RTL";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirRideTheLightning");
@@ -1687,6 +1779,7 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_ky5D;
 	move.canYrcProjectile = canYrcProjectile_ky5D;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtkAir5E");
@@ -1716,16 +1809,24 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "DC Sacred Edge";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "NmlAtk6B");
+	move.displayName = "6K";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "GlitterIsGold");
 	move.displayName = "Glitter Is Gold";
 	move.slangName = "Coin";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "BucchusSigh");
 	move.displayName = "Bacchus Sigh";
 	move.slangName = "Bacchus";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
@@ -1750,6 +1851,7 @@ bool Moves::onDllMain() {
 	move.slangName = "PMF Entry";
 	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerB");
@@ -1758,6 +1860,7 @@ bool Moves::onDllMain() {
 	move.slangName = "KMF Entry";
 	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerC");
@@ -1766,6 +1869,7 @@ bool Moves::onDllMain() {
 	move.slangName = "SMF Entry";
 	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// is entered into from MistFinerA/B/C, has variable duration depending on Mist Finer level
@@ -1776,6 +1880,7 @@ bool Moves::onDllMain() {
 	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// entered into from MistFinerDehajime, enables whiff cancels on f2.
@@ -1791,6 +1896,7 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_enableWhiffCancels;
 	move.considerIdleInSeparatedSectionAfterThisManyFrames = 5;
 	move.preservesNewSection = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// performed when releasing the Mist Finer attack
@@ -1802,6 +1908,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerALv1");
@@ -1812,6 +1919,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerALv2");
@@ -1822,6 +1930,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv0");
@@ -1832,6 +1941,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv1");
@@ -1842,6 +1952,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv2");
@@ -1852,6 +1963,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv0");
@@ -1862,6 +1974,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv1");
@@ -1872,6 +1985,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv2");
@@ -1882,6 +1996,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
 	move.powerupExplanation = powerupExplanation_mistFiner;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// backdash during grounded Mist Finer
@@ -1943,6 +2058,7 @@ bool Moves::onDllMain() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// the initial move of air Mist Finer, is 1f long
@@ -2126,6 +2242,7 @@ bool Moves::onDllMain() {
 	move.slangName = "TH";
 	move.sectionSeparator = sectionSeparator_treasureHunt;
 	move.isInVariableStartupSection = isInVariableStartupSection_treasureHunt;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "StepTreasureHunt");
@@ -2136,6 +2253,7 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination = true;
 	move.sectionSeparator = sectionSeparator_treasureHunt;
 	move.isInVariableStartupSection = isInVariableStartupSection_treasureHunt;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Coin", true);
@@ -2180,11 +2298,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Orenona");
 	move.displayName = "That's My Name";
 	move.slangName = "TMN";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "OrenonaBurst");
 	move.displayName = "Burst That's My Name";
 	move.slangName = "Burst TMN";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "OrenonaExe");
@@ -2192,6 +2312,13 @@ bool Moves::onDllMain() {
 	move.slangName = "TMN";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk3B");
+	move.displayName = "3K";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTsubureru_tama", true);
@@ -2283,6 +2410,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Goshogawara");
 	move.displayName = "Deluxe Goshogawara Bomber";
 	move.framebarSlangName = "USW~P";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// May spins and may do a suicide whale in the end. This is the suicide whale
@@ -2308,41 +2436,48 @@ bool Moves::onDllMain() {
 	move.displayName = "H Mr. Dolphin Horizontal";
 	move.slangName = "H Dolphin";
 	move.forceLandingRecovery = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoC");
 	move.displayName = "S Mr. Dolphin Horizontal";
 	move.slangName = "S Dolphin";
 	move.forceLandingRecovery = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateD");
 	move.displayName = "H Mr. Dolphin Vertical";
 	move.slangName = "H Updolphin";
 	move.forceLandingRecovery = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateC");
 	move.displayName = "S Mr. Dolphin Vertical";
 	move.slangName = "S Updolphin";
 	move.forceLandingRecovery = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallB");
 	move.displayName = "K Don't Miss It";
 	move.slangName = "K Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallA");
 	move.displayName = "P Don't Miss It";
 	move.slangName = "P Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "OverHeadKiss");
 	move.displayName = "Overhead Kiss";
 	move.slangName = "OHK";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "OverHeadKissExe");
@@ -2350,30 +2485,35 @@ bool Moves::onDllMain() {
 	move.slangName = "OHK";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateBShoukan");
 	move.displayName = "H Applause for the Victim";
 	move.slangName = "H-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoBShoukan");
 	move.displayName = "S Applause for the Victim";
 	move.slangName = "S-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateAShoukan");
 	move.displayName = "K Applause for the Victim";
 	move.slangName = "K-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoAShoukan");
 	move.displayName = "P Applause for the Victim";
 	move.slangName = "P-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "DivingAttack");
@@ -2384,12 +2524,14 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Dadakko");
 	move.displayName = "Ultimate Whiner";
 	move.slangName = "Whiner";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Daisenpu");
 	move.displayName = "Ultimate Spinning Whirlwind";
 	move.slangName = "USW";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_daisenpu;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Yamada");
@@ -2397,6 +2539,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Yamada";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "YamadaBurst");
@@ -2404,6 +2547,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Burst Yamada";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLA_Hold");
@@ -2536,6 +2680,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "AlphaBlade");
 	move.displayName = "Alpha Blade";
 	move.slangName = "Alpha";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "AirAlphaBlade");
@@ -2548,14 +2693,17 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Sushi");
 	move.displayName = "Resshou";
+	move.ignoreSuperJumpInstalls = true;  // this move only cancels into Rokusai, Senshuu and Shinkirou, and of those only two can make you airborne, and they both give a free airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Sukiyaki");
 	move.displayName = "Rokusai";
+	move.ignoreSuperJumpInstalls = true;  // only cancels into Senshuu and Shinkirou, both of which give a free airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Banzai");
 	move.displayName = "Senshuu";
+	move.ignoreSuperJumpInstalls = true;  // gives an airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GammaBladeObj", true);
@@ -2573,6 +2721,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Meisai");
 	move.displayName = "Tsuyoshi-shiki Meisai";
 	move.slangName = "Meisai";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Tobiagari");
@@ -2580,6 +2729,8 @@ bool Moves::onDllMain() {
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.addForceAddWhiffCancel("HaritsukiLD_Hold");
 	move.addForceAddWhiffCancel("HaritsukiRD_Hold");
+	move.ignoreSuperJumpInstalls = true;  // gets an airdash
+	// after active frames end, this move recovers double jumps as well, but you do care about jump installs if you want to obtain them sooner
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "BetaBlade");
@@ -2597,6 +2748,7 @@ bool Moves::onDllMain() {
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.addForceAddWhiffCancel("HaritsukiLC_Hold");
 	move.addForceAddWhiffCancel("HaritsukiRC_Hold");
+	move.ignoreSuperJumpInstalls = true;  // gives an airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GenrouzanExe");
@@ -2606,12 +2758,14 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("HaritsukiLC_Hold");
 	move.addForceAddWhiffCancel("HaritsukiRC_Hold");
 	move.isGrab = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GammaBlade");
 	move.displayName = "Gamma Blade";
 	move.slangName = "Gamma";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "6wayKunai");
@@ -2632,12 +2786,14 @@ bool Moves::onDllMain() {
 	move.forceLandingRecovery = true;
 	move.forceSuperHitAnyway = forceSuperHitAnyway_zanseiRouga;
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_zanseiRouga;
+	move.ignoreSuperJumpInstalls = true;  // gets an airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ZanseiRougaBurst");
 	move.displayName = "Burst Zansei Rouga";
 	move.slangName = "Burst Zansei";
 	move.forceLandingRecovery = true;
+	move.ignoreSuperJumpInstalls = true;  // gets an airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ShurikenObj", true);
@@ -2670,10 +2826,15 @@ bool Moves::onDllMain() {
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
+	// All specials that can put Faust into the air from the ground already give him an airdash by default, without having
+	// to super jump install. As such, Faust never ever cares about super jump installs.
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_FAUST] = true;
+	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NmlAtk5E");
 	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "CrouchFWalk");
@@ -2699,22 +2860,26 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenCancel");
 	move.displayName = "Spear Point Cenripetal Dance Cancel";
 	move.slangName = "Pogo Cancel";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MettaGiri");
 	move.displayName = "Hack 'n Slash";
 	move.slangName = "214H";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NanigaDerukana");
 	move.displayName = "What Could This Be?";
 	move.slangName = "Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Oissu");
@@ -2722,6 +2887,7 @@ bool Moves::onDllMain() {
 	move.slangName = "236P";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "KoegaChiisai");
@@ -2729,26 +2895,31 @@ bool Moves::onDllMain() {
 	move.slangName = "236P";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MouicchoOissu");
 	move.displayName = "Hello Again!";
 	move.slangName = "236P";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "UekaraIkimasuyo");
 	move.displayName = "From Above";
 	move.slangName = "S-Door";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "UshirokaraIkimasuyo");
 	move.displayName = "From Behind";
 	move.slangName = "K-Door";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MaekaraIkimasuyo");
 	move.displayName = "From the Front";
 	move.slangName = "P-Door";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "AirGoingMyWay");
@@ -2763,6 +2934,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "RerereNoTsuki");
 	move.displayName = "Re-re-re Thrust";
 	move.slangName = "Scalpel";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NaNaNaNanigaDerukana");
@@ -2770,6 +2942,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Super Toss";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SugoiNaNaNaNanigaDerukana");
@@ -2777,16 +2950,19 @@ bool Moves::onDllMain() {
 	move.slangName = "Max Super Toss";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Shigeki");
 	move.displayName = "Stimulating Fists of Annihilation";
 	move.slangName = "Fists";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ShigekiBurst");
 	move.displayName = "Burst Stimulating Fists of Annihilation";
 	move.slangName = "Burst Fists";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo P
@@ -2799,6 +2975,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo hop
@@ -2810,6 +2987,7 @@ bool Moves::onDllMain() {
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo 44
@@ -2822,6 +3000,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo 66
@@ -2834,6 +3013,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo K (head flower)
@@ -2848,6 +3028,7 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_soutenBC;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo S (ground flower)
@@ -2863,6 +3044,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_soutenBC;
 	move.faustPogo = true;
 	move.canYrcProjectile = canYrcProjectile_flower;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo Going My Way
@@ -2875,6 +3057,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenE");
@@ -2887,6 +3070,7 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Faust Pogo Helicopter
@@ -2899,6 +3083,7 @@ bool Moves::onDllMain() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Faust 41236K (long ass fishing pole poke that drags you) succeeeding
@@ -2908,6 +3093,7 @@ bool Moves::onDllMain() {
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// ground flower. The head flower cannot be RC'd. This is not the head flower. This flower can be RC'd, but not in Rev1.
@@ -3090,9 +3276,14 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "Self-Destuct";
 	addMove(move);
 	
+	// Axl has only one move that can put him airborne from the ground, and that is Raiei, but it already gives an airdash by default.
+	// Therefore, Axl has no use for super jump installs.
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_AXL] = true;
+	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "NmlAtk5CNearHasei");
 	move.displayName = "c.S";
 	move.nameIncludesInputs = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Axl Haitaka stance
@@ -3104,26 +3295,31 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenA");
 	move.displayName = "Sparrowhawk Stance P";
 	move.slangName = "Haitaka-P";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenB");
 	move.displayName = "Sparrowhawk Stance K";
 	move.slangName = "Haitaka-K";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenC");
 	move.displayName = "Sparrowhawk Stance S";
 	move.slangName = "Haitaka-S";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenD");
 	move.displayName = "Sparrowhawk Stance H";
 	move.slangName = "Haitaka-H";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "AxelBomber");
@@ -3133,16 +3329,19 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_AXL, "TenhousekiJou");
 	move.displayName = "P Heaven Can Wait";
 	move.slangName = "P-Parry";
+	move.ignoreJumpInstalls = true;  // can only RC on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "TenhousekiGe");
 	move.displayName = "K Heaven Can Wait";
 	move.slangName = "K-Parry";
+	move.ignoreJumpInstalls = true;  // can only RC on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "BentenGari");
 	move.displayName = "Artemis Hunter";
 	move.slangName = "Benten";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Raieisageki");
@@ -3153,16 +3352,19 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_AXL, "KairagiYakou");
 	move.displayName = "Shark Strike";
 	move.slangName = "Kairagi";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueRenshou");
 	move.displayName = "Sickle Storm";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_byakueRenshou;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueRenshouBurst");
 	move.displayName = "Burst Sickle Storm";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_byakueRenshou;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Axl Rensen
@@ -3170,6 +3372,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Sickle Flash";
 	move.slangName = "Rensen";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Axl Rensen + 2 followup
@@ -3178,6 +3381,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Rensen-2";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Axl Rensen + 8 followup
@@ -3186,6 +3390,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Rensen-8";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// the command grab
@@ -3193,6 +3398,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Spindle Spinner";
 	move.slangName = "Rashousen";
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;  // because you can only RC it on the ground
 	addMove(move);
 	
 	// the command grab
@@ -3225,6 +3431,13 @@ bool Moves::onDllMain() {
 	move.framebarName = "Sickle Storm";
 	addMove(move);
 	
+	// the only move that Elphelt has that can transfer her from the ground into the air is Judge Better Half,
+	// and you get a free airdash on it anyway.
+	// And for moves that are jump cancellable, all she can do is jump from them, and get one airdash and one double jump by default,
+	// without requiring any installs.
+	// So a super jump install is, mathematically proven, useless to her
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_ELPHELT] = true;
+	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "NmlAtkAir5E");
 	move.displayName = "j.D";
 	move.nameIncludesInputs = true;
@@ -3237,6 +3450,7 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.powerup = powerup_chargeShotgun;
 	move.powerupExplanation = powerupExplanation_chargeShotgun;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActCrouch2Stand");
@@ -3244,6 +3458,7 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.powerup = powerup_chargeShotgun;
 	move.powerupExplanation = powerupExplanation_chargeShotgun;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Elphelt Ms. Confille (rifle)
@@ -3259,6 +3474,7 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.powerup = powerup_rifle;
 	move.powerupExplanation = powerupExplanation_rifle;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Reload");
@@ -3273,6 +3489,7 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.powerup = powerup_rifle;
 	move.powerupExplanation = powerupExplanation_rifle;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Perfect");
@@ -3289,6 +3506,7 @@ bool Moves::onDllMain() {
 	move.replacementBufferTime = 1;
 	move.powerup = powerup_rifle;
 	move.powerupExplanation = powerupExplanation_rifle;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Entered into from CmnActRomanCancel if its performed during rifle stance either after entering the stance or after firing or after reloading.
@@ -3305,6 +3523,7 @@ bool Moves::onDllMain() {
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.powerup = powerup_rifle;
 	move.powerupExplanation = powerupExplanation_rifle;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire");
@@ -3312,51 +3531,60 @@ bool Moves::onDllMain() {
 	move.slangName = "Fire";
 	move.isRecoveryCanReload = isRecoveryCanReload_rifle;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MIN");
 	move.displayName = "sg.H";
 	move.nameIncludesInputs = true;
 	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MAX");
 	move.displayName = "Max Charge sg.H";
 	move.nameIncludesInputs = true;
 	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Reload");
 	move.displayName = "Ms. Travailler Reload";
 	move.slangName = "Shotgun Reload";
 	move.combineWithPreviousMove = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Upper");
 	move.displayName = "sg.S";
 	move.nameIncludesInputs = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Rolling");
 	move.displayName = "sg.K";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Koduki");
 	move.displayName = "sg.P";
 	move.nameIncludesInputs = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Upper");
 	move.displayName = "High Toss";
 	move.slangName = "4Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Upper");
 	move.displayName = "Ms. Travailler Stance High Toss";
 	move.slangName = "4Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Throw");
@@ -3369,47 +3597,56 @@ bool Moves::onDllMain() {
 	move.displayName = "Low Toss";
 	move.slangName = "2Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Down");
 	move.displayName = "Ms. Travailler Stance Low Toss";
 	move.slangName = "2Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_CQC");
 	move.displayName = "CQC";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_CQCExe");
 	move.displayName = "CQC";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_End");
 	move.displayName = "Ms. Confille Stance Exit";
 	move.slangName = "Rifle Exit";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Ready");
 	move.displayName = "Aim Ms. Travailler";
 	move.slangName = "Pull Shotgun";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_End");
 	move.displayName = "Ms. Travailler Cancel";
 	move.slangName = "Shotgun Exit";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Rolling2");
 	move.displayName = "Roll, and Aim with Miss Travailler";
 	move.slangName = "Roll";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Standby");
 	move.displayName = "Berry Pine";
 	move.slangName = "Pull";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Standby");
@@ -3420,11 +3657,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Standby");
 	move.displayName = "Ms. Travailler Stance Berry Pine";
 	move.slangName = "Pull";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Land");
 	move.displayName = "Bridal Express";
 	move.slangName = "Bridal";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Air");
@@ -3436,6 +3675,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Genoverse";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Judge_BetterHalf");
@@ -3542,6 +3782,12 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "Rifleshot";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk2E");
+	move.displayName = "2D";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
 	// Leo backturn idle and also exiting backturn via 22
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke");
 	move.displayName = "Brynhildr Stance";
@@ -3580,12 +3826,14 @@ bool Moves::onDllMain() {
 	move.displayName = "H Graviert W\xc3\xbcrde";
 	move.slangName = "H Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tobidogu1");
 	move.displayName = "S Graviert W\xc3\xbcrde";
 	move.slangName = "S Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "AntiAirAttack2");
@@ -3614,6 +3862,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeCantGuard");
 	move.displayName = "Blitzschlag";
 	move.slangName = "bt.214H";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeDageki");
@@ -3651,12 +3900,14 @@ bool Moves::onDllMain() {
 	move.displayName = "Stahl Wirbel";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakuseiBurst");
 	move.displayName = "Burst Stahl Wirbel";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeFDashStep");
@@ -3724,6 +3975,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canFaultlessDefend = alwaysTrue;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Jam 236S
@@ -3739,11 +3991,13 @@ bool Moves::onDllMain() {
 	move.slangName = "H Puffball";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "HaseiSenriShinshou");
 	move.displayName = "Senri Shinshou (Follow-up)";
 	move.slangName = "H Puffball";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Jam 236S~S
@@ -3752,6 +4006,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Puffball";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Jam 236S~K
@@ -3769,6 +4024,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Mawarikomi";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Jam 46P
@@ -3777,16 +4033,19 @@ bool Moves::onDllMain() {
 	move.slangName = "46P";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "TuikaAA");
 	move.displayName = "Goushao";
 	move.slangName = "46PP";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "TuikaAB");
 	move.displayName = "Dowanga";
 	move.slangName = "46PK";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Youeikyaku");
@@ -3799,6 +4058,7 @@ bool Moves::onDllMain() {
 	move.slangName = "K-Card";
 	move.powerup = powerup_cardK;
 	move.powerupExplanation = powerupExplanation_card;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiC");
@@ -3806,6 +4066,7 @@ bool Moves::onDllMain() {
 	move.slangName = "S-Card";
 	move.powerup = powerup_cardS;
 	move.powerupExplanation = powerupExplanation_card;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiD");
@@ -3813,6 +4074,7 @@ bool Moves::onDllMain() {
 	move.slangName = "H-Card";
 	move.powerup = powerup_cardH;
 	move.powerupExplanation = powerupExplanation_card;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinLand");
@@ -3964,27 +4226,32 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_WarpA");
 	move.displayName = "S Business Ninpo: Under the Rug";
 	move.slangName = "S Teleport";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_WarpB");
 	move.displayName = "H Business Ninpo: Under the Rug";
 	move.slangName = "H Teleport";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Zaneiken");
 	move.displayName = "Resshou";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowA");
 	move.displayName = "S Business Ninpo: Caltrops";
 	move.slangName = "S Card";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowB");
 	move.displayName = "H Business Ninpo: Caltrops";
 	move.slangName = "H Card";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandA");
@@ -3993,6 +4260,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandB");
@@ -4001,6 +4269,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandC");
@@ -4009,6 +4278,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandD");
@@ -4017,6 +4287,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirA");
@@ -4054,12 +4325,14 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Land");
 	move.displayName = "Savvy Ninpo: Tax Write-off";
 	move.slangName = "Izuna Drop";
+	move.ignoreJumpInstalls = true;  // when you RC this move, you can only be on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Land_Exe");
 	move.displayName = "Savvy Ninpo: Tax Write-off";
 	move.slangName = "Izuna Drop";
 	move.combineWithPreviousMove = true;
+	move.ignoreJumpInstalls = true;  // when you RC this move, you can only be on the ground
 	move.isGrab = true;
 	addMove(move);
 	
@@ -4079,12 +4352,14 @@ bool Moves::onDllMain() {
 	move.displayName = "S Business Ninpo: Under the Bus";
 	move.slangName = "S Clone";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Nin_JitsuB");
 	move.displayName = "H Business Ninpo: Under the Bus";
 	move.slangName = "H Clone";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Human_Suriken");
@@ -4129,6 +4404,7 @@ bool Moves::onDllMain() {
 	move.dontSkipSuper = true;
 	move.createdProjectile = createdProjectile_firesale;
 	move.canYrcProjectile = canYrcProjectile_firesale;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush_Burst");
@@ -4138,6 +4414,7 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.createdProjectile = createdProjectile_firesale;
 	move.canYrcProjectile = canYrcProjectile_firesale;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Answer scroll cling idle. Happens from an s.D if not holding D
@@ -4308,6 +4585,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "LustShakerRenda");
 	move.displayName = "Mash Lust Shaker";
 	move.slangName = "Mash Shaker";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Millia Roll Roll
@@ -4316,6 +4594,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Doubleroll";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Millia Roll > S
@@ -4324,6 +4603,7 @@ bool Moves::onDllMain() {
 	move.slangName = "> Shaker";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Millia Roll > H
@@ -4331,6 +4611,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Digitalis";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// represents both S and H pins
@@ -4347,6 +4628,7 @@ bool Moves::onDllMain() {
 	move.displayName = "S Tandem Top";
 	move.slangName = "S-Disc";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// s-disc
@@ -4362,6 +4644,7 @@ bool Moves::onDllMain() {
 	move.displayName = "H Tandem Top";
 	move.framebarSlangName = "H-Disc";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// h-disc
@@ -4383,11 +4666,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SecretGarden");
 	move.displayName = "Secret Garden";
 	move.slangName = "Garden";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "LustShaker");
 	move.displayName = "Lust Shaker";
 	move.slangName = "Shaker";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "Zenten");
@@ -4395,11 +4680,13 @@ bool Moves::onDllMain() {
 	move.slangName = "Roll";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "IronSavior");
 	move.displayName = "Iron Savior";
 	move.slangName = "Haircar";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce2");
@@ -4424,21 +4711,25 @@ bool Moves::onDllMain() {
 	move.slangName = "ER";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ChromingRose");
 	move.displayName = "Chroming Rose";
 	move.slangName = "Rose Install";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "Winger");
 	move.displayName = "Winger";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "WingerBurst");
 	move.displayName = "Burst Winger";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// each ring of the 236236S super is separately named
@@ -4482,6 +4773,23 @@ bool Moves::onDllMain() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 19;
 	move.framebarName = "Rose";
+	addMove(move);
+	
+	// Zato does not have a move that makes him airborne from the ground, so he never cares about super jump installs.
+	// And if some move only cancels into specials or only leads to other moves that only cancel into specials, then
+	// he doesn't care about jump installs either (Zato has no such moves)
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_ZATO] = true;
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "NmlAtk6B");
+	move.displayName = "6K";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;  // a dead end move
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ZATO, "NmlAtk6D");
+	move.displayName = "6H";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;  // a dead end move
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieMegalithHead", true);
@@ -4574,50 +4882,59 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "InviteHellC");
 	move.displayName = "S Invite Hell";
 	move.slangName = "S-Drill";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "InviteHellD");
 	move.displayName = "H Invite Hell";
 	move.slangName = "H-Drill";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD");
 	move.displayName = "Summon Eddie Shadow Dive";
 	move.slangName = "Summon";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonC");
 	move.displayName = "Summon Eddie Anti-air Attack";
 	move.slangName = "Nobiru";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonB");
 	move.displayName = "Summon Eddie Traversing Attack";
 	move.slangName = "Mawaru";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonA");
 	move.displayName = "Summon Eddie Small Attack";
 	move.slangName = "P Summon";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieReturn");
 	move.displayName = "Recall Eddie";
 	move.slangName = "Recall";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD2");
 	move.displayName = "Shadow Puddle Eddie Summon";
 	move.slangName = "Puddle Summon";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrunkerdShade");
 	move.displayName = "Drunkard Shade";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DamnedFang");
@@ -4643,20 +4960,24 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Amorphous");
 	move.displayName = "Amorphous";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "AmorphousBurst");
 	move.displayName = "Burst Amorphous";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "MegalithHead");
 	move.displayName = "Great White";
 	move.dontSkipSuper = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "MegalithHead2");
 	move.displayName = "Great White";
 	move.dontSkipSuper = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Zato 214K
@@ -4665,6 +4986,7 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_breakTheLaw;
 	move.zatoHoldLevel = zatoHoldLevel_breakTheLaw;
 	move.isInVariableStartupSection = isInVariableStartupSection_breakTheLaw;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrillC", true);
@@ -4698,9 +5020,21 @@ bool Moves::onDllMain() {
 	move.framebarNameUncombined = "Amorphous Hit 2";
 	addMove(move);
 	
+	// Potemkin does not care about super jump installs at all because he will never make use of the airdash that he gets,
+	// but that is handled in the code that registers the airdash install, because it won't trigger a super jump install,
+	// if the airdash count is already equal to the maximum, which is 0.
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_POTEMKIN] = true;
+	
+	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "NmlAtk2E");
+	move.displayName = "2D";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "SlideHead");
 	move.displayName = "Slide Head";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "MegaFistFront");
@@ -4713,6 +5047,7 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeatKnucle");
 	move.displayName = "Heat Knuckle";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HammerFall");
@@ -4720,17 +5055,20 @@ bool Moves::onDllMain() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.partOfStance = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeatExtend");
 	move.displayName = "Heat Extend";
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "PotemkinBuster");
 	move.displayName = "Potemkin Buster";
 	move.slangName = "Potbuster";
 	move.frontLegInvul = frontLegInvul_potemkinBuster;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "PotemkinBusterExe");
@@ -4738,12 +5076,14 @@ bool Moves::onDllMain() {
 	move.slangName = "Potbuster";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Ichigeki");
 	move.displayName = "Instant Kill";
 	move.slangName = "IK";
 	move.frontLegInvul = frontLegInvul_potemkinBuster;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Potemkin Flick
@@ -4752,6 +5092,7 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_FDB;
 	move.isInVariableStartupSection = isInVariableStartupSection_fdb;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB_obj", true);
@@ -4763,6 +5104,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Anti_AirExplode");
 	move.displayName = "Trishula";
 	move.canYrcProjectile = canYrcProjectile_prevNoLinkDestroyOnStateChange;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "RocketDive");
@@ -4799,6 +5141,7 @@ bool Moves::onDllMain() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.partOfStance = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "SlideHead_Obj", true);
@@ -4818,6 +5161,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Giganter";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "GiganObj", true);
@@ -4830,6 +5174,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Gigantic Bullet Kai";
 	move.slangName = "Bullet";
 	move.dontSkipSuper = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Bomb", true);
@@ -4838,6 +5183,13 @@ bool Moves::onDllMain() {
 	move.framebarName = "Trishula";
 	addMove(move);
 	
+	// Venom has only one special move that can make him airborne: Teleport.
+	// Which means he will never care about super jump installs.
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_VENOM] = true;
+	
+	// not ignoring jump installs here, because it can whiff cancel into teleport and normally you can't
+	// double jump from it, but if you jump install, you can.
+	// You do get a guaranteed airdash from teleport, so we will only ignore super jump installs
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiA");
 	move.displayName = "P Ball Set";
 	move.slangName = "P Ball";
@@ -4849,6 +5201,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiA_Hold");
@@ -4862,6 +5215,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiB");
@@ -4875,6 +5229,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiB_Hold");
@@ -4888,6 +5243,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiC");
@@ -4901,6 +5257,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiC_Hold");
@@ -4914,6 +5271,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiD");
@@ -4927,6 +5285,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiD_Hold");
@@ -4940,6 +5299,7 @@ bool Moves::onDllMain() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiA");
@@ -4968,29 +5328,35 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "MadStrugguleD");
 	move.displayName = "H Mad Struggle";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "MadStrugguleC");
 	move.displayName = "S Mad Struggle";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "Warp");
 	move.displayName = "Teleport";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "WarpB");
 	move.displayName = "Teleport";
 	move.replacementInputs = "Hold the button you set the ball with";
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DoubleHeadMorbidD");
 	move.displayName = "H Double Head Morbid";
 	move.slangName = "HDHM";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DoubleHeadMorbidC");
 	move.displayName = "S Double Head Morbid";
 	move.slangName = "SDHM";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimD");
@@ -5003,6 +5369,7 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_stingerH;
 	move.powerupExplanation = powerupExplanation_stinger;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimC");
@@ -5015,6 +5382,7 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_stingerS;
 	move.powerupExplanation = powerupExplanation_stinger;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidD");
@@ -5023,6 +5391,7 @@ bool Moves::onDllMain() {
 	move.slangName = "H Carcass";
 	move.displaySlangNameSelector = displaySlangNameSelector_carcassRaidH;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidC");
@@ -5031,6 +5400,7 @@ bool Moves::onDllMain() {
 	move.slangName = "S Carcass";
 	move.displaySlangNameSelector = displaySlangNameSelector_carcassRaidS;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Venom QV
@@ -5041,6 +5411,7 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvA;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveB");
@@ -5050,6 +5421,7 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvB;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveC");
@@ -5059,6 +5431,7 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvC;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveD");
@@ -5068,6 +5441,7 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvD;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "RedHail");
@@ -5099,6 +5473,7 @@ bool Moves::onDllMain() {
 	move.slangName = "DA";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBurst");
@@ -5106,6 +5481,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Burst DA";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "SummonGoldBall");
@@ -5114,6 +5490,7 @@ bool Moves::onDllMain() {
 	move.dontSkipSuper = true;
 	move.createdProjectile = createdProjectile_bishop;
 	move.canYrcProjectile = canYrcProjectile_bishop;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// created before Dark Angel comes out
@@ -5137,11 +5514,32 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk2D");
+	move.displayName = "2H";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk6A");
+	move.displayName = "6P";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk2E");
+	move.displayName = "2D";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
+	// The only moves that you get from Dandy Steps that make you airborne are Helter-Skelter and Crosswise Heel,
+	// and those give you an airdash anyway, so there is no need to care about super jump installs.
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "DandyStepA");
 	move.displayName = "P Dandy Step";
 	move.slangName = "P-Dandy";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "DandyStepB");
@@ -5149,6 +5547,7 @@ bool Moves::onDllMain() {
 	move.slangName = "K-Dandy";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Slayer dandy step follow-ups
@@ -5159,6 +5558,7 @@ bool Moves::onDllMain() {
 	move.displaySlangNameSelector = displaySlangNameSelector_crosswise;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "UnderPressure");
@@ -5170,11 +5570,13 @@ bool Moves::onDllMain() {
 	move.usePlusSignInCombination =  true;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ItsLate");
 	move.displayName = "It's Late";
 	move.slangName = "IL";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "RetroFire");
@@ -5183,6 +5585,7 @@ bool Moves::onDllMain() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "Retro", true);
@@ -5199,6 +5602,7 @@ bool Moves::onDllMain() {
 	move.displaySlangNameSelector = displaySlangNameSelector_pilebunker;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "6BFeint");
@@ -5209,11 +5613,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "MappaHunchA");
 	move.displayName = "P Mappa Hunch";
 	move.slangName = "P Mappa";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "MappaHunchB");
 	move.displayName = "K Mappa Hunch";
 	move.slangName = "K Mappa";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "FootLoose");
@@ -5224,6 +5630,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChiwosuuUchuu");
 	move.displayName = "Bloodsucking Universe";
 	move.slangName = "Bite";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChiwosuuUchuuExe");
@@ -5231,10 +5638,12 @@ bool Moves::onDllMain() {
 	move.slangName = "Bite";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "UnderTow");
 	move.displayName = "Undertow";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChokkagataDandy");
@@ -5266,6 +5675,17 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "SDD";
 	addMove(move);
 	
+	// I-No has only the following moves that can make her airborne:
+	// 1) HCL
+	// 2) VCL
+	// 3) Sterilization Method
+	// 4) Dash cancels
+	// Dash cancels restore all air options.
+	// HCL and VCL gift you a free airdash.
+	// Sterilization Method on hit gives you all air options.
+	// Sterilization Method does not give neither airdashes, nor double jumps on whiff.
+	// Unfortunately this means we must show super jump installs on I-No.
+	
 	move = MoveInfo(CHARACTER_TYPE_INO, "NmlAtk5E");
 	move.displayName = "5D";
 	move.nameIncludesInputs = true;
@@ -5282,6 +5702,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Antidepressant Scale";
 	move.slangName = MOVE_NAME_NOTE;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkaiAir");
@@ -5362,17 +5783,20 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "TaibokuC");
 	move.displayName = "S Strike the Big Tree";
 	move.slangName = "S-STBT";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "TaibokuD");
 	move.displayName = "H Strike the Big Tree";
 	move.slangName = "H-STBT";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalB");
 	move.displayName = "Chemical Love";
 	move.slangName = "HCL";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirB");
@@ -5385,6 +5809,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Vertical Chemical Love";
 	move.slangName = "VCL";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirC");
@@ -5406,6 +5831,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Desperation";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_INO, "MadogiwaBurst");
@@ -5413,6 +5839,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Burst Desperation";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Genkai");
@@ -5489,6 +5916,12 @@ bool Moves::onDllMain() {
 	move.framebarName = "Longing Desperation";
 	move.framebarSlangName = "Desperation";
 	addMove(move);
+	
+	// The only move that can put Bedman into the air is Task C, and he gets a free airdash from it.
+	// So, Bedman does not care about super jump installs.
+	// Bedman does not care about regular jump installs either, as he has no double jump - it's a
+	// hover, which works even when he has no double jumps.
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_BEDMAN] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "CmnActFDash");
 	move.displayName = "Forward Dash";
@@ -5824,6 +6257,24 @@ bool Moves::onDllMain() {
 	move.displayName = "Teleport to Sheep";
 	addMove(move);
 	
+	// Ramlethal has two moves that can make her airborne: Sildo Detruo and Explode.
+	// Sildo Detruo gives an airdash, and Explode gives nothing without jump installs.
+	// Because of Explode, we have to not ignore super jump installs.
+	// So anything that can't route into Explode, we have to ignore super jump installs there.
+	// Turns out, there is not one such move, at least not where we'd want regular jump installs, but not super jump installs.
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk6B");
+	move.displayName = "6K";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk3B");
+	move.displayName = "3K";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN", true);
 	move.displayName = "Stand";
 	move.drawProjectileOriginPoint = true;
@@ -6054,6 +6505,7 @@ bool Moves::onDllMain() {
 	move.slangName = "6H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5DBunri");
@@ -6066,6 +6518,7 @@ bool Moves::onDllMain() {
 	move.slangName = "6H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Land");
@@ -6073,6 +6526,7 @@ bool Moves::onDllMain() {
 	move.slangName = "4H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Land");
@@ -6081,6 +6535,7 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf7;
 	move.canYrcProjectile = canYrcProjectile_onf7;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5C");
@@ -6093,6 +6548,7 @@ bool Moves::onDllMain() {
 	move.slangName = "6S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5CBunri");
@@ -6105,6 +6561,7 @@ bool Moves::onDllMain() {
 	move.slangName = "6S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Land");
@@ -6112,6 +6569,7 @@ bool Moves::onDllMain() {
 	move.slangName = "4S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Land");
@@ -6120,6 +6578,7 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf7;
 	move.canYrcProjectile = canYrcProjectile_onf7;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Air");
@@ -6190,104 +6649,127 @@ bool Moves::onDllMain() {
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
+	// Ramlethal's combination attacks only at best combo into sword summon, sword recall, 2S/2H sword summon or more combination attacks.
+	// And none of them can make Ramlethal airborne.
+	// As such, they do not care about jump installs.
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBA");
 	move.displayName = "Combination KP";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBBB");
 	move.displayName = "Combination KKK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBB");
 	move.displayName = "Combination KK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAB");
 	move.displayName = "Combination PK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAA");
 	move.displayName = "Combination PP";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBAB");
 	move.displayName = "Combination KPK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBAA");
 	move.displayName = "Combination KPP";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAAB");
 	move.displayName = "Combination PPK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAAA");
 	move.displayName = "Combination PPP";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BB");
 	move.displayName = "Combination 2KK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BA");
 	move.displayName = "Combination 2KP";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BAB");
 	move.displayName = "Combination 2KPK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BAA");
 	move.displayName = "Combination 2KPP";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2AAB");
 	move.displayName = "Combination 2PPK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2AB");
 	move.displayName = "Combination 2PK";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2AA");
 	move.displayName = "Combination 2PP";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination4B");
 	move.displayName = "Combination 4K";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6CBunriShot");
 	move.displayName = "S Launch Greatsword (Boss Ver.)";
 	move.slangName = "6S (Boss Ver.)";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6DBunriShot");
 	move.displayName = "H Launch Greatsword (Boss Ver.)";
 	move.slangName = "6H (Boss Ver.)";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "MiddleShot");
 	move.displayName = "Cassius";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BanditRevolverLand");
@@ -6298,12 +6780,16 @@ bool Moves::onDllMain() {
 	move.displayName = "Air Sildo Detruo";
 	addMove(move);
 	
+	// Marteli and Forpeli are dead end moves where only Martli can cancel into Forpeli.
+	// Which makes them not care about jump installs.
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD");
 	move.displayName = "Forpeli";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC");
 	move.displayName = "Marteli";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowDAir");
@@ -6316,10 +6802,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_Bunri");
 	move.displayName = "Forpeli With Sword Recover";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_Bunri");
 	move.displayName = "Marteli With Sword Recover";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowDAir_Bunri");
@@ -6332,30 +6820,36 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CommandThrow");
 	move.displayName = "Flama Cargo";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CommandThrowExe");
 	move.displayName = "Flama Cargo";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "FujinStep");
 	move.displayName = "Fujin Step";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "EasyFujinken");
 	move.displayName = "Dauro";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Fujinken");
 	move.displayName = "Dauro";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "FastFujinken");
 	move.displayName = "Green Dauro";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "TosshinRanbu");
@@ -6371,31 +6865,37 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser");
 	move.displayName = "Calvados";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBurst");
 	move.displayName = "Burst Calvados";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBoss");
 	move.displayName = "Calvados (Boss Ver.)";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBossBurst");
 	move.displayName = "Burst Calvados (Boss Ver.)";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral");
 	move.displayName = "Trance";
 	move.canYrcProjectile = canYrcProjectile_onf9;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiralBoss");
 	move.displayName = "Trance (Boss Ver.)";
 	move.canYrcProjectile = canYrcProjectile_onf9;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6C", true);
@@ -6490,6 +6990,11 @@ bool Moves::onDllMain() {
 	move.framebarName = "Cassius";
 	addMove(move);
 	
+	// Sin's only moves that make him airborne are R.T.L. and Leaps.
+	// All of them give him airdash.
+	// This means Sin does not care about super jump install.
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_SIN] = true;
+	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakitsuke");
 	move.displayName = "Bull Bash";
 	move.powerup = powerup_kuuhuku;
@@ -6516,6 +7021,7 @@ bool Moves::onDllMain() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.powerup = powerup_eatMeat;
 	move.powerupExplanation = powerupExplanation_eatMeat;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "EatMeat_Okawari");
@@ -6525,6 +7031,7 @@ bool Moves::onDllMain() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.powerup = powerup_eatMeat;
 	move.powerupExplanation = powerupExplanation_eatMeat;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakiage");
@@ -6602,6 +7109,7 @@ bool Moves::onDllMain() {
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
 	move.dontShowPowerupGraphic = alwaysTrue;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Land");
@@ -6609,6 +7117,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Voltec";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Air");
@@ -6646,6 +7155,12 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "Voltec";
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "NmlAtk6D");
+	move.displayName = "6H";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "NmlAtk5E");
 	move.displayName = "5D";
 	move.nameIncludesInputs = true;
@@ -6663,12 +7178,14 @@ bool Moves::onDllMain() {
 	move.displayName = "S Tuning Ball";
 	move.slangName = "S Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "HomingEnergyD");
 	move.displayName = "H Tuning Ball";
 	move.slangName = "H Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlowAttack");
@@ -6676,6 +7193,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Hayabusa";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AirBlowAttack");
@@ -6699,6 +7217,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_hayabusaRev;
 	move.powerupExplanation = powerupExplanation_hayabusaRev;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Haehyun 214[K]
@@ -6710,6 +7229,7 @@ bool Moves::onDllMain() {
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_hayabusaHeld;
 	move.powerupExplanation = powerupExplanation_hayabusaHeld;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Haehyun 623[K]
@@ -6729,6 +7249,7 @@ bool Moves::onDllMain() {
 	move.combineWithPreviousMove = true;
 	move.sectionSeparator = sectionSeparator_fourTigersSwordRev;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Haehyun 236236H
@@ -6737,6 +7258,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Clap Super";
 	move.sectionSeparator = sectionSeparator_blackHoleAttack;
 	move.isInVariableStartupSection = isInVariableStartupSection_blackHoleAttack;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "BlackHoleAttackBurst");
@@ -6744,12 +7266,14 @@ bool Moves::onDllMain() {
 	move.slangName = "Burst Clap";
 	move.sectionSeparator = sectionSeparator_blackHoleAttack;
 	move.isInVariableStartupSection = isInVariableStartupSection_blackHoleAttack;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperHomingEnergy");
 	move.displayName = "Celestial Tuning Ball";
 	move.slangName = "Super Ball";
 	move.dontSkipSuper = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "VacuumAtk", true);
@@ -6784,6 +7308,11 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
+	// The only moves Raven has that can make him airborne are 6H and Needle.
+	// Needle gives airdash. And 6H is weird, but super jump installing it does not make you have 2 airdashes, no matter what.
+	// Raven has no use for super jump installs.
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_RAVEN] = true;
+	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "Kakkuu");
 	move.displayName = "Glide";
 	addMove(move);
@@ -6792,11 +7321,13 @@ bool Moves::onDllMain() {
 	move.displayName = "Scharf Kugel";
 	move.slangName = "Orb";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandBlowAttack");
 	move.displayName = "Grausam Impuls";
 	move.slangName = "Scratch";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSlowNeedle");
@@ -6831,29 +7362,34 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrow");
 	move.displayName = "H Wachen Zweig";
 	move.slangName = "Command Grab";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrowEx");
 	move.displayName = "H Wachen Zweig";
 	move.slangName = "Command Grab";
 	move.combineWithPreviousMove = true;
+	move.ignoreJumpInstalls = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrow");
 	move.displayName = "S Wachen Zweig";
 	move.slangName = "S Grab";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrowEx");
 	move.displayName = "S Wachen Zweig";
 	move.slangName = "S Grab";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandDashAttack");
 	move.displayName = "Verzweifelt";
 	move.slangName = "Dash Super";
 	move.dontSkipSuper = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirDashAttack");
@@ -6865,11 +7401,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "RevengeAttack");
 	move.displayName = "Getreuer";
 	move.slangName = "Stab Super";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "RevengeAttackBurst");
 	move.displayName = "Burst Getreuer";
 	move.slangName = "Burst Stab";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "RevengeAttackEx");
@@ -6877,6 +7415,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Stab Super";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Raven stance when first entering it
@@ -6889,6 +7428,7 @@ bool Moves::onDllMain() {
 	move.canStopHolding = canStopHolding_armorDance;
 	move.powerup = powerup_armorDance;
 	move.powerupExplanation = powerupExplanation_armorDance;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Raven stance after armoring a hit in ArmorDance
@@ -6901,6 +7441,7 @@ bool Moves::onDllMain() {
 	move.canStopHolding = canStopHolding_armorDance;
 	move.powerup = powerup_armorDance;
 	move.powerupExplanation = powerupExplanation_armorDance;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "SlowNeeldeObjLand", true);
@@ -6933,13 +7474,21 @@ bool Moves::onDllMain() {
 	move.framebarSlangName = "Orb";
 	addMove(move);
 	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRay");
-	move.displayName = "Gamma Ray";
+	// Dizzy does not have a single special or super that can put her into the air,
+	// so she never cares about super jump installs.
+	// And if some move only leads to a special cancel, then regular jump installs don't matter on that move either
+	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_DIZZY] = true;
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "NmlAtk2E");
+	move.displayName = "2D";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;  // only leads to specials
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "NmlAtk6C");
 	move.displayName = "4S";
 	move.nameIncludesInputs = true;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "NmlAtk6D");
@@ -6947,32 +7496,43 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_dizzy6H;
 	move.isInVariableStartupSection = isInVariableStartupSection_dizzy6H;
+	move.ignoreJumpInstalls = true;  // only leads to specials
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRay");
+	move.displayName = "Gamma Ray";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Sakana");
 	move.displayName = "I used this to catch fish";
 	move.slangName = "Ice Spike";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "SakanaNecro");
 	move.displayName = "For searing cod...";
 	move.slangName = "Fire Pillar";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Akari");
 	move.displayName = "The light was so small in the beginning";
 	move.slangName = "Fire Scythe";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariUndine");
 	move.displayName = "For putting out the light...";
 	move.slangName = "Ice Scythe";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD");
 	move.displayName = "H We fought a lot together";
 	move.slangName = "H Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD_Air");
@@ -6985,6 +7545,7 @@ bool Moves::onDllMain() {
 	move.displayName = "S We fought a lot together";
 	move.slangName = "S Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiC_Air");
@@ -6997,6 +7558,7 @@ bool Moves::onDllMain() {
 	move.displayName = "K We talked a lot together";
 	move.slangName = "K Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiB_Air");
@@ -7009,6 +7571,7 @@ bool Moves::onDllMain() {
 	move.displayName = "P We talked a lot together";
 	move.slangName = "P Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiA_Air");
@@ -7021,6 +7584,7 @@ bool Moves::onDllMain() {
 	move.displayName = "D We fought a lot together";
 	move.slangName = "Shield Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiE_Air");
@@ -7050,48 +7614,57 @@ bool Moves::onDllMain() {
 	move.powerup = powerup_fireSpear;
 	move.powerupExplanation = powerupExplanation_fireSpear;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Kinomi");
 	move.displayName = "I use this to pick fruit";
 	move.slangName = "Ice Spear";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRay");
 	move.displayName = "Imperial Ray";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBurst");
 	move.displayName = "Burst Imperial Ray";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KirikaeshiKakusei");
 	move.displayName = "Don't be overprotective";
 	move.slangName = "Mirror";
 	move.dontSkipSuper = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Tossin");
-	move.displayName = "Rokkon Sogi From Kabari";
+	move.displayName = "Rokkon Sogi";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Tetsuzansen");
 	move.displayName = "Tetsuzan Sen";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "CommandThrow");
 	move.displayName = "Himawari";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "CommandThrowExe");
 	move.displayName = "Himawari";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundC");
@@ -7146,6 +7719,7 @@ bool Moves::onDllMain() {
 	move.displayName = "Tatami Gaeshi";
 	move.slangName = "Tatami";
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiAir");
@@ -7160,10 +7734,12 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Kabari");
 	move.displayName = "H Kabari";
+	move.ignoreJumpInstalls = true;  // Kabaris only lead to moves that end up on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "KabariAntiAir");
 	move.displayName = "S Kabari";
+	move.ignoreJumpInstalls = true;  // Kabaris only lead to moves that end up on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingKakusei");
@@ -7180,16 +7756,19 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TsuraneSanzuWatashi");
 	move.displayName = "Tsurane Sanzu-watashi";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TsuraneSanzuWatashiBurst");
 	move.displayName = "Burst Tsurane Sanzu-watashi";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TsuraneSanzuWatashiExe");
 	move.displayName = "Tsurane Sanzu-watashi";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Baiken Suzuran
@@ -7243,18 +7822,21 @@ bool Moves::onDllMain() {
 	move.displayName = "Mawari-komi";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Sakura");  // S followup
 	move.displayName = "Sakura";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Issen");  // H followup
 	move.displayName = "Rokkon Sogi";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Teppou");  // D followup
@@ -7262,6 +7844,7 @@ bool Moves::onDllMain() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtk5E");
@@ -7304,6 +7887,21 @@ bool Moves::onDllMain() {
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
+	// The only move that puts Jack-O in the air and does not give her an airdash is Zest.
+	// If not for that, she would not care about super jump installs at all.
+	
+	move = MoveInfo(CHARACTER_TYPE_JACKO, "NmlAtk5D");
+	move.displayName = "3H";
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_JACKO, "NmlAtk6B");
+	move.displayName = "6K";
+	move.nameIncludesInputs = true;
+	move.ignoreSuperJumpInstalls = true;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "DustAtk");
 	move.displayName = "5D";
 	move.nameIncludesInputs = true;
@@ -7312,6 +7910,7 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocide");
 	move.displayName = "4D";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocideEx");
@@ -7320,6 +7919,7 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocideEx_Weak");
@@ -7327,16 +7927,19 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CommandThorw");
 	move.displayName = "6D";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Zest");
 	move.displayName = "2D";
 	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "UntieKiron'sChain");
@@ -7375,12 +7978,14 @@ bool Moves::onDllMain() {
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ThorwGhost");
 	move.displayName = "Throw Ghost";
 	move.createdProjectile = createdProjectile_ThrowGhost;
 	move.canYrcProjectile = canYrcProjectile_ThrowGhost;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirThorwGhost");
@@ -7391,14 +7996,17 @@ bool Moves::onDllMain() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "PickUpGhost");
 	move.displayName = "Pick Up Ghost";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "PutGhost");
 	move.displayName = "Put Ghost Back Down";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ReturnGhost");
 	move.displayName = "Put Away Ghost";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirZest");
@@ -7414,18 +8022,21 @@ bool Moves::onDllMain() {
 	move.displayName = "Set P Ghost";
 	move.createdProjectile = createdProjectile_PGhost;
 	move.canYrcProjectile = canYrcProjectile_PGhost;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostB");
 	move.displayName = "Set K Ghost";
 	move.createdProjectile = createdProjectile_KGhost;
 	move.canYrcProjectile = canYrcProjectile_KGhost;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostC");
 	move.displayName = "Set S Ghost";
 	move.createdProjectile = createdProjectile_SGhost;
 	move.canYrcProjectile = canYrcProjectile_SGhost;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "OrganOpen");
@@ -7434,23 +8045,27 @@ bool Moves::onDllMain() {
 	move.sectionSeparator = sectionSeparator_organ;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_organOpen;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Calvados");
 	move.displayName = "Calvados";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosBurst");
 	move.displayName = "Burst Calvados";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ScrewPileDriver");
 	move.displayName = "Forever Elysion Driver";
 	move.slangName = "Supergrab";
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirScrewPileDriver");
@@ -7463,6 +8078,7 @@ bool Moves::onDllMain() {
 	move.slangName = "Air/Ground Supergrab";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
+	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirCalvados");

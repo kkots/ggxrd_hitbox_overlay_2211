@@ -531,8 +531,8 @@ private:
 	bool isInDarkenModePlusTurnOffPostEffect = false;
 	bool postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect = false;
 	bool willDrawOriginPoints();
-	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo& frame, bool inHitstopFreeze);
-	void collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos& vec, const AddedMoveData* move,
+	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze);
+	void collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<180>& vec, const AddedMoveData* move,
 								int iterationIndex, bool inHitstopFreeze);
 	bool checkMoveConditions(PlayerInfo& player, const AddedMoveData* move);
 	bool whiffCancelIntoFDEnabled(PlayerInfo& player);

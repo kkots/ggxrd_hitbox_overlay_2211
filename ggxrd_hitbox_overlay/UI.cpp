@@ -209,7 +209,7 @@ static GGIcon DISolIconRectangular = coordsToGGIcon(179, 1095, 37, 37);
 static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static void outlinedTextRawHighQuality(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
-static int printCancels(const std::vector<GatlingOrWhiffCancelInfo>& cancels);
+static int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos<30>& cancels, float maxY);
 static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount);
 static void printChippInvisibility(int current, int max);
@@ -2905,6 +2905,30 @@ void UI::drawSearchableWindows() {
 			}
 			
 			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Double Jumps"));
+			AddTooltip(searchTooltip("Available double jumps."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (*aswEngine && player.pawn) {
+					sprintf_s(strbuf, "%d/%d", player.pawn.remainingDoubleJumps(), player.pawn.maxDoubleJumps());
+					ImGui::TextUnformatted(strbuf);
+				}
+			}
+			
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Airdashes"));
+			AddTooltip(searchTooltip("Available airdashes."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (*aswEngine && player.pawn) {
+					sprintf_s(strbuf, "%d/%d", player.pawn.remainingAirDashes(), player.pawn.maxAirdashes());
+					ImGui::TextUnformatted(strbuf);
+				}
+			}
+			
+			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Wakeup"));
 			AddTooltip(searchTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
 				" Format: Time remaining until able to act / Total wakeup or airtech time."));
@@ -5501,6 +5525,7 @@ void UI::drawSearchableWindows() {
 					cancels.enableSpecials,
 					cancels.hitAlreadyHappened,
 					cancels.airborne,
+					false,
 					false);
 			}
 			if (!printedSomething) {
@@ -7125,6 +7150,7 @@ void UI::drawSearchableWindows() {
 				booleanSettingPreset(settings.comboRecipe_showIdleTimeBetweenMoves);
 				booleanSettingPreset(settings.comboRecipe_showDashes);
 				booleanSettingPreset(settings.comboRecipe_showWalks);
+				booleanSettingPreset(settings.comboRecipe_showSuperJumpInstalls);
 			}
 			
 			ImVec2 cursorPosForTable = ImGui::GetCursorPos();
@@ -7148,7 +7174,10 @@ void UI::drawSearchableWindows() {
 				isClicked = true;
 			}
 			AddTooltip("Settings for the Combo Recipe panel.\n"
-				"The settings are shared between P1 and P2.");
+				"The settings are shared between P1 and P2.\n"
+				"\n"
+				"Extra Info: The '>' symbol at the end of a move means that the next move is being cancelled from that move.\n"
+				"The ',' symbol at the end of a move means that the next move is being linked or done after some idle time after that move.");
 			bool isHovered = ImGui::IsItemHovered();
 			bool mousePressed = ImGui::IsMouseDown(ImGuiMouseButton_Left);
 			ImGui::SetCursorPos({
@@ -7224,6 +7253,8 @@ void UI::drawSearchableWindows() {
 							if (!settings.comboRecipe_showWalks) continue;
 						} else if (!settings.comboRecipe_showDashes) continue;
 					}
+					
+					if (elem.isSuperJumpInstall && !settings.comboRecipe_showSuperJumpInstalls) continue;
 					
 					const char* chosenName;
 					if (settings.useSlangNames && elem.slangName) {
@@ -8673,7 +8704,7 @@ bool UI::needShowFramebar() const {
 	}
 }
 
-int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos& cancels) {
+int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos<30>& cancels, float maxY) {
 	struct Requirement {
 		MoveCondition condition;
 		const char* description;
@@ -8690,7 +8721,14 @@ int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos& cancels) {
 	};
 	int counter = 1;
 	bool useSlang = settings.useSlangNames;
-	for (const GatlingOrWhiffCancelInfo& cancel : cancels) {
+	for (size_t i = 0; i < cancels.size(); ++i) {
+		const GatlingOrWhiffCancelInfo& cancel = cancels[i];
+		
+		if (i != cancels.size() - 1 && ImGui::GetCursorPosY() >= maxY) {
+			ImGui::Text("%d) Skipping %d items...", counter++, cancels.size() - i);
+			break;
+		}
+		
 		char* buf = strbuf;
 		size_t bufSize = sizeof strbuf;
 		int result;
@@ -9781,6 +9819,7 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 			frame.enableSpecials,
 			frame.hitAlreadyHappened,
 			frame.airborne,
+			true,
 			true);
 	
 	bool showHorizCharge = false;
@@ -10319,6 +10358,18 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
 			ImGui::TextUnformatted(strbuf);
 		}
+	}
+	if (frame.dustGatlingTimer) {
+		ImGui::Separator();
+		yellowText("Dust Gatling Timer: ");
+		ImGui::SameLine();
+		sprintf_s(strbuf, "%d/%d", frame.dustGatlingTimer, frame.dustGatlingTimerMax);
+		ImGui::TextUnformatted(strbuf);
+		ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+		ImGui::TextUnformatted("If a normal attack connects while this timer is still counting, all player's non-followup non-super non-IK moves"
+			" get enabled as gatlings from it.");
+		ImGui::PopStyleColor();
+		
 	}
 }
 
@@ -11196,13 +11247,24 @@ void drawPlayerIconInWindowTitle(GGIcon& icon) {
 	}
 }
 
-void UI::printAllCancels(const FrameCancelInfo& cancels,
+void UI::printAllCancels(const FrameCancelInfo<30>& cancels,
 		bool enableSpecialCancel,
 		bool enableJumpCancel,
 		bool enableSpecials,
 		bool hitAlreadyHappened,
 		bool airborne,
-		bool insertSeparators) {
+		bool insertSeparators,
+		bool useMaxY) {
+	
+	const ImGuiStyle& style = ImGui::GetStyle();
+	float maxY;
+	if (useMaxY) {
+		maxY = ImGui::GetIO().DisplaySize.y - style.FramePadding.y * 4.F - style.ItemSpacing.y * 6.F
+			- ImGui::GetTextLineHeightWithSpacing() * 4.F;
+	} else {
+		maxY = FLT_MAX;
+	}
+	
 	bool needUnpush = false;
 	if (ImGui::GetStyle().ItemSpacing.x != 0.F) {
 		needUnpush = true;
@@ -11218,28 +11280,29 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 		yellowText("Gatlings:");
 		int count = 1;
 		if (!cancels.gatlings.empty()) {
-			count += printCancels(cancels.gatlings);
+			count += printCancels(cancels.gatlings, maxY);
 		}
-		if (enableSpecialCancel) {
+		if (enableSpecialCancel && ImGui::GetCursorPosY() < maxY) {
 			ImGui::Text("%d) Specials", count);
 			++count;
 		}
-		if (enableJumpCancel) {
+		if (enableJumpCancel && ImGui::GetCursorPosY() < maxY) {
 			ImGui::Text("%d) Jump cancel", count);
 		}
 	}
-	if (!cancels.whiffCancels.empty() || enableSpecials) {
+	if ((!cancels.whiffCancels.empty() || enableSpecials) && ImGui::GetCursorPosY() < maxY) {
 		if (insertSeparators) ImGui::Separator();
 		if (hitAlreadyHappened) {
 			yellowText("Late cancels:");
 		} else {
 			yellowText("Whiff cancels:");
 		}
+		maxY += ImGui::GetTextLineHeightWithSpacing();
 		int count = 1;
 		if (!cancels.whiffCancels.empty()) {
-			count += printCancels(cancels.whiffCancels);
+			count += printCancels(cancels.whiffCancels, maxY);
 		}
-		if (enableSpecials) {
+		if (enableSpecials && ImGui::GetCursorPosY() < maxY) {
 			if (airborne) {
 				ImGui::Text("%d) Specials (note: some specials have a minimum height limit and might be unavailable at this time)", count);
 			} else {
@@ -11249,7 +11312,7 @@ void UI::printAllCancels(const FrameCancelInfo& cancels,
 	}
 	if (cancels.gatlings.empty() && !enableSpecialCancel
 			&& cancels.whiffCancels.empty() && !enableSpecials
-			&& cancels.whiffCancelsNote) {
+			&& cancels.whiffCancelsNote && ImGui::GetCursorPosY() < maxY) {
 		if (insertSeparators) ImGui::Separator();
 		if (hitAlreadyHappened) {
 			yellowText("Late cancels:");
