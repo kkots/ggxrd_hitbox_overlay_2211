@@ -2198,6 +2198,26 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							)
 							&& !outrightBanSJInstall
 					) {
+						// Here's why I don't think I should be worried about jump installs not getting registered in the
+						// Combo Recipe panel due to the normal that was jump installed getting kara cancelled into a special,
+						// if that normal was a 'dead end' normal that does not care about jump installs, or a normal that does not
+						// care about superjumps, while the special does care about one of those two things:
+						// 1) This can happen from neutral, or when the initial normal was done raw.
+						//    You must be holding UP for this when the normal starts, there's simply no other way.
+						//    Or else you have to jump install on an earlier move, that we'd register.
+						//    When you're holding UP, there's no way in hell you're humanly capable of completing
+						//    some motion.
+						//    If you do manage to cancel the prejump into some special, the panel will show the 'Jump Cancel' then.
+						//    So we're not losing any information.
+						// 2) This can happen from another move that you cancel. Most jump cancels extend all the way
+						//    across all of the active frames, or the gatling window. Which means that you can
+						//    UP+X jump install a late gatling and that is a valid jump install if the initial normal
+						//    was jump cancellable. You will then face the same problem of completing any motion at all
+						//    from the UP direction. Sure, if it's a charge move with 46 input, you could probably do it,
+						//    like May c.S > UP+5H~Horizontal Dolphin. But I don't expect people to do this that often.
+						//    The other way you could jump cancel here is during hitstop and then try to complete a motion,
+						//    but then right after hitstop you'd be in prejump, and even if you cancel that prejump into a special,
+						//    the 'Jump Cancel' would get registered in the Combo Recipe. So we're not losing any information.
 						player.comboRecipe.emplace_back();
 						ComboRecipeElement& newElem = player.comboRecipe.back();
 						newElem.artificial = true;
