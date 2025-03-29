@@ -2176,14 +2176,28 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !player.lastPerformedMoveNameIsInComboRecipe
 				) {
 					
-					if ((player.lastMoveWasJumpInstalled || player.lastMoveWasSuperJumpInstalled)
-							&& !(
-								charDoesNotCareAboutSuperJumpInstalls[player.charType]
-								|| player.move.ignoreJumpInstalls
-								|| player.move.ignoreSuperJumpInstalls
-								&& player.lastMoveWasSuperJumpInstalled
-								&& !player.lastMoveWasJumpInstalled
-							)) {
+					bool isSJInstall = player.lastMoveWasSuperJumpInstalled
+						&& !player.lastMoveWasJumpInstalled;
+					
+					bool outrightBanSJInstall = charDoesNotCareAboutSuperJumpInstalls[player.charType]
+						&& isSJInstall;
+					
+					if (
+							(player.lastMoveWasJumpInstalled || player.lastMoveWasSuperJumpInstalled)
+							&& (
+								!(
+									player.move.ignoreJumpInstalls
+									|| player.move.ignoreSuperJumpInstalls
+									&& isSJInstall
+								)
+								// dust enables all normals to be cancelled, which means that jump installs on them could potentially matter,
+								// even if normally advised otherwise. For example, Zato 6H is a dead end normal, but on a dust combo it can cancel
+								// into 2D which jump cancels.
+								|| player.pawn.dustGatlingTimer()
+								&& player.pawn.dealtAttack()->type == ATTACK_TYPE_NORMAL
+							)
+							&& !outrightBanSJInstall
+					) {
 						player.comboRecipe.emplace_back();
 						ComboRecipeElement& newElem = player.comboRecipe.back();
 						newElem.artificial = true;
