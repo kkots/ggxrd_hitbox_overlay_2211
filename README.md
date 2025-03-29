@@ -1273,7 +1273,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   5) The 'Combo Damage & Combo Stun' panel now displays the tension gained by you and the burst gained by your opponent during the last combo.
   6) There is a new setting in Settings - General Settings, called 'Starting Tension Pulse', ranging from -25000 to 25000, which lets you set the initial Tension Pulse upon stage reset in Training Mode.
   7) Fixed Combo Recipe panel registering I-No's dash twice.
-  - 2025 March 28: Version 6.21:
+- 2025 March 28: Version 6.21:
   1) The Combo Recipe panel will now ignore jump or superjump installs selectively depending on the move that is being (super)jump installed. There is a new setting to not display super jump installs. Jump installs now won't be registered more than once during the same string of moves (unless it's a super jump install followed by a regular jump install). Jump installs now won't be registered for Bedman at all.
   2) Fixed Jack-O 5H not displaying special cancels in the framebar or the Cancels panel.
   3) Added a new display to the framebar tooltips: they now show the dust combo gatling cancel timer. While this timer is above zero, if any normal attack connects, all the non-followup non-super non-IK moves get added as gatlings.
