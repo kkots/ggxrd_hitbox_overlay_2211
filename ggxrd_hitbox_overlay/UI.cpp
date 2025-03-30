@@ -12516,31 +12516,7 @@ void UI::drawFramebars() {
 	// It does not have horizontal scrolling applied to it
 	const int framebarPosition = framebarSettings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
 	
-	int scrollXInFrames;
-	if (framebarTotalFramesCapped > drawFramebars_framesCount) {
-		
-		int totalScrollableFrames = framebarTotalFramesCapped  // total number of frames
-			- drawFramebars_framesCount;  // number of visible frames
-		
-		if (framebarAutoScroll) {
-			scrollXInFrames = 0;
-		} else {
-			scrollXInFrames = std::lroundf(
-				(float)(totalScrollableFrames + 1)  // adding one to give an even chance to frames that are on the edges
-					* framebarScrollX / framebarMaxScrollX  // scroll ratio: from 0.F to 1.F
-				- 0.5F
-			);
-			if (scrollXInFrames < 0) {
-				scrollXInFrames = 0;
-			}
-			if (scrollXInFrames > totalScrollableFrames) {
-				scrollXInFrames = totalScrollableFrames;
-			}
-		}
-		
-	} else {
-		scrollXInFrames = 0;
-	}
+	int scrollXInFrames = framebarSettings.scrollXInFrames;
 	
 	drawFramebars_framebarPosition = framebarPosition - scrollXInFrames;
 	if (drawFramebars_framebarPosition < 0) {

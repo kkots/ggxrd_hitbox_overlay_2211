@@ -1279,3 +1279,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   3) Added a new display to the framebar tooltips: they now show the dust combo gatling cancel timer. While this timer is above zero, if any normal attack connects, all the non-followup non-super non-IK moves get added as gatlings.
   4) Fixed an problem when delay cancels would not be displayed correctly for some moves if there're more than 30 cancels available from a move.
   5) Added Double Jumps and Airdashes count display to the 'Speed/Hitstun Proration/...' panel.
+- 2025 March 30: Version 6.22: Fixed projectile framebars that already disappeared out of view not reappearing when scrolling the framebar into the past. This error was there since version 6.18 inclusive.

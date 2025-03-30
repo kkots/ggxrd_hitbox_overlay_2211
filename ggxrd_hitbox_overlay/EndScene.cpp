@@ -6404,11 +6404,62 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		combinedFramebarsSettingsChanged = true;
 	}
 	
+	int framebarTotalFramesUnlimitedUse = neverIgnoreHitstop
+		? endScene.getTotalFramesHitstopUnlimited()
+		: endScene.getTotalFramesUnlimited();
+	
+	// Capped between 0 and framebarSettings.storedFramesCount, inclusive
+	int framebarTotalFramesCapped;
+	if (framebarTotalFramesUnlimitedUse > storedFramesCount) {
+		framebarTotalFramesCapped = storedFramesCount;
+	} else {
+		framebarTotalFramesCapped = framebarTotalFramesUnlimitedUse;
+	}
+	
+	bool newFramebarAutoScroll = ui.getFramebarAutoScroll();
+	if (newFramebarAutoScroll != framebarAutoScroll) {
+		framebarAutoScroll = newFramebarAutoScroll;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
+	int newScrollXInFrames;
+	if (framebarTotalFramesCapped > framesCount) {
+		
+		int totalScrollableFrames = framebarTotalFramesCapped  // total number of frames
+			- framesCount;  // number of visible frames
+		
+		if (framebarAutoScroll) {
+			newScrollXInFrames = 0;
+		} else {
+			newScrollXInFrames = std::lroundf(
+				(float)(totalScrollableFrames + 1)  // adding one to give an even chance to frames that are on the edges
+					* ui.getFramebarScrollX() / ui.getFramebarMaxScrollX()  // scroll ratio: from 0.F to 1.F
+				- 0.5F
+			);
+			if (newScrollXInFrames < 0) {
+				newScrollXInFrames = 0;
+			}
+			if (newScrollXInFrames > totalScrollableFrames) {
+				newScrollXInFrames = totalScrollableFrames;
+			}
+		}
+		
+	} else {
+		newScrollXInFrames = 0;
+	}
+	
+	if (newScrollXInFrames != scrollXInFrames) {
+		scrollXInFrames = newScrollXInFrames;
+		combinedFramebarsSettingsChanged = true;
+	}
+	
+	
 	// Let UI know which settings we actually used, because UI may change them before drawing the framebar
 	ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
 	ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
 	ui.framebarSettings.framesCount = framesCount;
 	ui.framebarSettings.storedFramesCount = storedFramesCount;
+	ui.framebarSettings.scrollXInFrames = scrollXInFrames;
 	
 	if ((combinedFramebarsSettingsChanged || frameHasChanged) && !iGiveUp) {
 		
@@ -6418,6 +6469,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			framebarPositionUse = framebarPositionHitstop;
 		} else {
 			framebarPositionUse = framebarPosition;
+		}
+		framebarPositionUse -= scrollXInFrames;
+		if (framebarPositionUse < 0) {
+			framebarPositionUse += _countof(Framebar::frames);
 		}
 		
 		combinedFramebars.clear();

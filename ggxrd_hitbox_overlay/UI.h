@@ -38,6 +38,9 @@ public:
 	void handleResetBefore();
 	void handleResetAfter();
 	char* printDecimal(int num, int numAfterPoint, int padding, bool percentage = false);
+	inline bool getFramebarAutoScroll() const { return framebarAutoScroll; }
+	inline float getFramebarScrollX() const { return framebarScrollX; }
+	inline float getFramebarMaxScrollX() const { return framebarMaxScrollX; }
 	
 	struct FrameDims {
 		float x;
@@ -102,6 +105,8 @@ public:
 		bool eachProjectileOnSeparateFramebar = false;
 		int framesCount = -1;
 		int storedFramesCount = -1;
+		int scrollXInFrames = 0;
+		bool framebarAutoScroll = true;
 	} framebarSettings;
 	bool comboRecipeUpdatedOnThisFrame[2] { false, false };
 	

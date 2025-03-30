@@ -1742,6 +1742,9 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "Mahojin", true);
+	move.framebarName = "Durandal Call Grinder";  // can get displayed in the framebar due to clashing with an opponent's projectile
+	move.framebarSlangName = "DC Grinder";
+	move.framebarId = 114;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	

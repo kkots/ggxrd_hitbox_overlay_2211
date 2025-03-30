@@ -553,6 +553,8 @@ private:
 	bool eachProjectileOnSeparateFramebar = false;
 	int framesCount = -1;
 	int storedFramesCount = -1;
+	int scrollXInFrames = 0;
+	bool framebarAutoScroll = true;
 	bool isHoldingFD(const PlayerInfo& player) const;
 	bool isHoldingFD(Entity pawn) const;
 	void prepareInputs();
