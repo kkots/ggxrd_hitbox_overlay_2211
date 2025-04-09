@@ -1110,6 +1110,14 @@ void UI::drawSearchableWindows() {
 							? player.staggerWithSlow
 							: 0,
 						player.staggerMaxWithSlow);
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_REJECTION) {
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.rejection,
+						player.rejectionMax);
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_REJECTION_WITH_SLOW) {
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.rejectionWithSlow,
+						player.rejectionMaxWithSlow);
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
 					int currentHitstun = player.inHitstun
 							? player.hitstun - (player.hitstop ? 1 : 0)
@@ -10638,13 +10646,15 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 								|| playerFrame.stop.isBlockstun
 								|| playerFrame.stop.isStagger
 								|| playerFrame.stop.isWakeup
+								|| playerFrame.stop.isRejection
 								|| playerFrame.stop.tumble) {
 							ImGui::Separator();
 							if (playerFrame.hitstop
 									|| playerFrame.stop.isHitstun
 									|| playerFrame.stop.isBlockstun
 									|| playerFrame.stop.isStagger
-									|| playerFrame.stop.isWakeup) {
+									|| playerFrame.stop.isWakeup
+									|| playerFrame.stop.isRejection) {
 								printFameStop(strbuf,
 										sizeof strbuf,
 										&playerFrame.stop,

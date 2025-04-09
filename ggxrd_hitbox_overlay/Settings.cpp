@@ -530,6 +530,7 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(usePositionResetMod), "Use Position Reset Mod", settingsGeneralSettingsStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will override the game's default behavior of position reset (stage reset) in offline Training Mode.\n"
+			"; The numbers mentioned below are directions, in numpad notation.\n"
 			"; 2+Reset: non-swapped roundstart position;\n"
 			"; 8+Reset: swapped roundstart position;\n"
 			"; 4+Reset: left corner. Human Player outside the corner, CPU inside;\n"

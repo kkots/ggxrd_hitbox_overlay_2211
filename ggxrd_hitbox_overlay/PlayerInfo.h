@@ -510,14 +510,18 @@ inline FrameType frameMapNoIdle(FrameType type) {
 }
 
 struct FrameStopInfo {
-	unsigned short value:13;  // hitstun, blockstun or hitstop
+	unsigned short value:12;  // hitstun, blockstun or hitstop
 	unsigned short isHitstun:1;
 	unsigned short isStagger:1;
 	unsigned short isWakeup:1;
+	unsigned short isRejection:1;
+	
 	unsigned short valueMax:11;  // hitstunMax, blockstunMax or hitstopMax
 	unsigned short valueMaxExtra:4;  // hitstunMaxFloorbounceExtra, blockstunMaxLandExtra
 	unsigned short isBlockstun:1;
+	
 	unsigned short tumble;
+	
 	unsigned short tumbleMax:14;
 	unsigned short tumbleIsWallstick:1;
 	unsigned short tumbleIsKnockdown:1;
@@ -1433,6 +1437,11 @@ struct PlayerInfo {
 	int wakeupTimingWithSlow = 0;
 	int wakeupTimingMaxWithSlow = 0;
 	WakeupTimings wakeupTimings;
+	int rejection = 0;
+	int rejectionMax = 0;
+	int rejectionElapsed = 0;
+	int rejectionWithSlow = 0;
+	int rejectionMaxWithSlow = 0;
 	
 	// time passed since a change in idlePlus. If it's false, this measures the time you've been busy for.
 	// If it's true, this measures the time you've been idle for
@@ -1497,7 +1506,9 @@ struct PlayerInfo {
 		XSTUN_DISPLAY_BLOCK,  // blockstun
 		XSTUN_DISPLAY_BLOCK_WITH_SLOW,  // blockstun
 		XSTUN_DISPLAY_STAGGER,  // stagger
-		XSTUN_DISPLAY_STAGGER_WITH_SLOW  // stagger
+		XSTUN_DISPLAY_STAGGER_WITH_SLOW,  // stagger
+		XSTUN_DISPLAY_REJECTION,  // rejection
+		XSTUN_DISPLAY_REJECTION_WITH_SLOW  // rejection
 	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
 	int timeInNewSection = 0;

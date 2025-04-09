@@ -1827,7 +1827,13 @@ void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo,
 					int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD) {
 	if (!bufSize) return;
 	*buf = '\0';
-	bool hasStop = stopInfo ? (stopInfo->isHitstun || stopInfo->isBlockstun || stopInfo->isStagger || stopInfo->isWakeup) : false;
+	bool hasStop = stopInfo ? (
+			stopInfo->isHitstun
+			|| stopInfo->isBlockstun
+			|| stopInfo->isStagger
+			|| stopInfo->isWakeup
+			|| stopInfo->isRejection
+		) : false;
 	if (!hitstop && !hasStop) return;
 	int result;
 	
@@ -1860,6 +1866,8 @@ void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo,
 			}
 		} else if (stopInfo->isStagger) {
 			stunName = "stagger";
+		} else if (stopInfo->isRejection) {
+			stunName = "rejection";
 		} else {
 			stunName = "wakeup";
 		}

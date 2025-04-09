@@ -749,6 +749,7 @@ public:
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
 	inline bool naguriNagurareru() const { return (*(DWORD*)(ent + 0x120) & 0x100) != 0; }
+	inline bool isDisableThrow() const { return (*(DWORD*)(ent + 0x120) & 0x400) != 0; }
 	inline bool guardBreakInitialProrationApplied() const { return (*(DWORD*)(ent + 0x120) & 0x1000) != 0; }
 	inline bool servant() const { return (*(DWORD*)(ent + 0x120) & 0x3800000) != 0; }  // 0x800000 servant A, 0x1000000 servant B, 0x2000000 servant C
 	inline bool servantA() const { return (*(DWORD*)(ent + 0x120) & 0x800000) != 0; }
@@ -846,6 +847,7 @@ public:
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
+	inline int currentHitEffect() const { return *(int*)(ent + 0x24db0); }  // this is an enum, all values of which are not fully understood, so we're not writing it
 	inline int airdashHorizontallingTimer() const { return *(int*)(ent + 0x24db8); }
 	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }
 	inline TeamSwap teamSwap() const { return *(TeamSwap*)(ent + 0x26ac); }

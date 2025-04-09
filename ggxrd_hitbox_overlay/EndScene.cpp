@@ -1106,7 +1106,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| cmnActIndex == CmnActFDown2Stand
 					|| cmnActIndex == CmnActWallHaritsukiLand
 					|| cmnActIndex == CmnActWallHaritsukiGetUp
-					|| cmnActIndex == CmnActKizetsu) {
+					|| cmnActIndex == CmnActKizetsu
+					|| cmnActIndex == CmnActHajikareStand
+					|| cmnActIndex == CmnActHajikareCrouch
+					|| cmnActIndex == CmnActHajikareAir) {
 				player.hitstun = 0;
 			}
 			if (cmnActIndex == CmnActKorogari) {
@@ -1287,17 +1290,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			
-			if (ent.cmnActIndex() == CmnActJitabataLoop) {
-				int bbscrvar = player.pawn.bbscrvar();
+			const CmnActIndex entCmnActIndex = ent.cmnActIndex();
+			if (entCmnActIndex == CmnActJitabataLoop) {
+				int bbscrvar = ent.bbscrvar();
 				if (player.changedAnimOnThisFrame) {
 					player.staggerElapsed = 0;
 					player.staggerMaxFixed = false;
 					player.prevBbscrvar = 0;
-					player.prevBbscrvar5 = player.pawn.receivedAttack()->staggerDuration * 10;
+					player.prevBbscrvar5 = ent.receivedAttack()->staggerDuration * 10;
 				}
 				if (!player.hitstop && !superflashInstigator) ++player.staggerElapsed;
-				int staggerMax = player.prevBbscrvar5 / 10 + player.pawn.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
-				int animDur = player.pawn.currentAnimDuration();
+				int staggerMax = player.prevBbscrvar5 / 10 + ent.thisIsMinusOneIfEnteredHitstunWithoutHitstop();
+				int animDur = ent.currentAnimDuration();
 				if (!bbscrvar) {
 					player.staggerMax = staggerMax;
 				} else if (!player.prevBbscrvar) {
@@ -1309,6 +1313,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				player.stagger = player.staggerMax - (animDur - 1) - (player.hitstop ? 1 : 0);
 				player.prevBbscrvar = bbscrvar;
+			}
+			
+			if (entCmnActIndex == CmnActHajikareStand
+					|| entCmnActIndex == CmnActHajikareCrouch
+					|| entCmnActIndex == CmnActHajikareAir) {
+				int animDur = ent.currentAnimDuration();
+				if (animDur == 1 && !ent.isSuperFrozen() && !ent.isRCFrozen()) {
+					player.rejectionElapsed = 0;
+				}
+				if (!superflashInstigator && !player.hitstop) {
+					++player.rejectionElapsed;
+				}
+				int hitEffect = ent.currentHitEffect();
+				if (hitEffect >= 22 && hitEffect <= 25) {
+					player.rejectionMax = 30;
+					player.rejection = 31 - animDur;
+				} else {
+					player.rejectionMax = 60;
+					player.rejection = 61 - animDur;
+				}
+			} else {
+				player.rejection = 0;
+				player.rejectionWithSlow = 0;
 			}
 			
 			player.airborne = player.airborne_afterTick();
@@ -1657,6 +1684,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.rcSlowedDownCounter,
 					&player.wakeupTimingWithSlow,
 					&player.wakeupTimingMaxWithSlow,
+					&unused);
+			}
+			if (player.cmnActIndex == CmnActHajikareStand
+					|| player.cmnActIndex == CmnActHajikareCrouch
+					|| player.cmnActIndex == CmnActHajikareAir) {
+				PlayerInfo::calculateSlow(player.rejectionElapsed,
+					player.rejection,
+					newSlow,
+					&player.rejectionWithSlow,
+					&player.rejectionMaxWithSlow,
 					&unused);
 			}
 			int playerval0 = ent.playerVal(0);
@@ -5613,6 +5650,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = true;
 					currentFrame.stop.isWakeup = false;
+					currentFrame.stop.isRejection = false;
 					currentFrame.stop.value = min(player.staggerWithSlow, 8192);
 					currentFrame.stop.valueMax = min(player.staggerMaxWithSlow, 2047);
 					currentFrame.stop.valueMaxExtra = 0;
@@ -5622,6 +5660,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = false;
 					currentFrame.stop.isWakeup = false;
+					currentFrame.stop.isRejection = false;
 					if (player.blockstunContaminatedByRCSlowdown) {
 						currentFrame.stop.value = min(player.blockstunWithSlow, 8192);
 						currentFrame.stop.valueMax = min(player.blockstunMaxWithSlow, 2047);
@@ -5637,6 +5676,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isHitstun = true;
 					currentFrame.stop.isStagger = false;
 					currentFrame.stop.isWakeup = false;
+					currentFrame.stop.isRejection = false;
 					if (player.hitstunContaminatedByRCSlowdown) {
 						currentFrame.stop.value = min(player.hitstunWithSlow, 8192);
 						currentFrame.stop.valueMax = min(player.hitstunMaxWithSlow, 2047);
@@ -5672,8 +5712,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = false;
 					currentFrame.stop.isWakeup = true;
+					currentFrame.stop.isRejection = false;
 					currentFrame.stop.value = min(player.wakeupTimingWithSlow, 8192);
 					currentFrame.stop.valueMax = min(player.wakeupTimingMaxWithSlow, 2047);
+					currentFrame.stop.valueMaxExtra = 0;
+					currentFrame.stop.tumble = 0;
+					currentFrame.stop.tumbleMax = 0;
+				} else if (player.cmnActIndex == CmnActHajikareStand
+						|| player.cmnActIndex == CmnActHajikareCrouch
+						|| player.cmnActIndex == CmnActHajikareAir) {
+					currentFrame.stop.isBlockstun = false;
+					currentFrame.stop.isHitstun = false;
+					currentFrame.stop.isStagger = false;
+					currentFrame.stop.isWakeup = false;
+					currentFrame.stop.isRejection = true;
+					currentFrame.stop.value = min(player.rejectionWithSlow, 8192);
+					currentFrame.stop.valueMax = min(player.rejectionMaxWithSlow, 2047);
 					currentFrame.stop.valueMaxExtra = 0;
 					currentFrame.stop.tumble = 0;
 					currentFrame.stop.tumbleMax = 0;
@@ -5682,6 +5736,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isHitstun = false;
 					currentFrame.stop.isStagger = false;
 					currentFrame.stop.isWakeup = false;
+					currentFrame.stop.isRejection = false;
 					if (player.cmnActIndex == CmnActKorogari) {
 						currentFrame.stop.tumble = min(player.tumbleWithSlow, 0xffff);
 						currentFrame.stop.tumbleMax = min(player.tumbleMaxWithSlow, 0xffff);
@@ -5796,7 +5851,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				currentFrame.cantAirdash = player.airborne && player.wasCantAirdash;
 				currentFrame.airthrowDisabled = player.airborne && player.pawn.airthrowDisabled();
-				currentFrame.running = player.pawn.running();
+				currentFrame.running = player.pawn.running()
+					|| player.cmnActIndex == CmnActFDash
+					&& (
+						player.pawn.isDisableThrow()  // fix for Johnny's dash
+						|| player.charType == CHARACTER_TYPE_LEO  // Leo's is a special move with whiff cancels, but still we must make it very clear he cannot throw
+						// For Bedman and Slayer it's kind of obvious they can't do anything at all during their dash, not just throw
+					);
 				currentFrame.cantBackdash = player.wasCantBackdashTimer != 0;
 				if (player.x == player.prevPosX) {
 					currentFrame.suddenlyTeleported = false;
@@ -6293,6 +6354,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else {
 					player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_BLOCK;
 				}
+			} else if (player.rejection) {
+				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_REJECTION_WITH_SLOW;
 			}
 			player.prevGettingHitBySuper = player.gettingHitBySuper;
 			player.prevFrameStunValue = player.pawn.dealtAttack()->stun;

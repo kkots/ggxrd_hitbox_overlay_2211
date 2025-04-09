@@ -261,6 +261,7 @@ bool Game::onDllMain() {
 		
 		uintptr_t roundInitUsage = sigscanOffset(
 			"GuiltyGearXrd.exe",
+			// c7 44 24 __ ________ is MOV [ESP+???], ???
 			"c7 44 24 08 00 00 00 00 c7 44 24 0c 00 00 00 00 c7 44 24 10 d5 04 00 00 c7 44 24 14 b7 05 00 00 "
 			"c7 44 24 18 d2 05 00 00 c7 44 24 1c 3b 06 00 00 c7 44 24 20 49 fa ff ff c7 44 24 24 2b fb ff ff "
 			"c7 44 24 28 c5 f9 ff ff c7 44 24 2c 2e fa ff ff c7 44 24 30 98 ff ff ff c7 44 24 34 68 00 00 00 "
