@@ -1280,3 +1280,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   4) Fixed an problem when delay cancels would not be displayed correctly for some moves if there're more than 30 cancels available from a move.
   5) Added Double Jumps and Airdashes count display to the 'Speed/Hitstun Proration/...' panel.
 - 2025 March 30: Version 6.22: Fixed projectile framebars that already disappeared out of view not reappearing when scrolling the framebar into the past. This error was there since version 6.18 inclusive.
+- 2025 April 10: Version 6.23: Displays duration of rejection. Previously was displaying incorrect value of "hitstun".
