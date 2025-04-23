@@ -9,6 +9,7 @@ struct ThrowInfo {
 	AttackType attackType = ATTACK_TYPE_NONE;
 
 	bool hasPushboxCheck = false;
+	int throwRange = 0;
 	int pushboxCheckMinX = 0;
 	int pushboxCheckMaxX = 0;
 

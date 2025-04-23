@@ -1281,3 +1281,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   5) Added Double Jumps and Airdashes count display to the 'Speed/Hitstun Proration/...' panel.
 - 2025 March 30: Version 6.22: Fixed projectile framebars that already disappeared out of view not reappearing when scrolling the framebar into the past. This error was there since version 6.18 inclusive.
 - 2025 April 10: Version 6.23: Displays duration of rejection. Previously was displaying incorrect value of "hitstun".
+- 2025 April 23: Version 6.24: Box Extents panel now displays throw ranges.

@@ -760,7 +760,7 @@ public:
 	inline int clashHitstop() const { return *(int*)(ent + 0x1b0); }
 	inline bool needSetHitstop() const { return *(DWORD*)(ent + 0x1b8) != 0; }
 	inline int startingHitstop() const { return *(int*)(ent + 0x1b4); }
-	inline int hitstun() const { return *(int*)(ent + 0x9808); }
+	inline int hitstun() const { return *(int*)(ent + 0x9808); }  // this value is not used by some hitstun animations like Jitabata or CmnActBDownLoop for example and may contain garbage value during those
 	inline int blockstun() const { return *(int*)(ent + 0x4d54); }
 	inline int tension() const { return *(int*)(ent + 0x2d134); }  // meter
 	inline int tensionPulse() const { return *(int*)(ent + 0x2d128); }  // affects how fast you gain tension
@@ -802,6 +802,9 @@ public:
 	inline bool enableCrouch() const { return (*(DWORD*)(ent + 0x4d3c) & 0x2) != 0; }
 	inline bool enableWalkBack() const { return (*(DWORD*)(ent + 0x4d3c) & 0x20) != 0; }
 	inline int lifeTimeCounter() const { return *(int*)(ent + 0x18); }
+	// Jitabata (stagger), Hajikare (rejection), and every regular hitstun animation are treated as hitstun. Bursting, Kizetsu (dizzy), airtech and wakeup are not hitstun.
+	// The reason Jitabata has no throw protection is because it is a hardcoded exception to the throw protection rule.
+	// And Burst causes RRC because it's a hardcoded exception to RC rules
 	inline bool inHitstun() const { return (*(DWORD*)(ent + 0x23c) & 0x6) != 0; }
 	inline bool inHitstunThisFrame() const { return (*(DWORD*)(ent + 0x23c) & 0x4) != 0; }
 	inline int comboCount() const { return *(int*)(ent + 0x9F28); }  // this is set on the one getting combo'd
@@ -846,7 +849,7 @@ public:
 	inline bool hideUI() const { return (*(DWORD*)(ent + 0x11c) & 0x4000) != 0; }
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
-	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }
+	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }  // all get reset to 0 on stage reset
 	inline int currentHitEffect() const { return *(int*)(ent + 0x24db0); }  // this is an enum, all values of which are not fully understood, so we're not writing it
 	inline int airdashHorizontallingTimer() const { return *(int*)(ent + 0x24db8); }
 	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }
@@ -955,8 +958,8 @@ public:
 	// bbscript numbers them from 1, I number them from 0, so subtract 1 from the bbscript number
 	// indices 0-3 are reset on state change, 4-7 are not
 	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }  
-	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }
-	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }
+	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }  // reset to 0 on stage reset
+	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }  // reset to 0 on stage reset
 	inline const char* gotoLabelRequest() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
 	inline const char* spriteName() const { return (const char*)(ent + 0xa58); }
 	inline int spriteFrameCounter() const { return *(int*)(ent + 0xa78); }

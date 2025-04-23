@@ -125,6 +125,7 @@ void Throws::hitDetectionMainHook() {
 				throwInfo.leftUnlimited = false;
 				throwInfo.rightUnlimited = false;
 				ent.pushboxLeftRight(&throwInfo.left, &throwInfo.right);
+				throwInfo.throwRange = throwRange;
 				throwInfo.pushboxCheckMinX = throwInfo.left - throwRange;
 				throwInfo.pushboxCheckMaxX = throwInfo.right + throwRange;
 				throwInfo.left -= throwRange + (otherRight - otherX);
@@ -208,27 +209,53 @@ void Throws::drawThrows() {
 		}
 		throwInfo.firstFrame = false;
 		
-		// This is to prevent 4H/6H from displaying 1 active frame at the start and startup 1.
-		if (throwInfo.active
-				&& (throwInfo.attackType != ATTACK_TYPE_NONE
+		if (throwInfo.active) {
+			
+			// This is to prevent 4H/6H from displaying 1 active frame at the start and startup 1.
+			bool markActive = (throwInfo.attackType != ATTACK_TYPE_NONE
 				&& throwInfo.attackType != ATTACK_TYPE_NORMAL
 				|| endScene.didHit(throwInfo.owner)
 				|| !throwInfo.isPawn)
-				&& !throwInfo.isMettagiri) {
+				&& !throwInfo.isMettagiri;
+			
 			ProjectileInfo& projectile = endScene.findProjectile(throwInfo.owner);
 			if (projectile.ptr) {
-				projectile.markActive = true;
+				if (markActive) projectile.markActive = true;
 			} else if (throwInfo.isThrow) {
 				for (int i = 0; i < 2; ++i) {
 					if (throwInfo.owner == entityList.slots[i]) {
 						PlayerInfo& player = endScene.players[i];
-						++player.hitboxesCount;
-						if (player.lastPerformedMoveNameIsInComboRecipe) {
-							ComboRecipeElement* lastItem = player.findLastNonProjectileComboElement();
-							if (lastItem) {
-								lastItem->isMeleeAttack = true;
+						
+						if (markActive) {
+							++player.hitboxesCount;
+							if (player.lastPerformedMoveNameIsInComboRecipe) {
+								ComboRecipeElement* lastItem = player.findLastNonProjectileComboElement();
+								if (lastItem) {
+									lastItem->isMeleeAttack = true;
+								}
 							}
 						}
+						
+						player.throwRangeValid = false;
+						if (throwInfo.hasPushboxCheck) {
+							player.throwRangeValid = true;
+							player.throwRange = throwInfo.throwRange;
+						}
+						
+						player.throwXValid = false;
+						if (throwInfo.hasXCheck) {
+							player.throwXValid = true;
+							player.throwMinX = throwInfo.minX;
+							player.throwMaxX = throwInfo.maxX;
+						}
+						
+						player.throwYValid = false;
+						if (throwInfo.hasYCheck) {
+							player.throwYValid = true;
+							player.throwMinY = throwInfo.minY;
+							player.throwMaxY = throwInfo.maxY;
+						}
+						
 						break;
 					}
 				}

@@ -1357,6 +1357,12 @@ struct PlayerInfo {
 	int hitboxBottomY = 0;
 	bool hitboxTopBottomValid = false;
 	
+	int throwRange = 0;
+	int throwMinX = 0;
+	int throwMaxX = 0;
+	int throwMinY = 0;
+	int throwMaxY = 0;
+	
 	int pushback = 0;
 	int pushbackMax = 0;
 	int basePushback = 0;
@@ -1826,6 +1832,9 @@ struct PlayerInfo {
 	bool delayInTheLastMoveIsAfterIdle:1;
 	bool lastMoveWasJumpInstalled:1;
 	bool lastMoveWasSuperJumpInstalled:1;
+	bool throwRangeValid:1;
+	bool throwXValid:1;
+	bool throwYValid:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

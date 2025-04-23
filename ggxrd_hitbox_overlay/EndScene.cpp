@@ -2110,6 +2110,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							}
 						}
 						
+						player.throwRangeValid = false;
+						player.throwXValid = false;
+						player.throwYValid = false;
+						
 						if (player.cmnActIndex != CmnActRomanCancel) {
 							needDisableProjectiles = true;
 						}
@@ -9653,6 +9657,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 			bool isNormalThrow = dealtAttack->isThrow()
 					&& dealtAttack->type == ATTACK_TYPE_NORMAL
 					&& attackerPtr.currentAnimDuration() == 1;
+			// actually we could just check trial name NageTsukamiLand for normal ground throw or NageTsukamiAir for normal air throw
 			if (
 				// If we do Slayer 5H RRC walk ground throw, we get 5H 6H Ground Throw. It even erases RRC
 				!isNormalThrow

@@ -4511,7 +4511,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted(strbuf);
 				
 				yellowText(searchFieldTitle("Bacchus Projectile Timer:"));
-				AddTooltip(searchTooltip("You can't perform another Bacchus Sigh until this timer exprites, plus one extra frame"
+				AddTooltip(searchTooltip("You can't perform another Bacchus Sigh until this timer expires, plus one extra frame"
 					" after it expires.\n"
 					"This timer counts down the time until the Bacchus Sigh projectile stops existing. The 'projectile' means"
 					" it has not made contact with the opponent yet."));
@@ -5256,7 +5256,7 @@ void UI::drawSearchableWindows() {
 						"\n"
 						"If you successfully parry a hit, you lose super armor, gain ability to do Azami follow-ups (starting on the next frame - see Note),"
 						" and enter hitstop, and for the duration of the hitstop you are throw invulnerable."
-						" You cannot parry again unless you re-enter Azami. If you fail to re-enter Azami and another hit connects,"
+						" You cannot parry again unless you re-enter Azami. If, during hitstop, you fail to re-enter Azami and another hit connects,"
 						" you will simply block it automatically, meaning you don't necessarily have to hold block in order to block it."
 						" You can switch block between high and low during hitstop and after it and you can block low by just holding 2 (not just 1).\n"
 						"If you fail to re-enter Azami by the time hitstop ends, you enter blockstun for the duration you normally would"
@@ -5265,11 +5265,11 @@ void UI::drawSearchableWindows() {
 						"\n"
 						"Note about how quickly Azami follow-ups become available:\n"
 						"If you successfully parry a hit, and immediately on the next frame attempt to re-enter Azami"
-						" by holding 8/4/7/1 S+H and simultaneously try to do a follow-up by pressing P, K or D on the same frame (or buffering the button press),"
+						" by holding 8/4/7/1 S+H (or another method) and simultaneously try to do a follow-up by pressing P, K or D on the same frame (or buffering the button press),"
 						" the Azami re-entry takes priority over the follow-up for that frame (the frame that is immediately after the hit connects),"
 						" and the follow-up comes out on the NEXT frame thanks to its button press still remaining in the buffer."
 						" So the follow-up CAN be delayed by 1f if you were holding Azami with 8/4/7/1. This does not happen if you let"
-						" yourself re-enter Azami first, and attempt the follow-up at on later frame.\n"
+						" yourself re-enter Azami first, and attempt the follow-up on a later frame.\n"
 						"\n"
 						"There's a number of ways you can re-enter Azami.\n"
 						"*) During hitstop.\n"
@@ -5296,7 +5296,7 @@ void UI::drawSearchableWindows() {
 						"\n"
 						"Note: If you enter or re-enter Azami from blockstun, then you have the standard 5f throw protection from leaving blockstun."
 						" Similarly, if you enter Azami after hitstun or wakeup, you have the standard throw protection that lasts"
-						" from the moment you leave hitstun/wakeup and for 6f for hitstun and 9f for wakeup. Azami does not disrupt (or extend) that.\n"
+						" from the moment you leave hitstun/wakeup, which is 6f for hitstun and 9f for wakeup. Azami does not disrupt (or extend) that.\n"
 						"\n"
 						"If you re-enter Azami by pressing S+H, then you:\n"
 						"*) Lose ability to do Azami follow-ups.\n"
@@ -5448,6 +5448,7 @@ void UI::drawSearchableWindows() {
 						"The coordinates shown are relative to the global space."));
 				}
 			}
+			
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -5470,6 +5471,68 @@ void UI::drawSearchableWindows() {
 						" To view projectiles' hitbox extents you can see 'Projectiles' in the main UI window."));
 				}
 			}
+			
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (player.throwRangeValid) {
+					sprintf_s(strbuf, "%d", player.throwRange);
+					printNoWordWrap
+				} else {
+					printNoWordWrapArg("--")
+				}
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Throw Range"));
+					AddTooltip(searchTooltip("These values correspond to the ones used by the last throw performed.\n"
+						"In particular, this value is from the part of the throw that checks for the opponent's pushbox to touch the boundaries determined by player's pushbox +- the throw range specified.\n"
+						"The range is relative to the player's own pushbox boundaries."));
+				}
+			}
+			
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (player.throwXValid) {
+					sprintf_s(strbuf, "from %d to %d",
+						player.throwMinX,
+						player.throwMaxX);
+					printNoWordWrap
+				} else {
+					printNoWordWrapArg("--")
+				}
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Throw Box X"));
+					AddTooltip(searchTooltip("These values correspond to the ones used by the last throw performed.\n"
+						"In particular, these are values from the part of the throw that checks for the opponent's origin point to be within the boundaries outlined by these coordinates.\n"
+						"The coordinates shown are relative to the global space."));
+				}
+			}
+			
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (player.throwYValid) {
+					sprintf_s(strbuf, "from %d to %d",
+						player.throwMinY,
+						player.throwMaxY);
+					printNoWordWrap
+				} else {
+					printNoWordWrapArg("--")
+				}
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Throw Box Y"));
+					AddTooltip(searchTooltip("These values correspond to the ones used by the last throw performed.\n"
+						"In particular, these are values from the part of the throw that checks for the opponent's origin point to be within the boundaries outlined by these coordinates.\n"
+						"The coordinates shown are relative to the global space."));
+				}
+			}
+			
 			ImGui::EndTable();
 		}
 		ImGui::End();
