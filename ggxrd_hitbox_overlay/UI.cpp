@@ -207,6 +207,7 @@ static float getItemSpacing();
 static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
 static GGIcon DISolIconRectangular = coordsToGGIcon(179, 1095, 37, 37);
 static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
+static void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor = nullptr);
 static void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static void outlinedTextRawHighQuality(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
 static int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos<30>& cancels, float maxY);
@@ -2621,7 +2622,7 @@ void UI::drawSearchableWindows() {
 			if (searching) {
 				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 			}
-			ImGui::Begin(strbuf, showComboDamage + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			ImGui::Begin(strbuf, showComboDamage + i, searching ? ImGuiWindowFlags_NoSavedSettings : ImGuiWindowFlags_NoBackground);
 			PlayerInfo& player = endScene.players[i];
 			PlayerInfo& opponent = endScene.players[1 - i];
 			
@@ -2641,36 +2642,36 @@ void UI::drawSearchableWindows() {
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5F);
 				
 				ImGui::TableNextColumn();
-				ImGui::TextUnformatted(searchFieldTitle("Combo Damage"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Damage"));
 				AddTooltip(searchFieldTitle("Total damage done by this player as the attacker during the last combo."));
 				ImGui::TableNextColumn();
 				if (opponent.pawn) {
 					sprintf_s(strbuf, "%d", opponent.pawn.TrainingEtc_ComboDamage());
-					ImGui::TextUnformatted(strbuf);
+					outlinedText(ImGui::GetCursorPos(), strbuf);
 				}
 				
 				ImGui::TableNextColumn();
-				ImGui::TextUnformatted(searchFieldTitle("Combo Stun"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Stun"));
 				AddTooltip(searchFieldTitle("Maximum total stun reached by the opponent during the last combo that was done by this player as the attacker."));
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d", opponent.stunCombo);
-				ImGui::TextUnformatted(strbuf);
+				outlinedText(ImGui::GetCursorPos(), strbuf);
 				
 				ImGui::TableNextColumn();
-				ImGui::TextUnformatted(searchFieldTitle("Tension Gained Last Combo"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Tension Gained Last Combo"));
 				AddTooltip(searchFieldTitle("The total amount of tension gained during the last combo by this player as the attacker.\n"
 					"This value is in units from 0.00 (no tension) to 100.00 (full tension)."));
 				ImGui::TableNextColumn();
 				printDecimal(player.tensionGainLastCombo, 2, 0);
-				ImGui::TextUnformatted(printdecimalbuf);
+				outlinedText(ImGui::GetCursorPos(), printdecimalbuf);
 				
 				ImGui::TableNextColumn();
-				ImGui::TextUnformatted(searchFieldTitle("Burst Gained Last Combo"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Burst Gained Last Combo"));
 				AddTooltip(searchFieldTitle("The total amount of burst gained during the last combo by the opponent as the defender.\n"
 					"This value is in units from 0.00 (no burst) to 150.00 (full burst)."));
 				ImGui::TableNextColumn();
 				printDecimal(opponent.burstGainLastCombo, 2, 0);
-				ImGui::TextUnformatted(printdecimalbuf);
+				outlinedText(ImGui::GetCursorPos(), printdecimalbuf);
 				
 				ImGui::EndTable();
 			}
@@ -5533,6 +5534,19 @@ void UI::drawSearchableWindows() {
 				}
 			}
 			
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				sprintf_s(strbuf, "%d; %d", player.pushboxWidth, player.pushboxHeight);
+				printNoWordWrap
+				
+				if (i == 0) {
+					ImGui::TableNextColumn();
+					CenterAlignedText(searchFieldTitle("Pushbox W; H"));
+					AddTooltip(searchTooltip("Current pushbox width and height in the format \"Width; Height\"."));
+				}
+			}
+			
 			ImGui::EndTable();
 		}
 		ImGui::End();
@@ -7205,7 +7219,10 @@ void UI::drawSearchableWindows() {
 				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 			}
 			ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin(strbuf, showComboRecipe + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			ImGui::Begin(strbuf, showComboRecipe + i, searching ? ImGuiWindowFlags_NoSavedSettings
+				: settings.comboRecipe_transparentBackground
+					? ImGuiWindowFlags_NoBackground
+					: 0);
 			PlayerInfo& player = endScene.players[i];
 			
 			drawPlayerIconInWindowTitle(i);
@@ -7215,13 +7232,17 @@ void UI::drawSearchableWindows() {
 			GGIcon scaledIcon = scaleGGIconToHeight(cogwheelIcon, 16.F);
 			const ImVec2& itemSpacing = ImGui::GetStyle().ItemSpacing;
 			const bool showingSettings = showComboRecipeSettings[i];
+			const bool transparentBackground = settings.comboRecipe_transparentBackground;
 			if (showingSettings) {
 				ImGui::SetCursorPosY(cursorPosStart.y + scaledIcon.size.y + itemSpacing.y * 3.F);
+				settingsPresetsUseOutlinedText = transparentBackground;
 				booleanSettingPreset(settings.comboRecipe_showDelaysBetweenCancels);
 				booleanSettingPreset(settings.comboRecipe_showIdleTimeBetweenMoves);
 				booleanSettingPreset(settings.comboRecipe_showDashes);
 				booleanSettingPreset(settings.comboRecipe_showWalks);
 				booleanSettingPreset(settings.comboRecipe_showSuperJumpInstalls);
+				booleanSettingPreset(settings.comboRecipe_transparentBackground);
+				settingsPresetsUseOutlinedText = false;
 			}
 			
 			ImVec2 cursorPosForTable = ImGui::GetCursorPos();
@@ -7236,6 +7257,14 @@ void UI::drawSearchableWindows() {
 			};
 			ImGui::SetCursorPos(buttonCursorPos);
 			bool isClicked = false;
+			//buttonactive, buttonhovered, button
+			
+			if (transparentBackground) {
+				ImGui::PushStyleColor(ImGuiCol_Button, { 0.F, 0.F, 0.F, 0.F });
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 1.F, 1.F, 1.F, 0.25F });
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 1.F, 1.F, 1.F, 1.F });
+			}
+			
 			if (ImGui::Button("##ComboRecipeCogwheel",
 				{
 					scaledIcon.size.x + itemSpacing.x * 2.F,
@@ -7244,6 +7273,11 @@ void UI::drawSearchableWindows() {
 				showComboRecipeSettings[i] = !showComboRecipeSettings[i];
 				isClicked = true;
 			}
+			
+			if (transparentBackground) {
+				ImGui::PopStyleColor(3);
+			}
+			
 			AddTooltip("Settings for the Combo Recipe panel.\n"
 				"The settings are shared between P1 and P2.\n"
 				"\n"
@@ -7284,6 +7318,8 @@ void UI::drawSearchableWindows() {
 					IS_LINK_YES
 				} isLink = IS_LINK_UNKNOWN;
 				
+				bool lastElemIsDelayed = false;
+				
 				for (size_t j = 0; j < comboRecipeSize; ++j) {
 					const ComboRecipeElement& elem = player.comboRecipe[j];
 					
@@ -7304,19 +7340,45 @@ void UI::drawSearchableWindows() {
 									? settings.comboRecipe_showIdleTimeBetweenMoves
 									: settings.comboRecipe_showDelaysBetweenCancels
 							)) {
-						ImGui::TableNextColumn();
-						sprintf_s(strbuf, "%u)", rowCount++);
-						yellowText(strbuf);
-						ImGui::SameLine();
 						
-						ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-						if (elem.doneAfterIdle) {
-							sprintf_s(strbuf, "(Idle %df)", elem.cancelDelayedBy);
-						} else {
-							sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
+						int correctedCancelDelayedBy = elem.cancelDelayedBy;
+						if (lastElemIsDelayed) {
+							const ComboRecipeElement& lastElem = player.comboRecipe[j - 1];
+							int timeDifference = elem.timestamp - lastElem.timestamp;
+							if (elem.cancelDelayedBy + 1 > timeDifference) {
+								correctedCancelDelayedBy = timeDifference - 1;
+							}
 						}
-						ImGui::TextUnformatted(strbuf);
-						ImGui::PopStyleColor();
+						
+						lastElemIsDelayed = correctedCancelDelayedBy > 0;
+						
+						if (lastElemIsDelayed) {
+							
+							ImGui::TableNextColumn();
+							sprintf_s(strbuf, "%u)", rowCount++);
+							if (transparentBackground) {
+								outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR);
+							} else {
+								yellowText(strbuf);
+							}
+							ImGui::SameLine();
+							
+							ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+							if (elem.doneAfterIdle) {
+								sprintf_s(strbuf, "(Idle %df)", elem.cancelDelayedBy);
+							} else {
+								sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
+							}
+							if (transparentBackground) {
+								outlinedText(ImGui::GetCursorPos(), strbuf);
+							} else {
+								ImGui::TextUnformatted(strbuf);
+							}
+							ImGui::PopStyleColor();
+							
+						}
+					} else {
+						lastElemIsDelayed = false;
 					}
 					
 					if (elem.dashDuration) {
@@ -7336,7 +7398,11 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%u)", rowCount++);
-					yellowText(strbuf);
+					if (transparentBackground) {
+						outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR);
+					} else {
+						yellowText(strbuf);
+					}
 					ImGui::SameLine();
 					
 					const char* linkText = "";
@@ -7380,9 +7446,17 @@ void UI::drawSearchableWindows() {
 					}
 					
 					if (elem.isProjectile) {
-						textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+						if (transparentBackground) {
+							outlinedText(ImGui::GetCursorPos(), strbuf, &LIGHT_BLUE_COLOR);
+						} else {
+							textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
+						}
 					} else {
-						ImGui::TextUnformatted(strbuf);
+						if (transparentBackground) {
+							outlinedText(ImGui::GetCursorPos(), strbuf);
+						} else {
+							ImGui::TextUnformatted(strbuf);
+						}
 					}
 				}
 				
@@ -8451,6 +8525,18 @@ bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>
 
 void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
 	if (!color) color = &WHITE_COLOR;
+	outlinedTextJustTheOutline(pos, text, outlineColor);
+	ImGui::SetCursorPos({ pos.x, pos.y });
+	if (!color) {
+		ImGui::TextUnformatted(text);
+	} else {
+		ImGui::PushStyleColor(ImGuiCol_Text, *color);
+		ImGui::TextUnformatted(text);
+    	ImGui::PopStyleColor();
+	}
+}
+
+void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor) {
 	if (!outlineColor) outlineColor = &BLACK_COLOR;
 	
     ImGui::PushStyleColor(ImGuiCol_Text, *outlineColor);
@@ -8474,15 +8560,6 @@ void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineCo
 	ImGui::TextUnformatted(text);
 	
     ImGui::PopStyleColor();
-	
-	ImGui::SetCursorPos({ pos.x, pos.y });
-	if (!color) {
-		ImGui::TextUnformatted(text);
-	} else {
-		ImGui::PushStyleColor(ImGuiCol_Text, *color);
-		ImGui::TextUnformatted(text);
-    	ImGui::PopStyleColor();
-	}
 }
 
 void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
@@ -11213,7 +11290,17 @@ bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vect
 bool UI::booleanSettingPreset(std::atomic_bool& settingsRef) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
-	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUINameWithLength(&settingsRef)), &boolValue)) {
+	StringWithLength text = settings.getOtherUINameWithLength(&settingsRef);
+	if (settingsPresetsUseOutlinedText) {
+		float squareSize = ImGui::GetFrameHeight();
+		ImGuiStyle& style = ImGui::GetStyle();
+		ImVec2 cursor = ImGui::GetCursorPos();
+		ImVec2 newPos = {cursor.x + squareSize + style.ItemInnerSpacing.x, cursor.y + style.FramePadding.y};
+		ImGui::SetCursorPos(newPos);
+		outlinedTextJustTheOutline(newPos, text.txt);
+		ImGui::SetCursorPos(cursor);
+	}
+	if (ImGui::Checkbox(searchFieldTitle(text), &boolValue)) {
 		settingsRef = boolValue;
 		needWriteSettings = true;
 		itHappened = true;

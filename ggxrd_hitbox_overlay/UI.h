@@ -336,6 +336,7 @@ private:
 	bool showComboDamage[2] { false };
 	bool showComboRecipe[2] { false };
 	bool showComboRecipeSettings[2] { false };
+	bool settingsPresetsUseOutlinedText = false;
 };
 
 extern UI ui;

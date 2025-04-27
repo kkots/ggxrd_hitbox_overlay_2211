@@ -873,6 +873,10 @@ comboRecipe_showWalks = true
 ; This setting does not affect the display of (regular) jump installs, which are always displayed.
 comboRecipe_showSuperJumpInstalls = true
 
+; Specify true or false.
+; Setting this to true will make the Combo Recipe panel display without a background, just text and grid cell outlines.
+comboRecipe_transparentBackground = false
+
 ; A number.
 ; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.
 ; Must be in the range [-25000; +25000].
@@ -1282,3 +1286,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 March 30: Version 6.22: Fixed projectile framebars that already disappeared out of view not reappearing when scrolling the framebar into the past. This error was there since version 6.18 inclusive.
 - 2025 April 10: Version 6.23: Displays duration of rejection. Previously was displaying incorrect value of "hitstun".
 - 2025 April 23: Version 6.24: Box Extents panel now displays throw ranges.
+- 2025 April 27: Version 6.25: made Combo Damage panel transparent. Now displays Silent Force re-pick in Combo Recipe and in framebar. Added an option to make Combo Recipe panel display with a transparent background - the option is inside the Combo Recipe panel's gear button. Added pushbox width and height display to Box Extents panel.

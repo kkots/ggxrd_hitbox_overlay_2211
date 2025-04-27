@@ -3744,6 +3744,32 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.answerCreatedRSFStart = false;
 				}
 				
+			} else if (player.charType == CHARACTER_TYPE_MILLIA) {
+				
+				bool knifeExists = false;
+				
+				for (ProjectileInfo& projectile : projectiles) {
+					if (projectile.ptr && projectile.team == player.index && strcmp(projectile.animName, "SilentForceKnife") == 0) {
+						knifeExists = projectile.ptr.mem52();
+						break;
+					}
+				}
+				
+				player.pickedUpSilentForceKnifeOnThisFrame = !knifeExists && player.prevFrameSilentForceKnifeExisted;
+				
+				if (player.pickedUpSilentForceKnifeOnThisFrame && players[1 - player.index].inHitstunNowOrNextFrame) {
+					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
+					player.comboRecipe.emplace_back();
+					ComboRecipeElement& newComboElem = player.comboRecipe.back();
+					newComboElem.name = "Pick Up Silent Force";
+					newComboElem.timestamp = aswEngineTickCount;
+					newComboElem.framebarId = -1;
+					newComboElem.doneAfterIdle = true;
+					newComboElem.cancelDelayedBy = player.timePassedPureIdle;
+				}
+				
+				player.prevFrameSilentForceKnifeExisted = knifeExists;
+				
 			}
 		}
 		
@@ -4166,6 +4192,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.superArmorBlitzBreak.active = ent.superArmorBlitzBreak();
 				}
 				player.counterhit = entityState.counterhit;
+				
+				if (drawDataPrepared.pushboxes.size() > pushboxesPrevSize) {
+					DrawBoxCallParams& box = drawDataPrepared.pushboxes[pushboxesPrevSize];
+					int w;
+					w = box.right - box.left;
+					player.pushboxWidth = (w < 0 ? -w : w);
+					w = box.bottom - box.top;
+					player.pushboxHeight = (w < 0 ? -w : w);
+				} else {
+					player.pushboxWidth = 0;
+					player.pushboxHeight = 0;
+				}
+				
 			} else if (frameHasChanged) {
 				ProjectileInfo& projectile = findProjectile(ent);
 				if (projectile.ptr) {
@@ -5849,6 +5888,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (currentFrame.powerup) {
 					currentFrame.powerupExplanation = player.move.powerupExplanation ? player.move.powerupExplanation(player) : nullptr;
 					currentFrame.dontShowPowerupGraphic = player.move.dontShowPowerupGraphic ? player.move.dontShowPowerupGraphic(player) : false;
+				} else if (player.charType == CHARACTER_TYPE_MILLIA && player.pickedUpSilentForceKnifeOnThisFrame) {
+					currentFrame.powerup = true;
+					currentFrame.powerupExplanation = "Picked up Silent Force";
+					currentFrame.dontShowPowerupGraphic = false;
 				} else {
 					currentFrame.powerupExplanation = nullptr;
 					currentFrame.dontShowPowerupGraphic = false;

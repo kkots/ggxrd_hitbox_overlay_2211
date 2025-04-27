@@ -31,8 +31,8 @@
 	INVUL_TYPES_EXEC(SUPER_ARMOR_GUARD_IMPOSSIBLE, "unblockables", superArmorGuardImpossible) \
 	INVUL_TYPES_EXEC(SUPER_ARMOR_OBJECT_ATTACCK, "projectiles only", superArmorObjectAttacck) \
 	INVUL_TYPES_EXEC(SUPER_ARMOR_HONTAI_ATTACCK, "non-projectiles only", superArmorHontaiAttacck) \
-	/* this flag only matters when it is absent, and it is present by default. Level 0 are unflickable projectiles
-*/	INVUL_TYPES_EXEC(SUPER_ARMOR_PROJECTILE_LEVEL_0, "error ERROR", superArmorProjectileLevel0) \
+	/* this flag only matters when it is absent, and it is present by default. Level 0 are unflickable projectiles */ \
+	INVUL_TYPES_EXEC(SUPER_ARMOR_PROJECTILE_LEVEL_0, "error ERROR", superArmorProjectileLevel0) \
 	INVUL_TYPES_EXEC(SUPER_ARMOR_OVERDRIVE, "overdrives", superArmorOverdrive) \
 	INVUL_TYPES_EXEC(SUPER_ARMOR_BLITZ_BREAK, "max charge blitz or overdrives", superArmorBlitzBreak) \
 	INVUL_TYPES_EXEC(REFLECT, "reflect", reflect)
@@ -1362,6 +1362,8 @@ struct PlayerInfo {
 	int throwMaxX = 0;
 	int throwMinY = 0;
 	int throwMaxY = 0;
+	int pushboxWidth = 0;
+	int pushboxHeight = 0;
 	
 	int pushback = 0;
 	int pushbackMax = 0;
@@ -1835,6 +1837,8 @@ struct PlayerInfo {
 	bool throwRangeValid:1;
 	bool throwXValid:1;
 	bool throwYValid:1;
+	bool prevFrameSilentForceKnifeExisted:1;
+	bool pickedUpSilentForceKnifeOnThisFrame:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

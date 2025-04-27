@@ -662,6 +662,9 @@ bool Settings::onDllMain() {
 		"; Specify true or false.\n"
 		"; Setting this to true (default) will show super jump installs on dedicated separate lines in the following format: 'Super Jump Install'.\n"
 		"; This setting does not affect the display of (regular) jump installs, which are always displayed.");
+	registerOtherDescription(settingAndItsName(comboRecipe_transparentBackground), "Transparent Background", comboRecipeSettingsStr,
+		"; Specify true or false.\n"
+		"; Setting this to true will make the Combo Recipe panel display without a background, just text and grid cell outlines.");
 	
 	registerOtherDescription(settingAndItsName(startingTensionPulse), "Starting Tension Pulse", settingsGeneralSettingsStr,
 		"; A number.\n"
@@ -956,6 +959,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool comboRecipe_showDashesParsed = false;
 	bool comboRecipe_showWalksParsed = false;
 	bool comboRecipe_showSuperJumpInstallsParsed = false;
+	bool comboRecipe_transparentBackgroundParsed = false;
 
 	std::string accum;
 	char buf[128];
@@ -1114,6 +1118,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(comboRecipe_showDashes)
 						booleanPreset(comboRecipe_showWalks)
 						booleanPreset(comboRecipe_showSuperJumpInstalls)
+						booleanPreset(comboRecipe_transparentBackground)
 						#undef booleanPreset
 						#undef integerPreset
 					}
@@ -1460,6 +1465,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!comboRecipe_showSuperJumpInstallsParsed) {
 		comboRecipe_showSuperJumpInstalls = true;
+	}
+	
+	if (!comboRecipe_transparentBackgroundParsed) {
+		comboRecipe_transparentBackground = false;
 	}
 	
 	if (firstSettingsParse) {
@@ -2037,6 +2046,7 @@ void Settings::writeSettingsMain() {
 	booleanPreset(comboRecipe_showDashes)
 	booleanPreset(comboRecipe_showWalks)
 	booleanPreset(comboRecipe_showSuperJumpInstalls)
+	booleanPreset(comboRecipe_transparentBackground)
 	booleanPreset(neverDisplayGrayHurtboxes)
 	booleanPreset(dontShowBoxes)
 	booleanPreset(displayUIOnTopOfPauseMenu)
