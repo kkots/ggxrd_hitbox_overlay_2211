@@ -3750,7 +3750,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				for (ProjectileInfo& projectile : projectiles) {
 					if (projectile.ptr && projectile.team == player.index && strcmp(projectile.animName, "SilentForceKnife") == 0) {
-						knifeExists = projectile.ptr.mem52();
+						knifeExists = true;
 						break;
 					}
 				}

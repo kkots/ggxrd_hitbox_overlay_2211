@@ -7256,9 +7256,6 @@ void UI::drawSearchableWindows() {
 				cursorPosStart.y
 			};
 			ImGui::SetCursorPos(buttonCursorPos);
-			bool isClicked = false;
-			//buttonactive, buttonhovered, button
-			
 			if (transparentBackground) {
 				ImGui::PushStyleColor(ImGuiCol_Button, { 0.F, 0.F, 0.F, 0.F });
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 1.F, 1.F, 1.F, 0.25F });
@@ -7271,7 +7268,6 @@ void UI::drawSearchableWindows() {
 					scaledIcon.size.y + itemSpacing.y * 2.F
 				})) {
 				showComboRecipeSettings[i] = !showComboRecipeSettings[i];
-				isClicked = true;
 			}
 			
 			if (transparentBackground) {
@@ -11296,7 +11292,6 @@ bool UI::booleanSettingPreset(std::atomic_bool& settingsRef) {
 		ImGuiStyle& style = ImGui::GetStyle();
 		ImVec2 cursor = ImGui::GetCursorPos();
 		ImVec2 newPos = {cursor.x + squareSize + style.ItemInnerSpacing.x, cursor.y + style.FramePadding.y};
-		ImGui::SetCursorPos(newPos);
 		outlinedTextJustTheOutline(newPos, text.txt);
 		ImGui::SetCursorPos(cursor);
 	}
