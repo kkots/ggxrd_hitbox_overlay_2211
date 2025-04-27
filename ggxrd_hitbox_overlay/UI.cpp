@@ -206,10 +206,9 @@ static const char* formatBoolean(bool value);
 static float getItemSpacing();
 static GGIcon DISolIcon = coordsToGGIcon(172, 1096, 56, 35);
 static GGIcon DISolIconRectangular = coordsToGGIcon(179, 1095, 37, 37);
-static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
-static void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor = nullptr);
-static void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
-static void outlinedTextRawHighQuality(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr);
+static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr, bool highQuality = false);
+static void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor = nullptr, bool highQuality = false);
+static void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr, bool highQuality = false);
 static int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos<30>& cancels, float maxY);
 static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount);
@@ -2642,36 +2641,36 @@ void UI::drawSearchableWindows() {
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5F);
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Damage"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Damage"), nullptr, nullptr, true);
 				AddTooltip(searchFieldTitle("Total damage done by this player as the attacker during the last combo."));
 				ImGui::TableNextColumn();
 				if (opponent.pawn) {
 					sprintf_s(strbuf, "%d", opponent.pawn.TrainingEtc_ComboDamage());
-					outlinedText(ImGui::GetCursorPos(), strbuf);
+					outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
 				}
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Stun"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Stun"), nullptr, nullptr, true);
 				AddTooltip(searchFieldTitle("Maximum total stun reached by the opponent during the last combo that was done by this player as the attacker."));
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d", opponent.stunCombo);
-				outlinedText(ImGui::GetCursorPos(), strbuf);
+				outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Tension Gained Last Combo"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Tension Gained Last Combo"), nullptr, nullptr, true);
 				AddTooltip(searchFieldTitle("The total amount of tension gained during the last combo by this player as the attacker.\n"
 					"This value is in units from 0.00 (no tension) to 100.00 (full tension)."));
 				ImGui::TableNextColumn();
 				printDecimal(player.tensionGainLastCombo, 2, 0);
-				outlinedText(ImGui::GetCursorPos(), printdecimalbuf);
+				outlinedText(ImGui::GetCursorPos(), printdecimalbuf, nullptr, nullptr, true);
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Burst Gained Last Combo"));
+				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Burst Gained Last Combo"), nullptr, nullptr, true);
 				AddTooltip(searchFieldTitle("The total amount of burst gained during the last combo by the opponent as the defender.\n"
 					"This value is in units from 0.00 (no burst) to 150.00 (full burst)."));
 				ImGui::TableNextColumn();
 				printDecimal(opponent.burstGainLastCombo, 2, 0);
-				outlinedText(ImGui::GetCursorPos(), printdecimalbuf);
+				outlinedText(ImGui::GetCursorPos(), printdecimalbuf, nullptr, nullptr, true);
 				
 				ImGui::EndTable();
 			}
@@ -7353,7 +7352,7 @@ void UI::drawSearchableWindows() {
 							ImGui::TableNextColumn();
 							sprintf_s(strbuf, "%u)", rowCount++);
 							if (transparentBackground) {
-								outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR);
+								outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR, nullptr, true);
 							} else {
 								yellowText(strbuf);
 							}
@@ -7366,7 +7365,7 @@ void UI::drawSearchableWindows() {
 								sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
 							}
 							if (transparentBackground) {
-								outlinedText(ImGui::GetCursorPos(), strbuf);
+								outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
 							} else {
 								ImGui::TextUnformatted(strbuf);
 							}
@@ -7395,7 +7394,7 @@ void UI::drawSearchableWindows() {
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%u)", rowCount++);
 					if (transparentBackground) {
-						outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR);
+						outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR, nullptr, true);
 					} else {
 						yellowText(strbuf);
 					}
@@ -7443,13 +7442,13 @@ void UI::drawSearchableWindows() {
 					
 					if (elem.isProjectile) {
 						if (transparentBackground) {
-							outlinedText(ImGui::GetCursorPos(), strbuf, &LIGHT_BLUE_COLOR);
+							outlinedText(ImGui::GetCursorPos(), strbuf, &LIGHT_BLUE_COLOR, nullptr, true);
 						} else {
 							textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 						}
 					} else {
 						if (transparentBackground) {
-							outlinedText(ImGui::GetCursorPos(), strbuf);
+							outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
 						} else {
 							ImGui::TextUnformatted(strbuf);
 						}
@@ -8519,9 +8518,9 @@ bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>
 	return true;
 }
 
-void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
+void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor, bool highQuality) {
 	if (!color) color = &WHITE_COLOR;
-	outlinedTextJustTheOutline(pos, text, outlineColor);
+	outlinedTextJustTheOutline(pos, text, outlineColor, highQuality);
 	ImGui::SetCursorPos({ pos.x, pos.y });
 	if (!color) {
 		ImGui::TextUnformatted(text);
@@ -8532,7 +8531,7 @@ void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineCo
 	}
 }
 
-void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor) {
+void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor, bool highQuality) {
 	if (!outlineColor) outlineColor = &BLACK_COLOR;
 	
     ImGui::PushStyleColor(ImGuiCol_Text, *outlineColor);
@@ -8542,6 +8541,16 @@ void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineCol
 	
 	ImGui::SetCursorPos({ pos.x, pos.y + 1.F });
 	ImGui::TextUnformatted(text);
+	
+	if (highQuality) {
+		
+		ImGui::SetCursorPos({ pos.x + 1.F, pos.y });
+		ImGui::TextUnformatted(text);
+		
+		ImGui::SetCursorPos({ pos.x - 1.F, pos.y });
+		ImGui::TextUnformatted(text);
+		
+	}
 	
 	ImGui::SetCursorPos({ pos.x - 1.F, pos.y - 1.F });
 	ImGui::TextUnformatted(text);
@@ -8558,7 +8567,7 @@ void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineCol
     ImGui::PopStyleColor();
 }
 
-void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
+void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor, bool highQuality) {
 	if (!color) color = &WHITE_COLOR;
 	if (!outlineColor) outlineColor = &BLACK_COLOR;
 	
@@ -8567,24 +8576,10 @@ void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4*
 	
 	drawList->AddText({ pos.x, pos.y - 1.F }, outlineClr, text);
 	drawList->AddText({ pos.x, pos.y + 1.F }, outlineClr, text);
-	drawList->AddText({ pos.x - 1.F, pos.y - 1.F }, outlineClr, text);
-	drawList->AddText({ pos.x + 1.F, pos.y - 1.F }, outlineClr, text);
-	drawList->AddText({ pos.x - 1.F, pos.y + 1.F }, outlineClr, text);
-	drawList->AddText({ pos.x + 1.F, pos.y + 1.F }, outlineClr, text);
-	drawList->AddText(pos, clr, text);
-}
-
-void outlinedTextRawHighQuality(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor) {
-	if (!color) color = &WHITE_COLOR;
-	if (!outlineColor) outlineColor = &BLACK_COLOR;
-	
-	ImU32 clr = ImGui::GetColorU32(*color);
-	ImU32 outlineClr = ImGui::GetColorU32(*outlineColor);
-	
-	drawList->AddText({ pos.x, pos.y - 1.F }, outlineClr, text);
-	drawList->AddText({ pos.x, pos.y + 1.F }, outlineClr, text);
-	drawList->AddText({ pos.x - 1.F, pos.y }, outlineClr, text);
-	drawList->AddText({ pos.x + 1.F, pos.y }, outlineClr, text);
+	if (highQuality) {
+		drawList->AddText({ pos.x - 1.F, pos.y }, outlineClr, text);
+		drawList->AddText({ pos.x + 1.F, pos.y }, outlineClr, text);
+	}
 	drawList->AddText({ pos.x - 1.F, pos.y - 1.F }, outlineClr, text);
 	drawList->AddText({ pos.x + 1.F, pos.y - 1.F }, outlineClr, text);
 	drawList->AddText({ pos.x - 1.F, pos.y + 1.F }, outlineClr, text);
@@ -11292,7 +11287,7 @@ bool UI::booleanSettingPreset(std::atomic_bool& settingsRef) {
 		ImGuiStyle& style = ImGui::GetStyle();
 		ImVec2 cursor = ImGui::GetCursorPos();
 		ImVec2 newPos = {cursor.x + squareSize + style.ItemInnerSpacing.x, cursor.y + style.FramePadding.y};
-		outlinedTextJustTheOutline(newPos, text.txt);
+		outlinedTextJustTheOutline(newPos, text.txt, nullptr, true);
 		ImGui::SetCursorPos(cursor);
 	}
 	if (ImGui::Checkbox(searchFieldTitle(text), &boolValue)) {
@@ -13248,7 +13243,7 @@ void UI::drawFramebars() {
 			} else {
 				textPos.y = drawFramebars_y - outerBorderThickness + oneFramebarHeight + bottomPadding;
 			}
-			outlinedTextRawHighQuality(drawFramebars_drawList, textPos, strbuf, nullptr, nullptr);
+			outlinedTextRaw(drawFramebars_drawList, textPos, strbuf, nullptr, nullptr, true);
 			textPos.x += textSize.x;
 			
 			short frameAdvantage;
@@ -13277,7 +13272,7 @@ void UI::drawFramebars() {
 			}
 			
 			if (frameAdvantage == SHRT_MIN) {
-				outlinedTextRawHighQuality(drawFramebars_drawList, textPos, "?", nullptr, nullptr);
+				outlinedTextRaw(drawFramebars_drawList, textPos, "?", nullptr, nullptr, true);
 			} else {
 				int result = frameAdvantageTextFormat(frameAdvantage, strbuf, sizeof strbuf);
 				if (landingFrameAdvantage != SHRT_MIN) {
@@ -13292,11 +13287,11 @@ void UI::drawFramebars() {
 				} else {
 					color = nullptr;
 				}
-				outlinedTextRawHighQuality(drawFramebars_drawList, textPos, strbuf, color, nullptr);
+				outlinedTextRaw(drawFramebars_drawList, textPos, strbuf, color, nullptr, true);
 				if (landingFrameAdvantage != SHRT_MIN) {
 					textSize = ImGui::CalcTextSize(strbuf);
 					textPos.x += textSize.x;
-					outlinedTextRawHighQuality(drawFramebars_drawList, textPos, "(", nullptr, nullptr);
+					outlinedTextRaw(drawFramebars_drawList, textPos, "(", nullptr, nullptr, true);
 					textSize = ImGui::CalcTextSize("(");
 					textPos.x += textSize.x;
 					frameAdvantageTextFormat(landingFrameAdvantage, strbuf, sizeof strbuf);
@@ -13307,10 +13302,10 @@ void UI::drawFramebars() {
 					} else {
 						color = nullptr;
 					}
-					outlinedTextRawHighQuality(drawFramebars_drawList, textPos, strbuf, color, nullptr);
+					outlinedTextRaw(drawFramebars_drawList, textPos, strbuf, color, nullptr, true);
 					textSize = ImGui::CalcTextSize(strbuf);
 					textPos.x += textSize.x;
-					outlinedTextRawHighQuality(drawFramebars_drawList, textPos, ")", nullptr, nullptr);
+					outlinedTextRaw(drawFramebars_drawList, textPos, ")", nullptr, nullptr, true);
 				}
 			}
 			if (scaledText) {

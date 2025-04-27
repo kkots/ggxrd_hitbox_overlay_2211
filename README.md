@@ -1288,3 +1288,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 23: Version 6.24: Box Extents panel now displays throw ranges.
 - 2025 April 27: Version 6.25: Made Combo Damage panel transparent. Now displays Silent Force re-pick in Combo Recipe and in framebar. Added an option to make Combo Recipe panel display with a transparent background - the option is inside the Combo Recipe panel's gear button. Added pushbox width and height display to Box Extents panel.
 - 2025 April 27: Version 6.26: Register Silent Force re-pick when it's done as soon as the knife is able to be picked up.
+- 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
