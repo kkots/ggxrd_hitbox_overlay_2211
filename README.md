@@ -1252,7 +1252,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   2) Added Combo Recipe panel.
   3) Added "Combo Damage & Combo Stun" panel which displays the total achieved combo stun and combo damage.
   4) Fixed an issue when some moves that can have multiple names (like May 6H, May Max 6H, etc) would select and show an incorrect version of the name all the time.
-  5) Remade the 'Move' field: now it shows does not split supers into two different moves (before superfreeze and after superfreeze).
+  5) Remade the 'Move' field: now it does not split supers into two different moves (before superfreeze and after superfreeze).
   6) Added tooltips to the left and to the right of the 'Startup' and 'Total' fields and if you hover over the title of the field itself as well, which shows the names of moves or parts of moves that make up the startup or the total, with the exact duration of each part.
   7) Fixed an issue when projectiles that disappear on hit during superfreeze, specifically Red Hail balls, would initially display '???' in the corresponding framebar's title.
   8) Added more names to Venom Balls, now Bishop Runout and Red Hail balls are distinguished by name in the framebar, Sol Gunflame done from a dash will be named Runflame, added distinguishment in the name of the move between Tap, Charge and Max Charge Blitz Shields, added distinguishment in the name of the move between Slayer Pilebunker, Crosswise Heel and Under Pressure done from P Dandy Step and K Dandy Step.
@@ -1272,7 +1272,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 March 28: Version 6.20:
   1) Added Baiken Tsurane Sanzu-watashi interaction (white) box.
   2) Fixed Combo Recipe not registering Ground/Air Throw if it's the first hit in a combo.
-  3) In the 'Tension Values' panel, in its 'Tension Gain On Attack' field, added a list of ranges of values of Tension Pulse and their corresponding tension gain modifiers.
+  3) In the 'Tension Values' panel, inside the comment for its 'Tension Gain On Attack' field, added a list of ranges of values of Tension Pulse and their corresponding tension gain modifiers.
   4) Combo Recipe now displays delay cancels and idle times. The display of delay cancels, idle times, microwalks and microdashes can be turned off, each separately.
   5) The 'Combo Damage & Combo Stun' panel now displays the tension gained by you and the burst gained by your opponent during the last combo.
   6) There is a new setting in Settings - General Settings, called 'Starting Tension Pulse', ranging from -25000 to 25000, which lets you set the initial Tension Pulse upon stage reset in Training Mode.
@@ -1281,10 +1281,10 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   1) The Combo Recipe panel will now ignore jump or superjump installs selectively depending on the move that is being (super)jump installed. There is a new setting to not display super jump installs. Jump installs now won't be registered more than once during the same string of moves (unless it's a super jump install followed by a regular jump install). Jump installs now won't be registered for Bedman at all.
   2) Fixed Jack-O 5H not displaying special cancels in the framebar or the Cancels panel.
   3) Added a new display to the framebar tooltips: they now show the dust combo gatling cancel timer. While this timer is above zero, if any normal attack connects, all the non-followup non-super non-IK moves get added as gatlings.
-  4) Fixed an problem when delay cancels would not be displayed correctly for some moves if there're more than 30 cancels available from a move.
+  4) Fixed a problem when delay cancels would not be displayed correctly for some moves if there're more than 30 cancels available from a move.
   5) Added Double Jumps and Airdashes count display to the 'Speed/Hitstun Proration/...' panel.
 - 2025 March 30: Version 6.22: Fixed projectile framebars that already disappeared out of view not reappearing when scrolling the framebar into the past. This error was there since version 6.18 inclusive.
 - 2025 April 10: Version 6.23: Displays duration of rejection. Previously was displaying incorrect value of "hitstun".
 - 2025 April 23: Version 6.24: Box Extents panel now displays throw ranges.
-- 2025 April 27: Version 6.25: made Combo Damage panel transparent. Now displays Silent Force re-pick in Combo Recipe and in framebar. Added an option to make Combo Recipe panel display with a transparent background - the option is inside the Combo Recipe panel's gear button. Added pushbox width and height display to Box Extents panel.
+- 2025 April 27: Version 6.25: Made Combo Damage panel transparent. Now displays Silent Force re-pick in Combo Recipe and in framebar. Added an option to make Combo Recipe panel display with a transparent background - the option is inside the Combo Recipe panel's gear button. Added pushbox width and height display to Box Extents panel.
 - 2025 April 27: Version 6.26: Register Silent Force re-pick when it's done as soon as the knife is able to be picked up.
