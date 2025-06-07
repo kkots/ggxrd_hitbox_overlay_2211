@@ -735,6 +735,19 @@ bool EndScene::onDllMain() {
 		}
 	}
 	
+	uintptr_t speedYResetPlace = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"e8 ?? ?? ?? ?? 83 a6 24 4d 00 00 fd",
+		nullptr,
+		"SpeedYResetPlace");
+	if (speedYResetPlace) {
+		std::vector<char> bytes(4);
+		void (HookHelp::*ptr)(int) = &HookHelp::speedYReset;
+		int offset = calculateRelativeCallOffset(speedYResetPlace, (uintptr_t)(PVOID&)ptr);
+		memcpy(bytes.data(), &offset, 4);
+		detouring.patchPlace(speedYResetPlace + 1, bytes);
+	}
+	
 	return !error;
 }
 
@@ -804,7 +817,8 @@ void EndScene::logic() {
 				|| players[0].gotHitOnThisFrame  // fix for death by DoT
 				|| players[1].gotHitOnThisFrame  // fix for death by DoT
 			)
-			|| altModes.roundendCameraFlybyType() != 8;
+			|| altModes.roundendCameraFlybyType() != 8
+			|| game.is0xa8PreparingCamera();
 		if (!isRunning && !iGiveUp) {
 			if (!settings.dontClearFramebarOnStageReset) {
 				playerFramebars.clear();
@@ -812,8 +826,7 @@ void EndScene::logic() {
 				combinedFramebars.clear();
 			}
 			startedNewRound = true;
-		}
-		if (!isRunning && !iGiveUp) {
+			
 			for (int i = 0; i < 2; ++i) {
 				PlayerInfo& player = players[i];
 				player.inputs.clear();
@@ -863,6 +876,7 @@ void EndScene::logic() {
 		}
 	}
 	if (needToClearHitDetection) {
+		attackHitboxes.clear();
 		hitDetector.clearAllBoxes();
 		throws.clearAllBoxes();
 		leoParries.clear();
@@ -876,9 +890,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	invisChipp.onEndSceneStart();
 	drawnEntities.clear();
 	
-	bool isTheFirstFrameInTheMatch = false;
+	bool isTheFirstFrameInTheRound = false;
 	if (playerFramebars.empty() && !iGiveUp) {
-		isTheFirstFrameInTheMatch = true;
+		isTheFirstFrameInTheRound = true;
 		playerFramebars.emplace_back();
 		{
 			PlayerFramebars& framebar = playerFramebars.back();
@@ -902,17 +916,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	if (startedNewRound) {
 		startedNewRound = false;
 		if (!iGiveUp) {
-			isTheFirstFrameInTheMatch = true;
+			isTheFirstFrameInTheRound = true;
 		}
 	}
-	if (isTheFirstFrameInTheMatch) {
-		if (game.isTrainingMode() && settings.startingTensionPulse) {
+	if (isTheFirstFrameInTheRound) {
+		bool isTraining = game.isTrainingMode();
+		if (isTraining && settings.startingTensionPulse) {
 			int val = settings.startingTensionPulse;
 			if (val > 25000) val = 25000;
 			if (val < -25000) val = -25000;
 			for (int i = 0; i < 2; ++i) {
 				entityList.slots[i].tensionPulse() = settings.startingTensionPulse;
 			}
+		}
+		if (isTraining && settings.clearInputHistoryOnStageResetInTrainingMode
+				|| settings.clearInputHistoryOnStageReset) {
+			game.clearInputHistory();
+			clearInputHistory();
 		}
 		for (int i = 0; i < 2; ++i) {
 			// on the first frame of a round people can't act. At all
@@ -1018,7 +1038,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.x = ent.posX();
 			player.y = ent.posY();
 			player.speedX = ent.speedX();
-			player.speedY = ent.speedY();
+			player.speedY = player.lostSpeedYOnThisFrame ? player.speedYBeforeSpeedLost : ent.speedY();
 			player.gravity = ent.gravity();
 			player.comboTimer = ent.comboTimer();
 			player.pushback = ent.pushback();
@@ -1923,7 +1943,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (!player.onTheDefensive) {
 							player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_NONE;
 						}
-						player.moveOriginatedInTheAir = player.airborne;
+						player.moveOriginatedInTheAir = player.airborne && player.wasAirborneOnAnimChange;
 						
 						player.startupProj = 0;
 						player.hitOnFrameProj = 0;
@@ -3748,7 +3768,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				bool knifeExists = false;
 				
-				for (ProjectileInfo& projectile : projectiles) {
+				for (const ProjectileInfo& projectile : projectiles) {
 					if (projectile.ptr && projectile.team == player.index && strcmp(projectile.animName, "SilentForceKnife") == 0) {
 						knifeExists = true;
 						break;
@@ -3774,7 +3794,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		
 		// This is a separate loop because it depends on another player's timePassedLanding, which I changed in the previous loop
-		for (PlayerInfo& player : players) {
+		for (const PlayerInfo& player : players) {
 			if (player.startedDefending) {
 				restartMeasuringFrameAdvantage(player.index);
 				restartMeasuringLandingFrameAdvantage(player.index);
@@ -3797,21 +3817,24 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		playerSide = game.getPlayerSide();
 	}
 	
+	hitDetector.prepareDrawHits();  // may delete items from endScene.attackHitboxes
+	
+	for (AttackHitbox& attackHitbox : attackHitboxes) {
+		attackHitbox.found = false;
+	}
+	
+	// WARNING!
+	// If the mod was injected in the middle of a round end or round start, player.pawn may be null here!!!
+	// This will lead to a crash if you try to use it without checking for null.
+	// Better use ent.playerEntity() instead.
 	for (int i = 0; i < entityList.count; i++) {
 		Entity ent = entityList.list[i];
 		int team = ent.team();
+		PlayerInfo& player = players[team];
+		Entity playerEntity = ent.playerEntity();
 		if (!ent.isActive() || isEntityAlreadyDrawn(ent)) continue;
 
-		bool active = ent.isActiveFrames()
-			&& (
-				i < 2
-					&& ent.characterType() == CHARACTER_TYPE_JAM
-					&& strcmp(ent.animationName(), "Saishingeki") == 0
-					&& ent.currentAnimDuration() > 100
-				?
-					ent.currentHitNum() > 1
-				: true
-			);
+		const bool active = isActiveFull(ent);
 		logOnce(fprintf(logfile, "drawing entity # %d. active: %d\n", i, (int)active));
 		
 		size_t hurtboxesPrevSize = drawDataPrepared.hurtboxes.size();
@@ -3824,7 +3847,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		
 		int* lastIgnoredHitNum = nullptr;
 		if (!iGiveUp && i < 2 && (team == 0 || team == 1)) {
-			PlayerInfo& player = players[team];
 			lastIgnoredHitNum = &player.lastIgnoredHitNum;
 		}
 		int hitboxesCount = 0;
@@ -3836,7 +3858,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		bool isSuperArmor;
 		bool isFullInvul;
 		if (i < 2 && (team == 0 || team == 1)) {
-			const PlayerInfo& player = players[team];
 			isSuperArmor = player.wasSuperArmorEnabled;
 			isFullInvul = player.wasFullInvul;
 			useTheseValues = true;
@@ -3845,8 +3866,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		
 		int scaleX = INT_MAX;
 		int scaleY = INT_MAX;
-		if (gifMode.dontHideOpponentsBoxes && ent.team() != playerSide
-				|| gifMode.dontHidePlayersBoxes && ent.team() == playerSide) {
+		if (gifMode.dontHideOpponentsBoxes && team != playerSide
+				|| gifMode.dontHidePlayersBoxes && team == playerSide) {
 			auto it = findHiddenEntity(ent);
 			if (it != hiddenEntities.end()) {
 				scaleX = it->scaleX;
@@ -3854,16 +3875,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
+		bool needCollectHitboxes = true;
+		if (!ent.isPawn()) {
+			for (AttackHitbox& attackHitbox : attackHitboxes) {
+				if (ent == attackHitbox.ent) {
+					needCollectHitboxes = false;
+					drawDataPrepared.hitboxes.insert(drawDataPrepared.hitboxes.end(), attackHitbox.hitboxes.begin(), attackHitbox.hitboxes.end());
+					hitboxesCount = attackHitbox.count;
+					attackHitbox.found = true;
+					break;
+				}
+			}
+		}
+		
 		collectHitboxes(ent,
 			active,
 			&hurtbox,
-			&drawDataPrepared.hitboxes,
+			needCollectHitboxes ? &drawDataPrepared.hitboxes : nullptr,
 			&drawDataPrepared.points,
 			&drawDataPrepared.lines,
 			&drawDataPrepared.circles,
 			&drawDataPrepared.pushboxes,
 			&drawDataPrepared.interactionBoxes,
-			&hitboxesCount,
+			needCollectHitboxes ? &hitboxesCount : nullptr,
 			lastIgnoredHitNum,
 			&entityState,
 			useTheseValues ? &isSuperArmor : nullptr,
@@ -3877,7 +3911,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			int animFrame = ent.currentAnimDuration();
 			if (animFrame >= 7 && animFrame < 27) {
 				
-				PlayerInfo& player = players[ent.team()];
 				DrawLineCallParams* newLine;
 				DrawPointCallParams* newPoint;
 				DrawBoxCallParams* newBox;
@@ -3887,7 +3920,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					int wallX;
 					int wallOff;
 					int pnt = player.sinHawkBakerStartX;
-					if (player.pawn.isFacingLeft()) {
+					if (playerEntity.isFacingLeft()) {
 						wallX = *(int*)(*aswEngine + leftEdgeOfArenaOffset) * 1000;
 						wallOff = wallX + 360000;
 						if (pnt < wallOff) pnt = wallOff;
@@ -3972,7 +4005,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		
 		if (ent.isPawn() && ent.characterType() == CHARACTER_TYPE_ELPHELT
 				&& strcmp(ent.animationName(), "Shotgun_Fire_MAX") == 0) {
-			PlayerInfo& player = players[ent.team()];
 			drawDataPrepared.interactionBoxes.emplace_back();
 			DrawBoxCallParams& newBox = drawDataPrepared.interactionBoxes.back();
 			newBox.bottom = -1000000;
@@ -3989,12 +4021,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		
 		if (!ent.isPawn()
-				&& (ent.team() == 0 || ent.team() == 1)) {
-			PlayerInfo& player = players[ent.team()];
+				&& (team == 0 || team == 1)) {
 			if (player.charType == CHARACTER_TYPE_RAMLETHAL) {
 				int bitNumber = 0;
-				if (player.pawn.stackEntity(0) == ent) bitNumber = 1;
-				if (player.pawn.stackEntity(1) == ent) bitNumber = 2;
+				if (playerEntity.stackEntity(0) == ent) bitNumber = 1;
+				if (playerEntity.stackEntity(1) == ent) bitNumber = 2;
 				const char* animName = ent.animationName();
 				bool animMatches = bitNumber == 1
 								&& (
@@ -4079,7 +4110,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		if (!iGiveUp && (team == 0 || team == 1)) {
 			if (!hitboxesCount && i < 2) {
-				PlayerInfo& player = players[team];
 				if (player.hitSomething) ++hitboxesCount;
 			}
 			RECT hitboxesBoundsTotal;
@@ -4097,7 +4127,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			if (i < 2) {
-				PlayerInfo& player = players[team];
 				player.hitboxesCount += hitboxesCount;
 				if (
 						player.hitboxesCount
@@ -4133,13 +4162,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					} else if (hurtboxBounds.bottom < 175000) {
 						player.somewhatLowProfile.active = true;
 					} else if (hurtboxBounds.bottom <= 232000
-							&& !player.pawn.crouching()
-							&& player.pawn.blockstun() == 0
+							&& !playerEntity.crouching()
+							&& playerEntity.blockstun() == 0
 							&& !player.inHitstunNowOrNextFrame) {
 						player.upperBodyInvul.active = true;
 					} else if (hurtboxBounds.bottom <= 274000
-							&& !player.pawn.crouching()
-							&& player.pawn.blockstun() == 0
+							&& !playerEntity.crouching()
+							&& playerEntity.blockstun() == 0
 							&& !player.inHitstunNowOrNextFrame) {
 						player.aboveWaistInvul.active = true;
 					}
@@ -4151,14 +4180,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.toeInvul.active = true;
 					}
 				}
-				if (player.y > 0 && !player.strikeInvul.active && hurtbox.hitboxCount && !player.moveOriginatedInTheAir) {
+				if (player.y > 0 && hurtbox.hitboxCount
+						&& (
+							!player.moveOriginatedInTheAir
+							|| player.cmnActIndex == CmnActRomanCancel  // RC may land during its animation and become ground throwable
+						)) {
 					if (hurtboxBounds.top < 20000) {
 						player.airborneButWontGoOverLows.active = true;
 					} else {
 						player.airborneInvul.active = true;
 					}
 				}
-				if (player.pawn.damageToAir() && !player.airborne && !player.strikeInvul.active) {
+				if (playerEntity.damageToAir() && !player.airborne && !player.strikeInvul.active) {
 					player.consideredAirborne.active = true;
 				}
 				player.frontLegInvul.active = !player.strikeInvul.active
@@ -4229,6 +4262,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			drawDataPrepared.circles.resize(circlesPrevSize);
 			drawDataPrepared.pushboxes.resize(pushboxesPrevSize);
 			drawDataPrepared.interactionBoxes.resize(interactionBoxesPrevSize);
+		}
+	}
+	
+	for (const AttackHitbox& attackHitbox : attackHitboxes) {
+		if (!attackHitbox.found && !invisChipp.needToHide(attackHitbox.team)) {
+			drawDataPrepared.hitboxes.insert(drawDataPrepared.hitboxes.end(), attackHitbox.hitboxes.begin(), attackHitbox.hitboxes.end());
 		}
 	}
 	
@@ -5389,7 +5428,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					// I also checked the game's code and it does not use the gatlings flag for special cancels
 			bool hitAlreadyHappened = player.pawn.hitAlreadyHappened() >= player.pawn.theValueHitAlreadyHappenedIsComparedAgainst()
 					|| !player.pawn.currentHitNum();
-			player.getInputs(game.getInputRingBuffers() + player.index, isTheFirstFrameInTheMatch);
+			player.getInputs(game.getInputRingBuffers() + player.index, isTheFirstFrameInTheRound);
 			
 			if (framebarAdvancedIdleHitstop) {
 				
@@ -5437,14 +5476,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						currentFrame.u.chippInfo.wallTime = wallTime;
 					}
 				} else if (player.charType == CHARACTER_TYPE_SOL) {
-					currentFrame.u.diInfo.current = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
-					currentFrame.u.diInfo.max = player.maxDI;
+					currentFrame.u.solInfo.currentDI = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
+					currentFrame.u.solInfo.maxDI = player.maxDI;
+					currentFrame.u.solInfo.gunflameDisappearsOnHit = hasAllLinkedProjectilesOfType(player, "GunFlameHibashira");
+				} else if (player.charType == CHARACTER_TYPE_KY) {
+					currentFrame.u.kyInfo.stunEdgeWillDisappearOnHit = hasOneLinkedProjectileOfType(player, "StunEdgeObj");
+					currentFrame.u.kyInfo.hasChargedStunEdge = hasProjectileOfType(player, "ChargedStunEdgeObj");
 				} else if (player.charType == CHARACTER_TYPE_ZATO) {
-					currentFrame.u.diInfo.current = player.pawn.exGaugeValue(0);
-					currentFrame.u.diInfo.max = 6000;
+					currentFrame.u.currentTotalInfo.current = player.pawn.exGaugeValue(0);
+					currentFrame.u.currentTotalInfo.max = 6000;
 				} else if (player.charType == CHARACTER_TYPE_SLAYER) {
-					currentFrame.u.diInfo.current = player.wasPlayerval1Idling;
-					currentFrame.u.diInfo.max = player.maxDI;
+					currentFrame.u.currentTotalInfo.current = player.wasPlayerval1Idling;
+					currentFrame.u.currentTotalInfo.max = player.maxDI;
 				} else if (player.charType == CHARACTER_TYPE_INO) {
 					currentFrame.u.inoInfo.airdashTimer = player.wasProhibitFDTimer;
 					currentFrame.u.inoInfo.noteTime = player.noteTimeWithSlow;
@@ -5896,7 +5939,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.powerupExplanation = nullptr;
 					currentFrame.dontShowPowerupGraphic = false;
 				}
-				currentFrame.cantAirdash = player.airborne && player.wasCantAirdash;
+				currentFrame.cantAirdash = player.airborne && player.wasCantAirdash && !player.inHitstun;
 				currentFrame.airthrowDisabled = player.airborne && player.pawn.airthrowDisabled();
 				currentFrame.running = player.pawn.running()
 					|| player.cmnActIndex == CmnActFDash
@@ -6836,6 +6879,11 @@ void EndScene::processKeyStrokes() {
 			logwrap(fputs("Allow create particles = true\n", logfile));
 		}
 	}
+	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.clearInputHistory))) {
+		logwrap(fputs("Clear input history\n", logfile));
+		game.clearInputHistory();
+		clearInputHistory();
+	}
 	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.continuousScreenshotToggle) || stateChanged && ui.continuousScreenshotToggle != continuousScreenshotMode)) {
 		if (continuousScreenshotMode) {
 			continuousScreenshotMode = false;
@@ -7215,10 +7263,7 @@ void EndScene::onAswEngineDestroyed() {
 	superflashCounterOpponent = 0;
 	superflashCounterOpponentMax = 0;
 	baikenBlockCancels.clear();
-	memset(prevInputRingBuffers, 0, sizeof prevInputRingBuffers);
-	for (int i = 0; i < 2; ++i) {
-		inputRingBuffersStored[i].clear();
-	}
+	clearInputHistory(true);
 }
 
 // When someone YRCs, PRCs, RRCs or does a super, the address of their entity is written into the
@@ -7285,8 +7330,8 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 // Runs on the main thread
 void EndScene::onHitDetectionStart(int hitDetectionType) {
 	if (hitDetectionType == 0) {
+		entityList.populate();
 		if (!iGiveUp) {
-			entityList.populate();
 			for (int i = 0; i < 2; ++i) {
 				Entity ent = entityList.slots[i];
 				tensionRecordedHit[i] = ent.tension();
@@ -7299,6 +7344,29 @@ void EndScene::onHitDetectionStart(int hitDetectionType) {
 			}
 		}
 		registeredHits.clear();
+		
+		attackHitboxes.clear();
+		for (int i = 0; i < entityList.count; ++i) {
+			Entity ent = entityList.list[i];
+			if (!ent.isPawn() && ent.hitboxCount(HITBOXTYPE_HITBOX) > 0) {
+				
+				attackHitboxes.emplace_back();
+				AttackHitbox& newHitbox = attackHitboxes.back();
+				newHitbox.ent = ent;
+				newHitbox.team = ent.team();
+				
+				collectHitboxes(ent,
+					isActiveFull(ent),
+					nullptr,
+					&newHitbox.hitboxes,
+					nullptr,
+					nullptr,
+					nullptr,
+					nullptr,
+					nullptr,
+					&newHitbox.count);
+			}
+		}
 	}
 }
 
@@ -7737,6 +7805,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 		if (player.pawn) {  // The hook may run on match load before we initialize our pawns,
 			                // because we only do our pawn initialization after the end of the logic tick
 			player.lastIgnoredHitNum = -1;
+			player.wasAirborneOnAnimChange = player.airborne_insideTick();
 			player.changedAnimOnThisFrame = true;
 			static MoveInfo moveJustSitsThere;
 			bool moveIsFound = moves.getInfo(moveJustSitsThere, player.charType, player.moveNameIntraFrame, player.animIntraFrame, false);
@@ -7923,6 +7992,8 @@ void EndScene::frameCleanup() {
 		player.wasCancels.unsetWasFoundOnThisFrame(true);
 		player.receivedNewDmgCalcOnThisFrame = false;
 		player.blockedAHitOnThisFrame = false;
+		player.lostSpeedYOnThisFrame = false;
+		player.wasAirborneOnAnimChange = false;
 	}
 	creatingObject = false;
 	events.clear();
@@ -8002,8 +8073,8 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 		if (signal == 0x27  // PRE_DRAW
 				&& pawn.isPawn()) {
 			PlayerInfo& player = findPlayer(pawn);
-			player.wasSuperArmorEnabled = pawn.superArmorEnabled();
 			player.wasFullInvul = pawn.fullInvul();
+			player.wasSuperArmorEnabled = pawn.superArmorEnabled();
 			
 			// I put this here of all places because the other places are disabled by iGiveUp, and I want this to always work no matter what.
 			// Using this approach we pull the value from the animation start, even if rollback happened and the animation start was skipped,
@@ -9810,8 +9881,9 @@ void EndScene::prepareInputs() {
 	InputRingBuffer* sourceBuffers = game.getInputRingBuffers();
 	if (!sourceBuffers) return;
 	bool withDurations = settings.showDurationsInInputHistory;
+	DWORD currentTime = getAswEngineTick();
 	for (int i = 0; i < 2; ++i) {
-		inputRingBuffersStored[i].update(sourceBuffers[i], prevInputRingBuffers[i]);
+		inputRingBuffersStored[i].update(sourceBuffers[i], prevInputRingBuffers[i], currentTime);
 		std::vector<InputsDrawingCommandRow>& result = drawDataPrepared.inputs[i];
 		if (result.size() != 100) result.resize(100);
 		drawDataPrepared.inputsSize[i] = 0;
@@ -10211,4 +10283,86 @@ void EndScene::checkFirePerFrameUponsWrapperHook(Entity pawn) {
 		}
 	}
 	orig_checkFirePerFrameUponsWrapper((void*)pawn);
+}
+
+void EndScene::HookHelp::speedYReset(int speedY) {
+	endScene.speedYReset(Entity{(char*)this}, speedY);
+}
+
+void EndScene::speedYReset(Entity pawn, int speedY) {
+	PlayerInfo& player = findPlayer(pawn);
+	if (player.pawn) {
+		player.lostSpeedYOnThisFrame = true;
+		player.speedYBeforeSpeedLost = pawn.speedY();
+	}
+	pawn.speedY() = speedY;
+}
+
+// clears this mod's custom input history
+void EndScene::clearInputHistory(bool resetClearTime) {
+	if (!*aswEngine) return;
+	InputRingBuffer* sourceBuffers = game.getInputRingBuffers();
+	memcpy(prevInputRingBuffers, sourceBuffers, sizeof prevInputRingBuffers);
+	DWORD currentTime = resetClearTime ? 0xFFFFFFFF : getAswEngineTick();
+	for (int i = 0; i < 2; ++i) {
+		inputRingBuffersStored[i].clear();
+		inputRingBuffersStored[i].lastClearTime = currentTime;
+	}
+}
+
+bool EndScene::hasAllLinkedProjectilesOfType(PlayerInfo& player, const char* name) {
+	bool hasAtLeastOne = false;
+	int team = player.index;
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr) {
+			hasAtLeastOne = projectile.isDangerous;
+			Entity linkEntity = projectile.ptr.linkObjectDestroyOnDamage();
+			if (!linkEntity) {
+				return false;
+			}
+		}
+	}
+	return hasAtLeastOne;
+}
+
+bool EndScene::hasOneLinkedProjectileOfType(PlayerInfo& player, const char* name) {
+	int team = player.index;
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr) {
+			return projectile.isDangerous && projectile.ptr.linkObjectDestroyOnDamage() != nullptr;
+		}
+	}
+	return false;
+}
+
+bool EndScene::hasProjectileOfType(PlayerInfo& player, const char* name) {
+	int team = player.index;
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr) {
+			return projectile.isDangerous;
+		}
+	}
+	return false;
+}
+
+void EndScene::removeAttackHitbox(Entity attackerPtr) {
+	for (auto it = attackHitboxes.begin(); it != attackHitboxes.end(); ++it) {
+		if (it->ent == attackerPtr) {
+			attackHitboxes.erase(it);
+			return;
+		}
+	}
+}
+
+bool EndScene::isActiveFull(Entity ent) const {
+	return ent.isActiveFrames()
+			&& (
+				ent.isPawn()
+					&& ent.characterType() == CHARACTER_TYPE_JAM
+					&& strcmp(ent.animationName(), "Saishingeki") == 0
+					&& ent.currentAnimDuration() > 100
+				?
+					ent.currentHitNum() > 1
+				: true
+			);
 }

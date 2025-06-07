@@ -333,7 +333,7 @@ static const char* powerupExplanation_kuuhuku(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
-static inline MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
+static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (!move->count) move->startInd = allProperties.size();
 	++move->count;
 	allProperties.emplace_back();
@@ -1397,6 +1397,7 @@ bool Moves::onDllMain() {
 	move.displayNameSelector = displayNameSelector_gunflameDI;
 	move.slangName = "DI GF";
 	move.displaySlangNameSelector = displaySlangNameSelector_gunflameDI;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4296,32 +4297,24 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirA");
 	move.displayName = "P Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air P Scroll";
-	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
-	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirB");
 	move.displayName = "K Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air K Scroll";
-	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
-	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirC");
 	move.displayName = "S Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air S Scroll";
-	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
-	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirD");
 	move.displayName = "H Air Savvy Ninpo: Request for Approval";
 	move.slangName = "Air H Scroll";
-	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
-	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	

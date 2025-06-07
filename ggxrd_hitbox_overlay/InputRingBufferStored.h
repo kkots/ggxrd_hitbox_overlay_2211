@@ -5,10 +5,11 @@
 class InputRingBufferStored
 {
 public:
-	void update(const InputRingBuffer& inputRingBuffer, const InputRingBuffer& prevInputRingBuffer);
+	void update(const InputRingBuffer& inputRingBuffer, const InputRingBuffer& prevInputRingBuffer, DWORD currentTime);
 	inline void resize(unsigned int newSize) { data.resize(newSize); }
 	void clear();
 	Input lastInput() const;
+	DWORD lastClearTime = 0xFFFFFFFF;
 private:
 	bool isCleared = true;
 	friend class InputsDrawing;

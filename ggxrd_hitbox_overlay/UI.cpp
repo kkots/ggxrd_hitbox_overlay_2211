@@ -131,8 +131,8 @@ static void inline incrementInternalInd(int& internalInd) {
 		++internalInd;
 	}
 }
-const char thisHelpTextWillRepeat[] = "Show available gatlings, whiff cancels, and whether the jump and the special cancels are available,"
-					" per range of frame for this player.\n"
+const char thisHelpTextWillRepeat[] = "Shows available gatlings, whiff cancels, and whether the jump and the special cancels are available,"
+					" per range of frames for this player.\n"
 					"\n"
 					"The frame numbers start from 1, and start from the first frame of the animation. So, for example, if the"
 					" move has 2f startup (so 1f of pure startup), 1 active frame (so it becomes active on f2),"
@@ -1649,6 +1649,24 @@ void UI::drawSearchableWindows() {
 		if (i == 0) ImGui::SameLine();
 	}
 	
+	if (ImGui::Button(searchFieldTitle("Clear Input History"))) {
+		game.clearInputHistory();
+		endScene.clearInputHistory();
+	}
+	static std::string clearInputHistoryHelp;
+	if (clearInputHistoryHelp.empty()) {
+		clearInputHistoryHelp = settings.convertToUiDescription(
+			"Clears input history. For example, in training mode, when input history display is enabled.\n"
+			"You can use the \"clearInputHistory\" hotkey to toggle this setting.\n"
+			"\n"
+			"Alternatively, you can use the \"clearInputHistoryOnStageReset\" boolean setting to"
+			" make the game clear input history when you reset positions in training mode or when"
+			" round restarts in any game mode.\n"
+			"Alternatively, you can use the \"clearInputHistoryOnStageResetInTrainingMode\" boolean setting to"
+			" make the game clear input history when you reset positions in training mode only.");
+	}
+	AddTooltipWithHotkey(clearInputHistoryHelp.c_str(), clearInputHistoryHelp.c_str() + clearInputHistoryHelp.size(), settings.clearInputHistory);
+	
 	if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitboxes")) || searching) {
 		
 		booleanSettingPresetWithHotkey(settings.dontShowBoxes, settings.disableHitboxDisplayToggle);
@@ -1735,24 +1753,22 @@ void UI::drawSearchableWindows() {
 			gifMode.dontHideOpponentsEffects = dontHideOpponentsEffects;
 		}
 		ImGui::SameLine();
-		static std::string dontHideOpponentsEffectsHelp;
-		if (dontHideOpponentsEffectsHelp.empty()) {
-			dontHideOpponentsEffectsHelp = settings.convertToUiDescription(
-				"If 'Hide Opponent' is used, don't hide their effects, which is everything except the player's character model.");
-		}
-		HelpMarker(dontHideOpponentsEffectsHelp.c_str());
+		HelpMarker("If 'Hide Opponent' is used, don't hide their effects, which is everything except the player's character model.");
 		
 		bool dontHideOpponentsBoxes = gifMode.dontHideOpponentsBoxes;
 		if (ImGui::Checkbox(searchFieldTitle("Don't Hide Opponent's Boxes"), &dontHideOpponentsBoxes)) {
 			gifMode.dontHideOpponentsBoxes = dontHideOpponentsBoxes;
 		}
 		ImGui::SameLine();
-		static std::string dontHideOpponentsBoxesHelp;
-		if (dontHideOpponentsBoxesHelp.empty()) {
-			dontHideOpponentsBoxesHelp = settings.convertToUiDescription(
-				"If 'Hide Opponent' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
+		HelpMarker("Similar to 'Hide Opponent' in that makes the opponent player invulnerable to all attacks,"
+			" except that this option does not hide them and allows them to land attacks of their own.");
+		
+		bool makeFullInvul = gifMode.makeOpponentFullInvul;
+		if (ImGui::Checkbox(searchFieldTitle("Make Opponent Full Invul (Without Hiding)"), &makeFullInvul)) {
+			gifMode.makeOpponentFullInvul = makeFullInvul;
 		}
-		HelpMarker(dontHideOpponentsBoxesHelp.c_str());
+		ImGui::SameLine();
+		HelpMarker("If 'Hide Opponent' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Player"), &toggleHidePlayer) || stateChanged;
 		ImGui::SameLine();
@@ -1769,24 +1785,22 @@ void UI::drawSearchableWindows() {
 			gifMode.dontHidePlayersEffects = dontHidePlayersEffects;
 		}
 		ImGui::SameLine();
-		static std::string dontHidePlayersEffectsHelp;
-		if (dontHidePlayersEffectsHelp.empty()) {
-			dontHidePlayersEffectsHelp = settings.convertToUiDescription(
-				"If 'Hide Player' is used, don't hide their effects, which is everything except the player's character model.");
-		}
-		HelpMarker(dontHidePlayersEffectsHelp.c_str());
+		HelpMarker("If 'Hide Player' is used, don't hide their effects, which is everything except the player's character model.");
 		
 		bool dontHidePlayersBoxes = gifMode.dontHidePlayersBoxes;
 		if (ImGui::Checkbox(searchFieldTitle("Don't Hide Player's Boxes"), &dontHidePlayersBoxes)) {
 			gifMode.dontHidePlayersBoxes = dontHidePlayersBoxes;
 		}
 		ImGui::SameLine();
-		static std::string dontHidePlayersBoxesHelp;
-		if (dontHidePlayersBoxesHelp.empty()) {
-			dontHidePlayersBoxesHelp = settings.convertToUiDescription(
-				"If 'Hide Player' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
+		HelpMarker("If 'Hide Player' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
+		
+		makeFullInvul = gifMode.makePlayerFullInvul;
+		if (ImGui::Checkbox(searchFieldTitle("Make Player Full Invul (Without Hiding)"), &makeFullInvul)) {
+			gifMode.makePlayerFullInvul = makeFullInvul;
 		}
-		HelpMarker(dontHidePlayersBoxesHelp.c_str());
+		ImGui::SameLine();
+		HelpMarker("Similar to 'Hide Player' in that makes your player invulnerable to all attacks,"
+			" except that this option does not hide you and allows you to land attacks of your own.");
 		
 		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide HUD"), &gifModeToggleHudOnly) || stateChanged;
 		ImGui::SameLine();
@@ -2135,6 +2149,7 @@ void UI::drawSearchableWindows() {
 			keyComboControl(settings.toggleNeverIgnoreHitstop);
 			keyComboControl(settings.toggleShowInputHistory);
 			keyComboControl(settings.toggleAllowCreateParticles);
+			keyComboControl(settings.clearInputHistory);
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2175,6 +2190,9 @@ void UI::drawSearchableWindows() {
 			booleanSettingPreset(settings.ignoreRegularEnterKey);
 			
 			intSettingPreset(settings.startingTensionPulse, -25000, 100, 1000, 120.F, 25000);
+			
+			booleanSettingPreset(settings.clearInputHistoryOnStageReset);
+			booleanSettingPreset(settings.clearInputHistoryOnStageResetInTrainingMode);
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
@@ -5296,7 +5314,11 @@ void UI::drawSearchableWindows() {
 						"\n"
 						"Note: If you enter or re-enter Azami from blockstun, then you have the standard 5f throw protection from leaving blockstun."
 						" Similarly, if you enter Azami after hitstun or wakeup, you have the standard throw protection that lasts"
-						" from the moment you leave hitstun/wakeup, which is 6f for hitstun and 9f for wakeup. Azami does not disrupt (or extend) that.\n"
+						" from the moment you leave hitstun/wakeup, which is 6f for hitstun and 9f for wakeup. Azami does not disrupt (or extend) that."
+						" This throw invulnerability time may be extended by hitstop. For example, if you parry a hit on wakeup, you would enter hitstop,"
+						" and during that hitstop you'd be throw invulnerable, but also after the hitstop you'd still be throw invulnerable for 8 frames,"
+						" assuming you re-entered Azami after hitstop. If, however, you re-enter Azami during hitstop by holding 4SH, you would leave"
+						" hitstop sooner and start losing throw invul sooner.\n"
 						"\n"
 						"If you re-enter Azami by pressing S+H, then you:\n"
 						"*) Lose ability to do Azami follow-ups.\n"
@@ -7027,14 +7049,13 @@ void UI::drawSearchableWindows() {
 					
 					yellowText(searchFieldTitle("Stunmash Remaining: "));
 					AddTooltip(searchTooltip("For every left/right direction press you get a 15 point reduction."
-						" For every frame that any of PKSHD buttons is pressed you get a 15 point reduction."
+						" For every frame, if on that frame you pressed any of PKSHD buttons, you get a 15 point reduction."
 						" Pressing a direction AND a button on the same frame combines these reductions."
+						" Pressing more than one of PKSHD on the same frame is still a 15 point reduction (no increase from multiple buttons)."
 						" If you're in hitstop, in both cases you get a 5 reduction instead of 15, and"
 						" you can still combine both direction and a button press to get 5+5=10 reduction on that frame."
 						" When not in hitstop, the stunmash remaining automatically decreases by 10 each frame and this can be combined"
 						" with your own input of direction and button presses for a maximum of 40 reduction per frame."
-						" Pressing multiple buttons on the same frame does not yield any extra bonuses than pressing one"
-						" button on that frame."
 						" The direction and button presses cannot be buffered. Starting a mash before faint begins"
 						" does not translate to having a headstart on the mash progress."));
 					ImGui::SameLine();
@@ -8427,6 +8448,10 @@ void HelpMarker(const char* desc) {
 
 void UI::HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey) {
 	ImGui::TextDisabled("(?)");
+	AddTooltipWithHotkey(desc, descEnd, hotkey);
+}
+
+void UI::AddTooltipWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey) {
 	if (searching || ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 		int result = sprintf_s(strbuf, "Hotkey: %s", comborepr(hotkey));
@@ -10281,21 +10306,36 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		}
 	}
 	if (charType == CHARACTER_TYPE_SOL) {
-		if (frame.u.diInfo.current) {
+		if (frame.u.solInfo.currentDI || frame.u.solInfo.gunflameDisappearsOnHit) {
 			ImGui::Separator();
-			yellowText("Dragon Install: ");
-			ImGui::SameLine();
-			if (frame.u.diInfo.current == USHRT_MAX) {
-				ImGui::Text("overdue/%d", frame.u.diInfo.max);
-			} else {
-				ImGui::Text("%d/%d", frame.u.diInfo.current, frame.u.diInfo.max);
+			if (frame.u.solInfo.currentDI) {
+				yellowText("Dragon Install: ");
+				ImGui::SameLine();
+				if (frame.u.solInfo.currentDI == USHRT_MAX) {
+					ImGui::Text("overdue/%d", frame.u.solInfo.maxDI);
+				} else {
+					ImGui::Text("%d/%d", frame.u.solInfo.currentDI, frame.u.solInfo.maxDI);
+				}
+				
+				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+				ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
+					" at half the speed when slowed down by opponent's RC.");
+				ImGui::PopStyleColor();
+				
 			}
-			
-			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-			ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
-				" at half the speed when slowed down by opponent's RC.");
-			ImGui::PopStyleColor();
-			
+			if (frame.u.solInfo.gunflameDisappearsOnHit) {
+				ImGui::TextUnformatted("The Gunflame will disappear if Sol is hit (non-blocked hit) on this frame.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_KY) {
+		if (frame.u.kyInfo.stunEdgeWillDisappearOnHit || frame.u.kyInfo.hasChargedStunEdge) {
+			ImGui::Separator();
+			if (frame.u.kyInfo.stunEdgeWillDisappearOnHit) {
+				ImGui::TextUnformatted("The Stun Edge will disappear if Ky is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.kyInfo.hasChargedStunEdge) {
+				ImGui::TextUnformatted("The Charged Stun Edge will disappear if Ky is hit (non-blocked hit) ever.");
+			}
 		}
 	} else if (charType == CHARACTER_TYPE_MILLIA) {
 		bool insertedSeparator = false;
@@ -10346,7 +10386,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::Separator();
 		yellowText("Eddie Gauge: ");
 		ImGui::SameLine();
-		ImGui::Text("%d/6000", frame.u.diInfo.current);
+		ImGui::Text("%d/6000", frame.u.currentTotalInfo.current);
 	} else if (charType == CHARACTER_TYPE_FAUST) {
 		if (frame.superArmorActiveInGeneral_IsFull && strcmp(frame.animName, "5D") == 0) {
 			ImGui::Separator();
@@ -10354,11 +10394,11 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				" the reflection will be a homerun.");
 		}
 	} else if (charType == CHARACTER_TYPE_SLAYER) {
-		if (frame.u.diInfo.current) {
+		if (frame.u.currentTotalInfo.current) {
 			ImGui::Separator();
 			yellowText("Bloodsucking Universe Buff: ");
 			ImGui::SameLine();
-			ImGui::Text("%d/%d", frame.u.diInfo.current, frame.u.diInfo.max);
+			ImGui::Text("%d/%d", frame.u.currentTotalInfo.current, frame.u.currentTotalInfo.max);
 		}
 	} else if (charType == CHARACTER_TYPE_INO) {
 		if (frame.u.inoInfo.airdashTimer) {
@@ -13782,7 +13822,7 @@ void UI::drawFramebars() {
 			textPos.y = drawFramebars_windowPos.y - textSize.y;
 		}
 		
-		outlinedTextRaw(drawFramebars_drawList, textPos, txt);
+		outlinedTextRaw(drawFramebars_drawList, textPos, txt, nullptr, nullptr, true);
 		
 		drawFramebars_drawList->PopClipRect();
 	}

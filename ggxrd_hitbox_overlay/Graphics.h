@@ -75,6 +75,8 @@ public:
 	bool onlyDrawInputHistory = false;
 	bool inputHistoryIsSplitOut = false;  // if true, inputs must only be drawn using a dedicated FRenderCommand and nowhere else
 	bool usePixelShader = true;
+	static int getSin(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
+	static int getCos(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -456,8 +458,6 @@ private:
 	std::vector<int> circleCacheHashmap;
 	std::vector<CircleCacheElement> circleCache;
 	const int* sinTable = nullptr;
-	int getSin(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
-	int getCos(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
 	int setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor);
 	bool worldMatrixHasShiftedWorldCenter = false;
 	void ensureWorldMatrixWorldCenterIsZero();

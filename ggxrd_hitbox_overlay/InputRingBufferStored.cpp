@@ -5,7 +5,7 @@
 #ifdef LOG_PATH
 extern bool loggedDrawingInputsOnce;
 #endif
-void InputRingBufferStored::update(const InputRingBuffer& inputRingBuffer, const InputRingBuffer& prevInputRingBuffer) {
+void InputRingBufferStored::update(const InputRingBuffer& inputRingBuffer, const InputRingBuffer& prevInputRingBuffer, DWORD currentTime) {
 	
 	unsigned short indexDiff = 0;
 	const bool currentEmpty = inputRingBuffer.empty();
@@ -78,6 +78,8 @@ void InputRingBufferStored::update(const InputRingBuffer& inputRingBuffer, const
 	}
 	#endif
 	
+	DWORD timeStart = currentTime;
+	
 	for (int i = 30; i != 0; --i) {
 		
 		#ifdef LOG_PATH
@@ -87,7 +89,22 @@ void InputRingBufferStored::update(const InputRingBuffer& inputRingBuffer, const
 		#endif
 
 		const Input& input = inputRingBuffer.inputs[sourceIndex];
-		const unsigned short framesHeld = inputRingBuffer.framesHeld[sourceIndex];
+		unsigned short framesHeld = inputRingBuffer.framesHeld[sourceIndex];
+		if (framesHeld != 0) {
+			if (framesHeld > timeStart + 1) {
+				timeStart = 0;
+				framesHeld = (unsigned short)timeStart + 1;
+			} else {
+				timeStart -= framesHeld + 1;
+			}
+		}
+		if (lastClearTime != 0xFFFFFFFF && timeStart < lastClearTime) {
+			if (framesHeld < lastClearTime - timeStart) {
+				framesHeld = 0;
+			} else {
+				framesHeld -= (unsigned short)(lastClearTime - timeStart);
+			}
+		}
 
 		#ifdef LOG_PATH
 		if (!loggedDrawingInputsOnce) {
@@ -105,7 +122,9 @@ void InputRingBufferStored::update(const InputRingBuffer& inputRingBuffer, const
 
 			break;
 		}
-
+		
+		--timeStart;
+		
 		#ifdef LOG_PATH
 		if (!loggedDrawingInputsOnce) {
 			logwrap(fprintf(logfile, "InputRingBufferStored::update: destinationIndex: %u\n", destinationIndex));

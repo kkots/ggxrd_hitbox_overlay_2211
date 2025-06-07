@@ -976,9 +976,9 @@ public:
 	inline Entity playerEntity() const { return *(Entity*)(ent + 0x1d0); }
 	inline Entity enemyEntity() const { return *(Entity*)(ent + 0x1d8); }
 	inline Entity effectLinkedCollision() const { return *(Entity*)(ent + 0x204); }
-	inline int pitch() const { return *(int*)(ent + 0x258); }
-	inline int hitboxOffsetX() const { return *(int*)(ent + 0x27c); }
-	inline int hitboxOffsetY() const { return *(int*)(ent + 0x280); }
+	inline int pitch() const { return *(int*)(ent + 0x258); }  // 1000 means one degree counter-clockwise, if facing right. Gets mirrored with facing, so when facing left, it's clockwise instead
+	inline int transformCenterX() const { return *(int*)(ent + 0x27c); }  // does not depend on sprite facing, does not get mirrored with sprite facing
+	inline int transformCenterY() const { return *(int*)(ent + 0x280); }  // does not depend on sprite facing, does not get mirrored with sprite facing
 	inline int hitboxCount(HitboxType type) const { return *(int*)(ent + 0xa0 + (int)type * 4); }
 	inline const Hitbox* hitboxData(HitboxType type) const { return *(const Hitbox**)(ent + 0x58 + (int)type * 4); }
 	inline int hitAirPushbackX() const { return *(int*)(ent + 0x67c); }
@@ -989,7 +989,7 @@ public:
 	inline bool damageToAir() const { return (*(DWORD*)(ent + 0x4d24) & 0x8000) != 0; }  // this is present on Answer Backdash, Faust Pogo, May Horizontal Dolphin first few frames, etc
 	inline bool crouching() const { return (*(DWORD*)(ent + 0x4d24) & 0x1) != 0; }
 	inline bool setOnCmnActDownBoundEntry() const { return (*(DWORD*)(ent + 0x4d24) & 2) != 0; }  // this is set when entering CmnActDownBound animation. Also present in all of hitstun animations
-	inline bool lying() const { return (*(DWORD*)(ent + 0x4d24) & 0x4) != 0; }
+	inline bool lying() const { return (*(DWORD*)(ent + 0x4d24) & 0x4) != 0; }  // this could mean two things
 	inline int strikeInvulnFrames() const { return *(int*)(ent + 0x9a0); }
 	inline int throwInvulnFrames() const { return *(int*)(ent + 0x99c); }
 	inline bool strikeInvul() const { return (*(DWORD*)(ent + 0x238) & 0x10) != 0; }
@@ -1047,6 +1047,7 @@ public:
 	inline int landingHeight() const { return *(int*)(ent + 0x1cc); }
 	int getCenterOffsetY() const;
 	inline Entity linkObjectDestroyOnStateChange() const { return *(Entity*)(ent + 0x1f0); }
+	inline Entity linkObjectDestroyOnDamage() const { return *(Entity*)(ent + 0x1ec); }
 	inline int venomBallArg3() const { return *(int*)(ent + 0x25bc); }
 	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }
 	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }

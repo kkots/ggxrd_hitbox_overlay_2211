@@ -288,6 +288,7 @@ private:
 	const char* skipToNextUtf8CharStart(const char* ptr, const char* textEnd);
 	const char* skipToNextUtf8CharStart(const char* ptr);
 	void searchWindow();
+	void AddTooltipWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey);
 	void HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey);
 	inline void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc, nullptr, hotkey); }
 	template<size_t size> inline void HelpMarkerWithHotkey(const char(&desc)[size], std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc, desc + size - 1, hotkey); }

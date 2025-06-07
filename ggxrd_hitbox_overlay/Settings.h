@@ -76,6 +76,7 @@ public:
 	std::vector<int> toggleNeverIgnoreHitstop;
 	std::vector<int> toggleShowInputHistory;
 	std::vector<int> toggleAllowCreateParticles;
+	std::vector<int> clearInputHistory;
 	std:: mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	std::string screenshotPath;
@@ -166,6 +167,9 @@ public:
 	std::atomic_bool comboRecipe_showWalks = true;
 	std::atomic_bool comboRecipe_showSuperJumpInstalls = true;
 	std::atomic_bool comboRecipe_transparentBackground = false;
+	std::atomic_bool clearInputHistoryOnStageReset = false;
+	std::atomic_bool clearInputHistoryOnStageResetInTrainingMode = false;
+	std::atomic_bool usePixelShader = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);

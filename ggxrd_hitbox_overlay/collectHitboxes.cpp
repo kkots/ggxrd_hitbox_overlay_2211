@@ -139,8 +139,8 @@ void collectHitboxes(Entity ent,
 		callParams.hitboxCount = hurtboxCount;
 		callParams.params = params;
 		callParams.params.angle = ent.pitch();
-		callParams.params.hitboxOffsetX = ent.hitboxOffsetX();
-		callParams.params.hitboxOffsetY = ent.hitboxOffsetY();
+		callParams.params.transformCenterX = ent.transformCenterX();
+		callParams.params.transformCenterY = ent.transformCenterY();
 		DWORD alpha = 64;
 		if (state.strikeInvuln) {
 			alpha = 0;
@@ -215,8 +215,8 @@ void collectHitboxes(Entity ent,
 		callParams.hitboxCount = hitboxCount;
 		callParams.params = params;
 		callParams.params.angle = ent.pitch();
-		callParams.params.hitboxOffsetX = ent.hitboxOffsetX();
-		callParams.params.hitboxOffsetY = ent.hitboxOffsetY();
+		callParams.params.transformCenterX = ent.transformCenterX();
+		callParams.params.transformCenterY = ent.transformCenterY();
 		callParams.hatched = false;
 		callParams.originX = params.posX;
 		callParams.originY = params.posY;

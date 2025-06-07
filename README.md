@@ -25,18 +25,23 @@ Thanks to Pangaea for their BBScript database (<https://github.com/super-contine
 
 ## System requirements
 
+Microsoft Visual C++ Redistributable 2022 (x86 for the 32-bit version, x64 for the 64-bit version).  
 Intel processor architecture x86 (32-bit) or x64 (64-bit) (AMD will work). Windows operating system.  
 For Ubuntu/Linux you need to be running the Windows version of Guilty Gear Xrd (I'm not aware of a Linux version existing) under Steam Proton.
 
 ## Quickstart for Windows
 
-1. Download the latest release from the `Releases` section on the right side of this page.
+1. Make sure you have Microsoft Visual C++ Redistributable 2022 installed on your operating system. Pick the right version for your architecture:
+  - 32-bit: <https://aka.ms/vs/17/release/vc_redist.x86.exe> (alternatively, use INSTALL_VCRUNTIME140.DLL_32bit .url shortcut included with the mod)
+  - 64-bit: <https://aka.ms/vs/17/release/vc_redist.x64.exe> (alternatively, use INSTALL_VCRUNTIME140.DLL_64bit .url shortcut included with the mod)
 
-2. Launch the game. Or you can do the next step at any point while the game is running.
+2. Download the latest release from the `Releases` section on the right side of this page.
 
-3. Go to downloaded folder and launch `ggxrd_hitbox_injector.exe`.
+3. Launch the game. Or you can do the next step at any point while the game is running.
 
-4. Start a match. Hitboxes should display.
+4. Go to downloaded folder and launch `ggxrd_hitbox_injector.exe`.
+
+5. Start a match. Hitboxes should display.
 
 Read the [Hitboxes](#hitboxes) section to understand what the colors mean.  
 Read the [Default Hotkeys](#default-hotkeys) section to know what the default hotkeys are.  
@@ -487,6 +492,34 @@ toggleNeverIgnoreHitstop =
 ; and is showing history in corresponding game mode.
 toggleShowInputHistory = 
 
+; A keyboard shortcut.
+; Pressing this shortcut will disable/enable creation of particle effects such as superfreeze flash.
+; It will not remove particles that are already created or make particles that have already
+; not been created appear.
+toggleAllowCreateParticles =
+
+; A keyboard shortcut.
+; Pressing this shortcut will clear the input history, for example in training mode,
+; when input history display is enabled.
+; Alternatively, you can use the "clearInputHistoryOnStageReset" boolean setting to
+; make the game clear input history when you reset positions in training mode or when
+; round restarts in any game mode.
+; Alternatively, you can use the "clearInputHistoryOnStageResetInTrainingMode" boolean setting to
+; make the game clear input history when you reset positions in training mode only.
+clearInputHistory =
+
+; Specify true or false.
+; Specify true if you want the input history to be cleared when stage is reset in any game mode,
+; including when positions are reset in training mode.
+; You can also use a hotkey to clear history manually, specified in "clearInputHistory".
+clearInputHistoryOnStageReset = false
+
+; Specify true or false.
+; Specify true if you want the input history to be cleared when positions are reset in
+; training mode only.
+; You can also use a hotkey to clear history manually, specified in "clearInputHistory".
+clearInputHistoryOnStageResetInTrainingMode = false
+
 ; Specify true or false.
 ; This disables the display of gray hurtboxes (for a toggle see toggleDisableGrayHurtboxes).
 ; Gray hurtboxes are residual hurtboxes that appear on hit/block and show the defender's hurtbox at the moment of impact.
@@ -749,12 +782,12 @@ framebarStoredFramesCount = 200
 ; This setting will affect how the 'Frame Advantage' field in the UI is calculated.
 ; Normally, attacks put your opponent in blockstun right away, however, there are some moves that
 ; may put your opponent in blockstun after the move is over. Such moves are usually projectiles, such
-; Ky j.D or I-No Antidepressant Scale.
+; as Ky j.D or I-No Antidepressant Scale.
 ; When this setting is false, then, whenever the opponent enters blockstun, the time that you spent idle
 ; before that gets included in the frame advantage with a +. For example:
 ; You shoot a projectile and then recover. Then you and the opponent are just standing there for 1000000 frames.
 ; Then, the projectile that you shot puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.
-; Setting this to false will cause the idle time that you spent before the opponent entered blockstun to not be included
+; Setting this to true will cause the idle time that you spent before the opponent entered blockstun to not be included
 ; in your frame advantage, and your frame advantage in the example above will be just +1.
 ; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.
 frameAdvantage_dontUsePreBlockstunTime = false
@@ -1289,3 +1322,14 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 27: Version 6.25: Made Combo Damage panel transparent. Now displays Silent Force re-pick in Combo Recipe and in framebar. Added an option to make Combo Recipe panel display with a transparent background - the option is inside the Combo Recipe panel's gear button. Added pushbox width and height display to Box Extents panel.
 - 2025 April 27: Version 6.26: Register Silent Force re-pick when it's done as soon as the knife is able to be picked up.
 - 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
+- 2025 ??? ??: Version 6.28:
+  1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was horizontal, while in reality it is vertical.
+  2) Made framebar's "# frames selected" text outline be of higher quality.
+  3) Fixed framebar displaying getting hit on the pre-landing frame while recovering from an air normal as getting hit during landing recovery, even though the air normal had no landing recovery attached to it - now that frame will display as getting hit during regular recovery.
+  4) Fixed the frame when you get grabbed showing throw invulnerability - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. This is now fixed, and strike invulnerability will be shown on more frames of opponents who are getting thrown.
+  5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so because they became airborne on frame 1 of the move. Moves that originated in the air, except Roman Cancel, will not show "airborne" invul, and will instead continue to show landing recovery frames when they become grounded. Roman Cancel airborne and ground animations are indistinguishable and RC does not show landing recovery, so instead RC will now display "airborne" invul on the framebar whenever it is airborne (i.e. not ground throwable). Also, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other.
+  6) Added a button and a hotkey to clear input history, and a checkbox for clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode.
+  7) Added new checkboxes into Hitboxes section for making your or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
+  8) Fixed a bug when all framebars would disappear as soon as round end camera motion starts if the round was ended by a hit from I-No's Ultimate Fortissimo.
+  9) Replaced half-colored green frames for Answer's air scroll set with fully colored green frames, as no whiff cancels are actually available.
+  10) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example.

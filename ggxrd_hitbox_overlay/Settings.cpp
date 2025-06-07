@@ -232,6 +232,15 @@ bool Settings::onDllMain() {
 		"; Pressing this shortcut will disable/enable creation of particle effects such as superfreeze flash.\n"
 		"; It will not remove particles that are already created or make particles that have already\n"
 		"; not been created appear.");
+	insertKeyComboToParse("clearInputHistory", "Clear Input History", &clearInputHistory, "",
+		"; A keyboard shortcut.\n"
+		"; Pressing this shortcut will clear the input history, for example in training mode,\n"
+		"; when input history display is enabled.\n"
+		"; Alternatively, you can use the \"clearInputHistoryOnStageReset\" boolean setting to\n"
+		"; make the game clear input history when you reset positions in training mode or when\n"
+		"; round restarts in any game mode.\n"
+		"; Alternatively, you can use the \"clearInputHistoryOnStageResetInTrainingMode\" boolean setting to\n"
+		"; make the game clear input history when you reset positions in training mode only.");
 	
 	static const char* hitboxesStr = "Hitboxes";
 	static const char* settingsHitboxSettingsStr = "Settings - Hitbox Settings";
@@ -346,6 +355,13 @@ bool Settings::onDllMain() {
 			"; Setting this to true may increase the performance of transparent screenshotting which may be useful if you're screenshotting every frame.\n"
 			"; The produced screenshots won't have such improvements as improving visibility of semi-transparent effects or changing hitbox outlines to\n"
 			"; black when drawn over the same color.");
+	registerOtherDescription(settingAndItsName(usePixelShader), "Use Pixel Shader", settingsHitboxSettingsStr,
+			"; IF YOU USE AMD CARD, SET THIS TO FALSE!!!\n"
+			"; Specify true or false.\n"
+			"; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of the outline to\n"
+			"; black only on those pixels.\n"
+			"; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default) color orb, which are\n"
+			"; both red.\n");
 	registerOtherDescription(settingAndItsName(dontShowBoxes), "Don't Show Boxes", hitboxesStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will hide all hurtboxes, hitboxes, pushboxes and other boxes and points.\n"
@@ -481,12 +497,12 @@ bool Settings::onDllMain() {
 			"; This setting will affect how the 'Frame Advantage' field in the UI is calculated.\n"
 			"; Normally, attacks put your opponent in blockstun right away, however, there are some moves that\n"
 			"; may put your opponent in blockstun after the move is over. Such moves are usually projectiles, such\n"
-			"; Ky j.D or I-No Antidepressant Scale.\n"
+			"; as Ky j.D or I-No Antidepressant Scale.\n"
 			"; When this setting is false, then, whenever the opponent enters blockstun, the time that you spent idle\n"
 			"; before that gets included in the frame advantage with a +. For example:\n"
 			"; You shoot a projectile and then recover. Then you and the opponent are just standing there for 1000000 frames.\n"
-			"; Then, the projectile that you shot puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.\n"
-			"; Setting this to false will cause the idle time that you spent before the opponent entered blockstun to not be included\n"
+			"; Then, the projectile, that you shot, puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.\n"
+			"; Setting this to true will cause the idle time that you spent before the opponent entered blockstun to not be included\n"
 			"; in your frame advantage, and your frame advantage in the example above will be just +1.\n"
 			"; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.");
 	registerOtherDescription(settingAndItsName(skipGrabsInFramebar), "Skip Grab/Super Animations In Framebar", settingsFramebarSettingsStr,
@@ -670,6 +686,17 @@ bool Settings::onDllMain() {
 		"; A number.\n"
 		"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.\n"
 		"; Must be in the range [-25000; +25000].");
+	
+	registerOtherDescription(settingAndItsName(clearInputHistoryOnStageReset), "Clear Input History On Stage Reset", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Specify true if you want the input history to be cleared when stage is reset in any game mode,\n"
+		"; including when positions are reset in training mode.\n"
+		"; You can also use a hotkey to clear history manually, specified in \"clearInputHistory\".");
+	registerOtherDescription(settingAndItsName(clearInputHistoryOnStageResetInTrainingMode), "Clear Input History On Stage Reset In Training Mode", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Specify true if you want the input history to be cleared when positions are reset in\n"
+		"; training mode only.\n"
+		"; You can also use a hotkey to clear history manually, specified in \"clearInputHistory\".");
 	#undef settingAndItsName
 	
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));

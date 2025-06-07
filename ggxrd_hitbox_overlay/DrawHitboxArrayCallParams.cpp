@@ -1,9 +1,10 @@
 #include "pch.h"
-#include "DrawHitboxArrayCallParams.h"
 #include "Hitbox.h"
+#include "DrawHitboxArrayCallParams.h"
 #include <utility>
 #include "pi.h"
 #include <cmath>
+#include "Graphics.h"
 
 bool DrawHitboxArrayCallParams::operator==(const DrawHitboxArrayCallParams& other) const {
 	if (!(hitboxCount == other.hitboxCount
@@ -33,51 +34,60 @@ bool DrawHitboxArrayCallParams::operator!=(const DrawHitboxArrayCallParams& othe
 	return !(*this == other);
 }
 
-RECT DrawHitboxArrayCallParams::getWorldBounds(int index, int cos, int sin) const {
-	RECT result;
+// this function ('s coordinate math) has been reversed almost straight from the game
+RECT DrawHitboxArrayCallParams::getWorldBounds(const Hitbox& hitbox, int cos, int sin) const {
 	
-	int offX = params.scaleX * ((int)hitboxData[index].offX + params.hitboxOffsetX / 1000 * params.flip);
-	int offY = params.scaleY * (-(int)hitboxData[index].offY + params.hitboxOffsetY / 1000);
-	int sizeX = (int)hitboxData[index].sizeX * params.scaleX;
-	int sizeY = -(int)hitboxData[index].sizeY * params.scaleY;
+	// The raw Hitbox data has been composed for the sprites facing left, Y axis pointing down and all distances divided by 1000,
+	// in comparison to the arena coordinate system.
 	
-	if (params.angle) {
-		int centerX = offX + sizeX / 2;
-		int centerY = offY + sizeY / 2;
-		
-		int angleCapped = params.angle % 360000;
-		if (angleCapped < 0) angleCapped += 360000;
-		
+	// The following calculations take place in the modified hitbox designer coordinate space, which is the same as the
+	// raw Hitbox data coordinate space, but with the exception that the Y axis is pointing up.
+	// The angle is inverted here because it is specified for the sprite facing right.
+	int angle = -params.angle % 360000;
+	if (angle < 0) angle = angle + 360000;
+	
+	int x = (int)hitbox.offX;
+	int y = -(int)hitbox.offY;  // inverted, because Y axis is pointing up instead of down
+	int sizeX = params.scaleX * (int)hitbox.sizeX;
+	int sizeY = params.scaleY * -(int)hitbox.sizeY;
+	
+	// get point relative to transform center
+	x -= params.flip * (params.transformCenterX / 1000);
+	y -= params.transformCenterY / 1000;
+	
+	x *= params.scaleX;  // 1000 scale (the default) means 1.0
+	y *= params.scaleY;
+	
+	if (angle != 0) {
+		int centerX = sizeX / 2 + x;
+		int centerY = sizeY / 2 + y;
 		if (cos == -2000 || sin == -2000) {
-			float angleRads = -(float)params.angle / 1000.F / 180.F * PI;
-			cos = (int)(::cos(angleRads) * 1000.F);
-			sin = (int)(::sin(angleRads) * 1000.F);
+			int angleDiv100 = angle / 100;
+			cos = Graphics::getCos(angleDiv100);
+			sin = Graphics::getSin(angleDiv100);
 		}
-		
-		if (angleCapped >= 45000 && (angleCapped < 135000 || angleCapped >= 225000)) {
+		if (angle >= 45000 && (angle < 135000 || angle >= 225000)) {  // (sic)
 			std::swap(sizeX, sizeY);
 		}
-		offX = (cos * centerX - sin * centerY) / 1000 - sizeX / 2;
-		offY = (cos * centerY + sin * centerX) / 1000 - sizeY / 2;
-	}
-
-	offX -= params.hitboxOffsetX;
-	offX = params.posX + offX * params.flip;
-	sizeX *= params.flip;
-	offY += params.posY + params.hitboxOffsetY;
-	
-	result.left = offX;
-	result.right = offX + sizeX;
-	result.top = offY;
-	result.bottom = offY + sizeY;
-	
-	if (result.left > result.right) {
-		std::swap(result.left, result.right);
-	}
-	if (result.top > result.bottom) {
-		std::swap(result.top, result.bottom);
+		x = (cos * centerX - sin * centerY) / 1000 - sizeX / 2;
+		y = (cos * centerY + sin * centerX) / 1000 - sizeY / 2;
 	}
 	
+	// translate point from transform center relative to global
+	x += params.flip * params.transformCenterX;  // scaleX is not included here, because (sic)
+	y += params.transformCenterY;
+	
+	RECT result;
+	result.left = params.posX + params.flip * x;
+	result.right = params.posX + params.flip * (x + sizeX);
+	result.top = params.posY + y;
+	result.bottom = params.posY + y + sizeY;
+	if (result.right < result.left) {
+		std::swap(result.right, result.left);
+	}
+	if (result.bottom < result.top) {
+		std::swap(result.bottom, result.top);
+	}
 	return result;
 }
 
@@ -88,15 +98,26 @@ RECT DrawHitboxArrayCallParams::getWorldBounds() const {
 		return result;
 	}
 	
+	int angle = -params.angle % 360000;
+	if (angle < 0) angle = angle + 360000;
+	int cos = -2000;
+	int sin = -2000;
+	if (angle) {
+		int angleDiv100 = angle / 100;
+		cos = Graphics::getCos(angleDiv100);
+		sin = Graphics::getSin(angleDiv100);
+	}
+	
 	RECT subresult;
 	for (int i = 0; i < hitboxCount; ++i) {
-		subresult = getWorldBounds(i);
+		subresult = getWorldBounds(hitboxData[i], cos, sin);
 		if (i == 0) {
 			result = subresult;
 			continue;
 		}
 		combineBounds(result, subresult);
 	}
+	#pragma warning(suppress: 6001)  // ignore warning about uninitialized memory usage
 	return result;
 }
 

@@ -50,8 +50,14 @@ struct ChippInfo {
 	unsigned short wallTime;
 };
 
-// Also used by some other chars
-struct DIInfo {
+struct SolInfo {
+	unsigned short currentDI;
+	unsigned short maxDI:15;
+	unsigned short gunflameDisappearsOnHit:1;
+};
+
+// used by multiple chars
+struct CurrentTotalInfo {
 	unsigned short current;
 	unsigned short max;
 };
@@ -103,6 +109,11 @@ struct RavenInfo {
 
 struct DizzyInfo {
 	bool shieldFishSuperArmor;
+};
+
+struct KyInfo {
+	bool stunEdgeWillDisappearOnHit;
+	bool hasChargedStunEdge;
 };
 
 struct GatlingOrWhiffCancelInfo {
@@ -570,7 +581,9 @@ struct PlayerFrame : public FrameBase {
 	union {
 		MilliaInfo milliaInfo;
 		ChippInfo chippInfo;
-		DIInfo diInfo;  // Also used by some other chars
+		SolInfo solInfo;
+		KyInfo kyInfo;
+		CurrentTotalInfo currentTotalInfo;  // Used by multiple chars
 		InoInfo inoInfo;
 		BedmanInfo bedmanInfo;
 		RamlethalInfo ramlethalInfo;
@@ -1348,6 +1361,7 @@ struct PlayerInfo {
 	int y = 0;
 	int speedX = 0;
 	int speedY = 0;
+	int speedYBeforeSpeedLost = 0;
 	int gravity = 0;
 	
 	int hurtboxTopY = 0;
@@ -1839,6 +1853,8 @@ struct PlayerInfo {
 	bool throwYValid:1;
 	bool prevFrameSilentForceKnifeExisted:1;
 	bool pickedUpSilentForceKnifeOnThisFrame:1;
+	bool lostSpeedYOnThisFrame:1;
+	bool wasAirborneOnAnimChange:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

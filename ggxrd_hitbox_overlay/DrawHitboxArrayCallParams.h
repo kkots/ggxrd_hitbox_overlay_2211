@@ -1,8 +1,7 @@
 #pragma once
 #include <d3d9.h>
 #include "DrawHitboxArrayParams.h"
-
-struct Hitbox;  // I've had enough cross-reference errors in my life
+#include "Hitbox.h"
 
 RECT combineBounds(const RECT& a, const RECT& b);
 
@@ -20,6 +19,7 @@ struct DrawHitboxArrayCallParams {
 	int originY = 0;
 	bool operator==(const DrawHitboxArrayCallParams& other) const;
 	bool operator!=(const DrawHitboxArrayCallParams& other) const;
-	RECT getWorldBounds(int index, int cos = -2000, int sin = -2000) const;
+	RECT getWorldBounds(const Hitbox& hitbox, int cos = -2000, int sin = -2000) const;
+	inline RECT getWorldBounds(int hitboxIndex, int cos = -2000, int sin = -2000) const { return getWorldBounds(hitboxData[hitboxIndex], cos, sin); }
 	RECT getWorldBounds() const;
 };

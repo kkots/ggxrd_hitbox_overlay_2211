@@ -211,6 +211,9 @@ bool Game::onDllMain() {
 		"83 bf ?? ?? ?? ?? 00 7e 31 33 d2 8b c2 3b 97 b0 00 00 00 7d 25 8b 84 87 f8 01 00 00 42 85 c0 74 19 8b 88 18 01 00 00 f6 c1 01 75 df 81 c9 00 00 00 04 89 88 18 01 00 00 eb d1",
 		{ 2, 0 },
 		nullptr, "roundendSuperfreezeCounter");
+	if (roundendSuperfreezeCounterOffset) {
+		aswEng0x1c710cOffset = roundendSuperfreezeCounterOffset + 0x35b4;  // probably better to make a dedicated sigscan, but we have too many already and it's slowing down the injection
+	}
 	
 	postEffectOnPtr = (BOOL*)sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -276,6 +279,24 @@ bool Game::onDllMain() {
 		detouring.attach(&(PVOID&)(orig_roundInit),
 			(PVOID&)roundInitHookPtr,
 			"roundInit");
+	}
+	
+	uintptr_t placeInFunction0x10_OfNormalElementFor_AswSubEng_0x1c710c_0xac = sigscanOffset(
+		"GuiltyGearXrd.exe",
+		"e8 ?? ?? ?? ?? 8b d8 83 fb 1a",
+		nullptr, "PlaceInFunction0x10_OfNormalElementFor_AswSubEng_0x1c710c_0xac");
+	uintptr_t startOfFunction0x10 = 0;
+	uintptr_t func0x10InRData = 0;
+	if (placeInFunction0x10_OfNormalElementFor_AswSubEng_0x1c710c_0xac) {
+		startOfFunction0x10 = sigscanBackwards(placeInFunction0x10_OfNormalElementFor_AswSubEng_0x1c710c_0xac, "83 ec", 0x20);  // SUB ESP,??
+	}
+	if (startOfFunction0x10) {
+		func0x10InRData = sigscan(
+			"GuiltyGearXrd.exe:.rdata",
+			(const char*)&startOfFunction0x10, 4);
+	}
+	if (func0x10InRData) {
+		normal0xa8ElementVtable = func0x10InRData - 0x10;
 	}
 	
 	return !error;
@@ -921,4 +942,25 @@ void Game::roundInitHook(Entity pawn) {
 		}
 		++numberOfPlayersReset;
 	}
+}
+
+void Game::clearInputHistory() {
+	char* trainingStruct = getTrainingHud();
+	memset(trainingStruct + 0x1c, 0, 4 * 2);
+	memset(trainingStruct + 0x24, 0, 4 * 2);
+	memset(trainingStruct + 0x2c, 0, 200 * 2);
+	memset(trainingStruct + 0x1bc, 0, 200 * 2);
+	memset(trainingStruct + 0x34c, false, 200);
+	memset(trainingStruct + 0x414, 0, 4 * 2);
+}
+
+bool Game::is0xa8PreparingCamera() const {
+	char* aswEngVal = *aswEngine;
+	if (!aswEngVal || !aswEng0x1c710cOffset) return false;
+	char* aswEng0x11c710c_ac = *(char**)(aswEngVal + 4 + aswEng0x1c710cOffset + 0xac);
+	if (!aswEng0x11c710c_ac) return false;
+	if (!aswEng0x11c710c_ac) return false;
+	uintptr_t vtable = *(uintptr_t*)aswEng0x11c710c_ac;
+	return vtable == normal0xa8ElementVtable
+		&& *(int*)(aswEng0x11c710c_ac + 0x24) != 0;
 }

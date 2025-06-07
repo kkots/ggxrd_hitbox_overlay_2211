@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <array>
 
 class GifMode
 {
@@ -19,6 +20,8 @@ public:
 	std::atomic_bool gifModeToggleHudOnly{ false };
 	std::atomic_bool showInputHistory{ true };
 	std::atomic_bool allowCreateParticles{ true };
+	std::atomic_bool makeOpponentFullInvul { false };
+	std::atomic_bool makePlayerFullInvul { false };
 };
 
 extern GifMode gifMode;

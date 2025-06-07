@@ -19,6 +19,8 @@ public:
 
 	bool onDllMain();
 	void clearAllBoxes();
+	// may delete items from endScene.attackHitboxes
+	void prepareDrawHits();
 	void drawHits();
 	WasHitInfo wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox);
 	determineHitType_t orig_determineHitType = nullptr;
@@ -37,6 +39,8 @@ private:
 		unsigned int previousTime = 0;
 		int hitboxesCount = 0;
 		bool timeHasChanged(bool globalTimeHasChanged);
+		bool entityInTheList = false;
+		bool entityInTheListAndActive = false;
 	};
 
 	class HookHelp {
@@ -67,6 +71,8 @@ private:
 	std::vector<Rejection> rejections;
 
 	unsigned int previousTime = 0;
+	static bool isMadeFullInvul(Entity ent);
+	bool timeHasChanged = false;
 };
 
 extern HitDetector hitDetector;

@@ -1217,10 +1217,12 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 
 	int cos = -2000;
 	int sin = -2000;
-	if (params.params.angle) {
-		float angleRads = -(float)params.params.angle / 1000.F / 180.F * PI;
-		cos = (int)(::cos(angleRads) * 1000.F);
-		sin = (int)(::sin(angleRads) * 1000.F);
+	int anglePrep = -params.params.angle % 360000;
+	if (anglePrep < 0) anglePrep = anglePrep + 360000;
+	if (anglePrep) {
+		anglePrep /= 100;
+		cos = getCos(anglePrep);
+		sin = getSin(anglePrep);
 	}
 	
 	DrawBoxCallParams drawBoxCall;
@@ -2323,6 +2325,7 @@ IDirect3DTexture9* Graphics::getOutlinesRTSamplingTexture(IDirect3DDevice9* devi
 void Graphics::compilePixelShader() {
 	
 	if (failedToCompilePixelShader || !pixelShaderCode.empty()) return;
+	failedToCompilePixelShader = true; return;
 	
 	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
 	if (!resourceInfoHandle) {
@@ -3038,10 +3041,10 @@ int Graphics::getCos(int degrees) {
 int Graphics::getSin(int degrees) {
 	int i = degrees % 3600;
 	if (i < 0) i += 3600;
-	if (i < 900) return sinTable[i];
-	if (i < 1800) return sinTable[899 - (i - 900)];
-	if (i < 2700) return -sinTable[i - 1800];
-	return -sinTable[899 - (i - 2700)];
+	if (i < 900) return graphics.sinTable[i];
+	if (i < 1800) return graphics.sinTable[899 - (i - 900)];
+	if (i < 2700) return -graphics.sinTable[i - 1800];
+	return -graphics.sinTable[899 - (i - 2700)];
 }
 
 int Graphics::setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor) {

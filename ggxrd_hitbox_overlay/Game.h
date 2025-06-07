@@ -170,6 +170,7 @@ public:
 	DWORD REDGameInfo_BattleOffset = 0;
 	DWORD REDHUD_BattleOffset = 0;
 	DWORD roundendSuperfreezeCounterOffset = 0;
+	DWORD aswEng0x1c710cOffset = 0;  // if I knew what this was I would give it a more sensible name. All I know is it runs code that helps decide what happens during round end and interludes
 	BOOL& postEffectOn();
 	bool isStylish(Entity pawn) const;
 	int getStylishDefenseInverseModifier() const;
@@ -184,6 +185,9 @@ public:
 	setPositionResetType_t orig_setPositionResetType = nullptr;
 	getPlayerPadID_t getPlayerPadID = nullptr;
 	roundInit_t orig_roundInit = nullptr;
+	// clears training HUD's input history
+	void clearInputHistory();
+	bool is0xa8PreparingCamera() const;
 private:
 	class HookHelp {
 		friend class Game;
@@ -255,6 +259,7 @@ private:
 	int lastSavedPositionX[2] { -252000, 252000 };
 	DWORD cameraCenterXOffset = 0;
 	int numberOfPlayersReset = 0;
+	uintptr_t normal0xa8ElementVtable = 0;
 };
 
 extern Game game;

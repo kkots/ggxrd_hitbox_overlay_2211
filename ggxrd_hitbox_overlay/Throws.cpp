@@ -71,14 +71,16 @@ void Throws::hitDetectionMainHook() {
 		const AttackData* attack = ent.dealtAttack();
 
 		bool checkPassed = (throwRange >= 0 || throwMinX < throwMaxX || throwMinY < throwMaxY)
-			&& (attackType == ATTACK_TYPE_NORMAL  // ATTACK_TYPE_NORMAL is more like 4/6 H (+OS possibly) throw
-			|| (attackType == ATTACK_TYPE_EX  // ATTACK_TYPE_EX is a command throw
-			|| attackType == ATTACK_TYPE_OVERDRIVE  // ATTACK_TYPE_OVERDRIVE is Jack-O super throw
-			|| attackType == ATTACK_TYPE_IK)  // ATTACK_TYPE_IK is Potemkin's IK - it's a throw
-			&& isActive
-			&& !(currentAnimDuration > 25 && charType == CHARACTER_TYPE_AXL) // the 25 check is needed to stop Axl from showing a throwbox all throughout his Yes move
-			&& (attack->collisionForceExpand() || ent.hitboxCount(HITBOXTYPE_HITBOX))  // this fix needed to stop Leo Siegesparade from showing a throwbox all the way throughout
-		);
+			&& (
+				attackType == ATTACK_TYPE_NORMAL  // ATTACK_TYPE_NORMAL is more like 4/6 H (+OS possibly) throw
+				|| (
+					attackType == ATTACK_TYPE_EX  // ATTACK_TYPE_EX is a command throw
+					|| attackType == ATTACK_TYPE_OVERDRIVE  // ATTACK_TYPE_OVERDRIVE is Jack-O super throw
+					|| attackType == ATTACK_TYPE_IK  // ATTACK_TYPE_IK is Potemkin's IK - it's a throw
+				) && isActive
+				&& !(currentAnimDuration > 25 && charType == CHARACTER_TYPE_AXL) // the 25 check is needed to stop Axl from showing a throwbox all throughout his Yes move
+				&& (attack->collisionForceExpand() || ent.hitboxCount(HITBOXTYPE_HITBOX))  // this fix needed to stop Leo Siegesparade from showing a throwbox all the way throughout
+			);
 
 		bool isMettagiri = charType == CHARACTER_TYPE_FAUST
 			&& strcmp(ent.animationName(), "Mettagiri"_hardcode) == 0

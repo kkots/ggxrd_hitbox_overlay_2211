@@ -100,6 +100,16 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 	if (gifMode.modDisabled) return result;
 	Entity thisEntity{ (char*)this };
 	Entity otherEntity{ (char*)defender };
+	
+	if ((
+			endScene.isEntityHidden(otherEntity)
+			|| otherEntity.isPawn()
+			&& isMadeFullInvul(otherEntity)
+		) && game.isTrainingMode()
+	) {
+		result = HIT_RESULT_NONE;
+	}
+	
 	if (result == HIT_RESULT_ARMORED) {
 		if (thisEntity.characterType() == -1
 				&& otherEntity
@@ -268,9 +278,6 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 		endScene.registerHit(result, hasHitbox, thisEntity, otherEntity);
 	}
 
-	if (endScene.isEntityHidden(otherEntity) && game.isTrainingMode()) {
-		result = HIT_RESULT_NONE;
-	}
 	return result;
 }
 
@@ -298,14 +305,56 @@ HitDetector::WasHitInfo HitDetector::wasThisHitPreviously(Entity ent, const Draw
 	return {false, DrawHitboxArrayCallParams{}};
 }
 
-void HitDetector::drawHits() {
-	bool timeHasChanged = false;
+void HitDetector::prepareDrawHits() {
+	timeHasChanged = false;
 	unsigned int currentTime = *(DWORD*)(*aswEngine + 4 + game.aswEngineTickCountOffset);
 	if (previousTime != currentTime) {
 		previousTime = currentTime;
 		timeHasChanged = true;
 	}
+	
+	auto it = hitboxesThatHit.begin();
+	while (it != hitboxesThatHit.end()) {
+		DetectedHitboxes& hitboxThatHit = *it;
 
+		it->entityInTheList = false;
+		it->entityInTheListAndActive = false;
+		if (hitboxThatHit.entity) {
+			for (auto i = 0; i < entityList.count; i++) {
+				Entity ent = entityList.list[i];
+				// this is needed for Sol's Gunflame. The gunflame continues to exist as entity but stops being active as soon as it hits
+				// this is also needed for Chipp's Gamma Blade. It stops being active very soon after it hits
+				if (ent.isActive() && hitboxThatHit.entity == ent) {
+					it->entityInTheList = true;
+					it->entityInTheListAndActive = ent.isActiveFrames() && ent.hitboxCount(HITBOXTYPE_HITBOX) > 0;
+					break;
+				}
+			}
+		}
+
+		if (!it->entityInTheList) {
+			hitboxThatHit.entity = nullptr;
+		}
+
+		if (it->entityInTheListAndActive) {
+			if (timeHasChanged) {
+				++it->activeTime;
+			}
+			if (it->activeTime >= hitboxMinActiveTime || it->isPawn) {
+				it = hitboxesThatHit.erase(it);
+			} else {
+				++it;
+			}
+			continue;
+		} else if (it->entity) {
+			endScene.removeAttackHitbox(it->entity);
+		}
+		++it;
+	}
+	
+}
+
+void HitDetector::drawHits() {
 	auto rejIt = rejections.begin();
 	while (rejIt != rejections.end()) {
 		Rejection& rejection = *rejIt;
@@ -356,44 +405,12 @@ void HitDetector::drawHits() {
 			++it;
 		}
 	}
-
+	
 	auto it = hitboxesThatHit.begin();
 	while (it != hitboxesThatHit.end()) {
 		DetectedHitboxes& hitboxThatHit = *it;
 
-		bool entityInTheList = false;
-		bool entityInTheListAndActive = false;
-		if (hitboxThatHit.entity) {
-			for (auto i = 0; i < entityList.count; i++) {
-				Entity ent = entityList.list[i];
-				// this is needed for Sol's Gunflame. The gunflame continues to exist as entity but stops being active as soon as it hits
-				// this is also needed for Chipp's Gamma Blade. It stops being active very soon after it hits
-				if (ent.isActive() && hitboxThatHit.entity == ent) {
-					entityInTheList = true;
-					const bool isActive = (*(unsigned int*)(ent + 0x23C) & 0x100) != 0;
-					const int hitboxCount = *(const int*)(ent + 0xA4);
-					entityInTheListAndActive = ent.isActiveFrames() && hitboxCount > 0;
-					break;
-				}
-			}
-		}
-
-		if (!entityInTheList) {
-			hitboxThatHit.entity = nullptr;
-		}
-
-		if (entityInTheListAndActive) {
-			if (timeHasChanged) {
-				++it->activeTime;
-			}
-			if (it->activeTime >= hitboxMinActiveTime || it->isPawn) {
-				it = hitboxesThatHit.erase(it);
-			} else {
-				++it;
-			}
-			continue;
-		}
-		else {
+		if (!it->entityInTheListAndActive) {
 			if (invisChipp.needToHide(hitboxThatHit.team)) {
 				it = hitboxesThatHit.erase(it);
 				continue;
@@ -410,6 +427,7 @@ void HitDetector::drawHits() {
 		}
 		++it;
 	}
+	
 }
 
 bool HitDetector::DetectedHitboxes::timeHasChanged(bool globalTimeHasChanged) {
@@ -423,4 +441,14 @@ bool HitDetector::DetectedHitboxes::timeHasChanged(bool globalTimeHasChanged) {
 	} else {
 		return globalTimeHasChanged;
 	}
+}
+
+bool HitDetector::isMadeFullInvul(Entity ent) {
+	bool opponentInvul = gifMode.makeOpponentFullInvul;
+	bool playerInvul = gifMode.makePlayerFullInvul;
+	if (!opponentInvul && !playerInvul) return false;
+	if (opponentInvul && playerInvul) return true;
+	int playerIndex = game.getPlayerSide();
+	int team = ent.team();
+	return (team == playerIndex) ? playerInvul : opponentInvul;
 }

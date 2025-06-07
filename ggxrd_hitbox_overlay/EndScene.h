@@ -13,6 +13,7 @@
 #include "InputRingBufferStored.h"
 #include "CharInfo.h"
 #include "HandleWrapper.h"
+#include "DrawHitboxArrayCallParams.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -230,6 +231,7 @@ public:
 	void onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr);
 	void onDealHit(Entity defenderPtr, Entity attackerPtr);
 	void onAfterDealHit(Entity defenderPtr, Entity attackerPtr);
+	void removeAttackHitbox(Entity attackerPtr);
 	WNDPROC orig_WndProc = nullptr;
 	void(__thiscall* orig_drawTrainingHud)(char* thisArg) = nullptr;  // type is defined in Game.h: trainingHudTick_t
 	BBScr_createObjectWithArg_t orig_BBScr_createObjectWithArg = nullptr;
@@ -332,6 +334,7 @@ public:
 	void increaseStunHook(Entity pawn, int stunAdd);
 	void jumpInstallNormalJumpHook(Entity pawn);
 	void jumpInstallSuperJumpHook(Entity pawn);
+	void clearInputHistory(bool resetClearTime = false);
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -364,6 +367,7 @@ private:
 		void onCmnActXGuardLoopHook(int signal, int type, int thisIs0);
 		void drawTrainingHudInputHistoryHook(unsigned int layer);
 		void checkFirePerFrameUponsWrapperHook();
+		void speedYReset(int speedY);
 	};
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
@@ -390,6 +394,7 @@ private:
 	void beginHitstopHook(Entity pawn);
 	void onCmnActXGuardLoopHook(Entity pawn, int signal, int type, int thisIs0);
 	void checkFirePerFrameUponsWrapperHook(Entity pawn);
+	void speedYReset(Entity pawn, int speedY);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
@@ -584,6 +589,22 @@ private:
 	void registerJump(PlayerInfo& player, Entity pawn, const char* animName);
 	void registerRun(PlayerInfo& player, Entity pawn, const char* animName);
 	bool shouldIgnoreEnterKey() const;
+	bool hasAllLinkedProjectilesOfType(PlayerInfo& player, const char* name);
+	bool hasOneLinkedProjectileOfType(PlayerInfo& player, const char* name);
+	bool hasProjectileOfType(PlayerInfo& player, const char* name);
+	struct AttackHitbox {
+		std::vector<DrawHitboxArrayCallParams> hitboxes;
+		int count = 0;
+		Entity ent { nullptr };
+		bool found = false;
+		int team = 2;
+	};
+	// this is needed to display hitboxes of projectiles that disappear when their player is hit, on the very frame their player gets hit.
+	// Without this, those projectiles would get deleted by the end of the tick and we would not see their hitboxes.
+	// While in reality, projectiles run hit collision before players do, and there may be some order between different projectiles,
+	// so such projectiles could potentially deal hits on that very frame.
+	std::vector<AttackHitbox> attackHitboxes;
+	bool isActiveFull(Entity ent) const;
 };
 
 extern EndScene endScene;

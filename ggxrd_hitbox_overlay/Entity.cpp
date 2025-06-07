@@ -90,7 +90,9 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 	Entity presumablyThrownEntity = *(Entity*)(ent + 0x43c);
 	
 	// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
-	bool isFullInvul = wasFullInvul ? *wasFullInvul : fullInvul();
+	bool isFullInvul = (wasFullInvul ? *wasFullInvul : fullInvul())
+		|| inHitstunThisFrame()  // original game code checks for inHitstun this or next frame, but we check only this frame for clarity
+		&& receivedAttack()->invulnTime != 0;
 	bool isSuperArmor = wasSuperArmorEnabled ? *wasSuperArmorEnabled : superArmorEnabled();
 	
 	state->doingAThrow = isPawn()  // isPawn check for Dizzy bubble pop
@@ -116,7 +118,8 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 
 	state->inHitstunBlockstun = !jitabataLoop()  // these are from FUN_00deca70, called from FUN_00f6bcd0
 		&& (throwProtection() > 0
-		|| inHitstun()
+		|| inHitstunThisFrame()  // game's original code checks hitstun this or next frame, but we check for hitstun on this frame only,
+		                         // because it is way too confusing to see opponent's throw invul on the very frame they get thrown
 		|| blockstun() > 0);
 
 	state->posX = posX();
@@ -184,9 +187,10 @@ bool Entity::hasUpon(int index) const {
 
 bool Entity::isGettingThrown() const {
 	const unsigned int flagsField = *(unsigned int*)(ent + 0x23C);
-	return (*(unsigned int*)(ent + 0x43C) & 0xFF) != 0
+	return *(unsigned int*)(ent + 0x43C) != 0
 		&& (flagsField & 0x800)
-		&& (flagsField & 0x40000);
+		//&& (flagsField & 0x40000);  // determineHitType does not check for this, 0x800 is enough
+		&& inHitstunThisFrame(); // ignore the frame when the throw first connected
 }
 
 int Entity::pushboxWidth() const {
