@@ -1,3 +1,12 @@
+For things in d3d9 folder, the license is: 'd3d9/LICENSE - COPY OF LIBS PROHIBITED.txt' and 'dxsdk/Documentation/License Agreements/DirectX SDK EULA.txt'
+For things in Detours, the license is: Detours/LICENSE
+For things in dxsdk, the license is: dxsdk/Documentation/License Agreements/DirectX SDK EULA.txt
+For things in imgui, the license is: imgui/LICENSE.txt
+For things in libpng, the license is: libpng/LICENSE
+For things in zlib, the license is: zlib/LICENSE
+For the 'common/const_obfuscate.h' file the license is at the start of that file
+
+The following applies to everything else:
 MIT License
 
 Copyright (c) 2023 kkots

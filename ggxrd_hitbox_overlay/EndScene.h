@@ -14,6 +14,7 @@
 #include "CharInfo.h"
 #include "HandleWrapper.h"
 #include "DrawHitboxArrayCallParams.h"
+#include "HitDetectionType.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -220,8 +221,8 @@ public:
 	LRESULT WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void logic();
 	void onAswEngineDestroyed();
-	void onHitDetectionStart(int hitDetectionType);
-	void onHitDetectionEnd(int hitDetectionType);
+	void onHitDetectionStart(HitDetectionType hitDetectionType);
+	void onHitDetectionEnd(HitDetectionType hitDetectionType);
 	void onUWorld_TickBegin();
 	void onUWorld_Tick();
 	void registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender);
@@ -335,6 +336,7 @@ public:
 	void jumpInstallNormalJumpHook(Entity pawn);
 	void jumpInstallSuperJumpHook(Entity pawn);
 	void clearInputHistory(bool resetClearTime = false);
+	void onHitDetectionAttackerParticipate(Entity ent);
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -593,7 +595,9 @@ private:
 	bool hasOneLinkedProjectileOfType(PlayerInfo& player, const char* name);
 	bool hasProjectileOfType(PlayerInfo& player, const char* name);
 	struct AttackHitbox {
-		std::vector<DrawHitboxArrayCallParams> hitboxes;
+		DrawHitboxArrayCallParams hitbox;
+		bool notClash = false;
+		bool clash = false;
 		int count = 0;
 		Entity ent { nullptr };
 		bool found = false;
@@ -605,6 +609,7 @@ private:
 	// so such projectiles could potentially deal hits on that very frame.
 	std::vector<AttackHitbox> attackHitboxes;
 	bool isActiveFull(Entity ent) const;
+	HitDetectionType currentHitDetectionType = HIT_DETECTION_EASY_CLASH;
 };
 
 extern EndScene endScene;

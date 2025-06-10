@@ -68,6 +68,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "common", "common", "{0DEB3A
 	ProjectSection(SolutionItems) = preProject
 		common\ConsoleEmulator.cpp = common\ConsoleEmulator.cpp
 		common\ConsoleEmulator.h = common\ConsoleEmulator.h
+		common\const_obfuscate.h = common\const_obfuscate.h
 		common\ggxrd_hitbox_injector_common.cpp = common\ggxrd_hitbox_injector_common.cpp
 		common\ggxrd_hitbox_injector_common.h = common\ggxrd_hitbox_injector_common.h
 		common\ggxrd_hitbox_patcher_common.cpp = common\ggxrd_hitbox_patcher_common.cpp

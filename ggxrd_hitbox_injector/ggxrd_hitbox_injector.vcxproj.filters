@@ -27,9 +27,6 @@
     <ClInclude Include="ggxrd_hitbox_injector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\common\WError.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -43,6 +40,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\common\ConsoleEmulator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\WinError.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\const_obfuscate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

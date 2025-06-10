@@ -372,18 +372,18 @@ uintptr_t sigscanOffsetMain(const char* name, const char* sig, size_t sigLength,
 	return addr;
 }
 
-// relativeCallAddr points to the start of a relative call instruction.
+// callInstructionAddr points to the start of a relative call instruction.
 // the relative call instruction is one byte of the instruction command, followed by 4 bytes relative offset. Offset can be negative (start with FF...).
 // The relative offset is relative to the instruction that goes after the call smh, and the call instruction itself is 5 bytes
-uintptr_t followRelativeCall(uintptr_t relativeCallAddr) {
-	logwrap(fprintf(logfile, "Following relative call at %.8x, the call looks like ", relativeCallAddr));
-	unsigned char* c = (unsigned char*)relativeCallAddr;
+uintptr_t followRelativeCall(uintptr_t callInstructionAddr) {
+	logwrap(fprintf(logfile, "Following relative call at %.8x, the call looks like ", callInstructionAddr));
+	unsigned char* c = (unsigned char*)callInstructionAddr;
 	for (int i = 5; i != 0; --i) {
 		logwrap(fprintf(logfile, "%.2hhx ", *c));
 		++c;
 	}
-	logwrap(fprintf(logfile, "and specifies offset %d\n", *(int*)(relativeCallAddr + 1)));
-	return relativeCallAddr + 5 + *(int*)(relativeCallAddr + 1);
+	logwrap(fprintf(logfile, "and specifies offset %d\n", *(int*)(callInstructionAddr + 1)));
+	return callInstructionAddr + 5 + *(int*)(callInstructionAddr + 1);
 	// Calls can also have absolute addresses so check which one you got
 }
 
@@ -396,13 +396,13 @@ uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr) {
 	// Calls can also have absolute addresses so check which one you got
 }
 
-int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinationAddr) {
+int calculateRelativeCallOffset(uintptr_t callInstructionAddr, uintptr_t destinationAddr) {
 	// relativeCallAddr points to the start of a relative call instruction.
 	// destinationAddr points to the function that you would like to call.
 	// This function calculates the offset necessary to put in the relative call instruction so that it
 	// reaches the destinationAddr.
 	// See followRelativeCall(...) for details of a relative call instruction.
-	return (int)(destinationAddr - (relativeCallAddr + 5));
+	return (int)(destinationAddr - (callInstructionAddr + 5));
 }
 
 char* findWildcard(char* mask, unsigned int indexOfWildcard) {

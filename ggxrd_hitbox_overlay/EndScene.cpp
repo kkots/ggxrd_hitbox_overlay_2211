@@ -46,23 +46,23 @@ void __cdecl increaseStunHook(Entity pawn, int stunAdd);  // defined here
 
 // Runs on the main thread
 extern "C"
-void __cdecl drawQuadExecHookAsm(REDDrawQuadCommand* item, void* canvas);  // defined in drawQuadExecHook.asm
+void __cdecl drawQuadExecHookAsm(REDDrawQuadCommand* item, void* canvas);  // defined in asmhooks.asm
 
 // Runs on the main thread
 extern "C"
-void __cdecl call_orig_drawQuadExec(void* orig_drawQuadExec, FVector2D *screenSize, REDDrawQuadCommand *item, void* canvas);  // defined in drawQuadExecHook.asm
+void __cdecl call_orig_drawQuadExec(void* orig_drawQuadExec, FVector2D *screenSize, REDDrawQuadCommand *item, void* canvas);  // defined in asmhooks.asm
 
 // Runs on the main thread
 extern "C"
-void __cdecl increaseStunHookAsm();  // defined in drawQuadExecHook.asm
+void __cdecl increaseStunHookAsm();  // defined in asmhooks.asm
 
 static int __cdecl LifeTimeCounterCompare(void const*, void const*);
 
 extern "C" DWORD restoreDoubleJumps = 0;  // for use by jumpInstallNormalJumpHookAsm
-extern "C" void jumpInstallNormalJumpHookAsm(void* pawn);  // defined in drawQuadExecHook.asm
+extern "C" void jumpInstallNormalJumpHookAsm(void* pawn);  // defined in asmhooks.asm
 extern "C" void __fastcall jumpInstallNormalJumpHook(void* pawn);  // defined here
 extern "C" DWORD restoreAirDash = 0;  // for use by jumpInstallSuperJumpHookAsm
-extern "C" void jumpInstallSuperJumpHookAsm(void* pawn);  // defined in drawQuadExecHook.asm
+extern "C" void jumpInstallSuperJumpHookAsm(void* pawn);  // defined in asmhooks.asm
 extern "C" void __fastcall jumpInstallSuperJumpHook(void* pawn);  // defined here
 
 static inline bool isDizzyBubble(const char* name) {
@@ -245,7 +245,7 @@ bool EndScene::onDllMain() {
 		// 
 		// It cannot be hooked solely by C, because none of the standard calling conventions satisfy these requirements, so we hook it with a function written in asm
 		if (!detouring.attach(&(PVOID&)orig_drawQuadExec,
-			drawQuadExecHookAsm,  // defined in drawQuadExecHook.asm
+			drawQuadExecHookAsm,  // defined in asmhooks.asm
 			"drawQuadExec")) return false;
 	}
 	
@@ -3880,7 +3880,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			for (AttackHitbox& attackHitbox : attackHitboxes) {
 				if (ent == attackHitbox.ent) {
 					needCollectHitboxes = false;
-					drawDataPrepared.hitboxes.insert(drawDataPrepared.hitboxes.end(), attackHitbox.hitboxes.begin(), attackHitbox.hitboxes.end());
+					drawDataPrepared.hitboxes.push_back(attackHitbox.hitbox);
 					hitboxesCount = attackHitbox.count;
 					attackHitbox.found = true;
 					break;
@@ -4267,7 +4267,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	
 	for (const AttackHitbox& attackHitbox : attackHitboxes) {
 		if (!attackHitbox.found && !invisChipp.needToHide(attackHitbox.team)) {
-			drawDataPrepared.hitboxes.insert(drawDataPrepared.hitboxes.end(), attackHitbox.hitboxes.begin(), attackHitbox.hitboxes.end());
+			drawDataPrepared.hitboxes.push_back(attackHitbox.hitbox);
 		}
 	}
 	
@@ -5482,6 +5482,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else if (player.charType == CHARACTER_TYPE_KY) {
 					currentFrame.u.kyInfo.stunEdgeWillDisappearOnHit = hasOneLinkedProjectileOfType(player, "StunEdgeObj");
 					currentFrame.u.kyInfo.hasChargedStunEdge = hasProjectileOfType(player, "ChargedStunEdgeObj");
+					currentFrame.u.kyInfo.hasSPChargedStunEdge = hasProjectileOfType(player, "SPChargedStunEdgeObj");
 				} else if (player.charType == CHARACTER_TYPE_ZATO) {
 					currentFrame.u.currentTotalInfo.current = player.pawn.exGaugeValue(0);
 					currentFrame.u.currentTotalInfo.max = 6000;
@@ -7328,8 +7329,9 @@ void EndScene::restartMeasuringLandingFrameAdvantage(int index) {
 // A single hit detection does a loop in a loop and tries to find which two entities hit each other.
 // We use this hook at the start of hit detection algorithm to measure some values before a hit.
 // Runs on the main thread
-void EndScene::onHitDetectionStart(int hitDetectionType) {
-	if (hitDetectionType == 0) {
+void EndScene::onHitDetectionStart(HitDetectionType hitDetectionType) {
+	currentHitDetectionType = hitDetectionType;
+	if (hitDetectionType == HIT_DETECTION_EASY_CLASH) {
 		entityList.populate();
 		if (!iGiveUp) {
 			for (int i = 0; i < 2; ++i) {
@@ -7346,34 +7348,21 @@ void EndScene::onHitDetectionStart(int hitDetectionType) {
 		registeredHits.clear();
 		
 		attackHitboxes.clear();
-		for (int i = 0; i < entityList.count; ++i) {
-			Entity ent = entityList.list[i];
-			if (!ent.isPawn() && ent.hitboxCount(HITBOXTYPE_HITBOX) > 0) {
-				
-				attackHitboxes.emplace_back();
-				AttackHitbox& newHitbox = attackHitboxes.back();
-				newHitbox.ent = ent;
-				newHitbox.team = ent.team();
-				
-				collectHitboxes(ent,
-					isActiveFull(ent),
-					nullptr,
-					&newHitbox.hitboxes,
-					nullptr,
-					nullptr,
-					nullptr,
-					nullptr,
-					nullptr,
-					&newHitbox.count);
-			}
-		}
 	}
 }
 
 // We use this hook at the end of hit detection algorithm to measure some values after a hit.
 // Runs on the main thread
-void EndScene::onHitDetectionEnd(int hitDetectionType) {
+void EndScene::onHitDetectionEnd(HitDetectionType hitDetectionType) {
+	
+	for (AttackHitbox& attackHitbox : attackHitboxes) {
+		if (attackHitbox.clash && !attackHitbox.notClash && attackHitbox.hitbox.thickness > 1) {
+			attackHitbox.hitbox.thickness = 1;
+		}
+	}
+	
 	if (iGiveUp) return;
+	
 	entityList.populate();
 	for (int i = 0; i < 2; ++i) {
 		Entity ent = entityList.slots[i];
@@ -7392,7 +7381,7 @@ void EndScene::onHitDetectionEnd(int hitDetectionType) {
 		}
 		burstRecordedHit[i] = burst;
 	}
-	if (hitDetectionType == 0 || hitDetectionType == 2) {
+	if (hitDetectionType == HIT_DETECTION_CLASH) {
 		for (int i = 2; i < entityList.count; ++i) {
 			Entity ent { entityList.list[i] };
 			if (!ent.isActive() || ent.isPawn() || !ent.receivedProjectileClashSignal()) continue;
@@ -8466,7 +8455,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		drawingPostponedLocal = drawingPostponed();
 	}
 	queueingFramebarDrawCommand = false;
-	orig_REDAnywhereDispDraw(canvas, screenSize);  // calls drawQuadExecHook
+	orig_REDAnywhereDispDraw(canvas, screenSize);  // calls asmhooks
 	queueingFramebarDrawCommand = false;
 	
 	if (!shutdown && !graphics.shutdown
@@ -10222,7 +10211,7 @@ void increaseFramesCountUnlimited(int& counterUnlimited, int incrBy, int display
 	counterUnlimited += incrBy;
 }
 
-// Runs on the main thread. Called from _increaseStunHookAsm, declared in drawQuadExecHook.asm
+// Runs on the main thread. Called from _increaseStunHookAsm, declared in asmhooks.asm
 void increaseStunHook(Entity pawn, int stunAdd) {
 	endScene.increaseStunHook(pawn, stunAdd);
 }
@@ -10365,4 +10354,55 @@ bool EndScene::isActiveFull(Entity ent) const {
 					ent.currentHitNum() > 1
 				: true
 			);
+}
+
+void EndScene::onHitDetectionAttackerParticipate(Entity ent) {
+	if (
+			(
+				// easy clash only happens between players, and those can't lose their hitboxes at the end of a tick
+				currentHitDetectionType == HIT_DETECTION_NORMAL
+				|| currentHitDetectionType == HIT_DETECTION_CLASH
+			)
+			&& !ent.isPawn()  // players can't lose their hitboxes at the end of a tick, so there's no point collecting them for them
+			&& ent.hitboxCount(HITBOXTYPE_HITBOX) > 0
+	) {
+		static std::vector<DrawHitboxArrayCallParams> hitboxesArena;
+		AttackHitbox attackBox;
+		
+		int count = 0;
+		collectHitboxes(ent,
+			isActiveFull(ent),
+			nullptr,
+			&hitboxesArena,
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr,
+			&count);
+		
+		if (count) {
+			attackBox.ent = ent;
+			attackBox.team = ent.team();
+			attackBox.notClash = currentHitDetectionType == HIT_DETECTION_NORMAL;
+			attackBox.clash = currentHitDetectionType == HIT_DETECTION_CLASH;
+			attackBox.count = count;
+			attackBox.hitbox = hitboxesArena.back();
+			
+			bool found = false;
+			for (AttackHitbox& existingBox : attackHitboxes) {
+				if (existingBox.ent == ent && existingBox.hitbox == attackBox.hitbox) {
+					existingBox.clash = existingBox.clash || attackBox.clash;
+					existingBox.notClash = existingBox.notClash || attackBox.notClash;
+					found = true;
+					break;
+				}
+			}
+			
+			if (!found) {
+				attackHitboxes.push_back(attackBox);
+			}
+			hitboxesArena.clear();
+		}
+	}
 }

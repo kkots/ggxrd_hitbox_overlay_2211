@@ -53,6 +53,9 @@
     <ClInclude Include="..\common\InjectorCommonOut.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\const_obfuscate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

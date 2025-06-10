@@ -46,7 +46,7 @@ static std::chrono::time_point<std::chrono::system_clock> performanceMeasurement
 		PERFORMANCE_MEASUREMENT_ON_EXIT(name) \
 	}
 		
-PERFORMANCE_MEASUREMENT_DECLARE(takeScreenshotBegin)
+PERFORMANCE_MEASUREMENT_DECLARE(setAltRenderTarget)
 PERFORMANCE_MEASUREMENT_DECLARE(screenshotDrawAll1)
 PERFORMANCE_MEASUREMENT_DECLARE(screenshotDrawAll2)
 PERFORMANCE_MEASUREMENT_DECLARE(takeScreenshotEnd_getFramebufferData)
@@ -438,6 +438,7 @@ void Graphics::resetHook() {
 void Graphics::dllDetachPiece() {
 	resetHook();
 	ui.onDllDetachGraphics();
+	freeD3DCompiler();
 	receiveDanger();
 }
 
@@ -512,8 +513,18 @@ void Graphics::onShutdown() {
 		};
 		detouring.detachOnlyTheseHooks(hooksToUndetour, _countof(hooksToUndetour));
 	}
+	freeD3DCompiler();
 	SetEvent(shutdownFinishedEvent);
 	receiveDanger();
+}
+
+void Graphics::freeD3DCompiler() {
+	if (d3dCompiler47) {
+		//FreeLibrary(d3dCompiler47);  // suspected crash when freeing this library
+		d3dCompiler47 = NULL;
+		d3dCompiler47LoadFailed = false;
+		d3dCompile47 = nullptr;
+	}
 }
 
 bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect, bool ignoreFill, bool ignoreOutline) {
@@ -1056,6 +1067,7 @@ void Graphics::drawAll() {
 		device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 		renderStateValues[RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
 		device->SetPixelShader(nullptr);
+		usePixelShader = settings.usePixelShader;
 		renderStateValues[RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NONE);
 		preparedPixelShaderOnThisFrame = false;
 		device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
@@ -1737,11 +1749,11 @@ IDirect3DSurface9* Graphics::getOffscreenSurface(D3DSURFACE_DESC* renderTargetDe
 	return offscreenSurface;
 }
 
-bool Graphics::takeScreenshotBegin(IDirect3DDevice9* device) {
-	logwrap(fputs("takeScreenshotBegin called\n", logfile));
+bool Graphics::setAltRenderTarget(IDirect3DDevice9* device, CComPtr<IDirect3DSurface9>& whateverOldRenderTarget) {
+	logwrap(fputs("setAltRenderTarget called\n", logfile));
 	
 	PERFORMANCE_MEASUREMENT_START
-	PERFORMANCE_MEASUREMENT_ON_EXIT(takeScreenshotBegin)
+	PERFORMANCE_MEASUREMENT_ON_EXIT(setAltRenderTarget)
 	
 	CComPtr<IDirect3DSurface9> oldRenderTarget;
 	if (FAILED(device->GetRenderTarget(0, &oldRenderTarget))) {
@@ -1896,10 +1908,10 @@ bool Graphics::getFramebufferData(IDirect3DDevice9* device,
 		IDirect3DSurface9* renderTarget,
 		D3DSURFACE_DESC* renderTargetDescPtr,
 		unsigned int* widthPtr,
-		unsigned int* heightPtr) {
+		unsigned int* heightPtr,
+		const RECT* rect) {
 	CComPtr<IDirect3DSurface9> renderTargetComPtr;
 	if (!renderTarget) {
-		renderTargetComPtr;// = direct3DVTable.getRenderTarget();  // this will AddRef
 		if (FAILED(device->GetRenderTarget(0, &renderTargetComPtr))) {
 			logwrap(fputs("GetRenderTarget failed\n", logfile));
 			return false;
@@ -1926,20 +1938,38 @@ bool Graphics::getFramebufferData(IDirect3DDevice9* device,
 	}
 
 	D3DLOCKED_RECT lockedRect;
-	RECT rect;
-	rect.left = 0;
-	rect.right = renderTargetDescPtr->Width;
-	rect.top = 0;
-	rect.bottom = renderTargetDescPtr->Height;
-	if (FAILED(offscreenSurface->LockRect(&lockedRect, &rect, D3DLOCK_READONLY))) {
+	RECT rectLocal;
+	if (!rect) {
+		rectLocal.left = 0;
+		rectLocal.right = renderTargetDescPtr->Width;
+		rectLocal.top = 0;
+		rectLocal.bottom = renderTargetDescPtr->Height;
+		rect = &rectLocal;
+	}
+	if (FAILED(offscreenSurface->LockRect(&lockedRect, rect, D3DLOCK_READONLY))) {
 		logwrap(fputs("LockRect failed\n", logfile));
 		return false;
 	}
-
-	unsigned int imageSize = renderTargetDescPtr->Width * renderTargetDescPtr->Height;
-
+	
+	unsigned int imageWidth = rect->right - rect->left;
+	unsigned int imageHeight = rect->bottom - rect->top;
+	unsigned int imageSize = imageWidth * imageHeight;
+	
 	buffer.resize(imageSize * 4);
-	memcpy(buffer.data(), lockedRect.pBits, imageSize * 4);
+	
+	if (rect->left == 0 && rect->top == 0 && imageWidth == renderTargetDescPtr->Width && imageHeight == renderTargetDescPtr->Height) {
+		memcpy(buffer.data(), lockedRect.pBits, imageSize * 4);
+		// I know this is not fully correct, but the game just doesn't use weird formats
+	} else {
+		BYTE* dstPtr = buffer.data();
+		const BYTE* srcPtr = (const BYTE*)lockedRect.pBits;
+		const unsigned int copySize = imageWidth * 4;
+		for (unsigned int i = 0; i < imageHeight; ++i) {
+			memcpy(dstPtr, srcPtr, copySize);
+			dstPtr += copySize;
+			srcPtr += lockedRect.Pitch;
+		}
+	}
 
 	offscreenSurface->UnlockRect();
 
@@ -2026,6 +2056,15 @@ void Graphics::setTransformMatricesPlain2D(IDirect3DDevice9* device) {
 	
 	if (currentTransformSet == CURRENT_TRANSFORM_2D_PROJECTION) return;
 	
+    rememberTransforms(device);
+    setTransformMatricesPlain2DPart(device);
+    
+    currentTransformSet = CURRENT_TRANSFORM_2D_PROJECTION;
+    worldMatrixHasShiftedWorldCenter = false;
+}
+
+void Graphics::setTransformMatricesPlain2DPart(IDirect3DDevice9* device) {
+	
 	D3DXMATRIX projection =
     {
         2.F / viewportW,  0.F,              0.F, 0.F,
@@ -2034,13 +2073,9 @@ void Graphics::setTransformMatricesPlain2D(IDirect3DDevice9* device) {
         -1.F,             1.F,              0.F, 1.F
     };
 	
-    rememberTransforms(device);
     device->SetTransform(D3DTS_WORLD, &identity);
     device->SetTransform(D3DTS_VIEW, &identity);
     device->SetTransform(D3DTS_PROJECTION, &projection);
-    
-    currentTransformSet = CURRENT_TRANSFORM_2D_PROJECTION;
-    worldMatrixHasShiftedWorldCenter = false;
 }
 
 void Graphics::rememberTransforms(IDirect3DDevice9* device) {
@@ -2058,7 +2093,8 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	if (!canDrawOnThisFrame()) return;  // let's not trigger the hook attempt more than once per frame
 	CComPtr<IDirect3DStateBlock9> oldState = nullptr;
 	device->CreateStateBlock(D3DSBT_ALL, &oldState);
-	if (!takeScreenshotBegin(device)) return;
+	CComPtr<IDirect3DSurface9> whateverOldRenderTarget;
+	if (!setAltRenderTarget(device, whateverOldRenderTarget)) return;
 	
 	// thanks to WorseThanYou for coming up with this box blending sequence
 	
@@ -2092,6 +2128,7 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	renderStateValues[RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
 	device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
 	device->SetPixelShader(nullptr);
+	usePixelShader = settings.usePixelShader;
 	preparedPixelShaderOnThisFrame = false;
 	renderStateValues[RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER);
 	device->SetTexture(0, nullptr);
@@ -2301,84 +2338,163 @@ IDirect3DTexture9* Graphics::getOutlinesRTSamplingTexture(IDirect3DDevice9* devi
 	D3DSURFACE_DESC renderTargetDesc;
 	CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();  // this will AddRef
 	// This render target is just wrong sometimes. It has wrong size and everything
-	if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+	HRESULT errorCode;
+	errorCode = device->GetRenderTarget(0, &renderTarget);
+	char msg[128];
+	if (FAILED(errorCode)) {
 		failedToCreateOutlinesRTSamplingTexture = true;
 		logwrap(fputs("GetRenderTarget failed\n", logfile));
+		sprintf_s(msg, "Failed to get render target: 0x%x", errorCode);
+		failedToCreateOutlinesRTSamplingTextureReason = msg;
 		return nullptr;
 	}
 	SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
-	if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+	errorCode = renderTarget->GetDesc(&renderTargetDesc);
+	if (FAILED(errorCode)) {
 		failedToCreateOutlinesRTSamplingTexture = true;
 		logwrap(fputs("GetDesc failed\n", logfile));
+		sprintf_s(msg, "Failed to get desc of render target: 0x%x", errorCode);
+		failedToCreateOutlinesRTSamplingTextureReason = msg;
 		return nullptr;
 	}
 	
-	if (FAILED(device->CreateTexture(renderTargetDesc.Width, renderTargetDesc.Height, 1, D3DUSAGE_RENDERTARGET, renderTargetDesc.Format, D3DPOOL_DEFAULT, &outlinesRTSamplingTexture, NULL))) {
+	errorCode = device->CreateTexture(renderTargetDesc.Width, renderTargetDesc.Height, 1, D3DUSAGE_RENDERTARGET, renderTargetDesc.Format,
+		D3DPOOL_DEFAULT, &outlinesRTSamplingTexture, NULL);
+	if (FAILED(errorCode)) {
 		logwrap(fputs("CreateTexture (3) failed\n", logfile));
 		failedToCreateOutlinesRTSamplingTexture = true;
+		sprintf_s(msg, "Failed to create texture: 0x%x", errorCode);
+		failedToCreateOutlinesRTSamplingTextureReason = msg;
 		return nullptr;
 	}
-	logwrap(fprintf(logfile, "Initialized packed frames texture successfully. Width: %u; Height: %u.\n", renderTargetDesc.Width, renderTargetDesc.Height));
+	logwrap(fprintf(logfile, "Initialized sampling texture for outlines successfully. Width: %u; Height: %u.\n", renderTargetDesc.Width, renderTargetDesc.Height));
 	return outlinesRTSamplingTexture;
 }
 
-void Graphics::compilePixelShader() {
+bool Graphics::compilePixelShader(std::string& errorMsg) {
 	
-	if (failedToCompilePixelShader || !pixelShaderCode.empty()) return;
-	failedToCompilePixelShader = true; return;
+	if (failedToCompilePixelShader) {
+		errorMsg = lastCompilationFailureReason;
+		return false;
+	}
+	
+	if (!usePixelShader) {
+		lastCompilationFailureReason = "Pixel shader disabled via settings.";
+		errorMsg = lastCompilationFailureReason;
+		failedToCompilePixelShader = true;
+		return false;
+	}
+	
+	 if (!pixelShaderCode.empty()) return true;
 	
 	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
 	if (!resourceInfoHandle) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "FindResource failed: %ls\n", winErr.getMessage()));
+		errorMsg = "Failed to find the pixel shader in this mod's resources: ";
+		errorMsg += winErr.getMessageA();
+		lastCompilationFailureReason = errorMsg;
 		failedToCompilePixelShader = true;
-		return;
+		return false;
 	}
 	HGLOBAL resourceHandle = LoadResource(hInstance, resourceInfoHandle);
 	if (!resourceHandle) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "LoadResource failed: %ls\n", winErr.getMessage()));
+		errorMsg = "Failed to load the pixel shader from this mod's resources: ";
+		errorMsg += winErr.getMessageA();
+		lastCompilationFailureReason = errorMsg;
 		failedToCompilePixelShader = true;
-		return;
+		return false;
 	}
 	LPVOID pixelShaderTxtData = LockResource(resourceHandle);
 	if (!pixelShaderTxtData) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "LockResource failed: %ls\n", winErr.getMessage()));
+		errorMsg = "Failed to lock the pixel shader in this mod's resources: ";
+		errorMsg += winErr.getMessageA();
+		lastCompilationFailureReason = errorMsg;
 		failedToCompilePixelShader = true;
-		return;
+		return false;
 	}
 	DWORD txtSize = SizeofResource(hInstance, resourceInfoHandle);
 	if (!txtSize) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "SizeofResource failed: %ls\n", winErr.getMessage()));
+		errorMsg = "Failed to get the size of the pixel shader in this mod's resources: ";
+		errorMsg += winErr.getMessageA();
+		lastCompilationFailureReason = errorMsg;
 		failedToCompilePixelShader = true;
-		return;
+		return false;
+	}
+	
+	if (!d3dCompiler47 && !d3dCompiler47LoadFailed) {
+		// added in hopes it would fix the pixel shader on AMD cards.
+		// There the shader compiles, but doesn't draw any outlines. And if you just don't use the pixel shader, the outlines draw fine.
+		d3dCompiler47 = GetModuleHandleA("D3DCompiler_47.dll");
+		if (!d3dCompiler47) {
+			d3dCompiler47 = LoadLibraryA("D3DCompiler_47.dll");
+		}
+		if (!d3dCompiler47) {
+			d3dCompiler47LoadFailed = true;
+		} else {
+			d3dCompile47 = GetProcAddress(d3dCompiler47, "D3DCompile");
+		}
 	}
 	
 	CComPtr<ID3DBlob> code;
 	CComPtr<ID3DBlob> errorMsgs;
-	if (FAILED(D3DCompile(
-		  pixelShaderTxtData,
-		  txtSize,
-		  "MyPixelShader",
-		  NULL,
-		  NULL,
-		  "main",
-		  "ps_3_0",
-		  D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY,
-		  NULL,
-		  &code,
-		  &errorMsgs
-		))) {
+	
+	HRESULT compilationResult;
+	
+	// function signature from d3dcompiler.h
+	using d3dCompile_t = HRESULT (WINAPI *) (_In_reads_bytes_(SrcDataSize) LPCVOID pSrcData,
+	           _In_ SIZE_T SrcDataSize,
+	           _In_opt_ LPCSTR pSourceName,
+	           _In_reads_opt_(_Inexpressible_(pDefines->Name != NULL)) CONST D3D_SHADER_MACRO* pDefines,
+	           _In_opt_ ID3DInclude* pInclude,
+	           _In_opt_ LPCSTR pEntrypoint,
+	           _In_ LPCSTR pTarget,
+	           _In_ UINT Flags1,
+	           _In_ UINT Flags2,
+	           _Out_ ID3DBlob** ppCode,
+	           _Always_(_Outptr_opt_result_maybenull_) ID3DBlob** ppErrorMsgs);
+	
+	d3dCompile_t compileFunc = nullptr;
+	
+	if (d3dCompile47) {
+		compileFunc = (d3dCompile_t)d3dCompile47;
+	} else {
+		compileFunc = D3DCompile;
+	}
+	compilationResult = (*compileFunc)(
+	  pixelShaderTxtData,
+	  txtSize,
+	  "MyPixelShader",
+	  NULL,
+	  NULL,
+	  "main",
+	  "ps_3_0",
+	  // removing D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY flag in hopes of getting the shader to at least draw something on AMD
+	  //D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY,
+	  D3DCOMPILE_WARNINGS_ARE_ERRORS,
+	  NULL,
+	  &code,
+	  &errorMsgs
+	);
+	
+	if (FAILED(compilationResult)) {
 		if (!errorMsgs) {
-			logwrap(fprintf(logfile, "D3DCompile failed\n"));
+			errorMsg = "D3DCompile failed";
 		} else {
+			errorMsg = "D3DCompile failed: ";
 			shaderCompilationError = std::string((const char*)errorMsgs->GetBufferPointer(), (size_t)errorMsgs->GetBufferSize());
-			logwrap(fprintf(logfile, "D3DCompile failed: %s\n", shaderCompilationError.c_str()));
+			errorMsg += shaderCompilationError;
 		}
+		logwrap(fprintf(logfile, "%s\n", errorMsg.c_str()));
+		lastCompilationFailureReason = errorMsg;
 		failedToCompilePixelShader = true;
-		return;
+		return false;
 	}
 	
 	SIZE_T shaderSize = code->GetBufferSize();
@@ -2386,6 +2502,7 @@ void Graphics::compilePixelShader() {
 	
 	pixelShaderCode.resize(shaderSize);
 	memcpy(pixelShaderCode.data(), codeData, pixelShaderCode.size());
+	return true;
 }
 
 void Graphics::getShaderCompilationError(const std::string** result) {
@@ -2394,15 +2511,18 @@ void Graphics::getShaderCompilationError(const std::string** result) {
 	*result = &shaderCompilationError;
 }
 
-IDirect3DPixelShader9* Graphics::getPixelShader(IDirect3DDevice9* device) {
-	if (failedToCreatePixelShader) return nullptr;
+IDirect3DPixelShader9* Graphics::getPixelShader(IDirect3DDevice9* device, std::string& errorMsg) {
+	if (failedToCreatePixelShader || !usePixelShader) return nullptr;
 	if (pixelShader) return pixelShader;
 	if (pixelShaderCode.empty()) {
-		failedToCreatePixelShader = true;
+		errorMsg = "The compiled shader code is empty.";
 		return nullptr;
 	}
-	if (FAILED(device->CreatePixelShader((const DWORD*)pixelShaderCode.data(), &pixelShader))) {
-		failedToCreatePixelShader = true;
+	HRESULT errorCode = device->CreatePixelShader((const DWORD*)pixelShaderCode.data(), &pixelShader);
+	if (FAILED(errorCode)) {
+		char msg[100];
+		sprintf_s(msg, "Failed to create pixel shader in Direct 3D: 0x%x", errorCode);
+		errorMsg = msg;
 		logwrap(fprintf(logfile, "CreatePixelShader failed\n"));
 		return nullptr;
 	}
@@ -2411,43 +2531,92 @@ IDirect3DPixelShader9* Graphics::getPixelShader(IDirect3DDevice9* device) {
 
 void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 	
-	IDirect3DTexture9* tex = getOutlinesRTSamplingTexture(device);
-	if (!tex) return;
+	if (failedToCreatePixelShader || !usePixelShader) return;
 	
+	IDirect3DTexture9* tex = getOutlinesRTSamplingTexture(device);
+	if (!tex) {
+		std::string newReason = "Failed to create sampling texture: ";
+		newReason += failedToCreateOutlinesRTSamplingTextureReason;
+		setFailedToCreatePixelShaderReason(newReason.c_str());
+		failedToCreatePixelShader = true;
+		return;
+	}
+	
+	std::string newReason;
 	if (!preparedPixelShaderOnThisFrame) {
+		preparedPixelShaderOnThisFrame = true;
 		CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();
-		if (FAILED(device->GetRenderTarget(0, &renderTarget))) {
+		HRESULT errorCode;
+		char msg[110];
+		errorCode = device->GetRenderTarget(0, &renderTarget);
+		if (FAILED(errorCode)) {
 			logwrap(fputs("GetRenderTarget failed\n", logfile));
+			sprintf_s(msg, "Failed to get render target: 0x%x", errorCode);
+			setFailedToCreatePixelShaderReason(msg);
+			failedToCreatePixelShader = true;
 			return;
 		}
 		CComPtr<IDirect3DSurface9> surfaceLevel;
-		if (FAILED(tex->GetSurfaceLevel(0, &surfaceLevel))) {
+		errorCode = tex->GetSurfaceLevel(0, &surfaceLevel);
+		if (FAILED(errorCode)) {
 			logwrap(fputs("GetSurfaceLevel failed\n", logfile));
+			sprintf_s(msg, "Failed to get surface level 0 of texture target: 0x%x", errorCode);
+			setFailedToCreatePixelShaderReason(msg);
+			failedToCreatePixelShader = true;
 			return;
 		}
-		if (FAILED(device->StretchRect(renderTarget, NULL, surfaceLevel, NULL, D3DTEXF_NONE))) {
+		errorCode = device->StretchRect(renderTarget, NULL, surfaceLevel, NULL, D3DTEXF_NONE);
+		if (FAILED(errorCode)) {
 			logwrap(fputs("StretchRect failed\n", logfile));
+			sprintf_s(msg, "Failed to stretch rect from the render target to the surface level 0 of texture: 0x%x", errorCode);
+			setFailedToCreatePixelShaderReason(msg);
+			failedToCreatePixelShader = true;
 			return;
 		}
 		
 		D3DSURFACE_DESC renderTargetDesc;
 		SecureZeroMemory(&renderTargetDesc, sizeof(renderTargetDesc));
-		if (FAILED(renderTarget->GetDesc(&renderTargetDesc))) {
+		errorCode = renderTarget->GetDesc(&renderTargetDesc);
+		if (FAILED(errorCode)) {
 			logwrap(fputs("GetDesc failed\n", logfile));
+			sprintf_s(msg, "Failed to get desc of render target: 0x%x", errorCode);
+			setFailedToCreatePixelShaderReason(msg);
+			failedToCreatePixelShader = true;
 			return;
 		}
 		screenSizeConstant[0] = (float)renderTargetDesc.Width;
 		screenSizeConstant[1] = (float)renderTargetDesc.Height;
 		
-		compilePixelShader();
+		std::string compilationError;
+		if (!compilePixelShader(compilationError)) {
+			newReason = "Failed to compile pixel shader: ";
+			newReason += compilationError;
+			setFailedToCreatePixelShaderReason(newReason.c_str());
+			failedToCreatePixelShader = true;
+			return;
+		}
 	}
-	IDirect3DPixelShader9* shader = getPixelShader(device);
-	if (!shader) return;
+	std::string getPixelShaderError;
+	IDirect3DPixelShader9* shader = getPixelShader(device, getPixelShaderError);
+	if (!shader) {
+		newReason = "Failed to get pixel shader: ";
+		newReason += getPixelShaderError;
+		setFailedToCreatePixelShaderReason(newReason.c_str());
+		failedToCreatePixelShader = true;
+		return;
+	}
 	
 	device->SetPixelShader(shader);
 	device->SetTexture(0, tex);
 	device->SetPixelShaderConstantF(0, screenSizeConstant, 1);
-	preparedPixelShaderOnThisFrame = true;
+	
+	if (!testPixelShader(device)) {
+		setFailedToCreatePixelShaderReason("The shader causes outlines to not be drawn at all.");
+		failedToCreatePixelShader = true;
+		device->SetPixelShader(nullptr);
+		device->SetTexture(0, nullptr);
+	}
+	
 }
 
 void Graphics::heartbeat(IDirect3DDevice9* device) {
@@ -3305,4 +3474,75 @@ void Graphics::fillInScreenSize(IDirect3DDevice9* device) {
 	ui.usePresentRect = *usePresentRectPtr != 0;
 	ui.presentRectW = *presentRectWPtr;
 	ui.presentRectH = *presentRectHPtr;
+}
+
+bool Graphics::testPixelShader(IDirect3DDevice9* device) {
+	
+	if (testedPixelShader) return lastPixelShaderTestResult;
+	lastPixelShaderTestResult = false;
+	testedPixelShader = true;
+	
+	CComPtr<IDirect3DSurface9> whateverOldRenderTarget;
+	if (!setAltRenderTarget(device, whateverOldRenderTarget)) {
+		logwrap(fputs("Failed to set alternative render target during pixel shader test", logfile));
+		return false;
+	}
+	
+	struct Cleanup {
+	public:
+		~Cleanup() {
+			device->SetRenderTarget(0, oldRenderTarget);
+			oldRenderTarget = nullptr;
+		    device->SetTransform(D3DTS_WORLD, &preTestWorld);
+		    device->SetTransform(D3DTS_VIEW, &preTestView);
+		    device->SetTransform(D3DTS_PROJECTION, &preTestProjection);
+		}
+		IDirect3DDevice9* device = nullptr;
+		CComPtr<IDirect3DSurface9>& oldRenderTarget;
+		D3DMATRIX preTestWorld;
+		D3DMATRIX preTestView;
+		D3DMATRIX preTestProjection;
+	} cleanup { device, whateverOldRenderTarget };
+	
+	device->GetTransform(D3DTS_WORLD, &cleanup.preTestWorld);
+	device->GetTransform(D3DTS_VIEW, &cleanup.preTestView);
+	device->GetTransform(D3DTS_PROJECTION, &cleanup.preTestProjection);
+	
+	setTransformMatricesPlain2DPart(device);
+	
+	if (FAILED(device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 0), 1.F, 0))) {
+		logwrap(fputs("Clear failed on alt render target during pixel shader test", logfile));
+		return false;
+	}
+	
+	Vertex vertices[] {
+		{ -1.F, -1.F, 0.F, 0xFFFFFFFF },
+		{ 50.F, -1.F, 0.F, 0xFFFFFFFF },
+		{ -1.F, 50.F, 0.F, 0xFFFFFFFF }
+	};
+	
+	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 1, vertices, sizeof Vertex);
+	
+	std::vector<unsigned char> gameImage;
+	RECT rect;
+	rect.left = 0;
+	rect.top = 0;
+	rect.right = 1;
+	rect.bottom = 1;
+	if (!getFramebufferData(device, gameImage, nullptr, nullptr, nullptr, nullptr, &rect)) {
+		logwrap(fputs("Failed to get render target data during pixel shader test", logfile));
+		return false;
+	}
+	
+	lastPixelShaderTestResult = gameImage.size() == 4 && gameImage[0] == 0xFF && gameImage[1] == 0xFF && gameImage[2] == 0xFF;
+	return lastPixelShaderTestResult;
+}
+
+void Graphics::setFailedToCreatePixelShaderReason(const char* txt) {
+	std::unique_lock<std::mutex> guard(failedToCreatePixelShaderReasonMutex);
+	failedToCreatePixelShaderReason = txt;
+}
+std::string Graphics::getFailedToCreatePixelShaderReason() {
+	std::unique_lock<std::mutex> guard(failedToCreatePixelShaderReasonMutex);
+	return failedToCreatePixelShaderReason;
 }

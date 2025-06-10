@@ -118,7 +118,7 @@ bool Settings::onDllMain() {
 		reverseKeys.insert({it->second.code, &it->second});
 	}
 	
-	insertKeyComboToParse("gifModeToggle", "GIF Mode Toggle", &gifModeToggle, "F1",
+	insertKeyComboToParse("gifModeToggle", "GIF Mode Toggle", &gifModeToggle, "",
 		"; A keyboard shortcut to toggle GIF mode.\n"
 		"; GIF mode is:\n"
 		"; 1) Background becomes black\n"
@@ -126,18 +126,18 @@ bool Settings::onDllMain() {
 		"; 3) Opponent is invisible and invulnerable\n"
 		"; 4) Hide HUD (interface)\n"
 		"; GIF Mode can also be toggled using 'UI - Hitboxes - GIF Mode'.");
-	insertKeyComboToParse("noGravityToggle", "No Gravity Toggle", &noGravityToggle, "F2",
+	insertKeyComboToParse("noGravityToggle", "No Gravity Toggle", &noGravityToggle, "",
 		"; A keyboard shortcut to toggle No gravity mode\n"
 		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - No Gravity' checkbox.\n"
 		"; No gravity mode is you can't fall basically");
-	insertKeyComboToParse("freezeGameToggle", "Freeze Game Toggle", &freezeGameToggle, "F3",
+	insertKeyComboToParse("freezeGameToggle", "Freeze Game Toggle", &freezeGameToggle, "",
 		"; A keyboard shortcut to freeze the game\n"
 		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Freeze Game' checkbox.\n");
-	insertKeyComboToParse("slowmoGameToggle", "Slow-mo Game Toggle", &slowmoGameToggle, "F4",
+	insertKeyComboToParse("slowmoGameToggle", "Slow-mo Game Toggle", &slowmoGameToggle, "",
 		"; A keyboard shortcut to play the game in slow motion.\n"
 		"; Please specify by how many times to slow the game down in \"slowmoTimes\".\n"
 		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Slow-Mo Mode' checkbox.\n");
-	insertKeyComboToParse("allowNextFrameKeyCombo", "Allow Next Frame", &allowNextFrameKeyCombo, "F5",
+	insertKeyComboToParse("allowNextFrameKeyCombo", "Allow Next Frame", &allowNextFrameKeyCombo, "",
 		"; A keyboard shortcut. Only works while the game is frozen using \"freezeGameToggle\".\n"
 		"; Advances the game forward one frame.\n"
 		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Next Frame' button.\n");
@@ -147,7 +147,7 @@ bool Settings::onDllMain() {
 		"; A keyboard shortcut to enable/disable only the mod hitbox drawing feature:\n"
 		"; the GIF mode and no gravity, etc will keep working.\n"
 		"; In the UI, this mode can also be toggled using \"dontShowBoxes\" checkbox.\n");
-	insertKeyComboToParse("screenshotBtn", "Take Screenshot", &screenshotBtn, "F8", "; A keyboard shortcut.\n"
+	insertKeyComboToParse("screenshotBtn", "Take Screenshot", &screenshotBtn, "", "; A keyboard shortcut.\n"
 		"; Takes a screenshot and saves it at \"screenshotPath\" path\n"
 		"; To take screenshots over a transparent background you need to go to the game's\n"
 		"; Display Settings and turn off Post-Effect (or use \"togglePostEffectOnOff\" and\n"
@@ -358,10 +358,12 @@ bool Settings::onDllMain() {
 	registerOtherDescription(settingAndItsName(usePixelShader), "Use Pixel Shader", settingsHitboxSettingsStr,
 			"; IF YOU USE AMD CARD, SET THIS TO FALSE!!!\n"
 			"; Specify true or false.\n"
-			"; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of the outline to\n"
-			"; black only on those pixels.\n"
-			"; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default) color orb, which are\n"
-			"; both red.\n");
+			"; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of\n"
+			"; the outline to black only on those pixels.\n"
+			"; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default)\n"
+			"; color orb, which are both red.\n"
+			"; Pixel shader was observed to not draw any outlines on an AMD card. Please turn this off if you use AMD to\n"
+			"; allow outlines to at least be drawn somehow, without color-dodging.");
 	registerOtherDescription(settingAndItsName(dontShowBoxes), "Don't Show Boxes", hitboxesStr,
 			"; Specify true or false.\n"
 			"; Setting this to true will hide all hurtboxes, hitboxes, pushboxes and other boxes and points.\n"
@@ -610,7 +612,9 @@ bool Settings::onDllMain() {
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
 			"; which center the camera on either you or the opponent, the camera is angled downwards slightly, and this camera angle is called \"pitch\".\n"
 			"; It may cause lines of hitboxes to not be displayed entirely parallel to the sides of the screen.\n"
-			"; By setting this to true you can force the camera to look straight forward.");
+			"; By setting this to true you can force the camera to look straight forward.\n"
+			"; All original hitbox screenshots on dustloop were taken with a slightly angled pitch, so setting this to true\n"
+			"; would produce screenshots different from those of dustloop's.");
 	registerOtherDescription(settingAndItsName(cameraCenterOffsetX), "Camera Centering - X Offset", settingsHitboxSettingsStr,
 			"; Specify a floating point value where '.' is the delimiter, like so: 0.0\n"
 			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
@@ -697,6 +701,20 @@ bool Settings::onDllMain() {
 		"; Specify true if you want the input history to be cleared when positions are reset in\n"
 		"; training mode only.\n"
 		"; You can also use a hotkey to clear history manually, specified in \"clearInputHistory\".");
+	
+	registerOtherDescription(settingAndItsName(hideWins), "Hide Wins - On/Off", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Prevents wins from being displayed on the online rematch screen.\n"
+		"; Works both when you're playing a match or observing.");
+	registerOtherDescription(settingAndItsName(hideWinsDirectParticipantOnly), "Hide Wins - Only When Playing - On/Off", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Prevents wins from being displayed on the online rematch screen.\n"
+		"; Only works when you're playing a match, not when observing.");
+	registerOtherDescription(settingAndItsName(hideWinsExceptOnWins), "Hide Wins - Except When N Wins Reached", settingsGeneralSettingsStr,
+		"; A number.\n"
+		"; Prevents wins from being hidden by the \"hideWins\" and \"hideWinsDirectParticipantOnly\" settings,\n"
+		"; when one of the players reaches the specified number of wins. Set to 0 or a negative number to disable.");
+	
 	#undef settingAndItsName
 	
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));
@@ -878,6 +896,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	bool useSimplePixelBlenderParsed = false;
 	
+	bool usePixelShaderParsed = false;
+	
 	bool dontShowBoxesParsed = false;
 	
 	bool neverDisplayGrayHurtboxesParsed = false;
@@ -987,6 +1007,15 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool comboRecipe_showWalksParsed = false;
 	bool comboRecipe_showSuperJumpInstallsParsed = false;
 	bool comboRecipe_transparentBackgroundParsed = false;
+	
+	bool startingTensionPulseParsed = false;
+	
+	bool clearInputHistoryOnStageResetParsed = false;
+	bool clearInputHistoryOnStageResetInTrainingModeParsed = false;
+	
+	bool hideWinsParsed = false;
+	bool hideWinsDirectParticipantOnlyParsed = false;
+	bool hideWinsExceptOnWinsParsed = false;
 
 	std::string accum;
 	char buf[128];
@@ -1048,6 +1077,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						integerPreset(framebarStoredFramesCount)
 						integerPreset(positionResetDistBetweenPlayers)
 						integerPreset(positionResetDistFromCorner)
+						integerPreset(startingTensionPulse)
+						integerPreset(hideWinsExceptOnWins)
 						case offsetof(Settings, cameraCenterOffsetX):
 							if (!cameraCenterOffsetXParsed) {
 								cameraCenterOffsetXParsed = parseFloat("cameraCenterOffsetX", keyValue, cameraCenterOffsetX);
@@ -1078,6 +1109,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(considerKnockdownWakeupAndAirtechIdle)
 						booleanPreset(considerIdleInvulIdle)
 						booleanPreset(useSimplePixelBlender)
+						booleanPreset(usePixelShader)
 						booleanPreset(dontShowBoxes)
 						booleanPreset(neverDisplayGrayHurtboxes)
 						booleanPreset(showFramebar)
@@ -1146,6 +1178,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(comboRecipe_showWalks)
 						booleanPreset(comboRecipe_showSuperJumpInstalls)
 						booleanPreset(comboRecipe_transparentBackground)
+						booleanPreset(clearInputHistoryOnStageReset)
+						booleanPreset(clearInputHistoryOnStageResetInTrainingMode)
+						booleanPreset(hideWins)
+						booleanPreset(hideWinsDirectParticipantOnly)
 						#undef booleanPreset
 						#undef integerPreset
 					}
@@ -1256,6 +1292,10 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!useSimplePixelBlenderParsed) {
 		useSimplePixelBlender = false;
+	}
+	
+	if (!usePixelShaderParsed) {
+		usePixelShader = true;
 	}
 	
 	if (!dontShowBoxesParsed) {
@@ -1496,6 +1536,30 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	
 	if (!comboRecipe_transparentBackgroundParsed) {
 		comboRecipe_transparentBackground = false;
+	}
+	
+	if (!clearInputHistoryOnStageResetParsed) {
+		clearInputHistoryOnStageReset = false;
+	}
+	
+	if (!clearInputHistoryOnStageResetInTrainingModeParsed) {
+		clearInputHistoryOnStageResetInTrainingMode = false;
+	}
+	
+	if (!startingTensionPulseParsed) {
+		startingTensionPulse = 0;
+	}
+	
+	if (!hideWinsParsed) {
+		hideWins = false;
+	}
+	
+	if (!hideWinsDirectParticipantOnlyParsed) {
+		hideWinsDirectParticipantOnly = false;
+	}
+	
+	if (!hideWinsExceptOnWinsParsed) {
+		hideWinsExceptOnWins = 0;
 	}
 	
 	if (firstSettingsParse) {
@@ -2062,6 +2126,7 @@ void Settings::writeSettingsMain() {
 	booleanPreset(showJackoServantAttackRange)
 	booleanPreset(forceZeroPitchDuringCameraCentering)
 	booleanPreset(useSimplePixelBlender)
+	booleanPreset(usePixelShader)
 	booleanPreset(modWindowVisibleOnStart)
 	booleanPreset(closingModWindowAlsoHidesFramebar)
 	booleanPreset(dontShowMoveName)
@@ -2074,6 +2139,8 @@ void Settings::writeSettingsMain() {
 	booleanPreset(comboRecipe_showWalks)
 	booleanPreset(comboRecipe_showSuperJumpInstalls)
 	booleanPreset(comboRecipe_transparentBackground)
+	booleanPreset(clearInputHistoryOnStageReset)
+	booleanPreset(clearInputHistoryOnStageResetInTrainingMode)
 	booleanPreset(neverDisplayGrayHurtboxes)
 	booleanPreset(dontShowBoxes)
 	booleanPreset(displayUIOnTopOfPauseMenu)
@@ -2102,6 +2169,7 @@ void Settings::writeSettingsMain() {
 	integerPreset(framebarStoredFramesCount)
 	integerPreset(positionResetDistBetweenPlayers)
 	integerPreset(positionResetDistFromCorner)
+	integerPreset(startingTensionPulse)
 	booleanPreset(neverIgnoreHitstop)
 	booleanPreset(ignoreHitstopForBlockingBaiken)
 	booleanPreset(considerRunAndWalkNonIdle)
@@ -2114,6 +2182,9 @@ void Settings::writeSettingsMain() {
 	replaceOrAddSetting("cameraCenterOffsetY", formatFloat(cameraCenterOffsetY).c_str(), getOtherINIDescription(&cameraCenterOffsetY));
 	replaceOrAddSetting("cameraCenterOffsetY_WhenForcePitch0", formatFloat(cameraCenterOffsetY_WhenForcePitch0).c_str(), getOtherINIDescription(&cameraCenterOffsetY_WhenForcePitch0));
 	replaceOrAddSetting("cameraCenterOffsetZ", formatFloat(cameraCenterOffsetZ).c_str(), getOtherINIDescription(&cameraCenterOffsetZ));
+	booleanPreset(hideWins)
+	booleanPreset(hideWinsDirectParticipantOnly)
+	integerPreset(hideWinsExceptOnWins)
 	#undef booleanPreset
 	#undef integerPreset
 	

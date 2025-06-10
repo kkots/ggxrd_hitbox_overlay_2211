@@ -114,6 +114,7 @@ struct DizzyInfo {
 struct KyInfo {
 	bool stunEdgeWillDisappearOnHit;
 	bool hasChargedStunEdge;
+	bool hasSPChargedStunEdge;
 };
 
 struct GatlingOrWhiffCancelInfo {

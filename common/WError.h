@@ -4,6 +4,7 @@
 class WinError {
 public:
 	LPWSTR message = NULL;
+	LPSTR messageA = NULL;
 	DWORD code = 0;
 	WinError();
 	void moveFrom(WinError& src) noexcept;
@@ -11,6 +12,7 @@ public:
 	WinError(const WinError& src);
 	WinError(WinError&& src) noexcept;
 	LPCWSTR getMessage();
+	LPCSTR getMessageA();
 	void clear();
 	~WinError();
 	WinError& operator=(const WinError& src);

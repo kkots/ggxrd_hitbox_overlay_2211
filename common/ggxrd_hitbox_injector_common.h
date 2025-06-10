@@ -1,16 +1,6 @@
 #include "pch.h"
 #include <vector>
 
-void scramble(std::vector<char>& vec, unsigned long long key);
-
-template<size_t size>
-inline const char* unscramble(std::vector<char>& vec, const char(&txt)[size], ULONGLONG key) {
-	vec.resize(size - 1);
-	memcpy(vec.data(), txt, size - 1);
-	scramble(vec, key);
-	return vec.data();
-}
-
 #if defined( _WIN64 )  // this check wasn't added because there're problems otherwise. I added it simply because we do not need these functions in 32-bit release
 /// <summary>
 /// Finds the address which holds a pointer to a function with the given name imported from the given DLL,

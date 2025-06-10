@@ -15,6 +15,7 @@
 #include "DrawData.h"
 #include "CharInfo.h"
 #include "HandleWrapper.h"
+#include <mutex>
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
@@ -74,9 +75,14 @@ public:
 	bool obsReappeared = false;
 	bool onlyDrawInputHistory = false;
 	bool inputHistoryIsSplitOut = false;  // if true, inputs must only be drawn using a dedicated FRenderCommand and nowhere else
-	bool usePixelShader = true;
 	static int getSin(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
 	static int getCos(int degrees);  // degrees - angle in degrees multiplied by 10 (for ex. 0-3600). Returns result from -1000 to 1000
+	bool failedToCreatePixelShader = false;
+	std::mutex failedToCreatePixelShaderReasonMutex;
+	std::string failedToCreatePixelShaderReason;
+	void setFailedToCreatePixelShaderReason(const char* txt);
+	std::string getFailedToCreatePixelShaderReason();
+	std::string failedToCreateOutlinesRTSamplingTextureReason;
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -144,7 +150,7 @@ private:
 	void prepareSmallPoint(const DrawPointCallParams& params);
 
 	bool worldToScreen(const D3DXVECTOR3& vec, D3DXVECTOR3* out);
-	bool takeScreenshotBegin(IDirect3DDevice9* device);
+	bool setAltRenderTarget(IDirect3DDevice9* device, CComPtr<IDirect3DSurface9>& whateverOldRenderTarget);
 	void takeScreenshotDebug(IDirect3DDevice9* device, const wchar_t* filename);
 	void takeScreenshotEnd(IDirect3DDevice9* device);
 	bool getFramebufferData(IDirect3DDevice9* device,
@@ -152,9 +158,9 @@ private:
 		IDirect3DSurface9* renderTarget = nullptr,
 		D3DSURFACE_DESC* renderTargetDescPtr = nullptr,
 		unsigned int* widthPtr = nullptr,
-		unsigned int* heightPtr = nullptr);
+		unsigned int* heightPtr = nullptr,
+		const RECT* rect = nullptr);
 	void takeScreenshotSimple(IDirect3DDevice9* device);
-	CComPtr<IDirect3DSurface9> whateverOldRenderTarget = nullptr;  // just to put it back after we're done, we don't know what this is, it might be some weird smaller sized render target
 	
 	enum RenderStateDrawingWhat {
 		RENDER_STATE_DRAWING_NOTHING,
@@ -258,15 +264,15 @@ private:
 	bool failedToCreateOutlinesRTSamplingTexture = false;
 	
 	HMODULE hInstance = NULL;
-	void compilePixelShader();
+	bool compilePixelShader(std::string& errorMsg);
 	bool failedToCompilePixelShader = false;
+	std::string lastCompilationFailureReason;
 	std::vector<char> pixelShaderCode;
 	
 	std::string shaderCompilationError;
 	
-	bool failedToCreatePixelShader = false;
 	CComPtr<IDirect3DPixelShader9> pixelShader;
-	IDirect3DPixelShader9* getPixelShader(IDirect3DDevice9* device);
+	IDirect3DPixelShader9* getPixelShader(IDirect3DDevice9* device, std::string& errorMsg);
 	
 	void preparePixelShader(IDirect3DDevice9* device);
 	
@@ -289,6 +295,7 @@ private:
 	D3DMATRIX prevProjection;
 	void setTransformMatrices3DProjection(IDirect3DDevice9* device);
 	void setTransformMatricesPlain2D(IDirect3DDevice9* device);
+	void setTransformMatricesPlain2DPart(IDirect3DDevice9* device);
 	float viewportW = 0.F;
 	float viewportH = 0.F;
 	#define RenderStateType(name) RENDER_STATE_TYPE_##name
@@ -501,6 +508,15 @@ private:
 	BOOL* usePresentRectPtr = nullptr;
 	int* presentRectWPtr = nullptr;
 	int* presentRectHPtr = nullptr;
+	
+	HMODULE d3dCompiler47 = NULL;
+	bool d3dCompiler47LoadFailed = false;
+	FARPROC d3dCompile47 = nullptr;
+	void freeD3DCompiler();
+	bool usePixelShader = false;
+	bool testPixelShader(IDirect3DDevice9* device);
+	bool testedPixelShader = false;
+	bool lastPixelShaderTestResult = false;
 	
 };
 

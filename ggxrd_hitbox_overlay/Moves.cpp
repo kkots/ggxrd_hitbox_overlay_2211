@@ -1613,13 +1613,13 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "KudakeroEF", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 3;
-	move.framebarName = "Break";
+	move.framebarName = "Break Explosion";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "KudakeroEF_DI", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 3;
-	move.framebarName = "Break";
+	move.framebarName = "Break Explosion";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "RiotStamp_DI_Bomb", true);

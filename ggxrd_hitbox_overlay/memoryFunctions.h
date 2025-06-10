@@ -53,10 +53,10 @@ uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<
 uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname);
 
 uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr);
-uintptr_t followRelativeCall(uintptr_t relativeCallAddr);
+uintptr_t followRelativeCall(uintptr_t callInstructionAddr);
 uintptr_t followSinglyByteJump(uintptr_t jumpInstrAddr);
 
-int calculateRelativeCallOffset(uintptr_t relativeCallAddr, uintptr_t destinationAddr);
+int calculateRelativeCallOffset(uintptr_t callInstructionAddr, uintptr_t destinationAddr);
 
 char* findWildcard(char* mask, unsigned int indexOfWildcard = 0);
 

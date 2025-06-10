@@ -94,6 +94,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -140,6 +141,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -179,6 +181,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\common\ConsoleEmulator.h" />
+    <ClInclude Include="..\common\const_obfuscate.h" />
     <ClInclude Include="..\common\ggxrd_hitbox_injector_common.h" />
     <ClInclude Include="..\common\InjectorCommonOut.h" />
     <ClInclude Include="..\common\WinError.h" />

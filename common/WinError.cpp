@@ -8,8 +8,10 @@ WinError::WinError() {
 }
 void WinError::moveFrom(WinError& src) noexcept {
 	message = src.message;
+	messageA = src.messageA;
 	code = src.code;
 	src.message = NULL;
+	src.messageA = NULL;
 	src.code = 0;
 }
 void WinError::copyFrom(const WinError& src) {
@@ -20,8 +22,12 @@ void WinError::copyFrom(const WinError& src) {
 		if (message) {
 			memcpy(message, src.message, (len + 1) * sizeof(wchar_t));
 		}
-		else {
-			return;
+	}
+	if (src.messageA) {
+		size_t len = strlen(src.messageA);
+		messageA = (LPSTR)LocalAlloc(0, len + 1);
+		if (messageA) {
+			memcpy(messageA, src.messageA, len + 1);
 		}
 	}
 }
@@ -47,10 +53,23 @@ LPCWSTR WinError::getMessage() {
 	
 	return message;
 }
+LPCSTR WinError::getMessageA() {
+	LPCWSTR wideMsg = getMessage();
+	int messageASize = (int)wcslen(wideMsg) * 4 + 1;
+	messageA = (LPSTR)LocalAlloc(0, messageASize);
+	if (messageA && WideCharToMultiByte(CP_UTF8, NULL, wideMsg, -1, messageA, messageASize, NULL, NULL)) {
+		return messageA;
+	}
+	return "";
+}
 void WinError::clear() {
 	if (message) {
 		LocalFree(message);
 		message = NULL;
+	}
+	if (messageA) {
+		LocalFree(messageA);
+		messageA = NULL;
 	}
 }
 WinError::~WinError() {

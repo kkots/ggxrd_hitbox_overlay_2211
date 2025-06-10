@@ -11,6 +11,7 @@ Also can screenshot the game with transparency enabled/disabled (made with help 
 Also contains position reset mod (see [Position Reset Mod](#position-reset-mod) section).  
 Also contains input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches, and it can display durations of each input in the input history.  
 Also it can hide the main Enter key or numpad Enter key presses from the game, or both (in General Settings).  
+Also it can hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod) section).  
 The mod hides its output from OBS recording, and this can be turned off in 'UI - Settings - General Settings - Dodge OBS Recording' or by going to OBS and checking the 'Capture third-party overlays (such as steam)' checkbox.
 
 ## Credits
@@ -215,39 +216,11 @@ If a move has a throw box as well as hitbox - both the hitbox and the throw boxe
 
 Answer's and I-No's air command grabs cannot grab behind them.
 
-## Default Hotkeys
-
 ### Frame-by-frame animation playback
 
-You can force the game to play one frame at a time (in training mode only). Read on in [F3 - Freeze game](#f3---freeze-game) section and sections after that.
+You can force the game to play one frame at a time (in training mode only). You can either use the 'Mod UI - Hitboxes - Freeze Game' checkbox to pause/resume the game and 'Next Frame' button to advance to the next frame, or you can set up hotkeys for those buttons, as described in [Hotkey configuration](#hotkey-configuration).
 
-### F1 - GIF mode
-
-In training mode (only) you can press F1 to enter "GIF mode", which makes the background black, centers the camera on you, hides all of the HUD and makes opponent invisible and unhittable.  
-Press the key again to turn off the mode.  
-GIF mode can be broken down into separate toggles for each of its functionalities.  
-Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
-
-### F2 - No gravity mode
-
-In training mode (only) you can press F2 to enter "No gravity mode" which makes your vertical speed always 0, i.e. you become unable to fall. This may be useful for screenshotting some air moves.  
-Press the key again to turn off the mode.  
-Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
-
-### F3 - Freeze game
-
-Freezes the game and stops animations and game logic from advancing.  
-Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
-
-### F4 - Slow-motion mode
-
-Plays the game at 3 times (the default) slower rate. You configure the rate in settings (read on in `Hotkey configuration`), but the `slowmoTimes` must be a whole, round number greater than 1. I.e. the game can only be slowed down 2, 3, 4, etc times.  
-Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
-
-### F5 - Advance to next frame
-
-While the game is frozen using `Freeze game` feature, advances the game forward by 1 frame. Does nothing if the game is not currently frozen.  
-Section [Hotkey configuration](#hotkey-configuration) describes how to configure hotkeys.
+## Default Hotkeys
 
 ### F6 - Disable mod
 
@@ -258,17 +231,13 @@ There's also a setting named `startDisabled = false/true` which is a boolean whi
 
 Since the `Disable mod` toggle disables the whole mod, this toggle only disables the hitbox drawing, so that GIF mode, No gravity mode, freeze game mode, etc may still work, only the boxes don't display.
 
-### F8 - Take transparent/non-transparent screenshot
-
-This is a big section that is described in [Taking transparent/non-transparent screenshots](#taking-transparentnon-transparent-screenshots) section. Basically this is a button to take a screenshot of the game with transparency enabled/disabled. Transparency only works under conditions described in that section.
-
 ### ESC - Show/hide mod's UI
 
 By default when you start the mod it will open a UI window in-game that has all the controls and settings laid out as buttons, checkboxes and fields. To hide the UI you can close it by clicking the x in the top right corner or by pressing ESC (default hotkey). To open the UI again, press ESC (default hotkey). You configure this hotkey and whether the UI opens when you start the mod using `modWindowVisibilityToggle` (in the mod's UI it's under 'Settings - Keyboard Shortcuts - Hide UI Toggle') and `modWindowVisibleOnStart` (in the mod's UI it's under 'Settings - General Settings - Mod Window Visible On Start').
 
 ### Hotkey configuration
 
-If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, you can use the mod's UI that you can see in the game's window when you load the mod. All other settings are also located in various parts of the UI. Or you can configure all settings by creating a text file named `ggxrd_hitbox_overlay.ini` and placing it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
+If you wish to configure hotkeys for Gif mode and No gravity mode and other modes, you can use the mod's UI that you can see in the game's window when you load the mod. The hotkey settings are located there in Settings - Keyboard Shortcuts. All other settings are also located in various parts of the UI. Or you can configure all settings by creating a text file named `ggxrd_hitbox_overlay.ini` and placing it in the directory where the game executable is. For example, for me my Steam version of the game is located at `...\SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32`.  
 Here's an example of the `.ini` file:
 
 <details>
@@ -315,6 +284,8 @@ turnOffPostEffectWhenMakingBackgroundBlack = true
 ; which center the camera on either you or the opponent, the camera is angled downwards slightly, and this camera angle is called "pitch".
 ; It may cause lines of hitboxes to not be displayed entirely parallel to the sides of the screen.
 ; By setting this to true you can force the camera to look straight forward.
+; All original hitbox screenshots on dustloop were taken with a slightly angled pitch, so setting this to true
+; would produce screenshots different from those of dustloop's.
 forceZeroPitchDuringCameraCentering = true
 
 ; Specify a floating point value where '.' is the delimiter, like so: 0.0
@@ -369,18 +340,18 @@ gifModeToggleHudOnly =
 
 ; A keyboard shortcut to toggle No gravity mode
 ; No gravity mode is you can't fall basically
-noGravityToggle = F2
+noGravityToggle =
 
 ; A keyboard shortcut to freeze the game
-freezeGameToggle = F3
+freezeGameToggle =
 
 ; A keyboard shortcut to play the game in slow motion.
 ; Please specify by how many times to slow the game down in "slowmoTimes"
-slowmoGameToggle = F4
+slowmoGameToggle =
 
 ; A keyboard shortcut. Only works while the game is frozen using freezeGameToggle.
 ; Advances the game forward one frame
-allowNextFrameKeyCombo = F5
+allowNextFrameKeyCombo =
 
 ; A number.
 ; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed.
@@ -406,7 +377,7 @@ disableHitboxDisplayToggle = F7
 ; Then screenshots will film character over transparent background.
 ; If the dontUseScreenshotTransparency setting is true, screenshot will be without
 ; transparency anyway
-screenshotBtn = F8
+screenshotBtn =
 
 ; A path to a file or a directory.
 ; It specifies where screenshots will be saved.
@@ -466,6 +437,16 @@ drawPushboxCheckSeparately = true
 ; The produced screenshots won't have such improvements as improving visibility of semi-transparent effects or changing hitbox outlines to
 ; black when drawn over the same color.
 useSimplePixelBlender = false
+
+; IF YOU USE AMD CARD, SET THIS TO FALSE!!!
+; Specify true or false.
+; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of
+; the outline to black only on those pixels.
+; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default)
+; color orb, which are both red.
+; Pixel shader was observed to not draw any outlines on an AMD card. Please turn this off if you use AMD to
+; allow outlines to at least be drawn somehow, without color-dodging.
+usePixelShader = true
 
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the mod's UI window.
@@ -915,6 +896,21 @@ comboRecipe_transparentBackground = false
 ; Must be in the range [-25000; +25000].
 startingTensionPulse = 0
 
+; Specify true or false.
+; Prevents wins from being displayed on the online rematch screen.
+; Works both when you're playing a match or observing.
+hideWins = false
+
+; Specify true or false.
+; Prevents wins from being displayed on the online rematch screen.
+; Only works when you're playing a match, not when observing.
+hideWinsDirectParticipantOnly = false
+
+; A number.
+; Prevents wins from being hidden by the "hideWins" and "hideWinsDirectParticipantOnly" settings,
+; when one of the players reaches the specified number of wins. Set to 0 or a negative number to disable.
+hideWinsExceptOnWins = 0
+
 ```
 
 </details>
@@ -922,7 +918,7 @@ startingTensionPulse = 0
 You can specify a combination of keys, separated by `+` sign. You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.  
 Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4, JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10, JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp, LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp, PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight, XboxTypeSRightStickDown.
 
-If the mod is already running you don't need to do anything in order to apply the new hotkeys and settings. The mod can reread the settings on the fly, without reloading the mod or restarting the game (this was tested to work even on Ubuntu/Linux running GGXrd under Steam Proton).
+If the mod is already running, you don't need to do anything in order to apply the new hotkeys and settings. The mod can reread the settings on the fly, without reloading the mod or restarting the game (this was tested to work even on Ubuntu/Linux running GGXrd under Steam Proton).
 
 `slowmoTimes` is not a key combination, it must be a round integer number.
 
@@ -995,13 +991,26 @@ You can enable the display of input history in modes like Offline Versus, Episod
 
 And by default the display of input history when observing online matches is enabled. You can disable it using the 'Display Input History When Observing' setting (called 'displayInputHistoryWhenObserving' in INI).
 
+## Hide Wins Mod
+
+![Screenshot can't be viewed](wins.jpg)
+
+This sub-mod allows you to hide the wins counters on the rematch screen in online multiplayer. It has the following settings, accessible from the main mod UI window:
+
+Settings - General Settings - ...
+1) Hide Wins - On/Off. Hides wins both when playing or observing a game.
+2) Hide Wins - Only When Playing - On/Off. Hides wins only when playing a game, not when observing.
+3) Hide Wins - Except When N Wins Reached. Enter the number of wins into the textbox. When either player reaches this number of wins, show only those wins. Don't show the other player's wins or if the number of wins didn't change.
+
+You may ask "why". Well, sometimes some people just want to chill out and play some games, not focusing on who won more. Or they're trying to practice wakeup backdash in real combat. Or they changed their controller recently. Seeing enormously skewed wins just puts you in a bad mood for no reason.
+
 ## Taking transparent/non-transparent screenshots
 
 The mod allows you to take screenshots of the game with the transparency in the background, with characters overlaid on top without transparency. To achieve that, you need to go into the game's `Display settings` and set `Post-Effect` to `OFF` or the mod can turn it off for you automatically (read below).
 
 ![Screenshot can't be viewed](posteffect_off.jpg)
 
-Post-Effect set to Off seems to turn off anti-aliasing, but without it the trick won't work. Then you can load the mod and enter "GIF mode" (F1 is the default hotkey) or "gifModeToggleBackgroundOnly" (no hotkey by default) to make the background black and that would actually make the background transparent - but you can't see that with a naked eye. You need to press "screenshotBtn" (F8, copies to clipboard by default) to take a screenshot and paste it into a graphical editor supporting transparency, like GIMP for example, in order to see transparency.  
+Post-Effect set to Off seems to turn off anti-aliasing, but without it the trick won't work. Then you can load the mod and enter "GIF mode" (has no default hotkey) or "gifModeToggleBackgroundOnly" (no hotkey by default) to make the background black and that would actually make the background transparent - but you can't see that with a naked eye. You need to press "screenshotBtn" (F8, copies to clipboard by default) to take a screenshot and paste it into a graphical editor supporting transparency, like GIMP for example, in order to see transparency.  
 Transparency in the game is actually inverted, meaning the background is fully opaque while the characters are (almost) fully transparent. The screenshotter inverts the alpha channel to make it correct. Some parts of the characters might still remain at about 230-254 alpha instead of 255, though, so watch out.
 
 To turn off `Post-Effect` automatically whenever you make the background black, you could set the `turnOffPostEffectWhenMakingBackgroundBlack` setting in the INI file to true (is true by default) or tick the 'Settings - Hitbox Settings - Turn Off Post-Effect When Making Background Black' checkbox (ticked by default). Or, alternatively, you could use the `togglePostEffectOnOff` keyboard shortcut, which is set in the INI file, to turn the Post-Effect on or off manually using a hotkey (the default hotkey is not set) (in UI, it's located in Settings - Keyboard Shortcuts - Toggle Post-Effect On/Off). Turning Post-Effect on/off this way does not require reloading the match! This is much faster than going to the main menu and changing it there!
@@ -1143,7 +1152,7 @@ Dependencies are better described in each project's README.md. Short version is,
 
 - `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game. The sources of imgui are included in this mod as a git submodule: <https://github.com/ocornut/imgui.git>.
 
-- `D3DCompiler_43.dll` - used for compiling a custom pixel shader. A .LIB file for it, d3dcompiler.lib, is taken from Microsoft's legacy DirectX Software Development Kit and included in this project in the `d3d9` folder. The .LIB file allows the functions from the DLL to be used directly, without LoadLibraryA and GetProcAddress, and the DLL itself, which gets loaded by the mod on startup automatically, is shipped with Guilty Gear Xrd and resides in its Binaries\\Win32 folder.
+- `D3DCompiler_43.dll` (optionally D3DCompiler_47.dll) - used for compiling a custom pixel shader. A .LIB file for it, d3dcompiler.lib, is taken from Microsoft's legacy DirectX Software Development Kit and included in this project in the `d3d9` folder. The .LIB file allows the functions from the DLL to be used directly, without LoadLibraryA and GetProcAddress, and the DLL itself, which gets loaded by the mod on startup automatically, is shipped with Guilty Gear Xrd and resides in its Binaries\\Win32 folder. Optionally, the mod will try to load and use D3DCompiler_47.dll, if present, but if not, then revert to D3DCompiler_43.dll.
 
 - `D3DX9_43.dll` - used for matrix math. It is used by the project the exact same way as D3DCompiler_43.dll, and its .LIB file is d3dx9.lib.
 
@@ -1323,13 +1332,25 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 27: Version 6.26: Register Silent Force re-pick when it's done as soon as the knife is able to be picked up.
 - 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
 - 2025 ??? ??: Version 6.28:
-  1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was horizontal, while in reality it is vertical.
+  1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was shown by the hitbox overlay as horizontal, while in reality it is vertical. Now it will be displayed as vertical, how it should be.
   2) Made framebar's "# frames selected" text outline be of higher quality.
-  3) Fixed framebar displaying getting hit on the pre-landing frame while recovering from an air normal as getting hit during landing recovery, even though the air normal had no landing recovery attached to it - now that frame will display as getting hit during regular recovery.
-  4) Fixed the frame when you get grabbed showing throw invulnerability - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. This is now fixed, and strike invulnerability will be shown on more frames of opponents who are getting thrown.
+  3) Fixed framebar using landing recovery color (purple) to display the pre-landing frame, if you got hit on it. This only happened if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
+  4) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown.
   5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so because they became airborne on frame 1 of the move. Moves that originated in the air, except Roman Cancel, will not show "airborne" invul, and will instead continue to show landing recovery frames when they become grounded. Roman Cancel airborne and ground animations are indistinguishable and RC does not show landing recovery, so instead RC will now display "airborne" invul on the framebar whenever it is airborne (i.e. not ground throwable). Also, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other.
-  6) Added a button and a hotkey to clear input history, and a checkbox for clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode.
-  7) Added new checkboxes into Hitboxes section for making your or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
+  6) Added a button and a hotkey to clear input history, and a checkbox for always clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode.
+  7) Added new checkboxes into Hitboxes section for making you or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
   8) Fixed a bug when all framebars would disappear as soon as round end camera motion starts if the round was ended by a hit from I-No's Ultimate Fortissimo.
   9) Replaced half-colored green frames for Answer's air scroll set with fully colored green frames, as no whiff cancels are actually available.
   10) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example.
+  11) For AMD cards that can't draw the outlines of the hitboxes, added an untested attempt of a fix. If it doesn't help, please manually uncheck the Settings - Hitbox Settings - Use Pixel Shader checkbox.
+  12) The outlines of hitboxes display in black color when on top of same colored background in order to improve their visibility. This feature has now been made more aggressive and black color will appear at larger color differences. You can disable this feature by unchecking Settings - Hitbox Settings - Use Pixel Shader.
+  12) Renamed Sol's "Break" projectile to "Break Explosion".
+  13) Added an untested, unconfirmed fix for a crash that happened when one user tried injecting the mod.
+  14) Fixed input history being visible on the rematch screen when you're not an observer and 'Settings - General Settings - Display Input History When Observing' is checked.
+  15) Added an option to hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod)).
+  16) Removed all default hotkeys, except:
+    - ESC: show/hide mod UI.
+    - F6: disable whole mod.
+    - F7: show/hide hitboxes.  
+    This won't affect existing users who update the mod, only new users.
+  17) Added a missing keyboard shortcut setting into mod's UI: Settings - Keyboard Shortcuts - Disable Mod Toggle. Previously, you could only configure this hotkey through the INI file.

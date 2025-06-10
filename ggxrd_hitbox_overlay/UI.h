@@ -338,6 +338,8 @@ private:
 	bool showComboRecipe[2] { false };
 	bool showComboRecipeSettings[2] { false };
 	bool settingsPresetsUseOutlinedText = false;
+	std::string pixelShaderFailReason;
+	bool pixelShaderFailReasonObtained = false;
 };
 
 extern UI ui;

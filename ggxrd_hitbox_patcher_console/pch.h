@@ -7,7 +7,7 @@
 #ifndef FOR_LINUX
 #include <Windows.h>
 #else
-typedef unsigned int DWORD;
+typedef unsigned int DWORD;  // long (that's right, just long, not long long) is 8 bytes on g++, so we use int
 typedef void* LPVOID;
 #endif
 

@@ -10,10 +10,14 @@
 #include "EntityList.h"
 #include "AltModes.h"
 #include "HitDetector.h"
+#include "RematchMenu.h"
 
 char** aswEngine = nullptr;
 
 Game game;
+
+extern "C" void drawWinsHookAsm();  // defined in asmhooks.asm
+extern "C" BOOL __cdecl drawWinsHook(RematchMenu* rematchMenu);  // defined here
 
 bool Game::onDllMain() {
 	bool error = false;
@@ -299,6 +303,73 @@ bool Game::onDllMain() {
 		normal0xa8ElementVtable = func0x10InRData - 0x10;
 	}
 	
+	uintptr_t menuUsage = sigscanOffset("GuiltyGearXrd.exe",
+		// use only a part of function to find it faster
+		"83 b8 54 01 00 00 00 75 03 4e 79 eb",
+		{ -15 },
+		nullptr,
+		"MenuUsage");
+	if (menuUsage) {
+		// validate the whole function, I'm going to need bits and pieces from it
+		byteSpecificationToSigMask("56 be 65 00 00 00 56 e8 ?? ?? ?? ?? 83 c4 04 83 b8 54 01 00 00 00 75 03 4e 79 eb 89 35 ?? ?? ?? ?? 5e c3", sig, mask);
+		if (sigscan(menuUsage, menuUsage + 0x23, sig.data(), mask.data()) != menuUsage) {
+			menuUsage = 0;
+		}
+	}
+	if (menuUsage) {
+		currentMenu = *(int**)(menuUsage + 29);
+		
+		uintptr_t getMenu = followRelativeCall(menuUsage + 7);
+		byteSpecificationToSigMask("8b 44 24 04 8b 04 85 ?? ?? ?? ?? c3", sig, mask);
+		if (sigscan(getMenu, getMenu + 12, sig.data(), mask.data()) == getMenu) {
+			allMenus = *(void***)(getMenu + 7);
+		}
+	}
+	if (!currentMenu || !allMenus) {
+		currentMenu = nullptr;
+		allMenus = nullptr;
+	}
+	
+	char RF_MenuStr[] = "RF_Menu";
+	uintptr_t RF_MenuLoc = sigscan(
+		"GuiltyGearXrd.exe:.rdata",
+		RF_MenuStr,
+		sizeof RF_MenuStr);
+	
+	uintptr_t RF_MenuUsage = 0;
+	if (RF_MenuLoc) {
+		char RF_DataUsageAr[5];
+		RF_DataUsageAr[0] = 0x68;  // PUSH
+		memcpy(RF_DataUsageAr + 1, &RF_MenuLoc, 4);
+		RF_MenuUsage = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			RF_DataUsageAr,
+			"xxxxx",
+			nullptr,
+			"RF_MenuUsage");
+	}
+	uintptr_t case0x21 = 0;
+	if (RF_MenuUsage) {
+		byteSpecificationToSigMask("ff 24 85 ?? ?? ?? ?? 81 4b 10 04 81 00 00", sig, mask);
+		if (sigscan(RF_MenuUsage - 14, RF_MenuUsage, sig.data(), mask.data()) == RF_MenuUsage - 14) {
+			case0x21 = *(DWORD*)(7 * 4 + *(DWORD*)(RF_MenuUsage - 14 + 3));
+		}
+	}
+	uintptr_t isGameModeNetworkCall = 0;
+	if (case0x21) {
+		byteSpecificationToSigMask("e8 ?? ?? ?? ?? 85 c0 0f 84 ?? ?? ?? ??", sig, mask);
+		// calls isGameModeNetwork, tests EAX and jumps if zero
+		isGameModeNetworkCall = sigscan(case0x21, case0x21 + 0x120, sig.data(), mask.data());
+	}
+	if (isGameModeNetworkCall) {
+		isGameModeNetwork = (isGameModeNetwork_t)followRelativeCall(isGameModeNetworkCall);
+		sig.resize(4);
+		DWORD drawWinsHookAsmAddr = (DWORD)&drawWinsHookAsm;
+		drawWinsHookAsmAddr = calculateRelativeCallOffset(isGameModeNetworkCall, drawWinsHookAsmAddr);
+		memcpy(sig.data(), &drawWinsHookAsmAddr, 4);
+		detouring.patchPlace(isGameModeNetworkCall + 1, sig);
+	}
+	
 	return !error;
 }
 
@@ -488,6 +559,9 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty() {
 
 char Game::getPlayerSide() const {
 	if (getGameMode() == GAME_MODE_NETWORK) {
+		DWORD off = offsetof(RematchMenu, playerIndex);
+		if (lastRematchMenuPlayerSide != -1) return lastRematchMenuPlayerSide;  // this fix is needed because when rematch menu is fading out but the next match hasn't started yet, 0x1734 is still 2
+		if (isRematchMenuOpen()) return getRematchMenuPlayerSide();  // fix for rematch menu: 0x1734 holds 2 on it even if you're a direct participant of the match
 		if (!playerSideNetworkHolder) return 2;
 		// Big thanks to WorseThanYou for finding this value
 		return *(char*)(*playerSideNetworkHolder + 0x1734);  // 0 for p1 side, 1 for p2 side, 2 for observer
@@ -548,6 +622,11 @@ void Game::destroyAswEngineHook() {
 			game.lastSavedPositionX[0] = -252000;
 			game.lastSavedPositionX[1] = 252000;
 		}
+		for (int i = 0; i < 2; ++i) {
+			game.prevScores[i] = 0;
+			game.changedScore[i] = false;
+		}
+		game.lastRematchMenuPlayerSide = -1;
 	}
 	game.orig_destroyAswEngine();
 }
@@ -873,7 +952,7 @@ void Game::setPositionResetTypeHookStatic() {
 
 void Game::setPositionResetTypeHook() {
 	orig_setPositionResetType();
-	if (!isTrainingMode() || !settings.usePositionResetMod) return;
+	if (!isTrainingMode() || !settings.usePositionResetMod || gifMode.modDisabled) return;
 	int padID = getPlayerPadID();
 	DWORD heldBtns = getHeldButtons(padID, true);
 	entityList.populate();
@@ -929,7 +1008,7 @@ void Game::HookHelp::roundInitHook() {
 
 void Game::roundInitHook(Entity pawn) {
 	orig_roundInit((void*)pawn.ent);
-	if (isTrainingMode() && settings.usePositionResetMod) {
+	if (isTrainingMode() && settings.usePositionResetMod && !gifMode.modDisabled) {
 		int team = pawn.team();
 		int thisX = lastSavedPositionX[team];
 		pawn.x() = thisX;
@@ -963,4 +1042,96 @@ bool Game::is0xa8PreparingCamera() const {
 	uintptr_t vtable = *(uintptr_t*)aswEng0x11c710c_ac;
 	return vtable == normal0xa8ElementVtable
 		&& *(int*)(aswEng0x11c710c_ac + 0x24) != 0;
+}
+
+const char* Game::formatGameMode(GameMode gameMode) {
+	switch (gameMode) {
+		case GameMode::GAME_MODE_ADVERTISE: return "Advertise";
+		case GameMode::GAME_MODE_ARCADE: return "Arcade";
+		case GameMode::GAME_MODE_CHALLENGE: return "Challenge";
+		case GameMode::GAME_MODE_DEBUG_BATTLE: return "DebugBattle";
+		case GameMode::GAME_MODE_DEGITALFIGURE: return "DigitalFigure";
+		case GameMode::GAME_MODE_EVENT: return "Event";
+		case GameMode::GAME_MODE_FISHING: return "Fishing";
+		case GameMode::GAME_MODE_GALLERY: return "Gallery";
+		case GameMode::GAME_MODE_INVALID: return "Invalid";
+		case GameMode::GAME_MODE_KENTEI: return "Kentei";
+		case GameMode::GAME_MODE_MAINMENU: return "MainMenu";
+		case GameMode::GAME_MODE_MOM: return "MOM";
+		case GameMode::GAME_MODE_NETWORK: return "Network";
+		case GameMode::GAME_MODE_RANNYU_VERSUS: return "RannyuVersus";
+		case GameMode::GAME_MODE_REPLAY: return "Replay";
+		case GameMode::GAME_MODE_SPARRING: return "Sparring";
+		case GameMode::GAME_MODE_STORY: return "Story";
+		case GameMode::GAME_MODE_TRAINING: return "Training";
+		case GameMode::GAME_MODE_TUTORIAL: return "Tutorial";
+		case GameMode::GAME_MODE_UNDECIDED: return "Undecided";
+		case GameMode::GAME_MODE_VERSUS: return "Versus";
+		default: return "???";
+	}
+}
+
+int Game::getRematchMenuPlayerSide() const {
+	if (!allMenus) return 2;
+	RematchMenu* rematchMenu = (RematchMenu*)allMenus[0x23];  // the P1 rematch menu
+	// there is a second rematch menu at 0x24 (for P2), but, regarding the data we're interested in, they both hold the same values
+	if (!rematchMenu->isNetwork || !rematchMenu->isDirectParticipant) return 2;
+	return rematchMenu->playerIndex;
+}
+
+bool Game::isRematchMenuOpen() const {
+	if (!currentMenu) return false;
+	return *currentMenu == 0x22;
+}
+
+// Runs on the main thread. Called from _drawWinsHookAsm, declared in asmhooks.asm
+// Must return TRUE if wins need to be drawn, FALSE otherwise
+BOOL __cdecl drawWinsHook(RematchMenu* rematchMenu) {
+	return game.drawWinsHook((BYTE*)rematchMenu);
+}
+
+BOOL Game::drawWinsHook(BYTE* rematchMenuByte) {
+	#define DRAW_THE_WINS TRUE
+	#define DONT_DRAW_WINS FALSE
+	
+	RematchMenu* rematchMenu = (RematchMenu*)rematchMenuByte;
+	
+	if (!isGameModeNetwork()) return DONT_DRAW_WINS;
+	
+	if (gifMode.modDisabled) return DRAW_THE_WINS;
+	
+	bool clearedChange = false;
+	for (int i = 0x23; i <= 0x24; ++i) {
+		RematchMenu* rematchMenuIter = (RematchMenu*)allMenus[i];
+		if (!rematchMenuIter->isNetwork) return DRAW_THE_WINS;
+		
+		int index = rematchMenuIter->rematchMenuIndex;
+		if (prevScores[index] != rematchMenuIter->score) {
+			prevScores[index] = rematchMenuIter->score;
+			if (!clearedChange) {
+				clearedChange = true;
+				changedScore[1 - index] = false;
+			}
+			changedScore[index] = true;
+		}
+	}
+	
+	if (!rematchMenu->isDirectParticipant) lastRematchMenuPlayerSide = 2;
+	else lastRematchMenuPlayerSide = rematchMenu->playerIndex;
+	
+	if (settings.hideWins || settings.hideWinsDirectParticipantOnly && rematchMenu->isDirectParticipant) {
+		if (rematchMenu->score == rematchMenu->maxScore  // players won't be able to rematch if this is the case
+				|| settings.hideWinsExceptOnWins > 0
+				&& rematchMenu->score == settings.hideWinsExceptOnWins
+				&& changedScore[rematchMenu->rematchMenuIndex]) {
+			return DRAW_THE_WINS;
+		} else {
+			return DONT_DRAW_WINS;
+		}
+	} else {
+		return DRAW_THE_WINS;
+	}
+	
+	#undef DRAW_THE_WINS
+	#undef DONT_DRAW_WINS
 }

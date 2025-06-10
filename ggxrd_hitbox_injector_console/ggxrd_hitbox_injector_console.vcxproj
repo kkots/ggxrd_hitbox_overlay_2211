@@ -180,6 +180,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\const_obfuscate.h" />
     <ClInclude Include="..\common\ggxrd_hitbox_injector_common.h" />
     <ClInclude Include="..\common\InjectorCommonOut.h" />
     <ClInclude Include="framework.h" />

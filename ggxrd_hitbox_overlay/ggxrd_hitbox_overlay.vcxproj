@@ -201,6 +201,7 @@
     <ClInclude Include="HandleWrapper.h" />
     <ClInclude Include="Hardcode.h" />
     <ClInclude Include="Hitbox.h" />
+    <ClInclude Include="HitDetectionType.h" />
     <ClInclude Include="HitDetector.h" />
     <ClInclude Include="Hud.h" />
     <ClInclude Include="ImGuiCorrecter.h" />
@@ -213,6 +214,7 @@
     <ClInclude Include="InputsIcon.h" />
     <ClInclude Include="InvisChipp.h" />
     <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="RematchMenu.h" />
     <ClInclude Include="SpecificFramebarIds.h" />
     <ClInclude Include="Moves.h" />
     <ClInclude Include="pi.h" />
@@ -310,7 +312,7 @@
       <DeploymentContent>true</DeploymentContent>
       <FileType>Document</FileType>
     </CopyFileToFolders>
-    <MASM Include="drawQuadExecHook.asm">
+    <MASM Include="asmhooks.asm">
       <FileType>Document</FileType>
     </MASM>
     <None Include="prebuild.ps1" />

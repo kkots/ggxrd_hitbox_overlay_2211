@@ -138,6 +138,7 @@ using getTrainingSetting_t = int(__thiscall*)(void* trainingStruct, TrainingSett
 using setPositionResetType_t = void(__cdecl*)();
 using getPlayerPadID_t = int(__cdecl*)();
 using roundInit_t = void(__thiscall*)(void* thisArg);
+using isGameModeNetwork_t = BOOL(__cdecl*)();
 
 class Game {
 public:
@@ -188,6 +189,16 @@ public:
 	// clears training HUD's input history
 	void clearInputHistory();
 	bool is0xa8PreparingCamera() const;
+	static const char* formatGameMode(GameMode gameMode);
+	int* currentMenu = nullptr;
+	void** allMenus = nullptr;
+	BOOL drawWinsHook(BYTE* rematchMenuByte);
+	// used to store and update scores of rematch menus and is used to detect if a new showcasing of rematch menus has begun
+	int prevScores[2];
+	// whether this rematch menu has changed its score on this showcasing of the rematch menu. Gets updated during each showcasing of the rematch menus
+	bool changedScore[2];
+	// the last player side that was obtained through the rematch menus in online mode
+	int lastRematchMenuPlayerSide = -1;
 private:
 	class HookHelp {
 		friend class Game;
@@ -260,6 +271,9 @@ private:
 	DWORD cameraCenterXOffset = 0;
 	int numberOfPlayersReset = 0;
 	uintptr_t normal0xa8ElementVtable = 0;
+	int getRematchMenuPlayerSide() const;
+	bool isRematchMenuOpen() const;
+	isGameModeNetwork_t isGameModeNetwork = nullptr;
 };
 
 extern Game game;

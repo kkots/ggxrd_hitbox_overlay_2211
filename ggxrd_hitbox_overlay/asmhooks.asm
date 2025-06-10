@@ -13,11 +13,16 @@ extrn _drawQuadExecHook:proc
 ; It's a cdecl with 2 args
 extrn _increaseStunHook:proc
 
+; a __fastcall defined in EndScene.cpp, called jumpInstallNormalJumpHook. It's got name decorations because it's __fastcall
 extrn @jumpInstallNormalJumpHook@4:proc
 extrn @jumpInstallSuperJumpHook@4:proc
 
 extern _restoreDoubleJumps:dword
 extern _restoreAirDash:dword
+
+; a cdecl with 1 arg that returns BOOL, called drawWinsHook, defined in Game.cpp.
+; Returns FALSE if you need to jump over and TRUE if you should execute the wins-drawing code
+extrn _drawWinsHook:proc
 
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
 ; Runs on the main thread
@@ -81,5 +86,13 @@ _jumpInstallSuperJumpHookAsm proc
 	CALL dword ptr[_restoreAirDash]
 	RET
 _jumpInstallSuperJumpHookAsm endp
+
+_drawWinsHookAsm proc
+	PUSH EBX
+	CALL _drawWinsHook
+	ADD ESP,4h
+	RET
+	; EAX preserved, we return what _drawWinsHook returned
+_drawWinsHookAsm endp
 
 end

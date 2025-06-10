@@ -234,6 +234,12 @@
     <ClInclude Include="SpecificFramebarIds.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RematchMenu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="HitDetectionType.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -395,7 +401,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="drawQuadExecHook.asm" />
+    <MASM Include="asmhooks.asm" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="How to debug Xrd without it relaunching itself.txt" />

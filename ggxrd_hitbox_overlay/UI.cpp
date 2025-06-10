@@ -1508,6 +1508,7 @@ void UI::drawSearchableWindows() {
 						CenterAlignedText("activesProj");
 					}
 				}
+				
 			}
 			Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
 			for (int i = 0; i < two; ++i) {
@@ -1947,16 +1948,6 @@ void UI::drawSearchableWindows() {
 		}
 		HelpMarkerWithHotkey(allowCreateParticlesHelp, settings.toggleAllowCreateParticles);
 		
-		if (settings.showDebugFields) {
-			bool usePixelShader = graphics.usePixelShader;
-			if (ImGui::Checkbox(searchFieldTitle("Use Pixel Shader"), &usePixelShader)) {
-				graphics.usePixelShader = usePixelShader;
-			}
-			ImGui::SameLine();
-			HelpMarker(searchTooltip("The pixel shader is used to draw the outlines of red hitboxes"
-				" on top of red background using black color, for example."));
-		}
-		
 	}
 	popSearchStack();
 	if (ImGui::CollapsingHeader(searchCollapsibleSection("Settings")) || searching) {
@@ -2007,6 +1998,27 @@ void UI::drawSearchableWindows() {
 			booleanSettingPreset(settings.dontUseScreenshotTransparency);
 			
 			booleanSettingPreset(settings.useSimplePixelBlender);
+			
+			booleanSettingPreset(settings.usePixelShader);
+			if (graphics.failedToCreatePixelShader) {
+				if (!pixelShaderFailReasonObtained) {
+					pixelShaderFailReasonObtained = true;
+					pixelShaderFailReason = graphics.getFailedToCreatePixelShaderReason();
+				}
+				if (!pixelShaderFailReason.empty()) {
+					ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+					ImGui::PushTextWrapPos(0.F);
+					char initialText[] = "Pixel shader was disabled automatically: ";
+					char finalText[] = " The setting will have no effect.";
+					if ((sizeof initialText - 1) + pixelShaderFailReason.size() + (sizeof finalText - 1) + 1 > sizeof strbuf) {
+						pixelShaderFailReason[sizeof strbuf - (sizeof initialText - 1) - (sizeof finalText - 1) - 1] = '\0';
+					}
+					sprintf_s(strbuf, "%s%s%s", initialText, pixelShaderFailReason.c_str(), finalText);
+					ImGui::TextUnformatted(strbuf);
+					ImGui::PopTextWrapPos();
+					ImGui::PopStyleColor();
+				}
+			}
 			
 			if (booleanSettingPreset(settings.turnOffPostEffectWhenMakingBackgroundBlack)) {
 				endScene.onGifModeBlackBackgroundChanged();
@@ -2150,6 +2162,7 @@ void UI::drawSearchableWindows() {
 			keyComboControl(settings.toggleShowInputHistory);
 			keyComboControl(settings.toggleAllowCreateParticles);
 			keyComboControl(settings.clearInputHistory);
+			keyComboControl(settings.disableModKeyCombo);
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2193,6 +2206,10 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.clearInputHistoryOnStageReset);
 			booleanSettingPreset(settings.clearInputHistoryOnStageResetInTrainingMode);
+			
+			booleanSettingPreset(settings.hideWins);
+			booleanSettingPreset(settings.hideWinsDirectParticipantOnly);
+			intSettingPreset(settings.hideWinsExceptOnWins, INT_MIN, 1, 5, 80.F);
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
@@ -10328,13 +10345,16 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_KY) {
-		if (frame.u.kyInfo.stunEdgeWillDisappearOnHit || frame.u.kyInfo.hasChargedStunEdge) {
+		if (frame.u.kyInfo.stunEdgeWillDisappearOnHit || frame.u.kyInfo.hasChargedStunEdge || frame.u.kyInfo.hasSPChargedStunEdge) {
 			ImGui::Separator();
 			if (frame.u.kyInfo.stunEdgeWillDisappearOnHit) {
 				ImGui::TextUnformatted("The Stun Edge will disappear if Ky is hit (non-blocked hit) on this frame.");
 			}
 			if (frame.u.kyInfo.hasChargedStunEdge) {
-				ImGui::TextUnformatted("The Charged Stun Edge will disappear if Ky is hit (non-blocked hit) ever.");
+				ImGui::TextUnformatted("The Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.kyInfo.hasSPChargedStunEdge) {
+				ImGui::TextUnformatted("The Fortified Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_MILLIA) {

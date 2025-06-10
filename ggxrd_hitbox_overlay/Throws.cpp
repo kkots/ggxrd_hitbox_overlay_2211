@@ -13,17 +13,37 @@
 #include "EndScene.h"
 #include "Game.h"
 #include "Hardcode.h"
+#include <vector>
 
 Throws throws;
 
 bool Throws::onDllMain() {
 	bool error = false;
-
+	std::vector<char> sig;
+	std::vector<char> mask;
+	
 	orig_hitDetectionMain = (hitDetectionMain_t)sigscanOffset("GuiltyGearXrd.exe",
 		"83 ec 50 a1 ?? ?? ?? ?? 33 c4 89 44 24 4c 53 55 8b d9 56 57 8d 83 10 98 16 00 8d 54 24 1c 33 ed 89 44 24 10",
 		&error, "hitDetectionMain");
-
-	void (HookHelp::*hookPtr)(int) = &HookHelp::hitDetectionMainHook;
+	
+	byteSpecificationToSigMask("39 46 10 74 0e f6 86 28 4d 00 00 80 74 05 b8 01 00 00 00", sig, mask);
+	uintptr_t attackerActiveCheckPlace = sigscan((uintptr_t)orig_hitDetectionMain,
+		(uintptr_t)orig_hitDetectionMain + 0x110,
+		sig.data(), mask.data());
+	if (attackerActiveCheckPlace) {
+		attackerActiveCheckPlace += 22;
+		isActivePtr = (isActive_t)followRelativeCall(attackerActiveCheckPlace);
+		
+		int (HookHelp::*hookPtr)(BOOL) = &HookHelp::hitDetectionIsActiveHook;
+		DWORD hookAddr = (DWORD)(PVOID&)hookPtr;
+		hookAddr = calculateRelativeCallOffset(attackerActiveCheckPlace, hookAddr);
+		
+		sig.resize(4);
+		memcpy(sig.data(), &hookAddr, 4);
+		detouring.patchPlace(attackerActiveCheckPlace + 1, sig);
+	}
+	
+	void (HookHelp::*hookPtr)(HitDetectionType) = &HookHelp::hitDetectionMainHook;
 	if (!detouring.attach(&(PVOID&)orig_hitDetectionMain,
 		(PVOID&)hookPtr,
 		"hitDetectionMain")) return false;
@@ -31,7 +51,7 @@ bool Throws::onDllMain() {
 	return !error;
 }
 
-void Throws::HookHelp::hitDetectionMainHook(int hitDetectionType) {
+void Throws::HookHelp::hitDetectionMainHook(HitDetectionType hitDetectionType) {
 	if (!gifMode.modDisabled) {
 		endScene.onHitDetectionStart(hitDetectionType);
 		if (hitDetectionType == 1) {
@@ -344,4 +364,13 @@ void Throws::drawThrows() {
 
 void Throws::clearAllBoxes() {
 	infos.clear();
+}
+
+int Throws::HookHelp::hitDetectionIsActiveHook(BOOL alternativeIsActiveFramesCheck) {
+	return throws.hitDetectionIsActiveHook((void*)this, alternativeIsActiveFramesCheck);
+}
+
+int Throws::hitDetectionIsActiveHook(void* pawn, BOOL alternativeIsActiveFramesCheck) {
+	endScene.onHitDetectionAttackerParticipate(Entity{pawn});
+	return isActivePtr(pawn, alternativeIsActiveFramesCheck);
 }

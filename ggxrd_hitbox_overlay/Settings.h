@@ -93,6 +93,7 @@ public:
 	std::atomic_int positionResetDistBetweenPlayers = 105000;
 	std::atomic_int positionResetDistFromCorner = 0;
 	std::atomic_int startingTensionPulse = 0;
+	std::atomic_int hideWinsExceptOnWins = 0;
 	const float cameraCenterOffsetX_defaultValue = 0.F;
 	const float cameraCenterOffsetY_defaultValue = 106.4231F;
 	const float cameraCenterOffsetY_WhenForcePitch0_defaultValue = 130.4231F;
@@ -113,6 +114,7 @@ public:
 	std::atomic_bool considerCrouchNonIdle = false;
 	std::atomic_bool considerDummyPlaybackNonIdle = false;
 	std::atomic_bool useSimplePixelBlender = false;
+	std::atomic_bool usePixelShader = true;
 	std::atomic_bool dontShowBoxes = false;
 	std::atomic_bool neverDisplayGrayHurtboxes = false;
 	std::atomic_bool showFramebar = true;
@@ -169,7 +171,8 @@ public:
 	std::atomic_bool comboRecipe_transparentBackground = false;
 	std::atomic_bool clearInputHistoryOnStageReset = false;
 	std::atomic_bool clearInputHistoryOnStageResetInTrainingMode = false;
-	std::atomic_bool usePixelShader = false;
+	std::atomic_bool hideWins = false;
+	std::atomic_bool hideWinsDirectParticipantOnly = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool dontReadIfDoesntExist);
