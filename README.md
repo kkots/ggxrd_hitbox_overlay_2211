@@ -11,7 +11,8 @@ Also can screenshot the game with transparency enabled/disabled (made with help 
 Also contains position reset mod (see [Position Reset Mod](#position-reset-mod) section).  
 Also contains input history mod (see [Input History Mod](#input-history-mod) section) which can display input history when observing online matches, and it can display durations of each input in the input history.  
 Also it can hide the main Enter key or numpad Enter key presses from the game, or both (in General Settings).  
-Also it can hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod) section).  
+Also it can hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod) section).
+Also it can hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).  
 The mod hides its output from OBS recording, and this can be turned off in 'UI - Settings - General Settings - Dodge OBS Recording' or by going to OBS and checking the 'Capture third-party overlays (such as steam)' checkbox.
 
 ## Credits
@@ -626,6 +627,8 @@ dontShowMayInteractionChecks = true
 ; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,
 ; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.
 ; Millia's origin point must be above the line in order to gain the powerup.
+; Note that Bad Moon's maximum number of hits increases as it gets higher, up to 10 hits maximum.
+; The line is the lowest height needed to get any powerup at all.
 showMilliaBadMoonBuffHeight = false
 
 ; Specify true or false.
@@ -910,6 +913,10 @@ hideWinsDirectParticipantOnly = false
 ; Prevents wins from being hidden by the "hideWins" and "hideWinsDirectParticipantOnly" settings,
 ; when one of the players reaches the specified number of wins. Set to 0 or a negative number to disable.
 hideWinsExceptOnWins = 0
+
+; Specify true or false.
+; Prevents rank icons (circle, arrow up, arrow down, equal sign) from showing up next to players.
+hideRankIcons = false
 
 ```
 
@@ -1332,25 +1339,44 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 27: Version 6.26: Register Silent Force re-pick when it's done as soon as the knife is able to be picked up.
 - 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
 - 2025 ??? ??: Version 6.28:
-  1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was shown by the hitbox overlay as horizontal, while in reality it is vertical. Now it will be displayed as vertical, how it should be.
+  1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was shown by the hitbox overlay as horizontal, while in reality it is vertical.
   2) Made framebar's "# frames selected" text outline be of higher quality.
-  3) Fixed framebar using landing recovery color (purple) to display the pre-landing frame, if you got hit on it. This only happened if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
-  4) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown.
-  5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so because they became airborne on frame 1 of the move. Moves that originated in the air, except Roman Cancel, will not show "airborne" invul, and will instead continue to show landing recovery frames when they become grounded. Roman Cancel airborne and ground animations are indistinguishable and RC does not show landing recovery, so instead RC will now display "airborne" invul on the framebar whenever it is airborne (i.e. not ground throwable). Also, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other.
-  6) Added a button and a hotkey to clear input history, and a checkbox for always clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode.
+  3) Previously, framebar was displaying the pre-landing frame as landing recovery (purple), if you got hit on it. This would only happen if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now, that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
+  4) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown. The one who is performing the throw will still be displayed strike and throw invulnerable on their first frame. Additionally, now, when Jam parries a hit, the framebar frame, on which the parry connected, will display her as having super armor and not (yet) having strike+throw invul due to full invul from parry (though having throw invul is still possible from previous hitstun, blockstun or wakeup, and that will be displayed). Similarly, Blitz Shield reject now will show the defender having super armor on the frame when the attacker's hit connected. Previously it would display full (stirke+throw) invul, which should only start on the frame after.
+  5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so, because they became airborne on frame 1 of the move, and airborne moves do not display that type of invul because it should be obvious that they're airborne. As it was previously, airborne moves (any move that originated in the air) will not show "airborne" invul. The new exception to that rule is airborne Roman Cancel, because it is sometimes hard to tell if it is airborne. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusive, either only strike, or only airborne, for no reason).
+  6) Added a button and a hotkey to clear input history, and a checkbox for always clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode. This will also work with "Display Durations In Input History".
   7) Added new checkboxes into Hitboxes section for making you or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
-  8) Fixed a bug when all framebars would disappear as soon as round end camera motion starts if the round was ended by a hit from I-No's Ultimate Fortissimo.
-  9) Replaced half-colored green frames for Answer's air scroll set with fully colored green frames, as no whiff cancels are actually available.
-  10) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example.
+  8) Fixed a bug when all framebars would disappear during I-No's Ultimate Fortissimo if it dealt the killing blow.
+  9) On the framebar, replaced half-colored green frames for Answer's air scroll set with fully colored green frames, as no whiff cancels are actually available.
+  10) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example. This will affect both the display of hitboxes and the display of active frames in the framebar and the framedata.
   11) For AMD cards that can't draw the outlines of the hitboxes, added an untested attempt of a fix. If it doesn't help, please manually uncheck the Settings - Hitbox Settings - Use Pixel Shader checkbox.
   12) The outlines of hitboxes display in black color when on top of same colored background in order to improve their visibility. This feature has now been made more aggressive and black color will appear at larger color differences. You can disable this feature by unchecking Settings - Hitbox Settings - Use Pixel Shader.
   12) Renamed Sol's "Break" projectile to "Break Explosion".
   13) Added an untested, unconfirmed fix for a crash that happened when one user tried injecting the mod.
   14) Fixed input history being visible on the rematch screen when you're not an observer and 'Settings - General Settings - Display Input History When Observing' is checked.
-  15) Added an option to hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod)).
+  15) Added an option to hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod)). And another option to hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).
   16) Removed all default hotkeys, except:
     - ESC: show/hide mod UI.
     - F6: disable whole mod.
     - F7: show/hide hitboxes.  
-    This won't affect existing users who update the mod, only new users.
+    This won't affect existing users who update the mod (if they ever changed any settings at all), only new users.
   17) Added a missing keyboard shortcut setting into mod's UI: Settings - Keyboard Shortcuts - Disable Mod Toggle. Previously, you could only configure this hotkey through the INI file.
+  18) Added a text to the framebar tooltip telling after which frame Millia's Secret Garden becomes able to stay if you RC it. The text only shows on that one particular frame.
+  19) Added a new text to the framebar's frame tooltip, that shows up only if some currently active projectiles would disappear on hit or block for that player. It tells you that "Projectile X will disappear if Character Name is hit/blocks on this frame/at any time." It may be incorrect if Rev1 is selected.
+  20) Fixed the first framebar frame of Eddie not showing his animation name.
+  21) Fixed the "Can YRC, and projectile/powerup will stay" message on the framebar tooltip when hovering over Potemkin Trishula frames. The message was previously showing on frame 19 of Trishula, where it shouldn't be.
+  22) Fixed a crash caused by hovering over a framebar frame of a move happening during 5D horizontal hoverdash. It was caused by there being more gatlings available than the pre-allocated memory can store. The crash could only happen on larger screen resolutions where more than 30 gatlings could actually fit in the displayed list.
+  23) Added a display for gatlings from a Blitz Shield reject to the framebar tooltips and 'Cancels' panel.
+  24) Fixed hitstop display in framebar tooltips showing time remaining / time max without account for the RC slowdown. Now the displayed times will be larger when slowed down by RC.
+  25) Fixed an incorrect idle frame displayed in framebar when recovering from a Blitz Shield reject while being slowed down by RC.
+  26) Made the the following things display better on the framebar on screen resolutions that are larger than 1280x720:
+    - The white/black rectangular inner outline of "hit connected" frames (texture scaling is no longer "linear", but instead set to "no interpolation").
+    - The digits that display the number of similar frames grouped together (resolution of the digit textures doubled, black outline is drawn separately and is no longer included in the texture).
+    - The apostrophe that marks animation starts and different segments of a single animation (texture scaling is no longer "linear", but instead set to "no interpolation", and black outline drawn separately).
+    - Strike, throw invulnerability, super armor and full Blitz Shield charge traingles (resolution of texture doubled, outline drawn separately).
+    TODO: reduce how the needed amount of padding for bottom and top markers is calculated. They are allowed to intersect at 0 inter-framebar spacing, just a little bit.
+    TODO: by default, pretend that projectile framebars have no super armor markers. Until dizzy D-fish appears. Then add additional padding only for that framebar.
+    TODO: reduce padding between the startup/active/recovery/total text of P2 and the first projectile framebar. Figure out why it is too large on bigger resolutions.
+  27) New framebar display settings:
+    - A text field to type in the amount of empty space between individual framebars.
+    - A checkbox to condense all of a player's projectiles into a single mini-framebar, displayed on top P1's main framebar or below P2's main framebar.

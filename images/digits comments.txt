@@ -1,0 +1,7 @@
+Comments for digits.xcf file.
+
+Each digit is drawn using Courier New Bold font, size 27. The text is then converted into pixels, and copied and pasted around, shifted by 1 pixel into each of the 8 directions. An eraser tool is then used to remove excessive pixels.
+
+The outline for the text is never drawn or included into the image. Inside the mod, when it is time to render the text, first the black-tinted text is drawn 8 times, shifted by 1px into each horizontal, vertical and diagonal direction. Then, the white text is drawn once in the center. The mentioned 1px offset does not depend on the scale of the image or the screen size.
+
+If the top left pixel of the entire image is 0;0, then each digit must fit into the rectangle starting at 2;5 of size 14;19. Width may be smaller than that, but not any larger, and height must be exactly 19.

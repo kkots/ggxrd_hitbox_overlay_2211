@@ -23,16 +23,16 @@ using BBScr_linkParticle_t = void(__thiscall*)(void* pawn, const char* name);
 using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
 using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
 using logicOnFrameAfterHit_t = void(__thiscall*)(void* pawn, bool isAirHit, int param2);
-using BBScr_runOnObject_t = void(__thiscall*)(void* pawn, int entityReference);
+using BBScr_runOnObject_t = void(__thiscall*)(void* pawn, EntityReferenceType entityReference);
 using FCanvas_Flush_t = void(__thiscall*)(void* canvas, bool bForce);
 using backPushbackApplier_t = void(__thiscall*)(void* thisArg);
 using pushbackStunOnBlock_t = void(__thiscall*)(void* pawn, bool isAirAttack);
 using isDummy_t = bool(__thiscall*)(void* trainingStruct, int team);
-using BBScr_sendSignal_t = void(__thiscall*)(void* pawn, int referenceType, int signal);
-using BBScr_sendSignalToAction_t = void(__thiscall*)(void* pawn, const char* searchAnim, int signal);
-using getReferredEntity_t = void*(__thiscall*)(void* pawn, int referenceType);
+using BBScr_sendSignal_t = void(__thiscall*)(void* pawn, EntityReferenceType referenceType, BBScrEvent signal);
+using BBScr_sendSignalToAction_t = void(__thiscall*)(void* pawn, const char* searchAnim, BBScrEvent signal);
+using getReferredEntity_t = void*(__thiscall*)(void* pawn, EntityReferenceType referenceType);
 using skillCheckPiece_t = BOOL(__thiscall*)(void* pawn);
-using handleUpon_t = void(__thiscall*)(void* pawn, int signal);
+using handleUpon_t = void(__thiscall*)(void* pawn, BBScrEvent signal);
 using BBScr_callSubroutine_t = void(__thiscall*)(void* pawn, const char* funcName);
 using BBScr_setHitstop_t = void(__thiscall*)(void* pawn, int hitstop);
 using beginHitstop_t = void(__thiscall*)(void* pawn);
@@ -41,7 +41,7 @@ using BBScr_getAccessedValueImpl_t = int(__thiscall*)(void* pawn, int tag, int i
 using BBScr_checkMoveConditionImpl_t = int(__thiscall*)(void* pawn, MoveCondition condition);
 using setSuperFreezeAndRCSlowdownFlags_t = void(__thiscall*)(void* asw_subengine);
 using BBScr_timeSlow_t = void(__thiscall*)(void* pawn, int duration);
-using onCmnActXGuardLoop_t = void(__thiscall*)(void* pawn, int signal, int type, int thisIs0);
+using onCmnActXGuardLoop_t = void(__thiscall*)(void* pawn, BBScrEvent signal, int type, int thisIs0);
 using drawTrainingHudInputHistory_t = void(__thiscall*)(void* trainingHud, unsigned int layer);
 using hitDetection_t = BOOL(__thiscall*)(void* attacker, void* defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
 using checkFirePerFrameUponsWrapper_t = void(__thiscall*)(void* ent);
@@ -210,7 +210,7 @@ struct SkippedFramesInfo {
 	void addFrame(SkippedFramesType type);
 	void clear();
 	void transitionToOverflow();
-	void print(bool canBlockButNotFD) const;
+	void print(bool canBlockButNotFD_ASSUMPTION) const;
 };
 
 class EndScene
@@ -353,20 +353,20 @@ private:
 		void setAnimHook(const char* animName);
 		void pawnInitializeHook(void* initializationParams);
 		void logicOnFrameAfterHitHook(bool isAirHit, int param2);
-		void BBScr_runOnObjectHook(int entityReference);
+		void BBScr_runOnObjectHook(EntityReferenceType entityReference);
 		void backPushbackApplierHook();
 		void pushbackStunOnBlockHook(bool isAirAttack);
-		void BBScr_sendSignalHook(int referenceType, int signal);
-		void BBScr_sendSignalToActionHook(const char* searchAnim, int signal);
+		void BBScr_sendSignalHook(EntityReferenceType referenceType, BBScrEvent signal);
+		void BBScr_sendSignalToActionHook(const char* searchAnim, BBScrEvent signal);
 		BOOL skillCheckPieceHook();
-		void handleUponHook(int signal);
+		void handleUponHook(BBScrEvent signal);
 		void BBScr_setHitstopHook(int hitstop);
 		void BBScr_ignoreDeactivateHook();
 		void beginHitstopHook();
 		void BBScr_createObjectHook_piece();
 		void setSuperFreezeAndRCSlowdownFlagsHook();
 		void BBScr_timeSlowHook(int duration);
-		void onCmnActXGuardLoopHook(int signal, int type, int thisIs0);
+		void onCmnActXGuardLoopHook(BBScrEvent signal, int type, int thisIs0);
 		void drawTrainingHudInputHistoryHook(unsigned int layer);
 		void checkFirePerFrameUponsWrapperHook();
 		void speedYReset(int speedY);
@@ -381,20 +381,20 @@ private:
 	void setAnimHook(Entity pawn, const char* animName);
 	void pawnInitializeHook(Entity createdObj, void* initializationParams);
 	void logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2);
-	void BBScr_runOnObjectHook(Entity pawn, int entityReference);
+	void BBScr_runOnObjectHook(Entity pawn, EntityReferenceType entityReference);
 	static void REDAnywhereDispDrawHookStatic(void* canvas, FVector2D* screenSize);
 	void REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize);
 	void backPushbackApplierHook(char* thisArg);
 	void pushbackStunOnBlockHook(Entity pawn, bool isAirAttack);
-	void BBScr_sendSignalHook(Entity pawn, int referenceType, int signal);
-	void BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, int signal);
+	void BBScr_sendSignalHook(Entity pawn, EntityReferenceType referenceType, BBScrEvent signal);
+	void BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, BBScrEvent signal);
 	BOOL skillCheckPieceHook(Entity pawn);
-	void handleUponHook(Entity pawn, int signal);
+	void handleUponHook(Entity pawn, BBScrEvent signal);
 	void BBScr_setHitstopHook(Entity pawn, int hitstop);
 	void BBScr_ignoreDeactivateHook(Entity pawn);
 	void BBScr_timeSlowHook(Entity pawn, int duration);
 	void beginHitstopHook(Entity pawn);
-	void onCmnActXGuardLoopHook(Entity pawn, int signal, int type, int thisIs0);
+	void onCmnActXGuardLoopHook(Entity pawn, BBScrEvent signal, int type, int thisIs0);
 	void checkFirePerFrameUponsWrapperHook(Entity pawn);
 	void speedYReset(Entity pawn, int speedY);
 	
@@ -538,10 +538,11 @@ private:
 	bool isInDarkenModePlusTurnOffPostEffect = false;
 	bool postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect = false;
 	bool willDrawOriginPoints();
-	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze);
+	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isBlitzShieldCancels);
 	void collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<180>& vec, const AddedMoveData* move,
-								int iterationIndex, bool inHitstopFreeze);
+								int iterationIndex, bool inHitstopFreeze, bool blitzShield = false);
 	bool checkMoveConditions(PlayerInfo& player, const AddedMoveData* move);
+	bool requiresStylishInputs(const AddedMoveData* move);
 	bool whiffCancelIntoFDEnabled(PlayerInfo& player);
 	Entity getSuperflashInstigator();
 	int getSuperflashCounterOpponent();
@@ -591,9 +592,18 @@ private:
 	void registerJump(PlayerInfo& player, Entity pawn, const char* animName);
 	void registerRun(PlayerInfo& player, Entity pawn, const char* animName);
 	bool shouldIgnoreEnterKey() const;
-	bool hasAllLinkedProjectilesOfType(PlayerInfo& player, const char* name);
+	void analyzeGunflame(PlayerInfo& player, bool* wholeGunflameDisappears,
+		bool* firstWaveEntirelyDisappears, bool* firstWaveDisappearsDuringItsActiveFrames);
 	bool hasOneLinkedProjectileOfType(PlayerInfo& player, const char* name);
+	bool hasOneProjectileOfTypeStrNCmp(PlayerInfo& player, const char* name);
+	bool hasOneProjectileOfType(PlayerInfo& player, const char* name);
+	// this function is useless if you can have multiple of these projectiles and some can be dangerous while others aren't
 	bool hasProjectileOfType(PlayerInfo& player, const char* name);
+	// this function is useless if you can have multiple of these projectiles and some can be dangerous while others aren't
+	bool hasProjectileOfTypeAndHasNotExhausedHit(PlayerInfo& player, const char* name);
+	// this function is useless if you can have multiple of these projectiles and some can be dangerous while others aren't
+	bool hasProjectileOfTypeStrNCmp(PlayerInfo& player, const char* name);
+	char hasBoomerangHead(PlayerInfo& player);
 	struct AttackHitbox {
 		DrawHitboxArrayCallParams hitbox;
 		bool notClash = false;
@@ -610,6 +620,50 @@ private:
 	std::vector<AttackHitbox> attackHitboxes;
 	bool isActiveFull(Entity ent) const;
 	HitDetectionType currentHitDetectionType = HIT_DETECTION_EASY_CLASH;
+	bool objHasAttackHitboxes(Entity ent) const;
+	template<size_t size>
+	inline void addPredefinedCancels(PlayerInfo& player, const char* (&array)[size],
+	                                 std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfo<180>& frame,
+	                                 bool inHitstopFreeze, bool isStylish) {
+		initializePredefinedCancels(array, cancels);
+		addPredefinedCancelsPart(player, cancels, frame, inHitstopFreeze, isStylish);
+	}
+	void addPredefinedCancelsPart(PlayerInfo& player, std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish);
+	template<size_t size> inline static void initializePredefinedCancels(const char* (&array)[size], std::vector<ForceAddedWhiffCancel>& cancels) {
+		initializePredefinedCancels(array, size, cancels);
+	}
+	static void initializePredefinedCancels(const char** array, size_t size, std::vector<ForceAddedWhiffCancel>& cancels);
+	bool blitzShieldCancellable(PlayerInfo& player, bool insideTick);
+	void collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish);
+	void collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish);
+	// these are common for both players, because these move are in cmn_ef
+	int bdashMoveIndex = -1;
+	int fdashMoveIndex = -1;
+	int maximumBurstMoveIndex = -1;
+	int cmnFAirDashMoveIndex = -1;
+	int cmnBAirDashMoveIndex = -1;
+	int fdStandMoveIndex = -1;
+	int fdCrouchMoveIndex = -1;
+	int fdAirMoveIndex = -1;
+	int rcMoveIndex = -1;
+	struct CheckAndCollectFrameCancelParams {
+		PlayerInfo& player;
+		int* moveIndex;
+		const char* name;
+		FrameCancelInfo<180>& frame;
+		bool inHitstopFreeze;
+		bool isStylish;
+		bool blitzShield;
+	};
+	void checkAndCollectFrameCancel(const CheckAndCollectFrameCancelParams* params);
+	inline void checkAndCollectFrameCancelHelper(CheckAndCollectFrameCancelParams* params, const char* name, int* moveIndex) {
+		params->name = name;
+		params->moveIndex = moveIndex;
+		checkAndCollectFrameCancel(params);
+	}
+	static bool isBlitzPostHitstopFrame_insideTick(const PlayerInfo& player);
+	static bool isBlitzPostHitstopFrame_outsideTick(const PlayerInfo& player);
+	void fillInBedmanSealInfo(PlayerInfo& player);
 };
 
 extern EndScene endScene;

@@ -578,7 +578,8 @@ bool Settings::onDllMain() {
 			"; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,\n"
 			"; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.\n"
 			"; Millia's origin point must be above the line in order to gain the powerup.\n"
-			"; Note that Bad Moon's maximum number of hits increases as it gets higher, up to 10 hits maximum.");
+			"; Note that Bad Moon's maximum number of hits increases as it gets higher, up to 10 hits maximum.\n"
+			"; The line is the lowest height needed to get any powerup at all.");
 	registerOtherDescription(settingAndItsName(showFaustOwnFlickRanges), "Show Faust Thrown Item Flick Ranges", "UI - Character specific",
 			"; Specify true or false.\n"
 			"; When this setting is on, when Faust does a 5D, two ranges are shown around his flickpoint,\n"
@@ -714,6 +715,9 @@ bool Settings::onDllMain() {
 		"; A number.\n"
 		"; Prevents wins from being hidden by the \"hideWins\" and \"hideWinsDirectParticipantOnly\" settings,\n"
 		"; when one of the players reaches the specified number of wins. Set to 0 or a negative number to disable.");
+	registerOtherDescription(settingAndItsName(hideRankIcons), "Hide Rank Icons", settingsGeneralSettingsStr,
+		"; Specify true or false.\n"
+		"; Prevents rank icons (circle, arrow up, arrow down, equal sign) from showing up next to players.");
 	
 	#undef settingAndItsName
 	
@@ -752,7 +756,7 @@ bool Settings::onDllMain() {
 	
 	registerListenerForChanges();
 
-	readSettings(false);
+	readSettings(true);
 
 	return true;
 }
@@ -822,10 +826,10 @@ void Settings::insertKeyComboToParse(const char* name, const char* uiName, std::
 	keyCombosToParse.insert({ toUppercase(name), KeyComboToParse(name, uiName, keyCombo, defaultValue, iniDescription) });
 }
 
-// INI file must be placed next the the game's executable at SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32\ggxrd_hitbox_overlay.ini
+// INI file must be placed next to the game's executable at SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32\ggxrd_hitbox_overlay.ini
 // Example INI file content:
 // gifModeToggle = Ctrl+F3
-void Settings::readSettings(bool dontReadIfDoesntExist) {
+void Settings::readSettings(bool isFirstEverRead) {
 	logwrap(fputs("Reading settings\n", logfile));
 	
 	char errorString[500];
@@ -835,7 +839,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 		logwrap(fprintf(logfile, "Could not open INI file: %s\n", errorString));
 		file = NULL;
 	}
-	if (dontReadIfDoesntExist && !file) {
+	if (!isFirstEverRead && !file) {
 		return;
 	}
 	std::unique_lock<std::mutex> keyboardGuard(keyboard.mutex);
@@ -1016,6 +1020,8 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 	bool hideWinsParsed = false;
 	bool hideWinsDirectParticipantOnlyParsed = false;
 	bool hideWinsExceptOnWinsParsed = false;
+	bool hideRankIconsParsed = false;
+	bool oldHideRankIcons = hideRankIcons;
 
 	std::string accum;
 	char buf[128];
@@ -1182,6 +1188,7 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 						booleanPreset(clearInputHistoryOnStageResetInTrainingMode)
 						booleanPreset(hideWins)
 						booleanPreset(hideWinsDirectParticipantOnly)
+						booleanPreset(hideRankIcons)
 						#undef booleanPreset
 						#undef integerPreset
 					}
@@ -1562,13 +1569,22 @@ void Settings::readSettings(bool dontReadIfDoesntExist) {
 		hideWinsExceptOnWins = 0;
 	}
 	
+	if (!hideRankIconsParsed) {
+		hideRankIcons = false;
+	}
+	
 	if (firstSettingsParse) {
 		ui.visible = modWindowVisibleOnStart;
 		if (startDisabled) {
 			gifMode.modDisabled = true;
 		}
-	} else if (turnOffPostEffectWhenMakingBackgroundBlack != oldTurnOffPostEffectWhenMakingBackgroundBlack && keyboard.thisProcessWindow) {
-		PostMessageW(keyboard.thisProcessWindow, WM_APP_TURN_OFF_POST_EFFECT_SETTING_CHANGED, FALSE, TRUE);
+	} else {
+		if (turnOffPostEffectWhenMakingBackgroundBlack != oldTurnOffPostEffectWhenMakingBackgroundBlack && keyboard.thisProcessWindow) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_TURN_OFF_POST_EFFECT_SETTING_CHANGED, FALSE, TRUE);
+		}
+		if (hideRankIcons != oldHideRankIcons && hideRankIcons && keyboard.thisProcessWindow) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_HIDE_RANK_ICONS, FALSE, FALSE);
+		}
 	}
 	
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
@@ -2185,6 +2201,7 @@ void Settings::writeSettingsMain() {
 	booleanPreset(hideWins)
 	booleanPreset(hideWinsDirectParticipantOnly)
 	integerPreset(hideWinsExceptOnWins)
+	booleanPreset(hideRankIcons)
 	#undef booleanPreset
 	#undef integerPreset
 	

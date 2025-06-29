@@ -4,7 +4,7 @@ extern const char* characterNames[];
 
 extern const char* characterNamesFull[];
 
-// Important! Character names may be subject of copyright
+// Important! Character names may be subject to copyright
 enum CharacterType {
 	/* 0 */    CHARACTER_TYPE_SOL,
 	/* 1 */    CHARACTER_TYPE_KY,

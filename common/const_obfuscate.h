@@ -1,4 +1,3 @@
-// From https://github.com/worsety/qps-dangerous-tool/blob/master/injector/const_obfuscate.h
 // Created by https://github.com/worsety
 // LICENSE:
 /*

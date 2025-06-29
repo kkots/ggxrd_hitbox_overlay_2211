@@ -16,6 +16,12 @@ using zatoHoldLevel_t = DWORD(*)(PlayerInfo& ent);
 using selectDisplayName_t = const char*(*)(PlayerInfo& ent);
 using projectileFunc_t = bool(*)(ProjectileInfo& projectile);
 
+enum GroundBlitzType {
+	BLITZTYPE_TAP,
+	BLITZTYPE_CHARGE,
+	BLITZTYPE_MAXCHARGE
+};
+
 bool isIdle_default(PlayerInfo& player);
 bool canBlock_default(PlayerInfo& player);
 bool isDangerous_default(Entity ent);
@@ -167,6 +173,8 @@ public:
 	bool getInfo(MoveInfo& returnValue, CharacterType charType, const char* moveName, const char* stateName, bool isEffect);
 	bool getInfo(MoveInfo& returnValue, CharacterType charType, const char* name, bool isEffect);
 	void onAswEngineDestroyed();
+	// only for ground (standing or crouching) blitz shields
+	static GroundBlitzType getBlitzType(PlayerInfo& ent);
 	MoveInfo defaultMove{ };
 	unsigned short* bbscrInstructionSizes = nullptr;
 	inline BYTE* skipInstruction(BYTE* in) const;
@@ -192,6 +200,7 @@ public:
 		instr_calcDistance = 60,
 		instr_createObjectWithArg = 445,
 		instr_createObject = 446,
+		instr_setLinkObjectDestroyOnStateChange = 457,
 		instr_hitAirPushbackX = 754,
 		instr_deleteMoveForceDisableFlag = 1603,
 		instr_sendSignal = 1766,
@@ -258,7 +267,7 @@ public:
 	MayIrukasanRidingObjectInfo bedmanSealB { 0 };
 	MayIrukasanRidingObjectInfo bedmanSealC { 0 };
 	MayIrukasanRidingObjectInfo bedmanSealD { 0 };
-	int getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal, bool* isFrameAfter);
+	int getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, BBScrEvent signal, bool* isFrameAfter);
 	std::vector<int> venomStingerSPowerups;
 	std::vector<int> venomStingerHPowerups;
 	void fillInVenomStingerPowerup(BYTE* func, std::vector<int>& powerups);
@@ -389,6 +398,9 @@ public:
 	void fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info);
 	int baiken5Dcreation = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
+	int milliaSecretGardenUnlink = 0;
+	bool milliaSecretGardenUnlinkFailedToFind = false;
+	void fillMilliaSecretGardenUnlink(BYTE* funcStart);
 private:
 	struct MyKey {
 		CharacterType charType = (CharacterType)-1;

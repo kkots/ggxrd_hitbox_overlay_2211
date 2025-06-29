@@ -330,6 +330,8 @@ static bool powerup_zweit(PlayerInfo& ent);
 static const char* powerupExplanation_zweit(PlayerInfo& ent);
 static bool powerup_kuuhuku(PlayerInfo& ent);
 static const char* powerupExplanation_kuuhuku(PlayerInfo& ent);
+static bool powerup_secretGarden(PlayerInfo& ent);
+static const char* powerupExplanation_secretGarden(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -4663,6 +4665,9 @@ bool Moves::onDllMain() {
 	move.displayName = "Secret Garden";
 	move.slangName = "Garden";
 	move.ignoreJumpInstalls = true;
+	move.powerup = powerup_secretGarden;
+	move.powerupExplanation = powerupExplanation_secretGarden;
+	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "LustShaker");
@@ -5017,8 +5022,8 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	// Potemkin does not care about super jump installs at all because he will never make use of the airdash that he gets,
-	// but that is handled in the code that registers the airdash install, because it won't trigger a super jump install,
-	// if the airdash count is already equal to the maximum, which is 0.
+	// but that is already handled in our code that registers the airdash install, because it won't trigger a super jump install,
+	// if the airdash count is already equal to the maximum, which is 0, so we don't even need a = true here.
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_POTEMKIN] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "NmlAtk2E");
@@ -5960,6 +5965,7 @@ bool Moves::onDllMain() {
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A_Air");
@@ -5968,6 +5974,7 @@ bool Moves::onDllMain() {
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B");
@@ -5986,6 +5993,7 @@ bool Moves::onDllMain() {
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B_Air");
@@ -5994,6 +6002,7 @@ bool Moves::onDllMain() {
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed");
@@ -6094,7 +6103,7 @@ bool Moves::onDllMain() {
 	
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head", true);
-	move.isDangerous = isDangerous_alwaysTrue;
+	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 61;
 	move.framebarName = "Task A";
 	move.framebarSlangName = "Boomerang";
@@ -6102,7 +6111,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head_Air", true);
-	move.isDangerous = isDangerous_alwaysTrue;
+	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 61;
 	move.framebarName = "Task A";
 	move.drawProjectileOriginPoint = true;
@@ -6134,14 +6143,14 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head", true);
-	move.isDangerous = isDangerous_alwaysTrue;
+	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 63;
 	move.framebarName = "Task A'";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head_Air", true);
-	move.isDangerous = isDangerous_alwaysTrue;
+	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 63;
 	move.framebarName = "Task A'";
 	move.drawProjectileOriginPoint = true;
@@ -8549,6 +8558,8 @@ void Moves::onAswEngineDestroyed() {
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
+	milliaSecretGardenUnlink = 0;
+	milliaSecretGardenUnlinkFailedToFind = false;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -8644,7 +8655,7 @@ bool sectionSeparator_FDB(PlayerInfo& ent) {
 }
 bool sectionSeparator_soutenBC(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "open") == 0
-		|| !ent.pawn.hasUpon(3);
+		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool sectionSeparator_QV(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "End") == 0
@@ -8652,15 +8663,15 @@ bool sectionSeparator_QV(PlayerInfo& ent) {
 }
 bool sectionSeparator_stingerS(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "Shot") == 0
-		|| !ent.pawn.hasUpon(3) && ent.pawn.currentAnimDuration() > 9;
+		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.currentAnimDuration() > 9;
 }
 bool sectionSeparator_stingerH(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "Shot") == 0
-		|| !ent.pawn.hasUpon(3) && ent.pawn.currentAnimDuration() > 3;
+		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.currentAnimDuration() > 3;
 }
 bool sectionSeparator_sultryPerformance(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0
-		|| !ent.pawn.hasUpon(3) && ent.pawn.currentAnimDuration() > 9;
+		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.currentAnimDuration() > 9;
 }
 bool sectionSeparator_beakDriver(PlayerInfo& ent) {
 	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0
@@ -8739,7 +8750,7 @@ bool isIdle_enableWhiffCancels(PlayerInfo& player) {
 	return player.wasEnableWhiffCancels;
 }
 bool isIdle_sparrowhawkStance(PlayerInfo& player) {
-	return player.pawn.hasUpon(3) && player.wasEnableWhiffCancels;
+	return player.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && player.wasEnableWhiffCancels;
 }
 bool isIdle_Souten8(PlayerInfo& player) {
 	return !player.wasEnableGatlings;
@@ -8861,7 +8872,7 @@ bool isDangerous_notInRecovery(Entity ent) {
 }
 
 bool isDangerous_grenade(Entity ent) {
-	return ent.hasUpon(35);
+	return ent.hasUpon(BBSCREVENT_PLAYER_GOT_HIT);
 }
 
 bool isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery(Entity ent) {
@@ -8914,11 +8925,11 @@ bool isDangerous_Djavu_D_Ghost(Entity ent) {
 
 bool isDangerous_launchGreatsword(Entity ent) {
 	return !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0
-		|| !ent.hasUpon(38));
+		|| !ent.hasUpon(BBSCREVENT_PLAYER_BLOCKED));
 }
 bool isDangerous_ramSwordMove(Entity ent) {
 	return !(ent.currentHitNum() == 3 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0
-		|| !ent.hasUpon(38));
+		|| !ent.hasUpon(BBSCREVENT_PLAYER_BLOCKED));
 }
 bool isDangerous_hasHitboxes(Entity ent) {
 	return ent.hitboxCount(HITBOXTYPE_HITBOX) > 0;
@@ -9098,7 +9109,7 @@ const char* MoveInfo::getFramebarSlangName(Entity ent) const {
 bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent) {
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "Run");
 	if (!markerPos) return false;
-	return ent.pawn.bbscrCurrentInstr() <= markerPos && ent.pawn.hasUpon(3);
+	return ent.pawn.bbscrCurrentInstr() <= markerPos && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_zweiLand(PlayerInfo& ent) {
 	return ent.wasEnableWhiffCancels && ent.y > 0;
@@ -9113,49 +9124,49 @@ bool isInVariableStartupSection_may6Por6H(PlayerInfo& ent) {
 	return ent.pawn.mem45() && *ent.pawn.gotoLabelRequest() == '\0';
 }
 bool isInVariableStartupSection_soutenBC(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3) && *ent.pawn.gotoLabelRequest() == '\0' && !ent.pawn.isRecoveryState();
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && *ent.pawn.gotoLabelRequest() == '\0' && !ent.pawn.isRecoveryState();
 }
 bool isInVariableStartupSection_amiMove(PlayerInfo& ent) {
 	return ent.wasEnableWhiffCancels && !ent.pawn.hitstop();
 }
 bool isInVariableStartupSection_beakDriver(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3);
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_organOpen(PlayerInfo& ent) {
-	return ent.pawn.mem45() && ent.pawn.hasUpon(3) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.mem45() && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
 bool isInVariableStartupSection_breakTheLaw(PlayerInfo& ent) {
-	return ent.pawn.mem45() && ent.pawn.hasUpon(3) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.mem45() && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
 bool isInVariableStartupSection_fdb(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3);
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_qv(PlayerInfo& ent) {
 	return ent.pawn.mem45() && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
 bool isInVariableStartupSection_stinger(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
 bool isInVariableStartupSection_inoDivekick(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
 bool isInVariableStartupSection_sinRTL(PlayerInfo& ent) {
 	return ent.pawn.mem49() && ent.pawn.mem45() && ent.pawn.mem46() <= 1 && ent.pawn.gotoLabelRequest()[0] == '\0';
 }
 bool isInVariableStartupSection_falconDive(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3);
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_blackHoleAttack(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3) && ent.pawn.mem45();
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.mem45();
 }
 bool isInVariableStartupSection_dizzy6H(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3);
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_kinomiNecro(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3);
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_saishingeki(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(3) && ent.pawn.mem45();
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.mem45();
 }
 
 bool isRecoveryHasGatlings_mayRideTheDolphin(PlayerInfo& ent) {
@@ -9181,7 +9192,7 @@ bool isRecoveryCanAct_beakDriver(PlayerInfo& ent) {
 }
 
 bool aSectionBeforeVariableStartup_leoParry(PlayerInfo& ent) {
-	return *ent.pawn.gotoLabelRequest() == '\0' && ent.pawn.hasUpon(3);
+	return *ent.pawn.gotoLabelRequest() == '\0' && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 
 bool canStopHolding_armorDance(PlayerInfo& ent) {
@@ -10218,52 +10229,36 @@ const char* displaySlangNameSelector_gunflameDI(PlayerInfo& ent) {
 	return "DI GF";
 }
 const char* displayNameSelector_standingBlitzShield(PlayerInfo& ent) {
-	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
-		return "Max Charge Standing Blitz Shield";
+	GroundBlitzType type = Moves::getBlitzType(ent);
+	switch (type) {
+		case BLITZTYPE_MAXCHARGE: return "Max Charge Standing Blitz Shield";
+		case BLITZTYPE_CHARGE: return "Charge Standing Blitz Shield";
+		default: return "Tap Standing Blitz Shield";
 	}
-	if (ent.pawn.mem48()) {
-		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
-			return "Max Charge Standing Blitz Shield";
-		}
-		return "Charge Standing Blitz Shield";
-	}
-	return "Tap Standing Blitz Shield";
 }
 const char* displaySlangNameSelector_standingBlitzShield(PlayerInfo& ent) {
-	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
-		return "Max Standing Blitz";
+	GroundBlitzType type = Moves::getBlitzType(ent);
+	switch (type) {
+		case BLITZTYPE_MAXCHARGE: return "Max Standing Blitz";
+		case BLITZTYPE_CHARGE: return "Charge Standing Blitz";
+		default: return "Tap Standing Blitz";
 	}
-	if (ent.pawn.mem48()) {
-		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
-			return "Max Standing Blitz";
-		}
-		return "Charge Standing Blitz";
-	}
-	return "Tap Standing Blitz";
 }
 const char* displayNameSelector_crouchingBlitzShield(PlayerInfo& ent) {
-	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
-		return "Max Charge Crouching Blitz Shield";
+	GroundBlitzType type = Moves::getBlitzType(ent);
+	switch (type) {
+		case BLITZTYPE_MAXCHARGE: return "Max Charge Crouching Blitz Shield";
+		case BLITZTYPE_CHARGE: return "Charge Crouching Blitz Shield";
+		default: return "Tap Crouching Blitz Shield";
 	}
-	if (ent.pawn.mem48()) {
-		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
-			return "Max Charge Crouching Blitz Shield";
-		}
-		return "Charge Crouching Blitz Shield";
-	}
-	return "Tap Crouching Blitz Shield";
 }
 const char* displaySlangNameSelector_crouchingBlitzShield(PlayerInfo& ent) {
-	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
-		return "Max Crouching Blitz";
+	GroundBlitzType type = Moves::getBlitzType(ent);
+	switch (type) {
+		case BLITZTYPE_MAXCHARGE: return "Max Crouching Blitz";
+		case BLITZTYPE_CHARGE: return "Charge Crouching Blitz";
+		default: return "Tap Crouching Blitz";
 	}
-	if (ent.pawn.mem48()) {
-		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
-			return "Max Crouching Blitz";
-		}
-		return "Charge Crouching Blitz";
-	}
-	return "Tap Crouching Blitz";
 }
 const char* displayNameSelector_pilebunker(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
@@ -10728,7 +10723,7 @@ const char* powerupExplanation_qvA(PlayerInfo& player) {
 	int level = 0;
 	Entity p = player.pawn.stackEntity(0);
 	if (p) {
-		level = p.storage(0);
+		level = p.storage(1);
 	}
 	return powerupExplanation_qv(level);
 }
@@ -10736,7 +10731,7 @@ const char* powerupExplanation_qvB(PlayerInfo& player) {
 	int level = 0;
 	Entity p = player.pawn.stackEntity(1);
 	if (p) {
-		level = p.storage(0);
+		level = p.storage(1);
 	}
 	return powerupExplanation_qv(level);
 }
@@ -10744,7 +10739,7 @@ const char* powerupExplanation_qvC(PlayerInfo& player) {
 	int level = 0;
 	Entity p = player.pawn.stackEntity(2);
 	if (p) {
-		level = p.storage(0);
+		level = p.storage(1);
 	}
 	return powerupExplanation_qv(level);
 }
@@ -10752,7 +10747,7 @@ const char* powerupExplanation_qvD(PlayerInfo& player) {
 	int level = 0;
 	Entity p = player.pawn.stackEntity(3);
 	if (p) {
-		level = p.storage(0);
+		level = p.storage(1);
 	}
 	return powerupExplanation_qv(level);
 }
@@ -10777,7 +10772,7 @@ void Moves::fillInVenomStingerPowerup(BYTE* func, std::vector<int>& powerups) {
 const char* powerupExplanation_stinger(PlayerInfo& player) {
 	int level = 0;
 	Entity p = player.pawn.stackEntity(4);
-	if (p) level = p.storage(0);
+	if (p) level = p.storage(1);
 	if (level == 5) return "Ball reached level 5.";
 	if (level == 4) return "Ball reached level 4.";
 	if (level == 3) return "Ball reached level 3.";
@@ -10989,8 +10984,8 @@ const char* powerupExplanation_fireSpear(PlayerInfo& ent) {
 }
 bool powerup_zweit(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.gotoLabelRequest(), "FrontEnd") == 0) return true;
-	if (!ent.pawn.hasUpon(3)) return false;
-	BYTE* instr = ent.pawn.uponStruct(3)->uponInstrPtr;
+	if (!ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) return false;
+	BYTE* instr = ent.pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr;
 	instr = moves.skipInstruction(instr);
 	if (moves.instructionType(instr) == Moves::instr_ifOperation
 			&& *(int*)(instr + 4) == 12) {  // IS_GREATER_OR_EQUAL
@@ -11015,6 +11010,25 @@ const char* powerupExplanation_kuuhuku(PlayerInfo& ent) {
 			"Can't RC, unless opponent is in hitstun or blockstun.";
 	}
 }
+bool powerup_secretGarden(PlayerInfo& ent) {
+	entityList.populate();
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity proj = entityList.list[i];
+		if (proj.team() == ent.index && !proj.isPawn() && strcmp(proj.animationName(), "SecretGardenBall") == 0) {
+			BYTE* funcStart = proj.bbscrCurrentFunc();
+			moves.fillMilliaSecretGardenUnlink(funcStart);
+			if (moves.milliaSecretGardenUnlink && proj.bbscrCurrentInstr() - funcStart == moves.milliaSecretGardenUnlink
+					&& proj.spriteFrameCounter() == 0 && !proj.isRCFrozen() && !proj.isSuperFrozen()) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+const char* powerupExplanation_secretGarden(PlayerInfo& ent) {
+	return "//Title override: \n"
+		"On this frame Secret Garden detached from the player, and, starting on the next frame, can be RC'd, and the Secret Garden will stay.";
+}
 
 void fillMay6HOffsets(BYTE* func) {
 	if (moves.may6H_6DHoldOffset == 0) {
@@ -11023,7 +11037,7 @@ void fillMay6HOffsets(BYTE* func) {
 	}
 }
 
-int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, int signal, bool* isFrameAfter) {
+int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, BBScrEvent signal, bool* isFrameAfter) {
 	BYTE* func = projectile.ptr.bbscrCurrentFunc();
 	if (info.totalFrames == 0) {
 		BYTE* instr;
@@ -11061,7 +11075,7 @@ int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanR
 				metSpriteEnd = true;
 			} else if (type == instr_sendSignal
 					&& *(int*)(instr + 4) == 3  // PLAYER
-					&& *(int*)(instr + 8) == signal
+					&& *(BBScrEvent*)(instr + 8) == signal
 					&& !metSendSignal
 					&& !isInsideUpon) {
 				metSendSignal = true;
@@ -11797,5 +11811,43 @@ void Moves::fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info) {
 		newFrames.frames = info.totalFrames;
 		newFrames.offset = instr - func;
 		info.totalFrames += lastSpriteLength;
+	}
+}
+
+void Moves::fillMilliaSecretGardenUnlink(BYTE* funcStart) {
+	if (milliaSecretGardenUnlink || milliaSecretGardenUnlinkFailedToFind) return;
+	bool metUnlink = false;
+	for (
+		BYTE* instr = skipInstruction(funcStart);
+		instructionType(instr) != instr_endState;
+		instr = skipInstruction(instr)
+	) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sprite) {
+			if (metUnlink) {
+				milliaSecretGardenUnlink = instr - funcStart;
+				return;
+			}
+		} else if (type == instr_setLinkObjectDestroyOnStateChange && *(int*)(instr + 4) == 0) {
+			metUnlink = true;
+		}
+	}
+	milliaSecretGardenUnlinkFailedToFind = true;
+}
+
+GroundBlitzType Moves::getBlitzType(PlayerInfo& ent) {
+	if (ent.inNewMoveSection && ent.prevStartups.count == 1 && ent.prevStartups[0].startup == 50) {
+		return BLITZTYPE_MAXCHARGE;
+	}
+	if (ent.pawn.mem48()) {
+		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
+			return BLITZTYPE_MAXCHARGE;
+		}
+		return BLITZTYPE_CHARGE;
+	}
+	if (ent.pawn.mem51() <= 12) {
+		return BLITZTYPE_TAP;
+	} else {
+		return BLITZTYPE_CHARGE;
 	}
 }

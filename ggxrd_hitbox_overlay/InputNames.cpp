@@ -32,7 +32,7 @@ void fillInInputNames() {
 	inputNames[/*0x26*/INPUT_D_STRICT_PRESS] = { "D (no buffer)", BUTTON, 1 };
 	inputNames[/*0x27*/INPUT_D_STRICT_RELEASE] = { "]D[ (no buffer)", BUTTON, 1 };
 	inputNames[/*0x28*/INPUT_PRESS_D] = { "D", BUTTON, 3 };
-	inputNames[/*0x29*/INPUT_NOT_HOLD_D] = { "don't hold D", MULTIWORD_BUTTON, 1 };
+	inputNames[/*0x29*/INPUT_NOT_HOLD_D] = { "don't hold D", MULTIWORD_BUTTON, -1 };
 	inputNames[/*0x2a*/INPUT_RELEASE_D] = { "]D[", BUTTON, 3 };
 	inputNames[/*0x2e*/INPUT_HOLD_TAUNT] = { "[Taunt]", BUTTON, -1 };
 	inputNames[/*0x2f*/INPUT_TAUNT_STRICT_PRESS] = { "Taunt (no buffer)", BUTTON, 1 };
@@ -157,7 +157,7 @@ void fillInInputNames() {
 	inputNames[/*0x105*/INPUT_546_BUTNOT_54_ANYDOWN_6] = { "(546, but not 54(1/2/3)6)", MOTION, 3 };
 	inputNames[/*0x106*/INPUT_5_ANYBACK_ANYFORWARD_LENIENT] = { "5(7/4/1)(9/6/3)", MOTION, 8 };
 	inputNames[/*0x10c*/INPUT_BURST] = { "Burst", BUTTON, 3 };
-	inputNames[/*0x10d*/INPUT_HOLD_TWO_OR_MORE_OF_PKSH] = { "hold two or more of PKSH", MULTIWORD_BUTTON, 3 };
+	inputNames[/*0x10d*/INPUT_HOLD_TWO_OR_MORE_OF_PKSH] = { "hold two or more of PKSH", MULTIWORD_BUTTON, -1 };
 	inputNames[/*0x10e*/INPUT_PRESS_TWO_OR_MORE_OF_PKSH_GLITCHED] = { "press two or more of PKSH (obsolete)", MULTIWORD_BUTTON, 3 };  // why it's glitched? I think it relies on a 2f buttonpress buffer. Rn it's 3. So it gets its flag set on f1 of press and then on f2 it's unset and on f3 it's set again and then you need to press the button again to continue it switching on and off each frame. Activating twice from one press on frames 1 and 3 is a glitch thank you for reading this far I hope you're happy and all is well
 	inputNames[/*0x10f*/INPUT_PRESS_ANYBACK_WITHIN_LAST_8F_NO_MASH_ALLOWED] = { "7/4/1 within last 8f no mash allowed", MULTIWORD_BUTTON, 8 };
 	inputNames[/*0x110*/INPUT_P_OR_K_OR_S_OR_H] = { "P/K/S/H", BUTTON, 3 };

@@ -303,7 +303,7 @@ void collectHitboxes(Entity ent,
 			pointCallParams.posY = params.posY - ent.landingHeight();
 			points->push_back(pointCallParams);
 			
-			if (ent.hasUpon(3) && !settings.dontShowMayInteractionChecks) {
+			if (ent.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && !settings.dontShowMayInteractionChecks) {
 				getMayBallJumpConnectOffsetYAndRange(ent.bbscrCurrentFunc(), mayBallJumpConnectPtr, mayBallJumpConnectRangePtr);
 				DrawPointCallParams pointCallParams;
 				pointCallParams.isProjectile = true;
@@ -335,7 +335,7 @@ void collectHitboxes(Entity ent,
 				Entity mayBall;
 				for (int i = 0; i < entityList.count; ++i) {
 					Entity p = entityList.list[i];
-					if (p.isActive() && p.team() == state.team && !p.isPawn() && p.hasUpon(3)) {
+					if (p.isActive() && p.team() == state.team && !p.isPawn() && p.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
 						if (strcmp(p.animationName(), "MayBallA") == 0) {
 							mayBall = p;
 							mayBallJumpConnectPtr = &moves.mayPBallJumpConnectOffset;
@@ -462,7 +462,7 @@ void collectHitboxes(Entity ent,
 					rangeX = 168000;
 				}
 			}
-			if (ent.hasUpon(3) && strcmp(ent.animationName(), "Item_Helium"_hardcode) == 0) {
+			if (ent.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && strcmp(ent.animationName(), "Item_Helium"_hardcode) == 0) {
 				circleRadius = 100000;
 			}
 			if (rangeX) {
@@ -794,7 +794,7 @@ void collectHitboxes(Entity ent,
 				}
 			}
 		} else if (state.charType == CHARACTER_TYPE_HAEHYUN) {
-			if (strcmp(ent.animationName(), "BlackHoleAttack") == 0 && ent.mem45() && ent.hasUpon(3)) {
+			if (strcmp(ent.animationName(), "BlackHoleAttack") == 0 && ent.mem45() && ent.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
 				int centerX = ent.posX();
 				int centerY = ent.posY() + ent.getCenterOffsetY();
 				Entity opponent = ent.enemyEntity();

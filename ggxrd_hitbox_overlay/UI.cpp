@@ -21,6 +21,7 @@
 #include <commdlg.h>  // for GetOpenFileNameW
 #include "resource.h"
 #include "Graphics.h"
+#include <d3d9.h>
 #ifdef PERFORMANCE_MEASUREMENT
 #include <chrono>
 #endif
@@ -250,6 +251,11 @@ static void printExtraHitstunText(int amount);
 static void printExtraBlockstunTooltip(int amount);
 static void printExtraBlockstunText(int amount);
 static const char* comborepr(std::vector<int>& combo);
+struct ImGui_ImplDX9_Data  // from imgui/backends/imgui_impl_dx9.cpp
+{
+    LPDIRECT3DDEVICE9           pd3dDevice;
+};
+static void changeTextureFiltering(const ImDrawList* parent_list, const ImDrawCmd* cmd);
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -800,6 +806,25 @@ void UI::prepareDrawData() {
 			ImGui::PushTextWrapPos(0.F);
 			ImGui::TextUnformatted(shaderCompilationError->c_str());
 			ImGui::PopTextWrapPos();
+			ImGui::End();
+		}
+		if (showingFailedHideRankSigscanMessage) {
+			ImGui::SetNextWindowSize({ 650.F, 0.F }, ImGuiCond_FirstUseEver);
+			ImGui::Begin("Failed to hook rank icon drawing", &showingFailedHideRankSigscanMessage);
+			ImGui::PushTextWrapPos(0.F);
+			if (!game.drawRankInLobbyOverPlayersHeads
+					&& !game.drawRankInLobbySearchMemberList
+					&& !game.drawRankInLobbyMemberList_NonCircle
+					&& !game.drawRankInLobbyMemberList_Circle) {
+				ImGui::TextUnformatted("Failed to find any of the code that draws rank icons!");
+			} else {
+				ImGui::TextUnformatted("Failed to find some of the code that draws rank icons! In those places, icons won't be hidden.");
+			}
+			ImGui::PopTextWrapPos();
+			printLineOfResultOfHookingRankIcons("Over Players' Heads", game.drawRankInLobbyOverPlayersHeads != 0);
+			printLineOfResultOfHookingRankIcons("Lobby Search's Member List", game.drawRankInLobbySearchMemberList != 0);
+			printLineOfResultOfHookingRankIcons("Inside Lobby - Pause Menu - Display Members - Rank Icons, Besides The Circle", game.drawRankInLobbyMemberList_NonCircle != 0);
+			printLineOfResultOfHookingRankIcons("Inside Lobby - Pause Menu - Display Members - The Circle Rank Icon", game.drawRankInLobbyMemberList_Circle != 0);
 			ImGui::End();
 		}
 		if (showSearch) {
@@ -2210,6 +2235,18 @@ void UI::drawSearchableWindows() {
 			booleanSettingPreset(settings.hideWins);
 			booleanSettingPreset(settings.hideWinsDirectParticipantOnly);
 			intSettingPreset(settings.hideWinsExceptOnWins, INT_MIN, 1, 5, 80.F);
+			
+			if (booleanSettingPreset(settings.hideRankIcons)) {
+				if (settings.hideRankIcons) {
+					game.hideRankIcons();
+					if (!game.drawRankInLobbyOverPlayersHeads
+							|| !game.drawRankInLobbySearchMemberList
+							|| !game.drawRankInLobbyMemberList_NonCircle
+							|| !game.drawRankInLobbyMemberList_Circle) {
+						showingFailedHideRankSigscanMessage = true;
+					}
+				}
+			}
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
@@ -3752,7 +3789,7 @@ void UI::drawSearchableWindows() {
 				Entity eddie = nullptr;
 				bool isSummoned = player.pawn.playerVal(0);
 				if (isSummoned) {
-					eddie = endScene.getReferredEntity((void*)player.pawn.ent, 4);
+					eddie = endScene.getReferredEntity((void*)player.pawn.ent, ENT_STACK_0);
 				}
 				
 				ImGui::TextUnformatted(searchFieldTitle("Eddie Values"));
@@ -3925,7 +3962,7 @@ void UI::drawSearchableWindows() {
 					ImGui::Text("Wall time: %d/120", player.pawn.mem54());
 					ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 					ImGui::PushTextWrapPos(0.F);
-					ImGui::TextUnformatted("This value increases slower when opponent slows you down with RC.");
+					ImGui::TextUnformatted("This value increases slower when opponent slows you down with RC, and stops increasing during superfreezes.");
 					ImGui::PopTextWrapPos();
 					ImGui::PopStyleColor();
 				} else {
@@ -3985,7 +4022,7 @@ void UI::drawSearchableWindows() {
 					}
 					ImGui::TextUnformatted(searchTooltip(faust5D.c_str(), faust5D.c_str() + faust5D.size()));
 					ImGui::PopTextWrapPos();
-				}	
+				}
 				
 			} else if (player.charType == CHARACTER_TYPE_AXL) {
 				printChargeInCharSpecific(i, true, false, 30);
@@ -4019,13 +4056,13 @@ void UI::drawSearchableWindows() {
 						if (!info.isBishop) {
 							textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("Level:"));
 							ImGui::SameLine();
-							sprintf_s(strbuf, "%d/4", p.storage(0));
+							sprintf_s(strbuf, "%d/4", p.storage(1));
 							ImGui::TextUnformatted(strbuf);
 						}
 						if (info.isBishop) {
 							textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("Bishop Level:"));
 							ImGui::SameLine();
-							sprintf_s(strbuf, "%d/5", p.storage(1));
+							sprintf_s(strbuf, "%d/5", p.storage(2));
 							ImGui::TextUnformatted(strbuf);
 						}
 						
@@ -4275,8 +4312,8 @@ void UI::drawSearchableWindows() {
 				
 				struct SealInfo {
 					const char* uiName;
-					unsigned short& timer;
-					unsigned short& timerMax;
+					unsigned short timer;
+					unsigned short timerMax;
 				};
 				SealInfo seals[4] {
 					{ searchFieldTitle("Task A Seal Timer:"), player.bedmanInfo.sealA, player.bedmanInfo.sealAMax },
@@ -5388,7 +5425,7 @@ void UI::drawSearchableWindows() {
 				
 				yellowText(searchFieldTitle("Scroll Cling Ends In:"));
 				ImGui::SameLine();
-				if (strcmp(player.anim, "Ami_Hold") == 0 && player.pawn.hasUpon(3)) {
+				if (strcmp(player.anim, "Ami_Hold") == 0 && player.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
 					sprintf_s(strbuf, "%d/120f", player.animFrame);
 					ImGui::TextUnformatted(strbuf);
 				} else {
@@ -6477,9 +6514,13 @@ void UI::drawSearchableWindows() {
 								
 								ImGui::TableNextColumn();
 								zerohspacing
+								tooltip = "Total RISC- that will be applied by the current hit is"
+									" RISC- Initial + RISC- + RISC- Once + Extra RISC-.";
 								textUnformattedColored(LIGHT_BLUE_COLOR, searchFieldTitle("RISC-"));
+								AddTooltip(tooltip);
 								ImGui::SameLine();
 								ImGui::TextUnformatted(" Total");
+								AddTooltip(tooltip);
 								_zerohspacing
 								ImGui::TableNextColumn();
 								sprintf_s(strbuf, "%d + %d + %d + %s = ",
@@ -6565,7 +6606,7 @@ void UI::drawSearchableWindows() {
 							yellowText("Dmg");
 							AddTooltip(tooltip);
 							ImGui::SameLine();
-							ImGui::TextUnformatted(" * Pror. * Scaling");
+							ImGui::TextUnformatted(" * (Pror. * Scaling)");
 							AddTooltip(tooltip);
 							_zerohspacing
 							ImGui::TableNextColumn();
@@ -6624,7 +6665,7 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							ImGui::TextUnformatted(searchFieldTitle("Minimum Dmg %"));
-							AddTooltip(searchTooltip("Minimum Damage Percent. Calculated from Base Damage. Depends on the attack."));
+							AddTooltip(searchTooltip("Minimum Damage Percent. Depends on the attack."));
 							ImGui::TableNextColumn();
 							if (data.minimumDamagePercent == 0) {
 								ImGui::TextUnformatted("None (0%)");
@@ -9515,10 +9556,16 @@ void UI::framebarHelpWindow() {
 	
 	ImGui::Separator();
 	
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_NONE);
+	
 	ImGui::Image((ImTextureID)TEXID_FRAMES,
 		{ frameWidthOriginal, firstFrameHeight },
 		{ hitConnectedFrame->uStart, hitConnectedFrame->vStart },
 		{ hitConnectedFrame->uEnd, hitConnectedFrame->vEnd });
+	
+	drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_LINEAR);
+	
 	ImGui::SameLine();
 	ImGui::TextUnformatted(searchTooltip("A frame on which an attack connected and a hit occured."
 		" In order to improve visibility, this white outline is instead made black when drawn on top"
@@ -9994,7 +10041,22 @@ static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
 void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex) {
 	CharacterType charType = endScene.players[playerIndex].charType;
 	
-	printAllCancels(frame.cancels,
+	FrameCancelInfo<30>* cancelsUse;
+	if (frame.cancels) {
+		cancelsUse = frame.cancels.get();
+	} else {
+		static FrameCancelInfo<30> emptyCancels;
+		static bool emptyCancelsInitialized = false;
+		if (!emptyCancelsInitialized) {
+			emptyCancelsInitialized = true;
+			emptyCancels.gatlings.count = 0;
+			emptyCancels.whiffCancels.count = 0;
+			emptyCancels.whiffCancelsNote = nullptr;
+		}
+		cancelsUse = &emptyCancels;
+	}
+	
+	printAllCancels(*cancelsUse,
 			frame.enableSpecialCancel,
 			frame.enableJumpCancel,
 			frame.enableSpecials,
@@ -10208,7 +10270,9 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 }
 
 void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
+	
 	frame.printInvuls(strbuf, sizeof strbuf - 7);
+	
 	if (*strbuf != '\0' || frame.OTGInGeneral || frame.counterhit) {
 		ImGui::Separator();
 		if (*strbuf != '\0') {
@@ -10233,6 +10297,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("Counterhit state.");
 		}
 	}
+	
 	if (frame.canYrc || frame.canYrcProjectile || frame.createdDangerousProjectile) {
 		ImGui::Separator();
 		if (frame.canYrcProjectile) {
@@ -10244,6 +10309,180 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("Created a projectile/powerup on this frame");
 		}
 	}
+	
+	CharacterType charType = endScene.players[playerIndex].charType;
+	if (charType == CHARACTER_TYPE_SOL) {
+		if (frame.u.solInfo.gunflameDisappearsOnHit
+				|| frame.u.solInfo.gunflameComesOutLater
+				|| frame.u.solInfo.gunflameFirstWaveDisappearsOnHit
+				|| frame.u.solInfo.hasTyrantRavePunch2) {
+			ImGui::Separator();
+			if (frame.u.solInfo.gunflameDisappearsOnHit) {
+				ImGui::TextUnformatted("The Gunflame will disappear if Sol is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.solInfo.gunflameComesOutLater) {
+				ImGui::TextUnformatted("The Gunflame will come out later if Sol is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.solInfo.gunflameFirstWaveDisappearsOnHit) {
+				ImGui::TextUnformatted("The first wave (but not the consecutive waves) of Gunflame will disappear if Sol is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.solInfo.hasTyrantRavePunch2) {
+				ImGui::TextUnformatted("DI Tyrant Rave Laser will disappear if Sol is hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_KY) {
+		if (frame.u.kyInfo.stunEdgeWillDisappearOnHit
+				|| frame.u.kyInfo.hasChargedStunEdge
+				|| frame.u.kyInfo.hasSPChargedStunEdge
+				|| frame.u.kyInfo.hasjD) {
+			ImGui::Separator();
+			if (frame.u.kyInfo.stunEdgeWillDisappearOnHit) {
+				ImGui::TextUnformatted("The Stun Edge will disappear if Ky is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.kyInfo.hasChargedStunEdge) {
+				ImGui::TextUnformatted("The Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.kyInfo.hasSPChargedStunEdge) {
+				ImGui::TextUnformatted("The Fortified Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.kyInfo.hasjD) {
+				ImGui::TextUnformatted("The j.D will disappear if Ky is hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_MILLIA) {
+		if (frame.u.milliaInfo.hasPin
+				|| frame.u.milliaInfo.hasSDisc
+				|| frame.u.milliaInfo.hasHDisc
+				|| frame.u.milliaInfo.hasEmeraldRain
+				|| frame.u.milliaInfo.hasHitstunLinkedSecretGarden
+				|| frame.u.milliaInfo.hasRose) {
+			ImGui::Separator();
+			if (frame.u.milliaInfo.hasPin) {
+				ImGui::TextUnformatted("Silent Force will stop being active if Millia is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.milliaInfo.hasSDisc) {
+				ImGui::TextUnformatted("S Tandem Top will disappear if Millia is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.milliaInfo.hasHDisc) {
+				ImGui::TextUnformatted("H Tandem Top will disappear if Millia is hit or blocks a hit at any time.");
+			}
+			if (frame.u.milliaInfo.hasEmeraldRain) {
+				ImGui::TextUnformatted("Emerald Rain will disappear if Millia is hit or blocks a hit at any time.");
+			}
+			if (frame.u.milliaInfo.hasHitstunLinkedSecretGarden) {
+				ImGui::TextUnformatted("Secret Garden will disappear if Millia is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.milliaInfo.hasRose) {
+				ImGui::TextUnformatted("Any Chroming Rose roses will disappear if Millia is hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_CHIPP) {
+		if (frame.u.chippInfo.hasShuriken
+				|| frame.u.chippInfo.hasKunaiWall
+				|| frame.u.chippInfo.hasRyuuYanagi) {
+			ImGui::Separator();
+			if (frame.u.chippInfo.hasShuriken) {
+				ImGui::TextUnformatted("Shuriken will disappear if Chipp is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.chippInfo.hasKunaiWall) {
+				ImGui::TextUnformatted("Kunai (Wall) will disappear if Chipp is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.chippInfo.hasRyuuYanagi) {
+				ImGui::TextUnformatted("Ryuu Yanagi will disappear if Chipp is hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_ZATO) {
+		if (frame.u.zatoInfo.hasGreatWhite
+				|| frame.u.zatoInfo.hasInviteHell
+				|| frame.u.zatoInfo.hasEddie) {
+			ImGui::Separator();
+			if (frame.u.zatoInfo.hasGreatWhite) {
+				ImGui::TextUnformatted("Great White will disappear if Zato is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.zatoInfo.hasInviteHell) {
+				ImGui::TextUnformatted("Invite Hell will disappear if Zato is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.zatoInfo.hasEddie) {
+				ImGui::TextUnformatted("Eddie will disappear if Zato is hit or blocks a hit at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_FAUST) {
+		if (frame.u.faustInfo.hasFlower) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("Flower will disappear if Faust is hit (non-blocked hit) at any time.");
+		}
+	} else if (charType == CHARACTER_TYPE_SLAYER) {
+		if (frame.u.slayerInfo.hasRetro) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("Helter-Skelter shockwave will disappear if Slayer is hit (non-blocked hit) at any time.");
+		}
+	} else if (charType == CHARACTER_TYPE_INO) {
+		if (frame.u.inoInfo.hasChemicalLove
+				|| frame.u.inoInfo.hasNote
+				|| frame.u.inoInfo.has5DYRC) {
+			ImGui::Separator();
+			if (frame.u.inoInfo.hasChemicalLove) {
+				ImGui::TextUnformatted("Chemical Love will disappear if I-No is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.inoInfo.hasNote) {
+				ImGui::TextUnformatted("Antidepressant Scale will disappear if I-No is hit (non-blocked hit) on this frame.");
+			}
+			if (frame.u.inoInfo.has5DYRC) {
+				ImGui::TextUnformatted("5D will disappear if I-No is hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_MAY) {
+		if (frame.u.mayInfo.hasDolphin || frame.u.mayInfo.hasBeachBall) {
+			ImGui::Separator();
+			if (frame.u.mayInfo.hasDolphin) {
+				ImGui::TextUnformatted("The Dolphin will disappear if May is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.mayInfo.hasBeachBall) {
+				ImGui::TextUnformatted("The Beach Ball will disappear if May is hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_POTEMKIN) {
+		if (frame.u.potemkinInfo.hasBomb) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("Trishula explosion will disappear if Potemkin is hit (non-blocked hit) on this frame.");
+		}
+	} else if (charType == CHARACTER_TYPE_AXL) {
+		if (frame.u.axlInfo.hasSpindleSpinner
+				|| frame.u.axlInfo.hasSickleFlash
+				|| frame.u.axlInfo.hasMelodyChain
+				|| frame.u.axlInfo.hasSickleStorm) {
+			ImGui::Separator();
+			if (frame.u.axlInfo.hasSpindleSpinner) {
+				ImGui::TextUnformatted("Spindle Spinner will disappear if Axl is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.axlInfo.hasSickleFlash) {
+				ImGui::TextUnformatted("Sickle Flash will disappear if Axl is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.axlInfo.hasMelodyChain) {
+				ImGui::TextUnformatted("Melody Chain will disappear if Axl is hit (non-blocked hit) at any time.");
+			}
+			if (frame.u.axlInfo.hasSickleStorm) {
+				ImGui::TextUnformatted("Sickle Storm will disappear if Axl is hit or blocks a hit at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_VENOM) {
+		if (frame.u.venomInfo.hasQV) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("QV shockwave will disappear if Venom is hit (non-blocked hit) on this frame.");
+		}
+	} else if (charType == CHARACTER_TYPE_BEDMAN) {
+		if (frame.u.bedmanInfo.hasTaskA
+				|| frame.u.bedmanInfo.hasTaskAApostrophe) {
+			ImGui::Separator();
+			if (frame.u.bedmanInfo.hasTaskA) {
+				ImGui::TextUnformatted("Task A will disappear if Bedman is hit or blocks a hit at any time.");
+			}
+			if (frame.u.bedmanInfo.hasTaskAApostrophe) {
+				ImGui::TextUnformatted("Task A' will disappear if Bedman is hit or blocks a hit at any time.");
+			}
+		}
+	}
+	
 	if (frame.needShowAirOptions) {
 		ImGui::Separator();
 		const PlayerInfo& player = endScene.players[playerIndex];
@@ -10255,6 +10494,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			pawn ? pawn.maxAirdashes() : 0);
 		ImGui::TextUnformatted(strbuf);
 	}
+	
 	if (frame.poisonDuration) {
 		ImGui::Separator();
 		
@@ -10272,7 +10512,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::TextUnformatted(strbuf);
 		
 	}
-	CharacterType charType = endScene.players[playerIndex].charType;
+	
 	if (frame.powerup) {
 		ImGui::Separator();
 		if (frame.powerupExplanation && *frame.powerupExplanation != '\0') {
@@ -10294,6 +10534,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
 		}
 	}
+	
 	if (frame.airthrowDisabled || frame.running || frame.cantBackdash || frame.cantAirdash) {
 		ImGui::Separator();
 		if (frame.airthrowDisabled) {
@@ -10322,40 +10563,22 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("Can't airdash due to minimum height requirement.");
 		}
 	}
+	
 	if (charType == CHARACTER_TYPE_SOL) {
-		if (frame.u.solInfo.currentDI || frame.u.solInfo.gunflameDisappearsOnHit) {
+		if (frame.u.solInfo.currentDI) {
 			ImGui::Separator();
-			if (frame.u.solInfo.currentDI) {
-				yellowText("Dragon Install: ");
-				ImGui::SameLine();
-				if (frame.u.solInfo.currentDI == USHRT_MAX) {
-					ImGui::Text("overdue/%d", frame.u.solInfo.maxDI);
-				} else {
-					ImGui::Text("%d/%d", frame.u.solInfo.currentDI, frame.u.solInfo.maxDI);
-				}
-				
-				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-				ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
-					" at half the speed when slowed down by opponent's RC.");
-				ImGui::PopStyleColor();
-				
+			yellowText("Dragon Install: ");
+			ImGui::SameLine();
+			if (frame.u.solInfo.currentDI == USHRT_MAX) {
+				ImGui::Text("overdue/%d", frame.u.solInfo.maxDI);
+			} else {
+				ImGui::Text("%d/%d", frame.u.solInfo.currentDI, frame.u.solInfo.maxDI);
 			}
-			if (frame.u.solInfo.gunflameDisappearsOnHit) {
-				ImGui::TextUnformatted("The Gunflame will disappear if Sol is hit (non-blocked hit) on this frame.");
-			}
-		}
-	} else if (charType == CHARACTER_TYPE_KY) {
-		if (frame.u.kyInfo.stunEdgeWillDisappearOnHit || frame.u.kyInfo.hasChargedStunEdge || frame.u.kyInfo.hasSPChargedStunEdge) {
-			ImGui::Separator();
-			if (frame.u.kyInfo.stunEdgeWillDisappearOnHit) {
-				ImGui::TextUnformatted("The Stun Edge will disappear if Ky is hit (non-blocked hit) on this frame.");
-			}
-			if (frame.u.kyInfo.hasChargedStunEdge) {
-				ImGui::TextUnformatted("The Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
-			}
-			if (frame.u.kyInfo.hasSPChargedStunEdge) {
-				ImGui::TextUnformatted("The Fortified Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
-			}
+			
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
+				" at half the speed when slowed down by opponent's RC.");
+			ImGui::PopStyleColor();
 		}
 	} else if (charType == CHARACTER_TYPE_MILLIA) {
 		bool insertedSeparator = false;
@@ -10379,8 +10602,8 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
 				" at half the speed when slowed down by opponent's RC.");
 			ImGui::PopStyleColor();
-			
 		}
+		
 	} else if (charType == CHARACTER_TYPE_CHIPP) {
 		if (frame.u.chippInfo.invis || frame.u.chippInfo.wallTime) {
 			ImGui::Separator();
@@ -10406,7 +10629,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::Separator();
 		yellowText("Eddie Gauge: ");
 		ImGui::SameLine();
-		ImGui::Text("%d/6000", frame.u.currentTotalInfo.current);
+		ImGui::Text("%d/6000", frame.u.zatoInfo.currentEddieGauge);
 	} else if (charType == CHARACTER_TYPE_FAUST) {
 		if (frame.superArmorActiveInGeneral_IsFull && strcmp(frame.animName, "5D") == 0) {
 			ImGui::Separator();
@@ -10414,11 +10637,11 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				" the reflection will be a homerun.");
 		}
 	} else if (charType == CHARACTER_TYPE_SLAYER) {
-		if (frame.u.currentTotalInfo.current) {
+		if (frame.u.slayerInfo.currentBloodsuckingUniverseBuff) {
 			ImGui::Separator();
 			yellowText("Bloodsucking Universe Buff: ");
 			ImGui::SameLine();
-			ImGui::Text("%d/%d", frame.u.currentTotalInfo.current, frame.u.currentTotalInfo.max);
+			ImGui::Text("%d/%d", frame.u.slayerInfo.currentBloodsuckingUniverseBuff, frame.u.slayerInfo.maxBloodsuckingUniverseBuff);
 		}
 	} else if (charType == CHARACTER_TYPE_INO) {
 		if (frame.u.inoInfo.airdashTimer) {
@@ -10435,8 +10658,8 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::Separator();
 			struct SealInfo {
 				const char* txt;
-				const unsigned short& timer;
-				const unsigned short& timerMax;
+				unsigned short timer;
+				unsigned short timerMax;
 			};
 			SealInfo seals[4] {
 				{ "Task A Seal: ", frame.u.bedmanInfo.sealA, frame.u.bedmanInfo.sealAMax },
@@ -10547,6 +10770,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::Separator();
 		ImGui::TextUnformatted("Suddenly teleported.");
 	}
+	
 	if (frame.crossupProtectionIsOdd || frame.crossupProtectionIsAbove1 || frame.crossedUp) {
 		ImGui::Separator();
 		if (frame.crossedUp) {
@@ -10558,6 +10782,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted(strbuf);
 		}
 	}
+	
 	if (frame.dustGatlingTimer) {
 		ImGui::Separator();
 		yellowText("Dust Gatling Timer: ");
@@ -10566,7 +10791,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::TextUnformatted(strbuf);
 		ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 		ImGui::TextUnformatted("If a normal attack connects while this timer is still counting, all player's non-followup non-super non-IK moves"
-			" get enabled as gatlings from it.");
+			" get enabled as gatlings from it in addition to any regular gatlings.");
 		ImGui::PopStyleColor();
 		
 	}
@@ -10656,12 +10881,18 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 				} else {
 					art = ui.hitConnectedFrame.get();
 				}
+				
+				drawFramebars_drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_NONE);
+				
 				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
 					frameStartVec,
 					frameEndVec,
 					{ art->uStart, art->vStart },
 					{ art->uEnd, art->vEnd },
 					tint);
+				
+				drawFramebars_drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_LINEAR);
+				
 			}
 			
 			ImVec2 mouseRectStart{
@@ -10899,8 +11130,13 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 						if (frame.rcSlowdown) {
 							yellowText("RC-slowed down: ");
 							ImGui::SameLine();
-							sprintf_s(strbuf, "%d/%d", frame.rcSlowdown, frame.rcSlowdownMax);
+							sprintf_s(strbuf, "%d/%d ", frame.rcSlowdown, frame.rcSlowdownMax);
 							ImGui::TextUnformatted(strbuf);
+							ImGui::SameLine();
+							const char* frameSkippedText = frame.rcSlowdown % 2 != 0
+								? "(frame skipped)"
+								: "(frame advanced)";
+							textUnformattedColored(LIGHT_BLUE_COLOR, frameSkippedText);
 						}
 					}
 					if (playerIndex != -1) {
@@ -11737,17 +11973,19 @@ int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int atta
 	const char* chipModifStr = ui.printDecimal(attackKezuri * 10000 / 128, 2, 0, true);
 	sprintf_s(strbuf, "%d (%s)", attackKezuri, chipModifStr);
 	
-	const char* needHelp = nullptr;
 	ImGui::TextUnformatted(strbuf);
-	ImVec4* color = &RED_COLOR;
-	if (attackKezuri > attackKezuriStandard) {
-		needHelp = "higher";
-	} else if (attackKezuri < attackKezuriStandard) {
-		needHelp = "lower";
-		color = &LIGHT_BLUE_COLOR;
-	}
 	
 	if (attackKezuri != attackKezuriStandard) {
+		
+		const char* needHelp = nullptr;
+		ImVec4* color = &RED_COLOR;
+		if (attackKezuri > attackKezuriStandard) {
+			needHelp = "higher";
+		} else if (attackKezuri < attackKezuriStandard) {
+			needHelp = "lower";
+			color = &LIGHT_BLUE_COLOR;
+		}
+		
 		ImGui::SameLine();
 		textUnformattedColored(*color, "(!)");
 		if (ImGui::BeginItemTooltip()) {
@@ -12432,7 +12670,7 @@ static const char* skippedFramesTypeToString(SkippedFramesType type) {
 	}
 }
 
-void SkippedFramesInfo::print(bool canBlockButNotFD) const {
+void SkippedFramesInfo::print(bool canBlockButNotFD_ASSUMPTION) const {
 	if (overflow) {
 		sprintf_s(strbuf, "Since previous displayed frame, skipped %df", elements[0].count);
 		ImGui::TextUnformatted(strbuf);
@@ -12448,7 +12686,7 @@ void SkippedFramesInfo::print(bool canBlockButNotFD) const {
 			ImGui::TextUnformatted(strbuf);
 		}
 	}
-	if (elements[count - 1].type == SKIPPED_FRAMES_SUPERFREEZE && canBlockButNotFD) {
+	if (elements[count - 1].type == SKIPPED_FRAMES_SUPERFREEZE && canBlockButNotFD_ASSUMPTION) {
 		ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 		ImGui::TextUnformatted("Note that cancelling a dash into FD or covering a jump with FD or using FD in general,"
 			" including to avoid chip damage, is impossible on this frame, because it immediately follows a superfreeze."
@@ -13914,4 +14152,25 @@ void UI::drawFramebars() {
 void UI::interjectIntoImGui() {
 	imGuiCorrecter.interjectIntoImGui(screenWidth, screenHeight,
 		usePresentRect, presentRectW, presentRectH);
+}
+
+void UI::printLineOfResultOfHookingRankIcons(const char* placeName, bool result) {
+	yellowText(placeName);
+	ImGui::SameLine();
+	ImGui::TextUnformatted(" - ");
+	ImGui::SameLine();
+	if (result) {
+		textUnformattedColored(GREEN_COLOR, "SUCCESS;");
+	} else {
+		textUnformattedColored(RED_COLOR, "FAILED!");
+	}
+}
+
+void changeTextureFiltering(const ImDrawList* parent_list, const ImDrawCmd* cmd) {
+	ImGui_ImplDX9_Data* backend = (ImGui_ImplDX9_Data*)ImGui::GetIO().BackendRendererUserData;
+	IDirect3DDevice9* device = backend->pd3dDevice;
+	D3DTEXTUREFILTERTYPE filterType = (D3DTEXTUREFILTERTYPE)(DWORD)cmd->UserCallbackData;
+	// by default, imgui_impl_dx9 sets this to linear
+    device->SetSamplerState(0, D3DSAMP_MAGFILTER, filterType);
+    device->SetSamplerState(0, D3DSAMP_MINFILTER, filterType);
 }

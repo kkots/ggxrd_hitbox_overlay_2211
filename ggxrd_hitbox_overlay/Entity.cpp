@@ -178,7 +178,7 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 	logOnce(fprintf(logfile, "counterhit: %u\n", (int)state->counterhit));
 }
 
-bool Entity::hasUpon(int index) const {
+bool Entity::hasUpon(BBScrEvent index) const {
 	int arrayIndex = index >> 5;
 	int bitIndex = index & 31;
 	int bitMask = 1 << bitIndex;

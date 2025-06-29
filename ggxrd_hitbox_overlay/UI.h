@@ -340,6 +340,8 @@ private:
 	bool settingsPresetsUseOutlinedText = false;
 	std::string pixelShaderFailReason;
 	bool pixelShaderFailReasonObtained = false;
+	bool showingFailedHideRankSigscanMessage = false;
+	void printLineOfResultOfHookingRankIcons(const char* placeName, bool result);
 };
 
 extern UI ui;

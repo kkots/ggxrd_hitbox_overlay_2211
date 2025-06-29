@@ -370,6 +370,10 @@ bool Game::onDllMain() {
 		detouring.patchPlace(isGameModeNetworkCall + 1, sig);
 	}
 	
+	if (settings.hideRankIcons) {
+		hideRankIcons();
+	}
+	
 	return !error;
 }
 
@@ -1134,4 +1138,90 @@ BOOL Game::drawWinsHook(BYTE* rematchMenuByte) {
 	
 	#undef DRAW_THE_WINS
 	#undef DONT_DRAW_WINS
+}
+
+void Game::patchDrawIcon(uintptr_t addr) {
+	std::vector<char> newData(4);
+	if (!drawIcon) {
+		drawIcon = (drawIcon_t)followRelativeCall(addr);
+	}
+	DWORD hookAddr = (DWORD)&Game::hiddenRankDrawIcon;
+	int hookOffset = calculateRelativeCallOffset(addr, hookAddr);
+	memcpy(newData.data(), &hookOffset, 4);
+	detouring.patchPlace(addr + 1, newData);
+}
+
+void Game::patchDrawTextureProbably(uintptr_t addr) {
+	std::vector<char> newData(4);
+	if (!drawTextureProbably) {
+		drawTextureProbably = (drawTextureProbably_t)followRelativeCall(addr);
+	}
+	DWORD hookAddr = (DWORD)&Game::hiddenRankDrawTextureProbably;
+	int hookOffset = calculateRelativeCallOffset(addr, hookAddr);
+	memcpy(newData.data(), &hookOffset, 4);
+	detouring.patchPlace(addr + 1, newData);
+}
+
+void Game::hideRankIcons() {
+	
+	if (!drawRankInLobbyOverPlayersHeads) {
+		drawRankInLobbyOverPlayersHeads = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			"6a 00 56 6a 00 6a 00 6a 04 6a 01 51 89 46 1c 8b c4 8d 4c 24 24 89 08",
+			{ 0x20 },
+			nullptr,
+			"drawRankInLobbyOverPlayersHeads");
+		
+		if (drawRankInLobbyOverPlayersHeads) patchDrawIcon(drawRankInLobbyOverPlayersHeads);
+	}
+	
+	if (!drawRankInLobbySearchMemberList) {
+		drawRankInLobbySearchMemberList = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			// I will even put ESP offsets into here
+			"6a 00 8d 4c 24 24 51 6a 00 6a 00 6a 04 6a 01 89 44 24 54 51 8b c4 8d 94 24 a4 01 00 00 89 10",
+			{ 0x28 },
+			nullptr,
+			"drawRankInLobbySearchMemberList");
+		
+		if (drawRankInLobbySearchMemberList) patchDrawIcon(drawRankInLobbySearchMemberList);
+	}
+	
+	if (!drawRankInLobbyMemberList_NonCircle) {
+		drawRankInLobbyMemberList_NonCircle = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			// I will even put ESP offsets into here
+			"8d 94 24 0c 02 00 00 52 89 84 24 2c 02 00 00",
+			{ 0xf },
+			nullptr,
+			"drawRankInLobbyMemberList_NonCircle");
+		
+		if (drawRankInLobbyMemberList_NonCircle) patchDrawTextureProbably(drawRankInLobbyMemberList_NonCircle);
+	}
+	
+	if (!drawRankInLobbyMemberList_Circle) {
+		drawRankInLobbyMemberList_Circle = sigscanOffset(
+			"GuiltyGearXrd.exe",
+			// I will even put ESP offsets into here
+			"8d 8c 24 10 02 00 00 51 89 84 24 30 02 00 00",
+			{ 0xf },
+			nullptr,
+			"drawRankInLobbyMemberList_Circle");
+		
+		if (drawRankInLobbyMemberList_Circle) patchDrawTextureProbably(drawRankInLobbyMemberList_Circle);
+	}
+	
+}
+
+int Game::hiddenRankDrawIcon(int iconIndex, DrawTextWithIconsParams* params, BOOL dontCommit) {
+	if (!settings.hideRankIcons) {
+		return game.drawIcon(iconIndex, params, dontCommit);
+	}
+	return 0;
+}
+
+void Game::hiddenRankDrawTextureProbably(void* params) {
+	if (!settings.hideRankIcons) {
+		game.drawTextureProbably(params);
+	}
 }

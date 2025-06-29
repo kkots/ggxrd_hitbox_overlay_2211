@@ -173,9 +173,10 @@ public:
 	std::atomic_bool clearInputHistoryOnStageResetInTrainingMode = false;
 	std::atomic_bool hideWins = false;
 	std::atomic_bool hideWinsDirectParticipantOnly = false;
+	std::atomic_bool hideRankIcons = false;
 	bool settingsMembersEnd = false;
 	const char* getKeyRepresentation(int code);
-	void readSettings(bool dontReadIfDoesntExist);
+	void readSettings(bool isFirstEverRead);
 	void writeSettings();
 	struct ComboInfo {
 		const char* uiName = nullptr;

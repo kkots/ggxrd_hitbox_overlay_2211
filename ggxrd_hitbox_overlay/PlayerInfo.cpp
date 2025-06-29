@@ -658,13 +658,13 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 		struct SealInfo {
 			Moves::MayIrukasanRidingObjectInfo& info;
 			const char* stateName;
-			int signal;
+			BBScrEvent signal;
 		};
 		SealInfo seals[4] {
-			{ moves.bedmanSealA, "DejavIconBoomerangA", 29 },
-			{ moves.bedmanSealB, "DejavIconBoomerangB", 31 },
-			{ moves.bedmanSealC, "DejavIconSpiralBed", 32 },
-			{ moves.bedmanSealD, "DejavIconFlyingBed", 30 }
+			{ moves.bedmanSealA, "DejavIconBoomerangA", BBSCREVENT_CUSTOM_SIGNAL_6 },
+			{ moves.bedmanSealB, "DejavIconBoomerangB", BBSCREVENT_CUSTOM_SIGNAL_8 },
+			{ moves.bedmanSealC, "DejavIconSpiralBed", BBSCREVENT_CUSTOM_SIGNAL_9 },
+			{ moves.bedmanSealD, "DejavIconFlyingBed", BBSCREVENT_CUSTOM_SIGNAL_7 }
 		};
 		for (int i = 0; i < 4; ++i) {
 			if (strcmp(ent.animationName(), seals[i].stateName) == 0) {
@@ -787,6 +787,10 @@ void PlayerInfo::clear() {
 	comboRecipe.clear();
 	offset += sizeof comboRecipe;
 	memset((BYTE*)this + offset, 0, sizeof PlayerInfo - offset);
+	ikMoveIndex = -1;
+	counterGuardAirMoveIndex = -1;
+	counterGuardStandMoveIndex = -1;
+	counterGuardCrouchMoveIndex = -1;
 }
 
 void PlayerInfo::copyTo(PlayerInfo& dest) {
@@ -2316,7 +2320,7 @@ void PlayerFramebar::clear() {
 void PlayerFrame::clear() {
 	DWORD pos = offsetof(PlayerFrame, cancels);
 	memset(this, 0, pos);
-	cancels.clear();
+	cancels = nullptr;
 	pos += sizeof cancels;
 	inputs.clear();
 	pos += sizeof inputs;
@@ -2371,12 +2375,12 @@ bool PlayerFramebar::lastNFramesCompletelyEmpty(int framebarPosition, int n) con
 
 void PlayerFramebar::clearCancels() {
 	for (int i = 0; i < _countof(frames); ++i) {
-		frames[i].cancels.clear();
+		frames[i].cancels = nullptr;
 	}
 }
 
 void PlayerFramebar::clearCancels(int index) {
-	frames[index].cancels.clear();
+	frames[index].cancels = nullptr;
 }
 
 void PlayerFramebar::copyFrame(FrameBase& destFrame, const FrameBase& srcFrame) const {

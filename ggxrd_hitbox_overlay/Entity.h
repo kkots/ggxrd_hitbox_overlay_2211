@@ -619,7 +619,7 @@ struct AttackData {
 	int forcedProration;
 	int riscMinusStarter;
 	int riscMinusOnce;
-	int attackKezuri;
+	int attackKezuri;  // chip damage in units of 1/128. By default 16 for specials and supers, 0 for normals, which stands for 12,5%
 	int unburstableTime;
 	int invulnTime;
 	int dustInvulnTime;
@@ -696,6 +696,107 @@ struct ScheduledAnim {
 	char markerName[32];
 	int moveIndex;
 	int nonZeroOnAnimChange;
+};
+
+enum EntityReferenceType {
+	ENT_NONE = 0x0,
+	ENT_PREVIOUS = 0x1,
+	ENT_PARENT = 0x2,
+	ENT_PLAYER = 0x3,
+	ENT_STACK_0 = 0x4,
+	ENT_STACK_1 = 0x5,
+	ENT_STACK_2 = 0x6,
+	ENT_STACK_3 = 0x7,
+	ENT_STACK_4 = 0x8,
+	ENT_STACK_5 = 0x9,
+	ENT_STACK_6 = 0xa,
+	ENT_STACK_7 = 0xb,
+	ENT_STACK_FOR_CMN_ACT = 0xc,
+	ENT_WINNER = 0xd,
+	ENT_LOSER = 0xe,
+	ENT_LOCKED = 0x15,
+	ENT_ENEMY = 0x16,
+	ENT_SELF = 0x17,
+	ENT_LAST_ATTACKER = 0x18,
+	ENT_LAST_DEFENDER = 0x19,
+	ENT_STACK_9 = 0x1a,
+	ENT_PLAYER_0 = 0x1b,
+	ENT_PLAYER_1 = 0x1c
+};
+
+enum BBScrEvent {
+	BBSCREVENT_IMMEDIATE = 0,
+	BBSCREVENT_BEFORE_EXIT = 1,
+	BBSCREVENT_LANDING = 2,
+	BBSCREVENT_ANIMATION_FRAME_ADVANCED = 3,  // also called Idling
+	BBSCREVENT_SPEED_Y_DECREASED_BELOW_TARGET = 4,
+	BBSCREVENT_LANDING_REPEATUSE = 5,
+	BBSCREVENT_TOUCH_WALL_OR_SCREEN_EDGE = 6,
+	BBSCREVENT_STATE_REACHED_END = 7,
+	BBSCREVENT_YOUR_ATTACK_COLLISION = 8,
+	BBSCREVENT_YOUR_ATTACK_COLLISION_WITH_A_PLAYER = 9,
+	BBSCREVENT_HIT_THE_ENEMY_PLAYER = 10,
+	BBSCREVENT_GOT_HIT = 11,
+	BBSCREVENT_FRAMESTEP_1 = 12,
+	BBSCREVENT_REACHED_TARGET_ANIM_DURATION = 13,
+	BBSCREVENT_DIE = 14,
+	BBSCREVENT_NOT_HOLD_P = 15,
+	BBSCREVENT_NOT_HOLD_K = 16,
+	BBSCREVENT_NOT_HOLD_S = 17,
+	BBSCREVENT_NOT_HOLD_H = 18,
+	BBSCREVENT_NOT_HOLD_D = 19,
+	BBSCREVENT_DISTANCE_TO_PLAYER_LESS_THAN_TARGET = 20,
+	BBSCREVENT_FINALIZE = 21,
+	BBSCREVENT_CUSTOM_SIGNAL_0 = 23,
+	BBSCREVENT_CUSTOM_SIGNAL_1 = 24,
+	BBSCREVENT_CUSTOM_SIGNAL_2 = 25,
+	BBSCREVENT_CUSTOM_SIGNAL_3 = 26,
+	BBSCREVENT_CUSTOM_SIGNAL_4 = 27,
+	BBSCREVENT_CUSTOM_SIGNAL_5 = 28,
+	BBSCREVENT_CUSTOM_SIGNAL_6 = 29,
+	BBSCREVENT_CUSTOM_SIGNAL_7 = 30,
+	BBSCREVENT_CUSTOM_SIGNAL_8 = 31,
+	BBSCREVENT_CUSTOM_SIGNAL_9 = 32,
+	BBSCREVENT_MUTEKI = 33,
+	BBSCREVENT_PLAYER_GOT_HIT = 35,
+	BBSCREVENT_FRAME_STEP = 36,
+	BBSCREVENT_CLASH = 37,
+	BBSCREVENT_PLAYER_BLOCKED = 38,
+	BBSCREVENT_PRE_DRAW = 39,
+	BBSCREVENT_GUARD = 40,
+	BBSCREVENT_ARMOR = 41,
+	BBSCREVENT_PRE_FRAME_STEP = 42,
+	BBSCREVENT_ARMOR2 = 43,
+	BBSCREVENT_HIT_OWN_PROJECTILE_DEFAULT = 44,
+	BBSCREVENT_DESTROY = 45,
+	BBSCREVENT_TOUCH_WALL = 46,
+	BBSCREVENT_PLAYER_CHANGED_STATE = 47,
+	BBSCREVENT_SEND_SIGNAL_NAME = 49,
+	BBSCREVENT_SUPERFREEZE = 50,
+	BBSCREVENT_LANDED = 51,
+	BBSCREVENT_START = 53,
+	BBSCREVENT_BEFORE_ATTACK_PROPERTIES_COPY = 54,
+	BBSCREVENT_BEFORE_ATTACK_PROPERTIES_COPY_HIT_BY_TEAMMEMBER = 55,
+	BBSCREVENT_FRAME_STEP_AFTER = 56,
+	BBSCREVENT_PLAYER_GOT_INSTANT_KILLED = 57,
+	BBSCREVENT_OPPONENT_GOT_INSTANT_KILLED = 58,
+	BBSCREVENT_INSTANT_KILL = 59,
+	BBSCREVENT_NO_GUARD_EFFECT = 60,
+	BBSCREVENT_YOUR_ATK_GOT_FD_BLOCKED = 61,
+	BBSCREVENT_ENTRY_WAIT = 63,
+	BBSCREVENT_ARMOR2_PROJECTILE = 64,
+	BBSCREVENT_REFLECT_ENEMY_PROJECTILE = 65,
+	BBSCREVENT_GOT_REFLECTED = 66,
+	BBSCREVENT_PRE_COLLISION_CHECK = 67,
+	BBSCREVENT_ASSARI_GOT_HIT = 68,
+	BBSCREVENT_GOT_HIT2 = 69,
+	BBSCREVENT_PLAYER_GETTING_HIT = 71,
+	BBSCREVENT_PLAYER_BLOCKED_ATTACK = 72,
+	BBSCREVENT_ENEMY_GETTING_HIT = 73,
+	BBSCREVENT_ENEMY_BLOCKED_ATTACK = 74,
+	BBSCREVENT_DECIDE_GUARD_EFFECT = 76,
+	BBSCREVENT_FRAME_STEP_AFTER_EXTRA = 77,
+	BBSCREVENT_HIT_THE_OPPONENT_PRE_ATK_VALUES_COPY = 78
 };
 
 class Entity
@@ -933,8 +1034,8 @@ public:
 	// having this flag drastically reduces your super armor to only hits that can be reflected.
 	// Having this flag without superArmorEnabled is useless because you just get hit by the projectile
 	inline bool invulnForAegisField() const { return (*(DWORD*)(ent + 0x238) & 0x400) != 0; }
-	bool hasUpon(int index) const;
-	const UponInfo* uponStruct(int index) const { return (const UponInfo*)(ent + 0xb70) + index; }
+	bool hasUpon(BBScrEvent index) const;
+	const UponInfo* uponStruct(BBScrEvent index) const { return (const UponInfo*)(ent + 0xb70) + index; }
 	inline int mem45() const { return *(int*)(ent + 0x14c); }  // Reset on state change
 	inline int mem46() const { return *(int*)(ent + 0x150); }  // Reset on state change
 	inline int mem47() const { return *(int*)(ent + 0x154); }  // Reset on state change
@@ -955,9 +1056,9 @@ public:
 	inline int mem202() const { return *(int*)(ent + 0x24c64); }
 	inline int mem203() const { return *(int*)(ent + 0x24c68); }
 	
-	// bbscript numbers them from 1, I number them from 0, so subtract 1 from the bbscript number
-	// indices 0-3 are reset on state change, 4-7 are not
-	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * n); }  
+	// bbscript numbers them from 1, I number them from 1 too, so type in the number you see in bbscript
+	// indices 1-4 are reset on state change, 5-8 are not
+	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * (n - 1)); }  
 	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }  // reset to 0 on stage reset
 	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }  // reset to 0 on stage reset
 	inline const char* gotoLabelRequest() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
@@ -1059,10 +1160,10 @@ public:
 	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
 	inline int airDashMinimumHeight() const { return *(int*)(ent + 0x9864); }
 	inline int framesSinceRegisteringForTheIdlingSignal() const { return *(int*)(ent + 0x140); }  // unfortunately, this value is +1 at the end of the tick more than what it was during an idling event. Luckily, you can just -1 from it before using
-	inline int relatedToBufferTime1() const { return *(int*)(ent + 0x24dcc); }
-	inline int relatedToBufferTime2() const { return *(int*)(ent + 0x24dd0); }
-	inline int relatedToBufferTime3() const { return *(int*)(ent + 0x24dd4); }
-	inline int toAddToBufferTime() const { return *(int*)(ent + 0x24dd8); }
+	inline int clashOrRCBufferTimer() const { return *(int*)(ent + 0x24dcc); }  // decrements by 1 in the big function that uses the "cmn_MOM_Jibaku" string. When not 0, adds bufferTimeFromRC+13 to buffer window of moves
+	inline int dustHomingJump1BufferTimer() const { return *(int*)(ent + 0x24dd0); }  // set to 100 by the C++ side of the code of the callPrivateFunction: s32'DustHomingJump1' in bbscript in cmnHomingJumpInitialize subroutine, which only happens on 5D8, not 5D6
+	inline int blitzShieldHitstopBuffer() const { return *(int*)(ent + 0x24dd4); }
+	inline int bufferTimeFromRC() const { return *(int*)(ent + 0x24dd8); }
 	inline int ensureAtLeast3fBufferForNormalsWhenJumping() const { return *(int*)(ent + 0x262f4); }
 	inline const ScheduledAnim* currentAnimData() const { return (ScheduledAnim*)(ent + 0x24c0); }
 	inline const ScheduledAnim* nextAnim() const { return (ScheduledAnim*)(ent + 0x2474); }

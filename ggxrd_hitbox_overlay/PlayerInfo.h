@@ -5,6 +5,7 @@
 #include <vector>
 #include "Input.h"
 #include "InputRingBuffer.h"
+#include <memory>
 
 #define INVUL_TYPES_TABLE \
 	INVUL_TYPES_EXEC(STRIKE_INVUL, "strike", strikeInvul) \
@@ -43,17 +44,29 @@ struct MilliaInfo {
 	DWORD SGInputsMax:3;
 	DWORD chromingRose:9;
 	DWORD chromingRoseMax:9;
+	DWORD hasPin:1;
+	DWORD hasSDisc:1;
+	DWORD hasHDisc:1;
+	DWORD hasEmeraldRain:1;
+	DWORD hasHitstunLinkedSecretGarden:1;
+	DWORD hasRose:1;
 };
 
 struct ChippInfo {
 	unsigned short invis;
 	unsigned short wallTime;
+	bool hasShuriken;
+	bool hasKunaiWall;
+	bool hasRyuuYanagi;
 };
 
 struct SolInfo {
 	unsigned short currentDI;
 	unsigned short maxDI:15;
 	unsigned short gunflameDisappearsOnHit:1;
+	unsigned short gunflameComesOutLater:1;
+	unsigned short gunflameFirstWaveDisappearsOnHit:1;
+	unsigned short hasTyrantRavePunch2:1;
 };
 
 // used by multiple chars
@@ -67,11 +80,18 @@ struct InoInfo {
 	unsigned short noteLevel:3;
 	unsigned char noteTime;
 	unsigned char noteTimeMax;
+	bool hasChemicalLove:1;
+	bool hasNote:1;
+	bool has5DYRC:1;
 };
 
 struct BedmanInfo {
-	unsigned short sealA;
-	unsigned short sealAMax;
+	unsigned short sealA:14;
+	unsigned short hasTaskA:1;
+	unsigned short hasTaskAApostrophe:1;
+	unsigned short sealAMax:14;
+	unsigned short hasDejavuAGhost:1;
+	unsigned short hasDejavuABoomerang:1;
 	unsigned short sealB;
 	unsigned short sealBMax;
 	unsigned short sealC;
@@ -115,6 +135,45 @@ struct KyInfo {
 	bool stunEdgeWillDisappearOnHit;
 	bool hasChargedStunEdge;
 	bool hasSPChargedStunEdge;
+	bool hasjD;
+};
+
+struct MayInfo {
+	bool hasDolphin;
+	bool hasBeachBall;
+};
+
+struct ZatoInfo {
+	unsigned short currentEddieGauge;
+	unsigned short maxEddieGauge;
+	bool hasGreatWhite;
+	bool hasInviteHell;
+	bool hasEddie;
+};
+
+struct PotemkinInfo {
+	bool hasBomb;  // Trishula
+};
+
+struct FaustInfo {
+	bool hasFlower;  // the ground one
+};
+
+struct AxlInfo {
+	bool hasSpindleSpinner;
+	bool hasSickleFlash;
+	bool hasMelodyChain;
+	bool hasSickleStorm;
+};
+
+struct VenomInfo {
+	bool hasQV;
+};
+
+struct SlayerInfo {
+	unsigned int currentBloodsuckingUniverseBuff;
+	unsigned int maxBloodsuckingUniverseBuff;
+	bool hasRetro;
 };
 
 struct GatlingOrWhiffCancelInfo {
@@ -252,6 +311,7 @@ struct FrameCancelInfo {
 	inline void copyFromAnotherSizedArray(FrameCancelInfo<srcSize>& src) {
 		copyCancelsFromAnotherSizePart<srcSize>(gatlings, src.gatlings);
 		copyCancelsFromAnotherSizePart<srcSize>(whiffCancels, src.whiffCancels);
+		whiffCancelsNote = src.whiffCancelsNote;
 	}
 	template<size_t srcSize>
 	inline void copyCancelsFromAnotherSizePart(FixedArrayOfGatlingOrWhiffCancelInfos<size>& dest,
@@ -260,8 +320,24 @@ struct FrameCancelInfo {
 		if (elemsToCopy > size) {
 			elemsToCopy = size;
 		}
-		dest.count = src.count;
+		dest.count = elemsToCopy;
 		memcpy(dest.elems, src.elems, sizeof (GatlingOrWhiffCancelInfo) * elemsToCopy);
+	}
+	template<size_t srcSize>
+	inline bool equalTruncated(FrameCancelInfo<srcSize>& src) {
+		return equalTruncatedPart<srcSize>(gatlings, src.gatlings)
+			&& equalTruncatedPart<srcSize>(whiffCancels, src.whiffCancels)
+			&& whiffCancelsNote == src.whiffCancelsNote;
+	}
+	template<size_t srcSize>
+	inline bool equalTruncatedPart(FixedArrayOfGatlingOrWhiffCancelInfos<size>& dest,
+			FixedArrayOfGatlingOrWhiffCancelInfos<srcSize>& src) {
+		size_t elemsToCompare = src.size();
+		if (elemsToCompare > size) {
+			elemsToCompare = size;
+		}
+		return dest.count == elemsToCompare
+			&& memcmp(dest.elems, src.elems, sizeof (GatlingOrWhiffCancelInfo) * elemsToCompare) == 0;
 	}
 };
 
@@ -575,7 +651,7 @@ struct Frame : public FrameBase {
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector require special handling in the clear() method.
 struct PlayerFrame : public FrameBase {
-	FrameCancelInfo<30> cancels;
+	std::shared_ptr<FrameCancelInfo<30>> cancels;
 	std::vector<Input> inputs;
 	const char* powerupExplanation;
 	Input prevInput;
@@ -592,6 +668,13 @@ struct PlayerFrame : public FrameBase {
 		JohnnyInfo johnnyInfo;
 		RavenInfo ravenInfo;
 		DizzyInfo dizzyInfo;
+		MayInfo mayInfo;
+		ZatoInfo zatoInfo;
+		PotemkinInfo potemkinInfo;
+		FaustInfo faustInfo;
+		AxlInfo axlInfo;
+		VenomInfo venomInfo;
+		SlayerInfo slayerInfo;
 	} u;
 	short poisonDuration;
 	short poisonMax:14;
@@ -1209,7 +1292,7 @@ struct DmgCalc {
 			bool wasInBlockstun;
 			
 			int baseDamage;
-			int attackKezuri;
+			int attackKezuri;  // chip damage in units of 1/128. By default 16 for specials and supers, 0 for normals, which stands for 12,5%
 			int attackKezuriStandard;
 		} block;
 		struct DmgCalcArmor {
@@ -1225,7 +1308,7 @@ struct DmgCalc {
 			int gutsLevel;
 			int guts;
 			
-			int attackKezuri;
+			int attackKezuri;  // chip damage in units of 1/128. By default 16 for specials and supers, 0 for normals, which stands for 12,5%
 			int attackKezuriStandard;
 		} armor;
 		struct DmgCalcHit {
@@ -1683,6 +1766,10 @@ struct PlayerInfo {
 	int timePassedPureIdle = 0;  // time passed since last change in 'idle' property from false to true, in frames no including superfreeze and hitstop. For combo recipe. The reason we take pure 'idle' and not 'idlePlus' is because we want to start measuring idle time after landing separately
 	int dustGatlingTimer = 0;
 	int dustGatlingTimerMax = 0;
+	int ikMoveIndex = -1;
+	int counterGuardAirMoveIndex = -1;
+	int counterGuardStandMoveIndex = -1;
+	int counterGuardCrouchMoveIndex = -1;
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;
@@ -1748,9 +1835,11 @@ struct PlayerInfo {
 	// you can't initiate a 5P, but enableNormals would say yes. So technically
 	// enableNormals is not true on that frame.
 	bool wasEnableNormals:1;
+	bool wasPrevFrameEnableNormals:1;
 	bool wasEnableGatlings:1;
 	bool wasEnableWhiffCancels:1;
 	bool wasEnableSpecials:1;
+	bool wasPrevFrameEnableSpecials:1;
 	bool wasEnableSpecialCancel:1;
 	bool wasEnableJumpCancel:1;
 	bool wasEnableAirtech:1;

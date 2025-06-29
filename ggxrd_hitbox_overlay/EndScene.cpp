@@ -310,9 +310,9 @@ bool EndScene::onDllMain() {
 	digUpBBScrFunctionAndHook(BBScr_createParticleWithArg_t, BBScr_createParticleWithArg, 449, (const char*, unsigned int))
 	digUpBBScrFunctionAndHook(BBScr_linkParticle_t, BBScr_linkParticle, 450, (const char*))
 	digUpBBScrFunctionAndHook(BBScr_linkParticle_t, BBScr_linkParticleWithArg2, 1923, (const char*))
-	digUpBBScrFunctionAndHook(BBScr_runOnObject_t, BBScr_runOnObject, 41, (int))
-	digUpBBScrFunctionAndHook(BBScr_sendSignal_t, BBScr_sendSignal, 1766, (int, int))
-	digUpBBScrFunctionAndHook(BBScr_sendSignalToAction_t, BBScr_sendSignalToAction, 1771, (const char*, int))
+	digUpBBScrFunctionAndHook(BBScr_runOnObject_t, BBScr_runOnObject, 41, (EntityReferenceType))
+	digUpBBScrFunctionAndHook(BBScr_sendSignal_t, BBScr_sendSignal, 1766, (EntityReferenceType, BBScrEvent))
+	digUpBBScrFunctionAndHook(BBScr_sendSignalToAction_t, BBScr_sendSignalToAction, 1771, (const char*, BBScrEvent))
 	digUpBBScrFunction(BBScr_callSubroutine_t, BBScr_callSubroutine, 17)
 	uintptr_t BBScr_createArgHikitsukiVal = 0;
 	digUpBBScrFunction(uintptr_t, BBScr_createArgHikitsukiVal, 2247)
@@ -377,8 +377,15 @@ bool EndScene::onDllMain() {
 		uintptr_t findMoveByNameCallPlace = sigscanForward(BBScr_whiffCancelOptionBufferTime, "e8", 20);
 		if (findMoveByNameCallPlace) {
 			findMoveByName = (findMoveByName_t)followRelativeCall(findMoveByNameCallPlace);
+		} else {
+			logwrap(fputs("Could not find findMoveByName: call place for it not found.\n", logfile));
+			error = true;
 		}
+	} else {
+		logwrap(fputs("Could not find findMoveByName: BBScr_whiffCancelOptionBufferTime not found.\n", logfile));
+		error = true;
 	}
+	if (!findMoveByName) return false;
 	
 	std::vector<char> sig;
 	std::vector<char> mask;
@@ -446,7 +453,7 @@ bool EndScene::onDllMain() {
 	}
 	
 	if (orig_handleUpon) {
-		void (HookHelp::*handleUponHookPtr)(int) = &HookHelp::handleUponHook;
+		void (HookHelp::*handleUponHookPtr)(BBScrEvent) = &HookHelp::handleUponHook;
 		if (!detouring.attach(&(PVOID&)orig_handleUpon,
 			(PVOID&)handleUponHookPtr,
 			"handleUpon")) return false;
@@ -495,7 +502,10 @@ bool EndScene::onDllMain() {
 	if (iconStringUsage) {
 		iconTexture = *(void**)(iconStringUsage + 1);
 	}
-	if (!iconTexture) error = true;
+	if (!iconTexture) {
+		error = true;
+		logwrap(fputs("iconTexture not found.\n", logfile));
+	}
 	
 	uintptr_t backPushbackApplierPiece = sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -603,7 +613,7 @@ bool EndScene::onDllMain() {
 			"83 ec ?? a1 ?? ?? ?? ?? 33 c4", 0x616);
 	}
 	if (orig_onCmnActXGuardLoop) {
-		void (HookHelp::*onCmnActXGuardLoopHookPtr)(int signal, int type, int thisIs0) = &HookHelp::onCmnActXGuardLoopHook;
+		void (HookHelp::*onCmnActXGuardLoopHookPtr)(BBScrEvent signal, int type, int thisIs0) = &HookHelp::onCmnActXGuardLoopHook;
 		if (!detouring.attach(&(PVOID&)orig_onCmnActXGuardLoop,
 			(PVOID&)onCmnActXGuardLoopHookPtr,
 			"onCmnActXGuardLoop")) return false;
@@ -939,6 +949,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			// without this fix, the mod thinks normals are enabled except on the very first of a match where it thinks they're not
 			PlayerInfo& player = players[i];
 			player.wasEnableNormals = false;
+			player.wasPrevFrameEnableNormals = false;
 		}
 	}
 	bool framebarAdvanced = false;
@@ -1044,8 +1055,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.pushback = ent.pushback();
 			
 			player.prevFrameHadDangerousNonDisabledProjectiles = player.hasDangerousNonDisabledProjectiles;
-			player.prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer = player.pawn.previousEntity()
-				&& player.pawn.previousEntity().linkObjectDestroyOnStateChange() == player.pawn;
 			player.hasDangerousNonDisabledProjectiles = false;
 			player.createdDangerousProjectile = false;
 			player.createdProjectileThatSometimesCanBeDangerous = false;
@@ -2521,17 +2530,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 				}
 			}
+			bool hadHitboxes = projectile.landedHit || objHasAttackHitboxes(projectile.ptr);
 			if (!found) {
-				if (projectile.landedHit || projectile.gotHitOnThisFrame) {
+				if (hadHitboxes || projectile.gotHitOnThisFrame) {
 					projectile.ptr = nullptr;
-					projectile.markActive = projectile.landedHit;
+					projectile.markActive = hadHitboxes;
 					++it;
 					continue;
 				}
 				it = projectiles.erase(it);
 			} else {
 				projectile.fill(projectile.ptr, superflashInstigator, false);
-				projectile.markActive = projectile.landedHit;
+				projectile.markActive = hadHitboxes;
 				if (projectile.team == 0 || projectile.team == 1) {
 					if (!projectile.moveNonEmpty) {
 						projectile.isDangerous = false;
@@ -2845,7 +2855,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (projectile.team != player.index || !projectile.ptr) continue;
 					if (strcmp(projectile.animName, "GrenadeBomb") == 0) {
 						foundGrenadeInGeneral = true;
-						if (!projectile.ptr.hasUpon(35)) {
+						if (!projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
 							foundGrenade = true;
 							grenadeFrozen = projectile.ptr.isSuperFrozen();
 							grenadeSlowdown = projectile.rcSlowedDownCounter;
@@ -4787,12 +4797,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| player.charType == CHARACTER_TYPE_ELPHELT
 					&& strcmp(projectile.animName, "GrenadeBomb") == 0
 					&& projectile.ptr
-					&& projectile.ptr.hasUpon(35)
+					&& projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)
 					|| player.charType == CHARACTER_TYPE_JACKO
 					&& projectile.ptr
 					&& projectile.ptr.servant()
 					|| player.charType == CHARACTER_TYPE_DIZZY
 					&& strncmp(projectile.animName, "HanashiObj", 10) == 0
+					// unfortunately, the code that finds Eddie happens later, so we have to re-find Eddie here
+					|| player.charType == CHARACTER_TYPE_ZATO
+					&& (
+						strcmp(projectile.animName, "ChouDoriru"_hardcode) == 0
+						|| player.pawn.playerVal(0)
+						&& projectile.ptr
+						&& projectile.ptr == getReferredEntity((void*)player.pawn.ent, ENT_STACK_0)
+					)
 				) && !projectile.strikeInvul
 				|| projectile.gotHitOnThisFrame && !isDizzyBubble(projectile.animName)) {
 				projectileCanBeHit = true;
@@ -4852,8 +4870,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.animName = projectile.lastName;
 					currentFrame.animSlangName = projectile.lastSlangName;
 				}
-				currentFrame.hitstop = projectile.hitstop;
-				currentFrame.hitstopMax = projectile.hitstopMax;
+				currentFrame.hitstop = projectile.hitstopWithSlow;
+				currentFrame.hitstopMax = projectile.hitstopMaxWithSlow;
 				currentFrame.hitConnected = projectile.hitConnectedForFramebar() || projectile.gotHitOnThisFrame
 					|| isMistKuttsuku;
 				currentFrame.rcSlowdown = projectile.rcSlowedDownCounter;
@@ -5018,7 +5036,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				PlayerInfo& enemy = players[1 - player.index];
 				Entity ent = nullptr;
 				if (player.pawn.playerVal(0)) {
-					ent = getReferredEntity((void*)player.pawn.ent, 4);
+					ent = getReferredEntity((void*)player.pawn.ent, ENT_STACK_0);
 				}
 				bool created = false;
 				
@@ -5412,7 +5430,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			FrameType startupFrameType;
 			if (player.canBlock) {
 				if (hasCancels) {
-					startupFrameType = FT_STARTUP_CAN_BLOCK_AND_CANCEL;
+					if (blitzShieldCancellable(player, false)
+							&& !player.hitstop
+							&& isBlitzPostHitstopFrame_outsideTick(player)) {
+						startupFrameType = FT_STARTUP_CAN_BLOCK;
+					} else {
+						startupFrameType = FT_STARTUP_CAN_BLOCK_AND_CANCEL;
+					}
 				} else {
 					startupFrameType = FT_STARTUP_CAN_BLOCK;
 				}
@@ -5466,6 +5490,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					milliaInfo = player.canProgramSecretGarden();
 					milliaInfo.chromingRose = player.milliaChromingRoseTimeLeft;
 					milliaInfo.chromingRoseMax = player.maxDI;
+					milliaInfo.hasPin = hasProjectileOfTypeAndHasNotExhausedHit(player, "SilentForceKnife");
+					milliaInfo.hasSDisc = hasProjectileOfType(player, "TandemTopCRing");
+					milliaInfo.hasHDisc = hasProjectileOfType(player, "TandemTopDRing");
+					milliaInfo.hasEmeraldRain = hasOneProjectileOfTypeStrNCmp(player, "EmeraldRainRing");
+					milliaInfo.hasHitstunLinkedSecretGarden = hasOneLinkedProjectileOfType(player, "SecretGardenBall");
+					milliaInfo.hasRose = hasOneProjectileOfType(player, "RoseObj");
 					currentFrame.u.milliaInfo = milliaInfo;
 				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
 					currentFrame.u.chippInfo.invis = player.playerval0;
@@ -5475,75 +5505,53 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (wallTime > USHRT_MAX || wallTime <= 0) wallTime = USHRT_MAX;
 						currentFrame.u.chippInfo.wallTime = wallTime;
 					}
+					currentFrame.u.chippInfo.hasShuriken = hasOneProjectileOfTypeStrNCmp(player, "ShurikenObj");  // is linked, but never unlinks, so we just check the projectile
+					currentFrame.u.chippInfo.hasKunaiWall = hasOneProjectileOfType(player, "Kunai_Wall");
+					currentFrame.u.chippInfo.hasRyuuYanagi = hasOneProjectileOfType(player, "Kunai");
 				} else if (player.charType == CHARACTER_TYPE_SOL) {
 					currentFrame.u.solInfo.currentDI = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
 					currentFrame.u.solInfo.maxDI = player.maxDI;
-					currentFrame.u.solInfo.gunflameDisappearsOnHit = hasAllLinkedProjectilesOfType(player, "GunFlameHibashira");
+					
+					bool gunflameDisappearsOnHit = false;
+					bool gunflameComesOutLater = false;
+					bool gunflameFirstWaveDisappearsOnHit = false;
+					
+					analyzeGunflame(player, &gunflameDisappearsOnHit,
+						&gunflameComesOutLater, &gunflameFirstWaveDisappearsOnHit);
+					
+					currentFrame.u.solInfo.gunflameDisappearsOnHit = gunflameDisappearsOnHit;
+					currentFrame.u.solInfo.gunflameComesOutLater = gunflameComesOutLater;
+					currentFrame.u.solInfo.gunflameFirstWaveDisappearsOnHit = gunflameFirstWaveDisappearsOnHit;
+					
+					currentFrame.u.solInfo.hasTyrantRavePunch2 = hasProjectileOfType(player, "TyrantRavePunch2_DI");
 				} else if (player.charType == CHARACTER_TYPE_KY) {
 					currentFrame.u.kyInfo.stunEdgeWillDisappearOnHit = hasOneLinkedProjectileOfType(player, "StunEdgeObj");
 					currentFrame.u.kyInfo.hasChargedStunEdge = hasProjectileOfType(player, "ChargedStunEdgeObj");
 					currentFrame.u.kyInfo.hasSPChargedStunEdge = hasProjectileOfType(player, "SPChargedStunEdgeObj");
+					currentFrame.u.kyInfo.hasjD = hasProjectileOfType(player, "AirDustAttackObj");
 				} else if (player.charType == CHARACTER_TYPE_ZATO) {
-					currentFrame.u.currentTotalInfo.current = player.pawn.exGaugeValue(0);
-					currentFrame.u.currentTotalInfo.max = 6000;
+					currentFrame.u.zatoInfo.currentEddieGauge = player.pawn.exGaugeValue(0);
+					currentFrame.u.zatoInfo.maxEddieGauge = 6000;
+					// player.eddie.ptr is up to date here
+					currentFrame.u.zatoInfo.hasGreatWhite = player.eddie.ptr && strcmp(player.eddie.anim, "EddieMegalithHead") == 0;
+					currentFrame.u.zatoInfo.hasInviteHell = hasOneProjectileOfTypeStrNCmp(player, "Drill");
+					currentFrame.u.zatoInfo.hasEddie = player.eddie.ptr;
 				} else if (player.charType == CHARACTER_TYPE_SLAYER) {
-					currentFrame.u.currentTotalInfo.current = player.wasPlayerval1Idling;
-					currentFrame.u.currentTotalInfo.max = player.maxDI;
+					currentFrame.u.slayerInfo.currentBloodsuckingUniverseBuff = player.wasPlayerval1Idling;
+					currentFrame.u.slayerInfo.maxBloodsuckingUniverseBuff = player.maxDI;
+					currentFrame.u.slayerInfo.hasRetro = hasProjectileOfType(player, "Retro");
 				} else if (player.charType == CHARACTER_TYPE_INO) {
 					currentFrame.u.inoInfo.airdashTimer = player.wasProhibitFDTimer;
 					currentFrame.u.inoInfo.noteTime = player.noteTimeWithSlow;
 					currentFrame.u.inoInfo.noteTimeMax = player.noteTimeWithSlowMax;
 					currentFrame.u.inoInfo.noteLevel = player.noteLevel;
+					currentFrame.u.inoInfo.hasChemicalLove = hasOneLinkedProjectileOfType(player, "BChemiLaser")
+						|| hasOneLinkedProjectileOfType(player, "CChemiLaser");
+					currentFrame.u.inoInfo.hasNote = hasOneLinkedProjectileOfType(player, "Onpu");
+					currentFrame.u.inoInfo.has5DYRC = hasOneLinkedProjectileOfType(player, "DustObjShot");
 				} else if (player.charType == CHARACTER_TYPE_BEDMAN) {
-					struct SealInfo {
-						Moves::MayIrukasanRidingObjectInfo& info;
-						unsigned short& sealTimer;
-						unsigned short& sealTimerMax;
-						const char* stateName;
-						int signal;
-					};
-					SealInfo seals[4] {
-						{ moves.bedmanSealA, player.bedmanInfo.sealA, player.bedmanInfo.sealAMax, "DejavIconBoomerangA", 29 },
-						{ moves.bedmanSealB, player.bedmanInfo.sealB, player.bedmanInfo.sealBMax, "DejavIconBoomerangB", 31 },
-						{ moves.bedmanSealC, player.bedmanInfo.sealC, player.bedmanInfo.sealCMax, "DejavIconSpiralBed", 32 },
-						{ moves.bedmanSealD, player.bedmanInfo.sealD, player.bedmanInfo.sealDMax, "DejavIconFlyingBed", 30 }
-					};
-					for (int j = 0; j < 4; ++j) {
-						seals[j].sealTimer = 0;
-					}
-					int n = 4;
-					for (ProjectileInfo& projectile : projectiles) {
-						if (projectile.team != player.index) continue;
-						for (int j = 0; j < n; ++j) {
-							SealInfo& seal = seals[j];
-							if (strcmp(projectile.animName, seal.stateName) == 0) {
-								bool isFrameAfter = false;
-								int remainingFrames = moves.getBedmanSealRemainingFrames(projectile, seal.info, seal.signal, &isFrameAfter);
-								int calculatedResult;
-								int calculatedResultMax;
-								int unused;
-								PlayerInfo::calculateSlow(
-									projectile.bedmanSealElapsedTime + 1,
-									remainingFrames,
-									projectile.rcSlowedDownCounter,
-									&calculatedResult,
-									&calculatedResultMax,
-									&unused);
-								if (calculatedResult || isFrameAfter) {
-									++calculatedResult;
-								}
-								++calculatedResultMax;
-								seal.sealTimer = calculatedResult > 0xffff ? 0xffff : calculatedResult;
-								seal.sealTimerMax = calculatedResultMax > 0xffff ? 0xffff : calculatedResultMax;
-								if (j + 1 < n) {
-									memmove(seals + j, seals + j + 1, (n - j - 1) * sizeof SealInfo);
-								}
-								--n;
-								break;
-							}
-						}
-						if (n == 0) break;
-					}
+					fillInBedmanSealInfo(player);
+					
 					currentFrame.u.bedmanInfo = player.bedmanInfo;
 				} else if (player.charType == CHARACTER_TYPE_RAMLETHAL) {
 					if (player.ramlethalSSwordTimerActive) {
@@ -5587,6 +5595,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.u.ravenInfo.slowTimeMax = player.ravenInfo.slowTimeMax;
 				} else if (player.charType == CHARACTER_TYPE_DIZZY) {
 					currentFrame.u.dizzyInfo.shieldFishSuperArmor = player.dizzyShieldFishSuperArmor;
+				} else if (player.charType == CHARACTER_TYPE_MAY) {
+					currentFrame.u.mayInfo.hasDolphin = hasProjectileOfType(player, "IrukasanRidingObject");
+					currentFrame.u.mayInfo.hasBeachBall = hasProjectileOfTypeStrNCmp(player, "MayBall");
+				} else if (player.charType == CHARACTER_TYPE_POTEMKIN) {
+					currentFrame.u.potemkinInfo.hasBomb = hasOneLinkedProjectileOfType(player, "Bomb");  // Trishula
+				} else if (player.charType == CHARACTER_TYPE_FAUST) {
+					currentFrame.u.faustInfo.hasFlower = hasOneProjectileOfType(player, "OreHana_Shot")
+						|| hasOneProjectileOfType(player, "OreHanaBig_Shot");
+				} else if (player.charType == CHARACTER_TYPE_AXL) {
+					currentFrame.u.axlInfo.hasSpindleSpinner = hasProjectileOfType(player, "RashosenObj");
+					currentFrame.u.axlInfo.hasSickleFlash = hasOneProjectileOfType(player, "RensengekiObj");
+					currentFrame.u.axlInfo.hasMelodyChain = hasOneProjectileOfType(player, "KyokusagekiObj");
+					currentFrame.u.axlInfo.hasSickleStorm = hasOneProjectileOfType(player, "ByakueObj");
+				} else if (player.charType == CHARACTER_TYPE_VENOM) {
+					currentFrame.u.venomInfo.hasQV = hasProjectileOfType(player, "Debious_AttackBall")
+						&& strncmp(player.anim, "DubiousCurve", 12) == 0
+						&& player.pawn.hasUpon(BBSCREVENT_PLAYER_CHANGED_STATE);
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -5727,11 +5752,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.enableJumpCancel = player.wasEnableJumpCancel;
 				currentFrame.enableSpecials = false;
 				player.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
-				currentFrame.cancels.copyFromAnotherSizedArray(player.wasCancels);
+				if (prevFrame.cancels && prevFrame.cancels->equalTruncated(player.wasCancels)) {
+					currentFrame.cancels = prevFrame.cancels;
+				} else if (player.wasCancels.gatlings.empty() && player.wasCancels.whiffCancels.empty() && !player.wasCancels.whiffCancelsNote) {
+					currentFrame.cancels = nullptr;
+				} else {
+					if (!currentFrame.cancels || currentFrame.cancels.use_count() > 1) {
+						currentFrame.cancels = std::make_shared<FrameCancelInfo<30>>();
+					}
+					currentFrame.cancels->copyFromAnotherSizedArray(player.wasCancels);
+				}
 				currentFrame.dustGatlingTimer = player.dustGatlingTimer;
 				currentFrame.dustGatlingTimerMax = player.dustGatlingTimerMax;
-				currentFrame.hitstop = player.hitstop;
-				currentFrame.hitstopMax = player.hitstopMax;
+				currentFrame.hitstop = player.hitstopWithSlow;
+				currentFrame.hitstopMax = player.hitstopMaxWithSlow;
 				if (player.stagger && player.cmnActIndex == CmnActJitabataLoop) {
 					currentFrame.stop.isBlockstun = false;
 					currentFrame.stop.isHitstun = false;
@@ -5957,15 +5991,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				} else {
 					currentFrame.suddenlyTeleported = player.prevPosX - player.x >= -player.speedX + 122499;
 				}
-				if (player.y != player.prevPosY) {
+				if (!currentFrame.suddenlyTeleported && player.y != player.prevPosY) {
 					if (player.y > player.prevPosY) {
-						currentFrame.suddenlyTeleported = currentFrame.suddenlyTeleported || (
-							player.y - player.prevPosY >= player.speedY + 122499
-						);
+						currentFrame.suddenlyTeleported = player.y - player.prevPosY >= player.speedY + 122499;
 					} else {
-						currentFrame.suddenlyTeleported = currentFrame.suddenlyTeleported || (
-							player.prevPosY - player.y >= -player.speedY + 122499
-						);
+						currentFrame.suddenlyTeleported = player.prevPosY - player.y >= -player.speedY + 122499;
 					}
 				}
 				
@@ -6233,10 +6263,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (recoveryMode
 							&& overridePrevRecoveryFrames
 							&& player.recovery == 1) {
-						const FrameCancelInfo<30>& cancelInfo = prevFrame.cancels;
 						// needed for whiff 5P to not show first recovery frame as cancellable (it is not)
-						if (!cancelInfo.gatlings.empty()
-								|| !cancelInfo.whiffCancels.empty()
+						const FrameCancelInfo<30>* cancelInfo = prevFrame.cancels.get();
+						if (cancelInfo
+								&& (
+									!cancelInfo->gatlings.empty()
+									|| !cancelInfo->whiffCancels.empty()
+								)
 								|| prevFrame.enableSpecialCancel  // for Ky 3H
 								|| prevFrame.enableSpecials) {
 							entityFramebar.changePreviousFramesOneType(FT_RECOVERY,
@@ -6468,6 +6501,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevPosX = player.x;
 			player.prevPosY = player.y;
 			player.prevFrameCancels = player.wasCancels;
+			player.prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer = player.pawn.previousEntity()
+				&& player.pawn.previousEntity().linkObjectDestroyOnStateChange() == player.pawn;
 			
 		}
 		
@@ -7135,7 +7170,7 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		}
 		
 		if (message == WM_APP_SETTINGS_FILE_UPDATED) {
-			settings.readSettings(true);
+			settings.readSettings(false);
 		}
 		
 		if (message == WM_APP_UI_STATE_CHANGED && wParam && ui.stateChanged) {
@@ -7143,6 +7178,9 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 		}
 		if (message == WM_APP_TURN_OFF_POST_EFFECT_SETTING_CHANGED) {
 			onGifModeBlackBackgroundChanged();
+		}
+		if (message == WM_APP_HIDE_RANK_ICONS) {
+			game.hideRankIcons();
 		}
 	}
 	
@@ -7264,6 +7302,15 @@ void EndScene::onAswEngineDestroyed() {
 	superflashCounterOpponent = 0;
 	superflashCounterOpponentMax = 0;
 	baikenBlockCancels.clear();
+	bdashMoveIndex = -1;
+	fdashMoveIndex = -1;
+	maximumBurstMoveIndex = -1;
+	cmnFAirDashMoveIndex = -1;
+	cmnBAirDashMoveIndex = -1;
+	fdStandMoveIndex = -1;
+	fdCrouchMoveIndex = -1;
+	fdAirMoveIndex = -1;
+	rcMoveIndex = -1;
 	clearInputHistory(true);
 }
 
@@ -7343,6 +7390,12 @@ void EndScene::onHitDetectionStart(HitDetectionType hitDetectionType) {
 				tensionGainOnLastHitUpdated[i] = false;
 				burstGainOnLastHitUpdated[i] = false;
 				reachedMaxStun[i] = -1;
+				
+				// moved this here from handleUponHook, signal 0x27 (PRE_DRAW), because Jam would not show super armor on the frame she parries.
+				// Also the Blitz Shield reject would not show super armor on the frame the attacker's hit connects.
+				PlayerInfo& player = findPlayer(ent);
+				player.wasSuperArmorEnabled = ent.superArmorEnabled();
+				player.wasFullInvul = ent.fullInvul();
 			}
 		}
 		registeredHits.clear();
@@ -7551,7 +7604,7 @@ void EndScene::HookHelp::BBScr_createObjectHook_piece() {
 ProjectileInfo& EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName) {
 	for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
 		if (it->ptr == createdPawn) {
-			if (it->landedHit || it->gotHitOnThisFrame) {
+			if (it->landedHit || it->gotHitOnThisFrame || objHasAttackHitboxes(it->ptr)) {
 				it->ptr = nullptr;
 			} else {
 				projectiles.erase(it);
@@ -7962,12 +8015,14 @@ void EndScene::frameCleanup() {
 		player.wasEnableGatlings = false;
 		player.wasEnableAirtech = false;
 		player.wasAttackCollidedSoCanCancelNow = false;
+		player.wasPrevFrameEnableNormals = player.wasEnableNormals;
 		player.wasEnableNormals = false;
 		player.wasCantAirdash = true;
 		player.wasCanYrc = false;
 		player.wasProhibitFDTimer = 1;
 		player.wasAirdashHorizontallingTimer = 0;
 		player.wasEnableWhiffCancels = false;
+		player.wasPrevFrameEnableSpecials = player.wasEnableSpecials;
 		player.wasEnableSpecials = false;
 		player.wasEnableSpecialCancel = false;
 		player.wasEnableJumpCancel = false;
@@ -7994,7 +8049,7 @@ void EndScene::HookHelp::pawnInitializeHook(void* initializationParams) {
 }
 
 // Runs on the main thread
-void EndScene::HookHelp::handleUponHook(int signal) {
+void EndScene::HookHelp::handleUponHook(BBScrEvent signal) {
 	endScene.handleUponHook(Entity{(char*)this}, signal);
 }
 
@@ -8038,7 +8093,7 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 }
 
 // Runs on the main thread
-void EndScene::handleUponHook(Entity pawn, int signal) { 
+void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) { 
 	if (!shutdown && !iGiveUp) {
 		if (!sendSignalStack.empty()) {
 			events.emplace_back();
@@ -8050,7 +8105,7 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 		}
 	}
 	if (!shutdown) {
-		if (signal == 3  // IDLING
+		if (signal == BBSCREVENT_ANIMATION_FRAME_ADVANCED
 				&& pawn.isPawn()) {
 			// Slayer's buff in PLAYERVAL_1 is checked when initiating a move, but decremented after the fact, in a FRAME_STEP handler
 			// we need the original value
@@ -8059,11 +8114,11 @@ void EndScene::handleUponHook(Entity pawn, int signal) {
 			player.wasResource = pawn.exGaugeValue(0);
 		}
 		// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
-		if (signal == 0x27  // PRE_DRAW
+		if (signal == BBSCREVENT_PRE_DRAW
 				&& pawn.isPawn()) {
 			PlayerInfo& player = findPlayer(pawn);
-			player.wasFullInvul = pawn.fullInvul();
-			player.wasSuperArmorEnabled = pawn.superArmorEnabled();
+			// moved collection of wasSuperArmorEnabled and wasFullInvul from here to onHitDetectionStart,
+			// because the frame when Jam parries would be shown as not having super armor in the framebar
 			
 			// I put this here of all places because the other places are disabled by iGiveUp, and I want this to always work no matter what.
 			// Using this approach we pull the value from the animation start, even if rollback happened and the animation start was skipped,
@@ -8189,12 +8244,12 @@ ProjectileInfo& EndScene::findProjectile(Entity pawn) {
 }
 
 // Runs on the main thread
-void EndScene::HookHelp::BBScr_runOnObjectHook(int entityReference) {
+void EndScene::HookHelp::BBScr_runOnObjectHook(EntityReferenceType entityReference) {
 	endScene.BBScr_runOnObjectHook(Entity{(char*)this}, entityReference);
 }
 
 // Runs on the main thread
-void EndScene::BBScr_runOnObjectHook(Entity pawn, int entityReference) {
+void EndScene::BBScr_runOnObjectHook(Entity pawn, EntityReferenceType entityReference) {
 	orig_BBScr_runOnObject((void*)pawn.ent, entityReference);
 	if (!shutdown && pawn.isPawn() && !iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
@@ -8781,19 +8836,19 @@ void EndScene::pushbackStunOnBlockHook(Entity pawn, bool isAirHit) {
 	}
 }
 
-void EndScene::HookHelp::BBScr_sendSignalHook(int referenceType, int signal) {
+void EndScene::HookHelp::BBScr_sendSignalHook(EntityReferenceType referenceType, BBScrEvent signal) {
 	endScene.BBScr_sendSignalHook(Entity{(char*)this}, referenceType, signal);
 }
 
-void EndScene::HookHelp::BBScr_sendSignalToActionHook(const char* searchAnim, int signal) {
+void EndScene::HookHelp::BBScr_sendSignalToActionHook(const char* searchAnim, BBScrEvent signal) {
 	endScene.BBScr_sendSignalToActionHook(Entity{(char*)this}, searchAnim, signal);
 }
 
-void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) {
+void EndScene::BBScr_sendSignalHook(Entity pawn, EntityReferenceType referenceType, BBScrEvent signal) {
 	if (!iGiveUp) {
 		Entity referredEntity = getReferredEntity((void*)pawn.ent, referenceType);
 		
-		bool isDizzyBubblePopping = referredEntity == pawn && signal == 0x17  // CUSTOM_SIGNAL_1
+		bool isDizzyBubblePopping = referredEntity == pawn && signal == BBSCREVENT_CUSTOM_SIGNAL_1
 				&& isDizzyBubble(pawn.animationName());
 		
 		if (!shutdown && referredEntity && !isDizzyBubblePopping) {
@@ -8812,7 +8867,7 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, int referenceType, int signal) 
 	orig_BBScr_sendSignal((void*)pawn, referenceType, signal);
 }
 
-void EndScene::BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, int signal) {
+void EndScene::BBScr_sendSignalToActionHook(Entity pawn, const char* searchAnim, BBScrEvent signal) {
 	if (!shutdown && !iGiveUp) {
 		sendSignalStack.push_back(pawn);
 	}
@@ -8835,7 +8890,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			player.wasPlayerval[1] = pawn.playerVal(1);
 			player.wasPlayerval[2] = pawn.playerVal(2);
 			player.wasPlayerval[3] = pawn.playerVal(3);
-			player.wasEnableNormals = pawn.enableNormals();
+			player.wasEnableNormals = pawn.isRCFrozen() ? player.wasPrevFrameEnableNormals : pawn.enableNormals();
 			int speedY = pawn.speedY();
 			int posY = pawn.posY();
 			int airDashMinimumHeight = pawn.airDashMinimumHeight();
@@ -8865,7 +8920,9 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			player.wasAirdashHorizontallingTimer = min(127, pawn.airdashHorizontallingTimer());
 			player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
 			player.wasEnableWhiffCancels = player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels();
-			player.wasEnableSpecials = player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();
+			player.wasEnableSpecials = pawn.isRCFrozen()
+				? player.wasPrevFrameEnableSpecials
+				: player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();
 			player.wasEnableSpecialCancel = player.wasEnableSpecialCancel && pawn.currentAnimDuration() != 1 || pawn.enableSpecialCancel();
 			player.wasEnableJumpCancel = player.wasEnableJumpCancel && pawn.currentAnimDuration() != 1 || pawn.enableJumpCancel() && pawn.attackCollidedSoCanJumpCancelNow();
 			player.wasAttackCollidedSoCanCancelNow = player.wasAttackCollidedSoCanCancelNow && pawn.currentAnimDuration() != 1 || pawn.attackCollidedSoCanCancelNow();
@@ -8875,7 +8932,14 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			if (pawn.currentAnimDuration() == 1) {
 				player.wasCancels.unsetWasFoundOnThisFrame(false);
 			}
-			collectFrameCancels(player, player.wasCancels, player.wasInHitstopFreezeDuringSkillCheck);
+			bool isBlitzShieldCancels = blitzShieldCancellable(player, true);
+			collectFrameCancels(player, player.wasCancels, player.wasInHitstopFreezeDuringSkillCheck, isBlitzShieldCancels);
+			if (isBlitzShieldCancels) {
+				player.wasEnableGatlings = true;
+				player.wasEnableSpecialCancel = true;
+				player.wasEnableJumpCancel = true;
+				player.wasAttackCollidedSoCanCancelNow = true;
+			}
 			player.wasCantBackdashTimer = pawn.cantBackdashTimer();
 			player.wasOtg = pawn.isOtg();
 		}
@@ -9186,7 +9250,7 @@ bool EndScene::willDrawOriginPoints() {
 }
 
 void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<180>& vec, const AddedMoveData* move,
-		int iterationIndex, bool inHitstopFreeze) {
+		int iterationIndex, bool inHitstopFreeze, bool blitzShield) {
 	int vecPos = -1;
 	for (GatlingOrWhiffCancelInfo& existingElem : vec) {
 		if (existingElem.move == move) {
@@ -9254,12 +9318,13 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOr
 				|| move->type == MOVE_TYPE_NEUTRAL_SUPER_JUMP) {
 			bufferTime += 2;
 		}
-		if ((player.pawn.relatedToBufferTime1() != 0
-				|| player.pawn.relatedToBufferTime2() != 0
-				|| player.pawn.relatedToBufferTime3() != 0)
+		if ((player.pawn.clashOrRCBufferTimer() != 0
+				|| player.pawn.dustHomingJump1BufferTimer() != 0
+				|| player.pawn.blitzShieldHitstopBuffer() != 0 && !blitzShield)
 				&& move->type != MOVE_TYPE_FORWARD_WALK
 				&& move->type != MOVE_TYPE_BACKWARD_WALK) {
-			bufferTime += player.pawn.toAddToBufferTime() + 13;
+			// we can read bufferTimeFromRC here, because if clashOrRCBufferTimer is 0, then it has already been reset to 0 (we run this hook after the original)
+			bufferTime += player.pawn.bufferTimeFromRC() + 13;
 		}
 		if (player.pawn.ensureAtLeast3fBufferForNormalsWhenJumping() != 0
 				&& move->type == MOVE_TYPE_NORMAL
@@ -9279,54 +9344,31 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOr
 	}
 }
 
-void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze) {
+void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isBlitzShieldCancels) {
 	if (player.moveNonEmpty) frame.whiffCancelsNote = player.move.whiffCancelsNote;
 	const AddedMoveData* base = player.pawn.movesBase();
 	int* indices = player.pawn.moveIndices();
+	bool isStylish = game.isStylish(player.pawn);
+	
+	if (isBlitzShieldCancels) {
+		collectBlitzShieldCancels(player, frame, inHitstopFreeze, isStylish);
+		return;
+	}
+	
 	if (player.charType == CHARACTER_TYPE_BAIKEN
 			&& player.pawn.blockstun()
 			&& player.pawn.playerVal(0)) {
-		if (baikenBlockCancels.empty()) {
-			const char* baikenBlockCancelsStrs[] {
-				"DeadAngleAttack",  // standing
-				// Blue Burst, obviously
-				// FD, obviously
-				"BlockingStandGuard",  // standing
-				"BlockingCrouchGuard",  // crouching
-				"YoushijinGuard",  // standing
-				"MawarikomiGuard", // standing
-				"SakuraGuard", // standing
-				"IssenGuard",  // standing
-				"TeppouGuard",  // standing
-				"AirGCAntiAirAGuard",  // jumping
-				"AirGCAntiAirBGuard",  // jumping
-				"AirGCAntiGroundCGuard",  // jumping
-				"AirGCAntiGroundDGuard",  // jumping
-				"BlockingKakuseiGuard"  // none
-			};
-			baikenBlockCancels.reserve(_countof(baikenBlockCancelsStrs));
-			for (int i = 0; i < _countof(baikenBlockCancelsStrs); ++i) {
-				baikenBlockCancels.emplace_back();
-				ForceAddedWhiffCancel& newCancel = baikenBlockCancels.back();
-				newCancel.name = baikenBlockCancelsStrs[i];
-			}
-		}
-		for (ForceAddedWhiffCancel& cancel : baikenBlockCancels) {
-			int moveIndex = cancel.getMoveIndex(player.pawn);
-			const AddedMoveData* move = base + indices[moveIndex];
-			if (checkMoveConditions(player, move)) {
-				collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex, inHitstopFreeze);
-			}
-		}
+		collectBaikenBlockCancels(player, frame, inHitstopFreeze, isStylish);
 		return;
 	}
+	
 	bool enableGatlings = player.wasEnableGatlings && player.wasAttackCollidedSoCanCancelNow;
 	bool enableWhiffCancels = player.wasEnableWhiffCancels;
 	for (int i = player.pawn.moveIndicesCount() - 1; i >= 0; --i) {
 		const AddedMoveData* move = base + indices[i];
 		bool isGatling = move->gatlingOption() && enableGatlings;
 		bool isWhiffCancel = move->whiffCancelOption() && enableWhiffCancels;
-		if ((isGatling || isWhiffCancel) && checkMoveConditions(player, move)) {
+		if ((isGatling || isWhiffCancel) && checkMoveConditions(player, move) && (isStylish || !requiresStylishInputs(move))) {
 			if (isGatling) {
 				collectFrameCancelsPart(player, frame.gatlings, move, i, inHitstopFreeze);
 			}
@@ -9357,6 +9399,20 @@ void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& fra
 }
 
 bool EndScene::checkMoveConditions(PlayerInfo& player, const AddedMoveData* move) {
+	if (move->subcategory == MOVE_SUBCATEGORY_ITEM_USE
+			// I don't know yet how to detect game mode in online. MOM can be selected offline as well as online,
+			// and so far we only know how to determine the offline MOM mode.
+			// For now we'll get rid of showing 'Item' as a gatling during dust combos in all modes.
+			
+			|| move->inputs[0] == INPUT_MOM_TAUNT
+			
+			// CmnStandForce has impossible inputs and comes up in the list of gatlings from 5D horizontal homing dash
+			|| move->inputs[0] == INPUT_1
+			&& move->inputs[1] == INPUT_2
+			&& move->inputs[2] == INPUT_3
+			&& move->inputs[3] == INPUT_4
+			&& move->inputs[4] == INPUT_END
+			) return false;
 	if (move->forceDisableFlags && (move->forceDisableFlags & player.wasForceDisableFlags) != 0) return false;
 	int posY = player.pawn.posY();
 	bool isLand = !player.airborne_insideTick();  // you may ask, well what about the last airborne, prelanding frame? On that frame, your y == 1. And at the end of the tick it's 0. (Are they hardcoding aroung their own code?..)
@@ -9391,6 +9447,31 @@ bool EndScene::checkMoveConditions(PlayerInfo& player, const AddedMoveData* move
 		}
 	}
 	return true;
+}
+
+bool EndScene::requiresStylishInputs(const AddedMoveData* move) {
+	const InputType* inputs = move->inputs;
+	bool encounteredSpecial = false;
+	bool encounteredNonSpecial = false;
+	for (int i = 0; i < 16; ++i) {
+		InputType inputType = inputs[i];
+		if (inputType == INPUT_END) {
+			break;
+		} else if (inputType == INPUT_BOOLEAN_OR) {
+			if (encounteredNonSpecial && !encounteredSpecial) return false;
+			encounteredSpecial = false;
+			encounteredNonSpecial = false;
+		} else if (inputType == INPUT_SPECIAL_STRICT_PRESS
+				|| inputType == INPUT_SPECIAL_STRICT_RELEASE
+				|| inputType == INPUT_PRESS_SPECIAL
+				|| inputType == INPUT_RELEASE_SPECIAL
+				|| inputType == INPUT_HOLD_SPECIAL) {
+			encounteredSpecial = true;
+		} else {
+			encounteredNonSpecial = true;
+		}
+	}
+	return encounteredSpecial;
 }
 
 bool EndScene::whiffCancelIntoFDEnabled(PlayerInfo& player) {
@@ -9997,11 +10078,11 @@ void EndScene::BBScr_timeSlowHook(Entity pawn, int duration) {
 	orig_BBScr_timeSlow((void*)pawn.ent, duration);
 }
 
-void EndScene::HookHelp::onCmnActXGuardLoopHook(int signal, int type, int thisIs0) {
+void EndScene::HookHelp::onCmnActXGuardLoopHook(BBScrEvent signal, int type, int thisIs0) {
 	endScene.onCmnActXGuardLoopHook(Entity{(void*)this}, signal, type, thisIs0);
 }
 
-void EndScene::onCmnActXGuardLoopHook(Entity pawn, int signal, int type, int thisIs0) {
+void EndScene::onCmnActXGuardLoopHook(Entity pawn, BBScrEvent signal, int type, int thisIs0) {
 	int oldBlockstun = pawn.blockstun();
 	orig_onCmnActXGuardLoop((void*)pawn.ent, signal, type, thisIs0);
 	int newBlockstun = pawn.blockstun();
@@ -10299,19 +10380,31 @@ void EndScene::clearInputHistory(bool resetClearTime) {
 	}
 }
 
-bool EndScene::hasAllLinkedProjectilesOfType(PlayerInfo& player, const char* name) {
-	bool hasAtLeastOne = false;
+void EndScene::analyzeGunflame(PlayerInfo& player, bool* wholeGunflameDisappears,
+		bool* firstWaveEntirelyDisappears, bool* firstWaveDisappearsDuringItsActiveFrames) {
+	bool hasFirstWave = false;
+	bool firstWaveActive = false;
+	bool hasNonLinked = false;
 	int team = player.index;
 	for (const ProjectileInfo& projectile : projectiles) {
-		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr) {
-			hasAtLeastOne = projectile.isDangerous;
+		if (projectile.team == team && strcmp(projectile.animName, "GunFlameHibashira") == 0 && projectile.ptr
+				&& projectile.isDangerous) {
 			Entity linkEntity = projectile.ptr.linkObjectDestroyOnDamage();
-			if (!linkEntity) {
-				return false;
+			if (linkEntity) {
+				hasFirstWave = true;
+				firstWaveActive = projectile.actives.count > 0;
+			} else {
+				hasNonLinked = true;
 			}
 		}
 	}
-	return hasAtLeastOne;
+	if (hasFirstWave && !hasNonLinked) {
+		*wholeGunflameDisappears = true;
+	} else if (hasFirstWave && !firstWaveActive && hasNonLinked) {
+		*firstWaveEntirelyDisappears = true;
+	} else if (hasFirstWave && firstWaveActive && hasNonLinked) {
+		*firstWaveDisappearsDuringItsActiveFrames = true;
+	}
 }
 
 bool EndScene::hasOneLinkedProjectileOfType(PlayerInfo& player, const char* name) {
@@ -10324,10 +10417,73 @@ bool EndScene::hasOneLinkedProjectileOfType(PlayerInfo& player, const char* name
 	return false;
 }
 
+bool EndScene::hasOneProjectileOfTypeStrNCmp(PlayerInfo& player, const char* name) {
+	int team = player.index;
+	int strn = strlen(name);
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team && strncmp(projectile.animName, name, strn) == 0 && projectile.ptr
+				&& projectile.isDangerous) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool EndScene::hasProjectileOfType(PlayerInfo& player, const char* name) {
 	int team = player.index;
 	for (const ProjectileInfo& projectile : projectiles) {
 		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr) {
+			return projectile.isDangerous;
+		}
+	}
+	return false;
+}
+
+char EndScene::hasBoomerangHead(PlayerInfo& player) {
+	int team = player.index;
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team
+				&& strncmp(projectile.animName, "Boomerang_", 10) == 0
+				&& projectile.animName[10] != '\0'
+				&& strncmp(projectile.animName + 11, "_Head", 5) == 0  // includes _Head_Air
+				&& projectile.ptr) {
+			if (!projectile.isDangerous) return '\0';
+			return projectile.animName[10];
+		}
+	}
+	return false;
+}
+
+bool EndScene::hasOneProjectileOfType(PlayerInfo& player, const char* name) {
+	int team = player.index;
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr
+				&& projectile.isDangerous) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool EndScene::hasProjectileOfTypeAndHasNotExhausedHit(PlayerInfo& player, const char* name) {
+	int team = player.index;
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr) {
+			return projectile.isDangerous
+				&& (
+					!projectile.ptr.hasActiveFlag()
+					|| projectile.ptr.hitAlreadyHappened() < projectile.ptr.theValueHitAlreadyHappenedIsComparedAgainst()
+				);
+		}
+	}
+	return false;
+}
+
+bool EndScene::hasProjectileOfTypeStrNCmp(PlayerInfo& player, const char* name) {
+	int team = player.index;
+	int strn = strlen(name);
+	for (const ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == team && strncmp(projectile.animName, name, strn) == 0 && projectile.ptr) {
 			return projectile.isDangerous;
 		}
 	}
@@ -10359,8 +10515,9 @@ bool EndScene::isActiveFull(Entity ent) const {
 void EndScene::onHitDetectionAttackerParticipate(Entity ent) {
 	if (
 			(
-				// easy clash only happens between players, and those can't lose their hitboxes at the end of a tick
+				// easy clash only happens between players, and those can't lose their hitboxes at the end of a tick, so we don't need to register easy clashes
 				currentHitDetectionType == HIT_DETECTION_NORMAL
+				&& !ent.dealtAttack()->clashOnly()
 				|| currentHitDetectionType == HIT_DETECTION_CLASH
 			)
 			&& !ent.isPawn()  // players can't lose their hitboxes at the end of a tick, so there's no point collecting them for them
@@ -10405,4 +10562,244 @@ void EndScene::onHitDetectionAttackerParticipate(Entity ent) {
 			hitboxesArena.clear();
 		}
 	}
+}
+
+bool EndScene::objHasAttackHitboxes(Entity ent) const {
+	if (!ent) return false;
+	for (const AttackHitbox& attackHitbox : attackHitboxes) {
+		if (attackHitbox.ent == ent) return true;
+	}
+	return false;
+}
+
+
+void EndScene::addPredefinedCancelsPart(PlayerInfo& player, std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfo<180>& frame, bool inHitstopFreeze,
+		bool isStylish) {
+	const AddedMoveData* base = player.pawn.movesBase();
+	int* indices = player.pawn.moveIndices();
+	for (ForceAddedWhiffCancel& cancel : cancels) {
+		int moveIndex = cancel.getMoveIndex(player.pawn);
+		const AddedMoveData* move = base + indices[moveIndex];
+		if (checkMoveConditions(player, move) && (isStylish || !requiresStylishInputs(move))) {
+			collectFrameCancelsPart(player, frame.whiffCancels, move, moveIndex, inHitstopFreeze);
+		}
+	}
+}
+
+void EndScene::initializePredefinedCancels(const char** array, size_t size, std::vector<ForceAddedWhiffCancel>& cancels) {
+	if (cancels.empty()) {
+		cancels.reserve(size);
+		for (size_t i = 0; i < size; ++i) {
+			cancels.emplace_back();
+			ForceAddedWhiffCancel& newCancel = cancels.back();
+			newCancel.name = array[i];
+		}
+	}
+}
+
+void EndScene::collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish) {
+	static const char* baikenBlockCancelsStr[] {
+		"DeadAngleAttack",  // standing
+		// Blue Burst, obviously
+		// FD, obviously
+		"BlockingStandGuard",  // standing
+		"BlockingCrouchGuard",  // crouching
+		"YoushijinGuard",  // standing
+		"MawarikomiGuard", // standing
+		"SakuraGuard", // standing
+		"IssenGuard",  // standing
+		"TeppouGuard",  // standing
+		"AirGCAntiAirAGuard",  // jumping
+		"AirGCAntiAirBGuard",  // jumping
+		"AirGCAntiGroundCGuard",  // jumping
+		"AirGCAntiGroundDGuard",  // jumping
+		"BlockingKakuseiGuard"  // none
+	};
+	addPredefinedCancels(player, baikenBlockCancelsStr, baikenBlockCancels, frame, inHitstopFreeze, isStylish);
+}
+
+bool EndScene::blitzShieldCancellable(PlayerInfo& player, bool insideTick) {
+	
+	int storage = player.pawn.storage(3);
+	if (!(
+		storage >= 12 && (
+			player.pawn.hitstop()
+			|| (
+				insideTick
+					? isBlitzPostHitstopFrame_insideTick(player)
+					: isBlitzPostHitstopFrame_outsideTick(player)
+			)
+		)
+	)) return false;
+	
+	const char* animName = player.pawn.animationName();
+	
+	if (strcmp(animName, "CounterGuardStand") == 0 || strcmp(animName, "CounterGuardCrouch") == 0) {
+		if (Moves::getBlitzType(player) != BLITZTYPE_TAP) return false;
+	} else if (strcmp(animName, "CounterGuardAir") != 0) return false;
+	
+	return true;
+}
+
+void EndScene::collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish) {
+	
+	CheckAndCollectFrameCancelParams params {
+		player,
+		nullptr,
+		nullptr,
+		frame,
+		inHitstopFreeze,
+		isStylish,
+		true
+	};
+	
+	bool isAir = player.pawn.y() > 0;
+	if (!isAir) {
+		checkAndCollectFrameCancelHelper(&params, "CmnBDash", &bdashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CmnFDash", &fdashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CounterGuardStand", &player.counterGuardStandMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CounterGuardCrouch", &player.counterGuardCrouchMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceStand", &fdStandMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceCrouch", &fdCrouchMoveIndex);
+	} else {
+		checkAndCollectFrameCancelHelper(&params, "CmnFAirDash", &cmnFAirDashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CmnBAirDash", &cmnBAirDashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CounterGuardAir", &player.counterGuardAirMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceAir", &fdAirMoveIndex);
+	}
+	checkAndCollectFrameCancelHelper(&params, "CmnMaximumBurst", &maximumBurstMoveIndex);
+	checkAndCollectFrameCancelHelper(&params, "RomanCancelHit", &rcMoveIndex);
+	if (!isAir) {
+		// you are currently in blitz, therefore IK is not activated or sent yet
+		checkAndCollectFrameCancelHelper(&params, "IchigekiJunbi", &player.ikMoveIndex);
+	}
+	
+	const AddedMoveData* base = player.pawn.movesBase();
+	int* indices = player.pawn.moveIndices();
+	for (int i = player.pawn.moveIndicesCount() - 1; i >= 0; --i) {
+		int index = indices[i];
+		const AddedMoveData* move = base + index;
+		if (move->type == MOVE_TYPE_NORMAL && !move->isFollowupMove()
+				&& checkMoveConditions(player, move) && (isStylish || !requiresStylishInputs(move))) {
+			collectFrameCancelsPart(player, frame.gatlings, move, index, inHitstopFreeze, true);
+		}
+	}
+}
+
+void EndScene::checkAndCollectFrameCancel(const CheckAndCollectFrameCancelParams* params) {
+	
+	const AddedMoveData* move = nullptr;
+	const int* indices = params->player.pawn.moveIndices();
+	
+	if (*params->moveIndex == -1) {
+		move = (const AddedMoveData*)findMoveByName(params->player.pawn, params->name, 0);
+		if (!move) return;
+		
+		int indexToFind = move->index;
+		int i;
+		for (i = params->player.pawn.moveIndicesCount() - 1; i >= 0; --i) {
+			if (indices[i] == indexToFind) {
+				*params->moveIndex = i;
+				break;
+			}
+		}
+		if (i < 0) return;
+		
+	} else {
+		move = params->player.pawn.movesBase() + indices[*params->moveIndex];
+	}
+	
+	if (checkMoveConditions(params->player, move) && (params->isStylish || !requiresStylishInputs(move))) {
+		collectFrameCancelsPart(params->player, params->frame.gatlings, move, *params->moveIndex, params->inHitstopFreeze, params->blitzShield);
+	}
+}
+
+bool EndScene::isBlitzPostHitstopFrame_insideTick(const PlayerInfo& player) {
+	return player.pawn.mem45()
+		&& (
+			player.pawn.currentAnimDuration() == player.pawn.mem47() + 1
+			|| player.pawn.isRCFrozen()
+			&& player.pawn.enableNormals()
+			&& !player.wasEnableNormals
+		);
+}
+
+bool EndScene::isBlitzPostHitstopFrame_outsideTick(const PlayerInfo& player) {
+	return player.pawn.mem45()
+		&& player.pawn.mem51() <= 12
+		&& !player.pawn.fullInvul()
+		&& !player.wasEnableNormals
+		&& player.pawn.enableNormals();
+}
+
+void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
+	struct SealInfo {
+		Moves::MayIrukasanRidingObjectInfo& info;
+		const char* stateName;
+		BBScrEvent signal;
+	};
+	SealInfo seals[4] {
+		{ moves.bedmanSealA, "BoomerangA" /* DejavIconBoomerangA */, BBSCREVENT_CUSTOM_SIGNAL_6 },
+		{ moves.bedmanSealB, "BoomerangB" /* DejavIconBoomerangB */, BBSCREVENT_CUSTOM_SIGNAL_8 },
+		{ moves.bedmanSealC, "SpiralBed" /* DejavIconSpiralBed */, BBSCREVENT_CUSTOM_SIGNAL_9 },
+		{ moves.bedmanSealD, "FlyingBed" /* DejavIconFlyingBed */, BBSCREVENT_CUSTOM_SIGNAL_7 }
+	};
+	
+	player.bedmanInfo.sealA = 0;
+	player.bedmanInfo.sealB = 0;
+	player.bedmanInfo.sealC = 0;
+	player.bedmanInfo.sealD = 0;
+	
+	for (ProjectileInfo& projectile : projectiles) {
+		
+		if (!(
+				projectile.team == player.index
+				&& strncmp(projectile.animName, "DejavIcon", 9) == 0
+		)) continue;
+		
+		for (int j = 0; j < 4; ++j) {
+			SealInfo& seal = seals[j];
+			if (strcmp(projectile.animName + 9, seal.stateName) == 0) {
+				bool isFrameAfter = false;
+				int remainingFrames = moves.getBedmanSealRemainingFrames(projectile, seal.info, seal.signal, &isFrameAfter);
+				int calculatedResult;
+				int calculatedResultMax;
+				int unused;
+				PlayerInfo::calculateSlow(
+					projectile.bedmanSealElapsedTime + 1,
+					remainingFrames,
+					projectile.rcSlowedDownCounter,
+					&calculatedResult,
+					&calculatedResultMax,
+					&unused);
+				if (calculatedResult || isFrameAfter) {
+					++calculatedResult;
+				}
+				++calculatedResultMax;
+				
+				unsigned short sealTimer = calculatedResult > 999 ? 999 : calculatedResult;
+				unsigned short sealTimerMax = calculatedResultMax > 999 ? 999 : calculatedResultMax;
+				
+				if (j == 0) {
+					player.bedmanInfo.sealA = sealTimer;
+					player.bedmanInfo.sealAMax = sealTimerMax;
+				} else if (j == 1) {
+					player.bedmanInfo.sealB = sealTimer;
+					player.bedmanInfo.sealBMax = sealTimerMax;
+				} else if (j == 2) {
+					player.bedmanInfo.sealC = sealTimer;
+					player.bedmanInfo.sealCMax = sealTimerMax;
+				} else if (j == 3) {
+					player.bedmanInfo.sealD = sealTimer;
+					player.bedmanInfo.sealDMax = sealTimerMax;
+				}
+				break;
+			}
+		}
+	}
+	
+	// can only have one flying head at a time
+	char headType = hasBoomerangHead(player);
+	player.bedmanInfo.hasTaskA = headType == 'A';
+	player.bedmanInfo.hasTaskAApostrophe = headType == 'B';
 }

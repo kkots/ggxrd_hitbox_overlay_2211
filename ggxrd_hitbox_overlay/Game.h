@@ -3,6 +3,7 @@
 #include "Entity.h"
 #include "InputRingBuffer.h"
 #include <limits.h>
+#include "DrawTextWithIconsParams.h"
 
 extern char** aswEngine;
 
@@ -139,6 +140,8 @@ using setPositionResetType_t = void(__cdecl*)();
 using getPlayerPadID_t = int(__cdecl*)();
 using roundInit_t = void(__thiscall*)(void* thisArg);
 using isGameModeNetwork_t = BOOL(__cdecl*)();
+using drawTextureProbably_t = void(__cdecl*)(void* params);
+using drawIcon_t = int (__cdecl*)(int iconIndex, DrawTextWithIconsParams* params, BOOL dontCommit);
 
 class Game {
 public:
@@ -199,6 +202,13 @@ public:
 	bool changedScore[2];
 	// the last player side that was obtained through the rematch menus in online mode
 	int lastRematchMenuPlayerSide = -1;
+	void hideRankIcons();
+	drawTextureProbably_t drawTextureProbably = nullptr;
+	drawIcon_t drawIcon = nullptr;
+	uintptr_t drawRankInLobbyOverPlayersHeads = 0;
+	uintptr_t drawRankInLobbySearchMemberList = 0;
+	uintptr_t drawRankInLobbyMemberList_NonCircle = 0;
+	uintptr_t drawRankInLobbyMemberList_Circle = 0;
 private:
 	class HookHelp {
 		friend class Game;
@@ -274,6 +284,10 @@ private:
 	int getRematchMenuPlayerSide() const;
 	bool isRematchMenuOpen() const;
 	isGameModeNetwork_t isGameModeNetwork = nullptr;
+	static int hiddenRankDrawIcon(int iconIndex, DrawTextWithIconsParams* params, BOOL dontCommit);
+	static void hiddenRankDrawTextureProbably(void* params);
+	void patchDrawIcon(uintptr_t addr);
+	void patchDrawTextureProbably(uintptr_t addr);
 };
 
 extern Game game;
