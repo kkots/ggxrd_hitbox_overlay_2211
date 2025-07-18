@@ -511,10 +511,6 @@ private:
 	int* presentRectWPtr = nullptr;
 	int* presentRectHPtr = nullptr;
 	
-	HMODULE d3dCompiler47 = NULL;
-	bool d3dCompiler47LoadFailed = false;
-	FARPROC d3dCompile47 = nullptr;
-	void freeD3DCompiler();
 	bool usePixelShader = false;
 	bool customVertexShaderActive = false;
 	void updateVertexShaderTransformMatrix(IDirect3DDevice9* device);

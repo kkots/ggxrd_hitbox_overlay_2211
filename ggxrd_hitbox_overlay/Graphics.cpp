@@ -440,7 +440,6 @@ void Graphics::resetHook() {
 void Graphics::dllDetachPiece() {
 	resetHook();
 	ui.onDllDetachGraphics();
-	freeD3DCompiler();
 	receiveDanger();
 }
 
@@ -515,18 +514,8 @@ void Graphics::onShutdown() {
 		};
 		detouring.detachOnlyTheseHooks(hooksToUndetour, _countof(hooksToUndetour));
 	}
-	freeD3DCompiler();
 	SetEvent(shutdownFinishedEvent);
 	receiveDanger();
-}
-
-void Graphics::freeD3DCompiler() {
-	if (d3dCompiler47) {
-		//FreeLibrary(d3dCompiler47);  // suspected crash when freeing this library
-		d3dCompiler47 = NULL;
-		d3dCompiler47LoadFailed = false;
-		d3dCompile47 = nullptr;
-	}
 }
 
 bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const boundingRect, bool ignoreFill, bool ignoreOutline) {
@@ -2428,24 +2417,6 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		return false;
 	}
 	
-	for (int attempt = 0; attempt < 2; ++attempt) {
-		
-	if (!d3dCompiler47 && !d3dCompiler47LoadFailed) {
-		// added in hopes it would fix the pixel shader on AMD cards.
-		// There the shader compiles, but doesn't draw any outlines. And if you just don't use the pixel shader, the outlines draw fine.
-		d3dCompiler47 = GetModuleHandleA("D3DCompiler_47.dll");
-		if (!d3dCompiler47) {
-			d3dCompiler47 = LoadLibraryA("D3DCompiler_47.dll");
-		}
-		if (!d3dCompiler47) {
-			d3dCompiler47LoadFailed = true;
-		} else {
-			d3dCompile47 = GetProcAddress(d3dCompiler47, "D3DCompile");
-		}
-	}
-	
-		bool thisAttemptIsTheLast = attempt == 1 || !d3dCompile47;
-		
 	CComPtr<ID3DBlob> pixelShaderCodeTemp;
 	CComPtr<ID3DBlob> vertexShaderCodeTemp;
 	const DWORD* codeData;
@@ -2453,29 +2424,8 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 	HRESULT compilationResult;
 	CComPtr<ID3DBlob> errorMsgs;
 	
-	// function signature from d3dcompiler.h
-	using d3dCompile_t = HRESULT (WINAPI *) (_In_reads_bytes_(SrcDataSize) LPCVOID pSrcData,
-	           _In_ SIZE_T SrcDataSize,
-	           _In_opt_ LPCSTR pSourceName,
-	           _In_reads_opt_(_Inexpressible_(pDefines->Name != NULL)) CONST D3D_SHADER_MACRO* pDefines,
-	           _In_opt_ ID3DInclude* pInclude,
-	           _In_opt_ LPCSTR pEntrypoint,
-	           _In_ LPCSTR pTarget,
-	           _In_ UINT Flags1,
-	           _In_ UINT Flags2,
-	           _Out_ ID3DBlob** ppCode,
-	           _Always_(_Outptr_opt_result_maybenull_) ID3DBlob** ppErrorMsgs);
-	
-	d3dCompile_t compileFunc = nullptr;
-	
-		if (d3dCompile47 && !thisAttemptIsTheLast) {
-		compileFunc = (d3dCompile_t)d3dCompile47;
-	} else {
-		compileFunc = D3DCompile;
-	}
-	
 	if (pixelShaderCode.empty()) {
-	compilationResult = (*compileFunc)(
+		compilationResult = D3DCompile(
 		  shaderTxtData,
 	  txtSize,
 	  "MyPixelShader",
@@ -2494,11 +2444,6 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 	);
 	
 	if (FAILED(compilationResult)) {
-				
-				if (!thisAttemptIsTheLast) {
-					continue;
-				}
-				
 		if (!errorMsgs) {
 				errorMsg = "D3DCompile failed on the pixel shader";
 		} else {
@@ -2520,7 +2465,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 	}
 	
 	if (vertexShaderCode.empty()) {
-		compilationResult = (*compileFunc)(
+		compilationResult = D3DCompile(
 		  shaderTxtData,
 		  txtSize,
 		  "MyPixelShader",
@@ -2539,11 +2484,6 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		);
 		
 		if (FAILED(compilationResult)) {
-				
-				if (!thisAttemptIsTheLast) {
-					continue;
-				}
-				
 			if (!errorMsgs) {
 				errorMsg = "D3DCompile failed on the vertex shader";
 			} else {
@@ -2565,7 +2505,6 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 	}
 	
 	return true;
-}
 }
 
 void Graphics::getShaderCompilationError(const std::string** result) {
