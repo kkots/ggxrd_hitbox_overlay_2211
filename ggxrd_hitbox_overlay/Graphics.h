@@ -268,11 +268,13 @@ private:
 	bool failedToCompilePixelShader = false;
 	std::string lastCompilationFailureReason;
 	std::vector<char> pixelShaderCode;
+	std::vector<char> vertexShaderCode;
 	
 	std::string shaderCompilationError;
 	
 	CComPtr<IDirect3DPixelShader9> pixelShader;
-	IDirect3DPixelShader9* getPixelShader(IDirect3DDevice9* device, std::string& errorMsg);
+	CComPtr<IDirect3DVertexShader9> vertexShader;
+	bool getShaders(IDirect3DDevice9* device, std::string& errorMsg, IDirect3DPixelShader9** pixelShaderPtr, IDirect3DVertexShader9** vertexShaderPtr);
 	
 	void preparePixelShader(IDirect3DDevice9* device);
 	
@@ -468,7 +470,7 @@ private:
 	int setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor);
 	bool worldMatrixHasShiftedWorldCenter = false;
 	void ensureWorldMatrixWorldCenterIsZero();
-	void setWorld3DMatrix(int worldCenterShiftX = 0, int worldCenterShiftY = 0);
+	void setWorld3DMatrix(int worldCenterShiftX = 0, int worldCenterShiftY = 0, bool updateVertexShaderConstant = true);
 	
 	const float charInfoOffsetScale = 1.52F;
 	void calcTextSize(const char* txt, float coef, float textScale, bool outline, float* sizeX, float* sizeY);
@@ -514,10 +516,9 @@ private:
 	FARPROC d3dCompile47 = nullptr;
 	void freeD3DCompiler();
 	bool usePixelShader = false;
-	bool testPixelShader(IDirect3DDevice9* device);
-	bool testedPixelShader = false;
-	bool lastPixelShaderTestResult = false;
-	
+	bool customVertexShaderActive = false;
+	void updateVertexShaderTransformMatrix(IDirect3DDevice9* device);
+	CComPtr<IDirect3DVertexDeclaration9> vertexDeclaration;
 };
 
 extern Graphics graphics;

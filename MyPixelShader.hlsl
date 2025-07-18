@@ -1,11 +1,11 @@
 
-float4 g_ScreenSize : register(c0);
+float4 g_ScreenSize : register(ps_3_0, c0);
 
 // old wording: suspected to require D3D10
 //sampler2D g_MySampler : register(s0)
 //{
 //};
-Texture2D g_BackbufferCopy : register (t0);
+Texture2D g_BackbufferCopy : register (ps_3_0, t0);
 sampler g_MySampler =
 sampler_state
 {
@@ -17,7 +17,7 @@ sampler_state
     AddressV = CLAMP;
 };
 
-float4 main(float4 pos : VPOS, float4 clr : COLOR0) : COLOR0
+float4 colourdodge_ps(float4 pos : VPOS, float4 clr : COLOR0) : COLOR0
 {
 	float2 texUV = { (pos.x + 0.5f) / g_ScreenSize.x, (pos.y + 0.5f) / g_ScreenSize.y };
 	float4 framebufferColorUnderThePixel = tex2D(g_MySampler, texUV);
@@ -34,4 +34,29 @@ float4 main(float4 pos : VPOS, float4 clr : COLOR0) : COLOR0
 	float mult = (float)(sum >= 0.54f);
 	return float4(clr.r * mult, clr.g * mult, clr.b * mult, 1.0f);  // alpha changed from 0 to 1 because in OBS dodging mode outlines would be invisible
 
+}
+
+float4x4 matWorldViewProj : register(c0);
+
+struct VS_INPUT
+{
+
+    float3 position : POSITION;
+    float4 diffuse : COLOR;
+};
+
+struct VS_OUTPUT
+{
+	float4 position : POSITION;
+	float4 diffuse : COLOR0;
+};
+
+VS_OUTPUT main_vs(in VS_INPUT vertex)
+{
+	VS_OUTPUT output = ( VS_OUTPUT )0;
+	
+	output.position = mul( float4(vertex.position, 1.F), matWorldViewProj);
+	output.diffuse = vertex.diffuse;
+	
+	return output;
 }

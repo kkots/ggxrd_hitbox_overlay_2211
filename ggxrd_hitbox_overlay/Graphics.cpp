@@ -432,6 +432,8 @@ void Graphics::resetHook() {
 	framesTexture = nullptr;
 	outlinesRTSamplingTexture = nullptr;
 	pixelShader = nullptr;
+	vertexShader = nullptr;
+	vertexDeclaration = nullptr;
 	altRenderTarget = nullptr;
 }
 
@@ -1078,6 +1080,7 @@ void Graphics::drawAll() {
 		device->SetTexture(0, nullptr);
 		renderStateValues[RenderStateType(TEXTURE)] = RenderStateValue(TEXTURE, NONE);
 		device->SetVertexShader(nullptr);
+		customVertexShaderActive = false;
 		device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
 		renderStateValues[RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
 		device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
@@ -1982,7 +1985,7 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	
 	rememberTransforms(device);
 	
-	setWorld3DMatrix();
+	setWorld3DMatrix(0, 0, false);
 	worldMatrixHasShiftedWorldCenter = false;
 	
 	// D3D axes:
@@ -2022,13 +2025,11 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	// "Angles are measured clockwise when looking along the rotation axis toward the origin."
 	// Clearly, this function rotates from positive direction of z to positive direction of x which is the opposite of what we need
 	D3DXMatrixRotationY(&mat2, (float)camera.valuesUse.pitch * m);
-	mat1 = view;
-	D3DXMatrixMultiply(&view, &mat1, &mat2);
+	D3DXMatrixMultiply(&mat1, &view, &mat2);
 	// The reason the angle is reversed here is because the function's rotation is defined as:
 	// "Angles are measured clockwise when looking along the rotation axis toward the origin."
 	// Clearly, this function rotates from positive direction of y to positive direction of z which is the opposite of what we need
 	D3DXMatrixRotationX(&mat2, (float)camera.valuesUse.roll * m);
-	mat1 = view;
 	D3DXMatrixMultiply(&view, &mat1, &mat2);
 	device->SetTransform(D3DTS_VIEW, &view);
 	
@@ -2049,6 +2050,7 @@ void Graphics::setTransformMatrices3DProjection(IDirect3DDevice9* device) {
 	device->SetTransform(D3DTS_PROJECTION, &projection);
 	
 	currentTransformSet = CURRENT_TRANSFORM_3D_PROJECTION;
+	updateVertexShaderTransformMatrix(device);
 	
 }
 
@@ -2076,6 +2078,7 @@ void Graphics::setTransformMatricesPlain2DPart(IDirect3DDevice9* device) {
     device->SetTransform(D3DTS_WORLD, &identity);
     device->SetTransform(D3DTS_VIEW, &identity);
     device->SetTransform(D3DTS_PROJECTION, &projection);
+    updateVertexShaderTransformMatrix(device);
 }
 
 void Graphics::rememberTransforms(IDirect3DDevice9* device) {
@@ -2124,6 +2127,7 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	device->SetRenderState(D3DRS_LIGHTING, FALSE);
 	
 	device->SetVertexShader(nullptr);
+	customVertexShaderActive = false;
 	device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
 	renderStateValues[RenderStateType(VERTEX)] = RenderStateValue(VERTEX, NONTEXTURE);
 	device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
@@ -2165,10 +2169,6 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 	stencil.onEndSceneEnd(device);
 	oldState->Apply();
 	bringBackOldTransform(device);
-	
-    device->SetTransform(D3DTS_WORLD, &prevWorld);
-    device->SetTransform(D3DTS_VIEW, &prevView);
-    device->SetTransform(D3DTS_PROJECTION, &prevProjection);
 }
 
 void Graphics::advanceRenderState(RenderStateDrawingWhat newState) {
@@ -2385,7 +2385,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		return false;
 	}
 	
-	 if (!pixelShaderCode.empty()) return true;
+	 if (!pixelShaderCode.empty() && !vertexShaderCode.empty()) return true;
 	
 	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
 	if (!resourceInfoHandle) {
@@ -2407,8 +2407,8 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		failedToCompilePixelShader = true;
 		return false;
 	}
-	LPVOID pixelShaderTxtData = LockResource(resourceHandle);
-	if (!pixelShaderTxtData) {
+	LPVOID shaderTxtData = LockResource(resourceHandle);
+	if (!shaderTxtData) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "LockResource failed: %ls\n", winErr.getMessage()));
 		errorMsg = "Failed to lock the pixel shader in this mod's resources: ";
@@ -2428,6 +2428,8 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		return false;
 	}
 	
+	for (int attempt = 0; attempt < 2; ++attempt) {
+		
 	if (!d3dCompiler47 && !d3dCompiler47LoadFailed) {
 		// added in hopes it would fix the pixel shader on AMD cards.
 		// There the shader compiles, but doesn't draw any outlines. And if you just don't use the pixel shader, the outlines draw fine.
@@ -2442,10 +2444,14 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		}
 	}
 	
-	CComPtr<ID3DBlob> code;
-	CComPtr<ID3DBlob> errorMsgs;
-	
+		bool thisAttemptIsTheLast = attempt == 1 || !d3dCompile47;
+		
+	CComPtr<ID3DBlob> pixelShaderCodeTemp;
+	CComPtr<ID3DBlob> vertexShaderCodeTemp;
+	const DWORD* codeData;
+	SIZE_T codeSize;
 	HRESULT compilationResult;
+	CComPtr<ID3DBlob> errorMsgs;
 	
 	// function signature from d3dcompiler.h
 	using d3dCompile_t = HRESULT (WINAPI *) (_In_reads_bytes_(SrcDataSize) LPCVOID pSrcData,
@@ -2462,32 +2468,41 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 	
 	d3dCompile_t compileFunc = nullptr;
 	
-	if (d3dCompile47) {
+		if (d3dCompile47 && !thisAttemptIsTheLast) {
 		compileFunc = (d3dCompile_t)d3dCompile47;
 	} else {
 		compileFunc = D3DCompile;
 	}
+	
+	if (pixelShaderCode.empty()) {
 	compilationResult = (*compileFunc)(
-	  pixelShaderTxtData,
+		  shaderTxtData,
 	  txtSize,
 	  "MyPixelShader",
 	  NULL,
 	  NULL,
-	  "main",
+		  "colourdodge_ps",
 	  "ps_3_0",
-	  // removing D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY flag in hopes of getting the shader to at least draw something on AMD
-	  //D3DCOMPILE_WARNINGS_ARE_ERRORS | D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY,
+		  #ifdef _DEBUG
 	  D3DCOMPILE_WARNINGS_ARE_ERRORS,
+		  #else
+		  0,
+		  #endif
 	  NULL,
-	  &code,
+		  &pixelShaderCodeTemp,
 	  &errorMsgs
 	);
 	
 	if (FAILED(compilationResult)) {
+				
+				if (!thisAttemptIsTheLast) {
+					continue;
+				}
+				
 		if (!errorMsgs) {
-			errorMsg = "D3DCompile failed";
+				errorMsg = "D3DCompile failed on the pixel shader";
 		} else {
-			errorMsg = "D3DCompile failed: ";
+				errorMsg = "D3DCompile failed on the pixel shader: ";
 			shaderCompilationError = std::string((const char*)errorMsgs->GetBufferPointer(), (size_t)errorMsgs->GetBufferSize());
 			errorMsg += shaderCompilationError;
 		}
@@ -2497,12 +2512,60 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		return false;
 	}
 	
-	SIZE_T shaderSize = code->GetBufferSize();
-	const DWORD* codeData = (const DWORD*)code->GetBufferPointer();
+		codeSize = pixelShaderCodeTemp->GetBufferSize();
+		codeData = (const DWORD*)pixelShaderCodeTemp->GetBufferPointer();
 	
-	pixelShaderCode.resize(shaderSize);
+		pixelShaderCode.resize(codeSize);
 	memcpy(pixelShaderCode.data(), codeData, pixelShaderCode.size());
+	}
+	
+	if (vertexShaderCode.empty()) {
+		compilationResult = (*compileFunc)(
+		  shaderTxtData,
+		  txtSize,
+		  "MyPixelShader",
+		  NULL,
+		  NULL,
+		  "main_vs",
+		  "vs_3_0",
+		  #ifdef _DEBUG
+		  D3DCOMPILE_WARNINGS_ARE_ERRORS,
+		  #else
+		  0,
+		  #endif
+		  NULL,
+		  &vertexShaderCodeTemp,
+		  &errorMsgs
+		);
+		
+		if (FAILED(compilationResult)) {
+				
+				if (!thisAttemptIsTheLast) {
+					continue;
+				}
+				
+			if (!errorMsgs) {
+				errorMsg = "D3DCompile failed on the vertex shader";
+			} else {
+				errorMsg = "D3DCompile failed on the vertex shader: ";
+				shaderCompilationError = std::string((const char*)errorMsgs->GetBufferPointer(), (size_t)errorMsgs->GetBufferSize());
+				errorMsg += shaderCompilationError;
+			}
+			logwrap(fprintf(logfile, "%s\n", errorMsg.c_str()));
+			lastCompilationFailureReason = errorMsg;
+			failedToCompilePixelShader = true;
+			return false;
+		}
+		
+		codeSize = vertexShaderCodeTemp->GetBufferSize();
+		codeData = (const DWORD*)vertexShaderCodeTemp->GetBufferPointer();
+		
+		vertexShaderCode.resize(codeSize);
+		memcpy(vertexShaderCode.data(), codeData, vertexShaderCode.size());
+	}
+	
 	return true;
+}
 }
 
 void Graphics::getShaderCompilationError(const std::string** result) {
@@ -2511,22 +2574,52 @@ void Graphics::getShaderCompilationError(const std::string** result) {
 	*result = &shaderCompilationError;
 }
 
-IDirect3DPixelShader9* Graphics::getPixelShader(IDirect3DDevice9* device, std::string& errorMsg) {
-	if (failedToCreatePixelShader || !usePixelShader) return nullptr;
-	if (pixelShader) return pixelShader;
-	if (pixelShaderCode.empty()) {
-		errorMsg = "The compiled shader code is empty.";
-		return nullptr;
+bool Graphics::getShaders(IDirect3DDevice9* device, std::string& errorMsg, IDirect3DPixelShader9** pixelShaderPtr, IDirect3DVertexShader9** vertexShaderPtr) {
+	if (failedToCreatePixelShader || !usePixelShader) return false;
+	if (pixelShader && vertexShader) {
+		*pixelShaderPtr = pixelShader;
+		*vertexShaderPtr = vertexShader;
+		return true;
 	}
-	HRESULT errorCode = device->CreatePixelShader((const DWORD*)pixelShaderCode.data(), &pixelShader);
+	if (pixelShaderCode.empty() && vertexShaderCode.empty()) {
+		errorMsg = "The compiled pixel and vertex shader codes are empty.";
+		return false;
+	}
+	if (pixelShaderCode.empty()) {
+		errorMsg = "The compiled pixel shader code is empty.";
+		return false;
+	}
+	if (vertexShaderCode.empty()) {
+		errorMsg = "The compiled vertex shader code is empty.";
+		return false;
+	}
+	HRESULT errorCode;
+	
+	if (!pixelShader) {
+		errorCode = device->CreatePixelShader((const DWORD*)pixelShaderCode.data(), &pixelShader);
 	if (FAILED(errorCode)) {
 		char msg[100];
 		sprintf_s(msg, "Failed to create pixel shader in Direct 3D: 0x%x", errorCode);
 		errorMsg = msg;
 		logwrap(fprintf(logfile, "CreatePixelShader failed\n"));
-		return nullptr;
+			return false;
 	}
-	return pixelShader;
+	}
+	*pixelShaderPtr = pixelShader;
+	
+	if (!vertexShader) {
+		errorCode = device->CreateVertexShader((const DWORD*)vertexShaderCode.data(), &vertexShader);
+		if (FAILED(errorCode)) {
+			char msg[100];
+			sprintf_s(msg, "Failed to create vertex shader in Direct 3D: 0x%x", errorCode);
+			errorMsg = msg;
+			logwrap(fprintf(logfile, "CreateVertexShader failed\n"));
+			return false;
+		}
+	}
+	*vertexShaderPtr = vertexShader;
+	
+	return true;
 }
 
 void Graphics::preparePixelShader(IDirect3DDevice9* device) {
@@ -2541,13 +2634,13 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 		failedToCreatePixelShader = true;
 		return;
 	}
+	HRESULT errorCode;
+	char msg[110];
 	
 	std::string newReason;
 	if (!preparedPixelShaderOnThisFrame) {
 		preparedPixelShaderOnThisFrame = true;
 		CComPtr<IDirect3DSurface9> renderTarget;// = direct3DVTable.getRenderTarget();
-		HRESULT errorCode;
-		char msg[110];
 		errorCode = device->GetRenderTarget(0, &renderTarget);
 		if (FAILED(errorCode)) {
 			logwrap(fputs("GetRenderTarget failed\n", logfile));
@@ -2597,8 +2690,9 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 		}
 	}
 	std::string getPixelShaderError;
-	IDirect3DPixelShader9* shader = getPixelShader(device, getPixelShaderError);
-	if (!shader) {
+	IDirect3DPixelShader9* pixelShaderTemp;
+	IDirect3DVertexShader9* vertexShaderTemp;
+	if (!getShaders(device, getPixelShaderError, &pixelShaderTemp, &vertexShaderTemp)) {
 		newReason = "Failed to get pixel shader: ";
 		newReason += getPixelShaderError;
 		setFailedToCreatePixelShaderReason(newReason.c_str());
@@ -2606,16 +2700,52 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 		return;
 	}
 	
-	device->SetPixelShader(shader);
+	if (!vertexDeclaration) {
+	
+		D3DVERTEXELEMENT9 vertexElements[3];
+		D3DVERTEXELEMENT9* vertexElement;
+		
+		vertexElement = &vertexElements[0];
+		vertexElement->Stream = 0;
+		vertexElement->Offset = 0;
+		vertexElement->Type = D3DDECLTYPE_FLOAT3;
+		vertexElement->Method = D3DDECLMETHOD_DEFAULT;
+		vertexElement->Usage = D3DDECLUSAGE_POSITION;
+		vertexElement->UsageIndex = 0;
+		
+		vertexElement = &vertexElements[1];
+		vertexElement->Stream = 0;
+		vertexElement->Offset = 12;
+		vertexElement->Type = D3DDECLTYPE_D3DCOLOR;
+		vertexElement->Method = D3DDECLMETHOD_DEFAULT;
+		vertexElement->Usage = D3DDECLUSAGE_COLOR;
+		vertexElement->UsageIndex = 0;
+		
+		vertexElements[2] = D3DDECL_END();
+		
+		errorCode = device->CreateVertexDeclaration(vertexElements, &vertexDeclaration);
+		if (FAILED(errorCode)) {
+			sprintf_s(msg, "Failed to create vertex declaration: 0x%x", errorCode);
+			setFailedToCreatePixelShaderReason(msg);
+		failedToCreatePixelShader = true;
+			return;
+	}
+	}
+	
+	errorCode = device->SetVertexDeclaration(vertexDeclaration);
+	if (FAILED(errorCode)) {
+		sprintf_s(msg, "Failed to set vertex declaration: 0x%x", errorCode);
+		setFailedToCreatePixelShaderReason(msg);
+		failedToCreatePixelShader = true;
+		return;
+	}
+	
+	device->SetPixelShader(pixelShaderTemp);
+	device->SetVertexShader(vertexShaderTemp);
+	customVertexShaderActive = true;
 	device->SetTexture(0, tex);
 	device->SetPixelShaderConstantF(0, screenSizeConstant, 1);
-	
-	if (!testPixelShader(device)) {
-		setFailedToCreatePixelShaderReason("The shader causes outlines to not be drawn at all.");
-		failedToCreatePixelShader = true;
-		device->SetPixelShader(nullptr);
-		device->SetTexture(0, nullptr);
-	}
+	updateVertexShaderTransformMatrix(device);
 	
 }
 
@@ -3181,7 +3311,7 @@ void Graphics::drawAllCircles() {
 	sendAllPreparedVertices();
 	advanceRenderState(RENDER_STATE_DRAWING_BOXES);
 	for (const PreparedCircle& circle : preparedCircles) {
-		setWorld3DMatrix(circle.x, circle.y);
+		setWorld3DMatrix(circle.x, circle.y, true);
 		worldMatrixHasShiftedWorldCenter = true;
 		device->DrawPrimitive(D3DPT_TRIANGLEFAN, vertexBufferPosition, circle.verticesCount - 2);
 		vertexBufferPosition += circle.verticesCount;
@@ -3194,7 +3324,7 @@ void Graphics::drawAllCircleOutlines() {
 	sendAllPreparedVertices();
 	advanceRenderState(RENDER_STATE_DRAWING_OUTLINES);
 	for (const PreparedCircle& circle : preparedCircleOutlines) {
-		setWorld3DMatrix(circle.x, circle.y);
+		setWorld3DMatrix(circle.x, circle.y, true);
 		worldMatrixHasShiftedWorldCenter = true;
 		device->DrawPrimitive(D3DPT_LINESTRIP, vertexBufferPosition, circle.verticesCount - 1);
 		vertexBufferPosition += circle.verticesCount;
@@ -3332,11 +3462,11 @@ int Graphics::setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor)
 void Graphics::ensureWorldMatrixWorldCenterIsZero() {
 	if (worldMatrixHasShiftedWorldCenter) {
 		worldMatrixHasShiftedWorldCenter = false;
-		setWorld3DMatrix();
+		setWorld3DMatrix(0, 0, true);
 	}
 }
 
-void Graphics::setWorld3DMatrix(int worldCenterShiftX, int worldCenterShiftY) {
+void Graphics::setWorld3DMatrix(int worldCenterShiftX, int worldCenterShiftY, bool updateVertexShaderConstant) {
 	if (currentTransformSet == CURRENT_TRANSFORM_3D_PROJECTION
 			&& currentWorld3DMatrixWorldShiftX == worldCenterShiftX
 			&& currentWorld3DMatrixWorldShiftY == worldCenterShiftY) return;
@@ -3352,6 +3482,10 @@ void Graphics::setWorld3DMatrix(int worldCenterShiftX, int worldCenterShiftY) {
 		(float)worldCenterShiftX * m, 0.F, (float)worldCenterShiftY * m, 1.F
 	};
 	device->SetTransform(D3DTS_WORLD, &world);
+	
+	if (updateVertexShaderConstant) {
+		updateVertexShaderTransformMatrix(device);
+	}
 }
 
 void Graphics::calcTextSize(const char* txt, float coef, float textScale, bool outline, float* sizeX, float* sizeY) {
@@ -3476,68 +3610,6 @@ void Graphics::fillInScreenSize(IDirect3DDevice9* device) {
 	ui.presentRectH = *presentRectHPtr;
 }
 
-bool Graphics::testPixelShader(IDirect3DDevice9* device) {
-	
-	if (testedPixelShader) return lastPixelShaderTestResult;
-	lastPixelShaderTestResult = false;
-	testedPixelShader = true;
-	
-	CComPtr<IDirect3DSurface9> whateverOldRenderTarget;
-	if (!setAltRenderTarget(device, whateverOldRenderTarget)) {
-		logwrap(fputs("Failed to set alternative render target during pixel shader test", logfile));
-		return false;
-	}
-	
-	struct Cleanup {
-	public:
-		~Cleanup() {
-			device->SetRenderTarget(0, oldRenderTarget);
-			oldRenderTarget = nullptr;
-		    device->SetTransform(D3DTS_WORLD, &preTestWorld);
-		    device->SetTransform(D3DTS_VIEW, &preTestView);
-		    device->SetTransform(D3DTS_PROJECTION, &preTestProjection);
-		}
-		IDirect3DDevice9* device = nullptr;
-		CComPtr<IDirect3DSurface9>& oldRenderTarget;
-		D3DMATRIX preTestWorld;
-		D3DMATRIX preTestView;
-		D3DMATRIX preTestProjection;
-	} cleanup { device, whateverOldRenderTarget };
-	
-	device->GetTransform(D3DTS_WORLD, &cleanup.preTestWorld);
-	device->GetTransform(D3DTS_VIEW, &cleanup.preTestView);
-	device->GetTransform(D3DTS_PROJECTION, &cleanup.preTestProjection);
-	
-	setTransformMatricesPlain2DPart(device);
-	
-	if (FAILED(device->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 0), 1.F, 0))) {
-		logwrap(fputs("Clear failed on alt render target during pixel shader test", logfile));
-		return false;
-	}
-	
-	Vertex vertices[] {
-		{ -1.F, -1.F, 0.F, 0xFFFFFFFF },
-		{ 50.F, -1.F, 0.F, 0xFFFFFFFF },
-		{ -1.F, 50.F, 0.F, 0xFFFFFFFF }
-	};
-	
-	device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 1, vertices, sizeof Vertex);
-	
-	std::vector<unsigned char> gameImage;
-	RECT rect;
-	rect.left = 0;
-	rect.top = 0;
-	rect.right = 1;
-	rect.bottom = 1;
-	if (!getFramebufferData(device, gameImage, nullptr, nullptr, nullptr, nullptr, &rect)) {
-		logwrap(fputs("Failed to get render target data during pixel shader test", logfile));
-		return false;
-	}
-	
-	lastPixelShaderTestResult = gameImage.size() == 4 && gameImage[0] == 0xFF && gameImage[1] == 0xFF && gameImage[2] == 0xFF;
-	return lastPixelShaderTestResult;
-}
-
 void Graphics::setFailedToCreatePixelShaderReason(const char* txt) {
 	std::unique_lock<std::mutex> guard(failedToCreatePixelShaderReasonMutex);
 	failedToCreatePixelShaderReason = txt;
@@ -3545,4 +3617,34 @@ void Graphics::setFailedToCreatePixelShaderReason(const char* txt) {
 std::string Graphics::getFailedToCreatePixelShaderReason() {
 	std::unique_lock<std::mutex> guard(failedToCreatePixelShaderReasonMutex);
 	return failedToCreatePixelShaderReason;
+}
+
+void Graphics::updateVertexShaderTransformMatrix(IDirect3DDevice9* device) {
+	if (!customVertexShaderActive) return;
+	D3DXMATRIX a;
+	D3DXMATRIX b;
+	D3DXMATRIX c;
+	device->GetTransform(D3DTS_WORLD, &a);
+	device->GetTransform(D3DTS_VIEW, &b);
+	D3DXMatrixMultiply(&c, &a, &b);
+	device->GetTransform(D3DTS_PROJECTION, &a);
+	D3DXMatrixMultiply(&b, &c, &a);
+	D3DXMATRIX uhuh;
+	uhuh._11 = b._11;
+	uhuh._21 = b._12;
+	uhuh._31 = b._13;
+	uhuh._41 = b._14;
+	uhuh._12 = b._21;
+	uhuh._22 = b._22;
+	uhuh._32 = b._23;
+	uhuh._42 = b._24;
+	uhuh._13 = b._31;
+	uhuh._23 = b._32;
+	uhuh._33 = b._33;
+	uhuh._43 = b._34;
+	uhuh._14 = b._41;
+	uhuh._24 = b._42;
+	uhuh._34 = b._43;
+	uhuh._44 = b._44;
+	device->SetVertexShaderConstantF(0, uhuh, 4);
 }
