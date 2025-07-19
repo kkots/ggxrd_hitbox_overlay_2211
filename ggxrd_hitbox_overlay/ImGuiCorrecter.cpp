@@ -6,7 +6,7 @@
 
 ImGuiCorrecter imGuiCorrecter;
 
-void ImGuiCorrecter::interjectIntoImGui(float screenWidth, float screenHeight,
+void ImGuiCorrecter::adjustMousePosition(float screenWidth, float screenHeight,
 										bool usePresentRect, int presentRectW, int presentRectH) {
 	ImGuiIO& io = ImGui::GetIO();
 	ImGuiContext* g = ImGui::GetCurrentContext();
@@ -84,5 +84,39 @@ void ImGuiCorrecter::addProcessedEvent(int id) {
 	
 	if (processedIdsCount < _countof(processedIds)) {
 		++processedIdsCount;
+	}
+}
+
+bool ImGuiCorrecter::checkWindowHasSize(const char* name, short* width, short* height, bool* windowExists) {
+	const ImGuiWindowSettings* settings = NULL;
+	ImGuiWindow* window = ImGui::FindWindowByName(name);
+	*windowExists = false;
+	if (window) {
+		// settings don't update instantly when you resize the window. Need to read size from the window directly.
+		struct MyStruct {
+			static inline short cap(float val) {
+				int valInt = (int)val;
+				if (valInt > SHRT_MAX) {
+					valInt = SHRT_MAX;
+				} else if (valInt < SHRT_MIN) {
+					valInt = SHRT_MIN;
+				}
+				return (short)valInt;
+			}
+		};
+		*width = MyStruct::cap(window->Size.x);
+		*height = MyStruct::cap(window->Size.y);
+		*windowExists = true;
+		return true;
+	} else {
+		ImGuiID ID = ImHashStr(name);
+		settings = ImGui::FindWindowSettingsByID(ID);
+	}
+	if (settings) {
+		*width = settings->Size.x;
+		*height = settings->Size.y;
+		return true;
+	} else {
+		return false;
 	}
 }

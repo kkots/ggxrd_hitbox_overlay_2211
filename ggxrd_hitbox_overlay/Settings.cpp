@@ -11,743 +11,78 @@
 #include <unordered_map>
 #include <functional>
 #include "PlayerInfo.h"
+#include "LineReaderFromString.h"
+#include "SplitStringIterator.h"
+#include <vector>
+#include "KeyDefinitions.h"
+#include "SettingsTopCommentDefinition.h"
 
 Settings settings;
 
+static const char* rn = "\r\n";
+const char* const Settings::SETTINGS_HITBOX = "Hitboxes";
+const char* const Settings::SETTINGS_HITBOX_SETTINGS = "Settings - Hitbox Settings";
+const char* const Settings::SETTINGS_GENERAL = "Settings - General Settings";
+const char* const Settings::SETTINGS_FRAMEBAR = "Settings - Framebar Settings";
+const char* const Settings::SETTINGS_COMBO_RECIPE = "Combo Recipe";
+const char* const Settings::SETTINGS_CHARACTER_SPECIFIC = "UI - Character specific";
+
 bool Settings::onDllMain() {
-	addKey("Backspace", "Backspace", VK_BACK);
-	addKey("Tab", "Tab", VK_TAB);
-	addKey("Enter", "Enter", VK_RETURN);
-	addKey("PauseBreak", "PauseBreak", VK_PAUSE);
-	addKey("CapsLock", "CapsLock", VK_CAPITAL);
-	addKey("Escape", "Escape", VK_ESCAPE);
-	addKey("Space", "Space", VK_SPACE);
-	addKey("PageUp", "PageUp", VK_PRIOR);
-	addKey("PageDown", "PadeDown", VK_NEXT);
-	addKey("End", "End", VK_END);
-	addKey("Home", "Home", VK_HOME);
-	addKey("Left", "Arrow Left", VK_LEFT);
-	addKey("Up", "Arrow Up", VK_UP);
-	addKey("Right", "Arrow Right", VK_RIGHT);
-	addKey("Down", "Arrow Down", VK_DOWN);
-	addKey("PrintScreen", "PrintScreen", VK_SNAPSHOT);
-	addKey("Insert", "Insert", VK_INSERT);
-	addKey("Delete", "Delete", VK_DELETE);
-	addKey("Num0", "Num0", VK_NUMPAD0);
-	addKey("Num1", "Num1", VK_NUMPAD1);
-	addKey("Num2", "Num2", VK_NUMPAD2);
-	addKey("Num3", "Num3", VK_NUMPAD3);
-	addKey("Num4", "Num4", VK_NUMPAD4);
-	addKey("Num5", "Num5", VK_NUMPAD5);
-	addKey("Num6", "Num6", VK_NUMPAD6);
-	addKey("Num7", "Num7", VK_NUMPAD7);
-	addKey("Num8", "Num8", VK_NUMPAD8);
-	addKey("Num9", "Num9", VK_NUMPAD9);
-	addKey("NumMultiply", "Num*", VK_MULTIPLY);
-	addKey("NumAdd", "Num+", VK_ADD);
-	addKey("NumSubtract", "Num-", VK_SUBTRACT);
-	addKey("NumDecimal", "Num.", VK_DECIMAL);
-	addKey("NumDivide", "Num/", VK_DIVIDE);
-	addKey("F1", "F1", VK_F1);
-	addKey("F2", "F2", VK_F2);
-	addKey("F3", "F3", VK_F3);
-	addKey("F4", "F4", VK_F4);
-	addKey("F5", "F5", VK_F5);
-	addKey("F6", "F6", VK_F6);
-	addKey("F7", "F7", VK_F7);
-	addKey("F8", "F8", VK_F8);
-	addKey("F9", "F9", VK_F9);
-	addKey("F10", "F10", VK_F10);
-	addKey("F11", "F11", VK_F11);
-	addKey("F12", "F12", VK_F12);
-	addKey("NumLock", "NumLock", VK_NUMLOCK);
-	addKey("ScrollLock", "ScrollLock", VK_SCROLL);
-	addKey("Colon", ":", VK_OEM_1);
-	addKey("Plus", "+", VK_OEM_PLUS);
-	addKey("Minus", "-", VK_OEM_MINUS);
-	addKey("Comma", ",", VK_OEM_COMMA);
-	addKey("Period", ".", VK_OEM_PERIOD);
-	addKey("Slash", "/", VK_OEM_2);
-	addKey("Tilde", "~", VK_OEM_3);
-	addKey("OpenSquareBracket", "[", VK_OEM_4);
-	addKey("Backslash", "\\", VK_OEM_5);
-	addKey("CloseSquareBracket", "]", VK_OEM_6);
-	addKey("Quote", "\"", VK_OEM_7);
-	addKey("Backslash2", "\\ (2)", VK_OEM_102);
-	addKey("JoystickBtn1", "JoystickBtn1", JOY_BTN_0);
-	addKey("JoystickBtn2", "JoystickBtn2", JOY_BTN_1);
-	addKey("JoystickBtn3", "JoystickBtn3", JOY_BTN_2);
-	addKey("JoystickBtn4", "JoystickBtn4", JOY_BTN_3);
-	addKey("JoystickLeftTrigger", "JoystickLeftTrigger", JOY_BTN_4);
-	addKey("JoystickRightTrigger", "JoystickRightTrigger", JOY_BTN_5);
-	addKey("JoystickLeftTrigger2", "JoystickLeftTrigger2", JOY_BTN_6);
-	addKey("JoystickRightTrigger2", "JoystickRightTrigger2", JOY_BTN_7);
-	addKey("JoystickBtn9", "JoystickBtn9", JOY_BTN_8);
-	addKey("JoystickBtn10", "JoystickBtn10", JOY_BTN_9);
-	addKey("JoystickBtn11", "JoystickBtn11", JOY_BTN_10);
-	addKey("JoystickBtn12", "JoystickBtn12", JOY_BTN_11);
-	addKey("JoystickBtn13", "JoystickBtn13", JOY_BTN_12);
-	addKey("JoystickBtn14", "JoystickBtn14", JOY_BTN_13);
-	addKey("JoystickBtn15", "JoystickBtn15", JOY_BTN_14);
-	addKey("JoystickBtn16", "JoystickBtn16", JOY_BTN_15);
-	addKey("LeftStickLeft", "LeftStickLeft", JOY_LEFT_STICK_LEFT);
-	addKey("LeftStickUp", "LeftStickUp", JOY_LEFT_STICK_UP);
-	addKey("LeftStickRight", "LeftStickRight", JOY_LEFT_STICK_RIGHT);
-	addKey("LeftStickDown", "LeftStickDown", JOY_LEFT_STICK_DOWN);
-	addKey("DPadLeft", "DPadLeft", JOY_DPAD_LEFT);
-	addKey("DPadUp", "DPadUp", JOY_DPAD_UP);
-	addKey("DPadRight", "DPadRight", JOY_DPAD_RIGHT);
-	addKey("DPadDown", "DPadDown", JOY_DPAD_DOWN);
-	addKey("PS4DualshockRightStickLeft", "PS4DualshockRightStickLeft", JOY_PS4_DUALSHOCK_RIGHT_STICK_LEFT);
-	addKey("PS4DualshockRightStickUp", "PS4DualshockRightStickUp", JOY_PS4_DUALSHOCK_RIGHT_STICK_UP);
-	addKey("PS4DualshockRightStickRight", "PS4DualshockRightStickRight", JOY_PS4_DUALSHOCK_RIGHT_STICK_RIGHT);
-	addKey("PS4DualshockRightStickDown", "PS4DualshockRightStickDown", JOY_PS4_DUALSHOCK_RIGHT_STICK_DOWN);
-	addKey("XboxTypeSRightStickLeft", "XboxTypeSRightStickLeft", JOY_XBOX_TYPE_S_RIGHT_STICK_LEFT);
-	addKey("XboxTypeSRightStickUp", "XboxTypeSRightStickUp", JOY_XBOX_TYPE_S_RIGHT_STICK_UP);
-	addKey("XboxTypeSRightStickRight", "XboxTypeSRightStickRight", JOY_XBOX_TYPE_S_RIGHT_STICK_RIGHT);
-	addKey("XboxTypeSRightStickDown", "XboxTypeSRightStickDown", JOY_XBOX_TYPE_S_RIGHT_STICK_DOWN);
-
-	addKeyRange('0', '9');
-	addKeyRange('A', 'Z');
-
-	addKey("Shift", "Shift", VK_SHIFT);
-	addKey("Ctrl", "Ctrl", VK_CONTROL);
-	addKey("Alt", "Alt", VK_MENU);
+	#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode) addKey(identifier, userFriendlyName, virtualKeyCode);
+	#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode) addKey(identifier, userFriendlyName, virtualKeyCode);
+	#define keyEnumFunc_keyRange(str) addKeyRange(str);
+	keyEnum
+	#undef keyEnumFunc
+	#undef keyEnumFuncLast
+	#undef keyEnumFunc_keyRange
 	
 	for (auto it = keys.begin(); it != keys.end(); ++it) {
 		reverseKeys.insert({it->second.code, &it->second});
 	}
 	
-	insertKeyComboToParse("gifModeToggle", "GIF Mode Toggle", &gifModeToggle, "",
-		"; A keyboard shortcut to toggle GIF mode.\n"
-		"; GIF mode is:\n"
-		"; 1) Background becomes black\n"
-		"; 2) Camera is centered on you\n"
-		"; 3) Opponent is invisible and invulnerable\n"
-		"; 4) Hide HUD (interface)\n"
-		"; GIF Mode can also be toggled using 'UI - Hitboxes - GIF Mode'.");
-	insertKeyComboToParse("noGravityToggle", "No Gravity Toggle", &noGravityToggle, "",
-		"; A keyboard shortcut to toggle No gravity mode\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - No Gravity' checkbox.\n"
-		"; No gravity mode is you can't fall basically");
-	insertKeyComboToParse("freezeGameToggle", "Freeze Game Toggle", &freezeGameToggle, "",
-		"; A keyboard shortcut to freeze the game\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Freeze Game' checkbox.\n");
-	insertKeyComboToParse("slowmoGameToggle", "Slow-mo Game Toggle", &slowmoGameToggle, "",
-		"; A keyboard shortcut to play the game in slow motion.\n"
-		"; Please specify by how many times to slow the game down in \"slowmoTimes\".\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Slow-Mo Mode' checkbox.\n");
-	insertKeyComboToParse("allowNextFrameKeyCombo", "Allow Next Frame", &allowNextFrameKeyCombo, "",
-		"; A keyboard shortcut. Only works while the game is frozen using \"freezeGameToggle\".\n"
-		"; Advances the game forward one frame.\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Next Frame' button.\n");
-	insertKeyComboToParse("disableModToggle", "Disable Mod Toggle", &disableModKeyCombo, "F6",
-		"; A keyboard shortcut to enable/disable the mod without having to load/unload it");
-	insertKeyComboToParse("disableHitboxDisplayToggle", "Disable Hitbox Display Toggle", &disableHitboxDisplayToggle, "F7",
-		"; A keyboard shortcut to enable/disable only the mod hitbox drawing feature:\n"
-		"; the GIF mode and no gravity, etc will keep working.\n"
-		"; In the UI, this mode can also be toggled using \"dontShowBoxes\" checkbox.\n");
-	insertKeyComboToParse("screenshotBtn", "Take Screenshot", &screenshotBtn, "", "; A keyboard shortcut.\n"
-		"; Takes a screenshot and saves it at \"screenshotPath\" path\n"
-		"; To take screenshots over a transparent background you need to go to the game's\n"
-		"; Display Settings and turn off Post-Effect (or use \"togglePostEffectOnOff\" and\n"
-		"; \"turnOffPostEffectWhenMakingBackgroundBlack\" settings for this), then use GIF mode (make background dark).\n"
-		"; Then screenshots will film character over transparent background.\n"
-		"; If the \"dontUseScreenshotTransparency\" setting is true, screenshot will be without\n"
-		"; transparency anyway.\n"
-		"; In the UI, taking screenshots in possible using 'UI - Hitboxes - Take Screenshot' button.");
-	insertKeyComboToParse("continuousScreenshotToggle", "Continuous Screenshot Toggle", &continuousScreenshotToggle, "",
-		"; A keyboard shortcut.\n"
-		"; This toggle can be used same way as \"screenshotBtn\" (when it's combined with\n"
-		"; \"allowContinuousScreenshotting\" = true), except it's a separate key combination and when you\n"
-		"; press it, it toggles the continuous screenshot taking every game logical frame. This\n"
-		"; toggle does not require \"allowContinuousScreenshotting\" to be set to true,\n"
-		"; or \"screenshotBtn\" to be set to anything\n."
-		"; In the UI, you can toggle this mode using 'UI - Hitboxes - Continuous Screenshotting Mode' checkbox.");
-	insertKeyComboToParse("gifModeToggleBackgroundOnly", "GIF Mode Toggle (Background Only)", &gifModeToggleBackgroundOnly, "",
-		"; A keyboard shortcut to only toggle the \"background becomes black\" part of the \"gifModeToggle\".\n"
-		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
-		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example.\n"
-		"; Black background can also be toggled using 'UI - Hitboxes - Black Background'.");
-	insertKeyComboToParse("togglePostEffectOnOff", "Toggle Post-Effect On/Off", &togglePostEffectOnOff, "",
-		"; A keyboard shortcut to toggle the game's Settings - Display Settings - Post-Effect. Changing it this way does not\n"
-		"; require the current match to be restarted.\n"
-		"; Alternatively, you could set the \"turnOffPostEffectWhenMakingBackgroundBlack\" setting in this INI file to true\n"
-		"; so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is\n"
-		"; turned off automatically, and when you leave those modes, it gets turned back on.\n"
-		"; In the UI, Post-Effect can be toggled using 'UI - Hitboxes - Post-Effect On' checkbox.\n"
-		"; This hotkey is empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
-		"; This option can be combined with the other hotkey options, by sharing the same key binding for example.");
-	insertKeyComboToParse("gifModeToggleCameraCenterOnly", "GIF Mode Toggle (Camera Only)", &gifModeToggleCameraCenterOnly, "",
-		"; A keyboard shortcut to only toggle the \"Camera is centered on you\" part of the \"gifModeToggle\".\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Camera Center on Player' checkbox.\n"
-		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
-		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example");
-	insertKeyComboToParse("toggleCameraCenterOpponent", "Center Camera On The Opponent", &toggleCameraCenterOpponent, "",
-		"; A keyboard shortcut to toggle the camera to be centered on the opponent.\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Camera Center on Opponent' checkbox.\n"
-		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
-		"; This option can be combined with GIF Mode options, by sharing the same key binding for example");
-	insertKeyComboToParse("gifModeToggleHideOpponentOnly", "GIF Mode Toggle (Hide Opponent Only)", &gifModeToggleHideOpponentOnly, "",
-		"; A keyboard shortcut to only toggle the \"Opponent is invisible and invulnerable\" part of the \"gifModeToggle\".\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide Opponent' checkbox.\n"
-		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
-		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example");
-	insertKeyComboToParse("toggleHidePlayer", "Hide Player", &toggleHidePlayer, "",
-		"; A keyboard shortcut to toggle hiding the player.\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide Player' checkbox.\n"
-		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
-		"; This option can be combined with GIF Mode options, by sharing the same key binding for example");
-	insertKeyComboToParse("gifModeToggleHudOnly", "GIF Mode Toggle (HUD Only)", &gifModeToggleHudOnly, "",
-		"; A keyboard shortcut to only toggle the \"hide HUD (interface)\" part of the \"gifModeToggle\".\n"
-		"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide HUD' checkbox.\n"
-		"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
-		"; This option can be combined with the other \"only\" options, by sharing the same key binding for example");
-	insertKeyComboToParse("modWindowVisibilityToggle", "Hide UI Toggle", &modWindowVisibilityToggle, "Escape",
-		"; A keyboard shortcut.\n"
-		"; Pressing this shortcut will show/hide the mod's UI window.");
-	insertKeyComboToParse("framebarVisibilityToggle", "Hide Framebar Toggle", &framebarVisibilityToggle, "",
-		"; A keyboard shortcut.\n"
-		"; Pressing this shortcut will show/hide the framebar window by changing the \"showFramebar\" setting.\n"
-		"; If \"closingModWindowAlsoHidesFramebar\" is true, then setting \"showFramebar\" to true is not enough, as the main\n"
-		"; mod's UI window must also be open in order to show the framebar. If the window is not open, and \"showFramebar\" is true,\n"
-		"; then the only way to open it and to show the framebar is with the \"modWindowVisibilityToggle\" hotkey.");
-	insertKeyComboToParse("toggleDisableGrayHurtboxes", "Disable Gray Hurtboxes", &toggleDisableGrayHurtboxes, "",
-		"; A keyboard shortcut.\n"
-		"; Pressing this shortcut will disable/enable the display of residual hurtboxes that appear on hit/block and show\n"
-		"; the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but\n"
-		"; they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
-		"; In the UI, you can toggle the display of gray hurtboxes using 'UI - Hitboxes - Disable Gray Hurtboxes' checkbox.");
-	insertKeyComboToParse("toggleNeverIgnoreHitstop", "Never Ignore Hitstop", &toggleNeverIgnoreHitstop, "",
-		"; A keyboard shortcut.\n"
-		"; Pressing this shortcut will disable/enable the \"neverIgnoreHitstop\" setting which controls whether\n"
-		"; the framebar advances during hitstop.");
-	insertKeyComboToParse("toggleShowInputHistory", "Disable Show Input History", &toggleShowInputHistory, "",
-		"; A keyboard shortcut.\n"
-		"; Pressing this shortcut will disable the input history shown via \"displayInputHistoryWhenObserving\"\n"
-		"; and \"displayInputHistoryInSomeOfflineModes\". It only works when one of those settings is enabled\n"
-		"; and is showing history in corresponding game mode.");
-	insertKeyComboToParse("toggleAllowCreateParticles", "Allow Creation Of Particles", &toggleAllowCreateParticles, "",
-		"; A keyboard shortcut.\n"
-		"; Pressing this shortcut will disable/enable creation of particle effects such as superfreeze flash.\n"
-		"; It will not remove particles that are already created or make particles that have already\n"
-		"; not been created appear.");
-	insertKeyComboToParse("clearInputHistory", "Clear Input History", &clearInputHistory, "",
-		"; A keyboard shortcut.\n"
-		"; Pressing this shortcut will clear the input history, for example in training mode,\n"
-		"; when input history display is enabled.\n"
-		"; Alternatively, you can use the \"clearInputHistoryOnStageReset\" boolean setting to\n"
-		"; make the game clear input history when you reset positions in training mode or when\n"
-		"; round restarts in any game mode.\n"
-		"; Alternatively, you can use the \"clearInputHistoryOnStageResetInTrainingMode\" boolean setting to\n"
-		"; make the game clear input history when you reset positions in training mode only.");
-	
-	static const char* hitboxesStr = "Hitboxes";
-	static const char* settingsHitboxSettingsStr = "Settings - Hitbox Settings";
-	static const char* settingsGeneralSettingsStr = "Settings - General Settings";
-	static const char* settingsFramebarSettingsStr = "Settings - Framebar Settings";
-	#define settingAndItsName(name) &name, #name
-	registerOtherDescription(settingAndItsName(slowmoTimes), "Slow-Mo Factor", hitboxesStr, "; A number.\n"
-			"; This works in conjunction with \"slowmoGameToggle\". Only round numbers greater than 1 allowed.\n"
-			"; Specifies by how many times to slow the game down");
-	registerOtherDescription(settingAndItsName(framebarHeight), "Framebar Height", settingsFramebarSettingsStr, "; A number.\n"
-			"; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.\n"
-			"; The standard height is 19.");
-	registerOtherDescription(settingAndItsName(framebarTitleCharsMax), "Framebar Title Max Characters", settingsFramebarSettingsStr, "; A number.\n"
-			"; Specifies the maximum number of characters that can be displayed in a framebar title.\n"
-			"; This does not include the \"P1 \" and \"P2 \" additional text that is displayed when \"showPlayerInFramebarTitle\" is true.\n"
-			"; You can use \"useSlangNames\" to help reduce the lengths of text displayed in framebar titles.\n"
-			"; The standard value is 12.");
-	registerOtherDescription(settingAndItsName(framebarDisplayedFramesCount), "Number Of Displayed Frames", settingsFramebarSettingsStr, "; A number.\n"
-			"; Specifies the maximum number of frames that will be displayed on the screen at a time.\n"
-			"; If there're more frames stored (see \"framebarStoredFramesCount\") in the framebar than this number,\n"
-			"; a horizontal scrollbar will be displayed.\n"
-			"; This value can't be more than 200.\n"
-			"; The standard value is 80.");
-	registerOtherDescription(settingAndItsName(framebarStoredFramesCount), "Number Of Stored Frames", settingsFramebarSettingsStr, "; A number.\n"
-			"; Specifies the maximum number of past frames that can be viewed by scrolling the framebar horizontally,\n"
-			"; including frames that are visible without having to scroll.\n"
-			"; This value can't be more than 200.\n"
-			"; The standard value is 200.");
-	registerOtherDescription(settingAndItsName(positionResetDistBetweenPlayers), "Position Reset Corner - Distance Between Players", settingsGeneralSettingsStr, "; A number.\n"
-			"; Specifies the distance between the two players, not divided by 100, when resetting position into the corner.\n"
-			"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
-			"; The default value of this field is 105000.");
-	registerOtherDescription(settingAndItsName(positionResetDistFromCorner), "Position Reset Corner - Distance From Corner", settingsGeneralSettingsStr, "; A number.\n"
-			"; Specifies the distance of the player closest to the corner, from said corner, not divided by 100,\n"
-			"; when resetting position into the corner.\n"
-			"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
-			"; The default value of this field is 0.");
-	registerOtherDescription(settingAndItsName(allowContinuousScreenshotting), "Allow Continuous Screenshotting When Button Is Held", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; When this is true that means screenshots are being taken every game loop logical frame as\n"
-			"; long as the \"screenshotBtn\" is being held. Game loop logical frame means that if the game is\n"
-			"; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.\n"
-			"; A new screenshot is only taken when animation frames change on the player characters.\n"
-			"; Be cautions not to run out of disk space if you're low. This option doesn't\n"
-			"; work if \"screenshotPath\" is empty, it's not allowed to work outside of training mode or when\n"
-			"; a match (training session) isn't currently running (for example on character selection screen).");
-	registerOtherDescription(settingAndItsName(displayUIOnTopOfPauseMenu), "Display Mod's UI on top of Pause Menu", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; Display mod's UI on top of the game's Pause Menu. This setting has no effect when \"dodgeObsRecording\" is true and\n"
-			"; an OBS is connected to the game.");
-	registerOtherDescription(settingAndItsName(dodgeObsRecording), "Dodge OBS Recording", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; To have this mod avoid OBS capture set this setting to true and also make sure\n"
-			"; that in OBS, in Sources you selected your Source, clicked Cogwheel and unchecked the\n"
-			"; 'Capture third-party overlays (such as steam)'.\n"
-			"; I am very sorry, but the mod's UI, the framebar and the boxes cannot be drawn under the game's\n"
-			"; Pause Menu and game's own UI while using 'Dodge OBS Recording'.");
-	registerOtherDescription(settingAndItsName(neverIgnoreHitstop), "Never Ignore Hitstop", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"
-			"; unless a projectile or a blocking Baiken (see \"ignoreHitstopForBlockingBaiken\") is present.\n"
-			"; If this is set to true, then we always show hitstop in the framebar.\n"
-			"; After changing this setting, you don't need to repeat the moves or actions to see updated result in the framebar.\n"
-			"; This setting can be changed with the \"toggleNeverIgnoreHitstop\" hotkey.");
-	registerOtherDescription(settingAndItsName(ignoreHitstopForBlockingBaiken), "Ignore Hitstop For Blocking Baiken", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"
-			"; unless a projectile or a blocking Baiken is present.\n"
-			"; If this is set to true, then we ignore the blocking Baiken part and display hitstop in the framebar only\n"
-			"; when a projectile is present.\n"
-			"; There's another setting that controls the display of hitstop in the framebar: \"neverIgnoreHitstop\".\n"
-			"; If that setting is set to true, hitstop is always shown, no matter what \"ignoreHitstopForBlockingBaiken\" setting is.\n"
-			"; After changing this setting, you need to repeat the moves or actions to see updated result in the framebar.");
-	registerOtherDescription(settingAndItsName(considerRunAndWalkNonIdle), "Consider Running And Walking Non-Idle", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Normally we consider running and walking as being idle, which does not advance the framebar forward.\n"
-			"; The framebar only advances when one of the players is \"busy\".\n"
-			"; If this is set to true, then one player running or walking will be treated same way as \"busy\" and will advance the framebar.\n"
-			"; In the UI's 'Frame Advantage' display, idle running (except Leo's) and walking will still always be considered idle.");
-	registerOtherDescription(settingAndItsName(considerCrouchNonIdle), "Consider Crouching Non-Idle", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Normally we consider crouching as being idle, which does not advance the framebar forward.\n"
-			"; The framebar only advances when one of the players is \"busy\".\n"
-			"; If this is set to true, then one player crouching or walking will be treated same way as \"busy\" and will advance the framebar.\n"
-			"; A dummy who is crouching automatically due to training settings will still not be considered \"busy\" no matter what.\n"
-			"; In the UI's 'Frame Advantage' display, idle crouching will still always be considered idle.");
-	registerOtherDescription(settingAndItsName(considerDummyPlaybackNonIdle), "Consider The Entirety Of Dummy Recording Playback Non-Idle", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Normally we consider standing as being idle, which does not advance the framebar forward.\n"
-			"; The framebar only advances when one of the players is \"busy\".\n"
-			"; If this is set to true, then as soon as you tell the dummy to play a recording slot, the entirety of the playback will be considered\n"
-			"; as \"busy\" and will advance the framebar, even if in parts of the recording the dummy is not doing anything.");
-	registerOtherDescription(settingAndItsName(considerKnockdownWakeupAndAirtechIdle), "Consider Knockdown, Wakeup and Airtech Idle", settingsFramebarSettingsStr,
-			"; Specify true or false\n"
-			"; This controls whether a character being knocked down, waking up or air recovering causes the framebar to advance forward (if you're also idle).\n"
-			"; Framebar only advances forward when one or both players are not idle.\n"
-			"; Framebar advancing forward means it continuously overwrites its oldest contents with new data to display.\n"
-			"; This could be bad if you wanted to study why a combo dropped, as some knockdowns can be very long and erase all the info you wanted to see.\n"
-			"; Setting this to true may prevent that.\n"
-			"; The first frame when the opponent is in OTG state (meaning if they get hit now, it will be OTG) and onwards -\n"
-			"; those frames do not get included in the framebar when this setting is true.\n"
-			"; But if you recover from your move later than the opponent enters OTG state, the frames are included anyway for your whole recovery\n"
-			"; for both you and the opponent, which means OTG state may partially or fully get included into the framebar even while this setting is true.\n"
-			"; In such cases, look for an animation start delimiter on the opponent's framebar, shown as a white ' between frames.");
-	registerOtherDescription(settingAndItsName(considerIdleInvulIdle), "Consider Invul While Being Idle As Idle", settingsFramebarSettingsStr,
-			"; Specify true or false\n"
-			"; After waking up, or leaving blockstun or hitstun, or airteching, usually there's some strike and/or throw invul while\n"
-			"; you're idle and are able to fully act. Framebar only advances forward when one or both players are not idle, however,\n"
-			"; if this invul is present, you can set this setting to false to advance the framebar anyway.");
-	registerOtherDescription(settingAndItsName(useSimplePixelBlender), "Use Simple CPU Pixel Blender", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true may increase the performance of transparent screenshotting which may be useful if you're screenshotting every frame.\n"
-			"; The produced screenshots won't have such improvements as improving visibility of semi-transparent effects or changing hitbox outlines to\n"
-			"; black when drawn over the same color.");
-	registerOtherDescription(settingAndItsName(usePixelShader), "Use Pixel Shader", settingsHitboxSettingsStr,
-			"; IF YOU USE AMD CARD, SET THIS TO FALSE!!!\n"
-			"; Specify true or false.\n"
-			"; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of\n"
-			"; the outline to black only on those pixels.\n"
-			"; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default)\n"
-			"; color orb, which are both red.\n"
-			"; Pixel shader was observed to not draw any outlines on an AMD card. Please turn this off if you use AMD to\n"
-			"; allow outlines to at least be drawn somehow, without color-dodging.");
-	registerOtherDescription(settingAndItsName(dontShowBoxes), "Don't Show Boxes", hitboxesStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will hide all hurtboxes, hitboxes, pushboxes and other boxes and points.\n"
-			"; \"disableHitboxDisplayToggle\" can be used to toggle this setting using a keyboard shortcut.");
-	registerOtherDescription(settingAndItsName(neverDisplayGrayHurtboxes), "Disable Gray Hurtboxes", hitboxesStr,
-			"; Specify true or false.\n"
-			"; This disables the display of gray hurtboxes (for a toggle see \"toggleDisableGrayHurtboxes\").\n"
-			"; Gray hurtboxes are residual hurtboxes that appear on hit/block and show the defender's hurtbox at the moment of impact.\n"
-			"; These hurtboxes display for only a brief time on impacts but they can get in the way when trying to do certain stuff such\n"
-			"; as take screenshots of hurtboxes on hit/block.");
-	registerOtherDescription(settingAndItsName(showFramebar), "Show Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; This setting can be changed using the \"framebarVisibilityToggle\" hotkey.\n"
-			"; If \"closingModWindowAlsoHidesFramebar\" is true, then setting \"showFramebar\" to true is not enough, as the main\n"
-			"; mod's UI window must also be open in order to show the framebar. If the window is not open, and \"showFramebar\" is true,\n"
-			"; then the only way to open it and to show the framebar is with the \"modWindowVisibilityToggle\" hotkey.");
-	registerOtherDescription(settingAndItsName(showFramebarInTrainingMode), "Show Framebar In Training Mode", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; If false, the framebar will not be shown when in training mode even when \"showFramebar\" is true and the UI is open.");
-	registerOtherDescription(settingAndItsName(showFramebarInReplayMode), "Show Framebar In Replay Mode", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; If false, the framebar will not be shown when in replay mode even when \"showFramebar\" is true and the UI is open.");
-	registerOtherDescription(settingAndItsName(showFramebarInOtherModes), "Show Framebar In Other Modes", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; If false, the framebar will not be shown when in other modes even when \"showFramebar\" is true and the UI is open.\n"
-			"; Note that the framebar will never be displayed in online mode when playing as a non-observer, even if this setting is true.\n"
-			"; The reason for that is that it malfunctions and shows incorrect framedata when rollback frames happen.\n"
-			"; It is possible to put more work into it to fix that, but it will take as many times more computing resources as\n"
-			"; there are rollback frames and may start working slower on slower PCs.");
-	registerOtherDescription(settingAndItsName(showStrikeInvulOnFramebar), "Show Strike Invul", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Strike invul will be displayed using a green ^ on top of a frame.");
-	registerOtherDescription(settingAndItsName(showSuperArmorOnFramebar), "Show Super Armor", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Super armor will be displayed using a purple ^ on top of a frame. It includes reflect, parry and projectile-only invulnerability\n"
-			"; (excluding Aegis Field, that isn't displayed on the framebar at all). If both strike invul and super armor are present, super armor\n"
-			"; will be below the strike invul.");
-	registerOtherDescription(settingAndItsName(showThrowInvulOnFramebar), "Show Throw Invul", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Throw invul will be displayed using a yellow v underneath a frame.");
-	registerOtherDescription(settingAndItsName(showOTGOnFramebar), "Show OTG", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; OTG state will be displayed using a gray v underneath a frame.");
-	registerOtherDescription(settingAndItsName(showFirstFramesOnFramebar), "Show First Frames", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When a player's animation changes from one to another, except in certain cases, the first frame of the new animation is denoted with\n"
-			"; a ' mark before that frame. For some animations a first frame is denoted even when\n"
-			"; the animation didn't change, but instead reached some important point. This includes entering hitstop.");
-	registerOtherDescription(settingAndItsName(considerSimilarFrameTypesSameForFrameCounts), "Consider Similar Frame Types Same For Frame Count", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; This affects the frame counts that are displayed on the framebar. If true, the frame counter will not reset\n"
-			"; between different frame graphics that all mean recovery or all mean startup and so on. Idle frames are not\n"
-			"; affected by this and for them you should use the \"considerSimilarIdleFramesSameForFrameCounts\" setting.");
-	registerOtherDescription(settingAndItsName(considerSimilarIdleFramesSameForFrameCounts), "Consider Similar Idle Frames Same For Frame Count", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; This affects the frame counts that are displayed on the framebar. If true, the frame counter will not reset\n"
-			"; between different frame graphics that all mean idle.");
-	registerOtherDescription(settingAndItsName(combineProjectileFramebarsWhenPossible), "Combine Projectile Framebars When Possible", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When true, two or more projectile framebars will be combined into one if their active/non-active frames don't intersect.");
-	registerOtherDescription(settingAndItsName(eachProjectileOnSeparateFramebar), "Each Projectile On A Separate Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When true, projectiles will never be combined even if there are very many of them and they're all same.");
-	registerOtherDescription(settingAndItsName(dontClearFramebarOnStageReset), "Don't Clear Framebar On Stage Reset", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When true, the framebar won't be cleared when resetting the stage with Record+Playback or Backspace or Pause Menu - Reset Position in Training Mode,\n"
-			"; or when a player dies or when a new rounds starts.");
-	registerOtherDescription(settingAndItsName(dontTruncateFramebarTitles), "Don't Truncate Framebar Titles", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Each framebar displays a label or title either to the left or to the right from it. The titles are truncated to 12 character by default.\n"
-			"; By setting this setting to true, you can stop them from truncating and always display full titles.");
-	registerOtherDescription(settingAndItsName(useSlangNames), "Use Slang In Move & Projectile Names", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Each framebar displays a label or title either to the left or to the right from it.\n"
-			"; When the title is too long, depending on the setting, it gets cut off. Setting this to true changes some\n"
-			"; projectile titles to slang names to make framebar titles short so that they fit.\n"
-			"; This also changes names of moves that are displayed in main UI window and other windows.");
-	registerOtherDescription(settingAndItsName(allFramebarTitlesDisplayToTheLeft), "All Framebar Titles Display On The Left", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.\n"
-			"; By setting this setting to true, you can make all framebar titles always display on the left.\n"
-			"; To help tell which player it is you can use the \"showPlayerInFramebarTitle\" setting.");
-	registerOtherDescription(settingAndItsName(showPlayerInFramebarTitle), "Show Player In Framebar Title", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.\n"
-			"; The \"allFramebarTitlesDisplayToTheLeft\" setting can be used to make all framebar titles always display on the left.\n"
-			"; How to tell which player it is then? This is where this setting comes in.\n"
-			"; Setting this to true adds \"P1\" or \"P2\" color-coded text to each framebar's title.");
-	registerOtherDescription(settingAndItsName(useColorblindHelp), "Use Colorblindness Help", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; If true, certain types of frames in the framebar will be displayed with distinct hatches on them.\n"
-			"; Make sure the framebar is scaled wide enough and the screen resolution is large enough that you can see the hatches properly.\n"
-			"; To scale the framebar you can drag its right edge.");
-	registerOtherDescription(settingAndItsName(startDisabled), "startDisabled", "INI file",
-			"; Specify true or false.\n"
-			"; When true, starts the mod in a disabled state: it doesn't draw boxes or affect anything");
-	registerOtherDescription(settingAndItsName(screenshotPath), "Screenshots Path", settingsHitboxSettingsStr,
-			"; A path to a file or a directory.\n"
-			"; It specifies where screenshots will be saved.\n"
-			"; If you provided a file path, it must be with .png extension, and if such name already exists, a\n"
-			"; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique,\n"
-			"; so that new screenshots will never overwrite old ones.\n"
-			"; If you provided a directory path, it must already exist, and \"screen.png\" will be appended to\n"
-			"; it with an increasing number at the end in case the filename is not unique.\n"
-			"; The provided path must be without quotes.\n"
-			"; If you want the path to be multilingual you need to save this file in UTF-8.\n"
-			"; On Ubuntu/Linux running Guilty Gear Xrd under Steam Proton you need to specify paths with\n"
-			"; the Z:\\ drive, path separator is backslash (\\), not forward slash (/). Example: Z:\\home\\yourUserName\\ggscreen.png\n"
-			"; If the path is not specified or is empty, the screenshot will be saved into your clipboard so\n"
-			"; it can be pasted into any image editing program. For example, GIMP will recognize the PNG\n"
-			"; format and paste that, with transparency. This would work even on Ubuntu/Linux.\n"
-			"; Only PNG format is supported.");
-	registerOtherDescription(settingAndItsName(dontUseScreenshotTransparency), "Take Screenshots Without Transparency", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will produce screenshots without transparency");
-	registerOtherDescription(settingAndItsName(turnOffPostEffectWhenMakingBackgroundBlack), "Turn Off Post-Effect When Making Background Black", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; When true, whenever you enter either the GIF mode or the GIF mode (black background only),\n"
-			"; the Post-Effect is turned off automatically, and when you leave those modes, it gets turned back on.\n"
-			"; An alternative way to turn off Post-Effect without reload a match is using the 'UI - Hitboxes - Post-Effect On' checkbox,\n"
-			"; or \"togglePostEffectOnOff\" toggle.");
-	registerOtherDescription(settingAndItsName(drawPushboxCheckSeparately), "Draw Pushbox Check Separately", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will make throw boxes show in an opponent-character-independent way:\n"
-			"; The part of the throw box that checks for pushboxes proximity will be shown in blue,\n"
-			"; while the part of the throw box that checks x or y of the origin point will be shown in purple\n"
-			"; Setting this to false will combine both the checks of the throw so that you only see the final box\n"
-			"; in blue which only checks the opponent's origin point. Be warned, such a throw box\n"
-			"; is affected by the width of the opponent's pushbox. Say, on Potemkin, for example,\n"
-			"; all ground throw ranges should be higher.");
-	registerOtherDescription(settingAndItsName(frameAdvantage_dontUsePreBlockstunTime), "Frame Advantage: Don't Use Pre-Blockstun Time", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; This setting will affect how the 'Frame Advantage' field in the UI is calculated.\n"
-			"; Normally, attacks put your opponent in blockstun right away, however, there are some moves that\n"
-			"; may put your opponent in blockstun after the move is over. Such moves are usually projectiles, such\n"
-			"; as Ky j.D or I-No Antidepressant Scale.\n"
-			"; When this setting is false, then, whenever the opponent enters blockstun, the time that you spent idle\n"
-			"; before that gets included in the frame advantage with a +. For example:\n"
-			"; You shoot a projectile and then recover. Then you and the opponent are just standing there for 1000000 frames.\n"
-			"; Then, the projectile, that you shot, puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.\n"
-			"; Setting this to true will cause the idle time that you spent before the opponent entered blockstun to not be included\n"
-			"; in your frame advantage, and your frame advantage in the example above will be just +1.\n"
-			"; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.");
-	registerOtherDescription(settingAndItsName(skipGrabsInFramebar), "Skip Grab/Super Animations In Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true (default) will skip grab animations such as ground throw or some supers that connected in the framebar.");
-	registerOtherDescription(settingAndItsName(showFramebarHatchedLineWhenSkippingGrab), "Show Hatched/Dashed Slicing Line When Skipping Grab/Super In Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When this setting is true (default), if a grab or super is skipped because of the \"skipGrabsInFramebar\" setting,\n"
-			"; a white line made out of small diagonal hatches will be displayed on the framebar in places where the grab or super was skipped.");
-	registerOtherDescription(settingAndItsName(showFramebarHatchedLineWhenSkippingHitstop), "Show Hatched/Dashed Slicing Line When Skipping Hitstop In Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When this setting is true (which is not the default), if hitstop is skipped because of the \"neverIgnoreHitstop\"\n"
-			"; setting being false,\n"
-			"; a white line made out of small diagonal hatches will be displayed on the framebar in places where hitstop was skipped.");
-	registerOtherDescription(settingAndItsName(showFramebarHatchedLineWhenSkippingSuperfreeze), "Show Hatched/Dashed Slicing Line When Skipping Superfreeze In Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When this setting is true (default), if superfreeze (also called superflash) is skipped, which is always the case,\n"
-			"; a white line made out of small diagonal hatches will be displayed on the framebar in places where superfreeze was skipped.");
-	registerOtherDescription(settingAndItsName(showP1FramedataInFramebar), "Show P1 Framedata In Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed on top of P1's framebar.");
-	registerOtherDescription(settingAndItsName(showP2FramedataInFramebar), "Show P2 Framedata In Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar.");
-	registerOtherDescription(settingAndItsName(showComboProrationInRiscGauge), "Show Combo Proration In RISC Gauge", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will modify the RISC gauge so that the middle represents 0 RISC and no combo proration,\n"
-			"; the right half represents RISC, and the left half represents combo proration.");
-	registerOtherDescription(settingAndItsName(displayInputHistoryWhenObserving), "Display Input History When Observing", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will display both players' input history when observing online matches.\n"
-			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
-	registerOtherDescription(settingAndItsName(displayInputHistoryInSomeOfflineModes), "Display Input History In Some Offline Modes Vs CPU", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will display both players' input history when playing against CPU in Episode/Story, offline Versus,\n"
-			"; Tutorial, offline MOM and Mission.\n"
-			"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".");
-	registerOtherDescription(settingAndItsName(showDurationsInInputHistory), "Display Durations In Input History", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will display the duration of each input, in frames, in the input history.");
-	registerOtherDescription(settingAndItsName(usePositionResetMod), "Use Position Reset Mod", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; Setting this to true will override the game's default behavior of position reset (stage reset) in offline Training Mode.\n"
-			"; The numbers mentioned below are directions, in numpad notation.\n"
-			"; 2+Reset: non-swapped roundstart position;\n"
-			"; 8+Reset: swapped roundstart position;\n"
-			"; 4+Reset: left corner. Human Player outside the corner, CPU inside;\n"
-			"; 1+Reset: left corner. Human Player inside the corner, CPU outside;\n"
-			"; 6+Reset: right corner. Human Player outside the corner, CPU inside;\n"
-			"; 3+Reset: right corner. Human Player inside the corner, CPU outside;\n"
-			"; 5+Reset: reset to last used position;\n"
-			"; 9+Reset: set current arbitrary position of both players as 'last used position'.\n"
-			"; You can use the \"positionResetDistBetweenPlayers\" and \"positionResetDistFromCorner\" settings to tweak\n"
-			"; the default positions in the corner.");
-	registerOtherDescription(settingAndItsName(useAlternativeStaggerMashProgressDisplay), "Use Alternative Stagger Mash Progress Display", "Main UI Window - Stun/Stagger Mash",
-			"; Specify true or false.\n"
-			"; Setting this to true will display Progress differently in Stun/Stagger Mash window.\n"
-			"; Instead of displaying it as Mashed + Animation Duration / Stagger Duration - 4, it will\n"
-			"; display as Animation Duration / Stagger Duration - 4 - Mashed");
-	registerOtherDescription(settingAndItsName(dontShowMayInteractionChecks), "Don't Show May Interaction Checks", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; When a May P or K Ball is on the screen, a circle is drawn around it, an extra point is displayed on the Ball,\n"
-			"; and, when May is airborne, an extra point is displayed in the center of body of May, and a line connecting that\n"
-			"; point to the extra point on the Ball is displayed.\n"
-			"; For Dolphin, this displays an extra point on May, a line connecting that point to the origin point of the Dolphin,\n"
-			"; and a circle around the Dolphin denoting the range in which May's extra point must be in order for May to hop\n"
-			"; on the Dolphin.\n"
-			"; When this setting is true, none of this is displayed.");
-	registerOtherDescription(settingAndItsName(showMilliaBadMoonBuffHeight), "Show Millia Bad Moon Buff Height (Rev2 only)", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,\n"
-			"; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.\n"
-			"; Millia's origin point must be above the line in order to gain the powerup.\n"
-			"; Note that Bad Moon's maximum number of hits increases as it gets higher, up to 10 hits maximum.\n"
-			"; The line is the lowest height needed to get any powerup at all.");
-	registerOtherDescription(settingAndItsName(showFaustOwnFlickRanges), "Show Faust Thrown Item Flick Ranges", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, when Faust does a 5D, two ranges are shown around his flickpoint,\n"
-			"; denoting ranges in which his thrown items' origin points must be to get either hit or homerun hit.");
-	registerOtherDescription(settingAndItsName(showBedmanTaskCHeightBuffY), "Show Bedman Task C Height Buff Y", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, a horizontal line is constantly shown on the screen at the height above which\n"
-			"; Bedman's Task C gains a buff.\n"
-			"; This line is so high you can't see it unless you jump.");
-	registerOtherDescription(settingAndItsName(showJackoGhostPickupRange), "Show Jack-O' Ghost Pickup Range", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, an infinite vertical box around each Ghost (house) denotes the range in which\n"
-			"; Jack-O's origin point must be in order to pick up the Ghost or gain Tension from it.");
-	registerOtherDescription(settingAndItsName(showJackoSummonsPushboxes), "Show Jack-O' Summons' Pushboxes", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, yellow pushboxes are drawn around the Servants and the Ghosts, similar to how they're drawn\n"
-			"; around the players.");
-	registerOtherDescription(settingAndItsName(showJackoAegisFieldRange), "Show Jack-O' Aegis Field Range", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, the white circle around Jack-O' shows the range where the Servants' and the Ghosts'\n"
-			"; origin point must be in order to receive protection from Aegis Field.");
-	registerOtherDescription(settingAndItsName(showJackoServantAttackRange), "Show Jack-O' Servant Attack Range", "UI - Character specific",
-			"; Specify true or false.\n"
-			"; When this setting is on, the white box around each Servant shows the area where the opponent's player's\n"
-			"; origin point must be in order for the Servant to initiate an attack.");
-	registerOtherDescription(settingAndItsName(ignoreScreenshotPathAndSaveToClipboard), "Ignore Screenshot Path And Save To Clipboard", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.");
-	registerOtherDescription(settingAndItsName(forceZeroPitchDuringCameraCentering), "Force Zero Pitch During Camera Centering", settingsHitboxSettingsStr,
-			"; Specify true or false.\n"
-			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
-			"; which center the camera on either you or the opponent, the camera is angled downwards slightly, and this camera angle is called \"pitch\".\n"
-			"; It may cause lines of hitboxes to not be displayed entirely parallel to the sides of the screen.\n"
-			"; By setting this to true you can force the camera to look straight forward.\n"
-			"; All original hitbox screenshots on dustloop were taken with a slightly angled pitch, so setting this to true\n"
-			"; would produce screenshots different from those of dustloop's.");
-	registerOtherDescription(settingAndItsName(cameraCenterOffsetX), "Camera Centering - X Offset", settingsHitboxSettingsStr,
-			"; Specify a floating point value where '.' is the delimiter, like so: 0.0\n"
-			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
-			"; which center the camera on either you or the opponent, this value will control how offset the camera is horizontally, relative\n"
-			"; to the player. A positive value offsets left, and a negative offsets right. Default value is 0.0.");
-	registerOtherDescription(settingAndItsName(cameraCenterOffsetY), "Camera Centering - Y Offset (When Pitch Is Not Forced To 0)", settingsHitboxSettingsStr,
-			"; Specify a floating point value where '.' is the delimiter, like so: 106.4231\n"
-			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
-			"; which center the camera on either you or the opponent, this value will control how offset the camera is vertically, relative\n"
-			"; to the player. A positive value offsets down, and a negative offsets up. Default value is 106.4231.");
-	registerOtherDescription(settingAndItsName(cameraCenterOffsetY_WhenForcePitch0), "Camera Centering - Y Offset (When Pitch Is Forced To 0)", settingsHitboxSettingsStr,
-			"; Specify a floating point value where '.' is the delimiter, like so: 130.4231\n"
-			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
-			"; which center the camera on either you or the opponent, AND \"forceZeroPitchDuringCameraCentering\" is set to true,\n"
-			"; this value will control how offset the camera is vertically, relative\n"
-			"; to the player. A positive value offsets down, and a negative offsets up. Default value is 130.4231.");
-	registerOtherDescription(settingAndItsName(cameraCenterOffsetZ), "Camera Centering - Z Offset", settingsHitboxSettingsStr,
-			"; Specify a floating point value where '.' is the delimiter, like so: 540.0\n"
-			"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
-			"; which center the camera on either you or the opponent,\n"
-			"; this value will control how far the camera is. The bigger the value, the further the camera will be. Default value is 540.0.");
-	registerOtherDescription(settingAndItsName(modWindowVisibleOnStart), "Mod Window Visible On Start", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; If this is false, when this mod starts, the mod's UI window will be invisible.");
-	registerOtherDescription(settingAndItsName(closingModWindowAlsoHidesFramebar), "Closing Mod's Window Also Hides Framebar", settingsFramebarSettingsStr,
-			"; Specify true or false.\n"
-			"; If this is true, then closing the main mod's window, either using a hotkey or the cross mark,\n"
-			"; will also hide the framebar, while opening the main mod's window will show the framebar.\n"
-			"; Alternatively you could set up a separate hotkey to control visibility of the framebar, using \"framebarVisibilityToggle\".\n"
-			"; Note that even when the UI is open, \"showFramebar\" must be set to true for the framebar to be visible.");
-	registerOtherDescription(settingAndItsName(dontShowMoveName), "Don't Show Move's Name", settingsGeneralSettingsStr,
-			"; Specify true or false.\n"
-			"; In the main UI window, there's a field called 'Move' which displays the last performed move or several moves\n"
-			"; that the mod decided to combine together. That text can get pretty long. If you set this setting to true,\n"
-			"; then that field will be hidden, and you will only be able to see moves' names either in 'Cancels (P1/P2)' window,\n"
-			"; or by hovering your mouse over the 'Startup' or 'Total' fields in the main UI window and reading their tooltip.");
-	registerOtherDescription(settingAndItsName(showDebugFields), "Show Debug Fields", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true will add a number of extra fields to the UI that display debug or miscellaneous information.");
-	registerOtherDescription(settingAndItsName(ignoreNumpadEnterKey), "Ignore Numpad Enter Key", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true will hide the numpad Enter key presses from the game.");
-	registerOtherDescription(settingAndItsName(ignoreRegularEnterKey), "Ignore Regular Enter Key", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true will hide the non-numpad Enter key presses from the game.");
-	
-	const char* comboRecipeSettingsStr = "Combo Recipe";
-	registerOtherDescription(settingAndItsName(comboRecipe_showDelaysBetweenCancels), "Show Delays Between Cancels", comboRecipeSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true (default) will show delays on dedicated separate lines in gray text in the following format: '(Delay #f)',\n"
-		"; where # is a number.");
-	registerOtherDescription(settingAndItsName(comboRecipe_showIdleTimeBetweenMoves), "Show Idle Time Between Moves", comboRecipeSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true (default) will show idle time on dedicated separate lines in gray text in the following format: '(Idle #f)',\n"
-		"; where # is a number.");
-	registerOtherDescription(settingAndItsName(comboRecipe_showDashes), "Show Microdashes/Dashes", comboRecipeSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true (default) will show microdashes and dashes on dedicated separate lines in the following format:\n"
-		"; '#f Microdash/Dash', where # is a number.");
-	registerOtherDescription(settingAndItsName(comboRecipe_showWalks), "Show Microwalks/Walks", comboRecipeSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true (default) will show microwalks and walks on dedicated separate lines in the following format:\n"
-		"; '#f Microwalk/Walk/Microwalk Back/Walk Back', where # is a number.");
-	registerOtherDescription(settingAndItsName(comboRecipe_showSuperJumpInstalls), "Show Super Jump Installs", comboRecipeSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true (default) will show super jump installs on dedicated separate lines in the following format: 'Super Jump Install'.\n"
-		"; This setting does not affect the display of (regular) jump installs, which are always displayed.");
-	registerOtherDescription(settingAndItsName(comboRecipe_transparentBackground), "Transparent Background", comboRecipeSettingsStr,
-		"; Specify true or false.\n"
-		"; Setting this to true will make the Combo Recipe panel display without a background, just text and grid cell outlines.");
-	
-	registerOtherDescription(settingAndItsName(startingTensionPulse), "Starting Tension Pulse", settingsGeneralSettingsStr,
-		"; A number.\n"
-		"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.\n"
-		"; Must be in the range [-25000; +25000].");
-	
-	registerOtherDescription(settingAndItsName(clearInputHistoryOnStageReset), "Clear Input History On Stage Reset", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Specify true if you want the input history to be cleared when stage is reset in any game mode,\n"
-		"; including when positions are reset in training mode.\n"
-		"; You can also use a hotkey to clear history manually, specified in \"clearInputHistory\".");
-	registerOtherDescription(settingAndItsName(clearInputHistoryOnStageResetInTrainingMode), "Clear Input History On Stage Reset In Training Mode", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Specify true if you want the input history to be cleared when positions are reset in\n"
-		"; training mode only.\n"
-		"; You can also use a hotkey to clear history manually, specified in \"clearInputHistory\".");
-	
-	registerOtherDescription(settingAndItsName(hideWins), "Hide Wins - On/Off", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Prevents wins from being displayed on the online rematch screen.\n"
-		"; Works both when you're playing a match or observing.");
-	registerOtherDescription(settingAndItsName(hideWinsDirectParticipantOnly), "Hide Wins - Only When Playing - On/Off", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Prevents wins from being displayed on the online rematch screen.\n"
-		"; Only works when you're playing a match, not when observing.");
-	registerOtherDescription(settingAndItsName(hideWinsExceptOnWins), "Hide Wins - Except When N Wins Reached", settingsGeneralSettingsStr,
-		"; A number.\n"
-		"; Prevents wins from being hidden by the \"hideWins\" and \"hideWinsDirectParticipantOnly\" settings,\n"
-		"; when one of the players reaches the specified number of wins. Set to 0 or a negative number to disable.");
-	registerOtherDescription(settingAndItsName(hideRankIcons), "Hide Rank Icons", settingsGeneralSettingsStr,
-		"; Specify true or false.\n"
-		"; Prevents rank icons (circle, arrow up, arrow down, equal sign) from showing up next to players.");
-	
-	#undef settingAndItsName
+	#define settingsKeyCombo(name, displayName, defaultValue, description) insertKeyComboToParse(#name, displayName, &name, defaultValue, description);
+	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
+		registerOtherDescription(&name, #name, displayName, section, description);
+	#include "SettingsDefinitions.h"
+	#undef settingsField
+	#undef settingsKeyCombo
 	
 	pointerIntoSettingsIntoDescription.resize(offsetof(Settings, settingsMembersEnd) - offsetof(Settings, settingsMembersStart));
 	for (OtherDescription& desc : otherDescriptions) {
 		pointerIntoSettingsIntoDescription[(BYTE*)desc.ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)] = &desc;
-		settingNameToOffset[desc.iniNameAllCaps] = (BYTE*)desc.ptr - (BYTE*)this;
+		settingNameToOffset[{ desc.iniName, desc.iniName + strlen(desc.iniName) }] = (BYTE*)desc.ptr - (BYTE*)this;
 		iniNameToUiNameMap.insert(
 			{
-				desc.iniNameAllCaps.c_str(),
+				desc.iniName,
 				{ desc.uiFullPath.c_str(), desc.uiName }
 			});
 	}
+	
+	offsetToKeyComboToParse.resize(offsetToKeyComboIndex(&keyCombosEnd));
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
-		std::string& strRef = it->second.uiFullName;
-		strRef.reserve(33 + strlen(it->second.uiName) + 1);
-		strRef = "'Settings - Keyboard Shortcuts - ";
-		strRef += it->second.uiName;
+		KeyComboToParse& keyCombo = it->second;
+		
+		offsetToKeyComboToParse[offsetToKeyComboIndex(keyCombo.keyCombo)] = &keyCombo;
+		
+		std::string& strRef = keyCombo.uiFullName;
+		static const StringWithLength prefix = "'Settings - Keyboard Shortcuts - ";
+		strRef.reserve(prefix.length + strlen(keyCombo.uiName) + 1);
+		strRef = prefix.txt;
+		strRef += keyCombo.uiName;
 		strRef += '\'';
 		iniNameToUiNameMap.insert(
 			{
-				it->first.c_str(),
-				{ strRef.c_str(), it->second.uiName }
+				it->first.start,
+				{ strRef.c_str(), keyCombo.uiName }
 			});
+		
 	}
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
-		it->second.uiDescription = convertToUiDescription(it->second.iniDescription);
+		KeyComboToParse& keyCombo = it->second;
+		keyCombo.uiDescription = convertToUiDescription(keyCombo.iniDescription.txt);
 	}
 	for (OtherDescription& desc : otherDescriptions) {
-		desc.uiDescription = convertToUiDescription(desc.iniDescription);
+		desc.uiDescription = convertToUiDescription(desc.iniDescription.txt);
 	}
 	
 	std::wstring currentDir = getCurrentDirectory();
@@ -755,7 +90,7 @@ bool Settings::onDllMain() {
 	logwrap(fprintf(logfile, "INI file path: %ls\n", settingsPath.c_str()));
 	
 	registerListenerForChanges();
-
+// todo: elphelt make shotgun charge display 1f later
 	readSettings(true);
 
 	return true;
@@ -809,21 +144,38 @@ void Settings::onDllDetach() {
 }
 
 void Settings::addKey(const char* name, const char* uiName, int code) {
-	keys.insert({toUppercase(name), {name, uiName, code}});
+	keys.insert({{ name, name + strlen(name) }, {name, uiName, code}});
+	if (code < minKeyCode) minKeyCode = code;
+	if (code > maxKeyCode) maxKeyCode = code;
 }
 
-void Settings::addKeyRange(char start, char end) {
+void Settings::addKeyRange(const char* str) {
 	static std::list<std::string> mem;
-	for (char c = start; c <= end; ++c) {
-		mem.emplace_back(2, '\0');
+	for (const char* c = str; *c != '\0'; ++c) {
+		mem.emplace_back(1, ' ');
 		std::string& newMem = mem.back();
-		newMem[0] = c;
-		addKey(newMem.c_str(), newMem.c_str(), c);
+		newMem[0] = *c;
+		addKey(newMem.c_str(), newMem.c_str(), *c);
 	}
 }
 
-void Settings::insertKeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription) {
-	keyCombosToParse.insert({ toUppercase(name), KeyComboToParse(name, uiName, keyCombo, defaultValue, iniDescription) });
+void Settings::insertKeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const StringWithLength& defaultValue, const StringWithLength& iniDescription) {
+	keyCombosToParse.insert(
+		{
+			// key: StringView
+			{ name, name + strlen(name) },
+			
+			// value
+			KeyComboToParse {
+				strlen(name),
+				name,
+				uiName,
+				keyCombo,
+				defaultValue,
+				iniDescription
+			}
+		}
+	);
 }
 
 // INI file must be placed next to the game's executable at SteamLibrary\steamapps\common\GUILTY GEAR Xrd -REVELATOR-\Binaries\Win32\ggxrd_hitbox_overlay.ini
@@ -849,189 +201,36 @@ void Settings::readSettings(bool isFirstEverRead) {
 	
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
 		it->second.keyCombo->clear();
+		it->second.isParsed = false;
 	}
+	if (!keyboard.isInitialized()) keyboard.initialize();
 	keyboard.removeAllKeyCodes();
-
-
-	bool slowmoTimesParsed = false;
 	
-	bool framebarHeightParsed = false;
-	bool framebarTitleCharsMaxParsed = false;
-	bool framebarDisplayedFramesCountParsed = false;
-	bool framebarStoredFramesCountParsed = false;
-
-	bool positionResetDistBetweenPlayersParsed = false;
-	bool positionResetDistFromCornerParsed = false;
-
-	bool cameraCenterOffsetXParsed = false;
-	bool cameraCenterOffsetYParsed = false;
-	bool cameraCenterOffsetY_WhenForcePitch0Parsed = false;
-	bool cameraCenterOffsetZParsed = false;
 	
-	bool startDisabledParsed = false;
-
+	#define settingsKeyCombo(name, displayName, defaultValue, description)
+	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) bool name##Parsed = false;
+	#include "SettingsDefinitions.h"
+	#undef settingsField
+	#undef settingsKeyCombo
+	
 	screenshotPath.clear();  // we can clear this in advance because it is protected by screenshotPathMutex
 	// keyboard shortcuts are protected by keyCombosMutex
 	// the other settings are exposed bare
-	bool screenshotPathParsed = false;
-
-	bool allowContinuousScreenshottingParsed = false;
-	
 	bool oldTurnOffPostEffectWhenMakingBackgroundBlack = turnOffPostEffectWhenMakingBackgroundBlack;
-	bool turnOffPostEffectWhenMakingBackgroundBlackParsed = false;
-	
-	bool displayUIOnTopOfPauseMenuParsed = false;
-	
-	bool dodgeObsRecordingParsed = false;
-	
-	bool neverIgnoreHitstopParsed = false;
-	
-	bool ignoreHitstopForBlockingBaikenParsed = false;
-	
-	bool considerRunAndWalkNonIdleParsed = false;
-	
-	bool considerCrouchNonIdleParsed = false;
-	
-	bool considerDummyPlaybackNonIdleParsed = false;
-	
-	bool considerKnockdownWakeupAndAirtechIdleParsed = false;
-	
-	bool considerIdleInvulIdleParsed = false;
-	
-	bool useSimplePixelBlenderParsed = false;
-	
-	bool usePixelShaderParsed = false;
-	
-	bool dontShowBoxesParsed = false;
-	
-	bool neverDisplayGrayHurtboxesParsed = false;
-	
-	bool showFramebarParsed = false;
-	
-	bool showFramebarInTrainingModeParsed = false;
-	
-	bool showFramebarInReplayModeParsed = false;
-	
-	bool showFramebarInOtherModesParsed = false;
-	
-	bool showStrikeInvulOnFramebarParsed = false;
-	
-	bool showSuperArmorOnFramebarParsed = false;
-	
-	bool showThrowInvulOnFramebarParsed = false;
-	
-	bool showOTGOnFramebarParsed = false;
-	
-	bool showFirstFramesOnFramebarParsed = false;
-	
-	bool considerSimilarFrameTypesSameForFrameCountsParsed = false;
-	
-	bool considerSimilarIdleFramesSameForFrameCountsParsed = false;
-	
-	bool combineProjectileFramebarsWhenPossibleParsed = false;
-	
-	bool eachProjectileOnSeparateFramebarParsed = false;
-	
-	bool dontClearFramebarOnStageResetParsed = false;
-	
-	bool dontTruncateFramebarTitlesParsed = false;
-	
-	bool useSlangNamesParsed = false;
-	
-	bool allFramebarTitlesDisplayToTheLeftParsed = false;
-	
-	bool showPlayerInFramebarTitleParsed = false;
-	
-	bool useColorblindHelpParsed = false;
-	
-	bool dontUseScreenshotTransparencyParsed = false;
-	
-	bool drawPushboxCheckSeparatelyParsed = false;
-	
-	bool frameAdvantage_dontUsePreBlockstunTimeParsed = false;
-	
-	bool skipGrabsInFramebarParsed = false;
-	
-	bool showFramebarHatchedLineWhenSkippingGrabParsed = false;
-	
-	bool showFramebarHatchedLineWhenSkippingHitstopParsed = false;
-	
-	bool showFramebarHatchedLineWhenSkippingSuperfreezeParsed = false;
-	
-	bool showP1FramedataInFramebarParsed = false;
-	
-	bool showP2FramedataInFramebarParsed = false;
-	
-	bool showComboProrationInRiscGaugeParsed = false;
-	
-	bool displayInputHistoryWhenObservingParsed = false;
-	
-	bool displayInputHistoryInSomeOfflineModesParsed = false;
-	
-	bool showDurationsInInputHistoryParsed = false;
-	
-	bool usePositionResetModParsed = false;
-	
-	bool useAlternativeStaggerMashProgressDisplayParsed = false;
-	
-	bool dontShowMayInteractionChecksParsed = false;
-	
-	bool showMilliaBadMoonBuffHeightParsed = false;
-	
-	bool showFaustOwnFlickRangesParsed = false;
-	
-	bool showBedmanTaskCHeightBuffYParsed = false;
-	
-	bool showJackoGhostPickupRangeParsed = false;
-	
-	bool showJackoSummonsPushboxesParsed = false;
-	
-	bool showJackoAegisFieldRangeParsed = false;
-	
-	bool showJackoServantAttackRangeParsed = false;
-	
-	bool ignoreScreenshotPathAndSaveToClipboardParsed = false;
-	
-	bool forceZeroPitchDuringCameraCenteringParsed = false;
-	
-	bool modWindowVisibleOnStartParsed = false;
-	
-	bool closingModWindowAlsoHidesFramebarParsed = false;
-
-	bool dontShowMoveNameParsed = false;
-	
-	bool showDebugFieldsParsed = false;
-	
-	bool ignoreNumpadEnterKeyParsed = false;
-	bool ignoreRegularEnterKeyParsed = false;
-	
-	bool comboRecipe_showDelaysBetweenCancelsParsed = false;
-	bool comboRecipe_showIdleTimeBetweenMovesParsed = false;
-	bool comboRecipe_showDashesParsed = false;
-	bool comboRecipe_showWalksParsed = false;
-	bool comboRecipe_showSuperJumpInstallsParsed = false;
-	bool comboRecipe_transparentBackgroundParsed = false;
-	
-	bool startingTensionPulseParsed = false;
-	
-	bool clearInputHistoryOnStageResetParsed = false;
-	bool clearInputHistoryOnStageResetInTrainingModeParsed = false;
-	
-	bool hideWinsParsed = false;
-	bool hideWinsDirectParticipantOnlyParsed = false;
-	bool hideWinsExceptOnWinsParsed = false;
-	bool hideRankIconsParsed = false;
 	bool oldHideRankIcons = hideRankIcons;
 
 	std::string accum;
-	char buf[128];
+	char buf[129];
+	std::string keyValue;
+	StringView keyNameStartEnd;
 	if (file) {
 		while (true) {
 			accum.clear();
 			bool exitOuterLoop = false;
 			bool exitOuterLoopIfEmpty = false;
 			while (true) {
-				if (!fgets(buf, 127, file)) {
+				buf[0] = '\0';
+				if (!fgets(buf, 129, file)) {
 					if (ferror(file)) {
 						exitOuterLoop = true;
 						strerror_s(errorString, errno);
@@ -1040,9 +239,9 @@ void Settings::readSettings(bool isFirstEverRead) {
 					exitOuterLoopIfEmpty = true;
 					break;
 				}
-				buf[127] = '\0';
 				accum += buf;
-				if (buf[strlen(buf) - 1] == '\n') break;
+				size_t len = strlen(buf);
+				if (len == 0 || buf[len - 1] == '\n') break;
 			}
 			if (exitOuterLoop) {
 				break;
@@ -1050,147 +249,68 @@ void Settings::readSettings(bool isFirstEverRead) {
 			if (exitOuterLoopIfEmpty && accum.empty()) {
 				break;
 			}
-			std::string keyName = parseKeyName(accum.c_str());
-			std::string keyNameUpper = toUppercase(keyName);
-			std::string keyValue = getKeyValue(accum.c_str());
-			auto found = keyCombosToParse.find(keyNameUpper);
-			if (found != keyCombosToParse.end()) {
-				found->second.isParsed = parseKeys(found->second.name, keyValue, *found->second.keyCombo);
-			} else {
-				auto foundOffsetIt = settingNameToOffset.find(keyNameUpper);
-				DWORD foundOffset = 0xffffffff;
-				if (foundOffsetIt != settingNameToOffset.end()) {
-					foundOffset = foundOffsetIt->second;
-					switch (foundOffset) {
-						#define booleanPreset(name) \
-							case offsetof(Settings, name): \
-								if (!name##Parsed) { \
-									name##Parsed = parseBoolean(#name, keyValue, name); \
-								} \
-								break;
+			if (!accum.empty()) {
+				parseKeyName(accum.c_str(), keyNameStartEnd);
+				if (keyNameStartEnd.start != keyNameStartEnd.end) {
+					getKeyValue(accum.c_str(), keyValue);
+					auto found = keyCombosToParse.find(keyNameStartEnd);
+					if (found != keyCombosToParse.end()) {
+						found->second.isParsed = parseKeys(found->second.name, keyValue, *found->second.keyCombo);
+					} else {
+						auto foundOffsetIt = settingNameToOffset.find(keyNameStartEnd);
+						DWORD foundOffset = 0xffffffff;
+						if (foundOffsetIt != settingNameToOffset.end()) {
+							foundOffset = foundOffsetIt->second;
+							switch (foundOffset) {
+								#define booleanPreset(name) \
+									case offsetof(Settings, name): \
+										if (!name##Parsed) { \
+											name##Parsed = parseBoolean(#name, keyValue, name); \
+										} \
+										break;
+										
+								#define integerPreset(name) \
+									case offsetof(Settings, name): \
+									if (!name##Parsed) { \
+										name##Parsed = parseInteger(#name, keyValue, name); \
+									} \
+									break;
+										
+								#define floatPreset(name) \
+									case offsetof(Settings, name): \
+									if (!name##Parsed) { \
+										name##Parsed = parseFloat(#name, keyValue, name); \
+									} \
+									break;
+										
+								#define screenshotPathPreset(name) \
+									case offsetof(Settings, name): \
+									if (!name##Parsed) { \
+										name##Parsed = true; \
+										name = keyValue;  /* in UTF-8 */ \
+										logwrap(fprintf(logfile, "Parsed " #name " (UTF8): %s\n", keyValue.c_str())); \
+									} \
+									break;
 								
-						#define integerPreset(name) \
-							case offsetof(Settings, name): \
-							if (!name##Parsed) { \
-								name##Parsed = parseInteger(#name, keyValue, name); \
-							} \
-							break;
-							
-						integerPreset(slowmoTimes)
-						integerPreset(framebarHeight)
-						integerPreset(framebarTitleCharsMax)
-						integerPreset(framebarDisplayedFramesCount)
-						integerPreset(framebarStoredFramesCount)
-						integerPreset(positionResetDistBetweenPlayers)
-						integerPreset(positionResetDistFromCorner)
-						integerPreset(startingTensionPulse)
-						integerPreset(hideWinsExceptOnWins)
-						case offsetof(Settings, cameraCenterOffsetX):
-							if (!cameraCenterOffsetXParsed) {
-								cameraCenterOffsetXParsed = parseFloat("cameraCenterOffsetX", keyValue, cameraCenterOffsetX);
+								#define int integerPreset
+								#define bool booleanPreset
+								#define ScreenshotPath screenshotPathPreset
+								#define float floatPreset
+								#define settingsKeyCombo(name, displayName, defaultValue, description)
+								#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type(name)
+								#include "SettingsDefinitions.h"
+								#undef settingsField
+								#undef settingsKeyCombo
+								#undef float
+								#undef ScreenshotPath
+								#undef bool
+								#undef int
+								#undef screenshotPathPreset
+								#undef floatPreset
+								#undef integerPreset
+								#undef booleanPreset
 							}
-							break;
-						case offsetof(Settings, cameraCenterOffsetY):
-							if (!cameraCenterOffsetYParsed) {
-								cameraCenterOffsetYParsed = parseFloat("cameraCenterOffsetY", keyValue, cameraCenterOffsetY);
-							}
-							break;
-						case offsetof(Settings, cameraCenterOffsetY_WhenForcePitch0):
-							if (!cameraCenterOffsetY_WhenForcePitch0Parsed) {
-								cameraCenterOffsetY_WhenForcePitch0Parsed = parseFloat("cameraCenterOffsetY_WhenForcePitch0", keyValue, cameraCenterOffsetY_WhenForcePitch0);
-							}
-							break;
-						case offsetof(Settings, cameraCenterOffsetZ):
-							if (!cameraCenterOffsetZParsed) {
-								cameraCenterOffsetZParsed = parseFloat("cameraCenterOffsetZ", keyValue, cameraCenterOffsetZ);
-							}
-							break;
-						booleanPreset(displayUIOnTopOfPauseMenu)
-						booleanPreset(dodgeObsRecording)
-						booleanPreset(neverIgnoreHitstop)
-						booleanPreset(ignoreHitstopForBlockingBaiken)
-						booleanPreset(considerRunAndWalkNonIdle)
-						booleanPreset(considerCrouchNonIdle)
-						booleanPreset(considerDummyPlaybackNonIdle)
-						booleanPreset(considerKnockdownWakeupAndAirtechIdle)
-						booleanPreset(considerIdleInvulIdle)
-						booleanPreset(useSimplePixelBlender)
-						booleanPreset(usePixelShader)
-						booleanPreset(dontShowBoxes)
-						booleanPreset(neverDisplayGrayHurtboxes)
-						booleanPreset(showFramebar)
-						booleanPreset(showFramebarInTrainingMode)
-						booleanPreset(showFramebarInReplayMode)
-						booleanPreset(showFramebarInOtherModes)
-						booleanPreset(showStrikeInvulOnFramebar)
-						booleanPreset(showSuperArmorOnFramebar)
-						booleanPreset(showThrowInvulOnFramebar)
-						booleanPreset(showOTGOnFramebar)
-						booleanPreset(showFirstFramesOnFramebar)
-						booleanPreset(considerSimilarFrameTypesSameForFrameCounts)
-						booleanPreset(considerSimilarIdleFramesSameForFrameCounts)
-						booleanPreset(combineProjectileFramebarsWhenPossible)
-						booleanPreset(eachProjectileOnSeparateFramebar)
-						booleanPreset(dontClearFramebarOnStageReset)
-						booleanPreset(dontTruncateFramebarTitles)
-						booleanPreset(useSlangNames)
-						booleanPreset(allFramebarTitlesDisplayToTheLeft)
-						booleanPreset(showPlayerInFramebarTitle)
-						booleanPreset(useColorblindHelp)
-						booleanPreset(allowContinuousScreenshotting)
-						booleanPreset(turnOffPostEffectWhenMakingBackgroundBlack)
-						booleanPreset(startDisabled)
-						case offsetof(Settings, screenshotPath):
-							if (!screenshotPathParsed) {
-								screenshotPathParsed = true;
-								screenshotPath = keyValue;  // in UTF-8
-								logwrap(fprintf(logfile, "Parsed screenshotPath (UTF8): %s\n", keyValue.c_str()));
-							}
-							break;
-						booleanPreset(dontUseScreenshotTransparency)
-						booleanPreset(drawPushboxCheckSeparately)
-						booleanPreset(frameAdvantage_dontUsePreBlockstunTime)
-						booleanPreset(skipGrabsInFramebar)
-						booleanPreset(showFramebarHatchedLineWhenSkippingGrab)
-						booleanPreset(showFramebarHatchedLineWhenSkippingHitstop)
-						booleanPreset(showFramebarHatchedLineWhenSkippingSuperfreeze)
-						booleanPreset(showP1FramedataInFramebar)
-						booleanPreset(showP2FramedataInFramebar)
-						booleanPreset(showComboProrationInRiscGauge)
-						booleanPreset(displayInputHistoryWhenObserving)
-						booleanPreset(displayInputHistoryInSomeOfflineModes)
-						booleanPreset(showDurationsInInputHistory)
-						booleanPreset(usePositionResetMod)
-						booleanPreset(useAlternativeStaggerMashProgressDisplay)
-						booleanPreset(dontShowMayInteractionChecks)
-						booleanPreset(showMilliaBadMoonBuffHeight)
-						booleanPreset(showFaustOwnFlickRanges)
-						booleanPreset(showBedmanTaskCHeightBuffY)
-						booleanPreset(showJackoGhostPickupRange)
-						booleanPreset(showJackoSummonsPushboxes)
-						booleanPreset(showJackoAegisFieldRange)
-						booleanPreset(showJackoServantAttackRange)
-						booleanPreset(ignoreScreenshotPathAndSaveToClipboard)
-						booleanPreset(forceZeroPitchDuringCameraCentering)
-						booleanPreset(modWindowVisibleOnStart)
-						booleanPreset(closingModWindowAlsoHidesFramebar)
-						booleanPreset(dontShowMoveName)
-						booleanPreset(showDebugFields)
-						booleanPreset(ignoreNumpadEnterKey)
-						booleanPreset(ignoreRegularEnterKey)
-						booleanPreset(comboRecipe_showDelaysBetweenCancels)
-						booleanPreset(comboRecipe_showIdleTimeBetweenMoves)
-						booleanPreset(comboRecipe_showDashes)
-						booleanPreset(comboRecipe_showWalks)
-						booleanPreset(comboRecipe_showSuperJumpInstalls)
-						booleanPreset(comboRecipe_transparentBackground)
-						booleanPreset(clearInputHistoryOnStageReset)
-						booleanPreset(clearInputHistoryOnStageResetInTrainingMode)
-						booleanPreset(hideWins)
-						booleanPreset(hideWinsDirectParticipantOnly)
-						booleanPreset(hideRankIcons)
-						#undef booleanPreset
-						#undef integerPreset
+						}
 					}
 				}
 			}
@@ -1199,25 +319,14 @@ void Settings::readSettings(bool isFirstEverRead) {
 		fclose(file);
 	}
 	
-	if (!slowmoTimesParsed) {
-		slowmoTimes = 3;
-	}
-	
-	if (!framebarHeightParsed) {
-		framebarHeight = 19;
-	}
-	
-	if (!framebarTitleCharsMaxParsed) {
-		framebarTitleCharsMax = 12;
-	}
-	
-	if (!framebarDisplayedFramesCountParsed) {
-		framebarDisplayedFramesCount = 80;
-	}
-	
-	if (!framebarStoredFramesCountParsed) {
-		framebarStoredFramesCount = 200;
-	}
+	#define settingsKeyCombo(name, displayName, defaultValue, description)
+	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
+		if (!name##Parsed) { \
+			name = defaultValue; \
+		}
+	#include "SettingsDefinitions.h"
+	#undef settingsField
+	#undef settingsKeyCombo
 	
 	if (framebarStoredFramesCount < 1) {
 		framebarStoredFramesCount = 1;
@@ -1231,346 +340,6 @@ void Settings::readSettings(bool isFirstEverRead) {
 	}
 	if (framebarDisplayedFramesCount.load() > framebarStoredFramesCount.load()) {
 		framebarDisplayedFramesCount = framebarStoredFramesCount.load();
-	}
-	
-	if (!positionResetDistBetweenPlayersParsed) {
-		positionResetDistBetweenPlayers = 105000;
-	}
-	
-	if (!positionResetDistFromCornerParsed) {
-		positionResetDistFromCorner = 0;
-	}
-	
-	if (!startDisabledParsed) {
-		startDisabled = false;
-	}
-	
-	if (!allowContinuousScreenshottingParsed) {
-		allowContinuousScreenshotting = false;
-	}
-	
-	if (!cameraCenterOffsetXParsed) {
-		cameraCenterOffsetX = cameraCenterOffsetX_defaultValue;
-	}
-	
-	if (!cameraCenterOffsetYParsed) {
-		cameraCenterOffsetY = cameraCenterOffsetY_defaultValue;
-	}
-	
-	if (!cameraCenterOffsetY_WhenForcePitch0Parsed) {
-		cameraCenterOffsetY_WhenForcePitch0 = cameraCenterOffsetY_WhenForcePitch0_defaultValue;
-	}
-	
-	if (!cameraCenterOffsetZParsed) {
-		cameraCenterOffsetZ = cameraCenterOffsetZ_defaultValue;
-	}
-	
-	if (!turnOffPostEffectWhenMakingBackgroundBlackParsed) {
-		turnOffPostEffectWhenMakingBackgroundBlack = true;
-	}
-	
-	if (!displayUIOnTopOfPauseMenuParsed) {
-		displayUIOnTopOfPauseMenu = true;
-	}
-	
-	if (!dodgeObsRecordingParsed) {
-		dodgeObsRecording = true;
-	}
-	
-	if (!neverIgnoreHitstopParsed) {
-		neverIgnoreHitstop = false;
-	}
-	
-	if (!ignoreHitstopForBlockingBaikenParsed) {
-		ignoreHitstopForBlockingBaiken = false;
-	}
-	
-	if (!considerRunAndWalkNonIdleParsed) {
-		considerRunAndWalkNonIdle = false;
-	}
-	
-	if (!considerCrouchNonIdleParsed) {
-		considerCrouchNonIdle = false;
-	}
-	
-	if (!considerDummyPlaybackNonIdleParsed) {
-		considerDummyPlaybackNonIdle = false;
-	}
-	
-	if (!useSimplePixelBlenderParsed) {
-		useSimplePixelBlender = false;
-	}
-	
-	if (!usePixelShaderParsed) {
-		usePixelShader = true;
-	}
-	
-	if (!dontShowBoxesParsed) {
-		dontShowBoxes = false;
-	}
-	
-	if (!neverDisplayGrayHurtboxesParsed) {
-		neverDisplayGrayHurtboxes = false;
-	}
-	
-	if (!showFramebarParsed) {
-		showFramebar = true;
-	}
-	
-	if (!showFramebarInTrainingModeParsed) {
-		showFramebarInTrainingMode = true;
-	}
-	
-	if (!showFramebarInReplayModeParsed) {
-		showFramebarInReplayMode = true;
-	}
-	
-	if (!showFramebarInOtherModesParsed) {
-		showFramebarInOtherModes = false;
-	}
-	
-	if (!showStrikeInvulOnFramebarParsed) {
-		showStrikeInvulOnFramebar = true;
-	}
-	
-	if (!showSuperArmorOnFramebarParsed) {
-		showSuperArmorOnFramebar = true;
-	}
-	
-	if (!showThrowInvulOnFramebarParsed) {
-		showThrowInvulOnFramebar = true;
-	}
-	
-	if (!showOTGOnFramebarParsed) {
-		showOTGOnFramebar = true;
-	}
-	
-	if (!showFirstFramesOnFramebarParsed) {
-		showFirstFramesOnFramebar = true;
-	}
-	
-	if (!considerSimilarFrameTypesSameForFrameCountsParsed) {
-		considerSimilarFrameTypesSameForFrameCounts = true;
-	}
-	
-	if (!considerSimilarIdleFramesSameForFrameCountsParsed) {
-		considerSimilarIdleFramesSameForFrameCounts = false;
-	}
-	
-	if (!combineProjectileFramebarsWhenPossibleParsed) {
-		combineProjectileFramebarsWhenPossible = true;
-	}
-	
-	if (!eachProjectileOnSeparateFramebarParsed) {
-		eachProjectileOnSeparateFramebar = false;
-	}
-	
-	if (!dontClearFramebarOnStageResetParsed) {
-		dontClearFramebarOnStageReset = false;
-	}
-	
-	if (!dontTruncateFramebarTitlesParsed) {
-		dontTruncateFramebarTitles = false;
-	}
-	
-	if (!useSlangNamesParsed) {
-		useSlangNames = false;
-	}
-	
-	if (!allFramebarTitlesDisplayToTheLeftParsed) {
-		allFramebarTitlesDisplayToTheLeft = true;
-	}
-	
-	if (!showPlayerInFramebarTitleParsed) {
-		showPlayerInFramebarTitle = true;
-	}
-	
-	if (!useColorblindHelpParsed) {
-		useColorblindHelp = false;
-	}
-	
-	if (!considerKnockdownWakeupAndAirtechIdleParsed) {
-		considerKnockdownWakeupAndAirtechIdle = false;
-	}
-	
-	if (!considerIdleInvulIdleParsed) {
-		considerIdleInvulIdle = false;
-	}
-	
-	if (!dontUseScreenshotTransparencyParsed) {
-		dontUseScreenshotTransparency = false;
-	}
-	
-	if (!drawPushboxCheckSeparatelyParsed) {
-		drawPushboxCheckSeparately = true;
-	}
-	
-	if (!frameAdvantage_dontUsePreBlockstunTimeParsed) {
-		frameAdvantage_dontUsePreBlockstunTime = false;
-	}
-	
-	if (!skipGrabsInFramebarParsed) {
-		skipGrabsInFramebar = true;
-	}
-	
-	if (!showFramebarHatchedLineWhenSkippingGrabParsed) {
-		showFramebarHatchedLineWhenSkippingGrab = true;
-	}
-	
-	if (!showFramebarHatchedLineWhenSkippingHitstopParsed) {
-		showFramebarHatchedLineWhenSkippingHitstop = false;
-	}
-	
-	if (!showFramebarHatchedLineWhenSkippingSuperfreezeParsed) {
-		showFramebarHatchedLineWhenSkippingSuperfreeze = true;
-	}
-	
-	if (!showP1FramedataInFramebarParsed) {
-		showP1FramedataInFramebar = true;
-	}
-	
-	if (!showP2FramedataInFramebarParsed) {
-		showP2FramedataInFramebar = true;
-	}
-	
-	if (!showComboProrationInRiscGaugeParsed) {
-		showComboProrationInRiscGauge = false;
-	}
-	
-	if (!displayInputHistoryWhenObservingParsed) {
-		displayInputHistoryWhenObserving = true;
-	}
-	
-	if (!displayInputHistoryInSomeOfflineModesParsed) {
-		displayInputHistoryInSomeOfflineModes = false;
-	}
-	
-	if (!showDurationsInInputHistoryParsed) {
-		showDurationsInInputHistory = false;
-	}
-	
-	if (!usePositionResetModParsed) {
-		usePositionResetMod = false;
-	}
-	
-	if (!useAlternativeStaggerMashProgressDisplayParsed) {
-		useAlternativeStaggerMashProgressDisplay = false;
-	}
-	
-	if (!dontShowMayInteractionChecksParsed) {
-		dontShowMayInteractionChecks = true;
-	}
-	
-	if (!showMilliaBadMoonBuffHeightParsed) {
-		showMilliaBadMoonBuffHeight = false;
-	}
-	
-	if (!showFaustOwnFlickRangesParsed) {
-		showFaustOwnFlickRanges = true;
-	}
-	
-	if (!showBedmanTaskCHeightBuffYParsed) {
-		showBedmanTaskCHeightBuffY = false;
-	}
-	
-	if (!showJackoGhostPickupRangeParsed) {
-		showJackoGhostPickupRange = false;
-	}
-	
-	if (!showJackoSummonsPushboxesParsed) {
-		showJackoSummonsPushboxes = false;
-	}
-	
-	if (!showJackoAegisFieldRangeParsed) {
-		showJackoAegisFieldRange = false;
-	}
-	
-	if (!showJackoServantAttackRangeParsed) {
-		showJackoServantAttackRange = false;
-	}
-	
-	if (!ignoreScreenshotPathAndSaveToClipboardParsed) {
-		ignoreScreenshotPathAndSaveToClipboard = false;
-	}
-	
-	if (!forceZeroPitchDuringCameraCenteringParsed) {
-		forceZeroPitchDuringCameraCentering = true;
-	}
-	
-	if (!modWindowVisibleOnStartParsed) {
-		modWindowVisibleOnStart = true;
-	}
-	
-	if (!closingModWindowAlsoHidesFramebarParsed) {
-		closingModWindowAlsoHidesFramebar = true;
-	}
-	
-	if (!dontShowMoveNameParsed) {
-		dontShowMoveName = false;
-	}
-	
-	if (!showDebugFieldsParsed) {
-		showDebugFields = false;
-	}
-	
-	if (!ignoreNumpadEnterKeyParsed) {
-		ignoreNumpadEnterKey = false;
-	}
-	
-	if (!ignoreRegularEnterKeyParsed) {
-		ignoreRegularEnterKey = false;
-	}
-	
-	if (!comboRecipe_showDelaysBetweenCancelsParsed) {
-		comboRecipe_showDelaysBetweenCancels = true;
-	}
-	
-	if (!comboRecipe_showIdleTimeBetweenMovesParsed) {
-		comboRecipe_showIdleTimeBetweenMoves = true;
-	}
-	
-	if (!comboRecipe_showDashesParsed) {
-		comboRecipe_showDashes = true;
-	}
-	
-	if (!comboRecipe_showWalksParsed) {
-		comboRecipe_showWalks = true;
-	}
-	
-	if (!comboRecipe_showSuperJumpInstallsParsed) {
-		comboRecipe_showSuperJumpInstalls = true;
-	}
-	
-	if (!comboRecipe_transparentBackgroundParsed) {
-		comboRecipe_transparentBackground = false;
-	}
-	
-	if (!clearInputHistoryOnStageResetParsed) {
-		clearInputHistoryOnStageReset = false;
-	}
-	
-	if (!clearInputHistoryOnStageResetInTrainingModeParsed) {
-		clearInputHistoryOnStageResetInTrainingMode = false;
-	}
-	
-	if (!startingTensionPulseParsed) {
-		startingTensionPulse = 0;
-	}
-	
-	if (!hideWinsParsed) {
-		hideWins = false;
-	}
-	
-	if (!hideWinsDirectParticipantOnlyParsed) {
-		hideWinsDirectParticipantOnly = false;
-	}
-	
-	if (!hideWinsExceptOnWinsParsed) {
-		hideWinsExceptOnWins = 0;
-	}
-	
-	if (!hideRankIconsParsed) {
-		hideRankIcons = false;
 	}
 	
 	if (firstSettingsParse) {
@@ -1589,21 +358,25 @@ void Settings::readSettings(bool isFirstEverRead) {
 	
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
 		if (!it->second.isParsed) {
-			parseKeys(it->first.c_str(), it->second.defaultValue, *it->second.keyCombo);
+			parseKeys(it->first.start, it->second.defaultValue, *it->second.keyCombo);
 		}
 		keyboard.addNewKeyCodes(*it->second.keyCombo);
 	}
-
+	
 	firstSettingsParse = false;
 }
 
 int Settings::findChar(const char* buf, char c, int startingPos) {
-	const char* ptr = buf + startingPos;
-	while (*ptr != '\0') {
-		if (*ptr == c) return ptr - buf;
-		++ptr;
-	}
-	return -1;
+	const char* ptr = strchr(buf + startingPos, c);
+	if (!ptr) return -1;
+	return ptr - buf;
+}
+
+int Settings::findChar(const char* bufStart, const char* bufEnd, char c, int startingPos) {
+	const char* searchStart = bufStart + startingPos;
+	const char* ptr = (const char*)memchr(searchStart, c, bufEnd - searchStart);
+	if (!ptr) return -1;
+	return ptr - bufStart;
 }
 
 std::pair<int, int> Settings::trim(std::string& str) {
@@ -1631,15 +404,6 @@ std::pair<int, int> Settings::trim(std::string& str) {
 	return {c - strStart, strStart + str.size() - 1 - cEnd};
 }
 
-std::string Settings::toUppercase(const std::string& str) {
-	std::string result;
-	result.reserve(str.size());
-	for (char c : str) {
-		result.push_back(toupper(c));
-	}
-	return result;
-}
-
 std::vector<std::string> Settings::split(const std::string& str, char c) {
 	std::vector<std::string> result;
 	const char* strStart = &str.front();
@@ -1663,21 +427,47 @@ std::vector<std::string> Settings::split(const std::string& str, char c) {
 	return result;
 }
 
-bool Settings::parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes) {
-	if (!keyValue.empty()) {
-		std::string keyValueUppercase = toUppercase(keyValue);
-		std::vector<std::string> keyNames = split(keyValueUppercase, '+');
-		for (std::string& str : keyNames) {
-			trim(str);
-			auto found = keys.find(str);
+bool Settings::parseKeys(const char* keyName, const char* keyValueStart, const char* keyValueEnd, std::vector<int>& keyCodes) {
+	if (keyValueEnd != keyValueStart) {
+		SplitStringIterator splitter(keyValueStart, keyValueEnd, '+');
+		const char* partStart;
+		const char* partEnd;
+		while (splitter.getNext(&partStart, &partEnd)) {
+			if (partStart == partEnd) {
+				#ifdef LOG_PATH
+				std::string buf;
+				buf.assign(keyValueStart, keyValueEnd - keyValueStart);
+				logwrap(fprintf(logfile, "Key combo parsing error: key is empty %s\n", buf.c_str()));
+				#endif
+				return false;
+			}
+			StringView partTrimmed = { skipWhitespace(partStart, partEnd), rewindWhitespace(partEnd - 1, partStart) };
+			if (partTrimmed.end < partTrimmed.start) {
+				#ifdef LOG_PATH
+				std::string buf;
+				buf.assign(keyValueStart, keyValueEnd - keyValueStart);
+				logwrap(fprintf(logfile, "Key combo parsing error: key is empty %s\n", buf.c_str()));
+				#endif
+				return false;
+			}
+			++partTrimmed.end;
+			auto found = keys.find(partTrimmed);
 			if (found != keys.end()) {
 				keyCodes.push_back(found->second.code);
 			} else {
-				logwrap(fprintf(logfile, "Key combo parsing error: key not found %s\n", str.c_str()));
+				#ifdef LOG_PATH
+				std::string buf;
+				buf.assign(partTrimmed.start, partTrimmed.end - partTrimmed.start);
+				logwrap(fprintf(logfile, "Key combo parsing error: key not found %s\n", buf.c_str()));
+				#endif
 				return false;
 			}
 		}
-		logwrap(fprintf(logfile, "Parsed key codes for %s: %s\n", keyName, keyValue.c_str()));
+		#ifdef LOG_PATH
+		std::string buf;
+		buf.assign(keyValueStart, keyValueEnd - keyValueStart);
+		logwrap(fprintf(logfile, "Parsed key codes for %s: %s\n", keyName, buf.c_str()));
+		#endif
 	} else {
 		logwrap(fprintf(logfile, "Parsed that key codes are empty for %s\n", keyName));
 	}
@@ -1719,9 +509,9 @@ bool Settings::parseFloat(const char* keyName, const std::string& keyValue, floa
 	return true;
 }
 
-const char* Settings::formatBoolean(bool value) {
-	static const char* trueStr = "true";
-	static const char* falseStr = "false";
+StringWithLength Settings::formatBoolean(bool value) {
+	static const StringWithLength trueStr = "true";
+	static const StringWithLength falseStr = "false";
 	return value ? trueStr : falseStr;
 }
 
@@ -1734,35 +524,62 @@ int Settings::findMinCommentPos(const char* buf) {
 	return minCommentPos;
 }
 
-std::string Settings::parseKeyName(const char* buf) {
-
-	int minCommentPos = findMinCommentPos(buf);
-
-	int equalSignPos = findChar(buf, '=');
-
-	if (equalSignPos == -1 || minCommentPos != -1 && equalSignPos != -1 && equalSignPos > minCommentPos) return std::string{};
-
-	std::string keyNameStr(buf, equalSignPos);
-	trim(keyNameStr);
-
-	return keyNameStr;
+int Settings::findMinCommentPos(const char* bufStart, const char* bufEnd) {
+	int colonPos = findChar(bufStart, bufEnd, ';');
+	int hashtagPos = findChar(bufStart, bufEnd, '#');
+	int minCommentPos = -1;
+	if (colonPos != -1) minCommentPos = colonPos;
+	if (minCommentPos == -1 || hashtagPos != -1 && minCommentPos != -1 && hashtagPos < minCommentPos) minCommentPos = hashtagPos;
+	return minCommentPos;
 }
 
-std::string Settings::getKeyValue(const char* buf) {
+void Settings::parseKeyName(const char* buf, StringView& result) {
+
+	int minCommentPos = findMinCommentPos(buf);
+
+	int equalSignPos = findChar(buf, '=');
+
+	if (equalSignPos == -1 || minCommentPos != -1 && equalSignPos != -1 && equalSignPos > minCommentPos) {
+		result.start = nullptr;
+		result.end = nullptr;
+		return;
+	}
+	
+	if (equalSignPos == 0) {
+		result.start = nullptr;
+		result.end = nullptr;
+		return;
+	}
+	
+	result.start = skipWhitespace(buf, buf + equalSignPos);
+	result.end = rewindWhitespace(buf + equalSignPos - 1, buf);
+	if (result.start > result.end) {
+		result.start = nullptr;
+		result.end = nullptr;
+		return;
+	}
+	++result.end;
+}
+
+void Settings::getKeyValue(const char* buf, std::string& result) {
 	int minCommentPos = findMinCommentPos(buf);
 	int equalSignPos = findChar(buf, '=');
 
-	if (equalSignPos == -1 || minCommentPos != -1 && equalSignPos != -1 && equalSignPos > minCommentPos) return std::string{};
+	if (equalSignPos == -1 || minCommentPos != -1 && equalSignPos != -1 && equalSignPos > minCommentPos) {
+		result.clear();
+		return;
+	}
 
 	const char* bufPos = buf + equalSignPos + 1;
 	size_t bufLength = strlen(buf);
 	if (minCommentPos != -1) bufLength -= (bufLength - minCommentPos);
 	int lengthFromBufPos = buf + bufLength - bufPos;
-	if (lengthFromBufPos == 0) return std::string{};
-	std::string keyValue(bufPos, lengthFromBufPos);
-	trim(keyValue);
-
-	return keyValue;
+	if (lengthFromBufPos == 0) {
+		result.clear();
+		return;
+	}
+	result.assign(bufPos, lengthFromBufPos);
+	trim(result);
 }
 
 std::wstring Settings::getCurrentDirectory() {
@@ -1782,26 +599,16 @@ std::wstring Settings::getCurrentDirectory() {
 	return currentDir;
 }
 
-const char* Settings::getComboRepresentation(std::vector<int>& toggle) {
-	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
-		KeyComboToParse& combo = it->second;
-		if (combo.keyCombo == &toggle) {
-			if (!combo.representationGenerated) combo.generateRepresentation();
-			if (combo.representation.empty()) return "";
-			return combo.representation.c_str();
-		}
-	}
-	return "";
+StringWithLength Settings::getComboRepresentation(const std::vector<int>& toggle) {
+	KeyComboToParse& combo = getKeyComboToParseByOffset(toggle);
+	if (!combo.representationGenerated) combo.generateRepresentation();
+	if (combo.representation.empty()) return "";
+	return combo.representation;
 }
 
 void Settings::trashComboRepresentation(std::vector<int>& toggle) {
-	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
-		KeyComboToParse& combo = it->second;
-		if (combo.keyCombo == &toggle) {
-			combo.representationGenerated = false;
-			return;
-		}
-	}
+	KeyComboToParse& combo = getKeyComboToParseByOffset(toggle);
+	combo.representationGenerated = false;
 }
 
 void Settings::KeyComboToParse::generateRepresentation() {
@@ -1855,394 +662,449 @@ void Settings::writeSettingsMain() {
 		logwrap(fprintf(logfile, "Could not open INI file: %ls\n", winErr.getMessage()));
 		return;
 	}
-	struct LineInfo {
-		int lineNumber = -1;
-		int keyPos = -1;
-		int equalSignPos = -1;
-		int valuePos = -1;
-		int commentPos = -1;
-		std::string line;
-		std::string key;
-		std::string keyUpper;
-		std::string value;
-		std::string comment;
-		bool needReform = false;  // we gettin political ove here
-	};
-	std::unordered_map<std::string, LineInfo*> keyToLine;
-	int lineNumber = 0;
-	std::list<LineInfo> lines;
-	std::string accum;
-	char buf[128];
-	buf[0] = '\0';
-	int bufContentSize = 0;
-	bool reachedEnd = false;
-	bool rCharDetected = false;
-	while (true) {
-		accum.clear();
-		++lineNumber;
-		int pos = findChar(buf, '\n');
-		bool needToReadMore = true;
-		if (pos != -1) {
-			needToReadMore = false;
-			*(buf + pos) = '\0';
-			if (pos > 0 && *(buf + pos - 1) == '\r') {
-				rCharDetected = true;
-				*(buf + pos - 1) = '\0';
-			}
-			if (pos == 0 && !accum.empty() && accum.back() == '\r') {
-				rCharDetected = true;
-				accum.resize(accum.size() - 1);
-			}
-			accum.append(buf);
-			if (pos + 1 >= bufContentSize) {
-				bufContentSize = 0;
-				buf[0] = '\0';
-			} else {
-				bufContentSize = bufContentSize - (pos + 1);
-				memmove(buf, buf + pos + 1, bufContentSize + 1);
+	struct {
+		StringView line;
+		StringView key;
+		const char* equalSignPtr = nullptr;
+		StringView value;
+		StringView comment;
+		bool modified = false;
+		StringWithLength newValuePtr;
+		HANDLE file;
+		void compareAndUpdateValue(const StringWithLength& otherPtr) {
+			bool otherEmpty = !otherPtr.txt || otherPtr.length == 0;
+			if (!value.start && otherEmpty) return;
+			if (!value.start) {
+				modified = true;
+				newValuePtr = otherPtr;
+			} else if (otherEmpty) {
+				modified = true;
+				newValuePtr = otherPtr;
+			} else if (_strnicmp(value.start, otherPtr.txt, value.end - value.start) != 0) {
+				modified = true;
+				newValuePtr = otherPtr;
 			}
 		}
-		while (needToReadMore) {
-			if (bufContentSize) {
-				accum += buf;
-				// can have \r character at the end of buf here, will deal with it in the branch above
-				bufContentSize = 0;
-				buf[0] = '\0';
+		void compareAndUpdateValue(const std::string& other) {
+			if (!value.start && other.empty()) return;
+			if (!value.start) {
+				modified = true;
+				newValuePtr = other;
+			} else if (other.empty()) {
+				modified = true;
+				newValuePtr.txt = nullptr;
+			// can't have a newValue at this point
+			} else if (_strnicmp(value.start, other.c_str(), value.end - value.start) != 0) {
+				modified = true;
+				newValuePtr = other;
 			}
-			if (reachedEnd) {
-				needToReadMore = false;
-				break;
+		}
+		void outputWithNewValueIntoFile() {
+			DWORD bytesWritten;
+			if (value.start) {
+				WriteFile(file, line.start, value.start - line.start, &bytesWritten, NULL);
+				if (newValuePtr.txt) {
+					WriteFile(file, newValuePtr.txt, newValuePtr.length, &bytesWritten, NULL);
+				}
+				if (line.end > value.end) {
+					WriteFile(file, value.end, line.end - value.end, &bytesWritten, NULL);
+				}
+			} else {
+				const char* whereWeEndedSoFar = line.start;
+				if (equalSignPtr) {
+					WriteFile(file, line.start, equalSignPtr + 1 - line.start, &bytesWritten, NULL);
+					char c = ' ';
+					WriteFile(file, &c, 1, &bytesWritten, NULL);
+					if (newValuePtr.txt) {
+						WriteFile(file, newValuePtr.txt, newValuePtr.length, &bytesWritten, NULL);
+					}
+					whereWeEndedSoFar = equalSignPtr + 1;
+				}
+				if (comment.start) {
+					char c = ' ';
+					WriteFile(file, &c, 1, &bytesWritten, NULL);
+					WriteFile(file, comment.start, line.end - comment.start, &bytesWritten, NULL);
+				} else if (line.end > whereWeEndedSoFar) {
+					WriteFile(file, whereWeEndedSoFar, line.end - whereWeEndedSoFar, &bytesWritten, NULL);
+				}
 			}
-			needToReadMore = true;
-			DWORD bytesRead;
-			if (!ReadFile(file, buf, sizeof buf - 1, &bytesRead, NULL)) {
+		}
+	} li;
+	li.file = file;
+	
+	for (auto& it : keyCombosToParse) {
+		it.second.isParsed = false;
+	}
+	
+	static bool fieldFoundInFile[offsetof(Settings, settingsMembersEnd) - offsetof(Settings,settingsMembersStart)];
+	memset(fieldFoundInFile, 0, sizeof fieldFoundInFile);
+	
+	enum FieldType {
+		FieldType_Boolean,
+		FieldType_Int,
+		FieldType_ScreenshotPath,
+		FieldType_Float
+	};
+	struct FieldInfo {
+		FieldType type;
+		bool* fieldFoundInFilePtr;
+		void* ptr;
+	};
+	static std::unordered_map<StringView, FieldInfo, StringViewHash, StringViewCompare> fieldNameToIsFound;
+	static bool fieldNameToIsFoundInitialized = false;
+	if (!fieldNameToIsFoundInitialized) {
+		fieldNameToIsFoundInitialized = true;
+		#define bool FieldType_Boolean
+		#define int FieldType_Int
+		#define ScreenshotPath FieldType_ScreenshotPath
+		#define float FieldType_Float
+		#define settingsKeyCombo(name, displayName, defaultValue, description) 
+		#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
+			fieldNameToIsFound[#name] = { \
+				type, \
+				fieldFoundInFile + offsetof(Settings, name) - offsetof(Settings, settingsMembersStart), \
+				(void*)&name \
+			};
+		#include "SettingsDefinitions.h"
+		#undef settingsField
+		#undef settingsKeyCombo
+		#undef float
+		#undef ScreenshotPath
+		#undef int
+		#undef bool
+	}
+	
+	size_t fieldsFound = 0;
+	size_t keyCombosFound = 0;
+	
+	bool rChar = false;  // even on Windows, by default, we generate the file with \n line breaks
+	DWORD fileSize = GetFileSize(file, NULL);
+	std::vector<char> wholeFile;
+	std::string fieldValue;
+	size_t lineCount = 0;
+	bool lastLinesEmpty[2] { false };
+	bool lastLineEmpty = false;
+	
+	#define writeNewline WriteFile(file, rn + (1 - rChar), 1 + rChar, &bytesWritten, NULL);
+	
+	if (fileSize > 0) {
+		
+		const size_t readSize = 1024;
+		wholeFile.resize(fileSize + 1);
+		char* wholeFilePtr = wholeFile.data();
+		size_t totalBytesRead = 0;
+		
+		while (true) {
+			
+			DWORD bytesRead = 0;
+			
+			size_t bytesToRead;
+			// totalBytesRead cannot be greater than fileSize
+			if (totalBytesRead == fileSize) break;
+			else bytesToRead = fileSize - totalBytesRead;
+			
+			if (bytesToRead > readSize) bytesToRead = readSize;
+			
+			if (!ReadFile(file, wholeFilePtr, bytesToRead, &bytesRead, NULL)) {
 				WinError winErr;
 				logwrap(fprintf(logfile, "Error reading INI file: %ls\n", winErr.getMessage()));
 				CloseHandle(file);
 				return;
 			}
-			bufContentSize = bytesRead;
-			buf[bytesRead] = '\0';
-			char* bufPtr = buf;
-			pos = findChar(buf, '\n');
-			if (pos != -1) {
-				*(buf + pos) = '\0';
-				if (pos > 0 && *(buf + pos - 1) == '\r') {
-					rCharDetected = true;
-					*(buf + pos - 1) = '\0';
-				}
-				needToReadMore = false;
-				if (pos == 0 && !accum.empty() && accum.back() == '\r') {
-					rCharDetected = true;
-					accum.resize(accum.size() - 1);
-				}
-				accum.append(buf);
-				if (pos + 1 >= bufContentSize) {
-					bufContentSize = 0;
-					buf[0] = '\0';
-				} else {
-					bufContentSize = bufContentSize - (pos + 1);
-					memmove(buf, buf + pos + 1, bufContentSize + 1);
-				}
-			}
-			if (bytesRead < sizeof buf - 1) {
-				if (needToReadMore && bytesRead > 0) {
-					accum += buf;
-					// can't have \r character here
-					bufContentSize = 0;
-					buf[0] = '\0';
-				}
-				needToReadMore = false;
-				reachedEnd = true;
+			// bytesRead cannot be greater than bytesToRead
+			
+			wholeFilePtr += bytesRead;
+			totalBytesRead += bytesRead;
+			
+			if (bytesRead < bytesToRead) {
 				break;
 			}
 		}
-		if (reachedEnd && accum.empty()) {
-			break;
-		}
+		wholeFile[totalBytesRead] = '\0';
 		
-		int commentPos = findMinCommentPos(accum.c_str());
-	
-		int equalSignPos = findChar(accum.c_str(), '=');
+		SetFilePointer(file, 0, NULL, FILE_BEGIN);
 		
-		lines.emplace_back();
-		LineInfo& li = lines.back();
-		li.lineNumber = lineNumber;
-		li.line = accum;
+		LineReaderFromString lineReader { wholeFile.data() };
+		rChar = lineReader.rCharDetected;
+		std::vector<int> parsedCombo;
 		
-		if (equalSignPos == -1 || commentPos != -1 && equalSignPos != -1 && equalSignPos > commentPos) {
-			li.comment = accum;
-			li.commentPos = 0;
-			continue;
-		}
-		
-		std::string keyStr(accum.begin(), accum.begin() + equalSignPos);
-		std::pair<int, int> trimResult = trim(keyStr);
-		
-		li.keyPos = trimResult.first;
-		li.key = keyStr;
-		li.keyUpper = toUppercase(keyStr);
-		li.commentPos = commentPos;
-		if (commentPos != -1) {
-			li.comment.assign(accum.begin() + commentPos, accum.end());
-		}
-		li.equalSignPos = equalSignPos;
-		
-		const char* bufPos = &accum.front() + equalSignPos + 1;
-		auto accumEnd = commentPos == -1 ? accum.end() : accum.begin() + commentPos;
-		li.value.assign(accum.begin() + equalSignPos + 1, accumEnd);
-		trimResult = trim(li.value);
-		li.valuePos = equalSignPos + 1 + trimResult.first;
-		
-		auto found = keyCombosToParse.find(li.keyUpper);
-		if (found != keyCombosToParse.end()) {
-			std::vector<int> parsedCombo;
-			if (!parseKeys(found->second.name, li.value, parsedCombo)) {
-				li.needReform = true;
-			} else if (compareKeyCombos(*found->second.keyCombo, parsedCombo) != 0) {
-				li.needReform = true;
+		const char* lineStart = nullptr;
+		const char* lineEnd = nullptr;
+		while (lineReader.readLine(&lineStart, &lineEnd)) {
+			++lineCount;
+			
+			li.key.start = nullptr;
+			li.equalSignPtr = nullptr;
+			li.newValuePtr.txt = nullptr;
+			li.value.start = nullptr;
+			li.comment.start = nullptr;
+			li.modified = false;
+			li.line = { lineStart, lineEnd };
+			
+			DWORD bytesWritten;
+			
+			bool skip = false;
+			
+			if (lineStart == lineEnd) {
+				skip = true;
 			}
-			if (li.needReform) {
-				li.value = getComboRepresentation(*found->second.keyCombo);
-				logwrap(fprintf(logfile, "Combo representation for %s: %s\n", li.key.c_str(), li.value.c_str()));
-				logwrap(fputs("Combo contains codes: ", logfile));
-				for (int code : *found->second.keyCombo) {
-					logwrap(fprintf(logfile, "%d ", code));
+			
+			int equalSignPos = -1;
+			int commentPos;
+			
+			if (!skip) {
+				commentPos = findMinCommentPos(lineStart, lineEnd);
+				equalSignPos = findChar(lineStart, lineEnd, '=');
+				if (equalSignPos == -1 || equalSignPos == 0 || commentPos != -1 && equalSignPos != -1 && equalSignPos > commentPos) {
+					skip = true;
 				}
-				logwrap(fprintf(logfile, "\n"));
 			}
-		} else {
-			li.needReform = true;
+			
+			const char* equalSignPtr = nullptr;
+			const char* keyStart = nullptr;
+			const char* keyEnd = nullptr;
+			
+			if (!skip) {
+				equalSignPtr = lineStart + equalSignPos;
+				keyStart = skipWhitespace(lineStart, equalSignPtr);
+				keyEnd = rewindWhitespace(equalSignPtr - 1, lineStart);
+				
+				if (keyStart > keyEnd) {
+					skip = true;
+				}
+			}
+			
+			if (!skip) {
+				li.equalSignPtr = equalSignPtr;
+				li.key = { keyStart, keyEnd + 1 };
+				
+				const char* valueSearchEnd;
+				
+				if (commentPos != -1) {
+					const char* commentPtr = lineStart + commentPos;
+					li.comment.start = commentPtr;
+					li.comment.end = lineEnd;
+					
+					valueSearchEnd = commentPtr;
+				} else {
+					valueSearchEnd = lineEnd;
+				}
+				
+				if (equalSignPtr < valueSearchEnd - 1) {
+					const char* valueStart = skipWhitespace(equalSignPtr + 1, valueSearchEnd);
+					const char* valueEnd = rewindWhitespace(valueSearchEnd - 1, equalSignPtr + 1);
+					if (valueStart <= valueEnd) {
+						li.value.start = valueStart;
+						li.value.end = valueEnd + 1;
+					}
+				}
+				
+				auto foundKeyCombo = keyCombosToParse.find(li.key);
+				if (foundKeyCombo != keyCombosToParse.end()) {
+					KeyComboToParse& keyCombo = foundKeyCombo->second;
+					if (!keyCombo.isParsed) {
+						keyCombo.isParsed = true;
+						++keyCombosFound;
+					} else {
+						li.modified = false;
+						li.newValuePtr.txt = nullptr;
+					}
+					parsedCombo.clear();
+					if (li.value.start && !parseKeys(keyCombo.name, li.value.start, li.value.end, parsedCombo)) {
+						li.modified = true;
+					} else if (compareKeyCombos(*keyCombo.keyCombo, parsedCombo) != 0) {
+						li.modified = true;
+					}
+					if (li.modified) {
+						li.newValuePtr = getComboRepresentation(*keyCombo.keyCombo);
+						#ifdef LOG_PATH
+						std::string keyStr;
+						keyStr.assign(li.key.start, li.key.end - li.key.start);
+						std::string valueStr;
+						valueStr.assign(li.value.start, li.value.end - li.value.start);
+						logwrap(fprintf(logfile, "Combo representation for %s: %s\n", keyStr.c_str(), valueStr.c_str()));
+						logwrap(fputs("Combo contains codes: ", logfile));
+						for (int code : *keyCombo.keyCombo) {
+							logwrap(fprintf(logfile, "%d ", code));
+						}
+						logwrap(fprintf(logfile, "\n"));
+						#endif
+					}
+				} else {
+					auto foundField = fieldNameToIsFound.find(li.key);
+					if (foundField != fieldNameToIsFound.end()) {
+						FieldInfo& fi = foundField->second;
+						if (!*fi.fieldFoundInFilePtr) {
+							*fi.fieldFoundInFilePtr = true;
+							++fieldsFound;
+						} else {
+							li.modified = false;
+							li.newValuePtr.txt = nullptr;
+						}
+						const std::string* fieldValuePtr = nullptr;
+						switch (fi.type) {
+							case FieldType_Boolean: li.compareAndUpdateValue(formatBoolean(*(std::atomic_bool*)fi.ptr)); break;
+							case FieldType_Int: formatInteger(*(std::atomic_int*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
+							case FieldType_ScreenshotPath: fieldValuePtr = &screenshotPath; break;
+							case FieldType_Float: formatFloat(*(float*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
+						}
+						if (fieldValuePtr) {
+							li.compareAndUpdateValue(*fieldValuePtr);
+						}
+					}
+				}
+			}
+			
+			if (lineCount != 1) writeNewline
+			if (li.modified) {
+				li.outputWithNewValueIntoFile();
+			} else {
+				WriteFile(file, lineStart, lineEnd - lineStart, &bytesWritten, NULL);
+			}
+			lastLineEmpty = isWhitespace(lineStart, lineEnd);
+			lastLinesEmpty[0] = lastLinesEmpty[1];
+			lastLinesEmpty[1] = lastLineEmpty;
 		}
-		auto ktl = keyToLine.find(li.keyUpper);
-		if (ktl != keyToLine.end()) {
-			ktl->second = &li;
-		} else {
-			keyToLine.insert({li.keyUpper, &li});
-		}
+		
 	}
 	
-	std::function<LineInfo&(const char*, const char*, const char*)> appendLine = [&](
-		const char* name, const char* value, const char* iniDescription
-	) -> LineInfo& {
-		if (!lines.empty() && !isWhitespace(lines.back().line.c_str())) {
-			lines.emplace_back();
-			LineInfo& li = lines.back();
-			li.commentPos = 0;
-			li.lineNumber = lines.size();
-		}
-		for (const std::string& piece : split(iniDescription, '\n')) {
-			lines.emplace_back();
-			LineInfo& li = lines.back();
-			li.lineNumber = lines.size();
-			li.commentPos = 0;
-			li.comment = piece;
-			li.needReform = true;
-		}
-		lines.emplace_back();
-		LineInfo& li = lines.back();
-		li.lineNumber = lines.size();
-		li.keyPos = 0;
-		li.key = name;
-		li.keyUpper = toUppercase(li.key);
-		li.equalSignPos = li.key.size() + 1;
-		li.valuePos = li.equalSignPos + 2;
-		li.value = value;
-		li.needReform = true;
-		return li;
-	};
-	
-	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
-		KeyComboToParse& k = it->second;
-		auto found = keyToLine.find(it->first);
-		if (found == keyToLine.end()) {
-			appendLine(k.name, getComboRepresentation(*k.keyCombo), k.iniDescription);
-		}
-	}
-	
-	std::function<LineInfo&(const char*, const char*, const char*)> replaceOrAddSetting = [&](
-		const char* name, const char* value, const char* description
-	) -> LineInfo& {
-		auto found = keyToLine.find(toUppercase(name));
-		if (found == keyToLine.end()) {
-			return appendLine(name, value, description);
-		} else {
-			found->second->needReform = true;
-			found->second->value = value;
-			return *found->second;
-		}
-	};
-	
-	if (lines.empty()) {
-		lines.emplace_back();
-		lines.back().line = "; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod."
-			" Allowed key names: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up,"
-			" Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply,"
-			" NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock,"
-			" Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2,"
-			" 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4,"
-			" JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10,"
-			" JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp,"
-			" LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp,"
-			" PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight,"
-			" XboxTypeSRightStickDown.";
-		lines.emplace_back();
-		lines.emplace_back();
-		lines.back().line = "; Key combinations can be specified by separating key names with '+' sign.";
-		lines.emplace_back();
-		lines.back().line = "; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.";
-		lines.emplace_back();
-		lines.back().line = "; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.";
-		lines.emplace_back();
-		lines.emplace_back();
-		lines.back().line = "; All of these settings can be changed using the mod's UI which can be seen in the game if you press ESC (by default, see modWindowVisibilityToggle).";
-	}
-	
-	#define booleanPreset(name) replaceOrAddSetting(#name, formatBoolean(name), getOtherINIDescription(&name));
-	#define integerPreset(name) replaceOrAddSetting(#name, formatInteger(name).c_str(), getOtherINIDescription(&name));
-	integerPreset(slowmoTimes)
-	booleanPreset(allowContinuousScreenshotting)
-	booleanPreset(startDisabled)
-	std::string scrPathCpy;
-	{
-		std::unique_lock<std::mutex> screenshotGuard(screenshotPathMutex);
-		scrPathCpy = screenshotPath;
-	}
-	logwrap(fprintf(logfile, "Writing screenshot path: %s\n", screenshotPath.c_str()));
-	LineInfo& li = replaceOrAddSetting("screenshotPath", scrPathCpy.c_str(), getOtherINIDescription(&screenshotPath));
-	if (li.value.empty()) {
-		li.commentPos = li.equalSignPos + 2;
-		li.comment = ";C:\\Users\\yourUser\\Desktop\\test screenshot name.png   don't forget to uncomment (; is a comment)";
-	}
-	booleanPreset(ignoreScreenshotPathAndSaveToClipboard)
-	
-	booleanPreset(dontUseScreenshotTransparency)
-	booleanPreset(turnOffPostEffectWhenMakingBackgroundBlack)
-	booleanPreset(drawPushboxCheckSeparately)
-	booleanPreset(frameAdvantage_dontUsePreBlockstunTime)
-	booleanPreset(skipGrabsInFramebar)
-	booleanPreset(showFramebarHatchedLineWhenSkippingGrab)
-	booleanPreset(showFramebarHatchedLineWhenSkippingHitstop)
-	booleanPreset(showFramebarHatchedLineWhenSkippingSuperfreeze)
-	booleanPreset(showP1FramedataInFramebar)
-	booleanPreset(showP2FramedataInFramebar)
-	booleanPreset(showComboProrationInRiscGauge)
-	booleanPreset(displayInputHistoryWhenObserving)
-	booleanPreset(displayInputHistoryInSomeOfflineModes)
-	booleanPreset(showDurationsInInputHistory)
-	booleanPreset(usePositionResetMod)
-	booleanPreset(useAlternativeStaggerMashProgressDisplay)
-	booleanPreset(dontShowMayInteractionChecks)
-	booleanPreset(showMilliaBadMoonBuffHeight)
-	booleanPreset(showFaustOwnFlickRanges)
-	booleanPreset(showBedmanTaskCHeightBuffY)
-	booleanPreset(showJackoGhostPickupRange)
-	booleanPreset(showJackoSummonsPushboxes)
-	booleanPreset(showJackoAegisFieldRange)
-	booleanPreset(showJackoServantAttackRange)
-	booleanPreset(forceZeroPitchDuringCameraCentering)
-	booleanPreset(useSimplePixelBlender)
-	booleanPreset(usePixelShader)
-	booleanPreset(modWindowVisibleOnStart)
-	booleanPreset(closingModWindowAlsoHidesFramebar)
-	booleanPreset(dontShowMoveName)
-	booleanPreset(showDebugFields)
-	booleanPreset(ignoreNumpadEnterKey)
-	booleanPreset(ignoreRegularEnterKey)
-	booleanPreset(comboRecipe_showDelaysBetweenCancels)
-	booleanPreset(comboRecipe_showIdleTimeBetweenMoves)
-	booleanPreset(comboRecipe_showDashes)
-	booleanPreset(comboRecipe_showWalks)
-	booleanPreset(comboRecipe_showSuperJumpInstalls)
-	booleanPreset(comboRecipe_transparentBackground)
-	booleanPreset(clearInputHistoryOnStageReset)
-	booleanPreset(clearInputHistoryOnStageResetInTrainingMode)
-	booleanPreset(neverDisplayGrayHurtboxes)
-	booleanPreset(dontShowBoxes)
-	booleanPreset(displayUIOnTopOfPauseMenu)
-	booleanPreset(dodgeObsRecording)
-	booleanPreset(showFramebar)
-	booleanPreset(showFramebarInTrainingMode)
-	booleanPreset(showFramebarInReplayMode)
-	booleanPreset(showFramebarInOtherModes)
-	booleanPreset(showStrikeInvulOnFramebar)
-	booleanPreset(showSuperArmorOnFramebar)
-	booleanPreset(showThrowInvulOnFramebar)
-	booleanPreset(showOTGOnFramebar)
-	booleanPreset(showFirstFramesOnFramebar)
-	booleanPreset(considerSimilarFrameTypesSameForFrameCounts)
-	booleanPreset(considerSimilarIdleFramesSameForFrameCounts)
-	booleanPreset(combineProjectileFramebarsWhenPossible)
-	booleanPreset(eachProjectileOnSeparateFramebar)
-	booleanPreset(dontClearFramebarOnStageReset)
-	booleanPreset(dontTruncateFramebarTitles)
-	booleanPreset(useSlangNames)
-	booleanPreset(allFramebarTitlesDisplayToTheLeft)
-	booleanPreset(showPlayerInFramebarTitle)
-	integerPreset(framebarHeight)
-	integerPreset(framebarTitleCharsMax)
-	integerPreset(framebarDisplayedFramesCount)
-	integerPreset(framebarStoredFramesCount)
-	integerPreset(positionResetDistBetweenPlayers)
-	integerPreset(positionResetDistFromCorner)
-	integerPreset(startingTensionPulse)
-	booleanPreset(neverIgnoreHitstop)
-	booleanPreset(ignoreHitstopForBlockingBaiken)
-	booleanPreset(considerRunAndWalkNonIdle)
-	booleanPreset(considerCrouchNonIdle)
-	booleanPreset(considerDummyPlaybackNonIdle)
-	booleanPreset(considerKnockdownWakeupAndAirtechIdle)
-	booleanPreset(considerIdleInvulIdle)
-	booleanPreset(useColorblindHelp)
-	replaceOrAddSetting("cameraCenterOffsetX", formatFloat(cameraCenterOffsetX).c_str(), getOtherINIDescription(&cameraCenterOffsetX));
-	replaceOrAddSetting("cameraCenterOffsetY", formatFloat(cameraCenterOffsetY).c_str(), getOtherINIDescription(&cameraCenterOffsetY));
-	replaceOrAddSetting("cameraCenterOffsetY_WhenForcePitch0", formatFloat(cameraCenterOffsetY_WhenForcePitch0).c_str(), getOtherINIDescription(&cameraCenterOffsetY_WhenForcePitch0));
-	replaceOrAddSetting("cameraCenterOffsetZ", formatFloat(cameraCenterOffsetZ).c_str(), getOtherINIDescription(&cameraCenterOffsetZ));
-	booleanPreset(hideWins)
-	booleanPreset(hideWinsDirectParticipantOnly)
-	integerPreset(hideWinsExceptOnWins)
-	booleanPreset(hideRankIcons)
-	#undef booleanPreset
-	#undef integerPreset
-	
-	SetFilePointer(file, 0, NULL, FILE_BEGIN);
-	
-	std::string lineStr;
-	for (LineInfo& li : lines) {
-		lineStr.clear();
+	if (!lineCount) {
 		DWORD bytesWritten;
-		if (!li.needReform) {
-			WriteFile(file, li.line.c_str(), li.line.size(), &bytesWritten, NULL);
-		} else {
-			if (li.keyPos != -1) {
-				lineStr.append(li.keyPos, ' ');
-				lineStr += li.key;
-			}
-			if (li.equalSignPos != -1) {
-				if (li.equalSignPos > (int)lineStr.size()) {
-					lineStr.append(li.equalSignPos - lineStr.size(), ' ');
-				}
-				lineStr += '=';
-			}
-			if (li.valuePos != -1) {
-				if (li.valuePos > (int)lineStr.size()) {
-					lineStr.append(li.valuePos - lineStr.size(), ' ');
-				}
-				lineStr += li.value;
-			}
-			if (li.commentPos != -1) {
-				if (li.commentPos > (int)lineStr.size()) {
-					lineStr.append(li.commentPos - lineStr.size(), ' ');
-				}
-				lineStr += li.comment;
-			}
-			WriteFile(file, lineStr.c_str(), lineStr.size(), &bytesWritten, NULL);
+		SplitStringIterator splitIter(settingsTopComment, settingsTopComment + strlen(settingsTopComment), '\n');
+		StringView line;
+		while (splitIter.getNext(&line.start, &line.end)) {
+			WriteFile(file, line.start, line.end - line.start, &bytesWritten, NULL);
+			writeNewline
 		}
-		if (rCharDetected) {
-			WriteFile(file, "\r\n", 2, &bytesWritten, NULL);
-		} else {
-			WriteFile(file, "\n", 1, &bytesWritten, NULL);
+		writeNewline
+	}
+	
+	if ((keyCombosFound < keyCombosToParse.size() || fieldsFound < fieldNameToIsFound.size())
+			&& lineCount && (!lastLinesEmpty[0] || !lastLinesEmpty[1])) {
+		DWORD bytesWritten;
+		if (!lastLinesEmpty[0]) writeNewline
+		if (!lastLinesEmpty[1]) writeNewline
+	}
+	
+	struct {
+		StringWithLength name;
+		StringWithLength newValuePtr;
+		StringWithLength iniDescription;
+		StringWithLength inlineComment;
+		bool rChar = false;
+		HANDLE file = NULL;
+		bool isFirst = true;
+		std::vector<std::string> printedNames;
+		void outputToFile() {
+			std::string nameAsString(name.txt, name.length);
+			printedNames.push_back(nameAsString);
+			DWORD bytesWritten;
+			
+			if (!isFirst) {
+				if (rChar) {
+					WriteFile(file, "\r\n\r\n", 4, &bytesWritten, NULL);
+				} else {
+					WriteFile(file, "\n\n", 2, &bytesWritten, NULL);
+				}
+			} else {
+				isFirst = false;
+			}
+			
+			if (iniDescription.txt) {
+				SplitStringIterator splitter(iniDescription.txt, iniDescription.txt + iniDescription.length, '\n');
+				StringView line;
+				while (splitter.getNext(&line.start, &line.end)) {
+					WriteFile(file, line.start, line.end - line.start, &bytesWritten, NULL);
+					WriteFile(file, rn + 1 - rChar, 1 + rChar, &bytesWritten, NULL);
+				}
+			}
+			WriteFile(file, name.txt, name.length, &bytesWritten, NULL);
+			WriteFile(file, " = ", 3, &bytesWritten, NULL);
+			if (newValuePtr.txt) {
+				WriteFile(file, newValuePtr.txt, newValuePtr.length, &bytesWritten, NULL);
+			}
+			if (inlineComment.txt) {
+				if (newValuePtr.txt) {
+					char c = ' ';
+					WriteFile(file, &c, 1, &bytesWritten, NULL);
+				}
+				WriteFile(file, inlineComment.txt, inlineComment.length, &bytesWritten, NULL);
+			}
 		}
+	} nl;
+	nl.rChar = rChar;
+	nl.file = file;
+	
+	KeyComboToParse* keyCombo;
+	
+	#define screenshotPathPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			std::string fieldName##Cpy; \
+			{ \
+				std::unique_lock<std::mutex> screenshotGuard(screenshotPathMutex); \
+				fieldName##Cpy = screenshotPath; \
+			} \
+			logwrap(fprintf(logfile, "Writing screenshot path: %s\n", screenshotPath.c_str())); \
+			nl.name = StringWithLength { #fieldName }; \
+			nl.newValuePtr = fieldName##Cpy; \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.inlineComment = StringWithLength { fieldInlineComment }; \
+			nl.outputToFile(); \
+			nl.inlineComment.txt = nullptr; \
+		}
+	#define keyComboPreset(keyComboName) \
+		keyCombo = &getKeyComboToParseByOffset(keyComboName); \
+		if (!keyCombo->isParsed) { \
+			nl.name = StringWithLength { #keyComboName }; \
+			nl.newValuePtr = getComboRepresentation(keyComboName); \
+			nl.iniDescription = keyCombo->iniDescription; \
+			nl.outputToFile(); \
+		}
+	#define booleanPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			nl.name = StringWithLength { #fieldName }; \
+			nl.newValuePtr = formatBoolean(fieldName); \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.outputToFile(); \
+		}
+	#define integerPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			nl.name = StringWithLength { #fieldName }; \
+			formatInteger(fieldName, fieldValue); \
+			nl.newValuePtr = fieldValue; \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.outputToFile(); \
+		}
+	#define floatPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			nl.name = StringWithLength { #fieldName }; \
+			formatFloat(fieldName, fieldValue); \
+			nl.newValuePtr = fieldValue; \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.outputToFile(); \
+		}
+	#define int integerPreset
+	#define float floatPreset
+	#define ScreenshotPath screenshotPathPreset
+	#define bool booleanPreset
+	#define settingsKeyCombo(name, displayName, defaultValue, description) keyComboPreset(name)
+	#define settingsField(type, fieldName, defaultValue, displayName, section, description, inlineComment) type(fieldName, inlineComment)
+	#include "SettingsDefinitions.h"
+	#undef settingsField
+	#undef settingsKeyCombo
+	#undef bool
+	#undef ScreenshotPath
+	#undef float
+	#undef int
+	#undef floatPreset
+	#undef integerPreset
+	#undef booleanPreset
+	#undef keyComboPreset
+	#undef screenshotPathPreset
+	
+	if (!nl.isFirst) {
+		DWORD bytesWritten;
+		WriteFile(file, rn + 1 - rChar, 1 + rChar, &bytesWritten, NULL);
 	}
 	
 	SetEndOfFile(file);
@@ -2332,6 +1194,13 @@ bool Settings::isWhitespace(const char* str) {
 	}
 }
 
+bool Settings::isWhitespace(const char* strStart, const char* strEnd) {
+	for (const char* c = strStart; c != strEnd; ++c) {
+		if (*c > 32) return false;
+	}
+	return true;
+}
+
 int Settings::compareKeyCombos(const std::vector<int>& left, const std::vector<int>& right) {
 	auto itLeft = left.cbegin();
 	auto itLeftEnd = left.cend();
@@ -2360,9 +1229,9 @@ void Settings::onKeyCombosUpdated() {
 	}
 }
 
-void Settings::getComboInfo(std::vector<int>& keyCombo, ComboInfo* info) {
-	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
-		KeyComboToParse& combo = it->second;
+void Settings::getComboInfo(const std::vector<int>& keyCombo, ComboInfo* info) const {
+	for (auto it = keyCombosToParse.cbegin(); it != keyCombosToParse.cend(); ++it) {
+		const KeyComboToParse& combo = it->second;
 		if (combo.keyCombo == &keyCombo) {
 			info->uiName = combo.uiName;
 			info->uiNameWithLength = { info->uiName, strlen(info->uiName) };
@@ -2395,15 +1264,14 @@ StringWithLength Settings::getOtherUIDescriptionWithLength(void* ptr) {
 	return { str.c_str(), str.size() };
 }
 
-const char* Settings::getOtherINIDescription(void* ptr) {
+StringWithLength Settings::getOtherINIDescription(void* ptr) {
 	return pointerIntoSettingsIntoDescription[(BYTE*)ptr - (BYTE*)this - offsetof(Settings, settingsMembersStart)]->iniDescription;
 }
 
-void Settings::registerOtherDescription(void* ptr, const char* iniName, const char* uiName, const char* uiPath, const char* iniDescription) {
+void Settings::registerOtherDescription(void* ptr, const char* iniName, const char* uiName, const char* uiPath, StringWithLength iniDescription) {
 	otherDescriptions.emplace_back();
 	OtherDescription& desc = otherDescriptions.back();
 	desc.ptr = ptr;
-	desc.iniNameAllCaps = toUppercase(iniName);
 	desc.iniName = iniName;
 	desc.uiName = uiName;
 	desc.uiNameWithLength = { uiName, strlen(uiName) };
@@ -2414,12 +1282,6 @@ void Settings::registerOtherDescription(void* ptr, const char* iniName, const ch
 	desc.uiFullPath += uiName;
 	desc.uiFullPath += '\'';
 	desc.iniDescription = iniDescription;
-}
-
-static void makeUppercase(std::string& destination) {
-	for (char& c : destination) {
-		c = toupper(c);
-	}
 }
 
 static const char* convertToUiDescription_lookaheadPart(const char* mainPtr) {
@@ -2496,7 +1358,6 @@ std::string Settings::convertToUiDescription(const char* iniDescription) {
 					continue;
 				} else if (parsingMode == PARSING_QUOTATION) {
 					iniNameLookup.assign(quotationStart + 1, iniDescription - quotationStart - 1);
-					makeUppercase(iniNameLookup);
 					auto found = iniNameToUiNameMap.find(iniNameLookup.c_str());
 					if (found == iniNameToUiNameMap.end()) {
 						result.append(quotationStart, iniDescription - quotationStart + 1);
@@ -2530,13 +1391,22 @@ std::string Settings::convertToUiDescription(const char* iniDescription) {
 
 int Settings::hashString(const char* str, int startingHash) {
 	for (const char* c = str; *c != '\0'; ++c) {
-		startingHash = startingHash * 0x89 + *c;
+		char lowercaseChar = tolower(*c);
+		startingHash = startingHash * 0x89 + lowercaseChar;
 	}
 	return startingHash;
 }
 
-Settings::KeyComboToParse::KeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription)
-	: name(name), uiName(uiName), keyCombo(keyCombo), defaultValue(defaultValue), iniDescription(iniDescription) { }
+int Settings::hashString(const char* strStart, const char* strEnd, int startingHash) {
+	for (const char* c = strStart; c != strEnd; ++c) {
+		char lowercaseChar = tolower(*c);
+		startingHash = startingHash * 0x89 + lowercaseChar;
+	}
+	return startingHash;
+}
+
+Settings::KeyComboToParse::KeyComboToParse(size_t keyLength, const char* name, const char* uiName, std::vector<int>* keyCombo, const StringWithLength& defaultValue, const StringWithLength& iniDescription)
+	: keyLength(keyLength), name(name), uiName(uiName), keyCombo(keyCombo), defaultValue(defaultValue), iniDescription(iniDescription) { }
 
 int Settings::findCharRev(const char* buf, char c) {
 	const char* ptr = buf;
@@ -2561,41 +1431,38 @@ float Settings::parseFloat(const char* inputString, bool* error) {
 	return result;
 }
 
-std::string Settings::formatInteger(int d) {
+void Settings::formatInteger(int d, std::string& result) {
 	static const char* formatString = "%d";
 	
-	std::string result(
+	result.assign(
 		snprintf(nullptr, 0, formatString, d),
 		'\0');
 	
 	if (result.empty()) {
-		return result;
+		return;
 	}
 	
 	snprintf(&result.front(), result.size() + 1, formatString, d);
-	return result;
 }
 
-std::string Settings::formatFloat(float f) {
+void Settings::formatFloat(float f, std::string& result) {
 	static const char* formatString = "%.4f";
 	
-	std::string result(
+	result.assign(
 		snprintf(nullptr, 0, formatString, f),
 		'\0');
 	
 	if (result.empty()) {
-		return result;
+		return;
 	}
 	
-	int resultSize = (int)result.size();
-	auto resultBegin = result.begin();
 	auto firstDotPos = result.end();
 	auto firstNonZeroPos = result.end();
-	bool foundFirstNonZero = false;
-	auto lastCharPos = resultBegin + (resultSize - 1);
+	const auto lastCharPos = result.begin() + (result.size() - 1);
 	
-	snprintf(&result.front(), resultSize + 1, formatString, f);
+	snprintf(&result.front(), result.size() + 1, formatString, f);
 	
+	// goal: remove repeating '0's after '.': 6.00000000000000000
 	for (auto it = lastCharPos; ; ) {
 		char c = *it;
 		
@@ -2603,29 +1470,27 @@ std::string Settings::formatFloat(float f) {
 			firstDotPos = it;
 			break;
 		}
-		if (c != '0' && !foundFirstNonZero) {
-			if (it == lastCharPos) break;
-			foundFirstNonZero = true;
+		if (c != '0' && firstNonZeroPos == result.end()) {
+			if (it == lastCharPos) return;
 			firstNonZeroPos = it;
 		}
-		if (it == resultBegin) break;
+		if (it == result.begin()) break;
 		--it;
 	}
 	if (firstDotPos == result.end()) {
-		return result;
+		return;
 	}
 	std::string::iterator firstZeroPos;
-	if (!foundFirstNonZero) {
+	if (firstNonZeroPos == result.end()) {
 		firstZeroPos = firstDotPos + 1;
 	} else {
 		firstZeroPos = firstNonZeroPos + 1;
 	}
 	if (firstZeroPos == firstDotPos + 1) {
 		if (firstZeroPos == lastCharPos) {
-			return result;
+			return;
 		}
 		++firstZeroPos;
 	}
 	result.erase(firstZeroPos, result.end());
-	return result;
 }

@@ -30,7 +30,7 @@ The project depends on:
   The correct place to get this header would be from Microsoft DirectX SDK (June 2010) (for DirectX 9) which can be downloaded freely from Microsoft. But it cannot be included as a git submodule and the license for its distribution by anyone other than Microsoft is ???, so I stuck with the dxsdk repo.  
   You don't need the `.lib` static libraries from the Direct3D SDK because apparently they're a part of the Windows SDK, they load the d3d9.dll automatically when the mod is loaded.
 
-- `libpng` - a PNG encoder library. This is needed for the transparent/not-transparent screenshotting functionality. The full sources of libpng are included in this mod's sources. You need not obtain them on your own. We statically link libpng's 32-bit verion into this mod. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>  
+- `libpng` - a PNG encoder library. This is needed for the transparent/not-transparent screenshotting functionality. It is included in the mod as a git submodule, pointing to a fork. We statically link libpng's 32-bit verion into this mod. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>  
 
 - `zlib` - a compression library used by libpng (<https://www.zlib.net/>). It is included in this mod as a git submodule, so you don't need to obtain it on your own.
 

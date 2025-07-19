@@ -251,33 +251,38 @@ Here's an example of the `.ini` file:
 ; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.
 ; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.
 
-; All of these settings can be changed using the mod's UI which can be seen in the game if you press ESC (by default, see modWindowVisibilityToggle).
+; All of these settings can be changed using the mod's UI which can be seen in the game if you press ESC (default hotkey, can be configured in modWindowVisibilityToggle).
 
 ; A keyboard shortcut to toggle GIF mode.
 ; GIF mode is:
 ; 1) Background becomes black
 ; 2) Camera is centered on you
 ; 3) Opponent is invisible and invulnerable
-; 4) Hide HUD
-gifModeToggle =
+; 4) Hide HUD (interface)
+; GIF Mode can also be toggled using 'UI - Hitboxes - GIF Mode'.
+gifModeToggle = 
 
-; A keyboard shortcut to only toggle the "background becomes black" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "background becomes black" part of the "gifModeToggle".
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
-; This option can be combined with the other "only" options, by sharing the same key binding for example
-gifModeToggleBackgroundOnly =
+; This option can be combined with the other "only" options, by sharing the same key binding for example.
+; Black background can also be toggled using 'UI - Hitboxes - Black Background'.
+gifModeToggleBackgroundOnly = 
 
 ; A keyboard shortcut to toggle the game's Settings - Display Settings - Post-Effect. Changing it this way does not
 ; require the current match to be restarted.
-; Alternatively, you could set the turnOffPostEffectWhenMakingBackgroundBlack setting in this INI file to true
+; Alternatively, you could set the "turnOffPostEffectWhenMakingBackgroundBlack" setting in this INI file to true
 ; so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is
 ; turned off automatically, and when you leave those modes, it gets turned back on.
+; In the UI, Post-Effect can be toggled using 'UI - Hitboxes - Post-Effect On' checkbox.
 ; This hotkey is empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other hotkey options, by sharing the same key binding for example.
-togglePostEffectOnOff =
+togglePostEffectOnOff = 
 
 ; Specify true or false.
 ; When true, whenever you enter either the GIF mode or the GIF mode (black background only),
 ; the Post-Effect is turned off automatically, and when you leave those modes, it gets turned back on.
+; An alternative way to turn off Post-Effect without reload a match is using the 'UI - Hitboxes - Post-Effect On' checkbox,
+; or "togglePostEffectOnOff" toggle.
 turnOffPostEffectWhenMakingBackgroundBlack = true
 
 ; Specify true or false.
@@ -314,48 +319,57 @@ cameraCenterOffsetY_WhenForcePitch0 = 130.4231
 ; this value will control how far the camera is. The bigger the value, the further the camera will be. Default value is 540.0.
 cameraCenterOffsetZ = 540.0
 
-; A keyboard shortcut to only toggle the "Camera is centered on you" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "Camera is centered on you" part of the "gifModeToggle".
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Camera Center on Player' checkbox.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
-gifModeToggleCameraCenterOnly =
+gifModeToggleCameraCenterOnly = 
 
 ; A keyboard shortcut to toggle the camera to be centered on the opponent.
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Camera Center on Opponent' checkbox.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with GIF Mode options, by sharing the same key binding for example
-toggleCameraCenterOpponent =
+toggleCameraCenterOpponent = 
 
-; A keyboard shortcut to only toggle the "Opponent is invisible and invulnerable" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "Opponent is invisible and invulnerable" part of the "gifModeToggle".
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide Opponent' checkbox.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
-gifModeToggleHideOpponentOnly =
+gifModeToggleHideOpponentOnly = 
 
 ; A keyboard shortcut to toggle hiding the player.
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide Player' checkbox.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with GIF Mode options, by sharing the same key binding for example
-toggleHidePlayer =
+toggleHidePlayer = 
 
-; A keyboard shortcut to only toggle the "hide hud" part of the gifModeToggle.
+; A keyboard shortcut to only toggle the "hide HUD (interface)" part of the "gifModeToggle".
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide HUD' checkbox.
 ; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.
 ; This option can be combined with the other "only" options, by sharing the same key binding for example
-gifModeToggleHudOnly =
+gifModeToggleHudOnly = 
 
 ; A keyboard shortcut to toggle No gravity mode
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - No Gravity' checkbox.
 ; No gravity mode is you can't fall basically
-noGravityToggle =
+noGravityToggle = 
 
 ; A keyboard shortcut to freeze the game
-freezeGameToggle =
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Freeze Game' checkbox.
+freezeGameToggle = 
 
 ; A keyboard shortcut to play the game in slow motion.
-; Please specify by how many times to slow the game down in "slowmoTimes"
-slowmoGameToggle =
+; Please specify by how many times to slow the game down in "slowmoTimes".
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Slow-Mo Mode' checkbox.
+slowmoGameToggle = 
 
-; A keyboard shortcut. Only works while the game is frozen using freezeGameToggle.
-; Advances the game forward one frame
-allowNextFrameKeyCombo =
+; A keyboard shortcut. Only works while the game is frozen using "freezeGameToggle".
+; Advances the game forward one frame.
+; In the UI, this mode can also be toggled using 'UI - Hitboxes - Next Frame' button.
+allowNextFrameKeyCombo = 
 
 ; A number.
-; This works in conjunction with slowmoGameToggle. Only round numbers greater than 1 allowed.
+; This works in conjunction with "slowmoGameToggle". Only round numbers greater than 1 allowed.
 ; Specifies by how many times to slow the game down
 slowmoTimes = 3
 
@@ -367,18 +381,20 @@ disableModToggle = F6
 startDisabled = false
 
 ; A keyboard shortcut to enable/disable only the mod hitbox drawing feature:
-; the GIF mode and no gravity, etc will keep working
+; the GIF mode and no gravity, etc will keep working.
+; In the UI, this mode can also be toggled using "dontShowBoxes" checkbox.
 disableHitboxDisplayToggle = F7
 
 ; A keyboard shortcut.
-; Takes a screenshot and saves it at screenshotPath path
+; Takes a screenshot and saves it at "screenshotPath" path
 ; To take screenshots over a transparent background you need to go to the game's
-; Display Settings and turn off Post-Effect (or use togglePostEffectOnOff and
-; turnOffPostEffectWhenMakingBackgroundBlack settings for this), then use GIF mode (make background dark).
+; Display Settings and turn off Post-Effect (or use "togglePostEffectOnOff" and
+; "turnOffPostEffectWhenMakingBackgroundBlack" settings for this), then use GIF mode (make background dark).
 ; Then screenshots will film character over transparent background.
-; If the dontUseScreenshotTransparency setting is true, screenshot will be without
-; transparency anyway
-screenshotBtn =
+; If the "dontUseScreenshotTransparency" setting is true, screenshot will be without
+; transparency anyway.
+; In the UI, taking screenshots in possible using 'UI - Hitboxes - Take Screenshot' button.
+screenshotBtn = 
 
 ; A path to a file or a directory.
 ; It specifies where screenshots will be saved.
@@ -395,7 +411,7 @@ screenshotBtn =
 ; it can be pasted into any image editing program. For example, GIMP will recognize the PNG
 ; format and paste that, with transparency. This would work even on Ubuntu/Linux.
 ; Only PNG format is supported.
-screenshotPath = ;C:\Users\yourUser\Desktop\test screenshot name.png   don't forget to uncomment (; is a comment)
+screenshotPath =  ;C:\Users\yourUser\Desktop\test screenshot name.png   don't forget to uncomment (; is a comment)
 
 ; Specify true or false.
 ; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.
@@ -403,21 +419,22 @@ ignoreScreenshotPathAndSaveToClipboard = false
 
 ; Specify true or false.
 ; When this is true that means screenshots are being taken every game loop logical frame as
-; long as the screenshotBtn is being held. Game loop logical frame means that if the game is
+; long as the "screenshotBtn" is being held. Game loop logical frame means that if the game is
 ; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.
 ; A new screenshot is only taken when animation frames change on the player characters.
 ; Be cautions not to run out of disk space if you're low. This option doesn't
-; work if screenshotPath is empty, it's not allowed to work outside of training mode or when
+; work if "screenshotPath" is empty, it's not allowed to work outside of training mode or when
 ; a match (training session) isn't currently running (for example on character selection screen).
 allowContinuousScreenshotting = false
 
 ; A keyboard shortcut.
-; This toggle can be used same way as screenshotBtn (when it's combined with
-; allowContinuousScreenshotting = true), except it's a separate key combination and when you
+; This toggle can be used same way as "screenshotBtn" (when it's combined with
+; "allowContinuousScreenshotting" = true), except it's a separate key combination and when you
 ; press it, it toggles the continuous screenshot taking every game logical frame. This
-; toggle does not require allowContinuousScreenshotting to be set to true,
-; or screenshotBtn to be set to anything.
-continuousScreenshotToggle =
+; toggle does not require "allowContinuousScreenshotting" to be set to true,
+; or "screenshotBtn" to be set to anything.
+; In the UI, you can toggle this mode using 'UI - Hitboxes - Continuous Screenshotting Mode' checkbox.
+continuousScreenshotToggle = 
 
 ; Specify true or false.
 ; Setting this to true will produce screenshots without transparency
@@ -461,6 +478,7 @@ modWindowVisibleOnStart = true
 ; Pressing this shortcut will disable/enable the display of residual hurtboxes that appear on hit/block and show
 ; the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but
 ; they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.
+; In the UI, you can toggle the display of gray hurtboxes using 'UI - Hitboxes - Disable Gray Hurtboxes' checkbox.
 toggleDisableGrayHurtboxes = 
 
 ; A keyboard shortcut.
@@ -478,7 +496,7 @@ toggleShowInputHistory =
 ; Pressing this shortcut will disable/enable creation of particle effects such as superfreeze flash.
 ; It will not remove particles that are already created or make particles that have already
 ; not been created appear.
-toggleAllowCreateParticles =
+toggleAllowCreateParticles = 
 
 ; A keyboard shortcut.
 ; Pressing this shortcut will clear the input history, for example in training mode,
@@ -488,7 +506,7 @@ toggleAllowCreateParticles =
 ; round restarts in any game mode.
 ; Alternatively, you can use the "clearInputHistoryOnStageResetInTrainingMode" boolean setting to
 ; make the game clear input history when you reset positions in training mode only.
-clearInputHistory =
+clearInputHistory = 
 
 ; Specify true or false.
 ; Specify true if you want the input history to be cleared when stage is reset in any game mode,
@@ -503,7 +521,7 @@ clearInputHistoryOnStageReset = false
 clearInputHistoryOnStageResetInTrainingMode = false
 
 ; Specify true or false.
-; This disables the display of gray hurtboxes (for a toggle see toggleDisableGrayHurtboxes).
+; This disables the display of gray hurtboxes (for a toggle see "toggleDisableGrayHurtboxes").
 ; Gray hurtboxes are residual hurtboxes that appear on hit/block and show the defender's hurtbox at the moment of impact.
 ; These hurtboxes display for only a brief time on impacts but they can get in the way when trying to do certain stuff such
 ; as take screenshots of hurtboxes on hit/block.
@@ -511,6 +529,7 @@ neverDisplayGrayHurtboxes = false
 
 ; Specify true or false.
 ; Setting this to true will hide all hurtboxes, hitboxes, pushboxes and other boxes and points.
+; "disableHitboxDisplayToggle" can be used to toggle this setting using a keyboard shortcut.
 dontShowBoxes = false
 
 ; Specify true or false.
@@ -526,29 +545,27 @@ displayUIOnTopOfPauseMenu = true
 ; Pause Menu and game's own UI while using 'Dodge OBS Recording'.
 dodgeObsRecording = true
 
-; Specify a whole number.
-; In the UI's 'Invul' field and in the framebar on-mouse-hover info,
-; hurtboxes that are below this Y will trigger the display of 'low profile' invulnerability type.
-; After changing this value, redo the move to see the updated value.
-lowProfileCutoffPoint = 175000
-
 ; Specify true or false.
-; This setting can be changed using the framebarVisibilityToggle hotkey.
-; If closingModWindowAlsoHidesFramebar is true, then setting showFramebar to true is not enough, as the main
-; mod's UI window must also be open in order to show the framebar. If the window is not open, and showFramebar is true,
-; then the only way to open it and to show the framebar is with the modWindowVisibilityToggle hotkey.
+; This setting can be changed using the "framebarVisibilityToggle" hotkey.
+; If "closingModWindowAlsoHidesFramebar" is true, then setting "showFramebar" to true is not enough, as the main
+; mod's UI window must also be open in order to show the framebar. If the window is not open, and "showFramebar" is true,
+; then the only way to open it and to show the framebar is with the "modWindowVisibilityToggle" hotkey.
 showFramebar = true
 
 ; Specify true or false.
-; If false, the framebar will not be shown when in training mode even when showFramebar is true and the UI is open.
+; If false, the framebar will not be shown when in training mode even when "showFramebar" is true and the UI is open.
 showFramebarInTrainingMode = true
 
 ; Specify true or false.
-; If false, the framebar will not be shown when in replay mode even when showFramebar is true and the UI is open.
+; If false, the framebar will not be shown when in replay mode even when "showFramebar" is true and the UI is open.
 showFramebarInReplayMode = true
 
 ; Specify true or false.
-; If false, the framebar will not be shown when in other modes even when showFramebar is true and the UI is open.
+; If false, the framebar will not be shown when in other modes even when "showFramebar" is true and the UI is open.
+; Note that the framebar will never be displayed in online mode when playing as a non-observer, even if this setting is true.
+; The reason for that is that it malfunctions and shows incorrect framedata when rollback frames happen.
+; It is possible to put more work into it to fix that, but it will take as many times more computing resources as
+; there are rollback frames and may start working slower on slower PCs.
 showFramebarInOtherModes = false
 
 ; Specify true or false.
@@ -572,11 +589,13 @@ showComboProrationInRiscGauge = false
 
 ; Specify true or false.
 ; Setting this to true will display both players' input history when observing online matches.
+; The associated hotkey setting for this setting is "toggleShowInputHistory".
 displayInputHistoryWhenObserving = true
 
 ; Specify true or false.
 ; Setting this to true will display both players' input history when playing against CPU in Episode/Story, offline Versus,
 ; Tutorial, offline MOM and Mission.
+; The associated hotkey setting for this setting is "toggleShowInputHistory".
 displayInputHistoryInSomeOfflineModes = false
 
 ; Specify true or false.
@@ -585,6 +604,7 @@ showDurationsInInputHistory = false
 
 ; Specify true or false.
 ; Setting this to true will override the game's default behavior of position reset (stage reset) in offline Training Mode.
+; The numbers mentioned below are directions, in numpad notation.
 ; 2+Reset: non-swapped roundstart position;
 ; 8+Reset: swapped roundstart position;
 ; 4+Reset: left corner. Human Player outside the corner, CPU inside;
@@ -620,8 +640,11 @@ useAlternativeStaggerMashProgressDisplay = false
 ; When a May P or K Ball is on the screen, a circle is drawn around it, an extra point is displayed on the Ball,
 ; and, when May is airborne, an extra point is displayed in the center of body of May, and a line connecting that
 ; point to the extra point on the Ball is displayed.
+; For Dolphin, this displays an extra point on May, a line connecting that point to the origin point of the Dolphin,
+; and a circle around the Dolphin denoting the range in which May's extra point must be in order for May to hop
+; on the Dolphin.
 ; When this setting is true, none of this is displayed.
-dontShowMayInteractionChecks = true
+dontShowMayInteractionChecks = false
 
 ; Specify true or false.
 ; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,
@@ -663,10 +686,10 @@ showJackoAegisFieldRange = false
 showJackoServantAttackRange = false
 
 ; A keyboard shortcut.
-; Pressing this shortcut will show/hide the framebar window by changing the showFramebar setting.
-; If closingModWindowAlsoHidesFramebar is true, then setting showFramebar to true is not enough, as the main
-; mod's UI window must also be open in order to show the framebar. If the window is not open, and showFramebar is true,
-; then the only way to open it and to show the framebar is with the modWindowVisibilityToggle hotkey.
+; Pressing this shortcut will show/hide the framebar window by changing the "showFramebar" setting.
+; If "closingModWindowAlsoHidesFramebar" is true, then setting "showFramebar" to true is not enough, as the main
+; mod's UI window must also be open in order to show the framebar. If the window is not open, and "showFramebar" is true,
+; then the only way to open it and to show the framebar is with the "modWindowVisibilityToggle" hotkey.
 framebarVisibilityToggle = 
 
 ; Specify true or false.
@@ -731,6 +754,13 @@ useSlangNames = false
 
 ; Specify true or false.
 ; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.
+; The "allFramebarTitlesDisplayToTheLeft" setting can be used to make all framebar titles always display on the left.
+; How to tell which player it is then? This is where this setting comes in.
+; Setting this to true adds "P1" or "P2" color-coded text to each framebar's title.
+showPlayerInFramebarTitle = true
+
+; Specify true or false.
+; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.
 ; By setting this setting to true, you can make all framebar titles always display on the left.
 ; To help tell which player it is you can use the "showPlayerInFramebarTitle" setting.
 allFramebarTitlesDisplayToTheLeft = true
@@ -739,6 +769,13 @@ allFramebarTitlesDisplayToTheLeft = true
 ; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.
 ; The standard height is 19.
 framebarHeight = 19
+
+; A number. Can be negative.
+; Specifies the padding between framebars, but keep in mind, the actual padding may be greater to accomodate
+; for throw invul, strike invul and other triangular markers on top and below the frames.
+; This distance gets divided by 10 and multiplied by 19 / "framebarHeight" to get the actual distance in
+; pixels (this does not include the extra padding for invulnerability markers).
+distanceBetweenFramebars = 30
 
 ; A number.
 ; Specifies the maximum number of characters that can be displayed in a framebar title.
@@ -770,18 +807,18 @@ framebarStoredFramesCount = 200
 ; When this setting is false, then, whenever the opponent enters blockstun, the time that you spent idle
 ; before that gets included in the frame advantage with a +. For example:
 ; You shoot a projectile and then recover. Then you and the opponent are just standing there for 1000000 frames.
-; Then, the projectile that you shot puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.
+; Then, the projectile, that you shot, puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.
 ; Setting this to true will cause the idle time that you spent before the opponent entered blockstun to not be included
 ; in your frame advantage, and your frame advantage in the example above will be just +1.
 ; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.
-frameAdvantage_dontUsePreBlockstunTime = false
+frameAdvantage_dontUsePreBlockstunTime = true
 
 ; Specify true or false.
-; Setting this to true will skip grab animations such as ground throw or some supers that connected in the framebar.
+; Setting this to true (default) will skip grab animations such as ground throw or some supers that connected in the framebar.
 skipGrabsInFramebar = true
 
 ; Specify true or false.
-; When this setting is true, if a grab or super is skipped because of the "skipGrabsInFramebar" setting,
+; When this setting is true (default), if a grab or super is skipped because of the "skipGrabsInFramebar" setting,
 ; a white line made out of small diagonal hatches will be displayed on the framebar in places where the grab or super was skipped.
 showFramebarHatchedLineWhenSkippingGrab = true
 
@@ -801,13 +838,15 @@ showFramebarHatchedLineWhenSkippingSuperfreeze = true
 showP1FramedataInFramebar = true
 
 ; Specify true or false.
-; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar..
+; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar.
 showP2FramedataInFramebar = true
 
 ; Specify true or false.
 ; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,
-; unless a projectile or a blocking Baiken is present.
+; unless a projectile or a blocking Baiken (see "ignoreHitstopForBlockingBaiken") is present.
 ; If this is set to true, then we always show hitstop in the framebar.
+; After changing this setting, you don't need to repeat the moves or actions to see updated result in the framebar.
+; This setting can be changed with the "toggleNeverIgnoreHitstop" hotkey.
 neverIgnoreHitstop = false
 
 ; Specify true or false.
@@ -824,6 +863,7 @@ ignoreHitstopForBlockingBaiken = false
 ; Normally we consider running and walking as being idle, which does not advance the framebar forward.
 ; The framebar only advances when one of the players is "busy".
 ; If this is set to true, then one player running or walking will be treated same way as "busy" and will advance the framebar.
+; In the UI's 'Frame Advantage' display, idle running (except Leo's) and walking will still always be considered idle.
 considerRunAndWalkNonIdle = false
 
 ; Specify true or false.
@@ -831,6 +871,7 @@ considerRunAndWalkNonIdle = false
 ; The framebar only advances when one of the players is "busy".
 ; If this is set to true, then one player crouching or walking will be treated same way as "busy" and will advance the framebar.
 ; A dummy who is crouching automatically due to training settings will still not be considered "busy" no matter what.
+; In the UI's 'Frame Advantage' display, idle crouching will still always be considered idle.
 considerCrouchNonIdle = false
 
 ; Specify true or false
@@ -839,17 +880,17 @@ considerCrouchNonIdle = false
 ; Framebar advancing forward means it continuously overwrites its oldest contents with new data to display.
 ; This could be bad if you wanted to study why a combo dropped, as some knockdowns can be very long and erase all the info you wanted to see.
 ; Setting this to true may prevent that.
-; The first frame when the opponent is in OTG state and onwards - those frames do not get included in the framebar.
-; If you recover from your move later than the opponent enters OTG state, the frames are included for your whole recovery for both you and the opponent,
-; which means OTG state may partially or fully get included into the framebar.
+; The first frame when the opponent is in OTG state (meaning if they get hit now, it will be OTG) and onwards -
+; those frames do not get included in the framebar when this setting is true.
+; But if you recover from your move later than the opponent enters OTG state, the frames are included anyway for your whole recovery
+; for both you and the opponent, which means OTG state may partially or fully get included into the framebar even while this setting is true.
 ; In such cases, look for an animation start delimiter on the opponent's framebar, shown as a white ' between frames.
 considerKnockdownWakeupAndAirtechIdle = false
 
 ; Specify true or false
 ; After waking up, or leaving blockstun or hitstun, or airteching, usually there's some strike and/or throw invul while
 ; you're idle and are able to fully act. Framebar only advances forward when one or both players are not idle, however,
-; if this invul is present, then by default the framebar will advance anyway. You can set this setting to false to prevent that
-; and consider being idle while having invul as still being idle.
+; if this invul is present, you can set this setting to false to advance the framebar anyway.
 considerIdleInvulIdle = false
 
 ; Specify true or false.
@@ -857,7 +898,7 @@ considerIdleInvulIdle = false
 ; The framebar only advances when one of the players is "busy".
 ; If this is set to true, then as soon as you tell the dummy to play a recording slot, the entirety of the playback will be considered
 ; as "busy" and will advance the framebar, even if in parts of the recording the dummy is not doing anything.
-considerDummyPlaybackNonIdle = true
+considerDummyPlaybackNonIdle = false
 
 ; Specify true or false.
 ; If true, certain types of frames in the framebar will be displayed with distinct hatches on them.
@@ -918,12 +959,23 @@ hideWinsExceptOnWins = 0
 ; Prevents rank icons (circle, arrow up, arrow down, equal sign) from showing up next to players.
 hideRankIcons = false
 
+; Specify true or false.
+; Setting this to true will add a number of extra fields to the UI that display debug or miscellaneous information.
+showDebugFields = false
+
+; Specify true or false.
+; Setting this to true will hide the numpad Enter key presses from the game.
+ignoreNumpadEnterKey = false
+
+; Specify true or false.
+; Setting this to true will hide the regular, non-numpad Enter key presses from the game.
+ignoreRegularEnterKey = false
 ```
 
 </details>
 
 You can specify a combination of keys, separated by `+` sign. You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.  
-Only the following key names are allowed: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4, JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10, JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp, LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp, PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight, XboxTypeSRightStickDown.
+The allowed key names are listed at the start of the sample INI file.
 
 If the mod is already running, you don't need to do anything in order to apply the new hotkeys and settings. The mod can reread the settings on the fly, without reloading the mod or restarting the game (this was tested to work even on Ubuntu/Linux running GGXrd under Steam Proton).
 
@@ -1134,13 +1186,13 @@ The `ggxrd_hitbox_patcher_console` project is cross-platform, but is intended ex
 
 Each project should have its own separate README.md.
 
-The `libpng` series of projects is an outside repository that we depend on that I had to modify, so it's not included as a git submodule, but copied directly into the mod's sources. The reason I had to modify some of it was because I needed to retarget its Visual Studio projects since I didn't have the older build tools.
+The `libpng` series of projects is an outside repository that we depend on. The reason reason this is a fork and not the original repository is because I needed to retarget its Visual Studio projects since I didn't have the older build tools.
 
 `imgui` is an outside project that we depend on, it's included in this mod as a git submodule. Please do not modify anything there and try not to update it using git fetch or git pull, unless you're ready to make corresponding changes in our mod.
 
-`detours` is Microsoft Detours library, also included as a git submodule.
+`detours` is Microsoft Detours library, also included as a git submodule. The reason this is a fork and not the original repository is because I needed to remove samples from compilation: the were giving troubles to some people.
 
-`zlib` is a compression library needed for libpng. Unlike libpng, it *is* included as a git submodule here. Please also refrain from modifying it.
+`zlib` is a compression library needed for libpng. It is included as a git submodule here. Please also refrain from modifying it.
 
 The dependency projects are better described in [Development dependencies](#development-dependencies).
 
@@ -1153,13 +1205,13 @@ Dependencies are better described in each project's README.md. Short version is,
 
 - `dxsdk` - repository version of Microsoft's Direct3D 9 SDK. Needed for the `d3dx9.h` header file. The repo is included in this mod as a git submodule: <https://github.com/apitrace/dxsdk.git>
 
-- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's sources are included in the mod directly (not as a submodule). libpng homepage: <http://www.libpng.org/pub/png/libpng.html>. libpng github repository: <https://github.com/pnggroup/libpng>
+- `libpng` - a PNG encoder library. This is needed for the transparent screenshotting functionality. You should statically link its 32-bit verion into this mod, it's included in the mod as a git submodule, pointing to my fork of it. libpng homepage: <http://www.libpng.org/pub/png/libpng.html>. libpng github repository: <https://github.com/pnggroup/libpng>. Fork repository: <https://github.com/kkots/libpng>
 
 - `zlib` - a compression library needed for libpng. You should statically link its 32-bit verion into this mod, it's included in the mod as a git submodule: <https://github.com/madler/zlib.git>
 
 - `imgui` - a graphical user interface library for C++. This is used to draw the mod's UI using Direct3D 9 API in the overlay, inside the game. The sources of imgui are included in this mod as a git submodule: <https://github.com/ocornut/imgui.git>.
 
-- `D3DCompiler_43.dll` (optionally D3DCompiler_47.dll) - used for compiling a custom pixel shader. A .LIB file for it, d3dcompiler.lib, is taken from Microsoft's legacy DirectX Software Development Kit and included in this project in the `d3d9` folder. The .LIB file allows the functions from the DLL to be used directly, without LoadLibraryA and GetProcAddress, and the DLL itself, which gets loaded by the mod on startup automatically, is shipped with Guilty Gear Xrd and resides in its Binaries\\Win32 folder. Optionally, the mod will try to load and use D3DCompiler_47.dll, if present, but if not, then revert to D3DCompiler_43.dll.
+- `D3DCompiler_43.dll` - used for compiling a custom pixel shader. A .LIB file for it, d3dcompiler.lib, is taken from Microsoft's legacy DirectX Software Development Kit and included in this project in the `d3d9` folder. The .LIB file allows the functions from the DLL to be used directly, without LoadLibraryA and GetProcAddress, and the DLL itself, which gets loaded by the mod on startup automatically, is shipped with Guilty Gear Xrd and resides in its Binaries\\Win32 folder.
 
 - `D3DX9_43.dll` - used for matrix math. It is used by the project the exact same way as D3DCompiler_43.dll, and its .LIB file is d3dx9.lib.
 
@@ -1340,10 +1392,10 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
 - 2025 ??? ??: Version 6.28:
   1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was shown by the hitbox overlay as horizontal, while in reality it is vertical.
-  2) Made framebar's "# frames selected" text outline be of higher quality.
+  2) Made Elphelt's Travailler Maximum Charge powerup be displayed 1f later.
   3) Previously, framebar was displaying the pre-landing frame as landing recovery (purple), if you got hit on it. This would only happen if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now, that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
-  4) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown. The one who is performing the throw will still be displayed strike and throw invulnerable on their first frame. Additionally, now, when Jam parries a hit, the framebar frame, on which the parry connected, will display her as having super armor and not (yet) having strike+throw invul due to full invul from parry (though having throw invul is still possible from previous hitstun, blockstun or wakeup, and that will be displayed). Similarly, Blitz Shield reject now will show the defender having super armor on the frame when the attacker's hit connected. Previously it would display full (stirke+throw) invul, which should only start on the frame after.
-  5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so, because they became airborne on frame 1 of the move, and airborne moves do not display that type of invul because it should be obvious that they're airborne. As it was previously, airborne moves (any move that originated in the air) will not show "airborne" invul. The new exception to that rule is airborne Roman Cancel, because it is sometimes hard to tell if it is airborne. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusive, either only strike, or only airborne, for no reason).
+  4) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown. The one who is performing the throw will still be displayed strike and throw invulnerable on their first frame. Additionally, now, when Jam parries a hit, the framebar frame, on which the parry connected, will display her as having super armor and not (yet) having strike+throw invul due to full invul from the parry (though having throw invul is still possible from previous hitstun, blockstun or wakeup, and that will be displayed). Similarly, Blitz Shield reject now will show the defender having super armor on the frame when the attacker's hit connected. Previously, it was displaying full (stirke+throw) invul, which should only start on the frame after.
+  5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so, because they became airborne on frame 1 of the move, and airborne moves do not display that type of invul because it should be obvious that they're airborne. As it was previously, airborne moves (any move that originated in the air) will not show "airborne" invul. The new exception to that rule is airborne Roman Cancel, because it is sometimes hard to tell if it is airborne. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusively: either only strike, or only airborne - for no reason).
   6) Added a button and a hotkey to clear input history, and a checkbox for always clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode. This will also work with "Display Durations In Input History".
   7) Added new checkboxes into Hitboxes section for making you or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
   8) Fixed a bug when all framebars would disappear during I-No's Ultimate Fortissimo if it dealt the killing blow.
@@ -1351,32 +1403,33 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   10) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example. This will affect both the display of hitboxes and the display of active frames in the framebar and the framedata.
   11) For AMD cards that can't draw the outlines of the hitboxes, added an untested attempt of a fix. If it doesn't help, please manually uncheck the Settings - Hitbox Settings - Use Pixel Shader checkbox.
   12) The outlines of hitboxes display in black color when on top of same colored background in order to improve their visibility. This feature has now been made more aggressive and black color will appear at larger color differences. You can disable this feature by unchecking Settings - Hitbox Settings - Use Pixel Shader.
-  12) Renamed Sol's "Break" projectile to "Break Explosion".
-  13) Added an untested, unconfirmed fix for a crash that happened when one user tried injecting the mod.
-  14) Fixed input history being visible on the rematch screen when you're not an observer and 'Settings - General Settings - Display Input History When Observing' is checked.
-  15) Added an option to hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod)). And another option to hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).
-  16) Removed all default hotkeys, except:
+  13) Renamed Sol's "Break" projectile to "Break Explosion".
+  14) Added an untested, unconfirmed fix for a crash that happened when one user tried injecting the mod.
+  15) Fixed input history being visible on the rematch screen when you're not an observer and 'Settings - General Settings - Display Input History When Observing' is checked.
+  16) Added an option to hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod)). And another option to hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).
+  17) Removed all default hotkeys, except:
     - ESC: show/hide mod UI.
     - F6: disable whole mod.
     - F7: show/hide hitboxes.  
     This won't affect existing users who update the mod (if they ever changed any settings at all), only new users.
-  17) Added a missing keyboard shortcut setting into mod's UI: Settings - Keyboard Shortcuts - Disable Mod Toggle. Previously, you could only configure this hotkey through the INI file.
-  18) Added a text to the framebar tooltip telling after which frame Millia's Secret Garden becomes able to stay if you RC it. The text only shows on that one particular frame.
-  19) Added a new text to the framebar's frame tooltip, that shows up only if some currently active projectiles would disappear on hit or block for that player. It tells you that "Projectile X will disappear if Character Name is hit/blocks on this frame/at any time." It may be incorrect if Rev1 is selected.
-  20) Fixed the first framebar frame of Eddie not showing his animation name.
-  21) Fixed the "Can YRC, and projectile/powerup will stay" message on the framebar tooltip when hovering over Potemkin Trishula frames. The message was previously showing on frame 19 of Trishula, where it shouldn't be.
-  22) Fixed a crash caused by hovering over a framebar frame of a move happening during 5D horizontal hoverdash. It was caused by there being more gatlings available than the pre-allocated memory can store. The crash could only happen on larger screen resolutions where more than 30 gatlings could actually fit in the displayed list.
-  23) Added a display for gatlings from a Blitz Shield reject to the framebar tooltips and 'Cancels' panel.
-  24) Fixed hitstop display in framebar tooltips showing time remaining / time max without account for the RC slowdown. Now the displayed times will be larger when slowed down by RC.
-  25) Fixed an incorrect idle frame displayed in framebar when recovering from a Blitz Shield reject while being slowed down by RC.
-  26) Made the the following things display better on the framebar on screen resolutions that are larger than 1280x720:
-    - The white/black rectangular inner outline of "hit connected" frames (texture scaling is no longer "linear", but instead set to "no interpolation").
-    - The digits that display the number of similar frames grouped together (resolution of the digit textures doubled, black outline is drawn separately and is no longer included in the texture).
-    - The apostrophe that marks animation starts and different segments of a single animation (texture scaling is no longer "linear", but instead set to "no interpolation", and black outline drawn separately).
-    - Strike, throw invulnerability, super armor and full Blitz Shield charge traingles (resolution of texture doubled, outline drawn separately).
+  18) Added a missing keyboard shortcut setting into mod's UI: Settings - Keyboard Shortcuts - Disable Mod Toggle. Previously, you could only configure this hotkey through the INI file.
+  19) Added a text to the framebar tooltip telling after which frame Millia's Secret Garden becomes able to stay if you RC it. The text only shows on that one particular frame.
+  20) Added a new text to the framebar's frame tooltip, that shows up only if some currently active projectiles would disappear on hit or block for that player. It tells you that "Projectile X will disappear if Character Name is hit/blocks on this frame/at any time." It may be incorrect if Rev1 is selected.
+  21) Fixed the first framebar frame of Eddie not showing his animation name.
+  22) Fixed the "Can YRC, and projectile/powerup will stay" message on the framebar tooltip when hovering over Potemkin Trishula frames. The message was previously showing on frame 19 of Trishula, while it should be on frame 20 instead.
+  23) Fixed a crash caused by hovering over a framebar frame of a move happening during 5D horizontal hoverdash. It was caused by there being more gatlings available than the pre-allocated memory can store. The crash could only happen on larger screen resolutions where more than 30 gatlings could actually fit in the displayed list.
+  24) Added a display for gatlings from a Blitz Shield reject to the framebar tooltips and 'Cancels' panel.
+  25) Fixed hitstop display in framebar tooltips showing time remaining / time max without account for the RC slowdown. Now the displayed times will be larger when slowed down by RC.
+  26) Fixed an incorrect idle frame displayed in framebar when recovering from a Blitz Shield reject while being slowed down by RC.
+  27) Made framebar less blurry when it's upscaled, for example on higher resolutions, and changed its font for the numbers drawn inside/on top of individual frames.
     TODO: reduce how the needed amount of padding for bottom and top markers is calculated. They are allowed to intersect at 0 inter-framebar spacing, just a little bit.
-    TODO: by default, pretend that projectile framebars have no super armor markers. Until dizzy D-fish appears. Then add additional padding only for that framebar.
+    TODO: by default, pretend that projectile framebars have no super armor markers and, by the way, remove the marker padding from projectile framebars. Until dizzy D-fish appears or jacko sets a house. Then add additional padding only for that framebar and only for the top marker.
     TODO: reduce padding between the startup/active/recovery/total text of P2 and the first projectile framebar. Figure out why it is too large on bigger resolutions.
+    TODO: add setting to change input delay in online
+    TODO: add setting to control padding between framebars and add a checkbox to compress all projectiles of a player into a single mini-framebar on top of P1's main framebar or below P2's main framebar
+    TODO: add variable thickness to the frame numbers font
+    // TODO: For Elphelt rifle max charge powerup, display the time when you can press S to fire the maximum shot, and not when the projectile has already reached the powerup
+    
   27) New framebar display settings:
     - A text field to type in the amount of empty space between individual framebars.
     - A checkbox to condense all of a player's projectiles into a single mini-framebar, displayed on top P1's main framebar or below P2's main framebar.

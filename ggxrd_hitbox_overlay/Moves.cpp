@@ -301,8 +301,6 @@ static bool powerup_stingerS(PlayerInfo& ent);
 static bool powerup_stingerH(PlayerInfo& ent);
 static const char* powerupExplanation_stinger(PlayerInfo& ent);
 static bool powerup_closeShot(ProjectileInfo& ent);
-static bool powerup_chargeShotgun(PlayerInfo& ent);
-static const char* powerupExplanation_chargeShotgun(PlayerInfo& ent);
 static bool powerup_rifle(PlayerInfo& ent);
 static const char* powerupExplanation_rifle(PlayerInfo& ent);
 static bool powerup_beakDriver(PlayerInfo& ent);
@@ -3454,16 +3452,12 @@ bool Moves::onDllMain() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActStand");
 	move.displayName = "Stand";
 	move.nameIncludesInputs = true;
-	move.powerup = powerup_chargeShotgun;
-	move.powerupExplanation = powerupExplanation_chargeShotgun;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActCrouch2Stand");
 	move.displayName = "Crouch to Stand";
 	move.nameIncludesInputs = true;
-	move.powerup = powerup_chargeShotgun;
-	move.powerupExplanation = powerupExplanation_chargeShotgun;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3537,6 +3531,8 @@ bool Moves::onDllMain() {
 	move.slangName = "Fire";
 	move.isRecoveryCanReload = isRecoveryCanReload_rifle;
 	move.canYrcProjectile = canYrcProjectile_default;
+	move.powerup = powerup_rifle;
+	move.powerupExplanation = powerupExplanation_rifle;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -8560,6 +8556,7 @@ void Moves::onAswEngineDestroyed() {
 	}
 	milliaSecretGardenUnlink = 0;
 	milliaSecretGardenUnlinkFailedToFind = false;
+	elpheltRifleFireStartup = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -10890,12 +10887,6 @@ bool powerup_closeShot(ProjectileInfo& projectile) {
 	}
 	return false;
 }
-bool powerup_chargeShotgun(PlayerInfo& ent) {
-	return ent.playerval0 && !ent.prevFramePlayerval1 && ent.playerval1;
-}
-const char* powerupExplanation_chargeShotgun(PlayerInfo& ent) {
-	return "Ms. Travailler reached maximum charge.";
-}
 bool powerup_rifle(PlayerInfo& ent) {
 	return !ent.prevFrameElpheltRifle_AimMem46 && ent.elpheltRifle_AimMem46;
 }
@@ -11833,6 +11824,30 @@ void Moves::fillMilliaSecretGardenUnlink(BYTE* funcStart) {
 		}
 	}
 	milliaSecretGardenUnlinkFailedToFind = true;
+}
+
+void Moves::fillElpheltRifleFireStartup(Entity ent) {
+	if (elpheltRifleFireStartup) return;
+	BYTE* func = ent.findSubroutineStart("Rifle_Fire");
+	if (!func) return;
+	int prevDuration = 0;
+	int startup = 0;
+	for (BYTE* instr = skipInstruction(func);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_sprite) {
+			startup += prevDuration;
+			prevDuration = *(int*)(instr + 4);
+		} else if (type == instr_sendSignalToAction
+				&& strcmp((const char*)instr + 4, "Rifle_Aim") == 0
+				&& *(BBScrEvent*)(instr + 4 + 32) == BBSCREVENT_CUSTOM_SIGNAL_0) {
+			break;
+		}
+	}
+	
+	++startup;
+	elpheltRifleFireStartup = startup;
 }
 
 GroundBlitzType Moves::getBlitzType(PlayerInfo& ent) {

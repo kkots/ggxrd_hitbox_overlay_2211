@@ -42,14 +42,6 @@ PathElement& DrawOutlineCallParams::getPathElemStatic(int startIndex, int index)
 	return drawOutlineCallParamsManager.allPathElems[startIndex + index];
 }
 
-int DrawOutlineCallParams::count() const {
-	return outlineCount;
-}
-
-bool DrawOutlineCallParams::empty() const {
-	return outlineCount == 0;
-}
-
 void DrawOutlineCallParams::addPathElem(float xProjected, float yProjected, int x, int y, int inX, int inY) {
 	if (internalOutlineAddr - outlineStartAddr >= outlineCount) {
 		logwrap(fprintf(logfile, "Error: putting too many path elements into an outline call params: %d\n", outlineCount));

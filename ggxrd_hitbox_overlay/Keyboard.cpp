@@ -27,13 +27,22 @@ bool Keyboard::onDllMain() {
 		logwrap(fputs("Could not find this process' window\n", logfile));
 	}
 	
-	UWindowsClient_Joysticks = (BYTE*)sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"69 ff fc 01 00 00 03 3d ?? ?? ?? ?? 68 10 01 00 00",
-		{ 8, 0 },
-		nullptr, "UWindowsClient_Joysticks");
+	if (!isInitialized()) {
+		initialize();
+	}
 	
 	return true;
+}
+
+void Keyboard::initialize() {
+	initialized = true;
+	
+	if (settings.getMaxKeyCode() != INT_MIN
+			&& settings.getMinKeyCode() != INT_MAX
+			&& settings.getMinKeyCode() >= 0
+			&& settings.getMaxKeyCode() >= settings.getMinKeyCode()) {
+		codeToStatus.resize(settings.getMaxKeyCode() - settings.getMinKeyCode() + 1);
+	}
 }
 
 void Keyboard::updateKeyStatuses() {
@@ -43,7 +52,7 @@ void Keyboard::updateKeyStatuses() {
 	
 	const bool windowActive = isWindowActive();
 	DIJOYSTATE2 joy;
-	if (windowActive && !statuses.empty()) {
+	if (hasJoyKeys && windowActive && !statuses.empty()) {
 		getJoyState(&joy);
 	}
 	for (KeyStatus& status : statuses) {
@@ -144,7 +153,11 @@ void Keyboard::removeAllKeyCodes() {
 	if (!mutexLockedFromOutside)
 		guard = std::unique_lock<std::mutex>(mutex);
 	
+	for (const KeyStatus& status : statuses) {
+		codeToStatus[status.code - settings.getMinKeyCode()] = 0;
+	}
 	statuses.clear();
+	hasJoyKeys = false;
 }
 
 void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
@@ -153,15 +166,15 @@ void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 		guard = std::unique_lock<std::mutex>(mutex);
 	
 	for (int code : keyCodes) {
-		auto found = statuses.end();
-		for (auto it = statuses.begin(); it != statuses.end(); ++it) {
-			if (it->code == code) {
-				found = it;
-				break;
-			}
-		}
-		if (found == statuses.end()) {
+		int codeToStatusIndex = code - settings.getMinKeyCode();
+		if (codeToStatusIndex < 0) return;
+		if ((size_t)codeToStatusIndex >= codeToStatus.size()) return;
+		if (codeToStatus[codeToStatusIndex] == 0) {
+			codeToStatus[codeToStatusIndex] = (int)statuses.size() + 1;
 			statuses.push_back(KeyStatus{ code, false, false });
+			if (code >= JOY_START && code <= JOY_END) {
+				hasJoyKeys = true;
+			}
 		}
 	}
 }
@@ -235,12 +248,12 @@ bool Keyboard::isModifierKey(int code) const {
 }
 
 Keyboard::KeyStatus* Keyboard::getStatus(int code) {
-	for (KeyStatus& status : statuses) {
-		if (status.code == code) {
-			return &status;
-		}
-	}
-	return nullptr;
+	int codeToStatusIndex = code - settings.getMinKeyCode();
+	if (codeToStatusIndex < 0) return nullptr;
+	if ((size_t)codeToStatusIndex >= codeToStatus.size()) return nullptr;
+	int statusesIndex = codeToStatus[codeToStatusIndex];
+	if (statusesIndex == 0) return nullptr;
+	return &statuses[statusesIndex - 1];
 }
 
 Keyboard::MutexLockedFromOutsideGuard::MutexLockedFromOutsideGuard() {
@@ -251,14 +264,28 @@ Keyboard::MutexLockedFromOutsideGuard::~MutexLockedFromOutsideGuard() {
 	keyboard.mutexLockedFromOutside = false;
 }
 
-void Keyboard::getJoyState(DIJOYSTATE2* state) const {
+void Keyboard::getJoyState(DIJOYSTATE2* state) {
 	
 	memset(state, 0, sizeof DIJOYSTATE2);
 	state->lX = 32767;
 	state->lY = 32767;
 	state->rgdwPOV[0] = -1;
 	
-	if (!UWindowsClient_Joysticks) return;
+	if (!UWindowsClient_Joysticks) {
+		if (UWindowsClient_Joysticks_HookAttempted) {
+			return;
+		}
+		UWindowsClient_Joysticks_HookAttempted = true;
+		
+		UWindowsClient_Joysticks = (BYTE*)sigscanOffset(
+			"GuiltyGearXrd.exe",
+			"69 ff fc 01 00 00 03 3d ?? ?? ?? ?? 68 10 01 00 00",
+			{ 8, 0 },
+			nullptr, "UWindowsClient_Joysticks");
+		if (!UWindowsClient_Joysticks) {
+			return;
+		}
+	}
 	
 	int ArrayNum = *(int*)(UWindowsClient_Joysticks + 4);
 	BYTE* FJoystickInfo = *(BYTE**)UWindowsClient_Joysticks;

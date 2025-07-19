@@ -20,3 +20,6 @@ if (replace_file_and_product_versions $content_lines $new_version) {
 if ($need_write) {
 	Set-Content -Value ($content_lines -join $newline) "ggxrd_hitbox_overlay.rc" -Encoding Unicode
 }
+
+cd ..
+. ".\regenerate_ini_and_update_readme.ps1"

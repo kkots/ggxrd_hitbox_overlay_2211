@@ -26,9 +26,7 @@ PngResource TexturePacker::getTexture(unsigned int size, std::vector<Row>* rows)
 		rows = &rowsInner;
 	}
 	PngResource result;
-	result.data.resize(size * size);
-	result.width = size;
-	result.height = size;
+	result.resize(size, size);
 	unsigned int currentY = 0;
 	float sizeFloat = (float)size;
 	for (auto rowIt = rows->begin(); rowIt != rows->end(); ++rowIt) {
@@ -40,7 +38,7 @@ PngResource TexturePacker::getTexture(unsigned int size, std::vector<Row>* rows)
 			resource.vStart = (float)currentY / sizeFloat;
 			resource.uEnd = ((float)currentX + (float)resource.width) / sizeFloat;
 			resource.vEnd = ((float)currentY + (float)resource.height) / sizeFloat;
-			resource.bitBlt(result, currentX, currentY, 0, 0, resource.width, resource.height);
+			resource.bitBlt(result, 0, 0, currentX, currentY, resource.width, resource.height);
 			currentX += resource.width + 1;
 		}
 		currentY += rowIt->height + 1;

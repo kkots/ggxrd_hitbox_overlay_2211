@@ -14,6 +14,8 @@ public:
 	bool isHeld(const std::vector<int>& keyCodes);
 	void addNewKeyCodes(const std::vector<int>& keyCodes);
 	void removeAllKeyCodes();
+	inline bool isInitialized() const { return initialized; }
+	void initialize();
 	std::mutex mutex;
 	bool mutexLockedFromOutside = false;
 	struct MutexLockedFromOutsideGuard {
@@ -28,12 +30,16 @@ private:
 		bool gotPressed = false;
 	};
 	std::vector<KeyStatus> statuses;
+	bool hasJoyKeys = false;
 	bool isKeyCodePressed(int code) const;
 	bool isWindowActive() const;
 	bool isModifierKey(int code) const;
 	KeyStatus* getStatus(int code);
 	BYTE* UWindowsClient_Joysticks = nullptr;
-	void getJoyState(DIJOYSTATE2* state) const;
+	bool UWindowsClient_Joysticks_HookAttempted = false;
+	void getJoyState(DIJOYSTATE2* state);
+	std::vector<int> codeToStatus;
+	bool initialized = false;
 };
 
 extern Keyboard keyboard;

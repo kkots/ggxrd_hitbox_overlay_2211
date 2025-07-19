@@ -1,0 +1,814 @@
+// this file gets parsed by regenerate_ini_and_update_readme.ps1. Do not change its structure
+#pragma warning(push)
+settingsKeyCombo(gifModeToggle, "GIF Mode Toggle", "",
+	"; A keyboard shortcut to toggle GIF mode.\n"
+	"; GIF mode is:\n"
+	"; 1) Background becomes black\n"
+	"; 2) Camera is centered on you\n"
+	"; 3) Opponent is invisible and invulnerable\n"
+	"; 4) Hide HUD (interface)\n"
+	"; GIF Mode can also be toggled using 'UI - Hitboxes - GIF Mode'.")
+	
+settingsKeyCombo(gifModeToggleBackgroundOnly, "GIF Mode Toggle (Background Only)", "",
+	"; A keyboard shortcut to only toggle the \"background becomes black\" part of the \"gifModeToggle\".\n"
+	"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+	"; This option can be combined with the other \"only\" options, by sharing the same key binding for example.\n"
+	"; Black background can also be toggled using 'UI - Hitboxes - Black Background'.")
+	
+settingsKeyCombo(togglePostEffectOnOff, "Toggle Post-Effect On/Off", "",
+	"; A keyboard shortcut to toggle the game's Settings - Display Settings - Post-Effect. Changing it this way does not\n"
+	"; require the current match to be restarted.\n"
+	"; Alternatively, you could set the \"turnOffPostEffectWhenMakingBackgroundBlack\" setting in this INI file to true\n"
+	"; so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is\n"
+	"; turned off automatically, and when you leave those modes, it gets turned back on.\n"
+	"; In the UI, Post-Effect can be toggled using 'UI - Hitboxes - Post-Effect On' checkbox.\n"
+	"; This hotkey is empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+	"; This option can be combined with the other hotkey options, by sharing the same key binding for example.")
+	
+#pragma warning(disable:4003)
+settingsField(bool, turnOffPostEffectWhenMakingBackgroundBlack, true,
+	"Turn Off Post-Effect When Making Background Black", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; When true, whenever you enter either the GIF mode or the GIF mode (black background only),\n"
+	"; the Post-Effect is turned off automatically, and when you leave those modes, it gets turned back on.\n"
+	"; An alternative way to turn off Post-Effect without reload a match is using the 'UI - Hitboxes - Post-Effect On' checkbox,\n"
+	"; or \"togglePostEffectOnOff\" toggle.")
+	
+settingsField(bool, forceZeroPitchDuringCameraCentering, true,
+	"Force Zero Pitch During Camera Centering", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
+	"; which center the camera on either you or the opponent, the camera is angled downwards slightly, and this camera angle is called \"pitch\".\n"
+	"; It may cause lines of hitboxes to not be displayed entirely parallel to the sides of the screen.\n"
+	"; By setting this to true you can force the camera to look straight forward.\n"
+	"; All original hitbox screenshots on dustloop were taken with a slightly angled pitch, so setting this to true\n"
+	"; would produce screenshots different from those of dustloop's.")
+	
+settingsField(float, cameraCenterOffsetX, 0.F,
+	"Camera Centering - X Offset", SETTINGS_HITBOX_SETTINGS,
+	"; Specify a floating point value where '.' is the delimiter, like so: 0.0\n"
+	"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
+	"; which center the camera on either you or the opponent, this value will control how offset the camera is horizontally, relative\n"
+	"; to the player. A positive value offsets left, and a negative offsets right. Default value is 0.0.")
+	
+settingsField(float, cameraCenterOffsetY, 106.4231F,
+	"Camera Centering - Y Offset (When Pitch Is Not Forced To 0)", SETTINGS_HITBOX_SETTINGS,
+	"; Specify a floating point value where '.' is the delimiter, like so: 106.4231\n"
+	"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
+	"; which center the camera on either you or the opponent, this value will control how offset the camera is vertically, relative\n"
+	"; to the player. A positive value offsets down, and a negative offsets up. Default value is 106.4231.")
+	
+settingsField(float, cameraCenterOffsetY_WhenForcePitch0, 130.4231F,
+	"Camera Centering - Y Offset (When Pitch Is Forced To 0)", SETTINGS_HITBOX_SETTINGS,
+	"; Specify a floating point value where '.' is the delimiter, like so: 130.4231\n"
+	"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
+	"; which center the camera on either you or the opponent, AND \"forceZeroPitchDuringCameraCentering\" is set to true,\n"
+	"; this value will control how offset the camera is vertically, relative\n"
+	"; to the player. A positive value offsets down, and a negative offsets up. Default value is 130.4231.")
+	
+settingsField(float, cameraCenterOffsetZ, 540.F,
+	"Camera Centering - Z Offset", SETTINGS_HITBOX_SETTINGS,
+	"; Specify a floating point value where '.' is the delimiter, like so: 540.0\n"
+	"; When entering a camera-center mode using \"gifModeToggle\", \"gifModeToggleCameraCenterOnly\" or \"toggleCameraCenterOpponent\",\n"
+	"; which center the camera on either you or the opponent,\n"
+	"; this value will control how far the camera is. The bigger the value, the further the camera will be. Default value is 540.0.")
+	
+settingsKeyCombo(gifModeToggleCameraCenterOnly, "GIF Mode Toggle (Camera Only)", "",
+	"; A keyboard shortcut to only toggle the \"Camera is centered on you\" part of the \"gifModeToggle\".\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Camera Center on Player' checkbox.\n"
+	"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+	"; This option can be combined with the other \"only\" options, by sharing the same key binding for example")
+	
+settingsKeyCombo(toggleCameraCenterOpponent, "Center Camera On The Opponent", "",
+	"; A keyboard shortcut to toggle the camera to be centered on the opponent.\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Camera Center on Opponent' checkbox.\n"
+	"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+	"; This option can be combined with GIF Mode options, by sharing the same key binding for example")
+	
+settingsKeyCombo(gifModeToggleHideOpponentOnly, "GIF Mode Toggle (Hide Opponent Only)", "",
+	"; A keyboard shortcut to only toggle the \"Opponent is invisible and invulnerable\" part of the \"gifModeToggle\".\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide Opponent' checkbox.\n"
+	"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+	"; This option can be combined with the other \"only\" options, by sharing the same key binding for example")
+	
+settingsKeyCombo(toggleHidePlayer, "Hide Player", "",
+	"; A keyboard shortcut to toggle hiding the player.\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide Player' checkbox.\n"
+	"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+	"; This option can be combined with GIF Mode options, by sharing the same key binding for example")
+	
+settingsKeyCombo(gifModeToggleHudOnly, "GIF Mode Toggle (HUD Only)", "",
+	"; A keyboard shortcut to only toggle the \"hide HUD (interface)\" part of the \"gifModeToggle\".\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Hide HUD' checkbox.\n"
+	"; Empty by default, which means no hotkey is assigned. Assign your desired hotkey manually here.\n"
+	"; This option can be combined with the other \"only\" options, by sharing the same key binding for example")
+	
+settingsKeyCombo(noGravityToggle, "No Gravity Toggle", "",
+	"; A keyboard shortcut to toggle No gravity mode\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - No Gravity' checkbox.\n"
+	"; No gravity mode is you can't fall basically")
+	
+settingsKeyCombo(freezeGameToggle, "Freeze Game Toggle", "",
+	"; A keyboard shortcut to freeze the game\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Freeze Game' checkbox.")
+	
+settingsKeyCombo(slowmoGameToggle, "Slow-mo Game Toggle", "",
+	"; A keyboard shortcut to play the game in slow motion.\n"
+	"; Please specify by how many times to slow the game down in \"slowmoTimes\".\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Slow-Mo Mode' checkbox.")
+	
+settingsKeyCombo(allowNextFrameKeyCombo, "Allow Next Frame", "",
+	"; A keyboard shortcut. Only works while the game is frozen using \"freezeGameToggle\".\n"
+	"; Advances the game forward one frame.\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Next Frame' button.")
+	
+settingsField(int, slowmoTimes, 3,
+	"Slow-Mo Factor", SETTINGS_HITBOX,
+	"; A number.\n"
+	"; This works in conjunction with \"slowmoGameToggle\". Only round numbers greater than 1 allowed.\n"
+	"; Specifies by how many times to slow the game down")
+	
+settingsKeyCombo(disableModToggle, "Disable Mod Toggle", "F6",
+	"; A keyboard shortcut to enable/disable the mod without having to load/unload it")
+	
+settingsField(bool, startDisabled, false,
+	"startDisabled", "INI file",
+	"; Specify true or false.\n"
+	"; When true, starts the mod in a disabled state: it doesn't draw boxes or affect anything")
+	
+settingsKeyCombo(disableHitboxDisplayToggle, "Disable Hitbox Display Toggle", "F7",
+	"; A keyboard shortcut to enable/disable only the mod hitbox drawing feature:\n"
+	"; the GIF mode and no gravity, etc will keep working.\n"
+	"; In the UI, this mode can also be toggled using \"dontShowBoxes\" checkbox.")
+	
+settingsKeyCombo(screenshotBtn, "Take Screenshot", "",
+	"; A keyboard shortcut.\n"
+	"; Takes a screenshot and saves it at \"screenshotPath\" path\n"
+	"; To take screenshots over a transparent background you need to go to the game's\n"
+	"; Display Settings and turn off Post-Effect (or use \"togglePostEffectOnOff\" and\n"
+	"; \"turnOffPostEffectWhenMakingBackgroundBlack\" settings for this), then use GIF mode (make background dark).\n"
+	"; Then screenshots will film character over transparent background.\n"
+	"; If the \"dontUseScreenshotTransparency\" setting is true, screenshot will be without\n"
+	"; transparency anyway.\n"
+	"; In the UI, taking screenshots in possible using 'UI - Hitboxes - Take Screenshot' button.")
+	
+settingsField(ScreenshotPath, screenshotPath, "",
+	"Screenshots Path", SETTINGS_HITBOX_SETTINGS,
+	"; A path to a file or a directory.\n"
+	"; It specifies where screenshots will be saved.\n"
+	"; If you provided a file path, it must be with .png extension, and if such name already exists, a\n"
+	"; number will be appended to it, increasing from 1 to infinity consecutively so that it's unique,\n"
+	"; so that new screenshots will never overwrite old ones.\n"
+	"; If you provided a directory path, it must already exist, and \"screen.png\" will be appended to\n"
+	"; it with an increasing number at the end in case the filename is not unique.\n"
+	"; The provided path must be without quotes.\n"
+	"; If you want the path to be multilingual you need to save this file in UTF-8.\n"
+	"; On Ubuntu/Linux running Guilty Gear Xrd under Steam Proton you need to specify paths with\n"
+	"; the Z:\\ drive, path separator is backslash (\\), not forward slash (/). Example: Z:\\home\\yourUserName\\ggscreen.png\n"
+	"; If the path is not specified or is empty, the screenshot will be saved into your clipboard so\n"
+	"; it can be pasted into any image editing program. For example, GIMP will recognize the PNG\n"
+	"; format and paste that, with transparency. This would work even on Ubuntu/Linux.\n"
+	"; Only PNG format is supported.",
+	";C:\\Users\\yourUser\\Desktop\\test screenshot name.png   don't forget to uncomment (; is a comment)")
+	
+settingsField(bool, ignoreScreenshotPathAndSaveToClipboard, false,
+	"Ignore Screenshot Path And Save To Clipboard", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; When this setting is on, screenshots get saved to clipboard only, even if a screenshot path is specified.")
+	
+settingsField(bool, allowContinuousScreenshotting, false,
+	"Allow Continuous Screenshotting When Button Is Held", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; When this is true that means screenshots are being taken every game loop logical frame as\n"
+	"; long as the \"screenshotBtn\" is being held. Game loop logical frame means that if the game is\n"
+	"; paused or the actual animations are not playing for whatever reason, screenshot won't be taken.\n"
+	"; A new screenshot is only taken when animation frames change on the player characters.\n"
+	"; Be cautions not to run out of disk space if you're low. This option doesn't\n"
+	"; work if \"screenshotPath\" is empty, it's not allowed to work outside of training mode or when\n"
+	"; a match (training session) isn't currently running (for example on character selection screen).")
+	
+settingsKeyCombo(continuousScreenshotToggle, "Continuous Screenshot Toggle", "",
+	"; A keyboard shortcut.\n"
+	"; This toggle can be used same way as \"screenshotBtn\" (when it's combined with\n"
+	"; \"allowContinuousScreenshotting\" = true), except it's a separate key combination and when you\n"
+	"; press it, it toggles the continuous screenshot taking every game logical frame. This\n"
+	"; toggle does not require \"allowContinuousScreenshotting\" to be set to true,\n"
+	"; or \"screenshotBtn\" to be set to anything.\n"
+	"; In the UI, you can toggle this mode using 'UI - Hitboxes - Continuous Screenshotting Mode' checkbox.")
+	
+settingsField(bool, dontUseScreenshotTransparency, false,
+	"Take Screenshots Without Transparency", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; Setting this to true will produce screenshots without transparency")
+	
+settingsField(bool, drawPushboxCheckSeparately, true,
+	"Draw Pushbox Check Separately", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; Setting this to true will make throw boxes show in an opponent-character-independent way:\n"
+	"; The part of the throw box that checks for pushboxes proximity will be shown in blue,\n"
+	"; while the part of the throw box that checks x or y of the origin point will be shown in purple\n"
+	"; Setting this to false will combine both the checks of the throw so that you only see the final box\n"
+	"; in blue which only checks the opponent's origin point. Be warned, such a throw box\n"
+	"; is affected by the width of the opponent's pushbox. Say, on Potemkin, for example,\n"
+	"; all ground throw ranges should be higher.")
+	
+settingsField(bool, useSimplePixelBlender, false,
+	"Use Simple CPU Pixel Blender", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; Setting this to true may increase the performance of transparent screenshotting which may be useful if you're screenshotting every frame.\n"
+	"; The produced screenshots won't have such improvements as improving visibility of semi-transparent effects or changing hitbox outlines to\n"
+	"; black when drawn over the same color.")
+	
+settingsField(bool, usePixelShader, true,
+	"Use Pixel Shader", SETTINGS_HITBOX_SETTINGS,
+	"; IF YOU USE AMD CARD, SET THIS TO FALSE!!!\n"
+	"; Specify true or false.\n"
+	"; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of\n"
+	"; the outline to black only on those pixels.\n"
+	"; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default)\n"
+	"; color orb, which are both red.\n"
+	"; Pixel shader was observed to not draw any outlines on an AMD card. Please turn this off if you use AMD to\n"
+	"; allow outlines to at least be drawn somehow, without color-dodging.")
+	
+settingsKeyCombo(modWindowVisibilityToggle, "Hide UI Toggle", "Escape",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will show/hide the mod's UI window.")
+	
+settingsField(bool, modWindowVisibleOnStart, true,
+	"Mod Window Visible On Start", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; If this is false, when this mod starts, the mod's UI window will be invisible.")
+	
+settingsKeyCombo(toggleDisableGrayHurtboxes, "Disable Gray Hurtboxes", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will disable/enable the display of residual hurtboxes that appear on hit/block and show\n"
+	"; the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but\n"
+	"; they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
+	"; In the UI, you can toggle the display of gray hurtboxes using 'UI - Hitboxes - Disable Gray Hurtboxes' checkbox.")
+	
+settingsKeyCombo(toggleNeverIgnoreHitstop, "Never Ignore Hitstop", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will disable/enable the \"neverIgnoreHitstop\" setting which controls whether\n"
+	"; the framebar advances during hitstop.")
+	
+settingsKeyCombo(toggleShowInputHistory, "Disable Show Input History", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will disable the input history shown via \"displayInputHistoryWhenObserving\"\n"
+	"; and \"displayInputHistoryInSomeOfflineModes\". It only works when one of those settings is enabled\n"
+	"; and is showing history in corresponding game mode.")
+	
+settingsKeyCombo(toggleAllowCreateParticles, "Allow Creation Of Particles", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will disable/enable creation of particle effects such as superfreeze flash.\n"
+	"; It will not remove particles that are already created or make particles that have already\n"
+	"; not been created appear.")
+	
+settingsKeyCombo(clearInputHistory, "Clear Input History", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will clear the input history, for example in training mode,\n"
+	"; when input history display is enabled.\n"
+	"; Alternatively, you can use the \"clearInputHistoryOnStageReset\" boolean setting to\n"
+	"; make the game clear input history when you reset positions in training mode or when\n"
+	"; round restarts in any game mode.\n"
+	"; Alternatively, you can use the \"clearInputHistoryOnStageResetInTrainingMode\" boolean setting to\n"
+	"; make the game clear input history when you reset positions in training mode only.")
+	
+settingsField(bool, clearInputHistoryOnStageReset, false,
+	"Clear Input History On Stage Reset", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Specify true if you want the input history to be cleared when stage is reset in any game mode,\n"
+	"; including when positions are reset in training mode.\n"
+	"; You can also use a hotkey to clear history manually, specified in \"clearInputHistory\".")
+	
+settingsField(bool, clearInputHistoryOnStageResetInTrainingMode, false,
+	"Clear Input History On Stage Reset In Training Mode", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Specify true if you want the input history to be cleared when positions are reset in\n"
+	"; training mode only.\n"
+	"; You can also use a hotkey to clear history manually, specified in \"clearInputHistory\".")
+	
+settingsField(bool, neverDisplayGrayHurtboxes, false,
+	"Disable Gray Hurtboxes", SETTINGS_HITBOX,
+	"; Specify true or false.\n"
+	"; This disables the display of gray hurtboxes (for a toggle see \"toggleDisableGrayHurtboxes\").\n"
+	"; Gray hurtboxes are residual hurtboxes that appear on hit/block and show the defender's hurtbox at the moment of impact.\n"
+	"; These hurtboxes display for only a brief time on impacts but they can get in the way when trying to do certain stuff such\n"
+	"; as take screenshots of hurtboxes on hit/block.")
+	
+settingsField(bool, dontShowBoxes, false,
+	"Don't Show Boxes", SETTINGS_HITBOX,
+	"; Specify true or false.\n"
+	"; Setting this to true will hide all hurtboxes, hitboxes, pushboxes and other boxes and points.\n"
+	"; \"disableHitboxDisplayToggle\" can be used to toggle this setting using a keyboard shortcut.")
+	
+settingsField(bool, displayUIOnTopOfPauseMenu, true,
+	"Display Mod's UI on top of Pause Menu", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Display mod's UI on top of the game's Pause Menu. This setting has no effect when \"dodgeObsRecording\" is true and\n"
+	"; an OBS is connected to the game.")
+	
+settingsField(bool, dodgeObsRecording, true,
+	"Dodge OBS Recording", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; To have this mod avoid OBS capture set this setting to true and also make sure\n"
+	"; that in OBS, in Sources you selected your Source, clicked Cogwheel and unchecked the\n"
+	"; 'Capture third-party overlays (such as steam)'.\n"
+	"; I am very sorry, but the mod's UI, the framebar and the boxes cannot be drawn under the game's\n"
+	"; Pause Menu and game's own UI while using 'Dodge OBS Recording'.")
+	
+settingsField(bool, showFramebar, true,
+	"Show Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; This setting can be changed using the \"framebarVisibilityToggle\" hotkey.\n"
+	"; If \"closingModWindowAlsoHidesFramebar\" is true, then setting \"showFramebar\" to true is not enough, as the main\n"
+	"; mod's UI window must also be open in order to show the framebar. If the window is not open, and \"showFramebar\" is true,\n"
+	"; then the only way to open it and to show the framebar is with the \"modWindowVisibilityToggle\" hotkey.")
+	
+settingsField(bool, showFramebarInTrainingMode, true,
+	"Show Framebar In Training Mode", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; If false, the framebar will not be shown when in training mode even when \"showFramebar\" is true and the UI is open.")
+	
+settingsField(bool, showFramebarInReplayMode, true,
+	"Show Framebar In Replay Mode", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; If false, the framebar will not be shown when in replay mode even when \"showFramebar\" is true and the UI is open.")
+	
+settingsField(bool, showFramebarInOtherModes, false,
+	"Show Framebar In Other Modes", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; If false, the framebar will not be shown when in other modes even when \"showFramebar\" is true and the UI is open.\n"
+	"; Note that the framebar will never be displayed in online mode when playing as a non-observer, even if this setting is true.\n"
+	"; The reason for that is that it malfunctions and shows incorrect framedata when rollback frames happen.\n"
+	"; It is possible to put more work into it to fix that, but it will take as many times more computing resources as\n"
+	"; there are rollback frames and may start working slower on slower PCs.")
+	
+settingsField(bool, closingModWindowAlsoHidesFramebar, true,
+	"Closing Mod's Window Also Hides Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; If this is true, then closing the main mod's window, either using a hotkey or the cross mark,\n"
+	"; will also hide the framebar, while opening the main mod's window will show the framebar.\n"
+	"; Alternatively you could set up a separate hotkey to control visibility of the framebar, using \"framebarVisibilityToggle\".\n"
+	"; Note that even when the UI is open, \"showFramebar\" must be set to true for the framebar to be visible.")
+	
+settingsField(bool, dontShowMoveName, false,
+	"Don't Show Move's Name", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; In the main UI window, there's a field called 'Move' which displays the last performed move or several moves\n"
+	"; that the mod decided to combine together. That text can get pretty long. If you set this setting to true,\n"
+	"; then that field will be hidden, and you will only be able to see moves' names either in 'Cancels (P1/P2)' window,\n"
+	"; or by hovering your mouse over the 'Startup' or 'Total' fields in the main UI window and reading their tooltip.")
+	
+settingsField(bool, showComboProrationInRiscGauge, false,
+	"Show Combo Proration In RISC Gauge", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will modify the RISC gauge so that the middle represents 0 RISC and no combo proration,\n"
+	"; the right half represents RISC, and the left half represents combo proration.")
+	
+settingsField(bool, displayInputHistoryWhenObserving, true,
+	"Display Input History When Observing", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will display both players' input history when observing online matches.\n"
+	"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".")
+	
+settingsField(bool, displayInputHistoryInSomeOfflineModes, false,
+	"Display Input History In Some Offline Modes Vs CPU", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will display both players' input history when playing against CPU in Episode/Story, offline Versus,\n"
+	"; Tutorial, offline MOM and Mission.\n"
+	"; The associated hotkey setting for this setting is \"toggleShowInputHistory\".")
+	
+settingsField(bool, showDurationsInInputHistory, false,
+	"Display Durations In Input History", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will display the duration of each input, in frames, in the input history.")
+	
+settingsField(bool, usePositionResetMod, false,
+	"Use Position Reset Mod", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will override the game's default behavior of position reset (stage reset) in offline Training Mode.\n"
+	"; The numbers mentioned below are directions, in numpad notation.\n"
+	"; 2+Reset: non-swapped roundstart position;\n"
+	"; 8+Reset: swapped roundstart position;\n"
+	"; 4+Reset: left corner. Human Player outside the corner, CPU inside;\n"
+	"; 1+Reset: left corner. Human Player inside the corner, CPU outside;\n"
+	"; 6+Reset: right corner. Human Player outside the corner, CPU inside;\n"
+	"; 3+Reset: right corner. Human Player inside the corner, CPU outside;\n"
+	"; 5+Reset: reset to last used position;\n"
+	"; 9+Reset: set current arbitrary position of both players as 'last used position'.\n"
+	"; You can use the \"positionResetDistBetweenPlayers\" and \"positionResetDistFromCorner\" settings to tweak\n"
+	"; the default positions in the corner.")
+	
+settingsField(int, positionResetDistBetweenPlayers, 105000,
+	"Position Reset Corner - Distance Between Players", SETTINGS_GENERAL,
+	"; A number.\n"
+	"; Specifies the distance between the two players, not divided by 100, when resetting position into the corner.\n"
+	"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
+	"; The default value of this field is 105000.")
+	
+settingsField(int, positionResetDistFromCorner, 0,
+	"Position Reset Corner - Distance From Corner", SETTINGS_GENERAL,
+	"; A number.\n"
+	"; Specifies the distance of the player closest to the corner, from said corner, not divided by 100,\n"
+	"; when resetting position into the corner.\n"
+	"; This setting is only used when \"usePositionResetMod\" setting is enabled.\n"
+	"; The default value of this field is 0.")
+	
+settingsField(bool, useAlternativeStaggerMashProgressDisplay, false,
+	"Use Alternative Stagger Mash Progress Display", "Main UI Window - Stun/Stagger Mash",
+	"; Specify true or false.\n"
+	"; Setting this to true will display Progress differently in Stun/Stagger Mash window.\n"
+	"; Instead of displaying it as Mashed + Animation Duration / Stagger Duration - 4, it will\n"
+	"; display as Animation Duration / Stagger Duration - 4 - Mashed")
+	
+settingsField(bool, dontShowMayInteractionChecks, false,
+	"Don't Show May Interaction Checks", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; When a May P or K Ball is on the screen, a circle is drawn around it, an extra point is displayed on the Ball,\n"
+	"; and, when May is airborne, an extra point is displayed in the center of body of May, and a line connecting that\n"
+	"; point to the extra point on the Ball is displayed.\n"
+	"; For Dolphin, this displays an extra point on May, a line connecting that point to the origin point of the Dolphin,\n"
+	"; and a circle around the Dolphin denoting the range in which May's extra point must be in order for May to hop\n"
+	"; on the Dolphin.\n"
+	"; When this setting is true, none of this is displayed.")
+	
+settingsField(bool, showMilliaBadMoonBuffHeight, false,
+	"Show Millia Bad Moon Buff Height (Rev2 only)", SETTINGS_CHARACTER_SPECIFIC,
+	"; Specify true or false.\n"
+	"; When this setting is on, and one of the character is Millia, a horizontal line is displayed high above the arena,\n"
+	"; showing the height on which Millia's Bad Moon obtains some kind of attack powerup.\n"
+	"; Millia's origin point must be above the line in order to gain the powerup.\n"
+	"; Note that Bad Moon's maximum number of hits increases as it gets higher, up to 10 hits maximum.\n"
+	"; The line is the lowest height needed to get any powerup at all.")
+	
+settingsField(bool, showFaustOwnFlickRanges, true,
+	"Show Faust Thrown Item Flick Ranges", SETTINGS_CHARACTER_SPECIFIC,
+	"; Specify true or false.\n"
+	"; When this setting is on, when Faust does a 5D, two ranges are shown around his flickpoint,\n"
+	"; denoting ranges in which his thrown items' origin points must be to get either hit or homerun hit.")
+	
+settingsField(bool, showBedmanTaskCHeightBuffY, false,
+	"Show Bedman Task C Height Buff Y", SETTINGS_CHARACTER_SPECIFIC,
+	"; Specify true or false.\n"
+	"; When this setting is on, a horizontal line is constantly shown on the screen at the height above which\n"
+	"; Bedman's Task C gains a buff.\n"
+	"; This line is so high you can't see it unless you jump.")
+	
+settingsField(bool, showJackoGhostPickupRange, false,
+	"Show Jack-O' Ghost Pickup Range", SETTINGS_CHARACTER_SPECIFIC,
+	"; Specify true or false.\n"
+	"; When this setting is on, an infinite vertical box around each Ghost (house) denotes the range in which\n"
+	"; Jack-O's origin point must be in order to pick up the Ghost or gain Tension from it.")
+	
+settingsField(bool, showJackoSummonsPushboxes, false,
+	"Show Jack-O' Summons' Pushboxes", SETTINGS_CHARACTER_SPECIFIC,
+	"; Specify true or false.\n"
+	"; When this setting is on, yellow pushboxes are drawn around the Servants and the Ghosts, similar to how they're drawn\n"
+	"; around the players.")
+	
+settingsField(bool, showJackoAegisFieldRange, false,
+	"Show Jack-O' Aegis Field Range", SETTINGS_CHARACTER_SPECIFIC,
+	"; Specify true or false.\n"
+	"; When this setting is on, the white circle around Jack-O' shows the range where the Servants' and the Ghosts'\n"
+	"; origin point must be in order to receive protection from Aegis Field.")
+	
+settingsField(bool, showJackoServantAttackRange, false,
+	"Show Jack-O' Servant Attack Range", SETTINGS_CHARACTER_SPECIFIC,
+	"; Specify true or false.\n"
+	"; When this setting is on, the white box around each Servant shows the area where the opponent's player's\n"
+	"; origin point must be in order for the Servant to initiate an attack.")
+	
+settingsKeyCombo(framebarVisibilityToggle, "Hide Framebar Toggle", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will show/hide the framebar window by changing the \"showFramebar\" setting.\n"
+	"; If \"closingModWindowAlsoHidesFramebar\" is true, then setting \"showFramebar\" to true is not enough, as the main\n"
+	"; mod's UI window must also be open in order to show the framebar. If the window is not open, and \"showFramebar\" is true,\n"
+	"; then the only way to open it and to show the framebar is with the \"modWindowVisibilityToggle\" hotkey.")
+	
+settingsField(bool, showStrikeInvulOnFramebar, true,
+	"Show Strike Invul", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Strike invul will be displayed using a green ^ on top of a frame.")
+	
+settingsField(bool, showSuperArmorOnFramebar, true,
+	"Show Super Armor", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Super armor will be displayed using a purple ^ on top of a frame. It includes reflect, parry and projectile-only invulnerability\n"
+	"; (excluding Aegis Field, that isn't displayed on the framebar at all). If both strike invul and super armor are present, super armor\n"
+	"; will be below the strike invul.")
+	
+settingsField(bool, showThrowInvulOnFramebar, true,
+	"Show Throw Invul", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Throw invul will be displayed using a yellow v underneath a frame.")
+	
+settingsField(bool, showOTGOnFramebar, true,
+	"Show OTG", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; OTG state will be displayed using a gray v underneath a frame.")
+	
+settingsField(bool, showFirstFramesOnFramebar, true,
+	"Show First Frames", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When a player's animation changes from one to another, except in certain cases, the first frame of the new animation is denoted with\n"
+	"; a ' mark before that frame. For some animations a first frame is denoted even when\n"
+	"; the animation didn't change, but instead reached some important point. This includes entering hitstop.")
+	
+settingsField(bool, considerSimilarFrameTypesSameForFrameCounts, true,
+	"Consider Similar Frame Types Same For Frame Count", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; This affects the frame counts that are displayed on the framebar. If true, the frame counter will not reset\n"
+	"; between different frame graphics that all mean recovery or all mean startup and so on. Idle frames are not\n"
+	"; affected by this and for them you should use the \"considerSimilarIdleFramesSameForFrameCounts\" setting.")
+	
+settingsField(bool, considerSimilarIdleFramesSameForFrameCounts, false,
+	"Consider Similar Idle Frames Same For Frame Count", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; This affects the frame counts that are displayed on the framebar. If true, the frame counter will not reset\n"
+	"; between different frame graphics that all mean idle.")
+	
+settingsField(bool, combineProjectileFramebarsWhenPossible, true,
+	"Combine Projectile Framebars When Possible", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When true, two or more projectile framebars will be combined into one if their active/non-active frames don't intersect.")
+	
+settingsField(bool, eachProjectileOnSeparateFramebar, false,
+	"Each Projectile On A Separate Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When true, projectiles will never be combined even if there are very many of them and they're all same.")
+	
+settingsField(bool, dontClearFramebarOnStageReset, false,
+	"Don't Clear Framebar On Stage Reset", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When true, the framebar won't be cleared when resetting the stage with Record+Playback or Backspace or Pause Menu - Reset Position in Training Mode,\n"
+	"; or when a player dies or when a new rounds starts.")
+	
+settingsField(bool, dontTruncateFramebarTitles, false,
+	"Don't Truncate Framebar Titles", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Each framebar displays a label or title either to the left or to the right from it. The titles are truncated to 12 character by default.\n"
+	"; By setting this setting to true, you can stop them from truncating and always display full titles.")
+	
+settingsField(bool, useSlangNames, false,
+	"Use Slang In Move & Projectile Names", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Each framebar displays a label or title either to the left or to the right from it.\n"
+	"; When the title is too long, depending on the setting, it gets cut off. Setting this to true changes some\n"
+	"; projectile titles to slang names to make framebar titles short so that they fit.\n"
+	"; This also changes names of moves that are displayed in main UI window and other windows.")
+	
+settingsField(bool, showPlayerInFramebarTitle, true,
+	"Show Player In Framebar Title", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.\n"
+	"; The \"allFramebarTitlesDisplayToTheLeft\" setting can be used to make all framebar titles always display on the left.\n"
+	"; How to tell which player it is then? This is where this setting comes in.\n"
+	"; Setting this to true adds \"P1\" or \"P2\" color-coded text to each framebar's title.")
+	
+settingsField(bool, allFramebarTitlesDisplayToTheLeft, true,
+	"All Framebar Titles Display On The Left", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Each framebar displays a label or title either to the left or to the right from it, depending on which player it belongs to.\n"
+	"; By setting this setting to true, you can make all framebar titles always display on the left.\n"
+	"; To help tell which player it is you can use the \"showPlayerInFramebarTitle\" setting.")
+	
+settingsField(int, framebarHeight, 19,
+	"Framebar Height", SETTINGS_FRAMEBAR,
+	"; A number.\n"
+	"; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.\n"
+	"; The standard height is 19.")
+	
+settingsField(int, distanceBetweenFramebars, 30,
+	"Distance Between Framebars", SETTINGS_FRAMEBAR,
+	"; A number. Can be negative.\n"
+	"; Specifies the padding between framebars, but keep in mind, the actual padding may be greater to accomodate\n"
+	"; for throw invul, strike invul and other triangular markers on top and below the frames.\n"
+	"; This distance gets divided by 10 and multiplied by 19 / \"framebarHeight\" to get the actual distance in\n"
+	"; pixels (this does not include the extra padding for invulnerability markers).")
+	
+settingsField(int, framebarTitleCharsMax, 12,
+	"Framebar Title Max Characters", SETTINGS_FRAMEBAR,
+	"; A number.\n"
+	"; Specifies the maximum number of characters that can be displayed in a framebar title.\n"
+	"; This does not include the \"P1 \" and \"P2 \" additional text that is displayed when \"showPlayerInFramebarTitle\" is true.\n"
+	"; You can use \"useSlangNames\" to help reduce the lengths of text displayed in framebar titles.\n"
+	"; The standard value is 12.")
+	
+settingsField(int, framebarDisplayedFramesCount, 80,
+	"Number Of Displayed Frames", SETTINGS_FRAMEBAR,
+	"; A number.\n"
+	"; Specifies the maximum number of frames that will be displayed on the screen at a time.\n"
+	"; If there're more frames stored (see \"framebarStoredFramesCount\") in the framebar than this number,\n"
+	"; a horizontal scrollbar will be displayed.\n"
+	"; This value can't be more than 200.\n"
+	"; The standard value is 80.")
+	
+settingsField(int, framebarStoredFramesCount, 200,
+	"Number Of Stored Frames", SETTINGS_FRAMEBAR,
+	"; A number.\n"
+	"; Specifies the maximum number of past frames that can be viewed by scrolling the framebar horizontally,\n"
+	"; including frames that are visible without having to scroll.\n"
+	"; This value can't be more than 200.\n"
+	"; The standard value is 200.")
+	
+settingsField(bool, frameAdvantage_dontUsePreBlockstunTime, true,
+	"Frame Advantage: Don't Use Pre-Blockstun Time", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; This setting will affect how the 'Frame Advantage' field in the UI is calculated.\n"
+	"; Normally, attacks put your opponent in blockstun right away, however, there are some moves that\n"
+	"; may put your opponent in blockstun after the move is over. Such moves are usually projectiles, such\n"
+	"; as Ky j.D or I-No Antidepressant Scale.\n"
+	"; When this setting is false, then, whenever the opponent enters blockstun, the time that you spent idle\n"
+	"; before that gets included in the frame advantage with a +. For example:\n"
+	"; You shoot a projectile and then recover. Then you and the opponent are just standing there for 1000000 frames.\n"
+	"; Then, the projectile, that you shot, puts the opponent into blockstun for 1 frame. Your frame advantage will be 1000001.\n"
+	"; Setting this to true will cause the idle time that you spent before the opponent entered blockstun to not be included\n"
+	"; in your frame advantage, and your frame advantage in the example above will be just +1.\n"
+	"; After changing this setting you don't need to repeat the last move, as the 'Frame Adv.' field will get updated automatically.")
+	
+settingsField(bool, skipGrabsInFramebar, true,
+	"Skip Grab/Super Animations In Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Setting this to true (default) will skip grab animations such as ground throw or some supers that connected in the framebar.")
+	
+settingsField(bool, showFramebarHatchedLineWhenSkippingGrab, true,
+	"Show Hatched/Dashed Slicing Line When Skipping Grab/Super In Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When this setting is true (default), if a grab or super is skipped because of the \"skipGrabsInFramebar\" setting,\n"
+	"; a white line made out of small diagonal hatches will be displayed on the framebar in places where the grab or super was skipped.")
+	
+settingsField(bool, showFramebarHatchedLineWhenSkippingHitstop, false,
+	"Show Hatched/Dashed Slicing Line When Skipping Hitstop In Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When this setting is true (which is not the default), if hitstop is skipped because of the \"neverIgnoreHitstop\"\n"
+	"; setting being false,\n"
+	"; a white line made out of small diagonal hatches will be displayed on the framebar in places where hitstop was skipped.")
+	
+settingsField(bool, showFramebarHatchedLineWhenSkippingSuperfreeze, true,
+	"Show Hatched/Dashed Slicing Line When Skipping Superfreeze In Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When this setting is true (default), if superfreeze (also called superflash) is skipped, which is always the case,\n"
+	"; a white line made out of small diagonal hatches will be displayed on the framebar in places where superfreeze was skipped.")
+	
+settingsField(bool, showP1FramedataInFramebar, true,
+	"Show P1 Framedata In Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed on top of P1's framebar.")
+	
+settingsField(bool, showP2FramedataInFramebar, true,
+	"Show P2 Framedata In Framebar", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar.")
+	
+settingsField(bool, neverIgnoreHitstop, false,
+	"Never Ignore Hitstop", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"
+	"; unless a projectile or a blocking Baiken (see \"ignoreHitstopForBlockingBaiken\") is present.\n"
+	"; If this is set to true, then we always show hitstop in the framebar.\n"
+	"; After changing this setting, you don't need to repeat the moves or actions to see updated result in the framebar.\n"
+	"; This setting can be changed with the \"toggleNeverIgnoreHitstop\" hotkey.")
+	
+settingsField(bool, ignoreHitstopForBlockingBaiken, false,
+	"Ignore Hitstop For Blocking Baiken", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,\n"
+	"; unless a projectile or a blocking Baiken is present.\n"
+	"; If this is set to true, then we ignore the blocking Baiken part and display hitstop in the framebar only\n"
+	"; when a projectile is present.\n"
+	"; There's another setting that controls the display of hitstop in the framebar: \"neverIgnoreHitstop\".\n"
+	"; If that setting is set to true, hitstop is always shown, no matter what \"ignoreHitstopForBlockingBaiken\" setting is.\n"
+	"; After changing this setting, you need to repeat the moves or actions to see updated result in the framebar.")
+	
+settingsField(bool, considerRunAndWalkNonIdle, false,
+	"Consider Running And Walking Non-Idle", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Normally we consider running and walking as being idle, which does not advance the framebar forward.\n"
+	"; The framebar only advances when one of the players is \"busy\".\n"
+	"; If this is set to true, then one player running or walking will be treated same way as \"busy\" and will advance the framebar.\n"
+	"; In the UI's 'Frame Advantage' display, idle running (except Leo's) and walking will still always be considered idle.")
+	
+settingsField(bool, considerCrouchNonIdle, false,
+	"Consider Crouching Non-Idle", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Normally we consider crouching as being idle, which does not advance the framebar forward.\n"
+	"; The framebar only advances when one of the players is \"busy\".\n"
+	"; If this is set to true, then one player crouching or walking will be treated same way as \"busy\" and will advance the framebar.\n"
+	"; A dummy who is crouching automatically due to training settings will still not be considered \"busy\" no matter what.\n"
+	"; In the UI's 'Frame Advantage' display, idle crouching will still always be considered idle.")
+	
+settingsField(bool, considerKnockdownWakeupAndAirtechIdle, false,
+	"Consider Knockdown, Wakeup and Airtech Idle", SETTINGS_FRAMEBAR,
+	"; Specify true or false\n"
+	"; This controls whether a character being knocked down, waking up or air recovering causes the framebar to advance forward (if you're also idle).\n"
+	"; Framebar only advances forward when one or both players are not idle.\n"
+	"; Framebar advancing forward means it continuously overwrites its oldest contents with new data to display.\n"
+	"; This could be bad if you wanted to study why a combo dropped, as some knockdowns can be very long and erase all the info you wanted to see.\n"
+	"; Setting this to true may prevent that.\n"
+	"; The first frame when the opponent is in OTG state (meaning if they get hit now, it will be OTG) and onwards -\n"
+	"; those frames do not get included in the framebar when this setting is true.\n"
+	"; But if you recover from your move later than the opponent enters OTG state, the frames are included anyway for your whole recovery\n"
+	"; for both you and the opponent, which means OTG state may partially or fully get included into the framebar even while this setting is true.\n"
+	"; In such cases, look for an animation start delimiter on the opponent's framebar, shown as a white ' between frames.")
+	
+settingsField(bool, considerIdleInvulIdle, false,
+	"Consider Invul While Being Idle As Idle", SETTINGS_FRAMEBAR,
+	"; Specify true or false\n"
+	"; After waking up, or leaving blockstun or hitstun, or airteching, usually there's some strike and/or throw invul while\n"
+	"; you're idle and are able to fully act. Framebar only advances forward when one or both players are not idle, however,\n"
+	"; if this invul is present, you can set this setting to false to advance the framebar anyway.")
+	
+settingsField(bool, considerDummyPlaybackNonIdle, false,
+	"Consider The Entirety Of Dummy Recording Playback Non-Idle", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Normally we consider standing as being idle, which does not advance the framebar forward.\n"
+	"; The framebar only advances when one of the players is \"busy\".\n"
+	"; If this is set to true, then as soon as you tell the dummy to play a recording slot, the entirety of the playback will be considered\n"
+	"; as \"busy\" and will advance the framebar, even if in parts of the recording the dummy is not doing anything.")
+	
+settingsField(bool, useColorblindHelp, false,
+	"Use Colorblindness Help", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; If true, certain types of frames in the framebar will be displayed with distinct hatches on them.\n"
+	"; Make sure the framebar is scaled wide enough and the screen resolution is large enough that you can see the hatches properly.\n"
+	"; To scale the framebar you can drag its right edge.")
+	
+settingsField(bool, comboRecipe_showDelaysBetweenCancels, true,
+	"Show Delays Between Cancels", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true (default) will show delays on dedicated separate lines in gray text in the following format: '(Delay #f)',\n"
+	"; where # is a number.")
+	
+settingsField(bool, comboRecipe_showIdleTimeBetweenMoves, true,
+	"Show Idle Time Between Moves", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true (default) will show idle time on dedicated separate lines in gray text in the following format: '(Idle #f)',\n"
+	"; where # is a number.")
+	
+settingsField(bool, comboRecipe_showDashes, true,
+	"Show Microdashes/Dashes", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true (default) will show microdashes and dashes on dedicated separate lines in the following format:\n"
+	"; '#f Microdash/Dash', where # is a number.")
+	
+settingsField(bool, comboRecipe_showWalks, true,
+	"Show Microwalks/Walks", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true (default) will show microwalks and walks on dedicated separate lines in the following format:\n"
+	"; '#f Microwalk/Walk/Microwalk Back/Walk Back', where # is a number.")
+	
+settingsField(bool, comboRecipe_showSuperJumpInstalls, true,
+	"Show Super Jump Installs", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true (default) will show super jump installs on dedicated separate lines in the following format: 'Super Jump Install'.\n"
+	"; This setting does not affect the display of (regular) jump installs, which are always displayed.")
+	
+settingsField(bool, comboRecipe_transparentBackground, false,
+	"Transparent Background", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true will make the Combo Recipe panel display without a background, just text and grid cell outlines.")
+	
+settingsField(int, startingTensionPulse, 0,
+	"Starting Tension Pulse", SETTINGS_GENERAL,
+	"; A number.\n"
+	"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.\n"
+	"; Must be in the range [-25000; +25000].")
+	
+settingsField(bool, hideWins, false,
+	"Hide Wins - On/Off", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Prevents wins from being displayed on the online rematch screen.\n"
+	"; Works both when you're playing a match or observing.")
+	
+settingsField(bool, hideWinsDirectParticipantOnly, false,
+	"Hide Wins - Only When Playing - On/Off", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Prevents wins from being displayed on the online rematch screen.\n"
+	"; Only works when you're playing a match, not when observing.")
+	
+settingsField(int, hideWinsExceptOnWins, 0,
+	"Hide Wins - Except When N Wins Reached", SETTINGS_GENERAL,
+	"; A number.\n"
+	"; Prevents wins from being hidden by the \"hideWins\" and \"hideWinsDirectParticipantOnly\" settings,\n"
+	"; when one of the players reaches the specified number of wins. Set to 0 or a negative number to disable.")
+	
+settingsField(bool, hideRankIcons, false,
+	"Hide Rank Icons", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Prevents rank icons (circle, arrow up, arrow down, equal sign) from showing up next to players.")
+	
+settingsField(bool, showDebugFields, false,
+	"Show Debug Fields", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will add a number of extra fields to the UI that display debug or miscellaneous information.")
+	
+settingsField(bool, ignoreNumpadEnterKey, false,
+	"Ignore Numpad Enter Key", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will hide the numpad Enter key presses from the game.")
+	
+settingsField(bool, ignoreRegularEnterKey, false,
+	"Ignore Regular Enter Key", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will hide the regular, non-numpad Enter key presses from the game.")
+#pragma warning(pop)

@@ -41,8 +41,8 @@ public:
 	void addPathElem(int x, int y, int inX, int inY);
 	void addPathElem(float xProjected, float yProjected, int x, int y, int inX, int inY);
 	PathElement& getPathElem(int index) const;
-	int count() const;
-	bool empty() const;
+	inline int count() const { return outlineCount; }
+	inline bool empty() const { return outlineCount == 0; }
 	int getStartPosition() const;
 	static PathElement& getPathElemStatic(int startIndex, int index);
 private:

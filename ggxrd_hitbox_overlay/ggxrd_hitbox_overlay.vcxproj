@@ -214,7 +214,13 @@
     <ClInclude Include="InputsIcon.h" />
     <ClInclude Include="InvisChipp.h" />
     <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="KeyDefinitions.h" />
+    <ClInclude Include="LineReader.h" />
+    <ClInclude Include="LineReaderFromString.h" />
+    <ClInclude Include="PackTextureSizes.h" />
     <ClInclude Include="RematchMenu.h" />
+    <ClInclude Include="SettingsDefinitions.h" />
+    <ClInclude Include="SettingsTopCommentDefinition.h" />
     <ClInclude Include="SpecificFramebarIds.h" />
     <ClInclude Include="Moves.h" />
     <ClInclude Include="pi.h" />
@@ -224,6 +230,7 @@
     <ClInclude Include="rectCombiner.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Settings.h" />
+    <ClInclude Include="SplitStringIterator.h" />
     <ClInclude Include="Stencil.h" />
     <ClInclude Include="logging.h" />
     <ClInclude Include="pch.h" />
@@ -287,6 +294,8 @@
     <ClCompile Include="InputsIcon.cpp" />
     <ClCompile Include="InvisChipp.cpp" />
     <ClCompile Include="Keyboard.cpp" />
+    <ClCompile Include="LineReader.cpp" />
+    <ClCompile Include="LineReaderFromString.cpp" />
     <ClCompile Include="logging.cpp" />
     <ClCompile Include="Moves.cpp" />
     <ClCompile Include="pch.cpp">
@@ -301,6 +310,8 @@
     <ClCompile Include="PngResource.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Settings.cpp" />
+    <ClCompile Include="SettingsTopCommentDefinition.cpp" />
+    <ClCompile Include="SplitStringIterator.cpp" />
     <ClCompile Include="Stencil.cpp" />
     <ClCompile Include="TexturePacker.cpp" />
     <ClCompile Include="Throws.cpp" />
@@ -315,6 +326,7 @@
     <MASM Include="asmhooks.asm">
       <FileType>Document</FileType>
     </MASM>
+    <None Include="..\regenerate_ini_and_update_readme.ps1" />
     <None Include="prebuild.ps1" />
     <None Include="README.md" />
   </ItemGroup>
@@ -352,11 +364,8 @@
     <Image Include="..\images\Digit9.png" />
     <Image Include="..\images\EddieIdleFrame.png" />
     <Image Include="..\images\EddieIdleFrame_NonColorblind.png" />
-    <Image Include="..\images\FirstFrame.png" />
     <Image Include="..\images\GraybeatAirHitstunFrame.png" />
     <Image Include="..\images\GraybeatAirHitstun_NonColorblind.png" />
-    <Image Include="..\images\HitConnectedFrame.png" />
-    <Image Include="..\images\HitConnectedFrameBlack.png" />
     <Image Include="..\images\IdleFrame.png" />
     <Image Include="..\images\IdleFrame_CantBlock.png" />
     <Image Include="..\images\IdleFrame_CantBlock_NonColorblind.png" />
@@ -376,7 +385,6 @@
     <Image Include="..\images\NonActiveFrame_NonColorblind.png" />
     <Image Include="..\images\NoneFrame.png" />
     <Image Include="..\images\OTG.png" />
-    <Image Include="..\images\Powerup.png" />
     <Image Include="..\images\ProjectileFrame.png" />
     <Image Include="..\images\ProjectileFrame_NonColorblind.png" />
     <Image Include="..\images\RecoveryFrame.png" />
@@ -392,8 +400,6 @@
     <Image Include="..\images\StrikeInvul.png" />
     <Image Include="..\images\SuperArmorActive.png" />
     <Image Include="..\images\SuperArmorActive_Full.png" />
-    <Image Include="..\images\SuperArmorActive_Full_NonColorblind.png" />
-    <Image Include="..\images\SuperArmorActive_NonColorblind.png" />
     <Image Include="..\images\ThrowInvul.png" />
     <Image Include="..\images\XStunFrame.png" />
     <Image Include="..\images\XStunFrame_CanCancel.png" />
@@ -411,7 +417,7 @@
     <Image Include="..\images\Zato_BreakTheLaw_Stage3_Released_NonColorblind.png" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\MyPixelShader.hlsl">
+    <Text Include="..\MyPixelShader.hlsl">
       <FileType>Document</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">3.0</ShaderModel>
@@ -423,7 +429,7 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/Gec</AdditionalOptions>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)\..\shader_test_compile\%(Filename).cso</ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)\..\shader_test_compile\%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
+    </Text>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

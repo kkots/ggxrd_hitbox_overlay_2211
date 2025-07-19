@@ -2,8 +2,9 @@
 class ImGuiCorrecter
 {
 public:
-	void interjectIntoImGui(float screenWidth, float screenHeight,
+	void adjustMousePosition(float screenWidth, float screenHeight,
 			bool usePresentRect, int presentRectW, int presentRectH);
+	bool checkWindowHasSize(const char* name, short* width, short* height, bool* windowExists);
 private:
 	int processedIds[100];
 	int processedIdsCount = 0;

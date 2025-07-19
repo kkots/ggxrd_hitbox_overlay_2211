@@ -8,6 +8,7 @@
 #include "StringWithLength.h"
 #include "HandleWrapper.h"
 
+const int JOY_START = 0x107;
 const int JOY_BTN_0 = 0x107;
 const int JOY_BTN_1 = 0x108;
 const int JOY_BTN_2 = 0x109;
@@ -40,6 +41,8 @@ const int JOY_XBOX_TYPE_S_RIGHT_STICK_LEFT = 0x123;  // lRx, lRy
 const int JOY_XBOX_TYPE_S_RIGHT_STICK_UP = 0x124;
 const int JOY_XBOX_TYPE_S_RIGHT_STICK_RIGHT = 0x125;
 const int JOY_XBOX_TYPE_S_RIGHT_STICK_DOWN = 0x126;
+// inclusive
+const int JOY_END = 0x126;
 
 class Settings
 {
@@ -52,129 +55,88 @@ public:
 		int code = 0;
 	};
 	std::mutex keyCombosMutex;
-	std::map<std::string, Key> keys;  // string to int code
+	struct StringView {
+		StringView() = default;
+		StringView(const char* start, const char* end) : start(start), end(end) { }
+		StringView(const StringWithLength& other) : start(other.txt), end(other.txt + other.length) { }
+		StringView(const std::string& str) :
+			start(str.empty() ? nullptr : str.c_str()),
+			end(str.empty() ? nullptr : str.c_str() + str.size()) { }
+		template<size_t size> inline StringView(const char(&array)[size]) : start(array), end(array + size - 1) { }
+		const char* start = nullptr;
+		const char* end = nullptr;
+		inline int length() const { return end - start; }
+	};
+	struct StringViewHash {
+		inline std::size_t operator()(const StringView& k) const {
+			return hashString(k.start, k.end);
+		}
+	};
+	struct StringViewCompare {
+		inline bool operator()(const StringView& k, const StringView& other) const {
+			if (k.end - k.start != other.end - other.start) return false;
+			return _strnicmp(k.start, other.start, k.end - k.start) == 0;
+		}
+	};
+	struct StringViewLess {
+		inline bool operator()(const StringView& k, const StringView& other) const {
+			const char* kPtr = k.start;
+			const char* otherPtr = other.start;
+			while (true) {
+				if (kPtr >= k.end) {
+					if (otherPtr >= other.end) return false;  // strings are equal
+					return true;
+				} else if (otherPtr >= other.end) {
+					return false;
+				} else {
+					int diff = toupper(*kPtr) - toupper(*otherPtr);
+					if (diff < 0) {
+						return true;
+					} else if (diff > 0) {
+						return false;
+					} else {  // diff == 0
+						++kPtr;
+						++otherPtr;
+						continue;
+					}
+				}
+						
+			}
+		}
+	};
+	std::map<StringView, Key, StringViewLess> keys;  // string to int code
 	std::map<int, Key*> reverseKeys; // int code to string
-	std::vector<int> gifModeToggle;
-	std::vector<int> noGravityToggle;
-	std::vector<int> freezeGameToggle;
-	std::vector<int> slowmoGameToggle;
-	std::vector<int> allowNextFrameKeyCombo;
-	std::vector<int> disableModKeyCombo;
-	std::vector<int> disableHitboxDisplayToggle;
-	std::vector<int> continuousScreenshotToggle;
-	std::vector<int> gifModeToggleBackgroundOnly;
-	std::vector<int> togglePostEffectOnOff;
-	std::vector<int> gifModeToggleCameraCenterOnly;
-	std::vector<int> toggleCameraCenterOpponent;
-	std::vector<int> gifModeToggleHideOpponentOnly;
-	std::vector<int> toggleHidePlayer;
-	std::vector<int> gifModeToggleHudOnly;
-	std::vector<int> screenshotBtn;
-	std::vector<int> modWindowVisibilityToggle;
-	std::vector<int> framebarVisibilityToggle;
-	std::vector<int> toggleDisableGrayHurtboxes;
-	std::vector<int> toggleNeverIgnoreHitstop;
-	std::vector<int> toggleShowInputHistory;
-	std::vector<int> toggleAllowCreateParticles;
-	std::vector<int> clearInputHistory;
+	static const char* const SETTINGS_HITBOX;
+	static const char* const SETTINGS_HITBOX_SETTINGS;
+	static const char* const SETTINGS_GENERAL;
+	static const char* const SETTINGS_FRAMEBAR;
+	static const char* const SETTINGS_COMBO_RECIPE;
+	static const char* const SETTINGS_CHARACTER_SPECIFIC;
+	bool keyCombosBegin;
+	#define settingsKeyCombo(name, displayName, defaultValue, description) std::vector<int> name;
+	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment)
+	#include "SettingsDefinitions.h"
+	#undef settingsField
+	#undef settingsKeyCombo
+	bool keyCombosEnd;
+	
 	std:: mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
-	std::string screenshotPath;
-	std::atomic_bool displayUIOnTopOfPauseMenu = true;
-	std::atomic_bool dodgeObsRecording = true;
-	std::atomic_bool allowContinuousScreenshotting = false;
-	std::atomic_bool dontUseScreenshotTransparency = false;
-	std::atomic_bool turnOffPostEffectWhenMakingBackgroundBlack = true;
-	std::atomic_int slowmoTimes = 3;
-	std::atomic_int framebarHeight = 19;
-	std::atomic_int framebarTitleCharsMax = 12;
-	std::atomic_int framebarDisplayedFramesCount = 80;
-	std::atomic_int framebarStoredFramesCount = 200;
-	std::atomic_int positionResetDistBetweenPlayers = 105000;
-	std::atomic_int positionResetDistFromCorner = 0;
-	std::atomic_int startingTensionPulse = 0;
-	std::atomic_int hideWinsExceptOnWins = 0;
-	const float cameraCenterOffsetX_defaultValue = 0.F;
-	const float cameraCenterOffsetY_defaultValue = 106.4231F;
-	const float cameraCenterOffsetY_WhenForcePitch0_defaultValue = 130.4231F;
-	const float cameraCenterOffsetZ_defaultValue = 540.F;
-	float cameraCenterOffsetX = cameraCenterOffsetX_defaultValue;
-	float cameraCenterOffsetY = cameraCenterOffsetY_defaultValue;
-	float cameraCenterOffsetY_WhenForcePitch0 = cameraCenterOffsetY_WhenForcePitch0_defaultValue;
-	float cameraCenterOffsetZ = cameraCenterOffsetZ_defaultValue;
-	std::atomic_bool startDisabled = false;
-	std::atomic_bool drawPushboxCheckSeparately = true;
-	std::atomic_bool forceZeroPitchDuringCameraCentering = true;
-	std::atomic_bool modWindowVisibleOnStart = true;
-	std::atomic_bool closingModWindowAlsoHidesFramebar = true;
-	std::atomic_bool dontShowMoveName = true;
-	std::atomic_bool neverIgnoreHitstop = false;
-	std::atomic_bool ignoreHitstopForBlockingBaiken = false;
-	std::atomic_bool considerRunAndWalkNonIdle = false;
-	std::atomic_bool considerCrouchNonIdle = false;
-	std::atomic_bool considerDummyPlaybackNonIdle = false;
-	std::atomic_bool useSimplePixelBlender = false;
-	std::atomic_bool usePixelShader = true;
-	std::atomic_bool dontShowBoxes = false;
-	std::atomic_bool neverDisplayGrayHurtboxes = false;
-	std::atomic_bool showFramebar = true;
-	std::atomic_bool showFramebarInTrainingMode = true;
-	std::atomic_bool showFramebarInReplayMode = true;
-	std::atomic_bool showFramebarInOtherModes = true;
-	std::atomic_bool showStrikeInvulOnFramebar = true;
-	std::atomic_bool showSuperArmorOnFramebar = true;
-	std::atomic_bool showThrowInvulOnFramebar = true;
-	std::atomic_bool showOTGOnFramebar = true;
-	std::atomic_bool showFirstFramesOnFramebar = true;
-	std::atomic_bool considerSimilarFrameTypesSameForFrameCounts = true;
-	std::atomic_bool considerSimilarIdleFramesSameForFrameCounts = false;
-	std::atomic_bool combineProjectileFramebarsWhenPossible = true;
-	std::atomic_bool eachProjectileOnSeparateFramebar = false;
-	std::atomic_bool dontClearFramebarOnStageReset = false;
-	std::atomic_bool useColorblindHelp = false;
-	std::atomic_bool dontTruncateFramebarTitles = false;
-	std::atomic_bool useSlangNames = false;
-	std::atomic_bool allFramebarTitlesDisplayToTheLeft = true;
-	std::atomic_bool showPlayerInFramebarTitle = true;
-	std::atomic_bool considerKnockdownWakeupAndAirtechIdle = false;
-	std::atomic_bool considerIdleInvulIdle = false;
-	std::atomic_bool frameAdvantage_dontUsePreBlockstunTime = true;
-	std::atomic_bool skipGrabsInFramebar = true;
-	std::atomic_bool showFramebarHatchedLineWhenSkippingGrab = true;
-	std::atomic_bool showFramebarHatchedLineWhenSkippingHitstop = false;
-	std::atomic_bool showFramebarHatchedLineWhenSkippingSuperfreeze = true;
-	std::atomic_bool showP1FramedataInFramebar = true;
-	std::atomic_bool showP2FramedataInFramebar = true;
-	std::atomic_bool showComboProrationInRiscGauge = false;
-	std::atomic_bool displayInputHistoryWhenObserving = true;
-	std::atomic_bool displayInputHistoryInSomeOfflineModes = false;
-	std::atomic_bool showDurationsInInputHistory = false;
-	std::atomic_bool useAlternativeStaggerMashProgressDisplay = false;
-	std::atomic_bool dontShowMayInteractionChecks = false;
-	std::atomic_bool showMilliaBadMoonBuffHeight = false;
-	std::atomic_bool showFaustOwnFlickRanges = true;
-	std::atomic_bool ignoreScreenshotPathAndSaveToClipboard = false;
-	std::atomic_bool showBedmanTaskCHeightBuffY = false;
-	std::atomic_bool showJackoGhostPickupRange = false;
-	std::atomic_bool showJackoSummonsPushboxes = false;
-	std::atomic_bool showJackoAegisFieldRange = false;
-	std::atomic_bool showJackoServantAttackRange = false;
-	std::atomic_bool usePositionResetMod = false;
-	std::atomic_bool showDebugFields = false;
-	std::atomic_bool ignoreNumpadEnterKey = false;
-	std::atomic_bool ignoreRegularEnterKey = false;
-	std::atomic_bool comboRecipe_showDelaysBetweenCancels = true;
-	std::atomic_bool comboRecipe_showIdleTimeBetweenMoves = true;
-	std::atomic_bool comboRecipe_showDashes = true;
-	std::atomic_bool comboRecipe_showWalks = true;
-	std::atomic_bool comboRecipe_showSuperJumpInstalls = true;
-	std::atomic_bool comboRecipe_transparentBackground = false;
-	std::atomic_bool clearInputHistoryOnStageReset = false;
-	std::atomic_bool clearInputHistoryOnStageResetInTrainingMode = false;
-	std::atomic_bool hideWins = false;
-	std::atomic_bool hideWinsDirectParticipantOnly = false;
-	std::atomic_bool hideRankIcons = false;
+	typedef std::string ScreenshotPath;
+	#define int std::atomic_int
+	#define bool std::atomic_bool
+	#define settingsKeyCombo(name, displayName, defaultValue, description) 
+	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type name = defaultValue;
+	#include "SettingsDefinitions.h"
+	#undef settingsField
+	#undef settingsKeyCombo
+	#undef int
+	#undef bool
 	bool settingsMembersEnd = false;
+	const float cameraCenterOffsetX_defaultValue = cameraCenterOffsetX;
+	const float cameraCenterOffsetY_defaultValue = cameraCenterOffsetY;
+	const float cameraCenterOffsetY_WhenForcePitch0_defaultValue = cameraCenterOffsetY_WhenForcePitch0;
+	const float cameraCenterOffsetZ_defaultValue = cameraCenterOffsetZ;
 	const char* getKeyRepresentation(int code);
 	void readSettings(bool isFirstEverRead);
 	void writeSettings();
@@ -185,35 +147,58 @@ public:
 		StringWithLength uiDescriptionWithLength;
 	};
 	void onKeyCombosUpdated();
-	void getComboInfo(std::vector<int>& keyCombo, ComboInfo* info);
+	void getComboInfo(const std::vector<int>& keyCombo, ComboInfo* info) const;
 	const char* getOtherUIName(void* ptr);
 	StringWithLength getOtherUINameWithLength(void* ptr);
 	const char* getOtherUIFullName(void* ptr);
 	const char* getOtherUIDescription(void* ptr);
 	StringWithLength getOtherUIDescriptionWithLength(void* ptr);
-	const char* getOtherINIDescription(void* ptr);
+	StringWithLength getOtherINIDescription(void* ptr);
 	std::string convertToUiDescription(const char* iniDescription);
-	const char* getComboRepresentation(std::vector<int>& toggle);
+	StringWithLength getComboRepresentation(const std::vector<int>& toggle);
+	inline int getMinKeyCode() const {
+		return minKeyCode;
+	}
+	inline int getMaxKeyCode() const {
+		return maxKeyCode;
+	}
 private:
 	struct KeyComboToParse {
+		size_t keyLength = 0;
 		const char* name = nullptr;
 		const char* uiName = nullptr;
 		std::string uiFullName;
 		std::vector<int>* keyCombo = nullptr;
-		const char* defaultValue = nullptr;
-		const char* iniDescription = nullptr;
+		StringWithLength defaultValue;
+		StringWithLength iniDescription;
 		std::string uiDescription;
 		bool isParsed = false;
 		bool representationGenerated = false;
 		std::string representation;
 		void generateRepresentation();
-		KeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription);
+		KeyComboToParse(size_t keyLength, const char* name, const char* uiName, std::vector<int>* keyCombo, const StringWithLength& defaultValue, const StringWithLength& iniDescription);
 	};
-	std::map<std::string, KeyComboToParse> keyCombosToParse;
+	std::unordered_map<StringView, KeyComboToParse, StringViewHash, StringViewCompare> keyCombosToParse;
+	std::vector<KeyComboToParse*> offsetToKeyComboToParse;
+	inline size_t offsetToKeyComboIndex(const std::vector<int>& data) const {
+		return offsetToKeyComboIndex((const void*)&data);
+	}
+	inline size_t offsetToKeyComboIndex(const void* data) const {
+		return (
+			(BYTE*)data - (BYTE*)&keyCombosBegin
+		) / sizeof (std::vector<int>);
+	}
+	inline KeyComboToParse& getKeyComboToParseByOffset(const std::vector<int>& data) {
+		return *offsetToKeyComboToParse[offsetToKeyComboIndex(data)];
+	}
+	inline const KeyComboToParse& getKeyComboToParseByOffset(const std::vector<int>& data) const {
+		return *offsetToKeyComboToParse[offsetToKeyComboIndex(data)];
+	}
 	struct MyKey {
 		const char* str;
 	};
 	static int hashString(const char* str, int startingHash = 0);
+	static int hashString(const char* strStart, const char* strEnd, int startingHash = 0);
 	struct MyHashFunction {
 		inline std::size_t operator()(const char* key) const {
 			return hashString(key);
@@ -225,29 +210,36 @@ private:
 	};
 	struct MyCompareFunction {
 		inline bool operator()(const char* key, const char* other) const {
-			return key == other || strcmp(key, other) == 0;
+			return key == other || _stricmp(key, other) == 0;
 		}
 	};
 	std::unordered_map<const char*, IniNameToUiNameMapElement, MyHashFunction, MyCompareFunction> iniNameToUiNameMap;
-	void insertKeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const char* defaultValue, const char* iniDescription);
+	void insertKeyComboToParse(const char* name, const char* uiName, std::vector<int>* keyCombo, const StringWithLength& defaultValue, const StringWithLength& iniDescription);
 	void addKey(const char* name, const char* uiName, int code);
 	static int findMinCommentPos(const char* buf);
-	static std::string parseKeyName(const char* buf);
-	static std::string getKeyValue(const char* buf);
-	void addKeyRange(char start, char end);
+	static int findMinCommentPos(const char* bufStart, const char* bufEnd);
+	static void parseKeyName(const char* buf, StringView& result);
+	static void getKeyValue(const char* buf, std::string& result);
+	void addKeyRange(const char* str);
 	static int findChar(const char* buf, char c, int startingPos = 0);
+	static int findChar(const char* bufStart, const char* bufEnd, char c, int startingPos = 0);
 	static int findCharRev(const char* buf, char c);
 	static std::pair<int, int> trim(std::string& str); // Trims left and right in-place. Returns how many chars were cut off from left (.first) and from right (.second).
-	static std::string toUppercase(const std::string& str);
 	static std::vector<std::string> split(const std::string& str, char c);
-	bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes);
+	inline bool parseKeys(const char* keyName, const StringWithLength& keyValue, std::vector<int>& keyCodes) {
+		return parseKeys(keyName, keyValue.txt, keyValue.txt + keyValue.length, keyCodes);
+	}
+	inline bool parseKeys(const char* keyName, const std::string& keyValue, std::vector<int>& keyCodes) {
+		return parseKeys(keyName, keyValue.c_str(), keyValue.c_str() + keyValue.size(), keyCodes);
+	}
+	bool parseKeys(const char* keyName, const char* keyValueStart, const char* keyValueEnd, std::vector<int>& keyCodes);
 	static bool parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer);
 	static bool parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue);
-	static const char* formatBoolean(bool value);
+	static StringWithLength formatBoolean(bool value);
 	static bool parseFloat(const char* keyName, const std::string& keyValue, float& floatValue);
 	static float parseFloat(const char* inputString, bool* error = nullptr);
-	static std::string formatFloat(float f);
-	static std::string formatInteger(int f);
+	static void formatFloat(float f, std::string& result);
+	static void formatInteger(int f, std::string& result);
 	static std::wstring getCurrentDirectory();
 	void registerListenerForChanges();
 	std::wstring settingsPath;
@@ -265,23 +257,41 @@ private:
 	static DWORD WINAPI changesListenerLoop(LPVOID lpThreadParameter);
 	void writeSettingsMain();
 	static bool isWhitespace(const char* str);
+	static bool isWhitespace(const char* strStart, const char* strEnd);
 	static int compareKeyCombos(const std::vector<int>& left, const std::vector<int>& right);
 	const char* getKeyTxtName(int code);
 	void trashComboRepresentation(std::vector<int>& toggle);
 	struct OtherDescription {
 		void* ptr = nullptr;
 		const char* iniName = nullptr;
-		std::string iniNameAllCaps;
 		const char* uiName = nullptr;
 		StringWithLength uiNameWithLength;
 		std::string uiFullPath;
-		const char* iniDescription = nullptr;
+		StringWithLength iniDescription;
 		std::string uiDescription;
 	};
 	std::vector<OtherDescription> otherDescriptions;
-	void registerOtherDescription(void* ptr, const char* iniName, const char* uiName, const char* uiPath, const char* iniDescription);
+	void registerOtherDescription(void* ptr, const char* iniName, const char* uiName, const char* uiPath, StringWithLength iniDescription);
 	std::vector<OtherDescription*> pointerIntoSettingsIntoDescription;
-	std::unordered_map<std::string, DWORD> settingNameToOffset;  // case-insensitive
+	std::unordered_map<StringView, DWORD, StringViewHash, StringViewCompare> settingNameToOffset;  // case-insensitive
+	static inline const char* rewindWhitespace(const char* ptr, const char* strStart) {
+		while (ptr != strStart && *ptr <= 32) --ptr;
+		return ptr;
+	}
+	static inline const char* skipWhitespace(const char* ptr, const char* strEnd) {
+		while (ptr != strEnd && *ptr <= 32) ++ptr;
+		return ptr;
+	}
+	static inline char* rewindWhitespace(char* ptr, char* strStart) {
+		while (ptr != strStart && *ptr <= 32) --ptr;
+		return ptr;
+	}
+	static inline char* skipWhitespace(char* ptr, char* strEnd) {
+		while (ptr != strEnd && *ptr <= 32) ++ptr;
+		return ptr;
+	}
+	int minKeyCode = INT_MAX;
+	int maxKeyCode = INT_MIN;
 };
 
 extern Settings settings;

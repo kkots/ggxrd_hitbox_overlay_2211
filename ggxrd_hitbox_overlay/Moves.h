@@ -401,6 +401,8 @@ public:
 	int milliaSecretGardenUnlink = 0;
 	bool milliaSecretGardenUnlinkFailedToFind = false;
 	void fillMilliaSecretGardenUnlink(BYTE* funcStart);
+	int elpheltRifleFireStartup = 0;
+	void fillElpheltRifleFireStartup(Entity ent);
 private:
 	struct MyKey {
 		CharacterType charType = (CharacterType)-1;

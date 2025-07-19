@@ -950,6 +950,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			PlayerInfo& player = players[i];
 			player.wasEnableNormals = false;
 			player.wasPrevFrameEnableNormals = false;
+			player.wasPrevFrameEnableWhiffCancels = false;
 		}
 	}
 	bool framebarAdvanced = false;
@@ -4470,8 +4471,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& (
 							player.playerval0
 							&& (
-								!player.playerval1
-								|| player.playerval1 && !player.prevFramePlayerval1
+								!player.elpheltWasPlayerval1
+								|| !player.elpheltPrevFrameWasPlayerval1 && player.elpheltWasPlayerval1
 							)
 							&& (
 								player.cmnActIndex == CmnActStand
@@ -5962,6 +5963,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (charge) player.chargeDownLast = charge;
 				currentFrame.chargeDownLast = player.chargeDownLast;
 				
+				static const StringWithLength elpheltShotgunFire = "Shotgun_Fire_";
 				currentFrame.powerup = player.move.powerup && player.move.powerup(player);
 				if (currentFrame.powerup) {
 					currentFrame.powerupExplanation = player.move.powerupExplanation ? player.move.powerupExplanation(player) : nullptr;
@@ -5970,6 +5972,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.powerup = true;
 					currentFrame.powerupExplanation = "Picked up Silent Force";
 					currentFrame.dontShowPowerupGraphic = false;
+				} else if (player.charType == CHARACTER_TYPE_ELPHELT
+						&& player.playerval0 && !player.elpheltPrevFrameWasPlayerval1 && player.elpheltWasPlayerval1
+						&& (
+							player.cmnActIndex == CmnActCrouch2Stand
+							|| player.cmnActIndex == CmnActStand
+							|| player.cmnActIndex == NotACmnAct
+							&& strncmp(player.anim, elpheltShotgunFire.txt, elpheltShotgunFire.length) == 0
+						)) {
+					currentFrame.powerup = true;
+					currentFrame.powerupExplanation = "Ms. Travailler reached maximum charge.";
 				} else {
 					currentFrame.powerupExplanation = nullptr;
 					currentFrame.dontShowPowerupGraphic = false;
@@ -6491,7 +6503,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFrameMaxHit = player.pawn.maxHit();
 			player.prevFramePlayerval0 = player.playerval0;
 			player.prevFramePlayerval1 = player.playerval1;
-			player.prevFramePlayerval2 = player.wasPlayerval[2];
+			player.elpheltPrevFrameWasPlayerval1 = player.elpheltWasPlayerval1;
 			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
 			player.prevFrameRomanCancelAvailability = player.pawn.romanCancelAvailability();
 			player.prevBbscrvar5 = player.pawn.bbscrvar5();
@@ -6838,7 +6850,7 @@ void EndScene::processKeyStrokes() {
 		}
 		ui.slowmoGame = game.slowmoGame;
 	}
-	if (keyboard.gotPressed(settings.disableModKeyCombo)) {
+	if (keyboard.gotPressed(settings.disableModToggle)) {
 		if (gifMode.modDisabled == true) {
 			gifMode.modDisabled = false;
 			logwrap(fputs("Mod enabled\n", logfile));
@@ -7994,6 +8006,7 @@ void EndScene::frameCleanup() {
 		++it;
 	}
 	for (PlayerInfo& player : players) {
+		player.elpheltFirstWasPlayerval1Measurement = true;
 		player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame = true;
 		player.jumpNonCancel = false;
 		player.superJumpNonCancel = false;
@@ -8016,6 +8029,8 @@ void EndScene::frameCleanup() {
 		player.wasEnableAirtech = false;
 		player.wasAttackCollidedSoCanCancelNow = false;
 		player.wasPrevFrameEnableNormals = player.wasEnableNormals;
+		player.wasPrevFrameEnableWhiffCancels = player.wasEnableWhiffCancels;
+		player.wasPrevFrameForceDisableFlags = player.wasForceDisableFlags;
 		player.wasEnableNormals = false;
 		player.wasCantAirdash = true;
 		player.wasCanYrc = false;
@@ -8391,6 +8406,20 @@ UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRender
 	} else {
 		ui.copyDrawDataTo(drawData);
 	}
+	needUpdateFramebarTexture = false;
+	if (endScene.needUpdateGraphicsFramebarTexture) {
+		endScene.needUpdateGraphicsFramebarTexture = false;
+		const PngResource* uiFramebarTexture = nullptr;
+		const PackTextureSizes* uiSizes = nullptr;
+		bool isColorblind = false;
+		ui.getFramebarTexture(&uiFramebarTexture, &uiSizes, &isColorblind);
+		if (uiFramebarTexture && uiSizes) {
+			needUpdateFramebarTexture = true;
+			framebarTexture = *uiFramebarTexture;
+			framebarSizes = *uiSizes;
+			framebarColorblind = isColorblind;
+		}
+	}
 }
 
 // Runs on the main thread
@@ -8440,7 +8469,12 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			ui.drawingPostponed = drawingPostponedLocal;
 			ui.needSplitFramebar = uiWillBeDrawnOnTopOfPauseMenu && !drawingPostponedLocal && pauseMenuOpen && ui.visible;
 			ui.needShowFramebarCached = ui.needShowFramebar();
+			ui.needUpdateGraphicsFramebarTexture = false;
 			ui.prepareDrawData();
+			if (ui.needUpdateGraphicsFramebarTexture) {
+				ui.needUpdateGraphicsFramebarTexture = false;
+				needUpdateGraphicsFramebarTexture = true;
+			}
 			needEnqueueUiWithPoints = *aswEngine
 				&& ui.drawData
 				&& (!uiWillBeDrawnOnTopOfPauseMenu || ui.drewFramebar && ui.needSplitFramebar)
@@ -8595,6 +8629,8 @@ void EndScene::executeDrawBoxesRenderCommand(DrawBoxesRenderCommand* command) {
 void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderCommand* command) {
 	if (endScene.shutdown || graphics.shutdown) return;
 	
+	command->uiOrFramebarDrawData.applyFramebarTexture();
+	
 	bool hasFramebarDrawData = !command->uiOrFramebarDrawData.drawData.empty()
 		&& !command->uiOrFramebarDrawData.drawingPostponed
 		&& !graphics.drawingPostponed();
@@ -8709,7 +8745,11 @@ BYTE* EndScene::getIconsUTexture2D() {
 // Runs on the graphics thread
 void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 	if (shutdown || graphics.shutdown) return;
+	
+	command->uiOrFramebarDrawData.applyFramebarTexture();
+	
 	if (!graphics.canDrawOnThisFrame()) return;
+	
 	IDirect3DTexture9* tex = getTextureFromUTexture2D(command->uiOrFramebarDrawData.iconsUTexture2D);
 	graphics.endSceneIsAwareOfDrawingPostponement = command->uiOrFramebarDrawData.drawingPostponed;
 	graphics.obsStoppedCapturingFromEndScenesPerspective = command->uiOrFramebarDrawData.obsStoppedCapturing;
@@ -8886,6 +8926,10 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 	if (!iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (player.pawn) {
+			if (player.elpheltFirstWasPlayerval1Measurement) {
+				player.elpheltFirstWasPlayerval1Measurement = false;
+				player.elpheltWasPlayerval1 = pawn.playerVal(1);
+			}
 			player.wasPlayerval[0] = pawn.playerVal(0);
 			player.wasPlayerval[1] = pawn.playerVal(1);
 			player.wasPlayerval[2] = pawn.playerVal(2);
@@ -8919,7 +8963,11 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			player.wasProhibitFDTimer = min(127, pawn.prohibitFDTimer());
 			player.wasAirdashHorizontallingTimer = min(127, pawn.airdashHorizontallingTimer());
 			player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
-			player.wasEnableWhiffCancels = player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels();
+			player.wasEnableWhiffCancels = pawn.isRCFrozen()
+				? player.wasPrevFrameEnableWhiffCancels
+				: (
+					player.wasEnableWhiffCancels && pawn.currentAnimDuration() != 1 || pawn.enableWhiffCancels()
+				);
 			player.wasEnableSpecials = pawn.isRCFrozen()
 				? player.wasPrevFrameEnableSpecials
 				: player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();
@@ -8927,7 +8975,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			player.wasEnableJumpCancel = player.wasEnableJumpCancel && pawn.currentAnimDuration() != 1 || pawn.enableJumpCancel() && pawn.attackCollidedSoCanJumpCancelNow();
 			player.wasAttackCollidedSoCanCancelNow = player.wasAttackCollidedSoCanCancelNow && pawn.currentAnimDuration() != 1 || pawn.attackCollidedSoCanCancelNow();
 			player.wasEnableAirtech = player.wasEnableAirtech && pawn.currentAnimDuration() != 1 || pawn.enableAirtech();
-			player.wasForceDisableFlags = pawn.forceDisableFlags();
+			player.wasForceDisableFlags = pawn.isRCFrozen() ? player.wasPrevFrameForceDisableFlags : pawn.forceDisableFlags();
 			player.obtainedForceDisableFlags = true;
 			if (pawn.currentAnimDuration() == 1) {
 				player.wasCancels.unsetWasFoundOnThisFrame(false);
@@ -10803,3 +10851,11 @@ void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
 	player.bedmanInfo.hasTaskA = headType == 'A';
 	player.bedmanInfo.hasTaskAApostrophe = headType == 'B';
 }
+
+void UiOrFramebarDrawData::applyFramebarTexture() const {
+	if (needUpdateFramebarTexture
+			&& graphics.needUpdateFramebarTexture(&framebarSizes, framebarColorblind)) {
+		graphics.updateFramebarTexture(&framebarSizes, framebarTexture, framebarColorblind);
+	}
+}
+	

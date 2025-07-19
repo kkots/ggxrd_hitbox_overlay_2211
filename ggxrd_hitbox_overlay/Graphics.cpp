@@ -429,7 +429,9 @@ void Graphics::resetHook() {
 	offscreenSurfaceWidth = 0;
 	offscreenSurfaceHeight = 0;
 	vertexBuffer = NULL;
-	framesTexture = nullptr;
+	framesTextureHelp = nullptr;
+	framesTextureFramebar = nullptr;
+	framesSystemTextureFramebar = nullptr;
 	outlinesRTSamplingTexture = nullptr;
 	pixelShader = nullptr;
 	vertexShader = nullptr;
@@ -2284,40 +2286,47 @@ void Graphics::HookHelp::FSuspendRenderingThreadDestructorHook() {
 	graphics.orig_FSuspendRenderingThreadDestructor((char*)this);
 }
 
-IDirect3DTexture9* Graphics::getFramesTexture(IDirect3DDevice9* device) {
-	if (failedToCreateFramesTexture) return nullptr;
-	if (framesTexture) return framesTexture;
+IDirect3DTexture9* Graphics::getFramesTexturePart(IDirect3DDevice9* device, const PngResource& packedFramesTexture,
+		bool* failedToCreate, CComPtr<IDirect3DTexture9>& texture, CComPtr<IDirect3DTexture9>* systemTexturePtr) {
+	if (*failedToCreate) return nullptr;
+	if (texture) return texture;
 	CComPtr<IDirect3DTexture9> systemTexture;
-	const PngResource& packedFramesTexture = ui.getPackedFramesTexture();
-	if (FAILED(device->CreateTexture(packedFramesTexture.width, packedFramesTexture.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &systemTexture, NULL))) {
-		logwrap(fputs("CreateTexture failed\n", logfile));
-		failedToCreateFramesTexture = true;
-		return nullptr;
+	if (!systemTexturePtr) {
+		systemTexturePtr = std::addressof(systemTexture);
 	}
-	if (FAILED(device->CreateTexture(packedFramesTexture.width, packedFramesTexture.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &framesTexture, NULL))) {
-		logwrap(fputs("CreateTexture (2) failed\n", logfile));
-		failedToCreateFramesTexture = true;
-		return nullptr;
+	if (!*systemTexturePtr) {
+		if (FAILED(device->CreateTexture(packedFramesTexture.width, packedFramesTexture.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &(*systemTexturePtr), NULL))) {
+			logwrap(fputs("CreateTexture failed\n", logfile));
+			*failedToCreate = true;
+			return nullptr;
+		}
+	}
+	if (!texture) {
+		if (FAILED(device->CreateTexture(packedFramesTexture.width, packedFramesTexture.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &texture, NULL))) {
+			logwrap(fputs("CreateTexture (2) failed\n", logfile));
+			*failedToCreate = true;
+			return nullptr;
+		}
 	}
 	D3DLOCKED_RECT lockedRect;
-	if (FAILED(systemTexture->LockRect(0, &lockedRect, NULL, NULL))) {
+	if (FAILED((*systemTexturePtr)->LockRect(0, &lockedRect, NULL, NULL))) {
 		logwrap(fputs("texture->LockRect failed\n", logfile));
-		failedToCreateFramesTexture = true;
+		*failedToCreate = true;
 		return nullptr;
 	}
 	packedFramesTexture.bitBlt(lockedRect.pBits, lockedRect.Pitch, 0, 0, 0, 0, packedFramesTexture.width, packedFramesTexture.height);
-	if (FAILED(systemTexture->UnlockRect(0))) {
+	if (FAILED((*systemTexturePtr)->UnlockRect(0))) {
 		logwrap(fputs("texture->UnlockRect failed\n", logfile));
-		failedToCreateFramesTexture = true;
+		*failedToCreate = true;
 		return nullptr;
 	}
-	if (FAILED(device->UpdateTexture(systemTexture, framesTexture))) {
+	if (FAILED(device->UpdateTexture(*systemTexturePtr, texture))) {
 		logwrap(fputs("UpdateTexture failed\n", logfile));
-		failedToCreateFramesTexture = true;
+		*failedToCreate = true;
 		return nullptr;
 	}
 	logwrap(fprintf(logfile, "Initialized packed frames texture successfully. Width: %u; Height: %u.\n", packedFramesTexture.width, packedFramesTexture.height));
-	return framesTexture;
+	return texture;
 }
 
 IDirect3DTexture9* Graphics::getOutlinesRTSamplingTexture(IDirect3DDevice9* device) {
@@ -2427,41 +2436,41 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 	if (pixelShaderCode.empty()) {
 		compilationResult = D3DCompile(
 		  shaderTxtData,
-	  txtSize,
-	  "MyPixelShader",
-	  NULL,
-	  NULL,
+		  txtSize,
+		  "MyPixelShader",
+		  NULL,
+		  NULL,
 		  "colourdodge_ps",
-	  "ps_3_0",
+		  "ps_3_0",
 		  #ifdef _DEBUG
-	  D3DCOMPILE_WARNINGS_ARE_ERRORS,
+		  D3DCOMPILE_WARNINGS_ARE_ERRORS,
 		  #else
 		  0,
 		  #endif
-	  NULL,
+		  NULL,
 		  &pixelShaderCodeTemp,
-	  &errorMsgs
-	);
-	
-	if (FAILED(compilationResult)) {
-		if (!errorMsgs) {
+		  &errorMsgs
+		);
+		
+		if (FAILED(compilationResult)) {
+			if (!errorMsgs) {
 				errorMsg = "D3DCompile failed on the pixel shader";
-		} else {
+			} else {
 				errorMsg = "D3DCompile failed on the pixel shader: ";
-			shaderCompilationError = std::string((const char*)errorMsgs->GetBufferPointer(), (size_t)errorMsgs->GetBufferSize());
-			errorMsg += shaderCompilationError;
+				shaderCompilationError = std::string((const char*)errorMsgs->GetBufferPointer(), (size_t)errorMsgs->GetBufferSize());
+				errorMsg += shaderCompilationError;
+			}
+			logwrap(fprintf(logfile, "%s\n", errorMsg.c_str()));
+			lastCompilationFailureReason = errorMsg;
+			failedToCompilePixelShader = true;
+			return false;
 		}
-		logwrap(fprintf(logfile, "%s\n", errorMsg.c_str()));
-		lastCompilationFailureReason = errorMsg;
-		failedToCompilePixelShader = true;
-		return false;
-	}
-	
+		
 		codeSize = pixelShaderCodeTemp->GetBufferSize();
 		codeData = (const DWORD*)pixelShaderCodeTemp->GetBufferPointer();
-	
+		
 		pixelShaderCode.resize(codeSize);
-	memcpy(pixelShaderCode.data(), codeData, pixelShaderCode.size());
+		memcpy(pixelShaderCode.data(), codeData, pixelShaderCode.size());
 	}
 	
 	if (vertexShaderCode.empty()) {
@@ -2536,13 +2545,13 @@ bool Graphics::getShaders(IDirect3DDevice9* device, std::string& errorMsg, IDire
 	
 	if (!pixelShader) {
 		errorCode = device->CreatePixelShader((const DWORD*)pixelShaderCode.data(), &pixelShader);
-	if (FAILED(errorCode)) {
-		char msg[100];
-		sprintf_s(msg, "Failed to create pixel shader in Direct 3D: 0x%x", errorCode);
-		errorMsg = msg;
-		logwrap(fprintf(logfile, "CreatePixelShader failed\n"));
+		if (FAILED(errorCode)) {
+			char msg[100];
+			sprintf_s(msg, "Failed to create pixel shader in Direct 3D: 0x%x", errorCode);
+			errorMsg = msg;
+			logwrap(fprintf(logfile, "CreatePixelShader failed\n"));
 			return false;
-	}
+		}
 	}
 	*pixelShaderPtr = pixelShader;
 	
@@ -2640,7 +2649,7 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 	}
 	
 	if (!vertexDeclaration) {
-	
+		
 		D3DVERTEXELEMENT9 vertexElements[3];
 		D3DVERTEXELEMENT9* vertexElement;
 		
@@ -2666,9 +2675,9 @@ void Graphics::preparePixelShader(IDirect3DDevice9* device) {
 		if (FAILED(errorCode)) {
 			sprintf_s(msg, "Failed to create vertex declaration: 0x%x", errorCode);
 			setFailedToCreatePixelShaderReason(msg);
-		failedToCreatePixelShader = true;
+			failedToCreatePixelShader = true;
 			return;
-	}
+		}
 	}
 	
 	errorCode = device->SetVertexDeclaration(vertexDeclaration);
@@ -3568,22 +3577,6 @@ void Graphics::updateVertexShaderTransformMatrix(IDirect3DDevice9* device) {
 	D3DXMatrixMultiply(&c, &a, &b);
 	device->GetTransform(D3DTS_PROJECTION, &a);
 	D3DXMatrixMultiply(&b, &c, &a);
-	D3DXMATRIX uhuh;
-	uhuh._11 = b._11;
-	uhuh._21 = b._12;
-	uhuh._31 = b._13;
-	uhuh._41 = b._14;
-	uhuh._12 = b._21;
-	uhuh._22 = b._22;
-	uhuh._32 = b._23;
-	uhuh._42 = b._24;
-	uhuh._13 = b._31;
-	uhuh._23 = b._32;
-	uhuh._33 = b._33;
-	uhuh._43 = b._34;
-	uhuh._14 = b._41;
-	uhuh._24 = b._42;
-	uhuh._34 = b._43;
-	uhuh._44 = b._44;
-	device->SetVertexShaderConstantF(0, uhuh, 4);
+	D3DXMatrixTranspose(&c, &b);
+	device->SetVertexShaderConstantF(0, c, 4);
 }

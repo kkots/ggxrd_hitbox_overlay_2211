@@ -240,6 +240,27 @@
     <ClInclude Include="HitDetectionType.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PackTextureSizes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LineReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LineReaderFromString.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SplitStringIterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KeyDefinitions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SettingsDefinitions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SettingsTopCommentDefinition.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -387,10 +408,23 @@
     <ClCompile Include="HandleWrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LineReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LineReaderFromString.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SplitStringIterator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SettingsTopCommentDefinition.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
     <None Include="prebuild.ps1" />
+    <None Include="..\regenerate_ini_and_update_readme.ps1" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini" />
@@ -405,6 +439,9 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="How to debug Xrd without it relaunching itself.txt" />
+    <Text Include="..\MyPixelShader.hlsl">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\images\ActiveFrame.png">
@@ -438,9 +475,6 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\images\Digit9.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="..\images\FirstFrame.png">
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\images\LandingRecoveryFrame.png">
@@ -497,9 +531,6 @@
     <Image Include="..\images\XStunFrame_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="..\images\SuperArmorActive_NonColorblind.png">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="..\images\IdleFrame_CantBlock.png">
       <Filter>Resource Files</Filter>
     </Image>
@@ -537,9 +568,6 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\images\SuperArmorActive_Full.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="..\images\SuperArmorActive_Full_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\images\IdleFrame_ElpheltRifle_CanStopHolding.png">
@@ -614,15 +642,6 @@
     <Image Include="..\images\XStunFrame_CanCancel_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="..\images\HitConnectedFrame.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="..\images\HitConnectedFrameBlack.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="..\images\Powerup.png">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="..\images\EddieIdleFrame.png">
       <Filter>Resource Files</Filter>
     </Image>
@@ -638,10 +657,5 @@
     <Image Include="..\images\BacchusSighFrame_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="..\MyPixelShader.hlsl">
-      <Filter>Resource Files</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>

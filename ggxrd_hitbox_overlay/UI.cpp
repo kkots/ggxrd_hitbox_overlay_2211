@@ -38,7 +38,7 @@ UI ui;
 static ImVec4 RGBToVec(DWORD color);
 static ImVec4 ARGBToVec(DWORD color);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-// The following functions are from imgui_internal.h
+// The following two functions are from imgui_internal.h
 IMGUI_API int           ImTextCharFromUtf8(unsigned int* out_char, const char* in_text, const char* in_text_end);               // read one character. return input UTF-8 bytes count
 static inline bool      ImCharIsBlankW(unsigned int c)  { return c == ' ' || c == '\t' || c == 0x3000; }
 
@@ -78,40 +78,81 @@ static char* strbufs[2] { strbuf, strbuf2 };
 static std::string stringArena;
 static char printdecimalbuf[512];
 static int numDigits(int num);  // For negative numbers does not include the '-'
-struct UVStartEnd { ImVec2 start; ImVec2 end; };
-static UVStartEnd digitUVs[10];
-struct FrameArt { FrameType type; const PngResource* resource; ImVec2 uvStart; ImVec2 uvEnd; StringWithLength description; };
+struct UVStartEnd {
+	ImVec2 start;
+	ImVec2 end;
+	int width;
+	int height;
+	ImVec2 size;
+};
+struct DigitUVs {
+	UVStartEnd help;
+	UVStartEnd framebar;
+};
+static DigitUVs digitUVs[10];
+struct FrameArt {
+	FrameType type;
+	PngResource* resource;
+	StringWithLength description;
+	UVStartEnd help;
+	UVStartEnd framebar;
+};
+struct FrameAddon {
+	UVStartEnd help;
+	UVStartEnd framebar;
+};
+static FrameAddon firstFrameArt;
+static FrameAddon hitConnectedFrameArt;
+static FrameAddon hitConnectedFrameBlackArt;
+static FrameAddon hitConnectedFrameArtAlt;  // either wider or narrower than hitConnectedFrameArt
+static FrameAddon hitConnectedFrameBlackArtAlt;  // either wider or narrower than hitConnectedFrameBlackArt
+static FrameAddon powerupFrameArt;
+static FrameAddon newHitFrameArt;
 static FrameArt frameArtNonColorblind[FT_LAST];
 static FrameArt frameArtColorblind[FT_LAST];
-struct FrameMarkerArt { FrameMarkerType type; const PngResource* resource; ImVec2 uvStart; ImVec2 uvEnd; };
+struct FrameMarkerArt {
+	FrameMarkerType type;
+	PngResource* resource;
+	DWORD outlineColor;  // ARGB color
+	bool hasMiddleLine;
+	UVStartEnd help;
+	UVStartEnd framebar;
+	bool equal(const FrameMarkerArt& other) const {
+		return type == other.type
+			&& resource == other.resource
+			&& outlineColor == other.outlineColor
+			&& hasMiddleLine == other.hasMiddleLine;
+	}
+};
 static FrameMarkerArt frameMarkerArtNonColorblind[MARKER_TYPE_LAST];
 static FrameMarkerArt frameMarkerArtColorblind[MARKER_TYPE_LAST];
 static const float frameWidthOriginal = 9.F;
 static const float frameHeightOriginal = 15.F;
 static const float frameMarkerWidthOriginal = 11.F;
-static const float frameMarkerHeightOriginal = 6.F;
+static const float frameMarkerHeightOriginal = 4.F;  // not including the outline
 static const float powerupWidthOriginal = 7.F;
 static const float powerupHeightOriginal = 7.F;
 static const float firstFrameHeight = 19.F;
-float drawFramebars_frameItselfHeight;
-const FrameArt* drawFramebars_frameArtArray;
-ImDrawList* drawFramebars_drawList;
-ImVec2 drawFramebars_windowPos;
-int drawFramebars_hoveredFrameIndex;
-float drawFramebars_hoveredFrameY;
-float drawFramebars_y;
-const float innerBorderThicknessUnscaled = 1.F;
-float drawFramebars_innerBorderThickness;
-float drawFramebars_innerBorderThicknessHalf;
-float drawFramebars_frameWidthScaled;
+static float drawFramebars_frameItselfHeight;
+static const FrameArt* drawFramebars_frameArtArray;
+static ImDrawList* drawFramebars_drawList;
+static ImVec2 drawFramebars_windowPos;
+static int drawFramebars_hoveredFrameIndex;
+static float drawFramebars_hoveredFrameY;
+static float drawFramebars_y;
+static const float innerBorderThicknessUnscaled = 1.F;
+static float drawFramebars_innerBorderThickness;
+static float drawFramebars_innerBorderThicknessHalf;
+static float drawFramebars_frameWidthScaled;
 // The total number of frames that can be displayed
-int drawFramebars_framesCount;
+static int drawFramebars_framesCount;
 // The framebar position with horizontal scrolling already applied to it
 // Is in [0;_countof(Framebar::frames)] coordinate space, its range of possible values is [0;_countof(Framebar::frames)-1]
-int drawFramebars_framebarPosition;
+static int drawFramebars_framebarPosition;
 // Is in [0;drawFramebars_framesCount] coordinate space, its range of possible values is [0;drawFramebars_framesCount-1]
 // It is the result of converting drawFramebars_framebarPosition from [0;_countof(Framebar::frames)] coordinate space to [0;drawFramebars_framesCount] coordinate space
-int drawFramebars_framebarPositionDisplay;
+static int drawFramebars_framebarPositionDisplay;
+// the internal index that is being referred to here is the index pointing into the [0;_countof(Framebar::frames)] coordinate space
 static int inline iterateVisualFramesFrom0_getInitialInternalInd() {
 	int result = drawFramebars_framebarPosition - drawFramebars_framebarPositionDisplay;
 	if (result < 0) {
@@ -120,7 +161,8 @@ static int inline iterateVisualFramesFrom0_getInitialInternalInd() {
 		return result;
 	}
 }
-static void inline incrementInternalInd(int& internalInd) {
+// the internal index that is being referred to here is the index pointing into the [0;_countof(Framebar::frames)] coordinate space
+static void inline iterateVisualFrames_incrementInternalInd(int& internalInd) {
 	if (internalInd == drawFramebars_framebarPosition) {
 		internalInd = drawFramebars_framebarPosition - drawFramebars_framesCount + 1;
 		if (internalInd < 0) {
@@ -155,7 +197,6 @@ const char thisHelpTextWillRepeat[] = "Shows available gatlings, whiff cancels, 
 					" animation names, because the names here are only updated when a significant enough change in the animation happens.";
 static std::string lastNameSuperfreeze;
 static std::string lastNameAfterSuperfreeze;
-#define ARGB_to_ABGR(clr) ((clr & 0xff00ff00) | ((clr & 0xff) << 16) | ((clr & 0xffffff) >> 16))
 static ImVec4 COLOR_PUSHBOX_IMGUI = RGBToVec((DWORD)COLOR_PUSHBOX);
 static ImVec4 COLOR_HURTBOX_IMGUI = RGBToVec((DWORD)COLOR_HURTBOX);
 static ImVec4 COLOR_HURTBOX_COUNTERHIT_IMGUI = RGBToVec((DWORD)COLOR_HURTBOX_COUNTERHIT);
@@ -251,11 +292,6 @@ static void printExtraHitstunText(int amount);
 static void printExtraBlockstunTooltip(int amount);
 static void printExtraBlockstunText(int amount);
 static const char* comborepr(std::vector<int>& combo);
-struct ImGui_ImplDX9_Data  // from imgui/backends/imgui_impl_dx9.cpp
-{
-    LPDIRECT3DDEVICE9           pd3dDevice;
-};
-static void changeTextureFiltering(const ImDrawList* parent_list, const ImDrawCmd* cmd);
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -393,9 +429,6 @@ bool UI::onDllMain(HMODULE hModule) {
 	addImage(hModule, IDB_DIGIT_7, digitFrame[7]);
 	addImage(hModule, IDB_DIGIT_8, digitFrame[8]);
 	addImage(hModule, IDB_DIGIT_9, digitFrame[9]);
-	addImage(hModule, IDB_FIRST_FRAME, firstFrame);
-	addImage(hModule, IDB_HIT_CONNECTED_FRAME, hitConnectedFrame);
-	addImage(hModule, IDB_HIT_CONNECTED_FRAME_BLACK, hitConnectedFrameBlack);
 	addFrameArt(hModule, FT_IDLE, IDB_IDLE_FRAME, idleFrame,
 		"Idle: can attack, block and FD.");
 	addFrameArt(hModule, FT_IDLE_CANT_BLOCK,
@@ -453,6 +486,7 @@ bool UI::onDllMain(HMODULE hModule) {
 		"Recovery, but can gatling or cancel or more: an attack's active frames are already over (or projectile active frames have started),"
 		" but can gatling into some other attacks or do other actions."
 		blockFDNotice);
+	#undef blockFDNotice
 	addFrameArt(hModule, FT_STARTUP,
 		IDB_STARTUP_FRAME, startupFrame,
 		IDB_STARTUP_FRAME_NON_COLORBLIND, startupFrameNonColorblind,
@@ -464,15 +498,11 @@ bool UI::onDllMain(HMODULE hModule) {
 		"Startup, but can block:"
 		" an attack's active frames have not yet started, or this is not an attack."
 		" Can't perform another attack, but can block and/or maybe FD.");
-	addFrameMarkerArt(hModule, MARKER_TYPE_STRIKE_INVUL, IDB_STRIKE_INVUL, strikeInvulFrame);
-	addFrameMarkerArt(hModule, MARKER_TYPE_SUPER_ARMOR,
-		IDB_SUPER_ARMOR_ACTIVE, superArmorFrame,
-		IDB_SUPER_ARMOR_ACTIVE_NON_COLORBLIND, superArmorFrameNonColorblind);
-	addFrameMarkerArt(hModule, MARKER_TYPE_SUPER_ARMOR_FULL,
-		IDB_SUPER_ARMOR_ACTIVE_FULL, superArmorFrameFull,
-		IDB_SUPER_ARMOR_ACTIVE_FULL_NON_COLORBLIND, superArmorFrameFullNonColorblind);
-	addFrameMarkerArt(hModule, MARKER_TYPE_THROW_INVUL, IDB_THROW_INVUL, throwInvulFrame);
-	addFrameMarkerArt(hModule, MARKER_TYPE_OTG, IDB_OTG, OTGFrame);
+	addFrameMarkerArt(hModule, MARKER_TYPE_STRIKE_INVUL, IDB_STRIKE_INVUL, strikeInvulFrame, 0, 0, false, false);
+	addFrameMarkerArt(hModule, MARKER_TYPE_SUPER_ARMOR, IDB_SUPER_ARMOR_ACTIVE, superArmorFrame, 0, 0xFFFFFFFF, false, false);
+	addFrameMarkerArt(hModule, MARKER_TYPE_SUPER_ARMOR_FULL, IDB_SUPER_ARMOR_ACTIVE_FULL, superArmorFrameFull, 0, 0xfff0a847, false, true);
+	addFrameMarkerArt(hModule, MARKER_TYPE_THROW_INVUL, IDB_THROW_INVUL, throwInvulFrame, 0, 0, false, false);
+	addFrameMarkerArt(hModule, MARKER_TYPE_OTG, IDB_OTG, OTGFrame, 0, 0, false, false);
 	addFrameArt(hModule, FT_XSTUN,
 		IDB_XSTUN_FRAME, xstunFrame,
 		IDB_XSTUN_FRAME_NON_COLORBLIND, xstunFrameNonColorblind,
@@ -520,160 +550,30 @@ bool UI::onDllMain(HMODULE hModule) {
 		IDB_BACCHUS_SIGH_FRAME_NON_COLORBLIND, bacchusSighFrameNonColorblind,
 		"Bacchus Sigh is ready to hit the opponent when in range.");
 	
-	addImage(hModule, IDB_POWERUP, powerupFrame);
+	prepareSecondaryFrameArts(UITEX_HELP);  // need to call this to prevent null resource pointers in array indices > 0, so that packTexture doesn't trip over them
 	
-	packedTexture = std::make_unique<PngResource>();
-	*packedTexture = texturePacker.getTexture();
-	
+	#ifdef _DEBUG
 	FrameArt* arrays[2] = { frameArtColorblind, frameArtNonColorblind };
 	FrameMarkerArt* arraysMarkers[2] = { frameMarkerArtColorblind, frameMarkerArtNonColorblind };
+	
 	for (int i = 0; i < 2; ++i) {
-		arrays[i][FT_HITSTOP] = {
-			FT_HITSTOP,
-			idleFrame.get(),
-			ImVec2{},
-			ImVec2{},
-			"Hitstop: the time is stopped for this player due to a hit or blocking."
-		};
-	}
-	for (int i = 0; i < 2; ++i) {
-		FrameArt* theArray = arrays[i];
-		
-		FrameArt& idleProjectile = theArray[FT_IDLE_PROJECTILE];
-		idleProjectile = arrays[i][FT_IDLE];
-		idleProjectile.description = "Projectile is not active.";
-		
-		FrameArt& idleSuperfreeze = theArray[FT_IDLE_NO_DISPOSE];
-		idleSuperfreeze = arrays[i][FT_IDLE];
-		idleSuperfreeze.description = "Projectile is not active.";
-		
-		FrameArt& activeProjectile = theArray[FT_ACTIVE_PROJECTILE];
-		activeProjectile = arrays[i][FT_ACTIVE];
-		activeProjectile.description = "Projectile is active.";
-		
-		FrameArt& activeProjectileNewHit = theArray[FT_ACTIVE_NEW_HIT_PROJECTILE];
-		activeProjectileNewHit = arrays[i][FT_ACTIVE_NEW_HIT];
-		activeProjectileNewHit.description = "Projectile is active, new (potential) hit has started:"
-			" The black shadow on the left side of the frame denotes the start of a new (potential) hit."
-			" The projectile may be capable of doing fewer hits than 1+the number of \"new hits\" displayed,"
-			" and the first actual hit may occur on any active frame independent of \"new hit\" frames."
-			" \"New hit\" frame merely means that the hit #2, #3 and so on can only happen after a \"new hit\" frame,"
-			" and, between the first hit and the next \"new hit\", projectile is inactive (even though it is displayed as active)."
-			" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on.";
-		
-		FrameArt& activeProjectileHitstop = theArray[FT_ACTIVE_HITSTOP_PROJECTILE];
-		activeProjectileHitstop = arrays[i][FT_ACTIVE_HITSTOP];
-		activeProjectileHitstop.description = "Projectile is active, and in hitstop: while the projectile is in hitstop, time doesn't advance for it and"
-			" it doesn't hit enemies.";
-		
-		FrameArt& nonActiveProjectile = theArray[FT_NON_ACTIVE_PROJECTILE];
-		nonActiveProjectile = arrays[i][FT_NON_ACTIVE];
-		nonActiveProjectile.description = "A frame inbetweeen the active frames of a projectile.";
-		
-		FrameArt& startupAnytimeNow = theArray[FT_STARTUP_ANYTIME_NOW];
-		startupAnytimeNow = arrays[i][FT_IDLE_ELPHELT_RIFLE];
-		startupAnytimeNow.description = "Startup of a holdable move: can release the button any time to either attack or cancel the move."
-			" Can't block or FD or perform normal attacks.";
-		
-		FrameArt& startupProgramSecretGarden = theArray[FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN];
-		startupProgramSecretGarden = arrays[i][FT_IDLE_ELPHELT_RIFLE];
-		startupProgramSecretGarden.description = "Startup: can program Secret Garden."
-			" Can't block or FD or perform normal attacks.";
-		
-		FrameArt& startupStance = theArray[FT_STARTUP_STANCE];
-		startupStance = arrays[i][FT_IDLE_ELPHELT_RIFLE];
-		startupStance.description = "Being in some form of stance: can cancel into one or more specials. Can't block or FD or perform normal attacks.";
-		
-		FrameArt& elpheltRifleReady = theArray[FT_IDLE_ELPHELT_RIFLE_READY];
-		elpheltRifleReady = arrays[i][FT_STARTUP_STANCE_CAN_STOP_HOLDING];
-		elpheltRifleReady.description = "Idle: Can cancel the stance into specials or fire the rifle. Can't block or FD or perform normal attacks.";
-		
-		FrameArt& canBlockAndCancel = theArray[FT_STARTUP_CAN_BLOCK_AND_CANCEL];
-		canBlockAndCancel = arrays[i][FT_STARTUP_STANCE_CAN_STOP_HOLDING];
-		canBlockAndCancel.description = "Startup, but can block and cancel into certain moves:"
-		" an attack's active frames have not yet started, or this is not an attack."
-		" Can block and/or maybe FD, possibly can't switch block, and can cancel into certain moves.";
-		
-		FrameArt& rifleReload = theArray[FT_RECOVERY_CAN_RELOAD];
-		rifleReload = arrays[i][FT_RECOVERY_HAS_GATLINGS];
-		rifleReload.description = "Recovery, but can reload. Can't attack, block or FD.";
-		
-		FrameArt& startupAnytimeNowCanAct = theArray[FT_STARTUP_ANYTIME_NOW_CAN_ACT];
-		startupAnytimeNowCanAct = arrays[i][FT_IDLE_CANT_BLOCK];
-		startupAnytimeNowCanAct.description = "Startup of a holdable move: can release the button any time to either attack or cancel the move,"
-			" and can also cancel into other moves."
-			" Can't block or FD or perform normal attacks.";
-		
-		FrameArt& airborneIdleCanGroundBlock = theArray[FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK];
-		airborneIdleCanGroundBlock = arrays[i][FT_IDLE_CANT_FD];
-		airborneIdleCanGroundBlock.description = "Idle while airborne on the pre-landing (last airborne) frame:"
-			" can block grounded on this frame and regular (without FD) block ground attacks that require FD to be blocked in the air."
-			" Can attack, block and FD.";
-		
-		FrameArt& eddieStartup = theArray[FT_EDDIE_STARTUP];
-		eddieStartup = arrays[i][FT_STARTUP];
-		eddieStartup.description = "Eddie's attack is in startup.";
-		
-		FrameArt& eddieActive = theArray[FT_EDDIE_ACTIVE];
-		eddieActive = arrays[i][FT_ACTIVE];
-		eddieActive.description = "Eddie's attack is active.";
-		
-		FrameArt& eddieActiveHitstop = theArray[FT_EDDIE_ACTIVE_HITSTOP];
-		eddieActiveHitstop = arrays[i][FT_ACTIVE_HITSTOP];
-		eddieActiveHitstop.description = "Eddie's attack is active, but Eddie is in hitstop:"
-			" during it, his attack can't hurt anybody and Eddie doesn't move.";
-		
-		FrameArt& eddieActiveNewHit = theArray[FT_EDDIE_ACTIVE_NEW_HIT];
-		eddieActiveNewHit = arrays[i][FT_ACTIVE_NEW_HIT];
-		eddieActiveNewHit.description = "Eddie's attack is active, and a new (potential) hit starts on this frame."
-			" The black shadow on the left side of the frame denotes the start of a new (potential) hit."
-			" Eddie may be capable of doing fewer hits than 1+the number of \"new hits\" displayed,"
-			" and the first actual hit may occur on any active frame independent of \"new hit\" frames."
-			" \"New hit\" frame merely means that the hit #2, #3 and so on can only happen after a \"new hit\" frame,"
-			" and, between the first hit and the next \"new hit\", Eddie is inactive (even though he's displayed as active)."
-			" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on.";
-		
-		FrameArt& eddieRecovery = theArray[FT_EDDIE_RECOVERY];
-		eddieRecovery = arrays[i][FT_RECOVERY];
-		eddieRecovery.description = "Eddie's attack is in recovery.";
-		
-		FrameArt& hittableProjectileIdle = theArray[FT_IDLE_PROJECTILE_HITTABLE];
-		hittableProjectileIdle = arrays[i][FT_EDDIE_IDLE];
-		hittableProjectileIdle.description = "Projectile is not active and can be hit by attacks.";
-		
 		for (int j = 1; j < _countof(frameArtNonColorblind); ++j) {
-			FrameArt& art = theArray[j];
-			#ifdef _DEBUG
-			if (!art.resource) {
+			if (!arrays[i][j].resource) {
 				MessageBoxW(NULL, L"Null frame art.", L"Error", MB_OK);
 				return false;
 			}
-			#endif
-			art.uvStart = { art.resource->uStart, art.resource->vStart };
-			art.uvEnd = { art.resource->uEnd, art.resource->vEnd };
 		}
 	}
-	#undef blockFDNotice
+	
 	for (int i = 0; i < 2; ++i) {
 		for (int j = 0; j < _countof(frameMarkerArtNonColorblind); ++j) {
-			FrameMarkerArt& art = arraysMarkers[i][j];
-			#ifdef _DEBUG
-			if (!art.resource) {
+			if (!arraysMarkers[i][j].resource) {
 				MessageBoxW(NULL, L"Null frame marker art.", L"Error", MB_OK);
 				return false;
 			}
-			#endif
-			art.uvStart = { art.resource->uStart, art.resource->vStart };
-			art.uvEnd = { art.resource->uEnd, art.resource->vEnd };
 		}
 	}
-	for (int i = 0; i < 10; ++i) {
-		const PngResource& res = *digitFrame[i];
-		digitUVs[i] = {
-			{ res.uStart, res.vStart },
-			{ res.uEnd, res.vEnd }
-		};
-	}
+	#endif
 	
 	jamPantyPtr = (BYTE*)sigscanOffset(
 		"GuiltyGearXrd.exe",
@@ -755,7 +655,7 @@ void UI::prepareDrawData() {
 			// The cause of this is unknown, I haven't tried reproducing it yet and I think it may be related to not doing an ImGui frame every frame.
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
-			interjectIntoImGui();
+			adjustMousePosition();
 			ImGui::EndFrame();
 		}
 		return;
@@ -781,7 +681,7 @@ void UI::prepareDrawData() {
 	}
 	
 	ImGui_ImplWin32_NewFrame();
-	interjectIntoImGui();
+	adjustMousePosition();
 	ImGui::NewFrame();
 	
 	if (visible) {
@@ -2187,7 +2087,7 @@ void UI::drawSearchableWindows() {
 			keyComboControl(settings.toggleShowInputHistory);
 			keyComboControl(settings.toggleAllowCreateParticles);
 			keyComboControl(settings.clearInputHistory);
-			keyComboControl(settings.disableModKeyCombo);
+			keyComboControl(settings.disableModToggle);
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2842,7 +2742,8 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Combo Timer"));
-			AddTooltip(searchTooltip("The time, in seconds, of the current combo's duration."));
+			AddTooltip(searchTooltip("The time, in seconds, of the current combo's duration. Keeps counting during hitstop. Pauses during superfreeze"
+				" and increases at half the rate when the one being comboed is affected by RC slowdown."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -2882,9 +2783,9 @@ void UI::drawSearchableWindows() {
 			ImGui::TextUnformatted(searchFieldTitle("Base Pushback"));
 			AddTooltip(searchTooltip("Base pushback on hit/block. Pushback = floor(Base pushback * 175 / 10) (divide by 100 for viewability).\n"
 				"The base values of pushback are, per attack level:\n"
-				"Ground block: 1250, 1375, 1500, 1750, 2000, 2400, 3000;\n"
-				"Air block: 800,  850,  900,  950, 1000, 2400, 3000;\n"
-				"Hit: 1300, 1400, 1500, 1750, 2000, 2400, 3000;\n"));
+				"Ground block: 1250, 1375, 1500, 1750, 2000;\n"
+				"Air block: 800,  850,  900,  950, 1000;\n"
+				"Hit: 1300, 1400, 1500, 1750, 2000;\n"));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -2898,7 +2799,9 @@ void UI::drawSearchableWindows() {
 				" * IB modifier %.\n"
 				"'Attack pushback modifier' depends on the performed move."
 				" 'Attack pushback modifier on hit' depends on the performed move and should only be non-100 when the opponent is in hitstun."
-				" Combo timer modifier depends on combo timer, in frames: >= 480 --> 200%, >= 420 --> 184%, >= 360 --> 166%, >= 300 --> 150%"
+				" Combo timer modifier depends on combo timer (keeps counting during hitstop; pauses during superfreeze"
+				" and increases at half the rate when the one being comboed is affected by RC slowdown),"
+				" in frames: >= 480 --> 200%, >= 420 --> 184%, >= 360 --> 166%, >= 300 --> 150%"
 				", >= 240 --> 136%, >= 180 --> 124%, >= 120 --> 114%, >= 60 --> 106%."
 				" IB modifier is non-100 on IB: air IB 10%, ground IB 90%."));
 			for (int i = 0; i < two; ++i) {
@@ -2923,7 +2826,19 @@ void UI::drawSearchableWindows() {
 				"6 hits so far -> 59/60 * 100% proration,\n"
 				"7 hits -> 58 / 60 * 100% and so on, up to 30 / 60 * 100%. The rounding of the final speed Y is up.\n"
 				"Some moves could theoretically ignore weight or combo proration, or both. When that happens, 100% will be displayed in place"
-				" of the ignored parameter."));
+				" of the ignored parameter.\n\n"
+				"Base speed Y by default depends on the attack damage and air launch effect, however, some attacks override Base speed Y.\n"
+				"If the attack launched the opponent from a ground hit, Base speed Y is set"
+				" to a preset value, according to this table (all speeds provided in units that are not divided by 100):\n"
+				"1) Attack launches vertically (face down landing) - 35000;\n"
+				"2) Attack launches you forward (face down landing) - 14000;\n"
+				"3) Attack launches you backward (face up landing) or any other way - 17500;\n"
+				"\n"
+				"If the attack launches you vertically, but you got hit airborne - 28000.\n"
+				"For everything else: ((Base Damage + 240) * 875) / 10, rounded down.\n"
+				"Again, some attacks redefine their Base speed Y, these are merely the default values.\n"
+				"Hitting the opponent with a move that deals higher damage, but is slower, might not launch them higher"
+				" than a weaker, but fast move that hits them earlier, due to the opponent constantly descending down."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -2972,7 +2887,9 @@ void UI::drawSearchableWindows() {
 				"For ground combo it's just:\n"
 				">= 1080 --> 50%\n"
 				"Multiply base hitstun by the percentage using floating point math, then round down to get prorated hitstun.\n"
-				"Some attacks could theoretically ignore hitstun proration. When that happens, 100% is displayed."));
+				"Some attacks could theoretically ignore hitstun proration. When that happens, 100% is displayed.\n"
+				"Combo timer keeps counting during hitstop, pauses during superfreeze"
+				" and increases at half the rate when the one being comboed is affected by RC slowdown."));
 			for (int i = 0; i < two; ++i) {
 				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
@@ -7541,7 +7458,7 @@ void UI::drawSearchableWindows() {
 			float totalContentSize = ImGui::GetCursorPosY();
 			if (comboRecipeUpdatedOnThisFrame[i]) {
 				comboRecipeUpdatedOnThisFrame[i] = false;
-				// simply calling ImGui::GetScrollY(ImGui::GetScrollMaxY()) made it scroll to the penultimate line
+				// simply calling ImGui::SetScrollY(ImGui::GetScrollMaxY()) made it scroll to the penultimate line
 				// probably because ImGui::GetScrollMaxY() returns the value from the ImGui::Begin call so it can be compared to ImGui::GetScrollY(),
 				// also from that call
 				if (totalContentSize > totalViewableArea) {
@@ -8281,8 +8198,10 @@ void UI::substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3
 				cmd.TextureId = imguiFont;
 			} else if (cmd.TextureId == (ImTextureID)TEXID_GGICON) {
 				cmd.TextureId = iconTexture;
-			} else if (cmd.TextureId == (ImTextureID)TEXID_FRAMES) {
-				cmd.TextureId = graphics.getFramesTexture(device);
+			} else if (cmd.TextureId == (ImTextureID)TEXID_FRAMES_HELP) {
+				cmd.TextureId = graphics.getFramesTextureHelp(device, ui.packedTextureHelp);
+			} else if (cmd.TextureId == (ImTextureID)TEXID_FRAMES_FRAMEBAR) {
+				cmd.TextureId = graphics.getFramesTextureFramebar(device);
 			}
 		}
 	}
@@ -8597,7 +8516,6 @@ float getItemSpacing() {
 bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource) {
 	if (!resource) resource = std::make_unique<PngResource>();
 	if (!loadPngResource(hModule, resourceId, *resource)) return false;
-	texturePacker.addImage(*resource);
 	return true;
 }
 
@@ -8670,10 +8588,6 @@ void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4*
 	drawList->AddText(pos, clr, text);
 }
 
-const PngResource& UI::getPackedFramesTexture() const {
-	return *packedTexture;
-}
-
 int numDigits(int num) {
 	int answer = 1;
 	num /= 10;
@@ -8690,8 +8604,6 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBoth
 	frameArtNonColorblind[frameType] = frameArtColorblind[frameType] = {
 		frameType,
 		resourceBothVersions.get(),
-		ImVec2{},
-		ImVec2{},
 		description
 	};
 }
@@ -8707,52 +8619,31 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColo
 	frameArtColorblind[frameType] = {
 		frameType,
 		resourceColorblind.get(),
-		ImVec2{},
-		ImVec2{},
 		description
 	};
 	frameArtNonColorblind[frameType] = {
 		frameType,
 		resourceNonColorblind.get(),
-		ImVec2{},
-		ImVec2{},
 		description
 	};
 	
 }
 
-void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions) {
+// ARGB color
+void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType,
+		WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions,
+		DWORD outlineColorNonColorblind, DWORD outlineColorColorblind,
+		bool hasMiddleLineNonColorblind, bool hasMiddleLineColorblind) {
 	if (!resourceBothVersions) resourceBothVersions = std::make_unique<PngResource>();
 	addImage(hModule, resourceIdBothVersions, resourceBothVersions);
 	frameMarkerArtNonColorblind[markerType] = frameMarkerArtColorblind[markerType] = {
 		markerType,
-		resourceBothVersions.get(),
-		ImVec2{},
-		ImVec2{}
+		resourceBothVersions.get()
 	};
-}
-
-void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
-                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind) {
-	if (!resourceColorblind) resourceColorblind = std::make_unique<PngResource>();
-	if (!resourceNonColorblind) resourceNonColorblind = std::make_unique<PngResource>();
-	assert(&resourceIdColorblind != &resourceIdNonColorblind);
-	assert(&resourceColorblind != &resourceNonColorblind);
-	addImage(hModule, resourceIdColorblind, resourceColorblind);
-	addImage(hModule, resourceIdNonColorblind, resourceNonColorblind);
-	frameMarkerArtColorblind[markerType] = {
-		markerType,
-		resourceColorblind.get(),
-		ImVec2{},
-		ImVec2{}
-	};
-	frameMarkerArtNonColorblind[markerType] = {
-		markerType,
-		resourceNonColorblind.get(),
-		ImVec2{},
-		ImVec2{}
-	};
-	
+	frameMarkerArtNonColorblind[markerType].outlineColor = outlineColorNonColorblind;
+	frameMarkerArtColorblind[markerType].outlineColor = outlineColorColorblind;
+	frameMarkerArtNonColorblind[markerType].hasMiddleLine = hasMiddleLineNonColorblind;
+	frameMarkerArtColorblind[markerType].hasMiddleLine = hasMiddleLineColorblind;
 }
 
 void printInputs(char*& buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount) {
@@ -9367,8 +9258,10 @@ void UI::hitboxesHelpWindow() {
 	ImGui::PopTextWrapPos();
 	ImGui::End();
 }
-	
+
 void UI::framebarHelpWindow() {
+	packTextureHelp();
+	
 	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
 	if (searching) {
 		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
@@ -9423,10 +9316,10 @@ void UI::framebarHelpWindow() {
 			ImGui::Separator();
 		}
 		
-		ImGui::Image((ImTextureID)TEXID_FRAMES,
+		ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
 			{ frameWidthOriginal, frameHeightOriginal },
-			art->uvStart,
-			art->uvEnd,
+			art->help.start,
+			art->help.end,
 			ImVec4(1, 1, 1, 1),
 			ImVec4(1, 1, 1, 1));
 		
@@ -9453,10 +9346,10 @@ void UI::framebarHelpWindow() {
 	
 	const FrameArt* frameArtArray = settings.useColorblindHelp ? frameArtColorblind : frameArtNonColorblind;
 	ImVec2 cursorPos = ImGui::GetCursorPos();
-	ImGui::Image((ImTextureID)TEXID_FRAMES,
+	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
 		{ frameWidthOriginal, frameHeightOriginal },
-		frameArtArray[FT_STARTUP].uvStart,
-		frameArtArray[FT_STARTUP].uvEnd,
+		frameArtArray[FT_STARTUP].help.start,
+		frameArtArray[FT_STARTUP].help.end,
 		ImVec4(1, 1, 1, 1),
 		ImVec4(1, 1, 1, 1));
 	ImGui::SetCursorPos({
@@ -9465,13 +9358,13 @@ void UI::framebarHelpWindow() {
 		cursorPos.y
 			+ 1.F  // include the white border
 	});
-	ImGui::Image((ImTextureID)TEXID_FRAMES,
+	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
 		{ frameWidthOriginal * 0.5F, frameHeightOriginal },
 		{
-			(frameArtArray[FT_ACTIVE].uvStart.x + frameArtArray[FT_ACTIVE].uvEnd.x) * 0.5F,
-			frameArtArray[FT_ACTIVE].uvStart.y
+			(frameArtArray[FT_ACTIVE].help.start.x + frameArtArray[FT_ACTIVE].help.end.x) * 0.5F,
+			frameArtArray[FT_ACTIVE].help.start.y
 		},
-		frameArtArray[FT_ACTIVE].uvEnd,
+		frameArtArray[FT_ACTIVE].help.end,
 		ImVec4(1, 1, 1, 1));
 	
 	ImGui::SameLine();
@@ -9481,8 +9374,6 @@ void UI::framebarHelpWindow() {
 	ImGui::Separator();
 	
 	const FrameMarkerArt* frameMarkerArtArray = settings.useColorblindHelp ? frameMarkerArtColorblind : frameMarkerArtNonColorblind;
-	float frameMarkerVHeight = frameMarkerHeightOriginal / (float)strikeInvulFrame->height
-		* (strikeInvulFrame->vEnd - strikeInvulFrame->vStart);
 	
 	struct MarkerHelpInfo {
 		FrameMarkerType type;
@@ -9499,24 +9390,16 @@ void UI::framebarHelpWindow() {
 			" Or Faust 5D homerun reflect frames." }
 	};
 	
+	const float markerOffsetY = std::roundf((ImGui::GetTextLineHeightWithSpacing() - frameMarkerArtArray[MARKER_TYPE_STRIKE_INVUL].help.size.y) * 0.5F);
 	for (int i = 0; i < _countof(markerHelps); ++i) {
 		MarkerHelpInfo& info = markerHelps[i];
 		float cursorY = ImGui::GetCursorPosY();
-		ImGui::SetCursorPosY(cursorY + (ImGui::GetTextLineHeightWithSpacing() - frameMarkerHeightOriginal) * 0.5F);
-		ImGui::Image((ImTextureID)TEXID_FRAMES,
-			{ frameMarkerWidthOriginal, frameMarkerHeightOriginal },
-			!info.isOnTheBottom
-				? frameMarkerArtArray[info.type].uvStart
-				: ImVec2{
-					frameMarkerArtArray[info.type].uvStart.x,
-					frameMarkerArtArray[info.type].uvEnd.y - frameMarkerVHeight
-				},
-			!info.isOnTheBottom
-				? ImVec2{
-					frameMarkerArtArray[info.type].uvEnd.x,
-					frameMarkerArtArray[info.type].uvStart.y + frameMarkerVHeight
-				}
-				: frameMarkerArtArray[info.type].uvEnd
+		ImGui::SetCursorPosY(cursorY + markerOffsetY);
+		const FrameMarkerArt& art = frameMarkerArtArray[info.type];
+		ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+			art.help.size,
+			art.help.start,
+			art.help.end
 			);
 		ImGui::SameLine();
 		ImGui::SetCursorPosY(cursorY);
@@ -9524,17 +9407,11 @@ void UI::framebarHelpWindow() {
 	}
 	
 	float cursorY = ImGui::GetCursorPosY();
-	ImGui::SetCursorPosY(cursorY + (ImGui::GetTextLineHeightWithSpacing() - powerupHeightOriginal) * 0.5F);
-	ImGui::Image((ImTextureID)TEXID_FRAMES,
-		{ powerupWidthOriginal, powerupHeightOriginal },
-		{
-			powerupFrame->uStart,
-			powerupFrame->vStart
-		},
-		ImVec2{
-			powerupFrame->uEnd,
-			powerupFrame->vEnd
-		}
+	ImGui::SetCursorPosY(cursorY + std::roundf((ImGui::GetTextLineHeightWithSpacing() - powerupFrameArt.help.size.y) * 0.5F));
+	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+		powerupFrameArt.help.size,
+		powerupFrameArt.help.start,
+		powerupFrameArt.help.end
 	);
 	ImGui::SameLine();
 	ImGui::SetCursorPosY(cursorY);
@@ -9544,10 +9421,10 @@ void UI::framebarHelpWindow() {
 		
 	ImGui::Separator();
 	
-	ImGui::Image((ImTextureID)TEXID_FRAMES,
-		{ frameWidthOriginal, firstFrameHeight },
-		{ firstFrame->uStart, firstFrame->vStart },
-		{ firstFrame->uEnd, firstFrame->vEnd });
+	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+		firstFrameArt.help.size,
+		firstFrameArt.help.start,
+		firstFrameArt.help.end);
 	ImGui::SameLine();
 	ImGui::TextUnformatted(searchTooltip("A first frame, denoting the start of a new animation."
 		" If the animation didn't change, may mean transition to some new state in the animation."
@@ -9557,14 +9434,11 @@ void UI::framebarHelpWindow() {
 	ImGui::Separator();
 	
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
-	drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_NONE);
 	
-	ImGui::Image((ImTextureID)TEXID_FRAMES,
-		{ frameWidthOriginal, firstFrameHeight },
-		{ hitConnectedFrame->uStart, hitConnectedFrame->vStart },
-		{ hitConnectedFrame->uEnd, hitConnectedFrame->vEnd });
-	
-	drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_LINEAR);
+	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+		hitConnectedFrameArt.help.size,
+		hitConnectedFrameArt.help.start,
+		hitConnectedFrameArt.help.end);
 	
 	ImGui::SameLine();
 	ImGui::TextUnformatted(searchTooltip("A frame on which an attack connected and a hit occured."
@@ -9665,16 +9539,16 @@ void UI::framebarHelpWindow() {
 	}
 	imGuiDrawWrappedTextWithIcons_Icon icons[] {
 		{
-			(ImTextureID)TEXID_FRAMES,
-			{ frameWidthOriginal, firstFrameHeight },
-			{ firstFrame->uStart, firstFrame->vStart },
-			{ firstFrame->uEnd, firstFrame->vEnd }
+			(ImTextureID)TEXID_FRAMES_HELP,
+			firstFrameArt.help.size,
+			firstFrameArt.help.start,
+			firstFrameArt.help.end
 		},
 		{
-			(ImTextureID)TEXID_FRAMES,
-			{ frameWidthOriginal, frameHeightOriginal },
-			newHitArt->uvStart,
-			newHitArt->uvEnd
+			(ImTextureID)TEXID_FRAMES_HELP,
+			newHitArt->help.size,
+			newHitArt->help.start,
+			newHitArt->help.end
 		}
 	};
 	ImGui::PopTextWrapPos();
@@ -10271,12 +10145,13 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 
 void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
 	
-	frame.printInvuls(strbuf, sizeof strbuf - 7);
+	static const StringWithLength invulTitle = "Invul: ";
+	frame.printInvuls(strbuf, sizeof strbuf - invulTitle.length);
 	
 	if (*strbuf != '\0' || frame.OTGInGeneral || frame.counterhit) {
 		ImGui::Separator();
 		if (*strbuf != '\0') {
-			yellowText("Invul: ");
+			yellowText(invulTitle.txt, invulTitle.txt + invulTitle.length);
 			const char* cantPos = strstr(strbuf, "can't armor unblockables");
 			if (cantPos) {
 				zerohspacing
@@ -10778,7 +10653,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		} else {
 			yellowText("Crossup protection: ");
 			ImGui::SameLine();
-			sprintf_s(strbuf, "%d/3", frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsAbove1 + frame.crossupProtectionIsOdd);
+			sprintf_s(strbuf, "%d/3", (frame.crossupProtectionIsAbove1 << 1) + frame.crossupProtectionIsOdd);
 			ImGui::TextUnformatted(strbuf);
 		}
 	}
@@ -10821,94 +10696,108 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 	for (int visualI = 0; visualI < drawFramebars_framesCount; ++visualI) {
 		
 		internalI = internalINext;
-		incrementInternalInd(internalINext);
+		iterateVisualFrames_incrementInternalInd(internalINext);
 		
 		const FrameT& frame = framebar[internalI];
 		const Frame& projectileFrame = (const Frame&)frame;
 		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[internalI];
 		const UI::FrameDims& dims = preppedDims[visualI];
 		
-		ImU32 tint = -1;
-		if (visualI > drawFramebars_framebarPositionDisplay) {
-			tint = tintDarker;
-		}
+		ImVec2 frameStartVec { dims.x, drawFramebars_y };
+		ImVec2 frameEndVec { dims.x + dims.width, drawFramebars_y + drawFramebars_frameItselfHeight };
+		const StringWithLength* description = nullptr;
 		
 		if (frame.type != FT_NONE) {
-			ImVec2 frameStartVec { dims.x, drawFramebars_y };
-			ImVec2 frameEndVec { dims.x + dims.width, drawFramebars_y + drawFramebars_frameItselfHeight };
-			ImVec2 frameEndVecForTooltip;
-			if (visualI < drawFramebars_framesCount - 1) {
-				frameEndVecForTooltip = { preppedDims[visualI + 1].x, frameEndVec.y };
-			} else {
-				frameEndVecForTooltip = frameEndVec;
+			
+			ImU32 tint = -1;
+			if (visualI > drawFramebars_framebarPositionDisplay) {
+				tint = tintDarker;
 			}
 			
 			const FrameArt* frameArt = &drawFramebars_frameArtArray[frame.type];
-			const StringWithLength* description = &frameArt->description;
-			if (frame.newHit && frameTypeActive(frame.type)) {
-				frameArt = &drawFramebars_frameArtArray[frame.type - FT_ACTIVE + FT_ACTIVE_NEW_HIT];
-				description = &frameArt->description;
-			}
-			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+			description = &frameArt->description;
+			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 				frameStartVec,
 				frameEndVec,
-				frameArt->uvStart,
-				frameArt->uvEnd,
+				frameArt->framebar.start,
+				frameArt->framebar.end,
 				tint);
+			
+			if (frame.newHit && frameTypeActive(frame.type)) {
+				
+				if (frame.hitConnected) {
+					frameStartVec.x += 1.F;
+				}
+				
+				ImVec2 newHitEndVec {
+					frameStartVec.x + newHitFrameArt.framebar.size.x,
+					frameEndVec.y
+				};
+				if (newHitEndVec.x > frameEndVec.x) newHitEndVec.x = frameEndVec.x;
+				
+				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+					frameStartVec,
+					newHitEndVec,
+					newHitFrameArt.framebar.start,
+					newHitFrameArt.framebar.end,
+					tint);
+				
+				if (frame.hitConnected) {
+					frameStartVec.x -= 1.F;
+				}
+				
+				description = &frameArt->description;
+			}
 			
 			if (frame.activeDuringSuperfreeze) {
 				const FrameArt& superfreezeActiveArt = drawFramebars_frameArtArray[playerIndex == -1 ? FT_ACTIVE_PROJECTILE : FT_ACTIVE];
-				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 					{
 						frameStartVec.x + dims.width * 0.5F,
 						frameStartVec.y
 					},
 					frameEndVec,
 					{
-						(superfreezeActiveArt.uvStart.x + superfreezeActiveArt.uvEnd.x) * 0.5F,
-						superfreezeActiveArt.uvStart.y
+						(superfreezeActiveArt.framebar.start.x + superfreezeActiveArt.framebar.end.x) * 0.5F,
+						superfreezeActiveArt.framebar.start.y
 					},
-					superfreezeActiveArt.uvEnd,
+					superfreezeActiveArt.framebar.end,
 					tint);
 			}
 			
 			if (frame.hitConnected) {
-				const PngResource* art;
+				const FrameAddon* art;
 				if (frame.type == FT_XSTUN
 						|| frame.type == FT_XSTUN_CAN_CANCEL
 						|| frame.type == FT_GRAYBEAT_AIR_HITSTUN) {
-					art = ui.hitConnectedFrameBlack.get();
+					art = dims.hitConnectedShouldBeAlt ? &hitConnectedFrameBlackArtAlt : &hitConnectedFrameBlackArt;
 				} else {
-					art = ui.hitConnectedFrame.get();
+					art = dims.hitConnectedShouldBeAlt ? &hitConnectedFrameArtAlt : &hitConnectedFrameArt;
 				}
 				
-				drawFramebars_drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_NONE);
-				
-				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 					frameStartVec,
 					frameEndVec,
-					{ art->uStart, art->vStart },
-					{ art->uEnd, art->vEnd },
+					art->framebar.start,
+					art->framebar.end,
 					tint);
 				
-				drawFramebars_drawList->AddCallback(changeTextureFiltering, (void*)D3DTEXTUREFILTERTYPE::D3DTEXF_LINEAR);
-				
 			}
-			
-			ImVec2 mouseRectStart{
-				drawFramebars_windowPos.x + frameStartVec.x - drawFramebars_windowPos.x,
-				drawFramebars_windowPos.y + frameStartVec.y - drawFramebars_windowPos.y
-			};
-			
-			ImVec2 mouseRectEnd{
-				mouseRectStart.x + frameEndVecForTooltip.x - frameStartVec.x,
-				mouseRectStart.y + frameEndVecForTooltip.y - frameStartVec.y
-			};
-			
-			if (drawFramebars_hoveredFrameIndex == -1 && ImGui::IsWindowHovered() && ImGui::IsMouseHoveringRect(mouseRectStart, mouseRectEnd, true)) {
+		}
+		
+		if (drawFramebars_hoveredFrameIndex == -1 && ImGui::IsWindowHovered()) {
+			ImVec2 frameEndVecForTooltip;
+			const ImVec2* frameEndVecForTooltipPtr;
+			if (visualI < drawFramebars_framesCount - 1) {
+				frameEndVecForTooltip = { preppedDims[visualI + 1].x, frameEndVec.y };
+				frameEndVecForTooltipPtr = &frameEndVecForTooltip;
+			} else {
+				frameEndVecForTooltipPtr = &frameEndVec;
+			}
+			if (ImGui::IsMouseHoveringRect(frameStartVec, *frameEndVecForTooltipPtr, true)) {
 				drawFramebars_hoveredFrameIndex = visualI;
 				drawFramebars_hoveredFrameY = drawFramebars_y;
-				if (ImGui::BeginTooltip()) {
+				if (frame.type != FT_NONE && ImGui::BeginTooltip()) {
 					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 					float wrapWidth = ImGui::GetFontSize() * 35.0f;
 					static float descriptionHeights[FT_LAST] { 0 };
@@ -10936,7 +10825,9 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 					}
 					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 					float oldCursorPos = ImGui::GetCursorPosY();
-					ImGui::TextUnformatted(description->txt, description->txt + description->length);
+					if (description) {
+						ImGui::TextUnformatted(description->txt, description->txt + description->length);
+					}
 					float newCursorPos = ImGui::GetCursorPosY();
 					float textHeight = newCursorPos - oldCursorPos;
 					float requiredHeight;
@@ -11172,8 +11063,6 @@ template<typename FramebarT, typename FrameT>
 void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
 	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
-	const ImVec2 firstFrameUVStart = { ui.firstFrame->uStart, ui.firstFrame->vStart };
-	const ImVec2 firstFrameUVEnd = { ui.firstFrame->uEnd, ui.firstFrame->vEnd };
 	const int startFrame = drawFramebars_framebarPosition == _countof(Framebar::frames) - 1
 					? 0
 					: drawFramebars_framebarPosition + 1;
@@ -11182,7 +11071,7 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 	for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
 		
 		internalInd = internalIndNext;
-		incrementInternalInd(internalIndNext);
+		iterateVisualFrames_incrementInternalInd(internalIndNext);
 		
 		const FrameT& frame = framebar[internalInd];
 		const UI::FrameDims& dims = preppedDims[visualInd];
@@ -11199,25 +11088,43 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 			}
 		}
 		if (isFirst) {
-			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-				{
-					dims.x - drawFramebars_innerBorderThicknessHalf - dims.width * 0.5F,
-					firstFrameTopY
-				},
-				{
-					dims.x - drawFramebars_innerBorderThicknessHalf + dims.width * 0.5F,
-					firstFrameBottomY
-				},
-				firstFrameUVStart,
-				firstFrameUVEnd,
+			ImVec2 artStart {
+				dims.x - std::floorf(drawFramebars_innerBorderThicknessHalf + firstFrameArt.framebar.size.x * 0.5F),
+				firstFrameTopY
+			};
+			ImVec2 artEnd {
+				artStart.x + firstFrameArt.framebar.size.x,
+				firstFrameBottomY
+			};
+			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+				artStart,
+				artEnd,
+				firstFrameArt.framebar.start,
+				firstFrameArt.framebar.end,
 				-1);
 		}
 	}
 }
 
+void drawDigit(char digit, const UI::FrameDims& dims, float frameNumberYTop, float frameNumberYBottom, ImU32 tint) {
+	const DigitUVs& digitImg = digitUVs[digit];
+	
+	float digitX = dims.x;
+	float digitWidth = digitImg.framebar.size.x;
+	
+	digitX += std::floorf((dims.width - digitWidth) * 0.5F);
+	
+	drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+		{ digitX, frameNumberYTop },
+		{ digitX + digitWidth, frameNumberYBottom },
+		digitImg.framebar.start,
+		digitImg.framebar.end,
+		tint);
+}
+
 // Draws frame counts of contiguous groups of similarly-typed frames, on top of the frames
 template<typename FramebarT, typename FrameT>
-void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom) {
+void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom, char* hasDigit) {
 	
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
@@ -11357,22 +11264,9 @@ void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float fra
 				int remainder = sameFrameTypeCountModif % 10;
 				sameFrameTypeCountModif /= 10;
 				
-				const UVStartEnd& digitImg = digitUVs[remainder];
+				drawDigit(remainder, preppedDims[displayPosIter], frameNumberYTop, frameNumberYBottom, -1);
 				
-				const UI::FrameDims& prevDim = preppedDims[displayPosIter];
-				float digitX = prevDim.x;
-				float digitWidth = prevDim.width;
-				
-				if (digitWidth > drawFramebars_frameWidthScaled) {
-					digitX += (digitWidth - drawFramebars_frameWidthScaled) * 0.5F;
-					digitWidth = drawFramebars_frameWidthScaled;
-				}
-				
-				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
-					{ digitX, frameNumberYTop },
-					{ digitX + digitWidth, frameNumberYBottom },
-					digitImg.start,
-					digitImg.end);
+				hasDigit[displayPosIter] = remainder + 1;
 				
 				++prevIndCounter;
 				if (displayPosIter == 0) {
@@ -11438,15 +11332,13 @@ void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, c
 		ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.F);
 		ImGui::NewLine();
 		ImGui::PopStyleVar();
-		float wrapWidthNew = wrapWidth - ImGui::GetCursorPosX();
-		wrapWidthUse = wrapWidthNew;
+		wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
 		wrapPos = font->CalcWordWrapPositionA(1.F, str, textEnd, wrapWidthUse);
 	}
 	if (wrapPos == textEnd) {
 		ImGui::TextUnformatted(str, textEnd);
 		return;
 	} else {
-		float itemSpacing = ImGui::GetStyle().ItemSpacing.y;
 		ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.F);
 		ImGui::TextUnformatted(str, wrapPos);
 		while (wrapPos < textEnd && *wrapPos <= 32) {
@@ -11467,7 +11359,7 @@ void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, c
 		}
 		ImGui::PopStyleVar();
 		if (isLastLine) {
-			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + itemSpacing);
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetStyle().ItemSpacing.y);
 		}
 	}
 }
@@ -12742,9 +12634,9 @@ void printExtraBlockstunText(int amount) {
 }
 
 const char* comborepr(std::vector<int>& combo) {
-	const char* repr = settings.getComboRepresentation(combo);
-	if (repr[0] == '\0') return "<not set>";
-	return repr;
+	StringWithLength repr = settings.getComboRepresentation(combo);
+	if (repr.txt[0] == '\0') return "<not set>";
+	return repr.txt;
 }
 
 void UI::printChargeInFrameTooltip(const char* title, unsigned char value, unsigned char valueMax, unsigned char valueLast) {
@@ -12850,48 +12742,52 @@ void UI::onFramebarAdvanced() {
 }
 
 void UI::drawFramebars() {
-	
+	if (endScene.playerFramebars.empty()
+			&& (
+				settings.eachProjectileOnSeparateFramebar
+					? endScene.projectileFramebars.empty()
+					: endScene.combinedFramebars.empty()
+			)) return;
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool showStrikeInvulOnFramebar = settings.showStrikeInvulOnFramebar;
 	const bool showSuperArmorOnFramebar = settings.showSuperArmorOnFramebar;
 	const bool showThrowInvulOnFramebar = settings.showThrowInvulOnFramebar;
 	const bool showOTGOnFramebar = settings.showOTGOnFramebar;
 	ImGuiIO& io = ImGui::GetIO();
-	float settingsFramebarHeight = (float)settings.framebarHeight * io.DisplaySize.y / 720.F;
-	if (settingsFramebarHeight < 5.F) {
+	float settingsFramebarHeight = std::roundf((float)settings.framebarHeight * io.DisplaySize.y / 720.F);
+	if (settingsFramebarHeight < 5.F - 0.001F) {
 		settingsFramebarHeight = 5.F;
 	}
 	const float scale = settingsFramebarHeight / 19.F;
 	
 	static const float outerBorderThicknessUnscaled = 2.F;
-	float outerBorderThickness = outerBorderThicknessUnscaled * scale;
-	if (outerBorderThickness < 2.F) outerBorderThickness = 2.F;
+	const float outerBorderThicknessScaledBeforeFloor = outerBorderThicknessUnscaled * scale;
+	float outerBorderThickness = std::floorf(outerBorderThicknessScaledBeforeFloor + 0.001F);
+	if (outerBorderThickness < 1.F - 0.001F) {
+		if (outerBorderThicknessScaledBeforeFloor > 0.66F) {
+			outerBorderThickness = 2.F;
+		} else {
+			outerBorderThickness = 1.F;
+		}
+	} else if (outerBorderThickness < 2.F - 0.001F) outerBorderThickness = 2.F;
 	drawFramebars_frameItselfHeight = settingsFramebarHeight - outerBorderThickness - outerBorderThickness;
 	static const float frameNumberHeightOriginal = 11.F;
-	static const float frameMarkerSideHeightOriginal = 3.F;
-	float frameMarkerHeight = frameMarkerHeightOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
-	if (frameMarkerHeight < 5.F) {
-		frameMarkerHeight = 5.F;
-	}
-	float frameMarkerSideHeight = frameMarkerSideHeightOriginal * frameMarkerHeight / frameMarkerHeightOriginal;
-	float powerupHeight = powerupHeightOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
-	if (powerupHeight < 4.F) {
-		powerupHeight = 4.F;
-	}
 	static const float markerPaddingHeightUnscaled = -1.F;
-	const float markerPaddingHeight = markerPaddingHeightUnscaled * scale;
+	const float markerPaddingHeightScaledBeforeFloor = -markerPaddingHeightUnscaled * scale;
+	float markerPaddingHeight = -std::floorf(markerPaddingHeightScaledBeforeFloor + 0.001F);
+	if (markerPaddingHeight > -1.F && markerPaddingHeightScaledBeforeFloor < -0.3F) {
+		markerPaddingHeight = -1.F;
+	}
 	static const float paddingBetweenFramebarsOriginalUnscaled = 5.F;
-	const float paddingBetweenFramebarsOriginal = paddingBetweenFramebarsOriginalUnscaled * scale;
-	static const float paddingBetweenFramebarsMinUnscaled = 3.F;
-	const float paddingBetweenFramebarsMin = paddingBetweenFramebarsMinUnscaled * scale;
+	const float paddingBetweenFramebarsOriginal = std::roundf(paddingBetweenFramebarsOriginalUnscaled * scale);
+	float paddingBetweenFramebarsMinUnscaled = 3.F;
+	if (paddingBetweenFramebarsMinUnscaled < 0.F) paddingBetweenFramebarsMinUnscaled = 0.F;
+	const float paddingBetweenFramebarsMin = std::roundf(paddingBetweenFramebarsMinUnscaled * scale);
 	static const float paddingBetweenTextAndFramebarUnscaled = 5.F;
-	const float paddingBetweenTextAndFramebar = paddingBetweenTextAndFramebarUnscaled * scale;
+	const float paddingBetweenTextAndFramebar = std::roundf(paddingBetweenTextAndFramebarUnscaled * scale);
 	static const float textPaddingUnscaled = 2.F;
-	const float textPadding = textPaddingUnscaled * scale;
-	const float firstFrameHeightScaled = firstFrameHeight * scale;
-	static const float firstFrameHeightDiff = firstFrameHeightScaled - drawFramebars_frameItselfHeight;
-	drawFramebars_frameWidthScaled = frameWidthOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal;
-	static const float frameNumberPaddingY = 2.F;
+	const float textPadding = std::roundf(textPaddingUnscaled * scale);
+	drawFramebars_frameWidthScaled = std::roundf(frameWidthOriginal * drawFramebars_frameItselfHeight / frameHeightOriginal);
 	static const float highlighterWidthUnscaled = 2.F;
 	const float highlighterWidth = highlighterWidthUnscaled * scale;
 	static const float hoveredFrameHighlightPaddingXUnscaled = 3.F;
@@ -12899,36 +12795,100 @@ void UI::drawFramebars() {
 	static const float hoveredFrameHighlightPaddingYUnscaled = 3.F;
 	const float hoveredFrameHighlightPaddingY = hoveredFrameHighlightPaddingYUnscaled * scale;
 	static const float framebarCurrentPositionHighlighterStickoutDistanceUnscaled = 2.F;
-	const float framebarCurrentPositionHighlighterStickoutDistance = framebarCurrentPositionHighlighterStickoutDistanceUnscaled * scale;
-	static const float framedataBottomPadding = 2.F;
-	drawFramebars_innerBorderThickness = innerBorderThicknessUnscaled * scale;
+	const float framebarCurrentPositionHighlighterStickoutDistance = std::roundf(framebarCurrentPositionHighlighterStickoutDistanceUnscaled * scale);
+	static const float framedataBottomPadding = 0.F;
+	drawFramebars_innerBorderThickness = std::floorf(innerBorderThicknessUnscaled * scale + 0.001F);
 	if (drawFramebars_innerBorderThickness < 1.F) drawFramebars_innerBorderThickness = 1.F;
 	drawFramebars_innerBorderThicknessHalf = drawFramebars_innerBorderThickness * 0.5F;
+	
+	drawFramebars_framesCount = framebarSettings.framesCount;
+	
+	const float framesCountFloat = (float)drawFramebars_framesCount;
+	
+	const float initialWindowWidthForFirstUseEver = 880.F / 1280.F * io.DisplaySize.x;
+	float widthForFramesWidthCalculation;
+	short existingWindowWidth = 0;
+	short existingWindowHeight = 0;
+	bool windowAlreadyExists = false;
+	bool windowAlreadyHasSize = imGuiCorrecter.checkWindowHasSize("Framebar", &existingWindowWidth, &existingWindowHeight, &windowAlreadyExists);
+	if (windowAlreadyHasSize) {
+		widthForFramesWidthCalculation = (float)existingWindowWidth;
+		if (windowAlreadyExists && framebarHadScrollbar) widthForFramesWidthCalculation -= 14.F;
+	} else {
+		widthForFramesWidthCalculation = initialWindowWidthForFirstUseEver;
+	}
+	
+	const float framesX = drawFramebars_windowPos.x
+		+ paddingBetweenTextAndFramebar
+		+ outerBorderThickness;
+	const float framesXEnd = drawFramebars_windowPos.x
+		//+ ImGui::GetContentRegionMax().x  // can't get window size because window does not exist yet
+		+ widthForFramesWidthCalculation - 1.F  // -- use alternative approach
+		- outerBorderThickness
+		+ drawFramebars_innerBorderThickness;
+	
+	if (framesXEnd > framesX) {
+		const float totalVisibleFramesWidth = framesXEnd - framesX;
+		const float totalVisibleFramesWidthWithoutInnerBorders = totalVisibleFramesWidth - framesCountFloat * drawFramebars_innerBorderThickness;
+		const float singleFrameWidthUnroundedWithoutInnerBorder = totalVisibleFramesWidthWithoutInnerBorders / framesCountFloat;
+		const float widthFloor = std::floorf(singleFrameWidthUnroundedWithoutInnerBorder + 0.001F);
+		const float widthFraction = singleFrameWidthUnroundedWithoutInnerBorder - widthFloor;
+		
+		PackTextureSizes newSizes;
+		if (widthFraction >= 0.5F) {
+			newSizes.frameWidth = (int)widthFloor + 1;
+			newSizes.everythingWiderByDefault = true;
+		} else {
+			newSizes.frameWidth = (int)widthFloor;
+			newSizes.everythingWiderByDefault = false;
+		}
+		newSizes.frameHeight = (int)drawFramebars_frameItselfHeight;
+		
+		packTextureFramebar(&newSizes, settings.useColorblindHelp);
+	}
+	
+	const float powerupHeight = powerupFrameArt.framebar.size.y;
+	const float firstFrameHeightScaled = firstFrameArt.framebar.size.y;
+	const float firstFrameHeightOffset = std::ceilf(firstFrameHeightScaled * 0.5F - 0.001F);
+	static const float frameMarkerSideHeightOriginal = 2.F;  // does not include outline
+	const FrameMarkerArt* frameMarkerArtArray = settings.useColorblindHelp ? frameMarkerArtColorblind : frameMarkerArtNonColorblind;
+	const FrameMarkerArt& strikeInvulMarker = frameMarkerArtArray[MARKER_TYPE_STRIKE_INVUL];
+	const float frameMarkerHeight = strikeInvulMarker.framebar.size.y;
+	const float markerWidthUse = strikeInvulMarker.framebar.size.x;
+	float frameMarkerSideHeight = std::roundf(
+		frameMarkerSideHeightOriginal * (
+			frameMarkerHeight
+			- 2.F  // exclude outline
+		) / frameMarkerHeightOriginal  // does not include outline
+	) + 1.F  // add outline, but only on one side
+	+ 1.F;  // add 1px padding
+	if (frameMarkerSideHeight < 1.F - 0.001F) frameMarkerSideHeight = 1.F;
 	
 	// Space reserved on top of a framebar for top markers and first frame indicator
 	float maxTopPadding;
 	if (!showFirstFrames) {
 		maxTopPadding = 0.F;
 	} else {
-		maxTopPadding = firstFrameHeightDiff * 0.5F;
-		if (maxTopPadding < 0.F) maxTopPadding = 0.F;
+		maxTopPadding = std::floorf(std::ceilf(firstFrameHeightScaled * 0.5F - 0.001F) * 0.5F + 0.001F);
 	}
 	if (showStrikeInvulOnFramebar || showSuperArmorOnFramebar) {
-		const float otherTopPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight;
+		float otherTopPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight
+			- 1.F;  // -1 to ignore the outline and drive framebars a little closer to each other
 		if (otherTopPadding > maxTopPadding) {
 			maxTopPadding = otherTopPadding;
 		}
 	}
 	// Space reserved under a framebar for bottom markers
-	float bottomPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight;
+	float bottomPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight
+		 - 1.F;  // subtract 1 to remove the outline from the padding and to hug framebars together a little bit
 	if (bottomPadding < 0.F || !showThrowInvulOnFramebar && !showOTGOnFramebar) {
 		bottomPadding = 0.F;
 	}
 	
-	float paddingBetweenFramebars = paddingBetweenFramebarsOriginal;
+	float paddingBetweenTheTwoPlayerFramebars = paddingBetweenFramebarsOriginal;
 	const float minPaddingBetweenFramebars = paddingBetweenFramebarsMin + (maxTopPadding + bottomPadding);
-	if (paddingBetweenFramebars < minPaddingBetweenFramebars) {
-		paddingBetweenFramebars = minPaddingBetweenFramebars;
+	if (paddingBetweenTheTwoPlayerFramebars < minPaddingBetweenFramebars) {
+		paddingBetweenTheTwoPlayerFramebars = minPaddingBetweenFramebars;
 	}
 	
 	const float oneFramebarHeight = outerBorderThickness
@@ -12939,11 +12899,10 @@ void UI::drawFramebars() {
 	bool needShowFramebarFrameDataP1 = settings.showP1FramedataInFramebar;
 	bool needShowFramebarFrameDataP2 = settings.showP2FramedataInFramebar;
 	if (needShowFramebarFrameDataP1 || needShowFramebarFrameDataP2) {
-		framebarFrameDataHeight = ImGui::GetTextLineHeight() + 3.F;  // for whatever reason it's missing ~3px for the tails of letters like y and g
-		// also we're going to add a 1px outline all around the text, so that adds 2 more pixels
+		framebarFrameDataHeight = std::roundf(ImGui::GetTextLineHeight())
+			+ 3.F;  // for whatever reason it's missing ~3px for the tails of letters like y and g
+			// also we're going to add a 1px outline all around the text, so that adds 2 more pixels
 	}
-	
-	drawFramebars_framesCount = framebarSettings.framesCount;
 	
 	int framebarTotalFramesUnlimited = framebarSettings.neverIgnoreHitstop
 		? endScene.getTotalFramesHitstopUnlimited()
@@ -12956,9 +12915,6 @@ void UI::drawFramebars() {
 	} else {
 		framebarTotalFramesCapped = framebarTotalFramesUnlimited;
 	}
-	
-	
-	const float framesCountFloat = (float)drawFramebars_framesCount;
 	
 	// this value is in [0;_countof(Framebar::frames)] coordinate space, its possible range of values is [0;_countof(Framebar::frames)-1]
 	// It does not have horizontal scrolling applied to it
@@ -13091,20 +13047,27 @@ void UI::drawFramebars() {
 	
 	float framebarsPaddingYTotal = 0.F;
 	if (framebarsCount) {
-		framebarsPaddingYTotal = (float)(framebarsCount - 1) * paddingBetweenFramebars;
+		framebarsPaddingYTotal = (float)(framebarsCount - 1) * paddingBetweenTheTwoPlayerFramebars;
 	}
-	ImGui::SetNextWindowSize({ 880.F / 1280.F * io.DisplaySize.x,
+	ImVec2 nextWindowSize { initialWindowWidthForFirstUseEver,
 		2.F  // imgui window padding
 		+ 1.F
 		+ maxTopPadding
 		+ oneFramebarHeight * 2.F
 		+ (needShowFramebarFrameDataP1 ? framebarFrameDataHeight : 0.F)
 		+ (needShowFramebarFrameDataP2 ? framebarFrameDataHeight : 0.F)
-		+ (framebarsCount <= 1 ? 0.F : paddingBetweenFramebars)
+		+ (framebarsCount <= 1 ? 0.F : paddingBetweenTheTwoPlayerFramebars)
 		+ bottomPadding
 		+ 1.F
 		+ 2.F  // imgui window padding
+	};
+	float initialWindowPosXForFirstUseEver = std::floorf((io.DisplaySize.x - nextWindowSize.x) * 0.5F);
+	ImGui::SetNextWindowPos({ initialWindowPosXForFirstUseEver, std::floorf(85.F * io.DisplaySize.y / 720.F)
+		- 1.F  // when testing on my 1920x1080 monitor with the game set to windowed with same resolution, with the default scaling and position,
+		// it skips the row of pixels that coincides with the bottom outline of the throw invulnerability marker, which makes it look weird and cut off.
+		// Hopefully, -1 offset will resolve this
 	}, ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(nextWindowSize, ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowContentSize({ 0.F,
 		// don't add imgui window padding here
 		+ 1.F
@@ -13141,7 +13104,8 @@ void UI::drawFramebars() {
 	
 	drawFramebars_drawList = ImGui::GetWindowDrawList();
 	
-	if (ImGui::GetScrollMaxY() > 0.001F || drawFullBorder) {
+	framebarHadScrollbar = ImGui::GetScrollMaxY() > 0.001F;
+	if (framebarHadScrollbar || drawFullBorder) {
 		drawFramebars_drawList->AddLine({ drawFramebars_windowPos.x, drawFramebars_windowPos.y + 1.F },
 			{ drawFramebars_windowPos.x + windowWidth, drawFramebars_windowPos.y + 1.F },
 			ImGui::GetColorU32(IM_COL32(0, 0, 0, 255)),
@@ -13162,19 +13126,10 @@ void UI::drawFramebars() {
 		}
 	}
 	
-	const float framesX = drawFramebars_windowPos.x
-		+ paddingBetweenTextAndFramebar
-		+ outerBorderThickness;
-	const float framesXEnd = drawFramebars_windowPos.x
-		+ ImGui::GetContentRegionMax().x
-		+ 5.F  // window padding? (it was 8. close enough)
-		- outerBorderThickness
-		+ drawFramebars_innerBorderThickness;
-	
 	const float framesXMask = framesX - outerBorderThickness;
 	const float framesXEndMask = framesXEnd - drawFramebars_innerBorderThickness + outerBorderThickness;
 	
-	const float scrollY = ImGui::GetScrollY();
+	const float scrollY = std::roundf(ImGui::GetScrollY());
 	drawFramebars_y = drawFramebars_windowPos.y 
 		+ 2.F  // imgui window padding
 		+ 1.F
@@ -13184,20 +13139,18 @@ void UI::drawFramebars() {
 		+ (needShowFramebarFrameDataP1 && playerFramebarsCount > 0 ? framebarFrameDataHeight : 0.F);
 	
 	ImU32 tintDarker = ImGui::GetColorU32(IM_COL32(128, 128, 128, 255));
+	ImU32 tintDarkerSemiTransparent = ImGui::GetColorU32(IM_COL32(128, 128, 128, 200));
+	char hasDigit[_countof(Framebar::frames)];
 	
-	
-	float frameNumberHeightDiff = frameHeightOriginal - drawFramebars_frameItselfHeight;
-	float frameNumberPaddingYUse = frameNumberPaddingY;
-	if (frameNumberHeightDiff >= 0.F) {
-		if (frameNumberHeightDiff >= frameNumberPaddingY + frameNumberPaddingY) {
-			frameNumberPaddingYUse = 0.F;
-		} else {
-			frameNumberPaddingYUse = frameNumberPaddingY - frameNumberHeightDiff * 0.5F;
-		}
-	} else {
-		frameNumberPaddingYUse = frameNumberPaddingY;
-	}
-	const float frameNumberHeight = drawFramebars_frameItselfHeight - frameNumberPaddingYUse - frameNumberPaddingYUse;
+	const float frameNumberHeight = digitUVs[0].framebar.size.y;
+	float frameNumberPaddingYUse = (drawFramebars_frameItselfHeight - frameNumberHeight) * 0.5F;
+	frameNumberPaddingYUse = std::truncf(frameNumberPaddingYUse
+		+ (
+			frameNumberPaddingYUse > 0.F
+				? 0.001F
+				: -0.001F
+		)
+	);
 	
 	FrameDims preppedDims[_countof(Framebar::frames)];  // we're only going to use drawFramebars_framesCount of these
 	float highlighterStartX[2] { 0.F, 0.F };
@@ -13207,14 +13160,16 @@ void UI::drawFramebars() {
 		FrameDims* dims;
 		float x = framesX;
 		const float totalVisibleFramesWidth = framesXEnd - framesX;
+		const float singleFrameWidthUnrounded = totalVisibleFramesWidth / framesCountFloat;
+		const float lastPackedSizeWidthFloat = (float)lastPackedSize.frameWidth;
 		
 		for (int i = 0; i < drawFramebars_framesCount - 1; ++i) {
 			
-			float thisFrameXEnd = std::round(totalVisibleFramesWidth * (float)(i + 1) / framesCountFloat + framesX);
+			float thisFrameXEnd = std::roundf(singleFrameWidthUnrounded * (float)(i + 1)) + framesX;
 			float thisFrameWidth = thisFrameXEnd - x;
 			float thisFrameWidthWithoutOutline = thisFrameWidth - drawFramebars_innerBorderThickness;
 			
-			if (thisFrameWidth < 0.99F) {
+			if (thisFrameWidth < 1.F) {
 				thisFrameWidth = 1.F;
 				thisFrameWidthWithoutOutline = 1.F;
 			}
@@ -13222,6 +13177,7 @@ void UI::drawFramebars() {
 			dims = preppedDims + i;
 			dims->x = x;
 			dims->width = thisFrameWidthWithoutOutline;
+			dims->hitConnectedShouldBeAlt = fabsf(thisFrameWidthWithoutOutline - lastPackedSizeWidthFloat) > 0.001F;
 			
 			x = thisFrameXEnd;
 		}
@@ -13230,6 +13186,7 @@ void UI::drawFramebars() {
 		dims->x = x;
 		x = framesXEnd;
 		dims->width = x - drawFramebars_innerBorderThickness - dims->x;
+		dims->hitConnectedShouldBeAlt = fabsf(dims->width - lastPackedSizeWidthFloat) > 0.001F;
 		
 		int highlighterPos = (
 			drawFramebars_framebarPositionDisplay == drawFramebars_framesCount - 1
@@ -13253,13 +13210,11 @@ void UI::drawFramebars() {
 	if (!P1P2TextSizeCalculated || P1P2TextScale != scale) {
 		P1P2TextSizeCalculated = true;
 		P1P2TextScale = scale;
-		P1P2TextSizeWithSpace = ImGui::CalcTextSize("P1 ").x;
-		P1P2TextSize = ImGui::CalcTextSize("P1").x;
+		P1P2TextSizeWithSpace = std::roundf(ImGui::CalcTextSize("P1 ").x);
+		P1P2TextSize = std::roundf(ImGui::CalcTextSize("P1").x);
 	}
 	
 	drawFramebars_frameArtArray = settings.useColorblindHelp ? frameArtColorblind : frameArtNonColorblind;
-	const FrameMarkerArt* frameMarkerArtArray = settings.useColorblindHelp ? frameMarkerArtColorblind : frameMarkerArtNonColorblind;
-	const FrameMarkerArt& strikeInvulMarker = frameMarkerArtArray[MARKER_TYPE_STRIKE_INVUL];
 	const FrameMarkerArt& throwInvulMarker = frameMarkerArtArray[MARKER_TYPE_THROW_INVUL];
 	const FrameMarkerArt& OTGMarker = frameMarkerArtArray[MARKER_TYPE_OTG];
 	
@@ -13275,12 +13230,12 @@ void UI::drawFramebars() {
 	// we're positioned after outerBorderThickness of the next framebar
 	const float offsetAfterP2Framedata =
 		// imaginary (we don't actually do this): -outerBorderThickness
-		-paddingBetweenFramebars
+		-paddingBetweenTheTwoPlayerFramebars
 		+ bottomPadding
 		+ framebarFrameDataHeight
 		+ framedataBottomPadding
 		+ maxTopPadding
-		// imaginary: + outerBorderThickness   ; drawFramebars_y must always point to the top Y of frame's graphical art, not it's outer border
+		// imaginary: + outerBorderThickness   ; drawFramebars_y must always point to the top Y of frame's graphical art, not its outer border
 		;
 	
 	bool lastWasP2Framedata = false;
@@ -13295,8 +13250,8 @@ void UI::drawFramebars() {
 				drawFramebars_windowPos.y + windowHeight
 			}, false);
 		float titleY = drawFramebars_y + scrollY;
-		const float lineHeight = ImGui::GetTextLineHeightWithSpacing();
-		const float textPaddingY = (oneFramebarHeight - lineHeight) * 0.5F;
+		const float lineHeight = std::roundf(ImGui::GetTextLineHeightWithSpacing());
+		const float textPaddingY = std::floorf((oneFramebarHeight - lineHeight) * 0.5F);
 		const bool dontTruncateFramebarTitles = settings.dontTruncateFramebarTitles;
 		const bool allFramebarTitlesDisplayToTheLeft = settings.allFramebarTitlesDisplayToTheLeft;
 		const bool useSlang = settings.useSlangNames;
@@ -13371,12 +13326,12 @@ void UI::drawFramebars() {
 			}
 			float textX;
 			bool isOnTheLeft = true;
-			ImVec2 textSize;
+			float textSizeX;
 			if (entityFramebar.playerIndex == 0 || allFramebarTitlesDisplayToTheLeft) {
 				if (!title) {
-					textSize.x = 0.F;
+					textSizeX = 0.F;
 				} else {
-					textSize = ImGui::CalcTextSize(title);
+					textSizeX = std::roundf(ImGui::CalcTextSize(title).x);
 				}
 				textX = -textPadding;
 			} else {
@@ -13430,7 +13385,7 @@ void UI::drawFramebars() {
 						outlinedText({
 								(
 									isOnTheLeft
-										? textX - P1P2TextSizeWithSpace - textSize.x
+										? textX - P1P2TextSizeWithSpace - textSizeX
 										: textX + P1P2TextSizeWithSpace
 								),
 								textY
@@ -13460,7 +13415,7 @@ void UI::drawFramebars() {
 			} else if (!entityFramebar.belongsToPlayer() && title) {
 				outlinedText({
 					isOnTheLeft
-						? textX - textSize.x
+						? textX - textSizeX
 						: textX,
 					textY
 				},
@@ -13480,7 +13435,7 @@ void UI::drawFramebars() {
 				ImGui::PopTextWrapPos();
 				ImGui::EndTooltip();
 			}
-			titleY += oneFramebarHeight + paddingBetweenFramebars;
+			titleY += oneFramebarHeight + paddingBetweenTheTwoPlayerFramebars;
 			if (needShowFramebarFrameDataP2
 					&& entityFramebar.belongsToPlayer()
 					&& entityFramebar.playerIndex == 1) {
@@ -13506,6 +13461,7 @@ void UI::drawFramebars() {
 	bool has2StripsOfCurrentPositionHighlighter = false;
 	lastWasP2Framedata = false;
 	for (const EntityFramebar* entityFramebarPtr : framebars) {
+		memset(hasDigit, 0, sizeof hasDigit);
 		const EntityFramebar& entityFramebar = *entityFramebarPtr;
 		const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
 		
@@ -13533,7 +13489,6 @@ void UI::drawFramebars() {
 			if (scaledText) {
 				ImGui::SetWindowFontScale(1.F);
 			}
-			ImVec2 textSize = ImGui::CalcTextSize(strbuf);
 			ImVec2 textPos;
 			textPos.x = framesXMask;
 			if (entityFramebar.playerIndex == 0) {
@@ -13542,7 +13497,7 @@ void UI::drawFramebars() {
 				textPos.y = drawFramebars_y - outerBorderThickness + oneFramebarHeight + bottomPadding;
 			}
 			outlinedTextRaw(drawFramebars_drawList, textPos, strbuf, nullptr, nullptr, true);
-			textPos.x += textSize.x;
+			textPos.x += std::roundf(ImGui::CalcTextSize(strbuf).x);
 			
 			short frameAdvantage;
 			short landingFrameAdvantage;
@@ -13587,11 +13542,9 @@ void UI::drawFramebars() {
 				}
 				outlinedTextRaw(drawFramebars_drawList, textPos, strbuf, color, nullptr, true);
 				if (landingFrameAdvantage != SHRT_MIN) {
-					textSize = ImGui::CalcTextSize(strbuf);
-					textPos.x += textSize.x;
+					textPos.x += std::roundf(ImGui::CalcTextSize(strbuf).x);
 					outlinedTextRaw(drawFramebars_drawList, textPos, "(", nullptr, nullptr, true);
-					textSize = ImGui::CalcTextSize("(");
-					textPos.x += textSize.x;
+					textPos.x += std::roundf(ImGui::CalcTextSize("(").x);
 					frameAdvantageTextFormat(landingFrameAdvantage, strbuf, sizeof strbuf);
 					if (landingFrameAdvantage > 0) {
 						color = &GREEN_COLOR;
@@ -13601,8 +13554,7 @@ void UI::drawFramebars() {
 						color = nullptr;
 					}
 					outlinedTextRaw(drawFramebars_drawList, textPos, strbuf, color, nullptr, true);
-					textSize = ImGui::CalcTextSize(strbuf);
-					textPos.x += textSize.x;
+					textPos.x += std::roundf(ImGui::CalcTextSize(strbuf).x);
 					outlinedTextRaw(drawFramebars_drawList, textPos, ")", nullptr, nullptr, true);
 				}
 			}
@@ -13637,25 +13589,15 @@ void UI::drawFramebars() {
 						: (CharacterType)-1);
 			}
 			
+			float frameNumberYTop = drawFramebars_y + frameNumberPaddingYUse;
+			float frameNumberYBottom = frameNumberYTop + frameNumberHeight;
+			
 			{
 				
-				float frameNumberYTop;
-				float frameNumberYBottom;
-				{
-					float frameNumberYTopTemp = drawFramebars_y + frameNumberPaddingYUse;
-					frameNumberYBottom = frameNumberYTopTemp + frameNumberHeight;
-					if (frameNumberPaddingYUse > 0.01F) {
-						frameNumberYTop = std::floor(frameNumberYTopTemp);
-						frameNumberYBottom -= frameNumberYTopTemp - frameNumberYTop;
-					} else {
-						frameNumberYTop = frameNumberYTopTemp;
-					}
-				}
-				
 				if (entityFramebar.belongsToPlayer()) {
-					drawDigits<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, frameNumberYTop, frameNumberYBottom);
+					drawDigits<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, frameNumberYTop, frameNumberYBottom, hasDigit);
 				} else {
-					drawDigits<Framebar, Frame>((const Framebar&)framebar, preppedDims, frameNumberYTop, frameNumberYBottom);
+					drawDigits<Framebar, Frame>((const Framebar&)framebar, preppedDims, frameNumberYTop, frameNumberYBottom, hasDigit);
 				}
 			}
 			
@@ -13665,8 +13607,7 @@ void UI::drawFramebars() {
 				const float markerEndY = yTopRow + frameMarkerHeight;
 				const float yBottomRow = drawFramebars_y + drawFramebars_frameItselfHeight + markerPaddingHeight;
 				const float markerBottomEndY = yBottomRow + frameMarkerHeight;
-				const float thisMarkerWidthPremult = frameMarkerWidthOriginal / frameWidthOriginal;
-				const float powerupWidthPremult = powerupWidthOriginal / frameWidthOriginal;
+				const float powerupWidthUse = powerupFrameArt.framebar.size.x;
 				
 				bool isPlayer = entityFramebar.belongsToPlayer();
 				{
@@ -13677,21 +13618,21 @@ void UI::drawFramebars() {
 					for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
 						
 						internalInd = internalIndNext;
-						incrementInternalInd(internalIndNext);
+						iterateVisualFrames_incrementInternalInd(internalIndNext);
 						
 						const PlayerFrame& playerFrame = framebarPlayer[internalInd];
 						const Frame& projectileFrame = framebarProjectile[internalInd];
 						const FrameDims& dims = preppedDims[visualInd];
 						
 						ImU32 tint = -1;
+						ImU32 tintSemiTransparent = ImGui::GetColorU32(IM_COL32(255, 255, 255, 200));
 						if (visualInd > drawFramebars_framebarPositionDisplay) {
 							tint = tintDarker;
+							tintSemiTransparent = tintDarkerSemiTransparent;
 						}
 						
-						float thisMarkerWidth = thisMarkerWidthPremult * dims.width;
-						float thisMarkerWidthOffset = (thisMarkerWidth - dims.width) * 0.5F;
-						ImVec2 markerStart { dims.x - thisMarkerWidthOffset, yTopRow };
-						ImVec2 markerEnd { dims.x + dims.width + thisMarkerWidthOffset, markerEndY };
+						ImVec2 markerStart { dims.x - 1.F, yTopRow };
+						ImVec2 markerEnd { markerStart.x + markerWidthUse, markerEndY };
 						ImVec2 bottomBarkerStart { markerStart.x, yBottomRow };
 						ImVec2 bottomBarkerEnd { markerEnd.x, markerBottomEndY };
 						
@@ -13705,11 +13646,11 @@ void UI::drawFramebars() {
 											&& strcmp(projectileFrame.animName, PROJECTILE_NAME_GHOST) == 0
 								) && showStrikeInvulOnFramebar
 						) {
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 								markerStart,
 								markerEnd,
-								strikeInvulMarker.uvStart,
-								strikeInvulMarker.uvEnd,
+								strikeInvulMarker.framebar.start,
+								strikeInvulMarker.framebar.end,
 								tint);
 							
 							markerStart.y += frameMarkerSideHeight;
@@ -13722,21 +13663,21 @@ void UI::drawFramebars() {
 											? MARKER_TYPE_SUPER_ARMOR_FULL
 											: MARKER_TYPE_SUPER_ARMOR
 								];
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 									markerStart,
 									markerEnd,
-									markerArt.uvStart,
-									markerArt.uvEnd,
+									markerArt.framebar.start,
+									markerArt.framebar.end,
 									tint);
 							}
 							
 							if (playerFrame.throwInvulInGeneral && showThrowInvulOnFramebar) {
 								
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 									bottomBarkerStart,
 									bottomBarkerEnd,
-									throwInvulMarker.uvStart,
-									throwInvulMarker.uvEnd,
+									throwInvulMarker.framebar.start,
+									throwInvulMarker.framebar.end,
 									tint);
 								
 								bottomBarkerStart.y -= frameMarkerSideHeight;
@@ -13745,12 +13686,25 @@ void UI::drawFramebars() {
 							
 							if (playerFrame.OTGInGeneral && showOTGOnFramebar) {
 								
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								const bool ohGod = hasDigit[visualInd]
+											&& playerFrame.throwInvulInGeneral
+											&& showThrowInvulOnFramebar;
+								
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 									bottomBarkerStart,
 									bottomBarkerEnd,
-									OTGMarker.uvStart,
-									OTGMarker.uvEnd,
-									tint);
+									OTGMarker.framebar.start,
+									OTGMarker.framebar.end,
+									ohGod
+										? tintSemiTransparent
+										: tint);
+								
+								if (ohGod) {
+									drawDigit(hasDigit[visualInd] - 1, dims, frameNumberYTop, frameNumberYBottom,
+										visualInd > drawFramebars_framebarPositionDisplay
+											? ImGui::GetColorU32(IM_COL32(128, 128, 128, 150))
+											: ImGui::GetColorU32(IM_COL32(255, 255, 255, 150)));
+								}
 							}
 						} else if (projectileFrame.type == FT_IDLE_PROJECTILE_HITTABLE
 								&& (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)
@@ -13766,35 +13720,28 @@ void UI::drawFramebars() {
 							const PlayerFrame& correspondingPlayerFrame = correspondingPlayersFramebar[internalInd];
 							if (correspondingPlayerFrame.u.dizzyInfo.shieldFishSuperArmor) {
 								const FrameMarkerArt& markerArt = frameMarkerArtArray[MARKER_TYPE_SUPER_ARMOR];
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 									markerStart,
 									markerEnd,
-									markerArt.uvStart,
-									markerArt.uvEnd,
+									markerArt.framebar.start,
+									markerArt.framebar.end,
 									tint);
 							}
 						}
 						
 						if (isPlayer ? playerFrame.powerup && !playerFrame.dontShowPowerupGraphic : projectileFrame.powerup) {
-							float powerupWidthOffset = (powerupWidthPremult * dims.width - dims.width) * 0.5F;
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES,
+							float powerupWidthOffset = std::floorf((dims.width - powerupWidthUse) * 0.5F + 0.001F);
+							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 								{
-									dims.x - powerupWidthOffset,
+									dims.x + powerupWidthOffset,
 									isPlayer && playerFrame.superArmorActiveInGeneral ? yTopRow + frameMarkerSideHeight : yTopRow
 								},
 								{
-									dims.x + dims.width + powerupWidthOffset,
+									dims.x + powerupWidthOffset + powerupWidthUse,
 									isPlayer && playerFrame.superArmorActiveInGeneral ? yTopRow + powerupHeight + frameMarkerSideHeight : yTopRow + powerupHeight
 								},
-								{
-									powerupFrame->uStart,
-									powerupFrame->vStart
-									
-								},
-								{
-									powerupFrame->uEnd,
-									powerupFrame->vEnd
-								},
+								powerupFrameArt.framebar.start,
+								powerupFrameArt.framebar.end,
 								tint);
 						}
 						
@@ -13804,7 +13751,7 @@ void UI::drawFramebars() {
 			
 			if (showFirstFrames) {
 				
-				const float firstFrameTopY = drawFramebars_y - outerBorderThickness - firstFrameHeightDiff * 0.5F;
+				const float firstFrameTopY = drawFramebars_y - firstFrameHeightOffset;
 				const float firstFrameBottomY = firstFrameTopY + firstFrameHeightScaled;
 				
 				if (entityFramebar.belongsToPlayer()) {
@@ -13815,12 +13762,12 @@ void UI::drawFramebars() {
 			}
 		}
 		
-		drawFramebars_y += oneFramebarHeight + paddingBetweenFramebars;
+		drawFramebars_y += oneFramebarHeight + paddingBetweenTheTwoPlayerFramebars;
 		if (needShowFramebarFrameDataP2
 				&& entityFramebar.belongsToPlayer()
 				&& entityFramebar.playerIndex == 1) {
 			lastWasP2Framedata = true;
-			currentPositionHighlighter_Strip1_EndY = drawFramebars_y;  // leave paddingBetweenFramebars in
+			currentPositionHighlighter_Strip1_EndY = drawFramebars_y;  // leave paddingBetweenTheTwoPlayerFramebars in
 		}
 	}
 	
@@ -13854,7 +13801,7 @@ void UI::drawFramebars() {
 		
 		highlighterStartEnd[i].end = curPosStripRaw[i].end
 					- outerBorderThickness
-					- paddingBetweenFramebars
+					- paddingBetweenTheTwoPlayerFramebars
 					+ framebarCurrentPositionHighlighterStickoutDistance;
 	}
 	
@@ -13898,7 +13845,7 @@ void UI::drawFramebars() {
 		for (int visualInd = 0; visualInd < drawFramebars_framesCount; ++visualInd) {
 			
 			internalInd = internalIndNext;
-			incrementInternalInd(internalIndNext);
+			iterateVisualFrames_incrementInternalInd(internalIndNext);
 			
 			const SkippedFramesInfo& skippedInfo = skippedFrames[internalInd];
 			if (!skippedInfo.count) {
@@ -14149,8 +14096,8 @@ void UI::drawFramebars() {
 }
 
 // Interject between Win32 backend and ImGui::NewFrame
-void UI::interjectIntoImGui() {
-	imGuiCorrecter.interjectIntoImGui(screenWidth, screenHeight,
+void UI::adjustMousePosition() {
+	imGuiCorrecter.adjustMousePosition(screenWidth, screenHeight,
 		usePresentRect, presentRectW, presentRectH);
 }
 
@@ -14166,11 +14113,672 @@ void UI::printLineOfResultOfHookingRankIcons(const char* placeName, bool result)
 	}
 }
 
-void changeTextureFiltering(const ImDrawList* parent_list, const ImDrawCmd* cmd) {
-	ImGui_ImplDX9_Data* backend = (ImGui_ImplDX9_Data*)ImGui::GetIO().BackendRendererUserData;
-	IDirect3DDevice9* device = backend->pd3dDevice;
-	D3DTEXTUREFILTERTYPE filterType = (D3DTEXTUREFILTERTYPE)(DWORD)cmd->UserCallbackData;
-	// by default, imgui_impl_dx9 sets this to linear
-    device->SetSamplerState(0, D3DSAMP_MAGFILTER, filterType);
-    device->SetSamplerState(0, D3DSAMP_MINFILTER, filterType);
+void UI::prepareSecondaryFrameArts(UITextureType type) {
+	
+	FrameArt* arrays[2] = { frameArtColorblind, frameArtNonColorblind };
+	FrameMarkerArt* arraysMarkers[2] = { frameMarkerArtColorblind, frameMarkerArtNonColorblind };
+	for (int i = 0; i < 2; ++i) {
+		FrameArt& art = arrays[i][FT_HITSTOP];
+		art = arrays[i][FT_IDLE];
+		art.type = FT_HITSTOP;
+		art.description = "Hitstop: the time is stopped for this player due to a hit or blocking.";
+	}
+	for (int i = 0; i < 2; ++i) {
+		FrameArt* theArray = arrays[i];
+		
+		FrameArt* ptr;
+		ptr = &theArray[FT_IDLE_PROJECTILE];
+		*ptr = arrays[i][FT_IDLE];
+		ptr->description = "Projectile is not active.";
+		
+		ptr = &theArray[FT_IDLE_NO_DISPOSE];
+		*ptr = arrays[i][FT_IDLE];
+		ptr->description = "Projectile is not active.";
+		
+		ptr = &theArray[FT_ACTIVE_PROJECTILE];
+		*ptr = arrays[i][FT_ACTIVE];
+		ptr->description = "Projectile is active.";
+		
+		ptr = &theArray[FT_ACTIVE_NEW_HIT_PROJECTILE];
+		*ptr = arrays[i][FT_ACTIVE_NEW_HIT];
+		ptr->description = "Projectile is active, new (potential) hit has started:"
+			" The black shadow on the left side of the frame denotes the start of a new (potential) hit."
+			" The projectile may be capable of doing fewer hits than 1+the number of \"new hits\" displayed,"
+			" and the first actual hit may occur on any active frame independent of \"new hit\" frames."
+			" \"New hit\" frame merely means that the hit #2, #3 and so on can only happen after a \"new hit\" frame,"
+			" and, between the first hit and the next \"new hit\", projectile is inactive (even though it is displayed as active)."
+			" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on.";
+		
+		ptr = &theArray[FT_ACTIVE_HITSTOP_PROJECTILE];
+		*ptr = arrays[i][FT_ACTIVE_HITSTOP];
+		ptr->description = "Projectile is active, and in hitstop: while the projectile is in hitstop, time doesn't advance for it and"
+			" it doesn't hit enemies.";
+		
+		ptr = &theArray[FT_NON_ACTIVE_PROJECTILE];
+		*ptr = arrays[i][FT_NON_ACTIVE];
+		ptr->description = "A frame inbetweeen the active frames of a projectile.";
+		
+		ptr = &theArray[FT_STARTUP_ANYTIME_NOW];
+		*ptr = arrays[i][FT_IDLE_ELPHELT_RIFLE];
+		ptr->description = "Startup of a holdable move: can release the button any time to either attack or cancel the move."
+			" Can't block or FD or perform normal attacks.";
+		
+		ptr = &theArray[FT_STARTUP_CAN_PROGRAM_SECRET_GARDEN];
+		*ptr = arrays[i][FT_IDLE_ELPHELT_RIFLE];
+		ptr->description = "Startup: can program Secret Garden."
+			" Can't block or FD or perform normal attacks.";
+		
+		ptr = &theArray[FT_STARTUP_STANCE];
+		*ptr = arrays[i][FT_IDLE_ELPHELT_RIFLE];
+		ptr->description = "Being in some form of stance: can cancel into one or more specials. Can't block or FD or perform normal attacks.";
+		
+		ptr = &theArray[FT_IDLE_ELPHELT_RIFLE_READY];
+		*ptr = arrays[i][FT_STARTUP_STANCE_CAN_STOP_HOLDING];
+		ptr->description = "Idle: Can cancel the stance into specials or fire the rifle. Can't block or FD or perform normal attacks.";
+		
+		ptr = &theArray[FT_STARTUP_CAN_BLOCK_AND_CANCEL];
+		*ptr = arrays[i][FT_STARTUP_STANCE_CAN_STOP_HOLDING];
+		ptr->description = "Startup, but can block and cancel into certain moves:"
+		" an attack's active frames have not yet started, or this is not an attack."
+		" Can block and/or maybe FD, possibly can't switch block, and can cancel into certain moves.";
+		
+		ptr = &theArray[FT_RECOVERY_CAN_RELOAD];
+		*ptr = arrays[i][FT_RECOVERY_HAS_GATLINGS];
+		ptr->description = "Recovery, but can reload. Can't attack, block or FD.";
+		
+		ptr = &theArray[FT_STARTUP_ANYTIME_NOW_CAN_ACT];
+		*ptr = arrays[i][FT_IDLE_CANT_BLOCK];
+		ptr->description = "Startup of a holdable move: can release the button any time to either attack or cancel the move,"
+			" and can also cancel into other moves."
+			" Can't block or FD or perform normal attacks.";
+		
+		ptr = &theArray[FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK];
+		*ptr = arrays[i][FT_IDLE_CANT_FD];
+		ptr->description = "Idle while airborne on the pre-landing (last airborne) frame:"
+			" can block grounded on this frame and regular (without FD) block ground attacks that require FD to be blocked in the air."
+			" Can attack, block and FD.";
+		
+		ptr = &theArray[FT_EDDIE_STARTUP];
+		*ptr = arrays[i][FT_STARTUP];
+		ptr->description = "Eddie's attack is in startup.";
+		
+		ptr = &theArray[FT_EDDIE_ACTIVE];
+		*ptr = arrays[i][FT_ACTIVE];
+		ptr->description = "Eddie's attack is active.";
+		
+		ptr = &theArray[FT_EDDIE_ACTIVE_HITSTOP];
+		*ptr = arrays[i][FT_ACTIVE_HITSTOP];
+		ptr->description = "Eddie's attack is active, but Eddie is in hitstop:"
+			" during it, his attack can't hurt anybody and Eddie doesn't move.";
+		
+		ptr = &theArray[FT_EDDIE_ACTIVE_NEW_HIT];
+		*ptr = arrays[i][FT_ACTIVE_NEW_HIT];
+		ptr->description = "Eddie's attack is active, and a new (potential) hit starts on this frame."
+			" The black shadow on the left side of the frame denotes the start of a new (potential) hit."
+			" Eddie may be capable of doing fewer hits than 1+the number of \"new hits\" displayed,"
+			" and the first actual hit may occur on any active frame independent of \"new hit\" frames."
+			" \"New hit\" frame merely means that the hit #2, #3 and so on can only happen after a \"new hit\" frame,"
+			" and, between the first hit and the next \"new hit\", Eddie is inactive (even though he's displayed as active)."
+			" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on.";
+		
+		ptr = &theArray[FT_EDDIE_RECOVERY];
+		*ptr = arrays[i][FT_RECOVERY];
+		ptr->description = "Eddie's attack is in recovery.";
+		
+		ptr = &theArray[FT_IDLE_PROJECTILE_HITTABLE];
+		*ptr = arrays[i][FT_EDDIE_IDLE];
+		ptr->description = "Projectile is not active and can be hit by attacks.";
+		
+		// sorry, please prepare frameArtColorblind, frameArtNonColorblind UVs yourself, before calling this function
+		
+	}
+	// sorry, please prepare frameMarkerArtColorblind, frameMarkerArtNonColorblind UVs yourself
+	// sorry, please prepare digitUVs yourself
+	
+}
+
+static void assignFromResourceHelper(UVStartEnd& se, const PngResource& res) {
+	se.width = res.width;
+	se.height = res.height;
+	se.size = { (float)se.width, (float)se.height };
+	se.start = { res.uStart, res.vStart };
+	se.end = { res.uEnd, res.vEnd };
+}
+
+void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackTextureSizes* sizes) {
+	
+	#define selectSE(thing) (type == UITextureType::UITEX_HELP ? thing.help : thing.framebar)
+	#define assignFromResource(thing, res) assignFromResourceHelper(selectSE(thing), res)
+		
+	using PixelA = PngResource::PixelA;
+	TexturePacker texturePacker;
+	const int originalFrameWidthInt = 9;
+	const int originalFrameHeightInt = 15;
+	const float originalFrameWidth = (float)originalFrameWidthInt;
+	const float originalFrameHeight = (float)originalFrameHeightInt;
+	const float sizesFrameWidthFloat = (float)sizes->frameWidth;
+	const float sizesFrameHeightFloat = (float)sizes->frameHeight;
+	const float frameScaleHoriz = sizesFrameWidthFloat / originalFrameWidth;
+	const float frameScaleVert = sizesFrameHeightFloat / originalFrameHeight;
+	
+	int colorsCount = 0;
+	FrameArt* frameArtArrays[2] { nullptr };
+	FrameMarkerArt* frameMarkerArtArrays[2] { nullptr };
+	
+	if (type == UITextureType::UITEX_HELP) {
+		colorsCount = 2;
+		frameArtArrays[0] = frameArtColorblind;
+		frameArtArrays[1] = frameArtNonColorblind;
+		frameMarkerArtArrays[0] = frameMarkerArtColorblind;
+		frameMarkerArtArrays[1] = frameMarkerArtNonColorblind;
+	} else {
+		colorsCount = 1;
+		
+		if (settings.useColorblindHelp) {
+			frameArtArrays[0] = frameArtColorblind;
+			frameMarkerArtArrays[0] = frameMarkerArtColorblind;
+		} else {
+			frameArtArrays[0] = frameArtNonColorblind;
+			frameMarkerArtArrays[0] = frameMarkerArtNonColorblind;
+		}
+	}
+	
+	PngResource* uniqueFrameArts[FT_LAST * 2] { nullptr };
+	int uniqueFrameArtsCount = 0;
+	{
+		
+		for (int i = 0; i < colorsCount; ++i) {
+			for (int j = 1; j < FT_LAST; ++j) {
+				if (type == UITextureType::UITEX_FRAMEBAR && isNewHitType((FrameType)j)) continue;
+				FrameArt& art = frameArtArrays[i][j];
+				bool found = false;
+				for (int k = 0; k < uniqueFrameArtsCount; ++k) {
+					if (uniqueFrameArts[k] == art.resource) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					uniqueFrameArts[uniqueFrameArtsCount++] = art.resource;
+					texturePacker.addImage(*art.resource);
+				}
+			}
+		}
+	}
+	
+	struct UsedMarker {
+		FrameMarkerArt markerArt;
+		PngResource resource;
+	};
+	UsedMarker uniqueOutlinedScaledMarkers[2 * MARKER_TYPE_LAST] { };
+	int uniqueOutlinedScaledMarkersCount = 0;
+	{
+		const int desiredMarkerHeightWhenUnscaledInt = 4;
+		const float desiredMarkerHeightWhenUnscaled = (float)desiredMarkerHeightWhenUnscaledInt;
+		int markerHeight = (int)std::roundf(desiredMarkerHeightWhenUnscaled * frameScaleVert);
+		if (markerHeight < 1) markerHeight = 1;
+		int markerHeightAccordingToWidth = (int)std::roundf(desiredMarkerHeightWhenUnscaled * frameScaleHoriz);
+		if (markerHeight > markerHeightAccordingToWidth) markerHeight = markerHeightAccordingToWidth;
+		int markerWidth = sizes->frameWidth;
+		if (markerWidth < 1) markerWidth = 1;
+		
+		for (int i = 0; i < colorsCount; ++i) {
+			for (int j = 0; j < MARKER_TYPE_LAST; ++j) {
+				const FrameMarkerArt& art = frameMarkerArtArrays[i][j];
+				const PngResource& sourceMarker = *art.resource;
+				
+				bool found = false;
+				for (int k = 0; k < uniqueOutlinedScaledMarkersCount; ++k) {
+					UsedMarker& usedMarker = uniqueOutlinedScaledMarkers[k];
+					if (usedMarker.markerArt.equal(art)) {
+						found = true;
+						break;
+					}
+				}
+				if (found) continue;
+				
+				UsedMarker& newUsedMarker = uniqueOutlinedScaledMarkers[uniqueOutlinedScaledMarkersCount++];
+				newUsedMarker.markerArt = art;
+				
+				PngResource scaledMarker;
+				scaledMarker.resize(markerWidth, markerHeight);
+				sourceMarker.stretchRect(scaledMarker,
+					0, 0,
+					sourceMarker.width, sourceMarker.height,
+					0, 0,
+					scaledMarker.width, scaledMarker.height);
+				
+				PngResource& outlinedScaledMarker = newUsedMarker.resource;
+				outlinedScaledMarker.resize(2 + scaledMarker.width, 2 + scaledMarker.height);
+				
+				for (int offX = 0; offX < 3; ++offX) {
+					for (int offY = 0; offY < 3; ++offY) {
+						if (offX == 1 && offY == 1) continue;
+						scaledMarker.drawTintWithMaxAlpha(outlinedScaledMarker,
+							0, 0,
+							offX, offY,
+							scaledMarker.width, scaledMarker.height,
+							art.outlineColor);
+					}
+				}
+				//outlinedScaledMarker.multiplyAlphaByPercent(0, 0, outlinedScaledMarker.width, outlinedScaledMarker.height, 130);
+				scaledMarker.draw(outlinedScaledMarker,
+					0, 0,
+					1, 1,
+					scaledMarker.width, scaledMarker.height);
+				
+				if (art.hasMiddleLine) {
+					int middle = outlinedScaledMarker.width / 2;
+					for (size_t row = 0; row < outlinedScaledMarker.height; ++row) {
+						DWORD* pixel = (DWORD*)outlinedScaledMarker.getPixel(middle, row);
+						*pixel = *pixel & 0xff000000 | art.outlineColor & 0x00FFFFFF;
+					}
+				}
+				
+				texturePacker.addImage(outlinedScaledMarker);
+			}
+		}
+	}
+	
+	
+	PngResource firstFrame;
+	{
+		const float originalFirstFrameWidth = 1.F;
+		const int originalFirstFrameHeightInt = 5;
+		const float originalFirstFrameHeight = (float)originalFirstFrameHeightInt;
+		
+		float firstFrameWidthFloat = frameScaleHoriz * originalFirstFrameWidth;
+		float fraction = firstFrameWidthFloat - std::truncf(firstFrameWidthFloat);
+		int firstFrameWidth = (int)firstFrameWidthFloat;
+		if (fraction > 0.66F) {
+			++firstFrameWidth;
+		}
+		if (firstFrameWidth < 1) firstFrameWidth = 1;
+		
+		int firstFrameHeight = (int)std::roundf(frameScaleVert * originalFirstFrameHeight);
+		if (firstFrameHeight < 1) firstFrameHeight = 1;
+		if (firstFrameHeight > originalFirstFrameHeightInt) {
+			firstFrameHeight -= (int)std::ceilf((frameScaleVert * originalFirstFrameHeight - originalFirstFrameHeight) * 0.5F);
+		}
+		
+		firstFrame.resize(1 + firstFrameWidth + 1, 1 + firstFrameHeight + 1);
+		
+		PixelA* ptr = firstFrame.getPixel(0, 0);
+		for (size_t column = 0; column < firstFrame.width; ++column) {
+			*(DWORD*)ptr = 0xFF000000;
+			++ptr;
+		}
+		
+		for (int row = 0; row < firstFrameHeight; ++row) {
+			*(DWORD*)ptr = 0xFF000000;
+			++ptr;
+			for (int column = 0; column < firstFrameWidth; ++column) {
+				*(DWORD*)ptr = 0xFFFFFFFF;
+				++ptr;
+			}
+			*(DWORD*)ptr = 0xFF000000;
+			++ptr;
+		}
+		
+		for (size_t column = 0; column < firstFrame.width; ++column) {
+			*(DWORD*)ptr = 0xFF000000;
+			++ptr;
+		}
+		texturePacker.addImage(firstFrame);
+	}
+	
+	PngResource hitConnectedFrameAr[2] { };
+	PngResource hitConnectedBlackFrameAr[2] { };
+	{
+		int hitConnectedWidthsCount = type == UITextureType::UITEX_HELP ? 1 : 2;
+		for (int i = 0; i < hitConnectedWidthsCount; ++i) {
+			int w = sizes->frameWidth;
+			if (i == 1) {
+				if (sizes->everythingWiderByDefault) {
+					--w;
+				} else {
+					++w;
+				}
+			}
+			if (w < 1) w = 1;
+			
+			PngResource& hitConnectedFrame = hitConnectedFrameAr[i];
+			hitConnectedFrame.resize(w, sizes->frameHeight);
+			hitConnectedFrame.drawRectOutline(
+				0, 0,
+				w, sizes->frameHeight,
+				0xFFFFFFFF);
+			texturePacker.addImage(hitConnectedFrame);
+			
+			PngResource& hitConnectedBlackFrame = hitConnectedBlackFrameAr[i];
+			hitConnectedBlackFrame.resize(w, sizes->frameHeight);
+			hitConnectedBlackFrame.drawRectOutline(
+				0, 0,
+				w, sizes->frameHeight,
+				0xFF000000);
+			if (w > 2 && sizes->frameHeight > 2) {
+				hitConnectedBlackFrame.drawRectOutline(
+					1, 1,
+					w - 2, sizes->frameHeight - 2,
+					0xFFFFFFFF);
+			}
+			texturePacker.addImage(hitConnectedBlackFrame);
+		}
+	}
+	
+	PngResource powerup;
+	{
+		const DWORD outlineColor = 0xffffd065;
+		const DWORD fillColor = 0xffffffcc;
+		int i, j, end;
+		PixelA* ptr;
+		
+		float wF = std::roundf(frameScaleHoriz * 7.F);
+		float hF = std::roundf(frameScaleVert * 7.F);
+		int w = (int)wF;
+		int h = (int)hF;
+		if (w < 5) w = 5;
+		if (h < 5) h = 5;
+		int size = min(w, h);
+		float sizeF = min(wF, hF);
+		int thickness = (size - 2) / 5;
+		if (thickness < 1) thickness = 1;
+		
+		if (thickness % 2 != size % 2) {
+			if ((float)size > sizeF) {
+				--size;
+				if (size < 5) {
+					thickness = 1;
+					size = 5;
+				}
+			} else {
+				++size;
+			}
+		}
+		
+		powerup.resize(size, size);
+		memset(powerup.data.data(), 0, size * size * sizeof(PixelA));
+		
+		const int armLength = (size - 2) / 2;
+		// if size is even, [1 + armLength] points to the start of the second half
+		// if size if uneven, [1 + armLength] point to the center
+		int thicknessHalf = thickness / 2;
+		
+		// the offset from the left border of the image to the outline of the thin part of the cross
+		int horizOffsetToOutline = (1 + armLength) - thicknessHalf - 1;
+		
+		// the top row
+		ptr = powerup.getPixel(horizOffsetToOutline, 0);
+		end = thickness + 2;
+		for (i = 0; i < end; ++i) {
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+		}
+		
+		ptr = ptr - thickness - 2 + powerup.width;
+		int heightToReachHorizontalOutline = armLength - thicknessHalf - 1;
+		// the part between the top row and horizontal outline start
+		end = heightToReachHorizontalOutline;
+		for (i = 0; i < end; ++i) {
+			PixelA* ptrRewindingPoint = ptr;
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+			for (j = 0; j < thickness; ++j) {
+				*(DWORD*)ptr = fillColor;
+				++ptr;
+			}
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+			
+			ptr = ptrRewindingPoint;
+			powerup.incrementRow(ptr);
+		}
+		
+		ptr -= horizOffsetToOutline;
+		// offset from the left border of the image to the center fill
+		int offsetToTheStartOfFillColorOfCenter = horizOffsetToOutline + 1;
+		// the horizontal outline, until the fill-colored region of the middle
+		end = offsetToTheStartOfFillColorOfCenter;
+		for (i = 0; i < end; ++i) {
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+		}
+		
+		// the fill-colored middle region
+		for (i = 0; i < thickness; ++i) {
+			*(DWORD*)ptr = fillColor;
+			++ptr;
+		}
+		
+		// the horizontal outline that continues on the right
+		for (i = end + thickness; i < size; ++i) {
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+		}
+		
+		end = size - 2;
+		// the part of the horizontal piece that isn't its top and bottom rows
+		for (i = 0; i < thickness; ++i) {
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+			for (j = 0; j < end; ++j) {
+				*(DWORD*)ptr = fillColor;
+				++ptr;
+			}
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+		}
+		
+		// the bottom row of the horizontal piece, until the fill-colored middle
+		end = offsetToTheStartOfFillColorOfCenter;
+		for (i = 0; i < end; ++i) {
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+		}
+		
+		// the fill color of the middle
+		for (i = 0; i < thickness; ++i) {
+			*(DWORD*)ptr = fillColor;
+			++ptr;
+		}
+		
+		// the outline of the bottom row of the horizontal piece that is continued on the right
+		for (i = end + thickness; i < size; ++i) {
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+		}
+		
+		ptr += horizOffsetToOutline;
+		// the part from the bottom row of the horizontal piece to the bottom row of the entire image
+		end = heightToReachHorizontalOutline;
+		for (i = 0; i < end; ++i) {
+			PixelA* ptrRewindingPoint = ptr;
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+			for (j = 0; j < thickness; ++j) {
+				*(DWORD*)ptr = fillColor;
+				++ptr;
+			}
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+			
+			ptr = ptrRewindingPoint;
+			powerup.incrementRow(ptr);
+		}
+		
+		// the bottom row
+		end = thickness + 2;
+		for (i = 0; i < end; ++i) {
+			*(DWORD*)ptr = outlineColor;
+			++ptr;
+		}
+		
+		texturePacker.addImage(powerup);
+	}
+	
+	PngResource newHit;
+	{
+		int stripeWidth = 2;
+		if (sizes->frameWidth > originalFrameWidthInt) {
+			stripeWidth = stripeWidth * sizes->frameWidth / originalFrameWidthInt;
+		}
+		newHit.resize(stripeWidth + 1, sizes->frameHeight);
+		
+		std::vector<DWORD> preppedGradient(newHit.width, 0);
+		for (size_t i = 0; i < newHit.width; ++i) {
+			preppedGradient[i] = (255 * (newHit.width - i) / (newHit.width + 1)) << 24;
+		}
+		
+		PixelA* ptr = newHit.getPixel(0, 0);
+		for (size_t i = 0; i < newHit.height; ++i) {
+			if (i % 2 == 0) {
+				for (int j = 0; j < stripeWidth; ++j) {
+					*(DWORD*)ptr = 0xFF000000;
+					++ptr;
+				}
+				*(DWORD*)ptr = preppedGradient.back();
+				++ptr;
+			} else {
+				for (size_t j = 0; j < newHit.width; ++j) {
+					*(DWORD*)ptr = preppedGradient[j];
+					++ptr;
+				}
+			}
+		}
+		texturePacker.addImage(newHit);
+	}
+	
+	PngResource digits[10];
+	if (type == UITextureType::UITEX_FRAMEBAR) {
+		static const float originalDigitHeight = 11.F;
+		int digitHeight;
+		if (frameScaleVert > 1.F) {
+			digitHeight = (int)std::roundf(originalDigitHeight * frameScaleVert + 0.25F);
+			if (digitHeight > (int)digitFrame[0]->height) {
+				digitHeight = (int)digitFrame[0]->height;
+			}
+		} else {
+			if (sizesFrameHeightFloat < originalDigitHeight) {
+				digitHeight = (int)sizesFrameHeightFloat;
+			} else {
+				digitHeight = (int)originalDigitHeight;
+			}
+		}
+		if (digitHeight < 3) digitHeight = 3;
+		int w = sizes->frameWidth;
+		if (frameScaleHoriz >= 1.F) {
+			w -= (int)std::ceilf(frameScaleHoriz - 1.F);
+		}
+		if (w > (int)drawFramebars_frameWidthScaled) w = (int)drawFramebars_frameWidthScaled;
+		if (w > (int)digitFrame[0]->width) w = digitFrame[0]->width;
+		if (w < 3) w = 3;
+		for (int i = 0; i <= 9; ++i) {
+			PngResource& digit = digits[i];
+			digit.resize(w, digitHeight);
+			
+			PngResource digitScaled;
+			digitScaled.resize(w - 2, digitHeight - 2);
+			
+			PngResource& source = *digitFrame[i];
+			source.stretchRect(digitScaled,
+				0, 0,
+				source.width,
+				source.height,
+				0, 0,
+				digitScaled.width,
+				digitScaled.height);
+			
+			for (int offX = 0; offX < 3; ++offX) {
+				for (int offY = 0; offY < 3; ++offY) {
+					if (offX == 1 && offY == 1) continue;
+					digitScaled.drawTintWithMaxAlpha(digit,
+						0, 0,
+						offX, offY,
+						digitScaled.width,
+						digitScaled.height,
+						0xFF000000);
+				}
+			}
+			//digit.multiplyAlphaByPercent(0, 0, digit.width, digit.height, 130);
+			digitScaled.draw(digit,
+				0, 0,
+				1, 1,
+				digitScaled.width, digitScaled.height);
+			texturePacker.addImage(digit);
+		}
+	}
+	
+	packedTexture = texturePacker.getTexture();
+	
+	{
+		
+		for (int i = 0; i < colorsCount; ++i) {
+			for (int j = 1; j < FT_LAST; ++j) {
+				if (type == UITextureType::UITEX_FRAMEBAR && isNewHitType((FrameType)j)) continue;
+				FrameArt& art = frameArtArrays[i][j];
+				for (int k = 0; k < uniqueFrameArtsCount; ++k) {
+					const PngResource* res = uniqueFrameArts[k];
+					if (art.resource == res) {
+						assignFromResource(art, *res);
+						break;
+					}
+				}
+			}
+		}
+	}
+	
+	{
+		
+		for (int i = 0; i < colorsCount; ++i) {
+			for (int j = 0; j < MARKER_TYPE_LAST; ++j) {
+				FrameMarkerArt& art = frameMarkerArtArrays[i][j];
+				
+				for (int k = 0; k < uniqueOutlinedScaledMarkersCount; ++k) {
+					UsedMarker& usedMarker = uniqueOutlinedScaledMarkers[k];
+					if (usedMarker.markerArt.equal(art)) {
+						assignFromResource(art, usedMarker.resource);
+						break;
+					}
+				}
+			}
+		}
+	}
+	
+	assignFromResource(firstFrameArt, firstFrame);
+	
+	assignFromResource(hitConnectedFrameArt, hitConnectedFrameAr[0]);
+	assignFromResource(hitConnectedFrameBlackArt, hitConnectedBlackFrameAr[0]);
+	if (type == UITextureType::UITEX_FRAMEBAR) {
+		assignFromResource(hitConnectedFrameArtAlt, hitConnectedFrameAr[1]);
+		assignFromResource(hitConnectedFrameBlackArtAlt, hitConnectedBlackFrameAr[1]);
+	}
+	
+	assignFromResource(powerupFrameArt, powerup);
+	
+	assignFromResource(newHitFrameArt, newHit);
+	
+	if (type == UITextureType::UITEX_FRAMEBAR) {
+		for (int i = 0; i <= 9; ++i) {
+			assignFromResource(digitUVs[i], digits[i]);
+		}
+	}
+	
+	#undef assignFromResource
+	#undef selectSE
+}
+
+void UI::packTextureHelp() {
+	if (packedTextureHelp.width) return;
+	PackTextureSizes sizes;
+	sizes.frameWidth = 9;
+	sizes.frameHeight = 15;
+	packTexture(packedTextureHelp, UITextureType::UITEX_HELP, &sizes);
+}
+
+void UI::packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind) {
+	if (packedTextureFramebar.width && lastPackedSize == *sizes && textureIsColorblind == isColorblind) return;
+	needUpdateGraphicsFramebarTexture = true;
+	lastPackedSize = *sizes;
+	textureIsColorblind = isColorblind;
+	packTexture(packedTextureFramebar, UITextureType::UITEX_FRAMEBAR, sizes);
 }

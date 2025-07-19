@@ -8,12 +8,14 @@
 #include "PlayerInfo.h"
 #include <memory>
 #include "StringWithLength.h"
+#include "PackTextureSizes.h"
 
 enum UITexture {
 	TEXID_NONE,
 	TEXID_IMGUIFONT,
 	TEXID_GGICON,
-	TEXID_FRAMES
+	TEXID_FRAMES_HELP,
+	TEXID_FRAMES_FRAMEBAR
 };
 
 enum FrameMarkerType {
@@ -45,6 +47,7 @@ public:
 	struct FrameDims {
 		float x;
 		float width;
+		bool hitConnectedShouldBeAlt;
 	};
 	bool visible = true;
 	bool stateChanged = false;
@@ -74,10 +77,6 @@ public:
 	bool timerDisabled = false;
 	void copyDrawDataTo(std::vector<BYTE>& destinationBuffer);
 	void substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture);
-	const PngResource& getPackedFramesTexture() const;
-	std::unique_ptr<PngResource> firstFrame;
-	std::unique_ptr<PngResource> hitConnectedFrame;
-	std::unique_ptr<PngResource> hitConnectedFrameBlack;
 	void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth);
 	void drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex);
 	bool pauseMenuOpen = false;
@@ -116,6 +115,13 @@ public:
 	bool usePresentRect = false;
 	int presentRectW = 0;
 	int presentRectH = 0;
+	
+	bool needUpdateGraphicsFramebarTexture = false;
+	inline void getFramebarTexture(const PngResource** texture, const PackTextureSizes** sizes, bool* isColorblind) const {
+		*texture = &packedTextureFramebar;
+		*sizes = &lastPackedSize;
+		*isColorblind = textureIsColorblind;
+	}
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -148,7 +154,6 @@ private:
 	IDirect3DTexture9* imguiFont = nullptr;
 	void onImGuiMessWithFontTexID();
 	bool showCharSpecific[2] = { false, false };
-	std::unique_ptr<PngResource> packedTexture;
 	std::unique_ptr<PngResource> activeFrame;
 	std::unique_ptr<PngResource> activeFrameNonColorblind;
 	std::unique_ptr<PngResource> activeFrameHitstop;
@@ -206,20 +211,30 @@ private:
 	std::unique_ptr<PngResource> zatoBreakTheLawStage2ReleasedFrameNonColorblind;
 	std::unique_ptr<PngResource> zatoBreakTheLawStage3ReleasedFrame;
 	std::unique_ptr<PngResource> zatoBreakTheLawStage3ReleasedFrameNonColorblind;
-	std::unique_ptr<PngResource> powerupFrame;
 	std::unique_ptr<PngResource> eddieIdleFrame;
 	std::unique_ptr<PngResource> eddieIdleFrameNonColorblind;
 	std::unique_ptr<PngResource> bacchusSighFrame;
 	std::unique_ptr<PngResource> bacchusSighFrameNonColorblind;
-	std::vector<PngResource> allResources;
-	TexturePacker texturePacker;
+	enum UITextureType {
+		UITEX_HELP,
+		UITEX_FRAMEBAR
+	};
+	void prepareSecondaryFrameArts(UITextureType type);
 	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
                  WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, StringWithLength description);
 	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description);
-	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
-                 WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind);
-	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions);
+	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType,
+			WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions,
+			DWORD outlineColorNonColorblind, DWORD outlineColorColorblind,
+			bool hasMiddleLineNonColorblind, bool hasMiddleLineColorblind);
 	bool addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource);
+	PngResource packedTextureHelp;  // do not change this once it is created
+	void packTexture(PngResource& packedTexture, UITextureType type, const PackTextureSizes* sizes);
+	void packTextureHelp();
+	PngResource packedTextureFramebar;
+	PackTextureSizes lastPackedSize;
+	bool textureIsColorblind;
+	void packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind);
 	void drawFramebars();
 	bool showShaderCompilationError = true;
 	const std::string* shaderCompilationError = nullptr;
@@ -332,7 +347,7 @@ private:
 	bool framebarAutoScroll = false;
 	void resetFrameSelection();
 	bool dontUsePreBlockstunTime = false;
-	void interjectIntoImGui();
+	void adjustMousePosition();
 	void startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag);
 	bool showComboDamage[2] { false };
 	bool showComboRecipe[2] { false };
@@ -342,6 +357,7 @@ private:
 	bool pixelShaderFailReasonObtained = false;
 	bool showingFailedHideRankSigscanMessage = false;
 	void printLineOfResultOfHookingRankIcons(const char* placeName, bool result);
+	bool framebarHadScrollbar = false;
 };
 
 extern UI ui;

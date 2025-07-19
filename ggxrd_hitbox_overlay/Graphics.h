@@ -16,6 +16,8 @@
 #include "CharInfo.h"
 #include "HandleWrapper.h"
 #include <mutex>
+#include "PackTextureSizes.h"
+#include "PngResource.h"
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
@@ -34,7 +36,31 @@ public:
 	void takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion);
 	void resetHook();
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
-	IDirect3DTexture9* getFramesTexture(IDirect3DDevice9* device);
+	IDirect3DTexture9* getFramesTexturePart(IDirect3DDevice9* device, const PngResource& packedFramesTexture,
+			bool* failedToCreate, CComPtr<IDirect3DTexture9>& texture, CComPtr<IDirect3DTexture9>* systemTexturePtr = nullptr);
+	inline IDirect3DTexture9* getFramesTextureHelp(IDirect3DDevice9* device, const PngResource& packedFramesTexture) {
+		return getFramesTexturePart(device, packedFramesTexture, &failedToCreateFramesTextureHelp, framesTextureHelp);
+	}
+	PackTextureSizes framebarTextureSizes;
+	bool framebarColorblind;
+	PngResource framebarTexture;
+	inline bool needUpdateFramebarTexture(const PackTextureSizes* newSizes, bool isColorblind) {
+		return !framebarTexture.width || *newSizes != framebarTextureSizes || isColorblind != framebarColorblind;
+	}
+	inline void updateFramebarTexture(const PackTextureSizes* newSizes, const PngResource& newTexture, bool isColorblind) {
+		framebarTextureSizes = *newSizes;
+		framebarColorblind = isColorblind;
+		framebarTexture = newTexture;
+		needRecreateFramesTextureFramebar = true;
+	}
+	inline IDirect3DTexture9* getFramesTextureFramebar(IDirect3DDevice9* device) {
+		if (needRecreateFramesTextureFramebar) {
+			framesTextureFramebar = nullptr;
+			needRecreateFramesTextureFramebar = false;
+		}
+		return getFramesTexturePart(device, framebarTexture, &failedToCreateFramesTextureFramebar, framesTextureFramebar,
+			std::addressof(framesSystemTextureFramebar));
+	}
 	// only returns a result once. Provides the error text to other classes
 	void getShaderCompilationError(const std::string** result);
 	void heartbeat(IDirect3DDevice9* device);
@@ -256,8 +282,12 @@ private:
 	HandleWrapper shutdownFinishedEvent = NULL;
 	DWORD suspenderThreadId = NULL;
 	
-	CComPtr<IDirect3DTexture9> framesTexture = nullptr;
-	bool failedToCreateFramesTexture = false;
+	CComPtr<IDirect3DTexture9> framesTextureHelp = nullptr;
+	bool failedToCreateFramesTextureHelp = false;
+	bool needRecreateFramesTextureFramebar = false;
+	CComPtr<IDirect3DTexture9> framesTextureFramebar = nullptr;
+	CComPtr<IDirect3DTexture9> framesSystemTextureFramebar = nullptr;
+	bool failedToCreateFramesTextureFramebar = false;
 	
 	IDirect3DTexture9* getOutlinesRTSamplingTexture(IDirect3DDevice9* device);
 	CComPtr<IDirect3DTexture9> outlinesRTSamplingTexture = nullptr;

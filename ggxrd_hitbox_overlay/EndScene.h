@@ -15,6 +15,8 @@
 #include "HandleWrapper.h"
 #include "DrawHitboxArrayCallParams.h"
 #include "HitDetectionType.h"
+#include "PackTextureSizes.h"
+#include "PngResource.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
@@ -121,6 +123,11 @@ struct UiOrFramebarDrawData {
 	CharInfo closeParenthesis;
 	CharInfo digit[10];
 	bool inputHistoryIsSplitOut;
+	bool needUpdateFramebarTexture = false;
+	PngResource framebarTexture;
+	PackTextureSizes framebarSizes;
+	bool framebarColorblind;
+	void applyFramebarTexture() const;
 };
 
 struct DrawOriginPointsRenderCommand : FRenderCommand {
@@ -337,6 +344,7 @@ public:
 	void jumpInstallSuperJumpHook(Entity pawn);
 	void clearInputHistory(bool resetClearTime = false);
 	void onHitDetectionAttackerParticipate(Entity ent);
+	bool needUpdateGraphicsFramebarTexture = false;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();

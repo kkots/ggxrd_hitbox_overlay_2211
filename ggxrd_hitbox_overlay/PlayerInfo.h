@@ -1618,6 +1618,7 @@ struct PlayerInfo {
 	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
 	int timeInNewSection = 0;
+	DWORD wasPrevFrameForceDisableFlags = 0;
 	DWORD wasForceDisableFlags = 0;
 	SpriteFrameInfo sprite;
 	MoveInfo move {};
@@ -1677,7 +1678,8 @@ struct PlayerInfo {
 	int prevFrameMaxHit = 0;
 	int prevFramePlayerval0 = 0;
 	int prevFramePlayerval1 = 0;
-	int prevFramePlayerval2 = 0;
+	int elpheltPrevFrameWasPlayerval1 = 0;
+	int elpheltWasPlayerval1 = 0;
 	int prevFrameElpheltRifle_AimMem46 = 0;
 	int prevFrameResource[4] { 0 };
 	RomanCancelAvailability prevFrameRomanCancelAvailability = ROMAN_CANCEL_DISALLOWED;
@@ -1836,6 +1838,7 @@ struct PlayerInfo {
 	// enableNormals is not true on that frame.
 	bool wasEnableNormals:1;
 	bool wasPrevFrameEnableNormals:1;
+	bool wasPrevFrameEnableWhiffCancels:1;
 	bool wasEnableGatlings:1;
 	bool wasEnableWhiffCancels:1;
 	bool wasEnableSpecials:1;
@@ -1945,6 +1948,7 @@ struct PlayerInfo {
 	bool pickedUpSilentForceKnifeOnThisFrame:1;
 	bool lostSpeedYOnThisFrame:1;
 	bool wasAirborneOnAnimChange:1;
+	bool elpheltFirstWasPlayerval1Measurement:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
