@@ -2383,7 +2383,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		return false;
 	}
 	
-	 if (!pixelShaderCode.empty() && !vertexShaderCode.empty()) return true;
+	if (pixelShaderCode && vertexShaderCode) return true;
 	
 	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
 	if (!resourceInfoHandle) {
@@ -2426,14 +2426,10 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		return false;
 	}
 	
-	CComPtr<ID3DBlob> pixelShaderCodeTemp;
-	CComPtr<ID3DBlob> vertexShaderCodeTemp;
-	const DWORD* codeData;
-	SIZE_T codeSize;
 	HRESULT compilationResult;
 	CComPtr<ID3DBlob> errorMsgs;
 	
-	if (pixelShaderCode.empty()) {
+	if (!pixelShaderCode) {
 		compilationResult = D3DCompile(
 		  shaderTxtData,
 		  txtSize,
@@ -2448,7 +2444,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		  0,
 		  #endif
 		  NULL,
-		  &pixelShaderCodeTemp,
+		  &pixelShaderCode,
 		  &errorMsgs
 		);
 		
@@ -2466,14 +2462,9 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 			return false;
 		}
 		
-		codeSize = pixelShaderCodeTemp->GetBufferSize();
-		codeData = (const DWORD*)pixelShaderCodeTemp->GetBufferPointer();
-		
-		pixelShaderCode.resize(codeSize);
-		memcpy(pixelShaderCode.data(), codeData, pixelShaderCode.size());
 	}
 	
-	if (vertexShaderCode.empty()) {
+	if (!vertexShaderCode) {
 		compilationResult = D3DCompile(
 		  shaderTxtData,
 		  txtSize,
@@ -2488,7 +2479,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		  0,
 		  #endif
 		  NULL,
-		  &vertexShaderCodeTemp,
+		  &vertexShaderCode,
 		  &errorMsgs
 		);
 		
@@ -2505,12 +2496,6 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 			failedToCompilePixelShader = true;
 			return false;
 		}
-		
-		codeSize = vertexShaderCodeTemp->GetBufferSize();
-		codeData = (const DWORD*)vertexShaderCodeTemp->GetBufferPointer();
-		
-		vertexShaderCode.resize(codeSize);
-		memcpy(vertexShaderCode.data(), codeData, vertexShaderCode.size());
 	}
 	
 	return true;
@@ -2529,22 +2514,24 @@ bool Graphics::getShaders(IDirect3DDevice9* device, std::string& errorMsg, IDire
 		*vertexShaderPtr = vertexShader;
 		return true;
 	}
-	if (pixelShaderCode.empty() && vertexShaderCode.empty()) {
+	bool pixelShaderCodeEmpty = pixelShaderCode->GetBufferSize() == 0;
+	bool vertexShaderCodeEmpty = vertexShaderCode->GetBufferSize() == 0;
+	if (pixelShaderCodeEmpty && vertexShaderCodeEmpty) {
 		errorMsg = "The compiled pixel and vertex shader codes are empty.";
 		return false;
 	}
-	if (pixelShaderCode.empty()) {
+	if (pixelShaderCodeEmpty) {
 		errorMsg = "The compiled pixel shader code is empty.";
 		return false;
 	}
-	if (vertexShaderCode.empty()) {
+	if (vertexShaderCodeEmpty) {
 		errorMsg = "The compiled vertex shader code is empty.";
 		return false;
 	}
 	HRESULT errorCode;
 	
 	if (!pixelShader) {
-		errorCode = device->CreatePixelShader((const DWORD*)pixelShaderCode.data(), &pixelShader);
+		errorCode = device->CreatePixelShader((const DWORD*)pixelShaderCode->GetBufferPointer(), &pixelShader);
 		if (FAILED(errorCode)) {
 			char msg[100];
 			sprintf_s(msg, "Failed to create pixel shader in Direct 3D: 0x%x", errorCode);
@@ -2556,7 +2543,7 @@ bool Graphics::getShaders(IDirect3DDevice9* device, std::string& errorMsg, IDire
 	*pixelShaderPtr = pixelShader;
 	
 	if (!vertexShader) {
-		errorCode = device->CreateVertexShader((const DWORD*)vertexShaderCode.data(), &vertexShader);
+		errorCode = device->CreateVertexShader((const DWORD*)vertexShaderCode->GetBufferPointer(), &vertexShader);
 		if (FAILED(errorCode)) {
 			char msg[100];
 			sprintf_s(msg, "Failed to create vertex shader in Direct 3D: 0x%x", errorCode);

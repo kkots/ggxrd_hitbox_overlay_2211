@@ -18,6 +18,7 @@
 #include <mutex>
 #include "PackTextureSizes.h"
 #include "PngResource.h"
+#include <d3dcommon.h>
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
@@ -297,8 +298,8 @@ private:
 	bool compilePixelShader(std::string& errorMsg);
 	bool failedToCompilePixelShader = false;
 	std::string lastCompilationFailureReason;
-	std::vector<char> pixelShaderCode;
-	std::vector<char> vertexShaderCode;
+	CComPtr<ID3DBlob> pixelShaderCode;
+	CComPtr<ID3DBlob> vertexShaderCode;
 	
 	std::string shaderCompilationError;
 	
