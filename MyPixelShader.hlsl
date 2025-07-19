@@ -1,11 +1,11 @@
 
-float4 g_ScreenSize : register(ps_3_0, c0);
+float4 g_ScreenSize : register(c0);
 
 // old wording: suspected to require D3D10
 //sampler2D g_MySampler : register(s0)
 //{
 //};
-Texture2D g_BackbufferCopy : register (ps_3_0, t0);
+Texture2D g_BackbufferCopy : register (t0);
 sampler g_MySampler =
 sampler_state
 {
