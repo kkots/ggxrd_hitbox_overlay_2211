@@ -71,13 +71,22 @@
 #define IDB_OTG                         194
 #define IDB_BACCHUS_SIGH_FRAME          195
 #define IDB_BACCHUS_SIGH_FRAME_NON_COLORBLIND 196
-#define IDB_PNG1                        197
+#define IDB_DIGIT_1_THICKNESS_1         199
+#define IDB_DIGIT_2_THICKNESS_1         200
+#define IDB_DIGIT_3_THICKNESS_1         201
+#define IDB_DIGIT_4_THICKNESS_1         202
+#define IDB_DIGIT_5_THICKNESS_1         203
+#define IDB_DIGIT_6_THICKNESS_1         204
+#define IDB_DIGIT_7_THICKNESS_1         205
+#define IDB_DIGIT_8_THICKNESS_1         206
+#define IDB_DIGIT_9_THICKNESS_1         207
+#define IDB_DIGIT_0_THICKNESS_1         208
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        199
+#define _APS_NEXT_RESOURCE_VALUE        209
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101

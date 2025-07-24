@@ -139,11 +139,13 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 	DWORD peHeaderStartOffset;
 	readDword(base + 0x3C, peHeaderStartOffset) 
 	DWORD peHeaderStart = base + peHeaderStartOffset;  // PE file header start
+	// see IMAGE_BASE_RELOCATION
 	struct RvaAndSize {
 		DWORD rva;
 		DWORD size;
 	};
 	const RvaAndSize* importsDataDirectoryRvaAndSize = (const RvaAndSize*)(uintptr_t)(peHeaderStart + 0x80);
+	// see IMAGE_IMPORT_DESCRIPTOR
 	struct ImageImportDescriptor {
 		DWORD ImportLookupTableRVA;  // The RVA of the import lookup table. This table contains a name or ordinal for each import. (The name "Characteristics" is used in Winnt.h, but no longer describes this field.)
 		DWORD TimeDateStamp;  // The stamp that is set to zero until the image is bound. After the image is bound, this field is set to the time/data stamp of the DLL. LIES, this field is 0 for me at runtime.

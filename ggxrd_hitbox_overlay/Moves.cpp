@@ -5133,7 +5133,7 @@ bool Moves::onDllMain() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HammerFallBrake");
-	move.displayName = "Hammer Fall Break";
+		move.displayName = "Hammer Fall Break";
 	move.slangName = "HFB";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -8557,6 +8557,7 @@ void Moves::onAswEngineDestroyed() {
 	milliaSecretGardenUnlink = 0;
 	milliaSecretGardenUnlinkFailedToFind = false;
 	elpheltRifleFireStartup = 0;
+	elpheltRifleFirePowerupStartup = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -8647,7 +8648,7 @@ bool sectionSeparator_FDB(PlayerInfo& ent) {
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "Attack");
 	if (!markerPos) return false;
 	markerPos = moves.skipInstruction(markerPos);
-	if (moves.instructionType(markerPos) != Moves::instr_sprite) return false;
+	if (moves.instructionType(markerPos) != instr_sprite) return false;
 	return ent.pawn.bbscrCurrentInstr() > markerPos;
 }
 bool sectionSeparator_soutenBC(PlayerInfo& ent) {
@@ -8686,7 +8687,7 @@ bool sectionSeparator_leoGuardStance(PlayerInfo& ent) {
 		return false;
 	}
 	BYTE* nextInstr = moves.skipInstruction(markerPos);
-	if (moves.instructionType(nextInstr) != Moves::instr_sprite) {
+	if (moves.instructionType(nextInstr) != instr_sprite) {
 		return false;
 	}
 	return ent.pawn.bbscrCurrentInstr() > nextInstr;
@@ -8770,7 +8771,7 @@ BYTE* Moves::skipInstruction(BYTE* in) const {
 	return in + bbscrInstructionSizes[*(unsigned int*)in];
 }
 
-inline Moves::InstructionType Moves::instructionType(BYTE* in) const {
+inline InstructionType Moves::instructionType(BYTE* in) const {
 	return *(InstructionType*)in;
 }
 
@@ -10444,9 +10445,9 @@ bool canYrcProjectile_qv(PlayerInfo& player) {
 	if (moves.venomQvClearUponAfterExitOffset == 0) {
 		BYTE* func = player.pawn.bbscrCurrentFunc();
 		for (BYTE* instr = moves.skipInstruction(func);
-				moves.instructionType(instr) != Moves::instr_endState;
+				moves.instructionType(instr) != instr_endState;
 				instr = moves.skipInstruction(instr)) {
-			if (moves.instructionType(instr) == Moves::instr_clearUpon && *(int*)(instr + 4) == 47) {  // AFTER_EXIT
+			if (moves.instructionType(instr) == instr_clearUpon && asInstr(instr, clearUpon)->event == BBSCREVENT_PLAYER_CHANGED_STATE) {
 				moves.venomQvClearUponAfterExitOffset = instr - func;
 				break;
 			}
@@ -10467,11 +10468,11 @@ bool canYrcProjectile_bishop(PlayerInfo& player) {
 		BYTE* func = player.pawn.bbscrCurrentFunc();
 		bool found = false;
 		for (BYTE* instr = moves.skipInstruction(func);
-				moves.instructionType(instr) != Moves::instr_endState;
+				moves.instructionType(instr) != instr_endState;
 				instr = moves.skipInstruction(instr)) {
-			if (moves.instructionType(instr) == Moves::instr_createObjectWithArg && strcmp((const char*)(instr + 4), "Ball") == 0) {
+			if (moves.instructionType(instr) == instr_createObjectWithArg && strcmp(asInstr(instr, createObjectWithArg)->state, "Ball") == 0) {
 				found = true;
-			} else if (found && moves.instructionType(instr) == Moves::instr_sprite) {
+			} else if (found && moves.instructionType(instr) == instr_sprite) {
 				moves.venomBishopCreateOffset = instr - func;
 				break;
 			}
@@ -10831,7 +10832,7 @@ const char* powerupExplanation_kyougenD(PlayerInfo& ent) {
 	instr = moves.skipInstruction(instr);
 	instr = moves.skipInstruction(instr);
 	instr = moves.skipInstruction(instr);
-	bool isRev2 = moves.instructionType(instr) == Moves::instr_hitAirPushbackX;
+	bool isRev2 = moves.instructionType(instr) == instr_hitAirPushbackX;
 	if (isRev2) {
 		return "Increases maximum number of hits from 3 to 5 and removes landing recovery.";
 	} else {
@@ -10978,8 +10979,8 @@ bool powerup_zweit(PlayerInfo& ent) {
 	if (!ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) return false;
 	BYTE* instr = ent.pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr;
 	instr = moves.skipInstruction(instr);
-	if (moves.instructionType(instr) == Moves::instr_ifOperation
-			&& *(int*)(instr + 4) == 12) {  // IS_GREATER_OR_EQUAL
+	if (moves.instructionType(instr) == instr_ifOperation
+			&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL) {
 		return true;
 	}
 	return false;
@@ -11039,7 +11040,7 @@ int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanR
 		bool isInsideUpon = false;
 		for (
 				instr = moves.skipInstruction(func);
-				moves.instructionType(instr) != Moves::instr_endState;
+				moves.instructionType(instr) != instr_endState;
 				instr = moves.skipInstruction(instr)
 		) {
 			InstructionType type = moves.instructionType(instr);
@@ -11058,20 +11059,20 @@ int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanR
 				MayIrukasanRidingObjectFrames& newThing = info.frames.back();
 				newThing.frames = info.totalFrames;
 				if (!metSendSignal) {
-					lastSpriteLength = *(int*)(instr + 4 + 32);
+					lastSpriteLength = asInstr(instr, sprite)->duration;
 					info.totalFrames += lastSpriteLength;
 				}
 				metSprite = true;
 			} else if (type == instr_spriteEnd) {
 				metSpriteEnd = true;
 			} else if (type == instr_sendSignal
-					&& *(int*)(instr + 4) == 3  // PLAYER
-					&& *(BBScrEvent*)(instr + 8) == signal
+					&& asInstr(instr, sendSignal)->entity == ENT_PLAYER
+					&& asInstr(instr, sendSignal)->event == signal
 					&& !metSendSignal
 					&& !isInsideUpon) {
 				metSendSignal = true;
 				info.totalFrames -= lastSpriteLength;
-			} else if (type == instr_upon && *(int*)(instr + 4) == 1) {  // BEFORE_EXIT
+			} else if (type == instr_upon && asInstr(instr, upon)->event == BBSCREVENT_BEFORE_EXIT) {
 				isInsideUpon = true;
 			} else if (type == instr_endUpon) {
 				isInsideUpon = false;
@@ -11126,7 +11127,7 @@ void Moves::fillInKyMahojin(BYTE* func) {
 				kyMahojin.totalFrames += lastSpriteLength;
 				metSprite = false;
 			}
-			lastSpriteLength = *(int*)(instr + 4 + 32);
+			lastSpriteLength = asInstr(instr, sprite)->duration;
 			metSprite = true;
 		} else if (type == instr_spriteEnd) {
 			metSpriteEnd = true;
@@ -11181,11 +11182,11 @@ void Moves::fillInRamlethalBitN6C_F6D(BYTE* func, std::vector<RamlethalSwordInfo
 				currentElem->state = (RamlethalStateName)((int)prevState + 1);
 				metSetMarker = false;
 			}
-			lastSpriteLengthSoubi = *(int*)(instr + 4 + 32);
+			lastSpriteLengthSoubi = asInstr(instr, sprite)->duration;
 			lastSpriteLengthBunri = lastSpriteLengthSoubi;
 			metSprite = true;
 		} else if (type == instr_overrideSpriteLengthIf) {
-			lastSpriteLengthBunri = *(int*)(instr + 4);
+			lastSpriteLengthBunri = asInstr(instr, overrideSpriteLengthIf)->duration;
 		} else if (type == instr_setMarker) {
 			if (metJumpToState) {
 				metJumpToState = false;
@@ -11199,7 +11200,7 @@ void Moves::fillInRamlethalBitN6C_F6D(BYTE* func, std::vector<RamlethalSwordInfo
 			metSetMarker = true;
 		} else if (type == instr_jumpToState
 				|| type == instr_callSubroutine
-				&& strcmp((const char*)(instr + 4), "BitActionNeutral") == 0) {
+				&& strcmp(asInstr(instr, jumpToState)->name, "BitActionNeutral") == 0) {
 			metSprite = false;
 			metJumpToState = true;
 		} else if (type == instr_spriteEnd) {
@@ -11318,11 +11319,10 @@ void Moves::fillJackoGhostExp(BYTE* func, int* jackoGhostExp) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 9  // IS_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 46  // Mem(46)
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
-			*jackoGhostExp = *(int*)(instr + 0x14);
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(46)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+			*jackoGhostExp = asInstr(instr, ifOperation)->right.value;
 			++jackoGhostExp;
 			--counter;
 			if (counter == 0) return;
@@ -11341,11 +11341,10 @@ void Moves::fillJackoGhostCreationTimer(BYTE* func, int* jackoGhostCreationTimer
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 57  // Mem(57)
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
-			*jackoGhostCreationTimer = *(int*)(instr + 0x14);
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(57)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+			*jackoGhostCreationTimer = asInstr(instr, ifOperation)->right.value;
 			++jackoGhostCreationTimer;
 			--counter;
 			if (counter == 0) return;
@@ -11365,11 +11364,10 @@ void Moves::fillJackoGhostHealingTimer(BYTE* func, int* jackoGhostHealingTimer) 
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 9  // IS_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 48  // Mem(48)
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
-			*jackoGhostHealingTimer = *(int*)(instr + 0x14);
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(48)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+			*jackoGhostHealingTimer = asInstr(instr, ifOperation)->right.value;
 			++jackoGhostHealingTimer;
 			--counter;
 			if (counter == 0) return;
@@ -11388,12 +11386,11 @@ void Moves::fillJackoGhostBuffTimer(BYTE* func) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 9  // IS_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 52  // Mem(52)
-				&& *(int*)(instr + 0x10) == 0  // tag:literal
-				&& *(int*)(instr + 0x14) != 1) {
-			jackoGhostBuffTimer = *(int*)(instr + 0x14);
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(52)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE
+				&& asInstr(instr, ifOperation)->right.value != 1) {
+			jackoGhostBuffTimer = asInstr(instr, ifOperation)->right.value;
 			return;
 		}
 	}
@@ -11410,13 +11407,12 @@ void Moves::fillJackoGhostExplodeTimer(BYTE* func) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 9  // IS_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 49  // Mem(49)
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(49)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
 			--counter;
 			if (counter == 0) {
-				jackoGhostExplodeTimer = *(int*)(instr + 0x14);
+				jackoGhostExplodeTimer = asInstr(instr, ifOperation)->right;
 				return;
 			}
 		}
@@ -11434,7 +11430,7 @@ void Moves::fillServantCooldown(BYTE* func, int* servantCooldown) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_sprite) {
-			*servantCooldown = *(int*)(instr + 4 + 32);
+			*servantCooldown = asInstr(instr, sprite)->duration;
 			++servantCooldown;
 			--counter;
 			if(counter == 0) return;
@@ -11453,13 +11449,12 @@ void Moves::fillServantExplosionTimer(BYTE* func) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 9  // IS_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 54  // Mem(54)
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(54)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
 			--counter;
 			if(counter == 0) {
-				servantExplosionTimer = *(int*)(instr + 0x14);
+				servantExplosionTimer = asInstr(instr, ifOperation)->right.value;
 				return;
 			}
 		}
@@ -11477,13 +11472,12 @@ void Moves::fillServantClockUpTimer(BYTE* func) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 9  // IS_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 49  // Mem(49)
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(49)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
 			--counter;
 			if(counter == 0) {
-				servantClockUpTimer = *(int*)(instr + 0x14);
+				servantClockUpTimer = asInstr(instr, ifOperation)->right.value;
 				return;
 			}
 		}
@@ -11500,11 +11494,10 @@ void Moves::fillServantTimeoutTimer(BYTE* func) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 105  // FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
-			servantTimeoutTimer = *(int*)(instr + 0x14);
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
+				&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+			servantTimeoutTimer = asInstr(instr, ifOperation)->right.value;
 			return;
 		}
 	}
@@ -11525,7 +11518,7 @@ void Moves::fillServantAtk(BYTE* func, MayIrukasanRidingObjectInfo* servantAtk) 
 			instr = skipInstruction(instr)
 	) {
 		InstructionType type = instructionType(instr);
-		if (type == instr_setMarker && strcmp((const char*)(instr + 4), "AtkLv1") == 0) {
+		if (type == instr_setMarker && strcmp(asInstr(instr, setMarker)->name, "AtkLv1") == 0) {
 			start = true;
 			instr = skipInstruction(instr);
 			break;
@@ -11556,7 +11549,7 @@ void Moves::fillServantAtk(BYTE* func, MayIrukasanRidingObjectInfo* servantAtk) 
 				newFrames.frames = servantAtk->totalFrames;
 				servantAtk->totalFrames += lastSpriteLength;
 			}
-			lastSpriteLength = *(int*)(instr + 4 + 32);
+			lastSpriteLength = asInstr(instr, sprite)->duration;
 			metSprite = true;
 		} else if (type == instr_spriteEnd) {
 			metSpriteEnd = true;
@@ -11579,7 +11572,7 @@ void Moves::fillInJamSaishingekiY(BYTE* func) {
 			instr = skipInstruction(instr)
 	) {
 		InstructionType type = instructionType(instr);
-		if (type == instr_upon && *(int*)(instr + 4) == 10) {  // HIT_THE_ENEMY_PLAYER
+		if (type == instr_upon && asInstr(instr, upon)->event == BBSCREVENT_HIT_THE_ENEMY_PLAYER) {
 			--counter;
 			if (counter == 0) {
 				inUponHitTheEnemyPlayer = true;
@@ -11595,11 +11588,10 @@ void Moves::fillInJamSaishingekiY(BYTE* func) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_ifOperation
-				&& *(int*)(instr + 4) == 11  // IS_LESSER
-				&& *(int*)(instr + 8) == 2  // tag:variable
-				&& *(int*)(instr + 0xc) == 35  // OPPONENT_Y_OFFSET
-				&& *(int*)(instr + 0x10) == 0) {  // tag:literal
-			jamSaishingekiY = *(int*)(instr + 0x14);
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
+				&& asInstr(instr, ifOperation)->left == BBSCRVAR_OPPONENT_Y_OFFSET
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+			jamSaishingekiY = asInstr(instr, ifOperation)->right.value;
 			return;
 		}
 	}
@@ -11636,7 +11628,7 @@ void Moves::fillDizzyKinomiNecrobomb(BYTE* func) {
 				newFrames.offset = instr - func;
 			}
 			metSprite = true;
-			lastSpriteLength = *(int*)(instr + 4 + 32);
+			lastSpriteLength = asInstr(instr, sprite)->duration;
 		}
 	}
 	if (metSprite) {
@@ -11686,7 +11678,7 @@ void Moves::fillDizzyAkari(BYTE* func) {
 				metSetMarker = false;
 			}
 			metSprite = true;
-			lastSpriteLength = *(int*)(instr + 4 + 32);
+			lastSpriteLength = asInstr(instr, sprite)->duration;
 		} else if (type == instr_spriteEnd) {
 			metSpriteEnd = true;
 		} else if (type == instr_setMarker) {
@@ -11722,7 +11714,7 @@ void Moves::fillDizzyFish(BYTE* func, MayIrukasanRidingObjectInfo& fish) {
 				newFrames.offset = instr - func;
 				fish.totalFrames += lastSpriteLength;
 			}
-			lastSpriteLength = *(int*)(instr + 4 + 32);
+			lastSpriteLength = asInstr(instr, sprite)->duration;
 			metSprite = true;
 		}
 	}
@@ -11746,11 +11738,11 @@ void Moves::fillDizzyLaserFish(BYTE* func, int* normal, int* alt) {
 	) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_sprite) {
-			lastSpriteLength = *(int*)(instr + 4 + 32);
+			lastSpriteLength = asInstr(instr, sprite)->duration;
 			*normal += lastSpriteLength;
 			*alt += lastSpriteLength;
 		} else if (type == instr_overrideSpriteLengthIf) {
-			*alt = *alt - lastSpriteLength + *(int*)(instr + 4);
+			*alt = *alt - lastSpriteLength + asInstr(instr, overrideSpriteLengthIf)->duration;
 		}
 	}
 }
@@ -11767,7 +11759,7 @@ void Moves::fillDizzyAwaKoware(BYTE* func, int* koware) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_exitState || type == instr_endState) return;
 		if (type == instr_sprite) {
-			*koware += *(int*)(instr + 4 + 32);
+			*koware += asInstr(instr, sprite)->duration;
 		}
 	}
 }
@@ -11792,7 +11784,7 @@ void Moves::fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info) {
 				newFrames.offset = instr - func;
 				info.totalFrames += lastSpriteLength;
 			}
-			lastSpriteLength = *(int*)(instr + 4 + 32);
+			lastSpriteLength = asInstr(instr, sprite)->duration;
 			metSprite = true;
 		}
 	}
@@ -11819,7 +11811,7 @@ void Moves::fillMilliaSecretGardenUnlink(BYTE* funcStart) {
 				milliaSecretGardenUnlink = instr - funcStart;
 				return;
 			}
-		} else if (type == instr_setLinkObjectDestroyOnStateChange && *(int*)(instr + 4) == 0) {
+		} else if (type == instr_setLinkObjectDestroyOnStateChange && asInstr(instr, setLinkObjectDestroyOnStateChange)->entity == 0) {
 			metUnlink = true;
 		}
 	}
@@ -11828,7 +11820,7 @@ void Moves::fillMilliaSecretGardenUnlink(BYTE* funcStart) {
 
 void Moves::fillElpheltRifleFireStartup(Entity ent) {
 	if (elpheltRifleFireStartup) return;
-	BYTE* func = ent.findSubroutineStart("Rifle_Fire");
+	BYTE* func = ent.findStateStart("Rifle_Fire");
 	if (!func) return;
 	int prevDuration = 0;
 	int startup = 0;
@@ -11838,16 +11830,32 @@ void Moves::fillElpheltRifleFireStartup(Entity ent) {
 		InstructionType type = instructionType(instr);
 		if (type == instr_sprite) {
 			startup += prevDuration;
-			prevDuration = *(int*)(instr + 4);
+			prevDuration = asInstr(instr, sprite)->duration;
 		} else if (type == instr_sendSignalToAction
-				&& strcmp((const char*)instr + 4, "Rifle_Aim") == 0
-				&& *(BBScrEvent*)(instr + 4 + 32) == BBSCREVENT_CUSTOM_SIGNAL_0) {
+				&& strcmp(asInstr(instr, sendSignalToAction)->name, "Rifle_Aim") == 0
+				&& asInstr(instr, sendSignalToAction)->signal == BBSCREVENT_CUSTOM_SIGNAL_0) {
 			break;
 		}
 	}
 	
 	++startup;
 	elpheltRifleFireStartup = startup;
+}
+
+void Moves::fillElpheltRifleFirePowerupStartup(BYTE* funcStart) {
+	if (elpheltRifleFirePowerupStartup) return;
+	for (BYTE* instr = skipInstruction(funcStart);
+			instructionType(instr) != instr_endState;
+			instr = skipInstruction(instr)) {
+		InstructionType type = instructionType(instr);
+		if (type == instr_ifOperation
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
+				&& asInstr(instr, ifOperation)->left == MEM(45)
+				&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+			elpheltRifleFirePowerupStartup = asInstr(instr, ifOperation)->right.value;
+			return;
+		}
+	}
 }
 
 GroundBlitzType Moves::getBlitzType(PlayerInfo& ent) {

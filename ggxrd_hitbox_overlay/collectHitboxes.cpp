@@ -247,15 +247,14 @@ void collectHitboxes(Entity ent,
 				int radius = 0;
 				for (
 						instr = moves.skipInstruction(func);
-						moves.instructionType(instr) != Moves::instr_endState;
+						moves.instructionType(instr) != instr_endState;
 						instr = moves.skipInstruction(instr)
 				) {
-					if (moves.instructionType(instr) == Moves::instr_ifOperation
-							&& *(int*)(instr + 4) == 13  // IS_LESSER_OR_EQUAL
-							&& *(int*)(instr + 8) == 2  // tag: variable
-							&& *(int*)(instr + 0xc) == 96  // DISTANCE_FROM_THIS_CENTER_TO_ENEMY_CENTER_DUPLICATE
-							&& *(int*)(instr + 0x10) == 0) {  // tag: literal
-						radius = *(int*)(instr + 0x14);
+					if (moves.instructionType(instr) == instr_ifOperation
+							&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER_OR_EQUAL
+							&& asInstr(instr, ifOperation)->left == BBSCRVAR_DISTANCE_FROM_THIS_CENTER_TO_ENEMY_CENTER_DUPLICATE
+							&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+						radius = asInstr(instr, ifOperation)->right.value;
 						break;
 					}
 				}
@@ -537,15 +536,14 @@ void collectHitboxes(Entity ent,
 						BYTE* instr;
 						for (
 								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != Moves::instr_endState;
+								moves.instructionType(instr) != instr_endState;
 								instr = moves.skipInstruction(instr)
 						) {
-							if (moves.instructionType(instr) == Moves::instr_ifOperation
-									&& *(int*)(instr + 4) == 11  // IS_LESSER
-									&& *(int*)(instr + 8) == 2  // tag:variable
-									&& *(int*)(instr + 0xc) == 53  // Mem(53)
-									&& *(int*)(instr + 0x10) == 0) {  // tag:literal
-								moves.ghostPickupRange = *(int*)(instr + 0x14);
+							if (moves.instructionType(instr) == instr_ifOperation
+									&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
+									&& asInstr(instr, ifOperation)->left == MEM(53)
+									&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+								moves.ghostPickupRange = asInstr(instr, ifOperation)->right.value;
 								break;
 							}
 						}
@@ -582,29 +580,29 @@ void collectHitboxes(Entity ent,
 						BYTE* instr;
 						for (
 								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != Moves::instr_endState;
+								moves.instructionType(instr) != instr_endState;
 								instr = moves.skipInstruction(instr)
 						) {
-							if (moves.instructionType(instr) == Moves::instr_ifOperation
-									&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
-									&& *(int*)(instr + 8) == 2  // tag:variable
-									&& *(int*)(instr + 0xc) == 104  // OPPONENT_X_OFFSET_TOWARDS_FACING
-									&& *(int*)(instr + 0x10) == 0  // tag:literal
-									&& *(int*)(instr + 0x14) == 0  // 0
-									&& moves.instructionType(instr + 0x18) == Moves::instr_ifOperation
-									&& *(int*)(instr + 0x1c) == 13  // IS_LESSER_OR_EQUAL
-									&& *(int*)(instr + 0x20) == 2  // tag:variable
-									&& *(int*)(instr + 0x24) == 104  // OPPONENT_X_OFFSET_TOWARDS_FACING
-									&& *(int*)(instr + 0x28) == 0  // tag:literal
-									// skip the value of the literal - we'll read it later
-									&& moves.instructionType(instr + 0x30) == Moves::instr_ifOperation
-									&& *(int*)(instr + 0x34) == 13  // IS_LESSER_OR_EQUAL
-									&& *(int*)(instr + 0x38) == 2  // tag:variable
-									&& *(int*)(instr + 0x3c) == 15  // OPPONENT_Y_DISTANCE
-									&& *(int*)(instr + 0x40) == 0) {  // tag:literal
-								*aggroX = *(int*)(instr + 0x2c);
-								*aggroY = *(int*)(instr + 0x44);
-								break;
+							if (moves.instructionType(instr) == instr_ifOperation
+									&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
+									&& asInstr(instr, ifOperation)->left == BBSCRVAR_OPPONENT_X_OFFSET_TOWARDS_FACING
+									&& asInstr(instr, ifOperation)->right == AccessedValue(BBSCRTAG_VALUE, 0)) {
+								BYTE* nextInstr = moves.skipInstruction(instr);
+								if (moves.instructionType(nextInstr) == instr_ifOperation
+										&& asInstr(nextInstr, ifOperation)->op == BBSCROP_IS_LESSER_OR_EQUAL
+										&& asInstr(nextInstr, ifOperation)->left == BBSCRVAR_OPPONENT_X_OFFSET_TOWARDS_FACING
+										&& asInstr(nextInstr, ifOperation)->right == BBSCRTAG_VALUE) {
+										// skip the value of the literal - we'll read it later
+									BYTE* thirdInstr = moves.skipInstruction(nextInstr);
+									if (moves.instructionType(thirdInstr) == instr_ifOperation
+											&& asInstr(thirdInstr, ifOperation)->op == BBSCROP_IS_LESSER_OR_EQUAL
+											&& asInstr(thirdInstr, ifOperation)->left == BBSCRVAR_OPPONENT_Y_DISTANCE
+											&& asInstr(thirdInstr, ifOperation)->right == BBSCRTAG_VALUE) {
+										*aggroX = asInstr(nextInstr, ifOperation)->right.value;
+										*aggroY = asInstr(thirdInstr, ifOperation)->right.value;
+										break;
+									}
+								}
 							}
 						}
 					}
@@ -753,21 +751,22 @@ void collectHitboxes(Entity ent,
 						BYTE* instr;
 						for (
 								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != Moves::instr_endState;
+								moves.instructionType(instr) != instr_endState;
 								instr = moves.skipInstruction(instr)
 						) {
-							if (moves.instructionType(instr) == Moves::instr_calcDistance
-									&& *(int*)(instr + 4) == 3  // PLAYER
-									&& *(int*)(instr + 8) == 103  // CENTER
-									&& *(int*)(instr + 0xc) == 23  // SELF
-									&& *(int*)(instr + 0x10) == 103  // CENTER
-									&& moves.instructionType(instr + 0x14) == Moves::instr_ifOperation
-									&& *(int*)(instr + 0x18) == 11  // IS_LESSER
-									&& *(int*)(instr + 0x1c) == 2  // tag:variable
-									&& *(int*)(instr + 0x20) == 0  // Mem(ACCUMULATOR)
-									&& *(int*)(instr + 0x24) == 0) {  // tag:literal
-								moves.jackoAegisFieldRange = *(int*)(instr + 0x28);
-								break;
+							if (moves.instructionType(instr) == instr_calcDistance
+									&& asInstr(instr, calcDistance)->fromEntity == ENT_PLAYER
+									&& asInstr(instr, calcDistance)->fromPos == BBSCRPOSTYPE_CENTER
+									&& asInstr(instr, calcDistance)->toEntity == ENT_SELF
+									&& asInstr(instr, calcDistance)->toPos == BBSCRPOSTYPE_CENTER) {
+								BYTE* nextInstr = moves.skipInstruction(instr);
+								if (moves.instructionType(nextInstr) == instr_ifOperation
+									&& asInstr(nextInstr, ifOperation)->op == BBSCROP_IS_LESSER
+									&& asInstr(nextInstr, ifOperation)->left == BBSCRVAR_ACCUMULATOR
+									&& asInstr(nextInstr, ifOperation)->right == BBSCRTAG_VALUE) {
+									moves.jackoAegisFieldRange = asInstr(nextInstr, ifOperation)->right.value;
+									break;
+								}
 							}
 						}
 					}
@@ -840,24 +839,23 @@ void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpC
 		bool foundRange = false;
 		for (
 				BYTE* instr = moves.skipInstruction(functionStart);
-				moves.instructionType(instr) != Moves::instr_endState;
+				moves.instructionType(instr) != instr_endState;
 				instr = moves.skipInstruction(instr)
 		) {
 			if (!foundY) {
-				if (moves.instructionType(instr) == Moves::instr_exPointFReset
-						&& *(int*)(instr + 4) == 100) {  // ORIGIN
-					*mayBallJumpConnectPtr = *(int*)(instr + 0xc);
+				if (moves.instructionType(instr) == instr_exPointFReset
+						&& asInstr(instr, exPointFReset)->pos == BBSCRPOSTYPE_ORIGIN) {
+					*mayBallJumpConnectPtr = asInstr(instr, exPointFReset)->y;
 					foundY = true;
 					if (foundRange) break;
 				}
 			}
 			if (!foundRange) {
-				if (moves.instructionType(instr) == Moves::instr_ifOperation
-						&& *(int*)(instr + 4) == 11  // IS_LESSER
-						&& *(int*)(instr + 8) == 2  // tag: variable
-						&& *(int*)(instr + 0xc) == 0) {  // Mem(ACCUMULATOR)
-					// skip tag: literal
-					*mayBallJumpConnectRangePtr = *(int*)(instr + 0x14);
+				if (moves.instructionType(instr) == instr_ifOperation
+						&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
+						&& asInstr(instr, ifOperation)->left == BBSCRVAR_ACCUMULATOR
+						&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+					*mayBallJumpConnectRangePtr = asInstr(instr, ifOperation)->op;
 					foundRange = true;
 					if (foundY) break;
 				}
@@ -867,18 +865,18 @@ void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpC
 }
 
 void getMahojinDistXY(BYTE* functionStart, int* x, int* y) {
-	for (BYTE* instr = functionStart; moves.instructionType(instr) != Moves::instr_endState; instr = moves.skipInstruction(instr)) {
-		if (moves.instructionType(instr) == Moves::instr_ifOperation
-				&& *(int*)(instr + 0x4) == 11    // IS_LESSER
-				&& *(int*)(instr + 0x8) == 2) {  // tag: variable
-			if (*(int*)(instr + 0xc) == 62  // GTMP_Y
-					&& *(int*)(instr + 0x10) == 0  // tag: value
-					&& *(int*)(instr + 0x14) != 0) {
-				*x = *(int*)(instr + 0x14);
-			} else if (*(int*)(instr + 0xc) == 64  // MEM(64)
-					&& *(int*)(instr + 0x10) == 0  // tag: value
-					&& *(int*)(instr + 0x14) != 0) {
-				*y = *(int*)(instr + 0x14);
+	for (BYTE* instr = functionStart; moves.instructionType(instr) != instr_endState; instr = moves.skipInstruction(instr)) {
+		if (moves.instructionType(instr) == instr_ifOperation
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
+				&& asInstr(instr, ifOperation)->left == BBSCRTAG_VARIABLE) {
+			if (asInstr(instr, ifOperation)->left == BBSCRVAR_GTMP_Y
+					&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE
+					&& asInstr(instr, ifOperation)->right.value != 0) {
+				*x = asInstr(instr, ifOperation)->right.value;
+			} else if (asInstr(instr, ifOperation)->left == MEM(64)
+					&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE
+					&& asInstr(instr, ifOperation)->right.value != 0) {
+				*y = asInstr(instr, ifOperation)->right.value;
 				return;
 			}
 		}

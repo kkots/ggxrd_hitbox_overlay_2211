@@ -680,7 +680,8 @@ void Settings::writeSettingsMain() {
 			} else if (otherEmpty) {
 				modified = true;
 				newValuePtr = otherPtr;
-			} else if (_strnicmp(value.start, otherPtr.txt, value.end - value.start) != 0) {
+			} else if (value.end - value.start != otherPtr.length
+					|| _strnicmp(value.start, otherPtr.txt, value.end - value.start) != 0) {
 				modified = true;
 				newValuePtr = otherPtr;
 			}
@@ -694,7 +695,8 @@ void Settings::writeSettingsMain() {
 				modified = true;
 				newValuePtr.txt = nullptr;
 			// can't have a newValue at this point
-			} else if (_strnicmp(value.start, other.c_str(), value.end - value.start) != 0) {
+			} else if (value.end - value.start != other.size()
+					|| _strnicmp(value.start, other.c_str(), value.end - value.start) != 0) {
 				modified = true;
 				newValuePtr = other;
 			}

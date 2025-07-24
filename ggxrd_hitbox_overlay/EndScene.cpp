@@ -2974,15 +2974,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							BYTE* instr;
 							for (
 									instr = moves.skipInstruction(func);
-									moves.instructionType(instr) != Moves::instr_endState;
+									moves.instructionType(instr) != instr_endState;
 									instr = moves.skipInstruction(instr)
 							) {
-								if (moves.instructionType(instr) == Moves::instr_ifOperation
-										&& *(int*)(instr + 4) == 12  // IS_GREATER_OR_EQUAL
-										&& *(int*)(instr + 8) == 2  // tag: variable
-										&& *(int*)(instr + 0xc) == 13) {  // FRAMES_PLAYED_IN_STATE
-									// skip tag: literal
-									maxTime = *(int*)(instr + 0x14);
+								if (moves.instructionType(instr) == instr_ifOperation
+										&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
+										&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_PLAYED_IN_STATE
+										&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+									maxTime = asInstr(instr, ifOperation)->right.value;
 									break;
 								}
 							}
@@ -3026,15 +3025,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						BYTE* instr;
 						for (
 								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != Moves::instr_endState;
+								moves.instructionType(instr) != instr_endState;
 								instr = moves.skipInstruction(instr)
 						) {
-							if (moves.instructionType(instr) == Moves::instr_ifOperation
-									&& *(int*)(instr + 4) == 9  // IS_EQUAL
-									&& *(int*)(instr + 8) == 2  // id: variable
-									&& *(int*)(instr + 0xc) == 105  // FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
-									&& *(int*)(instr + 0x10) == 0) {  // id:literal
-								moves.jackoAegisMax = *(int*)(instr + 0x14);
+							if (moves.instructionType(instr) == instr_ifOperation
+									&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+									&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
+									&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
+								moves.jackoAegisMax = asInstr(instr, ifOperation)->right.value;
 								break;
 							}
 						}
@@ -3565,11 +3563,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								BYTE* instr;
 								for (
 									instr = moves.skipInstruction(func);
-									moves.instructionType(instr) != Moves::instr_endState;
+									moves.instructionType(instr) != instr_endState;
 									instr = moves.skipInstruction(instr)
 								) {
-									if (moves.instructionType(instr) == Moves::instr_sprite) {
-										totalLength += *(int*)(instr + 4 + 32);
+									if (moves.instructionType(instr) == instr_sprite) {
+										totalLength += asInstr(instr, sprite)->duration;
 									}
 								}
 								

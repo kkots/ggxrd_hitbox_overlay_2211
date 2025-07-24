@@ -806,6 +806,8 @@ struct Framebar : public FramebarBase {
 	virtual FrameBase& getFrame(int index) override;
 	virtual const FrameBase& getFrame(int index) const override;
 	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const override;
+	bool lastNFramesHaveDizzyFishInvul(int framebarPosition, int n, const struct PlayerFramebar& playerFramebar) const;  // defined in UI.cpp
+	bool lastNFramesHaveJackoHouseInvul(int framebarPosition, int n) const;  // defined in UI.cpp
 	void modifyFrame(int pos, DWORD aswEngineTick, FrameType newType);
 };
 
@@ -1007,6 +1009,35 @@ struct PlayerFramebars : public EntityFramebar {
 	virtual const FramebarBase& getIdle() const override;
 	virtual const FramebarBase& getIdleHitstop() const override;
 };
+
+// iterates the frames from framebarPosition back into the past for frameCount frames
+#define iterateFramesBegin(framebarPosition, frameCount) \
+	int iterateFrames_loop1Start, iterateFrames_loop1End, iterateFrames_loop2Start; \
+	if (framebarPosition >= frameCount - 1) { \
+		iterateFrames_loop1Start = framebarPosition - (frameCount - 1); \
+		iterateFrames_loop1End = framebarPosition + 1; \
+		iterateFrames_loop2Start = (int)_countof(Framebar::frames); \
+	} else { \
+		iterateFrames_loop1Start = 0; \
+		iterateFrames_loop1End = framebarPosition + 1; \
+		iterateFrames_loop2Start = (int)_countof(Framebar::frames) - ( \
+			frameCount - (framebarPosition + 1) \
+		); \
+	} \
+	for (int iterateFrames_loopCount = 1; iterateFrames_loopCount <= 2; ++iterateFrames_loopCount) { \
+		int iterateFrames_loopStart, iterateFrames_loopEnd; \
+		if (iterateFrames_loopCount == 1) { \
+			iterateFrames_loopStart = iterateFrames_loop1Start; \
+			iterateFrames_loopEnd = iterateFrames_loop1End; \
+		} else { \
+			iterateFrames_loopStart = iterateFrames_loop2Start; \
+			iterateFrames_loopEnd = (int)_countof(Framebar::frames); \
+		} \
+		for (int iterateFrames_pos = iterateFrames_loopEnd - 1; iterateFrames_pos >= iterateFrames_loopStart; --iterateFrames_pos) {
+			// code here
+#define iterateFramesEnd \
+		} \
+	}
 
 struct ActiveData {
 	short actives = 0;

@@ -2356,12 +2356,9 @@ const FrameBase& PlayerFramebar::getFrame(int index) const { return (const Frame
 
 template<typename T>
 bool lastNFramesCompletelyEmpty(const T* framebar, int framebarPosition, int n) {
-	int pos = framebarPosition;
-	for (int i = 0; i < n; ++i) {
-		if (!frameTypeDiscardable(framebar->frames[pos].type)) return false;
-		if (pos == 0) pos = _countof(Framebar::frames) - 1;
-		else --pos;
-	}
+	iterateFramesBegin(framebarPosition, n)
+	if (!frameTypeDiscardable(framebar->frames[iterateFrames_pos].type)) return false;
+	iterateFramesEnd
 	return true;
 }
 
@@ -3102,20 +3099,19 @@ void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
 	if (playervalSetterOffset) return;
 	BYTE* func = pawn.bbscrCurrentFunc();
 	BYTE* instr = moves.skipInstruction(func);
-	Moves::InstructionType type = moves.instructionType(instr);
+	InstructionType type = moves.instructionType(instr);
 	bool found = false;
 	bool foundSpriteEnd = false;
-	while (type != Moves::instr_endState) {
+	while (type != instr_endState) {
 		if (!found
-				&& type == Moves::instr_storeValue
-				&& *(int*)(instr + 4) == 2  // tag: variable
-				&& *(int*)(instr + 8) == 3 + playervalNum
-				&& *(int*)(instr + 0xc) == 0) {  // tag: literal
+				&& type == instr_storeValue
+				&& asInstr(instr, storeValue)->dest == (BBScrVariable)(BBSCRVAR_PLAYERVAL_0 + playervalNum)
+				&& asInstr(instr, storeValue)->src == BBSCRTAG_VALUE) {
 			found = true;
-		} else if (found && type == Moves::instr_sprite || foundSpriteEnd) {
+		} else if (found && type == instr_sprite || foundSpriteEnd) {
 			playervalSetterOffset = instr - func;
 			return;
-		} else if (found && type == Moves::instr_spriteEnd) {
+		} else if (found && type == instr_spriteEnd) {
 			foundSpriteEnd = true;
 		}
 		instr = moves.skipInstruction(instr);
@@ -3144,14 +3140,73 @@ void Framebar::modifyFrame(int pos, DWORD aswEngineTick, FrameType newType) {
 }
 
 int PlayerInfo::getElpheltRifle_AimMem46() const {
-	if (charType == CHARACTER_TYPE_ELPHELT && move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot) {
+	if (charType == CHARACTER_TYPE_ELPHELT && strncmp(anim, "Rifle_", 6) == 0) {
+		Entity aim = nullptr;
 		for (int i = 2; i < entityList.count; ++i) {
 			Entity p = entityList.list[i];
-			if (p.isActive() && p.team() == index && !p.isPawn()
-					&& strcmp(p.animationName(), "Rifle_Aim") == 0) {
-				return p.mem46();
+			if (p.isActive() && p.team() == index && strcmp(p.animationName(), "Rifle_Aim") == 0) {
+				aim = p;
+				break;
 			}
 		}
+		
+		if (!aim) return 0;
+		
+		int mem45 = aim.mem45();
+		if (!mem45) return 0;
+		
+		int mem46 = aim.mem46();
+		if (mem46) return 1;
+		
+		moves.fillElpheltRifleFireStartup(pawn);
+		moves.fillElpheltRifleFirePowerupStartup(aim.bbscrCurrentFunc());
+		if (!moves.elpheltRifleFirePowerupStartup || !moves.elpheltRifleFireStartup) return 0;
+		
+		bool stopLinked = aim.stopLinkObject() == pawn;
+		bool frozen = 0;
+		int slowdown = 0;
+		
+		ProjectileInfo& aimProjectile = endScene.findProjectile(aim);
+		
+		// we're not in superfreeze
+		
+		// Rev2 links stop of aim to player. Rev1 doesn't
+		if (stopLinked) {
+			slowdown = rcSlowedDownCounter;
+		} else {
+			slowdown = aimProjectile.rcSlowedDownCounter;
+		}
+		
+		int timeLeft = INT_MAX;
+		if (strcmp(aim.gotoLabelRequest(), "Aim_Super") == 0) {
+			timeLeft = 1;
+		} else {
+			timeLeft = moves.elpheltRifleFirePowerupStartup - mem45
+				+ 1;  // account for gotoLabelRequests
+		}
+		
+		int attackStartupWithSlow = 0;
+		int unused;
+		calculateSlow(0,
+			moves.elpheltRifleFireStartup - 1,
+			rcSlowedDownCounter,
+			&attackStartupWithSlow,
+			&unused,
+			&unused);
+		
+		int timeLeftWithSlow = 0;
+		calculateSlow(0,
+			timeLeft,
+			slowdown,
+			&timeLeftWithSlow,
+			&unused,
+			&unused);
+		if (timeLeftWithSlow > 0) ++timeLeftWithSlow;  // player bbscript runs before projectile bbscript,
+		// which means player can fire and send CUSTOM_SIGNAL_0 and deactivate the projectile before it gets a chance to run storeValue: MEM(46), Val(1)
+		
+		if (timeLeftWithSlow <= attackStartupWithSlow) return 1;
+		return 0;
+		
 	}
 	return 0;
 }

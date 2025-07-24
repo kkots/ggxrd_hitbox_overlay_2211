@@ -657,5 +657,35 @@
     <Image Include="..\images\BacchusSighFrame_NonColorblind.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\images\Digit1_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit2_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit3_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit4_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit5_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit6_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit7_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit8_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit9_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\Digit0_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

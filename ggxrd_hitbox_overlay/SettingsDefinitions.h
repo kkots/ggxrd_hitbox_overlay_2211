@@ -575,17 +575,41 @@ settingsField(bool, allFramebarTitlesDisplayToTheLeft, true,
 settingsField(int, framebarHeight, 19,
 	"Framebar Height", SETTINGS_FRAMEBAR,
 	"; A number.\n"
-	"; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.\n"
-	"; The standard height is 19.")
-	
-settingsField(int, distanceBetweenFramebars, 30,
-	"Distance Between Framebars", SETTINGS_FRAMEBAR,
+	"; Specifies the height of a single framebar of one player, including the black outlines on the outside.\n"
+	"; The standard height is 19.\n"
+	"; This value is specified in pixels only on 1280x720 resolution. On higher resolutions this gets multiplied by\n"
+	"; Screen Height / 720.")
+
+settingsField(int, digitThickness, 1,
+	"Framebar Digit Thickness", SETTINGS_FRAMEBAR,
+	"; A number. Can only equal 1 or 2.\n"
+	"; Specifies the thickness of text for the numbers displayed in the framebar over the frames, denoting the number\n"
+	"; of consecutive same frames.")
+
+settingsField(bool, drawDigits, true,
+	"Draw Digits", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; Disables the drawing of numbers displayed in the framebar over the frames, denoting the number\n"
+	"; of consecutive same frames.")
+
+settingsField(int, distanceBetweenPlayerFramebars, 30,
+	"Distance Between Player Framebars", SETTINGS_FRAMEBAR,
 	"; A number. Can be negative.\n"
-	"; Specifies the padding between framebars, but keep in mind, the actual padding may be greater to accomodate\n"
-	"; for throw invul, strike invul and other triangular markers on top and below the frames.\n"
-	"; This distance gets divided by 10 and multiplied by 19 / \"framebarHeight\" to get the actual distance in\n"
-	"; pixels (this does not include the extra padding for invulnerability markers).")
-	
+	"; Specifies the padding between the two main player framebars, but keep in mind,\n"
+	"; the actual padding may be greater to accomodate for throw invul, strike invul and other triangular markers\n"
+	"; on top and below the frames.\n"
+	"; This distance gets divided by 10 and multiplied by 19 / \"framebarHeight\" * Screen Height / 720\n"
+	"; to get the actual distance in pixels (this does not include the extra padding for invulnerability markers).")
+
+settingsField(int, distanceBetweenProjectileFramebars, 30,
+	"Distance Between Projectile Framebars", SETTINGS_FRAMEBAR,
+	"; A number. Can be negative.\n"
+	"; Specifies the padding between the the Player 2 framebar and the next projectile framebar,\n"
+	"; and between the projectile framebars, but keep in mind, the actual padding may be greater\n"
+	"; to accomodate for throw invul, strike invul and other triangular markers on top and below the frames.\n"
+	"; This distance gets divided by 10 and multiplied by 19 / \"framebarHeight\" * Screen Height / 720\n"
+	"; to get the actual distance in pixels (this does not include the extra padding for invulnerability markers).")
+
 settingsField(int, framebarTitleCharsMax, 12,
 	"Framebar Title Max Characters", SETTINGS_FRAMEBAR,
 	"; A number.\n"

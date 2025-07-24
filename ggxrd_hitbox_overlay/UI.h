@@ -27,6 +27,10 @@ enum FrameMarkerType {
 	MARKER_TYPE_LAST
 };
 
+struct DigitFrame {
+	std::unique_ptr<PngResource> thickness[2] { };
+};
+
 class UI
 {
 public:
@@ -194,7 +198,7 @@ private:
 	std::unique_ptr<PngResource> superArmorFrameNonColorblind;
 	std::unique_ptr<PngResource> superArmorFrameFull;
 	std::unique_ptr<PngResource> superArmorFrameFullNonColorblind;
-	std::unique_ptr<PngResource> digitFrame[10];
+	DigitFrame digitFrame[10];
 	std::unique_ptr<PngResource> xstunFrame;
 	std::unique_ptr<PngResource> xstunFrameNonColorblind;
 	std::unique_ptr<PngResource> xstunFrameCanCancel;
@@ -228,6 +232,7 @@ private:
 			DWORD outlineColorNonColorblind, DWORD outlineColorColorblind,
 			bool hasMiddleLineNonColorblind, bool hasMiddleLineColorblind);
 	bool addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource);
+	bool addDigit(HMODULE hModule, WORD resourceId, WORD resourceIdThickness1, DigitFrame& digit);
 	PngResource packedTextureHelp;  // do not change this once it is created
 	void packTexture(PngResource& packedTexture, UITextureType type, const PackTextureSizes* sizes);
 	void packTextureHelp();

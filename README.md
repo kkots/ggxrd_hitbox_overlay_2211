@@ -766,16 +766,37 @@ showPlayerInFramebarTitle = true
 allFramebarTitlesDisplayToTheLeft = true
 
 ; A number.
-; Specifies the height of a single framebar of one player, in pixels, including the black outlines on the outside.
+; Specifies the height of a single framebar of one player, including the black outlines on the outside.
 ; The standard height is 19.
+; This value is specified in pixels only on 1280x720 resolution. On higher resolutions this gets multiplied by
+; Screen Height / 720.
 framebarHeight = 19
 
+; A number. Can only equal 1 or 2.
+; Specifies the thickness of text for the numbers displayed in the framebar over the frames, denoting the number
+; of consecutive same frames.
+digitThickness = 1
+
+; Specify true or false.
+; Disables the drawing of numbers displayed in the framebar over the frames, denoting the number
+; of consecutive same frames.
+drawDigits = true
+
 ; A number. Can be negative.
-; Specifies the padding between framebars, but keep in mind, the actual padding may be greater to accomodate
-; for throw invul, strike invul and other triangular markers on top and below the frames.
+; Specifies the padding between the two main player framebars, but keep in mind,
+; the actual padding may be greater to accomodate for throw invul, strike invul and other triangular markers
+; on top and below the frames.
 ; This distance gets divided by 10 and multiplied by 19 / "framebarHeight" to get the actual distance in
 ; pixels (this does not include the extra padding for invulnerability markers).
-distanceBetweenFramebars = 30
+distanceBetweenPlayerFramebars = 30
+
+; A number. Can be negative.
+; Specifies the padding between the the Player 2 framebar and the next projectile framebar,
+; and between the projectile framebars, but keep in mind, the actual padding may be greater
+; to accomodate for throw invul, strike invul and other triangular markers on top and below the frames.
+; This distance gets divided by 10 and multiplied by 19 / "framebarHeight" to get the actual distance in
+; pixels (this does not include the extra padding for invulnerability markers).
+distanceBetweenProjectileFramebars = 30
 
 ; A number.
 ; Specifies the maximum number of characters that can be displayed in a framebar title.
@@ -1392,7 +1413,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
 - 2025 ??? ??: Version 6.28:
   1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was shown by the hitbox overlay as horizontal, while in reality it is vertical.
-  2) Made Elphelt's Travailler Maximum Charge powerup be displayed 1f later.
+  2) Made Elphelt's Travailler Maximum Charge powerup be displayed 1f later. Made Elphelt's Ms. Confille Maximum Charge powerup be displayed not when the reticle becomes full-sized, but when firing the rifle on this frame would fire it just in time for the reticle to become full-sized, i.e. slightly in advance (rifle startup is 3).
   3) Previously, framebar was displaying the pre-landing frame as landing recovery (purple), if you got hit on it. This would only happen if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now, that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
   4) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown. The one who is performing the throw will still be displayed strike and throw invulnerable on their first frame. Additionally, now, when Jam parries a hit, the framebar frame, on which the parry connected, will display her as having super armor and not (yet) having strike+throw invul due to full invul from the parry (though having throw invul is still possible from previous hitstun, blockstun or wakeup, and that will be displayed). Similarly, Blitz Shield reject now will show the defender having super armor on the frame when the attacker's hit connected. Previously, it was displaying full (stirke+throw) invul, which should only start on the frame after.
   5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so, because they became airborne on frame 1 of the move, and airborne moves do not display that type of invul because it should be obvious that they're airborne. As it was previously, airborne moves (any move that originated in the air) will not show "airborne" invul. The new exception to that rule is airborne Roman Cancel, because it is sometimes hard to tell if it is airborne. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusively: either only strike, or only airborne - for no reason).
@@ -1401,7 +1422,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   8) Fixed a bug when all framebars would disappear during I-No's Ultimate Fortissimo if it dealt the killing blow.
   9) On the framebar, replaced half-colored green frames for Answer's air scroll set with fully colored green frames, as no whiff cancels are actually available.
   10) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example. This will affect both the display of hitboxes and the display of active frames in the framebar and the framedata.
-  11) For AMD cards that can't draw the outlines of the hitboxes, added an untested attempt of a fix. If it doesn't help, please manually uncheck the Settings - Hitbox Settings - Use Pixel Shader checkbox.
+  11) Thanks to Worse Than You, fixed an issue when AMD cards could not draw outlines due to the pixel shader that is used to draw them. You can still manually disable the pixel shader in Settings - Hitbox Settings - Use Pixel Shader, which disables black-coloring of outlines over places where the background would otherwise be the same color as the line.
   12) The outlines of hitboxes display in black color when on top of same colored background in order to improve their visibility. This feature has now been made more aggressive and black color will appear at larger color differences. You can disable this feature by unchecking Settings - Hitbox Settings - Use Pixel Shader.
   13) Renamed Sol's "Break" projectile to "Break Explosion".
   14) Added an untested, unconfirmed fix for a crash that happened when one user tried injecting the mod.
@@ -1422,13 +1443,10 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   25) Fixed hitstop display in framebar tooltips showing time remaining / time max without account for the RC slowdown. Now the displayed times will be larger when slowed down by RC.
   26) Fixed an incorrect idle frame displayed in framebar when recovering from a Blitz Shield reject while being slowed down by RC.
   27) Made framebar less blurry when it's upscaled, for example on higher resolutions, and changed its font for the numbers drawn inside/on top of individual frames.
-    TODO: reduce how the needed amount of padding for bottom and top markers is calculated. They are allowed to intersect at 0 inter-framebar spacing, just a little bit.
-    TODO: by default, pretend that projectile framebars have no super armor markers and, by the way, remove the marker padding from projectile framebars. Until dizzy D-fish appears or jacko sets a house. Then add additional padding only for that framebar and only for the top marker.
-    TODO: reduce padding between the startup/active/recovery/total text of P2 and the first projectile framebar. Figure out why it is too large on bigger resolutions.
+  28) Added settings to control the amount of vertical spacing (empty space) between individual framebars.
     TODO: add setting to change input delay in online
     TODO: add setting to control padding between framebars and add a checkbox to compress all projectiles of a player into a single mini-framebar on top of P1's main framebar or below P2's main framebar
-    TODO: add variable thickness to the frame numbers font
-    // TODO: For Elphelt rifle max charge powerup, display the time when you can press S to fire the maximum shot, and not when the projectile has already reached the powerup
+    TODO: fix ky 2H(2) > Greed Sever being displayed as 2H > Delay 1f > Greed Sever. Should say something like 2H (2 hits) > Greed Sever
     
   27) New framebar display settings:
     - A text field to type in the amount of empty space between individual framebars.

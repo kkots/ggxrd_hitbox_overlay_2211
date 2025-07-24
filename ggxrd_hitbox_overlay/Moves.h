@@ -178,35 +178,6 @@ public:
 	MoveInfo defaultMove{ };
 	unsigned short* bbscrInstructionSizes = nullptr;
 	inline BYTE* skipInstruction(BYTE* in) const;
-	enum InstructionType {
-		// these are from bbscript database: https://github.com/super-continent/bbscript
-		instr_endState = 1,
-		instr_sprite = 2,
-		instr_spriteEnd = 3,
-		instr_if = 4,
-		instr_ifOperation = 6,
-		instr_else = 9,
-		instr_endElse = 10,
-		instr_setMarker = 11,
-		instr_goToMarker = 12,
-		instr_callSubroutine = 17,
-		instr_exitState = 18,
-		instr_upon = 21,
-		instr_endUpon = 22,
-		instr_clearUpon = 23,
-		instr_overrideSpriteLengthIf = 26,
-		instr_jumpToState = 27,
-		instr_storeValue = 46,
-		instr_calcDistance = 60,
-		instr_createObjectWithArg = 445,
-		instr_createObject = 446,
-		instr_setLinkObjectDestroyOnStateChange = 457,
-		instr_hitAirPushbackX = 754,
-		instr_deleteMoveForceDisableFlag = 1603,
-		instr_sendSignal = 1766,
-		instr_sendSignalToAction = 1771,
-		instr_exPointFReset = 2161,
-	};
 	inline InstructionType instructionType(BYTE* in) const;
 	BYTE* findSetMarker(BYTE* in, const char* name) const;
 	BYTE* findNextMarker(BYTE* in, const char** name) const;
@@ -402,7 +373,11 @@ public:
 	bool milliaSecretGardenUnlinkFailedToFind = false;
 	void fillMilliaSecretGardenUnlink(BYTE* funcStart);
 	int elpheltRifleFireStartup = 0;
+	// ent must point to Elphelt player
 	void fillElpheltRifleFireStartup(Entity ent);
+	int elpheltRifleFirePowerupStartup = 0;
+	// funcStart must point to Rifle_Aim projectile state
+	void fillElpheltRifleFirePowerupStartup(BYTE* funcStart);
 private:
 	struct MyKey {
 		CharacterType charType = (CharacterType)-1;

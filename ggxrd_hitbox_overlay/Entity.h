@@ -698,6 +698,8 @@ struct ScheduledAnim {
 	int nonZeroOnAnimChange;
 };
 
+// the following several bbscript-related enums are mostly taken or derived from information in https://github.com/super-continent/ggxrd-mod.
+// In its tree, see static_db/ggrev2.ron
 enum EntityReferenceType {
 	ENT_NONE = 0x0,
 	ENT_PREVIOUS = 0x1,
@@ -798,6 +800,433 @@ enum BBScrEvent {
 	BBSCREVENT_FRAME_STEP_AFTER_EXTRA = 77,
 	BBSCREVENT_HIT_THE_OPPONENT_PRE_ATK_VALUES_COPY = 78
 };
+
+enum BBScrOperation {
+	BBSCROP_ADD,  // result = x + y
+	BBSCROP_SUB,  // result = x - y
+	BBSCROP_MUL,  // result = x * y
+	BBSCROP_DIV,  // result = x / y (round down)
+	BBSCROP_MOD,  // result = x % y (remainder of division)
+	BBSCROP_AND,  // result = x && y (only returns 1 if x != 0 and y != 0, otherwise returns 0)
+	BBSCROP_OR,  // result = x || y (returns 1 if x != 0 or y != 0, otherwise returns 0)
+	BBSCROP_BIT_AND,  // result = x & y (bitwise AND)
+	BBSCROP_BIT_OR,  // result = x | y (bitwise OR)
+	BBSCROP_IS_EQUAL,  // result = (x == y) (returns 1 if x == y, otherwise 0)
+	BBSCROP_IS_GREATER,  // result = (x > y)
+	BBSCROP_IS_LESSER,  // result = (x < y)
+	BBSCROP_IS_GREATER_OR_EQUAL,  // result = (x >= y)
+	BBSCROP_IS_LESSER_OR_EQUAL,  // result = (x <= y)
+	BBSCROP_BIT_NOT,  // result = (x & (~y)) (this bitwise inverts the right argument and then performs a BIT_AND)
+	BBSCROP_IS_NOT_EQUAL,  // result = (x != y) (returns 1 if x != y, otherwise 0)
+	BBSCROP_MOD_EQUALS_0,  // result = ((x % y) == 0)
+	BBSCROP_MOD_EQUALS_1,  // result = ((x % y) == 1)
+	BBSCROP_MOD_EQUALS_2,  // result = ((x % y) == 2)
+	BBSCROP_ADD_DIR,  // result = x + y * facing (facing is 1 if your graphical sprite is facing right, -1 otherwise)
+	BBSCROP_TAKE_RIGHT_VALUE_UNCHANGED,  // result = y
+	BBSCROP_SET_DIR,  // result = y * facing (facing is 1 if your graphical sprite is facing right, -1 otherwise)
+	BBSCROP_GREATER_THAN_RANDOM,  // result = (x > (rand() % y)) (returns 1 if x > than that, otherwise returns 0. Their rand() function produces numbers from 0 to 4294967295)
+};
+
+enum BBScrTag {
+	BBSCRTAG_VALUE,  // literal
+	BBSCRTAG_VARIABLE=2
+};
+
+enum BBScrVariable {
+	// You can only write to variables that are marked as "writable". Writing to non-writable variables will have no effect.
+	// Variables marked as "per player" allow access from effect scripts, but they access that value through their corresponding player.
+	// Variables marked as "global" are stored in the game engine as a single variable, and both players and their effect scripts access the same variable.
+    BBSCRVAR_ACCUMULATOR=0,  // writable. Is used to obtain values from 'calcDistance', some if functions, checks, and other common functions
+    BBSCRVAR_ROTATION=1,  // writable. In 1/1000'th of degree. 1000 means 1 degree. Positive value rotates counter-clockwise when facing right, and clockwise when facing left. Same as PITCH. Pitch is the angle of rotation around the axis perpendicular to the screen
+    BBSCRVAR_IS_CMN_ACT=2,  // returns 1 if the current action is a CmnAct..., otherwise returns 0
+    BBSCRVAR_PLAYERVAL_0=3,  // writable, per player. Gets reset to 0 on stage reset or new round. Survives state (animation) change
+    BBSCRVAR_PLAYERVAL_1=4,  // writable, per player. Gets reset to 0 on stage reset or new round. Survives state (animation) change
+    BBSCRVAR_PLAYERVAL_2=5,  // writable, per player. Gets reset to 0 on stage reset or new round. Survives state (animation) change
+    BBSCRVAR_PLAYERVAL_3=6,  // writable, per player. Gets reset to 0 on stage reset or new round. Survives state (animation) change
+    BBSCRVAR_PHYSICS_X_IMPULSE=7,  // writable. Your current X speed. If you set this, this sets your speed towards your current facing, so, providing a positive value while facing to the left would assign you negative speed. If you get this value, it gets multiplied by your facing before you see the result, so, if your speed is negative while facing to the left you get read a positive speed.
+    BBSCRVAR_PHYSICS_Y_IMPULSE=8,  // writable. Your current Y speed. Positive speed Y means going up, negative going down
+    // 9, 10, 11, 12
+    BBSCRVAR_FRAMES_PLAYED_IN_STATE=13,  // restarts from 1 on each state. Only advances forward when a sprite frame advances
+    BBSCRVAR_OPPONENT_X_DISTANCE=14,  // the absolute value of opponent x - your x
+    BBSCRVAR_OPPONENT_Y_DISTANCE=15,  // the absolute value of opponent y - your y
+    BBSCRVAR_MATCH_RUNNING=16,  // global
+    BBSCRVAR_POS_X=17,  // writable. Your current origin point's X coordinate, sometimes (read on) multiplied by your facing. Origin point is the point between your feet. When you try to set this value, what you set first gets multiplied by your facing, so if you set a negative X while facing left, you would set a positive value due to this. However, the same does not apply when reading this value: you read a negative position if it's negative, and a positive if positive, regardless of which direction you're facing.
+    BBSCRVAR_POS_Y=18,  // writable. Your current origin point's Y coordinate. Origin point is the point between your feet
+    BBSCRVAR_THIS_IS_ALWAYS_ZERO=19,  // always returns 0, no matter what
+    BBSCRVAR_DISTANCE_TO_WALL_IN_FRONT=20,  // means the wall, not screen edge. Equal to abs( X of wall - your X )
+    BBSCRVAR_DISTANCE_TO_WALL_IN_FRONT_AGAIN=21,  // same as DISTANCE_TO_WALL_IN_FRONT
+    BBSCRVAR_PRIVATE_0_HITBOXES_COUNT=22,  // per player. Returns the number of PRIVATE_0 hitboxes of your corresponding player
+    BBSCRVAR_DISTANCE_FROM_THIS_CENTER_TO_ENEMY_CENTER=23,  // center means center of body, it's lifted off the ground a bit. Is equal to sqrt((enemy center X - your center X)^2 + (enemy center Y - your center Y)^2)
+    BBSCRVAR_PLAYER_IN_HITSTUN=24,  // per player. Does not include the frame when your player enter hitstun, unless they were already in hitstun on that frame
+    BBSCRVAR_RESOURCE_AMOUNT=25,  // writable, per player. This is RESOURCE_AMOUNT_0. You have 5 slots to store different amounts of resources in. Resources get reset to 0 each round and stage reset
+    BBSCRVAR_RESOURCE_AMOUNT_1=26,  // writable, per player. Resources get reset to 0 each round and stage reset
+    BBSCRVAR_RESOURCE_AMOUNT_2=27,  // writable, per player. Resources get reset to 0 each round and stage reset
+    BBSCRVAR_RESOURCE_AMOUNT_3=28,  // writable, per player. Resources get reset to 0 each round and stage reset
+    BBSCRVAR_RESOURCE_AMOUNT_4=29,  // writable, per player. Resources get reset to 0 each round and stage reset
+    BBSCRVAR_AIRBORNE=30,  // this check if based on your Y coordinate being > 0 and a flag which is not fully understood
+    BBSCRVAR_NOT_IN_AIR=31,  // the opposite of AIRBORNE
+    BBSCRVAR_FACING_LEFT=32,  // writable. This is the facing used to draw your sprite. This value is 0 if the graphical sprite is facing right and 1 if left
+    BBSCRVAR_PLAYER_INPUTS_FACING_LEFT=33,  // writable, per player. This is the facing that is used when parsing inputs. It's 0 if right, 1 if left
+    BBSCRVAR_OPPONENT_X_OFFSET=34,  // = opponent x - your x. Can be negative
+    BBSCRVAR_OPPONENT_Y_OFFSET=35,  // = opponent y - your y. Can be negative
+    BBSCRVAR_PLAYER_IN_HITSTUN_OR_BLOCKSTUN=36,  // per player. Does not include the frame when you enter hitstun or blockstun, unless you were already in hitstun or blockstun on that frame
+    BBSCRVAR_VOICE_ID_IS_0=37,  // per player. At the start of a match each character gets assigned a random VoiceID from 0 to 2, maybe except I-No in some situations, where she gets 0 or 1
+    BBSCRVAR_VOICE_ID_IS_1=38,  // per player
+    BBSCRVAR_VOICE_ID_IS_2=39,  // per player
+    BBSCRVAR_VOICE_ID_IS_3=40,  // per player. Voice ID can never be 3
+    BBSCRVAR_SEND_SIGNAL_EX_PARAM2=42,  // writable, global. This allows you to write the second parameter of the next sendSignalEx call or read the second parameter of the last sendSignalEx call. Careful: this variable is global, meaning you must use it immediately after setting
+    BBSCRVAR_SEND_SIGNAL_EX_PARAM3=43,  // writable, global. This allows you to write the third parameter of the next sendSignalEx call or read the third parameter of the last sendSignalEx call. Careful: this variable is global, meaning you must use it immediately after setting
+    BBSCRVAR_DISTANCE_FROM_THIS_CENTER_TO_PLAYER_CENTER=44,  // center means center of body, it's lifted off the ground a bit. Is equal to sqrt((this center X - your player center X)^2 + (this center Y - your player Y)^2)
+    // 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60: writable
+    BBSCRVAR_GTMP_X=61,  // writable, per player. Gets reset to 0 on stage reset. This value participates in forming the POS_TYPE(GTMP). You can use this as just a variable
+    BBSCRVAR_GTMP_Y=62,  // writable, per player. Gets reset to 0 on stage reset. This value participates in forming the POS_TYPE(GTMP). You can use this as just a variable
+    // 63, 64, 65, 66, 67, 68: writable, per player
+    // The following values survive state (animation) switch
+    BBSCRVAR_STORAGE1=69,  // writable. Reset on stage reset or new round
+    BBSCRVAR_STORAGE2=70,  // writable. Reset on stage reset or new round
+    BBSCRVAR_STORAGE3=71,  // writable. Reset on stage reset or new round
+    BBSCRVAR_STORAGE4=72,  // writable. Reset on stage reset or new round
+    BBSCRVAR_STORAGE5=73,  // writable. Does not get reset on stage reset
+    BBSCRVAR_STORAGE6=74,  // writable. Does not get reset on stage reset
+    BBSCRVAR_STORAGE7=75,  // writable. Does not get reset on stage reset
+    BBSCRVAR_STORAGE8=76,  // writable. Does not get reset on stage reset
+    BBSCRVAR_HEALTH=77,  // writable
+    BBSCRVAR_MAX_HEALTH=78,  // writable. Standard value is 420 for all characters. They do differ in effective HP though due to guts, but that is not reflected here
+    BBSCRVAR_DAMAGE_SCALE=79,  // writable, per player. Percentage that alters all dealt damage by you or your projectiles
+    BBSCRVAR_EXTRA_PRORATION=80,  // writable, per player. All incoming damage gets divided by this percentage. Gets reset to 100 on stage reset
+    BBSCRVAR_ANIMATION_DIDNT_ADVANCE=81,  // is true during hitstop, superfreeze and on every second frame of an RC slowdown period. Actually, this returns an enum: 0 for when time flow is normal, 1 for when in hitstop, 2 for when skipping the frame due to RC slowdown, 3 for when in superfreeze
+    // 82: writable, per player
+    BBSCRVAR_POS_X_RAW=83,  // writable. Your current origin point's X coordinate. Origin point is the point between your feet. This position is never multiplied by your facing, neither when reading, nor when setting
+    BBSCRVAR_IS_BOSS=84,  // per player. You're the boss if you're the last opponent in the Story/Arcade mode
+    BBSCRVAR_IS_LOCATION_TEST=85,  // per player. This probably refers to the location test of Xrd Rev 2.1
+    BBSCRVAR_STANDING_COUNTER_IS_ZERO=86,  // per player. Reports if STANDING_COUNTER is 0. Always returns false in combo trials mode, mission mode and tutorial mode
+    BBSCRVAR_STANDING_COUNTER=87,  // writable, per player. Decremenets by 1 each frame, including during hitstop and superfreeze. It is called this way because it is used primarily by standing animations
+    BBSCRVAR_PROJECTILE_DAMAGE_SCALE=88,  // writable. Percentage that affects damage of incoming attacks that have > 0 projectile durability/level. Projectiles that attack you set their level using setProjectileDurability beforehand
+    BBSCRVAR_TRAINING_MODE_AND_NO_ONE_IN_XSTUN_OR_THROW_INVUL_FROM_XSTUN_OR_AIRBORNE_OR_ATTACKING=89,  // per player. By X-Stun I mean hitstun or blockstun
+    BBSCRVAR_IS_TRAINING_MODE=90,  // global
+    BBSCRVAR_ALWAYS_ZERO=91,  // this always returns 0, no matter what
+    BBSCRVAR_IS_PERFORMED_RAW=92,  // this means that the move was not cancelled into from another move
+    BBSCRVAR_PLAYER_SIDE=93,  // 0 for P1 effects and player, 1 for P2 effects and player
+    // 95: per player
+    BBSCRVAR_DISTANCE_FROM_THIS_CENTER_TO_ENEMY_CENTER_DUPLICATE=96,  // same as DISTANCE_FROM_THIS_CENTER_TO_ENEMY_CENTER
+    BBSCRVAR_PITCH=97,  // writable. In 1/1000'th of a degree. So 1000 means 1 degree. Means same thing as ROTATION. 0 is unrotated and positive angle rotates you counter-clockwise when facing right, or clockwise when facing left. Pitch is the angle of rotation around the axis perpendicular to the screen
+    BBSCRVAR_SCALE_X=99,  // writable. 1000 means unscaled. Scales horizontally
+    BBSCRVAR_SCALE_X_GROWTH=100,  // writable. SCALE_X will increase by this amount each frame until you reset it to 0
+    BBSCRVAR_EX_KIZETSU=101,  // writable, per player. Setting this to true will make it so that the next time you recover from a move you will enter "ExKizetsu" state. This value does not automatically get cleared to 0
+    BBSCRVAR_EXPOINT_X=102,  // writable. These two variables are set by exPointFReset, exPointFResetObject, and can also be written to directly. They get reset to 0 on stage reset. When Venom hits a ball, for the ball this is set to the middle point between Venom and ball. POS_TYPE EX_POINT_F refers to these variables
+    BBSCRVAR_EXPOINT_Y=103,  // writable. See EXPOINT_X
+    BBSCRVAR_OPPONENT_X_OFFSET_TOWARDS_FACING=104,  // this is X distance to the opponent except if you're facing away from them, then it is negative
+    BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL=105,  // upon0_21 has an ANIMATION_FRAME_ADVANCED event. When first registering for that event, this value gets reset to 0. It advances each frame by 1 after ANIMATION_FRAME_ADVANCED event is fired and onIdling procedure is called. It is only incremented when not in hitstop, not in superfreeze, and increments at half the rate during RC slowdown.
+    BBSCRVAR_MIN_HORIZ_DIST_BETWEEN_PUSHBOXES=106,  // gets distance from your pushbox to enemy player's pushbox. If you're a projectile, it takes the projectile's pushbox
+    BBSCRVAR_PLAYER_TENSION_MODE=107,  // writable, per player. Value 0 means IK_NOT_ACTIVE, 1: RED_IK_ACTIVE, 2: GOLD_IK_ACTIVE, 3: TENSION_DISABLED_UNTIL_END_OF_ROUND
+    // 108: writable, per player
+    BBSCRVAR_PLAYER_TENSION=109,  // writable, per player. 0 to 10000. When IK is active or tension is disabled until end of round, returns 0
+    BBSCRVAR_MATCH_FINISHED=111,  // global. Is not the same as negated MATCH_RUNNING
+    BBSCRVAR_HIGHER_PITCH_VOICE_TIMER=112,  // writable, per player. If you're a projectile, returns your player's timer. Decreases by 1 each frame, including frozen frames
+    BBSCRVAR_CANT_BACKDASH_TIMER=113, // writable, per player. While this timer is not 0, you can't backdash. Decrements each frame
+    BBSCRVAR_IS_TOUCHING_WALL_OR_SCREEN_EDGE=114,
+    BBSCRVAR_CREATE_ARG_HIKITSUKI_VAL_1=115,  // writable. This can be used to read the first argument of the createArgHikitsukiVal call that was used before creating this projectile. Setting this variable is not the same as calling createArgHikitsukiVal with the same argument. The argument that you receive from createArgHikitsukiVal when you're created and the argument that you send via createArgHikitsukiVal are two separate variables. This is the argument you receive
+    BBSCRVAR_CREATE_ARG_HIKITSUKI_VAL_2=116,  // writable. This can be used to read the second argument of the createArgHikitsukiVal call that was used before creating this projectile. Setting this variable is not the same as calling createArgHikitsukiVal with the same argument. The argument that you receive from createArgHikitsukiVal when you're created and the argument that you send via createArgHikitsukiVal are two separate variables. This is the argument you receive
+    BBSCRVAR_LANDING_STIFF_FIELD_2=117,  // writable, per player. If the second argument of landingStiffTime had 0x2 flag, then this is equal to the first argument of landingStiffTime - the landing recovery, otherwise this is 0. This seems to be written only, but never read by the game engine
+    // 119: writable, per player
+    BBSCRVAR_BURST_METER=120,  // writable, per player. Capped at 15000
+    // 121: only returns non-0 in MOM mode
+    // 122
+    BBSCRVAR_INTERROUND_VALUE_STORAGE1=123,  // writable, per player. Allows to store values between rounds
+    BBSCRVAR_INTERROUND_VALUE_STORAGE2=124,  // writable, per player. Allows to store values between rounds
+    BBSCRVAR_SUPERS_ARE_UNBLOCKABLE=126,  // per player. This flag changes the behavior of one super for each Sign character
+    // 127
+    BBSCRVAR_LAST_DEALT_COLLISION_ID=128, // this is a unique ID assigned to the last attack you connected on anything. When this ID is generated, the victim is given the same ID in their LAST_RECEIVED_COLLISION_ID
+    BBSCRVAR_LAST_RECEIVED_COLLISION_ID=129, // this is a unique ID assigned to the last attack that connected on you. When this ID is generated, the attacker is given the same ID in their LAST_DEALT_COLLISION_ID
+    BBSCRVAR_IS_PLAYER=130,  // false (0) for projectiles, true (1) for players
+    BBSCRVAR_IS_PLAYING_CUTSCENE_ANIME=131,  // does not go to your corresponding player if accessed from effect. So effects will always read 0 here
+    // 132: global
+    // 133: global, per player
+    BBSCRVAR_ALWAYS_ZERO3=134,  // this variable always returns 0, no matter what
+    // 135: writable, per player
+    // 136: global
+    BBSCRVAR_INSTANT_KILLED=137,  // per player. The type of the received attack is Instant Kill
+    // 138: writable, global
+    BBSCRVAR_PLAYER_OR_ENEMY_ACTOR_PLAYING_CUTSCENE_ANIME=139,  // per player
+    BBSCRVAR_PLAYER_ACTOR_PLAYS_CUTSCENE_ANIME=140,  // per player
+    BBSCRVAR_ENEMY_ACTOR_PLAYS_CUTSCENE_ANIME=141,  // per player
+    // 142: related to playing cutscene anime
+    BBSCRVAR_IS_PLAYING_SOUND=143,
+    // 144: global
+    // 145, 146, 148, 149, 150, 151: per player
+    BBSCRVAR_HELLFIRE=152,  // per player. Hellfire is a state when you have < 10% health while being combo'd or < 20% in neutral
+    BBSCRVAR_LOWEST_HELD_BUTTON=153,  // per player. Possible values: 0: none, 1: PUNCH, 2: KICK, 3: SLASH, 4: HEAVY SLASH, 5: DUST, 6: TAUNT
+    BBSCRVAR_IS_CPU=154,  // per player
+    BBSCRVAR_IS_A_CPU_WHO_IS_NOT_PERFORMING_AN_EMOVE=155,  // per player
+    BBSCRVAR_NORMALS_ENABLED=156,  // per player. Ability to perform normals is commonly regarded as the state of being "idle" or not performing any move
+    // 157: writable, per player
+    BBSCRVAR_HIT_BY_DUST=158,  // is hit by a dust (5D) attack
+    BBSCRVAR_STYLISH=159,  // per player. Is the player using Stylish mode
+    // 160
+    BBSCRVAR_WAS_INPUT_USING_STYLISH=161,  // the move was performed using the Special button
+    BBSCRVAR_NUMBER_OF_HITS_MAX=162,  // writable. Does not decrease with each hit taken. Specifies the maximum number of hits the projectile can take before getting destroyed (see requestDestroy). Is set using numberOfHits function or directly. When setting a value < 0, 0 is set instead.
+    BBSCRVAR_NUMBER_OF_HITS_TAKEN=163,  // increments each hit taken. If destroyAssariEx is set to 1 (default is 0) or if destroyAiuchi is not set to 1 (default is 0), you get destroyed when you reach NUMBER_OF_HITS_MAX 
+    BBSCRVAR_IS_BURST_SUPER=164,  // per player
+    BBSCRVAR_DUST_GATLING_TIMER=165, // writable, per player. During this timer, any non-follow-up, non-super, non-IK move can be cancelled into from any normal. Decrements by 1 each frame
+    BBSCRVAR_HITSTUN=166,  // writable, per player. Returns the current remaining number of frames of hitstun of your player
+    BBSCRVAR_TUMBLE_DURATION=167, // writable, per player. The duration of the received tumble. Does not decrement over time. Instead, CmnActKorogari (tumble animation) has an internal counter that counts up to this value.
+    BBSCRVAR_STYLISH_DAMAGE_DIVISOR=168,  // writable, global. All incoming damage is divided by this percentage for players who are using the Stylish mode
+    BBSCRVAR_STYLISH_TENSION_MODIFIER=169,  // writable, global. A percentage. All incoming tension is multiplied by it for players who are using the Stylish mode
+    BBSCRVAR_STYLISH_BURST_GAIN_MODIFIER=170,  // writable, global. A percentage. All incoming burst gauge values are multiplied by it for players who are using the Stylish mode
+    BBSCRVAR_DOKI_DOKI_STOP_HASSEI_ENABLED=172,  // writable, global. Specify 0 or 1. If 1, Dramatic Finale is allowed to happen. If 0, it can never happen. This variable is global. The default value is 1.
+    BBSCRVAR_DOKI_DOKI_STOP_HASSEI_PRE_TIME=173,  // writable, global. Specify the amount of time, in frames, that Dramatic Finale happens before the killing blow attacks become active. This variable is global. The default value is 6.
+    BBSCRVAR_DOKI_DOKI_X_DIST_MIN=174,  // writable, global. The minimum distance between players' X position to trigger Dramatic Finale. This is just one of the checks that must be satisfied to trigger Dramatic Finale. This variable is global. Default value is 100000, which is the distance at which players' pushboxes are touching
+    BBSCRVAR_DOKI_DOKI_X_DIST_MAX=175,  // writable, global. The maximum distance between players' X position to trigger Dramatic Finale. This is just one of the checks that must be satisfied to trigger Dramatic Finale. This variable is global. Default value is 500000
+    BBSCRVAR_DOKI_DOKI_MAX_DIST_Y=176,  // writable, global. The maximum distance between players' Y position to trigger Dramatic Finale. This is just one of the checks that must be satisfied to trigger Dramatic Finale. This variable is global. Default value is 360000
+    BBSCRVAR_STANDARD_DOKI_DOKI_STOP_HASSEI=177,  // writable, global. Default value is 7. This provides the standard value for moves that have not set a timing using the dokiDokiStopHassei function. This variable is global.
+    // 178: writable, global
+    BBSCRVAR_ALWAYS_MINUS_ONE=197,  // this always returns -1, no matter what
+    // 198: writable, global
+    BBSCRVAR_DOKI_DOKI_COOLDOWN_TIMER=199,  // writable, global. A timer that is stored in the game engine, which decrements by 1 each frame, including superfreeze. While it is above 0, Dramatic Finale cannot happen
+    BBSCRVAR_TIME_SINCE_CREATION=200,  // starts from 0 and counts time, including frozen frames, since creation, and never gets reset until the object is destroyed
+    // 201, 202, 203, 204: writable, per player. These variables can be used in move conditions
+    BBSCRVAR_ALWAYS_ZERO_205=205,  // this always returns 0, no matter what
+    BBSCRVAR_ALWAYS_ZERO_206=206,  // this always returns 0, no matter what
+    BBSCRVAR_ALWAYS_ZERO_207=207,  // this always returns 0, no matter what
+    BBSCRVAR_ALWAYS_ZERO_208=208,  // this always returns 0, no matter what
+    BBSCRVAR_OPPONENT_ALREADY_HIT_BY_NEOBLITZ=209,  // per player. Neo blitz means blitz shield attack
+    BBSCRVAR_DUST_PRORATION1=210,  // writable, per player. This proration percentage is unconditionally applied to all incoming damage. Set this on the one who is going to take the damage
+    BBSCRVAR_DUST_PRORATION2=211,  // writable, per player. This proration percentage is unconditionally applied to all incoming damage. Set this on the one who is going to take the damage
+    BBSCRVAR_IS_STYLISH_OR_CPU=212,  // per player
+    BBSCRVAR_ENABLE_NORMALS=213,  // per player. Same as NORMALS_ENABLED
+    BBSCRVAR_OPPONENT_IN_HITSTUN=214,  // per player. Includes the frame when hitstun is entered into. Returns 0 or 1
+    BBSCRVAR_IS_DARK_COLOR=215,  // per player. This is something that can be set in Arcade (Story) mode per opponent, but no one has dark color set to true. When this is true, if your (assuming you're the AI opponent) color is the same as that of the human player, and both use the same character, the you (the AI) don't change your color to mirror color. When this is false, if both players use the same character and color, the AI (you) are changed to the mirror (dark) color. This value does not by itself reflect whether you (the AI) currently have the dark color. It merely means whether the check for resolving a color collision with dark color was enabled for the AI opponent. When this value is accessed by human player or their effects, it should always return 0, because there is no way to set IS_DARK_COLOR to true for the human player in arcade mode. This should be always false even for the AI opponent, because there are no arcade missions that have set this value to true.
+    BBSCRVAR_HIT_BY_NORMAL_THROW=216, // checks whether you were hit by an attack that has either kuuchuutuujounageTsukami (normal airthrow) or chijoutuujounageTsukami (normal ground throw) flags. These flags are only ever set on normal ground and air throws and disappear as soon as the non-throw portion of the H/OS move starts in case the throw whiffed. Meaning that if you got hit by an attack that was 4H/6H or a throw OS, but the attack itself was not a throw, then HIT_BY_NORMAL_THROW would be false on this hit. But if you get hit by the throw portion of that attack, then HIT_BY_NORMAL_THROW would return true.
+    BBSCRVAR_HIT_BY_OVERDRIVE=217,
+    // 218: global
+    // 219, 220, 221, 222, 223, 224, 225: writable, global
+    BBSCRVAR_ALPHA=226,  // writable. This is the alpha (transparency) of the color. From 0 to 255. Setting this to 0 makes you fully transparent
+    // 227: global
+    // 228: writable, per player
+    BBSCRVAR_SLOW_SPEED_PERCENTAGE=229,  // writable, per player. Percentage that multiplies your movement speed, making it slower if < 100 or faster if > 100
+    // 230: global
+    BBSCRVAR_IS_TRIAL_COMPLETED=231,  // global, per trial
+    BBSCRVAR_TRIAL_BEST_TIME=232,  // writable, global, per trial
+    BBSCRVAR_TRIAL_TIME=233,  // writable, global
+    BBSCRVAR_MOM_INFINITE_DRAGON_INSTALL=234,  // apparently, some item in MOM causes Sol to enter DI indefinitely
+    BBSCRVAR_COSTUME=235,  // used by Elphelt to determine selected outfit
+    BBSCRVAR_ARMORED_HITS_ON_THIS_FRAME=236,  // per player
+};
+
+enum BBScrPosType {
+    BBSCRPOSTYPE_ORIGIN=100,  // the origin point that is between your legs
+    BBSCRPOSTYPE_ATTACK=101,
+    BBSCRPOSTYPE_DAMAGE=102,  // this is last point of the hit which is at the center of the intersection between an attacker's hitboxes and a defender's pushboxes
+    BBSCRPOSTYPE_CENTER=103,  // center of your body depends on your stance: crouching and lying poses body centers are lower than standing
+    BBSCRPOSTYPE_FLOOR_CENTER=104,  // same as LAND
+    BBSCRPOSTYPE_BODY_RANDOM=105,
+    BBSCRPOSTYPE_EX_RECT_RANDOM=106,
+    BBSCRPOSTYPE_AURA=107,
+    BBSCRPOSTYPE_PRIVATE_0=108,
+    BBSCRPOSTYPE_PRIVATE_1=109,
+    BBSCRPOSTYPE_PRIVATE_2=110,
+    BBSCRPOSTYPE_PRIVATE_3=111,
+    BBSCRPOSTYPE_PAST_HALF=112,  // the middle position of the origin point between past frame's X;Y and this frame's X;Y
+    BBSCRPOSTYPE_GTMP=113,  // returns a point made up of GTMP_X and GTMP_Y
+    BBSCRPOSTYPE_HEAD=114,
+    BBSCRPOSTYPE_NECK=115,
+    BBSCRPOSTYPE_ABDOMINAL=116,
+    BBSCRPOSTYPE_R_LEG=117,
+    BBSCRPOSTYPE_L_LEG=118,
+    BBSCRPOSTYPE_HEART=119,
+    BBSCRPOSTYPE_ENEMY_LAND=120,
+    BBSCRPOSTYPE_FLOOR_ALIAS=121,
+    BBSCRPOSTYPE_ASHIMOTO_RANDOM=122,
+    BBSCRPOSTYPE_LAND=123,  // land is your current X position with the Y position of floor
+    BBSCRPOSTYPE_FRONT_05_BODY=124,
+    BBSCRPOSTYPE_FRONT_1_BODY=125,
+    BBSCRPOSTYPE_FRONT_2_BODY=126,
+    BBSCRPOSTYPE_BACK_05_BODY=127,
+    BBSCRPOSTYPE_BACK_1_BODY=128,
+    BBSCRPOSTYPE_BACK_2_BODY=129,
+    BBSCRPOSTYPE_EX_POINT_F=130,  // refers to EXPOINT_X, EXPOINT_Y variables
+    BBSCRPOSTYPE_WORLD_ZERO=131,  // the 0;0 point of the arena, which is its middle on the floor level
+    BBSCRPOSTYPE_ENEMY_CENTER=132,
+    BBSCRPOSTYPE_ENEMY_BODY_RANDOM=133,
+    BBSCRPOSTYPE_ENEMY_EX_RECT_RANDOM=134,
+    BBSCRPOSTYPE_ENEMY_AURA=135,
+    BBSCRPOSTYPE_ENEMY_HEAD=136,
+    BBSCRPOSTYPE_ENEMY_NECK=137,
+    BBSCRPOSTYPE_ENEMY_ABDOMINAL=138,
+    BBSCRPOSTYPE_ENEMY_R_LEG=139,
+    BBSCRPOSTYPE_ENEMY_L_LEG=140,
+    BBSCRPOSTYPE_ENEMY_HEART=141,
+    BBSCRPOSTYPE_ENEMY_EX_POINT_F=142,
+    BBSCRPOSTYPE_EX_POINT_PG=143,
+    BBSCRPOSTYPE_BODY_RANDOM_3D=144,
+    BBSCRPOSTYPE_EX_POINT_RANDOM=145,
+    BBSCRPOSTYPE_BIKKURI=146,
+    BBSCRPOSTYPE_CHEST_3D=147,
+    BBSCRPOSTYPE_LEG_CENTER=148,
+    BBSCRPOSTYPE_HEAD_3D=149,
+    BBSCRPOSTYPE_PELVIS_3D=150,
+    BBSCRPOSTYPE_BODY_RANDOM_3D_NO_HEAD=151,
+    BBSCRPOSTYPE_SHOULDER_L_3D=152,
+    BBSCRPOSTYPE_SHOULDER_R_3D=153,
+    BBSCRPOSTYPE_ELBOW_L_3D=154,
+    BBSCRPOSTYPE_ELBOW_R_3D=155,
+    BBSCRPOSTYPE_HAND_L_3D=156,
+    BBSCRPOSTYPE_HAND_R_3D=157,
+    BBSCRPOSTYPE_CALF_L_3D=158,
+    BBSCRPOSTYPE_CALF_R_3D=159,
+    BBSCRPOSTYPE_FOOT_L_3D=160,
+    BBSCRPOSTYPE_FOOT_R_3D=161,
+    BBSCRPOSTYPE_AFRO_3D=162,
+    BBSCRPOSTYPE_FRONT_3_BODY=163,
+    BBSCRPOSTYPE_BACK_3_BODY=164,
+    BBSCRPOSTYPE_SCREEN_CENTER=165,
+};
+
+struct AccessedValue {
+	BBScrTag tag;
+	union {
+		BBScrVariable var;
+		int value;
+	};
+	inline explicit AccessedValue(const void* ptr) : tag(*(BBScrTag*)ptr), value(*((int*)ptr + 1)) { }
+	inline explicit AccessedValue(BBScrTag tag, int value) : tag(tag), value(value) { }
+	inline explicit AccessedValue(BBScrVariable var) : tag(BBSCRTAG_VARIABLE), value(var) { }
+	inline bool operator==(const AccessedValue& other) const noexcept {
+		return tag == other.tag
+			&& value == other.value;
+	}
+	inline bool operator!=(const AccessedValue& other) const noexcept {
+		return tag != other.tag
+			|| value != other.value;
+	}
+	inline bool operator==(BBScrVariable var) const noexcept {
+		return tag == BBSCRTAG_VARIABLE
+			&& value == var;
+	}
+	inline bool operator!=(BBScrVariable var) const noexcept {
+		return !(*this == var);
+	}
+	inline bool operator==(BBScrTag tag) const noexcept {
+		return this->tag == tag;
+	}
+	inline bool operator!=(BBScrTag tag) const noexcept {
+		return this->tag != tag;
+	}
+	inline bool operator!() const noexcept {
+		return !(bool)*this;
+	}
+	inline operator bool() const noexcept {
+		if (tag == BBSCRTAG_VALUE && value == 0) return false;
+		return true;
+	}
+};
+
+#define MEM(x) (BBScrVariable)x
+
+enum InstructionType {
+	// these are from bbscript database: https://github.com/super-continent/bbscript
+	instr_endState = 1,
+	instr_sprite = 2,
+	instr_spriteEnd = 3,
+	instr_if = 4,
+	instr_ifOperation = 6,
+	instr_else = 9,
+	instr_endElse = 10,
+	instr_setMarker = 11,
+	instr_goToMarker = 12,
+	instr_callSubroutine = 17,
+	instr_exitState = 18,
+	instr_upon = 21,
+	instr_endUpon = 22,
+	instr_clearUpon = 23,
+	instr_overrideSpriteLengthIf = 26,
+	instr_jumpToState = 27,
+	instr_storeValue = 46,
+	instr_calcDistance = 60,
+	instr_createObjectWithArg = 445,
+	instr_createObject = 446,
+	instr_setLinkObjectDestroyOnStateChange = 457,
+	instr_hitAirPushbackX = 754,
+	instr_deleteMoveForceDisableFlag = 1603,
+	instr_sendSignal = 1766,
+	instr_sendSignalToAction = 1771,
+	instr_exPointFReset = 2161,
+};
+
+struct BBScrInstr_ifOperation {
+	InstructionType type;
+	BBScrOperation op;
+	AccessedValue left;
+	AccessedValue right;
+};
+
+struct BBScrInstr_calcDistance {
+	InstructionType type;
+	EntityReferenceType fromEntity;
+	BBScrPosType fromPos;
+	EntityReferenceType toEntity;
+	BBScrPosType toPos;
+};
+
+struct BBScrInstr_exPointFReset {
+	InstructionType type;
+	BBScrPosType pos;
+	int x;
+	int y;
+};
+
+struct BBScrInstr_sprite {
+	InstructionType type;
+	char name[32];
+	int duration;
+};
+
+struct BBScrInstr_sendSignalToAction {
+	InstructionType type;
+	char name[32];
+	BBScrEvent signal;
+};
+
+struct BBScrInstr_overrideSpriteLengthIf {
+	InstructionType type;
+	int duration;
+	AccessedValue var;
+};
+
+typedef struct BBScrInstr_upon {
+	InstructionType type;
+	BBScrEvent event;
+} BBScrInstr_clearUpon;
+
+typedef struct BBScrInstr_setMarker {
+	InstructionType type;
+	char name[32];
+} BBScrInstr_callSubroutine, BBScrInstr_jumpToState;
+
+struct BBScrInstr_createObjectWithArg {
+	InstructionType type;
+	char state[32];
+	BBScrPosType pos;
+};
+
+struct BBScrInstr_setLinkObjectDestroyOnStateChange {
+	InstructionType type;
+	EntityReferenceType entity;
+};
+
+struct BBScrInstr_sendSignal {
+	InstructionType type;
+	EntityReferenceType entity;
+	BBScrEvent event;
+};
+
+struct BBScrInstr_storeValue {
+	InstructionType type;
+	AccessedValue dest;
+	AccessedValue src;
+};
+
+#define asInstr(instr, bbscrInstrName) ((BBScrInstr_##bbscrInstrName*)instr)
 
 class Entity
 {
@@ -1149,6 +1578,7 @@ public:
 	int getCenterOffsetY() const;
 	inline Entity linkObjectDestroyOnStateChange() const { return *(Entity*)(ent + 0x1f0); }
 	inline Entity linkObjectDestroyOnDamage() const { return *(Entity*)(ent + 0x1ec); }
+	inline Entity stopLinkObject() const { return *(Entity*)(ent + 0x1f4); }
 	inline int venomBallArg3() const { return *(int*)(ent + 0x25bc); }
 	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }
 	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }

@@ -419,16 +419,18 @@ bool UI::onDllMain(HMODULE hModule) {
 		IDB_ACTIVE_FRAME_HITSTOP_NON_COLORBLIND, activeFrameHitstopNonColorblind,
 		"Active: an attack is currently active and the attacking player is in hitstop. Cannot perform another attack."
 		blockFDNotice);
-	addImage(hModule, IDB_DIGIT_0, digitFrame[0]);
-	addImage(hModule, IDB_DIGIT_1, digitFrame[1]);
-	addImage(hModule, IDB_DIGIT_2, digitFrame[2]);
-	addImage(hModule, IDB_DIGIT_3, digitFrame[3]);
-	addImage(hModule, IDB_DIGIT_4, digitFrame[4]);
-	addImage(hModule, IDB_DIGIT_5, digitFrame[5]);
-	addImage(hModule, IDB_DIGIT_6, digitFrame[6]);
-	addImage(hModule, IDB_DIGIT_7, digitFrame[7]);
-	addImage(hModule, IDB_DIGIT_8, digitFrame[8]);
-	addImage(hModule, IDB_DIGIT_9, digitFrame[9]);
+	#define addDigitMacro(n) addDigit(hModule, IDB_DIGIT_##n, IDB_DIGIT_##n##_THICKNESS_1, digitFrame[n])
+	addDigitMacro(0);
+	addDigitMacro(1);
+	addDigitMacro(2);
+	addDigitMacro(3);
+	addDigitMacro(4);
+	addDigitMacro(5);
+	addDigitMacro(6);
+	addDigitMacro(7);
+	addDigitMacro(8);
+	addDigitMacro(9);
+	#undef addDigitMacro
 	addFrameArt(hModule, FT_IDLE, IDB_IDLE_FRAME, idleFrame,
 		"Idle: can attack, block and FD.");
 	addFrameArt(hModule, FT_IDLE_CANT_BLOCK,
@@ -2050,6 +2052,14 @@ void UI::drawSearchableWindows() {
 			
 			intSettingPreset(settings.framebarHeight, 1);
 			
+			intSettingPreset(settings.distanceBetweenPlayerFramebars, INT_MIN);
+			
+			intSettingPreset(settings.distanceBetweenProjectileFramebars, INT_MIN);
+			
+			intSettingPreset(settings.digitThickness, 1, 1, 1, 80.F, 2);
+			
+			booleanSettingPreset(settings.drawDigits);
+			
 			booleanSettingPreset(settings.showP1FramedataInFramebar);
 			
 			booleanSettingPreset(settings.showP2FramedataInFramebar);
@@ -3275,21 +3285,21 @@ void UI::drawSearchableWindows() {
 							BYTE* foundPos = moves.findSpriteNonNull(func);
 							if (!foundPos) break;
 							bool created = false;
-							Moves::InstructionType lastType = Moves::instr_sprite;
+							InstructionType lastType = instr_sprite;
 							int lastSpriteLength = 0;
-							for (BYTE* instr = foundPos; lastType != Moves::instr_endState; ) {
-								if (lastType == Moves::instr_sprite) {
-									lastSpriteLength = *(int*)(instr + 4 + 32);
+							for (BYTE* instr = foundPos; lastType != instr_endState; ) {
+								if (lastType == instr_sprite) {
+									lastSpriteLength = asInstr(instr, sprite)->duration;
 									if (!created) {
 										player.gunflameParams.totalSpriteLengthUntilCreation += lastSpriteLength;
 									}
 									player.gunflameParams.totalSpriteLength += lastSpriteLength;
-								} else if (lastType == Moves::instr_createObjectWithArg) {
+								} else if (lastType == instr_createObjectWithArg) {
 									if (!created) {
 										player.gunflameParams.totalSpriteLengthUntilCreation -= lastSpriteLength;
 										created = true;
 									}
-								} else if (lastType == Moves::instr_deleteMoveForceDisableFlag) {
+								} else if (lastType == instr_deleteMoveForceDisableFlag) {
 									player.gunflameParams.totalSpriteLength -= lastSpriteLength;
 									break;
 								}
@@ -3380,10 +3390,10 @@ void UI::drawSearchableWindows() {
 									BYTE* funcStart = p.findStateStart("StunEdgeDelete");
 									if (funcStart) {
 										for (BYTE* instr = moves.skipInstruction(funcStart);
-												moves.instructionType(instr) != Moves::instr_endState;
+												moves.instructionType(instr) != instr_endState;
 												instr = moves.skipInstruction(instr)) {
-											if (moves.instructionType(instr) == Moves::instr_sprite) {
-												moves.stunEdgeDeleteSpriteSum += *(int*)(instr + 4 + 32);
+											if (moves.instructionType(instr) == instr_sprite) {
+												moves.stunEdgeDeleteSpriteSum += asInstr(instr, sprite)->duration;
 											}
 										}
 									}
@@ -3391,7 +3401,7 @@ void UI::drawSearchableWindows() {
 							} else if (strcmp(p.animationName(), "ChargedStunEdgeObj") == 0) {
 								hasChargedStunEdge = true;
 							} else if (strcmp(p.animationName(), "SPChargedStunEdgeObj") == 0) {
-								if (moves.instructionType(p.bbscrCurrentInstr()) == Moves::instr_endState) {
+								if (moves.instructionType(p.bbscrCurrentInstr()) == instr_endState) {
 									spChargedStunEdgeKowareFrame = p.spriteFrameCounter();
 									spChargedStunEdgeKowareFrameMax = p.spriteFrameCounterMax();
 									ProjectileInfo& projectile = endScene.findProjectile(p);
@@ -3402,11 +3412,11 @@ void UI::drawSearchableWindows() {
 										BYTE* lastSprite = nullptr;
 										BYTE* instr = p.bbscrCurrentInstr();
 										do {
-											if (moves.instructionType(instr) == Moves::instr_sprite) {
+											if (moves.instructionType(instr) == instr_sprite) {
 												lastSprite = instr;
 											}
 											instr = moves.skipInstruction(instr);
-										} while (moves.instructionType(instr) != Moves::instr_endState);
+										} while (moves.instructionType(instr) != instr_endState);
 										if (lastSprite) {
 											moves.spChargedStunEdgeKowareSpriteDuration = *(int*)(lastSprite + 4 + 32);
 										}
@@ -3565,25 +3575,25 @@ void UI::drawSearchableWindows() {
 								moves.mayIrukasanRidingObjectYokoA.offset = pos - func;
 								int totalSoFar = 0;
 								bool lastSpriteWasNull = false;
-								while (moves.instructionType(instr) != Moves::instr_endState) {
-									Moves::InstructionType type = moves.instructionType(instr);
-									if (type == Moves::instr_sprite) {
+								while (moves.instructionType(instr) != instr_endState) {
+									InstructionType type = moves.instructionType(instr);
+									if (type == instr_sprite) {
 										if (!ar[arInd]->frames.empty()) {
 											ar[arInd]->frames.back().offset = instr - func;
 										}
-										if (strcmp((const char*)(instr + 4), "null") == 0) {
+										if (strcmp(asInstr(instr, sprite)->name, "null") == 0) {
 											lastSpriteWasNull = true;
 										} else {
-											int spriteLength = *(int*)(instr + 4 + 32);
+											int spriteLength = asInstr(instr, sprite)->duration;
 											ar[arInd]->frames.emplace_back();
 											Moves::MayIrukasanRidingObjectFrames& newObj = ar[arInd]->frames.back();
 											newObj.offset = instr - func;
 											newObj.frames = totalSoFar;
 											totalSoFar += spriteLength;
 										}
-									} else if (type == Moves::instr_exitState && !lastSpriteWasNull && !ar[arInd]->frames.empty()) {
+									} else if (type == instr_exitState && !lastSpriteWasNull && !ar[arInd]->frames.empty()) {
 										ar[arInd]->frames.back().offset = instr - func;
-									} else if (type == Moves::instr_setMarker) {
+									} else if (type == instr_setMarker) {
 										ar[arInd]->totalFrames = totalSoFar;
 										if (arInd == 3) break;
 										++arInd;
@@ -4811,11 +4821,11 @@ void UI::drawSearchableWindows() {
 									BYTE* instr;
 									for (
 											instr = moves.skipInstruction(func);
-											moves.instructionType(instr) != Moves::instr_endState;
+											moves.instructionType(instr) != instr_endState;
 											instr = moves.skipInstruction(instr)
 									) {
-										if (moves.instructionType(instr) == Moves::instr_sprite) {
-											(*info.dummyTotalFrames) += *(int*)(instr + 4 + 32);
+										if (moves.instructionType(instr) == instr_sprite) {
+											*info.dummyTotalFrames += asInstr(instr, sprite)->duration;
 										}
 									}
 								}
@@ -7046,7 +7056,7 @@ void UI::drawSearchableWindows() {
 							int totalDuration = 0;
 							int lastDuration = 0;
 							BYTE* instIt = moves.skipInstruction(markerPos);
-							while (moves.instructionType(instIt) != Moves::instr_endState) {
+							while (moves.instructionType(instIt) != instr_endState) {
 								lastDuration = *(int*)(instIt + 4 + 32);
 								totalDuration += lastDuration;
 								if (instIt < currentInst) {
@@ -8516,6 +8526,16 @@ float getItemSpacing() {
 bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource) {
 	if (!resource) resource = std::make_unique<PngResource>();
 	if (!loadPngResource(hModule, resourceId, *resource)) return false;
+	return true;
+}
+
+
+bool UI::addDigit(HMODULE hModule, WORD resourceId, WORD resourceIdThickness1, DigitFrame& digit) {
+	for (std::unique_ptr<PngResource>& ptr : digit.thickness) {
+		if (!ptr) ptr = std::make_unique<PngResource>();
+	}
+	if (!loadPngResource(hModule, resourceId, *digit.thickness[0])) return false;
+	if (!loadPngResource(hModule, resourceIdThickness1, *digit.thickness[1])) return false;
 	return true;
 }
 
@@ -11060,7 +11080,7 @@ void drawProjectileFramebar(const Framebar& framebar, UI::FrameDims* preppedDims
 }
 
 template<typename FramebarT, typename FrameT>
-void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY) {
+void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY, bool* onlyReport) {
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
 	const bool considerSimilarIdleFramesSameForFrameCounts = settings.considerSimilarIdleFramesSameForFrameCounts;
 	const int startFrame = drawFramebars_framebarPosition == _countof(Framebar::frames) - 1
@@ -11078,7 +11098,9 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 		
 		bool isFirst = frame.isFirst;
 		if (isFirst
-				&& considerSimilarFrameTypesSameForFrameCounts
+				&& considerSimilarFrameTypesSameForFrameCounts  // this whole block is actually all about idle frames.
+				// We're just checking considerSimilarFrameTypesSameForFrameCounts for some reason
+				
 				&& considerSimilarIdleFramesSameForFrameCounts
 				&& frameMap(frame.type) == FT_IDLE) {
 			if (internalInd == startFrame) {
@@ -11088,6 +11110,12 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 			}
 		}
 		if (isFirst) {
+			
+			if (onlyReport) {
+				*onlyReport = true;
+				return;
+			}
+			
 			ImVec2 artStart {
 				dims.x - std::floorf(drawFramebars_innerBorderThicknessHalf + firstFrameArt.framebar.size.x * 0.5F),
 				firstFrameTopY
@@ -11103,6 +11131,10 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 				firstFrameArt.framebar.end,
 				-1);
 		}
+	}
+	
+	if (onlyReport) {
+		*onlyReport = false;
 	}
 }
 
@@ -11504,6 +11536,7 @@ bool UI::float4SettingPreset(float& settingsPtr) {
 
 bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth, int maxValue) {
 	bool isChange = false;
+	int oldValue = settingsPtr;
 	int intValue = settingsPtr;
 	ImGui::SetNextItemWidth(fieldWidth);
 	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &intValue, step, stepFast, 0)) {
@@ -11514,6 +11547,10 @@ bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, 
 			intValue = maxValue;
 		}
 		settingsPtr = intValue;
+		needWriteSettings = true;
+		isChange = true;
+	}
+	if (!isChange && oldValue != intValue) {
 		needWriteSettings = true;
 		isChange = true;
 	}
@@ -12742,12 +12779,7 @@ void UI::onFramebarAdvanced() {
 }
 
 void UI::drawFramebars() {
-	if (endScene.playerFramebars.empty()
-			&& (
-				settings.eachProjectileOnSeparateFramebar
-					? endScene.projectileFramebars.empty()
-					: endScene.combinedFramebars.empty()
-			)) return;
+	if (endScene.playerFramebars.size() != 2) return;
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
 	const bool showStrikeInvulOnFramebar = settings.showStrikeInvulOnFramebar;
 	const bool showSuperArmorOnFramebar = settings.showSuperArmorOnFramebar;
@@ -12778,11 +12810,10 @@ void UI::drawFramebars() {
 	if (markerPaddingHeight > -1.F && markerPaddingHeightScaledBeforeFloor < -0.3F) {
 		markerPaddingHeight = -1.F;
 	}
-	static const float paddingBetweenFramebarsOriginalUnscaled = 5.F;
-	const float paddingBetweenFramebarsOriginal = std::roundf(paddingBetweenFramebarsOriginalUnscaled * scale);
-	float paddingBetweenFramebarsMinUnscaled = 3.F;
-	if (paddingBetweenFramebarsMinUnscaled < 0.F) paddingBetweenFramebarsMinUnscaled = 0.F;
-	const float paddingBetweenFramebarsMin = std::roundf(paddingBetweenFramebarsMinUnscaled * scale);
+	float paddingBetweenPlayerFramebarsBaseUnscaled = (float)settings.distanceBetweenPlayerFramebars * 0.1F;
+	const float paddingBetweenPlayerFramebarsBase = std::roundf(paddingBetweenPlayerFramebarsBaseUnscaled * scale);
+	float paddingBetweenProjectileFramebarsBaseUnscaled = (float)settings.distanceBetweenProjectileFramebars * 0.1F;
+	const float paddingBetweenProjectileFramebarsBase = std::roundf(paddingBetweenProjectileFramebarsBaseUnscaled * scale);
 	static const float paddingBetweenTextAndFramebarUnscaled = 5.F;
 	const float paddingBetweenTextAndFramebar = std::roundf(paddingBetweenTextAndFramebarUnscaled * scale);
 	static const float textPaddingUnscaled = 2.F;
@@ -12843,6 +12874,11 @@ void UI::drawFramebars() {
 			newSizes.everythingWiderByDefault = false;
 		}
 		newSizes.frameHeight = (int)drawFramebars_frameItselfHeight;
+		int digitThickness = settings.digitThickness;
+		if (digitThickness < 1) digitThickness = 1;
+		if (digitThickness > 2) digitThickness = 2;
+		newSizes.digitThickness = digitThickness;
+		newSizes.drawDigits = settings.drawDigits;
 		
 		packTextureFramebar(&newSizes, settings.useColorblindHelp);
 	}
@@ -12866,17 +12902,22 @@ void UI::drawFramebars() {
 	
 	// Space reserved on top of a framebar for top markers and first frame indicator
 	float maxTopPadding;
+	// Space reserved on top of a framebar for just the first frame indicator
+	float topPaddingFirstFrameOnly;
 	if (!showFirstFrames) {
-		maxTopPadding = 0.F;
+		topPaddingFirstFrameOnly = maxTopPadding = 0.F;
 	} else {
-		maxTopPadding = std::floorf(std::ceilf(firstFrameHeightScaled * 0.5F - 0.001F) * 0.5F + 0.001F);
+		topPaddingFirstFrameOnly = maxTopPadding = std::floorf(firstFrameHeightOffset * 0.5F + 0.001F);
 	}
+	float topPaddingMarkerOnly;
 	if (showStrikeInvulOnFramebar || showSuperArmorOnFramebar) {
-		float otherTopPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight
+		topPaddingMarkerOnly = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight
 			- 1.F;  // -1 to ignore the outline and drive framebars a little closer to each other
-		if (otherTopPadding > maxTopPadding) {
-			maxTopPadding = otherTopPadding;
+		if (topPaddingMarkerOnly > maxTopPadding) {
+			maxTopPadding = topPaddingMarkerOnly;
 		}
+	} else {
+		topPaddingMarkerOnly = 0.F;
 	}
 	// Space reserved under a framebar for bottom markers
 	float bottomPadding = -outerBorderThickness + markerPaddingHeight + frameMarkerHeight
@@ -12885,11 +12926,100 @@ void UI::drawFramebars() {
 		bottomPadding = 0.F;
 	}
 	
-	float paddingBetweenTheTwoPlayerFramebars = paddingBetweenFramebarsOriginal;
-	const float minPaddingBetweenFramebars = paddingBetweenFramebarsMin + (maxTopPadding + bottomPadding);
-	if (paddingBetweenTheTwoPlayerFramebars < minPaddingBetweenFramebars) {
-		paddingBetweenTheTwoPlayerFramebars = minPaddingBetweenFramebars;
-	}
+	// this struct gets copied around. Don't put huge data in it
+	struct QueuedFramebar {
+		const EntityFramebar& framebar;
+		float y = 0.F;  // points to the top of the frame texture
+		float padding = 0.F;  // the padding that should be between this framebar and the previous framebar
+		Moves::TriBool hasFirstFrames = Moves::TriBool::TRIBOOL_DUNNO;
+		QueuedFramebar(const EntityFramebar& framebar, float padding, Moves::TriBool hasFirstFrames)
+			: framebar(framebar), padding(padding), hasFirstFrames(hasFirstFrames) { }
+	};
+	
+	struct {
+		float paddingForPlayers;
+		float paddingForProjectilesWithTopMarkerAndFirstFrame;
+		float paddingForProjectilesWithTopMarkerOnly;
+		float paddingForProjectilesWithFirstFrameOnly;
+		float paddingForProjectilesWithoutAnything;
+		
+		QueuedFramebar create(const EntityFramebar& entityFramebar, int playerIndex) {
+			if (entityFramebar.belongsToPlayer()) {
+				if (playerIndex == 0) {
+					return {
+						entityFramebar,
+						0.F,
+						Moves::TriBool::TRIBOOL_DUNNO
+					};
+				} else {
+					return {
+						entityFramebar,
+						paddingForPlayers,
+						Moves::TriBool::TRIBOOL_DUNNO
+					};
+				}
+			}
+			
+			if (playerIndex != 0 && playerIndex != 1) {
+				return {
+					entityFramebar,
+					paddingForProjectilesWithFirstFrameOnly,
+					Moves::TriBool::TRIBOOL_DUNNO
+				};
+			}
+			
+			const PlayerFramebars& correspondingPlayerFramebars = endScene.playerFramebars[playerIndex];
+			
+			const PlayerFramebar& correspondingPlayerFramebar = ui.framebarSettings.neverIgnoreHitstop
+				? correspondingPlayerFramebars.hitstop
+				: correspondingPlayerFramebars.main;
+			
+			const Framebar& projectileFramebar = (const Framebar&)(
+				settings.neverIgnoreHitstop
+					? entityFramebar.getHitstop()
+					: entityFramebar.getMain()
+			);
+			
+			CharacterType correspondingPlayerCharacterType = endScene.players[playerIndex].charType;
+			bool hasTopMarker = false;
+			bool hasFirstFrame = false;
+			
+			drawFirstFrames<Framebar, Frame>(projectileFramebar, nullptr, 0.F, 0.F, &hasFirstFrame);
+			
+			if (settings.showSuperArmorOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_DIZZY) {
+				hasTopMarker = projectileFramebar.lastNFramesHaveDizzyFishInvul(drawFramebars_framebarPosition, drawFramebars_framesCount,
+						correspondingPlayerFramebar);
+			}
+			
+			if (!hasTopMarker && settings.showStrikeInvulOnFramebar && correspondingPlayerCharacterType == CHARACTER_TYPE_JACKO) {
+				hasTopMarker = projectileFramebar.lastNFramesHaveJackoHouseInvul(drawFramebars_framebarPosition, drawFramebars_framesCount);
+			}
+			
+			float padding;
+			if (hasTopMarker && hasFirstFrame) {
+				padding = paddingForProjectilesWithTopMarkerAndFirstFrame;
+			} else if (hasTopMarker) {
+				padding = paddingForProjectilesWithTopMarkerOnly;
+			} else if (hasFirstFrame) {
+				padding = paddingForProjectilesWithFirstFrameOnly;
+			} else {
+				padding = paddingForProjectilesWithoutAnything;
+			}
+			
+			return {
+				entityFramebar,
+				padding,
+				hasFirstFrame ? Moves::TriBool::TRIBOOL_TRUE : Moves::TriBool::TRIBOOL_FALSE
+			};
+			
+		}
+	} queuedFramebarFactory;
+	
+	queuedFramebarFactory.paddingForPlayers = paddingBetweenPlayerFramebarsBase + (maxTopPadding + bottomPadding);
+	queuedFramebarFactory.paddingForProjectilesWithTopMarkerAndFirstFrame = paddingBetweenProjectileFramebarsBase + maxTopPadding;
+	queuedFramebarFactory.paddingForProjectilesWithTopMarkerOnly = paddingBetweenProjectileFramebarsBase + topPaddingMarkerOnly;
+	queuedFramebarFactory.paddingForProjectilesWithFirstFrameOnly = paddingBetweenProjectileFramebarsBase + topPaddingFirstFrameOnly;
+	queuedFramebarFactory.paddingForProjectilesWithoutAnything = paddingBetweenProjectileFramebarsBase;
 	
 	const float oneFramebarHeight = outerBorderThickness
 		+ drawFramebars_frameItselfHeight
@@ -12944,14 +13074,14 @@ void UI::drawFramebars() {
 	std::vector<bool> framebarsCompletelyEmpty;
 	if (recheckCompletelyEmpty) {
 		if (eachProjectileOnSeparateFramebar) {
-			framebarsCompletelyEmpty.resize(endScene.projectileFramebars.size());
+			framebarsCompletelyEmpty.resize(endScene.projectileFramebars.size(), false);
 			int index = 0;
 			for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
 				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
 				framebarsCompletelyEmpty[index++] = framebar.lastNFramesCompletelyEmpty(drawFramebars_framebarPosition, drawFramebars_framesCount);
 			}
 		} else {
-			framebarsCompletelyEmpty.resize(endScene.combinedFramebars.size());
+			framebarsCompletelyEmpty.resize(endScene.combinedFramebars.size(), false);
 			int index = 0;
 			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
 				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
@@ -12960,9 +13090,7 @@ void UI::drawFramebars() {
 		}
 	}
 	
-	std::vector<const EntityFramebar*> framebars;
-	size_t playerFramebarsCount = endScene.playerFramebars.size();
-	if (playerFramebarsCount > 2) playerFramebarsCount = 2;
+	std::vector<QueuedFramebar> framebars;
 	if (eachProjectileOnSeparateFramebar) {
 		size_t nonEmptyCount = 0;
 		int index = 0;
@@ -12975,7 +13103,7 @@ void UI::drawFramebars() {
 			}
 			++index;
 		}
-		framebars.resize(playerFramebarsCount + nonEmptyCount, nullptr);
+		framebars.reserve(2 + nonEmptyCount);
 	} else if (recheckCompletelyEmpty) {
 		size_t nonEmptyCount = 0;
 		int index = 0;
@@ -12986,27 +13114,22 @@ void UI::drawFramebars() {
 			}
 			++index;
 		}
-		framebars.resize(playerFramebarsCount + nonEmptyCount, nullptr);
+		framebars.reserve(2 + nonEmptyCount);
 	} else {
-		framebars.resize(playerFramebarsCount + endScene.combinedFramebars.size(), nullptr);
+		framebars.reserve(2 + endScene.combinedFramebars.size());
 	}
-	if (framebars.empty()) return;
-	int framebarsCount = 0;
-	int playerFramebarLimit = 2;
 	for (const PlayerFramebars& entityFramebar : endScene.playerFramebars) {
-		if (!playerFramebarLimit) break;
-		framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
-		--playerFramebarLimit;
+		framebars.push_back(queuedFramebarFactory.create((const EntityFramebar&)entityFramebar, entityFramebar.playerIndex));
 	}
 	for (int i = 0; i < 2; ++i) {
 		if (eachProjectileOnSeparateFramebar) {
 			int index = 0;
 			for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
-				const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+				const Framebar& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.hitstop : entityFramebar.main;
 				if (entityFramebar.playerIndex == i && !(
 						framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
 				)) {
-					framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+					framebars.push_back(queuedFramebarFactory.create((const EntityFramebar&)entityFramebar, i));
 				}
 				++index;
 			}
@@ -13014,7 +13137,7 @@ void UI::drawFramebars() {
 			int index = 0;
 			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
 				if (entityFramebar.playerIndex == i && !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
-					framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+					framebars.push_back(queuedFramebarFactory.create((const EntityFramebar&)entityFramebar, i));
 				}
 				++index;
 			}
@@ -13027,7 +13150,7 @@ void UI::drawFramebars() {
 			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1 && !(
 					framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
 			)) {
-				framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+				framebars.push_back(queuedFramebarFactory.create((const EntityFramebar&)entityFramebar, -1));
 			}
 			++index;
 		}
@@ -13036,18 +13159,15 @@ void UI::drawFramebars() {
 		for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
 			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1
 					&& !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
-				framebars[framebarsCount++] = (const EntityFramebar*)&entityFramebar;
+				framebars.push_back(queuedFramebarFactory.create((const EntityFramebar&)entityFramebar, -1));
 			}
 			++index;
 		}
 	}
-	if (framebarsCount != framebars.size()) {
-		framebars.erase(framebars.begin() + framebarsCount, framebars.end());
-	}
 	
 	float framebarsPaddingYTotal = 0.F;
-	if (framebarsCount) {
-		framebarsPaddingYTotal = (float)(framebarsCount - 1) * paddingBetweenTheTwoPlayerFramebars;
+	for (const QueuedFramebar& queuedFramebar : framebars) {
+		framebarsPaddingYTotal += queuedFramebar.padding;
 	}
 	ImVec2 nextWindowSize { initialWindowWidthForFirstUseEver,
 		2.F  // imgui window padding
@@ -13056,7 +13176,7 @@ void UI::drawFramebars() {
 		+ oneFramebarHeight * 2.F
 		+ (needShowFramebarFrameDataP1 ? framebarFrameDataHeight : 0.F)
 		+ (needShowFramebarFrameDataP2 ? framebarFrameDataHeight : 0.F)
-		+ (framebarsCount <= 1 ? 0.F : paddingBetweenTheTwoPlayerFramebars)
+		+ queuedFramebarFactory.paddingForPlayers
 		+ bottomPadding
 		+ 1.F
 		+ 2.F  // imgui window padding
@@ -13072,9 +13192,12 @@ void UI::drawFramebars() {
 		// don't add imgui window padding here
 		+ 1.F
 		+ maxTopPadding
-		+ oneFramebarHeight * (float)framebarsCount
-		+ (needShowFramebarFrameDataP1 && playerFramebarsCount > 0 ? framebarFrameDataHeight : 0.F)
-		+ (needShowFramebarFrameDataP2 && playerFramebarsCount > 1 ? framebarFrameDataHeight : 0.F)
+		+ oneFramebarHeight * (float)framebars.size()
+		+ (
+			(float)(
+				(int)needShowFramebarFrameDataP1 + (int)needShowFramebarFrameDataP2
+			) * framebarFrameDataHeight
+		)
 		+ framebarsPaddingYTotal
 		+ bottomPadding
 		+ 1.F
@@ -13136,13 +13259,38 @@ void UI::drawFramebars() {
 		+ maxTopPadding
 		+ outerBorderThickness
 		- scrollY
-		+ (needShowFramebarFrameDataP1 && playerFramebarsCount > 0 ? framebarFrameDataHeight : 0.F);
+		+ (needShowFramebarFrameDataP1 ? framebarFrameDataHeight : 0.F);
+	
+	{
+		float currentY = drawFramebars_y;
+		for (QueuedFramebar& queuedFramebar : framebars) {
+			
+			bool isPlayer = queuedFramebar.framebar.belongsToPlayer();
+			int playerIndex = queuedFramebar.framebar.playerIndex;
+			
+			currentY += queuedFramebar.padding;  // first framebar has 0 padding
+			
+			queuedFramebar.y = currentY;
+			
+			currentY += oneFramebarHeight;
+			if (isPlayer && playerIndex == 1) {
+				currentY += bottomPadding;
+			}
+			
+			if (needShowFramebarFrameDataP2
+					&& isPlayer
+					&& playerIndex == 1) {
+				currentY += framebarFrameDataHeight + framedataBottomPadding;
+			}
+			
+		}
+	}
 	
 	ImU32 tintDarker = ImGui::GetColorU32(IM_COL32(128, 128, 128, 255));
 	ImU32 tintDarkerSemiTransparent = ImGui::GetColorU32(IM_COL32(128, 128, 128, 200));
-	char hasDigit[_countof(Framebar::frames)];
+	char hasDigit[_countof(Framebar::frames)];  // specifies if a digit was drawn on this frame, and which digit. 0 means no digit was drawn. 1 means 0 was drawn, and so on
 	
-	const float frameNumberHeight = digitUVs[0].framebar.size.y;
+	const float frameNumberHeight = settings.drawDigits ? digitUVs[0].framebar.size.y : 0.F;
 	float frameNumberPaddingYUse = (drawFramebars_frameItselfHeight - frameNumberHeight) * 0.5F;
 	frameNumberPaddingYUse = std::truncf(frameNumberPaddingYUse
 		+ (
@@ -13153,7 +13301,7 @@ void UI::drawFramebars() {
 	);
 	
 	FrameDims preppedDims[_countof(Framebar::frames)];  // we're only going to use drawFramebars_framesCount of these
-	float highlighterStartX[2] { 0.F, 0.F };
+	float highlighterXStart[2] { 0.F, 0.F };
 	int highlighterCount = 0;
 	
 	if (framesXEnd > framesX) {
@@ -13193,11 +13341,11 @@ void UI::drawFramebars() {
 				? 0
 				: drawFramebars_framebarPositionDisplay + 1
 			);
-		highlighterStartX[0] = preppedDims[highlighterPos].x - drawFramebars_innerBorderThickness;
+		highlighterXStart[0] = preppedDims[highlighterPos].x - drawFramebars_innerBorderThickness;
 		++highlighterCount;
 		
 		if (drawFramebars_framebarPositionDisplay == drawFramebars_framesCount - 1) {
-			highlighterStartX[1] = framesXEnd - drawFramebars_innerBorderThickness;
+			highlighterXStart[1] = framesXEnd - drawFramebars_innerBorderThickness;
 			++highlighterCount;
 		}
 		
@@ -13219,26 +13367,12 @@ void UI::drawFramebars() {
 	const FrameMarkerArt& OTGMarker = frameMarkerArtArray[MARKER_TYPE_OTG];
 	
 	drawFramebars_hoveredFrameIndex = -1;
-	const float currentPositionHighlighter_Strip1_StartY = drawFramebars_y;
-	float currentPositionHighlighter_Strip1_EndY = drawFramebars_y;
-	float currentPositionHighlighter_Strip2_StartY = drawFramebars_y;
+	const float currentPositionHighlighter_Strip1_StartY = drawFramebars_y - outerBorderThickness;
 	
 	const bool showPlayerInFramebarTitle = settings.showPlayerInFramebarTitle;
 	const int framebarTitleCharsMax = settings.framebarTitleCharsMax;
 	const std::vector<SkippedFramesInfo>& skippedFrames = endScene.getSkippedFrames(framebarSettings.neverIgnoreHitstop);
 	
-	// we're positioned after outerBorderThickness of the next framebar
-	const float offsetAfterP2Framedata =
-		// imaginary (we don't actually do this): -outerBorderThickness
-		-paddingBetweenTheTwoPlayerFramebars
-		+ bottomPadding
-		+ framebarFrameDataHeight
-		+ framedataBottomPadding
-		+ maxTopPadding
-		// imaginary: + outerBorderThickness   ; drawFramebars_y must always point to the top Y of frame's graphical art, not its outer border
-		;
-	
-	bool lastWasP2Framedata = false;
 	if (showPlayerInFramebarTitle || framebarTitleCharsMax > 0) {
 		ImGui::PushClipRect(
 			{
@@ -13249,20 +13383,15 @@ void UI::drawFramebars() {
 				200000.F,
 				drawFramebars_windowPos.y + windowHeight
 			}, false);
-		float titleY = drawFramebars_y + scrollY;
 		const float lineHeight = std::roundf(ImGui::GetTextLineHeightWithSpacing());
 		const float textPaddingY = std::floorf((oneFramebarHeight - lineHeight) * 0.5F);
 		const bool dontTruncateFramebarTitles = settings.dontTruncateFramebarTitles;
 		const bool allFramebarTitlesDisplayToTheLeft = settings.allFramebarTitlesDisplayToTheLeft;
 		const bool useSlang = settings.useSlangNames;
-		for (const EntityFramebar* entityFramebarPtr : framebars) {
+		for (const QueuedFramebar& queuedFramebar : framebars) {
+			const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
 			const EntityFramebar& entityFramebar = *entityFramebarPtr;
 			const Frame* frame = nullptr;  // I initialize this variable because of compiler warning C4703 'potentially uninitialized variable used' which can't be removed even with const bool check in the if
-			
-			if (lastWasP2Framedata) {
-				titleY += offsetAfterP2Framedata;
-				lastWasP2Framedata = false;
-			}
 			
 			const char* title = nullptr;
 			const char* titleFull = nullptr;
@@ -13339,7 +13468,7 @@ void UI::drawFramebars() {
 				isOnTheLeft = false;
 			}
 			
-			const float textY = titleY
+			const float textY = queuedFramebar.y + scrollY
 				- outerBorderThickness
 				+ textPaddingY
 				- drawFramebars_windowPos.y;
@@ -13435,12 +13564,6 @@ void UI::drawFramebars() {
 				ImGui::PopTextWrapPos();
 				ImGui::EndTooltip();
 			}
-			titleY += oneFramebarHeight + paddingBetweenTheTwoPlayerFramebars;
-			if (needShowFramebarFrameDataP2
-					&& entityFramebar.belongsToPlayer()
-					&& entityFramebar.playerIndex == 1) {
-				lastWasP2Framedata = true;
-			}
 		}
 		ImGui::PopClipRect();
 	}
@@ -13458,19 +13581,14 @@ void UI::drawFramebars() {
 	
 	pushFramesClipRect(true)
 	
-	bool has2StripsOfCurrentPositionHighlighter = false;
-	lastWasP2Framedata = false;
-	for (const EntityFramebar* entityFramebarPtr : framebars) {
-		memset(hasDigit, 0, sizeof hasDigit);
+	for (const QueuedFramebar& queuedFramebar : framebars) {
+		const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
+		if (settings.drawDigits) {
+			memset(hasDigit, 0, sizeof hasDigit);
+		}
 		const EntityFramebar& entityFramebar = *entityFramebarPtr;
 		const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
-		
-		if (lastWasP2Framedata) {
-			drawFramebars_y += offsetAfterP2Framedata;
-			currentPositionHighlighter_Strip2_StartY = drawFramebars_y;
-			has2StripsOfCurrentPositionHighlighter = true;
-			lastWasP2Framedata = false;
-		}
+		drawFramebars_y = queuedFramebar.y;
 		
 		if ((
 					needShowFramebarFrameDataP1
@@ -13589,10 +13707,13 @@ void UI::drawFramebars() {
 						: (CharacterType)-1);
 			}
 			
-			float frameNumberYTop = drawFramebars_y + frameNumberPaddingYUse;
-			float frameNumberYBottom = frameNumberYTop + frameNumberHeight;
+			float frameNumberYTop;
+			float frameNumberYBottom;
 			
-			{
+			if (settings.drawDigits) {
+				
+				frameNumberYTop = drawFramebars_y + frameNumberPaddingYUse;
+				frameNumberYBottom = frameNumberYTop + frameNumberHeight;
 				
 				if (entityFramebar.belongsToPlayer()) {
 					drawDigits<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, frameNumberYTop, frameNumberYBottom, hasDigit);
@@ -13686,7 +13807,8 @@ void UI::drawFramebars() {
 							
 							if (playerFrame.OTGInGeneral && showOTGOnFramebar) {
 								
-								const bool ohGod = hasDigit[visualInd]
+								const bool ohGod = settings.drawDigits
+											&& hasDigit[visualInd]
 											&& playerFrame.throwInvulInGeneral
 											&& showThrowInvulOnFramebar;
 								
@@ -13749,60 +13871,54 @@ void UI::drawFramebars() {
 				}
 			}
 			
-			if (showFirstFrames) {
+			if (showFirstFrames && queuedFramebar.hasFirstFrames != Moves::TriBool::TRIBOOL_FALSE) {
 				
 				const float firstFrameTopY = drawFramebars_y - firstFrameHeightOffset;
 				const float firstFrameBottomY = firstFrameTopY + firstFrameHeightScaled;
 				
 				if (entityFramebar.belongsToPlayer()) {
-					drawFirstFrames<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY);
+					drawFirstFrames<PlayerFramebar, PlayerFrame>((const PlayerFramebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY, nullptr);
 				} else {
-					drawFirstFrames<Framebar, Frame>((const Framebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY);
+					drawFirstFrames<Framebar, Frame>((const Framebar&)framebar, preppedDims, firstFrameTopY, firstFrameBottomY, nullptr);
 				}
 			}
 		}
-		
-		drawFramebars_y += oneFramebarHeight + paddingBetweenTheTwoPlayerFramebars;
-		if (needShowFramebarFrameDataP2
-				&& entityFramebar.belongsToPlayer()
-				&& entityFramebar.playerIndex == 1) {
-			lastWasP2Framedata = true;
-			currentPositionHighlighter_Strip1_EndY = drawFramebars_y;  // leave paddingBetweenTheTwoPlayerFramebars in
-		}
 	}
 	
-	const int highlighterStripCount = has2StripsOfCurrentPositionHighlighter ? 2 : 1;
 	struct HighlighterStartEnd {
 		float start;
 		float end;
 	};
-	HighlighterStartEnd curPosStripRaw[2];
-	if (!has2StripsOfCurrentPositionHighlighter) {
-		curPosStripRaw[0] = {
-			currentPositionHighlighter_Strip1_StartY,
-			drawFramebars_y
-		};
-	} else {
-		curPosStripRaw[0] = {
-			currentPositionHighlighter_Strip1_StartY,
-			currentPositionHighlighter_Strip1_EndY
-		};
-		curPosStripRaw[1] = {
-			currentPositionHighlighter_Strip2_StartY,
-			drawFramebars_y
-		};
-	}
 	
-	HighlighterStartEnd highlighterStartEnd[2];
-	for (int i = 0; i < highlighterStripCount; ++i) {
-		highlighterStartEnd[i].start = curPosStripRaw[i].start
-					- outerBorderThickness
-					- framebarCurrentPositionHighlighterStickoutDistance;
+	int highlighterStripCount = 1;
+	HighlighterStartEnd highlighterYStartEnd[2] {
+		{
+			currentPositionHighlighter_Strip1_StartY
+				- framebarCurrentPositionHighlighterStickoutDistance,
+			framebars.back().y
+				- outerBorderThickness
+				+ oneFramebarHeight
+				+ framebarCurrentPositionHighlighterStickoutDistance
+		}
+	};
+	
+	if (needShowFramebarFrameDataP2 && framebars.size() > 2) {
+		highlighterStripCount = 2;
 		
-		highlighterStartEnd[i].end = curPosStripRaw[i].end
-					- outerBorderThickness
-					- paddingBetweenTheTwoPlayerFramebars
-					+ framebarCurrentPositionHighlighterStickoutDistance;
+		highlighterYStartEnd[0].end = framebars[1].y
+			- outerBorderThickness
+			+ oneFramebarHeight
+			+ framebarCurrentPositionHighlighterStickoutDistance;
+		
+		highlighterYStartEnd[1] = {
+			framebars[2].y
+				- outerBorderThickness
+				- framebarCurrentPositionHighlighterStickoutDistance,
+			framebars.back().y
+				- outerBorderThickness
+				+ oneFramebarHeight
+				+ framebarCurrentPositionHighlighterStickoutDistance
+		};
 	}
 	
 	float windowViewableRegionStartY = drawFramebars_windowPos.y;
@@ -13814,12 +13930,12 @@ void UI::drawFramebars() {
 			for (int j = 0; j < highlighterStripCount; ++j) {
 				drawFramebars_drawList->AddRectFilled(
 					{
-						highlighterStartX[i],
-						highlighterStartEnd[j].start
+						highlighterXStart[i],
+						highlighterYStartEnd[j].start
 					},
 					{
-						highlighterStartX[i] + highlighterWidth,
-						highlighterStartEnd[j].end
+						highlighterXStart[i] + highlighterWidth,
+						highlighterYStartEnd[j].end
 					},
 					ImGui::GetColorU32(IM_COL32(255, 255, 255, 255)));
 			}
@@ -13828,7 +13944,7 @@ void UI::drawFramebars() {
 		bool needInitStitchParams = true;
 		static const float distanceBetweenStitches = 4.F;
 		static const float stitchSize = 3.F;
-		static int visiblePreviousStitchesAtTheTopOfAStitch = -1;
+		static int visiblePreviousStitchesAtTheTopOfAStitch = -1;  // -1 means not calculated yet
 		static const float stitchThickness = 1.F;
 		struct StitchParams {
 			float startY;
@@ -13865,7 +13981,7 @@ void UI::drawFramebars() {
 				continue;
 			}
 			if (needInitStitchParams) {
-				if (visiblePreviousStitchesAtTheTopOfAStitch == -1) {
+				if (visiblePreviousStitchesAtTheTopOfAStitch == -1) {  // -1 means not calculated yet
 					if (distanceBetweenStitches >= stitchSize) {
 						visiblePreviousStitchesAtTheTopOfAStitch = 0;
 					} else {
@@ -13875,8 +13991,8 @@ void UI::drawFramebars() {
 				needInitStitchParams = false;
 				for (int j = 0; j < highlighterStripCount; ++j) {
 					StitchParams& params = stitchParams[j];
-					params.startY = highlighterStartEnd[j].start;
-					float stitchEndYWithWindowClipping = highlighterStartEnd[j].end;
+					params.startY = highlighterYStartEnd[j].start;
+					float stitchEndYWithWindowClipping = highlighterYStartEnd[j].end;
 					if (params.startY < windowViewableRegionStartY) {
 						float countFitIn = std::floor((windowViewableRegionStartY - params.startY) / distanceBetweenStitches);
 						params.startY += countFitIn * distanceBetweenStitches;
@@ -13957,12 +14073,10 @@ void UI::drawFramebars() {
 		ImVec2 startPos;
 		ImVec2 endPos;
 		
-		float selectionBoxStartY = highlighterStartEnd[0].start + framebarCurrentPositionHighlighterStickoutDistance;
-		float selectionBoxEndY = (
-				has2StripsOfCurrentPositionHighlighter
-					? highlighterStartEnd[1].end
-					: highlighterStartEnd[0].end
-			) - framebarCurrentPositionHighlighterStickoutDistance;
+		float selectionBoxStartY = highlighterYStartEnd[0].start + framebarCurrentPositionHighlighterStickoutDistance;
+		float selectionBoxEndY =
+			highlighterYStartEnd[highlighterStripCount - 1].end
+			- framebarCurrentPositionHighlighterStickoutDistance;
 		
 		int selFrameStart;
 		int selFrameEnd;
@@ -14249,7 +14363,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 	
 	#define selectSE(thing) (type == UITextureType::UITEX_HELP ? thing.help : thing.framebar)
 	#define assignFromResource(thing, res) assignFromResourceHelper(selectSE(thing), res)
-		
+	
 	using PixelA = PngResource::PixelA;
 	TexturePacker texturePacker;
 	const int originalFrameWidthInt = 9;
@@ -14260,6 +14374,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 	const float sizesFrameHeightFloat = (float)sizes->frameHeight;
 	const float frameScaleHoriz = sizesFrameWidthFloat / originalFrameWidth;
 	const float frameScaleVert = sizesFrameHeightFloat / originalFrameHeight;
+	const int thicknessIndex = sizes->digitThickness == 2 ? 0 : 1;
 	
 	int colorsCount = 0;
 	FrameArt* frameArtArrays[2] { nullptr };
@@ -14649,13 +14764,14 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 	}
 	
 	PngResource digits[10];
-	if (type == UITextureType::UITEX_FRAMEBAR) {
+	if (type == UITextureType::UITEX_FRAMEBAR && sizes->drawDigits) {
+		const PngResource& firstDigit = *digitFrame[0].thickness[thicknessIndex];
 		static const float originalDigitHeight = 11.F;
 		int digitHeight;
 		if (frameScaleVert > 1.F) {
 			digitHeight = (int)std::roundf(originalDigitHeight * frameScaleVert + 0.25F);
-			if (digitHeight > (int)digitFrame[0]->height) {
-				digitHeight = (int)digitFrame[0]->height;
+			if (digitHeight > (int)firstDigit.height) {
+				digitHeight = (int)firstDigit.height;
 			}
 		} else {
 			if (sizesFrameHeightFloat < originalDigitHeight) {
@@ -14670,7 +14786,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 			w -= (int)std::ceilf(frameScaleHoriz - 1.F);
 		}
 		if (w > (int)drawFramebars_frameWidthScaled) w = (int)drawFramebars_frameWidthScaled;
-		if (w > (int)digitFrame[0]->width) w = digitFrame[0]->width;
+		if (w > (int)firstDigit.width) w = firstDigit.width;
 		if (w < 3) w = 3;
 		for (int i = 0; i <= 9; ++i) {
 			PngResource& digit = digits[i];
@@ -14679,7 +14795,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 			PngResource digitScaled;
 			digitScaled.resize(w - 2, digitHeight - 2);
 			
-			PngResource& source = *digitFrame[i];
+			const PngResource& source = *digitFrame[i].thickness[thicknessIndex];
 			source.stretchRect(digitScaled,
 				0, 0,
 				source.width,
@@ -14781,4 +14897,24 @@ void UI::packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind) {
 	lastPackedSize = *sizes;
 	textureIsColorblind = isColorblind;
 	packTexture(packedTextureFramebar, UITextureType::UITEX_FRAMEBAR, sizes);
+}
+
+bool Framebar::lastNFramesHaveDizzyFishInvul(int framebarPosition, int n, const PlayerFramebar& playerFramebar) const {
+	iterateFramesBegin(framebarPosition, n)
+	const Frame& frame = frames[iterateFrames_pos];
+	if (frame.type == FT_NONE) return false;
+	if (frame.type == FT_IDLE_PROJECTILE_HITTABLE
+			&& playerFramebar.frames[iterateFrames_pos].u.dizzyInfo.shieldFishSuperArmor) return true;
+	iterateFramesEnd
+	return false;
+}
+
+bool Framebar::lastNFramesHaveJackoHouseInvul(int framebarPosition, int n) const {
+	iterateFramesBegin(framebarPosition, n)
+	const Frame& frame = frames[iterateFrames_pos];
+	if (frame.type == FT_NONE) return false;
+	if (frame.type == FT_IDLE_NO_DISPOSE
+			&& strcmp(frame.animName, PROJECTILE_NAME_GHOST) == 0) return true;
+	iterateFramesEnd
+	return false;
 }
