@@ -1452,10 +1452,8 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   26) Fixed an incorrect idle frame displayed in framebar when recovering from a Blitz Shield reject while being slowed down by RC.
   27) Made framebar less blurry when it's upscaled, for example on higher resolutions, and changed its font for the numbers drawn inside/on top of individual frames.
   28) Added settings to control the amount of vertical spacing (empty space) between individual framebars.
+  29) Added an option to fuse all projectile framebars of each player into a single, tiny framebar, located on top of Player 1's main framebar or below Player 2's framebar.
+  30) Now framebar tooltip on combined projectile framebars will show individual projectiles, the animation and data for each. This allows you to not lose the details of each projectile when using the new option described in 29). This new tooltip format will, however, group projectiles that all have the exact same data, instead of repeating it.
+  
     TODO: add setting to change input delay in online
-    TODO: add setting to control padding between framebars and add a checkbox to compress all projectiles of a player into a single mini-framebar on top of P1's main framebar or below P2's main framebar
     TODO: fix ky 2H(2) > Greed Sever being displayed as 2H > Delay 1f > Greed Sever. Should say something like 2H (2 hits) > Greed Sever
-    
-  27) New framebar display settings:
-    - A text field to type in the amount of empty space between individual framebars.
-    - A checkbox to condense all of a player's projectiles into a single mini-framebar, displayed on top P1's main framebar or below P2's main framebar.

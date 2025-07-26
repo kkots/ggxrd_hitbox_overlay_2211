@@ -2370,6 +2370,15 @@ bool PlayerFramebar::lastNFramesCompletelyEmpty(int framebarPosition, int n) con
 	return ::lastNFramesCompletelyEmpty<PlayerFramebar>(this, framebarPosition, n);
 }
 
+bool Framebar::lastNFramesHaveMarker(int framebarPosition, int n) const {
+	iterateFramesBegin(framebarPosition, n)
+	const Frame& frame = frames[iterateFrames_pos];
+	if (frame.type == FT_NONE) return false;
+	if (frame.marker) return true;
+	iterateFramesEnd
+	return false;
+}
+
 void PlayerFramebar::clearCancels() {
 	for (int i = 0; i < _countof(frames); ++i) {
 		frames[i].cancels = nullptr;
@@ -2498,7 +2507,7 @@ bool CombinedProjectileFramebar::canBeCombined(const Framebar& source, int sourc
 	return true;
 }
 
-void CombinedProjectileFramebar::combineFramebar(int framebarPosition, const Framebar& source, const ProjectileFramebar* dad) {
+void CombinedProjectileFramebar::combineFramebar(int framebarPosition, Framebar& source, const ProjectileFramebar* dad) {
 	const ProjectileFramebar* lastConnectedSource = nullptr;
 	const char* lastConnectedAnimName = nullptr;
 	const char* lastConnectedAnimSlangName = nullptr;
@@ -2515,60 +2524,64 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, const Fra
 			? 0
 			: posNext + 1;
 		
-		const Frame& sf = source[pos];
-		Frame& df = main[pos];
-		
-		int sfLvl = determineFrameLevel(sf.type);
-		int dfLvl = determineFrameLevel(df.type);
-		bool repeatLast = !df.hitConnected && !sf.hitConnected && df.type == FT_IDLE_PROJECTILE && sf.type == FT_IDLE_PROJECTILE;
-		bool sWin = sfLvl > dfLvl || sfLvl == dfLvl && !(df.hitConnected && !sf.hitConnected);
-		if (repeatLast && lastConnectedSource) {
-			sources[pos] = lastConnectedSource;
-		} else if (sWin) {
-			sources[pos] = dad;
-		}
-		if (repeatLast && lastConnectedAnimName) {
-			df.animName = lastConnectedAnimName;
-		} else if (sWin) {
-			df.animName = sf.animName;
-		}
-		if (repeatLast && lastConnectedAnimSlangName) {
-			df.animSlangName = lastConnectedAnimSlangName;
-		} else if (sWin) {
-			df.animSlangName = sf.animSlangName;
-		}
-		if (sWin) {
-			df.type = sf.type;
-		}
-		if (!df.hitstopConflict) {
-			if (df.hitstop != sf.hitstop || df.hitstopMax != sf.hitstopMax) {
-				if (df.hitstop || df.hitstopMax) {
-					df.hitstopConflict = true;
-					df.hitstop = 0;
-					df.hitstopMax = 0;
-				} else {
-					df.hitstop = sf.hitstop;
-					df.hitstopMax = sf.hitstopMax;
+		Frame& sf = source[pos];
+		if (sf.type != FT_NONE) {
+			Frame& df = main[pos];
+			
+			int sfLvl = determineFrameLevel(sf.type);
+			int dfLvl = determineFrameLevel(df.type);
+			bool repeatLast = !df.hitConnected && !sf.hitConnected && df.type == FT_IDLE_PROJECTILE && sf.type == FT_IDLE_PROJECTILE;
+			bool sWin = sfLvl > dfLvl || sfLvl == dfLvl && !(df.hitConnected && !sf.hitConnected);
+			if (repeatLast && lastConnectedSource) {
+				sources[pos] = lastConnectedSource;
+			} else if (sWin) {
+				sources[pos] = dad;
+			}
+			if (repeatLast && lastConnectedAnimName) {
+				df.animName = lastConnectedAnimName;
+			} else if (sWin) {
+				df.animName = sf.animName;
+			}
+			if (repeatLast && lastConnectedAnimSlangName) {
+				df.animSlangName = lastConnectedAnimSlangName;
+			} else if (sWin) {
+				df.animSlangName = sf.animSlangName;
+			}
+			if (sWin) {
+				df.type = sf.type;
+			}
+			if (!df.hitstopConflict) {
+				if (df.hitstop != sf.hitstop || df.hitstopMax != sf.hitstopMax) {
+					if (df.hitstop || df.hitstopMax) {
+						df.hitstopConflict = true;
+						df.hitstop = 0;
+						df.hitstopMax = 0;
+					} else {
+						df.hitstop = sf.hitstop;
+						df.hitstopMax = sf.hitstopMax;
+					}
 				}
 			}
+			df.hitConnected |= sf.hitConnected;
+			if (df.hitConnected) {
+				lastConnectedSource = sources[pos];
+				lastConnectedAnimName = df.animName;
+				lastConnectedAnimSlangName = df.animSlangName;
+			} else {
+				if (sources[pos] != lastConnectedSource) lastConnectedSource = nullptr;
+				if (df.animName != lastConnectedAnimName) lastConnectedAnimName = nullptr;
+				if (df.animSlangName != lastConnectedAnimSlangName) lastConnectedAnimSlangName = nullptr;
+			}
+			df.newHit |= sf.newHit;
+			df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
+			df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
+			df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
+			df.powerup |= sf.powerup;
+			df.marker |= sf.marker;
+			df.title = sf.title;  // will get corrected in determineName
+			sf.next = df.next;
+			df.next = &sf;
 		}
-		df.hitConnected |= sf.hitConnected;
-		if (df.hitConnected) {
-			lastConnectedSource = sources[pos];
-			lastConnectedAnimName = df.animName;
-			lastConnectedAnimSlangName = df.animSlangName;
-		} else {
-			if (sources[pos] != lastConnectedSource) lastConnectedSource = nullptr;
-			if (df.animName != lastConnectedAnimName) lastConnectedAnimName = nullptr;
-			if (df.animSlangName != lastConnectedAnimSlangName) lastConnectedAnimSlangName = nullptr;
-		}
-		df.newHit |= sf.newHit;
-		df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
-		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
-		df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
-		df.powerup |= sf.powerup;
-		df.marker |= sf.marker;
-		df.title = sf.title;  // will get corrected in determineName
 	}
 	if (source.preFrameLength) {
 		if (source.preFrame != main.preFrame) {
@@ -3303,3 +3316,14 @@ GatlingOrWhiffCancelInfo::GatlingOrWhiffCancelInfo()
 		wasAddedDuringHitstopFreeze(false),
 		foundOnThisFrame(false),
 		countersIncremented(false) { }
+
+bool Frame::operator==(const Frame& other) const {
+	
+	if (memcmp(this, &other, offsetof(Frame, next)) != 0) return false;
+	size_t startCmp = offsetof(Frame, title);
+	size_t endCmp = offsetof(Frame, type) + sizeof type;
+	if (memcmp((BYTE*)this + startCmp, (BYTE*)&other + startCmp, endCmp - startCmp) != 0) return false;
+	return activeDuringSuperfreeze == other.activeDuringSuperfreeze
+		&& powerup == other.powerup
+		&& marker == other.marker;
+}

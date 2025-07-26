@@ -627,15 +627,15 @@ struct FramebarTitle {
 
 struct FrameBase {
 	DWORD aswEngineTick;
-	const char* animName;
-	const char* animSlangName;
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector require special handling in the clear() method.
 struct Frame : public FrameBase {
+	const char* animName;
+	const char* animSlangName;
+	Frame* next;
 	FramebarTitle title;  // title is stored in a frame, instead of (whole) framebar, so that titles could change as we horizontally scroll the framebar through its history
-	FrameType type;
 	unsigned char hitstop;  // because of danger time can go up to 99
 	unsigned char hitstopMax;
 	unsigned short rcSlowdown:6;
@@ -644,14 +644,20 @@ struct Frame : public FrameBase {
 	unsigned short rcSlowdownMax:6;
 	unsigned short hitstopConflict:1;
 	unsigned short newHit:1;
+	FrameType type;
 	bool activeDuringSuperfreeze:1;
 	bool powerup:1;
 	bool marker:1;  // either strike invulnerability marker for Jack-O houses, or super armor marker for Dizzy D-Fish
+	bool accountedFor:1;  // used by tooltip drawing
+	bool operator==(const Frame& other) const;
+	inline bool operator!=(const Frame& other) const { return !(*this == other); }
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector require special handling in the clear() method.
 struct PlayerFrame : public FrameBase {
+	const char* animName;
+	const char* animSlangName;
 	std::shared_ptr<FrameCancelInfo<30>> cancels;
 	std::vector<Input> inputs;
 	const char* powerupExplanation;
@@ -973,7 +979,7 @@ struct CombinedProjectileFramebar : public EntityFramebar {
 	virtual const FramebarBase& getIdle() const override;
 	virtual const FramebarBase& getIdleHitstop() const override;
 	bool canBeCombined(const Framebar& source, int sourceId) const;
-	void combineFramebar(int framebarPosition, const Framebar& source, const ProjectileFramebar* dad);
+	void combineFramebar(int framebarPosition, Framebar& source, const ProjectileFramebar* dad);
 	void determineName(int framebarPosition, bool isHitstop);
 };
 

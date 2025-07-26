@@ -4881,6 +4881,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.rcSlowdownMax = projectile.rcSlowedDownMax;
 				currentFrame.activeDuringSuperfreeze = false;
 				currentFrame.powerup = projectile.move.projectilePowerup && projectile.move.projectilePowerup(projectile);
+				currentFrame.next = nullptr;
 				if (!projectile.dontReplaceFramebarTitle
 						|| currentFrame.title.text == nullptr || *currentFrame.title.text == '\0') {
 					currentFrame.title = projectile.framebarTitle;
@@ -5008,6 +5009,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.rcSlowdownMax = 0;
 				currentFrame.activeDuringSuperfreeze = false;
 				currentFrame.powerup = false;
+				currentFrame.next = nullptr;
 				currentFrame.marker = false;
 				
 				if (framebarPos != 0 || framebarTotalFramesHitstopUnlimited > 0 || framebarIdleHitstopFor > 0) {
@@ -6682,8 +6684,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		combinedFramebars.reserve(projectileFramebars.size());
 		if (!eachProjectileOnSeparateFramebar) {
 			const bool combinedFramebarMustIncludeHitstop = neverIgnoreHitstop;
-			for (const ProjectileFramebar& source : projectileFramebars) {
-				const Framebar& from = combinedFramebarMustIncludeHitstop ? source.hitstop : source.main;
+			for (ProjectileFramebar& source : projectileFramebars) {
+				Framebar& from = combinedFramebarMustIncludeHitstop ? source.hitstop : source.main;
 				if (!(from.completelyEmpty || recheckCompletelyEmpty && from.lastNFramesCompletelyEmpty(framebarPositionUse, framesCount))) {
 					CombinedProjectileFramebar& entityFramebar = findCombinedFramebar(source, combinedFramebarMustIncludeHitstop);
 					entityFramebar.combineFramebar(framebarPositionUse, from, &source);

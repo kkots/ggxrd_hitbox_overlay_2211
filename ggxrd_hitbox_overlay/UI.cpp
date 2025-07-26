@@ -10712,6 +10712,333 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 }
 
+template<typename FrameT>
+inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
+			const SkippedFramesInfo& skippedFramesElem, CharacterType owningPlayerCharType,
+			const PlayerFrame& correspondingPlayersFrame, int nestingLevel,
+			std::vector<const char*>& printedDescriptions, bool* rcSlowdownShown,
+			bool* skippedFramesShown, bool* startedSayingRepeatedNTimes) {
+	
+	Frame& projectileFrame = (Frame&)frame;
+	const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
+	
+	bool calledInnerPrint = false;
+	int repeatCount = 1;
+	
+	if (playerIndex == -1 && projectileFrame.next && (nestingLevel > 0 || projectileFrame.next->next)) {
+		Frame* firstUnaccountedFor = nullptr;
+		
+		if (nestingLevel > 0) {
+			projectileFrame.accountedFor = true;
+			for (Frame* framePtr = projectileFrame.next; framePtr; framePtr = framePtr->next) {
+				if (!framePtr->accountedFor) {
+					if (*framePtr == projectileFrame) {
+						framePtr->accountedFor = true;
+						++repeatCount;
+					} else if (!firstUnaccountedFor) {
+						firstUnaccountedFor = framePtr;
+					}
+				}
+			}
+		} else {
+			firstUnaccountedFor = projectileFrame.next;
+		}
+		
+		if (firstUnaccountedFor) {
+			drawFrameTooltip(*firstUnaccountedFor, playerIndex, useSlang,
+				skippedFramesElem, owningPlayerCharType, correspondingPlayersFrame, nestingLevel + 1,
+				printedDescriptions, rcSlowdownShown, skippedFramesShown, startedSayingRepeatedNTimes);
+			if (nestingLevel == 0) return;
+			calledInnerPrint = true;
+		}
+	}
+	
+	if (repeatCount > 1 || *startedSayingRepeatedNTimes) {
+		*startedSayingRepeatedNTimes = true;
+		ImGui::Separator();
+		ImGui::Separator();
+		zerohspacing
+		ImGui::TextUnformatted("** The following projectile repeats ");
+		ImGui::SameLine();
+		sprintf_s(strbuf, "%d", repeatCount);
+		yellowText(strbuf);
+		ImGui::SameLine();
+		ImGui::TextUnformatted(repeatCount == 1 ? " time **" : " times **");
+		_zerohspacing
+		ImGui::Separator();
+		ImGui::Separator();
+	} else if (calledInnerPrint) {
+		ImGui::Separator();
+		static const StringWithLength stars = "**********";
+		static const char* starsEnd = stars.txt + stars.length;
+		float starsWidth = ImGui::CalcTextSize(stars.txt, starsEnd).x;
+		ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - starsWidth) * 0.5F);
+		ImGui::TextUnformatted(stars.txt, starsEnd);
+		ImGui::Separator();
+	}
+	
+	ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+	float wrapWidth = ImGui::GetFontSize() * 35.0f;
+	static float descriptionHeights[FT_LAST] { 0 };
+	static bool descriptionHeightsInitialized = false;
+	static float maxDescriptionHeight = 0;
+	static float maxDescriptionHeightProjectiles = 0;
+	if (!descriptionHeightsInitialized) {
+		descriptionHeightsInitialized = true;
+		float wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
+		for (int p = 1; p < FT_LAST; ++p) {
+			const StringWithLength* sws = &frameArtColorblind[p].description;
+			float currentHeight = ImGui::CalcTextSize(sws->txt, sws->txt + sws->length, false, wrapWidthUse).y;
+			descriptionHeights[p] = currentHeight;
+			if (!isNewHitType((FrameType)p)) {
+				maxDescriptionHeight = max(maxDescriptionHeight, currentHeight);
+			}
+		}
+		for (int p = 0; p < _countof(projectileFrameTypes); ++p) {
+			FrameType ptype = projectileFrameTypes[p];
+			float currentHeight = descriptionHeights[ptype];
+			if (!isNewHitType(ptype)) {
+				maxDescriptionHeightProjectiles = max(maxDescriptionHeightProjectiles, currentHeight);
+			}
+		}
+	}
+	ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+	float oldCursorPos = ImGui::GetCursorPosY();
+	
+	FrameType descriptionType = frame.type;
+	if (frame.newHit && frameTypeActive(frame.type)) {
+		(char&)descriptionType += FT_ACTIVE_NEW_HIT - FT_ACTIVE;
+	}
+	const StringWithLength& description = drawFramebars_frameArtArray[descriptionType].description;
+	if (description.length) {
+		bool descAlreadyPrinted = nestingLevel > 1
+			&& std::find(
+				printedDescriptions.begin(),
+				printedDescriptions.end(),
+				description.txt
+			) != printedDescriptions.end();
+		
+		ImGui::TextUnformatted(description.txt, description.txt + (
+			descAlreadyPrinted
+				? min(50, description.length)
+				: description.length
+		));
+		
+		if (!descAlreadyPrinted) {
+			printedDescriptions.push_back(description.txt);
+		}
+	}
+	
+	float newCursorPos = ImGui::GetCursorPosY();
+	float textHeight = newCursorPos - oldCursorPos;
+	float requiredHeight;
+	if (playerIndex != -1) {
+		requiredHeight = maxDescriptionHeight;
+	} else {
+		requiredHeight = maxDescriptionHeightProjectiles;
+	}
+	if (textHeight < requiredHeight) {
+		ImGui::SetCursorPosY(newCursorPos + requiredHeight - textHeight);
+	}
+	
+	int ramlethalTime = 0;
+	int ramlethalTimeMax = 0;
+	const char* ramlethalSubAnim = nullptr;
+	
+	if (playerIndex == -1
+			&& owningPlayerCharType == CHARACTER_TYPE_RAMLETHAL
+			&& projectileFrame.animName) {
+		if (strcmp(projectileFrame.animName, "S Sword") == 0) {
+			ramlethalTime = correspondingPlayersFrame.u.ramlethalInfo.sSwordTime;
+			ramlethalTimeMax = correspondingPlayersFrame.u.ramlethalInfo.sSwordTimeMax;
+			ramlethalSubAnim = correspondingPlayersFrame.u.ramlethalInfo.sSwordSubAnim;
+		} else if (strcmp(projectileFrame.animName, "H Sword") == 0) {
+			ramlethalTime = correspondingPlayersFrame.u.ramlethalInfo.hSwordTime;
+			ramlethalTimeMax = correspondingPlayersFrame.u.ramlethalInfo.hSwordTimeMax;
+			ramlethalSubAnim = correspondingPlayersFrame.u.ramlethalInfo.hSwordSubAnim;
+		}
+	}
+	
+	const char* name;
+	if (useSlang && frame.animSlangName && *frame.animSlangName != '\0') {
+		name = frame.animSlangName;
+	} else {
+		name = frame.animName;
+	}
+	
+	if (name && *name != '\0') {
+		ImGui::Separator();
+		yellowText("Anim: ");
+		ImGui::SameLine();
+		if (ramlethalSubAnim) {
+			sprintf_s(strbuf, "%s:%s", name, ramlethalSubAnim);
+			ImGui::TextUnformatted(strbuf);
+		} else {
+			ImGui::TextUnformatted(name);
+		}
+	}
+	if (frame.activeDuringSuperfreeze) {
+		ImGui::Separator();
+		ImGui::TextUnformatted("After this frame the attack becomes active during superfreeze."
+			" In order to block that attack, it must be blocked on this frame, in advance.");
+	}
+	if (playerIndex != -1) {
+		ui.drawPlayerFrameTooltipInfo(playerFrame, playerIndex, wrapWidth);
+	} else if (frame.powerup) {
+		ImGui::Separator();
+		if (owningPlayerCharType == CHARACTER_TYPE_INO) {
+			ImGui::TextUnformatted("The note reached the next level on this frame: it will deal one more hit.");
+		} else {
+			ImGui::TextUnformatted("The projectile reached some kind of powerup on this frame.");
+		}
+	}
+	if (playerIndex == -1) {
+		if (owningPlayerCharType == CHARACTER_TYPE_INO
+				&& projectileFrame.animSlangName
+				&& strcmp(projectileFrame.animSlangName, MOVE_NAME_NOTE) == 0) {
+			// I am a dirty scumbar
+			ImGui::Separator();
+			yellowText("Note elapsed time: ");
+			ImGui::SameLine();
+			int time = correspondingPlayersFrame.u.inoInfo.noteTime;
+			int timeMax = correspondingPlayersFrame.u.inoInfo.noteTimeMax;
+			const char* txt;
+			if (correspondingPlayersFrame.u.inoInfo.noteLevel == 5) {
+				txt = "Reached max";
+			} else {
+				txt = ui.printDecimal(correspondingPlayersFrame.u.inoInfo.noteTimeMax, 0, 0, false);
+			}
+			sprintf_s(strbuf, "%d/%s (%d hits)", time, txt, correspondingPlayersFrame.u.inoInfo.noteLevel);
+			ImGui::TextUnformatted(strbuf);
+		} else if (ramlethalTime) {
+			ImGui::Separator();
+			yellowText("Time Remaining: ");
+			ImGui::SameLine();
+			if (ramlethalTimeMax) {
+				sprintf_s(strbuf, "%d/%d", ramlethalTime, ramlethalTimeMax);
+			} else {
+				sprintf_s(strbuf, "until landing + %d", ramlethalTime);
+			}
+			ImGui::TextUnformatted(strbuf);
+		} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT
+				&& projectileFrame.animSlangName
+				&& strcmp(projectileFrame.animSlangName, PROJECTILE_NAME_BERRY) == 0) {
+			
+			ImGui::Separator();
+			yellowText("Berry Timer: ");
+			ImGui::SameLine();
+			sprintf_s(strbuf, "%d/180", correspondingPlayersFrame.u.elpheltInfo.grenadeTimer);
+			ImGui::TextUnformatted(strbuf);
+			
+		} else if (owningPlayerCharType == CHARACTER_TYPE_JOHNNY
+				&& projectileFrame.animSlangName
+				&& strcmp(projectileFrame.animSlangName, PROJECTILE_NAME_BACCHUS) == 0) {
+			
+			ImGui::Separator();
+			yellowText("Bacchus Sigh Projectile Timer: ");
+			ImGui::SameLine();
+			sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.johnnyInfo.mistTimer,
+				correspondingPlayersFrame.u.johnnyInfo.mistTimerMax);
+			ImGui::TextUnformatted(strbuf);
+			
+		} else if (frame.type == FT_IDLE_NO_DISPOSE
+						&& owningPlayerCharType == CHARACTER_TYPE_JACKO
+						&& strcmp(projectileFrame.animName, PROJECTILE_NAME_GHOST) == 0) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("The Ghost is strike invulnerable.");
+			
+		} else if (frame.type == FT_IDLE_PROJECTILE_HITTABLE
+						&& owningPlayerCharType == CHARACTER_TYPE_DIZZY
+						&& correspondingPlayersFrame.u.dizzyInfo.shieldFishSuperArmor) {
+			ImGui::Separator();
+			ImGui::TextUnformatted("Shield Fish super armor active.");
+		}
+	}
+	if (playerIndex != -1) {
+		if (playerFrame.hitstop
+				|| playerFrame.stop.isHitstun
+				|| playerFrame.stop.isBlockstun
+				|| playerFrame.stop.isStagger
+				|| playerFrame.stop.isWakeup
+				|| playerFrame.stop.isRejection
+				|| playerFrame.stop.tumble) {
+			ImGui::Separator();
+			if (playerFrame.hitstop
+					|| playerFrame.stop.isHitstun
+					|| playerFrame.stop.isBlockstun
+					|| playerFrame.stop.isStagger
+					|| playerFrame.stop.isWakeup
+					|| playerFrame.stop.isRejection) {
+				printFameStop(strbuf,
+						sizeof strbuf,
+						&playerFrame.stop,
+						playerFrame.hitstop,
+						playerFrame.hitstopMax,
+						playerFrame.lastBlockWasIB,
+						playerFrame.lastBlockWasFD);
+				ImGui::TextUnformatted(strbuf);
+			}
+			if (playerFrame.stop.tumble) {
+				const char* tumbleName;
+				if (playerFrame.stop.tumbleIsWallstick) {
+					tumbleName = "wallstick";
+				} else if (playerFrame.stop.tumbleIsKnockdown) {
+					tumbleName = "knockdown";
+				} else {
+					tumbleName = "tumble";
+				}
+				sprintf_s(strbuf, "%d/%d %s", playerFrame.stop.tumble, playerFrame.stop.tumbleMax, tumbleName);
+				ImGui::TextUnformatted(strbuf);
+			}
+		}
+	} else {
+		if (frame.hitstop) {
+			ImGui::Separator();
+			printFameStop(strbuf, sizeof strbuf, nullptr, frame.hitstop, frame.hitstopMax, false, false);
+			ImGui::TextUnformatted(strbuf);
+		}
+	}
+	if (skippedFramesElem.count || frame.rcSlowdown || frame.hitConnected || frame.newHit) {
+		ImGui::Separator();
+		if (skippedFramesElem.count && !*skippedFramesShown) {
+			*skippedFramesShown = true;
+			skippedFramesElem.print(frameAssumesCanBlockButCantFDAfterSuperfreeze(frame.type));
+		}
+		if (frame.newHit) {
+			ImGui::TextUnformatted("A new (potential) hit starts on this frame.");
+		}
+		if (playerIndex != -1 && playerFrame.blockedOnThisFrame) {
+			if (playerFrame.lastBlockWasIB) {
+				ImGui::TextUnformatted("IB'd a hit on this frame");
+			} else if (playerFrame.lastBlockWasFD) {
+				ImGui::TextUnformatted("FD'd a hit on this frame");
+			} else {
+				ImGui::TextUnformatted("Blocked a hit on this frame");
+			}
+		} else if (frame.hitConnected) {
+			ImGui::TextUnformatted("A hit connected on this frame.");
+		}
+		if (frame.rcSlowdown && !*rcSlowdownShown) {
+			*rcSlowdownShown = true;
+			yellowText("RC-slowed down: ");
+			ImGui::SameLine();
+			sprintf_s(strbuf, "%d/%d ", frame.rcSlowdown, frame.rcSlowdownMax);
+			ImGui::TextUnformatted(strbuf);
+			ImGui::SameLine();
+			const char* frameSkippedText = frame.rcSlowdown % 2 != 0
+				? "(frame skipped)"
+				: "(frame advanced)";
+			textUnformattedColored(LIGHT_BLUE_COLOR, frameSkippedText);
+		}
+	}
+	if (playerIndex != -1) {
+		ui.drawPlayerFrameInputsInTooltip(playerFrame, playerIndex);
+	}
+	ImGui::PopTextWrapPos();
+	ImGui::PopStyleVar();
+	
+}
+
 /// <summary>
 /// Draws backgrounds of frames - the base frame graphics. Also registers mouse hovering over a frame and draws the frame tooltip window.
 /// </summary>
@@ -10725,7 +11052,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 /// <param name="correspondingPlayersFramebar">If this is a projectile framebar, then framebar of the player that corresponds to or owns this projectile is given</param>
 /// <param name="owningPlayerCharType">If this is a projectile, then this is the character type of the corresponding or owner player</param>
 template<typename FramebarT, typename FrameT>
-inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
+inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar,
 			CharacterType owningPlayerCharType, float frameHeight, const FrameAddon& newHitArt,
 			const HitConnectedArtSelector& hitConnectedArtSelector) {
@@ -10740,9 +11067,10 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 		internalI = internalINext;
 		iterateVisualFrames_incrementInternalInd(internalINext);
 		
-		const FrameT& frame = framebar[internalI];
+		FrameT& frame = framebar[internalI];
 		const Frame& projectileFrame = (const Frame&)frame;
 		const PlayerFrame& correspondingPlayersFrame = correspondingPlayersFramebar[internalI];
+		const SkippedFramesInfo& skippedFramesElem = skippedFrames[internalI];
 		const UI::FrameDims& dims = preppedDims[visualI];
 		
 		ImVec2 frameStartVec { dims.x, drawFramebars_y };
@@ -10757,7 +11085,6 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 			}
 			
 			const FrameArt* frameArt = &drawFramebars_frameArtArray[frame.type];
-			description = &frameArt->description;
 			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
 				frameStartVec,
 				frameEndVec,
@@ -10787,8 +11114,6 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 				if (frame.hitConnected) {
 					frameStartVec.x -= 1.F;
 				}
-				
-				description = &frameArt->description;
 			}
 			
 			if (frame.activeDuringSuperfreeze) {
@@ -10845,243 +11170,22 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 				drawFramebars_hoveredFrameY = drawFramebars_y;
 				drawFramebars_hoveredFrameHeight = frameHeight;
 				if (frame.type != FT_NONE && ImGui::BeginTooltip()) {
-					ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
-					float wrapWidth = ImGui::GetFontSize() * 35.0f;
-					static float descriptionHeights[FT_LAST] { 0 };
-					static bool descriptionHeightsInitialized = false;
-					static float maxDescriptionHeight = 0;
-					static float maxDescriptionHeightProjectiles = 0;
-					if (!descriptionHeightsInitialized) {
-						descriptionHeightsInitialized = true;
-						float wrapWidthUse = wrapWidth - ImGui::GetCursorPosX();
-						for (int p = 1; p < FT_LAST; ++p) {
-							const StringWithLength* sws = &frameArtColorblind[p].description;
-							float currentHeight = ImGui::CalcTextSize(sws->txt, sws->txt + sws->length, false, wrapWidthUse).y;
-							descriptionHeights[p] = currentHeight;
-							if (!isNewHitType((FrameType)p)) {
-								maxDescriptionHeight = max(maxDescriptionHeight, currentHeight);
-							}
-						}
-						for (int p = 0; p < _countof(projectileFrameTypes); ++p) {
-							FrameType ptype = projectileFrameTypes[p];
-							float currentHeight = descriptionHeights[ptype];
-							if (!isNewHitType(ptype)) {
-								maxDescriptionHeightProjectiles = max(maxDescriptionHeightProjectiles, currentHeight);
-							}
-						}
-					}
-					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-					float oldCursorPos = ImGui::GetCursorPosY();
-					if (description) {
-						ImGui::TextUnformatted(description->txt, description->txt + description->length);
-					}
-					float newCursorPos = ImGui::GetCursorPosY();
-					float textHeight = newCursorPos - oldCursorPos;
-					float requiredHeight;
-					if (playerIndex != -1) {
-						requiredHeight = maxDescriptionHeight;
-					} else {
-						requiredHeight = maxDescriptionHeightProjectiles;
-					}
-					if (textHeight < requiredHeight) {
-						ImGui::SetCursorPosY(newCursorPos + requiredHeight - textHeight);
-					}
-					const char* name;
-					if (useSlang && frame.animSlangName && *frame.animSlangName != '\0') {
-						name = frame.animSlangName;
-					} else {
-						name = frame.animName;
-					}
+					static std::vector<const char*> printedDescriptions;
+					printedDescriptions.clear();
+					bool rcSlowdownShown = false;
+					bool skippedFramesShown = false;
+					bool startedSayingRepeatedNTimes = false;
 					
-					int ramlethalTime = 0;
-					int ramlethalTimeMax = 0;
-					const char* ramlethalSubAnim = nullptr;
-					
-					if (playerIndex == -1
-							&& owningPlayerCharType == CHARACTER_TYPE_RAMLETHAL
-							&& projectileFrame.animName) {
-						if (strcmp(projectileFrame.animName, "S Sword") == 0) {
-							ramlethalTime = correspondingPlayersFrame.u.ramlethalInfo.sSwordTime;
-							ramlethalTimeMax = correspondingPlayersFrame.u.ramlethalInfo.sSwordTimeMax;
-							ramlethalSubAnim = correspondingPlayersFrame.u.ramlethalInfo.sSwordSubAnim;
-						} else if (strcmp(projectileFrame.animName, "H Sword") == 0) {
-							ramlethalTime = correspondingPlayersFrame.u.ramlethalInfo.hSwordTime;
-							ramlethalTimeMax = correspondingPlayersFrame.u.ramlethalInfo.hSwordTimeMax;
-							ramlethalSubAnim = correspondingPlayersFrame.u.ramlethalInfo.hSwordSubAnim;
-						}
-					}
-					
-					if (name && *name != '\0') {
-						ImGui::Separator();
-						yellowText("Anim: ");
-						ImGui::SameLine();
-						if (ramlethalSubAnim) {
-							sprintf_s(strbuf, "%s:%s", name, ramlethalSubAnim);
-							ImGui::TextUnformatted(strbuf);
-						} else {
-							ImGui::TextUnformatted(name);
-						}
-					}
-					if (frame.activeDuringSuperfreeze) {
-						ImGui::Separator();
-						ImGui::TextUnformatted("After this frame the attack becomes active during superfreeze."
-							" In order to block that attack, it must be blocked on this frame, in advance.");
-					}
-					if (playerIndex != -1) {
-						ui.drawPlayerFrameTooltipInfo((const PlayerFrame&)frame, playerIndex, wrapWidth);
-					} else if (frame.powerup) {
-						ImGui::Separator();
-						if (owningPlayerCharType == CHARACTER_TYPE_INO) {
-							ImGui::TextUnformatted("The note reached the next level on this frame: it will deal one more hit.");
-						} else {
-							ImGui::TextUnformatted("The projectile reached some kind of powerup on this frame.");
-						}
-					}
 					if (playerIndex == -1) {
-						if (owningPlayerCharType == CHARACTER_TYPE_INO
-								&& projectileFrame.animSlangName
-								&& strcmp(projectileFrame.animSlangName, MOVE_NAME_NOTE) == 0) {
-							// I am a dirty scumbar
-							ImGui::Separator();
-							yellowText("Note elapsed time: ");
-							ImGui::SameLine();
-							int time = correspondingPlayersFrame.u.inoInfo.noteTime;
-							int timeMax = correspondingPlayersFrame.u.inoInfo.noteTimeMax;
-							const char* txt;
-							if (correspondingPlayersFrame.u.inoInfo.noteLevel == 5) {
-								txt = "Reached max";
-							} else {
-								txt = ui.printDecimal(correspondingPlayersFrame.u.inoInfo.noteTimeMax, 0, 0, false);
-							}
-							sprintf_s(strbuf, "%d/%s (%d hits)", time, txt, correspondingPlayersFrame.u.inoInfo.noteLevel);
-							ImGui::TextUnformatted(strbuf);
-						} else if (ramlethalTime) {
-							ImGui::Separator();
-							yellowText("Time Remaining: ");
-							ImGui::SameLine();
-							if (ramlethalTimeMax) {
-								sprintf_s(strbuf, "%d/%d", ramlethalTime, ramlethalTimeMax);
-							} else {
-								sprintf_s(strbuf, "until landing + %d", ramlethalTime);
-							}
-							ImGui::TextUnformatted(strbuf);
-						} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT
-								&& projectileFrame.animSlangName
-								&& strcmp(projectileFrame.animSlangName, PROJECTILE_NAME_BERRY) == 0) {
-							
-							ImGui::Separator();
-							yellowText("Berry Timer: ");
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d/180", correspondingPlayersFrame.u.elpheltInfo.grenadeTimer);
-							ImGui::TextUnformatted(strbuf);
-							
-						} else if (owningPlayerCharType == CHARACTER_TYPE_JOHNNY
-								&& projectileFrame.animSlangName
-								&& strcmp(projectileFrame.animSlangName, PROJECTILE_NAME_BACCHUS) == 0) {
-							
-							ImGui::Separator();
-							yellowText("Bacchus Sigh Projectile Timer: ");
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.johnnyInfo.mistTimer,
-								correspondingPlayersFrame.u.johnnyInfo.mistTimerMax);
-							ImGui::TextUnformatted(strbuf);
-							
-						} else if (frame.type == FT_IDLE_NO_DISPOSE
-										&& owningPlayerCharType == CHARACTER_TYPE_JACKO
-										&& strcmp(projectileFrame.animName, PROJECTILE_NAME_GHOST) == 0) {
-							ImGui::Separator();
-							ImGui::TextUnformatted("The Ghost is strike invulnerable.");
-							
-						} else if (frame.type == FT_IDLE_PROJECTILE_HITTABLE
-										&& owningPlayerCharType == CHARACTER_TYPE_DIZZY
-										&& correspondingPlayersFrame.u.dizzyInfo.shieldFishSuperArmor) {
-							ImGui::Separator();
-							ImGui::TextUnformatted("Shield Fish super armor active.");
+						for (Frame* framePtr = projectileFrame.next; framePtr; framePtr = framePtr->next) {
+							framePtr->accountedFor = false;
 						}
 					}
-					if (playerIndex != -1) {
-						const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
-						if (playerFrame.hitstop
-								|| playerFrame.stop.isHitstun
-								|| playerFrame.stop.isBlockstun
-								|| playerFrame.stop.isStagger
-								|| playerFrame.stop.isWakeup
-								|| playerFrame.stop.isRejection
-								|| playerFrame.stop.tumble) {
-							ImGui::Separator();
-							if (playerFrame.hitstop
-									|| playerFrame.stop.isHitstun
-									|| playerFrame.stop.isBlockstun
-									|| playerFrame.stop.isStagger
-									|| playerFrame.stop.isWakeup
-									|| playerFrame.stop.isRejection) {
-								printFameStop(strbuf,
-										sizeof strbuf,
-										&playerFrame.stop,
-										playerFrame.hitstop,
-										playerFrame.hitstopMax,
-										playerFrame.lastBlockWasIB,
-										playerFrame.lastBlockWasFD);
-								ImGui::TextUnformatted(strbuf);
-							}
-							if (playerFrame.stop.tumble) {
-								const char* tumbleName;
-								if (playerFrame.stop.tumbleIsWallstick) {
-									tumbleName = "wallstick";
-								} else if (playerFrame.stop.tumbleIsKnockdown) {
-									tumbleName = "knockdown";
-								} else {
-									tumbleName = "tumble";
-								}
-								sprintf_s(strbuf, "%d/%d %s", playerFrame.stop.tumble, playerFrame.stop.tumbleMax, tumbleName);
-								ImGui::TextUnformatted(strbuf);
-							}
-						}
-					} else {
-						if (frame.hitstop) {
-							ImGui::Separator();
-							printFameStop(strbuf, sizeof strbuf, nullptr, frame.hitstop, frame.hitstopMax, false, false);
-							ImGui::TextUnformatted(strbuf);
-						}
-					}
-					const SkippedFramesInfo& skippedFramesElem = skippedFrames[internalI];
-					if (skippedFramesElem.count || frame.rcSlowdown || frame.hitConnected || frame.newHit) {
-						ImGui::Separator();
-						if (skippedFramesElem.count) {
-							skippedFramesElem.print(frameAssumesCanBlockButCantFDAfterSuperfreeze(frame.type));
-						}
-						if (frame.newHit) {
-							ImGui::TextUnformatted("A new (potential) hit starts on this frame.");
-						}
-						if (playerIndex != -1 && ((const PlayerFrame&)frame).blockedOnThisFrame) {
-							const PlayerFrame& playerFrame = (const PlayerFrame&)frame;
-							if (playerFrame.lastBlockWasIB) {
-								ImGui::TextUnformatted("IB'd a hit on this frame");
-							} else if (playerFrame.lastBlockWasFD) {
-								ImGui::TextUnformatted("FD'd a hit on this frame");
-							} else {
-								ImGui::TextUnformatted("Blocked a hit on this frame");
-							}
-						} else if (frame.hitConnected) {
-							ImGui::TextUnformatted("A hit connected on this frame.");
-						}
-						if (frame.rcSlowdown) {
-							yellowText("RC-slowed down: ");
-							ImGui::SameLine();
-							sprintf_s(strbuf, "%d/%d ", frame.rcSlowdown, frame.rcSlowdownMax);
-							ImGui::TextUnformatted(strbuf);
-							ImGui::SameLine();
-							const char* frameSkippedText = frame.rcSlowdown % 2 != 0
-								? "(frame skipped)"
-								: "(frame advanced)";
-							textUnformattedColored(LIGHT_BLUE_COLOR, frameSkippedText);
-						}
-					}
-					if (playerIndex != -1) {
-						ui.drawPlayerFrameInputsInTooltip((const PlayerFrame&)frame, playerIndex);
-					}
-					ImGui::PopTextWrapPos();
-					ImGui::PopStyleVar();
+					
+					drawFrameTooltip(frame, playerIndex, useSlang,
+						skippedFramesElem, owningPlayerCharType, correspondingPlayersFrame, 0,
+						printedDescriptions, &rcSlowdownShown, &skippedFramesShown, &startedSayingRepeatedNTimes);
+					
 					ImDrawList* drawList = ImGui::GetWindowDrawList();
 					ImGui::EndTooltip();
 					if (ui.needSplitFramebar) {
@@ -11096,14 +11200,14 @@ inline void drawFramebar(const FramebarT& framebar, UI::FrameDims* preppedDims, 
 	}
 }
 
-void drawPlayerFramebar(const PlayerFramebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
+void drawPlayerFramebar(PlayerFramebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, CharacterType charType, float frameHeight,
 			const FrameAddon& newHitArt, const HitConnectedArtSelector& hitConnectedArtSelector) {
 	drawFramebar<PlayerFramebar, PlayerFrame>(framebar, preppedDims, tintDarker, playerIndex, skippedFrames, framebar, charType,
 		frameHeight, newHitArt, hitConnectedArtSelector);
 }
 
-void drawProjectileFramebar(const Framebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker,
+void drawProjectileFramebar(Framebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar,
 			CharacterType owningPlayerCharType, float frameHeight, const FrameAddon& newHitArt,
 			const HitConnectedArtSelector& hitConnectedArtSelector) {
@@ -12962,7 +13066,7 @@ void UI::drawFramebars() {
 	
 	// this struct gets copied around. Don't put huge data in it
 	struct QueuedFramebar {
-		const EntityFramebar& framebar = *(const EntityFramebar*)nullptr;
+		EntityFramebar& framebar = *(EntityFramebar*)nullptr;
 		float y = 0.F;  // points to the top of the frame texture
 		float padding = 0.F;  // the padding that should be between this framebar and the previous framebar
 		Moves::TriBool hasFirstFrames = Moves::TriBool::TRIBOOL_DUNNO;
@@ -12977,8 +13081,8 @@ void UI::drawFramebars() {
 		float paddingForProjectilesWithFirstFrameOnly;
 		float paddingForProjectilesWithoutAnything;
 		
-		void create(QueuedFramebar& result, const EntityFramebar& entityFramebar, int playerIndex) {
-			(const EntityFramebar*&)result = &entityFramebar;
+		void create(QueuedFramebar& result, EntityFramebar& entityFramebar, int playerIndex) {
+			(EntityFramebar*&)result = &entityFramebar;
 			if (entityFramebar.belongsToPlayer()) {
 				if (playerIndex == 0) {
 					return;
@@ -13136,20 +13240,20 @@ void UI::drawFramebars() {
 	} else {
 		framebars.reserve(2 + endScene.combinedFramebars.size());
 	}
-	for (const PlayerFramebars& entityFramebar : endScene.playerFramebars) {
+	for (PlayerFramebars& entityFramebar : endScene.playerFramebars) {
 		framebars.emplace_back();
-		queuedFramebarFactory.create(framebars.back(), (const EntityFramebar&)entityFramebar, entityFramebar.playerIndex);
+		queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, entityFramebar.playerIndex);
 	}
 	for (int i = 0; i < 2; ++i) {
 		if (eachProjectileOnSeparateFramebar) {
 			int index = 0;
-			for (const ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
+			for (ProjectileFramebar& entityFramebar : endScene.projectileFramebars) {
 				const Framebar& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.hitstop : entityFramebar.main;
 				if (entityFramebar.playerIndex == i && !(
 						framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
 				)) {
 					framebars.emplace_back();
-					queuedFramebarFactory.create(framebars.back(), (const EntityFramebar&)entityFramebar, i);
+					queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, i);
 				}
 				++index;
 			}
@@ -13158,7 +13262,7 @@ void UI::drawFramebars() {
 			for (const CombinedProjectileFramebar& entityFramebar : endScene.combinedFramebars) {
 				if (entityFramebar.playerIndex == i && !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
 					framebars.emplace_back();
-					queuedFramebarFactory.create(framebars.back(), (const EntityFramebar&)entityFramebar, i);
+					queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, i);
 				}
 				++index;
 			}
@@ -13172,7 +13276,7 @@ void UI::drawFramebars() {
 					framebar.completelyEmpty || recheckCompletelyEmpty && framebarsCompletelyEmpty[index]
 			)) {
 				framebars.emplace_back();
-				queuedFramebarFactory.create(framebars.back(), (const EntityFramebar&)entityFramebar, -1);
+				queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, -1);
 			}
 			++index;
 		}
@@ -13182,7 +13286,7 @@ void UI::drawFramebars() {
 			if (entityFramebar.playerIndex != 0 && entityFramebar.playerIndex != 1
 					&& !(recheckCompletelyEmpty && framebarsCompletelyEmpty[index])) {
 				framebars.emplace_back();
-				queuedFramebarFactory.create(framebars.back(), (const EntityFramebar&)entityFramebar, -1);
+				queuedFramebarFactory.create(framebars.back(), (EntityFramebar&)entityFramebar, -1);
 			}
 			++index;
 		}
@@ -13648,9 +13752,9 @@ void UI::drawFramebars() {
 	pushFramesClipRect(true)
 	
 	for (QueuedFramebar& queuedFramebar : framebars) {
-		const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
-		const EntityFramebar& entityFramebar = *entityFramebarPtr;
-		const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
+		EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
+		EntityFramebar& entityFramebar = *entityFramebarPtr;
+		FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
 		drawFramebars_y = queuedFramebar.y;
 		const float framebarHeight = queuedFramebar.condensed
 			? oneMiniFramebarHeight + outerBorderThickness + outerBorderThickness
@@ -13803,7 +13907,7 @@ void UI::drawFramebars() {
 			}
 			
 			if (entityFramebar.belongsToPlayer()) {
-				drawPlayerFramebar((const PlayerFramebar&)framebar,
+				drawPlayerFramebar((PlayerFramebar&)framebar,
 					preppedDims,
 					tintDarker,
 					entityFramebar.playerIndex,
@@ -13817,7 +13921,7 @@ void UI::drawFramebars() {
 			} else {
 				const PlayerFramebars& correspondingPlayersFramebars = endScene.playerFramebars[entityFramebar.playerIndex];
 				
-				drawProjectileFramebar((const Framebar&)framebar,
+				drawProjectileFramebar((Framebar&)framebar,
 					preppedDims,
 					tintDarker,
 					skippedFrames,
@@ -15172,15 +15276,6 @@ void UI::packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind) {
 	lastPackedSize = *sizes;
 	textureIsColorblind = isColorblind;
 	packTexture(packedTextureFramebar, UITextureType::UITEX_FRAMEBAR, sizes);
-}
-
-bool Framebar::lastNFramesHaveMarker(int framebarPosition, int n) const {
-	iterateFramesBegin(framebarPosition, n)
-	const Frame& frame = frames[iterateFrames_pos];
-	if (frame.type == FT_NONE) return false;
-	if (frame.marker) return true;
-	iterateFramesEnd
-	return false;
 }
 
 float truncfTowardsZero(float value) {
