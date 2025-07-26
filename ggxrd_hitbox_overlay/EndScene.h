@@ -567,6 +567,7 @@ private:
 	bool neverIgnoreHitstop = false;
 	bool combineProjectileFramebarsWhenPossible = false;
 	bool eachProjectileOnSeparateFramebar = false;
+	bool condenseIntoOneProjectileMiniFramebar = false;
 	int framesCount = -1;
 	int storedFramesCount = -1;
 	int scrollXInFrames = 0;

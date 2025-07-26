@@ -488,14 +488,17 @@ settingsKeyCombo(framebarVisibilityToggle, "Hide Framebar Toggle", "",
 settingsField(bool, showStrikeInvulOnFramebar, true,
 	"Show Strike Invul", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
-	"; Strike invul will be displayed using a green ^ on top of a frame.")
+	"; Strike invul will be displayed using a green ^ on top of a frame.\n"
+	"; Note: when \"condenseIntoOneProjectileMiniFramebar\" is used, for P2 these will be displayed below a frame.")
 	
 settingsField(bool, showSuperArmorOnFramebar, true,
 	"Show Super Armor", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
-	"; Super armor will be displayed using a purple ^ on top of a frame. It includes reflect, parry and projectile-only invulnerability\n"
+	"; Super armor will be displayed using a purple ^ on top of a frame.\n"
+	"; Note: when \"condenseIntoOneProjectileMiniFramebar\" is used, for P2 these will be displayed below a frame.\n"
+	"; It includes reflect, parry and projectile-only invulnerability\n"
 	"; (excluding Aegis Field, that isn't displayed on the framebar at all). If both strike invul and super armor are present, super armor\n"
-	"; will be below the strike invul.")
+	"; will be below the strike invul (for P2 mini-framebar: on top).")
 	
 settingsField(bool, showThrowInvulOnFramebar, true,
 	"Show Throw Invul", SETTINGS_FRAMEBAR,
@@ -531,6 +534,12 @@ settingsField(bool, combineProjectileFramebarsWhenPossible, true,
 	"Combine Projectile Framebars When Possible", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
 	"; When true, two or more projectile framebars will be combined into one if their active/non-active frames don't intersect.")
+	
+settingsField(bool, condenseIntoOneProjectileMiniFramebar, false,
+	"Condense Into One Projectile Mini-Framebar Per Player", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; When true, all projectiles belonging to a player will use the same one thin framebar, located on top\n"
+	"; of Player 1's framebar and below Player 2's framebar.")
 	
 settingsField(bool, eachProjectileOnSeparateFramebar, false,
 	"Each Projectile On A Separate Framebar", SETTINGS_FRAMEBAR,

@@ -4863,6 +4863,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& superflashInstigator
 					)) {
 				currentFrame.type = defaultIdleFrame;
+				currentFrame.marker = isHouseInvul
+						|| player.charType == CHARACTER_TYPE_DIZZY
+						&& projectileCanBeHit
+						&& player.dizzyShieldFishSuperArmor;
 				if (projectile.ptr || !projectile.lastName) {
 					projectile.determineMoveNameAndSlangName(&currentFrame.animName, &currentFrame.animSlangName);
 				} else {
@@ -5004,6 +5008,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.rcSlowdownMax = 0;
 				currentFrame.activeDuringSuperfreeze = false;
 				currentFrame.powerup = false;
+				currentFrame.marker = false;
 				
 				if (framebarPos != 0 || framebarTotalFramesHitstopUnlimited > 0 || framebarIdleHitstopFor > 0) {
 					currentFrame.title = framebar[
@@ -6564,18 +6569,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 	}
 	bool combinedFramebarsSettingsChanged = false;
-	if (combineProjectileFramebarsWhenPossible != settings.combineProjectileFramebarsWhenPossible) {
-		combineProjectileFramebarsWhenPossible = settings.combineProjectileFramebarsWhenPossible;
-		combinedFramebarsSettingsChanged = true;
-	}
-	if (eachProjectileOnSeparateFramebar != settings.eachProjectileOnSeparateFramebar) {
-		eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
-		combinedFramebarsSettingsChanged = true;
-	}
-	if (neverIgnoreHitstop != settings.neverIgnoreHitstop) {
-		neverIgnoreHitstop = settings.neverIgnoreHitstop;
-		combinedFramebarsSettingsChanged = true;
-	}
+	#define trackSetting(name) \
+		if (name != settings.name) { \
+			name = settings.name; \
+			combinedFramebarsSettingsChanged = true; \
+		}
+	trackSetting(combineProjectileFramebarsWhenPossible)
+	trackSetting(eachProjectileOnSeparateFramebar)
+	trackSetting(condenseIntoOneProjectileMiniFramebar)
+	trackSetting(neverIgnoreHitstop)
+	#undef trackSetting
 	
 	
 	int newFramesCount = settings.framebarDisplayedFramesCount;
@@ -6656,6 +6659,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	// Let UI know which settings we actually used, because UI may change them before drawing the framebar
 	ui.framebarSettings.neverIgnoreHitstop = settings.neverIgnoreHitstop;
 	ui.framebarSettings.eachProjectileOnSeparateFramebar = settings.eachProjectileOnSeparateFramebar;
+	ui.framebarSettings.condenseIntoOneProjectileMiniFramebar = settings.condenseIntoOneProjectileMiniFramebar;
 	ui.framebarSettings.framesCount = framesCount;
 	ui.framebarSettings.storedFramesCount = storedFramesCount;
 	ui.framebarSettings.scrollXInFrames = scrollXInFrames;
@@ -9169,19 +9173,26 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 CombinedProjectileFramebar& EndScene::findCombinedFramebar(const ProjectileFramebar& source, bool hitstop) {
 	int id = source.idForCombinedFramebar();
 	const bool combineProjectileFramebarsWhenPossible = settings.combineProjectileFramebarsWhenPossible;
-	for (CombinedProjectileFramebar& bar : combinedFramebars) {
-		if (
-				bar.playerIndex == source.playerIndex
-				&& (
-					bar.id == id
-					|| combineProjectileFramebarsWhenPossible
-					&& bar.canBeCombined(hitstop ? source.hitstop : source.main, id)
-				)
-		) {
-			if (!(bar.moveFramebarId != -1 && source.moveFramebarId == -1)) {
-				bar.moveFramebarId = source.moveFramebarId;
+	const bool condenseIntoOneProjectileMiniFramebar = settings.condenseIntoOneProjectileMiniFramebar;
+	if (condenseIntoOneProjectileMiniFramebar) {
+		for (CombinedProjectileFramebar& bar : combinedFramebars) {
+			if (bar.playerIndex == source.playerIndex) return bar;
+		}
+	} else {
+		for (CombinedProjectileFramebar& bar : combinedFramebars) {
+			if (
+					bar.playerIndex == source.playerIndex
+					&& (
+						bar.id == id
+						|| combineProjectileFramebarsWhenPossible
+						&& bar.canBeCombined(hitstop ? source.hitstop : source.main, id)
+					)
+			) {
+				if (!(bar.moveFramebarId != -1 && source.moveFramebarId == -1)) {
+					bar.moveFramebarId = source.moveFramebarId;
+				}
+				return bar;
 			}
-			return bar;
 		}
 	}
 	combinedFramebars.emplace_back();

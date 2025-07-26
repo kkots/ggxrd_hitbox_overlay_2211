@@ -646,6 +646,7 @@ struct Frame : public FrameBase {
 	unsigned short newHit:1;
 	bool activeDuringSuperfreeze:1;
 	bool powerup:1;
+	bool marker:1;  // either strike invulnerability marker for Jack-O houses, or super armor marker for Dizzy D-Fish
 };
 
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
@@ -806,8 +807,7 @@ struct Framebar : public FramebarBase {
 	virtual FrameBase& getFrame(int index) override;
 	virtual const FrameBase& getFrame(int index) const override;
 	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const override;
-	bool lastNFramesHaveDizzyFishInvul(int framebarPosition, int n, const struct PlayerFramebar& playerFramebar) const;  // defined in UI.cpp
-	bool lastNFramesHaveJackoHouseInvul(int framebarPosition, int n) const;  // defined in UI.cpp
+	bool lastNFramesHaveMarker(int framebarPosition, int n) const;  // defined in UI.cpp
 	void modifyFrame(int pos, DWORD aswEngineTick, FrameType newType);
 };
 

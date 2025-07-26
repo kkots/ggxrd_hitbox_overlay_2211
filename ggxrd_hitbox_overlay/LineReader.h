@@ -17,7 +17,7 @@ public:
 	bool error = false;
 private:
 	HANDLE file = NULL;
-	static const size_t bufSize = 20;
+	static const size_t bufSize = 128;
 	std::vector<char> buf;
 	std::vector<char> accum;
 	size_t accumPos = 0;

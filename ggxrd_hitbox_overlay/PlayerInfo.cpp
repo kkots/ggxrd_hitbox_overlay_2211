@@ -2567,6 +2567,7 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, const Fra
 		df.rcSlowdownMax = max(df.rcSlowdownMax, sf.rcSlowdownMax);
 		df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
 		df.powerup |= sf.powerup;
+		df.marker |= sf.marker;
 		df.title = sf.title;  // will get corrected in determineName
 	}
 	if (source.preFrameLength) {
