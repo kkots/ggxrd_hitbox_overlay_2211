@@ -451,7 +451,7 @@ void meatOfTheProgram() {
 	wchar_t filter[(sizeof scramble - 1) / sizeof (wchar_t)];
 	int offset = (int)(
 		(GetTickCount64() & 0xF000000000000000ULL) >> (63 - 4)
-	) & 0xFFFFFFFF;
+	);
 	for (int i = 0; i < sizeof scramble - 1; ++i) {
 		char c = scramble[i] + offset + 10;
 		((char*)filter)[i] = c;
@@ -673,7 +673,7 @@ int patcherMain()
 	#ifndef FOR_LINUX
 	int offset = (int)(
 		(GetTickCount64() & 0xF000000000000000ULL) >> (63 - 4)
-	) & 0xFFFFFFFF;
+	);
 	#else
 	int offset = 0;
 	#endif

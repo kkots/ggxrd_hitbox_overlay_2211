@@ -38,9 +38,11 @@ public:
 	void resetHook();
 	IDirect3DSurface9* getOffscreenSurface(D3DSURFACE_DESC* renderTargetDescPtr = nullptr);
 	IDirect3DTexture9* getFramesTexturePart(IDirect3DDevice9* device, const PngResource& packedFramesTexture,
-			bool* failedToCreate, CComPtr<IDirect3DTexture9>& texture, CComPtr<IDirect3DTexture9>* systemTexturePtr = nullptr);
+			bool* failedToCreate, CComPtr<IDirect3DTexture9>& texture, CComPtr<IDirect3DTexture9>* systemTexturePtr,
+			DWORD* textureWidth, DWORD* textureHeight, bool textureContentChanged);
 	inline IDirect3DTexture9* getFramesTextureHelp(IDirect3DDevice9* device, const PngResource& packedFramesTexture) {
-		return getFramesTexturePart(device, packedFramesTexture, &failedToCreateFramesTextureHelp, framesTextureHelp);
+		return getFramesTexturePart(device, packedFramesTexture, &failedToCreateFramesTextureHelp, framesTextureHelp,
+			nullptr, &framesTextureHelpWidth, &framesTextureHelpHeight, false);
 	}
 	PackTextureSizes framebarTextureSizes;
 	bool framebarColorblind;
@@ -55,12 +57,10 @@ public:
 		needRecreateFramesTextureFramebar = true;
 	}
 	inline IDirect3DTexture9* getFramesTextureFramebar(IDirect3DDevice9* device) {
-		if (needRecreateFramesTextureFramebar) {
-			framesTextureFramebar = nullptr;
-			needRecreateFramesTextureFramebar = false;
-		}
+		bool contentsChanged = needRecreateFramesTextureFramebar;
+		needRecreateFramesTextureFramebar = false;
 		return getFramesTexturePart(device, framebarTexture, &failedToCreateFramesTextureFramebar, framesTextureFramebar,
-			std::addressof(framesSystemTextureFramebar));
+			std::addressof(framesSystemTextureFramebar), &framesTextureFramebarWidth, &framesTextureFramebarHeight, contentsChanged);
 	}
 	// only returns a result once. Provides the error text to other classes
 	void getShaderCompilationError(const std::string** result);
@@ -110,6 +110,7 @@ public:
 	void setFailedToCreatePixelShaderReason(const char* txt);
 	std::string getFailedToCreatePixelShaderReason();
 	std::string failedToCreateOutlinesRTSamplingTextureReason;
+	bool isFullscreen() const { return fullscreen; }
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -284,9 +285,13 @@ private:
 	DWORD suspenderThreadId = NULL;
 	
 	CComPtr<IDirect3DTexture9> framesTextureHelp = nullptr;
+	DWORD framesTextureHelpWidth = 0;
+	DWORD framesTextureHelpHeight = 0;
 	bool failedToCreateFramesTextureHelp = false;
 	bool needRecreateFramesTextureFramebar = false;
 	CComPtr<IDirect3DTexture9> framesTextureFramebar = nullptr;
+	DWORD framesTextureFramebarWidth = 0;
+	DWORD framesTextureFramebarHeight = 0;
 	CComPtr<IDirect3DTexture9> framesSystemTextureFramebar = nullptr;
 	bool failedToCreateFramesTextureFramebar = false;
 	
@@ -374,73 +379,36 @@ private:
 		RenderStateValue(TEXTURE, FONT)
 	};
 	RenderStateValue renderStateValues[RENDER_STATE_TYPE_LAST];
-	class RenderStateValueHandler {
-	public:
-		inline RenderStateValueHandler(Graphics* graphics) : graphics(*graphics) {}
-		virtual void handleChange(RenderStateValue newValue) = 0;
-		Graphics& graphics;
+	#define RenderStateHandlerList \
+		RenderStateHandlerListProc(D3DRS_STENCILENABLE) \
+		RenderStateHandlerListProc(D3DRS_ALPHABLENDENABLE) \
+		RenderStateHandlerListProc(PIXEL_SHADER) \
+		RenderStateHandlerListProc(TRANSFORM_MATRICES) \
+		RenderStateHandlerListProc(D3DRS_SRCBLEND) \
+		RenderStateHandlerListProc(D3DRS_DESTBLEND) \
+		RenderStateHandlerListProc(D3DRS_SRCBLENDALPHA) \
+		RenderStateHandlerListProc(D3DRS_DESTBLENDALPHA) \
+		RenderStateHandlerListProc(VERTEX) \
+		RenderStateHandlerListProc(TEXTURE)
+	#define RenderStateHandlerListProc(name) void RenderStateHandler(name)(RenderStateValue newValue);
+	RenderStateHandlerList
+	#undef RenderStateHandlerListProc
+	#define RenderStateHandlerListProc(name) void (Graphics::* RenderStateHandler(name)##_Ptr)(RenderStateValue newValue) = &Graphics::RenderStateHandler(name);
+	RenderStateHandlerList
+	#undef RenderStateHandlerListProc
+	void(Graphics::* renderStateValueHandlers[RENDER_STATE_TYPE_LAST])(RenderStateValue) {
+		#define RenderStateHandlerListProc(name) RenderStateHandler(name)##_Ptr,
+		RenderStateHandlerList
+		#undef RenderStateHandlerListProc
 	};
-	#define inheritConstructor(name) name(Graphics* graphics) : RenderStateValueHandler(graphics) {}
-	class RenderStateHandler(D3DRS_STENCILENABLE) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(D3DRS_STENCILENABLE))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(D3DRS_ALPHABLENDENABLE) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(D3DRS_ALPHABLENDENABLE))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(PIXEL_SHADER) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(PIXEL_SHADER))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(TRANSFORM_MATRICES) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(TRANSFORM_MATRICES))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(D3DRS_SRCBLEND) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(D3DRS_SRCBLEND))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(D3DRS_DESTBLEND) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(D3DRS_DESTBLEND))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(D3DRS_SRCBLENDALPHA) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(D3DRS_SRCBLENDALPHA))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(D3DRS_DESTBLENDALPHA) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(D3DRS_DESTBLENDALPHA))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(VERTEX) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(VERTEX))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	class RenderStateHandler(TEXTURE) : public RenderStateValueHandler {
-	public:
-		inheritConstructor(RenderStateHandler(TEXTURE))
-		void handleChange(RenderStateValue newValue) override;
-	};
-	#undef inheritConstructor
-	RenderStateValueHandler* renderStateValueHandlers[RENDER_STATE_TYPE_LAST];
-	struct RenderStateValueStack {
+	struct RenderStateValueArray {
 		RenderStateValue values[RENDER_STATE_TYPE_LAST];
-		inline RenderStateValueStack* operator=(const RenderStateValueStack* other) {
+		inline RenderStateValueArray* operator=(const RenderStateValueArray* other) {
 			memcpy(this, other, sizeof *this);
 		}
 		inline RenderStateValue& operator[](int index) { return values[index]; }
 	};
-	RenderStateValueStack requiredRenderState[SCREENSHOT_STAGE_HOW_MANY_ENUMS_ARE_THERE][RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE];
+	RenderStateValueArray requiredRenderState[SCREENSHOT_STAGE_HOW_MANY_ENUMS_ARE_THERE][RENDER_STATE_DRAWING_HOW_MANY_ENUMS_ARE_THERE];
 	HRESULT static __stdcall beginSceneHookStatic(IDirect3DDevice9* device);
 	void beginSceneHook(IDirect3DDevice9* device);
 	HRESULT static __stdcall presentHook(IDirect3DDevice9* device, const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion);
@@ -546,6 +514,7 @@ private:
 	bool customVertexShaderActive = false;
 	void updateVertexShaderTransformMatrix(IDirect3DDevice9* device);
 	CComPtr<IDirect3DVertexDeclaration9> vertexDeclaration;
+	bool fullscreen = false;
 };
 
 extern Graphics graphics;

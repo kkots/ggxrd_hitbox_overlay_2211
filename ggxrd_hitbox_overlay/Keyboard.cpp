@@ -278,7 +278,7 @@ void Keyboard::getJoyState(DIJOYSTATE2* state) {
 		UWindowsClient_Joysticks_HookAttempted = true;
 		
 		UWindowsClient_Joysticks = (BYTE*)sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			"69 ff fc 01 00 00 03 3d ?? ?? ?? ?? 68 10 01 00 00",
 			{ 8, 0 },
 			nullptr, "UWindowsClient_Joysticks");

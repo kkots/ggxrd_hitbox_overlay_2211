@@ -1,9 +1,10 @@
 #pragma once
 #include "characterTypes.h"
 #include "Hitbox.h"
+#include <intrin.h>
 
 using getPos_t = int(__thiscall*)(const void*);
-using getPushbox_t = int(__thiscall*)(const void*);
+using getPushboxCoords_t = int(__thiscall*)(const void*, int*, int*, int*, int*);
 using getExtraTensionModifier_t = int(__thiscall*)(const void*, int param1);
 
 enum HitboxType : char {
@@ -175,6 +176,7 @@ enum MoveCharacterState {
 };
 
 enum MoveCondition {
+	MOVE_CONDITION_NONE = 0,  // this move condition is always fulfilled
 	MOVE_CONDITION_LAND = 1,
 	MOVE_CONDITION_AIR = 2,
 	MOVE_CONDITION_REQUIRES_50_TENSION = 3,
@@ -221,6 +223,7 @@ enum MoveCondition {
 	MOVE_CONDITION_EX_GAUGE_4_EMPTY = 0x42,
 	MOVE_CONDITION_IS_TOUCHING_LEFT_SCREEN_EDGE = 0x44,
 	MOVE_CONDITION_IS_TOUCHING_RIGHT_SCREEN_EDGE = 0x45,
+    MOVE_CONDITION_ALWAYS_FALSE = 0x46,  // this move condition is never fulfilled
 	MOVE_CONDITION_EX_GAUGE_0_NOT_EMPTY = 0x48,
 	MOVE_CONDITION_EX_GAUGE_1_NOT_EMPTY = 0x49,
 	MOVE_CONDITION_EX_GAUGE_2_NOT_EMPTY = 0x4a,
@@ -454,6 +457,86 @@ enum MoveType {
 	MOVE_TYPE_BLITZ_SHIELD = 30
 };
 
+template<size_t size>
+struct BitArrayIterator {
+	const DWORD* valuesPtr;
+	size_t index;
+	DWORD currentDword;
+	int bitIndex;
+	BitArrayIterator<size> operator++() {
+		getNext();
+		return *this;
+	}
+	BitArrayIterator<size> operator++(int) {
+		BitArrayIterator<size> copy = *this;
+		getNext();
+		return copy;
+	}
+	void getNext() {
+		if (index >= size) {
+			bitIndex = -1;
+			return;
+		}
+		DWORD bitScan;
+		while (true) {
+			if (currentDword && _BitScanForward(&bitScan, currentDword)) {
+				currentDword &= ~(1 << bitScan);
+				bitIndex = (int)(32 * index + bitScan);
+				return;
+			}
+			++index;
+			if (index >= size) {
+				bitIndex = -1;
+				return;
+			}
+			currentDword = valuesPtr[index];
+		}
+	}
+	bool operator==(const BitArrayIterator& other) const {
+		return valuesPtr == other.valuesPtr
+			&& index == other.index
+			&& currentDword == other.currentDword;
+	}
+	bool operator!=(const BitArrayIterator& other) const {
+		return !(*this == other);
+	}
+	int operator*() const {
+		return bitIndex;
+	}
+};
+
+template<size_t size>
+struct BitArray {
+	DWORD values[size];
+	bool getBit(DWORD index) const {
+		DWORD bitMask = 1 << (index & 31);
+		return (values[index >> 5] & bitMask) != 0;
+	}
+	bool setBit(DWORD index) {
+		DWORD bitMask = 1 << (index & 31);
+		return values[index >> 5] |= bitMask;
+	}
+	bool removeBit(DWORD index) {
+		DWORD bitMask = 1 << (index & 31);
+		return values[index >> 5] &= ~bitMask;
+	}
+	BitArrayIterator<size> begin() const {
+		BitArrayIterator<size> result;
+		result.valuesPtr = values;
+		result.index = 0;
+		result.currentDword = values[0];
+		result.getNext();
+		return result;
+	}
+	BitArrayIterator<size> end() const {
+		BitArrayIterator<size> result;
+		result.valuesPtr = values;
+		result.index = size;
+		result.currentDword = 0;
+		return result;
+	}
+};
+
 struct AddedMoveData {
 	int index;
 	int stylishRealMoveIndex;  // for stylish moves: realMoveIndex. Non-stylish: matches index
@@ -468,7 +551,7 @@ struct AddedMoveData {
 	inline bool isFollowupMove() const { return (flags0x78 & 2) != 0; }
 	DWORD cpuEstimateFlags;
 	DWORD inputDirectionBaseObject;
-	DWORD conditions[5];
+	BitArray<5> conditions;
 	InputType inputs[16];
 	char moveRecipeEMove[32];
 	int recipeStopTypeExArg3;
@@ -505,7 +588,9 @@ struct AddedMoveData {
 	int padding7;
 	int bufferTime;
 	int padding8;
-	bool hasCondition(MoveCondition condition) const;
+	inline bool hasCondition(MoveCondition condition) const { return conditions.getBit(condition); }
+	inline void addCondition(MoveCondition condition) { conditions.setBit(condition); }
+	inline void removeCondition(MoveCondition condition) { conditions.removeBit(condition); }
 };
 
 enum CounterHitType {
@@ -1134,6 +1219,7 @@ enum InstructionType {
 	instr_endElse = 10,
 	instr_setMarker = 11,
 	instr_goToMarker = 12,
+	instr_gotoLabelRequests = 14,
 	instr_callSubroutine = 17,
 	instr_exitState = 18,
 	instr_upon = 21,
@@ -1141,16 +1227,27 @@ enum InstructionType {
 	instr_clearUpon = 23,
 	instr_overrideSpriteLengthIf = 26,
 	instr_jumpToState = 27,
+	instr_deactivateObjectByName = 32,
+	instr_runOnObject = 41,
 	instr_storeValue = 46,
+	instr_checkMoveCondition = 49,
 	instr_calcDistance = 60,
+	instr_ignoreDeactivate = 298,
 	instr_createObjectWithArg = 445,
 	instr_createObject = 446,
+	instr_createParticleWithArg = 449,
+	instr_linkParticle = 450,
 	instr_setLinkObjectDestroyOnStateChange = 457,
 	instr_hitAirPushbackX = 754,
 	instr_deleteMoveForceDisableFlag = 1603,
+	instr_whiffCancelOptionBufferTime = 1630,
 	instr_sendSignal = 1766,
 	instr_sendSignalToAction = 1771,
+	instr_linkParticleWithArg2 = 1923,
 	instr_exPointFReset = 2161,
+	instr_timeSlow = 2201,
+	instr_createArgHikitsukiVal = 2247,
+	instr_setHitstop = 2263,
 };
 
 struct BBScrInstr_ifOperation {
@@ -1226,6 +1323,30 @@ struct BBScrInstr_storeValue {
 	AccessedValue src;
 };
 
+struct BBScrInstr_createObject {
+	InstructionType type;
+	char name[32];
+	BBScrPosType pos;
+};
+
+struct BBScrInstr_deactivateObjectByName {
+	InstructionType type;
+	char name[32];
+};
+
+struct BBScrInstr_gotoLabelRequests {
+	InstructionType type;
+	char name[32];
+};
+
+struct CmnActHashtable {
+	unsigned short maximumBucketLoad;
+	unsigned short currentSize;
+	unsigned short hashMap[800];
+	unsigned short next[200];
+	char strings[200][32];
+};
+
 #define asInstr(instr, bbscrInstrName) ((BBScrInstr_##bbscrInstrName*)instr)
 
 class Entity
@@ -1265,14 +1386,8 @@ public:
 	inline BOOL& inputsFacingLeft() { return *(BOOL*)(ent + 0x4d38); }  // the facing for input motions interpreting
 
 	bool isGettingThrown() const;
-
-	int pushboxWidth() const;
-	int pushboxTop() const;
-	// Everyone always seems to have this value set to 0 no matter what
-	inline int pushboxFrontWidthOffset() const { return *(int*)(ent + 0x32C); }
-	int pushboxBottom() const;
-
-	void pushboxLeftRight(int* left, int* right) const;
+	
+	void pushboxDimensions(int* left, int* top, int* right, int* bottom) const;
 	
 	inline bool performingThrow() const { return (*(DWORD*)(ent + 0x23c) & 0x1000) != 0; }  // this flag appears when starting a throw or throw-like move and stays until first hit connects
 	inline unsigned int currentAnimDuration() const { return *(const unsigned int*)(ent + 0x130); }
@@ -1314,6 +1429,7 @@ public:
 	// This is set when hitting someone and reset on recovery
 	inline bool attackCollidedSoCanCancelNow() const { return (*(DWORD*)(ent + 0x23c) & 0x20) != 0; }
 	inline bool attackCollidedSoCanJumpCancelNow() const { return (*(DWORD*)(ent + 0x240) & 0x100000) != 0; }
+	inline bool destroyOnPlayerHitstun() const { return (*(DWORD*)(ent + 0x240) & 0x2000000) != 0; }
 	inline bool enableAirtech() const { return (*(DWORD*)(ent + 0x4d40) & 0x4) != 0; }
 	inline bool enableWhiffCancels() const { return (*(DWORD*)(ent + 0x4d48) & 0x2) != 0; }
 	inline bool enableSpecialCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x4) != 0; }
@@ -1463,7 +1579,8 @@ public:
 	// having this flag drastically reduces your super armor to only hits that can be reflected.
 	// Having this flag without superArmorEnabled is useless because you just get hit by the projectile
 	inline bool invulnForAegisField() const { return (*(DWORD*)(ent + 0x238) & 0x400) != 0; }
-	bool hasUpon(BBScrEvent index) const;
+	inline bool hasUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa0c))->getBit(index); }
+	inline bool needGoToMarkerUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa24))->getBit(index); }
 	const UponInfo* uponStruct(BBScrEvent index) const { return (const UponInfo*)(ent + 0xb70) + index; }
 	inline int mem45() const { return *(int*)(ent + 0x14c); }  // Reset on state change
 	inline int mem46() const { return *(int*)(ent + 0x150); }  // Reset on state change
@@ -1498,7 +1615,7 @@ public:
 	// When on the last sprite, points to the endState instruction.
 	// When on a sprite, but a spriteEnd command is after it, points to the instruction after spriteEnd.
 	inline BYTE* bbscrCurrentInstr() const { return *(BYTE**)(ent + 0xa50); }
-	inline BYTE* bbscrCurrentFunc() const { return *(BYTE**)(ent + 0xa54); }  // points to a beginState instruction
+	inline BYTE* bbscrCurrentFunc() const { return *(BYTE**)(ent + 0xa54); }  // points to a beginState instruction. Can be null inside of pawnInitializeHook
 	inline int remainingDoubleJumps() const { return *(int*)(ent + 0x4d58); }
 	inline int remainingAirDashes() const { return *(int*)(ent + 0x4d5c); }
 	inline int maxAirdashes() const { return *(int*)(ent + 0x9884); }
@@ -1605,6 +1722,13 @@ public:
 	void getWakeupTimings(WakeupTimings* output) const;
 	int calculateGuts(int* gutsLevel = nullptr) const;
 	
+	CmnActHashtable* addedMovesHashtable() const { return (CmnActHashtable*)(ent + 0xa020 + 0x18750); }
+	const AddedMoveData* findAddedMove(const char* name) const;
+	static DWORD hashStringCaseInsensitive(const char* str);
+	static DWORD hashString(const char* str);
+	
+	DWORD burstGainCounter() const { return *(DWORD*)(ent + 0x2ce4c); }
+	
 	inline char* operator+(int offset) const { return (char*)(ent + offset); }
 	inline char* operator+(DWORD offset) const { return (char*)(ent + offset); }
 
@@ -1670,9 +1794,7 @@ private:
 	friend class Entity;
 	getPos_t getPosX;
 	getPos_t getPosY;
-	getPushbox_t getPushboxWidth;
-	getPushbox_t getPushboxTop;
-	getPushbox_t getPushboxBottom;
+	getPushboxCoords_t getPushboxCoords;
 	getExtraTensionModifier_t getExtraTensionModifier = nullptr;
 };
 

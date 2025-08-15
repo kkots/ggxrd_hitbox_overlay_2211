@@ -218,6 +218,9 @@ void Settings::readSettings(bool isFirstEverRead) {
 	// the other settings are exposed bare
 	bool oldTurnOffPostEffectWhenMakingBackgroundBlack = turnOffPostEffectWhenMakingBackgroundBlack;
 	bool oldHideRankIcons = hideRankIcons;
+	bool oldUsePositionResetMod = usePositionResetMod;
+	bool oldPlayer1IsBoss = player1IsBoss;
+	bool oldPlayer2IsBoss = player2IsBoss;
 
 	std::string accum;
 	char buf[129];
@@ -328,6 +331,11 @@ void Settings::readSettings(bool isFirstEverRead) {
 	#undef settingsField
 	#undef settingsKeyCombo
 	
+	// when delivering the 7.0.0 update to existing users of 6.X.X, they probably got used to framebars not being condensed
+	if (!condenseIntoOneProjectileFramebarParsed && file) {
+		condenseIntoOneProjectileFramebar = false;
+	}
+	
 	if (framebarStoredFramesCount < 1) {
 		framebarStoredFramesCount = 1;
 	}
@@ -347,12 +355,20 @@ void Settings::readSettings(bool isFirstEverRead) {
 		if (startDisabled) {
 			gifMode.modDisabled = true;
 		}
+		// keyboard.thisProcessWindow is NULL at this stage of DLL initialization
 	} else {
 		if (turnOffPostEffectWhenMakingBackgroundBlack != oldTurnOffPostEffectWhenMakingBackgroundBlack && keyboard.thisProcessWindow) {
 			PostMessageW(keyboard.thisProcessWindow, WM_APP_TURN_OFF_POST_EFFECT_SETTING_CHANGED, FALSE, TRUE);
 		}
 		if (hideRankIcons != oldHideRankIcons && hideRankIcons && keyboard.thisProcessWindow) {
 			PostMessageW(keyboard.thisProcessWindow, WM_APP_HIDE_RANK_ICONS, FALSE, FALSE);
+		}
+		if (usePositionResetMod != oldUsePositionResetMod && usePositionResetMod) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_USE_POSITION_RESET_MOD_CHANGED, FALSE, FALSE);
+		}
+		if (player1IsBoss != oldPlayer1IsBoss && player1IsBoss
+				|| player2IsBoss != oldPlayer2IsBoss && player2IsBoss) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_PLAYER_IS_BOSS_CHANGED, FALSE, FALSE);
 		}
 	}
 	

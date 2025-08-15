@@ -22,7 +22,7 @@ bool Throws::onDllMain() {
 	std::vector<char> sig;
 	std::vector<char> mask;
 	
-	orig_hitDetectionMain = (hitDetectionMain_t)sigscanOffset("GuiltyGearXrd.exe",
+	orig_hitDetectionMain = (hitDetectionMain_t)sigscanOffset(GUILTY_GEAR_XRD_EXE,
 		"83 ec 50 a1 ?? ?? ?? ?? 33 c4 89 44 24 4c 53 55 8b d9 56 57 8d 83 10 98 16 00 8d 54 24 1c 33 ed 89 44 24 10",
 		&error, "hitDetectionMain");
 	
@@ -34,7 +34,7 @@ bool Throws::onDllMain() {
 		attackerActiveCheckPlace += 22;
 		isActivePtr = (isActive_t)followRelativeCall(attackerActiveCheckPlace);
 		
-		int (HookHelp::*hookPtr)(BOOL) = &HookHelp::hitDetectionIsActiveHook;
+		auto hookPtr = &HookHelp::hitDetectionIsActiveHook;
 		DWORD hookAddr = (DWORD)(PVOID&)hookPtr;
 		hookAddr = calculateRelativeCallOffset(attackerActiveCheckPlace, hookAddr);
 		
@@ -43,7 +43,7 @@ bool Throws::onDllMain() {
 		detouring.patchPlace(attackerActiveCheckPlace + 1, sig);
 	}
 	
-	void (HookHelp::*hookPtr)(HitDetectionType) = &HookHelp::hitDetectionMainHook;
+	auto hookPtr = &HookHelp::hitDetectionMainHook;
 	if (!detouring.attach(&(PVOID&)orig_hitDetectionMain,
 		(PVOID&)hookPtr,
 		"hitDetectionMain")) return false;
@@ -132,8 +132,6 @@ void Throws::hitDetectionMainHook() {
 
 			if (throwRange >= 0) {
 				throwInfo.hasPushboxCheck = true;
-				int otherLeft;
-				int otherRight;
 
 				Entity other = nullptr;
 				if (entityList.count >= 2) {
@@ -141,17 +139,27 @@ void Throws::hitDetectionMainHook() {
 				} else {
 					other = entityList.slots[0];
 				}
-				other.pushboxLeftRight(&otherLeft, &otherRight);
+				int otherPushboxLeft;
+				int otherPushboxTop;
+				int otherPushboxRight;
+				int otherPushboxBottom;
+				other.pushboxDimensions(&otherPushboxLeft, &otherPushboxTop, &otherPushboxRight, &otherPushboxBottom);
 				int otherX = other.posX();
 
 				throwInfo.leftUnlimited = false;
 				throwInfo.rightUnlimited = false;
-				ent.pushboxLeftRight(&throwInfo.left, &throwInfo.right);
+				int thisPushboxLeft;
+				int thisPushboxTop;
+				int thisPushboxRight;
+				int thisPushboxBottom;
+				ent.pushboxDimensions(&thisPushboxLeft, &thisPushboxTop, &thisPushboxRight, &thisPushboxBottom);
+				throwInfo.left = thisPushboxLeft;
+				throwInfo.right = thisPushboxRight;
 				throwInfo.throwRange = throwRange;
 				throwInfo.pushboxCheckMinX = throwInfo.left - throwRange;
 				throwInfo.pushboxCheckMaxX = throwInfo.right + throwRange;
-				throwInfo.left -= throwRange + (otherRight - otherX);
-				throwInfo.right += throwRange + (otherX - otherLeft);
+				throwInfo.left -= throwRange + (otherPushboxRight - otherX);
+				throwInfo.right += throwRange + (otherX - otherPushboxLeft);
 			}
 
 			if (throwMinX < throwMaxX) {

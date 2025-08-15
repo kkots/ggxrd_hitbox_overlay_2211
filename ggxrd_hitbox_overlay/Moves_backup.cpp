@@ -482,8 +482,19 @@ bool Moves::onDllMain() {
 	return !error;
 }
 
+template<size_t lineNumber>
+inline const NamePair* getPair(const char* name, const char* slang = nullptr) {
+	static const NamePair myPair {
+		name,
+		slang
+	};
+	return &myPair;
+}
+
 void Moves::addMoves() {
 	MoveInfo move;
+	
+	#define assignName getPair<__LINE__>
 	
 	move = MoveInfo(GENERAL, "CmnStandForce");
 	move.displayName = assignName("Stand");
@@ -1080,325 +1091,327 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk5CNear");
-	move.displayName = assignName("c.S");
+	move.displayName = "c.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk5CFar");
-	move.displayName = assignName("f.S");
+	move.displayName = "f.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk5D");
-	move.displayName = assignName("5H");
+	move.displayName = "5H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk5E");
-	move.displayName = assignName("5D");
+	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk5F");
-	move.displayName = assignName("Taunt");
+	move.displayName = "Taunt";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk2A");
-	move.displayName = assignName("2P");
+	move.displayName = "2P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk2B");
-	move.displayName = assignName("2K");
+	move.displayName = "2K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk2C");
-	move.displayName = assignName("2S");
+	move.displayName = "2S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk2D");
-	move.displayName = assignName("2H");
+	move.displayName = "2H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk2E");
-	move.displayName = assignName("2D");
+	move.displayName = "2D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk1A");
-	move.displayName = assignName("1P");
+	move.displayName = "1P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk1B");
-	move.displayName = assignName("1K");
+	move.displayName = "1K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk1C");
-	move.displayName = assignName("1S");
+	move.displayName = "1S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk1D");
-	move.displayName = assignName("1H");
+	move.displayName = "1H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk1E");
-	move.displayName = assignName("1D");
+	move.displayName = "1D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk3A");
-	move.displayName = assignName("3P");
+	move.displayName = "3P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk3B");
-	move.displayName = assignName("3K");
+	move.displayName = "3K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk3C");
-	move.displayName = assignName("3S");
+	move.displayName = "3S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk3D");
-	move.displayName = assignName("3H");
+	move.displayName = "3H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk3E");
-	move.displayName = assignName("3D");
+	move.displayName = "3D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk4A");
-	move.displayName = assignName("4P");
+	move.displayName = "4P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk4B");
-	move.displayName = assignName("4K");
+	move.displayName = "4K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk4C");
-	move.displayName = assignName("4S");
+	move.displayName = "4S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk4D");
-	move.displayName = assignName("4H");
+	move.displayName = "4H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk4E");
-	move.displayName = assignName("4D");
+	move.displayName = "4D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk6A");
-	move.displayName = assignName("6P");
+	move.displayName = "6P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk6B");
-	move.displayName = assignName("6K");
+	move.displayName = "6K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk6C");
-	move.displayName = assignName("6S");
+	move.displayName = "6S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk6D");
-	move.displayName = assignName("6H");
+	move.displayName = "6H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk6E");
-	move.displayName = assignName("6D");
+	move.displayName = "6D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtk6F");
-	move.displayName = assignName("Respect");
+	move.displayName = "Respect";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir5A");
-	move.displayName = assignName("j.P");
+	move.displayName = "j.P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir5B");
-	move.displayName = assignName("j.K");
+	move.displayName = "j.K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir5C");
-	move.displayName = assignName("j.S");
+	move.displayName = "j.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir5D");
-	move.displayName = assignName("j.H");
+	move.displayName = "j.H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir5E");
-	move.displayName = assignName("j.D");
+	move.displayName = "j.D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir2A");
-	move.displayName = assignName("j.2P");
+	move.displayName = "j.2P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir2B");
-	move.displayName = assignName("j.2K");
+	move.displayName = "j.2K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir2C");
-	move.displayName = assignName("j.2S");
+	move.displayName = "j.2S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir2D");
-	move.displayName = assignName("j.2H");
+	move.displayName = "j.2H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir2E");
-	move.displayName = assignName("j.2D");
+	move.displayName = "j.2D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir4A");
-	move.displayName = assignName("j.4P");
+	move.displayName = "j.4P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir4B");
-	move.displayName = assignName("j.4K");
+	move.displayName = "j.4K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir4C");
-	move.displayName = assignName("j.4S");
+	move.displayName = "j.4S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir4D");
-	move.displayName = assignName("j.4H");
+	move.displayName = "j.4H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir4E");
-	move.displayName = assignName("j.4D");
+	move.displayName = "j.4D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir6A");
-	move.displayName = assignName("j.6P");
+	move.displayName = "j.6P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir6B");
-	move.displayName = assignName("j.6K");
+	move.displayName = "j.6K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir6C");
-	move.displayName = assignName("j.6S");
+	move.displayName = "j.6S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir6D");
-	move.displayName = assignName("j.6H");
+	move.displayName = "j.6H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir6E");
-	move.displayName = assignName("j.6D");
+	move.displayName = "j.6D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "NmlAtkAir8E");
-	move.displayName = assignName("j.8D");
+	move.displayName = "j.8D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnVJump");
-	move.displayName = assignName("Jump Neutral");
+	move.displayName = "Jump Neutral";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnFJump");
-	move.displayName = assignName("Jump Forward");
+	move.displayName = "Jump Forward";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnBJump");
-	move.displayName = assignName("Jump Back");
+	move.displayName = "Jump Back";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnVHighJump");
-	move.displayName = assignName("Superjump Neutral");
+	move.displayName = "Superjump Neutral";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnFHighJump");
-	move.displayName = assignName("Superjump Forward");
+	move.displayName = "Superjump Forward";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnBHighJump");
-	move.displayName = assignName("Superjump Back");
+	move.displayName = "Superjump Back";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnVAirJump");
-	move.displayName = assignName("Double Jump Neutral");
+	move.displayName = "Double Jump Neutral";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnFAirJump");
-	move.displayName = assignName("Double Jump Forward");
+	move.displayName = "Double Jump Forward";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnBAirJump");
-	move.displayName = assignName("Double Jump Back");
+	move.displayName = "Double Jump Back";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "ThrowExe");
-	move.displayName = assignName("Ground Throw");
+	move.displayName = "Ground Throw";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "AirThrowExe");
-	move.displayName = assignName("Airthrow");
+	move.displayName = "Airthrow";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CounterGuardStand");
-	move.displayName = assignName("Standing Blitz Shield", "Standing Blitz");
+	move.displayName = "Standing Blitz Shield";
 	move.displayNameSelector = displayNameSelector_standingBlitzShield;
+	move.slangName = "Standing Blitz";
+	move.displaySlangNameSelector = displaySlangNameSelector_standingBlitzShield;
 	move.sectionSeparator = sectionSeparator_blitzShield;
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
@@ -1406,8 +1419,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CounterGuardCrouch");
-	move.displayName = assignName("Crouching Blitz Shield", "Crouching Blitz");
+	move.displayName = "Crouching Blitz Shield";
 	move.displayNameSelector = displayNameSelector_crouchingBlitzShield;
+	move.slangName = "Crouching Blitz";
+	move.displaySlangNameSelector = displaySlangNameSelector_crouchingBlitzShield;
 	move.sectionSeparator = sectionSeparator_blitzShield;
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
@@ -1415,332 +1430,383 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CounterGuardAir");
-	move.displayName = assignName("Air Blitz Shield", "Air Blitz");
+	move.displayName = "Air Blitz Shield";
+	move.slangName = "Air Blitz";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverLand");
-	move.displayName = assignName("Bandit Revolver", "BR");
+	move.displayName = "Bandit Revolver";
+	move.slangName = "BR";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverLand_DI");
-	move.displayName = assignName("DI Bandit Revolver", "DI BR");
+	move.displayName = "DI Bandit Revolver";
+	move.slangName = "DI BR";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame");
-	move.displayName = assignName("Gunflame", "GF");
+	move.displayName = "Gunflame";
 	move.displayNameSelector = displayNameSelector_gunflame;
+	move.slangName = "GF";
+	move.displaySlangNameSelector = displaySlangNameSelector_gunflame;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame_DI");
-	move.displayName = assignName("DI Gunflame", "DI GF");
+	move.displayName = "DI Gunflame";
 	move.displayNameSelector = displayNameSelector_gunflameDI;
+	move.slangName = "DI GF";
+	move.displaySlangNameSelector = displaySlangNameSelector_gunflameDI;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverAir");
-	move.displayName = assignName("Air Bandit Revolver", "Air BR");
+	move.displayName = "Air Bandit Revolver";
+	move.slangName = "Air BR";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditRevolverAir_DI");
-	move.displayName = assignName("DI Air Bandit Revolver", "DI Air BR");
+	move.displayName = "DI Air Bandit Revolver";
+	move.slangName = "DI Air BR";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GroundViper");
-	move.displayName = assignName("Ground Viper", "GV");
+	move.displayName = "Ground Viper";
+	move.slangName = "GV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GroundViper_DI");
-	move.displayName = assignName("DI Ground Viper", "DI GV");
+	move.displayName = "DI Ground Viper";
+	move.slangName = "DI GV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "RiotStamp");
-	move.displayName = assignName("Riot Stamp", "RS");
+	move.displayName = "Riot Stamp";
+	move.slangName = "RS";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "RiotStamp_DI");
-	move.displayName = assignName("DI Riot Stamp", "DI RS");
+	move.displayName = "DI Riot Stamp";
+	move.slangName = "DI RS";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameFeint");
-	move.displayName = assignName("Gunflame Feint", "GF Feint");
+	move.displayName = "Gunflame Feint";
+	move.slangName = "GF Feint";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "Kudakero");
-	move.displayName = assignName("Break");
+	move.displayName = "Break";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "Kudakero_DI");
-	move.displayName = assignName("DI Break");
+	move.displayName = "DI Break";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandHS");
-	move.displayName = assignName("H Volcanic Viper", "hVV");
+	move.displayName = "H Volcanic Viper";
+	move.slangName = "hVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandHS_DI");
-	move.displayName = assignName("DI H Volcanic Viper", "DI hVV");
+	move.displayName = "DI H Volcanic Viper";
+	move.slangName = "DI hVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandS");
-	move.displayName = assignName("S Volcanic Viper", "sVV");
+	move.displayName = "S Volcanic Viper";
+	move.slangName = "sVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperLandS_DI");
-	move.displayName = assignName("DI S Volcanic Viper", "DI sVV");
+	move.displayName = "DI S Volcanic Viper";
+	move.slangName = "DI sVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "AirCommandThrow");
-	move.displayName = assignName("P.B.B.");
+	move.displayName = "P.B.B.";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "AirCommandThrowExe");
-	move.displayName = assignName("P.B.B.");
+	move.displayName = "P.B.B.";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperAirHS");
-	move.displayName = assignName("Air H Volcanic Viper", "Air HVV");
+	move.displayName = "Air H Volcanic Viper";
+	move.slangName = "Air HVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperAirHS_DI");
-	move.displayName = assignName("DI Air H Volcanic Viper", "DI Air HVV");
+	move.displayName = "DI Air H Volcanic Viper";
+	move.slangName = "DI Air HVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperAirS");
-	move.displayName = assignName("Air S Volcanic Viper", "Air SVV");
+	move.displayName = "Air S Volcanic Viper";
+	move.slangName = "Air SVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperAirS_DI");
-	move.displayName = assignName("DI Air S Volcanic Viper", "DI Air SVV");
+	move.displayName = "DI Air S Volcanic Viper";
+	move.slangName = "DI Air SVV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "Fefnir");
-	move.displayName = assignName("Fafnir");
+	move.displayName = "Fafnir";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "Fefnir_DI");
-	move.displayName = assignName("DI Fafnir");
+	move.displayName = "DI Fafnir";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditBringer");
-	move.displayName = assignName("Bandit Bringer", "BB");
+	move.displayName = "Bandit Bringer";
+	move.slangName = "BB";
 	move.combineWithPreviousMove = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BanditBringer_DI");
-	move.displayName = assignName("DI Bandit Bringer", "DI BB");
+	move.displayName = "DI Bandit Bringer";
+	move.slangName = "DI BB";
 	move.combineWithPreviousMove = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperKick");
-	move.displayName = assignName("Volcanic Viper Knockdown", "VV KD");
+	move.displayName = "Volcanic Viper Knockdown";
+	move.slangName = "VV KD";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "VolcanicViperKick_DI");
-	move.displayName = assignName("DI Volcanic Viper Knockdown", "DI VV KD");
+	move.displayName = "DI Volcanic Viper Knockdown";
+	move.slangName = "DI VV KD";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave");
-	move.displayName = assignName("Tyrant Rave", "TR");
+	move.displayName = "Tyrant Rave";
+	move.slangName = "TR";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave_DI");
-	move.displayName = assignName("DI Tyrant Rave", "DI TR");
+	move.displayName = "DI Tyrant Rave";
+	move.slangName = "DI TR";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_recovery;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRaveBurst");
-	move.displayName = assignName("Burst Tyrant Rave", "Burst TR");
+	move.displayName = "Burst Tyrant Rave";
+	move.slangName = "Burst TR";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "DragonInstall");
-	move.displayName = assignName("Dragon Install", "DI");
+	move.displayName = "Dragon Install";
+	move.slangName = "DI";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "ExKizetsu");
-	move.displayName = assignName("DI Recovery");
+	move.displayName = "DI Recovery";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BukkiraExe");
-	move.displayName = assignName("Wild Throw", "WT");
+	move.displayName = "Wild Throw";
+	move.slangName = "WT";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "BukkirabouNiNageru");
-	move.displayName = assignName("Wild Throw", "WT");
+	move.displayName = "Wild Throw";
+	move.slangName = "WT";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameHibashira", true);
 	move.isDangerous = isDangerous_gunflame;
 	move.framebarId = 1;
-	move.framebarName = assignName("Gunflame", "GF");
+	move.framebarName = "Gunflame";
 	move.framebarNameSelector = framebarNameSelector_gunflameProjectile;
+	move.framebarSlangName = "GF";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameHibashira_DI", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 1;
-	move.framebarName = assignName("Gunflame", "GF");
+	move.framebarName = "Gunflame";
 	move.framebarNameSelector = framebarNameSelector_gunflameProjectile;
+	move.framebarSlangName = "GF";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRavePunch2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 2;
-	move.framebarName = assignName("Tyrant Rave", "TR");
+	move.framebarName = "Tyrant Rave";
+	move.framebarSlangName = "TR";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRavePunch2_DI", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 2;
-	move.framebarName = assignName("Tyrant Rave", "TR");
+	move.framebarName = "Tyrant Rave";
+	move.framebarSlangName = "TR";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "KudakeroEF", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 3;
-	move.framebarName = assignName("Break Explosion");
+	move.framebarName = "Break Explosion";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "KudakeroEF_DI", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 3;
-	move.framebarName = assignName("Break Explosion");
+	move.framebarName = "Break Explosion";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "RiotStamp_DI_Bomb", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 4;
-	move.framebarName = assignName("Riot Stamp", "RS");
+	move.framebarName = "Riot Stamp";
+	move.framebarSlangName = "RS";
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GroundViperDash_DI", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 5;
-	move.framebarName = assignName("GV Fire Pillars");
+	move.framebarName = "GV Fire Pillars";
 	move.framebarNameFull = "Ground Viper Fire Pillars";
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge2");
-	move.displayName = assignName("Charged Stun Edge", "CSE");
+	move.displayName = "Charged Stun Edge";
+	move.slangName = "CSE";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge1");
-	move.displayName = assignName("Stun Edge", "SE");
+	move.displayName = "Stun Edge";
+	move.slangName = "SE";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunDipper");
-	move.displayName = assignName("Stun Dipper");
+	move.displayName = "Stun Dipper";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "HolyBrand");
-	move.displayName = assignName("Split Ciel");
+	move.displayName = "Split Ciel";
 	move.createdProjectile = createdProjectile_splitCiel;
 	move.canYrcProjectile = canYrcProjectile_splitCiel;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "GreedSaber");
-	move.displayName = assignName("Greed Sever");
+	move.displayName = "Greed Sever";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirStunEdge2");
-	move.displayName = assignName("Air H Stun Edge", "Air H SE");
+	move.displayName = "Air H Stun Edge";
+	move.slangName = "Air H SE";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirStunEdge1");
-	move.displayName = assignName("Air S Stun Edge", "Air S SE");
+	move.displayName = "Air S Stun Edge";
+	move.slangName = "Air S SE";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "VaporThrustD");
-	move.displayName = assignName("H Vapor Thrust", "HVT");
+	move.displayName = "H Vapor Thrust";
+	move.slangName = "HVT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "VaporThrustC");
-	move.displayName = assignName("S Vapor Thrust", "SVT");
+	move.displayName = "S Vapor Thrust";
+	move.slangName = "SVT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirVaporThrustD");
-	move.displayName = assignName("Air H Vapor Thrust", "Air HVT");
+	move.displayName = "Air H Vapor Thrust";
+	move.slangName = "Air HVT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirVaporThrust");
-	move.displayName = assignName("Air S Vapor Thrust", "Air SVT");
+	move.displayName = "Air S Vapor Thrust";
+	move.slangName = "Air SVT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SacredEdge");
-	move.displayName = assignName("Sacred Edge");
+	move.displayName = "Sacred Edge";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "RideTheLightning");
-	move.displayName = assignName("Ride The Lightning", "RTL");
+	move.displayName = "Ride The Lightning";
+	move.slangName = "RTL";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "RideTheLightningBurst");
-	move.displayName = assignName("Burst Ride The Lightning", "Burst RTL");
+	move.displayName = "Burst Ride The Lightning";
+	move.slangName = "Burst RTL";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirRideTheLightning");
-	move.displayName = assignName("Air Ride The Lightning", "Air RTL");
+	move.displayName = "Air Ride The Lightning";
+	move.slangName = "Air RTL";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirRideTheLightningBurst");
-	move.displayName = assignName("Air Burst Ride The Lightning", "Air Burst RTL");
+	move.displayName = "Air Burst Ride The Lightning";
+	move.slangName = "Air Burst RTL";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdgeObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 6;
-	move.framebarName = assignName("Stun Edge", "SE");
+	move.framebarName = "Stun Edge";
+	move.framebarSlangName = "SE";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "Mahojin", true);
-	move.framebarName = assignName("Durandal Call Grinder", "DC Grinder");  // can get displayed in the framebar due to clashing with an opponent's projectile
+	move.framebarName = "Durandal Call Grinder";  // can get displayed in the framebar due to clashing with an opponent's projectile
+	move.framebarSlangName = "DC Grinder";
 	move.framebarId = 114;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -1748,14 +1814,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPStunEdgeObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 6;
-	move.framebarName = assignName("DCSE");
+	move.framebarName = "DCSE";
 	move.framebarNameFull = "Fortified Stun Edge (Durandal Call Stun Edge)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "ChargedStunEdgeObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 7;
-	move.framebarName = assignName("CSE");
+	move.framebarName = "CSE";
 	move.framebarNameFull = "Charged Stun Edge";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -1763,19 +1829,19 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPChargedStunEdgeObj", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 7;
-	move.framebarName = assignName("DCCSE");
+	move.framebarName = "DCCSE";
 	move.framebarNameFull = "Fortified Charged Stun Edge (Drandal Call Charged Stun Edge)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirDustAttackObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 8;
-	move.framebarName = assignName("j.D");
+	move.framebarName = "j.D";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtk5E");
-	move.displayName = assignName("5D");
+	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_ky5D;
 	move.canYrcProjectile = canYrcProjectile_ky5D;
@@ -1783,7 +1849,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtkAir5E");
-	move.displayName = assignName("j.D");
+	move.displayName = "j.D";
 	move.nameIncludesInputs = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
@@ -1792,79 +1858,92 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "DustEffectShot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 9;
-	move.framebarName = assignName("5D");
+	move.framebarName = "5D";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SacredEdgeObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 10;
-	move.framebarName = assignName("Sacred Edge");
+	move.framebarName = "Sacred Edge";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPSacredEdgeObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 10;
-	move.framebarName = assignName("Fortified Sacred Edge", "DC Sacred Edge");
+	move.framebarName = "Fortified Sacred Edge";
+	move.framebarSlangName = "DC Sacred Edge";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "NmlAtk6B");
-	move.displayName = assignName("6K");
+	move.displayName = "6K";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "GlitterIsGold");
-	move.displayName = assignName("Glitter Is Gold", "Coin");
+	move.displayName = "Glitter Is Gold";
+	move.slangName = "Coin";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "BucchusSigh");
-	move.displayName = assignName("Bacchus Sigh", "Bacchus");
+	move.displayName = "Bacchus Sigh";
+	move.slangName = "Bacchus";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Bacchus Sigh", PROJECTILE_NAME_BACCHUS);
+	move.framebarName = "Bacchus Sigh";
+	move.framebarSlangName = PROJECTILE_NAME_BACCHUS;
 	move.framebarId = 112;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistKuttsuku", true);
 	move.isDangerous = isDangerous_mistKuttsuku;
-	move.framebarName = assignName("Bacchus Sigh Debuff", "Bacchus");
+	move.framebarName = "Bacchus Sigh Debuff";
+	move.framebarSlangName = "Bacchus";
 	move.framebarId = 112;
 	addMove(move);
 	
 	// the initial move of grounded Mist Finer, is 1f long
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerA");
-	move.displayName = assignName("P Mist Finer Stance Entry", "PMF Entry");
+	move.displayName = "P Mist Finer Stance Entry";
 	move.displayNameSelector = displayNameSelector_mistEntry;
+	move.slangName = "PMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerB");
-	move.displayName = assignName("K Mist Finer Stance Entry", "KMF Entry");
+	move.displayName = "K Mist Finer Stance Entry";
 	move.displayNameSelector = displayNameSelector_mistEntry;
+	move.slangName = "KMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerC");
-	move.displayName = assignName("S Mist Finer Stance Entry", "SMF Entry");
+	move.displayName = "S Mist Finer Stance Entry";
 	move.displayNameSelector = displayNameSelector_mistEntry;
+	move.slangName = "SMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// is entered into from MistFinerA/B/C, has variable duration depending on Mist Finer level
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerDehajime");
-	move.displayName = assignName("Mist Finer Entry", "MF Entry");
+	move.displayName = "Mist Finer Entry";
 	move.displayNameSelector = displayNameSelector_mistEntry;
+	move.slangName = "MF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistEntry;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
@@ -1874,8 +1953,10 @@ void Moves::addMoves() {
 	// In Rev2 is exited out of instantly into another Mist Finer from things like MistFinerFWalk.
 	// In Rev1 takes one frame to transition.
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerLoop");
-	move.displayName = assignName("Mist Finer Stance", "MF Stance");
+	move.displayName = "Mist Finer Stance";
 	move.displayNameSelector = displayNameSelector_mistLoop;
+	move.slangName = "MF Stance";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistLoop;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.sectionSeparator = sectionSeparator_enableWhiffCancels;
@@ -1886,7 +1967,8 @@ void Moves::addMoves() {
 	
 	// performed when releasing the Mist Finer attack
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerALv0");
-	move.displayName = assignName("Lv1 P Mist Finer", "Lv1 PMF");
+	move.displayName = "Lv1 P Mist Finer";
+	move.slangName = "Lv1 PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1896,7 +1978,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerALv1");
-	move.displayName = assignName("Lv2 P Mist Finer", "Lv2 PMF");
+	move.displayName = "Lv2 P Mist Finer";
+	move.slangName = "Lv2 PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1906,7 +1989,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerALv2");
-	move.displayName = assignName("Lv3 P Mist Finer", "Lv3 PMF");
+	move.displayName = "Lv3 P Mist Finer";
+	move.slangName = "Lv3 PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1916,7 +2000,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv0");
-	move.displayName = assignName("Lv1 K Mist Finer", "Lv1 KMF");
+	move.displayName = "Lv1 K Mist Finer";
+	move.slangName = "Lv1 KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1926,7 +2011,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv1");
-	move.displayName = assignName("Lv2 K Mist Finer", "Lv2 KMF");
+	move.displayName = "Lv2 K Mist Finer";
+	move.slangName = "Lv2 KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1936,7 +2022,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBLv2");
-	move.displayName = assignName("Lv3 K Mist Finer", "Lv3 KMF");
+	move.displayName = "Lv3 K Mist Finer";
+	move.slangName = "Lv3 KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1946,7 +2033,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv0");
-	move.displayName = assignName("Lv1 S Mist Finer", "Lv1 SMF");
+	move.displayName = "Lv1 S Mist Finer";
+	move.slangName = "Lv1 SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1956,7 +2044,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv1");
-	move.displayName = assignName("Lv2 S Mist Finer", "Lv2 SMF");
+	move.displayName = "Lv2 S Mist Finer";
+	move.slangName = "Lv2 SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1966,7 +2055,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCLv2");
-	move.displayName = assignName("Lv3 S Mist Finer", "Lv3 SMF");
+	move.displayName = "Lv3 S Mist Finer";
+	move.slangName = "Lv3 SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -1977,7 +2067,8 @@ void Moves::addMoves() {
 	
 	// backdash during grounded Mist Finer
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBDash");
-	move.displayName = assignName("Mist Finer Backdash", "MF BD");
+	move.displayName = "Mist Finer Backdash";
+	move.slangName = "MF BD";
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -1987,8 +2078,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerFDash");
-	move.displayName = assignName("Mist Finer Forward Dash", "MF Dash");
+	move.displayName = "Mist Finer Forward Dash";
 	move.displayNameSelector = displayNameSelector_mistDash;
+	move.slangName = "MF Dash";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistDash;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -1998,8 +2091,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBWalk");
-	move.displayName = assignName("Mist Finer Walk Back", "MF Walk Back");
+	move.displayName = "Mist Finer Walk Back";
 	move.displayNameSelector = displayNameSelector_mistWalkBackward;
+	move.slangName = "MF Walk Back";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistWalkBackward;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -2010,8 +2105,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerFWalk");
-	move.displayName = assignName("Mist Finer Walk Forward", "MF Walk Forward");
+	move.displayName = "Mist Finer Walk Forward";
 	move.displayNameSelector = displayNameSelector_mistWalkForward;
+	move.slangName = "MF Walk Forward";
+	move.displaySlangNameSelector = displaySlangNameSelector_mistWalkForward;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -2022,7 +2119,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerCancel");
-	move.displayName = assignName("Mist Finer Cancel", "MFC");
+	move.displayName = "Mist Finer Cancel";
+	move.slangName = "MFC";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2031,27 +2129,35 @@ void Moves::addMoves() {
 	
 	// the initial move of air Mist Finer, is 1f long
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerA");
-	move.displayName = assignName("Air P Mist Finer Stance Entry", "j.PMF Entry");
+	move.displayName = "Air P Mist Finer Stance Entry";
 	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.PMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerB");
-	move.displayName = assignName("Air K Mist Finer Stance Entry", "j.KMF Entry");
+	move.displayName = "Air K Mist Finer Stance Entry";
 	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.KMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerC");
-	move.displayName = assignName("Air S Mist Finer Stance Entry", "j.SMF Entry");
+	move.displayName = "Air S Mist Finer Stance Entry";
 	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.SMF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	addMove(move);
 	
 	// is entered into from MistFinerA/B/C, has variable duration depending on Mist Finer level
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerDehajime");
-	move.displayName = assignName("Air Mist Finer Entry", "j.MF Entry");
+	move.displayName = "Air Mist Finer Entry";
 	move.displayNameSelector = displayNameSelector_airMistEntry;
+	move.slangName = "j.MF Entry";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistEntry;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	addMove(move);
@@ -2060,8 +2166,10 @@ void Moves::addMoves() {
 	// In Rev2 is exited out of instantly into another Mist Finer from things like MistFinerFWalk.
 	// In Rev1 takes one frame to transition.
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerLoop");
-	move.displayName = assignName("Air Mist Finer Stance", "j.MF Stance");
+	move.displayName = "Air Mist Finer Stance";
 	move.displayNameSelector = displayNameSelector_airMistLoop;
+	move.slangName = "j.MF Stance";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistLoop;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.sectionSeparator = sectionSeparator_enableWhiffCancels;
@@ -2071,8 +2179,10 @@ void Moves::addMoves() {
 	
 	// forward dash during air Mist Finer
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerFDashAir");
-	move.displayName = assignName("Air Mist Finer Forward Dash", "j.MF Forward Dash");
+	move.displayName = "Air Mist Finer Forward Dash";
 	move.displayNameSelector = displayNameSelector_airMistDash;
+	move.slangName = "j.MF Forward Dash";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistDash;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -2082,8 +2192,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBDashAir");
-	move.displayName = assignName("Air Mist Finer Backdash", "j.MF BD");
+	move.displayName = "Air Mist Finer Backdash";
 	move.displayNameSelector = displayNameSelector_airMistBackdash;
+	move.slangName = "j.MF BD";
+	move.displaySlangNameSelector = displaySlangNameSelector_airMistBackdash;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -2094,7 +2206,8 @@ void Moves::addMoves() {
 	
 	// performed when releasing the Mist Finer attack
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv0");
-	move.displayName = assignName("Lv1 Air P Mist Finer", "Lv1 j.PMF");
+	move.displayName = "Lv1 Air P Mist Finer";
+	move.slangName = "Lv1 j.PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2103,7 +2216,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv1");
-	move.displayName = assignName("Lv2 Air P Mist Finer", "Lv2 j.PMF");
+	move.displayName = "Lv2 Air P Mist Finer";
+	move.slangName = "Lv2 j.PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2112,7 +2226,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv2");
-	move.displayName = assignName("Lv3 Air P Mist Finer", "Lv3 j.PMF");
+	move.displayName = "Lv3 Air P Mist Finer";
+	move.slangName = "Lv3 j.PMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2121,7 +2236,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv0");
-	move.displayName = assignName("Lv1 Air K Mist Finer", "Lv1 j.KMF");
+	move.displayName = "Lv1 Air K Mist Finer";
+	move.slangName = "Lv1 j.KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2130,7 +2246,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv1");
-	move.displayName = assignName("Lv2 Air K Mist Finer", "Lv2 j.KMF");
+	move.displayName = "Lv2 Air K Mist Finer";
+	move.slangName = "Lv2 j.KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.powerup = powerup_mistFiner;
@@ -2139,7 +2256,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv2");
-	move.displayName = assignName("Lv3 Air K Mist Finer", "Lv3 j.KMF");
+	move.displayName = "Lv3 Air K Mist Finer";
+	move.slangName = "Lv3 j.KMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2148,7 +2266,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv0");
-	move.displayName = assignName("Lv1 Air S Mist Finer", "Lv1 j.SMF");
+	move.displayName = "Lv1 Air S Mist Finer";
+	move.slangName = "Lv1 j.SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2157,7 +2276,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv1");
-	move.displayName = assignName("Lv2 Air S Mist Finer", "Lv2 j.SMF");
+	move.displayName = "Lv2 Air S Mist Finer";
+	move.slangName = "Lv2 j.SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2166,7 +2286,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv2");
-	move.displayName = assignName("Lv3 Air S Mist Finer", "Lv3 j.SMF");
+	move.displayName = "Lv3 Air S Mist Finer";
+	move.slangName = "Lv3 j.SMF";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2175,21 +2296,24 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCancel");
-	move.displayName = assignName("Air Mist Finer Cancel", "j.MFC");
+	move.displayName = "Air Mist Finer Cancel";
+	move.slangName = "j.MFC";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "TreasureHunt");
-	move.displayName = assignName("Treasure Hunt", "TH");
+	move.displayName = "Treasure Hunt";
+	move.slangName = "TH";
 	move.sectionSeparator = sectionSeparator_treasureHunt;
 	move.isInVariableStartupSection = isInVariableStartupSection_treasureHunt;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "StepTreasureHunt");
-	move.displayName = assignName("Stance Dash Treasure Hunt", "SDTH");
+	move.displayName = "Stance Dash Treasure Hunt";
+	move.slangName = "SDTH";
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
@@ -2201,55 +2325,64 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Coin", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 80;
-	move.framebarName = assignName("Glitter Is Gold", "Coin");
+	move.framebarName = "Glitter Is Gold";
+	move.framebarSlangName = "Coin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza");
-	move.displayName = assignName("Zwei Hander", "Zwei");
+	move.displayName = "Zwei Hander";
+	move.slangName = "Zwei";
 	move.isInVariableStartupSection = isInVariableStartupSection_zweiLand;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot");
-	move.displayName = assignName("Zwei Hander Attack", "Zwei K");
+	move.displayName = "Zwei Hander Attack";
+	move.slangName = "Zwei K";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Air");
-	move.displayName = assignName("Air Zwei Hander", "j.Z");
+	move.displayName = "Air Zwei Hander";
+	move.slangName = "j.Z";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 81;
-	move.framebarName = assignName("Zwei Hander", "Zwei");
+	move.framebarName = "Zwei Hander";
+	move.framebarSlangName = "Zwei";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot2_Air", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 81;
-	move.framebarName = assignName("Zwei Hander", "Zwei");
+	move.framebarName = "Zwei Hander";
+	move.framebarSlangName = "Zwei";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Orenona");
-	move.displayName = assignName("That's My Name", "TMN");
+	move.displayName = "That's My Name";
+	move.slangName = "TMN";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "OrenonaBurst");
-	move.displayName = assignName("Burst That's My Name", "Burst TMN");
+	move.displayName = "Burst That's My Name";
+	move.slangName = "Burst TMN";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "OrenonaExe");
-	move.displayName = assignName("That's My Name", "TMN");
+	move.displayName = "That's My Name";
+	move.slangName = "TMN";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk3B");
-	move.displayName = assignName("3K");
+	move.displayName = "3K";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -2263,26 +2396,28 @@ void Moves::addMoves() {
 	move.sectionSeparatorProjectile = sectionSeparatorProjectile_dolphin;
 	move.isDangerous = isDangerous_aboveGround;
 	move.framebarId = 11;
-	move.framebarName = assignName("Dolphin");
+	move.framebarName = "Dolphin";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "MayBallA", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 12;
-	move.framebarName = assignName("Beach Ball", "Ball");
+	move.framebarName = "Beach Ball";
+	move.framebarSlangName = "Ball";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "MayBallB", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 12;
-	move.framebarName = assignName("Beach Ball", "Ball");
+	move.framebarName = "Beach Ball";
+	move.framebarSlangName = "Ball";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6A");
-	move.displayName = assignName("6P");
+	move.displayName = "6P";
 	move.displayNameSelector = displayNameSelector_may6P;
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_may6P;
@@ -2292,7 +2427,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6D");
-	move.displayName = assignName("6H");
+	move.displayName = "6H";
 	move.displayNameSelector = displayNameSelector_may6H;
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_may6H;
@@ -2303,207 +2438,229 @@ void Moves::addMoves() {
 	
 	// May riding horizontal Dolphin
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanRidingAttackYokoA");
-	move.displayName = assignName("Hop on Dolphin", "HoD");
+	move.displayName = "Hop on Dolphin";
+	move.slangName = "HoD";
 	move.isRecoveryHasGatlings = isRecoveryHasGatlings_mayRideTheDolphin;
 	move.isRecoveryCanAct = isRecoveryCanAct_mayRideTheDolphin;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanRidingAttackYokoB");
-	move.displayName = assignName("Hop on Dolphin", "HoD");
+	move.displayName = "Hop on Dolphin";
+	move.slangName = "HoD";
 	move.isRecoveryHasGatlings = isRecoveryHasGatlings_mayRideTheDolphin;
 	move.isRecoveryCanAct = isRecoveryCanAct_mayRideTheDolphin;
 	addMove(move);
 	
 	// May riding vertical Dolphin
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanRidingAttackTateA");
-	move.displayName = assignName("Hop on Dolphin", "HoD");
+	move.displayName = "Hop on Dolphin";
+	move.slangName = "HoD";
 	move.isRecoveryHasGatlings = isRecoveryHasGatlings_mayRideTheDolphin;
 	move.isRecoveryCanAct = isRecoveryCanAct_mayRideTheDolphin;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanRidingAttackTateB");
-	move.displayName = assignName("Hop on Dolphin", "HoD");
+	move.displayName = "Hop on Dolphin";
+	move.slangName = "HoD";
 	move.isRecoveryHasGatlings = isRecoveryHasGatlings_mayRideTheDolphin;
 	move.isRecoveryCanAct = isRecoveryCanAct_mayRideTheDolphin;
 	addMove(move);
 	
 	// big whale attack
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Yamada", true);
-	move.framebarName = assignName("Yamada");
+	move.framebarName = "Yamada";
 	move.framebarId = 12;
 	move.isDangerous = isDangerous_not_hasHitNumButInactive;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Goshogawara");
-	move.displayName = assignName("Deluxe Goshogawara Bomber");
+	move.displayName = "Deluxe Goshogawara Bomber";
+	move.framebarSlangName = "USW~P";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// May spins and may do a suicide whale in the end. This is the suicide whale
 	move = MoveInfo(CHARACTER_TYPE_MAY, "SK_Goshogawara", true);
-	move.framebarName = assignName("Goshogawara");
+	move.framebarName = "Goshogawara";
 	move.framebarId = 13;
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoJump");
-	move.displayName = assignName("Ball Jump");
+	move.displayName = "Ball Jump";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoJump_F");
-	move.displayName = assignName("Ball Jump Forward");
+	move.displayName = "Ball Jump Forward";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoJump_B");
-	move.displayName = assignName("Ball Jump Back");
+	move.displayName = "Ball Jump Back";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoD");
-	move.displayName = assignName("H Mr. Dolphin Horizontal", "H Dolphin");
+	move.displayName = "H Mr. Dolphin Horizontal";
+	move.slangName = "H Dolphin";
 	move.forceLandingRecovery = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoC");
-	move.displayName = assignName("S Mr. Dolphin Horizontal", "S Dolphin");
+	move.displayName = "S Mr. Dolphin Horizontal";
+	move.slangName = "S Dolphin";
 	move.forceLandingRecovery = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateD");
-	move.displayName = assignName("H Mr. Dolphin Vertical", "H Updolphin");
+	move.displayName = "H Mr. Dolphin Vertical";
+	move.slangName = "H Updolphin";
 	move.forceLandingRecovery = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateC");
-	move.displayName = assignName("S Mr. Dolphin Vertical", "S Updolphin");
+	move.displayName = "S Mr. Dolphin Vertical";
+	move.slangName = "S Updolphin";
 	move.forceLandingRecovery = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallB");
-	move.displayName = assignName("K Don't Miss It", "K Ball");
+	move.displayName = "K Don't Miss It";
+	move.slangName = "K Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallA");
-	move.displayName = assignName("P Don't Miss It", "P Ball");
+	move.displayName = "P Don't Miss It";
+	move.slangName = "P Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "OverHeadKiss");
-	move.displayName = assignName("Overhead Kiss", "OHK");
+	move.displayName = "Overhead Kiss";
+	move.slangName = "OHK";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "OverHeadKissExe");
-	move.displayName = assignName("Overhead Kiss", "OHK");
+	move.displayName = "Overhead Kiss";
+	move.slangName = "OHK";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateBShoukan");
-	move.displayName = assignName("H Applause for the Victim", "H-Hoop");
+	move.displayName = "H Applause for the Victim";
+	move.slangName = "H-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoBShoukan");
-	move.displayName = assignName("S Applause for the Victim", "S-Hoop");
+	move.displayName = "S Applause for the Victim";
+	move.slangName = "S-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateAShoukan");
-	move.displayName = assignName("K Applause for the Victim", "K-Hoop");
+	move.displayName = "K Applause for the Victim";
+	move.slangName = "K-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoAShoukan");
-	move.displayName = assignName("P Applause for the Victim", "P-Hoop");
+	move.displayName = "P Applause for the Victim";
+	move.slangName = "P-Hoop";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "DivingAttack");
-	move.displayName = assignName("Ensenga?", "Ensenga");
+	move.displayName = "Ensenga?";
+	move.slangName = "Ensenga";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Dadakko");
-	move.displayName = assignName("Ultimate Whiner", "Whiner");
+	move.displayName = "Ultimate Whiner";
+	move.slangName = "Whiner";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Daisenpu");
-	move.displayName = assignName("Ultimate Spinning Whirlwind", "USW");
+	move.displayName = "Ultimate Spinning Whirlwind";
+	move.slangName = "USW";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_daisenpu;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Yamada");
-	move.displayName = assignName("Great Yamada Attack", "Yamada");
+	move.displayName = "Great Yamada Attack";
+	move.slangName = "Yamada";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "YamadaBurst");
-	move.displayName = assignName("Burst Great Yamada Attack", "Burst Yamada");
+	move.displayName = "Burst Great Yamada Attack";
+	move.slangName = "Burst Yamada";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLA_Hold");
-	move.displayName = assignName("Left Wall Climb");
+	move.displayName = "Left Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLC_Hold");
-	move.displayName = assignName("Left Wall Climb");
+	move.displayName = "Left Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiLD_Hold");
-	move.displayName = assignName("Left Wall Climb");
+	move.displayName = "Left Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	// Chipp wall cling attach
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiL");
-	move.displayName = assignName("Left Wall Climb");
+	move.displayName = "Left Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiRA_Hold");
-	move.displayName = assignName("Right Wall Climb");
+	move.displayName = "Right Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiRC_Hold");
-	move.displayName = assignName("Right Wall Climb");
+	move.displayName = "Right Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiRD_Hold");
-	move.displayName = assignName("Right Wall Climb");
+	move.displayName = "Right Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	// Chipp wall cling attach
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiR");
-	move.displayName = assignName("Right Wall Climb");
+	move.displayName = "Right Wall Climb";
 	move.caresAboutWall = true;
 	addMove(move);
 	
 	// Chipp wall cling idle/moving up/down
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiKeep");
-	move.displayName = assignName("Wall Climb");
+	move.displayName = "Wall Climb";
 	move.combineWithPreviousMove = true;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2512,25 +2669,25 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "SankakuTobiUpper");
-	move.displayName = assignName("w.9");
+	move.displayName = "w.9";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "SankakuTobiDown");
-	move.displayName = assignName("w.3/6");
+	move.displayName = "w.3/6";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Kaijo");
-	move.displayName = assignName("w.4");
+	move.displayName = "w.4";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiD");
-	move.displayName = assignName("w.H");
+	move.displayName = "w.H";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GenyouzanExe");
-	move.displayName = assignName("w.H");
+	move.displayName = "w.H";
 	move.combineWithPreviousMove = true;
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.addForceAddWhiffCancel("HaritsukiLD_Hold");
@@ -2539,33 +2696,36 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiC");
-	move.displayName = assignName("w.S");
+	move.displayName = "w.S";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiB");
-	move.displayName = assignName("w.K");
+	move.displayName = "w.K";
 	move.caresAboutWall = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiA");
-	move.displayName = assignName("w.A");
+	move.displayName = "w.A";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "AlphaPlus");
-	move.displayName = assignName("Alpha Plus");
+	move.displayName = "Alpha Plus";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "WarpA");
-	move.displayName = assignName("P Tsuyoshi-shiki Ten'i", "22P");
+	move.displayName = "P Tsuyoshi-shiki Ten'i";
+	move.slangName = "22P";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "WarpB");
-	move.displayName = assignName("K Tsuyoshi-shiki Ten'i", "22K");
+	move.displayName = "K Tsuyoshi-shiki Ten'i";
+	move.slangName = "22K";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "WarpC");
-	move.displayName = assignName("S Tsuyoshi-shiki Ten'i", "22S");
+	move.displayName = "S Tsuyoshi-shiki Ten'i";
+	move.slangName = "22S";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
@@ -2574,7 +2734,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "WarpD");
-	move.displayName = assignName("H Tsuyoshi-shiki Ten'i", "22H");
+	move.displayName = "H Tsuyoshi-shiki Ten'i";
+	move.slangName = "22H";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
@@ -2583,50 +2744,54 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "AlphaBlade");
-	move.displayName = assignName("Alpha Blade", "Alpha");
+	move.displayName = "Alpha Blade";
+	move.slangName = "Alpha";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "AirAlphaBlade");
-	move.displayName = assignName("Air Alpha Blade", "Air Alpha");
+	move.displayName = "Air Alpha Blade";
+	move.slangName = "Air Alpha";
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.addForceAddWhiffCancel("HaritsukiLA_Hold");
 	move.addForceAddWhiffCancel("HaritsukiRA_Hold");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Sushi");
-	move.displayName = assignName("Resshou");
+	move.displayName = "Resshou";
 	move.ignoreSuperJumpInstalls = true;  // this move only cancels into Rokusai, Senshuu and Shinkirou, and of those only two can make you airborne, and they both give a free airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Sukiyaki");
-	move.displayName = assignName("Rokusai");
+	move.displayName = "Rokusai";
 	move.ignoreSuperJumpInstalls = true;  // only cancels into Senshuu and Shinkirou, both of which give a free airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Banzai");
-	move.displayName = assignName("Senshuu");
+	move.displayName = "Senshuu";
 	move.ignoreSuperJumpInstalls = true;  // gives an airdash
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GammaBladeObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 26;
-	move.framebarName = assignName("Gamma Blade", "Gamma");
+	move.framebarName = "Gamma Blade";
+	move.framebarSlangName = "Gamma";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Shuriken");
-	move.displayName = assignName("Shuriken");
+	move.displayName = "Shuriken";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Meisai");
-	move.displayName = assignName("Tsuyoshi-shiki Meisai", "Meisai");
+	move.displayName = "Tsuyoshi-shiki Meisai";
+	move.slangName = "Meisai";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Tobiagari");
-	move.displayName = assignName("Shinkirou");
+	move.displayName = "Shinkirou";
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.addForceAddWhiffCancel("HaritsukiLD_Hold");
 	move.addForceAddWhiffCancel("HaritsukiRD_Hold");
@@ -2635,15 +2800,17 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "BetaBlade");
-	move.displayName = assignName("Beta Blade", "Beta");
+	move.displayName = "Beta Blade";
+	move.slangName = "Beta";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "AirBetaBlade");
-	move.displayName = assignName("Air Beta Blade", "Air Beta");
+	move.displayName = "Air Beta Blade";
+	move.slangName = "Air Beta";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Genrouzan");
-	move.displayName = assignName("Genrou Zan");
+	move.displayName = "Genrou Zan";
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.addForceAddWhiffCancel("HaritsukiLC_Hold");
 	move.addForceAddWhiffCancel("HaritsukiRC_Hold");
@@ -2651,7 +2818,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GenrouzanExe");
-	move.displayName = assignName("Genrou Zan");
+	move.displayName = "Genrou Zan";
 	move.combineWithPreviousMove = true;
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
 	move.addForceAddWhiffCancel("HaritsukiLC_Hold");
@@ -2661,23 +2828,27 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GammaBlade");
-	move.displayName = assignName("Gamma Blade", "Gamma");
+	move.displayName = "Gamma Blade";
+	move.slangName = "Gamma";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "6wayKunai");
-	move.displayName = assignName("Ryuu Yanagi", "Ryuu");
+	move.displayName = "Ryuu Yanagi";
+	move.slangName = "Ryuu";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "BankiMessai");
-	move.displayName = assignName("Banki Messai", "Banki");
+	move.displayName = "Banki Messai";
+	move.slangName = "Banki";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ZanseiRouga");
-	move.displayName = assignName("Zansei Rouga", "Zansei");
+	move.displayName = "Zansei Rouga";
+	move.slangName = "Zansei";
 	move.forceLandingRecovery = true;
 	move.forceSuperHitAnyway = forceSuperHitAnyway_zanseiRouga;
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_zanseiRouga;
@@ -2685,7 +2856,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ZanseiRougaBurst");
-	move.displayName = assignName("Burst Zansei Rouga", "Burst Zansei");
+	move.displayName = "Burst Zansei Rouga";
+	move.slangName = "Burst Zansei";
 	move.forceLandingRecovery = true;
 	move.ignoreSuperJumpInstalls = true;  // gets an airdash
 	addMove(move);
@@ -2693,27 +2865,30 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ShurikenObj", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 27;
-	move.framebarName = assignName("Shuriken Slow", "Shuriken-");
+	move.framebarName = "Shuriken Slow";
+	move.framebarSlangName = "Shuriken-";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ShurikenObj1", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 28;
-	move.framebarName = assignName("Shuriken Fast", "Shuriken+");
+	move.framebarName = "Shuriken Fast";
+	move.framebarSlangName = "Shuriken+";
 	addMove(move);
 	
 	// throwing daggers from wall cling
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Kunai_Wall", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 29;
-	move.framebarName = assignName("Kunai");
+	move.framebarName = "Kunai";
 	addMove(move);
 	
 	// 214214K air super
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Kunai", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 30;
-	move.framebarName = assignName("Ryuu Yanagi", "Ryuu");
+	move.framebarName = "Ryuu Yanagi";
+	move.framebarSlangName = "Ryuu";
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
@@ -2722,27 +2897,31 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_FAUST] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NmlAtk5E");
-	move.displayName = assignName("5D");
+	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "CrouchFWalk");
-	move.displayName = assignName("Crouchwalk Forward", "3");
+	move.displayName = "Crouchwalk Forward";
+	move.slangName = "3";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "CrouchBWalk");
-	move.displayName = assignName("Crouchwalk Back", "1");
+	move.displayName = "Crouchwalk Back";
+	move.slangName = "1";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	// Faust Pogo
 	// Pogo entry
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten");
-	move.displayName = assignName("Spear Point Centripetal Dance", "Pogo");
+	move.displayName = "Spear Point Centripetal Dance";
 	move.displayNameSelector = displayNameSelector_pogoEntry;
+	move.slangName = "Pogo";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoEntry;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2751,97 +2930,113 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenCancel");
-	move.displayName = assignName("Spear Point Cenripetal Dance Cancel", "Pogo Cancel");
+	move.displayName = "Spear Point Cenripetal Dance Cancel";
+	move.slangName = "Pogo Cancel";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MettaGiri");
-	move.displayName = assignName("Hack 'n Slash", "214H");
+	move.displayName = "Hack 'n Slash";
+	move.slangName = "214H";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NanigaDerukana");
-	move.displayName = assignName("What Could This Be?", "Toss");
+	move.displayName = "What Could This Be?";
+	move.slangName = "Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Oissu");
-	move.displayName = assignName("Hello!", "236P");
+	move.displayName = "Hello!";
+	move.slangName = "236P";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "KoegaChiisai");
-	move.displayName = assignName("Can't Hear You!", "236P");
+	move.displayName = "Can't Hear You!";
+	move.slangName = "236P";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MouicchoOissu");
-	move.displayName = assignName("Hello Again!", "236P");
+	move.displayName = "Hello Again!";
+	move.slangName = "236P";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "UekaraIkimasuyo");
-	move.displayName = assignName("From Above", "S-Door");
+	move.displayName = "From Above";
+	move.slangName = "S-Door";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "UshirokaraIkimasuyo");
-	move.displayName = assignName("From Behind", "K-Door");
+	move.displayName = "From Behind";
+	move.slangName = "K-Door";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MaekaraIkimasuyo");
-	move.displayName = assignName("From the Front", "P-Door");
+	move.displayName = "From the Front";
+	move.slangName = "P-Door";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "AirGoingMyWay");
-	move.displayName = assignName("Air Going My Way");
+	move.displayName = "Air Going My Way";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Ai");
-	move.displayName = assignName("Love");
+	move.displayName = "Love";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "RerereNoTsuki");
-	move.displayName = assignName("Re-re-re Thrust", "Scalpel");
+	move.displayName = "Re-re-re Thrust";
+	move.slangName = "Scalpel";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NaNaNaNanigaDerukana");
-	move.displayName = assignName("W-W-What Could This Be?", "Super Toss");
+	move.displayName = "W-W-What Could This Be?";
+	move.slangName = "Super Toss";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SugoiNaNaNaNanigaDerukana");
-	move.displayName = assignName("W-W-What Could This Be? 100% Ver.", "Max Super Toss");
+	move.displayName = "W-W-What Could This Be? 100% Ver.";
+	move.slangName = "Max Super Toss";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Shigeki");
-	move.displayName = assignName("Stimulating Fists of Annihilation", "Fists");
+	move.displayName = "Stimulating Fists of Annihilation";
+	move.slangName = "Fists";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ShigekiBurst");
-	move.displayName = assignName("Burst Stimulating Fists of Annihilation", "Burst Fists");
+	move.displayName = "Burst Stimulating Fists of Annihilation";
+	move.slangName = "Burst Fists";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Pogo P
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenA");
-	move.displayName = assignName("Just A Taste!", "Pogo-P");
+	move.displayName = "Just A Taste!";
 	move.displayNameSelector = displayNameSelector_pogoA;
+	move.slangName = "Pogo-P";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoA;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2851,8 +3046,10 @@ void Moves::addMoves() {
 	
 	// Pogo hop
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten9");
-	move.displayName = assignName("Short Hop", "Pogo-9");
+	move.displayName = "Short Hop";
 	move.displayNameSelector = displayNameSelector_pogo9;
+	move.slangName = "Pogo-9";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo9;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
@@ -2861,8 +3058,10 @@ void Moves::addMoves() {
 	
 	// Pogo 44
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten44");
-	move.displayName = assignName("Backward Movement", "Pogo-44");
+	move.displayName = "Backward Movement";
 	move.displayNameSelector = displayNameSelector_pogo44;
+	move.slangName = "Pogo-44";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo44;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2872,8 +3071,10 @@ void Moves::addMoves() {
 	
 	// Pogo 66
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten66");
-	move.displayName = assignName("Forward Movement", "Pogo-66");
+	move.displayName = "Forward Movement";
 	move.displayNameSelector = displayNameSelector_pogo66;
+	move.slangName = "Pogo-66";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo66;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2883,8 +3084,10 @@ void Moves::addMoves() {
 	
 	// Pogo K (head flower)
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenB");
-	move.displayName = assignName("Growing Flower", "Pogo-K");
+	move.displayName = "Growing Flower";
 	move.displayNameSelector = displayNameSelector_pogoB;
+	move.slangName = "Pogo-K";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoB;
 	move.sectionSeparator = sectionSeparator_soutenBC;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2896,8 +3099,10 @@ void Moves::addMoves() {
 	
 	// Pogo S (ground flower)
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenC");
-	move.displayName = assignName("See? I'm a Flower!", "Pogo-S");
+	move.displayName = "See? I'm a Flower!";
 	move.displayNameSelector = displayNameSelector_pogoC;
+	move.slangName = "Pogo-S";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoC;
 	move.sectionSeparator = sectionSeparator_soutenBC;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -2910,8 +3115,10 @@ void Moves::addMoves() {
 	
 	// Pogo Going My Way
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenD");
-	move.displayName = assignName("Spear Point Centripetal Dance Going My Way", "Pogo-H");
+	move.displayName = "Spear Point Centripetal Dance Going My Way";
 	move.displayNameSelector = displayNameSelector_pogoD;
+	move.slangName = "Pogo-H";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoD;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2920,8 +3127,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SoutenE");
-	move.displayName = assignName("Spear Point Centripetal Dance What Could This Be?", "Pogo-D");
+	move.displayName = "Spear Point Centripetal Dance What Could This Be?";
 	move.displayNameSelector = displayNameSelector_pogoE;
+	move.slangName = "Pogo-D";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogoE;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2932,8 +3141,10 @@ void Moves::addMoves() {
 	
 	// Faust Pogo Helicopter
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Souten8");
-	move.displayName = assignName("Doctor-Copter", "Pogo-8");
+	move.displayName = "Doctor-Copter";
 	move.displayNameSelector = displayNameSelector_pogo8;
+	move.slangName = "Pogo-8";
+	move.displaySlangNameSelector = displaySlangNameSelector_pogo8;
 	move.isIdle = hasWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -2943,7 +3154,7 @@ void Moves::addMoves() {
 	
 	// Faust 41236K (long ass fishing pole poke that drags you) succeeeding
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Hikimodoshi");
-	move.displayName = assignName("Pull Back");
+	move.displayName = "Pull Back";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
@@ -2955,14 +3166,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OreHana_Shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 31;
-	move.framebarName = assignName("Flower");
+	move.framebarName = "Flower";
 	addMove(move);
 	
 	// ground flower maximum. Not present in Rev1
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OreHanaBig_Shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 31;
-	move.framebarName = assignName("Flower");
+	move.framebarName = "Flower";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Oilcan", true);
@@ -2972,7 +3183,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Bomb", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 32;
-	move.framebarName = assignName("Bomb");
+	move.framebarName = "Bomb";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -2984,21 +3195,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OilFire", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 33;
-	move.framebarName = assignName("Oil Fire");
+	move.framebarName = "Oil Fire";
 	addMove(move);
 	
 	// normal meteor. Does not have active frames. Creates several MeteoInseki which have active frames
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Meteo", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 34;
-	move.framebarName = assignName("Meteor");
+	move.framebarName = "Meteor";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MeteoInseki", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 34;
-	move.framebarName = assignName("Meteor");
+	move.framebarName = "Meteor";
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
@@ -3009,21 +3220,22 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Hammer", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 35;
-	move.framebarName = assignName("Hammer");
+	move.framebarName = "Hammer";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_ChibiFaust", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 36;
-	move.framebarName = assignName("Small Faust", "Mini Faust");
+	move.framebarName = "Small Faust";
+	move.framebarSlangName = "Mini Faust";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Frasco", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 37;
-	move.framebarName = assignName("Poison");
+	move.framebarName = "Poison";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -3047,60 +3259,64 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SubItem_Poison", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 37;
-	move.framebarName = assignName("Poison");
+	move.framebarName = "Poison";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_JumpStand", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 38;
-	move.framebarName = assignName("Platform");
+	move.framebarName = "Platform";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_100t", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 39;
-	move.framebarName = assignName("100-ton Weight", "Weight");
+	move.framebarName = "100-ton Weight";
+	move.framebarSlangName = "Weight";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_FireWorks", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 40;
-	move.framebarName = assignName("Fireworks");
+	move.framebarName = "Fireworks";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Armageddon", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 41;
-	move.framebarName = assignName("Massive Meteor");
+	move.framebarName = "Massive Meteor";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ArmageddonInseki", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 41;
-	move.framebarName = assignName("Massive Meteor", "Big Meteor");
+	move.framebarName = "Massive Meteor";
+	move.framebarSlangName = "Big Meteor";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_GoldenHammer", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 42;
-	move.framebarName = assignName("Golden Hammer", "Gold Hammer");
+	move.framebarName = "Golden Hammer";
+	move.framebarSlangName = "Gold Hammer";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_BigFaust", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 43;
-	move.framebarName = assignName("Huge Faust");
+	move.framebarName = "Huge Faust";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Golden100t", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 44;
-	move.framebarName = assignName("10,000 Ton Weight", "Gold Weight");
+	move.framebarName = "10,000 Ton Weight";
+	move.framebarSlangName = "Gold Weight";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -3108,7 +3324,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Ai_Bomb", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 45;
-	move.framebarName = assignName("Love");
+	move.framebarName = "Love";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -3116,13 +3332,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Ai_Bomb2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 45;
-	move.framebarName = assignName("Love");
-	move.framebarNameUncombined = assignName("Love Explosion");
+	move.framebarName = "Love";
+	move.framebarNameUncombined = "Love Explosion";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ShigekiJibakuObj", true);
 	move.framebarId = 108;
-	move.framebarName = assignName("Stimulating Fists of Annihilation Self-Destruct", "Self-Destuct");
+	move.framebarName = "Stimulating Fists of Annihilation Self-Destruct";
+	move.framebarSlangName = "Self-Destuct";
 	addMove(move);
 	
 	// Axl has only one move that can put him airborne from the ground, and that is Raiei, but it already gives an airdash by default.
@@ -3130,14 +3347,15 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_AXL] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "NmlAtk5CNearHasei");
-	move.displayName = assignName("c.S");
+	move.displayName = "c.S";
 	move.nameIncludesInputs = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	// Axl Haitaka stance
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensen");
-	move.displayName = assignName("Sparrowhawk Stance", "Haitaka");
+	move.displayName = "Sparrowhawk Stance";
+	move.slangName = "Haitaka";
 	move.isIdle = isIdle_sparrowhawkStance;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -3147,75 +3365,86 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenA");
-	move.displayName = assignName("Sparrowhawk Stance P", "Haitaka-P");
+	move.displayName = "Sparrowhawk Stance P";
+	move.slangName = "Haitaka-P";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenB");
-	move.displayName = assignName("Sparrowhawk Stance K", "Haitaka-K");
+	move.displayName = "Sparrowhawk Stance K";
+	move.slangName = "Haitaka-K";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenC");
-	move.displayName = assignName("Sparrowhawk Stance S", "Haitaka-S");
+	move.displayName = "Sparrowhawk Stance S";
+	move.slangName = "Haitaka-S";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "DaiRensenD");
-	move.displayName = assignName("Sparrowhawk Stance H", "Haitaka-H");
+	move.displayName = "Sparrowhawk Stance H";
+	move.slangName = "Haitaka-H";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "AxelBomber");
-	move.displayName = assignName("Axl Bomber");
+	move.displayName = "Axl Bomber";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "TenhousekiJou");
-	move.displayName = assignName("P Heaven Can Wait", "P-Parry");
+	move.displayName = "P Heaven Can Wait";
+	move.slangName = "P-Parry";
 	move.ignoreJumpInstalls = true;  // can only RC on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "TenhousekiGe");
-	move.displayName = assignName("K Heaven Can Wait", "K-Parry");
+	move.displayName = "K Heaven Can Wait";
+	move.slangName = "K-Parry";
 	move.ignoreJumpInstalls = true;  // can only RC on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "BentenGari");
-	move.displayName = assignName("Artemis Hunter", "Benten");
+	move.displayName = "Artemis Hunter";
+	move.slangName = "Benten";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Raieisageki");
-	move.displayName = assignName("Thunder Shadow Chain", "Raiei");
+	move.displayName = "Thunder Shadow Chain";
+	move.slangName = "Raiei";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "KairagiYakou");
-	move.displayName = assignName("Shark Strike", "Kairagi");
+	move.displayName = "Shark Strike";
+	move.slangName = "Kairagi";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueRenshou");
-	move.displayName = assignName("Sickle Storm");
+	move.displayName = "Sickle Storm";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_byakueRenshou;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueRenshouBurst");
-	move.displayName = assignName("Burst Sickle Storm");
+	move.displayName = "Burst Sickle Storm";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_byakueRenshou;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Axl Rensen
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Rensengeki");
-	move.displayName = assignName("Sickle Flash", "Rensen");
+	move.displayName = "Sickle Flash";
+	move.slangName = "Rensen";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Axl Rensen + 2 followup
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Sensageki");
-	move.displayName = assignName("Spinning Chain Strike", "Rensen-2");
+	move.displayName = "Spinning Chain Strike";
+	move.slangName = "Rensen-2";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
@@ -3223,7 +3452,8 @@ void Moves::addMoves() {
 	
 	// Axl Rensen + 8 followup
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Kyokusageki");
-	move.displayName = assignName("Melody Chain", "Rensen-8");
+	move.displayName = "Melody Chain";
+	move.slangName = "Rensen-8";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
@@ -3231,7 +3461,8 @@ void Moves::addMoves() {
 	
 	// the command grab
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Rashosen");
-	move.displayName = assignName("Spindle Spinner", "Rashousen");
+	move.displayName = "Spindle Spinner";
+	move.slangName = "Rashousen";
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;  // because you can only RC it on the ground
 	addMove(move);
@@ -3240,27 +3471,30 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_AXL, "RashosenObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 46;
-	move.framebarName = assignName("Spindle Spinner", "Rashousen");
+	move.framebarName = "Spindle Spinner";
+	move.framebarSlangName = "Rashousen";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_AXL, "RensengekiObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 47;
-	move.framebarName = assignName("Sickle Flash", "Rensen");
+	move.framebarName = "Sickle Flash";
+	move.framebarSlangName = "Rensen";
 	addMove(move);
 	
 	// the 8 followup
 	move = MoveInfo(CHARACTER_TYPE_AXL, "KyokusagekiObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 47;
-	move.framebarName = assignName("Melody Chain", "Rensen-8");
+	move.framebarName = "Melody Chain";
+	move.framebarSlangName = "Rensen-8";
 	addMove(move);
 	
 	// the 2363214H super second hit
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 48;
-	move.framebarName = assignName("Sickle Storm");
+	move.framebarName = "Sickle Storm";
 	addMove(move);
 	
 	// the only move that Elphelt has that can transfer her from the ground into the air is Judge Better Half,
@@ -3271,28 +3505,30 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_ELPHELT] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "NmlAtkAir5E");
-	move.displayName = assignName("j.D");
+	move.displayName = "j.D";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_elpheltjD;
 	move.canYrcProjectile = canYrcProjectile_elpheltjD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActStand");
-	move.displayName = assignName("Stand");
+	move.displayName = "Stand";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActCrouch2Stand");
-	move.displayName = assignName("Crouch to Stand");
+	move.displayName = "Crouch to Stand";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Elphelt Ms. Confille (rifle)
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Start");
-	move.displayName = assignName("Aim Ms. Confille", "Rifle");
+	move.displayName = "Aim Ms. Confille";
 	move.displayNameSelector = displayNameSelector_rifleStart;
+	move.slangName = "Rifle";
+	move.displaySlangNameSelector = displaySlangNameSelector_rifleStart;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
@@ -3304,8 +3540,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Reload");
-	move.displayName = assignName("Ms. Confille Reload", "Reload");
+	move.displayName = "Ms. Confille Reload";
 	move.displayNameSelector = displayNameSelector_rifleReload;
+	move.slangName = "Reload";
+	move.displaySlangNameSelector = displaySlangNameSelector_rifleReload;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
@@ -3317,8 +3555,10 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Reload_Perfect");
-	move.displayName = assignName("Ms. Confille Perfect Reload", "Perfect Reload");
+	move.displayName = "Ms. Confille Perfect Reload";
 	move.displayNameSelector = displayNameSelector_riflePerfectReload;
+	move.slangName = "Perfect Reload";
+	move.displaySlangNameSelector = displaySlangNameSelector_riflePerfectReload;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
@@ -3334,8 +3574,10 @@ void Moves::addMoves() {
 	// Entered into from CmnActRomanCancel if its performed during rifle stance either after entering the stance or after firing or after reloading.
 	// On f1 whiff cancels are not enabled yet, on f2 enabled
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Roman");
-	move.displayName = assignName("Ms. Confille Roman Cancel", "Rifle RC");
+	move.displayName = "Ms. Confille Roman Cancel";
 	move.displayNameSelector = displayNameSelector_rifleRC;
+	move.slangName = "Rifle RC";
+	move.displaySlangNameSelector = displaySlangNameSelector_rifleRC;
 	move.sectionSeparator = sectionSeparator_rifle;
 	move.isIdle = isIdle_Rifle;
 	move.canBlock = canBlock_default;
@@ -3347,7 +3589,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire");
-	move.displayName = assignName("Ms. Confille Fire", "Fire");
+	move.displayName = "Ms. Confille Fire";
+	move.slangName = "Fire";
 	move.isRecoveryCanReload = isRecoveryCanReload_rifle;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_rifle;
@@ -3356,148 +3599,166 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MIN");
-	move.displayName = assignName("sg.H");
+	move.displayName = "sg.H";
 	move.nameIncludesInputs = true;
 	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MAX");
-	move.displayName = assignName("Max Charge sg.H");
+	move.displayName = "Max Charge sg.H";
 	move.nameIncludesInputs = true;
 	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Reload");
-	move.displayName = assignName("Ms. Travailler Reload", "Shotgun Reload");
+	move.displayName = "Ms. Travailler Reload";
+	move.slangName = "Shotgun Reload";
 	move.combineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Upper");
-	move.displayName = assignName("sg.S");
+	move.displayName = "sg.S";
 	move.nameIncludesInputs = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Rolling");
-	move.displayName = assignName("sg.K");
+	move.displayName = "sg.K";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Koduki");
-	move.displayName = assignName("sg.P");
+	move.displayName = "sg.P";
 	move.nameIncludesInputs = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Upper");
-	move.displayName = assignName("High Toss", "4Toss");
+	move.displayName = "High Toss";
+	move.slangName = "4Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Upper");
-	move.displayName = assignName("Ms. Travailler Stance High Toss", "4Toss");
+	move.displayName = "Ms. Travailler Stance High Toss";
+	move.slangName = "4Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Throw");
-	move.displayName = assignName("Air High Toss", "Air Toss");
+	move.displayName = "Air High Toss";
+	move.slangName = "Air Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Down");
-	move.displayName = assignName("Low Toss", "2Toss");
+	move.displayName = "Low Toss";
+	move.slangName = "2Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Down");
-	move.displayName = assignName("Ms. Travailler Stance Low Toss", "2Toss");
+	move.displayName = "Ms. Travailler Stance Low Toss";
+	move.slangName = "2Toss";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_CQC");
-	move.displayName = assignName("CQC");
+	move.displayName = "CQC";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_CQCExe");
-	move.displayName = assignName("CQC");
+	move.displayName = "CQC";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_End");
-	move.displayName = assignName("Ms. Confille Stance Exit", "Rifle Exit");
+	move.displayName = "Ms. Confille Stance Exit";
+	move.slangName = "Rifle Exit";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Ready");
-	move.displayName = assignName("Aim Ms. Travailler", "Pull Shotgun");
+	move.displayName = "Aim Ms. Travailler";
+	move.slangName = "Pull Shotgun";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_End");
-	move.displayName = assignName("Ms. Travailler Cancel", "Shotgun Exit");
+	move.displayName = "Ms. Travailler Cancel";
+	move.slangName = "Shotgun Exit";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Rolling2");
-	move.displayName = assignName("Roll, and Aim with Miss Travailler", "Roll");
+	move.displayName = "Roll, and Aim with Miss Travailler";
+	move.slangName = "Roll";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Standby");
-	move.displayName = assignName("Berry Pine", "Pull");
+	move.displayName = "Berry Pine";
+	move.slangName = "Pull";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Standby");
-	move.displayName = assignName("Air Berry Pine", "Air Pull");
+	move.displayName = "Air Berry Pine";
+	move.slangName = "Air Pull";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Standby");
-	move.displayName = assignName("Ms. Travailler Stance Berry Pine", "Pull");
+	move.displayName = "Ms. Travailler Stance Berry Pine";
+	move.slangName = "Pull";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Land");
-	move.displayName = assignName("Bridal Express", "Bridal");
+	move.displayName = "Bridal Express";
+	move.slangName = "Bridal";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Air");
-	move.displayName = assignName("Air Bridal Express", "Air Bridal");
+	move.displayName = "Air Bridal Express";
+	move.slangName = "Air Bridal";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka");
-	move.displayName = assignName("Genoverse");
+	move.displayName = "Genoverse";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Judge_BetterHalf");
-	move.displayName = assignName("Judge Better Half", "JBH");
+	move.displayName = "Judge Better Half";
+	move.slangName = "JBH";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Judge_BetterHalfBurst");
-	move.displayName = assignName("Burst Judge Better Half", "Burst JBH");
+	move.displayName = "Burst Judge Better Half";
+	move.slangName = "Burst JBH";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb", true);
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = 73;
-	move.framebarName = assignName("Berry Pine", PROJECTILE_NAME_BERRY);
+	move.framebarName = "Berry Pine";
+	move.framebarSlangName = PROJECTILE_NAME_BERRY;
 	move.drawProjectileOriginPoint = true;
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
@@ -3505,27 +3766,30 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Ready", true);
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = 73;
-	move.framebarName = assignName("Self-Detonate", "Self-Detonate");
+	move.framebarName = "Self-Detonate";
+	move.framebarSlangName = "Self-Detonate";
 	addMove(move);
 	
 	// This explosion results from the timer running out normally
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Explode", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 73;
-	move.framebarName = assignName("Berry Explosion", "Explosion");
+	move.framebarName = "Berry Explosion";
+	move.framebarSlangName = "Explosion";
 	addMove(move);
 	
 	// This explosion results from clashing with the opponent's projectiles
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Explode2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 73;
-	move.framebarName = assignName("Berry Pine", "Berry Explode");
+	move.framebarName = "Berry Pine";
+	move.framebarSlangName = "Berry Explode";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "HandGun_air_shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 74;
-	move.framebarName = assignName("j.D");
+	move.framebarName = "j.D";
 	// in Rev1 you can't YRC this
 	addMove(move);
 	
@@ -3540,177 +3804,193 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_max_2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 75;
-	move.framebarName = assignName("Max Far Shot");
+	move.framebarName = "Max Far Shot";
 	addMove(move);
 	
 	// Shotgun shot spawns two projectiles: Shotgun_min_1, Shotgun_min_2
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_min_1", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 75;
-	move.framebarName = assignName("Close Shot");
+	move.framebarName = "Close Shot";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_min_2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 75;
-	move.framebarName = assignName("Far Shot");
+	move.framebarName = "Far Shot";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka_Fire", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 76;
-	move.framebarName = assignName("Genoverse");
+	move.framebarName = "Genoverse";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka_Explosive", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 76;
-	move.framebarName = assignName("Geno Explode");
+	move.framebarName = "Geno Explode";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire_MAX", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 77;
-	move.framebarName = assignName("Ms. Confille Shot", "Max Rifleshot");
+	move.framebarName = "Ms. Confille Shot";
+	move.framebarSlangName = "Max Rifleshot";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire_MIN", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 77;
-	move.framebarName = assignName("Ms. Confille Shot", "Rifleshot");
+	move.framebarName = "Ms. Confille Shot";
+	move.framebarSlangName = "Rifleshot";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk2E");
-	move.displayName = assignName("2D");
+	move.displayName = "2D";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Leo backturn idle and also exiting backturn via 22
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke");
-	move.displayName = assignName("Brynhildr Stance", "Backturn");
+	move.displayName = "Brynhildr Stance";
+	move.slangName = "Backturn";
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke5A");
-	move.displayName = assignName("bt.P");
+	move.displayName = "bt.P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke5B");
-	move.displayName = assignName("bt.K");
+	move.displayName = "bt.K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke5C");
-	move.displayName = assignName("bt.S");
+	move.displayName = "bt.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke5D");
-	move.displayName = assignName("bt.H");
+	move.displayName = "bt.H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke5E");
-	move.displayName = assignName("bt.D");
+	move.displayName = "bt.D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tobidogu2");
-	move.displayName = assignName("H Graviert W\xc3\xbcrde", "H Fireball");
+	move.displayName = "H Graviert W\xc3\xbcrde";
+	move.slangName = "H Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tobidogu1");
-	move.displayName = assignName("S Graviert W\xc3\xbcrde", "S Fireball");
+	move.displayName = "S Graviert W\xc3\xbcrde";
+	move.slangName = "S Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "AntiAirAttack2");
-	move.displayName = assignName("H Eisen Sturm", "H Eisen");
+	move.displayName = "H Eisen Sturm";
+	move.slangName = "H Eisen";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "AntiAirAttack1");
-	move.displayName = assignName("S Eisen Sturm", "S Eisen");
+	move.displayName = "S Eisen Sturm";
+	move.slangName = "S Eisen";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin2");
-	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit", "Zweit");
+	move.displayName = "Kaltes Gest\xc3\xb6\x62\x65r Zweit";
+	move.slangName = "Zweit";
 	move.powerup = powerup_zweit;
 	move.powerupExplanation = powerupExplanation_zweit;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin1");
-	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Erst", "Rekka");
+	move.displayName = "Kaltes Gest\xc3\xb6\x62\x65r Erst";
+	move.slangName = "Rekka";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeCantGuard");
-	move.displayName = assignName("Blitzschlag", "bt.214H");
+	move.displayName = "Blitzschlag";
+	move.slangName = "bt.214H";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeDageki");
-	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Dritt", "Dritt");
+	move.displayName = "Kaltes Gest\xc3\xb6\x62\x65r Dritt";
+	move.slangName = "Dritt";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "AirSpecial");
-	move.displayName = assignName("Siegesparade");
+	move.displayName = "Siegesparade";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "AirSpecialExe");
-	move.displayName = assignName("Siegesparade");
+	move.displayName = "Siegesparade";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin2_Hasei");
-	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit (Follow-up)", "> Zweit");
+	move.displayName = "Kaltes Gest\xc3\xb6\x62\x65r Zweit (Follow-up)";
+	move.slangName = "> Zweit";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeDageki_Hasei");
-	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Dritt (Follow-up)", "> Dritt");
+	move.displayName = "Kaltes Gest\xc3\xb6\x62\x65r Dritt (Follow-up)";
+	move.slangName = "> Dritt";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Gorengeki");
-	move.displayName = assignName("Leidenschaft Dirigent", "Leidenschaft");
+	move.displayName = "Leidenschaft Dirigent";
+	move.slangName = "Leidenschaft";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakusei");
-	move.displayName = assignName("Stahl Wirbel");
+	move.displayName = "Stahl Wirbel";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakuseiBurst");
-	move.displayName = assignName("Burst Stahl Wirbel");
+	move.displayName = "Burst Stahl Wirbel";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeFDashStep");
-	move.displayName = assignName("Brynhildr Stance Forward Dash", "bt.66");
+	move.displayName = "Brynhildr Stance Forward Dash";
+	move.slangName = "bt.66";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeBDashStep");
-	move.displayName = assignName("Brynhildr Stance Backdash", "bt.44");
+	move.displayName = "Brynhildr Stance Backdash";
+	move.slangName = "bt.44";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk5CFar");
-	move.displayName = assignName("f.S");
+	move.displayName = "f.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk5CFar_Guard");
-	move.displayName = assignName("f.S~P");
+	move.displayName = "f.S~P";
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_leoGuardStance;
 	move.canStopHolding = aSectionBeforeVariableStartup_leoParry;
@@ -3719,12 +3999,12 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk5D");
-	move.displayName = assignName("5H");
+	move.displayName = "5H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk5D_Guard");
-	move.displayName = assignName("5H~P");
+	move.displayName = "5H~P";
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_leoGuardStance;
 	move.canStopHolding = aSectionBeforeVariableStartup_leoParry;
@@ -3735,24 +4015,26 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Edgeyowai", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 78;
-	move.framebarName = assignName("Graviert W\xc3\xbcrde", "S Fireball");
+	move.framebarName = "Graviert W\xc3\xbcrde";
+	move.framebarSlangName = "S Fireball";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Edgetuyoi", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 78;
-	move.framebarName = assignName("Graviert W\xc3\xbcrde", "H Fireball");
+	move.framebarName = "Graviert W\xc3\xbcrde";
+	move.framebarSlangName = "H Fireball";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakusei_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 79;
-	move.framebarName = assignName("Stahl Wirbel");
+	move.framebarName = "Stahl Wirbel";
 	addMove(move);
 	
 	// Jam parry
 	move = MoveInfo(CHARACTER_TYPE_JAM, "NeoHochihu");
-	move.displayName = assignName("Hochifu");
+	move.displayName = "Hochifu";
 	move.isIdle = canBlock_neoHochihu;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
@@ -3762,27 +4044,30 @@ void Moves::addMoves() {
 	
 	// Jam 236S
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Bakushuu");
-	move.displayName = assignName("Bakushuu");
+	move.displayName = "Bakushuu";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	// Jam 236S~H
 	move = MoveInfo(CHARACTER_TYPE_JAM, "SenriShinshou");
-	move.displayName = assignName("Senri Shinshou", "H Puffball");
+	move.displayName = "Senri Shinshou";
+	move.slangName = "H Puffball";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "HaseiSenriShinshou");
-	move.displayName = assignName("Senri Shinshou (Follow-up)", "H Puffball");
+	move.displayName = "Senri Shinshou (Follow-up)";
+	move.slangName = "H Puffball";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Jam 236S~S
 	move = MoveInfo(CHARACTER_TYPE_JAM, "HyappoShinshou");
-	move.displayName = assignName("Hyappo Shinshou", "Puffball");
+	move.displayName = "Hyappo Shinshou";
+	move.slangName = "Puffball";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
@@ -3790,7 +4075,8 @@ void Moves::addMoves() {
 	
 	// Jam 236S~K
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Ashibarai");
-	move.displayName = assignName("Hamonkyaku", "Splitkick");
+	move.displayName = "Hamonkyaku";
+	move.slangName = "Splitkick";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.considerVariableStartupAsStanceForFramebar = true;
@@ -3799,7 +4085,7 @@ void Moves::addMoves() {
 	
 	// Jam 236S~P
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Mawarikomi");
-	move.displayName = assignName("Mawarikomi");
+	move.displayName = "Mawarikomi";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
@@ -3807,152 +4093,163 @@ void Moves::addMoves() {
 	
 	// Jam 46P
 	move = MoveInfo(CHARACTER_TYPE_JAM, "TuikaA");
-	move.displayName = assignName("Zekkei", "46P");
+	move.displayName = "Zekkei";
+	move.slangName = "46P";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "TuikaAA");
-	move.displayName = assignName("Goushao", "46PP");
+	move.displayName = "Goushao";
+	move.slangName = "46PP";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "TuikaAB");
-	move.displayName = assignName("Dowanga", "46PK");
+	move.displayName = "Dowanga";
+	move.slangName = "46PK";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Youeikyaku");
-	move.displayName = assignName("j.2K");
+	move.displayName = "j.2K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiB");
-	move.displayName = assignName("K Asanagi no Kokyuu", "K-Card");
+	move.displayName = "K Asanagi no Kokyuu";
+	move.slangName = "K-Card";
 	move.powerup = powerup_cardK;
 	move.powerupExplanation = powerupExplanation_card;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiC");
-	move.displayName = assignName("S Asanagi no Kokyuu", "S-Card");
+	move.displayName = "S Asanagi no Kokyuu";
+	move.slangName = "S-Card";
 	move.powerup = powerup_cardS;
 	move.powerupExplanation = powerupExplanation_card;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiD");
-	move.displayName = assignName("H Asanagi no Kokyuu", "H-Card");
+	move.displayName = "H Asanagi no Kokyuu";
+	move.slangName = "H-Card";
 	move.powerup = powerup_cardH;
 	move.powerupExplanation = powerupExplanation_card;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinLand");
-	move.displayName = assignName("Ryuujin");
+	move.displayName = "Ryuujin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinAir");
-	move.displayName = assignName("Air Ryuujin");
+	move.displayName = "Air Ryuujin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinHasei");
-	move.displayName = assignName("Ryuujin");
+	move.displayName = "Ryuujin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinKyoukaLand");
-	move.displayName = assignName("Carded Ryuujin");
+	move.displayName = "Carded Ryuujin";
 	move.displayNameSelector = displayNameSelector_ryujinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinKyoukaAir");
-	move.displayName = assignName("Carded Air Ryuujin");
+	move.displayName = "Carded Air Ryuujin";
 	move.displayNameSelector = displayNameSelector_airRyujinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RyujinKyoukaHasei");
-	move.displayName = assignName("Carded Ryuujin");
+	move.displayName = "Carded Ryuujin";
 	move.displayNameSelector = displayNameSelector_ryujinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinLand");
-	move.displayName = assignName("Gekirin");
+	move.displayName = "Gekirin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinAir");
-	move.displayName = assignName("Air Gekirin");
+	move.displayName = "Air Gekirin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinHasei");
-	move.displayName = assignName("Gekirin");
+	move.displayName = "Gekirin";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinKyoukaLand");
-	move.displayName = assignName("Carded Gekirin");
+	move.displayName = "Carded Gekirin";
 	move.displayNameSelector = displayNameSelector_gekirinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinKyoukaAir");
-	move.displayName = assignName("Carded Air Gekirin");
+	move.displayName = "Carded Air Gekirin";
 	move.displayNameSelector = displayNameSelector_airGekirinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "GekirinKyoukaHasei");
-	move.displayName = assignName("Carded Gekirin");
+	move.displayName = "Carded Gekirin";
 	move.displayNameSelector = displayNameSelector_gekirinLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuLand");
-	move.displayName = assignName("Kenroukaku");
+	move.displayName = "Kenroukaku";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuAir");
-	move.displayName = assignName("Air Kenroukaku");
+	move.displayName = "Air Kenroukaku";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuHasei");
-	move.displayName = assignName("Kenroukaku");
+	move.displayName = "Kenroukaku";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuKyoukaLand");
-	move.displayName = assignName("Carded Kenroukaku");
+	move.displayName = "Carded Kenroukaku";
 	move.displayNameSelector = displayNameSelector_kenroukakuLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuKyoukaAir");
-	move.displayName = assignName("Carded Air Kenroukaku");
+	move.displayName = "Carded Air Kenroukaku";
 	move.displayNameSelector = displayNameSelector_airKenroukakuLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "KenroukakuKyoukaHasei");
-	move.displayName = assignName("Carded Kenroukaku");
+	move.displayName = "Carded Kenroukaku";
 	move.displayNameSelector = displayNameSelector_kenroukakuLv2or3;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Renhoukyaku");
-	move.displayName = assignName("Renhoukyaku", "Super Puffball");
+	move.displayName = "Renhoukyaku";
+	move.slangName = "Super Puffball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RenhoukyakuObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 88;
-	move.framebarName = assignName("Renhoukyaku", "Super Puffball");
+	move.framebarName = "Renhoukyaku";
+	move.framebarSlangName = "Super Puffball";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Hououshou");
-	move.displayName = assignName("Choukyaku Hou'oushou", "Choukyaku");
+	move.displayName = "Choukyaku Hou'oushou";
+	move.slangName = "Choukyaku";
 	move.forceSuperHitAnyway = forceSuperHitAnyway_hououshou;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "HououshouBurst");
-	move.displayName = assignName("Burst Choukyaku Hou'oushou", "Burst Choukyaku");
+	move.displayName = "Burst Choukyaku Hou'oushou";
+	move.slangName = "Burst Choukyaku";
 	move.forceSuperHitAnyway = forceSuperHitAnyway_hououshou;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Saishingeki");
-	move.displayName = assignName("Bao Saishinshou", "Bao");
+	move.displayName = "Bao Saishinshou";
+	move.slangName = "Bao";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_saishingeki;
 	move.secondaryStartup = secondaryStartup_saishingeki;
@@ -3961,62 +4258,69 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Hold_End");
-	move.displayName = assignName("Savvy Ninpo: Seal of Approval Cancel", "Uncling");
+	move.displayName = "Savvy Ninpo: Seal of Approval Cancel";
+	move.slangName = "Uncling";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Atemi");
-	move.displayName = assignName("s.P");
+	move.displayName = "s.P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Stamp");
-	move.displayName = assignName("s.K");
+	move.displayName = "s.K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Gedan");
-	move.displayName = assignName("s.S");
+	move.displayName = "s.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Chudan");
-	move.displayName = assignName("s.H");
+	move.displayName = "s.H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Atemi2");
-	move.displayName = assignName("Savvy Ninpo: Data Logging", "22P");
+	move.displayName = "Savvy Ninpo: Data Logging";
+	move.slangName = "22P";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_WarpA");
-	move.displayName = assignName("S Business Ninpo: Under the Rug", "S Teleport");
+	move.displayName = "S Business Ninpo: Under the Rug";
+	move.slangName = "S Teleport";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_WarpB");
-	move.displayName = assignName("H Business Ninpo: Under the Rug", "H Teleport");
+	move.displayName = "H Business Ninpo: Under the Rug";
+	move.slangName = "H Teleport";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Zaneiken");
-	move.displayName = assignName("Resshou");
+	move.displayName = "Resshou";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowA");
-	move.displayName = assignName("S Business Ninpo: Caltrops", "S Card");
+	move.displayName = "S Business Ninpo: Caltrops";
+	move.slangName = "S Card";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowB");
-	move.displayName = assignName("H Business Ninpo: Caltrops", "H Card");
+	move.displayName = "H Business Ninpo: Caltrops";
+	move.slangName = "H Card";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandA");
-	move.displayName = assignName("P Savvy Ninpo: Request for Approval", "P Scroll");
+	move.displayName = "P Savvy Ninpo: Request for Approval";
+	move.slangName = "P Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
@@ -4024,7 +4328,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandB");
-	move.displayName = assignName("K Savvy Ninpo: Request for Approval", "K Scroll");
+	move.displayName = "K Savvy Ninpo: Request for Approval";
+	move.slangName = "K Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
@@ -4032,7 +4337,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandC");
-	move.displayName = assignName("S Savvy Ninpo: Request for Approval", "S Scroll");
+	move.displayName = "S Savvy Ninpo: Request for Approval";
+	move.slangName = "S Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
@@ -4040,7 +4346,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_LandD");
-	move.displayName = assignName("H Savvy Ninpo: Request for Approval", "H Scroll");
+	move.displayName = "H Savvy Ninpo: Request for Approval";
+	move.slangName = "H Scroll";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canYrcProjectile = canYrcProjectile_scroll;
@@ -4048,92 +4355,108 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirA");
-	move.displayName = assignName("P Air Savvy Ninpo: Request for Approval", "Air P Scroll");
+	move.displayName = "P Air Savvy Ninpo: Request for Approval";
+	move.slangName = "Air P Scroll";
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirB");
-	move.displayName = assignName("K Air Savvy Ninpo: Request for Approval", "Air K Scroll");
+	move.displayName = "K Air Savvy Ninpo: Request for Approval";
+	move.slangName = "Air K Scroll";
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirC");
-	move.displayName = assignName("S Air Savvy Ninpo: Request for Approval", "Air S Scroll");
+	move.displayName = "S Air Savvy Ninpo: Request for Approval";
+	move.slangName = "Air S Scroll";
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_set_AirD");
-	move.displayName = assignName("H Air Savvy Ninpo: Request for Approval", "Air H Scroll");
+	move.displayName = "H Air Savvy Ninpo: Request for Approval";
+	move.slangName = "Air H Scroll";
 	move.canYrcProjectile = canYrcProjectile_scroll;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Land");
-	move.displayName = assignName("Savvy Ninpo: Tax Write-off", "Izuna Drop");
+	move.displayName = "Savvy Ninpo: Tax Write-off";
+	move.slangName = "Izuna Drop";
 	move.ignoreJumpInstalls = true;  // when you RC this move, you can only be on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Land_Exe");
-	move.displayName = assignName("Savvy Ninpo: Tax Write-off", "Izuna Drop");
+	move.displayName = "Savvy Ninpo: Tax Write-off";
+	move.slangName = "Izuna Drop";
 	move.combineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;  // when you RC this move, you can only be on the ground
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Air");
-	move.displayName = assignName("Air Savvy Ninpo: Tax Write-off", "Air Izuna Drop");
+	move.displayName = "Air Savvy Ninpo: Tax Write-off";
+	move.slangName = "Air Izuna Drop";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Mozu_Air_Exe");
-	move.displayName = assignName("Air Savvy Ninpo: Tax Write-off", "Air Izuna Drop");
+	move.displayName = "Air Savvy Ninpo: Tax Write-off";
+	move.slangName = "Air Izuna Drop";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Nin_JitsuA");
-	move.displayName = assignName("S Business Ninpo: Under the Bus", "S Clone");
+	move.displayName = "S Business Ninpo: Under the Bus";
+	move.slangName = "S Clone";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Nin_JitsuB");
-	move.displayName = assignName("H Business Ninpo: Under the Bus", "H Clone");
+	move.displayName = "H Business Ninpo: Under the Bus";
+	move.slangName = "H Clone";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Human_Suriken");
-	move.displayName = assignName("Business Ultimate Ninpo: All Hands");
+	move.displayName = "Business Ultimate Ninpo: All Hands";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Human_SurikenExe");
-	move.displayName = assignName("Business Ultimate Ninpo: All Hands");
+	move.displayName = "Business Ultimate Ninpo: All Hands";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Meteor");
-	move.displayName = assignName("Air Dead Stock Ninpo: Firesale", "Air Firesale");
+	move.displayName = "Air Dead Stock Ninpo: Firesale";
+	move.slangName = "Air Firesale";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meteor", true);
-	move.framebarName = assignName("Air Dead Stock Ninpo: Firesale", "Air Firesale");
-	move.framebarNameUncombined = assignName("Air Dead Stock Ninpo: Firesale Card", "Firesale Card");
+	move.framebarName = "Air Dead Stock Ninpo: Firesale";
+	move.framebarSlangName = "Air Firesale";
+	move.framebarNameUncombined = "Air Dead Stock Ninpo: Firesale Card";
+	move.framebarSlangNameUncombined = "Firesale Card";
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 113;
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Suriken", true);
-	move.framebarName = assignName("Air Dead Stock Ninpo: Firesale", "Air Firesale");
-	move.framebarNameUncombined = assignName("Air Dead Stock Ninpo: Firesale Shuriken", "Shuriken");
+	move.framebarName = "Air Dead Stock Ninpo: Firesale";
+	move.framebarSlangName = "Air Firesale";
+	move.framebarNameUncombined = "Air Dead Stock Ninpo: Firesale Shuriken";
+	move.framebarSlangNameUncombined = "Shuriken";
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 113;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush");
-	move.displayName = assignName("Dead Stock Ninpo: Firesale", "Firesale");
+	move.displayName = "Dead Stock Ninpo: Firesale";
+	move.slangName = "Firesale";
 	move.dontSkipSuper = true;
 	move.createdProjectile = createdProjectile_firesale;
 	move.canYrcProjectile = canYrcProjectile_firesale;
@@ -4141,7 +4464,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush_Burst");
-	move.displayName = assignName("Burst Dead Stock Ninpo: Firesale", "Burst Firesale");
+	move.displayName = "Burst Dead Stock Ninpo: Firesale";
+	move.slangName = "Burst Firesale";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.createdProjectile = createdProjectile_firesale;
@@ -4151,7 +4475,8 @@ void Moves::addMoves() {
 	
 	// Answer scroll cling idle. Happens from an s.D if not holding D
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move_Hold");
-	move.displayName = assignName("Savvy Ninpo: Seal of Approval", "Scroll Cling");
+	move.displayName = "Savvy Ninpo: Seal of Approval";
+	move.slangName = "Scroll Cling";
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -4159,7 +4484,8 @@ void Moves::addMoves() {
 	
 	// Answer scroll cling idle. Happens from an s.D if not holding Special
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move_Hold_S");
-	move.displayName = assignName("Savvy Ninpo: Seal of Approval", "Scroll Cling");
+	move.displayName = "Savvy Ninpo: Seal of Approval";
+	move.slangName = "Scroll Cling";
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -4167,7 +4493,8 @@ void Moves::addMoves() {
 	
 	// Answer scroll cling idle. Happens from jumping at it or 22P'ing at it
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Hold");
-	move.displayName = assignName("Savvy Ninpo: Seal of Approval", "Scroll Cling");
+	move.displayName = "Savvy Ninpo: Seal of Approval";
+	move.slangName = "Scroll Cling";
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -4175,7 +4502,7 @@ void Moves::addMoves() {
 	
 	// Answer 1sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move1");
-	move.displayName = assignName("1s.D");
+	move.displayName = "1s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4184,7 +4511,7 @@ void Moves::addMoves() {
 	
 	// Answer 2sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move2");
-	move.displayName = assignName("2s.D");
+	move.displayName = "2s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4193,7 +4520,7 @@ void Moves::addMoves() {
 	
 	// Answer 3sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move3");
-	move.displayName = assignName("3s.D");
+	move.displayName = "3s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4202,7 +4529,7 @@ void Moves::addMoves() {
 	
 	// Answer 4sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move4");
-	move.displayName = assignName("4s.D");
+	move.displayName = "4s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4211,7 +4538,7 @@ void Moves::addMoves() {
 	
 	// Answer sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_MoveD");
-	move.displayName = assignName("s.D");
+	move.displayName = "s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4220,7 +4547,7 @@ void Moves::addMoves() {
 	
 	// Answer 6sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move6");
-	move.displayName = assignName("6s.D");
+	move.displayName = "6s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4229,7 +4556,7 @@ void Moves::addMoves() {
 	
 	// Answer 7sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move7");
-	move.displayName = assignName("7s.D");
+	move.displayName = "7s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4238,7 +4565,7 @@ void Moves::addMoves() {
 	
 	// Answer 8sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move8");
-	move.displayName = assignName("8s.D");
+	move.displayName = "8s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4247,7 +4574,7 @@ void Moves::addMoves() {
 	
 	// Answer 9sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move9");
-	move.displayName = assignName("9s.D");
+	move.displayName = "9s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4256,7 +4583,7 @@ void Moves::addMoves() {
 	
 	// Answer sD
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Move");
-	move.displayName = assignName("s.D");
+	move.displayName = "s.D";
 	move.nameIncludesInputs = true;
 	move.isIdle = alwaysFalse;
 	move.isInVariableStartupSection = isInVariableStartupSection_amiMove;
@@ -4270,7 +4597,8 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi", true);
 	move.isDangerous = isDangerous_card;
 	move.framebarId = 103;
-	move.framebarName = assignName("BN: Caltrops", "Card");
+	move.framebarName = "BN: Caltrops";
+	move.framebarSlangName = "Card";
 	move.framebarNameFull = "Business Ninpo: Caltrops";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -4278,39 +4606,48 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Nin_Jitsu", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 104;
-	move.framebarName = assignName("BN: Under the Bus", "Clone");
+	move.framebarName = "BN: Under the Bus";
+	move.framebarSlangName = "Clone";
 	move.framebarNameFull = "Business Ninpo: Under the Bus";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "RSF_Start", true);
 	move.isDangerous = isDangerous_card;
 	move.framebarId = ANSWER_RSF_FRAMEBAR_ID;
-	move.framebarName = assignName("Dead Stock Ninpo: Firesale", "Firesale");
-	move.framebarNameUncombined = assignName("Dead Stock Ninpo: Firesale Start", "Firesale Start");
+	move.framebarName = "Dead Stock Ninpo: Firesale";
+	move.framebarSlangName = "Firesale";
+	move.framebarSlangNameUncombined = "Firesale Start";
+	move.framebarNameUncombined = "Dead Stock Ninpo: Firesale Start";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "RSF_Meishi", true);
 	move.isDangerous = isDangerous_rsfMeishi;
 	move.framebarId = ANSWER_RSF_FRAMEBAR_ID;
-	move.framebarName = assignName("Dead Stock Ninpo: Firesale", "Firesale");
-	move.framebarNameUncombined = assignName("Dead Stock Ninpo: Firesale Card", "Firesale Card");
+	move.framebarName = "Dead Stock Ninpo: Firesale";
+	move.framebarSlangName = "Firesale";
+	move.framebarSlangNameUncombined = "Firesale Card";
+	move.framebarNameUncombined = "Dead Stock Ninpo: Firesale Card";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "RSF_Finish", true);
 	move.isDangerous = isDangerous_rsfMeishi;
 	move.framebarId = ANSWER_RSF_FRAMEBAR_ID;
-	move.framebarName = assignName("Dead Stock Ninpo: Firesale", "Firesale");
-	move.framebarNameUncombined = assignName("Dead Stock Ninpo: Firesale Shuriken", "Shuriken");
+	move.framebarName = "Dead Stock Ninpo: Firesale";
+	move.framebarSlangName = "Firesale";
+	move.framebarSlangNameUncombined = "Shuriken";
+	move.framebarNameUncombined = "Dead Stock Ninpo: Firesale Shuriken";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "LustShakerRenda");
-	move.displayName = assignName("Mash Lust Shaker", "Mash Shaker");
+	move.displayName = "Mash Lust Shaker";
+	move.slangName = "Mash Shaker";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Millia Roll Roll
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SaiZenten");
-	move.displayName = assignName("Forward Roll Again", "Doubleroll");
+	move.displayName = "Forward Roll Again";
+	move.slangName = "Doubleroll";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
@@ -4318,7 +4655,8 @@ void Moves::addMoves() {
 	
 	// Millia Roll > S
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ZentenShaker");
-	move.displayName = assignName("Lust Shaker (Follow-up)", "> Shaker");
+	move.displayName = "Lust Shaker (Follow-up)";
+	move.slangName = "> Shaker";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
@@ -4326,7 +4664,7 @@ void Moves::addMoves() {
 	
 	// Millia Roll > H
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "Digitalis");
-	move.displayName = assignName("Digitalis");
+	move.displayName = "Digitalis";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
@@ -4336,13 +4674,15 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForceKnife", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 14;
-	move.framebarName = assignName("Silent Force", "Pin");
+	move.framebarName = "Silent Force";
+	move.framebarSlangName = "Pin";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	// s-disc
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopC");
-	move.displayName = assignName("S Tandem Top", "S-Disc");
+	move.displayName = "S Tandem Top";
+	move.slangName = "S-Disc";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4351,12 +4691,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopCRing", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 15;
-	move.framebarName = assignName("S Tandem Top", "S-Disc");
+	move.framebarName = "S Tandem Top";
+	move.framebarSlangName = "S-Disc";
 	addMove(move);
 	
 	// h-disc
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopD");
-	move.displayName = assignName("H Tandem Top");
+	move.displayName = "H Tandem Top";
+	move.framebarSlangName = "H-Disc";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4365,17 +4707,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopDRing", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 16;
-	move.framebarName = assignName("H Tandem Top", "H-Disc");
+	move.framebarName = "H Tandem Top";
+	move.framebarSlangName = "H-Disc";
 	addMove(move);
 	
 	// Bad Moon does not get a height buff in Rev1
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "BadMoon");
-	move.displayName = assignName("Bad Moon", "BM");
+	move.displayName = "Bad Moon";
 	move.displayNameSelector = displayNameSelector_badMoon;
+	move.slangName = "BM";
+	move.displaySlangNameSelector = displaySlangNameSelector_badMoon;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SecretGarden");
-	move.displayName = assignName("Secret Garden", "Garden");
+	move.displayName = "Secret Garden";
+	move.slangName = "Garden";
 	move.ignoreJumpInstalls = true;
 	move.powerup = powerup_secretGarden;
 	move.powerupExplanation = powerupExplanation_secretGarden;
@@ -4383,56 +4729,64 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "LustShaker");
-	move.displayName = assignName("Lust Shaker", "Shaker");
+	move.displayName = "Lust Shaker";
+	move.slangName = "Shaker";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "Zenten");
-	move.displayName = assignName("Forward Roll", "Roll");
+	move.displayName = "Forward Roll";
+	move.slangName = "Roll";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "IronSavior");
-	move.displayName = assignName("Iron Savior", "Haircar");
+	move.displayName = "Iron Savior";
+	move.slangName = "Haircar";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce2");
-	move.displayName = assignName("H Silent Force", "H-Pin");
+	move.displayName = "H Silent Force";
+	move.slangName = "H-Pin";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce");
-	move.displayName = assignName("S Silent Force", "S-Pin");
+	move.displayName = "S Silent Force";
+	move.slangName = "S-Pin";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "KousokuRakka");
-	move.displayName = assignName("Turbo Fall", "TF");
+	move.displayName = "Turbo Fall";
+	move.slangName = "TF";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRain");
-	move.displayName = assignName("Emerald Rain", "ER");
+	move.displayName = "Emerald Rain";
+	move.slangName = "ER";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ChromingRose");
-	move.displayName = assignName("Chroming Rose", "Rose Install");
+	move.displayName = "Chroming Rose";
+	move.slangName = "Rose Install";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "Winger");
-	move.displayName = assignName("Winger");
+	move.displayName = "Winger";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "WingerBurst");
-	move.displayName = assignName("Burst Winger");
+	move.displayName = "Burst Winger";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
@@ -4441,28 +4795,35 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRainRing1", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 17;
-	move.framebarName = assignName("Emerald Rain", "ER");
-	move.framebarNameUncombined = assignName("Emeral Rain Ring 1", "ER Ring1");
+	move.framebarName = "Emerald Rain";
+	move.framebarSlangName = "ER";
+	move.framebarSlangNameUncombined = "ER Ring1";
+	move.framebarNameUncombined = "Emeral Rain Ring 1";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRainRing2", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 17;
-	move.framebarName = assignName("Emerald Rain", "ER");
-	move.framebarNameUncombined = assignName("Emeral Rain Ring 2", "ER Ring2");
+	move.framebarName = "Emerald Rain";
+	move.framebarSlangName = "ER";
+	move.framebarSlangNameUncombined = "ER Ring2";
+	move.framebarNameUncombined = "Emeral Rain Ring 2";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRainRing3", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 17;
-	move.framebarName = assignName("Emerald Rain", "ER");
-	move.framebarNameUncombined = assignName("Emeral Rain Ring 3", "ER Ring3");
+	move.framebarName = "Emerald Rain";
+	move.framebarSlangName = "ER";
+	move.framebarSlangNameUncombined = "ER Ring3";
+	move.framebarNameUncombined = "Emeral Rain Ring 3";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SecretGardenBall", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 18;
-	move.framebarName = assignName("Secret Garden", "Garden");
+	move.framebarName = "Secret Garden";
+	move.framebarSlangName = "Garden";
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
@@ -4470,7 +4831,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "RoseObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 19;
-	move.framebarName = assignName("Rose");
+	move.framebarName = "Rose";
 	addMove(move);
 	
 	// Zato does not have a move that makes him airborne from the ground, so he never cares about super jump installs.
@@ -4479,20 +4840,20 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_ZATO] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "NmlAtk6B");
-	move.displayName = assignName("6K");
+	move.displayName = "6K";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;  // a dead end move
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "NmlAtk6D");
-	move.displayName = assignName("6H");
+	move.displayName = "6H";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;  // a dead end move
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieMegalithHead", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Great White");
+	move.framebarName = "Great White";
 	move.framebarId = 109;
 	move.isEddie = true;
 	move.showMultipleHitsFromOneAttack = true;
@@ -4500,7 +4861,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "ChouDoriru", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarName = assignName("Giga Drill");
+	move.framebarName = "Giga Drill";
 	move.framebarId = 109;
 	move.isEddie = true;
 	addMove(move);
@@ -4511,7 +4872,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieA", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie P");
+	move.framebarName = "Eddie P";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
@@ -4519,7 +4880,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieB", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie K");
+	move.framebarName = "Eddie K";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
@@ -4527,7 +4888,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieC", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie S");
+	move.framebarName = "Eddie S";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
@@ -4535,7 +4896,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieD", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie H");
+	move.framebarName = "Eddie H";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
@@ -4543,7 +4904,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieE", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie D");
+	move.framebarName = "Eddie D";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
@@ -4551,7 +4912,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie4", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie 4");
+	move.framebarName = "Eddie 4";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
@@ -4559,7 +4920,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie");
+	move.framebarName = "Eddie";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
@@ -4567,111 +4928,120 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie6", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Eddie 6");
+	move.framebarName = "Eddie 6";
 	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Fly");
-	move.displayName = assignName("Flight");
+	move.displayName = "Flight";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "InviteHellC");
-	move.displayName = assignName("S Invite Hell", "S-Drill");
+	move.displayName = "S Invite Hell";
+	move.slangName = "S-Drill";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "InviteHellD");
-	move.displayName = assignName("H Invite Hell", "H-Drill");
+	move.displayName = "H Invite Hell";
+	move.slangName = "H-Drill";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD");
-	move.displayName = assignName("Summon Eddie Shadow Dive", "Summon");
+	move.displayName = "Summon Eddie Shadow Dive";
+	move.slangName = "Summon";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonC");
-	move.displayName = assignName("Summon Eddie Anti-air Attack", "Nobiru");
+	move.displayName = "Summon Eddie Anti-air Attack";
+	move.slangName = "Nobiru";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonB");
-	move.displayName = assignName("Summon Eddie Traversing Attack", "Mawaru");
+	move.displayName = "Summon Eddie Traversing Attack";
+	move.slangName = "Mawaru";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonA");
-	move.displayName = assignName("Summon Eddie Small Attack", "P Summon");
+	move.displayName = "Summon Eddie Small Attack";
+	move.slangName = "P Summon";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieReturn");
-	move.displayName = assignName("Recall Eddie", "Recall");
+	move.displayName = "Recall Eddie";
+	move.slangName = "Recall";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD2");
-	move.displayName = assignName("Shadow Puddle Eddie Summon", "Puddle Summon");
+	move.displayName = "Shadow Puddle Eddie Summon";
+	move.slangName = "Puddle Summon";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrunkerdShade");
-	move.displayName = assignName("Drunkard Shade");
+	move.displayName = "Drunkard Shade";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DamnedFang");
-	move.displayName = assignName("Damned Fang");
+	move.displayName = "Damned Fang";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DamnedFangExe");
-	move.displayName = assignName("Damned Fang");
+	move.displayName = "Damned Fang";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "ShadowGallary");
-	move.displayName = assignName("Shadow Gallery", "SG");
+	move.displayName = "Shadow Gallery";
+	move.slangName = "SG";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Executer");
-	move.displayName = assignName("Executor");
+	move.displayName = "Executor";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Amorphous");
-	move.displayName = assignName("Amorphous");
+	move.displayName = "Amorphous";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "AmorphousBurst");
-	move.displayName = assignName("Burst Amorphous");
+	move.displayName = "Burst Amorphous";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "MegalithHead");
-	move.displayName = assignName("Great White");
+	move.displayName = "Great White";
 	move.dontSkipSuper = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "MegalithHead2");
-	move.displayName = assignName("Great White");
+	move.displayName = "Great White";
 	move.dontSkipSuper = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Zato 214K
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "BreakTheLaw");
-	move.displayName = assignName("Break the Law");
+	move.displayName = "Break the Law";
 	move.sectionSeparator = sectionSeparator_breakTheLaw;
 	move.zatoHoldLevel = zatoHoldLevel_breakTheLaw;
 	move.isInVariableStartupSection = isInVariableStartupSection_breakTheLaw;
@@ -4681,28 +5051,32 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrillC", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 20;
-	move.framebarName = assignName("Invite Hell", "Drill");
+	move.framebarName = "Invite Hell";
+	move.framebarSlangName = "Drill";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrillD", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 20;
-	move.framebarName = assignName("Invite Hell", "Drill");
+	move.framebarName = "Invite Hell";
+	move.framebarSlangName = "Drill";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "AmorphousObj", true);
 	move.isDangerous = isDangerous_amorphous;
 	move.framebarId = 21;
-	move.framebarName = assignName("Amorphous");
-	move.framebarNameUncombined = assignName("Amorphous", "Amorphous");
+	move.framebarName = "Amorphous";
+	move.framebarSlangNameUncombined = "Amorphous";
+	move.framebarNameUncombined = "Amorphous";
 	addMove(move);
 	
 	// this can only be created on the boss version of Zato
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "AmorphousObj2", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 21;
-	move.framebarName = assignName("Amorphous");
-	move.framebarNameUncombined = assignName("Amorphous Hit 2", "Amorphous2");
+	move.framebarName = "Amorphous";
+	move.framebarSlangNameUncombined = "Amorphous2";
+	move.framebarNameUncombined = "Amorphous Hit 2";
 	addMove(move);
 	
 	// Potemkin does not care about super jump installs at all because he will never make use of the airdash that he gets,
@@ -4711,32 +5085,32 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_POTEMKIN] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "NmlAtk2E");
-	move.displayName = assignName("2D");
+	move.displayName = "2D";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "SlideHead");
-	move.displayName = assignName("Slide Head");
+	move.displayName = "Slide Head";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "MegaFistFront");
-	move.displayName = assignName("Forward Megafist");
+	move.displayName = "Forward Megafist";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "MegaFistBack");
-	move.displayName = assignName("Back Megafist");
+	move.displayName = "Back Megafist";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeatKnucle");
-	move.displayName = assignName("Heat Knuckle");
+	move.displayName = "Heat Knuckle";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HammerFall");
-	move.displayName = assignName("Hammer Fall");
+	move.displayName = "Hammer Fall";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.partOfStance = true;
@@ -4744,33 +5118,36 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeatExtend");
-	move.displayName = assignName("Heat Extend");
+	move.displayName = "Heat Extend";
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "PotemkinBuster");
-	move.displayName = assignName("Potemkin Buster", "Potbuster");
+	move.displayName = "Potemkin Buster";
+	move.slangName = "Potbuster";
 	move.frontLegInvul = frontLegInvul_potemkinBuster;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "PotemkinBusterExe");
-	move.displayName = assignName("Potemkin Buster", "Potbuster");
+	move.displayName = "Potemkin Buster";
+	move.slangName = "Potbuster";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Ichigeki");
-	move.displayName = assignName("Instant Kill", "IK");
+	move.displayName = "Instant Kill";
+	move.slangName = "IK";
 	move.frontLegInvul = frontLegInvul_potemkinBuster;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Potemkin Flick
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB");
-	move.displayName = assignName("F.D.B.");
+	move.displayName = "F.D.B.";
 	move.sectionSeparator = sectionSeparator_FDB;
 	move.isInVariableStartupSection = isInVariableStartupSection_fdb;
 	move.canYrcProjectile = canYrcProjectile_default;
@@ -4779,43 +5156,47 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB_obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("F.D.B.");
+	move.framebarName = "F.D.B.";
 	move.framebarId = 110;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Anti_AirExplode");
-	move.displayName = assignName("Trishula");
+	move.displayName = "Trishula";
 	move.canYrcProjectile = canYrcProjectile_prevNoLinkDestroyOnStateChange;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "RocketDive");
-	move.displayName = assignName("I.C.P.M.");
+	move.displayName = "I.C.P.M.";
 	move.dontSkipGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "RocketDiveExe");
-	move.displayName = assignName("I.C.P.M.");
+	move.displayName = "I.C.P.M.";
 	move.combineWithPreviousMove = true;
 	move.dontSkipGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeavenlyPBuster");
-	move.displayName = assignName("Heavenly Potemkin Buster", "HPB");
+	move.displayName = "Heavenly Potemkin Buster";
+	move.slangName = "HPB";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeavenlyPBusterBurst");
-	move.displayName = assignName("Burst Heavenly Potemkin Buster", "Burst HPB");
+	move.displayName = "Burst Heavenly Potemkin Buster";
+	move.slangName = "Burst HPB";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HeavenlyPBusterExe");
-	move.displayName = assignName("Heavenly Potemkin Buster", "HPB");
+	move.displayName = "Heavenly Potemkin Buster";
+	move.slangName = "HPB";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HammerFallBrake");
-	move.displayName = assignName("Hammer Fall Break");
+		move.displayName = "Hammer Fall Break";
+	move.slangName = "HFB";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.partOfStance = true;
@@ -4825,17 +5206,18 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "SlideHead_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 22;
-	move.framebarName = assignName("Slide Head");
+	move.framebarName = "Slide Head";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 23;
-	move.framebarName = assignName("FDB");
+	move.framebarName = "FDB";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Giganter");
-	move.displayName = assignName("Giganter Kai", "Giganter");
+	move.displayName = "Giganter Kai";
+	move.slangName = "Giganter";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
@@ -4844,11 +5226,12 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "GiganObj", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 24;
-	move.framebarName = assignName("Giganter");
+	move.framebarName = "Giganter";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "GiganticBullet");
-	move.displayName = assignName("Gigantic Bullet Kai", "Bullet");
+	move.displayName = "Gigantic Bullet Kai";
+	move.slangName = "Bullet";
 	move.dontSkipSuper = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4856,7 +5239,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Bomb", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 25;
-	move.framebarName = assignName("Trishula");
+	move.framebarName = "Trishula";
 	addMove(move);
 	
 	// Venom has only one special move that can make him airborne: Teleport.
@@ -4867,7 +5250,8 @@ void Moves::addMoves() {
 	// double jump from it, but if you jump install, you can.
 	// You do get a guaranteed airdash from teleport, so we will only ignore super jump installs
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiA");
-	move.displayName = assignName("P Ball Set", "P Ball");
+	move.displayName = "P Ball Set";
+	move.slangName = "P Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4880,7 +5264,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiA_Hold");
-	move.displayName = assignName("P Ball Set", "P Ball");
+	move.displayName = "P Ball Set";
+	move.slangName = "P Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4893,7 +5278,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiB");
-	move.displayName = assignName("K Ball Set", "K Ball");
+	move.displayName = "K Ball Set";
+	move.slangName = "K Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4906,7 +5292,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiB_Hold");
-	move.displayName = assignName("K Ball Set", "K Ball");
+	move.displayName = "K Ball Set";
+	move.slangName = "K Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4919,7 +5306,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiC");
-	move.displayName = assignName("S Ball Set", "S Ball");
+	move.displayName = "S Ball Set";
+	move.slangName = "S Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4932,7 +5320,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiC_Hold");
-	move.displayName = assignName("S Ball Set", "S Ball");
+	move.displayName = "S Ball Set";
+	move.slangName = "S Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4945,7 +5334,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiD");
-	move.displayName = assignName("H Ball Set", "H Ball");
+	move.displayName = "H Ball Set";
+	move.slangName = "H Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4958,7 +5348,8 @@ void Moves::addMoves() {
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "BallSeiseiD_Hold");
-	move.displayName = assignName("H Ball Set", "H Ball");
+	move.displayName = "H Ball Set";
+	move.slangName = "H Ball";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.addForceAddWhiffCancel("WarpB");
@@ -4971,61 +5362,69 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiA");
-	move.displayName = assignName("Air P Ball Set", "Air P Ball");
+	move.displayName = "Air P Ball Set";
+	move.slangName = "Air P Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiB");
-	move.displayName = assignName("Air K Ball Set", "Air K Ball");
+	move.displayName = "Air K Ball Set";
+	move.slangName = "Air K Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiC");
-	move.displayName = assignName("Air S Ball Set", "Air S Ball");
+	move.displayName = "Air S Ball Set";
+	move.slangName = "Air S Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiD");
-	move.displayName = assignName("Air H Ball Set", "Air H Ball");
+	move.displayName = "Air H Ball Set";
+	move.slangName = "Air H Ball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "MadStrugguleD");
-	move.displayName = assignName("H Mad Struggle");
+	move.displayName = "H Mad Struggle";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "MadStrugguleC");
-	move.displayName = assignName("S Mad Struggle");
+	move.displayName = "S Mad Struggle";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "Warp");
-	move.displayName = assignName("Teleport");
+	move.displayName = "Teleport";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "WarpB");
-	move.displayName = assignName("Teleport");
+	move.displayName = "Teleport";
 	move.replacementInputs = "Hold the button you set the ball with";
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DoubleHeadMorbidD");
-	move.displayName = assignName("H Double Head Morbid", "HDHM");
+	move.displayName = "H Double Head Morbid";
+	move.slangName = "HDHM";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DoubleHeadMorbidC");
-	move.displayName = assignName("S Double Head Morbid", "SDHM");
+	move.displayName = "S Double Head Morbid";
+	move.slangName = "SDHM";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimD");
-	move.displayName = assignName("H Stinger Aim", "H Stinger");
+	move.displayName = "H Stinger Aim";
 	move.displayNameSelector = displayNameSelector_stingerH;
 	move.sectionSeparator = sectionSeparator_stingerH;
 	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
+	move.slangName = "H Stinger";
+	move.displaySlangNameSelector = displaySlangNameSelector_stingerH;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_stingerH;
 	move.powerupExplanation = powerupExplanation_stinger;
@@ -5033,10 +5432,12 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimC");
-	move.displayName = assignName("S Stinger Aim", "S Stinger");
+	move.displayName = "S Stinger Aim";
 	move.displayNameSelector = displayNameSelector_stingerS;
 	move.sectionSeparator = sectionSeparator_stingerS;
 	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
+	move.slangName = "S Stinger";
+	move.displaySlangNameSelector = displaySlangNameSelector_stingerS;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_stingerS;
 	move.powerupExplanation = powerupExplanation_stinger;
@@ -5044,22 +5445,26 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidD");
-	move.displayName = assignName("H Carcass Raid", "H Carcass");
+	move.displayName = "H Carcass Raid";
 	move.displayNameSelector = displayNameSelector_carcassRaidH;
+	move.slangName = "H Carcass";
+	move.displaySlangNameSelector = displaySlangNameSelector_carcassRaidH;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidC");
-	move.displayName = assignName("S Carcass Raid", "S Carcass");
+	move.displayName = "S Carcass Raid";
 	move.displayNameSelector = displayNameSelector_carcassRaidS;
+	move.slangName = "S Carcass";
+	move.displaySlangNameSelector = displaySlangNameSelector_carcassRaidS;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	// Venom QV
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveA");
-	move.displayName = assignName("P QV");
+	move.displayName = "P QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
@@ -5069,7 +5474,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveB");
-	move.displayName = assignName("K QV");
+	move.displayName = "K QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
@@ -5079,7 +5484,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveC");
-	move.displayName = assignName("S QV");
+	move.displayName = "S QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
@@ -5089,7 +5494,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveD");
-	move.displayName = assignName("H QV");
+	move.displayName = "H QV";
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.canYrcProjectile = canYrcProjectile_qv;
@@ -5099,7 +5504,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "RedHail");
-	move.displayName = assignName("Red Hail");
+	move.displayName = "Red Hail";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
@@ -5108,8 +5513,9 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "Ball", true);
 	move.isDangerous = isDangerous_active;
 	move.framebarId = 49;
-	move.framebarName = assignName("Balls", "Balls");
+	move.framebarName = "Balls";
 	move.framebarNameSelector = framebarNameSelector_venomBall;
+	move.framebarSlangName = "Balls";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -5117,25 +5523,28 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "Debious_AttackBall", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 50;
-	move.framebarName = assignName("QV");
+	move.framebarName = "QV";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngel");
-	move.displayName = assignName("Dark Angel", "DA");
+	move.displayName = "Dark Angel";
+	move.slangName = "DA";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBurst");
-	move.displayName = assignName("Burst Dark Angel", "Burst DA");
+	move.displayName = "Burst Dark Angel";
+	move.slangName = "Burst DA";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "SummonGoldBall");
-	move.displayName = assignName("Bishop Runout", "Bishop");
+	move.displayName = "Bishop Runout";
+	move.slangName = "Bishop";
 	move.dontSkipSuper = true;
 	move.createdProjectile = createdProjectile_bishop;
 	move.canYrcProjectile = canYrcProjectile_bishop;
@@ -5146,35 +5555,37 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBallStart", true);
 	move.isDangerous = isDangerous_hasNotCreatedAnythingYet;
 	move.framebarId = 51;
-	move.framebarName = assignName("Dark Angel", "DA");
+	move.framebarName = "Dark Angel";
+	move.framebarSlangName = "DA";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 51;
-	move.framebarName = assignName("Dark Angel", "DA");
+	move.framebarName = "Dark Angel";
+	move.framebarSlangName = "DA";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk6B");
-	move.displayName = assignName("6K");
+	move.displayName = "6K";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk2D");
-	move.displayName = assignName("2H");
+	move.displayName = "2H";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk6A");
-	move.displayName = assignName("6P");
+	move.displayName = "6P";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "NmlAtk2E");
-	move.displayName = assignName("2D");
+	move.displayName = "2D";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -5182,14 +5593,16 @@ void Moves::addMoves() {
 	// The only moves that you get from Dandy Steps that make you airborne are Helter-Skelter and Crosswise Heel,
 	// and those give you an airdash anyway, so there is no need to care about super jump installs.
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "DandyStepA");
-	move.displayName = assignName("P Dandy Step", "P-Dandy");
+	move.displayName = "P Dandy Step";
+	move.slangName = "P-Dandy";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "DandyStepB");
-	move.displayName = assignName("K Dandy Step", "K-Dandy");
+	move.displayName = "K Dandy Step";
+	move.slangName = "K-Dandy";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.ignoreSuperJumpInstalls = true;
@@ -5197,16 +5610,20 @@ void Moves::addMoves() {
 	
 	// Slayer dandy step follow-ups
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "CrossWise");
-	move.displayName = assignName("Crosswise Heel", "CW");
+	move.displayName = "Crosswise Heel";
 	move.displayNameSelector = displayNameSelector_crosswise;
+	move.slangName = "CW";
+	move.displaySlangNameSelector = displaySlangNameSelector_crosswise;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "UnderPressure");
-	move.displayName = assignName("Under Pressure", "UP");
+	move.displayName = "Under Pressure";
 	move.displayNameSelector = displayNameSelector_underPressure;
+	move.slangName = "UP";
+	move.displaySlangNameSelector = displaySlangNameSelector_underPressure;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	move.considerVariableStartupAsStanceForFramebar = true;
@@ -5215,12 +5632,14 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ItsLate");
-	move.displayName = assignName("It's Late", "IL");
+	move.displayName = "It's Late";
+	move.slangName = "IL";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "RetroFire");
-	move.displayName = assignName("Helter Skelter", "Helter");
+	move.displayName = "Helter Skelter";
+	move.slangName = "Helter";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	move.canYrcProjectile = canYrcProjectile_default;
@@ -5230,75 +5649,88 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "Retro", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 52;
-	move.framebarName = assignName("Helter Skelter", "Helter");
+	move.framebarName = "Helter Skelter";
+	move.framebarSlangName = "Helter";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "PileBunker");
-	move.displayName = assignName("Pilebunker", "Pile");
+	move.displayName = "Pilebunker";
 	move.displayNameSelector = displayNameSelector_pilebunker;
+	move.slangName = "Pile";
+	move.displaySlangNameSelector = displaySlangNameSelector_pilebunker;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "6BFeint");
-	move.displayName = assignName("6K Feint");
+	move.displayName = "6K Feint";
 	move.combineWithPreviousMove = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "MappaHunchA");
-	move.displayName = assignName("P Mappa Hunch", "P Mappa");
+	move.displayName = "P Mappa Hunch";
+	move.slangName = "P Mappa";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "MappaHunchB");
-	move.displayName = assignName("K Mappa Hunch", "K Mappa");
+	move.displayName = "K Mappa Hunch";
+	move.slangName = "K Mappa";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "FootLoose");
-	move.displayName = assignName("Footloose Journey", "Footloose");
+	move.displayName = "Footloose Journey";
+	move.slangName = "Footloose";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChiwosuuUchuu");
-	move.displayName = assignName("Bloodsucking Universe", "Bite");
+	move.displayName = "Bloodsucking Universe";
+	move.slangName = "Bite";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChiwosuuUchuuExe");
-	move.displayName = assignName("Bloodsucking Universe", "Bite");
+	move.displayName = "Bloodsucking Universe";
+	move.slangName = "Bite";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "UnderTow");
-	move.displayName = assignName("Undertow");
+	move.displayName = "Undertow";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChokkagataDandy");
-	move.displayName = assignName("Straight-Down Dandy", "SDD");
+	move.displayName = "Straight-Down Dandy";
+	move.slangName = "SDD";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "EienNoTsubasa");
-	move.displayName = assignName("Eternal Wings", "EW");
+	move.displayName = "Eternal Wings";
+	move.slangName = "EW";
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "DeadOnTime");
-	move.displayName = assignName("Dead on Time", "DoT");
+	move.displayName = "Dead on Time";
+	move.slangName = "DoT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "DeadOnTimeBurst");
-	move.displayName = assignName("Burst Dead on Time", "BDoT");
+	move.displayName = "Burst Dead on Time";
+	move.slangName = "BDoT";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "KetsuFire", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 53;
-	move.framebarName = assignName("Straight-Down Dandy", "SDD");
+	move.framebarName = "Straight-Down Dandy";
+	move.framebarSlangName = "SDD";
 	addMove(move);
 	
 	// I-No has only the following moves that can make her airborne:
@@ -5313,30 +5745,34 @@ void Moves::addMoves() {
 	// Unfortunately this means we must show super jump installs on I-No.
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "NmlAtk5E");
-	move.displayName = assignName("5D");
+	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_ino5D;
 	move.canYrcProjectile = canYrcProjectile_ino5D;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "AirFDash_Under");
-	move.displayName = assignName("Downwards Dash", "Hoverdown");
+	move.displayName = "Downwards Dash";
+	move.slangName = "Hoverdown";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkai");
-	move.displayName = assignName("Antidepressant Scale", MOVE_NAME_NOTE);
+	move.displayName = "Antidepressant Scale";
+	move.slangName = MOVE_NAME_NOTE;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkaiAir");
-	move.displayName = assignName("Air Antidepressant Scale", "Air Note");
+	move.displayName = "Air Antidepressant Scale";
+	move.slangName = "Air Note";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// I-No Sultry Performance
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenA");
-	move.displayName = assignName("P Sultry Performance", "P-Dive");
+	move.displayName = "P Sultry Performance";
+	move.slangName = "P-Dive";
 	move.sectionSeparator = sectionSeparator_sultryPerformance;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -5346,7 +5782,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenB");
-	move.displayName = assignName("K Sultry Performance", "K-Dive");
+	move.displayName = "K Sultry Performance";
+	move.slangName = "K-Dive";
 	move.sectionSeparator = sectionSeparator_sultryPerformance;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -5356,7 +5793,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenC");
-	move.displayName = assignName("S Sultry Performance", "S-Dive");
+	move.displayName = "S Sultry Performance";
+	move.slangName = "S-Dive";
 	move.sectionSeparator = sectionSeparator_sultryPerformance;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -5366,7 +5804,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenD");
-	move.displayName = assignName("H Sultry Performance", "H-Dive");
+	move.displayName = "H Sultry Performance";
+	move.slangName = "H-Dive";
 	move.sectionSeparator = sectionSeparator_sultryPerformance;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
@@ -5376,80 +5815,94 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "CommandThrow");
-	move.displayName = assignName("Sterilization Method", "SM");
+	move.displayName = "Sterilization Method";
+	move.slangName = "SM";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "CommandThrowExe");
-	move.displayName = assignName("Sterilization Method", "SM");
+	move.displayName = "Sterilization Method";
+	move.slangName = "SM";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "AirCommandThrow");
-	move.displayName = assignName("Air Sterilization Method", "Air SM");
+	move.displayName = "Air Sterilization Method";
+	move.slangName = "Air SM";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "AirCommandThrowExe");
-	move.displayName = assignName("Air Sterilization Method", "Air SM");
+	move.displayName = "Air Sterilization Method";
+	move.slangName = "Air SM";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "TaibokuC");
-	move.displayName = assignName("S Strike the Big Tree", "S-STBT");
+	move.displayName = "S Strike the Big Tree";
+	move.slangName = "S-STBT";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "TaibokuD");
-	move.displayName = assignName("H Strike the Big Tree", "H-STBT");
+	move.displayName = "H Strike the Big Tree";
+	move.slangName = "H-STBT";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalB");
-	move.displayName = assignName("Chemical Love", "HCL");
+	move.displayName = "Chemical Love";
+	move.slangName = "HCL";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirB");
-	move.displayName = assignName("Air Chemical Love", "Air HCL");
+	move.displayName = "Air Chemical Love";
+	move.slangName = "Air HCL";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalC");
-	move.displayName = assignName("Vertical Chemical Love", "VCL");
+	move.displayName = "Vertical Chemical Love";
+	move.slangName = "VCL";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirC");
-	move.displayName = assignName("Air Vertical Chemical Love", "Air VCL");
+	move.displayName = "Air Vertical Chemical Love";
+	move.slangName = "Air VCL";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAdd");
-	move.displayName = assignName("Chemical Love (Follow-up)", "214K~214S");
+	move.displayName = "Chemical Love (Follow-up)";
+	move.slangName = "214K~214S";
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.canYrcProjectile = canYrcProjectile_default;  // typically opponent will be in blockstun, but I did a hacktest and ye you can YRC this
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Madogiwa");
-	move.displayName = assignName("Longing Desperation", "Desperation");
+	move.displayName = "Longing Desperation";
+	move.slangName = "Desperation";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_INO, "MadogiwaBurst");
-	move.displayName = assignName("Burst Longing Desperation", "Burst Desperation");
+	move.displayName = "Burst Longing Desperation";
+	move.slangName = "Burst Desperation";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Genkai");
-	move.displayName = assignName("Ultimate Fortissimo", "Fortissimo");
+	move.displayName = "Ultimate Fortissimo";
+	move.slangName = "Fortissimo";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
@@ -5457,25 +5910,29 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "BChemiLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 54;
-	move.framebarName = assignName("Chemical Love", "HCL");
+	move.framebarName = "Chemical Love";
+	move.framebarSlangName = "HCL";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "AddChemiLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 54;
-	move.framebarName = assignName("Chemical Love (Follow-up)", "214K~214S");
+	move.framebarName = "Chemical Love (Follow-up)";
+	move.framebarSlangName = "214K~214S";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "CChemiLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 54;
-	move.framebarName = assignName("Vertical Chemical Love", "VCL");
+	move.framebarName = "Vertical Chemical Love";
+	move.framebarSlangName = "VCL";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 55;
-	move.framebarName = assignName("Antidepressant Scale", "Note");
+	move.framebarName = "Antidepressant Scale";
+	move.framebarSlangName = "Note";
 	move.projectilePowerup = powerup_onpu;
 	addMove(move);
 	
@@ -5483,7 +5940,8 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 55;
-	move.framebarName = assignName("Antidepressant Scale", "Note");
+	move.framebarName = "Antidepressant Scale";
+	move.framebarSlangName = "Note";
 	move.projectilePowerup = powerup_onpu;
 	addMove(move);
 	
@@ -5491,7 +5949,8 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 55;
-	move.framebarName = assignName("Antidepressant Scale", "Note");
+	move.framebarName = "Antidepressant Scale";
+	move.framebarSlangName = "Note";
 	move.projectilePowerup = powerup_onpu;
 	addMove(move);
 	
@@ -5499,19 +5958,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "DustObjShot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 56;
-	move.framebarName = assignName("5D");
+	move.framebarName = "5D";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "GenkaiObj", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 57;
-	move.framebarName = assignName("Ultimate Fortissimo", "Fortissimo");
+	move.framebarName = "Ultimate Fortissimo";
+	move.framebarSlangName = "Fortissimo";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "MadogiwaObj", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 58;
-	move.framebarName = assignName("Longing Desperation", "Desperation");
+	move.framebarName = "Longing Desperation";
+	move.framebarSlangName = "Desperation";
 	addMove(move);
 	
 	// The only move that can put Bedman into the air is Task C, and he gets a free airdash from it.
@@ -5521,43 +5982,49 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_BEDMAN] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "CmnActFDash");
-	move.displayName = assignName("Forward Dash");
+	move.displayName = "Forward Dash";
 	move.nameIncludesInputs = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "NmlAtk6D_2");
-	move.displayName = assignName("6H (Follow-up)", "6H~6H");
+	move.displayName = "6H (Follow-up)";
+	move.slangName = "6H~6H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "CrouchFWalk");
-	move.displayName = assignName("Crouchwalk Forward", "3");
+	move.displayName = "Crouchwalk Forward";
+	move.slangName = "3";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "CrouchBWalk");
-	move.displayName = assignName("Crouchwalk Back", "1");
+	move.displayName = "Crouchwalk Back";
+	move.slangName = "1";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A");
-	move.displayName = assignName("Task A", "TA");
+	move.displayName = "Task A";
+	move.slangName = "TA";
 	move.powerup = powerup_boomerangA;
 	move.powerupExplanation = powerupExplanation_boomerangA;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangA;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Air");
-	move.displayName = assignName("Air Task A", "j.TA");
+	move.displayName = "Air Task A";
+	move.slangName = "j.TA";
 	move.powerup = powerup_boomerangAAir;
 	move.powerupExplanation = powerupExplanation_boomerangAAir;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangAAir;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A");
-	move.displayName = assignName("P \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVA");
+	move.displayName = "P \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "DVA";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5565,7 +6032,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A_Air");
-	move.displayName = assignName("P Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVA");
+	move.displayName = "P Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "j.DVA";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5573,21 +6041,24 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B");
-	move.displayName = assignName("Task A'", "TA'");
+	move.displayName = "Task A'";
+	move.slangName = "TA'";
 	move.powerup = powerup_boomerangB;
 	move.powerupExplanation = powerupExplanation_boomerangB;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Air");
-	move.displayName = assignName("Air Task A'", "j.TA'");
+	move.displayName = "Air Task A'";
+	move.slangName = "j.TA'";
 	move.powerup = powerup_boomerangBAir;
 	move.powerupExplanation = powerupExplanation_boomerangBAir;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangBAir;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B");
-	move.displayName = assignName("K \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVA'");
+	move.displayName = "K \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "DVA'";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5595,7 +6066,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B_Air");
-	move.displayName = assignName("K Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVA'");
+	move.displayName = "K Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "j.DVA'";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5603,21 +6075,24 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed");
-	move.displayName = assignName("Task B", "TB");
+	move.displayName = "Task B";
+	move.slangName = "TB";
 	move.powerup = powerup_taskB;
 	move.powerupExplanation = powerupExplanation_taskB;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_taskB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed_Air");
-	move.displayName = assignName("Air Task B", "j.TB");
+	move.displayName = "Air Task B";
+	move.slangName = "j.TB";
 	move.powerup = powerup_taskBAir;
 	move.powerupExplanation = powerupExplanation_taskBAir;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_taskBAir;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C");
-	move.displayName = assignName("S \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVB");
+	move.displayName = "S \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "DVB";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5625,7 +6100,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C_Air");
-	move.displayName = assignName("S Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVB");
+	move.displayName = "S Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "j.DVB";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5633,15 +6109,18 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed");
-	move.displayName = assignName("Task C", "TC");
+	move.displayName = "Task C";
+	move.slangName = "TC";
 	move.powerup = powerup_taskC;
 	move.powerupExplanation = powerupExplanation_taskC;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_taskC;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed_Air");
-	move.displayName = assignName("Air Task C", "j.TC");
+	move.displayName = "Air Task C";
 	move.displayNameSelector = displayNameSelector_taskCAir;
+	move.slangName = "j.TC";
+	move.displaySlangNameSelector = displaySlangNameSelector_taskCAir;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_taskCAir;
 	move.powerupExplanation = powerupExplanation_taskCAir;
@@ -5649,7 +6128,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D");
-	move.displayName = assignName("H \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVC");
+	move.displayName = "H \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "DVC";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5657,7 +6137,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D_Air");
-	move.displayName = assignName("H Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVC");
+	move.displayName = "H Air \x44\xC3\xA9\x6A\xC3\xA0 Vu";
+	move.slangName = "j.DVC";
 	move.powerup = powerup_djavu;
 	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -5665,26 +6146,28 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Alarm");
-	move.displayName = assignName("Sinusoidal Helios", "Clock Super");
+	move.displayName = "Sinusoidal Helios";
+	move.slangName = "Clock Super";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AlarmBurst");
-	move.displayName = assignName("Burst Sinusoidal Helios");
+	move.displayName = "Burst Sinusoidal Helios";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Merry");
-	move.displayName = assignName("Hemi Jack", "Sheep Super");
+	move.displayName = "Hemi Jack";
+	move.slangName = "Sheep Super";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// Bedman Teleporting from the boomerang head hitting
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "BWarp");
-	move.displayName = assignName("Task A' Teleport");
+	move.displayName = "Task A' Teleport";
 	move.combineWithPreviousMove = true;
 	move.dontSkipSuper = true;
 	addMove(move);
@@ -5692,27 +6175,30 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Aralm_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 59;
-	move.framebarName = assignName("Sinusoidal Helios", "Helios");
+	move.framebarName = "Sinusoidal Helios";
+	move.framebarSlangName = "Helios";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Okkake", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 60;
-	move.framebarName = assignName("Hemi Jack", "Sheep Super");
+	move.framebarName = "Hemi Jack";
+	move.framebarSlangName = "Sheep Super";
 	addMove(move);
 	
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 61;
-	move.framebarName = assignName("Task A", "Boomerang");
+	move.framebarName = "Task A";
+	move.framebarSlangName = "Boomerang";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head_Air", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 61;
-	move.framebarName = assignName("Task A");
+	move.framebarName = "Task A";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -5720,35 +6206,38 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_A_Ghost", true);
 	move.isDangerous = isDangerous_djavu;
 	move.framebarId = 62;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A)", "DVA");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A)";
+	move.framebarSlangName = "DVA";
 	addMove(move);
 	
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Djavu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 62;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A)", "DVA");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A)";
+	move.framebarSlangName = "DVA";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Djavu_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 62;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Air Task A)", "DVA");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Air Task A)";
+	move.framebarSlangName = "DVA";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 63;
-	move.framebarName = assignName("Task A'");
+	move.framebarName = "Task A'";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head_Air", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 63;
-	move.framebarName = assignName("Task A'");
+	move.framebarName = "Task A'";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -5756,51 +6245,58 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_B_Ghost", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 64;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A')", "DVA'");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A')";
+	move.framebarSlangName = "DVA'";
 	addMove(move);
 	
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Djavu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 64;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A')", "DVA'");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A')";
+	move.framebarSlangName = "DVA'";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Djavu_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 64;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Air Task A')", "DVA'");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Air Task A')";
+	move.framebarSlangName = "DVA'";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_C_Ghost", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 65;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task B)", "DVB");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task B)";
+	move.framebarSlangName = "DVB";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "bomb1", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 66;
-	move.framebarName = assignName("Task C Shockwave", "Shockwave");
+	move.framebarName = "Task C Shockwave";
+	move.framebarSlangName = "Shockwave";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "bomb2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 66;
-	move.framebarName = assignName("Task C Shockwave", "Shockwave");
+	move.framebarName = "Task C Shockwave";
+	move.framebarSlangName = "Shockwave";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_D_Ghost", true);
 	move.isDangerous = isDangerous_Djavu_D_Ghost;
 	move.framebarId = 67;
-	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task C)", "DVC");
+	move.framebarName = "\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task C)";
+	move.framebarSlangName = "DVC";
 	move.framebarNameSelector = framebarNameSelector_djvuD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AirStop");
-	move.displayName = assignName("Hover");
+	move.displayName = "Hover";
 	move.addForceAddWhiffCancel("7Move");
 	move.addForceAddWhiffCancel("8Move");
 	move.addForceAddWhiffCancel("9Move");
@@ -5808,53 +6304,53 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AirStopCancelOnly");
-	move.displayName = assignName("Hover Cancel");
+	move.displayName = "Hover Cancel";
 	// displaying cancels on this is misleading, because you can't cancel into multidirectional hovers until 10 frames have passed, and it always picks a direction
 	// there is no way to view frames after 10 of this move
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "9Move");
-	move.displayName = assignName("Hover-9");
+	move.displayName = "Hover-9";
 	move.replacementInputs = "Hold 9 for 12f";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "8Move");
-	move.displayName = assignName("Hover-8");
+	move.displayName = "Hover-8";
 	move.replacementInputs = "Hold 8 for 12f";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "7Move");
-	move.displayName = assignName("Hover-7");
+	move.displayName = "Hover-7";
 	move.replacementInputs = "Hold 7 for 12f";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "6Move");
-	move.displayName = assignName("Hover-6");
+	move.displayName = "Hover-6";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "4Move");
-	move.displayName = assignName("Hover-4");
+	move.displayName = "Hover-4";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "3Move");
-	move.displayName = assignName("Hover-3");
+	move.displayName = "Hover-3";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "2Move");
-	move.displayName = assignName("Hover-2");
+	move.displayName = "Hover-2";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "1Move");
-	move.displayName = assignName("Hover-1");
+	move.displayName = "Hover-1";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "MerryWarp");
-	move.displayName = assignName("Teleport to Sheep");
+	move.displayName = "Teleport to Sheep";
 	addMove(move);
 	
 	// Ramlethal has two moves that can make her airborne: Sildo Detruo and Explode.
@@ -5864,270 +6360,274 @@ void Moves::addMoves() {
 	// Turns out, there is not one such move, at least not where we'd want regular jump installs, but not super jump installs.
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk6B");
-	move.displayName = assignName("6K");
+	move.displayName = "6K";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk3B");
-	move.displayName = assignName("3K");
+	move.displayName = "3K";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN", true);
-	move.displayName = assignName("Stand");
+	move.displayName = "Stand";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNBack", true);
-	move.displayName = assignName("Back");
+	move.displayName = "Back";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNForward", true);
-	move.displayName = assignName("Forward");
+	move.displayName = "Forward";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNUp", true);
-	move.displayName = assignName("Jump Up");
+	move.displayName = "Jump Up";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNUpEnd", true);
-	move.displayName = assignName("Jump End");
+	move.displayName = "Jump End";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNDown", true);
-	move.displayName = assignName("Jump Down");
+	move.displayName = "Jump Down";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNCrouch", true);
-	move.displayName = assignName("Crouch");
+	move.displayName = "Crouch";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNTurn", true);
-	move.displayName = assignName("Turn");
+	move.displayName = "Turn";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNDamage", true);
-	move.displayName = assignName("Damage");
+	move.displayName = "Damage";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN5C", true);
-	move.displayName = assignName("f.S");
+	move.displayName = "f.S";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNAir5C", true);
-	move.displayName = assignName("j.S");
+	move.displayName = "j.S";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNAir5C_Boss", true);
-	move.displayName = assignName("j.S (Boss)");
+	move.displayName = "j.S (Boss)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C", true);
-	move.displayName = assignName("2S");
+	move.displayName = "2S";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C_Boss", true);
-	move.displayName = assignName("2S (Boss)");
+	move.displayName = "2S (Boss)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNBunri", true);
-	move.displayName = assignName("Deployed");
+	move.displayName = "Deployed";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFBunri", true);
-	move.displayName = assignName("Deployed");
+	move.displayName = "Deployed";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Bit4C", true);
-	move.displayName = assignName("Recall");
+	move.displayName = "Recall";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNLaser", true);
-	move.displayName = assignName("Calvados");
+	move.displayName = "Calvados";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_Sword", true);
-	move.displayName = assignName("Marteli");
+	move.displayName = "Marteli";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_Sword_Bunri", true);
-	move.displayName = assignName("Marteli (Slow)");
+	move.displayName = "Marteli (Slow)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_SwordAir", true);
-	move.displayName = assignName("Air Marteli");
+	move.displayName = "Air Marteli";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_SwordAir_Bunri", true);
-	move.displayName = assignName("Air Marteli (Slow)");
+	move.displayName = "Air Marteli (Slow)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitActionNeutral", true);
-	move.displayName = assignName("Neutral");
+	move.displayName = "Neutral";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeA", true);
-	move.displayName = assignName("Victory");
+	move.displayName = "Victory";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeABunri", true);
-	move.displayName = assignName("Victory Deployed");
+	move.displayName = "Victory Deployed";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeB", true);
-	move.displayName = assignName("Victory");
+	move.displayName = "Victory";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNWinTypeBBunri", true);
-	move.displayName = assignName("Victory Deployed");
+	move.displayName = "Victory Deployed";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN5C_Boss", true);
-	move.displayName = assignName("f.S (Boss)");
+	move.displayName = "f.S (Boss)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF", true);
-	move.displayName = assignName("Stand");
+	move.displayName = "Stand";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFBack", true);
-	move.displayName = assignName("Back");
+	move.displayName = "Back";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFForward", true);
-	move.displayName = assignName("Forward");
+	move.displayName = "Forward";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFUp", true);
-	move.displayName = assignName("Jump Up");
+	move.displayName = "Jump Up";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFUpEnd", true);
-	move.displayName = assignName("Jump End");
+	move.displayName = "Jump End";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFDown", true);
-	move.displayName = assignName("Jump Down");
+	move.displayName = "Jump Down";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFCrouch", true);
-	move.displayName = assignName("Crouch");
+	move.displayName = "Crouch";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFTurn", true);
-	move.displayName = assignName("Turn");
+	move.displayName = "Turn";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFDamage", true);
-	move.displayName = assignName("Damage");
+	move.displayName = "Damage";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFAir5D", true);
-	move.displayName = assignName("j.H");
+	move.displayName = "j.H";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFAir5D_Boss", true);
-	move.displayName = assignName("j.H (Boss)");
+	move.displayName = "j.H (Boss)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D", true);
-	move.displayName = assignName("2H");
+	move.displayName = "2H";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D_Boss", true);
-	move.displayName = assignName("2H (Boss)");
+	move.displayName = "2H (Boss)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF5D", true);
-	move.displayName = assignName("5H");
+	move.displayName = "5H";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Bit4D", true);
-	move.displayName = assignName("Recall");
+	move.displayName = "Recall";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFLaser", true);
-	move.displayName = assignName("Calvados");
+	move.displayName = "Calvados";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_Sword", true);
-	move.displayName = assignName("Forpeli");
+	move.displayName = "Forpeli";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_Sword_Bunri", true);
-	move.displayName = assignName("Forpeli (Slow)");
+	move.displayName = "Forpeli (Slow)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_SwordAir", true);
-	move.displayName = assignName("Air Forpeli");
+	move.displayName = "Air Forpeli";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_SwordAir_Bunri", true);
-	move.displayName = assignName("Air Forpeli (Slow)");
+	move.displayName = "Air Forpeli (Slow)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeA", true);
-	move.displayName = assignName("Victory");
+	move.displayName = "Victory";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeABunri", true);
-	move.displayName = assignName("Victory Deployed");
+	move.displayName = "Victory Deployed";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeB", true);
-	move.displayName = assignName("Victory");
+	move.displayName = "Victory";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitFWinTypeBBunri", true);
-	move.displayName = assignName("Victory Deployed");
+	move.displayName = "Victory Deployed";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk4B");
-	move.displayName = assignName("5K");  // Ramlethal's NmlAtk4B is just an alias for 5K
+	move.displayName = "5K";  // Ramlethal's NmlAtk4B is just an alias for 5K
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Land");
-	move.displayName = assignName("H Launch Greatsword", "6H");
+	move.displayName = "H Launch Greatsword";
+	move.slangName = "6H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5DBunri");
-	move.displayName = assignName("Unarmed 5H");
+	move.displayName = "Unarmed 5H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Land");
-	move.displayName = assignName("H Launch Greatsword (Already Deployed)", "6H");
+	move.displayName = "H Launch Greatsword (Already Deployed)";
+	move.slangName = "6H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Land");
-	move.displayName = assignName("H Recover Greatsword", "4H");
+	move.displayName = "H Recover Greatsword";
+	move.slangName = "4H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Land");
-	move.displayName = assignName("2H Launch Greatsword", "2H Summon");
+	move.displayName = "2H Launch Greatsword";
+	move.slangName = "2H Summon";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf7;
 	move.canYrcProjectile = canYrcProjectile_onf7;
@@ -6135,38 +6635,42 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5C");
-	move.displayName = assignName("f.S");
+	move.displayName = "f.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Land");
-	move.displayName = assignName("S Launch Greatsword", "6S");
+	move.displayName = "S Launch Greatsword";
+	move.slangName = "6S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtk5CBunri");
-	move.displayName = assignName("Unarmed f.S");
+	move.displayName = "Unarmed f.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Land");
-	move.displayName = assignName("S Launch Greatsword (Already Deployed)", "6S");
+	move.displayName = "S Launch Greatsword (Already Deployed)";
+	move.slangName = "6S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Land");
-	move.displayName = assignName("S Recover Greatsword", "4S");
+	move.displayName = "S Recover Greatsword";
+	move.slangName = "4S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Land");
-	move.displayName = assignName("2S Launch Greatsword", "2S Summon");
+	move.displayName = "2S Launch Greatsword";
+	move.slangName = "2S Summon";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf7;
 	move.canYrcProjectile = canYrcProjectile_onf7;
@@ -6174,61 +6678,69 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Air");
-	move.displayName = assignName("Air H Launch Greatsword", "Air 6H");
+	move.displayName = "Air H Launch Greatsword";
+	move.slangName = "Air 6H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtkAir5DBunri");
-	move.displayName = assignName("Unarmed j.H");
+	move.displayName = "Unarmed j.H";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Air");
-	move.displayName = assignName("Air H Launch Greatsword (Already Deployed)", "Air 6H");
+	move.displayName = "Air H Launch Greatsword (Already Deployed)";
+	move.slangName = "Air 6H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Air");
-	move.displayName = assignName("Air 2H Launch Greatsword", "Air 2H Summon");
+	move.displayName = "Air 2H Launch Greatsword";
+	move.slangName = "Air 2H Summon";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Air");
-	move.displayName = assignName("Air H Recover Greatsword", "Air 4H");
+	move.displayName = "Air H Recover Greatsword";
+	move.slangName = "Air 4H";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Air");
-	move.displayName = assignName("Air S Launch Greatsword", "Air 6S");
+	move.displayName = "Air S Launch Greatsword";
+	move.slangName = "Air 6S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtkAir5CBunri");
-	move.displayName = assignName("Unarmed j.S");
+	move.displayName = "Unarmed j.S";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Air");
-	move.displayName = assignName("Air S Launch Greatsword (Already Deployed)", "Air 6S");
+	move.displayName = "Air S Launch Greatsword (Already Deployed)";
+	move.slangName = "Air 6S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Air");
-	move.displayName = assignName("Air 2S Launch Greatsword", "Air 2S Summon");
+	move.displayName = "Air 2S Launch Greatsword";
+	move.slangName = "Air 2S Summon";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Air");
-	move.displayName = assignName("Air S Recover Greatsword", "Air 4S");
+	move.displayName = "Air S Recover Greatsword";
+	move.slangName = "Air 4S";
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
@@ -6237,343 +6749,345 @@ void Moves::addMoves() {
 	// And none of them can make Ramlethal airborne.
 	// As such, they do not care about jump installs.
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBA");
-	move.displayName = assignName("Combination KP");
+	move.displayName = "Combination KP";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBBB");
-	move.displayName = assignName("Combination KKK");
+	move.displayName = "Combination KKK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBB");
-	move.displayName = assignName("Combination KK");
+	move.displayName = "Combination KK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAB");
-	move.displayName = assignName("Combination PK");
+	move.displayName = "Combination PK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAA");
-	move.displayName = assignName("Combination PP");
+	move.displayName = "Combination PP";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBAB");
-	move.displayName = assignName("Combination KPK");
+	move.displayName = "Combination KPK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationBAA");
-	move.displayName = assignName("Combination KPP");
+	move.displayName = "Combination KPP";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAAB");
-	move.displayName = assignName("Combination PPK");
+	move.displayName = "Combination PPK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CombinationAAA");
-	move.displayName = assignName("Combination PPP");
+	move.displayName = "Combination PPP";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BB");
-	move.displayName = assignName("Combination 2KK");
+	move.displayName = "Combination 2KK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BA");
-	move.displayName = assignName("Combination 2KP");
+	move.displayName = "Combination 2KP";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BAB");
-	move.displayName = assignName("Combination 2KPK");
+	move.displayName = "Combination 2KPK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2BAA");
-	move.displayName = assignName("Combination 2KPP");
+	move.displayName = "Combination 2KPP";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2AAB");
-	move.displayName = assignName("Combination 2PPK");
+	move.displayName = "Combination 2PPK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2AB");
-	move.displayName = assignName("Combination 2PK");
+	move.displayName = "Combination 2PK";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination2AA");
-	move.displayName = assignName("Combination 2PP");
+	move.displayName = "Combination 2PP";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Combination4B");
-	move.displayName = assignName("Combination 4K");
+	move.displayName = "Combination 4K";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6CBunriShot");
-	move.displayName = assignName("S Launch Greatsword (Boss Ver.)", "S Launch (Boss Ver.)");
+	move.displayName = "S Launch Greatsword (Boss Ver.)";
+	move.slangName = "S Launch (Boss Ver.)";
 	move.ignoreJumpInstalls = true;
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6DBunriShot");
-	move.displayName = assignName("H Launch Greatsword (Boss Ver.)", "H Launch (Boss Ver.)");
+	move.displayName = "H Launch Greatsword (Boss Ver.)";
+	move.slangName = "H Launch (Boss Ver.)";
 	move.ignoreJumpInstalls = true;
 	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "MiddleShot");
-	move.displayName = assignName("Cassius");
+	move.displayName = "Cassius";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BanditRevolverLand");
-	move.displayName = assignName("Sildo Detruo");
+	move.displayName = "Sildo Detruo";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BanditRevolverAir");
-	move.displayName = assignName("Air Sildo Detruo");
+	move.displayName = "Air Sildo Detruo";
 	addMove(move);
 	
 	// Marteli and Forpeli are dead end moves where only Martli can cancel into Forpeli.
 	// Which makes them not care about jump installs.
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD");
-	move.displayName = assignName("Forpeli");
+	move.displayName = "Forpeli";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC");
-	move.displayName = assignName("Marteli");
+	move.displayName = "Marteli";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowDAir");
-	move.displayName = assignName("Air Forpeli");
+	move.displayName = "Air Forpeli";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowCAir");
-	move.displayName = assignName("Air Marteli");
+	move.displayName = "Air Marteli";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowD_Bunri");
-	move.displayName = assignName("Forpeli With Sword Recover");
+	move.displayName = "Forpeli With Sword Recover";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowC_Bunri");
-	move.displayName = assignName("Marteli With Sword Recover");
+	move.displayName = "Marteli With Sword Recover";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowDAir_Bunri");
-	move.displayName = assignName("Air Forpeli With Sword Recover");
+	move.displayName = "Air Forpeli With Sword Recover";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitBlowCAir_Bunri");
-	move.displayName = assignName("Air Marteli With Sword Recover");
+	move.displayName = "Air Marteli With Sword Recover";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CommandThrow");
-	move.displayName = assignName("Flama Cargo");
+	move.displayName = "Flama Cargo";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "CommandThrowExe");
-	move.displayName = assignName("Flama Cargo");
+	move.displayName = "Flama Cargo";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "FujinStep");
-	move.displayName = assignName("Fujin Step");
+	move.displayName = "Fujin Step";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "EasyFujinken");
-	move.displayName = assignName("Dauro");
+	move.displayName = "Dauro";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "Fujinken");
-	move.displayName = assignName("Dauro");
+	move.displayName = "Dauro";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "FastFujinken");
-	move.displayName = assignName("Green Dauro");
+	move.displayName = "Green Dauro";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "TosshinRanbu");
-	move.displayName = assignName("Explode");
+	move.displayName = "Explode";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "TosshinRanbuExe");
-	move.displayName = assignName("Explode");
+	move.displayName = "Explode";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser");
-	move.displayName = assignName("Calvados");
+	move.displayName = "Calvados";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBurst");
-	move.displayName = assignName("Burst Calvados");
+	move.displayName = "Burst Calvados";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBoss");
-	move.displayName = assignName("Calvados (Boss Ver.)");
+	move.displayName = "Calvados (Boss Ver.)";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBossBurst");
-	move.displayName = assignName("Burst Calvados (Boss Ver.)");
+	move.displayName = "Burst Calvados (Boss Ver.)";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral");
-	move.displayName = assignName("Trance");
+	move.displayName = "Trance";
 	move.canYrcProjectile = canYrcProjectile_onf9;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiralBoss");
-	move.displayName = assignName("Trance (Boss Ver.)");
+	move.displayName = "Trance (Boss Ver.)";
 	move.canYrcProjectile = canYrcProjectile_onf9;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6C", true);
-	move.displayName = assignName("6S");
+	move.displayName = "6S";
 	move.isDangerous = isDangerous_launchGreatsword;
 	move.framebarId = 68;
-	move.framebarName = assignName("S Sword");
+	move.framebarName = "S Sword";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6D", true);
-	move.displayName = assignName("6H");
+	move.displayName = "6H";
 	move.isDangerous = isDangerous_launchGreatsword;
 	move.framebarId = 69;
-	move.framebarName = assignName("H Sword");
+	move.framebarName = "H Sword";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6CBunriShot", true);
-	move.displayName = assignName("Sword Spinny Attack");
+	move.displayName = "Sword Spinny Attack";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
-	move.framebarName = assignName("S Sword");
+	move.framebarName = "S Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C_Bunri", true);
-	move.displayName = assignName("2S Deployed");
+	move.displayName = "2S Deployed";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
-	move.framebarName = assignName("S Sword");
+	move.framebarName = "S Sword";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6CBunriShot_Boss", true);
-	move.displayName = assignName("Sword Spinny Attack (Boss)");
+	move.displayName = "Sword Spinny Attack (Boss)";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 68;
-	move.framebarName = assignName("S Sword");
+	move.framebarName = "S Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6DBunriShot", true);
-	move.displayName = assignName("Sword Spinny Attack");
+	move.displayName = "Sword Spinny Attack";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
-	move.framebarName = assignName("H Sword");
+	move.framebarName = "H Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D_Bunri", true);
-	move.displayName = assignName("2H Deployed");
+	move.displayName = "2H Deployed";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
-	move.framebarName = assignName("H Sword");
+	move.framebarName = "H Sword";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6DBunriShot_Boss", true);
-	move.displayName = assignName("Sword Spinny Attack (Boss)");
+	move.displayName = "Sword Spinny Attack (Boss)";
 	move.isDangerous = isDangerous_ramSwordMove;
 	move.framebarId = 69;
-	move.framebarName = assignName("H Sword");
+	move.framebarName = "H Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral_NSpiral", true);
-	move.displayName = assignName("Trance");
+	move.displayName = "Trance";
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 68;
-	move.framebarName = assignName("S Sword");
+	move.framebarName = "S Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral_FSpiral", true);
-	move.displayName = assignName("Trance");
+	move.displayName = "Trance";
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 69;
-	move.framebarName = assignName("H Sword");
+	move.framebarName = "H Sword";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser_Minion", true);
 	move.isDangerous = isDangerous_hasNotCreatedAnythingYet;
 	move.framebarId = 70;
-	move.framebarName = assignName("Laser");
+	move.framebarName = "Laser";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 70;
-	move.framebarName = assignName("Laser");
+	move.framebarName = "Laser";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "middleShot", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 71;
-	move.framebarName = assignName("Cassius");
+	move.framebarName = "Cassius";
 	addMove(move);
 	
 	// Sin's only moves that make him airborne are R.T.L. and Leaps.
@@ -6582,26 +7096,27 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_SIN] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakitsuke");
-	move.displayName = assignName("Bull Bash");
+	move.displayName = "Bull Bash";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "TobiagariA");
-	move.displayName = assignName("P Leap");
+	move.displayName = "P Leap";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "TobiagariB");
-	move.displayName = assignName("K Leap");
+	move.displayName = "K Leap";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "EatMeat");
-	move.displayName = assignName("Still Growing", "Eat");
+	move.displayName = "Still Growing";
+	move.slangName = "Eat";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.powerup = powerup_eatMeat;
@@ -6610,7 +7125,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "EatMeat_Okawari");
-	move.displayName = assignName("Mash Still Growing", "Mash Eat");
+	move.displayName = "Mash Still Growing";
+	move.slangName = "Mash Eat";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.powerup = powerup_eatMeat;
@@ -6619,14 +7135,16 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakiage");
-	move.displayName = assignName("Vulture Seize", "Vulture");
+	move.displayName = "Vulture Seize";
+	move.slangName = "Vulture";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver");
-	move.displayName = assignName("Beak Driver", "Beak");
+	move.displayName = "Beak Driver";
+	move.slangName = "Beak";
 	move.isInVariableStartupSection = isInVariableStartupSection_beakDriver;
 	move.sectionSeparator = sectionSeparator_beakDriver;
 	move.powerup = powerup_beakDriver;
@@ -6635,56 +7153,59 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Air");
-	move.displayName = assignName("Aerial Beak Driver", "Air Beak");
+	move.displayName = "Aerial Beak Driver";
+	move.slangName = "Air Beak";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "RideTheLightning");
-	move.displayName = assignName("R.T.L");
+	move.displayName = "R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "RideTheLightningBurst");
-	move.displayName = assignName("Burst R.T.L");
+	move.displayName = "Burst R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "AirRideTheLightning");
-	move.displayName = assignName("Air R.T.L");
+	move.displayName = "Air R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "AirRideTheLightningBurst");
-	move.displayName = assignName("Air Burst R.T.L");
+	move.displayName = "Air Burst R.T.L";
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_sinRTL;
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_sinRTL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Ashibarai");
-	move.displayName = assignName("Elk Hunt", "Elk");
+	move.displayName = "Elk Hunt";
+	move.slangName = "Elk";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "UkaseWaza");
-	move.displayName = assignName("Hawk Baker");
+	move.displayName = "Hawk Baker";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Renda");
-	move.displayName = assignName("I'm Sure I'll Hit Something", "Beak Mash");
+	move.displayName = "I'm Sure I'll Hit Something";
+	move.slangName = "Beak Mash";
 	move.powerup = powerup_kuuhuku;
 	move.powerupExplanation = powerupExplanation_kuuhuku;
 	move.dontShowPowerupGraphic = alwaysTrue;
@@ -6692,14 +7213,16 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Land");
-	move.displayName = assignName("Voltec Dein", "Voltec");
+	move.displayName = "Voltec Dein";
+	move.slangName = "Voltec";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Air");
-	move.displayName = assignName("Air Voltec Dein", "Air Voltec");
+	move.displayName = "Air Voltec Dein";
+	move.slangName = "Air Voltec";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
@@ -6707,77 +7230,88 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_SIN, "SuperShotStart", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 72;
-	move.framebarName = assignName("Voltec Dein", "Voltec");
+	move.framebarName = "Voltec Dein";
+	move.framebarSlangName = "Voltec";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Shot_Land", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 72;
-	move.framebarName = assignName("Voltec Dein", "Voltec");
+	move.framebarName = "Voltec Dein";
+	move.framebarSlangName = "Voltec";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "SuperShotAirStart", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 72;
-	move.framebarName = assignName("Voltec Dein", "Voltec");
+	move.framebarName = "Voltec Dein";
+	move.framebarSlangName = "Voltec";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Shot_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 72;
-	move.framebarName = assignName("Voltec Dein", "Voltec");
+	move.framebarName = "Voltec Dein";
+	move.framebarSlangName = "Voltec";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "NmlAtk6D");
-	move.displayName = assignName("6H");
+	move.displayName = "6H";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "NmlAtk5E");
-	move.displayName = assignName("5D");
+	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_kum5D;
 	move.canYrcProjectile = canYrcProjectile_kum5D;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "CrouchFDash");
-	move.displayName = assignName("Crouchwalk", "3");
+	move.displayName = "Crouchwalk";
+	move.slangName = "3";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "HomingEnergyC");
-	move.displayName = assignName("S Tuning Ball", "S Fireball");
+	move.displayName = "S Tuning Ball";
+	move.slangName = "S Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "HomingEnergyD");
-	move.displayName = assignName("H Tuning Ball", "H Fireball");
+	move.displayName = "H Tuning Ball";
+	move.slangName = "H Fireball";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlowAttack");
-	move.displayName = assignName("Falcon Dive", "Hayabusa");
+	move.displayName = "Falcon Dive";
+	move.slangName = "Hayabusa";
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AirBlowAttack");
-	move.displayName = assignName("Aerial Falcon Dive", "Air Hayabusa");
+	move.displayName = "Aerial Falcon Dive";
+	move.slangName = "Air Hayabusa";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AntiAirAttack");
-	move.displayName = assignName("Four Tigers Sword", "Shinken");
+	move.displayName = "Four Tigers Sword";
+	move.slangName = "Shinken";
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
 	
 	// Haehyun 21[4K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlow4Hasei");
-	move.displayName = assignName("Falcon Dive (Reverse Ver.)", "Hayabusa (Reverse)");
+	move.displayName = "Falcon Dive (Reverse Ver.)";
+	move.slangName = "Hayabusa (Reverse)";
 	move.sectionSeparator = sectionSeparator_falconDive;
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
@@ -6788,7 +7322,8 @@ void Moves::addMoves() {
 	
 	// Haehyun 214[K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlow6Hasei");
-	move.displayName = assignName("Falcon Dive (Held)", "Hayabusa (Held)");
+	move.displayName = "Falcon Dive (Held)";
+	move.slangName = "Hayabusa (Held)";
 	move.sectionSeparator = sectionSeparator_falconDive;
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
@@ -6799,7 +7334,8 @@ void Moves::addMoves() {
 	
 	// Haehyun 623[K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AntiAir6Hasei");
-	move.displayName = assignName("Four Tigers Sword (Hold)", "Grampa Viper");
+	move.displayName = "Four Tigers Sword (Hold)";
+	move.slangName = "Grampa Viper";
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_grampaMax;
@@ -6808,7 +7344,8 @@ void Moves::addMoves() {
 	
 	// Haehyun 623[4K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AntiAir4Hasei");
-	move.displayName = assignName("Four Tigers Sword (Reverse Ver.)", "Shinken");
+	move.displayName = "Four Tigers Sword (Reverse Ver.)";
+	move.slangName = "Shinken";
 	move.combineWithPreviousMove = true;
 	move.sectionSeparator = sectionSeparator_fourTigersSwordRev;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
@@ -6817,21 +7354,24 @@ void Moves::addMoves() {
 	
 	// Haehyun 236236H
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "BlackHoleAttack");
-	move.displayName = assignName("Enlightened 3000 Palm Strike", "Clap Super");
+	move.displayName = "Enlightened 3000 Palm Strike";
+	move.slangName = "Clap Super";
 	move.sectionSeparator = sectionSeparator_blackHoleAttack;
 	move.isInVariableStartupSection = isInVariableStartupSection_blackHoleAttack;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "BlackHoleAttackBurst");
-	move.displayName = assignName("Burst Enlightened 3000 Palm Strike", "Burst Clap");
+	move.displayName = "Burst Enlightened 3000 Palm Strike";
+	move.slangName = "Burst Clap";
 	move.sectionSeparator = sectionSeparator_blackHoleAttack;
 	move.isInVariableStartupSection = isInVariableStartupSection_blackHoleAttack;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperHomingEnergy");
-	move.displayName = assignName("Celestial Tuning Ball", "Super Ball");
+	move.displayName = "Celestial Tuning Ball";
+	move.slangName = "Super Ball";
 	move.dontSkipSuper = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -6839,29 +7379,32 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "VacuumAtk", true);
 	move.isDangerous = isDangerous_vacuumAtk;
 	move.framebarId = 107;
-	move.framebarName = assignName("Enlightened 3000 Palm Strike Vacuum", "Vacuum");
+	move.framebarName = "Enlightened 3000 Palm Strike Vacuum";
+	move.framebarSlangName = "Vacuum";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "EnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 89;
-	move.framebarName = assignName("Tuning Ball", "Fireball");
+	move.framebarName = "Tuning Ball";
+	move.framebarSlangName = "Fireball";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperEnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 90;
-	move.framebarName = assignName("Celestial Tuning Ball", "Super Ball");
+	move.framebarName = "Celestial Tuning Ball";
+	move.framebarSlangName = "Super Ball";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "kum_205shot", true);
 	move.isDangerous = isDangerous_kum5D;
 	move.framebarId = 105;
-	move.framebarName = assignName("5D");
+	move.framebarName = "5D";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "NmlAtk4AHasei");
-	move.displayName = assignName("4P");
+	move.displayName = "4P";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
@@ -6871,89 +7414,105 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_RAVEN] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "Kakkuu");
-	move.displayName = assignName("Glide");
+	move.displayName = "Glide";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSettingTypeNeedle");
-	move.displayName = assignName("Scharf Kugel", "Orb");
+	move.displayName = "Scharf Kugel";
+	move.slangName = "Orb";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandBlowAttack");
-	move.displayName = assignName("Grausam Impuls", "Scratch");
+	move.displayName = "Grausam Impuls";
+	move.slangName = "Scratch";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSlowNeedle");
-	move.displayName = assignName("Schmerz Berg", "Needle");
+	move.displayName = "Schmerz Berg";
+	move.slangName = "Needle";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSettingTypeNeedle");
-	move.displayName = assignName("Air Scharf Kugel", "Air Orb");
+	move.displayName = "Air Scharf Kugel";
+	move.slangName = "Air Orb";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirBlowAttack");
-	move.displayName = assignName("Air Grausam Impuls", "j.Scratch");
+	move.displayName = "Air Grausam Impuls";
+	move.slangName = "j.Scratch";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSlowNeedleB");
-	move.displayName = assignName("K Grebechlich Licht", "Air K Needle");
+	move.displayName = "K Grebechlich Licht";
+	move.slangName = "Air K Needle";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSlowNeedleA");
-	move.displayName = assignName("P Grebechlich Licht", "Air P Needle");
+	move.displayName = "P Grebechlich Licht";
+	move.slangName = "Air P Needle";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrow");
-	move.displayName = assignName("H Wachen Zweig", "Command Grab");
+	move.displayName = "H Wachen Zweig";
+	move.slangName = "Command Grab";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrowEx");
-	move.displayName = assignName("H Wachen Zweig", "Command Grab");
+	move.displayName = "H Wachen Zweig";
+	move.slangName = "Command Grab";
 	move.combineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrow");
-	move.displayName = assignName("S Wachen Zweig", "S Grab");
+	move.displayName = "S Wachen Zweig";
+	move.slangName = "S Grab";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrowEx");
-	move.displayName = assignName("S Wachen Zweig", "S Grab");
+	move.displayName = "S Wachen Zweig";
+	move.slangName = "S Grab";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandDashAttack");
-	move.displayName = assignName("Verzweifelt", "Dash Super");
+	move.displayName = "Verzweifelt";
+	move.slangName = "Dash Super";
 	move.dontSkipSuper = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirDashAttack");
-	move.displayName = assignName("Air Verzweifelt", "Air Dash Super");
+	move.displayName = "Air Verzweifelt";
+	move.slangName = "Air Dash Super";
 	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "RevengeAttack");
-	move.displayName = assignName("Getreuer", "Stab Super");
+	move.displayName = "Getreuer";
+	move.slangName = "Stab Super";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "RevengeAttackBurst");
-	move.displayName = assignName("Burst Getreuer", "Burst Stab");
+	move.displayName = "Burst Getreuer";
+	move.slangName = "Burst Stab";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "RevengeAttackEx");
-	move.displayName = assignName("Getreuer", "Stab Super");
+	move.displayName = "Getreuer";
+	move.slangName = "Stab Super";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
@@ -6961,7 +7520,8 @@ void Moves::addMoves() {
 	
 	// Raven stance when first entering it
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "ArmorDance");
-	move.displayName = assignName("Give it to me HERE", "Stance");
+	move.displayName = "Give it to me HERE";
+	move.slangName = "Stance";
 	move.sectionSeparator = sectionSeparator_armorDance;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
@@ -6973,7 +7533,8 @@ void Moves::addMoves() {
 	
 	// Raven stance after armoring a hit in ArmorDance
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "ArmorDance2");
-	move.displayName = assignName("Give it to me HERE", "Stance");
+	move.displayName = "Give it to me HERE";
+	move.slangName = "Stance";
 	move.sectionSeparator = sectionSeparator_armorDance;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
@@ -6986,27 +7547,31 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "SlowNeeldeObjLand", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 90;
-	move.framebarName = assignName("Schmerz Berg", "Needle");
+	move.framebarName = "Schmerz Berg";
+	move.framebarSlangName = "Needle";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "SlowNeeldeObjAir", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 90;
-	move.framebarName = assignName("Grebechlich Licht", "Needle");
+	move.framebarName = "Grebechlich Licht";
+	move.framebarSlangName = "Needle";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSettingTypeNeedleObj", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 91;
-	move.framebarName = assignName("Scharf Kugel", "Orb");
+	move.framebarName = "Scharf Kugel";
+	move.framebarSlangName = "Orb";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSettingTypeNeedleObj", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = 91;
-	move.framebarName = assignName("Scharf Kugel", "Orb");
+	move.framebarName = "Scharf Kugel";
+	move.framebarSlangName = "Orb";
 	addMove(move);
 	
 	// Dizzy does not have a single special or super that can put her into the air,
@@ -7015,19 +7580,19 @@ void Moves::addMoves() {
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_DIZZY] = true;
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "NmlAtk2E");
-	move.displayName = assignName("2D");
+	move.displayName = "2D";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;  // only leads to specials
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "NmlAtk6C");
-	move.displayName = assignName("4S");
+	move.displayName = "4S";
 	move.nameIncludesInputs = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "NmlAtk6D");
-	move.displayName = assignName("6H");
+	move.displayName = "6H";
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_dizzy6H;
 	move.isInVariableStartupSection = isInVariableStartupSection_dizzy6H;
@@ -7035,98 +7600,115 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRay");
-	move.displayName = assignName("Gamma Ray");
+	move.displayName = "Gamma Ray";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Sakana");
-	move.displayName = assignName("I used this to catch fish", "Ice Spike");
+	move.displayName = "I used this to catch fish";
+	move.slangName = "Ice Spike";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "SakanaNecro");
-	move.displayName = assignName("For searing cod...", "Fire Pillar");
+	move.displayName = "For searing cod...";
+	move.slangName = "Fire Pillar";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Akari");
-	move.displayName = assignName("The light was so small in the beginning", "Fire Scythe");
+	move.displayName = "The light was so small in the beginning";
+	move.slangName = "Fire Scythe";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariUndine");
-	move.displayName = assignName("For putting out the light...", "Ice Scythe");
+	move.displayName = "For putting out the light...";
+	move.slangName = "Ice Scythe";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD");
-	move.displayName = assignName("H We fought a lot together", "H Fish");
+	move.displayName = "H We fought a lot together";
+	move.slangName = "H Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD_Air");
-	move.displayName = assignName("H Air We fought a lot together...", "Air H Fish");
+	move.displayName = "H Air We fought a lot together...";
+	move.slangName = "Air H Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiC");
-	move.displayName = assignName("S We fought a lot together", "S Fish");
+	move.displayName = "S We fought a lot together";
+	move.slangName = "S Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiC_Air");
-	move.displayName = assignName("S Air We fought a lot together", "Air S Fish");
+	move.displayName = "S Air We fought a lot together";
+	move.slangName = "Air S Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiB");
-	move.displayName = assignName("K We talked a lot together", "K Fish");
+	move.displayName = "K We talked a lot together";
+	move.slangName = "K Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiB_Air");
-	move.displayName = assignName("K Air We talked a lot together", "Air K Fish");
+	move.displayName = "K Air We talked a lot together";
+	move.slangName = "Air K Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiA");
-	move.displayName = assignName("P We talked a lot together", "P Fish");
+	move.displayName = "P We talked a lot together";
+	move.slangName = "P Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiA_Air");
-	move.displayName = assignName("P Air We talked a lot together", "Air P Fish");
+	move.displayName = "P Air We talked a lot together";
+	move.slangName = "Air P Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiE");
-	move.displayName = assignName("D We fought a lot together", "Shield Fish");
+	move.displayName = "D We fought a lot together";
+	move.slangName = "Shield Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiE_Air");
-	move.displayName = assignName("D Air We fought a lot together", "Air Shield Fish");
+	move.displayName = "D Air We fought a lot together";
+	move.slangName = "Air Shield Fish";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaP");
-	move.displayName = assignName("Please, leave me alone", "Bubble");
+	move.displayName = "Please, leave me alone";
+	move.slangName = "Bubble";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaK");
-	move.displayName = assignName("What happens when I'm TOO alone", "Fire Bubble");
+	move.displayName = "What happens when I'm TOO alone";
+	move.slangName = "Fire Bubble";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	// Dizzy 421H
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiNecro");
-	move.displayName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.displayName = "For roasting chestnuts...";
+	move.slangName = "Fire Spears";
 	move.sectionSeparator = sectionSeparator_kinomiNecro;
 	move.isInVariableStartupSection = isInVariableStartupSection_kinomiNecro;
 	move.powerup = powerup_fireSpear;
@@ -7136,132 +7718,136 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Kinomi");
-	move.displayName = assignName("I use this to pick fruit", "Ice Spear");
+	move.displayName = "I use this to pick fruit";
+	move.slangName = "Ice Spear";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRay");
-	move.displayName = assignName("Imperial Ray");
+	move.displayName = "Imperial Ray";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBurst");
-	move.displayName = assignName("Burst Imperial Ray");
+	move.displayName = "Burst Imperial Ray";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KirikaeshiKakusei");
-	move.displayName = assignName("Don't be overprotective", "Mirror");
+	move.displayName = "Don't be overprotective";
+	move.slangName = "Mirror";
 	move.dontSkipSuper = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Tossin");
-	move.displayName = assignName("Rokkon Sogi");
+	move.displayName = "Rokkon Sogi";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Tetsuzansen");
-	move.displayName = assignName("Tetsuzan Sen");
+	move.displayName = "Tetsuzan Sen";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "CommandThrow");
-	move.displayName = assignName("Himawari");
+	move.displayName = "Himawari";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "CommandThrowExe");
-	move.displayName = assignName("Himawari");
+	move.displayName = "Himawari";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundC");
-	move.displayName = assignName("S Kikyo");
+	move.displayName = "S Kikyo";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundD");
-	move.displayName = assignName("H Kikyo");
+	move.displayName = "H Kikyo";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundCGuard");
-	move.displayName = assignName("S Kikyo");
+	move.displayName = "S Kikyo";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundDGuard");
-	move.displayName = assignName("H Kikyo");
+	move.displayName = "H Kikyo";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirA");
-	move.displayName = assignName("P Tsubaki");
+	move.displayName = "P Tsubaki";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirAGuard");
-	move.displayName = assignName("P Tsubaki");
+	move.displayName = "P Tsubaki";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirB");
-	move.displayName = assignName("K Tsubaki");
+	move.displayName = "K Tsubaki";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirBGuard");
-	move.displayName = assignName("K Tsubaki");
+	move.displayName = "K Tsubaki";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiLand");
-	move.displayName = assignName("Tatami Gaeshi", "Tatami");
+	move.displayName = "Tatami Gaeshi";
+	move.slangName = "Tatami";
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiAir");
-	move.displayName = assignName("Air Tatami Gaeshi", "Air Tatami");
+	move.displayName = "Air Tatami Gaeshi";
+	move.slangName = "Air Tatami";
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "YouZanSen");
-	move.displayName = assignName("Yozan Sen");
+	move.displayName = "Yozan Sen";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Kabari");
-	move.displayName = assignName("H Kabari");
+	move.displayName = "H Kabari";
 	move.ignoreJumpInstalls = true;  // Kabaris only lead to moves that end up on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "KabariAntiAir");
-	move.displayName = assignName("S Kabari");
+	move.displayName = "S Kabari";
 	move.ignoreJumpInstalls = true;  // Kabaris only lead to moves that end up on the ground
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingKakusei");
-	move.displayName = assignName("Metsudo Kushodo");
+	move.displayName = "Metsudo Kushodo";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingKakuseiExe");
-	move.displayName = assignName("Metsudo Kushodo");
+	move.displayName = "Metsudo Kushodo";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.forceLandingRecovery = true;
@@ -7269,17 +7855,17 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TsuraneSanzuWatashi");
-	move.displayName = assignName("Tsurane Sanzu-watashi");
+	move.displayName = "Tsurane Sanzu-watashi";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TsuraneSanzuWatashiBurst");
-	move.displayName = assignName("Burst Tsurane Sanzu-watashi");
+	move.displayName = "Burst Tsurane Sanzu-watashi";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TsuraneSanzuWatashiExe");
-	move.displayName = assignName("Tsurane Sanzu-watashi");
+	move.displayName = "Tsurane Sanzu-watashi";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
@@ -7295,7 +7881,7 @@ void Moves::addMoves() {
 	
 	// Baiken Azami
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingStand");
-	move.displayName = assignName("Standing Azami");
+	move.displayName = "Standing Azami";
 	move.displayNameSelector = displayNameSelector_standingAzami;
 	move.sectionSeparator = sectionSeparator_azami;
 	move.canBlock = canBlock_default;
@@ -7306,7 +7892,7 @@ void Moves::addMoves() {
 	
 	// Baiken Azami
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingCrouch");
-	move.displayName = assignName("Crouching Azami");
+	move.displayName = "Crouching Azami";
 	move.displayNameSelector = displayNameSelector_crouchingAzami;
 	move.sectionSeparator = sectionSeparator_azami;
 	move.canBlock = canBlock_default;
@@ -7317,7 +7903,7 @@ void Moves::addMoves() {
 	
 	// Baiken Azami
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingAir");
-	move.displayName = assignName("Aerial Azami");
+	move.displayName = "Aerial Azami";
 	move.displayNameSelector = displayNameSelector_airAzami;
 	move.sectionSeparator = sectionSeparator_azami;
 	move.canBlock = canBlock_default;
@@ -7327,34 +7913,34 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Youshijin");   // P followup
-	move.displayName = assignName("Kuchinashi");
+	move.displayName = "Kuchinashi";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Mawarikomi");   // K followup
-	move.displayName = assignName("Mawari-komi");
+	move.displayName = "Mawari-komi";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Sakura");  // S followup
-	move.displayName = assignName("Sakura");
+	move.displayName = "Sakura";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Issen");  // H followup
-	move.displayName = assignName("Rokkon Sogi");
+	move.displayName = "Rokkon Sogi";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Teppou");  // D followup
-	move.displayName = assignName("Yasha Gatana");
+	move.displayName = "Yasha Gatana";
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.canYrcProjectile = canYrcProjectile_default;
@@ -7362,7 +7948,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtk5E");
-	move.displayName = assignName("5D");
+	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_baiken5D;
 	move.canYrcProjectile = canYrcProjectile_baiken5D;
@@ -7371,31 +7957,33 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtk5EShotObj", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 99;
-	move.framebarName = assignName("5D");
+	move.framebarName = "5D";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtkAir5EShotObj", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = 100;
-	move.framebarName = assignName("j.D");
+	move.framebarName = "j.D";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TeppouObj", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = 101;
-	move.framebarName = assignName("Yasha Gatana");
+	move.framebarName = "Yasha Gatana";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiLandObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 102;
-	move.framebarName = assignName("Tatami Gaeshi", "Tatami");
+	move.framebarName = "Tatami Gaeshi";
+	move.framebarSlangName = "Tatami";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiAirObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 102;
-	move.framebarName = assignName("Tatami Gaeshi", "Tatami");
+	move.framebarName = "Tatami Gaeshi";
+	move.framebarSlangName = "Tatami";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -7403,30 +7991,30 @@ void Moves::addMoves() {
 	// If not for that, she would not care about super jump installs at all.
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "NmlAtk5D");
-	move.displayName = assignName("3H");
+	move.displayName = "3H";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "NmlAtk6B");
-	move.displayName = assignName("6K");
+	move.displayName = "6K";
 	move.nameIncludesInputs = true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "DustAtk");
-	move.displayName = assignName("5D");
+	move.displayName = "5D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocide");
-	move.displayName = assignName("4D");
+	move.displayName = "4D";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocideEx");
-	move.displayName = assignName("4D");
+	move.displayName = "4D";
 	move.displayNameSelector = displayNameSelector_jacko4D;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -7435,7 +8023,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "IronballGenocideEx_Weak");
-	move.displayName = assignName("4D (Weak)");
+	move.displayName = "4D (Weak)";
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
@@ -7443,30 +8031,30 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CommandThorw");
-	move.displayName = assignName("6D");
+	move.displayName = "6D";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Zest");
-	move.displayName = assignName("2D");
+	move.displayName = "2D";
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "UntieKiron'sChain");
-	move.displayName = assignName("j.D");
+	move.displayName = "j.D";
 	move.nameIncludesInputs = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirIronballGenocide");
-	move.displayName = assignName("j.4D");
+	move.displayName = "j.4D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirIronballGenocideEx");
-	move.displayName = assignName("j.4D");
+	move.displayName = "j.4D";
 	move.displayNameSelector = displayNameSelector_jackoj4D;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -7474,19 +8062,19 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirIronballGenocideEx_Weak");
-	move.displayName = assignName("j.4D (Weak)");
+	move.displayName = "j.4D (Weak)";
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirCommandThorw");
-	move.displayName = assignName("j.6D");
+	move.displayName = "j.6D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CommandThorwEx");
-	move.displayName = assignName("6D/j.6D");
+	move.displayName = "6D/j.6D";
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
@@ -7494,65 +8082,66 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ThorwGhost");
-	move.displayName = assignName("Throw Ghost");
+	move.displayName = "Throw Ghost";
 	move.createdProjectile = createdProjectile_ThrowGhost;
 	move.canYrcProjectile = canYrcProjectile_ThrowGhost;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirThorwGhost");
-	move.displayName = assignName("Air Throw Ghost");
+	move.displayName = "Air Throw Ghost";
 	move.createdProjectile = createdProjectile_AirThrowGhost;
 	move.canYrcProjectile = canYrcProjectile_AirThrowGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "PickUpGhost");
-	move.displayName = assignName("Pick Up Ghost");
+	move.displayName = "Pick Up Ghost";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "PutGhost");
-	move.displayName = assignName("Put Ghost Back Down");
+	move.displayName = "Put Ghost Back Down";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ReturnGhost");
-	move.displayName = assignName("Put Away Ghost");
+	move.displayName = "Put Away Ghost";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirZest");
-	move.displayName = assignName("j.2D");
+	move.displayName = "j.2D";
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirReturnGhost");
-	move.displayName = assignName("Air Put Away Ghost");
+	move.displayName = "Air Put Away Ghost";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostA");
-	move.displayName = assignName("Set P Ghost");
+	move.displayName = "Set P Ghost";
 	move.createdProjectile = createdProjectile_PGhost;
 	move.canYrcProjectile = canYrcProjectile_PGhost;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostB");
-	move.displayName = assignName("Set K Ghost");
+	move.displayName = "Set K Ghost";
 	move.createdProjectile = createdProjectile_KGhost;
 	move.canYrcProjectile = canYrcProjectile_KGhost;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "SummonGhostC");
-	move.displayName = assignName("Set S Ghost");
+	move.displayName = "Set S Ghost";
 	move.createdProjectile = createdProjectile_SGhost;
 	move.canYrcProjectile = canYrcProjectile_SGhost;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "OrganOpen");
-	move.displayName = assignName("Organ Deployment", "Organ");
+	move.displayName = "Organ Deployment";
+	move.slangName = "Organ";
 	move.sectionSeparator = sectionSeparator_organ;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_organOpen;
@@ -7560,50 +8149,53 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Calvados");
-	move.displayName = assignName("Calvados");
+	move.displayName = "Calvados";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosBurst");
-	move.displayName = assignName("Burst Calvados");
+	move.displayName = "Burst Calvados";
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ScrewPileDriver");
-	move.displayName = assignName("Forever Elysion Driver", "Supergrab");
+	move.displayName = "Forever Elysion Driver";
+	move.slangName = "Supergrab";
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirScrewPileDriver");
-	move.displayName = assignName("Air Forever Elysion Driver", "Air Supergrab");
+	move.displayName = "Air Forever Elysion Driver";
+	move.slangName = "Air Supergrab";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ScrewPileDriverEx");
-	move.displayName = assignName("Air/Ground Forever Elysion Driver", "Air/Ground Supergrab");
+	move.displayName = "Air/Ground Forever Elysion Driver";
+	move.slangName = "Air/Ground Supergrab";
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirCalvados");
-	move.displayName = assignName("Air Calvados");
+	move.displayName = "Air Calvados";
 	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirCalvadosBurst");
-	move.displayName = assignName("Air Burst Calvados");
+	move.displayName = "Air Burst Calvados";
 	move.dontSkipSuper = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantA", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 82;
-	move.framebarName = assignName("Sword/Spear men");
-	move.framebarNameUncombined = assignName("Knight");
+	move.framebarName = "Sword/Spear men";
+	move.framebarNameUncombined = "Knight";
 	move.combineHitsFromDifferentProjectiles = true;  // we need this because we don't want two knights attacking simultaneously displayed as two hits
 	move.showMultipleHitsFromOneAttack = true;  // we need this because it's the same guy attacking over and over
 	addMove(move);
@@ -7611,8 +8203,8 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantB", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 82;
-	move.framebarName = assignName("Sword/Spear men");
-	move.framebarNameUncombined = assignName("Lancer");
+	move.framebarName = "Sword/Spear men";
+	move.framebarNameUncombined = "Lancer";
 	move.combineHitsFromDifferentProjectiles = true;
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
@@ -7620,107 +8212,107 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantC", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = MAGICIAN_FRAMEBAR_ID;
-	move.framebarName = assignName("Magicians");
-	move.framebarNameUncombined = assignName("Magician");
+	move.framebarName = "Magicians";
+	move.framebarNameUncombined = "Magician";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "magicAtkLv1", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = MAGICIAN_FRAMEBAR_ID;
-	move.framebarName = assignName("Magicians");
-	move.framebarNameUncombined = assignName("Magician Lv1");
+	move.framebarName = "Magicians";
+	move.framebarNameUncombined = "Magician Lv1";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "magicAtkLv2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = MAGICIAN_FRAMEBAR_ID;
-	move.framebarName = assignName("Magicians");
-	move.framebarNameUncombined = assignName("Magician Lv2");
+	move.framebarName = "Magicians";
+	move.framebarNameUncombined = "Magician Lv2";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "magicAtkLv3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = MAGICIAN_FRAMEBAR_ID;
-	move.framebarName = assignName("Magicians");
-	move.framebarNameUncombined = assignName("Magician Lv3");
+	move.framebarName = "Magicians";
+	move.framebarNameUncombined = "Magician Lv3";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Fireball", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 84;
-	move.framebarName = assignName("j.D");
+	move.framebarName = "j.D";
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 85;
-	move.framebarName = assignName("Calvados");
-	move.framebarNameUncombined = assignName("Calvados");
+	move.framebarName = "Calvados";
+	move.framebarNameUncombined = "Calvados";
 	addMove(move);
 	
 	// Only the boss version spawns this
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosObj2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 85;
-	move.framebarName = assignName("Calvados");
-	move.framebarNameUncombined = assignName("Calvados Hit 2");
+	move.framebarName = "Calvados";
+	move.framebarNameUncombined = "Calvados Hit 2";
 	addMove(move);
 	
 	// Only the boss version spawns this
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosObj3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 85;
-	move.framebarName = assignName("Calvados");
-	move.framebarNameUncombined = assignName("Calvados Hit 3");
+	move.framebarName = "Calvados";
+	move.framebarNameUncombined = "Calvados Hit 3";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Bomb", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 85;
-	move.framebarName = assignName("Calvados");
+	move.framebarName = "Calvados";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostA", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostB", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostC", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = 86;
-	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Suicidal_explosion", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 87;
-	move.framebarName = assignName("Explosion");
-	move.framebarNameUncombined = assignName("Explosion1");
+	move.framebarName = "Explosion";
+	move.framebarNameUncombined = "Explosion1";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Suicidal_explosion2", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 87;
-	move.framebarName = assignName("Explosion");
-	move.framebarNameUncombined = assignName("Explosion2");
+	move.framebarName = "Explosion";
+	move.framebarNameUncombined = "Explosion2";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Suicidal_explosion3", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = 87;
-	move.framebarName = assignName("Explosion");
-	move.framebarNameUncombined = assignName("Explosion3");
+	move.framebarName = "Explosion";
+	move.framebarNameUncombined = "Explosion3";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "SakanaObj", true);
@@ -7740,53 +8332,61 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaPObj", true);
 	move.isDangerous = isDangerous_bubble;
 	move.framebarId = 94;
-	move.framebarName = assignName("Please, leave me alone", "Bubble");
+	move.framebarName = "Please, leave me alone";
+	move.framebarSlangName = "Bubble";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaKObj", true);
 	move.isDangerous = isDangerous_bubble;
 	move.framebarId = 94;
-	move.framebarName = assignName("What happens when I'm TOO alone", "Fire Bubble");
+	move.framebarName = "What happens when I'm TOO alone";
+	move.framebarSlangName = "Fire Bubble";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 95;
-	move.framebarName = assignName("I use this to pick fruit", "Ice Spear");
+	move.framebarName = "I use this to pick fruit";
+	move.framebarSlangName = "Ice Spear";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarName = "For roasting chestnuts...";
+	move.framebarSlangName = "Fire Spears";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarName = "For roasting chestnuts...";
+	move.framebarSlangName = "Fire Spears";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarName = "For roasting chestnuts...";
+	move.framebarSlangName = "Fire Spears";
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecrobomb", true);
 	move.isDangerous = isDangerous_not_hasHitNumButInactive;
 	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarName = "For roasting chestnuts...";
+	move.framebarSlangName = "Fire Spears";
 	addMove(move);
 	
 	// P fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjA", true);
 	move.isDangerous = isDangerous_pFish;
 	move.framebarId = 96;
-	move.framebarName = assignName("We talked a lot together", "P Blue Fish");
+	move.framebarName = "We talked a lot together";
+	move.framebarSlangName = "P Blue Fish";
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
@@ -7794,7 +8394,8 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjB", true);
 	move.isDangerous = isDangerous_kFish;
 	move.framebarId = 96;
-	move.framebarName = assignName("We talked a lot together", "K Blue Fish");
+	move.framebarName = "We talked a lot together";
+	move.framebarSlangName = "K Blue Fish";
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
@@ -7802,55 +8403,59 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjD", true);
 	move.isDangerous = isDangerous_laserFish;
 	move.framebarId = 96;
-	move.framebarName = assignName("We fought a lot together", "Laser");
+	move.framebarName = "We fought a lot together";
+	move.framebarSlangName = "Laser";
 	addMove(move);
 	
 	// H laser fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjC", true);
 	move.isDangerous = isDangerous_laserFish;
 	move.framebarId = 96;
-	move.framebarName = assignName("We fought a lot together", "Laser");
+	move.framebarName = "We fought a lot together";
+	move.framebarSlangName = "Laser";
 	addMove(move);
 	
 	// H/S laser fish's laser
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Laser", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = 96;
-	move.framebarName = assignName("We fought a lot together", "Laser");
+	move.framebarName = "We fought a lot together";
+	move.framebarSlangName = "Laser";
 	addMove(move);
 	
 	// Shield fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjE", true);
 	move.isDangerous = isDangerous_dFish;
 	move.framebarId = 96;
-	move.framebarName = assignName("We fought a lot together", "Shield Fish");
+	move.framebarName = "We fought a lot together";
+	move.framebarSlangName = "Shield Fish";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayCreater", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 97;
-	move.framebarName = assignName("Imperial Ray");
+	move.framebarName = "Imperial Ray";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBakuhatsu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = 97;
-	move.framebarName = assignName("Imperial Ray");
+	move.framebarName = "Imperial Ray";
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaser", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
-	move.framebarName = assignName("Gamma Ray");
-	move.framebarNameUncombined = assignName("Gamma Ray Laser");
+	move.framebarName = "Gamma Ray";
+	move.framebarNameUncombined = "Gamma Ray Laser";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaserMax", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
-	move.framebarName = assignName("Gamma Ray");
-	move.framebarNameUncombined = assignName("Gamma Ray Max Laser");
+	move.framebarName = "Gamma Ray";
+	move.framebarNameUncombined = "Gamma Ray Max Laser";
 	addMove(move);
 }
 
@@ -8081,7 +8686,6 @@ bool sectionSeparator_FDB(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0) {
 		return true;
 	}
-	if (!ent.pawn.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "Attack");
 	if (!markerPos) return false;
 	markerPos = moves.skipInstruction(markerPos);
@@ -8119,7 +8723,6 @@ bool sectionSeparator_leoGuardStance(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.gotoLabelRequest(), "End") == 0) {
 		return true;
 	}
-	if (!ent.pawn.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "End");
 	if (!markerPos) {
 		return false;
@@ -8371,7 +8974,6 @@ bool isDangerous_hasHitboxes(Entity ent) {
 	return ent.hitboxCount(HITBOXTYPE_HITBOX) > 0;
 }
 bool isDangerous_bubble(Entity ent) {
-	if (!ent.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.bbscrCurrentFunc(), "bomb");
 	if (!markerPos) {
 		return false;
@@ -8390,7 +8992,7 @@ bool isDangerous_pFish(Entity ent) {
 }
 bool isDangerous_laserFish(Entity ent) {
 	BYTE* func = ent.bbscrCurrentFunc();
-	if (moves.laserFishCreateLaserOffset == 0 && func) {
+	if (moves.laserFishCreateLaserOffset == 0) {
 		BYTE* markerPos = moves.findCreateObj(func, "Laser");
 		if (!markerPos) return false;
 		moves.laserFishCreateLaserOffset = markerPos - func;
@@ -8411,7 +9013,6 @@ bool isDangerous_card(Entity ent) {
 }
 
 bool isDangerous_kum5D(Entity ent) {
-	if (!ent.bbscrCurrentFunc()) return false;
 	BYTE* markerPos1 = moves.findSpriteNonNull(ent.bbscrCurrentFunc());
 	if (!markerPos1) return false;
 	BYTE* markerPos2 = moves.findSpriteNull(markerPos1);
@@ -8420,7 +9021,6 @@ bool isDangerous_kum5D(Entity ent) {
 }
 
 bool isDangerous_rsfMeishi(Entity ent) {
-	if (!ent.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.bbscrCurrentFunc(), "End");
 	if (!markerPos) return false;
 	markerPos = moves.findSpriteNull(markerPos);
@@ -8440,17 +9040,33 @@ bool isDangerous_mistKuttsuku(Entity ent) {
 }
 
 const NamePair* nameSelector_iceSpike(Entity ent) {
+	static const NamePair firePillar {
+		"For searing cod...",
+		"Fire Pillar"
+	};
+	static const NamePair iceSpike {
+		"I used this to catch fish",
+		"Ice Spike"
+	};
 	if (ent.createArgHikitsukiVal1() == 1) {
-		return assignName("For searing cod...", "Fire Pillar");
+		return &firePillar;
 	} else {
-		return assignName("I used this to catch fish", "Ice Spike");
+		return &iceSpike;
 	}
 }
 const NamePair* nameSelector_iceScythe(Entity ent) {
+	static const NamePair iceScythe {
+		"For putting out the light...",
+		"Ice Scythe"
+	};
+	static const NamePair fireScythe {
+		"The light was so small in the beginning",
+		"Fire Scythe"
+	};
 	if (ent.createArgHikitsukiVal1() == 1) {
-		return assignName("For putting out the light...", "Ice Scythe");
+		return &iceScythe;
 	} else {
-		return assignName("The light was so small in the beginning", "Fire Scythe");
+		return &fireScythe;
 	}
 }
 const NamePair* framebarNameSelector_djvuD(Entity ent) {
@@ -8459,35 +9075,66 @@ const NamePair* framebarNameSelector_djvuD(Entity ent) {
 		hasHeightBuff = ent.y() >= 700000;
 	}
 	if (hasHeightBuff) {
-		return assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task C) Buffed", "DVC Buffed");
+		static const NamePair {
+			"\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task C) Buffed",
+			"DVC Buffed"
+		} buffed;
+		return &buffed;
 	} else {
-		return assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task C)", "DVC");
+		static const NamePair {
+			"\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task C)",
+			"DVC"
+		} nonBuffed;
+		return &nonBuffed;
 	}
 }
 const NamePair* framebarNameSelector_closeShot(Entity ent) {
 	entityList.populate();
 	int dist = ent.enemyEntity().posX() - ent.posX();
 	if (dist < 0) dist = -dist;
-	if (dist >= 300000) return assignName("Max Close Shot");
-	return assignName("Max Close Shot Buffed");
+	static const NamePair nonBuffed {
+		"Max Close Shot"
+	};
+	static const NamePair buffed {
+		"Max Close Shot Buffed"
+	};
+	if (dist >= 300000) return &nonBuffed;
+	return &buffed;
 }
 const NamePair* framebarNameSelector_gunflameProjectile(Entity ent) {
 	Entity player = ent.playerEntity();
+	static const NamePair runflame {
+		"Runflame"
+	};
+	static const NamePair gunflame {
+		"Gunflame",
+		"GF"
+	};
 	if (player) {
 		if (strcmp(player.animationName(), "GunFlame") == 0
 				&& strcmp(player.previousAnimName(), "CmnActFDash") == 0) {
-			return assignName("Runflame");
+			return &runflame;
 		}
 	}
-	return assignName("Gunflame", "GF");
+	return &gunflame;
 }
 const NamePair* framebarNameSelector_venomBall(Entity ent) {
+	static const NamePair redHail {
+		"Red Hail"
+	};
+	static const NamePair bishop {
+		"Bishop Runout",
+		"Bishop"
+	};
+	static const NamePair balls {
+		"Balls"
+	};
 	if (strcmp(ent.dealtAttack()->trialName, "Ball_RedHail") == 0) {
-		return assignName("Red Hail");
+		return &redHail;
 	} else if (strcmp(ent.dealtAttack()->trialName, "Ball_Gold") == 0) {
-		return assignName("Bishop Runout", "Bishop");
+		return &bishop;
 	} else {
-		return assignName("Balls");
+		return &balls;
 	}
 }
 
@@ -8497,7 +9144,6 @@ const NamePair* MoveInfo::getFramebarName(Entity ent) const {
 }
 
 bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent) {
-	if (!ent.pawn.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "Run");
 	if (!markerPos) return false;
 	return ent.pawn.bbscrCurrentInstr() <= markerPos && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
@@ -8507,7 +9153,6 @@ bool isInVariableStartupSection_zweiLand(PlayerInfo& ent) {
 }
 bool isInVariableStartupSection_blitzShield(PlayerInfo& ent) {
 	if (ent.pawn.mem45() == 1) return false;
-	if (!ent.pawn.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "attack");
 	if (!markerPos) return false;
 	return ent.pawn.currentAnimDuration() >= 16 && ent.pawn.bbscrCurrentInstr() <= markerPos && *ent.pawn.gotoLabelRequest() == '\0';
@@ -8599,8 +9244,8 @@ bool canStopHolding_armorDance(PlayerInfo& ent) {
 		armorDanceEndOffset = &moves.armorDanceEndOffset;
 	}
 	
-	if (*armorDanceEndOffset == 0 && funcStart) {
-		BYTE* markerPos = moves.findSetMarker(funcStart, "End");
+	if (*armorDanceEndOffset == 0) {
+		BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "End");
 		if (!markerPos) return false;
 		*armorDanceEndOffset = markerPos - funcStart;
 	}
@@ -8611,8 +9256,8 @@ bool canStopHolding_armorDance(PlayerInfo& ent) {
 bool canStopHolding_armorDance2(PlayerInfo& ent) {
 	if (!ent.pawn.mem45() || *ent.pawn.gotoLabelRequest() != '\0') return false;
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
-	if (moves.armorDance2EndOffset == 0 && funcStart) {
-		BYTE* markerPos = moves.findSetMarker(funcStart, "End");
+	if (moves.armorDance2EndOffset == 0) {
+		BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "End");
 		if (!markerPos) return false;
 		moves.armorDance2EndOffset = markerPos - funcStart;
 	}
@@ -8645,8 +9290,8 @@ bool secondaryStartup_saishingeki(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.gotoLabelRequest(), "Saishintuika") == 0) return true;
 	if (ent.pawn.currentHitNum() == 2 && !ent.pawn.isActiveFrames()) return false;
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
-	if (moves.saishingeki_SaishintuikaOffset == 0 && moves.saishingeki_SaishintuikaEndOffset == 0 && funcStart) {
-		BYTE* markerPos = moves.findSetMarker(funcStart, "Saishintuika");
+	if (moves.saishingeki_SaishintuikaOffset == 0 && moves.saishingeki_SaishintuikaEndOffset == 0) {
+		BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "Saishintuika");
 		if (!markerPos) return false;
 		moves.saishingeki_SaishintuikaOffset = markerPos - funcStart;
 		BYTE* nextSearchStart = moves.skipInstruction(markerPos);
@@ -8675,8 +9320,8 @@ bool isRecovery_sinRTL(PlayerInfo& ent) {
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
 	bool isAir = strncmp(ent.pawn.animationName(), "Air", 3) == 0;
 	int* offset = moves.sinRtl_end_air_offset + isAir;
-	if (*offset == 0 && funcStart) {
-		BYTE* markerPos = moves.findSetMarker(funcStart, "end_air");
+	if (*offset == 0) {
+		BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "end_air");
 		if (!markerPos) return false;
 		*offset = markerPos - funcStart;
 	}
@@ -8689,7 +9334,7 @@ bool isRecovery_recovery(PlayerInfo& ent) {
 }
 bool isRecovery_zanseiRouga(PlayerInfo& ent) {
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
-	if (moves.zanseiRougaRecoveryOffset == 0 && funcStart) {
+	if (moves.zanseiRougaRecoveryOffset == 0) {
 		BYTE* spritePos = moves.findSprite(funcStart, "chp431_17");
 		if (!spritePos) return false;
 		moves.zanseiRougaRecoveryOffset = spritePos - funcStart;
@@ -8710,7 +9355,7 @@ bool forceSuperHitAnyway_zanseiRouga(PlayerInfo& ent) {
 }
 bool forceSuperHitAnyway_hououshou(PlayerInfo& ent) {
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
-	if (moves.hououshouHitOffset == 0 && funcStart) {
+	if (moves.hououshouHitOffset == 0) {
 		BYTE* markerPos = moves.findSetMarker(funcStart, "hit");
 		if (!markerPos) return false;
 		moves.hououshouHitOffset = markerPos - funcStart;
@@ -8720,64 +9365,91 @@ bool forceSuperHitAnyway_hououshou(PlayerInfo& ent) {
 	return currentInstr >= funcStart + moves.hououshouHitOffset;
 }
 
-const NamePair* displayNameSelector_pogoEntry(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Idle")
-		: assignName("Spear Point Centripetal Dance Entry", "Pogo Entry");
+const char* displayNameSelector_pogoEntry(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Spear Point Centripetal Dance Entry";
 }
-const NamePair* displayNameSelector_pogoA(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Just A Taste!", "Pogo-P");
+const char* displaySlangNameSelector_pogoEntry(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Idle" : "Pogo Entry";
 }
-const NamePair* displayNameSelector_pogo9(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Short Hop", "Pogo-9");
+const char* displayNameSelector_pogoA(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Just A Taste!";
 }
-const NamePair* displayNameSelector_pogo44(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Backward Movement", "Pogo-44");
+const char* displaySlangNameSelector_pogoA(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-P";
 }
-const NamePair* displayNameSelector_pogo66(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Forward Movement", "Pogo-66");
+const char* displayNameSelector_pogo9(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Short Hop";
 }
-const NamePair* displayNameSelector_pogoB(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Growing Flower", "Pogo-K");
+const char* displaySlangNameSelector_pogo9(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-9";
 }
-const NamePair* displayNameSelector_pogoC(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("See? I'm a Flower!", "Pogo-S");
+const char* displayNameSelector_pogo44(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Backward Movement";
 }
-const NamePair* displayNameSelector_pogoD(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Spear Point Centripetal Dance Going My Way", "Pogo-H");
+const char* displaySlangNameSelector_pogo44(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-44";
 }
-const NamePair* displayNameSelector_pogoE(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Spear Point Centripetal Dance What Could This Be?", "Pogo-D");
+const char* displayNameSelector_pogo66(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Forward Movement";
 }
-const NamePair* displayNameSelector_pogo8(PlayerInfo& ent) {
-	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
-		: assignName("Doctor-Copter", "Pogo-8");
+const char* displaySlangNameSelector_pogo66(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-66";
 }
-const NamePair* displayNameSelector_RC(PlayerInfo& ent) {
+const char* displayNameSelector_pogoB(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Growing Flower";
+}
+const char* displaySlangNameSelector_pogoB(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-K";
+}
+const char* displayNameSelector_pogoC(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "See? I'm a Flower!";
+}
+const char* displaySlangNameSelector_pogoC(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-S";
+}
+const char* displayNameSelector_pogoD(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Spear Point Centripetal Dance Going My Way";
+}
+const char* displaySlangNameSelector_pogoD(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-H";
+}
+const char* displayNameSelector_pogoE(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Spear Point Centripetal Dance What Could This Be?";
+}
+const char* displaySlangNameSelector_pogoE(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-D";
+}
+const char* displayNameSelector_pogo8(PlayerInfo& ent) {
+	return ent.idle ? "Spear Point Centripetal Dance Idle" : "Doctor-Copter";
+}
+const char* displaySlangNameSelector_pogo8(PlayerInfo& ent) {
+	return ent.idle ? "Pogo Stance" : "Pogo-8";
+}
+const char* displayNameSelector_RC(PlayerInfo& ent) {
 	return ent.pawn.yellowRomanCancel()
-		? assignName("Yellow Roman Cancel", "YRC")
+		? "Yellow Roman Cancel"
 		: ent.pawn.purpleRomanCancel()
-			? assignName("Purple Roman Cancel", "PRC")
-			: assignName("Red Roman Cancel", "RRC");
+			? "Purple Roman Cancel"
+			: "Red Roman Cancel";
 }
-const NamePair* displayNameSelector_may6P(PlayerInfo& ent) {
+const char* displaySlangNameSelector_RC(PlayerInfo& ent) {
+	return ent.pawn.yellowRomanCancel()
+		? "YRC"
+		: ent.pawn.purpleRomanCancel()
+			? "PRC"
+			: "RRC";
+}
+const char* displayNameSelector_may6P(PlayerInfo& ent) {
 	struct May6PElement {
-		const NamePair* name;
+		const char* name;
 		int stun;
 	};
 	static const May6PElement ar[] {
-		{ assignName("6P"), 88 },
-		{ assignName("6P (Lvl1)"), 110 },
-		{ assignName("6P (Lvl2)"), 121 },
-		{ assignName("6P (Lvl3)"), 132 },
-		{ assignName("6P Max"), 143 }
+		{ "6P", 88 },
+		{ "6P (Lvl1)", 110 },
+		{ "6P (Lvl2)", 121 },
+		{ "6P (Lvl3)", 132 },
+		{ "6P Max", 143 }
 	};
 	for (int i = 0; i < _countof(ar); ++i) {
 		if (ent.pawn.dealtAttack()->stun == ar[i].stun) {
@@ -8786,324 +9458,888 @@ const NamePair* displayNameSelector_may6P(PlayerInfo& ent) {
 	}
 	return ar[0].name;
 }
-const NamePair* displayNameSelector_may6H(PlayerInfo& ent) {
+const char* displayNameSelector_may6H(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.gotoLabelRequest(), "6DHoldAttack") == 0) {
-		return assignName("6H Slightly Held");
+		return "6H Slightly Held";
 	}
 	BYTE* func = ent.pawn.bbscrCurrentFunc();
-	if (func) {
-		fillMay6HOffsets(func);
-		int offset = ent.pawn.bbscrCurrentInstr() - func;
-		if (offset > moves.may6H_6DHoldOffset && offset < moves.may6H_6DHoldAttackOffset) {
-			return ent.pawn.mem45() == 0 ? assignName("6H Max") : assignName("6H Hold");
-		} else if (offset > moves.may6H_6DHoldAttackOffset) {
-			return assignName("6H Slightly Held");
-		}
+	fillMay6HOffsets(func);
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.may6H_6DHoldOffset && offset < moves.may6H_6DHoldAttackOffset) {
+		return ent.pawn.mem45() == 0 ? "6H Max" : "6H Hold";
+	} else if (offset > moves.may6H_6DHoldAttackOffset) {
+		return "6H Slightly Held";
+	} else {
+		return "6H";
 	}
-	return assignName("6H");
 }
-const NamePair* displayNameSelector_badMoon(PlayerInfo& ent) {
+const char* displayNameSelector_badMoon(PlayerInfo& ent) {
 	int maxHit = ent.maxHit.max;
 	if (maxHit == 10) {
-		return assignName("Bad Moon (Height Buff, 10 hits)", "BM (Height Buff, 10 hits)");
+		return "Bad Moon (Height Buff, 10 hits)";
 	} else if (maxHit == 9) {
-		return assignName("Bad Moon (Height Buff, 9 hits)", "BM (Height Buff, 9 hits)");
+		return "Bad Moon (Height Buff, 9 hits)";
 	} else if (maxHit == 8) {
-		return assignName("Bad Moon (Height Buff, 8 hits)", "BM (Height Buff, 8 hits)");
+		return "Bad Moon (Height Buff, 8 hits)";
 	} else if (maxHit == 7) {
-		return assignName("Bad Moon (Height Buff, 7 hits)", "BM (Height Buff, 7 hits)");
+		return "Bad Moon (Height Buff, 7 hits)";
 	} else if (maxHit == 6) {
-		return assignName("Bad Moon (Height Buff, 6 hits)", "BM (Height Buff, 6 hits)");
+		return "Bad Moon (Height Buff, 6 hits)";
 	} else if (maxHit == 5) {
-		return assignName("Bad Moon (Height Buff, 5 hits)", "BM (Height Buff, 5 hits)");
+		return "Bad Moon (Height Buff, 5 hits)";
 	} else if (ent.pawn.mem46()) {
-		return assignName("Bad Moon (Height Buff)", "BM (Height Buff)");
+		return "Bad Moon (Height Buff)";
 	} else {
-		return assignName("Bad Moon", "BM");
+		return "Bad Moon";
 	}
 }
-const NamePair* displayNameSelector_carcassRaidS(PlayerInfo& ent) {
+const char* displaySlangNameSelector_badMoon(PlayerInfo& ent) {
+	int maxHit = ent.maxHit.max;
+	if (maxHit == 10) {
+		return "BM (Height Buff, 10 hits)";
+	} else if (maxHit == 9) {
+		return "BM (Height Buff, 9 hits)";
+	} else if (maxHit == 8) {
+		return "BM (Height Buff, 8 hits)";
+	} else if (maxHit == 7) {
+		return "BM (Height Buff, 7 hits)";
+	} else if (maxHit == 6) {
+		return "BM (Height Buff, 6 hits)";
+	} else if (maxHit == 5) {
+		return "BM (Height Buff, 5 hits)";
+	} else if (ent.pawn.mem46()) {
+		return "BM (Height Buff, 4 hits)";
+	} else {
+		return "BM";
+	}
+}
+const char* displayNameSelector_carcassRaidS(PlayerInfo& ent) {
 	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
 			&& ent.pawn.venomBallArg3() == 164) {
-		return assignName("S Carcass Raid With Spin", "S Carcass With Spin");
+		return "S Carcass Raid With Spin";
 	} else {
-		return assignName("S Carcass Raid", "S Carcass");
+		return "S Carcass Raid";
 	}
 }
-const NamePair* displayNameSelector_carcassRaidH(PlayerInfo& ent) {
+const char* displaySlangNameSelector_carcassRaidS(PlayerInfo& ent) {
+	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
+			&& ent.pawn.venomBallArg3() == 164) {
+		return "S Carcass With Spin";
+	} else {
+		return "S Carcass";
+	}
+}
+const char* displayNameSelector_carcassRaidH(PlayerInfo& ent) {
 	if (ent.pawn.venomBallArg3() == 2724) {
-		return assignName("H Carcass Raid With Spin", "H Carcass With Spin");
+		return "H Carcass Raid With Spin";
 	} else {
-		return assignName("H Carcass Raid", "H Carcass");
+		return "H Carcass Raid";
 	}
 }
-const NamePair* displayNameSelector_stingerS(PlayerInfo& ent) {
+const char* displaySlangNameSelector_carcassRaidH(PlayerInfo& ent) {
+	if (ent.pawn.venomBallArg3() == 2724) {
+		return "H Carcass With Spin";
+	} else {
+		return "H Carcass";
+	}
+}
+const char* displayNameSelector_stingerS(PlayerInfo& ent) {
 	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
 			&& ent.pawn.venomBallArg3() == 164) {
-		return assignName("S Stinger Aim With Spin", "S Stinger With Spin");
+		return "S Stinger Aim With Spin";
 	} else {
-		return assignName("S Stinger Aim", "S Stinger");
+		return "S Stinger Aim";
 	}
 }
-const NamePair* displayNameSelector_stingerH(PlayerInfo& ent) {
+const char* displaySlangNameSelector_stingerS(PlayerInfo& ent) {
+	if (ent.pawn.createArgHikitsukiVal2_outgoing() == 1  // rev1
+			&& ent.pawn.venomBallArg3() == 164) {
+		return "S Stinger With Spin";
+	} else {
+		return "S Stinger";
+	}
+}
+const char* displayNameSelector_stingerH(PlayerInfo& ent) {
 	if (ent.pawn.venomBallArg3() == 164) {
-		return assignName("H Stinger Aim With Spin", "H Stinger With Spin");
+		return "H Stinger Aim With Spin";
 	} else {
-		return assignName("H Stinger Aim", "H Stinger");
+		return "H Stinger Aim";
 	}
 }
-const NamePair* displayNameSelector_taskCAir(PlayerInfo& ent) {
+const char* displaySlangNameSelector_stingerH(PlayerInfo& ent) {
+	if (ent.pawn.venomBallArg3() == 164) {
+		return "H Stinger With Spin";
+	} else {
+		return "H Stinger";
+	}
+}
+const char* displayNameSelector_taskCAir(PlayerInfo& ent) {
 	if (ent.pawn.mem45()) {
-		return assignName("Air Task C Buffed", "j.TC Buffed");
+		return "Air Task C Buffed";
 	} else {
-		return assignName("Air Task C", "j.TC");
+		return "Air Task C";
 	}
 }
-const NamePair* framebarNameSelector_blueBurst(Entity ent) {
+const char* displaySlangNameSelector_taskCAir(PlayerInfo& ent) {
+	if (ent.pawn.mem45()) {
+		return "Air Task C Buffed";
+	} else {
+		return "Air Task C";
+	}
+}
+const char* framebarNameSelector_blueBurst(Entity ent) {
 	int team = ent.team();
-	if (!(team == 0 || team == 1)) return assignName("Blue Burst");
-	return endScene.players[team].wasOtg ? assignName("OTG Burst") : assignName("Blue Burst");
+	if (!(team == 0 || team == 1)) return "Blue Burst";
+	return endScene.players[team].wasOtg ? "OTG Burst" : "Blue Burst";
 }
-const NamePair* displayNameSelector_blueBurst(PlayerInfo& ent) {
-	return ent.wasOtg ? assignName("OTG Burst") : assignName("Blue Burst");
+const char* displayNameSelector_blueBurst(PlayerInfo& ent) {
+	return ent.wasOtg ? "OTG Burst" : "Blue Burst";
 }
-const NamePair* displayNameSelector_rifleStart(PlayerInfo& ent) {
-	if (ent.idle) return assignName("Ms. Confille", "Rifle");
-	const NamePair* response = moves.rifleAutoExit(ent, &moves.elpheltRifleStartEndMarkerOffset, assignName("Ms. Confille", "Rifle Autoexit"));
+const char* displayNameSelector_rifleStart(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleStartEndMarkerOffset, "Ms. Confille");
 	if (response) return response;
-	if (moves.forCancels) return assignName("Aim Ms. Confille", "Rifle");
-	return !ent.inNewMoveSection ? assignName("Aim Ms. Confille Until Able to Cancel", "Rifle Until Able to Cancel")
-		: assignName("Aim Ms. Confille Until Able to Fire", "Rifle Until Able to Fire");
+	if (moves.forCancels) return "Aim Ms. Confille";
+	return !ent.inNewMoveSection ? "Aim Ms. Confille Until Able to Cancel" : "Aim Ms. Confille Until Able to Fire";
 }
-const NamePair* displayNameSelector_rifleReload(PlayerInfo& ent) {
-	if (ent.idle) return assignName("Ms. Confille", "Rifle");
-	const NamePair* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadEndMarkerOffset, assignName("Ms. Confille Autoexit", "Rifle Autoexit"));
+const char* displaySlangNameSelector_rifleStart(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleStartEndMarkerOffset, "Rifle Autoexit");
 	if (response) return response;
-	if (moves.forCancels) return assignName("Ms. Confille Reload", "Reload");
-	return !ent.inNewMoveSection ? assignName("Ms. Confille Reload Until Able to Cancel", "Reload Until Able to Cancel")
-		: assignName("Ms. Confille Reload Until Able to Fire", "Reload Until Able to Fire");
+	if (moves.forCancels) return "Rifle";
+	return !ent.inNewMoveSection ? "Rifle Until Able to Cancel" : "Rifle Until Able to Fire";
 }
-const NamePair* displayNameSelector_riflePerfectReload(PlayerInfo& ent) {
-	if (ent.idle) return assignName("Ms. Confille", "Rifle");
-	const NamePair* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadPerfectEndMarkerOffset, assignName("Ms. Confille Autoexit", "Rifle Autoexit"));
+const char* displayNameSelector_rifleReload(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadEndMarkerOffset, "Ms. Confille Autoexit");
 	if (response) return response;
-	if (moves.forCancels) return assignName("Ms. Confille Perfect Reload", "Perfect Reload");
-	return !ent.inNewMoveSection ? assignName("Ms. Confille Perfect Reload Until Able to Cancel", "Perfect Reload Until Able to Cancel")
-		: assignName("Ms. Confille Perfect Reload Until Able to Fire", "Perfect Reload Until Able to Fire");
+	if (moves.forCancels) return "Ms. Confille Reload";
+	return !ent.inNewMoveSection ? "Ms. Confille Reload Until Able to Cancel" : "Ms. Confille Reload Until Able to Fire";
 }
-const NamePair* displayNameSelector_rifleRC(PlayerInfo& ent) {
-	if (ent.idle) return assignName("Ms. Confille", "Rifle");
-	const NamePair* response = moves.rifleAutoExit(ent, &moves.elpheltRifleRomanEndMarkerOffset, assignName("Ms. Confille Autoexit", "Rifle Autoexit"));
+const char* displaySlangNameSelector_rifleReload(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadEndMarkerOffset, "Rifle Autoexit");
 	if (response) return response;
-	if (moves.forCancels) return assignName("Ms. Confille Roman Cancel", "Rifle RC");
-	return !ent.inNewMoveSection ? assignName("Ms. Confille Roman Cancel Until Able to Cancel", "Rifle RC Until Able to Cancel")
-		: assignName("Ms. Confille Roman Cancel Until Able to Fire", "Rifle RC Until Able to Fire");
+	if (moves.forCancels) return "Reload";
+	return !ent.inNewMoveSection ? "Reload Until Able to Cancel" : "Reload Until Able to Fire";
 }
-#define johnnyMFNameSelect(type, lvl, name) \
-	if (type == 0) { \
-		if (lvl == 0) return assignName("Lv1 P Mist Finer" name, "Lv1 PMF" name); \
-		if (lvl == 1) return assignName("Lv2 P Mist Finer" name, "Lv1 PMF" name); \
-		if (lvl == 2) return assignName("Lv3 P Mist Finer" name, "Lv1 PMF" name); \
-	} \
-	if (type == 1) { \
-		if (lvl == 0) return assignName("Lv1 K Mist Finer" name, "Lv1 KMF" name); \
-		if (lvl == 1) return assignName("Lv2 K Mist Finer" name, "Lv2 KMF" name); \
-		if (lvl == 2) return assignName("Lv3 K Mist Finer" name, "Lv3 KMF" name); \
-	} \
-	if (type == 2) { \
-		if (lvl == 0) return assignName("Lv1 S Mist Finer" name, "Lv1 SMF" name); \
-		if (lvl == 1) return assignName("Lv2 S Mist Finer" name, "Lv2 SMF" name); \
-		if (lvl == 2) return assignName("Lv3 S Mist Finer" name, "Lv3 SMF" name); \
-	}
-#define johnnyAirborneMFNameSelect(type, lvl, name) \
-	if (type == 0) { \
-		if (lvl == 0) return assignName("Lv1 Air P Mist Finer" name, "Lv1 j.PMF" name); \
-		if (lvl == 1) return assignName("Lv2 Air P Mist Finer" name, "Lv1 j.PMF" name); \
-		if (lvl == 2) return assignName("Lv3 Air P Mist Finer" name, "Lv1 j.PMF" name); \
-	} \
-	if (type == 1) { \
-		if (lvl == 0) return assignName("Lv1 Air K Mist Finer" name, "Lv1 j.KMF" name); \
-		if (lvl == 1) return assignName("Lv2 Air K Mist Finer" name, "Lv2 j.KMF" name); \
-		if (lvl == 2) return assignName("Lv3 Air K Mist Finer" name, "Lv3 j.KMF" name); \
-	} \
-	if (type == 2) { \
-		if (lvl == 0) return assignName("Lv1 Air S Mist Finer" name, "Lv1 j.SMF" name); \
-		if (lvl == 1) return assignName("Lv2 Air S Mist Finer" name, "Lv2 j.SMF" name); \
-		if (lvl == 2) return assignName("Lv3 Air S Mist Finer" name, "Lv3 j.SMF" name); \
-	}
-const NamePair* displayNameSelector_mistEntry(PlayerInfo& ent) {
+const char* displayNameSelector_riflePerfectReload(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadPerfectEndMarkerOffset, "Ms. Confille Autoexit");
+	if (response) return response;
+	if (moves.forCancels) return "Ms. Confille Perfect Reload";
+	return !ent.inNewMoveSection ? "Ms. Confille Perfect Reload Until Able to Cancel" : "Ms. Confille Perfect Reload Until Able to Fire";
+}
+const char* displaySlangNameSelector_riflePerfectReload(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleReloadPerfectEndMarkerOffset, "Rifle Autoexit");
+	if (response) return response;
+	if (moves.forCancels) return "Perfect Reload";
+	return !ent.inNewMoveSection ? "Perfect Reload Until Able to Cancel" : "Perfect Reload Until Able to Fire";
+}
+const char* displayNameSelector_rifleRC(PlayerInfo& ent) {
+	if (ent.idle) return "Ms. Confille";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleRomanEndMarkerOffset, "Ms. Confille Autoexit");
+	if (response) return response;
+	if (moves.forCancels) return "Ms. Confille Roman Cancel";
+	return !ent.inNewMoveSection ? "Ms. Confille Roman Cancel Until Able to Cancel" : "Ms. Confille Roman Cancel Until Able to Fire";
+}
+const char* displaySlangNameSelector_rifleRC(PlayerInfo& ent) {
+	if (ent.idle) return "Rifle";
+	const char* response = moves.rifleAutoExit(ent, &moves.elpheltRifleRomanEndMarkerOffset, "Rifle Autoexit");
+	if (response) return response;
+	if (moves.forCancels) return "Rifle RC";
+	return !ent.inNewMoveSection ? "Rifle RC Until Able to Cancel" : "Rifle RC Until Able to Fire";
+}
+const char* displayNameSelector_mistEntry(PlayerInfo& ent) {
 	int type = ent.pawn.mem53();
 	int lvl = ent.pawn.playerVal(1);
-	johnnyMFNameSelect(type, lvl, " Entry")
-	return assignName("Mist Finer Entry", "MF Entry");
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Entry";
+		if (lvl == 1) return "Lv2 P Mist Finer Entry";
+		if (lvl == 2) return "Lv3 P Mist Finer Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Entry";
+		if (lvl == 1) return "Lv2 K Mist Finer Entry";
+		if (lvl == 2) return "Lv3 K Mist Finer Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Entry";
+		if (lvl == 1) return "Lv2 S Mist Finer Entry";
+		if (lvl == 2) return "Lv3 S Mist Finer Entry";
+	}
+	return "Mist Finer Entry";
 }
-const NamePair* displayNameSelector_mistLoop(PlayerInfo& ent) {
+const char* displaySlangNameSelector_mistEntry(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Entry";
+		if (lvl == 1) return "Lv2 PMF Entry";
+		if (lvl == 2) return "Lv3 PMF Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Entry";
+		if (lvl == 1) return "Lv2 KMF Entry";
+		if (lvl == 2) return "Lv3 KMF Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Entry";
+		if (lvl == 1) return "Lv2 SMF Entry";
+		if (lvl == 2) return "Lv3 SMF Entry";
+	}
+	return "MF Entry";
+}
+const char* displayNameSelector_mistLoop(PlayerInfo& ent) {
 	int type = ent.pawn.mem53();
 	int lvl = ent.pawn.playerVal(1);
 	if (ent.pawn.mem54()) {
 		// it is possible to end up here only in Rev1
-		johnnyMFNameSelect(type, lvl, "")
-		return assignName("Mist Finer", "MF");
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 P Mist Finer";
+			if (lvl == 1) return "Lv2 P Mist Finer";
+			if (lvl == 2) return "Lv3 P Mist Finer";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 K Mist Finer";
+			if (lvl == 1) return "Lv2 K Mist Finer";
+			if (lvl == 2) return "Lv3 K Mist Finer";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 S Mist Finer";
+			if (lvl == 1) return "Lv2 S Mist Finer";
+			if (lvl == 2) return "Lv3 S Mist Finer";
+		}
+		return "Mist Finer";
 	}
 	if (!ent.inNewMoveSection) {
-		johnnyMFNameSelect(type, lvl, " Entry")
-		return assignName("Mist Finer Entry", "MF Entry");
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 P Mist Finer Entry";
+			if (lvl == 1) return "Lv2 P Mist Finer Entry";
+			if (lvl == 2) return "Lv3 P Mist Finer Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 K Mist Finer Entry";
+			if (lvl == 1) return "Lv2 K Mist Finer Entry";
+			if (lvl == 2) return "Lv3 K Mist Finer Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 S Mist Finer Entry";
+			if (lvl == 1) return "Lv2 S Mist Finer Entry";
+			if (lvl == 2) return "Lv3 S Mist Finer Entry";
+		}
+		return "Mist Finer Entry";
 	}
-	johnnyMFNameSelect(type, lvl, " Stance")
-	return assignName("Mist Finer Stance", "MF Stance");
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Stance";
+		if (lvl == 1) return "Lv2 P Mist Finer Stance";
+		if (lvl == 2) return "Lv3 P Mist Finer Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Stance";
+		if (lvl == 1) return "Lv2 K Mist Finer Stance";
+		if (lvl == 2) return "Lv3 K Mist Finer Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Stance";
+		if (lvl == 1) return "Lv2 S Mist Finer Stance";
+		if (lvl == 2) return "Lv3 S Mist Finer Stance";
+	}
+	return "Mist Finer Stance";
 }
-const NamePair* displayNameSelector_mistWalkForward(PlayerInfo& ent) {
-	int type = ent.pawn.mem53();
-	int lvl = ent.pawn.playerVal(1);
-	johnnyMFNameSelect(type, lvl, " Walk Forward")
-	return assignName("Mist Finer Walk Forward", "MF Walk Forward");
-}
-const NamePair* displayNameSelector_mistWalkBackward(PlayerInfo& ent) {
-	int type = ent.pawn.mem53();
-	int lvl = ent.pawn.playerVal(1);
-	johnnyMFNameSelect(type, lvl, " Walk Backward")
-	return assignName("Mist Finer Walk Backward", "MF Walk Backward");
-}
-const NamePair* displayNameSelector_mistDash(PlayerInfo& ent) {
-	int type = ent.pawn.mem53();
-	int lvl = ent.pawn.playerVal(1);
-	johnnyMFNameSelect(type, lvl, " Dash")
-	return assignName("Mist Finer Dash", "MF Dash");
-}
-const NamePair* displayNameSelector_mistBackdash(PlayerInfo& ent) {
-	int type = ent.pawn.mem53();
-	int lvl = ent.pawn.playerVal(1);
-	johnnyMFNameSelect(type, lvl, " Backdash")
-	return assignName("Mist Finer Backdash", "MF Backdash");
-}
-const NamePair* displayNameSelector_airMistEntry(PlayerInfo& ent) {
-	int type = ent.pawn.mem53();
-	int lvl = ent.pawn.playerVal(1);
-	johnnyAirborneMFNameSelect(type, lvl, " Entry")
-	return assignName("Air Mist Finer Entry", "j.MF Entry");
-}
-const NamePair* displayNameSelector_airMistLoop(PlayerInfo& ent) {
+const char* displaySlangNameSelector_mistLoop(PlayerInfo& ent) {
 	int type = ent.pawn.mem53();
 	int lvl = ent.pawn.playerVal(1);
 	if (ent.pawn.mem54()) {
 		// it is possible to end up here only in Rev1
-		johnnyAirborneMFNameSelect(type, lvl, "")
-		return assignName("Air Mist Finer", "j.MF");
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 PMF";
+			if (lvl == 1) return "Lv2 PMF";
+			if (lvl == 2) return "Lv3 PMF";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 KMF";
+			if (lvl == 1) return "Lv2 KMF";
+			if (lvl == 2) return "Lv3 KMF";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 SMF";
+			if (lvl == 1) return "Lv2 SMF";
+			if (lvl == 2) return "Lv3 SMF";
+		}
+		return "MF";
 	}
 	if (!ent.inNewMoveSection) {
-		johnnyAirborneMFNameSelect(type, lvl, " Entry")
-		return assignName("Air Mist Finer Entry", "j.MF Entry");
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 PMF Entry";
+			if (lvl == 1) return "Lv2 PMF Entry";
+			if (lvl == 2) return "Lv3 PMF Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 KMF Entry";
+			if (lvl == 1) return "Lv2 KMF Entry";
+			if (lvl == 2) return "Lv3 KMF Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 SMF Entry";
+			if (lvl == 1) return "Lv2 SMF Entry";
+			if (lvl == 2) return "Lv3 SMF Entry";
+		}
+		return "MF Entry";
 	}
-	johnnyAirborneMFNameSelect(type, lvl, " Stance")
-	return assignName("Air Mist Finer Stance", "j.MF Stance");
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Stance";
+		if (lvl == 1) return "Lv2 PMF Stance";
+		if (lvl == 2) return "Lv3 PMF Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Stance";
+		if (lvl == 1) return "Lv2 KMF Stance";
+		if (lvl == 2) return "Lv3 KMF Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Stance";
+		if (lvl == 1) return "Lv2 SMF Stance";
+		if (lvl == 2) return "Lv3 SMF Stance";
+	}
+	return "MF Stance";
 }
-const NamePair* displayNameSelector_airMistDash(PlayerInfo& ent) {
+const char* displayNameSelector_mistWalkForward(PlayerInfo& ent) {
 	int type = ent.pawn.mem53();
 	int lvl = ent.pawn.playerVal(1);
-	johnnyAirborneMFNameSelect(type, lvl, " Airdash")
-	return assignName("Air Mist Finer Airdash", "j.MF Airdash");
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Walk Forward";
+		if (lvl == 1) return "Lv2 P Mist Finer Walk Forward";
+		if (lvl == 2) return "Lv3 P Mist Finer Walk Forward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Walk Forward";
+		if (lvl == 1) return "Lv2 K Mist Finer Walk Forward";
+		if (lvl == 2) return "Lv3 K Mist Finer Walk Forward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Walk Forward";
+		if (lvl == 1) return "Lv2 S Mist Finer Walk Forward";
+		if (lvl == 2) return "Lv3 S Mist Finer Walk Forward";
+	}
+	return "Mist Finer Walk Forward";
 }
-const NamePair* displayNameSelector_airMistBackdash(PlayerInfo& ent) {
+const char* displaySlangNameSelector_mistWalkForward(PlayerInfo& ent) {
 	int type = ent.pawn.mem53();
 	int lvl = ent.pawn.playerVal(1);
-	johnnyAirborneMFNameSelect(type, lvl, " Airdash Back")
-	return assignName("Air Mist Finer Airdash Back", "j.MF Airdash Back");
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Walk Forward";
+		if (lvl == 1) return "Lv2 PMF Walk Forward";
+		if (lvl == 2) return "Lv3 PMF Walk Forward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Walk Forward";
+		if (lvl == 1) return "Lv2 KMF Walk Forward";
+		if (lvl == 2) return "Lv3 KMF Walk Forward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Walk Forward";
+		if (lvl == 1) return "Lv2 SMF Walk Forward";
+		if (lvl == 2) return "Lv3 SMF Walk Forward";
+	}
+	return "MF Walk Forward";
 }
-const NamePair* displayNameSelector_gekirinLv2or3(PlayerInfo& ent) {
+const char* displayNameSelector_mistWalkBackward(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Walk Backward";
+		if (lvl == 1) return "Lv2 P Mist Finer Walk Backward";
+		if (lvl == 2) return "Lv3 P Mist Finer Walk Backward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Walk Backward";
+		if (lvl == 1) return "Lv2 K Mist Finer Walk Backward";
+		if (lvl == 2) return "Lv3 K Mist Finer Walk Backward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Walk Backward";
+		if (lvl == 1) return "Lv2 S Mist Finer Walk Backward";
+		if (lvl == 2) return "Lv3 S Mist Finer Walk Backward";
+	}
+	return "Mist Finer Walk Backward";
+}
+const char* displaySlangNameSelector_mistWalkBackward(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Walk Backward";
+		if (lvl == 1) return "Lv2 PMF Walk Backward";
+		if (lvl == 2) return "Lv3 PMF Walk Backward";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Walk Backward";
+		if (lvl == 1) return "Lv2 KMF Walk Backward";
+		if (lvl == 2) return "Lv3 KMF Walk Backward";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Walk Backward";
+		if (lvl == 1) return "Lv2 SMF Walk Backward";
+		if (lvl == 2) return "Lv3 SMF Walk Backward";
+	}
+	return "MF Walk Backward";
+}
+const char* displayNameSelector_mistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Dash";
+		if (lvl == 1) return "Lv2 P Mist Finer Dash";
+		if (lvl == 2) return "Lv3 P Mist Finer Dash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Dash";
+		if (lvl == 1) return "Lv2 K Mist Finer Dash";
+		if (lvl == 2) return "Lv3 K Mist Finer Dash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Dash";
+		if (lvl == 1) return "Lv2 S Mist Finer Dash";
+		if (lvl == 2) return "Lv3 S Mist Finer Dash";
+	}
+	return "Mist Finer Dash";
+}
+const char* displaySlangNameSelector_mistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Dash";
+		if (lvl == 1) return "Lv2 PMF Dash";
+		if (lvl == 2) return "Lv3 PMF Dash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Dash";
+		if (lvl == 1) return "Lv2 KMF Dash";
+		if (lvl == 2) return "Lv3 KMF Dash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Dash";
+		if (lvl == 1) return "Lv2 SMF Dash";
+		if (lvl == 2) return "Lv3 SMF Dash";
+	}
+	return "MF Dash";
+}
+const char* displayNameSelector_mistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 P Mist Finer Backdash";
+		if (lvl == 1) return "Lv2 P Mist Finer Backdash";
+		if (lvl == 2) return "Lv3 P Mist Finer Backdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 K Mist Finer Backdash";
+		if (lvl == 1) return "Lv2 K Mist Finer Backdash";
+		if (lvl == 2) return "Lv3 K Mist Finer Backdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 S Mist Finer Backdash";
+		if (lvl == 1) return "Lv2 S Mist Finer Backdash";
+		if (lvl == 2) return "Lv3 S Mist Finer Backdash";
+	}
+	return "Mist Finer Backdash";
+}
+const char* displaySlangNameSelector_mistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 PMF Backdash";
+		if (lvl == 1) return "Lv2 PMF Backdash";
+		if (lvl == 2) return "Lv3 PMF Backdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 KMF Backdash";
+		if (lvl == 1) return "Lv2 KMF Backdash";
+		if (lvl == 2) return "Lv3 KMF Backdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 SMF Backdash";
+		if (lvl == 1) return "Lv2 SMF Backdash";
+		if (lvl == 2) return "Lv3 SMF Backdash";
+	}
+	return "MF Backdash";
+}
+const char* displayNameSelector_airMistEntry(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Entry";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Entry";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Entry";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Entry";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Entry";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Entry";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Entry";
+	}
+	return "Air Mist Finer Entry";
+}
+const char* displaySlangNameSelector_airMistEntry(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Entry";
+		if (lvl == 1) return "Lv2 j.PMF Entry";
+		if (lvl == 2) return "Lv3 j.PMF Entry";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Entry";
+		if (lvl == 1) return "Lv2 j.KMF Entry";
+		if (lvl == 2) return "Lv3 j.KMF Entry";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Entry";
+		if (lvl == 1) return "Lv2 j.SMF Entry";
+		if (lvl == 2) return "Lv3 j.SMF Entry";
+	}
+	return "j.MF Entry";
+}
+const char* displayNameSelector_airMistLoop(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (ent.pawn.mem54()) {
+		// it is possible to end up here only in Rev1
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 Air P Mist Finer";
+			if (lvl == 1) return "Lv2 Air P Mist Finer";
+			if (lvl == 2) return "Lv3 Air P Mist Finer";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 Air K Mist Finer";
+			if (lvl == 1) return "Lv2 Air K Mist Finer";
+			if (lvl == 2) return "Lv3 Air K Mist Finer";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 Air S Mist Finer";
+			if (lvl == 1) return "Lv2 Air S Mist Finer";
+			if (lvl == 2) return "Lv3 Air S Mist Finer";
+		}
+		return "Air Mist Finer";
+	}
+	if (!ent.inNewMoveSection) {
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 Air P Mist Finer Entry";
+			if (lvl == 1) return "Lv2 Air P Mist Finer Entry";
+			if (lvl == 2) return "Lv3 Air P Mist Finer Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 Air K Mist Finer Entry";
+			if (lvl == 1) return "Lv2 Air K Mist Finer Entry";
+			if (lvl == 2) return "Lv3 Air K Mist Finer Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 Air S Mist Finer Entry";
+			if (lvl == 1) return "Lv2 Air S Mist Finer Entry";
+			if (lvl == 2) return "Lv3 Air S Mist Finer Entry";
+		}
+		return "Air Mist Finer Entry";
+	}
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Stance";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Stance";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Stance";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Stance";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Stance";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Stance";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Stance";
+	}
+	return "Air Mist Finer Stance";
+}
+const char* displaySlangNameSelector_airMistLoop(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (ent.pawn.mem54()) {
+		// it is possible to end up here only in Rev1
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 j.PMF";
+			if (lvl == 1) return "Lv2 j.PMF";
+			if (lvl == 2) return "Lv3 j.PMF";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 j.KMF";
+			if (lvl == 1) return "Lv2 j.KMF";
+			if (lvl == 2) return "Lv3 j.KMF";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 j.SMF";
+			if (lvl == 1) return "Lv2 j.SMF";
+			if (lvl == 2) return "Lv3 j.SMF";
+		}
+		return "j.MF";
+	}
+	if (!ent.inNewMoveSection) {
+		if (type == 0) {
+			if (lvl == 0) return "Lv1 j.PMF Entry";
+			if (lvl == 1) return "Lv2 j.PMF Entry";
+			if (lvl == 2) return "Lv3 j.PMF Entry";
+		}
+		if (type == 1) {
+			if (lvl == 0) return "Lv1 j.KMF Entry";
+			if (lvl == 1) return "Lv2 j.KMF Entry";
+			if (lvl == 2) return "Lv3 j.KMF Entry";
+		}
+		if (type == 2) {
+			if (lvl == 0) return "Lv1 j.SMF Entry";
+			if (lvl == 1) return "Lv2 j.SMF Entry";
+			if (lvl == 2) return "Lv3 j.SMF Entry";
+		}
+		return "j.MF Entry";
+	}
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Stance";
+		if (lvl == 1) return "Lv2 j.PMF Stance";
+		if (lvl == 2) return "Lv3 j.PMF Stance";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Stance";
+		if (lvl == 1) return "Lv2 j.KMF Stance";
+		if (lvl == 2) return "Lv3 j.KMF Stance";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Stance";
+		if (lvl == 1) return "Lv2 j.SMF Stance";
+		if (lvl == 2) return "Lv3 j.SMF Stance";
+	}
+	return "j.MF Stance";
+}
+const char* displayNameSelector_airMistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Airdash";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Airdash";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Airdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Airdash";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Airdash";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Airdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Airdash";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Airdash";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Airdash";
+	}
+	return "Air Mist Finer Airdash";
+}
+const char* displaySlangNameSelector_airMistDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Airdash";
+		if (lvl == 1) return "Lv2 j.PMF Airdash";
+		if (lvl == 2) return "Lv3 j.PMF Airdash";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Airdash";
+		if (lvl == 1) return "Lv2 j.KMF Airdash";
+		if (lvl == 2) return "Lv3 j.KMF Airdash";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Airdash";
+		if (lvl == 1) return "Lv2 j.SMF Airdash";
+		if (lvl == 2) return "Lv3 j.SMF Airdash";
+	}
+	return "j.MF Airdash";
+}
+const char* displayNameSelector_airMistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 Air P Mist Finer Airdash Back";
+		if (lvl == 1) return "Lv2 Air P Mist Finer Airdash Back";
+		if (lvl == 2) return "Lv3 Air P Mist Finer Airdash Back";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 Air K Mist Finer Airdash Back";
+		if (lvl == 1) return "Lv2 Air K Mist Finer Airdash Back";
+		if (lvl == 2) return "Lv3 Air K Mist Finer Airdash Back";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 Air S Mist Finer Airdash Back";
+		if (lvl == 1) return "Lv2 Air S Mist Finer Airdash Back";
+		if (lvl == 2) return "Lv3 Air S Mist Finer Airdash Back";
+	}
+	return "Air Mist Finer Airdash Back";
+}
+const char* displaySlangNameSelector_airMistBackdash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	if (type == 0) {
+		if (lvl == 0) return "Lv1 j.PMF Airdash Back";
+		if (lvl == 1) return "Lv2 j.PMF Airdash Back";
+		if (lvl == 2) return "Lv3 j.PMF Airdash Back";
+	}
+	if (type == 1) {
+		if (lvl == 0) return "Lv1 j.KMF Airdash Back";
+		if (lvl == 1) return "Lv2 j.KMF Airdash Back";
+		if (lvl == 2) return "Lv3 j.KMF Airdash Back";
+	}
+	if (type == 2) {
+		if (lvl == 0) return "Lv1 j.SMF Airdash Back";
+		if (lvl == 1) return "Lv2 j.SMF Airdash Back";
+		if (lvl == 2) return "Lv3 j.SMF Airdash Back";
+	}
+	return "j.MF Airdash Back";
+}
+const char* displayNameSelector_gekirinLv2or3(PlayerInfo& ent) {
 	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Gekirin") == 0) {
-		return assignName("Lv3 Gekirin");
+		return "Lv3 Gekirin";
 	}
-	return assignName("Lv2 Gekirin");
+	return "Lv2 Gekirin";
 }
-const NamePair* displayNameSelector_airGekirinLv2or3(PlayerInfo& ent) {
+const char* displayNameSelector_airGekirinLv2or3(PlayerInfo& ent) {
 	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Gekirin") == 0) {
-		return assignName("Lv3 Air Gekirin");
+		return "Lv3 Air Gekirin";
 	}
-	return assignName("Lv2 Air Gekirin");
+	return "Lv2 Air Gekirin";
 }
-const NamePair* displayNameSelector_ryujinLv2or3(PlayerInfo& ent) {
+const char* displayNameSelector_ryujinLv2or3(PlayerInfo& ent) {
 	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Ryujin") == 0) {
-		return assignName("Lv3 Ryuujin");
+		return "Lv3 Ryuujin";
 	}
-	return assignName("Lv2 Ryuujin");
+	return "Lv2 Ryuujin";
 }
-const NamePair* displayNameSelector_airRyujinLv2or3(PlayerInfo& ent) {
+const char* displayNameSelector_airRyujinLv2or3(PlayerInfo& ent) {
 	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Ryujin") == 0) {
-		return assignName("Lv3 Air Ryuujin");
+		return "Lv3 Air Ryuujin";
 	}
-	return assignName("Lv2 Air Ryuujin");
+	return "Lv2 Air Ryuujin";
 }
-const NamePair* displayNameSelector_kenroukakuLv2or3(PlayerInfo& ent) {
+const char* displayNameSelector_kenroukakuLv2or3(PlayerInfo& ent) {
 	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Kenroukaku") == 0) {
-		return assignName("Lv3 Kenroukaku");
+		return "Lv3 Kenroukaku";
 	}
-	return assignName("Lv2 Kenroukaku");
+	return "Lv2 Kenroukaku";
 }
-const NamePair* displayNameSelector_airKenroukakuLv2or3(PlayerInfo& ent) {
+const char* displayNameSelector_airKenroukakuLv2or3(PlayerInfo& ent) {
 	if (strcmp(ent.labelAtTheStartOfTheMove, "Lv3Kenroukaku") == 0) {
-		return assignName("Lv3 Air Kenroukaku");
+		return "Lv3 Air Kenroukaku";
 	}
-	return assignName("Lv2 Air Kenroukaku");
+	return "Lv2 Air Kenroukaku";
 }
-const NamePair* displayNameSelector_standingAzami(PlayerInfo& ent) {
-	return ent.pawn.mem46() ? assignName("Standing Red Azami") : assignName("Standing Azami");
+const char* displayNameSelector_standingAzami(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "Standing Red Azami" : "Standing Azami";
 }
-const NamePair* displayNameSelector_crouchingAzami(PlayerInfo& ent) {
-	return ent.pawn.mem46() ? assignName("Crouching Red Azami") : assignName("Crouching Azami");
+const char* displayNameSelector_crouchingAzami(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "Crouching Red Azami" : "Crouching Azami";
 }
-const NamePair* displayNameSelector_airAzami(PlayerInfo& ent) {
-	return ent.pawn.mem46() ? assignName("Aerial Red Azami") : assignName("Aerial Azami");
+const char* displayNameSelector_airAzami(PlayerInfo& ent) {
+	return ent.pawn.mem46() ? "Aerial Red Azami" : "Aerial Azami";
 }
-const NamePair* displayNameSelector_gunflame(PlayerInfo& ent) {
+const char* displayNameSelector_gunflame(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
-		return assignName("Runflame");
+		return "Runflame";
 	}
-	return assignName("Gunflame", "GF");
+	return "Gunflame";
 }
-const NamePair* displayNameSelector_gunflameDI(PlayerInfo& ent) {
+const char* displaySlangNameSelector_gunflame(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
-		return assignName("DI Runflame");
+		return "Runflame";
 	}
-	return assignName("DI Gunflame", "DI GF");
+	return "GF";
 }
-const NamePair* displayNameSelector_standingBlitzShield(PlayerInfo& ent) {
+const char* displayNameSelector_gunflameDI(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
+		return "DI Runflame";
+	}
+	return "DI Gunflame";
+}
+const char* displaySlangNameSelector_gunflameDI(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "CmnActFDash") == 0) {
+		return "DI Runflame";
+	}
+	return "DI GF";
+}
+const char* displayNameSelector_standingBlitzShield(PlayerInfo& ent) {
 	GroundBlitzType type = Moves::getBlitzType(ent);
 	switch (type) {
-		case BLITZTYPE_MAXCHARGE: return assignName("Max Charge Standing Blitz Shield", "Max Standing Blitz");
-		case BLITZTYPE_CHARGE: return assignName("Charge Standing Blitz Shield", "Charge Standing Blitz");
-		default: return assignName("Tap Standing Blitz Shield", "Tap Standing Blitz");
+		case BLITZTYPE_MAXCHARGE: return "Max Charge Standing Blitz Shield";
+		case BLITZTYPE_CHARGE: return "Charge Standing Blitz Shield";
+		default: return "Tap Standing Blitz Shield";
 	}
 }
-const NamePair* displayNameSelector_crouchingBlitzShield(PlayerInfo& ent) {
+const char* displaySlangNameSelector_standingBlitzShield(PlayerInfo& ent) {
 	GroundBlitzType type = Moves::getBlitzType(ent);
 	switch (type) {
-		case BLITZTYPE_MAXCHARGE: return assignName("Max Charge Crouching Blitz Shield", "Max Crouching Blitz");
-		case BLITZTYPE_CHARGE: return assignName("Charge Crouching Blitz Shield", "Charge Crouching Blitz");
-		default: return assignName("Tap Crouching Blitz Shield", "Tap Crouching Blitz");
+		case BLITZTYPE_MAXCHARGE: return "Max Standing Blitz";
+		case BLITZTYPE_CHARGE: return "Charge Standing Blitz";
+		default: return "Tap Standing Blitz";
 	}
 }
-const NamePair* displayNameSelector_pilebunker(PlayerInfo& ent) {
+const char* displayNameSelector_crouchingBlitzShield(PlayerInfo& ent) {
+	GroundBlitzType type = Moves::getBlitzType(ent);
+	switch (type) {
+		case BLITZTYPE_MAXCHARGE: return "Max Charge Crouching Blitz Shield";
+		case BLITZTYPE_CHARGE: return "Charge Crouching Blitz Shield";
+		default: return "Tap Crouching Blitz Shield";
+	}
+}
+const char* displaySlangNameSelector_crouchingBlitzShield(PlayerInfo& ent) {
+	GroundBlitzType type = Moves::getBlitzType(ent);
+	switch (type) {
+		case BLITZTYPE_MAXCHARGE: return "Max Crouching Blitz";
+		case BLITZTYPE_CHARGE: return "Charge Crouching Blitz";
+		default: return "Tap Crouching Blitz";
+	}
+}
+const char* displayNameSelector_pilebunker(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
-		return assignName("P Pilebunker", "P Pile");
+		return "P Pilebunker";
 	}
-	return assignName("K Pilebunker", "K Pile");
+	return "K Pilebunker";
 }
-const NamePair* displayNameSelector_crosswise(PlayerInfo& ent) {
+const char* displaySlangNameSelector_pilebunker(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
-		return assignName("P Crosswise Heel", "P CW");
+		return "P Pile";
 	}
-	return assignName("K Crosswise Heel", "K CW");
+	return "K Pile";
 }
-const NamePair* displayNameSelector_underPressure(PlayerInfo& ent) {
+const char* displayNameSelector_crosswise(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
-		return assignName("P Under Pressure", "P UP");
+		return "P Crosswise Heel";
 	}
-	return assignName("K Under Pressure", "K UP");
+	return "K Crosswise Heel";
 }
-const NamePair* displayNameSelector_jacko4D(PlayerInfo& ent) {
+const char* displaySlangNameSelector_crosswise(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P CW";
+	}
+	return "K CW";
+}
+const char* displayNameSelector_underPressure(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P Under Pressure";
+	}
+	return "K Under Pressure";
+}
+const char* displaySlangNameSelector_underPressure(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.previousAnimName(), "DandyStepA") == 0) {
+		return "P UP";
+	}
+	return "K UP";
+}
+const char* displayNameSelector_jacko4D(PlayerInfo& ent) {
 	int x = ent.pawn.hitAirPushbackX();
 	int y = ent.pawn.hitAirPushbackY();
-	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return assignName("4D");
+	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return "4D";
 	y -= 20000;
 	
 	enum Dir {
@@ -9129,21 +10365,21 @@ const NamePair* displayNameSelector_jacko4D(PlayerInfo& ent) {
 	switch (
 		dirX | dirY
 	) {
-		case DIRX_MINUS | DIRY_MINUS: return assignName("4D1");
-		case DIRX_NEUTRAL | DIRY_MINUS: return assignName("4D2");
-		case DIRX_PLUS | DIRY_MINUS: return assignName("4D3");
-		case DIRX_MINUS | DIRY_NEUTRAL: return assignName("4D4");
-		case DIRX_PLUS | DIRY_NEUTRAL: return assignName("4D6");
-		case DIRX_MINUS | DIRY_PLUS: return assignName("4D7");
-		case DIRX_NEUTRAL | DIRY_PLUS: return assignName("4D8");
-		case DIRX_PLUS | DIRY_PLUS: return assignName("4D9");
-		default: return assignName("4D");
+		case DIRX_MINUS | DIRY_MINUS: return "4D1";
+		case DIRX_NEUTRAL | DIRY_MINUS: return "4D2";
+		case DIRX_PLUS | DIRY_MINUS: return "4D3";
+		case DIRX_MINUS | DIRY_NEUTRAL: return "4D4";
+		case DIRX_PLUS | DIRY_NEUTRAL: return "4D6";
+		case DIRX_MINUS | DIRY_PLUS: return "4D7";
+		case DIRX_NEUTRAL | DIRY_PLUS: return "4D8";
+		case DIRX_PLUS | DIRY_PLUS: return "4D9";
+		default: return "4D";
 	}
 }
-const NamePair* displayNameSelector_jackoj4D(PlayerInfo& ent) {
+const char* displayNameSelector_jackoj4D(PlayerInfo& ent) {
 	int x = ent.pawn.hitAirPushbackX();
 	int y = ent.pawn.hitAirPushbackY();
-	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return assignName("j.4D");
+	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return "j.4D";
 	y -= 25000;
 	
 	enum Dir {
@@ -9169,15 +10405,15 @@ const NamePair* displayNameSelector_jackoj4D(PlayerInfo& ent) {
 	switch (
 		dirX | dirY
 	) {
-		case DIRX_MINUS | DIRY_MINUS: return assignName("j.4D1");
-		case DIRX_NEUTRAL | DIRY_MINUS: return assignName("j.4D2");
-		case DIRX_PLUS | DIRY_MINUS: return assignName("j.4D3");
-		case DIRX_MINUS | DIRY_NEUTRAL: return assignName("j.4D4");
-		case DIRX_PLUS | DIRY_NEUTRAL: return assignName("j.4D6");
-		case DIRX_MINUS | DIRY_PLUS: return assignName("j.4D7");
-		case DIRX_NEUTRAL | DIRY_PLUS: return assignName("j.4D8");
-		case DIRX_PLUS | DIRY_PLUS: return assignName("j.4D9");
-		default: return assignName("j.4D");
+		case DIRX_MINUS | DIRY_MINUS: return "j.4D1";
+		case DIRX_NEUTRAL | DIRY_MINUS: return "j.4D2";
+		case DIRX_PLUS | DIRY_MINUS: return "j.4D3";
+		case DIRX_MINUS | DIRY_NEUTRAL: return "j.4D4";
+		case DIRX_PLUS | DIRY_NEUTRAL: return "j.4D6";
+		case DIRX_MINUS | DIRY_PLUS: return "j.4D7";
+		case DIRX_NEUTRAL | DIRY_PLUS: return "j.4D8";
+		case DIRX_PLUS | DIRY_PLUS: return "j.4D9";
+		default: return "j.4D";
 	}
 }
 
@@ -9207,7 +10443,7 @@ bool canYrcProjectile_ky5D(PlayerInfo& player) {
 	// STACK_1 seems to hold the ground mahojin
 	if (moves.ky5DDustEffectShot_firstSpriteAfter_Offset == -1) return false; // rev1
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset && func) {
+	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset) {
 		BYTE* pos = moves.findCreateObj(func, "DustEffectShot");
 		if (!pos) {
 			moves.ky5DDustEffectShot_firstSpriteAfter_Offset = -1;
@@ -9248,9 +10484,8 @@ bool canYrcProjectile_flower(PlayerInfo& player) {
 	return false;
 }
 bool canYrcProjectile_qv(PlayerInfo& player) {
-	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return false;
 	if (moves.venomQvClearUponAfterExitOffset == 0) {
+		BYTE* func = player.pawn.bbscrCurrentFunc();
 		for (BYTE* instr = moves.skipInstruction(func);
 				moves.instructionType(instr) != instr_endState;
 				instr = moves.skipInstruction(instr)) {
@@ -9262,7 +10497,7 @@ bool canYrcProjectile_qv(PlayerInfo& player) {
 	}
 	if (!moves.venomQvClearUponAfterExitOffset) return false;
 	BYTE* currentInstr = player.pawn.bbscrCurrentInstr();
-	BYTE* minInstr = moves.skipInstruction(func + moves.venomQvClearUponAfterExitOffset);
+	BYTE* minInstr = moves.skipInstruction(player.pawn.bbscrCurrentFunc() + moves.venomQvClearUponAfterExitOffset);
 	return currentInstr == minInstr
 		&& player.pawn.spriteFrameCounter() != 0
 		|| currentInstr > minInstr;
@@ -9271,8 +10506,8 @@ bool createdProjectile_bishop(PlayerInfo& player) {
 	return player.pawn.previousEntity() && player.pawn.previousEntity().lifeTimeCounter() == 0;
 }
 bool canYrcProjectile_bishop(PlayerInfo& player) {
-	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (moves.venomBishopCreateOffset == 0 && func) {
+	if (moves.venomBishopCreateOffset == 0) {
+		BYTE* func = player.pawn.bbscrCurrentFunc();
 		bool found = false;
 		for (BYTE* instr = moves.skipInstruction(func);
 				moves.instructionType(instr) != instr_endState;
@@ -9286,7 +10521,7 @@ bool canYrcProjectile_bishop(PlayerInfo& player) {
 		}
 	}
 	if (!moves.venomBishopCreateOffset) return false;
-	return player.pawn.bbscrCurrentInstr() - func > moves.venomBishopCreateOffset;
+	return player.pawn.bbscrCurrentInstr() - player.pawn.bbscrCurrentFunc() > moves.venomBishopCreateOffset;
 }
 bool createdProjectile_ino5D(PlayerInfo& player) {
 	return player.pawn.previousEntity()
@@ -9297,7 +10532,7 @@ bool createdProjectile_ino5D(PlayerInfo& player) {
 bool canYrcProjectile_ino5D(PlayerInfo& player) {
 	if (moves.ino5DCreateDustObjShotOffset == -1) return false; // rev1
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!moves.ino5DCreateDustObjShotOffset && func) {
+	if (!moves.ino5DCreateDustObjShotOffset) {
 		BYTE* pos = moves.findCreateObj(func, "DustObjShot");
 		if (!pos) {
 			moves.ino5DCreateDustObjShotOffset = -1;
@@ -9385,7 +10620,6 @@ bool canYrcProjectile_SGhost(PlayerInfo& player) {
 }
 bool createdProjectile_XThrowGhost(PlayerInfo& player, int* offset) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return false;
 	moves.fillJackoThrowGhostOffset(func, offset);
 	return player.pawn.bbscrCurrentInstr() - func == *offset && !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0;
 }
@@ -9418,7 +10652,7 @@ bool createdProjectile_kum5D(PlayerInfo& player) {
 bool canYrcProjectile_kum5D(PlayerInfo& player) {
 	if (moves.kum5Dcreation == -1) return false; // rev1
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!moves.kum5Dcreation && func) {
+	if (!moves.kum5Dcreation) {
 		BYTE* pos = moves.findCreateObj(func, "kum_205shot");
 		if (!pos) {
 			moves.kum5Dcreation = -1;
@@ -9444,7 +10678,7 @@ bool createdProjectile_baiken5D(PlayerInfo& player) {
 bool canYrcProjectile_baiken5D(PlayerInfo& player) {
 	if (moves.baiken5Dcreation == -1) return false; // error
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!moves.baiken5Dcreation && func) {
+	if (!moves.baiken5Dcreation) {
 		BYTE* pos = moves.findCreateObj(func, "NmlAtk5EShotObj");
 		if (!pos) {
 			moves.baiken5Dcreation = -1;
@@ -9504,7 +10738,6 @@ const char* powerupExplanation_may6P(PlayerInfo& player) {
 }
 bool powerup_may6H(PlayerInfo& player) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return false;
 	fillMay6HOffsets(func);
 	int offset = player.pawn.bbscrCurrentInstr() - func;
 	if (offset > moves.may6H_6DHoldOffset && offset < moves.may6H_6DHoldAttackOffset) {
@@ -9589,7 +10822,6 @@ const char* powerupExplanation_stinger(PlayerInfo& player) {
 }
 bool powerup_stinger(PlayerInfo& player, std::vector<int>& powerups) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return false;
 	moves.fillInVenomStingerPowerup(func, powerups);
 	int offset = player.pawn.bbscrCurrentInstr() - func;
 	for (int i = 0; i < (int)powerups.size(); ++i) {
@@ -9637,7 +10869,6 @@ const char* powerupExplanation_kyougenC(PlayerInfo& ent) {
 }
 const char* powerupExplanation_kyougenD(PlayerInfo& ent) {
 	BYTE* func = ent.pawn.bbscrCurrentFunc();
-	if (!func) return nullptr;
 	BYTE* instr = moves.skipInstruction(func);
 	instr = moves.skipInstruction(instr);
 	instr = moves.skipInstruction(instr);
@@ -9679,7 +10910,6 @@ const char* powerupExplanation_djavu(PlayerInfo& ent) {
 		" and makes the Seal invulnerable.";
 }
 #define bedmanSealPowerup(storage) \
-	if (!ent.pawn.bbscrCurrentFunc()) return false; \
 	moves.fillBedmanSealFrames(ent.pawn.bbscrCurrentFunc(), &storage); \
 	if (ent.pawn.isRCFrozen()) return false; \
 	int frame = ent.pawn.currentAnimDuration(); \
@@ -9755,7 +10985,6 @@ bool dontShowPowerupGraphic_taskBAir(PlayerInfo& ent) {
 }
 bool powerup_taskC(PlayerInfo& ent) {
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
-	if (!funcStart) return false;
 	moves.fillBedmanGroundTaskCSealOffsets(funcStart);
 	if (!moves.bedmanGroundTaskCSealOffset.deactivate || !moves.bedmanGroundTaskCSealOffset.reactivate
 		|| ent.pawn.isRCFrozen() || ent.pawn.spriteFrameCounter() != 0) return false;
@@ -9929,7 +11158,6 @@ bool powerup_secretGarden(PlayerInfo& ent) {
 		Entity proj = entityList.list[i];
 		if (proj.team() == ent.index && !proj.isPawn() && strcmp(proj.animationName(), "SecretGardenBall") == 0) {
 			BYTE* funcStart = proj.bbscrCurrentFunc();
-			if (!funcStart) continue;
 			moves.fillMilliaSecretGardenUnlink(funcStart);
 			if (moves.milliaSecretGardenUnlink && proj.bbscrCurrentInstr() - funcStart == moves.milliaSecretGardenUnlink
 					&& proj.spriteFrameCounter() == 0 && !proj.isRCFrozen() && !proj.isSuperFrozen()) {
@@ -9953,7 +11181,6 @@ void fillMay6HOffsets(BYTE* func) {
 
 int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanRidingObjectInfo& info, BBScrEvent signal, bool* isFrameAfter) {
 	BYTE* func = projectile.ptr.bbscrCurrentFunc();
-	if (!func) return 0;
 	if (info.totalFrames == 0) {
 		BYTE* instr;
 		bool metSprite = false;
@@ -10154,9 +11381,8 @@ void Moves::fillInFindMarker(BYTE* func, int* result, const char* markerName) {
 	}
 }
 
-const NamePair* Moves::rifleAutoExit(PlayerInfo& player, int* offsetStorage, const NamePair* moveName) {
+const char* Moves::rifleAutoExit(PlayerInfo& player, int* offsetStorage, const char* moveName) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return nullptr;
 	moves.fillInFindMarker(func, offsetStorage, "End");
 	if (*offsetStorage && player.pawn.bbscrCurrentInstr() - func > *offsetStorage) {
 		return moveName;
@@ -10862,5 +12088,3 @@ void Moves::fillBedmanDejavuStartup(BYTE* funcStart, int* startup) {
 		}
 	}
 }
-
-const NamePair emptyNamePair { "", nullptr };

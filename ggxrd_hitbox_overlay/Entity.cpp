@@ -4,6 +4,7 @@
 #include "logging.h"
 #include "EntityList.h"
 #include <string>
+#include <intrin.h>
 
 EntityManager entityManager;
 
@@ -25,47 +26,32 @@ bool EntityManager::onDllMain() {
 	bool error = false;
 
 	getPosX = (getPos_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"85 C9 75 35 8B 8E",
 		{-9},
 		&error, "getPosX");
 
 	// ghidra sig: 
 	getPosY = (getPos_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"75 0A 6A 08 E8",
 		{ -0xB },
 		&error, "getPosY");
 
-	uintptr_t pushboxTopBottom = sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"0f 57 c0 f3 0f 2a c0 f3 0f 59 05 ?? ?? ?? ?? f3 0f 5c c8 f3 0f 59 4c 24 0c f3 0f 2c c1 0f 57 c0 f3 0f 2a c0 8b ce f3 0f 11 44 24 10 e8 ?? ?? ?? ?? 8b ce 8b f8 e8 ?? ?? ?? ?? 8b 0d ?? ?? ?? ??",
-		&error, "pushboxTopBottom");
-
-	if (pushboxTopBottom) {
-		logwrap(fprintf(logfile, "getPushboxTop relative call found at: %.8x\n", pushboxTopBottom + 0x2D));
-		getPushboxTop = (getPushbox_t)followRelativeCall(pushboxTopBottom + 0x2C);
-		logwrap(fprintf(logfile, "getPushboxTop final location at: %p\n", getPushboxTop));
-		logwrap(fprintf(logfile, "getPushboxBottom relative call found at: %.8x\n", pushboxTopBottom + 0x36));
-		getPushboxBottom = (getPushbox_t)followRelativeCall(pushboxTopBottom + 0x35);
-		logwrap(fprintf(logfile, "getPushboxBottom final location at: %p\n", getPushboxBottom));
+	uintptr_t getPushboxCoordsMiddle = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"8b 46 48 8b 50 58 6a 05",
+		&error, "getPushboxCoordsMiddle");
+	if (getPushboxCoordsMiddle) {
+		getPushboxCoords = (getPushboxCoords_t)sigscanBackwards16ByteAligned(getPushboxCoordsMiddle, "83 ec", 0xF0);
 	}
-
-	uintptr_t pushboxWidthUsage = sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"99 2b c2 8b d8 8b ce d1 fb e8 ?? ?? ?? ?? 99 2b c2 8b e8 d1 fd 03 ae 2c 03 00 00 8b ce e8 ?? ?? ?? ?? 8b 4c 24 44 03 c7 89 01 8b ce e8 ?? ?? ?? ??",
-		// the second ???? is the getPushboxTop, but it's a relative call and we don't know where this whole sig is so even knowing
-		// getPushboxTop exact address we don't know what those bytes will be.
-		// the third ???? is getPushboxBottom, also a relative call.
-		&error, "getPushboxWidth");
-
-	if (pushboxWidthUsage) {
-		getPushboxWidth = (getPushbox_t)followRelativeCall(pushboxWidthUsage + 9);
-		logwrap(fprintf(logfile, "getPushboxWidth final location at: %p\n", getPushboxWidth));
+	if (!getPushboxCoords) {
+		error = true;
+		logwrap(fprintf(logfile, "Failed to find getPushboxCoords\n"));
 	}
 	
 	uintptr_t tensionModsCall = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"0f af fe b8 1f 85 eb 51 f7 ef c1 fa 05 8b ca c1 e9 1f 03 ca 01 8b 34 d1 02 00",
 		NULL, "tensionModsCall");
 	if (tensionModsCall) {
@@ -178,13 +164,6 @@ void Entity::getState(EntityState* state, bool* wasSuperArmorEnabled, bool* wasF
 	logOnce(fprintf(logfile, "counterhit: %u\n", (int)state->counterhit));
 }
 
-bool Entity::hasUpon(BBScrEvent index) const {
-	int arrayIndex = index >> 5;
-	int bitIndex = index & 31;
-	int bitMask = 1 << bitIndex;
-	return (*(DWORD*)(ent + 0xa0c + arrayIndex * 4) & bitMask) != 0;
-}
-
 bool Entity::isGettingThrown() const {
 	const unsigned int flagsField = *(unsigned int*)(ent + 0x23C);
 	return *(unsigned int*)(ent + 0x43C) != 0
@@ -193,34 +172,8 @@ bool Entity::isGettingThrown() const {
 		&& inHitstunThisFrame(); // ignore the frame when the throw first connected
 }
 
-int Entity::pushboxWidth() const {
-	return entityManager.getPushboxWidth(ent);
-}
-
-// Usually returns a positive number when pawn is on the ground
-int Entity::pushboxTop() const {
-	return entityManager.getPushboxTop(ent);
-}
-
-// Usually returns 0 when pawn is on the ground
-int Entity::pushboxBottom() const {
-	return entityManager.getPushboxBottom(ent);
-}
-
-void Entity::pushboxLeftRight(int* left, int* right) const {
-	int flip = isFacingLeft() ? -1 : 1;
-	int width = pushboxWidth() / 2;
-	int frontOffset = pushboxFrontWidthOffset();
-	int posX = this->posX();
-	int back = posX - width * flip;
-	int front = posX + (width + frontOffset) * flip;
-	if (back < front) {
-		*left = back;
-		*right = front;
-	} else {
-		*left = front;
-		*right = back;
-	}
+void Entity::pushboxDimensions(int* left, int* top, int* right, int* bottom) const {
+	entityManager.getPushboxCoords((const void*)ent, left, top, right, bottom);
 }
 
 void Entity::getWakeupTimings(CharacterType charType, WakeupTimings* output) {
@@ -529,18 +482,9 @@ int EntityManager::calculateComboProration(int risc, AttackType attackType) {
 		) >> 4;
 }
 
-bool AddedMoveData::hasCondition(MoveCondition condition) const {
-	int index = condition >> 5;
-	return (conditions[index] & (1 << (condition & 31))) != 0;
-}
-
 static BYTE* findInBBScrHashmap(const char* name, const BBScrInfo* bbscrInfo, const BBScrHashtable* table) {
-	DWORD hash = 0;
-	for (const char* c = name; *c != '\0'; ++c) {
-		char cVal = *c;
-		if (cVal >= 'A' && cVal <= 'Z') cVal = 'a' + cVal - 'A';
-		hash = hash * 0x89 + cVal;
-	}
+	
+	const DWORD hash = Entity::hashStringCaseInsensitive(name);
 	
 	int start = 0;
 	int middle;
@@ -576,4 +520,34 @@ int Entity::getCenterOffsetY() const {
 	if (crouching()) return 90000;
 	if (lying()) return 40000;
 	return 200000;
+}
+
+const AddedMoveData* Entity::findAddedMove(const char* name) const {
+	const CmnActHashtable* hashtable = addedMovesHashtable();
+	for (
+		unsigned short index = hashtable->hashMap[hashString(name) % _countof(hashtable->hashMap)];
+		index != 0xFFFF;
+		index = hashtable->next[index]
+	) {
+		if (strcmp(hashtable->strings[index], name) == 0) return movesBase() + index;
+	}
+	return nullptr;
+}
+
+DWORD Entity::hashStringCaseInsensitive(const char* str) {
+	DWORD hash = 0;
+	for (const char* c = str; *c != '\0'; ++c) {
+		char cVal = *c;
+		if (cVal >= 'A' && cVal <= 'Z') cVal = 'a' + cVal - 'A';
+		hash = hash * 0x89 + cVal;
+	}
+	return hash;
+}
+
+DWORD Entity::hashString(const char* str) {
+	DWORD hash = 0;
+	for (const char* c = str; *c != '\0'; ++c) {
+		hash = hash * 0x89 + *c;
+	}
+	return hash;
 }

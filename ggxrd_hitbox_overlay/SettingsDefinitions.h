@@ -307,7 +307,7 @@ settingsField(bool, displayUIOnTopOfPauseMenu, true,
 	"; Display mod's UI on top of the game's Pause Menu. This setting has no effect when \"dodgeObsRecording\" is true and\n"
 	"; an OBS is connected to the game.")
 	
-settingsField(bool, dodgeObsRecording, true,
+settingsField(bool, dodgeObsRecording, false,
 	"Dodge OBS Recording", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
 	"; To have this mod avoid OBS capture set this setting to true and also make sure\n"
@@ -489,16 +489,16 @@ settingsField(bool, showStrikeInvulOnFramebar, true,
 	"Show Strike Invul", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
 	"; Strike invul will be displayed using a green ^ on top of a frame.\n"
-	"; Note: when \"condenseIntoOneProjectileMiniFramebar\" is used, for P2 these will be displayed below a frame.")
+	"; Note: when \"condenseIntoOneProjectileFramebar\" is used, for P2 these will be displayed below a frame.")
 	
 settingsField(bool, showSuperArmorOnFramebar, true,
 	"Show Super Armor", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
 	"; Super armor will be displayed using a purple ^ on top of a frame.\n"
-	"; Note: when \"condenseIntoOneProjectileMiniFramebar\" is used, for P2 these will be displayed below a frame.\n"
 	"; It includes reflect, parry and projectile-only invulnerability\n"
 	"; (excluding Aegis Field, that isn't displayed on the framebar at all). If both strike invul and super armor are present, super armor\n"
-	"; will be below the strike invul (for P2 mini-framebar: on top).")
+	"; will be below the strike invul (for P2 framebar: on top).\n"
+	"; Note: when \"condenseIntoOneProjectileFramebar\" is used, for P2 these will be displayed below a frame, instead of on top.")
 	
 settingsField(bool, showThrowInvulOnFramebar, true,
 	"Show Throw Invul", SETTINGS_FRAMEBAR,
@@ -535,11 +535,11 @@ settingsField(bool, combineProjectileFramebarsWhenPossible, true,
 	"; Specify true or false.\n"
 	"; When true, two or more projectile framebars will be combined into one if their active/non-active frames don't intersect.")
 	
-settingsField(bool, condenseIntoOneProjectileMiniFramebar, false,
-	"Condense Into One Projectile Mini-Framebar Per Player", SETTINGS_FRAMEBAR,
+settingsField(bool, condenseIntoOneProjectileFramebar, true,
+	"Condense Into One Projectile Framebar Per Player", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
-	"; When true, all projectiles belonging to a player will use the same one thin framebar, located on top\n"
-	"; of Player 1's framebar and below Player 2's framebar.")
+	"; When true, all projectiles belonging to a player will use the same one framebar, located on top\n"
+	"; of Player 1's main framebar and below Player 2's main framebar.")
 	
 settingsField(bool, eachProjectileOnSeparateFramebar, false,
 	"Each Projectile On A Separate Framebar", SETTINGS_FRAMEBAR,
@@ -581,11 +581,19 @@ settingsField(bool, allFramebarTitlesDisplayToTheLeft, true,
 	"; By setting this setting to true, you can make all framebar titles always display on the left.\n"
 	"; To help tell which player it is you can use the \"showPlayerInFramebarTitle\" setting.")
 	
-settingsField(int, framebarHeight, 19,
-	"Framebar Height", SETTINGS_FRAMEBAR,
+settingsField(int, playerFramebarHeight, 19,
+	"Player Framebar Height", SETTINGS_FRAMEBAR,
 	"; A number.\n"
 	"; Specifies the height of a single framebar of one player, including the black outlines on the outside.\n"
 	"; The standard height is 19.\n"
+	"; This value is specified in pixels only on 1280x720 resolution. On higher resolutions this gets multiplied by\n"
+	"; Screen Height / 720.")
+	
+settingsField(int, projectileFramebarHeight, 11,
+	"Projectile Framebar Height", SETTINGS_FRAMEBAR,
+	"; A number.\n"
+	"; Specifies the height of a single framebar of one projectile, including the black outlines on the outside.\n"
+	"; The standard height of projectile framebar is 11. Of player framebar, 19.\n"
 	"; This value is specified in pixels only on 1280x720 resolution. On higher resolutions this gets multiplied by\n"
 	"; Screen Height / 720.")
 
@@ -607,7 +615,7 @@ settingsField(int, distanceBetweenPlayerFramebars, 30,
 	"; Specifies the padding between the two main player framebars, but keep in mind,\n"
 	"; the actual padding may be greater to accomodate for throw invul, strike invul and other triangular markers\n"
 	"; on top and below the frames.\n"
-	"; This distance gets divided by 10 and multiplied by 19 / \"framebarHeight\" * Screen Height / 720\n"
+	"; This distance gets divided by 10 and multiplied by 19 / \"playerFramebarHeight\" * Screen Height / 720\n"
 	"; to get the actual distance in pixels (this does not include the extra padding for invulnerability markers).")
 
 settingsField(int, distanceBetweenProjectileFramebars, 30,
@@ -616,7 +624,7 @@ settingsField(int, distanceBetweenProjectileFramebars, 30,
 	"; Specifies the padding between the the Player 2 framebar and the next projectile framebar,\n"
 	"; and between the projectile framebars, but keep in mind, the actual padding may be greater\n"
 	"; to accomodate for throw invul, strike invul and other triangular markers on top and below the frames.\n"
-	"; This distance gets divided by 10 and multiplied by 19 / \"framebarHeight\" * Screen Height / 720\n"
+	"; This distance gets divided by 10 and multiplied by 19 / \"playerFramebarHeight\" * Screen Height / 720\n"
 	"; to get the actual distance in pixels (this does not include the extra padding for invulnerability markers).")
 
 settingsField(int, framebarTitleCharsMax, 12,
@@ -766,6 +774,13 @@ settingsField(bool, useColorblindHelp, false,
 	"; Make sure the framebar is scaled wide enough and the screen resolution is large enough that you can see the hatches properly.\n"
 	"; To scale the framebar you can drag its right edge.")
 	
+settingsField(bool, clearFrameSelectionWhenFramebarAdvances, true,
+	"Clear Frame Selection When Framebar Advances", SETTINGS_FRAMEBAR,
+	"; Specify true or false.\n"
+	"; If true, when framebar moves forward, it will automatically reset your frame selection on the framebar.\n"
+	"; You can select a range of frames on the framebar using your mouse and that is what gets reset.\n"
+	"; The selection won't get reset no matter what, if you're still holding down the mouse button when the framebar advances.")
+	
 settingsField(bool, comboRecipe_showDelaysBetweenCancels, true,
 	"Show Delays Between Cancels", SETTINGS_COMBO_RECIPE,
 	"; Specify true or false.\n"
@@ -795,6 +810,12 @@ settingsField(bool, comboRecipe_showSuperJumpInstalls, true,
 	"; Specify true or false.\n"
 	"; Setting this to true (default) will show super jump installs on dedicated separate lines in the following format: 'Super Jump Install'.\n"
 	"; This setting does not affect the display of (regular) jump installs, which are always displayed.")
+	
+settingsField(bool, comboRecipe_showNumberOfHits, true,
+	"Show Number Of Hits", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true will make the Combo Recipe panel display the number of hits in parentheses, like so: 2H(2);\n"
+	"; This would mean that 2H hit twice.")
 	
 settingsField(bool, comboRecipe_transparentBackground, false,
 	"Transparent Background", SETTINGS_COMBO_RECIPE,
@@ -844,4 +865,60 @@ settingsField(bool, ignoreRegularEnterKey, false,
 	"Ignore Regular Enter Key", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
 	"; Setting this to true will hide the regular, non-numpad Enter key presses from the game.")
+	
+settingsField(bool, overrideOnlineInputDelay, false,
+	"Override Online Input Delay", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will allow you to use \"onlineInputDelayFullscreen\" and \"onlineInputDelayWindowed\"\n"
+	"; settings to change the online input delay.\n"
+	"; Setting this to false does not undo those changes.\n"
+	"; If Pangaea's mod's online input delay setting is used, this mod will have priority over Pangaea's mod.")
+	
+settingsField(int, onlineInputDelayFullscreen, 1,
+	"Online Input Delay - Fullscreen", SETTINGS_GENERAL,
+	"; A number from 0 to 4, in frames. Default value is 1 frame.\n"
+	"; This setting only works if \"overrideOnlineInputDelay\" is set to true.\n"
+	"; Is meant for fullscreen non-windowed mode.\n"
+	"; For windowed or fullscreen windowed mode use the \"onlineInputDelayWindowed\" setting.\n"
+	"; The correct setting is chosen based on whether the game is fullscreen or not at the time of starting the battle.\n"
+	"; It is possible to change these settings while the game is running but it has not been tested whether they take effect\n"
+	"; immediately, or a battle restart is required.\n"
+	"; If Pangaea's mod's online input delay setting is used, this mod will have priority over Pangaea's mod.")
+	
+settingsField(int, onlineInputDelayWindowed, 1,
+	"Online Input Delay - Windowed/Fullscreen-Windowed", SETTINGS_GENERAL,
+	"; A number from 0 to 4, in frames. Default value is 1 frame.\n"
+	"; This setting only works if \"overrideOnlineInputDelay\" is set to true.\n"
+	"; Is meant for windowed and fullscreen windowed modes.\n"
+	"; For fullscreen mode use the \"onlineInputDelayFullscreen\" setting.\n"
+	"; The correct setting is chosen based on whether the game is fullscreen or not at the time of starting the battle.\n"
+	"; It is possible to change these settings while the game is running but it has not been tested whether they take effect\n"
+	"; immediately, or a battle restart is required.\n"
+	"; If Pangaea's mod's online input delay setting is used, this mod will have priority over Pangaea's mod.")
+	
+settingsField(bool, player1IsBoss, false,
+	"Player 1 Is Boss (Offline Only)", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will make Player 1 be considered the Arcade Boss.\n"
+	"; Works only in Training and Versus Modes.")
+	
+settingsField(bool, player2IsBoss, false,
+	"Player 2 Is Boss (Offline Only)", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will make Player 2 be considered the Arcade Boss.\n"
+	"; Works only in Training and Versus Modes.")
+	
+settingsField(bool, p1RamlethalDisableMarteliForpeli, false,
+	"Disable Marteli & Forpeli (P1)", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will disable P1 Ramlethal's Marteli and Forpeli special moves.\n"
+	"; This will allow you, if you also use the \"player1IsBoss\" setting, to use the boss exclusive 214S and 214H moves.\n"
+	"; Works only in Training and Versus Modes.")
+	
+settingsField(bool, p2RamlethalDisableMarteliForpeli, false,
+	"Disable Marteli & Forpeli (P2)", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will disable P2 Ramlethal's Marteli and Forpeli special moves.\n"
+	"; This will allow you, if you also use the \"player1IsBoss\" setting, to use the boss exclusive 214S and 214H moves.\n"
+	"; Works only in Training and Versus Modes.")
 #pragma warning(pop)

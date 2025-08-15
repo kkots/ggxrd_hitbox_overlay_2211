@@ -9,7 +9,7 @@ bool Direct3DVTable::onDllMain() {
 	
 	// Big thanks to WorseThanYou for finding this variable
 	d3dManager = (char**)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"e8 ?? ?? ?? ?? 89 3d ?? ?? ?? ?? 33 c9 a3 ?? ?? ?? ?? 8b 44 24 20 c7 44 24 40 ff ff ff ff 89 4c 24 28",
 		{ 14, 0 },
 		nullptr, "d3dManager");

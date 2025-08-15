@@ -261,6 +261,9 @@
     <ClInclude Include="SettingsTopCommentDefinition.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="NamePairManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -418,6 +421,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SettingsTopCommentDefinition.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NamePairManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

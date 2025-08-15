@@ -13,7 +13,7 @@ Also contains input history mod (see [Input History Mod](#input-history-mod) sec
 Also it can hide the main Enter key or numpad Enter key presses from the game, or both (in General Settings).  
 Also it can hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod) section).
 Also it can hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).  
-The mod hides its output from OBS recording, and this can be turned off in 'UI - Settings - General Settings - Dodge OBS Recording' or by going to OBS and checking the 'Capture third-party overlays (such as steam)' checkbox.
+The mod can optionally hide its output from OBS recording (can be turned on in 'UI - Settings - General Settings - Dodge OBS Recording').
 
 ## Credits
 
@@ -63,12 +63,29 @@ chmod u+x launch_ggxrd_hitbox_injector_linux.sh
 ```
 
 This will launch the injector (the .exe one) on the same Wine server that Guilty Gear runs on. Assuming you're running the game using Steam Proton, and its version is supported, everything should work.  
-If it doesn't work, you can use the patcher:
+If it doesn't work, you can use the following methods:
 
-## Patching the game to always launch with the mod
+## Making the game always launch with the mod
 
-If you patch the game it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. (If on Linux the patcher doesn't start, you might need to do `chmod u+x ggxrd_hitbox_patcher`.) The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
-The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
+There are two ways to make the game always start with the mod:
+
+### Method 1)
+
+Find the BootGGXrd.bat file in the game's directory. Edit it using Notepad and add the following line to the end:
+
+```bash
+ggxrd_hitbox_injector -force
+```
+
+Save the file. Then, copy the `ggxrd_hitbox_injector.exe` and the `ggxrd_hitbox_overlay.dll` to the game's `Binaries\Win32` folder.
+
+### Method 2)
+
+If you patch the game, it will always load the DLL automatically on startup. The `ggxrd_hitbox_patcher_linux` and `ggxrd_hitbox_patcher` do exactly that (on Linux and Windows respectively) and must be launched directly, without Wine. (If on Linux the patcher doesn't start, you might need to do `chmod u+x ggxrd_hitbox_patcher_linux`.) The patcher on Ubuntu/Linux, when it asks, must be provided the full path to the game executable (`GuiltyGearXrd.exe`) without quotes. The Windows patcher will show a file selection dialog instead.  
+
+### Notes for Method 1) and 2)
+
+The patched game will now try to load the `ggxrd_hitbox_overlay.dll` on startup. In order for the game to find the DLL it must be placed in the same directory as the game executable, which, on Linux, should be in Steam's directory, for example: `~/.steam/debian-installation/steamapps/common/GUILTY GEAR Xrd -REVELATOR-/Binaries/Win32`, where `~` is your home directory.  
 If the DLL is not found when the game launches, it will just run normally, without the mod.  
 Normally you can run the injector to unload the mod, but if for whatever reason you can't run it on Linux, then there's no way to unload the mod. To solve this you can add the `.ini` file mentioned in [Hotkey configuration](#hotkey-configuration) section into the folder with the game executable and change the line `startDisabled = false` to `startDisabled = true` in it and use the `F6` (the default) hotkey to enable the mod when you need.
 
@@ -543,7 +560,7 @@ displayUIOnTopOfPauseMenu = true
 ; 'Capture third-party overlays (such as steam)'.
 ; I am very sorry, but the mod's UI, the framebar and the boxes cannot be drawn under the game's
 ; Pause Menu and game's own UI while using 'Dodge OBS Recording'.
-dodgeObsRecording = true
+dodgeObsRecording = false
 
 ; Specify true or false.
 ; This setting can be changed using the "framebarVisibilityToggle" hotkey.
@@ -694,15 +711,15 @@ framebarVisibilityToggle =
 
 ; Specify true or false.
 ; Strike invul will be displayed using a green ^ on top of a frame.
-; Note: when "condenseIntoOneProjectileMiniFramebar" is used, for P2 these will be displayed below a frame.
+; Note: when "condenseIntoOneProjectileFramebar" is used, for P2 these will be displayed below a frame.
 showStrikeInvulOnFramebar = true
 
 ; Specify true or false.
 ; Super armor will be displayed using a purple ^ on top of a frame.
-; Note: when "condenseIntoOneProjectileMiniFramebar" is used, for P2 these will be displayed below a frame.
 ; It includes reflect, parry and projectile-only invulnerability
 ; (excluding Aegis Field, that isn't displayed on the framebar at all). If both strike invul and super armor are present, super armor
-; will be below the strike invul (for P2 mini-framebar: on top).
+; will be below the strike invul (for P2 framebar: on top).
+; Note: when "condenseIntoOneProjectileFramebar" is used, for P2 these will be displayed below a frame, instead of on top.
 showSuperArmorOnFramebar = true
 
 ; Specify true or false.
@@ -735,9 +752,9 @@ considerSimilarIdleFramesSameForFrameCounts = false
 combineProjectileFramebarsWhenPossible = true
 
 ; Specify true or false.
-; When true, all projectiles belonging to a player will use the same one thin framebar, located on top
-; of Player 1's framebar and below Player 2's framebar.
-condenseIntoOneProjectileMiniFramebar = false
+; When true, all projectiles belonging to a player will use the same one framebar, located on top
+; of Player 1's main framebar and below Player 2's main framebar.
+condenseIntoOneProjectileFramebar = true
 
 ; Specify true or false.
 ; When true, projectiles will never be combined even if there are very many of them and they're all same.
@@ -778,7 +795,14 @@ allFramebarTitlesDisplayToTheLeft = true
 ; The standard height is 19.
 ; This value is specified in pixels only on 1280x720 resolution. On higher resolutions this gets multiplied by
 ; Screen Height / 720.
-framebarHeight = 19
+playerFramebarHeight = 19
+
+; A number.
+; Specifies the height of a single framebar of one projectile, including the black outlines on the outside.
+; The standard height of projectile framebar is 11. Of player framebar, 19.
+; This value is specified in pixels only on 1280x720 resolution. On higher resolutions this gets multiplied by
+; Screen Height / 720.
+projectileFramebarHeight = 11
 
 ; A number. Can only equal 1 or 2.
 ; Specifies the thickness of text for the numbers displayed in the framebar over the frames, denoting the number
@@ -794,7 +818,7 @@ drawDigits = true
 ; Specifies the padding between the two main player framebars, but keep in mind,
 ; the actual padding may be greater to accomodate for throw invul, strike invul and other triangular markers
 ; on top and below the frames.
-; This distance gets divided by 10 and multiplied by 19 / "framebarHeight" * Screen Height / 720
+; This distance gets divided by 10 and multiplied by 19 / "playerFramebarHeight" * Screen Height / 720
 ; to get the actual distance in pixels (this does not include the extra padding for invulnerability markers).
 distanceBetweenPlayerFramebars = 30
 
@@ -802,7 +826,7 @@ distanceBetweenPlayerFramebars = 30
 ; Specifies the padding between the the Player 2 framebar and the next projectile framebar,
 ; and between the projectile framebars, but keep in mind, the actual padding may be greater
 ; to accomodate for throw invul, strike invul and other triangular markers on top and below the frames.
-; This distance gets divided by 10 and multiplied by 19 / "framebarHeight" * Screen Height / 720
+; This distance gets divided by 10 and multiplied by 19 / "playerFramebarHeight" * Screen Height / 720
 ; to get the actual distance in pixels (this does not include the extra padding for invulnerability markers).
 distanceBetweenProjectileFramebars = 30
 
@@ -936,6 +960,12 @@ considerDummyPlaybackNonIdle = false
 useColorblindHelp = false
 
 ; Specify true or false.
+; If true, when framebar moves forward, it will automatically reset your frame selection on the framebar.
+; You can select a range of frames on the framebar using your mouse and that is what gets reset.
+; The selection won't get reset no matter what, if you're still holding down the mouse button when the framebar advances.
+clearFrameSelectionWhenFramebarAdvances = true
+
+; Specify true or false.
 ; Setting this to true (default) will show delays on dedicated separate lines in gray text in the following format: '(Delay #f)',
 ; where # is a number.
 comboRecipe_showDelaysBetweenCancels = true
@@ -959,6 +989,11 @@ comboRecipe_showWalks = true
 ; Setting this to true (default) will show super jump installs on dedicated separate lines in the following format: 'Super Jump Install'.
 ; This setting does not affect the display of (regular) jump installs, which are always displayed.
 comboRecipe_showSuperJumpInstalls = true
+
+; Specify true or false.
+; Setting this to true will make the Combo Recipe panel display the number of hits in parentheses, like so: 2H(2);
+; This would mean that 2H hit twice.
+comboRecipe_showNumberOfHits = true
 
 ; Specify true or false.
 ; Setting this to true will make the Combo Recipe panel display without a background, just text and grid cell outlines.
@@ -999,6 +1034,55 @@ ignoreNumpadEnterKey = false
 ; Specify true or false.
 ; Setting this to true will hide the regular, non-numpad Enter key presses from the game.
 ignoreRegularEnterKey = false
+
+; Specify true or false.
+; Setting this to true will allow you to use "onlineInputDelayFullscreen" and "onlineInputDelayWindowed"
+; settings to change the online input delay.
+; Setting this to false does not undo those changes.
+; If Pangaea's mod's online input delay setting is used, this mod will have priority over Pangaea's mod.
+overrideOnlineInputDelay = false
+
+; A number from 0 to 4, in frames. Default value is 1 frame.
+; This setting only works if "overrideOnlineInputDelay" is set to true.
+; Is meant for fullscreen non-windowed mode.
+; For windowed or fullscreen windowed mode use the "onlineInputDelayWindowed" setting.
+; The correct setting is chosen based on whether the game is fullscreen or not at the time of starting the battle.
+; It is possible to change these settings while the game is running but it has not been tested whether they take effect
+; immediately, or a battle restart is required.
+; If Pangaea's mod's online input delay setting is used, this mod will have priority over Pangaea's mod.
+onlineInputDelayFullscreen = 1
+
+; A number from 0 to 4, in frames. Default value is 1 frame.
+; This setting only works if "overrideOnlineInputDelay" is set to true.
+; Is meant for windowed and fullscreen windowed modes.
+; For fullscreen mode use the "onlineInputDelayFullscreen" setting.
+; The correct setting is chosen based on whether the game is fullscreen or not at the time of starting the battle.
+; It is possible to change these settings while the game is running but it has not been tested whether they take effect
+; immediately, or a battle restart is required.
+; If Pangaea's mod's online input delay setting is used, this mod will have priority over Pangaea's mod.
+onlineInputDelayWindowed = 1
+
+; Specify true or false.
+; Setting this to true will make Player 1 be considered the Arcade Boss.
+; Works only in Training and Versus Modes.
+player1IsBoss = false
+
+; Specify true or false.
+; Setting this to true will make Player 2 be considered the Arcade Boss.
+; Works only in Training and Versus Modes.
+player2IsBoss = false
+
+; Specify true or false.
+; Setting this to true will disable P1 Ramlethal's Marteli and Forpeli special moves.
+; This will allow you, if you also use the "player1IsBoss" setting, to use the boss exclusive 214S and 214H moves.
+; Works only in Training and Versus Modes.
+p1RamlethalDisableMarteliForpeli = false
+
+; Specify true or false.
+; Setting this to true will disable P2 Ramlethal's Marteli and Forpeli special moves.
+; This will allow you, if you also use the "player1IsBoss" setting, to use the boss exclusive 214S and 214H moves.
+; Works only in Training and Versus Modes.
+p2RamlethalDisableMarteliForpeli = false
 ```
 
 </details>
@@ -1211,7 +1295,7 @@ The `ggxrd_hitbox_overlay` project builds the dll that's responsible for drawing
 
 The `ggxrd_hitbox_patcher_console` project is cross-platform, but is intended exclusively for Ubuntu/Linux and does the same thing as `ggxrd_hitbox_patcher`.
 
- The `ggxrd_hitbox_patcher` is a desktop window application project that is intended exclusively for Windows and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed in case injector doesn't work on Ubuntu/Linux (there is a launcher script for it though, try that) or to make the game always start with the mod on Windows.
+ The `ggxrd_hitbox_patcher` is a desktop window application project that is intended exclusively for Windows and patches the GuiltyGearXrd.exe executable so that it launches the mod's overlay DLL on startup. This is needed in case injector doesn't work on Ubuntu/Linux (there is a launcher script for it though, try that).
 
 Each project should have its own separate README.md.
 
@@ -1421,39 +1505,45 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
 - 2025 ??? ??: Version 6.28:
   1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was shown by the hitbox overlay as horizontal, while in reality it is vertical.
-  2) Made Elphelt's Travailler Maximum Charge powerup be displayed 1f later. Made Elphelt's Ms. Confille Maximum Charge powerup be displayed not when the reticle becomes full-sized, but when firing the rifle on this frame would fire it just in time for the reticle to become full-sized, i.e. slightly in advance (rifle startup is 3).
-  3) Previously, framebar was displaying the pre-landing frame as landing recovery (purple), if you got hit on it. This would only happen if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now, that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
-  4) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown. The one who is performing the throw will still be displayed strike and throw invulnerable on their first frame. Additionally, now, when Jam parries a hit, the framebar frame, on which the parry connected, will display her as having super armor and not (yet) having strike+throw invul due to full invul from the parry (though having throw invul is still possible from previous hitstun, blockstun or wakeup, and that will be displayed). Similarly, Blitz Shield reject now will show the defender having super armor on the frame when the attacker's hit connected. Previously, it was displaying full (stirke+throw) invul, which should only start on the frame after.
-  5) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so, because they became airborne on frame 1 of the move, and airborne moves do not display that type of invul because it should be obvious that they're airborne. As it was previously, airborne moves (any move that originated in the air) will not show "airborne" invul. The new exception to that rule is airborne Roman Cancel, because it is sometimes hard to tell if it is airborne. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusively: either only strike, or only airborne - for no reason).
-  6) Added a button and a hotkey to clear input history, and a checkbox for always clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode. This will also work with "Display Durations In Input History".
-  7) Added new checkboxes into Hitboxes section for making you or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
-  8) Fixed a bug when all framebars would disappear during I-No's Ultimate Fortissimo if it dealt the killing blow.
-  9) On the framebar, replaced half-colored green frames for Answer's air scroll set with fully colored green frames, as no whiff cancels are actually available.
-  10) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example. This will affect both the display of hitboxes and the display of active frames in the framebar and the framedata.
-  11) Thanks to Worse Than You, fixed an issue when AMD cards could not draw outlines due to the pixel shader that is used to draw them. You can still manually disable the pixel shader in Settings - Hitbox Settings - Use Pixel Shader, which disables black-coloring of outlines over places where the background would otherwise be the same color as the line.
-  12) The outlines of hitboxes display in black color when on top of same colored background in order to improve their visibility. This feature has now been made more aggressive and black color will appear at larger color differences. You can disable this feature by unchecking Settings - Hitbox Settings - Use Pixel Shader.
-  13) Renamed Sol's "Break" projectile to "Break Explosion".
-  14) Added an untested, unconfirmed fix for a crash that happened when one user tried injecting the mod.
-  15) Fixed input history being visible on the rematch screen when you're not an observer and 'Settings - General Settings - Display Input History When Observing' is checked.
-  16) Added an option to hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod)). And another option to hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).
-  17) Removed all default hotkeys, except:
+  2) Fixed pushboxes being incorrect for many, many moves. They were not taking into account that many moves elongate pushboxes horizontally, and now they do. Examples of such moves are Jam f.S, Baiken Air Tatami Gaeshi.
+  3) Brought back Bedman Deja Vu Task C and D hitboxes that had been missing since version 6.0.
+  4) Made Elphelt's Travailler Maximum Charge powerup be displayed 1f later. Made Elphelt's Ms. Confille Maximum Charge powerup be displayed not when the reticle becomes full-sized, but when firing the rifle on this frame would fire it just in time for the reticle to become full-sized, i.e. slightly in advance (rifle startup is 3).
+  5) Previously, framebar was displaying the pre-landing frame as landing recovery (purple), if you got hit on it. This would only happen if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now, that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
+  6) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown. The one who is performing the throw will still be displayed strike and throw invulnerable on their first frame. Additionally, now, when Jam parries a hit, the framebar frame, on which the parry connected, will display her as having super armor and not (yet) having strike+throw invul due to full invul from the parry (though having throw invul is still possible from previous hitstun, blockstun or wakeup, and that will be displayed). Similarly, Blitz Shield reject now will show the defender having super armor on the frame when the attacker's hit connected. Previously, it was displaying full (stirke+throw) invul, which should only start on the frame after.
+  7) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so, because they became airborne on frame 1 of the move, and airborne moves do not display that type of invul because it should be obvious that they're airborne. As it was previously, airborne moves (any move that originated in the air) will not show "airborne" invul. The new exception to that rule is airborne Roman Cancel, because it is sometimes hard to tell if it is airborne. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusively: either only strike, or only airborne - for no reason).
+  8) Added a button and a hotkey to clear input history, and a checkbox for always clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode. This will also work with "Display Durations In Input History".
+  9) Added new checkboxes into Hitboxes section for making you or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
+  10) Fixed a bug when all framebars would disappear during I-No's Ultimate Fortissimo if it dealt the killing blow.
+  11) On the framebar, replaced half-colored green frames for Answer's air scroll set with fully colored green frames, as no whiff cancels are actually available.
+  12) Now, projectiles that disappear when their player is hit, if they're still active at the moment their player is hit, will display one more active frame on that frame. Previously, they would only show that active frame if they hit someone or something. Now they can show it even on whiff. This is relevant for Ky j.D, for example. This will affect both the display of hitboxes and the display of active frames in the framebar and the framedata.
+  13) Thanks to Worse Than You, fixed an issue when AMD cards could not draw outlines due to the pixel shader that is used to draw them. You can still manually disable the pixel shader in Settings - Hitbox Settings - Use Pixel Shader, which disables black-coloring of outlines over places where the background would otherwise be the same color as the line.
+  14) The outlines of hitboxes display in black color when on top of same colored background in order to improve their visibility. This feature has now been made more aggressive and black color will appear at larger color differences. You can disable this feature by unchecking Settings - Hitbox Settings - Use Pixel Shader.
+  15) Renamed Sol's "Break" projectile to "Break Explosion".
+  16) Added an untested, unconfirmed fix for a crash that happened when one user tried injecting the mod.
+  17) Fixed input history being visible on the rematch screen when you're not an observer and 'Settings - General Settings - Display Input History When Observing' is checked.
+  18) Added an option to hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod)). And another option to hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).
+  19) Removed all default hotkeys, except:
     - ESC: show/hide mod UI.
     - F6: disable whole mod.
     - F7: show/hide hitboxes.  
     This won't affect existing users who update the mod (if they ever changed any settings at all), only new users.
-  18) Added a missing keyboard shortcut setting into mod's UI: Settings - Keyboard Shortcuts - Disable Mod Toggle. Previously, you could only configure this hotkey through the INI file.
-  19) Added a text to the framebar tooltip telling after which frame Millia's Secret Garden becomes able to stay if you RC it. The text only shows on that one particular frame.
-  20) Added a new text to the framebar's frame tooltip, that shows up only if some currently active projectiles would disappear on hit or block for that player. It tells you that "Projectile X will disappear if Character Name is hit/blocks on this frame/at any time." It may be incorrect if Rev1 is selected.
-  21) Fixed the first framebar frame of Eddie not showing his animation name.
-  22) Fixed the "Can YRC, and projectile/powerup will stay" message on the framebar tooltip when hovering over Potemkin Trishula frames. The message was previously showing on frame 19 of Trishula, while it should be on frame 20 instead.
-  23) Fixed a crash caused by hovering over a framebar frame of a move happening during 5D horizontal hoverdash. It was caused by there being more gatlings available than the pre-allocated memory can store. The crash could only happen on larger screen resolutions where more than 30 gatlings could actually fit in the displayed list.
-  24) Added a display for gatlings from a Blitz Shield reject to the framebar tooltips and 'Cancels' panel.
-  25) Fixed hitstop display in framebar tooltips showing time remaining / time max without account for the RC slowdown. Now the displayed times will be larger when slowed down by RC.
-  26) Fixed an incorrect idle frame displayed in framebar when recovering from a Blitz Shield reject while being slowed down by RC.
-  27) Made framebar less blurry when it's upscaled, for example on higher resolutions, and changed its font for the numbers drawn inside/on top of individual frames.
-  28) Added settings to control the amount of vertical spacing (empty space) between individual framebars.
-  29) Added an option to fuse all projectile framebars of each player into a single, tiny framebar, located on top of Player 1's main framebar or below Player 2's framebar.
-  30) Now framebar tooltip on combined projectile framebars will show individual projectiles, the animation and data for each. This allows you to not lose the details of each projectile when using the new option described in 29). This new tooltip format will, however, group projectiles that all have the exact same data, instead of repeating it.
-  
-    TODO: add setting to change input delay in online
-    TODO: fix ky 2H(2) > Greed Sever being displayed as 2H > Delay 1f > Greed Sever. Should say something like 2H (2 hits) > Greed Sever
+  20) Added a missing keyboard shortcut setting into mod's UI: Settings - Keyboard Shortcuts - Disable Mod Toggle. Previously, you could only configure this hotkey through the INI file.
+  21) Added a text to the framebar tooltip telling after which frame Millia's Secret Garden becomes able to stay if you RC it. The text only shows on that one particular frame.
+  22) Added a new text to the framebar's frame tooltip, that shows up only if some currently active projectiles would disappear on hit or block for that player. It tells you that "Projectile X will disappear if Character Name is hit/blocks on this frame/at any time." It may be incorrect if Rev1 is selected.
+  23) Fixed the first framebar frame of Eddie not showing his animation name.
+  24) Fixed the "Can YRC, and projectile/powerup will stay" message on the framebar tooltip when hovering over Potemkin Trishula frames. The message was previously showing on frame 19 of Trishula, while it should be on frame 20 instead.
+  25) Fixed a crash caused by hovering over a framebar frame of a move happening during 5D horizontal hoverdash. It was caused by there being more gatlings available than the pre-allocated memory can store. The crash could only happen on larger screen resolutions where more than 30 gatlings could actually fit in the displayed list.
+  26) Added a display for gatlings from a Blitz Shield reject to the framebar tooltips and 'Cancels' panel.
+  27) Fixed hitstop display in framebar tooltips showing time remaining / time max without account for the RC slowdown. Now the displayed times will be larger when slowed down by RC.
+  28) Fixed an incorrect idle frame displayed in framebar when recovering from a Blitz Shield reject while being slowed down by RC.
+  29) Made framebar less blurry when it's upscaled, for example on higher resolutions, and changed its font for the numbers drawn inside/on top of individual frames.
+  30) Added settings to control the amount of vertical spacing (empty space) between individual framebars.
+  31) Added an option to fuse all projectile framebars of each player into a single framebar, located on top of Player 1's main framebar or below Player 2's framebar. From now, this option will be the default for new users of the mod. Also added a second field for entering the framebar height, separating the framebar heights of the player framebars from the projectile framebars.
+  32) Now framebar tooltip on combined projectile framebars will show individual projectiles, the animation and data for each. This allows you to not lose the details of each projectile when using the new option described in 29). This new tooltip format will, however, group projectiles that all have the exact same data, instead of repeating it.
+  33) Now Combo Recipe panel can display the number of hits performed by a move (can be turned off in the cogwheel). Cancelling from a multi-hit move no longer shows up with a (Delay ?f), if the cancel was not actually delayed after the last hit.
+  34) Added new settings into "General Settings" which allow you to change online input delay to a value between 0 and 4. Has different values for fullscreen mode and non-fullscreen (windowed, fullscreen windowed) mode.
+  35) For Bedman's Task A, Task A', Task B, Task C and their Deja Vus added information to the frame tooltips stating on which frames what operations are performed on the corresponding Seals (deactivate, recreate, make invulnerable, make vulnerable again). Corrected the frame tooltip info about Bedman's inability to airdash. Firstly, it was checking the wrong height, and secondly, Bedman has a Hover instead of airdash.
+  36) Changed the default option of 'Dodge OBS Recording' from being on to being off.
+  37) Added "Burst Gain Per Second" field to the "Burst Gain" panel.
+  38) Now when Playback and Record buttons are pressed during Freeze Game mode, they will start playback or recording immediately, while the game is still paused. Exception to this is pressing those buttons together. Such presses will translate to the next frame, if buttons are still held at the moment of advancing to the next frame, as it worked before the update.
+  39) Added two new checkboxes in General Settings: to make P1 be the Arcade Boss in Training Mode and P2 be that.

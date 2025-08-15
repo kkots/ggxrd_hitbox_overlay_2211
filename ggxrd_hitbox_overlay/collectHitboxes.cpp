@@ -48,13 +48,7 @@ void collectHitboxes(Entity ent,
 			|| ent.y() < -3000000  // needed for May [2]8S/H
 			|| ent.isHidden()  // needed for super animations
 			|| ownerType == CHARACTER_TYPE_LEO
-			&& strcmp(animName, "Semuke5E_Reflect"_hardcode) == 0
-			|| ownerType == CHARACTER_TYPE_BEDMAN
-			&& (
-				memcmp(animName, "Djavu_", 6) == 0
-				&& memcmp(animName + 7, "_Ghost", 6) == 0
-				&& animName[13] == '\0'  // "Djavu_A_Ghost"_hardcode, "Djavu_B_Ghost"_hardcode, "Djavu_C_Ghost"_hardcode, "Djavu_D_Ghost"_hardcode
-			)) {
+			&& strcmp(animName, "Semuke5E_Reflect"_hardcode) == 0) {
 		return;
 	}
 	
@@ -80,7 +74,13 @@ void collectHitboxes(Entity ent,
 	// blue/purple - throwbox
 
 	bool isNotZeroScaled = *(int*)(ent + 0x2594) != 0 || scaleX != INT_MAX;
-
+	
+	bool isBedmanGhost = ownerType == CHARACTER_TYPE_BEDMAN
+			&& (
+				memcmp(animName, "Djavu_", 6) == 0
+				&& memcmp(animName + 7, "_Ghost", 7) == 0  // "Djavu_A_Ghost"_hardcode, "Djavu_B_Ghost"_hardcode, "Djavu_C_Ghost"_hardcode, "Djavu_D_Ghost"_hardcode
+			);
+	
 	if (pushboxes && (
 			!state.isASummon
 			|| ownerType == CHARACTER_TYPE_JACKO
@@ -91,17 +91,21 @@ void collectHitboxes(Entity ent,
 		// Draw pushbox and throw box
 		/*if (is_push_active(asw_data))
 		{*/
-		int pushboxTop = ent.pushboxTop();
-		int pushboxBottom = ent.pushboxBottom();
+		int pushboxTop;
+		int pushboxBottom;
+		int pushboxLeft;
+		int pushboxRight;
+		ent.pushboxDimensions(&pushboxLeft, &pushboxTop, &pushboxRight, &pushboxBottom);
 		
-		if (state.isASummon && pushboxTop == 100 && pushboxBottom == 0) {
+		if (state.isASummon && pushboxTop - params.posY == 100 && pushboxBottom == params.posY) {
 			pushboxTop = 20000;
 		}
 		
 		DrawBoxCallParams pushboxParams;
-		ent.pushboxLeftRight(&pushboxParams.left, &pushboxParams.right);
-		pushboxParams.top = params.posY + pushboxTop;
-		pushboxParams.bottom = params.posY - pushboxBottom;
+		pushboxParams.left = pushboxLeft;
+		pushboxParams.right = pushboxRight;
+		pushboxParams.top = pushboxTop;
+		pushboxParams.bottom = pushboxBottom;
 		pushboxParams.fillColor = replaceAlpha(state.throwInvuln ? 0 : state.isASummon ? 16 : 64, COLOR_PUSHBOX);
 		pushboxParams.outlineColor = replaceAlpha(255, COLOR_PUSHBOX);
 		pushboxParams.thickness = THICKNESS_PUSHBOX;
@@ -133,6 +137,7 @@ void collectHitboxes(Entity ent,
 	if (hurtbox && isNotZeroScaled && hurtboxCount && !(
 			ownerType == CHARACTER_TYPE_ELPHELT
 			&& !(ent.displayModel() && strcmp(ent.animationName(), "GrenadeBomb_Ready") != 0 || !state.strikeInvuln)
+			|| isBedmanGhost
 		)) {
 		callParams.thickness = THICKNESS_HURTBOX;
 		callParams.hitboxData = hurtboxData;
@@ -241,7 +246,7 @@ void collectHitboxes(Entity ent,
 		int* mayBallJumpConnectPtr = nullptr;
 		int* mayBallJumpConnectRangePtr = nullptr;
 		if (ownerType == CHARACTER_TYPE_JOHNNY) {
-			if (circles && strcmp(ent.animationName(), "Mist") == 0) {
+			if (circles && strcmp(ent.animationName(), "Mist") == 0 && ent.bbscrCurrentFunc()) {
 				BYTE* func = ent.bbscrCurrentFunc();
 				BYTE* instr;
 				int radius = 0;
@@ -302,7 +307,8 @@ void collectHitboxes(Entity ent,
 			pointCallParams.posY = params.posY - ent.landingHeight();
 			points->push_back(pointCallParams);
 			
-			if (ent.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && !settings.dontShowMayInteractionChecks) {
+			if (ent.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && !settings.dontShowMayInteractionChecks
+					&& ent.bbscrCurrentFunc()) {
 				getMayBallJumpConnectOffsetYAndRange(ent.bbscrCurrentFunc(), mayBallJumpConnectPtr, mayBallJumpConnectRangePtr);
 				DrawPointCallParams pointCallParams;
 				pointCallParams.isProjectile = true;
@@ -348,7 +354,7 @@ void collectHitboxes(Entity ent,
 						}
 					}
 				}
-				if (mayBallJumpConnectPtr) {
+				if (mayBallJumpConnectPtr && mayBall.bbscrCurrentFunc()) {
 					DrawPointCallParams pointCallParams;
 					pointCallParams.isProjectile = true;
 					pointCallParams.posX = params.posX;
@@ -506,7 +512,7 @@ void collectHitboxes(Entity ent,
 				for (int i = 0; i < entityList.count; ++i) {
 					Entity it = entityList.list[i];
 					if (!it.destructionRequested() && it.team() == ent.team() && !it.isPawn() && strcmp(it.animationName(), "Mahojin") == 0) {
-						if (it.mem45()) {
+						if (it.mem45() && ent.bbscrCurrentFunc()) {
 							if (!*mahojinCacheVarX) {
 								getMahojinDistXY(ent.bbscrCurrentFunc(), mahojinCacheVarX, mahojinCacheVarY);
 							}
@@ -575,7 +581,7 @@ void collectHitboxes(Entity ent,
 						aggroY = &moves.jackoServantCAggroY;
 					}
 					
-					if (*aggroX == 0) {
+					if (*aggroX == 0 && ent.bbscrCurrentFunc()) {
 						BYTE* func = ent.bbscrCurrentFunc();
 						BYTE* instr;
 						for (
@@ -620,7 +626,8 @@ void collectHitboxes(Entity ent,
 		} else if (state.charType == CHARACTER_TYPE_JAM) {
 			if (strcmp(ent.animationName(), "Saishingeki") == 0
 					&& ent.currentHitNum() == 2
-					&& hitboxCount) {
+					&& hitboxCount
+					&& ent.bbscrCurrentFunc()) {
 				moves.fillInJamSaishingekiY(ent.bbscrCurrentFunc());
 				
 				DrawBoxCallParams interactionBoxParams;

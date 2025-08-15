@@ -31,6 +31,29 @@ struct DigitFrame {
 	std::unique_ptr<PngResource> thickness[2] { };
 };
 
+struct ButtonSettings {
+	DWORD up;
+	DWORD down;
+	DWORD left;
+	DWORD right;
+	DWORD punch;
+	DWORD kick;
+	DWORD slash;
+	DWORD heavySlash;
+	DWORD dust;
+	DWORD taunt;
+	DWORD special;
+	DWORD pkMacro;
+	DWORD pksMacro;
+	DWORD pkshMacro;
+	DWORD shMacro;
+	DWORD hdMacro;
+	DWORD play;
+	DWORD record;
+	DWORD menu;
+	DWORD unknown;
+};
+
 class UI
 {
 public:
@@ -106,7 +129,7 @@ public:
 	struct FramebarSettings {
 		bool neverIgnoreHitstop = false;
 		bool eachProjectileOnSeparateFramebar = false;
-		bool condenseIntoOneProjectileMiniFramebar = false;
+		bool condenseIntoOneProjectileFramebar = false;
 		int framesCount = -1;
 		int storedFramesCount = -1;
 		int scrollXInFrames = 0;
@@ -127,6 +150,13 @@ public:
 		*sizes = &lastPackedSize;
 		*isColorblind = textureIsColorblind;
 	}
+	bool needTestDelay = false;
+	bool needTestDelayStage2 = false;
+	bool hasTestDelayResult = false;
+	DWORD testDelayResult = 0;
+	bool needTestDelay_dontReleaseKey = false;
+	unsigned long long testDelayStart = 0;
+	DWORD punchCode = 0;
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -364,6 +394,13 @@ private:
 	bool showingFailedHideRankSigscanMessage = false;
 	void printLineOfResultOfHookingRankIcons(const char* placeName, bool result);
 	bool framebarHadScrollbar = false;
+	bool sigscannedButtonSettings = false;
+	ButtonSettings* buttonSettings = nullptr;
+	bool needToDivertCodeInGetKeyState = false;
+	bool needTestDelayOnNextUiFrame = false;  // sigscanning takes ~7ms
+	void testDelay();
+	bool idiotPressedTestDelayButtonOutsideBattle = false;
+	void printBedmanSeals(const BedmanInfo& bedmanInfo, bool forFrameTooltip);
 };
 
 extern UI ui;

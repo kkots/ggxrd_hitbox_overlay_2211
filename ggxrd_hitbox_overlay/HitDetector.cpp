@@ -22,7 +22,7 @@ bool HitDetector::onDllMain() {
 	bool error = false;
 	
 	uintptr_t activeFrameHitCallPlace = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"e8 ?? ?? ?? ?? 8b 87 84 09 00 00 83 f8 04 74 13 83 f8 05 74 0e 83 f8 01 74 09 83 f8 02 0f 85 89 fe ff ff",
 		&error, "activeFrameHit");
 	if (activeFrameHitCallPlace) {
@@ -41,7 +41,7 @@ bool HitDetector::onDllMain() {
 	if (!orig_determineHitType) {
 		logwrap(fprintf(logfile, "determineHitType not found\n"));
 	} else {
-		HitResult(HookHelp::*determineHitTypeHookPtr)(void*, BOOL, DWORD*, int*) = &HookHelp::determineHitTypeHook;
+		auto determineHitTypeHookPtr = &HookHelp::determineHitTypeHook;
 		detouring.attach(&(PVOID&)(orig_determineHitType),
 			(PVOID&)determineHitTypeHookPtr,
 			"determineHitType");
@@ -61,7 +61,7 @@ bool HitDetector::onDllMain() {
 	if (!orig_copyDealtAtkToReceivedAtk) {
 		logwrap(fprintf(logfile, "copyDealtAtkToReceivedAtk not found\n"));
 	} else {
-		void(HookHelp::*copyDealtAtkToReceivedAtkHookPtr)(void*) = &HookHelp::copyDealtAtkToReceivedAtkHook;
+		auto copyDealtAtkToReceivedAtkHookPtr = &HookHelp::copyDealtAtkToReceivedAtkHook;
 		detouring.attach(&(PVOID&)(orig_copyDealtAtkToReceivedAtk),
 			(PVOID&)copyDealtAtkToReceivedAtkHookPtr,
 			"copyDealtAtkToReceivedAtk");
@@ -80,7 +80,7 @@ bool HitDetector::onDllMain() {
 	if (!orig_dealHit) {
 		logwrap(fprintf(logfile, "dealHit not found\n"));
 	} else {
-		void(HookHelp::*dealHitHookPtr)(void*, BOOL) = &HookHelp::dealHitHook;
+		auto dealHitHookPtr = &HookHelp::dealHitHook;
 		detouring.attach(&(PVOID&)(orig_dealHit),
 			(PVOID&)dealHitHookPtr,
 			"dealHit");

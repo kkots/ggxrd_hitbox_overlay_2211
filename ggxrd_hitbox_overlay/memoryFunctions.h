@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 
+extern const char* GUILTY_GEAR_XRD_EXE;
+
 bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end);
 bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end);
 bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end);
@@ -12,7 +14,11 @@ bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* 
 // sig vector will be terminated with an extra 0 byte.
 // mask vector will contain an 'x' character for every non-?? byte and a '?' character for every ?? byte.
 // mask vector will be terminated with an extra 0 byte.
-void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask);
+// Can additionally provide an size_t* position argument. If the byteSpecification contains a ">" character, position will store the offset of that byte.
+// If multiple ">" characters are present, position must be an array able to hold all positions, and positionLength specifies the length of the array.
+// If positionLength is 0, it is assumed the array is large enough to hold all > positions.
+// Returns the number of > characters.
+size_t byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask, size_t* position = nullptr, size_t positionLength = 0);
 
 void splitOutModuleName(const char* name, char* moduleName, size_t moduleNameBufSize, char* sectionName, size_t sectionNameBufSize);
 
@@ -25,6 +31,9 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLen
 uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask);
 
 uintptr_t sigscanBackwards(uintptr_t startBottom, uintptr_t endTop, const char* sig, const char* mask);
+
+// for finding function starts
+uintptr_t sigscanBackwards16ByteAligned(uintptr_t startBottom, uintptr_t endTop, const char* sig, const char* mask);
 
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname);
 
@@ -44,13 +53,13 @@ uintptr_t sigscanOffsetMain(const char* name, const char* sig, const size_t sigL
 
 uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const char* logname);
 
-/// <param name="byteSpecification">Example: "80 f0 c7 ?? ?? ?? ?? e8"</param>
-uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname);
+/// <param name="byteSpecification">Example: "80 f0 c7 ?? ?? ?? ?? e8". If contains only one > character, will return that specific byte instead</param>
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname, size_t* position = nullptr);
 
 uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname);
 
-/// <param name="byteSpecification">Example: "80 f0 c7 ?? ?? ?? ?? e8"</param>
-uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname);
+/// <param name="byteSpecification">Example: "80 f0 c7 ?? ?? ?? ?? e8". If contains only one > character, will return that specific byte instead</param>
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname, size_t* position = nullptr);
 
 uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr);
 uintptr_t followRelativeCall(uintptr_t callInstructionAddr);
@@ -70,9 +79,14 @@ char* scrollUpToInt3(char* ptr);
 
 char* scrollUpToBytes(char* ptr, const char* buf, int bufSize, size_t searchLimit = 1000);
 
-uintptr_t sigscanBackwards(uintptr_t, const char* byteSpecification, size_t searchLimit = 1000);
+// If byteSpecification contains only one > character, returned uintptr_t will point to that byte if found and be 0 if the signature is not found
+uintptr_t sigscanBackwards(uintptr_t, const char* byteSpecification, size_t searchLimit = 1000, size_t* position = nullptr);
 
-uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit = 1000);
+// If byteSpecification contains only one > character, returned uintptr_t will point to that byte if found and be 0 if the signature is not found
+uintptr_t sigscanBackwards16ByteAligned(uintptr_t, const char* byteSpecification, size_t searchLimit = 1000, size_t* position = nullptr);
+
+// If byteSpecification contains only one > character, returned uintptr_t will point to that byte if found and be 0 if the signature is not found
+uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit = 1000, size_t* position = nullptr);
 
 uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_t searchLimit = 1000);
 

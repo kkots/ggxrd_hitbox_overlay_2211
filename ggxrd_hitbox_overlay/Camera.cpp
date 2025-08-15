@@ -18,7 +18,7 @@ bool Camera::onDllMain() {
 
 	// updateCamera is a virtual function of AREDPawn_CameraAttach
 	orig_updateDarken = (updateDarken_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"51 56 8b f1 83 be ?? ?? ?? ?? 00 74 12 f3 0f 10 86 ?? ?? ?? ?? f3 0f 5c 86 ?? ?? ?? ?? eb 10 f3 0f 10 86 ?? ?? ?? ?? f3 0f 58 86 ?? ?? ?? ?? 0f 28 c8 f3 0f 11 86",
 		nullptr, "updateDarken");
 
@@ -26,7 +26,7 @@ bool Camera::onDllMain() {
 		
 		darkenValue1Offset = *(unsigned int*)((char*)orig_updateDarken + 17);
 		
-		void(HookHelp::*updateDarkenHookPtr)() = &HookHelp::updateDarkenHook;
+		auto updateDarkenHookPtr = &HookHelp::updateDarkenHook;
 		detouring.attach(&(PVOID&)(orig_updateDarken),
 			(PVOID&)updateDarkenHookPtr,
 			"updateDarken");
@@ -34,13 +34,13 @@ bool Camera::onDllMain() {
 
 	// updateCamera is a virtual function of AREDPawn_CameraAttach
 	orig_updateCamera = (updateCamera_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"55 8b ec 83 e4 f0 83 ec ?? 53 56 8b f1 83 be ?? ?? ?? ?? 00 57 8b 7d 08 74 17 8d 86 ?? ?? ?? ?? 3b f8 75 0d f6 86 ?? ?? ?? ?? 01 0f 85 18 01 00 00 f6 86 ?? ?? ?? ?? 03 0f 84 0b 01 00 00 8b 0f d9 86",
 		nullptr, "updateCamera");
 
 	if (orig_updateCamera) {
 		
-		void(HookHelp::*updateCameraHookPtr)(char**, char*) = &HookHelp::updateCameraHook;
+		auto updateCameraHookPtr = &HookHelp::updateCameraHook;
 		detouring.attach(&(PVOID&)(orig_updateCamera),
 			(PVOID&)updateCameraHookPtr,
 			"updateCamera");
@@ -48,7 +48,7 @@ bool Camera::onDllMain() {
 	}
 
 	coordCoeffOffset = (uintptr_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"89 4c 24 10 e9 f5 00 00 00 f3 0f 10 82 ?? ?? ?? ?? 0f 57 c9 8b ce f3 0f 2a cb e8",
 		{ 13, 0 },
 		&error, "coordCoeffOffset");

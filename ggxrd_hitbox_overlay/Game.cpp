@@ -11,6 +11,8 @@
 #include "AltModes.h"
 #include "HitDetector.h"
 #include "RematchMenu.h"
+#include "Graphics.h"
+#include "UI.h"
 
 char** aswEngine = nullptr;
 
@@ -23,26 +25,26 @@ bool Game::onDllMain() {
 	bool error = false;
 
 	aswEngine = (char**)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"85 C0 78 74 83 F8 01",
 		{-4, 0},
 		&error, "aswEngine");
 	
 	// gameDataPtr is of type REDGameCommon** when not dereferenced
 	gameDataPtr = (char**)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"33 C0 38 41 44 0F 95 C0 C3 CC",
 		{-4, 0},
 		&error, "gameDataPtr");
 
-	playerSideNetworkHolder = (char**)sigscanOffset(
-		"GuiltyGearXrd.exe",
+	netplayStruct = (char**)sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
 		"8b 0d ?? ?? ?? ?? e8 ?? ?? ?? ?? 3c 10 75 10 a1 ?? ?? ?? ?? 85 c0 74 07 c6 80 0c 12 00 00 01 c3",
 		{16, 0},
-		NULL, "playerSideNetworkHolder");
+		NULL, "netplayStruct");
 
 	uintptr_t UWorld_TickCallPlace = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"89 9e f4 04 00 00 8b 0d ?? ?? ?? ?? f3 0f 11 04 24 6a 02 e8 ?? ?? ?? ?? 33 ff 39 9e d8 04 00 00 7e 37",
 		{ 19 },
 		&error, "UWorld_TickCallPlace");
@@ -57,14 +59,14 @@ bool Game::onDllMain() {
 			orig_UWorld_IsPaused = (UWorld_IsPaused_t)followRelativeCall(IsPausedCallPlace);
 		}
 		
-		void(HookHelp::*UWorld_TickHookPtr)(ELevelTick TickType, float DeltaSeconds) = &HookHelp::UWorld_TickHook;
+		auto UWorld_TickHookPtr = &HookHelp::UWorld_TickHook;
 		detouring.attach(&(PVOID&)(orig_UWorld_Tick),
 			(PVOID&)UWorld_TickHookPtr,
 			"UWorld_Tick");
 	}
 	
 	if (orig_UWorld_IsPaused) {
-		bool(HookHelp::*UWorld_IsPausedHookPtr)() = &HookHelp::UWorld_IsPausedHook;
+		auto UWorld_IsPausedHookPtr = &HookHelp::UWorld_IsPausedHook;
 		detouring.attach(&(PVOID&)(orig_UWorld_IsPaused),
 			(PVOID&)UWorld_IsPausedHookPtr,
 			"UWorld_IsPaused");
@@ -81,7 +83,7 @@ bool Game::onDllMain() {
 			burstSig, burstMask);
 		substituteWildcard(burstSig, burstMask, 0, aswEngine);
 		burstOffset = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			burstSig,
 			burstMask,
 			{ 11, 0 },
@@ -93,7 +95,7 @@ bool Game::onDllMain() {
 			destroySig, destroyMask);
 		substituteWildcard(destroySig, destroyMask, 0, aswEngine);
 		orig_destroyAswEngine = (destroyAswEngine_t)sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			destroySig,
 			destroyMask,
 			{ -0x5A },
@@ -108,7 +110,7 @@ bool Game::onDllMain() {
 		substituteWildcard(cameraOffsetSig, cameraOffsetSigMask, 0, aswEngine);
 		// pointer to REDCamera_Battle
 		cameraOffset = (unsigned int)sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			cameraOffsetSig,
 			cameraOffsetSigMask,
 			{ 0x15, 0 },
@@ -128,7 +130,7 @@ bool Game::onDllMain() {
 	}
 	
 	aswEngineTickCountOffset = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"8d bd a4 04 00 00 bd 02 00 00 00 90 8b 0f 3b cb 74 05 e8 ?? ?? ?? ?? 83 c7 04 4d 75 ef ff 86",
 		{ 31, 0 },
 		&error, "aswEngineTickCountOffset");
@@ -145,7 +147,7 @@ bool Game::onDllMain() {
 			sig, mask);
 		substituteWildcard(sig, mask, 0, (void*)REDHUD_BattleOffset);
 		uintptr_t drawExGaugeHUDCallPlace = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
 			nullptr, "drawExGaugeHUDCallPlace");
@@ -154,7 +156,7 @@ bool Game::onDllMain() {
 			drawExGaugeHUD = (drawExGaugeHUD_t)followRelativeCall(drawExGaugeHUDCallPlace + 44);
 			orig_drawExGaugeHUD = drawExGaugeHUD;
 			
-			void(HookHelp::*drawExGaugeHUDHookPtr)(int param_1) = &HookHelp::drawExGaugeHUDHook;
+			auto drawExGaugeHUDHookPtr = &HookHelp::drawExGaugeHUDHook;
 			detouring.attach(&(PVOID&)(orig_drawExGaugeHUD),
 				(PVOID&)drawExGaugeHUDHookPtr,
 				"drawExGaugeHUD");
@@ -178,7 +180,7 @@ bool Game::onDllMain() {
 		substituteWildcard(sig, mask, 0, (void*)_JitabataRecover);
 		
 		stunmashDrawingPlace = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
 			{ 0x2b2 },
@@ -199,19 +201,19 @@ bool Game::onDllMain() {
 	//   DAT_0209cfa0 = (int *)FUN_00fa1fa0();
 	// }
 	inputsHolder = (BYTE**)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"e8 ?? ?? ?? ?? bb 00 00 01 00 bf 00 00 80 00",
 		{ -12, 0 },
 		nullptr, "inputsHolderCallPlace");
 	
 	drawJackoHouseHp = (drawJackoHouseHp_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"74 19 8b 86 40 25 00 00 39 86 3c 25 00 00 7d 0b",
 		{ -0x26 },
 		nullptr, "drawJackoHouseHp");
 	
 	roundendSuperfreezeCounterOffset = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"83 bf ?? ?? ?? ?? 00 7e 31 33 d2 8b c2 3b 97 b0 00 00 00 7d 25 8b 84 87 f8 01 00 00 42 85 c0 74 19 8b 88 18 01 00 00 f6 c1 01 75 df 81 c9 00 00 00 04 89 88 18 01 00 00 eb d1",
 		{ 2, 0 },
 		nullptr, "roundendSuperfreezeCounter");
@@ -220,18 +222,18 @@ bool Game::onDllMain() {
 	}
 	
 	postEffectOnPtr = (BOOL*)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"89 8e a4 01 00 00 8b 15 ?? ?? ?? ?? 89 96 a8 01 00 00 39 1d ?? ?? ?? ?? 0f 94 c0 33 c9 89 86 ac 01 00 00",
 		{ 20, 0 },
 		nullptr, "postEffectOn");
 	
 	orig_getRiscForUI_Background = (getRiscForUI_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"66 0f 6e 80 34 4e 02 00",
 		{ -15 },
 		nullptr, "getRiscForUIBackground");
 	if (orig_getRiscForUI_Background) {
-		float(HookHelp::*getRiscForUI_BackgroundHookPtr)() = &HookHelp::getRiscForUI_BackgroundHook;
+		auto getRiscForUI_BackgroundHookPtr = &HookHelp::getRiscForUI_BackgroundHook;
 		detouring.attach(&(PVOID&)(orig_getRiscForUI_Background),
 			(PVOID&)getRiscForUI_BackgroundHookPtr,
 			"getRiscForUIBackground");
@@ -240,7 +242,7 @@ bool Game::onDllMain() {
 	}
 	
 	if (orig_getRiscForUI_Foreground) {
-		float(HookHelp::*getRiscForUI_ForegroundHookPtr)() = &HookHelp::getRiscForUI_ForegroundHook;
+		auto getRiscForUI_ForegroundHookPtr = &HookHelp::getRiscForUI_ForegroundHook;
 		detouring.attach(&(PVOID&)(orig_getRiscForUI_Foreground),
 			(PVOID&)getRiscForUI_ForegroundHookPtr,
 			"getRiscForUIForeground");
@@ -248,45 +250,17 @@ bool Game::onDllMain() {
 	
 	// Thanks to WorseThanYou for finding the location of the input ring buffers, their sizes and their structure
 	inputRingBuffersOffset = (unsigned int)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"8b 44 24 14 8b d7 6b d2 7e 56 8d 8c 02 ?? ?? ?? ?? e8 ?? ?? ?? ?? 66 89 74 7c 18",
 		{ 13, 0 },
 		nullptr, "inputRingBuffersOffset");
 	
-	// If WTY's position reset patch is applied, this function won't be found
-	orig_setPositionResetType = (setPositionResetType_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
-		"6a 02 56 e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ?? 85 c0 74 13 e8 ?? ?? ?? ?? f7 d8 1b c0 f7 d8 40 a3 ?? ?? ?? ?? 5e c3 8b 0d ?? ?? ?? ?? 6a 08 56 e8",
-		{ -14 },
-		nullptr, "setPositionResetType");
-	if (orig_setPositionResetType) {
-		detouring.attach(&(PVOID&)(orig_setPositionResetType),
-			setPositionResetTypeHookStatic,
-			"setPositionResetType");
-		
-		getPlayerPadID = (getPlayerPadID_t)followRelativeCall((uintptr_t)orig_setPositionResetType + 1);
-		
-		uintptr_t roundInitUsage = sigscanOffset(
-			"GuiltyGearXrd.exe",
-			// c7 44 24 __ ________ is MOV [ESP+???], ???
-			"c7 44 24 08 00 00 00 00 c7 44 24 0c 00 00 00 00 c7 44 24 10 d5 04 00 00 c7 44 24 14 b7 05 00 00 "
-			"c7 44 24 18 d2 05 00 00 c7 44 24 1c 3b 06 00 00 c7 44 24 20 49 fa ff ff c7 44 24 24 2b fb ff ff "
-			"c7 44 24 28 c5 f9 ff ff c7 44 24 2c 2e fa ff ff c7 44 24 30 98 ff ff ff c7 44 24 34 68 00 00 00 "
-			"c7 44 24 38 e0 fc ff ff c7 44 24 3c 20 03 00 00 c7 44 24 40 ff ff ff ff c7 44 24 44 01 00 00 00",
-			nullptr, "roundInitUsage");
-		
-		if (!roundInitUsage) return false;
-		orig_roundInit = (roundInit_t)sigscanBackwards(roundInitUsage, "83 ec", 0x1f0);
-		if (!orig_roundInit) return false;
-		
-		void(HookHelp::*roundInitHookPtr)() = &HookHelp::roundInitHook;
-		detouring.attach(&(PVOID&)(orig_roundInit),
-			(PVOID&)roundInitHookPtr,
-			"roundInit");
+	if (settings.usePositionResetMod) {
+		if (!sigscanAndHookPositionResetAndGetPlayedPadID()) return false;
 	}
 	
 	uintptr_t placeInFunction0x10_OfNormalElementFor_AswSubEng_0x1c710c_0xac = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"e8 ?? ?? ?? ?? 8b d8 83 fb 1a",
 		nullptr, "PlaceInFunction0x10_OfNormalElementFor_AswSubEng_0x1c710c_0xac");
 	uintptr_t startOfFunction0x10 = 0;
@@ -303,7 +277,7 @@ bool Game::onDllMain() {
 		normal0xa8ElementVtable = func0x10InRData - 0x10;
 	}
 	
-	uintptr_t menuUsage = sigscanOffset("GuiltyGearXrd.exe",
+	uintptr_t menuUsage = sigscanOffset(GUILTY_GEAR_XRD_EXE,
 		// use only a part of function to find it faster
 		"83 b8 54 01 00 00 00 75 03 4e 79 eb",
 		{ -15 },
@@ -342,7 +316,7 @@ bool Game::onDllMain() {
 		RF_DataUsageAr[0] = 0x68;  // PUSH
 		memcpy(RF_DataUsageAr + 1, &RF_MenuLoc, 4);
 		RF_MenuUsage = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			RF_DataUsageAr,
 			"xxxxx",
 			nullptr,
@@ -415,12 +389,12 @@ bool Game::sigscanFrameByFraming() {
 
 	// TickActors<FDeferredTickList::FGlobalActorIterator>
 	orig_TickActors_FDeferredTickList_FGlobalActorIterator = (TickActors_FDeferredTickList_FGlobalActorIterator_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"83 ec 18 53 55 57 8b 7c 24 28 8b 87 48 01 00 00 33 db 89 9f 44 01 00 00 3b c3 7d 22 8b 87 40 01 00 00 89 9f 48 01 00 00 3b c3 74 12 6a 08",
 		&error, "TickActors_FDeferredTickList_FGlobalActorIterator");
 	
 	uintptr_t trainingHudCallPlace = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"b9 ?? ?? ?? ?? e8 ?? ?? ?? ?? 84 c0 75 0c e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ?? 8b 4c 24 1c",
 		&error, "trainingHudCallPlace");
 	
@@ -438,14 +412,14 @@ bool Game::sigscanFrameByFraming() {
 		updateBattleOfflineVerSig, updateBattleOfflineVerSigMask);
 	substituteWildcard(updateBattleOfflineVerSig, updateBattleOfflineVerSigMask, 2, aswEngine);
 	orig_updateBattleOfflineVer = (updateBattleOfflineVer_t)((sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		updateBattleOfflineVerSig,
 		updateBattleOfflineVerSigMask,
 		&error, "updateBattleOfflineVer") - 0x30) & 0xFFFFFFF0);
 	logwrap(fprintf(logfile, "Final location of updateBattleOfflineVer: %p\n", orig_updateBattleOfflineVer));
 
 	orig_TickActorComponents = (TickActorComponents_t)sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"57 bf 01 00 00 00 39 7c 24 20 75 18 8b 06 8b 90 ec 01 00 00 8b ce ff d2 c7 44 24 10 00 00 00 00",
 		{ -8 },
 		&error, "TickActorComponents");
@@ -459,7 +433,7 @@ void Game::hookFrameByFraming() {
 		Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookStatic,
 		"TickActors_FDeferredTickList_FGlobalActorIterator");
 
-	void(HookHelp::*updateBattleOfflineVerHookPtr)(int param1) = &HookHelp::updateBattleOfflineVerHook;
+	auto updateBattleOfflineVerHookPtr = &HookHelp::updateBattleOfflineVerHook;
 	detouring.attach(&(PVOID&)orig_updateBattleOfflineVer,
 		(PVOID&)updateBattleOfflineVerHookPtr,
 		"updateBattleOfflineVer");
@@ -521,7 +495,7 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 	// When game pause menu is open in single player, USkeletalMeshComponent::UpdateTransform does not get called,
 	// and this hook is also not called.
 	if (!shutdown) {
-		ignoreAllCalls = ignoreAllCallsButEarlier;
+		ignoreAllCalls = ignoreAllCallsButEvenEarlier;
 		endScene.onTickActors_FDeferredTickList_FGlobalActorIteratorBegin(ignoreAllCalls);
 	}
 	orig_TickActors_FDeferredTickList_FGlobalActorIterator(param1, param2, param3, param4);
@@ -566,9 +540,9 @@ char Game::getPlayerSide() const {
 		DWORD off = offsetof(RematchMenu, playerIndex);
 		if (lastRematchMenuPlayerSide != -1) return lastRematchMenuPlayerSide;  // this fix is needed because when rematch menu is fading out but the next match hasn't started yet, 0x1734 is still 2
 		if (isRematchMenuOpen()) return getRematchMenuPlayerSide();  // fix for rematch menu: 0x1734 holds 2 on it even if you're a direct participant of the match
-		if (!playerSideNetworkHolder) return 2;
+		if (!netplayStruct) return 2;
 		// Big thanks to WorseThanYou for finding this value
-		return *(char*)(*playerSideNetworkHolder + 0x1734);  // 0 for p1 side, 1 for p2 side, 2 for observer
+		return *(char*)(*netplayStruct + 0x1734);  // 0 for p1 side, 1 for p2 side, 2 for observer
 	} else if (*gameDataPtr) {
 		return *(char*)(*gameDataPtr + 0x44);  // this makes sense for training mode for example (maybe only all single player modes)
 	} else {
@@ -640,18 +614,18 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 	if (!shutdown) {
 		IsPausedCallCount = 0;
 		
-		ignoreAllCallsButEarlier = false;
+		ignoreAllCallsButEvenEarlier = false;
 		if (freezeGame && *aswEngine) {
 			slowmoSkipCounter = 0;
 			if (!allowNextFrame) {
-				ignoreAllCallsButEarlier = true;
+				ignoreAllCallsButEvenEarlier = true;
 			}
 			allowNextFrame = false;
 		}
 		if (slowmoGame && *aswEngine) {
 			++slowmoSkipCounter;
 			if ((int)slowmoSkipCounter < settings.slowmoTimes) {
-				ignoreAllCallsButEarlier = true;
+				ignoreAllCallsButEvenEarlier = true;
 			} else {
 				slowmoSkipCounter = 0;
 			}
@@ -661,17 +635,102 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		
 		bool unused;
 		bool normalMode = altModes.isGameInNormalMode(&unused);
-		if (*aswEngine && ignoreAllCallsButEarlier && normalMode) {
+		if (*aswEngine && ignoreAllCallsButEvenEarlier && normalMode) {
+			bool successfulSigscan = sigscanTrainingStructProcessPlayRecordReset() && getTrainingHud;
+			if (successfulSigscan) {
+				bool firePress = false;
+				int padID = getPlayerPadID();
+				bool pressedPlay = buttonPressed(padID, false, BUTTON_CODE_PLAY);
+				bool pressedRecord = buttonPressed(padID, false, BUTTON_CODE_RECORD);
+				bool pressedReset = buttonPressed(padID, false, BUTTON_CODE_MENU_RESET);
+				bool holdPlay = buttonHeld(padID, false, BUTTON_CODE_PLAY);
+				bool holdRecord = buttonHeld(padID, false, BUTTON_CODE_RECORD);
+				bool holdReset = buttonHeld(padID, false, BUTTON_CODE_MENU_RESET);
+				if (
+					(
+						pressedPlay && !pressedRecord
+						|| pressedRecord && !pressedPlay
+					)
+					&& !pressedReset
+					&& !holdReset
+				) {
+					playRecordFired = false;
+					playOrRecordPressCounter = 0;
+					if (pressedPlay) {
+						isPlayRecord = PlayRecordEnum_Play;
+					} else {  // pressedRecord
+						isPlayRecord = PlayRecordEnum_Record;
+					}
+				} else if (
+					playOrRecordPressCounter != INT_MAX
+					&& (
+						isPlayRecord == PlayRecordEnum_Play && holdPlay && !holdRecord && !pressedRecord
+						|| isPlayRecord == PlayRecordEnum_Record && holdRecord && !holdPlay && !pressedPlay
+					)
+					&& !pressedReset
+					&& !holdReset
+				) {
+					++playOrRecordPressCounter;
+					if (playOrRecordPressCounter == 3 && !playRecordFired) {
+						firePress = true;
+						playRecordFired = true;
+					}
+				} else if (playOrRecordPressCounter != INT_MAX) {
+					if (!playRecordFired) {
+						if (!holdPlay
+								&& !pressedPlay
+								&& !holdRecord
+								&& !pressedRecord
+								&& !pressedReset
+								&& !holdReset) {
+							// a short press, shorter than 3f
+							playRecordFired = true;
+							firePress = true;
+						} else if (isPlayRecord == PlayRecordEnum_Play) {
+							playPressed[padID] = holdPlay;
+						} else {  // isPlayRecord == PlayRecordEnum_Record
+							recordPressed[padID] = holdRecord;
+						}
+					}
+					playOrRecordPressCounter = INT_MAX;
+				}
+				if (firePress) {
+					if (isPlayRecord == PlayRecordEnum_Play) {
+						if (!pressedPlay) {
+							setButtonPressed(padID, false, BUTTON_CODE_PLAY);
+						}
+					} else {  // isPlayRecord == PlayRecordEnum_Record
+						if (!pressedRecord) {
+							setButtonPressed(padID, false, BUTTON_CODE_RECORD);
+						}
+					}
+					doNotIncrementSlotInputsIndex = true;
+					trainingStructProcessPlayRecordReset(getTrainingHud());
+					doNotIncrementSlotInputsIndex = false;
+					if (isPlayRecord == PlayRecordEnum_Play) {
+						if (!pressedPlay) {
+							setButtonNotPressed(padID, false, BUTTON_CODE_PLAY);
+						}
+					} else {  // isPlayRecord == PlayRecordEnum_Record
+						if (!pressedRecord) {
+							setButtonNotPressed(padID, false, BUTTON_CODE_RECORD);
+						}
+					}
+				}
+			}
 			for (int i = 0; i < 4; ++i) {
-				onNeedRememberPress(i, playPressed + i, BUTTON_CODE_PLAY);
-				onNeedRememberPress(i, recordPressed + i, BUTTON_CODE_RECORD);
+				// fallback to old method: will only register play/record being held when advancing to the next frame
+				if (playOrRecordPressCounter == INT_MAX) {
+					onNeedRememberPress(i, playPressed + i, BUTTON_CODE_PLAY);
+					onNeedRememberPress(i, recordPressed + i, BUTTON_CODE_RECORD);
+				}
 				onNeedRememberPress(i, resetPressed + i, BUTTON_CODE_MENU_RESET);
 				onNeedRememberPress(i, unknownPressed + i, BUTTON_CODE_MENU_UNKNOWN);
 			}
 		} else if (*aswEngine && normalMode) {
 			for (int i = 0; i < 4; ++i) {
-				onNeedForcePress(i, playPressed + i, BUTTON_CODE_PLAY);
-				onNeedForcePress(i, recordPressed + i, BUTTON_CODE_RECORD);
+				if (onNeedForcePress(i, playPressed + i, BUTTON_CODE_PLAY)) playRecordFired = true;
+				if (onNeedForcePress(i, recordPressed + i, BUTTON_CODE_RECORD)) playRecordFired = true;
 				onNeedForcePress(i, resetPressed + i, BUTTON_CODE_MENU_RESET);
 				onNeedForcePress(i, unknownPressed + i, BUTTON_CODE_MENU_UNKNOWN);
 			}
@@ -693,7 +752,7 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		logwrap(fputs("Asw Engine destroyed\n", logfile));
 		endScene.onAswEngineDestroyed();
 	}
-	if (!shutdown && (!*aswEngine || !ignoreAllCallsButEarlier)) {
+	if (!shutdown && (!*aswEngine || !ignoreAllCallsButEvenEarlier)) {
 		for (int i = 0; i < 4; ++i) {
 			playPressed[i] = false;
 			recordPressed[i] = false;
@@ -701,7 +760,7 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 			unknownPressed[i] = false;
 		}
 	}
-	ignoreAllCallsButEarlier = false;
+	ignoreAllCallsButEvenEarlier = false;
 	ignoreAllCalls = false;
 }
 
@@ -746,7 +805,7 @@ bool Game::HookHelp::UWorld_IsPausedHook() {
 		// Probably will never be non-0.
 		++game.IsPausedCallCount;
 		if (game.IsPausedCallCount == 2) {
-			if (game.ignoreAllCallsButEarlier) {
+			if (game.ignoreAllCallsButEvenEarlier) {
 				return true;
 			}
 		}
@@ -787,11 +846,23 @@ DWORD Game::getHeldButtons(int padInd, bool isMenu) {
 }
 
 void Game::setButtonPressed(int padInd, bool isMenu, DWORD code) {
+	setButtonPressedNotPressed(padInd, isMenu, code, true);
+}
+
+void Game::setButtonNotPressed(int padInd, bool isMenu, DWORD code) {
+	setButtonPressedNotPressed(padInd, isMenu, code, false);
+}
+
+void Game::setButtonPressedNotPressed(int padInd, bool isMenu, DWORD code, bool isPressed) {
 	if (!inputsHolder) return;
 	BYTE* step1 = *(BYTE**)inputsHolder;
 	BYTE* step2 = *(BYTE**)(step1 + 0x28);
 	DWORD* inputs = (DWORD*)(step2 + 0x38 + 0x38 * padInd + !isMenu * 0x1c + 0x10);
-	*inputs |= code;
+	if (!isPressed) {
+		*inputs &= ~code;
+	} else {
+		*inputs |= code;
+	}
 }
 
 void Game::onNeedRememberPress(int padInd, bool* pressed, ButtonCode code) {
@@ -811,21 +882,24 @@ void Game::onNeedRememberPress(int padInd, bool* pressed, bool isMenu, DWORD cod
 	}
 }
 
-void Game::onNeedForcePress(int padInd, bool* pressed, ButtonCode code) {
-	onNeedForcePress(padInd, pressed, false, code);
+bool Game::onNeedForcePress(int padInd, bool* pressed, ButtonCode code) {
+	return onNeedForcePress(padInd, pressed, false, code);
 }
 
-void Game::onNeedForcePress(int padInd, bool* pressed, ButtonCodeMenu code) {
-	onNeedForcePress(padInd, pressed, true, code);
+bool Game::onNeedForcePress(int padInd, bool* pressed, ButtonCodeMenu code) {
+	return onNeedForcePress(padInd, pressed, true, code);
 }
 
-void Game::onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code) {
+bool Game::onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code) {
+	bool returnValue = false;
 	if (*pressed) {
 		if (buttonHeld(padInd, isMenu, code)) {
 			setButtonPressed(padInd, isMenu, code);
+			returnValue = true;
 		}
 		*pressed = false;
 	}
+	return returnValue;
 }
 
 bool Game::isFading() const {
@@ -1166,7 +1240,7 @@ void Game::hideRankIcons() {
 	
 	if (!drawRankInLobbyOverPlayersHeads) {
 		drawRankInLobbyOverPlayersHeads = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			"6a 00 56 6a 00 6a 00 6a 04 6a 01 51 89 46 1c 8b c4 8d 4c 24 24 89 08",
 			{ 0x20 },
 			nullptr,
@@ -1177,7 +1251,7 @@ void Game::hideRankIcons() {
 	
 	if (!drawRankInLobbySearchMemberList) {
 		drawRankInLobbySearchMemberList = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			// I will even put ESP offsets into here
 			"6a 00 8d 4c 24 24 51 6a 00 6a 00 6a 04 6a 01 89 44 24 54 51 8b c4 8d 94 24 a4 01 00 00 89 10",
 			{ 0x28 },
@@ -1189,7 +1263,7 @@ void Game::hideRankIcons() {
 	
 	if (!drawRankInLobbyMemberList_NonCircle) {
 		drawRankInLobbyMemberList_NonCircle = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			// I will even put ESP offsets into here
 			"8d 94 24 0c 02 00 00 52 89 84 24 2c 02 00 00",
 			{ 0xf },
@@ -1201,7 +1275,7 @@ void Game::hideRankIcons() {
 	
 	if (!drawRankInLobbyMemberList_Circle) {
 		drawRankInLobbyMemberList_Circle = sigscanOffset(
-			"GuiltyGearXrd.exe",
+			GUILTY_GEAR_XRD_EXE,
 			// I will even put ESP offsets into here
 			"8d 8c 24 10 02 00 00 51 89 84 24 30 02 00 00",
 			{ 0xf },
@@ -1224,4 +1298,141 @@ void Game::hiddenRankDrawTextureProbably(void* params) {
 	if (!settings.hideRankIcons) {
 		game.drawTextureProbably(params);
 	}
+}
+
+void Game::updateOnlineDelay() {
+	if (!netplayStruct || !*netplayStruct
+		|| !settings.overrideOnlineInputDelay) return;
+	
+	bool isFullscreen = graphics.isFullscreen();
+	
+	OnlineDelaySettings newSettings {
+		false,
+		isFullscreen,
+		isFullscreen
+			? settings.onlineInputDelayFullscreen
+			: settings.onlineInputDelayWindowed
+	};
+	
+	if (newSettings == onlineDelayLastSet) return;
+	
+	onlineDelayLastSet = newSettings;
+	
+	*(int*)(*netplayStruct + 0x1cec) = newSettings.delayToSet;
+	*(int*)(*netplayStruct + 0x11fc) = newSettings.delayToSet;
+}
+
+bool Game::sigscanAndHookPositionResetAndGetPlayedPadID() {
+	if (!orig_setPositionResetType) {
+		if (!attemptedToSigscanPositionReset) {
+			attemptedToSigscanPositionReset = true;
+			// If WTY's position reset patch is applied, this function won't be found
+			orig_setPositionResetType = (setPositionResetType_t)sigscanOffset(
+				GUILTY_GEAR_XRD_EXE,
+				"6a 02 56 e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ?? 85 c0 74 13 e8 ?? ?? ?? ?? f7 d8 1b c0 f7 d8 40 a3 ?? ?? ?? ?? 5e c3 8b 0d ?? ?? ?? ?? 6a 08 56 e8",
+				{ -14 },
+				nullptr, "setPositionResetType");
+		}
+	}
+	if (orig_setPositionResetType && !attemptedToHookPositionReset) {
+		attemptedToHookPositionReset = true;
+		detouring.attach(&(PVOID&)(orig_setPositionResetType),
+			setPositionResetTypeHookStatic,
+			"setPositionResetType");
+		
+		getPlayerPadIDPtr = (getPlayerPadID_t)followRelativeCall((uintptr_t)orig_setPositionResetType + 1);
+		
+		uintptr_t roundInitUsage = sigscanOffset(
+			GUILTY_GEAR_XRD_EXE,
+			// c7 44 24 __ ________ is MOV [ESP+???], ???
+			"c7 44 24 08 00 00 00 00 c7 44 24 0c 00 00 00 00 c7 44 24 10 d5 04 00 00 c7 44 24 14 b7 05 00 00 "
+			"c7 44 24 18 d2 05 00 00 c7 44 24 1c 3b 06 00 00 c7 44 24 20 49 fa ff ff c7 44 24 24 2b fb ff ff "
+			"c7 44 24 28 c5 f9 ff ff c7 44 24 2c 2e fa ff ff c7 44 24 30 98 ff ff ff c7 44 24 34 68 00 00 00 "
+			"c7 44 24 38 e0 fc ff ff c7 44 24 3c 20 03 00 00 c7 44 24 40 ff ff ff ff c7 44 24 44 01 00 00 00",
+			nullptr, "roundInitUsage");
+		
+		if (!roundInitUsage) return false;
+		orig_roundInit = (roundInit_t)sigscanBackwards(roundInitUsage, "83 ec", 0x1f0);
+		if (!orig_roundInit) return false;
+		
+		auto roundInitHookPtr = &HookHelp::roundInitHook;
+		detouring.attach(&(PVOID&)(orig_roundInit),
+			(PVOID&)roundInitHookPtr,
+			"roundInit");
+	}
+	if (!getPlayerPadIDPtr && !attemptedToSigscanPlayedPadID) {
+		attemptedToSigscanPlayedPadID = true;
+		// backup plan in case WTY's position reset patch is applied
+		getPlayerPadIDPtr = (getPlayerPadID_t)sigscanOffset(GUILTY_GEAR_XRD_EXE,
+			"33 c0 38 41 44 56 0f 95 c0 0f b6 d0 8b 74 91 3c 33 d2",
+			{ -6 },
+			nullptr, "getPlayedPadID");
+	}
+	return true;
+}
+
+void Game::onUsePositionResetChanged() {
+	if (settings.usePositionResetMod) {
+		sigscanAndHookPositionResetAndGetPlayedPadID();
+	}
+}
+
+int Game::getPlayerPadID() {
+	if (!getPlayerPadIDPtr) {
+		if (!sigscanAndHookPositionResetAndGetPlayedPadID()) return 0;
+	}
+	if (getPlayerPadIDPtr) {
+		return getPlayerPadIDPtr();
+	} else {
+		return 0;
+	}
+}
+
+bool Game::sigscanTrainingStructProcessPlayRecordReset() {
+	if (attemptedToSigscanTrainingStructProcessPlayRecordReset) {
+		return trainingStructProcessPlayRecordReset != nullptr;
+	}
+	attemptedToSigscanTrainingStructProcessPlayRecordReset = true;
+	
+	uintptr_t middleOfFunction = sigscanOffset(GUILTY_GEAR_XRD_EXE,
+		"8b 1e 83 fb 05 74 0a b9 ff ff ff 7f 89 4e 10 eb 05",
+		nullptr, "MiddleOfTrainingStructProcessPlayRecordReset");
+	if (!middleOfFunction) return false;
+	
+	trainingStructProcessPlayRecordReset_t trainingStructProcessPlayRecordReset_temp =
+		(trainingStructProcessPlayRecordReset_t)sigscanBackwards16ByteAligned(
+		middleOfFunction, "6a ff 68 ?? ?? ?? ?? 64 a1 00 00 00 00", 0xb0);
+	
+	if (!trainingStructProcessPlayRecordReset_temp) return false;
+	
+	uintptr_t ifModePlayback = sigscanForward((uintptr_t)trainingStructProcessPlayRecordReset_temp,
+		"83 f8 03 75 ?? >e8 ?? ?? ?? ?? 85 c0 75 ??",
+		0x600);
+	
+	if (!ifModePlayback) return false;
+	
+	uintptr_t ifModeRecord = sigscanForward((uintptr_t)trainingStructProcessPlayRecordReset_temp,
+		"83 3d ?? ?? ?? ?? 00 0f 85 ?? ?? ?? ?? 8b 06 83 f8 02 75 ?? >e8 ?? ?? ?? ?? 85 c0 0f 85",
+		0x600);
+	if (!ifModeRecord) return false;
+	
+	std::vector<char> newBytes(4);
+	functionInIsPlayInsideProcessPlayRecordReset = (functionInIsPlayInsideProcessPlayRecordReset_t)followRelativeCall(ifModePlayback);
+	int callOffset = calculateRelativeCallOffset(ifModePlayback, (uintptr_t)functionInIsPlayInsideProcessPlayRecordResetHook);
+	memcpy(newBytes.data(), &callOffset, 4);
+	detouring.patchPlace(ifModePlayback + 1, newBytes);
+	
+	callOffset = calculateRelativeCallOffset(ifModeRecord, (uintptr_t)functionInIsPlayInsideProcessPlayRecordResetHook);
+	memcpy(newBytes.data(), &callOffset, 4);
+	detouring.patchPlace(ifModeRecord + 1, newBytes);
+	
+	trainingStructProcessPlayRecordReset = trainingStructProcessPlayRecordReset_temp;
+	return true;
+}
+
+void* Game::functionInIsPlayInsideProcessPlayRecordResetHook() {
+	void* result = game.functionInIsPlayInsideProcessPlayRecordReset();
+	if (result) return result;
+	if (game.doNotIncrementSlotInputsIndex) return (void*)(uintptr_t)1;
+	return nullptr;
 }

@@ -6,6 +6,7 @@
 #include "EndScene.h"
 #include "EntityList.h"
 #include "Settings.h"
+#include "NamePairManager.h"
 
 #define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
 
@@ -622,14 +623,8 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	} else {
 		isRamlethalSword = false;
 	}
-	if (fillName && animFrame == 1 && !ent.isRCFrozen() && isRamlethalSword && (
-				strcmp(ent.animationName(), "BitN6C") == 0
-				|| strcmp(ent.animationName(), "BitF6D") == 0
-				|| strcmp(ent.animationName(), "BitN2C_Bunri") == 0
-				|| strcmp(ent.animationName(), "BitF2D_Bunri") == 0
-				|| strcmp(ent.animationName(), "Bit4C") == 0
-				|| strcmp(ent.animationName(), "Bit4D") == 0
-			)) {
+	if (fillName && animFrame == 1 && !ent.isRCFrozen() && isRamlethalSword
+			&& animationIsNeedCountRamlethalSwordTime(ent.animationName())) {
 		ramlethalSwordElapsedTime = 0;
 		dontAdvanceRamlethalTime = true;
 	}
@@ -677,14 +672,8 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 	}
 	if (prevLifetimeCounter != lifeTimeCounter && lifeTimeCounter != 0 && !hitstop && !superflashInstigator) {
 		++elapsedTime;
-		if (!dontAdvanceRamlethalTime && isRamlethalSword && (
-			strcmp(ent.animationName(), "BitN6C") == 0
-			|| strcmp(ent.animationName(), "BitF6D") == 0
-			|| strcmp(ent.animationName(), "BitN2C_Bunri") == 0
-			|| strcmp(ent.animationName(), "BitF2D_Bunri") == 0
-			|| strcmp(ent.animationName(), "Bit4C") == 0
-			|| strcmp(ent.animationName(), "Bit4D") == 0
-		)) {
+		if (!dontAdvanceRamlethalTime && isRamlethalSword
+				&& animationIsNeedCountRamlethalSwordTime(ent.animationName())) {
 			++ramlethalSwordElapsedTime;
 		}
 	}
@@ -710,7 +699,7 @@ void ProjectileInfo::fill(Entity ent, Entity superflashInstigator, bool isCreate
 		if (team == 0 || team == 1) {
 			fillInMove();
 		}
-		determineMoveNameAndSlangName(&lastName, &lastSlangName);
+		determineMoveNameAndSlangName(&lastName);
 	}
 	
 	x = ptr.posX();
@@ -797,7 +786,7 @@ void PlayerInfo::copyTo(PlayerInfo& dest) {
 	memcpy(&dest, this, sizeof PlayerInfo);
 }
 
-void PrevStartupsInfo::add(short n, bool partOfStance, const char* name, const char* slangName) {
+void PrevStartupsInfo::add(short n, bool partOfStance, const NamePair* name) {
 	if (count >= _countof(startups)) {
 		initialSkip += startups[0].startup;
 		memmove(startups, startups + 1, sizeof startups - sizeof *startups);
@@ -808,7 +797,6 @@ void PrevStartupsInfo::add(short n, bool partOfStance, const char* name, const c
 	elem.partOfStance = partOfStance;
 	elem.startup = n;
 	elem.moveName = name;
-	elem.moveSlangName = slangName;
 	++count;
 }
 
@@ -830,9 +818,11 @@ void PrevStartupsInfo::print(char*& buf, size_t& bufSize, std::vector<NameDurati
 		const PrevStartupsInfoElem& elem = startups[i];
 		if (elems) {
 			elems->push_back({
-				settings.useSlangNames && elem.moveSlangName
-					? elem.moveSlangName
-					: elem.moveName,
+				!elem.moveName
+					? nullptr
+					: settings.useSlangNames && elem.moveName->slang
+						? elem.moveName->slang
+						: elem.moveName->name,
 				elem.startup
 			});
 		}
@@ -848,10 +838,11 @@ void PrevStartupsInfo::print(char*& buf, size_t& bufSize, std::vector<NameDurati
 }
 
 const char* PlayerInfo::getLastPerformedMoveName(bool disableSlang) const { 
-	if (!disableSlang && settings.useSlangNames && lastPerformedMoveSlangName) {
-		return lastPerformedMoveSlangName;
+	if (!lastPerformedMoveName) return nullptr;
+	if (!disableSlang && settings.useSlangNames && lastPerformedMoveName->slang) {
+		return lastPerformedMoveName->slang;
 	} else {
-		return lastPerformedMoveName;
+		return lastPerformedMoveName->name;
 	}
 }
 
@@ -2442,7 +2433,6 @@ void copyActiveDuringSuperfreezeProjectile(Frame& destFrame, const Frame& srcFra
 	if (destFrame.title.text == nullptr || srcFrame.hitConnected) {
 		destFrame.title = srcFrame.title;
 		destFrame.animName = srcFrame.animName;
-		destFrame.animSlangName = srcFrame.animSlangName;
 	}
 }
 
@@ -2509,8 +2499,7 @@ bool CombinedProjectileFramebar::canBeCombined(const Framebar& source, int sourc
 
 void CombinedProjectileFramebar::combineFramebar(int framebarPosition, Framebar& source, const ProjectileFramebar* dad) {
 	const ProjectileFramebar* lastConnectedSource = nullptr;
-	const char* lastConnectedAnimName = nullptr;
-	const char* lastConnectedAnimSlangName = nullptr;
+	const NamePair* lastConnectedAnimName = nullptr;
 	
 	int posNext = framebarPosition == _countof(Framebar::frames) - 1
 		? 0
@@ -2542,11 +2531,6 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, Framebar&
 			} else if (sWin) {
 				df.animName = sf.animName;
 			}
-			if (repeatLast && lastConnectedAnimSlangName) {
-				df.animSlangName = lastConnectedAnimSlangName;
-			} else if (sWin) {
-				df.animSlangName = sf.animSlangName;
-			}
 			if (sWin) {
 				df.type = sf.type;
 			}
@@ -2566,11 +2550,9 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, Framebar&
 			if (df.hitConnected) {
 				lastConnectedSource = sources[pos];
 				lastConnectedAnimName = df.animName;
-				lastConnectedAnimSlangName = df.animSlangName;
 			} else {
 				if (sources[pos] != lastConnectedSource) lastConnectedSource = nullptr;
 				if (df.animName != lastConnectedAnimName) lastConnectedAnimName = nullptr;
-				if (df.animSlangName != lastConnectedAnimSlangName) lastConnectedAnimSlangName = nullptr;
 			}
 			df.newHit |= sf.newHit;
 			df.rcSlowdown = max(df.rcSlowdown, sf.rcSlowdown);
@@ -2578,6 +2560,8 @@ void CombinedProjectileFramebar::combineFramebar(int framebarPosition, Framebar&
 			df.activeDuringSuperfreeze |= sf.activeDuringSuperfreeze;
 			df.powerup |= sf.powerup;
 			df.marker |= sf.marker;
+			df.charSpecific1 = sf.charSpecific1;
+			df.charSpecific2 = sf.charSpecific2;
 			df.title = sf.title;  // will get corrected in determineName
 			sf.next = df.next;
 			df.next = &sf;
@@ -2621,6 +2605,8 @@ void CombinedProjectileFramebar::determineName(int framebarPosition, bool isHits
 		: framebarPosition + 1;
 	int pos;
 	const FramebarTitle* title = nullptr;
+	bool charSpecific1 = false;
+	bool charSpecific2 = false;
 	
 	for (int i = 0; i < _countof(Framebar::frames); ++i) {
 		
@@ -2633,11 +2619,17 @@ void CombinedProjectileFramebar::determineName(int framebarPosition, bool isHits
 		if (source) {
 			const Framebar& framebar = isHitstop ? source->hitstop : source->main;
 			moveFramebarId = source->moveFramebarId;  // why do I need this on a combined framebar?
-			title = &framebar[pos].title;
+			const Frame& frame = framebar[pos];
+			title = &frame.title;
+			charSpecific1 = frame.charSpecific1;
+			charSpecific2 = frame.charSpecific2;
 		}
 		
 		if (title) {
-			main[pos].title = *title;
+			Frame& frame = main[pos];
+			frame.title = *title;
+			frame.charSpecific1 = charSpecific1;
+			frame.charSpecific2 = charSpecific2;
 		}
 	}
 }
@@ -2732,12 +2724,12 @@ bool PlayerCancelInfo::isCompletelyEmpty() const {
 	return cancels.gatlings.empty() && cancels.whiffCancels.empty() && !enableJumpCancel && !enableSpecialCancel && !enableSpecials;
 }
 
-void PlayerInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) {
-	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, idle, *this, name, slangName);
+void PlayerInfo::determineMoveNameAndSlangName(const NamePair** name) {
+	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, idle, *this, name);
 }
 
 static std::unique_ptr<PlayerInfo> dummyPlayer = nullptr;
-void PlayerInfo::determineMoveNameAndSlangName(Entity pawn, const char** name, const char** slangName) {
+void PlayerInfo::determineMoveNameAndSlangName(Entity pawn, const NamePair** name) {
 	MoveInfo moveInfo;
 	bool moveNonEmpty = moves.getInfo(moveInfo,
 		pawn.characterType(),
@@ -2754,7 +2746,7 @@ void PlayerInfo::determineMoveNameAndSlangName(Entity pawn, const char** name, c
 	if (moveNonEmpty) {
 		idle = moveInfo.isIdle(*dummyPlayer);
 	}
-	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, idle, *dummyPlayer, name, slangName);
+	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, idle, *dummyPlayer, name);
 }
 
 bool PlayerInfo::determineMove(Entity pawn, MoveInfo* destination) {
@@ -2767,29 +2759,27 @@ bool PlayerInfo::determineMove(Entity pawn, MoveInfo* destination) {
 	return moveNonEmpty;
 }
 
-void PlayerInfo::determineMoveNameAndSlangName(const MoveInfo* move, bool idle, PlayerInfo& pawn, const char** name, const char** slangName) {
+void PlayerInfo::determineMoveNameAndSlangName(const MoveInfo* move, bool idle, PlayerInfo& pawn, const NamePair** name) {
 	if (name) *name = nullptr;
-	if (slangName) *slangName = nullptr;
 	if (move) {
 		if (name) *name = move->getDisplayName(pawn);
-		if (slangName) *slangName = move->getDisplayNameSlang(pawn);
 	}
 	if (name && !*name) {
 		int moveIndex = pawn.pawn.currentMoveIndex();
 		if (moveIndex == -1) {
-			*name = (const char*)(pawn.pawn.bbscrCurrentFunc() + 4);
+			*name = NamePairManager::getPair((const char*)(pawn.pawn.bbscrCurrentFunc() + 4));
 		} else {
 			const AddedMoveData* actualMove = pawn.pawn.movesBase() + moveIndex;
-			*name = actualMove->name;
+			*name = NamePairManager::getPair(actualMove->name);
 		}
 	}
 }
 
-void ProjectileInfo::determineMoveNameAndSlangName(const char** name, const char** slangName) const {
-	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, ptr, name, slangName);
+void ProjectileInfo::determineMoveNameAndSlangName(const NamePair** name) const {
+	determineMoveNameAndSlangName(moveNonEmpty ? &move : nullptr, ptr, name);
 }
 
-void ProjectileInfo::determineMoveNameAndSlangName(Entity ptr, const char** name, const char** slangName, const char** framebarNameFull) {
+void ProjectileInfo::determineMoveNameAndSlangName(Entity ptr, const NamePair** name, const char** framebarNameFull) {
 	entityList.populate();
 	MoveInfo moveInfo;
 	bool moveNonEmpty = moves.getInfo(moveInfo,
@@ -2797,13 +2787,12 @@ void ProjectileInfo::determineMoveNameAndSlangName(Entity ptr, const char** name
 		nullptr,
 		ptr.animationName(),
 		true);
-	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, ptr, name, slangName);
+	determineMoveNameAndSlangName(moveNonEmpty ? &moveInfo : nullptr, ptr, name);
 	if (framebarNameFull) *framebarNameFull = moveInfo.framebarNameFull;
 }
 
-void ProjectileInfo::determineMoveNameAndSlangName(const MoveInfo* move, Entity ptr, const char** name, const char** slangName) {
+void ProjectileInfo::determineMoveNameAndSlangName(const MoveInfo* move, Entity ptr, const NamePair** name) {
 	if (name) *name = nullptr;
-	if (slangName) *slangName = nullptr;
 	if (move) {
 		if (name) {
 			if (move->framebarNameSelector && ptr) {
@@ -2814,19 +2803,10 @@ void ProjectileInfo::determineMoveNameAndSlangName(const MoveInfo* move, Entity 
 				*name = move->framebarName;
 			}
 		}
-		if (slangName) {
-			if (move->framebarSlangNameSelector && ptr) {
-				*slangName = move->framebarSlangNameSelector(ptr);
-			} else if (move->framebarSlangNameUncombined) {
-				*slangName = move->framebarSlangNameUncombined;
-			} else if (move->framebarSlangName) {
-				*slangName = move->framebarSlangName;
-			}
-		}
-	} else if (!ptr) {
+	} else if (!ptr || !ptr.bbscrCurrentFunc()) {
 		if (name) *name = nullptr;
-	} else {
-		if (name) *name = (const char*)(ptr.bbscrCurrentFunc() + 4);
+	} else if (name) {
+		*name = NamePairManager::getPair((const char*)(ptr.bbscrCurrentFunc() + 4));
 	}
 }
 
@@ -3112,6 +3092,7 @@ void PlayerInfo::getInputs(const InputRingBuffer* ringBuffer, bool isTheFirstFra
 void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
 	if (playervalSetterOffset) return;
 	BYTE* func = pawn.bbscrCurrentFunc();
+	if (!func) return;
 	BYTE* instr = moves.skipInstruction(func);
 	InstructionType type = moves.instructionType(instr);
 	bool found = false;
@@ -3164,7 +3145,7 @@ int PlayerInfo::getElpheltRifle_AimMem46() const {
 			}
 		}
 		
-		if (!aim) return 0;
+		if (!aim || !aim.bbscrCurrentFunc()) return 0;
 		
 		int mem45 = aim.mem45();
 		if (!mem45) return 0;
@@ -3286,7 +3267,7 @@ void PlayerInfo::bringComboElementToEnd(ComboRecipeElement* modifiedElement) {
 	}
 }
 
-bool PlayerInfo::lastComboHitEqualsProjectile(Entity ptr, int framebarId) const {
+bool PlayerInfo::lastComboHitEqualsProjectile(Entity ptr) const {
 	if (comboRecipe.empty()) return false;
 	const ComboRecipeElement& lastElem = comboRecipe.back();
 	return
@@ -3318,12 +3299,72 @@ GatlingOrWhiffCancelInfo::GatlingOrWhiffCancelInfo()
 		countersIncremented(false) { }
 
 bool Frame::operator==(const Frame& other) const {
-	
 	if (memcmp(this, &other, offsetof(Frame, next)) != 0) return false;
 	size_t startCmp = offsetof(Frame, title);
 	size_t endCmp = offsetof(Frame, type) + sizeof type;
 	if (memcmp((BYTE*)this + startCmp, (BYTE*)&other + startCmp, endCmp - startCmp) != 0) return false;
 	return activeDuringSuperfreeze == other.activeDuringSuperfreeze
 		&& powerup == other.powerup
-		&& marker == other.marker;
+		&& marker == other.marker
+		&& charSpecific1 == other.charSpecific1
+		&& charSpecific2 == other.charSpecific2;
+}
+
+void ComboRecipeElement::player_markAsNotWhiff(PlayerInfo& attacker, const DmgCalc& dmgCalc, DWORD aswEngTick) {
+	attacker.determineMoveNameAndSlangName(&name);
+	counterhit = dmgCalc.u.hit.counterHit;
+	otg = dmgCalc.isOtg;
+	whiffed = false;
+	timestamp = aswEngTick;
+	if (hitCount == 0) hitCount = 1;
+	attacker.bringComboElementToEnd(this);
+}
+
+void ComboRecipeElement::player_onFirstHitHappenedBeforeFrame3(PlayerInfo& attacker, const DmgCalc& dmgCalc, DWORD aswEngTick, bool isNormalThrow) {
+	
+	static const NamePair airThrow {
+		"Air Throw"
+	};
+	
+	static const NamePair groundThrow {
+		"Ground Throw"
+	};
+	
+	if (isNormalThrow) {
+		if (attacker.pawn.y() != 0 || attacker.pawn.ascending()) {
+			name = &airThrow;
+		} else {
+			name = &groundThrow;
+		}
+	} else {
+		attacker.determineMoveNameAndSlangName(&name);
+	}
+	counterhit = dmgCalc.u.hit.counterHit;
+	whiffed = false;
+	otg = dmgCalc.isOtg;
+	timestamp = aswEngTick;
+	framebarId = -1;
+	hitCount = 1;
+	attacker.lastPerformedMoveNameIsInComboRecipe = true;
+}
+
+const char PROJECTILES_STR[12] = "Projectiles";
+
+const NamePair PROJECTILES_NAMEPAIR {
+	"Projectiles"
+};
+
+bool animationIsNeedCountRamlethalSwordTime(const char* animName) {
+	DWORD hash = Entity::hashString(animName);
+	const char* cmpStr;
+	switch (hash) {
+		case 0x4fb10dc6: return cmpStr = "BitN6C"; break;
+		case 0x4faec33f: return cmpStr = "BitF6D"; break;
+		case 0x76812821: return cmpStr = "BitN2C_Bunri"; break;
+		case 0x9f2b250a: return cmpStr = "BitF2D_Bunri"; break;
+		case 0x7a0a94ce: return cmpStr = "Bit4C"; break;
+		case 0x7a0a94cf: return cmpStr = "Bit4D"; break;
+		default: return false;
+	}
+	return strcmp(animName, cmpStr) == 0;
 }

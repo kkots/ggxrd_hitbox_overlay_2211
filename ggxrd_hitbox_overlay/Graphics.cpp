@@ -83,7 +83,7 @@ static D3DXMATRIX identity;
 bool Graphics::onDllMain(HMODULE hInstance) {
 	bool error = false;
 	uintptr_t UpdateD3DDeviceFromViewportsCallPlace = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"83 79 40 00 74 05 e8 ?? ?? ?? ?? c2 04 00",
 		{ 6 },
 		&error, "UpdateD3DDeviceFromViewportsCallPlace");
@@ -91,7 +91,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	if (!UpdateD3DDeviceFromViewportsCallPlace) return false;
 	orig_UpdateD3DDeviceFromViewports = (UpdateD3DDeviceFromViewports_t)followRelativeCall(UpdateD3DDeviceFromViewportsCallPlace);
 	if (orig_UpdateD3DDeviceFromViewports) {
-		void(HookHelp::*UpdateD3DDeviceFromViewportsHookPtr)() = &HookHelp::UpdateD3DDeviceFromViewportsHook;
+		auto UpdateD3DDeviceFromViewportsHookPtr = &HookHelp::UpdateD3DDeviceFromViewportsHook;
 		if (!detouring.attach(
 			&(PVOID&)(orig_UpdateD3DDeviceFromViewports),
 			(PVOID&)UpdateD3DDeviceFromViewportsHookPtr,
@@ -117,7 +117,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 		}
 	}
 	if (orig_FSuspendRenderingThread) {
-		void(HookHelp::*FSuspendRenderingThreadHookPtr)(unsigned int InSuspendThreadFlags) = &HookHelp::FSuspendRenderingThreadHook;
+		auto FSuspendRenderingThreadHookPtr = &HookHelp::FSuspendRenderingThreadHook;
 		if (!detouring.attach(
 			&(PVOID&)(orig_FSuspendRenderingThread),
 			(PVOID&)FSuspendRenderingThreadHookPtr,
@@ -125,7 +125,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	} else return false;
 	
 	if (orig_FSuspendRenderingThreadDestructor) {
-		void(HookHelp::*FSuspendRenderingThreadDestructorHookPtr)() = &HookHelp::FSuspendRenderingThreadDestructorHook;
+		auto FSuspendRenderingThreadDestructorHookPtr = &HookHelp::FSuspendRenderingThreadDestructorHook;
 		if (!detouring.attach(
 			&(PVOID&)(orig_FSuspendRenderingThreadDestructor),
 			(PVOID&)FSuspendRenderingThreadDestructorHookPtr,
@@ -143,18 +143,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	
 	D3DXMatrixIdentity(&identity);
 	
-	renderStateValueHandlers[RenderStateType(D3DRS_STENCILENABLE)] = new RenderStateHandler(D3DRS_STENCILENABLE)(this);
-	renderStateValueHandlers[RenderStateType(D3DRS_ALPHABLENDENABLE)] = new RenderStateHandler(D3DRS_ALPHABLENDENABLE)(this);
-	renderStateValueHandlers[RenderStateType(PIXEL_SHADER)] = new RenderStateHandler(PIXEL_SHADER)(this);
-	renderStateValueHandlers[RenderStateType(TRANSFORM_MATRICES)] = new RenderStateHandler(TRANSFORM_MATRICES)(this);
-	renderStateValueHandlers[RenderStateType(D3DRS_SRCBLEND)] = new RenderStateHandler(D3DRS_SRCBLEND)(this);
-	renderStateValueHandlers[RenderStateType(D3DRS_DESTBLEND)] = new RenderStateHandler(D3DRS_DESTBLEND)(this);
-	renderStateValueHandlers[RenderStateType(D3DRS_SRCBLENDALPHA)] = new RenderStateHandler(D3DRS_SRCBLENDALPHA)(this);
-	renderStateValueHandlers[RenderStateType(D3DRS_DESTBLENDALPHA)] = new RenderStateHandler(D3DRS_DESTBLENDALPHA)(this);
-	renderStateValueHandlers[RenderStateType(VERTEX)] = new RenderStateHandler(VERTEX)(this);
-	renderStateValueHandlers[RenderStateType(TEXTURE)] = new RenderStateHandler(TEXTURE)(this);
-	
-	RenderStateValueStack* stack = requiredRenderState[SCREENSHOT_STAGE_NONE];
+	RenderStateValueArray* stack = requiredRenderState[SCREENSHOT_STAGE_NONE];
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_STENCILENABLE)] = RenderStateValue(D3DRS_STENCILENABLE, FALSE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(D3DRS_ALPHABLENDENABLE)] = RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE);
 	stack[RENDER_STATE_DRAWING_NOTHING][RenderStateType(PIXEL_SHADER)] = RenderStateValue(PIXEL_SHADER, NONE);
@@ -265,7 +254,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	}
 	
 	uintptr_t presentRectUsage = sigscanOffset(
-		"GuiltyGearXrd.exe",
+		GUILTY_GEAR_XRD_EXE,
 		"8b 15 ?? ?? ?? ?? a1 ?? ?? ?? ?? 89 5c 24 38 89 5c 24 34 3b d3 75 03 8b 47 10",
 		&error, "presentRectUsage");
 	if (presentRectUsage) {
@@ -2163,11 +2152,11 @@ void Graphics::takeScreenshotMain(IDirect3DDevice9* device, bool useSimpleVerion
 }
 
 void Graphics::advanceRenderState(RenderStateDrawingWhat newState) {
-	RenderStateValueStack& to = requiredRenderState[screenshotStage][newState];
+	RenderStateValueArray& to = requiredRenderState[screenshotStage][newState];
 	for (int i = 0; i < RENDER_STATE_TYPE_LAST; ++i) {
 		RenderStateValue newVal = to[i];
 		if (renderStateValues[i] != newVal) {
-			renderStateValueHandlers[i]->handleChange(newVal);
+			(this->*renderStateValueHandlers[i])(newVal);
 			renderStateValues[i] = newVal;
 		}
 	}
@@ -2287,14 +2276,22 @@ void Graphics::HookHelp::FSuspendRenderingThreadDestructorHook() {
 }
 
 IDirect3DTexture9* Graphics::getFramesTexturePart(IDirect3DDevice9* device, const PngResource& packedFramesTexture,
-		bool* failedToCreate, CComPtr<IDirect3DTexture9>& texture, CComPtr<IDirect3DTexture9>* systemTexturePtr) {
+		bool* failedToCreate, CComPtr<IDirect3DTexture9>& texture, CComPtr<IDirect3DTexture9>* systemTexturePtr,
+		DWORD* textureWidth, DWORD* textureHeight, bool textureContentChanged) {
 	if (*failedToCreate) return nullptr;
-	if (texture) return texture;
+	if (texture && *textureWidth == packedFramesTexture.width && *textureHeight == packedFramesTexture.height && !textureContentChanged) return texture;
 	CComPtr<IDirect3DTexture9> systemTexture;
 	if (!systemTexturePtr) {
 		systemTexturePtr = std::addressof(systemTexture);
 	}
+	if (*textureWidth != packedFramesTexture.width || *textureHeight != packedFramesTexture.height) {
+		texture = nullptr;
+		*systemTexturePtr = nullptr;  // wanted to preserve *systemTexturePtr when resizing goes from large size to smaller size, but alas, UpdateTexture has no RECT parameter
+	}
+	*textureWidth = packedFramesTexture.width;
+	*textureHeight = packedFramesTexture.height;
 	if (!*systemTexturePtr) {
+		// we had a heap corruption here when resizing the framebar, because we were recreating the 'texture', but not the '*systemTexturePtr'
 		if (FAILED(device->CreateTexture(packedFramesTexture.width, packedFramesTexture.height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &(*systemTexturePtr), NULL))) {
 			logwrap(fputs("CreateTexture failed\n", logfile));
 			*failedToCreate = true;
@@ -2778,85 +2775,85 @@ void Graphics::cpuPixelBlenderSimple(void* gameImage, const void* boxesImage, in
 }
 
 
-void Graphics::RenderStateHandler(D3DRS_STENCILENABLE)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(D3DRS_STENCILENABLE)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(D3DRS_STENCILENABLE, FALSE): graphics.device->SetRenderState(D3DRS_STENCILENABLE, FALSE); break;
-		case RenderStateValue(D3DRS_STENCILENABLE, TRUE): graphics.device->SetRenderState(D3DRS_STENCILENABLE, TRUE); break;
+		case RenderStateValue(D3DRS_STENCILENABLE, FALSE): device->SetRenderState(D3DRS_STENCILENABLE, FALSE); break;
+		case RenderStateValue(D3DRS_STENCILENABLE, TRUE): device->SetRenderState(D3DRS_STENCILENABLE, TRUE); break;
 	}
 }
-void Graphics::RenderStateHandler(D3DRS_ALPHABLENDENABLE)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(D3DRS_ALPHABLENDENABLE)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE): graphics.device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE); break;
-		case RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE): graphics.device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE); break;
+		case RenderStateValue(D3DRS_ALPHABLENDENABLE, FALSE): device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE); break;
+		case RenderStateValue(D3DRS_ALPHABLENDENABLE, TRUE): device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE); break;
 	}
 }
-void Graphics::RenderStateHandler(PIXEL_SHADER)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(PIXEL_SHADER)(RenderStateValue newValue) {
 	switch (newValue) {
 		case RenderStateValue(PIXEL_SHADER, CUSTOM_PIXEL_SHADER):
-			if (graphics.usePixelShader) {
-				graphics.preparePixelShader(graphics.device);
+			if (usePixelShader) {
+				preparePixelShader(device);
 			} else {
-				graphics.device->SetPixelShader(nullptr);
+				device->SetPixelShader(nullptr);
 			}
 			break;
 		case RenderStateValue(PIXEL_SHADER, NO_PIXEL_SHADER):
-			graphics.device->SetPixelShader(nullptr);
+			device->SetPixelShader(nullptr);
 			// texture will get reset to 0 by the RenderStateValue(TEXTURE) handler
 			break;
 	}
 }
-void Graphics::RenderStateHandler(TRANSFORM_MATRICES)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(TRANSFORM_MATRICES)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(TRANSFORM_MATRICES, 3D): graphics.setTransformMatrices3DProjection(graphics.device); break;
-		case RenderStateValue(TRANSFORM_MATRICES, 2D): graphics.setTransformMatricesPlain2D(graphics.device); break;
+		case RenderStateValue(TRANSFORM_MATRICES, 3D): setTransformMatrices3DProjection(device); break;
+		case RenderStateValue(TRANSFORM_MATRICES, 2D): setTransformMatricesPlain2D(device); break;
 	}
 }
-void Graphics::RenderStateHandler(D3DRS_SRCBLEND)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(D3DRS_SRCBLEND)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA): graphics.device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); break;
-		case RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE): graphics.device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE); break;
+		case RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA): device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); break;
+		case RenderStateValue(D3DRS_SRCBLEND, D3DBLEND_ONE): device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE); break;
 	}
 }
-void Graphics::RenderStateHandler(D3DRS_DESTBLEND)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(D3DRS_DESTBLEND)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO): graphics.device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO); break;
-		case RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA): graphics.device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA); break;
+		case RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_ZERO): device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO); break;
+		case RenderStateValue(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA): device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA); break;
 	}
 }
-void Graphics::RenderStateHandler(D3DRS_SRCBLENDALPHA)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(D3DRS_SRCBLENDALPHA)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE): graphics.device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE); break;
-		case RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO): graphics.device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO); break;
+		case RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE): device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE); break;
+		case RenderStateValue(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO): device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ZERO); break;
 	}
 }
-void Graphics::RenderStateHandler(D3DRS_DESTBLENDALPHA)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(D3DRS_DESTBLENDALPHA)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA): graphics.device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA); break;
-		case RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO): graphics.device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO); break;
+		case RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA): device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_INVSRCALPHA); break;
+		case RenderStateValue(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO): device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO); break;
 	}
 }
-void Graphics::RenderStateHandler(VERTEX)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(VERTEX)(RenderStateValue newValue) {
 	switch (newValue) {
 		case RenderStateValue(VERTEX, NONTEXTURE):
-			graphics.device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
-			graphics.device->SetStreamSource(0, graphics.vertexBuffer, 0, sizeof(Vertex));
+			device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
+			device->SetStreamSource(0, vertexBuffer, 0, sizeof(Vertex));
 			break;
 		case RenderStateValue(VERTEX, TEXTURE):
-			graphics.device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-			graphics.device->SetStreamSource(0, graphics.vertexBuffer, 0, sizeof(TextureVertex));
+			device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+			device->SetStreamSource(0, vertexBuffer, 0, sizeof(TextureVertex));
 			break;
 	}
 }
-void Graphics::RenderStateHandler(TEXTURE)::handleChange(RenderStateValue newValue) {
+void Graphics::RenderStateHandler(TEXTURE)(RenderStateValue newValue) {
 	switch (newValue) {
-		case RenderStateValue(TEXTURE, NONE): graphics.device->SetTexture(0, nullptr); break;
+		case RenderStateValue(TEXTURE, NONE): device->SetTexture(0, nullptr); break;
 		case RenderStateValue(TEXTURE, FOR_PIXEL_SHADER): break;  // just track the change
 		case RenderStateValue(TEXTURE, FONT):
 		case RenderStateValue(TEXTURE, ICONS):
-			graphics.device->SetTexture(0, newValue == RenderStateValue(TEXTURE, ICONS) ? graphics.iconsTexture : graphics.staticFontTexture);
-		    graphics.device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-		    graphics.device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-		    graphics.device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
+			device->SetTexture(0, newValue == RenderStateValue(TEXTURE, ICONS) ? iconsTexture : staticFontTexture);
+		    device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+		    device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		    device->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, 0);
 			break;
 	}
 }
@@ -3543,6 +3540,13 @@ void Graphics::fillInScreenSize(IDirect3DDevice9* device) {
 	ui.usePresentRect = *usePresentRectPtr != 0;
 	ui.presentRectW = *presentRectWPtr;
 	ui.presentRectH = *presentRectHPtr;
+	CComPtr<IDirect3DSwapChain9> swapChain;
+	if (SUCCEEDED(device->GetSwapChain(0, &swapChain))) {
+		D3DPRESENT_PARAMETERS presentParameters;
+		if (SUCCEEDED(swapChain->GetPresentParameters(&presentParameters))) {
+			fullscreen = !presentParameters.Windowed;
+		}
+	}
 }
 
 void Graphics::setFailedToCreatePixelShaderReason(const char* txt) {

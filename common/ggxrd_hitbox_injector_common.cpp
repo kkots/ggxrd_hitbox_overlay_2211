@@ -122,7 +122,7 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 	}
 	
 	if (!(*OBF_FUNC_DOUBLE(GetModuleInformation))(proc, hModule, &info, sizeof(info))) return false;
-	DWORD base = (DWORD)((uintptr_t)info.lpBaseOfDll & 0xFFFFFFFF);
+	DWORD base = (DWORD)(uintptr_t)info.lpBaseOfDll;
 	
 	OBF_IMPORT(kernel32, ReadProcessMemory);
 	
@@ -154,33 +154,33 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 		DWORD ImportAddressTableRVA;  // The RVA of the import address table. The contents of this table are identical to the contents of the import lookup table until the image is bound.
 	};
 	DWORD importsSize;  // in bytes
-	readDword((DWORD)((uintptr_t)&importsDataDirectoryRvaAndSize->size & 0xFFFFFFFF), importsSize)
+	readDword((DWORD)(uintptr_t)&importsDataDirectoryRvaAndSize->size, importsSize)
 	DWORD rva;
-	readDword((DWORD)((uintptr_t)&importsDataDirectoryRvaAndSize->rva & 0xFFFFFFFF), rva)
+	readDword((DWORD)(uintptr_t)&importsDataDirectoryRvaAndSize->rva, rva)
 	const ImageImportDescriptor* importPtrNext = (const ImageImportDescriptor*)(uintptr_t)(base + rva);
 	std::vector<char> foreignName;
 	size_t dllStrLen = strlen(dll);
 	for (; importsSize > 0; importsSize -= sizeof ImageImportDescriptor) {
 		const ImageImportDescriptor* importPtr = importPtrNext++;
 		DWORD ImportLookupTableRVA;
-		readDword((DWORD)((uintptr_t)&importPtr->ImportLookupTableRVA & 0xFFFFFFFF), ImportLookupTableRVA)
+		readDword((DWORD)(uintptr_t)&importPtr->ImportLookupTableRVA, ImportLookupTableRVA)
 		if (!ImportLookupTableRVA) break;
 		DWORD NameRva;
-		readDword((DWORD)((uintptr_t)&importPtr->NameRVA & 0xFFFFFFFF), NameRva)
+		readDword((DWORD)(uintptr_t)&importPtr->NameRVA, NameRva)
 		const char* dllName = (const char*)(uintptr_t)(base + NameRva);
 		
 		foreignName.resize(dllStrLen + 1);
 		if (!(*ReadProcessMemoryPtr)(proc, (LPCVOID)(dllName), foreignName.data(), foreignName.size(), &bytesRead)) {
 			WinError winErr;
 			outputObject << L"Failed to read memory from the process at memory location 0x" << std::hex
-				<< (DWORD)((uintptr_t)dllName & 0xFFFFFFFF) << std::dec
+				<< (DWORD)(uintptr_t)dllName << std::dec
 				<< L": " << winErr << L".\n";
 			return 0;
 		}
 		
 		if (_strnicmp(foreignName.data(), dll, dllStrLen) != 0 || foreignName[dllStrLen] != '\0') continue;
 		DWORD ImportAddressTableRVA;
-		readDword((DWORD)((uintptr_t)&importPtr->ImportAddressTableRVA & 0xFFFFFFFF), ImportAddressTableRVA);
+		readDword((DWORD)(uintptr_t)&importPtr->ImportAddressTableRVA, ImportAddressTableRVA);
 		DWORD* funcPtr = (DWORD*)(uintptr_t)(base +ImportAddressTableRVA);
 		DWORD* imageImportByNameRvaPtr = (DWORD*)(uintptr_t)(base + ImportLookupTableRVA);
 		struct ImageImportByName {
@@ -189,7 +189,7 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 		};
 		size_t functionStrLen = strlen(function);
 		do {
-			readDword((DWORD)((uintptr_t)imageImportByNameRvaPtr & 0xFFFFFFFF), rva)
+			readDword((DWORD)(uintptr_t)imageImportByNameRvaPtr, rva)
 			if (rva == 0) break;
 			const ImageImportByName* importByName = (const ImageImportByName*)(uintptr_t)(base + rva);
 			
@@ -197,12 +197,12 @@ DWORD findImportedFunction(HANDLE proc, const char* dll, const char* function) {
 			if (!(*ReadProcessMemoryPtr)(proc, (LPCVOID)(&importByName->name), foreignName.data(), foreignName.size(), &bytesRead)) {
 				WinError winErr;
 				outputObject << L"Failed to read memory from the process at memory location 0x" << std::hex
-					<< (DWORD)((uintptr_t)&importByName->name & 0xFFFFFFFF) << std::dec
+					<< (DWORD)(uintptr_t)&importByName->name << std::dec
 					<< L": " << winErr << L".\n";
 				return 0;
 			}
 			if (strncmp(foreignName.data(), function, functionStrLen) == 0 && foreignName[functionStrLen] == '\0') {
-				return (DWORD)((uintptr_t)funcPtr & 0xFFFFFFFF);
+				return (DWORD)(uintptr_t)funcPtr;
 			}
 			++funcPtr;
 			++imageImportByNameRvaPtr;
@@ -310,7 +310,7 @@ DWORD findModuleUsingEnumProcesses(DWORD procId, const wchar_t* name) {
 			}
 			
 			(*CloseHandlePtr)(proc);
-			return (DWORD)((uintptr_t)info.lpBaseOfDll & 0xFFFFFFFF);
+			return (DWORD)(uintptr_t)info.lpBaseOfDll;
 		}
 	}
 	(*CloseHandlePtr)(proc);
@@ -333,6 +333,7 @@ bool injectorTask(DWORD procId) {
 				if (buf) {
 					OBF_IMPORT(kernel32, VirtualFreeEx);
 					(*VirtualFreeExPtr)(proc, buf, 0, MEM_RELEASE);
+					outputObject << L"Freed memory: " << buf << std::endl;
 				}
 				(*CloseHandlePtr)(proc);
 			}
@@ -404,7 +405,7 @@ bool injectorTask(DWORD procId) {
 				// I know the address is always the same
 				// I'm trying to throw off sigscans
 				OBF_IMPORT(kernel32, FreeLibrary);
-				remoteFreeLibrary = (DWORD)((uintptr_t)&FreeLibrary & 0xFFFFFFFF);
+				remoteFreeLibrary = (DWORD)(uintptr_t)&FreeLibrary;
 				#endif
 				HANDLE newThread = (*CreateRemoteThreadPtr)(cleanup.proc, nullptr, 0,
 					(LPTHREAD_START_ROUTINE)(uintptr_t)remoteFreeLibrary, (LPVOID)(uintptr_t)modBaseAddr, 0, nullptr);
@@ -493,7 +494,7 @@ bool injectorTask(DWORD procId) {
 	}
 	#else
 	OBF_IMPORT(kernel32, LoadLibraryW);
-	remoteLoadLibrary = (DWORD)((uintptr_t)&LoadLibraryW & 0xFFFFFFFF);
+	remoteLoadLibrary = (DWORD)(uintptr_t)&LoadLibraryW;
 	#endif
 	HANDLE newThread = (*CreateRemoteThreadPtr)(cleanup.proc, nullptr, 0, (LPTHREAD_START_ROUTINE)(uintptr_t)remoteLoadLibrary, cleanup.buf, 0, nullptr);
 	if (newThread == INVALID_HANDLE_VALUE || newThread == 0) {

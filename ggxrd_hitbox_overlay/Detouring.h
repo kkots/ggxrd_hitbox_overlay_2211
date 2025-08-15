@@ -20,6 +20,7 @@ public:
 	void detachOnlyThisHook(const char* name);
 	void detachOnlyTheseHooks(const char** names, int namesCount);
 	bool patchPlace(uintptr_t addr, const std::vector<char>& newBytes);
+	inline bool isInTransaction() const { return beganTransaction; }
 private:
 	struct ThingToBeUndetouredAtTheEnd {
 		PVOID* ppPointer = nullptr;  // pointer to a pointer to the original function

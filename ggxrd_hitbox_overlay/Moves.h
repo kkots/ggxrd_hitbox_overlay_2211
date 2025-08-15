@@ -7,13 +7,32 @@
 struct PlayerInfo;
 struct ProjectileInfo;
 
+struct NamePair {
+	const char* name;
+	const char* slang;
+};
+
+#define assignName getPair<__COUNTER__>
+
+template<size_t lineNumber>
+inline const NamePair* getPair(const char* name, const char* slang = nullptr) {
+	static const NamePair myPair {
+		name,
+		slang
+	};
+	return &myPair;
+}
+
+extern const NamePair emptyNamePair;
+
 using sectionSeparator_t = bool(*)(PlayerInfo& ent);
 using sectionSeparatorProjectile_t = bool(*)(Entity ent);
 using isIdle_t = bool(*)(PlayerInfo& ent);
 using isDangerous_t = bool(*)(Entity ent);
-using selectFramebarName_t = const char*(*)(Entity ent);
+using selectFramebarName_t = const NamePair*(*)(Entity ent);
 using zatoHoldLevel_t = DWORD(*)(PlayerInfo& ent);
-using selectDisplayName_t = const char*(*)(PlayerInfo& ent);
+using selectDisplayName_t = const NamePair*(*)(PlayerInfo& ent);
+using selectPowerupExplanation_t = const char*(*)(PlayerInfo& ent);
 using projectileFunc_t = bool(*)(ProjectileInfo& projectile);
 
 enum GroundBlitzType {
@@ -49,8 +68,10 @@ struct MoveInfoProperty {
 		isDangerous_t isDangerousValue;
 		selectFramebarName_t selectFramebarNameValue;
 		selectDisplayName_t selectDisplayNameValue;
+		selectPowerupExplanation_t selectPowerupExplanationValue;
 		zatoHoldLevel_t zatoHoldLevelValue;
 		projectileFunc_t projectileFuncValue;
+		const NamePair* namePairValue;
 	} u;
 };
 
@@ -68,8 +89,7 @@ struct MoveInfoStored {
 	 We want to write X+possibly infinite frames as long as you're holding, where X is the startup of
 	 the availability of Mist Finer attack. */ \
 	MOVE_INFO_EXEC(bool, boolValue, usePlusSignInCombination, false) \
-	MOVE_INFO_EXEC(const char*, strValue, displayName, nullptr) \
-	MOVE_INFO_EXEC(const char*, strValue, slangName, nullptr) \
+	MOVE_INFO_EXEC(const NamePair*, namePairValue, displayName, nullptr) \
 	/* A section is what I call separating frames with a + sign in the startup, recovery or total display.
 	This is useful for some moves that can be held or charged, because if you treat the part of the
 	animation that starts after you release the button as separate and show it with a "frames from before
@@ -87,13 +107,10 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canBlock, nullptr) \
 	MOVE_INFO_EXEC(isDangerous_t, isDangerousValue, isDangerous, nullptr) \
 	MOVE_INFO_EXEC(int, intValue, framebarId, -1) \
-	MOVE_INFO_EXEC(const char*, strValue, framebarName, nullptr) \
-	MOVE_INFO_EXEC(const char*, strValue, framebarNameUncombined, nullptr) \
-	MOVE_INFO_EXEC(const char*, strValue, framebarSlangNameUncombined, nullptr) \
-	MOVE_INFO_EXEC(const char*, strValue, framebarSlangName, nullptr) \
+	MOVE_INFO_EXEC(const NamePair*, namePairValue, framebarName, nullptr) \
+	MOVE_INFO_EXEC(const NamePair*, namePairValue, framebarNameUncombined, nullptr) \
 	MOVE_INFO_EXEC(const char*, strValue, framebarNameFull, nullptr) \
 	MOVE_INFO_EXEC(selectFramebarName_t, selectFramebarNameValue, framebarNameSelector, nullptr) \
-	MOVE_INFO_EXEC(selectFramebarName_t, selectFramebarNameValue, framebarSlangNameSelector, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isInVariableStartupSection, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canStopHolding, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, aSectionBeforeVariableStartup, nullptr) \
@@ -129,13 +146,12 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(bool, boolValue, drawProjectileOriginPoint, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canYrcProjectile, nullptr) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
-	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displaySlangNameSelector, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, createdProjectile, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr) \
 	MOVE_INFO_EXEC(projectileFunc_t, projectileFuncValue, projectilePowerup, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
 	MOVE_INFO_EXEC(bool, boolValue, dontSkipGrab, false) \
-	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, powerupExplanation, nullptr) \
+	MOVE_INFO_EXEC(selectPowerupExplanation_t, selectPowerupExplanationValue, powerupExplanation, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, dontShowPowerupGraphic, nullptr) \
 	/* for combo recipe */ \
 	MOVE_INFO_EXEC(bool, boolValue, combineHitsFromDifferentProjectiles, false) \
@@ -158,14 +174,11 @@ struct MoveInfo {
 	inline MoveInfo() : isIdle(isIdle_default), canBlock(canBlock_default) { }
 	MoveInfo(const MoveInfoStored& info);
 	inline MoveInfo(CharacterType charType, const char* name, bool isEffect = false) : charType(charType), name(name), isEffect(isEffect) { }
-	const char* getFramebarName(Entity ent) const;
-	const char* getFramebarSlangName(Entity ent) const;
+	const NamePair* getFramebarName(Entity ent) const;
 	void addForceAddWhiffCancel(const char* name);
 	ForceAddedWhiffCancel* getForceAddWhiffCancel(int index) const;
-	inline const char* getDisplayName(PlayerInfo& ent) const { return displayNameSelector ? displayNameSelector(ent) : displayName; }
-	inline const char* getDisplayNameSlang(PlayerInfo& ent) const { return displaySlangNameSelector ? displaySlangNameSelector(ent) : slangName; }
-	inline const char* getDisplayNameNoScripts(PlayerInfo& ent) const { return displayName; }
-	inline const char* getDisplayNameSlangNoScripts(PlayerInfo& ent) const { return slangName; }
+	inline const NamePair* getDisplayName(PlayerInfo& ent) const { return displayNameSelector ? displayNameSelector(ent) : displayName; }
+	inline const NamePair* getDisplayNameNoScripts(PlayerInfo& ent) const { return displayName; }
 };
 class Moves {
 public:
@@ -287,7 +300,7 @@ public:
 	int elpheltRifleReloadPerfectEndMarkerOffset = 0;
 	int elpheltRifleRomanEndMarkerOffset = 0;
 	void fillInFindMarker(BYTE* func, int* result, const char* markerName);
-	const char* rifleAutoExit(PlayerInfo& player, int* offsetStorage, const char* moveName);
+	const NamePair* rifleAutoExit(PlayerInfo& player, int* offsetStorage, const NamePair* moveName);
 	int jackoAegisMax = 0;
 	std::vector<int> ghostAStateOffsets;
 	std::vector<int> ghostBStateOffsets;
@@ -378,7 +391,32 @@ public:
 	int elpheltRifleFirePowerupStartup = 0;
 	// funcStart must point to Rifle_Aim projectile state
 	void fillElpheltRifleFirePowerupStartup(BYTE* funcStart);
+	struct BedmanActivateReactivate {
+		int deactivate = 0;
+		int reactivate = 0;
+		inline void clear() { deactivate = 0; reactivate = 0; }
+	};
+	BedmanActivateReactivate bedmanBoomerangASeal;  // animation frames before the event
+	BedmanActivateReactivate bedmanBoomerangAAirSeal;  // animation frame before the event
+	BedmanActivateReactivate bedmanBoomerangBSeal;  // animation frame before the event
+	BedmanActivateReactivate bedmanBoomerangBAirSeal;  // animation frame before the event
+	BedmanActivateReactivate bedmanTaskBSeal;  // animation frame before the event
+	BedmanActivateReactivate bedmanAirTaskBSeal;  // animation frame before the event
+	BedmanActivateReactivate bedmanGroundTaskCSealOffset;  // byte offset to the sprite instruction after the event
+	BedmanActivateReactivate bedmanAirTaskCSeal;  // animation frame before the event
+	void fillBedmanSealFrames(BYTE* funcStart, BedmanActivateReactivate* storage);
+	void fillBedmanGroundTaskCSealOffsets(BYTE* funcStart);
+	int bedmanDejavuAStartup = 0;
+	int bedmanDejavuBStartup = 0;
+	int bedmanDejavuCStartup = 0;
+	int bedmanDejavuDStartup = 0;
+	void fillBedmanDejavuStartup(BYTE* funcStart, int* startup);
 private:
+	friend struct MoveInfo;
+	bool justCountingMoves = false;
+	int forceAddWhiffCancelsTotalCount = 0;
+	int movesCount = 0;
+	void addMoves();
 	struct MyKey {
 		CharacterType charType = (CharacterType)-1;
 		const char* name = nullptr;

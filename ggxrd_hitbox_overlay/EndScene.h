@@ -47,6 +47,7 @@ using onCmnActXGuardLoop_t = void(__thiscall*)(void* pawn, BBScrEvent signal, in
 using drawTrainingHudInputHistory_t = void(__thiscall*)(void* trainingHud, unsigned int layer);
 using hitDetection_t = BOOL(__thiscall*)(void* attacker, void* defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
 using checkFirePerFrameUponsWrapper_t = void(__thiscall*)(void* ent);
+using Pawn_ArcadeMode_IsBoss_t = BOOL(__thiscall*)(void* pawn);
 
 struct FVector2D {
 	float X;
@@ -345,6 +346,7 @@ public:
 	void clearInputHistory(bool resetClearTime = false);
 	void onHitDetectionAttackerParticipate(Entity ent);
 	bool needUpdateGraphicsFramebarTexture = false;
+	bool onPlayerIsBossChanged();
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -378,6 +380,7 @@ private:
 		void drawTrainingHudInputHistoryHook(unsigned int layer);
 		void checkFirePerFrameUponsWrapperHook();
 		void speedYReset(int speedY);
+		BOOL Pawn_ArcadeMode_IsBossHook();
 	};
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
@@ -405,6 +408,7 @@ private:
 	void onCmnActXGuardLoopHook(Entity pawn, BBScrEvent signal, int type, int thisIs0);
 	void checkFirePerFrameUponsWrapperHook(Entity pawn);
 	void speedYReset(Entity pawn, int speedY);
+	BOOL Pawn_ArcadeMode_IsBossHook(Entity pawn);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
@@ -567,7 +571,7 @@ private:
 	bool neverIgnoreHitstop = false;
 	bool combineProjectileFramebarsWhenPossible = false;
 	bool eachProjectileOnSeparateFramebar = false;
-	bool condenseIntoOneProjectileMiniFramebar = false;
+	bool condenseIntoOneProjectileFramebar = false;
 	int framesCount = -1;
 	int storedFramesCount = -1;
 	int scrollXInFrames = 0;
@@ -603,9 +607,9 @@ private:
 	bool shouldIgnoreEnterKey() const;
 	void analyzeGunflame(PlayerInfo& player, bool* wholeGunflameDisappears,
 		bool* firstWaveEntirelyDisappears, bool* firstWaveDisappearsDuringItsActiveFrames);
-	bool hasOneLinkedProjectileOfType(PlayerInfo& player, const char* name);
-	bool hasOneProjectileOfTypeStrNCmp(PlayerInfo& player, const char* name);
-	bool hasOneProjectileOfType(PlayerInfo& player, const char* name);
+	bool hasLinkedProjectileOfType(PlayerInfo& player, const char* name);
+	bool hasAnyProjectileOfTypeStrNCmp(PlayerInfo& player, const char* name);
+	bool hasAnyProjectileOfType(PlayerInfo& player, const char* name);
 	// this function is useless if you can have multiple of these projectiles and some can be dangerous while others aren't
 	bool hasProjectileOfType(PlayerInfo& player, const char* name);
 	// this function is useless if you can have multiple of these projectiles and some can be dangerous while others aren't
@@ -673,6 +677,13 @@ private:
 	static bool isBlitzPostHitstopFrame_insideTick(const PlayerInfo& player);
 	static bool isBlitzPostHitstopFrame_outsideTick(const PlayerInfo& player);
 	void fillInBedmanSealInfo(PlayerInfo& player);
+	void testDelay();
+	uintptr_t getAccessedValueJumptable = 0;
+	Pawn_ArcadeMode_IsBoss_t orig_Pawn_ArcadeMode_IsBoss = nullptr;
+	bool hookPawnArcadeModeIsBoss();
+	bool Pawn_ArcadeMode_IsBossHooked = false;
+	void handleMarteliForpeliSetting(PlayerInfo& player);
+	bool hasHitstunTiedVenomBall(PlayerInfo& player);
 };
 
 extern EndScene endScene;

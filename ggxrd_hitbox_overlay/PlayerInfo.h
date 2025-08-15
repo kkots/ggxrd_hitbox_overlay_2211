@@ -86,18 +86,36 @@ struct InoInfo {
 };
 
 struct BedmanInfo {
-	unsigned short sealA:14;
-	unsigned short hasTaskA:1;
-	unsigned short hasTaskAApostrophe:1;
-	unsigned short sealAMax:14;
-	unsigned short hasDejavuAGhost:1;
-	unsigned short hasDejavuABoomerang:1;
-	unsigned short sealB;
-	unsigned short sealBMax;
-	unsigned short sealC;
-	unsigned short sealCMax;
-	unsigned short sealD;
-	unsigned short sealDMax;
+	unsigned short sealA:13;  // Task A Seal
+	unsigned short hasBoomerangAHead:1;  // Task A Boomerang Head (non-ghost) present
+	unsigned short hasBoomerangBHead:1;  // Task A' Boomerang Head (non-ghost) present
+	unsigned short hasDejavuAGhost:1;  // Task A Ghost
+	unsigned short sealAMax:13;  // Task A Seal
+	unsigned short hasDejavuBGhost:1;  // Task A' Ghost
+	unsigned short dejavuAGhostAlreadyCreatedBoomerang:1;  // Task A Ghost already created the Ghost Boomerang
+	unsigned short dejavuBGhostAlreadyCreatedBoomerang:1;  // Task A' Ghost already created the Ghost Boomerang
+	unsigned short sealB:13;  // Task A' Seal
+	unsigned short hasDejavuBoomerangA:1;  // Task A Ghost Boomerang Head
+	unsigned short hasDejavuBoomerangB:1;  // Task A' Ghost Boomerang Head
+	unsigned short sealAInvulnerable:1;  // Task A Seal
+	unsigned short sealBMax:13;  // Task A' Seal
+	unsigned short sealBInvulnerable:1;  // Task A' Seal
+	unsigned short sealCInvulnerable:1;  // Task B Seal
+	unsigned short sealDInvulnerable:1;  // Task C Seal
+	unsigned short sealC:13;  // Task B Seal
+	unsigned short hasDejavuCGhost:1;  // Task B Ghost
+	unsigned short sealAReceivedSignal5:1;  // Task A Seal
+	unsigned short sealBReceivedSignal5:1;  // Task A' Seal
+	unsigned short sealCMax:13;  // Task B Seal
+	unsigned short sealCReceivedSignal5:1;  // Task B Seal
+	unsigned short sealDReceivedSignal5:1;  // Task C Seal
+	unsigned short hasDejavuDGhost:1;  // Task C Ghost
+	unsigned short sealD:13;  // Task C Seal
+	unsigned short dejavuCGhostInRecovery:1;  // Task B Ghost
+	unsigned short dejavuDGhostInRecovery:1;  // Task B Ghost
+	unsigned short hasShockwaves:1;  // Task C and Deja Vu Task C Shockwaves
+	unsigned short sealDMax:15;  // Task C Seal
+	unsigned short hasOkkake:1;  // Sheep Super's Sheep
 };
 
 struct RamlethalInfo {
@@ -107,6 +125,14 @@ struct RamlethalInfo {
 	unsigned char hSwordTimeMax;
 	const char* sSwordSubAnim;
 	const char* hSwordSubAnim;
+	bool sSwordBlockstunLinked:1;
+	bool sSwordFallOnHitstun:1;
+	bool sSwordRecoilOnHitstun:1;
+	bool sSwordInvulnerable:1;
+	bool hSwordBlockstunLinked:1;
+	bool hSwordFallOnHitstun:1;
+	bool hSwordRecoilOnHitstun:1;
+	bool hSwordInvulnerable:1;
 };
 
 struct ElpheltInfo {
@@ -167,7 +193,11 @@ struct AxlInfo {
 };
 
 struct VenomInfo {
-	bool hasQV;
+	bool hasQV:1;
+	bool hasQVYRCOnly:1;
+	bool hasHCarcassBall:1;
+	bool performingQV:1;
+	bool performingQVHitOnly:1;
 };
 
 struct SlayerInfo {
@@ -177,8 +207,7 @@ struct SlayerInfo {
 };
 
 struct GatlingOrWhiffCancelInfo {
-	const char* name;
-	const char* slangName;
+	const NamePair* name;
 	const char* replacementInputs;
 	const AddedMoveData* move;
 	int iterationIndex;
@@ -338,6 +367,14 @@ struct FrameCancelInfo {
 		}
 		return dest.count == elemsToCompare
 			&& memcmp(dest.elems, src.elems, sizeof (GatlingOrWhiffCancelInfo) * elemsToCompare) == 0;
+	}
+	inline void onHit() {
+		for (GatlingOrWhiffCancelInfo& frameCancel : gatlings) {
+			frameCancel.framesBeenAvailableForNotIncludingHitstopFreeze = 0;
+		}
+		for (GatlingOrWhiffCancelInfo& frameCancel : whiffCancels) {
+			frameCancel.framesBeenAvailableForNotIncludingHitstopFreeze = 0;
+		}
 	}
 };
 
@@ -618,10 +655,8 @@ struct FrameStopInfo {
 void printFameStop(char* buf, size_t bufSize, const FrameStopInfo* stopInfo, int hitstop, int hitstopMax, bool lastBlockWasIB, bool lastBlockWasFD);
 
 struct FramebarTitle {
-	const char* text = nullptr;  // non-slang short title
-	const char* slang = nullptr;  // slang short title
-	const char* uncombined = nullptr;  // short title for 'display each projectile on a separate framebar'
-	const char* slangUncombined = nullptr;  // short slang title for 'display each projectile on a separate framebar'
+	const NamePair* text = nullptr;  // short title
+	const NamePair* uncombined = nullptr;  // short title for 'display each projectile on a separate framebar'
 	const char* full = nullptr;  // tooltip text (full title) for when mouse is hovered over the short title
 };
 
@@ -632,8 +667,7 @@ struct FrameBase {
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector require special handling in the clear() method.
 struct Frame : public FrameBase {
-	const char* animName;
-	const char* animSlangName;
+	const NamePair* animName;
 	Frame* next;
 	FramebarTitle title;  // title is stored in a frame, instead of (whole) framebar, so that titles could change as we horizontally scroll the framebar through its history
 	unsigned char hitstop;  // because of danger time can go up to 99
@@ -648,6 +682,8 @@ struct Frame : public FrameBase {
 	bool activeDuringSuperfreeze:1;
 	bool powerup:1;
 	bool marker:1;  // either strike invulnerability marker for Jack-O houses, or super armor marker for Dizzy D-Fish
+	bool charSpecific1:1;  // for Ramlethal: is S Sword
+	bool charSpecific2:1;  // for Ramlethal: is H Sword
 	bool accountedFor:1;  // used by tooltip drawing
 	bool operator==(const Frame& other) const;
 	inline bool operator!=(const Frame& other) const { return !(*this == other); }
@@ -656,8 +692,7 @@ struct Frame : public FrameBase {
 // This struct is initialized by doing memset to 0. Make sure every child struct is ok to memset to 0.
 // This means that types like std::vector require special handling in the clear() method.
 struct PlayerFrame : public FrameBase {
-	const char* animName;
-	const char* animSlangName;
+	const NamePair* animName;
 	std::shared_ptr<FrameCancelInfo<30>> cancels;
 	std::vector<Input> inputs;
 	const char* powerupExplanation;
@@ -1107,10 +1142,12 @@ struct ActiveDataArray {
 };
 
 struct PrevStartupsInfoElem {
-	const char* moveName = nullptr;
-	const char* moveSlangName = nullptr;
+	const NamePair* moveName = nullptr;
 	bool partOfStance = false;
-	inline const char* selectName(bool slang) const { return slang && moveSlangName ? moveSlangName : moveName; }
+	inline const char* selectName(bool slang) const {
+		if (!moveName) return nullptr;
+		return slang && moveName->slang ? moveName->slang : moveName->name;
+	}
 	short startup = 0;
 };
 
@@ -1128,7 +1165,7 @@ struct PrevStartupsInfo {
 		return startups[index];
 	}
 	inline void clear() { count = 0; initialSkip = 0; }
-	void add(short n, bool partOfStance, const char* name, const char* slangName);
+	void add(short n, bool partOfStance, const NamePair* name);
 	void print(char*& buf, size_t& bufSize, std::vector<NameDuration>* elems = nullptr) const;
 	void printNames(char*& buf, size_t& bufSize, const char** lastNames, int lastNamesCount,
 					bool slang, bool useMultiplicationSign = true,
@@ -1231,13 +1268,13 @@ struct ProjectileInfo {
 	ActiveDataArray actives;
 	MoveInfo move {};
 	PrevStartupsInfo prevStartups { 0 };
-	const char* lastName = nullptr;
-	const char* lastSlangName = nullptr;
+	const NamePair* lastName = nullptr;
 	SpriteFrameInfo sprite;
 	int framebarId = -1;
 	char creatorName[32] { 0 };
 	Entity creator { nullptr };
 	FramebarTitle framebarTitle { nullptr };
+	int alreadyIncludedInComboRecipeTime = 0;
 	char rcSlowedDownCounter = 0;
 	char rcSlowedDownMax = 0;
 	char animName[32] { 0 };
@@ -1270,9 +1307,9 @@ struct ProjectileInfo {
 	void fill(Entity ent, Entity superflashInstigator, bool isCreated, bool fillName = true);
 	void printStartup(char* buf, size_t bufSize);
 	void printTotal(char* buf, size_t bufSize);
-	void determineMoveNameAndSlangName(const char** name, const char** slangName) const;
-	static void determineMoveNameAndSlangName(const MoveInfo* move, Entity ptr, const char** name, const char** slangName);
-	static void determineMoveNameAndSlangName(Entity ptr, const char** name, const char** slangName, const char** framebarNameFull = nullptr);
+	void determineMoveNameAndSlangName(const NamePair** name) const;
+	static void determineMoveNameAndSlangName(const MoveInfo* move, Entity ptr, const NamePair** name);
+	static void determineMoveNameAndSlangName(Entity ptr, const NamePair** name, const char** framebarNameFull = nullptr);
 	void fillInMove();
 	bool hitConnectedForFramebar() const;
 };
@@ -1296,8 +1333,7 @@ struct DmgCalc {
 	DWORD aswEngineCounter = 0;
 	HitResult hitResult = HIT_RESULT_NONE;
 	BlockType blockType = BLOCK_TYPE_NORMAL;
-	const char* attackName = nullptr;
-	const char* attackSlangName = nullptr;
+	const NamePair* attackName = nullptr;
 	const char* nameFull = nullptr;
 	bool isProjectile = false;
 	GuardType guardType = GUARD_TYPE_ANY;
@@ -1421,12 +1457,12 @@ struct FrameAdvantageForFramebarResult {
 struct ComboRecipeElement {
 	char stateName[32] { '\0' };  // for projectiles
 	char trialName[32] { '\0' };  // for projectiles
-	const char* name = nullptr;
-	const char* slangName = nullptr;
+	const NamePair* name = nullptr;
 	int dashDuration = 0;  // also used for walk forward and walk backward
 	DWORD timestamp = 0;  // might mean either earliest hit or the time the move was initiated
 	int framebarId = 0;  // for projectiles
 	int cancelDelayedBy = 0;
+	int hitCount = 0;
 	bool whiffed:1;
 	bool counterhit:1;
 	bool otg:1;
@@ -1439,6 +1475,8 @@ struct ComboRecipeElement {
 	bool isJump:1;
 	bool isSuperJumpInstall:1;
 	ComboRecipeElement();
+	void player_markAsNotWhiff(PlayerInfo& attacker, const DmgCalc& dmgCalc, DWORD aswEngTick);
+	void player_onFirstHitHappenedBeforeFrame3(PlayerInfo& attacker, const DmgCalc& dmgCalc, DWORD aswEngTick, bool isNormalThrow);
 };
 
 // This struct is cleared using memset to 0. If you add complex elements, add them into the clear() method as well
@@ -1476,6 +1514,7 @@ struct PlayerInfo {
 	int burstGainLastCombo = 0;
 	int tensionGainMaxCombo = 0;
 	int burstGainMaxCombo = 0;
+	DWORD burstGainCounter = 0;
 	int stunCombo = 0;
 	
 	int x = 0;
@@ -1608,8 +1647,7 @@ struct PlayerInfo {
 	int totalFD = 0;  // number of frames for which you were holding FD
 	
 	PrevStartupsInfo prevStartups { 0 };  // startups of moves that you whiff cancelled from
-	const char* lastPerformedMoveName = nullptr;
-	const char* lastPerformedMoveSlangName = nullptr;
+	const NamePair* lastPerformedMoveName = nullptr;
 	
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move
@@ -1887,7 +1925,7 @@ struct PlayerInfo {
 	bool wasEnableThrow:1;
 	bool wasAttackCollidedSoCanCancelNow:1;
 	bool wasOtg:1;
-	bool wasCantAirdash:1;
+	bool wasCantAirdash:1;  // for Bedman means Hover
 	bool obtainedForceDisableFlags:1;
 	
 	bool enableBlock:1;  // this holds the raw value of ent.enableBlock() flag
@@ -1951,6 +1989,14 @@ struct PlayerInfo {
 	bool ramlethalHSwordTimerActive:1;
 	bool ramlethalSSwordKowareSonoba:1;
 	bool ramlethalHSwordKowareSonoba:1;
+	bool ramlethalSSwordBlockstunLinked:1;
+	bool ramlethalSSwordFallOnHitstun:1;
+	bool ramlethalSSwordRecoilOnHitstun:1;
+	bool ramlethalSSwordInvulnerable:1;
+	bool ramlethalHSwordBlockstunLinked:1;
+	bool ramlethalHSwordFallOnHitstun:1;
+	bool ramlethalHSwordRecoilOnHitstun:1;
+	bool ramlethalHSwordInvulnerable:1;
 	bool johnnyMistFinerBuffed:1;
 	bool johnnyMistFinerBuffedOnThisFrame:1;
 	bool dizzySpearIsIce:1;
@@ -1986,6 +2032,7 @@ struct PlayerInfo {
 	bool lostSpeedYOnThisFrame:1;
 	bool wasAirborneOnAnimChange:1;
 	bool elpheltFirstWasPlayerval1Measurement:1;
+	bool ramlethalForpeliMarteliDisabled:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };
@@ -2026,9 +2073,9 @@ struct PlayerInfo {
 	MilliaInfo canProgramSecretGarden() const;
 	void appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel);
 	void appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel);
-	void determineMoveNameAndSlangName(const char** name, const char** slangName);
-	static void determineMoveNameAndSlangName(const MoveInfo* move, bool idle, PlayerInfo& pawn, const char** name, const char** slangName);
-	static void determineMoveNameAndSlangName(Entity pawn, const char** name, const char** slangName);
+	void determineMoveNameAndSlangName(const NamePair** name);
+	static void determineMoveNameAndSlangName(const MoveInfo* move, bool idle, PlayerInfo& pawn, const NamePair** name);
+	static void determineMoveNameAndSlangName(Entity pawn, const NamePair** name);
 	static bool determineMove(Entity pawn, MoveInfo* destination);
 	void onAnimReset();
 	void removeNonStancePrevStartups();
@@ -2041,5 +2088,11 @@ struct PlayerInfo {
 	void bringComboElementToEnd(ComboRecipeElement* modifiedElement);
 	ComboRecipeElement* findLastNonProjectileComboElement();
 	ComboRecipeElement* findLastDash();
-	bool lastComboHitEqualsProjectile(Entity ptr, int framebarId) const;
+	bool lastComboHitEqualsProjectile(Entity ptr) const;
 };
+
+extern const char PROJECTILES_STR[12];
+
+extern const NamePair PROJECTILES_NAMEPAIR;
+
+bool animationIsNeedCountRamlethalSwordTime(const char* animName);

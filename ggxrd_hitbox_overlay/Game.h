@@ -142,6 +142,9 @@ using roundInit_t = void(__thiscall*)(void* thisArg);
 using isGameModeNetwork_t = BOOL(__cdecl*)();
 using drawTextureProbably_t = void(__cdecl*)(void* params);
 using drawIcon_t = int (__cdecl*)(int iconIndex, DrawTextWithIconsParams* params, BOOL dontCommit);
+using functionAfterSettingDelay_t = void (__thiscall*)(void* thisArg, int param1);
+using trainingStructProcessPlayRecordReset_t = void (__thiscall*)(void* thisArg);
+using functionInIsPlayInsideProcessPlayRecordReset_t = void* (__cdecl*)();
 
 class Game {
 public:
@@ -159,6 +162,7 @@ public:
 	DummyRecordingMode getDummyRecordingMode() const;
 	int getDangerTime() const;
 	bool bothPlayersHuman() const;
+	void updateOnlineDelay();
 	bool freezeGame = false;
 	bool slowmoGame = false;
 	bool allowNextFrame = false;
@@ -186,8 +190,8 @@ public:
 	int getMatchTimer() const;  // decrements at the start of logic tick
 	char** gameDataPtr = nullptr;  // REDGameCommon
 	BYTE* getStaticFont() const;
+	int getPlayerPadID();
 	setPositionResetType_t orig_setPositionResetType = nullptr;
-	getPlayerPadID_t getPlayerPadID = nullptr;
 	roundInit_t orig_roundInit = nullptr;
 	// clears training HUD's input history
 	void clearInputHistory();
@@ -209,7 +213,9 @@ public:
 	uintptr_t drawRankInLobbySearchMemberList = 0;
 	uintptr_t drawRankInLobbyMemberList_NonCircle = 0;
 	uintptr_t drawRankInLobbyMemberList_Circle = 0;
+	void onUsePositionResetChanged();
 private:
+	getPlayerPadID_t getPlayerPadIDPtr = nullptr;
 	class HookHelp {
 		friend class Game;
 		void updateBattleOfflineVerHook(int param1);
@@ -236,10 +242,10 @@ private:
 	TickActors_FDeferredTickList_FGlobalActorIterator_t orig_TickActors_FDeferredTickList_FGlobalActorIterator = nullptr;
 	updateBattleOfflineVer_t orig_updateBattleOfflineVer = nullptr;
 	TickActorComponents_t orig_TickActorComponents = nullptr;
-	char** playerSideNetworkHolder = nullptr;
+	char** netplayStruct = nullptr;
 	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;
-	bool ignoreAllCallsButEarlier = false;
+	bool ignoreAllCallsButEvenEarlier = false;
 	uintptr_t burstOffset = 0;
 	destroyAswEngine_t orig_destroyAswEngine = nullptr;
 	UWorld_Tick_t orig_UWorld_Tick = nullptr;
@@ -252,8 +258,13 @@ private:
 	int IsPausedCallCount = 0;
 	UWorld_IsPaused_t orig_UWorld_IsPaused = nullptr;
 	BYTE** inputsHolder = nullptr;
-	bool recordPressed[4] { false };
+	enum PlayRecordEnum {
+		PlayRecordEnum_Play,
+		PlayRecordEnum_Record
+	} isPlayRecord = PlayRecordEnum_Play;
+	bool playRecordFired = false;
 	bool playPressed[4] { false };
+	bool recordPressed[4] { false };
 	bool resetPressed[4] { false };
 	bool unknownPressed[4] { false };
 	bool buttonPressed(int padInd, bool isMenu, DWORD code);
@@ -261,12 +272,15 @@ private:
 	bool buttonHeld(int padInd, bool isMenu, DWORD code);
 	DWORD getHeldButtons(int padInd, bool isMenu);
 	void setButtonPressed(int padInd, bool isMenu, DWORD code);
+	void setButtonNotPressed(int padInd, bool isMenu, DWORD code);
+	void setButtonPressedNotPressed(int padInd, bool isMenu, DWORD code, bool isPressed);
 	void onNeedRememberPress(int padInd, bool* pressed, ButtonCodeMenu code);
 	void onNeedRememberPress(int padInd, bool* pressed, ButtonCode code);
 	void onNeedRememberPress(int padInd, bool* pressed, bool isMenu, DWORD code);
-	void onNeedForcePress(int padInd, bool* pressed, ButtonCodeMenu code);
-	void onNeedForcePress(int padInd, bool* pressed, ButtonCode code);
-	void onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code);
+	bool onNeedForcePress(int padInd, bool* pressed, ButtonCodeMenu code);
+	bool onNeedForcePress(int padInd, bool* pressed, ButtonCode code);
+	bool onNeedForcePress(int padInd, bool* pressed, bool isMenu, DWORD code);
+	inline int getMainQuadrant() const { if (*gameDataPtr) return 0; return *(int*)(*gameDataPtr + 0x140); }
 	drawJackoHouseHp_t drawJackoHouseHp = nullptr;
 	BOOL* postEffectOnPtr = nullptr;
 	getRiscForUI_t orig_getRiscForUI_Background = nullptr;
@@ -288,6 +302,30 @@ private:
 	static void hiddenRankDrawTextureProbably(void* params);
 	void patchDrawIcon(uintptr_t addr);
 	void patchDrawTextureProbably(uintptr_t addr);
+	struct OnlineDelaySettings {
+		bool firstUseEver = true;
+		bool fullscreen = false;
+		int delayToSet = 1;
+		inline bool operator==(const OnlineDelaySettings& other) const {
+			return firstUseEver == other.firstUseEver
+				&& fullscreen == other.fullscreen
+				&& delayToSet == other.delayToSet;
+		}
+		inline bool operator!=(const OnlineDelaySettings& other) const {
+			return !(*this == other);
+		}
+	} onlineDelayLastSet;
+	bool sigscanAndHookPositionResetAndGetPlayedPadID();
+	bool attemptedToSigscanPositionReset = false;
+	bool attemptedToHookPositionReset = false;
+	bool sigscanTrainingStructProcessPlayRecordReset();
+	trainingStructProcessPlayRecordReset_t trainingStructProcessPlayRecordReset = nullptr;
+	bool attemptedToSigscanPlayedPadID = false;
+	bool attemptedToSigscanTrainingStructProcessPlayRecordReset = false;
+	int playOrRecordPressCounter = INT_MAX;
+	functionInIsPlayInsideProcessPlayRecordReset_t functionInIsPlayInsideProcessPlayRecordReset = nullptr;
+	static void* functionInIsPlayInsideProcessPlayRecordResetHook();
+	bool doNotIncrementSlotInputsIndex = false;
 };
 
 extern Game game;

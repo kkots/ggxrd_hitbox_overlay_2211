@@ -65,7 +65,12 @@ bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
 // sig vector will be terminated with an extra 0 byte.
 // mask vector will contain an 'x' character for every non-?? byte and a '?' character for every ?? byte.
 // mask vector will be terminated with an extra 0 byte.
-void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask) {
+// Can additionally provide an size_t* position argument. If the byteSpecification contains a ">" character, position will store the offset of that byte.
+// If multiple ">" characters are present, position must be an array able to hold all positions, and positionLength specifies the length of the array.
+// Returns the number of > characters.
+size_t byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask, size_t* position, size_t positionLength) {
+	if (position && positionLength == 0) positionLength = UINT_MAX;
+	size_t numOfTriangularChars = 0;
 	sig.clear();
 	mask.clear();
 	unsigned long long accumulatedNibbles = 0;
@@ -74,7 +79,13 @@ void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>
 	const char* byteSpecificationPtr = byteSpecification;
 	while (true) {
 		char currentChar = *byteSpecificationPtr;
-		if (currentChar != ' ' && currentChar != '\0') {
+		if (currentChar == '>') {
+			if (position && numOfTriangularChars < positionLength) {
+				*position = sig.size();
+				++position;
+			}
+			++numOfTriangularChars;
+		} else if (currentChar != ' ' && currentChar != '\0') {
 			char currentNibble = 0;
 			if (currentChar >= '0' && currentChar <= '9' && !nibblesUnknown) {
 				currentNibble = currentChar - '0';
@@ -86,13 +97,13 @@ void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>
 				nibblesUnknown = true;
 			} else {
 				logwrap(fprintf(logfile, "Wrong byte specification: %s\n", byteSpecification));
-				return;
+				return numOfTriangularChars;
 			}
 			accumulatedNibbles = (accumulatedNibbles << 4) | currentNibble;
 			++nibbleCount;
 			if (nibbleCount > 16) {
 				logwrap(fprintf(logfile, "Wrong byte specification: %s\n", byteSpecification));
-				return;
+				return numOfTriangularChars;
 			}
 		} else if (nibbleCount) {
 			do {
@@ -116,6 +127,7 @@ void byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>
 	}
 	sig.push_back('\0');
 	mask.push_back('\0');
+	return numOfTriangularChars;
 }
 
 uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
@@ -268,6 +280,21 @@ uintptr_t sigscanBackwards(uintptr_t startBottom, uintptr_t endTop, const char* 
 	logwrap(fputs("Sigscan failed\n", logfile));
 	return 0;
 }
+// for finding function starts
+uintptr_t sigscanBackwards16ByteAligned(uintptr_t startBottom, uintptr_t endTop, const char* sig, const char* mask) {
+	uintptr_t lastScan = endTop;
+	for (auto addr = (startBottom - strlen(mask) + 1) & 0xFFFFFFF0; addr >= lastScan; addr-=16) {
+		for (size_t i = 0;; i++) {
+			if (mask[i] == '\0')
+				return addr;
+			if (mask[i] != '?' && sig[i] != *(char*)(addr + i))
+				break;
+		}
+	}
+
+	logwrap(fputs("Sigscan failed\n", logfile));
+	return 0;
+}
 uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname) {
 	return sigscanOffsetMain(name, sig, sigLength, nullptr, {}, error, logname);
 }
@@ -296,22 +323,44 @@ uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const
 	return sigscanOffsetMain(name, str, strlen(str), nullptr, {}, error, logname);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname) {
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname, size_t* position) {
 	std::vector<char> sig;
 	std::vector<char> mask;
-	byteSpecificationToSigMask(byteSpecification, sig, mask);
-	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname);
+	size_t positionLength = 0;
+	size_t ownPosition = 0;
+	if (!position) {
+		position = &ownPosition;
+		positionLength = 1;
+	}
+	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
+	uintptr_t result = sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname);
+	if (numOfTriangularChars == 1 && result) {
+		return result + *position;
+	} else {
+		return result;
+	}
 }
 
 uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname) {
 	return sigscanOffsetMain(name, str, strlen(str), nullptr, offsets, error, logname);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname) {
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname, size_t* position) {
 	std::vector<char> sig;
 	std::vector<char> mask;
-	byteSpecificationToSigMask(byteSpecification, sig, mask);
-	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname);
+	size_t positionLength = 0;
+	size_t ownPosition = 0;
+	if (!position) {
+		position = &ownPosition;
+		positionLength = 1;
+	}
+	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
+	uintptr_t result = sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname);
+	if (numOfTriangularChars == 1 && result) {
+		return result + *position;
+	} else {
+		return result;
+	}
 }
 
 // Offsets work the following way:
@@ -497,20 +546,60 @@ char* scrollUpToBytes(char *ptr, const char* buf, int bufSize, size_t searchLimi
 	return nullptr;
 }
 
-uintptr_t sigscanBackwards(uintptr_t ptr, const char* byteSpecification, size_t searchLimit) {
+uintptr_t sigscanBackwards(uintptr_t ptr, const char* byteSpecification, size_t searchLimit, size_t* position) {
 	std::vector<char> sig;
 	std::vector<char> mask;
-	byteSpecificationToSigMask(byteSpecification, sig, mask);
-	return sigscanBackwards(ptr, ptr - searchLimit, sig.data(), mask.data());
-}
-uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit) {
-	std::vector<char> sig;
-	std::vector<char> mask;
-	byteSpecificationToSigMask(byteSpecification, sig, mask);
-	if (findChar(mask.data(), '?') == -1) {
-		return sigscan(ptr, ptr + searchLimit, sig.data(), sig.size() - 1);
+	size_t positionLength = 0;
+	size_t ownPosition = 0;
+	if (!position) {
+		position = &ownPosition;
+		positionLength = 1;
+	}
+	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
+	uintptr_t result = sigscanBackwards(ptr, ptr - searchLimit, sig.data(), mask.data());
+	if (numOfTriangularChars == 1 && result) {
+		return result + *position;
 	} else {
-		return sigscan(ptr, ptr + searchLimit, sig.data(), mask.data());
+		return result;
+	}
+}
+uintptr_t sigscanBackwards16ByteAligned(uintptr_t ptr, const char* byteSpecification, size_t searchLimit, size_t* position) {
+	std::vector<char> sig;
+	std::vector<char> mask;
+	size_t positionLength = 0;
+	size_t ownPosition = 0;
+	if (!position) {
+		position = &ownPosition;
+		positionLength = 1;
+	}
+	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
+	uintptr_t result = sigscanBackwards16ByteAligned(ptr, ptr - searchLimit, sig.data(), mask.data());
+	if (numOfTriangularChars == 1 && result) {
+		return result + *position;
+	} else {
+		return result;
+	}
+}
+uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t searchLimit, size_t* position) {
+	std::vector<char> sig;
+	std::vector<char> mask;
+	size_t positionLength = 0;
+	size_t ownPosition = 0;
+	if (!position) {
+		position = &ownPosition;
+		positionLength = 1;
+	}
+	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
+	uintptr_t result;
+	if (findChar(mask.data(), '?') == -1) {
+		result = sigscan(ptr, ptr + searchLimit, sig.data(), sig.size() - 1);
+	} else {
+		result = sigscan(ptr, ptr + searchLimit, sig.data(), mask.data());
+	}
+	if (numOfTriangularChars == 1 && result) {
+		return result + *position;
+	} else {
+		return result;
 	}
 }
 
@@ -624,3 +713,5 @@ int isTestInstructionRegImm(BYTE* ptr, Register* registerLeft, DWORD* offset, DW
 		return 10;
 	}
 }
+
+const char* GUILTY_GEAR_XRD_EXE = "GuiltyGearXrd.exe";
