@@ -519,6 +519,7 @@ private:
 				char fromAnim[32];  // this is needed from Bedman 236H's bomb1 being created by Flying_bomb1.
 									// Flying_bomb1 disappears on that very frame and is never actually visible,
 									// and we get a different animation string ("423wind") when reading from its pointer
+				CreatedProjectileStruct creatorName;
 			} signal;
 			inline OccuredEventUnion() { }
 		} u;
@@ -550,8 +551,8 @@ private:
 	bool isInDarkenModePlusTurnOffPostEffect = false;
 	bool postEffectWasOnWhenEnteringDarkenModePlusTurnOffPostEffect = false;
 	bool willDrawOriginPoints();
-	void collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isBlitzShieldCancels);
-	void collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<180>& vec, const AddedMoveData* move,
+	void collectFrameCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isBlitzShieldCancels);
+	void collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move,
 								int iterationIndex, bool inHitstopFreeze, bool blitzShield = false);
 	bool checkMoveConditions(PlayerInfo& player, const AddedMoveData* move);
 	bool requiresStylishInputs(const AddedMoveData* move);
@@ -636,19 +637,19 @@ private:
 	bool objHasAttackHitboxes(Entity ent) const;
 	template<size_t size>
 	inline void addPredefinedCancels(PlayerInfo& player, const char* (&array)[size],
-	                                 std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfo<180>& frame,
+	                                 std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfoFull& frame,
 	                                 bool inHitstopFreeze, bool isStylish) {
 		initializePredefinedCancels(array, cancels);
 		addPredefinedCancelsPart(player, cancels, frame, inHitstopFreeze, isStylish);
 	}
-	void addPredefinedCancelsPart(PlayerInfo& player, std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish);
+	void addPredefinedCancelsPart(PlayerInfo& player, std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish);
 	template<size_t size> inline static void initializePredefinedCancels(const char* (&array)[size], std::vector<ForceAddedWhiffCancel>& cancels) {
 		initializePredefinedCancels(array, size, cancels);
 	}
 	static void initializePredefinedCancels(const char** array, size_t size, std::vector<ForceAddedWhiffCancel>& cancels);
 	bool blitzShieldCancellable(PlayerInfo& player, bool insideTick);
-	void collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish);
-	void collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish);
+	void collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish);
+	void collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish);
 	// these are common for both players, because these move are in cmn_ef
 	int bdashMoveIndex = -1;
 	int fdashMoveIndex = -1;
@@ -663,7 +664,7 @@ private:
 		PlayerInfo& player;
 		int* moveIndex;
 		const char* name;
-		FrameCancelInfo<180>& frame;
+		FrameCancelInfoFull& frame;
 		bool inHitstopFreeze;
 		bool isStylish;
 		bool blitzShield;
@@ -684,6 +685,8 @@ private:
 	bool Pawn_ArcadeMode_IsBossHooked = false;
 	void handleMarteliForpeliSetting(PlayerInfo& player);
 	bool hasHitstunTiedVenomBall(PlayerInfo& player);
+	// fix for Elphelt "Close Shot created a Far Shot" when firing uncharged sg.H
+	static bool eventHandlerSendsIntoRecovery(Entity ptr, BBScrEvent signal);
 };
 
 extern EndScene endScene;

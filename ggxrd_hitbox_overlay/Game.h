@@ -315,7 +315,7 @@ private:
 			return !(*this == other);
 		}
 	} onlineDelayLastSet;
-	bool sigscanAndHookPositionResetAndGetPlayedPadID();
+	bool sigscanAndHookPositionResetAndGetPlayerPadID();
 	bool attemptedToSigscanPositionReset = false;
 	bool attemptedToHookPositionReset = false;
 	bool sigscanTrainingStructProcessPlayRecordReset();

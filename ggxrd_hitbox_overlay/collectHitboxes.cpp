@@ -192,7 +192,7 @@ void collectHitboxes(Entity ent,
 	}
 	
 	if (!includeTheseHitboxes && hitboxCount && state.doingAThrow && lastIgnoredHitNum) {
-		*lastIgnoredHitNum = ent.currentHitNum();
+		*lastIgnoredHitNum = currentHitNum;
 	}
 
 	if (includeTheseHitboxes && isNotZeroScaled && hitboxCount) {
@@ -625,7 +625,7 @@ void collectHitboxes(Entity ent,
 			}
 		} else if (state.charType == CHARACTER_TYPE_JAM) {
 			if (strcmp(ent.animationName(), "Saishingeki") == 0
-					&& ent.currentHitNum() == 2
+					&& currentHitNum == 2
 					&& hitboxCount
 					&& ent.bbscrCurrentFunc()) {
 				moves.fillInJamSaishingekiY(ent.bbscrCurrentFunc());

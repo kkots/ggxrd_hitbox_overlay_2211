@@ -754,6 +754,7 @@ combineProjectileFramebarsWhenPossible = true
 ; Specify true or false.
 ; When true, all projectiles belonging to a player will use the same one framebar, located on top
 ; of Player 1's main framebar and below Player 2's main framebar.
+; You can use the "projectileFramebarHeight" setting to make the projectile framebar thin.
 condenseIntoOneProjectileFramebar = true
 
 ; Specify true or false.
@@ -1083,6 +1084,20 @@ p1RamlethalDisableMarteliForpeli = false
 ; This will allow you, if you also use the "player1IsBoss" setting, to use the boss exclusive 214S and 214H moves.
 ; Works only in Training and Versus Modes.
 p2RamlethalDisableMarteliForpeli = false
+
+; Specify true or false.
+; Setting this to true will allow the mod to load faster, at the expense of potential
+; crashes in case the game's GuiltyGearXrd.exe executable's code is altered in such a way
+; that affects this mod.
+; A sigscan is a search for a sequence of bytes in the executable code.
+; Mods, recording software, cheats and hacks modify it, and in this case sigscans must be
+; repeated. Caching them may lead to incorrect results and then this mod may crash the game.
+; Reasonable safeguards have been put in place to prevent this, but they had to not slow down
+; the load time of the mod and therefore may not guarantee that there will be no crash.
+; You sould enable this setting if you are not altering the recording software that you use,
+; or are changing which mods are already loaded by the time this mod gets loaded, or
+; all those things change game executable code only in a way that does not matter for this mod.
+useSigscanCaching = true
 ```
 
 </details>
@@ -1547,3 +1562,6 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   37) Added "Burst Gain Per Second" field to the "Burst Gain" panel.
   38) Now when Playback and Record buttons are pressed during Freeze Game mode, they will start playback or recording immediately, while the game is still paused. Exception to this is pressing those buttons together. Such presses will translate to the next frame, if buttons are still held at the moment of advancing to the next frame, as it worked before the update.
   39) Added two new checkboxes in General Settings: to make P1 be the Arcade Boss in Training Mode and P2 be that.
+  40) Framebar tooltips now display which exact projectiles were created on any given frame, instead of just a general "Created a projectile/powerup on this frame".
+  41) Sped up the loading time of the mod by storing some reusable info in ggxrd_hitbox_overlay_sigscanCache.txt file created in the game's Binaries/Win32 folder. You can disable this in the INI file by setting 'useSigscanCaching' to false or through mod's UI - Settings - General Settings - Use Sigscan Caching.
+  

@@ -79,33 +79,39 @@ bool Game::onDllMain() {
 	if (aswEngine) {
 		std::vector<char> burstSig;
 		std::vector<char> burstMask;
-		byteSpecificationToSigMask("8b 56 40 a1 ?? ?? ?? ?? 8b 84 90 ?? ?? ?? ?? 5f 5e 5d 5b 8b 4c 24 18 33 cc",
-			burstSig, burstMask);
+		std::vector<char> burstMaskForCaching;
+		// ghidra sig: 8b 56 40 a1 ?? ?? ?? ?? 8b 84 90 ?? ?? ?? ?? 5f 5e 5d 5b 8b 4c 24 18 33 cc
+		byteSpecificationToSigMask("8b 56 40 a1 rel(?? ?? ?? ??) 8b 84 90 ?? ?? ?? ?? 5f 5e 5d 5b 8b 4c 24 18 33 cc",
+			burstSig, burstMask, nullptr, 0, &burstMaskForCaching);
 		substituteWildcard(burstSig, burstMask, 0, aswEngine);
 		burstOffset = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			burstSig,
 			burstMask,
 			{ 11, 0 },
-			NULL, "burstOffset");
+			NULL, "burstOffset", burstMaskForCaching.data());
 		
 		std::vector<char> destroySig;
 		std::vector<char> destroyMask;
-		byteSpecificationToSigMask("c7 05 ?? ?? ?? ?? 00 00 00 00",
-			destroySig, destroyMask);
+		std::vector<char> destroyMaskForCaching;
+		// ghidra sig: c7 05 ?? ?? ?? ?? 00 00 00 00
+		byteSpecificationToSigMask("c7 05 rel(?? ?? ?? ??) 00 00 00 00",
+			destroySig, destroyMask, nullptr, 0, &destroyMaskForCaching);
 		substituteWildcard(destroySig, destroyMask, 0, aswEngine);
 		orig_destroyAswEngine = (destroyAswEngine_t)sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			destroySig,
 			destroyMask,
 			{ -0x5A },
-			NULL, "destroyAswEngine");
+			NULL, "destroyAswEngine", destroyMaskForCaching.data());
 	
 		// offset from aswEngine to its field containing a pointer to an instance of AREDCamera_Battle class
 		std::vector<char> cameraOffsetSig;
 		std::vector<char> cameraOffsetSigMask;
-		byteSpecificationToSigMask("8b 4c 24 18 83 c4 08 0b 4c 24 14 74 1e 8b 15 ?? ?? ?? ?? 8b 8a ?? ?? ?? ?? e8 ?? ?? ?? ?? 85 c0 75 09 55 e8 ?? ?? ?? ?? 83 c4 04",
-			cameraOffsetSig, cameraOffsetSigMask);
+		std::vector<char> cameraOffsetSigMaskForCaching;
+		// ghidra sig: 8b 4c 24 18 83 c4 08 0b 4c 24 14 74 1e 8b 15 ?? ?? ?? ?? 8b 8a ?? ?? ?? ?? e8 ?? ?? ?? ?? 85 c0 75 09 55 e8 ?? ?? ?? ?? 83 c4 04
+		byteSpecificationToSigMask("8b 4c 24 18 83 c4 08 0b 4c 24 14 74 1e 8b 15 rel(?? ?? ?? ??) 8b 8a ?? ?? ?? ?? e8 ?? ?? ?? ?? 85 c0 75 09 55 e8 ?? ?? ?? ?? 83 c4 04",
+			cameraOffsetSig, cameraOffsetSigMask, nullptr, 0, &cameraOffsetSigMaskForCaching);
 	
 		substituteWildcard(cameraOffsetSig, cameraOffsetSigMask, 0, aswEngine);
 		// pointer to REDCamera_Battle
@@ -114,7 +120,7 @@ bool Game::onDllMain() {
 			cameraOffsetSig,
 			cameraOffsetSigMask,
 			{ 0x15, 0 },
-			&error, "cameraOffset");
+			&error, "cameraOffset", cameraOffsetSigMaskForCaching.data());
 		
 	}
 	
@@ -142,15 +148,17 @@ bool Game::onDllMain() {
 
 	std::vector<char> sig;
 	std::vector<char> mask;
+	std::vector<char> maskForCaching;
 	if (REDHUD_BattleOffset) {
-		byteSpecificationToSigMask("8b 81 ?? ?? ?? ?? f6 80 5c 04 00 00 08 74 14 8b 54 24 14 f6 82 c8 04 00 00 02",
-			sig, mask);
+		// ghidra sig: 8b 81 ?? ?? ?? ?? f6 80 5c 04 00 00 08 74 14 8b 54 24 14 f6 82 c8 04 00 00 02
+		byteSpecificationToSigMask("8b 81 rel(?? ?? ?? ??) f6 80 5c 04 00 00 08 74 14 8b 54 24 14 f6 82 c8 04 00 00 02",
+			sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)REDHUD_BattleOffset);
 		uintptr_t drawExGaugeHUDCallPlace = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
-			nullptr, "drawExGaugeHUDCallPlace");
+			nullptr, "drawExGaugeHUDCallPlace", maskForCaching.data());
 		if (drawExGaugeHUDCallPlace) {
 			drawExGaugeHUDOffset = *(DWORD*)(drawExGaugeHUDCallPlace + 40);
 			drawExGaugeHUD = (drawExGaugeHUD_t)followRelativeCall(drawExGaugeHUDCallPlace + 44);
@@ -170,13 +178,14 @@ bool Game::onDllMain() {
 		_JitabataRecoverSig,
 		sizeof _JitabataRecoverSig,
 		{ 1 },
-		nullptr, "_JitabataRecover");
+		nullptr, "_JitabataRecover", nullptr);
 	
 	uintptr_t stunmashDrawingPlace = 0;
 	
 	if (_JitabataRecover) {
-		byteSpecificationToSigMask("53 53 53 68 ?? ?? ?? ?? 6a 15",
-			sig, mask);
+		// ghidra sig: 53 53 53 68 ?? ?? ?? ?? 6a 15
+		byteSpecificationToSigMask("53 53 53 68 rel(?? ?? ?? ??) 6a 15",
+			sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)_JitabataRecover);
 		
 		stunmashDrawingPlace = sigscanOffset(
@@ -184,7 +193,7 @@ bool Game::onDllMain() {
 			sig,
 			mask,
 			{ 0x2b2 },
-			nullptr, "stunmashDrawingPlace");
+			nullptr, "stunmashDrawingPlace", maskForCaching.data());
 		
 	}
 	
@@ -256,7 +265,7 @@ bool Game::onDllMain() {
 		nullptr, "inputRingBuffersOffset");
 	
 	if (settings.usePositionResetMod) {
-		if (!sigscanAndHookPositionResetAndGetPlayedPadID()) return false;
+		if (!sigscanAndHookPositionResetAndGetPlayerPadID()) return false;
 	}
 	
 	uintptr_t placeInFunction0x10_OfNormalElementFor_AswSubEng_0x1c710c_0xac = sigscanOffset(
@@ -271,7 +280,8 @@ bool Game::onDllMain() {
 	if (startOfFunction0x10) {
 		func0x10InRData = sigscan(
 			"GuiltyGearXrd.exe:.rdata",
-			(const char*)&startOfFunction0x10, 4);
+			(const char*)&startOfFunction0x10, 4,
+			"func0x10InRData", "rel_GuiltyGearXrd.exe(????)");
 	}
 	if (func0x10InRData) {
 		normal0xa8ElementVtable = func0x10InRData - 0x10;
@@ -286,7 +296,7 @@ bool Game::onDllMain() {
 	if (menuUsage) {
 		// validate the whole function, I'm going to need bits and pieces from it
 		byteSpecificationToSigMask("56 be 65 00 00 00 56 e8 ?? ?? ?? ?? 83 c4 04 83 b8 54 01 00 00 00 75 03 4e 79 eb 89 35 ?? ?? ?? ?? 5e c3", sig, mask);
-		if (sigscan(menuUsage, menuUsage + 0x23, sig.data(), mask.data()) != menuUsage) {
+		if (sigscan(menuUsage, menuUsage + 0x23, sig.data(), mask.data(), nullptr, nullptr) != menuUsage) {
 			menuUsage = 0;
 		}
 	}
@@ -295,7 +305,7 @@ bool Game::onDllMain() {
 		
 		uintptr_t getMenu = followRelativeCall(menuUsage + 7);
 		byteSpecificationToSigMask("8b 44 24 04 8b 04 85 ?? ?? ?? ?? c3", sig, mask);
-		if (sigscan(getMenu, getMenu + 12, sig.data(), mask.data()) == getMenu) {
+		if (sigscan(getMenu, getMenu + 12, sig.data(), mask.data(), nullptr, nullptr) == getMenu) {
 			allMenus = *(void***)(getMenu + 7);
 		}
 	}
@@ -308,7 +318,8 @@ bool Game::onDllMain() {
 	uintptr_t RF_MenuLoc = sigscan(
 		"GuiltyGearXrd.exe:.rdata",
 		RF_MenuStr,
-		sizeof RF_MenuStr);
+		sizeof RF_MenuStr,
+		"RF_MenuString", nullptr);
 	
 	uintptr_t RF_MenuUsage = 0;
 	if (RF_MenuLoc) {
@@ -320,12 +331,12 @@ bool Game::onDllMain() {
 			RF_DataUsageAr,
 			"xxxxx",
 			nullptr,
-			"RF_MenuUsage");
+			"RF_MenuUsage", "xrel_GuiltyGearXrd.exe(????)");
 	}
 	uintptr_t case0x21 = 0;
 	if (RF_MenuUsage) {
 		byteSpecificationToSigMask("ff 24 85 ?? ?? ?? ?? 81 4b 10 04 81 00 00", sig, mask);
-		if (sigscan(RF_MenuUsage - 14, RF_MenuUsage, sig.data(), mask.data()) == RF_MenuUsage - 14) {
+		if (sigscan(RF_MenuUsage - 14, RF_MenuUsage, sig.data(), mask.data(), nullptr, nullptr) == RF_MenuUsage - 14) {
 			case0x21 = *(DWORD*)(7 * 4 + *(DWORD*)(RF_MenuUsage - 14 + 3));
 		}
 	}
@@ -333,7 +344,7 @@ bool Game::onDllMain() {
 	if (case0x21) {
 		byteSpecificationToSigMask("e8 ?? ?? ?? ?? 85 c0 0f 84 ?? ?? ?? ??", sig, mask);
 		// calls isGameModeNetwork, tests EAX and jumps if zero
-		isGameModeNetworkCall = sigscan(case0x21, case0x21 + 0x120, sig.data(), mask.data());
+		isGameModeNetworkCall = sigscan(case0x21, case0x21 + 0x120, sig.data(), mask.data(), nullptr, nullptr);
 	}
 	if (isGameModeNetworkCall) {
 		isGameModeNetwork = (isGameModeNetwork_t)followRelativeCall(isGameModeNetworkCall);
@@ -408,14 +419,21 @@ bool Game::sigscanFrameByFraming() {
 	// (it's in the non-else branch of the if ... == 0)
 	std::vector<char> updateBattleOfflineVerSig;
 	std::vector<char> updateBattleOfflineVerSigMask;
-	byteSpecificationToSigMask("89 7c 24 14 e8 ?? ?? ?? ?? 85 c0 74 0a 6a 01 e8 ?? ?? ?? ?? 83 c4 04 8b 0d ?? ?? ?? ?? 8b 81 ?? ?? ?? ?? 8b 80 7c 03 00 00",
-		updateBattleOfflineVerSig, updateBattleOfflineVerSigMask);
+	std::vector<char> updateBattleOfflineVerSigMaskForCaching;
+	// ghidra sig: 89 7c 24 14 e8 ?? ?? ?? ?? 85 c0 74 0a 6a 01 e8 ?? ?? ?? ?? 83 c4 04 8b 0d ?? ?? ?? ?? 8b 81 ?? ?? ?? ?? 8b 80 7c 03 00 00
+	byteSpecificationToSigMask("89 7c 24 14 e8 ?? ?? ?? ?? 85 c0 74 0a 6a 01 e8 ?? ?? ?? ?? 83 c4 04 8b 0d rel(?? ?? ?? ??) 8b 81 ?? ?? ?? ?? 8b 80 7c 03 00 00",
+		updateBattleOfflineVerSig, updateBattleOfflineVerSigMask, nullptr, 0, &updateBattleOfflineVerSigMaskForCaching);
 	substituteWildcard(updateBattleOfflineVerSig, updateBattleOfflineVerSigMask, 2, aswEngine);
-	orig_updateBattleOfflineVer = (updateBattleOfflineVer_t)((sigscanOffset(
-		GUILTY_GEAR_XRD_EXE,
-		updateBattleOfflineVerSig,
-		updateBattleOfflineVerSigMask,
-		&error, "updateBattleOfflineVer") - 0x30) & 0xFFFFFFF0);
+	orig_updateBattleOfflineVer = (updateBattleOfflineVer_t)(
+		(
+			sigscanOffset(
+				GUILTY_GEAR_XRD_EXE,
+				updateBattleOfflineVerSig,
+				updateBattleOfflineVerSigMask,
+				&error, "updateBattleOfflineVer", updateBattleOfflineVerSigMaskForCaching.data()
+			) - 0x30
+		) & 0xFFFFFFF0
+	);
 	logwrap(fprintf(logfile, "Final location of updateBattleOfflineVer: %p\n", orig_updateBattleOfflineVer));
 
 	orig_TickActorComponents = (TickActorComponents_t)sigscanOffset(
@@ -1284,6 +1302,7 @@ void Game::hideRankIcons() {
 		
 		if (drawRankInLobbyMemberList_Circle) patchDrawTextureProbably(drawRankInLobbyMemberList_Circle);
 	}
+	if (!detouring.isInTransaction()) finishedSigscanning();
 	
 }
 
@@ -1322,7 +1341,7 @@ void Game::updateOnlineDelay() {
 	*(int*)(*netplayStruct + 0x11fc) = newSettings.delayToSet;
 }
 
-bool Game::sigscanAndHookPositionResetAndGetPlayedPadID() {
+bool Game::sigscanAndHookPositionResetAndGetPlayerPadID() {
 	if (!orig_setPositionResetType) {
 		if (!attemptedToSigscanPositionReset) {
 			attemptedToSigscanPositionReset = true;
@@ -1366,20 +1385,21 @@ bool Game::sigscanAndHookPositionResetAndGetPlayedPadID() {
 		getPlayerPadIDPtr = (getPlayerPadID_t)sigscanOffset(GUILTY_GEAR_XRD_EXE,
 			"33 c0 38 41 44 56 0f 95 c0 0f b6 d0 8b 74 91 3c 33 d2",
 			{ -6 },
-			nullptr, "getPlayedPadID");
+			nullptr, "getPlayerPadID");
 	}
+	if (!detouring.isInTransaction()) finishedSigscanning();
 	return true;
 }
 
 void Game::onUsePositionResetChanged() {
 	if (settings.usePositionResetMod) {
-		sigscanAndHookPositionResetAndGetPlayedPadID();
+		sigscanAndHookPositionResetAndGetPlayerPadID();
 	}
 }
 
 int Game::getPlayerPadID() {
 	if (!getPlayerPadIDPtr) {
-		if (!sigscanAndHookPositionResetAndGetPlayedPadID()) return 0;
+		if (!sigscanAndHookPositionResetAndGetPlayerPadID()) return 0;
 	}
 	if (getPlayerPadIDPtr) {
 		return getPlayerPadIDPtr();
@@ -1427,6 +1447,7 @@ bool Game::sigscanTrainingStructProcessPlayRecordReset() {
 	detouring.patchPlace(ifModeRecord + 1, newBytes);
 	
 	trainingStructProcessPlayRecordReset = trainingStructProcessPlayRecordReset_temp;
+	finishedSigscanning();
 	return true;
 }
 

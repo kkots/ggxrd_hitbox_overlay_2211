@@ -285,6 +285,7 @@ void Keyboard::getJoyState(DIJOYSTATE2* state) {
 		if (!UWindowsClient_Joysticks) {
 			return;
 		}
+		finishedSigscanning();
 	}
 	
 	int ArrayNum = *(int*)(UWindowsClient_Joysticks + 4);

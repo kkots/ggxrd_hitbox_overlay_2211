@@ -260,7 +260,8 @@ static GGIcon DISolIconRectangular = coordsToGGIcon(179, 1095, 37, 37);
 static void outlinedText(ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr, bool highQuality = false);
 static void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor = nullptr, bool highQuality = false);
 static void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color = nullptr, ImVec4* outlineColor = nullptr, bool highQuality = false);
-static int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos<30>& cancels, float maxY);
+template<typename T>
+static int printCancels(const T& cancels, float maxY);
 static int printInputs(char* buf, size_t bufSize, const InputType* inputs);
 static void printInputs(char*&buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount);
 static void printChippInvisibility(int current, int max);
@@ -308,6 +309,7 @@ struct HitConnectedArtSelector {
 	const FrameAddon* hitConnectedBlack;
 	const FrameAddon* hitConnectedBlackAlt;
 };
+static void initializeLetters(bool* letters, bool* lettersStandalone);
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -396,14 +398,16 @@ bool UI::onDllMain(HMODULE hModule) {
 	if (GetKeyStateRData) {
 		std::vector<char> sig;
 		std::vector<char> mask;
-		byteSpecificationToSigMask("8b 3d ?? ?? ?? ?? 52 ff d7", sig, mask);
+		std::vector<char> maskForCaching;
+		// ghidra sig: 8b 3d ?? ?? ?? ?? 52 ff d7
+		byteSpecificationToSigMask("8b 3d rel(?? ?? ?? ??) 52 ff d7", sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)GetKeyStateRData);
 		uintptr_t GetKeyStateCallPlace = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
 			{ 2 },
-			nullptr, "GetKeyStateCallPlace");
+			nullptr, "GetKeyStateCallPlace", maskForCaching.data());
 		if (GetKeyStateCallPlace) {
 			hook_GetKeyStatePtr = hook_GetKeyState;
 			void** hook_GetKeyStatePtrPtr = &hook_GetKeyStatePtr;
@@ -2221,6 +2225,7 @@ void UI::drawSearchableWindows() {
 						"41 83 f9 0e 7c c4 8d 43 54",
 						{ 10, 0 },
 						nullptr, "ButtonSettings");
+					finishedSigscanning();
 				} else {
 					testDelay();
 				}
@@ -3553,7 +3558,7 @@ void UI::drawSearchableWindows() {
 											instr = moves.skipInstruction(instr);
 										} while (moves.instructionType(instr) != instr_endState);
 										if (lastSprite) {
-											moves.spChargedStunEdgeKowareSpriteDuration = *(int*)(lastSprite + 4 + 32);
+											moves.spChargedStunEdgeKowareSpriteDuration = asInstr(lastSprite, sprite)->duration;
 										}
 									}
 								}
@@ -5737,7 +5742,7 @@ void UI::drawSearchableWindows() {
 				printedSomething = true;
 				sprintf_s(strbuf, "Frames %d-%d:", cancels.start, cancels.end);
 				textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-				printAllCancels(cancels.cancels,
+				printAllCancels(cancels,
 					cancels.enableSpecialCancel,
 					cancels.enableJumpCancel,
 					cancels.enableSpecials,
@@ -7181,7 +7186,7 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(strbuf);
 					
 					BYTE* funcStart = player.pawn.bbscrCurrentFunc();
-					if (funcStart && strcmp((const char*)(funcStart + 4), "CmnActKizetsu") == 0) {
+					if (funcStart && strcmp(asInstr(funcStart, beginState)->name, "CmnActKizetsu") == 0) {
 						BYTE* markerPos = moves.findSetMarker(funcStart, "_End");
 						if (markerPos) {
 							BYTE* currentInst = player.pawn.bbscrCurrentInstr();
@@ -7190,7 +7195,7 @@ void UI::drawSearchableWindows() {
 							int lastDuration = 0;
 							BYTE* instIt = moves.skipInstruction(markerPos);
 							while (moves.instructionType(instIt) != instr_endState) {
-								lastDuration = *(int*)(instIt + 4 + 32);
+								lastDuration = asInstr(instIt, sprite)->duration;
 								totalDuration += lastDuration;
 								if (instIt < currentInst) {
 									currentDuration += lastDuration;
@@ -8987,7 +8992,8 @@ bool UI::needShowFramebar() const {
 	}
 }
 
-int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos<30>& cancels, float maxY) {
+template<typename T>
+int printCancels(const T& cancels, float maxY) {
 	struct Requirement {
 		MoveCondition condition;
 		const char* description;
@@ -9003,7 +9009,7 @@ int printCancels(const FixedArrayOfGatlingOrWhiffCancelInfos<30>& cancels, float
 	int counter = 1;
 	bool useSlang = settings.useSlangNames;
 	for (size_t i = 0; i < cancels.size(); ++i) {
-		const GatlingOrWhiffCancelInfo& cancel = cancels[i];
+		const GatlingOrWhiffCancelInfoStored& cancel = cancels[i];
 		
 		if (i != cancels.size() - 1 && ImGui::GetCursorPosY() >= maxY) {
 			ImGui::Text("%d) Skipping %d items...", counter++, cancels.size() - i);
@@ -10002,7 +10008,7 @@ static inline const InputsIcon* determineDirectionIcon(Input row) {
 }
 
 static inline void drawDirectionIcon(ImDrawList* drawList, float& x, float y,
-		float spacing, Input row, Input prevRow, ImVec2& framebarTooltipInputIconSize,
+		float spacing, Input row, Input prevRow, const ImVec2& framebarTooltipInputIconSize,
 		ImU32 darkTint) {
 	const InputsIcon* rowDirection = determineDirectionIcon(row);
 	if (rowDirection) {
@@ -10018,7 +10024,7 @@ static inline void drawDirectionIcon(ImDrawList* drawList, float& x, float y,
 }
 
 static inline void printInputsRowP1(ImDrawList* drawList, float x, float y,
-			float spacing, int frameCount, Input row, Input prevRow, ImVec2& framebarTooltipInputIconSize,
+			float spacing, int frameCount, Input row, Input prevRow, const ImVec2& framebarTooltipInputIconSize,
 			float textPaddingY, ImU32 darkTint, bool printFrameCounts, float maxTextSize) {
 	int textLength;
 	if (printFrameCounts) {
@@ -10040,7 +10046,7 @@ static inline void printInputsRowP1(ImDrawList* drawList, float x, float y,
 }
 
 static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
-		float spacing, int frameCount, Input row, Input prevRow, ImVec2& framebarTooltipInputIconSize,
+		float spacing, int frameCount, Input row, Input prevRow, const ImVec2& framebarTooltipInputIconSize,
 		float textPaddingY, ImU32 darkTint, bool printFrameCounts, float maxTextSize) {
 	
 	int count = 0;
@@ -10086,11 +10092,11 @@ static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
 void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex) {
 	CharacterType charType = endScene.players[playerIndex].charType;
 	
-	FrameCancelInfo<30>* cancelsUse;
+	FrameCancelInfoStored* cancelsUse;
 	if (frame.cancels) {
 		cancelsUse = frame.cancels.get();
 	} else {
-		static FrameCancelInfo<30> emptyCancels;
+		static FrameCancelInfoStored emptyCancels;
 		static bool emptyCancelsInitialized = false;
 		if (!emptyCancelsInitialized) {
 			emptyCancelsInitialized = true;
@@ -10143,27 +10149,31 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 		_zerohspacing
 	}
 	
-	const std::vector<Input>& inputs = frame.inputs;
-	if (!inputs.empty() && !(inputs.size() == 1 && inputs[0] == Input{0x0000})) {
-		ImGui::Separator();
-		
-		float framebarTooltipInputIconSizeFloat = 20.F;
-		ImVec2 framebarTooltipInputIconSize{ framebarTooltipInputIconSizeFloat, framebarTooltipInputIconSizeFloat };
+	static const float framebarTooltipInputIconSizeFloat = 20.F;
+	static const ImVec2 framebarTooltipInputIconSize{ framebarTooltipInputIconSizeFloat, framebarTooltipInputIconSizeFloat };
+	static const float spacing = 1.F;
+	
+	if (frame.multipleInputs ? frame.inputs->empty() : frame.input == Input{0x0000}) return;
+	
+	ImGui::Separator();
+	
+	ImDrawList* const drawList = ImGui::GetWindowDrawList();
+	const ImVec2 windowPos = ImGui::GetWindowPos();
+	const ImVec2 cursorPos = ImGui::GetCursorPos();
+	const float x = windowPos.x + cursorPos.x;
+	float y = windowPos.y + cursorPos.y;
+	const ImU32 darkTint = ImGui::GetColorU32(inputsDark);
+	const float oneLineHeight = ImGui::GetTextLineHeightWithSpacing() + 2.F;
+	const float textPaddingY = (framebarTooltipInputIconSizeFloat - ImGui::GetFontSize()) * 0.5F;
+	
+	if (frame.multipleInputs) {
+		const std::vector<Input>& inputs = *frame.inputs;
 		
 		int frameCount = 1;
 		const Input* it = inputs.data() + (inputs.size() - 1);
 		Input currentInput = *it;
 		
-		float spacing = 1.F;
 		
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-		float textPaddingY = (framebarTooltipInputIconSizeFloat - ImGui::GetFontSize()) * 0.5F;
-		ImVec2 windowPos = ImGui::GetWindowPos();
-		ImVec2 cursorPos = ImGui::GetCursorPos();
-		float oneLineHeight = ImGui::GetTextLineHeightWithSpacing() + 2.F;
-		float x = windowPos.x + cursorPos.x;
-		float y = windowPos.y + cursorPos.y;
-		ImU32 darkTint = ImGui::GetColorU32(inputsDark);
 		int rowCount = 0;
 		const int rowLimit = 12;
 		bool overflow = false;
@@ -10310,6 +10320,19 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 			}
 			ImGui::TextUnformatted(txt.txt, txt.txt + txt.length);
 		}
+	} else {
+		#define piece(funcname) funcname(drawList, x, y, spacing, 1, frame.input, frame.prevInput, framebarTooltipInputIconSize, textPaddingY, darkTint, false, 0.F);
+		if (playerIndex == 0) {
+			piece(printInputsRowP1)
+		} else {
+			piece(printInputsRowP2)
+		}
+		#undef piece
+		ImGui::InvisibleButton("##PlayerInputsRender",
+			{
+				1.F,
+				oneLineHeight
+			});
 	}
 	
 }
@@ -10344,15 +10367,78 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		}
 	}
 	
-	if (frame.canYrc || frame.canYrcProjectile || frame.createdDangerousProjectile) {
+	if (frame.canYrc || frame.canYrcProjectile || frame.createdProjectiles && !frame.createdProjectiles->empty()) {
 		ImGui::Separator();
 		if (frame.canYrcProjectile) {
 			ImGui::TextUnformatted("Can YRC, and projectile/powerup will stay");
 		} else if (frame.canYrc) {
 			ImGui::TextUnformatted("Can YRC");
 		}
-		if (frame.createdDangerousProjectile) {
-			ImGui::TextUnformatted("Created a projectile/powerup on this frame");
+		if (frame.createdProjectiles && !frame.createdProjectiles->empty()) {
+			for (const CreatedProjectileStruct& element : *frame.createdProjectiles) {
+				zerohspacing
+				
+				const char* createdByNameUse = element.useCreatedByNamePair
+					? element.createdByNamePair
+						? settings.useSlangNames && element.createdByNamePair->slang
+							? element.createdByNamePair->slang
+							: element.createdByNamePair->name
+						: nullptr
+					: element.createdBy;
+					
+				if (createdByNameUse) {
+					ImGui::TextUnformatted(createdByNameUse);
+					ImGui::SameLine();
+				}
+				
+				const char* nameUse = element.useNamePair
+					? element.namePair
+						? settings.useSlangNames && element.namePair->slang
+							? element.namePair->slang
+							: element.namePair->name
+						: nullptr
+					: element.name;
+					
+				if (nameUse) {
+					char firstLetter = nameUse[0];
+					if (element.usePrefix) {
+						static bool letters['z' - 'a' + 1];
+						static bool lettersStandalone['z' - 'a' + 1];
+						static bool lettersInitialized = false;
+						if (!lettersInitialized) {
+							lettersInitialized = true;
+							initializeLetters(letters, lettersStandalone);
+						}
+						if (createdByNameUse && strcmp(createdByNameUse, nameUse) == 0) {
+							ImGui::TextUnformatted(" created another ");
+						} else if (firstLetter >= 'a' && firstLetter <= 'z' && letters[firstLetter - 'a']
+								|| firstLetter >= 'A' && firstLetter <= 'Z' && letters[firstLetter - 'A']
+								|| (firstLetter >= 'a' && firstLetter <= 'z' && lettersStandalone[firstLetter - 'a']
+									|| firstLetter >= 'A' && firstLetter <= 'Z' && lettersStandalone[firstLetter - 'A'])
+									&& (unsigned char)nameUse[1] <= 32U) {
+							ImGui::TextUnformatted(createdByNameUse ? " created an " : "Created an ");
+						} else {
+							ImGui::TextUnformatted(createdByNameUse ? " created a " : "Created a ");
+						}
+						ImGui::SameLine();
+						ImGui::TextUnformatted(nameUse);
+					} else if (createdByNameUse) {
+						strbuf[0] = ' ';
+						if (createdByNameUse && firstLetter >= 'A' && firstLetter <= 'Z') {
+							strbuf[1] = firstLetter - 'A' + 'a';
+							strcpy_s(strbuf + 2, sizeof strbuf - 2, nameUse + 1);
+						} else {
+							strcpy_s(strbuf + 1, sizeof strbuf - 1, nameUse);
+						}
+						ImGui::TextUnformatted(strbuf);
+					} else {
+						ImGui::TextUnformatted(nameUse);
+					}
+				} else {
+					ImGui::TextUnformatted(createdByNameUse ? " created a projectile" : "Created a projectile");
+				}
+				_zerohspacing
+			}
 		}
 	}
 	
@@ -10516,8 +10602,14 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (vi.hasQV
 				|| vi.hasQVYRCOnly
 				|| vi.hasHCarcassBall
-				|| vi.performingQV
-				|| vi.performingQVHitOnly) {
+				|| vi.performingQVA
+				|| vi.performingQVB
+				|| vi.performingQVC
+				|| vi.performingQVD
+				|| vi.performingQVAHitOnly
+				|| vi.performingQVBHitOnly
+				|| vi.performingQVCHitOnly
+				|| vi.performingQVDHitOnly) {
 			ImGui::Separator();
 			if (vi.hasQV) {
 				ImGui::TextUnformatted("QV shockwave will disappear if Venom RC's or gets hit on this frame.");
@@ -10527,9 +10619,23 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			if (vi.hasHCarcassBall) {
 				ImGui::TextUnformatted("H Carcass Raid ball will disappear if Venom is hit (non-blocked hit) at any time.");
 			}
-			if (vi.performingQV) {
+			if (vi.performingQVA) {
+				ImGui::TextUnformatted("P Ball will disappear if Venom RC's or gets hit on this frame.");
+			} else if (vi.performingQVB) {
+				ImGui::TextUnformatted("K Ball will disappear if Venom RC's or gets hit on this frame.");
+			} else if (vi.performingQVC) {
+				ImGui::TextUnformatted("S Ball will disappear if Venom RC's or gets hit on this frame.");
+			} else if (vi.performingQVD) {
 				ImGui::TextUnformatted("H Ball will disappear if Venom RC's or gets hit on this frame.");
-			} else if (vi.performingQVHitOnly) {
+			} else if (vi.performingQVB) {
+				ImGui::TextUnformatted("K Ball will disappear if Venom RC's or gets hit on this frame.");
+			} else if (vi.performingQVAHitOnly) {
+				ImGui::TextUnformatted("P Ball will disappear if Venom gets hit on this frame.");
+			} else if (vi.performingQVBHitOnly) {
+				ImGui::TextUnformatted("K Ball will disappear if Venom gets hit on this frame.");
+			} else if (vi.performingQVCHitOnly) {
+				ImGui::TextUnformatted("S Ball will disappear if Venom gets hit on this frame.");
+			} else if (vi.performingQVDHitOnly) {
 				ImGui::TextUnformatted("H Ball will disappear if Venom gets hit on this frame.");
 			}
 		}
@@ -12015,7 +12121,8 @@ void drawPlayerIconInWindowTitle(GGIcon& icon) {
 	}
 }
 
-void UI::printAllCancels(const FrameCancelInfo<30>& cancels,
+template<typename T>
+void UI::printAllCancels(const T& cancels,
 		bool enableSpecialCancel,
 		bool enableJumpCancel,
 		bool enableSpecials,
@@ -13344,6 +13451,8 @@ void UI::drawFramebars() {
 		float heightWithBorder;
 		float height;
 		bool useMini;
+		float frameNumberYTop;
+		float frameNumberYBottom;
 	};
 	
 	struct {
@@ -13585,10 +13694,14 @@ void UI::drawFramebars() {
 		}
 	}
 	
+	QueuedFramebar* playersCondensedFramebarArray[2] { nullptr, nullptr };
 	float framebarsPaddingYTotal = 0.F;
 	for (QueuedFramebar& queuedFramebar : framebars) {
 		framebarsPaddingYTotal += queuedFramebar.padding;
 		queuedFramebar.condensed = condenseIntoOneProjectileFramebar && !queuedFramebar.framebar.belongsToPlayer();
+		if (queuedFramebar.condensed && (queuedFramebar.framebar.playerIndex == 0 || queuedFramebar.framebar.playerIndex == 1)) {
+			playersCondensedFramebarArray[queuedFramebar.framebar.playerIndex] = &queuedFramebar;
+		}
 	}
 	ImVec2 nextWindowSize { initialWindowWidthForFirstUseEver,
 		2.F  // imgui window padding
@@ -13700,6 +13813,20 @@ void UI::drawFramebars() {
 		+ (condenseIntoOneProjectileFramebar ? outerBorderThickness + drawFramebars_frameItselfHeightProjectile : 0.F);
 	
 	{
+		
+		const float frameNumberHeight = settings.drawDigits ? digitUVs[0].framebar.size.y : 0.F;
+		const float frameNumberHeightMini = settings.drawDigits ? digitUVsMini[0].framebar.size.y : 0.F;
+		const float frameNumberHeightPlayer = drawFramebars_frameItselfHeight >= drawFramebars_frameItselfHeightProjectile
+			? frameNumberHeight : frameNumberHeightMini;
+		const float frameNumberHeightProjectile = drawFramebars_frameItselfHeightProjectile >= drawFramebars_frameItselfHeight
+			? frameNumberHeight : frameNumberHeightMini;
+		float frameNumberPaddingYUsePlayer = truncfTowardsZero(
+			(drawFramebars_frameItselfHeight - frameNumberHeightPlayer) * 0.5F
+		);
+		float frameNumberPaddingYUseProjectile = truncfTowardsZero(
+			(drawFramebars_frameItselfHeightProjectile - frameNumberHeightProjectile) * 0.5F
+		);
+		
 		float currentY = drawFramebars_y;
 		for (QueuedFramebar& queuedFramebar : framebars) {
 			
@@ -13730,24 +13857,19 @@ void UI::drawFramebars() {
 				}
 			}
 			
+			if (isPlayer) {
+				queuedFramebar.frameNumberYTop = queuedFramebar.y + frameNumberPaddingYUsePlayer;
+				queuedFramebar.frameNumberYBottom = queuedFramebar.frameNumberYTop + frameNumberHeightPlayer;
+			} else {
+				queuedFramebar.frameNumberYTop = queuedFramebar.y + frameNumberPaddingYUseProjectile;
+				queuedFramebar.frameNumberYBottom = queuedFramebar.frameNumberYTop + frameNumberHeightProjectile;
+			}
+			
 		}
 	}
 	
 	ImU32 tintDarker = ImGui::GetColorU32(IM_COL32(128, 128, 128, 255));
 	ImU32 tintDarkerSemiTransparent = ImGui::GetColorU32(IM_COL32(128, 128, 128, 200));
-	
-	const float frameNumberHeight = settings.drawDigits ? digitUVs[0].framebar.size.y : 0.F;
-	const float frameNumberHeightMini = settings.drawDigits ? digitUVsMini[0].framebar.size.y : 0.F;
-	const float frameNumberHeightPlayer = drawFramebars_frameItselfHeight >= drawFramebars_frameItselfHeightProjectile
-		? frameNumberHeight : frameNumberHeightMini;
-	const float frameNumberHeightProjectile = drawFramebars_frameItselfHeightProjectile >= drawFramebars_frameItselfHeight
-		? frameNumberHeight : frameNumberHeightMini;
-	float frameNumberPaddingYUsePlayer = truncfTowardsZero(
-		(drawFramebars_frameItselfHeight - frameNumberHeightPlayer) * 0.5F
-	);
-	float frameNumberPaddingYUseProjectile = truncfTowardsZero(
-		(drawFramebars_frameItselfHeightProjectile - frameNumberHeightProjectile) * 0.5F
-	);
 	
 	FrameDims preppedDims[_countof(Framebar::frames)];  // we're only going to use drawFramebars_framesCount of these
 	float highlighterXStart[2] { 0.F, 0.F };
@@ -14240,30 +14362,27 @@ void UI::drawFramebars() {
 			
 			if (settings.drawDigits) {
 				
-				float frameNumberYTop;
-				float frameNumberYBottom;
-				if (isPlayer) {
-					frameNumberYTop = drawFramebars_y + frameNumberPaddingYUsePlayer;
-					frameNumberYBottom = frameNumberYTop + frameNumberHeightPlayer;
-				} else {
-					frameNumberYTop = drawFramebars_y + frameNumberPaddingYUseProjectile;
-					frameNumberYBottom = frameNumberYTop + frameNumberHeightProjectile;
-				}
-				
 				if (isPlayer) {
 					drawDigits<PlayerFramebar, PlayerFrame>(
-						(const PlayerFramebar&)framebar, preppedDims, frameNumberYTop,
-						frameNumberYBottom, queuedFramebar.hasDigit,
+						(const PlayerFramebar&)framebar, preppedDims,
+						queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
+						queuedFramebar.hasDigit,
 						queuedFramebar.useMini ? digitUVsMini : digitUVs);
 				} else {
 					drawDigits<Framebar, Frame>(
-						(const Framebar&)framebar, preppedDims, frameNumberYTop,
-						frameNumberYBottom, queuedFramebar.hasDigit,
+						(const Framebar&)framebar, preppedDims,
+						queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
+						queuedFramebar.hasDigit,
 						queuedFramebar.useMini ? digitUVsMini : digitUVs);
 				}
 			}
 		}
 	}
+	
+	static const ImU32 digitTints[2] = {
+		ImGui::GetColorU32(IM_COL32(255, 255, 255, 150)),
+		ImGui::GetColorU32(IM_COL32(128, 128, 128, 150))
+	};
 	
 	for (QueuedFramebar& queuedFramebar : framebars) {
 		const EntityFramebar* entityFramebarPtr = &queuedFramebar.framebar;
@@ -14271,20 +14390,8 @@ void UI::drawFramebars() {
 		const FramebarBase& framebar = framebarSettings.neverIgnoreHitstop ? entityFramebar.getHitstop() : entityFramebar.getMain();
 		drawFramebars_y = queuedFramebar.y;
 		const bool isPlayer = entityFramebar.belongsToPlayer();
+		const QueuedFramebar* playersCondensedFramebar = isPlayer ? playersCondensedFramebarArray[entityFramebar.playerIndex] : nullptr;
 		const float frameHeight = queuedFramebar.height;
-		
-		float frameNumberYTop;
-		float frameNumberYBottom;
-		
-		if (settings.drawDigits) {
-			if (isPlayer) {
-				frameNumberYTop = drawFramebars_y + frameNumberPaddingYUsePlayer;
-				frameNumberYBottom = frameNumberYTop + frameNumberHeightPlayer;
-			} else {
-				frameNumberYTop = drawFramebars_y + frameNumberPaddingYUseProjectile;
-				frameNumberYBottom = frameNumberYTop + frameNumberHeightProjectile;
-			}
-		}
 		
 		const bool isJacko = (entityFramebar.playerIndex == 0 || entityFramebar.playerIndex == 1)
 											&& endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_JACKO;
@@ -14441,11 +14548,19 @@ void UI::drawFramebars() {
 						}
 						
 						if (hasDigit && (drewTopMarker >= 2 || drewBottomMarker >= 2)) {
-							drawDigit(queuedFramebar.hasDigit[visualInd] - 1, dims, frameNumberYTop, frameNumberYBottom,
-								visualInd > drawFramebars_framebarPositionDisplay
-									? ImGui::GetColorU32(IM_COL32(128, 128, 128, 150))
-									: ImGui::GetColorU32(IM_COL32(255, 255, 255, 150)),
+							drawDigit(queuedFramebar.hasDigit[visualInd] - 1, dims,
+								queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
+								digitTints[visualInd > drawFramebars_framebarPositionDisplay],
 								queuedFramebar.useMini ? digitUVsMini : digitUVs);
+						}
+						
+						if (settings.drawDigits && playersCondensedFramebar && playersCondensedFramebar->hasDigit[visualInd]
+								&& (entityFramebar.playerIndex == 0 && drewTopMarker
+									|| entityFramebar.playerIndex == 1 && drewBottomMarker)) {
+							drawDigit(playersCondensedFramebar->hasDigit[visualInd] - 1, dims,
+								playersCondensedFramebar->frameNumberYTop, playersCondensedFramebar->frameNumberYBottom,
+								digitTints[visualInd > drawFramebars_framebarPositionDisplay],
+								playersCondensedFramebar->useMini ? digitUVsMini : digitUVs);
 						}
 						
 						#undef selectTintTop
@@ -15655,4 +15770,18 @@ void UI::printBedmanSeals(const BedmanInfo& bi, bool forFrameTooltip) {
 			ImGui::TextUnformatted(strbuf);
 		}
 	}
+}
+
+static void initializeLettersHelper(bool* array, const std::initializer_list<char>& list) {
+	for (char c = 'a'; c <= 'z'; ++c) {
+		array[c - 'a'] = false;
+	}
+	for (char c : list) {
+		array[c - 'a'] = true;
+	}
+}
+
+void initializeLetters(bool* letters, bool* lettersStandalone) {
+	initializeLettersHelper(letters, { 'a', 'o', 'e', 'i' });
+	initializeLettersHelper(lettersStandalone, { 's', 'h', 'x', 'r', 'f', 'l', 'm' });
 }

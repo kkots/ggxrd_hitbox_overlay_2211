@@ -6,6 +6,7 @@
 #include "Input.h"
 #include "InputRingBuffer.h"
 #include <memory>
+#include "ThreadUnsafeSharedPtr.h"
 
 #define INVUL_TYPES_TABLE \
 	INVUL_TYPES_EXEC(STRIKE_INVUL, "strike", strikeInvul) \
@@ -196,8 +197,14 @@ struct VenomInfo {
 	bool hasQV:1;
 	bool hasQVYRCOnly:1;
 	bool hasHCarcassBall:1;
-	bool performingQV:1;
-	bool performingQVHitOnly:1;
+	bool performingQVA:1;
+	bool performingQVB:1;
+	bool performingQVC:1;
+	bool performingQVD:1;
+	bool performingQVAHitOnly:1;
+	bool performingQVBHitOnly:1;
+	bool performingQVCHitOnly:1;
+	bool performingQVDHitOnly:1;
 };
 
 struct SlayerInfo {
@@ -206,182 +213,100 @@ struct SlayerInfo {
 	bool hasRetro;
 };
 
-struct GatlingOrWhiffCancelInfo {
+struct GatlingOrWhiffCancelInfoStored {
 	const NamePair* name;
 	const char* replacementInputs;
 	const AddedMoveData* move;
-	int iterationIndex;
 	int bufferTime;
-	int framesBeenAvailableFor = 0;  // starts from 1 on the frame 
-	int framesBeenAvailableForNotIncludingHitstopFreeze = 0;  // but includes RC slowdown
 	bool nameIncludesInputs:1;
+	// the below fields are actually for GatlingOrWhiffCancelInfo
 	bool wasAddedDuringHitstopFreeze:1;  // if framesBeenAvailableFor/framesBeenAvailableForNotIncludingHitstopFreeze says 1, should we increment it next time we leave hitstop and freeze?
 	bool foundOnThisFrame:1;
 	bool countersIncremented:1;
-	GatlingOrWhiffCancelInfo();
-	inline bool operator==(const GatlingOrWhiffCancelInfo& other) const { return move == other.move && bufferTime == other.bufferTime; }
-	inline bool operator!=(const GatlingOrWhiffCancelInfo& other) const { return !(*this == other); }
+	GatlingOrWhiffCancelInfoStored();
+	bool operator==(const GatlingOrWhiffCancelInfoStored& other) const;
+	inline bool operator!=(const GatlingOrWhiffCancelInfoStored& other) const { return !(*this == other); }
 };
 
-// *cosplaying std::vector*
-template<size_t size>
+struct GatlingOrWhiffCancelInfo : public GatlingOrWhiffCancelInfoStored {
+	int iterationIndex;
+	int framesBeenAvailableFor = 0;  // starts from 1 on the frame 
+	int framesBeenAvailableForNotIncludingHitstopFreeze = 0;  // but includes RC slowdown
+	GatlingOrWhiffCancelInfo();
+	inline bool operator==(const GatlingOrWhiffCancelInfo& other) const {
+		return (GatlingOrWhiffCancelInfoStored&)*this == (GatlingOrWhiffCancelInfoStored&)other
+			&& iterationIndex == other.iterationIndex;
+	}
+	inline bool operator!=(const GatlingOrWhiffCancelInfo& other) const { return !(*this == other); }
+	inline bool operator==(const GatlingOrWhiffCancelInfoStored& other) const {
+		return (GatlingOrWhiffCancelInfoStored&)*this == other;
+	}
+	inline bool operator!=(const GatlingOrWhiffCancelInfoStored& other) const { return !(*this == other); }
+};
+
+const size_t FrameCancelInfoSize = 180;
+
+template<typename T>
 struct FixedArrayOfGatlingOrWhiffCancelInfos {
-	GatlingOrWhiffCancelInfo elems[size] { };  // the maximum number of moves in the game
+	T elems[FrameCancelInfoSize] { };
 	int count;
 	inline bool empty() const { return count == 0; }
-	// (reads online how to implement a custom iterator) "holy fucking shit this can be way more complicated than it needs to"
-	inline GatlingOrWhiffCancelInfo* begin() { return elems; }
-	inline GatlingOrWhiffCancelInfo* end() { return elems + count; }
-	inline const GatlingOrWhiffCancelInfo* begin() const { return elems; }
-	inline const GatlingOrWhiffCancelInfo* end() const { return elems + count; }
+	inline T* begin() { return elems; }
+	inline T* end() { return elems + count; }
+	inline const T* begin() const { return elems; }
+	inline const T* end() const { return elems + count; }
 	inline size_t size() const { return (size_t)count; }
-	inline GatlingOrWhiffCancelInfo* erase(GatlingOrWhiffCancelInfo* ptr) {
-		int index = ptr - elems;
-		if (count - index > 1) {
-			const size_t elemSize = sizeof (GatlingOrWhiffCancelInfo);
-			memmove(ptr, ptr + 1, elemSize * (count - index - 1));
-		}
-		--count;
-		return elems + index;
-	}
+	T* erase(T* ptr);
+	// does not include the 'ending'
+	T* erase(T* start, T* ending);
 	inline void clear() { count = 0; }
 	inline void emplace_back() { if (count != _countof(elems)) { ++count; } }
-	inline void emplace(GatlingOrWhiffCancelInfo* ptr) {
-		if (count == _countof(elems)) return;
-		int index = ptr - elems;
-		if (index == count) {
-			++count;
-			return;
-		}
-		const size_t elemSize = sizeof (GatlingOrWhiffCancelInfo);
-		memmove(ptr + 1, ptr, elemSize * (count - index));
-		++count;
-	}
-	inline GatlingOrWhiffCancelInfo& front() { return elems[0]; }
-	inline const GatlingOrWhiffCancelInfo& front() const { return elems[0]; }
-	inline GatlingOrWhiffCancelInfo& back() { return elems[count - 1]; }
-	inline const GatlingOrWhiffCancelInfo& back() const { return elems[count - 1]; }
-	inline GatlingOrWhiffCancelInfo& operator[](int index) { return elems[index]; }
-	inline const GatlingOrWhiffCancelInfo& operator[](int index) const { return elems[index]; }
-	inline GatlingOrWhiffCancelInfo* data() { return elems; }
-	inline const GatlingOrWhiffCancelInfo* data() const { return elems; }
-	inline bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const {
-		for (const GatlingOrWhiffCancelInfo& info : *this) {
-			if (strcmp(info.move->name, skillName) == 0) {
-				if (infoPtr) *infoPtr = &info;
-				return true;
-			}
-		}
-		return false;
-	}
+	void emplace(T* ptr);
+	inline T& front() { return elems[0]; }
+	inline const T& front() const { return elems[0]; }
+	inline T& back() { return elems[count - 1]; }
+	inline const T& back() const { return elems[count - 1]; }
+	inline T& operator[](int index) { return elems[index]; }
+	inline const T& operator[](int index) const { return elems[index]; }
+	inline T* data() { return elems; }
+	inline const T* data() const { return elems; }
+	bool hasCancel(const char* skillName, const T** infoPtr = nullptr) const;
 };
 
-template<size_t size>
-struct FrameCancelInfo {
-	FixedArrayOfGatlingOrWhiffCancelInfos<size> gatlings;
-	FixedArrayOfGatlingOrWhiffCancelInfos<size> whiffCancels;
+template<typename T>
+struct FrameCancelInfoBase {
+	FixedArrayOfGatlingOrWhiffCancelInfos<T> gatlings;
+	FixedArrayOfGatlingOrWhiffCancelInfos<T> whiffCancels;
 	const char* whiffCancelsNote = nullptr;
-	FrameCancelInfo() = default;
-	inline void clear() {
-		gatlings.clear();
-		whiffCancels.clear();
-		whiffCancelsNote = nullptr;
-	}
-	inline bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const {
-		for (const GatlingOrWhiffCancelInfo& info : gatlings) {
-			if (strcmp(info.move->name, skillName) == 0) {
-				if (infoPtr) *infoPtr = &info;
-				return true;
-			}
-		}
-		for (const GatlingOrWhiffCancelInfo& info : whiffCancels) {
-			if (strcmp(info.move->name, skillName) == 0) {
-				if (infoPtr) *infoPtr = &info;
-				return true;
-			}
-		}
-		return false;
-	}
-	inline void unsetWasFoundOnThisFrame(bool unsetCountersIncremented) {
-		for (GatlingOrWhiffCancelInfo& info : gatlings) {
-			info.foundOnThisFrame = false;
-			if (unsetCountersIncremented) {
-				info.countersIncremented = false;
-			}
-		}
-		for (GatlingOrWhiffCancelInfo& info : whiffCancels) {
-			info.foundOnThisFrame = false;
-			if (unsetCountersIncremented) {
-				info.countersIncremented = false;
-			}
-		}
-	}
-	inline void deleteThatWhichWasNotFound() {
-		size_t counter;
-		size_t i;
-		if (!gatlings.empty()) {
-			for (counter = gatlings.size(); counter != 0; --counter) {
-				i = counter - 1;
-				if (!gatlings[i].foundOnThisFrame) {
-					gatlings.erase(gatlings.begin() + i);
-				}
-			}
-		}
-		if (!whiffCancels.empty()) {
-			for (counter = whiffCancels.size(); counter != 0; --counter) {
-				i = counter - 1;
-				if (!whiffCancels[i].foundOnThisFrame) {
-					whiffCancels.erase(whiffCancels.begin() + i);
-				}
-			}
-		}
-	}
-	template<size_t srcSize>
-	inline void copyFromAnotherSizedArray(FrameCancelInfo<srcSize>& src) {
-		copyCancelsFromAnotherSizePart<srcSize>(gatlings, src.gatlings);
-		copyCancelsFromAnotherSizePart<srcSize>(whiffCancels, src.whiffCancels);
-		whiffCancelsNote = src.whiffCancelsNote;
-	}
-	template<size_t srcSize>
-	inline void copyCancelsFromAnotherSizePart(FixedArrayOfGatlingOrWhiffCancelInfos<size>& dest,
-			FixedArrayOfGatlingOrWhiffCancelInfos<srcSize>& src) {
-		size_t elemsToCopy = src.size();
-		if (elemsToCopy > size) {
-			elemsToCopy = size;
-		}
-		dest.count = elemsToCopy;
-		memcpy(dest.elems, src.elems, sizeof (GatlingOrWhiffCancelInfo) * elemsToCopy);
-	}
-	template<size_t srcSize>
-	inline bool equalTruncated(FrameCancelInfo<srcSize>& src) {
-		return equalTruncatedPart<srcSize>(gatlings, src.gatlings)
-			&& equalTruncatedPart<srcSize>(whiffCancels, src.whiffCancels)
-			&& whiffCancelsNote == src.whiffCancelsNote;
-	}
-	template<size_t srcSize>
-	inline bool equalTruncatedPart(FixedArrayOfGatlingOrWhiffCancelInfos<size>& dest,
-			FixedArrayOfGatlingOrWhiffCancelInfos<srcSize>& src) {
-		size_t elemsToCompare = src.size();
-		if (elemsToCompare > size) {
-			elemsToCompare = size;
-		}
-		return dest.count == elemsToCompare
-			&& memcmp(dest.elems, src.elems, sizeof (GatlingOrWhiffCancelInfo) * elemsToCompare) == 0;
-	}
-	inline void onHit() {
-		for (GatlingOrWhiffCancelInfo& frameCancel : gatlings) {
-			frameCancel.framesBeenAvailableForNotIncludingHitstopFreeze = 0;
-		}
-		for (GatlingOrWhiffCancelInfo& frameCancel : whiffCancels) {
-			frameCancel.framesBeenAvailableForNotIncludingHitstopFreeze = 0;
-		}
-	}
+	FrameCancelInfoBase() = default;
+	void clear();
+	bool hasCancel(const char* skillName, const T** infoPtr = nullptr) const;
+};
+
+struct FrameCancelInfoFull : FrameCancelInfoBase<GatlingOrWhiffCancelInfo> {
+	FrameCancelInfoFull();
+	void unsetWasFoundOnThisFrame(bool unsetCountersIncremented);
+	void deleteThatWhichWasNotFoundPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& ar);
+	void deleteThatWhichWasNotFound();
+	void onHit();
+};
+
+struct FrameCancelInfoStored : FrameCancelInfoBase<GatlingOrWhiffCancelInfoStored> {
+	FrameCancelInfoStored();
+	void copyFromAnotherArray(const FrameCancelInfoFull& src);
+	void copyCancelsFromAnotherArrayPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
+			const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src);
+	bool equalTruncated(const FrameCancelInfoFull& src) const;
+	bool equalTruncatedPart(const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
+			const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) const;
 };
 
 struct PlayerCancelInfo {
 	int start = 0;
 	int end = 0; // inclusive
-	FrameCancelInfo<30> cancels;
+	std::vector<GatlingOrWhiffCancelInfo> gatlings;
+	std::vector<GatlingOrWhiffCancelInfo> whiffCancels;
+	const char* whiffCancelsNote = nullptr;
 	bool enableJumpCancel:1;
 	bool enableSpecialCancel:1;
 	bool enableSpecials:1;
@@ -391,7 +316,10 @@ struct PlayerCancelInfo {
 	bool cancelsEqual(const PlayerCancelInfo& other) const;
 	void clear();
 	bool isCompletelyEmpty() const;
-	inline bool hasCancel(const char* skillName) const { return cancels.hasCancel(skillName); }
+	bool hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr = nullptr) const;
+	void copyFromAnotherArray(const FrameCancelInfoFull& src);
+	void copyCancelsFromAnotherArrayPart(std::vector<GatlingOrWhiffCancelInfo>& dest,
+		const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src);
 };
 
 enum FrameType : char {
@@ -693,10 +621,10 @@ struct Frame : public FrameBase {
 // This means that types like std::vector require special handling in the clear() method.
 struct PlayerFrame : public FrameBase {
 	const NamePair* animName;
-	std::shared_ptr<FrameCancelInfo<30>> cancels;
-	std::vector<Input> inputs;
+	ThreadUnsafeSharedPtr<FrameCancelInfoStored> cancels;
+	ThreadUnsafeSharedPtr<std::vector<Input>> inputs;
+	ThreadUnsafeSharedPtr<std::vector<CreatedProjectileStruct>> createdProjectiles;
 	const char* powerupExplanation;
-	Input prevInput;
 	union {
 		MilliaInfo milliaInfo;
 		ChippInfo chippInfo;
@@ -718,6 +646,8 @@ struct PlayerFrame : public FrameBase {
 		VenomInfo venomInfo;
 		SlayerInfo slayerInfo;
 	} u;
+	Input prevInput;
+	Input input;
 	short poisonDuration;
 	short poisonMax:14;
 	short poisonIsBacchusSigh:1;
@@ -779,7 +709,6 @@ struct PlayerFrame : public FrameBase {
 	bool inputsOverflow:1;
 	bool canYrc:1;
 	bool canYrcProjectile:1;
-	bool createdDangerousProjectile:1;
 	bool IBdOnThisFrame:1;
 	bool FDdOnThisFrame:1;
 	bool blockedOnThisFrame:1;
@@ -793,9 +722,16 @@ struct PlayerFrame : public FrameBase {
 	bool dontShowPowerupGraphic:1;
 	bool cantAirdash:1;
 	bool counterhit:1;
+	bool multipleInputs:1;
 	
-	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
-	static void shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow);
+	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput,
+			const std::vector<Input>& source, bool* overflow);
+	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput,
+			const Input& sourceInput, bool* overflow);
+	// returns the new value of destination.multipleInputs
+	static bool shoveMoreInputsAtTheStart(Input& prevInput, bool destinationMultipleInputs, Input& destinationInput,
+			ThreadUnsafeSharedPtr<std::vector<Input>>& destination, const Input& sourcePrevInput,
+			const std::vector<Input>& source, bool* overflow);
 	void printInvuls(char* buf, size_t bufSize) const;
 	void clear();
 };
@@ -874,6 +810,7 @@ struct PlayerFramebar : public FramebarBase {
 	virtual bool lastNFramesCompletelyEmpty(int framebarPosition, int n) const override;
 	void clearCancels();
 	void clearCancels(int index);
+	std::vector<CreatedProjectileStruct> createdProjectiles;
 	std::vector<Input> inputs;
 	Input prevInput{0x0000};
 	bool inputsOverflow = false;
@@ -1271,6 +1208,7 @@ struct ProjectileInfo {
 	const NamePair* lastName = nullptr;
 	SpriteFrameInfo sprite;
 	int framebarId = -1;
+	CreatedProjectileStruct creatorNamePtr;
 	char creatorName[32] { 0 };
 	Entity creator { nullptr };
 	FramebarTitle framebarTitle { nullptr };
@@ -1312,6 +1250,11 @@ struct ProjectileInfo {
 	static void determineMoveNameAndSlangName(Entity ptr, const NamePair** name, const char** framebarNameFull = nullptr);
 	void fillInMove();
 	bool hitConnectedForFramebar() const;
+	inline void determineCreatedName(CreatedProjectileStruct* result, bool allowDetermineMove, bool leaveNullIfFailed) const {
+		determineCreatedName(moveNonEmpty ? &move : nullptr, ptr, lastName, result, allowDetermineMove, leaveNullIfFailed);
+	}
+	static void determineCreatedName(const MoveInfo* move, Entity ent, const NamePair* lastName, CreatedProjectileStruct* result, bool allowDetermineMove, bool leaveNullIfFailed);
+	static void determineCreatedName(const MoveInfo* move, Entity ent, const NamePair* lastName, CreatedProjectileStruct* result, bool leaveNullIfFailed);
 };
 
 struct InvulData {
@@ -1729,14 +1672,15 @@ struct PlayerInfo {
 	AddedMoveData* crouchingFDMove = nullptr;
 	PlayerCancelInfo cancels[10] { };
 	int cancelsTimer = 0;
-	FrameCancelInfo<180> prevFrameCancels;
-	FrameCancelInfo<180> wasCancels;
+	FrameCancelInfoFull prevFrameCancels;
+	FrameCancelInfoFull wasCancels;
 	int cancelsCount = 0;
 	std::vector<DmgCalc> dmgCalcs;
 	std::vector<Input> inputs;
 	std::string lastMoveNameBeforeSuperfreeze;
 	std::string lastMoveNameAfterSuperfreeze;
 	std::vector<ComboRecipeElement> comboRecipe;
+	std::vector<CreatedProjectileStruct> createdProjectiles;
 	Input prevInput;
 	int dmgCalcsSkippedHits = 0;
 	int proration = 0;
@@ -1977,8 +1921,6 @@ struct PlayerInfo {
 	bool knockdownContaminatedByRCSlowdown:1;
 	bool blockstunContaminatedByRCSlowdown:1;
 	bool inputsOverflow:1;
-	bool createdDangerousProjectile:1;
-	bool createdProjectileThatSometimesCanBeDangerous:1;
 	bool lastBlockWasIB:1;
 	bool lastBlockWasFD:1;
 	bool displayTumble:1;
@@ -2089,6 +2031,7 @@ struct PlayerInfo {
 	ComboRecipeElement* findLastNonProjectileComboElement();
 	ComboRecipeElement* findLastDash();
 	bool lastComboHitEqualsProjectile(Entity ptr) const;
+	void registerCreatedProjectile(ProjectileInfo& projectile);
 };
 
 extern const char PROJECTILES_STR[12];

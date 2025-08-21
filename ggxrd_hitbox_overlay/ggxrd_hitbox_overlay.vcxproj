@@ -241,6 +241,7 @@
     <ClInclude Include="memoryFunctions.h" />
     <ClInclude Include="StringWithLength.h" />
     <ClInclude Include="TexturePacker.h" />
+    <ClInclude Include="ThreadUnsafeSharedPtr.h" />
     <ClInclude Include="ThrowInfo.h" />
     <ClInclude Include="Throws.h" />
     <ClInclude Include="UI.h" />

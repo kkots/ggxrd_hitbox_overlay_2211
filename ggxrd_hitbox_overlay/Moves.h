@@ -23,6 +23,64 @@ inline const NamePair* getPair(const char* name, const char* slang = nullptr) {
 	return &myPair;
 }
 
+struct CreatedProjectileStruct {
+	union {
+		const char* name;
+		const NamePair* namePair;
+	};
+	union {
+		const char* createdBy;
+		const NamePair* createdByNamePair;
+	};
+	bool usePrefix:1;
+	bool useNamePair:1;
+	bool useCreatedByNamePair:1;
+	inline CreatedProjectileStruct()
+	:
+		name(nullptr),
+		createdBy(nullptr),
+		usePrefix(false),
+		useNamePair(false),
+		useCreatedByNamePair(false) {
+	}
+	inline CreatedProjectileStruct(const char* name)
+	:
+		name(name),
+		createdBy(nullptr),
+		usePrefix(false),
+		useNamePair(false),
+		useCreatedByNamePair(false) {
+	}
+	inline CreatedProjectileStruct(const NamePair* namePair)
+	:
+		namePair(namePair),
+		createdBy(nullptr),
+		usePrefix(false),
+		useNamePair(true),
+		useCreatedByNamePair(false) {
+	}
+	inline void clear() {
+		name = nullptr;
+		createdBy = nullptr;
+		usePrefix = false;
+		useNamePair = false;
+	}
+};
+
+#define assignCreatedProjectile getCreatedProjectile<__COUNTER__>
+
+template<size_t lineNumber>
+inline const CreatedProjectileStruct* getCreatedProjectile(const char* name) {
+	static const CreatedProjectileStruct myStruct { name };
+	return &myStruct;
+}
+
+template<size_t lineNumber>
+inline const CreatedProjectileStruct* getCreatedProjectile(const NamePair* name) {
+	static const CreatedProjectileStruct myStruct { name };
+	return &myStruct;
+}
+
 extern const NamePair emptyNamePair;
 
 using sectionSeparator_t = bool(*)(PlayerInfo& ent);
@@ -33,6 +91,7 @@ using selectFramebarName_t = const NamePair*(*)(Entity ent);
 using zatoHoldLevel_t = DWORD(*)(PlayerInfo& ent);
 using selectDisplayName_t = const NamePair*(*)(PlayerInfo& ent);
 using selectPowerupExplanation_t = const char*(*)(PlayerInfo& ent);
+using createdProjectile_t = const CreatedProjectileStruct*(*)(PlayerInfo& ent);  // the returned value under the pointer must be used immediately! Don't store the pointer!
 using projectileFunc_t = bool(*)(ProjectileInfo& projectile);
 
 enum GroundBlitzType {
@@ -69,6 +128,7 @@ struct MoveInfoProperty {
 		selectFramebarName_t selectFramebarNameValue;
 		selectDisplayName_t selectDisplayNameValue;
 		selectPowerupExplanation_t selectPowerupExplanationValue;
+		createdProjectile_t createdProjectileValue;  // the returned value under the pointer must be used immediately! Don't store the pointer!
 		zatoHoldLevel_t zatoHoldLevelValue;
 		projectileFunc_t projectileFuncValue;
 		const NamePair* namePairValue;
@@ -111,6 +171,7 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(const NamePair*, namePairValue, framebarNameUncombined, nullptr) \
 	MOVE_INFO_EXEC(const char*, strValue, framebarNameFull, nullptr) \
 	MOVE_INFO_EXEC(selectFramebarName_t, selectFramebarNameValue, framebarNameSelector, nullptr) \
+	MOVE_INFO_EXEC(selectFramebarName_t, selectFramebarNameValue, framebarNameUncombinedSelector, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isInVariableStartupSection, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canStopHolding, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, aSectionBeforeVariableStartup, nullptr) \
@@ -146,7 +207,8 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(bool, boolValue, drawProjectileOriginPoint, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canYrcProjectile, nullptr) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
-	MOVE_INFO_EXEC(isIdle_t, isIdleValue, createdProjectile, nullptr) \
+	/* the returned value under the pointer must be used immediately! Don't store the pointer! */ \
+	MOVE_INFO_EXEC(createdProjectile_t, createdProjectileValue, createdProjectile, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr) \
 	MOVE_INFO_EXEC(projectileFunc_t, projectileFuncValue, projectilePowerup, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
@@ -179,6 +241,7 @@ struct MoveInfo {
 	ForceAddedWhiffCancel* getForceAddWhiffCancel(int index) const;
 	inline const NamePair* getDisplayName(PlayerInfo& ent) const { return displayNameSelector ? displayNameSelector(ent) : displayName; }
 	inline const NamePair* getDisplayNameNoScripts(PlayerInfo& ent) const { return displayName; }
+	inline const NamePair* getFramebarNameUncombined(Entity& ent) const { return framebarNameUncombinedSelector ? framebarNameUncombinedSelector(ent) : framebarNameUncombined; }
 };
 class Moves {
 public:
@@ -244,7 +307,16 @@ public:
 	TriBool milliaIsRev2 = TRIBOOL_DUNNO;
 	int faust5DExPointX = -1;
 	int faust5DExPointY = -1;
-	int venomQvClearUponAfterExitOffset = 0;
+	int venomQvAClearUponAfterExitOffset = 0;
+	int venomQvBClearUponAfterExitOffset = 0;
+	int venomQvCClearUponAfterExitOffset = 0;
+	int venomQvDClearUponAfterExitOffset = 0;
+	int* venomQvClearUponAfterExitOffsetArray[4] = {
+		&venomQvAClearUponAfterExitOffset,
+		&venomQvBClearUponAfterExitOffset,
+		&venomQvCClearUponAfterExitOffset,
+		&venomQvDClearUponAfterExitOffset
+	};
 	int venomBishopCreateOffset = 0;
 	int ino5DCreateDustObjShotOffset = 0;
 	MayIrukasanRidingObjectInfo bedmanSealA { 0 };
@@ -411,6 +483,15 @@ public:
 	int bedmanDejavuCStartup = 0;
 	int bedmanDejavuDStartup = 0;
 	void fillBedmanDejavuStartup(BYTE* funcStart, int* startup);
+	int venomBallSeiseiABallCreation = 0;
+	int venomBallSeiseiBBallCreation = 0;
+	int venomBallSeiseiCBallCreation = 0;
+	int venomBallSeiseiDBallCreation = 0;
+	int venomAirBallSeiseiABallCreation = 0;
+	int venomAirBallSeiseiBBallCreation = 0;
+	int venomAirBallSeiseiCBallCreation = 0;
+	int venomAirBallSeiseiDBallCreation = 0;
+	void fillVenomBallCreation(BYTE* funcStart, int* result);
 private:
 	friend struct MoveInfo;
 	bool justCountingMoves = false;

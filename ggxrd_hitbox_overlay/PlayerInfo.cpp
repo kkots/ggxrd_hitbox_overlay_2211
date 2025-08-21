@@ -775,6 +775,8 @@ void PlayerInfo::clear() {
 	offset += sizeof lastMoveNameAfterSuperfreeze;
 	comboRecipe.clear();
 	offset += sizeof comboRecipe;
+	createdProjectiles.clear();
+	offset += sizeof createdProjectiles;
 	memset((BYTE*)this + offset, 0, sizeof PlayerInfo - offset);
 	ikMoveIndex = -1;
 	counterGuardAirMoveIndex = -1;
@@ -2132,9 +2134,32 @@ void PlayerFramebar::processRequests(FrameBase& destinationFrame) {
 	::processRequests<PlayerFramebar, PlayerFrame>(this, frame);
 	if (!inputs.empty()) {
 		bool overflow = false;
-		PlayerFrame::shoveMoreInputsAtTheStart(frame.prevInput, frame.inputs, prevInput, inputs, &overflow);
+		bool newMultipleInputs = PlayerFrame::shoveMoreInputsAtTheStart(frame.prevInput, frame.multipleInputs, frame.input,
+				frame.inputs, prevInput,
+				inputs, &overflow);
+		frame.multipleInputs = newMultipleInputs;
 		frame.inputsOverflow |= inputsOverflow | overflow;
 		inputs.clear();
+	}
+	if (!createdProjectiles.empty()) {
+		if (!frame.createdProjectiles || frame.createdProjectiles.use_count() != 1) {
+			const std::vector<CreatedProjectileStruct>* oldCreatedProjectiles = nullptr;
+			if (frame.createdProjectiles) {
+				oldCreatedProjectiles = frame.createdProjectiles.get();
+			}
+			frame.createdProjectiles = new ThreadUnsafeSharedResource<std::vector<CreatedProjectileStruct>>();
+			frame.createdProjectiles->reserve(
+				(oldCreatedProjectiles ? oldCreatedProjectiles->size() : 0)
+				+ createdProjectiles.size()
+			);
+			frame.createdProjectiles->insert(frame.createdProjectiles->end(), createdProjectiles.begin(), createdProjectiles.end());
+			if (oldCreatedProjectiles) {
+				frame.createdProjectiles->insert(frame.createdProjectiles->end(), oldCreatedProjectiles->begin(), oldCreatedProjectiles->end());
+			}
+		} else {
+			frame.createdProjectiles->insert(frame.createdProjectiles->begin(), createdProjectiles.begin(), createdProjectiles.end());
+		}
+		createdProjectiles.clear();
 	}
 	inputsOverflow = false;
 	prevInputCopied = false;
@@ -2170,6 +2195,7 @@ void PlayerFramebar::cloneRequests(FramebarBase& source) {
 	PlayerFramebar& cast = (PlayerFramebar&)source;
 	::cloneRequests<PlayerFramebar>(this, cast);
 	inputs = cast.inputs;
+	createdProjectiles = cast.createdProjectiles;
 	inputsOverflow = cast.inputsOverflow;
 	prevInputCopied = cast.prevInputCopied;
 	prevInput = cast.prevInput;
@@ -2183,10 +2209,17 @@ void PlayerFramebar::collectRequests(FramebarBase& source, bool framebarAdvanced
 	::collectRequests<PlayerFramebar>(this, (PlayerFramebar&)source);
 	if (framebarAdvancedIdleHitstop) {
 		const PlayerFrame& frame = (const PlayerFrame&)sourceFrame;
-		if (frame.type != FT_NONE && !frame.inputs.empty()) {
+		if (frame.type != FT_NONE && !(frame.multipleInputs && frame.inputs->empty())) {
 			bool overflow = false;
-			PlayerFrame::shoveMoreInputs(prevInput, inputs, frame.prevInput, frame.inputs, &overflow);
+			if (frame.multipleInputs) {
+				PlayerFrame::shoveMoreInputs(prevInput, inputs, frame.prevInput, *frame.inputs, &overflow);
+			} else {
+				PlayerFrame::shoveMoreInputs(prevInput, inputs, frame.prevInput, frame.input, &overflow);
+			}
 			if (overflow || frame.inputsOverflow) inputsOverflow = true;
+		}
+		if (frame.createdProjectiles && !frame.createdProjectiles->empty()) {
+			createdProjectiles.insert(createdProjectiles.end(), frame.createdProjectiles->begin(), frame.createdProjectiles->end());
 		}
 	}
 }
@@ -2205,6 +2238,7 @@ void PlayerFramebar::clearRequests() {
 	::clearRequests<PlayerFramebar>(this);
 	inputsOverflow = false;
 	inputs.clear();
+	createdProjectiles.clear();
 	prevInputCopied = false;
 	prevInput = Input{0x0000};
 }
@@ -2313,8 +2347,22 @@ void PlayerFrame::clear() {
 	memset(this, 0, pos);
 	cancels = nullptr;
 	pos += sizeof cancels;
-	inputs.clear();
+	if (multipleInputs) {
+		if (inputs.use_count() == 1) {
+			inputs->clear();
+		} else {
+			inputs = nullptr;
+		}
+	}
 	pos += sizeof inputs;
+	if (createdProjectiles && !createdProjectiles->empty()) {
+		if (createdProjectiles.use_count() == 1) {
+			createdProjectiles->clear();
+		} else {
+			createdProjectiles = nullptr;
+		}
+	}
+	pos += sizeof createdProjectiles;
 	memset((BYTE*)this + pos, 0, sizeof *this - pos);
 }
 
@@ -2635,8 +2683,8 @@ void CombinedProjectileFramebar::determineName(int framebarPosition, bool isHits
 }
 
 bool PlayerCancelInfo::cancelsEqual(const PlayerCancelInfo& other) const {
-	if (cancels.gatlings.size() != other.cancels.gatlings.size()
-			|| cancels.whiffCancels.size() != other.cancels.whiffCancels.size()
+	if (gatlings.size() != other.gatlings.size()
+			|| whiffCancels.size() != other.whiffCancels.size()
 			|| enableJumpCancel != other.enableJumpCancel
 			|| enableSpecialCancel != other.enableSpecialCancel
 			|| enableSpecials != other.enableSpecials
@@ -2644,18 +2692,18 @@ bool PlayerCancelInfo::cancelsEqual(const PlayerCancelInfo& other) const {
 		return false;
 	}
 	{
-		auto it = cancels.gatlings.begin();
-		auto otherIt = other.cancels.gatlings.begin();
-		for (; it != cancels.gatlings.end(); ) {
+		auto it = gatlings.begin();
+		auto otherIt = other.gatlings.begin();
+		for (; it != gatlings.end(); ) {
 			if (*it != *otherIt) return false;
 			++it;
 			++otherIt;
 		}
 	}
 	{
-		auto it = cancels.whiffCancels.begin();
-		auto otherIt = other.cancels.whiffCancels.begin();
-		for (; it != cancels.whiffCancels.end(); ) {
+		auto it = whiffCancels.begin();
+		auto otherIt = other.whiffCancels.begin();
+		for (; it != whiffCancels.end(); ) {
 			if (*it != *otherIt) return false;
 			++it;
 			++otherIt;
@@ -2667,7 +2715,8 @@ bool PlayerCancelInfo::cancelsEqual(const PlayerCancelInfo& other) const {
 void PlayerCancelInfo::clear() {
 	start = 0;
 	end = 0;
-	cancels.clear();
+	gatlings.clear();
+	whiffCancels.clear();
 	enableJumpCancel = false;
 	enableSpecialCancel = false;
 	enableSpecials = false;
@@ -2721,7 +2770,7 @@ void PlayerInfo::appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel) {
 }
 
 bool PlayerCancelInfo::isCompletelyEmpty() const {
-	return cancels.gatlings.empty() && cancels.whiffCancels.empty() && !enableJumpCancel && !enableSpecialCancel && !enableSpecials;
+	return gatlings.empty() && whiffCancels.empty() && !enableJumpCancel && !enableSpecialCancel && !enableSpecials;
 }
 
 void PlayerInfo::determineMoveNameAndSlangName(const NamePair** name) {
@@ -2767,7 +2816,7 @@ void PlayerInfo::determineMoveNameAndSlangName(const MoveInfo* move, bool idle, 
 	if (name && !*name) {
 		int moveIndex = pawn.pawn.currentMoveIndex();
 		if (moveIndex == -1) {
-			*name = NamePairManager::getPair((const char*)(pawn.pawn.bbscrCurrentFunc() + 4));
+			*name = NamePairManager::getPair(asInstr(pawn.pawn.bbscrCurrentFunc(), beginState)->name);
 		} else {
 			const AddedMoveData* actualMove = pawn.pawn.movesBase() + moveIndex;
 			*name = NamePairManager::getPair(actualMove->name);
@@ -2797,6 +2846,8 @@ void ProjectileInfo::determineMoveNameAndSlangName(const MoveInfo* move, Entity 
 		if (name) {
 			if (move->framebarNameSelector && ptr) {
 				*name = move->framebarNameSelector(ptr);
+			} else if (move->framebarNameUncombinedSelector && ptr) {
+				*name = move->framebarNameUncombinedSelector(ptr);
 			} else if (move->framebarNameUncombined) {
 				*name = move->framebarNameUncombined;
 			} else if (move->framebarName) {
@@ -2806,7 +2857,7 @@ void ProjectileInfo::determineMoveNameAndSlangName(const MoveInfo* move, Entity 
 	} else if (!ptr || !ptr.bbscrCurrentFunc()) {
 		if (name) *name = nullptr;
 	} else if (name) {
-		*name = NamePairManager::getPair((const char*)(ptr.bbscrCurrentFunc() + 4));
+		*name = NamePairManager::getPair(asInstr(ptr.bbscrCurrentFunc(), beginState)->name);
 	}
 }
 
@@ -2974,35 +3025,69 @@ bool ProjectileInfo::hitConnectedForFramebar() const {
 	}
 }
 
-void PlayerFrame::shoveMoreInputsAtTheStart(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow) {
-	if (destination.size() == 80) {
-		if (!source.empty() && overflow) *overflow = true;
-		return;
+// returns the new value of destination.multipleInputs
+bool PlayerFrame::shoveMoreInputsAtTheStart(Input& prevInput, bool destinationMultipleInputs, Input& destinationInput,
+			ThreadUnsafeSharedPtr<std::vector<Input>>& destination, const Input& sourcePrevInput,
+			const std::vector<Input>& source, bool* overflow) {
+	if (source.empty()) return destinationMultipleInputs;
+	size_t oldSize = 1;
+	if (destinationMultipleInputs) {
+		oldSize = destination->size();
 	}
-	int totalSize = (int)destination.size() + (int)source.size();
+	if (oldSize == 80) {
+		if (!source.empty() && overflow) *overflow = true;
+		return true;
+	}
+	size_t totalSize = oldSize + source.size();
 	if (totalSize > 80) {
 		if (overflow) *overflow = true;
-		size_t oldSize = destination.size();
-		int framesToShove = 80 - (int)oldSize;
-		destination.resize(80);
-		memmove(destination.data() + framesToShove, destination.data(), oldSize * sizeof Input);
-		memcpy(destination.data(), source.data() + source.size() - framesToShove, framesToShove * sizeof Input);
-		prevInput = source[source.size() - framesToShove - 1];
+		
+		if (!destination || destination.use_count() != 1) {
+			destination = new ThreadUnsafeSharedResource<std::vector<Input>>();
+		}
+		destination->resize(80);
+		if (destinationMultipleInputs) {
+			int framesToShove = 80 - (int)oldSize;
+			Input* destinationData = destination->data();
+			memmove(destinationData + framesToShove, destinationData, oldSize * sizeof Input);
+			memcpy(destinationData, source.data() + source.size() - framesToShove, framesToShove * sizeof Input);
+			prevInput = source[source.size() - framesToShove - 1];
+		} else {
+			(*destination)[79] = destinationInput;
+			memcpy(destination->data(), source.data() + 1, 79 * sizeof Input);
+			prevInput = source.front();
+		}
+		return true;
+	} else if (totalSize == 1) {
+		destinationInput = source[0];
+		return false;
 	} else {
-		destination.insert(destination.begin(), source.begin(), source.end());
+		if (!destination || destination.use_count() != 1) {
+			destination = new ThreadUnsafeSharedResource<std::vector<Input>>();
+		}
+		if (destinationMultipleInputs) {
+			destination->insert(destination->begin(), source.begin(), source.end());
+		} else {
+			destination->resize(totalSize);
+			destination->back() = destinationInput;
+			memcpy(destination->data(), source.data(), source.size() * sizeof Input);
+		}
 		prevInput = sourcePrevInput;
+		return true;
 	}
 }
 
-void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput, const std::vector<Input>& source, bool* overflow) {
-	int totalSize = (int)destination.size() + (int)source.size();
+void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput,
+		const std::vector<Input>& source, bool* overflow) {
+	if (source.empty()) return;
+	size_t oldSize = destination.size();
+	size_t totalSize = oldSize + source.size();
 	if (totalSize > 80) {
 		if (overflow) *overflow = true;
-		int indexToTakeFrom = totalSize - 80 - 1;  // in the would-be combined, size-unrestrained array of destination+source where destination's elements go first and then source's
+		size_t indexToTakeFrom = totalSize - 80 - 1;  // in the would-be combined, size-unrestrained array of destination+source where destination's elements go first and then source's
 		prevInput = destination[indexToTakeFrom];
-		size_t oldSize = destination.size();
-		if (indexToTakeFrom + 1 < (int)oldSize) {
-			int elementsMoved = (int)oldSize - indexToTakeFrom - 1;
+		if (indexToTakeFrom + 1 < oldSize) {
+			size_t elementsMoved = oldSize - indexToTakeFrom - 1;
 			memmove(destination.data(), destination.data() + indexToTakeFrom + 1, elementsMoved * sizeof Input);
 			if (oldSize != 80U) destination.resize(80);
 			memcpy(destination.data() + elementsMoved, source.data(), source.size() * sizeof Input);
@@ -3012,6 +3097,20 @@ void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destinat
 	} else {
 		if (destination.empty()) prevInput = sourcePrevInput;
 		destination.insert(destination.end(), source.begin(), source.end());
+	}
+}
+
+void PlayerFrame::shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput,
+		const Input& sourceInput, bool* overflow) {
+	size_t oldSize = destination.size();
+	if (oldSize == 80) {
+		if (overflow) *overflow = true;
+		prevInput = destination.front();
+		memmove(destination.data(), destination.data() + 1, 79 * sizeof Input);
+		destination[79] = sourceInput;
+	} else {
+		if (destination.empty()) prevInput = sourcePrevInput;
+		destination.push_back(sourceInput);
 	}
 }
 
@@ -3292,11 +3391,14 @@ ComboRecipeElement::ComboRecipeElement()
 	isSuperJumpInstall(false) {
 }
 
-GatlingOrWhiffCancelInfo::GatlingOrWhiffCancelInfo()
+GatlingOrWhiffCancelInfoStored::GatlingOrWhiffCancelInfoStored()
 		: nameIncludesInputs(false),
 		wasAddedDuringHitstopFreeze(false),
 		foundOnThisFrame(false),
 		countersIncremented(false) { }
+
+GatlingOrWhiffCancelInfo::GatlingOrWhiffCancelInfo()
+		: GatlingOrWhiffCancelInfoStored() { }
 
 bool Frame::operator==(const Frame& other) const {
 	if (memcmp(this, &other, offsetof(Frame, next)) != 0) return false;
@@ -3367,4 +3469,298 @@ bool animationIsNeedCountRamlethalSwordTime(const char* animName) {
 		default: return false;
 	}
 	return strcmp(animName, cmpStr) == 0;
+}
+
+bool GatlingOrWhiffCancelInfoStored::operator==(const GatlingOrWhiffCancelInfoStored& other) const {
+	return name == other.name
+		&& replacementInputs == other.replacementInputs
+		&& move == other.move
+		&& bufferTime == other.bufferTime
+		&& nameIncludesInputs == nameIncludesInputs;
+}
+
+bool PlayerCancelInfo::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr) const {
+	for (const GatlingOrWhiffCancelInfo& info : gatlings) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
+			return true;
+		}
+	}
+	for (const GatlingOrWhiffCancelInfo& info : whiffCancels) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
+			return true;
+		}
+	}
+	return false;
+}
+
+template<typename T>
+T* FixedArrayOfGatlingOrWhiffCancelInfos<T>::erase(T* ptr) {
+	int index = ptr - elems;
+	if (count - index > 1) {
+		const size_t elemSize = sizeof (T);
+		memmove(ptr, ptr + 1, elemSize * (count - index - 1));
+	}
+	--count;
+	return elems + index;
+}
+
+template GatlingOrWhiffCancelInfoStored* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::erase(GatlingOrWhiffCancelInfoStored* ptr);
+template GatlingOrWhiffCancelInfo* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::erase(GatlingOrWhiffCancelInfo* ptr);
+
+// does not include the 'ending'
+template<typename T>
+T* FixedArrayOfGatlingOrWhiffCancelInfos<T>::erase(T* start, T* ending) {
+	int startIndex = start - elems;
+	int endIndex = ending - elems;
+	if (count - endIndex > 0) {
+		const size_t elemSize = sizeof (T);
+		memmove(start, ending, elemSize * (count - endIndex));
+	}
+	count -= ending - start;
+	return elems + startIndex;
+}
+
+template GatlingOrWhiffCancelInfoStored* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::erase(GatlingOrWhiffCancelInfoStored* start, GatlingOrWhiffCancelInfoStored* ending);
+template GatlingOrWhiffCancelInfo* FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::erase(GatlingOrWhiffCancelInfo* start, GatlingOrWhiffCancelInfo* ending);
+
+template<typename T>
+void FixedArrayOfGatlingOrWhiffCancelInfos<T>::emplace(T* ptr) {
+	if (count == _countof(elems)) return;
+	int index = ptr - elems;
+	if (index == count) {
+		++count;
+		return;
+	}
+	const size_t elemSize = sizeof (T);
+	memmove(ptr + 1, ptr, elemSize * (count - index));
+	++count;
+}
+
+template void FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::emplace(GatlingOrWhiffCancelInfoStored* ptr);
+template void FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::emplace(GatlingOrWhiffCancelInfo* ptr);
+
+template<typename T>
+bool FixedArrayOfGatlingOrWhiffCancelInfos<T>::hasCancel(const char* skillName, const T** infoPtr) const {
+	for (const T& info : *this) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
+			return true;
+		}
+	}
+	return false;
+}
+
+template bool FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfoStored** infoPtr) const;
+template bool FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr) const;
+
+template<typename T>
+void FrameCancelInfoBase<T>::clear() {
+	gatlings.clear();
+	whiffCancels.clear();
+	whiffCancelsNote = nullptr;
+}
+
+template void FrameCancelInfoBase<GatlingOrWhiffCancelInfo>::clear();
+template void FrameCancelInfoBase<GatlingOrWhiffCancelInfoStored>::clear();
+
+template<typename T>
+bool FrameCancelInfoBase<T>::hasCancel(const char* skillName, const T** infoPtr) const {
+	for (const T& info : gatlings) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
+			return true;
+		}
+	}
+	for (const T& info : whiffCancels) {
+		if (strcmp(info.move->name, skillName) == 0) {
+			if (infoPtr) *infoPtr = &info;
+			return true;
+		}
+	}
+	return false;
+}
+
+template bool FrameCancelInfoBase<GatlingOrWhiffCancelInfo>::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfo** infoPtr) const;
+template bool FrameCancelInfoBase<GatlingOrWhiffCancelInfoStored>::hasCancel(const char* skillName, const GatlingOrWhiffCancelInfoStored** infoPtr) const;
+
+FrameCancelInfoStored::FrameCancelInfoStored() : FrameCancelInfoBase() { }
+
+void FrameCancelInfoStored::copyFromAnotherArray(const FrameCancelInfoFull& src) {
+	copyCancelsFromAnotherArrayPart(gatlings, src.gatlings);
+	copyCancelsFromAnotherArrayPart(whiffCancels, src.whiffCancels);
+	whiffCancelsNote = src.whiffCancelsNote;
+}
+
+void FrameCancelInfoStored::copyCancelsFromAnotherArrayPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
+		const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) {
+	size_t elemsToCopy = src.size();
+	dest.count = elemsToCopy;
+	GatlingOrWhiffCancelInfoStored* destPtr = dest.data();
+	const GatlingOrWhiffCancelInfo* srcPtr = src.data();
+	for (size_t counter = elemsToCopy; counter != 0; --counter) {
+		*destPtr = (const GatlingOrWhiffCancelInfoStored&)*srcPtr;
+		++destPtr;
+		++srcPtr;
+	}
+}
+
+bool FrameCancelInfoStored::equalTruncated(const FrameCancelInfoFull& src) const {
+	return equalTruncatedPart(gatlings, src.gatlings)
+		&& equalTruncatedPart(whiffCancels, src.whiffCancels)
+		&& whiffCancelsNote == src.whiffCancelsNote;
+}
+
+bool FrameCancelInfoStored::equalTruncatedPart(const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfoStored>& dest,
+			const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) const {
+	size_t srcSize = src.size();
+	size_t destSize = dest.size();
+	if (srcSize != destSize) return false;
+	const GatlingOrWhiffCancelInfo* srcPtr = src.data();
+	const GatlingOrWhiffCancelInfoStored* destPtr = dest.data();
+	for (size_t counter = srcSize; counter != 0; --counter) {
+		if (*srcPtr != *destPtr) return false;
+		++srcPtr;
+		++destPtr;
+	}
+	return true;
+}
+
+FrameCancelInfoFull::FrameCancelInfoFull() : FrameCancelInfoBase() { }
+
+void FrameCancelInfoFull::unsetWasFoundOnThisFrame(bool unsetCountersIncremented) {
+	for (GatlingOrWhiffCancelInfo& info : gatlings) {
+		info.foundOnThisFrame = false;
+		if (unsetCountersIncremented) {
+			info.countersIncremented = false;
+		}
+	}
+	for (GatlingOrWhiffCancelInfo& info : whiffCancels) {
+		info.foundOnThisFrame = false;
+		if (unsetCountersIncremented) {
+			info.countersIncremented = false;
+		}
+	}
+}
+
+void FrameCancelInfoFull::deleteThatWhichWasNotFoundPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& ar) {
+	int i;
+	int deletionStart;
+	if (!ar.empty()) {
+		GatlingOrWhiffCancelInfo* beginPtr = ar.begin();
+		deletionStart = -1;
+		for (i = (int)ar.size() - 1; i >= 0; --i) {
+			if (!ar[i].foundOnThisFrame) {
+				if (deletionStart == -1) {
+					deletionStart = i;
+				}
+			} else if (deletionStart != -1) {
+				ar.erase(beginPtr + i + 1, beginPtr + deletionStart + 1);
+				deletionStart = -1;
+			}
+		}
+		if (deletionStart != -1) {
+			ar.erase(beginPtr, beginPtr + deletionStart + 1);
+		}
+	}
+}
+
+void FrameCancelInfoFull::deleteThatWhichWasNotFound() {
+	deleteThatWhichWasNotFoundPart(gatlings);
+	deleteThatWhichWasNotFoundPart(whiffCancels);
+}
+
+void FrameCancelInfoFull::onHit() {
+	for (GatlingOrWhiffCancelInfo& frameCancel : gatlings) {
+		frameCancel.framesBeenAvailableForNotIncludingHitstopFreeze = 0;
+	}
+	for (GatlingOrWhiffCancelInfo& frameCancel : whiffCancels) {
+		frameCancel.framesBeenAvailableForNotIncludingHitstopFreeze = 0;
+	}
+}
+
+void PlayerCancelInfo::copyFromAnotherArray(const FrameCancelInfoFull& src) {
+	copyCancelsFromAnotherArrayPart(gatlings, src.gatlings);
+	copyCancelsFromAnotherArrayPart(whiffCancels, src.whiffCancels);
+}
+
+void PlayerCancelInfo::copyCancelsFromAnotherArrayPart(std::vector<GatlingOrWhiffCancelInfo>& dest,
+		const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& src) {
+	size_t elemsToCopy = src.size();
+	dest.clear();
+	dest.resize(elemsToCopy);
+	memcpy(dest.data(), src.data(), elemsToCopy * sizeof GatlingOrWhiffCancelInfo);
+}
+
+void PlayerInfo::registerCreatedProjectile(ProjectileInfo& projectile) {
+	if (projectile.lifeTimeCounter == 0
+			//&& projectile.creator == player.pawn  // May Beach Ball is not directly created by the player
+			//&& !idle  // Millia creates RoseObj objects during her dash animation which is considered 'idle'
+	) {
+		CreatedProjectileStruct theName;
+		projectile.determineCreatedName(&theName, false, false);
+		if (projectile.creatorNamePtr.useNamePair) {
+			theName.createdByNamePair = projectile.creatorNamePtr.namePair;
+			theName.useCreatedByNamePair = true;
+		} else {
+			theName.createdBy = projectile.creatorNamePtr.name;
+			theName.useCreatedByNamePair = false;
+		}
+		createdProjectiles.push_back(theName);
+	}
+}
+
+void ProjectileInfo::determineCreatedName(const MoveInfo* move, Entity ent, const NamePair* lastName, CreatedProjectileStruct* result, bool allowDetermineMove, bool leaveNullIfFailed) {
+	MoveInfo moveInfoDataStorage;
+	const MoveInfo* moveInfoPtr = move;
+	if (!move && allowDetermineMove && ent) {
+		entityList.populate();
+		bool moveNonEmpty = moves.getInfo(moveInfoDataStorage,
+			entityList.slots[ent.team()].characterType(),
+			nullptr,
+			ent.animationName(),
+			true);
+		if (moveNonEmpty) {
+			moveInfoPtr = &moveInfoDataStorage;
+		}
+	}
+	determineCreatedName(moveInfoPtr, ent, lastName, result, leaveNullIfFailed);
+}
+
+void ProjectileInfo::determineCreatedName(const MoveInfo* move, Entity ent, const NamePair* lastName, CreatedProjectileStruct* result, bool leaveNullIfFailed) {
+	result->name = leaveNullIfFailed ? nullptr : "Created a projectile";
+	result->createdBy = nullptr;
+	result->usePrefix = false;
+	result->useNamePair = false;
+	result->useCreatedByNamePair = false;
+	if (move && move->framebarNameUncombinedSelector && ent) {
+		result->namePair = move->framebarNameUncombinedSelector(ent);
+		result->useNamePair = true;
+		result->usePrefix = true;
+		return;
+	} else if (move && move->framebarNameUncombined) {
+		result->namePair = move->framebarNameUncombined;
+		result->useNamePair = true;
+		result->usePrefix = true;
+		return;
+	} else if (lastName) {
+		result->namePair = lastName;
+		result->useNamePair = true;
+		result->usePrefix = true;
+		return;
+	} else if (move) {
+		const NamePair* determinedName = nullptr;
+		determineMoveNameAndSlangName(move, ent, &determinedName);
+		if (determinedName) {
+			result->namePair = determinedName;
+			result->useNamePair = true;
+			result->usePrefix = true;
+			return;
+		}
+	}
+	if (ent && ent.bbscrCurrentFunc()) {
+		result->name = asInstr(ent.bbscrCurrentFunc(), beginState)->name;
+		result->usePrefix = true;
+	}
 }

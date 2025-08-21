@@ -95,11 +95,13 @@ bool EndScene::onDllMain() {
 	uintptr_t TrainingEtc_OneDamage = sigscanStrOffset(
 		"GuiltyGearXrd.exe:.rdata",
 		"TrainingEtc_OneDamage",
-		&error, "TrainingEtc_OneDamage");
+		&error, "TrainingEtc_OneDamage", nullptr);
 	if (!error) {
 		std::vector<char> sig;//[9] { "\xc7\x40\x28\x00\x00\x00\x00\xe8" };
 		std::vector<char> mask;
-		byteSpecificationToSigMask("c7 40 28 ?? ?? ?? ?? e8", sig, mask);
+		std::vector<char> maskForCaching;
+		// ghidra sig: c7 40 28 ?? ?? ?? ?? e8
+		byteSpecificationToSigMask("c7 40 28 rel(?? ?? ?? ??) e8", sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)TrainingEtc_OneDamage);
 		
 		uintptr_t drawTextWithIconsCall = sigscanBufOffset(
@@ -107,7 +109,7 @@ bool EndScene::onDllMain() {
 			sig.data(),
 			sig.size() - 1,
 			{ 7 },
-			&error, "drawTextWithIconsCall");
+			&error, "drawTextWithIconsCall", maskForCaching.data());
 		if (drawTextWithIconsCall) {
 			drawTextWithIcons = (drawTextWithIcons_t)followRelativeCall(drawTextWithIconsCall);
 			logwrap(fprintf(logfile, "drawTextWithIcons: %p\n", drawTextWithIcons));
@@ -132,19 +134,21 @@ bool EndScene::onDllMain() {
 		(const char*)CanvasFlushSetupCommandString,
 		sizeof CanvasFlushSetupCommandString,
 		{ 2 },
-		&error, "CanvasFlushSetupCommandString");
+		&error, "CanvasFlushSetupCommandString", nullptr);
 	uintptr_t CanvasFlushSetupCommand_DescribeCommand = 0;
 	if (CanvasFlushSetupCommandStringAddr) {
 		std::vector<char> sig;
 		std::vector<char> mask;
-		byteSpecificationToSigMask("b8 ?? ?? ?? ?? c3",
-			sig, mask);
+		std::vector<char> maskForCaching;
+		// ghidra sig: b8 ?? ?? ?? ?? c3
+		byteSpecificationToSigMask("b8 rel(?? ?? ?? ??) c3",
+			sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)CanvasFlushSetupCommandStringAddr);
 		CanvasFlushSetupCommand_DescribeCommand = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
-			&error, "CanvasFlushSetupCommand_DescribeCommand");
+			&error, "CanvasFlushSetupCommand_DescribeCommand", maskForCaching.data());
 	}
 	uintptr_t CanvasFlushSetupCommandVtable = 0;
 	if (CanvasFlushSetupCommand_DescribeCommand) {
@@ -153,20 +157,22 @@ bool EndScene::onDllMain() {
 			(const char*)&CanvasFlushSetupCommand_DescribeCommand,
 			4,
 			{ -8 },
-			&error, "CanvasFlushSetupCommandVtable");
+			&error, "CanvasFlushSetupCommandVtable", "rel_GuiltyGearXrd.exe(????)");
 	}
 	uintptr_t CanvasFlushSetupCommandCreationPlace = 0;
 	if (CanvasFlushSetupCommandVtable) {
 		std::vector<char> sig;
 		std::vector<char> mask;
-		byteSpecificationToSigMask("c7 ?? ?? ?? ?? ??", sig, mask);
+		std::vector<char> maskForCaching;
+		// ghidra sig: c7 ?? ?? ?? ?? ??
+		byteSpecificationToSigMask("c7 ?? rel(?? ?? ?? ??)", sig, mask, nullptr, 0, &maskForCaching);
 		strcpy(mask.data() + 2, "xxxx");
 		memcpy(sig.data() + 2, &CanvasFlushSetupCommandVtable, 4);
 		CanvasFlushSetupCommandCreationPlace = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
-			&error, "CanvasFlushSetupCommandCreationPlace");
+			&error, "CanvasFlushSetupCommandCreationPlace", maskForCaching.data());
 	}
 	uintptr_t GIsThreadedRenderingJzInstr = 0;
 	if (CanvasFlushSetupCommandCreationPlace) {
@@ -216,17 +222,20 @@ bool EndScene::onDllMain() {
 	{
 		std::vector<char> sig;
 		std::vector<char> unused;
-		byteSpecificationToSigMask("e8 ?? ?? ?? ?? 8b ?? ?? ?? ?? ?? 8b ?? ?? ?? ?? ?? 8b ?? ?? ?? ?? ??",
-			sig, unused);
-		memcpy(sig.data() + 7, &TryEnterCriticalSectionPtr, 4);
-		memcpy(sig.data() + 13, &EnterCriticalSectionPtr, 4);
-		memcpy(sig.data() + 19, &LeaveCriticalSectionPtr, 4);
+		std::vector<char> maskForCaching;
+		size_t byteSpecPositions[3] { 0, 0, 0 };
+		// pointers are in the game's image, not in kernel32.dll, even though they point to kernel32.dll
+		byteSpecificationToSigMask("e8 ?? ?? ?? ?? 8b ?? >rel(?? ?? ?? ??) 8b ?? >rel(?? ?? ?? ??) 8b ?? >rel(?? ?? ?? ??)",
+			sig, unused, byteSpecPositions, 0, &maskForCaching);
+		memcpy(sig.data() + byteSpecPositions[0], &TryEnterCriticalSectionPtr, 4);
+		memcpy(sig.data() + byteSpecPositions[1], &EnterCriticalSectionPtr, 4);
+		memcpy(sig.data() + byteSpecPositions[2], &LeaveCriticalSectionPtr, 4);
 		orig_REDAnywhereDispDraw = (REDAnywhereDispDraw_t)sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig.data(),
 			"x????x?xxxxx?xxxxx?xxxx",
 			{ -0x4 },
-			&error, "REDAnywhereDispDraw");
+			&error, "REDAnywhereDispDraw", maskForCaching.data());
 	}
 	
 	if (orig_REDAnywhereDispDraw) {
@@ -388,14 +397,9 @@ bool EndScene::onDllMain() {
 	}
 	if (!findMoveByName) return false;
 	
-	std::vector<char> sig;
-	std::vector<char> mask;
-	byteSpecificationToSigMask("c7 ?? ?? ?? ?? ?? 66 0f ef c0 8d ?? ?? ?? ?? ?? ?? 66 0f d6 ?? ?? ?? ?? ?? ?? 89 ?? ?? ?? 66 0f d6 ?? ?? ?? ?? ?? e8",
-		sig, mask);
 	uintptr_t PawnVtable = sigscanOffset(
 		GUILTY_GEAR_XRD_EXE,
-		sig,
-		mask,
+		"c7 ?? ?? ?? ?? ?? 66 0f ef c0 8d ?? ?? ?? ?? ?? ?? 66 0f d6 ?? ?? ?? ?? ?? ?? 89 ?? ?? ?? 66 0f d6 ?? ?? ?? ?? ?? e8",
 		{ 2, 0 },
 		&error, "PawnVtable");
 	uintptr_t getAccessedValueAddr = 0;
@@ -490,18 +494,20 @@ bool EndScene::onDllMain() {
 		iconStringA,
 		sizeof iconStringA,
 		{ 1 },
-		&error, "iconStringAddr");
+		&error, "iconStringAddr", nullptr);
 	uintptr_t iconStringUsage = 0;
 	if (iconStringAddr) {
 		std::vector<char> sig;
 		std::vector<char> mask;
-		byteSpecificationToSigMask("68 ?? ?? ?? ?? e8", sig, mask);
+		std::vector<char> maskForCaching;
+		// ghidra sig: 68 ?? ?? ?? ?? e8
+		byteSpecificationToSigMask("68 rel(?? ?? ?? ??) e8", sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)iconStringAddr);
 		iconStringUsage = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
-			&error, "iconStringUsage");
+			&error, "iconStringUsage", maskForCaching.data());
 	}
 	if (iconStringUsage) {
 		iconStringUsage = sigscanForward(iconStringUsage, "a3");
@@ -548,31 +554,35 @@ bool EndScene::onDllMain() {
 	uintptr_t OnPreSkillCheckStrAddr = sigscanStrOffset(
 		"GuiltyGearXrd.exe:.rdata",
 		"OnPreSkillCheck",
-		&error, "OnPreSkillCheckStrAddr");
+		&error, "OnPreSkillCheckStrAddr", nullptr);
 	uintptr_t OnPreSkillCheckVar = 0;
 	if (OnPreSkillCheckStrAddr) {
 		std::vector<char> sig;
 		std::vector<char> mask;
-		byteSpecificationToSigMask("68 ?? ?? ?? ??", sig, mask);
+		std::vector<char> maskForCaching;
+		// 68 ?? ?? ?? ??
+		byteSpecificationToSigMask("68 rel(?? ?? ?? ??)", sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)OnPreSkillCheckStrAddr);
 		OnPreSkillCheckVar = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
 			{ 6, 0 },
-			&error, "OnPreSkillCheckVar");
+			&error, "OnPreSkillCheckVar", maskForCaching.data());
 	}
 	if (OnPreSkillCheckVar) {
 		std::vector<char> sig;
 		std::vector<char> mask;
-		byteSpecificationToSigMask("68 ?? ?? ?? ??", sig, mask);
+		std::vector<char> maskForCaching;
+		// ghidra sig: 68 ?? ?? ?? ??
+		byteSpecificationToSigMask("68 rel(?? ?? ?? ??)", sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)OnPreSkillCheckVar);
 		uintptr_t jmpInstrAddr = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
 			{ 0x1e },
-			&error, "skillCheckPiece");
+			&error, "skillCheckPiece", maskForCaching.data());
 		if (jmpInstrAddr) {
 			orig_skillCheckPiece = (skillCheckPiece_t)followRelativeCall(jmpInstrAddr);
 		}
@@ -647,19 +657,22 @@ bool EndScene::onDllMain() {
 	atkIconNamesLoc = sigscan(
 		"GuiltyGearXrd.exe:.rdata",
 		atkSig,
-		sizeof atkSig - 1);
+		sizeof atkSig - 1,
+		"atkIconNamesLoc", nullptr);
 	
 	uintptr_t atkIconNamesUsage = 0;
 	if (atkIconNamesLoc) {
 		std::vector<char> sig;
 		std::vector<char> mask;
-		byteSpecificationToSigMask("c7 00 ?? ?? ?? ?? e8", sig, mask);
+		std::vector<char> maskForCaching;
+		// ghidra sig: c7 00 ?? ?? ?? ?? e8
+		byteSpecificationToSigMask("c7 00 rel(?? ?? ?? ??) e8", sig, mask, nullptr, 0, &maskForCaching);
 		substituteWildcard(sig, mask, 0, (void*)atkIconNamesLoc);
 		atkIconNamesUsage = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			sig,
 			mask,
-			nullptr, "AtkIconNamesUsage");
+			nullptr, "AtkIconNamesUsage", maskForCaching.data());
 	}
 	if (atkIconNamesUsage) {
 		uintptr_t instrPos = sigscanBackwards(atkIconNamesUsage,
@@ -1073,8 +1086,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			
 			player.prevFrameHadDangerousNonDisabledProjectiles = player.hasDangerousNonDisabledProjectiles;
 			player.hasDangerousNonDisabledProjectiles = false;
-			player.createdDangerousProjectile = false;
-			player.createdProjectileThatSometimesCanBeDangerous = false;
+			player.createdProjectiles.clear();
 			
 			player.inHitstunNowOrNextFrame = ent.inHitstun();
 			player.inHitstun = ent.inHitstunThisFrame();
@@ -2373,6 +2385,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						projectileTo.total = projectileTo.startup;
 						memcpy(projectileTo.creatorName, event.u.signal.fromAnim, 32);
 						projectileTo.creator = event.u.signal.from;
+						projectileTo.creatorNamePtr = event.u.signal.creatorName;
 					} else if (projectileFrom.ptr
 							&& projectileTo.ptr
 							&& projectileFrom.team == player.index
@@ -2385,6 +2398,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						projectileTo.total = projectileFrom.total;
 						memcpy(projectileTo.creatorName, event.u.signal.fromAnim, 32);
 						projectileTo.creator = event.u.signal.from;
+						projectileTo.creatorNamePtr = event.u.signal.creatorName;
 					}
 				}
 			}
@@ -2554,6 +2568,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (hadHitboxes || projectile.gotHitOnThisFrame) {
 					projectile.ptr = nullptr;
 					projectile.markActive = hadHitboxes;
+					if (projectile.moveNonEmpty && (projectile.team == 0 || projectile.team == 1)) {
+						PlayerInfo& player = players[projectile.team];
+						player.registerCreatedProjectile(projectile);
+					}
 					++it;
 					continue;
 				}
@@ -2566,21 +2584,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						projectile.isDangerous = false;
 					} else {
 						projectile.isDangerous = projectile.move.isDangerous && projectile.move.isDangerous(projectile.ptr);
-						if (!projectile.disabled) {
-							PlayerInfo& player = players[projectile.team];
-							if (projectile.isDangerous) {
-								player.hasDangerousNonDisabledProjectiles = true;
-							}
-							if (projectile.lifeTimeCounter == 0
-									//&& projectile.creator == player.pawn  // May Beach Ball is not directly created by the player
-									&& !player.idle) {
-								if (projectile.isDangerous) {
-									player.createdDangerousProjectile = true;
-								} else {
-									player.createdProjectileThatSometimesCanBeDangerous = true;
-								}
-							}
+						PlayerInfo& player = players[projectile.team];
+						if (!projectile.disabled && projectile.isDangerous) {
+							player.hasDangerousNonDisabledProjectiles = true;
 						}
+						player.registerCreatedProjectile(projectile);
 					}
 				}
 				if (!projectile.inNewSection
@@ -5143,6 +5151,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							memset(projectile.creatorName, 0, 32);
 							strcpy(projectile.creatorName, "Eddie"_hardcode);
 							projectile.creator = player.eddie.ptr;
+							projectile.creatorNamePtr = "Eddie";
 							projectile.total = player.eddie.total;
 						}
 						break;
@@ -5716,28 +5725,57 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.u.axlInfo.hasMelodyChain = hasAnyProjectileOfType(player, "KyokusagekiObj"_hardcode);
 					currentFrame.u.axlInfo.hasSickleStorm = hasAnyProjectileOfType(player, "ByakueObj"_hardcode);
 				} else if (player.charType == CHARACTER_TYPE_VENOM) {
-					const bool dubiousCurve = strncmp(player.anim, "DubiousCurve"_hardcode, 12) == 0;
+					VenomInfo& vi = currentFrame.u.venomInfo;
+					static const char dubiousCurveName[] = "DubiousCurve";  // _hardcode
+					const char dubiousCurveLetter = player.anim[sizeof dubiousCurveName - 1];
+					const bool dubiousCurve = strncmp(player.anim, dubiousCurveName, sizeof dubiousCurveName - 1) == 0;
 					const bool hasChangedState = player.pawn.hasUpon(BBSCREVENT_PLAYER_CHANGED_STATE);
 					const bool hasQVShockwave = hasProjectileOfType(player, "Debious_AttackBall"_hardcode);
 					const bool isFirstFrameOfLackOfChangedState = dubiousCurve
 						&& !hasChangedState
 						&& player.pawn.bbscrCurrentFunc()
-						&& player.pawn.bbscrCurrentInstr() == moves.skipInstruction(
-							player.pawn.bbscrCurrentFunc() + moves.venomQvClearUponAfterExitOffset
-						)
+						&& dubiousCurveLetter >= 'A'
+						&& dubiousCurveLetter <= 'D'
+						&& player.pawn.bbscrCurrentInstr() ==
+							player.pawn.bbscrCurrentFunc() + *moves.venomQvClearUponAfterExitOffsetArray[dubiousCurveLetter - 'A']
 						&& player.pawn.spriteFrameCounter() == 0;
 					
-					currentFrame.u.venomInfo.hasQV = hasQVShockwave
+					vi.hasQV = hasQVShockwave
 						&& dubiousCurve
 						&& hasChangedState;
 					
-					currentFrame.u.venomInfo.hasQVYRCOnly = hasQVShockwave && isFirstFrameOfLackOfChangedState;
-					currentFrame.u.venomInfo.hasHCarcassBall = hasHitstunTiedVenomBall(player);
-					currentFrame.u.venomInfo.performingQV = dubiousCurve && (
-						hasChangedState
-						|| isFirstFrameOfLackOfChangedState
-					);
-					currentFrame.u.venomInfo.performingQVHitOnly = dubiousCurve && player.pawn.hasUpon(BBSCREVENT_PLAYER_GOT_HIT);
+					vi.hasQVYRCOnly = hasQVShockwave && isFirstFrameOfLackOfChangedState;
+					vi.hasHCarcassBall = hasHitstunTiedVenomBall(player);
+					vi.performingQVA = false;
+					vi.performingQVB = false;
+					vi.performingQVC = false;
+					vi.performingQVD = false;
+					vi.performingQVAHitOnly = false;
+					vi.performingQVBHitOnly = false;
+					vi.performingQVCHitOnly = false;
+					vi.performingQVDHitOnly = false;
+					if (dubiousCurve && (
+							hasChangedState
+							|| isFirstFrameOfLackOfChangedState
+						)
+					) {
+						switch (dubiousCurveLetter) {
+							case 'A': vi.performingQVA = true; break;
+							case 'B': vi.performingQVB = true; break;
+							case 'C': vi.performingQVC = true; break;
+							case 'D': vi.performingQVD = true; break;
+							// here C# would complain about lack of a default case
+						}
+					}
+					if (dubiousCurve && player.pawn.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
+						switch (dubiousCurveLetter) {
+							case 'A': vi.performingQVAHitOnly = true; break;
+							case 'B': vi.performingQVBHitOnly = true; break;
+							case 'C': vi.performingQVCHitOnly = true; break;
+							case 'D': vi.performingQVDHitOnly = true; break;
+							// here C# would complain about lack of a default case
+						}
+					}
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -5884,9 +5922,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.cancels = nullptr;
 				} else {
 					if (!currentFrame.cancels || currentFrame.cancels.use_count() > 1) {
-						currentFrame.cancels = std::make_shared<FrameCancelInfo<30>>();
+						ThreadUnsafeSharedResource<FrameCancelInfoStored>* newResource = new ThreadUnsafeSharedResource<FrameCancelInfoStored>();
+						currentFrame.cancels = ThreadUnsafeSharedPtr<FrameCancelInfoStored>(newResource);
 					}
-					currentFrame.cancels->copyFromAnotherSizedArray(player.wasCancels);
+					currentFrame.cancels->copyFromAnotherArray(player.wasCancels);
 				}
 				currentFrame.dustGatlingTimer = player.dustGatlingTimer;
 				currentFrame.dustGatlingTimerMax = player.dustGatlingTimerMax;
@@ -6054,7 +6093,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.airDashes = player.remainingAirDashes;
 				currentFrame.activeDuringSuperfreeze = false;
 				
-				currentFrame.inputs = player.inputs;
+				currentFrame.multipleInputs = player.inputs.size() != 1;
+				if (currentFrame.multipleInputs) {
+					if (!currentFrame.inputs || currentFrame.inputs.use_count() != 1) {
+						currentFrame.inputs = new ThreadUnsafeSharedResource<std::vector<Input>>();
+					}
+					std::vector<Input>& currentFrameInputs = *currentFrame.inputs;
+					currentFrameInputs = player.inputs;
+				} else {
+					currentFrame.input = player.inputs[0];
+				}
 				currentFrame.prevInput = player.prevInput;
 				currentFrame.inputsOverflow = player.inputsOverflow;
 				if (player.inputs.empty()) {
@@ -6065,10 +6113,36 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.inputsOverflow = false;
 				player.inputs.clear();
 				
-				currentFrame.createdDangerousProjectile = player.move.createdProjectile
-					? player.move.createdProjectile(player)
-					: player.createdDangerousProjectile
-						|| player.createdProjectileThatSometimesCanBeDangerous;
+				if (player.move.createdProjectile) {
+					const CreatedProjectileStruct* proj = player.move.createdProjectile(player);
+					if (proj) {
+						if (!currentFrame.createdProjectiles || currentFrame.createdProjectiles.use_count() != 1) {
+							currentFrame.createdProjectiles = new ThreadUnsafeSharedResource<std::vector<CreatedProjectileStruct>>();
+						} else {
+							currentFrame.createdProjectiles->clear();
+						}
+						currentFrame.createdProjectiles->push_back(*proj);
+					} else if (currentFrame.createdProjectiles && !currentFrame.createdProjectiles->empty()) {
+						if (currentFrame.createdProjectiles.use_count() != 1) {
+							currentFrame.createdProjectiles = nullptr;
+						} else {
+							currentFrame.createdProjectiles->clear();
+						}
+					}
+				} else if (player.createdProjectiles.empty()) {
+					if (currentFrame.createdProjectiles && !currentFrame.createdProjectiles->empty()) {
+						if (currentFrame.createdProjectiles.use_count() != 1) {
+							currentFrame.createdProjectiles = nullptr;
+						} else {
+							currentFrame.createdProjectiles->clear();
+						}
+					}
+				} else {
+					if (!currentFrame.createdProjectiles || currentFrame.createdProjectiles.use_count() != 1) {
+						currentFrame.createdProjectiles = new ThreadUnsafeSharedResource<std::vector<CreatedProjectileStruct>>();
+					}
+					*currentFrame.createdProjectiles = player.createdProjectiles;
+				}
 				
 				const InputRingBuffer* ringBuffer = game.getInputRingBuffers() + player.index;
 				int charge = ringBuffer->parseCharge(InputRingBuffer::CHARGE_TYPE_HORIZONTAL, false);
@@ -6397,7 +6471,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							&& overridePrevRecoveryFrames
 							&& player.recovery == 1) {
 						// needed for whiff 5P to not show first recovery frame as cancellable (it is not)
-						const FrameCancelInfo<30>* cancelInfo = prevFrame.cancels.get();
+						const FrameCancelInfoStored* cancelInfo = prevFrame.cancels.get();
 						if (cancelInfo
 								&& (
 									!cancelInfo->gatlings.empty()
@@ -6454,7 +6528,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newCancelInfo.end = player.cancelsTimer;
 				newCancelInfo.enableSpecialCancel = enableSpecialCancel;
 				newCancelInfo.enableJumpCancel = player.wasEnableJumpCancel;
-				newCancelInfo.cancels.copyFromAnotherSizedArray(player.wasCancels);
+				newCancelInfo.copyFromAnotherArray(player.wasCancels);
 				newCancelInfo.enableSpecials = false;
 				newCancelInfo.hitAlreadyHappened = hitAlreadyHappened;
 				newCancelInfo.airborne = player.airborne;
@@ -7785,6 +7859,7 @@ ProjectileInfo& EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const
 		projectile.creationTime_aswEngineTick = creatorProjectile.creationTime_aswEngineTick;
 		projectile.startup = creatorProjectile.total;
 		memcpy(projectile.creatorName, creatorProjectile.ptr.animationName(), 32);
+		creatorProjectile.determineCreatedName(&projectile.creatorNamePtr, true, true);
 		projectile.creator = creatorProjectile.ptr;
 		projectile.total = creatorProjectile.total;
 		projectile.disabled = creatorProjectile.disabled;
@@ -7800,6 +7875,7 @@ ProjectileInfo& EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const
 		}
 		projectile.total = projectile.startup;
 		memcpy(projectile.creatorName, player.anim, 32);
+		projectile.creatorNamePtr.clear();
 		projectile.creator = player.pawn;
 	}
 	return projectile;
@@ -8239,6 +8315,11 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 			event.u.signal.from = creatorOfCreatedObject;
 			event.u.signal.to = createdObj;
 			memcpy(event.u.signal.fromAnim, creatorOfCreatedObject.animationName(), 32);
+			if (creatorOfCreatedObject.isPawn()) {
+				event.u.signal.creatorName.clear();
+			} else {
+				ProjectileInfo::determineCreatedName(nullptr, creatorOfCreatedObject, nullptr, &event.u.signal.creatorName, true, true);
+			}
 		}
 	}
 	BOOL* advanceFramePtr = (BOOL*)((BYTE*)initializationParams + 0x38);
@@ -8270,9 +8351,15 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 			events.emplace_back();
 			OccuredEvent& event = events.back();
 			event.type = OccuredEvent::SIGNAL;
-			event.u.signal.from = sendSignalStack.back();
+			Entity signalSender = sendSignalStack.back();
+			event.u.signal.from = signalSender;
 			event.u.signal.to = pawn;
-			memcpy(event.u.signal.fromAnim, sendSignalStack.back().animationName(), 32);
+			memcpy(event.u.signal.fromAnim, signalSender.animationName(), 32);
+			if (signalSender.isPawn() || eventHandlerSendsIntoRecovery(pawn, signal)) {
+				event.u.signal.creatorName.clear();
+			} else {
+				ProjectileInfo::determineCreatedName(nullptr, signalSender, nullptr, &event.u.signal.creatorName, true, true);
+			}
 		}
 		if (signal == BBSCREVENT_CUSTOM_SIGNAL_5
 				&& !pawn.isPawn() && strncmp(pawn.animationName(), "DejavIcon"_hardcode, 9) == 0) {
@@ -8437,7 +8524,6 @@ void EndScene::HookHelp::BBScr_runOnObjectHook(EntityReferenceType entityReferen
 void EndScene::BBScr_runOnObjectHook(Entity pawn, EntityReferenceType entityReference) {
 	orig_BBScr_runOnObject((void*)pawn.ent, entityReference);
 	if (!shutdown && pawn.isPawn() && !iGiveUp) {
-		PlayerInfo& player = findPlayer(pawn);
 		Entity objectBeingRunOn = pawn.currentRunOnObject();
 		if (objectBeingRunOn) {
 			if (!objectBeingRunOn.isPawn()) {
@@ -8449,6 +8535,7 @@ void EndScene::BBScr_runOnObjectHook(Entity pawn, EntityReferenceType entityRefe
 					event.u.signal.from = pawn;
 					event.u.signal.to = projectile.ptr;
 					memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);
+					event.u.signal.creatorName.clear();
 				}
 			}
 		}
@@ -9079,6 +9166,11 @@ void EndScene::BBScr_sendSignalHook(Entity pawn, EntityReferenceType referenceTy
 				event.u.signal.from = pawn;
 				event.u.signal.to = projectile.ptr;
 				memcpy(event.u.signal.fromAnim, pawn.animationName(), 32);
+				if (pawn.isPawn() || eventHandlerSendsIntoRecovery(projectile.ptr, signal)) {
+					event.u.signal.creatorName.clear();
+				} else {
+					ProjectileInfo::determineCreatedName(nullptr, pawn, nullptr, &event.u.signal.creatorName, true, true);
+				}
 			}
 		}
 	}
@@ -9293,7 +9385,11 @@ ProjectileFramebar& EndScene::findProjectileFramebar(ProjectileInfo& projectile,
 			dontReplaceTitle = true;
 		}
 		
-		nameUncombined = projectile.move.framebarNameUncombined;
+		if (projectile.ptr) {
+			nameUncombined = projectile.move.getFramebarNameUncombined(projectile.ptr);
+		} else {
+			nameUncombined = projectile.move.framebarNameUncombined;
+		}
 		
 		if (projectile.move.framebarNameFull) {
 			nameFull = projectile.move.framebarNameFull;
@@ -9483,7 +9579,7 @@ bool EndScene::willDrawOriginPoints() {
 			&& !drawingPostponed();
 }
 
-void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<180>& vec, const AddedMoveData* move,
+void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& vec, const AddedMoveData* move,
 		int iterationIndex, bool inHitstopFreeze, bool blitzShield) {
 	int vecPos = -1;
 	for (GatlingOrWhiffCancelInfo& existingElem : vec) {
@@ -9576,7 +9672,7 @@ void EndScene::collectFrameCancelsPart(PlayerInfo& player, FixedArrayOfGatlingOr
 	}
 }
 
-void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isBlitzShieldCancels) {
+void EndScene::collectFrameCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isBlitzShieldCancels) {
 	if (player.moveNonEmpty) frame.whiffCancelsNote = player.move.whiffCancelsNote;
 	const AddedMoveData* base = player.pawn.movesBase();
 	int* indices = player.pawn.moveIndices();
@@ -10807,7 +10903,7 @@ bool EndScene::objHasAttackHitboxes(Entity ent) const {
 }
 
 
-void EndScene::addPredefinedCancelsPart(PlayerInfo& player, std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfo<180>& frame, bool inHitstopFreeze,
+void EndScene::addPredefinedCancelsPart(PlayerInfo& player, std::vector<ForceAddedWhiffCancel>& cancels, FrameCancelInfoFull& frame, bool inHitstopFreeze,
 		bool isStylish) {
 	const AddedMoveData* base = player.pawn.movesBase();
 	int* indices = player.pawn.moveIndices();
@@ -10831,7 +10927,7 @@ void EndScene::initializePredefinedCancels(const char** array, size_t size, std:
 	}
 }
 
-void EndScene::collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish) {
+void EndScene::collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish) {
 	static const char* baikenBlockCancelsStr[] {
 		"DeadAngleAttack"_hardcode,  // standing
 		// Blue Burst, obviously
@@ -10875,7 +10971,7 @@ bool EndScene::blitzShieldCancellable(PlayerInfo& player, bool insideTick) {
 	return true;
 }
 
-void EndScene::collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfo<180>& frame, bool inHitstopFreeze, bool isStylish) {
+void EndScene::collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish) {
 	
 	CheckAndCollectFrameCancelParams params {
 		player,
@@ -11206,4 +11302,14 @@ bool EndScene::hasHitstunTiedVenomBall(PlayerInfo& player) {
 		}
 	}
 	return false;
+}
+
+// fix for Elphelt "Close Shot created a Far Shot" when firing uncharged sg.H
+bool EndScene::eventHandlerSendsIntoRecovery(Entity ptr, BBScrEvent signal) {
+	return ptr.hasUpon(signal)
+		&& moves.instructionType(
+			moves.skipInstruction(
+				ptr.uponStruct(signal)->uponInstrPtr
+			)
+		) == instr_recoveryState;
 }

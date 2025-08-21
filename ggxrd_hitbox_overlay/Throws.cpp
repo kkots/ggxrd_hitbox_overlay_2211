@@ -29,7 +29,7 @@ bool Throws::onDllMain() {
 	byteSpecificationToSigMask("39 46 10 74 0e f6 86 28 4d 00 00 80 74 05 b8 01 00 00 00", sig, mask);
 	uintptr_t attackerActiveCheckPlace = sigscan((uintptr_t)orig_hitDetectionMain,
 		(uintptr_t)orig_hitDetectionMain + 0x110,
-		sig.data(), mask.data());
+		sig.data(), mask.data(), nullptr, nullptr);
 	if (attackerActiveCheckPlace) {
 		attackerActiveCheckPlace += 22;
 		isActivePtr = (isActive_t)followRelativeCall(attackerActiveCheckPlace);

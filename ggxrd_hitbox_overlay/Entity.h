@@ -770,7 +770,7 @@ struct UponInfo {
 	char stateToGoTo[32];  // used if bbscrNeedGoToStateUpon is set. Name of anim
 	int fireOnThisValue;  // for upon 0xd it's frame number, for upon 0x4 it's speedY
 	int fireOnThisValue2;
-	char markerToGoTo[32];  // used if bbscrNeedGoToMarkerUpon is set. Marker name
+	char markerToGoTo[32];  // used if bbscrNeedGoToMarkerUpon (needGoToMarkerUpon) is set. Marker name
 	DWORD flags;
 };
 
@@ -1232,6 +1232,7 @@ enum InstructionType {
 	instr_storeValue = 46,
 	instr_checkMoveCondition = 49,
 	instr_calcDistance = 60,
+	instr_recoveryState = 235,
 	instr_ignoreDeactivate = 298,
 	instr_createObjectWithArg = 445,
 	instr_createObject = 446,
@@ -1339,6 +1340,13 @@ struct BBScrInstr_gotoLabelRequests {
 	char name[32];
 };
 
+struct BBScrInstr_beginState {
+	InstructionType type;
+	char name[32];
+};
+
+#define asInstr(instr, bbscrInstrName) ((BBScrInstr_##bbscrInstrName*)instr)
+
 struct CmnActHashtable {
 	unsigned short maximumBucketLoad;
 	unsigned short currentSize;
@@ -1346,8 +1354,6 @@ struct CmnActHashtable {
 	unsigned short next[200];
 	char strings[200][32];
 };
-
-#define asInstr(instr, bbscrInstrName) ((BBScrInstr_##bbscrInstrName*)instr)
 
 class Entity
 {
@@ -1500,7 +1506,7 @@ public:
 	inline int airdashHorizontallingTimer() const { return *(int*)(ent + 0x24db8); }
 	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }
 	inline TeamSwap teamSwap() const { return *(TeamSwap*)(ent + 0x26ac); }
-	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }
+	inline int currentHitNum() const { return *(int*)(ent + 0x26d8); }  // increments even when not landing any hits. Restarts from 0 with each move
 	inline const AttackData* dealtAttack() const { return (const AttackData*)(ent + 0x44c); }
 	inline const AttackData* receivedAttack() const { return (const AttackData*)(ent + 0x710); }
 	// Starts at 2560 on Sol getting dizzied.
@@ -1579,8 +1585,8 @@ public:
 	// having this flag drastically reduces your super armor to only hits that can be reflected.
 	// Having this flag without superArmorEnabled is useless because you just get hit by the projectile
 	inline bool invulnForAegisField() const { return (*(DWORD*)(ent + 0x238) & 0x400) != 0; }
-	inline bool hasUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa0c))->getBit(index); }
-	inline bool needGoToMarkerUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa24))->getBit(index); }
+	inline bool hasUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa0c))->getBit(index); }  // means that an event handler statement block must be executed upon event, address of the block specified in UponInfo::uponInstrPtr
+	inline bool needGoToMarkerUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa24))->getBit(index); }  // name of the marker specified in UponInfo::markerToGoTo
 	const UponInfo* uponStruct(BBScrEvent index) const { return (const UponInfo*)(ent + 0xb70) + index; }
 	inline int mem45() const { return *(int*)(ent + 0x14c); }  // Reset on state change
 	inline int mem46() const { return *(int*)(ent + 0x150); }  // Reset on state change

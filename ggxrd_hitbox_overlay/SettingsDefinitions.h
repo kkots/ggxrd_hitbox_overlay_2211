@@ -539,7 +539,8 @@ settingsField(bool, condenseIntoOneProjectileFramebar, true,
 	"Condense Into One Projectile Framebar Per Player", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
 	"; When true, all projectiles belonging to a player will use the same one framebar, located on top\n"
-	"; of Player 1's main framebar and below Player 2's main framebar.")
+	"; of Player 1's main framebar and below Player 2's main framebar.\n"
+	"; You can use the \"projectileFramebarHeight\" setting to make the projectile framebar thin.")
 	
 settingsField(bool, eachProjectileOnSeparateFramebar, false,
 	"Each Projectile On A Separate Framebar", SETTINGS_FRAMEBAR,
@@ -921,4 +922,19 @@ settingsField(bool, p2RamlethalDisableMarteliForpeli, false,
 	"; Setting this to true will disable P2 Ramlethal's Marteli and Forpeli special moves.\n"
 	"; This will allow you, if you also use the \"player1IsBoss\" setting, to use the boss exclusive 214S and 214H moves.\n"
 	"; Works only in Training and Versus Modes.")
+	
+settingsField(bool, useSigscanCaching, true,
+	"Use Sigscan Caching", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will allow the mod to load faster, at the expense of potential\n"
+	"; crashes in case the game's GuiltyGearXrd.exe executable's code is altered in such a way\n"
+	"; that affects this mod.\n"
+	"; A sigscan is a search for a sequence of bytes in the executable code.\n"
+	"; Mods, recording software, cheats and hacks modify it, and in this case sigscans must be\n"
+	"; repeated. Caching them may lead to incorrect results and then this mod may crash the game.\n"
+	"; Reasonable safeguards have been put in place to prevent this, but they had to not slow down\n"
+	"; the load time of the mod and therefore may not guarantee that there will be no crash.\n"
+	"; You sould enable this setting if you are not altering the recording software that you use,\n"
+	"; or are changing which mods are already loaded by the time this mod gets loaded, or\n"
+	"; all those things change game executable code only in a way that does not matter for this mod.")
 #pragma warning(pop)

@@ -247,7 +247,7 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 	if (!checkAndHookBeginSceneAndPresent(true)) error = true;
 	
 	static const int sinArrayStart[] = { 0,1,3,5,6,8,10,12,13,15,17,19,20,22,24,26 };
-	sinTable = (const int*)sigscan("GuiltyGearXrd.exe:.rdata", (const char*)sinArrayStart, sizeof sinArrayStart);
+	sinTable = (const int*)sigscan("GuiltyGearXrd.exe:.rdata", (const char*)sinArrayStart, sizeof sinArrayStart, "sineTable", nullptr);
 	if (!sinTable) {
 		logwrap(fputs("sinTable not found", logfile));
 		error = true;

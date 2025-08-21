@@ -90,7 +90,6 @@ static const NamePair* framebarNameSelector_closeShot(Entity ent);
 static const NamePair* framebarNameSelector_gunflameProjectile(Entity ent);
 static const NamePair* framebarNameSelector_venomBall(Entity ent);
 static const NamePair* framebarNameUncombinedSelector_venomBall(Entity ent);
-static const NamePair* framebarNameSelector_grenadeBombReady(Entity ent);
 
 static bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent);
 static bool isInVariableStartupSection_zweiLand(PlayerInfo& ent);
@@ -207,21 +206,15 @@ static bool canYrcProjectile_ky5D(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
 static bool canYrcProjectile_flower(PlayerInfo& ent);
-static bool canYrcProjectile_qvA(PlayerInfo& ent);
-static bool canYrcProjectile_qvB(PlayerInfo& ent);
-static bool canYrcProjectile_qvC(PlayerInfo& ent);
-static bool canYrcProjectile_qvD(PlayerInfo& ent);
+static bool canYrcProjectile_qv(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_bishop(PlayerInfo& ent);
 static bool canYrcProjectile_bishop(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_ino5D(PlayerInfo& ent);
 static bool canYrcProjectile_ino5D(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_onf5_s(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_onf5_s_recall(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_onf5_h(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_onf5_h_recall(PlayerInfo& ent);
+static const CreatedProjectileStruct* createdProjectile_onf5(PlayerInfo& ent);
+static const CreatedProjectileStruct* createdProjectile_onf5_recall(PlayerInfo& ent);
 static bool canYrcProjectile_onf5(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_onf7_s(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_onf7_h(PlayerInfo& ent);
+static const CreatedProjectileStruct* createdProjectile_onf7(PlayerInfo& ent);
 static bool canYrcProjectile_onf7(PlayerInfo& ent);
 static bool canYrcProjectile_onf9(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_elpheltjD(PlayerInfo& ent);
@@ -243,17 +236,6 @@ static bool canYrcProjectile_baiken5D(PlayerInfo& ent);
 static bool canYrcProjectile_scroll(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_firesale(PlayerInfo& ent);
 static bool canYrcProjectile_firesale(PlayerInfo& ent);
-static bool canYrcProjectile_berryPull(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiA(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiB(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiC(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiD(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiA(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiB(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiC(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiD(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_ballSet(PlayerInfo& ent);
-static const CreatedProjectileStruct* createdProjectile_qv(PlayerInfo& ent);
 
 static bool powerup_may6P(PlayerInfo& ent);
 static bool powerup_may6H(PlayerInfo& ent);
@@ -527,30 +509,28 @@ void Moves::addMoves() {
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
-	rememberFramebarId(Burst_framebarId);
-
 	move = MoveInfo(GENERAL, "cmn_BurstObjGoldHontai", true);
 	move.framebarName = assignName("Gold Burst");
-	move.framebarId = Burst_framebarId;
+	move.framebarId = 111;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "cmn_BurstObjBlueHontai", true);
 	move.framebarName = assignName("Blue Burst");
 	move.framebarNameSelector = framebarNameSelector_blueBurst;
-	move.framebarId = Burst_framebarId;
+	move.framebarId = 111;
 	addMove(move);
 	
 	// This was spotted when throwing Blue Burst on the very frame it comes out
 	move = MoveInfo(GENERAL, "cmn_BurstObjBlueObject", true);
 	move.framebarName = assignName("Blue Burst");
 	move.framebarNameSelector = framebarNameSelector_blueBurst;
-	move.framebarId = Burst_framebarId;
+	move.framebarId = 111;
 	addMove(move);
 	
 	// This was spotted when throwing Gold Burst on the very frame it comes out
 	move = MoveInfo(GENERAL, "cmn_BurstObjGoldObject", true);
 	move.framebarName = assignName("Gold Burst");
-	move.framebarId = Burst_framebarId;
+	move.framebarId = 111;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnDamageBurst");
@@ -1621,67 +1601,61 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(GunFlame_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameStart", true);
-	move.framebarId = GunFlame_framebarId;
+	move.framebarId = 1;
 	move.framebarName = assignName("Gunflame", "GF");
 	move.framebarNameSelector = framebarNameSelector_gunflameProjectile;
-	move.framebarNameUncombined = assignName("Gunflame Spawner", "GF Spawner");
+	move.framebarNameUncombined = assignName("Gunflame Spawned", "GF Spawner");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameHibashira", true);
 	move.isDangerous = isDangerous_gunflame;
-	move.framebarId = GunFlame_framebarId;
+	move.framebarId = 1;
 	move.framebarName = assignName("Gunflame", "GF");
 	move.framebarNameSelector = framebarNameSelector_gunflameProjectile;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlameHibashira_DI", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = GunFlame_framebarId;
+	move.framebarId = 1;
 	move.framebarName = assignName("Gunflame", "GF");
 	move.framebarNameSelector = framebarNameSelector_gunflameProjectile;
 	addMove(move);
 	
-	rememberFramebarId(TyrantRavePunch2_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRavePunch2", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = TyrantRavePunch2_framebarId;
+	move.framebarId = 2;
 	move.framebarName = assignName("Tyrant Rave", "TR");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRavePunch2_DI", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = TyrantRavePunch2_framebarId;
+	move.framebarId = 2;
 	move.framebarName = assignName("Tyrant Rave", "TR");
 	addMove(move);
 	
-	rememberFramebarId(KudakeroEF_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_SOL, "KudakeroEF", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = KudakeroEF_framebarId;
+	move.framebarId = 3;
 	move.framebarName = assignName("Break Explosion");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "KudakeroEF_DI", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = KudakeroEF_framebarId;
+	move.framebarId = 3;
 	move.framebarName = assignName("Break Explosion");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "RiotStamp_DI_Bomb", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 4;
 	move.framebarName = assignName("Riot Stamp", "RS");
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GroundViperDash_DI", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 5;
 	move.framebarName = assignName("GV Fire Pillars");
 	move.framebarNameFull = "Ground Viper Fire Pillars";
 	move.framebarNameUncombined = assignName("GV Fire Pillar");
@@ -1772,33 +1746,29 @@ void Moves::addMoves() {
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_RTL;
 	addMove(move);
 	
-	rememberFramebarId(StunEdgeObj_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdgeObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = StunEdgeObj_framebarId;
+	move.framebarId = 6;
 	move.framebarName = assignName("Stun Edge", "SE");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "Mahojin", true);
 	move.framebarName = assignName("Durandal Call Grinder", "DC Grinder");  // can get displayed in the framebar due to clashing with an opponent's projectile
-	move.framebarId = generateFramebarId();
+	move.framebarId = 114;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPStunEdgeObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = StunEdgeObj_framebarId;
+	move.framebarId = 6;
 	move.framebarName = assignName("DCSE");
 	move.framebarNameFull = "Fortified Stun Edge (Durandal Call Stun Edge)";
 	addMove(move);
 	
-	rememberFramebarId(ChargedStunEdgeObj_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_KY, "ChargedStunEdgeObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = ChargedStunEdgeObj_framebarId;
+	move.framebarId = 7;
 	move.framebarName = assignName("CSE");
 	move.framebarNameFull = "Charged Stun Edge";
 	move.drawProjectileOriginPoint = true;
@@ -1806,14 +1776,14 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPChargedStunEdgeObj", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = ChargedStunEdgeObj_framebarId;
+	move.framebarId = 7;
 	move.framebarName = assignName("DCCSE");
 	move.framebarNameFull = "Fortified Charged Stun Edge (Drandal Call Charged Stun Edge)";
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirDustAttackObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 8;
 	move.framebarName = assignName("j.D");
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
@@ -1835,22 +1805,20 @@ void Moves::addMoves() {
 	// can't YRC in Rev1. In fact this doesn't even exist in Rev1
 	move = MoveInfo(CHARACTER_TYPE_KY, "DustEffectShot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 9;
 	move.framebarName = assignName("5D");
 	addMove(move);
 	
-	rememberFramebarId(SacredEdgeObj_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_KY, "SacredEdgeObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = SacredEdgeObj_framebarId;
+	move.framebarId = 10;
 	move.framebarName = assignName("Sacred Edge");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "SPSacredEdgeObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = SacredEdgeObj_framebarId;
+	move.framebarId = 10;
 	move.framebarName = assignName("Fortified Sacred Edge", "DC Sacred Edge");
 	addMove(move);
 	
@@ -1872,19 +1840,17 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(Mist_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Bacchus Sigh", PROJECTILE_NAME_BACCHUS);
-	move.framebarId = Mist_framebarId;
+	move.framebarId = 112;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistKuttsuku", true);
 	move.isDangerous = isDangerous_mistKuttsuku;
 	move.framebarName = assignName("Bacchus Sigh Debuff", "Bacchus");
-	move.framebarId = Mist_framebarId;
+	move.framebarId = 112;
 	addMove(move);
 	
 	// the initial move of grounded Mist Finer, is 1f long
@@ -2248,7 +2214,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Coin", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 80;
 	move.framebarName = assignName("Glitter Is Gold", "Coin");
 	addMove(move);
 	
@@ -2267,17 +2233,15 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
-	rememberFramebarId(Sinwaza_Shot2_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot2", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Sinwaza_Shot2_framebarId;
+	move.framebarId = 81;
 	move.framebarName = assignName("Zwei Hander", "Zwei");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot2_Air", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Sinwaza_Shot2_framebarId;
+	move.framebarId = 81;
 	move.framebarName = assignName("Zwei Hander", "Zwei");
 	addMove(move);
 	
@@ -2312,23 +2276,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanRidingObject", true);
 	move.sectionSeparatorProjectile = sectionSeparatorProjectile_dolphin;
 	move.isDangerous = isDangerous_aboveGround;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 11;
 	move.framebarName = assignName("Dolphin");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(MayBall_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_MAY, "MayBallA", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = MayBall_framebarId;
+	move.framebarId = 12;
 	move.framebarName = assignName("Beach Ball", "Ball");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "MayBallB", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = MayBall_framebarId;
+	move.framebarId = 12;
 	move.framebarName = assignName("Beach Ball", "Ball");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -2382,7 +2344,7 @@ void Moves::addMoves() {
 	// big whale attack
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Yamada", true);
 	move.framebarName = assignName("Yamada");
-	move.framebarId = generateFramebarId();
+	move.framebarId = 115;
 	move.isDangerous = isDangerous_not_hasHitNumButInactive;
 	addMove(move);
 	
@@ -2394,7 +2356,7 @@ void Moves::addMoves() {
 	// May spins and may do a suicide whale in the end. This is the suicide whale
 	move = MoveInfo(CHARACTER_TYPE_MAY, "SK_Goshogawara", true);
 	move.framebarName = assignName("Goshogawara");
-	move.framebarId = generateFramebarId();
+	move.framebarId = 13;
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	addMove(move);
 	
@@ -2663,7 +2625,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GammaBladeObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 26;
 	move.framebarName = assignName("Gamma Blade", "Gamma");
 	addMove(move);
 	
@@ -2744,27 +2706,27 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ShurikenObj", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 27;
 	move.framebarName = assignName("Shuriken Slow", "Shuriken-");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "ShurikenObj1", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 28;
 	move.framebarName = assignName("Shuriken Fast", "Shuriken+");
 	addMove(move);
 	
 	// throwing daggers from wall cling
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Kunai_Wall", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 29;
 	move.framebarName = assignName("Kunai");
 	addMove(move);
 	
 	// 214214K air super
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Kunai", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 30;
 	move.framebarName = assignName("Ryuu Yanagi", "Ryuu");
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
@@ -3003,19 +2965,17 @@ void Moves::addMoves() {
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(OreHana_Shot_framebarId);
-
 	// ground flower. The head flower cannot be RC'd. This is not the head flower. This flower can be RC'd, but not in Rev1.
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OreHana_Shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = OreHana_Shot_framebarId;
+	move.framebarId = 31;
 	move.framebarName = assignName("Flower");
 	addMove(move);
 	
 	// ground flower maximum. Not present in Rev1
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OreHanaBig_Shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = OreHana_Shot_framebarId;
+	move.framebarId = 31;
 	move.framebarName = assignName("Flower");
 	addMove(move);
 	
@@ -3025,7 +2985,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Bomb", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 32;
 	move.framebarName = assignName("Bomb");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -3037,23 +2997,21 @@ void Moves::addMoves() {
 	// fire created when setting oil on fire
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OilFire", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 33;
 	move.framebarName = assignName("Oil Fire");
 	addMove(move);
 	
-	rememberFramebarId(Meteo_framebarId);
-
 	// normal meteor. Does not have active frames. Creates several MeteoInseki which have active frames
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Meteo", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Meteo_framebarId;
+	move.framebarId = 34;
 	move.framebarName = assignName("Meteor Item");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "MeteoInseki", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = Meteo_framebarId;
+	move.framebarId = 34;
 	move.framebarName = assignName("Meteor");
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
@@ -3064,23 +3022,21 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Hammer", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 35;
 	move.framebarName = assignName("Hammer");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_ChibiFaust", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 36;
 	move.framebarName = assignName("Small Faust", "Mini Faust");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(Poison_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Frasco", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Poison_framebarId;
+	move.framebarId = 37;
 	move.framebarName = assignName("Poison");
 	move.framebarNameUncombined = assignName("Poison Item");
 	move.drawProjectileOriginPoint = true;
@@ -3105,74 +3061,70 @@ void Moves::addMoves() {
 	// the poison cloud created when poison flask lands
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SubItem_Poison", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Poison_framebarId;
+	move.framebarId = 37;
 	move.framebarName = assignName("Poison");
 	move.framebarNameUncombined = assignName("Poison Cloud");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_JumpStand", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 38;
 	move.framebarName = assignName("Platform");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_100t", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 39;
 	move.framebarName = assignName("100-ton Weight", "Weight");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_FireWorks", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 40;
 	move.framebarName = assignName("Fireworks");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(Armageddon_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Armageddon", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Armageddon_framebarId;
+	move.framebarId = 41;
 	move.framebarName = assignName("Massive Meteor");
 	move.framebarNameUncombined = assignName("Massive Meteor Item");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ArmageddonInseki", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Armageddon_framebarId;
+	move.framebarId = 41;
 	move.framebarName = assignName("Massive Meteor", "Big Meteor");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_GoldenHammer", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 42;
 	move.framebarName = assignName("Golden Hammer", "Gold Hammer");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_BigFaust", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 43;
 	move.framebarName = assignName("Huge Faust");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Golden100t", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 44;
 	move.framebarName = assignName("10,000 Ton Weight", "Gold Weight");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(Ai_Bomb_framebarId);
-
 	// the initial projectile Faust drops
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Ai_Bomb", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Ai_Bomb_framebarId;
+	move.framebarId = 45;
 	move.framebarName = assignName("Love");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -3180,13 +3132,13 @@ void Moves::addMoves() {
 	// the explosion created when Love touches the ground
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Ai_Bomb2", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Ai_Bomb_framebarId;
+	move.framebarId = 45;
 	move.framebarName = assignName("Love");
 	move.framebarNameUncombined = assignName("Love Explosion");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ShigekiJibakuObj", true);
-	move.framebarId = generateFramebarId();
+	move.framebarId = 108;
 	move.framebarName = assignName("Stimulating Fists of Annihilation Self-Destruct", "Self-Destuct");
 	addMove(move);
 	
@@ -3304,29 +3256,27 @@ void Moves::addMoves() {
 	// the command grab
 	move = MoveInfo(CHARACTER_TYPE_AXL, "RashosenObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 46;
 	move.framebarName = assignName("Spindle Spinner", "Rashousen");
 	addMove(move);
 	
-	rememberFramebarId(RensengekiObj_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_AXL, "RensengekiObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = RensengekiObj_framebarId;
+	move.framebarId = 47;
 	move.framebarName = assignName("Sickle Flash", "Rensen");
 	addMove(move);
 	
 	// the 8 followup
 	move = MoveInfo(CHARACTER_TYPE_AXL, "KyokusagekiObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = RensengekiObj_framebarId;
+	move.framebarId = 47;
 	move.framebarName = assignName("Melody Chain", "Rensen-8");
 	addMove(move);
 	
 	// the 2363214H super second hit
 	move = MoveInfo(CHARACTER_TYPE_AXL, "ByakueObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 48;
 	move.framebarName = assignName("Sickle Storm");
 	addMove(move);
 	
@@ -3524,18 +3474,15 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Standby");
 	move.displayName = assignName("Berry Pine", "Pull");
 	move.ignoreJumpInstalls = true;
-	move.canYrcProjectile = canYrcProjectile_berryPull;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Standby");
 	move.displayName = assignName("Air Berry Pine", "Air Pull");
-	move.canYrcProjectile = canYrcProjectile_berryPull;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Standby");
 	move.displayName = assignName("Ms. Travailler Stance Berry Pine", "Pull");
 	move.ignoreJumpInstalls = true;
-	move.canYrcProjectile = canYrcProjectile_berryPull;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Land");
@@ -3564,11 +3511,9 @@ void Moves::addMoves() {
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
-	rememberFramebarId(GrenadeBomb_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb", true);
 	move.isDangerous = isDangerous_grenade;
-	move.framebarId = GrenadeBomb_framebarId;
+	move.framebarId = 73;
 	move.framebarName = assignName("Berry Pine", PROJECTILE_NAME_BERRY);
 	move.drawProjectileOriginPoint = true;
 	move.showMultipleHitsFromOneAttack = true;
@@ -3576,86 +3521,79 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Ready", true);
 	move.isDangerous = isDangerous_grenade;
-	move.framebarId = GrenadeBomb_framebarId;
-	move.framebarName = assignName("Berry Pine", "Berry");
-	move.framebarNameSelector = framebarNameSelector_grenadeBombReady;
+	move.framebarId = 73;
+	move.framebarName = assignName("Self-Detonate");
 	addMove(move);
 	
 	// This explosion results from the timer running out normally
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Explode", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = GrenadeBomb_framebarId;
+	move.framebarId = 73;
 	move.framebarName = assignName("Berry Explosion", "Explosion");
 	addMove(move);
 	
 	// This explosion results from clashing with the opponent's projectiles
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Explode2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = GrenadeBomb_framebarId;
+	move.framebarId = 73;
 	move.framebarName = assignName("Berry Pine", "Berry Explode");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "HandGun_air_shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 74;
 	move.framebarName = assignName("j.D");
 	// in Rev1 you can't YRC this
 	addMove(move);
 	
-	rememberFramebarId(Shotgun_framebarId);
-
 	// Max charge shotgun shot spawns two projectiles: Shotgun_max_1, Shotgun_max_2
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_max_1", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Shotgun_framebarId;
+	move.framebarId = 75;
 	move.framebarNameSelector = framebarNameSelector_closeShot;
 	move.projectilePowerup = powerup_closeShot;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_max_2", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Shotgun_framebarId;
+	move.framebarId = 75;
 	move.framebarName = assignName("Max Far Shot");
 	addMove(move);
 	
 	// Shotgun shot spawns two projectiles: Shotgun_min_1, Shotgun_min_2
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_min_1", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Shotgun_framebarId;
+	move.framebarId = 75;
 	move.framebarName = assignName("Close Shot");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_min_2", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Shotgun_framebarId;
+	move.framebarId = 75;
 	move.framebarName = assignName("Far Shot");
 	addMove(move);
 	
-	rememberFramebarId(Bazooka_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka_Fire", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Bazooka_framebarId;
+	move.framebarId = 76;
 	move.framebarName = assignName("Genoverse");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka_Explosive", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = Bazooka_framebarId;
+	move.framebarId = 76;
 	move.framebarName = assignName("Geno Explode");
 	addMove(move);
 	
-	rememberFramebarId(Rifle_Fire_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire_MAX", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = Rifle_Fire_framebarId;
-	move.framebarName = assignName("Max Ms. Confille Shot", "Max Rifleshot");
+	move.framebarId = 77;
+	move.framebarName = assignName("Ms. Confille Shot", "Max Rifleshot");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire_MIN", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = Rifle_Fire_framebarId;
+	move.framebarId = 77;
 	move.framebarName = assignName("Ms. Confille Shot", "Rifleshot");
 	addMove(move);
 	
@@ -3811,23 +3749,21 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	addMove(move);
 	
-	rememberFramebarId(GraviertWurde_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Edgeyowai", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = GraviertWurde_framebarId;
+	move.framebarId = 78;
 	move.framebarName = assignName("Graviert W\xc3\xbcrde", "S Fireball");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Edgetuyoi", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = GraviertWurde_framebarId;
+	move.framebarId = 78;
 	move.framebarName = assignName("Graviert W\xc3\xbcrde", "H Fireball");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakusei_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 79;
 	move.framebarName = assignName("Stahl Wirbel");
 	addMove(move);
 	
@@ -4018,7 +3954,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RenhoukyakuObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 88;
 	move.framebarName = assignName("Renhoukyaku", "Super Puffball");
 	addMove(move);
 	
@@ -4198,13 +4134,11 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
-	rememberFramebarId(Firesale_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meteor", true);
 	move.framebarName = assignName("Air Dead Stock Ninpo: Firesale", "Air Firesale");
 	move.framebarNameUncombined = assignName("Air Dead Stock Ninpo: Firesale Card", "Firesale Card");
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Firesale_framebarId;
+	move.framebarId = 113;
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
@@ -4212,7 +4146,7 @@ void Moves::addMoves() {
 	move.framebarName = assignName("Air Dead Stock Ninpo: Firesale", "Air Firesale");
 	move.framebarNameUncombined = assignName("Air Dead Stock Ninpo: Firesale Shuriken", "Shuriken");
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Firesale_framebarId;
+	move.framebarId = 113;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Royal_Straight_Flush");
@@ -4352,7 +4286,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi", true);
 	move.isDangerous = isDangerous_card;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 103;
 	move.framebarName = assignName("BN: Caltrops", "Card");
 	move.framebarNameFull = "Business Ninpo: Caltrops";
 	move.drawProjectileOriginPoint = true;
@@ -4360,7 +4294,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Nin_Jitsu", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 104;
 	move.framebarName = assignName("BN: Under the Bus", "Clone");
 	move.framebarNameFull = "Business Ninpo: Under the Bus";
 	addMove(move);
@@ -4418,7 +4352,7 @@ void Moves::addMoves() {
 	// represents both S and H pins
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForceKnife", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 14;
 	move.framebarName = assignName("Silent Force", "Pin");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -4433,7 +4367,7 @@ void Moves::addMoves() {
 	// s-disc
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopCRing", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 15;
 	move.framebarName = assignName("S Tandem Top", "S-Disc");
 	addMove(move);
 	
@@ -4447,7 +4381,7 @@ void Moves::addMoves() {
 	// h-disc
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopDRing", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 16;
 	move.framebarName = assignName("H Tandem Top", "H-Disc");
 	addMove(move);
 	
@@ -4520,33 +4454,31 @@ void Moves::addMoves() {
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(EmeraldRain_framebarId);
-
 	// each ring of the 236236S super is separately named
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRainRing1", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = EmeraldRain_framebarId;
+	move.framebarId = 17;
 	move.framebarName = assignName("Emerald Rain", "ER");
 	move.framebarNameUncombined = assignName("Emeral Rain Ring 1", "ER Ring1");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRainRing2", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = EmeraldRain_framebarId;
+	move.framebarId = 17;
 	move.framebarName = assignName("Emerald Rain", "ER");
 	move.framebarNameUncombined = assignName("Emeral Rain Ring 2", "ER Ring2");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRainRing3", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = EmeraldRain_framebarId;
+	move.framebarId = 17;
 	move.framebarName = assignName("Emerald Rain", "ER");
 	move.framebarNameUncombined = assignName("Emeral Rain Ring 3", "ER Ring3");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SecretGardenBall", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 18;
 	move.framebarName = assignName("Secret Garden", "Garden");
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
@@ -4554,7 +4486,7 @@ void Moves::addMoves() {
 	// a rose created during Rose Install. Many of these can be on the screen at the same time
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "RoseObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 19;
 	move.framebarName = assignName("Rose");
 	addMove(move);
 	
@@ -4575,12 +4507,10 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;  // a dead end move
 	addMove(move);
 	
-	rememberFramebarId(Eddie_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieMegalithHead", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Great White");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.isEddie = true;
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
@@ -4588,7 +4518,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "ChouDoriru", true);
 	move.isDangerous = isDangerous_notNull;
 	move.framebarName = assignName("Giga Drill");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.isEddie = true;
 	addMove(move);
 	
@@ -4599,7 +4529,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieA", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie P");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4607,7 +4537,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieB", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie K");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4615,7 +4545,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieC", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie S");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4623,7 +4553,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieD", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie H");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4631,7 +4561,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieE", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie D");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4639,7 +4569,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie4", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie 4");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4647,7 +4577,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4655,7 +4585,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Eddie6", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("Eddie 6");
-	move.framebarId = Eddie_framebarId;
+	move.framebarId = 109;
 	move.drawProjectileOriginPoint = true;
 	move.isEddie = true;
 	addMove(move);
@@ -4765,25 +4695,21 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(Drill_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrillC", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Drill_framebarId;
+	move.framebarId = 20;
 	move.framebarName = assignName("Invite Hell", "Drill");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "DrillD", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Drill_framebarId;
+	move.framebarId = 20;
 	move.framebarName = assignName("Invite Hell", "Drill");
 	addMove(move);
 	
-	rememberFramebarId(AmorphousObj_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "AmorphousObj", true);
 	move.isDangerous = isDangerous_amorphous;
-	move.framebarId = AmorphousObj_framebarId;
+	move.framebarId = 21;
 	move.framebarName = assignName("Amorphous");
 	move.framebarNameUncombined = assignName("Amorphous", "Amorphous");
 	addMove(move);
@@ -4791,7 +4717,7 @@ void Moves::addMoves() {
 	// this can only be created on the boss version of Zato
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "AmorphousObj2", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = AmorphousObj_framebarId;
+	move.framebarId = 21;
 	move.framebarName = assignName("Amorphous");
 	move.framebarNameUncombined = assignName("Amorphous Hit 2", "Amorphous2");
 	addMove(move);
@@ -4871,7 +4797,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB_obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarName = assignName("F.D.B.");
-	move.framebarId = generateFramebarId();
+	move.framebarId = 110;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Anti_AirExplode");
@@ -4915,13 +4841,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "SlideHead_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 22;
 	move.framebarName = assignName("Slide Head");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 23;
 	move.framebarName = assignName("FDB");
 	addMove(move);
 	
@@ -4934,7 +4860,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "GiganObj", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 24;
 	move.framebarName = assignName("Giganter");
 	addMove(move);
 	
@@ -4946,7 +4872,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Bomb", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 25;
 	move.framebarName = assignName("Trishula");
 	addMove(move);
 	
@@ -4966,8 +4892,7 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiA;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -4980,8 +4905,7 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiA;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -4994,8 +4918,7 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiB;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -5008,8 +4931,7 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiB;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -5022,8 +4944,7 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiC;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -5036,8 +4957,7 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiD_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiC;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -5050,8 +4970,7 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiD;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 
@@ -5064,33 +4983,28 @@ void Moves::addMoves() {
 	move.addForceAddWhiffCancel("BallSeiseiB_Hold");
 	move.addForceAddWhiffCancel("BallSeiseiC_Hold");
 	move.conditionForAddingWhiffCancels = hasWhiffCancels;
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_ballSeiseiD;
+	move.canYrcProjectile = canYrcProjectile_default;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiA");
 	move.displayName = assignName("Air P Ball Set", "Air P Ball");
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_airBallSeiseiA;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiB");
 	move.displayName = assignName("Air K Ball Set", "Air K Ball");
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_airBallSeiseiB;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiC");
 	move.displayName = assignName("Air S Ball Set", "Air S Ball");
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_airBallSeiseiC;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "AirBallSeiseiD");
 	move.displayName = assignName("Air H Ball Set", "Air H Ball");
-	move.createdProjectile = createdProjectile_ballSet;
-	move.canYrcProjectile = canYrcProjectile_airBallSeiseiD;
+	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "MadStrugguleD");
@@ -5165,8 +5079,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("P QV");
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
-	move.createdProjectile = createdProjectile_qv;
-	move.canYrcProjectile = canYrcProjectile_qvA;
+	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvA;
 	move.ignoreJumpInstalls = true;
@@ -5176,8 +5089,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("K QV");
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
-	move.createdProjectile = createdProjectile_qv;
-	move.canYrcProjectile = canYrcProjectile_qvB;
+	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvB;
 	move.ignoreJumpInstalls = true;
@@ -5187,8 +5099,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("S QV");
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
-	move.createdProjectile = createdProjectile_qv;
-	move.canYrcProjectile = canYrcProjectile_qvC;
+	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvC;
 	move.ignoreJumpInstalls = true;
@@ -5198,8 +5109,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("H QV");
 	move.sectionSeparator = sectionSeparator_QV;
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
-	move.createdProjectile = createdProjectile_qv;
-	move.canYrcProjectile = canYrcProjectile_qvD;
+	move.canYrcProjectile = canYrcProjectile_qv;
 	move.powerup = powerup_qv;
 	move.powerupExplanation = powerupExplanation_qvD;
 	move.ignoreJumpInstalls = true;
@@ -5214,7 +5124,7 @@ void Moves::addMoves() {
 	// Charged balls and even Bishop Runout and Red Hail are also this
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "Ball", true);
 	move.isDangerous = isDangerous_active;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 49;
 	move.framebarName = assignName("Balls", "Balls");
 	move.framebarNameSelector = framebarNameSelector_venomBall;
 	move.framebarNameUncombined = assignName("Ball");
@@ -5225,7 +5135,7 @@ void Moves::addMoves() {
 	// every QV when released creates this shockwave and it persists on RC
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "Debious_AttackBall", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 50;
 	move.framebarName = assignName("QV");
 	addMove(move);
 	
@@ -5251,19 +5161,17 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(DarkAngel_framebarId);
-
 	// created before Dark Angel comes out
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBallStart", true);
 	move.isDangerous = isDangerous_hasNotCreatedAnythingYet;
-	move.framebarId = DarkAngel_framebarId;
+	move.framebarId = 51;
 	move.framebarName = assignName("Dark Angel", "DA");
 	move.framebarNameUncombined = assignName("Dark Angel Spawner", "DA Spawner");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = DarkAngel_framebarId;
+	move.framebarId = 51;
 	move.framebarName = assignName("Dark Angel", "DA");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -5341,7 +5249,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "Retro", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 52;
 	move.framebarName = assignName("Helter Skelter", "Helter");
 	addMove(move);
 	
@@ -5409,7 +5317,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "KetsuFire", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 53;
 	move.framebarName = assignName("Straight-Down Dandy", "SDD");
 	addMove(move);
 	
@@ -5566,31 +5474,27 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
-	rememberFramebarId(ChemicalLove_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_INO, "BChemiLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = ChemicalLove_framebarId;
+	move.framebarId = 54;
 	move.framebarName = assignName("Chemical Love", "HCL");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "AddChemiLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = ChemicalLove_framebarId;
+	move.framebarId = 54;
 	move.framebarName = assignName("Chemical Love (Follow-up)", "214K~214S");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "CChemiLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = ChemicalLove_framebarId;
+	move.framebarId = 54;
 	move.framebarName = assignName("Vertical Chemical Love", "VCL");
 	addMove(move);
 	
-	rememberFramebarId(Onpu_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Onpu_framebarId;
+	move.framebarId = 55;
 	move.framebarName = assignName("Antidepressant Scale", "Note");
 	move.projectilePowerup = powerup_onpu;
 	addMove(move);
@@ -5598,7 +5502,7 @@ void Moves::addMoves() {
 	// Boss version only
 	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Onpu_framebarId;
+	move.framebarId = 55;
 	move.framebarName = assignName("Antidepressant Scale", "Note");
 	move.framebarNameUncombined = assignName("Antidepressant Scale 2", "Note 2");
 	move.projectilePowerup = powerup_onpu;
@@ -5607,7 +5511,7 @@ void Moves::addMoves() {
 	// Boss version only
 	move = MoveInfo(CHARACTER_TYPE_INO, "Onpu3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Onpu_framebarId;
+	move.framebarId = 55;
 	move.framebarName = assignName("Antidepressant Scale", "Note");
 	move.framebarNameUncombined = assignName("Antidepressant Scale 3", "Note 3");
 	move.projectilePowerup = powerup_onpu;
@@ -5616,19 +5520,19 @@ void Moves::addMoves() {
 	// cannot be YRC'd in Rev1
 	move = MoveInfo(CHARACTER_TYPE_INO, "DustObjShot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 56;
 	move.framebarName = assignName("5D");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "GenkaiObj", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 57;
 	move.framebarName = assignName("Ultimate Fortissimo", "Fortissimo");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "MadogiwaObj", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 58;
 	move.framebarName = assignName("Longing Desperation", "Desperation");
 	addMove(move);
 	
@@ -5809,22 +5713,20 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Aralm_Obj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 59;
 	move.framebarName = assignName("Sinusoidal Helios", "Helios");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Okkake", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 60;
 	move.framebarName = assignName("Hemi Jack", "Sheep Super");
 	addMove(move);
 	
-	rememberFramebarId(Boomerang_A_Head_framebarId);
-
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Boomerang_A_Head_framebarId;
+	move.framebarId = 61;
 	move.framebarName = assignName("Task A", "Boomerang");
 	move.framebarNameUncombined = assignName("Task A Boomerang Head", "Boomerang");
 	move.drawProjectileOriginPoint = true;
@@ -5832,18 +5734,16 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head_Air", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Boomerang_A_Head_framebarId;
+	move.framebarId = 61;
 	move.framebarName = assignName("Task A", "Boomerang Head");
 	move.framebarNameUncombined = assignName("Task A Boomerang Head", "Boomerang Head");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(Djavu_A_framebarId);
-
 	// created when doing Deja Vu (Task A). Creates either Boomerang_A_Djavu or Boomerang_A_Djavu_Air
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_A_Ghost", true);
 	move.isDangerous = isDangerous_djavu;
-	move.framebarId = Djavu_A_framebarId;
+	move.framebarId = 62;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A)", "DVA");
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost (Task A)", "DVA Ghost");
 	addMove(move);
@@ -5851,7 +5751,7 @@ void Moves::addMoves() {
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Djavu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Djavu_A_framebarId;
+	move.framebarId = 62;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A)", "DVA");
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost (Task A)", "DVA Ghost");
 	move.drawProjectileOriginPoint = true;
@@ -5859,17 +5759,15 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Djavu_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Djavu_A_framebarId;
+	move.framebarId = 62;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Air Task A)", "j.DVA");
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Boomerang Head (Air Task A)", "j.DVA Boomerang Head");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(Boomerang_B_Head_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Boomerang_B_Head_framebarId;
+	move.framebarId = 63;
 	move.framebarName = assignName("Task A'", "Teleport Boomerang Head");
 	move.framebarNameUncombined = assignName("Task A' Boomerang Head", "Teleport Boomerang Head");
 	move.drawProjectileOriginPoint = true;
@@ -5877,18 +5775,16 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Head_Air", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Boomerang_B_Head_framebarId;
+	move.framebarId = 63;
 	move.framebarName = assignName("Task A'");
 	move.framebarNameUncombined = assignName("Task A' Boomerang Head", "Teleport Boomerang Head");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(Djavu_B_framebarId);
-
 	// created when doing Deja Vu (Task A'). Creates either Boomerang_B_Djavu or Boomerang_B_Djavu_Air
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_B_Ghost", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Djavu_B_framebarId;
+	move.framebarId = 64;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A')", "DVA'");
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost (Task A')", "DVA' Ghost");
 	addMove(move);
@@ -5896,7 +5792,7 @@ void Moves::addMoves() {
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Djavu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Djavu_B_framebarId;
+	move.framebarId = 64;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A')", "DVA'");
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Boomerang Head (Task A')", "DVA' Boomerang Head");
 	move.drawProjectileOriginPoint = true;
@@ -5904,7 +5800,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Djavu_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = Djavu_B_framebarId;
+	move.framebarId = 64;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Air Task A')", "j.DVA'");
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Boomerang Head (Air Task A')", "j.DVA' Boomerang Head");
 	move.drawProjectileOriginPoint = true;
@@ -5912,30 +5808,28 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_C_Ghost", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 65;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task B)", "DVB");
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost (Task B)", "DVB Ghost");
 	addMove(move);
 	
-	rememberFramebarId(BedmanTaskCShockwave_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "bomb1", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = BedmanTaskCShockwave_framebarId;
+	move.framebarId = 66;
 	move.framebarName = assignName("Task C Shockwave", "Shockwave");
 	move.framebarNameUncombined = assignName("Task C Shockwave", "Shockwave");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "bomb2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = BedmanTaskCShockwave_framebarId;
+	move.framebarId = 66;
 	move.framebarName = assignName("Task C Shockwave", "Shockwave");
 	move.framebarNameUncombined = assignName("Task C Big Shockwave", "Big Shockwave");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Djavu_D_Ghost", true);
 	move.isDangerous = isDangerous_Djavu_D_Ghost;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 67;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task C)", "DVC");
 	move.framebarNameSelector = framebarNameSelector_djvuD;
 	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost (Task C)", "DVC Ghost");
@@ -6244,7 +6138,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Land");
 	move.displayName = assignName("H Launch Greatsword", "6H");
-	move.createdProjectile = createdProjectile_onf5_h;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -6256,14 +6150,14 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Land");
 	move.displayName = assignName("H Launch Greatsword (Already Deployed)", "6H");
-	move.createdProjectile = createdProjectile_onf5_h;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Land");
 	move.displayName = assignName("H Recover Greatsword", "4H");
-	move.createdProjectile = createdProjectile_onf5_h_recall;
+	move.createdProjectile = createdProjectile_onf5_recall;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -6271,7 +6165,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Land");
 	move.displayName = assignName("2H Launch Greatsword", "2H Summon");
 	move.nameIncludesInputs = true;
-	move.createdProjectile = createdProjectile_onf7_h;
+	move.createdProjectile = createdProjectile_onf7;
 	move.canYrcProjectile = canYrcProjectile_onf7;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -6283,7 +6177,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Land");
 	move.displayName = assignName("S Launch Greatsword", "6S");
-	move.createdProjectile = createdProjectile_onf5_s;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -6295,14 +6189,14 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Land");
 	move.displayName = assignName("S Launch Greatsword (Already Deployed)", "6S");
-	move.createdProjectile = createdProjectile_onf5_s;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Land");
 	move.displayName = assignName("S Recover Greatsword", "4S");
-	move.createdProjectile = createdProjectile_onf5_s_recall;
+	move.createdProjectile = createdProjectile_onf5_recall;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -6310,14 +6204,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Land");
 	move.displayName = assignName("2S Launch Greatsword", "2S Summon");
 	move.nameIncludesInputs = true;
-	move.createdProjectile = createdProjectile_onf7_s;
+	move.createdProjectile = createdProjectile_onf7;
 	move.canYrcProjectile = canYrcProjectile_onf7;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Air");
 	move.displayName = assignName("Air H Launch Greatsword", "Air 6H");
-	move.createdProjectile = createdProjectile_onf5_h;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
@@ -6328,26 +6222,26 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Air");
 	move.displayName = assignName("Air H Launch Greatsword (Already Deployed)", "Air 6H");
-	move.createdProjectile = createdProjectile_onf5_h;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Air");
 	move.displayName = assignName("Air 2H Launch Greatsword", "Air 2H Summon");
 	move.nameIncludesInputs = true;
-	move.createdProjectile = createdProjectile_onf5_h;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Air");
 	move.displayName = assignName("Air H Recover Greatsword", "Air 4H");
-	move.createdProjectile = createdProjectile_onf5_h_recall;
+	move.createdProjectile = createdProjectile_onf5_recall;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Air");
 	move.displayName = assignName("Air S Launch Greatsword", "Air 6S");
-	move.createdProjectile = createdProjectile_onf5_s;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
@@ -6358,20 +6252,20 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Air");
 	move.displayName = assignName("Air S Launch Greatsword (Already Deployed)", "Air 6S");
-	move.createdProjectile = createdProjectile_onf5_s;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Air");
 	move.displayName = assignName("Air 2S Launch Greatsword", "Air 2S Summon");
 	move.nameIncludesInputs = true;
-	move.createdProjectile = createdProjectile_onf5_s;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Air");
 	move.displayName = assignName("Air S Recover Greatsword", "Air 4S");
-	move.createdProjectile = createdProjectile_onf5_s_recall;
+	move.createdProjectile = createdProjectile_onf5_recall;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
@@ -6483,14 +6377,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6CBunriShot");
 	move.displayName = assignName("S Launch Greatsword (Boss Ver.)", "S Launch (Boss Ver.)");
 	move.ignoreJumpInstalls = true;
-	move.createdProjectile = createdProjectile_onf5_s;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6DBunriShot");
 	move.displayName = assignName("H Launch Greatsword (Boss Ver.)", "H Launch (Boss Ver.)");
 	move.ignoreJumpInstalls = true;
-	move.createdProjectile = createdProjectile_onf5_h;
+	move.createdProjectile = createdProjectile_onf5;
 	move.canYrcProjectile = canYrcProjectile_onf5;
 	addMove(move);
 	
@@ -6626,22 +6520,18 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(RamlethalSSword_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6C", true);
 	move.displayName = assignName("6S");
 	move.isDangerous = isDangerous_launchGreatsword;
-	move.framebarId = RamlethalSSword_framebarId;
+	move.framebarId = 68;
 	move.framebarName = assignName("S Sword");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(RamlethalHSword_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6D", true);
 	move.displayName = assignName("6H");
 	move.isDangerous = isDangerous_launchGreatsword;
-	move.framebarId = RamlethalHSword_framebarId;
+	move.framebarId = 69;
 	move.framebarName = assignName("H Sword");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -6649,14 +6539,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6CBunriShot", true);
 	move.displayName = assignName("Sword Spinny Attack");
 	move.isDangerous = isDangerous_ramSwordMove;
-	move.framebarId = RamlethalSSword_framebarId;
+	move.framebarId = 68;
 	move.framebarName = assignName("S Sword");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN2C_Bunri", true);
 	move.displayName = assignName("2S Deployed");
 	move.isDangerous = isDangerous_ramSwordMove;
-	move.framebarId = RamlethalSSword_framebarId;
+	move.framebarId = 68;
 	move.framebarName = assignName("S Sword");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -6664,21 +6554,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN6CBunriShot_Boss", true);
 	move.displayName = assignName("Sword Spinny Attack (Boss)");
 	move.isDangerous = isDangerous_ramSwordMove;
-	move.framebarId = RamlethalSSword_framebarId;
+	move.framebarId = 68;
 	move.framebarName = assignName("S Sword");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6DBunriShot", true);
 	move.displayName = assignName("Sword Spinny Attack");
 	move.isDangerous = isDangerous_ramSwordMove;
-	move.framebarId = RamlethalHSword_framebarId;
+	move.framebarId = 69;
 	move.framebarName = assignName("H Sword");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF2D_Bunri", true);
 	move.displayName = assignName("2H Deployed");
 	move.isDangerous = isDangerous_ramSwordMove;
-	move.framebarId = RamlethalHSword_framebarId;
+	move.framebarId = 69;
 	move.framebarName = assignName("H Sword");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -6686,42 +6576,40 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitF6DBunriShot_Boss", true);
 	move.displayName = assignName("Sword Spinny Attack (Boss)");
 	move.isDangerous = isDangerous_ramSwordMove;
-	move.framebarId = RamlethalHSword_framebarId;
+	move.framebarId = 69;
 	move.framebarName = assignName("H Sword");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral_NSpiral", true);
 	move.displayName = assignName("Trance");
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = RamlethalSSword_framebarId;
+	move.framebarId = 68;
 	move.framebarName = assignName("S Sword");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral_FSpiral", true);
 	move.displayName = assignName("Trance");
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = RamlethalHSword_framebarId;
+	move.framebarId = 69;
 	move.framebarName = assignName("H Sword");
 	addMove(move);
 	
-	rememberFramebarId(BitLaser_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser_Minion", true);
 	move.isDangerous = isDangerous_hasNotCreatedAnythingYet;
-	move.framebarId = BitLaser_framebarId;
+	move.framebarId = 70;
 	move.framebarName = assignName("Laser");
 	move.framebarNameUncombined = assignName("Laser Spawner");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = BitLaser_framebarId;
+	move.framebarId = 70;
 	move.framebarName = assignName("Laser");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "middleShot", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 71;
 	move.framebarName = assignName("Cassius");
 	addMove(move);
 	
@@ -6853,31 +6741,29 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
-	rememberFramebarId(VoltecDein_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_SIN, "SuperShotStart", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = VoltecDein_framebarId;
+	move.framebarId = 72;
 	move.framebarName = assignName("Voltec Dein", "Voltec");
 	move.framebarNameUncombined = assignName("Voltec Dein Spawner", "Voltec Spawner");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Shot_Land", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = VoltecDein_framebarId;
+	move.framebarId = 72;
 	move.framebarName = assignName("Voltec Dein", "Voltec");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "SuperShotAirStart", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = VoltecDein_framebarId;
+	move.framebarId = 72;
 	move.framebarName = assignName("Voltec Dein", "Voltec");
 	move.framebarNameUncombined = assignName("Voltec Dein Spawner", "Voltec Spawner");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Shot_Air", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = VoltecDein_framebarId;
+	move.framebarId = 72;
 	move.framebarName = assignName("Voltec Dein", "Voltec");
 	addMove(move);
 	
@@ -6991,25 +6877,25 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "VacuumAtk", true);
 	move.isDangerous = isDangerous_vacuumAtk;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 107;
 	move.framebarName = assignName("Enlightened 3000 Palm Strike Vacuum", "Vacuum");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "EnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 89;
 	move.framebarName = assignName("Tuning Ball", "Fireball");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperEnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 116;
 	move.framebarName = assignName("Celestial Tuning Ball", "Super Ball");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "kum_205shot", true);
 	move.isDangerous = isDangerous_kum5D;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 105;
 	move.framebarName = assignName("5D");
 	addMove(move);
 	
@@ -7136,33 +7022,29 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
-	rememberFramebarId(SlowNeeldeObjLand_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "SlowNeeldeObjLand", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = SlowNeeldeObjLand_framebarId;
+	move.framebarId = 90;
 	move.framebarName = assignName("Schmerz Berg", "Needle");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "SlowNeeldeObjAir", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = SlowNeeldeObjLand_framebarId;
+	move.framebarId = 90;
 	move.framebarName = assignName("Grebechlich Licht", "Needle");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(AirSettingTypeNeedleObj_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSettingTypeNeedleObj", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = AirSettingTypeNeedleObj_framebarId;
+	move.framebarId = 91;
 	move.framebarName = assignName("Scharf Kugel", "Orb");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSettingTypeNeedleObj", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = AirSettingTypeNeedleObj_framebarId;
+	move.framebarId = 91;
 	move.framebarName = assignName("Scharf Kugel", "Orb");
 	addMove(move);
 	
@@ -7527,33 +7409,31 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtk5EShotObj", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 99;
 	move.framebarName = assignName("5D");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtkAir5EShotObj", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 100;
 	move.framebarName = assignName("j.D");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TeppouObj", true);
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 101;
 	move.framebarName = assignName("Yasha Gatana");
 	addMove(move);
 	
-	rememberFramebarId(Tatami_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiLandObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Tatami_framebarId;
+	move.framebarId = 102;
 	move.framebarName = assignName("Tatami Gaeshi", "Tatami");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiAirObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Tatami_framebarId;
+	move.framebarId = 102;
 	move.framebarName = assignName("Tatami Gaeshi", "Tatami");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -7758,11 +7638,9 @@ void Moves::addMoves() {
 	move.dontSkipSuper = true;
 	addMove(move);
 	
-	rememberFramebarId(ServantAAndB_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantA", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = ServantAAndB_framebarId;
+	move.framebarId = 82;
 	move.framebarName = assignName("Sword/Spear men");
 	move.framebarNameUncombined = assignName("Knight");
 	move.combineHitsFromDifferentProjectiles = true;  // we need this because we don't want two knights attacking simultaneously displayed as two hits
@@ -7771,7 +7649,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantB", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = ServantAAndB_framebarId;
+	move.framebarId = 82;
 	move.framebarName = assignName("Sword/Spear men");
 	move.framebarNameUncombined = assignName("Lancer");
 	move.combineHitsFromDifferentProjectiles = true;
@@ -7808,16 +7686,14 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Fireball", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 84;
 	move.framebarName = assignName("j.D");
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
-	rememberFramebarId(CalvadosObj_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = CalvadosObj_framebarId;
+	move.framebarId = 85;
 	move.framebarName = assignName("Calvados");
 	move.framebarNameUncombined = assignName("Calvados Ball");
 	addMove(move);
@@ -7825,7 +7701,7 @@ void Moves::addMoves() {
 	// Only the boss version spawns this
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosObj2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = CalvadosObj_framebarId;
+	move.framebarId = 85;
 	move.framebarName = assignName("Calvados");
 	move.framebarNameUncombined = assignName("Calvados Ball 2");
 	addMove(move);
@@ -7833,95 +7709,89 @@ void Moves::addMoves() {
 	// Only the boss version spawns this
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosObj3", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = CalvadosObj_framebarId;
+	move.framebarId = 85;
 	move.framebarName = assignName("Calvados");
 	move.framebarNameUncombined = assignName("Calvados Ball 3");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Bomb", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = CalvadosObj_framebarId;
+	move.framebarId = 85;
 	move.framebarName = assignName("Calvados");
 	move.framebarNameUncombined = assignName("Calvados Explosion Pillar");
 	addMove(move);
 	
-	rememberFramebarId(Ghosts_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostA", true);
 	move.isDangerous = isDangerous_displayModel;
-	move.framebarId = Ghosts_framebarId;
+	move.framebarId = 86;
 	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostB", true);
 	move.isDangerous = isDangerous_displayModel;
-	move.framebarId = Ghosts_framebarId;
+	move.framebarId = 86;
 	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostC", true);
 	move.isDangerous = isDangerous_displayModel;
-	move.framebarId = Ghosts_framebarId;
+	move.framebarId = 86;
 	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
-	rememberFramebarId(Suicidal_explosion_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Suicidal_explosion", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Suicidal_explosion_framebarId;
+	move.framebarId = 87;
 	move.framebarName = assignName("Explosion");
 	move.framebarNameUncombined = assignName("Explosion1");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Suicidal_explosion2", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Suicidal_explosion_framebarId;
+	move.framebarId = 87;
 	move.framebarName = assignName("Explosion");
 	move.framebarNameUncombined = assignName("Explosion2");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Suicidal_explosion3", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = Suicidal_explosion_framebarId;
+	move.framebarId = 87;
 	move.framebarName = assignName("Explosion");
 	move.framebarNameUncombined = assignName("Explosion3");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "SakanaObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 92;
 	move.framebarNameSelector = nameSelector_iceSpike;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 93;
 	move.framebarNameSelector = nameSelector_iceScythe;
 	move.canYrcProjectile = canYrcProjectile_default;
 	addMove(move);
 	
-	rememberFramebarId(DizzyBubble_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaPObj", true);
 	move.isDangerous = isDangerous_bubble;
-	move.framebarId = DizzyBubble_framebarId;
+	move.framebarId = 94;
 	move.framebarName = assignName("Please, leave me alone", "Bubble");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaKObj", true);
 	move.isDangerous = isDangerous_bubble;
-	move.framebarId = DizzyBubble_framebarId;
+	move.framebarId = 94;
 	move.framebarName = assignName("What happens when I'm TOO alone", "Fire Bubble");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
+	move.framebarId = 95;
 	move.framebarName = assignName("I use this to pick fruit", "Ice Spear");
 	addMove(move);
 	
@@ -7952,12 +7822,10 @@ void Moves::addMoves() {
 	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
 	addMove(move);
 	
-	rememberFramebarId(DizzyFish_framebarId);
-
 	// P fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjA", true);
 	move.isDangerous = isDangerous_pFish;
-	move.framebarId = DizzyFish_framebarId;
+	move.framebarId = 96;
 	move.framebarName = assignName("We talked a lot together", "P Blue Fish");
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
@@ -7965,7 +7833,7 @@ void Moves::addMoves() {
 	// K fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjB", true);
 	move.isDangerous = isDangerous_kFish;
-	move.framebarId = DizzyFish_framebarId;
+	move.framebarId = 96;
 	move.framebarName = assignName("We talked a lot together", "K Blue Fish");
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
@@ -7973,7 +7841,7 @@ void Moves::addMoves() {
 	// S laser fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjD", true);
 	move.isDangerous = isDangerous_laserFish;
-	move.framebarId = DizzyFish_framebarId;
+	move.framebarId = 96;
 	move.framebarName = assignName("We fought a lot together", "Laser");
 	move.framebarNameUncombined = assignName("We fought a lot together Fish", "H Laser Fish");
 	addMove(move);
@@ -7981,7 +7849,7 @@ void Moves::addMoves() {
 	// H laser fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjC", true);
 	move.isDangerous = isDangerous_laserFish;
-	move.framebarId = DizzyFish_framebarId;
+	move.framebarId = 96;
 	move.framebarName = assignName("We fought a lot together", "Laser");
 	move.framebarNameUncombined = assignName("We fought a lot together Fish", "S Laser Fish");
 	addMove(move);
@@ -7989,7 +7857,7 @@ void Moves::addMoves() {
 	// H/S laser fish's laser
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Laser", true);
 	move.isDangerous = isDangerous_notNull;
-	move.framebarId = DizzyFish_framebarId;
+	move.framebarId = 96;
 	move.framebarName = assignName("We fought a lot together", "Laser");
 	move.framebarNameUncombined = assignName("We fought a lot together Laser", "Laser");
 	addMove(move);
@@ -7997,22 +7865,20 @@ void Moves::addMoves() {
 	// Shield fish
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjE", true);
 	move.isDangerous = isDangerous_dFish;
-	move.framebarId = DizzyFish_framebarId;
+	move.framebarId = 96;
 	move.framebarName = assignName("We fought a lot together", "Shield Fish");
 	addMove(move);
 	
-	rememberFramebarId(ImperialRay_framebarId);
-
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayCreater", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = ImperialRay_framebarId;
+	move.framebarId = 97;
 	move.framebarName = assignName("Imperial Ray");
 	move.framebarNameUncombined = assignName("Imperial Ray Spawner");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBakuhatsu", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = ImperialRay_framebarId;
+	move.framebarId = 97;
 	move.framebarName = assignName("Imperial Ray");
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
@@ -8065,10 +7931,7 @@ void Moves::onAswEngineDestroyed() {
 	milliaIsRev2 = TRIBOOL_DUNNO;
 	faust5DExPointX = -1;
 	faust5DExPointY = -1;
-	venomQvAClearUponAfterExitOffset = 0;
-	venomQvBClearUponAfterExitOffset = 0;
-	venomQvCClearUponAfterExitOffset = 0;
-	venomQvDClearUponAfterExitOffset = 0;
+	venomQvClearUponAfterExitOffset = 0;
 	venomBishopCreateOffset = 0;
 	ino5DCreateDustObjShotOffset = 0;
 	bedmanSealA.clear();
@@ -8175,14 +8038,6 @@ void Moves::onAswEngineDestroyed() {
 	bedmanDejavuBStartup = 0;
 	bedmanDejavuCStartup = 0;
 	bedmanDejavuDStartup = 0;
-	venomBallSeiseiABallCreation = 0;
-	venomBallSeiseiBBallCreation = 0;
-	venomBallSeiseiCBallCreation = 0;
-	venomBallSeiseiDBallCreation = 0;
-	venomAirBallSeiseiABallCreation = 0;
-	venomAirBallSeiseiBBallCreation = 0;
-	venomAirBallSeiseiCBallCreation = 0;
-	venomAirBallSeiseiDBallCreation = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -8685,23 +8540,8 @@ const NamePair* framebarNameUncombinedSelector_venomBall(Entity ent) {
 	} else if (strcmp(ent.dealtAttack()->trialName, "Ball_Gold") == 0) {
 		return assignName("Bishop Runout", "Bishop");
 	} else {
-		Entity player = ent.playerEntity();
-		if (player) {
-			#define thing(i, name) if (player.stackEntity(i) == ent) return assignName(name);
-			thing(0, "P Ball")
-			thing(1, "K Ball")
-			thing(2, "S Ball")
-			thing(3, "H Ball")
-			#undef thing
-		}
 		return assignName("Ball");
 	}
-}
-const NamePair* framebarNameSelector_grenadeBombReady(Entity ent) {
-	if (ent.currentHitNum()) {
-		return assignName("Self-Detonate");
-	}
-	return assignName("Berry Pine", "Berry");
 }
 
 const NamePair* MoveInfo::getFramebarName(Entity ent) const {
@@ -9466,47 +9306,29 @@ bool canYrcProjectile_flower(PlayerInfo& player) {
 	}
 	return false;
 }
-static bool canYrcProjectile_qv(PlayerInfo& player, int* storage) {
+bool canYrcProjectile_qv(PlayerInfo& player) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (!func) return false;
-	if (*storage == 0) {
-		bool foundTheThing = false;
+	if (moves.venomQvClearUponAfterExitOffset == 0) {
 		for (BYTE* instr = moves.skipInstruction(func);
 				moves.instructionType(instr) != instr_endState;
 				instr = moves.skipInstruction(instr)) {
-			InstructionType type = moves.instructionType(instr);
-			if (type == instr_clearUpon) {
-				if (asInstr(instr, clearUpon)->event == BBSCREVENT_PLAYER_CHANGED_STATE) {
-					foundTheThing = true;
-				}
-			} else if (foundTheThing && type == instr_sprite) {
-				*storage = instr - func;
+			if (moves.instructionType(instr) == instr_clearUpon && asInstr(instr, clearUpon)->event == BBSCREVENT_PLAYER_CHANGED_STATE) {
+				moves.venomQvClearUponAfterExitOffset = instr - func;
 				break;
 			}
 		}
 	}
-	if (!*storage) return false;
+	if (!moves.venomQvClearUponAfterExitOffset) return false;
 	BYTE* currentInstr = player.pawn.bbscrCurrentInstr();
-	BYTE* minInstr = func + *storage;
+	BYTE* minInstr = moves.skipInstruction(func + moves.venomQvClearUponAfterExitOffset);
 	return currentInstr == minInstr
 		&& player.pawn.spriteFrameCounter() != 0
 		|| currentInstr > minInstr;
 }
-bool canYrcProjectile_qvA(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvAClearUponAfterExitOffset);
-}
-bool canYrcProjectile_qvB(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvBClearUponAfterExitOffset);
-}
-bool canYrcProjectile_qvC(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvCClearUponAfterExitOffset);
-}
-bool canYrcProjectile_qvD(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvDClearUponAfterExitOffset);
-}
 const CreatedProjectileStruct* createdProjectile_bishop(PlayerInfo& player) {
 	if (player.pawn.previousEntity() && player.pawn.previousEntity().lifeTimeCounter() == 0) {
-		return assignCreatedProjectile(assignName("Created Bishop Runout", "Created Bishop"));
+		return assignCreatedProjectile("Created Bishop Runout");
 	}
 	return nullptr;
 }
@@ -9554,27 +9376,15 @@ bool canYrcProjectile_ino5D(PlayerInfo& player) {
 		|| player.pawn.bbscrCurrentInstr() == func + moves.ino5DCreateDustObjShotOffset
 		&& player.pawn.spriteFrameCounter() > 0;
 }
-const CreatedProjectileStruct* createdProjectile_onf5_s(PlayerInfo& ent) {
+const CreatedProjectileStruct* createdProjectile_onf5(PlayerInfo& ent) {
 	if (ent.pawn.currentAnimDuration() == 5 && !ent.pawn.isRCFrozen()) {
-		return assignCreatedProjectile("Summoned S Sword");
+		return assignCreatedProjectile("Summoned Sword");
 	}
 	return nullptr;
 }
-const CreatedProjectileStruct* createdProjectile_onf5_s_recall(PlayerInfo& ent) {
+const CreatedProjectileStruct* createdProjectile_onf5_recall(PlayerInfo& ent) {
 	if (ent.pawn.currentAnimDuration() == 5 && !ent.pawn.isRCFrozen()) {
-		return assignCreatedProjectile("Recalled S Sword");
-	}
-	return nullptr;
-}
-const CreatedProjectileStruct* createdProjectile_onf5_h(PlayerInfo& ent) {
-	if (ent.pawn.currentAnimDuration() == 5 && !ent.pawn.isRCFrozen()) {
-		return assignCreatedProjectile("Summoned H Sword");
-	}
-	return nullptr;
-}
-const CreatedProjectileStruct* createdProjectile_onf5_h_recall(PlayerInfo& ent) {
-	if (ent.pawn.currentAnimDuration() == 5 && !ent.pawn.isRCFrozen()) {
-		return assignCreatedProjectile("Recalled H Sword");
+		return assignCreatedProjectile("Recalled Sword");
 	}
 	return nullptr;
 }
@@ -9582,15 +9392,9 @@ bool canYrcProjectile_onf5(PlayerInfo& ent) {
 	return ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
 		|| ent.pawn.currentAnimDuration() > 5;
 }
-const CreatedProjectileStruct* createdProjectile_onf7_s(PlayerInfo& ent) {
+const CreatedProjectileStruct* createdProjectile_onf7(PlayerInfo& ent) {
 	if (ent.pawn.currentAnimDuration() == 7 && !ent.pawn.isRCFrozen()) {
-		return assignCreatedProjectile("Summoned S Sword");
-	}
-	return nullptr;
-}
-const CreatedProjectileStruct* createdProjectile_onf7_h(PlayerInfo& ent) {
-	if (ent.pawn.currentAnimDuration() == 7 && !ent.pawn.isRCFrozen()) {
-		return assignCreatedProjectile("Summoned H Sword");
+		return assignCreatedProjectile("Summoned Sword");
 	}
 	return nullptr;
 }
@@ -9773,79 +9577,6 @@ bool canYrcProjectile_firesale(PlayerInfo& player) {
 	} else {
 		return canYrcProjectile_default(player);
 	}
-}
-bool canYrcProjectile_berryPull(PlayerInfo& player) {
-	return player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0);
-}
-static bool canYrcProjectile_ballSet(PlayerInfo& player, int* storage) {
-	BYTE* funcStart = player.pawn.bbscrCurrentFunc();
-	moves.fillVenomBallCreation(funcStart, storage);
-	int offset = player.pawn.bbscrCurrentInstr() - funcStart;
-	return offset > *storage
-		|| offset == *storage
-		&& !(
-			player.pawn.spriteFrameCounter() == 0
-			&& !player.pawn.isRCFrozen()
-		);
-}
-bool canYrcProjectile_ballSeiseiA(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiABallCreation);
-}
-bool canYrcProjectile_ballSeiseiB(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiBBallCreation);
-}
-bool canYrcProjectile_ballSeiseiC(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiCBallCreation);
-}
-bool canYrcProjectile_ballSeiseiD(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiDBallCreation);
-}
-bool canYrcProjectile_airBallSeiseiA(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiABallCreation);
-}
-bool canYrcProjectile_airBallSeiseiB(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiBBallCreation);
-}
-bool canYrcProjectile_airBallSeiseiC(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiCBallCreation);
-}
-bool canYrcProjectile_airBallSeiseiD(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiDBallCreation);
-}
-static inline char getLastLetter(const char* animName) {
-	int len = strlen(animName);
-	if (!len) return '\0';
-	char lastLetter = animName[len - 1];
-	if (lastLetter < 'A' || lastLetter > 'D') return '\0';
-	return lastLetter;
-}
-static const CreatedProjectileStruct* createdProjectile_ballSetReusable(PlayerInfo& ent, const char lastLetter) {
-	Entity ball = ent.pawn.stackEntity(lastLetter - 'A');
-	if (!ball || ball.lifeTimeCounter() != 0) return nullptr;
-	switch (lastLetter) {
-		case 'A': return assignCreatedProjectile("Created P Ball");
-		case 'B': return assignCreatedProjectile("Created K Ball");
-		case 'C': return assignCreatedProjectile("Created S Ball");
-		case 'D': return assignCreatedProjectile("Created H Ball");
-	}
-	return assignCreatedProjectile("Created a Ball");
-}
-const CreatedProjectileStruct* createdProjectile_ballSet(PlayerInfo& ent) {
-	const char lastLetter = getLastLetter(ent.pawn.animationName());
-	if (!lastLetter) return nullptr;
-	return createdProjectile_ballSetReusable(ent, lastLetter);
-}
-const CreatedProjectileStruct* createdProjectile_qv(PlayerInfo& ent) {
-	const char lastLetter = getLastLetter(ent.pawn.animationName());
-	if (!lastLetter) return nullptr;
-	const CreatedProjectileStruct* otherResult = createdProjectile_ballSetReusable(ent, lastLetter);
-	if (otherResult) return otherResult;
-	Entity lastCreated = ent.pawn.previousEntity();
-	if (lastCreated && lastCreated.lifeTimeCounter() == 0
-			&& strcmp(lastCreated.animationName(), "Debious_AttackBall") == 0) {
-		return assignCreatedProjectile("Created QV Shockwave");
-	}
-	return nullptr;
 }
 
 bool powerup_may6P(PlayerInfo& player) {
@@ -11227,24 +10958,3 @@ void Moves::fillBedmanDejavuStartup(BYTE* funcStart, int* startup) {
 }
 
 const NamePair emptyNamePair { "", nullptr };
-
-void Moves::fillVenomBallCreation(BYTE* funcStart, int* result) {
-	if (*result) return;
-	bool foundTheThing = false;
-	for (BYTE* instr = skipInstruction(funcStart);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
-		if (type == instr_createObject) {
-			if (strcmp(asInstr(instr, createObject)->name, "Ball") == 0
-					&& asInstr(instr, createObject)->pos == 0) {
-				foundTheThing = true;
-			}
-		} else if (foundTheThing && type == instr_sprite) {
-			if (foundTheThing) {
-				*result = instr - funcStart;
-				return;
-			}
-		}
-	}
-}

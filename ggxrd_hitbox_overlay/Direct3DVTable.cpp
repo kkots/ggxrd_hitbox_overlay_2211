@@ -7,6 +7,8 @@ Direct3DVTable direct3DVTable;
 
 bool Direct3DVTable::onDllMain() {
 	
+	// the reason we don't sigscan d3d9.dll directly is because on Linux underneath Steam Proton underneath Wine it is different and the sigscan is not found there
+	
 	// Big thanks to WorseThanYou for finding this variable
 	d3dManager = (char**)sigscanOffset(
 		GUILTY_GEAR_XRD_EXE,

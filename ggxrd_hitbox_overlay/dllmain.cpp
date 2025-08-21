@@ -82,6 +82,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!moves.onDllMain()) terminate
 		if (!detouring.endTransaction()) terminate
 		fillInInputNames();
+		finishedSigscanning();
 		initialized = true;
 		break;
 	}

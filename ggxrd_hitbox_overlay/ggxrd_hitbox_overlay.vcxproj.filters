@@ -264,6 +264,9 @@
     <ClInclude Include="NamePairManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ThreadUnsafeSharedPtr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

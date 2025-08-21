@@ -3,6 +3,394 @@
 #include <Psapi.h>
 #include "logging.h"
 #include <cstdarg>
+#include <unordered_map>
+#include "WError.h"
+#include "LineReaderFromString.h"
+#include "Settings.h"
+
+const char* SIGSCAN_CACHE_FILE_NAME = "ggxrd_hitbox_overlay_sigscanCache.txt";
+
+int sigscanOrder = 0;
+bool sigscanCacheLoaded = false;
+bool sigscansChanged = false;
+int sigscanCacheUseCount = 0;
+
+static DWORD hashStringCaseInsensitive(const char* str) {
+	DWORD hash = 0;
+	for (const char* c = str; *c != '\0'; ++c) {
+		char cVal = *c;
+		if (cVal >= 'A' && cVal <= 'Z') cVal = 'a' + cVal - 'A';
+		hash = hash * 0x89 + cVal;
+	}
+	return hash;
+}
+
+static DWORD hashString(const char* str) {
+	DWORD hash = 0;
+	for (const char* c = str; *c != '\0'; ++c) {
+		hash = hash * 0x89 + *c;
+	}
+	return hash;
+}
+
+struct MyHashFunction {
+	inline std::size_t operator()(const SigscanCacheEntry& k) const {
+		DWORD hash = k.logname.empty() ? 0 : hashString(k.logname.data());
+		if (!k.moduleName.empty()) {
+			hash = hash * 0x89 + hashStringCaseInsensitive(k.moduleName.data());
+		}
+		if (!k.section.empty()) {
+			hash = hash * 0x89 + hashString(k.section.data());
+		}
+		hash = hash * 0x89 + k.startRelativeToWholeModule;
+		hash = hash * 0x89 + k.endRelativeToWholeModule;
+		for (char c : k.mask) {
+			hash = hash * 0x89 + c;
+		}
+		for (char c : k.maskForCaching) {
+			hash = hash * 0x89 + c;
+		}
+		int maskForCachingI = 0;
+		const size_t maskForCachingSize = k.maskForCaching.size();
+		for (int i = 0; i < (int)k.sig.size() && maskForCachingI < (int)maskForCachingSize;) {
+			char sigChar = k.sig[i];
+			char maskForCachingChar = k.maskForCaching[maskForCachingI];
+			if (maskForCachingChar == 'x') {
+				hash = hash * 0x89 + sigChar;
+			} else if (maskForCachingChar == 'r') {
+				if ((int)maskForCachingSize - maskForCachingI < 4 || strncmp(k.maskForCaching.data() + maskForCachingI, "rel_", 4) != 0) {
+					return hash;
+				}
+				maskForCachingI += 4;
+				while (maskForCachingI < (int)maskForCachingSize && k.maskForCaching[maskForCachingI] != '(') {
+					++maskForCachingI;
+				}
+				if ((int)maskForCachingSize - maskForCachingI < 6 || strncmp(k.maskForCaching.data() + maskForCachingI, "(????)", 6) != 0) {
+					return hash;
+				}
+				maskForCachingI += 5;
+				if ((int)k.sig.size() - i < 4) return hash;
+				for (int counter = 0; counter < 4; ++counter) {
+					hash = hash * 0x89 + k.sig[i + counter];
+				}
+				i += 3;
+			}
+			++i;
+			++maskForCachingI;
+		}
+		return hash;
+	}
+};
+struct MyCompareFunction {
+	inline bool operator()(const SigscanCacheEntry& k, const SigscanCacheEntry& other) const {
+		return (k.logname.empty() ? other.logname.empty() : strcmp(k.logname.data(), other.logname.data()) == 0)
+			&& (k.moduleName.empty() ? other.moduleName.empty() : _stricmp(k.moduleName.data(), other.moduleName.data()) == 0)
+			&& (k.section.empty() ? other.section.empty() : strcmp(k.section.data(), other.section.data()) == 0)
+			&& k.startRelativeToWholeModule == other.startRelativeToWholeModule
+			&& k.endRelativeToWholeModule == other.endRelativeToWholeModule
+			&& k.sig.size() == other.sig.size()
+			&& (k.sig.empty() || memcmp(k.sig.data(), other.sig.data(), k.sig.size()) == 0)
+			&& k.mask.size() == other.mask.size()
+			&& (k.mask.empty() || memcmp(k.mask.data(), other.mask.data(), k.mask.size()) == 0)
+			&& k.maskForCaching.size() == other.maskForCaching.size()
+			&& (k.maskForCaching.empty() || memcmp(k.maskForCaching.data(), other.maskForCaching.data(), k.maskForCaching.size()) == 0);
+	}
+};
+
+using sigscanCacheType = std::unordered_map<SigscanCacheEntry, SigscanCacheValue, MyHashFunction, MyCompareFunction>;
+sigscanCacheType sigscanCache;
+
+void loadSigscanCache() {
+	#define fileParsingErr(msg, ...) { logwrap(fprintf(logfile, "%s parsing error: " msg, SIGSCAN_CACHE_FILE_NAME, __VA_ARGS__)); return; }
+	if (sigscanCacheLoaded) return;
+	sigscanCacheLoaded = true;  // we won't try again if we fail X)
+	HANDLE file = CreateFileA(SIGSCAN_CACHE_FILE_NAME, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file == INVALID_HANDLE_VALUE) {
+		WinError winErr;
+		fileParsingErr("Could not open file: %ls\n", winErr.getMessage());
+		return;
+	}
+	struct FileCloser {
+		~FileCloser() {
+			if (file) CloseHandle(file);
+		}
+		HANDLE file;
+	} fileCloser {
+		file
+	};
+	DWORD fileSize = GetFileSize(file, NULL);
+	if (!fileSize) fileParsingErr("File empty.")
+	std::vector<char> data(fileSize + 1);
+	char* dataPtr = data.data();
+	DWORD bytesRead = 0;
+	DWORD totalBytesRead = 0;
+	DWORD remainingSize = fileSize;
+	while (true) {
+		DWORD bytesToRead = min(1024, remainingSize);
+		if (bytesToRead == 0) {
+			break;
+		}
+		if (!ReadFile(file, dataPtr, bytesToRead, &bytesRead, NULL)) {
+			WinError winErr;
+			fileParsingErr("Error reading file: %ls\n", winErr.getMessage());
+			// file closed automatically by fileCloser
+			return;
+		}
+		if (bytesRead != bytesToRead) {
+			break;
+		}
+		remainingSize -= bytesRead;
+		dataPtr += bytesRead;
+	}
+	CloseHandle(file);
+	fileCloser.file = NULL;
+	data.back() = '\0';
+	
+	LineReaderFromString lineReader(data.data());
+	const char* lineStart;
+	const char* lineEnd;
+	int order = 0;
+	while (lineReader.readLine(&lineStart, &lineEnd)) {
+		#define shrinkWhitespaceLeft \
+			while (lineStart < lineEnd && *lineStart <= 32) ++lineStart;
+		#define shrinkWhitespaceRight \
+			while (lineEnd > lineStart && *(lineEnd - 1) <= 32) --lineEnd;
+		#define shrinkWhitespace \
+			shrinkWhitespaceLeft \
+			shrinkWhitespaceRight
+		shrinkWhitespace
+		if (lineEnd <= lineStart) continue;
+		SigscanCacheEntry newEntry;
+		int setStringLen;
+		
+		#define setString(vec, start, end) \
+			setStringLen = end - (start); \
+			if (setStringLen > 0) { \
+				vec.resize(setStringLen + 1); \
+				memcpy(vec.data(), start, setStringLen); \
+				vec.back() = '\0'; \
+			}
+			
+		setString(newEntry.logname, lineStart, lineEnd)
+		
+		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing the first line.")
+		shrinkWhitespace
+		if (lineEnd <= lineStart) fileParsingErr("First line is empty.")
+		
+		const char* ptr = (const char*)memchr(lineStart, ':', lineEnd - lineStart);
+		if (ptr == nullptr) fileParsingErr(": not found.")
+		if (lineEnd - 1 <= ptr) fileParsingErr("Section name to the right of : not found.")
+		if (ptr - 1 <= lineStart) fileParsingErr("Module name to the left of : not found.")
+		
+		setString(newEntry.moduleName, lineStart, ptr)
+		setString(newEntry.section, ptr + 1, lineEnd)
+		
+		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing second line (start;end).")
+		shrinkWhitespace
+		if (lineEnd <= lineStart) fileParsingErr("Second line empty.")
+		static const char startStr[] = "start";
+		static const char endStr[] = "end";
+		#define assertStr(strAr) \
+			if (lineEnd - lineStart < sizeof strAr - 1) fileParsingErr("Not enough space to fit in the word '%s'.", strAr) \
+			if (strncmp(lineStart, strAr, sizeof strAr - 1) != 0) fileParsingErr("Word '%s' not found.", strAr) \
+			lineStart += sizeof strAr - 1;
+		assertStr(startStr)
+		shrinkWhitespaceLeft
+		if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("Second line doesn't have '=' ('start').")
+		++lineStart;
+		shrinkWhitespaceLeft
+		if (lineStart >= lineEnd) fileParsingErr("Start offset not found on second line.")
+		uintptr_t accum = 0;
+		const char* numStart = lineStart;
+		#define parseNumber \
+			if (*lineStart == '0' && lineStart + 1 < lineEnd && *(lineStart + 1) == 'x') { \
+				lineStart += 2; \
+				while (lineStart < lineEnd) { \
+					if (*lineStart >= '0' && *lineStart <= '9') { \
+						accum = (accum << 4) | (*lineStart - '0'); \
+					} else if (*lineStart >= 'a' && *lineStart <= 'f') { \
+						accum = (accum << 4) | (*lineStart - 'a' + 10); \
+					} else if (*lineStart >= 'A' && *lineStart <= 'F') { \
+						accum = (accum << 4) | (*lineStart - 'A' + 10); \
+					} else { \
+						break; \
+					} \
+					++lineStart; \
+				} \
+			} else { \
+				while (lineStart < lineEnd) { \
+					if (*lineStart >= '0' && *lineStart <= '9') { \
+						accum = accum * 10 + *lineStart - '0'; \
+					} else { \
+						break; \
+					} \
+					++lineStart; \
+				} \
+			}
+		parseNumber
+		if (lineStart == numStart) fileParsingErr("Start offset empty on second line.")
+		newEntry.startRelativeToWholeModule = accum;
+		if (lineStart >= lineEnd || *lineStart != ';') fileParsingErr("';' character not found on second line.")
+		++lineStart;
+		shrinkWhitespaceLeft
+		assertStr(endStr)
+		shrinkWhitespaceLeft
+		if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("Second line doesn't have '=' ('end').")
+		++lineStart;
+		shrinkWhitespaceLeft
+		numStart = lineStart;
+		accum = 0;
+		parseNumber
+		if (lineStart == numStart) fileParsingErr("End offset empty on second line.")
+		newEntry.endRelativeToWholeModule = accum;
+		shrinkWhitespaceLeft
+		if (lineStart != lineEnd) fileParsingErr("Unknown characters after the end offset on second line.")
+		
+		#define funcForSetSig(unused, start, end) newEntry.parseSigFromHex(start, end);
+		
+		#define parseElement(elementName, func) \
+			if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing line (" elementName ").") \
+			shrinkWhitespace \
+			if (lineEnd <= lineStart) fileParsingErr("The line that was supposed to define " elementName " is empty.") \
+			static const char elementName##Str[] = #elementName; \
+			assertStr(elementName##Str) \
+			shrinkWhitespaceLeft \
+			if (lineStart >= lineEnd || *lineStart != '=') fileParsingErr("The line that define the element " elementName " doesn't contain '='.") \
+			++lineStart; \
+			shrinkWhitespaceLeft \
+			if (lineStart < lineEnd) { \
+				func(newEntry.elementName, lineStart, lineEnd) \
+			}
+		
+		parseElement(sig, funcForSetSig)
+		parseElement(mask, setString)
+		parseElement(maskForCaching, setString)
+		
+		if (!lineReader.readLine(&lineStart, &lineEnd)) fileParsingErr("Missing final line (the sigscan offset).")
+		shrinkWhitespace
+		if (lineStart >= lineEnd) fileParsingErr("Final line is empty.")
+		numStart = lineStart;
+		accum = 0;
+		parseNumber
+		if (lineStart == numStart) fileParsingErr("Empty result on final line.")
+		shrinkWhitespaceLeft
+		if (lineStart != lineEnd) fileParsingErr("Unknown characters after result on final line.")
+		
+		sigscanCache[newEntry] = { accum, order++, false };
+	}
+	#undef shrinkWhitespaceLeft
+	#undef shrinkWhitespaceRight
+	#undef shrinkWhitespace
+	#undef setString
+	#undef assertStr
+	#undef parseNumber
+	#undef funcForSetSig
+	#undef parseElement
+	#undef fileParsingErr
+}
+
+static void determineNameSection(uintptr_t start, const char** moduleNameResult, const char** sectionResult, uintptr_t* wholeModuleStart) {
+	static char nameBuf[256];
+	static char sectionBuf[16] { 0 };
+	HMODULE hModArray[256];
+	DWORD cbNeeded = 0;
+	HMODULE* ptr = hModArray;
+	std::vector<HMODULE> allModules;
+	HANDLE currentProc = GetCurrentProcess();
+	if (!EnumProcessModules(currentProc, hModArray, sizeof hModArray, &cbNeeded)) {
+		return;
+	}
+	if (cbNeeded > sizeof hModArray) {
+		while (true) {
+			allModules.resize(cbNeeded / sizeof HMODULE);
+			ptr = allModules.data();
+			DWORD cbSize = allModules.size() * sizeof HMODULE;
+			if (!EnumProcessModules(currentProc, allModules.data(), cbSize, &cbNeeded)) {
+				return;
+			}
+			if (cbNeeded <= cbSize) break;
+		}
+	}
+	MODULEINFO modInfo;
+	DWORD hModCount = cbNeeded / sizeof HMODULE;
+	for (DWORD i = 0; i < hModCount; ++i) {
+		HMODULE hMod = ptr[i];
+		if (!GetModuleInformation(currentProc, hMod, &modInfo, sizeof MODULEINFO)) {
+			continue;
+		}
+		if (start >= (uintptr_t)modInfo.lpBaseOfDll && start < (uintptr_t)modInfo.lpBaseOfDll + modInfo.SizeOfImage) {
+			if (!GetModuleBaseNameA(currentProc, hMod, nameBuf, 256)) {
+				return;
+			}
+			const IMAGE_DOS_HEADER* dosHeader = (const IMAGE_DOS_HEADER*)modInfo.lpBaseOfDll;
+			if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) return;
+			const IMAGE_NT_HEADERS32* ntHeader = (const IMAGE_NT_HEADERS32*)((BYTE*)modInfo.lpBaseOfDll + dosHeader->e_lfanew);
+			if (ntHeader->Signature != IMAGE_NT_SIGNATURE) return;
+			WORD NumberOfSections = ntHeader->FileHeader.NumberOfSections;
+			const IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(ntHeader);
+			for (WORD i = 0; i < NumberOfSections; ++i) {
+				uintptr_t vaStart = (uintptr_t)modInfo.lpBaseOfDll + section->VirtualAddress;
+				if (start >= vaStart && start < vaStart + section->Misc.VirtualSize) {
+					memcpy(sectionBuf, section->Name, IMAGE_SIZEOF_SHORT_NAME);
+					// should be null terminated, because we initialized the sectionBuf array with {0}
+					*wholeModuleStart = (uintptr_t)modInfo.lpBaseOfDll;
+					*moduleNameResult = nameBuf;
+					*sectionResult = sectionBuf;
+					return;
+				}
+				++section;
+			}
+			return;
+		}
+	}
+}
+
+static uintptr_t fillInEntry(const char* logname, const char* name, const char* section, uintptr_t start, uintptr_t end,
+				const char* sig, size_t sigLength, const char* mask, const char* maskForCaching, SigscanCacheEntry* result) {
+	uintptr_t wholeModuleStart = 0;
+	if (!name || !section) {
+		determineNameSection(start, &name, &section, &wholeModuleStart);
+	} else {
+		HMODULE moduleHandle = GetModuleHandleA(name);
+		if (moduleHandle) {
+			MODULEINFO moduleInfo;
+			if (GetModuleInformation(GetCurrentProcess(), moduleHandle, &moduleInfo, sizeof MODULEINFO)) {
+				wholeModuleStart = (uintptr_t)moduleInfo.lpBaseOfDll;
+			}
+		}
+	}
+	if (wholeModuleStart && name && section) {
+		result->assignFromStr(result->logname, logname);
+		result->assignFromStr(result->moduleName, name);
+		result->assignFromStr(result->section, section);
+		result->startRelativeToWholeModule = start - wholeModuleStart;
+		result->endRelativeToWholeModule = end - wholeModuleStart;
+		result->assignFromStr(result->sig, sig, sigLength);
+		result->assignFromStr(result->mask, mask);
+		result->assignFromStr(result->maskForCaching, maskForCaching);
+		result->applyMaskForCachingToSig();
+		return wholeModuleStart;
+	}
+	return 0;
+}
+
+static void recordResult(const SigscanCacheEntry& entry, sigscanCacheType::iterator& oldResult, uintptr_t relativeResult) {
+	if (oldResult != sigscanCache.end()) {
+		if (oldResult->second.offset != relativeResult
+				|| oldResult->second.order != sigscanOrder) {
+			sigscansChanged = true;
+			oldResult->second.offset = relativeResult;
+			oldResult->second.order = sigscanOrder;
+		}
+		if (!oldResult->second.isUsed) {
+			++sigscanCacheUseCount;
+			oldResult->second.isUsed = true;
+		}
+	} else {
+		sigscanCache[entry] = { relativeResult, sigscanOrder, true };
+		++sigscanCacheUseCount;
+	}
+}
 
 static int findChar(const char* str, char searchChar) {
 	for (const char* c = str; *c != '\0'; ++c) {
@@ -11,15 +399,13 @@ static int findChar(const char* str, char searchChar) {
 	return -1;
 }
 
-bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end)
+bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end, char* namePtr, char* sectionPtr)
 {
-	char moduleName[256] {0};
-	char sectionName[16] {0};
-	splitOutModuleName(name, moduleName, _countof(moduleName), sectionName, _countof(sectionName));
-	if (sectionName[0] == '\0') {
-		strncpy_s(sectionName, ".text", 5);
+	splitOutModuleName(name, namePtr, 256, sectionPtr, 16);
+	if (sectionPtr[0] == '\0') {
+		strcpy(sectionPtr, ".text");
 	}
-	return getModuleBounds(moduleName, sectionName, start, end);
+	return getModuleBounds(namePtr, sectionPtr, start, end);
 }
 
 bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end)
@@ -38,18 +424,19 @@ bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* 
 	*start = (uintptr_t)(info.lpBaseOfDll);
 	*end = *start + info.SizeOfImage;
 	if (strcmp(sectionName, "all") == 0) return true;
-	const uintptr_t peHeaderStart = *start + *(uintptr_t*)(*start + 0x3C);
-	unsigned short numberOfSections = *(unsigned short*)(peHeaderStart + 0x6);
-	const unsigned short optionalHeaderSize = *(unsigned short*)(peHeaderStart + 0x14);
-	const uintptr_t optionalHeaderStart = peHeaderStart + 0x18;
-	uintptr_t sectionStart = optionalHeaderStart + optionalHeaderSize;
+	const IMAGE_DOS_HEADER* dosHeader = (const IMAGE_DOS_HEADER*)info.lpBaseOfDll;
+	if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) return true;
+	const IMAGE_NT_HEADERS32* ntHeader = (const IMAGE_NT_HEADERS32*)((BYTE*)dosHeader + dosHeader->e_lfanew);
+	if (ntHeader->Signature != IMAGE_NT_SIGNATURE) return true;
+	WORD numberOfSections = ntHeader->FileHeader.NumberOfSections;
+	const IMAGE_SECTION_HEADER* section = IMAGE_FIRST_SECTION(ntHeader);
 	for (; numberOfSections != 0; --numberOfSections) {
-		if (strncmp((const char*)(sectionStart), sectionName, 8) == 0) {
-			*start = *start + *(unsigned int*)(sectionStart + 12);
-			*end = *start + *(unsigned int*)(sectionStart + 8);
-			break;
+		if (strncmp((const char*)section->Name, sectionName, IMAGE_SIZEOF_SHORT_NAME) == 0) {
+			*start = *start + section->VirtualAddress;
+			*end = *start + section->Misc.VirtualSize;
+			return true;
 		}
-		sectionStart += 40;
+		++section;
 	}
 	return true;
 }
@@ -59,6 +446,10 @@ bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
 	return getModuleBoundsHandle(hModule, ".text", start, end);
 }
 
+#define byteSpecificationError \
+	logwrap(fprintf(logfile, "Wrong byte specification: %s\n", byteSpecification)); \
+	return numOfTriangularChars;
+
 // byteSpecification is of the format "00 8f 1e ??". ?? means unknown byte.
 // Converts a "00 8f 1e ??" string into two vectors:
 // sig vector will contain bytes '00 8f 1e' for the first 3 bytes and 00 for every ?? byte.
@@ -67,16 +458,20 @@ bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end)
 // mask vector will be terminated with an extra 0 byte.
 // Can additionally provide an size_t* position argument. If the byteSpecification contains a ">" character, position will store the offset of that byte.
 // If multiple ">" characters are present, position must be an array able to hold all positions, and positionLength specifies the length of the array.
+// If positionLength is 0, it is assumed the array is large enough to hold all > positions.
 // Returns the number of > characters.
-size_t byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask, size_t* position, size_t positionLength) {
+size_t byteSpecificationToSigMask(const char* byteSpecification, std::vector<char>& sig, std::vector<char>& mask, size_t* position, size_t positionLength, std::vector<char>* maskForCaching) {
 	if (position && positionLength == 0) positionLength = UINT_MAX;
 	size_t numOfTriangularChars = 0;
 	sig.clear();
 	mask.clear();
+	if (maskForCaching) maskForCaching->clear();
 	unsigned long long accumulatedNibbles = 0;
 	int nibbleCount = 0;
 	bool nibblesUnknown = false;
 	const char* byteSpecificationPtr = byteSpecification;
+	bool nibbleError = false;
+	const char* nibbleSequenceStart = byteSpecification;
 	while (true) {
 		char currentChar = *byteSpecificationPtr;
 		if (currentChar == '>') {
@@ -85,6 +480,76 @@ size_t byteSpecificationToSigMask(const char* byteSpecification, std::vector<cha
 				++position;
 			}
 			++numOfTriangularChars;
+			nibbleSequenceStart = byteSpecificationPtr + 1;
+		} else if (currentChar == '(') {
+			nibbleCount = 0;
+			nibbleError = false;
+			nibblesUnknown = false;
+			accumulatedNibbles = 0;
+			if (byteSpecificationPtr <= nibbleSequenceStart) {
+				byteSpecificationError
+			}
+			const char* moduleNameEnd = byteSpecificationPtr;
+			++byteSpecificationPtr;
+			bool parseOk = true;
+			#define skipWhitespace \
+				while (*byteSpecificationPtr != '\0' && *byteSpecificationPtr <= 32) { \
+					++byteSpecificationPtr; \
+				}
+			#define checkQuestionMarks \
+				if (parseOk) { \
+					if (strncmp(byteSpecificationPtr, "??", 2) != 0) { \
+						parseOk = false; \
+					} else { \
+						byteSpecificationPtr += 2; \
+					} \
+				}
+			#define checkWhitespace \
+				if (parseOk) { \
+					if (*byteSpecificationPtr == '\0' || *byteSpecificationPtr > 32) { \
+						parseOk = false; \
+					} else { \
+						while (*byteSpecificationPtr != '\0' && *byteSpecificationPtr <= 32) { \
+							++byteSpecificationPtr; \
+						} \
+					} \
+				}
+			skipWhitespace
+			checkQuestionMarks
+			checkWhitespace
+			checkQuestionMarks
+			checkWhitespace
+			checkQuestionMarks
+			checkWhitespace
+			checkQuestionMarks
+			skipWhitespace
+			#undef skipWhitespace
+			#undef checkQuestionMarks
+			#undef checkWhitespace
+			if (*byteSpecificationPtr != ')') {
+				parseOk = false;
+			}
+			if (!parseOk) {
+				byteSpecificationError
+			}
+			if (maskForCaching) {
+				size_t oldSize = maskForCaching->size();
+				if (moduleNameEnd - nibbleSequenceStart == 3 && strncmp(nibbleSequenceStart, "rel", 3) == 0) {
+					static const char additionString[] = "rel_GuiltyGearXrd.exe(????)";
+					maskForCaching->resize(oldSize + sizeof additionString - 1);
+					memcpy(maskForCaching->data() + oldSize, additionString, sizeof additionString - 1);
+				} else {
+					maskForCaching->resize(oldSize + 4 + (moduleNameEnd - nibbleSequenceStart) + 6);
+					char* dataPtr = maskForCaching->data() + oldSize;
+					memcpy(dataPtr, "rel_", 4);
+					dataPtr += 4;
+					memcpy(dataPtr, nibbleSequenceStart, moduleNameEnd - nibbleSequenceStart);
+					dataPtr += moduleNameEnd - nibbleSequenceStart;
+					memcpy(dataPtr, "(????)", 6);
+				}
+				sig.resize(sig.size() + 4, '\0');
+				mask.resize(mask.size() + 4, '?');
+			}
 		} else if (currentChar != ' ' && currentChar != '\0') {
 			char currentNibble = 0;
 			if (currentChar >= '0' && currentChar <= '9' && !nibblesUnknown) {
@@ -96,52 +561,98 @@ size_t byteSpecificationToSigMask(const char* byteSpecification, std::vector<cha
 			} else if (currentChar == '?' && (nibbleCount == 0 || nibblesUnknown)) {
 				nibblesUnknown = true;
 			} else {
-				logwrap(fprintf(logfile, "Wrong byte specification: %s\n", byteSpecification));
-				return numOfTriangularChars;
+				nibbleError = true;
 			}
 			accumulatedNibbles = (accumulatedNibbles << 4) | currentNibble;
 			++nibbleCount;
 			if (nibbleCount > 16) {
-				logwrap(fprintf(logfile, "Wrong byte specification: %s\n", byteSpecification));
-				return numOfTriangularChars;
+				nibbleError = true;
 			}
-		} else if (nibbleCount) {
-			do {
-				if (!nibblesUnknown) {
-					sig.push_back(accumulatedNibbles & 0xff);
-					mask.push_back('x');
-					accumulatedNibbles >>= 8;
-				} else {
-					sig.push_back(0);
-					mask.push_back('?');
+		} else {
+			if (nibbleCount) {
+				if (nibbleError) {
+					byteSpecificationError
 				}
-				nibbleCount -= 2;
-			} while (nibbleCount > 0);
-			nibbleCount = 0;
-			nibblesUnknown = false;
+				do {
+					if (!nibblesUnknown) {
+						sig.push_back(accumulatedNibbles & 0xff);
+						mask.push_back('x');
+						if (maskForCaching) maskForCaching->push_back('x');
+						accumulatedNibbles >>= 8;
+					} else {
+						sig.push_back(0);
+						mask.push_back('?');
+						if (maskForCaching) maskForCaching->push_back('?');
+					}
+					nibbleCount -= 2;
+				} while (nibbleCount > 0);
+				nibbleCount = 0;
+				nibblesUnknown = false;
+			}
 			if (currentChar == '\0') {
 				break;
 			}
+			nibbleSequenceStart = byteSpecificationPtr + 1;
 		}
 		++byteSpecificationPtr;
 	}
 	sig.push_back('\0');
 	mask.push_back('\0');
+	if (maskForCaching) maskForCaching->push_back('\0');
+	#undef byteSpecificationError
 	return numOfTriangularChars;
 }
 
-uintptr_t sigscan(const char* name, const char* sig, size_t sigLength)
+uintptr_t sigscan(const char* name, const char* sig, size_t sigLength, const char* logname, const char* maskForCaching)
 {
 	uintptr_t start, end;
-	if (!getModuleBounds(name, &start, &end)) {
+	char moduleName[256] { 0 };
+	char sectionName[16] { 0 };
+	if (!getModuleBounds(name, &start, &end, moduleName, sectionName)) {
 		logwrap(fputs("Module not loaded\n", logfile));
 		return 0;
 	}
 	
-	return sigscan(start, end, sig, sigLength);
+	return sigscan(start, end, sig, sigLength, logname, maskForCaching, moduleName, sectionName);
 }
 
-uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength) {
+uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength, const char* logname, const char* maskForCaching, const char* name, const char* section) {
+	uintptr_t result;
+	static SigscanCacheEntry lookupEntry;
+	uintptr_t wholeModuleStart = 0;
+	sigscanCacheType::iterator oldResult = sigscanCache.end();
+	bool useCache = logname && settings.useSigscanCaching;
+	if (useCache) {
+		++sigscanOrder;
+		loadSigscanCache();
+		wholeModuleStart = fillInEntry(logname, name, section, start, end, sig, sigLength, nullptr, maskForCaching, &lookupEntry);
+		oldResult = sigscanCache.find(lookupEntry);
+		if (oldResult != sigscanCache.end()) {
+			if (oldResult->second.offset) {
+				uintptr_t absoluteFound = oldResult->second.offset + wholeModuleStart;
+				if (absoluteFound >= start && absoluteFound + sigLength <= end) {
+					if (memcmp((void*)absoluteFound, sig, sigLength) == 0) {
+						oldResult->second = { oldResult->second.offset, sigscanOrder, true };
+						return absoluteFound;
+					}
+				}
+			}
+			sigscansChanged = true;
+			sigscanCache.erase(oldResult);
+			oldResult = sigscanCache.end();
+		}
+	}
+	
+	result = sigscanFundamental(start, end, sig, sigLength);
+	if (!result) {
+		logwrap(fputs("Sigscan failed\n", logfile));
+	} else if (useCache) {
+		recordResult(lookupEntry, oldResult, result - wholeModuleStart);
+	} 
+	return result;
+}
+	
+uintptr_t sigscanFundamental(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength) {
 	
 	// Boyer-Moore-Horspool substring search
 	// A table containing, for each symbol in the alphabet, the number of characters that can safely be skipped
@@ -170,7 +681,6 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLen
 		}
 	}
 
-	logwrap(fputs("Sigscan failed\n", logfile));
 	return 0;
 }
 
@@ -236,22 +746,62 @@ void splitOutModuleName(const char* name, char* moduleName, size_t moduleNameBuf
 			--sectionNameBufSize;
 		}
 	}
-	*moduleName = '\0';
-	*sectionName = '\0';
+	if (moduleNameBufSize) *moduleName = '\0';
+	if (sectionNameBufSize) *sectionName = '\0';
 }
 
-uintptr_t sigscan(const char* name, const char* sig, const char* mask)
+uintptr_t sigscan(const char* name, const char* sig, const char* mask, const char* logname, const char* maskForCaching)
 {
 	uintptr_t start, end;
-	if (!getModuleBounds(name, &start, &end)) {
+	char moduleName[256] { 0 };
+	char sectionName[16] { 0 };
+	if (!getModuleBounds(name, &start, &end, moduleName, sectionName)) {
 		logwrap(fputs("Module not loaded\n", logfile));
 		return 0;
 	}
 	
-	return sigscan(start, end, sig, mask);
+	return sigscan(start, end, sig, mask, logname, maskForCaching, moduleName, sectionName);
 }
 
-uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask) {
+uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask, const char* logname, const char* maskForCaching, const char* name, const char* section) {
+	uintptr_t result;
+	static SigscanCacheEntry lookupEntry;
+	uintptr_t wholeModuleStart = 0;
+	auto oldResult = sigscanCache.end();
+	bool useCache = logname && settings.useSigscanCaching;
+	if (useCache) {
+		++sigscanOrder;
+		loadSigscanCache();
+		int maskLen = strlen(mask);
+		wholeModuleStart = fillInEntry(logname, name, section, start, end, sig, maskLen, mask, maskForCaching, &lookupEntry);
+		oldResult = sigscanCache.find(lookupEntry);
+		if (oldResult != sigscanCache.end()) {
+			if (oldResult->second.offset) {
+				uintptr_t absoluteFound = oldResult->second.offset + wholeModuleStart;
+				if (absoluteFound >= start && absoluteFound < end) {
+					result = sigscanFundamental(absoluteFound, absoluteFound + maskLen, sig, mask);
+					if (result == absoluteFound) {
+						oldResult->second = { oldResult->second.offset, sigscanOrder, true };
+						return result;
+					}
+				}
+			}
+			sigscansChanged = true;
+			sigscanCache.erase(oldResult);
+			oldResult = sigscanCache.end();
+		}
+	}
+	
+	result = sigscanFundamental(start, end, sig, mask);
+	if (!result) {
+		logwrap(fputs("Sigscan failed\n", logfile));
+	} else if (useCache) {
+		recordResult(lookupEntry, oldResult, result - wholeModuleStart);
+	}
+	return result;
+}
+
+uintptr_t sigscanFundamental(uintptr_t start, uintptr_t end, const char* sig, const char* mask) {
 	uintptr_t lastScan = end - strlen(mask) + 1;
 	for (auto addr = start; addr < lastScan; addr++) {
 		for (size_t i = 0;; i++) {
@@ -262,7 +812,6 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* m
 		}
 	}
 
-	logwrap(fputs("Sigscan failed\n", logfile));
 	return 0;
 }
 
@@ -295,45 +844,46 @@ uintptr_t sigscanBackwards16ByteAligned(uintptr_t startBottom, uintptr_t endTop,
 	logwrap(fputs("Sigscan failed\n", logfile));
 	return 0;
 }
-uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, sig, sigLength, nullptr, {}, error, logname);
+uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, sig, sigLength, nullptr, {}, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, sig, 0, mask, {}, error, logname);
+uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, sig, 0, mask, {}, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname);
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, sig, sigLength, nullptr, offsets, error, logname);
+uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, sig, sigLength, nullptr, offsets, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, sig, 0, mask, offsets, error, logname);
+uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, sig, 0, mask, offsets, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname);
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, str, strlen(str), nullptr, {}, error, logname);
+uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, str, strlen(str), nullptr, {}, error, logname, maskForCaching);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname, size_t* position) {
 	std::vector<char> sig;
 	std::vector<char> mask;
+	std::vector<char> maskForCaching;
 	size_t positionLength = 0;
 	size_t ownPosition = 0;
 	if (!position) {
 		position = &ownPosition;
 		positionLength = 1;
 	}
-	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
-	uintptr_t result = sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname);
+	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength, &maskForCaching);
+	uintptr_t result = sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname, maskForCaching.data());
 	if (numOfTriangularChars == 1 && result) {
 		return result + *position;
 	} else {
@@ -341,21 +891,22 @@ uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* e
 	}
 }
 
-uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname) {
-	return sigscanOffsetMain(name, str, strlen(str), nullptr, offsets, error, logname);
+uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+	return sigscanOffsetMain(name, str, strlen(str), nullptr, offsets, error, logname, maskForCaching);
 }
 
 uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname, size_t* position) {
 	std::vector<char> sig;
 	std::vector<char> mask;
+	std::vector<char> maskForCaching;
 	size_t positionLength = 0;
 	size_t ownPosition = 0;
 	if (!position) {
 		position = &ownPosition;
 		positionLength = 1;
 	}
-	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
-	uintptr_t result = sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname);
+	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength, &maskForCaching);
+	uintptr_t result = sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname, maskForCaching.data());
 	if (numOfTriangularChars == 1 && result) {
 		return result + *position;
 	} else {
@@ -382,17 +933,17 @@ uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const s
 //    4.c) Interpret this new position as the start of a 4-byte address which gets read, producing a new address.
 //    4.d) The result is another address. Add the second offset to this address.
 //    4.e) Repeat 4.c) and 4.d) for as many offsets as there are left. Return result on the last 4.d).
-uintptr_t sigscanOffsetMain(const char* name, const char* sig, size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname) {
+uintptr_t sigscanOffsetMain(const char* name, const char* sig, size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
 	uintptr_t sigscanResult;
 	if (mask) {
 		if (findChar(mask, '?') == -1) {
 			sigLength = strlen(mask);
-			sigscanResult = sigscan(name, sig, sigLength);
+			sigscanResult = sigscan(name, sig, sigLength, logname, maskForCaching);
 		} else {
-			sigscanResult = sigscan(name, sig, mask);
+			sigscanResult = sigscan(name, sig, mask, logname, maskForCaching);
 		}
 	} else {
-		sigscanResult = sigscan(name, sig, sigLength);
+		sigscanResult = sigscan(name, sig, sigLength, logname, maskForCaching);
 	}
 	if (!sigscanResult) {
 		if (error) *error = true;
@@ -592,9 +1143,9 @@ uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t se
 	size_t numOfTriangularChars = byteSpecificationToSigMask(byteSpecification, sig, mask, position, positionLength);
 	uintptr_t result;
 	if (findChar(mask.data(), '?') == -1) {
-		result = sigscan(ptr, ptr + searchLimit, sig.data(), sig.size() - 1);
+		result = sigscan(ptr, ptr + searchLimit, sig.data(), sig.size() - 1, nullptr, nullptr);
 	} else {
-		result = sigscan(ptr, ptr + searchLimit, sig.data(), mask.data());
+		result = sigscan(ptr, ptr + searchLimit, sig.data(), mask.data(), nullptr, nullptr);
 	}
 	if (numOfTriangularChars == 1 && result) {
 		return result + *position;
@@ -606,9 +1157,9 @@ uintptr_t sigscanForward(uintptr_t ptr, const char* byteSpecification, size_t se
 uintptr_t sigscanForward(uintptr_t ptr, const char* sig, const char* mask, size_t searchLimit) {
 	if (findChar(mask, '?') == -1) {
 		size_t strLen = strlen(mask);
-		return sigscan(ptr, ptr + searchLimit, sig, strLen);
+		return sigscan(ptr, ptr + searchLimit, sig, strLen, nullptr, nullptr);
 	} else {
-		return sigscan(ptr, ptr + searchLimit, sig, mask);
+		return sigscan(ptr, ptr + searchLimit, sig, mask, nullptr, nullptr);
 	}
 }
 
@@ -715,3 +1266,175 @@ int isTestInstructionRegImm(BYTE* ptr, Register* registerLeft, DWORD* offset, DW
 }
 
 const char* GUILTY_GEAR_XRD_EXE = "GuiltyGearXrd.exe";
+
+void SigscanCacheEntry::parseSigFromHex(const char* start, const char* end) {
+	if (end <= start) {
+		sig.clear();
+		return;
+	}
+	static std::vector<char> startToEndWithNullTerminator;
+	startToEndWithNullTerminator.resize(end - start + 1);
+	memcpy(startToEndWithNullTerminator.data(), start, end - start);
+	startToEndWithNullTerminator.back() = '\0';
+	
+	static std::vector<char> maskBuf;
+	byteSpecificationToSigMask(startToEndWithNullTerminator.data(), sig, maskBuf);
+}
+
+void SigscanCacheEntry::applyMaskForCachingToSig() {
+	if (maskForCaching.empty() && mask.empty() || sig.empty()) return;
+	const char* ptr = maskForCaching.empty() ? mask.data() : maskForCaching.data();
+	char* sigPtr = sig.data();
+	while (true) {
+		const char c = *ptr;
+		if (c == '\0') return;
+		if (c == '?') {
+			*sigPtr = '\0';
+		} else if (c == 'r') {
+			if (strncmp(ptr, "rel_", 4) != 0) return;
+			ptr += 4;
+			const char* moduleNameStart = ptr;
+			while (*ptr != '\0' && *ptr != '(') ++ptr;
+			const char* moduleNameEnd = ptr;
+			if (strncmp(ptr, "(????)", 6) != 0) return;
+			ptr += 5;
+			static std::vector<char> moduleLookup;
+			moduleLookup.resize(moduleNameEnd - moduleNameStart + 1);
+			if (moduleNameEnd > moduleNameStart) {
+				memcpy(moduleLookup.data(), moduleNameStart, moduleNameEnd - moduleNameStart);
+			}
+			moduleLookup.back() = '\0';
+			HMODULE hMod = GetModuleHandleA(moduleLookup.data());
+			if (hMod) {
+				MODULEINFO moduleInfo;
+				if (GetModuleInformation(GetCurrentProcess(), hMod, &moduleInfo, sizeof MODULEINFO)) {
+					DWORD addr;
+					memcpy(&addr, sigPtr, 4);
+					DWORD offset = addr - (DWORD)moduleInfo.lpBaseOfDll;
+					memcpy(sigPtr, &offset, 4);
+				}
+			}
+			sigPtr += 3;
+			++ptr;
+		}
+		++ptr;
+		++sigPtr;
+	}
+}
+
+void finishedSigscanning() {
+	#define fileWriteErr(msg, ...) { logwrap(fprintf(logfile, "%s writing error: " msg, SIGSCAN_CACHE_FILE_NAME, __VA_ARGS__)); return; }
+	if (!sigscansChanged) return;
+	sigscansChanged = false;
+	
+	bool failedWrite = false;
+	DWORD bytesWritten = 0;
+	#define failWrite { failedWrite = true; break; }
+	using SortElement = std::pair<const SigscanCacheEntry, SigscanCacheValue>;
+	std::vector<const SortElement*> cacheOrdered;
+	cacheOrdered.reserve(sigscanCache.size());
+	int cacheOrderedSize = 0;
+	for (const auto& it : sigscanCache) {
+		if (it.second.isUsed) {
+			cacheOrdered.push_back(&it);
+		}
+	}
+	struct MyCompare {
+		static int __cdecl TheCompare(void const* elemLeft, void const* elemRight) {
+			const SortElement* pairLeft = *(const SortElement**)elemLeft;
+			const SortElement* pairRight = *(const SortElement**)elemRight;
+			return pairLeft->second.order - pairRight->second.order;
+		}
+	};
+	if (!cacheOrdered.empty()) {
+		qsort(cacheOrdered.data(), cacheOrdered.size(), sizeof (void*), MyCompare::TheCompare);
+	}
+	
+	HANDLE file = CreateFileA(SIGSCAN_CACHE_FILE_NAME, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file == INVALID_HANDLE_VALUE) {
+		WinError winErr;
+		fileWriteErr("Could not create file: %ls\n", winErr.getMessage());
+		return;
+	}
+	struct FileCloser {
+		~FileCloser() {
+			if (file) CloseHandle(file);
+		}
+		HANDLE file;
+	} fileCloser {
+		file
+	};
+	
+	for (const SortElement* pair : cacheOrdered) {
+		const SigscanCacheEntry& entry = pair->first;
+		#define writeNewline if (!WriteFile(file, "\r\n", 2, &bytesWritten, NULL)) failWrite
+		if (entry.logname.size() > 1) {
+			if (!WriteFile(file, entry.logname.data(), entry.logname.size() - 1, &bytesWritten, NULL)) failWrite
+		}
+		writeNewline
+		if (entry.moduleName.size() > 1) {
+			if (!WriteFile(file, entry.moduleName.data(), entry.moduleName.size() - 1, &bytesWritten, NULL)) failWrite
+		}
+		if (!WriteFile(file, ":", 1, &bytesWritten, NULL)) failWrite
+		if (entry.section.size() > 1) {
+			if (!WriteFile(file, entry.section.data(), entry.section.size() - 1, &bytesWritten, NULL)) failWrite
+		}
+		#define writeStr(name, literal) \
+			static const char name[] = literal; \
+			if (!WriteFile(file, name, sizeof name - 1, &bytesWritten, NULL)) failWrite
+		writeNewline
+		writeStr(startStr, "start=")
+		int result;
+		static char strbuf[256];
+		#define writeHex(val) \
+			result = sprintf_s(strbuf, "0x%.8x", val); \
+			if (!WriteFile(file, strbuf, result, &bytesWritten, NULL)) failWrite
+		writeHex(entry.startRelativeToWholeModule)
+		writeStr(endStr, ";end=")
+		writeHex(entry.endRelativeToWholeModule)
+		writeNewline
+		writeStr(sigStr, "sig=")
+		size_t sizeConst = entry.sig.size();
+		if (sizeConst > 1) {
+			--sizeConst;
+			for (size_t iter = 0; iter < sizeConst; ++iter) {
+				BYTE b = (BYTE)entry.sig[iter];
+				char twoChars[3];
+				int twoCharsSize = 2;
+				for (int i = 0; i < 2; ++i) {
+					BYTE nibble = b & 0x0F;
+					b >>= 4;
+					if (nibble >= 10) {
+						twoChars[1 - i] = 'A' + nibble - 10;
+					} else {
+						twoChars[1 - i] = '0' + nibble;
+					}
+				}
+				if (iter < sizeConst - 1) {
+					twoChars[2] = ' ';
+					twoCharsSize = 3;
+				}
+				if (!WriteFile(file, twoChars, twoCharsSize, &bytesWritten, NULL)) failWrite
+			}
+		}
+		writeNewline
+		writeStr(maskStr, "mask=")
+		if (entry.mask.size() > 1) {
+			if (!WriteFile(file, entry.mask.data(), entry.mask.size() - 1, &bytesWritten, NULL)) failWrite
+		}
+		writeNewline
+		writeStr(maskForCachingStr, "maskForCaching=")
+		if (entry.maskForCaching.size() > 1) {
+			if (!WriteFile(file, entry.maskForCaching.data(), entry.maskForCaching.size() - 1, &bytesWritten, NULL)) failWrite
+		}
+		writeNewline
+		writeHex(pair->second.offset)
+		writeNewline
+		writeNewline
+	}
+	
+	if (failedWrite) {
+		WinError winErr;
+		fileWriteErr("Failed to write to file: %ls\n", winErr.getMessage());
+	}
+}
