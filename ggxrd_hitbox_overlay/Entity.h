@@ -1734,6 +1734,10 @@ public:
 	static DWORD hashString(const char* str);
 	
 	DWORD burstGainCounter() const { return *(DWORD*)(ent + 0x2ce4c); }
+	DWORD venomBallFlags() const { return *(DWORD*)(ent + 0x25bc); }
+	bool canTriggerBalls() const { return (venomBallFlags() & 0x4) != 0; }  // can trigger Venom Balls
+	bool venomBallSpin() const { return (venomBallFlags() & 0x30) != 0; }
+	int venomBallArg2() const { return *(int*)(ent + 0x25b8); }
 	
 	inline char* operator+(int offset) const { return (char*)(ent + offset); }
 	inline char* operator+(DWORD offset) const { return (char*)(ent + offset); }

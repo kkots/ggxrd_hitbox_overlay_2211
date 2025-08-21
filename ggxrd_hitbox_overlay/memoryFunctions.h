@@ -5,10 +5,10 @@ extern const char* GUILTY_GEAR_XRD_EXE;
 
 // if namePtr is provided, it must point to an array that is at least 256 bytes in size!
 // if sectionPtr is provided, it must point to an array that is at least 16 bytes in size!
-bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end, char* namePtr = nullptr, char* sectionPtr = nullptr);
-bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end);
-bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end);
-bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* start, uintptr_t* end);
+bool getModuleBounds(const char* name, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin, char* namePtr = nullptr, char* sectionPtr = nullptr);
+bool getModuleBounds(const char* name, const char* sectionName, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin);
+bool getModuleBoundsHandle(HMODULE hModule, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin);
+bool getModuleBoundsHandle(HMODULE hModule, const char* sectionName, uintptr_t* start, uintptr_t* end, uintptr_t* wholeModuleBegin);
 
 // sigscan cache
 /* When you sigscan something that has a logname, it gets saved into the sigscan cache file.
@@ -57,10 +57,10 @@ uintptr_t sigscan(const char* name, const char* sig, size_t sigLength, const cha
 
 uintptr_t sigscan(const char* name, const char* sig, const char* mask, const char* logname, const char* maskForCaching);
 
-uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength, const char* logname, const char* maskForCaching, const char* name = nullptr, const char* section = nullptr);
+uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength, const char* logname, const char* maskForCaching, const char* name = nullptr, const char* section = nullptr, uintptr_t wholeModuleBegin = 0);
 uintptr_t sigscanFundamental(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength);
 
-uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask, const char* logname, const char* maskForCaching, const char* name = nullptr, const char* section = nullptr);
+uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* mask, const char* logname, const char* maskForCaching, const char* name = nullptr, const char* section = nullptr, uintptr_t wholeModuleBegin = 0);
 uintptr_t sigscanFundamental(uintptr_t start, uintptr_t end, const char* sig, const char* mask);
 
 uintptr_t sigscanBackwards(uintptr_t startBottom, uintptr_t endTop, const char* sig, const char* mask);
@@ -185,12 +185,12 @@ struct SigscanCacheEntry {
 	}
 	void parseSigFromHex(const char* start, const char* end);
 	void applyMaskForCachingToSig();
+	bool equal(const SigscanCacheEntry& other) const;
 };
 
 struct SigscanCacheValue {
 	DWORD offset;
 	int order;
-	bool isUsed;
 };
 
 void loadSigscanCache();

@@ -269,8 +269,8 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 bool Graphics::checkCanHookEndSceneAndPresent() {
 	HMODULE obsDll = GetModuleHandleA("graphics-hook32.dll");
 	if (!obsDll || obsDll == INVALID_HANDLE_VALUE) return false;
-	uintptr_t start, end;
-	if (!getModuleBoundsHandle(obsDll, &start, &end)) return false;
+	uintptr_t start, end, wholeModuleBegin;
+	if (!getModuleBoundsHandle(obsDll, &start, &end, &wholeModuleBegin)) return false;
 	const BYTE* ptr = (const BYTE*)orig_present;
 	if (*ptr != 0xe9) return false;
 	uintptr_t destination = followRelativeCallNoLogs((uintptr_t)ptr);

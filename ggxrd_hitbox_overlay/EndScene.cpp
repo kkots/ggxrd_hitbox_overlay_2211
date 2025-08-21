@@ -70,6 +70,10 @@ static inline bool isDizzyBubble(const char* name) {
 	return (*(DWORD*)name & 0xffffff) == ('A' | ('w'<<8) | ('a'<<16))
 		&& *(DWORD*)(name + 4) == ('O' | ('b'<<8) | ('j'<<16));
 }
+static inline bool isVenomBall(const char* name) {
+	return *(DWORD*)name == ('B' | ('a'<<8) | ('l'<<16) | ('l'<<24))
+		&& *(BYTE*)(name + 4) == 0;
+}
 static void increaseFramesCountUnlimited(int& counterUnlimited, int incrBy, int displayedFrames);
 
 bool EndScene::onDllMain() {
@@ -779,6 +783,18 @@ bool EndScene::onDllMain() {
 	}
 	
 	if (!onPlayerIsBossChanged()) return false;
+	
+	uintptr_t isSignVer1_10OrHigherPlace = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"83 78 70 03 73 03 33 c0 c3 b8 01 00 00 00 c3",
+		nullptr,
+		"isSignVer1_10OrHigher");
+	if (isSignVer1_10OrHigherPlace) {
+		isSignVer1_10OrHigherPlace -= 14;
+		if (*(BYTE*)(isSignVer1_10OrHigherPlace) == 0xe8 && (isSignVer1_10OrHigherPlace & 0xF) == 0) {
+			isSignVer1_10OrHigher = (isSignVer1_10OrHigher_t)isSignVer1_10OrHigherPlace;
+		}
+	}
 	
 	return !error;
 }
@@ -2544,6 +2560,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
+		checkVenomBallActivations();
 		checkDizzyBubblePops();
 		
 		// This is down here because throughout the logic tick in various hooks we gather
@@ -4900,7 +4917,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& projectile.ptr == getReferredEntity((void*)player.pawn.ent, ENT_STACK_0)
 					)
 				) && !projectile.strikeInvul
-				|| projectile.gotHitOnThisFrame && !isDizzyBubble(projectile.animName)) {
+				|| projectile.gotHitOnThisFrame && !isDizzyBubble(projectile.animName) && !isVenomBall(projectile.animName)) {
 				projectileCanBeHit = true;
 			}
 			bool isHouseInvul = player.charType == CHARACTER_TYPE_JACKO && projectile.ptr && projectile.ptr.ghost()
@@ -4937,7 +4954,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			Frame& currentFrame = framebar[framebarPos];
 			
 			FrameType defaultIdleFrame;
-			if (isHouseInvul && !projectileCanBeHit || projectile.gotHitOnThisFrame && isDizzyBubble(projectile.animName)) {
+			if (isHouseInvul && !projectileCanBeHit
+					|| projectile.gotHitOnThisFrame && (
+						isDizzyBubble(projectile.animName) || isVenomBall(projectile.animName)
+					)) {
 				defaultIdleFrame = FT_IDLE_NO_DISPOSE;
 			} else if (isMist || isMistKuttsuku) {
 				defaultIdleFrame = FT_BACCHUS_SIGH;
@@ -10558,6 +10578,71 @@ int __cdecl LifeTimeCounterCompare(void const* p1Ptr, void const* p2Ptr) {
 	return p2Ent.lifeTimeCounter() - p1Ent.lifeTimeCounter();
 }
 
+// Kinda copy of handleVenomBalls function, with some filters which are explained in comments
+// The original function runs at the start of a logic tick, but we run it at the end of the current tick, which is probably the exact same
+// Runs on the main thread
+void EndScene::checkVenomBallActivations() {
+	if (!isSignVer1_10OrHigher || !hitDetectionFunc) return;
+	bool isVer1_10 = isSignVer1_10OrHigher() != 0;
+	for (int i = 0; i < entityList.count; ++i) {
+		Entity attacker = entityList.list[i];
+		if (!attacker.isActive() || !attacker.canTriggerBalls()) continue;
+		
+		for (int j = 0; j < entityList.count; ++j) {
+			Entity defender = entityList.list[j];
+			if (defender != attacker && !defender.isPawn() && (defender.venomBallFlags() & 0x4000) == 0) {
+				bool orderOk = defender.venomBallArg2() < attacker.venomBallArg2();
+				if (isVer1_10){
+					bool attackerSpin = attacker.venomBallSpin();
+					bool defenderSpin = defender.venomBallSpin();
+					if (attackerSpin || defenderSpin) {
+						orderOk = true;
+						if (!attackerSpin && defenderSpin && attacker.canTriggerBalls() && defender.canTriggerBalls()) {
+							continue;
+						}
+					}
+				}
+				if (
+					(
+						defender.canTriggerBalls() && orderOk && !attacker.isPawn() || (defender.venomBallFlags() & 2) != 0
+					) && checkSameTeam(attacker, defender)
+					&& (
+						(defender.venomBallFlags() & 0x40) == 0
+						|| attacker.isPawn()
+					)
+					&& ((attacker.venomBallFlags() & 0x80) == (defender.venomBallFlags() & 0x80))
+				) {
+					if (hitDetectionFunc((void*)attacker.ent, (void*)defender.ent, HITBOXTYPE_HITBOX, HITBOXTYPE_HURTBOX, nullptr, nullptr)) {
+						ProjectileInfo& defenderProj = findProjectile(defender);
+						if (!(  // this skip (entire 'if') is not in the original
+							defenderProj.ptr && isVenomBall(defender.animationName())
+						)) continue;
+						
+						defenderProj.gotHitOnThisFrame = true;
+						if (attacker.isPawn()) {
+							PlayerInfo& player = findPlayer(attacker);
+							if (player.pawn) {
+								const char* animName = attacker.animationName();
+								if (strcmp(animName, "StingerAimC") != 0
+										&& strcmp(animName, "SingerAimD") != 0
+										&& strcmp(animName, "CarcassRaidC") != 0
+										&& strcmp(animName, "CarcassRaidD") != 0) {
+									player.hitSomething = true;
+								}
+							}
+						} else {
+							ProjectileInfo& attackerProj = findProjectile(attacker);
+							if (attackerProj.ptr) {
+								attackerProj.landedHit = true;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // Kinda copy of hitDetectionHitOwnEffects function, with some filters which are explained in comments
 // The original function runs at the start of a logic tick, but we run it at the end of the current tick, which is probably the exact same
 // Runs on the main thread
@@ -10575,26 +10660,12 @@ void EndScene::checkDizzyBubblePops() {
 			if (defender != attacker
 					&& defender.isActive()  // this check is not in the original
 					&& defender.naguriNagurareru()
-					&& attacker.teamSwap() != TEAM_SWAP_NEITHER
-					&& defender.teamSwap() != TEAM_SWAP_NEITHER) {
-				int attackerTeam;
-				if (attacker.teamSwap() == TEAM_SWAP_NORMAL) {
-					attackerTeam = attacker.team();
-				} else {
-					attackerTeam = 1 - attacker.team();
-				}
-				int defenderTeam;
-				if (defender.teamSwap() == TEAM_SWAP_NORMAL) {
-					defenderTeam = defender.team();
-				} else {
-					defenderTeam = 1 - defender.team();
-				}
+					&& checkSameTeam(attacker, defender)) {
 				ProjectileInfo& defenderProj = findProjectile(defender);
 				if (!(  // this skip (entire 'if') is not in the original
 					defenderProj.ptr && isDizzyBubble(defender.animationName())
 				)) continue;
-				if (attackerTeam == defenderTeam
-						&& hitDetectionFunc((void*)attacker.ent, (void*)defender.ent, HITBOXTYPE_HITBOX, HITBOXTYPE_HURTBOX, nullptr, nullptr)) {
+				if (hitDetectionFunc((void*)attacker.ent, (void*)defender.ent, HITBOXTYPE_HITBOX, HITBOXTYPE_HURTBOX, nullptr, nullptr)) {
 					// in the original, the attacker.signalToSendToYourOwnEffectsWhenHittingThem() signal is sent instead
 					defenderProj.gotHitOnThisFrame = true;
 					ProjectileInfo& attackerProj = findProjectile(attacker);
@@ -11312,4 +11383,16 @@ bool EndScene::eventHandlerSendsIntoRecovery(Entity ptr, BBScrEvent signal) {
 				ptr.uponStruct(signal)->uponInstrPtr
 			)
 		) == instr_recoveryState;
+}
+
+bool EndScene::checkSameTeam(Entity attacker, Entity defender) {
+	TeamSwap attackerSwap = attacker.teamSwap();
+	TeamSwap defenderSwap = defender.teamSwap();
+	if (attackerSwap == TEAM_SWAP_NEITHER || defenderSwap == TEAM_SWAP_NEITHER) {
+		return false;
+	}
+	
+	int attackerTeam = attackerSwap == TEAM_SWAP_NORMAL ? attacker.team() : 1 - attacker.team();
+	int defenderTeam = defenderSwap == TEAM_SWAP_NORMAL ? defender.team() : 1 - defender.team();
+	return attackerTeam == defenderTeam;
 }

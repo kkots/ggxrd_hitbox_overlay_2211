@@ -48,6 +48,7 @@ using drawTrainingHudInputHistory_t = void(__thiscall*)(void* trainingHud, unsig
 using hitDetection_t = BOOL(__thiscall*)(void* attacker, void* defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
 using checkFirePerFrameUponsWrapper_t = void(__thiscall*)(void* ent);
 using Pawn_ArcadeMode_IsBoss_t = BOOL(__thiscall*)(void* pawn);
+using isSignVer1_10OrHigher_t = BOOL(__cdecl*)(void);
 
 struct FVector2D {
 	float X;
@@ -347,6 +348,7 @@ public:
 	void onHitDetectionAttackerParticipate(Entity ent);
 	bool needUpdateGraphicsFramebarTexture = false;
 	bool onPlayerIsBossChanged();
+	isSignVer1_10OrHigher_t isSignVer1_10OrHigher = nullptr;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -601,6 +603,7 @@ private:
 	int* drawTrainingHudInputHistoryVal3 = nullptr;
 	int getMinBufferTime(const InputType* inputs);
 	hitDetection_t hitDetectionFunc = nullptr;
+	void checkVenomBallActivations();
 	void checkDizzyBubblePops();
 	int reachedMaxStun[2] { -1, -1 };  // on this frame
 	void registerJump(PlayerInfo& player, Entity pawn, const char* animName);
@@ -687,6 +690,7 @@ private:
 	bool hasHitstunTiedVenomBall(PlayerInfo& player);
 	// fix for Elphelt "Close Shot created a Far Shot" when firing uncharged sg.H
 	static bool eventHandlerSendsIntoRecovery(Entity ptr, BBScrEvent signal);
+	static bool checkSameTeam(Entity attacker, Entity defender);
 };
 
 extern EndScene endScene;

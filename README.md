@@ -1564,4 +1564,4 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   39) Added two new checkboxes in General Settings: to make P1 be the Arcade Boss in Training Mode and P2 be that.
   40) Framebar tooltips now display which exact projectiles were created on any given frame, instead of just a general "Created a projectile/powerup on this frame".
   41) Sped up the loading time of the mod by storing some reusable info in ggxrd_hitbox_overlay_sigscanCache.txt file created in the game's Binaries/Win32 folder. You can disable this in the INI file by setting 'useSigscanCaching' to false or through mod's UI - Settings - General Settings - Use Sigscan Caching.
-  
+  42) Now when Venom hits or activates his own balls using attacks or other projectiles, it will be shown on the framebar using the same white outline and frame tooltip that is used for "A hit connected on this frame".
