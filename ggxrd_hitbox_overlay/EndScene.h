@@ -19,8 +19,8 @@
 #include "PngResource.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
-using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
-using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* animName, unsigned int posType);
+using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, BBScrPosType posType);
+using BBScr_createParticleWithArg_t = void(__thiscall*)(void* pawn, const char* animName, BBScrPosType posType);
 using BBScr_linkParticle_t = void(__thiscall*)(void* pawn, const char* name);
 using setAnim_t = void(__thiscall*)(void* pawn, const char* animName);
 using pawnInitialize_t = void(__thiscall*)(void* pawn, void* initializationParams);
@@ -39,7 +39,7 @@ using BBScr_callSubroutine_t = void(__thiscall*)(void* pawn, const char* funcNam
 using BBScr_setHitstop_t = void(__thiscall*)(void* pawn, int hitstop);
 using beginHitstop_t = void(__thiscall*)(void* pawn);
 using BBScr_ignoreDeactivate_t = void(__thiscall*)(void* pawn);
-using BBScr_getAccessedValueImpl_t = int(__thiscall*)(void* pawn, int tag, int id);
+using BBScr_getAccessedValueImpl_t = int(__thiscall*)(void* pawn, BBScrTag tag, BBScrVariable id);
 using BBScr_checkMoveConditionImpl_t = int(__thiscall*)(void* pawn, MoveCondition condition);
 using setSuperFreezeAndRCSlowdownFlags_t = void(__thiscall*)(void* asw_subengine);
 using BBScr_timeSlow_t = void(__thiscall*)(void* pawn, int duration);
@@ -357,9 +357,9 @@ private:
 	class HookHelp {
 		friend class EndScene;
 		void drawTrainingHudHook();
-		void BBScr_createObjectHook(const char* animName, unsigned int posType);
-		void BBScr_createObjectWithArgHook(const char* animName, unsigned int posType);
-		void BBScr_createParticleWithArgHook(const char* animName, unsigned int posType);
+		void BBScr_createObjectHook(const char* animName, BBScrPosType posType);
+		void BBScr_createObjectWithArgHook(const char* animName, BBScrPosType posType);
+		void BBScr_createParticleWithArgHook(const char* animName, BBScrPosType posType);
 		void BBScr_linkParticleHook(const char* name);
 		void BBScr_linkParticleWithArg2Hook(const char* name);
 		void setAnimHook(const char* animName);
@@ -387,7 +387,7 @@ private:
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
 	void drawTrainingHudHook(char* thisArg);
-	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType);
+	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, BBScrPosType posType);
 	void BBScr_linkParticleHook(Entity pawn, const char* name);
 	void BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name);
 	ProjectileInfo& onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName = true);
@@ -604,7 +604,7 @@ private:
 	int getMinBufferTime(const InputType* inputs);
 	hitDetection_t hitDetectionFunc = nullptr;
 	void checkVenomBallActivations();
-	void checkDizzyBubblePops();
+	void checkSelfProjectileHarmInflictions();
 	int reachedMaxStun[2] { -1, -1 };  // on this frame
 	void registerJump(PlayerInfo& player, Entity pawn, const char* animName);
 	void registerRun(PlayerInfo& player, Entity pawn, const char* animName);
@@ -691,6 +691,11 @@ private:
 	// fix for Elphelt "Close Shot created a Far Shot" when firing uncharged sg.H
 	static bool eventHandlerSendsIntoRecovery(Entity ptr, BBScrEvent signal);
 	static bool checkSameTeam(Entity attacker, Entity defender);
+	void fillRamlethalDisappearance(PlayerFrame& frame, PlayerInfo& player);
+	bool elpheltGrenadeExists(PlayerInfo& player);
+	bool elpheltJDExists(PlayerInfo& player);
+	void fillInJackoInfo(PlayerInfo& player, PlayerFrame& frame);
+	void fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame);
 };
 
 extern EndScene endScene;

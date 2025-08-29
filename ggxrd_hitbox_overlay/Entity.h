@@ -767,7 +767,7 @@ enum TeamSwap {
 
 struct UponInfo {
 	BYTE* uponInstrPtr;  // used if bbscrNeedExecuteUpon (hasUpon) is set
-	char stateToGoTo[32];  // used if bbscrNeedGoToStateUpon is set. Name of anim
+	char stateToGoTo[32];  // used if bbscrNeedGoToStateUpon (needGoToStateUpon) is set. Name of anim
 	int fireOnThisValue;  // for upon 0xd it's frame number, for upon 0x4 it's speedY
 	int fireOnThisValue2;
 	char markerToGoTo[32];  // used if bbscrNeedGoToMarkerUpon (needGoToMarkerUpon) is set. Marker name
@@ -822,7 +822,7 @@ enum BBScrEvent {
 	BBSCREVENT_STATE_REACHED_END = 7,
 	BBSCREVENT_YOUR_ATTACK_COLLISION = 8,
 	BBSCREVENT_YOUR_ATTACK_COLLISION_WITH_A_PLAYER = 9,
-	BBSCREVENT_HIT_THE_ENEMY_PLAYER = 10,
+	BBSCREVENT_HIT_A_PLAYER = 10,
 	BBSCREVENT_GOT_HIT = 11,
 	BBSCREVENT_FRAMESTEP_1 = 12,
 	BBSCREVENT_REACHED_TARGET_ANIM_DURATION = 13,
@@ -1208,7 +1208,7 @@ struct AccessedValue {
 
 #define MEM(x) (BBScrVariable)x
 
-enum InstructionType {
+enum InstrType {
 	// these are from bbscript database: https://github.com/super-continent/bbscript
 	instr_endState = 1,
 	instr_sprite = 2,
@@ -1222,6 +1222,7 @@ enum InstructionType {
 	instr_gotoLabelRequests = 14,
 	instr_callSubroutine = 17,
 	instr_exitState = 18,
+	instr_deactivateObj = 19,
 	instr_upon = 21,
 	instr_endUpon = 22,
 	instr_clearUpon = 23,
@@ -1231,6 +1232,7 @@ enum InstructionType {
 	instr_runOnObject = 41,
 	instr_storeValue = 46,
 	instr_checkMoveCondition = 49,
+	instr_modifyVar = 54,
 	instr_calcDistance = 60,
 	instr_recoveryState = 235,
 	instr_ignoreDeactivate = 298,
@@ -1246,20 +1248,21 @@ enum InstructionType {
 	instr_sendSignalToAction = 1771,
 	instr_linkParticleWithArg2 = 1923,
 	instr_exPointFReset = 2161,
+	instr_requestDestroy = 2176,
 	instr_timeSlow = 2201,
 	instr_createArgHikitsukiVal = 2247,
 	instr_setHitstop = 2263,
 };
 
 struct BBScrInstr_ifOperation {
-	InstructionType type;
+	InstrType type;
 	BBScrOperation op;
 	AccessedValue left;
 	AccessedValue right;
 };
 
 struct BBScrInstr_calcDistance {
-	InstructionType type;
+	InstrType type;
 	EntityReferenceType fromEntity;
 	BBScrPosType fromPos;
 	EntityReferenceType toEntity;
@@ -1267,82 +1270,99 @@ struct BBScrInstr_calcDistance {
 };
 
 struct BBScrInstr_exPointFReset {
-	InstructionType type;
+	InstrType type;
 	BBScrPosType pos;
 	int x;
 	int y;
 };
 
 struct BBScrInstr_sprite {
-	InstructionType type;
+	InstrType type;
 	char name[32];
 	int duration;
 };
 
 struct BBScrInstr_sendSignalToAction {
-	InstructionType type;
+	InstrType type;
 	char name[32];
 	BBScrEvent signal;
 };
 
 struct BBScrInstr_overrideSpriteLengthIf {
-	InstructionType type;
+	InstrType type;
 	int duration;
 	AccessedValue var;
 };
 
 typedef struct BBScrInstr_upon {
-	InstructionType type;
+	InstrType type;
 	BBScrEvent event;
 } BBScrInstr_clearUpon;
 
 typedef struct BBScrInstr_setMarker {
-	InstructionType type;
+	InstrType type;
 	char name[32];
 } BBScrInstr_callSubroutine, BBScrInstr_jumpToState;
 
 struct BBScrInstr_createObjectWithArg {
-	InstructionType type;
-	char state[32];
+	InstrType type;
+	char name[32];
 	BBScrPosType pos;
 };
 
 struct BBScrInstr_setLinkObjectDestroyOnStateChange {
-	InstructionType type;
+	InstrType type;
 	EntityReferenceType entity;
 };
 
 struct BBScrInstr_sendSignal {
-	InstructionType type;
+	InstrType type;
 	EntityReferenceType entity;
 	BBScrEvent event;
 };
 
 struct BBScrInstr_storeValue {
-	InstructionType type;
+	InstrType type;
 	AccessedValue dest;
 	AccessedValue src;
 };
 
 struct BBScrInstr_createObject {
-	InstructionType type;
+	InstrType type;
 	char name[32];
 	BBScrPosType pos;
 };
 
 struct BBScrInstr_deactivateObjectByName {
-	InstructionType type;
+	InstrType type;
 	char name[32];
 };
 
 struct BBScrInstr_gotoLabelRequests {
-	InstructionType type;
+	InstrType type;
 	char name[32];
 };
 
 struct BBScrInstr_beginState {
-	InstructionType type;
+	InstrType type;
 	char name[32];
+};
+
+struct BBScrInstr_modifyVar {
+	InstrType type;
+	BBScrOperation op;
+	AccessedValue left;
+	AccessedValue right;
+};
+
+struct BBScrInstr_requestDestroy {
+	InstrType type;
+	EntityReferenceType entity;
+};
+
+struct BBScrInstr_deactivateObj {
+	InstrType type;
+	EntityReferenceType entity;
 };
 
 #define asInstr(instr, bbscrInstrName) ((BBScrInstr_##bbscrInstrName*)instr)
@@ -1366,9 +1386,10 @@ public:
 	// Active means attack frames are coming
 	inline bool isActiveFrames() const {
 		return (*(DWORD*)(ent + 0x23C) & 0x100) != 0  // This signals that attack's hitboxes should not be ignored. Can happen before hitboxes come out
-			&& (*(DWORD*)(ent + 0x234) & 0x40000000) == 0;  // This signals that attack's hitboxes should be ignored.
-		                                                           // Can be simultaneous with 0x100 flag in 0x23C - recovery takes priority
-		                                                           // Some moves don't have this flag during their recovery
+			&& (*(DWORD*)(ent + 0x234) & 0x40000000) == 0  // This signals that attack's hitboxes should be ignored.
+		                                                   // Can be simultaneous with 0x100 flag in 0x23C - recovery takes priority
+		                                                   // Some moves don't have this flag during their recovery
+			&& dealtAttack()->type > 0;  // this check is in the hit detection check for being able to land any kind of attack, be it player or projectile
 	}
 	inline bool hasActiveFlag() const { return (*(DWORD*)(ent + 0x23C) & 0x100) != 0; }
 	
@@ -1497,7 +1518,7 @@ public:
 	inline bool ascending() const { return (*(DWORD*)(ent + 0x234) & 0x1) != 0; }  // this does not mean prejump. It is set on the initial 7 frames of May jump, 10 Ky jump.
 	                                                                         // Those are the frames when your sprite isn't changing, it changes as soon as flag gets unset.
 	inline bool displayModel() const { return *(bool*)(ent + 0x2814); }
-	inline int signalToSendToYourOwnEffectsWhenHittingThem() const { return *(bool*)(ent + 0x283c); }
+	inline BBScrEvent signalToSendToYourOwnEffectsWhenHittingThem() const { return *(BBScrEvent*)(ent + 0x283c); }  // bbscript: naguriNaguru
 	inline bool hideUI() const { return (*(DWORD*)(ent + 0x11c) & 0x4000) != 0; }
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
@@ -1586,6 +1607,7 @@ public:
 	// Having this flag without superArmorEnabled is useless because you just get hit by the projectile
 	inline bool invulnForAegisField() const { return (*(DWORD*)(ent + 0x238) & 0x400) != 0; }
 	inline bool hasUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa0c))->getBit(index); }  // means that an event handler statement block must be executed upon event, address of the block specified in UponInfo::uponInstrPtr
+	inline bool needGoToStateUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa18))->getBit(index); }  // name of the state specified in UponInfo::stateToGoTo
 	inline bool needGoToMarkerUpon(BBScrEvent index) const { return ((BitArray<3>*)(ent + 0xa24))->getBit(index); }  // name of the marker specified in UponInfo::markerToGoTo
 	const UponInfo* uponStruct(BBScrEvent index) const { return (const UponInfo*)(ent + 0xb70) + index; }
 	inline int mem45() const { return *(int*)(ent + 0x14c); }  // Reset on state change
@@ -1613,10 +1635,11 @@ public:
 	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * (n - 1)); }  
 	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }  // reset to 0 on stage reset
 	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }  // reset to 0 on stage reset
-	inline const char* gotoLabelRequest() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
+	inline const char* gotoLabelRequests() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
 	inline const char* spriteName() const { return (const char*)(ent + 0xa58); }
 	inline int spriteFrameCounter() const { return *(int*)(ent + 0xa78); }
 	inline int spriteFrameCounterMax() const { return *(int*)(ent + 0xa80); }
+	inline bool justReachedSprite() const { return !isRCFrozen() && spriteFrameCounter() == 0; }
 	// If playing a sprite, points to the next sprite command that would go after it.
 	// When on the last sprite, points to the endState instruction.
 	// When on a sprite, but a spriteEnd command is after it, points to the instruction after spriteEnd.
@@ -1627,8 +1650,9 @@ public:
 	inline int maxAirdashes() const { return *(int*)(ent + 0x9884); }
 	inline int maxDoubleJumps() const { return *(int*)(ent + 0x9888); }
 	inline Entity playerEntity() const { return *(Entity*)(ent + 0x1d0); }
+	inline Entity parentEntity() const { return *(Entity*)(ent + 0x1d4); }
 	inline Entity enemyEntity() const { return *(Entity*)(ent + 0x1d8); }
-	inline Entity effectLinkedCollision() const { return *(Entity*)(ent + 0x204); }
+	inline Entity effectLinkedCollision() const { return *(Entity*)(ent + 0x204); }  // bbscript: linkObjectCollision
 	inline int pitch() const { return *(int*)(ent + 0x258); }  // 1000 means one degree counter-clockwise, if facing right. Gets mirrored with facing, so when facing left, it's clockwise instead
 	inline int transformCenterX() const { return *(int*)(ent + 0x27c); }  // does not depend on sprite facing, does not get mirrored with sprite facing
 	inline int transformCenterY() const { return *(int*)(ent + 0x280); }  // does not depend on sprite facing, does not get mirrored with sprite facing
@@ -1703,6 +1727,7 @@ public:
 	inline Entity linkObjectDestroyOnDamage() const { return *(Entity*)(ent + 0x1ec); }
 	inline Entity stopLinkObject() const { return *(Entity*)(ent + 0x1f4); }
 	inline int venomBallArg3() const { return *(int*)(ent + 0x25bc); }
+	inline int createArgHikitsukiVal1_outgoing() const { return *(int*)(ent + 0x2614 + 0x34); }
 	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }
 	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }
 	inline int groundHitEffect() const { return *(int*)(ent + 0x6a4); }
@@ -1739,6 +1764,8 @@ public:
 	bool venomBallSpin() const { return (venomBallFlags() & 0x30) != 0; }
 	int venomBallArg2() const { return *(int*)(ent + 0x25b8); }
 	
+	float attackY() const { return *(float*)(ent + 0x9c8); }
+	
 	inline char* operator+(int offset) const { return (char*)(ent + offset); }
 	inline char* operator+(DWORD offset) const { return (char*)(ent + offset); }
 
@@ -1746,7 +1773,7 @@ public:
 	inline bool operator!=(const Entity& other) const { return ent != other.ent; }
 	inline bool operator==(void* other) const { return (void*)ent == (void*)other; }
 	inline bool operator!=(void* other) const { return (void*)ent != (void*)other; }
-
+	
 	inline operator bool() const { return ent != nullptr; }
 	inline operator void*() const { return (void*)ent; }
 	inline operator char*() const { return ent; }

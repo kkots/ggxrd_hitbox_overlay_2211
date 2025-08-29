@@ -5,7 +5,6 @@
 #include "EntityList.h"
 #include "Hitbox.h"
 #include "colors.h"
-#include "Hardcode.h"
 #include "Moves.h"
 #include "Settings.h"
 #include "findMoveByName.h"
@@ -42,13 +41,13 @@ void collectHitboxes(Entity ent,
 	if (ownerType == CHARACTER_TYPE_JACKO
 			&& (
 				!ent.displayModel()
-				|| strncmp(animName, "Ghost", 5) == 0  // "GhostADummy"_hardcode, "GhostBDummy"_hardcode, "GhostCDummy"_hardcode
-				&& strncmp(animName + 6, "Dummy", 6) == 0  // "GhostADummy"_hardcode, "GhostBDummy"_hardcode, "GhostCDummy"_hardcode
+				|| strncmp(animName, "Ghost", 5) == 0  // "GhostADummy", "GhostBDummy", "GhostCDummy"
+				&& strncmp(animName + 6, "Dummy", 6) == 0  // "GhostADummy", "GhostBDummy", "GhostCDummy"
 			)
 			|| ent.y() < -3000000  // needed for May [2]8S/H
 			|| ent.isHidden()  // needed for super animations
 			|| ownerType == CHARACTER_TYPE_LEO
-			&& strcmp(animName, "Semuke5E_Reflect"_hardcode) == 0) {
+			&& strcmp(animName, "Semuke5E_Reflect") == 0) {
 		return;
 	}
 	
@@ -78,7 +77,7 @@ void collectHitboxes(Entity ent,
 	bool isBedmanGhost = ownerType == CHARACTER_TYPE_BEDMAN
 			&& (
 				memcmp(animName, "Djavu_", 6) == 0
-				&& memcmp(animName + 7, "_Ghost", 7) == 0  // "Djavu_A_Ghost"_hardcode, "Djavu_B_Ghost"_hardcode, "Djavu_C_Ghost"_hardcode, "Djavu_D_Ghost"_hardcode
+				&& memcmp(animName + 7, "_Ghost", 7) == 0  // "Djavu_A_Ghost", "Djavu_B_Ghost", "Djavu_C_Ghost", "Djavu_D_Ghost"
 			);
 	
 	if (pushboxes && (
@@ -248,14 +247,9 @@ void collectHitboxes(Entity ent,
 		if (ownerType == CHARACTER_TYPE_JOHNNY) {
 			if (circles && strcmp(ent.animationName(), "Mist") == 0 && ent.bbscrCurrentFunc()) {
 				BYTE* func = ent.bbscrCurrentFunc();
-				BYTE* instr;
 				int radius = 0;
-				for (
-						instr = moves.skipInstruction(func);
-						moves.instructionType(instr) != instr_endState;
-						instr = moves.skipInstruction(instr)
-				) {
-					if (moves.instructionType(instr) == instr_ifOperation
+				for (loopInstr(func)) {
+					if (moves.instrType(instr) == instr_ifOperation
 							&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER_OR_EQUAL
 							&& asInstr(instr, ifOperation)->left == BBSCRVAR_DISTANCE_FROM_THIS_CENTER_TO_ENEMY_CENTER_DUPLICATE
 							&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
@@ -457,17 +451,17 @@ void collectHitboxes(Entity ent,
 			int rangeX = 0;
 			int circleRadius = 0;
 			if (!ent.mem50() && ent.y() == 0) {
-				if (strcmp(ent.animationName(), "Item_Chocolate"_hardcode) == 0) {
+				if (strcmp(ent.animationName(), "Item_Chocolate") == 0) {
 					rangeX = 84000;
-				} else if (strcmp(ent.animationName(), "Item_BestChocolate"_hardcode) == 0) {
+				} else if (strcmp(ent.animationName(), "Item_BestChocolate") == 0) {
 					rangeX = 168000;
-				} else if (strcmp(ent.animationName(), "Item_Donut"_hardcode) == 0) {
+				} else if (strcmp(ent.animationName(), "Item_Donut") == 0) {
 					rangeX = 84000;
-				} else if (strcmp(ent.animationName(), "Item_ManyDonut"_hardcode) == 0) {
+				} else if (strcmp(ent.animationName(), "Item_ManyDonut") == 0) {
 					rangeX = 168000;
 				}
 			}
-			if (ent.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && strcmp(ent.animationName(), "Item_Helium"_hardcode) == 0) {
+			if (ent.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && strcmp(ent.animationName(), "Item_Helium") == 0) {
 				circleRadius = 100000;
 			}
 			if (rangeX) {
@@ -539,13 +533,8 @@ void collectHitboxes(Entity ent,
 				if (moves.ghostPickupRange == 0) {
 					BYTE* func = owner.findSubroutineStart("OnFrameStep");
 					if (func) {
-						BYTE* instr;
-						for (
-								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != instr_endState;
-								instr = moves.skipInstruction(instr)
-						) {
-							if (moves.instructionType(instr) == instr_ifOperation
+						for (loopInstr(func)) {
+							if (moves.instrType(instr) == instr_ifOperation
 									&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
 									&& asInstr(instr, ifOperation)->left == MEM(53)
 									&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
@@ -583,24 +572,19 @@ void collectHitboxes(Entity ent,
 					
 					if (*aggroX == 0 && ent.bbscrCurrentFunc()) {
 						BYTE* func = ent.bbscrCurrentFunc();
-						BYTE* instr;
-						for (
-								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != instr_endState;
-								instr = moves.skipInstruction(instr)
-						) {
-							if (moves.instructionType(instr) == instr_ifOperation
+						for (loopInstr(func)) {
+							if (moves.instrType(instr) == instr_ifOperation
 									&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
 									&& asInstr(instr, ifOperation)->left == BBSCRVAR_OPPONENT_X_OFFSET_TOWARDS_FACING
 									&& asInstr(instr, ifOperation)->right == AccessedValue(BBSCRTAG_VALUE, 0)) {
-								BYTE* nextInstr = moves.skipInstruction(instr);
-								if (moves.instructionType(nextInstr) == instr_ifOperation
+								BYTE* nextInstr = moves.skipInstr(instr);
+								if (moves.instrType(nextInstr) == instr_ifOperation
 										&& asInstr(nextInstr, ifOperation)->op == BBSCROP_IS_LESSER_OR_EQUAL
 										&& asInstr(nextInstr, ifOperation)->left == BBSCRVAR_OPPONENT_X_OFFSET_TOWARDS_FACING
 										&& asInstr(nextInstr, ifOperation)->right == BBSCRTAG_VALUE) {
 										// skip the value of the literal - we'll read it later
-									BYTE* thirdInstr = moves.skipInstruction(nextInstr);
-									if (moves.instructionType(thirdInstr) == instr_ifOperation
+									BYTE* thirdInstr = moves.skipInstr(nextInstr);
+									if (moves.instrType(thirdInstr) == instr_ifOperation
 											&& asInstr(thirdInstr, ifOperation)->op == BBSCROP_IS_LESSER_OR_EQUAL
 											&& asInstr(thirdInstr, ifOperation)->left == BBSCRVAR_OPPONENT_Y_DISTANCE
 											&& asInstr(thirdInstr, ifOperation)->right == BBSCRTAG_VALUE) {
@@ -703,7 +687,7 @@ void collectHitboxes(Entity ent,
 					needShow = true;
 				} else if (strcmp(ent.spriteName(), "fau205_06") == 0) {
 					needShow = true;
-					needFill = ent.spriteFrameCounter() == 0 && !ent.isRCFrozen();
+					needFill = ent.justReachedSprite();
 					if (moves.faust5DExPointX == -1) {
 						HitboxType hitboxType = HITBOXTYPE_EX_POINT;
 						int count = ent.hitboxCount(HITBOXTYPE_EX_POINT);
@@ -755,19 +739,14 @@ void collectHitboxes(Entity ent,
 				if (moves.jackoAegisFieldRange == 0) {
 					BYTE* func = ent.findStateStart("ServantA");
 					if (func) {
-						BYTE* instr;
-						for (
-								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != instr_endState;
-								instr = moves.skipInstruction(instr)
-						) {
-							if (moves.instructionType(instr) == instr_calcDistance
+						for (loopInstr(func)) {
+							if (moves.instrType(instr) == instr_calcDistance
 									&& asInstr(instr, calcDistance)->fromEntity == ENT_PLAYER
 									&& asInstr(instr, calcDistance)->fromPos == BBSCRPOSTYPE_CENTER
 									&& asInstr(instr, calcDistance)->toEntity == ENT_SELF
 									&& asInstr(instr, calcDistance)->toPos == BBSCRPOSTYPE_CENTER) {
-								BYTE* nextInstr = moves.skipInstruction(instr);
-								if (moves.instructionType(nextInstr) == instr_ifOperation
+								BYTE* nextInstr = moves.skipInstr(instr);
+								if (moves.instrType(nextInstr) == instr_ifOperation
 									&& asInstr(nextInstr, ifOperation)->op == BBSCROP_IS_LESSER
 									&& asInstr(nextInstr, ifOperation)->left == BBSCRVAR_ACCUMULATOR
 									&& asInstr(nextInstr, ifOperation)->right == BBSCRTAG_VALUE) {
@@ -844,13 +823,9 @@ void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpC
 	if (*mayBallJumpConnectPtr == 0) {
 		bool foundY = false;
 		bool foundRange = false;
-		for (
-				BYTE* instr = moves.skipInstruction(functionStart);
-				moves.instructionType(instr) != instr_endState;
-				instr = moves.skipInstruction(instr)
-		) {
+		for (loopInstr(functionStart)) {
 			if (!foundY) {
-				if (moves.instructionType(instr) == instr_exPointFReset
+				if (moves.instrType(instr) == instr_exPointFReset
 						&& asInstr(instr, exPointFReset)->pos == BBSCRPOSTYPE_ORIGIN) {
 					*mayBallJumpConnectPtr = asInstr(instr, exPointFReset)->y;
 					foundY = true;
@@ -858,7 +833,7 @@ void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpC
 				}
 			}
 			if (!foundRange) {
-				if (moves.instructionType(instr) == instr_ifOperation
+				if (moves.instrType(instr) == instr_ifOperation
 						&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
 						&& asInstr(instr, ifOperation)->left == BBSCRVAR_ACCUMULATOR
 						&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
@@ -872,8 +847,8 @@ void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpC
 }
 
 void getMahojinDistXY(BYTE* functionStart, int* x, int* y) {
-	for (BYTE* instr = functionStart; moves.instructionType(instr) != instr_endState; instr = moves.skipInstruction(instr)) {
-		if (moves.instructionType(instr) == instr_ifOperation
+	for (loopInstr(functionStart)) {
+		if (moves.instrType(instr) == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
 				&& asInstr(instr, ifOperation)->left == BBSCRTAG_VARIABLE) {
 			if (asInstr(instr, ifOperation)->left == BBSCRVAR_GTMP_Y

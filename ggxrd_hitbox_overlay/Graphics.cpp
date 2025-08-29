@@ -1096,7 +1096,7 @@ void Graphics::drawAll() {
 				}
 			}
 			if (!found) {
-				prepareArraybox(params, false);
+				prepareArraybox(params, false, false);
 			}
 		}
 		for (const DrawBoxCallParams& params : drawDataUse.pushboxes) {
@@ -1184,7 +1184,7 @@ void Graphics::bringBackOldTransform(IDirect3DDevice9* device) {
 	}
 }
 
-void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isComplicatedHurtbox,
+void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isComplicatedHurtbox, bool isGraybox,
 								BoundingRect* boundingRect, std::vector<DrawOutlineCallParams>* outlinesOverride) {
 	if (!params.hitboxCount) return;
 	logOnce(fputs("drawHitboxArray called with parameters:\n", logfile));
@@ -1220,8 +1220,15 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 		sin = getSin(anglePrep);
 	}
 	
+	const bool drawInnerOutlines = drawOutlines && !isGraybox && settings.showIndividualHitboxOutlines;
+	
 	DrawBoxCallParams drawBoxCall;
 	drawBoxCall.fillColor = params.fillColor;
+	if (drawInnerOutlines) {
+		drawBoxCall.outlineColor = params.outlineColor;
+		drawBoxCall.thickness = 1;
+		drawBoxCall.hatched = false;
+	}
 
 	for (int i = 0; i < params.hitboxCount; ++i) {
 		logOnce(fprintf(logfile, "drawing box %d\n", params.hitboxCount - i));
@@ -1236,8 +1243,8 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 		drawBoxCall.right = bounds.right;
 		drawBoxCall.top = bounds.top;
 		drawBoxCall.bottom = bounds.bottom;
-
-		if (prepareBox(drawBoxCall, boundingRect, false, true)) {
+		
+		if (prepareBox(drawBoxCall, boundingRect, false, !drawInnerOutlines)) {
 			++preparedArrayboxes.back().boxesPreparedSoFar;
 		}
 	}
@@ -2227,8 +2234,8 @@ void Graphics::prepareComplicatedHurtbox(const ComplicatedHurtbox& pairOfBoxesOr
 		preparedArrayboxes.emplace_back();
 		preparedArrayboxes.back().id = preparedArrayboxIdCounter++;
 		BoundingRect boundingRect;
-		prepareArraybox(pairOfBoxesOrOneBox.param1, true, &boundingRect, &outlinesOverrideArena);
-		prepareArraybox(pairOfBoxesOrOneBox.param2, true, &boundingRect);
+		prepareArraybox(pairOfBoxesOrOneBox.realbox, true, false, &boundingRect, &outlinesOverrideArena);
+		prepareArraybox(pairOfBoxesOrOneBox.graybox, true, true, &boundingRect);
 		PreparedArraybox& preparedArraybox = preparedArrayboxes.back();
 		preparedArraybox.isComplete = true;
 		preparedArraybox.boundingRect = boundingRect;
@@ -2236,7 +2243,7 @@ void Graphics::prepareComplicatedHurtbox(const ComplicatedHurtbox& pairOfBoxesOr
 		outlines.insert(outlines.end(), outlinesOverrideArena.begin(), outlinesOverrideArena.end());
 		outlinesOverrideArena.clear();
 	} else {
-		prepareArraybox(pairOfBoxesOrOneBox.param1, false);
+		prepareArraybox(pairOfBoxesOrOneBox.realbox, false, false);
 	}
 }
 

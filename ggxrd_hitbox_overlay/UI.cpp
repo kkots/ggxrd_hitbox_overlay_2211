@@ -25,7 +25,6 @@
 #include <chrono>
 #include "colors.h"
 #include "findMoveByName.h"
-#include "Hardcode.h"
 #include "InputNames.h"
 #include "ImGuiCorrecter.h"
 #include <array>
@@ -63,6 +62,10 @@ static ImVec4 BLACK_COLOR = RGBToVec(0);
 static ImVec4 WHITE_COLOR = RGBToVec(0xFFFFFF);
 static ImVec4 SLIGHTLY_GRAY = RGBToVec(0xc2c2c2);  // it reads slightly "GRAY"
 static ImVec4 LIGHT_BLUE_COLOR = RGBToVec(0x72bcf2);
+static ImVec4 FRAME_SKIPPED_COLOR = RGBToVec(0xc3a1e3);
+static ImVec4 FRAME_ADVANCED_COLOR = RGBToVec(0xd5e9f6);
+static ImVec4 COUNTERHIT_TEXT_COLOR = RGBToVec(0x9ddef3);
+static ImVec4 CROUCHING_TEXT_COLOR = RGBToVec(0x96e7cc);
 static ImVec4 P1_COLOR = RGBToVec(0xff944f);
 static ImVec4 P1_OUTLINE_COLOR = RGBToVec(0xd73833);
 static ImVec4 P2_COLOR = RGBToVec(0x78d6ff);
@@ -1067,6 +1070,10 @@ void UI::drawSearchableWindows() {
 					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
 						player.rejectionWithSlow,
 						player.rejectionMaxWithSlow);
+				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_WALLSLUMP_LAND) {
+					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+						player.wallslumpLandWithSlow,
+						player.wallslumpLandMaxWithSlow);
 				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
 					int currentHitstun = player.inHitstun
 							? player.hitstun - (player.hitstop ? 1 : 0)
@@ -1396,7 +1403,7 @@ void UI::drawSearchableWindows() {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
 					if (*aswEngine && player.pawn) {
-						printNoWordWrapArg(player.pawn.gotoLabelRequest())
+						printNoWordWrapArg(player.pawn.gotoLabelRequests())
 					}
 					
 					if (i == 0) {
@@ -1983,6 +1990,8 @@ void UI::drawSearchableWindows() {
 				}
 			}
 			
+			booleanSettingPreset(settings.showIndividualHitboxOutlines);
+			
 			if (booleanSettingPreset(settings.turnOffPostEffectWhenMakingBackgroundBlack)) {
 				endScene.onGifModeBlackBackgroundChanged();
 			}
@@ -2005,6 +2014,7 @@ void UI::drawSearchableWindows() {
 				needWriteSettings = true;
 			}
 			AddTooltip(searchTooltip("Restores the default values for the four settings above."));
+			
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Framebar Settings")) || searching) {
@@ -2271,6 +2281,8 @@ void UI::drawSearchableWindows() {
 			if (booleanSettingPreset(settings.player2IsBoss) && settings.player2IsBoss) {
 				endScene.onPlayerIsBossChanged();
 			}
+			
+			booleanSettingPreset(settings.useSigscanCaching);
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
@@ -3074,6 +3086,19 @@ void UI::drawSearchableWindows() {
 			}
 			
 			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(searchFieldTitle("Attack Y"));
+			AddTooltip(searchTooltip("The Y of the last connected attack. This value is divided by 100 for viewability."
+				" If the attack connected at Y < 1750.00, the hitstun animation is low, otherwise it is high."));
+			for (int i = 0; i < two; ++i) {
+				PlayerInfo& player = endScene.players[i];
+				ImGui::TableNextColumn();
+				if (*aswEngine && player.pawn) {
+					printDecimal((int)player.pawn.attackY(), 2, 0);
+					ImGui::TextUnformatted(printdecimalbuf);
+				}
+			}
+			
+			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Wakeup"));
 			AddTooltip(searchTooltip("Displays wakeup timing or time until able to act after air recovery (airtech)."
 				" Format: Time remaining until able to act / Total wakeup or airtech time."));
@@ -3226,7 +3251,7 @@ void UI::drawSearchableWindows() {
 						ImGui::TableNextColumn();
 						if (row.side[i]) {
 							ProjectileInfo& projectile = *row.side[i];
-							printNoWordWrapArg(projectile.ptr ? projectile.ptr.gotoLabelRequest() : "")
+							printNoWordWrapArg(projectile.ptr ? projectile.ptr.gotoLabelRequests() : "")
 						}
 						
 						if (i == 0) {
@@ -3424,7 +3449,7 @@ void UI::drawSearchableWindows() {
 								BYTE* foundPos = moves.findSpriteNonNull(func);
 								if (!foundPos) break;
 								bool created = false;
-								InstructionType lastType = instr_sprite;
+								InstrType lastType = instr_sprite;
 								int lastSpriteLength = 0;
 								for (BYTE* instr = foundPos; lastType != instr_endState; ) {
 									if (lastType == instr_sprite) {
@@ -3442,8 +3467,8 @@ void UI::drawSearchableWindows() {
 										player.gunflameParams.totalSpriteLength -= lastSpriteLength;
 										break;
 									}
-									instr = moves.skipInstruction(instr);
-									lastType = moves.instructionType(instr);
+									instr = moves.skipInstr(instr);
+									lastType = moves.instrType(instr);
 								}
 							}
 						}
@@ -3529,10 +3554,10 @@ void UI::drawSearchableWindows() {
 								if (moves.stunEdgeDeleteSpriteSum == 0) {
 									BYTE* funcStart = p.findStateStart("StunEdgeDelete");
 									if (funcStart) {
-										for (BYTE* instr = moves.skipInstruction(funcStart);
-												moves.instructionType(instr) != instr_endState;
-												instr = moves.skipInstruction(instr)) {
-											if (moves.instructionType(instr) == instr_sprite) {
+										for (BYTE* instr = moves.skipInstr(funcStart);
+												moves.instrType(instr) != instr_endState;
+												instr = moves.skipInstr(instr)) {
+											if (moves.instrType(instr) == instr_sprite) {
 												moves.stunEdgeDeleteSpriteSum += asInstr(instr, sprite)->duration;
 											}
 										}
@@ -3541,7 +3566,7 @@ void UI::drawSearchableWindows() {
 							} else if (strcmp(p.animationName(), "ChargedStunEdgeObj") == 0) {
 								hasChargedStunEdge = true;
 							} else if (strcmp(p.animationName(), "SPChargedStunEdgeObj") == 0) {
-								if (moves.instructionType(p.bbscrCurrentInstr()) == instr_endState) {
+								if (moves.instrType(p.bbscrCurrentInstr()) == instr_endState) {
 									spChargedStunEdgeKowareFrame = p.spriteFrameCounter();
 									spChargedStunEdgeKowareFrameMax = p.spriteFrameCounterMax();
 									ProjectileInfo& projectile = endScene.findProjectile(p);
@@ -3552,11 +3577,11 @@ void UI::drawSearchableWindows() {
 										BYTE* lastSprite = nullptr;
 										BYTE* instr = p.bbscrCurrentInstr();
 										do {
-											if (moves.instructionType(instr) == instr_sprite) {
+											if (moves.instrType(instr) == instr_sprite) {
 												lastSprite = instr;
 											}
-											instr = moves.skipInstruction(instr);
-										} while (moves.instructionType(instr) != instr_endState);
+											instr = moves.skipInstr(instr);
+										} while (moves.instrType(instr) != instr_endState);
 										if (lastSprite) {
 											moves.spChargedStunEdgeKowareSpriteDuration = asInstr(lastSprite, sprite)->duration;
 										}
@@ -3711,12 +3736,12 @@ void UI::drawSearchableWindows() {
 						if (moves.mayIrukasanRidingObjectYokoA.offset == 0) {
 							BYTE* pos = moves.findSetMarker(func, "moveYokoA");
 							if (pos) {
-								BYTE* instr = moves.skipInstruction(pos);
+								BYTE* instr = moves.skipInstr(pos);
 								moves.mayIrukasanRidingObjectYokoA.offset = pos - func;
 								int totalSoFar = 0;
 								bool lastSpriteWasNull = false;
-								while (moves.instructionType(instr) != instr_endState) {
-									InstructionType type = moves.instructionType(instr);
+								while (moves.instrType(instr) != instr_endState) {
+									InstrType type = moves.instrType(instr);
 									if (type == instr_sprite) {
 										if (!ar[arInd]->frames.empty()) {
 											ar[arInd]->frames.back().offset = instr - func;
@@ -3741,7 +3766,7 @@ void UI::drawSearchableWindows() {
 										lastSpriteWasNull = false;
 										ar[arInd]->offset = instr - func;
 									}
-									instr = moves.skipInstruction(instr);
+									instr = moves.skipInstr(instr);
 								}
 								arInd = 0;
 							}
@@ -4386,6 +4411,12 @@ void UI::drawSearchableWindows() {
 					booleanSettingPreset(settings.p2RamlethalDisableMarteliForpeli);
 				}
 				
+				if (player.index == 0) {
+					booleanSettingPreset(settings.p1RamlethalUseBoss6SHSwordDeploy);
+				} else {
+					booleanSettingPreset(settings.p2RamlethalUseBoss6SHSwordDeploy);
+				}
+				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x4) != 0;
 				int playerval0 = player.wasPlayerval[0];
 				int playerval1 = player.wasPlayerval[1];
@@ -4725,7 +4756,19 @@ void UI::drawSearchableWindows() {
 				
 				yellowText(searchFieldTitle("Aegis Field:"));
 				ImGui::SameLine();
-				sprintf_s(strbuf, "%d/%d", player.jackoAegisTimeWithSlow, player.jackoAegisTimeMaxWithSlow);
+				const char* aegisPresent = player.jackoAegisActive ? "active" : "inactive";
+				if (player.jackoAegisReturningIn != INT_MIN) {
+					if (player.jackoAegisReturningIn > 60) {
+						sprintf_s(strbuf, "%d/%d (%s) (returns in <never>)", player.jackoAegisTimeWithSlow, player.jackoAegisTimeMaxWithSlow,
+							aegisPresent);
+					} else {
+						sprintf_s(strbuf, "%d/%d (%s) (returns in %d/60)", player.jackoAegisTimeWithSlow, player.jackoAegisTimeMaxWithSlow,
+							aegisPresent, 60 - player.jackoAegisReturningIn);
+					}
+				} else {
+					sprintf_s(strbuf, "%d/%d (%s)", player.jackoAegisTimeWithSlow, player.jackoAegisTimeMaxWithSlow,
+						aegisPresent);
+				}
 				ImGui::TextUnformatted(strbuf);
 				
 				yellowText(searchFieldTitle("Holding Ghost:"));
@@ -4792,21 +4835,6 @@ void UI::drawSearchableWindows() {
 						"ServantCoolTimeC",
 						moves.servantCooldownC
 					}
-				};
-				static const char* ghostStateNames[] {
-					"Appear",
-					"Land",
-					"Reappear",
-					"Idle",
-					"Create",
-					"Create",
-					"Pick Up",
-					"Hold",
-					"Put",
-					"Throw",
-					"Throw",
-					"Drop",
-					"Damage"
 				};
 				DWORD playerval2 = (DWORD)player.pawn.playerVal(2);
 				for (int j = 0; j < 3; ++j) {
@@ -4940,7 +4968,7 @@ void UI::drawSearchableWindows() {
 						moves.fillGhostStateOffsets(func, info.offsets);
 						int stateInd = moves.findGhostState(p.bbscrCurrentInstr() - func, info.offsets);
 						if (stateInd >= 0 && stateInd < _countof(ghostStateNames)) {
-							ImGui::TextUnformatted(ghostStateNames[stateInd]);
+							ImGui::TextUnformatted(ghostStateNames[stateInd].name);
 						} else {
 							ImGui::TextUnformatted("???");
 						}
@@ -4956,11 +4984,11 @@ void UI::drawSearchableWindows() {
 									BYTE* func = p.bbscrCurrentFunc();
 									BYTE* instr;
 									for (
-											instr = moves.skipInstruction(func);
-											moves.instructionType(instr) != instr_endState;
-											instr = moves.skipInstruction(instr)
+											instr = moves.skipInstr(func);
+											moves.instrType(instr) != instr_endState;
+											instr = moves.skipInstr(instr)
 									) {
-										if (moves.instructionType(instr) == instr_sprite) {
+										if (moves.instrType(instr) == instr_sprite) {
 											*info.dummyTotalFrames += asInstr(instr, sprite)->duration;
 										}
 									}
@@ -4985,43 +5013,9 @@ void UI::drawSearchableWindows() {
 					const char* servantTitle[2];
 					DWORD mask;
 					std::vector<int>& offsets;
-					const char** stateNames;
+					const ServantState* stateNames;
 					int stateNamesCount;
 					Moves::MayIrukasanRidingObjectInfo* servantAtk;
-				};
-				static const char* servantStateNames[] {
-					"Spawn",
-					"Move",
-					"Move",
-					"Turn",
-					"Attack",
-					"Attack",
-					"Attack",
-					"Damage",
-					"Death",
-					"Death",
-					"Wave Goodbye",
-					"Waiting",
-					"Lose",
-					"Win"
-				};
-				static const char* servantStateNamesSpearman[] {
-					"Spawn",
-					"Move",
-					"Move",
-					"Turn",
-					"Attack",
-					"Attack",
-					"Attack",
-					"Damage",
-					"Damage",
-					"Damage",
-					"Death",
-					"Death",
-					"Wave Goodbye",
-					"Waiting",
-					"Lose",
-					"Win"
 				};
 				ServantInfo servants[3] {
 					{
@@ -5103,7 +5097,7 @@ void UI::drawSearchableWindows() {
 						if (state >= 0 && state < servant.stateNamesCount) {
 							yellowText("Anim:");
 							ImGui::SameLine();
-							ImGui::TextUnformatted(servant.stateNames[state]);
+							ImGui::TextUnformatted(servant.stateNames[state].name);
 							if (state >= 4 && state <= 6) {
 								moves.fillServantAtk(func, servant.servantAtk);
 								const Moves::MayIrukasanRidingObjectInfo& frames = servant.servantAtk[2 * (state - 4)];
@@ -7193,14 +7187,14 @@ void UI::drawSearchableWindows() {
 							int currentDuration = 0;
 							int totalDuration = 0;
 							int lastDuration = 0;
-							BYTE* instIt = moves.skipInstruction(markerPos);
-							while (moves.instructionType(instIt) != instr_endState) {
+							BYTE* instIt = moves.skipInstr(markerPos);
+							while (moves.instrType(instIt) != instr_endState) {
 								lastDuration = asInstr(instIt, sprite)->duration;
 								totalDuration += lastDuration;
 								if (instIt < currentInst) {
 									currentDuration += lastDuration;
 								}
-								instIt = moves.skipInstruction(instIt);
+								instIt = moves.skipInstr(instIt);
 							}
 							
 							yellowText(searchFieldTitle("Recovery Animation: "));
@@ -10342,7 +10336,12 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	static const StringWithLength invulTitle = "Invul: ";
 	frame.printInvuls(strbuf, sizeof strbuf - invulTitle.length);
 	
-	if (*strbuf != '\0' || frame.OTGInGeneral || frame.counterhit) {
+	CharacterType charType = endScene.players[playerIndex].charType;
+	if (charType == CHARACTER_TYPE_JACKO && frame.u.jackoInfo.hasAegisField) {
+		ImGui::TextUnformatted("Aegis Field active.");
+	}
+	
+	if (*strbuf != '\0' || frame.OTGInGeneral || frame.counterhit || frame.crouching) {
 		ImGui::Separator();
 		if (*strbuf != '\0') {
 			yellowText(invulTitle.txt, invulTitle.txt + invulTitle.length);
@@ -10362,17 +10361,37 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		if (frame.OTGInGeneral) {
 			ImGui::TextUnformatted("OTG state.");
 		}
-		if (frame.counterhit) {
-			ImGui::TextUnformatted("Counterhit state.");
+		if (frame.counterhit && frame.crouching) {
+			zerohspacing
+			textUnformattedColored(CROUCHING_TEXT_COLOR, "Crouching ");
+			ImGui::SameLine();
+			textUnformattedColored(COUNTERHIT_TEXT_COLOR, "counterhit ");
+			ImGui::SameLine();
+			ImGui::TextUnformatted("state.");
+			_zerohspacing
+		} else if (frame.counterhit) {
+			zerohspacing
+			textUnformattedColored(COUNTERHIT_TEXT_COLOR, "Counterhit ");
+			ImGui::SameLine();
+			ImGui::TextUnformatted("state.");
+			_zerohspacing
+		} else if (frame.crouching) {
+			zerohspacing
+			textUnformattedColored(CROUCHING_TEXT_COLOR, "Crouching ");
+			ImGui::SameLine();
+			ImGui::TextUnformatted("state.");
+			_zerohspacing
 		}
 	}
 	
-	if (frame.canYrc || frame.canYrcProjectile || frame.createdProjectiles && !frame.createdProjectiles->empty()) {
+	if (frame.canYrc || frame.cantRc || frame.canYrcProjectile || frame.createdProjectiles && !frame.createdProjectiles->empty()) {
 		ImGui::Separator();
 		if (frame.canYrcProjectile) {
-			ImGui::TextUnformatted("Can YRC, and projectile/powerup will stay");
+			ImGui::TextUnformatted(frame.canYrcProjectile);
 		} else if (frame.canYrc) {
 			ImGui::TextUnformatted("Can YRC");
+		} else if (frame.cantRc) {
+			ImGui::TextUnformatted("Can't RC, unless opponent is in hitstun or blockstun or bursting");
 		}
 		if (frame.createdProjectiles && !frame.createdProjectiles->empty()) {
 			for (const CreatedProjectileStruct& element : *frame.createdProjectiles) {
@@ -10380,7 +10399,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				
 				const char* createdByNameUse = element.useCreatedByNamePair
 					? element.createdByNamePair
-						? settings.useSlangNames && element.createdByNamePair->slang
+						? (settings.useSlangNames && false) && element.createdByNamePair->slang
 							? element.createdByNamePair->slang
 							: element.createdByNamePair->name
 						: nullptr
@@ -10393,7 +10412,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				
 				const char* nameUse = element.useNamePair
 					? element.namePair
-						? settings.useSlangNames && element.namePair->slang
+						? (settings.useSlangNames && false) && element.namePair->slang
 							? element.namePair->slang
 							: element.namePair->name
 						: nullptr
@@ -10415,7 +10434,10 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 								|| firstLetter >= 'A' && firstLetter <= 'Z' && letters[firstLetter - 'A']
 								|| (firstLetter >= 'a' && firstLetter <= 'z' && lettersStandalone[firstLetter - 'a']
 									|| firstLetter >= 'A' && firstLetter <= 'Z' && lettersStandalone[firstLetter - 'A'])
-									&& (unsigned char)nameUse[1] <= 32U) {
+									&& (
+										(unsigned char)nameUse[1] <= 32U
+										|| nameUse[1] == '.'   // F.D.B
+									)) {
 							ImGui::TextUnformatted(createdByNameUse ? " created an " : "Created an ");
 						} else {
 							ImGui::TextUnformatted(createdByNameUse ? " created a " : "Created a ");
@@ -10442,99 +10464,103 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		}
 	}
 	
-	CharacterType charType = endScene.players[playerIndex].charType;
 	if (charType == CHARACTER_TYPE_SOL) {
-		if (frame.u.solInfo.gunflameDisappearsOnHit
-				|| frame.u.solInfo.gunflameComesOutLater
-				|| frame.u.solInfo.gunflameFirstWaveDisappearsOnHit
-				|| frame.u.solInfo.hasTyrantRavePunch2) {
+		const SolInfo& si = frame.u.solInfo;
+		if (si.gunflameDisappearsOnHit
+				|| si.gunflameComesOutLater
+				|| si.gunflameFirstWaveDisappearsOnHit
+				|| si.hasTyrantRavePunch2) {
 			ImGui::Separator();
-			if (frame.u.solInfo.gunflameDisappearsOnHit) {
+			if (si.gunflameDisappearsOnHit) {
 				ImGui::TextUnformatted("The Gunflame will disappear if Sol is hit (non-blocked hit) on this frame.");
 			}
-			if (frame.u.solInfo.gunflameComesOutLater) {
+			if (si.gunflameComesOutLater) {
 				ImGui::TextUnformatted("The Gunflame will come out later if Sol is hit (non-blocked hit) on this frame.");
 			}
-			if (frame.u.solInfo.gunflameFirstWaveDisappearsOnHit) {
+			if (si.gunflameFirstWaveDisappearsOnHit) {
 				ImGui::TextUnformatted("The first wave (but not the consecutive waves) of Gunflame will disappear if Sol is hit (non-blocked hit) on this frame.");
 			}
-			if (frame.u.solInfo.hasTyrantRavePunch2) {
+			if (si.hasTyrantRavePunch2) {
 				ImGui::TextUnformatted("DI Tyrant Rave Laser will disappear if Sol is hit (non-blocked hit) at any time.");
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_KY) {
-		if (frame.u.kyInfo.stunEdgeWillDisappearOnHit
-				|| frame.u.kyInfo.hasChargedStunEdge
-				|| frame.u.kyInfo.hasSPChargedStunEdge
-				|| frame.u.kyInfo.hasjD) {
+		const KyInfo& ki = frame.u.kyInfo;
+		if (ki.stunEdgeWillDisappearOnHit
+				|| ki.hasChargedStunEdge
+				|| ki.hasSPChargedStunEdge
+				|| ki.hasjD) {
 			ImGui::Separator();
-			if (frame.u.kyInfo.stunEdgeWillDisappearOnHit) {
+			if (ki.stunEdgeWillDisappearOnHit) {
 				ImGui::TextUnformatted("The Stun Edge will disappear if Ky is hit (non-blocked hit) on this frame.");
 			}
-			if (frame.u.kyInfo.hasChargedStunEdge) {
+			if (ki.hasChargedStunEdge) {
 				ImGui::TextUnformatted("The Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.kyInfo.hasSPChargedStunEdge) {
+			if (ki.hasSPChargedStunEdge) {
 				ImGui::TextUnformatted("The Fortified Charged Stun Edge will disappear if Ky is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.kyInfo.hasjD) {
+			if (ki.hasjD) {
 				ImGui::TextUnformatted("The j.D will disappear if Ky is hit (non-blocked hit) at any time.");
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_MILLIA) {
-		if (frame.u.milliaInfo.hasPin
-				|| frame.u.milliaInfo.hasSDisc
-				|| frame.u.milliaInfo.hasHDisc
-				|| frame.u.milliaInfo.hasEmeraldRain
-				|| frame.u.milliaInfo.hasHitstunLinkedSecretGarden
-				|| frame.u.milliaInfo.hasRose) {
+		const MilliaInfo& mi = frame.u.milliaInfo;
+		if (mi.hasPin
+				|| mi.hasSDisc
+				|| mi.hasHDisc
+				|| mi.hasEmeraldRain
+				|| mi.hasHitstunLinkedSecretGarden
+				|| mi.hasRose) {
 			ImGui::Separator();
-			if (frame.u.milliaInfo.hasPin) {
+			if (mi.hasPin) {
 				ImGui::TextUnformatted("Silent Force will stop being active if Millia is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.milliaInfo.hasSDisc) {
+			if (mi.hasSDisc) {
 				ImGui::TextUnformatted("S Tandem Top will disappear if Millia is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.milliaInfo.hasHDisc) {
+			if (mi.hasHDisc) {
 				ImGui::TextUnformatted("H Tandem Top will disappear if Millia is hit or blocks a hit at any time.");
 			}
-			if (frame.u.milliaInfo.hasEmeraldRain) {
+			if (mi.hasEmeraldRain) {
 				ImGui::TextUnformatted("Emerald Rain will disappear if Millia is hit or blocks a hit at any time.");
 			}
-			if (frame.u.milliaInfo.hasHitstunLinkedSecretGarden) {
+			if (mi.hasHitstunLinkedSecretGarden) {
 				ImGui::TextUnformatted("Secret Garden will disappear if Millia is hit (non-blocked hit) on this frame.");
 			}
-			if (frame.u.milliaInfo.hasRose) {
+			if (mi.hasRose) {
 				ImGui::TextUnformatted("Any Chroming Rose roses will disappear if Millia is hit (non-blocked hit) at any time.");
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_CHIPP) {
-		if (frame.u.chippInfo.hasShuriken
-				|| frame.u.chippInfo.hasKunaiWall
-				|| frame.u.chippInfo.hasRyuuYanagi) {
+		const ChippInfo& ci = frame.u.chippInfo;
+		if (ci.hasShuriken
+				|| ci.hasKunaiWall
+				|| ci.hasRyuuYanagi) {
 			ImGui::Separator();
-			if (frame.u.chippInfo.hasShuriken) {
+			if (ci.hasShuriken) {
 				ImGui::TextUnformatted("Shuriken will disappear if Chipp is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.chippInfo.hasKunaiWall) {
+			if (ci.hasKunaiWall) {
 				ImGui::TextUnformatted("Kunai (Wall) will disappear if Chipp is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.chippInfo.hasRyuuYanagi) {
+			if (ci.hasRyuuYanagi) {
 				ImGui::TextUnformatted("Ryuu Yanagi will disappear if Chipp is hit (non-blocked hit) at any time.");
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_ZATO) {
-		if (frame.u.zatoInfo.hasGreatWhite
-				|| frame.u.zatoInfo.hasInviteHell
-				|| frame.u.zatoInfo.hasEddie) {
+		const ZatoInfo& zi = frame.u.zatoInfo;
+		if (zi.hasGreatWhite
+				|| zi.hasInviteHell
+				|| zi.hasEddie) {
 			ImGui::Separator();
-			if (frame.u.zatoInfo.hasGreatWhite) {
+			if (zi.hasGreatWhite) {
 				ImGui::TextUnformatted("Great White will disappear if Zato is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.zatoInfo.hasInviteHell) {
+			if (zi.hasInviteHell) {
 				ImGui::TextUnformatted("Invite Hell will disappear if Zato is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.zatoInfo.hasEddie) {
+			if (zi.hasEddie) {
 				ImGui::TextUnformatted("Eddie will disappear if Zato is hit or blocks a hit at any time.");
 			}
 		}
@@ -10549,27 +10575,29 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("Helter-Skelter shockwave will disappear if Slayer is hit (non-blocked hit) at any time.");
 		}
 	} else if (charType == CHARACTER_TYPE_INO) {
-		if (frame.u.inoInfo.hasChemicalLove
-				|| frame.u.inoInfo.hasNote
-				|| frame.u.inoInfo.has5DYRC) {
+		const InoInfo& ii = frame.u.inoInfo;
+		if (ii.hasChemicalLove
+				|| ii.hasNote
+				|| ii.has5DYRC) {
 			ImGui::Separator();
-			if (frame.u.inoInfo.hasChemicalLove) {
+			if (ii.hasChemicalLove) {
 				ImGui::TextUnformatted("Chemical Love will disappear if I-No is hit (non-blocked hit) on this frame.");
 			}
-			if (frame.u.inoInfo.hasNote) {
+			if (ii.hasNote) {
 				ImGui::TextUnformatted("Antidepressant Scale will disappear if I-No is hit (non-blocked hit) on this frame.");
 			}
-			if (frame.u.inoInfo.has5DYRC) {
+			if (ii.has5DYRC) {
 				ImGui::TextUnformatted("5D will disappear if I-No is hit (non-blocked hit) at any time.");
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_MAY) {
-		if (frame.u.mayInfo.hasDolphin || frame.u.mayInfo.hasBeachBall) {
+		const MayInfo& mi = frame.u.mayInfo;
+		if (mi.hasDolphin || mi.hasBeachBall) {
 			ImGui::Separator();
-			if (frame.u.mayInfo.hasDolphin) {
+			if (mi.hasDolphin) {
 				ImGui::TextUnformatted("The Dolphin will disappear if May is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.mayInfo.hasBeachBall) {
+			if (mi.hasBeachBall) {
 				ImGui::TextUnformatted("The Beach Ball will disappear if May is hit (non-blocked hit) at any time.");
 			}
 		}
@@ -10579,21 +10607,22 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			ImGui::TextUnformatted("Trishula explosion will disappear if Potemkin is hit (non-blocked hit) on this frame.");
 		}
 	} else if (charType == CHARACTER_TYPE_AXL) {
-		if (frame.u.axlInfo.hasSpindleSpinner
-				|| frame.u.axlInfo.hasSickleFlash
-				|| frame.u.axlInfo.hasMelodyChain
-				|| frame.u.axlInfo.hasSickleStorm) {
+		const AxlInfo& ai = frame.u.axlInfo;
+		if (ai.hasSpindleSpinner
+				|| ai.hasSickleFlash
+				|| ai.hasMelodyChain
+				|| ai.hasSickleStorm) {
 			ImGui::Separator();
-			if (frame.u.axlInfo.hasSpindleSpinner) {
+			if (ai.hasSpindleSpinner) {
 				ImGui::TextUnformatted("Spindle Spinner will disappear if Axl is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.axlInfo.hasSickleFlash) {
+			if (ai.hasSickleFlash) {
 				ImGui::TextUnformatted("Sickle Flash will disappear if Axl is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.axlInfo.hasMelodyChain) {
+			if (ai.hasMelodyChain) {
 				ImGui::TextUnformatted("Melody Chain will disappear if Axl is hit (non-blocked hit) at any time.");
 			}
-			if (frame.u.axlInfo.hasSickleStorm) {
+			if (ai.hasSickleStorm) {
 				ImGui::TextUnformatted("Sickle Storm will disappear if Axl is hit or blocks a hit at any time.");
 			}
 		}
@@ -10727,7 +10756,10 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				|| ri.sSwordRecoilOnHitstun
 				|| ri.hSwordBlockstunLinked
 				|| ri.hSwordFallOnHitstun
-				|| ri.hSwordRecoilOnHitstun) {
+				|| ri.hSwordRecoilOnHitstun
+				|| ri.hasLaser
+				|| ri.hasLaserSpawnerInStartup
+				|| ri.hasSpiral) {
 			ImGui::Separator();
 		}
 		#define swordDisappearMsg(letter, name) \
@@ -10746,6 +10778,138 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		swordDisappearMsg(s, "S Sword")
 		swordDisappearMsg(h, "H Sword")
 		#undef swordDisappearMsg
+		
+		if (ri.hasLaser) {
+			if (ri.hasLaserSpawnerInStartup) {
+				ImGui::TextUnformatted("All Lasers will disappear if Ramlethal gets hit (non-blocked hit) at any time,"
+					" and all Laser Spawners will disappear if Ramlethal gets hit (non-blocked hit) during the Calvados move.");
+			} else if (ri.hasLaserMinionInStartupAndHitstunNotTied) {
+				ImGui::TextUnformatted("All Lasers will disappear if Ramlethal gets hit (non-blocked hit) at any time,"
+					" but Laser Spawners are not going to disappear.");
+			} else {
+				ImGui::TextUnformatted("All Lasers will disappear if Ramlethal gets hit (non-blocked hit) at any time.");
+			}
+		} else if (ri.hasLaserSpawnerInStartup) {
+			ImGui::TextUnformatted("All Laser Spawners will disappear if Ramlethal gets hit (non-blocked hit) during the Calvados move.");
+		}
+		
+		if (ri.hasSpiral) {
+			ImGui::TextUnformatted("Trance will disappear if Ramlethal gets hit (non-blocked hit) on this frame.");
+		}
+	} else if (charType == CHARACTER_TYPE_ELPHELT) {
+		const ElpheltInfo& ei = frame.u.elpheltInfo;
+		if (ei.hasGrenade || ei.hasJD) {
+			ImGui::Separator();
+			if (ei.hasGrenade) {
+				ImGui::TextUnformatted("Berry Pine will explode if Elphelt gets hit (non-blocked hit) at any time.");
+			}
+			if (ei.hasJD) {
+				ImGui::TextUnformatted("j.D will disappear if Elphelt gets hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_LEO) {
+		const LeoInfo& li = frame.u.leoInfo;
+		if (li.hasEdgeyowai || li.hasEdgetuyoi) {
+			ImGui::Separator();
+			if (li.hasEdgeyowai) {
+				ImGui::TextUnformatted("S Graviert W\xc3\xbcrde will disappear if Leo gets hit (non-blocked hit) on this frame.");
+			}
+			if (li.hasEdgetuyoi) {
+				ImGui::TextUnformatted("H Graviert W\xc3\xbcrde will disappear if Leo gets hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_JOHNNY) {
+		const JohnnyInfo& ji = frame.u.johnnyInfo;
+		if (ji.hasMistKuttsuku || ji.hasMist) {
+			ImGui::Separator();
+			if (ji.hasMistKuttsuku) {
+				ImGui::TextUnformatted("The Bacchus Sigh Debuff on the opponent will disappear if Johnny gets hit at any time.");
+			}
+			if (ji.hasMist) {
+				ImGui::TextUnformatted("The Bacchus Sigh projectile will disappear if Johnny gets hit at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_JACKO) {
+		const JackoInfo& ji = frame.u.jackoInfo;
+		if (ji.hasAegisField
+				|| ji.hasServants
+				|| ji.hasMagicianProjectile
+				|| ji.hasJD
+				|| ji.settingPGhost
+				|| ji.settingKGhost
+				|| ji.settingSGhost
+				|| ji.resettingPGhost
+				|| ji.resettingKGhost
+				|| ji.resettingSGhost
+				|| ji.carryingPGhost
+				|| ji.carryingKGhost
+				|| ji.carryingSGhost
+				|| ji.retrievingPGhost
+				|| ji.retrievingKGhost
+				|| ji.retrievingSGhost) {
+			ImGui::Separator();
+			if (ji.hasAegisField) {
+				ImGui::TextUnformatted("Aegis Field will temporarily disppear if Jack-O is hit at any time.");
+			}
+			if (ji.hasServants && ji.hasMagicianProjectile) {
+				ImGui::TextUnformatted("All Servants and Magician attack projectiles will disappear if Jack-O is hit at any time.");
+			} else if (ji.hasServants) {
+				ImGui::TextUnformatted("All Servants will disappear if Jack-O is hit at any time.");
+			} else if (ji.hasMagicianProjectile) {
+				ImGui::TextUnformatted("All Magician attack projectiles will disappear if Jack-O is hit at any time.");
+			}
+			if (ji.hasJD) {
+				ImGui::TextUnformatted("All j.D Fireballs will disappear if Jack-O is hit at any time.");
+			}
+			if (ji.settingPGhost) {
+				ImGui::TextUnformatted("P Ghost will disappear if Jack-O is hit on this frame.");
+			} else if (ji.settingKGhost) {
+				ImGui::TextUnformatted("K Ghost will disappear if Jack-O is hit on this frame.");
+			} else if (ji.settingSGhost) {
+				ImGui::TextUnformatted("S Ghost will disappear if Jack-O is hit on this frame.");
+			} else if (ji.resettingPGhost) {
+				ImGui::TextUnformatted("P Ghost will remain in inventory if Jack-O is hit on this frame.");
+			} else if (ji.resettingKGhost) {
+				ImGui::TextUnformatted("K Ghost will remain in inventory if Jack-O is hit on this frame.");
+			} else if (ji.resettingSGhost) {
+				ImGui::TextUnformatted("S Ghost will remain in inventory if Jack-O is hit on this frame.");
+			}
+			if (ji.retrievingPGhost) {
+				ImGui::TextUnformatted("P Ghost will not be returned to the inventory and will drop down if Jack-O is hit on this frame.");
+			} else if (ji.retrievingKGhost) {
+				ImGui::TextUnformatted("K Ghost will not be returned to the inventory and will drop down if Jack-O is hit on this frame.");
+			} else if (ji.retrievingSGhost) {
+				ImGui::TextUnformatted("S Ghost will not be returned to the inventory and will drop down if Jack-O is hit on this frame.");
+			} else if (ji.carryingPGhost) {
+				ImGui::TextUnformatted("P Ghost will drop down if Jack-O is hit while carrying it.");
+			} else if (ji.carryingKGhost) {
+				ImGui::TextUnformatted("K Ghost will drop down if Jack-O is hit while carrying it.");
+			} else if (ji.carryingSGhost) {
+				ImGui::TextUnformatted("S Ghost will drop down if Jack-O is hit while carrying it.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_HAEHYUN) {
+		const HaehyunInfo& hi = frame.u.haehyunInfo;
+		if (hi.hasBall || hi.has5D) {
+			ImGui::Separator();
+			if (hi.hasBall) {
+				ImGui::TextUnformatted("Tuning Ball will disappear if Haehyun gets hit or blocks at any time.");
+			}
+			if (hi.has5D) {
+				ImGui::TextUnformatted("5D Projectile will disappear if Haehyun gets hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_RAVEN) {
+		const RavenInfo& ri = frame.u.ravenInfo;
+		if (ri.hasNeedle || ri.hasOrb) {
+			ImGui::Separator();
+			if (ri.hasNeedle) {
+				ImGui::TextUnformatted("Needle will disappear if Raven gets hit at any time.");
+			}
+			if (ri.hasOrb) {
+				ImGui::TextUnformatted("Scharf Kugel will disappear if Raven gets hit at any time.");
+			}
+		}
 	}
 	
 	if (frame.needShowAirOptions) {
@@ -10763,6 +10927,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	if (frame.poisonDuration) {
 		ImGui::Separator();
 		
+		zerohspacing
 		const char* poisonTitle;
 		if (frame.poisonIsBacchusSigh) {
 			poisonTitle = "Bacchus Debuff On You: ";
@@ -10775,28 +10940,25 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 		ImGui::SameLine();
 		sprintf_s(strbuf, "%d/%d", frame.poisonDuration, frame.poisonMax);
 		ImGui::TextUnformatted(strbuf);
+		_zerohspacing
 		
 	}
 	
 	if (frame.powerup) {
 		ImGui::Separator();
-		if (frame.powerupExplanation && *frame.powerupExplanation != '\0') {
-			const char* newlinePos = nullptr;
-			static const char titleOverride[] = "//Title override: ";
-			if (strncmp(frame.powerupExplanation, titleOverride, sizeof titleOverride - 1) == 0) {
-				newlinePos = strchr(frame.powerupExplanation, '\n');
+		const char* newlinePos = nullptr;
+		static const char titleOverride[] = "//Title override: ";
+		if (strncmp(frame.powerup, titleOverride, sizeof titleOverride - 1) == 0) {
+			newlinePos = strchr(frame.powerup, '\n');
+		}
+		if (newlinePos) {
+			if (newlinePos != frame.powerup + sizeof titleOverride - 1) {
+				yellowText(frame.powerup + sizeof titleOverride - 1, newlinePos);
 			}
-			if (newlinePos) {
-				if (newlinePos != frame.powerupExplanation + sizeof titleOverride - 1) {
-					yellowText(frame.powerupExplanation + sizeof titleOverride - 1, newlinePos);
-				}
-				ImGui::TextUnformatted(newlinePos + 1);
-			} else {
-				yellowText("Reached powerup:");
-				ImGui::TextUnformatted(frame.powerupExplanation);
-			}
+			ImGui::TextUnformatted(newlinePos + 1);
 		} else {
-			ImGui::TextUnformatted("The move reached some kind of powerup on this frame.");
+			yellowText("Reached powerup:");
+			ImGui::TextUnformatted(frame.powerup);
 		}
 	}
 	
@@ -10834,71 +10996,82 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 	
 	if (charType == CHARACTER_TYPE_SOL) {
-		if (frame.u.solInfo.currentDI) {
+		const SolInfo& si = frame.u.solInfo;
+		if (si.currentDI) {
 			ImGui::Separator();
+			zerohspacing
 			yellowText("Dragon Install: ");
 			ImGui::SameLine();
-			if (frame.u.solInfo.currentDI == USHRT_MAX) {
-				ImGui::Text("overdue/%d", frame.u.solInfo.maxDI);
+			if (si.currentDI == USHRT_MAX) {
+				ImGui::Text("overdue/%d", si.maxDI);
 			} else {
-				ImGui::Text("%d/%d", frame.u.solInfo.currentDI, frame.u.solInfo.maxDI);
+				ImGui::Text("%d/%d", si.currentDI, si.maxDI);
 			}
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
 				" at half the speed when slowed down by opponent's RC.");
 			ImGui::PopStyleColor();
+			_zerohspacing
 		}
 	} else if (charType == CHARACTER_TYPE_MILLIA) {
+		const MilliaInfo& mi = frame.u.milliaInfo;
 		bool insertedSeparator = false;
-		if (frame.u.milliaInfo.canProgramSecretGarden || frame.u.milliaInfo.SGInputs) {
+		if (mi.canProgramSecretGarden || mi.SGInputs) {
 			ImGui::Separator();
 			insertedSeparator = true;
 			ImGui::Text("%sInputs %d/%d",
-				frame.u.milliaInfo.canProgramSecretGarden ? "Can program Secret Garden. " : "Secret Garden ",
-				frame.u.milliaInfo.SGInputs,
-				frame.u.milliaInfo.SGInputsMax);
+				mi.canProgramSecretGarden ? "Can program Secret Garden. " : "Secret Garden ",
+				mi.SGInputs,
+				mi.SGInputsMax);
 		}
-		if (frame.u.milliaInfo.chromingRose) {
+		if (mi.chromingRose) {
 			if (!insertedSeparator) {
 				ImGui::Separator();
 			}
+			zerohspacing
 			yellowText("Chroming Rose: ");
 			ImGui::SameLine();
-			ImGui::Text("%d/%d", frame.u.milliaInfo.chromingRose, frame.u.milliaInfo.chromingRoseMax);
+			ImGui::Text("%d/%d", mi.chromingRose, mi.chromingRoseMax);
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::TextUnformatted("This value doesn't decrease in hitstop and superfreeze and decreases"
 				" at half the speed when slowed down by opponent's RC.");
 			ImGui::PopStyleColor();
+			_zerohspacing
 		}
 		
 	} else if (charType == CHARACTER_TYPE_CHIPP) {
-		if (frame.u.chippInfo.invis || frame.u.chippInfo.wallTime) {
+		const ChippInfo& ci = frame.u.chippInfo;
+		if (ci.invis || ci.wallTime) {
 			ImGui::Separator();
-			if (frame.u.chippInfo.invis) {
-				printChippInvisibility(frame.u.chippInfo.invis, endScene.players[playerIndex].maxDI);
+			if (ci.invis) {
+				printChippInvisibility(ci.invis, endScene.players[playerIndex].maxDI);
 			}
-			if (frame.u.chippInfo.wallTime) {
+			if (ci.wallTime) {
+				zerohspacing
 				yellowText("Wall time: ");
 				ImGui::SameLine();
-				if (frame.u.chippInfo.wallTime == USHRT_MAX) {
+				if (ci.wallTime == USHRT_MAX) {
 					ImGui::TextUnformatted("0/120");
 				} else {
-					ImGui::Text("%d/120", frame.u.chippInfo.wallTime);
+					ImGui::Text("%d/120", ci.wallTime);
 				}
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
 				ImGui::TextUnformatted("This value increases slower when opponent slows you down with RC.");
 				ImGui::PopTextWrapPos();
 				ImGui::PopStyleColor();
+				_zerohspacing
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_ZATO) {
 		ImGui::Separator();
+		zerohspacing
 		yellowText("Eddie Gauge: ");
 		ImGui::SameLine();
 		ImGui::Text("%d/6000", frame.u.zatoInfo.currentEddieGauge);
+		_zerohspacing
 	} else if (charType == CHARACTER_TYPE_FAUST) {
 		if (frame.superArmorActiveInGeneral_IsFull && frame.animName && strcmp(frame.animName->name, "5D") == 0) {
 			ImGui::Separator();
@@ -10906,26 +11079,33 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 				" the reflection will be a homerun.");
 		}
 	} else if (charType == CHARACTER_TYPE_SLAYER) {
-		if (frame.u.slayerInfo.currentBloodsuckingUniverseBuff) {
+		const SlayerInfo& si = frame.u.slayerInfo;
+		if (si.currentBloodsuckingUniverseBuff) {
 			ImGui::Separator();
+			zerohspacing
 			yellowText("Bloodsucking Universe Buff: ");
 			ImGui::SameLine();
-			ImGui::Text("%d/%d", frame.u.slayerInfo.currentBloodsuckingUniverseBuff, frame.u.slayerInfo.maxBloodsuckingUniverseBuff);
+			ImGui::Text("%d/%d", si.currentBloodsuckingUniverseBuff, si.maxBloodsuckingUniverseBuff);
+			_zerohspacing
 		}
 	} else if (charType == CHARACTER_TYPE_INO) {
-		if (frame.u.inoInfo.airdashTimer) {
+		const InoInfo& ii = frame.u.inoInfo;
+		if (ii.airdashTimer) {
 			ImGui::Separator();
+			zerohspacing
 			yellowText("Airdash active timer: ");
 			ImGui::SameLine();
-			ImGui::Text("%d", frame.u.inoInfo.airdashTimer);
+			ImGui::Text("%d", ii.airdashTimer);
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::TextUnformatted("While airdash is active, speed Y is continuously set to 0.");
 			ImGui::PopStyleColor();
+			_zerohspacing
 		}
 	} else if (charType == CHARACTER_TYPE_BEDMAN) {
-		if (frame.u.bedmanInfo.sealA || frame.u.bedmanInfo.sealB || frame.u.bedmanInfo.sealC || frame.u.bedmanInfo.sealD) {
+		const BedmanInfo& bi = frame.u.bedmanInfo;
+		if (bi.sealA || bi.sealB || bi.sealC || bi.sealD) {
 			ImGui::Separator();
-			printBedmanSeals(frame.u.bedmanInfo, true);
+			printBedmanSeals(bi, true);
 		}
 	} else if (charType == CHARACTER_TYPE_RAMLETHAL) {
 		const RamlethalInfo& ri = frame.u.ramlethalInfo;
@@ -10954,6 +11134,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			for (int i = 0; i < 2; ++i) {
 				BitInfo& bitInfo = bitInfos[i];
 				if (bitInfo.time) {
+					zerohspacing
 					yellowText(bitInfo.title);
 					ImGui::SameLine();
 					if (bitInfo.timeMax) {
@@ -10964,62 +11145,119 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 							bitInfo.isInvulnerable ? " (Invulnerable)" : "");
 					}
 					ImGui::TextUnformatted(strbuf);
+					_zerohspacing
 				}
 			}
 		}
 	} else if (charType == CHARACTER_TYPE_ELPHELT) {
-		if (frame.u.elpheltInfo.grenadeTimer || frame.u.elpheltInfo.grenadeDisabledTimer) {
+		const ElpheltInfo& ei = frame.u.elpheltInfo;
+		if (ei.grenadeTimer || ei.grenadeDisabledTimer) {
 			ImGui::Separator();
 		}
-		if (frame.u.elpheltInfo.grenadeTimer) {
+		if (ei.grenadeTimer) {
+			zerohspacing
 			yellowText("Berry Timer: ");
 			ImGui::SameLine();
-			sprintf_s(strbuf, "%d/180", frame.u.elpheltInfo.grenadeTimer);
+			sprintf_s(strbuf, "%d/180", ei.grenadeTimer);
 			ImGui::TextUnformatted(strbuf);
+			_zerohspacing
 		}
-		if (frame.u.elpheltInfo.grenadeDisabledTimer) {
+		if (ei.grenadeDisabledTimer) {
+			zerohspacing
 			yellowText("Can pull Berry in: ");
 			ImGui::SameLine();
 			char* buf = strbuf;
 			size_t bufSize = sizeof strbuf;
 			int result;
-			if (frame.u.elpheltInfo.grenadeDisabledTimer == 255) {
+			if (ei.grenadeDisabledTimer == 255) {
 				result = sprintf_s(buf, bufSize, "%s", "???");
 			} else {
-				result = sprintf_s(buf, bufSize, "%d", frame.u.elpheltInfo.grenadeDisabledTimer);
+				result = sprintf_s(buf, bufSize, "%d", ei.grenadeDisabledTimer);
 			}
 			advanceBuf
-			if (frame.u.elpheltInfo.grenadeDisabledTimerMax == 255) {
+			if (ei.grenadeDisabledTimerMax == 255) {
 				sprintf_s(buf, bufSize, "/%s", "???");
 			} else {
-				sprintf_s(buf, bufSize, "/%d", frame.u.elpheltInfo.grenadeDisabledTimerMax);
+				sprintf_s(buf, bufSize, "/%d", ei.grenadeDisabledTimerMax);
 			}
 			ImGui::TextUnformatted(strbuf);
+			_zerohspacing
 		}
 	} else if (charType == CHARACTER_TYPE_JOHNNY) {
-		if (frame.u.johnnyInfo.mistTimer || frame.u.johnnyInfo.mistTimerMax) {
+		const JohnnyInfo& ji = frame.u.johnnyInfo;
+		if (ji.mistTimer || ji.mistTimerMax) {
 			ImGui::Separator();
 		}
-		if (frame.u.johnnyInfo.mistTimer) {
-			yellowText("Bacchus Sigh Projectile Timer: ");
-			sprintf_s(strbuf, "%d/%d", frame.u.johnnyInfo.mistTimer, frame.u.johnnyInfo.mistTimerMax);
+		if (ji.mistTimer) {
+			yellowText("Bacchus Sigh Projectile Timer:");
+			sprintf_s(strbuf, "%d/%d", ji.mistTimer, ji.mistTimerMax);
 			ImGui::TextUnformatted(strbuf);
 		}
 		
-		if (frame.u.johnnyInfo.mistKuttsukuTimer) {
-			yellowText("Bacchus Sigh Debuff On Opponent: ");
-			sprintf_s(strbuf, "%d/%d", frame.u.johnnyInfo.mistKuttsukuTimer, frame.u.johnnyInfo.mistKuttsukuTimerMax);
+		if (ji.mistKuttsukuTimer) {
+			yellowText("Bacchus Sigh Debuff On Opponent:");
+			sprintf_s(strbuf, "%d/%d", ji.mistKuttsukuTimer, ji.mistKuttsukuTimerMax);
 			ImGui::TextUnformatted(strbuf);
+		}
+	} else if (charType == CHARACTER_TYPE_JACKO) {
+		const JackoInfo& ji = frame.u.jackoInfo;
+		if (ji.aegisFieldAvailableIn != JackoInfo::NO_AEGIS_FIELD) {
+			zerohspacing
+			yellowText("Aegis Field returning in: ");
+			ImGui::SameLine();
+			if (ji.aegisFieldAvailableIn > 60) {
+				ImGui::TextUnformatted("<never>");
+			} else {
+				sprintf_s(strbuf, "%d/60", 60 - (int)ji.aegisFieldAvailableIn);
+				ImGui::TextUnformatted(strbuf);
+			}
+			_zerohspacing
 		}
 	} else if (charType == CHARACTER_TYPE_RAVEN) {
-		if (frame.u.ravenInfo.slowTime) {
+		const RavenInfo& ri = frame.u.ravenInfo;
+		if (ri.slowTime) {
 			ImGui::Separator();
+			zerohspacing
 			yellowText("Slow Timer On Opponent: ");
 			ImGui::SameLine();
-			sprintf_s(strbuf, "%d/%d", frame.u.ravenInfo.slowTime, frame.u.ravenInfo.slowTimeMax);
+			sprintf_s(strbuf, "%d/%d", ri.slowTime, ri.slowTimeMax);
 			ImGui::TextUnformatted(strbuf);
+			_zerohspacing
+			CharacterType opponentCharType = endScene.players[1 - playerIndex].charType;
+			if (opponentCharType == CHARACTER_TYPE_ZATO
+					|| opponentCharType == CHARACTER_TYPE_LEO
+					|| opponentCharType == CHARACTER_TYPE_DIZZY) {
+				ImGui::TextUnformatted("If Raven gets hit by his own reflected needle, the slow effect on the opponent will get cancelled.");
+			}
 		}
-		
+	} else if (charType == CHARACTER_TYPE_HAEHYUN) {
+		const HaehyunInfo& hi = frame.u.haehyunInfo;
+		if (hi.ballTime || hi.superballTime[0].time) {
+			ImGui::Separator();
+			if (hi.ballTime) {
+				zerohspacing
+				if (!hi.cantDoBall) {
+					yellowText("Ball Time Remaining: ");
+				} else {
+					yellowText("Can Do Ball In: ");
+				}
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", hi.ballTime, hi.ballTimeMax);
+				ImGui::TextUnformatted(strbuf);
+				_zerohspacing
+			}
+			for (int i = 0; i < 2; ++i) {
+				const HaehyunInfo::TimeAndTimeMax& elem = hi.superballTime[i];
+				if (!elem.time) break;
+				sprintf_s(strbuf, "Super Ball #%d Time Remaining: ", i + 1);
+				zerohspacing
+				yellowText(strbuf);
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", elem.time, elem.timeMax);
+				ImGui::TextUnformatted(strbuf);
+				_zerohspacing
+			}
+		}
 	}
 	
 	if (frame.suddenlyTeleported) {
@@ -11256,25 +11494,29 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 		}
 	}
 	if (playerIndex == -1) {
-		if (owningPlayerCharType == CHARACTER_TYPE_INO
-				&& projectileFrame.animName && projectileFrame.animName->slang
-				&& strcmp(projectileFrame.animName->slang, MOVE_NAME_NOTE) == 0) {
-			// I am a dirty scumbar
-			ImGui::Separator();
-			yellowText("Note elapsed time: ");
-			ImGui::SameLine();
-			int time = correspondingPlayersFrame.u.inoInfo.noteTime;
-			int timeMax = correspondingPlayersFrame.u.inoInfo.noteTimeMax;
-			const char* txt;
-			if (correspondingPlayersFrame.u.inoInfo.noteLevel == 5) {
-				txt = "Reached max";
-			} else {
-				txt = ui.printDecimal(correspondingPlayersFrame.u.inoInfo.noteTimeMax, 0, 0, false);
+		if (owningPlayerCharType == CHARACTER_TYPE_INO) {
+			if (projectileFrame.animName && projectileFrame.animName->slang
+					&& strcmp(projectileFrame.animName->slang, MOVE_NAME_NOTE) == 0) {
+				// I am a dirty scumbag
+				ImGui::Separator();
+				zerohspacing
+				yellowText("Note elapsed time: ");
+				ImGui::SameLine();
+				int time = correspondingPlayersFrame.u.inoInfo.noteTime;
+				int timeMax = correspondingPlayersFrame.u.inoInfo.noteTimeMax;
+				const char* txt;
+				if (correspondingPlayersFrame.u.inoInfo.noteLevel == 5) {
+					txt = "Reached max";
+				} else {
+					txt = ui.printDecimal(correspondingPlayersFrame.u.inoInfo.noteTimeMax, 0, 0, false);
+				}
+				sprintf_s(strbuf, "%d/%s (%d hits)", time, txt, correspondingPlayersFrame.u.inoInfo.noteLevel);
+				ImGui::TextUnformatted(strbuf);
+				_zerohspacing
 			}
-			sprintf_s(strbuf, "%d/%s (%d hits)", time, txt, correspondingPlayersFrame.u.inoInfo.noteLevel);
-			ImGui::TextUnformatted(strbuf);
 		} else if (ramlethalTime) {
 			ImGui::Separator();
+			zerohspacing
 			yellowText("Time Remaining: ");
 			ImGui::SameLine();
 			if (ramlethalTimeMax) {
@@ -11283,39 +11525,70 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 				sprintf_s(strbuf, "until landing + %d%s", ramlethalTime, ramlethalInvulnerable ? " (Invulnerable)" : "");
 			}
 			ImGui::TextUnformatted(strbuf);
-		} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT
-				&& projectileFrame.animName && projectileFrame.animName->slang
-				&& strcmp(projectileFrame.animName->slang, PROJECTILE_NAME_BERRY) == 0) {
-			
-			ImGui::Separator();
-			yellowText("Berry Timer: ");
-			ImGui::SameLine();
-			sprintf_s(strbuf, "%d/180", correspondingPlayersFrame.u.elpheltInfo.grenadeTimer);
-			ImGui::TextUnformatted(strbuf);
-			
-		} else if (owningPlayerCharType == CHARACTER_TYPE_JOHNNY
-				&& projectileFrame.animName && projectileFrame.animName->slang
-				&& strcmp(projectileFrame.animName->slang, PROJECTILE_NAME_BACCHUS) == 0) {
-			
-			ImGui::Separator();
-			yellowText("Bacchus Sigh Projectile Timer: ");
-			ImGui::SameLine();
-			sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.johnnyInfo.mistTimer,
-				correspondingPlayersFrame.u.johnnyInfo.mistTimerMax);
-			ImGui::TextUnformatted(strbuf);
-			
-		} else if (frame.type == FT_IDLE_NO_DISPOSE
-						&& owningPlayerCharType == CHARACTER_TYPE_JACKO
-						&& projectileFrame.animName
-						&& strcmp(projectileFrame.animName->name, PROJECTILE_NAME_GHOST) == 0) {
-			ImGui::Separator();
-			ImGui::TextUnformatted("The Ghost is strike invulnerable.");
-			
-		} else if (frame.type == FT_IDLE_PROJECTILE_HITTABLE
-						&& owningPlayerCharType == CHARACTER_TYPE_DIZZY
-						&& correspondingPlayersFrame.u.dizzyInfo.shieldFishSuperArmor) {
-			ImGui::Separator();
-			ImGui::TextUnformatted("Shield Fish super armor active.");
+			_zerohspacing
+		} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT) {
+			if (projectileFrame.animName && projectileFrame.animName->slang
+					&& strcmp(projectileFrame.animName->slang, PROJECTILE_NAME_BERRY) == 0) {
+				ImGui::Separator();
+				zerohspacing
+				yellowText("Berry Timer: ");
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/180", correspondingPlayersFrame.u.elpheltInfo.grenadeTimer);
+				ImGui::TextUnformatted(strbuf);
+				_zerohspacing
+			}
+		} else if (owningPlayerCharType == CHARACTER_TYPE_JOHNNY) {
+			if (projectileFrame.animName && projectileFrame.animName->slang
+					&& strcmp(projectileFrame.animName->slang, PROJECTILE_NAME_BACCHUS) == 0) {
+				ImGui::Separator();
+				zerohspacing
+				yellowText("Bacchus Sigh Projectile Timer: ");
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.johnnyInfo.mistTimer,
+					correspondingPlayersFrame.u.johnnyInfo.mistTimerMax);
+				ImGui::TextUnformatted(strbuf);
+				_zerohspacing
+			}
+		} else if (owningPlayerCharType == CHARACTER_TYPE_JACKO) {
+			if (frame.type == FT_IDLE_NO_DISPOSE
+					&& projectileFrame.animName
+					&& strcmp(projectileFrame.animName->name, PROJECTILE_NAME_GHOST) == 0) {
+				ImGui::Separator();
+				ImGui::TextUnformatted("The Ghost is strike invulnerable.");
+			}
+		} else if (owningPlayerCharType == CHARACTER_TYPE_DIZZY) {
+			if (frame.type == FT_IDLE_PROJECTILE_HITTABLE
+					&& correspondingPlayersFrame.u.dizzyInfo.shieldFishSuperArmor) {
+				ImGui::Separator();
+				ImGui::TextUnformatted("Shield Fish super armor active.");
+			}
+		} else if (owningPlayerCharType == CHARACTER_TYPE_HAEHYUN) {
+			if (projectileFrame.animName && projectileFrame.animName->name) {
+				if (strcmp(projectileFrame.animName->name, PROJECTILE_NAME_TUNING_BALL) == 0) {
+					ImGui::Separator();
+					zerohspacing
+					yellowText("Ball Time Remaining: ");
+					ImGui::SameLine();
+					sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.haehyunInfo.ballTime,
+						correspondingPlayersFrame.u.haehyunInfo.ballTimeMax);
+					ImGui::TextUnformatted(strbuf);
+					_zerohspacing
+				} else if (strcmp(projectileFrame.animName->name, PROJECTILE_NAME_CELESTIAL_TUNING_BALL) == 0) {
+					ImGui::Separator();
+					zerohspacing
+					yellowText("Celestial Ball Time Remaining: ");
+					ImGui::SameLine();
+					if (projectileFrame.charSpecific1 == projectileFrame.charSpecific2) {
+						ImGui::TextUnformatted("??/??");
+					} else {
+						int index = projectileFrame.charSpecific1 ? 0 : 1;
+						sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.haehyunInfo.superballTime[index].time,
+							correspondingPlayersFrame.u.haehyunInfo.superballTime[index].timeMax);
+						ImGui::TextUnformatted(strbuf);
+					}
+					_zerohspacing
+				}
+			}
 		}
 	}
 	if (playerIndex != -1) {
@@ -11388,10 +11661,17 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 			sprintf_s(strbuf, "%d/%d ", frame.rcSlowdown, frame.rcSlowdownMax);
 			ImGui::TextUnformatted(strbuf);
 			ImGui::SameLine();
-			const char* frameSkippedText = frame.rcSlowdown % 2 != 0
-				? "(frame skipped)"
-				: "(frame advanced)";
-			textUnformattedColored(LIGHT_BLUE_COLOR, frameSkippedText);
+			zerohspacing
+			textUnformattedColored(LIGHT_BLUE_COLOR, "(frame ");
+			ImGui::SameLine();
+			if (frame.rcSlowdown % 2 != 0) {
+				textUnformattedColored(FRAME_SKIPPED_COLOR, "skipped");
+			} else {
+				textUnformattedColored(FRAME_ADVANCED_COLOR, "advanced");
+			}
+			ImGui::SameLine();
+			textUnformattedColored(LIGHT_BLUE_COLOR, ")");
+			_zerohspacing
 		}
 	}
 	if (playerIndex != -1) {

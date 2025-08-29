@@ -153,7 +153,7 @@ private:
 	};
 	std::vector<PreparedArraybox> preparedArrayboxes;
 	std::vector<DrawOutlineCallParams> outlinesOverrideArena;
-	void prepareArraybox(const DrawHitboxArrayCallParams& params, bool isComplicatedHurtbox,
+	void prepareArraybox(const DrawHitboxArrayCallParams& params, bool isComplicatedHurtbox, bool isGraybox,
 						BoundingRect* boundingRect = nullptr, std::vector<DrawOutlineCallParams>* outlinesOverride = nullptr);
 
 	unsigned int outlinesSectionOutlineCount = 0;

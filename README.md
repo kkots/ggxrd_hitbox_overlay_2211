@@ -473,15 +473,18 @@ drawPushboxCheckSeparately = true
 ; black when drawn over the same color.
 useSimplePixelBlender = false
 
-; IF YOU USE AMD CARD, SET THIS TO FALSE!!!
 ; Specify true or false.
 ; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of
 ; the outline to black only on those pixels.
 ; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default)
 ; color orb, which are both red.
-; Pixel shader was observed to not draw any outlines on an AMD card. Please turn this off if you use AMD to
-; allow outlines to at least be drawn somehow, without color-dodging.
 usePixelShader = true
+
+; Specify true or false.
+; Hitboxes and hurtboxes are complex shapes made up of individual boxes.
+; Setting this to true allows you to see the outlines of each box
+; within the combined overall outline.
+showIndividualHitboxOutlines = false
 
 ; A keyboard shortcut.
 ; Pressing this shortcut will show/hide the mod's UI window.
@@ -1081,9 +1084,21 @@ p1RamlethalDisableMarteliForpeli = false
 
 ; Specify true or false.
 ; Setting this to true will disable P2 Ramlethal's Marteli and Forpeli special moves.
-; This will allow you, if you also use the "player1IsBoss" setting, to use the boss exclusive 214S and 214H moves.
+; This will allow you, if you also use the "player2IsBoss" setting, to use the boss exclusive 214S and 214H moves.
 ; Works only in Training and Versus Modes.
 p2RamlethalDisableMarteliForpeli = false
+
+; Specify true or false.
+; Setting this to true will allow you, if you also use the "player1IsBoss" setting,
+; to use the boss exclusive 6S and 6H moves.
+; Works only in Training and Versus Modes.
+p1RamlethalUseBoss6SHSwordDeploy = false
+
+; Specify true or false.
+; Setting this to true will allow you, if you also use the "player2IsBoss" setting,
+; to use the boss exclusive 6S and 6H moves.
+; Works only in Training and Versus Modes.
+p2RamlethalUseBoss6SHSwordDeploy = false
 
 ; Specify true or false.
 ; Setting this to true will allow the mod to load faster, at the expense of potential
@@ -1525,7 +1540,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   4) Made Elphelt's Travailler Maximum Charge powerup be displayed 1f later. Made Elphelt's Ms. Confille Maximum Charge powerup be displayed not when the reticle becomes full-sized, but when firing the rifle on this frame would fire it just in time for the reticle to become full-sized, i.e. slightly in advance (rifle startup is 3).
   5) Previously, framebar was displaying the pre-landing frame as landing recovery (purple), if you got hit on it. This would only happen if you were also performing an air normal on that frame, even if that air normal had no landing recovery attached to it. Now, that frame will display as getting hit during regular recovery, startup or active frames - whatever is supposed to be at that time.
   6) Fixed throw invulnerability being displayed on the frame on which you got grabbed - which contradicts the fact that you got grabbed on that frame. Also, certain throws like Ky's ground throw were not showing the one being thrown as strike invulnerable all the way through the animation, leading to a potential confusion that it might be possible to hit them with projectiles during that period. You can't. This is now fixed, and strike invulnerability will be shown on more frames of animations of getting thrown. The one who is performing the throw will still be displayed strike and throw invulnerable on their first frame. Additionally, now, when Jam parries a hit, the framebar frame, on which the parry connected, will display her as having super armor and not (yet) having strike+throw invul due to full invul from the parry (though having throw invul is still possible from previous hitstun, blockstun or wakeup, and that will be displayed). Similarly, Blitz Shield reject now will show the defender having super armor on the frame when the attacker's hit connected. Previously, it was displaying full (stirke+throw) invul, which should only start on the frame after.
-  7) Moves like I-No ground Horizontal Chemical Love, which start on the ground, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously they were not doing so, because they became airborne on frame 1 of the move, and airborne moves do not display that type of invul because it should be obvious that they're airborne. As it was previously, airborne moves (any move that originated in the air) will not show "airborne" invul. The new exception to that rule is airborne Roman Cancel, because it is sometimes hard to tell if it is airborne. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusively: either only strike, or only airborne - for no reason).
+  7) All airborne moves and moves that started on the ground, but immediately (frame 1) went airborne, will now display "airborne" invul in the framebar and the main UI panel's "Invul" field. Previously, only moves that started on the ground (and did not frame 1 become airborne) were doing so. Reminder that airborne moves are able to show landing recovery, while ground moves display landing recovery as regular recovery, and this rule will stay in place. Additionally, moves like Ky's ground H Vapor Thrust, which can be strike invul and airborne simultaneously, will now be able to show both these invuls on the same frame, instead of just one or the other (previously, these types of invul were shown mutually exclusively: either only strike, or only airborne - for no reason).
   8) Added a button and a hotkey to clear input history, and a checkbox for always clearing it on stage reset in any game mode, and another checkbox for clearing it on stage reset only in training mode. This will also work with "Display Durations In Input History".
   9) Added new checkboxes into Hitboxes section for making you or the opponent fully invulnerable without hiding them or making them incapable of landing attacks of their own.
   10) Fixed a bug when all framebars would disappear during I-No's Ultimate Fortissimo if it dealt the killing blow.
@@ -1557,11 +1572,18 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
   32) Now framebar tooltip on combined projectile framebars will show individual projectiles, the animation and data for each. This allows you to not lose the details of each projectile when using the new option described in 29). This new tooltip format will, however, group projectiles that all have the exact same data, instead of repeating it.
   33) Now Combo Recipe panel can display the number of hits performed by a move (can be turned off in the cogwheel). Cancelling from a multi-hit move no longer shows up with a (Delay ?f), if the cancel was not actually delayed after the last hit.
   34) Added new settings into "General Settings" which allow you to change online input delay to a value between 0 and 4. Has different values for fullscreen mode and non-fullscreen (windowed, fullscreen windowed) mode.
-  35) For Bedman's Task A, Task A', Task B, Task C and their Deja Vus added information to the frame tooltips stating on which frames what operations are performed on the corresponding Seals (deactivate, recreate, make invulnerable, make vulnerable again). Corrected the frame tooltip info about Bedman's inability to airdash. Firstly, it was checking the wrong height, and secondly, Bedman has a Hover instead of airdash.
+  35) For Bedman's Task A, Task A', Task B, Task C and their Deja Vus added information to the frame tooltips stating on which frames what operations (deactivate, recreate, make invulnerable, make vulnerable again) are performed on the corresponding Seals. Added "(Invulnerable)" indicator next to seal timers in both Character Specific panel and in frame tooltips. Corrected the frame tooltip info about Bedman's inability to airdash. Firstly, it was checking the wrong height, and secondly, Bedman has a Hover instead of airdash.
   36) Changed the default option of 'Dodge OBS Recording' from being on to being off.
   37) Added "Burst Gain Per Second" field to the "Burst Gain" panel.
   38) Now when Playback and Record buttons are pressed during Freeze Game mode, they will start playback or recording immediately, while the game is still paused. Exception to this is pressing those buttons together. Such presses will translate to the next frame, if buttons are still held at the moment of advancing to the next frame, as it worked before the update.
   39) Added two new checkboxes in General Settings: to make P1 be the Arcade Boss in Training Mode and P2 be that.
-  40) Framebar tooltips now display which exact projectiles were created on any given frame, instead of just a general "Created a projectile/powerup on this frame".
+  40) Framebar tooltips now display which exact projectiles or powerups were created or achieved on any given frame, instead of just a general "Created a projectile/powerup on this frame". Also instead of "Can YRC, and projectile/powerup will stay" it will stay what exactly will stay if you YRC.
   41) Sped up the loading time of the mod by storing some reusable info in ggxrd_hitbox_overlay_sigscanCache.txt file created in the game's Binaries/Win32 folder. You can disable this in the INI file by setting 'useSigscanCaching' to false or through mod's UI - Settings - General Settings - Use Sigscan Caching.
-  42) Now when Venom hits or activates his own balls using attacks or other projectiles, it will be shown on the framebar using the same white outline and frame tooltip that is used for "A hit connected on this frame".
+  42) Now when Venom hits or activates his own balls using attacks or other projectiles, it will be shown on the framebar using the same white outline and frame tooltip that is used for "A hit connected on this frame". Added similar display for Elphelt shooting own grenade. Added "Can YRC, and projectile/powerup will stay" frame tooltip on Venom ball sets.
+  43) Repeat Ramlethal Calvados and Trance hits now combine in the Combo Recipe panel. Fixed "Can YRC, and projectile/powerup will stay" frame tooltip on sword summons and Calvados. Made the total frame counter in Ramlethal's Character Specific for the S and the H swords display the total hitstun or blockstun duration of a given sword if it enters those animations (reels back, falls on the ground, etc). Added "(Invulnerable)" indicator next to sword timers in both Character Specific and in frame tooltips.
+  44) Split Sin hunger animation's recovery and total frames from the main move's recovery and total frames in the main UI's Recovery and Total fields, and on the framebar they will be split using the ' marker with same consecutive frames counter restarting on the framebar. Added "Can YRC, and projectile/powerup will stay" frame tooltip for Sin's Eat moves.
+  45) Added "active"/"inactive" display for Jack-O's Aegis Field in both the Character Specific panel and in frame tooltips, and when it is inactive it will have a counter until it becomes active again.
+  46) Added hitstun display for the portion of the Wallslump animation when it has fully descended onto the floor into both the main UI and into frame tooltips.
+  47) Added "Crouching state" display, which works the same as "Counterhit state" display in frame tooltips. Additionally, made upper body invul and above waist invuls able to be displayed on crouching moves. This is because some moves like Greed Sever set crouching state on themselves somewhere after the start of the move, and moves like Ky Stun Dipper crouching state at all, making omission of upper body and waist invul highly confusing.
+  48) For Jack-O added display for whether Aegis field is active and, if it was disabled by hitstun, how long until it comes back.
+  49) For Haehyun fixed super tuning balls' remaining time sometimes not being shown in Character Specific, and added tuning ball's remaining time, time until can do another tuning ball and super tuning balls' remaining times into frame tooltips.

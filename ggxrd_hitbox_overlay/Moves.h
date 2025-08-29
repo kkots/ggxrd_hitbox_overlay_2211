@@ -106,6 +106,25 @@ bool isDangerous_default(Entity ent);
 
 extern bool charDoesNotCareAboutSuperJumpInstalls[25];
 
+struct GhostState {
+	const char* name;
+	bool isPickUp;
+	GhostState(const char* name) : name(name), isPickUp(false) { }
+	GhostState(const char* name, bool isPickUp) : name(name), isPickUp(isPickUp) { }
+};
+const int ghostStateNamesCount = 13;
+extern const GhostState ghostStateNames[ghostStateNamesCount];
+extern int ghostStateName_PickUp;
+
+struct ServantState {
+	const char* name;
+	bool isDeath;
+	ServantState(const char* name) : name(name), isDeath(false) { }
+	ServantState(const char* name, bool isDeath) : name(name), isDeath(isDeath) { }
+};
+extern const ServantState servantStateNames[14];
+extern const ServantState servantStateNamesSpearman[16];
+
 class ForceAddedWhiffCancel {
 public:
 	const char* name;
@@ -205,17 +224,18 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, iKnowExactlyWhenTheRecoveryOfThisMoveIs, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, forceSuperHitAnyway, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, drawProjectileOriginPoint, false) \
-	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canYrcProjectile, nullptr) \
+	MOVE_INFO_EXEC(selectPowerupExplanation_t, selectPowerupExplanationValue, canYrcProjectile, nullptr) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
 	/* the returned value under the pointer must be used immediately! Don't store the pointer! */ \
 	MOVE_INFO_EXEC(createdProjectile_t, createdProjectileValue, createdProjectile, nullptr) \
-	MOVE_INFO_EXEC(isIdle_t, isIdleValue, powerup, nullptr) \
+	MOVE_INFO_EXEC(selectPowerupExplanation_t, selectPowerupExplanationValue, powerup, nullptr) \
 	MOVE_INFO_EXEC(projectileFunc_t, projectileFuncValue, projectilePowerup, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
 	MOVE_INFO_EXEC(bool, boolValue, dontSkipGrab, false) \
-	MOVE_INFO_EXEC(selectPowerupExplanation_t, selectPowerupExplanationValue, powerupExplanation, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, dontShowPowerupGraphic, nullptr) \
 	/* for combo recipe */ \
+	/* this can combine hits from different projectiles that are same, or from the same one projectile */ \
+	/* and sameness is determined by having same Entity::animationName() and Entity::dealtAttack()->trialName */ \
 	MOVE_INFO_EXEC(bool, boolValue, combineHitsFromDifferentProjectiles, false) \
 	MOVE_INFO_EXEC(bool, boolValue, showMultipleHitsFromOneAttack, false) \
 	/* there is no way to route from this move into a jump cancel, so we should ignore if it's jump installed. */ \
@@ -252,15 +272,16 @@ public:
 	// only for ground (standing or crouching) blitz shields
 	static GroundBlitzType getBlitzType(PlayerInfo& ent);
 	MoveInfo defaultMove{ };
-	unsigned short* bbscrInstructionSizes = nullptr;
-	inline BYTE* skipInstruction(BYTE* in) const;
-	inline InstructionType instructionType(BYTE* in) const;
-	BYTE* findSetMarker(BYTE* in, const char* name) const;
-	BYTE* findNextMarker(BYTE* in, const char** name) const;
-	BYTE* findCreateObj(BYTE* in, const char* name) const;
-	BYTE* findSprite(BYTE* in, const char* name) const;
-	inline BYTE* findSpriteNull(BYTE* in) const { return findSprite(in, "null"); }
-	BYTE* findSpriteNonNull(BYTE* in) const;
+	static unsigned short* bbscrInstructionSizes;
+	inline static BYTE* skipInstr(BYTE* in) { return in + bbscrInstructionSizes[*(unsigned int*)in]; }
+	inline static InstrType instrType(BYTE* in) { return *(InstrType*)in; }
+	static BYTE* findSetMarker(BYTE* in, const char* name);
+	static BYTE* findNextMarker(BYTE* in, const char** name);
+	static BYTE* findCreateObj(BYTE* in, const char* name);
+	static BYTE* findAnySprite(BYTE* in);
+	static BYTE* findSprite(BYTE* in, const char* name);
+	static inline BYTE* findSpriteNull(BYTE* in) { return findSprite(in, "null"); }
+	static BYTE* findSpriteNonNull(BYTE* in);
 	int armorDanceEndOffset = 0;  // in number of bytes
 	int armorDance2EndOffset = 0;
 	int saishingeki_SaishintuikaOffset = 0;
@@ -377,6 +398,9 @@ public:
 	std::vector<int> ghostAStateOffsets;
 	std::vector<int> ghostBStateOffsets;
 	std::vector<int> ghostCStateOffsets;
+	int ghostABecomePickedUp = 0;
+	int ghostBBecomePickedUp = 0;
+	int ghostCBecomePickedUp = 0;
 	void fillGhostStateOffsets(BYTE* func, std::vector<int>& offsets);
 	int findGhostState(int offset, const std::vector<int>& offsets);
 	int jackoThrowGhostOffset = 0;
@@ -492,9 +516,32 @@ public:
 	int venomAirBallSeiseiCBallCreation = 0;
 	int venomAirBallSeiseiDBallCreation = 0;
 	void fillVenomBallCreation(BYTE* funcStart, int* result);
+	int ramlethalCreateBitLaserMinion = 0;
+	void fillRamlethalCreateBitLaserMinion(BYTE* funcStart);
+	int ramlethalBitLaserMinionBossStartMarker = 0;
+	int ramlethalBitLaserMinionNonBossCreateLaser = 0;
+	int ramlethalBitLaserMinionBossCreateLaser = 0;
+	void fillRamlethalBitLaserMinionStuff(BYTE* funcStart);
+	int sinEatMeatPowerup = 0;
+	int sinEatMeatOkawariPowerup = 0;
+	void fillSinEatMeatPowerup(BYTE* funcStart, int* storage);
+	int jackoPickUpGhost = 0;
+	int jackoPutGhost = 0;
+	int jackoReturnGhost = 0;
+	int rsfStartStateLinkBreak = 0;
+	struct JackoOrgan {
+		int start;
+		int end;
+	};
+	JackoOrgan jackoOrganP { 0, 0 };
+	JackoOrgan jackoOrganK { 0, 0 };
+	JackoOrgan jackoOrganS { 0, 0 };
+	JackoOrgan jackoOrganH { 0, 0 };
+	int jamCardPowerup[3] { 0, 0, 0 };
+	bool justCountingMoves = false;
+	int propertiesCount = 0;
 private:
 	friend struct MoveInfo;
-	bool justCountingMoves = false;
 	int forceAddWhiffCancelsTotalCount = 0;
 	int movesCount = 0;
 	void addMoves();
@@ -523,3 +570,13 @@ private:
 };
 
 extern Moves moves;
+
+#define loopInstr(func) \
+	BYTE* instr = moves.skipInstr(func); \
+	moves.instrType(instr) != instr_endState; \
+	instr = moves.skipInstr(instr)
+
+#define loopInstrNoRedefine(func) \
+	instr = moves.skipInstr(func); \
+	moves.instrType(instr) != instr_endState; \
+	instr = moves.skipInstr(instr)

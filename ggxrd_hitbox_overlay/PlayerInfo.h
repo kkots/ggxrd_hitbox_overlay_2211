@@ -134,12 +134,18 @@ struct RamlethalInfo {
 	bool hSwordFallOnHitstun:1;
 	bool hSwordRecoilOnHitstun:1;
 	bool hSwordInvulnerable:1;
+	bool hasLaser:1;
+	bool hasLaserSpawnerInStartup:1;
+	bool hasLaserMinionInStartupAndHitstunNotTied:1;
+	bool hasSpiral:1;
 };
 
 struct ElpheltInfo {
 	unsigned short grenadeTimer;
 	unsigned char grenadeDisabledTimer;
 	unsigned char grenadeDisabledTimerMax;
+	bool hasGrenade:1;
+	bool hasJD:1;
 };
 
 struct JohnnyInfo {
@@ -147,15 +153,29 @@ struct JohnnyInfo {
 	unsigned short mistTimerMax:10;
 	unsigned short mistKuttsukuTimer:10;
 	unsigned short mistKuttsukuTimerMax:10;
+	unsigned short hasMistKuttsuku:1;
+	unsigned short hasMist:1;
 };
 
 struct RavenInfo {
 	unsigned short slowTime;
 	unsigned short slowTimeMax;
+	bool hasNeedle:1;
+	bool hasOrb:1;
 };
 
 struct DizzyInfo {
-	bool shieldFishSuperArmor;
+	bool shieldFishSuperArmor:1;
+	bool hasIceSpike:1;
+	bool hasFirePillar:1;
+	bool hasIceScythe:1;
+	bool hasFireScythe:1;
+	bool hasBubble:1;
+	bool hasFireBubble:1;
+	bool hasIceSpear:1;
+	bool hasFireSpearHitstunLink:1;
+	bool hasFireSpearBlockstunLink:1;
+	bool hasFireSpearExplosion:1;
 };
 
 struct KyInfo {
@@ -186,6 +206,11 @@ struct FaustInfo {
 	bool hasFlower;  // the ground one
 };
 
+struct LeoInfo {
+	bool hasEdgeyowai:1;  // S Graviert Wurde
+	bool hasEdgetuyoi:1;  // H Graviert Wurde
+};
+
 struct AxlInfo {
 	bool hasSpindleSpinner;
 	bool hasSickleFlash;
@@ -211,6 +236,41 @@ struct SlayerInfo {
 	unsigned int currentBloodsuckingUniverseBuff;
 	unsigned int maxBloodsuckingUniverseBuff;
 	bool hasRetro;
+};
+
+struct JackoInfo {
+	unsigned char aegisFieldAvailableIn;
+	static const unsigned char NO_AEGIS_FIELD = 255;
+	static const unsigned char AEGIS_FIELD_MAX = 254;
+	bool hasAegisField:1;
+	bool hasServants:1;
+	bool hasMagicianProjectile:1;
+	bool settingPGhost:1;
+	bool settingKGhost:1;
+	bool settingSGhost:1;
+	bool resettingPGhost:1;
+	bool resettingKGhost:1;
+	bool resettingSGhost:1;
+	bool carryingPGhost:1;
+	bool carryingKGhost:1;
+	bool carryingSGhost:1;
+	bool retrievingPGhost:1;
+	bool retrievingKGhost:1;
+	bool retrievingSGhost:1;
+	bool hasJD:1;
+};
+
+struct HaehyunInfo {
+	unsigned short ballTime;
+	unsigned short ballTimeMax;
+	struct TimeAndTimeMax {
+		unsigned short time;
+		unsigned short timeMax;
+	};
+	TimeAndTimeMax superballTime[2];
+	bool cantDoBall:1;
+	bool hasBall:1;
+	bool has5D:1;
 };
 
 struct GatlingOrWhiffCancelInfoStored {
@@ -610,8 +670,8 @@ struct Frame : public FrameBase {
 	bool activeDuringSuperfreeze:1;
 	bool powerup:1;
 	bool marker:1;  // either strike invulnerability marker for Jack-O houses, or super armor marker for Dizzy D-Fish
-	bool charSpecific1:1;  // for Ramlethal: is S Sword
-	bool charSpecific2:1;  // for Ramlethal: is H Sword
+	bool charSpecific1:1;  // for Ramlethal: is S Sword. For Haehyun: is celestial tuning ball 1. If both are set, then neither
+	bool charSpecific2:1;  // for Ramlethal: is H Sword. For Haehyun: is celestial tuning ball 2. If both are set, then neither
 	bool accountedFor:1;  // used by tooltip drawing
 	bool operator==(const Frame& other) const;
 	inline bool operator!=(const Frame& other) const { return !(*this == other); }
@@ -624,7 +684,8 @@ struct PlayerFrame : public FrameBase {
 	ThreadUnsafeSharedPtr<FrameCancelInfoStored> cancels;
 	ThreadUnsafeSharedPtr<std::vector<Input>> inputs;
 	ThreadUnsafeSharedPtr<std::vector<CreatedProjectileStruct>> createdProjectiles;
-	const char* powerupExplanation;
+	const char* powerup;
+	const char* canYrcProjectile;
 	union {
 		MilliaInfo milliaInfo;
 		ChippInfo chippInfo;
@@ -645,6 +706,9 @@ struct PlayerFrame : public FrameBase {
 		AxlInfo axlInfo;
 		VenomInfo venomInfo;
 		SlayerInfo slayerInfo;
+		LeoInfo leoInfo;
+		JackoInfo jackoInfo;
+		HaehyunInfo haehyunInfo;
 	} u;
 	Input prevInput;
 	Input input;
@@ -708,13 +772,12 @@ struct PlayerFrame : public FrameBase {
 	bool crossedUp:1;
 	bool inputsOverflow:1;
 	bool canYrc:1;
-	bool canYrcProjectile:1;
+	bool cantRc:1;
 	bool IBdOnThisFrame:1;
 	bool FDdOnThisFrame:1;
 	bool blockedOnThisFrame:1;
 	bool lastBlockWasFD:1;
 	bool lastBlockWasIB:1;
-	bool powerup:1;
 	bool airthrowDisabled:1;
 	bool running:1;
 	bool cantBackdash:1;
@@ -722,6 +785,7 @@ struct PlayerFrame : public FrameBase {
 	bool dontShowPowerupGraphic:1;
 	bool cantAirdash:1;
 	bool counterhit:1;
+	bool crouching:1;
 	bool multipleInputs:1;
 	
 	static void shoveMoreInputs(Input& prevInput, std::vector<Input>& destination, const Input& sourcePrevInput,
@@ -1234,6 +1298,8 @@ struct ProjectileInfo {
 	bool dontReplaceFramebarTitle:1;
 	bool titleIsFromAFrameThatHitSomething:1;
 	bool alreadyIncludedInComboRecipe:1;
+	bool haehyunCelestialTuningBall1:1;
+	bool haehyunCelestialTuningBall2:1;
 	ProjectileInfo() :
 		markActive(false),
 		startedUp(false),
@@ -1541,6 +1607,11 @@ struct PlayerInfo {
 	int staggerWithSlow = 0;
 	int staggerMax = 0;
 	int staggerMaxWithSlow = 0;
+	int wallslumpLand = 0;
+	int wallslumpLandElapsed = 0;
+	int wallslumpLandWithSlow = 0;
+	int wallslumpLandMax = 0;
+	int wallslumpLandMaxWithSlow = 0;
 	int hitstop = 0;
 	int hitstopElapsed = 0;
 	int hitstopWithSlow = 0;
@@ -1583,6 +1654,7 @@ struct PlayerInfo {
 	ActiveDataArray actives;  // active frames of the last move done directly by the character
 	int recovery = 0;  // recovery of the last move done directly by the character. Includes only frames where you can't attack
 	int total = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't attack
+	int totalForInvul = 0;
 	
 	int totalCanBlock = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't block
 	int totalCanFD = 0;  // total frames of the last move done directly by the character. Includes only frames where you can't FD
@@ -1622,6 +1694,7 @@ struct PlayerInfo {
 	#undef INVUL_TYPES_EXEC
 	
 	int landingRecovery = 0;  // number of landing recovery frames. Either current or of the last performed move
+	int sinHungerRecovery = 0;
 	int animFrame = 0;
 	enum XstunDisplay {
 		XSTUN_DISPLAY_NONE,
@@ -1632,7 +1705,8 @@ struct PlayerInfo {
 		XSTUN_DISPLAY_STAGGER,  // stagger
 		XSTUN_DISPLAY_STAGGER_WITH_SLOW,  // stagger
 		XSTUN_DISPLAY_REJECTION,  // rejection
-		XSTUN_DISPLAY_REJECTION_WITH_SLOW  // rejection
+		XSTUN_DISPLAY_REJECTION_WITH_SLOW,  // rejection
+		XSTUN_DISPLAY_WALLSLUMP_LAND  // wallslump land
 	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
 	int timeInNewSection = 0;
@@ -1745,6 +1819,7 @@ struct PlayerInfo {
 	int jackoAegisElapsed = 0;
 	int jackoAegisTimeWithSlow = 0;
 	int jackoAegisTimeMaxWithSlow = 0;
+	int jackoAegisReturningIn = 0;
 	int haehyunBallElapsed = 0;
 	int haehyunBallTimeWithSlow = 0;
 	int haehyunBallTimeMaxWithSlow = 0;
@@ -1866,6 +1941,7 @@ struct PlayerInfo {
 	bool wasEnableJumpCancel:1;
 	bool wasEnableAirtech:1;
 	bool wasCanYrc:1;
+	bool wasCantRc:1;
 	bool wasEnableThrow:1;
 	bool wasAttackCollidedSoCanCancelNow:1;
 	bool wasOtg:1;
@@ -1891,6 +1967,7 @@ struct PlayerInfo {
 	bool prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer:1;
 	
 	bool counterhit:1;
+	bool crouching:1;
 	
 	// Blitz Shield rejection changes super armor enabled and full invul flags at the end of a logic tick
 	bool wasSuperArmorEnabled:1;
@@ -1975,6 +2052,10 @@ struct PlayerInfo {
 	bool wasAirborneOnAnimChange:1;
 	bool elpheltFirstWasPlayerval1Measurement:1;
 	bool ramlethalForpeliMarteliDisabled:1;
+	bool ramlethalBoss6SHInputsModified:1;
+	bool sinHunger:1;
+	bool jackoAegisActive:1;
+	bool stoppedMeasuringInvuls:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

@@ -221,14 +221,18 @@ settingsField(bool, useSimplePixelBlender, false,
 	
 settingsField(bool, usePixelShader, true,
 	"Use Pixel Shader", SETTINGS_HITBOX_SETTINGS,
-	"; IF YOU USE AMD CARD, SET THIS TO FALSE!!!\n"
 	"; Specify true or false.\n"
 	"; The pixel shader allows hitbox outlines to be shown on top of background of same color by changing the color of\n"
 	"; the outline to black only on those pixels.\n"
 	"; This is helpful when drawing red outlines on top of Ramlethal's mirror color or Raven's standard (default)\n"
-	"; color orb, which are both red.\n"
-	"; Pixel shader was observed to not draw any outlines on an AMD card. Please turn this off if you use AMD to\n"
-	"; allow outlines to at least be drawn somehow, without color-dodging.")
+	"; color orb, which are both red.")
+	
+settingsField(bool, showIndividualHitboxOutlines, false,
+	"Show Individual Hitbox Outlines", SETTINGS_HITBOX_SETTINGS,
+	"; Specify true or false.\n"
+	"; Hitboxes and hurtboxes are complex shapes made up of individual boxes.\n"
+	"; Setting this to true allows you to see the outlines of each box\n"
+	"; within the combined overall outline.")
 	
 settingsKeyCombo(modWindowVisibilityToggle, "Hide UI Toggle", "Escape",
 	"; A keyboard shortcut.\n"
@@ -920,7 +924,21 @@ settingsField(bool, p2RamlethalDisableMarteliForpeli, false,
 	"Disable Marteli & Forpeli (P2)", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
 	"; Setting this to true will disable P2 Ramlethal's Marteli and Forpeli special moves.\n"
-	"; This will allow you, if you also use the \"player1IsBoss\" setting, to use the boss exclusive 214S and 214H moves.\n"
+	"; This will allow you, if you also use the \"player2IsBoss\" setting, to use the boss exclusive 214S and 214H moves.\n"
+	"; Works only in Training and Versus Modes.")
+	
+settingsField(bool, p1RamlethalUseBoss6SHSwordDeploy, false,
+	"Use Boss Ver. Of 6S/6H Sword Deploy (P1)", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will allow you, if you also use the \"player1IsBoss\" setting,\n"
+	"; to use the boss exclusive 6S and 6H moves.\n"
+	"; Works only in Training and Versus Modes.")
+	
+settingsField(bool, p2RamlethalUseBoss6SHSwordDeploy, false,
+	"Use Boss Ver. Of 6S/6H Sword Deploy (P2)", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Setting this to true will allow you, if you also use the \"player2IsBoss\" setting,\n"
+	"; to use the boss exclusive 6S and 6H moves.\n"
 	"; Works only in Training and Versus Modes.")
 	
 settingsField(bool, useSigscanCaching, true,

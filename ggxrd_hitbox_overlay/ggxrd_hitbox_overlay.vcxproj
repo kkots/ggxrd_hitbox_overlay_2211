@@ -202,7 +202,6 @@
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="BoundingRect.h" />
     <ClInclude Include="HandleWrapper.h" />
-    <ClInclude Include="Hardcode.h" />
     <ClInclude Include="Hitbox.h" />
     <ClInclude Include="HitDetectionType.h" />
     <ClInclude Include="HitDetector.h" />

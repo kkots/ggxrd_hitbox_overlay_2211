@@ -25,13 +25,13 @@
 #include "Hud.h"
 #include "Moves.h"
 #include "findMoveByName.h"
-#include "Hardcode.h"
 #include <mutex>
 #include "InputsDrawing.h"
 #include "InputNames.h"
 #include "SpecificFramebarIds.h"
 #include <chrono>
 #include "NamePairManager.h"
+#include <unordered_map>
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -70,11 +70,26 @@ static inline bool isDizzyBubble(const char* name) {
 	return (*(DWORD*)name & 0xffffff) == ('A' | ('w'<<8) | ('a'<<16))
 		&& *(DWORD*)(name + 4) == ('O' | ('b'<<8) | ('j'<<16));
 }
+static inline bool isGrenadeBomb(const char* name) {
+	return *(DWORD*)name == ('G' | ('r'<<8) | ('e'<<16) | ('n'<<24))
+		&& *(DWORD*)(name + 4) == ('a' | ('d'<<8) | ('e'<<16) | ('B'<<24))
+		&& *(DWORD*)(name + 8) == ('o' | ('m'<<8) | ('b'<<16));
+}
 static inline bool isVenomBall(const char* name) {
 	return *(DWORD*)name == ('B' | ('a'<<8) | ('l'<<16) | ('l'<<24))
 		&& *(BYTE*)(name + 4) == 0;
 }
 static void increaseFramesCountUnlimited(int& counterUnlimited, int incrBy, int displayedFrames);
+
+template<typename T>
+static inline const T& max_inline(const T& a, const T& b) {
+	return a > b ? a : b;
+}
+
+template<typename T>
+static inline const T& min_inline(const T& a, const T& b) {
+	return a < b ? a : b;
+}
 
 bool EndScene::onDllMain() {
 	bool error = false;
@@ -1364,6 +1379,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			}
 			
+			player.wallslumpLand = 0;
+			player.wallslumpLandWithSlow = 0;
+			player.rejection = 0;
+			player.rejectionWithSlow = 0;
+			
 			const CmnActIndex entCmnActIndex = ent.cmnActIndex();
 			if (entCmnActIndex == CmnActJitabataLoop) {
 				int bbscrvar = ent.bbscrvar();
@@ -1387,9 +1407,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				player.stagger = player.staggerMax - (animDur - 1) - (player.hitstop ? 1 : 0);
 				player.prevBbscrvar = bbscrvar;
-			}
-			
-			if (entCmnActIndex == CmnActHajikareStand
+			} else if (entCmnActIndex == CmnActHajikareStand
 					|| entCmnActIndex == CmnActHajikareCrouch
 					|| entCmnActIndex == CmnActHajikareAir) {
 				int animDur = ent.currentAnimDuration();
@@ -1407,9 +1425,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.rejectionMax = 60;
 					player.rejection = 61 - animDur;
 				}
-			} else {
-				player.rejection = 0;
-				player.rejectionWithSlow = 0;
+			} else if (entCmnActIndex == CmnActWallHaritsukiLand) {
+				if (player.changedAnimOnThisFrame) {
+					player.wallslumpLandElapsed = 0;
+				}
+				if (!player.hitstop && !superflashInstigator) ++player.wallslumpLandElapsed;
+				int animDur = ent.currentAnimDuration();
+				player.wallslumpLand = 26 - animDur + 1;
+				player.wallslumpLandMax = 26;
+				player.displayHitstop = false;
 			}
 			
 			player.airborne = player.airborne_afterTick();
@@ -1491,6 +1515,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				);
 			
 			player.counterhit = false;
+			player.crouching = false;
 			
 			if (player.changedAnimOnThisFrame) {
 				player.maxHit.clear();
@@ -1534,12 +1559,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.forceBusy = false;
 			if (player.charType == CHARACTER_TYPE_LEO
-					&& strcmp(animName, "Semuke"_hardcode) == 0
+					&& strcmp(animName, "Semuke") == 0
 					&& (
-						strcmp(ent.gotoLabelRequest(), "SemukeEnd"_hardcode) == 0
+						strcmp(ent.gotoLabelRequests(), "SemukeEnd") == 0
 						|| !ent.enableWhiffCancels()
 					)) {
-				if (strcmp(ent.gotoLabelRequest(), "SemukeEnd"_hardcode) == 0) {
+				if (strcmp(ent.gotoLabelRequests(), "SemukeEnd") == 0) {
 					player.changedAnimOnThisFrame = true;
 				}
 				player.canBlock = false;
@@ -1770,30 +1795,38 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&player.rejectionMaxWithSlow,
 					&unused);
 			}
+			if (player.cmnActIndex == CmnActWallHaritsukiLand) {
+				PlayerInfo::calculateSlow(player.wallslumpLandElapsed,
+					player.wallslumpLand,
+					newSlow,
+					&player.wallslumpLandWithSlow,
+					&player.wallslumpLandMaxWithSlow,
+					&unused);
+			}
 			int playerval0 = ent.playerVal(0);
 			int playerval1 = ent.playerVal(1);
 			const char* playervalSetterName = nullptr;
 			int playervalNum = 1;
 			int maxDI = 0;
 			if (player.charType == CHARACTER_TYPE_SOL) {
-				playervalSetterName = "DragonInstall"_hardcode;
+				playervalSetterName = "DragonInstall";
 				maxDI = player.wasPlayerval1Idling;
 			} else if (player.charType == CHARACTER_TYPE_CHIPP) {
-				playervalSetterName = "Meisai"_hardcode;
+				playervalSetterName = "Meisai";
 				playervalNum = 0;
 				maxDI = player.pawn.playerVal(0);
 			} else if (player.charType == CHARACTER_TYPE_MILLIA) {
-				playervalSetterName = "ChromingRose"_hardcode;
+				playervalSetterName = "ChromingRose";
 				maxDI = player.wasPlayerval1Idling + 10;
 			} else if (player.charType == CHARACTER_TYPE_SLAYER) {
-				playervalSetterName = "ChiwosuuUchuuExe"_hardcode;
+				playervalSetterName = "ChiwosuuUchuuExe";
 				maxDI = player.wasPlayerval1Idling;
 			}
 			if (playervalSetterName && strcmp(animName, playervalSetterName) == 0) {
 				player.fillInPlayervalSetter(playervalNum);
 				if (player.playervalSetterOffset != -1
 						&& player.pawn.bbscrCurrentInstr() - player.pawn.bbscrCurrentFunc() == player.playervalSetterOffset
-						&& !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0) {
+						&& player.pawn.justReachedSprite()) {
 					player.maxDI = maxDI;
 				}
 			}
@@ -1863,6 +1896,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.changedAnimFiltered = false;
 			if (player.changedAnimOnThisFrame
 					&& !(player.cmnActIndex == CmnActJump && !player.canFaultlessDefense)) {
+				player.sinHunger = false;
 				player.wokeUp = prevFrameWakeupTiming && !player.wakeupTiming && idleNext;
 				if (!player.move.preservesNewSection) {
 					player.inNewMoveSection = false;
@@ -1887,33 +1921,33 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !player.move.usePlusSignInCombination
 					&& !(
 						player.charType == CHARACTER_TYPE_HAEHYUN
-						&& strcmp(player.anim, "AntiAirAttack"_hardcode) != 0
-						&& strcmp(animName, "AntiAir4Hasei"_hardcode) == 0
+						&& strcmp(player.anim, "AntiAirAttack") != 0
+						&& strcmp(animName, "AntiAir4Hasei") == 0
 						|| player.charType == CHARACTER_TYPE_JOHNNY
 						&& ent.mem54()  // when Mem(54) is set, MistFinerLoop/AirMistFinerLoop instantly transitions to a chosen Mist Finer. However, in Rev1, it takes one frame
 						&& (
-							strcmp(animName, "MistFinerLoop"_hardcode) == 0
-							|| strcmp(animName, "AirMistFinerLoop"_hardcode) == 0
+							strcmp(animName, "MistFinerLoop") == 0
+							|| strcmp(animName, "AirMistFinerLoop") == 0
 						)
 					)
 					|| player.charType == CHARACTER_TYPE_JAM
-					&& strcmp(player.anim, "NeoHochihu"_hardcode) == 0  // 54625 causes NeoHochihu to cancel into itself
-					&& strcmp(animName, "NeoHochihu"_hardcode) == 0
+					&& strcmp(player.anim, "NeoHochihu") == 0  // 54625 causes NeoHochihu to cancel into itself
+					&& strcmp(animName, "NeoHochihu") == 0
 					&& !player.wasEnableWhiffCancels
 					|| player.charType == CHARACTER_TYPE_JOHNNY
 					&& ent.mem54()
 					&& (
-						strcmp(player.anim, "MistFinerLoop"_hardcode) == 0
+						strcmp(player.anim, "MistFinerLoop") == 0
 						&& (
-							strncmp(animName, "MistFinerALv"_hardcode, 12) == 0
-							|| strncmp(animName, "MistFinerBLv"_hardcode, 12) == 0
-							|| strncmp(animName, "MistFinerCLv"_hardcode, 12) == 0
+							strncmp(animName, "MistFinerALv", 12) == 0
+							|| strncmp(animName, "MistFinerBLv", 12) == 0
+							|| strncmp(animName, "MistFinerCLv", 12) == 0
 						)
-						|| strcmp(player.anim, "AirMistFinerLoop"_hardcode) == 0
+						|| strcmp(player.anim, "AirMistFinerLoop") == 0
 						&& (
-							strncmp(animName, "AirMistFinerALv"_hardcode, 15) == 0
-							|| strncmp(animName, "AirMistFinerBLv"_hardcode, 15) == 0
-							|| strncmp(animName, "AirMistFinerCLv"_hardcode, 15) == 0
+							strncmp(animName, "AirMistFinerALv", 15) == 0
+							|| strncmp(animName, "AirMistFinerBLv", 15) == 0
+							|| strncmp(animName, "AirMistFinerCLv", 15) == 0
 						)
 					)
 				);
@@ -1935,14 +1969,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.ignoreNextInabilityToBlockOrAttack = true;
 					player.performingASuper = false;
 					other.gettingHitBySuper = false;
+					player.sinHunger = false;
 				}
 				if (
 						!player.changedAnimFiltered
 						&& !(
 							player.charType == CHARACTER_TYPE_BEDMAN
-							&& strcmp(player.anim, "Boomerang_B"_hardcode) != 0
-							&& strcmp(player.anim, "Boomerang_B_Air"_hardcode) != 0
-							&& strcmp(animName, "BWarp"_hardcode) == 0
+							&& strcmp(player.anim, "Boomerang_B") != 0
+							&& strcmp(player.anim, "Boomerang_B_Air") != 0
+							&& strcmp(animName, "BWarp") == 0
 						)
 						|| !player.moveNonEmpty
 						&& *player.prevAttackLockAction != '\0'
@@ -2012,33 +2047,33 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (player.move.usePlusSignInCombination
 								|| player.charType == CHARACTER_TYPE_BAIKEN
 								&& (
-									strcmp(player.anim, "BlockingStand"_hardcode) == 0
-									|| strcmp(player.anim, "BlockingCrouch"_hardcode) == 0
-									|| strcmp(player.anim, "BlockingAir"_hardcode) == 0
+									strcmp(player.anim, "BlockingStand") == 0
+									|| strcmp(player.anim, "BlockingCrouch") == 0
+									|| strcmp(player.anim, "BlockingAir") == 0
 								)
 								&& (
-									strcmp(animName, "BlockingStand"_hardcode) == 0
-									|| strcmp(animName, "BlockingCrouch"_hardcode) == 0
-									|| strcmp(animName, "BlockingAir"_hardcode) == 0
+									strcmp(animName, "BlockingStand") == 0
+									|| strcmp(animName, "BlockingCrouch") == 0
+									|| strcmp(animName, "BlockingAir") == 0
 								)
 								|| player.charType == CHARACTER_TYPE_ELPHELT
 								&& !player.idle
 								&& prevFrameCmnActIndex == CmnActRomanCancel
-								&& strcmp(animName, "Rifle_Roman"_hardcode) == 0
+								&& strcmp(animName, "Rifle_Roman") == 0
 								|| player.charType == CHARACTER_TYPE_JOHNNY
 								&& !player.wasIdle
 								&& (
-									strcmp(animName, "MistFinerA"_hardcode) == 0
-									|| strcmp(animName, "MistFinerB"_hardcode) == 0
-									|| strcmp(animName, "MistFinerC"_hardcode) == 0
-									|| strcmp(animName, "AirMistFinerA"_hardcode) == 0
-									|| strcmp(animName, "AirMistFinerB"_hardcode) == 0
-									|| strcmp(animName, "AirMistFinerC"_hardcode) == 0
+									strcmp(animName, "MistFinerA") == 0
+									|| strcmp(animName, "MistFinerB") == 0
+									|| strcmp(animName, "MistFinerC") == 0
+									|| strcmp(animName, "AirMistFinerA") == 0
+									|| strcmp(animName, "AirMistFinerB") == 0
+									|| strcmp(animName, "AirMistFinerC") == 0
 								)
 								|| player.charType == CHARACTER_TYPE_POTEMKIN
 								&& !player.wasIdle
 								&& (
-									strcmp(animName, "HammerFall"_hardcode) == 0
+									strcmp(animName, "HammerFall") == 0
 								)
 								|| !player.wasIdle
 								&& player.cmnActIndex == CmnActRomanCancel
@@ -2064,13 +2099,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								player.lastPerformedMoveName);
 							if (player.charType == CHARACTER_TYPE_JOHNNY
 									&& (
-										strncmp(animName, "MistFinerALv"_hardcode, 12) == 0
-										|| strncmp(animName, "MistFinerBLv"_hardcode, 12) == 0
-										|| strncmp(animName, "MistFinerCLv"_hardcode, 12) == 0
-										|| strncmp(animName, "AirMistFinerALv"_hardcode, 15) == 0
-										|| strncmp(animName, "AirMistFinerBLv"_hardcode, 15) == 0
-										|| strncmp(animName, "AirMistFinerCLv"_hardcode, 15) == 0
-										|| strcmp(animName, "StepTreasureHunt"_hardcode) == 0
+										strncmp(animName, "MistFinerALv", 12) == 0
+										|| strncmp(animName, "MistFinerBLv", 12) == 0
+										|| strncmp(animName, "MistFinerCLv", 12) == 0
+										|| strncmp(animName, "AirMistFinerALv", 15) == 0
+										|| strncmp(animName, "AirMistFinerBLv", 15) == 0
+										|| strncmp(animName, "AirMistFinerCLv", 15) == 0
+										|| strcmp(animName, "StepTreasureHunt") == 0
 									)
 							) {
 								player.removeNonStancePrevStartups();
@@ -2079,7 +2114,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.onAnimReset();
 						}
 						
-						memcpy(player.labelAtTheStartOfTheMove, player.pawn.gotoLabelRequest(), 32);
+						memcpy(player.labelAtTheStartOfTheMove, player.pawn.gotoLabelRequests(), 32);
 						player.airteched = player.cmnActIndex == CmnActUkemi;
 						player.moveStartTime_aswEngineTick = player.startup;
 						player.startup = 0;
@@ -2088,6 +2123,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.maxHit.clear();
 						player.recovery = 0;
 						player.total = 0;
+						player.totalForInvul = 0;
+						player.stoppedMeasuringInvuls = false;
 						player.timePassedInNonFrozenFramesSinceStartOfAnim = 0;
 						player.lastMoveIsPartOfStance = player.move.partOfStance;
 						player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
@@ -2098,7 +2135,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.delayInTheLastMoveIsAfterIdle = false;
 							if (!(
 									player.charType == CHARACTER_TYPE_LEO
-									&& strcmp(player.pawn.previousAnimName(), "CmnActFDash"_hardcode) == 0
+									&& strcmp(player.pawn.previousAnimName(), "CmnActFDash") == 0
 								)) {
 								const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
 								if (player.prevFrameCancels.hasCancel(player.pawn.currentMove()->name, &foundCancel)) {
@@ -2146,6 +2183,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.dontRestartTheNonLandingFrameAdvantageCountdownUponNextLanding = false;
 						
 						player.landingRecovery = 0;
+						player.sinHungerRecovery = 0;
 						player.superfreezeStartup = 0;
 						
 						player.hitboxTopBottomValid = false;
@@ -2224,8 +2262,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& !player.idle && !player.isInFDWithoutBlockstun
 						&& !player.comboRecipe.empty()
 						&& (
-							strcmp(player.anim, "IronballGenocideEx"_hardcode) == 0
-							|| strcmp(player.anim, "AirIronballGenocideEx"_hardcode) == 0
+							strcmp(player.anim, "IronballGenocideEx") == 0
+							|| strcmp(player.anim, "AirIronballGenocideEx") == 0
 						)) {
 					ComboRecipeElement& lastElem = player.comboRecipe.back();
 					player.determineMoveNameAndSlangName(&lastElem.name);
@@ -2425,7 +2463,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !player.inNewMoveSection
 					&& !(
 						player.charType == CHARACTER_TYPE_ELPHELT
-						&& strcmp(player.anim, "Rifle_Roman"_hardcode) == 0
+						&& strcmp(player.anim, "Rifle_Roman") == 0
 						&& player.idle
 						&& player.canBlock
 					)
@@ -2457,6 +2495,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 					}
 					player.total = 0;
+					player.totalForInvul = 0;
+					player.stoppedMeasuringInvuls = false;
 					player.hitOnFrame = 0;
 					player.totalCanBlock = 0;
 					player.totalCanFD = 0;
@@ -2528,8 +2568,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (
 				(
 					player.wasEnableJumpCancel
-					|| player.wasCancels.hasCancel("CmnVJump"_hardcode)
-					|| player.wasCancels.hasCancel("CmnVAirJump"_hardcode)
+					|| player.wasCancels.hasCancel("CmnVJump")
+					|| player.wasCancels.hasCancel("CmnVAirJump")
 				)
 				&& !player.pawn.hitSomethingOnThisFrame()
 			) {
@@ -2561,7 +2601,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		
 		checkVenomBallActivations();
-		checkDizzyBubblePops();
+		checkSelfProjectileHarmInflictions();
 		
 		// This is down here because throughout the logic tick in various hooks we gather
 		// events that refer to objects via pointer, and some objects like May beachball
@@ -2709,9 +2749,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				};
 				BitInfo bitInfos[2] {
 					{
-						"BitN6C",  // _hardcode
-						"BitN2C_Bunri",  // _hardcode
-						"Bit4C",  // _hardcode
+						"BitN6C",
+						"BitN2C_Bunri",
+						"Bit4C",
 						playerval0,
 						playerval1,
 						0,
@@ -2723,9 +2763,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&player.ramlethalSSwordTimeMax
 					},
 					{
-						"BitF6D",  // _hardcode
-						"BitF2D_Bunri",  // _hardcode
-						"Bit4D",  // _hardcode
+						"BitF6D",
+						"BitF2D_Bunri",
+						"Bit4D",
 						playerval2,
 						playerval3,
 						1,
@@ -2782,15 +2822,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						bitInfo.isInvulnerable = p.fullInvul() || p.strikeInvul() || p.hitboxCount(HITBOXTYPE_HURTBOX) == 0;
 						anim = p.animationName();
 						if (bitInfo.stackIndex == 0) {
-							isTrance = strcmp(anim, "BitSpiral_NSpiral"_hardcode) == 0;
+							isTrance = strcmp(anim, "BitSpiral_NSpiral") == 0;
 						} else {
-							isTrance = strcmp(anim, "BitSpiral_FSpiral"_hardcode) == 0;
+							isTrance = strcmp(anim, "BitSpiral_FSpiral") == 0;
 						}
 						if (!isTrance) {
 							if (bitInfo.stackIndex == 0) {
-								isCalvados = strcmp(anim, "BitNLaser"_hardcode) == 0;
+								isCalvados = strcmp(anim, "BitNLaser") == 0;
 							} else {
-								isCalvados = strcmp(anim, "BitFLaser"_hardcode) == 0;
+								isCalvados = strcmp(anim, "BitFLaser") == 0;
 							}
 						}
 						ProjectileInfo& projectile = endScene.findProjectile(p);
@@ -2800,8 +2840,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						}
 						#define collectPlayerGotHitInfo(koware) \
 							if (p.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) { \
-								BYTE* instr = moves.skipInstruction(p.uponStruct(BBSCREVENT_PLAYER_GOT_HIT)->uponInstrPtr); \
-								if (moves.instructionType(instr) == instr_gotoLabelRequests) { \
+								BYTE* instr = moves.skipInstr(p.uponStruct(BBSCREVENT_PLAYER_GOT_HIT)->uponInstrPtr); \
+								if (moves.instrType(instr) == instr_gotoLabelRequests) { \
 									const char* markerToGoTo = asInstr(instr, gotoLabelRequests)->name; \
 									bitInfo.fallOnHitstun = strcmp(markerToGoTo, koware) == 0; \
 									bitInfo.recoilOnHitstun = !bitInfo.fallOnHitstun; \
@@ -2809,13 +2849,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							}
 						#define resetElapsedTimeIfOnFirstFrameOfState(frames) \
 							if (offset == frames.front().offset \
-									&& p.spriteFrameCounter() == 0 \
-									&& !p.isRCFrozen()) { \
+									&& p.justReachedSprite()) { \
 								projectile.ramlethalSwordElapsedTime = 0; \
 								elapsed = 0; \
 							}
 						if (strcmp(p.animationName(), bitInfo.stateName.txt) == 0) {
-							collectPlayerGotHitInfo("koware_sonoba"_hardcode)
+							collectPlayerGotHitInfo("koware_sonoba")
 							BYTE* func = p.bbscrCurrentFunc();
 							if (!func) continue;
 							moves.fillInRamlethalBitN6C_F6D(func, bitInfo.info);
@@ -2851,7 +2890,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								}
 							}
 						} else if (strcmp(p.animationName(), bitInfo.stateName2.txt) == 0) {
-							collectPlayerGotHitInfo("koware"_hardcode)
+							collectPlayerGotHitInfo("koware")
 							BYTE* func = p.bbscrCurrentFunc();
 							if (!func) continue;
 							moves.fillInRamlethalBitN6C_F6D(func, bitInfo.info2);
@@ -2952,7 +2991,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				for (ProjectileInfo& projectile : projectiles) {
 					if (projectile.team != player.index || !projectile.ptr) continue;
-					if (strcmp(projectile.animName, "GrenadeBomb"_hardcode) == 0) {
+					if (strcmp(projectile.animName, "GrenadeBomb") == 0) {
 						foundGrenadeInGeneral = true;
 						if (!projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
 							foundGrenade = true;
@@ -2964,7 +3003,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								grenadeTimeRemaining = 29 - projectile.sprite.frame;
 							}
 						}
-					} else if (strcmp(projectile.animName, "GrenadeBomb_Ready"_hardcode) == 0) {
+					} else if (strcmp(projectile.animName, "GrenadeBomb_Ready") == 0) {
 						foundGrenadeInGeneral = true;
 						if (projectile.sprite.frameMax == 1) {
 							grenadeTimeRemaining = 31;
@@ -3025,7 +3064,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					
 					int slowdown = 0;
 					for (ProjectileInfo& projectile : projectiles) {
-						if (projectile.team == player.index && strcmp(projectile.animName, "MistKuttsuku"_hardcode) == 0) {
+						if (projectile.team == player.index && strcmp(projectile.animName, "MistKuttsuku") == 0) {
 							slowdown = projectile.rcSlowedDownCounter;
 							if (projectile.lifeTimeCounter == 0) {
 								player.johnnyMistKuttsukuElapsed = 0;
@@ -3064,20 +3103,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					bool isSuperFrozen = false;
 					bool isFrozen = false;
 					for (ProjectileInfo& projectile : projectiles) {
-						if (projectile.team == player.index && projectile.ptr && strcmp(projectile.animName, "Mist"_hardcode) == 0) {
+						if (projectile.team == player.index && projectile.ptr && strcmp(projectile.animName, "Mist") == 0) {
 							animFrame = projectile.animFrame;
 							isFrozen = projectile.ptr.isRCFrozen();
 							isSuperFrozen = projectile.ptr.isSuperFrozen();
 							slowdown = projectile.rcSlowedDownCounter;
 							BYTE* func = projectile.ptr.bbscrCurrentFunc();
 							if (!func) break;
-							BYTE* instr;
-							for (
-									instr = moves.skipInstruction(func);
-									moves.instructionType(instr) != instr_endState;
-									instr = moves.skipInstruction(instr)
-							) {
-								if (moves.instructionType(instr) == instr_ifOperation
+							for (loopInstr(func)) {
+								if (moves.instrType(instr) == instr_ifOperation
 										&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
 										&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_PLAYED_IN_STATE
 										&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
@@ -3122,13 +3156,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (moves.jackoAegisMax == 0) {
 						BYTE* func = p.bbscrCurrentFunc();
 						if (!func) continue;
-						BYTE* instr;
-						for (
-								instr = moves.skipInstruction(func);
-								moves.instructionType(instr) != instr_endState;
-								instr = moves.skipInstruction(instr)
-						) {
-							if (moves.instructionType(instr) == instr_ifOperation
+						for (loopInstr(func)) {
+							if (moves.instrType(instr) == instr_ifOperation
 									&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
 									&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
 									&& asInstr(instr, ifOperation)->right == BBSCRTAG_VALUE) {
@@ -3157,6 +3186,19 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&unused);
 				if (player.jackoAegisTimeMaxWithSlow <= 2) player.jackoAegisTimeMaxWithSlow = 0;
 				
+				player.jackoAegisActive = player.pawn.invulnForAegisField();
+				player.jackoAegisReturningIn = INT_MIN;
+				if (!player.pawn.inHitstunThisFrame() && !player.pawn.invulnForAegisField()) {
+					for (int i = 2; i < entityList.count; ++i) {
+						Entity ent = entityList.list[i];
+						if (ent.isActive() && ent.team() == player.index && strcmp(ent.animationName(), "Aigisfield") == 0) {
+							player.jackoAegisReturningIn = ent.mem45();
+							break;
+						}
+					}
+				}
+				
+				
 			} else if (player.charType == CHARACTER_TYPE_HAEHYUN) {
 				
 				bool foundActualBall = false;
@@ -3175,10 +3217,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				bool actualBallFrozen = false;
 				
 				for (int j = 2; j < entityList.count; ++j) {
+					ProjectileInfo* projectile = nullptr;
+					bool triedFindProjectile = false;
 					Entity p = entityList.list[j];
-					if (p.isActive() && p.team() == player.index && !p.isPawn()) {
+					if (p.isActive() && p.team() == player.index) {
 						bool checkSlowdown = false;
-						if (strcmp(p.animationName(), "yudodan_end"_hardcode) == 0) {
+						if (strcmp(p.animationName(), "yudodan_end") == 0) {
 							if (prevFoundAnimDur == -1 || prevFoundAnimDur > (int)p.currentAnimDuration()) {
 								prevFoundAnimDur = p.currentAnimDuration();
 							} else {
@@ -3191,7 +3235,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							projectileTimeLeft = 7 + 14 - p.currentAnimDuration() + 1;
 							createdOnThisFrame = p.currentAnimDuration() == 1 && !p.isRCFrozen();
 							ballFrozen = p.isSuperFrozen();
-						} else if (strcmp(p.animationName(), "EnergyBall"_hardcode) == 0) {
+						} else if (strcmp(p.animationName(), "EnergyBall") == 0) {
 							actualBallCreatedThisFrame = p.currentAnimDuration() == 1 && !p.isRCFrozen();
 							if (actualBallCreatedThisFrame) player.haehyunBallElapsed = 0;
 							foundActualBall = true;
@@ -3199,14 +3243,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							projectileTimeLeft = 150 - p.framesSinceRegisteringForTheIdlingSignal() + 1;
 							hitstop = p.hitstop() > 0 && !p.hitSomethingOnThisFrame();
 							actualBallFrozen = p.isSuperFrozen();
-						} else if (strcmp(p.animationName(), "SuperEnergyBall"_hardcode) == 0) {
+						} else if (strcmp(p.animationName(), "SuperEnergyBall") == 0) {
 							superBalls[superBallsCount++] = p;
+							projectile = &findProjectile(p);
+							triedFindProjectile = true;
+							if (projectile && projectile->ptr) {
+								projectile->haehyunCelestialTuningBall1 = superBallsCount == 1 || superBallsCount > 2;
+								projectile->haehyunCelestialTuningBall2 = superBallsCount == 2 || superBallsCount > 2;
+							}
 						}
 						if (checkSlowdown) {
-							ProjectileInfo& projectile = findProjectile(p);
-							if (projectile.ptr) slowdown = projectile.rcSlowedDownCounter;
+							if (!triedFindProjectile) {
+								projectile = &findProjectile(p);
+							}
+							if (projectile && projectile->ptr) slowdown = projectile->rcSlowedDownCounter;
 						}
-						if (foundActualBall) break;
 					}
 				}
 				
@@ -3314,7 +3365,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					Entity p = entityList.list[j];
 					if (p.isActive() && p.team() == player.index && !p.isPawn()) {
 						bool checkNeedleSlowdown = false;
-						if (strcmp(p.animationName(), "SlowEffect"_hardcode) == 0
+						if (strcmp(p.animationName(), "SlowEffect") == 0
 								&& p.createArgHikitsukiVal1() == 0) {
 							if (p.lifeTimeCounter() == 0) {
 								player.slowTimeElapsed = 0;
@@ -3335,8 +3386,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							if (projectile.ptr) {
 								slowdown = projectile.rcSlowedDownCounter;
 							}
-						} else if (strcmp(p.animationName(), "SlowNeeldeObjLand"_hardcode) == 0
-								|| strcmp(p.animationName(), "SlowNeeldeObjAir"_hardcode) == 0) {
+						} else if (strcmp(p.animationName(), "SlowNeeldeObjLand") == 0
+								|| strcmp(p.animationName(), "SlowNeeldeObjAir") == 0) {
 							if (strcmp(p.spriteName(), "null") == 0 && p.spriteFrameCounterMax() == 14) {
 								needleTimeRemaining = p.spriteFrameCounterMax() - p.spriteFrameCounter();
 								checkNeedleSlowdown = true;
@@ -3345,8 +3396,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								needleTimeRemaining = 14;
 							}
 							needleObj = p;
-						} else if (strcmp(p.animationName(), "LandSettingTypeNeedleObj"_hardcode) == 0
-								|| strcmp(p.animationName(), "AirSettingTypeNeedleObj"_hardcode) == 0) {
+						} else if (strcmp(p.animationName(), "LandSettingTypeNeedleObj") == 0
+								|| strcmp(p.animationName(), "AirSettingTypeNeedleObj") == 0) {
 							if (strcmp(p.spriteName(), "null") == 0 && p.spriteFrameCounterMax() == 15) {
 								needleTimeRemaining = p.spriteFrameCounterMax() - p.spriteFrameCounter();
 								checkNeedleSlowdown = true;
@@ -3375,8 +3426,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&result,
 					&resultMax,
 					&unused);
-				player.ravenInfo.slowTime = result;
-				player.ravenInfo.slowTimeMax = resultMax > 1 ? resultMax : 0;
+				RavenInfo& ri = player.ravenInfo;
+				ri.slowTime = result;
+				ri.slowTimeMax = resultMax > 1 ? resultMax : 0;
+				ri.hasNeedle = hasLinkedProjectileOfType(player, "SlowNeeldeObjAir")
+					|| hasLinkedProjectileOfType(player, "SlowNeeldeObjLand");
+				ri.hasOrb = hasLinkedProjectileOfType(player, "AirSettingTypeNeedleObj")
+					|| hasLinkedProjectileOfType(player, "LandSettingTypeNeedleObj");
 				
 				bool hasForceDisableFlag = (player.wasForceDisableFlags & 0x1) != 0;
 				
@@ -3423,7 +3479,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						if (p.isActive() && p.team() == player.index && !p.isPawn()) {
 							bool checkSlowdown = false;
 							const char* anim = p.animationName();
-							if (strncmp(p.animationName(), "KinomiObj"_hardcode, 9) == 0) {
+							if (strncmp(p.animationName(), "KinomiObj", 9) == 0) {
 								if (anim[9] == 'N'
 										&& anim[10] == 'e'
 										&& anim[11] == 'c'
@@ -3459,7 +3515,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 										if (offset > *bombMarker && offset < *createBomb && timeRemaining != -1) {
 											int newTime = 2 - p.spriteFrameCounter();
 											
-											BYTE* func2 = p.findStateStart("KinomiObjNecrobomb"_hardcode);  // we need this
+											BYTE* func2 = p.findStateStart("KinomiObjNecrobomb");  // we need this
 											moves.fillDizzyKinomiNecrobomb(func2);
 											
 											if (newTime > timeRemaining) {
@@ -3544,7 +3600,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						Entity p = entityList.list[j];
 						if (!(
 								p.isActive() && p.team() == player.index && !p.isPawn()
-								&& strcmp(p.animationName(), "AkariObj"_hardcode) == 0
+								&& strcmp(p.animationName(), "AkariObj") == 0
 						)) continue;
 						
 						found = true;
@@ -3576,7 +3632,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						int animDur = p.currentAnimDuration();
 						bool isNecro = p.createArgHikitsukiVal1() == 0;
-						bool isKoware = strcmp(p.gotoLabelRequest(), "koware"_hardcode) == 0;
+						bool isKoware = strcmp(p.gotoLabelRequests(), "koware") == 0;
 						if (p.lifeTimeCounter() == 0) {
 							player.dizzyScytheElapsed = 0;
 						}
@@ -3643,34 +3699,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						int* alt = nullptr;
 						BYTE* func;
 						const char* animName = p.animationName();
-						if (strncmp(animName, "Hanashi"_hardcode, 7) == 0) {
-							if (strcmp(animName, "HanashiObjC"_hardcode) == 0) {
+						if (strncmp(animName, "Hanashi", 7) == 0) {
+							if (strcmp(animName, "HanashiObjC") == 0) {
 								normal = &moves.dizzySFishNormal;
 								alt = &moves.dizzySFishAlt;
 								fireFish = true;
-							} else if (strcmp(animName, "HanashiObjD"_hardcode) == 0) {
+							} else if (strcmp(animName, "HanashiObjD") == 0) {
 								normal = &moves.dizzyHFishNormal;
 								alt = &moves.dizzyHFishAlt;
 								fireFish = true;
-							} else if (strcmp(animName, "HanashiObjA"_hardcode) == 0) {
+							} else if (strcmp(animName, "HanashiObjA") == 0) {
 								fishData = &moves.dizzyPFishEnd;
-							} else if (strcmp(animName, "HanashiObjB"_hardcode) == 0) {
+							} else if (strcmp(animName, "HanashiObjB") == 0) {
 								fishData = &moves.dizzyKFishEnd;
-							} else if (strcmp(animName, "HanashiObjE"_hardcode) == 0) {
+							} else if (strcmp(animName, "HanashiObjE") == 0) {
 								fishData = &moves.dizzyDFishEnd;
 								player.dizzyShieldFishSuperArmor = p.superArmorEnabled();
-							} else if (strcmp(animName, "HanashiKoware"_hardcode) == 0) {
+							} else if (strcmp(animName, "HanashiKoware") == 0) {
 								func = p.bbscrCurrentFunc();
 								if (!func) continue;
 								
 								int totalLength = 0;
-								BYTE* instr;
-								for (
-									instr = moves.skipInstruction(func);
-									moves.instructionType(instr) != instr_endState;
-									instr = moves.skipInstruction(instr)
-								) {
-									if (moves.instructionType(instr) == instr_sprite) {
+								for (loopInstr(func)) {
+									if (moves.instrType(instr) == instr_sprite) {
 										totalLength += asInstr(instr, sprite)->duration;
 									}
 								}
@@ -3773,10 +3824,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						Moves::MayIrukasanRidingObjectInfo* bomb = nullptr;
 						BYTE* func = p.bbscrCurrentFunc();
 						if (!func) continue;
-						if (strcmp(animName, "AwaPObj"_hardcode) == 0) {
+						if (strcmp(animName, "AwaPObj") == 0) {
 							koware = &moves.dizzyAwaPKoware;
 							bomb = &moves.dizzyAwaPBomb;
-						} else if (strcmp(animName, "AwaKObj"_hardcode) == 0) {
+						} else if (strcmp(animName, "AwaKObj") == 0) {
 							koware = &moves.dizzyAwaKKoware;
 							bomb = &moves.dizzyAwaKBomb;
 						}
@@ -3787,7 +3838,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							foundBubble = true;
 							frozen = p.isSuperFrozen();
 							int offset = p.bbscrCurrentInstr() - func;
-							if (strcmp(p.gotoLabelRequest(), "bomb"_hardcode) == 0) {
+							if (strcmp(p.gotoLabelRequests(), "bomb") == 0) {
 								timeRemaining = 1 + bomb->totalFrames;
 							} else if (offset >= bomb->frames.front().offset) {
 								timeRemaining = bomb->remainingTime(offset, p.spriteFrameCounter());
@@ -3833,7 +3884,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					Entity p = entityList.list[j];
 					if (!(
 						p.isActive() && p.team() == player.index && !p.isPawn()
-							&& strcmp(p.animationName(), "Nin_Jitsu"_hardcode) == 0
+							&& strcmp(p.animationName(), "Nin_Jitsu") == 0
 					)) continue;
 					
 					frozen = p.isSuperFrozen();
@@ -3864,10 +3915,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				
 				bool hasRSFStart = false;
-				if (strcmp(player.anim, "Royal_Straight_Flush"_hardcode) == 0) {
+				if (strcmp(player.anim, "Royal_Straight_Flush") == 0) {
 					if (player.animFrame > 4) {
 						Entity prev = player.pawn.previousEntity();
-						if (prev && strcmp(prev.animationName(), "RSF_Start"_hardcode) == 0) {
+						if (prev && strcmp(prev.animationName(), "RSF_Start") == 0) {
 							Entity link = prev.linkObjectDestroyOnStateChange();
 							if (!link) hasRSFStart = true;
 						}
@@ -3885,7 +3936,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				bool knifeExists = false;
 				
 				for (const ProjectileInfo& projectile : projectiles) {
-					if (projectile.ptr && projectile.team == player.index && strcmp(projectile.animName, "SilentForceKnife"_hardcode) == 0) {
+					if (projectile.ptr && projectile.team == player.index && strcmp(projectile.animName, "SilentForceKnife") == 0) {
 						knifeExists = true;
 						break;
 					}
@@ -4023,7 +4074,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		
 		if (ent.isPawn()
 				&& ent.characterType() == CHARACTER_TYPE_SIN
-				&& strcmp(ent.animationName(), "UkaseWaza"_hardcode) == 0) {
+				&& strcmp(ent.animationName(), "UkaseWaza") == 0) {
 			int animFrame = ent.currentAnimDuration();
 			if (animFrame >= 7 && animFrame < 27) {
 				
@@ -4120,7 +4171,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		
 		if (ent.isPawn() && ent.characterType() == CHARACTER_TYPE_ELPHELT
-				&& strcmp(ent.animationName(), "Shotgun_Fire_MAX"_hardcode) == 0) {
+				&& strcmp(ent.animationName(), "Shotgun_Fire_MAX") == 0) {
 			drawDataPrepared.interactionBoxes.emplace_back();
 			DrawBoxCallParams& newBox = drawDataPrepared.interactionBoxes.back();
 			newBox.bottom = -1000000;
@@ -4145,15 +4196,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				const char* animName = ent.animationName();
 				bool animMatches = bitNumber == 1
 								&& (
-									strcmp(animName, "BitN6C"_hardcode) == 0
+									strcmp(animName, "BitN6C") == 0
 									&& ent.mem45()  // bunri only
-									|| strcmp(animName, "BitN2C_Bunri"_hardcode) == 0
+									|| strcmp(animName, "BitN2C_Bunri") == 0
 								)
 								|| bitNumber == 2
 								&& (
-									strcmp(animName, "BitF6D"_hardcode) == 0
+									strcmp(animName, "BitF6D") == 0
 									&& ent.mem45()  // bunri only
-									|| strcmp(animName, "BitF2D_Bunri"_hardcode) == 0
+									|| strcmp(animName, "BitF2D_Bunri") == 0
 								);
 				int animDuration = ent.currentAnimDuration();
 				if (bitNumber && !(animMatches && animDuration < 20)) {
@@ -4170,7 +4221,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							entX = player.ramlethalBitFStartPos;
 						}
 					}
-					int checkDistance = bitNumber == 1 ? 500000 : strcmp(animName, "BitF6D"_hardcode) == 0 ? 200000 : 400000;
+					int checkDistance = bitNumber == 1 ? 500000 : strcmp(animName, "BitF6D") == 0 ? 200000 : 400000;
 					interactionBoxParams.left = entX - checkDistance;
 					interactionBoxParams.right = entX + checkDistance;
 					interactionBoxParams.top = 10000000;
@@ -4268,7 +4319,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				player.strikeInvul.active = entityState.strikeInvuln;
 				player.throwInvul.active = entityState.throwInvuln;
-				if (!player.strikeInvul.active
+				if (!entityState.strikeInvuln
 						&& !player.airborne
 						&& hurtbox.hitboxCount) {
 					if (hurtboxBounds.bottom <= 88000) {
@@ -4278,12 +4329,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					} else if (hurtboxBounds.bottom < 175000) {
 						player.somewhatLowProfile.active = true;
 					} else if (hurtboxBounds.bottom <= 232000
-							&& !playerEntity.crouching()
 							&& playerEntity.blockstun() == 0
 							&& !player.inHitstunNowOrNextFrame) {
 						player.upperBodyInvul.active = true;
 					} else if (hurtboxBounds.bottom <= 274000
-							&& !playerEntity.crouching()
 							&& playerEntity.blockstun() == 0
 							&& !player.inHitstunNowOrNextFrame) {
 						player.aboveWaistInvul.active = true;
@@ -4296,32 +4345,28 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.toeInvul.active = true;
 					}
 				}
-				if (player.y > 0 && hurtbox.hitboxCount
-						&& (
-							!player.moveOriginatedInTheAir
-							|| player.cmnActIndex == CmnActRomanCancel  // RC may land during its animation and become ground throwable
-						)) {
-					if (hurtboxBounds.top < 20000) {
+				if (player.y > 0) {
+					if (hurtbox.hitboxCount && hurtboxBounds.top < 20000 && !entityState.strikeInvuln) {
 						player.airborneButWontGoOverLows.active = true;
 					} else {
 						player.airborneInvul.active = true;
 					}
 				}
-				if (playerEntity.damageToAir() && !player.airborne && !player.strikeInvul.active) {
+				if (playerEntity.damageToAir() && !player.airborne && !entityState.strikeInvuln) {
 					player.consideredAirborne.active = true;
 				}
-				player.frontLegInvul.active = !player.strikeInvul.active
+				player.frontLegInvul.active = !entityState.strikeInvuln
 					&& player.move.frontLegInvul
 					&& player.move.frontLegInvul(player);
 				player.superArmor.active = entityState.superArmorActive && !player.projectileOnlyInvul.active && !player.reflect.active;
 				if (player.charType == CHARACTER_TYPE_LEO
 						&& player.superArmor.active
-						&& strcmp(player.anim, "Semuke5E"_hardcode) == 0) {  // Leo bt.D
+						&& strcmp(player.anim, "Semuke5E") == 0) {  // Leo bt.D
 					for (int projectileSearch = 2; projectileSearch < entityList.count; ++projectileSearch) {
 						Entity projectileSearchPtr = entityList.list[projectileSearch];
 						if (projectileSearchPtr.isActive()
 								&& projectileSearchPtr.team() == player.index
-								&& strcmp(projectileSearchPtr.animationName(), "Semuke5E_Reflect"_hardcode) == 0
+								&& strcmp(projectileSearchPtr.animationName(), "Semuke5E_Reflect") == 0
 								&& projectileSearchPtr.superArmorEnabled()) {
 							player.reflect.active = true;
 						}
@@ -4341,6 +4386,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.superArmorBlitzBreak.active = ent.superArmorBlitzBreak();
 				}
 				player.counterhit = entityState.counterhit;
+				player.crouching = ent.crouching();
 				
 				if (drawDataPrepared.pushboxes.size() > pushboxesPrevSize) {
 					DrawBoxCallParams& box = drawDataPrepared.pushboxes[pushboxesPrevSize];
@@ -4514,7 +4560,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 									player.idleLanding
 									&& !(
 										player.charType == CHARACTER_TYPE_JAM
-										&& strcmp(player.anim, "NeoHochihu"_hardcode) == 0
+										&& strcmp(player.anim, "NeoHochihu") == 0
 									)
 									|| player.idle
 									&& player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // Chipp Wall Climb
@@ -4551,21 +4597,21 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							|| player.cmnActIndex == CmnActFDash
 							|| player.cmnActIndex == CmnActFDashStop
 							|| player.charType == CHARACTER_TYPE_LEO
-							&& strcmp(player.anim, "Semuke"_hardcode) == 0
+							&& strcmp(player.anim, "Semuke") == 0
 							&& (
-								strcmp(player.pawn.gotoLabelRequest(), "SemukeFrontWalk"_hardcode) == 0
-								|| strcmp(player.pawn.gotoLabelRequest(), "SemukeBackWalk"_hardcode) == 0
+								strcmp(player.pawn.gotoLabelRequests(), "SemukeFrontWalk") == 0
+								|| strcmp(player.pawn.gotoLabelRequests(), "SemukeBackWalk") == 0
 								|| player.pawn.speedX() != 0
 							)
 							|| (
 								player.charType == CHARACTER_TYPE_FAUST
 								|| player.charType == CHARACTER_TYPE_BEDMAN
 							) && (
-								strcmp(player.anim, "CrouchFWalk"_hardcode) == 0
-								|| strcmp(player.anim, "CrouchBWalk"_hardcode) == 0
+								strcmp(player.anim, "CrouchFWalk") == 0
+								|| strcmp(player.anim, "CrouchBWalk") == 0
 							)
 							|| player.charType == CHARACTER_TYPE_HAEHYUN
-							&& strcmp(player.anim, "CrouchFDash"_hardcode) == 0
+							&& strcmp(player.anim, "CrouchFDash") == 0
 						)
 						|| settings.considerCrouchNonIdle
 						&& misterPlayerIsManuallyCrouching(player)
@@ -4877,12 +4923,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				ignoreThisForPlayer = 
 					player.charType == CHARACTER_TYPE_JACKO
 					&& (
-						strcmp(projectile.animName, "ServantA"_hardcode) == 0
-						|| strcmp(projectile.animName, "ServantB"_hardcode) == 0
-						|| strcmp(projectile.animName, "ServantC"_hardcode) == 0
-						|| strcmp(projectile.animName, "magicAtkLv1"_hardcode) == 0
-						|| strcmp(projectile.animName, "magicAtkLv2"_hardcode) == 0
-						|| strcmp(projectile.animName, "magicAtkLv3"_hardcode) == 0
+						strcmp(projectile.animName, "ServantA") == 0
+						|| strcmp(projectile.animName, "ServantB") == 0
+						|| strcmp(projectile.animName, "ServantC") == 0
+						|| strcmp(projectile.animName, "magicAtkLv1") == 0
+						|| strcmp(projectile.animName, "magicAtkLv2") == 0
+						|| strcmp(projectile.animName, "magicAtkLv3") == 0
 					);
 			}
 			
@@ -4900,24 +4946,26 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if ((
 					projectile.isRamlethalSword
 					|| player.charType == CHARACTER_TYPE_ELPHELT
-					&& strcmp(projectile.animName, "GrenadeBomb"_hardcode) == 0
+					&& strcmp(projectile.animName, "GrenadeBomb") == 0
 					&& projectile.ptr
 					&& projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)
 					|| player.charType == CHARACTER_TYPE_JACKO
 					&& projectile.ptr
 					&& projectile.ptr.servant()
 					|| player.charType == CHARACTER_TYPE_DIZZY
-					&& strncmp(projectile.animName, "HanashiObj"_hardcode, 10) == 0
+					&& strncmp(projectile.animName, "HanashiObj", 10) == 0
 					// unfortunately, the code that finds Eddie happens later, so we have to re-find Eddie here
 					|| player.charType == CHARACTER_TYPE_ZATO
 					&& (
-						strcmp(projectile.animName, "ChouDoriru"_hardcode) == 0
+						strcmp(projectile.animName, "ChouDoriru") == 0
 						|| player.pawn.playerVal(0)
 						&& projectile.ptr
 						&& projectile.ptr == getReferredEntity((void*)player.pawn.ent, ENT_STACK_0)
 					)
 				) && !projectile.strikeInvul
-				|| projectile.gotHitOnThisFrame && !isDizzyBubble(projectile.animName) && !isVenomBall(projectile.animName)) {
+				|| projectile.gotHitOnThisFrame
+				&& !isDizzyBubble(projectile.animName)
+				&& !isVenomBall(projectile.animName)) {
 				projectileCanBeHit = true;
 			}
 			bool isHouseInvul = player.charType == CHARACTER_TYPE_JACKO && projectile.ptr && projectile.ptr.ghost()
@@ -4927,10 +4975,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			bool isMist;
 			bool isMistKuttsuku;
 			if (player.charType == CHARACTER_TYPE_JOHNNY) {
-				if (strcmp(projectile.animName, "Mist"_hardcode) == 0) {
+				if (strcmp(projectile.animName, "Mist") == 0) {
 					isMist = true;
 					isMistKuttsuku = false;
-				} else if (strcmp(projectile.animName, "MistKuttsuku"_hardcode) == 0) {
+				} else if (strcmp(projectile.animName, "MistKuttsuku") == 0) {
 					isMist = false;
 					isMistKuttsuku = projectile.animFrame == 1 && (!projectile.ptr || !projectile.ptr.isRCFrozen());
 				} else {
@@ -4956,7 +5004,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			FrameType defaultIdleFrame;
 			if (isHouseInvul && !projectileCanBeHit
 					|| projectile.gotHitOnThisFrame && (
-						isDizzyBubble(projectile.animName) || isVenomBall(projectile.animName)
+						isDizzyBubble(projectile.animName) || isVenomBall(projectile.animName) || isGrenadeBomb(projectile.animName)
 					)) {
 				defaultIdleFrame = FT_IDLE_NO_DISPOSE;
 			} else if (isMist || isMistKuttsuku) {
@@ -4991,9 +5039,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.powerup = projectile.move.projectilePowerup && projectile.move.projectilePowerup(projectile);
 				currentFrame.next = nullptr;
 				currentFrame.charSpecific1 = player.charType == CHARACTER_TYPE_RAMLETHAL
-					&& projectile.ptr == player.pawn.stackEntity(0);
+					&& projectile.ptr == player.pawn.stackEntity(0)
+					|| player.charType == CHARACTER_TYPE_HAEHYUN
+					&& projectile.haehyunCelestialTuningBall1;
 				currentFrame.charSpecific2 = player.charType == CHARACTER_TYPE_RAMLETHAL
-					&& projectile.ptr == player.pawn.stackEntity(1);
+					&& projectile.ptr == player.pawn.stackEntity(1)
+					|| player.charType == CHARACTER_TYPE_HAEHYUN
+					&& projectile.haehyunCelestialTuningBall2;
 				if (!projectile.dontReplaceFramebarTitle
 						|| currentFrame.title.text == nullptr || *currentFrame.title.text->name == '\0') {
 					currentFrame.title = projectile.framebarTitle;
@@ -5161,7 +5213,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				Entity landminePtr = nullptr;
 				for (ProjectileInfo& projectile : projectiles) {
-					if (strcmp(projectile.animName, "ChouDoriru"_hardcode) == 0
+					if (strcmp(projectile.animName, "ChouDoriru") == 0
 							&& projectile.ptr
 							&& projectile.team == player.index) {
 						landminePtr = projectile.ptr;
@@ -5169,7 +5221,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							projectile.creationTime_aswEngineTick = player.eddie.moveStartTime_aswEngineTick;
 							projectile.startup = player.eddie.total;
 							memset(projectile.creatorName, 0, 32);
-							strcpy(projectile.creatorName, "Eddie"_hardcode);
+							strcpy(projectile.creatorName, "Eddie");
 							projectile.creator = player.eddie.ptr;
 							projectile.creatorNamePtr = "Eddie";
 							projectile.total = player.eddie.total;
@@ -5408,9 +5460,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				int noteSlowdown = 0;
 				for (int j = 2; j < entityList.count; ++j) {
 					Entity p = entityList.list[j];
-					if (p.isActive() && p.team() == player.index && !p.isPawn() && strcmp(p.animationName(), "Onpu"_hardcode) == 0) {
+					if (p.isActive() && p.team() == player.index && !p.isPawn() && strcmp(p.animationName(), "Onpu") == 0) {
 						if (!(
-									p.mem45() && strcmp(p.gotoLabelRequest(), "hit"_hardcode) != 0
+									p.mem45() && strcmp(p.gotoLabelRequests(), "hit") != 0
 						)) {
 							player.noteTime = p.currentAnimDuration();
 							ProjectileInfo& projectile = findProjectile(p);
@@ -5589,9 +5641,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				
 				currentFrame.canYrc = player.wasCanYrc;
-				currentFrame.canYrcProjectile = player.wasCanYrc
-					&& player.move.canYrcProjectile
-					&& player.move.canYrcProjectile(player);
+				currentFrame.cantRc = player.wasCantRc;
+				// for Ramlethal BitLaser, we redefine this in character-specific codes below
+				currentFrame.canYrcProjectile = player.wasCanYrc && player.move.canYrcProjectile
+					? player.move.canYrcProjectile(player) : nullptr;
 				
 				MilliaInfo milliaInfo { 0 };
 				if (player.charType == CHARACTER_TYPE_MILLIA) {
@@ -5602,7 +5655,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						for (int j = 2; j < entityList.count; ++j) {
 							Entity p = entityList.list[j];
 							if (p.isActive() && p.team() == i && !p.isPawn()
-									&& strcmp(p.animationName(), "RoseBody"_hardcode) == 0
+									&& strcmp(p.animationName(), "RoseBody") == 0
 									&& strcmp(p.spriteName(), "null") == 0) {
 								if (p.spriteFrameCounterMax() == 10) {
 									player.milliaChromingRoseTimeLeft += 11 - p.spriteFrameCounter();
@@ -5615,27 +5668,29 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					milliaInfo = player.canProgramSecretGarden();
 					milliaInfo.chromingRose = player.milliaChromingRoseTimeLeft;
 					milliaInfo.chromingRoseMax = player.maxDI;
-					milliaInfo.hasPin = hasProjectileOfTypeAndHasNotExhausedHit(player, "SilentForceKnife"_hardcode);
-					milliaInfo.hasSDisc = hasProjectileOfType(player, "TandemTopCRing"_hardcode);
-					milliaInfo.hasHDisc = hasProjectileOfType(player, "TandemTopDRing"_hardcode);
-					milliaInfo.hasEmeraldRain = hasAnyProjectileOfTypeStrNCmp(player, "EmeraldRainRing"_hardcode);
-					milliaInfo.hasHitstunLinkedSecretGarden = hasLinkedProjectileOfType(player, "SecretGardenBall"_hardcode);
-					milliaInfo.hasRose = hasAnyProjectileOfType(player, "RoseObj"_hardcode);
+					milliaInfo.hasPin = hasProjectileOfTypeAndHasNotExhausedHit(player, "SilentForceKnife");
+					milliaInfo.hasSDisc = hasProjectileOfType(player, "TandemTopCRing");
+					milliaInfo.hasHDisc = hasProjectileOfType(player, "TandemTopDRing");
+					milliaInfo.hasEmeraldRain = hasAnyProjectileOfTypeStrNCmp(player, "EmeraldRainRing");
+					milliaInfo.hasHitstunLinkedSecretGarden = hasLinkedProjectileOfType(player, "SecretGardenBall");
+					milliaInfo.hasRose = hasAnyProjectileOfType(player, "RoseObj");
 					currentFrame.u.milliaInfo = milliaInfo;
 				} else if (player.charType == CHARACTER_TYPE_CHIPP) {
-					currentFrame.u.chippInfo.invis = player.playerval0;
-					currentFrame.u.chippInfo.wallTime = 0;
+					ChippInfo& ci = currentFrame.u.chippInfo;
+					ci.invis = player.playerval0;
+					ci.wallTime = 0;
 					if (player.move.caresAboutWall) {
 						int wallTime = player.pawn.mem54();
 						if (wallTime > USHRT_MAX || wallTime <= 0) wallTime = USHRT_MAX;
-						currentFrame.u.chippInfo.wallTime = wallTime;
+						ci.wallTime = wallTime;
 					}
-					currentFrame.u.chippInfo.hasShuriken = hasAnyProjectileOfTypeStrNCmp(player, "ShurikenObj"_hardcode);  // is linked, but never unlinks, so we just check the projectile
-					currentFrame.u.chippInfo.hasKunaiWall = hasAnyProjectileOfType(player, "Kunai_Wall"_hardcode);
-					currentFrame.u.chippInfo.hasRyuuYanagi = hasAnyProjectileOfType(player, "Kunai"_hardcode);
+					ci.hasShuriken = hasAnyProjectileOfTypeStrNCmp(player, "ShurikenObj");  // is linked, but never unlinks, so we just check the projectile
+					ci.hasKunaiWall = hasAnyProjectileOfType(player, "Kunai_Wall");
+					ci.hasRyuuYanagi = hasAnyProjectileOfType(player, "Kunai");
 				} else if (player.charType == CHARACTER_TYPE_SOL) {
-					currentFrame.u.solInfo.currentDI = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
-					currentFrame.u.solInfo.maxDI = player.maxDI;
+					SolInfo& si = currentFrame.u.solInfo;
+					si.currentDI = player.playerval1 < 0 ? USHRT_MAX : player.playerval1;
+					si.maxDI = player.maxDI;
 					
 					bool gunflameDisappearsOnHit = false;
 					bool gunflameComesOutLater = false;
@@ -5644,113 +5699,88 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					analyzeGunflame(player, &gunflameDisappearsOnHit,
 						&gunflameComesOutLater, &gunflameFirstWaveDisappearsOnHit);
 					
-					currentFrame.u.solInfo.gunflameDisappearsOnHit = gunflameDisappearsOnHit;
-					currentFrame.u.solInfo.gunflameComesOutLater = gunflameComesOutLater;
-					currentFrame.u.solInfo.gunflameFirstWaveDisappearsOnHit = gunflameFirstWaveDisappearsOnHit;
+					si.gunflameDisappearsOnHit = gunflameDisappearsOnHit;
+					si.gunflameComesOutLater = gunflameComesOutLater;
+					si.gunflameFirstWaveDisappearsOnHit = gunflameFirstWaveDisappearsOnHit;
 					
-					currentFrame.u.solInfo.hasTyrantRavePunch2 = hasProjectileOfType(player, "TyrantRavePunch2_DI"_hardcode);
+					si.hasTyrantRavePunch2 = hasProjectileOfType(player, "TyrantRavePunch2_DI");
 				} else if (player.charType == CHARACTER_TYPE_KY) {
-					currentFrame.u.kyInfo.stunEdgeWillDisappearOnHit = hasLinkedProjectileOfType(player, "StunEdgeObj"_hardcode);
-					currentFrame.u.kyInfo.hasChargedStunEdge = hasProjectileOfType(player, "ChargedStunEdgeObj"_hardcode);
-					currentFrame.u.kyInfo.hasSPChargedStunEdge = hasProjectileOfType(player, "SPChargedStunEdgeObj"_hardcode);
-					currentFrame.u.kyInfo.hasjD = hasProjectileOfType(player, "AirDustAttackObj"_hardcode);
+					KyInfo& ki = currentFrame.u.kyInfo;
+					ki.stunEdgeWillDisappearOnHit = hasLinkedProjectileOfType(player, "StunEdgeObj");
+					ki.hasChargedStunEdge = hasProjectileOfType(player, "ChargedStunEdgeObj");
+					ki.hasSPChargedStunEdge = hasProjectileOfType(player, "SPChargedStunEdgeObj");
+					ki.hasjD = hasProjectileOfType(player, "AirDustAttackObj");
 				} else if (player.charType == CHARACTER_TYPE_ZATO) {
-					currentFrame.u.zatoInfo.currentEddieGauge = player.pawn.exGaugeValue(0);
-					currentFrame.u.zatoInfo.maxEddieGauge = 6000;
+					ZatoInfo& zi = currentFrame.u.zatoInfo;
+					zi.currentEddieGauge = player.pawn.exGaugeValue(0);
+					zi.maxEddieGauge = 6000;
 					// player.eddie.ptr is up to date here
-					currentFrame.u.zatoInfo.hasGreatWhite = player.eddie.ptr && strcmp(player.eddie.anim, "EddieMegalithHead"_hardcode) == 0;
-					currentFrame.u.zatoInfo.hasInviteHell = hasAnyProjectileOfTypeStrNCmp(player, "Drill"_hardcode);
-					currentFrame.u.zatoInfo.hasEddie = player.eddie.ptr;
+					zi.hasGreatWhite = player.eddie.ptr && strcmp(player.eddie.anim, "EddieMegalithHead") == 0;
+					zi.hasInviteHell = hasAnyProjectileOfTypeStrNCmp(player, "Drill");
+					zi.hasEddie = player.eddie.ptr;
 				} else if (player.charType == CHARACTER_TYPE_SLAYER) {
-					currentFrame.u.slayerInfo.currentBloodsuckingUniverseBuff = player.wasPlayerval1Idling;
-					currentFrame.u.slayerInfo.maxBloodsuckingUniverseBuff = player.maxDI;
-					currentFrame.u.slayerInfo.hasRetro = hasProjectileOfType(player, "Retro"_hardcode);
+					SlayerInfo& si = currentFrame.u.slayerInfo;
+					si.currentBloodsuckingUniverseBuff = player.wasPlayerval1Idling;
+					si.maxBloodsuckingUniverseBuff = player.maxDI;
+					si.hasRetro = hasProjectileOfType(player, "Retro");
 				} else if (player.charType == CHARACTER_TYPE_INO) {
-					currentFrame.u.inoInfo.airdashTimer = player.wasProhibitFDTimer;
-					currentFrame.u.inoInfo.noteTime = player.noteTimeWithSlow;
-					currentFrame.u.inoInfo.noteTimeMax = player.noteTimeWithSlowMax;
-					currentFrame.u.inoInfo.noteLevel = player.noteLevel;
-					currentFrame.u.inoInfo.hasChemicalLove = hasLinkedProjectileOfType(player, "BChemiLaser"_hardcode)
-						|| hasLinkedProjectileOfType(player, "CChemiLaser"_hardcode);
-					currentFrame.u.inoInfo.hasNote = hasLinkedProjectileOfType(player, "Onpu"_hardcode);
-					currentFrame.u.inoInfo.has5DYRC = hasLinkedProjectileOfType(player, "DustObjShot"_hardcode);
+					InoInfo& ii = currentFrame.u.inoInfo;
+					ii.airdashTimer = player.wasProhibitFDTimer;
+					ii.noteTime = player.noteTimeWithSlow;
+					ii.noteTimeMax = player.noteTimeWithSlowMax;
+					ii.noteLevel = player.noteLevel;
+					ii.hasChemicalLove = hasLinkedProjectileOfType(player, "BChemiLaser")
+						|| hasLinkedProjectileOfType(player, "CChemiLaser");
+					ii.hasNote = hasLinkedProjectileOfType(player, "Onpu");
+					ii.has5DYRC = hasLinkedProjectileOfType(player, "DustObjShot");
 				} else if (player.charType == CHARACTER_TYPE_BEDMAN) {
 					fillInBedmanSealInfo(player);
 					
 					currentFrame.u.bedmanInfo = player.bedmanInfo;
 				} else if (player.charType == CHARACTER_TYPE_RAMLETHAL) {
-					RamlethalInfo& ri = currentFrame.u.ramlethalInfo;
-					if (player.ramlethalSSwordTimerActive) {
-						ri.sSwordTime = min(255, player.ramlethalSSwordTime);
-						if (!player.ramlethalSSwordKowareSonoba) {
-							ri.sSwordTimeMax = min(255, player.ramlethalSSwordTimeMax);
-						} else {
-							ri.sSwordTimeMax = 0;
-						}
-						ri.sSwordSubAnim = player.ramlethalSSwordSubanim;
-					} else {
-						ri.sSwordTime = 0;
-						ri.sSwordTimeMax = 0;
-						ri.sSwordSubAnim = nullptr;
-					}
-					
-					if (player.ramlethalHSwordTimerActive) {
-						ri.hSwordTime = min(255, player.ramlethalHSwordTime);
-						if (!player.ramlethalHSwordKowareSonoba) {
-							ri.hSwordTimeMax = min(255, player.ramlethalHSwordTimeMax);
-						} else {
-							ri.hSwordTimeMax = 0;
-						}
-						ri.hSwordSubAnim = player.ramlethalHSwordSubanim;
-					} else {
-						ri.hSwordTime = 0;
-						ri.hSwordTimeMax = 0;
-						ri.hSwordSubAnim = nullptr;
-					}
-					
-					ri.sSwordBlockstunLinked = player.ramlethalSSwordBlockstunLinked;
-					ri.sSwordFallOnHitstun = player.ramlethalSSwordFallOnHitstun;
-					ri.sSwordRecoilOnHitstun = player.ramlethalSSwordRecoilOnHitstun;
-					ri.sSwordInvulnerable = player.ramlethalSSwordInvulnerable;
-					
-					ri.hSwordBlockstunLinked = player.ramlethalHSwordBlockstunLinked;
-					ri.hSwordFallOnHitstun = player.ramlethalHSwordFallOnHitstun;
-					ri.hSwordRecoilOnHitstun = player.ramlethalHSwordRecoilOnHitstun;
-					ri.hSwordInvulnerable = player.ramlethalHSwordInvulnerable;
+					fillRamlethalDisappearance(currentFrame, player);
 				} else if (player.charType == CHARACTER_TYPE_ELPHELT) {
-					currentFrame.u.elpheltInfo.grenadeTimer = player.wasResource;
-					currentFrame.u.elpheltInfo.grenadeDisabledTimer = min(255, player.elpheltGrenadeRemainingWithSlow);
-					currentFrame.u.elpheltInfo.grenadeDisabledTimerMax = min(255, player.elpheltGrenadeMaxWithSlow);
+					ElpheltInfo& ei = currentFrame.u.elpheltInfo;
+					ei.grenadeTimer = player.wasResource;
+					ei.grenadeDisabledTimer = min(255, player.elpheltGrenadeRemainingWithSlow);
+					ei.grenadeDisabledTimerMax = min(255, player.elpheltGrenadeMaxWithSlow);
+					ei.hasGrenade = elpheltGrenadeExists(player);
+					ei.hasJD = elpheltJDExists(player);
 				} else if (player.charType == CHARACTER_TYPE_JOHNNY) {
-					currentFrame.u.johnnyInfo.mistTimer = player.johnnyMistTimerWithSlow;
-					currentFrame.u.johnnyInfo.mistTimerMax = player.johnnyMistTimerMaxWithSlow;
-					currentFrame.u.johnnyInfo.mistKuttsukuTimer = player.johnnyMistKuttsukuTimerWithSlow;
-					currentFrame.u.johnnyInfo.mistKuttsukuTimerMax = player.johnnyMistKuttsukuTimerMaxWithSlow;
+					JohnnyInfo& ji = currentFrame.u.johnnyInfo;
+					ji.mistTimer = max_inline(0, min_inline(1023, player.johnnyMistTimerWithSlow));
+					ji.mistTimerMax = max_inline(0, min_inline(1023, player.johnnyMistTimerMaxWithSlow));
+					ji.mistKuttsukuTimer = max_inline(0, min_inline(1023, player.johnnyMistKuttsukuTimerWithSlow));
+					ji.mistKuttsukuTimerMax = max_inline(0, min_inline(1023, player.johnnyMistKuttsukuTimerMaxWithSlow));
+					ji.hasMistKuttsuku = hasAnyProjectileOfType(player, "MistKuttsuku");
+					ji.hasMist = hasLinkedProjectileOfType(player, "Mist");
 				} else if (player.charType == CHARACTER_TYPE_RAVEN) {
-					currentFrame.u.ravenInfo.slowTime = player.ravenInfo.slowTime;
-					currentFrame.u.ravenInfo.slowTimeMax = player.ravenInfo.slowTimeMax;
+					RavenInfo& ri = currentFrame.u.ravenInfo;
+					ri = player.ravenInfo;
 				} else if (player.charType == CHARACTER_TYPE_DIZZY) {
-					currentFrame.u.dizzyInfo.shieldFishSuperArmor = player.dizzyShieldFishSuperArmor;
+					fillDizzyInfo(player, currentFrame);
 				} else if (player.charType == CHARACTER_TYPE_MAY) {
-					currentFrame.u.mayInfo.hasDolphin = hasProjectileOfType(player, "IrukasanRidingObject"_hardcode);
-					currentFrame.u.mayInfo.hasBeachBall = hasProjectileOfTypeStrNCmp(player, "MayBall"_hardcode);
+					MayInfo& mi = currentFrame.u.mayInfo;
+					mi.hasDolphin = hasProjectileOfType(player, "IrukasanRidingObject");
+					mi.hasBeachBall = hasProjectileOfTypeStrNCmp(player, "MayBall");
 				} else if (player.charType == CHARACTER_TYPE_POTEMKIN) {
-					currentFrame.u.potemkinInfo.hasBomb = hasLinkedProjectileOfType(player, "Bomb"_hardcode);  // Trishula
+					currentFrame.u.potemkinInfo.hasBomb = hasLinkedProjectileOfType(player, "Bomb");  // Trishula
 				} else if (player.charType == CHARACTER_TYPE_FAUST) {
-					currentFrame.u.faustInfo.hasFlower = hasAnyProjectileOfType(player, "OreHana_Shot"_hardcode)
-						|| hasAnyProjectileOfType(player, "OreHanaBig_Shot"_hardcode);
+					currentFrame.u.faustInfo.hasFlower = hasAnyProjectileOfType(player, "OreHana_Shot")
+						|| hasAnyProjectileOfType(player, "OreHanaBig_Shot");
 				} else if (player.charType == CHARACTER_TYPE_AXL) {
-					currentFrame.u.axlInfo.hasSpindleSpinner = hasProjectileOfType(player, "RashosenObj"_hardcode);
-					currentFrame.u.axlInfo.hasSickleFlash = hasAnyProjectileOfType(player, "RensengekiObj"_hardcode);
-					currentFrame.u.axlInfo.hasMelodyChain = hasAnyProjectileOfType(player, "KyokusagekiObj"_hardcode);
-					currentFrame.u.axlInfo.hasSickleStorm = hasAnyProjectileOfType(player, "ByakueObj"_hardcode);
+					AxlInfo& ai = currentFrame.u.axlInfo;
+					ai.hasSpindleSpinner = hasProjectileOfType(player, "RashosenObj");
+					ai.hasSickleFlash = hasAnyProjectileOfType(player, "RensengekiObj");
+					ai.hasMelodyChain = hasAnyProjectileOfType(player, "KyokusagekiObj");
+					ai.hasSickleStorm = hasAnyProjectileOfType(player, "ByakueObj");
 				} else if (player.charType == CHARACTER_TYPE_VENOM) {
 					VenomInfo& vi = currentFrame.u.venomInfo;
-					static const char dubiousCurveName[] = "DubiousCurve";  // _hardcode
+					static const char dubiousCurveName[] = "DubiousCurve";
 					const char dubiousCurveLetter = player.anim[sizeof dubiousCurveName - 1];
 					const bool dubiousCurve = strncmp(player.anim, dubiousCurveName, sizeof dubiousCurveName - 1) == 0;
 					const bool hasChangedState = player.pawn.hasUpon(BBSCREVENT_PLAYER_CHANGED_STATE);
-					const bool hasQVShockwave = hasProjectileOfType(player, "Debious_AttackBall"_hardcode);
+					const bool hasQVShockwave = hasProjectileOfType(player, "Debious_AttackBall");
 					const bool isFirstFrameOfLackOfChangedState = dubiousCurve
 						&& !hasChangedState
 						&& player.pawn.bbscrCurrentFunc()
@@ -5796,6 +5826,41 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							// here C# would complain about lack of a default case
 						}
 					}
+				} else if (player.charType == CHARACTER_TYPE_LEO) {
+					LeoInfo& li = currentFrame.u.leoInfo;
+					li.hasEdgeyowai = hasLinkedProjectileOfType(player, "Edgeyowai");
+					li.hasEdgetuyoi = hasLinkedProjectileOfType(player, "Edgetuyoi");
+				} else if (player.charType == CHARACTER_TYPE_JACKO) {
+					fillInJackoInfo(player, currentFrame);
+				} else if (player.charType == CHARACTER_TYPE_HAEHYUN) {
+					HaehyunInfo& hi = currentFrame.u.haehyunInfo;
+					
+					bool cantDoBall = (player.wasForceDisableFlags & 0x1) != 0 && player.haehyunBallTimeWithSlow != -1;
+					hi.cantDoBall = cantDoBall;
+					
+					if (!cantDoBall) {
+						hi.ballTime = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallRemainingTimeWithSlow));
+						hi.ballTimeMax = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallRemainingTimeMaxWithSlow));
+					} else {
+						hi.ballTime = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallTimeWithSlow));
+						hi.ballTimeMax = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallTimeMaxWithSlow));
+					}
+					
+					bool ended = false;
+					for (int i = 0; i < 2; ++i) {
+						if (!ended && player.haehyunSuperBallRemainingTimeWithSlow[i]) {
+							hi.superballTime[i].time = min_inline(USHRT_MAX, max_inline(0, player.haehyunSuperBallRemainingTimeWithSlow[i]));
+							hi.superballTime[i].timeMax = min_inline(USHRT_MAX, max_inline(0, player.haehyunSuperBallRemainingTimeMaxWithSlow[i]));
+						} else {
+							ended = true;
+							hi.superballTime[i].time = 0;
+							hi.superballTime[i].timeMax = 0;
+						}
+					}
+					
+					hi.hasBall = hasLinkedProjectileOfType(player, "EnergyBall");
+					hi.has5D = hasLinkedProjectileOfType(player, "kum_205shot");
+					
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
 				}
@@ -5910,16 +5975,16 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& player.superArmorLow.active
 						&& player.superArmorOverhead.active
 						&& (
-							strcmp(player.anim, "CounterGuardStand"_hardcode) == 0
-							|| strcmp(player.anim, "CounterGuardCrouch"_hardcode) == 0
-							|| strcmp(player.anim, "CounterGuardAir"_hardcode) == 0
+							strcmp(player.anim, "CounterGuardStand") == 0
+							|| strcmp(player.anim, "CounterGuardCrouch") == 0
+							|| strcmp(player.anim, "CounterGuardAir") == 0
 						)
 						&& player.superArmorHontaiAttacck.active
 						&& !player.projectileOnlyInvul.active
 						&& !player.reflect.active
 						|| player.charType == CHARACTER_TYPE_FAUST
-						&& strcmp(player.anim, "NmlAtk5E"_hardcode) == 0
-						&& strcmp(player.sprite.name, "fau205_05"_hardcode) == 0
+						&& strcmp(player.anim, "NmlAtk5E") == 0
+						&& strcmp(player.sprite.name, "fau205_05") == 0
 					);
 				
 				currentFrame.airborne = player.airborne;
@@ -6034,6 +6099,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.stop.isRejection = true;
 					currentFrame.stop.value = min(player.rejectionWithSlow, 8192);
 					currentFrame.stop.valueMax = min(player.rejectionMaxWithSlow, 2047);
+					currentFrame.stop.valueMaxExtra = 0;
+					currentFrame.stop.tumble = 0;
+					currentFrame.stop.tumbleMax = 0;
+				} else if (player.wallslumpLand && player.cmnActIndex == CmnActWallHaritsukiLand) {
+					currentFrame.stop.isBlockstun = false;
+					currentFrame.stop.isHitstun = true;
+					currentFrame.stop.isStagger = false;
+					currentFrame.stop.isWakeup = false;
+					currentFrame.stop.isRejection = false;
+					currentFrame.stop.value = min(player.wallslumpLandWithSlow, 8192);
+					currentFrame.stop.valueMax = min(player.wallslumpLandMaxWithSlow, 2047);
 					currentFrame.stop.valueMaxExtra = 0;
 					currentFrame.stop.tumble = 0;
 					currentFrame.stop.tumbleMax = 0;
@@ -6178,14 +6254,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (charge) player.chargeDownLast = charge;
 				currentFrame.chargeDownLast = player.chargeDownLast;
 				
-				static const StringWithLength elpheltShotgunFire = "Shotgun_Fire_";  // _hardcode
-				currentFrame.powerup = player.move.powerup && player.move.powerup(player);
+				static const StringWithLength elpheltShotgunFire = "Shotgun_Fire_";
+				currentFrame.powerup = player.move.powerup ? player.move.powerup(player) : nullptr;
 				if (currentFrame.powerup) {
-					currentFrame.powerupExplanation = player.move.powerupExplanation ? player.move.powerupExplanation(player) : nullptr;
 					currentFrame.dontShowPowerupGraphic = player.move.dontShowPowerupGraphic ? player.move.dontShowPowerupGraphic(player) : false;
 				} else if (player.charType == CHARACTER_TYPE_MILLIA && player.pickedUpSilentForceKnifeOnThisFrame) {
-					currentFrame.powerup = true;
-					currentFrame.powerupExplanation = "Picked up Silent Force";
+					currentFrame.powerup = "Picked up Silent Force";
 					currentFrame.dontShowPowerupGraphic = false;
 				} else if (player.charType == CHARACTER_TYPE_ELPHELT
 						&& player.playerval0 && !player.elpheltPrevFrameWasPlayerval1 && player.elpheltWasPlayerval1
@@ -6195,10 +6269,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							|| player.cmnActIndex == NotACmnAct
 							&& strncmp(player.anim, elpheltShotgunFire.txt, elpheltShotgunFire.length) == 0
 						)) {
-					currentFrame.powerup = true;
-					currentFrame.powerupExplanation = "Ms. Travailler reached maximum charge.";
+					currentFrame.powerup = "Ms. Travailler reached maximum charge.";
+					currentFrame.dontShowPowerupGraphic = false;
 				} else {
-					currentFrame.powerupExplanation = nullptr;
 					currentFrame.dontShowPowerupGraphic = false;
 				}
 				currentFrame.cantAirdash = player.airborne && player.wasCantAirdash && !player.inHitstun;
@@ -6227,6 +6300,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 				
 				currentFrame.counterhit = player.counterhit;
+				currentFrame.crouching = player.crouching;
 				
 			} else if (superflashInstigator && player.gotHitOnThisFrame) {
 				currentFrame.hitConnected = true;
@@ -6282,7 +6356,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.totalCanBlock > playerMaxThing) playerMaxThing = player.totalCanBlock;
 			if (player.totalCanFD > playerMaxThing) playerMaxThing = player.totalCanFD;
 			
-			if (player.isInFDWithoutBlockstun) {
+			if (player.charType == CHARACTER_TYPE_SIN && !player.sinHunger) {
+				bool newVal = strcmp(player.pawn.gotoLabelRequests(), "Kuuhuku") == 0 && !player.pawn.isRCFrozen();
+				if (newVal) {
+					player.sinHunger = true;
+					player.determineMoveNameAndSlangName(&currentFrame.animName);
+					framebar.requestFirstFrame = true;
+					currentFrame.isFirst = true;
+				}
+			}
+			
+			if (player.sinHunger) {
+				currentFrame.type = FT_RECOVERY;
+				++player.sinHungerRecovery;
+			} else if (player.isInFDWithoutBlockstun) {
 				++player.totalFD;
 				currentFrame.type = standardXStun;
 			} else if (!(player.hitstop && !isAzami)
@@ -6385,7 +6472,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.startedUp = true;
 						player.inNewMoveSection = false;
 						if (player.charType == CHARACTER_TYPE_POTEMKIN
-								&& strcmp(player.anim, "HammerFall"_hardcode) == 0) {
+								&& strcmp(player.anim, "HammerFall") == 0) {
 							player.removeNonStancePrevStartups();
 						}
 						player.addActiveFrame(ent, framebar);
@@ -6555,13 +6642,20 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.appendPlayerCancelInfo(newCancelInfo);
 			}
 			
-			if (measureInvuls) {
-				int prevTotal = player.prevStartups.total() + player.total;
-				
-				#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) player.fieldName.addInvulFrame(prevTotal);
-				INVUL_TYPES_TABLE
-				#undef INVUL_TYPES_EXEC
-				
+			if (!(player.hitstop || superflashInstigator)) {
+				if (measureInvuls) {
+					if (!player.stoppedMeasuringInvuls) {
+						++player.totalForInvul;
+						int prevTotal = player.prevStartups.total() + player.totalForInvul;
+						
+						#define INVUL_TYPES_EXEC(enumName, stringDesc, fieldName) player.fieldName.addInvulFrame(prevTotal);
+						INVUL_TYPES_TABLE
+						#undef INVUL_TYPES_EXEC
+					}
+					
+				} else {
+					player.stoppedMeasuringInvuls = true;
+				}
 			}
 		}
 		
@@ -6679,7 +6773,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			currentFrame.frameAdvantageNoPreBlockstun = advRes.frameAdvantageNoPreBlockstun;
 			currentFrame.landingFrameAdvantageNoPreBlockstun = advRes.landingFrameAdvantageNoPreBlockstun;
 			
-			value = player.totalDisp;
+			value = player.totalDisp + player.sinHungerRecovery;
 			currentFrame.total = value > SHRT_MAX ? SHRT_MAX : value;
 			
 			copyIdleHitstopFrameToTheRestOfSubframebars(entityFramebar,
@@ -6707,6 +6801,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				}
 			} else if (player.rejection) {
 				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_REJECTION_WITH_SLOW;
+			} else if (player.cmnActIndex == CmnActWallHaritsukiLand) {
+				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_WALLSLUMP_LAND;
 			}
 			player.prevGettingHitBySuper = player.gettingHitBySuper;
 			player.prevFrameStunValue = player.pawn.dealtAttack()->stun;
@@ -7719,7 +7815,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 	RegisteredHit& hit = registeredHits.back();
 	if (hitResult == HIT_RESULT_ARMORED && attacker.isPawn() && defender.isPawn()
 			&& defender.characterType() == CHARACTER_TYPE_LEO
-			&& strcmp(defender.animationName(), "Semuke5E"_hardcode) == 0) {
+			&& strcmp(defender.animationName(), "Semuke5E") == 0) {
 		LeoParry newParry;
 		newParry.x = defender.x();
 		newParry.y = defender.y();
@@ -7801,7 +7897,7 @@ void EndScene::onUWorld_Tick() {
 }
 
 // Runs on the main thread
-void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, unsigned int posType) {
+void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, BBScrPosType posType) {
 	static bool insideObjectCreation = false;
 	bool needUnset = !insideObjectCreation;
 	if (!endScene.shutdown) {
@@ -7821,7 +7917,7 @@ void EndScene::HookHelp::BBScr_createObjectWithArgHook(const char* animName, uns
 }
 
 // Runs on the main thread
-void EndScene::HookHelp::BBScr_createObjectHook(const char* animName, unsigned int posType) {
+void EndScene::HookHelp::BBScr_createObjectHook(const char* animName, BBScrPosType posType) {
 	static bool insideObjectCreation = false;
 	bool needUnset = !insideObjectCreation;
 	if (!endScene.shutdown) {
@@ -7967,7 +8063,7 @@ void EndScene::HookHelp::setAnimHook(const char* animName) {
 void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animName) {
 	// for combo recipe - register a jump cancel
 	// even air jump cancel starts with prejump
-	if (strcmp(animName, "CmnActJumpPre"_hardcode) == 0) {
+	if (strcmp(animName, "CmnActJumpPre") == 0) {
 		
 		struct RemoveFlagsOnExit {
 			~RemoveFlagsOnExit() {
@@ -7983,7 +8079,7 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 		bool enableGatlings = pawn.enableGatlings() && pawn.attackCollidedSoCanCancelNow();
 		if (!inAir) {
 			const AddedMoveData* move = pawn.currentMove();
-			if (move && strcmp(move->name + 4, "HighJump"_hardcode) == 0) {
+			if (move && strcmp(move->name + 4, "HighJump") == 0) {
 				isSuperJump = true;
 			}
 			if (pawn.enemyEntity() && pawn.enemyEntity().inHitstun() && isSuperJump && player.jumpInstalled) {
@@ -7996,7 +8092,7 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 			}
 			bool canJump = pawn.enableJump() || pawn.enableAirOptions();
 			if (!canJump) {
-				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVJump"_hardcode, 0);
+				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVJump", 0);
 				if (foundMove) {
 					canJump = foundMove->whiffCancelOption()
 						|| foundMove->gatlingOption() && enableGatlings;  // Jack-O 5H jump cancel
@@ -8022,7 +8118,7 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 		} else {
 			bool canJump = pawn.enableAirOptions();
 			if (!canJump) {
-				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVAirJump"_hardcode, 0);
+				AddedMoveData* foundMove = (AddedMoveData*)findMoveByName((void*)pawn.ent, "CmnVAirJump", 0);
 				if (foundMove) {
 					canJump = foundMove->whiffCancelOption()
 						|| foundMove->gatlingOption() && enableGatlings;  // anything similar to Jack-O 5H jump cancel
@@ -8058,11 +8154,11 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 
 // Runs on the main thread
 void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName) {
-	if (strcmp(animName, "CmnActFDash"_hardcode) == 0) {
+	if (strcmp(animName, "CmnActFDash") == 0) {
 		player.startedRunning = true;
-	} else if (strcmp(animName, "CrouchFWalk"_hardcode) == 0 || strcmp(animName, "CmnActFWalk"_hardcode) == 0) {
+	} else if (strcmp(animName, "CrouchFWalk") == 0 || strcmp(animName, "CmnActFWalk") == 0) {
 		player.startedWalkingForward = true;
-	} else if (strcmp(animName, "CrouchBWalk"_hardcode) == 0 || strcmp(animName, "CmnActBWalk"_hardcode) == 0) {
+	} else if (strcmp(animName, "CrouchBWalk") == 0 || strcmp(animName, "CmnActBWalk") == 0) {
 		player.startedWalkingBackward = true;
 		
 	// Bedman is idle during the entirety of 1/2/3/4/6/7/8/9Move, and it can be cancelled into a normal or special immediately.
@@ -8071,7 +8167,7 @@ void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName
 	} else if (pawn.characterType() == CHARACTER_TYPE_BEDMAN
 						&& animName[0] >= '1'
 						&& animName[0] <= '9'
-						&& strcmp(animName + 1, "Move"_hardcode) == 0) {
+						&& strcmp(animName + 1, "Move") == 0) {
 		ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
 		player.comboRecipe.emplace_back();
 		ComboRecipeElement& newComboElem = player.comboRecipe.back();
@@ -8169,7 +8265,7 @@ PlayerInfo& EndScene::findPlayer(Entity ent) {
 }
 
 // Runs on the main thread
-void EndScene::HookHelp::BBScr_createParticleWithArgHook(const char* animName, unsigned int posType) {
+void EndScene::HookHelp::BBScr_createParticleWithArgHook(const char* animName, BBScrPosType posType) {
 	endScene.BBScr_createParticleWithArgHook(Entity{(char*)this}, animName, posType);
 }
 
@@ -8184,7 +8280,7 @@ void EndScene::HookHelp::BBScr_linkParticleWithArg2Hook(const char* name) {
 }
 
 // Runs on the main thread
-void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName, unsigned int posType) {
+void EndScene::BBScr_createParticleWithArgHook(Entity pawn, const char* animName, BBScrPosType posType) {
 	if (!gifMode.modDisabled && !gifMode.allowCreateParticles) {
 		return;
 	}
@@ -8282,6 +8378,7 @@ void EndScene::frameCleanup() {
 		player.wasEnableNormals = false;
 		player.wasCantAirdash = true;
 		player.wasCanYrc = false;
+		player.wasCantRc = false;
 		player.wasProhibitFDTimer = 1;
 		player.wasAirdashHorizontallingTimer = 0;
 		player.wasEnableWhiffCancels = false;
@@ -8382,16 +8479,16 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 			}
 		}
 		if (signal == BBSCREVENT_CUSTOM_SIGNAL_5
-				&& !pawn.isPawn() && strncmp(pawn.animationName(), "DejavIcon"_hardcode, 9) == 0) {
+				&& !pawn.isPawn() && strncmp(pawn.animationName(), "DejavIcon", 9) == 0) {
 			PlayerInfo& player = findPlayer(pawn.playerEntity());
 			const char* remainingName = pawn.animationName() + 9;
-			if (strcmp(remainingName, "BoomerangA"_hardcode) == 0) {
+			if (strcmp(remainingName, "BoomerangA") == 0) {
 				player.bedmanInfo.sealAReceivedSignal5 = true;
-			} else if (strcmp(remainingName, "BoomerangB"_hardcode) == 0) {
+			} else if (strcmp(remainingName, "BoomerangB") == 0) {
 				player.bedmanInfo.sealBReceivedSignal5 = true;
-			} else if (strcmp(remainingName, "SpiralBed"_hardcode) == 0) {
+			} else if (strcmp(remainingName, "SpiralBed") == 0) {
 				player.bedmanInfo.sealCReceivedSignal5 = true;
-			} else if (strcmp(remainingName, "FlyingBed"_hardcode) == 0) {
+			} else if (strcmp(remainingName, "FlyingBed") == 0) {
 				player.bedmanInfo.sealDReceivedSignal5 = true;
 			}
 		}
@@ -8422,8 +8519,8 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 					if (
 							p.currentAnimDuration() == 1
 							&& (
-								strcmp(animName, "BitN6C"_hardcode) == 0
-								|| strcmp(animName, "BitN2C_Bunri"_hardcode) == 0
+								strcmp(animName, "BitN6C") == 0
+								|| strcmp(animName, "BitN2C_Bunri") == 0
 							)
 					) {
 						player.ramlethalBitNStartPos = p.posX();
@@ -8435,20 +8532,20 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 					if (
 							p.currentAnimDuration() == 1
 							&& (
-								strcmp(animName, "BitF6D"_hardcode) == 0
-								|| strcmp(animName, "BitF2D_Bunri"_hardcode) == 0
+								strcmp(animName, "BitF6D") == 0
+								|| strcmp(animName, "BitF2D_Bunri") == 0
 							)
 					) {
 						player.ramlethalBitFStartPos = p.posX();
 					}
 				}
 			} else if (pawn.characterType() == CHARACTER_TYPE_SIN) {
-				if (strcmp(pawn.animationName(), "UkaseWaza"_hardcode) == 0
+				if (strcmp(pawn.animationName(), "UkaseWaza") == 0
 						&& pawn.currentAnimDuration() == 7 && !pawn.isRCFrozen()) {
 					player.sinHawkBakerStartX = pawn.posX();
 				}
 			} else if (pawn.characterType() == CHARACTER_TYPE_ELPHELT) {
-				if (strcmp(pawn.animationName(), "Shotgun_Fire_MAX"_hardcode) == 0 && pawn.currentAnimDuration() == 1 && !pawn.isRCFrozen()) {
+				if (strcmp(pawn.animationName(), "Shotgun_Fire_MAX") == 0 && pawn.currentAnimDuration() == 1 && !pawn.isRCFrozen()) {
 					player.elpheltShotgunX = pawn.posX();
 				}
 			}
@@ -8783,19 +8880,19 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 				if (instigator != nullptr) {
 					if (
 						instigator.characterType() == CHARACTER_TYPE_RAMLETHAL
-						&& strcmp(instigator.animationName(), "BitLaser"_hardcode) == 0
+						&& strcmp(instigator.animationName(), "BitLaser") == 0
 						&& instigator.currentAnimDuration() >= 8 && instigator.currentAnimDuration() < 139
 						|| instigator.characterType() == CHARACTER_TYPE_INO
-						&& strcmp(instigator.animationName(), "Madogiwa"_hardcode) == 0  // 632146H super
+						&& strcmp(instigator.animationName(), "Madogiwa") == 0  // 632146H super
 						&& instigator.currentAnimDuration() >= 8 && instigator.currentAnimDuration() < 64
 						|| instigator.characterType() == CHARACTER_TYPE_SLAYER
-						&& strcmp(instigator.animationName(), "DeadOnTime"_hardcode) == 0
+						&& strcmp(instigator.animationName(), "DeadOnTime") == 0
 						&& instigator.currentAnimDuration() >= 8 && instigator.currentAnimDuration() < 20
 						|| instigator.characterType() == CHARACTER_TYPE_HAEHYUN
-						&& strcmp(instigator.animationName(), "BlackHoleAttack"_hardcode) == 0  // 236236H super
+						&& strcmp(instigator.animationName(), "BlackHoleAttack") == 0  // 236236H super
 						&& instigator.currentAnimDuration() >= 7 && instigator.currentAnimDuration() < 100
 						|| instigator.characterType() == CHARACTER_TYPE_ANSWER
-						&& strcmp(instigator.animationName(), "Royal_Straight_Flush"_hardcode) == 0  // 632146S super
+						&& strcmp(instigator.animationName(), "Royal_Straight_Flush") == 0  // 632146S super
 						&& instigator.currentAnimDuration() >= 19 && instigator.currentAnimDuration() < 143
 					) {
 						drawDataPrepared.clearBoxes();
@@ -8804,7 +8901,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 					for (int i = 0; i < 2 && i < entityList.count; ++i) {
 						instigator = entityList.slots[i];
 						if (instigator.characterType() == CHARACTER_TYPE_RAVEN
-								&& strcmp(instigator.animationName(), "RevengeAttackEx"_hardcode) == 0  // 214214H super
+								&& strcmp(instigator.animationName(), "RevengeAttackEx") == 0  // 214214H super
 								&& instigator.currentAnimDuration() >= 19 && instigator.currentAnimDuration() < 139) {
 							drawDataPrepared.clearBoxes();
 							break;
@@ -9230,8 +9327,8 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 			if (player.charType == CHARACTER_TYPE_BEDMAN) {
 				bool doubleJumpHeightOk = speedY <= 0 || posY >= 122500;
 				// AirStopCancelOnly does not have a minimum height requirement
-				if (doubleJumpHeightOk && !player.wasCancels.gatlings.hasCancel("AirStopCancelOnly"_hardcode)) {
-					const AddedMoveData* airStop = pawn.findAddedMove("AirStop"_hardcode);
+				if (doubleJumpHeightOk && !player.wasCancels.gatlings.hasCancel("AirStopCancelOnly")) {
+					const AddedMoveData* airStop = pawn.findAddedMove("AirStop");
 					if (airStop && airStop->minimumHeightRequirement) {
 						doubleJumpHeightOk = posY >= airStop->minimumHeightRequirement;
 					}
@@ -9262,6 +9359,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 						&& other.movesBase()[other.currentMoveIndex()].type == MOVE_TYPE_BLUE_BURST
 					)
 				);
+			player.wasCantRc = player.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
 			player.wasProhibitFDTimer = min(127, pawn.prohibitFDTimer());
 			player.wasAirdashHorizontallingTimer = min(127, pawn.airdashHorizontallingTimer());
 			player.wasEnableGatlings = player.wasEnableGatlings && pawn.currentAnimDuration() != 1 || pawn.enableGatlings();
@@ -9816,10 +9914,10 @@ bool EndScene::requiresStylishInputs(const AddedMoveData* move) {
 bool EndScene::whiffCancelIntoFDEnabled(PlayerInfo& player) {
 	if (!findMoveByName || !player.wasEnableWhiffCancels) return false;
 	if (!player.standingFDMove) {
-		player.standingFDMove = player.findMoveByName("FaultlessDefenceStand"_hardcode);
+		player.standingFDMove = player.findMoveByName("FaultlessDefenceStand");
 	}
 	if (!player.crouchingFDMove) {
-		player.crouchingFDMove = player.findMoveByName("FaultlessDefenceCrouch"_hardcode);
+		player.crouchingFDMove = player.findMoveByName("FaultlessDefenceCrouch");
 	}
 	if (!player.standingFDMove || !player.crouchingFDMove) return false;
 	for (GatlingOrWhiffCancelInfo& cancel : player.wasCancels.whiffCancels) {
@@ -10245,7 +10343,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 					projectileMoveNonEmpty
 					&& projectileMovePtr->showMultipleHitsFromOneAttack
 					|| attacker.charType == CHARACTER_TYPE_VENOM
-					&& strcmp(attackerPtr.dealtAttack()->trialName, "Ball_Gold"_hardcode) == 0
+					&& strcmp(attackerPtr.dealtAttack()->trialName, "Ball_Gold") == 0
 				)) {
 					butAddAnyway = true;
 				}
@@ -10256,7 +10354,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 						projectileMoveNonEmpty
 						&& projectileMovePtr->combineHitsFromDifferentProjectiles
 						|| attacker.charType == CHARACTER_TYPE_VENOM
-						&& strcmp(attackerPtr.dealtAttack()->trialName, "Ball_RedHail"_hardcode) == 0
+						&& strcmp(attackerPtr.dealtAttack()->trialName, "Ball_RedHail") == 0
 					)
 					&& attacker.lastComboHitEqualsProjectile(attackerPtr)
 					|| !attacker.comboRecipe.empty()
@@ -10646,35 +10744,51 @@ void EndScene::checkVenomBallActivations() {
 // Kinda copy of hitDetectionHitOwnEffects function, with some filters which are explained in comments
 // The original function runs at the start of a logic tick, but we run it at the end of the current tick, which is probably the exact same
 // Runs on the main thread
-void EndScene::checkDizzyBubblePops() {
+void EndScene::checkSelfProjectileHarmInflictions() {
 	if (!hitDetectionFunc) return;
 	for (int i = 0; i < entityList.count; ++i) {
 		Entity attacker = entityList.list[i];
-		if (!attacker.isActive()) continue;  // this check is not in the original
-		if (attacker.signalToSendToYourOwnEffectsWhenHittingThem() != 0x17) {  // CUSTOM_SIGNAL_0. The real function checks == 0x2c, so opposite sign, and a different value
+		BBScrEvent event = attacker.signalToSendToYourOwnEffectsWhenHittingThem();
+		if (event == BBSCREVENT_HIT_OWN_PROJECTILE_DEFAULT
+				|| attacker.hitboxCount(HITBOXTYPE_HITBOX) == 0 && !attacker.effectLinkedCollision()) {
 			continue;
 		}
-		if ((attacker.isPawn() ? attacker.characterType() : attacker.playerEntity().characterType()) != CHARACTER_TYPE_DIZZY) continue;  // this check is not in the original
 		for (int j = 0; j < entityList.count; ++j) {
 			Entity defender = entityList.list[j];
 			if (defender != attacker
-					&& defender.isActive()  // this check is not in the original
 					&& defender.naguriNagurareru()
-					&& checkSameTeam(attacker, defender)) {
+					&& checkSameTeam(attacker, defender)  // this call is inlined in the real function
+					// this check is not in the original function
+					&& (
+						defender.hasUpon(event)
+						|| defender.needGoToStateUpon(event)
+						|| defender.needGoToMarkerUpon(event)
+					)
+			) {
 				ProjectileInfo& defenderProj = findProjectile(defender);
-				if (!(  // this skip (entire 'if') is not in the original
-					defenderProj.ptr && isDizzyBubble(defender.animationName())
-				)) continue;
 				if (hitDetectionFunc((void*)attacker.ent, (void*)defender.ent, HITBOXTYPE_HITBOX, HITBOXTYPE_HURTBOX, nullptr, nullptr)) {
-					// in the original, the attacker.signalToSendToYourOwnEffectsWhenHittingThem() signal is sent instead
-					defenderProj.gotHitOnThisFrame = true;
-					ProjectileInfo& attackerProj = findProjectile(attacker);
-					if (attackerProj.ptr) {
-						attackerProj.landedHit = true;
-					} else {
-						PlayerInfo& player = findPlayer(attacker);
-						if (player.pawn) {
-							player.hitSomething = true;
+					// prevent double collision for two frames in a row resulting from RC slowdown delaying the goto by 1 frame
+					if (!(
+						isGrenadeBomb(defender.animationName())
+						&& strcmp(defender.gotoLabelRequests(), "explode2") == 0
+						|| isDizzyBubble(defender.animationName())
+						&& strcmp(defender.gotoLabelRequests(), "bomb") == 0
+					)) {
+						// in the original, the attacker.signalToSendToYourOwnEffectsWhenHittingThem() signal is sent instead
+						defenderProj.gotHitOnThisFrame = true;
+						ProjectileInfo& attackerProj = findProjectile(attacker);
+						if (attackerProj.ptr) {
+							PlayerInfo& player = findPlayer(attacker.playerEntity());
+							if (player.pawn && player.pawn.effectLinkedCollision() == attacker) {  // Elphelt j.D fix
+								player.hitSomething = true;
+							} else {
+								attackerProj.landedHit = true;
+							}
+						} else {
+							PlayerInfo& player = findPlayer(attacker);
+							if (player.pawn) {
+								player.hitSomething = true;
+							}
 						}
 					}
 				}
@@ -10788,7 +10902,7 @@ void EndScene::analyzeGunflame(PlayerInfo& player, bool* wholeGunflameDisappears
 	bool hasNonLinked = false;
 	int team = player.index;
 	for (const ProjectileInfo& projectile : projectiles) {
-		if (projectile.team == team && strcmp(projectile.animName, "GunFlameHibashira"_hardcode) == 0 && projectile.ptr
+		if (projectile.team == team && strcmp(projectile.animName, "GunFlameHibashira") == 0 && projectile.ptr
 				&& projectile.isDangerous) {
 			Entity linkEntity = projectile.ptr.linkObjectDestroyOnDamage();
 			if (linkEntity) {
@@ -10811,8 +10925,22 @@ void EndScene::analyzeGunflame(PlayerInfo& player, bool* wholeGunflameDisappears
 bool EndScene::hasLinkedProjectileOfType(PlayerInfo& player, const char* name) {
 	int team = player.index;
 	for (const ProjectileInfo& projectile : projectiles) {
-		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && projectile.ptr) {
-			return projectile.isDangerous && projectile.ptr.linkObjectDestroyOnDamage() != nullptr;
+		Entity ptr = projectile.ptr;
+		if (projectile.team == team && strcmp(projectile.animName, name) == 0 && ptr) {
+			if (!projectile.isDangerous) {
+				continue;
+			}
+			if (ptr.linkObjectDestroyOnDamage() != nullptr || ptr.destroyOnPlayerHitstun()) {
+				return true;
+			}
+			// for Raven needle and orb
+			if (ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
+				BYTE* instr = moves.skipInstr(ptr.uponStruct(BBSCREVENT_PLAYER_GOT_HIT)->uponInstrPtr);
+				if (moves.instrType(instr) == instr_requestDestroy
+						&& asInstr(instr, requestDestroy)->entity == ENT_SELF) {
+					return true;
+				}
+			}
 		}
 	}
 	return false;
@@ -10844,9 +10972,9 @@ char EndScene::hasBoomerangHead(PlayerInfo& player) {
 	int team = player.index;
 	for (const ProjectileInfo& projectile : projectiles) {
 		if (projectile.team == team
-				&& strncmp(projectile.animName, "Boomerang_"_hardcode, 10) == 0
+				&& strncmp(projectile.animName, "Boomerang_", 10) == 0
 				&& projectile.animName[10] != '\0'
-				&& strncmp(projectile.animName + 11, "_Head"_hardcode, 5) == 0  // includes _Head_Air
+				&& strncmp(projectile.animName + 11, "_Head", 5) == 0  // includes _Head_Air
 				&& projectile.ptr) {
 			if (!projectile.isDangerous) return '\0';
 			return projectile.animName[10];
@@ -10905,7 +11033,7 @@ bool EndScene::isActiveFull(Entity ent) const {
 			&& (
 				ent.isPawn()
 					&& ent.characterType() == CHARACTER_TYPE_JAM
-					&& strcmp(ent.animationName(), "Saishingeki"_hardcode) == 0
+					&& strcmp(ent.animationName(), "Saishingeki") == 0
 					&& ent.currentAnimDuration() > 100
 				?
 					ent.currentHitNum() > 1
@@ -11000,21 +11128,21 @@ void EndScene::initializePredefinedCancels(const char** array, size_t size, std:
 
 void EndScene::collectBaikenBlockCancels(PlayerInfo& player, FrameCancelInfoFull& frame, bool inHitstopFreeze, bool isStylish) {
 	static const char* baikenBlockCancelsStr[] {
-		"DeadAngleAttack"_hardcode,  // standing
+		"DeadAngleAttack",  // standing
 		// Blue Burst, obviously
 		// FD, obviously
-		"BlockingStandGuard"_hardcode,  // standing
-		"BlockingCrouchGuard"_hardcode,  // crouching
-		"YoushijinGuard"_hardcode,  // standing
-		"MawarikomiGuard"_hardcode, // standing
-		"SakuraGuard"_hardcode, // standing
-		"IssenGuard"_hardcode,  // standing
-		"TeppouGuard"_hardcode,  // standing
-		"AirGCAntiAirAGuard"_hardcode,  // jumping
-		"AirGCAntiAirBGuard"_hardcode,  // jumping
-		"AirGCAntiGroundCGuard"_hardcode,  // jumping
-		"AirGCAntiGroundDGuard"_hardcode,  // jumping
-		"BlockingKakuseiGuard"_hardcode  // none
+		"BlockingStandGuard",  // standing
+		"BlockingCrouchGuard",  // crouching
+		"YoushijinGuard",  // standing
+		"MawarikomiGuard", // standing
+		"SakuraGuard", // standing
+		"IssenGuard",  // standing
+		"TeppouGuard",  // standing
+		"AirGCAntiAirAGuard",  // jumping
+		"AirGCAntiAirBGuard",  // jumping
+		"AirGCAntiGroundCGuard",  // jumping
+		"AirGCAntiGroundDGuard",  // jumping
+		"BlockingKakuseiGuard"  // none
 	};
 	addPredefinedCancels(player, baikenBlockCancelsStr, baikenBlockCancels, frame, inHitstopFreeze, isStylish);
 }
@@ -11035,9 +11163,9 @@ bool EndScene::blitzShieldCancellable(PlayerInfo& player, bool insideTick) {
 	
 	const char* animName = player.pawn.animationName();
 	
-	if (strcmp(animName, "CounterGuardStand"_hardcode) == 0 || strcmp(animName, "CounterGuardCrouch"_hardcode) == 0) {
+	if (strcmp(animName, "CounterGuardStand") == 0 || strcmp(animName, "CounterGuardCrouch") == 0) {
 		if (Moves::getBlitzType(player) != BLITZTYPE_TAP) return false;
-	} else if (strcmp(animName, "CounterGuardAir"_hardcode) != 0) return false;
+	} else if (strcmp(animName, "CounterGuardAir") != 0) return false;
 	
 	return true;
 }
@@ -11056,23 +11184,23 @@ void EndScene::collectBlitzShieldCancels(PlayerInfo& player, FrameCancelInfoFull
 	
 	bool isAir = player.pawn.y() > 0;
 	if (!isAir) {
-		checkAndCollectFrameCancelHelper(&params, "CmnBDash"_hardcode, &bdashMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "CmnFDash"_hardcode, &fdashMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "CounterGuardStand"_hardcode, &player.counterGuardStandMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "CounterGuardCrouch"_hardcode, &player.counterGuardCrouchMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceStand"_hardcode, &fdStandMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceCrouch"_hardcode, &fdCrouchMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CmnBDash", &bdashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CmnFDash", &fdashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CounterGuardStand", &player.counterGuardStandMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CounterGuardCrouch", &player.counterGuardCrouchMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceStand", &fdStandMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceCrouch", &fdCrouchMoveIndex);
 	} else {
-		checkAndCollectFrameCancelHelper(&params, "CmnFAirDash"_hardcode, &cmnFAirDashMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "CmnBAirDash"_hardcode, &cmnBAirDashMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "CounterGuardAir"_hardcode, &player.counterGuardAirMoveIndex);
-		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceAir"_hardcode, &fdAirMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CmnFAirDash", &cmnFAirDashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CmnBAirDash", &cmnBAirDashMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "CounterGuardAir", &player.counterGuardAirMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "FaultlessDefenceAir", &fdAirMoveIndex);
 	}
-	checkAndCollectFrameCancelHelper(&params, "CmnMaximumBurst"_hardcode, &maximumBurstMoveIndex);
-	checkAndCollectFrameCancelHelper(&params, "RomanCancelHit"_hardcode, &rcMoveIndex);
+	checkAndCollectFrameCancelHelper(&params, "CmnMaximumBurst", &maximumBurstMoveIndex);
+	checkAndCollectFrameCancelHelper(&params, "RomanCancelHit", &rcMoveIndex);
 	if (!isAir) {
 		// you are currently in blitz, therefore IK is not activated or sent yet
-		checkAndCollectFrameCancelHelper(&params, "IchigekiJunbi"_hardcode, &player.ikMoveIndex);
+		checkAndCollectFrameCancelHelper(&params, "IchigekiJunbi", &player.ikMoveIndex);
 	}
 	
 	const AddedMoveData* base = player.pawn.movesBase();
@@ -11143,10 +11271,10 @@ void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
 		BBScrEvent signal;
 	};
 	SealInfo seals[4] {
-		{ moves.bedmanSealA, "BoomerangA"_hardcode /* DejavIconBoomerangA */, BBSCREVENT_CUSTOM_SIGNAL_6 },
-		{ moves.bedmanSealB, "BoomerangB"_hardcode /* DejavIconBoomerangB */, BBSCREVENT_CUSTOM_SIGNAL_8 },
-		{ moves.bedmanSealC, "SpiralBed"_hardcode /* DejavIconSpiralBed */, BBSCREVENT_CUSTOM_SIGNAL_9 },
-		{ moves.bedmanSealD, "FlyingBed"_hardcode /* DejavIconFlyingBed */, BBSCREVENT_CUSTOM_SIGNAL_7 }
+		{ moves.bedmanSealA, "BoomerangA" /* DejavIconBoomerangA */, BBSCREVENT_CUSTOM_SIGNAL_6 },
+		{ moves.bedmanSealB, "BoomerangB" /* DejavIconBoomerangB */, BBSCREVENT_CUSTOM_SIGNAL_8 },
+		{ moves.bedmanSealC, "SpiralBed" /* DejavIconSpiralBed */, BBSCREVENT_CUSTOM_SIGNAL_9 },
+		{ moves.bedmanSealD, "FlyingBed" /* DejavIconFlyingBed */, BBSCREVENT_CUSTOM_SIGNAL_7 }
 	};
 	
 	bi.sealA = 0;
@@ -11162,7 +11290,7 @@ void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
 		
 		if (!(
 				projectile.team == player.index
-				&& strncmp(projectile.animName, "DejavIcon"_hardcode, 9) == 0
+				&& strncmp(projectile.animName, "DejavIcon", 9) == 0
 		)) continue;
 		
 		for (int j = 0; j < 4; ++j) {
@@ -11229,7 +11357,7 @@ void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
 	int team = player.index;
 	for (const ProjectileInfo& projectile : projectiles) {
 		if (projectile.team == team && projectile.ptr) {
-			if (strncmp(projectile.animName, "Djavu_"_hardcode, 6) == 0 && strcmp(projectile.animName + 7, "_Ghost"_hardcode) == 0) {
+			if (strncmp(projectile.animName, "Djavu_", 6) == 0 && strcmp(projectile.animName + 7, "_Ghost") == 0) {
 				char letter = projectile.animName[6];
 				if (letter == 'A' || letter == 'B') {
 					ghostAB = &projectile;
@@ -11250,8 +11378,8 @@ void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
 			bi.dejavuBGhostAlreadyCreatedBoomerang = alreadyCreated;
 		}
 	}
-	bi.hasDejavuBoomerangA = hasAnyProjectileOfTypeStrNCmp(player, "Boomerang_A_Djavu"_hardcode);
-	bi.hasDejavuBoomerangB = hasAnyProjectileOfTypeStrNCmp(player, "Boomerang_B_Djavu"_hardcode);
+	bi.hasDejavuBoomerangA = hasAnyProjectileOfTypeStrNCmp(player, "Boomerang_A_Djavu");
+	bi.hasDejavuBoomerangB = hasAnyProjectileOfTypeStrNCmp(player, "Boomerang_B_Djavu");
 	
 	if (ghostCD != nullptr && !ghostCD->ptr.destructionRequested()) {
 		char letter = ghostCD->animName[6];
@@ -11261,8 +11389,8 @@ void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
 		bi.dejavuDGhostInRecovery = letter == 'D' && !ghostCD->isDangerous;
 	}
 	
-	bi.hasShockwaves = hasAnyProjectileOfTypeStrNCmp(player, "bomb"_hardcode);
-	bi.hasOkkake = hasAnyProjectileOfTypeStrNCmp(player, "Okkake"_hardcode);
+	bi.hasShockwaves = hasAnyProjectileOfTypeStrNCmp(player, "bomb");
+	bi.hasOkkake = hasAnyProjectileOfTypeStrNCmp(player, "Okkake");
 }
 
 void UiOrFramebarDrawData::applyFramebarTexture() const {
@@ -11340,10 +11468,10 @@ bool EndScene::onPlayerIsBossChanged() {
 	return true;
 }
 
-static void modifyMarteliForpeli(PlayerInfo& player, bool marteliForpeliSetting, const char* name) {
+static void enableMove(PlayerInfo& player, const char* name, bool isEnabled) {
 	AddedMoveData* addedMove = (AddedMoveData*)player.pawn.findAddedMove(name);
 	if (addedMove) {
-		if (marteliForpeliSetting) {
+		if (!isEnabled) {
 			addedMove->addCondition(MOVE_CONDITION_ALWAYS_FALSE);
 		} else {
 			addedMove->removeCondition(MOVE_CONDITION_ALWAYS_FALSE);
@@ -11351,15 +11479,69 @@ static void modifyMarteliForpeli(PlayerInfo& player, bool marteliForpeliSetting,
 	}
 }
 
-void EndScene::handleMarteliForpeliSetting(PlayerInfo& player) {
-	const bool marteliForpeliSetting = player.index == 0 ? settings.p1RamlethalDisableMarteliForpeli : settings.p2RamlethalDisableMarteliForpeli;
-	if (marteliForpeliSetting != player.ramlethalForpeliMarteliDisabled && player.charType == CHARACTER_TYPE_RAMLETHAL) {
-		GameMode gameMode = game.getGameMode();
-		if (gameMode == GAME_MODE_TRAINING || gameMode == GAME_MODE_VERSUS) {
-			player.ramlethalForpeliMarteliDisabled = marteliForpeliSetting;
-			modifyMarteliForpeli(player, marteliForpeliSetting, "BitBlowC"_hardcode);
-			modifyMarteliForpeli(player, marteliForpeliSetting, "BitBlowD"_hardcode);
+static void modify6SH_changeInput(PlayerInfo& player, const char* name, bool changeTo6SH) {
+	AddedMoveData* addedMove = (AddedMoveData*)player.pawn.findAddedMove(name);
+	if (addedMove) {
+		if (changeTo6SH) {
+			bool foundNotAnyDown = false;
+			int index = 0;
+			for (InputType& input : addedMove->inputs) {
+				if (input == INPUT_214) {
+					input = INPUT_ANYFORWARD;
+				} else if (input == INPUT_NOTANYDOWN) {
+					foundNotAnyDown = true;
+				} else if (input == INPUT_END) {
+					if (!foundNotAnyDown && index < _countof(addedMove->inputs) - 1) {
+						input = INPUT_NOTANYDOWN;
+						addedMove->inputs[index + 1] = INPUT_END;
+					}
+					break;
+				}
+				++index;
+			}
+		} else {
+			InputType* foundPtr = nullptr;
+			InputType* endPtr = nullptr;
+			for (InputType& input : addedMove->inputs) {
+				if (input == INPUT_ANYFORWARD) {
+					input = INPUT_214;
+				} else if (input == INPUT_NOTANYDOWN) {
+					foundPtr = &input;
+				} else if (input == INPUT_END) {
+					endPtr = &input;
+					break;
+				}
+			}
+			if (foundPtr) {
+				if (!endPtr) {
+					endPtr = addedMove->inputs + _countof(addedMove->inputs) - 1;
+					*endPtr = INPUT_END;
+				}
+				int elemsToMove = endPtr - foundPtr + 1;
+				if (elemsToMove > 0) {
+					memmove(foundPtr, foundPtr + 1, (endPtr - foundPtr + 1) * sizeof InputType);
+				}
+			}
 		}
+	}
+}
+
+void EndScene::handleMarteliForpeliSetting(PlayerInfo& player) {
+	GameMode gameMode = game.getGameMode();
+	if (gameMode != GAME_MODE_TRAINING && gameMode != GAME_MODE_VERSUS) return;
+	const bool marteliForpeliSetting = player.index == 0 ? settings.p1RamlethalDisableMarteliForpeli : settings.p2RamlethalDisableMarteliForpeli;
+	const bool _6shSetting = player.index == 0 ? settings.p1RamlethalUseBoss6SHSwordDeploy : settings.p2RamlethalUseBoss6SHSwordDeploy;
+	if (marteliForpeliSetting != player.ramlethalForpeliMarteliDisabled && player.charType == CHARACTER_TYPE_RAMLETHAL) {
+		player.ramlethalForpeliMarteliDisabled = marteliForpeliSetting;
+		enableMove(player, "BitBlowC", !marteliForpeliSetting);
+		enableMove(player, "BitBlowD", !marteliForpeliSetting);
+	}
+	if (_6shSetting != player.ramlethalBoss6SHInputsModified && player.charType == CHARACTER_TYPE_RAMLETHAL) {
+		player.ramlethalBoss6SHInputsModified = _6shSetting;
+		modify6SH_changeInput(player, "6CBunriShot", _6shSetting);
+		modify6SH_changeInput(player, "6DBunriShot", _6shSetting);
+		enableMove(player, "6C_Soubi_Land", !_6shSetting);
+		enableMove(player, "6D_Soubi_Land", !_6shSetting);
 	}
 	
 }
@@ -11367,7 +11549,7 @@ void EndScene::handleMarteliForpeliSetting(PlayerInfo& player) {
 bool EndScene::hasHitstunTiedVenomBall(PlayerInfo& player) {
 	int index = player.index;
 	for (ProjectileInfo& projectile : projectiles) {
-		if (projectile.team == index && strcmp(projectile.animName, "Ball"_hardcode) == 0
+		if (projectile.team == index && strcmp(projectile.animName, "Ball") == 0
 				&& projectile.ptr && projectile.ptr.destroyOnPlayerHitstun()) {
 			return true;
 		}
@@ -11378,8 +11560,8 @@ bool EndScene::hasHitstunTiedVenomBall(PlayerInfo& player) {
 // fix for Elphelt "Close Shot created a Far Shot" when firing uncharged sg.H
 bool EndScene::eventHandlerSendsIntoRecovery(Entity ptr, BBScrEvent signal) {
 	return ptr.hasUpon(signal)
-		&& moves.instructionType(
-			moves.skipInstruction(
+		&& moves.instrType(
+			moves.skipInstr(
 				ptr.uponStruct(signal)->uponInstrPtr
 			)
 		) == instr_recoveryState;
@@ -11395,4 +11577,436 @@ bool EndScene::checkSameTeam(Entity attacker, Entity defender) {
 	int attackerTeam = attackerSwap == TEAM_SWAP_NORMAL ? attacker.team() : 1 - attacker.team();
 	int defenderTeam = defenderSwap == TEAM_SWAP_NORMAL ? defender.team() : 1 - defender.team();
 	return attackerTeam == defenderTeam;
+}
+
+static bool bitLaserMinionCreatedLaser(Entity ent) {
+	BYTE* bitLaserMinionFunc = ent.bbscrCurrentFunc();
+	BYTE* bitLaserMinionInstr = ent.bbscrCurrentInstr();
+	moves.fillRamlethalBitLaserMinionStuff(bitLaserMinionFunc);
+	
+	int offset = bitLaserMinionInstr - bitLaserMinionFunc;
+	bool bitLaserMinionIsBoss = bitLaserMinionInstr > bitLaserMinionFunc + moves.ramlethalBitLaserMinionBossStartMarker;
+	int createLaserOffset = bitLaserMinionIsBoss ? moves.ramlethalBitLaserMinionBossCreateLaser : moves.ramlethalBitLaserMinionNonBossCreateLaser;
+	return offset > createLaserOffset;
+}
+
+static Entity findYoungestBitLaserMinion(int team) {
+	int time = INT_MAX;
+	Entity found = nullptr;
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == team
+				&& strcmp(ent.animationName(), "BitLaser_Minion") == 0) {
+			int newTime = ent.lifeTimeCounter();
+			if (newTime < time) {
+				time = newTime;
+				found = ent;
+			}
+		}
+	}
+	return found;
+}
+
+static int countBitLaserMinions(int team) {
+	int count = 0;
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == team
+				&& strcmp(ent.animationName(), "BitLaser_Minion") == 0) {
+			if (!bitLaserMinionCreatedLaser(ent)) ++count;
+		}
+	}
+	return count;
+}
+
+static Entity findBitLaserCreatedByMinion(Entity minion) {
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.parentEntity() == minion) {
+			return ent;
+		}
+	}
+	return nullptr;
+}
+
+static int countBitLasers(int team) {
+	int count = 0;
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == team && strcmp(ent.animationName(), "BitLaser") == 0
+				&& ent.destroyOnPlayerHitstun()) {
+			++count;
+		}
+	}
+	return count;
+}
+
+void EndScene::fillRamlethalDisappearance(PlayerFrame& frame, PlayerInfo& player) {
+	RamlethalInfo& ri = frame.u.ramlethalInfo;
+	if (player.ramlethalSSwordTimerActive) {
+		ri.sSwordTime = min(255, player.ramlethalSSwordTime);
+		if (!player.ramlethalSSwordKowareSonoba) {
+			ri.sSwordTimeMax = min(255, player.ramlethalSSwordTimeMax);
+		} else {
+			ri.sSwordTimeMax = 0;
+		}
+		ri.sSwordSubAnim = player.ramlethalSSwordSubanim;
+	} else {
+		ri.sSwordTime = 0;
+		ri.sSwordTimeMax = 0;
+		ri.sSwordSubAnim = nullptr;
+	}
+	
+	if (player.ramlethalHSwordTimerActive) {
+		ri.hSwordTime = min(255, player.ramlethalHSwordTime);
+		if (!player.ramlethalHSwordKowareSonoba) {
+			ri.hSwordTimeMax = min(255, player.ramlethalHSwordTimeMax);
+		} else {
+			ri.hSwordTimeMax = 0;
+		}
+		ri.hSwordSubAnim = player.ramlethalHSwordSubanim;
+	} else {
+		ri.hSwordTime = 0;
+		ri.hSwordTimeMax = 0;
+		ri.hSwordSubAnim = nullptr;
+	}
+	
+	ri.sSwordBlockstunLinked = player.ramlethalSSwordBlockstunLinked;
+	ri.sSwordFallOnHitstun = player.ramlethalSSwordFallOnHitstun;
+	ri.sSwordRecoilOnHitstun = player.ramlethalSSwordRecoilOnHitstun;
+	ri.sSwordInvulnerable = player.ramlethalSSwordInvulnerable;
+	
+	ri.hSwordBlockstunLinked = player.ramlethalHSwordBlockstunLinked;
+	ri.hSwordFallOnHitstun = player.ramlethalHSwordFallOnHitstun;
+	ri.hSwordRecoilOnHitstun = player.ramlethalHSwordRecoilOnHitstun;
+	ri.hSwordInvulnerable = player.ramlethalHSwordInvulnerable;
+	
+	const int bitLasersCount = countBitLasers(player.index);
+	ri.hasLaser = bitLasersCount > 0;
+	ri.hasLaserSpawnerInStartup = false;
+	
+	const int bitLaserMinionCount = countBitLaserMinions(player.index);
+	bool hitstunLinked = false;
+	
+	if (strcmp(player.pawn.animationName(), "BitLaser") == 0) {
+		frame.canYrcProjectile = nullptr;
+		
+		bool stateLinked = player.pawn.hasUpon(BBSCREVENT_PLAYER_CHANGED_STATE);
+		hitstunLinked = player.pawn.hasUpon(BBSCREVENT_GOT_HIT);
+		
+		// if someone mods the bbscript for BitLaser to not have destroyOnPlayerHitstun, we're going to miss the hitstun link going through the GOT_HIT event, but ok
+		ri.hasLaserSpawnerInStartup = bitLaserMinionCount && hitstunLinked;
+		
+		BYTE* funcStart = player.pawn.bbscrCurrentFunc();
+		moves.fillRamlethalCreateBitLaserMinion(funcStart);
+		BYTE* currentInstr = player.pawn.bbscrCurrentInstr();
+		int offset = currentInstr - funcStart;
+		if (offset > moves.ramlethalCreateBitLaserMinion) {
+			
+			Entity bitLaserMinion = findYoungestBitLaserMinion(player.index);
+			const bool bitLaserMinionAlreadyCreatedLaser = bitLaserMinion ? bitLaserMinionCreatedLaser(bitLaserMinion) : true;
+			
+			BYTE* spriteInstr = moves.findAnySprite(funcStart + moves.ramlethalCreateBitLaserMinion);
+			
+			bool justCreated = spriteInstr && currentInstr == spriteInstr
+					&& player.pawn.justReachedSprite();
+			
+			frame.canYrcProjectile = player.wasCanYrc && (!justCreated && (!stateLinked || bitLaserMinionAlreadyCreatedLaser))
+				? "Can YRC, and Calvados will stay" : nullptr;
+			
+		}
+	}
+	
+	ri.hasLaserMinionInStartupAndHitstunNotTied = bitLaserMinionCount && !hitstunLinked;
+	
+	bool linkFound = false;
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == player.index) {
+			const char* stateName = ent.animationName();
+			bool isSword = strcmp(stateName, "BitSpiral_NSpiral") == 0;
+			if (strcmp(stateName, "BitSpiral_Minion") == 0 || isSword) {
+				ProjectileInfo& projectile = findProjectile(ent);
+				if ((!isSword || projectile.isDangerous) && ent.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
+					linkFound = true;
+					break;
+				}
+			}
+		}
+	}
+	
+	ri.hasSpiral = linkFound;
+}
+
+bool EndScene::elpheltGrenadeExists(PlayerInfo& player) {
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == player.index && ent.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
+			const char* animName = ent.animationName();
+			if (strncmp(animName, "GrenadeBomb", 11) == 0 && (
+					animName[11] == '\0'
+					|| strcmp(animName + 11, "_Ready") == 0
+					)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool EndScene::elpheltJDExists(PlayerInfo& player) {
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == player.index && ent.linkObjectDestroyOnDamage() != nullptr
+				&& strcmp(ent.animationName(), "HandGun_air_shot") == 0 && !ent.isRecoveryState()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void EndScene::fillInJackoInfo(PlayerInfo& player, PlayerFrame& frame) {
+	JackoInfo& ji = frame.u.jackoInfo;
+	
+	ji.hasAegisField = player.pawn.invulnForAegisField();
+	
+	ji.aegisFieldAvailableIn = JackoInfo::NO_AEGIS_FIELD;
+	if (player.jackoAegisReturningIn != INT_MIN) {
+		int val = player.jackoAegisReturningIn;
+		if (val > (int)JackoInfo::AEGIS_FIELD_MAX) {
+			ji.aegisFieldAvailableIn = JackoInfo::AEGIS_FIELD_MAX;
+		} else if (val < 0) {
+			ji.aegisFieldAvailableIn = 0;
+		} else {
+			ji.aegisFieldAvailableIn = (unsigned char)val;
+		}
+	}
+	
+	ji.hasServants = false;
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == player.index && strncmp(ent.animationName(), "Servant", 7) == 0 && ent.animationName()[8] == '\0') {
+			const ProjectileInfo& projectile = findProjectile(ent);
+			if (projectile.isDangerous) {
+				ji.hasServants = true;
+				break;
+			}
+		}
+	}
+	
+	ji.hasMagicianProjectile = false;
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == player.index && strncmp(ent.animationName(), "magicAtkLv", 10) == 0) {
+			ji.hasMagicianProjectile = true;
+			break;
+		}
+	}
+	
+	ji.hasJD = hasLinkedProjectileOfType(player, "Fireball");
+	
+	ji.settingPGhost = false;
+	ji.settingKGhost = false;
+	ji.settingSGhost = false;
+	ji.resettingPGhost = false;
+	ji.resettingKGhost = false;
+	ji.resettingSGhost = false;
+	ji.retrievingPGhost = false;
+	ji.retrievingKGhost = false;
+	ji.retrievingSGhost = false;
+	if (strncmp(player.anim, "SummonGhost", 11) == 0) {
+		bool createdProjectile = player.move.createdProjectile && player.move.createdProjectile(player);
+		bool canYrc = player.move.canYrcProjectile && player.move.canYrcProjectile(player);
+		if (!createdProjectile && !canYrc) {
+			switch (player.anim[11]) {
+				case 'A':
+					if (player.pawn.mem56()) {
+						ji.resettingPGhost = true;
+					} else {
+						ji.settingPGhost = true;
+					}
+					break;
+				case 'B':
+					if (player.pawn.mem57()) {
+						ji.resettingKGhost = true;
+					} else {
+						ji.settingKGhost = true;
+					}
+					break;
+				case 'C':
+					if (player.pawn.mem58()) {
+						ji.resettingSGhost = true;
+					} else {
+						ji.settingSGhost = true;
+					}
+					break;
+			}
+		}
+	} else if (strcmp(player.anim, "ReturnGhost") == 0) {
+		bool createdProjectile = player.move.powerup && player.move.powerup(player);
+		bool canYrc = player.move.canYrcProjectile && player.move.canYrcProjectile(player);
+		if (!createdProjectile && !canYrc) {
+			switch (player.pawn.mem59()) {
+				case 1: ji.retrievingPGhost = true; break;
+				case 2: ji.retrievingKGhost = true; break;
+				case 3: ji.retrievingSGhost = true; break;
+			}
+		}
+	}
+	
+	ji.carryingPGhost = false;
+	ji.carryingKGhost = false;
+	ji.carryingSGhost = false;
+	if (player.playerval0) {
+		switch (player.pawn.mem59()) {
+			case 1: ji.carryingPGhost = true; break;
+			case 2: ji.carryingKGhost = true; break;
+			case 3: ji.carryingSGhost = true; break;
+		}
+	}
+	
+}
+
+static void dizzyFunc_SakanaObj(DizzyInfo& di, Entity ent) {
+	if (ent.linkObjectDestroyOnDamage() != nullptr) {
+		ProjectileInfo& projectile = endScene.findProjectile(ent);
+		if (projectile.isDangerous) {
+			if (ent.createArgHikitsukiVal1() == 1) {
+				di.hasFirePillar = true;
+			} else {
+				di.hasIceSpike = true;
+			}
+		}
+	}
+}
+
+static void dizzyFunc_AkariObj(DizzyInfo& di, Entity ent) {
+	if (ent.linkObjectDestroyOnDamage() != nullptr) {
+		ProjectileInfo& projectile = endScene.findProjectile(ent);
+		if (projectile.isDangerous) {
+			if (ent.createArgHikitsukiVal1() == 1) {
+				di.hasIceScythe = true;
+			} else {
+				di.hasFireScythe = true;
+			}
+		}
+	}
+}
+
+static void dizzyFunc_AwaPObj(DizzyInfo& di, Entity ent) {
+	if (ent.linkObjectDestroyOnDamage() != nullptr) {
+		ProjectileInfo& projectile = endScene.findProjectile(ent);
+		if (projectile.isDangerous) {
+			di.hasBubble = true;
+		}
+	}
+}
+
+static void dizzyFunc_AwaKObj(DizzyInfo& di, Entity ent) {
+	if (ent.linkObjectDestroyOnDamage() != nullptr) {
+		ProjectileInfo& projectile = endScene.findProjectile(ent);
+		if (projectile.isDangerous) {
+			di.hasFireBubble = true;
+		}
+	}
+}
+
+static void dizzyFunc_KinomiObj(DizzyInfo& di, Entity ent) {
+	if (ent.linkObjectDestroyOnDamage() != nullptr) {
+		ProjectileInfo& projectile = endScene.findProjectile(ent);
+		if (projectile.isDangerous) {
+			di.hasIceSpear = true;
+		}
+	}
+}
+
+static void dizzyFunc_KinomiObjNecro(DizzyInfo& di, Entity ent) {
+	bool hitstunLinked = ent.linkObjectDestroyOnDamage() != nullptr;
+	bool blockstunLinked = false;
+	if (ent.hasUpon(BBSCREVENT_PLAYER_BLOCKED)) {
+		BYTE* instr = moves.skipInstr(ent.uponStruct(BBSCREVENT_PLAYER_BLOCKED)->uponInstrPtr);
+		InstrType type = moves.instrType(instr);
+		while (type != instr_endUpon) {
+			if (type == instr_deactivateObj && asInstr(instr, deactivateObj)->entity == ENT_SELF) {
+				blockstunLinked = true;
+				break;
+			}
+			instr = moves.skipInstr(instr);
+			type = moves.instrType(instr);
+		}
+	}
+	if (hitstunLinked || blockstunLinked) {
+		ProjectileInfo& projectile = endScene.findProjectile(ent);
+		if (projectile.isDangerous) {
+			di.hasFireSpearHitstunLink = true;
+			di.hasFireSpearBlockstunLink = true;
+		}
+	}
+}
+
+static void dizzyFunc_KinomiObjNecrobomb(DizzyInfo& di, Entity ent) {
+	if(ent.linkObjectDestroyOnDamage() != nullptr) {
+		ProjectileInfo& projectile = endScene.findProjectile(ent);
+		if (projectile.isDangerous) {
+			di.hasFireSpearExplosion = true;
+		}
+	}
+}
+
+void EndScene::fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame) {
+	DizzyInfo& di = frame.u.dizzyInfo;
+	
+	// i forgot all details of these, seems to only be hitstun link, but not sure which of these have it permanent and which temporary
+	// dizzy has a lot of fucking projectiles man
+	di.hasIceSpike = false;
+	di.hasFirePillar = false;
+	di.hasIceScythe = false;
+	di.hasFireScythe = false;
+	di.hasBubble = false;
+	di.hasIceSpear = false;
+	// all 3 fire spears always disappear on hit, but on block it's only a very brief moment when they do
+	di.hasFireSpearHitstunLink = false;
+	di.hasFireSpearBlockstunLink = false;
+	di.hasFireSpearExplosion = false;  // explosions always disappear on hit
+	// P fish disappears on hit, K fish under investigation...
+	
+	using dizzyCallback_t = void(*)(DizzyInfo& di, Entity ent);
+	
+	struct MyHashFunction {
+		inline std::size_t operator()(const char* k) const {
+			return Entity::hashString(k);
+		}
+	};
+	struct MyCompareFunction {
+		inline bool operator()(const char* k, const char* other) const {
+			return strcmp(k, other) == 0;
+		}
+	};
+	
+	static std::unordered_map<const char*, dizzyCallback_t, MyHashFunction, MyCompareFunction> dizzyMap;
+	if (dizzyMap.empty()) {
+		dizzyMap["SakanaObj"] = dizzyFunc_SakanaObj;
+		dizzyMap["AkariObj"] = dizzyFunc_AkariObj;
+		dizzyMap["AwaPObj"] = dizzyFunc_AwaPObj;
+		dizzyMap["AwaKObj"] = dizzyFunc_AwaKObj;
+		dizzyMap["KinomiObj"] = dizzyFunc_KinomiObj;
+		dizzyMap["KinomiObjNecro"] = dizzyFunc_KinomiObjNecro;
+		dizzyMap["KinomiObjNecro2"] = dizzyFunc_KinomiObjNecro;
+		dizzyMap["KinomiObjNecro3"] = dizzyFunc_KinomiObjNecro;
+		dizzyMap["KinomiObjNecrobomb"] = dizzyFunc_KinomiObjNecrobomb;
+	}
+	
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == player.index) {
+			const char* anim = ent.animationName();
+			auto found = dizzyMap.find(anim);
+			if (found != dizzyMap.end()) {
+				found->second(di, ent);
+			}
+		}
+	}
+	
+	di.shieldFishSuperArmor = player.dizzyShieldFishSuperArmor;
+	
 }

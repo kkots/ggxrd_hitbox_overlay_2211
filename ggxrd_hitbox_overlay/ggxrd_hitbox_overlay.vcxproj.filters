@@ -195,9 +195,6 @@
     <ClInclude Include="findMoveByName.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Hardcode.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="StringWithLength.h">
       <Filter>Header Files</Filter>
     </ClInclude>

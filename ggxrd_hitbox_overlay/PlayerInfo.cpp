@@ -1123,6 +1123,12 @@ void PlayerInfo::printRecovery(char* buf, size_t bufSize) {
 		buf += charsPrinted;
 		bufSize -= charsPrinted;
 	}
+	if (sinHungerRecovery) {
+		charsPrinted = sprintf_s(buf, bufSize, "%s%d hunger", charsPrinted ? "+" : "", sinHungerRecovery);
+		if (charsPrinted == -1) return;
+		buf += charsPrinted;
+		bufSize -= charsPrinted;
+	}
 	if (printedTheMainThing && totalFD) {
 		if (charsPrinted && bufSize) {
 			strcat(buf, "+");
@@ -1157,7 +1163,7 @@ int PlayerInfo::printRecoveryForFramebar() {
 	) {
 		result += totalCanFD - maxOfTheTwo;
 	}
-	result += landingRecovery;
+	result += landingRecovery + sinHungerRecovery;
 	if (printedTheMainThing && totalFD) {
 		result += totalFD;
 	}
@@ -1233,6 +1239,17 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize, std::vector<NameDuration>
 			buf += charsPrinted;
 			bufSize -= charsPrinted;
 		}
+		
+		if (sinHungerRecovery) {
+			if (elems) {
+				elems->push_back({ "hunger", sinHungerRecovery });
+			}
+			charsPrinted = sprintf_s(buf, bufSize, "+%d hunger", sinHungerRecovery);
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+		
 	}
 	if (totalFD) {
 		if (elems) {
@@ -1251,6 +1268,12 @@ void PlayerInfo::printTotal(char* buf, size_t bufSize, std::vector<NameDuration>
 		bufSize -= charsPrinted;
 		if (landingRecovery) {
 			charsPrinted = sprintf_s(buf, bufSize, "+%d landing", landingRecovery);
+			if (charsPrinted == -1) return;
+			buf += charsPrinted;
+			bufSize -= charsPrinted;
+		}
+		if (sinHungerRecovery) {
+			charsPrinted = sprintf_s(buf, bufSize, "+%d hunger", sinHungerRecovery);
 			if (charsPrinted == -1) return;
 			buf += charsPrinted;
 			bufSize -= charsPrinted;
@@ -3018,8 +3041,12 @@ void PlayerInfo::calculateSlow(int valueElapsed, int valueRemaining, int slowRem
 }
 
 bool ProjectileInfo::hitConnectedForFramebar() const {
+	// I don't understand why I have this safeguard in the first place. Don't trust my own hit registration?
 	if (ptr && !ptr.dealtAttack()->attackMultiHit()) {
-		return ptr.hitSomethingOnThisFrame();
+		return ptr.hitSomethingOnThisFrame()
+			// unfortunately, in order to show projectiles activating things like Elphelt Berry Pine and Dizzy Bubble,
+			// have to add this
+			|| landedHit;
 	} else {
 		return landedHit || clashedOnThisFrame;
 	}
@@ -3192,8 +3219,8 @@ void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
 	if (playervalSetterOffset) return;
 	BYTE* func = pawn.bbscrCurrentFunc();
 	if (!func) return;
-	BYTE* instr = moves.skipInstruction(func);
-	InstructionType type = moves.instructionType(instr);
+	BYTE* instr = moves.skipInstr(func);
+	InstrType type = moves.instrType(instr);
 	bool found = false;
 	bool foundSpriteEnd = false;
 	while (type != instr_endState) {
@@ -3208,8 +3235,8 @@ void PlayerInfo::fillInPlayervalSetter(int playervalNum) {
 		} else if (found && type == instr_spriteEnd) {
 			foundSpriteEnd = true;
 		}
-		instr = moves.skipInstruction(instr);
-		type = moves.instructionType(instr);
+		instr = moves.skipInstr(instr);
+		type = moves.instrType(instr);
 	}
 	if (found) {
 		playervalSetterOffset = instr - func;
@@ -3272,7 +3299,7 @@ int PlayerInfo::getElpheltRifle_AimMem46() const {
 		}
 		
 		int timeLeft = INT_MAX;
-		if (strcmp(aim.gotoLabelRequest(), "Aim_Super") == 0) {
+		if (strcmp(aim.gotoLabelRequests(), "Aim_Super") == 0) {
 			timeLeft = 1;
 		} else {
 			timeLeft = moves.elpheltRifleFirePowerupStartup - mem45

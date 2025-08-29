@@ -10,9 +10,74 @@
 
 Moves moves;
 
+unsigned short* Moves::bbscrInstructionSizes;
+
+const NamePair emptyNamePair { "", nullptr };
 static const CharacterType GENERAL = (CharacterType)-1;
 static std::vector<MoveInfoProperty> allProperties;
 bool charDoesNotCareAboutSuperJumpInstalls[25] { false };
+
+const GhostState ghostStateNames[ghostStateNamesCount] {
+	"Appear",
+	"Land",
+	"Reappear",
+	"Idle",
+	"Create",
+	"Create",
+	{ "Pick Up", true },
+	"Hold",
+	"Put",
+	"Throw",
+	"Throw",
+	"Drop",
+	"Damage"
+};
+static int findGhostStateNamePickUp() {
+	for (int i = 0; i < _countof(ghostStateNames); ++i) {
+		if (ghostStateNames[i].isPickUp) {
+			return i;
+		}
+	}
+	return -1;
+}
+int ghostStateName_PickUp = findGhostStateNamePickUp();
+
+const ServantState servantStateNames[] {
+	"Spawn",
+	"Move",
+	"Move",
+	"Turn",
+	"Attack",
+	"Attack",
+	"Attack",
+	"Damage",
+	{ "Death", true },
+	{ "Death", true },
+	"Wave Goodbye",
+	"Waiting",
+	"Lose",
+	"Win"
+};
+const ServantState servantStateNamesSpearman[] {
+	"Spawn",
+	"Move",
+	"Move",
+	"Turn",
+	"Attack",
+	"Attack",
+	"Attack",
+	"Damage",
+	"Damage",
+	"Damage",
+	{ "Death", true },
+	{ "Death", true },
+	"Wave Goodbye",
+	"Waiting",
+	"Lose",
+	"Win"
+};
+
+static void findSpriteAfterIf(BYTE* func, int* result);
 
 static bool sectionSeparator_enableWhiffCancels(PlayerInfo& ent);
 static bool sectionSeparator_mistFinerAirDash(PlayerInfo& ent);
@@ -82,6 +147,7 @@ static bool isDangerous_rsfMeishi(Entity ent);
 static bool isDangerous_displayModel(Entity ent);
 static bool isDangerous_vacuumAtk(Entity ent);
 static bool isDangerous_mistKuttsuku(Entity ent);
+static bool isDangerous_servant(Entity ent);
 
 static const NamePair* nameSelector_iceSpike(Entity ent);
 static const NamePair* nameSelector_iceScythe(Entity ent);
@@ -199,143 +265,215 @@ static const NamePair* displayNameSelector_crosswise(PlayerInfo& ent);
 static const NamePair* displayNameSelector_underPressure(PlayerInfo& ent);
 static const NamePair* displayNameSelector_jacko4D(PlayerInfo& ent);
 static const NamePair* displayNameSelector_jackoj4D(PlayerInfo& ent);
+static const NamePair* displayNameSelector_beakDriver(PlayerInfo& ent);
+static const NamePair* displayNameSelector_elkHunt(PlayerInfo& ent);
+static const NamePair* displayNameSelector_hawkBaker(PlayerInfo& ent);
+static const NamePair* displayNameSelector_vultureSeize(PlayerInfo& ent);
+static const NamePair* displayNameSelector_beakDriverAir(PlayerInfo& ent);
+static const NamePair* displayNameSelector_bullBash(PlayerInfo& ent);
+static const NamePair* displayNameSelector_beakDriverMash(PlayerInfo& ent);
 
-static bool canYrcProjectile_default(PlayerInfo& ent);
-static bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
+static const char* canYrcProjectile_default(PlayerInfo& ent);
+static const char* canYrcProjectile_gunflame(PlayerInfo& ent);
+static const char* canYrcProjectile_tyrantRave(PlayerInfo& ent);
+static const char* canYrcProjectile_cse(PlayerInfo& ent);
+static const char* canYrcProjectile_se(PlayerInfo& ent);
+static const char* canYrcProjectile_sacredEdge(PlayerInfo& ent);
+static const char* canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_ky5D(PlayerInfo& ent);
-static bool canYrcProjectile_ky5D(PlayerInfo& ent);
+static const char* canYrcProjectile_ky5D(PlayerInfo& ent);
+static const char* canYrcProjectile_kyJD(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_splitCiel(PlayerInfo& ent);
-static bool canYrcProjectile_splitCiel(PlayerInfo& ent);
-static bool canYrcProjectile_flower(PlayerInfo& ent);
-static bool canYrcProjectile_qvA(PlayerInfo& ent);
-static bool canYrcProjectile_qvB(PlayerInfo& ent);
-static bool canYrcProjectile_qvC(PlayerInfo& ent);
-static bool canYrcProjectile_qvD(PlayerInfo& ent);
+static const char* canYrcProjectile_splitCiel(PlayerInfo& ent);
+static const char* canYrcProjectile_coin(PlayerInfo& ent);
+static const char* canYrcProjectile_bacchusSigh(PlayerInfo& ent);
+static const char* canYrcProjectile_sinwazaShot(PlayerInfo& ent);
+static const char* canYrcProjectile_beachBall(PlayerInfo& ent);
+static const char* canYrcProjectile_dolphin(PlayerInfo& ent);
+static const char* canYrcProjectile_yamada(PlayerInfo& ent);
+static const char* canYrcProjectile_wallclingKunai(PlayerInfo& ent);
+static const char* canYrcProjectile_shuriken(PlayerInfo& ent);
+static const char* canYrcProjectile_gammaBlade(PlayerInfo& ent);
+static const char* canYrcProjectile_ryuuYanagi(PlayerInfo& ent);
+static const char* canYrcProjectile_faust5D(PlayerInfo& ent);
+static const char* canYrcProjectile_itemToss(PlayerInfo& ent);
+static const char* canYrcProjectile_love(PlayerInfo& ent);
+static const char* canYrcProjectile_superToss(PlayerInfo& ent);
+static const char* canYrcProjectile_flower(PlayerInfo& ent);
+static const char* canYrcProjectile_sickleFlash(PlayerInfo& ent);
+static const char* canYrcProjectile_qvA(PlayerInfo& ent);
+static const char* canYrcProjectile_qvB(PlayerInfo& ent);
+static const char* canYrcProjectile_qvC(PlayerInfo& ent);
+static const char* canYrcProjectile_qvD(PlayerInfo& ent);
+static const char* canYrcProjectile_redHail(PlayerInfo& ent);
+static const char* canYrcProjectile_darkAngel(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_bishop(PlayerInfo& ent);
-static bool canYrcProjectile_bishop(PlayerInfo& ent);
+static const char* canYrcProjectile_bishop(PlayerInfo& ent);
+static const char* canYrcProjectile_helterSkelter(PlayerInfo& ent);
+static const char* canYrcProjectile_sdd(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_ino5D(PlayerInfo& ent);
-static bool canYrcProjectile_ino5D(PlayerInfo& ent);
+static const char* canYrcProjectile_ino5D(PlayerInfo& ent);
+static const char* canYrcProjectile_kouutsuOnkai(PlayerInfo& ent);
+static const char* canYrcProjectile_chemicalLove(PlayerInfo& ent);
+static const char* canYrcProjectile_madogiwa(PlayerInfo& ent);
+static const char* canYrcProjectile_genkai(PlayerInfo& ent);
+static const char* canYrcProjectile_boomerang(PlayerInfo& ent);
+static const char* canYrcProjectile_dejavuAB(PlayerInfo& ent);
+static const char* canYrcProjectile_dejavuC(PlayerInfo& ent);
+static const char* canYrcProjectile_dejavuD(PlayerInfo& ent);
+static const char* canYrcProjectile_alarm(PlayerInfo& ent);
+static const char* canYrcProjectile_merry(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_onf5_s(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_onf5_s_recall(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_onf5_h(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_onf5_h_recall(PlayerInfo& ent);
-static bool canYrcProjectile_onf5(PlayerInfo& ent);
+static const char* canYrcProjectile_onf5_sLaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf5_sRelaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf5_sRecover(PlayerInfo& ent);
+static const char* canYrcProjectile_onf5_hLaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf5_hRelaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf5_hRecover(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_onf7_s(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_onf7_h(PlayerInfo& ent);
-static bool canYrcProjectile_onf7(PlayerInfo& ent);
-static bool canYrcProjectile_onf9(PlayerInfo& ent);
+static const char* canYrcProjectile_onf7_sLaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf7_sRelaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf7_sRecover(PlayerInfo& ent);
+static const char* canYrcProjectile_onf7_hLaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf7_hRelaunch(PlayerInfo& ent);
+static const char* canYrcProjectile_onf7_hRecover(PlayerInfo& ent);
+static const char* canYrcProjectile_bitSpiral(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_elpheltjD(PlayerInfo& ent);
-static bool canYrcProjectile_elpheltjD(PlayerInfo& ent);
+static const char* canYrcProjectile_elpheltjD(PlayerInfo& ent);
+static const char* canYrcProjectile_rifleFire(PlayerInfo& ent);
+static const char* canYrcProjectile_grenadeToss(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_PGhost(PlayerInfo& ent);
-static bool canYrcProjectile_PGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_PGhost(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_KGhost(PlayerInfo& ent);
-static bool canYrcProjectile_KGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_KGhost(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_SGhost(PlayerInfo& ent);
-static bool canYrcProjectile_SGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_SGhost(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_ThrowGhost(PlayerInfo& ent);
-static bool canYrcProjectile_ThrowGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_ThrowGhost(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_AirThrowGhost(PlayerInfo& ent);
-static bool canYrcProjectile_AirThrowGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_AirThrowGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_pickUpGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_putGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_returnGhost(PlayerInfo& ent);
+static const char* canYrcProjectile_organ(PlayerInfo& ent);
+static const char* canYrcProjectile_jackoCalvados(PlayerInfo& ent);
+static const char* canYrcProjectile_iceSpike_or_firePillar(PlayerInfo& ent);
+static const char* canYrcProjectile_iceScythe_or_fireScythe(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_kum5D(PlayerInfo& ent);
-static bool canYrcProjectile_kum5D(PlayerInfo& ent);
+static const char* canYrcProjectile_kum5D(PlayerInfo& ent);
+static const char* canYrcProjectile_tuningBall(PlayerInfo& ent);
+static const char* canYrcProjectile_ravenOrb(PlayerInfo& ent);
+static const char* canYrcProjectile_ravenNeedle(PlayerInfo& ent);
+static const char* canYrcProjectile_fish(PlayerInfo& ent);
+static const char* canYrcProjectile_bubble(PlayerInfo& ent);
+static const char* canYrcProjectile_fireBubble(PlayerInfo& ent);
+static const char* canYrcProjectile_fireSpears(PlayerInfo& ent);
+static const char* canYrcProjectile_iceSpear(PlayerInfo& ent);
+static const char* canYrcProjectile_imperialRay(PlayerInfo& ent);
+static const char* canYrcProjectile_tatami(PlayerInfo& ent);
+static const char* canYrcProjectile_teppou(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_baiken5D(PlayerInfo& ent);
-static bool canYrcProjectile_baiken5D(PlayerInfo& ent);
-static bool canYrcProjectile_scroll(PlayerInfo& ent);
+static const char* canYrcProjectile_baiken5D(PlayerInfo& ent);
+static const char* canYrcProjectile_jackoJD(PlayerInfo& ent);
+static const char* canYrcProjectile_scroll(PlayerInfo& ent);
+static const char* canYrcProjectile_clone(PlayerInfo& ent);
+static const char* canYrcProjectile_meishiMeteor(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_firesale(PlayerInfo& ent);
-static bool canYrcProjectile_firesale(PlayerInfo& ent);
-static bool canYrcProjectile_berryPull(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiA(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiB(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiC(PlayerInfo& ent);
-static bool canYrcProjectile_ballSeiseiD(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiA(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiB(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiC(PlayerInfo& ent);
-static bool canYrcProjectile_airBallSeiseiD(PlayerInfo& ent);
+static const char* canYrcProjectile_firesale(PlayerInfo& ent);
+static const char* canYrcProjectile_disc(PlayerInfo& ent);
+static const char* canYrcProjectile_silentForce(PlayerInfo& ent);
+static const char* canYrcProjectile_emeraldRain(PlayerInfo& ent);
+static const char* canYrcProjectile_eddie(PlayerInfo& ent);
+static const char* canYrcProjectile_amorphous(PlayerInfo& ent);
+static const char* canYrcProjectile_slideHead(PlayerInfo& ent);
+static const char* canYrcProjectile_fdb(PlayerInfo& ent);
+static const char* canYrcProjectile_trishula(PlayerInfo& ent);
+static const char* canYrcProjectile_giganter(PlayerInfo& ent);
+static const char* canYrcProjectile_berryPull(PlayerInfo& ent);
+static const char* canYrcProjectile_bazooka(PlayerInfo& ent);
+static const char* canYrcProjectile_graviertWurde(PlayerInfo& ent);
+static const char* canYrcProjectile_stahlWirbel(PlayerInfo& ent);
+static const char* canYrcProjectile_card(PlayerInfo& ent);
+static const char* canYrcProjectile_renhoukyaku(PlayerInfo& ent);
+static const char* canYrcProjectile_caltrops(PlayerInfo& ent);
+static const char* canYrcProjectile_ballSeiseiA(PlayerInfo& ent);
+static const char* canYrcProjectile_ballSeiseiB(PlayerInfo& ent);
+static const char* canYrcProjectile_ballSeiseiC(PlayerInfo& ent);
+static const char* canYrcProjectile_ballSeiseiD(PlayerInfo& ent);
+static const char* canYrcProjectile_airBallSeiseiA(PlayerInfo& ent);
+static const char* canYrcProjectile_airBallSeiseiB(PlayerInfo& ent);
+static const char* canYrcProjectile_airBallSeiseiC(PlayerInfo& ent);
+static const char* canYrcProjectile_airBallSeiseiD(PlayerInfo& ent);
+static const char* canYrcProjectile_stinger(PlayerInfo& ent);
+static const char* canYrcProjectile_carcass(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_ballSet(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_qv(PlayerInfo& ent);
+static const char* canYrcProjectile_eatMeat(PlayerInfo& ent);
+static const char* canYrcProjectile_eatMeatOkawari(PlayerInfo& ent);
+static const char* canYrcProjectile_voltecDein(PlayerInfo& ent);
 
-static bool powerup_may6P(PlayerInfo& ent);
-static bool powerup_may6H(PlayerInfo& ent);
-static const char* powerupExplanation_may6P(PlayerInfo& ent);
-static const char* powerupExplanation_may6H(PlayerInfo& ent);
-static bool powerup_qv(PlayerInfo& ent);
-static const char* powerupExplanation_qvA(PlayerInfo& ent);
-static const char* powerupExplanation_qvB(PlayerInfo& ent);
-static const char* powerupExplanation_qvC(PlayerInfo& ent);
-static const char* powerupExplanation_qvD(PlayerInfo& ent);
-static bool powerup_kyougenA(PlayerInfo& ent);
-static bool powerup_kyougenB(PlayerInfo& ent);
-static bool powerup_kyougenC(PlayerInfo& ent);
-static bool powerup_kyougenD(PlayerInfo& ent);
-static const char* powerupExplanation_kyougenA(PlayerInfo& ent);
-static const char* powerupExplanation_kyougenB(PlayerInfo& ent);
-static const char* powerupExplanation_kyougenC(PlayerInfo& ent);
-static const char* powerupExplanation_kyougenD(PlayerInfo& ent);
-static bool powerup_onpu(ProjectileInfo& projectile);
-static bool powerup_djavu(PlayerInfo& ent);
-static const char* powerupExplanation_djavu(PlayerInfo& ent);
-static bool powerup_boomerangA(PlayerInfo& ent);
-static const char* powerupExplanation_boomerangA(PlayerInfo& ent);
+static const char* powerup_may6P(PlayerInfo& ent);
+static const char* powerup_may6H(PlayerInfo& ent);
+static const char* powerup_qvA(PlayerInfo& ent);
+static const char* powerup_qvB(PlayerInfo& ent);
+static const char* powerup_qvC(PlayerInfo& ent);
+static const char* powerup_qvD(PlayerInfo& ent);
+static const char* powerup_kyougenA(PlayerInfo& ent);
+static const char* powerup_kyougenB(PlayerInfo& ent);
+static const char* powerup_kyougenC(PlayerInfo& ent);
+static const char* powerup_kyougenD(PlayerInfo& ent);
+static bool projectilePowerup_onpu(ProjectileInfo& projectile);
+static const char* powerup_djavu(PlayerInfo& ent);
+static const char* powerup_boomerangA(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_boomerangA(PlayerInfo& ent);
-static bool powerup_boomerangAAir(PlayerInfo& ent);
-static const char* powerupExplanation_boomerangAAir(PlayerInfo& ent);
+static const char* powerup_boomerangAAir(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_boomerangAAir(PlayerInfo& ent);
-static bool powerup_boomerangB(PlayerInfo& ent);
-static const char* powerupExplanation_boomerangB(PlayerInfo& ent);
+static const char* powerup_boomerangB(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_boomerangB(PlayerInfo& ent);
-static bool powerup_boomerangBAir(PlayerInfo& ent);
-static const char* powerupExplanation_boomerangBAir(PlayerInfo& ent);
+static const char* powerup_boomerangBAir(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_boomerangBAir(PlayerInfo& ent);
-static bool powerup_taskB(PlayerInfo& ent);
-static const char* powerupExplanation_taskB(PlayerInfo& ent);
+static const char* powerup_taskB(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_taskB(PlayerInfo& ent);
-static bool powerup_taskBAir(PlayerInfo& ent);
-static const char* powerupExplanation_taskBAir(PlayerInfo& ent);
+static const char* powerup_taskBAir(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_taskBAir(PlayerInfo& ent);
-static bool powerup_taskC(PlayerInfo& ent);
-static const char* powerupExplanation_taskC(PlayerInfo& ent);
+static const char* powerup_taskC(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_taskC(PlayerInfo& ent);
-static bool powerup_taskCAir(PlayerInfo& ent);
-static const char* powerupExplanation_taskCAir(PlayerInfo& ent);
+static const char* powerup_taskCAir(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_taskCAir(PlayerInfo& ent);
-static bool powerup_stingerS(PlayerInfo& ent);
-static bool powerup_stingerH(PlayerInfo& ent);
-static const char* powerupExplanation_stinger(PlayerInfo& ent);
-static bool powerup_closeShot(ProjectileInfo& ent);
-static bool powerup_rifle(PlayerInfo& ent);
-static const char* powerupExplanation_rifle(PlayerInfo& ent);
-static bool powerup_beakDriver(PlayerInfo& ent);
-static const char* powerupExplanation_beakDriver(PlayerInfo& ent);
+static const char* powerup_stingerS(PlayerInfo& ent);
+static const char* powerup_stingerH(PlayerInfo& ent);
+static bool projectilePowerup_closeShot(ProjectileInfo& ent);
+static const char* powerup_rifle(PlayerInfo& ent);
+static const char* powerup_beakDriver(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_beakDriver(PlayerInfo& ent);
-static bool powerup_mistFiner(PlayerInfo& ent);
-static const char* powerupExplanation_mistFiner(PlayerInfo& ent);
-static bool powerup_eatMeat(PlayerInfo& ent);
-static const char* powerupExplanation_eatMeat(PlayerInfo& ent);
-static bool powerup_cardK(PlayerInfo& ent);
-static bool powerup_cardS(PlayerInfo& ent);
-static bool powerup_cardH(PlayerInfo& ent);
-static const char* powerupExplanation_card(PlayerInfo& ent);
-static bool powerup_hayabusaRev(PlayerInfo& ent);
-static const char* powerupExplanation_hayabusaRev(PlayerInfo& ent);
-static bool powerup_hayabusaHeld(PlayerInfo& ent);
-static const char* powerupExplanation_hayabusaHeld(PlayerInfo& ent);
-static bool powerup_grampaMax(PlayerInfo& ent);
-static const char* powerupExplanation_grampaMax(PlayerInfo& ent);
-static bool powerup_armorDance(PlayerInfo& ent);
-static const char* powerupExplanation_armorDance(PlayerInfo& ent);
-static bool powerup_fireSpear(PlayerInfo& ent);
-static const char* powerupExplanation_fireSpear(PlayerInfo& ent);
-static bool powerup_zweit(PlayerInfo& ent);
-static const char* powerupExplanation_zweit(PlayerInfo& ent);
-static bool powerup_kuuhuku(PlayerInfo& ent);
-static const char* powerupExplanation_kuuhuku(PlayerInfo& ent);
-static bool powerup_secretGarden(PlayerInfo& ent);
-static const char* powerupExplanation_secretGarden(PlayerInfo& ent);
+static const char* powerup_mistFiner(PlayerInfo& ent);
+static const char* powerup_eatMeat(PlayerInfo& ent);
+static const char* powerup_cardK(PlayerInfo& ent);
+static const char* powerup_cardS(PlayerInfo& ent);
+static const char* powerup_cardH(PlayerInfo& ent);
+static const char* powerup_hayabusaRev(PlayerInfo& ent);
+static const char* powerup_hayabusaHeld(PlayerInfo& ent);
+static const char* powerup_grampaMax(PlayerInfo& ent);
+static const char* powerup_armorDance(PlayerInfo& ent);
+static const char* powerup_fireSpear(PlayerInfo& ent);
+static const char* powerup_zweit(PlayerInfo& ent);
+static const char* powerup_secretGarden(PlayerInfo& ent);
+static const char* powerup_pickUpGhost(PlayerInfo& ent);
+static const char* powerup_putGhost(PlayerInfo& ent);
+static const char* powerup_returnGhost(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
+	if (moves.justCountingMoves) {
+		++moves.propertiesCount;
+		static MoveInfoProperty placeholderProp;
+		return placeholderProp;
+	}
 	if (!move->count) move->startInd = allProperties.size();
 	++move->count;
 	allProperties.emplace_back();
@@ -346,10 +484,6 @@ static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 
 
 void Moves::addMove(const MoveInfo& move) {
-	if (justCountingMoves) {
-		++movesCount;
-		return;
-	}
 	#ifdef _DEBUG
 	MyKey newKey{ move.charType, move.name, move.isEffect };
 	auto found = map.find(newKey);
@@ -376,6 +510,11 @@ void Moves::addMove(const MoveInfo& move) {
 	
 	if (!move.canBlock && move.isIdle) newProperty(&newMove, offsetof(MoveInfo, canBlock)).u.isIdleValue = move.isIdle;
 	
+	if (justCountingMoves) {
+		++movesCount;
+		return;
+	}
+	
 	map.insert( {
 		#ifdef _DEBUG
 		newKey
@@ -390,11 +529,7 @@ void Moves::addMove(const MoveInfo& move) {
 MoveInfo::MoveInfo(const MoveInfoStored& info) {
 	const MoveInfoProperty* prop = info.startPtr;
 	for (int i = 0; i < info.count; ++i) {
-		switch (prop->type) {
-			#define MOVE_INFO_EXEC(type, propName, name, defaultValue) case offsetof(MoveInfo, name): name = prop->u.propName; break;
-			MOVE_INFO_PROPERTY_TABLE
-			#undef MOVE_INFO_EXEC
-		}
+		*(DWORD*)((BYTE*)this + prop->type) = (DWORD&)prop->u.strValue;
 		++prop;
 	}
 	if (!canBlock && isIdle) canBlock = isIdle;
@@ -429,8 +564,11 @@ bool Moves::onDllMain() {
 	justCountingMoves = true;
 	addMoves();
 	justCountingMoves = false;
+	
 	map.reserve(movesCount);
 	forceAddWhiffCancels.reserve(forceAddWhiffCancelsTotalCount);
+	allProperties.reserve(propertiesCount);
+	
 	addMoves();
 	
 	for (auto& it : map) {
@@ -1458,14 +1596,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame");
 	move.displayName = assignName("Gunflame", "GF");
 	move.displayNameSelector = displayNameSelector_gunflame;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_gunflame;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "GunFlame_DI");
 	move.displayName = assignName("DI Gunflame", "DI GF");
 	move.displayNameSelector = displayNameSelector_gunflameDI;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_gunflame;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1581,21 +1719,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave");
 	move.displayName = assignName("Tyrant Rave", "TR");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_tyrantRave;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRave_DI");
 	move.displayName = assignName("DI Tyrant Rave", "DI TR");
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_recovery;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_tyrantRave;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SOL, "TyrantRaveBurst");
 	move.displayName = assignName("Burst Tyrant Rave", "Burst TR");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_tyrantRave;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1690,13 +1828,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge2");
 	move.displayName = assignName("Charged Stun Edge", "CSE");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_cse;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdge1");
 	move.displayName = assignName("Stun Edge", "SE");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_se;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1719,12 +1857,12 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirStunEdge2");
 	move.displayName = assignName("Air H Stun Edge", "Air H SE");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_se;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "AirStunEdge1");
 	move.displayName = assignName("Air S Stun Edge", "Air S SE");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_se;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "VaporThrustD");
@@ -1746,7 +1884,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "SacredEdge");
 	move.displayName = assignName("Sacred Edge");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_sacredEdge;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1815,7 +1953,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = generateFramebarId();
 	move.framebarName = assignName("j.D");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.framebarNameUncombined = assignName("j.D Grinder");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtk5E");
@@ -1829,7 +1967,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_KY, "NmlAtkAir5E");
 	move.displayName = assignName("j.D");
 	move.nameIncludesInputs = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_kyJD;
 	addMove(move);
 	
 	// can't YRC in Rev1. In fact this doesn't even exist in Rev1
@@ -1862,13 +2000,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "GlitterIsGold");
 	move.displayName = assignName("Glitter Is Gold", "Coin");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_coin;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "BucchusSigh");
 	move.displayName = assignName("Bacchus Sigh", "Bacchus");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_bacchusSigh;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1939,7 +2077,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1949,7 +2086,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1959,7 +2095,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1969,7 +2104,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1979,7 +2113,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1989,7 +2122,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -1999,7 +2131,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2009,7 +2140,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2019,7 +2149,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2147,7 +2276,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv1");
@@ -2156,7 +2284,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerALv2");
@@ -2165,7 +2292,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv0");
@@ -2174,7 +2300,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerBLv1");
@@ -2182,7 +2307,6 @@ void Moves::addMoves() {
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
@@ -2192,7 +2316,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv0");
@@ -2201,7 +2324,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv1");
@@ -2210,7 +2332,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCLv2");
@@ -2219,7 +2340,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.powerup = powerup_mistFiner;
-	move.powerupExplanation = powerupExplanation_mistFiner;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "AirMistFinerCancel");
@@ -2259,12 +2379,12 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Shot");
 	move.displayName = assignName("Zwei Hander Attack", "Zwei K");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_sinwazaShot;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Sinwaza_Air");
 	move.displayName = assignName("Air Zwei Hander", "j.Z");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_sinwazaShot;
 	addMove(move);
 	
 	rememberFramebarId(Sinwaza_Shot2_framebarId);
@@ -2340,7 +2460,6 @@ void Moves::addMoves() {
 	move.sectionSeparator = sectionSeparator_may6P;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
 	move.powerup = powerup_may6P;
-	move.powerupExplanation = powerupExplanation_may6P;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6D");
@@ -2350,7 +2469,6 @@ void Moves::addMoves() {
 	move.sectionSeparator = sectionSeparator_may6H;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
 	move.powerup = powerup_may6H;
-	move.powerupExplanation = powerupExplanation_may6H;
 	addMove(move);
 	
 	// May riding horizontal Dolphin
@@ -2436,13 +2554,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallB");
 	move.displayName = assignName("K Don't Miss It", "K Ball");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_beachBall;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "RakkoBallA");
 	move.displayName = assignName("P Don't Miss It", "P Ball");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_beachBall;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2460,25 +2578,25 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateBShoukan");
 	move.displayName = assignName("H Applause for the Victim", "H-Hoop");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dolphin;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoBShoukan");
 	move.displayName = assignName("S Applause for the Victim", "S-Hoop");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dolphin;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanTateAShoukan");
 	move.displayName = assignName("K Applause for the Victim", "K-Hoop");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dolphin;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "IrukasanYokoAShoukan");
 	move.displayName = assignName("P Applause for the Victim", "P-Hoop");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dolphin;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2500,14 +2618,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MAY, "Yamada");
 	move.displayName = assignName("Great Yamada Attack", "Yamada");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_yamada;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "YamadaBurst");
 	move.displayName = assignName("Burst Great Yamada Attack", "Burst Yamada");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_yamada;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2597,7 +2715,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiB");
 	move.displayName = assignName("w.K");
 	move.caresAboutWall = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_wallclingKunai;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "HaritsukiA");
@@ -2669,7 +2787,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Shuriken");
 	move.displayName = assignName("Shuriken");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_shuriken;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "Meisai");
@@ -2714,14 +2832,14 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "GammaBlade");
 	move.displayName = assignName("Gamma Blade", "Gamma");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_gammaBlade;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "6wayKunai");
 	move.displayName = assignName("Ryuu Yanagi", "Ryuu");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_ryuuYanagi;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_CHIPP, "BankiMessai");
@@ -2776,7 +2894,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NmlAtk5E");
 	move.displayName = assignName("5D");
 	move.nameIncludesInputs = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_faust5D;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -2814,7 +2932,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NanigaDerukana");
 	move.displayName = assignName("What Could This Be?", "Toss");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_itemToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2858,7 +2976,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Ai");
 	move.displayName = assignName("Love");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_love;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "RerereNoTsuki");
@@ -2869,14 +2987,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NaNaNaNanigaDerukana");
 	move.displayName = assignName("W-W-What Could This Be?", "Super Toss");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_superToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "SugoiNaNaNaNanigaDerukana");
 	move.displayName = assignName("W-W-What Could This Be? 100% Ver.", "Max Super Toss");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_superToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -2978,7 +3096,7 @@ void Moves::addMoves() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_itemToss;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -3274,7 +3392,7 @@ void Moves::addMoves() {
 	// Axl Rensen
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Rensengeki");
 	move.displayName = assignName("Sickle Flash", "Rensen");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_sickleFlash;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3366,7 +3484,6 @@ void Moves::addMoves() {
 	move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = true;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.powerup = powerup_rifle;
-	move.powerupExplanation = powerupExplanation_rifle;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3379,7 +3496,6 @@ void Moves::addMoves() {
 	move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = true;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.powerup = powerup_rifle;
-	move.powerupExplanation = powerupExplanation_rifle;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3394,7 +3510,6 @@ void Moves::addMoves() {
 	move.replacementInputs = "46S. S must be either on the same frame as 6 or on the frame after";
 	move.replacementBufferTime = 1;
 	move.powerup = powerup_rifle;
-	move.powerupExplanation = powerupExplanation_rifle;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3409,16 +3524,14 @@ void Moves::addMoves() {
 	move.considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot = true;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.powerup = powerup_rifle;
-	move.powerupExplanation = powerupExplanation_rifle;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Fire");
 	move.displayName = assignName("Ms. Confille Fire", "Fire");
 	move.isRecoveryCanReload = isRecoveryCanReload_rifle;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_rifleFire;
 	move.powerup = powerup_rifle;
-	move.powerupExplanation = powerupExplanation_rifle;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3462,30 +3575,30 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Upper");
 	move.displayName = assignName("High Toss", "4Toss");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_grenadeToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Upper");
 	move.displayName = assignName("Ms. Travailler Stance High Toss", "4Toss");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_grenadeToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Throw");
 	move.displayName = assignName("Air High Toss", "Air Toss");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_grenadeToss;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Down");
 	move.displayName = assignName("Low Toss", "2Toss");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_grenadeToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Down");
 	move.displayName = assignName("Ms. Travailler Stance Low Toss", "2Toss");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_grenadeToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3550,7 +3663,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka");
 	move.displayName = assignName("Genoverse");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_bazooka;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3565,7 +3678,8 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	rememberFramebarId(GrenadeBomb_framebarId);
-
+	
+	// thrown grenade
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb", true);
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = GrenadeBomb_framebarId;
@@ -3574,6 +3688,7 @@ void Moves::addMoves() {
 	move.showMultipleHitsFromOneAttack = true;
 	addMove(move);
 	
+	// held grenade
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Ready", true);
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = GrenadeBomb_framebarId;
@@ -3589,16 +3704,20 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	// This explosion results from clashing with the opponent's projectiles
+	// Or shooting it with 5H, j.D, Bazooka, Shotgun, Rifle
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb_Explode2", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = GrenadeBomb_framebarId;
 	move.framebarName = assignName("Berry Pine", "Berry Explode");
 	addMove(move);
 	
+	rememberFramebarId(elpheltJD_framebarId);
+	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "HandGun_air_shot", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = elpheltJD_framebarId;
 	move.framebarName = assignName("j.D");
+	move.framebarNameUncombined = assignName("j.D Projectile");
 	// in Rev1 you can't YRC this
 	addMove(move);
 	
@@ -3609,7 +3728,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = Shotgun_framebarId;
 	move.framebarNameSelector = framebarNameSelector_closeShot;
-	move.projectilePowerup = powerup_closeShot;
+	move.projectilePowerup = projectilePowerup_closeShot;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_max_2", true);
@@ -3700,13 +3819,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tobidogu2");
 	move.displayName = assignName("H Graviert W\xc3\xbcrde", "H Fireball");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_graviertWurde;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tobidogu1");
 	move.displayName = assignName("S Graviert W\xc3\xbcrde", "S Fireball");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_graviertWurde;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3721,7 +3840,6 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin2");
 	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit", "Zweit");
 	move.powerup = powerup_zweit;
-	move.powerupExplanation = powerupExplanation_zweit;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
@@ -3764,14 +3882,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakusei");
 	move.displayName = assignName("Stahl Wirbel");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_stahlWirbel;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeKakuseiBurst");
 	move.displayName = assignName("Burst Stahl Wirbel");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_stahlWirbel;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3912,21 +4030,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiB");
 	move.displayName = assignName("K Asanagi no Kokyuu", "K-Card");
 	move.powerup = powerup_cardK;
-	move.powerupExplanation = powerupExplanation_card;
+	move.canYrcProjectile = canYrcProjectile_card;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiC");
 	move.displayName = assignName("S Asanagi no Kokyuu", "S-Card");
 	move.powerup = powerup_cardS;
-	move.powerupExplanation = powerupExplanation_card;
+	move.canYrcProjectile = canYrcProjectile_card;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiD");
 	move.displayName = assignName("H Asanagi no Kokyuu", "H-Card");
 	move.powerup = powerup_cardH;
-	move.powerupExplanation = powerupExplanation_card;
+	move.canYrcProjectile = canYrcProjectile_card;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4013,7 +4131,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Renhoukyaku");
 	move.displayName = assignName("Renhoukyaku", "Super Puffball");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_renhoukyaku;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "RenhoukyakuObj", true);
@@ -4086,13 +4204,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowA");
 	move.displayName = assignName("S Business Ninpo: Caltrops", "S Card");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_caltrops;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_ThrowB");
 	move.displayName = assignName("H Business Ninpo: Caltrops", "H Card");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_caltrops;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4172,13 +4290,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Nin_JitsuA");
 	move.displayName = assignName("S Business Ninpo: Under the Bus", "S Clone");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_clone;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Nin_JitsuB");
 	move.displayName = assignName("H Business Ninpo: Under the Bus", "H Clone");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_clone;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4195,7 +4313,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi_Meteor");
 	move.displayName = assignName("Air Dead Stock Ninpo: Firesale", "Air Firesale");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_meishiMeteor;
 	addMove(move);
 	
 	rememberFramebarId(Firesale_framebarId);
@@ -4348,6 +4466,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarName = assignName("Scroll");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Meishi", true);
@@ -4426,7 +4545,7 @@ void Moves::addMoves() {
 	// s-disc
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopC");
 	move.displayName = assignName("S Tandem Top", "S-Disc");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_disc;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4440,7 +4559,7 @@ void Moves::addMoves() {
 	// h-disc
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "TandemTopD");
 	move.displayName = assignName("H Tandem Top");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_disc;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4461,7 +4580,6 @@ void Moves::addMoves() {
 	move.displayName = assignName("Secret Garden", "Garden");
 	move.ignoreJumpInstalls = true;
 	move.powerup = powerup_secretGarden;
-	move.powerupExplanation = powerupExplanation_secretGarden;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
@@ -4484,12 +4602,12 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce2");
 	move.displayName = assignName("H Silent Force", "H-Pin");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_silentForce;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SilentForce");
 	move.displayName = assignName("S Silent Force", "S-Pin");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_silentForce;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "KousokuRakka");
@@ -4499,7 +4617,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "EmeraldRain");
 	move.displayName = assignName("Emerald Rain", "ER");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_emeraldRain;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4676,25 +4794,25 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD");
 	move.displayName = assignName("Summon Eddie Shadow Dive", "Summon");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_eddie;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonC");
 	move.displayName = assignName("Summon Eddie Anti-air Attack", "Nobiru");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_eddie;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonB");
 	move.displayName = assignName("Summon Eddie Traversing Attack", "Mawaru");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_eddie;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonA");
 	move.displayName = assignName("Summon Eddie Small Attack", "P Summon");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_eddie;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4705,7 +4823,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "EddieSummonD2");
 	move.displayName = assignName("Shadow Puddle Eddie Summon", "Puddle Summon");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_eddie;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4735,7 +4853,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ZATO, "Amorphous");
 	move.displayName = assignName("Amorphous");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_amorphous;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4809,7 +4927,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "SlideHead");
 	move.displayName = assignName("Slide Head");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_slideHead;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4864,7 +4982,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("F.D.B.");
 	move.sectionSeparator = sectionSeparator_FDB;
 	move.isInVariableStartupSection = isInVariableStartupSection_fdb;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fdb;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4876,7 +4994,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Anti_AirExplode");
 	move.displayName = assignName("Trishula");
-	move.canYrcProjectile = canYrcProjectile_prevNoLinkDestroyOnStateChange;
+	move.canYrcProjectile = canYrcProjectile_trishula;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -4928,7 +5046,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "Giganter");
 	move.displayName = assignName("Giganter Kai", "Giganter");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_giganter;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -5129,9 +5247,8 @@ void Moves::addMoves() {
 	move.displayNameSelector = displayNameSelector_stingerH;
 	move.sectionSeparator = sectionSeparator_stingerH;
 	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_stinger;
 	move.powerup = powerup_stingerH;
-	move.powerupExplanation = powerupExplanation_stinger;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -5140,23 +5257,22 @@ void Moves::addMoves() {
 	move.displayNameSelector = displayNameSelector_stingerS;
 	move.sectionSeparator = sectionSeparator_stingerS;
 	move.isInVariableStartupSection = isInVariableStartupSection_stinger;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_stinger;
 	move.powerup = powerup_stingerS;
-	move.powerupExplanation = powerupExplanation_stinger;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidD");
 	move.displayName = assignName("H Carcass Raid", "H Carcass");
 	move.displayNameSelector = displayNameSelector_carcassRaidH;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_carcass;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidC");
 	move.displayName = assignName("S Carcass Raid", "S Carcass");
 	move.displayNameSelector = displayNameSelector_carcassRaidS;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_carcass;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -5167,8 +5283,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.createdProjectile = createdProjectile_qv;
 	move.canYrcProjectile = canYrcProjectile_qvA;
-	move.powerup = powerup_qv;
-	move.powerupExplanation = powerupExplanation_qvA;
+	move.powerup = powerup_qvA;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -5178,8 +5293,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.createdProjectile = createdProjectile_qv;
 	move.canYrcProjectile = canYrcProjectile_qvB;
-	move.powerup = powerup_qv;
-	move.powerupExplanation = powerupExplanation_qvB;
+	move.powerup = powerup_qvB;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -5189,8 +5303,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.createdProjectile = createdProjectile_qv;
 	move.canYrcProjectile = canYrcProjectile_qvC;
-	move.powerup = powerup_qv;
-	move.powerupExplanation = powerupExplanation_qvC;
+	move.powerup = powerup_qvC;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -5200,14 +5313,13 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_qv;
 	move.createdProjectile = createdProjectile_qv;
 	move.canYrcProjectile = canYrcProjectile_qvD;
-	move.powerup = powerup_qv;
-	move.powerupExplanation = powerupExplanation_qvD;
+	move.powerup = powerup_qvD;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "RedHail");
 	move.displayName = assignName("Red Hail");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_redHail;
 	addMove(move);
 	
 	// this is Stinger and Carcass Raid balls, ball set, including when such balls are launched.
@@ -5232,14 +5344,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngel");
 	move.displayName = assignName("Dark Angel", "DA");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_darkAngel;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DarkAngelBurst");
 	move.displayName = assignName("Burst Dark Angel", "Burst DA");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_darkAngel;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -5335,7 +5447,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("Helter Skelter", "Helter");
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination =  true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_helterSkelter;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -5391,7 +5503,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "ChokkagataDandy");
 	move.displayName = assignName("Straight-Down Dandy", "SDD");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_sdd;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "EienNoTsubasa");
@@ -5437,13 +5549,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkai");
 	move.displayName = assignName("Antidepressant Scale", MOVE_NAME_NOTE);
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_kouutsuOnkai;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkaiAir");
 	move.displayName = assignName("Air Antidepressant Scale", "Air Note");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_kouutsuOnkai;
 	addMove(move);
 	
 	// I-No Sultry Performance
@@ -5454,7 +5566,6 @@ void Moves::addMoves() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenA;
-	move.powerupExplanation = powerupExplanation_kyougenA;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenB");
@@ -5464,7 +5575,6 @@ void Moves::addMoves() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenB;
-	move.powerupExplanation = powerupExplanation_kyougenB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenC");
@@ -5474,7 +5584,6 @@ void Moves::addMoves() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenC;
-	move.powerupExplanation = powerupExplanation_kyougenC;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KyougenD");
@@ -5484,7 +5593,6 @@ void Moves::addMoves() {
 	move.canBlock = canBlock_default;
 	move.isInVariableStartupSection = isInVariableStartupSection_inoDivekick;
 	move.powerup = powerup_kyougenD;
-	move.powerupExplanation = powerupExplanation_kyougenD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "CommandThrow");
@@ -5519,51 +5627,51 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalB");
 	move.displayName = assignName("Chemical Love", "HCL");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_chemicalLove;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirB");
 	move.displayName = assignName("Air Chemical Love", "Air HCL");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_chemicalLove;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalC");
 	move.displayName = assignName("Vertical Chemical Love", "VCL");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_chemicalLove;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAirC");
 	move.displayName = assignName("Air Vertical Chemical Love", "Air VCL");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_chemicalLove;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAdd");
 	move.displayName = assignName("Chemical Love (Follow-up)", "214K~214S");
 	move.combineWithPreviousMove = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
-	move.canYrcProjectile = canYrcProjectile_default;  // typically opponent will be in blockstun, but I did a hacktest and ye you can YRC this
+	move.canYrcProjectile = canYrcProjectile_chemicalLove;  // typically opponent will be in blockstun, but I did a hacktest and ye you can YRC this
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Madogiwa");
 	move.displayName = assignName("Longing Desperation", "Desperation");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_madogiwa;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_INO, "MadogiwaBurst");
 	move.displayName = assignName("Burst Longing Desperation", "Burst Desperation");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_madogiwa;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "Genkai");
 	move.displayName = assignName("Ultimate Fortissimo", "Fortissimo");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_genkai;
 	addMove(move);
 	
 	rememberFramebarId(ChemicalLove_framebarId);
@@ -5592,7 +5700,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = Onpu_framebarId;
 	move.framebarName = assignName("Antidepressant Scale", "Note");
-	move.projectilePowerup = powerup_onpu;
+	move.projectilePowerup = projectilePowerup_onpu;
 	addMove(move);
 	
 	// Boss version only
@@ -5601,7 +5709,7 @@ void Moves::addMoves() {
 	move.framebarId = Onpu_framebarId;
 	move.framebarName = assignName("Antidepressant Scale", "Note");
 	move.framebarNameUncombined = assignName("Antidepressant Scale 2", "Note 2");
-	move.projectilePowerup = powerup_onpu;
+	move.projectilePowerup = projectilePowerup_onpu;
 	addMove(move);
 	
 	// Boss version only
@@ -5610,7 +5718,7 @@ void Moves::addMoves() {
 	move.framebarId = Onpu_framebarId;
 	move.framebarName = assignName("Antidepressant Scale", "Note");
 	move.framebarNameUncombined = assignName("Antidepressant Scale 3", "Note 3");
-	move.projectilePowerup = powerup_onpu;
+	move.projectilePowerup = projectilePowerup_onpu;
 	addMove(move);
 	
 	// cannot be YRC'd in Rev1
@@ -5663,97 +5771,88 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A");
 	move.displayName = assignName("Task A", "TA");
 	move.powerup = powerup_boomerangA;
-	move.powerupExplanation = powerupExplanation_boomerangA;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangA;
+	move.canYrcProjectile = canYrcProjectile_boomerang;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Air");
 	move.displayName = assignName("Air Task A", "j.TA");
 	move.powerup = powerup_boomerangAAir;
-	move.powerupExplanation = powerupExplanation_boomerangAAir;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangAAir;
+	move.canYrcProjectile = canYrcProjectile_boomerang;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A");
-	move.displayName = assignName("P \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVA");
+	move.displayName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu A", "DVA");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuAB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_A_Air");
-	move.displayName = assignName("P Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVA");
+	move.displayName = assignName("Air \x44\xC3\xA9\x6A\xC3\xA0 Vu A", "j.DVA");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuAB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B");
 	move.displayName = assignName("Task A'", "TA'");
 	move.powerup = powerup_boomerangB;
-	move.powerupExplanation = powerupExplanation_boomerangB;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangB;
+	move.canYrcProjectile = canYrcProjectile_boomerang;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_B_Air");
 	move.displayName = assignName("Air Task A'", "j.TA'");
 	move.powerup = powerup_boomerangBAir;
-	move.powerupExplanation = powerupExplanation_boomerangBAir;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_boomerangBAir;
+	move.canYrcProjectile = canYrcProjectile_boomerang;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B");
-	move.displayName = assignName("K \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVA'");
+	move.displayName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu A'", "DVA'");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuAB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_B_Air");
-	move.displayName = assignName("K Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVA'");
+	move.displayName = assignName("Air \x44\xC3\xA9\x6A\xC3\xA0 Vu A'", "j.DVA'");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuAB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed");
 	move.displayName = assignName("Task B", "TB");
 	move.powerup = powerup_taskB;
-	move.powerupExplanation = powerupExplanation_taskB;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_taskB;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "SpiralBed_Air");
 	move.displayName = assignName("Air Task B", "j.TB");
 	move.powerup = powerup_taskBAir;
-	move.powerupExplanation = powerupExplanation_taskBAir;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_taskBAir;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C");
-	move.displayName = assignName("S \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVB");
+	move.displayName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu B", "DVB");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuC;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_C_Air");
-	move.displayName = assignName("S Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVB");
+	move.displayName = assignName("Air \x44\xC3\xA9\x6A\xC3\xA0 Vu B", "j.DVB");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuC;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "FlyingBed");
 	move.displayName = assignName("Task C", "TC");
 	move.powerup = powerup_taskC;
-	move.powerupExplanation = powerupExplanation_taskC;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_taskC;
 	addMove(move);
 	
@@ -5762,42 +5861,39 @@ void Moves::addMoves() {
 	move.displayNameSelector = displayNameSelector_taskCAir;
 	move.canYrcProjectile = canYrcProjectile_default;
 	move.powerup = powerup_taskCAir;
-	move.powerupExplanation = powerupExplanation_taskCAir;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_taskCAir;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D");
-	move.displayName = assignName("H \x44\xC3\xA9\x6A\xC3\xA0 Vu", "DVC");
+	move.displayName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu C", "DVC");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Dejavu_D_Air");
-	move.displayName = assignName("H Air \x44\xC3\xA9\x6A\xC3\xA0 Vu", "j.DVC");
+	move.displayName = assignName("Air \x44\xC3\xA9\x6A\xC3\xA0 Vu C", "j.DVC");
 	move.powerup = powerup_djavu;
-	move.powerupExplanation = powerupExplanation_djavu;
 	move.dontShowPowerupGraphic = alwaysTrue;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_dejavuD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Alarm");
 	move.displayName = assignName("Sinusoidal Helios", "Clock Super");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_alarm;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "AlarmBurst");
 	move.displayName = assignName("Burst Sinusoidal Helios");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_alarm;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Merry");
 	move.displayName = assignName("Hemi Jack", "Sheep Super");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_merry;
 	addMove(move);
 	
 	// Bedman Teleporting from the boomerang head hitting
@@ -5853,7 +5949,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = Djavu_A_framebarId;
 	move.framebarName = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu (Task A)", "DVA");
-	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost (Task A)", "DVA Ghost");
+	move.framebarNameUncombined = assignName("\x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost (Task A)", "DVA Boomerang Head");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -6245,7 +6341,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Land");
 	move.displayName = assignName("H Launch Greatsword", "6H");
 	move.createdProjectile = createdProjectile_onf5_h;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hLaunch;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6257,14 +6353,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Land");
 	move.displayName = assignName("H Launch Greatsword (Already Deployed)", "6H");
 	move.createdProjectile = createdProjectile_onf5_h;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hRelaunch;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Land");
 	move.displayName = assignName("H Recover Greatsword", "4H");
 	move.createdProjectile = createdProjectile_onf5_h_recall;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hRecover;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6272,7 +6368,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("2H Launch Greatsword", "2H Summon");
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf7_h;
-	move.canYrcProjectile = canYrcProjectile_onf7;
+	move.canYrcProjectile = canYrcProjectile_onf7_hRelaunch;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6284,7 +6380,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Land");
 	move.displayName = assignName("S Launch Greatsword", "6S");
 	move.createdProjectile = createdProjectile_onf5_s;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sLaunch;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6296,14 +6392,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Land");
 	move.displayName = assignName("S Launch Greatsword (Already Deployed)", "6S");
 	move.createdProjectile = createdProjectile_onf5_s;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sRelaunch;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Land");
 	move.displayName = assignName("S Recover Greatsword", "4S");
 	move.createdProjectile = createdProjectile_onf5_s_recall;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sRecover;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6311,14 +6407,14 @@ void Moves::addMoves() {
 	move.displayName = assignName("2S Launch Greatsword", "2S Summon");
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf7_s;
-	move.canYrcProjectile = canYrcProjectile_onf7;
+	move.canYrcProjectile = canYrcProjectile_onf7_sRelaunch;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Soubi_Air");
 	move.displayName = assignName("Air H Launch Greatsword", "Air 6H");
 	move.createdProjectile = createdProjectile_onf5_h;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hLaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtkAir5DBunri");
@@ -6329,26 +6425,26 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6D_Bunri_Air");
 	move.displayName = assignName("Air H Launch Greatsword (Already Deployed)", "Air 6H");
 	move.createdProjectile = createdProjectile_onf5_h;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hRelaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2D_Bunri_Air");
 	move.displayName = assignName("Air 2H Launch Greatsword", "Air 2H Summon");
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf5_h;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hRelaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4D_Bunri_Air");
 	move.displayName = assignName("Air H Recover Greatsword", "Air 4H");
 	move.createdProjectile = createdProjectile_onf5_h_recall;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hRecover;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Soubi_Air");
 	move.displayName = assignName("Air S Launch Greatsword", "Air 6S");
 	move.createdProjectile = createdProjectile_onf5_s;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sLaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "NmlAtkAir5CBunri");
@@ -6359,20 +6455,20 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6C_Bunri_Air");
 	move.displayName = assignName("Air S Launch Greatsword (Already Deployed)", "Air 6S");
 	move.createdProjectile = createdProjectile_onf5_s;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sRelaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "2C_Bunri_Air");
 	move.displayName = assignName("Air 2S Launch Greatsword", "Air 2S Summon");
 	move.nameIncludesInputs = true;
 	move.createdProjectile = createdProjectile_onf5_s;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sRelaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "4C_Bunri_Air");
 	move.displayName = assignName("Air S Recover Greatsword", "Air 4S");
 	move.createdProjectile = createdProjectile_onf5_s_recall;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sRecover;
 	addMove(move);
 	
 	// Ramlethal's combination attacks only at best combo into sword summon, sword recall, 2S/2H sword summon or more combination attacks.
@@ -6484,14 +6580,14 @@ void Moves::addMoves() {
 	move.displayName = assignName("S Launch Greatsword (Boss Ver.)", "S Launch (Boss Ver.)");
 	move.ignoreJumpInstalls = true;
 	move.createdProjectile = createdProjectile_onf5_s;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_sRelaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "6DBunriShot");
 	move.displayName = assignName("H Launch Greatsword (Boss Ver.)", "H Launch (Boss Ver.)");
 	move.ignoreJumpInstalls = true;
 	move.createdProjectile = createdProjectile_onf5_h;
-	move.canYrcProjectile = canYrcProjectile_onf5;
+	move.canYrcProjectile = canYrcProjectile_onf5_hRelaunch;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "MiddleShot");
@@ -6592,37 +6688,37 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser");
 	move.displayName = assignName("Calvados");
-	move.canYrcProjectile = canYrcProjectile_default;
+	//move.canYrcProjectile = canYrcProjectile_bitLaser;  // gets handled in EndScene.cpp using hardcoded rules, because we need to also fill in fancy "disappers on hit" flags
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBurst");
 	move.displayName = assignName("Burst Calvados");
-	move.canYrcProjectile = canYrcProjectile_default;
+	//move.canYrcProjectile = canYrcProjectile_bitLaser;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBoss");
 	move.displayName = assignName("Calvados (Boss Ver.)");
-	move.canYrcProjectile = canYrcProjectile_default;
+	//move.canYrcProjectile = canYrcProjectile_bitLaser;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaserBossBurst");
 	move.displayName = assignName("Burst Calvados (Boss Ver.)");
-	move.canYrcProjectile = canYrcProjectile_default;
+	//move.canYrcProjectile = canYrcProjectile_bitLaser;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral");
 	move.displayName = assignName("Trance");
-	move.canYrcProjectile = canYrcProjectile_onf9;
+	move.canYrcProjectile = canYrcProjectile_bitSpiral;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiralBoss");
 	move.displayName = assignName("Trance (Boss Ver.)");
-	move.canYrcProjectile = canYrcProjectile_onf9;
+	move.canYrcProjectile = canYrcProjectile_bitSpiral;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6695,8 +6791,10 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = RamlethalSSword_framebarId;
 	move.framebarName = assignName("S Sword");
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
+	// does not have 'attackType:' set, so doesn't actually have any active frames
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitSpiral_FSpiral", true);
 	move.displayName = assignName("Trance");
 	move.isDangerous = isDangerous_notInRecovery;
@@ -6704,19 +6802,20 @@ void Moves::addMoves() {
 	move.framebarName = assignName("H Sword");
 	addMove(move);
 	
-	rememberFramebarId(BitLaser_framebarId);
-
+	rememberFramebarId(ramlethal_bitLaser);
+	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser_Minion", true);
 	move.isDangerous = isDangerous_hasNotCreatedAnythingYet;
-	move.framebarId = BitLaser_framebarId;
+	move.framebarId = ramlethal_bitLaser;
 	move.framebarName = assignName("Laser");
 	move.framebarNameUncombined = assignName("Laser Spawner");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitLaser", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = BitLaser_framebarId;
+	move.framebarId = ramlethal_bitLaser;
 	move.framebarName = assignName("Laser");
+	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "middleShot", true);
@@ -6732,8 +6831,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakitsuke");
 	move.displayName = assignName("Bull Bash");
-	move.powerup = powerup_kuuhuku;
-	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.displayNameSelector = displayNameSelector_bullBash;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
@@ -6754,8 +6852,8 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.powerup = powerup_eatMeat;
-	move.powerupExplanation = powerupExplanation_eatMeat;
 	move.ignoreJumpInstalls = true;
+	move.canYrcProjectile = canYrcProjectile_eatMeat;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "EatMeat_Okawari");
@@ -6763,30 +6861,28 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.powerup = powerup_eatMeat;
-	move.powerupExplanation = powerupExplanation_eatMeat;
 	move.ignoreJumpInstalls = true;
+	move.canYrcProjectile = canYrcProjectile_eatMeatOkawari;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Tatakiage");
 	move.displayName = assignName("Vulture Seize", "Vulture");
-	move.powerup = powerup_kuuhuku;
-	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.displayNameSelector = displayNameSelector_vultureSeize;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver");
 	move.displayName = assignName("Beak Driver", "Beak");
+	move.displayNameSelector = displayNameSelector_beakDriver;
 	move.isInVariableStartupSection = isInVariableStartupSection_beakDriver;
 	move.sectionSeparator = sectionSeparator_beakDriver;
 	move.powerup = powerup_beakDriver;
-	move.powerupExplanation = powerupExplanation_beakDriver;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_beakDriver;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Air");
 	move.displayName = assignName("Aerial Beak Driver", "Air Beak");
-	move.powerup = powerup_kuuhuku;
-	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.displayNameSelector = displayNameSelector_beakDriverAir;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
@@ -6820,22 +6916,19 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "Ashibarai");
 	move.displayName = assignName("Elk Hunt", "Elk");
-	move.powerup = powerup_kuuhuku;
-	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.displayNameSelector = displayNameSelector_elkHunt;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "UkaseWaza");
 	move.displayName = assignName("Hawk Baker");
-	move.powerup = powerup_kuuhuku;
-	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.displayNameSelector = displayNameSelector_hawkBaker;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Renda");
 	move.displayName = assignName("I'm Sure I'll Hit Something", "Beak Mash");
-	move.powerup = powerup_kuuhuku;
-	move.powerupExplanation = powerupExplanation_kuuhuku;
+	move.displayNameSelector = displayNameSelector_beakDriverMash;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -6843,14 +6936,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Land");
 	move.displayName = assignName("Voltec Dein", "Voltec");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_voltecDein;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "PhantomBarrel_Air");
 	move.displayName = assignName("Air Voltec Dein", "Air Voltec");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_voltecDein;
 	addMove(move);
 	
 	rememberFramebarId(VoltecDein_framebarId);
@@ -6901,13 +6994,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "HomingEnergyC");
 	move.displayName = assignName("S Tuning Ball", "S Fireball");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_tuningBall;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "HomingEnergyD");
 	move.displayName = assignName("H Tuning Ball", "H Fireball");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_tuningBall;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6935,7 +7028,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_hayabusaRev;
-	move.powerupExplanation = powerupExplanation_hayabusaRev;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6946,7 +7038,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_hayabusaHeld;
-	move.powerupExplanation = powerupExplanation_hayabusaHeld;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -6956,7 +7047,6 @@ void Moves::addMoves() {
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_grampaMax;
-	move.powerupExplanation = powerupExplanation_grampaMax;
 	addMove(move);
 	
 	// Haehyun 623[4K]
@@ -6998,13 +7088,13 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "EnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = generateFramebarId();
-	move.framebarName = assignName("Tuning Ball", "Fireball");
+	move.framebarName = assignName(PROJECTILE_NAME_TUNING_BALL, "Fireball");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperEnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = generateFramebarId();
-	move.framebarName = assignName("Celestial Tuning Ball", "Super Ball");
+	move.framebarName = assignName(PROJECTILE_NAME_CELESTIAL_TUNING_BALL, "Super Ball");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "kum_205shot", true);
@@ -7029,7 +7119,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSettingTypeNeedle");
 	move.displayName = assignName("Scharf Kugel", "Orb");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_ravenOrb;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -7040,12 +7130,12 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSlowNeedle");
 	move.displayName = assignName("Schmerz Berg", "Needle");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_ravenNeedle;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSettingTypeNeedle");
 	move.displayName = assignName("Air Scharf Kugel", "Air Orb");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_ravenOrb;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirBlowAttack");
@@ -7054,12 +7144,12 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSlowNeedleB");
 	move.displayName = assignName("K Grebechlich Licht", "Air K Needle");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_ravenNeedle;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSlowNeedleA");
 	move.displayName = assignName("P Grebechlich Licht", "Air P Needle");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_ravenNeedle;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrow");
@@ -7120,7 +7210,6 @@ void Moves::addMoves() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canStopHolding = canStopHolding_armorDance;
 	move.powerup = powerup_armorDance;
-	move.powerupExplanation = powerupExplanation_armorDance;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -7132,7 +7221,6 @@ void Moves::addMoves() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.canStopHolding = canStopHolding_armorDance;
 	move.powerup = powerup_armorDance;
-	move.powerupExplanation = powerupExplanation_armorDance;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -7218,67 +7306,67 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD");
 	move.displayName = assignName("H We fought a lot together", "H Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD_Air");
 	move.displayName = assignName("H Air We fought a lot together...", "Air H Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiC");
 	move.displayName = assignName("S We fought a lot together", "S Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiC_Air");
 	move.displayName = assignName("S Air We fought a lot together", "Air S Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiB");
 	move.displayName = assignName("K We talked a lot together", "K Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiB_Air");
 	move.displayName = assignName("K Air We talked a lot together", "Air K Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiA");
 	move.displayName = assignName("P We talked a lot together", "P Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiA_Air");
 	move.displayName = assignName("P Air We talked a lot together", "Air P Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiE");
 	move.displayName = assignName("D We fought a lot together", "Shield Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiE_Air");
 	move.displayName = assignName("D Air We fought a lot together", "Air Shield Fish");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fish;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaP");
 	move.displayName = assignName("Please, leave me alone", "Bubble");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_bubble;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaK");
 	move.displayName = assignName("What happens when I'm TOO alone", "Fire Bubble");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fireBubble;
 	addMove(move);
 	
 	// Dizzy 421H
@@ -7287,28 +7375,27 @@ void Moves::addMoves() {
 	move.sectionSeparator = sectionSeparator_kinomiNecro;
 	move.isInVariableStartupSection = isInVariableStartupSection_kinomiNecro;
 	move.powerup = powerup_fireSpear;
-	move.powerupExplanation = powerupExplanation_fireSpear;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_fireSpears;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Kinomi");
 	move.displayName = assignName("I use this to pick fruit", "Ice Spear");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_iceSpear;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRay");
 	move.displayName = assignName("Imperial Ray");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_imperialRay;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBurst");
 	move.displayName = assignName("Burst Imperial Ray");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_imperialRay;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -7390,13 +7477,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiLand");
 	move.displayName = assignName("Tatami Gaeshi", "Tatami");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_tatami;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiAir");
 	move.displayName = assignName("Air Tatami Gaeshi", "Air Tatami");
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_tatami;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "YouZanSen");
@@ -7514,7 +7601,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("Yasha Gatana");
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_teppou;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -7535,6 +7622,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = generateFramebarId();
 	move.framebarName = assignName("j.D");
+	move.framebarNameUncombined = assignName("j.D Projectile");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TeppouObj", true);
@@ -7616,7 +7704,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "UntieKiron'sChain");
 	move.displayName = assignName("j.D");
 	move.nameIncludesInputs = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_jackoJD;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirIronballGenocide");
@@ -7668,16 +7756,25 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "PickUpGhost");
 	move.displayName = assignName("Pick Up Ghost");
 	move.ignoreJumpInstalls = true;
+	move.powerup = powerup_pickUpGhost;
+	move.dontShowPowerupGraphic = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_pickUpGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "PutGhost");
 	move.displayName = assignName("Put Ghost Back Down");
 	move.ignoreJumpInstalls = true;
+	move.powerup = powerup_putGhost;
+	move.dontShowPowerupGraphic = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_putGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ReturnGhost");
 	move.displayName = assignName("Put Away Ghost");
 	move.ignoreJumpInstalls = true;
+	move.powerup = powerup_returnGhost;
+	move.dontShowPowerupGraphic = alwaysTrue;
+	move.canYrcProjectile = canYrcProjectile_returnGhost;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "AirZest");
@@ -7716,19 +7813,20 @@ void Moves::addMoves() {
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_organOpen;
 	move.ignoreJumpInstalls = true;
+	move.canYrcProjectile = canYrcProjectile_organ;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "Calvados");
 	move.displayName = assignName("Calvados");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_jackoCalvados;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "CalvadosBurst");
 	move.displayName = assignName("Burst Calvados");
 	move.dontSkipSuper = true;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_jackoCalvados;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -7761,7 +7859,7 @@ void Moves::addMoves() {
 	rememberFramebarId(ServantAAndB_framebarId);
 
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantA", true);
-	move.isDangerous = isDangerous_alwaysTrue;
+	move.isDangerous = isDangerous_servant;
 	move.framebarId = ServantAAndB_framebarId;
 	move.framebarName = assignName("Sword/Spear men");
 	move.framebarNameUncombined = assignName("Knight");
@@ -7770,7 +7868,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantB", true);
-	move.isDangerous = isDangerous_alwaysTrue;
+	move.isDangerous = isDangerous_servant;
 	move.framebarId = ServantAAndB_framebarId;
 	move.framebarName = assignName("Sword/Spear men");
 	move.framebarNameUncombined = assignName("Lancer");
@@ -7779,7 +7877,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "ServantC", true);
-	move.isDangerous = isDangerous_alwaysTrue;
+	move.isDangerous = isDangerous_servant;
 	move.framebarId = MAGICIAN_FRAMEBAR_ID;
 	move.framebarName = assignName("Magicians");
 	move.framebarNameUncombined = assignName("Magician");
@@ -7810,6 +7908,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = generateFramebarId();
 	move.framebarName = assignName("j.D");
+	move.framebarNameUncombined = assignName("j.D Fireball");
 	move.combineHitsFromDifferentProjectiles = true;
 	addMove(move);
 	
@@ -7895,14 +7994,14 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = generateFramebarId();
 	move.framebarNameSelector = nameSelector_iceSpike;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_iceSpike_or_firePillar;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = generateFramebarId();
 	move.framebarNameSelector = nameSelector_iceScythe;
-	move.canYrcProjectile = canYrcProjectile_default;
+	move.canYrcProjectile = canYrcProjectile_iceScythe_or_fireScythe;
 	addMove(move);
 	
 	rememberFramebarId(DizzyBubble_framebarId);
@@ -8090,6 +8189,9 @@ void Moves::onAswEngineDestroyed() {
 	ghostAStateOffsets.clear();
 	ghostBStateOffsets.clear();
 	ghostCStateOffsets.clear();
+	ghostABecomePickedUp = 0;
+	ghostBBecomePickedUp = 0;
+	ghostCBecomePickedUp = 0;
 	jackoThrowGhostOffset = 0;
 	jackoAirThrowGhostOffset = 0;
 	for (int i = 0; i < 2; ++i) {
@@ -8183,6 +8285,22 @@ void Moves::onAswEngineDestroyed() {
 	venomAirBallSeiseiBBallCreation = 0;
 	venomAirBallSeiseiCBallCreation = 0;
 	venomAirBallSeiseiDBallCreation = 0;
+	ramlethalCreateBitLaserMinion = 0;
+	ramlethalBitLaserMinionBossStartMarker = 0;
+	ramlethalBitLaserMinionNonBossCreateLaser = 0;
+	ramlethalBitLaserMinionBossCreateLaser = 0;
+	sinEatMeatPowerup = 0;
+	sinEatMeatOkawariPowerup = 0;
+	jackoPutGhost = 0;
+	jackoReturnGhost = 0;
+	rsfStartStateLinkBreak = 0;
+	jackoOrganP = JackoOrgan { 0, 0 };
+	jackoOrganK = JackoOrgan { 0, 0 };
+	jackoOrganS = JackoOrgan { 0, 0 };
+	jackoOrganH = JackoOrgan { 0, 0 };
+	jamCardPowerup[0] = 0;
+	jamCardPowerup[1] = 0;
+	jamCardPowerup[2] = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -8255,57 +8373,57 @@ bool sectionSeparator_alwaysTrue(PlayerInfo& ent) {
 }
 bool sectionSeparator_blitzShield(PlayerInfo& ent) {
 	return ent.pawn.currentAnimDuration() >= 16 && ent.pawn.mem45()
-		|| strcmp(ent.pawn.gotoLabelRequest(), "attack") == 0;
+		|| strcmp(ent.pawn.gotoLabelRequests(), "attack") == 0;
 }
 bool sectionSeparator_may6P(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "6AHoldAttack") == 0 || ent.pawn.mem45() == 0 && ent.pawn.currentAnimDuration() > 9;
+	return strcmp(ent.pawn.gotoLabelRequests(), "6AHoldAttack") == 0 || ent.pawn.mem45() == 0 && ent.pawn.currentAnimDuration() > 9;
 }
 bool sectionSeparator_may6H(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "6DHoldAttack") == 0 || ent.pawn.mem45() == 0 && ent.pawn.currentAnimDuration() > 9;
+	return strcmp(ent.pawn.gotoLabelRequests(), "6DHoldAttack") == 0 || ent.pawn.mem45() == 0 && ent.pawn.currentAnimDuration() > 9;
 }
 bool sectionSeparator_breakTheLaw(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "up") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "up") == 0;
 }
 bool sectionSeparator_FDB(PlayerInfo& ent) {
-	if (strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0) {
+	if (strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0) {
 		return true;
 	}
 	if (!ent.pawn.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "Attack");
 	if (!markerPos) return false;
-	markerPos = moves.skipInstruction(markerPos);
-	if (moves.instructionType(markerPos) != instr_sprite) return false;
+	markerPos = moves.skipInstr(markerPos);
+	if (moves.instrType(markerPos) != instr_sprite) return false;
 	return ent.pawn.bbscrCurrentInstr() > markerPos;
 }
 bool sectionSeparator_soutenBC(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "open") == 0
+	return strcmp(ent.pawn.gotoLabelRequests(), "open") == 0
 		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool sectionSeparator_QV(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "End") == 0
+	return strcmp(ent.pawn.gotoLabelRequests(), "End") == 0
 		|| !ent.pawn.mem45() && ent.pawn.currentAnimDuration() > 12;
 }
 bool sectionSeparator_stingerS(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Shot") == 0
+	return strcmp(ent.pawn.gotoLabelRequests(), "Shot") == 0
 		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.currentAnimDuration() > 9;
 }
 bool sectionSeparator_stingerH(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Shot") == 0
+	return strcmp(ent.pawn.gotoLabelRequests(), "Shot") == 0
 		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.currentAnimDuration() > 3;
 }
 bool sectionSeparator_sultryPerformance(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0
+	return strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0
 		|| !ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.currentAnimDuration() > 9;
 }
 bool sectionSeparator_beakDriver(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "HeavyAttack") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "HeavyAttack") == 0;
 }
 bool sectionSeparator_rifle(PlayerInfo& ent) {
 	return ent.wasEnableWhiffCancels;
 }
 bool sectionSeparator_leoGuardStance(PlayerInfo& ent) {
-	if (strcmp(ent.pawn.gotoLabelRequest(), "End") == 0) {
+	if (strcmp(ent.pawn.gotoLabelRequests(), "End") == 0) {
 		return true;
 	}
 	if (!ent.pawn.bbscrCurrentFunc()) return false;
@@ -8313,53 +8431,53 @@ bool sectionSeparator_leoGuardStance(PlayerInfo& ent) {
 	if (!markerPos) {
 		return false;
 	}
-	BYTE* nextInstr = moves.skipInstruction(markerPos);
-	if (moves.instructionType(nextInstr) != instr_sprite) {
+	BYTE* nextInstr = moves.skipInstr(markerPos);
+	if (moves.instrType(nextInstr) != instr_sprite) {
 		return false;
 	}
 	return ent.pawn.bbscrCurrentInstr() > nextInstr;
 }
 bool sectionSeparator_treasureHunt(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Run") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "Run") == 0;
 }
 bool sectionSeparator_falconDive(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "Attack2") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "Attack2") == 0;
 }
 bool sectionSeparator_fourTigersSwordRev(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0;
 }
 bool sectionSeparator_blackHoleAttack(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0;
 }
 bool sectionSeparator_armorDance(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "End") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "End2") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "End3") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "End") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "End2") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "End3") == 0;
 }
 bool sectionSeparator_kinomiNecro(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "end") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "end") == 0;
 }
 bool sectionSeparator_azami(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "End") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "End") == 0;
 }
 bool sectionSeparator_organ(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "A") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "B") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "C") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "D") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "E") == 0
-		|| strcmp(ent.pawn.gotoLabelRequest(), "tame") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "A") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "B") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "C") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "D") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "E") == 0
+		|| strcmp(ent.pawn.gotoLabelRequests(), "tame") == 0;
 }
 bool sectionSeparator_dizzy6H(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Attack") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0;
 }
 bool sectionSeparator_saishingeki(PlayerInfo& ent) {
-	return strcmp(ent.pawn.gotoLabelRequest(), "Saishintuika") == 0;
+	return strcmp(ent.pawn.gotoLabelRequests(), "Saishintuika") == 0;
 }
 
 bool sectionSeparatorProjectile_dolphin(Entity ent) {
-	return strcmp(ent.gotoLabelRequest(), "move") == 0 || ent.mem51() == 0;
+	return strcmp(ent.gotoLabelRequests(), "move") == 0 || ent.mem51() == 0;
 }
 
 bool isIdle_default(PlayerInfo& player) {
@@ -8369,7 +8487,7 @@ bool canBlock_default(PlayerInfo& player) {
 	return player.pawn.enableBlock();
 }
 bool canBlock_azami(PlayerInfo& player) {
-	return !player.inNewMoveSection || strcmp(player.pawn.gotoLabelRequest(), "end") == 0;
+	return !player.inNewMoveSection || strcmp(player.pawn.gotoLabelRequests(), "end") == 0;
 }
 bool isIdle_enableWhiffCancels(PlayerInfo& player) {
 	return player.wasEnableWhiffCancels;
@@ -8394,17 +8512,9 @@ bool canBlock_neoHochihu(PlayerInfo& player) {
 	return player.pawn.enableWalkBack();
 }
 
-BYTE* Moves::skipInstruction(BYTE* in) const {
-	return in + bbscrInstructionSizes[*(unsigned int*)in];
-}
-
-inline InstructionType Moves::instructionType(BYTE* in) const {
-	return *(InstructionType*)in;
-}
-
-BYTE* Moves::findSetMarker(BYTE* in, const char* name) const {
+BYTE* Moves::findSetMarker(BYTE* in, const char* name) {
 	while (true) {
-		InstructionType type = instructionType(in);
+		InstrType type = instrType(in);
 		if (type == instr_endState) {
 			return nullptr;
 		}
@@ -8416,10 +8526,10 @@ BYTE* Moves::findSetMarker(BYTE* in, const char* name) const {
 	}
 }
 
-BYTE* Moves::findNextMarker(BYTE* in, const char** name) const {
+BYTE* Moves::findNextMarker(BYTE* in, const char** name) {
 	if (name) *name = nullptr;
 	while (true) {
-		InstructionType type = instructionType(in);
+		InstrType type = instrType(in);
 		if (type == instr_endState) {
 			return nullptr;
 		}
@@ -8431,9 +8541,9 @@ BYTE* Moves::findNextMarker(BYTE* in, const char** name) const {
 	}
 }
 
-BYTE* Moves::findCreateObj(BYTE* in, const char* name) const {
+BYTE* Moves::findCreateObj(BYTE* in, const char* name) {
 	while (true) {
-		InstructionType type = instructionType(in);
+		InstrType type = instrType(in);
 		if (type == instr_endState) {
 			return nullptr;
 		}
@@ -8445,9 +8555,9 @@ BYTE* Moves::findCreateObj(BYTE* in, const char* name) const {
 	}
 }
 
-BYTE* Moves::findSpriteNonNull(BYTE* in) const {
+BYTE* Moves::findSpriteNonNull(BYTE* in) {
 	while (true) {
-		InstructionType type = instructionType(in);
+		InstrType type = instrType(in);
 		if (type == instr_endState) {
 			return nullptr;
 		}
@@ -8459,14 +8569,27 @@ BYTE* Moves::findSpriteNonNull(BYTE* in) const {
 	}
 }
 
-BYTE* Moves::findSprite(BYTE* in, const char* name) const {
+BYTE* Moves::findSprite(BYTE* in, const char* name) {
 	while (true) {
-		InstructionType type = instructionType(in);
+		InstrType type = instrType(in);
 		if (type == instr_endState) {
 			return nullptr;
 		}
 		if (type == instr_sprite
 				&& strcmp(asInstr(in, sprite)->name, name) == 0) {
+			return in;
+		}
+		in += bbscrInstructionSizes[type];
+	}
+}
+
+BYTE* Moves::findAnySprite(BYTE* in) {
+	while (true) {
+		InstrType type = instrType(in);
+		if (type == instr_endState) {
+			return nullptr;
+		}
+		if (type == instr_sprite) {
 			return in;
 		}
 		in += bbscrInstructionSizes[type];
@@ -8567,7 +8690,7 @@ bool isDangerous_bubble(Entity ent) {
 	}
 	return ent.bbscrCurrentInstr() > markerPos
 		&& !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
-		|| strcmp(ent.gotoLabelRequest(), "bomb") == 0;
+		|| strcmp(ent.gotoLabelRequests(), "bomb") == 0;
 }
 bool isDangerous_kFish(Entity ent) {
 	return !(ent.currentHitNum() == 2 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
@@ -8626,6 +8749,34 @@ bool isDangerous_vacuumAtk(Entity ent) {
 }
 bool isDangerous_mistKuttsuku(Entity ent) {
 	return ent.lifeTimeCounter() == 0;
+}
+bool isDangerous_servant(Entity ent) {
+	std::vector<int>* offsets = nullptr;
+	const ServantState* stateNames = nullptr;
+	int stateNamesCount = 0;
+	switch (ent.animationName()[7]) {
+		case 'A':
+			offsets = &moves.servantAStateOffsets;
+			stateNames = servantStateNames;
+			stateNamesCount = _countof(servantStateNames);
+			break;
+		case 'B':
+			offsets = &moves.servantBStateOffsets;
+			stateNames = servantStateNamesSpearman;
+			stateNamesCount = _countof(servantStateNamesSpearman);
+			break;
+		case 'C':
+			offsets = &moves.servantCStateOffsets;
+			stateNames = servantStateNames;
+			stateNamesCount = _countof(servantStateNames);
+			break;
+	}
+	if (!offsets) return true;
+	
+	BYTE* func = ent.bbscrCurrentFunc();
+	moves.fillGhostStateOffsets(func, *offsets);
+	int state = moves.findGhostState(ent.bbscrCurrentInstr() - func, *offsets);
+	return state < 0 || state >= stateNamesCount || !stateNames[state].isDeath;
 }
 
 const NamePair* nameSelector_iceSpike(Entity ent) {
@@ -8723,13 +8874,13 @@ bool isInVariableStartupSection_blitzShield(PlayerInfo& ent) {
 	if (!ent.pawn.bbscrCurrentFunc()) return false;
 	BYTE* markerPos = moves.findSetMarker(ent.pawn.bbscrCurrentFunc(), "attack");
 	if (!markerPos) return false;
-	return ent.pawn.currentAnimDuration() >= 16 && ent.pawn.bbscrCurrentInstr() <= markerPos && *ent.pawn.gotoLabelRequest() == '\0';
+	return ent.pawn.currentAnimDuration() >= 16 && ent.pawn.bbscrCurrentInstr() <= markerPos && *ent.pawn.gotoLabelRequests() == '\0';
 }
 bool isInVariableStartupSection_may6Por6H(PlayerInfo& ent) {
-	return ent.pawn.mem45() && *ent.pawn.gotoLabelRequest() == '\0';
+	return ent.pawn.mem45() && *ent.pawn.gotoLabelRequests() == '\0';
 }
 bool isInVariableStartupSection_soutenBC(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && *ent.pawn.gotoLabelRequest() == '\0' && !ent.pawn.isRecoveryState();
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && *ent.pawn.gotoLabelRequests() == '\0' && !ent.pawn.isRecoveryState();
 }
 bool isInVariableStartupSection_amiMove(PlayerInfo& ent) {
 	return ent.wasEnableWhiffCancels && !ent.pawn.hitstop();
@@ -8738,25 +8889,25 @@ bool isInVariableStartupSection_beakDriver(PlayerInfo& ent) {
 	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_organOpen(PlayerInfo& ent) {
-	return ent.pawn.mem45() && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.mem45() && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequests()[0] == '\0';
 }
 bool isInVariableStartupSection_breakTheLaw(PlayerInfo& ent) {
-	return ent.pawn.mem45() && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.mem45() && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequests()[0] == '\0';
 }
 bool isInVariableStartupSection_fdb(PlayerInfo& ent) {
 	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 bool isInVariableStartupSection_qv(PlayerInfo& ent) {
-	return ent.pawn.mem45() && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.mem45() && ent.pawn.gotoLabelRequests()[0] == '\0';
 }
 bool isInVariableStartupSection_stinger(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequests()[0] == '\0';
 }
 bool isInVariableStartupSection_inoDivekick(PlayerInfo& ent) {
-	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && ent.pawn.gotoLabelRequests()[0] == '\0';
 }
 bool isInVariableStartupSection_sinRTL(PlayerInfo& ent) {
-	return ent.pawn.mem49() && ent.pawn.mem45() && ent.pawn.mem46() <= 1 && ent.pawn.gotoLabelRequest()[0] == '\0';
+	return ent.pawn.mem49() && ent.pawn.mem45() && ent.pawn.mem46() <= 1 && ent.pawn.gotoLabelRequests()[0] == '\0';
 }
 bool isInVariableStartupSection_falconDive(PlayerInfo& ent) {
 	return ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
@@ -8797,11 +8948,11 @@ bool isRecoveryCanAct_beakDriver(PlayerInfo& ent) {
 }
 
 bool aSectionBeforeVariableStartup_leoParry(PlayerInfo& ent) {
-	return *ent.pawn.gotoLabelRequest() == '\0' && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
+	return *ent.pawn.gotoLabelRequests() == '\0' && ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED);
 }
 
 bool canStopHolding_armorDance(PlayerInfo& ent) {
-	if (!ent.pawn.mem45() || *ent.pawn.gotoLabelRequest() != '\0') return false;
+	if (!ent.pawn.mem45() || *ent.pawn.gotoLabelRequests() != '\0') return false;
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
 	
 	int* armorDanceEndOffset;
@@ -8822,7 +8973,7 @@ bool canStopHolding_armorDance(PlayerInfo& ent) {
 }
 
 bool canStopHolding_armorDance2(PlayerInfo& ent) {
-	if (!ent.pawn.mem45() || *ent.pawn.gotoLabelRequest() != '\0') return false;
+	if (!ent.pawn.mem45() || *ent.pawn.gotoLabelRequests() != '\0') return false;
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
 	if (moves.armorDance2EndOffset == 0 && funcStart) {
 		BYTE* markerPos = moves.findSetMarker(funcStart, "End");
@@ -8855,14 +9006,14 @@ bool conditionForAddingWhiffCancels_airStop(PlayerInfo& ent) {
 }
 
 bool secondaryStartup_saishingeki(PlayerInfo& ent) {
-	if (strcmp(ent.pawn.gotoLabelRequest(), "Saishintuika") == 0) return true;
+	if (strcmp(ent.pawn.gotoLabelRequests(), "Saishintuika") == 0) return true;
 	if (ent.pawn.currentHitNum() == 2 && !ent.pawn.isActiveFrames()) return false;
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
 	if (moves.saishingeki_SaishintuikaOffset == 0 && moves.saishingeki_SaishintuikaEndOffset == 0 && funcStart) {
 		BYTE* markerPos = moves.findSetMarker(funcStart, "Saishintuika");
 		if (!markerPos) return false;
 		moves.saishingeki_SaishintuikaOffset = markerPos - funcStart;
-		BYTE* nextSearchStart = moves.skipInstruction(markerPos);
+		BYTE* nextSearchStart = moves.skipInstr(markerPos);
 		BYTE* nextMarkerPos = moves.findNextMarker(nextSearchStart, nullptr);
 		if (nextMarkerPos) {
 			moves.saishingeki_SaishintuikaEndOffset = nextMarkerPos - funcStart;
@@ -9000,7 +9151,7 @@ const NamePair* displayNameSelector_may6P(PlayerInfo& ent) {
 	return ar[0].name;
 }
 const NamePair* displayNameSelector_may6H(PlayerInfo& ent) {
-	if (strcmp(ent.pawn.gotoLabelRequest(), "6DHoldAttack") == 0) {
+	if (strcmp(ent.pawn.gotoLabelRequests(), "6DHoldAttack") == 0) {
 		return assignName("6H Slightly Held");
 	}
 	BYTE* func = ent.pawn.bbscrCurrentFunc();
@@ -9313,10 +9464,18 @@ const NamePair* displayNameSelector_underPressure(PlayerInfo& ent) {
 	}
 	return assignName("K Under Pressure", "K UP");
 }
-const NamePair* displayNameSelector_jacko4D(PlayerInfo& ent) {
+const NamePair* displayNameSelector_jacko4DImpl(PlayerInfo& ent, int height, const NamePair* nameBase,
+		const NamePair* name1,
+		const NamePair* name2,
+		const NamePair* name3,
+		const NamePair* name4,
+		const NamePair* name6,
+		const NamePair* name7,
+		const NamePair* name8,
+		const NamePair* name9) {
 	int x = ent.pawn.hitAirPushbackX();
 	int y = ent.pawn.hitAirPushbackY();
-	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return assignName("4D");
+	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return nameBase;
 	y -= 20000;
 	
 	enum Dir {
@@ -9342,70 +9501,137 @@ const NamePair* displayNameSelector_jacko4D(PlayerInfo& ent) {
 	switch (
 		dirX | dirY
 	) {
-		case DIRX_MINUS | DIRY_MINUS: return assignName("4D1");
-		case DIRX_NEUTRAL | DIRY_MINUS: return assignName("4D2");
-		case DIRX_PLUS | DIRY_MINUS: return assignName("4D3");
-		case DIRX_MINUS | DIRY_NEUTRAL: return assignName("4D4");
-		case DIRX_PLUS | DIRY_NEUTRAL: return assignName("4D6");
-		case DIRX_MINUS | DIRY_PLUS: return assignName("4D7");
-		case DIRX_NEUTRAL | DIRY_PLUS: return assignName("4D8");
-		case DIRX_PLUS | DIRY_PLUS: return assignName("4D9");
-		default: return assignName("4D");
+		case DIRX_MINUS | DIRY_MINUS: return name1;
+		case DIRX_NEUTRAL | DIRY_MINUS: return name2;
+		case DIRX_PLUS | DIRY_MINUS: return name3;
+		case DIRX_MINUS | DIRY_NEUTRAL: return name4;
+		case DIRX_PLUS | DIRY_NEUTRAL: return name6;
+		case DIRX_MINUS | DIRY_PLUS: return name7;
+		case DIRX_NEUTRAL | DIRY_PLUS: return name8;
+		case DIRX_PLUS | DIRY_PLUS: return name9;
+		default: return nameBase;
 	}
 }
+const NamePair* displayNameSelector_jacko4D(PlayerInfo& ent) {
+	return displayNameSelector_jacko4DImpl(ent, 20000, assignName("4D"),
+		assignName("4D1"),
+		assignName("4D2"),
+		assignName("4D3"),
+		assignName("4D4"),
+		assignName("4D6"),
+		assignName("4D7"),
+		assignName("4D8"),
+		assignName("4D9"));
+}
 const NamePair* displayNameSelector_jackoj4D(PlayerInfo& ent) {
-	int x = ent.pawn.hitAirPushbackX();
-	int y = ent.pawn.hitAirPushbackY();
-	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return assignName("j.4D");
-	y -= 25000;
-	
-	enum Dir {
-		DIRX_PLUS = 0,
-		DIRX_NEUTRAL = 1,
-		DIRX_MINUS = 2,
-		DIRY_PLUS = (0 << 4),
-		DIRY_NEUTRAL = (1 << 4),
-		DIRY_MINUS = (2 << 4)
-	};
-	
-	Dir dirX;
-	Dir dirY;
-	
-	if (x > 0) dirX = DIRX_PLUS;
-	else if (x == 0) dirX = DIRX_NEUTRAL;
-	else dirX = DIRX_MINUS;
-	
-	if (y > 0) dirY = DIRY_PLUS;
-	else if (y == 0) dirY = DIRY_NEUTRAL;
-	else dirY = DIRY_MINUS;
-	
-	switch (
-		dirX | dirY
-	) {
-		case DIRX_MINUS | DIRY_MINUS: return assignName("j.4D1");
-		case DIRX_NEUTRAL | DIRY_MINUS: return assignName("j.4D2");
-		case DIRX_PLUS | DIRY_MINUS: return assignName("j.4D3");
-		case DIRX_MINUS | DIRY_NEUTRAL: return assignName("j.4D4");
-		case DIRX_PLUS | DIRY_NEUTRAL: return assignName("j.4D6");
-		case DIRX_MINUS | DIRY_PLUS: return assignName("j.4D7");
-		case DIRX_NEUTRAL | DIRY_PLUS: return assignName("j.4D8");
-		case DIRX_PLUS | DIRY_PLUS: return assignName("j.4D9");
-		default: return assignName("j.4D");
+	return displayNameSelector_jacko4DImpl(ent, 25000, assignName("4D"),
+		assignName("j.4D1"),
+		assignName("j.4D2"),
+		assignName("j.4D3"),
+		assignName("j.4D4"),
+		assignName("j.4D6"),
+		assignName("j.4D7"),
+		assignName("j.4D8"),
+		assignName("j.4D9"));
+}
+const NamePair* displayNameSelector_beakDriver(PlayerInfo& ent) {
+	if (ent.sinHunger) {
+		return assignName("Hunger");
+	} else {
+		return assignName("Beak Driver", "Beak");
+	}
+}
+const NamePair* displayNameSelector_elkHunt(PlayerInfo& ent) {
+	if (ent.sinHunger) {
+		return assignName("Hunger");
+	} else {
+		return assignName("Elk Hunt", "Elk");
+	}
+}
+const NamePair* displayNameSelector_hawkBaker(PlayerInfo& ent) {
+	if (ent.sinHunger) {
+		return assignName("Hunger");
+	} else {
+		return assignName("Hawk Baker");
+	}
+}
+const NamePair* displayNameSelector_vultureSeize(PlayerInfo& ent) {
+	if (ent.sinHunger) {
+		return assignName("Hunger");
+	} else {
+		return assignName("Vulture Seize", "Vulture");
+	}
+}
+const NamePair* displayNameSelector_beakDriverAir(PlayerInfo& ent) {
+	if (ent.sinHunger) {
+		return assignName("Hunger");
+	} else {
+		return assignName("Aerial Beak Driver", "Air Beak");
+	}
+}
+const NamePair* displayNameSelector_bullBash(PlayerInfo& ent) {
+	if (ent.sinHunger) {
+		return assignName("Hunger");
+	} else {
+		return assignName("Bull Bash");
+	}
+}
+const NamePair* displayNameSelector_beakDriverMash(PlayerInfo& ent) {
+	if (ent.sinHunger) {
+		return assignName("Hunger");
+	} else {
+		return assignName("I'm Sure I'll Hit Something", "Beak Mash");
 	}
 }
 
-bool canYrcProjectile_default(PlayerInfo& player) {
-	return player.prevFrameHadDangerousNonDisabledProjectiles
-		&& player.hasDangerousNonDisabledProjectiles;
+const char* canYrcProjectile_default(PlayerInfo& player) {
+	if (player.prevFrameHadDangerousNonDisabledProjectiles
+			&& player.hasDangerousNonDisabledProjectiles) {
+		return "Can YRC, and projectile/powerup will stay";
+	}
+	return nullptr;
 }
-bool canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& player) {
-	return player.prevFrameHadDangerousNonDisabledProjectiles
-		&& player.hasDangerousNonDisabledProjectiles
-		&& (
-			player.pawn.previousEntity() == nullptr
-			|| player.pawn.previousEntity().linkObjectDestroyOnStateChange() != player.pawn
-		)
-		&& !player.prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer;
+const char* canYrcProjectile_gunflame(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Gunflame will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_tyrantRave(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Tyrant Rave second punch will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_cse(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Charged Stun Edge will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_se(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Stun Edge will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_sacredEdge(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Sacred Edge will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_prevNoLinkDestroyOnStateChange(PlayerInfo& player) {
+	if (player.prevFrameHadDangerousNonDisabledProjectiles
+			&& player.hasDangerousNonDisabledProjectiles
+			&& (
+				player.pawn.previousEntity() == nullptr
+				|| player.pawn.previousEntity().linkObjectDestroyOnStateChange() != player.pawn
+			)
+			&& !player.prevFramePreviousEntityLinkObjectDestroyOnStateChangeWasEqualToPlayer) {
+		return "Can YRC, and projectile/powerup will stay";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_ky5D(PlayerInfo& player) {
 	if (player.pawn.previousEntity()
@@ -9419,23 +9645,35 @@ const CreatedProjectileStruct* createdProjectile_ky5D(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_ky5D(PlayerInfo& player) {
+const char* canYrcProjectile_ky5D(PlayerInfo& player) {
 	// STACK_1 seems to hold the ground mahojin
-	if (moves.ky5DDustEffectShot_firstSpriteAfter_Offset == -1) return false; // rev1
+	if (moves.ky5DDustEffectShot_firstSpriteAfter_Offset == -1) return nullptr; // rev1
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset && func) {
 		BYTE* pos = moves.findCreateObj(func, "DustEffectShot");
 		if (!pos) {
 			moves.ky5DDustEffectShot_firstSpriteAfter_Offset = -1;
-			return canYrcProjectile_default(player); // rev1
+			if (canYrcProjectile_default(player)) {  // rev1
+				return "Can YRC, and Grinder will stay";
+			}
+			return nullptr;
 		}
 		pos = moves.findSpriteNonNull(pos);
 		if (pos) moves.ky5DDustEffectShot_firstSpriteAfter_Offset = pos - func;
 	}
-	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset) return false;
-	return player.pawn.bbscrCurrentInstr() > func + moves.ky5DDustEffectShot_firstSpriteAfter_Offset
-		|| player.pawn.bbscrCurrentInstr() == func + moves.ky5DDustEffectShot_firstSpriteAfter_Offset
-		&& player.pawn.spriteFrameCounter() > 0;
+	if (!moves.ky5DDustEffectShot_firstSpriteAfter_Offset) return nullptr;
+	if (player.pawn.bbscrCurrentInstr() > func + moves.ky5DDustEffectShot_firstSpriteAfter_Offset
+			|| player.pawn.bbscrCurrentInstr() == func + moves.ky5DDustEffectShot_firstSpriteAfter_Offset
+			&& player.pawn.spriteFrameCounter() > 0) {
+		return "Can YRC, and 5D Projectile will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_kyJD(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Grinder will stay";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_splitCiel(PlayerInfo& player) {
 	if (player.pawn.previousEntity()
@@ -9446,12 +9684,99 @@ const CreatedProjectileStruct* createdProjectile_splitCiel(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_splitCiel(PlayerInfo& player) {
-	return player.pawn.previousEntity()
-		&& strcmp(player.pawn.previousEntity().animationName(), "Mahojin") == 0
-		&& player.pawn.previousEntity().lifeTimeCounter() > 0;
+const char* canYrcProjectile_splitCiel(PlayerInfo& player) {
+	if (player.pawn.previousEntity()
+			&& strcmp(player.pawn.previousEntity().animationName(), "Mahojin") == 0
+			&& player.pawn.previousEntity().lifeTimeCounter() > 0) {
+		return "Can YRC, and Grinder will stay";
+	}
+	return nullptr;
 }
-bool canYrcProjectile_flower(PlayerInfo& player) {
+const char* canYrcProjectile_coin(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Coin will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_bacchusSigh(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Bacchus Sigh will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_sinwazaShot(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Zweihander Pillar will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_beachBall(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Beach Ball will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_dolphin(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Dolphin will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_yamada(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Yamada will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_wallclingKunai(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Kunai will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_shuriken(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Shuriken will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_gammaBlade(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Gamma Blade will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_ryuuYanagi(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Ryuu Yanagi will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_faust5D(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and the reflected projectile will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_itemToss(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and the tossed item will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_love(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Love will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_superToss(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and the items that have been tossed so far will stay (remaining items would not get tossed)";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_flower(PlayerInfo& player) {
 	for (int i = 2; i < entityList.count; ++i) {
 		Entity p = entityList.list[i];
 		if (p.isActive() && p.team() == player.index && !p.isPawn()
@@ -9461,20 +9786,24 @@ bool canYrcProjectile_flower(PlayerInfo& player) {
 				)
 				&& p.lifeTimeCounter() > 0
 				&& !p.isActiveFrames()) {  // the last check against potential get on pogo -> flower -> YRC -> get on pogo -> flower again
-			return true;
+			return "Can YRC, and Flower will stay";
 		}
 	}
-	return false;
+	return nullptr;
 }
-static bool canYrcProjectile_qv(PlayerInfo& player, int* storage) {
+const char* canYrcProjectile_sickleFlash(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Sickle Flash will stay";
+	}
+	return nullptr;
+}
+static const char* canYrcProjectile_qv(PlayerInfo& player, int* storage, const char* result) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return false;
+	if (!func) return nullptr;
 	if (*storage == 0) {
 		bool foundTheThing = false;
-		for (BYTE* instr = moves.skipInstruction(func);
-				moves.instructionType(instr) != instr_endState;
-				instr = moves.skipInstruction(instr)) {
-			InstructionType type = moves.instructionType(instr);
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
 			if (type == instr_clearUpon) {
 				if (asInstr(instr, clearUpon)->event == BBSCREVENT_PLAYER_CHANGED_STATE) {
 					foundTheThing = true;
@@ -9485,24 +9814,39 @@ static bool canYrcProjectile_qv(PlayerInfo& player, int* storage) {
 			}
 		}
 	}
-	if (!*storage) return false;
+	if (!*storage) return nullptr;
 	BYTE* currentInstr = player.pawn.bbscrCurrentInstr();
 	BYTE* minInstr = func + *storage;
-	return currentInstr == minInstr
-		&& player.pawn.spriteFrameCounter() != 0
-		|| currentInstr > minInstr;
+	if (currentInstr == minInstr
+			&& player.pawn.spriteFrameCounter() != 0
+			|| currentInstr > minInstr) {
+		return result;
+	}
+	return nullptr;
 }
-bool canYrcProjectile_qvA(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvAClearUponAfterExitOffset);
+const char* canYrcProjectile_qvA(PlayerInfo& player) {
+	return canYrcProjectile_qv(player, &moves.venomQvAClearUponAfterExitOffset, "Can YRC, and P Ball and QV Shockwave will stay");
 }
-bool canYrcProjectile_qvB(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvBClearUponAfterExitOffset);
+const char* canYrcProjectile_qvB(PlayerInfo& player) {
+	return canYrcProjectile_qv(player, &moves.venomQvBClearUponAfterExitOffset, "Can YRC, and K Ball and QV Shockwave will stay");
 }
-bool canYrcProjectile_qvC(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvCClearUponAfterExitOffset);
+const char* canYrcProjectile_qvC(PlayerInfo& player) {
+	return canYrcProjectile_qv(player, &moves.venomQvCClearUponAfterExitOffset, "Can YRC, and S Ball and QV Shockwave will stay");
 }
-bool canYrcProjectile_qvD(PlayerInfo& player) {
-	return canYrcProjectile_qv(player, &moves.venomQvDClearUponAfterExitOffset);
+const char* canYrcProjectile_qvD(PlayerInfo& player) {
+	return canYrcProjectile_qv(player, &moves.venomQvDClearUponAfterExitOffset, "Can YRC, and H Ball and QV Shockwave will stay");
+}
+const char* canYrcProjectile_redHail(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Red Hail balls that have been created so far will stay, while no new balls will be created";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_darkAngel(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Dark Angel will stay";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_bishop(PlayerInfo& player) {
 	if (player.pawn.previousEntity() && player.pawn.previousEntity().lifeTimeCounter() == 0) {
@@ -9510,23 +9854,36 @@ const CreatedProjectileStruct* createdProjectile_bishop(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_bishop(PlayerInfo& player) {
+const char* canYrcProjectile_bishop(PlayerInfo& player) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (moves.venomBishopCreateOffset == 0 && func) {
 		bool found = false;
-		for (BYTE* instr = moves.skipInstruction(func);
-				moves.instructionType(instr) != instr_endState;
-				instr = moves.skipInstruction(instr)) {
-			if (moves.instructionType(instr) == instr_createObjectWithArg && strcmp(asInstr(instr, createObjectWithArg)->state, "Ball") == 0) {
+		for (loopInstr(func)) {
+			if (moves.instrType(instr) == instr_createObjectWithArg && strcmp(asInstr(instr, createObjectWithArg)->name, "Ball") == 0) {
 				found = true;
-			} else if (found && moves.instructionType(instr) == instr_sprite) {
+			} else if (found && moves.instrType(instr) == instr_sprite) {
 				moves.venomBishopCreateOffset = instr - func;
 				break;
 			}
 		}
 	}
-	if (!moves.venomBishopCreateOffset) return false;
-	return player.pawn.bbscrCurrentInstr() - func > moves.venomBishopCreateOffset;
+	if (!moves.venomBishopCreateOffset) return nullptr;
+	if (player.pawn.bbscrCurrentInstr() - func > moves.venomBishopCreateOffset) {
+		return "Can YRC, and Bishop will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_helterSkelter(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Helter Skelter shockwave will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_sdd(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Straight Down Dandy back jet projectile will stay";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_ino5D(PlayerInfo& player) {
 	if (player.pawn.previousEntity()
@@ -9537,22 +9894,85 @@ const CreatedProjectileStruct* createdProjectile_ino5D(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_ino5D(PlayerInfo& player) {
-	if (moves.ino5DCreateDustObjShotOffset == -1) return false; // rev1
+const char* canYrcProjectile_ino5D(PlayerInfo& player) {
+	if (moves.ino5DCreateDustObjShotOffset == -1) return nullptr; // rev1
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (!moves.ino5DCreateDustObjShotOffset && func) {
 		BYTE* pos = moves.findCreateObj(func, "DustObjShot");
 		if (!pos) {
 			moves.ino5DCreateDustObjShotOffset = -1;
-			return canYrcProjectile_default(player); // rev1
+			return nullptr; // rev1
 		}
 		pos = moves.findSpriteNonNull(pos);
 		if (pos) moves.ino5DCreateDustObjShotOffset = pos - func;
 	}
-	if (!moves.ino5DCreateDustObjShotOffset) return false;
-	return player.pawn.bbscrCurrentInstr() > func + moves.ino5DCreateDustObjShotOffset
-		|| player.pawn.bbscrCurrentInstr() == func + moves.ino5DCreateDustObjShotOffset
-		&& player.pawn.spriteFrameCounter() > 0;
+	if (!moves.ino5DCreateDustObjShotOffset) return nullptr;
+	if (player.pawn.bbscrCurrentInstr() > func + moves.ino5DCreateDustObjShotOffset
+			|| player.pawn.bbscrCurrentInstr() == func + moves.ino5DCreateDustObjShotOffset
+			&& player.pawn.spriteFrameCounter() > 0) {
+		return "Can YRC, and 5D Projectile will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_kouutsuOnkai(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Antidepressant Scale will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_chemicalLove(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Chemical Love projectile will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_madogiwa(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and the Longing Desperation blast will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_genkai(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Genkai will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_boomerang(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Boomerang Head will still be thrown";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_dejavuAB(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and the \x44\xC3\xA9\x6A\xC3\xA0 Vu Ghost will stay, which could later spawn the Ghost Boomerang Head";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_dejavuC(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and the \x44\xC3\xA9\x6A\xC3\xA0 Vu B Ghost will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_dejavuD(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and the \x44\xC3\xA9\x6A\xC3\xA0 Vu C Ghost will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_alarm(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Sinusoidal Helios will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_merry(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Hami Jack will stay";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_onf5_s(PlayerInfo& ent) {
 	if (ent.pawn.currentAnimDuration() == 5 && !ent.pawn.isRCFrozen()) {
@@ -9578,9 +9998,47 @@ const CreatedProjectileStruct* createdProjectile_onf5_h_recall(PlayerInfo& ent) 
 	}
 	return nullptr;
 }
-bool canYrcProjectile_onf5(PlayerInfo& ent) {
-	return ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
-		|| ent.pawn.currentAnimDuration() > 5;
+const char* canYrcProjectile_onf5_sLaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 5) {
+		return "Can YRC, and S Sword will still be deployed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf5_sRelaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 5) {
+		return "Can YRC, and S Sword will still be redeployed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf5_sRecover(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 5) {
+		return "Can YRC, and S Sword will still be recovered";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf5_hLaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 5) {
+		return "Can YRC, and H Sword will still be deployed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf5_hRelaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 5) {
+		return "Can YRC, and H Sword will still be redeployed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf5_hRecover(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 5 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 5) {
+		return "Can YRC, and H Sword will still be recovered";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_onf7_s(PlayerInfo& ent) {
 	if (ent.pawn.currentAnimDuration() == 7 && !ent.pawn.isRCFrozen()) {
@@ -9594,12 +10052,53 @@ const CreatedProjectileStruct* createdProjectile_onf7_h(PlayerInfo& ent) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_onf7(PlayerInfo& ent) {
-	return ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
-		|| ent.pawn.currentAnimDuration() > 7;
+const char* canYrcProjectile_onf7_sLaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 7) {
+		return "Can YRC, and S Sword will still be deployed";
+	}
+	return nullptr;
 }
-bool canYrcProjectile_onf9(PlayerInfo& ent) {
-	return ent.pawn.currentAnimDuration() > 9;
+const char* canYrcProjectile_onf7_sRelaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 7) {
+		return "Can YRC, and S Sword will still be redeployed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf7_sRecover(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 7) {
+		return "Can YRC, and S Sword will still be recovered";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf7_hLaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 7) {
+		return "Can YRC, and H Sword will still be deployed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf7_hRelaunch(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 7) {
+		return "Can YRC, and H Sword will still be redeployed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_onf7_hRecover(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() == 7 && ent.pawn.isRCFrozen()
+			|| ent.pawn.currentAnimDuration() > 7) {
+		return "Can YRC, and H Sword will still be recovered";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_bitSpiral(PlayerInfo& ent) {
+	if (ent.pawn.currentAnimDuration() > 9) {
+		return "Can YRC, and Trance will still be deployed";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_elpheltjD(PlayerInfo& player) {
 	if (player.pawn.previousEntity()
@@ -9616,7 +10115,7 @@ const CreatedProjectileStruct* createdProjectile_elpheltjD(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_elpheltjD(PlayerInfo& player) {
+const char* canYrcProjectile_elpheltjD(PlayerInfo& player) {
 	if (player.pawn.effectLinkedCollision() != nullptr
 			&& player.pawn.previousEntity()
 			&& player.pawn.previousEntity().lifeTimeCounter() > 0) {
@@ -9624,11 +10123,23 @@ bool canYrcProjectile_elpheltjD(PlayerInfo& player) {
 			Entity p = entityList.list[i];
 			if (p.isActive() && p.team() == player.index && !p.isPawn()
 					&& strcmp(p.animationName(), "HandGun_air_shot") == 0) {
-				return true;
+				return "Can YRC, and j.D Projectile will stay";
 			}
 		}
 	}
-	return false;
+	return nullptr;
+}
+const char* canYrcProjectile_rifleFire(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, without interrupting the Rifle Shot";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_grenadeToss(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Berry Pine will still be thrown";
+	}
+	return nullptr;
 }
 static inline const CreatedProjectileStruct* createdProjectile_Ghost(PlayerInfo& player, int index, const CreatedProjectileStruct* msg) {
 	Entity p = player.pawn.stackEntity(index);
@@ -9637,82 +10148,358 @@ static inline const CreatedProjectileStruct* createdProjectile_Ghost(PlayerInfo&
 	}
 	return nullptr;
 }
-bool canYrcProjectile_Ghost(PlayerInfo& player, int index) {
+static const char* canYrcProjectile_Ghost(PlayerInfo& player, int index, const char* result) {
 	Entity p = player.pawn.stackEntity(index);
-	return p && p.isActive() && p.displayModel() && p.mem45() == 1;
+	if (p && p.isActive() && p.displayModel() && p.mem45() == 1) {
+		return result;
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_PGhost(PlayerInfo& player) {
 	return createdProjectile_Ghost(player, 0, assignCreatedProjectile("Created P Ghost"));
 }
-bool canYrcProjectile_PGhost(PlayerInfo& player) {
-	return canYrcProjectile_Ghost(player, 0);
+const char* canYrcProjectile_PGhost(PlayerInfo& player) {
+	return canYrcProjectile_Ghost(player, 0, "Can YRC, and P Ghost will remain summoned");
 }
 const CreatedProjectileStruct* createdProjectile_KGhost(PlayerInfo& player) {
 	return createdProjectile_Ghost(player, 1, assignCreatedProjectile("Created K Ghost"));
 }
-bool canYrcProjectile_KGhost(PlayerInfo& player) {
-	return canYrcProjectile_Ghost(player, 1);
+const char* canYrcProjectile_KGhost(PlayerInfo& player) {
+	return canYrcProjectile_Ghost(player, 1, "Can YRC, and K Ghost will remain summoned");
 }
 const CreatedProjectileStruct* createdProjectile_SGhost(PlayerInfo& player) {
 	return createdProjectile_Ghost(player, 2, assignCreatedProjectile("Created S Ghost"));
 }
-bool canYrcProjectile_SGhost(PlayerInfo& player) {
-	return canYrcProjectile_Ghost(player, 2);
+const char* canYrcProjectile_SGhost(PlayerInfo& player) {
+	return canYrcProjectile_Ghost(player, 2, "Can YRC, and S Ghost will remain summoned");
 }
 static const CreatedProjectileStruct* createdProjectile_XThrowGhost(PlayerInfo& player, int* offset) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (!func) return nullptr;
 	moves.fillJackoThrowGhostOffset(func, offset);
-	if (player.pawn.bbscrCurrentInstr() - func == *offset && !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0) {
+	if (player.pawn.bbscrCurrentInstr() - func == *offset && player.pawn.justReachedSprite()) {
 		return assignCreatedProjectile("Threw Ghost");
 	}
 	return nullptr;
 }
-bool canYrcProjectile_XThrowGhost(PlayerInfo& player, int* offset) {
+const char* canYrcProjectile_XThrowGhost(PlayerInfo& player, int* offset) {
 	int mem59 = player.pawn.mem59();
-	if (mem59 != 1 && mem59 != 2 && mem59 != 3) return false;
+	if (mem59 != 1 && mem59 != 2 && mem59 != 3) return nullptr;
 	Entity p = player.pawn.stackEntity(mem59 - 1);
-	if (!p || !p.isActive()) return false;
-	return !createdProjectile_XThrowGhost(player, offset)
-		&& p.isActiveFrames();
+	if (!p || !p.isActive()) return nullptr;
+	if (!createdProjectile_XThrowGhost(player, offset)
+			&& p.isActiveFrames()) {
+		return "Can YRC, and Ghost will remain thrown";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_ThrowGhost(PlayerInfo& player) {
 	return createdProjectile_XThrowGhost(player, &moves.jackoThrowGhostOffset);
 }
-bool canYrcProjectile_ThrowGhost(PlayerInfo& player) {
+const char* canYrcProjectile_ThrowGhost(PlayerInfo& player) {
 	return canYrcProjectile_XThrowGhost(player, &moves.jackoThrowGhostOffset);
 }
 const CreatedProjectileStruct* createdProjectile_AirThrowGhost(PlayerInfo& player) {
 	return createdProjectile_XThrowGhost(player, &moves.jackoAirThrowGhostOffset);
 }
-bool canYrcProjectile_AirThrowGhost(PlayerInfo& player) {
+const char* canYrcProjectile_returnGhost(PlayerInfo& player) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	findSpriteAfterIf(func, &moves.jackoReturnGhost);
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	if (offset >= moves.jackoReturnGhost
+			&& !(offset == moves.jackoReturnGhost && player.pawn.justReachedSprite())) {
+		return "Can YRC, and the Ghost will remain in the inventory";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_AirThrowGhost(PlayerInfo& player) {
 	return canYrcProjectile_XThrowGhost(player, &moves.jackoAirThrowGhostOffset);
+}
+struct PickUpGhostAnalysisResult {
+	bool onThisFramePickedUpGhost;
+	const char* yrcMessage;
+};
+void analyzePickUpGhost(PlayerInfo& player, PickUpGhostAnalysisResult* result) {
+	result->onThisFramePickedUpGhost = false;
+	result->yrcMessage = nullptr;
+	
+	int mem59 = player.pawn.mem59();
+	if (ghostStateName_PickUp < 1 || mem59 < 1 || mem59 > 3) {
+		return;
+	}
+	static struct {
+		std::vector<int>& offsets;
+		int& pickedUp;
+		const char* ghostState;
+	} allThings[3] {
+		{
+			moves.ghostAStateOffsets,
+			moves.ghostABecomePickedUp,
+			"GhostA"
+		},
+		{
+			moves.ghostBStateOffsets,
+			moves.ghostBBecomePickedUp,
+			"GhostB"
+		},
+		{
+			moves.ghostCStateOffsets,
+			moves.ghostCBecomePickedUp,
+			"GhostC"
+		}
+	};
+	auto& thing = allThings[mem59 - 1];
+	
+	Entity ghost;
+	entityList.populate();
+	for (int i = 2; i < entityList.count; ++i) {
+		Entity ent = entityList.list[i];
+		if (ent.isActive() && ent.team() == player.index && strcmp(ent.animationName(), thing.ghostState) == 0) {
+			ghost = ent;
+			break;
+		}
+	}
+	if (!ghost) return;
+	
+	BYTE* ghostFunc = ghost.bbscrCurrentFunc();
+	moves.fillGhostStateOffsets(ghostFunc, thing.offsets);
+	
+	if (ghostStateName_PickUp - 1 >= (int)thing.offsets.size()) return;
+	int firstOffset = thing.offsets[ghostStateName_PickUp - 1];
+	
+	if (!thing.pickedUp) {
+		BYTE* firstInstr = ghostFunc + firstOffset;
+		bool encounteredStoreValue = false;
+		for (loopInstr(firstInstr)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_setMarker) {
+				if (strcmp(asInstr(instr, setMarker)->name, "pickup") != 0) {
+					break;
+				}
+			} else if (type == instr_storeValue) {
+				if (asInstr(instr, storeValue)->dest == MEM(45)
+						&& asInstr(instr, storeValue)->src == AccessedValue(BBSCRTAG_VALUE, 6)) {
+					encounteredStoreValue = true;
+				}
+			} else if (encounteredStoreValue) {
+				if (type == instr_sprite) {
+					thing.pickedUp = instr - ghostFunc;
+					break;
+				} else if (type == instr_spriteEnd) {
+					instr = moves.skipInstr(instr);
+					thing.pickedUp = instr - ghostFunc;
+					break;
+				}
+			}
+		}
+	}
+	if (!thing.pickedUp) return;
+	
+	int ghostOffset = ghost.bbscrCurrentInstr() - ghostFunc;
+	
+	int mem45 = ghost.mem45();
+	
+	bool onThisFramePickedUpGhost = mem45 == 6
+		&& ghostOffset == thing.pickedUp
+		&& ghost.justReachedSprite();
+	
+	result->onThisFramePickedUpGhost = onThisFramePickedUpGhost;
+	
+	if (mem45 == 2
+			|| mem45 == 6
+			&& (
+				ghostOffset < thing.pickedUp
+				|| onThisFramePickedUpGhost
+			)) {
+		result->yrcMessage = "Can YRC, and Ghost will drop down";
+	} else if (mem45 == 6) {
+		result->yrcMessage = "Can YRC, and Ghost will remain picked up";
+	}
+}
+const char* canYrcProjectile_pickUpGhost(PlayerInfo& player) {
+	PickUpGhostAnalysisResult result;
+	analyzePickUpGhost(player, &result);
+	return result.yrcMessage;
+}
+const char* canYrcProjectile_putGhost(PlayerInfo& player) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	findSpriteAfterIf(func, &moves.jackoPutGhost);
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	if (offset >= moves.jackoPutGhost
+			&& !(offset == moves.jackoPutGhost && player.pawn.justReachedSprite())) {
+		return "Can YRC, and Ghost will remain on the ground";
+	}
+	return nullptr;
+}
+static const char* canYrcProjectile_organImpl(Entity ent, int offset, const Moves::JackoOrgan* elem, const char* result) {
+	if (offset == elem->start ? ent.spriteFrameCounter() > 0 : offset > elem->start && offset <= elem->end) {
+		return result;
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_organ(PlayerInfo& player) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.jackoOrganP.start) {
+		Moves::JackoOrgan* elem = nullptr;
+		bool encounteredSprite = false;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_setMarker) {
+				switch (asInstr(instr, setMarker)->name[0]) {
+					case 'A': elem = &moves.jackoOrganP; break;
+					case 'B': elem = &moves.jackoOrganK; break;
+					case 'C': elem = &moves.jackoOrganS; break;
+					case 'D': elem = &moves.jackoOrganH; break;
+				}
+				encounteredSprite = false;
+			} else if (elem) {
+				if (type == instr_sprite) {
+					if (encounteredSprite) {
+						if (!elem->start) {
+							elem->start = instr - func;
+						}
+					}
+					encounteredSprite = true;
+				} else if (type == instr_exitState) {
+					elem->end = instr - func;
+					elem = nullptr;
+					encounteredSprite = false;
+				}
+			}
+		}
+	}
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	const char* result;
+	result = canYrcProjectile_organImpl(player.pawn, offset, &moves.jackoOrganP, "Can YRC, and all Ghosts will still be recovered");
+	if (result) return result;
+	result = canYrcProjectile_organImpl(player.pawn, offset, &moves.jackoOrganK, "Can YRC, and all Ghosts and Servants will remain sped up");
+	if (result) return result;
+	result = canYrcProjectile_organImpl(player.pawn, offset, &moves.jackoOrganS, "Can YRC, and all Ghosts will still be told to explode");
+	if (result) return result;
+	result = canYrcProjectile_organImpl(player.pawn, offset, &moves.jackoOrganH, "Can YRC, and Aegis Field will remain");
+	if (result) return result;
+	return nullptr;
+}
+const char* canYrcProjectile_jackoCalvados(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Calvados will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_iceSpike_or_firePillar(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		if (player.pawn.createArgHikitsukiVal1_outgoing() == 1) {
+			return "Can YRC, and Ice Spike will stay";
+		} else {
+			return "Can YRC, and Fire Pillar will stay";
+		}
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_iceScythe_or_fireScythe(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		if (player.pawn.createArgHikitsukiVal1_outgoing() == 1) {
+			return "Can YRC, and Ice Scythe will stay";
+		} else {
+			return "Can YRC, and Fire Scythe will stay";
+		}
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_kum5D(PlayerInfo& player) {
 	if (player.pawn.previousEntity()
-		&& player.pawn.previousEntity().lifeTimeCounter() == 0
-		&& !player.pawn.isRCFrozen()
-		&& strcmp(player.pawn.previousEntity().animationName(), "kum_205shot") == 0) {
+			&& player.pawn.previousEntity().lifeTimeCounter() == 0
+			&& !player.pawn.isRCFrozen()
+			&& strcmp(player.pawn.previousEntity().animationName(), "kum_205shot") == 0) {
 		return assignCreatedProjectile("Created 5D Projectile");
 	}
 	return nullptr;
 }
-bool canYrcProjectile_kum5D(PlayerInfo& player) {
-	if (moves.kum5Dcreation == -1) return false; // rev1
+const char* canYrcProjectile_kum5D(PlayerInfo& player) {
+	if (moves.kum5Dcreation == -1) return nullptr; // rev1
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (!moves.kum5Dcreation && func) {
 		BYTE* pos = moves.findCreateObj(func, "kum_205shot");
 		if (!pos) {
 			moves.kum5Dcreation = -1;
-			return canYrcProjectile_default(player); // rev1
+			return nullptr; // rev1
 		}
 		pos = moves.findSpriteNonNull(pos);
 		if (pos) moves.kum5Dcreation = pos - func;
 	}
-	if (!moves.kum5Dcreation) return false;
-	return player.pawn.bbscrCurrentInstr() > func + moves.kum5Dcreation
-		|| player.pawn.bbscrCurrentInstr() == func + moves.kum5Dcreation
-		&& player.pawn.spriteFrameCounter() > 0;
+	if (!moves.kum5Dcreation) return nullptr;
+	if (player.pawn.bbscrCurrentInstr() > func + moves.kum5Dcreation
+			|| player.pawn.bbscrCurrentInstr() == func + moves.kum5Dcreation
+			&& player.pawn.spriteFrameCounter() > 0) {
+		return "Can YRC, and 5D Projectile will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_tuningBall(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Tuning Ball will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_ravenOrb(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Scharf Kugel will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_ravenNeedle(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Needle will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_fish(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and summoned Fish will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_bubble(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and summoned Bubble will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_fireBubble(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and summoned Fire Bubble will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_fireSpears(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and all summoned Fire Spears so far will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_iceSpear(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Ice Spear will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_imperialRay(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Imperial Ray will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_tatami(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Tatami will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_teppou(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Yasha Gatana projectile will stay";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_baiken5D(PlayerInfo& player) {
 	for (int i = 2; i < entityList.count; ++i) {
@@ -9726,28 +10513,52 @@ const CreatedProjectileStruct* createdProjectile_baiken5D(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_baiken5D(PlayerInfo& player) {
-	if (moves.baiken5Dcreation == -1) return false; // error
+const char* canYrcProjectile_baiken5D(PlayerInfo& player) {
+	if (moves.baiken5Dcreation == -1) return nullptr; // error
 	BYTE* func = player.pawn.bbscrCurrentFunc();
 	if (!moves.baiken5Dcreation && func) {
 		BYTE* pos = moves.findCreateObj(func, "NmlAtk5EShotObj");
 		if (!pos) {
 			moves.baiken5Dcreation = -1;
-			return canYrcProjectile_default(player); // error
+			return nullptr; // error
 		}
 		pos = moves.findSpriteNonNull(pos);
 		if (pos) moves.baiken5Dcreation = pos - func;
 	}
-	if (!moves.baiken5Dcreation) return false;
-	return player.pawn.bbscrCurrentInstr() > func + moves.baiken5Dcreation
-		|| player.pawn.bbscrCurrentInstr() == func + moves.baiken5Dcreation
-		&& player.pawn.spriteFrameCounter() > 0;
+	if (!moves.baiken5Dcreation) return nullptr;
+	if (player.pawn.bbscrCurrentInstr() > func + moves.baiken5Dcreation
+			|| player.pawn.bbscrCurrentInstr() == func + moves.baiken5Dcreation
+			&& player.pawn.spriteFrameCounter() > 0) {
+		return "Can YRC, and 5D Projectile will stay";
+	}
+	return nullptr;
 }
-bool canYrcProjectile_scroll(PlayerInfo& player) {
-	return player.pawn.currentAnimDuration() > 7
-		|| player.pawn.currentAnimDuration() == 7
-		&& !player.pawn.isSuperFrozen()
-		&& player.pawn.isRCFrozen();
+const char* canYrcProjectile_jackoJD(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and whatever Fireballs have been created so far will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_scroll(PlayerInfo& player) {
+	if (player.pawn.currentAnimDuration() > 7
+			|| player.pawn.currentAnimDuration() == 7
+			&& !player.pawn.isSuperFrozen()
+			&& player.pawn.isRCFrozen()) {
+		return "Can YRC, and Scroll will still be set";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_clone(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Clone will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_meishiMeteor(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Firesale will still be unleashed";
+	}
+	return nullptr;
 }
 const CreatedProjectileStruct* createdProjectile_firesale(PlayerInfo& player) {
 	if (player.pawn.currentAnimDuration() < 100) {
@@ -9760,57 +10571,231 @@ const CreatedProjectileStruct* createdProjectile_firesale(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-bool canYrcProjectile_firesale(PlayerInfo& player) {
+const char* canYrcProjectile_firesale(PlayerInfo& player) {
 	if (player.pawn.currentAnimDuration() < 100) {
 		for (int i = 2; i < entityList.count; ++i) {
 			Entity p = entityList.list[i];
-			if (p.isActive() && p.team() == player.index && !p.isPawn()
-					&& strcmp(p.animationName(), "RSF_Start") == 0) {
-				return p.linkObjectDestroyOnStateChange() == nullptr;
+			if (p.isActive() && p.team() == player.index && strcmp(p.animationName(), "RSF_Start") == 0) {
+				BYTE* func = p.bbscrCurrentFunc();
+				if (!moves.rsfStartStateLinkBreak) {
+					int uponLevel = 0;
+					bool encounteredLinkBreak = false;
+					for (loopInstr(func)) {
+						InstrType type = moves.instrType(instr);
+						if (type == instr_upon) {
+							++uponLevel;
+						} else if (type == instr_endUpon) {
+							--uponLevel;
+						} else if (uponLevel == 0) {
+							if (type == instr_setLinkObjectDestroyOnStateChange) {
+								encounteredLinkBreak = true;
+							} else if (type == instr_sprite && encounteredLinkBreak) {
+								moves.rsfStartStateLinkBreak = instr - func;
+								break;
+							}
+						}
+					}
+				}
+				if (p.linkObjectDestroyOnStateChange() == nullptr && !(
+						p.bbscrCurrentInstr() - func == moves.rsfStartStateLinkBreak
+						&& p.spriteFrameCounter() == 0
+					)) {
+					return "Can YRC, and the initial (vertical) Card will be thrown, but not the rest of the cards";
+				}
+				return nullptr;
 			}
 		}
-		return false;
+		return nullptr;
 	} else {
-		return canYrcProjectile_default(player);
+		if (canYrcProjectile_default(player)) {
+			return "Can YRC, and Firesale will still be unleashed";
+		}
+		return nullptr;
 	}
 }
-bool canYrcProjectile_berryPull(PlayerInfo& player) {
-	return player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0);
+const char* canYrcProjectile_disc(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Tandem Top will stay";
+	}
+	return nullptr;
 }
-static bool canYrcProjectile_ballSet(PlayerInfo& player, int* storage) {
+const char* canYrcProjectile_silentForce(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Silent Force will still be thrown";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_emeraldRain(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Emerald Rain will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_eddie(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Eddie will remain summoned";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_amorphous(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Amorphous will remain summoned";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_slideHead(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Slide Head Shockwave will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_fdb(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and F.D.B reflected projectile will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_trishula(PlayerInfo& player) {
+	if (canYrcProjectile_prevNoLinkDestroyOnStateChange(player)) {
+		return "Can YRC, and Trishula will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_giganter(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Giganter will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_berryPull(PlayerInfo& player) {
+	if (player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0)) {
+		return "Can YRC, and Berry Pine will remain primed";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_bazooka(PlayerInfo& player) {
+	if (player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0)) {
+		return "Can YRC, and Genoverse rocket will remain created";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_graviertWurde(PlayerInfo& player) {
+	if (player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0)) {
+		return "Can YRC, and Graviert W\xc3\xbcrde will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_stahlWirbel(PlayerInfo& player) {
+	if (player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0)) {
+		return "Can YRC, and Stahl Wirbel will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_card(PlayerInfo& player) {
+	const char letter = player.pawn.animationName()[7];
+	if (letter < 'B' || letter > 'D') return nullptr;
+	int& powerup = moves.jamCardPowerup[letter - 'B'];
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!powerup) {
+		bool encounteredModifyVar = false;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_modifyVar) {
+				encounteredModifyVar = true;
+			} else if (type == instr_sprite && encounteredModifyVar) {
+				powerup = instr - func;
+				break;
+			}
+		}
+	}
+	if (!powerup) return nullptr;
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	if (offset > powerup || offset == powerup && !player.pawn.justReachedSprite()) {
+		return "Can YRC, and Card powerup will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_renhoukyaku(PlayerInfo& player) {
+	if (player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0)) {
+		return "Can YRC, and the puffballs will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_caltrops(PlayerInfo& player) {
+	if (player.wasResource && player.wasResource != player.pawn.exGaugeMaxValue(0)) {
+		return "Can YRC, and the Card will still be thrown";
+	}
+	return nullptr;
+}
+static const char* canYrcProjectile_ballSet(PlayerInfo& player, int* storage, const char* result) {
 	BYTE* funcStart = player.pawn.bbscrCurrentFunc();
 	moves.fillVenomBallCreation(funcStart, storage);
 	int offset = player.pawn.bbscrCurrentInstr() - funcStart;
-	return offset > *storage
-		|| offset == *storage
-		&& !(
-			player.pawn.spriteFrameCounter() == 0
-			&& !player.pawn.isRCFrozen()
-		);
+	if (offset > *storage
+			|| offset == *storage
+			&& player.pawn.spriteFrameCounter() > 0) {
+		return result;
+	}
+	return nullptr;
 }
-bool canYrcProjectile_ballSeiseiA(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiABallCreation);
+const char* canYrcProjectile_ballSeiseiA(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiABallCreation, "Can YRC, and a new P Ball will still be set");
 }
-bool canYrcProjectile_ballSeiseiB(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiBBallCreation);
+const char* canYrcProjectile_ballSeiseiB(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiBBallCreation, "Can YRC, and a new K Ball will still be set");
 }
-bool canYrcProjectile_ballSeiseiC(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiCBallCreation);
+const char* canYrcProjectile_ballSeiseiC(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiCBallCreation, "Can YRC, and a new S Ball will still be set");
 }
-bool canYrcProjectile_ballSeiseiD(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiDBallCreation);
+const char* canYrcProjectile_ballSeiseiD(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomBallSeiseiDBallCreation, "Can YRC, and a new H Ball will still be set");
 }
-bool canYrcProjectile_airBallSeiseiA(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiABallCreation);
+const char* canYrcProjectile_airBallSeiseiA(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiABallCreation, "Can YRC, and a new P Ball will still be set");
 }
-bool canYrcProjectile_airBallSeiseiB(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiBBallCreation);
+const char* canYrcProjectile_airBallSeiseiB(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiBBallCreation, "Can YRC, and a new K Ball will still be set");
 }
-bool canYrcProjectile_airBallSeiseiC(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiCBallCreation);
+const char* canYrcProjectile_airBallSeiseiC(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiCBallCreation, "Can YRC, and a new S Ball will still be set");
 }
-bool canYrcProjectile_airBallSeiseiD(PlayerInfo& player) {
-	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiDBallCreation);
+const char* canYrcProjectile_airBallSeiseiD(PlayerInfo& player) {
+	return canYrcProjectile_ballSet(player, &moves.venomAirBallSeiseiDBallCreation, "Can YRC, and a new H Ball will still be set");
+}
+const char* canYrcProjectile_stinger(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Stinger Aim will still shoot out a ball";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_carcass(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Carcass Raid will still shoot out a ball";
+	}
+	return nullptr;
+}
+static const char* canYrcProjectile_eatMeatImpl(PlayerInfo& player, int* storage) {
+	BYTE* funcStart = player.pawn.bbscrCurrentFunc();
+	moves.fillSinEatMeatPowerup(funcStart, storage);
+	int offset = player.pawn.bbscrCurrentInstr() - funcStart;
+	if (offset > *storage
+			|| offset == *storage
+			&& player.pawn.spriteFrameCounter() > 0) {
+		return "Can YRC, and will retain regained energy";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_eatMeat(PlayerInfo& player) {
+	return canYrcProjectile_eatMeatImpl(player, &moves.sinEatMeatPowerup);
+}
+const char* canYrcProjectile_eatMeatOkawari(PlayerInfo& player) {
+	return canYrcProjectile_eatMeatImpl(player, &moves.sinEatMeatOkawariPowerup);
+}
+const char* canYrcProjectile_voltecDein(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Voltec Dein will stay";
+	}
+	return nullptr;
 }
 static inline char getLastLetter(const char* animName) {
 	int len = strlen(animName);
@@ -9848,89 +10833,67 @@ const CreatedProjectileStruct* createdProjectile_qv(PlayerInfo& ent) {
 	return nullptr;
 }
 
-bool powerup_may6P(PlayerInfo& player) {
-	return player.pawn.dealtAttack()->stun > player.prevFrameStunValue;
-}
-const char* powerupExplanation_may6P(PlayerInfo& player) {
+const char* powerup_may6P(PlayerInfo& player) {
 	int stun = player.pawn.dealtAttack()->stun;
-	if (stun == 110) {
-		return "Base Stun Value increased from 88 to 110. Blockstun increased from 16 to 23. Pushback modifier increased from 100% to 125%.";
-	} else if (stun == 121) {
-		return "Base Stun Value increased from 110 to 121. Blockstun increased from 23 to 26. Pushback modifier increased from 125% to 150%.";
-	} else if (stun == 132) {
-		return "Base Stun Value increased from 121 to 132. Blockstun increased from 26 to 30. Pushback modifier increased from 150% to 175%.";
-	} else if (stun == 143) {
-		return "Base Stun Value increased from 132 to 143. Blockstun increased from 30 to 34. Pushback modifier increased from 175% to 200%."
-			" Gives wallstick in the corner.";
+	if (stun > player.prevFrameStunValue) {
+		if (stun == 110) {
+			return "Base Stun Value increased from 88 to 110. Blockstun increased from 16 to 23. Pushback modifier increased from 100% to 125%.";
+		} else if (stun == 121) {
+			return "Base Stun Value increased from 110 to 121. Blockstun increased from 23 to 26. Pushback modifier increased from 125% to 150%.";
+		} else if (stun == 132) {
+			return "Base Stun Value increased from 121 to 132. Blockstun increased from 26 to 30. Pushback modifier increased from 150% to 175%.";
+		} else if (stun == 143) {
+			return "Base Stun Value increased from 132 to 143. Blockstun increased from 30 to 34. Pushback modifier increased from 175% to 200%."
+				" Gives wallstick in the corner.";
+		}
 	}
-	return "";
+	return nullptr;
 }
-bool powerup_may6H(PlayerInfo& player) {
+const char* powerup_may6H(PlayerInfo& player) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return false;
+	if (!func) return nullptr;
 	fillMay6HOffsets(func);
 	int offset = player.pawn.bbscrCurrentInstr() - func;
 	if (offset > moves.may6H_6DHoldOffset && offset < moves.may6H_6DHoldAttackOffset) {
-		return player.prevFrameMem45 == 1 && player.pawn.mem45() == 0;
+		if (player.prevFrameMem45 == 1 && player.pawn.mem45() == 0) {
+			return "Became an overhead.";
+		}
 	}
-	return false;
+	return nullptr;
 }
-const char* powerupExplanation_may6H(PlayerInfo& player) {
-	return "Became an overhead.";
-}
-bool powerup_qv(PlayerInfo& player) {
-	return player.prevFrameMem46 != player.pawn.mem46();
-}
-const char* powerupExplanation_qv(int level) {
-	if (level == 1) return "Ball reached level 1.";
-	if (level == 2) return "Ball reached level 2.";
-	if (level == 3) return "Ball reached level 3.";
-	if (level == 4) return "Ball reached level 4.";
-	if (level == 5) return "Ball reached level 5.";
-	return "Ball reached level ???.";
-}
-const char* powerupExplanation_qvA(PlayerInfo& player) {
-	int level = 0;
-	Entity p = player.pawn.stackEntity(0);
-	if (p) {
-		level = p.storage(1);
+static const char* powerup_qv(PlayerInfo& player, int stackIndex) {
+	if (player.prevFrameMem46 != player.pawn.mem46()) {
+		int level = 0;
+		Entity p = player.pawn.stackEntity(stackIndex);
+		if (p) {
+			level = p.storage(1);
+			if (level == 1) return "Ball reached level 1.";
+			if (level == 2) return "Ball reached level 2.";
+			if (level == 3) return "Ball reached level 3.";
+			if (level == 4) return "Ball reached level 4.";
+			if (level == 5) return "Ball reached level 5.";
+		}
+		return "Ball reached level ???.";
 	}
-	return powerupExplanation_qv(level);
+	return nullptr;
 }
-const char* powerupExplanation_qvB(PlayerInfo& player) {
-	int level = 0;
-	Entity p = player.pawn.stackEntity(1);
-	if (p) {
-		level = p.storage(1);
-	}
-	return powerupExplanation_qv(level);
+const char* powerup_qvA(PlayerInfo& player) {
+	return powerup_qv(player, 0);
 }
-const char* powerupExplanation_qvC(PlayerInfo& player) {
-	int level = 0;
-	Entity p = player.pawn.stackEntity(2);
-	if (p) {
-		level = p.storage(1);
-	}
-	return powerupExplanation_qv(level);
+const char* powerup_qvB(PlayerInfo& player) {
+	return powerup_qv(player, 1);
 }
-const char* powerupExplanation_qvD(PlayerInfo& player) {
-	int level = 0;
-	Entity p = player.pawn.stackEntity(3);
-	if (p) {
-		level = p.storage(1);
-	}
-	return powerupExplanation_qv(level);
+const char* powerup_qvC(PlayerInfo& player) {
+	return powerup_qv(player, 2);
+}
+const char* powerup_qvD(PlayerInfo& player) {
+	return powerup_qv(player, 3);
 }
 void Moves::fillInVenomStingerPowerup(BYTE* func, std::vector<int>& powerups) {
 	if (!powerups.empty()) return;
 	bool foundSendSignal = false;
-	BYTE* instr;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sendSignal) {
 			foundSendSignal = true;
 		} else if (foundSendSignal && type == instr_sprite) {
@@ -9939,87 +10902,87 @@ void Moves::fillInVenomStingerPowerup(BYTE* func, std::vector<int>& powerups) {
 		}
 	}
 }
-const char* powerupExplanation_stinger(PlayerInfo& player) {
-	int level = 0;
-	Entity p = player.pawn.stackEntity(4);
-	if (p) level = p.storage(1);
-	if (level == 5) return "Ball reached level 5.";
-	if (level == 4) return "Ball reached level 4.";
-	if (level == 3) return "Ball reached level 3.";
-	if (level == 2) return "Ball reached level 2.";
-	if (level == 1) return "Ball reached level 1.";
-	return "Ball reached level ???.";
-}
-bool powerup_stinger(PlayerInfo& player, std::vector<int>& powerups) {
+const char* powerup_stinger(PlayerInfo& player, std::vector<int>& powerups) {
 	BYTE* func = player.pawn.bbscrCurrentFunc();
-	if (!func) return false;
+	if (!func) return nullptr;
 	moves.fillInVenomStingerPowerup(func, powerups);
 	int offset = player.pawn.bbscrCurrentInstr() - func;
 	for (int i = 0; i < (int)powerups.size(); ++i) {
 		if (offset == powerups[i]) {
-			return !player.pawn.isRCFrozen() && player.pawn.spriteFrameCounter() == 0;
+			if (player.pawn.justReachedSprite()) {
+				int level = 0;
+				Entity p = player.pawn.stackEntity(4);
+				if (p) level = p.storage(1);
+				if (level == 5) return "Ball reached level 5.";
+				if (level == 4) return "Ball reached level 4.";
+				if (level == 3) return "Ball reached level 3.";
+				if (level == 2) return "Ball reached level 2.";
+				if (level == 1) return "Ball reached level 1.";
+				return "Ball reached level ???.";
+			}
+			return nullptr;
 		}
 	}
-	return false;
+	return nullptr;
 }
-bool powerup_stingerS(PlayerInfo& player) {
+const char* powerup_stingerS(PlayerInfo& player) {
 	return powerup_stinger(player, moves.venomStingerSPowerups);
 }
-bool powerup_stingerH(PlayerInfo& player) {
+const char* powerup_stingerH(PlayerInfo& player) {
 	return powerup_stinger(player, moves.venomStingerHPowerups);
 }
-bool powerup_kyougenA(PlayerInfo& ent) {
-	return ent.prevFrameGroundHitEffect != 8 && ent.pawn.groundHitEffect() == 8;
-}
-const char* powerupExplanation_kyougenA(PlayerInfo& ent) {
-	return "Ground bounces on hit.";
-}
-bool powerup_kyougenB(PlayerInfo& ent) {
-	return ent.prevFrameGroundBounceCount != 1 && ent.pawn.groundBounceCount() == 1;
-}
-const char* powerupExplanation_kyougenB(PlayerInfo& ent) {
-	return "Without the powerup, this move doesn't ground bounce, but KDs on normal hit."
-	" It ground bounces on CH with -350.00 starting speed Y and 227.50 starting speed X."
-	" You can combo from this if it was an airhit, and if it was a ground hit, you might need RRC.\n"
-	"With the powerup, it ground bounces even on normal hit,"
-	" with -250.00 starting speed Y and 175.00 starting speed X, and is very easy to combo from"
-	" on both air and ground hits.\n"
-	"With the powerup and the counterhit, it launches with -300.00 starting speed Y"
-	" and 50.00 starting speed X.";
-}
-bool powerup_kyougenC(PlayerInfo& ent) {
-	return ent.prevFrameTumbleDuration == INT_MAX && ent.pawn.tumbleDuration() != INT_MAX;
-}
-const char* powerupExplanation_kyougenC(PlayerInfo& ent) {
-	return "Without the powerup, this move doesn't ground bounce, but KDs on normal ground hit"
-	" and wallbounces on normal air hit, with no KD, and you can't combo from that without RRC.\n"
-	"On air CH, it ground bounces and then wall bounces, and can be easily combo'd from both midscreen and in the corner.\n"
-	"On ground CH, it ground bounces, and can be combo'd from with a fast move both midscreen and in the corner.\n"
-	"With the powerup, on normal air or ground hit, it tumbles at 300.00 starting speed X and gives 51-52 tumble frames.\n"
-	"With the powerup, on CH air or ground hit, it tumbles at 245.00 starting speed X and gives 69-70 tumble frames.";
-}
-const char* powerupExplanation_kyougenD(PlayerInfo& ent) {
-	BYTE* func = ent.pawn.bbscrCurrentFunc();
-	if (!func) return nullptr;
-	BYTE* instr = moves.skipInstruction(func);
-	instr = moves.skipInstruction(instr);
-	instr = moves.skipInstruction(instr);
-	instr = moves.skipInstruction(instr);
-	instr = moves.skipInstruction(instr);
-	bool isRev2 = moves.instructionType(instr) == instr_hitAirPushbackX;
-	if (isRev2) {
-		return "Increases maximum number of hits from 3 to 5 and removes landing recovery.";
-	} else {
-		return "Increases maximum number of hits from 3 to 5 and increases speed X and Y"
-			" that is given to the opponent on hit from:\n"
-			"70.00 speed X, 175.00 speed Y without the powerup to\n"
-			"140.00 speed X, 180.00 speed Y with the powerup.";
+const char* powerup_kyougenA(PlayerInfo& ent) {
+	if (ent.prevFrameGroundHitEffect != 8 && ent.pawn.groundHitEffect() == 8) {
+		return "Ground bounces on hit.";
 	}
+	return nullptr;
 }
-bool powerup_kyougenD(PlayerInfo& ent) {
-	return ent.prevFrameMaxHit != 5 && ent.pawn.maxHit() == 5;
+const char* powerup_kyougenB(PlayerInfo& ent) {
+	if (ent.prevFrameGroundBounceCount != 1 && ent.pawn.groundBounceCount() == 1) {
+		return "Without the powerup, this move doesn't ground bounce, but KDs on normal hit."
+		" It ground bounces on CH with -350.00 starting speed Y and 227.50 starting speed X."
+		" You can combo from this if it was an airhit, and if it was a ground hit, you might need RRC.\n"
+		"With the powerup, it ground bounces even on normal hit,"
+		" with -250.00 starting speed Y and 175.00 starting speed X, and is very easy to combo from"
+		" on both air and ground hits.\n"
+		"With the powerup and the counterhit, it launches with -300.00 starting speed Y"
+		" and 50.00 starting speed X.";
+	}
+	return nullptr;
 }
-bool powerup_onpu(ProjectileInfo& projectile) {
+const char* powerup_kyougenC(PlayerInfo& ent) {
+	if (ent.prevFrameTumbleDuration == INT_MAX && ent.pawn.tumbleDuration() != INT_MAX) {
+		return "Without the powerup, this move doesn't ground bounce, but KDs on normal ground hit"
+		" and wallbounces on normal air hit, with no KD, and you can't combo from that without RRC.\n"
+		"On air CH, it ground bounces and then wall bounces, and can be easily combo'd from both midscreen and in the corner.\n"
+		"On ground CH, it ground bounces, and can be combo'd from with a fast move both midscreen and in the corner.\n"
+		"With the powerup, on normal air or ground hit, it tumbles at 300.00 starting speed X and gives 51-52 tumble frames.\n"
+		"With the powerup, on CH air or ground hit, it tumbles at 245.00 starting speed X and gives 69-70 tumble frames.";
+	}
+	return nullptr;
+}
+const char* powerup_kyougenD(PlayerInfo& ent) {
+	if (ent.prevFrameMaxHit != 5 && ent.pawn.maxHit() == 5) {
+		BYTE* func = ent.pawn.bbscrCurrentFunc();
+		if (!func) return nullptr;
+		BYTE* instr = moves.skipInstr(func);
+		instr = moves.skipInstr(instr);
+		instr = moves.skipInstr(instr);
+		instr = moves.skipInstr(instr);
+		instr = moves.skipInstr(instr);
+		bool isRev2 = moves.instrType(instr) == instr_hitAirPushbackX;
+		if (isRev2) {
+			return "Increases maximum number of hits from 3 to 5 and removes landing recovery.";
+		} else {
+			return "Increases maximum number of hits from 3 to 5 and increases speed X and Y"
+				" that is given to the opponent on hit from:\n"
+				"70.00 speed X, 175.00 speed Y without the powerup to\n"
+				"140.00 speed X, 180.00 speed Y with the powerup.";
+		}
+	}
+	return nullptr;
+}
+bool projectilePowerup_onpu(ProjectileInfo& projectile) {
 	return !(projectile.ptr && projectile.ptr.isRCFrozen())
 		&& (
 			projectile.animFrame == 32
@@ -10030,127 +10993,103 @@ bool powerup_onpu(ProjectileInfo& projectile) {
 		&& !(
 			projectile.ptr
 			&& projectile.ptr.mem45()
-			&& strcmp(projectile.ptr.gotoLabelRequest(), "hit") != 0
+			&& strcmp(projectile.ptr.gotoLabelRequests(), "hit") != 0
 		);
 }
-bool powerup_djavu(PlayerInfo& ent) {
-	return ent.animFrame == 6 && !ent.pawn.isRCFrozen();
-}
-const char* powerupExplanation_djavu(PlayerInfo& ent) {
-	return "//Title override: \n"
-		"On this frame \x44\xC3\xA9\x6A\xC3\xA0 Vu checks for the existence of the Seal"
-		" and makes the Seal invulnerable.";
-}
-#define bedmanSealPowerup(storage) \
-	if (!ent.pawn.bbscrCurrentFunc()) return false; \
-	moves.fillBedmanSealFrames(ent.pawn.bbscrCurrentFunc(), &storage); \
-	if (ent.pawn.isRCFrozen()) return false; \
-	int frame = ent.pawn.currentAnimDuration(); \
-	return frame == storage.deactivate || frame == storage.reactivate;
-	
-#define bedmanSealPowerupExplanation(storage, sealName) \
-	int frame = ent.pawn.currentAnimDuration(); \
-	if (frame == storage.deactivate) { \
-		return "//Title override: \n" \
-			"On this frame the old " sealName " Seal gets deleted."; \
-	} else if (frame == storage.reactivate) { \
-		return "On this frame the " sealName " Seal gets created."; \
-	} else { \
-		return nullptr; \
+const char* powerup_djavu(PlayerInfo& ent) {
+	if (ent.animFrame == 6 && !ent.pawn.isRCFrozen()) {
+		return "//Title override: \n"
+			"On this frame \x44\xC3\xA9\x6A\xC3\xA0 Vu checks for the existence of the Seal"
+			" and makes the Seal invulnerable.";
 	}
+	return nullptr;
+}
+static const char* bedmanSealPowerup(PlayerInfo& player, Moves::BedmanActivateReactivate* storage, const char* deleteString, const char* createString) {
+	if (!player.pawn.bbscrCurrentFunc()) return nullptr;
+	moves.fillBedmanSealFrames(player.pawn.bbscrCurrentFunc(), storage);
+	if (player.pawn.isRCFrozen()) return nullptr;
+	int frame = player.pawn.currentAnimDuration();
+	if (frame == storage->deactivate || frame == storage->reactivate) {
+		int frame = player.pawn.currentAnimDuration();
+		if (frame == storage->deactivate) {
+			return deleteString;
+		} else if (frame == storage->reactivate) {
+			return createString;
+		}
+	}
+	return nullptr;
+}
+#define bedmanSealStrings(sealName) \
+	"//Title override: \n" \
+	"On this frame the old " sealName " Seal gets deleted.", \
+	"On this frame the " sealName " Seal gets created."
 	
 #define bedmanSealDontShowPowerupGraphic(storage) \
 	return ent.pawn.currentAnimDuration() == storage.deactivate;
 	
-bool powerup_boomerangA(PlayerInfo& ent) {
-	bedmanSealPowerup(moves.bedmanBoomerangASeal)
-}
-const char* powerupExplanation_boomerangA(PlayerInfo& ent) {
-	bedmanSealPowerupExplanation(moves.bedmanBoomerangASeal, "Task A")
+const char* powerup_boomerangA(PlayerInfo& ent) {
+	return bedmanSealPowerup(ent, &moves.bedmanBoomerangASeal, bedmanSealStrings("Task A"));
 }
 bool dontShowPowerupGraphic_boomerangA(PlayerInfo& ent) {
 	bedmanSealDontShowPowerupGraphic(moves.bedmanBoomerangASeal)
 }
-bool powerup_boomerangAAir(PlayerInfo& ent) {
-	bedmanSealPowerup(moves.bedmanBoomerangAAirSeal)
-}
-const char* powerupExplanation_boomerangAAir(PlayerInfo& ent) {
-	bedmanSealPowerupExplanation(moves.bedmanBoomerangAAirSeal, "Task A")
+const char* powerup_boomerangAAir(PlayerInfo& ent) {
+	return bedmanSealPowerup(ent, &moves.bedmanBoomerangAAirSeal, bedmanSealStrings("Task A"));
 }
 bool dontShowPowerupGraphic_boomerangAAir(PlayerInfo& ent) {
 	bedmanSealDontShowPowerupGraphic(moves.bedmanBoomerangAAirSeal)
 }
-bool powerup_boomerangB(PlayerInfo& ent) {
-	bedmanSealPowerup(moves.bedmanBoomerangBSeal)
-}
-const char* powerupExplanation_boomerangB(PlayerInfo& ent) {
-	bedmanSealPowerupExplanation(moves.bedmanBoomerangBSeal, "Task A'")
+const char* powerup_boomerangB(PlayerInfo& ent) {
+	return bedmanSealPowerup(ent, &moves.bedmanBoomerangBSeal, bedmanSealStrings("Task A'"));
 }
 bool dontShowPowerupGraphic_boomerangB(PlayerInfo& ent) {
 	bedmanSealDontShowPowerupGraphic(moves.bedmanBoomerangBSeal)
 }
-bool powerup_boomerangBAir(PlayerInfo& ent) {
-	bedmanSealPowerup(moves.bedmanBoomerangBAirSeal)
-}
-const char* powerupExplanation_boomerangBAir(PlayerInfo& ent) {
-	bedmanSealPowerupExplanation(moves.bedmanBoomerangBAirSeal, "Task A'")
+const char* powerup_boomerangBAir(PlayerInfo& ent) {
+	return bedmanSealPowerup(ent, &moves.bedmanBoomerangBAirSeal, bedmanSealStrings("Task A'"));
 }
 bool dontShowPowerupGraphic_boomerangBAir(PlayerInfo& ent) {
 	bedmanSealDontShowPowerupGraphic(moves.bedmanBoomerangBAirSeal)
 }
-bool powerup_taskB(PlayerInfo& ent) {
-	bedmanSealPowerup(moves.bedmanTaskBSeal)
-}
-const char* powerupExplanation_taskB(PlayerInfo& ent) {
-	bedmanSealPowerupExplanation(moves.bedmanTaskBSeal, "Task B")
+const char* powerup_taskB(PlayerInfo& ent) {
+	return bedmanSealPowerup(ent, &moves.bedmanTaskBSeal, bedmanSealStrings("Task B"));
 }
 bool dontShowPowerupGraphic_taskB(PlayerInfo& ent) {
 	bedmanSealDontShowPowerupGraphic(moves.bedmanTaskBSeal)
 }
-bool powerup_taskBAir(PlayerInfo& ent) {
-	bedmanSealPowerup(moves.bedmanAirTaskBSeal)
-}
-const char* powerupExplanation_taskBAir(PlayerInfo& ent) {
-	bedmanSealPowerupExplanation(moves.bedmanAirTaskBSeal, "Task B")
+const char* powerup_taskBAir(PlayerInfo& ent) {
+	return bedmanSealPowerup(ent, &moves.bedmanAirTaskBSeal, bedmanSealStrings("Task B"));
 }
 bool dontShowPowerupGraphic_taskBAir(PlayerInfo& ent) {
 	bedmanSealDontShowPowerupGraphic(moves.bedmanAirTaskBSeal)
 }
-bool powerup_taskC(PlayerInfo& ent) {
+const char* powerup_taskC(PlayerInfo& ent) {
 	BYTE* funcStart = ent.pawn.bbscrCurrentFunc();
-	if (!funcStart) return false;
+	if (!funcStart) return nullptr;
 	moves.fillBedmanGroundTaskCSealOffsets(funcStart);
 	if (!moves.bedmanGroundTaskCSealOffset.deactivate || !moves.bedmanGroundTaskCSealOffset.reactivate
-		|| ent.pawn.isRCFrozen() || ent.pawn.spriteFrameCounter() != 0) return false;
+		|| !ent.pawn.justReachedSprite()) return nullptr;
 	int offset = ent.pawn.bbscrCurrentInstr() - funcStart;
-	return offset == moves.bedmanGroundTaskCSealOffset.deactivate || offset == moves.bedmanGroundTaskCSealOffset.reactivate;
-		
-}
-const char* powerupExplanation_taskC(PlayerInfo& ent) {
-	int offset = ent.pawn.bbscrCurrentInstr() - ent.pawn.bbscrCurrentFunc();
 	if (offset == moves.bedmanGroundTaskCSealOffset.deactivate) {
 		return "//Title override: \n"
 			"On this frame the old Task C Seal gets deleted.";
 	} else if (offset == moves.bedmanGroundTaskCSealOffset.reactivate) {
 		return "On this frame the Task C Seal gets created.";
-	} else {
-		return nullptr;
 	}
+	return nullptr;
+		
 }
 bool dontShowPowerupGraphic_taskC(PlayerInfo& ent) {
 	int offset = ent.pawn.bbscrCurrentInstr() - ent.pawn.bbscrCurrentFunc();
 	return offset == moves.bedmanGroundTaskCSealOffset.deactivate;
 }
-bool powerup_taskCAir(PlayerInfo& ent) {
-	bedmanSealPowerup(moves.bedmanAirTaskCSeal)
-}
-const char* powerupExplanation_taskCAir(PlayerInfo& ent) {
-	bedmanSealPowerupExplanation(moves.bedmanAirTaskCSeal, "Task C")
+const char* powerup_taskCAir(PlayerInfo& ent) {
+	return bedmanSealPowerup(ent, &moves.bedmanAirTaskCSeal, bedmanSealStrings("Task C"));
 }
 bool dontShowPowerupGraphic_taskCAir(PlayerInfo& ent) {
 	bedmanSealDontShowPowerupGraphic(moves.bedmanAirTaskCSeal)
 }
-bool powerup_closeShot(ProjectileInfo& projectile) {
+bool projectilePowerup_closeShot(ProjectileInfo& projectile) {
 	entityList.populate();
 	if (!projectile.ptr) {
 		if (projectile.landedHit) {
@@ -10172,139 +11111,173 @@ bool powerup_closeShot(ProjectileInfo& projectile) {
 	}
 	return false;
 }
-bool powerup_rifle(PlayerInfo& ent) {
-	return !ent.prevFrameElpheltRifle_AimMem46 && ent.elpheltRifle_AimMem46;
+const char* powerup_rifle(PlayerInfo& ent) {
+	if (!ent.prevFrameElpheltRifle_AimMem46 && ent.elpheltRifle_AimMem46) {
+		return "Ms. Confille reached maximum charge.";
+	}
+	return nullptr;
 }
-const char* powerupExplanation_rifle(PlayerInfo& ent) {
-	return "Ms. Confille reached maximum charge.";
-}
-bool powerup_beakDriver(PlayerInfo& ent) {
-	return !ent.prevFrameMem45 && ent.pawn.mem45()
-		|| ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
-}
-const char* powerupExplanation_beakDriver(PlayerInfo& ent) {
-	if (ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK) {
-		if (ent.prevFrameRomanCancelAvailability != ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK) {
-			return "//Title override: \n"
-				"Starting on this frame, can't RC, unless opponent is in hitstun or blockstun.";
-		} else {
-			return "//Title override: \n"
-				"Can't RC, unless opponent is in hitstun or blockstun.";
-		}
-	} else {
+const char* powerup_beakDriver(PlayerInfo& ent) {
+	if (!ent.prevFrameMem45 && ent.pawn.mem45()) {
 		return "Will perform the maximum power attack upon release.";
 	}
+	return nullptr;
 }
 bool dontShowPowerupGraphic_beakDriver(PlayerInfo& ent) {
 	return ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
 }
-bool powerup_mistFiner(PlayerInfo& ent) {
-	return ent.johnnyMistFinerBuffedOnThisFrame;
+const char* powerup_mistFiner(PlayerInfo& ent) {
+	if (ent.johnnyMistFinerBuffedOnThisFrame) {
+		if (ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE) {
+			return "Mist Finer became unblockable and may change to Guard Break instead, if the opponent lands.";
+		} else {
+			return "Mist Finer acquired Guard Break property and may change to an unblockable, if the opponent jumps.";
+		}
+	}
+	return nullptr;
 }
-const char* powerupExplanation_mistFiner(PlayerInfo& ent) {
-	if (ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE) {
-		return "Mist Finer became unblockable and may change to Guard Break instead, if the opponent lands.";
+const char* powerup_eatMeat(PlayerInfo& ent) {
+	if (ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0]) {
+		return "Restored Calorie Gauge.";
+	}
+	return nullptr;
+}
+const char* powerup_cardK(PlayerInfo& ent) {
+	int lvl = ent.pawn.exGaugeValue(0);
+	if (lvl > ent.prevFrameResource[0]) {
+		if (lvl == 1) return "Obtained K Card Lvl 1.";
+		if (lvl == 2) return "Obtained K Card Lvl 2.";
+		if (lvl == 3) return "Obtained K Card Lvl 3.";
+	}
+	return nullptr;
+}
+const char* powerup_cardS(PlayerInfo& ent) {
+	int lvl = ent.pawn.exGaugeValue(1);
+	if (lvl > ent.prevFrameResource[1]) {
+		if (lvl == 1) return "Obtained S Card Lvl 1.";
+		if (lvl == 2) return "Obtained S Card Lvl 2.";
+		if (lvl == 3) return "Obtained S Card Lvl 3.";
+	}
+	return nullptr;
+}
+const char* powerup_cardH(PlayerInfo& ent) {
+	int lvl = ent.pawn.exGaugeValue(2);
+	if (lvl > ent.prevFrameResource[2]) {
+		if (lvl == 1) return "Obtained H Card Lvl 1.";
+		if (lvl == 2) return "Obtained H Card Lvl 2.";
+		if (lvl == 3) return "Obtained H Card Lvl 3.";
+	}
+	return nullptr;
+}
+const char* powerup_hayabusaRev(PlayerInfo& ent) {
+	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0) {
+		return "Acquired Guard Break property.";
+	}
+	return nullptr;
+}
+const char* powerup_hayabusaHeld(PlayerInfo& ent) {
+	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0) {
+		return "Reached maximum charge.";
+	}
+	return nullptr;
+}
+const char* powerup_grampaMax(PlayerInfo& ent) {
+	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0) {
+		return "Reached maximum charge.";
+	}
+	return nullptr;
+}
+const char* powerup_armorDance(PlayerInfo& ent) {
+	if (ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0]) {
+		return "Gained Excitement.";
+	}
+	return nullptr;
+}
+const char* powerup_fireSpear(PlayerInfo& ent) {
+	if (ent.pawn.previousEntity()
+			&& ent.pawn.previousEntity().lifeTimeCounter() == 0
+			&& strcmp(ent.pawn.previousEntity().animationName(), "KinomiObjNecro") != 0) {  // ignore the first spear
+		return "Created the next fire spear.";
+	}
+	return nullptr;
+}
+const char* powerup_zweit(PlayerInfo& ent) {
+	bool powerup = false;
+	if (strcmp(ent.pawn.gotoLabelRequests(), "FrontEnd") == 0) {
+		powerup = true;
 	} else {
-		return "Mist Finer acquired Guard Break property and may change to an unblockable, if the opponent jumps.";
+		if (!ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) return nullptr;
+		BYTE* instr = ent.pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr;
+		instr = moves.skipInstr(instr);
+		powerup = moves.instrType(instr) == instr_ifOperation
+				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL;
 	}
-}
-bool powerup_eatMeat(PlayerInfo& ent) {
-	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0];
-}
-const char* powerupExplanation_eatMeat(PlayerInfo& ent) {
-	return "Restored Calorie Gauge.";
-}
-bool powerup_cardK(PlayerInfo& ent) {
-	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0];
-}
-bool powerup_cardS(PlayerInfo& ent) {
-	return ent.pawn.exGaugeValue(1) > ent.prevFrameResource[1];
-}
-bool powerup_cardH(PlayerInfo& ent) {
-	return ent.pawn.exGaugeValue(2) > ent.prevFrameResource[2];
-}
-const char* powerupExplanation_card(PlayerInfo& ent) {
-	return "Obtained Card.";
-}
-bool powerup_hayabusaRev(PlayerInfo& ent) {
-	return ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0;
-}
-const char* powerupExplanation_hayabusaRev(PlayerInfo& ent) {
-	return "Acquired Guard Break property.";
-}
-bool powerup_hayabusaHeld(PlayerInfo& ent) {
-	return ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0;
-}
-const char* powerupExplanation_hayabusaHeld(PlayerInfo& ent) {
-	return "Reached maximum charge.";
-}
-bool powerup_grampaMax(PlayerInfo& ent) {
-	return ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0;
-}
-const char* powerupExplanation_grampaMax(PlayerInfo& ent) {
-	return "Reached maximum charge.";
-}
-bool powerup_armorDance(PlayerInfo& ent) {
-	return ent.pawn.exGaugeValue(0) > ent.prevFrameResource[0];
-}
-const char* powerupExplanation_armorDance(PlayerInfo& ent) {
-	return "Gained Excitement.";
-}
-bool powerup_fireSpear(PlayerInfo& ent) {
-	return ent.pawn.previousEntity()
-		&& ent.pawn.previousEntity().lifeTimeCounter() == 0
-		&& strcmp(ent.pawn.previousEntity().animationName(), "KinomiObjNecro") != 0;  // ignore the first spear
-}
-const char* powerupExplanation_fireSpear(PlayerInfo& ent) {
-	return "Created the next fire spear.";
-}
-bool powerup_zweit(PlayerInfo& ent) {
-	if (strcmp(ent.pawn.gotoLabelRequest(), "FrontEnd") == 0) return true;
-	if (!ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) return false;
-	BYTE* instr = ent.pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr;
-	instr = moves.skipInstruction(instr);
-	if (moves.instructionType(instr) == instr_ifOperation
-			&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL) {
-		return true;
-	}
-	return false;
-}
-const char* powerupExplanation_zweit(PlayerInfo& ent) {
-	return "//Title override: \n"
-		"On this frame checks if Leo's origin point is still not behind opponent's origin point."
-		" If on any of these frames Leo failed to cross his opponent up, he will transition to non-backturn ender.";
-}
-bool powerup_kuuhuku(PlayerInfo& ent) {
-	return ent.pawn.romanCancelAvailability() == ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK;
-}
-const char* powerupExplanation_kuuhuku(PlayerInfo& ent) {
-	if (ent.prevFrameRomanCancelAvailability != ROMAN_CANCEL_DISALLOWED_ON_WHIFF_WITH_X_MARK) {
+	if (powerup) {
 		return "//Title override: \n"
-			"Starting on this frame, can't RC, unless opponent is in hitstun or blockstun.";
-	} else {
-		return "//Title override: \n"
-			"Can't RC, unless opponent is in hitstun or blockstun.";
+			"On this frame checks if Leo's origin point is still not behind opponent's origin point."
+			" If on any of these frames Leo failed to cross his opponent up, he will transition to non-backturn ender.";
 	}
+	return nullptr;
 }
-bool powerup_secretGarden(PlayerInfo& ent) {
+const char* powerup_secretGarden(PlayerInfo& ent) {
 	entityList.populate();
 	for (int i = 2; i < entityList.count; ++i) {
 		Entity proj = entityList.list[i];
-		if (proj.team() == ent.index && !proj.isPawn() && strcmp(proj.animationName(), "SecretGardenBall") == 0) {
+		if (proj.team() == ent.index && strcmp(proj.animationName(), "SecretGardenBall") == 0) {
 			BYTE* funcStart = proj.bbscrCurrentFunc();
 			if (!funcStart) continue;
 			moves.fillMilliaSecretGardenUnlink(funcStart);
 			if (moves.milliaSecretGardenUnlink && proj.bbscrCurrentInstr() - funcStart == moves.milliaSecretGardenUnlink
-					&& proj.spriteFrameCounter() == 0 && !proj.isRCFrozen() && !proj.isSuperFrozen()) {
-				return true;
+					&& proj.justReachedSprite()) {
+				return "//Title override: \n"
+					"On this frame Secret Garden detached from the player, and, starting on the next frame, can be RC'd, and the Secret Garden will stay.";
 			}
 		}
 	}
-	return false;
+	return nullptr;
 }
-const char* powerupExplanation_secretGarden(PlayerInfo& ent) {
-	return "//Title override: \n"
-		"On this frame Secret Garden detached from the player, and, starting on the next frame, can be RC'd, and the Secret Garden will stay.";
+void findSpriteAfterIf(BYTE* func, int* result) {
+	if (!*result) {
+		bool encounteredIf = false;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_ifOperation) {
+				encounteredIf = true;
+			} else if (type == instr_sprite && encounteredIf) {
+				*result = instr - func;
+				break;
+			}
+		}
+	}
+}
+const char* powerup_pickUpGhost(PlayerInfo& ent) {
+	PickUpGhostAnalysisResult result;
+	analyzePickUpGhost(ent, &result);
+	if (result.onThisFramePickedUpGhost) {
+		return "//Title override: \n"
+			"Ghost is now considered to be fully picked up.";
+	}
+	return nullptr;
+}
+const char* powerup_putGhost(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	findSpriteAfterIf(func, &moves.jackoPutGhost);
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (offset == moves.jackoPutGhost && ent.pawn.justReachedSprite()) {
+		return "//Title override: \n"
+			"No longer considered carrying the Ghost.";
+	}
+	return nullptr;
+}
+const char* powerup_returnGhost(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	findSpriteAfterIf(func, &moves.jackoReturnGhost);
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (offset == moves.jackoReturnGhost && ent.pawn.justReachedSprite()) {
+		return "//Title override: \n"
+			"Retrieved Ghost to inventory.";
+	}
+	return nullptr;
 }
 
 void fillMay6HOffsets(BYTE* func) {
@@ -10324,12 +11297,8 @@ int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanR
 		bool metSendSignal = false;
 		int lastSpriteLength = 0;
 		bool isInsideUpon = false;
-		for (
-				instr = moves.skipInstruction(func);
-				moves.instructionType(instr) != instr_endState;
-				instr = moves.skipInstruction(instr)
-		) {
-			InstructionType type = moves.instructionType(instr);
+		for (loopInstrNoRedefine(func)) {
+			InstrType type = moves.instrType(instr);
 			if (metSpriteEnd) {
 				if (metSprite) {
 					info.frames.back().offset = instr - func;
@@ -10376,7 +11345,7 @@ int Moves::getBedmanSealRemainingFrames(ProjectileInfo& projectile, MayIrukasanR
 		const MayIrukasanRidingObjectFrames& elem = info.frames[i];
 		if (currentOffset == elem.offset) {
 			timer = elem.frames;
-			*isFrameAfter = i == 3 && projectile.ptr.spriteFrameCounter() == 0 && !projectile.ptr.isRCFrozen();
+			*isFrameAfter = i == 3 && projectile.ptr.justReachedSprite();
 			break;
 		}
 	}
@@ -10390,11 +11359,8 @@ void Moves::fillInKyMahojin(BYTE* func) {
 	bool metSprite = false;  //
 	bool metSpriteEnd = false;
 	int lastSpriteLength = 0;
-	BYTE* instr;
-	for (instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (metSpriteEnd) {
 			kyMahojin.frames.emplace_back();
 			MayIrukasanRidingObjectFrames& newFrames = kyMahojin.frames.back();
@@ -10434,7 +11400,6 @@ int Moves::MayIrukasanRidingObjectInfo::remainingTime(int offset, int spriteFram
 
 void Moves::fillInRamlethalBitN6C_F6D(BYTE* func, std::vector<RamlethalSwordInfo>& ramlethalBit) {
 	if (!ramlethalBit.empty()) return;
-	BYTE* instr;
 	ramlethalBit.emplace_back();
 	RamlethalSwordInfo* currentElem = &ramlethalBit.back();
 	currentElem->state = ram_teleport;
@@ -10444,12 +11409,8 @@ void Moves::fillInRamlethalBitN6C_F6D(BYTE* func, std::vector<RamlethalSwordInfo
 	bool metSpriteEnd = false;
 	bool metSetMarker = false;
 	bool metJumpToState = false;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (metSpriteEnd) {
 			if (metSprite) {
 				currentElem->addFrames(instr - func, lastSpriteLengthSoubi, lastSpriteLengthBunri);
@@ -10534,12 +11495,8 @@ void Moves::fillGhostStateOffsets(BYTE* func, std::vector<int>& offsets) {
 	bool metSpriteEnd = false;
 	bool metSetMarker = false;
 	int lastOffset = 0;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstrNoRedefine(func)) {
+		InstrType type = instrType(instr);
 		if (metSpriteEnd) {
 			metSprite = false;
 			metSpriteEnd = false;
@@ -10578,14 +11535,9 @@ int Moves::findGhostState(int offset, const std::vector<int>& offsets) {
 
 void Moves::fillJackoThrowGhostOffset(BYTE* func, int* offset) {
 	if (*offset != 0) return;
-	BYTE* instr;
 	bool found = false;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sendSignalToAction) {
 			found = true;
 		} else if (type == instr_sprite && found) {
@@ -10597,14 +11549,9 @@ void Moves::fillJackoThrowGhostOffset(BYTE* func, int* offset) {
 
 void Moves::fillJackoGhostExp(BYTE* func, int* jackoGhostExp) {
 	if (jackoGhostExp[0] != 0) return;
-	BYTE* instr;
 	int counter = 2;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(46)
@@ -10619,14 +11566,9 @@ void Moves::fillJackoGhostExp(BYTE* func, int* jackoGhostExp) {
 
 void Moves::fillJackoGhostCreationTimer(BYTE* func, int* jackoGhostCreationTimer) {
 	if (jackoGhostCreationTimer[0] != 0) return;
-	BYTE* instr;
 	int counter = 3;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(57)
@@ -10642,14 +11584,9 @@ void Moves::fillJackoGhostCreationTimer(BYTE* func, int* jackoGhostCreationTimer
 void Moves::fillJackoGhostHealingTimer(BYTE* func, int* jackoGhostHealingTimer) {
 	if (jackoGhostHealingTimer[0] != 0) return;
 	int* jackoGhostHealingTimerOrig = jackoGhostHealingTimer;
-	BYTE* instr;
 	int counter = 6;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(48)
@@ -10665,13 +11602,8 @@ void Moves::fillJackoGhostHealingTimer(BYTE* func, int* jackoGhostHealingTimer) 
 
 void Moves::fillJackoGhostBuffTimer(BYTE* func) {
 	if (jackoGhostBuffTimer != 0) return;
-	BYTE* instr;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(52)
@@ -10685,14 +11617,9 @@ void Moves::fillJackoGhostBuffTimer(BYTE* func) {
 
 void Moves::fillJackoGhostExplodeTimer(BYTE* func) {
 	if (jackoGhostExplodeTimer != 0) return;
-	BYTE* instr;
 	int counter = 4;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(49)
@@ -10708,14 +11635,9 @@ void Moves::fillJackoGhostExplodeTimer(BYTE* func) {
 
 void Moves::fillServantCooldown(BYTE* func, int* servantCooldown) {
 	if (servantCooldown[0] != 0) return;
-	BYTE* instr;
 	int counter = 2;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sprite) {
 			*servantCooldown = asInstr(instr, sprite)->duration;
 			++servantCooldown;
@@ -10727,14 +11649,9 @@ void Moves::fillServantCooldown(BYTE* func, int* servantCooldown) {
 
 void Moves::fillServantExplosionTimer(BYTE* func) {
 	if (servantExplosionTimer != 0) return;
-	BYTE* instr;
 	int counter = 4;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(54)
@@ -10750,14 +11667,9 @@ void Moves::fillServantExplosionTimer(BYTE* func) {
 
 void Moves::fillServantClockUpTimer(BYTE* func) {
 	if (servantClockUpTimer != 0) return;
-	BYTE* instr;
 	int counter = 2;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(49)
@@ -10773,13 +11685,8 @@ void Moves::fillServantClockUpTimer(BYTE* func) {
 
 void Moves::fillServantTimeoutTimer(BYTE* func) {
 	if (servantTimeoutTimer != 0) return;
-	BYTE* instr;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
 				&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
@@ -10799,25 +11706,16 @@ void Moves::fillServantAtk(BYTE* func, MayIrukasanRidingObjectInfo* servantAtk) 
 	bool metSetMarker = false;
 	int lastSpriteLength = 0;
 	int counter = 6;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstrNoRedefine(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_setMarker && strcmp(asInstr(instr, setMarker)->name, "AtkLv1") == 0) {
 			start = true;
-			instr = skipInstruction(instr);
 			break;
 		}
 	}
 	if (!start) return;
-	for (
-			;
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstrNoRedefine(instr)) {
+		InstrType type = instrType(instr);
 		if (metSpriteEnd) {
 			servantAtk->frames.emplace_back();
 			MayIrukasanRidingObjectFrames& newFrames = servantAtk->frames.back();
@@ -10853,13 +11751,9 @@ void Moves::fillInJamSaishingekiY(BYTE* func) {
 	int counter = 2;
 	bool inUponHitTheEnemyPlayer = false;
 	BYTE* instr;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
-		if (type == instr_upon && asInstr(instr, upon)->event == BBSCREVENT_HIT_THE_ENEMY_PLAYER) {
+	for (loopInstrNoRedefine(func)) {
+		InstrType type = instrType(instr);
+		if (type == instr_upon && asInstr(instr, upon)->event == BBSCREVENT_HIT_A_PLAYER) {
 			--counter;
 			if (counter == 0) {
 				inUponHitTheEnemyPlayer = true;
@@ -10868,12 +11762,8 @@ void Moves::fillInJamSaishingekiY(BYTE* func) {
 		}
 	}
 	if (!inUponHitTheEnemyPlayer) return;
-	for (
-			;
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstrNoRedefine(instr)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_LESSER
 				&& asInstr(instr, ifOperation)->left == BBSCRVAR_OPPONENT_Y_OFFSET
@@ -10902,11 +11792,12 @@ void Moves::fillDizzyKinomiNecrobomb(BYTE* func) {
 	bool metSprite = false;
 	int lastSpriteLength = 0;
 	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
+			instr = skipInstr(func);
+			true;
+			instr = skipInstr(instr)
 	) {
-		if (instructionType(instr) == instr_sprite) {
+		InstrType type = instrType(instr);
+		if (type == instr_sprite || type == instr_endState) {
 			if (metSprite) {
 				dizzyKinomiNecrobomb.frames.emplace_back();
 				MayIrukasanRidingObjectFrames& newFrames = dizzyKinomiNecrobomb.frames.back();
@@ -10914,16 +11805,13 @@ void Moves::fillDizzyKinomiNecrobomb(BYTE* func) {
 				dizzyKinomiNecrobomb.totalFrames += lastSpriteLength;
 				newFrames.offset = instr - func;
 			}
-			metSprite = true;
-			lastSpriteLength = asInstr(instr, sprite)->duration;
+			if (type == instr_sprite) {
+				metSprite = true;
+				lastSpriteLength = asInstr(instr, sprite)->duration;
+			} else {  // type == instr_endState
+				break;
+			}
 		}
-	}
-	if (metSprite) {
-		dizzyKinomiNecrobomb.frames.emplace_back();
-		MayIrukasanRidingObjectFrames& newFrames = dizzyKinomiNecrobomb.frames.back();
-		newFrames.frames = dizzyKinomiNecrobomb.totalFrames;
-		dizzyKinomiNecrobomb.totalFrames += lastSpriteLength;
-		newFrames.offset = instr - func;
 	}
 }
 
@@ -10937,11 +11825,11 @@ void Moves::fillDizzyAkari(BYTE* func) {
 	dizzyAkari.emplace_back();
 	MayIrukasanRidingObjectInfo* elem = &dizzyAkari.back();
 	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
+			instr = skipInstr(func);
+			true;
+			instr = skipInstr(instr)
 	) {
-		InstructionType type = instructionType(instr);
+		InstrType type = instrType(instr);
 		if (metSpriteEnd) {
 			elem->frames.emplace_back();
 			MayIrukasanRidingObjectFrames& newFrames = elem->frames.back();
@@ -10951,7 +11839,7 @@ void Moves::fillDizzyAkari(BYTE* func) {
 			metSprite = false;
 			metSpriteEnd = false;
 		}
-		if (type == instr_sprite) {
+		if (type == instr_sprite || type == instr_endState) {
 			if (metSprite) {
 				elem->frames.emplace_back();
 				MayIrukasanRidingObjectFrames& newFrames = elem->frames.back();
@@ -10959,25 +11847,22 @@ void Moves::fillDizzyAkari(BYTE* func) {
 				newFrames.offset = instr - func;
 				elem->totalFrames += lastSpriteLength;
 			}
-			if (metSetMarker) {
-				dizzyAkari.emplace_back();
-				elem = &dizzyAkari.back();
-				metSetMarker = false;
+			if (type == instr_sprite) {
+				if (metSetMarker) {
+					dizzyAkari.emplace_back();
+					elem = &dizzyAkari.back();
+					metSetMarker = false;
+				}
+				metSprite = true;
+				lastSpriteLength = asInstr(instr, sprite)->duration;
+			} else {  // type == instr_endState
+				break;
 			}
-			metSprite = true;
-			lastSpriteLength = asInstr(instr, sprite)->duration;
 		} else if (type == instr_spriteEnd) {
 			metSpriteEnd = true;
 		} else if (type == instr_setMarker) {
 			metSetMarker = true;
 		}
-	}
-	if (metSprite) {
-		elem->frames.emplace_back();
-		MayIrukasanRidingObjectFrames& newFrames = elem->frames.back();
-		newFrames.frames = elem->totalFrames;
-		newFrames.offset = instr - func;
-		elem->totalFrames += lastSpriteLength;
 	}
 }
 
@@ -10988,12 +11873,12 @@ void Moves::fillDizzyFish(BYTE* func, MayIrukasanRidingObjectInfo& fish) {
 	bool metSprite = false;
 	int lastSpriteLength = 0;
 	for (
-			instr = skipInstruction(instr);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
+			instr = skipInstr(instr);
+			true;
+			instr = skipInstr(instr)
 	) {
-		InstructionType type = instructionType(instr);
-		if (type == instr_sprite) {
+		InstrType type = instrType(instr);
+		if (type == instr_sprite || type == instr_endState) {
 			if (metSprite) {
 				fish.frames.emplace_back();
 				MayIrukasanRidingObjectFrames& newFrames = fish.frames.back();
@@ -11001,29 +11886,21 @@ void Moves::fillDizzyFish(BYTE* func, MayIrukasanRidingObjectInfo& fish) {
 				newFrames.offset = instr - func;
 				fish.totalFrames += lastSpriteLength;
 			}
-			lastSpriteLength = asInstr(instr, sprite)->duration;
-			metSprite = true;
+			if (type == instr_sprite) {
+				lastSpriteLength = asInstr(instr, sprite)->duration;
+				metSprite = true;
+			} else {  // type == instr_endState
+				break;
+			}
 		}
-	}
-	if (metSprite) {
-		fish.frames.emplace_back();
-		MayIrukasanRidingObjectFrames& newFrames = fish.frames.back();
-		newFrames.frames = fish.totalFrames;
-		newFrames.offset = instr - func;
-		fish.totalFrames += lastSpriteLength;
 	}
 }
 
 void Moves::fillDizzyLaserFish(BYTE* func, int* normal, int* alt) {
 	if (*normal != 0) return;
-	BYTE* instr;
 	int lastSpriteLength = 0;
-	for (
-			instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sprite) {
 			lastSpriteLength = asInstr(instr, sprite)->duration;
 			*normal += lastSpriteLength;
@@ -11039,11 +11916,11 @@ void Moves::fillDizzyAwaKoware(BYTE* func, int* koware) {
 	BYTE* instr = findSetMarker(func, "koware");
 	if (!instr) return;
 	for (
-			instr = skipInstruction(instr);
+			instr = skipInstr(instr);
 			true;
-			instr = skipInstruction(instr)
+			instr = skipInstr(instr)
 	) {
-		InstructionType type = instructionType(instr);
+		InstrType type = instrType(instr);
 		if (type == instr_exitState || type == instr_endState) return;
 		if (type == instr_sprite) {
 			*koware += asInstr(instr, sprite)->duration;
@@ -11058,12 +11935,12 @@ void Moves::fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info) {
 	bool metSprite = false;
 	int lastSpriteLength = 0;
 	for (
-			instr = skipInstruction(instr);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)
+			instr = skipInstr(instr);
+			true;
+			instr = skipInstr(instr)
 	) {
-		InstructionType type = instructionType(instr);
-		if (type == instr_sprite) {
+		InstrType type = instrType(instr);
+		if (type == instr_sprite || type == instr_endState) {
 			if (metSprite) {
 				info.frames.emplace_back();
 				MayIrukasanRidingObjectFrames& newFrames = info.frames.back();
@@ -11071,28 +11948,21 @@ void Moves::fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info) {
 				newFrames.offset = instr - func;
 				info.totalFrames += lastSpriteLength;
 			}
-			lastSpriteLength = asInstr(instr, sprite)->duration;
-			metSprite = true;
+			if (type == instr_sprite) {
+				lastSpriteLength = asInstr(instr, sprite)->duration;
+				metSprite = true;
+			} else {  // type == instr_endState
+				break;
+			}
 		}
-	}
-	if (metSprite) {
-		info.frames.emplace_back();
-		MayIrukasanRidingObjectFrames& newFrames = info.frames.back();
-		newFrames.frames = info.totalFrames;
-		newFrames.offset = instr - func;
-		info.totalFrames += lastSpriteLength;
 	}
 }
 
 void Moves::fillMilliaSecretGardenUnlink(BYTE* funcStart) {
 	if (milliaSecretGardenUnlink || milliaSecretGardenUnlinkFailedToFind) return;
 	bool metUnlink = false;
-	for (
-		BYTE* instr = skipInstruction(funcStart);
-		instructionType(instr) != instr_endState;
-		instr = skipInstruction(instr)
-	) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sprite) {
 			if (metUnlink) {
 				milliaSecretGardenUnlink = instr - funcStart;
@@ -11111,10 +11981,8 @@ void Moves::fillElpheltRifleFireStartup(Entity ent) {
 	if (!func) return;
 	int prevDuration = 0;
 	int startup = 0;
-	for (BYTE* instr = skipInstruction(func);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sprite) {
 			startup += prevDuration;
 			prevDuration = asInstr(instr, sprite)->duration;
@@ -11131,10 +11999,8 @@ void Moves::fillElpheltRifleFireStartup(Entity ent) {
 
 void Moves::fillElpheltRifleFirePowerupStartup(BYTE* funcStart) {
 	if (elpheltRifleFirePowerupStartup) return;
-	for (BYTE* instr = skipInstruction(funcStart);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
 		if (type == instr_ifOperation
 				&& asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
 				&& asInstr(instr, ifOperation)->left == MEM(45)
@@ -11166,10 +12032,8 @@ void Moves::fillBedmanSealFrames(BYTE* funcStart, BedmanActivateReactivate* stor
 	if (storage->deactivate || storage->reactivate) return;  // if both are zero despite being found, then they're somewhere near the start of the state and wasting time to re-find them is OK
 	int totalFrames = 0;
 	int spriteFrames = 0;
-	for (BYTE* instr = skipInstruction(funcStart);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sprite) {
 			totalFrames += spriteFrames;
 			spriteFrames = asInstr(instr, sprite)->duration;
@@ -11186,10 +12050,8 @@ void Moves::fillBedmanGroundTaskCSealOffsets(BYTE* funcStart) {
 	if (bedmanGroundTaskCSealOffset.deactivate) return;
 	bool encounteredDeactivation = false;
 	bool encounteredReactivation = false;
-	for (BYTE* instr = skipInstruction(funcStart);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
 		if (type == instr_deactivateObjectByName && strcmp(asInstr(instr, deactivateObjectByName)->name, "DejavIconFlyingBed") == 0) {
 			encounteredDeactivation = true;
 		} else if (type == instr_createObject && strcmp(asInstr(instr, createObject)->name, "DejavIconFlyingBed") == 0) {
@@ -11212,10 +12074,8 @@ void Moves::fillBedmanDejavuStartup(BYTE* funcStart, int* startup) {
 	if (*startup) return;
 	int totalFrames = 0;
 	int spriteFrames = 0;
-	for (BYTE* instr = skipInstruction(funcStart);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
 		if (type == instr_sprite) {
 			totalFrames += spriteFrames;
 			spriteFrames = asInstr(instr, sprite)->duration;
@@ -11226,15 +12086,11 @@ void Moves::fillBedmanDejavuStartup(BYTE* funcStart, int* startup) {
 	}
 }
 
-const NamePair emptyNamePair { "", nullptr };
-
 void Moves::fillVenomBallCreation(BYTE* funcStart, int* result) {
 	if (*result) return;
 	bool foundTheThing = false;
-	for (BYTE* instr = skipInstruction(funcStart);
-			instructionType(instr) != instr_endState;
-			instr = skipInstruction(instr)) {
-		InstructionType type = instructionType(instr);
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
 		if (type == instr_createObject) {
 			if (strcmp(asInstr(instr, createObject)->name, "Ball") == 0
 					&& asInstr(instr, createObject)->pos == 0) {
@@ -11245,6 +12101,57 @@ void Moves::fillVenomBallCreation(BYTE* funcStart, int* result) {
 				*result = instr - funcStart;
 				return;
 			}
+		}
+	}
+}
+
+void Moves::fillRamlethalCreateBitLaserMinion(BYTE* funcStart) {
+	if (ramlethalCreateBitLaserMinion) return;
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
+		if (type == instr_createObject && strcmp(asInstr(instr, createObject)->name, "BitLaser_Minion") == 0) {
+			ramlethalCreateBitLaserMinion = instr - funcStart;
+			return;
+		}
+	}
+}
+
+void Moves::fillRamlethalBitLaserMinionStuff(BYTE* funcStart) {
+	if (ramlethalBitLaserMinionNonBossCreateLaser) return;
+	bool encounteredMarker = false;
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
+		if (type == instr_setMarker) {
+			if (strcmp(asInstr(instr, setMarker)->name, "BossStart") == 0) {
+				encounteredMarker = true;
+				ramlethalBitLaserMinionBossStartMarker = instr - funcStart;
+			}
+		} else if (type == instr_createObjectWithArg) {
+			if (strcmp(asInstr(instr, createObjectWithArg)->name, "BitLaser") == 0) {
+				if (!ramlethalBitLaserMinionBossStartMarker) {
+					ramlethalBitLaserMinionNonBossCreateLaser = instr - funcStart;
+				} else {
+					ramlethalBitLaserMinionBossCreateLaser = instr - funcStart;
+					return;
+				}
+			}
+		}
+	}
+			
+}
+
+void Moves::fillSinEatMeatPowerup(BYTE* funcStart, int* storage) {
+	if (*storage) return;
+	bool encounteredPowerup = false;
+	for (loopInstr(funcStart)) {
+		InstrType type = instrType(instr);
+		if (type == instr_modifyVar) {
+			if (asInstr(instr, modifyVar)->left == BBSCRVAR_RESOURCE_AMOUNT) {
+				encounteredPowerup = true;
+			}
+		} else if (type == instr_sprite && encounteredPowerup) {
+			*storage = instr - funcStart;
+			return;
 		}
 	}
 }

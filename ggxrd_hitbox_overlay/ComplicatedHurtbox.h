@@ -3,6 +3,6 @@
 
 struct ComplicatedHurtbox {
 	bool hasTwo = false;
-	DrawHitboxArrayCallParams param1;
-	DrawHitboxArrayCallParams param2;
+	DrawHitboxArrayCallParams realbox;
+	DrawHitboxArrayCallParams graybox;
 };
