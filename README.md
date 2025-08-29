@@ -1533,7 +1533,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
 - 2025 April 27: Version 6.25: Made Combo Damage panel transparent. Now displays Silent Force re-pick in Combo Recipe and in framebar. Added an option to make Combo Recipe panel display with a transparent background - the option is inside the Combo Recipe panel's gear button. Added pushbox width and height display to Box Extents panel.
 - 2025 April 27: Version 6.26: Register Silent Force re-pick when it's done as soon as the knife is able to be picked up.
 - 2025 April 28: Version 6.27: Made the text outline be of higher quality in the Combo Recipe panel when it's in transparent background mode and in the Combo Damage panel.
-- 2025 ??? ??: Version 6.28:
+- 2025 August 29: Version 6.28:
   1) Modified how hitboxes display for rotated projectiles. In particular, there was an inconsistency spotted with Ky's Aerial H Stun Edge hitbox: it was shown by the hitbox overlay as horizontal, while in reality it is vertical.
   2) Fixed pushboxes being incorrect for many, many moves. They were not taking into account that many moves elongate pushboxes horizontally, and now they do. Examples of such moves are Jam f.S, Baiken Air Tatami Gaeshi.
   3) Brought back Bedman Deja Vu Task C and D hitboxes that had been missing since version 6.0.
@@ -1559,7 +1559,7 @@ In a bright future where the Detours library evolves to have a ~~brain~~ *mandat
     This won't affect existing users who update the mod (if they ever changed any settings at all), only new users.
   20) Added a missing keyboard shortcut setting into mod's UI: Settings - Keyboard Shortcuts - Disable Mod Toggle. Previously, you could only configure this hotkey through the INI file.
   21) Added a text to the framebar tooltip telling after which frame Millia's Secret Garden becomes able to stay if you RC it. The text only shows on that one particular frame.
-  22) Added a new text to the framebar's frame tooltip, that shows up only if some currently active projectiles would disappear on hit or block for that player. It tells you that "Projectile X will disappear if Character Name is hit/blocks on this frame/at any time." It may be incorrect if Rev1 is selected.
+  22) (INCOMPLETE) Added a new text to the framebar's frame tooltip, that shows up only if some currently active projectiles would disappear on hit or block for that player. It tells you that "Projectile X will disappear if Character Name is hit/blocks on this frame/at any time." It may be incorrect if Rev1 is selected.
   23) Fixed the first framebar frame of Eddie not showing his animation name.
   24) Fixed the "Can YRC, and projectile/powerup will stay" message on the framebar tooltip when hovering over Potemkin Trishula frames. The message was previously showing on frame 19 of Trishula, while it should be on frame 20 instead.
   25) Fixed a crash caused by hovering over a framebar frame of a move happening during 5D horizontal hoverdash. It was caused by there being more gatlings available than the pre-allocated memory can store. The crash could only happen on larger screen resolutions where more than 30 gatlings could actually fit in the displayed list.
