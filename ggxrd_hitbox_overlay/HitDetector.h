@@ -23,6 +23,7 @@ public:
 	void prepareDrawHits();
 	void drawHits();
 	WasHitInfo wasThisHitPreviously(Entity ent, const DrawHitboxArrayCallParams& currentHurtbox);
+	bool hasHitboxThatHit(Entity ent) const;
 	determineHitType_t orig_determineHitType = nullptr;
 	copyDealtAtkToReceivedAtk_t orig_copyDealtAtkToReceivedAtk = nullptr;
 	dealHit_t orig_dealHit = nullptr;

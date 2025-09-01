@@ -3813,10 +3813,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					int timeRemaining = -1;
 					int slowdown = 0;
 					bool frozen = false;
+					bool needIncrementTimeRemaining = false;
 					for (int j = 2; j < entityList.count; ++j) {
 						Entity p = entityList.list[j];
 						if (!(
-							p.isActive() && p.team() == player.index && !p.isPawn()
+							p.isActive() && p.team() == player.index
 						)) continue;
 						
 						const char* animName = p.animationName();
@@ -3844,6 +3845,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								timeRemaining = bomb->remainingTime(offset, p.spriteFrameCounter());
 							} else {
 								timeRemaining = 160 + *koware - p.currentAnimDuration() + 1;
+								// adding this because apparently we need to finish playing all the sprite and then advance one more "frame" at the end
+								needIncrementTimeRemaining = true;
 							}
 							ProjectileInfo& projectile = findProjectile(p);
 							if (projectile.ptr) {
@@ -3860,17 +3863,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						int unused;
 						PlayerInfo::calculateSlow(
-							player.dizzyBubbleElapsed,
+							player.dizzyBubbleElapsed != 0 && !timeRemaining
+								? player.dizzyBubbleElapsed - 1
+								: player.dizzyBubbleElapsed,
 							timeRemaining,
 							slowdown,
 							&player.dizzyBubbleTime,
 							&player.dizzyBubbleTimeMax,
 							&unused);
 						
+						if (needIncrementTimeRemaining) {
+							++player.dizzyBubbleTime;
+							++player.dizzyBubbleTimeMax;
+						}
 						if (player.dizzyBubbleTime || hasForceDisableFlag) {
 							++player.dizzyBubbleTime;
 						}
-						if (player.dizzyBubbleTimeMax <= 2) player.dizzyBubbleTimeMax = 0;
+						if (player.dizzyBubbleTimeMax <= 3) player.dizzyBubbleTimeMax = 0;
 						else ++player.dizzyBubbleTimeMax;
 					}
 				}  // bubbles
@@ -5617,7 +5626,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			
 			Entity ent = entityList.slots[i];
-			bool hasHitboxes = player.hitboxesCount > 0;
+			bool hasHitboxes = player.hitboxesCount > 0
+				|| player.charType == CHARACTER_TYPE_ANSWER
+				&& strcmp(player.anim, "Zaneiken") == 0
+				&& player.hitstop
+				&& hitDetector.hasHitboxThatHit(player.pawn);
 			bool enableSpecialCancel = player.wasEnableSpecialCancel
 					&& player.wasAttackCollidedSoCanCancelNow;
 					//&& player.wasEnableGatlings;  // Jack-O 5H can special cancel even without this flag
@@ -5860,6 +5873,40 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					
 					hi.hasBall = hasLinkedProjectileOfType(player, "EnergyBall");
 					hi.has5D = hasLinkedProjectileOfType(player, "kum_205shot");
+				} else if (player.charType == CHARACTER_TYPE_BAIKEN) {
+					BaikenInfo& bi = currentFrame.u.baikenInfo;
+					bi.has5D = hasLinkedProjectileOfType(player, "NmlAtk5EShotObj");
+					bi.hasJD = hasLinkedProjectileOfType(player, "NmlAtkAir5EShotObj");
+					bi.hasTeppou = hasLinkedProjectileOfType(player, "TeppouObj");
+					bi.hasTatami = hasLinkedProjectileOfType(player, "TatamiAirObj")
+						|| hasLinkedProjectileOfType(player, "TatamiLandObj");
+				} else if (player.charType == CHARACTER_TYPE_ANSWER) {
+					AnswerInfo& ai = currentFrame.u.answerInfo;
+					
+					ai.hasCardDestroyOnDamage = false;
+					ai.hasCardPlayerGotHit = false;
+					ai.hasRSFStart = false;
+					ai.hasClone = false;
+					for (ProjectileInfo& projectile : projectiles) {
+						if (projectile.team == player.index && projectile.isDangerous) {
+							if (strcmp(projectile.animName, "Meishi") == 0) {
+								if (projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
+									ai.hasCardPlayerGotHit = true;
+								}
+								if (projectile.ptr.linkObjectDestroyOnDamage() != nullptr) {
+									ai.hasCardDestroyOnDamage = true;
+								}
+							} else if (strcmp(projectile.animName, "RSF_Start") == 0) {
+								if (projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
+									ai.hasRSFStart = true;
+								}
+							} else if (strcmp(projectile.animName, "Nin_Jitsu") == 0) {
+								if (projectile.ptr.linkObjectDestroyOnDamage() != nullptr) {
+									ai.hasClone = true;
+								}
+							}
+						}
+					}
 					
 				} else {
 					currentFrame.u.milliaInfo = milliaInfo;
@@ -11867,110 +11914,157 @@ void EndScene::fillInJackoInfo(PlayerInfo& player, PlayerFrame& frame) {
 	
 }
 
-static void dizzyFunc_SakanaObj(DizzyInfo& di, Entity ent) {
-	if (ent.linkObjectDestroyOnDamage() != nullptr) {
-		ProjectileInfo& projectile = endScene.findProjectile(ent);
-		if (projectile.isDangerous) {
-			if (ent.createArgHikitsukiVal1() == 1) {
-				di.hasFirePillar = true;
-			} else {
-				di.hasIceSpike = true;
-			}
+static void dizzyFunc_SakanaObj(DizzyInfo& di, ProjectileInfo& projectile) {
+	if (
+		(
+			projectile.ptr.linkObjectDestroyOnDamage() != nullptr
+			|| projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)
+		) && projectile.isDangerous
+	) {
+		if (projectile.ptr.createArgHikitsukiVal1() == 1) {
+			di.hasFirePillar = true;
+		} else {
+			di.hasIceSpike = true;
 		}
 	}
 }
 
-static void dizzyFunc_AkariObj(DizzyInfo& di, Entity ent) {
-	if (ent.linkObjectDestroyOnDamage() != nullptr) {
-		ProjectileInfo& projectile = endScene.findProjectile(ent);
-		if (projectile.isDangerous) {
-			if (ent.createArgHikitsukiVal1() == 1) {
-				di.hasIceScythe = true;
-			} else {
-				di.hasFireScythe = true;
-			}
+static void dizzyFunc_AkariObj(DizzyInfo& di, ProjectileInfo& projectile) {
+	if (projectile.ptr.linkObjectDestroyOnDamage() != nullptr && projectile.isDangerous) {
+		if (projectile.ptr.createArgHikitsukiVal1() == 1) {
+			di.hasIceScythe = true;
+		} else {
+			di.hasFireScythe = true;
 		}
 	}
 }
 
-static void dizzyFunc_AwaPObj(DizzyInfo& di, Entity ent) {
-	if (ent.linkObjectDestroyOnDamage() != nullptr) {
-		ProjectileInfo& projectile = endScene.findProjectile(ent);
-		if (projectile.isDangerous) {
-			di.hasBubble = true;
-		}
+static void dizzyFunc_AwaPObj(DizzyInfo& di, ProjectileInfo& projectile) {
+	if (projectile.ptr.linkObjectDestroyOnDamage() != nullptr) {
+		di.hasBubble = true;
 	}
 }
 
-static void dizzyFunc_AwaKObj(DizzyInfo& di, Entity ent) {
-	if (ent.linkObjectDestroyOnDamage() != nullptr) {
-		ProjectileInfo& projectile = endScene.findProjectile(ent);
-		if (projectile.isDangerous) {
-			di.hasFireBubble = true;
-		}
+static void dizzyFunc_AwaKObj(DizzyInfo& di, ProjectileInfo& projectile) {
+	if (projectile.ptr.linkObjectDestroyOnDamage() != nullptr) {
+		di.hasFireBubble = true;
 	}
 }
 
-static void dizzyFunc_KinomiObj(DizzyInfo& di, Entity ent) {
-	if (ent.linkObjectDestroyOnDamage() != nullptr) {
-		ProjectileInfo& projectile = endScene.findProjectile(ent);
-		if (projectile.isDangerous) {
-			di.hasIceSpear = true;
-		}
+static void dizzyFunc_KinomiObj(DizzyInfo& di, ProjectileInfo& projectile) {
+	if (projectile.ptr.linkObjectDestroyOnDamage() != nullptr && projectile.isDangerous) {
+		di.hasIceSpear = true;
 	}
 }
 
-static void dizzyFunc_KinomiObjNecro(DizzyInfo& di, Entity ent) {
-	bool hitstunLinked = ent.linkObjectDestroyOnDamage() != nullptr;
-	bool blockstunLinked = false;
-	if (ent.hasUpon(BBSCREVENT_PLAYER_BLOCKED)) {
-		BYTE* instr = moves.skipInstr(ent.uponStruct(BBSCREVENT_PLAYER_BLOCKED)->uponInstrPtr);
+static void dizzyFunc_KinomiObjNecro(DizzyInfo& di, ProjectileInfo& projectile) {
+	if (!projectile.isDangerous) return;
+	
+	if (projectile.ptr.linkObjectDestroyOnDamage() != nullptr) {
+		di.hasFireSpearHitstunLink = true;
+	}
+	if (projectile.ptr.hasUpon(BBSCREVENT_PLAYER_BLOCKED)) {
+		BYTE* instr = moves.skipInstr(projectile.ptr.uponStruct(BBSCREVENT_PLAYER_BLOCKED)->uponInstrPtr);
 		InstrType type = moves.instrType(instr);
 		while (type != instr_endUpon) {
 			if (type == instr_deactivateObj && asInstr(instr, deactivateObj)->entity == ENT_SELF) {
-				blockstunLinked = true;
-				break;
+				static const char KinomiObjNecro[] = "KinomiObjNecro";
+				char letter = projectile.animName[sizeof KinomiObjNecro - 1];
+				if (letter == '\0') {
+					di.hasFireSpear1BlockstunLink = true;
+				} else if (letter == '2') {
+					di.hasFireSpear2BlockstunLink = true;
+				} else if (letter == '3') {
+					di.hasFireSpear3BlockstunLink = true;
+				}
+				return;
 			}
 			instr = moves.skipInstr(instr);
 			type = moves.instrType(instr);
 		}
 	}
-	if (hitstunLinked || blockstunLinked) {
-		ProjectileInfo& projectile = endScene.findProjectile(ent);
-		if (projectile.isDangerous) {
-			di.hasFireSpearHitstunLink = true;
-			di.hasFireSpearBlockstunLink = true;
-		}
+}
+
+static void dizzyFunc_KinomiObjNecrobomb(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.linkObjectDestroyOnDamage() != nullptr && projectile.isDangerous) {
+		di.hasFireSpearExplosion = true;
 	}
 }
 
-static void dizzyFunc_KinomiObjNecrobomb(DizzyInfo& di, Entity ent) {
-	if(ent.linkObjectDestroyOnDamage() != nullptr) {
-		ProjectileInfo& projectile = endScene.findProjectile(ent);
-		if (projectile.isDangerous) {
-			di.hasFireSpearExplosion = true;
-		}
+static void dizzyFunc_HanashiObjA(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT) && projectile.isDangerous) {
+		di.hasPFish = true;
+	}
+}
+
+static void dizzyFunc_HanashiObjB(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT) && projectile.isDangerous) {
+		di.hasKFish = true;
+	}
+}
+
+static void dizzyFunc_HanashiObjC(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT) && projectile.isDangerous) {
+		di.hasSFish = true;
+	}
+}
+
+static void dizzyFunc_HanashiObjD(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT) && projectile.isDangerous) {
+		di.hasHFish = true;
+	}
+}
+
+static void dizzyFunc_HanashiObjE(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT) && projectile.isDangerous) {
+		di.hasDFish = true;
+	}
+}
+
+static void dizzyFunc_Laser(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.linkObjectDestroyOnStateChange() != nullptr && projectile.isDangerous) {
+		di.hasLaser = true;
+	}
+}
+
+static void dizzyFunc_ImperialRayCreater(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT) && projectile.isDangerous) {
+		di.hasBakuhatsuCreator = true;
+	}
+}
+
+static void dizzyFunc_GammaRayLaser(DizzyInfo& di, ProjectileInfo& projectile) {
+	if(projectile.ptr.linkObjectDestroyOnStateChange() != nullptr && projectile.isDangerous) {
+		di.hasGammaRay = true;
 	}
 }
 
 void EndScene::fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame) {
 	DizzyInfo& di = frame.u.dizzyInfo;
 	
-	// i forgot all details of these, seems to only be hitstun link, but not sure which of these have it permanent and which temporary
-	// dizzy has a lot of fucking projectiles man
-	di.hasIceSpike = false;
-	di.hasFirePillar = false;
-	di.hasIceScythe = false;
-	di.hasFireScythe = false;
-	di.hasBubble = false;
-	di.hasIceSpear = false;
-	// all 3 fire spears always disappear on hit, but on block it's only a very brief moment when they do
+	di.hasIceSpike = false;  // hitstun only link, permanent
+	di.hasFirePillar = false;  // hitstun only link, permanent
+	di.hasIceScythe = false;  // hitstun only link, temporary
+	di.hasFireScythe = false;  // hitstun only link, temporary
+	di.hasBubble = false;  // hitstun only link, temporary
+	di.hasFireBubble = false;  // hitstun only link, temporary
+	di.hasIceSpear = false;  // hitstun only link, permanent
+	// all 3 fire spears always disappear on hit, but on block they only disappear during the charge portion of each spear's animation
 	di.hasFireSpearHitstunLink = false;
-	di.hasFireSpearBlockstunLink = false;
+	di.hasFireSpear1BlockstunLink = false;
+	di.hasFireSpear2BlockstunLink = false;
+	di.hasFireSpear3BlockstunLink = false;
 	di.hasFireSpearExplosion = false;  // explosions always disappear on hit
-	// P fish disappears on hit, K fish under investigation...
+	di.hasPFish = false;  // hitstun only link, permanent
+	di.hasKFish = false;  // hitstun only link, permanent
+	di.hasSFish = false;  // hitstun only link, permanent
+	di.hasHFish = false;  // hitstun only link, permanent
+	di.hasDFish = false;  // hitstun only link, permanent
+	di.hasLaser = false;  // permanently tied to state change of the parent fish
+	di.hasBakuhatsuCreator = false;  // hitstun only link, permanent
+	di.hasGammaRay = strcmp(player.anim, "GammaRay") == 0;  // tied to hitstun, permanently
 	
-	using dizzyCallback_t = void(*)(DizzyInfo& di, Entity ent);
+	using dizzyCallback_t = void(*)(DizzyInfo& di, ProjectileInfo& projectile);
 	
 	struct MyHashFunction {
 		inline std::size_t operator()(const char* k) const {
@@ -11994,15 +12088,23 @@ void EndScene::fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame) {
 		dizzyMap["KinomiObjNecro2"] = dizzyFunc_KinomiObjNecro;
 		dizzyMap["KinomiObjNecro3"] = dizzyFunc_KinomiObjNecro;
 		dizzyMap["KinomiObjNecrobomb"] = dizzyFunc_KinomiObjNecrobomb;
+		dizzyMap["HanashiObjA"] = dizzyFunc_HanashiObjA;
+		dizzyMap["HanashiObjB"] = dizzyFunc_HanashiObjB;
+		dizzyMap["HanashiObjC"] = dizzyFunc_HanashiObjC;
+		dizzyMap["HanashiObjD"] = dizzyFunc_HanashiObjD;
+		dizzyMap["HanashiObjE"] = dizzyFunc_HanashiObjE;
+		dizzyMap["Laser"] = dizzyFunc_Laser;
+		dizzyMap["ImperialRayCreater"] = dizzyFunc_ImperialRayCreater;
+		dizzyMap["GammaRayLaser"] = dizzyFunc_GammaRayLaser;
+		dizzyMap["GammaRayLaserMax"] = dizzyFunc_GammaRayLaser;
 	}
 	
-	for (int i = 2; i < entityList.count; ++i) {
-		Entity ent = entityList.list[i];
-		if (ent.isActive() && ent.team() == player.index) {
-			const char* anim = ent.animationName();
+	for (ProjectileInfo& projectile : projectiles) {
+		if (projectile.team == player.index) {
+			const char* anim = projectile.ptr.animationName();
 			auto found = dizzyMap.find(anim);
 			if (found != dizzyMap.end()) {
-				found->second(di, ent);
+				found->second(di, projectile);
 			}
 		}
 	}

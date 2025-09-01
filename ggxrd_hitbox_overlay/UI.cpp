@@ -4356,7 +4356,7 @@ void UI::drawSearchableWindows() {
 				ImGui::SameLine();
 				
 				if (player.noteLevel == 5) {
-					txt = "Reached max";
+					txt = "68";
 				} else {
 					txt = printDecimal(player.noteTimeWithSlowMax, 0, 0, false);
 				}
@@ -6323,7 +6323,7 @@ void UI::drawSearchableWindows() {
 							yellowText(strbuf);
 							_zerohspacing
 							
-							bool hellfire = data.attackerHellfireState && data.attackerHpLessThan10Percent && data.attackHasHellfireEnabled;
+							bool hellfire = (data.attackerHellfireState || data.attackerHpLessThan10Percent) && data.attackHasHellfireEnabled;
 							ImGui::TableNextColumn();
 							ImGui::TextUnformatted(searchFieldTitle("Hellfire"));
 							AddTooltip(searchTooltip("To gain 20% damage bonus, the attacker must have hellfire state enabled, they must have <= 10% HP (<= 42 HP),"
@@ -6331,16 +6331,12 @@ void UI::drawSearchableWindows() {
 							ImGui::TableNextColumn();
 							if (hellfire) {
 								ImGui::TextUnformatted("Yes (120%)");
-							} else if (data.attackerHellfireState && !data.attackerHpLessThan10Percent) {
-								ImGui::TextUnformatted("No, hp>10% (hp>42) (100%)");
-							} else if (data.attackerHellfireState && data.attackerHpLessThan10Percent && !data.attackHasHellfireEnabled) {
-								if (dmgCalc.attackType == ATTACK_TYPE_OVERDRIVE) {
-									ImGui::TextUnformatted("No, attack lacks hellfire attribute (100%)");
-								} else {
-									ImGui::TextUnformatted("No, not a super (100%)");
-								}
-							} else {
+							} else if (data.attackHasHellfireEnabled) {
 								ImGui::TextUnformatted("No (100%)");
+							} else if (dmgCalc.attackType == ATTACK_TYPE_OVERDRIVE) {
+								ImGui::TextUnformatted("No, attack does not allow hellfire (100%)");
+							} else {
+								ImGui::TextUnformatted("No, not a super (100%)");
 							}
 							
 							oldX = x;
@@ -10749,6 +10745,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			separator
 			ImGui::TextUnformatted("On this frame, Task C Seal becomes vulnerable.");
 		}
+		#undef separator
 	} else if (charType == CHARACTER_TYPE_RAMLETHAL) {
 		const RamlethalInfo& ri = frame.u.ramlethalInfo;
 		if (ri.sSwordBlockstunLinked
@@ -10908,6 +10905,153 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 			}
 			if (ri.hasOrb) {
 				ImGui::TextUnformatted("Scharf Kugel will disappear if Raven gets hit at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_DIZZY) {
+		const DizzyInfo& di = frame.u.dizzyInfo;
+		if (di.hasIceSpike
+				|| di.hasFirePillar
+				|| di.hasIceScythe
+				|| di.hasFireScythe
+				|| di.hasBubble
+				|| di.hasFireBubble
+				|| di.hasIceSpear
+				|| di.hasFireSpearHitstunLink
+				|| di.hasFireSpearExplosion
+				|| di.hasPFish
+				|| di.hasKFish
+				|| di.hasSFish
+				|| di.hasHFish
+				|| di.hasDFish
+				|| di.hasLaser
+				|| di.hasBakuhatsuCreator
+				|| di.hasGammaRay) {
+			ImGui::Separator();
+			if (di.hasIceSpike) {
+				ImGui::TextUnformatted("Ice Spike will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasFirePillar) {
+				ImGui::TextUnformatted("Fire Pillar will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasIceScythe) {
+				ImGui::TextUnformatted("Ice Scythe will disappear if Dizzy is hit (non-blocked hit) on this frame.");
+			}
+			if (di.hasFireScythe) {
+				ImGui::TextUnformatted("Fire Scythe will disappear if Dizzy is hit (non-blocked hit) on this frame.");
+			}
+			if (di.hasBubble) {
+				ImGui::TextUnformatted("Bubble will disappear if Dizzy is hit (non-blocked hit) on this frame.");
+			}
+			if (di.hasFireBubble) {
+				ImGui::TextUnformatted("Fire Bubble will disappear if Dizzy is hit (non-blocked hit) on this frame.");
+			}
+			if (di.hasIceSpear) {
+				ImGui::TextUnformatted("Ice Spear will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasFireSpearHitstunLink) {
+				char* buf = strbuf;
+				size_t bufSize = sizeof strbuf;
+				int result = sprintf_s(strbuf, "%s", "All Fire Spears will disappear if Dizzy is hit (non-blocked hit) at any time");
+				advanceBuf
+				
+				const char* spearAr[3];
+				int spearCount = 0;
+				if (di.hasFireSpear1BlockstunLink) {
+					spearAr[spearCount++] = "Fire Spear 1";
+				}
+				if (di.hasFireSpear2BlockstunLink) {
+					spearAr[spearCount++] = "Fire Spear 2";
+				}
+				if (di.hasFireSpear3BlockstunLink) {
+					spearAr[spearCount++] = "Fire Spear 3";
+				}
+				
+				for (int i = 0; i < spearCount; ++i) {
+					const char* spear = spearAr[i];
+					result = sprintf_s(buf, bufSize, "%s%s",
+						i == 0
+							? ", and "
+							: i == spearCount - 1
+								? " and "
+								: ", ",
+						spear);
+					advanceBuf
+				}
+				
+				if (spearCount) {
+					sprintf_s(buf, bufSize, " will disappear if Dizzy blocks a hit while charging them.");
+				} else {
+					sprintf_s(buf, bufSize, ".");
+				}
+				ImGui::TextUnformatted(strbuf);
+			}
+			if (di.hasFireSpearExplosion) {
+				ImGui::TextUnformatted("Fire Spear Explosion will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasPFish) {
+				ImGui::TextUnformatted("P Blue Fish will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasKFish) {
+				ImGui::TextUnformatted("K Blue Fish will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasSFish) {
+				ImGui::TextUnformatted("S Laser Fish will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasHFish) {
+				ImGui::TextUnformatted("H Laser Fish will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasLaser) {
+				ImGui::TextUnformatted("Laser will disappear if Dizzy is hit (non-blocked hit) at any time"
+					" or if the Laser Fish gets hit.");
+			}
+			if (di.hasDFish) {
+				ImGui::TextUnformatted("Shield Fish will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasBakuhatsuCreator) {
+				ImGui::TextUnformatted("Imperial Ray Spawner (but not Imperial Ray Pillars that have already been spawned)"
+					" will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+			if (di.hasGammaRay) {
+				ImGui::TextUnformatted("Gamma Ray will disappear if Dizzy is hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_BAIKEN) {
+		const BaikenInfo& bi = frame.u.baikenInfo;
+		if (bi.has5D
+				|| bi.hasJD
+				|| bi.hasTeppou
+				|| bi.hasTatami) {
+			ImGui::Separator();
+			if (bi.has5D) {
+				ImGui::TextUnformatted("5D Projectile will disappear if Baiken gets hit (non-blocked hit) at any time.");
+			}
+			if (bi.hasJD) {
+				ImGui::TextUnformatted("j.D Projectile will disappear if Baiken gets hit (non-blocked hit) at any time.");
+			}
+			if (bi.hasTeppou) {
+				ImGui::TextUnformatted("Yasha Gatana Projectile will disappear if Baiken gets hit (non-blocked hit) on this frame.");
+			}
+			if (bi.hasTatami) {
+				ImGui::TextUnformatted("Tatami will disappear if Baiken gets hit (non-blocked hit) at any time.");
+			}
+		}
+	} else if (charType == CHARACTER_TYPE_ANSWER) {
+		const AnswerInfo& ai = frame.u.answerInfo;
+		if (ai.hasCardDestroyOnDamage
+				|| ai.hasCardPlayerGotHit
+				|| ai.hasClone
+				|| ai.hasRSFStart) {
+			ImGui::Separator();
+			if (ai.hasCardDestroyOnDamage) {
+				ImGui::TextUnformatted("Card will disappear if Answer gets hit (non-blocked hit) on this frame.");
+			} else if (ai.hasCardPlayerGotHit) {
+				ImGui::TextUnformatted("Card will stop being active and will be prevented from becoming active if Answers gets hit (non-blocked hit) at any time.");
+			}
+			if (ai.hasClone) {
+				ImGui::TextUnformatted("Clone will disappear if Answer gets hit (non-blocked hit) at any time.");
+			}
+			if (ai.hasRSFStart) {
+				ImGui::TextUnformatted("Firesale Initial Card will disappear if Answer gets hit (non-blocked hit) at any time.");
 			}
 		}
 	}
@@ -11506,7 +11650,7 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 				int timeMax = correspondingPlayersFrame.u.inoInfo.noteTimeMax;
 				const char* txt;
 				if (correspondingPlayersFrame.u.inoInfo.noteLevel == 5) {
-					txt = "Reached max";
+					txt = "68";
 				} else {
 					txt = ui.printDecimal(correspondingPlayersFrame.u.inoInfo.noteTimeMax, 0, 0, false);
 				}
@@ -14272,20 +14416,20 @@ void UI::drawFramebars() {
 					) && endScene.players[entityFramebar.playerIndex].charType == CHARACTER_TYPE_RAMLETHAL
 				) {
 					titleFull = selectedTitle = frame->charSpecific1 ? "S Sword" : "H Sword";
-				} else if (eachProjectileOnSeparateFramebar) {
+				} else if (eachProjectileOnSeparateFramebar && frame->title.uncombined) {
 					if (useSlang) {
 						selectedTitle = frame->title.uncombined->slang;
 					}
 					if (!selectedTitle) selectedTitle = frame->title.uncombined->name;
 					titleFull = frame->title.uncombined->name;
 				}
-				if (!selectedTitle) {
+				if (!selectedTitle && frame->title.text) {
 					if (useSlang) {
 						selectedTitle = frame->title.text->slang;
 					}
 					if (!selectedTitle) selectedTitle = frame->title.text->name;
 				}
-				if (!titleFull && useSlang) {
+				if (!titleFull && useSlang && frame->title.text) {
 					titleFull = frame->title.text->name;
 				}
 				if (selectedTitle) {

@@ -916,14 +916,14 @@ settingsField(bool, player2IsBoss, false,
 settingsField(bool, p1RamlethalDisableMarteliForpeli, false,
 	"Disable Marteli & Forpeli (P1)", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
-	"; Setting this to true will disable P1 Ramlethal's Marteli and Forpeli special moves.\n"
+	"; Setting this to true will disable P1 Ramlethal's Marteli and Forpeli special moves when the Sword hasn't been deployed yet.\n"
 	"; This will allow you, if you also use the \"player1IsBoss\" setting, to use the boss exclusive 214S and 214H moves.\n"
 	"; Works only in Training and Versus Modes.")
 	
 settingsField(bool, p2RamlethalDisableMarteliForpeli, false,
 	"Disable Marteli & Forpeli (P2)", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
-	"; Setting this to true will disable P2 Ramlethal's Marteli and Forpeli special moves.\n"
+	"; Setting this to true will disable P2 Ramlethal's Marteli and Forpeli special moves when the Sword hasn't been deployed yet.\n"
 	"; This will allow you, if you also use the \"player2IsBoss\" setting, to use the boss exclusive 214S and 214H moves.\n"
 	"; Works only in Training and Versus Modes.")
 	

@@ -477,6 +477,7 @@ public:
 	void fillDizzyAwaKoware(BYTE* func, int* koware);
 	void fillDizzyAwaBomb(BYTE* func, MayIrukasanRidingObjectInfo& info);
 	int baiken5Dcreation = 0;
+	int baikenJDcreation = 0;
 	std::vector<ForceAddedWhiffCancel> forceAddWhiffCancels;
 	int milliaSecretGardenUnlink = 0;
 	bool milliaSecretGardenUnlinkFailedToFind = false;
@@ -538,6 +539,10 @@ public:
 	JackoOrgan jackoOrganS { 0, 0 };
 	JackoOrgan jackoOrganH { 0, 0 };
 	int jamCardPowerup[3] { 0, 0, 0 };
+	int dizzyAwaP = 0;
+	int dizzyAwaK = 0;
+	int faustItemToss = 0;
+	int faustPogoItemToss = 0;
 	bool justCountingMoves = false;
 	int propertiesCount = 0;
 private:

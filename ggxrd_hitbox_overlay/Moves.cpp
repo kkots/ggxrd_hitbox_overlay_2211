@@ -150,7 +150,9 @@ static bool isDangerous_mistKuttsuku(Entity ent);
 static bool isDangerous_servant(Entity ent);
 
 static const NamePair* nameSelector_iceSpike(Entity ent);
+static const NamePair* nameSelectorUncombined_iceSpike(Entity ent);
 static const NamePair* nameSelector_iceScythe(Entity ent);
+static const NamePair* nameSelectorUncombined_iceScythe(Entity ent);
 static const NamePair* framebarNameSelector_djvuD(Entity ent);
 static const NamePair* framebarNameSelector_closeShot(Entity ent);
 static const NamePair* framebarNameSelector_gunflameProjectile(Entity ent);
@@ -297,6 +299,7 @@ static const char* canYrcProjectile_gammaBlade(PlayerInfo& ent);
 static const char* canYrcProjectile_ryuuYanagi(PlayerInfo& ent);
 static const char* canYrcProjectile_faust5D(PlayerInfo& ent);
 static const char* canYrcProjectile_itemToss(PlayerInfo& ent);
+static const char* canYrcProjectile_pogoItemToss(PlayerInfo& ent);
 static const char* canYrcProjectile_love(PlayerInfo& ent);
 static const char* canYrcProjectile_superToss(PlayerInfo& ent);
 static const char* canYrcProjectile_flower(PlayerInfo& ent);
@@ -361,8 +364,10 @@ static const char* canYrcProjectile_putGhost(PlayerInfo& ent);
 static const char* canYrcProjectile_returnGhost(PlayerInfo& ent);
 static const char* canYrcProjectile_organ(PlayerInfo& ent);
 static const char* canYrcProjectile_jackoCalvados(PlayerInfo& ent);
-static const char* canYrcProjectile_iceSpike_or_firePillar(PlayerInfo& ent);
-static const char* canYrcProjectile_iceScythe_or_fireScythe(PlayerInfo& ent);
+static const char* canYrcProjectile_iceSpike(PlayerInfo& ent);
+static const char* canYrcProjectile_firePillar(PlayerInfo& ent);
+static const char* canYrcProjectile_iceScythe(PlayerInfo& ent);
+static const char* canYrcProjectile_fireScythe(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_kum5D(PlayerInfo& ent);
 static const char* canYrcProjectile_kum5D(PlayerInfo& ent);
 static const char* canYrcProjectile_tuningBall(PlayerInfo& ent);
@@ -378,6 +383,7 @@ static const char* canYrcProjectile_tatami(PlayerInfo& ent);
 static const char* canYrcProjectile_teppou(PlayerInfo& ent);
 static const CreatedProjectileStruct* createdProjectile_baiken5D(PlayerInfo& ent);
 static const char* canYrcProjectile_baiken5D(PlayerInfo& ent);
+static const char* canYrcProjectile_baikenJD(PlayerInfo& ent);
 static const char* canYrcProjectile_jackoJD(PlayerInfo& ent);
 static const char* canYrcProjectile_scroll(PlayerInfo& ent);
 static const char* canYrcProjectile_clone(PlayerInfo& ent);
@@ -1911,7 +1917,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	rememberFramebarId(StunEdgeObj_framebarId);
-
+	
 	move = MoveInfo(CHARACTER_TYPE_KY, "StunEdgeObj", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = StunEdgeObj_framebarId;
@@ -3096,7 +3102,7 @@ void Moves::addMoves() {
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
 	move.faustPogo = true;
-	move.canYrcProjectile = canYrcProjectile_itemToss;
+	move.canYrcProjectile = canYrcProjectile_pogoItemToss;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
 	
@@ -3139,6 +3145,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Oilcan", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarNameUncombined = assignName("Oilcan Item");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Bomb", true);
@@ -3150,12 +3157,20 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_BlackHole", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarNameUncombined = assignName("Black Hole Item");
+	addMove(move);
+	
+	rememberFramebarId(oilFramebarId);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "OilWater", true);
+	move.framebarId = oilFramebarId;
+	move.framebarName = assignName("Oil Patch");
 	addMove(move);
 	
 	// fire created when setting oil on fire
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OilFire", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
+	move.framebarId = oilFramebarId;
 	move.framebarName = assignName("Oil Fire");
 	addMove(move);
 	
@@ -3178,6 +3193,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Helium", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarNameUncombined = assignName("Helium Item");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Hammer", true);
@@ -3206,18 +3222,22 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Chocolate", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarNameUncombined = assignName("Chocolate");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_BestChocolate", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarNameUncombined = assignName("Valentine's Chocolate");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_Donut", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarNameUncombined = assignName("Donut");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Item_ManyDonut", true);
 	move.drawProjectileOriginPoint = true;
+	move.framebarNameUncombined = assignName("Box of Donuts");
 	addMove(move);
 	
 	// the poison cloud created when poison flask lands
@@ -4474,6 +4494,7 @@ void Moves::addMoves() {
 	move.framebarId = generateFramebarId();
 	move.framebarName = assignName("BN: Caltrops", "Card");
 	move.framebarNameFull = "Business Ninpo: Caltrops";
+	move.framebarNameUncombined = assignName("Card");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -4481,6 +4502,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = generateFramebarId();
 	move.framebarName = assignName("BN: Under the Bus", "Clone");
+	move.framebarNameUncombined = assignName("Clone");
 	move.framebarNameFull = "Business Ninpo: Under the Bus";
 	addMove(move);
 	
@@ -5916,7 +5938,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	rememberFramebarId(Boomerang_A_Head_framebarId);
-
+	
 	// the flying head
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "Boomerang_A_Head", true);
 	move.isDangerous = isDangerous_notInRecovery;
@@ -6115,52 +6137,42 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN", true);
 	move.displayName = assignName("Stand");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNBack", true);
 	move.displayName = assignName("Back");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNForward", true);
 	move.displayName = assignName("Forward");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNUp", true);
 	move.displayName = assignName("Jump Up");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNUpEnd", true);
 	move.displayName = assignName("Jump End");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNDown", true);
 	move.displayName = assignName("Jump Down");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNCrouch", true);
 	move.displayName = assignName("Crouch");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNTurn", true);
 	move.displayName = assignName("Turn");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNDamage", true);
 	move.displayName = assignName("Damage");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitN5C", true);
 	move.displayName = assignName("f.S");
-	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAMLETHAL, "BitNAir5C", true);
@@ -7287,21 +7299,25 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Sakana");
 	move.displayName = assignName("I used this to catch fish", "Ice Spike");
 	move.ignoreJumpInstalls = true;
+	move.canYrcProjectile = canYrcProjectile_iceSpike;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "SakanaNecro");
 	move.displayName = assignName("For searing cod...", "Fire Pillar");
 	move.ignoreJumpInstalls = true;
+	move.canYrcProjectile = canYrcProjectile_firePillar;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Akari");
 	move.displayName = assignName("The light was so small in the beginning", "Fire Scythe");
 	move.ignoreJumpInstalls = true;
+	move.canYrcProjectile = canYrcProjectile_fireScythe;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariUndine");
 	move.displayName = assignName("For putting out the light...", "Ice Scythe");
 	move.ignoreJumpInstalls = true;
+	move.canYrcProjectile = canYrcProjectile_iceScythe;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiD");
@@ -7403,6 +7419,156 @@ void Moves::addMoves() {
 	move.displayName = assignName("Don't be overprotective", "Mirror");
 	move.dontSkipSuper = true;
 	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "SakanaObj", true);
+	move.isDangerous = isDangerous_notInRecovery;
+	move.framebarId = generateFramebarId();
+	move.framebarNameSelector = nameSelector_iceSpike;
+	move.framebarNameUncombinedSelector = nameSelectorUncombined_iceSpike;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariObj", true);
+	move.isDangerous = isDangerous_notInRecovery;
+	move.framebarId = generateFramebarId();
+	move.framebarNameSelector = nameSelector_iceScythe;
+	move.framebarNameUncombinedSelector = nameSelectorUncombined_iceScythe;
+	addMove(move);
+	
+	rememberFramebarId(DizzyBubble_framebarId);
+
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaPObj", true);
+	move.isDangerous = isDangerous_bubble;
+	move.framebarId = DizzyBubble_framebarId;
+	move.framebarName = assignName("Please, leave me alone", "Bubble");
+	move.framebarNameUncombined = assignName("Bubble");
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaKObj", true);
+	move.isDangerous = isDangerous_bubble;
+	move.framebarId = DizzyBubble_framebarId;
+	move.framebarName = assignName("What happens when I'm TOO alone", "Fire Bubble");
+	move.framebarNameUncombined = assignName("Fire Bubble");
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObj", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = generateFramebarId();
+	move.framebarName = assignName("I use this to pick fruit", "Ice Spear");
+	move.framebarNameUncombined = assignName("Ice Spear");
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
+	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarNameUncombined = assignName("Fire Spear 1");
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro2", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
+	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarNameUncombined = assignName("Fire Spear 2");
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro3", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
+	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarNameUncombined = assignName("Fire Spear 3");
+	move.drawProjectileOriginPoint = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecrobomb", true);
+	move.isDangerous = isDangerous_not_hasHitNumButInactive;
+	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
+	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.framebarNameUncombined = assignName("Fire Spear Explosion");
+	addMove(move);
+	
+	rememberFramebarId(DizzyFish_framebarId);
+
+	// P fish
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjA", true);
+	move.isDangerous = isDangerous_pFish;
+	move.framebarId = DizzyFish_framebarId;
+	move.framebarName = assignName("P Blue Fish");
+	move.framebarNameUncombined = assignName("P Blue Fish");
+	move.showMultipleHitsFromOneAttack = true;
+	addMove(move);
+	
+	// K fish
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjB", true);
+	move.isDangerous = isDangerous_kFish;
+	move.framebarId = DizzyFish_framebarId;
+	move.framebarName = assignName("K Blue Fish");
+	move.framebarNameUncombined = assignName("K Blue Fish");
+	move.showMultipleHitsFromOneAttack = true;
+	addMove(move);
+	
+	// S laser fish
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjD", true);
+	move.isDangerous = isDangerous_laserFish;
+	move.framebarId = DizzyFish_framebarId;
+	move.framebarName = assignName("We fought a lot together Fish", "Laser Fish");
+	move.framebarNameUncombined = assignName("H Laser Fish");
+	addMove(move);
+	
+	// H laser fish
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjC", true);
+	move.isDangerous = isDangerous_laserFish;
+	move.framebarId = DizzyFish_framebarId;
+	move.framebarName = assignName("We fought a lot together Fish", "Laser Fish");
+	move.framebarNameUncombined = assignName("S Laser Fish");
+	addMove(move);
+	
+	// H/S laser fish's laser
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Laser", true);
+	move.isDangerous = isDangerous_notNull;
+	move.framebarId = DizzyFish_framebarId;
+	move.framebarName = assignName("We fought a lot together Fish", "Laser Fish");
+	move.framebarNameUncombined = assignName("Laser");
+	addMove(move);
+	
+	// Shield fish
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjE", true);
+	move.isDangerous = isDangerous_dFish;
+	move.framebarId = DizzyFish_framebarId;
+	move.framebarName = assignName("We fought a lot together Shield Fish", "Shield Fish");
+	move.framebarNameUncombined = assignName("Shield Fish");
+	addMove(move);
+	
+	rememberFramebarId(ImperialRay_framebarId);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayCreater", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = ImperialRay_framebarId;
+	move.framebarName = assignName("Imperial Ray");
+	move.framebarNameUncombined = assignName("Imperial Ray Spawner");
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBakuhatsu", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.framebarId = ImperialRay_framebarId;
+	move.framebarName = assignName("Imperial Ray");
+	move.combineHitsFromDifferentProjectiles = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaser", true);
+	move.isDangerous = isDangerous_notNull;
+	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
+	move.framebarName = assignName("Gamma Ray");
+	move.framebarNameUncombined = assignName("Gamma Ray Laser");
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaserMax", true);
+	move.isDangerous = isDangerous_not_NullWhileActive;
+	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
+	move.framebarName = assignName("Gamma Ray");
+	move.framebarNameUncombined = assignName("Gamma Ray Max Laser");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Tossin");
@@ -7618,6 +7784,12 @@ void Moves::addMoves() {
 	move.framebarName = assignName("5D");
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtkAir5E");
+	move.displayName = assignName("j.D");
+	move.nameIncludesInputs = true;
+	move.canYrcProjectile = canYrcProjectile_baikenJD;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "NmlAtkAir5EShotObj", true);
 	move.isDangerous = isDangerous_playerInRCOrHasActiveFlag_AndNotInRecovery;
 	move.framebarId = generateFramebarId();
@@ -7629,6 +7801,7 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_not_hasHitNumButNoHitboxes;
 	move.framebarId = generateFramebarId();
 	move.framebarName = assignName("Yasha Gatana");
+	move.framebarNameUncombined = assignName("Yasha Gatana Projectile");
 	addMove(move);
 	
 	rememberFramebarId(Tatami_framebarId);
@@ -7636,13 +7809,13 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiLandObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = Tatami_framebarId;
-	move.framebarName = assignName("Tatami Gaeshi", "Tatami");
+	move.framebarName = assignName("Tatami");
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "TatamiAirObj", true);
 	move.isDangerous = isDangerous_notInRecovery;
 	move.framebarId = Tatami_framebarId;
-	move.framebarName = assignName("Tatami Gaeshi", "Tatami");
+	move.framebarName = assignName("Tatami");
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -7990,145 +8163,6 @@ void Moves::addMoves() {
 	move.framebarNameUncombined = assignName("Explosion3");
 	addMove(move);
 	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "SakanaObj", true);
-	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
-	move.framebarNameSelector = nameSelector_iceSpike;
-	move.canYrcProjectile = canYrcProjectile_iceSpike_or_firePillar;
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AkariObj", true);
-	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = generateFramebarId();
-	move.framebarNameSelector = nameSelector_iceScythe;
-	move.canYrcProjectile = canYrcProjectile_iceScythe_or_fireScythe;
-	addMove(move);
-	
-	rememberFramebarId(DizzyBubble_framebarId);
-
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaPObj", true);
-	move.isDangerous = isDangerous_bubble;
-	move.framebarId = DizzyBubble_framebarId;
-	move.framebarName = assignName("Please, leave me alone", "Bubble");
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "AwaKObj", true);
-	move.isDangerous = isDangerous_bubble;
-	move.framebarId = DizzyBubble_framebarId;
-	move.framebarName = assignName("What happens when I'm TOO alone", "Fire Bubble");
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObj", true);
-	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = generateFramebarId();
-	move.framebarName = assignName("I use this to pick fruit", "Ice Spear");
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro", true);
-	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
-	move.drawProjectileOriginPoint = true;
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro2", true);
-	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
-	move.drawProjectileOriginPoint = true;
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecro3", true);
-	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
-	move.drawProjectileOriginPoint = true;
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiObjNecrobomb", true);
-	move.isDangerous = isDangerous_not_hasHitNumButInactive;
-	move.framebarId = KINOMI_OBJ_NECRO_FRAMEBAR_ID;
-	move.framebarName = assignName("For roasting chestnuts...", "Fire Spears");
-	addMove(move);
-	
-	rememberFramebarId(DizzyFish_framebarId);
-
-	// P fish
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjA", true);
-	move.isDangerous = isDangerous_pFish;
-	move.framebarId = DizzyFish_framebarId;
-	move.framebarName = assignName("We talked a lot together", "P Blue Fish");
-	move.showMultipleHitsFromOneAttack = true;
-	addMove(move);
-	
-	// K fish
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjB", true);
-	move.isDangerous = isDangerous_kFish;
-	move.framebarId = DizzyFish_framebarId;
-	move.framebarName = assignName("We talked a lot together", "K Blue Fish");
-	move.showMultipleHitsFromOneAttack = true;
-	addMove(move);
-	
-	// S laser fish
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjD", true);
-	move.isDangerous = isDangerous_laserFish;
-	move.framebarId = DizzyFish_framebarId;
-	move.framebarName = assignName("We fought a lot together", "Laser");
-	move.framebarNameUncombined = assignName("We fought a lot together Fish", "H Laser Fish");
-	addMove(move);
-	
-	// H laser fish
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjC", true);
-	move.isDangerous = isDangerous_laserFish;
-	move.framebarId = DizzyFish_framebarId;
-	move.framebarName = assignName("We fought a lot together", "Laser");
-	move.framebarNameUncombined = assignName("We fought a lot together Fish", "S Laser Fish");
-	addMove(move);
-	
-	// H/S laser fish's laser
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Laser", true);
-	move.isDangerous = isDangerous_notNull;
-	move.framebarId = DizzyFish_framebarId;
-	move.framebarName = assignName("We fought a lot together", "Laser");
-	move.framebarNameUncombined = assignName("We fought a lot together Laser", "Laser");
-	addMove(move);
-	
-	// Shield fish
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "HanashiObjE", true);
-	move.isDangerous = isDangerous_dFish;
-	move.framebarId = DizzyFish_framebarId;
-	move.framebarName = assignName("We fought a lot together", "Shield Fish");
-	addMove(move);
-	
-	rememberFramebarId(ImperialRay_framebarId);
-
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayCreater", true);
-	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = ImperialRay_framebarId;
-	move.framebarName = assignName("Imperial Ray");
-	move.framebarNameUncombined = assignName("Imperial Ray Spawner");
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "ImperialRayBakuhatsu", true);
-	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarId = ImperialRay_framebarId;
-	move.framebarName = assignName("Imperial Ray");
-	move.combineHitsFromDifferentProjectiles = true;
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaser", true);
-	move.isDangerous = isDangerous_notNull;
-	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
-	move.framebarName = assignName("Gamma Ray");
-	move.framebarNameUncombined = assignName("Gamma Ray Laser");
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRayLaserMax", true);
-	move.isDangerous = isDangerous_not_NullWhileActive;
-	move.framebarId = GAMMA_RAY_LASER_FRAMEBAR_ID;
-	move.framebarName = assignName("Gamma Ray");
-	move.framebarNameUncombined = assignName("Gamma Ray Max Laser");
-	addMove(move);
 }
 
 void Moves::onAswEngineDestroyed() {
@@ -8258,6 +8292,7 @@ void Moves::onAswEngineDestroyed() {
 	dizzyAwaKKoware = 0;
 	dizzyAwaKBomb.clear();
 	baiken5Dcreation = 0;
+	baikenJDcreation = 0;
 	for (ForceAddedWhiffCancel& cancel : forceAddWhiffCancels) {
 		cancel.clearCachedValues();
 	}
@@ -8301,6 +8336,10 @@ void Moves::onAswEngineDestroyed() {
 	jamCardPowerup[0] = 0;
 	jamCardPowerup[1] = 0;
 	jamCardPowerup[2] = 0;
+	dizzyAwaP = 0;
+	dizzyAwaK = 0;
+	faustItemToss = 0;
+	faustPogoItemToss = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -8786,11 +8825,25 @@ const NamePair* nameSelector_iceSpike(Entity ent) {
 		return assignName("I used this to catch fish", "Ice Spike");
 	}
 }
+const NamePair* nameSelectorUncombined_iceSpike(Entity ent) {
+	if (ent.createArgHikitsukiVal1() == 1) {
+		return assignName("Fire Pillar");
+	} else {
+		return assignName("Ice Spike");
+	}
+}
 const NamePair* nameSelector_iceScythe(Entity ent) {
 	if (ent.createArgHikitsukiVal1() == 1) {
 		return assignName("For putting out the light...", "Ice Scythe");
 	} else {
 		return assignName("The light was so small in the beginning", "Fire Scythe");
+	}
+}
+const NamePair* nameSelectorUncombined_iceScythe(Entity ent) {
+	if (ent.createArgHikitsukiVal1() == 1) {
+		return assignName("Ice Scythe");
+	} else {
+		return assignName("Fire Scythe");
 	}
 }
 const NamePair* framebarNameSelector_djvuD(Entity ent) {
@@ -9758,11 +9811,34 @@ const char* canYrcProjectile_faust5D(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-const char* canYrcProjectile_itemToss(PlayerInfo& player) {
-	if (canYrcProjectile_default(player)) {
+static const char* canYrcProjectile_itemTossImpl(PlayerInfo& player, int* storage) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!*storage) {
+		bool foundCreate = false;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_createObjectWithArg
+					&& strcmp(asInstr(instr, createObjectWithArg)->name, "Item_Pre") == 0) {
+				foundCreate = true;
+			} else if (foundCreate && type == instr_sprite) {
+				*storage = instr - func;
+				break;
+			}
+		}
+	}
+	if (!*storage) return nullptr;
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	if (offset > *storage
+			|| offset == *storage && !player.pawn.justReachedSprite()) {
 		return "Can YRC, and the tossed item will stay";
 	}
 	return nullptr;
+}
+const char* canYrcProjectile_itemToss(PlayerInfo& player) {
+	return canYrcProjectile_itemTossImpl(player, &moves.faustItemToss);
+}
+const char* canYrcProjectile_pogoItemToss(PlayerInfo& player) {
+	return canYrcProjectile_itemTossImpl(player, &moves.faustPogoItemToss);
 }
 const char* canYrcProjectile_love(PlayerInfo& player) {
 	if (canYrcProjectile_default(player)) {
@@ -10386,23 +10462,27 @@ const char* canYrcProjectile_jackoCalvados(PlayerInfo& player) {
 	}
 	return nullptr;
 }
-const char* canYrcProjectile_iceSpike_or_firePillar(PlayerInfo& player) {
+const char* canYrcProjectile_iceSpike(PlayerInfo& player) {
 	if (canYrcProjectile_default(player)) {
-		if (player.pawn.createArgHikitsukiVal1_outgoing() == 1) {
-			return "Can YRC, and Ice Spike will stay";
-		} else {
-			return "Can YRC, and Fire Pillar will stay";
-		}
+		return "Can YRC, and Ice Spike will stay";
 	}
 	return nullptr;
 }
-const char* canYrcProjectile_iceScythe_or_fireScythe(PlayerInfo& player) {
+const char* canYrcProjectile_firePillar(PlayerInfo& player) {
 	if (canYrcProjectile_default(player)) {
-		if (player.pawn.createArgHikitsukiVal1_outgoing() == 1) {
-			return "Can YRC, and Ice Scythe will stay";
-		} else {
-			return "Can YRC, and Fire Scythe will stay";
-		}
+		return "Can YRC, and Fire Pillar will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_iceScythe(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Ice Scythe will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_fireScythe(PlayerInfo& player) {
+	if (canYrcProjectile_default(player)) {
+		return "Can YRC, and Fire Scythe will stay";
 	}
 	return nullptr;
 }
@@ -10460,13 +10540,47 @@ const char* canYrcProjectile_fish(PlayerInfo& player) {
 	return nullptr;
 }
 const char* canYrcProjectile_bubble(PlayerInfo& player) {
-	if (canYrcProjectile_default(player)) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.dizzyAwaP) {
+		bool foundCreate = false;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_createObjectWithArg && strcmp(asInstr(instr, createObjectWithArg)->name, "AwaPObj") == 0){
+				foundCreate = true;
+			} else if (type == instr_sprite && foundCreate) {
+				moves.dizzyAwaP = instr - func;
+				break;
+			}
+		}
+	}
+	if (!moves.dizzyAwaP) return nullptr;
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	if (offset >= moves.dizzyAwaP && !(
+		offset == moves.dizzyAwaP && player.pawn.justReachedSprite()
+	)) {
 		return "Can YRC, and summoned Bubble will stay";
 	}
 	return nullptr;
 }
 const char* canYrcProjectile_fireBubble(PlayerInfo& player) {
-	if (canYrcProjectile_default(player)) {
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.dizzyAwaK) {
+		bool foundCreate = false;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_createObjectWithArg && strcmp(asInstr(instr, createObjectWithArg)->name, "AwaKObj") == 0){
+				foundCreate = true;
+			} else if (type == instr_sprite && foundCreate) {
+				moves.dizzyAwaK = instr - func;
+				break;
+			}
+		}
+	}
+	if (!moves.dizzyAwaK) return nullptr;
+	int offset = player.pawn.bbscrCurrentInstr() - func;
+	if (offset >= moves.dizzyAwaK && !(
+		offset == moves.dizzyAwaK && player.pawn.justReachedSprite()
+	)) {
 		return "Can YRC, and summoned Fire Bubble will stay";
 	}
 	return nullptr;
@@ -10485,7 +10599,7 @@ const char* canYrcProjectile_iceSpear(PlayerInfo& player) {
 }
 const char* canYrcProjectile_imperialRay(PlayerInfo& player) {
 	if (canYrcProjectile_default(player)) {
-		return "Can YRC, and Imperial Ray will stay";
+		return "Can YRC, and Imperial Ray Spawner and Imperial Ray Pillars will stay";
 	}
 	return nullptr;
 }
@@ -10530,6 +10644,26 @@ const char* canYrcProjectile_baiken5D(PlayerInfo& player) {
 			|| player.pawn.bbscrCurrentInstr() == func + moves.baiken5Dcreation
 			&& player.pawn.spriteFrameCounter() > 0) {
 		return "Can YRC, and 5D Projectile will stay";
+	}
+	return nullptr;
+}
+const char* canYrcProjectile_baikenJD(PlayerInfo& player) {
+	if (moves.baikenJDcreation == -1) return nullptr; // error
+	BYTE* func = player.pawn.bbscrCurrentFunc();
+	if (!moves.baikenJDcreation && func) {
+		BYTE* pos = moves.findCreateObj(func, "NmlAtkAir5EShotObj");
+		if (!pos) {
+			moves.baikenJDcreation = -1;
+			return nullptr; // error
+		}
+		pos = moves.findSpriteNonNull(pos);
+		if (pos) moves.baikenJDcreation = pos - func;
+	}
+	if (!moves.baikenJDcreation) return nullptr;
+	if (player.pawn.bbscrCurrentInstr() > func + moves.baikenJDcreation
+			|| player.pawn.bbscrCurrentInstr() == func + moves.baikenJDcreation
+			&& player.pawn.spriteFrameCounter() > 0) {
+		return "Can YRC, and j.D Projectile will stay";
 	}
 	return nullptr;
 }

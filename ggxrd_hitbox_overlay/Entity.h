@@ -1727,8 +1727,8 @@ public:
 	inline Entity linkObjectDestroyOnDamage() const { return *(Entity*)(ent + 0x1ec); }
 	inline Entity stopLinkObject() const { return *(Entity*)(ent + 0x1f4); }
 	inline int venomBallArg3() const { return *(int*)(ent + 0x25bc); }
-	inline int createArgHikitsukiVal1_outgoing() const { return *(int*)(ent + 0x2614 + 0x34); }
-	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }
+	inline int createArgHikitsukiVal1_outgoing() const { return *(int*)(ent + 0x2614 + 0x34); }  // gets reset to 0 after creating an object
+	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }  // gets reset to 0 after creating an object
 	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }
 	inline int groundHitEffect() const { return *(int*)(ent + 0x6a4); }
 	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }

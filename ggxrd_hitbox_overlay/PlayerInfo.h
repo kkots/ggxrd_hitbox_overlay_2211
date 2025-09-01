@@ -174,8 +174,18 @@ struct DizzyInfo {
 	bool hasFireBubble:1;
 	bool hasIceSpear:1;
 	bool hasFireSpearHitstunLink:1;
-	bool hasFireSpearBlockstunLink:1;
+	bool hasFireSpear1BlockstunLink:1;
+	bool hasFireSpear2BlockstunLink:1;
+	bool hasFireSpear3BlockstunLink:1;
 	bool hasFireSpearExplosion:1;
+	bool hasPFish:1;
+	bool hasKFish:1;
+	bool hasSFish:1;
+	bool hasHFish:1;
+	bool hasDFish:1;
+	bool hasLaser:1;
+	bool hasBakuhatsuCreator:1;
+	bool hasGammaRay:1;
 };
 
 struct KyInfo {
@@ -271,6 +281,20 @@ struct HaehyunInfo {
 	bool cantDoBall:1;
 	bool hasBall:1;
 	bool has5D:1;
+};
+
+struct BaikenInfo {
+	bool has5D:1;
+	bool hasJD:1;
+	bool hasTeppou:1;
+	bool hasTatami:1;
+};
+
+struct AnswerInfo {
+	bool hasCardDestroyOnDamage:1;
+	bool hasCardPlayerGotHit:1;
+	bool hasClone:1;
+	bool hasRSFStart:1;
 };
 
 struct GatlingOrWhiffCancelInfoStored {
@@ -709,6 +733,8 @@ struct PlayerFrame : public FrameBase {
 		LeoInfo leoInfo;
 		JackoInfo jackoInfo;
 		HaehyunInfo haehyunInfo;
+		BaikenInfo baikenInfo;
+		AnswerInfo answerInfo;
 	} u;
 	Input prevInput;
 	Input input;

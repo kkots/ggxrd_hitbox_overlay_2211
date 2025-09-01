@@ -452,3 +452,12 @@ bool HitDetector::isMadeFullInvul(Entity ent) {
 	int team = ent.team();
 	return (team == playerIndex) ? playerInvul : opponentInvul;
 }
+
+bool HitDetector::hasHitboxThatHit(Entity ent) const {
+	for (const DetectedHitboxes& hitboxes : hitboxesThatHit) {
+		if (hitboxes.entity == ent) {
+			return true;
+		}
+	}
+	return false;
+}
