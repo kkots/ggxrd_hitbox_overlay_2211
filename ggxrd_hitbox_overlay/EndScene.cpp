@@ -5048,10 +5048,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.powerup = projectile.move.projectilePowerup && projectile.move.projectilePowerup(projectile);
 				currentFrame.next = nullptr;
 				currentFrame.charSpecific1 = player.charType == CHARACTER_TYPE_RAMLETHAL
+					&& projectile.ptr
 					&& projectile.ptr == player.pawn.stackEntity(0)
 					|| player.charType == CHARACTER_TYPE_HAEHYUN
 					&& projectile.haehyunCelestialTuningBall1;
 				currentFrame.charSpecific2 = player.charType == CHARACTER_TYPE_RAMLETHAL
+					&& projectile.ptr
 					&& projectile.ptr == player.pawn.stackEntity(1)
 					|| player.charType == CHARACTER_TYPE_HAEHYUN
 					&& projectile.haehyunCelestialTuningBall2;
@@ -5888,7 +5890,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					ai.hasRSFStart = false;
 					ai.hasClone = false;
 					for (ProjectileInfo& projectile : projectiles) {
-						if (projectile.team == player.index && projectile.isDangerous) {
+						if (projectile.team == player.index && projectile.isDangerous && projectile.ptr) {
 							if (strcmp(projectile.animName, "Meishi") == 0) {
 								if (projectile.ptr.hasUpon(BBSCREVENT_PLAYER_GOT_HIT)) {
 									ai.hasCardPlayerGotHit = true;
@@ -11338,6 +11340,7 @@ void EndScene::fillInBedmanSealInfo(PlayerInfo& player) {
 		if (!(
 				projectile.team == player.index
 				&& strncmp(projectile.animName, "DejavIcon", 9) == 0
+				&& projectile.ptr
 		)) continue;
 		
 		for (int j = 0; j < 4; ++j) {
@@ -12100,7 +12103,7 @@ void EndScene::fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame) {
 	}
 	
 	for (ProjectileInfo& projectile : projectiles) {
-		if (projectile.team == player.index) {
+		if (projectile.team == player.index && projectile.ptr) {
 			const char* anim = projectile.ptr.animationName();
 			auto found = dizzyMap.find(anim);
 			if (found != dizzyMap.end()) {

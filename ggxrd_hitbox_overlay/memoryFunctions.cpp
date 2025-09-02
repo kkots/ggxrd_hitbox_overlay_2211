@@ -591,7 +591,7 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLen
 	} 
 	return result;
 }
-	
+
 uintptr_t sigscanFundamental(uintptr_t start, uintptr_t end, const char* sig, size_t sigLength) {
 	
 	// Boyer-Moore-Horspool substring search
