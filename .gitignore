@@ -405,3 +405,4 @@ FodyWeavers.xsd
 /shader_test_compile/MyPixelShader.cso
 /sign_exe_script.txt
 /regenerate_ini_and_update_readme__last_date.txt
+/.editorconfig
