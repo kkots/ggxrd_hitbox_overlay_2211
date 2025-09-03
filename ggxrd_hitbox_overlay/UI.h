@@ -402,6 +402,9 @@ private:
 	void testDelay();
 	bool idiotPressedTestDelayButtonOutsideBattle = false;
 	void printBedmanSeals(const BedmanInfo& bedmanInfo, bool forFrameTooltip);
+	bool showPotCanFlick[2] { false, false };
+	bool showPotCantFlick[2] { false, false };
+	bool showPotCantFlickIncludeSupers[2] { false, false };
 };
 
 extern UI ui;

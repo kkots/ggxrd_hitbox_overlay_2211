@@ -726,6 +726,10 @@ bool EndScene::onDllMain() {
 			hitDetectionFunc = (hitDetection_t)followRelativeCall(hitDetectionUsage + 11);
 		}
 	}
+	if (!hitDetectionFunc) {
+		logwrap(fprintf(logfile, "Could not find hitDetectionFunc.\n"));
+		error = true;
+	}
 	
 	uintptr_t stunIncrementPlace = sigscanOffset(
 		GUILTY_GEAR_XRD_EXE,
@@ -6381,6 +6385,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& !(
 						player.cmnActIndex == CmnActRomanCancel
 						&& !player.superfreezeStartup
+					)
+					&& !(
+						player.charType == CHARACTER_TYPE_FAUST
+						&& strcmp(player.anim, "NmlAtk5E") == 0
 					)) {
 				if (hasCancels && recoveryFrameType == FT_RECOVERY) {
 					startupFrameType = FT_RECOVERY_HAS_GATLINGS;
@@ -7836,13 +7844,6 @@ void EndScene::onHitDetectionEnd(HitDetectionType hitDetectionType) {
 			burstGainOnLastHitUpdated[i] = true;
 		}
 		burstRecordedHit[i] = burst;
-	}
-	if (hitDetectionType == HIT_DETECTION_CLASH) {
-		for (int i = 2; i < entityList.count; ++i) {
-			Entity ent { entityList.list[i] };
-			if (!ent.isActive() || ent.isPawn() || !ent.receivedProjectileClashSignal()) continue;
-			onProjectileHit(ent);
-		}
 	}
 }
 
@@ -10729,7 +10730,7 @@ int __cdecl LifeTimeCounterCompare(void const* p1Ptr, void const* p2Ptr) {
 // The original function runs at the start of a logic tick, but we run it at the end of the current tick, which is probably the exact same
 // Runs on the main thread
 void EndScene::checkVenomBallActivations() {
-	if (!isSignVer1_10OrHigher || !hitDetectionFunc) return;
+	if (!isSignVer1_10OrHigher) return;
 	bool isVer1_10 = isSignVer1_10OrHigher() != 0;
 	for (int i = 0; i < entityList.count; ++i) {
 		Entity attacker = entityList.list[i];
@@ -10794,7 +10795,6 @@ void EndScene::checkVenomBallActivations() {
 // The original function runs at the start of a logic tick, but we run it at the end of the current tick, which is probably the exact same
 // Runs on the main thread
 void EndScene::checkSelfProjectileHarmInflictions() {
-	if (!hitDetectionFunc) return;
 	for (int i = 0; i < entityList.count; ++i) {
 		Entity attacker = entityList.list[i];
 		BBScrEvent event = attacker.signalToSendToYourOwnEffectsWhenHittingThem();
@@ -12114,4 +12114,34 @@ void EndScene::fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame) {
 	
 	di.shieldFishSuperArmor = player.dizzyShieldFishSuperArmor;
 	
+}
+
+BOOL EndScene::clashHitDetectionCallHook(Entity attacker, Entity defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr) {
+	BOOL result = hitDetectionFunc((void*)attacker.ent, (void*)defender.ent, hitboxIndex, defenderHitboxIndex, intersectionXPtr, intersectionYPtr);
+	if (result) {
+		int attackerLvl = attacker.dealtAttack()->projectileLvl;
+		int defenderLvl = defender.dealtAttack()->projectileLvl;
+		if (attackerLvl > 0 && defenderLvl > 0
+				&& (attackerLvl < 2 || defenderLvl < 2)) {
+			Entity victim;
+			if (attackerLvl == defenderLvl) {
+				onProjectileHit(attacker);
+				onProjectileHit(defender);
+			} else if (attackerLvl < defenderLvl) {
+				onProjectileHit(defender);
+				victim = attacker;
+			} else {
+				onProjectileHit(attacker);
+				victim = defender;
+			}
+			if (victim) {
+				ProjectileInfo& victimProjectile = findProjectile(victim);
+				if (victimProjectile.ptr) {
+					victimProjectile.fill(victim, getSuperflashInstigator(), false);
+					victimProjectile.gotHitOnThisFrame = true;
+				}
+			}
+		}
+	}
+	return result;
 }

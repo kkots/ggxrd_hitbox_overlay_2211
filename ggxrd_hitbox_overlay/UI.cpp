@@ -4067,6 +4067,315 @@ void UI::drawSearchableWindows() {
 				
 			} else if (player.charType == CHARACTER_TYPE_POTEMKIN) {
 				printChargeInCharSpecific(i, true, false, 30);
+				if (ImGui::Button("Show Flickable Projectiles")) {
+					showPotCanFlick[i] = !showPotCanFlick[i];
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Show Unflickable Projectiles")) {
+					showPotCantFlick[i] = !showPotCantFlick[i];
+				}
+				ImGui::PushTextWrapPos(0.F);
+				if (showPotCanFlick[i]) {
+					yellowText("Flickable Projectiles");
+					ImGui::Separator();
+					ImGui::TextUnformatted("Whenever some projectile that is possible to reflect could potentially cause problems for you,"
+						" like staying active and still being a threat, I will add a (!) marker next to it.\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Sol:");
+					ImGui::TextUnformatted(
+						"Gunflame\n"
+						"DI Gunflame\n"
+						"Break Explosion\n"
+						"DI Break Explosion\n"
+						"DI Riot Stamp Explosion (but you will be in blockstun from the initial leg hit)\n"
+						"DI Ground Viper Fire Pillar (but you will connect with Sol's unflickable direct hit first)\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Ky:");
+					ImGui::TextUnformatted(
+						"Stun Edge\n"
+						"Fortified Stun Edge\n"
+						"Charged Stun Edge\n"
+						"Fortified Charged Stun Edge (!)\n"
+						"j.D\n"
+						"5D Projectile\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "May:");
+					ImGui::TextUnformatted(
+						"Applause for the Victim (except when ridden by May)\n"
+						"Beach Ball\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Millia:");
+					ImGui::TextUnformatted(
+						"Silent Force\n"
+						"Tandem Top\n"
+						"Secret Garden (!)\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Zato:");
+					ImGui::TextUnformatted(
+						"Drill Special (!)\n"
+						"Drill\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Potemkin:");
+					ImGui::TextUnformatted(
+						"F.D.B Fireball\n"
+						"Slide Head Shockwave\n"
+						"Trishula\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Chipp:");
+					ImGui::TextUnformatted(
+						"Gamma Blade\n"
+						"Shuriken\n"
+						"Kunai (Wall-K)\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Faust:");
+					ImGui::TextUnformatted(
+						"Bomb\n"
+						"Love (the bag, but not the explosion)\n"
+						"Oil Fire\n"
+						"Meteor Shower\n"
+						"Hammer\n"
+						"Mini-Faust (after it has landed or when it's walking, but not when it's in the air)\n"
+						"Huge Faust (after it has landed or when it's walking, but not when it's in the air)\n"
+						"Poison Cloud\n"
+						"Platform\n"
+						"100-ton Weight (both as it's falling and the shockwave)\n"
+						"10,000-ton Weight (both as it's falling and the shockwave)\n"
+						"Fireworks\n"
+						"Massive Meteor (!)\n"
+						"Golden Hammer\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Axl:");
+					ImGui::TextUnformatted(
+						"Spindle Spinner\n"
+						"Sickle Flash (Rensen)\n"
+						"Melody Chain (Rensen-8)\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Venom:");
+					ImGui::TextUnformatted(
+						"Ball Level 1 (including Stinger Aim and Carcass Raid)\n"
+						"Ball Level 2 (including Stinger Aim)\n"
+						"Ball Level 3 (including Stinger Aim) (!)\n"
+						"Ball Level 4 (including Stinger Aim) (!)\n"
+						"QV Shockwave\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Slayer:");
+					ImGui::TextUnformatted(
+						"Helter-Skelter Shockwave\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "I-No:");
+					ImGui::TextUnformatted(
+						"(Horizontal) Chemical Love\n"
+						"Chemical Love Follow-up (but you can't get out of blockstun from the first hit in time)\n"
+						"Vertical Chemical Love\n"
+						"Antidepressant Scale Level 1\n"
+						"Antidepressant Scale Level 2\n"
+						"Antidepressant Scale Level 3\n"
+						"Antidepressant Scale Level 4\n"
+						"Antidepressant Scale Level 5 (!)\n"
+						"5D Projectile\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Bedman:");
+					ImGui::TextUnformatted(
+						"Task A Boomerang Head\n"
+						"Task A' Boomerang Head\n"
+						"Deja Vu Task A Boomerang Head\n"
+						"Deja Vu Task A' Boomerang Head\n"
+						"Deja Vu Task B\n"
+						"Task C Shockwave\n"
+						"Task C Big Shockwave (from big height)\n"
+						"Deja Vu Task C\n"
+						"Air Deja Vu Task C (!)\n"
+						"Air Deja Vu Task C Shockwave\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Ramlethal:");
+					ImGui::TextUnformatted(
+						"6S Sword Deploy/Redeploy\n"
+						"6H Sword Deploy/Redeploy\n"
+						"2S Sword Redeploy\n"
+						"2H Sword Redeploy\n"
+						"j.6S Sword Deploy/Redeploy\n"
+						"j.6H Sword Deploy/Redeploy\n"
+						"j.2S Sword Redeploy\n"
+						"j.2H Sword Redeploy\n"
+						"Cassius\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Elphelt:");
+					ImGui::TextUnformatted(
+						"Grenade\n"
+						"Grenade Explosion\n"
+						"Ms. Confille\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Leo:");
+					ImGui::TextUnformatted(
+						"Graviert Wurde\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Johnny:");
+					ImGui::TextUnformatted(
+						"Coin\n"
+						"Zweihander Fire Pillar\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Jack-O:");
+					ImGui::TextUnformatted(
+						"Knight\n"
+						"Lancer\n"
+						"Magician\n"
+						"j.D\n"
+						"Throw Ghost\n"
+						"Self-Detonate Explosion\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Haehyun:");
+					ImGui::TextUnformatted(
+						"Tuning Ball\n"
+						"5D Projectile\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Raven:");
+					ImGui::TextUnformatted(
+						"Schmerz Berg\n"
+						"Grebechlich Licht\n"
+						"Scharf Kugel 0-2 Ticks of Excitement\n"
+						"Scharf Kugel 3+ Ticks of Excitement (!)\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Dizzy:");
+					ImGui::TextUnformatted(
+						"Ice Spike\n"
+						"Fire Pillar\n"
+						"Ice Scythe\n"
+						"Fire Scythe\n"
+						"Bubble\n"
+						"Fire Bubble\n"
+						"Ice Spear\n"
+						"1-2 Fire Spears\n"
+						"3 Fire Spears (!)\n"
+						"Fire Spear Explosion\n"
+						"Blue Fish (fish instantly eats the fireball and dies)\n"
+						"Laser Fish (fish may eat the fireball and die)\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Baiken:");
+					ImGui::TextUnformatted(
+						"5D Projectile\n"
+						"Yasha Gatana\n"
+						"Tatami Gaeshi\n");
+					textUnformattedColored(LIGHT_BLUE_COLOR, "Answer:");
+					ImGui::TextUnformatted(
+						"Card\n"
+						"Clone");
+				}
+				if (showPotCantFlick[i]) {
+					const ImGuiStyle& style = ImGui::GetStyle();
+					ImGui::SetCursorPosY(ImGui::GetCursorPosY() + style.FramePadding.y);
+					yellowText("Unflickable Projectiles");
+					ImGui::SameLine();
+					ImGui::SetCursorPosY(ImGui::GetCursorPosY() - style.FramePadding.y);
+					ImGui::Checkbox("List Supers", showPotCantFlickIncludeSupers + i);
+					ImGui::Separator();
+					ImGui::TextUnformatted("You can't reflect overdrives."
+						" Some non-overdrive projectiles are exceptions to this rule.\n");
+					if (showPotCantFlickIncludeSupers[i]) {
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Sol:");
+						ImGui::TextUnformatted(
+							"Tyrant Rave second punch\n"
+							"DI Tyrant Rave Laser\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Ky:");
+						ImGui::TextUnformatted(
+							"Sacred Edge\n"
+							"Fortified Sacred Edge\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "May:");
+						ImGui::TextUnformatted(
+							"Dolphin when it's being ridden by May\n"
+							"Deluxe Goshogawara Bomber\n"
+							"Great Yamada Attack\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Millia:");
+						ImGui::TextUnformatted(
+							"Emerald Rain\n"
+							"Roses\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Zato:");
+						ImGui::TextUnformatted(
+							"Great White\n"
+							"Eddie P\n"
+							"Mawaru\n"
+							"Nobiru\n"
+							"Deadman's Hand\n"
+							"Amorphous\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Potemkin:");
+						ImGui::TextUnformatted(
+							"Giganter Kai\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Chipp:");
+						ImGui::TextUnformatted(
+							"Ryuu Yanagi\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Faust:");
+						ImGui::TextUnformatted(
+							"Flower\n"
+							"Love Explosion\n"
+							"Airborne Mini-Faust\n"
+							"Airborne Huge Faust\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Axl:");
+						ImGui::TextUnformatted(
+							"Sickle Storm\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Venom:");
+						ImGui::TextUnformatted(
+							"Bishop Runout\n"
+							"Red Hail\n"
+							"Dark Angel\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Slayer:");
+						ImGui::TextUnformatted(
+							"Straight-Down Dandy Backthrusts\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "I-No:");
+						ImGui::TextUnformatted(
+							"Ultimate Fortissimo\n"
+							"Longing Desperation\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Bedman:");
+						ImGui::TextUnformatted(
+							"Sinusoidal Helios\n"
+							"Hemi Jack (it's above you, and can't connect with you unless you jump)\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Ramlethal:");
+						ImGui::TextUnformatted(
+							"Calvados\n"
+							"Trance\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Sin:");
+						ImGui::TextUnformatted(
+							"Voltec Dein\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Elphelt:");
+						ImGui::TextUnformatted(
+							"j.D\n"
+							"Ms. Travailler\n"
+							"Genoverse\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Leo:");
+						ImGui::TextUnformatted(
+							"Stahl Wirbel\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Johnny:");
+						ImGui::TextUnformatted(
+							"Bacchus Sigh\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Jack-O:");
+						ImGui::TextUnformatted(
+							"Calvados\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Jam:");
+						ImGui::TextUnformatted(
+							"Renhoukyaku\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Haehyun:");
+						ImGui::TextUnformatted(
+							"Celestial Tuning Ball\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Dizzy:");
+						ImGui::TextUnformatted(
+							"Shield Fish\n"
+							"Imperial Ray\n"
+							"Gamma Ray\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Baiken:");
+						ImGui::TextUnformatted(
+							"j.D\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Answer:");
+						ImGui::TextUnformatted(
+							"Air Firesale\n"
+							"Firesale");
+					} else {
+						textUnformattedColored(LIGHT_BLUE_COLOR, "May:");
+						ImGui::TextUnformatted(
+							"Dolphin when it's being ridden by May\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Zato:");
+						ImGui::TextUnformatted(
+							"Eddie P\n"
+							"Mawaru\n"
+							"Nobiru\n"
+							"Deadman's Hand\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Faust:");
+						ImGui::TextUnformatted(
+							"Flower\n"
+							"Love Explosion\n"
+							"Airborne Mini-Faust\n"
+							"Airborne Huge Faust\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Elphelt:");
+						ImGui::TextUnformatted(
+							"j.D\n"
+							"Ms. Travailler\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Johnny:");
+						ImGui::TextUnformatted(
+							"Bacchus Sigh\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Dizzy:");
+						ImGui::TextUnformatted(
+							"Shield Fish\n");
+						textUnformattedColored(LIGHT_BLUE_COLOR, "Baiken:");
+						ImGui::TextUnformatted(
+							"j.D\n");
+					}
+				}
+				ImGui::PopTextWrapPos();
 			} else if (player.charType == CHARACTER_TYPE_FAUST) {
 				const PlayerInfo& otherPlayer = endScene.players[1 - player.index];
 				if (!otherPlayer.poisonDuration) {

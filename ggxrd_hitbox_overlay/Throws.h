@@ -19,6 +19,7 @@ private:
 		friend class Throws;
 		void hitDetectionMainHook(HitDetectionType hitDetectionType);
 		int hitDetectionIsActiveHook(BOOL alternativeIsActiveFramesCheck);
+		BOOL clashHitDetectionCallHook(void* defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
 	};
 
 	hitDetectionMain_t orig_hitDetectionMain = nullptr;

@@ -349,6 +349,7 @@ public:
 	bool needUpdateGraphicsFramebarTexture = false;
 	bool onPlayerIsBossChanged();
 	isSignVer1_10OrHigher_t isSignVer1_10OrHigher = nullptr;
+	BOOL clashHitDetectionCallHook(Entity attacker, Entity defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();

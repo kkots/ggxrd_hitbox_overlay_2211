@@ -42,11 +42,21 @@ bool Throws::onDllMain() {
 		detouring.patchPlace(attackerActiveCheckPlace + 1, sig);
 	}
 	
+	uintptr_t hitDetectionMain = (uintptr_t)orig_hitDetectionMain;
 	auto hookPtr = &HookHelp::hitDetectionMainHook;
 	if (!detouring.attach(&(PVOID&)orig_hitDetectionMain,
 		(PVOID&)hookPtr,
 		"hitDetectionMain")) return false;
-
+	
+	uintptr_t hitDetectionPlace = sigscanForward(hitDetectionMain, "6a 01 6a 01 57 8b ce >e8 ?? ?? ?? ?? 85 c0 0f 84");
+	if (hitDetectionPlace) {
+		auto clashHookPtr = &HookHelp::clashHitDetectionCallHook;
+		int offset = calculateRelativeCallOffset(hitDetectionPlace, (uintptr_t&)clashHookPtr);
+		std::vector<char> newBytes(4);
+		memcpy(newBytes.data(), &offset, 4);
+		detouring.patchPlace(hitDetectionPlace + 1, newBytes);
+	}
+	
 	return !error;
 }
 
@@ -380,4 +390,8 @@ int Throws::HookHelp::hitDetectionIsActiveHook(BOOL alternativeIsActiveFramesChe
 int Throws::hitDetectionIsActiveHook(void* pawn, BOOL alternativeIsActiveFramesCheck) {
 	endScene.onHitDetectionAttackerParticipate(Entity{pawn});
 	return isActivePtr(pawn, alternativeIsActiveFramesCheck);
+}
+
+BOOL Throws::HookHelp::clashHitDetectionCallHook(void* defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr) {
+	return endScene.clashHitDetectionCallHook(Entity{(void*)this}, Entity{defender}, hitboxIndex, defenderHitboxIndex, intersectionXPtr, intersectionYPtr);
 }

@@ -3160,17 +3160,17 @@ void Moves::addMoves() {
 	move.framebarNameUncombined = assignName("Black Hole Item");
 	addMove(move);
 	
-	rememberFramebarId(oilFramebarId);
+	rememberFramebarId(oil_framebarId);
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OilWater", true);
-	move.framebarId = oilFramebarId;
+	move.framebarId = oil_framebarId;
 	move.framebarName = assignName("Oil Patch");
 	addMove(move);
 	
 	// fire created when setting oil on fire
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "OilFire", true);
 	move.isDangerous = isDangerous_notInRecovery;
-	move.framebarId = oilFramebarId;
+	move.framebarId = oil_framebarId;
 	move.framebarName = assignName("Oil Fire");
 	addMove(move);
 	
@@ -3326,6 +3326,22 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "ShigekiJibakuObj", true);
 	move.framebarId = generateFramebarId();
 	move.framebarName = assignName("Stimulating Fists of Annihilation Self-Destruct", "Self-Destuct");
+	addMove(move);
+	
+	rememberFramebarId(baseball_framebarId);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Shot_Hit", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.drawProjectileOriginPoint = true;
+	move.framebarId = baseball_framebarId;
+	move.framebarName = assignName("Baseball");
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_FAUST, "Shot_HomeRun", true);
+	move.isDangerous = isDangerous_alwaysTrue;
+	move.drawProjectileOriginPoint = true;
+	move.framebarId = baseball_framebarId;
+	move.framebarName = assignName("Homerun Baseball");
 	addMove(move);
 	
 	// Axl has only one move that can put him airborne from the ground, and that is Raiei, but it already gives an airdash by default.
