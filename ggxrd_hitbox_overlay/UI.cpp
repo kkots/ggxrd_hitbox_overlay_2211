@@ -62,6 +62,7 @@ static ImVec4 BLACK_COLOR = RGBToVec(0);
 static ImVec4 WHITE_COLOR = RGBToVec(0xFFFFFF);
 static ImVec4 SLIGHTLY_GRAY = RGBToVec(0xc2c2c2);  // it reads slightly "GRAY"
 static ImVec4 LIGHT_BLUE_COLOR = RGBToVec(0x72bcf2);
+static ImVec4 PURPLE_COLOR = RGBToVec(0xec3fbd);
 static ImVec4 FRAME_SKIPPED_COLOR = RGBToVec(0xc3a1e3);
 static ImVec4 FRAME_ADVANCED_COLOR = RGBToVec(0xd5e9f6);
 static ImVec4 COUNTERHIT_TEXT_COLOR = RGBToVec(0x9ddef3);
@@ -243,6 +244,8 @@ static void drawGGIcon(const GGIcon& icon);
 static GGIcon scaleGGIconToHeight(const GGIcon& icon, float height);
 static CharacterType getPlayerCharacter(int playerSide);
 static void drawPlayerIconWithTooltip(int playerSide);
+static void drawFontSizedPlayerIconWithCharacterName(CharacterType charType);
+static void drawFontSizedPlayerIconWithText(CharacterType charType, const char* text);
 static bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart);
 static int findCharRev(const char* buf, char c);
 static int findCharRevW(const wchar_t* buf, wchar_t c);
@@ -276,6 +279,7 @@ static void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth,
 		bool needSameLine = true,
 		bool needManualMultilineOutput = false,
 		bool isLastLine = true);
+static void drawTextButParenthesesInGrayColor(const char* str);
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame);
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
@@ -313,6 +317,7 @@ struct HitConnectedArtSelector {
 	const FrameAddon* hitConnectedBlackAlt;
 };
 static void initializeLetters(bool* letters, bool* lettersStandalone);
+static void printReflectableProjectilesList();
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -4043,6 +4048,13 @@ void UI::drawSearchableWindows() {
 				ImGui::SameLine();
 				ImGui::TextUnformatted((player.wasForceDisableFlags & 0x2) == 0 ? "Yes" : "No");
 				
+				if (ImGui::Button("Show Reflectable Projectiles")) {
+					showZatoReflectableProjectiles[i] = !showZatoReflectableProjectiles[i];
+				}
+				if (showZatoReflectableProjectiles[i]) {
+					printReflectableProjectilesList();
+				}
+				
 			} else if (player.charType == CHARACTER_TYPE_CHIPP) {
 				if (player.playerval0) {
 					printChippInvisibility(player.playerval0, player.maxDI);
@@ -4076,51 +4088,51 @@ void UI::drawSearchableWindows() {
 				}
 				ImGui::PushTextWrapPos(0.F);
 				if (showPotCanFlick[i]) {
-					yellowText("Flickable Projectiles");
+					yellowText("Flickable Projectiles (Rev2)");
 					ImGui::Separator();
 					ImGui::TextUnformatted("Whenever some projectile that is possible to reflect could potentially cause problems for you,"
 						" like staying active and still being a threat, I will add a (!) marker next to it.\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Sol:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SOL);
+					drawTextButParenthesesInGrayColor(
 						"Gunflame\n"
 						"DI Gunflame\n"
 						"Break Explosion\n"
 						"DI Break Explosion\n"
 						"DI Riot Stamp Explosion (but you will be in blockstun from the initial leg hit)\n"
 						"DI Ground Viper Fire Pillar (but you will connect with Sol's unflickable direct hit first)\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Ky:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_KY);
+					drawTextButParenthesesInGrayColor(
 						"Stun Edge\n"
 						"Fortified Stun Edge\n"
 						"Charged Stun Edge\n"
 						"Fortified Charged Stun Edge (!)\n"
 						"j.D\n"
 						"5D Projectile\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "May:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MAY);
+					drawTextButParenthesesInGrayColor(
 						"Applause for the Victim (except when ridden by May)\n"
 						"Beach Ball\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Millia:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MILLIA);
+					drawTextButParenthesesInGrayColor(
 						"Silent Force\n"
 						"Tandem Top\n"
 						"Secret Garden (!)\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Zato:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ZATO);
+					drawTextButParenthesesInGrayColor(
 						"Drill Special (!)\n"
 						"Drill\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Potemkin:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_POTEMKIN);
+					drawTextButParenthesesInGrayColor(
 						"F.D.B Fireball\n"
 						"Slide Head Shockwave\n"
 						"Trishula\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Chipp:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_CHIPP);
+					drawTextButParenthesesInGrayColor(
 						"Gamma Blade\n"
 						"Shuriken\n"
 						"Kunai (Wall-K)\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Faust:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_FAUST);
+					drawTextButParenthesesInGrayColor(
 						"Bomb\n"
 						"Love (the bag, but not the explosion)\n"
 						"Oil Fire\n"
@@ -4135,46 +4147,42 @@ void UI::drawSearchableWindows() {
 						"Fireworks\n"
 						"Massive Meteor (!)\n"
 						"Golden Hammer\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Axl:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_AXL);
+					drawTextButParenthesesInGrayColor(
 						"Spindle Spinner\n"
 						"Sickle Flash (Rensen)\n"
 						"Melody Chain (Rensen-8)\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Venom:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_VENOM);
+					drawTextButParenthesesInGrayColor(
 						"Ball Level 1 (including Stinger Aim and Carcass Raid)\n"
 						"Ball Level 2 (including Stinger Aim)\n"
-						"Ball Level 3 (including Stinger Aim) (!)\n"
-						"Ball Level 4 (including Stinger Aim) (!)\n"
+						"Ball Level 3-4 (including Stinger Aim) (!)\n"
 						"QV Shockwave\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Slayer:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SLAYER);
+					drawTextButParenthesesInGrayColor(
 						"Helter-Skelter Shockwave\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "I-No:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_INO);
+					drawTextButParenthesesInGrayColor(
 						"(Horizontal) Chemical Love\n"
 						"Chemical Love Follow-up (but you can't get out of blockstun from the first hit in time)\n"
 						"Vertical Chemical Love\n"
-						"Antidepressant Scale Level 1\n"
-						"Antidepressant Scale Level 2\n"
-						"Antidepressant Scale Level 3\n"
-						"Antidepressant Scale Level 4\n"
+						"Antidepressant Scale Level 1-4\n"
 						"Antidepressant Scale Level 5 (!)\n"
 						"5D Projectile\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Bedman:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BEDMAN);
+					drawTextButParenthesesInGrayColor(
 						"Task A Boomerang Head\n"
-						"Task A' Boomerang Head\n"
+						"Task A' Boomerang Head (Bedman teleports in front of you and gets hit by the fireball)\n"
 						"Deja Vu Task A Boomerang Head\n"
-						"Deja Vu Task A' Boomerang Head\n"
+						"Deja Vu Task A' Boomerang Head (Bedman teleports in front of you and gets hit by the fireball)\n"
 						"Deja Vu Task B\n"
 						"Task C Shockwave\n"
 						"Task C Big Shockwave (from big height)\n"
 						"Deja Vu Task C\n"
 						"Air Deja Vu Task C (!)\n"
 						"Air Deja Vu Task C Shockwave\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Ramlethal:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_RAMLETHAL);
+					drawTextButParenthesesInGrayColor(
 						"6S Sword Deploy/Redeploy\n"
 						"6H Sword Deploy/Redeploy\n"
 						"2S Sword Redeploy\n"
@@ -4184,38 +4192,39 @@ void UI::drawSearchableWindows() {
 						"j.2S Sword Redeploy\n"
 						"j.2H Sword Redeploy\n"
 						"Cassius\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Elphelt:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ELPHELT);
+					drawTextButParenthesesInGrayColor(
 						"Grenade\n"
 						"Grenade Explosion\n"
 						"Ms. Confille\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Leo:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_LEO);
+					drawTextButParenthesesInGrayColor(
 						"Graviert Wurde\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Johnny:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JOHNNY);
+					drawTextButParenthesesInGrayColor(
 						"Coin\n"
 						"Zweihander Fire Pillar\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Jack-O:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JACKO);
+					drawTextButParenthesesInGrayColor(
 						"Knight\n"
 						"Lancer\n"
 						"Magician\n"
 						"j.D\n"
-						"Throw Ghost\n"
+						"Thrown Ghost\n"
 						"Self-Detonate Explosion\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Haehyun:");
-					ImGui::TextUnformatted(
-						"Tuning Ball\n"
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_HAEHYUN);
+					drawTextButParenthesesInGrayColor(
+						"S Tuning Ball\n"
+						"H Tuning Ball (!)\n"
 						"5D Projectile\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Raven:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_RAVEN);
+					drawTextButParenthesesInGrayColor(
 						"Schmerz Berg\n"
 						"Grebechlich Licht\n"
 						"Scharf Kugel 0-2 Ticks of Excitement\n"
 						"Scharf Kugel 3+ Ticks of Excitement (!)\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Dizzy:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_DIZZY);
+					drawTextButParenthesesInGrayColor(
 						"Ice Spike\n"
 						"Fire Pillar\n"
 						"Ice Scythe\n"
@@ -4228,150 +4237,150 @@ void UI::drawSearchableWindows() {
 						"Fire Spear Explosion\n"
 						"Blue Fish (fish instantly eats the fireball and dies)\n"
 						"Laser Fish (fish may eat the fireball and die)\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Baiken:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BAIKEN);
+					drawTextButParenthesesInGrayColor(
 						"5D Projectile\n"
 						"Yasha Gatana\n"
 						"Tatami Gaeshi\n");
-					textUnformattedColored(LIGHT_BLUE_COLOR, "Answer:");
-					ImGui::TextUnformatted(
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ANSWER);
+					drawTextButParenthesesInGrayColor(
 						"Card\n"
 						"Clone");
 				}
 				if (showPotCantFlick[i]) {
 					const ImGuiStyle& style = ImGui::GetStyle();
 					ImGui::SetCursorPosY(ImGui::GetCursorPosY() + style.FramePadding.y);
-					yellowText("Unflickable Projectiles");
+					yellowText("Unflickable Projectiles (Rev2)");
 					ImGui::SameLine();
 					ImGui::SetCursorPosY(ImGui::GetCursorPosY() - style.FramePadding.y);
 					ImGui::Checkbox("List Supers", showPotCantFlickIncludeSupers + i);
 					ImGui::Separator();
 					ImGui::TextUnformatted("You can't reflect overdrives."
-						" Some non-overdrive projectiles are exceptions to this rule.\n");
+						" Some non-overdrive projectiles too.\n");
 					if (showPotCantFlickIncludeSupers[i]) {
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Sol:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SOL);
+						drawTextButParenthesesInGrayColor(
 							"Tyrant Rave second punch\n"
 							"DI Tyrant Rave Laser\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Ky:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_KY);
+						drawTextButParenthesesInGrayColor(
 							"Sacred Edge\n"
 							"Fortified Sacred Edge\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "May:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MAY);
+						drawTextButParenthesesInGrayColor(
 							"Dolphin when it's being ridden by May\n"
 							"Deluxe Goshogawara Bomber\n"
 							"Great Yamada Attack\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Millia:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MILLIA);
+						drawTextButParenthesesInGrayColor(
 							"Emerald Rain\n"
 							"Roses\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Zato:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ZATO);
+						drawTextButParenthesesInGrayColor(
 							"Great White\n"
 							"Eddie P\n"
 							"Mawaru\n"
 							"Nobiru\n"
 							"Deadman's Hand\n"
 							"Amorphous\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Potemkin:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_POTEMKIN);
+						drawTextButParenthesesInGrayColor(
 							"Giganter Kai\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Chipp:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_CHIPP);
+						drawTextButParenthesesInGrayColor(
 							"Ryuu Yanagi\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Faust:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_FAUST);
+						drawTextButParenthesesInGrayColor(
 							"Flower\n"
-							"Love Explosion\n"
+							"Love Explosion (but can reflect the bag while it's still flying)\n"
 							"Airborne Mini-Faust\n"
 							"Airborne Huge Faust\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Axl:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_AXL);
+						drawTextButParenthesesInGrayColor(
 							"Sickle Storm\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Venom:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_VENOM);
+						drawTextButParenthesesInGrayColor(
 							"Bishop Runout\n"
 							"Red Hail\n"
 							"Dark Angel\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Slayer:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SLAYER);
+						drawTextButParenthesesInGrayColor(
 							"Straight-Down Dandy Backthrusts\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "I-No:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_INO);
+						drawTextButParenthesesInGrayColor(
 							"Ultimate Fortissimo\n"
 							"Longing Desperation\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Bedman:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BEDMAN);
+						drawTextButParenthesesInGrayColor(
 							"Sinusoidal Helios\n"
 							"Hemi Jack (it's above you, and can't connect with you unless you jump)\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Ramlethal:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_RAMLETHAL);
+						drawTextButParenthesesInGrayColor(
 							"Calvados\n"
 							"Trance\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Sin:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SIN);
+						drawTextButParenthesesInGrayColor(
 							"Voltec Dein\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Elphelt:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ELPHELT);
+						drawTextButParenthesesInGrayColor(
 							"j.D\n"
 							"Ms. Travailler\n"
 							"Genoverse\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Leo:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_LEO);
+						drawTextButParenthesesInGrayColor(
 							"Stahl Wirbel\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Johnny:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JOHNNY);
+						drawTextButParenthesesInGrayColor(
 							"Bacchus Sigh\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Jack-O:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JACKO);
+						drawTextButParenthesesInGrayColor(
 							"Calvados\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Jam:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JAM);
+						drawTextButParenthesesInGrayColor(
 							"Renhoukyaku\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Haehyun:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_HAEHYUN);
+						drawTextButParenthesesInGrayColor(
 							"Celestial Tuning Ball\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Dizzy:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_DIZZY);
+						drawTextButParenthesesInGrayColor(
 							"Shield Fish\n"
 							"Imperial Ray\n"
 							"Gamma Ray\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Baiken:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BAIKEN);
+						drawTextButParenthesesInGrayColor(
 							"j.D\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Answer:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ANSWER);
+						drawTextButParenthesesInGrayColor(
 							"Air Firesale\n"
 							"Firesale");
 					} else {
-						textUnformattedColored(LIGHT_BLUE_COLOR, "May:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MAY);
+						drawTextButParenthesesInGrayColor(
 							"Dolphin when it's being ridden by May\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Zato:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ZATO);
+						drawTextButParenthesesInGrayColor(
 							"Eddie P\n"
 							"Mawaru\n"
 							"Nobiru\n"
 							"Deadman's Hand\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Faust:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_FAUST);
+						drawTextButParenthesesInGrayColor(
 							"Flower\n"
-							"Love Explosion\n"
+							"Love Explosion (but can reflect the bag while it's still flying)\n"
 							"Airborne Mini-Faust\n"
 							"Airborne Huge Faust\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Elphelt:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ELPHELT);
+						drawTextButParenthesesInGrayColor(
 							"j.D\n"
 							"Ms. Travailler\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Johnny:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JOHNNY);
+						drawTextButParenthesesInGrayColor(
 							"Bacchus Sigh\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Dizzy:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_DIZZY);
+						drawTextButParenthesesInGrayColor(
 							"Shield Fish\n");
-						textUnformattedColored(LIGHT_BLUE_COLOR, "Baiken:");
-						ImGui::TextUnformatted(
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BAIKEN);
+						drawTextButParenthesesInGrayColor(
 							"j.D\n");
 					}
 				}
@@ -4424,6 +4433,341 @@ void UI::drawSearchableWindows() {
 					ImGui::TextUnformatted(searchTooltip(faust5D.c_str(), faust5D.c_str() + faust5D.size()));
 					ImGui::PopTextWrapPos();
 				}
+				
+				
+				if (ImGui::Button("Show Flickable Projectiles")) {
+					showFaustCanFlick[i] = !showFaustCanFlick[i];
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Show Unflickable Projectiles")) {
+					showFaustCantFlick[i] = !showFaustCantFlick[i];
+				}
+				ImGui::PushTextWrapPos(0.F);
+				if (showFaustCanFlick[i]) {
+					yellowText("Flickable Projectiles (Rev2)");
+					ImGui::Separator();
+					ImGui::TextUnformatted("Whenever the projectile may still hit you upon reflecting, I will add a (!) marker.\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SOL);
+					drawTextButParenthesesInGrayColor(
+						"Gunflame\n"
+						"DI Gunflame\n"
+						"Break Explosion\n"
+						"DI Break Explosion\n"
+						"DI Riot Stamp Explosion (!)\n"
+						"DI Ground Viper Fire Pillars (! Sol himself hits you)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_KY);
+					drawTextButParenthesesInGrayColor(
+						"Stun Edge\n"
+						"Fortified Stun Edge\n"
+						"Charged Stun Edge (!)\n"
+						"Fortified Charged Stun Edge (!)\n"
+						"j.D\n"
+						"5D Projectile\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MAY);
+					drawTextButParenthesesInGrayColor(
+						"Applause for the Victim (except when ridden by May)\n"
+						"Beach Ball\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MILLIA);
+					drawTextButParenthesesInGrayColor(
+						"Silent Force\n"
+						"Tandem Top\n"
+						"Secret Garden (!)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ZATO);
+					drawTextButParenthesesInGrayColor(
+						"Drill Special (!)\n"
+						"Drill\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_POTEMKIN);
+					drawTextButParenthesesInGrayColor(
+						"F.D.B Fireball\n"
+						"Trishula\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_CHIPP);
+					drawTextButParenthesesInGrayColor(
+						"Gamma Blade\n"
+						"Shuriken\n"
+						"Kunai (Wall-K)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_FAUST);
+					drawTextButParenthesesInGrayColor(
+						"Your own Item Toss: Oil, Bomb, Black Hole, Helium Gas, Hammer, Mini-Faust, Poison Flask, Chocolate, Donut, Platform, 100-t Weight (need to jump afterwards), Fireworks, Golden Hammer, Big Faust, Valentine's Chocolate, Box of Donuts, 10,000-ton Weight (need to jump afterwards)\n"
+						"Other Faust's Oil set on Fire (can reflect, but the baseball instantly clashes with the oil fire and is harmless)\n"
+						"Other Faust's Bomb Explosion (can reflect, but the baseball instantly clashes with the bomb explosion and is harmless)\n"
+						"Other Faust's Hammer\n"
+						"Other Faust's Mini-Faust after it has landed\n"
+						"Other Faust's Poison Cloud\n"
+						"Other Faust's 100-t Weight (! but instantly get hit by its shockwave. Can't reflect the shockwave)\n"
+						"Other Faust's 10,000-t Weight (! but instantly get hit by its shockwave. Can't reflect the shockwave)\n"
+						"Other Faust's Fireworks Explosion (but the baseball instantly clashes with the explosion and is harmless)\n"
+						"Other Faust's Golden Hammer\n"
+						"Other Faust's Huge Faust when it's on the ground (but not when it's airborne)\n"
+						"Other Faust's Love (the bag, but not the explosion)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_AXL);
+					drawTextButParenthesesInGrayColor(
+						"Melody Chain (Rensen-8) (it should be impossible to avoid the Sickle Flash that comes before this, though)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_VENOM);
+					drawTextButParenthesesInGrayColor(
+						"Ball Lvl 1\n"
+						"Ball Lvl 2, Lvl 3, Lvl 4 (you do generate a baseball and it does not clash with Venom's ball and is harmful to Venom, but you get hit by the next hits of Venom's ball)\n"
+						"QV Shockwave\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SLAYER);
+					drawTextButParenthesesInGrayColor(
+						"Helter Skelter Shockwave\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_INO);
+					drawTextButParenthesesInGrayColor(
+						"(Horizontal) Chemical Love\n"
+						"Vertical Chemical Love\n"
+						"Antidepressant Scale Lvl 1 (1 hit)\n"
+						"Antidepressant Scale Lvl 2, Lvl 3, Lvl 4, Lvl 5 (2, 3, 4, 5 hits) (you do generate a baseball, but you get hit anyway by the second hit of the note)\n"
+						"5D Projectile\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BEDMAN);
+					drawTextButParenthesesInGrayColor(
+						"Task A Boomerang Head\n"
+						"Task A' Boomerang Head (baseball is created but Bedman doesn't get hit by it and teleports to you anyway)\n"
+						"Task C Shockwave\n"
+						"Deja Vu Task A Boomerang Head\n"
+						"Deja Vu Task A' Boomerang Head (baseball is created but Bedman doesn't get hit by it and teleports to you anyway)\n"
+						"Deja Vu Task B (baseball is created successfully, but you get hit by the beyblade anyway)\n"
+						"Deja Vu Task C First Hit (you reflect the first hit, baseball gets flung, and the bed spirit just flies away; there is no second hit)\n"
+						"Deja Vu Task C Second Hit (baseball gets created, but you get hit by the shockwave anyway)\n"
+						"Deja Vu Task C Shockwave\n"
+						"Deja Vu Air Task C\n"
+						"Deja Vu Air Task C Shockwave\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_RAMLETHAL);
+					drawTextButParenthesesInGrayColor(
+						"Baseball can hit the Sword and not become harmless, because hitting the Sword does not waste the baseball's hit\n"
+						"6S Sword Deploy\n"
+						"6H Sword Deploy\n"
+						"j.6S Sword Deploy\n"
+						"j.6H Sword Deploy\n"
+						"2S Sword Redeploy\n"
+						"2H Sword Redeploy\n"
+						"j.2S Sword Redeploy\n"
+						"j.2H Sword Redeploy\n"
+						"6S Sword Redeploy\n"
+						"6H Sword Redeploy\n"
+						"j.6S Sword Redeploy\n"
+						"j.6H Sword Redeploy\n"
+						"Cassius\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ELPHELT);
+					drawTextButParenthesesInGrayColor(
+						"Grenade\n"
+						"Grenade Explosion\n"
+						"Ms. Confille (but not max charge)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_LEO);
+					drawTextButParenthesesInGrayColor(
+						"Graviert Wurde (creates baseball, but you get hit anyway by the next hits)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JOHNNY);
+					drawTextButParenthesesInGrayColor(
+						"Coin\n"
+						"Zweihander Fire Pillar\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JACKO);
+					drawTextButParenthesesInGrayColor(
+						"Knight\n"
+						"Lancer\n"
+						"j.D\n"
+						"Thrown Ghost\n"
+						"Self-Detonate Explosion\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_HAEHYUN);
+					drawTextButParenthesesInGrayColor(
+						"S Tuning Ball\n"
+						"H Tuning Ball (!)\n"
+						"5D Projectile\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_RAVEN);
+					drawTextButParenthesesInGrayColor(
+						"Schmerz Berg\n"
+						"Grebechlich Licht\n"
+						"Scharf Kugel (!)\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_DIZZY);
+					drawTextButParenthesesInGrayColor(
+						"Ice Spike\n"
+						"Fire Pillar\n"
+						"Ice Scythe\n"
+						"Fire Scythe (baseball clashes with the scythe)\n"
+						"Bubble Explosion\n"
+						"Fire Bubble Explosion\n"
+						"Ice Spear\n"
+						"1 Fire Spear\n"
+						"2-3 Fire Spears (! you get hit by the next spears)\n"
+						"Fire Spear Explosion\n"
+						"Blue Fish\n"
+						"Laser Fish\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BAIKEN);
+					drawTextButParenthesesInGrayColor(
+						"5D Projectile\n"
+						"Yasha Gatana\n"
+						"Tatami Gaeshi\n");
+					drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ANSWER);
+					drawTextButParenthesesInGrayColor(
+						"Card\n"
+						"Clone\n");
+				}
+				if (showFaustCantFlick[i]) {
+					const ImGuiStyle& style = ImGui::GetStyle();
+					ImGui::SetCursorPosY(ImGui::GetCursorPosY() + style.FramePadding.y);
+					yellowText("Unflickable Projectiles (Rev2)");
+					ImGui::SameLine();
+					ImGui::SetCursorPosY(ImGui::GetCursorPosY() - style.FramePadding.y);
+					ImGui::Checkbox("List Supers", showFaustCantFlickIncludeSupers + i);
+					ImGui::Separator();
+					ImGui::TextUnformatted("Can't reflect overdrives, unblockables and some other exceptional projectiles.\n");
+					if (showFaustCantFlickIncludeSupers[i]) {
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SOL);
+						drawTextButParenthesesInGrayColor(
+							"Tyrant Rave second punch\n"
+							"DI Tyrant Rave Laser\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_KY);
+						drawTextButParenthesesInGrayColor(
+							"Sacred Edge\n"
+							"Fortified Sacred Edge\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MAY);
+						drawTextButParenthesesInGrayColor(
+							"Dolphin when it's being ridden by May\n"
+							"Great Yamada Attack\n"
+							"Deluxe Goshogawara Bomber\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MILLIA);
+						drawTextButParenthesesInGrayColor(
+							"Emerald Rain\n"
+							"Roses\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ZATO);
+						drawTextButParenthesesInGrayColor(
+							"Eddie P\n"
+							"Mawaru\n"
+							"Nobiru\n"
+							"Great White\n"
+							"Amorphous\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_POTEMKIN);
+						drawTextButParenthesesInGrayColor(
+							"Slide Head\n"
+							"Giganter\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_CHIPP);
+						drawTextButParenthesesInGrayColor(
+							"Ryuu Yanagi\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_FAUST);
+						drawTextButParenthesesInGrayColor(
+							"Own Oil set on fire\n"
+							"Own Bomb Explosion\n"
+							"Own Platform when it's already on the ground\n"
+							"Own 100-t Weight Shockwave\n"
+							"Own Fireworks Explosion\n"
+							"Own 10,000-ton Weight Shockwave\n"
+							"Own Love Explosion\n"
+							"Flower\n"
+							"You can't reflect other Faust's thrown items, unless they have a hitbox\n"
+							"Other Faust's Meteor Shower (baseball instantly clashes with another meteor, and you get hit by a third meteor)\n"
+							"Other Faust's Massive Meteor (baseball clashes with the next hit of the Meteor, and you get hit by that same next hit anyway)\n"
+							"Other Faust's airborne Mini-Faust, but can after it has landed\n"
+							"Other Faust's Platform\n"
+							"Other Faust's 100-t Weight Shockwave\n"
+							"Other Faust's 10,000-t Weight Shockwave\n"
+							"Other Faust's Huge Faust when it's Airborne\n"
+							"Other Faust's Love Explosion (but can reflect the bag while it's still flying)\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_AXL);
+						drawTextButParenthesesInGrayColor(
+							"Spindle Spinner\n"
+							"Sickle Flash (baseball clashes with the projectile instantly, and you get hit on the next frame by another hit)\n"
+							"Sickle Storm\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_VENOM);
+						drawTextButParenthesesInGrayColor(
+							"Bishop Runout\n"
+							"Red Hail\n"
+							"Dark Angel\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SLAYER);
+						drawTextButParenthesesInGrayColor(
+							"Straight-Down Dandy Backthrusts\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_INO);
+						drawTextButParenthesesInGrayColor(
+							"Ultimate Fortissimo\n"
+							"Longing Desperation\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BEDMAN);
+						drawTextButParenthesesInGrayColor(
+							"Sinusoidal Helios\n"
+							"Hemi Jack\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_RAMLETHAL);
+						drawTextButParenthesesInGrayColor(
+							"Calvados\n"
+							"Trance\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_SIN);
+						drawTextButParenthesesInGrayColor(
+							"Voltec Dein\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ELPHELT);
+						drawTextButParenthesesInGrayColor(
+							"Ms. Travailler\n"
+							"Ms. Confille Max Charge\n"
+							"Genoverse\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JOHNNY);
+						drawTextButParenthesesInGrayColor(
+							"Bacchus Sigh\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JACKO);
+						drawTextButParenthesesInGrayColor(
+							"Calvados\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JAM);
+						drawTextButParenthesesInGrayColor(
+							"Renhoukyaku\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_HAEHYUN);
+						drawTextButParenthesesInGrayColor(
+							"Celestial Tuning Ball\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_DIZZY);
+						drawTextButParenthesesInGrayColor(
+							"Shield Fish\n"
+							"Imperial Ray\n"
+							"Gamma Ray\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BAIKEN);
+						drawTextButParenthesesInGrayColor(
+							"j.D\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ANSWER);
+						drawTextButParenthesesInGrayColor(
+							"Air Firesale\n"
+							"Firesale\n");
+					} else {
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_MAY);
+						drawTextButParenthesesInGrayColor(
+							"Dolphin when it's being ridden by May\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ZATO);
+						drawTextButParenthesesInGrayColor(
+							"Eddie P\n"
+							"Mawaru\n"
+							"Nobiru\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_POTEMKIN);
+						drawTextButParenthesesInGrayColor(
+							"Slide Head\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_FAUST);
+						drawTextButParenthesesInGrayColor(
+							"Own Oil set on fire\n"
+							"Own Bomb Explosion\n"
+							"Own Platform when it's already on the ground\n"
+							"Own 100-t Weight Shockwave\n"
+							"Own Fireworks Explosion\n"
+							"Own 10,000-ton Weight Shockwave\n"
+							"Own Love Explosion\n"
+							"Flower\n"
+							"You can't reflect other Faust's thrown items, unless they have a hitbox\n"
+							"Other Faust's Meteor Shower (baseball instantly clashes with another meteor, and you get hit by a third meteor)\n"
+							"Other Faust's Massive Meteor (baseball clashes with the next hit of the Meteor, and you get hit by that same next hit anyway)\n"
+							"Other Faust's airborne Mini-Faust, but can after it has landed\n"
+							"Other Faust's Platform\n"
+							"Other Faust's 100-t Weight Shockwave\n"
+							"Other Faust's 10,000-t Weight Shockwave\n"
+							"Other Faust's Huge Faust when it's Airborne\n"
+							"Other Faust's Love Explosion (but can reflect the bag while it's still flying)\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_AXL);
+						drawTextButParenthesesInGrayColor(
+							"Spindle Spinner\n"
+							"Sickle Flash (baseball clashes with the projectile instantly, and you get hit on the next frame by another hit)\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_ELPHELT);
+						drawTextButParenthesesInGrayColor(
+							"Ms. Travailler\n"
+							"Ms. Confille Max Charge\n"
+							"Genoverse\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_JOHNNY);
+						drawTextButParenthesesInGrayColor(
+							"Bacchus Sigh\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_DIZZY);
+						drawTextButParenthesesInGrayColor(
+							"Shield Fish\n");
+						drawFontSizedPlayerIconWithCharacterName(CHARACTER_TYPE_BAIKEN);
+						drawTextButParenthesesInGrayColor(
+							"j.D\n");
+					}
+				}
+				ImGui::PopTextWrapPos();
 				
 			} else if (player.charType == CHARACTER_TYPE_AXL) {
 				printChargeInCharSpecific(i, true, false, 30);
@@ -4976,6 +5320,13 @@ void UI::drawSearchableWindows() {
 				ImGui::SameLine();
 				ImGui::TextUnformatted(hasForceDisableFlag ? "No" : "Yes");
 				
+				if (ImGui::Button("Show Reflectable Projectiles")) {
+					showLeoReflectableProjectiles[i] = !showLeoReflectableProjectiles[i];
+				}
+				if (showLeoReflectableProjectiles[i]) {
+					printReflectableProjectilesList();
+				}
+				
 			} else if (player.charType == CHARACTER_TYPE_JOHNNY) {
 				
 				yellowText(searchFieldTitle("Mist Finer Level:"));
@@ -5486,6 +5837,18 @@ void UI::drawSearchableWindows() {
 				
 			} else if (player.charType == CHARACTER_TYPE_RAVEN) {
 				
+				textUnformattedColored(PURPLE_COLOR, searchFieldTitle("Purple Health:"));
+				if (player.pawn && *aswEngine) {
+					sprintf_s(strbuf, "%d(%d+%d)/%d (%df)",
+						player.pawn.hp() + player.pawn.purpleHealth(),
+						player.pawn.hp(),
+						player.pawn.purpleHealth(),
+						player.pawn.maxHp(),
+						player.pawn.purpleHealthTimer());
+					ImGui::SameLine();
+					ImGui::TextUnformatted(strbuf);
+				}
+				
 				yellowText(searchFieldTitle("Excitement:"));
 				sprintf_s(strbuf, "%d ticks", player.wasResource);
 				ImGui::SameLine();
@@ -5656,6 +6019,13 @@ void UI::drawSearchableWindows() {
 						endScene.BBScr_callSubroutine((void*)player.pawn.ent, "UndressCheck");
 					}
 					AddTooltip("Innocuous button.");
+				}
+				
+				if (ImGui::Button("Show Reflectable Projectiles")) {
+					showDizzyReflectableProjectiles[i] = !showDizzyReflectableProjectiles[i];
+				}
+				if (showDizzyReflectableProjectiles[i]) {
+					printReflectableProjectilesList();
 				}
 				
 			} else if (player.charType == CHARACTER_TYPE_BAIKEN) {
@@ -6734,7 +7104,9 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							ImGui::TextUnformatted(searchFieldTitle("Initial Proration"));
-							AddTooltip(searchTooltip("Depends on the attack. May only be applied on first hit."));
+							AddTooltip(searchTooltip("Depends on the attack."
+								" May only be applied on first hit."
+								" Does not prorate the current hit, only the consecutive hits."));
 							ImGui::TableNextColumn();
 							int nextProration = data.proration;
 							const char* nextProrationWhich = nullptr;
@@ -6748,12 +7120,16 @@ void UI::drawSearchableWindows() {
 									ImGui::TextUnformatted(strbuf);
 								}
 							} else {
-								ImGui::TextUnformatted("Doesn't apply (100%)");
+								sprintf_s(strbuf, "Not first hit (would be %d%c otherwise)", data.initialProration, '%');
+								ImGui::TextUnformatted(strbuf);
 							}
 							
 							ImGui::TableNextColumn();
 							ImGui::TextUnformatted(searchFieldTitle("Forced Proration"));
-							AddTooltip(searchTooltip("Depends on the attack."));
+							AddTooltip(searchTooltip("Depends on the attack."
+								" May be applied at any point in the combo, not just on first hit."
+								" Only gets applied if lower than the 'Current Proration'."
+								" Does not prorate the current hit, only the consecutive hits."));
 							ImGui::TableNextColumn();
 							if (data.forcedProration == INT_MAX) {
 								ImGui::TextUnformatted("None (100%)");
@@ -6768,7 +7144,8 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							ImGui::TextUnformatted(searchFieldTitle("Next Proration"));
-							AddTooltip(searchTooltip("The proration that is chosen out of initial or forced prorations that will apply to the consecutive combo."));
+							AddTooltip(searchTooltip("The proration that is chosen out of initial or forced prorations (the lowest is chosen)"
+								" that will apply to the consecutive combo."));
 							ImGui::TableNextColumn();
 							if (!nextProrationWhich) {
 								sprintf_s(strbuf, "Unchanged (%d%c)", data.proration, '%');
@@ -8783,6 +9160,23 @@ void drawPlayerIconWithTooltip(int playerSide) {
 	if (charType != -1) {
 		AddTooltip(characterNamesFull[charType]);
 	}
+}
+
+void drawFontSizedPlayerIconWithCharacterName(CharacterType charType) {
+	GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(charType), ImGui::GetFontSize());
+	drawGGIcon(scaledIcon);
+	ImGui::SameLine();
+	char buf[11];
+	sprintf_s(buf, "%s:", characterNames[charType]);
+	textUnformattedColored(LIGHT_BLUE_COLOR, buf);
+}
+
+void drawFontSizedPlayerIconWithText(CharacterType charType, const char* text) {
+	GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(charType), ImGui::GetFontSize());
+	drawGGIcon(scaledIcon);
+	AddTooltip(characterNamesFull[charType]);
+	ImGui::SameLine();
+	ImGui::TextUnformatted(text);
 }
 
 bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart) {
@@ -12628,6 +13022,111 @@ void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, c
 	}
 }
 
+static void drawTextButParenthesesInGrayColor(const char* str) {
+	
+	struct StyleVarPopper {
+		~StyleVarPopper() {
+			ImGui::PopStyleVar();
+		}
+	} styleVarPopper;
+	
+	static const ImVec2 twoZeros { 0.F, 0.F };
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, twoZeros);
+	
+	const float wrapWidth = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+	const char* const strEnd = str + strlen(str);
+	const char* newlinePtr = (const char*)memchr(str, '\n', strEnd - str);
+	if (!newlinePtr) newlinePtr = strEnd;
+	const char* bracePtr = (const char*)memchr(str, '(', strEnd - str);
+	if (!bracePtr) bracePtr = strEnd;
+	const char* ptr;
+	bool lastWasBrace = false;
+	
+	// the reason we don't use ImGui::TextUnformatted() to render a text that could potentially wrap into multiple lines,
+	// is because when doing ImGui::SameLine() from it afterwards, it would go to the right of its whole bounding box,
+	// and not to the right from the last character of its last line.
+	// We really do have to render text line-by-line
+	// When I first started attacking this problem, when writing the drawOneLineOnCurrentLineAndTheRestBelow function,
+	// I tried to hack around ImGui and get the position of the last vertex in the draw list. But text may not get rendered
+	// due to scrolling, as clipping is performed in ImGui very early on. So hacking around ImGui is not the solution
+	
+	while (str < strEnd) {
+		if (newlinePtr < str) {
+			newlinePtr = (const char*)memchr(str, '\n', strEnd - str);
+			if (!newlinePtr) newlinePtr = strEnd;
+		}
+		if (bracePtr < str) {
+			bracePtr = (const char*)memchr(str, '(', strEnd - str);
+			if (!bracePtr) bracePtr = strEnd;
+		}
+		if (bracePtr == strEnd) {
+			ImGui::PopStyleVar();
+			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+			ImGui::TextUnformatted(str);
+			return;
+		}
+		
+		if (newlinePtr < bracePtr) {
+			if (lastWasBrace) {
+				drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth,
+					str, newlinePtr, true, true, false);
+			} else {
+				ImGui::TextUnformatted(str, newlinePtr);
+			}
+			ptr = newlinePtr + 1;
+			while (ptr < strEnd && *ptr <= 32) ++ptr;
+			str = ptr;
+			lastWasBrace = false;
+			continue;
+		}
+		
+		const char* closeBracePtr;
+		if (bracePtr + 1 < strEnd) {
+			closeBracePtr = (const char*)memchr(bracePtr + 1, ')', strEnd - (bracePtr + 1));
+		} else {
+			closeBracePtr = nullptr;
+		}
+		
+		bool insertLineBreak = false;
+		const char* strNext;
+		bool isLastLine;
+		if (!closeBracePtr) {
+			ptr = strEnd;
+			isLastLine = true;
+			strNext = strEnd;
+		} else {
+			ptr = closeBracePtr + 1;
+			strNext = ptr;
+			while (ptr < strEnd && *ptr <= 32) {
+				if (*ptr == '\n') {
+					insertLineBreak = true;
+					strNext = ptr + 1;
+				}
+				++ptr;
+			}
+			isLastLine = ptr >= strEnd;
+		}
+		
+		const char* textPortionEnd = closeBracePtr ? closeBracePtr + 1 : strEnd;
+		if (bracePtr > str) {
+			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth,
+				str, bracePtr, lastWasBrace, true, false);
+			lastWasBrace = true;
+		}
+		if (isLastLine) {
+			ImGui::PopStyleVar();
+			ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
+		}
+		ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+		drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth,
+			bracePtr, textPortionEnd, lastWasBrace, true, isLastLine);
+		ImGui::PopStyleColor();
+		
+		lastWasBrace = !insertLineBreak;
+		str = strNext;
+	}
+}
+
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame) {
 	char* buf = strbuf;
 	size_t bufSize = sizeof strbuf;
@@ -15280,7 +15779,14 @@ void UI::drawFramebars() {
 								tint);
 						}
 						
-						if (hasDigit && (drewTopMarker >= 2 || drewBottomMarker >= 2)) {
+						if (hasDigit && (drewTopMarker >= 2 || drewBottomMarker >= 2)
+								&& !(
+									(
+										isPlayer
+											? frameIsRed(playerFrame.type)
+											: frameIsRed(projectileFrame.type)
+									) && drewTopMarker >= 2
+								)) {
 							drawDigit(queuedFramebar.hasDigit[visualInd] - 1, dims,
 								queuedFramebar.frameNumberYTop, queuedFramebar.frameNumberYBottom,
 								digitTints[visualInd > drawFramebars_framebarPositionDisplay],
@@ -16517,4 +17023,25 @@ static void initializeLettersHelper(bool* array, const std::initializer_list<cha
 void initializeLetters(bool* letters, bool* lettersStandalone) {
 	initializeLettersHelper(letters, { 'a', 'o', 'e', 'i' });
 	initializeLettersHelper(lettersStandalone, { 's', 'h', 'x', 'r', 'f', 'l', 'm' });
+}
+
+void printReflectableProjectilesList() {
+	yellowText("Reflectable Projectiles (Rev2)");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_SOL, "Gunflame");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_KY, "Stun Edge (not reinforced)");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_KY, "CSE (not reinforced)");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_MAY, "Beach Ball");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_MILLIA, "Tandem Top");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_VENOM, "Ball (but not Bishop Runout or Red Hail)");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_INO, "HCL");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_INO, "HCL (Follow-up)");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_INO, "VCL");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_INO, "Antidepressant Scale");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_RAMLETHAL, "Cassius");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_LEO, "Graviert Wurde");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_JACKO, "Magician Attack");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_JACKO, "j.D");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_HAEHYUN, "Tuning Ball");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_RAVEN, "Needle");
+	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_BAIKEN, "Yasha Gatana");
 }

@@ -405,6 +405,12 @@ private:
 	bool showPotCanFlick[2] { false, false };
 	bool showPotCantFlick[2] { false, false };
 	bool showPotCantFlickIncludeSupers[2] { false, false };
+	bool showFaustCanFlick[2] { false, false };
+	bool showFaustCantFlick[2] { false, false };
+	bool showFaustCantFlickIncludeSupers[2] { false, false };
+	bool showZatoReflectableProjectiles[2] { false, false };
+	bool showLeoReflectableProjectiles[2] { false, false };
+	bool showDizzyReflectableProjectiles[2] { false, false };
 };
 
 extern UI ui;

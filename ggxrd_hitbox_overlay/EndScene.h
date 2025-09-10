@@ -49,6 +49,7 @@ using hitDetection_t = BOOL(__thiscall*)(void* attacker, void* defender, HitboxT
 using checkFirePerFrameUponsWrapper_t = void(__thiscall*)(void* ent);
 using Pawn_ArcadeMode_IsBoss_t = BOOL(__thiscall*)(void* pawn);
 using isSignVer1_10OrHigher_t = BOOL(__cdecl*)(void);
+using multiplySpeedX_t = void(__thiscall*)(void* ent, int percentage);
 
 struct FVector2D {
 	float X;
@@ -227,6 +228,7 @@ class EndScene
 public:
 	bool onDllMain();
 	bool onDllDetach();
+	bool sigscanAfterHitDetector();
 	LRESULT WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void logic();
 	void onAswEngineDestroyed();
@@ -350,6 +352,7 @@ public:
 	bool onPlayerIsBossChanged();
 	isSignVer1_10OrHigher_t isSignVer1_10OrHigher = nullptr;
 	BOOL clashHitDetectionCallHook(Entity attacker, Entity defender, HitboxType hitboxIndex, HitboxType defenderHitboxIndex, int* intersectionXPtr, int* intersectionYPtr);
+	void activeFrameHitReflectMultiplySpeedXHook(Entity attacker, Entity defender, int percentage);
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -697,6 +700,7 @@ private:
 	bool elpheltJDExists(PlayerInfo& player);
 	void fillInJackoInfo(PlayerInfo& player, PlayerFrame& frame);
 	void fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame);
+	multiplySpeedX_t multiplySpeedX = nullptr;
 };
 
 extern EndScene endScene;

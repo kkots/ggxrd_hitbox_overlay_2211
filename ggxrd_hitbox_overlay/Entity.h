@@ -1766,6 +1766,9 @@ public:
 	
 	float attackY() const { return *(float*)(ent + 0x9c8); }
 	
+	int purpleHealthTimer() const { return *(int*)(ent + 0x2ce6c); }
+	int purpleHealth() const { return *(int*)(ent + 0x2ce68); }
+	
 	inline char* operator+(int offset) const { return (char*)(ent + offset); }
 	inline char* operator+(DWORD offset) const { return (char*)(ent + offset); }
 

@@ -75,6 +75,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!endScene.onDllMain()) terminate
 		if (!hitDetector.onDllMain()) terminate
 		if (!game.sigscanAfterHitDetector()) terminate
+		if (!endScene.sigscanAfterHitDetector()) terminate
 		if (!graphics.onDllMain(hModule)) terminate
 		if (!altModes.onDllMain()) terminate
 		if (!throws.onDllMain()) terminate

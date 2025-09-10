@@ -65,6 +65,8 @@ extern "C" void __fastcall jumpInstallNormalJumpHook(void* pawn);  // defined he
 extern "C" DWORD restoreAirDash = 0;  // for use by jumpInstallSuperJumpHookAsm
 extern "C" void jumpInstallSuperJumpHookAsm(void* pawn);  // defined in asmhooks.asm
 extern "C" void __fastcall jumpInstallSuperJumpHook(void* pawn);  // defined here
+extern "C" void activeFrameHitReflectHookAsm(void* ent, int percentage);  // defined in asmhooks.asm
+extern "C" void __cdecl activeFrameHitReflectHook(void* attacker, void* defender, int percentage);  // defined here
 
 static inline bool isDizzyBubble(const char* name) {
 	return (*(DWORD*)name & 0xffffff) == ('A' | ('w'<<8) | ('a'<<16))
@@ -816,6 +818,23 @@ bool EndScene::onDllMain() {
 	}
 	
 	return !error;
+}
+
+bool EndScene::sigscanAfterHitDetector() {
+	if (!hitDetector.activeFrameHit) return true;
+	uintptr_t activeFrameHitReflect = sigscanForward((uintptr_t)hitDetector.activeFrameHit,
+		// ghidra sig: 89 93 48 02 00 00 e8 ?? ?? ?? ?? 8b 83 ac 26 00 00 85 c0 75
+		"89 93 48 02 00 00 >e8 ?? ?? ?? ?? 8b 83 ac 26 00 00 85 c0 75",
+		0x300);
+	if (activeFrameHitReflect) {
+		multiplySpeedX = (multiplySpeedX_t)followRelativeCall(activeFrameHitReflect);
+		std::vector<char> newBytes(4);
+		int offset = calculateRelativeCallOffset(activeFrameHitReflect, (uintptr_t)activeFrameHitReflectHookAsm);
+		memcpy(newBytes.data(), &offset, 4);
+		detouring.patchPlace(activeFrameHitReflect + 1, newBytes);
+	}
+	
+	return true;
 }
 
 void EndScene::onDllDetachPiece() {
@@ -12144,4 +12163,27 @@ BOOL EndScene::clashHitDetectionCallHook(Entity attacker, Entity defender, Hitbo
 		}
 	}
 	return result;
+}
+
+void __cdecl activeFrameHitReflectHook(void* attacker, void* defender, int percentage) {
+	endScene.activeFrameHitReflectMultiplySpeedXHook(Entity{attacker}, Entity{defender}, percentage);
+}
+
+void EndScene::activeFrameHitReflectMultiplySpeedXHook(Entity attacker, Entity defender, int percentage) {
+	if (!attacker.isPawn()) {
+		onProjectileHit(attacker);
+	}
+	if (defender.isPawn()) {
+		PlayerInfo& player = findPlayer(defender);
+		if (player.pawn) {
+			player.gotHitOnThisFrame = true;
+		}
+	} else {
+		ProjectileInfo& defenderProjectile = findProjectile(defender);
+		if (defenderProjectile.ptr) {
+			defenderProjectile.fill(defender, getSuperflashInstigator(), false);
+			defenderProjectile.gotHitOnThisFrame = true;
+		}
+	}
+	multiplySpeedX((void*)attacker.ent, percentage);
 }

@@ -24,6 +24,9 @@ extern _restoreAirDash:dword
 ; Returns FALSE if you need to jump over and TRUE if you should execute the wins-drawing code
 extrn _drawWinsHook:proc
 
+; a cdecl with 3 args
+extrn _activeFrameHitReflectHook:proc
+
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
 ; Runs on the main thread
 _drawQuadExecHookAsm proc
@@ -94,5 +97,16 @@ _drawWinsHookAsm proc
 	RET
 	; EAX preserved, we return what _drawWinsHook returned
 _drawWinsHookAsm endp
+
+; thiscall with one stack arg
+; Runs on the main thread
+_activeFrameHitReflectHookAsm proc
+  push dword ptr[esp+4]
+  push edi
+  push ebx
+  call _activeFrameHitReflectHook
+  add esp,0Ch
+  ret 4
+_activeFrameHitReflectHookAsm endp
 
 end

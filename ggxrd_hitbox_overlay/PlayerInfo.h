@@ -645,6 +645,14 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		default:                                    return FT_NONE;
 	}
 }
+inline bool frameIsRed(FrameType type) {
+	return type == FT_ACTIVE
+		|| type == FT_ACTIVE_PROJECTILE
+		|| FT_EDDIE_ACTIVE
+		|| FT_ACTIVE_NEW_HIT
+		|| FT_ACTIVE_NEW_HIT_PROJECTILE
+		|| FT_EDDIE_ACTIVE_NEW_HIT;
+}
 
 struct FrameStopInfo {
 	unsigned short value:12;  // hitstun, blockstun or hitstop

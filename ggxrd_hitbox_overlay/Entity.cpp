@@ -466,6 +466,7 @@ void EntityManager::calculateHitstunProration(
 	}
 }
 
+// risc is [-12800;+12800]
 int EntityManager::calculateComboProration(int risc, AttackType attackType) {
 	risc = risc / 100;
 	if (risc >= 0) return 256;
