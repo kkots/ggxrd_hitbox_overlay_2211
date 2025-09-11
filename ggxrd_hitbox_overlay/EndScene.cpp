@@ -1920,6 +1920,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.changedAnimOnThisFrame
 					&& !(player.cmnActIndex == CmnActJump && !player.canFaultlessDefense)) {
 				player.sinHunger = false;
+				player.charge.current = 0;
+				player.charge.max = 0;
 				player.wokeUp = prevFrameWakeupTiming && !player.wakeupTiming && idleNext;
 				if (!player.move.preservesNewSection) {
 					player.inNewMoveSection = false;
@@ -2414,6 +2416,22 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.lastPerformedMoveNameIsInComboRecipe = true;
 				}
 				
+			}
+			
+			if (player.moveNonEmpty && player.move.charge) {
+				ChargeData charge;
+				player.move.charge(player, &charge);
+				if (charge.current && charge.max) {
+					player.charge = charge;
+				}
+			}
+			if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()
+					&& player.charge.current && player.charge.max) {
+				ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
+				if (lastElem) {
+					lastElem->charge = player.charge.current;
+					lastElem->maxCharge = player.charge.max;
+				}
 			}
 			
 			if (player.cmnActIndex == CmnActJumpPre && !player.performingBDC) {
@@ -6881,7 +6899,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.xStunDisplay = PlayerInfo::XSTUN_DISPLAY_WALLSLUMP_LAND;
 			}
 			player.prevGettingHitBySuper = player.gettingHitBySuper;
-			player.prevFrameStunValue = player.pawn.dealtAttack()->stun;
 			player.prevFrameMem45 = player.pawn.mem45();
 			player.prevFrameMem46 = player.pawn.mem46();
 			player.prevFrameGroundHitEffect = player.pawn.groundHitEffect();

@@ -16,6 +16,9 @@ const NamePair emptyNamePair { "", nullptr };
 static const CharacterType GENERAL = (CharacterType)-1;
 static std::vector<MoveInfoProperty> allProperties;
 bool charDoesNotCareAboutSuperJumpInstalls[25] { false };
+static char strbuf[1024];
+#define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
+static int blockstuns[] { 9, 11, 13, 16, 18, 20 };
 
 const GhostState ghostStateNames[ghostStateNamesCount] {
 	"Appear",
@@ -473,6 +476,8 @@ static const char* powerup_putGhost(PlayerInfo& ent);
 static const char* powerup_returnGhost(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
+
+static void charge_may6P(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -2466,6 +2471,7 @@ void Moves::addMoves() {
 	move.sectionSeparator = sectionSeparator_may6P;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
 	move.powerup = powerup_may6P;
+	move.charge = charge_may6P;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_MAY, "NmlAtk6D");
@@ -8356,6 +8362,7 @@ void Moves::onAswEngineDestroyed() {
 	dizzyAwaK = 0;
 	faustItemToss = 0;
 	faustPogoItemToss = 0;
+	may6PElements.clear();
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -9201,23 +9208,33 @@ const NamePair* displayNameSelector_RC(PlayerInfo& ent) {
 			: assignName("Red Roman Cancel", "RRC");
 }
 const NamePair* displayNameSelector_may6P(PlayerInfo& ent) {
-	struct May6PElement {
-		const NamePair* name;
-		int stun;
-	};
-	static const May6PElement ar[] {
-		{ assignName("6P"), 88 },
-		{ assignName("6P (Lvl1)"), 110 },
-		{ assignName("6P (Lvl2)"), 121 },
-		{ assignName("6P (Lvl3)"), 132 },
-		{ assignName("6P Max"), 143 }
-	};
-	for (int i = 0; i < _countof(ar); ++i) {
-		if (ent.pawn.dealtAttack()->stun == ar[i].stun) {
-			return ar[i].name;
+	Entity pawn = ent.pawn;
+	const AttackData* dealtAttack = pawn.dealtAttack();
+	
+	BYTE* func = pawn.bbscrCurrentFunc();
+	moves.fillMay6PElements(func);
+	
+	Moves::May6PAttackData attackData;
+	attackData.stun = dealtAttack->stun;
+	attackData.blockstun = dealtAttack->blockstun == INT_MAX ? blockstuns[dealtAttack->level] : dealtAttack->blockstun;
+	attackData.pushback = dealtAttack->pushbackModifier;
+	attackData.wallstick = pawn.inflictedWallstick();
+	
+	if (!moves.may6PElements.empty()) {
+		int offset = pawn.bbscrCurrentInstr() - func;
+		if (offset >= moves.may6PElements.front().offset) {
+			for (const Moves::May6PElement& elem : moves.may6PElements) {
+				if (elem.attackData.stun == attackData.stun
+						&& elem.attackData.blockstun == attackData.blockstun
+						&& elem.attackData.pushback == attackData.pushback
+						&& elem.attackData.wallstick == attackData.wallstick) {
+					return &elem.name;
+				}
+			}
 		}
 	}
-	return ar[0].name;
+	
+	return assignName("6P");
 }
 const NamePair* displayNameSelector_may6H(PlayerInfo& ent) {
 	if (strcmp(ent.pawn.gotoLabelRequests(), "6DHoldAttack") == 0) {
@@ -10984,17 +11001,18 @@ const CreatedProjectileStruct* createdProjectile_qv(PlayerInfo& ent) {
 }
 
 const char* powerup_may6P(PlayerInfo& player) {
-	int stun = player.pawn.dealtAttack()->stun;
-	if (stun > player.prevFrameStunValue) {
-		if (stun == 110) {
-			return "Base Stun Value increased from 88 to 110. Blockstun increased from 16 to 23. Pushback modifier increased from 100% to 125%.";
-		} else if (stun == 121) {
-			return "Base Stun Value increased from 110 to 121. Blockstun increased from 23 to 26. Pushback modifier increased from 125% to 150%.";
-		} else if (stun == 132) {
-			return "Base Stun Value increased from 121 to 132. Blockstun increased from 26 to 30. Pushback modifier increased from 150% to 175%.";
-		} else if (stun == 143) {
-			return "Base Stun Value increased from 132 to 143. Blockstun increased from 30 to 34. Pushback modifier increased from 175% to 200%."
-				" Gives wallstick in the corner.";
+	Entity pawn = player.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	moves.fillMay6PElements(func);
+	
+	int offset = pawn.bbscrCurrentInstr() - func;
+	
+	for (const Moves::May6PElement& elem : moves.may6PElements) {
+		if (offset == elem.offset) {
+			if (pawn.justReachedSprite() && !elem.powerupExplanation.empty()) {
+				return elem.powerupExplanation.data();
+			}
+			break;
 		}
 	}
 	return nullptr;
@@ -12302,6 +12320,170 @@ void Moves::fillSinEatMeatPowerup(BYTE* funcStart, int* storage) {
 		} else if (type == instr_sprite && encounteredPowerup) {
 			*storage = instr - funcStart;
 			return;
+		}
+	}
+}
+
+void charge_may6P(PlayerInfo& ent, ChargeData* result) {
+	
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	moves.fillMay6PElements(func);
+	int offset = pawn.bbscrCurrentInstr() - func;
+	for (const Moves::May6PElement& elem : moves.may6PElements) {
+		if (offset == elem.offset) {
+			int frame = pawn.spriteFrameCounter();
+			result->current = elem.charge + frame + 1;
+			if (frame == 0 && elem.charge) {
+				result->max = elem.charge + 1;
+			} else {
+				result->max = elem.maxCharge;
+			}
+			return;
+		}
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+
+void Moves::fillMay6PElements(BYTE* func) {
+	if (!may6PElements.empty()) return;
+	May6PElement preparedElement;
+	preparedElement.attackData.blockstun = 0;
+	preparedElement.attackData.pushback = 0;
+	preparedElement.attackData.wallstick = INT_MAX;
+	bool startedHolding = false;
+	bool startedAttack = false;
+	bool preparedElementReady = false;
+	int charge = 0;
+	int nextCharge = 0;
+	int keyElementCount = 0;
+	int lastKeyElementIndex = -1;
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
+		if (type == instr_setMarker) {
+			if (strcmp(asInstr(instr, setMarker)->name, "6AHold") == 0) {
+				if (may6PElements.empty()) return;
+				startedHolding = true;
+			} else if (strcmp(asInstr(instr, setMarker)->name, "6AHoldAttack") == 0) {
+				startedAttack = true;
+			}
+		} else if (type == instr_stunValue) {
+			preparedElement.attackData.stun = asInstr(instr, stunValue)->amount;
+			preparedElementReady = true;
+		} else if (type == instr_blockstunAmount) {
+			preparedElement.attackData.blockstun = asInstr(instr, blockstunAmount)->amount;
+			preparedElementReady = true;
+		} else if (type == instr_hitPushbackX) {
+			preparedElement.attackData.pushback = asInstr(instr, hitPushbackX)->amount;
+			preparedElementReady = true;
+		} else if (type == instr_wallstickDuration) {
+			preparedElement.attackData.wallstick = asInstr(instr, wallstickDuration)->amount;
+			preparedElementReady = true;
+		} else if (type == instr_attackLevel) {
+			if (!preparedElement.attackData.blockstun) {
+				preparedElement.attackData.blockstun = blockstuns[asInstr(instr, attackLevel)->amount];
+			}
+			if (!preparedElement.attackData.pushback) {
+				preparedElement.attackData.pushback = 100;
+			}
+			preparedElementReady = true;
+		} else if (type == instr_sprite) {
+			if (preparedElementReady) {
+				may6PElements.push_back(preparedElement);
+				May6PElement& newElement = may6PElements.back();
+				newElement.offset = instr - func;
+				newElement.charge = charge;
+				newElement.keyElement = true;
+				++keyElementCount;
+				
+				sprintf_s(newElement.nameData, "6P (Lv%d)", keyElementCount);
+				if (lastKeyElementIndex != -1) {
+					const May6PElement& prevElement = may6PElements[lastKeyElementIndex];
+					char* buf = strbuf;
+					size_t bufSize = sizeof strbuf;
+					bool isFirst = true;
+					int result;
+					int totalSize = 0;
+					#define appendString(fmt, ...) \
+						if (!isFirst && bufSize > 1) { \
+							buf[0] = ' '; \
+							buf[1] = '\0'; \
+							++buf; \
+							--bufSize; \
+							++totalSize; \
+						} \
+						isFirst = false; \
+						result = sprintf_s(buf, bufSize, fmt, __VA_ARGS__); \
+						if (result != -1) totalSize += result; \
+						advanceBuf
+					if (prevElement.attackData.stun != newElement.attackData.stun) {
+						appendString("Base Stun increased from %d to %d.", prevElement.attackData.stun, newElement.attackData.stun)
+					}
+					if (prevElement.attackData.blockstun != newElement.attackData.blockstun) {
+						appendString("Blockstun increased from %d to %d.", prevElement.attackData.blockstun, newElement.attackData.blockstun)
+					}
+					if (prevElement.attackData.pushback != newElement.attackData.pushback) {
+						appendString("Pushback modifier increased from %d%c to %d%c.", prevElement.attackData.pushback, '%',
+							newElement.attackData.pushback, '%')
+					}
+					if (!prevElement.attackData.wallstick && newElement.attackData.wallstick) {
+						appendString("Gives wallstick in the corner.")
+					}
+					newElement.powerupExplanation.resize(totalSize + 1);
+					memcpy(newElement.powerupExplanation.data(), strbuf, totalSize + 1);
+					
+					int newCharge = charge + 1;
+					May6PElement* ptr = may6PElements.data() + (may6PElements.size() - 2);
+					int counter = (int)may6PElements.size() - 2;
+					do {
+						ptr->maxCharge = newCharge;
+						
+						if (ptr->keyElement) break;
+						--ptr;
+						--counter;
+					} while (counter >= 0);
+				}
+				
+				lastKeyElementIndex = (int)may6PElements.size() - 1;
+				
+			} else if (startedHolding) {
+				may6PElements.emplace_back();
+				May6PElement& newElement = may6PElements.back();
+				newElement.offset = instr - func;
+				newElement.charge = charge;
+				newElement.keyElement = false;
+				newElement.attackData = preparedElement.attackData;
+				strcpy(newElement.nameData, "6P (Lv1)");
+			}
+			if (startedHolding) {
+				charge = nextCharge;
+				nextCharge += asInstr(instr, sprite)->duration;
+			}
+			preparedElementReady = false;
+			if (startedAttack) {
+				if (may6PElements.size() >= 2) {
+					may6PElements.erase(may6PElements.begin(), may6PElements.begin() + 2);
+				}
+				if (!may6PElements.empty()) {
+					if (may6PElements.size() > 2) {
+						May6PElement& lastElem = may6PElements.back();
+						strcpy(lastElem.nameData, "6P Max");
+						lastElem.maxCharge = may6PElements[may6PElements.size() - 2].maxCharge;
+					}
+					const char* lastNonEmptyName = nullptr;
+					for (May6PElement& elem : may6PElements) {
+						bool isEmpty = elem.nameData[0] == '\0';
+						if (!isEmpty) {
+							lastNonEmptyName = elem.nameData;
+						}
+						elem.name.name = lastNonEmptyName;
+						elem.name.slang = nullptr;
+					}
+				}
+				return;
+			}
 		}
 	}
 }

@@ -1506,6 +1506,8 @@ struct ComboRecipeElement {
 	int framebarId = 0;  // for projectiles
 	int cancelDelayedBy = 0;
 	int hitCount = 0;
+	unsigned char charge = 0;
+	unsigned char maxCharge = 0;
 	bool whiffed:1;
 	bool counterhit:1;
 	bool otg:1;
@@ -1796,7 +1798,6 @@ struct PlayerInfo {
 	int dustProration2 = 0;
 	int comboProrationNormal = 0;
 	int comboProrationOverdrive = 0;
-	int prevFrameStunValue = 0;
 	int prevFrameMem45 = 0;
 	int prevFrameMem46 = 0;
 	int prevFrameGroundHitEffect = 0;
@@ -1900,6 +1901,7 @@ struct PlayerInfo {
 	int counterGuardAirMoveIndex = -1;
 	int counterGuardStandMoveIndex = -1;
 	int counterGuardCrouchMoveIndex = -1;
+	ChargeData charge { 0, 0 };
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;

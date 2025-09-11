@@ -83,6 +83,11 @@ inline const CreatedProjectileStruct* getCreatedProjectile(const NamePair* name)
 
 extern const NamePair emptyNamePair;
 
+struct ChargeData {
+	int current;
+	int max;
+};
+
 using sectionSeparator_t = bool(*)(PlayerInfo& ent);
 using sectionSeparatorProjectile_t = bool(*)(Entity ent);
 using isIdle_t = bool(*)(PlayerInfo& ent);
@@ -93,6 +98,7 @@ using selectDisplayName_t = const NamePair*(*)(PlayerInfo& ent);
 using selectPowerupExplanation_t = const char*(*)(PlayerInfo& ent);
 using createdProjectile_t = const CreatedProjectileStruct*(*)(PlayerInfo& ent);  // the returned value under the pointer must be used immediately! Don't store the pointer!
 using projectileFunc_t = bool(*)(ProjectileInfo& projectile);
+using chargeFunc_t = void(*)(PlayerInfo& ent, ChargeData* result);
 
 enum GroundBlitzType {
 	BLITZTYPE_TAP,
@@ -151,6 +157,7 @@ struct MoveInfoProperty {
 		zatoHoldLevel_t zatoHoldLevelValue;
 		projectileFunc_t projectileFuncValue;
 		const NamePair* namePairValue;
+		chargeFunc_t chargeFuncValue;
 	} u;
 };
 
@@ -228,6 +235,7 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
 	/* the returned value under the pointer must be used immediately! Don't store the pointer! */ \
 	MOVE_INFO_EXEC(createdProjectile_t, createdProjectileValue, createdProjectile, nullptr) \
+	/* do not use the returned string after the match is over */ \
 	MOVE_INFO_EXEC(selectPowerupExplanation_t, selectPowerupExplanationValue, powerup, nullptr) \
 	MOVE_INFO_EXEC(projectileFunc_t, projectileFuncValue, projectilePowerup, nullptr) \
 	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
@@ -239,10 +247,11 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(bool, boolValue, combineHitsFromDifferentProjectiles, false) \
 	MOVE_INFO_EXEC(bool, boolValue, showMultipleHitsFromOneAttack, false) \
 	/* there is no way to route from this move into a jump cancel, so we should ignore if it's jump installed. */ \
-	/* A Roman Cancel would return you to neutral so there's no way to use jump installs done prior to it. */ \
+	/* A ground Roman Cancel would return you to neutral so there's no way to use jump installs done prior to it. */ \
 	/* This means that even if you RC this move, we should still ignore jump installs on it. */ \
 	MOVE_INFO_EXEC(bool, boolValue, ignoreJumpInstalls, false) \
-	MOVE_INFO_EXEC(bool, boolValue, ignoreSuperJumpInstalls, false)
+	MOVE_INFO_EXEC(bool, boolValue, ignoreSuperJumpInstalls, false) \
+	MOVE_INFO_EXEC(chargeFunc_t, chargeFuncValue, charge, nullptr)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -282,6 +291,8 @@ public:
 	static BYTE* findSprite(BYTE* in, const char* name);
 	static inline BYTE* findSpriteNull(BYTE* in) { return findSprite(in, "null"); }
 	static BYTE* findSpriteNonNull(BYTE* in);
+	bool justCountingMoves = false;
+	int propertiesCount = 0;
 	int armorDanceEndOffset = 0;  // in number of bytes
 	int armorDance2EndOffset = 0;
 	int saishingeki_SaishintuikaOffset = 0;
@@ -543,8 +554,24 @@ public:
 	int dizzyAwaK = 0;
 	int faustItemToss = 0;
 	int faustPogoItemToss = 0;
-	bool justCountingMoves = false;
-	int propertiesCount = 0;
+	struct May6PAttackData {
+		int stun;
+		int blockstun;
+		int pushback;
+		int wallstick;
+	};
+	struct May6PElement {
+		int offset;
+		May6PAttackData attackData;
+		char nameData[16];
+		NamePair name;
+		std::vector<char> powerupExplanation;
+		int charge;
+		int maxCharge;
+		bool keyElement;
+	};
+	std::vector<May6PElement> may6PElements;
+	void fillMay6PElements(BYTE* func);
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;

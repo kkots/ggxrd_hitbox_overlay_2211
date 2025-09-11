@@ -822,6 +822,13 @@ settingsField(bool, comboRecipe_showNumberOfHits, true,
 	"; Setting this to true will make the Combo Recipe panel display the number of hits in parentheses, like so: 2H(2);\n"
 	"; This would mean that 2H hit twice.")
 	
+settingsField(bool, comboRecipe_showCharge, true,
+	"Show Charge", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true will make the Combo Recipe panel display the charge out of max charge of chargeable moves in\n"
+	"; parentheses, like so: 6P (Held: 2/99f);\n"
+	"; This would mean that you have advanced 2 frames out of the required 99 to reach the next level of charge.")
+	
 settingsField(bool, comboRecipe_transparentBackground, false,
 	"Transparent Background", SETTINGS_COMBO_RECIPE,
 	"; Specify true or false.\n"

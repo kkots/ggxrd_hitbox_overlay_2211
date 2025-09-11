@@ -649,7 +649,7 @@ struct AttackData {
 	int extraHitstops[3];  // [2] is extra CH hitstop
 	int hitstop;
 	int attackLockWaitTime;
-	int receivedAtkLvlBlockstun;
+	int blockstun;
 	int blockstunAirExtra;
 	int throwMaxX;
 	int throwMaxY;
@@ -1241,7 +1241,12 @@ enum InstrType {
 	instr_createParticleWithArg = 449,
 	instr_linkParticle = 450,
 	instr_setLinkObjectDestroyOnStateChange = 457,
+	instr_attackLevel = 711,
 	instr_hitAirPushbackX = 754,
+	instr_wallstickDuration = 898,
+	instr_blockstunAmount = 1023,
+	instr_stunValue = 1096,
+	instr_hitPushbackX = 1102,
 	instr_deleteMoveForceDisableFlag = 1603,
 	instr_whiffCancelOptionBufferTime = 1630,
 	instr_sendSignal = 1766,
@@ -1363,6 +1368,31 @@ struct BBScrInstr_requestDestroy {
 struct BBScrInstr_deactivateObj {
 	InstrType type;
 	EntityReferenceType entity;
+};
+
+struct BBScrInstr_stunValue {
+	InstrType type;
+	int amount;
+};
+
+struct BBScrInstr_wallstickDuration {
+	InstrType type;
+	int amount;
+};
+
+struct BBScrInstr_blockstunAmount {
+	InstrType type;
+	int amount;
+};
+
+struct BBScrInstr_hitPushbackX {
+	InstrType type;
+	int amount;
+};
+
+struct BBScrInstr_attackLevel {
+	InstrType type;
+	int amount;
 };
 
 #define asInstr(instr, bbscrInstrName) ((BBScrInstr_##bbscrInstrName*)instr)
@@ -1735,6 +1765,7 @@ public:
 	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
 	inline int knockdown() const { return *(int*)(ent + 0x964); }  // received knockdown duration maximum, does not decrement over time
 	inline int wallstick() const { return *(int*)(ent + 0x970); }  // received wallstick duration maximum, does not decrement over time
+	inline int inflictedWallstick() const { return *(int*)(ent + 0x6ac); }  // inflicted wallstick duration
 	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
 	inline int airDashMinimumHeight() const { return *(int*)(ent + 0x9864); }
 	inline int framesSinceRegisteringForTheIdlingSignal() const { return *(int*)(ent + 0x140); }  // unfortunately, this value is +1 at the end of the tick more than what it was during an idling event. Luckily, you can just -1 from it before using

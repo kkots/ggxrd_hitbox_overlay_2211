@@ -8061,6 +8061,7 @@ void UI::drawSearchableWindows() {
 				booleanSettingPreset(settings.comboRecipe_showWalks);
 				booleanSettingPreset(settings.comboRecipe_showSuperJumpInstalls);
 				booleanSettingPreset(settings.comboRecipe_showNumberOfHits);
+				booleanSettingPreset(settings.comboRecipe_showCharge);
 				booleanSettingPreset(settings.comboRecipe_transparentBackground);
 				settingsPresetsUseOutlinedText = false;
 			}
@@ -8249,6 +8250,10 @@ void UI::drawSearchableWindows() {
 						advanceBuf
 						if (elem.hitCount > 1 && settings.comboRecipe_showNumberOfHits) {
 							result = sprintf_s(buf, bufSize, "(%d)", elem.hitCount);
+							advanceBuf
+						}
+						if (elem.charge && elem.maxCharge && settings.comboRecipe_showCharge) {
+							result = sprintf_s(buf, bufSize, " (Held: %d/%df)", elem.charge, elem.maxCharge);
 							advanceBuf
 						}
 						sprintf_s(buf, bufSize, "%s%s%s",
