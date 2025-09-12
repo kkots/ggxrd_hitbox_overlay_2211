@@ -1393,6 +1393,19 @@ void UI::drawSearchableWindows() {
 						CenterAlignedText("animFrame");
 					}
 				}
+				if (settings.showDebugFields) {
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "%d", player.pawn && *aswEngine ? player.pawn.animFrameStepCounter() : 0);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("frameSteps");
+						}
+					}
+				}
 				for (int i = 0; i < two; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
@@ -1480,6 +1493,17 @@ void UI::drawSearchableWindows() {
 					if (i == 0) {
 						ImGui::TableNextColumn();
 						CenterAlignedText("activesProj");
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "%d/%d", player.charge.current, player.charge.max);
+					printWithWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText("charge");
 					}
 				}
 				
@@ -3281,6 +3305,20 @@ void UI::drawSearchableWindows() {
 					}
 				}
 				if (settings.showDebugFields) {
+					for (int i = 0; i < two; ++i) {
+						ImGui::TableNextColumn();
+						if (row.side[i]) {
+							ProjectileInfo& projectile = *row.side[i];
+							sprintf_s(strbuf, "%d", projectile.ptr && *aswEngine ? projectile.ptr.animFrameStepCounter() : 0);
+							printNoWordWrap
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("Frame Steps");
+							AddTooltip("Current time spent in the current state, in frames, including frozen frames. Starts from 1 when entering a new state.");
+						}
+					}
 					for (int i = 0; i < two; ++i) {
 						ImGui::TableNextColumn();
 						if (row.side[i]) {

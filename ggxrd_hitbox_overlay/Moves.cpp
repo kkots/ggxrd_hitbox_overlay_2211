@@ -478,6 +478,8 @@ static const char* powerup_returnGhost(PlayerInfo& ent);
 static void fillMay6HOffsets(BYTE* func);
 
 static void charge_may6P(PlayerInfo& ent, ChargeData* result);
+static void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result);
+static void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -1578,6 +1580,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_standingBlitzShield;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CounterGuardCrouch");
@@ -1587,6 +1590,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_crouchingBlitzShield;
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CounterGuardAir");
@@ -12325,7 +12329,6 @@ void Moves::fillSinEatMeatPowerup(BYTE* funcStart, int* storage) {
 }
 
 void charge_may6P(PlayerInfo& ent, ChargeData* result) {
-	
 	Entity pawn = ent.pawn;
 	BYTE* func = pawn.bbscrCurrentFunc();
 	moves.fillMay6PElements(func);
@@ -12345,6 +12348,143 @@ void charge_may6P(PlayerInfo& ent, ChargeData* result) {
 	
 	result->current = 0;
 	result->max = 0;
+}
+
+static void charge_blitzShield(PlayerInfo& ent, ChargeData* result, BlitzShieldPrereqData* data) {
+	Entity pawn = ent.pawn;
+	
+	int animFrame = pawn.currentAnimDuration();
+	int frameSteps = pawn.animFrameStepCounter();
+	int skippedFrames = frameSteps - animFrame;
+	int mem45 = pawn.mem45();  // H button released
+	int mem51 = pawn.mem51();  // how long H button was held for
+	int mem51ThatWasAtTheTimeOfIdlingEvent;  // mem45 and mem51 get changed in the FRAME_STEP event handler, while they're being checked in the ANIMATION_FRAME_ADVANCED (IDLING) event handler
+	if (!mem45) {
+		mem51ThatWasAtTheTimeOfIdlingEvent = mem51 - 1;
+	} else {
+		mem51ThatWasAtTheTimeOfIdlingEvent = mem51;
+	}
+	int mx = 11 + min(2, skippedFrames);
+	
+	BYTE* func = pawn.bbscrCurrentFunc();
+	moves.fillBlitzShieldChargePrereq(func, data);
+	int offset = pawn.bbscrCurrentInstr() - func;
+	
+	if (offset >= data->end) {
+		result->current = 0;
+		result->max = 0;
+		return;
+	}
+	
+	if (animFrame < 15) {
+		result->current = min(mx, mem51);
+		result->max = mx;
+		return;
+	}
+	
+	BYTE* current = pawn.bbscrCurrentInstr();
+	
+	int howMuchSinceStartOfAttack;
+	int animFrameOnWhichGotoAttackHappened;
+	int activeFramesAddon = 0;
+	if (offset >= data->attackStart) {
+		int framesUntilHit = 0;
+		int framesPlayedSinceHit = 0;
+		BYTE* hitInstr = func + data->hitStart;
+		int timeUntilCharge;
+		if (offset >= data->hitStart) {
+			for (BYTE* instr = func + data->hitStart; instr != current; instr = moves.skipInstr(instr)) {
+				InstrType type = moves.instrType(instr);
+				if (type == instr_sprite) {
+					framesPlayedSinceHit += asInstr(instr, sprite)->duration;
+				}
+			}
+			
+			framesPlayedSinceHit = framesPlayedSinceHit + pawn.spriteFrameCounter() + 1;
+			if (framesPlayedSinceHit > 3
+					|| pawn.hitAlreadyHappened() == pawn.theValueHitAlreadyHappenedIsComparedAgainst()
+					&& !pawn.hitSomethingOnThisFrame()) {
+				result->current = 0;
+				result->max = 0;
+				return;
+			}
+			if (framesPlayedSinceHit > 1) activeFramesAddon = framesPlayedSinceHit - 1;
+			timeUntilCharge = 63 - animFrame;
+			howMuchSinceStartOfAttack = data->attackStartup + framesPlayedSinceHit;
+		} else {
+			howMuchSinceStartOfAttack = 0;
+			int lastDur = 0;
+			for (loopInstr(func + data->attackStart)) {
+				InstrType type = moves.instrType(instr);
+				if (instr == current) break;
+				if (type == instr_sprite) {
+					lastDur = asInstr(instr, sprite)->duration;
+					howMuchSinceStartOfAttack += lastDur;
+				}
+			}
+			howMuchSinceStartOfAttack = howMuchSinceStartOfAttack
+				- lastDur
+				+ pawn.spriteFrameCounter()
+				+ 1;
+			
+			lastDur = 0;
+			for (loopInstr(current)) {
+				InstrType type = moves.instrType(instr);
+				if (type == instr_hit) break;
+				if (type == instr_sprite) {
+					lastDur = asInstr(instr, sprite)->duration;
+					framesUntilHit += lastDur;
+				}
+			}
+			framesUntilHit = framesUntilHit - lastDur
+				+ (
+					pawn.spriteFrameCounterMax()
+					- pawn.spriteFrameCounter()
+					- 1
+				);
+			timeUntilCharge = 63 - (
+				animFrame
+				+ framesUntilHit
+				+ 1
+			);
+		}
+		
+		if (timeUntilCharge > activeFramesAddon) {
+			result->current = 0;
+			result->max = 0;
+			return;
+		}
+		
+		animFrameOnWhichGotoAttackHappened = animFrame - howMuchSinceStartOfAttack;
+	} else if (mem45) {
+		if (animFrame > mem51 + skippedFrames + 1) {
+			animFrameOnWhichGotoAttackHappened = animFrame;
+		} else {
+			animFrameOnWhichGotoAttackHappened = animFrame + 1;
+		}
+	} else {
+		animFrameOnWhichGotoAttackHappened = animFrame + 2;
+	}
+	
+	int chargeInAnim = animFrameOnWhichGotoAttackHappened - 16 + activeFramesAddon;
+	int currentCharge = mx + chargeInAnim;
+	if (currentCharge <= mx) {
+		result->current = mx;
+		result->max = mx;
+	} else {
+		mx = mx + 51 - 16;
+		result->current = min(mx, currentCharge);
+		result->max = mx;
+	}
+	
+}
+
+void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result) {
+	return charge_blitzShield(ent, result, &ent.standingBlitzShieldPrereqData);
+}
+
+void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result) {
+	return charge_blitzShield(ent, result, &ent.crouchingBlitzShieldPrereqData);
 }
 
 void Moves::fillMay6PElements(BYTE* func) {
@@ -12483,6 +12623,40 @@ void Moves::fillMay6PElements(BYTE* func) {
 					}
 				}
 				return;
+			}
+		}
+	}
+}
+
+void Moves::fillBlitzShieldChargePrereq(BYTE* func, BlitzShieldPrereqData* data) {
+	if (data->attackStartup) return;
+	bool inAttack = false;
+	bool foundHit = false;
+	bool hitConsumed = false;
+	int startup = 0;
+	int prevDuration = 0;
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
+		if (type == instr_setMarker) {
+			if (strcmp(asInstr(instr, setMarker)->name, "attack") == 0) {
+				inAttack = true;
+				data->attackStart = instr - func;
+			} else if (strcmp(asInstr(instr, setMarker)->name, "end") == 0) {
+				data->end = instr - func;
+				data->attackStartup = startup;
+				return;
+			}
+		} else if (type == instr_hit) {
+			if (inAttack) foundHit = true;
+		} else if (type == instr_sprite) {
+			if (foundHit) {
+				if (!hitConsumed) {
+					hitConsumed = true;
+					data->hitStart = instr - func;
+				}
+			} else if (inAttack) {
+				startup += prevDuration;
+				prevDuration = asInstr(instr, sprite)->duration;
 			}
 		}
 	}

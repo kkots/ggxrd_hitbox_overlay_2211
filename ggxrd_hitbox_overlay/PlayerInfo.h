@@ -1902,6 +1902,8 @@ struct PlayerInfo {
 	int counterGuardStandMoveIndex = -1;
 	int counterGuardCrouchMoveIndex = -1;
 	ChargeData charge { 0, 0 };
+	BlitzShieldPrereqData standingBlitzShieldPrereqData;
+	BlitzShieldPrereqData crouchingBlitzShieldPrereqData;
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;

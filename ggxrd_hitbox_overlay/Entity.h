@@ -1234,6 +1234,7 @@ enum InstrType {
 	instr_checkMoveCondition = 49,
 	instr_modifyVar = 54,
 	instr_calcDistance = 60,
+	instr_hit = 234,
 	instr_recoveryState = 235,
 	instr_ignoreDeactivate = 298,
 	instr_createObjectWithArg = 445,
@@ -1447,7 +1448,8 @@ public:
 	void pushboxDimensions(int* left, int* top, int* right, int* bottom) const;
 	
 	inline bool performingThrow() const { return (*(DWORD*)(ent + 0x23c) & 0x1000) != 0; }  // this flag appears when starting a throw or throw-like move and stays until first hit connects
-	inline unsigned int currentAnimDuration() const { return *(const unsigned int*)(ent + 0x130); }
+	inline unsigned int currentAnimDuration() const { return *(const unsigned int*)(ent + 0x130); }  // number of frames since the start of animation. Includes only non-frozen, non-hitstop and non-RC frozen frames (so only actually played sprite frames). Resets to 1 at the start of each animation
+	inline unsigned int animFrameStepCounter() const { return *(const unsigned int*)(ent + 0x13c); }  // number of FRAMESTEP_1 events since the start of animation. Includes frozen frames. Resets to 1 at the start of each animation.
 	inline const char* animationName() const { return (const char*)(ent + 0x2444); }
 	inline CmnActIndex cmnActIndex() const { return *(CmnActIndex*)(ent + 0xa01c); }
 	inline bool naguriNagurareru() const { return (*(DWORD*)(ent + 0x120) & 0x100) != 0; }
