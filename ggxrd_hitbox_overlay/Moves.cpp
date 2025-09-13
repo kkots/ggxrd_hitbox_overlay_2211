@@ -12332,15 +12332,34 @@ void charge_may6P(PlayerInfo& ent, ChargeData* result) {
 	Entity pawn = ent.pawn;
 	BYTE* func = pawn.bbscrCurrentFunc();
 	moves.fillMay6PElements(func);
+	if (moves.may6PElements.empty()) {
+		result->current = 0;
+		result->max = 0;
+		return;
+	}
+	
 	int offset = pawn.bbscrCurrentInstr() - func;
-	for (const Moves::May6PElement& elem : moves.may6PElements) {
-		if (offset == elem.offset) {
-			int frame = pawn.spriteFrameCounter();
-			result->current = elem.charge + frame + 1;
-			if (frame == 0 && elem.charge) {
-				result->max = elem.charge + 1;
+	int frame = pawn.spriteFrameCounter() + 1;
+	const Moves::May6PElement& lastElem = moves.may6PElements.back();
+	bool hasRequest = strcmp(pawn.gotoLabelRequests(), "6AHoldAttack") == 0;
+	if (offset == lastElem.offset) {
+		int currentCharge = lastElem.charge + frame;
+		result->current = currentCharge - (
+			hasRequest
+			|| currentCharge == lastElem.maxCharge + pawn.spriteFrameCounterMax()
+		);
+		result->max = lastElem.maxCharge;
+		return;
+	}
+	
+	for (const Moves::May6PElement* ptr = moves.may6PElements.data(); ptr != &lastElem; ++ptr) {
+		if (offset == ptr->offset) {
+			int currentCharge = ptr->charge + frame - hasRequest;
+			result->current = currentCharge;
+			if (currentCharge > ptr->charge) {
+				result->max = ptr->maxCharge;
 			} else {
-				result->max = elem.maxCharge;
+				result->max = ptr->charge;
 			}
 			return;
 		}
@@ -12574,7 +12593,7 @@ void Moves::fillMay6PElements(BYTE* func) {
 					newElement.powerupExplanation.resize(totalSize + 1);
 					memcpy(newElement.powerupExplanation.data(), strbuf, totalSize + 1);
 					
-					int newCharge = charge + 1;
+					int newCharge = charge;
 					May6PElement* ptr = may6PElements.data() + (may6PElements.size() - 2);
 					int counter = (int)may6PElements.size() - 2;
 					do {
