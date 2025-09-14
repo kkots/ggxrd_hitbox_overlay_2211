@@ -478,6 +478,7 @@ static const char* powerup_returnGhost(PlayerInfo& ent);
 static void fillMay6HOffsets(BYTE* func);
 
 static void charge_may6P(PlayerInfo& ent, ChargeData* result);
+static void charge_may6H(PlayerInfo& ent, ChargeData* result);
 static void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result);
 static void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result);
 
@@ -2485,6 +2486,7 @@ void Moves::addMoves() {
 	move.sectionSeparator = sectionSeparator_may6H;
 	move.isInVariableStartupSection = isInVariableStartupSection_may6Por6H;
 	move.powerup = powerup_may6H;
+	move.charge = charge_may6H;
 	addMove(move);
 	
 	// May riding horizontal Dolphin
@@ -12363,6 +12365,59 @@ void charge_may6P(PlayerInfo& ent, ChargeData* result) {
 			}
 			return;
 		}
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+
+void charge_may6H(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	fillMay6HOffsets(func);
+	BYTE* currentInstr = pawn.bbscrCurrentInstr();
+	int offset =  currentInstr - func;
+	if (offset > moves.may6H_6DHoldOffset && offset < moves.may6H_6DHoldAttackOffset) {
+		int accumulatedChargeResult = 0;
+		int charge = 0;
+		BYTE* instr;
+		
+		{
+			int prevDuration = 0;
+			int accumulatedChargeNext = 0;
+			int accumulatedCharge = 0;
+			int nextCharge = 0;
+			for (loopInstrNoRedefine(func + moves.may6H_6DHoldOffset)) {
+				InstrType type = moves.instrType(instr);
+				if (type == instr_sprite) {
+					accumulatedCharge = accumulatedChargeNext;
+					accumulatedChargeNext += prevDuration;
+					prevDuration = asInstr(instr, sprite)->duration;
+					charge = nextCharge;
+					nextCharge += prevDuration;
+				} else if (type == instr_storeValue) {
+					if (asInstr(instr, storeValue)->dest == MEM(45)
+							&& asInstr(instr, storeValue)->src == AccessedValue(BBSCRTAG_VALUE, 0)) {
+						break;
+					}
+				}
+				if (instr == currentInstr) {
+					accumulatedChargeResult = accumulatedCharge;
+				}
+			}
+		}
+		
+		int currentCharge;
+		if (currentInstr > instr) {
+			currentCharge = charge;
+		} else {
+			currentCharge = accumulatedChargeResult + pawn.spriteFrameCounter() + 1;
+		}
+		result->current = currentCharge - (
+			strcmp(pawn.gotoLabelRequests(), "6DHoldAttack") == 0
+		);
+		result->max = charge;
+		return;
 	}
 	
 	result->current = 0;
