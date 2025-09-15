@@ -2274,6 +2274,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			memcpy(player.anim, animName, 32);
 			player.setMoveName(player.moveName, ent);
+			if (player.moveNonEmpty && player.move.displayNameSelector) {
+				player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
+			}
 			
 			if (other.pawn.inHitstun() && !startedRunOrWalkOnThisFrame
 					
@@ -2421,12 +2424,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (player.moveNonEmpty && player.move.charge) {
 				ChargeData charge;
 				player.move.charge(player, &charge);
-				if (charge.current && charge.max) {
+				if (charge.current || charge.max) {
 					player.charge = charge;
 				}
 			}
 			if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()
-					&& player.charge.current && player.charge.max) {
+					&& (player.charge.current || player.charge.max)) {
 				ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
 				if (lastElem) {
 					lastElem->charge = player.charge.current;

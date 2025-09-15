@@ -227,6 +227,7 @@ static const NamePair* displayNameSelector_pogoC(PlayerInfo& ent);
 static const NamePair* displayNameSelector_pogoD(PlayerInfo& ent);
 static const NamePair* displayNameSelector_pogoE(PlayerInfo& ent);
 static const NamePair* displayNameSelector_pogo8(PlayerInfo& ent);
+static const NamePair* displayNameSelector_itemToss(PlayerInfo& ent);
 static const NamePair* displayNameSelector_RC(PlayerInfo& ent);
 static const NamePair* displayNameSelector_may6P(PlayerInfo& ent);
 static const NamePair* displayNameSelector_may6H(PlayerInfo& ent);
@@ -277,6 +278,7 @@ static const NamePair* displayNameSelector_vultureSeize(PlayerInfo& ent);
 static const NamePair* displayNameSelector_beakDriverAir(PlayerInfo& ent);
 static const NamePair* displayNameSelector_bullBash(PlayerInfo& ent);
 static const NamePair* displayNameSelector_beakDriverMash(PlayerInfo& ent);
+static const NamePair* displayNameSelector_answer6K(PlayerInfo& ent);
 
 static const char* canYrcProjectile_default(PlayerInfo& ent);
 static const char* canYrcProjectile_gunflame(PlayerInfo& ent);
@@ -481,6 +483,8 @@ static void charge_may6P(PlayerInfo& ent, ChargeData* result);
 static void charge_may6H(PlayerInfo& ent, ChargeData* result);
 static void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result);
 static void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result);
+static void charge_fdb(PlayerInfo& ent, ChargeData* result);
+static void charge_soutenB(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -1389,6 +1393,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(GENERAL, "NmlAtk6B");
 	move.displayName = assignName("6K");
+	move.displayNameSelector = displayNameSelector_answer6K;
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
@@ -2950,6 +2955,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "NanigaDerukana");
 	move.displayName = assignName("What Could This Be?", "Toss");
+	move.displayNameSelector = displayNameSelector_itemToss;
 	move.canYrcProjectile = canYrcProjectile_itemToss;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -3080,6 +3086,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_soutenBC;
 	move.faustPogo = true;
 	move.ignoreSuperJumpInstalls = true;
+	move.charge = charge_soutenB;
 	addMove(move);
 	
 	// Pogo S (ground flower)
@@ -5034,6 +5041,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_fdb;
 	move.canYrcProjectile = canYrcProjectile_fdb;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_fdb;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "FDB_obj", true);
@@ -8369,6 +8377,8 @@ void Moves::onAswEngineDestroyed() {
 	faustItemToss = 0;
 	faustPogoItemToss = 0;
 	may6PElements.clear();
+	faustFastToss = 0;
+	faustFastTossGoto = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -9206,6 +9216,37 @@ const NamePair* displayNameSelector_pogo8(PlayerInfo& ent) {
 	return ent.idle ? assignName("Spear Point Centripetal Dance Idle", "Pogo Stance")
 		: assignName("Doctor-Copter", "Pogo-8");
 }
+const NamePair* displayNameSelector_itemToss(PlayerInfo& ent) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	if (moves.faustFastToss == 0) {
+		bool encounteredGoto = false;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_setMarker) {
+				if (strcmp(asInstr(instr, setMarker)->name, "fastthrow") == 0) {
+					moves.faustFastToss = instr - func;
+					break;
+				}
+			} else if (type == instr_gotoLabelRequests) {
+				if (strcmp(asInstr(instr, gotoLabelRequests)->name, "fastthrow") == 0) {
+					encounteredGoto = true;
+				}
+			} else if (type == instr_sprite) {
+				if (encounteredGoto) {
+					encounteredGoto = false;
+					moves.faustFastTossGoto = instr - func;
+				}
+			}
+		}
+	}
+	int offset = pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.faustFastToss || offset <= moves.faustFastTossGoto) {
+		return assignName("What Could This Be?", "Toss");
+	} else {
+		return assignName("What Could This Be? (Held)", "Toss (Held)");
+	}
+}
 const NamePair* displayNameSelector_RC(PlayerInfo& ent) {
 	return ent.pawn.yellowRomanCancel()
 		? assignName("Yellow Roman Cancel", "YRC")
@@ -9673,6 +9714,19 @@ const NamePair* displayNameSelector_beakDriverMash(PlayerInfo& ent) {
 		return assignName("Hunger");
 	} else {
 		return assignName("I'm Sure I'll Hit Something", "Beak Mash");
+	}
+}
+const NamePair* displayNameSelector_answer6K(PlayerInfo& ent) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	if (moves.answerFaint == 0) {
+		moves.answerFaint = moves.findSetMarker(func, "Faint") - func;  // sic
+	}
+	int offset = pawn.bbscrCurrentInstr() - func;
+	if (offset >= moves.answerFaint) {
+		return assignName("6K Feint");
+	} else {
+		return assignName("6K");
 	}
 }
 
@@ -12423,7 +12477,6 @@ void charge_may6H(PlayerInfo& ent, ChargeData* result) {
 	result->current = 0;
 	result->max = 0;
 }
-
 static void charge_blitzShield(PlayerInfo& ent, ChargeData* result, BlitzShieldPrereqData* data) {
 	Entity pawn = ent.pawn;
 	
@@ -12431,13 +12484,7 @@ static void charge_blitzShield(PlayerInfo& ent, ChargeData* result, BlitzShieldP
 	int frameSteps = pawn.animFrameStepCounter();
 	int skippedFrames = frameSteps - animFrame;
 	int mem45 = pawn.mem45();  // H button released
-	int mem51 = pawn.mem51();  // how long H button was held for
-	int mem51ThatWasAtTheTimeOfIdlingEvent;  // mem45 and mem51 get changed in the FRAME_STEP event handler, while they're being checked in the ANIMATION_FRAME_ADVANCED (IDLING) event handler
-	if (!mem45) {
-		mem51ThatWasAtTheTimeOfIdlingEvent = mem51 - 1;
-	} else {
-		mem51ThatWasAtTheTimeOfIdlingEvent = mem51;
-	}
+	int mem51 = pawn.mem51();  // how long H button was held for, in frame steps
 	int mx = 11 + min(2, skippedFrames);
 	
 	BYTE* func = pawn.bbscrCurrentFunc();
@@ -12552,13 +12599,65 @@ static void charge_blitzShield(PlayerInfo& ent, ChargeData* result, BlitzShieldP
 	}
 	
 }
-
 void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result) {
 	return charge_blitzShield(ent, result, &ent.standingBlitzShieldPrereqData);
 }
-
 void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result) {
 	return charge_blitzShield(ent, result, &ent.crouchingBlitzShieldPrereqData);
+}
+void charge_fdb(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	BYTE* currentInstr = pawn.bbscrCurrentInstr();
+	
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		if (moves.instrType(currentInstr) == instr_groundHitEffect) {
+			result->current = 1 + pawn.spriteFrameCounter() + 1;
+			result->max = 1 + pawn.spriteFrameCounterMax();
+		} else {
+			// pawn.spriteFrameCounterMax() must equal 1
+			result->current = 1;
+			result->max = 1 + asInstr(currentInstr, sprite)->duration;
+		}
+		return;
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+void charge_soutenB(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		BYTE* firstInstr = moves.skipInstr(pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr);
+		if (moves.instrType(firstInstr) == instr_checkInput) {
+			BYTE* func = pawn.bbscrCurrentFunc();
+			BYTE* currentInstr = pawn.bbscrCurrentInstr();
+			int prevDur = 0;
+			int charge = 0;
+			int chargeMax = 0;
+			for (loopInstr(func)) {
+				InstrType type = moves.instrType(instr);
+				if (type == instr_sprite) {
+					if (instr < currentInstr) {
+						charge += prevDur;
+					}
+					chargeMax += prevDur;
+					prevDur = asInstr(instr, sprite)->duration;
+				} else if (type == instr_attackLevel) {
+					if (prevDur) {
+						break;
+					}
+				}
+			}
+			result->current = charge + pawn.spriteFrameCounter() + 1 - (
+				strcmp(pawn.gotoLabelRequests(), "open") == 0
+			);
+			result->max = chargeMax;
+			return;
+		}
+	}
+	
+	result->current = 0;
+	result->max = 0;
 }
 
 void Moves::fillMay6PElements(BYTE* func) {

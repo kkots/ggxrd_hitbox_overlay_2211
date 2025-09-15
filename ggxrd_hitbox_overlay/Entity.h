@@ -2,6 +2,7 @@
 #include "characterTypes.h"
 #include "Hitbox.h"
 #include <intrin.h>
+#include <limits.h>
 
 using getPos_t = int(__thiscall*)(const void*);
 using getPushboxCoords_t = int(__thiscall*)(const void*, int*, int*, int*, int*);
@@ -1231,6 +1232,7 @@ enum InstrType {
 	instr_deactivateObjectByName = 32,
 	instr_runOnObject = 41,
 	instr_storeValue = 46,
+	instr_checkInput = 48,
 	instr_checkMoveCondition = 49,
 	instr_modifyVar = 54,
 	instr_calcDistance = 60,
@@ -1244,6 +1246,7 @@ enum InstrType {
 	instr_setLinkObjectDestroyOnStateChange = 457,
 	instr_attackLevel = 711,
 	instr_hitAirPushbackX = 754,
+	instr_groundHitEffect = 882,
 	instr_wallstickDuration = 898,
 	instr_blockstunAmount = 1023,
 	instr_stunValue = 1096,
@@ -1406,6 +1409,37 @@ struct CmnActHashtable {
 	char strings[200][32];
 };
 
+enum HitEffect {
+	HIT_EFFECT_GROUND_NORMAL = 0,  // does either crouching hitstun, high standing or low standing hitstun, depending on whether the opponent is crouching and how high the attack hit them
+	HIT_EFFECT_AIR_NORMAL = 1,  // exact same as AIR_FACE_UP
+	HIT_EFFECT_CRUMPLE = 2,  // causes Hizakuzure animation. This later leads to face down wakeup
+	HIT_EFFECT_FORCE_CROUCH = 3,  // crouching hitstun
+	HIT_EFFECT_FORCE_STAND_HIGH = 4,  // high standing hitstun
+	HIT_EFFECT_FORCE_STAND_LOW = 5,  // low standing hitstun
+	HIT_EFFECT_BLITZ_REJECT_STAND = 6,  // causes standing Hajikare animation
+	HIT_EFFECT_BLITZ_REJECT_CROUCH = 7,  // causes crouching Hajikare animation
+	HIT_EFFECT_AIR_FACE_UP = 8,  // if the speed applied to the opponent is directed downward and they're grounded, they immediately get knocked down onto their back. Otherwise launches into air such that you land face up
+	HIT_EFFECT_AIR_LAUNCH = 9,  // if the speed applied to the opponent is directed downward and they're grounded, they immediately get knocked down onto their face. Launches into air vertically (it's a different animation). You will end up face down
+	HIT_EFFECT_AIR_FACE_DOWN = 10,  // launches into air such that you land face down
+	HIT_EFFECT_AIR_STRONG = 11, // causes Blowoff animation. Leads to face up knockdown
+	HIT_EFFECT_KIRIMOMI = 12,  // the animation you see when you get hit by 5D. Leads to vertical fall which leads to face down knockdown
+	HIT_EFFECT_KIRIMOMI_B = 13,  // same as KIRIMOMI
+	HIT_EFFECT_BLITZ_REJECT_AIR = 14,  // causes air Hajikare animation
+	HIT_EFFECT_STAGGER = 15,  // causes Jitabata animation during which you must mash to get out and a light blue bar with a button graphic is shown on top of you
+	HIT_EFFECT_EX_DAMAGE_BALL_MOF = 16,  // same as EX_DAMAGE
+	HIT_EFFECT_EX_DAMAGE = 17,  // EX_DAMAGE is getting hit by Elphelt 236236K or Venom throw. I think it just launches you relatively high and transitions to CmnActB/VDownUpper
+	HIT_EFFECT_EX_DAMAGE_LAND = 18,
+	HIT_EFFECT_BLITZ_REJECT_AUTODECIDE_STANDCROUCHAIR = 19,
+	HIT_EFFECT_BLITZ_REJECT_AUTODECIDE_STANDCROUCHAIR2 = 20,  // same as BLITZ_REJECT_AUTODECIDE_STANDCROUCHAIR
+	HIT_EFFECT_NORMAL_AUTODECIDE_HIGHERLOWER = 21,  // standing hitstun, high/low version depends on how high the attack connected
+	HIT_EFFECT_THROW_CLASH_AUTODECIDE_CROUCHSTAND = 22,  // same as BLITZ_REJECT_AUTODECIDE_STANDCROUCHAIR but shorter (30f) rejection period instead of 60f
+	HIT_EFFECT_THROW_CLASH_STAND = 23,  // same as BLITZ_REJECT_STAND, but shorter (30f) rejection period instead of 60f
+	HIT_EFFECT_THROW_CLASH_CROUCH = 24,  // same as BLITZ_REJECT_CROUCH, but shorter (30f) rejection period instead of 60f
+	HIT_EFFECT_THROW_CLASH_AIR = 25,  // same as BLITZ_REJECT_AIR, but shorter (30f) rejection period instead of 60f
+	HIT_EFFECT_AIR_SOMERSAULT = 26,  // causes ZSpin animation, which leads to face down knockdown
+	HIT_EFFECT_UNSPECIFIED = INT_MAX  // default value. Translates to GROUND_NORMAL for groundHitEffect and AIR_NORMAL for airHitEffect
+};
+
 class Entity
 {
 public:
@@ -1555,7 +1589,7 @@ public:
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }  // all get reset to 0 on stage reset
-	inline int currentHitEffect() const { return *(int*)(ent + 0x24db0); }  // this is an enum, all values of which are not fully understood, so we're not writing it
+	inline HitEffect currentHitEffect() const { return *(HitEffect*)(ent + 0x24db0); }  // this is an enum, all values of which are not fully understood, so we're not writing it
 	inline int airdashHorizontallingTimer() const { return *(int*)(ent + 0x24db8); }
 	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }
 	inline TeamSwap teamSwap() const { return *(TeamSwap*)(ent + 0x26ac); }
@@ -1762,7 +1796,7 @@ public:
 	inline int createArgHikitsukiVal1_outgoing() const { return *(int*)(ent + 0x2614 + 0x34); }  // gets reset to 0 after creating an object
 	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }  // gets reset to 0 after creating an object
 	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }
-	inline int groundHitEffect() const { return *(int*)(ent + 0x6a4); }
+	inline HitEffect groundHitEffect() const { return *(HitEffect*)(ent + 0x6a4); }
 	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }
 	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
 	inline int knockdown() const { return *(int*)(ent + 0x964); }  // received knockdown duration maximum, does not decrement over time

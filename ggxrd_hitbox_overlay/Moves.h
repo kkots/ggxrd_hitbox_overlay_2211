@@ -584,6 +584,9 @@ public:
 	std::vector<May6PElement> may6PElements;
 	void fillMay6PElements(BYTE* func);
 	void fillBlitzShieldChargePrereq(BYTE* func, BlitzShieldPrereqData* data);
+	int faustFastToss = 0;
+	int faustFastTossGoto = 0;
+	int answerFaint = 0;  // sic
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;
