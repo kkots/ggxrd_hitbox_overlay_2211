@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include "Entity.h"
 #include <vector>
+#include <array>
 
 struct PlayerInfo;
 struct ProjectileInfo;
@@ -587,6 +588,27 @@ public:
 	int faustFastToss = 0;
 	int faustFastTossGoto = 0;
 	int answerFaint = 0;  // sic
+	struct VenomQvChargeSubelement {
+		int charge;
+		int maxCharge;
+		bool isKeyElement;
+	};
+	struct VenomQvChargeElement {
+		int firstOffset;
+		std::vector<VenomQvChargeSubelement> elements;
+		inline VenomQvChargeSubelement& getElem(int offset) {
+			return elements[(offset - firstOffset) / sizeof BBScrInstr_sprite];
+		}
+		inline const VenomQvChargeSubelement& getElem(int offset) const {
+			return elements[(offset - firstOffset) / sizeof BBScrInstr_sprite];
+		}
+		inline void clear() {
+			firstOffset = 0;
+			elements.clear();
+		}
+	};
+	std::array<VenomQvChargeElement, 4> venomQvCharges;
+	void fillVenomQvCharges(BYTE* func, VenomQvChargeElement& data);
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;

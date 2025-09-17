@@ -1601,5 +1601,5 @@ This won't affect existing users who update the mod (if they ever changed any se
 54) Added a list of projectiles Potemkin can flick to his Character Specific panel. Same for Faust, Zato, Leo, Dizzy (Zato, Leo and Dizzy share the same projectiles list).
 55) Fixed higher level projectiles clashing with lower level projectiles being displayed in the framebar as just the lower level projectile clashing with nothing using the white frame inner outline and text description "A hit connected on this frame." A good example of this is Sol DI Gunflame vs Stun Edge. The game doesn't even make higher level projectiles aware that a clash happened so we now work around that. Similarly, added "A hit connected on this frame." framebar indicator to projectiles being reflected and the one reflecting them.
 56) Added purple health display to Raven's Character Specific panel.
-57) Chargeable moves will now display the amount of charge in the Combo Recipe panel. Only implemented for May 6P, May 6H, Blitz Shield, Potemkin F.D.B, Faust Pogo-K so far.
+57) Chargeable moves will now display the amount of charge in the Combo Recipe panel. Only implemented for May 6P, May 6H, Blitz Shield, Potemkin F.D.B, Faust Pogo-K, Pogo-S, Venom QV so far.
 58) Added alternative names for Faust Toss and Answer 6K for when they're held.

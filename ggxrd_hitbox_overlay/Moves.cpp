@@ -484,7 +484,8 @@ static void charge_may6H(PlayerInfo& ent, ChargeData* result);
 static void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result);
 static void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result);
 static void charge_fdb(PlayerInfo& ent, ChargeData* result);
-static void charge_soutenB(PlayerInfo& ent, ChargeData* result);
+static void charge_soutenBC(PlayerInfo& ent, ChargeData* result);
+static void charge_dubiousCurve(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -1242,7 +1243,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(GENERAL, "CmnActExDamageLand");
-	move.displayName = assignName("CmnActExDamageLand");
+	move.displayName = assignName("Ground Ex Damage");
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 
@@ -3086,7 +3087,7 @@ void Moves::addMoves() {
 	move.isInVariableStartupSection = isInVariableStartupSection_soutenBC;
 	move.faustPogo = true;
 	move.ignoreSuperJumpInstalls = true;
-	move.charge = charge_soutenB;
+	move.charge = charge_soutenBC;
 	addMove(move);
 	
 	// Pogo S (ground flower)
@@ -3101,6 +3102,7 @@ void Moves::addMoves() {
 	move.faustPogo = true;
 	move.canYrcProjectile = canYrcProjectile_flower;
 	move.ignoreSuperJumpInstalls = true;
+	move.charge = charge_soutenBC;
 	addMove(move);
 	
 	// Pogo Going My Way
@@ -5343,6 +5345,7 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_qvA;
 	move.powerup = powerup_qvA;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_dubiousCurve;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveB");
@@ -5353,6 +5356,7 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_qvB;
 	move.powerup = powerup_qvB;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_dubiousCurve;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveC");
@@ -5363,6 +5367,7 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_qvC;
 	move.powerup = powerup_qvC;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_dubiousCurve;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "DubiousCurveD");
@@ -5373,6 +5378,7 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_qvD;
 	move.powerup = powerup_qvD;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_dubiousCurve;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "RedHail");
@@ -8379,6 +8385,9 @@ void Moves::onAswEngineDestroyed() {
 	may6PElements.clear();
 	faustFastToss = 0;
 	faustFastTossGoto = 0;
+	for (VenomQvChargeElement& elem : venomQvCharges) {
+		elem.clear();
+	}
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -12624,7 +12633,7 @@ void charge_fdb(PlayerInfo& ent, ChargeData* result) {
 	result->current = 0;
 	result->max = 0;
 }
-void charge_soutenB(PlayerInfo& ent, ChargeData* result) {
+void charge_soutenBC(PlayerInfo& ent, ChargeData* result) {
 	Entity pawn = ent.pawn;
 	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
 		BYTE* firstInstr = moves.skipInstr(pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr);
@@ -12642,16 +12651,43 @@ void charge_soutenB(PlayerInfo& ent, ChargeData* result) {
 					}
 					chargeMax += prevDur;
 					prevDur = asInstr(instr, sprite)->duration;
-				} else if (type == instr_attackLevel) {
-					if (prevDur) {
-						break;
-					}
+				} else if (type == instr_clearUpon) {
+					break;
 				}
 			}
 			result->current = charge + pawn.spriteFrameCounter() + 1 - (
 				strcmp(pawn.gotoLabelRequests(), "open") == 0
 			);
 			result->max = chargeMax;
+			return;
+		}
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+void charge_dubiousCurve(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	if (pawn.mem45()) {
+		BYTE* func = pawn.bbscrCurrentFunc();
+		static const char dubiousCurve[] = "DubiousCurve";
+		const char letter = pawn.animationName()[sizeof dubiousCurve - 1];
+		if (letter >= 'A' && letter <= 'D') {
+			Moves::VenomQvChargeElement& elem = moves.venomQvCharges[letter - 'A'];
+			moves.fillVenomQvCharges(func, elem);
+			const Moves::VenomQvChargeSubelement& subelem = elem.getElem(pawn.bbscrCurrentInstr() - func);
+			int currentCharge = subelem.charge + pawn.spriteFrameCounter() + 1
+				- (
+					strcmp(pawn.gotoLabelRequests(), "End") == 0
+					|| &subelem - elem.elements.data() == elem.elements.size() - 1
+					&& pawn.spriteFrameCounter() == pawn.spriteFrameCounterMax() - 1
+				);
+			result->current = currentCharge;
+			if (currentCharge <= subelem.charge && subelem.isKeyElement) {
+				result->max = subelem.charge;
+			} else {
+				result->max = subelem.maxCharge;
+			}
 			return;
 		}
 	}
@@ -12833,4 +12869,72 @@ void Moves::fillBlitzShieldChargePrereq(BYTE* func, BlitzShieldPrereqData* data)
 			}
 		}
 	}
+}
+
+void Moves::fillVenomQvCharges(BYTE* func, VenomQvChargeElement& data) {
+	if (data.firstOffset) return;
+	bool foundStoreMem45 = false;
+	BYTE* firstInstr = nullptr;
+	BYTE* lastInstr = nullptr;
+	int prevDur = 0;
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
+		if (type == instr_storeValue) {
+			if (asInstr(instr, storeValue)->dest == MEM(45)) {
+				if (asInstr(instr, storeValue)->src == AccessedValue(BBSCRTAG_VALUE, 1)) {
+					foundStoreMem45 = true;
+				} else {
+					break;
+				}
+			}
+		} else if (type == instr_sprite) {
+			if (foundStoreMem45) {
+				firstInstr = instr;
+				foundStoreMem45 = false;
+			}
+			if (!firstInstr) {
+				prevDur = asInstr(instr, sprite)->duration;
+			}
+			lastInstr = instr;
+		}
+	}
+	
+	if (!firstInstr || !lastInstr) return;
+	data.firstOffset = firstInstr - func;
+	
+	data.elements.resize((lastInstr - firstInstr) / sizeof BBScrInstr_sprite + 1);
+	VenomQvChargeSubelement* firstPtr = data.elements.data();
+	VenomQvChargeSubelement* lastPtr = firstPtr - 1;
+	
+	bool isKeyElement = false;
+	int charge = 0;
+	for (BYTE* instr = firstInstr; instrType(instr) != instr_endState; instr = skipInstr(instr)) {
+		InstrType type = instrType(instr);
+		if (type == instr_sprite) {
+			VenomQvChargeSubelement& newElem = data.getElem(instr - func);
+			lastPtr = &newElem;
+			newElem.charge = charge;
+			newElem.maxCharge = 0;
+			newElem.isKeyElement = isKeyElement;
+			isKeyElement = false;
+			charge += prevDur;
+			prevDur = asInstr(instr, sprite)->duration;
+		} else if (type == instr_storeValue
+				&& asInstr(instr, storeValue)->dest == MEM(46)
+				|| type == instr_clearUpon) {
+			
+			if (type == instr_clearUpon) {
+				charge -= prevDur;
+			} else {
+				isKeyElement = true;
+			}
+			for (VenomQvChargeSubelement* ptr = lastPtr; ptr >= firstPtr && !ptr->maxCharge; --ptr) {
+				ptr->maxCharge = charge;
+			}
+			if (type == instr_clearUpon) {
+				break;
+			}
+		}
+	}
+	
 }

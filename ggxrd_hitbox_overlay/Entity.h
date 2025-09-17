@@ -143,7 +143,7 @@ enum CmnActIndex {
 	CmnActResultLose = 0x5a,  // static pose that happens on victory quote screen
 	CmnActEntryWait = 0x5b,  // you're invisible
 	CmnActExDamage = 0x5c,  // getting hit by Elphelt 236236K or Venom throw
-	CmnActExDamageLand = 0x5d,  // don't know
+	CmnActExDamageLand = 0x5d,  // Faust 236236S cup shuffling
 	NotACmnAct = 0xffffffff
 };
 
@@ -1261,6 +1261,11 @@ enum InstrType {
 	instr_timeSlow = 2201,
 	instr_createArgHikitsukiVal = 2247,
 	instr_setHitstop = 2263,
+};
+
+struct BBScrInstr_if {
+	InstrType type;
+	AccessedValue operand;
 };
 
 struct BBScrInstr_ifOperation {
