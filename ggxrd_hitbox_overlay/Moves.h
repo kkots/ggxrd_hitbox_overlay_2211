@@ -609,6 +609,9 @@ public:
 	};
 	std::array<VenomQvChargeElement, 4> venomQvCharges;
 	void fillVenomQvCharges(BYTE* func, VenomQvChargeElement& data);
+	std::array<std::vector<int>, 2> venomStingerChargeLevels;
+	int sinBeakDriverMinCharge = 0;
+	int sinBeakDriverMaxCharge = 0;
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;

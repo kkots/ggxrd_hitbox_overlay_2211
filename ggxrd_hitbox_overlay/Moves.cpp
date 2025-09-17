@@ -486,6 +486,8 @@ static void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result);
 static void charge_fdb(PlayerInfo& ent, ChargeData* result);
 static void charge_soutenBC(PlayerInfo& ent, ChargeData* result);
 static void charge_dubiousCurve(PlayerInfo& ent, ChargeData* result);
+static void charge_stingerAim(PlayerInfo& ent, ChargeData* result);
+static void charge_beakDriver(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -5310,6 +5312,7 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_stinger;
 	move.powerup = powerup_stingerH;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_stingerAim;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "StingerAimC");
@@ -5320,6 +5323,7 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_stinger;
 	move.powerup = powerup_stingerS;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_stingerAim;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_VENOM, "CarcassRaidD");
@@ -6932,6 +6936,7 @@ void Moves::addMoves() {
 	move.sectionSeparator = sectionSeparator_beakDriver;
 	move.powerup = powerup_beakDriver;
 	move.dontShowPowerupGraphic = dontShowPowerupGraphic_beakDriver;
+	move.charge = charge_beakDriver;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_SIN, "BeakDriver_Air");
@@ -8388,6 +8393,11 @@ void Moves::onAswEngineDestroyed() {
 	for (VenomQvChargeElement& elem : venomQvCharges) {
 		elem.clear();
 	}
+	for (std::vector<int>& elem : venomStingerChargeLevels) {
+		elem.clear();
+	}
+	sinBeakDriverMinCharge = 0;
+	sinBeakDriverMaxCharge = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -12690,6 +12700,97 @@ void charge_dubiousCurve(PlayerInfo& ent, ChargeData* result) {
 			}
 			return;
 		}
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+void charge_stingerAim(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		BYTE* func = pawn.bbscrCurrentFunc();
+		int frameStartOfCharge = 0;
+		int prevDur = 0;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_sprite) {
+				frameStartOfCharge += prevDur;
+				prevDur = asInstr(instr, sprite)->duration;
+			} else if (type == instr_upon) {
+				if (asInstr(instr, upon)->event == BBSCREVENT_ANIMATION_FRAME_ADVANCED) {
+					break;
+				}
+			}
+		}
+		
+		static const char stingerAim[] = "StingerAim";
+		const char letter = pawn.animationName()[sizeof stingerAim - 1];
+		if (letter == 'C' || letter == 'D') {
+			std::vector<int>& elems = moves.venomStingerChargeLevels[letter - 'C'];
+			if (elems.empty()) {
+				prevDur = 0;
+				int currentLength = 0;
+				for (loopInstr(func)) {
+					InstrType type = moves.instrType(instr);
+					if (type == instr_sprite) {
+						currentLength += prevDur;
+						prevDur = asInstr(instr, sprite)->duration;
+					} else if (type == instr_sendSignal) {
+						elems.push_back(currentLength);
+					}
+				}
+			}
+			
+			int animFrame = pawn.currentAnimDuration() - (
+				strcmp(pawn.gotoLabelRequests(), "Shot") == 0
+			);
+			int lastLength = 0;
+			for (int length : elems) {
+				lastLength = length;
+				if (length >= animFrame) {
+					break;
+				}
+			}
+			
+			result->current = animFrame - frameStartOfCharge;
+			result->max = lastLength - frameStartOfCharge;
+			return;
+		}
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+void charge_beakDriver(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		BYTE* func = pawn.bbscrCurrentFunc();
+		if (!moves.sinBeakDriverMinCharge) {
+			int totalFrames = 0;
+			int prevDur = 0;
+			for (loopInstr(func)) {
+				InstrType type = moves.instrType(instr);
+				if (type == instr_sprite) {
+					totalFrames += prevDur;
+					prevDur = asInstr(instr, sprite)->duration;
+				} else if (type == instr_upon) {
+					if (asInstr(instr, upon)->event == BBSCREVENT_ANIMATION_FRAME_ADVANCED) {
+						moves.sinBeakDriverMinCharge = totalFrames;
+					}
+				} else if (type == instr_storeValue) {
+					if (asInstr(instr, storeValue)->dest == MEM(45)
+							&& asInstr(instr, storeValue)->src == AccessedValue(BBSCRTAG_VALUE, 1)) {
+						moves.sinBeakDriverMaxCharge = totalFrames;
+						break;
+					}
+				}
+			}
+		}
+		
+		int animFrame = pawn.currentAnimDuration();
+		result->current = animFrame - moves.sinBeakDriverMinCharge;
+		result->max = moves.sinBeakDriverMaxCharge - moves.sinBeakDriverMinCharge;
+		return;
 	}
 	
 	result->current = 0;
