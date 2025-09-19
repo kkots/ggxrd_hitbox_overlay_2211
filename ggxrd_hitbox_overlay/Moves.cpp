@@ -483,8 +483,6 @@ static void charge_may6P(PlayerInfo& ent, ChargeData* result);
 static void charge_may6H(PlayerInfo& ent, ChargeData* result);
 static void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result);
 static void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result);
-static void charge_standingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result);
-static void charge_crouchingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result);
 static void charge_fdb(PlayerInfo& ent, ChargeData* result);
 static void charge_soutenBC(PlayerInfo& ent, ChargeData* result);
 static void charge_dubiousCurve(PlayerInfo& ent, ChargeData* result);
@@ -3734,26 +3732,6 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Air");
 	move.displayName = assignName("Air Bridal Express", "Air Bridal");
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CounterGuardStand");
-	move.displayName = assignName("Standing Blitz Shield", "Standing Blitz");
-	move.displayNameSelector = displayNameSelector_standingBlitzShield;
-	move.sectionSeparator = sectionSeparator_blitzShield;
-	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
-	move.nameIncludesInputs = true;
-	move.ignoreJumpInstalls = true;
-	move.charge = charge_standingBlitzShieldElphelt;
-	addMove(move);
-	
-	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CounterGuardCrouch");
-	move.displayName = assignName("Crouching Blitz Shield", "Crouching Blitz");
-	move.displayNameSelector = displayNameSelector_crouchingBlitzShield;
-	move.sectionSeparator = sectionSeparator_blitzShield;
-	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
-	move.nameIncludesInputs = true;
-	move.ignoreJumpInstalls = true;
-	move.charge = charge_crouchingBlitzShieldElphelt;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActRomanCancel");
@@ -12697,20 +12675,6 @@ void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result) {
 void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result) {
 	charge_blitzShield(ent, result, &ent.crouchingBlitzShieldPrereqData);
 }
-void charge_standingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result) {
-	ent.elpheltShotgunChargeConsumed = true;
-	if (ent.pawn.currentAnimDuration() == 1) {
-		*result = ent.elpheltShotgunCharge;
-	}
-	charge_blitzShield(ent, result, &ent.standingBlitzShieldPrereqData);
-}
-void charge_crouchingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result) {
-	ent.elpheltShotgunChargeConsumed = true;
-	if (ent.pawn.currentAnimDuration() == 1) {
-		*result = ent.elpheltShotgunCharge;
-	}
-	return charge_blitzShield(ent, result, &ent.crouchingBlitzShieldPrereqData);
-}
 void charge_fdb(PlayerInfo& ent, ChargeData* result) {
 	Entity pawn = ent.pawn;
 	BYTE* currentInstr = pawn.bbscrCurrentInstr();
@@ -12890,6 +12854,11 @@ void charge_elpheltStand(PlayerInfo& ent, ChargeData* result) {
 	if (!isInShotgun) {
 		sc.current = 0;
 		sc.max = 0;
+	// gold burst's normal landing animation also increases how much you must stand still to get shotgun charge, but
+	// the gold burst is so long I don't think anything gives enough hitstun to continue the combo after whiffing it
+	} else if (strcmp(pawn.previousAnimName(), "CounterGuardStand") == 0
+			|| strcmp(pawn.previousAnimName(), "CounterGuardCrouch") == 0) {
+		sc.current = ent.timePassed + 1;
 	} else {
 		int animFrame = pawn.currentAnimDuration();
 		BOOL hasFullCharge = (BOOL)pawn.playerVal(1);

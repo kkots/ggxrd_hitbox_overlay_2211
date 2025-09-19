@@ -1499,17 +1499,23 @@ void UI::drawSearchableWindows() {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
 					const ChargeData* chargeDataToPrint;
-					if (player.charType == CHARACTER_TYPE_ELPHELT
-							&& (
-								player.cmnActIndex == CmnActStand
-								|| player.cmnActIndex == CmnActCrouch2Stand
-							)
-					) {
-						chargeDataToPrint = &player.elpheltShotgunCharge;
+					if (player.charType == CHARACTER_TYPE_ELPHELT) {
+						if (player.cmnActIndex == CmnActStand || player.cmnActIndex == CmnActCrouch2Stand) {
+							sprintf_s(strbuf, "%d/%d",
+								player.elpheltShotgunCharge.current, player.elpheltShotgunCharge.max);
+						} else if (player.cmnActIndex == NotACmnAct
+								&& strncmp(player.anim, "CounterGuard", 12) == 0
+								&& player.y == 0) {
+							sprintf_s(strbuf, "shield: %d/%d, shotgun: %d/%d",
+								player.charge.current, player.charge.max,
+								player.elpheltShotgunCharge.current, player.elpheltShotgunCharge.max);
+						} else {
+							sprintf_s(strbuf, "%d/%d",
+								player.charge.current, player.charge.max);
+						}
 					} else {
-						chargeDataToPrint = &player.charge;
+						sprintf_s(strbuf, "%d/%d", player.charge.current, player.charge.max);
 					}
-					sprintf_s(strbuf, "%d/%d", chargeDataToPrint->current, chargeDataToPrint->max);
 					printWithWordWrap
 					
 					if (i == 0) {

@@ -2081,7 +2081,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						if (player.charType == CHARACTER_TYPE_ELPHELT
 								&& player.elpheltShotgunCharge.max) {
-							if (!playerval1 && !player.move.charge || !playerval0 || player.elpheltShotgunChargeConsumed) {
+							if (!playerval1
+									&& !player.move.charge  // may fire the shotgun when not having charge, but I still have to display the charge
+									|| !playerval0
+									|| player.elpheltShotgunChargeConsumed) {  // a shotgun move will instantly consume the charge the first time its 'charge' function is called. The values will get cleared only on the next animation change
 								player.elpheltShotgunCharge.current = 0;
 								player.elpheltShotgunCharge.max = 0;
 							}
@@ -2469,14 +2472,32 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (lastElem) {
 					unsigned char chargeVal = minmax(0, 255, player.charge.current);
 					unsigned char maxChargeVal = minmax(0, 255, player.charge.max);
-					if (player.charType == CHARACTER_TYPE_ELPHELT && strncmp(player.anim, "Rifle", 5) != 0) {
-						lastElem->charge = 0;
-						lastElem->maxCharge = 0;
-						lastElem->shotgunMaxCharge = maxChargeVal;
+					if (player.charType == CHARACTER_TYPE_ELPHELT) {
+						if (strncmp(player.anim, "CounterGuard", 12) == 0) {
+							
+							// shield's charge
+							lastElem->charge = chargeVal;
+							lastElem->maxCharge = maxChargeVal;
+							
+							// shotgun's charge
+							if (player.idle && !player.playerval1) {
+								player.elpheltShotgunCharge.current = player.timePassed + 1;
+								player.elpheltShotgunCharge.max = 9  // idle recovery of Standing and Crouching Blitzes
+									+ 13;  // how much you must charge in CmnActStand
+							} else if (player.elpheltShotgunCharge.max) {
+								lastElem->shotgunMaxCharge = minmax(0, 255, player.elpheltShotgunCharge.max);
+								player.elpheltShotgunCharge.current = 0;
+								player.elpheltShotgunCharge.max = 0;
+							}
+						} else if (strncmp(player.anim, "Rifle", 5) == 0) {
+							lastElem->charge = chargeVal;
+							lastElem->maxCharge = maxChargeVal;
+						} else {
+							lastElem->shotgunMaxCharge = maxChargeVal;
+						}
 					} else {
 						lastElem->charge = chargeVal;
 						lastElem->maxCharge = maxChargeVal;
-						lastElem->shotgunMaxCharge = 0;
 					}
 				}
 			}
@@ -2578,7 +2599,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
 					if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
 						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
-						if (lastElem && lastElem->hitCount) {
+						if (lastElem) {
 							lastElem->name = player.lastPerformedMoveName;
 						}
 					}
@@ -4725,6 +4746,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							&& (
 								player.cmnActIndex == CmnActStand
 								|| player.cmnActIndex == CmnActCrouch2Stand
+								|| player.cmnActIndex == NotACmnAct
+								&& strncmp(player.anim, "CounterGuard", 12) == 0
+								&& player.y == 0
 							)
 							|| player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // rifle stance
 							&& (
