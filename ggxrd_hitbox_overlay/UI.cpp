@@ -1498,7 +1498,18 @@ void UI::drawSearchableWindows() {
 				for (int i = 0; i < two; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d/%d", player.charge.current, player.charge.max);
+					const ChargeData* chargeDataToPrint;
+					if (player.charType == CHARACTER_TYPE_ELPHELT
+							&& (
+								player.cmnActIndex == CmnActStand
+								|| player.cmnActIndex == CmnActCrouch2Stand
+							)
+					) {
+						chargeDataToPrint = &player.elpheltShotgunCharge;
+					} else {
+						chargeDataToPrint = &player.charge;
+					}
+					sprintf_s(strbuf, "%d/%d", chargeDataToPrint->current, chargeDataToPrint->max);
 					printWithWordWrap
 					
 					if (i == 0) {
@@ -8220,7 +8231,13 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 							if (elem.doneAfterIdle) {
-								sprintf_s(strbuf, "(Idle %df)", elem.cancelDelayedBy);
+								if (elem.shotgunMaxCharge) {
+									// the displayed max charge doesn't account for RC slowdown, while the displayed current charge does
+									// this doesn't matter because the one performing the combo can't be slowed down by RC
+									sprintf_s(strbuf, "(Idle %d/%df)", correctedCancelDelayedBy, elem.shotgunMaxCharge);
+								} else {
+									sprintf_s(strbuf, "(Idle %df)", correctedCancelDelayedBy);
+								}
 							} else {
 								sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
 							}

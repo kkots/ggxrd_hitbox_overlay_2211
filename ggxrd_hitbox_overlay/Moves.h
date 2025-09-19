@@ -263,7 +263,8 @@ struct MoveInfoStored {
 	/* This means that even if you RC this move, we should still ignore jump installs on it. */ \
 	MOVE_INFO_EXEC(bool, boolValue, ignoreJumpInstalls, false) \
 	MOVE_INFO_EXEC(bool, boolValue, ignoreSuperJumpInstalls, false) \
-	MOVE_INFO_EXEC(chargeFunc_t, chargeFuncValue, charge, nullptr)
+	MOVE_INFO_EXEC(chargeFunc_t, chargeFuncValue, charge, nullptr) \
+	MOVE_INFO_EXEC(bool, boolValue, splitForComboRecipe, false)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -612,6 +613,7 @@ public:
 	std::array<std::vector<int>, 2> venomStingerChargeLevels;
 	int sinBeakDriverMinCharge = 0;
 	int sinBeakDriverMaxCharge = 0;
+	int elpheltCrouch2StandChargeDuration = 0;
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;

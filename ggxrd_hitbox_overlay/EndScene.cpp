@@ -93,6 +93,13 @@ static inline const T& min_inline(const T& a, const T& b) {
 	return a < b ? a : b;
 }
 
+template<typename T>
+static inline const T& minmax(const T& Min, const T& Max, const T& Value) {
+	if (Value < Min) return Min;
+	if (Value > Max) return Max;
+	return Value;
+}
+
 bool EndScene::onDllMain() {
 	bool error = false;
 	
@@ -1075,7 +1082,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		if (needCatchEntities && projectiles.empty()) {
 			// probably the mod was loaded in mid-game
 			for (int i = 2; i < entityList.count; ++i) {
-				onObjectCreated(entityList.slots[i], entityList.list[i], entityList.list[i].animationName());
+				onObjectCreated(entityList.slots[i], entityList.list[i], entityList.list[i].animationName(), true, false);
 			}
 		}
 		
@@ -1996,6 +2003,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					other.gettingHitBySuper = false;
 					player.sinHunger = false;
 				}
+				
+				bool runInitNewMoveForComboRecipe = false;
 				if (
 						!player.changedAnimFiltered
 						&& !(
@@ -2016,13 +2025,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						)
 						&& !player.prejumped
 					) {
-					if (!player.isInFDWithoutBlockstun && player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
+					if (player.move.splitForComboRecipe) {
+						runInitNewMoveForComboRecipe = true;
+					} else if (!player.isInFDWithoutBlockstun && player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
 						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
 						if (lastElem) {
 							lastElem->name = player.lastPerformedMoveName;
 						}
 					}
-					// do nothing
 				} else {
 					player.moveOriginatedInTheAir = false;
 					player.theAnimationIsNotOverYetLolConsiderBusyNonAirborneFramesAsLandingAnimation = false;  // this assignment is here and not down below,
@@ -2068,6 +2078,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.maxHitProj.clear();
 						player.maxHitProjConflict = false;
 						player.maxHitProjLastPtr = nullptr;
+						
+						if (player.charType == CHARACTER_TYPE_ELPHELT
+								&& player.elpheltShotgunCharge.max) {
+							if (!playerval1 && !player.move.charge || !playerval0 || player.elpheltShotgunChargeConsumed) {
+								player.elpheltShotgunCharge.current = 0;
+								player.elpheltShotgunCharge.max = 0;
+							}
+						}
 						
 						if (player.move.usePlusSignInCombination
 								|| player.charType == CHARACTER_TYPE_BAIKEN
@@ -2141,7 +2159,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						
 						memcpy(player.labelAtTheStartOfTheMove, player.pawn.gotoLabelRequests(), 32);
 						player.airteched = player.cmnActIndex == CmnActUkemi;
-						player.moveStartTime_aswEngineTick = player.startup;
 						player.startup = 0;
 						player.startedUp = false;
 						player.actives.clear();
@@ -2150,47 +2167,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.total = 0;
 						player.totalForInvul = 0;
 						player.stoppedMeasuringInvuls = false;
-						player.timePassedInNonFrozenFramesSinceStartOfAnim = 0;
 						player.lastMoveIsPartOfStance = player.move.partOfStance;
 						player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
-						player.lastPerformedMoveNameIsInComboRecipe = false;
 						
-						player.delayLastMoveWasCancelledIntoWith = 0;
-						if (!player.pawn.currentAnimData()->isPerformedRaw()) {
-							player.delayInTheLastMoveIsAfterIdle = false;
-							if (!(
-									player.charType == CHARACTER_TYPE_LEO
-									&& strcmp(player.pawn.previousAnimName(), "CmnActFDash") == 0
-								)) {
-								const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
-								if (player.prevFrameCancels.hasCancel(player.pawn.currentMove()->name, &foundCancel)) {
-									if (foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze > 0
-											&& !(
-												foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze == 1
-												&& foundCancel->wasAddedDuringHitstopFreeze
-											)) {
-										player.delayLastMoveWasCancelledIntoWith = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
-										player.delayInTheLastMoveIsAfterIdle = false;
-									}
-								} else if (
-										(player.timeSinceWasEnableSpecialCancel || player.timeSinceWasEnableSpecials)
-										&& player.pawn.dealtAttack()->type >= ATTACK_TYPE_EX
-										&& player.timeSinceWasEnableSpecialCancel
-								) {
-									player.delayLastMoveWasCancelledIntoWith = player.timeSinceWasEnableSpecialCancel;
-									player.delayInTheLastMoveIsAfterIdle = false;
-								}
-							}
-						} else {
-							player.delayLastMoveWasCancelledIntoWith = player.timePassedPureIdle;
-							player.delayInTheLastMoveIsAfterIdle = true;
-						}
+						runInitNewMoveForComboRecipe = true;
 						
-						player.lastMoveWasJumpInstalled = jumpInstalledStage2;
-						player.lastMoveWasSuperJumpInstalled = superJumpInstalledStage2;
-						
-						player.timeSinceWasEnableSpecialCancel = 0;
-						player.timeSinceWasEnableSpecials = 0;
 						player.hitOnFrame = 0;
 						player.totalFD = 0;
 						player.totalCanBlock = 0;
@@ -2269,6 +2250,52 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.lastPerformedMoveNameIsInComboRecipe = true;
 						}
 						
+					}
+				}
+				
+				if (runInitNewMoveForComboRecipe) {
+					
+					player.lastPerformedMoveNameIsInComboRecipe = false;
+					
+					player.timePassedInNonFrozenFramesSinceStartOfAnim = 0;
+					player.delayLastMoveWasCancelledIntoWith = 0;
+					
+					player.lastMoveWasJumpInstalled = jumpInstalledStage2;
+					player.lastMoveWasSuperJumpInstalled = superJumpInstalledStage2;
+					
+					player.timeSinceWasEnableSpecialCancel = 0;
+					player.timeSinceWasEnableSpecials = 0;
+					
+					player.moveStartTime_aswEngineTick = aswEngineTickCount;
+					
+					if (!player.pawn.currentAnimData()->isPerformedRaw()) {
+						player.delayInTheLastMoveIsAfterIdle = false;
+						if (!(
+								player.charType == CHARACTER_TYPE_LEO
+								&& strcmp(player.pawn.previousAnimName(), "CmnActFDash") == 0
+							)) {
+							const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
+							if (player.prevFrameCancels.hasCancel(player.pawn.currentMove()->name, &foundCancel)) {
+								if (foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze > 0
+										&& !(
+											foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze == 1
+											&& foundCancel->wasAddedDuringHitstopFreeze
+										)) {
+									player.delayLastMoveWasCancelledIntoWith = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
+									player.delayInTheLastMoveIsAfterIdle = false;
+								}
+							} else if (
+									(player.timeSinceWasEnableSpecialCancel || player.timeSinceWasEnableSpecials)
+									&& player.pawn.dealtAttack()->type >= ATTACK_TYPE_EX
+									&& player.timeSinceWasEnableSpecialCancel
+							) {
+								player.delayLastMoveWasCancelledIntoWith = player.timeSinceWasEnableSpecialCancel;
+								player.delayInTheLastMoveIsAfterIdle = false;
+							}
+						}
+					} else {
+						player.delayLastMoveWasCancelledIntoWith = player.timePassedPureIdle;
+						player.delayInTheLastMoveIsAfterIdle = true;
 					}
 				}
 			}
@@ -2401,18 +2428,26 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						ComboRecipeElement& newElem = player.comboRecipe.back();
 						newElem.artificial = true;
 						newElem.name = player.lastMoveWasJumpInstalled ? assignName("Jump Install") : assignName("Super Jump Install");
-						newElem.timestamp = aswEngineTickCount;
+						newElem.timestamp = player.moveStartTime_aswEngineTick;
 						if (player.lastMoveWasSuperJumpInstalled) {
 							newElem.isSuperJumpInstall = true;
 						}
 					}
 					
 					ui.comboRecipeUpdatedOnThisFrame[player.index] = true;
-					player.comboRecipe.emplace_back();
-					ComboRecipeElement& newComboElem = player.comboRecipe.back();
+					ComboRecipeElement* newComboElemPtr;
+					if (!player.comboRecipe.empty()
+							&& player.moveStartTime_aswEngineTick <= player.comboRecipe.back().timestamp) {
+						auto newIt = player.comboRecipe.insert(player.comboRecipe.begin() + (player.comboRecipe.size() - 1), ComboRecipeElement{});
+						newComboElemPtr = &*newIt;
+					} else {
+						player.comboRecipe.emplace_back();
+						newComboElemPtr = &player.comboRecipe.back();
+					}
+					ComboRecipeElement& newComboElem = *newComboElemPtr;
 					newComboElem.name = player.lastPerformedMoveName;
 					newComboElem.whiffed = !player.hitSomething;
-					newComboElem.timestamp = aswEngineTickCount;
+					newComboElem.timestamp = player.moveStartTime_aswEngineTick;
 					newComboElem.framebarId = -1;
 					newComboElem.cancelDelayedBy = player.delayLastMoveWasCancelledIntoWith;
 					newComboElem.doneAfterIdle = player.delayInTheLastMoveIsAfterIdle;
@@ -2432,8 +2467,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					&& (player.charge.current || player.charge.max)) {
 				ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
 				if (lastElem) {
-					lastElem->charge = player.charge.current;
-					lastElem->maxCharge = player.charge.max;
+					unsigned char chargeVal = minmax(0, 255, player.charge.current);
+					unsigned char maxChargeVal = minmax(0, 255, player.charge.max);
+					if (player.charType == CHARACTER_TYPE_ELPHELT && strncmp(player.anim, "Rifle", 5) != 0) {
+						lastElem->charge = 0;
+						lastElem->maxCharge = 0;
+						lastElem->shotgunMaxCharge = maxChargeVal;
+					} else {
+						lastElem->charge = chargeVal;
+						lastElem->maxCharge = maxChargeVal;
+						lastElem->shotgunMaxCharge = 0;
+					}
 				}
 			}
 			
@@ -2534,7 +2578,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
 					if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
 						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
-						if (lastElem) {
+						if (lastElem && lastElem->hitCount) {
 							lastElem->name = player.lastPerformedMoveName;
 						}
 					}
@@ -4675,8 +4719,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& (
 							player.playerval0
 							&& (
-								!player.elpheltWasPlayerval1
-								|| !player.elpheltPrevFrameWasPlayerval1 && player.elpheltWasPlayerval1
+								!player.playerval1
+								|| !player.prevFramePlayerval1
 							)
 							&& (
 								player.cmnActIndex == CmnActStand
@@ -5432,7 +5476,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			PlayerInfo& other = players[1 - i];
 			
 			if (!superflashInstigator) {
-				if (player.idle && !player.isRunning && !player.isWalkingForward && !player.isWalkingBackward) {
+				if (player.idle && !player.isRunning && !player.isWalkingForward && !player.isWalkingBackward
+						&& other.inHitstun) {
 					if (!player.hitstop) {
 						++player.timePassedPureIdle;
 					}
@@ -5807,10 +5852,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					ei.hasJD = elpheltJDExists(player);
 				} else if (player.charType == CHARACTER_TYPE_JOHNNY) {
 					JohnnyInfo& ji = currentFrame.u.johnnyInfo;
-					ji.mistTimer = max_inline(0, min_inline(1023, player.johnnyMistTimerWithSlow));
-					ji.mistTimerMax = max_inline(0, min_inline(1023, player.johnnyMistTimerMaxWithSlow));
-					ji.mistKuttsukuTimer = max_inline(0, min_inline(1023, player.johnnyMistKuttsukuTimerWithSlow));
-					ji.mistKuttsukuTimerMax = max_inline(0, min_inline(1023, player.johnnyMistKuttsukuTimerMaxWithSlow));
+					ji.mistTimer = minmax(0, 1023, player.johnnyMistTimerWithSlow);
+					ji.mistTimerMax = minmax(0, 1023, player.johnnyMistTimerMaxWithSlow);
+					ji.mistKuttsukuTimer = minmax(0, 1023, player.johnnyMistKuttsukuTimerWithSlow);
+					ji.mistKuttsukuTimerMax = minmax(0, 1023, player.johnnyMistKuttsukuTimerMaxWithSlow);
 					ji.hasMistKuttsuku = hasAnyProjectileOfType(player, "MistKuttsuku");
 					ji.hasMist = hasLinkedProjectileOfType(player, "Mist");
 				} else if (player.charType == CHARACTER_TYPE_RAVEN) {
@@ -5898,18 +5943,18 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					hi.cantDoBall = cantDoBall;
 					
 					if (!cantDoBall) {
-						hi.ballTime = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallRemainingTimeWithSlow));
-						hi.ballTimeMax = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallRemainingTimeMaxWithSlow));
+						hi.ballTime = minmax(0, USHRT_MAX, player.haehyunBallRemainingTimeWithSlow);
+						hi.ballTimeMax = minmax(0, USHRT_MAX, player.haehyunBallRemainingTimeMaxWithSlow);
 					} else {
-						hi.ballTime = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallTimeWithSlow));
-						hi.ballTimeMax = min_inline(USHRT_MAX, max_inline(0, player.haehyunBallTimeMaxWithSlow));
+						hi.ballTime = minmax(0, USHRT_MAX, player.haehyunBallTimeWithSlow);
+						hi.ballTimeMax = minmax(0, USHRT_MAX, player.haehyunBallTimeMaxWithSlow);
 					}
 					
 					bool ended = false;
 					for (int i = 0; i < 2; ++i) {
 						if (!ended && player.haehyunSuperBallRemainingTimeWithSlow[i]) {
-							hi.superballTime[i].time = min_inline(USHRT_MAX, max_inline(0, player.haehyunSuperBallRemainingTimeWithSlow[i]));
-							hi.superballTime[i].timeMax = min_inline(USHRT_MAX, max_inline(0, player.haehyunSuperBallRemainingTimeMaxWithSlow[i]));
+							hi.superballTime[i].time = minmax(0, USHRT_MAX, player.haehyunSuperBallRemainingTimeWithSlow[i]);
+							hi.superballTime[i].timeMax = minmax(0, USHRT_MAX, player.haehyunSuperBallRemainingTimeMaxWithSlow[i]);
 						} else {
 							ended = true;
 							hi.superballTime[i].time = 0;
@@ -6355,7 +6400,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					currentFrame.powerup = "Picked up Silent Force";
 					currentFrame.dontShowPowerupGraphic = false;
 				} else if (player.charType == CHARACTER_TYPE_ELPHELT
-						&& player.playerval0 && !player.elpheltPrevFrameWasPlayerval1 && player.elpheltWasPlayerval1
+						&& player.playerval0 && !player.prevFramePlayerval1 && player.playerval1
 						&& (
 							player.cmnActIndex == CmnActCrouch2Stand
 							|| player.cmnActIndex == CmnActStand
@@ -6910,7 +6955,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevFrameMaxHit = player.pawn.maxHit();
 			player.prevFramePlayerval0 = player.playerval0;
 			player.prevFramePlayerval1 = player.playerval1;
-			player.elpheltPrevFrameWasPlayerval1 = player.elpheltWasPlayerval1;
 			player.prevFrameElpheltRifle_AimMem46 = player.elpheltRifle_AimMem46;
 			player.prevFrameRomanCancelAvailability = player.pawn.romanCancelAvailability();
 			player.prevBbscrvar5 = player.pawn.bbscrvar5();
@@ -7909,7 +7953,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		newParry.x = defender.x();
 		newParry.y = defender.y();
 		newParry.timer = 0;
-		newParry.aswEngTick = getAswEngineTick();
+		newParry.aswEngTick = getAswEngineTick() + 1;  // game's timestamp gets incremented at the end of the tick
 		leoParries.push_back(newParry);
 	}
 	if (!iGiveUp) {
@@ -8044,7 +8088,7 @@ void EndScene::HookHelp::BBScr_createObjectHook_piece() {
 }
 
 // Runs on the main thread
-ProjectileInfo& EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName) {
+ProjectileInfo& EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName, bool calledFromInsideTick) {
 	for (auto it = projectiles.begin(); it != projectiles.end(); ++it) {
 		if (it->ptr == createdPawn) {
 			if (it->landedHit || it->gotHitOnThisFrame || objHasAttackHitboxes(it->ptr)) {
@@ -8073,7 +8117,7 @@ ProjectileInfo& EndScene::onObjectCreated(Entity pawn, Entity createdPawn, const
 	if (!ownerFound && pawn.isPawn()) {
 		entityList.populate();
 		PlayerInfo& player = findPlayer(pawn);
-		projectile.creationTime_aswEngineTick = getAswEngineTick();
+		projectile.creationTime_aswEngineTick = getAswEngineTick() + calledFromInsideTick;  // game's timestamp gets incremented at the end of the tick
 		projectile.startup = player.total + player.prevStartups.total();  // + prevStartups.total() needed for Venom QV
 		if (player.totalCanBlock > player.total) {  // needed for Answer Taunt
 			projectile.startup += player.totalCanBlock - player.total;
@@ -8177,7 +8221,7 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 				ComboRecipeElement& newElem = player.comboRecipe.back();
 				newElem.artificial = true;
 				newElem.name = assignName("Jump Install");
-				newElem.timestamp = getAswEngineTick();
+				newElem.timestamp = getAswEngineTick() + 1;  // game's timestamp gets incremented at the end of the tick
 			}
 			bool canJump = pawn.enableJump() || pawn.enableAirOptions();
 			if (!canJump) {
@@ -8261,7 +8305,7 @@ void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName
 		player.comboRecipe.emplace_back();
 		ComboRecipeElement& newComboElem = player.comboRecipe.back();
 		PlayerInfo::determineMoveNameAndSlangName(pawn, &newComboElem.name);
-		newComboElem.timestamp = getAswEngineTick();
+		newComboElem.timestamp = getAswEngineTick() + 1;  // game's timestamp gets incremented at the end of the tick
 		newComboElem.framebarId = -1;
 		
 		const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
@@ -8439,7 +8483,6 @@ void EndScene::frameCleanup() {
 		++it;
 	}
 	for (PlayerInfo& player : players) {
-		player.elpheltFirstWasPlayerval1Measurement = true;
 		player.isFirstCheckFirePerFrameUponsWrapperOfTheFrame = true;
 		player.jumpNonCancel = false;
 		player.superJumpNonCancel = false;
@@ -8513,7 +8556,7 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 	if (!shutdown && creatingObject) {
 		creatingObject = false;
 		if (!iGiveUp) {
-			ProjectileInfo& newProjectileInfo = onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim, false);
+			ProjectileInfo& newProjectileInfo = onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim, false, true);
 			newProjectilePtr = newProjectileInfo.ptr;
 			events.emplace_back();
 			OccuredEvent& event = events.back();
@@ -9402,10 +9445,6 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 	if (!iGiveUp) {
 		PlayerInfo& player = findPlayer(pawn);
 		if (player.pawn) {
-			if (player.elpheltFirstWasPlayerval1Measurement) {
-				player.elpheltFirstWasPlayerval1Measurement = false;
-				player.elpheltWasPlayerval1 = pawn.playerVal(1);
-			}
 			player.wasPlayerval[0] = pawn.playerVal(0);
 			player.wasPlayerval[1] = pawn.playerVal(1);
 			player.wasPlayerval[2] = pawn.playerVal(2);
@@ -10085,7 +10124,7 @@ void EndScene::onAfterAttackCopy(Entity defenderPtr, Entity attackerPtr) {
 	if (iGiveUp || !defenderPtr.isPawn()) return;
 	PlayerInfo& defender = findPlayer(defenderPtr);
 	if (!defender.pawn) return;
-	DWORD tickCount = getAswEngineTick();
+	DWORD tickCount = getAswEngineTick() + 1;  // game's timestamp gets incremented at the end of the tick
 	if (!defender.dmgCalcs.empty()) {
 		if (defender.leftBlockstunHitstun) {
 			defender.dmgCalcs.clear();
@@ -10382,7 +10421,8 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 				if (
 						attacker.lastPerformedMoveNameIsInComboRecipe
 						&& lastElem && lastElem->whiffed) {
-					lastElem->player_markAsNotWhiff(attacker, dmgCalc, getAswEngineTick());
+					lastElem->player_markAsNotWhiff(attacker, dmgCalc, getAswEngineTick() + 1);  // game's timestamp gets incremented at the end of the tick
+					attacker.wasCancels.onHit();
 				} else if (!attacker.lastPerformedMoveNameIsInComboRecipe
 						|| !lastElem
 						|| !lastElem->whiffed
@@ -10393,7 +10433,9 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 					ui.comboRecipeUpdatedOnThisFrame[attacker.index] = true;
 					attacker.comboRecipe.emplace_back();
 					ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
-					newComboElem.player_onFirstHitHappenedBeforeFrame3(attacker, dmgCalc, getAswEngineTick(), isNormalThrow);
+					newComboElem.player_onFirstHitHappenedBeforeFrame3(attacker, dmgCalc, getAswEngineTick() + 1,  // game's timestamp gets incremented at the end of the tick
+						isNormalThrow);
+					attacker.wasCancels.onHit();  // for Combo Recipe panel Haehyun shishinken: otherwise displays that there's a delay between the shi and the shinken
 				} else if (attacker.lastPerformedMoveNameIsInComboRecipe
 						&& lastElem && lastElem->hitCount > 0) {
 					++lastElem->hitCount;
@@ -10461,7 +10503,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 				ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
 				newComboElem.name = dmgCalc.attackName;
 				newComboElem.whiffed = false;
-				newComboElem.timestamp = getAswEngineTick();
+				newComboElem.timestamp = getAswEngineTick() + 1;  // game's timestamp gets incremented at the end of the tick
 				newComboElem.isProjectile = true;
 				newComboElem.counterhit = data.counterHit;
 				newComboElem.otg = dmgCalc.isOtg;

@@ -394,7 +394,7 @@ private:
 	void BBScr_createParticleWithArgHook(Entity pawn, const char* animName, BBScrPosType posType);
 	void BBScr_linkParticleHook(Entity pawn, const char* name);
 	void BBScr_linkParticleWithArg2Hook(Entity pawn, const char* name);
-	ProjectileInfo& onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName = true);
+	ProjectileInfo& onObjectCreated(Entity pawn, Entity createdPawn, const char* animName, bool fillName, bool calledFromInsideTick);
 	void setAnimHook(Entity pawn, const char* animName);
 	void pawnInitializeHook(Entity createdObj, void* initializationParams);
 	void logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2);

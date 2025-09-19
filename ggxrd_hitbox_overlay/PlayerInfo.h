@@ -1508,6 +1508,7 @@ struct ComboRecipeElement {
 	int hitCount = 0;
 	unsigned char charge = 0;
 	unsigned char maxCharge = 0;
+	unsigned char shotgunMaxCharge = 0;
 	bool whiffed:1;
 	bool counterhit:1;
 	bool otg:1;
@@ -1806,8 +1807,6 @@ struct PlayerInfo {
 	int prevFrameMaxHit = 0;
 	int prevFramePlayerval0 = 0;
 	int prevFramePlayerval1 = 0;
-	int elpheltPrevFrameWasPlayerval1 = 0;
-	int elpheltWasPlayerval1 = 0;
 	int prevFrameElpheltRifle_AimMem46 = 0;
 	int prevFrameResource[4] { 0 };
 	RomanCancelAvailability prevFrameRomanCancelAvailability = ROMAN_CANCEL_DISALLOWED;
@@ -1901,6 +1900,7 @@ struct PlayerInfo {
 	int counterGuardAirMoveIndex = -1;
 	int counterGuardStandMoveIndex = -1;
 	int counterGuardCrouchMoveIndex = -1;
+	ChargeData elpheltShotgunCharge { 0, 0 };
 	ChargeData charge { 0, 0 };
 	BlitzShieldPrereqData standingBlitzShieldPrereqData;
 	BlitzShieldPrereqData crouchingBlitzShieldPrereqData;
@@ -2088,12 +2088,12 @@ struct PlayerInfo {
 	bool pickedUpSilentForceKnifeOnThisFrame:1;
 	bool lostSpeedYOnThisFrame:1;
 	bool wasAirborneOnAnimChange:1;
-	bool elpheltFirstWasPlayerval1Measurement:1;
 	bool ramlethalForpeliMarteliDisabled:1;
 	bool ramlethalBoss6SHInputsModified:1;
 	bool sinHunger:1;
 	bool jackoAegisActive:1;
 	bool stoppedMeasuringInvuls:1;
+	bool elpheltShotgunChargeConsumed:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

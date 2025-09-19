@@ -483,11 +483,16 @@ static void charge_may6P(PlayerInfo& ent, ChargeData* result);
 static void charge_may6H(PlayerInfo& ent, ChargeData* result);
 static void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result);
 static void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result);
+static void charge_standingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result);
+static void charge_crouchingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result);
 static void charge_fdb(PlayerInfo& ent, ChargeData* result);
 static void charge_soutenBC(PlayerInfo& ent, ChargeData* result);
 static void charge_dubiousCurve(PlayerInfo& ent, ChargeData* result);
 static void charge_stingerAim(PlayerInfo& ent, ChargeData* result);
 static void charge_beakDriver(PlayerInfo& ent, ChargeData* result);
+static void charge_elpheltStand(PlayerInfo& ent, ChargeData* result);
+static void charge_elpheltCrouch2Stand(PlayerInfo& ent, ChargeData* result);
+static void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -3144,6 +3149,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_FAUST, "Hikimodoshi");
 	move.displayName = assignName("Pull Back");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
@@ -3459,6 +3465,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Sensageki");
 	move.displayName = assignName("Spinning Chain Strike", "Rensen-2");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -3467,6 +3474,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_AXL, "Kyokusageki");
 	move.displayName = assignName("Melody Chain", "Rensen-8");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -3513,7 +3521,7 @@ void Moves::addMoves() {
 	// without requiring any installs.
 	// So a super jump install is, mathematically proven, useless to her
 	charDoesNotCareAboutSuperJumpInstalls[CHARACTER_TYPE_ELPHELT] = true;
-	
+
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "NmlAtkAir5E");
 	move.displayName = assignName("j.D");
 	move.nameIncludesInputs = true;
@@ -3525,12 +3533,14 @@ void Moves::addMoves() {
 	move.displayName = assignName("Stand");
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_elpheltStand;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActCrouch2Stand");
 	move.displayName = assignName("Crouch to Stand");
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_elpheltCrouch2Stand;
 	addMove(move);
 	
 	// Elphelt Ms. Confille (rifle)
@@ -3599,6 +3609,7 @@ void Moves::addMoves() {
 	move.nameIncludesInputs = true;
 	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MAX");
@@ -3606,11 +3617,13 @@ void Moves::addMoves() {
 	move.nameIncludesInputs = true;
 	move.isRecoveryCanReload = isRecoveryHasGatlings_enableWhiffCancels;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Reload");
 	move.displayName = assignName("Ms. Travailler Reload", "Shotgun Reload");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -3618,18 +3631,21 @@ void Moves::addMoves() {
 	move.displayName = assignName("sg.S");
 	move.nameIncludesInputs = true;
 	move.ignoreSuperJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Rolling");
 	move.displayName = assignName("sg.K");
 	move.nameIncludesInputs = true;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Koduki");
 	move.displayName = assignName("sg.P");
 	move.nameIncludesInputs = true;
 	move.ignoreSuperJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Land_Throw_Upper");
@@ -3664,6 +3680,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_CQC");
 	move.displayName = assignName("CQC");
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_CQCExe");
@@ -3719,11 +3736,38 @@ void Moves::addMoves() {
 	move.displayName = assignName("Air Bridal Express", "Air Bridal");
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CounterGuardStand");
+	move.displayName = assignName("Standing Blitz Shield", "Standing Blitz");
+	move.displayNameSelector = displayNameSelector_standingBlitzShield;
+	move.sectionSeparator = sectionSeparator_blitzShield;
+	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	move.charge = charge_standingBlitzShieldElphelt;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CounterGuardCrouch");
+	move.displayName = assignName("Crouching Blitz Shield", "Crouching Blitz");
+	move.displayNameSelector = displayNameSelector_crouchingBlitzShield;
+	move.sectionSeparator = sectionSeparator_blitzShield;
+	move.isInVariableStartupSection = isInVariableStartupSection_blitzShield;
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	move.charge = charge_crouchingBlitzShieldElphelt;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActRomanCancel");
+	move.displayName = assignName("Roman Cancel", "RC");
+	move.nameIncludesInputs = true;
+	move.charge = charge_shotgunCharge;
+	addMove(move);
+	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Bazooka");
 	move.displayName = assignName("Genoverse");
 	move.dontSkipSuper = true;
 	move.canYrcProjectile = canYrcProjectile_bazooka;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Judge_BetterHalf");
@@ -4029,6 +4073,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "SenriShinshou");
 	move.displayName = assignName("Senri Shinshou", "H Puffball");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4042,6 +4087,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "HyappoShinshou");
 	move.displayName = assignName("Hyappo Shinshou", "Puffball");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4050,6 +4096,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Ashibarai");
 	move.displayName = assignName("Hamonkyaku", "Splitkick");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
@@ -4059,6 +4106,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "Mawarikomi");
 	move.displayName = assignName("Mawarikomi");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4067,6 +4115,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JAM, "TuikaA");
 	move.displayName = assignName("Zekkei", "46P");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4575,6 +4624,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "SaiZenten");
 	move.displayName = assignName("Forward Roll Again", "Doubleroll");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4583,6 +4633,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "ZentenShaker");
 	move.displayName = assignName("Lust Shaker (Follow-up)", "> Shaker");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -4591,6 +4642,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_MILLIA, "Digitalis");
 	move.displayName = assignName("Digitalis");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -5088,6 +5140,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_POTEMKIN, "HammerFallBrake");
 	move.displayName = assignName("Hammer Fall Break");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.partOfStance = true;
 	move.ignoreJumpInstalls = true;
@@ -5492,6 +5545,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("Crosswise Heel", "CW");
 	move.displayNameSelector = displayNameSelector_crosswise;
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination =  true;
 	move.ignoreSuperJumpInstalls = true;
 	addMove(move);
@@ -5500,6 +5554,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("Under Pressure", "UP");
 	move.displayNameSelector = displayNameSelector_underPressure;
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination =  true;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	move.isInVariableStartupSection = isRecoveryHasGatlings_enableWhiffCancels;
@@ -5514,6 +5569,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_SLAYER, "RetroFire");
 	move.displayName = assignName("Helter Skelter", "Helter");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination =  true;
 	move.canYrcProjectile = canYrcProjectile_helterSkelter;
 	move.ignoreSuperJumpInstalls = true;
@@ -5529,6 +5585,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("Pilebunker", "Pile");
 	move.displayNameSelector = displayNameSelector_pilebunker;
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination =  true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -5718,6 +5775,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_INO, "ChemicalAdd");
 	move.displayName = assignName("Chemical Love (Follow-up)", "214K~214S");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.butForFramebarDontCombineWithPreviousMove = true;
 	move.canYrcProjectile = canYrcProjectile_chemicalLove;  // typically opponent will be in blockstun, but I did a hacktest and ye you can YRC this
 	addMove(move);
@@ -5968,6 +6026,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BEDMAN, "BWarp");
 	move.displayName = assignName("Task A' Teleport");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.dontSkipSuper = true;
 	addMove(move);
 	
@@ -7643,48 +7702,56 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundC");
 	move.displayName = assignName("S Kikyo");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundD");
 	move.displayName = assignName("H Kikyo");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundCGuard");
 	move.displayName = assignName("S Kikyo");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiGroundDGuard");
 	move.displayName = assignName("H Kikyo");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirA");
 	move.displayName = assignName("P Tsubaki");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirAGuard");
 	move.displayName = assignName("P Tsubaki");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirB");
 	move.displayName = assignName("K Tsubaki");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "AirGCAntiAirBGuard");
 	move.displayName = assignName("K Tsubaki");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
@@ -7786,12 +7853,14 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Youshijin");   // P followup
 	move.displayName = assignName("Kuchinashi");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Mawarikomi");   // K followup
 	move.displayName = assignName("Mawari-komi");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -7799,6 +7868,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Sakura");  // S followup
 	move.displayName = assignName("Sakura");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -7806,6 +7876,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Issen");  // H followup
 	move.displayName = assignName("Rokkon Sogi");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -7813,6 +7884,7 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "Teppou");  // D followup
 	move.displayName = assignName("Yasha Gatana");
 	move.combineWithPreviousMove = true;
+	move.splitForComboRecipe = true;
 	move.usePlusSignInCombination = true;
 	move.canYrcProjectile = canYrcProjectile_teppou;
 	move.ignoreJumpInstalls = true;
@@ -8398,6 +8470,7 @@ void Moves::onAswEngineDestroyed() {
 	}
 	sinBeakDriverMinCharge = 0;
 	sinBeakDriverMaxCharge = 0;
+	elpheltCrouch2StandChargeDuration = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -12619,9 +12692,23 @@ static void charge_blitzShield(PlayerInfo& ent, ChargeData* result, BlitzShieldP
 	
 }
 void charge_standingBlitzShield(PlayerInfo& ent, ChargeData* result) {
-	return charge_blitzShield(ent, result, &ent.standingBlitzShieldPrereqData);
+	charge_blitzShield(ent, result, &ent.standingBlitzShieldPrereqData);
 }
 void charge_crouchingBlitzShield(PlayerInfo& ent, ChargeData* result) {
+	charge_blitzShield(ent, result, &ent.crouchingBlitzShieldPrereqData);
+}
+void charge_standingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result) {
+	ent.elpheltShotgunChargeConsumed = true;
+	if (ent.pawn.currentAnimDuration() == 1) {
+		*result = ent.elpheltShotgunCharge;
+	}
+	charge_blitzShield(ent, result, &ent.standingBlitzShieldPrereqData);
+}
+void charge_crouchingBlitzShieldElphelt(PlayerInfo& ent, ChargeData* result) {
+	ent.elpheltShotgunChargeConsumed = true;
+	if (ent.pawn.currentAnimDuration() == 1) {
+		*result = ent.elpheltShotgunCharge;
+	}
 	return charge_blitzShield(ent, result, &ent.crouchingBlitzShieldPrereqData);
 }
 void charge_fdb(PlayerInfo& ent, ChargeData* result) {
@@ -12795,6 +12882,78 @@ void charge_beakDriver(PlayerInfo& ent, ChargeData* result) {
 	
 	result->current = 0;
 	result->max = 0;
+}
+void charge_elpheltStand(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	BOOL isInShotgun = (BOOL)pawn.playerVal(0);
+	ChargeData& sc = ent.elpheltShotgunCharge;
+	if (!isInShotgun) {
+		sc.current = 0;
+		sc.max = 0;
+	} else {
+		int animFrame = pawn.currentAnimDuration();
+		BOOL hasFullCharge = (BOOL)pawn.playerVal(1);
+		if (!hasFullCharge) {
+			sc.current = animFrame;
+			sc.max = 13;
+		} else if (animFrame == 1) {
+			if (strcmp(pawn.previousAnimName(), "CmnActCrouch2Stand") != 0) {
+				sc.current = 0;
+				sc.max = 0;
+			} else {
+				sc.current = sc.max + 1;
+			}
+		} else if (sc.max) {
+			bool cameFromCrouch = sc.max != 13;
+			sc.current = animFrame + (cameFromCrouch ? sc.max : 0);
+			// sc.max unchanged
+		} else {
+			sc.current = 0;
+		}
+	}
+	
+	if (sc.max) {
+		ent.elpheltShotgunChargeConsumed = false;
+	}
+	result->current = 0;
+	result->max = 0;
+}
+void charge_elpheltCrouch2Stand(PlayerInfo& ent, ChargeData* result) {
+	
+	Entity pawn = ent.pawn;
+	if (!moves.elpheltCrouch2StandChargeDuration) {
+		BYTE* func = pawn.bbscrCurrentFunc();
+		int total = 0;
+		int prevDur = 0;
+		for (loopInstr(func)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_sprite) {
+				total += prevDur;
+				prevDur = asInstr(instr, sprite)->duration;
+			} else if (type == instr_storeValue) {
+				if (asInstr(instr, storeValue)->dest == BBSCRVAR_PLAYERVAL_1
+						&& asInstr(instr, storeValue)->src == AccessedValue(BBSCRTAG_VALUE, 1)) {
+					moves.elpheltCrouch2StandChargeDuration = total + 1;
+					break;
+				}
+			}
+		}
+	}
+	
+	if (pawn.playerVal(0)) {
+		ent.elpheltShotgunCharge.current = pawn.currentAnimDuration();
+		ent.elpheltShotgunCharge.max = moves.elpheltCrouch2StandChargeDuration;
+		ent.elpheltShotgunChargeConsumed = false;
+	} else {
+		ent.elpheltShotgunCharge.current = 0;
+		ent.elpheltShotgunCharge.max = 0;
+	}
+	result->current = 0;
+	result->max = 0;
+}
+void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result) {
+	ent.elpheltShotgunChargeConsumed = true;
+	*result = ent.elpheltShotgunCharge;
 }
 
 void Moves::fillMay6PElements(BYTE* func) {
