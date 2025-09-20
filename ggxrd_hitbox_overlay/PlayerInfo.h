@@ -1509,6 +1509,7 @@ struct ComboRecipeElement {
 	unsigned char charge = 0;
 	unsigned char maxCharge = 0;
 	unsigned char shotgunMaxCharge = 0;
+	unsigned char shotgunChargeSkippedFrames = 0;
 	bool whiffed:1;
 	bool counterhit:1;
 	bool otg:1;
@@ -1900,6 +1901,7 @@ struct PlayerInfo {
 	int counterGuardAirMoveIndex = -1;
 	int counterGuardStandMoveIndex = -1;
 	int counterGuardCrouchMoveIndex = -1;
+	int elpheltSkippedTimePassed = 0;  // timePassedPureIdle does not take into account frames spent outside of opponent's hitstun. We need to record those and decrement minimum required charge by that amount
 	ChargeData elpheltShotgunCharge { 0, 0 };
 	ChargeData charge { 0, 0 };
 	BlitzShieldPrereqData standingBlitzShieldPrereqData;

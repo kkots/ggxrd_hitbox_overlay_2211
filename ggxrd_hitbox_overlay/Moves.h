@@ -91,6 +91,7 @@ extern const NamePair emptyNamePair;
 struct ChargeData {
 	int current;
 	int max;
+	int elpheltShotgunChargeSkippedFrames;
 };
 
 using sectionSeparator_t = bool(*)(PlayerInfo& ent);

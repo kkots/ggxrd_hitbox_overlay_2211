@@ -490,6 +490,8 @@ static void charge_stingerAim(PlayerInfo& ent, ChargeData* result);
 static void charge_beakDriver(PlayerInfo& ent, ChargeData* result);
 static void charge_elpheltStand(PlayerInfo& ent, ChargeData* result);
 static void charge_elpheltCrouch2Stand(PlayerInfo& ent, ChargeData* result);
+static void charge_elpheltLanding(PlayerInfo& ent, ChargeData* result);
+static void charge_elpheltDashStop(PlayerInfo& ent, ChargeData* result);
 static void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
@@ -3541,6 +3543,19 @@ void Moves::addMoves() {
 	move.charge = charge_elpheltCrouch2Stand;
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActJumpLanding");
+	move.displayName = assignName("Landing");
+	move.ignoreJumpInstalls = true;
+	move.charge = charge_elpheltLanding;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "CmnActFDashStop");
+	move.displayName = assignName("Forward Dash Stop");
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	move.charge = charge_elpheltDashStop;
+	addMove(move);
+	
 	// Elphelt Ms. Confille (rifle)
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Rifle_Start");
 	move.displayName = assignName("Aim Ms. Confille", "Rifle");
@@ -3656,6 +3671,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("Ms. Travailler Stance High Toss", "4Toss");
 	move.canYrcProjectile = canYrcProjectile_grenadeToss;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Grenade_Air_Throw");
@@ -3667,6 +3683,7 @@ void Moves::addMoves() {
 	move.displayName = assignName("Low Toss", "2Toss");
 	move.canYrcProjectile = canYrcProjectile_grenadeToss;
 	move.ignoreJumpInstalls = true;
+	// shotgun charge doesn't get preserved
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Grenade_Throw_Down");
@@ -3723,11 +3740,13 @@ void Moves::addMoves() {
 	move.displayName = assignName("Ms. Travailler Stance Berry Pine", "Pull");
 	move.ignoreJumpInstalls = true;
 	move.canYrcProjectile = canYrcProjectile_berryPull;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Land");
 	move.displayName = assignName("Bridal Express", "Bridal");
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_shotgunCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "BridalExpress_Air");
@@ -12851,33 +12870,34 @@ void charge_elpheltStand(PlayerInfo& ent, ChargeData* result) {
 	Entity pawn = ent.pawn;
 	BOOL isInShotgun = (BOOL)pawn.playerVal(0);
 	ChargeData& sc = ent.elpheltShotgunCharge;
+	const char* previousAnim = pawn.previousAnimName();
 	if (!isInShotgun) {
 		sc.current = 0;
 		sc.max = 0;
-	// gold burst's normal landing animation also increases how much you must stand still to get shotgun charge, but
-	// the gold burst is so long I don't think anything gives enough hitstun to continue the combo after whiffing it
-	} else if (strcmp(pawn.previousAnimName(), "CounterGuardStand") == 0
-			|| strcmp(pawn.previousAnimName(), "CounterGuardCrouch") == 0) {
-		sc.current = ent.timePassed + 1;
+		sc.elpheltShotgunChargeSkippedFrames = 0;
+	} else if (strcmp(previousAnim, "CounterGuardStand") == 0
+			|| strcmp(previousAnim, "CounterGuardCrouch") == 0) {
+		sc.current = ent.timePassedPureIdle + 1;
+		// max is set in EndScene.cpp hardcode
+		sc.elpheltShotgunChargeSkippedFrames = ent.elpheltSkippedTimePassed;
 	} else {
-		int animFrame = pawn.currentAnimDuration();
 		BOOL hasFullCharge = (BOOL)pawn.playerVal(1);
-		if (!hasFullCharge) {
-			sc.current = animFrame;
-			sc.max = 13;
-		} else if (animFrame == 1) {
-			if (strcmp(pawn.previousAnimName(), "CmnActCrouch2Stand") != 0) {
-				sc.current = 0;
-				sc.max = 0;
-			} else {
-				sc.current = sc.max + 1;
+		int animFrame = pawn.currentAnimDuration();
+		if (animFrame == 1) {
+			if (hasFullCharge) {
+				if (strcmp(previousAnim, "CmnActCrouch2Stand") != 0) {
+					sc.max = 0;
+				}
+			} else if (sc.max == 0) {
+				sc.max = 13;
 			}
-		} else if (sc.max) {
-			bool cameFromCrouch = sc.max != 13;
-			sc.current = animFrame + (cameFromCrouch ? sc.max : 0);
-			// sc.max unchanged
+		}
+		if (sc.max) {
+			sc.current = ent.timePassedPureIdle + 1;
+			sc.elpheltShotgunChargeSkippedFrames = ent.elpheltSkippedTimePassed;
 		} else {
 			sc.current = 0;
+			sc.elpheltShotgunChargeSkippedFrames = 0;
 		}
 	}
 	
@@ -12889,6 +12909,7 @@ void charge_elpheltStand(PlayerInfo& ent, ChargeData* result) {
 }
 void charge_elpheltCrouch2Stand(PlayerInfo& ent, ChargeData* result) {
 	
+	ChargeData& sc = ent.elpheltShotgunCharge;
 	Entity pawn = ent.pawn;
 	if (!moves.elpheltCrouch2StandChargeDuration) {
 		BYTE* func = pawn.bbscrCurrentFunc();
@@ -12910,15 +12931,55 @@ void charge_elpheltCrouch2Stand(PlayerInfo& ent, ChargeData* result) {
 	}
 	
 	if (pawn.playerVal(0)) {
-		ent.elpheltShotgunCharge.current = pawn.currentAnimDuration();
-		ent.elpheltShotgunCharge.max = moves.elpheltCrouch2StandChargeDuration;
+		sc.current = pawn.currentAnimDuration();
+		sc.max = moves.elpheltCrouch2StandChargeDuration;
+		sc.elpheltShotgunChargeSkippedFrames = ent.elpheltSkippedTimePassed;
 		ent.elpheltShotgunChargeConsumed = false;
 	} else {
-		ent.elpheltShotgunCharge.current = 0;
-		ent.elpheltShotgunCharge.max = 0;
+		sc.current = 0;
+		sc.max = 0;
+		sc.elpheltShotgunChargeSkippedFrames = 0;
 	}
 	result->current = 0;
 	result->max = 0;
+}
+void charge_elpheltLanding(PlayerInfo& ent, ChargeData* result) {
+	
+	Entity pawn = ent.pawn;
+	ChargeData& sc = ent.elpheltShotgunCharge;
+	if (pawn.playerVal(0) && !pawn.playerVal(1)) {
+		// you can only end up here from a Gold Burst, and it does not preserve existing charge, so maybe pawn.playerVal(1) check is not needed
+		sc.current = pawn.currentAnimDuration();
+		sc.max = 6  // duration of landing animation
+			+ 13;  // for how long to charge in CmnActStand
+		sc.elpheltShotgunChargeSkippedFrames = ent.elpheltSkippedTimePassed;
+	} else {
+		sc.current = 0;
+		sc.max = 0;
+		sc.elpheltShotgunChargeSkippedFrames = 0;
+	}
+	result->current = 0;
+	result->max = 0;
+	
+}
+void charge_elpheltDashStop(PlayerInfo& ent, ChargeData* result) {
+	
+	Entity pawn = ent.pawn;
+	ChargeData& sc = ent.elpheltShotgunCharge;
+	if (pawn.playerVal(0)) {
+		// can't have charge in this animation at all, since you can only end up here from CmnActFDash, which deprives you of it, so no need for pawn.playerVal(1) check
+		sc.current = pawn.currentAnimDuration();
+		sc.max = 13  // duration of CmnActFDashStop
+			+ 13;  // for how long to charge in CmnActStand
+		sc.elpheltShotgunChargeSkippedFrames = ent.elpheltSkippedTimePassed;
+	} else {
+		sc.current = 0;
+		sc.max = 0;
+		sc.elpheltShotgunChargeSkippedFrames = 0;
+	}
+	result->current = 0;
+	result->max = 0;
+	
 }
 void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result) {
 	ent.elpheltShotgunChargeConsumed = true;

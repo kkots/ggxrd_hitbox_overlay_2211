@@ -2084,9 +2084,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							if (!playerval1
 									&& !player.move.charge  // may fire the shotgun when not having charge, but I still have to display the charge
 									|| !playerval0
-									|| player.elpheltShotgunChargeConsumed) {  // a shotgun move will instantly consume the charge the first time its 'charge' function is called. The values will get cleared only on the next animation change
+									|| player.elpheltShotgunChargeConsumed) {
 								player.elpheltShotgunCharge.current = 0;
 								player.elpheltShotgunCharge.max = 0;
+								player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames = 0;
 							}
 						}
 						
@@ -2461,6 +2462,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			
 			if (player.moveNonEmpty && player.move.charge) {
 				ChargeData charge;
+				charge.elpheltShotgunChargeSkippedFrames = 0;
 				player.move.charge(player, &charge);
 				if (charge.current || charge.max) {
 					player.charge = charge;
@@ -2481,19 +2483,23 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							
 							// shotgun's charge
 							if (player.idle && !player.playerval1) {
-								player.elpheltShotgunCharge.current = player.timePassed + 1;
+								player.elpheltShotgunCharge.current = player.timePassedPureIdle + 1;
 								player.elpheltShotgunCharge.max = 9  // idle recovery of Standing and Crouching Blitzes
 									+ 13;  // how much you must charge in CmnActStand
+								player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames = player.elpheltSkippedTimePassed;
 							} else if (player.elpheltShotgunCharge.max) {
 								lastElem->shotgunMaxCharge = minmax(0, 255, player.elpheltShotgunCharge.max);
+								lastElem->shotgunChargeSkippedFrames = minmax(0, 255, player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames);
 								player.elpheltShotgunCharge.current = 0;
 								player.elpheltShotgunCharge.max = 0;
+								player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames = 0;
 							}
 						} else if (strncmp(player.anim, "Rifle", 5) == 0) {
 							lastElem->charge = chargeVal;
 							lastElem->maxCharge = maxChargeVal;
 						} else {
 							lastElem->shotgunMaxCharge = maxChargeVal;
+							lastElem->shotgunChargeSkippedFrames = minmax(0, 255, player.charge.elpheltShotgunChargeSkippedFrames);
 						}
 					} else {
 						lastElem->charge = chargeVal;
@@ -5500,13 +5506,17 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			PlayerInfo& other = players[1 - i];
 			
 			if (!superflashInstigator) {
-				if (player.idle && !player.isRunning && !player.isWalkingForward && !player.isWalkingBackward
-						&& other.inHitstun) {
+				if (player.idle && !player.isRunning && !player.isWalkingForward && !player.isWalkingBackward) {
 					if (!player.hitstop) {
-						++player.timePassedPureIdle;
+						if (other.inHitstun) {
+							++player.timePassedPureIdle;
+						} else {
+							++player.elpheltSkippedTimePassed;
+						}
 					}
 				} else {
 					player.timePassedPureIdle = 0;
+					player.elpheltSkippedTimePassed = 0;
 				}
 				++player.timePassed;
 				++player.timePassedLanding;
