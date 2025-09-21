@@ -510,6 +510,7 @@ public:
 	int elpheltRifleFireStartup = 0;
 	// ent must point to Elphelt player
 	void fillElpheltRifleFireStartup(Entity ent);
+	void fillElpheltRifleFireStartup(BYTE* func);
 	int elpheltRifleFirePowerupStartup = 0;
 	// funcStart must point to Rifle_Aim projectile state
 	void fillElpheltRifleFirePowerupStartup(BYTE* funcStart);

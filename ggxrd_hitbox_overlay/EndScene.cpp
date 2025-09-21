@@ -1985,6 +1985,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				);
 				if (!player.changedAnimFiltered) {
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
+					moves.forCancels = true;
+					player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
+					moves.forCancels = false;
 				}
 				if (*player.prevAttackLockAction != '\0' && strcmp(animName, player.prevAttackLockAction) == 0
 						&& !player.move.dontSkipGrab) {
@@ -2030,7 +2033,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					} else if (!player.isInFDWithoutBlockstun && player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
 						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
 						if (lastElem) {
-							lastElem->name = player.lastPerformedMoveName;
+							lastElem->name = player.lastPerformedMoveNameForComboRecipe;
 						}
 					}
 				} else {
@@ -2173,6 +2176,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.stoppedMeasuringInvuls = false;
 						player.lastMoveIsPartOfStance = player.move.partOfStance;
 						player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
+						moves.forCancels = true;
+						player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
+						moves.forCancels = false;
 						
 						runInitNewMoveForComboRecipe = true;
 						
@@ -2305,8 +2311,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			memcpy(player.anim, animName, 32);
 			player.setMoveName(player.moveName, ent);
-			if (player.moveNonEmpty && player.move.displayNameSelector) {
+			// this is to update chargeable moves' names like May 6P that have many charge levels and a name reflecting each one
+			if (player.moveNonEmpty
+					&& player.move.displayNameSelector
+					&& !player.move.canBeUnableToBlockIndefinitelyOrForVeryLongTime  // this to prevent Elphelt Rifle stance from turning last performed move into just "Rifle"
+			) {
 				player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
+				moves.forCancels = true;
+				player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
+				moves.forCancels = false;
 			}
 			
 			if (other.pawn.inHitstun() && !startedRunOrWalkOnThisFrame
@@ -2449,7 +2462,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						newComboElemPtr = &player.comboRecipe.back();
 					}
 					ComboRecipeElement& newComboElem = *newComboElemPtr;
-					newComboElem.name = player.lastPerformedMoveName;
+					newComboElem.name = player.lastPerformedMoveNameForComboRecipe;
 					newComboElem.whiffed = !player.hitSomething;
 					newComboElem.timestamp = player.moveStartTime_aswEngineTick;
 					newComboElem.framebarId = -1;
@@ -2603,10 +2616,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 					player.startup = 0;
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
+					moves.forCancels = true;
+					player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
+					moves.forCancels = false;
 					if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
 						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
 						if (lastElem) {
-							lastElem->name = player.lastPerformedMoveName;
+							lastElem->name = player.lastPerformedMoveNameForComboRecipe;
 						}
 					}
 					player.total = 0;

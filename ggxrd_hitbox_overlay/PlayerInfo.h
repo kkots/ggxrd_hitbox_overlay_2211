@@ -1701,6 +1701,7 @@ struct PlayerInfo {
 	
 	PrevStartupsInfo prevStartups { 0 };  // startups of moves that you whiff cancelled from
 	const NamePair* lastPerformedMoveName = nullptr;
+	const NamePair* lastPerformedMoveNameForComboRecipe = nullptr;
 	
 	int startupDisp = 0;  // startup to display in the UI. Either current or of the last move
 	ActiveDataArray activesDisp;  // active frames to display in the UI. Either current or of the last move

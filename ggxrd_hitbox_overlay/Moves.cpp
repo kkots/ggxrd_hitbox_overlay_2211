@@ -493,6 +493,7 @@ static void charge_elpheltCrouch2Stand(PlayerInfo& ent, ChargeData* result);
 static void charge_elpheltLanding(PlayerInfo& ent, ChargeData* result);
 static void charge_elpheltDashStop(PlayerInfo& ent, ChargeData* result);
 static void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result);
+static void charge_rifleCharge(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -3615,6 +3616,7 @@ void Moves::addMoves() {
 	move.canYrcProjectile = canYrcProjectile_rifleFire;
 	move.powerup = powerup_rifle;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_rifleCharge;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "Shotgun_Fire_MIN");
@@ -12296,6 +12298,10 @@ void Moves::fillElpheltRifleFireStartup(Entity ent) {
 	if (elpheltRifleFireStartup) return;
 	BYTE* func = ent.findStateStart("Rifle_Fire");
 	if (!func) return;
+	fillElpheltRifleFireStartup(func);
+}
+void Moves::fillElpheltRifleFireStartup(BYTE* func) {
+	if (elpheltRifleFireStartup) return;
 	int prevDuration = 0;
 	int startup = 0;
 	for (loopInstr(func)) {
@@ -12984,6 +12990,23 @@ void charge_elpheltDashStop(PlayerInfo& ent, ChargeData* result) {
 void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result) {
 	ent.elpheltShotgunChargeConsumed = true;
 	*result = ent.elpheltShotgunCharge;
+}
+void charge_rifleCharge(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	int animFrame = pawn.currentAnimDuration();
+	if (animFrame < moves.elpheltRifleFireStartup) {
+		for (int i = 2; i < entityList.count; ++i) {
+			Entity aim = entityList.list[i];
+			if (aim.isActive() && aim.team() == ent.index && strcmp(aim.animationName(), "Rifle_Aim") == 0) {
+				result->current = aim.mem45();
+				result->max = moves.elpheltRifleFirePowerupStartup;
+				return;
+			}
+		}
+	}
+	
+	result->current = 0;
+	result->max = 0;
 }
 
 void Moves::fillMay6PElements(BYTE* func) {

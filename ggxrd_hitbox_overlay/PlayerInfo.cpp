@@ -3287,7 +3287,6 @@ int PlayerInfo::getElpheltRifle_AimMem46() const {
 		bool frozen = 0;
 		int slowdown = 0;
 		
-		ProjectileInfo& aimProjectile = endScene.findProjectile(aim);
 		
 		// we're not in superfreeze
 		
@@ -3295,7 +3294,10 @@ int PlayerInfo::getElpheltRifle_AimMem46() const {
 		if (stopLinked) {
 			slowdown = rcSlowedDownCounter;
 		} else {
-			slowdown = aimProjectile.rcSlowedDownCounter;
+			ProjectileInfo& aimProjectile = endScene.findProjectile(aim);
+			if (aimProjectile.ptr) {
+				slowdown = aimProjectile.rcSlowedDownCounter;
+			}
 		}
 		
 		int timeLeft = INT_MAX;
@@ -3309,7 +3311,9 @@ int PlayerInfo::getElpheltRifle_AimMem46() const {
 		int attackStartupWithSlow = 0;
 		int unused;
 		calculateSlow(0,
-			moves.elpheltRifleFireStartup - 1,
+			moves.elpheltRifleFireStartup - (
+				strcmp(anim, "Rifle_Fire") == 0 ? animFrame : 0
+			),
 			rcSlowedDownCounter,
 			&attackStartupWithSlow,
 			&unused,
