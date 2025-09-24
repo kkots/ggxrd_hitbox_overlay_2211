@@ -1093,6 +1093,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		for (int i = 0; i < 2; ++i) {
 			Entity ent = entityList.slots[i];
 			PlayerInfo& player = players[i];
+			player.inHitstunNowOrNextFrame = ent.inHitstun();
+			player.inHitstun = ent.inHitstunThisFrame();
 			if (ent.inHitstun() && !player.inHitstunNowOrNextFrame) {
 				comboStarted = true;
 				break;
@@ -1149,8 +1151,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.hasDangerousNonDisabledProjectiles = false;
 			player.createdProjectiles.clear();
 			
-			player.inHitstunNowOrNextFrame = ent.inHitstun();
-			player.inHitstun = ent.inHitstunThisFrame();
 			bool needResetStun = false;
 			if (comboStarted) {
 				if (tensionGainOnLastHitUpdated[i]) {
@@ -1333,8 +1333,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.jumpInstalledStage2 = false;
 			player.superJumpInstalledStage2 = false;
 			
+			const bool isSemuke = player.charType == CHARACTER_TYPE_LEO
+					&& strcmp(ent.animationName(), "Semuke") == 0;
+			if (isSemuke) {
+				player.wasCancels.clearDelays();
+			}
+			
 			bool startedRunOrWalkOnThisFrame = false;
-			if (player.changedAnimOnThisFrame) {
+			if (player.changedAnimOnThisFrame
+					|| isSemuke && ent.gotoLabelRequests()[0] != '\0') {
 				
 				bool oldIsRunning = player.isRunning;
 				bool oldIsWalkingForward = player.isWalkingForward;
@@ -1343,6 +1350,13 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.isRunning = false;
 				player.isWalkingForward = false;
 				player.isWalkingBackward = false;
+				if (player.charType == CHARACTER_TYPE_LEO) {
+					Moves::SemukeSubanim subanim = moves.parseSemukeSubanimWithCheck(player.pawn, Moves::SEMUKEPARSE_INPUT);
+					switch (subanim) {
+						case Moves::SEMUKESUBANIM_WALK_FORWARD: player.startedWalkingForward = true; break;
+						case Moves::SEMUKESUBANIM_WALK_BACK: player.startedWalkingBackward = true; break;
+					}
+				}
 				if (player.startedRunning) {
 					player.isRunning = true;
 				} else if (player.startedWalkingForward) {
@@ -1373,21 +1387,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						newComboElem.isWalkBackward = true;
 					}
 					
-					if (!player.pawn.currentAnimData()->isPerformedRaw()) {
-						const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
-						if (player.prevFrameCancels.hasCancel(player.pawn.currentMove()->name, &foundCancel)
-								&& foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze > 0
-								&& !(
-									foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze == 1
-									&& foundCancel->wasAddedDuringHitstopFreeze
-								)
-						) {
-							newComboElem.cancelDelayedBy = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
-						}
-					} else {
-						newComboElem.doneAfterIdle = true;
-						newComboElem.cancelDelayedBy = player.timePassedPureIdle;
-					}
+					PlayerInfo::CancelDelay cancelDelay;
+					player.determineCancelDelay(&cancelDelay);
+					newComboElem.cancelDelayedBy = cancelDelay.delay;
+					newComboElem.doneAfterIdle = cancelDelay.isAfterIdle;
 				}
 			}
 			
@@ -1589,16 +1592,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 			player.forceBusy = false;
 			if (player.charType == CHARACTER_TYPE_LEO
-					&& strcmp(animName, "Semuke") == 0
-					&& (
-						strcmp(ent.gotoLabelRequests(), "SemukeEnd") == 0
-						|| !ent.enableWhiffCancels()
-					)) {
-				if (strcmp(ent.gotoLabelRequests(), "SemukeEnd") == 0) {
+					&& strcmp(animName, "Semuke") == 0) {
+				bool isSemukeEnd = strcmp(ent.gotoLabelRequests(), "SemukeEnd") == 0;
+				if (isSemukeEnd) {
 					player.changedAnimOnThisFrame = true;
 				}
-				player.canBlock = false;
-				player.forceBusy = true;  // if I just set idleNext to false here, the framebar will display Leo as busy on that frame, but that's not true - he can act
+				if (isSemukeEnd || !ent.enableWhiffCancels()) {
+					player.canBlock = false;
+					player.forceBusy = true;  // if I just set idleNext to false here, the framebar will display Leo as busy on that frame, but that's not true - he can act
+				}
 			}
 			if (player.changedAnimOnThisFrame
 					&& (
@@ -2277,36 +2279,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.timeSinceWasEnableSpecials = 0;
 					
 					player.moveStartTime_aswEngineTick = aswEngineTickCount;
-					
-					if (!player.pawn.currentAnimData()->isPerformedRaw()) {
-						player.delayInTheLastMoveIsAfterIdle = false;
-						if (!(
-								player.charType == CHARACTER_TYPE_LEO
-								&& strcmp(player.pawn.previousAnimName(), "CmnActFDash") == 0
-							)) {
-							const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
-							if (player.prevFrameCancels.hasCancel(player.pawn.currentMove()->name, &foundCancel)) {
-								if (foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze > 0
-										&& !(
-											foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze == 1
-											&& foundCancel->wasAddedDuringHitstopFreeze
-										)) {
-									player.delayLastMoveWasCancelledIntoWith = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
-									player.delayInTheLastMoveIsAfterIdle = false;
-								}
-							} else if (
-									(player.timeSinceWasEnableSpecialCancel || player.timeSinceWasEnableSpecials)
-									&& player.pawn.dealtAttack()->type >= ATTACK_TYPE_EX
-									&& player.timeSinceWasEnableSpecialCancel
-							) {
-								player.delayLastMoveWasCancelledIntoWith = player.timeSinceWasEnableSpecialCancel;
-								player.delayInTheLastMoveIsAfterIdle = false;
-							}
-						}
-					} else {
-						player.delayLastMoveWasCancelledIntoWith = player.timePassedPureIdle;
-						player.delayInTheLastMoveIsAfterIdle = true;
-					}
+					PlayerInfo::CancelDelay cancelDelay;
+					player.determineCancelDelay(&cancelDelay);
+					player.delayLastMoveWasCancelledIntoWith = cancelDelay.delay;
+					player.delayInTheLastMoveIsAfterIdle = cancelDelay.isAfterIdle;
 				}
 			}
 			memcpy(player.anim, animName, 32);
@@ -2320,6 +2296,25 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				moves.forCancels = true;
 				player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
 				moves.forCancels = false;
+				if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
+					ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
+					if (lastElem) {
+						lastElem->name = player.lastPerformedMoveNameForComboRecipe;
+					}
+				}
+			}
+			if (player.charType == CHARACTER_TYPE_LEO
+					&& strcmp(ent.gotoLabelRequests(), "SemukeEnd") == 0
+					&& other.inHitstun) {
+				player.comboRecipe.emplace_back();
+				ComboRecipeElement& newComboElem = player.comboRecipe.back();
+				newComboElem.name = assignName("Brynhildr Exit", "Backturn Exit");
+				newComboElem.whiffed = false;
+				newComboElem.timestamp = aswEngineTickCount;
+				newComboElem.framebarId = -1;
+				newComboElem.cancelDelayedBy = player.timePassedPureIdle;
+				newComboElem.doneAfterIdle = true;
+				player.lastPerformedMoveNameIsInComboRecipe = true;
 			}
 			
 			if (other.pawn.inHitstun() && !startedRunOrWalkOnThisFrame
@@ -2615,16 +2610,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 							player.lastPerformedMoveName);
 					}
 					player.startup = 0;
-					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
-					moves.forCancels = true;
-					player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
-					moves.forCancels = false;
-					if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
-						ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
-						if (lastElem) {
-							lastElem->name = player.lastPerformedMoveNameForComboRecipe;
-						}
-					}
 					player.total = 0;
 					player.totalForInvul = 0;
 					player.stoppedMeasuringInvuls = false;
@@ -10472,7 +10457,7 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 						attacker.lastPerformedMoveNameIsInComboRecipe
 						&& lastElem && lastElem->whiffed) {
 					lastElem->player_markAsNotWhiff(attacker, dmgCalc, getAswEngineTick() + 1);  // game's timestamp gets incremented at the end of the tick
-					attacker.wasCancels.onHit();
+					attacker.wasCancels.clearDelays();
 				} else if (!attacker.lastPerformedMoveNameIsInComboRecipe
 						|| !lastElem
 						|| !lastElem->whiffed
@@ -10485,14 +10470,14 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 					ComboRecipeElement& newComboElem = attacker.comboRecipe.back();
 					newComboElem.player_onFirstHitHappenedBeforeFrame3(attacker, dmgCalc, getAswEngineTick() + 1,  // game's timestamp gets incremented at the end of the tick
 						isNormalThrow);
-					attacker.wasCancels.onHit();  // for Combo Recipe panel Haehyun shishinken: otherwise displays that there's a delay between the shi and the shinken
+					attacker.wasCancels.clearDelays();  // for Combo Recipe panel Haehyun shishinken: otherwise displays that there's a delay between the shi and the shinken
 				} else if (attacker.lastPerformedMoveNameIsInComboRecipe
 						&& lastElem && lastElem->hitCount > 0) {
 					++lastElem->hitCount;
 					attacker.timeSinceWasEnableJumpCancel = 0;
 					attacker.timeSinceWasEnableSpecialCancel = 0;
 					attacker.timeSinceWasEnableSpecials = 0;
-					attacker.wasCancels.onHit();
+					attacker.wasCancels.clearDelays();
 				}
 			}
 		} else {

@@ -372,7 +372,7 @@ struct FrameCancelInfoFull : FrameCancelInfoBase<GatlingOrWhiffCancelInfo> {
 	void unsetWasFoundOnThisFrame(bool unsetCountersIncremented);
 	void deleteThatWhichWasNotFoundPart(FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& ar);
 	void deleteThatWhichWasNotFound();
-	void onHit();
+	void clearDelays();
 };
 
 struct FrameCancelInfoStored : FrameCancelInfoBase<GatlingOrWhiffCancelInfoStored> {
@@ -2154,6 +2154,11 @@ struct PlayerInfo {
 	ComboRecipeElement* findLastDash();
 	bool lastComboHitEqualsProjectile(Entity ptr) const;
 	void registerCreatedProjectile(ProjectileInfo& projectile);
+	struct CancelDelay {
+		bool isAfterIdle;
+		int delay;
+	};
+	void determineCancelDelay(CancelDelay* result) const;
 };
 
 extern const char PROJECTILES_STR[12];

@@ -3702,7 +3702,7 @@ void FrameCancelInfoFull::deleteThatWhichWasNotFound() {
 	deleteThatWhichWasNotFoundPart(whiffCancels);
 }
 
-void FrameCancelInfoFull::onHit() {
+void FrameCancelInfoFull::clearDelays() {
 	for (GatlingOrWhiffCancelInfo& frameCancel : gatlings) {
 		frameCancel.framesBeenAvailableForNotIncludingHitstopFreeze = 0;
 	}
@@ -3793,5 +3793,40 @@ void ProjectileInfo::determineCreatedName(const MoveInfo* move, Entity ent, cons
 	if (ent && ent.bbscrCurrentFunc()) {
 		result->name = asInstr(ent.bbscrCurrentFunc(), beginState)->name;
 		result->usePrefix = true;
+	}
+}
+
+void PlayerInfo::determineCancelDelay(CancelDelay* result) const {
+	if (!pawn.currentAnimData()->isPerformedRaw()
+		&& !(
+				charType == CHARACTER_TYPE_LEO
+				&& strcmp(pawn.previousAnimName(), "Semuke") == 0
+			)) {
+		result->isAfterIdle = false;
+		result->delay = 0;
+		if (!(
+				charType == CHARACTER_TYPE_LEO
+				&& strcmp(pawn.previousAnimName(), "CmnActFDash") == 0
+			)) {
+			const GatlingOrWhiffCancelInfo* foundCancel = nullptr;
+			if (prevFrameCancels.hasCancel(pawn.currentMove()->name, &foundCancel)) {
+				if (foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze > 0
+						&& !(
+							foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze == 1
+							&& foundCancel->wasAddedDuringHitstopFreeze
+						)) {
+					result->delay = foundCancel->framesBeenAvailableForNotIncludingHitstopFreeze;
+				}
+			} else if (
+					(timeSinceWasEnableSpecialCancel || timeSinceWasEnableSpecials)
+					&& pawn.dealtAttack()->type >= ATTACK_TYPE_EX
+					&& timeSinceWasEnableSpecialCancel
+			) {
+				result->delay = timeSinceWasEnableSpecialCancel;
+			}
+		}
+	} else {
+		result->delay = timePassedPureIdle;
+		result->isAfterIdle = true;
 	}
 }

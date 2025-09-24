@@ -279,6 +279,12 @@ static const NamePair* displayNameSelector_beakDriverAir(PlayerInfo& ent);
 static const NamePair* displayNameSelector_bullBash(PlayerInfo& ent);
 static const NamePair* displayNameSelector_beakDriverMash(PlayerInfo& ent);
 static const NamePair* displayNameSelector_answer6K(PlayerInfo& ent);
+static const NamePair* displayNameSelector_backturn(PlayerInfo& ent);
+static const NamePair* displayNameSelector_tossin2(PlayerInfo& ent);
+static const NamePair* displayNameSelector_tossin2Hasei(PlayerInfo& ent);
+static const NamePair* displayNameSelector_leo5H(PlayerInfo& ent);
+static const NamePair* displayNameSelector_leo6H(PlayerInfo& ent);
+static const NamePair* displayNameSelector_gorengeki(PlayerInfo& ent);
 
 static const char* canYrcProjectile_default(PlayerInfo& ent);
 static const char* canYrcProjectile_gunflame(PlayerInfo& ent);
@@ -3886,9 +3892,17 @@ void Moves::addMoves() {
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
+	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk6D");
+	move.displayName = assignName("6H");
+	move.displayNameSelector = displayNameSelector_leo6H;
+	move.nameIncludesInputs = true;
+	move.ignoreJumpInstalls = true;
+	addMove(move);
+	
 	// Leo backturn idle and also exiting backturn via 22
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Semuke");
 	move.displayName = assignName("Brynhildr Stance", "Backturn");
+	move.displayNameSelector = displayNameSelector_backturn;
 	move.isIdle = isIdle_enableWhiffCancels;
 	move.canBlock = canBlock_default;
 	move.canBeUnableToBlockIndefinitelyOrForVeryLongTime = true;
@@ -3941,6 +3955,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin2");
 	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit", "Zweit");
+	move.displayNameSelector = displayNameSelector_tossin2;
 	move.powerup = powerup_zweit;
 	move.dontShowPowerupGraphic = alwaysTrue;
 	addMove(move);
@@ -3970,6 +3985,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Tossin2_Hasei");
 	move.displayName = assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit (Follow-up)", "> Zweit");
+	move.displayNameSelector = displayNameSelector_tossin2Hasei;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "SemukeDageki_Hasei");
@@ -3978,6 +3994,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "Gorengeki");
 	move.displayName = assignName("Leidenschaft Dirigent", "Leidenschaft");
+	move.displayNameSelector = displayNameSelector_gorengeki;
 	move.iKnowExactlyWhenTheRecoveryOfThisMoveIs = isRecovery_land;
 	addMove(move);
 	
@@ -4019,6 +4036,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_LEO, "NmlAtk5D");
 	move.displayName = assignName("5H");
+	move.displayNameSelector = displayNameSelector_leo5H;
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
@@ -8470,6 +8488,16 @@ void Moves::onAswEngineDestroyed() {
 	sinBeakDriverMinCharge = 0;
 	sinBeakDriverMaxCharge = 0;
 	elpheltCrouch2StandChargeDuration = 0;
+	leoSemukeFrontWalkStart = 0;
+	leoSemukeFrontWalkEnd = 0;
+	leoSemukeBackWalkStart = 0;
+	leoSemukeBackWalkEnd = 0;
+	leoSemukeEnd = 0;
+	leoTossin2FrontEnd = 0;
+	leoTossin2HaseiFrontEnd = 0;
+	leo5HKamae = 0;
+	leo6HKamae = 0;
+	leoGorengekiKamae = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -9818,6 +9846,76 @@ const NamePair* displayNameSelector_answer6K(PlayerInfo& ent) {
 		return assignName("6K Feint");
 	} else {
 		return assignName("6K");
+	}
+}
+const NamePair* displayNameSelector_backturn(PlayerInfo& ent) {
+	Entity pawn = ent.pawn;
+	Moves::SemukeSubanim subanim = moves.parseSemukeSubanim(ent.pawn, Moves::SEMUKEPARSE_ANIM);
+	switch (subanim) {
+		case Moves::SEMUKESUBANIM_WALK_BACK: return assignName("Brynhildr Walk Back", "Backturn Walk Back");
+		case Moves::SEMUKESUBANIM_WALK_FORWARD: return assignName("Brynhildr Walk Forward", "Backturn Walk Forward");
+		case Moves::SEMUKESUBANIM_EXIT: return assignName("Brynhildr Exit", "Backturn Exit");
+		default: return assignName("Brynhildr Stance", "Backturn");
+	}
+}
+const NamePair* displayNameSelector_tossin2(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	if (!moves.leoTossin2FrontEnd) {
+		moves.leoTossin2FrontEnd = moves.findSetMarker(func, "FrontEnd") - func;
+	}
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (ent.pawn.currentHitNum() > 0 && offset < moves.leoTossin2FrontEnd) {
+		return assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit into Brynhildr", "Zweit into Backturn");
+	} else {
+		return assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit", "Zweit");
+	}
+}
+const NamePair* displayNameSelector_tossin2Hasei(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	if (!moves.leoTossin2HaseiFrontEnd) {
+		moves.leoTossin2HaseiFrontEnd = moves.findSetMarker(func, "FrontEnd") - func;
+	}
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (ent.pawn.currentHitNum() > 0 && offset < moves.leoTossin2HaseiFrontEnd) {
+		return assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit (Follow-up) into Brynhildr", "> Zweit into Backturn");
+	} else {
+		return assignName("Kaltes Gest\xc3\xb6\x62\x65r Zweit (Follow-up)", "> Zweit");
+	}
+}
+const NamePair* displayNameSelector_leo5H(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	if (!moves.leo5HKamae) {
+		moves.leo5HKamae = moves.findSetMarker(func, "Kamae") - func;
+	}
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.leo5HKamae) {
+		return assignName("5H into Brynhildr", "5H into Backturn");
+	} else {
+		return assignName("5H");
+	}
+}
+const NamePair* displayNameSelector_leo6H(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	if (!moves.leo6HKamae) {
+		moves.leo6HKamae = moves.findSetMarker(func, "Kamae") - func;
+	}
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.leo6HKamae) {
+		return assignName("6H into Brynhildr", "6H into Backturn");
+	} else {
+		return assignName("6H");
+	}
+}
+const NamePair* displayNameSelector_gorengeki(PlayerInfo& ent) {
+	BYTE* func = ent.pawn.bbscrCurrentFunc();
+	if (!moves.leoGorengekiKamae) {
+		moves.leoGorengekiKamae = moves.findSetMarker(func, "SemukeKamae") - func;
+	}
+	int offset = ent.pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.leoGorengekiKamae) {
+		return assignName("Leidenschaft Dirigent into Brynhildr", "Leidenschaft into Backturn");
+	} else {
+		return assignName("Leidenschaft Dirigent", "Leidenschaft");
 	}
 }
 
@@ -13250,4 +13348,103 @@ void Moves::fillVenomQvCharges(BYTE* func, VenomQvChargeElement& data) {
 		}
 	}
 	
+}
+
+void Moves::fillLeoSemuke(BYTE* func) {
+	if (leoSemukeFrontWalkStart) return;
+	bool inFront = false;
+	bool inBack = false;
+	bool metSprite = false;
+	bool metSpriteEnd = false;
+	bool metThingWasFront = false;
+	for (loopInstr(func)) {
+		InstrType type = instrType(instr);
+		
+		if (metSpriteEnd) {
+			metSpriteEnd = false;
+			if (metThingWasFront) leoSemukeFrontWalkEnd = instr - func;
+			else leoSemukeBackWalkEnd = instr - func;
+		}
+		
+		if (type == instr_setMarker) {
+			if (strcmp(asInstr(instr, setMarker)->name, "SemukeFrontWalk") == 0) {
+				inBack = false;
+				inFront = true;
+			} else if (strcmp(asInstr(instr, setMarker)->name, "SemukeBackWalk") == 0) {
+				inBack = true;
+				inFront = false;
+			} else if (strcmp(asInstr(instr, setMarker)->name, "SemukeEnd") == 0) {
+				leoSemukeEnd = instr - func;
+				return;
+			}
+		} else if (type == instr_sprite) {
+			if (inFront || inBack) {
+				if (inFront) {
+					if (!leoSemukeFrontWalkStart) {
+						leoSemukeFrontWalkStart = instr - func;
+					}
+				} else {
+					if (!leoSemukeBackWalkStart) {
+						leoSemukeBackWalkStart = instr - func;
+					}
+				}
+				if (metSprite) {
+					if (metThingWasFront) leoSemukeFrontWalkEnd = instr - func;
+					else leoSemukeBackWalkEnd = instr - func;
+				} else {
+					metSprite = true;
+				}
+				metThingWasFront = inFront;
+			}
+		} else if (type == instr_spriteEnd) {
+			if (inFront || inBack) {
+				metSpriteEnd = true;
+				metSprite = false;
+				metThingWasFront = inFront;
+			}
+		}
+	}
+}
+
+Moves::SemukeSubanim Moves::parseSemukeSubanim(BYTE* func, BYTE* instr, const char* gotoLabelRequests, SemukeParseMode mode) {
+	int offset = instr - func;
+	moves.fillLeoSemuke(func);
+	if (mode == SEMUKEPARSE_INPUT) {
+		if (offset >= moves.leoSemukeBackWalkStart
+				&& offset <= moves.leoSemukeBackWalkEnd
+				&& gotoLabelRequests[0] == '\0'
+				|| strcmp(gotoLabelRequests, "SemukeBackWalk") == 0) {
+			return SEMUKESUBANIM_WALK_BACK;
+		} else if (offset >= moves.leoSemukeFrontWalkStart
+				&& offset <= moves.leoSemukeFrontWalkEnd
+				&& gotoLabelRequests[0] == '\0'
+				|| strcmp(gotoLabelRequests, "SemukeFrontWalk") == 0) {
+			return SEMUKESUBANIM_WALK_FORWARD;
+		} else if (offset >= moves.leoSemukeEnd
+				|| strcmp(gotoLabelRequests, "SemukeEnd") == 0) {
+			return SEMUKESUBANIM_EXIT;
+		}
+	} else {  // mode == SEMUKEPARSE_ANIM
+		if (offset >= moves.leoSemukeBackWalkStart
+				&& offset <= moves.leoSemukeBackWalkEnd) {
+			return SEMUKESUBANIM_WALK_BACK;
+		} else if (offset >= moves.leoSemukeFrontWalkStart
+				&& offset <= moves.leoSemukeFrontWalkEnd) {
+			return SEMUKESUBANIM_WALK_FORWARD;
+		} else if (offset >= moves.leoSemukeEnd) {
+			return SEMUKESUBANIM_EXIT;
+		}
+	}
+	return SEMUKESUBANIM_NONE;
+}
+
+Moves::SemukeSubanim Moves::parseSemukeSubanimWithCheck(Entity pawn, SemukeParseMode mode) {
+	if (strcmp(pawn.animationName(), "Semuke") == 0) {
+		return parseSemukeSubanim(pawn.bbscrCurrentFunc(), pawn.bbscrCurrentInstr(), pawn.gotoLabelRequests(), mode);
+	}
+	return SEMUKESUBANIM_NONE;
+}
+
+Moves::SemukeSubanim Moves::parseSemukeSubanim(Entity pawn, SemukeParseMode mode) {
+	return parseSemukeSubanim(pawn.bbscrCurrentFunc(), pawn.bbscrCurrentInstr(), pawn.gotoLabelRequests(), mode);
 }

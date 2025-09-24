@@ -616,6 +616,29 @@ public:
 	int sinBeakDriverMinCharge = 0;
 	int sinBeakDriverMaxCharge = 0;
 	int elpheltCrouch2StandChargeDuration = 0;
+	int leoSemukeFrontWalkStart = 0;
+	int leoSemukeFrontWalkEnd = 0;
+	int leoSemukeBackWalkStart = 0;
+	int leoSemukeBackWalkEnd = 0;
+	int leoSemukeEnd = 0;
+	void fillLeoSemuke(BYTE* func);
+	int leoTossin2FrontEnd = 0;
+	int leoTossin2HaseiFrontEnd = 0;
+	int leo5HKamae = 0;
+	int leo6HKamae = 0;
+	int leoGorengekiKamae = 0;
+	enum SemukeParseMode {
+		SEMUKEPARSE_INPUT,
+		SEMUKEPARSE_ANIM
+	};
+	enum SemukeSubanim {
+		SEMUKESUBANIM_NONE,
+		SEMUKESUBANIM_WALK_FORWARD,
+		SEMUKESUBANIM_WALK_BACK,
+		SEMUKESUBANIM_EXIT
+	} parseSemukeSubanim(BYTE* func, BYTE* instr, const char* gotoLabelRequests, SemukeParseMode mode);
+	SemukeSubanim parseSemukeSubanimWithCheck(Entity pawn, SemukeParseMode mode);
+	SemukeSubanim parseSemukeSubanim(Entity pawn, SemukeParseMode mode);
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;
