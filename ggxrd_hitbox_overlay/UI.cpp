@@ -8322,7 +8322,11 @@ void UI::drawSearchableWindows() {
 							advanceBuf
 						}
 						if ((elem.charge || elem.maxCharge) && settings.comboRecipe_showCharge) {
-							result = sprintf_s(buf, bufSize, " (Held: %d/%df)", elem.charge, elem.maxCharge);
+							if (elem.maxCharge) {
+								result = sprintf_s(buf, bufSize, " (Held: %d/%df)", elem.charge, elem.maxCharge);
+							} else {
+								result = sprintf_s(buf, bufSize, " (Held: %df)", elem.charge);
+							}
 							advanceBuf
 						}
 						sprintf_s(buf, bufSize, "%s%s%s",

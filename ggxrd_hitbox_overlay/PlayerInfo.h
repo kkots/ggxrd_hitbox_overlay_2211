@@ -1749,6 +1749,7 @@ struct PlayerInfo {
 	} xStunDisplay = XSTUN_DISPLAY_NONE;  // the last thing that was displayed in UI in 'Hitstop+X-stun' field.
 	CmnActIndex cmnActIndex = CmnActStand;
 	int timeInNewSection = 0;
+	int timeInNewSectionForCancelDelay = 0;
 	DWORD wasPrevFrameForceDisableFlags = 0;
 	DWORD wasForceDisableFlags = 0;
 	SpriteFrameInfo sprite;
@@ -2064,6 +2065,7 @@ struct PlayerInfo {
 	bool answerPrevFrameRSFStart:1;
 	bool answerCreatedRSFStart:1;
 	bool lastPerformedMoveNameIsInComboRecipe:1;
+	bool dontUpdateLastPerformedMoveNameInComboRecipe:1;
 	bool jumpNonCancel:1;  // for combo recipe
 	bool superJumpNonCancel:1;  // for combo recipe
 	bool jumpCancelled:1;  // for combo recipe

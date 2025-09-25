@@ -247,6 +247,7 @@ static const NamePair* displayNameSelector_mistEntry(PlayerInfo& ent);
 static const NamePair* displayNameSelector_mistLoop(PlayerInfo& ent);
 static const NamePair* displayNameSelector_mistWalkForward(PlayerInfo& ent);
 static const NamePair* displayNameSelector_mistWalkBackward(PlayerInfo& ent);
+static const NamePair* displayNameSelector_mistBDash(PlayerInfo& ent);
 static const NamePair* displayNameSelector_mistDash(PlayerInfo& ent);
 static const NamePair* displayNameSelector_mistBackdash(PlayerInfo& ent);
 static const NamePair* displayNameSelector_airMistEntry(PlayerInfo& ent);
@@ -558,6 +559,8 @@ void Moves::addMove(const MoveInfo& move) {
 		newMove
 	} );
 }
+
+MoveInfo::MoveInfo() : isIdle(isIdle_default), canBlock(canBlock_default) { }
 
 MoveInfo::MoveInfo(const MoveInfoStored& info) {
 	const MoveInfoProperty* prop = info.startPtr;
@@ -2191,6 +2194,7 @@ void Moves::addMoves() {
 	// backdash during grounded Mist Finer
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "MistFinerBDash");
 	move.displayName = assignName("Mist Finer Backdash", "MF BD");
+	move.displayNameSelector = displayNameSelector_mistBDash;
 	move.partOfStance = true;
 	move.nameIncludesInputs = true;
 	move.combineWithPreviousMove = true;
@@ -8543,13 +8547,13 @@ bool Moves::getInfo(MoveInfo& returnValue, CharacterType charType, const char* m
 bool Moves::getInfo(MoveInfo& returnValue, CharacterType charType, const char* name, bool isEffect) {
 	auto it = map.find({charType, name, isEffect});
 	if (it != map.end()) {
-		returnValue = MoveInfo(it->second);
+		new (&returnValue) MoveInfo(it->second);
 		return true;
 	}
 	if (charType != GENERAL) {
 		it = map.find({GENERAL, name, isEffect});
 		if (it != map.end()) {
-			returnValue = MoveInfo(it->second);
+			new (&returnValue) MoveInfo(it->second);
 			return true;
 		}
 	}
@@ -9531,6 +9535,22 @@ const NamePair* displayNameSelector_rifleRC(PlayerInfo& ent) {
 		if (lvl == 1) return assignName("Lv2 S Mist Finer" name, "Lv2 SMF" name); \
 		if (lvl == 2) return assignName("Lv3 S Mist Finer" name, "Lv3 SMF" name); \
 	}
+#define johnnyMFNameSelectWithSlang(type, lvl, name, slang) \
+	if (type == 0) { \
+		if (lvl == 0) return assignName("Lv1 P Mist Finer" name, "Lv1 PMF" slang); \
+		if (lvl == 1) return assignName("Lv2 P Mist Finer" name, "Lv1 PMF" slang); \
+		if (lvl == 2) return assignName("Lv3 P Mist Finer" name, "Lv1 PMF" slang); \
+	} \
+	if (type == 1) { \
+		if (lvl == 0) return assignName("Lv1 K Mist Finer" name, "Lv1 KMF" slang); \
+		if (lvl == 1) return assignName("Lv2 K Mist Finer" name, "Lv2 KMF" slang); \
+		if (lvl == 2) return assignName("Lv3 K Mist Finer" name, "Lv3 KMF" slang); \
+	} \
+	if (type == 2) { \
+		if (lvl == 0) return assignName("Lv1 S Mist Finer" name, "Lv1 SMF" slang); \
+		if (lvl == 1) return assignName("Lv2 S Mist Finer" name, "Lv2 SMF" slang); \
+		if (lvl == 2) return assignName("Lv3 S Mist Finer" name, "Lv3 SMF" slang); \
+	}
 #define johnnyAirborneMFNameSelect(type, lvl, name) \
 	if (type == 0) { \
 		if (lvl == 0) return assignName("Lv1 Air P Mist Finer" name, "Lv1 j.PMF" name); \
@@ -9585,6 +9605,12 @@ const NamePair* displayNameSelector_mistDash(PlayerInfo& ent) {
 	int lvl = ent.pawn.playerVal(1);
 	johnnyMFNameSelect(type, lvl, " Dash")
 	return assignName("Mist Finer Dash", "MF Dash");
+}
+const NamePair* displayNameSelector_mistBDash(PlayerInfo& ent) {
+	int type = ent.pawn.mem53();
+	int lvl = ent.pawn.playerVal(1);
+	johnnyMFNameSelectWithSlang(type, lvl, " Backdash", " BD")
+	return assignName("Mist Finer Backdash", "MF BD");
 }
 const NamePair* displayNameSelector_mistBackdash(PlayerInfo& ent) {
 	int type = ent.pawn.mem53();

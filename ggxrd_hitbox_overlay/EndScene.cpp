@@ -1949,6 +1949,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.idlePlus = false;
 						player.timePassed = 0;
 					}
+				} else {
+					player.timeInNewSectionForCancelDelay = 0;
 				}
 				player.changedAnimFiltered = !(
 					player.move.combineWithPreviousMove
@@ -1986,6 +1988,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					)
 				);
 				if (!player.changedAnimFiltered) {
+					if (player.charType == CHARACTER_TYPE_JOHNNY
+							&& (
+								strcmp(animName, "MistFinerLoop") == 0
+								|| strcmp(animName, "AirMistFinerLoop") == 0
+							)
+					) {
+						player.dontUpdateLastPerformedMoveNameInComboRecipe = true;
+					}
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveName);
 					moves.forCancels = true;
 					player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
@@ -2182,7 +2192,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
 						moves.forCancels = false;
 						
-						runInitNewMoveForComboRecipe = true;
+						if (player.charType == CHARACTER_TYPE_JOHNNY
+							&& (
+								strcmp(animName, "MistFinerFWalk") == 0
+								|| strcmp(animName, "MistFinerBWalk") == 0
+							)) {
+							player.dontUpdateLastPerformedMoveNameInComboRecipe = true;
+						} else {
+							runInitNewMoveForComboRecipe = true;
+						}
 						
 						player.hitOnFrame = 0;
 						player.totalFD = 0;
@@ -2267,6 +2285,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				
 				if (runInitNewMoveForComboRecipe) {
 					
+					player.dontUpdateLastPerformedMoveNameInComboRecipe = false;
 					player.lastPerformedMoveNameIsInComboRecipe = false;
 					
 					player.timePassedInNonFrozenFramesSinceStartOfAnim = 0;
@@ -2296,7 +2315,8 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				moves.forCancels = true;
 				player.determineMoveNameAndSlangName(&player.lastPerformedMoveNameForComboRecipe);
 				moves.forCancels = false;
-				if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()) {
+				if (player.lastPerformedMoveNameIsInComboRecipe && !player.comboRecipe.empty()
+						&& !player.dontUpdateLastPerformedMoveNameInComboRecipe) {
 					ComboRecipeElement* lastElem = player.findLastNonProjectileComboElement();
 					if (lastElem) {
 						lastElem->name = player.lastPerformedMoveNameForComboRecipe;
@@ -2388,7 +2408,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 2
 						// specials, supers and IKs cannot be kara cancelled at all
 						|| player.animFrame == 1
-						&& player.pawn.dealtAttack()->type > ATTACK_TYPE_NORMAL
+						&& (
+							player.pawn.dealtAttack()->type > ATTACK_TYPE_NORMAL
+							|| player.charType == CHARACTER_TYPE_JOHNNY
+							&& (
+								// otherwise these disappear entirely on 1-2f taps
+								strcmp(player.anim, "MistFinerBWalk") == 0
+								|| strcmp(player.anim, "MistFinerFWalk") == 0
+							)
+						)
 						&& player.timePassedInNonFrozenFramesSinceStartOfAnim == 0
 					)
 					&& !player.lastPerformedMoveNameIsInComboRecipe
@@ -2596,6 +2624,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.changedAnimOnThisFrame = true;  // for framebar
 				player.changedAnimFiltered = true;  // for framebar
 				player.timeInNewSection = 0;
+				player.timeInNewSectionForCancelDelay = 0;
 				if (!player.startedUp && player.total) {
 					if (player.superfreezeStartup) {
 						player.prevStartups.add(player.superfreezeStartup,
@@ -5522,6 +5551,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				++player.timePassed;
 				++player.timePassedLanding;
 				if (player.inNewMoveSection) {
+					if (!player.isWalkingForward && !player.isWalkingBackward) {
+						++player.timeInNewSectionForCancelDelay;
+					}
 					++player.timeInNewSection;
 				}
 				if (player.timeSinceLastGap == 0) {
@@ -8324,9 +8356,11 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName) {
 	if (strcmp(animName, "CmnActFDash") == 0) {
 		player.startedRunning = true;
-	} else if (strcmp(animName, "CrouchFWalk") == 0 || strcmp(animName, "CmnActFWalk") == 0) {
+	} else if (strcmp(animName, "CrouchFWalk") == 0 || strcmp(animName, "CmnActFWalk") == 0
+			|| strcmp(animName, "MistFinerFWalk") == 0) {
 		player.startedWalkingForward = true;
-	} else if (strcmp(animName, "CrouchBWalk") == 0 || strcmp(animName, "CmnActBWalk") == 0) {
+	} else if (strcmp(animName, "CrouchBWalk") == 0 || strcmp(animName, "CmnActBWalk") == 0
+			|| strcmp(animName, "MistFinerBWalk") == 0) {
 		player.startedWalkingBackward = true;
 		
 	// Bedman is idle during the entirety of 1/2/3/4/6/7/8/9Move, and it can be cancelled into a normal or special immediately.

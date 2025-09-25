@@ -276,7 +276,7 @@ struct MoveInfo {
 	MOVE_INFO_PROPERTY_TABLE
 	#undef MOVE_INFO_EXEC
 	
-	inline MoveInfo() : isIdle(isIdle_default), canBlock(canBlock_default) { }
+	MoveInfo();
 	MoveInfo(const MoveInfoStored& info);
 	inline MoveInfo(CharacterType charType, const char* name, bool isEffect = false) : charType(charType), name(name), isEffect(isEffect) { }
 	const NamePair* getFramebarName(Entity ent) const;

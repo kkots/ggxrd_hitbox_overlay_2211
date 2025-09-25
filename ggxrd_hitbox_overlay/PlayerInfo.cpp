@@ -3797,6 +3797,82 @@ void ProjectileInfo::determineCreatedName(const MoveInfo* move, Entity ent, cons
 }
 
 void PlayerInfo::determineCancelDelay(CancelDelay* result) const {
+	const char* currentAnim = pawn.animationName();
+	
+	if (
+		charType == CHARACTER_TYPE_JOHNNY
+		&& (
+			currentAnim[0] == 'M'
+			&& currentAnim[1] == 'i'
+			&& currentAnim[2] == 's'
+			&& currentAnim[3] == 't'
+			&& currentAnim[4] == 'F'
+			&& currentAnim[5] == 'i'
+			&& currentAnim[6] == 'n'
+			&& currentAnim[7] == 'e'
+			&& currentAnim[8] == 'r'
+			&& (
+				(
+					currentAnim[9] >= 'A'
+					&& currentAnim[9] <= 'C'
+				)
+				&& currentAnim[10] == 'L'
+				&& currentAnim[11] == 'v'
+				|| (
+					currentAnim[9] == 'F'
+					|| currentAnim[9] == 'B'
+				)
+				&& (
+					currentAnim[10] == 'W'
+					&& currentAnim[11] == 'a'
+					&& currentAnim[12] == 'l'
+					&& currentAnim[13] == 'k'
+					|| currentAnim[10] == 'D'
+					&& currentAnim[11] == 'a'
+					&& currentAnim[12] == 's'
+					&& currentAnim[13] == 'h'
+					// include MistFinerFDashAir and MistFinerBDashAir
+				)
+				|| currentAnim[9] == 'C'
+				&& currentAnim[10] == 'a'
+				&& currentAnim[11] == 'n'
+				&& currentAnim[12] == 'c'
+				&& currentAnim[13] == 'e'
+				&& currentAnim[14] == 'l'
+			)
+			|| currentAnim[0] == 'A'
+			&& currentAnim[1] == 'i'
+			&& currentAnim[2] == 'r'
+			&& currentAnim[3] == 'M'
+			&& currentAnim[4] == 'i'
+			&& currentAnim[5] == 's'
+			&& currentAnim[6] == 't'
+			&& currentAnim[7] == 'F'
+			&& currentAnim[8] == 'i'
+			&& currentAnim[9] == 'n'
+			&& currentAnim[10] == 'e'
+			&& currentAnim[11] == 'r'
+			&& (
+				(
+					currentAnim[12] >= 'A'
+					&& currentAnim[12] <= 'C'
+				)
+				&& currentAnim[13] == 'L'
+				&& currentAnim[14] == 'v'
+				|| currentAnim[12] == 'C'
+				&& currentAnim[13] == 'a'
+				&& currentAnim[14] == 'n'
+				&& currentAnim[15] == 'c'
+				&& currentAnim[16] == 'e'
+				&& currentAnim[17] == 'l'
+			)
+		)
+	) {
+		result->isAfterIdle = true;
+		result->delay = timeInNewSectionForCancelDelay;
+		return;
+	}
+	
 	if (!pawn.currentAnimData()->isPerformedRaw()
 		&& !(
 				charType == CHARACTER_TYPE_LEO
