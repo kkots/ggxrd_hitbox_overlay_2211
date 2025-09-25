@@ -59,7 +59,7 @@ On Ubuntu/Linux the injector won't work on its own. You need to cd into the mod'
 
 ```bash
 chmod u+x launch_ggxrd_hitbox_injector_linux.sh
-.\launch_ggxrd_hitbox_injector_linux.sh
+./launch_ggxrd_hitbox_injector_linux.sh
 ```
 
 This will launch the injector (the .exe one) on the same Wine server that Guilty Gear runs on. Assuming you're running the game using Steam Proton, and its version is supported, everything should work.  
