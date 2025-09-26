@@ -1949,8 +1949,6 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						player.idlePlus = false;
 						player.timePassed = 0;
 					}
-				} else {
-					player.timeInNewSectionForCancelDelay = 0;
 				}
 				player.changedAnimFiltered = !(
 					player.move.combineWithPreviousMove
@@ -2302,6 +2300,10 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.determineCancelDelay(&cancelDelay);
 					player.delayLastMoveWasCancelledIntoWith = cancelDelay.delay;
 					player.delayInTheLastMoveIsAfterIdle = cancelDelay.isAfterIdle;
+				}
+				if (player.move.preservesNewSection) {
+					// must clear this at the end, because we use this in PlayerInfo::determineCancelDelay
+					player.timeInNewSectionForCancelDelay = 0;
 				}
 			}
 			memcpy(player.anim, animName, 32);

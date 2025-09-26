@@ -3839,6 +3839,11 @@ void PlayerInfo::determineCancelDelay(CancelDelay* result) const {
 				&& currentAnim[12] == 'c'
 				&& currentAnim[13] == 'e'
 				&& currentAnim[14] == 'l'
+				|| currentAnim[9] == 'L'
+				&& currentAnim[10] == 'o'
+				&& currentAnim[11] == 'o'
+				&& currentAnim[12] == 'p'
+				&& pawn.mem54()  // rev1 only
 			)
 			|| currentAnim[0] == 'A'
 			&& currentAnim[1] == 'i'
@@ -3865,6 +3870,11 @@ void PlayerInfo::determineCancelDelay(CancelDelay* result) const {
 				&& currentAnim[15] == 'c'
 				&& currentAnim[16] == 'e'
 				&& currentAnim[17] == 'l'
+				|| currentAnim[12] == 'L'
+				&& currentAnim[13] == 'o'
+				&& currentAnim[14] == 'o'
+				&& currentAnim[15] == 'p'
+				&& pawn.mem54()  // rev1 only
 			)
 		)
 	) {

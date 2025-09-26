@@ -639,6 +639,10 @@ public:
 	} parseSemukeSubanim(BYTE* func, BYTE* instr, const char* gotoLabelRequests, SemukeParseMode mode);
 	SemukeSubanim parseSemukeSubanimWithCheck(Entity pawn, SemukeParseMode mode);
 	SemukeSubanim parseSemukeSubanim(Entity pawn, SemukeParseMode mode);
+	int johnnyTreasureHuntMaxCharge = 0;
+	int johnnyTreasureHuntMinCharge = 0;
+	int johnnyStepTreasureHuntMinCharge = 0;
+	int johnnyStepTreasureHuntMaxCharge = 0;
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;

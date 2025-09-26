@@ -286,6 +286,8 @@ static const NamePair* displayNameSelector_tossin2Hasei(PlayerInfo& ent);
 static const NamePair* displayNameSelector_leo5H(PlayerInfo& ent);
 static const NamePair* displayNameSelector_leo6H(PlayerInfo& ent);
 static const NamePair* displayNameSelector_gorengeki(PlayerInfo& ent);
+static const NamePair* displayNameSelector_treasureHunt(PlayerInfo& ent);
+static const NamePair* displayNameSelector_stepTreasureHunt(PlayerInfo& ent);
 
 static const char* canYrcProjectile_default(PlayerInfo& ent);
 static const char* canYrcProjectile_gunflame(PlayerInfo& ent);
@@ -501,6 +503,8 @@ static void charge_elpheltLanding(PlayerInfo& ent, ChargeData* result);
 static void charge_elpheltDashStop(PlayerInfo& ent, ChargeData* result);
 static void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result);
 static void charge_rifleCharge(PlayerInfo& ent, ChargeData* result);
+static void charge_treasureHunt(PlayerInfo& ent, ChargeData* result);
+static void charge_stepTreasureHunt(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -2391,19 +2395,23 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "TreasureHunt");
 	move.displayName = assignName("Treasure Hunt", "TH");
+	move.displayNameSelector = displayNameSelector_treasureHunt;
 	move.sectionSeparator = sectionSeparator_treasureHunt;
 	move.isInVariableStartupSection = isInVariableStartupSection_treasureHunt;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_treasureHunt;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "StepTreasureHunt");
 	move.displayName = assignName("Stance Dash Treasure Hunt", "SDTH");
+	move.displayNameSelector = displayNameSelector_stepTreasureHunt;
 	move.partOfStance = true;
 	move.combineWithPreviousMove = true;
 	move.usePlusSignInCombination = true;
 	move.sectionSeparator = sectionSeparator_treasureHunt;
 	move.isInVariableStartupSection = isInVariableStartupSection_treasureHunt;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_stepTreasureHunt;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Coin", true);
@@ -8502,6 +8510,10 @@ void Moves::onAswEngineDestroyed() {
 	leo5HKamae = 0;
 	leo6HKamae = 0;
 	leoGorengekiKamae = 0;
+	johnnyTreasureHuntMaxCharge = 0;
+	johnnyTreasureHuntMinCharge = 0;
+	johnnyStepTreasureHuntMinCharge = 0;
+	johnnyStepTreasureHuntMaxCharge = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -9942,6 +9954,20 @@ const NamePair* displayNameSelector_gorengeki(PlayerInfo& ent) {
 		return assignName("Leidenschaft Dirigent into Brynhildr", "Leidenschaft into Backturn");
 	} else {
 		return assignName("Leidenschaft Dirigent", "Leidenschaft");
+	}
+}
+const NamePair* displayNameSelector_treasureHunt(PlayerInfo& ent) {
+	if (ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE) {
+		return assignName("Max Treasure Hunt", "Max TH");
+	} else {
+		return assignName("Treasure Hunt", "TH");
+	}
+}
+const NamePair* displayNameSelector_stepTreasureHunt(PlayerInfo& ent) {
+	if (ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE) {
+		return assignName("Max Stance Dash Treasure Hunt", "Max SDTH");
+	} else {
+		return assignName("Stance Dash Treasure Hunt", "SDTH");
 	}
 }
 
@@ -13131,6 +13157,62 @@ void charge_rifleCharge(PlayerInfo& ent, ChargeData* result) {
 	
 	result->current = 0;
 	result->max = 0;
+}
+static void charge_treasureHuntImpl(PlayerInfo& ent, ChargeData* result, int* minCharge, int* maxCharge) {
+	Entity pawn = ent.pawn;
+	if (!*minCharge) {
+		int total = 0;
+		int prevDur = 0;
+		for (loopInstr(pawn.bbscrCurrentFunc())) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_sprite) {
+				total += prevDur;
+				prevDur = asInstr(instr, sprite)->duration;
+			} else if (type == instr_upon) {
+				if (asInstr(instr, upon)->event == BBSCREVENT_ANIMATION_FRAME_ADVANCED) {
+					if (!*minCharge) {
+						*minCharge = total;
+					}
+				}
+			} else if (type == instr_ifOperation) {
+				if (asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER
+						&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_PLAYED_IN_STATE
+						&& asInstr(instr, ifOperation)->right.tag == BBSCRTAG_VALUE) {
+					*maxCharge = asInstr(instr, ifOperation)->right.value;
+					break;
+				}
+			}
+		}
+	}
+	
+	BYTE* currentInstr = pawn.bbscrCurrentInstr();
+	const char* gotoLabel = pawn.gotoLabelRequests();
+	int currentCharge = pawn.currentAnimDuration() - *minCharge;
+	int maximumCharge = *maxCharge - *minCharge;
+	if (currentCharge > maximumCharge) currentCharge = maximumCharge;
+	if (gotoLabel[0] != '\0'
+			&& strcmp(gotoLabel, "Run") == 0
+			&& pawn.dealtAttack()->guardType == GUARD_TYPE_NONE
+			|| pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)
+			&& moves.instrType(
+				moves.skipInstr(
+					pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr
+				)
+			) == instr_checkInput
+	) {
+		result->current = currentCharge;
+		result->max = maximumCharge;
+		return;
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+void charge_treasureHunt(PlayerInfo& ent, ChargeData* result) {
+	charge_treasureHuntImpl(ent, result, &moves.johnnyTreasureHuntMinCharge, &moves.johnnyTreasureHuntMaxCharge);
+}
+void charge_stepTreasureHunt(PlayerInfo& ent, ChargeData* result) {
+	charge_treasureHuntImpl(ent, result, &moves.johnnyStepTreasureHuntMinCharge, &moves.johnnyStepTreasureHuntMaxCharge);
 }
 
 void Moves::fillMay6PElements(BYTE* func) {
