@@ -161,6 +161,7 @@ static const NamePair* framebarNameSelector_closeShot(Entity ent);
 static const NamePair* framebarNameSelector_gunflameProjectile(Entity ent);
 static const NamePair* framebarNameSelector_venomBall(Entity ent);
 static const NamePair* framebarNameUncombinedSelector_venomBall(Entity ent);
+static const NamePair* framebarNameSelector_grenadeBomb(Entity ent);
 static const NamePair* framebarNameSelector_grenadeBombReady(Entity ent);
 
 static bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent);
@@ -288,6 +289,15 @@ static const NamePair* displayNameSelector_leo6H(PlayerInfo& ent);
 static const NamePair* displayNameSelector_gorengeki(PlayerInfo& ent);
 static const NamePair* displayNameSelector_treasureHunt(PlayerInfo& ent);
 static const NamePair* displayNameSelector_stepTreasureHunt(PlayerInfo& ent);
+static const NamePair* displayNameSelector_asanagiB(PlayerInfo& ent);
+static const NamePair* displayNameSelector_asanagiC(PlayerInfo& ent);
+static const NamePair* displayNameSelector_asanagiD(PlayerInfo& ent);
+static const NamePair* displayNameSelector_antiAir4Hasei(PlayerInfo& ent);
+static const NamePair* displayNameSelector_antiAir6Hasei(PlayerInfo& ent);
+static const NamePair* displayNameSelector_landBlow4Hasei(PlayerInfo& ent);
+static const NamePair* displayNameSelector_landBlow6Hasei(PlayerInfo& ent);
+static const NamePair* displayNameSelector_blackHoleAttack(PlayerInfo& ent);
+static const NamePair* displayNameSelector_blackHoleAttackBurst(PlayerInfo& ent);
 
 static const char* canYrcProjectile_default(PlayerInfo& ent);
 static const char* canYrcProjectile_gunflame(PlayerInfo& ent);
@@ -447,6 +457,7 @@ static const char* powerup_kyougenB(PlayerInfo& ent);
 static const char* powerup_kyougenC(PlayerInfo& ent);
 static const char* powerup_kyougenD(PlayerInfo& ent);
 static bool projectilePowerup_onpu(ProjectileInfo& projectile);
+static bool projectilePowerup_grenadeBomb(ProjectileInfo& projectile);
 static const char* powerup_djavu(PlayerInfo& ent);
 static const char* powerup_boomerangA(PlayerInfo& ent);
 static bool dontShowPowerupGraphic_boomerangA(PlayerInfo& ent);
@@ -478,6 +489,8 @@ static const char* powerup_cardH(PlayerInfo& ent);
 static const char* powerup_hayabusaRev(PlayerInfo& ent);
 static const char* powerup_hayabusaHeld(PlayerInfo& ent);
 static const char* powerup_grampaMax(PlayerInfo& ent);
+static const char* powerup_antiAir4Hasei(PlayerInfo& ent);
+static const char* powerup_blackHoleAttack(PlayerInfo& ent);
 static const char* powerup_armorDance(PlayerInfo& ent);
 static const char* powerup_fireSpear(PlayerInfo& ent);
 static const char* powerup_zweit(PlayerInfo& ent);
@@ -505,6 +518,11 @@ static void charge_shotgunCharge(PlayerInfo& ent, ChargeData* result);
 static void charge_rifleCharge(PlayerInfo& ent, ChargeData* result);
 static void charge_treasureHunt(PlayerInfo& ent, ChargeData* result);
 static void charge_stepTreasureHunt(PlayerInfo& ent, ChargeData* result);
+static void charge_antiAir6Hasei(PlayerInfo& ent, ChargeData* result);
+static void charge_landBlow4Hasei(PlayerInfo& ent, ChargeData* result);
+static void charge_landBlow6Hasei(PlayerInfo& ent, ChargeData* result);
+static void charge_antiAir4Hasei(PlayerInfo& ent, ChargeData* result);
+static void charge_blackHoleAttack(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -1415,7 +1433,6 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(GENERAL, "NmlAtk6B");
 	move.displayName = assignName("6K");
-	move.displayNameSelector = displayNameSelector_answer6K;
 	move.nameIncludesInputs = true;
 	addMove(move);
 	
@@ -2057,7 +2074,7 @@ void Moves::addMoves() {
 
 	move = MoveInfo(CHARACTER_TYPE_JOHNNY, "Mist", true);
 	move.isDangerous = isDangerous_alwaysTrue;
-	move.framebarName = assignName("Bacchus Sigh", PROJECTILE_NAME_BACCHUS);
+	move.framebarName = PROJECTILE_NAME_BACCHUS;
 	move.framebarId = Mist_framebarId;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
@@ -3803,9 +3820,11 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_ELPHELT, "GrenadeBomb", true);
 	move.isDangerous = isDangerous_grenade;
 	move.framebarId = GrenadeBomb_framebarId;
-	move.framebarName = assignName("Berry Pine", PROJECTILE_NAME_BERRY);
+	move.framebarName = PROJECTILE_NAME_BERRY;
+	move.framebarNameSelector = framebarNameSelector_grenadeBomb;
 	move.drawProjectileOriginPoint = true;
 	move.showMultipleHitsFromOneAttack = true;
+	move.projectilePowerup = projectilePowerup_grenadeBomb;
 	addMove(move);
 	
 	// held grenade
@@ -4166,6 +4185,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiB");
 	move.displayName = assignName("K Asanagi no Kokyuu", "K-Card");
+	move.displayNameSelector = displayNameSelector_asanagiB;
 	move.powerup = powerup_cardK;
 	move.canYrcProjectile = canYrcProjectile_card;
 	move.ignoreJumpInstalls = true;
@@ -4173,6 +4193,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiC");
 	move.displayName = assignName("S Asanagi no Kokyuu", "S-Card");
+	move.displayNameSelector = displayNameSelector_asanagiC;
 	move.powerup = powerup_cardS;
 	move.canYrcProjectile = canYrcProjectile_card;
 	move.ignoreJumpInstalls = true;
@@ -4180,6 +4201,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_JAM, "AsanagiD");
 	move.displayName = assignName("H Asanagi no Kokyuu", "H-Card");
+	move.displayNameSelector = displayNameSelector_asanagiD;
 	move.powerup = powerup_cardH;
 	move.canYrcProjectile = canYrcProjectile_card;
 	move.ignoreJumpInstalls = true;
@@ -4294,6 +4316,12 @@ void Moves::addMoves() {
 	move.secondaryStartup = secondaryStartup_saishingeki;
 	move.dontSkipSuper = true;
 	move.showMultipleHitsFromOneAttack = true;
+	addMove(move);
+	
+	move = MoveInfo(CHARACTER_TYPE_ANSWER, "NmlAtk6B");
+	move.displayName = assignName("6K");
+	move.displayNameSelector = displayNameSelector_answer6K;
+	move.nameIncludesInputs = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_ANSWER, "Ami_Hold_End");
@@ -5702,7 +5730,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_INO, "KouutsuOnkai");
-	move.displayName = assignName("Antidepressant Scale", MOVE_NAME_NOTE);
+	move.displayName = MOVE_NAME_NOTE;
 	move.canYrcProjectile = canYrcProjectile_kouutsuOnkai;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
@@ -7163,7 +7191,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AntiAirAttack");
-	move.displayName = assignName("Four Tigers Sword", "Shinken");
+	move.displayName = assignName("Four Tigers Sword", "Uncharge Shinken");
 	move.isInVariableStartupSection = hasWhiffCancels;
 	move.considerVariableStartupAsStanceForFramebar = true;
 	addMove(move);
@@ -7171,53 +7199,68 @@ void Moves::addMoves() {
 	// Haehyun 21[4K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlow4Hasei");
 	move.displayName = assignName("Falcon Dive (Reverse Ver.)", "Hayabusa (Reverse)");
+	move.displayNameSelector = displayNameSelector_landBlow4Hasei;
 	move.sectionSeparator = sectionSeparator_falconDive;
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_hayabusaRev;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_landBlow4Hasei;
 	addMove(move);
 	
 	// Haehyun 214[K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "LandBlow6Hasei");
 	move.displayName = assignName("Falcon Dive (Held)", "Hayabusa (Held)");
+	move.displayNameSelector = displayNameSelector_landBlow6Hasei;
 	move.sectionSeparator = sectionSeparator_falconDive;
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_hayabusaHeld;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_landBlow6Hasei;
 	addMove(move);
 	
 	// Haehyun 623[K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AntiAir6Hasei");
 	move.displayName = assignName("Four Tigers Sword (Hold)", "Grampa Viper");
+	move.displayNameSelector = displayNameSelector_antiAir6Hasei;
 	move.combineWithPreviousMove = true;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.powerup = powerup_grampaMax;
+	move.charge = charge_antiAir6Hasei;
 	addMove(move);
 	
 	// Haehyun 623[4K]
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "AntiAir4Hasei");
 	move.displayName = assignName("Four Tigers Sword (Reverse Ver.)", "Shinken");
+	move.displayNameSelector = displayNameSelector_antiAir4Hasei;
 	move.combineWithPreviousMove = true;
 	move.sectionSeparator = sectionSeparator_fourTigersSwordRev;
 	move.isInVariableStartupSection = isInVariableStartupSection_falconDive;
 	move.ignoreJumpInstalls = true;
+	move.powerup = powerup_antiAir4Hasei;
+	move.charge = charge_antiAir4Hasei;
 	addMove(move);
 	
 	// Haehyun 236236H
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "BlackHoleAttack");
 	move.displayName = assignName("Enlightened 3000 Palm Strike", "Clap Super");
+	move.displayNameSelector = displayNameSelector_blackHoleAttack;
 	move.sectionSeparator = sectionSeparator_blackHoleAttack;
 	move.isInVariableStartupSection = isInVariableStartupSection_blackHoleAttack;
 	move.ignoreJumpInstalls = true;
+	move.powerup = powerup_blackHoleAttack;
+	move.charge = charge_blackHoleAttack;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "BlackHoleAttackBurst");
 	move.displayName = assignName("Burst Enlightened 3000 Palm Strike", "Burst Clap");
+	move.displayNameSelector = displayNameSelector_blackHoleAttackBurst;
 	move.sectionSeparator = sectionSeparator_blackHoleAttack;
 	move.isInVariableStartupSection = isInVariableStartupSection_blackHoleAttack;
 	move.ignoreJumpInstalls = true;
+	move.powerup = powerup_blackHoleAttack;
+	move.charge = charge_blackHoleAttack;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperHomingEnergy");
@@ -7235,13 +7278,13 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "EnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = generateFramebarId();
-	move.framebarName = assignName(PROJECTILE_NAME_TUNING_BALL, "Fireball");
+	move.framebarName = PROJECTILE_NAME_TUNING_BALL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "SuperEnergyBall", true);
 	move.isDangerous = isDangerous_alwaysTrue;
 	move.framebarId = generateFramebarId();
-	move.framebarName = assignName(PROJECTILE_NAME_CELESTIAL_TUNING_BALL, "Super Ball");
+	move.framebarName = PROJECTILE_NAME_CELESTIAL_TUNING_BALL;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_HAEHYUN, "kum_205shot", true);
@@ -8270,21 +8313,21 @@ void Moves::addMoves() {
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostA", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = Ghosts_framebarId;
-	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostB", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = Ghosts_framebarId;
-	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_JACKO, "GhostC", true);
 	move.isDangerous = isDangerous_displayModel;
 	move.framebarId = Ghosts_framebarId;
-	move.framebarName = assignName(PROJECTILE_NAME_GHOST);
+	move.framebarName = PROJECTILE_NAME_GHOST;
 	move.drawProjectileOriginPoint = true;
 	addMove(move);
 	
@@ -8514,6 +8557,20 @@ void Moves::onAswEngineDestroyed() {
 	johnnyTreasureHuntMinCharge = 0;
 	johnnyStepTreasureHuntMinCharge = 0;
 	johnnyStepTreasureHuntMaxCharge = 0;
+	jamKCardLongHold = 0;
+	jamSCardLongHold = 0;
+	jamHCardLongHold = 0;
+	haehyunAntiAir6HaseiMaxChargeLower = 0;
+	haehyunAntiAir6HaseiMaxChargeUpper = 0;
+	haehyunLandBlow6HaseiMaxChargeLower = 0;
+	haehyunLandBlow6HaseiMaxChargeUpper = 0;
+	haehyunLandBlow6HaseiAttack2 = 0;
+	haehyunAntiAir6HaseiLanding = 0;
+	haehyunAntiAir6HaseiHeavyAttack = 0;
+	haehyunLandBlow4HaseiAttack2 = 0;
+	haehyunLandBlow4HaseiMaxChargeLower = 0;
+	haehyunLandBlow4HaseiMaxChargeUpper = 0;
+	haehyunBlackHoleAttackMaxCharge = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -9074,6 +9131,12 @@ const NamePair* framebarNameUncombinedSelector_venomBall(Entity ent) {
 		}
 		return assignName("Ball");
 	}
+}
+const NamePair* framebarNameSelector_grenadeBomb(Entity ent) {
+	if (ent.dealtAttack()->level == 3) {
+		return PROJECTILE_NAME_BERRY_BUFFED;
+	}
+	return PROJECTILE_NAME_BERRY;
 }
 const NamePair* framebarNameSelector_grenadeBombReady(Entity ent) {
 	if (ent.currentHitNum()) {
@@ -9968,6 +10031,99 @@ const NamePair* displayNameSelector_stepTreasureHunt(PlayerInfo& ent) {
 		return assignName("Max Stance Dash Treasure Hunt", "Max SDTH");
 	} else {
 		return assignName("Stance Dash Treasure Hunt", "SDTH");
+	}
+}
+static const NamePair* displayNameSelector_asanagi(PlayerInfo& ent, int* storage, const NamePair* namePair, const NamePair* namePairMax) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	if (!*storage) {
+		*storage = moves.findSetMarker(func, "LongHold") - func;
+	}
+	int offset = pawn.bbscrCurrentInstr() - func;
+	if (offset >= *storage) {
+		return namePairMax;
+	} else {
+		return namePair;
+	}
+}
+const NamePair* displayNameSelector_asanagiB(PlayerInfo& ent) {
+	return displayNameSelector_asanagi(ent, &moves.jamKCardLongHold, assignName("K Asanagi no Kokyuu", "K-Card"), assignName("Max K Asanagi no Kokyuu", "Max K-Card"));
+}
+const NamePair* displayNameSelector_asanagiC(PlayerInfo& ent) {
+	return displayNameSelector_asanagi(ent, &moves.jamSCardLongHold, assignName("S Asanagi no Kokyuu", "S-Card"), assignName("Max S Asanagi no Kokyuu", "Max S-Card"));
+}
+const NamePair* displayNameSelector_asanagiD(PlayerInfo& ent) {
+	return displayNameSelector_asanagi(ent, &moves.jamHCardLongHold, assignName("H Asanagi no Kokyuu", "H-Card"), assignName("Max H Asanagi no Kokyuu", "Max H-Card"));
+}
+const NamePair* displayNameSelector_antiAir4Hasei(PlayerInfo& ent) {
+	if (ent.pawn.mem45()) {
+		return assignName("Four Tigers Sword (Reverse Ver. Charged)", "Charge Shinken");
+	} else {
+		return assignName("Four Tigers Sword (Reverse Ver.)", "Shinken");
+	}
+}
+const NamePair* displayNameSelector_antiAir6Hasei(PlayerInfo& ent) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	if (!moves.haehyunAntiAir6HaseiLanding) {
+		moves.haehyunAntiAir6HaseiLanding = moves.findSetMarker(func, "landing") - func;
+		moves.haehyunAntiAir6HaseiHeavyAttack = moves.findSetMarker(func, "HeavyAttack") - func;
+	}
+	int offset = pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.haehyunAntiAir6HaseiLanding && pawn.dealtAttack()->hitstop == 22
+			|| offset > moves.haehyunAntiAir6HaseiHeavyAttack
+			|| strcmp(pawn.gotoLabelRequests(), "HeavyAttack") == 0
+			|| pawn.mem45()
+			&& pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		return assignName("Four Tigers Sword (Charged)", "Charged Grampa Viper");
+	} else {
+		return assignName("Four Tigers Sword (Hold)", "Grampa Viper");
+	}
+}
+const NamePair* displayNameSelector_landBlow4Hasei(PlayerInfo& ent) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	if (!moves.haehyunLandBlow4HaseiAttack2) {
+		moves.haehyunLandBlow4HaseiAttack2 = moves.findSetMarker(func, "Attack2") - func;
+	}
+	int offset = pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.haehyunLandBlow4HaseiAttack2
+			|| strcmp(pawn.gotoLabelRequests(), "Attack2") == 0
+			|| pawn.mem45()
+			&& pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		return assignName("Falcon Dive (Reverse Ver. Charged)", "Hayabusa (Reverse Charged)");
+	} else {
+		return assignName("Falcon Dive (Reverse Ver.)", "Hayabusa (Reverse)");
+	}
+}
+const NamePair* displayNameSelector_landBlow6Hasei(PlayerInfo& ent) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	if (!moves.haehyunLandBlow6HaseiAttack2) {
+		moves.haehyunLandBlow6HaseiAttack2 = moves.findSetMarker(func, "Attack2") - func;
+	}
+	int offset = pawn.bbscrCurrentInstr() - func;
+	if (offset > moves.haehyunLandBlow6HaseiAttack2
+			|| strcmp(pawn.gotoLabelRequests(), "Attack2") == 0
+			|| pawn.mem45()
+			&& pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		return assignName("Falcon Dive (Charged)", "Hayabusa (Charged)");
+	} else {
+		return assignName("Falcon Dive (Held)", "Hayabusa (Held)");
+	}
+}
+const NamePair* displayNameSelector_blackHoleAttack(PlayerInfo& ent) {
+	if (ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE) {
+		return assignName("Max Enlightened 3000 Palm Strike", "Max Clap Super");
+	} else {
+		return assignName("Enlightened 3000 Palm Strike", "Clap Super");
+	}
+}
+const NamePair* displayNameSelector_blackHoleAttackBurst(PlayerInfo& ent) {
+	if (ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE) {
+		return assignName("Max Burst Enlightened 3000 Palm Strike", "Max Burst Clap Super");
+	} else {
+		return assignName("Burst Enlightened 3000 Palm Strike", "Burst Clap Super");
 	}
 }
 
@@ -11465,6 +11621,29 @@ bool projectilePowerup_onpu(ProjectileInfo& projectile) {
 			&& strcmp(projectile.ptr.gotoLabelRequests(), "hit") != 0
 		);
 }
+bool projectilePowerup_grenadeBomb(ProjectileInfo& projectile) {
+	bool result = false;
+	if (projectile.ptr) {
+		Entity owner = projectile.ptr.playerEntity();
+		PlayerInfo& player = endScene.findPlayer(owner);
+		if (
+			(
+				projectile.ptr.lifeTimeCounter() == 0
+				|| player.pawn
+				&& player.elpheltLastFrameGrenadeAttackLevel != 3
+			)
+			&& projectile.ptr.dealtAttack()->level == 3
+			&& (
+				projectile.ptr.hitSomethingOnThisFrame()
+				|| projectile.ptr.hitAlreadyHappened() < projectile.ptr.theValueHitAlreadyHappenedIsComparedAgainst()
+			)
+		) {
+			result = true;
+		}
+		player.elpheltLastFrameGrenadeAttackLevel = projectile.ptr.dealtAttack()->level;
+	}
+	return result;
+}
 const char* powerup_djavu(PlayerInfo& ent) {
 	if (ent.animFrame == 6 && !ent.pawn.isRCFrozen()) {
 		return "//Title override: \n"
@@ -11639,19 +11818,33 @@ const char* powerup_cardH(PlayerInfo& ent) {
 	return nullptr;
 }
 const char* powerup_hayabusaRev(PlayerInfo& ent) {
-	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0) {
-		return "Acquired Guard Break property.";
+	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0 && ent.pawn.gotoLabelRequests()[0] == '\0') {
+		return "Acquired Guard Break property, also now does more damage.";
 	}
 	return nullptr;
 }
 const char* powerup_hayabusaHeld(PlayerInfo& ent) {
-	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0) {
+	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0 && ent.pawn.gotoLabelRequests()[0] == '\0') {
 		return "Reached maximum charge.";
 	}
 	return nullptr;
 }
 const char* powerup_grampaMax(PlayerInfo& ent) {
+	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0
+			&& ent.pawn.gotoLabelRequests()[0] == '\0') {
+		return "Reached maximum charge.";
+	}
+	return nullptr;
+}
+const char* powerup_antiAir4Hasei(PlayerInfo& ent) {
 	if (ent.prevFrameMem45 == 0 && ent.pawn.mem45() != 0) {
+		return "Reached maximum charge.";
+	}
+	return nullptr;
+}
+const char* powerup_blackHoleAttack(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0 && ent.pawn.dealtAttack()->guardType == GUARD_TYPE_NONE
+			&& !ent.pawn.isRCFrozen()) {
 		return "Reached maximum charge.";
 	}
 	return nullptr;
@@ -13213,6 +13406,137 @@ void charge_treasureHunt(PlayerInfo& ent, ChargeData* result) {
 }
 void charge_stepTreasureHunt(PlayerInfo& ent, ChargeData* result) {
 	charge_treasureHuntImpl(ent, result, &moves.johnnyStepTreasureHuntMinCharge, &moves.johnnyStepTreasureHuntMaxCharge);
+}
+static void charge_6HaseiImpl(PlayerInfo& ent, ChargeData* result, int* storageMin, int* storageMax, const char* heavyAttackName, int frameMin, int frameMax, int diff) {
+	Entity pawn = ent.pawn;
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		if (!*storageMin) {
+			InstrType prevType = (InstrType)0;
+			int lastValue = 0;
+			for (loopInstr(pawn.bbscrCurrentFunc())) {
+				InstrType type = moves.instrType(instr);
+				if (type == instr_ifOperation) {
+					if (asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+							&& (
+								asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_PLAYED_IN_STATE
+								|| asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
+							)
+							&& asInstr(instr, ifOperation)->right.tag == BBSCRTAG_VALUE) {
+						lastValue = asInstr(instr, ifOperation)->right.value;
+					}
+				} else if (type == instr_storeValue) {
+					if (asInstr(instr, storeValue)->dest == MEM(45)
+							&& asInstr(instr, storeValue)->src == AccessedValue(BBSCRTAG_VALUE, 1)) {
+						*storageMin = lastValue;
+					}
+				} else if (type == instr_gotoLabelRequests) {
+					if (strcmp(asInstr(instr, gotoLabelRequests)->name, heavyAttackName) == 0
+							&& prevType == instr_ifOperation) {
+						*storageMax = lastValue - 1;
+						break;
+					}
+				}
+				prevType = type;
+			}
+		}
+		int currentCharge = frameMin - diff;
+		if (frameMax - 1 > *storageMax) {
+			currentCharge = *storageMax + diff;
+		}
+		// increment both by 1 because if you have this event handler at all, that means you charged for at least one frame
+		result->current = currentCharge + diff;
+		result->max = *storageMin + diff;
+		return;
+	}
+	result->current = 0;
+	result->max = 0;
+}
+void charge_antiAir6Hasei(PlayerInfo& ent, ChargeData* result) {
+	charge_6HaseiImpl(ent,
+		result,
+		&moves.haehyunAntiAir6HaseiMaxChargeLower,
+		&moves.haehyunAntiAir6HaseiMaxChargeUpper,
+		"HeavyAttack",
+		ent.pawn.framesSinceRegisteringForTheIdlingSignal(),
+		ent.pawn.framesSinceRegisteringForTheIdlingSignal(),
+		1);
+}
+void charge_landBlow6Hasei(PlayerInfo& ent, ChargeData* result) {
+	charge_6HaseiImpl(ent,
+		result,
+		&moves.haehyunLandBlow6HaseiMaxChargeLower,
+		&moves.haehyunLandBlow6HaseiMaxChargeUpper,
+		"Attack2",
+		ent.pawn.currentAnimDuration(),
+		ent.pawn.framesSinceRegisteringForTheIdlingSignal(),
+		0);
+}
+void charge_landBlow4Hasei(PlayerInfo& ent, ChargeData* result) {
+	charge_6HaseiImpl(ent,
+		result,
+		&moves.haehyunLandBlow4HaseiMaxChargeLower,
+		&moves.haehyunLandBlow4HaseiMaxChargeUpper,
+		"Attack2",
+		ent.pawn.currentAnimDuration(),
+		ent.pawn.framesSinceRegisteringForTheIdlingSignal(),
+		0);
+}
+void charge_antiAir4Hasei(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		int maxChargeParsed = 0;
+		int lastValue = 0;
+		for (loopInstr(pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr)) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_ifOperation) {
+				if (asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+						&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
+						&& asInstr(instr, ifOperation)->right.tag == BBSCRTAG_VALUE) {
+					lastValue = asInstr(instr, ifOperation)->right.value;
+				}
+			} else if (type == instr_storeValue
+					&& asInstr(instr, storeValue)->dest == MEM(45)
+					&& asInstr(instr, storeValue)->src == AccessedValue(BBSCRTAG_VALUE, 1)) {
+				maxChargeParsed = lastValue - 1;
+				break;
+			}
+		}
+		
+		int animFrame = pawn.framesSinceRegisteringForTheIdlingSignal() - 1;
+		result->current = animFrame;
+		result->max = maxChargeParsed;
+		return;
+	}
+	
+	result->current = 0;
+	result->max = 0;
+}
+void charge_blackHoleAttack(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED) && pawn.mem45()) {
+		if (!moves.haehyunBlackHoleAttackMaxCharge) {
+			int theValue = 0;
+			for (loopInstr(pawn.uponStruct(BBSCREVENT_ANIMATION_FRAME_ADVANCED)->uponInstrPtr)) {
+				InstrType type = moves.instrType(instr);
+				if (type == instr_ifOperation) {
+					if (asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+							&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_SINCE_REGISTERING_FOR_THE_ANIMATION_FRAME_ADVANCED_SIGNAL
+							&& asInstr(instr, ifOperation)->right.tag == BBSCRTAG_VALUE) {
+						theValue = asInstr(instr, ifOperation)->right.value;
+					}
+				} else if (type == instr_endUpon) {
+					break;
+				}
+			}
+			moves.haehyunBlackHoleAttackMaxCharge = theValue;
+		}
+		
+		result->current = pawn.framesSinceRegisteringForTheIdlingSignal() - 1;
+		result->max = moves.haehyunBlackHoleAttackMaxCharge - 1;
+		return;
+	}
+	result->current = 0;
+	result->max = 0;
 }
 
 void Moves::fillMay6PElements(BYTE* func) {

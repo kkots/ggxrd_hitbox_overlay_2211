@@ -1,4 +1,5 @@
 #pragma once
+#include "Moves.h"
 // I'm trying to legalize hardcode
 // can't use __COUNTER__ in a header file: produces a different number in each translation unit
 // let's instead hardcode a number that __COUNTER__ will never reach
@@ -7,12 +8,20 @@
 #define GAMMA_RAY_LASER_FRAMEBAR_ID 0x70000003
 #define ANSWER_RSF_FRAMEBAR_ID 0x70000004
 
-#define PROJECTILE_NAME_BACCHUS "Bacchus"
-#define PROJECTILE_NAME_BERRY "Berry"
-#define PROJECTILE_NAME_GHOST "Ghost"
-#define PROJECTILE_NAME_TUNING_BALL "Tuning Ball"
-#define PROJECTILE_NAME_CELESTIAL_TUNING_BALL "Celestial Tuning Ball"
-#define MOVE_NAME_NOTE "Note"
+extern const NamePair  PROJECTILE_NAME_BACCHUS_DATA;
+static const NamePair* PROJECTILE_NAME_BACCHUS = &PROJECTILE_NAME_BACCHUS_DATA;
+extern const NamePair  PROJECTILE_NAME_BERRY_DATA;
+static const NamePair* PROJECTILE_NAME_BERRY = &PROJECTILE_NAME_BERRY_DATA;
+extern const NamePair  PROJECTILE_NAME_BERRY_BUFFED_DATA;
+static const NamePair* PROJECTILE_NAME_BERRY_BUFFED = &PROJECTILE_NAME_BERRY_BUFFED_DATA;
+extern const NamePair  PROJECTILE_NAME_GHOST_DATA;
+static const NamePair* PROJECTILE_NAME_GHOST = &PROJECTILE_NAME_GHOST_DATA;
+extern const NamePair  PROJECTILE_NAME_TUNING_BALL_DATA;
+static const NamePair* PROJECTILE_NAME_TUNING_BALL = &PROJECTILE_NAME_TUNING_BALL_DATA;
+extern const NamePair  PROJECTILE_NAME_CELESTIAL_TUNING_BALL_DATA;
+static const NamePair* PROJECTILE_NAME_CELESTIAL_TUNING_BALL = &PROJECTILE_NAME_CELESTIAL_TUNING_BALL_DATA;
+extern const NamePair  MOVE_NAME_NOTE_DATA;
+static const NamePair* MOVE_NAME_NOTE = &MOVE_NAME_NOTE_DATA;
 
 // all hits originating from projectiles with these framebar IDs must be combined
 inline bool combineHitsFromFramebarId(int framebarId) {

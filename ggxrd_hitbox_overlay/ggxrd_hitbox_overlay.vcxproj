@@ -316,6 +316,7 @@
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="SettingsTopCommentDefinition.cpp" />
+    <ClCompile Include="SpecificFramebarIds.cpp" />
     <ClCompile Include="SplitStringIterator.cpp" />
     <ClCompile Include="Stencil.cpp" />
     <ClCompile Include="TexturePacker.cpp" />

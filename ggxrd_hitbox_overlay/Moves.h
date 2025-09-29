@@ -643,6 +643,20 @@ public:
 	int johnnyTreasureHuntMinCharge = 0;
 	int johnnyStepTreasureHuntMinCharge = 0;
 	int johnnyStepTreasureHuntMaxCharge = 0;
+	int jamKCardLongHold = 0;
+	int jamSCardLongHold = 0;
+	int jamHCardLongHold = 0;
+	int haehyunAntiAir6HaseiMaxChargeLower = 0;
+	int haehyunAntiAir6HaseiMaxChargeUpper = 0;
+	int haehyunLandBlow6HaseiMaxChargeLower = 0;
+	int haehyunLandBlow6HaseiMaxChargeUpper = 0;
+	int haehyunLandBlow6HaseiAttack2 = 0;
+	int haehyunAntiAir6HaseiLanding = 0;
+	int haehyunAntiAir6HaseiHeavyAttack = 0;
+	int haehyunLandBlow4HaseiAttack2 = 0;
+	int haehyunLandBlow4HaseiMaxChargeLower = 0;
+	int haehyunLandBlow4HaseiMaxChargeUpper = 0;
+	int haehyunBlackHoleAttackMaxCharge = 0;
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;

@@ -2691,7 +2691,7 @@ void UI::drawSearchableWindows() {
 			ImGui::TableNextColumn();
 			ImGui::TextUnformatted(searchFieldTitle("Burst Gain Modifier"));
 			AddTooltip(searchFieldTitle("Burst gain depends on the current combo hit count. The more hits the combo has, the faster the defender gains burst.\n"
-				" The amount gained from each hit is based on (damage * 3 + 100) * Burst Gain Modifier.\n"
+				" The amount gained from each hit is based on (damage * 3 + 100) * Burst Gain Modifier. The damage used here is the base damage of the attack.\n"
 				" There are two or three percentages displayed. The first depends on combo count (combo count + 32) / 32, the second depends on some unknown thing"
 				" that scales burst gain by 20%. The third percentage is displayed when you're playing Stylish and is the stylish burst gain modifier.\n"));
 			for (int i = 0; i < two; ++i) {
@@ -12414,14 +12414,16 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 		ImGui::Separator();
 		if (owningPlayerCharType == CHARACTER_TYPE_INO) {
 			ImGui::TextUnformatted("The note reached the next level on this frame: it will deal one more hit.");
+		} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT) {
+			ImGui::TextUnformatted("The Berry Pine reached a powerup on this frame: it will deal significantly more hitstun or blockstun,"
+				" and will have less pushback on air hit, but more pushback on ground hit or block, and the Berry won't bounce off the floor anymore.");
 		} else {
 			ImGui::TextUnformatted("The projectile reached some kind of powerup on this frame.");
 		}
 	}
 	if (playerIndex == -1) {
 		if (owningPlayerCharType == CHARACTER_TYPE_INO) {
-			if (projectileFrame.animName && projectileFrame.animName->slang
-					&& strcmp(projectileFrame.animName->slang, MOVE_NAME_NOTE) == 0) {
+			if (projectileFrame.animName == MOVE_NAME_NOTE) {
 				// I am a dirty scumbag
 				ImGui::Separator();
 				zerohspacing
@@ -12452,8 +12454,7 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 			ImGui::TextUnformatted(strbuf);
 			_zerohspacing
 		} else if (owningPlayerCharType == CHARACTER_TYPE_ELPHELT) {
-			if (projectileFrame.animName && projectileFrame.animName->slang
-					&& strcmp(projectileFrame.animName->slang, PROJECTILE_NAME_BERRY) == 0) {
+			if (projectileFrame.animName == PROJECTILE_NAME_BERRY || projectileFrame.animName == PROJECTILE_NAME_BERRY_BUFFED) {
 				ImGui::Separator();
 				zerohspacing
 				yellowText("Berry Timer: ");
@@ -12463,8 +12464,7 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 				_zerohspacing
 			}
 		} else if (owningPlayerCharType == CHARACTER_TYPE_JOHNNY) {
-			if (projectileFrame.animName && projectileFrame.animName->slang
-					&& strcmp(projectileFrame.animName->slang, PROJECTILE_NAME_BACCHUS) == 0) {
+			if (projectileFrame.animName == PROJECTILE_NAME_BACCHUS) {
 				ImGui::Separator();
 				zerohspacing
 				yellowText("Bacchus Sigh Projectile Timer: ");
@@ -12476,8 +12476,7 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 			}
 		} else if (owningPlayerCharType == CHARACTER_TYPE_JACKO) {
 			if (frame.type == FT_IDLE_NO_DISPOSE
-					&& projectileFrame.animName
-					&& strcmp(projectileFrame.animName->name, PROJECTILE_NAME_GHOST) == 0) {
+					&& projectileFrame.animName == PROJECTILE_NAME_GHOST) {
 				ImGui::Separator();
 				ImGui::TextUnformatted("The Ghost is strike invulnerable.");
 			}
@@ -12488,31 +12487,29 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 				ImGui::TextUnformatted("Shield Fish super armor active.");
 			}
 		} else if (owningPlayerCharType == CHARACTER_TYPE_HAEHYUN) {
-			if (projectileFrame.animName && projectileFrame.animName->name) {
-				if (strcmp(projectileFrame.animName->name, PROJECTILE_NAME_TUNING_BALL) == 0) {
-					ImGui::Separator();
-					zerohspacing
-					yellowText("Ball Time Remaining: ");
-					ImGui::SameLine();
-					sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.haehyunInfo.ballTime,
-						correspondingPlayersFrame.u.haehyunInfo.ballTimeMax);
+			if (projectileFrame.animName == PROJECTILE_NAME_TUNING_BALL) {
+				ImGui::Separator();
+				zerohspacing
+				yellowText("Ball Time Remaining: ");
+				ImGui::SameLine();
+				sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.haehyunInfo.ballTime,
+					correspondingPlayersFrame.u.haehyunInfo.ballTimeMax);
+				ImGui::TextUnformatted(strbuf);
+				_zerohspacing
+			} else if (projectileFrame.animName == PROJECTILE_NAME_CELESTIAL_TUNING_BALL) {
+				ImGui::Separator();
+				zerohspacing
+				yellowText("Celestial Ball Time Remaining: ");
+				ImGui::SameLine();
+				if (projectileFrame.charSpecific1 == projectileFrame.charSpecific2) {
+					ImGui::TextUnformatted("??/??");
+				} else {
+					int index = projectileFrame.charSpecific1 ? 0 : 1;
+					sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.haehyunInfo.superballTime[index].time,
+						correspondingPlayersFrame.u.haehyunInfo.superballTime[index].timeMax);
 					ImGui::TextUnformatted(strbuf);
-					_zerohspacing
-				} else if (strcmp(projectileFrame.animName->name, PROJECTILE_NAME_CELESTIAL_TUNING_BALL) == 0) {
-					ImGui::Separator();
-					zerohspacing
-					yellowText("Celestial Ball Time Remaining: ");
-					ImGui::SameLine();
-					if (projectileFrame.charSpecific1 == projectileFrame.charSpecific2) {
-						ImGui::TextUnformatted("??/??");
-					} else {
-						int index = projectileFrame.charSpecific1 ? 0 : 1;
-						sprintf_s(strbuf, "%d/%d", correspondingPlayersFrame.u.haehyunInfo.superballTime[index].time,
-							correspondingPlayersFrame.u.haehyunInfo.superballTime[index].timeMax);
-						ImGui::TextUnformatted(strbuf);
-					}
-					_zerohspacing
 				}
+				_zerohspacing
 			}
 		}
 	}
@@ -12883,14 +12880,20 @@ void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float fra
 	int visualFrameCount = 0;
 	bool indInView = false;
 	int visualInd;
-	int internalIndNext = drawFramebars_framebarPosition == _countof(Framebar::frames) - 1
+	int positionWithUndoneScroll = drawFramebars_framebarPosition + ui.framebarSettings.scrollXInFrames;
+	if (positionWithUndoneScroll > _countof(Framebar::frames)) {
+		positionWithUndoneScroll -= (int)_countof(Framebar::frames);
+	}
+	int internalIndNext = positionWithUndoneScroll == _countof(Framebar::frames) - 1
 		? 0
-		: drawFramebars_framebarPosition + 1;
+		: positionWithUndoneScroll + 1;
 	int internalInd;
 	bool prevIndInView = false;
 	int prevVisualInd;
 	
-	for (int i = 0; i < _countof(Framebar::frames); ++i) {
+	const int iEnd = (int)_countof(Framebar::frames) - ui.framebarSettings.scrollXInFrames;
+	const int iLast = iEnd - 1;
+	for (int i = 0; i < iEnd; ++i) {
 		
 		internalInd = internalIndNext;
 		if (internalIndNext == _countof(Framebar::frames) - 1) {
@@ -12973,7 +12976,7 @@ void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float fra
 		
 		if (currentType == lastFrameType
 				&& !isFirst
-				&& i == _countof(Framebar::frames) - 1
+				&& i == iLast
 				&& lastFrameType != FT_NONE) {
 			divisionType = DIVISION_TYPE_REACHED_END;
 			displayPos = visualInd;
@@ -14884,18 +14887,16 @@ void UI::drawFramebars() {
 	// It does not have horizontal scrolling applied to it
 	const int framebarPosition = framebarSettings.neverIgnoreHitstop ? endScene.getFramebarPositionHitstop() : endScene.getFramebarPosition();
 	
-	int scrollXInFrames = framebarSettings.scrollXInFrames;
-	
-	drawFramebars_framebarPosition = framebarPosition - scrollXInFrames;
+	drawFramebars_framebarPosition = framebarPosition - framebarSettings.scrollXInFrames;
 	if (drawFramebars_framebarPosition < 0) {
 		drawFramebars_framebarPosition += _countof(Framebar::frames);
 	}
 	
 	int framebarTotalFramesUnlimited_withScroll;
-	if (framebarTotalFramesUnlimited < scrollXInFrames) {
+	if (framebarTotalFramesUnlimited < framebarSettings.scrollXInFrames) {
 		framebarTotalFramesUnlimited_withScroll = 0;
 	} else {
-		framebarTotalFramesUnlimited_withScroll = framebarTotalFramesUnlimited - scrollXInFrames;
+		framebarTotalFramesUnlimited_withScroll = framebarTotalFramesUnlimited - framebarSettings.scrollXInFrames;
 	}
 	
 	drawFramebars_framebarPositionDisplay = framebarTotalFramesUnlimited_withScroll == 0
@@ -15543,7 +15544,7 @@ void UI::drawFramebars() {
 			
 			short frameAdvantage;
 			short landingFrameAdvantage;
-			if (scrollXInFrames == 0) {
+			if (framebarSettings.scrollXInFrames == 0) {
 				// get the current frame advantage if the framebar playhead position is the latest one
 				FrameAdvantageForFramebarResult advRes;
 				endScene.players[entityFramebar.playerIndex].calcFrameAdvantageForFramebar(&advRes);

@@ -1911,6 +1911,7 @@ struct PlayerInfo {
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;
+	unsigned char elpheltLastFrameGrenadeAttackLevel = 0;
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };

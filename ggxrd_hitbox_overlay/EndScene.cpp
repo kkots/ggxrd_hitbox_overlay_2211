@@ -8356,6 +8356,10 @@ void EndScene::registerJump(PlayerInfo& player, Entity pawn, const char* animNam
 
 // Runs on the main thread
 void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName) {
+	// need to reset these to null because Jam Hochifu cancels work through walk cancelling
+	player.startedRunning = false;
+	player.startedWalkingForward = false;
+	player.startedWalkingBackward = false;
 	if (strcmp(animName, "CmnActFDash") == 0) {
 		player.startedRunning = true;
 	} else if (strcmp(animName, "CrouchFWalk") == 0 || strcmp(animName, "CmnActFWalk") == 0
