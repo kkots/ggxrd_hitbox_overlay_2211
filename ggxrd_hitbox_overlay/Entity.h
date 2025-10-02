@@ -1258,6 +1258,7 @@ enum InstrType {
 	instr_linkParticleWithArg2 = 1923,
 	instr_exPointFReset = 2161,
 	instr_requestDestroy = 2176,
+	instr_numberOfHits = 2179,
 	instr_timeSlow = 2201,
 	instr_createArgHikitsukiVal = 2247,
 	instr_setHitstop = 2263,
@@ -1443,6 +1444,27 @@ enum HitEffect {
 	HIT_EFFECT_THROW_CLASH_AIR = 25,  // same as BLITZ_REJECT_AIR, but shorter (30f) rejection period instead of 60f
 	HIT_EFFECT_AIR_SOMERSAULT = 26,  // causes ZSpin animation, which leads to face down knockdown
 	HIT_EFFECT_UNSPECIFIED = INT_MAX  // default value. Translates to GROUND_NORMAL for groundHitEffect and AIR_NORMAL for airHitEffect
+};
+
+// Everything gets reset to INT_MAX
+struct InflictedParameters {
+	int impulseX;  // 0x0
+	int impulseY;  // 0x4
+	int gravity;  // 0x8
+	int wallBounceXVelocityPercent;  // 0xc
+	int groundBounceYVelocityPercent;  // 0x10
+	int hitstunIfItWasGrounded;  // 0x14
+	int untechableTime;  // 0x18
+	int wallbounceCount;  // 0x1c
+	int groundBounceCount;  // 0x20
+	int knockdownDuration;  // 0x24
+	HitEffect groundHitEffect;  // 0x28
+	HitEffect airHitEffect;  // 0x2c
+	int wallstickDuration;  // 0x30
+	int wallBounceInCornerOnly;  // 0x34  // used as a BOOL. But yes, default value is still INT_MAX
+	int tumbleDuration;  // 0x38  // received, maximum, doesn't decrease over time
+	int wallBounceWaitTime;  // 0x3c
+	int tumbleCount;  // 0x40
 };
 
 class Entity
@@ -1659,7 +1681,6 @@ public:
 	inline bool isRCFrozen() const { return (*(DWORD*)(ent + 0x11c) & 0x200000) != 0; }  // true on every second frame of RC slowdown, when that frame got skippped
 	inline Entity attacker() const { return *(Entity*)(ent + 0x708); }
 	inline bool holdingFD() const { return (*(DWORD*)(ent + 0x23c) & 0x20000000) != 0; }
-	inline int receivedSpeedY() const { return *(int*)(ent + 0x944); }
 	inline bool superArmorEnabled() const { return (*(DWORD*)(ent + 0x9a4) & 0x2) != 0; }  // by default super armor tanks everything
 	inline SuperArmorType superArmorType() const { return *(SuperArmorType*)(ent + 0x9a8); }
 	inline bool superArmorThrow() const { return (*(DWORD*)(ent + 0x9a4) & 0x40) != 0; }
@@ -1729,10 +1750,9 @@ public:
 	inline int transformCenterY() const { return *(int*)(ent + 0x280); }  // does not depend on sprite facing, does not get mirrored with sprite facing
 	inline int hitboxCount(HitboxType type) const { return *(int*)(ent + 0xa0 + (int)type * 4); }
 	inline const Hitbox* hitboxData(HitboxType type) const { return *(const Hitbox**)(ent + 0x58 + (int)type * 4); }
-	inline int hitAirPushbackX() const { return *(int*)(ent + 0x67c); }
-	inline int hitAirPushbackY() const { return *(int*)(ent + 0x680); }
-	inline int untechableTime() const { return *(int*)(ent + 0x694); }
-	inline int floorBouncesRemaining() const { return *(int*)(ent + 0x960); }
+	inline const InflictedParameters* inflicted() const { return (const InflictedParameters*)(ent + 0x67c); }
+	inline const InflictedParameters* inflictedCH() const { return (const InflictedParameters*)(ent + 0x6c0); }
+	inline const InflictedParameters* received() const { return (const InflictedParameters*)(ent + 0x940); }
 	inline bool isOtg() const { return (*(DWORD*)(ent + 0x4d24) & 0x800000) != 0; }
 	inline bool damageToAir() const { return (*(DWORD*)(ent + 0x4d24) & 0x8000) != 0; }  // this is present on Answer Backdash, Faust Pogo, May Horizontal Dolphin first few frames, etc
 	inline bool crouching() const { return (*(DWORD*)(ent + 0x4d24) & 0x1) != 0; }
@@ -1801,13 +1821,6 @@ public:
 	inline int createArgHikitsukiVal1_outgoing() const { return *(int*)(ent + 0x2614 + 0x34); }  // gets reset to 0 after creating an object
 	inline int createArgHikitsukiVal2_outgoing() const { return *(int*)(ent + 0x2614 + 0x38); }  // gets reset to 0 after creating an object
 	inline const char* previousAnimName() const { return (const char*)(ent + 0x2424); }
-	inline HitEffect groundHitEffect() const { return *(HitEffect*)(ent + 0x6a4); }
-	inline int groundBounceCount() const { return *(int*)(ent + 0x69c); }
-	inline int tumbleDuration() const { return *(int*)(ent + 0x6b4); }  // dealt or prepared attack's tumble
-	inline int knockdown() const { return *(int*)(ent + 0x964); }  // received knockdown duration maximum, does not decrement over time
-	inline int wallstick() const { return *(int*)(ent + 0x970); }  // received wallstick duration maximum, does not decrement over time
-	inline int inflictedWallstick() const { return *(int*)(ent + 0x6ac); }  // inflicted wallstick duration
-	inline int tumble() const { return *(int*)(ent + 0x978); }  // received tumble maximum, does not decrement over time
 	inline int airDashMinimumHeight() const { return *(int*)(ent + 0x9864); }
 	inline int framesSinceRegisteringForTheIdlingSignal() const { return *(int*)(ent + 0x140); }  // unfortunately, this value is +1 at the end of the tick more than what it was during an idling event. Luckily, you can just -1 from it before using
 	inline int clashOrRCBufferTimer() const { return *(int*)(ent + 0x24dcc); }  // decrements by 1 in the big function that uses the "cmn_MOM_Jibaku" string. When not 0, adds bufferTimeFromRC+13 to buffer window of moves

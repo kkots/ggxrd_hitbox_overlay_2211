@@ -1234,14 +1234,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			if (cmnActIndex == CmnActKorogari) {
 				if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
 					player.tumbleContaminatedByRCSlowdown = false;
-					player.tumbleMax = ent.tumble() + 30 - 1;
+					player.tumbleMax = ent.received()->tumbleDuration + 30 - 1;
 					player.tumbleStartedInHitstop = ent.hitstop() > 0;
 					player.tumbleElapsed = 0;
 				}
 				player.displayTumble = true;
 				if (ent.bbscrvar() == 0) {
 					int animDur = ent.currentAnimDuration();
-					player.tumble = ent.tumble() - (animDur == 1 ? 1 : player.tumbleStartedInHitstop ? animDur - 1 : animDur) + 30
+					player.tumble = ent.received()->tumbleDuration - (animDur == 1 ? 1 : player.tumbleStartedInHitstop ? animDur - 1 : animDur) + 30
 						+ (!player.tumbleStartedInHitstop ? 1 : 0);
 				} else {
 					player.tumble = 30 - ent.bbscrvar2() + 1;
@@ -1250,11 +1250,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				if (ent.bbscrvar2() == 0) {
 					if (ent.currentAnimDuration() == 1 && !ent.isRCFrozen()) {
 						player.wallstickContaminatedByRCSlowdown = false;
-						player.wallstickMax = ent.wallstick() + 30 - 1;
+						player.wallstickMax = ent.received()->wallstickDuration + 30 - 1;
 						player.wallstickElapsed = 0;
 					}
 					player.displayWallstick = true;
-					player.wallstick = ent.wallstick() + 1 - ent.bbscrvar();
+					player.wallstick = ent.received()->wallstickDuration + 1 - ent.bbscrvar();
 				} else {
 					player.wallstick = 0;
 				}
@@ -1267,7 +1267,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					if (ent.infiniteKd()) {
 						knockdownDur = -1;
 					}
-					int customKd = ent.knockdown();
+					int customKd = ent.received()->knockdownDuration;
 					if (customKd != 0) {
 						knockdownDur = customKd;
 					}
@@ -7018,9 +7018,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			player.prevGettingHitBySuper = player.gettingHitBySuper;
 			player.prevFrameMem45 = player.pawn.mem45();
 			player.prevFrameMem46 = player.pawn.mem46();
-			player.prevFrameGroundHitEffect = player.pawn.groundHitEffect();
-			player.prevFrameGroundBounceCount = player.pawn.groundBounceCount();
-			player.prevFrameTumbleDuration = player.pawn.tumbleDuration();
+			player.prevFrameGroundHitEffect = player.pawn.inflicted()->groundHitEffect;
+			player.prevFrameGroundBounceCount = player.pawn.inflicted()->groundBounceCount;
+			player.prevFrameTumbleDuration = player.pawn.inflicted()->tumbleDuration;
 			player.prevFrameMaxHit = player.pawn.maxHit();
 			player.prevFramePlayerval0 = player.playerval0;
 			player.prevFramePlayerval1 = player.playerval1;
@@ -8788,7 +8788,7 @@ void EndScene::logicOnFrameAfterHitHook(Entity pawn, bool isAirHit, int param2) 
 		player.setHitstopMaxSuperArmor = false;
 		player.setHitstunMax = true;
 		player.receivedSpeedYValid = isAirHit;
-		player.receivedSpeedY = pawn.receivedSpeedY();
+		player.receivedSpeedY = pawn.received()->impulseY;
 		Entity attacker = pawn.attacker();
 		player.pushbackMax = pawn.pendingPushback();
 		player.baseFdPushback = 0;

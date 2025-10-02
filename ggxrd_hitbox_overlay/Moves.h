@@ -305,6 +305,11 @@ public:
 	static BYTE* findSprite(BYTE* in, const char* name);
 	static inline BYTE* findSpriteNull(BYTE* in) { return findSprite(in, "null"); }
 	static BYTE* findSpriteNonNull(BYTE* in);
+	enum TriBool : char {
+		TRIBOOL_DUNNO,
+		TRIBOOL_FALSE,
+		TRIBOOL_TRUE
+	};
 	bool justCountingMoves = false;
 	int propertiesCount = 0;
 	int armorDanceEndOffset = 0;  // in number of bytes
@@ -345,11 +350,6 @@ public:
 	MayIrukasanRidingObjectInfo mayIrukasanRidingObjectTateB { 0 };
 	int may6H_6DHoldOffset = 0;
 	int may6H_6DHoldAttackOffset = 0;
-	enum TriBool : char {
-		TRIBOOL_DUNNO,
-		TRIBOOL_FALSE,
-		TRIBOOL_TRUE
-	};
 	TriBool milliaIsRev2 = TRIBOOL_DUNNO;
 	int faust5DExPointX = -1;
 	int faust5DExPointY = -1;
@@ -657,6 +657,14 @@ public:
 	int haehyunLandBlow4HaseiMaxChargeLower = 0;
 	int haehyunLandBlow4HaseiMaxChargeUpper = 0;
 	int haehyunBlackHoleAttackMaxCharge = 0;
+	TriBool reavenLandSettingTypeNeedleObjIsRev2 = TRIBOOL_DUNNO;
+	int dizzy6HMinCharge = 0;
+	int dizzy6HMaxCharge = 0;
+	int dizzyKinomiNecroMinCharge = 0;
+	int dizzyKinomiNecroSpear2 = 0;
+	int dizzyKinomiNecroSpear3 = 0;
+	int dizzyKinomiNecroEndOffset = 0;
+	void fillInKinomiNecroChargePrereq(BYTE* func);
 private:
 	friend struct MoveInfo;
 	int forceAddWhiffCancelsTotalCount = 0;

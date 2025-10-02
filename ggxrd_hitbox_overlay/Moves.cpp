@@ -163,6 +163,7 @@ static const NamePair* framebarNameSelector_venomBall(Entity ent);
 static const NamePair* framebarNameUncombinedSelector_venomBall(Entity ent);
 static const NamePair* framebarNameSelector_grenadeBomb(Entity ent);
 static const NamePair* framebarNameSelector_grenadeBombReady(Entity ent);
+static const NamePair* framebarNameSelector_landSettingTypeNeedleObj(Entity ent);
 
 static bool isInVariableStartupSection_treasureHunt(PlayerInfo& ent);
 static bool isInVariableStartupSection_zweiLand(PlayerInfo& ent);
@@ -298,6 +299,14 @@ static const NamePair* displayNameSelector_landBlow4Hasei(PlayerInfo& ent);
 static const NamePair* displayNameSelector_landBlow6Hasei(PlayerInfo& ent);
 static const NamePair* displayNameSelector_blackHoleAttack(PlayerInfo& ent);
 static const NamePair* displayNameSelector_blackHoleAttackBurst(PlayerInfo& ent);
+static const NamePair* displayNameSelector_landBlowAttack(PlayerInfo& ent);
+static const NamePair* displayNameSelector_airBlowAttack(PlayerInfo& ent);
+static const NamePair* displayNameSelector_commandThrow(PlayerInfo& ent);
+static const NamePair* displayNameSelector_commandThrowEx(PlayerInfo& ent);
+static const NamePair* displayNameSelector_antiAirCommandThrow(PlayerInfo& ent);
+static const NamePair* displayNameSelector_antiAirCommandThrowEx(PlayerInfo& ent);
+static const NamePair* displayNameSelector_dizzy6H(PlayerInfo& ent);
+static const NamePair* displayNameSelector_kinomiNecro(PlayerInfo& ent);
 
 static const char* canYrcProjectile_default(PlayerInfo& ent);
 static const char* canYrcProjectile_gunflame(PlayerInfo& ent);
@@ -498,6 +507,7 @@ static const char* powerup_secretGarden(PlayerInfo& ent);
 static const char* powerup_pickUpGhost(PlayerInfo& ent);
 static const char* powerup_putGhost(PlayerInfo& ent);
 static const char* powerup_returnGhost(PlayerInfo& ent);
+static const char* powerup_dizzy6H(PlayerInfo& ent);
 
 static void fillMay6HOffsets(BYTE* func);
 
@@ -523,6 +533,8 @@ static void charge_landBlow4Hasei(PlayerInfo& ent, ChargeData* result);
 static void charge_landBlow6Hasei(PlayerInfo& ent, ChargeData* result);
 static void charge_antiAir4Hasei(PlayerInfo& ent, ChargeData* result);
 static void charge_blackHoleAttack(PlayerInfo& ent, ChargeData* result);
+static void charge_dizzy6H(PlayerInfo& ent, ChargeData* result);
+static void charge_kinomiNecro(PlayerInfo& ent, ChargeData* result);
 
 static MoveInfoProperty& newProperty(MoveInfoStored* move, DWORD property) {
 	if (moves.justCountingMoves) {
@@ -7315,6 +7327,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandBlowAttack");
 	move.displayName = assignName("Grausam Impuls", "Scratch");
+	move.displayNameSelector = displayNameSelector_landBlowAttack;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -7330,6 +7343,7 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirBlowAttack");
 	move.displayName = assignName("Air Grausam Impuls", "j.Scratch");
+	move.displayNameSelector = displayNameSelector_airBlowAttack;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AirSlowNeedleB");
@@ -7344,11 +7358,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrow");
 	move.displayName = assignName("H Wachen Zweig", "Command Grab");
+	move.displayNameSelector = displayNameSelector_commandThrow;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "CommandThrowEx");
 	move.displayName = assignName("H Wachen Zweig", "Command Grab");
+	move.displayNameSelector = displayNameSelector_commandThrowEx;
 	move.combineWithPreviousMove = true;
 	move.ignoreJumpInstalls = true;
 	move.isGrab = true;
@@ -7356,11 +7372,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrow");
 	move.displayName = assignName("S Wachen Zweig", "S Grab");
+	move.displayNameSelector = displayNameSelector_antiAirCommandThrow;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "AntiAirCommandThrowEx");
 	move.displayName = assignName("S Wachen Zweig", "S Grab");
+	move.displayNameSelector = displayNameSelector_antiAirCommandThrowEx;
 	move.ignoreJumpInstalls = true;
 	addMove(move);
 	
@@ -7436,12 +7454,14 @@ void Moves::addMoves() {
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = AirSettingTypeNeedleObj_framebarId;
 	move.framebarName = assignName("Scharf Kugel", "Orb");
+	move.framebarNameSelector = framebarNameSelector_landSettingTypeNeedleObj;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_RAVEN, "LandSettingTypeNeedleObj", true);
 	move.isDangerous = isDangerous_not_NullWhileActive;
 	move.framebarId = AirSettingTypeNeedleObj_framebarId;
 	move.framebarName = assignName("Scharf Kugel", "Orb");
+	move.framebarNameSelector = framebarNameSelector_landSettingTypeNeedleObj;
 	addMove(move);
 	
 	// Dizzy does not have a single special or super that can put her into the air,
@@ -7463,10 +7483,13 @@ void Moves::addMoves() {
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "NmlAtk6D");
 	move.displayName = assignName("6H");
+	move.displayNameSelector = displayNameSelector_dizzy6H;
 	move.nameIncludesInputs = true;
 	move.sectionSeparator = sectionSeparator_dizzy6H;
 	move.isInVariableStartupSection = isInVariableStartupSection_dizzy6H;
 	move.ignoreJumpInstalls = true;  // only leads to specials
+	move.powerup = powerup_dizzy6H;
+	move.charge = charge_dizzy6H;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "GammaRay");
@@ -7566,11 +7589,13 @@ void Moves::addMoves() {
 	// Dizzy 421H
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "KinomiNecro");
 	move.displayName = assignName("For roasting chestnuts...", "Fire Spears");
+	move.displayNameSelector = displayNameSelector_kinomiNecro;
 	move.sectionSeparator = sectionSeparator_kinomiNecro;
 	move.isInVariableStartupSection = isInVariableStartupSection_kinomiNecro;
 	move.powerup = powerup_fireSpear;
 	move.canYrcProjectile = canYrcProjectile_fireSpears;
 	move.ignoreJumpInstalls = true;
+	move.charge = charge_kinomiNecro;
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_DIZZY, "Kinomi");
@@ -8571,6 +8596,13 @@ void Moves::onAswEngineDestroyed() {
 	haehyunLandBlow4HaseiMaxChargeLower = 0;
 	haehyunLandBlow4HaseiMaxChargeUpper = 0;
 	haehyunBlackHoleAttackMaxCharge = 0;
+	reavenLandSettingTypeNeedleObjIsRev2 = TRIBOOL_DUNNO;
+	dizzy6HMinCharge = 0;
+	dizzy6HMaxCharge = 0;
+	dizzyKinomiNecroMinCharge = 0;
+	dizzyKinomiNecroSpear2 = 0;
+	dizzyKinomiNecroSpear3 = 0;
+	dizzyKinomiNecroEndOffset = 0;
 }
 
 void ForceAddedWhiffCancel::clearCachedValues() {
@@ -8922,7 +8954,7 @@ bool isDangerous_not_hasHitNumButNoHitboxes(Entity ent) {
 
 bool isDangerous_amorphous(Entity ent) {
 	return !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
-		|| ent.untechableTime() == 60; // boss version
+		|| ent.inflicted()->untechableTime == 60; // boss version
 }
 
 bool isDangerous_active(Entity ent) {
@@ -9143,6 +9175,33 @@ const NamePair* framebarNameSelector_grenadeBombReady(Entity ent) {
 		return assignName("Self-Detonate");
 	}
 	return assignName("Berry Pine", "Berry");
+}
+const NamePair* framebarNameSelector_landSettingTypeNeedleObj(Entity ent) {
+	if (moves.reavenLandSettingTypeNeedleObjIsRev2 == Moves::TRIBOOL_DUNNO) {
+		int count = 0;
+		for (loopInstr(ent.bbscrCurrentFunc())) {
+			if (moves.instrType(instr) == instr_numberOfHits) {
+				++count;
+			}
+		}
+		if (count > 1) {
+			moves.reavenLandSettingTypeNeedleObjIsRev2 = Moves::TRIBOOL_TRUE;
+		} else {
+			moves.reavenLandSettingTypeNeedleObjIsRev2 = Moves::TRIBOOL_FALSE;
+		}
+	}
+	if (moves.reavenLandSettingTypeNeedleObjIsRev2 == Moves::TRIBOOL_TRUE) {
+		switch (ent.numberOfHits()) {
+			case 3: return assignName("Scharf Kugel Lv2", "Orb Lv2");
+			case 4: return assignName("Scharf Kugel Lv3", "Orb Lv3");
+			default: return assignName("Scharf Kugel Lv1", "Orb Lv1");
+		}
+	} else {
+		switch (ent.dealtAttack()->level){
+			case 2: return assignName("Scharf Kugel", "Orb");
+			default: return assignName("Scharf Kugel Buffed", "Orb Buffed");
+		}
+	}
 }
 
 const NamePair* MoveInfo::getFramebarName(Entity ent) const {
@@ -9463,7 +9522,7 @@ const NamePair* displayNameSelector_may6P(PlayerInfo& ent) {
 	attackData.stun = dealtAttack->stun;
 	attackData.blockstun = dealtAttack->blockstun == INT_MAX ? blockstuns[dealtAttack->level] : dealtAttack->blockstun;
 	attackData.pushback = dealtAttack->pushbackModifier;
-	attackData.wallstick = pawn.inflictedWallstick();
+	attackData.wallstick = pawn.inflicted()->wallstickDuration;
 	
 	if (!moves.may6PElements.empty()) {
 		int offset = pawn.bbscrCurrentInstr() - func;
@@ -9826,9 +9885,9 @@ const NamePair* displayNameSelector_jacko4DImpl(PlayerInfo& ent, int height, con
 		const NamePair* name7,
 		const NamePair* name8,
 		const NamePair* name9) {
-	int x = ent.pawn.hitAirPushbackX();
-	int y = ent.pawn.hitAirPushbackY();
-	if (x == 0 && y == -30000 && ent.pawn.groundBounceCount() == INT_MAX) return nameBase;
+	int x = ent.pawn.inflicted()->impulseX;
+	int y = ent.pawn.inflicted()->impulseY;
+	if (x == 0 && y == -30000 && ent.pawn.inflicted()->groundBounceCount == INT_MAX) return nameBase;
 	y -= 20000;
 	
 	enum Dir {
@@ -10124,6 +10183,99 @@ const NamePair* displayNameSelector_blackHoleAttackBurst(PlayerInfo& ent) {
 		return assignName("Max Burst Enlightened 3000 Palm Strike", "Max Burst Clap Super");
 	} else {
 		return assignName("Burst Enlightened 3000 Palm Strike", "Burst Clap Super");
+	}
+}
+const NamePair* displayNameSelector_landBlowAttack(PlayerInfo& ent) {
+	if (ent.pawn.inflictedCH()->tumbleDuration != INT_MAX) {
+		return assignName("Grausam Impuls Lv3", "Scratch Lv3");
+	} else if (ent.pawn.inflictedCH()->wallbounceCount != INT_MAX) {
+		return assignName("Grausam Impuls Lv2", "Scratch Lv2");
+	} else {
+		return assignName("Grausam Impuls Lv1", "Scratch Lv1");
+	}
+}
+const NamePair* displayNameSelector_airBlowAttack(PlayerInfo& ent) {
+	if (ent.pawn.inflicted()->impulseY == 36000) {
+		return assignName("Air Grausam Impuls Lv3", "j.Scratch Lv3");
+	} else if (ent.pawn.inflicted()->impulseY == 34000) {
+		return assignName("Air Grausam Impuls Lv2", "j.Scratch Lv2");
+	} else {
+		return assignName("Air Grausam Impuls Lv1", "j.Scratch Lv1");
+	}
+}
+#define displayNameSelector_commandThrowImpl(baseName, baseNameSlang) \
+	int resource = ent.pawn.exGaugeValue(0); \
+	if (resource >= 6) { \
+		return assignName(baseName " Lv3", baseNameSlang " Lv3"); \
+	} else if (resource >= 3) { \
+		return assignName(baseName " Lv2", baseNameSlang " Lv2"); \
+	} else { \
+		return assignName(baseName " Lv1", baseNameSlang " Lv1"); \
+	}
+#define displayNameSelector_commandThrowExImpl(baseName, baseNameSlang) \
+	int value = ent.pawn.inflicted()->impulseY; \
+	if (value == 0) { \
+		int resource = ent.pawn.exGaugeValue(0); \
+		if (resource >= 6) { \
+			return assignName(baseName " Lv3", baseNameSlang " Lv3"); \
+		} else if (resource >= 3) { \
+			return assignName(baseName " Lv2", baseNameSlang " Lv2"); \
+		} else { \
+			return assignName(baseName " Lv1", baseNameSlang " Lv1"); \
+		} \
+	} else if (value == 35000) { \
+		return assignName(baseName " Lv3", baseNameSlang " Lv3"); \
+	} else if (value == 30000) { \
+		return assignName(baseName " Lv2", baseNameSlang " Lv2"); \
+	} else { \
+		return assignName(baseName " Lv1", baseNameSlang " Lv1"); \
+	}
+const NamePair* displayNameSelector_commandThrow(PlayerInfo& ent) {
+	displayNameSelector_commandThrowImpl("H Wachen Zweig", "Command Grab")
+}
+const NamePair* displayNameSelector_commandThrowEx(PlayerInfo& ent) {
+	displayNameSelector_commandThrowExImpl("H Wachen Zweig", "Command Grab")
+}
+const NamePair* displayNameSelector_antiAirCommandThrow(PlayerInfo& ent) {
+	displayNameSelector_commandThrowImpl("S Wachen Zweig", "S Grab")
+}
+const NamePair* displayNameSelector_antiAirCommandThrowEx(PlayerInfo& ent) {
+	displayNameSelector_commandThrowExImpl("S Wachen Zweig", "S Grab")
+}
+const NamePair* displayNameSelector_dizzy6H(PlayerInfo& ent) {
+	// 6H becomes an overhead only in Rev2
+	if (strcmp(ent.pawn.dealtAttack()->trialName, "NmlAtk6DHold") == 0) {
+		return assignName("Max 6H");
+	} else {
+		return assignName("6H");
+	}
+}
+const NamePair* displayNameSelector_kinomiNecro(PlayerInfo& ent) {
+	Entity pawn = ent.pawn;
+	BYTE* func = pawn.bbscrCurrentFunc();
+	moves.fillInKinomiNecroChargePrereq(func);
+	BYTE* currentInstr = pawn.bbscrCurrentInstr();
+	int offset = currentInstr - func;
+	int frame = pawn.currentAnimDuration();
+	if (offset > moves.dizzyKinomiNecroEndOffset) {
+		int beforeYou = 0;
+		int prevDur = 0;
+		for (loopInstr(func + moves.dizzyKinomiNecroEndOffset)) {
+			if (instr < currentInstr) {
+				beforeYou += prevDur;
+				prevDur = asInstr(instr, sprite)->duration;
+			} else {
+				break;
+			}
+		}
+		frame -= beforeYou + pawn.spriteFrameCounter() + 1;
+	}
+	if (frame >= moves.dizzyKinomiNecroSpear3) {
+		return assignName("For roasting chestnuts... Lv3", "Fire Spears Lv3");
+	} else if (frame >= moves.dizzyKinomiNecroSpear2) {
+		return assignName("For roasting chestnuts... Lv2", "Fire Spears Lv2");
+	} else {
+		return assignName("For roasting chestnuts... Lv1", "Fire Spears Lv1");
 	}
 }
 
@@ -11557,13 +11709,13 @@ const char* powerup_stingerH(PlayerInfo& player) {
 	return powerup_stinger(player, moves.venomStingerHPowerups);
 }
 const char* powerup_kyougenA(PlayerInfo& ent) {
-	if (ent.prevFrameGroundHitEffect != 8 && ent.pawn.groundHitEffect() == 8) {
+	if (ent.prevFrameGroundHitEffect != HIT_EFFECT_AIR_FACE_UP && ent.pawn.inflicted()->groundHitEffect == HIT_EFFECT_AIR_FACE_UP) {
 		return "Ground bounces on hit.";
 	}
 	return nullptr;
 }
 const char* powerup_kyougenB(PlayerInfo& ent) {
-	if (ent.prevFrameGroundBounceCount != 1 && ent.pawn.groundBounceCount() == 1) {
+	if (ent.prevFrameGroundBounceCount != 1 && ent.pawn.inflicted()->groundBounceCount == 1) {
 		return "Without the powerup, this move doesn't ground bounce, but KDs on normal hit."
 		" It ground bounces on CH with -350.00 starting speed Y and 227.50 starting speed X."
 		" You can combo from this if it was an airhit, and if it was a ground hit, you might need RRC.\n"
@@ -11576,7 +11728,7 @@ const char* powerup_kyougenB(PlayerInfo& ent) {
 	return nullptr;
 }
 const char* powerup_kyougenC(PlayerInfo& ent) {
-	if (ent.prevFrameTumbleDuration == INT_MAX && ent.pawn.tumbleDuration() != INT_MAX) {
+	if (ent.prevFrameTumbleDuration == INT_MAX && ent.pawn.inflicted()->tumbleDuration != INT_MAX) {
 		return "Without the powerup, this move doesn't ground bounce, but KDs on normal ground hit"
 		" and wallbounces on normal air hit, with no KD, and you can't combo from that without RRC.\n"
 		"On air CH, it ground bounces and then wall bounces, and can be easily combo'd from both midscreen and in the corner.\n"
@@ -11938,6 +12090,14 @@ const char* powerup_returnGhost(PlayerInfo& ent) {
 	if (offset == moves.jackoReturnGhost && ent.pawn.justReachedSprite()) {
 		return "//Title override: \n"
 			"Retrieved Ghost to inventory.";
+	}
+	return nullptr;
+}
+const char* powerup_dizzy6H(PlayerInfo& ent) {
+	if (strcmp(ent.pawn.gotoLabelRequests(), "Attack") == 0
+			&& !ent.pawn.isRCFrozen()
+			&& strcmp(ent.pawn.dealtAttack()->trialName, "NmlAtk6DHold") == 0) {
+		return "Reached maximum charge.";
 	}
 	return nullptr;
 }
@@ -13538,6 +13698,61 @@ void charge_blackHoleAttack(PlayerInfo& ent, ChargeData* result) {
 	result->current = 0;
 	result->max = 0;
 }
+void charge_dizzy6H(PlayerInfo& ent, ChargeData* result) {
+	if (!moves.dizzy6HMinCharge) {
+		int total = 0;
+		int prevDur = 0;
+		bool encounteredUpon = false;
+		for (loopInstr(ent.pawn.bbscrCurrentFunc())) {
+			InstrType type = moves.instrType(instr);
+			if (type == instr_sprite) {
+				if (!encounteredUpon) {
+					total += prevDur;
+					prevDur = asInstr(instr, sprite)->duration;
+				}
+			} else if (type == instr_ifOperation) {
+				if (asInstr(instr, ifOperation)->op == BBSCROP_IS_GREATER_OR_EQUAL
+						&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_PLAYED_IN_STATE
+						&& asInstr(instr, ifOperation)->right.tag == BBSCRTAG_VALUE) {
+					moves.dizzy6HMaxCharge = asInstr(instr, ifOperation)->right.value;
+					break;
+				}
+			} else if (type == instr_upon) {
+				if (asInstr(instr, upon)->event == BBSCREVENT_ANIMATION_FRAME_ADVANCED) {
+					encounteredUpon = true;
+				}
+			}
+		}
+		moves.dizzy6HMinCharge = total;
+	}
+	int frame = ent.pawn.currentAnimDuration();
+	if (frame > moves.dizzy6HMinCharge && (
+			ent.pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)
+			|| strcmp(ent.pawn.gotoLabelRequests(), "loop") == 0
+		)) {
+		result->current = frame - moves.dizzy6HMinCharge;
+		result->max = moves.dizzy6HMaxCharge - moves.dizzy6HMinCharge - 1;
+		return;
+	}
+	result->current = 0;
+	result->max = 0;
+}
+void charge_kinomiNecro(PlayerInfo& ent, ChargeData* result) {
+	Entity pawn = ent.pawn;
+	moves.fillInKinomiNecroChargePrereq(pawn.bbscrCurrentFunc());
+	if (pawn.hasUpon(BBSCREVENT_ANIMATION_FRAME_ADVANCED)) {
+		int maxCharge = moves.dizzyKinomiNecroSpear2 - 1;
+		int currentCharge = pawn.currentAnimDuration();
+		if (currentCharge > maxCharge) {
+			maxCharge = moves.dizzyKinomiNecroSpear3 - 1;
+		}
+		result->current = currentCharge - moves.dizzyKinomiNecroMinCharge;
+		result->max = maxCharge - moves.dizzyKinomiNecroMinCharge;
+		return;
+	}
+	result->current = 0;
+	result->max = 0;
+}
 
 void Moves::fillMay6PElements(BYTE* func) {
 	if (!may6PElements.empty()) return;
@@ -13879,4 +14094,42 @@ Moves::SemukeSubanim Moves::parseSemukeSubanimWithCheck(Entity pawn, SemukeParse
 
 Moves::SemukeSubanim Moves::parseSemukeSubanim(Entity pawn, SemukeParseMode mode) {
 	return parseSemukeSubanim(pawn.bbscrCurrentFunc(), pawn.bbscrCurrentInstr(), pawn.gotoLabelRequests(), mode);
+}
+
+void Moves::fillInKinomiNecroChargePrereq(BYTE* func) {
+	if (!dizzyKinomiNecroMinCharge) {
+		int total = 0;
+		int prevDur = 0;
+		bool encounteredUpon = false;
+		for (loopInstr(func)) {
+			InstrType type = instrType(instr);
+			if (type == instr_sprite) {
+				if (!encounteredUpon) {
+					total += prevDur;
+					prevDur = asInstr(instr, sprite)->duration;
+				}
+			} else if (type == instr_upon) {
+				if (asInstr(instr, upon)->event == BBSCREVENT_ANIMATION_FRAME_ADVANCED) {
+					encounteredUpon = true;
+				}
+			} else if (type == instr_ifOperation) {
+				if (asInstr(instr, ifOperation)->op == BBSCROP_IS_EQUAL
+						&& asInstr(instr, ifOperation)->left == BBSCRVAR_FRAMES_PLAYED_IN_STATE
+						&& asInstr(instr, ifOperation)->right.tag == BBSCRTAG_VALUE) {
+					const int rightValue = asInstr(instr, ifOperation)->right.value;
+					if (!dizzyKinomiNecroSpear2) {
+						dizzyKinomiNecroSpear2 = rightValue;
+					} else {
+						dizzyKinomiNecroSpear3 = rightValue;
+					}
+				}
+			} else if (type == instr_setMarker) {
+				if (strcmp(asInstr(instr, setMarker)->name, "end") == 0) {
+					dizzyKinomiNecroEndOffset = instr - func;
+					break;
+				}
+			}
+		}
+		dizzyKinomiNecroMinCharge = total;
+	}
 }
