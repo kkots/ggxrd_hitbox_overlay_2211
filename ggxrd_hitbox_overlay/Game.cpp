@@ -359,6 +359,8 @@ bool Game::onDllMain() {
 		hideRankIcons();
 	}
 	
+	onConnectionTierChanged();
+	
 	return !error;
 }
 
@@ -1456,4 +1458,64 @@ void* Game::functionInIsPlayInsideProcessPlayRecordResetHook() {
 	if (result) return result;
 	if (game.doNotIncrementSlotInputsIndex) return (void*)(uintptr_t)1;
 	return nullptr;
+}
+
+void Game::onConnectionTierChanged() {
+	
+	static bool isFirstTimePatch = true;
+	static bool isPatched = false;
+	static int patchedTier = 0;
+	static BYTE oldCode[6];
+	
+	if (!(
+		isFirstTimePatch
+			? settings.overrideYourConnectionTierForFilter.load()
+			: settings.overrideYourConnectionTierForFilter != isPatched
+				|| (
+					!settings.overrideYourConnectionTierForFilter
+					|| !isPatched
+					|| patchedTier != settings.connectionTierToPretendAs
+				)
+	)) return;
+	
+	struct OnExit {
+		~OnExit() {
+			isFirstTimePatch = false;
+			isPatched = settings.overrideYourConnectionTierForFilter;
+			patchedTier = settings.connectionTierToPretendAs;
+		}
+	} onExit;
+	
+	uintptr_t place = sigscanOffset(
+			GUILTY_GEAR_XRD_EXE,
+			"8b 94 81 98 bc 00 00 8d 8c 81 98 bc 00 00 8b 42 08 ff d0 8b 48 44 51 >e8",
+			nullptr,
+			"connectionTierPlaceForBypassingFilter");
+	if (!place) return;
+	
+	std::vector<char> workVector(sizeof oldCode);
+	
+	BYTE* functionStart = (BYTE*)followRelativeCall(place);
+	if (!settings.overrideYourConnectionTierForFilter) {
+		if (isFirstTimePatch) return;
+		memcpy(workVector.data(), oldCode, sizeof oldCode);
+		detouring.patchPlaceNoBackup((uintptr_t)functionStart, workVector);
+		return;
+	}
+	
+	workVector[0] = '\xB8';
+	int theValue = settings.connectionTierToPretendAs;
+	if (theValue < 0) theValue = 0;
+	if (theValue > 4) theValue = 4;
+	memcpy(workVector.data() + 1, &theValue, 4);
+	workVector[5] = '\xC3';
+	
+	if (isFirstTimePatch) {
+		memcpy(oldCode, functionStart, sizeof oldCode);
+		// small chance of crash. We need to play around with EIP just like Microsoft Detours does. Actually we could hook the whole function instead of patching it
+		detouring.patchPlace((uintptr_t)functionStart, workVector);
+		return;
+	}
+	
+	detouring.patchPlaceNoBackup((uintptr_t)functionStart, workVector);
 }

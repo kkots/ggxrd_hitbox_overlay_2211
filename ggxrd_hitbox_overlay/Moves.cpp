@@ -7882,7 +7882,7 @@ void Moves::addMoves() {
 	addMove(move);
 	
 	move = MoveInfo(CHARACTER_TYPE_BAIKEN, "BlockingKakuseiExe");
-	move.displayName = assignName("Metsudo Kushodo");
+	move.displayName = assignName("Metsudo Kushodo Connect");
 	move.combineWithPreviousMove = true;
 	move.isGrab = true;
 	move.forceLandingRecovery = true;

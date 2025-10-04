@@ -221,6 +221,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 	bool oldUsePositionResetMod = usePositionResetMod;
 	bool oldPlayer1IsBoss = player1IsBoss;
 	bool oldPlayer2IsBoss = player2IsBoss;
+	bool oldconnectionTierToPretendAs = connectionTierToPretendAs;
+	int oldoverrideYourConnectionTierForFilter = overrideYourConnectionTierForFilter;
 
 	std::string accum;
 	char buf[129];
@@ -369,6 +371,15 @@ void Settings::readSettings(bool isFirstEverRead) {
 		if (player1IsBoss != oldPlayer1IsBoss && player1IsBoss
 				|| player2IsBoss != oldPlayer2IsBoss && player2IsBoss) {
 			PostMessageW(keyboard.thisProcessWindow, WM_APP_PLAYER_IS_BOSS_CHANGED, FALSE, FALSE);
+		}
+		if (
+			(
+				connectionTierToPretendAs != oldconnectionTierToPretendAs
+				|| overrideYourConnectionTierForFilter != oldoverrideYourConnectionTierForFilter
+			)
+		 	&& connectionTierToPretendAs
+	 	) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_CONNECTION_TIER_CHANGED, FALSE, FALSE);
 		}
 	}
 	

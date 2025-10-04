@@ -7744,6 +7744,10 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				onPlayerIsBossChanged();
 			}
 			break;
+			case WM_APP_CONNECTION_TIER_CHANGED: {
+				game.onConnectionTierChanged();
+			}
+			break;
 		}
 	}
 	

@@ -345,6 +345,10 @@ bool Detouring::patchPlace(uintptr_t addr, const std::vector<char>& newBytes) {
 	origBytes.resize(newBytes.size());
 	memcpy(origBytes.data(), (void*)addr, newBytes.size());
 	detouring.addInstructionToReplaceWhenUnhooking(addr, origBytes);
+	return patchPlaceNoBackup(addr, newBytes);
+}
+
+bool Detouring::patchPlaceNoBackup(uintptr_t addr, const std::vector<char>& newBytes) {
 	DWORD oldProtect;
 	if (!VirtualProtect((void*)addr, newBytes.size(), PAGE_EXECUTE_READWRITE, &oldProtect)) return false;
 	memcpy((void*)addr, newBytes.data(), newBytes.size());

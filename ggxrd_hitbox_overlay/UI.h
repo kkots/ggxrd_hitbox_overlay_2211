@@ -287,7 +287,7 @@ private:
 	bool booleanSettingPreset(std::atomic_bool& settingsRef);
 	bool booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey);
 	bool float4SettingPreset(float& settingsPtr);
-	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX);
+	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX, bool isDisabled = false);
 	bool showCancels[2] { false, false };
 	bool showDamageCalculation[2] { false, false };
 	bool showStunmash[2] { false, false };

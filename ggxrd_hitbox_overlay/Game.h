@@ -163,6 +163,7 @@ public:
 	int getDangerTime() const;
 	bool bothPlayersHuman() const;
 	void updateOnlineDelay();
+	void onConnectionTierChanged();
 	bool freezeGame = false;
 	bool slowmoGame = false;
 	bool allowNextFrame = false;

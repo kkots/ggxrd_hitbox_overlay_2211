@@ -2332,6 +2332,17 @@ void UI::drawSearchableWindows() {
 			
 			booleanSettingPreset(settings.useSigscanCaching);
 			
+			bool connectionTierChanged = false;
+			if (booleanSettingPreset(settings.overrideYourConnectionTierForFilter)) {
+				connectionTierChanged = true;
+			}
+			if (intSettingPreset(settings.connectionTierToPretendAs, 0, 1, 1, 80.F, 4, !settings.overrideYourConnectionTierForFilter)) {
+				connectionTierChanged = true;
+			}
+			if (connectionTierChanged) {
+				game.onConnectionTierChanged();
+			}
+			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
 			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
@@ -13346,12 +13357,16 @@ bool UI::float4SettingPreset(float& settingsPtr) {
 	return attentionPossiblyNeeded;
 }
 
-bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth, int maxValue) {
+bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth, int maxValue, bool isDisabled) {
 	bool isChange = false;
 	int oldValue = settingsPtr;
 	int intValue = settingsPtr;
 	ImGui::SetNextItemWidth(fieldWidth);
-	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &intValue, step, stepFast, 0)) {
+	if (isDisabled) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5F, 0.5F, 0.5F, 1.F));
+	}
+	if (ImGui::InputInt(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &intValue, step, stepFast,
+			isDisabled ? ImGuiInputTextFlags_ReadOnly : 0)) {
 		if (intValue < minValue) {
 			intValue = minValue;
 		}
@@ -13361,6 +13376,9 @@ bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, 
 		settingsPtr = intValue;
 		needWriteSettings = true;
 		isChange = true;
+	}
+	if (isDisabled) {
+		ImGui::PopStyleColor();
 	}
 	if (!isChange && oldValue != intValue) {
 		needWriteSettings = true;

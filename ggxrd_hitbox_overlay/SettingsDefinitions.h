@@ -962,4 +962,18 @@ settingsField(bool, useSigscanCaching, true,
 	"; You sould enable this setting if you are not altering the recording software that you use,\n"
 	"; or are changing which mods are already loaded by the time this mod gets loaded, or\n"
 	"; all those things change game executable code only in a way that does not matter for this mod.")
+	
+settingsField(bool, overrideYourConnectionTierForFilter, false,
+	"Override Your Connection Tier For Filter", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; If you specify true, when observing the lobby list and trying to enter a lobby,\n"
+	"; your connection tier will be substituted with the tier specified in\n"
+	"; \"connectionTierToPretendAs\".")
+	
+settingsField(int, connectionTierToPretendAs, 0,
+	"Connection Tier To Pretend As", SETTINGS_GENERAL,
+	"; This value must be between 0 and 4.\n"
+	"; This setting only works if \"overrideYourConnectionTierForFilter\" is set to true.\n"
+	"; Specify the connection tier here to use when entering a room or viewing the lobby list.\n"
+	"; 0 means T0, 1 means T1, and so on.")
 #pragma warning(pop)
