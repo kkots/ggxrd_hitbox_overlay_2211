@@ -8421,16 +8421,13 @@ void UI::drawSearchableWindows() {
 		}
 		ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
 		ImGui::Begin(searching ? "search_highlightedcancels" : "  Highlighted Cancels", &showMoveHighlightWindow, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
-		bool timeToRedo = sortedMovesRedoPending && *aswEngine;
-		if (!sortedMovesReady || timeToRedo) {
-			MoveInfo moveInfo;
-			if (timeToRedo) {
-				sortedMovesRedoPending = false;
-				for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
-					vec.clear();
-				}
+		if (sortedMovesRedoPending || sortedMovesRedoPendingWhenAswEngingExists && *aswEngine) {
+			sortedMovesRedoPending = false;
+			if (*aswEngine) sortedMovesRedoPendingWhenAswEngingExists = false;
+			for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
+				vec.clear();
 			}
-			sortedMovesReady = true;
+			MoveInfo moveInfo;
 			if (*aswEngine) {
 				entityList.populate();
 				for (int playerInd = 0; playerInd < 2; ++playerInd) {
@@ -17361,7 +17358,7 @@ int __cdecl UI::CompareMoveInfo(void const* moveLeft, void const* moveRight) {
 }
 
 void UI::onAswEngineDestroyed() {
-	sortedMovesRedoPending = true;
+	sortedMovesRedoPendingWhenAswEngingExists = true;
 }
 
 void UI::highlightedMovesChanged() {

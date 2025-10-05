@@ -427,8 +427,8 @@ private:
 	};
 	std::array<std::vector<SortedMovesEntry>, CHARACTER_TYPE_ANSWER + 1> sortedMoves;
 	static int __cdecl CompareMoveInfo(void const* moveLeft, void const* moveRight);
-	bool sortedMovesReady = false;
 	bool sortedMovesRedoPending = true;
+	bool sortedMovesRedoPendingWhenAswEngingExists = true;
 };
 
 extern UI ui;

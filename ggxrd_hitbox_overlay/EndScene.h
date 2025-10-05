@@ -87,6 +87,8 @@ struct FRenderCommand {
 	virtual void Destructor(BOOL freeMem) noexcept;
 	virtual unsigned int Execute() = 0;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept = 0;
+	FRenderCommand();
+	static int totalCountOfCommandsInCirculation;
 };
 
 struct FSkipRenderCommand : FRenderCommand {

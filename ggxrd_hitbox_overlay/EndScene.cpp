@@ -9247,6 +9247,7 @@ void FRingBuffer_AllocationContext::Commit() {
 
 void FRenderCommand::Destructor(BOOL freeMem) noexcept {
 	endScene.FRenderCommandDestructor((void*)this, freeMem);
+	--totalCountOfCommandsInCirculation;
 }
 
 // Runs on the main thread
@@ -12483,7 +12484,7 @@ bool EndScene::hasCancelUnlocked(CharacterType charType, const FixedArrayOfGatli
 		}
 		if (!isIncluded) {
 			markedMoves.push_back(elem.move);
-			if (elem.framesBeenAvailableFor <= 1) {
+			if (elem.framesBeenAvailableFor <= 1 && elem.foundOnThisFrame) {
 				auto it = highlightMoveCache.find(elem.move);
 				if (it == highlightMoveCache.end()) {
 					for (const MoveListPointer& ptr : settings.highlightWhenCancelsIntoMovesAvailable.pointers) {
@@ -12536,4 +12537,10 @@ void EndScene::processColor(PlayerInfo& player) {
 
 void EndScene::highlightSettingsChanged() {
 	highlightMoveCache.clear();
+}
+
+int FRenderCommand::totalCountOfCommandsInCirculation = 0;
+
+FRenderCommand::FRenderCommand() {
+	++totalCountOfCommandsInCirculation;
 }

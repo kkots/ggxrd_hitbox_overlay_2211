@@ -74,13 +74,13 @@ uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, boo
 
 uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, bool* error, const char* logname, const char* maskForCaching);
 
-uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
+uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
+uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
 
-uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
 
-uintptr_t sigscanOffsetMain(const char* name, const char* sig, const size_t sigLength, const char* mask = nullptr, const std::vector<int>& offsets = std::vector<int>{}, bool* error = nullptr, const char* logname = nullptr, const char* maskForCaching = nullptr);
+uintptr_t sigscanOffsetMain(const char* name, const char* sig, const size_t sigLength, const char* mask = nullptr, const std::initializer_list<int>& offsets = std::initializer_list<int>{}, bool* error = nullptr, const char* logname = nullptr, const char* maskForCaching = nullptr);
 
 
 
@@ -89,10 +89,10 @@ uintptr_t sigscanStrOffset(const char* name, const char* str, bool* error, const
 /// <param name="byteSpecification">Example: "80 f0 c7 ?? ?? ?? ?? e8". If contains only one > character, will return that specific byte instead</param>
 uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* error, const char* logname, size_t* position = nullptr);
 
-uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
+uintptr_t sigscanStrOffset(const char* name, const char* str, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching);
 
 /// <param name="byteSpecification">Example: "80 f0 c7 ?? ?? ?? ?? e8". If contains only one > character, will return that specific byte instead</param>
-uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname, size_t* position = nullptr);
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::initializer_list<int>& offsets, bool* error, const char* logname, size_t* position = nullptr);
 
 uintptr_t followRelativeCallNoLogs(uintptr_t relativeCallAddr);
 uintptr_t followRelativeCall(uintptr_t callInstructionAddr);

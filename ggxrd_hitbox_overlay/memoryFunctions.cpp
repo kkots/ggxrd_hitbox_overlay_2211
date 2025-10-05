@@ -795,15 +795,15 @@ uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const st
 	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), {}, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+uintptr_t sigscanBufOffset(const char* name, const char* sig, const size_t sigLength, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
 	return sigscanOffsetMain(name, sig, sigLength, nullptr, offsets, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+uintptr_t sigscanOffset(const char* name, const char* sig, const char* mask, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
 	return sigscanOffsetMain(name, sig, 0, mask, offsets, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+uintptr_t sigscanOffset(const char* name, const std::vector<char>& sig, const std::vector<char>& mask, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
 	return sigscanOffsetMain(name, sig.data(), 0, mask.data(), offsets, error, logname, maskForCaching);
 }
 
@@ -830,11 +830,11 @@ uintptr_t sigscanOffset(const char* name, const char* byteSpecification, bool* e
 	}
 }
 
-uintptr_t sigscanStrOffset(const char* name, const char* str, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+uintptr_t sigscanStrOffset(const char* name, const char* str, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
 	return sigscanOffsetMain(name, str, strlen(str), nullptr, offsets, error, logname, maskForCaching);
 }
 
-uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::vector<int>& offsets, bool* error, const char* logname, size_t* position) {
+uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const std::initializer_list<int>& offsets, bool* error, const char* logname, size_t* position) {
 	std::vector<char> sig;
 	std::vector<char> mask;
 	std::vector<char> maskForCaching;
@@ -872,7 +872,7 @@ uintptr_t sigscanOffset(const char* name, const char* byteSpecification, const s
 //    4.c) Interpret this new position as the start of a 4-byte address which gets read, producing a new address.
 //    4.d) The result is another address. Add the second offset to this address.
 //    4.e) Repeat 4.c) and 4.d) for as many offsets as there are left. Return result on the last 4.d).
-uintptr_t sigscanOffsetMain(const char* name, const char* sig, size_t sigLength, const char* mask, const std::vector<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
+uintptr_t sigscanOffsetMain(const char* name, const char* sig, size_t sigLength, const char* mask, const std::initializer_list<int>& offsets, bool* error, const char* logname, const char* maskForCaching) {
 	uintptr_t sigscanResult;
 	if (mask) {
 		if (findChar(mask, '?') == -1) {
@@ -896,14 +896,14 @@ uintptr_t sigscanOffsetMain(const char* name, const char* sig, size_t sigLength,
 	}
 	uintptr_t addr = sigscanResult;
 	bool isFirst = true;
-	for (auto it = offsets.cbegin(); it != offsets.cend(); ++it) {
+	for (int it : offsets) {
 		if (!isFirst) {
 			addr = *(uintptr_t*)addr;
 		}
-		addr += *it;
+		addr += it;
 		isFirst = false;
 	}
-	if (!offsets.empty()) {
+	if (offsets.size()) {
 		if (logname) {
 			logwrap(fprintf(logfile, "Final location of %s at %.8x\n", logname, addr));
 		}
