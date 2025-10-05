@@ -1775,6 +1775,7 @@ public:
 	inline int* moveIndices() const { return (int*)(ent + 0xa020 + 0x16530); }  // used to iterate moves
 	inline int moveIndicesCount() const { return *(int*)(ent + 0xa020 + 0x16800); }  // iterate from the end (count - 1) to 0
 	inline const AddedMoveData* movesBase() const { return (const AddedMoveData*)(ent + 0xa020); }
+	int movesCount() const { return *(int*)(ent + 0xa020 + 0x18748); }
 	inline const AddedMoveData* currentMove() const { return movesBase() + currentMoveIndex(); }  // currentMoveIndex() MAY BE -1!!!
 	inline int hitAlreadyHappened() const { return *(int*)(ent + 0x444); }  // equal to 10 when occured, 0 when not
 	inline int theValueHitAlreadyHappenedIsComparedAgainst() const { return *(int*)(ent + 0x448); }  // always 10

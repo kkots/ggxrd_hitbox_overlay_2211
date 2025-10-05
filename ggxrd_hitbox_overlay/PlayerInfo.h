@@ -1904,6 +1904,7 @@ struct PlayerInfo {
 	int counterGuardStandMoveIndex = -1;
 	int counterGuardCrouchMoveIndex = -1;
 	int elpheltSkippedTimePassed = 0;  // timePassedPureIdle does not take into account frames spent outside of opponent's hitstun. We need to record those and decrement minimum required charge by that amount
+	DWORD colorOverride = 0;
 	ChargeData elpheltShotgunCharge { 0, 0 };
 	ChargeData charge { 0, 0 };
 	BlitzShieldPrereqData standingBlitzShieldPrereqData;
@@ -1912,6 +1913,12 @@ struct PlayerInfo {
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;
 	unsigned char elpheltLastFrameGrenadeAttackLevel = 0;
+	unsigned char redHighlight = 0;
+	unsigned char greenHighlight = 0;
+	unsigned char blueHighlight = 0;
+	unsigned char redHighlightTimer = 0;
+	unsigned char greenHighlightTimer = 0;
+	unsigned char blueHighlightTimer = 0;
 	
 	char attackLockAction[32] { '\0' };
 	char prevAttackLockAction[32] { '\0' };
@@ -2100,6 +2107,7 @@ struct PlayerInfo {
 	bool jackoAegisActive:1;
 	bool stoppedMeasuringInvuls:1;
 	bool elpheltShotgunChargeConsumed:1;
+	bool overrideColor:1;
 	
 	CharacterType charType = CHARACTER_TYPE_SOL;
 	char anim[32] { '\0' };

@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <functional>
-#include <atomic>
 #include "logging.h"
 
 using suspendThreadCallback_t = std::function<void(DWORD threadId)>;

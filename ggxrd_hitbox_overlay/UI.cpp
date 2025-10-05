@@ -27,7 +27,6 @@
 #include "findMoveByName.h"
 #include "InputNames.h"
 #include "ImGuiCorrecter.h"
-#include <array>
 #include "SpecificFramebarIds.h"
 
 UI ui;
@@ -2168,8 +2167,8 @@ void UI::drawSearchableWindows() {
 			booleanSettingPreset(settings.showP2FramedataInFramebar);
 			
 			if (intSettingPreset(settings.framebarStoredFramesCount, 1, 1, 1, 80.F, _countof(Framebar::frames))) {
-				if (settings.framebarDisplayedFramesCount.load() > settings.framebarStoredFramesCount.load()) {
-					settings.framebarDisplayedFramesCount = settings.framebarStoredFramesCount.load();
+				if (settings.framebarDisplayedFramesCount > settings.framebarStoredFramesCount) {
+					settings.framebarDisplayedFramesCount = settings.framebarStoredFramesCount;
 				}
 			}
 			
@@ -2341,6 +2340,25 @@ void UI::drawSearchableWindows() {
 			}
 			if (connectionTierChanged) {
 				game.onConnectionTierChanged();
+			}
+			
+			bool highlightGreenBlueChanged = false;
+			if (booleanSettingPreset(settings.highlightRedWhenBecomingIdle)) {
+				highlightGreenBlueChanged = true;
+			}
+			if (booleanSettingPreset(settings.highlightGreenWhenBecomingIdle)) {
+				highlightGreenBlueChanged = true;
+			}
+			if (booleanSettingPreset(settings.highlightBlueWhenBecomingIdle)) {
+				highlightGreenBlueChanged = true;
+			}
+			if (ImGui::Button(searchFieldTitle(settings.getOtherUINameWithLength(&settings.highlightWhenCancelsIntoMovesAvailable)))) {
+				showMoveHighlightWindow = !showMoveHighlightWindow;
+			}
+			ImGui::SameLine();
+			HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settings.highlightWhenCancelsIntoMovesAvailable)));
+			if (highlightGreenBlueChanged) {
+				endScene.highlightGreenWhenBecomingIdleChanged();
 			}
 			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
@@ -6290,7 +6308,7 @@ void UI::drawSearchableWindows() {
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
-		if (ImGui::BeginTable("##PayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+		if (ImGui::BeginTable("##PlayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
@@ -8394,6 +8412,199 @@ void UI::drawSearchableWindows() {
 			ImGui::End();
 			ImGui::PopID();
 		}
+	}
+	popSearchStack();
+	searchCollapsibleSection("Highlighted Cancels");
+	if (showMoveHighlightWindow || searching) {
+		if (searching) {
+			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+		}
+		ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
+		ImGui::Begin(searching ? "search_highlightedcancels" : "  Highlighted Cancels", &showMoveHighlightWindow, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		bool timeToRedo = sortedMovesRedoPending && *aswEngine;
+		if (!sortedMovesReady || timeToRedo) {
+			MoveInfo moveInfo;
+			if (timeToRedo) {
+				sortedMovesRedoPending = false;
+				for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
+					vec.clear();
+				}
+			}
+			sortedMovesReady = true;
+			if (*aswEngine) {
+				entityList.populate();
+				for (int playerInd = 0; playerInd < 2; ++playerInd) {
+					if (playerInd == 1 && entityList.slots[0].characterType() == entityList.slots[1].characterType()) break;
+					Entity pawn = entityList.slots[playerInd];
+					CharacterType charType = pawn.characterType();
+					std::vector<SortedMovesEntry>& vec = sortedMoves[charType];
+					const int movesCount = pawn.movesCount();
+					const AddedMoveData* addedMove = pawn.movesBase();
+					for (int moveInd = 0; moveInd < movesCount; ++moveInd) {
+						bool isStylish = false;
+						for (int inputInd = 0; inputInd < _countof(addedMove->inputs); ++inputInd) {
+							if (addedMove->inputs[inputInd] == INPUT_PRESS_SPECIAL) {
+								isStylish = true;
+								break;
+							}
+						}
+						if (!isStylish) {
+							const char* name = nullptr;
+							void const* sortValue = nullptr;
+							if (moves.getInfoWithName(moveInfo, charType, addedMove->name, addedMove->stateName, false, &name, &sortValue)
+									&& moveInfo.isMove) {
+								vec.emplace_back(name, moveInfo.displayName, -1, sortValue);
+							}
+						}
+						++addedMove;
+					}
+				}
+			}
+			int index = 0;
+			for (const MoveListPointer& ptr : settings.highlightWhenCancelsIntoMovesAvailable.pointers) {
+				bool alreadyIncluded = false;
+				std::vector<SortedMovesEntry>& vec = sortedMoves[ptr.charType];
+				for (SortedMovesEntry& iter : vec) {
+					if (iter.name == ptr.name) {
+						iter.index = index;
+						alreadyIncluded = true;
+						break;
+					}
+				}
+				if (!alreadyIncluded) {
+					const NamePair* displayName = nullptr;
+					const char* name = nullptr;
+					void const* sortValue = nullptr;
+					if (moves.getInfoWithName(moveInfo, ptr.charType, ptr.name, false, &name, &sortValue)) {
+						displayName = moveInfo.displayName;
+					}
+					vec.emplace_back(ptr.name, displayName, index, sortValue);
+				}
+				++index;
+			}
+			for (std::vector<SortedMovesEntry>& vec : sortedMoves) {
+				if (vec.empty()) continue;
+				qsort(vec.data(), vec.size(), sizeof SortedMovesEntry, CompareMoveInfo);
+			}
+		}
+		
+		if (!*aswEngine) {
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::TextUnformatted("Load a match to see more moves.");
+			ImGui::PopStyleColor();
+		}
+		
+		std::vector<MoveListPointer>& jesusFuckingChrist = settings.highlightWhenCancelsIntoMovesAvailable.pointers;
+		const bool slang = settings.useSlangNames;
+		for (int charIter = CHARACTER_TYPE_SOL; charIter <= CHARACTER_TYPE_ANSWER; ++charIter) {
+			std::vector<SortedMovesEntry>& vec = sortedMoves[charIter];
+			if (vec.empty()) continue;
+			ImGui::SeparatorText(characterNames[charIter]);
+			sprintf_s(strbuf, "##HighlightedMoves%d", charIter);
+			if (ImGui::BeginTable(strbuf, 4,
+					ImGuiTableFlags_Borders
+					| ImGuiTableFlags_RowBg
+					| ImGuiTableFlags_NoSavedSettings
+					| ImGuiTableFlags_NoPadOuterX)) {
+				ImGui::TableSetupColumn("Move", ImGuiTableColumnFlags_WidthStretch, 1.F);
+				ImGui::TableSetupColumn("Red", ImGuiTableColumnFlags_WidthStretch, 0.11F);
+				ImGui::TableSetupColumn("Green", ImGuiTableColumnFlags_WidthStretch, 0.11F);
+				ImGui::TableSetupColumn("Blue", ImGuiTableColumnFlags_WidthStretch, 0.11F);
+				ImGui::TableHeadersRow();
+				int row = -1;
+				for (SortedMovesEntry& iter : vec) {
+					++row;
+					ImGui::TableNextColumn();
+					if (iter.displayName) {
+						ImGui::TextUnformatted(slang && iter.displayName->slang ? iter.displayName->slang : iter.displayName->name);
+						if (slang && iter.displayName->slang) {
+							AddTooltip(iter.displayName->name);
+						}
+					}
+					
+					bool red = false;
+					bool green = false;
+					bool blue = false;
+					if (iter.index != -1) {
+						const MoveListPointer& ptr = jesusFuckingChrist[iter.index];
+						red = ptr.red;
+						green = ptr.green;
+						blue = ptr.blue;
+					}
+					bool changedColor = false;
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "##HighlightedMovesRed%d_%d", charIter, row);
+					if (ImGui::Checkbox(strbuf, &red)) {
+						changedColor = true;
+					}
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "##HighlightedMovesGreen%d_%d", charIter, row);
+					if (ImGui::Checkbox(strbuf, &green)) {
+						changedColor = true;
+					}
+					ImGui::TableNextColumn();
+					sprintf_s(strbuf, "##HighlightedMovesBlue%d_%d", charIter, row);
+					if (ImGui::Checkbox(strbuf, &blue)) {
+						changedColor = true;
+					}
+					if (changedColor) {
+						if (iter.index != -1) {
+							if (iter.index >= 0 && iter.index < (int)jesusFuckingChrist.size()) {
+								jesusFuckingChrist.erase(jesusFuckingChrist.begin() + iter.index);
+								for (SortedMovesEntry& iterModif : vec) {
+									if (iterModif.index > iter.index) {
+										--iterModif.index;
+									}
+								}
+							}
+							iter.index = -1;
+						}
+						if (red || green || blue) {
+							int satisfactionLevel = 0;
+							int foundIndex = 0;
+							for (int listInd = 0; listInd < (int)jesusFuckingChrist.size(); ++listInd) {
+								MoveListPointer& ptr = jesusFuckingChrist[listInd];
+								int currentSatisfaction = 0;
+								if (ptr.charType == charIter) currentSatisfaction += 10;
+								if (ptr.red == red && ptr.green == green && ptr.blue == blue) ++currentSatisfaction;
+								if (currentSatisfaction > satisfactionLevel) {
+									foundIndex = listInd;
+									satisfactionLevel = currentSatisfaction;
+									if (satisfactionLevel == 11) break;
+								}
+							}
+							if (jesusFuckingChrist.empty()) {
+								jesusFuckingChrist.emplace_back((CharacterType)charIter, iter.name, red, green, blue);
+								iter.index = 0;
+							} else {
+								for (SortedMovesEntry& iterModif : vec) {
+									if (iterModif.index > foundIndex) {
+										++iterModif.index;
+									}
+								}
+								jesusFuckingChrist.insert(jesusFuckingChrist.begin() + foundIndex + 1, {
+									(CharacterType)charIter, iter.name, red, green, blue
+								});
+								iter.index = foundIndex + 1;
+							}
+						}
+						SYSTEMTIME time;
+						GetSystemTime(&time);
+						settings.highlightWhenCancelsIntoMovesAvailable.year = time.wYear;
+						settings.highlightWhenCancelsIntoMovesAvailable.month = time.wMonth;
+						settings.highlightWhenCancelsIntoMovesAvailable.day = time.wDay;
+						settings.highlightWhenCancelsIntoMovesAvailable.hour = time.wHour;
+						settings.highlightWhenCancelsIntoMovesAvailable.minute = time.wMinute;
+						settings.highlightWhenCancelsIntoMovesAvailable.second = time.wSecond;
+						needWriteSettings = true;
+						endScene.highlightGreenWhenBecomingIdleChanged();
+						endScene.highlightSettingsChanged();
+					}
+				}
+				ImGui::EndTable();
+			}
+		}
+		ImGui::End();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Framebar Help");
@@ -13308,7 +13519,7 @@ void UI::startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag) 
 	}
 }
 
-bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey) {
+bool UI::booleanSettingPresetWithHotkey(bool& settingsRef, std::vector<int>& hotkey) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
 	if (ImGui::Checkbox(searchFieldTitle(settings.getOtherUINameWithLength(&settingsRef)), &boolValue)) {
@@ -13321,7 +13532,7 @@ bool UI::booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vect
 	return itHappened;
 }
 
-bool UI::booleanSettingPreset(std::atomic_bool& settingsRef) {
+bool UI::booleanSettingPreset(bool& settingsRef) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
 	StringWithLength text = settings.getOtherUINameWithLength(&settingsRef);
@@ -13357,7 +13568,7 @@ bool UI::float4SettingPreset(float& settingsPtr) {
 	return attentionPossiblyNeeded;
 }
 
-bool UI::intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth, int maxValue, bool isDisabled) {
+bool UI::intSettingPreset(int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth, int maxValue, bool isDisabled) {
 	bool isChange = false;
 	int oldValue = settingsPtr;
 	int intValue = settingsPtr;
@@ -13560,7 +13771,7 @@ bool printMoveField(const PlayerInfo& player) {
 		prepareLastNames(&lastName, player, false, &lastNameDuration);
 		player.prevStartupsDisp.printNames(buf, bufSize, &lastName,
 				1,
-				settings.useSlangNames.load(),
+				settings.useSlangNames,
 				true,
 				false,
 				&lastNameDuration);
@@ -17141,4 +17352,18 @@ void printReflectableProjectilesList() {
 	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_HAEHYUN, "Tuning Ball");
 	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_RAVEN, "Needle");
 	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_BAIKEN, "Yasha Gatana");
+}
+
+int __cdecl UI::CompareMoveInfo(void const* moveLeft, void const* moveRight) {
+	SortedMovesEntry* ptrLeft = (SortedMovesEntry*)moveLeft;
+	SortedMovesEntry* ptrRight = (SortedMovesEntry*)moveRight;
+	return (BYTE*)ptrLeft->comparisonValue - (BYTE*)ptrRight->comparisonValue;
+}
+
+void UI::onAswEngineDestroyed() {
+	sortedMovesRedoPending = true;
+}
+
+void UI::highlightedMovesChanged() {
+	sortedMovesRedoPending = true;
 }

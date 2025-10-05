@@ -156,7 +156,7 @@ private:
 struct MoveInfoProperty {
 	DWORD type;
 	union {
-		bool boolValue;
+		BOOL boolValue;
 		const char* strValue;
 		sectionSeparator_t sectionSeparatorValue;
 		sectionSeparatorProjectile_t sectionSeparatorProjectileValue;
@@ -182,12 +182,13 @@ struct MoveInfoStored {
 	int count = 0;
 };
 
+// changed bool to BOOL, because was getting "Runtime Check Failure #2: Stack corrupted near variable moveInfo" at the end of a function that contained a getInfo call
 #define MOVE_INFO_PROPERTY_TABLE \
-	MOVE_INFO_EXEC(bool, boolValue, combineWithPreviousMove, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, combineWithPreviousMove, false) \
 	/* This is needed for Johnny becoming able to use Mist Finer from his MistFinerLoop animation.
 	 We want to write X+possibly infinite frames as long as you're holding, where X is the startup of
 	 the availability of Mist Finer attack. */ \
-	MOVE_INFO_EXEC(bool, boolValue, usePlusSignInCombination, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, usePlusSignInCombination, false) \
 	MOVE_INFO_EXEC(const NamePair*, namePairValue, displayName, nullptr) \
 	/* A section is what I call separating frames with a + sign in the startup, recovery or total display.
 	This is useful for some moves that can be held or charged, because if you treat the part of the
@@ -201,7 +202,7 @@ struct MoveInfoStored {
 	/* This is needed for Johnny walking back and forth in Mist Finer because he can start walking
 	as soon as he can do Mist Finer attack, but we still want the new section because we treat
 	walking same way as standing in Mist Finer */ \
-	MOVE_INFO_EXEC(bool, boolValue, preservesNewSection, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, preservesNewSection, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isIdle, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canBlock, nullptr) \
 	MOVE_INFO_EXEC(isDangerous_t, isDangerousValue, isDangerous, nullptr) \
@@ -214,15 +215,15 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isInVariableStartupSection, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canStopHolding, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, aSectionBeforeVariableStartup, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, considerNewSectionAsBeingInVariableStartup, false) \
-	MOVE_INFO_EXEC(bool, boolValue, considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot, false) \
-	MOVE_INFO_EXEC(bool, boolValue, considerVariableStartupAsStanceForFramebar, false) \
-	MOVE_INFO_EXEC(bool, boolValue, canBeUnableToBlockIndefinitelyOrForVeryLongTime, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, considerNewSectionAsBeingInVariableStartup, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, considerNewSectionAsBeingInElpheltRifleStateBeforeBeingAbleToShoot, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, considerVariableStartupAsStanceForFramebar, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, canBeUnableToBlockIndefinitelyOrForVeryLongTime, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isRecoveryHasGatlings, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, isRecoveryCanAct, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, canFaultlessDefend, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, nameIncludesInputs, false) \
-	MOVE_INFO_EXEC(bool, boolValue, ignoresHitstop, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, nameIncludesInputs, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, ignoresHitstop, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, frontLegInvul, nullptr) \
 	MOVE_INFO_EXEC(int, intValue, forceAddWhiffCancelsStart, 0) \
 	MOVE_INFO_EXEC(int, intValue, forceAddWhiffCancelsCount, 0) \
@@ -230,20 +231,20 @@ struct MoveInfoStored {
 	MOVE_INFO_EXEC(const char*, strValue, onlyAddForceWhiffCancelsOnFirstFrameOfSprite, nullptr) \
 	MOVE_INFO_EXEC(zatoHoldLevel_t, zatoHoldLevelValue, zatoHoldLevel, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, conditionForAddingWhiffCancels, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, caresAboutWall, false) \
-	MOVE_INFO_EXEC(bool, boolValue, faustPogo, false) \
-	MOVE_INFO_EXEC(bool, boolValue, butForFramebarDontCombineWithPreviousMove, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, caresAboutWall, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, faustPogo, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, butForFramebarDontCombineWithPreviousMove, false) \
 	MOVE_INFO_EXEC(const char*, strValue, replacementInputs, nullptr) \
 	MOVE_INFO_EXEC(int, intValue, replacementBufferTime, 0) \
 	MOVE_INFO_EXEC(const char*, strValue, whiffCancelsNote, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, secondaryStartup, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, forceLandingRecovery, false) \
-	MOVE_INFO_EXEC(bool, boolValue, isGrab, false) \
-	MOVE_INFO_EXEC(bool, boolValue, partOfStance, false) \
-	MOVE_INFO_EXEC(bool, boolValue, dontSkipSuper, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, forceLandingRecovery, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, isGrab, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, partOfStance, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, dontSkipSuper, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, iKnowExactlyWhenTheRecoveryOfThisMoveIs, nullptr) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, forceSuperHitAnyway, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, drawProjectileOriginPoint, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, drawProjectileOriginPoint, false) \
 	MOVE_INFO_EXEC(selectPowerupExplanation_t, selectPowerupExplanationValue, canYrcProjectile, nullptr) \
 	MOVE_INFO_EXEC(selectDisplayName_t, selectDisplayNameValue, displayNameSelector, nullptr) \
 	/* the returned value under the pointer must be used immediately! Don't store the pointer! */ \
@@ -251,21 +252,22 @@ struct MoveInfoStored {
 	/* do not use the returned string after the match is over */ \
 	MOVE_INFO_EXEC(selectPowerupExplanation_t, selectPowerupExplanationValue, powerup, nullptr) \
 	MOVE_INFO_EXEC(projectileFunc_t, projectileFuncValue, projectilePowerup, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, isEddie, false) \
-	MOVE_INFO_EXEC(bool, boolValue, dontSkipGrab, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, isEddie, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, dontSkipGrab, false) \
 	MOVE_INFO_EXEC(isIdle_t, isIdleValue, dontShowPowerupGraphic, nullptr) \
 	/* for combo recipe */ \
 	/* this can combine hits from different projectiles that are same, or from the same one projectile */ \
 	/* and sameness is determined by having same Entity::animationName() and Entity::dealtAttack()->trialName */ \
-	MOVE_INFO_EXEC(bool, boolValue, combineHitsFromDifferentProjectiles, false) \
-	MOVE_INFO_EXEC(bool, boolValue, showMultipleHitsFromOneAttack, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, combineHitsFromDifferentProjectiles, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, showMultipleHitsFromOneAttack, false) \
 	/* there is no way to route from this move into a jump cancel, so we should ignore if it's jump installed. */ \
 	/* A ground Roman Cancel would return you to neutral so there's no way to use jump installs done prior to it. */ \
 	/* This means that even if you RC this move, we should still ignore jump installs on it. */ \
-	MOVE_INFO_EXEC(bool, boolValue, ignoreJumpInstalls, false) \
-	MOVE_INFO_EXEC(bool, boolValue, ignoreSuperJumpInstalls, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, ignoreJumpInstalls, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, ignoreSuperJumpInstalls, false) \
 	MOVE_INFO_EXEC(chargeFunc_t, chargeFuncValue, charge, nullptr) \
-	MOVE_INFO_EXEC(bool, boolValue, splitForComboRecipe, false)
+	MOVE_INFO_EXEC(BOOL, boolValue, splitForComboRecipe, false) \
+	MOVE_INFO_EXEC(BOOL, boolValue, isMove, false)
 
 struct MoveInfo {
 	CharacterType charType;
@@ -291,6 +293,8 @@ public:
 	bool onDllMain();
 	bool getInfo(MoveInfo& returnValue, CharacterType charType, const char* moveName, const char* stateName, bool isEffect);
 	bool getInfo(MoveInfo& returnValue, CharacterType charType, const char* name, bool isEffect);
+	bool getInfoWithName(MoveInfo& returnValue, CharacterType charType, const char* name,  const char* stateName, bool isEffect, const char** outNamePtr, void const** sortValue = nullptr);
+	bool getInfoWithName(MoveInfo& returnValue, CharacterType charType, const char* name, bool isEffect, const char** outNamePtr, void const** sortValue = nullptr);
 	void onAswEngineDestroyed();
 	// only for ground (standing or crouching) blitz shields
 	static GroundBlitzType getBlitzType(PlayerInfo& ent);

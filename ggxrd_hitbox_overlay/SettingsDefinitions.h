@@ -976,4 +976,24 @@ settingsField(int, connectionTierToPretendAs, 0,
 	"; This setting only works if \"overrideYourConnectionTierForFilter\" is set to true.\n"
 	"; Specify the connection tier here to use when entering a room or viewing the lobby list.\n"
 	"; 0 means T0, 1 means T1, and so on.")
+	
+settingsField(bool, highlightRedWhenBecomingIdle, false,
+	"Highlight Red When Becoming Idle", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; In Training Mode, when your character becomes idle, it will flash red.")
+	
+settingsField(bool, highlightGreenWhenBecomingIdle, false,
+	"Highlight Green When Becoming Idle", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; In Training Mode, when your character becomes idle, it will flash green.")
+	
+settingsField(bool, highlightBlueWhenBecomingIdle, false,
+	"Highlight Blue When Becoming Idle", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; In Training Mode, when your character becomes idle, it will flash blue.")
+	
+settingsField(MoveList, highlightWhenCancelsIntoMovesAvailable, {},
+	"Highlight When Cancels Into Moves Available", SETTINGS_GENERAL,
+	"; Specify a list of moves and red, green and/or blue highlight for each.\n"
+	"; When a cancel into any of the specified moves becomes available, your character will flash that color.")
 #pragma warning(pop)

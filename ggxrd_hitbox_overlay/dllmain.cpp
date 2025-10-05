@@ -23,7 +23,11 @@
 #include "Moves.h"
 #include "InputNames.h"
 
+#ifdef LOG_PATH
 static void closeLog();
+#else
+#define closeLog()
+#endif
 static bool initialized = false;
 static HMODULE obsDll = NULL;
 
@@ -65,6 +69,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!detouring.beginTransaction(true)) terminate
 		obsDll = GetModuleHandleA("graphics-hook32.dll");
 		if (obsDll) graphics.imInDanger = true;
+		if (!moves.onDllMain()) terminate
 		if (!settings.onDllMain()) terminate
 		if (!game.onDllMain()) terminate
 		if (!camera.onDllMain()) terminate
@@ -80,7 +85,6 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!altModes.onDllMain()) terminate
 		if (!throws.onDllMain()) terminate
 		if (!hud.onDllMain()) terminate
-		if (!moves.onDllMain()) terminate
 		if (!detouring.endTransaction()) terminate
 		fillInInputNames();
 		finishedSigscanning();
@@ -104,6 +108,20 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		camera.shutdown = true;
 		game.shutdown = true;
 		endScene.onDllDetach();
+		
+		if (endScene.logicThreadId != GetCurrentThreadId()) {
+			// thanks to Worse Than You for finding this
+			// the tick is 8 bytes, but it takes 28 months for it to overflow into the high dword
+			uintptr_t tickPlace = sigscanOffset(GUILTY_GEAR_XRD_EXE,
+				"75 05 83 f8 5 76 14 f2 0f 10 47 10", nullptr, "EngineTickCount");
+			if (tickPlace) {
+				unsigned int* tick = *(unsigned int**)(tickPlace - 4);
+				unsigned int startingTick = *tick;
+				while (*tick - startingTick < 2) {
+					Sleep(16);
+				}
+			}
+		}
 		
 		closeLog();
 		break;
@@ -137,12 +155,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 	return TRUE;
 }
 
-void closeLog() {
 #ifdef LOG_PATH
+void closeLog() {
 	if (logfile) {
 		fflush(logfile);
 		fclose(logfile);
 		logfile = NULL;
 	}
-#endif
 }
+#endif

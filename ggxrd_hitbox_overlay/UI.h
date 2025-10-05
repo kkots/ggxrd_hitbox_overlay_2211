@@ -9,6 +9,9 @@
 #include <memory>
 #include "StringWithLength.h"
 #include "PackTextureSizes.h"
+#include "Moves.h"
+#include "characterTypes.h"
+#include <array>
 
 enum UITexture {
 	TEXID_NONE,
@@ -157,6 +160,8 @@ public:
 	bool needTestDelay_dontReleaseKey = false;
 	unsigned long long testDelayStart = 0;
 	DWORD punchCode = 0;
+	void onAswEngineDestroyed();
+	void highlightedMovesChanged();
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -284,10 +289,10 @@ private:
 	bool showBoxesHelp = false;
 	void framebarHelpWindow();
 	void hitboxesHelpWindow();
-	bool booleanSettingPreset(std::atomic_bool& settingsRef);
-	bool booleanSettingPresetWithHotkey(std::atomic_bool& settingsRef, std::vector<int>& hotkey);
+	bool booleanSettingPreset(bool& settingsRef);
+	bool booleanSettingPresetWithHotkey(bool& settingsRef, std::vector<int>& hotkey);
 	bool float4SettingPreset(float& settingsPtr);
-	bool intSettingPreset(std::atomic_int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX, bool isDisabled = false);
+	bool intSettingPreset(int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX, bool isDisabled = false);
 	bool showCancels[2] { false, false };
 	bool showDamageCalculation[2] { false, false };
 	bool showStunmash[2] { false, false };
@@ -411,6 +416,19 @@ private:
 	bool showZatoReflectableProjectiles[2] { false, false };
 	bool showLeoReflectableProjectiles[2] { false, false };
 	bool showDizzyReflectableProjectiles[2] { false, false };
+	bool showMoveHighlightWindow = false;
+	struct SortedMovesEntry {
+		const char* name = nullptr;
+		const NamePair* displayName = nullptr;
+		int index = -1;
+		void const* comparisonValue = nullptr;
+		inline SortedMovesEntry(const char* name, const NamePair* displayName, int index, void const* comparisonValue)
+			: name(name), displayName(displayName), index(index), comparisonValue(comparisonValue) { }
+	};
+	std::array<std::vector<SortedMovesEntry>, CHARACTER_TYPE_ANSWER + 1> sortedMoves;
+	static int __cdecl CompareMoveInfo(void const* moveLeft, void const* moveRight);
+	bool sortedMovesReady = false;
+	bool sortedMovesRedoPending = true;
 };
 
 extern UI ui;

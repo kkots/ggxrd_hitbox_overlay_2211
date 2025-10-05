@@ -4,9 +4,10 @@
 #include <map>
 #include <unordered_map>
 #include <mutex>
-#include <atomic>
 #include "StringWithLength.h"
 #include "HandleWrapper.h"
+#include "characterTypes.h"
+#include "Moves.h"
 
 const int JOY_START = 0x107;
 const int JOY_BTN_0 = 0x107;
@@ -43,6 +44,26 @@ const int JOY_XBOX_TYPE_S_RIGHT_STICK_RIGHT = 0x125;
 const int JOY_XBOX_TYPE_S_RIGHT_STICK_DOWN = 0x126;
 // inclusive
 const int JOY_END = 0x126;
+
+struct MoveListPointer {
+	CharacterType charType;
+	const char* name;
+	bool red = false;
+	bool green = false;
+	bool blue = false;
+	inline MoveListPointer(CharacterType charType, const char* name, bool red, bool green, bool blue)
+		: charType(charType), name(name), red(red), green(green), blue(blue) { }
+};
+
+struct MoveList {
+	std::vector<MoveListPointer> pointers;
+	unsigned int year = 0;
+	unsigned int month = 0;
+	unsigned int day = 0;
+	unsigned int hour = 0;
+	unsigned int minute = 0;
+	unsigned int second = 0;
+};
 
 class Settings
 {
@@ -123,8 +144,6 @@ public:
 	std:: mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	typedef std::string ScreenshotPath;
-	#define int std::atomic_int
-	#define bool std::atomic_bool
 	#define settingsKeyCombo(name, displayName, defaultValue, description) 
 	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type name = defaultValue;
 	#include "SettingsDefinitions.h"
@@ -233,13 +252,15 @@ private:
 		return parseKeys(keyName, keyValue.c_str(), keyValue.c_str() + keyValue.size(), keyCodes);
 	}
 	bool parseKeys(const char* keyName, const char* keyValueStart, const char* keyValueEnd, std::vector<int>& keyCodes);
-	static bool parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer);
-	static bool parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue);
+	static bool parseInteger(const char* keyName, const std::string& keyValue, int& integer);
+	static bool parseBoolean(const char* keyName, const std::string& keyValue, bool& aBooleanValue);
 	static StringWithLength formatBoolean(bool value);
 	static bool parseFloat(const char* keyName, const std::string& keyValue, float& floatValue);
 	static float parseFloat(const char* inputString, bool* error = nullptr);
+	static bool parseMoveList(const char* keyName, const std::string& keyValue, MoveList& listValue);
 	static void formatFloat(float f, std::string& result);
 	static void formatInteger(int f, std::string& result);
+	static void formatMoveList(const MoveList& moveList, std::string& result);
 	static std::wstring getCurrentDirectory();
 	void registerListenerForChanges();
 	std::wstring settingsPath;

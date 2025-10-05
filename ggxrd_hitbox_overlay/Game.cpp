@@ -1466,10 +1466,12 @@ void Game::onConnectionTierChanged() {
 	static bool isPatched = false;
 	static int patchedTier = 0;
 	static BYTE oldCode[6];
+	static bool conductedSearch = false;
+	static uintptr_t place = 0;
 	
 	if (!(
 		isFirstTimePatch
-			? settings.overrideYourConnectionTierForFilter.load()
+			? settings.overrideYourConnectionTierForFilter
 			: settings.overrideYourConnectionTierForFilter != isPatched
 				|| (
 					!settings.overrideYourConnectionTierForFilter
@@ -1486,11 +1488,14 @@ void Game::onConnectionTierChanged() {
 		}
 	} onExit;
 	
-	uintptr_t place = sigscanOffset(
+	if (!conductedSearch) {
+		conductedSearch = true;
+		place = sigscanOffset(
 			GUILTY_GEAR_XRD_EXE,
 			"8b 94 81 98 bc 00 00 8d 8c 81 98 bc 00 00 8b 42 08 ff d0 8b 48 44 51 >e8",
 			nullptr,
 			"connectionTierPlaceForBypassingFilter");
+	}
 	if (!place) return;
 	
 	std::vector<char> workVector(sizeof oldCode);

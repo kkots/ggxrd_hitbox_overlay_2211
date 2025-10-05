@@ -221,8 +221,17 @@ void Settings::readSettings(bool isFirstEverRead) {
 	bool oldUsePositionResetMod = usePositionResetMod;
 	bool oldPlayer1IsBoss = player1IsBoss;
 	bool oldPlayer2IsBoss = player2IsBoss;
-	bool oldconnectionTierToPretendAs = connectionTierToPretendAs;
-	int oldoverrideYourConnectionTierForFilter = overrideYourConnectionTierForFilter;
+	int oldconnectionTierToPretendAs = connectionTierToPretendAs;
+	bool oldoverrideYourConnectionTierForFilter = overrideYourConnectionTierForFilter;
+	bool oldhighlightRedWhenBecomingIdle = highlightRedWhenBecomingIdle;
+	bool oldhighlightGreenWhenBecomingIdle = highlightGreenWhenBecomingIdle;
+	bool oldhighlightBlueWhenBecomingIdle = highlightBlueWhenBecomingIdle;
+	unsigned int oldhighlightWhenCancelsIntoMovesAvailableyear = highlightWhenCancelsIntoMovesAvailable.year;
+	unsigned int oldhighlightWhenCancelsIntoMovesAvailablemonth = highlightWhenCancelsIntoMovesAvailable.month;
+	unsigned int oldhighlightWhenCancelsIntoMovesAvailableday = highlightWhenCancelsIntoMovesAvailable.day;
+	unsigned int oldhighlightWhenCancelsIntoMovesAvailablehour = highlightWhenCancelsIntoMovesAvailable.hour;
+	unsigned int oldhighlightWhenCancelsIntoMovesAvailableminute = highlightWhenCancelsIntoMovesAvailable.minute;
+	unsigned int oldhighlightWhenCancelsIntoMovesAvailablesecond = highlightWhenCancelsIntoMovesAvailable.second;
 
 	std::string accum;
 	char buf[129];
@@ -296,11 +305,19 @@ void Settings::readSettings(bool isFirstEverRead) {
 										logwrap(fprintf(logfile, "Parsed " #name " (UTF8): %s\n", keyValue.c_str())); \
 									} \
 									break;
+										
+								#define moveListPreset(name) \
+									case offsetof(Settings, name): \
+									if (!name##Parsed) { \
+										name##Parsed = parseMoveList(#name, keyValue, name); \
+									} \
+									break;
 								
 								#define int integerPreset
 								#define bool booleanPreset
 								#define ScreenshotPath screenshotPathPreset
 								#define float floatPreset
+								#define MoveList moveListPreset
 								#define settingsKeyCombo(name, displayName, defaultValue, description)
 								#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type(name)
 								#include "SettingsDefinitions.h"
@@ -314,6 +331,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 								#undef floatPreset
 								#undef integerPreset
 								#undef booleanPreset
+								#undef MoveList
+								#undef moveListPreset
 							}
 						}
 					}
@@ -348,8 +367,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 	if (framebarDisplayedFramesCount < 1) {
 		framebarDisplayedFramesCount = 1;
 	}
-	if (framebarDisplayedFramesCount.load() > framebarStoredFramesCount.load()) {
-		framebarDisplayedFramesCount = framebarStoredFramesCount.load();
+	if (framebarDisplayedFramesCount > framebarStoredFramesCount) {
+		framebarDisplayedFramesCount = framebarStoredFramesCount;
 	}
 	
 	if (firstSettingsParse) {
@@ -380,6 +399,19 @@ void Settings::readSettings(bool isFirstEverRead) {
 		 	&& connectionTierToPretendAs
 	 	) {
 			PostMessageW(keyboard.thisProcessWindow, WM_APP_CONNECTION_TIER_CHANGED, FALSE, FALSE);
+		}
+		if (highlightRedWhenBecomingIdle != oldhighlightRedWhenBecomingIdle
+				|| highlightGreenWhenBecomingIdle != oldhighlightGreenWhenBecomingIdle
+				|| highlightBlueWhenBecomingIdle != oldhighlightBlueWhenBecomingIdle) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_HIGHLIGHT_GREEN_WHEN_BECOMING_IDLE_CHANGED, FALSE, FALSE);
+		}
+		if (oldhighlightWhenCancelsIntoMovesAvailableyear != highlightWhenCancelsIntoMovesAvailable.year
+				|| oldhighlightWhenCancelsIntoMovesAvailablemonth != highlightWhenCancelsIntoMovesAvailable.month
+				|| oldhighlightWhenCancelsIntoMovesAvailableday != highlightWhenCancelsIntoMovesAvailable.day
+				|| oldhighlightWhenCancelsIntoMovesAvailablehour != highlightWhenCancelsIntoMovesAvailable.hour
+				|| oldhighlightWhenCancelsIntoMovesAvailableminute != highlightWhenCancelsIntoMovesAvailable.minute
+				|| oldhighlightWhenCancelsIntoMovesAvailablesecond != highlightWhenCancelsIntoMovesAvailable.second) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_HIGHLIGHTED_MOVES_CHANGED, FALSE, FALSE);
 		}
 	}
 	
@@ -501,18 +533,18 @@ bool Settings::parseKeys(const char* keyName, const char* keyValueStart, const c
 	return true;
 }
 
-bool Settings::parseInteger(const char* keyName, const std::string& keyValue, std::atomic_int& integer) {
+bool Settings::parseInteger(const char* keyName, const std::string& keyValue, int& integer) {
 	for (auto it = keyValue.begin(); it != keyValue.end(); ++it) {
 		if (!(*it >= '0' && *it <= '9')) return false;  // apparently atoi doesn't do this check
 	}
 	int result = std::atoi(keyValue.c_str());
 	if (result == 0 && keyValue != "0") return false;
 	integer = result;
-	logwrap(fprintf(logfile, "Parsed integer for %s: %d\n", keyName, integer.load()));
+	logwrap(fprintf(logfile, "Parsed integer for %s: %d\n", keyName, integer));
 	return true;
 }
 
-bool Settings::parseBoolean(const char* keyName, const std::string& keyValue, std::atomic_bool& aBooleanValue) {
+bool Settings::parseBoolean(const char* keyName, const std::string& keyValue, bool& aBooleanValue) {
 	if (_stricmp(keyValue.c_str(), "true") == 0) {
 		logwrap(fprintf(logfile, "Parsed boolean for %s: %d\n", keyName, 1));
 		aBooleanValue = true;
@@ -772,7 +804,8 @@ void Settings::writeSettingsMain() {
 		FieldType_Boolean,
 		FieldType_Int,
 		FieldType_ScreenshotPath,
-		FieldType_Float
+		FieldType_Float,
+		FieldType_MoveList
 	};
 	struct FieldInfo {
 		FieldType type;
@@ -787,6 +820,7 @@ void Settings::writeSettingsMain() {
 		#define int FieldType_Int
 		#define ScreenshotPath FieldType_ScreenshotPath
 		#define float FieldType_Float
+		#define MoveList FieldType_MoveList
 		#define settingsKeyCombo(name, displayName, defaultValue, description) 
 		#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
 			fieldNameToIsFound[#name] = { \
@@ -801,6 +835,7 @@ void Settings::writeSettingsMain() {
 		#undef ScreenshotPath
 		#undef int
 		#undef bool
+		#undef MoveList
 	}
 	
 	size_t fieldsFound = 0;
@@ -971,14 +1006,38 @@ void Settings::writeSettingsMain() {
 							li.newValuePtr.txt = nullptr;
 						}
 						const std::string* fieldValuePtr = nullptr;
-						switch (fi.type) {
-							case FieldType_Boolean: li.compareAndUpdateValue(formatBoolean(*(std::atomic_bool*)fi.ptr)); break;
-							case FieldType_Int: formatInteger(*(std::atomic_int*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
-							case FieldType_ScreenshotPath: fieldValuePtr = &screenshotPath; break;
-							case FieldType_Float: formatFloat(*(float*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
-						}
-						if (fieldValuePtr) {
-							li.compareAndUpdateValue(*fieldValuePtr);
+						if (fi.type == FieldType_MoveList) {
+							MoveList& list = *(MoveList*)fi.ptr;
+							bool needUpdate = true;
+							unsigned int year;
+							unsigned int month;
+							unsigned int day;
+							unsigned int hour;
+							unsigned int minute;
+							unsigned int second;
+							int sscanfResult = sscanf(li.value.start, "%u.%u.%uT%u:%u:%u", &year, &month, &day, &hour, &minute, &second);
+							if (sscanfResult == 6) {
+								needUpdate = list.year != year
+									|| list.month != month
+									|| list.day != day
+									|| list.hour != hour
+									|| list.minute != minute
+									|| list.second != second;
+							}
+							if (needUpdate) {
+								formatMoveList(list, fieldValue);
+								li.compareAndUpdateValue(fieldValue);
+							}
+						} else {
+							switch (fi.type) {
+								case FieldType_Boolean: li.compareAndUpdateValue(formatBoolean(*(bool*)fi.ptr)); break;
+								case FieldType_Int: formatInteger(*(int*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
+								case FieldType_ScreenshotPath: fieldValuePtr = &screenshotPath; break;
+								case FieldType_Float: formatFloat(*(float*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
+							}
+							if (fieldValuePtr) {
+								li.compareAndUpdateValue(*fieldValuePtr);
+							}
 						}
 					}
 				}
@@ -1112,10 +1171,19 @@ void Settings::writeSettingsMain() {
 			nl.iniDescription = getOtherINIDescription(&fieldName); \
 			nl.outputToFile(); \
 		}
+	#define moveListPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			nl.name = StringWithLength { #fieldName }; \
+			formatMoveList(fieldName, fieldValue); \
+			nl.newValuePtr = fieldValue; \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.outputToFile(); \
+		}
 	#define int integerPreset
 	#define float floatPreset
 	#define ScreenshotPath screenshotPathPreset
 	#define bool booleanPreset
+	#define MoveList moveListPreset
 	#define settingsKeyCombo(name, displayName, defaultValue, description) keyComboPreset(name)
 	#define settingsField(type, fieldName, defaultValue, displayName, section, description, inlineComment) type(fieldName, inlineComment)
 	#include "SettingsDefinitions.h"
@@ -1125,11 +1193,13 @@ void Settings::writeSettingsMain() {
 	#undef ScreenshotPath
 	#undef float
 	#undef int
+	#undef MoveList
 	#undef floatPreset
 	#undef integerPreset
 	#undef booleanPreset
 	#undef keyComboPreset
 	#undef screenshotPathPreset
+	#undef moveListPreset
 	
 	if (!nl.isFirst) {
 		DWORD bytesWritten;
@@ -1460,6 +1530,129 @@ float Settings::parseFloat(const char* inputString, bool* error) {
 	return result;
 }
 
+bool Settings::parseMoveList(const char* keyName, const std::string& keyValue, MoveList& listValue) {
+	bool parsingDateTime = true;
+	const char* stringStart = nullptr;
+	std::string stringArena;
+	CharacterType parsedCharacter = CHARACTER_TYPE_SOL;
+	MoveInfo moveInfo;
+	const char* name = nullptr;
+	bool red = false;
+	bool green = false;
+	bool blue = false;
+	bool newRed;
+	bool newGreen;
+	bool newBlue;
+	for (const char* ptr = keyValue.c_str(); true; ++ptr) {
+		if (!stringStart) {
+			if (*ptr == '\0') break;
+			if (*ptr > 32) {
+				stringStart = ptr;
+			}
+		} else if (*ptr <= 32) {
+			
+			stringArena.assign(stringStart, ptr - stringStart);
+			stringStart = nullptr;
+			
+			if (parsingDateTime) {
+				unsigned int year = 0;
+				unsigned int month = 0;
+				unsigned int day = 0;
+				unsigned int hour = 0;
+				unsigned int minute = 0;
+				unsigned int second = 0;
+				int sscanfReturnValue = sscanf(stringArena.c_str(), "%u.%u.%uT%u:%u:%u", &year, &month, &day, &hour, &minute, &second);
+				if (sscanfReturnValue != 6) {
+					logwrap(fprintf(logfile, "Move list for %s: could not parse hash: %s\n", stringArena.c_str()));
+					return false;
+				}
+				if (year == listValue.year
+						&& month == listValue.month
+						&& day == listValue.day
+						&& hour == listValue.hour
+						&& minute == listValue.minute
+						&& second == listValue.second) {
+					return true;
+				}
+				listValue.pointers.clear();
+				listValue.year = year;
+				listValue.month = month;
+				listValue.day = day;
+				listValue.hour = hour;
+				listValue.minute = minute;
+				listValue.second = second;
+				parsingDateTime = false;
+				if (*ptr == '\0') break;
+				continue;
+			}
+			
+			bool isCharacter = false;
+			for (int i = CHARACTER_TYPE_SOL; i <= CHARACTER_TYPE_ANSWER; ++i) {
+				if (strcmp(stringArena.c_str(), characterNames[i]) == 0) {
+					parsedCharacter = (CharacterType)i;
+					isCharacter = true;
+					break;
+				}
+			}
+			if (!isCharacter) {
+				bool isColor = true;
+				newRed = false;
+				newGreen = false;
+				newBlue = false;
+				for (const char c : stringArena) {
+					if (c == 'r') {
+						if (newRed) {
+							isColor = false;
+							break;
+						}
+						newRed = true;
+					} else if (c == 'g') {
+						if (newGreen) {
+							isColor = false;
+							break;
+						}
+						newGreen = true;
+					} else if (c == 'b') {
+						if (newBlue) {
+							isColor = false;
+							break;
+						}
+						newBlue = true;
+					} else {
+						isColor = false;
+						break;
+					}
+				}
+				if (isColor) {
+					red = newRed;
+					green = newGreen;
+					blue = newBlue;
+				} else if (!moves.getInfoWithName(moveInfo, parsedCharacter, stringArena.c_str(), false, &name)) {
+					logwrap(fprintf(logfile, "Move list for %s has a move name that is not found: %s\n", stringArena.c_str()));
+					return false;
+				} else if (!moveInfo.isMove) {
+					logwrap(fprintf(logfile, "Move list for %s has a move name that is not a move: %s\n", stringArena.c_str()));
+					return false;
+				} else {
+					listValue.pointers.emplace_back(parsedCharacter, name, red, green, blue);
+				}
+			}
+			if (*ptr == '\0') break;
+		}
+	}
+	if (parsingDateTime) {
+		listValue.year = 0;
+		listValue.month = 0;
+		listValue.day = 0;
+		listValue.hour = 0;
+		listValue.minute = 0;
+		listValue.second = 0;
+		listValue.pointers.clear();
+	}
+	logwrap(fprintf(logfile, "Parsed move list for %s: %u items\n", keyName, listValue.size()));
+	return true;
+}
+
 void Settings::formatInteger(int d, std::string& result) {
 	static const char* formatString = "%d";
 	
@@ -1522,4 +1715,118 @@ void Settings::formatFloat(float f, std::string& result) {
 		++firstZeroPos;
 	}
 	result.erase(firstZeroPos, result.end());
+}
+
+void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
+	unsigned int neededSize = 20  // 20 is the length of the yyyy.MM.ddThh:mm:ss date time
+		+ 1;  // one space
+	bool isFirst = true;
+	bool red = false;
+	bool green = false;
+	bool blue = false;
+	const char* c;
+	CharacterType previousCharacter = (CharacterType)0;
+	for (const MoveListPointer& ptr : moveList.pointers) {
+		bool changedChar = false;
+		bool changedColor = false;
+		if (isFirst) {
+			isFirst = false;
+			changedChar = true;
+			changedColor = true;
+		} else {
+			changedChar = ptr.charType != previousCharacter;
+			changedColor = ptr.red != red
+				|| ptr.green != green
+				|| ptr.blue != blue;
+		}
+		if (changedChar) {
+			previousCharacter = ptr.charType;
+			neededSize += strlen(characterNames[previousCharacter])
+					+ 1;  // space
+		}
+		if (changedColor) {
+			red = ptr.red;
+			green = ptr.green;
+			blue = ptr.blue;
+			neededSize += 3  // rgb
+					+ 1;  // space
+		}
+		neededSize += strlen(ptr.name)
+			+ 1;  // space
+	}
+	result.resize(neededSize);
+	char* str = &result.front();
+	int length = sprintf_s(str, result.size() + 1, "%.4u.%.2u.%.2uT%.2u:%.2u:%.2u ", moveList.year, moveList.month, moveList.day, moveList.hour, moveList.minute, moveList.second);
+	if (length == -1) {
+		result.clear();
+		return;
+	}
+	str += length;
+	isFirst = true;
+	red = false;
+	green = false;
+	blue = false;
+	for (const MoveListPointer& ptr : moveList.pointers) {
+		bool charChanged = false;
+		bool colorChanged = false;
+		if (isFirst) {
+			isFirst = false;
+			
+			colorChanged = true;
+			red = ptr.red;
+			green = ptr.green;
+			blue = ptr.blue;
+			
+			charChanged = true;
+			previousCharacter = ptr.charType;
+		} else {
+			if (ptr.charType != previousCharacter) {
+				charChanged = true;
+				previousCharacter = ptr.charType;
+			}
+			if (ptr.red != red
+					|| ptr.green != green
+					|| ptr.blue != blue) {
+				colorChanged = true;
+				red = ptr.red;
+				green = ptr.green;
+				blue = ptr.blue;
+			}
+		}
+		if (charChanged) {
+			for (c = characterNames[previousCharacter]; *c != '\0'; ++c) {
+				*str = *c;
+				++str;
+			}
+			*str = ' ';
+			++str;
+		}
+		if (colorChanged) {
+			if (ptr.red) {
+				*str = 'r';
+				++str;
+			}
+			if (ptr.green) {
+				*str = 'g';
+				++str;
+			}
+			if (ptr.blue) {
+				*str = 'b';
+				++str;
+			}
+			*str = ' ';
+			++str;
+		}
+		for (c = ptr.name; *c != '\0'; ++c) {
+			*str = *c;
+			++str;
+		}
+		*str = ' ';
+		++str;
+	}
+	*str = '\0';
+	++str;
+	result.resize(str - &result.front()
+		- 1);  // str points past the null character. Exclude null from the size of the string
+	return;
 }

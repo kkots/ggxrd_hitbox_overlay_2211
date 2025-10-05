@@ -100,6 +100,8 @@ static inline const T& minmax(const T& Min, const T& Max, const T& Value) {
 	return Value;
 }
 
+static const unsigned char greenHighlights[] { 255, 255, 255, 255, 255, 242, 228, 200, 165, 125, 82, 67, 55, 44, 33, 22, 17, 13, 9, 7, 4 };
+
 bool EndScene::onDllMain() {
 	bool error = false;
 	
@@ -823,6 +825,8 @@ bool EndScene::onDllMain() {
 			isSignVer1_10OrHigher = (isSignVer1_10OrHigher_t)isSignVer1_10OrHigherPlace;
 		}
 	}
+	
+	if (!highlightGreenWhenBecomingIdleChanged()) return false;
 	
 	return !error;
 }
@@ -1743,6 +1747,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					other.landingFrameAdvantageIncludesIdlenessInNewSection = false;
 				}
 			}
+			
 			if (player.hitstun && !player.hitstop && !superflashInstigator) {
 				++player.hitstunElapsed;
 				if (player.rcSlowedDown) player.hitstunContaminatedByRCSlowdown = true;
@@ -7748,6 +7753,15 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				game.onConnectionTierChanged();
 			}
 			break;
+			case WM_APP_HIGHLIGHT_GREEN_WHEN_BECOMING_IDLE_CHANGED: {
+				endScene.highlightGreenWhenBecomingIdleChanged();
+			}
+			break;
+			case WM_APP_HIGHLIGHTED_MOVES_CHANGED: {
+				ui.highlightedMovesChanged();
+				highlightSettingsChanged();
+			}
+			break;
 		}
 	}
 	
@@ -7842,7 +7856,9 @@ void EndScene::onAswEngineDestroyed() {
 	registeredHits.clear();
 	needFrameCleanup = false;
 	creatingObject = false;
+	ui.onAswEngineDestroyed();
 	moves.onAswEngineDestroyed();
+	highlightMoveCache.clear();
 	
 	// do this even if 'give up'
 	for (int i = 0; i < 2; ++i) {
@@ -8760,6 +8776,74 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 					player.elpheltShotgunX = pawn.posX();
 				}
 			}
+			
+			if (game.isTrainingMode()) {
+				// the color highlights get processed here, because doing them at REDAnywhereDispDraw causes highlights to get delayed by 1 frame
+				int controllingSide = 2;
+				if (
+					(
+						settings.highlightRedWhenBecomingIdle
+						|| settings.highlightGreenWhenBecomingIdle
+						|| settings.highlightBlueWhenBecomingIdle
+					)
+				) {
+					controllingSide = currentPlayerControllingSide();
+					if (player.index == controllingSide
+							&& !(
+								pawn.cmnActIndex() == CmnActJump
+								&& pawn.currentAnimDuration() == 2
+								&& !player.moveOriginatedInTheAir
+							)
+							&& !(
+								pawn.cmnActIndex() == CmnActJumpLanding
+								&& pawn.currentAnimDuration() == 2
+								&& strcmp(pawn.previousAnimName(), "CmnActJump") == 0
+							)
+							&& !player.idle
+							&& player.pawn) {
+						static MoveInfo moveInfo;
+						if (moves.getInfo(moveInfo, player.charType, pawn.currentMoveIndex() == -1
+								? (const char*)pawn.bbscrCurrentFunc() + 4 : pawn.currentMove()->name, false)) {
+							if (moveInfo.isIdle && moveInfo.isIdle(player)) {
+								if (settings.highlightRedWhenBecomingIdle) {
+									player.redHighlightTimer = sizeof greenHighlights;
+								}
+								if (settings.highlightGreenWhenBecomingIdle) {
+									player.greenHighlightTimer = sizeof greenHighlights;
+								}
+								if (settings.highlightBlueWhenBecomingIdle) {
+									player.blueHighlightTimer = sizeof greenHighlights;
+								}
+							}
+						}
+					}
+				}
+				if (!settings.highlightWhenCancelsIntoMovesAvailable.pointers.empty()) {
+					if (controllingSide == 2) {
+						controllingSide = currentPlayerControllingSide();
+					}
+					if (player.index == controllingSide) {
+						bool red = false;
+						bool green = false;
+						bool blue = false;
+						std::vector<const AddedMoveData*> markedMoves;
+						if (hasCancelUnlocked(pawn.characterType(), player.wasCancels.gatlings, markedMoves, &red, &green, &blue)
+								|| hasCancelUnlocked(pawn.characterType(), player.wasCancels.whiffCancels, markedMoves, &red, &green, &blue)) {
+							if (red) {
+								player.redHighlightTimer = sizeof greenHighlights;
+							}
+							if (green) {
+								player.greenHighlightTimer = sizeof greenHighlights;
+							}
+							if (blue) {
+								player.blueHighlightTimer = sizeof greenHighlights;
+							}
+						}
+					}
+				}
+				processColor(player);
+			}
+			
 		}
 	}
 	endScene.orig_handleUpon((void*)pawn.ent, signal);
@@ -10881,9 +10965,9 @@ int EndScene::getMinBufferTime(const InputType* inputs) {
 }
 
 int __cdecl LifeTimeCounterCompare(void const* p1Ptr, void const* p2Ptr) {
-	Entity p1Ent = *(Entity*)p1Ptr;
-	Entity p2Ent = *(Entity*)p2Ptr;
-	return p2Ent.lifeTimeCounter() - p1Ent.lifeTimeCounter();
+	const Entity* p1Ent = (const Entity*)p1Ptr;
+	const Entity* p2Ent = (const Entity*)p2Ptr;
+	return p2Ent->lifeTimeCounter() - p1Ent->lifeTimeCounter();
 }
 
 // Kinda copy of handleVenomBalls function, with some filters which are explained in comments
@@ -12327,4 +12411,129 @@ void EndScene::activeFrameHitReflectMultiplySpeedXHook(Entity attacker, Entity d
 		}
 	}
 	multiplySpeedX((void*)attacker.ent, percentage);
+}
+
+bool EndScene::highlightGreenWhenBecomingIdleChanged() {
+	if (!settings.highlightRedWhenBecomingIdle
+			&& !settings.highlightGreenWhenBecomingIdle
+			&& !settings.highlightBlueWhenBecomingIdle
+			&& settings.highlightWhenCancelsIntoMovesAvailable.pointers.empty()) return true;
+	static bool conductedSearch = false;
+	if (!conductedSearch) {
+		conductedSearch = true;
+		uintptr_t place = sigscanOffset(GUILTY_GEAR_XRD_EXE,
+				"8b f1 8b 5e 10 8b 08 8a 86 00 04 00 00 f7 db",
+				nullptr, "pawnGetColor");
+		if (!place) return false;
+		orig_pawnGetColor = (pawnGetColor_t)sigscanBackwards16ByteAligned(place, "83 ec");
+	}
+	if (!orig_pawnGetColor) return false;
+	bool wasTransaction = detouring.isInTransaction();
+	if (!wasTransaction) {
+		detouring.beginTransaction(false);
+	}
+	auto pawnGetColorHookPtr = &HookHelp::pawnGetColorHook;
+	if (!detouring.attach(&(PVOID&)orig_pawnGetColor,
+		(PVOID&)pawnGetColorHookPtr,
+		"pawnGetColor")) return false;
+	if (!wasTransaction) {
+		detouring.endTransaction();
+	}
+	return true;
+}
+
+DWORD EndScene::HookHelp::pawnGetColorHook(DWORD* inColor) {
+	return endScene.pawnGetColorHook(Entity{(void*)this}, inColor);
+}
+
+DWORD EndScene::pawnGetColorHook(Entity pawn, DWORD* inColor) {
+	if (*game.gameDataPtr && game.isTrainingMode()) {
+		PlayerInfo& player = findPlayer(pawn);
+		if (player.pawn && player.overrideColor) {
+			*inColor = 0xFFFFFFFF;
+			return player.colorOverride;
+		}
+	}
+	return orig_pawnGetColor((void*)pawn.ent, inColor);
+}
+
+int EndScene::currentPlayerControllingSide() const {
+	DummyRecordingMode recordingMode = game.getDummyRecordingMode();
+	
+	int playerSide = game.getPlayerSide();
+	if (playerSide != 0 && playerSide != 1) playerSide = 0;
+	
+	if (recordingMode == DUMMY_MODE_CONTROLLING
+			|| recordingMode == DUMMY_MODE_RECORDING) {
+		return 1 - playerSide;
+	}
+	
+	return playerSide;
+}
+
+bool EndScene::hasCancelUnlocked(CharacterType charType, const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& array, std::vector<const AddedMoveData*>& markedMoves,
+		bool* redPtr, bool* greenPtr, bool* bluePtr) {
+	for (const GatlingOrWhiffCancelInfo& elem : array) {
+		bool isIncluded = false;
+		for (const AddedMoveData* ptr : markedMoves) {
+			if (elem.move == ptr) {
+				isIncluded = true;
+				break;
+			}
+		}
+		if (!isIncluded) {
+			markedMoves.push_back(elem.move);
+			if (elem.framesBeenAvailableFor <= 1) {
+				auto it = highlightMoveCache.find(elem.move);
+				if (it == highlightMoveCache.end()) {
+					for (const MoveListPointer& ptr : settings.highlightWhenCancelsIntoMovesAvailable.pointers) {
+						if (ptr.charType == charType
+								&& strcmp(ptr.name, elem.move->name) == 0) {
+							highlightMoveCache[elem.move] = { true, ptr.red, ptr.green, ptr.blue };
+							*redPtr = ptr.red;
+							*greenPtr = ptr.green;
+							*bluePtr = ptr.blue;
+							return true;
+						}
+					}
+					highlightMoveCache[elem.move] = { false };
+				} else if (it->second.needHighlight) {
+					*redPtr = it->second.red;
+					*greenPtr = it->second.green;
+					*bluePtr = it->second.blue;
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void EndScene::processColor(PlayerInfo& player) {
+	DWORD color = 0xFF000000;
+	if (player.redHighlightTimer) {
+		player.redHighlight = greenHighlights[sizeof greenHighlights - player.redHighlightTimer];
+		--player.redHighlightTimer;
+		color |= player.redHighlight << 16;
+	}
+	if (player.greenHighlightTimer) {
+		player.greenHighlight = greenHighlights[sizeof greenHighlights - player.greenHighlightTimer] >> 1;  // green goes quite a bit harder than blue for some reason
+		--player.greenHighlightTimer;
+		color |= player.greenHighlight << 8;
+	}
+	if (player.blueHighlightTimer) {
+		player.blueHighlight = greenHighlights[sizeof greenHighlights - player.blueHighlightTimer];
+		--player.blueHighlightTimer;
+		color |= player.blueHighlight;
+	}
+	if (player.redHighlightTimer || player.greenHighlightTimer || player.blueHighlightTimer) {
+		player.overrideColor = true;
+		player.colorOverride = color;
+	} else {
+		player.overrideColor = false;
+	}
+}
+
+void EndScene::highlightSettingsChanged() {
+	highlightMoveCache.clear();
 }

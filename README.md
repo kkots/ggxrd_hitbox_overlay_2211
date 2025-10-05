@@ -1131,6 +1131,22 @@ overrideYourConnectionTierForFilter = false
 ; Specify the connection tier here to use when entering a room or viewing the lobby list.
 ; 0 means T0, 1 means T1, and so on.
 connectionTierToPretendAs = 0
+
+; Specify true or false.
+; In Training Mode, when your character becomes idle, it will flash red.
+highlightRedWhenBecomingIdle = false
+
+; Specify true or false.
+; In Training Mode, when your character becomes idle, it will flash green.
+highlightGreenWhenBecomingIdle = false
+
+; Specify true or false.
+; In Training Mode, when your character becomes idle, it will flash blue.
+highlightBlueWhenBecomingIdle = false
+
+; Specify a list of moves and red, green and/or blue highlight for each.
+; When a cancel into any of the specified moves becomes available, your character will flash that color.
+highlightWhenCancelsIntoMovesAvailable = {}
 ```
 
 </details>
@@ -1613,10 +1629,12 @@ This won't affect existing users who update the mod (if they ever changed any se
 54) Added a list of projectiles Potemkin can flick to his Character Specific panel. Same for Faust, Zato, Leo, Dizzy (Zato, Leo and Dizzy share the same projectiles list).
 55) Fixed higher level projectiles clashing with lower level projectiles being displayed in the framebar as just the lower level projectile clashing with nothing using the white frame inner outline and text description "A hit connected on this frame." A good example of this is Sol DI Gunflame vs Stun Edge. The game doesn't even make higher level projectiles aware that a clash happened so we now work around that. Similarly, added "A hit connected on this frame." framebar indicator to projectiles being reflected and the one reflecting them.
 56) Added purple health display to Raven's Character Specific panel.
-57) Chargeable moves will now display the amount of charge in the Combo Recipe panel. Only implemented for May 6P, 6H, Blitz Shield, Potemkin F.D.B, Faust Pogo-K, Pogo-S, Venom QV, Stinger Aim, Sin Beak Driver, Elphelt Shotgun Charge (may be displayed on sg.P, sg.K, sg.S, sg.D, Blitz Shield, Genoverse, Bridal Express, Berry 4-Pull (but not 2-Pull) - they retain shotgun charge), Elphelt Rifle Charge (only displayed on Rifle Fire, doesn't display the same amount of frames as when the powerup symbol appears on the framebar), Haehyun Grampa Viper, Shinken, Hayabusa, Hayabusa (Rev.), Enlightened 3000 Palm Strike, Dizzy 6H, "For roasting chestnuts..." so far.
+57) Chargeable moves will now display the amount of charge in the Combo Recipe panel.
 58) Added alternative names for Faust Toss, Answer 6K, Jam Card Charge, Dizzy 6H, "For roasting chestnuts...", Haehyun Four Tigers Sword, Four Tigers Sword (Reverse), Falcon Dive, Falcon Dive (Reverse) for when they're held, and for Raven's Grausam Impuls, Wachen Zweig and Scharf Kugel (the projectile) for when they're buffed.
 59) Elphelt Shotgun Reload and possibly other characters' moves now shown separately in Combo Recipe in order to make it possible to display delays in some cancels.
 60) Leo Brynhildr Stance in Combo Recipe now can display (micro)walks and shows (Idle Xf) instead of (Delay Xf), and changes animation name to Brynhildr Walk Forward/Back in framebar's frame tooltips when walking in stance. Leo's 5H, 6H, Zwei and Leidenschaft Dirigent will now alter their name in the Combo Recipe, in the Move name, and in framebar tooltip's animation name if held or, for Zwei, if crossed up the opponent to enter Brynhildr stance, and the name will add "into Brynhildr" or "into Backturn" (slang version).
 61) Johnny's Mist Finer Stance can now display (micro)walks and idle time between cancels in the Combo Recipe panel.
 62) Elphelt's Berry Pine will now show a powerup icon in the framebar when either the grenade timer reaches 1 second or the Berry Pine is spawned with the timer already being under 1 second.
 63) Fixed the displayed frame counts on the framebar changing incorrectly in certain situations when scrolling the framebar horizontally.
+64) Added an option to bypass room connection restrictions.
+65) Added an option to highlight the player character red, green, blue or a combination of these colours when they become idle or when a particular cancel becomes available. You can select desired cancels from a menu. See Settings - General Settings - "Highlight Red/Green/Blue When Becoming Idle" and "Highlight When Cancels Into Moves Available" button.
