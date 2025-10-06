@@ -44,6 +44,8 @@ public:
 		return getFramesTexturePart(device, packedFramesTexture, &failedToCreateFramesTextureHelp, framesTextureHelp,
 			nullptr, &framesTextureHelpWidth, &framesTextureHelpHeight, false);
 	}
+	bool graphicsThreadStillExists();
+	IDirect3DTexture9* createTexture(IDirect3DDevice9* device, BYTE* data, int width, int height);
 	PackTextureSizes framebarTextureSizes;
 	bool framebarColorblind;
 	PngResource framebarTexture;

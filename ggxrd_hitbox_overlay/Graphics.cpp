@@ -438,39 +438,9 @@ void Graphics::onDllDetach() {
 	logwrap(fputs("Graphics::onDllDetach called\n", logfile));
 	// this tells various callers to stop trying to use the resources as they're about to be freed
 	shutdown = true;
-	if (!graphicsThreadId) {
-		dllDetachPiece();
-		return;
-	}
-	HANDLE graphicsThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, graphicsThreadId);
-	if (!graphicsThreadHandle) {
-		WinError winErr;
-		// The graphicsThreadId we have may be from a time before this thread got terminated:
-		// When Xrd is closed with the mod still running, it kills all threads except the main one
-		// first, then unloads all DLLs.
-		// If the graphics thread got terminated, it will fail to open which is a possible reason
-		// why we may be here.
-		// The logic thread won't be terminated on normal Xrd exit though, because it is the main
-		// thread and the window thread (as in, it pumps messages for windows).
-		logwrap(fprintf(logfile, "Graphics failed to open graphics thread handle: %ls\n", winErr.getMessage()));
-		dllDetachPiece();
-		return;
-	}
-	// What if it closes that thread and opens a new one with the exact same ID in the same process?
-	// So like we found it, but it's not the graphics thread anymore, hmm
-	if (GetProcessIdOfThread(graphicsThreadHandle) != GetCurrentProcessId()) {
-		CloseHandle(graphicsThreadHandle);
-		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive"));
-		dllDetachPiece();
-		return;
-	}
-	DWORD exitCode;
-	bool stillActive = GetExitCodeThread(graphicsThreadHandle, &exitCode) && exitCode == STILL_ACTIVE;
-	CloseHandle(graphicsThreadHandle);
 	
 	// free the resource - and stop using it
-	
-	if (!stillActive) {
+	if (!graphicsThreadStillExists()) {
 		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive (2)"));
 		dllDetachPiece();
 		return;
@@ -495,6 +465,7 @@ void Graphics::onEndSceneStart(IDirect3DDevice9* device) {
 	checkAndHookBeginSceneAndPresent(false);
 }
 
+// Runs on the graphics thread
 void Graphics::onShutdown() {
 	resetHook();
 	ui.onDllDetachGraphics();
@@ -3577,4 +3548,69 @@ void Graphics::updateVertexShaderTransformMatrix(IDirect3DDevice9* device) {
 	D3DXMatrixMultiply(&b, &c, &a);
 	D3DXMatrixTranspose(&c, &b);
 	device->SetVertexShaderConstantF(0, c, 4);
+}
+
+bool Graphics::graphicsThreadStillExists() {
+	if (!graphicsThreadId) {
+		return false;
+	}
+	HANDLE graphicsThreadHandle = OpenThread(THREAD_QUERY_INFORMATION, FALSE, graphicsThreadId);
+	if (!graphicsThreadHandle) {
+		WinError winErr;
+		// The graphicsThreadId we have may be from a time before this thread got terminated:
+		// When Xrd is closed with the mod still running, it kills all threads except the main one
+		// first, then unloads all DLLs.
+		// If the graphics thread got terminated, it will fail to open which is a possible reason
+		// why we may be here.
+		// The logic thread won't be terminated on normal Xrd exit though, because it is the main
+		// thread and the window thread (as in, it pumps messages for windows).
+		logwrap(fprintf(logfile, "Graphics failed to open graphics thread handle: %ls\n", winErr.getMessage()));
+		return false;
+	}
+	// What if it closes that thread and opens a new one with the exact same ID in a different process?
+	// So like we found it, but it's not the graphics thread anymore, hmm
+	if (GetProcessIdOfThread(graphicsThreadHandle) != GetCurrentProcessId()) {
+		CloseHandle(graphicsThreadHandle);
+		logwrap(fprintf(logfile, "Graphics freeing resources on DLL thread, because thread is no longer alive"));
+		return false;
+	}
+	DWORD exitCode;
+	bool stillActive = GetExitCodeThread(graphicsThreadHandle, &exitCode) && exitCode == STILL_ACTIVE;
+	CloseHandle(graphicsThreadHandle);
+	return stillActive;
+}
+
+IDirect3DTexture9* Graphics::createTexture(IDirect3DDevice9* device, BYTE* data, int width, int height) {
+	CComPtr<IDirect3DTexture9> systemTexture;
+	if (FAILED(device->CreateTexture(width, height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, &systemTexture, NULL))) {
+		logwrap(fputs("CreateTexture failed\n", logfile));
+		return nullptr;
+	}
+	CComPtr<IDirect3DTexture9> texture;
+	if (FAILED(device->CreateTexture(width, height, 1, NULL, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &texture, NULL))) {
+		logwrap(fputs("CreateTexture (2) failed\n", logfile));
+		return nullptr;
+	}
+	D3DLOCKED_RECT lockedRect;
+	if (FAILED(systemTexture->LockRect(0, &lockedRect, NULL, NULL))) {
+		logwrap(fputs("texture->LockRect failed\n", logfile));
+		return nullptr;
+	}
+	int oneRowByteSize = width * 4;
+	DWORD* src = (DWORD*)data;
+	DWORD* dest = (DWORD*)lockedRect.pBits;
+	for (int rowCounter = 0; rowCounter < height; ++rowCounter) {
+		memcpy(dest, src, width * 4);
+		dest = (DWORD*)((BYTE*)dest + lockedRect.Pitch);
+		src += width;
+	}
+	if (FAILED(systemTexture->UnlockRect(0))) {
+		logwrap(fputs("texture->UnlockRect failed\n", logfile));
+		return nullptr;
+	}
+	if (FAILED(device->UpdateTexture(systemTexture, texture))) {
+		logwrap(fputs("UpdateTexture failed\n", logfile));
+		return nullptr;
+	}
+	return texture.Detach();
 }

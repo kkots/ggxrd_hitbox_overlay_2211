@@ -1588,7 +1588,7 @@ bool Settings::parseMoveList(const char* keyName, const std::string& keyValue, M
 			
 			bool isCharacter = false;
 			for (int i = CHARACTER_TYPE_SOL; i <= CHARACTER_TYPE_ANSWER; ++i) {
-				if (strcmp(stringArena.c_str(), characterNames[i]) == 0) {
+				if (strcmp(stringArena.c_str(), characterNamesCode[i]) == 0) {
 					parsedCharacter = (CharacterType)i;
 					isCharacter = true;
 					break;
@@ -1741,7 +1741,7 @@ void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
 		}
 		if (changedChar) {
 			previousCharacter = ptr.charType;
-			neededSize += strlen(characterNames[previousCharacter])
+			neededSize += strlen(characterNamesCode[previousCharacter])
 					+ 1;  // space
 		}
 		if (changedColor) {
@@ -1794,7 +1794,7 @@ void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
 			}
 		}
 		if (charChanged) {
-			for (c = characterNames[previousCharacter]; *c != '\0'; ++c) {
+			for (c = characterNamesCode[previousCharacter]; *c != '\0'; ++c) {
 				*str = *c;
 				++str;
 			}

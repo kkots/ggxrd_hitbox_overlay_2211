@@ -32,6 +32,7 @@
 UI ui;
 
 static ImVec4 RGBToVec(DWORD color);
+static const float inverse_255 = 1.F / 255.F;
 static ImVec4 ARGBToVec(DWORD color);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 // The following two functions are from imgui_internal.h
@@ -317,6 +318,31 @@ struct HitConnectedArtSelector {
 };
 static void initializeLetters(bool* letters, bool* lettersStandalone);
 static void printReflectableProjectilesList();
+static void setOutlinedText(bool isOutlined);
+static void pushOutlinedText(bool isOutlined);
+static void popOutlinedText();
+static bool outlinedTextStack[10] { false };
+static bool* outlinedTextHead = outlinedTextStack;
+static const ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders
+					| ImGuiTableFlags_RowBg
+					| ImGuiTableFlags_NoSavedSettings
+					| ImGuiTableFlags_NoPadOuterX;
+static bool settingOutlineText = false;
+static ImGuiWindowFlags windowFlags = (ImGuiWindowFlags)0;
+static ImVec4 windowColor { 0.F, 0.F, 0.F, 1.F };
+static bool overrideWindowColor = false;
+#define prebegin \
+	if (settingOutlineText) { \
+		pushOutlinedText(true); \
+	} \
+	if (overrideWindowColor) { \
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, windowColor); \
+	}
+
+#define preend \
+	if (settingOutlineText) popOutlinedText(); \
+	if (overrideWindowColor) ImGui::PopStyleColor();
+	
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -394,6 +420,7 @@ struct PerformanceMeasurementEnder {
 #define PERFORMANCE_MEASUREMENT_END(name) 
 #endif
 
+// runs on the thread that is loading the DLL
 bool UI::onDllMain(HMODULE hModule) {
 	
 	for (int i = 0; i < 25; ++i) {
@@ -616,11 +643,16 @@ bool UI::onDllMain(HMODULE hModule) {
 }
 
 // Stops queueing new timer events on the window (main) thread. KillTimer does not remove events that have already been queued
+// runs on the thread that is unloading the DLL
 void UI::onDllDetachStage1_killTimer() {
 	timerDisabled = true;
 	if (!imguiInitialized) return;
 	if (!keyboard.thisProcessWindow) timerId = NULL;
 	if (timerId) {
+		if (endScene.logicThreadId && endScene.logicThreadId == GetCurrentThreadId()) {
+			// no one is probably going to process the queue anymore, just chill
+			return;
+		}
 		PostMessageW(keyboard.thisProcessWindow, WM_APP_NEED_KILL_TIMER, timerId, 0);
 		int attempts = 0;
 		while (true) {
@@ -640,23 +672,27 @@ void UI::onDllDetachStage1_killTimer() {
 }
 
 // Destroys only the graphical resources of imGui
+// may either run on the thread that is unloading the DLL, or on the main thread, or on the graphics thread, but normally it should run on the graphics thread
 void UI::onDllDetachGraphics() {
-	std::unique_lock<std::mutex> guard(lock);
 	if (imguiD3DInitialized) {
 		logwrap(fputs("imgui freeing D3D resources\n", logfile));
 		imguiD3DInitialized = false;
 		ImGui_ImplDX9_Shutdown();
+		if (imguiFontAlt) {
+			imguiFontAlt = nullptr;
+			attemptedCreatingAltFont = false;
+		}
 	}
 }
 
 // Destroys the entire rest of imGui
+// may either run on the thread that is unloading the DLL or on the main thread
 void UI::onDllDetachNonGraphics() {
 	if (imguiD3DInitialized) {
 		logwrap(fputs("imgui calling onDllDetachNonGraphics from onDllDetachNonGraphics\n", logfile));
 		// this shouldn't happen
 		onDllDetachGraphics();
 	}
-	std::unique_lock<std::mutex> guard(lock);
 	if (imguiInitialized) {
 		logwrap(fputs("imgui freeing non-D3D resources\n", logfile));
 		ImGui_ImplWin32_Shutdown();
@@ -685,12 +721,12 @@ void UI::prepareDrawData() {
 			// The cause of this is unknown, I haven't tried reproducing it yet and I think it may be related to not doing an ImGui frame every frame.
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
+			prepareOutlinedFont();
 			adjustMousePosition();
 			ImGui::EndFrame();
 		}
 		return;
 	}
-	std::unique_lock<std::mutex> uiGuard(lock);
 	initialize();
 	std::unique_lock<std::mutex> keyboardGuard(keyboard.mutex);
 	Keyboard::MutexLockedFromOutsideGuard keyboardOutsideGuard;
@@ -713,6 +749,7 @@ void UI::prepareDrawData() {
 	ImGui_ImplWin32_NewFrame();
 	adjustMousePosition();
 	ImGui::NewFrame();
+	prepareOutlinedFont();
 	
 	if (visible) {
 		
@@ -778,11 +815,12 @@ void UI::prepareDrawData() {
 		settings.onKeyCombosUpdated();
 	}
 	if ((stateChanged || needWriteSettings) && keyboard.thisProcessWindow) {
-		PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_STATE_CHANGED, stateChanged, needWriteSettings);
+		PostMessageW(keyboard.thisProcessWindow, WM_APP_WIND_UP_TIMER_FOR_DEFERRED_SETTINGS_WRITE, stateChanged, needWriteSettings);
 	}
 	stateChanged = oldStateChanged || stateChanged;
 }
 
+// runs on the main thread
 void UI::drawSearchableWindows() {
 	static std::string windowTitle;
 	if (windowTitle.empty()) {
@@ -797,7 +835,21 @@ void UI::drawSearchableWindows() {
 		two = 2;
 	}
 	
-	ImGui::Begin(searching ? "search_main" : "##ggxrd_hitbox_overlay_main_window", &visible, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+	windowColor = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+	overrideWindowColor = !searching && settings.globalWindowTransparency != 0 && settings.globalWindowTransparency != 100;
+	if (overrideWindowColor) {
+		windowColor = { windowColor.x, windowColor.y, windowColor.z, windowColor.w * (float)settings.globalWindowTransparency / 100.F };
+	}
+	settingOutlineText = settings.outlineAllWindowText;
+	
+	windowFlags = searching
+				? ImGuiWindowFlags_NoSavedSettings
+				: settings.globalWindowTransparency == 0
+					? ImGuiWindowFlags_NoBackground
+					: 0;
+	
+	prebegin
+	ImGui::Begin(searching ? "search_main" : "##ggxrd_hitbox_overlay_main_window", &visible, windowFlags);
 	drawTextInWindowTitle(windowTitle.c_str());
 	pushSearchStack("Main UI Window");
 	
@@ -805,13 +857,7 @@ void UI::drawSearchableWindows() {
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
-		if (ImGui::BeginTable("##PayerData",
-					3,
-					ImGuiTableFlags_Borders
-					| ImGuiTableFlags_RowBg
-					| ImGuiTableFlags_NoSavedSettings
-					| ImGuiTableFlags_NoPadOuterX)
-		) {
+		if (ImGui::BeginTable("##PayerData", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
@@ -1561,6 +1607,7 @@ void UI::drawSearchableWindows() {
 			ImGui::EndTable();
 		}
 	}
+	
 	popSearchStack();
 	if (ImGui::Button(searchFieldTitle("Show Tension Values"))) {
 		showTensionData = !showTensionData;
@@ -1579,7 +1626,7 @@ void UI::drawSearchableWindows() {
 		"Also shows the total tension gained during last combo by you and the total burst gained during last combo by the opponent.\n"
 		"Note: this window will always have a transparent background, and this cannot be configured."));
 	ImGui::SameLine();
-	if (ImGui::Button(searchFieldTitle(".. (P2)"))) {
+	if (ImGui::Button(searchFieldTitle("... (P2)"))) {
 		showComboDamage[1] = !showComboDamage[1];
 	}
 	AddTooltip(searchTooltip("...for P2."));
@@ -1995,10 +2042,7 @@ void UI::drawSearchableWindows() {
 					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
 					settings.screenshotPath = screenshotsPathBuf;
 				}
-				if (keyboard.thisProcessWindow) {
-					logwrap(fputs("Posting message 'WM_APP_SCREENSHOT_PATH_UPDATED'\n", logfile));
-					PostMessageW(keyboard.thisProcessWindow, WM_APP_SCREENSHOT_PATH_UPDATED, 0, 0);
-				}
+				needWriteSettings = true;
 			}
 			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 			ImGui::SameLine();
@@ -2361,6 +2405,9 @@ void UI::drawSearchableWindows() {
 				endScene.highlightGreenWhenBecomingIdleChanged();
 			}
 			
+			intSettingPreset(settings.globalWindowTransparency, 0, 5, 20, 80.F, 100);
+			booleanSettingPreset(settings.outlineAllWindowText);
+			
 			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 			ImGui::PushTextWrapPos(0.F);
 			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
@@ -2378,6 +2425,7 @@ void UI::drawSearchableWindows() {
 		}
 		AddTooltip("Searches the UI field names and tooltips for text.");
 	}
+	preend
 	ImGui::End();
 	popSearchStack();
 	searchCollapsibleSection("Tension Data");
@@ -2385,17 +2433,12 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_tension" : "Tension Data", &showTensionData, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_tension" : "Tension Data", &showTensionData, windowFlags);
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
-		if (ImGui::BeginTable("##TensionData",
-					3,
-					ImGuiTableFlags_Borders
-					| ImGuiTableFlags_RowBg
-					| ImGuiTableFlags_NoSavedSettings
-					| ImGuiTableFlags_NoPadOuterX)
-		) {
+		if (ImGui::BeginTable("##TensionData", 3, tableFlags)) {
 			
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -2681,7 +2724,7 @@ void UI::drawSearchableWindows() {
 			}
 			
 		}
-		
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -2690,16 +2733,12 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_burst" : "Burst Gain", &showBurstGain, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_burst" : "Burst Gain", &showBurstGain, windowFlags);
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
-		if (ImGui::BeginTable("##BurstGain",
-					3,
-					ImGuiTableFlags_Borders
-					| ImGuiTableFlags_RowBg
-					| ImGuiTableFlags_NoSavedSettings
-					| ImGuiTableFlags_NoPadOuterX)
+		if (ImGui::BeginTable("##BurstGain", 3, tableFlags)
 		) {
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 220.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -2819,6 +2858,7 @@ void UI::drawSearchableWindows() {
 				ImGui::PopID();
 			}
 		}
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -2839,47 +2879,43 @@ void UI::drawSearchableWindows() {
 			if (!*aswEngine) {
 				ImGui::TextUnformatted("Match isn't running.");
 			} else
-			if (ImGui::BeginTable("##ComboDmgStun",
-						2,
-						ImGuiTableFlags_Borders
-						| ImGuiTableFlags_RowBg
-						| ImGuiTableFlags_NoSavedSettings
-						| ImGuiTableFlags_NoPadOuterX)
-			) {
+			if (ImGui::BeginTable("##ComboDmgStun", 2, tableFlags)) {
 				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5F);
 				ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5F);
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Damage"), nullptr, nullptr, true);
+				pushOutlinedText(true);
+				ImGui::TextUnformatted(searchFieldTitle("Combo Damage"));
 				AddTooltip(searchFieldTitle("Total damage done by this player as the attacker during the last combo."));
 				ImGui::TableNextColumn();
 				if (opponent.pawn) {
 					sprintf_s(strbuf, "%d", opponent.pawn.TrainingEtc_ComboDamage());
-					outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
+					ImGui::TextUnformatted(strbuf);
 				}
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Combo Stun"), nullptr, nullptr, true);
+				ImGui::TextUnformatted(searchFieldTitle("Combo Stun"));
 				AddTooltip(searchFieldTitle("Maximum total stun reached by the opponent during the last combo that was done by this player as the attacker."));
 				ImGui::TableNextColumn();
 				sprintf_s(strbuf, "%d", opponent.stunCombo);
-				outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
+				ImGui::TextUnformatted(strbuf);
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Tension Gained Last Combo"), nullptr, nullptr, true);
+				ImGui::TextUnformatted(searchFieldTitle("Tension Gained Last Combo"));
 				AddTooltip(searchFieldTitle("The total amount of tension gained during the last combo by this player as the attacker.\n"
 					"This value is in units from 0.00 (no tension) to 100.00 (full tension)."));
 				ImGui::TableNextColumn();
 				printDecimal(player.tensionGainLastCombo, 2, 0);
-				outlinedText(ImGui::GetCursorPos(), printdecimalbuf, nullptr, nullptr, true);
+				ImGui::TextUnformatted(printdecimalbuf);
 				
 				ImGui::TableNextColumn();
-				outlinedText(ImGui::GetCursorPos(), searchFieldTitle("Burst Gained Last Combo"), nullptr, nullptr, true);
+				ImGui::TextUnformatted(searchFieldTitle("Burst Gained Last Combo"));
 				AddTooltip(searchFieldTitle("The total amount of burst gained during the last combo by the opponent as the defender.\n"
 					"This value is in units from 0.00 (no burst) to 150.00 (full burst)."));
 				ImGui::TableNextColumn();
 				printDecimal(opponent.burstGainLastCombo, 2, 0);
-				outlinedText(ImGui::GetCursorPos(), printdecimalbuf, nullptr, nullptr, true);
+				ImGui::TextUnformatted(printdecimalbuf);
+				popOutlinedText();
 				
 				ImGui::EndTable();
 			}
@@ -2893,18 +2929,13 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_speed" : "Speed/Hitstun Proration/...", &showSpeedsData, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_speed" : "Speed/Hitstun Proration/...", &showSpeedsData, windowFlags);
 		
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
-		if (ImGui::BeginTable("##SpeedHitstunProrationDotDotDot",
-					3,
-					ImGuiTableFlags_Borders
-					| ImGuiTableFlags_RowBg
-					| ImGuiTableFlags_NoSavedSettings
-					| ImGuiTableFlags_NoPadOuterX)
-		) {
+		if (ImGui::BeginTable("##SpeedHitstunProrationDotDotDot", 3, tableFlags)) {
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 140.f);
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.5f);
@@ -3188,6 +3219,7 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::EndTable();
 		}
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -3196,9 +3228,10 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_projectiles" : PROJECTILES_STR, &showProjectiles, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_projectiles" : PROJECTILES_STR, &showProjectiles, windowFlags);
 		
-		if (ImGui::BeginTable("##Projectiles", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+		if (ImGui::BeginTable("##Projectiles", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
 			ImGui::TableSetupColumn("##FieldTitle", ImGuiTableColumnFlags_WidthStretch, 0.2f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.4f);
@@ -3477,6 +3510,7 @@ void UI::drawSearchableWindows() {
 			}
 			ImGui::EndTable();
 		}
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -3488,7 +3522,8 @@ void UI::drawSearchableWindows() {
 			if (searching) {
 				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 			}
-			ImGui::Begin(strbuf, showCharSpecific + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			prebegin
+			ImGui::Begin(strbuf, showCharSpecific + i, windowFlags);
 			PlayerInfo& player = endScene.players[i];
 			
 			GGIcon scaledIcon;
@@ -3977,7 +4012,7 @@ void UI::drawSearchableWindows() {
 				
 				ImGui::TextUnformatted(searchFieldTitle("Eddie Values"));
 				sprintf_s(strbuf, "##Zato_P%d", i);
-				if (ImGui::BeginTable(strbuf, 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+				if (ImGui::BeginTable(strbuf, 2, tableFlags)) {
 					ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 					ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 					
@@ -6294,6 +6329,7 @@ void UI::drawSearchableWindows() {
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
+			preend
 			ImGui::End();
 			ImGui::PopID();
 		}
@@ -6304,11 +6340,12 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_box" : "Box Extents", &showBoxExtents, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_box" : "Box Extents", &showBoxExtents, windowFlags);
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
-		if (ImGui::BeginTable("##PlayerData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+		if (ImGui::BeginTable("##PlayerData", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
 			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
@@ -6446,6 +6483,7 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::EndTable();
 		}
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -6461,7 +6499,8 @@ void UI::drawSearchableWindows() {
 			if (searching) {
 				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 			}
-			ImGui::Begin(strbuf, showCancels + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			prebegin
+			ImGui::Begin(strbuf, showCancels + i, windowFlags);
 			drawPlayerIconInWindowTitle(i);
 			
 			const float wrapWidth = ImGui::GetContentRegionAvail().x;
@@ -6518,6 +6557,7 @@ void UI::drawSearchableWindows() {
 			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
 			drawGGIcon(scaledIcon);
 			AddTooltip(thisHelpTextWillRepeat);
+			preend
 			ImGui::End();
 			ImGui::PopID();
 		}
@@ -6535,7 +6575,8 @@ void UI::drawSearchableWindows() {
 			if (searching) {
 				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 			}
-			ImGui::Begin(strbuf, showDamageCalculation + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			prebegin
+			ImGui::Begin(strbuf, showDamageCalculation + i, windowFlags);
 			drawPlayerIconInWindowTitle(i);
 			
 			const PlayerInfo& player = endScene.players[1 - i];
@@ -6719,7 +6760,7 @@ void UI::drawSearchableWindows() {
 						_zerohspacing
 						if (dmgCalc.blockType != BLOCK_TYPE_FAULTLESS) {
 							const DmgCalc::DmgCalcU::DmgCalcBlock& data = dmgCalc.u.block;
-							if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+							if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
 								ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 								ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 								ImGui::TableHeadersRow();
@@ -6871,7 +6912,7 @@ void UI::drawSearchableWindows() {
 						}
 					} else if (dmgCalc.hitResult == HIT_RESULT_ARMORED || dmgCalc.hitResult == HIT_RESULT_ARMORED_BUT_NO_DMG_REDUCTION) {
 						const DmgCalc::DmgCalcU::DmgCalcArmor& data = dmgCalc.u.armor;
-						if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+						if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
 							ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 							ImGui::TableHeadersRow();
@@ -6904,7 +6945,7 @@ void UI::drawSearchableWindows() {
 						}
 					} else if (dmgCalc.hitResult == HIT_RESULT_NORMAL) {
 						const DmgCalc::DmgCalcU::DmgCalcHit& data = dmgCalc.u.hit;
-						if (ImGui::BeginTable("##DmgCalc", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_NoPadOuterX)) {
+						if (ImGui::BeginTable("##DmgCalc", 2, tableFlags)) {
 							ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 							ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 							ImGui::TableHeadersRow();
@@ -7895,6 +7936,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
 				" field value) to see their tooltips.");
 			
+			preend
 			ImGui::End();
 			ImGui::PopID();
 		}
@@ -7913,7 +7955,8 @@ void UI::drawSearchableWindows() {
 			if (searching) {
 				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 			}
-			ImGui::Begin(strbuf, showStunmash + i, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+			prebegin
+			ImGui::Begin(strbuf, showStunmash + i, windowFlags);
 			drawPlayerIconInWindowTitle(i);
 			
 			const PlayerInfo& player = endScene.players[i];
@@ -8110,6 +8153,7 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted("Match isn't running.");
 			}
 			
+			preend
 			ImGui::End();
 			ImGui::PopID();
 		}
@@ -8202,13 +8246,7 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::SetCursorPos(cursorPosForTable);
 			
-			if (ImGui::BeginTable("##ComboRecipe",
-						1,
-						ImGuiTableFlags_Borders
-						| ImGuiTableFlags_RowBg
-						| ImGuiTableFlags_NoSavedSettings
-						| ImGuiTableFlags_NoPadOuterX)
-			) {
+			if (ImGui::BeginTable("##ComboRecipe", 1, tableFlags)) {
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.F);
 				
 				int rowCount = 1;
@@ -8222,6 +8260,10 @@ void UI::drawSearchableWindows() {
 				} isLink = IS_LINK_UNKNOWN;
 				
 				bool lastElemIsDelayed = false;
+				
+				if (transparentBackground) {
+					pushOutlinedText(true);
+				}
 				
 				for (size_t j = 0; j < comboRecipeSize; ++j) {
 					const ComboRecipeElement& elem = player.comboRecipe[j];
@@ -8259,11 +8301,7 @@ void UI::drawSearchableWindows() {
 							
 							ImGui::TableNextColumn();
 							sprintf_s(strbuf, "%u)", rowCount++);
-							if (transparentBackground) {
-								outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR, nullptr, true);
-							} else {
-								yellowText(strbuf);
-							}
+							yellowText(strbuf);
 							ImGui::SameLine();
 							
 							ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
@@ -8284,11 +8322,7 @@ void UI::drawSearchableWindows() {
 							} else {
 								sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
 							}
-							if (transparentBackground) {
-								outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
-							} else {
-								ImGui::TextUnformatted(strbuf);
-							}
+							ImGui::TextUnformatted(strbuf);
 							ImGui::PopStyleColor();
 							
 						}
@@ -8317,11 +8351,7 @@ void UI::drawSearchableWindows() {
 					
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%u)", rowCount++);
-					if (transparentBackground) {
-						outlinedText(ImGui::GetCursorPos(), strbuf, &YELLOW_COLOR, nullptr, true);
-					} else {
-						yellowText(strbuf);
-					}
+					yellowText(strbuf);
 					ImGui::SameLine();
 					
 					const char* linkText = "";
@@ -8380,20 +8410,15 @@ void UI::drawSearchableWindows() {
 					}
 					
 					if (elem.isProjectile) {
-						if (transparentBackground) {
-							outlinedText(ImGui::GetCursorPos(), strbuf, &LIGHT_BLUE_COLOR, nullptr, true);
-						} else {
-							textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
-						}
+						textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 					} else {
-						if (transparentBackground) {
-							outlinedText(ImGui::GetCursorPos(), strbuf, nullptr, nullptr, true);
-						} else {
-							ImGui::TextUnformatted(strbuf);
-						}
+						ImGui::TextUnformatted(strbuf);
 					}
 				}
 				
+				if (transparentBackground) {
+					popOutlinedText();
+				}
 				ImGui::EndTable();
 			}
 			
@@ -8420,7 +8445,8 @@ void UI::drawSearchableWindows() {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
 		ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
-		ImGui::Begin(searching ? "search_highlightedcancels" : "  Highlighted Cancels", &showMoveHighlightWindow, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_highlightedcancels" : "  Highlighted Cancels", &showMoveHighlightWindow, windowFlags);
 		if (sortedMovesRedoPending || sortedMovesRedoPendingWhenAswEngingExists && *aswEngine) {
 			sortedMovesRedoPending = false;
 			if (*aswEngine) sortedMovesRedoPendingWhenAswEngingExists = false;
@@ -8498,11 +8524,7 @@ void UI::drawSearchableWindows() {
 			if (vec.empty()) continue;
 			ImGui::SeparatorText(characterNames[charIter]);
 			sprintf_s(strbuf, "##HighlightedMoves%d", charIter);
-			if (ImGui::BeginTable(strbuf, 4,
-					ImGuiTableFlags_Borders
-					| ImGuiTableFlags_RowBg
-					| ImGuiTableFlags_NoSavedSettings
-					| ImGuiTableFlags_NoPadOuterX)) {
+			if (ImGui::BeginTable(strbuf, 4, tableFlags)) {
 				ImGui::TableSetupColumn("Move", ImGuiTableColumnFlags_WidthStretch, 1.F);
 				ImGui::TableSetupColumn("Red", ImGuiTableColumnFlags_WidthStretch, 0.11F);
 				ImGui::TableSetupColumn("Green", ImGuiTableColumnFlags_WidthStretch, 0.11F);
@@ -8601,6 +8623,7 @@ void UI::drawSearchableWindows() {
 				ImGui::EndTable();
 			}
 		}
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -8620,7 +8643,8 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_frame" : "Frame Advantage Help", &showFrameAdvTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_frame" : "Frame Advantage Help", &showFrameAdvTooltip, windowFlags);
 		ImGui::PushTextWrapPos(0.F);
 		searchFieldTitle("Help Contents");
 		ImGui::TextUnformatted(searchTooltip(
@@ -8653,6 +8677,7 @@ void UI::drawSearchableWindows() {
 			" then you may untick the 'Settings - General Settings - Frame Advantage: Don't Use Pre-Blockstun Time' checkbox"
 			" (called frameAdvantage_dontUsePreBlockstunTime in the INI file)."));
 		ImGui::PopTextWrapPos();
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -8662,7 +8687,8 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_startup" : "'Startup' Field Help", &showStartupTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_startup" : "'Startup' Field Help", &showStartupTooltip, windowFlags);
 		ImGui::PushTextWrapPos(0.F);
 		searchFieldTitle("Help Contents");
 		ImGui::TextUnformatted(searchTooltip(
@@ -8687,6 +8713,7 @@ void UI::drawSearchableWindows() {
 			" before, over a + sign;\n"
 			"7) Some other moves may get combined with the ones they were performed from as well, using the + sign."));
 		ImGui::PopTextWrapPos();
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -8696,7 +8723,8 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_active" : "'Active' Field Help", &showActiveTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_active" : "'Active' Field Help", &showActiveTooltip, windowFlags);
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -8736,6 +8764,7 @@ void UI::drawSearchableWindows() {
 			" and 2 active frames after the superfreeze. The displayed result for active frames will be: 3. If we don't do this, Venom Red Hail hit up close"
 			" will display 0 active frames during superfreeze or on the frame after it."));
 		ImGui::PopTextWrapPos();
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -8745,7 +8774,8 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_total" : "'Total' Field Help", &showTotalTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_total" : "'Total' Field Help", &showTotalTooltip, windowFlags);
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -8777,6 +8807,7 @@ void UI::drawSearchableWindows() {
 			"\n"
 			"If the move started up during superfreeze, the startup+active+recovery will be = total+1 (see tooltip of 'Active')."));
 		ImGui::PopTextWrapPos();
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -8786,7 +8817,8 @@ void UI::drawSearchableWindows() {
 		if (searching) {
 			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 		}
-		ImGui::Begin(searching ? "search_invul" : "Invul Help", &showInvulTooltip, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+		prebegin
+		ImGui::Begin(searching ? "search_invul" : "Invul Help", &showInvulTooltip, windowFlags);
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -8825,6 +8857,7 @@ void UI::drawSearchableWindows() {
 			" armor overdrive unblockables such as Kum Enlightened 3000 Palm Strike max charge.\n"
 			"Some moves such as Kum max charge Falcon Dive cause guard crush and are not \"unblockables\".\n\n"
 			"Low profile invul can be configured using Settings - General Settings - Low Profile Cut-Off Height"));
+		preend
 		ImGui::End();
 	}
 	popSearchStack();
@@ -8838,7 +8871,6 @@ void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9*
 	if (!imguiInitialized || gifMode.modDisabled || !drawData) {
 		return;
 	}
-	std::unique_lock<std::mutex> uiGuard(lock);
 	initializeD3D(device);
 	
 	substituteTextureIDs(device, drawData, iconTexture);
@@ -8846,7 +8878,6 @@ void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9*
 }
 
 // Runs on the main thread
-// Must be performed while holding the -lock- mutex.
 void UI::initialize() {
 	if (imguiInitialized || !visible && !needShowFramebarCached || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
 	ImGui::CreateContext();
@@ -8854,8 +8885,8 @@ void UI::initialize() {
 	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
 	
 	ImGuiIO& io = ImGui::GetIO();
-	BYTE* unused;
-	io.Fonts->GetTexDataAsRGBA32(&unused, nullptr, nullptr);  // imGui complains if we don't call this before preparing its draw data
+	io.Fonts->GetTexDataAsRGBA32(&fontData, &fontDataWidth, &fontDataHeight);  // imGui complains if we don't call this before preparing its draw data
+	
 	io.Fonts->SetTexID((ImTextureID)TEXID_IMGUIFONT);  // I use fake wishy-washy IDs instead of real textures, because they're created on the
 												 // the graphics thread and this code is running on the main thread.
 												 // I cannot create our textures on the main thread, because I inject our DLL in the middle
@@ -8888,6 +8919,10 @@ void UI::initialize() {
 void UI::handleResetBefore() {
 	if (imguiD3DInitialized) {
 		ImGui_ImplDX9_InvalidateDeviceObjects();
+		if (imguiFontAlt) {
+			imguiFontAlt = nullptr;
+			attemptedCreatingAltFont = false;
+		}
 	}
 }
 
@@ -8895,7 +8930,8 @@ void UI::handleResetBefore() {
 void UI::handleResetAfter() {
 	if (imguiD3DInitialized) {
 		ImGui_ImplDX9_CreateDeviceObjects();
-		onImGuiMessWithFontTexID();
+		IDirect3DDevice9** backend = (IDirect3DDevice9**)ImGui::GetIO().BackendRendererUserData;
+		onImGuiMessWithFontTexID(backend ? *backend : nullptr);
 	}
 }
 
@@ -8922,7 +8958,7 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 			return TRUE;
 		
 		switch (message) {
-		case WM_APP_SCREENSHOT_PATH_UPDATED: {
+		case WM_APP_WIND_UP_TIMER_FOR_DEFERRED_SETTINGS_WRITE: {
 			if (!timerDisabled) {
 				if (timerId == 0) {
 					timerId = SetTimer(NULL, 0, 1000, Timerproc);
@@ -9269,6 +9305,7 @@ void UI::copyDrawDataTo(std::vector<BYTE>& destinationBuffer) {
 	
 }
 
+// runs on the main thread
 void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawData* referenceDrawData, ImDrawListBackup** drawLists, int drawListsCount) {
 	
 	if (!referenceDrawData->Valid) return;
@@ -9316,6 +9353,7 @@ void makeRenderDataFromDrawLists(std::vector<BYTE>& destination, const ImDrawDat
 	
 }
 
+// runs on the main thread
 void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList) {
 	destination.CmdBuffer.resize(drawList->CmdBuffer.Size);
 	destination.IdxBuffer.resize(drawList->IdxBuffer.Size);
@@ -9334,6 +9372,8 @@ void UI::substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3
 			ImDrawCmd& cmd = drawList->CmdBuffer[j];
 			if (cmd.TextureId == (ImTextureID)TEXID_IMGUIFONT) {
 				cmd.TextureId = imguiFont;
+			} else if (cmd.TextureId == (ImTextureID)TEXID_IMGUIFONT_OUTLINED) {
+				cmd.TextureId = imguiFontAlt ? (IDirect3DTexture9*)imguiFontAlt : imguiFont;
 			} else if (cmd.TextureId == (ImTextureID)TEXID_GGICON) {
 				cmd.TextureId = iconTexture;
 			} else if (cmd.TextureId == (ImTextureID)TEXID_FRAMES_HELP) {
@@ -9345,24 +9385,27 @@ void UI::substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3
 	}
 }
 
-// Must be performed while holding the -lock- mutex
 // Runs on the graphics thread
 void UI::initializeD3D(IDirect3DDevice9* device) {
 	if (!imguiD3DInitialized) {
 		imguiD3DInitialized = true;
 		ImGui_ImplDX9_Init(device);
 		ImGui_ImplDX9_NewFrame();
-		onImGuiMessWithFontTexID();
+		onImGuiMessWithFontTexID(device);
 	}
 }
 
 // Runs on the graphics thread
-void UI::onImGuiMessWithFontTexID() {
-	ImGuiIO& io = ImGui::GetIO();
-	IDirect3DTexture9* tmp = (IDirect3DTexture9*)io.Fonts->TexID;  // has SetTexID() but no GetTexID()... says it will pass it back to me if I draw something. No thx
-	if (tmp != (IDirect3DTexture9*)TEXID_IMGUIFONT) {
-		imguiFont = tmp;
-		io.Fonts->SetTexID((ImTextureID)TEXID_IMGUIFONT);  // undo the TexID replacement ImGui_ImplDX9_NewFrame has done. You can read more about this stupid gig we're doing in UI::initialize()
+void UI::onImGuiMessWithFontTexID(IDirect3DDevice9* device) {
+	imguiFont = ImGui_ImplDX9_getFontTexture();
+	if (imguiFont && !imguiFontAlt && !fontDataAlt.empty() && device) {
+		if (!attemptedCreatingAltFont) {
+			attemptedCreatingAltFont = true;
+			imguiFontAlt.Attach(graphics.createTexture(device, fontDataAlt.data(), fontDataWidth, fontDataHeight));
+		}
+	}
+	if (!imguiFont) {
+		imguiFontAlt = nullptr;
 	}
 }
 
@@ -9394,6 +9437,35 @@ const char* characterNames[25] {
 	"Answer"     // 24
 };
 
+// from bbscript: charaName instruction
+const char* characterNamesCode[25] {
+	"sol",  // 0
+	"kyk",  // 1
+	"may",  // 2
+	"mll",  // 3
+	"zat",  // 4
+	"pot",  // 5
+	"chp",  // 6
+	"fau",  // 7
+	"axl",  // 8
+	"ven",  // 9
+	"sly",  // 10
+	"ino",  // 11
+	"bed",  // 12
+	"ram",  // 13
+	"sin",  // 14
+	"elp",  // 15
+	"leo",  // 16
+	"jhn",  // 17
+	"jko",  // 18
+	"jam",  // 19
+	"kum",  // 20
+	"rvn",  // 21
+	"dzy",  // 22
+	"bkn",  // 23
+	"ans"   // 24
+};
+
 const char* characterNamesFull[25] {
 	"Sol Badguy",	  // 0
 	"Ky Kiske",		  // 1
@@ -9422,6 +9494,7 @@ const char* characterNamesFull[25] {
 	"Answer"          // 24
 };
 
+// runs on the main thread
 GGIcon coordsToGGIcon(int x, int y, int w, int h) {
 	GGIcon result;
 	result.size = ImVec2{ (float)w, (float)h };
@@ -9430,10 +9503,12 @@ GGIcon coordsToGGIcon(int x, int y, int w, int h) {
 	return result;
 }
 
+// runs on the main thread
 void drawGGIcon(const GGIcon& icon) {
 	ImGui::Image((ImTextureID)TEXID_GGICON, icon.size, icon.uvStart, icon.uvEnd);
 }
 
+// runs on the main thread
 GGIcon scaleGGIconToHeight(const GGIcon& icon, float height) {
 	GGIcon result;
 	result.size = ImVec2{ icon.size.x * height / icon.size.y, height };
@@ -9442,6 +9517,7 @@ GGIcon scaleGGIconToHeight(const GGIcon& icon, float height) {
 	return result;
 }
 
+// runs on the main thread
 CharacterType getPlayerCharacter(int playerSide) {
 	if (!*aswEngine || playerSide != 0 && playerSide != 1) return (CharacterType)-1;
 	entityList.populate();
@@ -9450,6 +9526,7 @@ CharacterType getPlayerCharacter(int playerSide) {
 	return ent.characterType();
 }
 
+// runs on the main thread
 void drawPlayerIconWithTooltip(int playerSide) {
 	CharacterType charType = getPlayerCharacter(playerSide);
 	GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(charType), 14.F);
@@ -9459,6 +9536,7 @@ void drawPlayerIconWithTooltip(int playerSide) {
 	}
 }
 
+// runs on the main thread
 void drawFontSizedPlayerIconWithCharacterName(CharacterType charType) {
 	GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(charType), ImGui::GetFontSize());
 	drawGGIcon(scaledIcon);
@@ -9468,6 +9546,7 @@ void drawFontSizedPlayerIconWithCharacterName(CharacterType charType) {
 	textUnformattedColored(LIGHT_BLUE_COLOR, buf);
 }
 
+// runs on the main thread
 void drawFontSizedPlayerIconWithText(CharacterType charType, const char* text) {
 	GGIcon scaledIcon = scaleGGIconToHeight(getCharIcon(charType), ImGui::GetFontSize());
 	drawGGIcon(scaledIcon);
@@ -9476,6 +9555,7 @@ void drawFontSizedPlayerIconWithText(CharacterType charType, const char* text) {
 	ImGui::TextUnformatted(text);
 }
 
+// runs on the main thread
 bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart) {
 	unsigned int length = 0;
 	const wchar_t* ptr = endingPart;
@@ -9497,6 +9577,7 @@ bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart) {
 	return length == 0;
 }
 
+// runs on the main thread
 int findCharRev(const char* buf, char c) {
 	const char* ptr = buf;
 	while (*ptr != '\0') {
@@ -9509,6 +9590,7 @@ int findCharRev(const char* buf, char c) {
 	return -1;
 }
 
+// runs on the main thread
 int findCharRevW(const wchar_t* buf, wchar_t c) {
 	const wchar_t* ptr = buf;
 	while (*ptr != '\0') {
@@ -9521,6 +9603,7 @@ int findCharRevW(const wchar_t* buf, wchar_t c) {
 	return -1;
 }
 
+// runs on the main thread
 bool UI::selectFile(std::wstring& path, HWND owner) {
 	std::wstring szFile;
 	szFile = lastSelectedPath;
@@ -9564,6 +9647,7 @@ bool UI::selectFile(std::wstring& path, HWND owner) {
 	return true;
 }
 
+// runs on the main thread
 void AddTooltip(const char* desc) {
 	if (ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -9573,16 +9657,19 @@ void AddTooltip(const char* desc) {
 	}
 }
 
+// runs on the main thread
 void HelpMarker(const char* desc) {
 	ImGui::TextDisabled("(?)");
 	AddTooltip(desc);
 }
 
+// runs on the main thread
 void UI::HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey) {
 	ImGui::TextDisabled("(?)");
 	AddTooltipWithHotkey(desc, descEnd, hotkey);
 }
 
+// runs on the main thread
 void UI::AddTooltipWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey) {
 	if (searching || ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -9597,33 +9684,39 @@ void UI::AddTooltipWithHotkey(const char* desc, const char* descEnd, std::vector
 	}
 }
 
+// runs on the main thread
 void RightAlign(float w) {
 	const float rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth();
 	const float posX = (rightEdge - w);
 	ImGui::SetCursorPosX(posX);
 }
 
+// runs on the main thread
 void RightAlignedText(const char* txt) {
 	RightAlign(ImGui::CalcTextSize(txt).x);
 	ImGui::TextUnformatted(txt);
 }
 
+// runs on the main thread
 void RightAlignedColoredText(const ImVec4& color, const char* txt) {
 	RightAlign(ImGui::CalcTextSize(txt).x);
 	ImGui::TextColored(color, txt);
 }
 
+// runs on the main thread
 void CenterAlign(float w) {
 	const auto rightEdge = ImGui::GetCursorPosX() + ImGui::GetColumnWidth() / 2;
 	const auto posX = (rightEdge - w / 2);
 	ImGui::SetCursorPosX(posX);
 }
 
+// runs on the main thread
 void CenterAlignedText(const char* txt) {
 	CenterAlign(ImGui::CalcTextSize(txt).x);
 	ImGui::TextUnformatted(txt);
 }
 
+// runs on the main thread
 const GGIcon& getCharIcon(CharacterType charType) {
 	if (charType >= 0 && charType < 25) {
 		return characterIconsBorderless[charType];
@@ -9631,12 +9724,13 @@ const GGIcon& getCharIcon(CharacterType charType) {
 	return questionMarkIcon;
 }
 
+// runs on the main thread
 const GGIcon& getPlayerCharIcon(int playerSide) {
 	return getCharIcon(getPlayerCharacter(playerSide));
 }
 
-static const float inverse_255 = 1.F / 255.F;
 // color = 0xRRGGBB
+// runs on the main thread
 ImVec4 RGBToVec(DWORD color) {
 	// they also wrote it as r, g, b, a... just in struct form
 	return {
@@ -9648,6 +9742,7 @@ ImVec4 RGBToVec(DWORD color) {
 }
 
 // color = 0xAARRGGBB
+// runs on the main thread
 ImVec4 ARGBToVec(DWORD color) {
 	// they also wrote it as r, g, b, a... just in struct form
 	return {
@@ -9658,23 +9753,26 @@ ImVec4 ARGBToVec(DWORD color) {
 	};
 }
 
+// runs on the main thread
 const char* formatBoolean(bool value) {
 	static const char* trueStr = "true";
 	static const char* falseStr = "false";
 	return value ? trueStr : falseStr;
 }
 
+// runs on the main thread
 float getItemSpacing() {
 	return ImGui::GetStyle().ItemSpacing.x;
 }
 
+// runs on the main thread
 bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource) {
 	if (!resource) resource = std::make_unique<PngResource>();
 	if (!loadPngResource(hModule, resourceId, *resource)) return false;
 	return true;
 }
 
-
+// runs on the main thread
 bool UI::addDigit(HMODULE hModule, WORD resourceId, WORD resourceIdThickness1, DigitFrame& digit) {
 	for (std::unique_ptr<PngResource>& ptr : digit.thickness) {
 		if (!ptr) ptr = std::make_unique<PngResource>();
@@ -9684,6 +9782,7 @@ bool UI::addDigit(HMODULE hModule, WORD resourceId, WORD resourceIdThickness1, D
 	return true;
 }
 
+// runs on the main thread
 void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor, bool highQuality) {
 	if (!color) color = &WHITE_COLOR;
 	outlinedTextJustTheOutline(pos, text, outlineColor, highQuality);
@@ -9697,6 +9796,7 @@ void outlinedText(ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineCo
 	}
 }
 
+// runs on the main thread
 void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineColor, bool highQuality) {
 	if (!outlineColor) outlineColor = &BLACK_COLOR;
 	
@@ -9733,6 +9833,7 @@ void outlinedTextJustTheOutline(ImVec2 pos, const char* text, ImVec4* outlineCol
     ImGui::PopStyleColor();
 }
 
+// runs on the main thread
 void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4* color, ImVec4* outlineColor, bool highQuality) {
 	if (!color) color = &WHITE_COLOR;
 	if (!outlineColor) outlineColor = &BLACK_COLOR;
@@ -9753,6 +9854,7 @@ void outlinedTextRaw(ImDrawList* drawList, ImVec2 pos, const char* text, ImVec4*
 	drawList->AddText(pos, clr, text);
 }
 
+// runs on the main thread
 int numDigits(int num) {
 	int answer = 1;
 	num /= 10;
@@ -9763,6 +9865,7 @@ int numDigits(int num) {
 	return answer;
 }
 
+// runs on the main thread
 void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description) {
 	if (!resourceBothVersions) resourceBothVersions = std::make_unique<PngResource>();
 	addImage(hModule, resourceIdBothVersions, resourceBothVersions);
@@ -9773,6 +9876,7 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBoth
 	};
 }
 
+// runs on the main thread
 void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
                  WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, StringWithLength description) {
 	if (!resourceColorblind) resourceColorblind = std::make_unique<PngResource>();
@@ -9795,6 +9899,7 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColo
 }
 
 // ARGB color
+// runs on the main thread
 void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType,
 		WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions,
 		DWORD outlineColorNonColorblind, DWORD outlineColorColorblind,
@@ -9811,6 +9916,7 @@ void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType,
 	frameMarkerArtColorblind[markerType].hasMiddleLine = hasMiddleLineColorblind;
 }
 
+// runs on the main thread
 void printInputs(char*& buf, size_t& bufSize, InputName** motions, int motionCount, InputName** buttons, int buttonsCount) {
 	char* bufOrig = buf;
 	int result;
@@ -9903,6 +10009,7 @@ void printInputs(char*& buf, size_t& bufSize, InputName** motions, int motionCou
 	}
 }
 
+// runs on the main thread
 int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 	if (!bufSize) return 0;
 	*buf = '\0';
@@ -9954,6 +10061,7 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 	return buf - origBuf;
 }
 
+// runs on the main thread
 bool UI::needShowFramebar() const {
 	if (settings.showFramebar
 			&& (!settings.closingModWindowAlsoHidesFramebar || visible)
@@ -9982,6 +10090,7 @@ bool UI::needShowFramebar() const {
 	}
 }
 
+// runs on the main thread
 template<typename T>
 int printCancels(const T& cancels, float maxY) {
 	struct Requirement {
@@ -10074,12 +10183,14 @@ int printCancels(const T& cancels, float maxY) {
 	return counter - 1;
 }
 
+// runs on the main thread
 void UI::hitboxesHelpWindow() {
 	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
 	if (searching) {
 		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 	}
-	ImGui::Begin(searching ? "search_hitboxeshelp" : "Hitboxes Help", &showBoxesHelp, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+	prebegin
+	ImGui::Begin(searching ? "search_hitboxeshelp" : "Hitboxes Help", &showBoxesHelp, windowFlags);
 	ImGui::PushTextWrapPos(0.F);
 	static std::string boxesDesc1;
 	if (boxesDesc1.empty()) {
@@ -10419,12 +10530,14 @@ void UI::hitboxesHelpWindow() {
 	ImGui::Separator();
 	
 	yellowText("General notes about throw boxes");
-	ImGui::TextUnformatted("If a move (like Riot Stamp) has a throw box as well as hitbox - both the hitbox and the throw boxes must connect.");
+	ImGui::TextUnformatted("If a move (like Riot Stamp) has a throw box as well as hitbox - both the hitbox and the throw box must connect.");
 	
 	ImGui::PopTextWrapPos();
+	preend
 	ImGui::End();
 }
 
+// runs on the main thread
 void UI::framebarHelpWindow() {
 	packTextureHelp();
 	
@@ -10432,7 +10545,8 @@ void UI::framebarHelpWindow() {
 	if (searching) {
 		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
 	}
-	ImGui::Begin(searching ? "search_framebarhelp" : "Framebar Help", &showFramebarHelp, searching ? ImGuiWindowFlags_NoSavedSettings : 0);
+	prebegin
+	ImGui::Begin(searching ? "search_framebarhelp" : "Framebar Help", &showFramebarHelp, windowFlags);
 	float wordWrapWidth = ImGui::GetContentRegionAvail().x;
 	ImGui::PushTextWrapPos(wordWrapWidth);
 	
@@ -10724,10 +10838,12 @@ void UI::framebarHelpWindow() {
 		wordWrapWidth,
 		icons,
 		_countof(icons));
+	preend
 	ImGui::End();
 }
 
 // This is from imgui_draw.cpp::ImFont::CalcWordWrapPositionA, modified version. Added icons
+// runs on the main thread
 const char* imGuiDrawWrappedTextWithIcons_CalcWordWrapPositionA(float scale,
 		const char* text,
 		const char* text_end,
@@ -10853,6 +10969,7 @@ const char* imGuiDrawWrappedTextWithIcons_CalcWordWrapPositionA(float scale,
 }
 
 // You must call PopTextWrapPos if you set wrap width with PushTextWrapPos before calling this function
+// runs on the main thread
 void imGuiDrawWrappedTextWithIcons(const char* textStart,
 		const char* textEnd,
 		float wrap_width,
@@ -10971,6 +11088,7 @@ void imGuiDrawWrappedTextWithIcons(const char* textStart,
 		x += framebarTooltipInputIconSize.x + spacing; \
 	}
 
+// runs on the main thread
 static inline const InputsIcon* determineDirectionIcon(Input row) {
 	if (row.right) {
 		if (row.up) {
@@ -10997,6 +11115,7 @@ static inline const InputsIcon* determineDirectionIcon(Input row) {
 	}
 }
 
+// runs on the main thread
 static inline void drawDirectionIcon(ImDrawList* drawList, float& x, float y,
 		float spacing, Input row, Input prevRow, const ImVec2& framebarTooltipInputIconSize,
 		ImU32 darkTint) {
@@ -11013,6 +11132,7 @@ static inline void drawDirectionIcon(ImDrawList* drawList, float& x, float y,
 	}
 }
 
+// runs on the main thread
 static inline void printInputsRowP1(ImDrawList* drawList, float x, float y,
 			float spacing, int frameCount, Input row, Input prevRow, const ImVec2& framebarTooltipInputIconSize,
 			float textPaddingY, ImU32 darkTint, bool printFrameCounts, float maxTextSize) {
@@ -11035,6 +11155,7 @@ static inline void printInputsRowP1(ImDrawList* drawList, float x, float y,
 	PRINT_INPUT_BUTTON(special, INPUT_ICON_SPECIAL)
 }
 
+// runs on the main thread
 static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
 		float spacing, int frameCount, Input row, Input prevRow, const ImVec2& framebarTooltipInputIconSize,
 		float textPaddingY, ImU32 darkTint, bool printFrameCounts, float maxTextSize) {
@@ -11079,6 +11200,7 @@ static inline void printInputsRowP2(ImDrawList* drawList, float x, float y,
 
 #undef PRINT_INPUT_BUTTON
 
+// runs on the main thread
 void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex) {
 	CharacterType charType = endScene.players[playerIndex].charType;
 	
@@ -11327,6 +11449,7 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 	
 }
 
+// runs on the main thread
 void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth) {
 	
 	static const StringWithLength invulTitle = "Invul: ";
@@ -12435,6 +12558,7 @@ void UI::drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, f
 	}
 }
 
+// runs on the main thread
 template<typename FrameT>
 inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 			const SkippedFramesInfo& skippedFramesElem, CharacterType owningPlayerCharType,
@@ -12825,6 +12949,7 @@ inline void drawFrameTooltip(FrameT& frame, int playerIndex, bool useSlang,
 
 /// <summary>
 /// Draws backgrounds of frames - the base frame graphics. Also registers mouse hovering over a frame and draws the frame tooltip window.
+/// runs on the main thread
 /// </summary>
 /// <typeparam name="FramebarT">Possible values: PlayerFramebar, Framebar</typeparam>
 /// <typeparam name="FrameT">Possible values: PlayerFrame, Frame</typeparam>
@@ -12983,6 +13108,7 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 	}
 }
 
+// runs on the main thread
 void drawPlayerFramebar(PlayerFramebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker, int playerIndex,
 			const std::vector<SkippedFramesInfo>& skippedFrames, CharacterType charType, float frameHeight,
 			const FrameAddon& newHitArt, const HitConnectedArtSelector& hitConnectedArtSelector) {
@@ -12990,6 +13116,7 @@ void drawPlayerFramebar(PlayerFramebar& framebar, UI::FrameDims* preppedDims, Im
 		frameHeight, newHitArt, hitConnectedArtSelector);
 }
 
+// runs on the main thread
 void drawProjectileFramebar(Framebar& framebar, UI::FrameDims* preppedDims, ImU32 tintDarker,
 			const std::vector<SkippedFramesInfo>& skippedFrames, const PlayerFramebar& correspondingPlayersFramebar,
 			CharacterType owningPlayerCharType, float frameHeight, const FrameAddon& newHitArt,
@@ -12998,6 +13125,7 @@ void drawProjectileFramebar(Framebar& framebar, UI::FrameDims* preppedDims, ImU3
 		frameHeight, newHitArt, hitConnectedArtSelector);
 }
 
+// runs on the main thread
 template<typename FramebarT, typename FrameT>
 void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, float firstFrameTopY, float firstFrameBottomY, bool* onlyReport) {
 	const bool considerSimilarFrameTypesSameForFrameCounts = settings.considerSimilarFrameTypesSameForFrameCounts;
@@ -13057,6 +13185,7 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 	}
 }
 
+// runs on the main thread
 void drawDigit(char digit, const UI::FrameDims& dims, float frameNumberYTop, float frameNumberYBottom, ImU32 tint, const DigitUVs* uvs) {
 	const DigitUVs& digitImg = uvs[digit];
 	
@@ -13074,6 +13203,7 @@ void drawDigit(char digit, const UI::FrameDims& dims, float frameNumberYTop, flo
 }
 
 // Draws frame counts of contiguous groups of similarly-typed frames, on top of the frames
+// runs on the main thread
 template<typename FramebarT, typename FrameT>
 void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float frameNumberYTop, float frameNumberYBottom,
 			char* hasDigit, const DigitUVs* uvs) {
@@ -13248,6 +13378,7 @@ void drawDigits(const FramebarT& framebar, UI::FrameDims* preppedDims, float fra
 	}
 }
 
+// runs on the main thread
 void printChippInvisibility(int current, int max) {
 	int percentage = current % 120;
 	if (percentage <= 65) {
@@ -13266,18 +13397,21 @@ void printChippInvisibility(int current, int max) {
 		max);
 }
 
+// runs on the main thread
 void textUnformattedColored(ImVec4 color, const char* str, const char* strEnd) {
 	ImGui::PushStyleColor(ImGuiCol_Text, color);
 	ImGui::TextUnformatted(str, strEnd);
 	ImGui::PopStyleColor();
 }
 
+// runs on the main thread
 void yellowText(const char* str, const char* strEnd) {
 	ImGui::PushStyleColor(ImGuiCol_Text, YELLOW_COLOR);
 	ImGui::TextUnformatted(str, strEnd);
 	ImGui::PopStyleColor();
 }
 
+// runs on the main thread
 void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, const char* strEnd, bool needSameLine, bool needManualMultilineOutput, bool isLastLine) {
 	if (needSameLine) ImGui::SameLine();
 	ImFont* font = ImGui::GetFont();
@@ -13322,6 +13456,7 @@ void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, c
 	}
 }
 
+// runs on the main thread
 static void drawTextButParenthesesInGrayColor(const char* str) {
 	
 	struct StyleVarPopper {
@@ -13427,6 +13562,7 @@ static void drawTextButParenthesesInGrayColor(const char* str) {
 	}
 }
 
+// runs on the main thread
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame) {
 	char* buf = strbuf;
 	size_t bufSize = sizeof strbuf;
@@ -13476,6 +13612,7 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 	}
 }
 
+// runs on the main thread
 void UI::startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag) {
 	for (int i = 0; i < two; ++i) {
 		PlayerInfo& player = endScene.players[i];
@@ -13516,6 +13653,7 @@ void UI::startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag) 
 	}
 }
 
+// runs on the main thread
 bool UI::booleanSettingPresetWithHotkey(bool& settingsRef, std::vector<int>& hotkey) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
@@ -13529,28 +13667,28 @@ bool UI::booleanSettingPresetWithHotkey(bool& settingsRef, std::vector<int>& hot
 	return itHappened;
 }
 
+// runs on the main thread
 bool UI::booleanSettingPreset(bool& settingsRef) {
 	bool itHappened = false;
 	bool boolValue = settingsRef;
 	StringWithLength text = settings.getOtherUINameWithLength(&settingsRef);
 	if (settingsPresetsUseOutlinedText) {
-		float squareSize = ImGui::GetFrameHeight();
-		ImGuiStyle& style = ImGui::GetStyle();
-		ImVec2 cursor = ImGui::GetCursorPos();
-		ImVec2 newPos = {cursor.x + squareSize + style.ItemInnerSpacing.x, cursor.y + style.FramePadding.y};
-		outlinedTextJustTheOutline(newPos, text.txt, nullptr, true);
-		ImGui::SetCursorPos(cursor);
+		pushOutlinedText(true);
 	}
 	if (ImGui::Checkbox(searchFieldTitle(text), &boolValue)) {
 		settingsRef = boolValue;
 		needWriteSettings = true;
 		itHappened = true;
 	}
+	if (settingsPresetsUseOutlinedText) {
+		popOutlinedText();
+	}
 	ImGui::SameLine();
 	HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settingsRef)));
 	return itHappened;
 }
 
+// runs on the main thread
 bool UI::float4SettingPreset(float& settingsPtr) {
 	bool attentionPossiblyNeeded = false;
 	float floatValue = settingsPtr;
@@ -13565,6 +13703,7 @@ bool UI::float4SettingPreset(float& settingsPtr) {
 	return attentionPossiblyNeeded;
 }
 
+// runs on the main thread
 bool UI::intSettingPreset(int& settingsPtr, int minValue, int step, int stepFast, float fieldWidth, int maxValue, bool isDisabled) {
 	bool isChange = false;
 	int oldValue = settingsPtr;
@@ -13598,11 +13737,13 @@ bool UI::intSettingPreset(int& settingsPtr, int minValue, int step, int stepFast
 	return isChange;
 }
 
+// runs on the main thread
 void drawPlayerIconInWindowTitle(int playerIndex) {
 	GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(playerIndex), 14.F);
 	drawPlayerIconInWindowTitle(scaledIcon);
 }
 
+// runs on the main thread
 void drawTextInWindowTitle(const char* txt) {
 	ImVec2 windowPos = ImGui::GetWindowPos();
 	float windowWidth = ImGui::GetWindowWidth();
@@ -13628,6 +13769,7 @@ void drawTextInWindowTitle(const char* txt) {
 	}
 }
 
+// runs on the main thread
 void drawPlayerIconInWindowTitle(GGIcon& icon) {
 	ImVec2 windowPos = ImGui::GetWindowPos();
 	float windowWidth = ImGui::GetWindowWidth();
@@ -13660,6 +13802,7 @@ void drawPlayerIconInWindowTitle(GGIcon& icon) {
 	}
 }
 
+// runs on the main thread
 template<typename T>
 void UI::printAllCancels(const T& cancels,
 		bool enableSpecialCancel,
@@ -13740,6 +13883,7 @@ void UI::printAllCancels(const T& cancels,
 	}
 }
 
+// runs on the main thread
 bool printMoveFieldTooltip(const PlayerInfo& player) {
 	if (player.canPrintTotal() || player.startupType() != -1) {
 		*strbuf = '\0';
@@ -13758,6 +13902,7 @@ bool printMoveFieldTooltip(const PlayerInfo& player) {
 	return false;
 }
 
+// runs on the main thread
 bool printMoveField(const PlayerInfo& player) {
 	if (player.canPrintTotal() || player.startupType() != -1) {
 		*strbuf = '\0';
@@ -13777,6 +13922,7 @@ bool printMoveField(const PlayerInfo& player) {
 	return false;
 }
 
+// runs on the main thread
 void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip) {
 	CenterAlign(ImGui::CalcTextSize(title).x);
 	ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { 0.F, 0.F, 0.F, 0.F });
@@ -13789,6 +13935,7 @@ void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityV
 	}
 }
 
+// runs on the main thread
 void prepareLastNames(const char** lastName, const PlayerInfo& player, bool disableSlang,
 						int* lastNameDuration) {
 	*lastName = player.getLastPerformedMoveName(disableSlang);
@@ -13815,6 +13962,7 @@ void prepareLastNames(const char** lastName, const PlayerInfo& player, bool disa
 	}
 }
 
+// runs on the main thread
 static bool printNameParts(int playerIndex, std::vector<NameDuration>& elems, char* buf, size_t bufSize) {
 	int result;
 	bool isFirst = true;
@@ -13829,6 +13977,7 @@ static bool printNameParts(int playerIndex, std::vector<NameDuration>& elems, ch
 	return !isFirst;
 }
 
+// runs on the main thread
 const char* formatHitResult(HitResult hitResult) {
 	switch (hitResult) {
 		case HIT_RESULT_NONE: return "No Hit";
@@ -13841,6 +13990,7 @@ const char* formatHitResult(HitResult hitResult) {
 	}
 }
 
+// runs on the main thread
 const char* formatBlockType(BlockType blockType) {
 	switch (blockType) {
 		case BLOCK_TYPE_NORMAL: return "Normal";
@@ -13850,6 +14000,7 @@ const char* formatBlockType(BlockType blockType) {
 	}
 }
 
+// runs on the main thread
 int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int guts, int gutsLevel) {
 	ImGui::TableNextColumn();
 	ImGui::TextUnformatted("Defense Modifier");
@@ -13932,6 +14083,7 @@ int printDamageGutsCalculation(int x, int defenseModifier, int gutsRating, int g
 	return x;
 }
 
+// runs on the main thread
 int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int attackKezuriStandard) {
 	ImGui::TableNextColumn();
 	ImGui::TextUnformatted("Chip Damage Modif");
@@ -13992,6 +14144,7 @@ int printChipDamageCalculation(int x, int baseDamage, int attackKezuri, int atta
 	return x;
 }
 
+// runs on the main thread
 int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectile, int projectileDamageScale, HitResult hitResult, int superArmorDamagePercent) {
 	x = x * 10;
 	int oldX = x;
@@ -14119,6 +14272,7 @@ int printScaleDmgBasic(int x, int playerIndex, int damageScale, bool isProjectil
 	return x;
 }
 
+// runs on the main thread
 const char* formatAttackType(AttackType attackType) {
 	switch (attackType) {
 		case ATTACK_TYPE_NONE: return "None";
@@ -14130,6 +14284,7 @@ const char* formatAttackType(AttackType attackType) {
 	}
 }
 
+// runs on the main thread
 const char* formatGuardType(GuardType guardType) {
 	switch (guardType) {
 		case GUARD_TYPE_ANY: return "Any";
@@ -14140,6 +14295,7 @@ const char* formatGuardType(GuardType guardType) {
 	}
 }
 
+// runs on the main thread
 const char* UI::searchCollapsibleSection(const char* collapsibleHeaderName, const char* textEnd) {
 	if (!searching) return collapsibleHeaderName;
 	searchFieldTitle(collapsibleHeaderName, textEnd);
@@ -14147,16 +14303,19 @@ const char* UI::searchCollapsibleSection(const char* collapsibleHeaderName, cons
 	return collapsibleHeaderName;
 }
 
+// runs on the main thread
 void UI::pushSearchStack(const char* name) {
 	if (!searching) return;
 	searchStack[searchStackCount++] = name;
 }
 
+// runs on the main thread
 void UI::popSearchStack() {
 	if (!searching) return;
 	--searchStackCount;
 }
 
+// runs on the main thread
 static void replaceNewLinesWithSpaces(std::string& str) {
 	for (auto it = str.begin(); it != str.end(); ++it) {
 		if (*it == '\n') {
@@ -14165,6 +14324,7 @@ static void replaceNewLinesWithSpaces(std::string& str) {
 	}
 }
 
+// runs on the main thread
 void UI::searchRawTextMultiResult(const char* txt, const char* txtEnd) {
 	const char* txtStart = txt;
 	do {
@@ -14186,6 +14346,7 @@ void UI::searchRawTextMultiResult(const char* txt, const char* txtEnd) {
 	} while (txt != txtEnd);
 }
 
+// runs on the main thread
 const char* UI::searchRawText(const char* txt, const char* txtStart, const char** txtEnd) {
 	const char* result;
 	if (*txtEnd == nullptr) {
@@ -14266,6 +14427,7 @@ const char* UI::searchRawText(const char* txt, const char* txtStart, const char*
 	return nullptr;
 }
 
+// runs on the main thread
 const char* UI::rewindToNextUtf8CharStart(const char* ptr, const char* textStart) {
 	while (ptr != textStart) {
 		--ptr;
@@ -14276,6 +14438,7 @@ const char* UI::rewindToNextUtf8CharStart(const char* ptr, const char* textStart
 	return ptr;
 }
 
+// runs on the main thread
 const char* UI::skipToNextUtf8CharStart(const char* ptr) {
 	while (true) {
 		++ptr;
@@ -14286,6 +14449,7 @@ const char* UI::skipToNextUtf8CharStart(const char* ptr) {
 	}
 }
 
+// runs on the main thread
 const char* UI::skipToNextUtf8CharStart(const char* ptr, const char* textEnd) {
 	while (ptr != textEnd) {
 		++ptr;
@@ -14296,6 +14460,7 @@ const char* UI::skipToNextUtf8CharStart(const char* ptr, const char* textEnd) {
 	return ptr;
 }
 
+// runs on the main thread
 const char* UI::searchFieldTitle(const char* fieldTitle, const char* textEnd) {
 	if (!searching) return fieldTitle;
 	searchField = fieldTitle;
@@ -14303,18 +14468,21 @@ const char* UI::searchFieldTitle(const char* fieldTitle, const char* textEnd) {
 	return fieldTitle;
 }
 
+// runs on the main thread
 const char* UI::searchTooltip(const char* tooltip, const char* textEnd) {
 	if (!searching) return tooltip;
 	searchRawTextMultiResult(tooltip, textEnd);
 	return tooltip;
 }
 
+// runs on the main thread
 const char* UI::searchFieldValue(const char* value, const char* textEnd) {
 	if (!searching) return value;
 	searchRawTextMultiResult(value, textEnd);
 	return value;
 }
 
+// runs on the main thread
 void UI::searchWindow() {
 	ImGui::Begin("Search", &showSearch);
 	if (ImGui::InputText("##Search string", searchStringOriginal, sizeof searchStringOriginal, 0, nullptr, nullptr)) {
@@ -14431,6 +14599,7 @@ void UI::searchWindow() {
 	ImGui::End();
 }
 
+// runs on the main thread
 void UI::printAttackLevel(const DmgCalc& dmgCalc) {
 	
 	yellowText(searchFieldTitle("Attack Level: "));
@@ -14468,6 +14637,7 @@ void UI::printAttackLevel(const DmgCalc& dmgCalc) {
 	
 }
 
+// runs on the main thread
 int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 	// attack level on hit/guard
 	// if -1 set to on hit
@@ -14628,6 +14798,7 @@ int UI::printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale) {
 	return x;
 }
 
+// runs on the main thread
 static const char* skippedFramesTypeToString(SkippedFramesType type) {
 	switch (type) {
 		case SKIPPED_FRAMES_SUPERFREEZE: return "superfreeze";
@@ -14638,6 +14809,7 @@ static const char* skippedFramesTypeToString(SkippedFramesType type) {
 	}
 }
 
+// runs on the main thread
 void SkippedFramesInfo::print(bool canBlockButNotFD_ASSUMPTION) const {
 	if (overflow) {
 		sprintf_s(strbuf, "Since previous displayed frame, skipped %df", elements[0].count);
@@ -14663,6 +14835,7 @@ void SkippedFramesInfo::print(bool canBlockButNotFD_ASSUMPTION) const {
 	}
 }
 
+// runs on the main thread
 void UI::getFramebarDrawData(std::vector<BYTE>& dData) {
 	dData.clear();
 	if (!drawData) return;
@@ -14681,6 +14854,7 @@ void UI::getFramebarDrawData(std::vector<BYTE>& dData) {
 	makeRenderDataFromDrawLists(dData, (const ImDrawData*)drawData, lists, listsCount);
 }
 
+// runs on the main thread
 void printExtraHitstunTooltip(int amount) {
 	if (ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -14690,11 +14864,13 @@ void printExtraHitstunTooltip(int amount) {
 	}
 }
 
+// runs on the main thread
 void printExtraHitstunText(int amount) {
 	sprintf_s(strbuf, "The extra %d hitstun is applied from a floor bounce.", amount);
 	ImGui::TextUnformatted(strbuf);
 }
 
+// runs on the main thread
 void printExtraBlockstunTooltip(int amount) {
 	if (ImGui::BeginItemTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -14704,17 +14880,20 @@ void printExtraBlockstunTooltip(int amount) {
 	}
 }
 
+// runs on the main thread
 void printExtraBlockstunText(int amount) {
 	sprintf_s(strbuf, "The extra %d blockstun is applied from landing while in blockstun.", amount);
 	ImGui::TextUnformatted(strbuf);
 }
 
+// runs on the main thread
 const char* comborepr(std::vector<int>& combo) {
 	StringWithLength repr = settings.getComboRepresentation(combo);
 	if (repr.txt[0] == '\0') return "<not set>";
 	return repr.txt;
 }
 
+// runs on the main thread
 void UI::printChargeInFrameTooltip(const char* title, unsigned char value, unsigned char valueMax, unsigned char valueLast) {
 	yellowText(title);
 	ImGui::SameLine();
@@ -14728,6 +14907,7 @@ void UI::printChargeInFrameTooltip(const char* title, unsigned char value, unsig
 	ImGui::TextUnformatted(strbuf);
 }
 
+// runs on the main thread
 void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVert, int maxCharge) {
 	const InputRingBuffer* ringBuffer = game.getInputRingBuffers();
 	if (ringBuffer) {
@@ -14768,12 +14948,14 @@ void UI::printChargeInCharSpecific(int playerIndex, bool showHoriz, bool showVer
 	}
 }
 
+// runs on the main thread
 void UI::resetFrameSelection() {
 	selectingFrames = false;
 	selectedFrameStart = -1;
 	selectedFrameEnd = -1;
 }
 
+// runs on the main thread
 int UI::findHoveredFrame(float x, FrameDims* dims) {
 	if (drawFramebars_framesCount <= 1) return 0;
 	if (x < dims[1].x) {
@@ -14797,6 +14979,7 @@ int UI::findHoveredFrame(float x, FrameDims* dims) {
 	}
 }
 
+// runs on the main thread
 void UI::drawRightAlignedP1TitleWithCharIcon() {
 	GGIcon scaledIcon = scaleGGIconToHeight(getPlayerCharIcon(0), 14.F);
 	float w = ImGui::CalcTextSize("P1").x + getItemSpacing() + scaledIcon.size.x;
@@ -14806,11 +14989,13 @@ void UI::drawRightAlignedP1TitleWithCharIcon() {
 	ImGui::TextUnformatted("P1");
 }
 
+// runs on the main thread
 void UI::onFramebarReset() {
 	onFramebarAdvanced();
 	framebarAutoScroll = true;
 }
 
+// runs on the main thread
 void UI::onFramebarAdvanced() {
 	if (!selectingFrames && settings.clearFrameSelectionWhenFramebarAdvances) {
 		resetFrameSelection();
@@ -14819,6 +15004,7 @@ void UI::onFramebarAdvanced() {
 	framebarAutoScroll = true;
 }
 
+// runs on the main thread
 void UI::drawFramebars() {
 	if (endScene.playerFramebars.size() != 2) return;
 	const bool showFirstFrames = settings.showFirstFramesOnFramebar;
@@ -15623,6 +15809,7 @@ void UI::drawFramebars() {
 							P1P2Str = "P2 ";
 						}
 					}
+					
 					outlinedText({
 							isOnTheLeft
 								? textX - P1P2TextSizeWithSpace
@@ -16504,11 +16691,13 @@ void UI::drawFramebars() {
 }
 
 // Interject between Win32 backend and ImGui::NewFrame
+// runs on the main thread
 void UI::adjustMousePosition() {
 	imGuiCorrecter.adjustMousePosition(screenWidth, screenHeight,
 		usePresentRect, presentRectW, presentRectH);
 }
 
+// runs on the main thread
 void UI::printLineOfResultOfHookingRankIcons(const char* placeName, bool result) {
 	yellowText(placeName);
 	ImGui::SameLine();
@@ -16521,6 +16710,7 @@ void UI::printLineOfResultOfHookingRankIcons(const char* placeName, bool result)
 	}
 }
 
+// runs on the main thread
 void UI::prepareSecondaryFrameArts(UITextureType type) {
 	
 	FrameArt* arrays[2] = { frameArtColorblind, frameArtNonColorblind };
@@ -16647,6 +16837,7 @@ void UI::prepareSecondaryFrameArts(UITextureType type) {
 	
 }
 
+// runs on the main thread
 static void assignFromResourceHelper(UVStartEnd& se, const PngResource& res) {
 	se.width = res.width;
 	se.height = res.height;
@@ -16655,6 +16846,7 @@ static void assignFromResourceHelper(UVStartEnd& se, const PngResource& res) {
 	se.end = { res.uEnd, res.vEnd };
 }
 
+// runs on the main thread
 void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackTextureSizes* sizes) {
 	
 	#define selectSE(thing) (type == UITextureType::UITEX_HELP ? thing.help : thing.framebar)
@@ -17244,6 +17436,7 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 	#undef selectSE
 }
 
+// runs on the main thread
 void UI::packTextureHelp() {
 	if (packedTextureHelp.width) return;
 	PackTextureSizes sizes;
@@ -17253,6 +17446,7 @@ void UI::packTextureHelp() {
 	packTexture(packedTextureHelp, UITextureType::UITEX_HELP, &sizes);
 }
 
+// runs on the main thread
 void UI::packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind) {
 	if (packedTextureFramebar.width && lastPackedSize == *sizes && textureIsColorblind == isColorblind) return;
 	needUpdateGraphicsFramebarTexture = true;
@@ -17261,6 +17455,7 @@ void UI::packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind) {
 	packTexture(packedTextureFramebar, UITextureType::UITEX_FRAMEBAR, sizes);
 }
 
+// runs on the main thread
 float truncfTowardsZero(float value) {
 	return std::truncf(value
 		+ (
@@ -17271,6 +17466,7 @@ float truncfTowardsZero(float value) {
 	);
 }
 
+// runs on the main thread
 void UI::testDelay() {
 	if (!*aswEngine) {
 		needTestDelay = false;
@@ -17291,6 +17487,7 @@ void UI::testDelay() {
 	}
 }
 
+// runs on the main thread
 void UI::printBedmanSeals(const BedmanInfo& bi, bool forFrameTooltip) {
 	struct SealInfo {
 		const char* txt;
@@ -17316,6 +17513,7 @@ void UI::printBedmanSeals(const BedmanInfo& bi, bool forFrameTooltip) {
 	}
 }
 
+// runs on the main thread
 static void initializeLettersHelper(bool* array, const std::initializer_list<char>& list) {
 	for (char c = 'a'; c <= 'z'; ++c) {
 		array[c - 'a'] = false;
@@ -17325,11 +17523,13 @@ static void initializeLettersHelper(bool* array, const std::initializer_list<cha
 	}
 }
 
+// runs on the main thread
 void initializeLetters(bool* letters, bool* lettersStandalone) {
 	initializeLettersHelper(letters, { 'a', 'o', 'e', 'i' });
 	initializeLettersHelper(lettersStandalone, { 's', 'h', 'x', 'r', 'f', 'l', 'm' });
 }
 
+// runs on the main thread
 void printReflectableProjectilesList() {
 	yellowText("Reflectable Projectiles (Rev2)");
 	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_SOL, "Gunflame");
@@ -17351,16 +17551,126 @@ void printReflectableProjectilesList() {
 	drawFontSizedPlayerIconWithText(CHARACTER_TYPE_BAIKEN, "Yasha Gatana");
 }
 
+// runs on the main thread
 int __cdecl UI::CompareMoveInfo(void const* moveLeft, void const* moveRight) {
 	SortedMovesEntry* ptrLeft = (SortedMovesEntry*)moveLeft;
 	SortedMovesEntry* ptrRight = (SortedMovesEntry*)moveRight;
 	return (BYTE*)ptrLeft->comparisonValue - (BYTE*)ptrRight->comparisonValue;
 }
 
+// runs on the main thread
 void UI::onAswEngineDestroyed() {
 	sortedMovesRedoPendingWhenAswEngingExists = true;
 }
 
+// runs on the main thread
 void UI::highlightedMovesChanged() {
 	sortedMovesRedoPending = true;
+}
+
+// runs on the main thread
+void UI::prepareOutlinedFont() {
+	static bool ranOnce = false;
+	if (ranOnce) return;
+	ranOnce = true;
+	const ImFont* font = ImGui::GetFont();
+	if (!font) return;
+	
+	fontDataAlt.resize(fontDataWidth * fontDataHeight * 4, 0);
+	struct Pixel {
+		BYTE r;
+		BYTE g;
+		BYTE b;
+		BYTE a;
+	};
+	const Pixel* fontDataPtr = (const Pixel*)fontData;
+	Pixel* fontDataAltPtr = (Pixel*)fontDataAlt.data();
+	const Pixel theBlackPixel { 0, 0, 0, 255 };
+	const float fontDataWidthFloat = (float)fontDataWidth;
+	const float fontDataHeightFloat = (float)fontDataHeight;
+	for (int i = 0; i < font->Glyphs.Size; ++i) {
+		const ImFontGlyph& glyph = font->Glyphs.Data[i];
+		if (glyph.Codepoint
+				&& glyph.Codepoint > 32
+				&& glyph.Codepoint != 0x7f
+				&& glyph.Codepoint != 0x81
+				&& glyph.Codepoint != 0x8d
+				&& glyph.Codepoint != 0x8f
+				&& glyph.Codepoint != 0x90
+				&& glyph.Codepoint != 0x9d
+				&& glyph.Codepoint != 0xa0
+				&& glyph.Codepoint != 0xad) {
+			int x = (int)std::roundf(glyph.U0 * fontDataWidthFloat);
+			int y = (int)std::roundf(glyph.V0 * fontDataHeightFloat);
+			int w = (int)glyph.X1 - (int)glyph.X0;
+			int h = (int)glyph.Y1 - (int)glyph.Y0;
+			int pxNextRow = fontDataWidth - w;
+			const int offsetIndex = y * fontDataWidth + x;
+			const Pixel* px = &fontDataPtr[offsetIndex];
+			Pixel* destPx = &fontDataAltPtr[offsetIndex];
+			for (int yIter = 0; yIter < h; ++yIter) {
+				for (int xIter = 0; xIter < w; ++xIter) {
+					if (px->a) {
+						*(destPx                 - 1) = theBlackPixel;
+						*(destPx                 + 1) = theBlackPixel;
+						*(destPx - fontDataWidth - 1) = theBlackPixel;
+						*(destPx - fontDataWidth    ) = theBlackPixel;
+						*(destPx - fontDataWidth + 1) = theBlackPixel;
+						*(destPx + fontDataWidth - 1) = theBlackPixel;
+						*(destPx + fontDataWidth    ) = theBlackPixel;
+						*(destPx + fontDataWidth + 1) = theBlackPixel;
+					}
+					++px;
+					++destPx;
+				}
+				px += pxNextRow;
+				destPx += pxNextRow;
+			}
+		}
+	}
+	const Pixel* px = fontDataPtr;
+	Pixel* destPx = fontDataAltPtr;
+	for (int y = 0; y < fontDataHeight; ++y) {
+		for (int x = 0; x < fontDataWidth; ++x) {
+			if (px->a) {
+				*destPx = *px;
+			}
+			++px;
+			++destPx;
+		}
+	}
+	
+}
+
+// runs on the main thread
+void setOutlinedText(bool isOutlined) {
+	*outlinedTextHead = isOutlined;
+    if (isOutlined != ImGui::imGuiTextOutlined) {
+		static ImFont* outlinedFont = nullptr;
+        ImGui::imGuiTextOutlined = isOutlined;
+        if (isOutlined) {
+        	if (!outlinedFont) {
+        		outlinedFont = ImGui::GetFont();
+        	}
+        	outlinedFont->ContainerAtlas->TexID = (void*)TEXID_IMGUIFONT_OUTLINED;
+	    	ImGui::PushFont(outlinedFont);
+        } else {
+        	if (outlinedFont) {
+        		outlinedFont->ContainerAtlas->TexID = (void*)TEXID_IMGUIFONT;
+        	}
+        	ImGui::PopFont();
+        }
+    }
+}
+
+// runs on the main thread
+void pushOutlinedText(bool isOutlined) {
+	++outlinedTextHead;
+	setOutlinedText(isOutlined);
+}
+
+// runs on the main thread
+void popOutlinedText() {
+	--outlinedTextHead;
+	setOutlinedText(*outlinedTextHead);
 }

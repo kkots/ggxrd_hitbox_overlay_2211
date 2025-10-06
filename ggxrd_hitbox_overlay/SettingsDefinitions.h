@@ -996,4 +996,16 @@ settingsField(MoveList, highlightWhenCancelsIntoMovesAvailable, {},
 	"Highlight When Cancels Into Moves Available", SETTINGS_GENERAL,
 	"; Specify a list of moves and red, green and/or blue highlight for each.\n"
 	"; When a cancel into any of the specified moves becomes available, your character will flash that color.")
+	
+settingsField(int, globalWindowTransparency, 100,
+	"Global Window Transparency", SETTINGS_GENERAL,
+	"; Specify a number from 0 to 100.\n"
+	"; Controls the transparency of the background of all UI windows, except Combo Recipe and Combo Damage & Combo Stun.\n"
+	"; Combo Recipe has its own setting for transparency, and Combo Damage is just always transparent.")
+	
+settingsField(bool, outlineAllWindowText, false,
+	"Outline All Window Text", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; If true, all text in UI windows, except Combo Recipe and Combo Damage & Combo Stun, will be outlined with black color.\n"
+	"; Combo Recipe has its own setting for this, and Combo Damage is just always outlined.")
 #pragma warning(pop)

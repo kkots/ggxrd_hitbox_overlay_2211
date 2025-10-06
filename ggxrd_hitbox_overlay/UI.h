@@ -2,7 +2,6 @@
 #include "pch.h"
 #include <d3d9.h>
 #include <vector>
-#include <mutex>
 #include "PngResource.h"
 #include "TexturePacker.h"
 #include "PlayerInfo.h"
@@ -12,10 +11,12 @@
 #include "Moves.h"
 #include "characterTypes.h"
 #include <array>
+#include <atlbase.h>
 
 enum UITexture {
 	TEXID_NONE,
 	TEXID_IMGUIFONT,
+	TEXID_IMGUIFONT_OUTLINED,
 	TEXID_GGICON,
 	TEXID_FRAMES_HELP,
 	TEXID_FRAMES_FRAMEBAR
@@ -101,7 +102,6 @@ public:
 	int clearBurstGainMaxComboTimer[2] { 0 };
 	bool slowmoGame = false;
 	bool continuousScreenshotToggle = false;
-	std::mutex lock;
 	bool imguiActive = false;
 	void* drawData = nullptr;
 	bool timerDisabled = false;
@@ -192,7 +192,9 @@ private:
 	bool showInvulTooltip = false;
 	void* hook_GetKeyStatePtr = nullptr;
 	IDirect3DTexture9* imguiFont = nullptr;
-	void onImGuiMessWithFontTexID();
+	CComPtr<IDirect3DTexture9> imguiFontAlt;
+	bool attemptedCreatingAltFont = false;
+	void onImGuiMessWithFontTexID(IDirect3DDevice9* device);
 	bool showCharSpecific[2] = { false, false };
 	std::unique_ptr<PngResource> activeFrame;
 	std::unique_ptr<PngResource> activeFrameNonColorblind;
@@ -429,6 +431,11 @@ private:
 	static int __cdecl CompareMoveInfo(void const* moveLeft, void const* moveRight);
 	bool sortedMovesRedoPending = true;
 	bool sortedMovesRedoPendingWhenAswEngingExists = true;
+	BYTE* fontData = nullptr;
+	int fontDataWidth = 0;
+	int fontDataHeight = 0;
+	std::vector<BYTE> fontDataAlt;
+	void prepareOutlinedFont();
 };
 
 extern UI ui;

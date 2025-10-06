@@ -112,14 +112,18 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (endScene.logicThreadId != GetCurrentThreadId()) {
 			// thanks to Worse Than You for finding this
 			// the tick is 8 bytes, but it takes 28 months for it to overflow into the high dword
-			uintptr_t tickPlace = sigscanOffset(GUILTY_GEAR_XRD_EXE,
+			unsigned int* tick = (unsigned int*)sigscanOffset(GUILTY_GEAR_XRD_EXE,
 				"75 05 83 f8 5 76 14 f2 0f 10 47 10", { -4, 0 }, nullptr, "EngineTickCount");
-			if (tickPlace) {
-				unsigned int* tick = *(unsigned int**)(tickPlace - 4);
+			if (tick) {
 				unsigned int startingTick = *tick;
-				while (*tick - startingTick < 2 || FRenderCommand::totalCountOfCommandsInCirculation > 0) {
+				const bool graphicsThreadStillExists = graphics.graphicsThreadStillExists();
+				while (*tick - startingTick < 2 || graphicsThreadStillExists && FRenderCommand::totalCountOfCommandsInCirculation > 0) {
 					Sleep(16);
 				}
+			}
+		} else if (graphics.graphicsThreadStillExists()) {
+			while (FRenderCommand::totalCountOfCommandsInCirculation > 0) {
+				Sleep(16);
 			}
 		}
 		

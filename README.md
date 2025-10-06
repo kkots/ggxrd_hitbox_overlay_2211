@@ -1147,6 +1147,16 @@ highlightBlueWhenBecomingIdle = false
 ; Specify a list of moves and red, green and/or blue highlight for each.
 ; When a cancel into any of the specified moves becomes available, your character will flash that color.
 highlightWhenCancelsIntoMovesAvailable = {}
+
+; Specify a number from 0 to 100.
+; Controls the transparency of the background of all UI windows, except Combo Recipe and Combo Damage & Combo Stun.
+; Combo Recipe has its own setting for transparency, and Combo Damage is just always transparent.
+globalWindowTransparency = 100
+
+; Specify true or false.
+; If true, all text in UI windows, except Combo Recipe and Combo Damage & Combo Stun, will be outlined with black color.
+; Combo Recipe has its own setting for this, and Combo Damage is just always outlined.
+outlineAllWindowText = false
 ```
 
 </details>
@@ -1638,3 +1648,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 63) Fixed the displayed frame counts on the framebar changing incorrectly in certain situations when scrolling the framebar horizontally.
 64) Added an option to bypass room connection restrictions.
 65) Added an option to highlight the player character red, green, blue or a combination of these colours when they become idle or when a particular cancel becomes available. You can select desired cancels from a menu. See Settings - General Settings - "Highlight Red/Green/Blue When Becoming Idle" and "Highlight When Cancels Into Moves Available" button.
+66) Added an option to make all of the mod's windows be transparent or semi-transparent and have outlined text. This does not apply to the Combo Recipe panel, as it has its own setting for this, and Combo Damage & Burst Gain panel, as it is always transparent and outlined anyway.

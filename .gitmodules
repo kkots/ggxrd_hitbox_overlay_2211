@@ -1,6 +1,3 @@
-[submodule "imgui"]
-	path = imgui
-	url = https://github.com/ocornut/imgui.git
 [submodule "dxsdk"]
 	path = dxsdk
 	url = https://github.com/apitrace/dxsdk.git
@@ -13,3 +10,6 @@
 [submodule "libpng"]
 	path = libpng
 	url = https://github.com/kkots/libpng.git
+[submodule "imgui"]
+	path = imgui
+	url = https://github.com/kkots/imgui.git
