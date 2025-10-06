@@ -333,11 +333,12 @@ static ImGuiWindowFlags windowFlags = (ImGuiWindowFlags)0;
 static ImVec4 windowColor { 0.F, 0.F, 0.F, 1.F };
 static bool overrideWindowColor = false;
 #define prebegin \
-	if (settingOutlineText) { \
-		pushOutlinedText(true); \
-	} \
 	if (overrideWindowColor) { \
 		ImGui::PushStyleColor(ImGuiCol_WindowBg, windowColor); \
+	}
+#define postbegin \
+	if (settingOutlineText) { \
+		pushOutlinedText(true); \
 	}
 
 #define preend \
@@ -851,6 +852,7 @@ void UI::drawSearchableWindows() {
 	
 	prebegin
 	ImGui::Begin(searching ? "search_main" : "##ggxrd_hitbox_overlay_main_window", &visible, windowFlags);
+	postbegin
 	drawTextInWindowTitle(windowTitle.c_str());
 	pushSearchStack("Main UI Window");
 	
@@ -2436,6 +2438,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_tension" : "Tension Data", &showTensionData, windowFlags);
+		postbegin
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
@@ -2736,6 +2739,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_burst" : "Burst Gain", &showBurstGain, windowFlags);
+		postbegin
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
@@ -2932,6 +2936,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_speed" : "Speed/Hitstun Proration/...", &showSpeedsData, windowFlags);
+		postbegin
 		
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
@@ -3231,6 +3236,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_projectiles" : PROJECTILES_STR, &showProjectiles, windowFlags);
+		postbegin
 		
 		if (ImGui::BeginTable("##Projectiles", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
@@ -3525,6 +3531,7 @@ void UI::drawSearchableWindows() {
 			}
 			prebegin
 			ImGui::Begin(strbuf, showCharSpecific + i, windowFlags);
+			postbegin
 			PlayerInfo& player = endScene.players[i];
 			
 			GGIcon scaledIcon;
@@ -6343,6 +6350,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_box" : "Box Extents", &showBoxExtents, windowFlags);
+		postbegin
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
@@ -6502,6 +6510,7 @@ void UI::drawSearchableWindows() {
 			}
 			prebegin
 			ImGui::Begin(strbuf, showCancels + i, windowFlags);
+			postbegin
 			drawPlayerIconInWindowTitle(i);
 			
 			const float wrapWidth = ImGui::GetContentRegionAvail().x;
@@ -6578,6 +6587,7 @@ void UI::drawSearchableWindows() {
 			}
 			prebegin
 			ImGui::Begin(strbuf, showDamageCalculation + i, windowFlags);
+			postbegin
 			drawPlayerIconInWindowTitle(i);
 			
 			const PlayerInfo& player = endScene.players[1 - i];
@@ -7958,6 +7968,7 @@ void UI::drawSearchableWindows() {
 			}
 			prebegin
 			ImGui::Begin(strbuf, showStunmash + i, windowFlags);
+			postbegin
 			drawPlayerIconInWindowTitle(i);
 			
 			const PlayerInfo& player = endScene.players[i];
@@ -8448,6 +8459,7 @@ void UI::drawSearchableWindows() {
 		ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
 		prebegin
 		ImGui::Begin(searching ? "search_highlightedcancels" : "  Highlighted Cancels", &showMoveHighlightWindow, windowFlags);
+		postbegin
 		if (sortedMovesRedoPending || sortedMovesRedoPendingWhenAswEngingExists && *aswEngine) {
 			sortedMovesRedoPending = false;
 			if (*aswEngine) sortedMovesRedoPendingWhenAswEngingExists = false;
@@ -8646,6 +8658,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_frame" : "Frame Advantage Help", &showFrameAdvTooltip, windowFlags);
+		postbegin
 		ImGui::PushTextWrapPos(0.F);
 		searchFieldTitle("Help Contents");
 		ImGui::TextUnformatted(searchTooltip(
@@ -8690,6 +8703,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_startup" : "'Startup' Field Help", &showStartupTooltip, windowFlags);
+		postbegin
 		ImGui::PushTextWrapPos(0.F);
 		searchFieldTitle("Help Contents");
 		ImGui::TextUnformatted(searchTooltip(
@@ -8726,6 +8740,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_active" : "'Active' Field Help", &showActiveTooltip, windowFlags);
+		postbegin
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -8777,6 +8792,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_total" : "'Total' Field Help", &showTotalTooltip, windowFlags);
+		postbegin
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -8820,6 +8836,7 @@ void UI::drawSearchableWindows() {
 		}
 		prebegin
 		ImGui::Begin(searching ? "search_invul" : "Invul Help", &showInvulTooltip, windowFlags);
+		postbegin
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -10183,6 +10200,7 @@ void UI::hitboxesHelpWindow() {
 	}
 	prebegin
 	ImGui::Begin(searching ? "search_hitboxeshelp" : "Hitboxes Help", &showBoxesHelp, windowFlags);
+	postbegin
 	ImGui::PushTextWrapPos(0.F);
 	static std::string boxesDesc1;
 	if (boxesDesc1.empty()) {
@@ -10539,6 +10557,7 @@ void UI::framebarHelpWindow() {
 	}
 	prebegin
 	ImGui::Begin(searching ? "search_framebarhelp" : "Framebar Help", &showFramebarHelp, windowFlags);
+	postbegin
 	float wordWrapWidth = ImGui::GetContentRegionAvail().x;
 	ImGui::PushTextWrapPos(wordWrapWidth);
 	
