@@ -264,6 +264,9 @@
     <ClInclude Include="ThreadUnsafeSharedPtr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\imgui\texids.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

@@ -13,15 +13,6 @@
 #include <array>
 #include <atlbase.h>
 
-enum UITexture {
-	TEXID_NONE,
-	TEXID_IMGUIFONT,
-	TEXID_IMGUIFONT_OUTLINED,
-	TEXID_GGICON,
-	TEXID_FRAMES_HELP,
-	TEXID_FRAMES_FRAMEBAR
-};
-
 enum FrameMarkerType {
 	MARKER_TYPE_STRIKE_INVUL,
 	MARKER_TYPE_SUPER_ARMOR,
@@ -66,7 +57,7 @@ public:
 	void onDllDetachGraphics();
 	void onDllDetachNonGraphics();
 	void prepareDrawData();
-	void onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture);
+	void onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture, bool needsFramesTextureFramebar, bool needsFramesTextureHelp);
 	LRESULT WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void handleResetBefore();
 	void handleResetAfter();
@@ -106,7 +97,7 @@ public:
 	void* drawData = nullptr;
 	bool timerDisabled = false;
 	void copyDrawDataTo(std::vector<BYTE>& destinationBuffer);
-	void substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture);
+	void substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture, bool needsFramesTextureFramebar, bool needsFramesTextureHelp);
 	void drawPlayerFrameTooltipInfo(const PlayerFrame& frame, int playerIndex, float wrapWidth);
 	void drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerIndex);
 	bool pauseMenuOpen = false;
@@ -432,8 +423,14 @@ private:
 	bool sortedMovesRedoPending = true;
 	bool sortedMovesRedoPendingWhenAswEngingExists = true;
 	BYTE* fontData = nullptr;
+	// do not change this once fontDataAlt is ready
+	// do not submit an FRenderCommand for rendering ImGui until this is ready
 	int fontDataWidth = 0;
+	// do not change this once fontDataAlt is ready
+	// do not submit an FRenderCommand for rendering ImGui until this is ready
 	int fontDataHeight = 0;
+	// do not change this once it is filled in
+	// do not submit an FRenderCommand for rendering ImGui until this is ready
 	std::vector<BYTE> fontDataAlt;
 	void prepareOutlinedFont();
 };

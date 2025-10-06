@@ -134,6 +134,8 @@ struct UiOrFramebarDrawData {
 	PackTextureSizes framebarSizes;
 	bool framebarColorblind;
 	void applyFramebarTexture() const;
+	bool needsFramesTextureFramebar = false;
+	bool needsFramesTextureHelp = false;
 };
 
 struct DrawOriginPointsRenderCommand : FRenderCommand {
@@ -358,6 +360,8 @@ public:
 	void activeFrameHitReflectMultiplySpeedXHook(Entity attacker, Entity defender, int percentage);
 	bool highlightGreenWhenBecomingIdleChanged();
 	void highlightSettingsChanged();
+	bool needsFramesTextureFramebar = false;
+	bool needsFramesTextureHelp = false;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();

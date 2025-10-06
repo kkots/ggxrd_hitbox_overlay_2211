@@ -28,6 +28,7 @@
 #include "InputNames.h"
 #include "ImGuiCorrecter.h"
 #include "SpecificFramebarIds.h"
+#include "texids.h"
 
 UI ui;
 
@@ -8242,7 +8243,7 @@ void UI::drawSearchableWindows() {
 			} else if (isHovered) {
 				tint = { 0.75F, 0.75F, 1.F, 1.F };
 			}
-			ImGui::Image((ImTextureID)TEXID_GGICON, scaledIcon.size, scaledIcon.uvStart, scaledIcon.uvEnd, tint);
+			ImGui::Image(TEXID_GGICON, scaledIcon.size, scaledIcon.uvStart, scaledIcon.uvEnd, tint);
 			
 			ImGui::SetCursorPos(cursorPosForTable);
 			
@@ -8867,13 +8868,13 @@ void UI::drawSearchableWindows() {
 }
 
 // Runs on the graphics thread
-void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture) {
+void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture, bool needsFramesTextureFramebar, bool needsFramesTextureHelp) {
 	if (!imguiInitialized || gifMode.modDisabled || !drawData) {
 		return;
 	}
 	initializeD3D(device);
 	
-	substituteTextureIDs(device, drawData, iconTexture);
+	substituteTextureIDs(device, drawData, iconTexture, needsFramesTextureFramebar, needsFramesTextureHelp);
 	ImGui_ImplDX9_RenderDrawData((ImDrawData*)drawData);
 }
 
@@ -8887,7 +8888,7 @@ void UI::initialize() {
 	ImGuiIO& io = ImGui::GetIO();
 	io.Fonts->GetTexDataAsRGBA32(&fontData, &fontDataWidth, &fontDataHeight);  // imGui complains if we don't call this before preparing its draw data
 	
-	io.Fonts->SetTexID((ImTextureID)TEXID_IMGUIFONT);  // I use fake wishy-washy IDs instead of real textures, because they're created on the
+	io.Fonts->SetTexID(TEXID_IMGUIFONT);  // I use fake wishy-washy IDs instead of real textures, because they're created on the
 												 // the graphics thread and this code is running on the main thread.
 												 // I cannot create our textures on the main thread, because I inject our DLL in the middle
 												 // of the app already running and I don't know if Direct3D 9 is fully thread-safe during resource creation.
@@ -9364,24 +9365,15 @@ void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList) {
 }
 
 // Runs on the graphics thread
-void UI::substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture) {
-	ImDrawData* d = (ImDrawData*)drawData;
-	for (int i = 0; i < d->CmdListsCount; ++i) {
-		ImDrawList* drawList = d->CmdLists[i];
-		for (int j = 0; j < drawList->CmdBuffer.Size; ++j) {
-			ImDrawCmd& cmd = drawList->CmdBuffer[j];
-			if (cmd.TextureId == (ImTextureID)TEXID_IMGUIFONT) {
-				cmd.TextureId = imguiFont;
-			} else if (cmd.TextureId == (ImTextureID)TEXID_IMGUIFONT_OUTLINED) {
-				cmd.TextureId = imguiFontAlt ? (IDirect3DTexture9*)imguiFontAlt : imguiFont;
-			} else if (cmd.TextureId == (ImTextureID)TEXID_GGICON) {
-				cmd.TextureId = iconTexture;
-			} else if (cmd.TextureId == (ImTextureID)TEXID_FRAMES_HELP) {
-				cmd.TextureId = graphics.getFramesTextureHelp(device, ui.packedTextureHelp);
-			} else if (cmd.TextureId == (ImTextureID)TEXID_FRAMES_FRAMEBAR) {
-				cmd.TextureId = graphics.getFramesTextureFramebar(device);
-			}
-		}
+void UI::substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture, bool needsFramesTextureFramebar, bool needsFramesTextureHelp) {
+	ImGui_ImplDX9_AssignTexID(TEXID_IMGUIFONT, imguiFont);
+	ImGui_ImplDX9_AssignTexID(TEXID_IMGUIFONT_OUTLINED, imguiFontAlt ? (IDirect3DTexture9*)imguiFontAlt : imguiFont);
+	ImGui_ImplDX9_AssignTexID(TEXID_GGICON, iconTexture);
+	if (needsFramesTextureHelp) {
+		ImGui_ImplDX9_AssignTexID(TEXID_FRAMES_HELP, graphics.getFramesTextureHelp(device, ui.packedTextureHelp));
+	}
+	if (needsFramesTextureFramebar) {
+		ImGui_ImplDX9_AssignTexID(TEXID_FRAMES_FRAMEBAR, graphics.getFramesTextureFramebar(device));
 	}
 }
 
@@ -9397,7 +9389,7 @@ void UI::initializeD3D(IDirect3DDevice9* device) {
 
 // Runs on the graphics thread
 void UI::onImGuiMessWithFontTexID(IDirect3DDevice9* device) {
-	imguiFont = ImGui_ImplDX9_getFontTexture();
+	imguiFont = ImGui_ImplDX9_GetFontTexture();
 	if (imguiFont && !imguiFontAlt && !fontDataAlt.empty() && device) {
 		if (!attemptedCreatingAltFont) {
 			attemptedCreatingAltFont = true;
@@ -9505,7 +9497,7 @@ GGIcon coordsToGGIcon(int x, int y, int w, int h) {
 
 // runs on the main thread
 void drawGGIcon(const GGIcon& icon) {
-	ImGui::Image((ImTextureID)TEXID_GGICON, icon.size, icon.uvStart, icon.uvEnd);
+	ImGui::Image(TEXID_GGICON, icon.size, icon.uvStart, icon.uvEnd);
 }
 
 // runs on the main thread
@@ -10596,7 +10588,7 @@ void UI::framebarHelpWindow() {
 			ImGui::Separator();
 		}
 		
-		ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+		ImGui::Image(TEXID_FRAMES_HELP,
 			{ frameWidthOriginal, frameHeightOriginal },
 			art->help.start,
 			art->help.end,
@@ -10626,7 +10618,7 @@ void UI::framebarHelpWindow() {
 	
 	const FrameArt* frameArtArray = settings.useColorblindHelp ? frameArtColorblind : frameArtNonColorblind;
 	ImVec2 cursorPos = ImGui::GetCursorPos();
-	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+	ImGui::Image(TEXID_FRAMES_HELP,
 		{ frameWidthOriginal, frameHeightOriginal },
 		frameArtArray[FT_STARTUP].help.start,
 		frameArtArray[FT_STARTUP].help.end,
@@ -10638,7 +10630,7 @@ void UI::framebarHelpWindow() {
 		cursorPos.y
 			+ 1.F  // include the white border
 	});
-	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+	ImGui::Image(TEXID_FRAMES_HELP,
 		{ frameWidthOriginal * 0.5F, frameHeightOriginal },
 		{
 			(frameArtArray[FT_ACTIVE].help.start.x + frameArtArray[FT_ACTIVE].help.end.x) * 0.5F,
@@ -10676,7 +10668,7 @@ void UI::framebarHelpWindow() {
 		float cursorY = ImGui::GetCursorPosY();
 		ImGui::SetCursorPosY(cursorY + markerOffsetY);
 		const FrameMarkerArt& art = frameMarkerArtArray[info.type];
-		ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+		ImGui::Image(TEXID_FRAMES_HELP,
 			art.help.size,
 			art.help.start,
 			art.help.end
@@ -10688,7 +10680,7 @@ void UI::framebarHelpWindow() {
 	
 	float cursorY = ImGui::GetCursorPosY();
 	ImGui::SetCursorPosY(cursorY + std::roundf((ImGui::GetTextLineHeightWithSpacing() - powerupFrameArt.help.size.y) * 0.5F));
-	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+	ImGui::Image(TEXID_FRAMES_HELP,
 		powerupFrameArt.help.size,
 		powerupFrameArt.help.start,
 		powerupFrameArt.help.end
@@ -10701,7 +10693,7 @@ void UI::framebarHelpWindow() {
 		
 	ImGui::Separator();
 	
-	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+	ImGui::Image(TEXID_FRAMES_HELP,
 		firstFrameArt.help.size,
 		firstFrameArt.help.start,
 		firstFrameArt.help.end);
@@ -10715,7 +10707,7 @@ void UI::framebarHelpWindow() {
 	
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
 	
-	ImGui::Image((ImTextureID)TEXID_FRAMES_HELP,
+	ImGui::Image(TEXID_FRAMES_HELP,
 		hitConnectedFrameArt.help.size,
 		hitConnectedFrameArt.help.start,
 		hitConnectedFrameArt.help.end);
@@ -10820,13 +10812,13 @@ void UI::framebarHelpWindow() {
 	}
 	imGuiDrawWrappedTextWithIcons_Icon icons[] {
 		{
-			(ImTextureID)TEXID_FRAMES_HELP,
+			TEXID_FRAMES_HELP,
 			firstFrameArt.help.size,
 			firstFrameArt.help.start,
 			firstFrameArt.help.end
 		},
 		{
-			(ImTextureID)TEXID_FRAMES_HELP,
+			TEXID_FRAMES_HELP,
 			newHitArt->help.size,
 			newHitArt->help.start,
 			newHitArt->help.end
@@ -11079,7 +11071,7 @@ void imGuiDrawWrappedTextWithIcons(const char* textStart,
 #define PRINT_INPUT_BUTTON(name, ENUM_NAME) \
 	if (row.name) { \
 		const InputsIcon& icon = inputsIcon[ENUM_NAME]; \
-		drawList->AddImage((ImTextureID)TEXID_GGICON, \
+		drawList->AddImage(TEXID_GGICON, \
 			{ x, y }, \
 			{ x + framebarTooltipInputIconSize.x, y + framebarTooltipInputIconSize.y }, \
 			{ icon.uStart, icon.vStart }, \
@@ -11121,7 +11113,7 @@ static inline void drawDirectionIcon(ImDrawList* drawList, float& x, float y,
 		ImU32 darkTint) {
 	const InputsIcon* rowDirection = determineDirectionIcon(row);
 	if (rowDirection) {
-		drawList->AddImage((ImTextureID)TEXID_GGICON,
+		drawList->AddImage(TEXID_GGICON,
 			{ x, y },
 			{ x + framebarTooltipInputIconSize.x, y + framebarTooltipInputIconSize.y },
 			{ rowDirection->uStart, rowDirection->vStart },
@@ -12994,7 +12986,7 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 			}
 			
 			const FrameArt* frameArt = &drawFramebars_frameArtArray[frame.type];
-			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 				frameStartVec,
 				frameEndVec,
 				frameArt->framebar.start,
@@ -13013,7 +13005,7 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 				};
 				if (newHitEndVec.x > frameEndVec.x) newHitEndVec.x = frameEndVec.x;
 				
-				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+				drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 					frameStartVec,
 					newHitEndVec,
 					newHitArt.framebar.start,
@@ -13027,7 +13019,7 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 			
 			if (frame.activeDuringSuperfreeze) {
 				const FrameArt& superfreezeActiveArt = drawFramebars_frameArtArray[playerIndex == -1 ? FT_ACTIVE_PROJECTILE : FT_ACTIVE];
-				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+				drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 					{
 						frameStartVec.x + dims.width * 0.5F,
 						frameStartVec.y
@@ -13055,7 +13047,7 @@ inline void drawFramebar(FramebarT& framebar, UI::FrameDims* preppedDims, ImU32 
 						: hitConnectedArtSelector.hitConnected;
 				}
 				
-				drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+				drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 					frameStartVec,
 					frameEndVec,
 					art->framebar.start,
@@ -13171,7 +13163,7 @@ void drawFirstFrames(const FramebarT& framebar, UI::FrameDims* preppedDims, floa
 				artStart.x + firstFrameArt.framebar.size.x,
 				firstFrameBottomY
 			};
-			drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+			drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 				artStart,
 				artEnd,
 				firstFrameArt.framebar.start,
@@ -13194,7 +13186,7 @@ void drawDigit(char digit, const UI::FrameDims& dims, float frameNumberYTop, flo
 	
 	digitX += std::floorf((dims.width - digitWidth) * 0.5F);
 	
-	drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+	drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 		{ digitX, frameNumberYTop },
 		{ digitX + digitWidth, frameNumberYBottom },
 		digitImg.framebar.start,
@@ -13789,7 +13781,7 @@ void drawPlayerIconInWindowTitle(GGIcon& icon) {
 			clipEnd,
 			false);
 		int alpha = ImGui::IsWindowCollapsed() ? 128 : 255;
-		drawList->AddImage((ImTextureID)TEXID_GGICON,
+		drawList->AddImage(TEXID_GGICON,
 			startPos,
 			{
 				startPos.x + icon.size.x,
@@ -16171,7 +16163,7 @@ void UI::drawFramebars() {
 											&& isJacko
 								) && showStrikeInvulOnFramebar
 						) {
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+							drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 								isFlipped ? bottomMarkerEnd : markerStart,
 								isFlipped ? bottomMarkerStart : markerEnd,
 								strikeInvulMarker.framebar.start,
@@ -16195,7 +16187,7 @@ void UI::drawFramebars() {
 											? MARKER_TYPE_SUPER_ARMOR_FULL
 											: MARKER_TYPE_SUPER_ARMOR
 								];
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+								drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 									markerStart,
 									markerEnd,
 									markerArt.framebar.start,
@@ -16206,7 +16198,7 @@ void UI::drawFramebars() {
 							
 							if (playerFrame.throwInvulInGeneral && showThrowInvulOnFramebar) {
 								
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+								drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 									bottomMarkerStart,
 									bottomMarkerEnd,
 									throwInvulMarker.framebar.start,
@@ -16220,7 +16212,7 @@ void UI::drawFramebars() {
 							
 							if (playerFrame.OTGInGeneral && showOTGOnFramebar) {
 								
-								drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+								drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 									bottomMarkerStart,
 									bottomMarkerEnd,
 									OTGMarker.framebar.start,
@@ -16232,7 +16224,7 @@ void UI::drawFramebars() {
 								&& isDizzy
 								&& showSuperArmorOnFramebar) {
 							const FrameMarkerArt& markerArt = frameMarkerArtArray[MARKER_TYPE_SUPER_ARMOR];
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+							drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 								isFlipped ? bottomMarkerEnd : markerStart,
 								isFlipped ? bottomMarkerStart : markerEnd,
 								markerArt.framebar.start,
@@ -16245,7 +16237,7 @@ void UI::drawFramebars() {
 						
 						if (isPlayer ? playerFrame.powerup && !playerFrame.dontShowPowerupGraphic : projectileFrame.powerup) {
 							float powerupWidthOffset = std::floorf((dims.width - powerupWidthUse) * 0.5F + 0.001F);
-							drawFramebars_drawList->AddImage((ImTextureID)TEXID_FRAMES_FRAMEBAR,
+							drawFramebars_drawList->AddImage(TEXID_FRAMES_FRAMEBAR,
 								{
 										dims.x + powerupWidthOffset,
 										isFlipped
@@ -17444,6 +17436,7 @@ void UI::packTextureHelp() {
 	sizes.frameHeight = 15;
 	sizes.frameHeightProjectile = sizes.frameHeight;
 	packTexture(packedTextureHelp, UITextureType::UITEX_HELP, &sizes);
+	endScene.needsFramesTextureHelp = true;
 }
 
 // runs on the main thread
@@ -17453,6 +17446,7 @@ void UI::packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind) {
 	lastPackedSize = *sizes;
 	textureIsColorblind = isColorblind;
 	packTexture(packedTextureFramebar, UITextureType::UITEX_FRAMEBAR, sizes);
+	endScene.needsFramesTextureFramebar = true;
 }
 
 // runs on the main thread
@@ -17652,11 +17646,11 @@ void setOutlinedText(bool isOutlined) {
         	if (!outlinedFont) {
         		outlinedFont = ImGui::GetFont();
         	}
-        	outlinedFont->ContainerAtlas->TexID = (void*)TEXID_IMGUIFONT_OUTLINED;
+        	outlinedFont->ContainerAtlas->TexID = TEXID_IMGUIFONT_OUTLINED;
 	    	ImGui::PushFont(outlinedFont);
         } else {
         	if (outlinedFont) {
-        		outlinedFont->ContainerAtlas->TexID = (void*)TEXID_IMGUIFONT;
+        		outlinedFont->ContainerAtlas->TexID = TEXID_IMGUIFONT;
         	}
         	ImGui::PopFont();
         }

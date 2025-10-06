@@ -9089,6 +9089,8 @@ UiOrFramebarDrawData::UiOrFramebarDrawData(bool calledFromDrawOriginPointsRender
 			framebarColorblind = isColorblind;
 		}
 	}
+	needsFramesTextureFramebar = endScene.needsFramesTextureFramebar;
+	needsFramesTextureHelp = endScene.needsFramesTextureHelp;
 }
 
 // Runs on the main thread
@@ -9324,6 +9326,8 @@ void EndScene::executeDrawOriginPointsRenderCommand(DrawOriginPointsRenderComman
 		graphics.endSceneIsAwareOfDrawingPostponement = command->uiOrFramebarDrawData.drawingPostponed;
 		graphics.obsStoppedCapturingFromEndScenesPerspective = command->uiOrFramebarDrawData.obsStoppedCapturing;
 		graphics.uiFramebarDrawData = command->uiOrFramebarDrawData.drawData;
+		graphics.uiNeedsFramesTextureFramebar = command->uiOrFramebarDrawData.needsFramesTextureFramebar;
+		graphics.uiNeedsFramesTextureHelp = command->uiOrFramebarDrawData.needsFramesTextureHelp;
 		graphics.uiTexture = getTextureFromUTexture2D(command->uiOrFramebarDrawData.iconsUTexture2D);
 		graphics.staticFontTexture = getTextureFromUTexture2D(command->uiOrFramebarDrawData.staticFontTexture2D);
 		graphics.staticFontOpenParenthesis = command->uiOrFramebarDrawData.openParenthesis;
@@ -9438,13 +9442,17 @@ void EndScene::executeDrawImGuiRenderCommand(DrawImGuiRenderCommand* command) {
 		graphics.staticFontCloseParenthesis = command->uiOrFramebarDrawData.closeParenthesis;
 		memcpy(graphics.staticFontDigit, command->uiOrFramebarDrawData.digit, sizeof graphics.staticFontDigit);
 		graphics.uiDrawData = std::move(command->uiOrFramebarDrawData.drawData);
+		graphics.uiNeedsFramesTextureFramebar = command->uiOrFramebarDrawData.needsFramesTextureFramebar;
+		graphics.uiNeedsFramesTextureHelp = command->uiOrFramebarDrawData.needsFramesTextureHelp;
 		graphics.inputHistoryIsSplitOut = command->uiOrFramebarDrawData.inputHistoryIsSplitOut;
 		return;
 	}
 	if (graphics.drawingPostponed()) {
 		return;
 	}
-	ui.onEndScene(getDevice(), command->uiOrFramebarDrawData.drawData.data(), tex);
+	ui.onEndScene(getDevice(), command->uiOrFramebarDrawData.drawData.data(), tex,
+		command->uiOrFramebarDrawData.needsFramesTextureFramebar,
+		command->uiOrFramebarDrawData.needsFramesTextureHelp);
 }
 
 // Runs on the graphics thread

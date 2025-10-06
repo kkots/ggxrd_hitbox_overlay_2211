@@ -89,6 +89,8 @@ public:
 	bool drawingPostponed() const;
 	std::vector<BYTE> uiFramebarDrawData;
 	std::vector<BYTE> uiDrawData;
+	bool uiNeedsFramesTextureFramebar = false;
+	bool uiNeedsFramesTextureHelp = false;
 	IDirect3DTexture9* uiTexture;
 	IDirect3DTexture9* staticFontTexture;
 	CharInfo staticFontOpenParenthesis;

@@ -385,7 +385,7 @@ void Graphics::beginSceneHook(IDirect3DDevice9* device) {
 			runningOwnBeginScene = false;
 			if (pauseMenuOpen) {
 				if (uiTexture) {
-					ui.onEndScene(device, uiDrawData.data(), uiTexture);
+					ui.onEndScene(device, uiDrawData.data(), uiTexture, uiNeedsFramesTextureFramebar, uiNeedsFramesTextureHelp);
 				}
 			} else {
 				needDrawWholeUiWithPoints = true;
@@ -3099,7 +3099,7 @@ void Graphics::drawAllFramebarDrawData() {
 	} else {
 		ddUse = uiFramebarDrawData.data();
 	}
-	ui.onEndScene(device, ddUse, uiTexture);
+	ui.onEndScene(device, ddUse, uiTexture, uiNeedsFramesTextureFramebar, uiNeedsFramesTextureHelp);
 	framebarDrawDataPrepared = false;
 }
 
