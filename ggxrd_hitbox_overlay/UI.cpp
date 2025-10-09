@@ -8220,6 +8220,8 @@ void UI::drawSearchableWindows() {
 					pushOutlinedText(true);
 				}
 				
+				int idleTimeAdd = 0;
+				
 				for (size_t j = 0; j < comboRecipeSize; ++j) {
 					const ComboRecipeElement& elem = player.comboRecipe[j];
 					
@@ -8234,19 +8236,37 @@ void UI::drawSearchableWindows() {
 						}
 					}
 					
-					if (elem.cancelDelayedBy
+					if (!elem.doneAfterIdle) {
+						idleTimeAdd = 0;
+					}
+					int delayModif = elem.cancelDelayedBy + idleTimeAdd;
+					
+					bool goingToShowTheElement;
+					if (elem.dashDuration) {
+						if (elem.isWalkForward || elem.isWalkBackward) {
+							goingToShowTheElement = settings.comboRecipe_showWalks;
+						} else {
+							goingToShowTheElement = settings.comboRecipe_showDashes;
+						}
+					} else if (elem.isSuperJumpInstall) {
+						goingToShowTheElement = settings.comboRecipe_showSuperJumpInstalls;
+					} else {
+						goingToShowTheElement = true;
+					}
+					
+					if (delayModif
 							&& (
 								elem.doneAfterIdle
 									? settings.comboRecipe_showIdleTimeBetweenMoves
 									: settings.comboRecipe_showDelaysBetweenCancels
 							)) {
 						
-						int correctedCancelDelayedBy = elem.cancelDelayedBy;
+						int correctedCancelDelayedBy = delayModif;
 						if (lastElemIsDelayed) {
 							const ComboRecipeElement& lastElem = player.comboRecipe[j - 1];
 							int timeDifference = (int)elem.timestamp - (int)lastElem.timestamp;
 							if (elem.cancelDelayedBy + 1 > timeDifference) {
-								correctedCancelDelayedBy = timeDifference - 1;
+								correctedCancelDelayedBy = timeDifference - 1 + idleTimeAdd;
 							}
 						}
 						
@@ -8254,6 +8274,8 @@ void UI::drawSearchableWindows() {
 						
 						if (lastElemIsDelayed) {
 							
+							if (goingToShowTheElement) {
+								
 							ImGui::TableNextColumn();
 							sprintf_s(strbuf, "%u)", rowCount++);
 							yellowText(strbuf);
@@ -8274,24 +8296,27 @@ void UI::drawSearchableWindows() {
 								} else {
 									sprintf_s(strbuf, "(Idle %df)", correctedCancelDelayedBy);
 								}
+									idleTimeAdd = 0;
 							} else {
 								sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
 							}
 							ImGui::TextUnformatted(strbuf);
 							ImGui::PopStyleColor();
+							} else if (elem.doneAfterIdle) {
+								idleTimeAdd += elem.cancelDelayedBy;
+							}
 							
 						}
 					} else {
 						lastElemIsDelayed = false;
 					}
 					
+					if (!goingToShowTheElement) {
 					if (elem.dashDuration) {
-						if (elem.isWalkForward || elem.isWalkBackward) {
-							if (!settings.comboRecipe_showWalks) continue;
-						} else if (!settings.comboRecipe_showDashes) continue;
+							idleTimeAdd += elem.dashDuration;
+						}
+						continue;
 					}
-					
-					if (elem.isSuperJumpInstall && !settings.comboRecipe_showSuperJumpInstalls) continue;
 					
 					const char* chosenName;
 					if (elem.name) {
@@ -8304,6 +8329,7 @@ void UI::drawSearchableWindows() {
 						chosenName = nullptr;
 					}
 					
+					idleTimeAdd = 0;
 					ImGui::TableNextColumn();
 					sprintf_s(strbuf, "%u)", rowCount++);
 					yellowText(strbuf);
