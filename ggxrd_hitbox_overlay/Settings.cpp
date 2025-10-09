@@ -247,6 +247,9 @@ void Settings::readSettings(bool isFirstEverRead) {
 	PinnedWindowList oldpinnedWindows;
 	memcpy(oldpinnedWindows, pinnedWindows, sizeof pinnedWindows);
 	bool olddisablePinButton = disablePinButton;
+	bool olddontResetBurstAndTensionGaugesWhenInStunOrFaint = dontResetBurstAndTensionGaugesWhenInStunOrFaint;
+	bool olddontResetRISCWhenInBurstOrFaint = dontResetRISCWhenInBurstOrFaint;
+	bool oldonlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun = onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun;
 
 	std::string accum;
 	char buf[129];
@@ -446,6 +449,15 @@ void Settings::readSettings(bool isFirstEverRead) {
 		}
 		if (olddisablePinButton != disablePinButton) {
 			PostMessageW(keyboard.thisProcessWindow, WM_APP_DISABLE_PIN_BUTTON_CHANGED, FALSE, FALSE);
+		}
+		if (olddontResetBurstAndTensionGaugesWhenInStunOrFaint != dontResetBurstAndTensionGaugesWhenInStunOrFaint) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_DONT_RESET_BURST_GAUGE_WHEN_IN_STUN_OR_FAINT_CHANGED, FALSE, FALSE);
+		}
+		if (olddontResetRISCWhenInBurstOrFaint != dontResetRISCWhenInBurstOrFaint) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_DONT_RESET_RISC_WHEN_IN_BURST_OR_FAINT_CHANGED, FALSE, FALSE);
+		}
+		if (oldonlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun != onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_ONLY_APPLY_COUNTERHIT_SETTING_WHEN_DEFENDER_NOT_IN_BURST_OR_FAINT_OR_HITSTUN_CHANGED, FALSE, FALSE);
 		}
 	}
 	

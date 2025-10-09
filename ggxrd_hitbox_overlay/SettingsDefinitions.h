@@ -1032,4 +1032,42 @@ settingsField(bool, showYrcWindowsInCancelsPanel, true,
 	"; When false, the Cancels Panel will no longer show YRC windows.\n"
 	"; After changing this setting, you need to redo the move to update the display.")
 	
+settingsField(bool, dontResetBurstAndTensionGaugesWhenInStunOrFaint, false,
+	"Don't Reset Burst And Tension Gauges When In Faint", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Only for Training Mode.\n"
+	"; By default, when this is false (the default), the game will reset the Burst Gauge\n"
+	"; and Tension Gauge of you or the dummy when none is performing an attack,\n"
+	"; or in blockstun or hitstun, or has throw protection, or is airborne or dead.\n"
+	"; Unfortunately, the default rules consider 'idle' things like Faint animation,\n"
+	"; because that animation is not hitstun.\n"
+	"; The Burst Gauge resets to maximum if Training Mode Pause Menu - Psych Burst is set to Infinite.\n"
+	"; The Tension Gauge resets to the value set in Training Mode Pause Menu - Tension Gauge.\n"
+	"; Setting this to true prevents the Burst Gauge from being reset during anything but actually being idle,\n"
+	"; as in ready to perform a 5P on the ground and having no throw protection on top.")
+	
+settingsField(bool, dontResetRISCWhenInBurstOrFaint, false,
+	"Don't Reset RISC When In Burst Or Faint", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Only for Training Mode.\n"
+	"; By default, when this is false (the default), the game will reset the RISC Gauge\n"
+	"; of a player when that player is not in hitstun, not in blockstun and does not have\n"
+	"; throw protection.\n"
+	"; Unfortunately, the default rules reset RISC during Burst and Faint animations,\n"
+	"; because they are not hitstun.\n"
+	"; The RISC Gauge resets to the value specified in Training Mode Pause Menu - R.I.S.C. Level.\n"
+	"; Setting this to true prevents the RISC Gauge from being reset during anything but actually being idle,\n"
+	"; as in ready to perform a 5P or j.P and having no throw protection on top.")
+	
+settingsField(bool, onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun, false,
+	"Only Apply 'Counter Hit' Training Setting When Dummy Is Not In Burst Or Faint Or Hitstun", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Only for Training Mode.\n"
+	"; By default, when this is false (the default), the game will apply the 'Counter Hit'\n"
+	"; Training Mode setting only when the player or dummy were hit when not already being in hitstun.\n"
+	"; Unfortunately, the default rules apply Counter Hit during Burst and Faint animations,\n"
+	"; because they are not hitstun.\n"
+	"; Setting this to true prevents the 'Counter Hit' setting from working explicitly just for Burst\n"
+	"; and Faint animations, including all hitstun.")
+	
 #pragma warning(pop)

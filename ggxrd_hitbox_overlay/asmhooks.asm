@@ -27,6 +27,9 @@ extrn _drawWinsHook:proc
 ; a cdecl with 3 args
 extrn _activeFrameHitReflectHook:proc
 
+; a cdecl with 4 args
+extrn _obtainingOfCounterhitTrainingSettingHook:proc
+
 ; caller clears stack. ecx - first arg, esp+4,esp+8 - second and third args
 ; Runs on the main thread
 _drawQuadExecHookAsm proc
@@ -108,5 +111,17 @@ _activeFrameHitReflectHookAsm proc
   add esp,0Ch
   ret 4
 _activeFrameHitReflectHookAsm endp
+
+; thiscall with two stack args
+; Runs on the main thread
+_obtainingOfCounterhitTrainingSettingHookAsm proc
+	push dword ptr[esp+8h]
+	push dword ptr[esp+8h]
+	push ecx
+	push esi  ; this is the defender player (0 for projectile defenders) in activeFrameHit
+	call _obtainingOfCounterhitTrainingSettingHook
+	add esp,10h
+	ret 8h
+_obtainingOfCounterhitTrainingSettingHookAsm endp
 
 end

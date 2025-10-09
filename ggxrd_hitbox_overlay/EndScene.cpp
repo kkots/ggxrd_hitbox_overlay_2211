@@ -67,6 +67,11 @@ extern "C" void jumpInstallSuperJumpHookAsm(void* pawn);  // defined in asmhooks
 extern "C" void __fastcall jumpInstallSuperJumpHook(void* pawn);  // defined here
 extern "C" void activeFrameHitReflectHookAsm(void* ent, int percentage);  // defined in asmhooks.asm
 extern "C" void __cdecl activeFrameHitReflectHook(void* attacker, void* defender, int percentage);  // defined here
+extern "C" void obtainingOfCounterhitTrainingSettingHookAsm(void* trainingStruct /* this argument */,
+		TrainingSettingId settingId, BOOL outsideTraining);  // defined in asmhooks.asm
+// the defender here is typecast into Player. It is 0 for Projectiles
+extern "C" int __cdecl obtainingOfCounterhitTrainingSettingHook(void* defender, void* trainingStruct,
+		TrainingSettingId settingId, BOOL outsideTraining);  // defined here
 
 static inline bool isDizzyBubble(const char* name) {
 	return (*(DWORD*)name & 0xffffff) == ('A' | ('w'<<8) | ('a'<<16))
@@ -827,6 +832,12 @@ bool EndScene::onDllMain() {
 	}
 	
 	if (!highlightGreenWhenBecomingIdleChanged()) return false;
+	
+	if (!onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged()) return false;
+	
+	if (!onDontResetRiscWhenInBurstOrFaintChanged()) return false;
+	
+	if (!onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged()) return false;
 	
 	return !error;
 }
@@ -7775,6 +7786,18 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				ui.onDisablePinButtonChanged(true);
 			}
 			break;
+			case WM_APP_DONT_RESET_BURST_GAUGE_WHEN_IN_STUN_OR_FAINT_CHANGED: {
+				onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged();
+			}
+			break;
+			case WM_APP_DONT_RESET_RISC_WHEN_IN_BURST_OR_FAINT_CHANGED: {
+				onDontResetRiscWhenInBurstOrFaintChanged();
+			}
+			break;
+			case WM_APP_ONLY_APPLY_COUNTERHIT_SETTING_WHEN_DEFENDER_NOT_IN_BURST_OR_FAINT_OR_HITSTUN_CHANGED: {
+				onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
+			}
+			break;
 		}
 	}
 	
@@ -12564,4 +12587,131 @@ int FRenderCommand::totalCountOfCommandsInCirculation = 0;
 
 FRenderCommand::FRenderCommand() {
 	++totalCountOfCommandsInCirculation;
+}
+
+// only return critical error as false, the rest as true
+bool EndScene::onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged() {
+	if (!settings.dontResetBurstAndTensionGaugesWhenInStunOrFaint
+			|| burstGaugeResettingHookAttempted) return true;
+	burstGaugeResettingHookAttempted = true;
+	uintptr_t beforeFrameStepPlaceWhereTheyResetGauges = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"8b 7e 40 6a 00 6a 08 e8",
+		nullptr, "beforeFrameStepPlaceWhereTheyResetGauges");
+	if (!beforeFrameStepPlaceWhereTheyResetGauges) return true;
+	std::vector<char> sig;
+	std::vector<char> mask;
+	std::vector<char> maskForCaching;
+	byteSpecificationToSigMask("e8 ?? ?? ?? ?? 85 c0 0f 84 ?? ?? ?? ??", sig, mask, nullptr, 0, &maskForCaching);
+	uintptr_t trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingCallPlace = sigscan(
+			beforeFrameStepPlaceWhereTheyResetGauges - 13,
+			beforeFrameStepPlaceWhereTheyResetGauges,
+			sig.data(),
+			mask.data(),
+			"trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking",
+			maskForCaching.data());
+	if (!trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingCallPlace) return true;
+	// the orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking function checks if both players are 'idle', but the check is incomplete
+	orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking =
+		(trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking_t)followRelativeCall(
+			trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingCallPlace);
+	auto trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHookPtr =
+		&HookHelp::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook;
+	bool wasTransaction = detouring.isInTransaction();
+	if (!wasTransaction) {
+		detouring.beginTransaction(false);
+	}
+	if (!detouring.attach(&(PVOID&)orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking,
+		(PVOID&)trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHookPtr,
+		"trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking")) return false;
+	if (!wasTransaction) {
+		detouring.endTransaction();
+	}
+	return true;
+}
+
+BOOL EndScene::HookHelp::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook() {
+	return endScene.trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook(Entity{(void*)this});
+}
+
+BOOL EndScene::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook(Entity ent) {
+	if (game.isTrainingMode() && settings.dontResetBurstAndTensionGaugesWhenInStunOrFaint) {
+		if (!findPlayer(ent).isIdle() || !findPlayer(ent.enemyEntity()).isIdle()) {
+			return FALSE;
+		}
+	}
+	return orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking((void*)ent.ent);
+}
+
+// only return critical error as false, the rest as true
+bool EndScene::onDontResetRiscWhenInBurstOrFaintChanged() {
+	if (!settings.dontResetRISCWhenInBurstOrFaint
+			|| riscGaugeResettingHookAttempted) return true;
+	riscGaugeResettingHookAttempted = true;
+	orig_inHitstunBlockstunOrThrowProtectionOrDead = (inHitstunBlockstunOrThrowProtectionOrDead_t)sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"8b 81 3c 02 00 00 a8 04 75 20 83 b9 54 4d 00 00 00 7f 17 83 b9 e4 9f 00 00 00 7f 0e a8 02 75 0a",
+		nullptr, "inHitstunBlockstunOrThrowProtectionOrDead");
+	if (!orig_inHitstunBlockstunOrThrowProtectionOrDead) return true;
+	auto inHitstunBlockstunOrThrowProtectionOrDeadHookPtr = &HookHelp::inHitstunBlockstunOrThrowProtectionOrDeadHook;
+	bool wasTransaction = detouring.isInTransaction();
+	if (!wasTransaction) {
+		detouring.beginTransaction(false);
+	}
+	if (!detouring.attach(&(PVOID&)orig_inHitstunBlockstunOrThrowProtectionOrDead,
+		(PVOID&)inHitstunBlockstunOrThrowProtectionOrDeadHookPtr,
+		"inHitstunBlockstunOrThrowProtectionOrDead")) return false;
+	if (!wasTransaction) {
+		detouring.endTransaction();
+	}
+	return true;
+}
+
+BOOL EndScene::HookHelp::inHitstunBlockstunOrThrowProtectionOrDeadHook() {
+	return endScene.inHitstunBlockstunOrThrowProtectionOrDeadHook(Entity{(void*)this});
+}
+
+// only runs in training mode. Only used to decide whether to reset RISC in Training Mode
+BOOL EndScene::inHitstunBlockstunOrThrowProtectionOrDeadHook(Entity ent) {
+	if (settings.dontResetRISCWhenInBurstOrFaint && !findPlayer(ent).isIdle()) {
+		return TRUE;
+	}
+	return orig_inHitstunBlockstunOrThrowProtectionOrDead((void*)ent.ent);
+}
+
+// only return critical error as false, the rest as true
+bool EndScene::onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged() {
+	if (!settings.onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun
+			|| attemptedToHookTheObtainingOfCounterhitTrainingSetting) return true;
+	attemptedToHookTheObtainingOfCounterhitTrainingSetting = true;
+	uintptr_t callPlace = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"55 6a 0b 89 6c 24 30 e8 ?? ?? ?? ?? 8b c8 >e8",
+		nullptr, "obtainingOfCounterhitTrainingSetting");
+	if (!callPlace) return true;
+	int offset = calculateRelativeCallOffset(callPlace, (uintptr_t)obtainingOfCounterhitTrainingSettingHookAsm);
+	bool wasTransaction = detouring.isInTransaction();
+	if (!wasTransaction) {
+		detouring.beginTransaction(false);
+	}
+	std::vector<char> newBytes(4);
+	memcpy(newBytes.data(), &offset, 4);
+	if (!detouring.patchPlace(callPlace + 1, newBytes)) return false;
+	if (!wasTransaction) {
+		detouring.endTransaction();
+	}
+	return true;
+}
+
+int __cdecl obtainingOfCounterhitTrainingSettingHook(void* defender, void* trainingStruct, TrainingSettingId settingId, BOOL outsideTraining) {
+	Entity defenderEnt { defender };
+	if (defenderEnt && settingId == TRAINING_SETTING_COUNTER_HIT && !outsideTraining
+			&& settings.onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun
+			&& (
+				defenderEnt.cmnActIndex() == CmnActBurst
+				|| defenderEnt.cmnActIndex() == CmnActKizetsu
+			)) {
+		return 0;
+	}
+	return game.getTrainingSetting(settingId);
 }

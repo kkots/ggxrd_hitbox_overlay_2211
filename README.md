@@ -1174,7 +1174,43 @@ disablePinButton = false
 
 ; Specify true or false.
 ; When false, the Cancels Panel will no longer show YRC windows.
+; After changing this setting, you need to redo the move to update the display.
 showYrcWindowsInCancelsPanel = true
+
+; Specify true or false.
+; Only for Training Mode.
+; By default, when this is false (the default), the game will reset the Burst Gauge
+; and Tension Gauge of you or the dummy when none is performing an attack,
+; or in blockstun or hitstun, or has throw protection, or is airborne or dead.
+; Unfortunately, the default rules consider 'idle' things like Faint animation,
+; because that animation is not hitstun.
+; The Burst Gauge resets to maximum if Training Mode Pause Menu - Psych Burst is set to Infinite.
+; The Tension Gauge resets to the value set in Training Mode Pause Menu - Tension Gauge.
+; Setting this to true prevents the Burst Gauge from being reset during anything but actually being idle,
+; as in ready to perform a 5P on the ground and having no throw protection on top.
+dontResetBurstAndTensionGaugesWhenInStunOrFaint = false
+
+; Specify true or false.
+; Only for Training Mode.
+; By default, when this is false (the default), the game will reset the RISC Gauge
+; of a player when that player is not in hitstun, not in blockstun and does not have
+; throw protection.
+; Unfortunately, the default rules reset RISC during Burst and Faint animations,
+; because they are not hitstun.
+; The RISC Gauge resets to the value specified in Training Mode Pause Menu - R.I.S.C. Level.
+; Setting this to true prevents the RISC Gauge from being reset during anything but actually being idle,
+; as in ready to perform a 5P or j.P and having no throw protection on top.
+dontResetRISCWhenInBurstOrFaint = false
+
+; Specify true or false.
+; Only for Training Mode.
+; By default, when this is false (the default), the game will apply the 'Counter Hit'
+; Training Mode setting only when the player or dummy were hit when not already being in hitstun.
+; Unfortunately, the default rules apply Counter Hit during Burst and Faint animations,
+; because they are not hitstun.
+; Setting this to true prevents the 'Counter Hit' setting from working explicitly just for Burst
+; and Faint animations, including all hitstun.
+onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun = false
 ```
 
 </details>
@@ -1671,3 +1707,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 68) Now closing the main UI window does not close the whole UI. However, when you press the hotkey for showing/hiding UI (ESC by default), the main UI window will reappear automatically. To get rid of it you could pin every window but the main one and use ESC to toggle between "show all" - "show only pinned" - "show none" modes, stopping only on "show only pinned" and "show none", therefore not letting the main window be displayed.
 69) The Cancels panel now shows YRC windows. You can disable this in Settings - General Settings - Show YRC Windows In Cancels Panel.
 70) In Combo Recipe, when showing microwalks or microdashes is disabled but showing idle time is enabled, microwalks and/or microdashes will be converted to idle time and all idle time there will be fused together and displayed as one entry of #) (Idle Xf).
+71) Added options in General Settings to prevent RISC from resetting in Training Mode when that player is not entirely idle, like for example when performing a Burst, and to prevent Burst Gauge and Tension Gauge from resetting (this is all Training Mode) when one of the players is not entirely idle (here the example would be Faint/Dizziness animation), and to prevent Training Mode's Counter Hit - Forced/Random/Forced Mortal Counter setting from taking effect on opponents that are either in Burst or Faint/Dizziness animation.

@@ -2820,6 +2820,7 @@ void PlayerInfo::determineMoveNameAndSlangName(Entity pawn, const NamePair** nam
 		dummyPlayer = std::make_unique<PlayerInfo>();
 	}
 	dummyPlayer->pawn = pawn;
+	dummyPlayer->wasEnableNormals = pawn.enableNormals();
 	dummyPlayer->wasEnableWhiffCancels = pawn.enableWhiffCancels();
 	dummyPlayer->wasForceDisableFlags = pawn.forceDisableFlags();
 	if (moveNonEmpty) {
@@ -3920,4 +3921,9 @@ void PlayerInfo::determineCancelDelay(CancelDelay* result) const {
 		result->delay = timePassedPureIdle;
 		result->isAfterIdle = true;
 	}
+}
+
+bool PlayerInfo::isIdle() {
+	if (!pawn) return true;
+	return idlePlus;
 }

@@ -2422,6 +2422,18 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.showYrcWindowsInCancelsPanel);
 				
+				if (booleanSettingPreset(settings.dontResetBurstAndTensionGaugesWhenInStunOrFaint)) {
+					endScene.onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged();
+				}
+				
+				if (booleanSettingPreset(settings.dontResetRISCWhenInBurstOrFaint)) {
+					endScene.onDontResetRiscWhenInBurstOrFaintChanged();
+				}
+				
+				if (booleanSettingPreset(settings.onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun)) {
+					endScene.onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
+				}
+				
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
 				ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
@@ -8276,32 +8288,32 @@ void UI::drawSearchableWindows() {
 							
 							if (goingToShowTheElement) {
 								
-							ImGui::TableNextColumn();
-							sprintf_s(strbuf, "%u)", rowCount++);
-							yellowText(strbuf);
-							ImGui::SameLine();
-							
-							ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-							if (elem.doneAfterIdle) {
-								if (elem.shotgunMaxCharge && elem.shotgunChargeSkippedFrames != 255) {
-									if (!elem.shotgunChargeSkippedFrames) {
-										// the displayed max charge doesn't account for RC slowdown, while the displayed current charge does
-										// this doesn't matter because the one performing the combo can't be slowed down by RC
-										sprintf_s(strbuf, "(Idle %d/%df)", correctedCancelDelayedBy, elem.shotgunMaxCharge);
+								ImGui::TableNextColumn();
+								sprintf_s(strbuf, "%u)", rowCount++);
+								yellowText(strbuf);
+								ImGui::SameLine();
+								
+								ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+								if (elem.doneAfterIdle) {
+									if (elem.shotgunMaxCharge && elem.shotgunChargeSkippedFrames != 255) {
+										if (!elem.shotgunChargeSkippedFrames) {
+											// the displayed max charge doesn't account for RC slowdown, while the displayed current charge does
+											// this doesn't matter because the one performing the combo can't be slowed down by RC
+											sprintf_s(strbuf, "(Idle %d/%df)", correctedCancelDelayedBy, elem.shotgunMaxCharge);
+										} else {
+											sprintf_s(strbuf, "(Idle %df) (Shotgun Charge: %d/%df)", correctedCancelDelayedBy,
+												(int)correctedCancelDelayedBy + (int)elem.shotgunChargeSkippedFrames,
+												elem.shotgunMaxCharge);
+										}
 									} else {
-										sprintf_s(strbuf, "(Idle %df) (Shotgun Charge: %d/%df)", correctedCancelDelayedBy,
-											(int)correctedCancelDelayedBy + (int)elem.shotgunChargeSkippedFrames,
-											elem.shotgunMaxCharge);
+										sprintf_s(strbuf, "(Idle %df)", correctedCancelDelayedBy);
 									}
-								} else {
-									sprintf_s(strbuf, "(Idle %df)", correctedCancelDelayedBy);
-								}
 									idleTimeAdd = 0;
-							} else {
-								sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
-							}
-							ImGui::TextUnformatted(strbuf);
-							ImGui::PopStyleColor();
+								} else {
+									sprintf_s(strbuf, "(Delay %df)", elem.cancelDelayedBy);
+								}
+								ImGui::TextUnformatted(strbuf);
+								ImGui::PopStyleColor();
 							} else if (elem.doneAfterIdle) {
 								idleTimeAdd += elem.cancelDelayedBy;
 							}
@@ -8312,7 +8324,7 @@ void UI::drawSearchableWindows() {
 					}
 					
 					if (!goingToShowTheElement) {
-					if (elem.dashDuration) {
+						if (elem.dashDuration) {
 							idleTimeAdd += elem.dashDuration;
 						}
 						continue;

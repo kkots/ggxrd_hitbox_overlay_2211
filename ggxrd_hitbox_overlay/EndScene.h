@@ -51,6 +51,8 @@ using Pawn_ArcadeMode_IsBoss_t = BOOL(__thiscall*)(void* pawn);
 using isSignVer1_10OrHigher_t = BOOL(__cdecl*)(void);
 using multiplySpeedX_t = void(__thiscall*)(void* ent, int percentage);
 using pawnGetColor_t = DWORD(__thiscall*)(void* ent, DWORD* inColor);
+using trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking_t = BOOL(__thiscall*)(void* ent);
+using inHitstunBlockstunOrThrowProtectionOrDead_t = BOOL(__thiscall*)(void* ent);
 
 struct FVector2D {
 	float X;
@@ -362,6 +364,9 @@ public:
 	void highlightSettingsChanged();
 	bool needsFramesTextureFramebar = false;
 	bool needsFramesTextureHelp = false;
+	bool onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged();
+	bool onDontResetRiscWhenInBurstOrFaintChanged();
+	bool onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -397,6 +402,8 @@ private:
 		void speedYReset(int speedY);
 		BOOL Pawn_ArcadeMode_IsBossHook();
 		DWORD pawnGetColorHook(DWORD* inColor);
+		BOOL trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook();
+		BOOL inHitstunBlockstunOrThrowProtectionOrDeadHook();
 	};
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
@@ -426,6 +433,8 @@ private:
 	void speedYReset(Entity pawn, int speedY);
 	BOOL Pawn_ArcadeMode_IsBossHook(Entity pawn);
 	DWORD pawnGetColorHook(Entity pawn, DWORD* inColor);
+	BOOL trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook(Entity pawn);
+	BOOL inHitstunBlockstunOrThrowProtectionOrDeadHook(Entity pawn);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
@@ -724,6 +733,11 @@ private:
 		bool blue = false;
 	};
 	std::unordered_map<const AddedMoveData*, HighlightMoveCacheEntry> highlightMoveCache;
+	bool burstGaugeResettingHookAttempted = false;
+	trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking_t orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking = nullptr;
+	inHitstunBlockstunOrThrowProtectionOrDead_t orig_inHitstunBlockstunOrThrowProtectionOrDead = nullptr;
+	bool riscGaugeResettingHookAttempted = false;
+	bool attemptedToHookTheObtainingOfCounterhitTrainingSetting = false;
 };
 
 extern EndScene endScene;
