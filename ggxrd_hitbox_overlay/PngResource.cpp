@@ -43,7 +43,7 @@ bool loadPngResource(HINSTANCE hInstance, WORD resourceSymbolId, PngResource& pn
 	image.format = PNG_FORMAT_BGRA;
 	pngResource.resize(image.width, image.height);
 	size_t stride = PNG_IMAGE_ROW_STRIDE(image);  // we can specify a larger stride if we want and libpng will align rows to that
-	if (!png_image_finish_read(&image, nullptr, &pngResource.data.front(), stride, nullptr)) {
+	if (!png_image_finish_read(&image, nullptr, pngResource.data.data(), stride, nullptr)) {
 		WinError winErr;
 		logwrap(fputs("png_image_finish_read failed.\n", logfile));
 		return false;

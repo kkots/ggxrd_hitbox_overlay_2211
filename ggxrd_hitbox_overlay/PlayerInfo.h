@@ -2172,8 +2172,6 @@ struct PlayerInfo {
 	void determineCancelDelay(CancelDelay* result) const;
 };
 
-extern const char PROJECTILES_STR[12];
-
 extern const NamePair PROJECTILES_NAMEPAIR;
 
 bool animationIsNeedCountRamlethalSwordTime(const char* animName);

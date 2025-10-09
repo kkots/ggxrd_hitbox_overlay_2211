@@ -487,7 +487,7 @@ usePixelShader = true
 showIndividualHitboxOutlines = false
 
 ; A keyboard shortcut.
-; Pressing this shortcut will show/hide the mod's UI window.
+; Pressing this shortcut will show/hide the mod's UI windows.
 modWindowVisibilityToggle = Escape
 
 ; Specify true or false.
@@ -589,8 +589,8 @@ showFramebarInReplayMode = true
 showFramebarInOtherModes = false
 
 ; Specify true or false.
-; If this is true, then closing the main mod's window, either using a hotkey or the cross mark,
-; will also hide the framebar, while opening the main mod's window will show the framebar.
+; If this is true, then closing every last window of the mod, either using a hotkey or the cross marks,
+; will also hide the framebar, while any new windows will show the framebar.
 ; Alternatively you could set up a separate hotkey to control visibility of the framebar, using "framebarVisibilityToggle".
 ; Note that even when the UI is open, "showFramebar" must be set to true for the framebar to be visible.
 closingModWindowAlsoHidesFramebar = true
@@ -1146,17 +1146,31 @@ highlightBlueWhenBecomingIdle = false
 
 ; Specify a list of moves and red, green and/or blue highlight for each.
 ; When a cancel into any of the specified moves becomes available, your character will flash that color.
-highlightWhenCancelsIntoMovesAvailable = {}
+highlightWhenCancelsIntoMovesAvailable = 
 
 ; Specify a number from 0 to 100.
-; Controls the transparency of the background of all UI windows, except Combo Recipe and Combo Damage & Combo Stun.
-; Combo Recipe has its own setting for transparency, and Combo Damage is just always transparent.
+; Controls the transparency of the background of all UI windows, Combo Damage & Combo Stun.
+; Combo Recipe has its own setting for transparency, and if it is set to transparent,
+; that will override this setting, but Combo Recipe's setting is not set, then this setting will take
+; priority.
+; Combo Damage is just always transparent and that can't be configured by any setting.
 globalWindowTransparency = 100
 
 ; Specify true or false.
 ; If true, all text in UI windows, except Combo Recipe and Combo Damage & Combo Stun, will be outlined with black color.
 ; Combo Recipe has its own setting for this, and Combo Damage is just always outlined.
 outlineAllWindowText = false
+
+; Specify a list of windows that are pinned.
+pinnedWindows = 
+
+; Specify true or false.
+; When true, all pinned windows will be opened when the mod starts.
+openPinnedWindowsOnStartup = true
+
+; Specify true or false.
+; When true, windows no longer will show pin buttons next to their X button and the pin functionality will be disabled entirely.
+disablePinButton = false
 ```
 
 </details>
@@ -1649,3 +1663,5 @@ This won't affect existing users who update the mod (if they ever changed any se
 64) Added an option to bypass room connection restrictions.
 65) Added an option to highlight the player character red, green, blue or a combination of these colours when they become idle or when a particular cancel becomes available. You can select desired cancels from a menu. See Settings - General Settings - "Highlight Red/Green/Blue When Becoming Idle" and "Highlight When Cancels Into Moves Available" button.
 66) Added an option to make all of the mod's windows be transparent or semi-transparent and have outlined text. This does not apply to the Combo Recipe panel, as it has its own setting for this, and Combo Damage & Burst Gain panel, as it is always transparent and outlined anyway.
+67) Added a pin button to all of the mod's windows, which does the following: 1) it locks those windows on top of all others; 2) if multiple windows are pinned, their order is fixed based on in which order you pinned them; 3) pressing the UI show/hide toggle (ESC by default) will instead, if non-pinned windows are also present, traverse through three states: State 1: all windows are visible; State 2: only pinned windows are visible; State 3: no windows are visible; 4) Pinned windows get saved for the next restart, and can be restored on startup if you checked the 'Settings - General Settings - Open Pinned Windows On Startup' setting (ON by default).
+68) Now closing the main UI window does not close the whole UI. However, when you press the hotkey for showing/hiding UI (ESC by default), the main UI window will reappear automatically. To get rid of it you could pin every window but the main one and use ESC to toggle between "show all" - "show only pinned" - "show none" modes, stopping only on "show only pinned" and "show none", therefore not letting the main window be displayed.

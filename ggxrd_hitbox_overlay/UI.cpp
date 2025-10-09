@@ -284,10 +284,10 @@ static void drawTextButParenthesesInGrayColor(const char* str);
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame);
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
-static void drawTextInWindowTitle(const char* txt);
+static void drawTextInWindowTitle(const char* txt, bool hasPinIcon);
 static bool printMoveFieldTooltip(const PlayerInfo& player);
 static bool printMoveField(const PlayerInfo& player);
-static void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip);
+static void headerThatCanBeClickedForTooltip(const char* title, PinnedWindowEnum windowIndex, bool makeTooltip);
 static void prepareLastNames(const char** lastName, const PlayerInfo& player, bool disableSlang,
 							int* lastNameDuration);
 static bool printNameParts(int playerIndex, std::vector<NameDuration>& elems, char* buf, size_t bufSize);
@@ -332,19 +332,14 @@ static bool settingOutlineText = false;
 static ImGuiWindowFlags windowFlags = (ImGuiWindowFlags)0;
 static ImVec4 windowColor { 0.F, 0.F, 0.F, 1.F };
 static bool overrideWindowColor = false;
-#define prebegin \
-	if (overrideWindowColor) { \
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, windowColor); \
-	}
-#define postbegin \
-	if (settingOutlineText) { \
-		pushOutlinedText(true); \
-	}
-
-#define preend \
-	if (settingOutlineText) popOutlinedText(); \
-	if (overrideWindowColor) ImGui::PopStyleColor();
+#define customBeginPair(name, i) \
+	customBegin(i == 0 ? name##_1 : name##_2)
 	
+#define toggleOpenManuallyPair(name, i) \
+	toggleOpenManually(i == 0 ? name##_1 : name##_2)
+	
+#define needDrawPair(name, i) \
+	needDraw(i == 0 ? name##_1 : name##_2)
 
 #define zerohspacing ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 #define _zerohspacing ImGui::PopStyleVar();
@@ -641,6 +636,21 @@ bool UI::onDllMain(HMODULE hModule) {
 	
 	errorDialogPos = new ImVec2();
 	
+	addImage(hModule, IDB_PIN, pinResource);
+	
+	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
+		windows[i].init();
+	}
+	
+	bool somePinnedWindowsWillOpenOnStartup = settings.openPinnedWindowsOnStartup && hasAtLeastOnePinnedWindowThatIsNotTheMainWindow();
+	if (!somePinnedWindowsWillOpenOnStartup || settings.modWindowVisibleOnStart) {
+		windows[PinnedWindowEnum_MainWindow].setOpen(true, false);
+	}
+	
+	windowShowMode = settings.modWindowVisibleOnStart || somePinnedWindowsWillOpenOnStartup
+			? WindowShowMode_All
+			: WindowShowMode_None;
+	
 	return true;
 }
 
@@ -680,10 +690,7 @@ void UI::onDllDetachGraphics() {
 		logwrap(fputs("imgui freeing D3D resources\n", logfile));
 		imguiD3DInitialized = false;
 		ImGui_ImplDX9_Shutdown();
-		if (imguiFontAlt) {
-			imguiFontAlt = nullptr;
-			attemptedCreatingAltFont = false;
-		}
+		clearSecondaryTextures();
 	}
 }
 
@@ -709,7 +716,7 @@ void UI::prepareDrawData() {
 	dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 	drewFramebar = false;
 	drewFrameTooltip = false;
-	if (!visible && !needShowFramebarCached || gifMode.modDisabled) {
+	if (!isVisible() && !needShowFramebarCached || gifMode.modDisabled) {
 		takeScreenshot = false;
 		takeScreenshotPress = false;
 		imguiActive = false;
@@ -753,52 +760,49 @@ void UI::prepareDrawData() {
 	ImGui::NewFrame();
 	prepareOutlinedFont();
 	
-	if (visible) {
-		
-		drawSearchableWindows();
-		
-		if (showErrorDialog && errorDialogText && *errorDialogText != '\0') {
-			ImGui::SetNextWindowPos(*(ImVec2*)errorDialogPos, ImGuiCond_Appearing);
-			ImGui::Begin("Error", &showErrorDialog);
-			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			ImGui::TextUnformatted(errorDialogText);
-			ImGui::PopTextWrapPos();
-			ImGui::End();
+	drawSearchableWindows();
+	
+	if (errorDialogText && *errorDialogText != '\0' && needDraw(PinnedWindowEnum_Error)) {
+		ImGui::SetNextWindowPos(*(ImVec2*)errorDialogPos, ImGuiCond_Appearing);
+		customBegin(PinnedWindowEnum_Error);
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted(errorDialogText);
+		ImGui::PopTextWrapPos();
+		customEnd();
+	}
+	
+	if (!shaderCompilationError) {
+		graphics.getShaderCompilationError(&shaderCompilationError);
+	}
+	if (shaderCompilationError && needDraw(PinnedWindowEnum_ShaderCompilationError)) {
+		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
+		customBegin(PinnedWindowEnum_ShaderCompilationError);
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted(shaderCompilationError->c_str());
+		ImGui::PopTextWrapPos();
+		customEnd();
+	}
+	if (needDraw(PinnedWindowEnum_RankIconDrawingHookError)) {
+		ImGui::SetNextWindowSize({ 650.F, 0.F }, ImGuiCond_FirstUseEver);
+		customBegin(PinnedWindowEnum_RankIconDrawingHookError);
+		ImGui::PushTextWrapPos(0.F);
+		if (!game.drawRankInLobbyOverPlayersHeads
+				&& !game.drawRankInLobbySearchMemberList
+				&& !game.drawRankInLobbyMemberList_NonCircle
+				&& !game.drawRankInLobbyMemberList_Circle) {
+			ImGui::TextUnformatted("Failed to find any of the code that draws rank icons!");
+		} else {
+			ImGui::TextUnformatted("Failed to find some of the code that draws rank icons! In those places, icons won't be hidden.");
 		}
-		
-		if (!shaderCompilationError) {
-			graphics.getShaderCompilationError(&shaderCompilationError);
-		}
-		if (shaderCompilationError && showShaderCompilationError) {
-			ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("Shader compilation error", &showShaderCompilationError);
-			ImGui::PushTextWrapPos(0.F);
-			ImGui::TextUnformatted(shaderCompilationError->c_str());
-			ImGui::PopTextWrapPos();
-			ImGui::End();
-		}
-		if (showingFailedHideRankSigscanMessage) {
-			ImGui::SetNextWindowSize({ 650.F, 0.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin("Failed to hook rank icon drawing", &showingFailedHideRankSigscanMessage);
-			ImGui::PushTextWrapPos(0.F);
-			if (!game.drawRankInLobbyOverPlayersHeads
-					&& !game.drawRankInLobbySearchMemberList
-					&& !game.drawRankInLobbyMemberList_NonCircle
-					&& !game.drawRankInLobbyMemberList_Circle) {
-				ImGui::TextUnformatted("Failed to find any of the code that draws rank icons!");
-			} else {
-				ImGui::TextUnformatted("Failed to find some of the code that draws rank icons! In those places, icons won't be hidden.");
-			}
-			ImGui::PopTextWrapPos();
-			printLineOfResultOfHookingRankIcons("Over Players' Heads", game.drawRankInLobbyOverPlayersHeads != 0);
-			printLineOfResultOfHookingRankIcons("Lobby Search's Member List", game.drawRankInLobbySearchMemberList != 0);
-			printLineOfResultOfHookingRankIcons("Inside Lobby - Pause Menu - Display Members - Rank Icons, Besides The Circle", game.drawRankInLobbyMemberList_NonCircle != 0);
-			printLineOfResultOfHookingRankIcons("Inside Lobby - Pause Menu - Display Members - The Circle Rank Icon", game.drawRankInLobbyMemberList_Circle != 0);
-			ImGui::End();
-		}
-		if (showSearch) {
-			searchWindow();
-		}
+		ImGui::PopTextWrapPos();
+		printLineOfResultOfHookingRankIcons("Over Players' Heads", game.drawRankInLobbyOverPlayersHeads != 0);
+		printLineOfResultOfHookingRankIcons("Lobby Search's Member List", game.drawRankInLobbySearchMemberList != 0);
+		printLineOfResultOfHookingRankIcons("Inside Lobby - Pause Menu - Display Members - Rank Icons, Besides The Circle", game.drawRankInLobbyMemberList_NonCircle != 0);
+		printLineOfResultOfHookingRankIcons("Inside Lobby - Pause Menu - Display Members - The Circle Rank Icon", game.drawRankInLobbyMemberList_Circle != 0);
+		customEnd();
+	}
+	if (needDraw(PinnedWindowEnum_Search)) {
+		searchWindow();
 	}
 	
 	if (needShowFramebarCached) {
@@ -846,1599 +850,1599 @@ void UI::drawSearchableWindows() {
 	
 	windowFlags = searching
 				? ImGuiWindowFlags_NoSavedSettings
-				: settings.globalWindowTransparency == 0
-					? ImGuiWindowFlags_NoBackground
-					: 0;
+				: (
+					settings.globalWindowTransparency == 0
+						? ImGuiWindowFlags_NoBackground
+						: 0
+				) | (settings.disablePinButton ? 0 : ImGuiWindowFlags_HasPinButton);
 	
-	prebegin
-	ImGui::Begin(searching ? "search_main" : "##ggxrd_hitbox_overlay_main_window", &visible, windowFlags);
-	postbegin
-	drawTextInWindowTitle(windowTitle.c_str());
-	pushSearchStack("Main UI Window");
-	
-	if (ImGui::CollapsingHeader(searchCollapsibleSection("Framedata"), ImGuiTreeNodeFlags_DefaultOpen) || searching) {
-		if (endScene.isIGiveUp() && !searching) {
-			ImGui::TextUnformatted("Online non-observer match running.");
-		} else
-		if (ImGui::BeginTable("##PayerData", 3, tableFlags)) {
-			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
-			ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
-			ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
-			
-			ImGui::TableNextColumn();
-			drawRightAlignedP1TitleWithCharIcon();
-			ImGui::TableNextColumn();
-			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
-			CenterAlign(scaledIcon.size.x);
-			drawGGIcon(scaledIcon);
-			AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
-			ImGui::TableNextColumn();
-			ImGui::TextUnformatted("P2");
-			ImGui::SameLine();
-			drawPlayerIconWithTooltip(1);
-			
-			{
-				PlayerInfo& player = endScene.players[0];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
-				stringArena = strbuf;
-				sprintf_s(strbuf, " (x%s)", printDecimal(player.gutsPercentage, 2, 0));
-				stringArena += strbuf;
-				sprintf_s(strbuf, " %3d", player.hp);
-				stringArena += strbuf;
-				RightAlignedText(stringArena.c_str());
-			}
-			
-			ImGui::TableNextColumn();
-			CenterAlignedText(searchFieldTitle("HP"));
-			AddTooltip(searchTooltip("HP (x Guts) [x Defense Modifier]\n"
-				"Technically you should divide HP by these values in order to get effective HP, because they're what all damage is multiplied by."));
-			
-			{
-				PlayerInfo& player = endScene.players[1];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%-3d ", player.hp);
-				stringArena = strbuf;
-				sprintf_s(strbuf, "(x%s) ", printDecimal(player.gutsPercentage, 2, 0));
-				stringArena += strbuf;
-				sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
-				stringArena += strbuf;
-				ImGui::TextUnformatted(stringArena.c_str());
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
-				printNoWordWrap
+	if (needDraw(PinnedWindowEnum_MainWindow)) {
+		customBegin(PinnedWindowEnum_MainWindow);
+		drawTextInWindowTitle(windowTitle.c_str(), lastCustomBeginHadPinButton);
+		pushSearchStack("Main UI Window");
+		
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Framedata"), ImGuiTreeNodeFlags_DefaultOpen) || searching) {
+			if (endScene.isIGiveUp() && !searching) {
+				ImGui::TextUnformatted("Online non-observer match running.");
+			} else
+			if (ImGui::BeginTable("##PayerData", 3, tableFlags)) {
+				ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.37f);
+				ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 0.26f);
+				ImGui::TableSetupColumn("P2", ImGuiTableColumnFlags_WidthStretch, 0.37f);
 				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("Meter"));
-					AddTooltip(searchTooltip("Tension"));
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
-				printNoWordWrap
+				drawRightAlignedP1TitleWithCharIcon();
+				ImGui::TableNextColumn();
+				GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
+				CenterAlign(scaledIcon.size.x);
+				drawGGIcon(scaledIcon);
+				AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted("P2");
+				ImGui::SameLine();
+				drawPlayerIconWithTooltip(1);
 				
-				if (i == 0) {
+				{
+					PlayerInfo& player = endScene.players[0];
 					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("Burst"));
+					sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
+					stringArena = strbuf;
+					sprintf_s(strbuf, " (x%s)", printDecimal(player.gutsPercentage, 2, 0));
+					stringArena += strbuf;
+					sprintf_s(strbuf, " %3d", player.hp);
+					stringArena += strbuf;
+					RightAlignedText(stringArena.c_str());
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
-				printNoWordWrap
 				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("RISC"));
-				}
-			}
-			for (int i = 0; i < 2; ++i) {
-				PlayerInfo& player = endScene.players[i];
 				ImGui::TableNextColumn();
-				const char* formatString;
-				if (i == 0) {
-					formatString = "%4d / %4d";
-				} else {
-					formatString = "%-4d / %-4d";
-				}
-				sprintf_s(strbuf, formatString, player.stun, player.stunThreshold * 100);
-				printNoWordWrap
+				CenterAlignedText(searchFieldTitle("HP"));
+				AddTooltip(searchTooltip("HP (x Guts) [x Defense Modifier]\n"
+					"Technically you should divide HP by these values in order to get effective HP, because they're what all damage is multiplied by."));
 				
-				if (i == 0) {
+				{
+					PlayerInfo& player = endScene.players[1];
 					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("Stun"));
-					AddTooltip("When not in hitstun, not in OTG state and not waking up, stun decays each frame by 4.\n"
-						"When in OTG state or waking up, stun decays each frame by 10.\n"
-						"Stun does not decay when in hitstun.\n"
-						"Stun decay happens even when in hitstop or superfreeze, and is unaffected by RC slowdown.\n"
-						"When an unknown condition is met, and not in hitstun, OTG or wakeup, stun decreases by 8 each frame, instead of 4."
-						" It was never observed.");
+					sprintf_s(strbuf, "%-3d ", player.hp);
+					stringArena = strbuf;
+					sprintf_s(strbuf, "(x%s) ", printDecimal(player.gutsPercentage, 2, 0));
+					stringArena += strbuf;
+					sprintf_s(strbuf, "[x%s]", printDecimal((player.defenseModifier + 0x100) * 100 / 0x100, 2, 0));
+					stringArena += strbuf;
+					ImGui::TextUnformatted(stringArena.c_str());
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				printDecimal(player.x, 2, 0);
-				sprintf_s(strbuf, "%s; ", printdecimalbuf);
-				printDecimal(player.y, 2, 0);
-				sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
-				printNoWordWrap
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("X; Y"));
-					AddTooltip(searchTooltip("Position X; Y in the arena. Divided by 100 for viewability."));
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				player.printStartup(strbufs[i], sizeof strbuf, &nameParts[i]);
-			}
-			startupOrTotal(two, "Startup", &showStartupTooltip);
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				if (player.startedUp || player.startupProj) {
-					printActiveWithMaxHit(player.activesDisp, player.maxHitDisp, player.hitOnFrameDisp);
-				} else {
-					*strbuf = '\0';
-				}
-				printWithWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					headerThatCanBeClickedForTooltip(searchFieldTitle("Active"), &showActiveTooltip, true);
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.printRecovery(strbuf, sizeof strbuf);
-				printWithWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("Recovery"));
-					AddTooltip(searchTooltip("Number of recovery frames in the last performed move."
-						" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.\n"
-						"See the tooltip for the 'Total' field for more details."));
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				player.printTotal(strbufs[i], sizeof strbuf, &nameParts[i]);
-			}
-			startupOrTotal(two, "Total", &showTotalTooltip);
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.printInvuls(strbuf, sizeof strbuf);
-				searchFieldValue(strbuf, nullptr);
-				float w = ImGui::CalcTextSize(strbuf).x;
-				const char* cantPos = strstr(strbuf, "can't armor unblockables");
-				float wrapWidth = ImGui::GetContentRegionAvail().x;
-				if (w > wrapWidth) {
-					wrapWidth += ImGui::GetCursorPosX();
-					if (cantPos) {
-						zerohspacing
-						drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf, cantPos, false, true, false);
-						ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
-						drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, "can't", nullptr, true, true, false);
-						ImGui::PopStyleColor();
-						drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, cantPos + 5, nullptr, true, true, true);
-						_zerohspacing
-					} else {
-						ImGui::TextWrapped("%s", strbuf);
-					}
-				} else {
-					if (i == 0) RightAlign(w);
-					if (cantPos) {
-						zerohspacing
-						ImGui::TextUnformatted(strbuf, cantPos);
-						ImGui::SameLine();
-						textUnformattedColored(RED_COLOR, "can't");
-						ImGui::SameLine();
-						ImGui::TextUnformatted(cantPos + 5);
-						_zerohspacing
-					} else {
-						ImGui::TextUnformatted(strbuf);
-					}
+					sprintf_s(strbuf, "%s", printDecimal(player.tension, 2, 0));
+					printNoWordWrap
 					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText(searchFieldTitle("Meter"));
+						AddTooltip(searchTooltip("Tension"));
+					}
 				}
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					headerThatCanBeClickedForTooltip(searchFieldTitle("Invul"), &showInvulTooltip, true);
-				}
-			}
-			struct {
-				bool displayFloorbounceQuestionMark = false;
-				int displayFloorbounceQuestionMarkValue = 0;
-				bool displayBlockstunLandQuestionMark = false;
-				int displayBlockstunLandQuestionMarkValue = 0;
-			} playerBlocks[2];
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
-					if (player.hitstunMaxFloorbounceExtra) {
-						playerBlocks[i].displayFloorbounceQuestionMarkValue = player.hitstunMaxFloorbounceExtra;
-						playerBlocks[i].displayFloorbounceQuestionMark = true;
-					}
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
-					if (player.blockstunMaxLandExtra) {
-						playerBlocks[i].displayBlockstunLandQuestionMarkValue = player.blockstunMaxLandExtra;
-						playerBlocks[i].displayBlockstunLandQuestionMark = true;
-					}
-				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				*strbuf = '\0';
-				int strbufLen = 0;
-				if (player.displayHitstop) {
-					strbufLen = sprintf_s(strbuf, "%d/%d", player.hitstopWithSlow, player.hitstopMaxWithSlow);
-				}
-				char* ptrNext = strbuf;
-				int ptrNextSize = sizeof strbuf;
-				if (*strbuf) {
-					ptrNext += strbufLen + 3;  // strlen(" + ")
-					*ptrNext = '\0';
-					ptrNextSize -= (ptrNext - strbuf);
-				}
-				size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
-				ptrNextSize = 0;
-				const char* blockType;
-				if (player.lastBlockWasIB) {
-					blockType = " (IB)";
-				} else if (player.lastBlockWasFD) {
-					blockType = " (FD)";
-				} else {
-					blockType = "";
-				}
-				if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-						player.cmnActIndex == CmnActJitabataLoop
-							? player.stagger
-							: 0,
-						player.staggerMax);
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER_WITH_SLOW) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-						player.cmnActIndex == CmnActJitabataLoop
-							? player.staggerWithSlow
-							: 0,
-						player.staggerMaxWithSlow);
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_REJECTION) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-						player.rejection,
-						player.rejectionMax);
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_REJECTION_WITH_SLOW) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-						player.rejectionWithSlow,
-						player.rejectionMaxWithSlow);
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_WALLSLUMP_LAND) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-						player.wallslumpLandWithSlow,
-						player.wallslumpLandMaxWithSlow);
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
-					int currentHitstun = player.inHitstun
-							? player.hitstun - (player.hitstop ? 1 : 0)
-							: 0;
-					if (player.hitstunMaxFloorbounceExtra) {
-						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)",
-							currentHitstun,
-							player.hitstunMax,
-							player.hitstunMaxFloorbounceExtra);
-					} else {
-						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-							currentHitstun,
-							player.hitstunMax);
-					}
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
-						player.hitstunWithSlow,
-						player.hitstunMaxWithSlow);
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
-					int currentBlockstun = player.blockstun - (player.hitstop ? 1 : 0);
-					if (player.blockstunMaxLandExtra) {
-						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)%s",
-							currentBlockstun,
-							player.blockstunMax,
-							player.blockstunMaxLandExtra,
-							blockType);
-					} else {
-						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d%s",
-							currentBlockstun,
-							player.blockstunMax,
-							blockType);
-					}
-				} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK_WITH_SLOW) {
-					ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d%s",
-						player.blockstunWithSlow,
-						player.blockstunMaxWithSlow,
-						blockType);
-				}
-				
-				if (strbuf != ptrNext && ptrNextSize > 0 && ptrNextSizeCap) {
-					memcpy(strbuf + strbufLen, " + ", 3);
-					strbufLen += 3 + ptrNextSize;
-				} else if (ptrNextSize > 0) {
-					strbufLen = ptrNextSize;
-				}
-				printWithWordWrap
-				if (player.displayTumble && (
-						player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
-						|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
-				)) {
-					sprintf_s(strbuf, "%d/%d tumble", player.tumbleWithSlow, player.tumbleMaxWithSlow);
+					sprintf_s(strbuf, "%s", printDecimal(player.burst, 2, 0));
 					printNoWordWrap
-				}
-				if (player.displayWallstick && (
-						player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
-						|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
-				)) {
-					sprintf_s(strbuf, "%d/%d wallstick", player.wallstickWithSlow, player.wallstickMaxWithSlow);
-					printNoWordWrap
-				}
-				if (player.displayKnockdown && (
-						player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
-						|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
-				)) {
-					sprintf_s(strbuf, "%d/%d knockdown", player.knockdownWithSlow, player.knockdownMaxWithSlow);
-					printNoWordWrap
-				}
-				if (playerBlocks[i].displayFloorbounceQuestionMark) {
-					printExtraHitstunTooltip(playerBlocks[i].displayFloorbounceQuestionMarkValue);
-				} else if (playerBlocks[i].displayBlockstunLandQuestionMark) {
-					printExtraBlockstunTooltip(playerBlocks[i].displayBlockstunLandQuestionMarkValue);
-				}
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("Hitstop+X-stun"));
-					if (ImGui::BeginItemTooltip()) {
-						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-						bool needSeparator = false;
-						for (int j = 0; j < 2; ++j) {
-							if (playerBlocks[j].displayFloorbounceQuestionMark) {
-								zerohspacing
-								sprintf_s(strbuf, "Player %d: ", j + 1);
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								printExtraHitstunText(playerBlocks[j].displayFloorbounceQuestionMarkValue);
-								_zerohspacing
-								needSeparator = true;
-							} else if (playerBlocks[j].displayBlockstunLandQuestionMark) {
-								zerohspacing
-								sprintf_s(strbuf, "Player %d: ", j + 1);
-								ImGui::TextUnformatted(strbuf);
-								ImGui::SameLine();
-								printExtraBlockstunText(playerBlocks[j].displayBlockstunLandQuestionMarkValue);
-								_zerohspacing
-								needSeparator = true;
-							}
-						}
-						if (needSeparator) ImGui::Separator();
-						ImGui::TextUnformatted(searchTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
-							" max hitstun or blockstun. When there's no + sign, the displayed values could"
-							" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
-							" and the other are on the right.\n"
-							"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
-							" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
-							" slightly prolonged when transitioning from air blockstun to ground blockstun."));
-						ImGui::PopTextWrapPos();
-						ImGui::EndTooltip();
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText(searchFieldTitle("Burst"));
 					}
 				}
-			}
-			
-			bool oneWillIncludeParentheses = false;
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				int frameAdvantage = dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage;
-				int landingFrameAdvantage = dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage;
-				if (player.frameAdvantageValid && player.landingFrameAdvantageValid
-						&& frameAdvantage != landingFrameAdvantage) {
-					oneWillIncludeParentheses = true;
-					break;
-				}
-			}
-			
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				
-				ImGui::TableNextColumn();
-				frameAdvantageControl(
-					dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage,
-					dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage,
-					player.frameAdvantageValid,
-					player.landingFrameAdvantageValid,
-					i == 0);
-				
-				if (i == 0) {
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					headerThatCanBeClickedForTooltip(searchFieldTitle("Frame Adv."), &showFrameAdvTooltip, !oneWillIncludeParentheses);
-					if (oneWillIncludeParentheses) {
-						AddTooltip(
-							searchTooltip("Value in () means frame advantage after landing.\n"
-							"\n"
-							"Click the field for tooltip."));
+					sprintf_s(strbuf, "%s", printDecimal(player.risc, 2, 0));
+					printNoWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText(searchFieldTitle("RISC"));
 					}
 				}
-			}
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				player.printGaps(strbuf, sizeof strbuf);
-				printWithWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("Gaps"));
-					AddTooltip(searchTooltip("Each gap is the number of frames from when the opponent left blockstun to when they entered blockstun again."));
-				}
-			}
-			if (!settings.dontShowMoveName) {
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					if (printMoveField(player)) {
-						printWithWordWrap
-						if (settings.useSlangNames) {
-							if (ImGui::BeginItemTooltip()) {
-								ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-								printMoveFieldTooltip(player);
-								ImGui::TextUnformatted(strbuf);
-								ImGui::PopTextWrapPos();
-								ImGui::EndTooltip();
-							}
-						}
-					}
-					
+					const char* formatString;
 					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText(searchFieldTitle("Move"));
-						static std::string moveTooltip;
-						if (moveTooltip.empty()) {
-							moveTooltip = settings.convertToUiDescription(
-								"The last performed move, data of which is being displayed in the Startup/Active/Recovery/Total field."
-								" If the 'Startup' or 'Total' field is showing multiplie numbers combined with + signs,"
-								" all the moves that are included in those fields are listed here as well, combined with + signs or with *X appended to them,"
-								" *X denoting how many times that move repeats.\n"
-								"\n"
-								"Notes:\n"
-								"1) If one of the moves is a super or caused a superfreeze, it may be shown as one move, while in the Startup/Total field"
-								" it is split into parts using + sign - this is one possible discrepancy.\n"
-								"2) The move names might not match the names you may find when hovering your mouse over frames in the framebar to read their"
-								" animation names, because the names here are only updated when a significant enough change in the animation happens.\n"
-								"\n"
-								"To hide this field you can use the \"dontShowMoveName\" setting."
-								" Then it will only be shown in the tooltip of 'Startup' and 'Total' fields.");
-						}
-						AddTooltip(searchTooltip(moveTooltip.c_str(), nullptr));
+						formatString = "%4d / %4d";
+					} else {
+						formatString = "%-4d / %-4d";
 					}
-				}
-			}
-			if (settings.showDebugFields) {
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.idle));
+					sprintf_s(strbuf, formatString, player.stun, player.stunThreshold * 100);
 					printNoWordWrap
 					
 					if (i == 0) {
 						ImGui::TableNextColumn();
-						CenterAlignedText("idle");
+						CenterAlignedText(searchFieldTitle("Stun"));
+						AddTooltip("When not in hitstun, not in OTG state and not waking up, stun decays each frame by 4.\n"
+							"When in OTG state or waking up, stun decays each frame by 10.\n"
+							"Stun does not decay when in hitstun.\n"
+							"Stun decay happens even when in hitstop or superfreeze, and is unaffected by RC slowdown.\n"
+							"When an unknown condition is met, and not in hitstun, OTG or wakeup, stun decreases by 8 each frame, instead of 4."
+							" It was never observed.");
 					}
 				}
 				for (int i = 0; i < two; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
+					printDecimal(player.x, 2, 0);
+					sprintf_s(strbuf, "%s; ", printdecimalbuf);
+					printDecimal(player.y, 2, 0);
+					sprintf_s(strbuf + strlen(strbuf), sizeof strbuf - strlen(strbuf), "%s", printdecimalbuf);
 					printNoWordWrap
 					
 					if (i == 0) {
 						ImGui::TableNextColumn();
-						CenterAlignedText("canBlock");
+						CenterAlignedText(searchFieldTitle("X; Y"));
+						AddTooltip(searchTooltip("Position X; Y in the arena. Divided by 100 for viewability."));
 					}
 				}
 				for (int i = 0; i < two; ++i) {
 					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s", formatBoolean(player.canFaultlessDefense));
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("canFaultlessDefense");
-					}
+					player.printStartup(strbufs[i], sizeof strbuf, &nameParts[i]);
 				}
+				startupOrTotal(two, "Startup", PinnedWindowEnum_StartupFieldHelp);
 				for (int i = 0; i < two; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("idlePlus");
-					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
-					printNoWordWrap
-					
-					if (i == 0) {
-						ImGui::TableNextColumn();
-						CenterAlignedText("idleLanding");
-					}
-				}
-				const bool useSlang = settings.useSlangNames;
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					const char* names[3] { nullptr };
-					if (player.moveNonEmpty) {
-						const NamePair* displayName = player.move.getDisplayName(player);
-						names[0] = useSlang ? displayName->slang : displayName->name;
-					}
-					if (player.moveName[0] != '\0') {
-						names[1] = player.moveName;
-					}
-					if (player.anim[0] != '\0') {
-						names[2] = player.anim;
-					}
-					bool isFirst = true;
-					char* buf = strbuf;
-					size_t bufSize = sizeof strbuf;
-					int result;
-					for (int j = 0; j < 3; ++j) {
-						const char* name = names[j];
-						if (!name) continue;
-						
-						bool alreadyIncluded = false;
-						for (int k = 0; k < j; ++k) {
-							if (names[k] && strcmp(names[k], name) == 0) {
-								alreadyIncluded = true;
-								break;
-							}
-						}
-						
-						if (alreadyIncluded) continue;
-						
-						if (!isFirst) {
-							result = sprintf_s(buf, bufSize, " / ");
-							advanceBuf
-						}
-						isFirst = false;
-						result = sprintf_s(buf, bufSize, "%s", name);
-						advanceBuf
+					if (player.startedUp || player.startupProj) {
+						printActiveWithMaxHit(player.activesDisp, player.maxHitDisp, player.hitOnFrameDisp);
+					} else {
+						*strbuf = '\0';
 					}
 					printWithWordWrap
 					
 					if (i == 0) {
 						ImGui::TableNextColumn();
-						CenterAlignedText("anim");
+						headerThatCanBeClickedForTooltip(searchFieldTitle("Active"), PinnedWindowEnum_ActiveFieldHelp, true);
 					}
 				}
 				for (int i = 0; i < two; ++i) {
 					PlayerInfo& player = endScene.players[i];
 					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.animFrame);
-					printNoWordWrap
+					player.printRecovery(strbuf, sizeof strbuf);
+					printWithWordWrap
 					
 					if (i == 0) {
 						ImGui::TableNextColumn();
-						CenterAlignedText("animFrame");
+						CenterAlignedText(searchFieldTitle("Recovery"));
+						AddTooltip(searchTooltip("Number of recovery frames in the last performed move."
+							" If the move spawned a projectile that lasted beyond the boundaries of the move, its recovery is 0.\n"
+							"See the tooltip for the 'Total' field for more details."));
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					player.printTotal(strbufs[i], sizeof strbuf, &nameParts[i]);
+				}
+				startupOrTotal(two, "Total", PinnedWindowEnum_TotalFieldHelp);
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					player.printInvuls(strbuf, sizeof strbuf);
+					searchFieldValue(strbuf, nullptr);
+					float w = ImGui::CalcTextSize(strbuf).x;
+					const char* cantPos = strstr(strbuf, "can't armor unblockables");
+					float wrapWidth = ImGui::GetContentRegionAvail().x;
+					if (w > wrapWidth) {
+						wrapWidth += ImGui::GetCursorPosX();
+						if (cantPos) {
+							zerohspacing
+							drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, strbuf, cantPos, false, true, false);
+							ImGui::PushStyleColor(ImGuiCol_Text, RED_COLOR);
+							drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, "can't", nullptr, true, true, false);
+							ImGui::PopStyleColor();
+							drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, cantPos + 5, nullptr, true, true, true);
+							_zerohspacing
+						} else {
+							ImGui::TextWrapped("%s", strbuf);
+						}
+					} else {
+						if (i == 0) RightAlign(w);
+						if (cantPos) {
+							zerohspacing
+							ImGui::TextUnformatted(strbuf, cantPos);
+							ImGui::SameLine();
+							textUnformattedColored(RED_COLOR, "can't");
+							ImGui::SameLine();
+							ImGui::TextUnformatted(cantPos + 5);
+							_zerohspacing
+						} else {
+							ImGui::TextUnformatted(strbuf);
+						}
+						
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						headerThatCanBeClickedForTooltip(searchFieldTitle("Invul"), PinnedWindowEnum_InvulFieldHelp, true);
+					}
+				}
+				struct {
+					bool displayFloorbounceQuestionMark = false;
+					int displayFloorbounceQuestionMarkValue = 0;
+					bool displayBlockstunLandQuestionMark = false;
+					int displayBlockstunLandQuestionMarkValue = 0;
+				} playerBlocks[2];
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
+						if (player.hitstunMaxFloorbounceExtra) {
+							playerBlocks[i].displayFloorbounceQuestionMarkValue = player.hitstunMaxFloorbounceExtra;
+							playerBlocks[i].displayFloorbounceQuestionMark = true;
+						}
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
+						if (player.blockstunMaxLandExtra) {
+							playerBlocks[i].displayBlockstunLandQuestionMarkValue = player.blockstunMaxLandExtra;
+							playerBlocks[i].displayBlockstunLandQuestionMark = true;
+						}
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					*strbuf = '\0';
+					int strbufLen = 0;
+					if (player.displayHitstop) {
+						strbufLen = sprintf_s(strbuf, "%d/%d", player.hitstopWithSlow, player.hitstopMaxWithSlow);
+					}
+					char* ptrNext = strbuf;
+					int ptrNextSize = sizeof strbuf;
+					if (*strbuf) {
+						ptrNext += strbufLen + 3;  // strlen(" + ")
+						*ptrNext = '\0';
+						ptrNextSize -= (ptrNext - strbuf);
+					}
+					size_t ptrNextSizeCap = ptrNextSize < 0 ? 0 : (size_t)ptrNextSize;
+					ptrNextSize = 0;
+					const char* blockType;
+					if (player.lastBlockWasIB) {
+						blockType = " (IB)";
+					} else if (player.lastBlockWasFD) {
+						blockType = " (FD)";
+					} else {
+						blockType = "";
+					}
+					if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER) {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							player.cmnActIndex == CmnActJitabataLoop
+								? player.stagger
+								: 0,
+							player.staggerMax);
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_STAGGER_WITH_SLOW) {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							player.cmnActIndex == CmnActJitabataLoop
+								? player.staggerWithSlow
+								: 0,
+							player.staggerMaxWithSlow);
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_REJECTION) {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							player.rejection,
+							player.rejectionMax);
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_REJECTION_WITH_SLOW) {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							player.rejectionWithSlow,
+							player.rejectionMaxWithSlow);
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_WALLSLUMP_LAND) {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							player.wallslumpLandWithSlow,
+							player.wallslumpLandMaxWithSlow);
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT) {
+						int currentHitstun = player.inHitstun
+								? player.hitstun - (player.hitstop ? 1 : 0)
+								: 0;
+						if (player.hitstunMaxFloorbounceExtra) {
+							ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)",
+								currentHitstun,
+								player.hitstunMax,
+								player.hitstunMaxFloorbounceExtra);
+						} else {
+							ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+								currentHitstun,
+								player.hitstunMax);
+						}
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW) {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d",
+							player.hitstunWithSlow,
+							player.hitstunMaxWithSlow);
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK) {
+						int currentBlockstun = player.blockstun - (player.hitstop ? 1 : 0);
+						if (player.blockstunMaxLandExtra) {
+							ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/(%d+%d)%s",
+								currentBlockstun,
+								player.blockstunMax,
+								player.blockstunMaxLandExtra,
+								blockType);
+						} else {
+							ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d%s",
+								currentBlockstun,
+								player.blockstunMax,
+								blockType);
+						}
+					} else if (player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_BLOCK_WITH_SLOW) {
+						ptrNextSize = sprintf_s(ptrNext, ptrNextSizeCap, "%d/%d%s",
+							player.blockstunWithSlow,
+							player.blockstunMaxWithSlow,
+							blockType);
+					}
+					
+					if (strbuf != ptrNext && ptrNextSize > 0 && ptrNextSizeCap) {
+						memcpy(strbuf + strbufLen, " + ", 3);
+						strbufLen += 3 + ptrNextSize;
+					} else if (ptrNextSize > 0) {
+						strbufLen = ptrNextSize;
+					}
+					printWithWordWrap
+					if (player.displayTumble && (
+							player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
+							|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
+					)) {
+						sprintf_s(strbuf, "%d/%d tumble", player.tumbleWithSlow, player.tumbleMaxWithSlow);
+						printNoWordWrap
+					}
+					if (player.displayWallstick && (
+							player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
+							|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
+					)) {
+						sprintf_s(strbuf, "%d/%d wallstick", player.wallstickWithSlow, player.wallstickMaxWithSlow);
+						printNoWordWrap
+					}
+					if (player.displayKnockdown && (
+							player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT
+							|| player.xStunDisplay == PlayerInfo::XSTUN_DISPLAY_HIT_WITH_SLOW
+					)) {
+						sprintf_s(strbuf, "%d/%d knockdown", player.knockdownWithSlow, player.knockdownMaxWithSlow);
+						printNoWordWrap
+					}
+					if (playerBlocks[i].displayFloorbounceQuestionMark) {
+						printExtraHitstunTooltip(playerBlocks[i].displayFloorbounceQuestionMarkValue);
+					} else if (playerBlocks[i].displayBlockstunLandQuestionMark) {
+						printExtraBlockstunTooltip(playerBlocks[i].displayBlockstunLandQuestionMarkValue);
+					}
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText(searchFieldTitle("Hitstop+X-stun"));
+						if (ImGui::BeginItemTooltip()) {
+							ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+							bool needSeparator = false;
+							for (int j = 0; j < 2; ++j) {
+								if (playerBlocks[j].displayFloorbounceQuestionMark) {
+									zerohspacing
+									sprintf_s(strbuf, "Player %d: ", j + 1);
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									printExtraHitstunText(playerBlocks[j].displayFloorbounceQuestionMarkValue);
+									_zerohspacing
+									needSeparator = true;
+								} else if (playerBlocks[j].displayBlockstunLandQuestionMark) {
+									zerohspacing
+									sprintf_s(strbuf, "Player %d: ", j + 1);
+									ImGui::TextUnformatted(strbuf);
+									ImGui::SameLine();
+									printExtraBlockstunText(playerBlocks[j].displayBlockstunLandQuestionMarkValue);
+									_zerohspacing
+									needSeparator = true;
+								}
+							}
+							if (needSeparator) ImGui::Separator();
+							ImGui::TextUnformatted(searchTooltip("Displays current hitstop/max hitstop + current hitstun or blockstun /"
+								" max hitstun or blockstun. When there's no + sign, the displayed values could"
+								" either be hitstop, or hitstun or blockstun, but if both are displayed, hitstop is always on the left,"
+								" and the other are on the right.\n"
+								"If you land while in blockstun from an air block, instead of your blockstun decrementing by 1, like it"
+								" normally would each frame, on the landing frame you instead gain +3 blockstun. So your blockstun is"
+								" slightly prolonged when transitioning from air blockstun to ground blockstun."));
+							ImGui::PopTextWrapPos();
+							ImGui::EndTooltip();
+						}
+					}
+				}
+				
+				bool oneWillIncludeParentheses = false;
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					int frameAdvantage = dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage;
+					int landingFrameAdvantage = dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage;
+					if (player.frameAdvantageValid && player.landingFrameAdvantageValid
+							&& frameAdvantage != landingFrameAdvantage) {
+						oneWillIncludeParentheses = true;
+						break;
+					}
+				}
+				
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					
+					ImGui::TableNextColumn();
+					frameAdvantageControl(
+						dontUsePreBlockstunTime ? player.frameAdvantageNoPreBlockstun : player.frameAdvantage,
+						dontUsePreBlockstunTime ? player.landingFrameAdvantageNoPreBlockstun : player.landingFrameAdvantage,
+						player.frameAdvantageValid,
+						player.landingFrameAdvantageValid,
+						i == 0);
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						headerThatCanBeClickedForTooltip(searchFieldTitle("Frame Adv."), PinnedWindowEnum_FrameAdvantageHelp, !oneWillIncludeParentheses);
+						if (oneWillIncludeParentheses) {
+							AddTooltip(
+								searchTooltip("Value in () means frame advantage after landing.\n"
+								"\n"
+								"Click the field for tooltip."));
+						}
+					}
+				}
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					player.printGaps(strbuf, sizeof strbuf);
+					printWithWordWrap
+					
+					if (i == 0) {
+						ImGui::TableNextColumn();
+						CenterAlignedText(searchFieldTitle("Gaps"));
+						AddTooltip(searchTooltip("Each gap is the number of frames from when the opponent left blockstun to when they entered blockstun again."));
+					}
+				}
+				if (!settings.dontShowMoveName) {
+					for (int i = 0; i < 2; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						if (printMoveField(player)) {
+							printWithWordWrap
+							if (settings.useSlangNames) {
+								if (ImGui::BeginItemTooltip()) {
+									ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+									printMoveFieldTooltip(player);
+									ImGui::TextUnformatted(strbuf);
+									ImGui::PopTextWrapPos();
+									ImGui::EndTooltip();
+								}
+							}
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText(searchFieldTitle("Move"));
+							static std::string moveTooltip;
+							if (moveTooltip.empty()) {
+								moveTooltip = settings.convertToUiDescription(
+									"The last performed move, data of which is being displayed in the Startup/Active/Recovery/Total field."
+									" If the 'Startup' or 'Total' field is showing multiplie numbers combined with + signs,"
+									" all the moves that are included in those fields are listed here as well, combined with + signs or with *X appended to them,"
+									" *X denoting how many times that move repeats.\n"
+									"\n"
+									"Notes:\n"
+									"1) If one of the moves is a super or caused a superfreeze, it may be shown as one move, while in the Startup/Total field"
+									" it is split into parts using + sign - this is one possible discrepancy.\n"
+									"2) The move names might not match the names you may find when hovering your mouse over frames in the framebar to read their"
+									" animation names, because the names here are only updated when a significant enough change in the animation happens.\n"
+									"\n"
+									"To hide this field you can use the \"dontShowMoveName\" setting."
+									" Then it will only be shown in the tooltip of 'Startup' and 'Total' fields.");
+							}
+							AddTooltip(searchTooltip(moveTooltip.c_str(), nullptr));
+						}
 					}
 				}
 				if (settings.showDebugFields) {
 					for (int i = 0; i < two; ++i) {
 						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						sprintf_s(strbuf, "%d", player.pawn && *aswEngine ? player.pawn.animFrameStepCounter() : 0);
+						sprintf_s(strbuf, "%s", formatBoolean(player.idle));
 						printNoWordWrap
 						
 						if (i == 0) {
 							ImGui::TableNextColumn();
-							CenterAlignedText("frameSteps");
+							CenterAlignedText("idle");
 						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.sprite.print(strbuf, sizeof strbuf);
-					printNoWordWrap
-					
-					if (i == 0) {
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("sprite");
+						sprintf_s(strbuf, "%s", formatBoolean(player.canBlock));
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("canBlock");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (*aswEngine && player.pawn) {
-						printNoWordWrapArg(player.pawn.gotoLabelRequests())
-					}
-					
-					if (i == 0) {
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("gotoLabelRequests");
+						sprintf_s(strbuf, "%s", formatBoolean(player.canFaultlessDefense));
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("canFaultlessDefense");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.startup);
-					printNoWordWrap
-					
-					if (i == 0) {
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("startup");
+						sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idlePlus), player.timePassed);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("idlePlus");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.actives.print(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("active");
+						sprintf_s(strbuf, "%s (%d)", formatBoolean(player.idleLanding), player.timePassedLanding);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("idleLanding");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.recovery);
-					printNoWordWrap
-					
-					if (i == 0) {
+					const bool useSlang = settings.useSlangNames;
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("recovery");
+						const char* names[3] { nullptr };
+						if (player.moveNonEmpty) {
+							const NamePair* displayName = player.move.getDisplayName(player);
+							names[0] = useSlang ? displayName->slang : displayName->name;
+						}
+						if (player.moveName[0] != '\0') {
+							names[1] = player.moveName;
+						}
+						if (player.anim[0] != '\0') {
+							names[2] = player.anim;
+						}
+						bool isFirst = true;
+						char* buf = strbuf;
+						size_t bufSize = sizeof strbuf;
+						int result;
+						for (int j = 0; j < 3; ++j) {
+							const char* name = names[j];
+							if (!name) continue;
+							
+							bool alreadyIncluded = false;
+							for (int k = 0; k < j; ++k) {
+								if (names[k] && strcmp(names[k], name) == 0) {
+									alreadyIncluded = true;
+									break;
+								}
+							}
+							
+							if (alreadyIncluded) continue;
+							
+							if (!isFirst) {
+								result = sprintf_s(buf, bufSize, " / ");
+								advanceBuf
+							}
+							isFirst = false;
+							result = sprintf_s(buf, bufSize, "%s", name);
+							advanceBuf
+						}
+						printWithWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("anim");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.total);
-					printNoWordWrap
-					
-					if (i == 0) {
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("total");
+						sprintf_s(strbuf, "%d", player.animFrame);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("animFrame");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					sprintf_s(strbuf, "%d", player.startupProj);
-					printNoWordWrap
-					
-					if (i == 0) {
+					if (settings.showDebugFields) {
+						for (int i = 0; i < two; ++i) {
+							PlayerInfo& player = endScene.players[i];
+							ImGui::TableNextColumn();
+							sprintf_s(strbuf, "%d", player.pawn && *aswEngine ? player.pawn.animFrameStepCounter() : 0);
+							printNoWordWrap
+							
+							if (i == 0) {
+								ImGui::TableNextColumn();
+								CenterAlignedText("frameSteps");
+							}
+						}
+					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("startupProj");
+						player.sprite.print(strbuf, sizeof strbuf);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("sprite");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					player.activesProj.print(strbuf, sizeof strbuf);
-					printWithWordWrap
-					
-					if (i == 0) {
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
 						ImGui::TableNextColumn();
-						CenterAlignedText("activesProj");
+						if (*aswEngine && player.pawn) {
+							printNoWordWrapArg(player.pawn.gotoLabelRequests())
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("gotoLabelRequests");
+						}
 					}
-				}
-				for (int i = 0; i < two; ++i) {
-					PlayerInfo& player = endScene.players[i];
-					ImGui::TableNextColumn();
-					if (player.charType == CHARACTER_TYPE_ELPHELT) {
-						if (player.cmnActIndex == CmnActStand || player.cmnActIndex == CmnActCrouch2Stand) {
-							sprintf_s(strbuf, "%d/%d",
-								player.elpheltShotgunCharge.current + player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames,
-								player.elpheltShotgunCharge.max);
-						} else if (player.cmnActIndex == NotACmnAct
-								&& strncmp(player.anim, "CounterGuard", 12) == 0
-								&& player.y == 0) {
-							sprintf_s(strbuf, "shield: %d/%d, shotgun: %d/%d",
-								player.charge.current,
-								player.charge.max,
-								player.elpheltShotgunCharge.current + player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames,
-								player.elpheltShotgunCharge.max);
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "%d", player.startup);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("startup");
+						}
+					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						player.actives.print(strbuf, sizeof strbuf);
+						printWithWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("active");
+						}
+					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "%d", player.recovery);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("recovery");
+						}
+					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "%d", player.total);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("total");
+						}
+					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						sprintf_s(strbuf, "%d", player.startupProj);
+						printNoWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("startupProj");
+						}
+					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						player.activesProj.print(strbuf, sizeof strbuf);
+						printWithWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("activesProj");
+						}
+					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						if (player.charType == CHARACTER_TYPE_ELPHELT) {
+							if (player.cmnActIndex == CmnActStand || player.cmnActIndex == CmnActCrouch2Stand) {
+								sprintf_s(strbuf, "%d/%d",
+									player.elpheltShotgunCharge.current + player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames,
+									player.elpheltShotgunCharge.max);
+							} else if (player.cmnActIndex == NotACmnAct
+									&& strncmp(player.anim, "CounterGuard", 12) == 0
+									&& player.y == 0) {
+								sprintf_s(strbuf, "shield: %d/%d, shotgun: %d/%d",
+									player.charge.current,
+									player.charge.max,
+									player.elpheltShotgunCharge.current + player.elpheltShotgunCharge.elpheltShotgunChargeSkippedFrames,
+									player.elpheltShotgunCharge.max);
+							} else {
+								sprintf_s(strbuf, "%d/%d",
+									player.charge.current, player.charge.max);
+							}
 						} else {
-							sprintf_s(strbuf, "%d/%d",
-								player.charge.current, player.charge.max);
+							sprintf_s(strbuf, "%d/%d", player.charge.current, player.charge.max);
 						}
-					} else {
-						sprintf_s(strbuf, "%d/%d", player.charge.current, player.charge.max);
+						printWithWordWrap
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("charge");
+						}
 					}
-					printWithWordWrap
+					
+				}
+				Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
+				for (int i = 0; i < two; ++i) {
+					PlayerInfo& player = endScene.players[i];
+					ImGui::TableNextColumn();
+					int flashCurrent = 0;
+					int flashMax = 0;
+					int slowCurrent = player.rcSlowdownCounter;
+					int slowMax = player.rcSlowdownMax;
+					if (superflashInstigator == player.pawn) {
+						flashCurrent = endScene.getSuperflashCounterAlliedCached();
+						flashMax = endScene.getSuperflashCounterAlliedMax();
+					} else if (superflashInstigator) {
+						flashCurrent = endScene.getSuperflashCounterOpponentCached();
+						flashMax = endScene.getSuperflashCounterOpponentMax();
+					}
+					if (flashCurrent + flashMax + slowCurrent + slowMax == 0) {
+						strbuf[0] = '\0';
+					} else {
+						sprintf_s(strbuf, "%d/%d+%d/%d", flashCurrent, flashMax, slowCurrent, slowMax);
+					}
+					printNoWordWrap
 					
 					if (i == 0) {
 						ImGui::TableNextColumn();
-						CenterAlignedText("charge");
+						CenterAlignedText(searchFieldTitle("Freeze+RC Slow"));
+						AddTooltip(searchTooltip("Shows superfreeze current/maximum duration in frames, followed by +, followed by"
+							" Roman Cancel slowdown duration current/maximum in frames."
+							" Both the superfreeze and the Roman Cancel slowdown are always shown."
+							" If either is not present at the moment, 0/0 or 0/X is shown in its place."
+							" If a player is not affected by the superfreeze or Roman Cancel slowdown, 0/0 or 0/X is shown in the place of that."));
 					}
 				}
-				
+				ImGui::EndTable();
 			}
-			Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
-			for (int i = 0; i < two; ++i) {
-				PlayerInfo& player = endScene.players[i];
-				ImGui::TableNextColumn();
-				int flashCurrent = 0;
-				int flashMax = 0;
-				int slowCurrent = player.rcSlowdownCounter;
-				int slowMax = player.rcSlowdownMax;
-				if (superflashInstigator == player.pawn) {
-					flashCurrent = endScene.getSuperflashCounterAlliedCached();
-					flashMax = endScene.getSuperflashCounterAlliedMax();
-				} else if (superflashInstigator) {
-					flashCurrent = endScene.getSuperflashCounterOpponentCached();
-					flashMax = endScene.getSuperflashCounterOpponentMax();
-				}
-				if (flashCurrent + flashMax + slowCurrent + slowMax == 0) {
-					strbuf[0] = '\0';
-				} else {
-					sprintf_s(strbuf, "%d/%d+%d/%d", flashCurrent, flashMax, slowCurrent, slowMax);
-				}
-				printNoWordWrap
-				
-				if (i == 0) {
-					ImGui::TableNextColumn();
-					CenterAlignedText(searchFieldTitle("Freeze+RC Slow"));
-					AddTooltip(searchTooltip("Shows superfreeze current/maximum duration in frames, followed by +, followed by"
-						" Roman Cancel slowdown duration current/maximum in frames."
-						" Both the superfreeze and the Roman Cancel slowdown are always shown."
-						" If either is not present at the moment, 0/0 or 0/X is shown in its place."
-						" If a player is not affected by the superfreeze or Roman Cancel slowdown, 0/0 or 0/X is shown in the place of that."));
-				}
+		}
+		
+		popSearchStack();
+		if (ImGui::Button(searchFieldTitle("Show Tension Values"))) {
+			toggleOpenManually(PinnedWindowEnum_TensionData);
+		}
+		AddTooltip(searchTooltip("Displays tension gained from combo and factors that affect tension gain."));
+		ImGui::SameLine();
+		if (ImGui::Button(searchFieldTitle("Burst Gain"))) {
+			toggleOpenManually(PinnedWindowEnum_BurstGain);
+		}
+		AddTooltip(searchTooltip("Displays burst gained from combo or last hit."));
+		
+		if (ImGui::Button(searchFieldTitle("Combo Damage & Combo Stun (P1)"))) {
+			toggleOpenManually(PinnedWindowEnum_ComboDamage_1);
+		}
+		AddTooltip(searchTooltip("Displays combo damage and maximum total stun achieved during the last performed combo for P1.\n"
+			"Also shows the total tension gained during last combo by you and the total burst gained during last combo by the opponent.\n"
+			"Note: this window will always have a transparent background, and this cannot be configured."));
+		ImGui::SameLine();
+		if (ImGui::Button(searchFieldTitle("... (P2)"))) {
+			toggleOpenManually(PinnedWindowEnum_ComboDamage_2);
+		}
+		AddTooltip(searchTooltip("...for P2."));
+		
+		if (ImGui::Button(searchFieldTitle("Speed/Hitstun Proration/Pushback/Wakeup"))) {
+			toggleOpenManually(PinnedWindowEnum_SpeedHitstunProration);
+		}
+		AddTooltip(searchTooltip("Display x,y, speed, pushback and protation of hitstun and pushback."));
+		
+		if (ImGui::Button(searchFieldTitle("Projectiles"))) {
+			toggleOpenManually(PinnedWindowEnum_Projectiles);
+		}
+		AddTooltip(searchTooltip("Display the list of current projectiles present on the current frame, for both players."));
+		for (int i = 0; i < two; ++i) {
+			ImGui::PushID(searchFieldTitle("Character Specific"));
+			ImGui::PushID(i);
+			sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
+			if (i != 0) ImGui::SameLine();
+			if (ImGui::Button(strbuf)) {
+				toggleOpenManuallyPair(PinnedWindowEnum_CharSpecific, i);
 			}
-			ImGui::EndTable();
+			AddTooltip(searchTooltip("Display of information specific to a character."));
+			ImGui::PopID();
+			ImGui::PopID();
 		}
-	}
-	
-	popSearchStack();
-	if (ImGui::Button(searchFieldTitle("Show Tension Values"))) {
-		showTensionData = !showTensionData;
-	}
-	AddTooltip(searchTooltip("Displays tension gained from combo and factors that affect tension gain."));
-	ImGui::SameLine();
-	if (ImGui::Button(searchFieldTitle("Burst Gain"))) {
-		showBurstGain = !showBurstGain;
-	}
-	AddTooltip(searchTooltip("Displays burst gained from combo or last hit."));
-	
-	if (ImGui::Button(searchFieldTitle("Combo Damage & Combo Stun (P1)"))) {
-		showComboDamage[0] = !showComboDamage[0];
-	}
-	AddTooltip(searchTooltip("Displays combo damage and maximum total stun achieved during the last performed combo for P1.\n"
-		"Also shows the total tension gained during last combo by you and the total burst gained during last combo by the opponent.\n"
-		"Note: this window will always have a transparent background, and this cannot be configured."));
-	ImGui::SameLine();
-	if (ImGui::Button(searchFieldTitle("... (P2)"))) {
-		showComboDamage[1] = !showComboDamage[1];
-	}
-	AddTooltip(searchTooltip("...for P2."));
-	
-	if (ImGui::Button(searchFieldTitle("Speed/Hitstun Proration/Pushback/Wakeup"))) {
-		showSpeedsData = !showSpeedsData;
-	}
-	AddTooltip(searchTooltip("Display x,y, speed, pushback and protation of hitstun and pushback."));
-	
-	if (ImGui::Button(searchFieldTitle(PROJECTILES_STR))) {
-		showProjectiles = !showProjectiles;
-	}
-	AddTooltip(searchTooltip("Display the list of current projectiles present on the current frame, for both players."));
-	for (int i = 0; i < two; ++i) {
-		ImGui::PushID(searchFieldTitle("Character Specific"));
-		ImGui::PushID(i);
-		sprintf_s(strbuf, i == 0 ? "Character Specific (P%d)" : "... (P%d)", i + 1);
-		if (i != 0) ImGui::SameLine();
-		if (ImGui::Button(strbuf)) {
-			showCharSpecific[i] = !showCharSpecific[i];
+		if (ImGui::Button(searchFieldTitle("Box Extents"))) {
+			toggleOpenManually(PinnedWindowEnum_BoxExtents);
 		}
-		AddTooltip(searchTooltip("Display of information specific to a character."));
-		ImGui::PopID();
-		ImGui::PopID();
-	}
-	if (ImGui::Button(searchFieldTitle("Box Extents"))) {
-		showBoxExtents = !showBoxExtents;
-	}
-	AddTooltip(searchTooltip("Shows the minimum and maximum Y (vertical) extents of hurtboxes and hitboxes of each player."
-		" The units are not divided by 100 for viewability."));
-	
-	ImGui::SameLine();
-	for (int i = 0; i < two; ++i) {
-		searchFieldTitle("Cancels");
-		sprintf_s(strbuf, "Cancels (P%d)", i + 1);
-		if (ImGui::Button(strbuf)) {
-			showCancels[i] = !showCancels[i];
-		}
-		AddTooltip(searchTooltip(thisHelpTextWillRepeat));
-		if (i == 0) ImGui::SameLine();
-	}
-	
-	for (int i = 0; i < two; ++i) {
-		ImGui::PushID(searchFieldTitle("Damage/RISC/Stun Calculation"));
-		ImGui::PushID(i);
-		sprintf_s(strbuf, i == 0 ? "Damage/RISC/Stun Calculation (P1)" : "... (P2)");
-		if (ImGui::Button(strbuf)) {
-			showDamageCalculation[i] = !showDamageCalculation[i];
-		}
-		AddTooltip(searchTooltip("For the attacking player this shows damage, RISC and stun calculation from the last hit and current combo proration."));
-		ImGui::PopID();
-		ImGui::PopID();
-		if (i == 0) ImGui::SameLine();
-	}
-	
-	for (int i = 0; i < two; ++i) {
-		int strbufLen = sprintf_s(strbuf, "Combo Recipe (P%d)", i + 1);
-		if (ImGui::Button(searchFieldTitle(strbuf, strbuf + strbufLen))) {
-			showComboRecipe[i] = !showComboRecipe[i];
-		}
-		AddTooltip(searchTooltip("Displays actions performed by this player as the attacker during the last combo."));
-		if (i == 0) ImGui::SameLine();
-	}
-	
-	for (int i = 0; i < two; ++i) {
-		ImGui::PushID(searchFieldTitle("Stun/Stagger Mash"));
-		ImGui::PushID(i);
-		sprintf_s(strbuf, i == 0 ? "Stun/Stagger Mash (P1)" : "... (P2)");
-		if (ImGui::Button(strbuf)) {
-			showStunmash[i] = !showStunmash[i];
-		}
-		if (ImGui::BeginItemTooltip()) {
-			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			int strbufLength = sprintf_s(strbuf, "The progress on your stun or stagger mash."
-				" It might be too difficult to use this window in real-time, so please consider additionally using"
-				" the Hitboxes - Freeze Game checkbox (Hotkey: %s) and the Next Frame button next to it (Hotkey: %s).",
-				comborepr(settings.freezeGameToggle),
-				comborepr(settings.allowNextFrameKeyCombo));
-			ImGui::TextUnformatted(searchTooltip(strbuf, strbuf + strbufLength));
-			ImGui::PopTextWrapPos();
-			ImGui::EndTooltip();
-		}
-		ImGui::PopID();
-		ImGui::PopID();
-		if (i == 0) ImGui::SameLine();
-	}
-	
-	if (ImGui::Button(searchFieldTitle("Clear Input History"))) {
-		game.clearInputHistory();
-		endScene.clearInputHistory();
-	}
-	static std::string clearInputHistoryHelp;
-	if (clearInputHistoryHelp.empty()) {
-		clearInputHistoryHelp = settings.convertToUiDescription(
-			"Clears input history. For example, in training mode, when input history display is enabled.\n"
-			"You can use the \"clearInputHistory\" hotkey to toggle this setting.\n"
-			"\n"
-			"Alternatively, you can use the \"clearInputHistoryOnStageReset\" boolean setting to"
-			" make the game clear input history when you reset positions in training mode or when"
-			" round restarts in any game mode.\n"
-			"Alternatively, you can use the \"clearInputHistoryOnStageResetInTrainingMode\" boolean setting to"
-			" make the game clear input history when you reset positions in training mode only.");
-	}
-	AddTooltipWithHotkey(clearInputHistoryHelp.c_str(), clearInputHistoryHelp.c_str() + clearInputHistoryHelp.size(), settings.clearInputHistory);
-	
-	if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitboxes")) || searching) {
+		AddTooltip(searchTooltip("Shows the minimum and maximum Y (vertical) extents of hurtboxes and hitboxes of each player."
+			" The units are not divided by 100 for viewability."));
 		
-		booleanSettingPresetWithHotkey(settings.dontShowBoxes, settings.disableHitboxDisplayToggle);
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("GIF Mode"), &gifModeOn) || stateChanged;
 		ImGui::SameLine();
-		static std::string GIFModeHelp;
-		if (GIFModeHelp.empty()) {
-			GIFModeHelp = settings.convertToUiDescription("GIF mode is:\n"
-				"1) Background becomes black\n"
-				"2) Camera is centered on you\n"
-				"3) Opponent is invisible and invulnerable\n"
-				"4) Hide HUD\n"
-				"A hotkey can be configured for entering and leaving GIF Mode at \"gifModeToggle\".");
-		}
-		HelpMarkerWithHotkey(GIFModeHelp, settings.gifModeToggle);
-		
-		ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-		ImGui::PushTextWrapPos(0.F);
-		ImGui::TextUnformatted("You can take screenshots with transparency as long as GIF Mode or Black Background"
-			" is enabled, using the 'Take Screenshot' button in this section below.");
-		ImGui::PopTextWrapPos();
-		ImGui::PopStyleColor();
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Black Background"), &gifModeToggleBackgroundOnly) || stateChanged;
-		ImGui::SameLine();
-		static std::string blackBackgroundHelp;
-		if (blackBackgroundHelp.empty()) {
-			blackBackgroundHelp = settings.convertToUiDescription(
-				"Makes background black (and, for screenshotting purposes, - effectively transparent,"
-				" if Post Effect is turned off in the game's graphics settings).\n"
-				"You can use the \"gifModeToggleBackgroundOnly\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(blackBackgroundHelp, settings.gifModeToggleBackgroundOnly);
-		
-		bool postEffectOn = game.postEffectOn() != 0;
-		if (ImGui::Checkbox(searchFieldTitle("Post-Effect On"), &postEffectOn)) {
-			game.postEffectOn() = (BOOL)postEffectOn;
-		}
-		ImGui::SameLine();
-		static std::string postEffectOnHelp;
-		if (postEffectOnHelp.empty()) {
-			postEffectOnHelp = settings.convertToUiDescription("Toggles the game's 'Settings - Display Settings - Post-Effect'. Changing it this way does not"
-			" require the current match to be restarted.\n"
-			"Alternatively, you could tick the \"turnOffPostEffectWhenMakingBackgroundBlack\" checkbox,"
-			" so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is"
-			" turned off automatically, and when you leave those modes, it gets turned back on.\n"
-			"Or, alternatively, you could use the manual keyboard toggle, set in this mod's \"togglePostEffectOnOff\".");
-		}
-		HelpMarkerWithHotkey(postEffectOnHelp, settings.togglePostEffectOnOff);
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center On Player"), &gifModeToggleCameraCenterOnly) || stateChanged;
-		ImGui::SameLine();
-		static std::string cameraCenterHelp;
-		if (cameraCenterHelp.empty()) {
-			cameraCenterHelp = settings.convertToUiDescription(
-				"Centers the camera on you.\n"
-				"You can use the \"gifModeToggleCameraCenterOnly\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(cameraCenterHelp, settings.gifModeToggleCameraCenterOnly);
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center on Opponent"), &toggleCameraCenterOpponent) || stateChanged;
-		ImGui::SameLine();
-		static std::string cameraCenterOpponentHelp;
-		if (cameraCenterOpponentHelp.empty()) {
-			cameraCenterOpponentHelp = settings.convertToUiDescription(
-				"Centers the camera on the opponent.\n"
-				"You can use the \"toggleCameraCenterOpponent\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(cameraCenterOpponentHelp, settings.toggleCameraCenterOpponent);
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Opponent"), &gifModeToggleHideOpponentOnly) || stateChanged;
-		ImGui::SameLine();
-		static std::string hideOpponentHelp;
-		if (hideOpponentHelp.empty()) {
-			hideOpponentHelp = settings.convertToUiDescription(
-				"Make the opponent invisible and invulnerable.\n"
-				"You can use the \"gifModeToggleHideOpponentOnly\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(hideOpponentHelp, settings.gifModeToggleHideOpponentOnly);
-		
-		bool dontHideOpponentsEffects = gifMode.dontHideOpponentsEffects;
-		if (ImGui::Checkbox(searchFieldTitle("Don't Hide Opponent's Effects"), &dontHideOpponentsEffects)) {
-			gifMode.dontHideOpponentsEffects = dontHideOpponentsEffects;
-		}
-		ImGui::SameLine();
-		HelpMarker("If 'Hide Opponent' is used, don't hide their effects, which is everything except the player's character model.");
-		
-		bool dontHideOpponentsBoxes = gifMode.dontHideOpponentsBoxes;
-		if (ImGui::Checkbox(searchFieldTitle("Don't Hide Opponent's Boxes"), &dontHideOpponentsBoxes)) {
-			gifMode.dontHideOpponentsBoxes = dontHideOpponentsBoxes;
-		}
-		ImGui::SameLine();
-		HelpMarker("Similar to 'Hide Opponent' in that makes the opponent player invulnerable to all attacks,"
-			" except that this option does not hide them and allows them to land attacks of their own.");
-		
-		bool makeFullInvul = gifMode.makeOpponentFullInvul;
-		if (ImGui::Checkbox(searchFieldTitle("Make Opponent Full Invul (Without Hiding)"), &makeFullInvul)) {
-			gifMode.makeOpponentFullInvul = makeFullInvul;
-		}
-		ImGui::SameLine();
-		HelpMarker("If 'Hide Opponent' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Player"), &toggleHidePlayer) || stateChanged;
-		ImGui::SameLine();
-		static std::string hidePlayerHelp;
-		if (hidePlayerHelp.empty()) {
-			hidePlayerHelp = settings.convertToUiDescription(
-				"Make the player invisible and invulnerable.\n"
-				"You can use the \"toggleHidePlayer\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(hidePlayerHelp, settings.toggleHidePlayer);
-		
-		bool dontHidePlayersEffects = gifMode.dontHidePlayersEffects;
-		if (ImGui::Checkbox(searchFieldTitle("Don't Hide Player's Effects"), &dontHidePlayersEffects)) {
-			gifMode.dontHidePlayersEffects = dontHidePlayersEffects;
-		}
-		ImGui::SameLine();
-		HelpMarker("If 'Hide Player' is used, don't hide their effects, which is everything except the player's character model.");
-		
-		bool dontHidePlayersBoxes = gifMode.dontHidePlayersBoxes;
-		if (ImGui::Checkbox(searchFieldTitle("Don't Hide Player's Boxes"), &dontHidePlayersBoxes)) {
-			gifMode.dontHidePlayersBoxes = dontHidePlayersBoxes;
-		}
-		ImGui::SameLine();
-		HelpMarker("If 'Hide Player' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
-		
-		makeFullInvul = gifMode.makePlayerFullInvul;
-		if (ImGui::Checkbox(searchFieldTitle("Make Player Full Invul (Without Hiding)"), &makeFullInvul)) {
-			gifMode.makePlayerFullInvul = makeFullInvul;
-		}
-		ImGui::SameLine();
-		HelpMarker("Similar to 'Hide Player' in that makes your player invulnerable to all attacks,"
-			" except that this option does not hide you and allows you to land attacks of your own.");
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Hide HUD"), &gifModeToggleHudOnly) || stateChanged;
-		ImGui::SameLine();
-		static std::string hideHUDHelp;
-		if (hideHUDHelp.empty()) {
-			hideHUDHelp = settings.convertToUiDescription(
-				"Hides the HUD (interface).\n"
-				"You can use the \"gifModeToggleHudOnly\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(hideHUDHelp, settings.gifModeToggleHudOnly);
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("No Gravity"), &noGravityOn) || stateChanged;
-		ImGui::SameLine();
-		static std::string noGravityHelp;
-		if (noGravityHelp.empty()) {
-			noGravityHelp = settings.convertToUiDescription(
-				"Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.\n"
-				"You can use the \"noGravityToggle\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(noGravityHelp, settings.noGravityToggle);
-		
-		bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
-		if (ImGui::Checkbox(searchFieldTitle("Disable Gray Hurtboxes"), &neverDisplayGrayHurtboxes)) {
-			settings.neverDisplayGrayHurtboxes = neverDisplayGrayHurtboxes;
-			needWriteSettings = true;
-		}
-		ImGui::SameLine();
-		static std::string neverDisplayGrayHurtboxesHelp;
-		if (neverDisplayGrayHurtboxesHelp.empty()) {
-			neverDisplayGrayHurtboxesHelp = settings.convertToUiDescription(
-				"Disables/enables the display of residual hurtboxes that appear on hit/block and show"
-				" the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but"
-				" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
-				"You can use the \"toggleDisableGrayHurtboxes\" hotkey to toggle this setting.");
-		}
-		HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp, settings.toggleDisableGrayHurtboxes);
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Freeze Game"), &freezeGame) || stateChanged;
-		ImGui::SameLine();
-		if (ImGui::Button(searchFieldTitle("Next Frame"))) {
-			allowNextFrame = true;
-			allowNextFrameTimer = 10;
-		}
-		ImGui::SameLine();
-		static std::string freezeGameHelp;
-		if (freezeGameHelp.empty()) {
-			freezeGameHelp = settings.convertToUiDescription(
-				"Freezes the current frame of the game and stops gameplay from advancing."
-				" You can advance gameplay to the next frame using the 'Next Frame' button."
-				" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
-				" instead of pressing the button, and freezing and unfreezing the game can be achieved with"
-				" the \"freezeGameToggle\" shortcut.");
-		}
-		ImGui::TextDisabled("(?)");
-		if (ImGui::BeginItemTooltip()) {
-			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-			
-			sprintf_s(strbuf, "Freeze Game Hotkey: %s", comborepr(settings.freezeGameToggle));
-			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
-			
-			sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", comborepr(settings.allowNextFrameKeyCombo));
-			ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
-			
-			ImGui::Separator();
-			ImGui::TextUnformatted(searchTooltipStr(freezeGameHelp));
-			ImGui::PopTextWrapPos();
-			ImGui::EndTooltip();
-		}
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Slow-Mo Mode"), &slowmoGame) || stateChanged;
-		ImGui::SameLine();
-		int slowmoTimes = settings.slowmoTimes;
-		ImGui::SetNextItemWidth(80.F);
-		if (ImGui::InputInt(searchFieldTitle("Slow-Mo Factor"), &slowmoTimes, 1, 1, 0)) {
-			if (slowmoTimes <= 0) {
-				slowmoTimes = 1;
+		for (int i = 0; i < two; ++i) {
+			searchFieldTitle("Cancels");
+			sprintf_s(strbuf, "Cancels (P%d)", i + 1);
+			if (ImGui::Button(strbuf)) {
+				toggleOpenManuallyPair(PinnedWindowEnum_Cancels, i);
 			}
-			settings.slowmoTimes = slowmoTimes;
-			needWriteSettings = true;
+			AddTooltip(searchTooltip(thisHelpTextWillRepeat));
+			if (i == 0) ImGui::SameLine();
 		}
-		imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
-		ImGui::SameLine();
-		static std::string slowmoHelp;
-		if (slowmoHelp.empty()) {
-			slowmoHelp = settings.convertToUiDescription(
-				"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
-				"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
-		}
-		HelpMarkerWithHotkey(slowmoHelp, settings.slowmoGameToggle);
 		
-		ImGui::Button(searchFieldTitle("Take Screenshot"));
-		if (ImGui::IsItemActivated()) {
-			// Regular ImGui button 'press' (ImGui::Button(...) function returning true) happens when you RELEASE the button,
-			// but to simulate the old keyboard behavior we need this to happen when you PRESS the button
-			takeScreenshotPress = true;
-			takeScreenshotTimer = 10;
-		}
-		if (!searching) {
-			takeScreenshotTemp = ImGui::IsItemActive();
-		}
-		ImGui::SameLine();
-		static std::string screenshotHelp;
-		if (screenshotHelp.empty()) {
-			screenshotHelp = settings.convertToUiDescription(
-				"Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
-				" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings"
-				" (or use \"togglePostEffectOnOff\" or \"turnOffPostEffectWhenMakingBackgroundBlack\")"
-				", you will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
-				" in the 'Hitbox settings', they're saved there instead.\n"
-				"A hotkey can be configured to take screenshots with, in \"screenshotBtn\".");
-		}
-		HelpMarkerWithHotkey(screenshotHelp, settings.screenshotBtn);
-		
-		ImGui::PushID(1);
-		booleanSettingPreset(settings.ignoreScreenshotPathAndSaveToClipboard);
-		ImGui::PopID();
-		
-		stateChanged = ImGui::Checkbox(searchFieldTitle("Continuous Screenshotting Mode"), &continuousScreenshotToggle) || stateChanged;
-		ImGui::SameLine();
-		static std::string continuousScreenshottingHelp;
-		if (continuousScreenshottingHelp.empty()) {
-			continuousScreenshottingHelp = settings.convertToUiDescription(
-				"When this option is enabled, screenshots will be taken every frame,"
-				" as long as the mod's screenshot button is being help, unless the game is frozen, in which case"
-				" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
-				" the game down significantly. Continuous screenshotting is only allowed in training mode.\n"
-				"Alternatively, you can use \"continuousScreenshotToggle\" shortcut to toggle a mode where you don't have to hold"
-				" the screenshot button, and screenshots get taken every non frozen (advancing) frame automatically.");
-		}
-		HelpMarkerWithHotkey(continuousScreenshottingHelp, settings.continuousScreenshotToggle);
-		
-		bool allowCreateParticles = gifMode.allowCreateParticles;
-		if (ImGui::Checkbox(searchFieldTitle("Allow Creation Of Particles"), &allowCreateParticles)) {
-			gifMode.allowCreateParticles = allowCreateParticles;
-		}
-		ImGui::SameLine();
-		static std::string allowCreateParticlesHelp;
-		if (allowCreateParticlesHelp.empty()) {
-			allowCreateParticlesHelp = settings.convertToUiDescription(
-				"When this option is enabled, particle effects such as superfreeze flash, can be created."
-				" Turning this option on or off does not remove particles that have already been created,"
-				" or make appear those particles which have already not been created.\n"
-				"You can use the \"toggleAllowCreateParticles\" shortcut to toggle this option.");
-		}
-		HelpMarkerWithHotkey(allowCreateParticlesHelp, settings.toggleAllowCreateParticles);
-		
-	}
-	popSearchStack();
-	if (ImGui::CollapsingHeader(searchCollapsibleSection("Settings")) || searching) {
-		if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitbox Settings")) || searching) {
-			
-			if (ImGui::Button(searchFieldTitle("Hitboxes Help"))) {
-				showBoxesHelp = !showBoxesHelp;
+		for (int i = 0; i < two; ++i) {
+			ImGui::PushID(searchFieldTitle("Damage/RISC/Stun Calculation"));
+			ImGui::PushID(i);
+			sprintf_s(strbuf, i == 0 ? "Damage/RISC/Stun Calculation (P1)" : "... (P2)");
+			if (ImGui::Button(strbuf)) {
+				toggleOpenManuallyPair(PinnedWindowEnum_DamageCalculation, i);
 			}
-			
-			booleanSettingPreset(settings.drawPushboxCheckSeparately);
-			
-			{
-				std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
-				size_t newLen = settings.screenshotPath.size();
-				if (newLen > MAX_PATH - 1) {
-					newLen = MAX_PATH - 1;
-				}
-				memcpy(screenshotsPathBuf, settings.screenshotPath.c_str(), newLen);
-				screenshotsPathBuf[newLen] = '\0';
+			AddTooltip(searchTooltip("For the attacking player this shows damage, RISC and stun calculation from the last hit and current combo proration."));
+			ImGui::PopID();
+			ImGui::PopID();
+			if (i == 0) ImGui::SameLine();
+		}
+		
+		for (int i = 0; i < two; ++i) {
+			int strbufLen = sprintf_s(strbuf, "Combo Recipe (P%d)", i + 1);
+			if (ImGui::Button(searchFieldTitle(strbuf, strbuf + strbufLen))) {
+				toggleOpenManuallyPair(PinnedWindowEnum_ComboRecipe, i);
 			}
+			AddTooltip(searchTooltip("Displays actions performed by this player as the attacker during the last combo."));
+			if (i == 0) ImGui::SameLine();
+		}
+		
+		for (int i = 0; i < two; ++i) {
+			ImGui::PushID(searchFieldTitle("Stun/Stagger Mash"));
+			ImGui::PushID(i);
+			sprintf_s(strbuf, i == 0 ? "Stun/Stagger Mash (P1)" : "... (P2)");
+			if (ImGui::Button(strbuf)) {
+				toggleOpenManuallyPair(PinnedWindowEnum_StunMash, i);
+			}
+			if (ImGui::BeginItemTooltip()) {
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				int strbufLength = sprintf_s(strbuf, "The progress on your stun or stagger mash."
+					" It might be too difficult to use this window in real-time, so please consider additionally using"
+					" the Hitboxes - Freeze Game checkbox (Hotkey: %s) and the Next Frame button next to it (Hotkey: %s).",
+					comborepr(settings.freezeGameToggle),
+					comborepr(settings.allowNextFrameKeyCombo));
+				ImGui::TextUnformatted(searchTooltip(strbuf, strbuf + strbufLength));
+				ImGui::PopTextWrapPos();
+				ImGui::EndTooltip();
+			}
+			ImGui::PopID();
+			ImGui::PopID();
+			if (i == 0) ImGui::SameLine();
+		}
+		
+		if (ImGui::Button(searchFieldTitle("Clear Input History"))) {
+			game.clearInputHistory();
+			endScene.clearInputHistory();
+		}
+		static std::string clearInputHistoryHelp;
+		if (clearInputHistoryHelp.empty()) {
+			clearInputHistoryHelp = settings.convertToUiDescription(
+				"Clears input history. For example, in training mode, when input history display is enabled.\n"
+				"You can use the \"clearInputHistory\" hotkey to toggle this setting.\n"
+				"\n"
+				"Alternatively, you can use the \"clearInputHistoryOnStageReset\" boolean setting to"
+				" make the game clear input history when you reset positions in training mode or when"
+				" round restarts in any game mode.\n"
+				"Alternatively, you can use the \"clearInputHistoryOnStageResetInTrainingMode\" boolean setting to"
+				" make the game clear input history when you reset positions in training mode only.");
+		}
+		AddTooltipWithHotkey(clearInputHistoryHelp.c_str(), clearInputHistoryHelp.c_str() + clearInputHistoryHelp.size(), settings.clearInputHistory);
+		
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitboxes")) || searching) {
 			
-			ImGui::Text(searchFieldTitle(settings.getOtherUINameWithLength(&settings.screenshotPath)));
+			booleanSettingPresetWithHotkey(settings.dontShowBoxes, settings.disableHitboxDisplayToggle);
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("GIF Mode"), &gifModeOn) || stateChanged;
 			ImGui::SameLine();
-			float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
-			ImGui::SetNextItemWidth(w);
-			if (ImGui::InputText("##Screenshots path", screenshotsPathBuf, MAX_PATH, 0, nullptr, nullptr)) {
-				{
-					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
-					settings.screenshotPath = screenshotsPathBuf;
+			static std::string GIFModeHelp;
+			if (GIFModeHelp.empty()) {
+				GIFModeHelp = settings.convertToUiDescription("GIF mode is:\n"
+					"1) Background becomes black\n"
+					"2) Camera is centered on you\n"
+					"3) Opponent is invisible and invulnerable\n"
+					"4) Hide HUD\n"
+					"A hotkey can be configured for entering and leaving GIF Mode at \"gifModeToggle\".");
+			}
+			HelpMarkerWithHotkey(GIFModeHelp, settings.gifModeToggle);
+			
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::PushTextWrapPos(0.F);
+			ImGui::TextUnformatted("You can take screenshots with transparency as long as GIF Mode or Black Background"
+				" is enabled, using the 'Take Screenshot' button in this section below.");
+			ImGui::PopTextWrapPos();
+			ImGui::PopStyleColor();
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Black Background"), &gifModeToggleBackgroundOnly) || stateChanged;
+			ImGui::SameLine();
+			static std::string blackBackgroundHelp;
+			if (blackBackgroundHelp.empty()) {
+				blackBackgroundHelp = settings.convertToUiDescription(
+					"Makes background black (and, for screenshotting purposes, - effectively transparent,"
+					" if Post Effect is turned off in the game's graphics settings).\n"
+					"You can use the \"gifModeToggleBackgroundOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(blackBackgroundHelp, settings.gifModeToggleBackgroundOnly);
+			
+			bool postEffectOn = game.postEffectOn() != 0;
+			if (ImGui::Checkbox(searchFieldTitle("Post-Effect On"), &postEffectOn)) {
+				game.postEffectOn() = (BOOL)postEffectOn;
+			}
+			ImGui::SameLine();
+			static std::string postEffectOnHelp;
+			if (postEffectOnHelp.empty()) {
+				postEffectOnHelp = settings.convertToUiDescription("Toggles the game's 'Settings - Display Settings - Post-Effect'. Changing it this way does not"
+				" require the current match to be restarted.\n"
+				"Alternatively, you could tick the \"turnOffPostEffectWhenMakingBackgroundBlack\" checkbox,"
+				" so that whenever you enter either the GIF mode or the GIF mode (black background only), the Post-Effect is"
+				" turned off automatically, and when you leave those modes, it gets turned back on.\n"
+				"Or, alternatively, you could use the manual keyboard toggle, set in this mod's \"togglePostEffectOnOff\".");
+			}
+			HelpMarkerWithHotkey(postEffectOnHelp, settings.togglePostEffectOnOff);
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center On Player"), &gifModeToggleCameraCenterOnly) || stateChanged;
+			ImGui::SameLine();
+			static std::string cameraCenterHelp;
+			if (cameraCenterHelp.empty()) {
+				cameraCenterHelp = settings.convertToUiDescription(
+					"Centers the camera on you.\n"
+					"You can use the \"gifModeToggleCameraCenterOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(cameraCenterHelp, settings.gifModeToggleCameraCenterOnly);
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Camera Center on Opponent"), &toggleCameraCenterOpponent) || stateChanged;
+			ImGui::SameLine();
+			static std::string cameraCenterOpponentHelp;
+			if (cameraCenterOpponentHelp.empty()) {
+				cameraCenterOpponentHelp = settings.convertToUiDescription(
+					"Centers the camera on the opponent.\n"
+					"You can use the \"toggleCameraCenterOpponent\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(cameraCenterOpponentHelp, settings.toggleCameraCenterOpponent);
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Opponent"), &gifModeToggleHideOpponentOnly) || stateChanged;
+			ImGui::SameLine();
+			static std::string hideOpponentHelp;
+			if (hideOpponentHelp.empty()) {
+				hideOpponentHelp = settings.convertToUiDescription(
+					"Make the opponent invisible and invulnerable.\n"
+					"You can use the \"gifModeToggleHideOpponentOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(hideOpponentHelp, settings.gifModeToggleHideOpponentOnly);
+			
+			bool dontHideOpponentsEffects = gifMode.dontHideOpponentsEffects;
+			if (ImGui::Checkbox(searchFieldTitle("Don't Hide Opponent's Effects"), &dontHideOpponentsEffects)) {
+				gifMode.dontHideOpponentsEffects = dontHideOpponentsEffects;
+			}
+			ImGui::SameLine();
+			HelpMarker("If 'Hide Opponent' is used, don't hide their effects, which is everything except the player's character model.");
+			
+			bool dontHideOpponentsBoxes = gifMode.dontHideOpponentsBoxes;
+			if (ImGui::Checkbox(searchFieldTitle("Don't Hide Opponent's Boxes"), &dontHideOpponentsBoxes)) {
+				gifMode.dontHideOpponentsBoxes = dontHideOpponentsBoxes;
+			}
+			ImGui::SameLine();
+			HelpMarker("Similar to 'Hide Opponent' in that makes the opponent player invulnerable to all attacks,"
+				" except that this option does not hide them and allows them to land attacks of their own.");
+			
+			bool makeFullInvul = gifMode.makeOpponentFullInvul;
+			if (ImGui::Checkbox(searchFieldTitle("Make Opponent Full Invul (Without Hiding)"), &makeFullInvul)) {
+				gifMode.makeOpponentFullInvul = makeFullInvul;
+			}
+			ImGui::SameLine();
+			HelpMarker("If 'Hide Opponent' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Hide Player"), &toggleHidePlayer) || stateChanged;
+			ImGui::SameLine();
+			static std::string hidePlayerHelp;
+			if (hidePlayerHelp.empty()) {
+				hidePlayerHelp = settings.convertToUiDescription(
+					"Make the player invisible and invulnerable.\n"
+					"You can use the \"toggleHidePlayer\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(hidePlayerHelp, settings.toggleHidePlayer);
+			
+			bool dontHidePlayersEffects = gifMode.dontHidePlayersEffects;
+			if (ImGui::Checkbox(searchFieldTitle("Don't Hide Player's Effects"), &dontHidePlayersEffects)) {
+				gifMode.dontHidePlayersEffects = dontHidePlayersEffects;
+			}
+			ImGui::SameLine();
+			HelpMarker("If 'Hide Player' is used, don't hide their effects, which is everything except the player's character model.");
+			
+			bool dontHidePlayersBoxes = gifMode.dontHidePlayersBoxes;
+			if (ImGui::Checkbox(searchFieldTitle("Don't Hide Player's Boxes"), &dontHidePlayersBoxes)) {
+				gifMode.dontHidePlayersBoxes = dontHidePlayersBoxes;
+			}
+			ImGui::SameLine();
+			HelpMarker("If 'Hide Player' is used, don't hide their hitboxes, pushboxes, hurtboxes, etc, on either the character model or the effects.");
+			
+			makeFullInvul = gifMode.makePlayerFullInvul;
+			if (ImGui::Checkbox(searchFieldTitle("Make Player Full Invul (Without Hiding)"), &makeFullInvul)) {
+				gifMode.makePlayerFullInvul = makeFullInvul;
+			}
+			ImGui::SameLine();
+			HelpMarker("Similar to 'Hide Player' in that makes your player invulnerable to all attacks,"
+				" except that this option does not hide you and allows you to land attacks of your own.");
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Hide HUD"), &gifModeToggleHudOnly) || stateChanged;
+			ImGui::SameLine();
+			static std::string hideHUDHelp;
+			if (hideHUDHelp.empty()) {
+				hideHUDHelp = settings.convertToUiDescription(
+					"Hides the HUD (interface).\n"
+					"You can use the \"gifModeToggleHudOnly\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(hideHUDHelp, settings.gifModeToggleHudOnly);
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("No Gravity"), &noGravityOn) || stateChanged;
+			ImGui::SameLine();
+			static std::string noGravityHelp;
+			if (noGravityHelp.empty()) {
+				noGravityHelp = settings.convertToUiDescription(
+					"Prevents you from falling, meaning you remain in the air as long as 'No Gravity Mode' is enabled.\n"
+					"You can use the \"noGravityToggle\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(noGravityHelp, settings.noGravityToggle);
+			
+			bool neverDisplayGrayHurtboxes = settings.neverDisplayGrayHurtboxes;
+			if (ImGui::Checkbox(searchFieldTitle("Disable Gray Hurtboxes"), &neverDisplayGrayHurtboxes)) {
+				settings.neverDisplayGrayHurtboxes = neverDisplayGrayHurtboxes;
+				needWriteSettings = true;
+			}
+			ImGui::SameLine();
+			static std::string neverDisplayGrayHurtboxesHelp;
+			if (neverDisplayGrayHurtboxesHelp.empty()) {
+				neverDisplayGrayHurtboxesHelp = settings.convertToUiDescription(
+					"Disables/enables the display of residual hurtboxes that appear on hit/block and show"
+					" the defender's hurtbox at the moment of impact. These hurtboxes display for only a brief time on impacts but"
+					" they can get in the way when trying to do certain stuff such as take screenshots of hurtboxes.\n"
+					"You can use the \"toggleDisableGrayHurtboxes\" hotkey to toggle this setting.");
+			}
+			HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp, settings.toggleDisableGrayHurtboxes);
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Freeze Game"), &freezeGame) || stateChanged;
+			ImGui::SameLine();
+			if (ImGui::Button(searchFieldTitle("Next Frame"))) {
+				allowNextFrame = true;
+				allowNextFrameTimer = 10;
+			}
+			ImGui::SameLine();
+			static std::string freezeGameHelp;
+			if (freezeGameHelp.empty()) {
+				freezeGameHelp = settings.convertToUiDescription(
+					"Freezes the current frame of the game and stops gameplay from advancing."
+					" You can advance gameplay to the next frame using the 'Next Frame' button."
+					" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
+					" instead of pressing the button, and freezing and unfreezing the game can be achieved with"
+					" the \"freezeGameToggle\" shortcut.");
+			}
+			ImGui::TextDisabled("(?)");
+			if (ImGui::BeginItemTooltip()) {
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				
+				sprintf_s(strbuf, "Freeze Game Hotkey: %s", comborepr(settings.freezeGameToggle));
+				ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
+				
+				sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", comborepr(settings.allowNextFrameKeyCombo));
+				ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
+				
+				ImGui::Separator();
+				ImGui::TextUnformatted(searchTooltipStr(freezeGameHelp));
+				ImGui::PopTextWrapPos();
+				ImGui::EndTooltip();
+			}
+			
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Slow-Mo Mode"), &slowmoGame) || stateChanged;
+			ImGui::SameLine();
+			int slowmoTimes = settings.slowmoTimes;
+			ImGui::SetNextItemWidth(80.F);
+			if (ImGui::InputInt(searchFieldTitle("Slow-Mo Factor"), &slowmoTimes, 1, 1, 0)) {
+				if (slowmoTimes <= 0) {
+					slowmoTimes = 1;
 				}
+				settings.slowmoTimes = slowmoTimes;
 				needWriteSettings = true;
 			}
 			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
 			ImGui::SameLine();
-			if (ImGui::Button("Select", BTN_SIZE) && keyboard.thisProcessWindow) {
-				PostMessageW(keyboard.thisProcessWindow, WM_APP_OPEN_FILE_SELECTION, 0, 0);
+			static std::string slowmoHelp;
+			if (slowmoHelp.empty()) {
+				slowmoHelp = settings.convertToUiDescription(
+					"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
+					"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
+			}
+			HelpMarkerWithHotkey(slowmoHelp, settings.slowmoGameToggle);
+			
+			ImGui::Button(searchFieldTitle("Take Screenshot"));
+			if (ImGui::IsItemActivated()) {
+				// Regular ImGui button 'press' (ImGui::Button(...) function returning true) happens when you RELEASE the button,
+				// but to simulate the old keyboard behavior we need this to happen when you PRESS the button
+				takeScreenshotPress = true;
+				takeScreenshotTimer = 10;
+			}
+			if (!searching) {
+				takeScreenshotTemp = ImGui::IsItemActive();
 			}
 			ImGui::SameLine();
-			HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
+			static std::string screenshotHelp;
+			if (screenshotHelp.empty()) {
+				screenshotHelp = settings.convertToUiDescription(
+					"Takes a screenshot. This only works during a match, so it won't work, for example, on character select screen or on some menu."
+					" If you make background black using 'GIF Mode Enabled' and set Post Effect to off in the game's graphics settings"
+					" (or use \"togglePostEffectOnOff\" or \"turnOffPostEffectWhenMakingBackgroundBlack\")"
+					", you will be able to take screenshots with transparency. Screenshots are copied to clipboard by default, but if 'Screenshots path' is set"
+					" in the 'Hitbox settings', they're saved there instead.\n"
+					"A hotkey can be configured to take screenshots with, in \"screenshotBtn\".");
+			}
+			HelpMarkerWithHotkey(screenshotHelp, settings.screenshotBtn);
 			
+			ImGui::PushID(1);
 			booleanSettingPreset(settings.ignoreScreenshotPathAndSaveToClipboard);
-			
-			booleanSettingPreset(settings.allowContinuousScreenshotting);
-			
-			booleanSettingPreset(settings.dontUseScreenshotTransparency);
-			
-			booleanSettingPreset(settings.useSimplePixelBlender);
-			
-			booleanSettingPreset(settings.usePixelShader);
-			if (graphics.failedToCreatePixelShader) {
-				if (!pixelShaderFailReasonObtained) {
-					pixelShaderFailReasonObtained = true;
-					pixelShaderFailReason = graphics.getFailedToCreatePixelShaderReason();
-				}
-				if (!pixelShaderFailReason.empty()) {
-					ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-					ImGui::PushTextWrapPos(0.F);
-					char initialText[] = "Pixel shader was disabled automatically: ";
-					char finalText[] = " The setting will have no effect.";
-					if ((sizeof initialText - 1) + pixelShaderFailReason.size() + (sizeof finalText - 1) + 1 > sizeof strbuf) {
-						pixelShaderFailReason[sizeof strbuf - (sizeof initialText - 1) - (sizeof finalText - 1) - 1] = '\0';
-					}
-					sprintf_s(strbuf, "%s%s%s", initialText, pixelShaderFailReason.c_str(), finalText);
-					ImGui::TextUnformatted(strbuf);
-					ImGui::PopTextWrapPos();
-					ImGui::PopStyleColor();
-				}
-			}
-			
-			booleanSettingPreset(settings.showIndividualHitboxOutlines);
-			
-			if (booleanSettingPreset(settings.turnOffPostEffectWhenMakingBackgroundBlack)) {
-				endScene.onGifModeBlackBackgroundChanged();
-			}
-			
-			booleanSettingPreset(settings.forceZeroPitchDuringCameraCentering);
-			
-			ImGui::PushItemWidth(120.F);
-			float4SettingPreset(settings.cameraCenterOffsetY);
-			
-			float4SettingPreset(settings.cameraCenterOffsetY_WhenForcePitch0);
-			
-			float4SettingPreset(settings.cameraCenterOffsetZ);
-			ImGui::PopItemWidth();
-			
-			if (ImGui::Button("Restore Defaults")) {
-				settings.cameraCenterOffsetX = settings.cameraCenterOffsetX_defaultValue;
-				settings.cameraCenterOffsetY = settings.cameraCenterOffsetY_defaultValue;
-				settings.cameraCenterOffsetY_WhenForcePitch0 = settings.cameraCenterOffsetY_WhenForcePitch0_defaultValue;
-				settings.cameraCenterOffsetZ = settings.cameraCenterOffsetZ_defaultValue;
-				needWriteSettings = true;
-			}
-			AddTooltip(searchTooltip("Restores the default values for the four settings above."));
-			
-		}
-		popSearchStack();
-		if (ImGui::CollapsingHeader(searchCollapsibleSection("Framebar Settings")) || searching) {
-			
-			if (ImGui::Button(searchFieldTitle("Framebar Help"))) {
-				showFramebarHelp = !showFramebarHelp;
-			}
-			AddTooltip(searchTooltip("Shows the meaning of each frame color/graphic on the framebar."));
-			
-			booleanSettingPresetWithHotkey(settings.neverIgnoreHitstop, settings.toggleNeverIgnoreHitstop);
-			
-			booleanSettingPreset(settings.ignoreHitstopForBlockingBaiken);
-			
-			booleanSettingPreset(settings.considerRunAndWalkNonIdle);
-			
-			booleanSettingPreset(settings.considerCrouchNonIdle);
-			
-			booleanSettingPreset(settings.considerKnockdownWakeupAndAirtechIdle);
-			
-			booleanSettingPreset(settings.considerIdleInvulIdle);
-			
-			booleanSettingPreset(settings.considerDummyPlaybackNonIdle);
-			
-			booleanSettingPreset(settings.useColorblindHelp);
-			
-			booleanSettingPresetWithHotkey(settings.showFramebar, settings.framebarVisibilityToggle);
-			
-			booleanSettingPreset(settings.showFramebarInTrainingMode);
-			
-			booleanSettingPreset(settings.showFramebarInReplayMode);
-			
-			booleanSettingPreset(settings.showFramebarInOtherModes);
-			
-			booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
-			
-			booleanSettingPreset(settings.showStrikeInvulOnFramebar);
-			
-			booleanSettingPreset(settings.showThrowInvulOnFramebar);
-			
-			booleanSettingPreset(settings.showOTGOnFramebar);
-			
-			booleanSettingPreset(settings.showSuperArmorOnFramebar);
-			
-			booleanSettingPreset(settings.showFirstFramesOnFramebar);
-			
-			booleanSettingPreset(settings.considerSimilarFrameTypesSameForFrameCounts);
-			
-			booleanSettingPreset(settings.considerSimilarIdleFramesSameForFrameCounts);
-			
-			booleanSettingPreset(settings.skipGrabsInFramebar);
-			
-			booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingGrab);
-			
-			booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingHitstop);
-			
-			booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingSuperfreeze);
-			
-			if (booleanSettingPreset(settings.combineProjectileFramebarsWhenPossible)) {
-				if (settings.combineProjectileFramebarsWhenPossible) {
-					settings.eachProjectileOnSeparateFramebar = false;
-				}
-			}
-			
-			if (booleanSettingPreset(settings.eachProjectileOnSeparateFramebar)) {
-				if (settings.eachProjectileOnSeparateFramebar) {
-					settings.combineProjectileFramebarsWhenPossible = false;
-					settings.condenseIntoOneProjectileFramebar = false;
-				}
-			}
-			
-			if (booleanSettingPreset(settings.condenseIntoOneProjectileFramebar)) {
-				if (settings.condenseIntoOneProjectileFramebar) {
-					settings.eachProjectileOnSeparateFramebar = false;
-				}
-			}
-			
-			booleanSettingPreset(settings.dontClearFramebarOnStageReset);
-			
-			booleanSettingPreset(settings.dontTruncateFramebarTitles);
-			
-			booleanSettingPreset(settings.useSlangNames);
-			
-			booleanSettingPreset(settings.allFramebarTitlesDisplayToTheLeft);
-			
-			booleanSettingPreset(settings.showPlayerInFramebarTitle);
-			
-			intSettingPreset(settings.framebarTitleCharsMax, 0);
-			
-			intSettingPreset(settings.playerFramebarHeight, 1);
-			
-			intSettingPreset(settings.projectileFramebarHeight, 1);
-			
-			intSettingPreset(settings.distanceBetweenPlayerFramebars, INT_MIN);
-			
-			intSettingPreset(settings.distanceBetweenProjectileFramebars, INT_MIN);
-			
-			intSettingPreset(settings.digitThickness, 1, 1, 1, 80.F, 2);
-			
-			booleanSettingPreset(settings.drawDigits);
-			
-			booleanSettingPreset(settings.showP1FramedataInFramebar);
-			
-			booleanSettingPreset(settings.showP2FramedataInFramebar);
-			
-			if (intSettingPreset(settings.framebarStoredFramesCount, 1, 1, 1, 80.F, _countof(Framebar::frames))) {
-				if (settings.framebarDisplayedFramesCount > settings.framebarStoredFramesCount) {
-					settings.framebarDisplayedFramesCount = settings.framebarStoredFramesCount;
-				}
-			}
-			
-			intSettingPreset(settings.framebarDisplayedFramesCount, 1, 1, 1, 80.F, settings.framebarStoredFramesCount);
-			
-			booleanSettingPreset(settings.clearFrameSelectionWhenFramebarAdvances);
-			
-		}
-		popSearchStack();
-		if (ImGui::CollapsingHeader(searchCollapsibleSection("Keyboard Shortcuts")) || searching) {
-			keyComboControl(settings.modWindowVisibilityToggle);
-			keyComboControl(settings.framebarVisibilityToggle);
-			keyComboControl(settings.gifModeToggle);
-			keyComboControl(settings.gifModeToggleBackgroundOnly);
-			keyComboControl(settings.togglePostEffectOnOff);
-			keyComboControl(settings.gifModeToggleCameraCenterOnly);
-			keyComboControl(settings.toggleCameraCenterOpponent);
-			keyComboControl(settings.gifModeToggleHideOpponentOnly);
-			keyComboControl(settings.toggleHidePlayer);
-			keyComboControl(settings.gifModeToggleHudOnly);
-			keyComboControl(settings.noGravityToggle);
-			keyComboControl(settings.freezeGameToggle);
-			keyComboControl(settings.slowmoGameToggle);
-			keyComboControl(settings.allowNextFrameKeyCombo);
-			keyComboControl(settings.disableHitboxDisplayToggle);
-			keyComboControl(settings.screenshotBtn);
-			keyComboControl(settings.continuousScreenshotToggle);
-			keyComboControl(settings.toggleDisableGrayHurtboxes);
-			keyComboControl(settings.toggleNeverIgnoreHitstop);
-			keyComboControl(settings.toggleShowInputHistory);
-			keyComboControl(settings.toggleAllowCreateParticles);
-			keyComboControl(settings.clearInputHistory);
-			keyComboControl(settings.disableModToggle);
-		}
-		popSearchStack();
-		if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
-			booleanSettingPreset(settings.modWindowVisibleOnStart);
-			
-			ImGui::PushID(1);
-			booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
 			ImGui::PopID();
 			
-			booleanSettingPreset(settings.displayUIOnTopOfPauseMenu);
-			
-			booleanSettingPreset(settings.dodgeObsRecording);
-			
-			booleanSettingPreset(settings.frameAdvantage_dontUsePreBlockstunTime);
-			
-			ImGui::PushID(1);
-			booleanSettingPreset(settings.useSlangNames);
-			ImGui::PopID();
-			
-			booleanSettingPreset(settings.dontShowMoveName);
-			
-			booleanSettingPreset(settings.showComboProrationInRiscGauge);
-			
-			booleanSettingPresetWithHotkey(settings.displayInputHistoryWhenObserving, settings.toggleShowInputHistory);
-			
-			booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
-			
-			booleanSettingPreset(settings.showDurationsInInputHistory);
-			
-			if (booleanSettingPreset(settings.usePositionResetMod)) {
-				if (settings.usePositionResetMod) {
-					game.onUsePositionResetChanged();
-				}
+			stateChanged = ImGui::Checkbox(searchFieldTitle("Continuous Screenshotting Mode"), &continuousScreenshotToggle) || stateChanged;
+			ImGui::SameLine();
+			static std::string continuousScreenshottingHelp;
+			if (continuousScreenshottingHelp.empty()) {
+				continuousScreenshottingHelp = settings.convertToUiDescription(
+					"When this option is enabled, screenshots will be taken every frame,"
+					" as long as the mod's screenshot button is being help, unless the game is frozen, in which case"
+					" a new screenshot is taken only when the frame advances. You can run out of disk space pretty fast with this and it slows"
+					" the game down significantly. Continuous screenshotting is only allowed in training mode.\n"
+					"Alternatively, you can use \"continuousScreenshotToggle\" shortcut to toggle a mode where you don't have to hold"
+					" the screenshot button, and screenshots get taken every non frozen (advancing) frame automatically.");
 			}
+			HelpMarkerWithHotkey(continuousScreenshottingHelp, settings.continuousScreenshotToggle);
 			
-			intSettingPreset(settings.positionResetDistBetweenPlayers, 0, 1000, 10000, 120.F);
-			intSettingPreset(settings.positionResetDistFromCorner, 0, 1000, 10000, 120.F);
+			bool allowCreateParticles = gifMode.allowCreateParticles;
+			if (ImGui::Checkbox(searchFieldTitle("Allow Creation Of Particles"), &allowCreateParticles)) {
+				gifMode.allowCreateParticles = allowCreateParticles;
+			}
+			ImGui::SameLine();
+			static std::string allowCreateParticlesHelp;
+			if (allowCreateParticlesHelp.empty()) {
+				allowCreateParticlesHelp = settings.convertToUiDescription(
+					"When this option is enabled, particle effects such as superfreeze flash, can be created."
+					" Turning this option on or off does not remove particles that have already been created,"
+					" or make appear those particles which have already not been created.\n"
+					"You can use the \"toggleAllowCreateParticles\" shortcut to toggle this option.");
+			}
+			HelpMarkerWithHotkey(allowCreateParticlesHelp, settings.toggleAllowCreateParticles);
 			
-			booleanSettingPreset(settings.showDebugFields);
-			
-			booleanSettingPreset(settings.ignoreNumpadEnterKey);
-			booleanSettingPreset(settings.ignoreRegularEnterKey);
-			
-			intSettingPreset(settings.startingTensionPulse, -25000, 100, 1000, 120.F, 25000);
-			
-			booleanSettingPreset(settings.clearInputHistoryOnStageReset);
-			booleanSettingPreset(settings.clearInputHistoryOnStageResetInTrainingMode);
-			
-			booleanSettingPreset(settings.hideWins);
-			booleanSettingPreset(settings.hideWinsDirectParticipantOnly);
-			intSettingPreset(settings.hideWinsExceptOnWins, INT_MIN, 1, 5, 80.F);
-			
-			if (booleanSettingPreset(settings.hideRankIcons)) {
-				if (settings.hideRankIcons) {
-					game.hideRankIcons();
-					if (!game.drawRankInLobbyOverPlayersHeads
-							|| !game.drawRankInLobbySearchMemberList
-							|| !game.drawRankInLobbyMemberList_NonCircle
-							|| !game.drawRankInLobbyMemberList_Circle) {
-						showingFailedHideRankSigscanMessage = true;
+		}
+		popSearchStack();
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Settings")) || searching) {
+			if (ImGui::CollapsingHeader(searchCollapsibleSection("Hitbox Settings")) || searching) {
+				
+				if (ImGui::Button(searchFieldTitle("Hitboxes Help"))) {
+					toggleOpenManually(PinnedWindowEnum_HitboxesHelp);
+				}
+				
+				booleanSettingPreset(settings.drawPushboxCheckSeparately);
+				
+				{
+					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
+					size_t newLen = settings.screenshotPath.size();
+					if (newLen > MAX_PATH - 1) {
+						newLen = MAX_PATH - 1;
+					}
+					memcpy(screenshotsPathBuf, settings.screenshotPath.c_str(), newLen);
+					screenshotsPathBuf[newLen] = '\0';
+				}
+				
+				ImGui::Text(searchFieldTitle(settings.getOtherUINameWithLength(&settings.screenshotPath)));
+				ImGui::SameLine();
+				float w = ImGui::GetContentRegionAvail().x * 0.85f - BTN_SIZE.x;
+				ImGui::SetNextItemWidth(w);
+				if (ImGui::InputText("##Screenshots path", screenshotsPathBuf, MAX_PATH, 0, nullptr, nullptr)) {
+					{
+						std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
+						settings.screenshotPath = screenshotsPathBuf;
+					}
+					needWriteSettings = true;
+				}
+				imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+				ImGui::SameLine();
+				if (ImGui::Button("Select", BTN_SIZE) && keyboard.thisProcessWindow) {
+					PostMessageW(keyboard.thisProcessWindow, WM_APP_OPEN_FILE_SELECTION, 0, 0);
+				}
+				ImGui::SameLine();
+				HelpMarker(settings.getOtherUIDescription(&settings.screenshotPath));
+				
+				booleanSettingPreset(settings.ignoreScreenshotPathAndSaveToClipboard);
+				
+				booleanSettingPreset(settings.allowContinuousScreenshotting);
+				
+				booleanSettingPreset(settings.dontUseScreenshotTransparency);
+				
+				booleanSettingPreset(settings.useSimplePixelBlender);
+				
+				booleanSettingPreset(settings.usePixelShader);
+				if (graphics.failedToCreatePixelShader) {
+					if (!pixelShaderFailReasonObtained) {
+						pixelShaderFailReasonObtained = true;
+						pixelShaderFailReason = graphics.getFailedToCreatePixelShaderReason();
+					}
+					if (!pixelShaderFailReason.empty()) {
+						ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+						ImGui::PushTextWrapPos(0.F);
+						char initialText[] = "Pixel shader was disabled automatically: ";
+						char finalText[] = " The setting will have no effect.";
+						if ((sizeof initialText - 1) + pixelShaderFailReason.size() + (sizeof finalText - 1) + 1 > sizeof strbuf) {
+							pixelShaderFailReason[sizeof strbuf - (sizeof initialText - 1) - (sizeof finalText - 1) - 1] = '\0';
+						}
+						sprintf_s(strbuf, "%s%s%s", initialText, pixelShaderFailReason.c_str(), finalText);
+						ImGui::TextUnformatted(strbuf);
+						ImGui::PopTextWrapPos();
+						ImGui::PopStyleColor();
 					}
 				}
+				
+				booleanSettingPreset(settings.showIndividualHitboxOutlines);
+				
+				if (booleanSettingPreset(settings.turnOffPostEffectWhenMakingBackgroundBlack)) {
+					endScene.onGifModeBlackBackgroundChanged();
+				}
+				
+				booleanSettingPreset(settings.forceZeroPitchDuringCameraCentering);
+				
+				ImGui::PushItemWidth(120.F);
+				float4SettingPreset(settings.cameraCenterOffsetY);
+				
+				float4SettingPreset(settings.cameraCenterOffsetY_WhenForcePitch0);
+				
+				float4SettingPreset(settings.cameraCenterOffsetZ);
+				ImGui::PopItemWidth();
+				
+				if (ImGui::Button("Restore Defaults")) {
+					settings.cameraCenterOffsetX = settings.cameraCenterOffsetX_defaultValue;
+					settings.cameraCenterOffsetY = settings.cameraCenterOffsetY_defaultValue;
+					settings.cameraCenterOffsetY_WhenForcePitch0 = settings.cameraCenterOffsetY_WhenForcePitch0_defaultValue;
+					settings.cameraCenterOffsetZ = settings.cameraCenterOffsetZ_defaultValue;
+					needWriteSettings = true;
+				}
+				AddTooltip(searchTooltip("Restores the default values for the four settings above."));
+				
 			}
-			
-			booleanSettingPreset(settings.overrideOnlineInputDelay);
-			intSettingPreset(settings.onlineInputDelayFullscreen, 0, 1, 1, 80.F, 4);
-			intSettingPreset(settings.onlineInputDelayWindowed, 0, 1, 1, 80.F, 4);
-			
-			if (needTestDelayOnNextUiFrame) {
-				needTestDelayOnNextUiFrame = false;
-				testDelay();
+			popSearchStack();
+			if (ImGui::CollapsingHeader(searchCollapsibleSection("Framebar Settings")) || searching) {
+				
+				if (ImGui::Button(searchFieldTitle("Framebar Help"))) {
+					toggleOpenManually(PinnedWindowEnum_FramebarHelp);
+				}
+				AddTooltip(searchTooltip("Shows the meaning of each frame color/graphic on the framebar."));
+				
+				booleanSettingPresetWithHotkey(settings.neverIgnoreHitstop, settings.toggleNeverIgnoreHitstop);
+				
+				booleanSettingPreset(settings.ignoreHitstopForBlockingBaiken);
+				
+				booleanSettingPreset(settings.considerRunAndWalkNonIdle);
+				
+				booleanSettingPreset(settings.considerCrouchNonIdle);
+				
+				booleanSettingPreset(settings.considerKnockdownWakeupAndAirtechIdle);
+				
+				booleanSettingPreset(settings.considerIdleInvulIdle);
+				
+				booleanSettingPreset(settings.considerDummyPlaybackNonIdle);
+				
+				booleanSettingPreset(settings.useColorblindHelp);
+				
+				booleanSettingPresetWithHotkey(settings.showFramebar, settings.framebarVisibilityToggle);
+				
+				booleanSettingPreset(settings.showFramebarInTrainingMode);
+				
+				booleanSettingPreset(settings.showFramebarInReplayMode);
+				
+				booleanSettingPreset(settings.showFramebarInOtherModes);
+				
+				booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
+				
+				booleanSettingPreset(settings.showStrikeInvulOnFramebar);
+				
+				booleanSettingPreset(settings.showThrowInvulOnFramebar);
+				
+				booleanSettingPreset(settings.showOTGOnFramebar);
+				
+				booleanSettingPreset(settings.showSuperArmorOnFramebar);
+				
+				booleanSettingPreset(settings.showFirstFramesOnFramebar);
+				
+				booleanSettingPreset(settings.considerSimilarFrameTypesSameForFrameCounts);
+				
+				booleanSettingPreset(settings.considerSimilarIdleFramesSameForFrameCounts);
+				
+				booleanSettingPreset(settings.skipGrabsInFramebar);
+				
+				booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingGrab);
+				
+				booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingHitstop);
+				
+				booleanSettingPreset(settings.showFramebarHatchedLineWhenSkippingSuperfreeze);
+				
+				if (booleanSettingPreset(settings.combineProjectileFramebarsWhenPossible)) {
+					if (settings.combineProjectileFramebarsWhenPossible) {
+						settings.eachProjectileOnSeparateFramebar = false;
+					}
+				}
+				
+				if (booleanSettingPreset(settings.eachProjectileOnSeparateFramebar)) {
+					if (settings.eachProjectileOnSeparateFramebar) {
+						settings.combineProjectileFramebarsWhenPossible = false;
+						settings.condenseIntoOneProjectileFramebar = false;
+					}
+				}
+				
+				if (booleanSettingPreset(settings.condenseIntoOneProjectileFramebar)) {
+					if (settings.condenseIntoOneProjectileFramebar) {
+						settings.eachProjectileOnSeparateFramebar = false;
+					}
+				}
+				
+				booleanSettingPreset(settings.dontClearFramebarOnStageReset);
+				
+				booleanSettingPreset(settings.dontTruncateFramebarTitles);
+				
+				booleanSettingPreset(settings.useSlangNames);
+				
+				booleanSettingPreset(settings.allFramebarTitlesDisplayToTheLeft);
+				
+				booleanSettingPreset(settings.showPlayerInFramebarTitle);
+				
+				intSettingPreset(settings.framebarTitleCharsMax, 0);
+				
+				intSettingPreset(settings.playerFramebarHeight, 1);
+				
+				intSettingPreset(settings.projectileFramebarHeight, 1);
+				
+				intSettingPreset(settings.distanceBetweenPlayerFramebars, INT_MIN);
+				
+				intSettingPreset(settings.distanceBetweenProjectileFramebars, INT_MIN);
+				
+				intSettingPreset(settings.digitThickness, 1, 1, 1, 80.F, 2);
+				
+				booleanSettingPreset(settings.drawDigits);
+				
+				booleanSettingPreset(settings.showP1FramedataInFramebar);
+				
+				booleanSettingPreset(settings.showP2FramedataInFramebar);
+				
+				if (intSettingPreset(settings.framebarStoredFramesCount, 1, 1, 1, 80.F, _countof(Framebar::frames))) {
+					if (settings.framebarDisplayedFramesCount > settings.framebarStoredFramesCount) {
+						settings.framebarDisplayedFramesCount = settings.framebarStoredFramesCount;
+					}
+				}
+				
+				intSettingPreset(settings.framebarDisplayedFramesCount, 1, 1, 1, 80.F, settings.framebarStoredFramesCount);
+				
+				booleanSettingPreset(settings.clearFrameSelectionWhenFramebarAdvances);
+				
 			}
-			if (ImGui::Button(searchFieldTitle("Test Delay"))) {
-				if (!sigscannedButtonSettings) {
-					needTestDelayOnNextUiFrame = true;  // sigscanning takes ~7ms
-					sigscannedButtonSettings = true;
-					buttonSettings = (ButtonSettings*)sigscanOffset(GUILTY_GEAR_XRD_EXE,
-						"41 83 f9 0e 7c c4 8d 43 54",
-						{ 10, 0 },
-						nullptr, "ButtonSettings");
-					finishedSigscanning();
-				} else {
+			popSearchStack();
+			if (ImGui::CollapsingHeader(searchCollapsibleSection("Keyboard Shortcuts")) || searching) {
+				keyComboControl(settings.modWindowVisibilityToggle);
+				keyComboControl(settings.framebarVisibilityToggle);
+				keyComboControl(settings.gifModeToggle);
+				keyComboControl(settings.gifModeToggleBackgroundOnly);
+				keyComboControl(settings.togglePostEffectOnOff);
+				keyComboControl(settings.gifModeToggleCameraCenterOnly);
+				keyComboControl(settings.toggleCameraCenterOpponent);
+				keyComboControl(settings.gifModeToggleHideOpponentOnly);
+				keyComboControl(settings.toggleHidePlayer);
+				keyComboControl(settings.gifModeToggleHudOnly);
+				keyComboControl(settings.noGravityToggle);
+				keyComboControl(settings.freezeGameToggle);
+				keyComboControl(settings.slowmoGameToggle);
+				keyComboControl(settings.allowNextFrameKeyCombo);
+				keyComboControl(settings.disableHitboxDisplayToggle);
+				keyComboControl(settings.screenshotBtn);
+				keyComboControl(settings.continuousScreenshotToggle);
+				keyComboControl(settings.toggleDisableGrayHurtboxes);
+				keyComboControl(settings.toggleNeverIgnoreHitstop);
+				keyComboControl(settings.toggleShowInputHistory);
+				keyComboControl(settings.toggleAllowCreateParticles);
+				keyComboControl(settings.clearInputHistory);
+				keyComboControl(settings.disableModToggle);
+			}
+			popSearchStack();
+			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
+				booleanSettingPreset(settings.modWindowVisibleOnStart);
+				booleanSettingPreset(settings.openPinnedWindowsOnStartup);
+				if (booleanSettingPreset(settings.disablePinButton)) {
+					onDisablePinButtonChanged(false);
+				}
+				
+				ImGui::PushID(1);
+				booleanSettingPreset(settings.closingModWindowAlsoHidesFramebar);
+				ImGui::PopID();
+				
+				booleanSettingPreset(settings.displayUIOnTopOfPauseMenu);
+				
+				booleanSettingPreset(settings.dodgeObsRecording);
+				
+				booleanSettingPreset(settings.frameAdvantage_dontUsePreBlockstunTime);
+				
+				ImGui::PushID(1);
+				booleanSettingPreset(settings.useSlangNames);
+				ImGui::PopID();
+				
+				booleanSettingPreset(settings.dontShowMoveName);
+				
+				booleanSettingPreset(settings.showComboProrationInRiscGauge);
+				
+				booleanSettingPresetWithHotkey(settings.displayInputHistoryWhenObserving, settings.toggleShowInputHistory);
+				
+				booleanSettingPresetWithHotkey(settings.displayInputHistoryInSomeOfflineModes, settings.toggleShowInputHistory);
+				
+				booleanSettingPreset(settings.showDurationsInInputHistory);
+				
+				if (booleanSettingPreset(settings.usePositionResetMod)) {
+					if (settings.usePositionResetMod) {
+						game.onUsePositionResetChanged();
+					}
+				}
+				
+				intSettingPreset(settings.positionResetDistBetweenPlayers, 0, 1000, 10000, 120.F);
+				intSettingPreset(settings.positionResetDistFromCorner, 0, 1000, 10000, 120.F);
+				
+				booleanSettingPreset(settings.showDebugFields);
+				
+				booleanSettingPreset(settings.ignoreNumpadEnterKey);
+				booleanSettingPreset(settings.ignoreRegularEnterKey);
+				
+				intSettingPreset(settings.startingTensionPulse, -25000, 100, 1000, 120.F, 25000);
+				
+				booleanSettingPreset(settings.clearInputHistoryOnStageReset);
+				booleanSettingPreset(settings.clearInputHistoryOnStageResetInTrainingMode);
+				
+				booleanSettingPreset(settings.hideWins);
+				booleanSettingPreset(settings.hideWinsDirectParticipantOnly);
+				intSettingPreset(settings.hideWinsExceptOnWins, INT_MIN, 1, 5, 80.F);
+				
+				if (booleanSettingPreset(settings.hideRankIcons)) {
+					if (settings.hideRankIcons) {
+						game.hideRankIcons();
+						if (!game.drawRankInLobbyOverPlayersHeads
+								|| !game.drawRankInLobbySearchMemberList
+								|| !game.drawRankInLobbyMemberList_NonCircle
+								|| !game.drawRankInLobbyMemberList_Circle) {
+							setOpen(PinnedWindowEnum_RankIconDrawingHookError, true, true);
+						}
+					}
+				}
+				
+				booleanSettingPreset(settings.overrideOnlineInputDelay);
+				intSettingPreset(settings.onlineInputDelayFullscreen, 0, 1, 1, 80.F, 4);
+				intSettingPreset(settings.onlineInputDelayWindowed, 0, 1, 1, 80.F, 4);
+				
+				if (needTestDelayOnNextUiFrame) {
+					needTestDelayOnNextUiFrame = false;
 					testDelay();
 				}
-			}
-			ImGui::SameLine();
-			HelpMarker(searchTooltip("Send a PUNCH key press into the game and monitor how long it takes for it to arrive into the input ring buffer.\n"
-				" The result, in milliseconds, will be displayed below."));
-			zerohspacing
-			textUnformattedColored(SLIGHTLY_GRAY, "Result: ");
-			ImGui::SameLine();
-			if (idiotPressedTestDelayButtonOutsideBattle) {
-				ImGui::TextUnformatted("<Must press button during battle>");
-			} else if (hasTestDelayResult) {
-				unsigned long long currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-				unsigned long long timeDiff = currentTime - testDelayStart;
-				sprintf_s(strbuf, "%u ms", testDelayResult);
-				ImGui::TextUnformatted(strbuf);
-				if (timeDiff > 30000ULL) {  // 30 seconds
-					ImGui::SameLine();
-					if (timeDiff > 120000ULL) {  // 2 minutes
-						if (timeDiff > 7200000ULL) {  // 2 hours
-							unsigned long remainder = timeDiff % 3600000U;
-							unsigned long long divisionResult = timeDiff / 3600000U;
-							sprintf_s(strbuf, " (Last measured %llu.%u hours ago)",
-								divisionResult,
-								remainder * 10 / 3600000U);
-						} else {
-							sprintf_s(strbuf, " (Last measured %llu minutes ago)", timeDiff / 60000U);
-						}
+				if (ImGui::Button(searchFieldTitle("Test Delay"))) {
+					if (!sigscannedButtonSettings) {
+						needTestDelayOnNextUiFrame = true;  // sigscanning takes ~7ms
+						sigscannedButtonSettings = true;
+						buttonSettings = (ButtonSettings*)sigscanOffset(GUILTY_GEAR_XRD_EXE,
+							"41 83 f9 0e 7c c4 8d 43 54",
+							{ 10, 0 },
+							nullptr, "ButtonSettings");
+						finishedSigscanning();
 					} else {
-						sprintf_s(strbuf, " (Last measured %llu seconds ago)", timeDiff / 1000U);
+						testDelay();
 					}
-					textUnformattedColored(SLIGHTLY_GRAY, strbuf);
 				}
-			} else {
-				ImGui::TextUnformatted("<Not measured yet>");
+				ImGui::SameLine();
+				HelpMarker(searchTooltip("Send a PUNCH key press into the game and monitor how long it takes for it to arrive into the input ring buffer.\n"
+					" The result, in milliseconds, will be displayed below."));
+				zerohspacing
+				textUnformattedColored(SLIGHTLY_GRAY, "Result: ");
+				ImGui::SameLine();
+				if (idiotPressedTestDelayButtonOutsideBattle) {
+					ImGui::TextUnformatted("<Must press button during battle>");
+				} else if (hasTestDelayResult) {
+					unsigned long long currentTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+					unsigned long long timeDiff = currentTime - testDelayStart;
+					sprintf_s(strbuf, "%u ms", testDelayResult);
+					ImGui::TextUnformatted(strbuf);
+					if (timeDiff > 30000ULL) {  // 30 seconds
+						ImGui::SameLine();
+						if (timeDiff > 120000ULL) {  // 2 minutes
+							if (timeDiff > 7200000ULL) {  // 2 hours
+								unsigned long remainder = timeDiff % 3600000U;
+								unsigned long long divisionResult = timeDiff / 3600000U;
+								sprintf_s(strbuf, " (Last measured %llu.%u hours ago)",
+									divisionResult,
+									remainder * 10 / 3600000U);
+							} else {
+								sprintf_s(strbuf, " (Last measured %llu minutes ago)", timeDiff / 60000U);
+							}
+						} else {
+							sprintf_s(strbuf, " (Last measured %llu seconds ago)", timeDiff / 1000U);
+						}
+						textUnformattedColored(SLIGHTLY_GRAY, strbuf);
+					}
+				} else {
+					ImGui::TextUnformatted("<Not measured yet>");
+				}
+				_zerohspacing
+				
+				if (booleanSettingPreset(settings.player1IsBoss) && settings.player1IsBoss) {
+					endScene.onPlayerIsBossChanged();
+				}
+				if (booleanSettingPreset(settings.player2IsBoss) && settings.player2IsBoss) {
+					endScene.onPlayerIsBossChanged();
+				}
+				
+				booleanSettingPreset(settings.useSigscanCaching);
+				
+				bool connectionTierChanged = false;
+				if (booleanSettingPreset(settings.overrideYourConnectionTierForFilter)) {
+					connectionTierChanged = true;
+				}
+				if (intSettingPreset(settings.connectionTierToPretendAs, 0, 1, 1, 80.F, 4, !settings.overrideYourConnectionTierForFilter)) {
+					connectionTierChanged = true;
+				}
+				if (connectionTierChanged) {
+					game.onConnectionTierChanged();
+				}
+				
+				bool highlightGreenBlueChanged = false;
+				if (booleanSettingPreset(settings.highlightRedWhenBecomingIdle)) {
+					highlightGreenBlueChanged = true;
+				}
+				if (booleanSettingPreset(settings.highlightGreenWhenBecomingIdle)) {
+					highlightGreenBlueChanged = true;
+				}
+				if (booleanSettingPreset(settings.highlightBlueWhenBecomingIdle)) {
+					highlightGreenBlueChanged = true;
+				}
+				if (ImGui::Button(searchFieldTitle(settings.getOtherUINameWithLength(&settings.highlightWhenCancelsIntoMovesAvailable)))) {
+					toggleOpenManually(PinnedWindowEnum_HighlightedCancels);
+				}
+				ImGui::SameLine();
+				HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settings.highlightWhenCancelsIntoMovesAvailable)));
+				if (highlightGreenBlueChanged) {
+					endScene.highlightGreenWhenBecomingIdleChanged();
+				}
+				
+				intSettingPreset(settings.globalWindowTransparency, 0, 5, 20, 80.F, 100);
+				booleanSettingPreset(settings.outlineAllWindowText);
+				
+				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+				ImGui::PushTextWrapPos(0.F);
+				ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
+					"Combo Recipe settings are only found in the cogwheel on the Combo Recipe panel."));
+				ImGui::PopTextWrapPos();
+				ImGui::PopStyleColor();
+				
 			}
-			_zerohspacing
-			
-			if (booleanSettingPreset(settings.player1IsBoss) && settings.player1IsBoss) {
-				endScene.onPlayerIsBossChanged();
-			}
-			if (booleanSettingPreset(settings.player2IsBoss) && settings.player2IsBoss) {
-				endScene.onPlayerIsBossChanged();
-			}
-			
-			booleanSettingPreset(settings.useSigscanCaching);
-			
-			bool connectionTierChanged = false;
-			if (booleanSettingPreset(settings.overrideYourConnectionTierForFilter)) {
-				connectionTierChanged = true;
-			}
-			if (intSettingPreset(settings.connectionTierToPretendAs, 0, 1, 1, 80.F, 4, !settings.overrideYourConnectionTierForFilter)) {
-				connectionTierChanged = true;
-			}
-			if (connectionTierChanged) {
-				game.onConnectionTierChanged();
-			}
-			
-			bool highlightGreenBlueChanged = false;
-			if (booleanSettingPreset(settings.highlightRedWhenBecomingIdle)) {
-				highlightGreenBlueChanged = true;
-			}
-			if (booleanSettingPreset(settings.highlightGreenWhenBecomingIdle)) {
-				highlightGreenBlueChanged = true;
-			}
-			if (booleanSettingPreset(settings.highlightBlueWhenBecomingIdle)) {
-				highlightGreenBlueChanged = true;
-			}
-			if (ImGui::Button(searchFieldTitle(settings.getOtherUINameWithLength(&settings.highlightWhenCancelsIntoMovesAvailable)))) {
-				showMoveHighlightWindow = !showMoveHighlightWindow;
-			}
-			ImGui::SameLine();
-			HelpMarker(searchTooltip(settings.getOtherUIDescriptionWithLength(&settings.highlightWhenCancelsIntoMovesAvailable)));
-			if (highlightGreenBlueChanged) {
-				endScene.highlightGreenWhenBecomingIdleChanged();
-			}
-			
-			intSettingPreset(settings.globalWindowTransparency, 0, 5, 20, 80.F, 100);
-			booleanSettingPreset(settings.outlineAllWindowText);
-			
-			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
-			ImGui::PushTextWrapPos(0.F);
-			ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
-				"Combo Recipe settings are only found in the cogwheel on the Combo Recipe panel."));
-			ImGui::PopTextWrapPos();
-			ImGui::PopStyleColor();
-			
+			popSearchStack();
 		}
 		popSearchStack();
-	}
-	popSearchStack();
-	if (!searching) {
-		if (ImGui::Button("Search")) {
-			showSearch = !showSearch;
+		if (!searching) {
+			if (ImGui::Button("Search")) {
+				toggleOpenManually(PinnedWindowEnum_Search);
+			}
+			AddTooltip("Searches the UI field names and tooltips for text.");
 		}
-		AddTooltip("Searches the UI field names and tooltips for text.");
+		customEnd();
 	}
-	preend
-	ImGui::End();
 	popSearchStack();
 	searchCollapsibleSection("Tension Data");
-	if (showTensionData || searching) {
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_tension" : "Tension Data", &showTensionData, windowFlags);
-		postbegin
+	if (needDraw(PinnedWindowEnum_TensionData) || searching) {
+		customBegin(PinnedWindowEnum_TensionData);
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
@@ -2728,18 +2732,12 @@ void UI::drawSearchableWindows() {
 			}
 			
 		}
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Burst Gain");
-	if (showBurstGain || searching) {
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_burst" : "Burst Gain", &showBurstGain, windowFlags);
-		postbegin
+	if (needDraw(PinnedWindowEnum_BurstGain) || searching) {
+		customBegin(PinnedWindowEnum_BurstGain);
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
@@ -2863,19 +2861,14 @@ void UI::drawSearchableWindows() {
 				ImGui::PopID();
 			}
 		}
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Combo Damage & Combo Stun");
 	for (int i = 0; i < two; ++i) {
-		if (showComboDamage[i] || searching) {
+		if (needDrawPair(PinnedWindowEnum_ComboDamage, i) || searching) {
 			ImGui::PushID(i);
-			sprintf_s(strbuf, searching ? "search_combodmg%d" : "  Combo Damage & Combo Stun (P%d)", i + 1);
-			if (searching) {
-				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-			}
-			ImGui::Begin(strbuf, showComboDamage + i, searching ? ImGuiWindowFlags_NoSavedSettings : ImGuiWindowFlags_NoBackground);
+			customBeginPair(PinnedWindowEnum_ComboDamage, i);
 			PlayerInfo& player = endScene.players[i];
 			PlayerInfo& opponent = endScene.players[1 - i];
 			
@@ -2924,19 +2917,14 @@ void UI::drawSearchableWindows() {
 				
 				ImGui::EndTable();
 			}
-			ImGui::End();
+			customEnd();
 			ImGui::PopID();
 		}
 	}
 	popSearchStack();
 	searchCollapsibleSection("Speed/Hitstun Proration/...");
-	if (showSpeedsData || searching) {
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_speed" : "Speed/Hitstun Proration/...", &showSpeedsData, windowFlags);
-		postbegin
+	if (needDraw(PinnedWindowEnum_SpeedHitstunProration) || searching) {
+		customBegin(PinnedWindowEnum_SpeedHitstunProration);
 		
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
@@ -3225,18 +3213,12 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::EndTable();
 		}
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection(PROJECTILES_STR);
-	if (showProjectiles || searching) {
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_projectiles" : PROJECTILES_STR, &showProjectiles, windowFlags);
-		postbegin
+	searchCollapsibleSection("Projectiles");
+	if (needDraw(PinnedWindowEnum_Projectiles) || searching) {
+		customBegin(PinnedWindowEnum_Projectiles);
 		
 		if (ImGui::BeginTable("##Projectiles", 3, tableFlags)) {
 			ImGui::TableSetupColumn("P1", ImGuiTableColumnFlags_WidthStretch, 0.4f);
@@ -3517,21 +3499,14 @@ void UI::drawSearchableWindows() {
 			}
 			ImGui::EndTable();
 		}
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Character Specific");
 	for (int i = 0; i < 2; ++i) {
-		if (showCharSpecific[i] || searching) {
+		if (needDrawPair(PinnedWindowEnum_CharSpecific, i) || searching) {
 			ImGui::PushID(i);
-			sprintf_s(strbuf, searching ? "search_char%d" : "  Character Specific (P%d)", i + 1);
-			if (searching) {
-				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-			}
-			prebegin
-			ImGui::Begin(strbuf, showCharSpecific + i, windowFlags);
-			postbegin
+			customBeginPair(PinnedWindowEnum_CharSpecific, i);
 			PlayerInfo& player = endScene.players[i];
 			
 			GGIcon scaledIcon;
@@ -6337,20 +6312,14 @@ void UI::drawSearchableWindows() {
 			} else {
 				ImGui::TextUnformatted(searchFieldTitle("No character specific information to show."));
 			}
-			preend
-			ImGui::End();
+			customEnd();
 			ImGui::PopID();
 		}
 	}
 	popSearchStack();
 	searchCollapsibleSection("Box Extents");
-	if (showBoxExtents || searching) {
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_box" : "Box Extents", &showBoxExtents, windowFlags);
-		postbegin
+	if (needDraw(PinnedWindowEnum_BoxExtents) || searching) {
+		customBegin(PinnedWindowEnum_BoxExtents);
 		if (endScene.isIGiveUp() && !searching) {
 			ImGui::TextUnformatted("Online non-observer match running.");
 		} else
@@ -6492,25 +6461,18 @@ void UI::drawSearchableWindows() {
 			
 			ImGui::EndTable();
 		}
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Cancels");
 	for (int i = 0; i < two; ++i) {
-		if (showCancels[i] || searching) {
+		if (needDrawPair(PinnedWindowEnum_Cancels, i) || searching) {
 			ImGui::PushID(i);
-			sprintf_s(strbuf, searching ? "search_cancels%d" : "  Cancels (P%d)", i + 1);
 			ImGui::SetNextWindowSize({
 				ImGui::GetFontSize() * 35.F,
 				150.F
 			}, ImGuiCond_FirstUseEver);
-			if (searching) {
-				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-			}
-			prebegin
-			ImGui::Begin(strbuf, showCancels + i, windowFlags);
-			postbegin
+			customBeginPair(PinnedWindowEnum_Cancels, i);
 			drawPlayerIconInWindowTitle(i);
 			
 			const float wrapWidth = ImGui::GetContentRegionAvail().x;
@@ -6567,27 +6529,20 @@ void UI::drawSearchableWindows() {
 			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
 			drawGGIcon(scaledIcon);
 			AddTooltip(thisHelpTextWillRepeat);
-			preend
-			ImGui::End();
+			customEnd();
 			ImGui::PopID();
 		}
 	}
 	popSearchStack();
 	searchCollapsibleSection("Damage/RISC/Stun Calculation");
 	for (int i = 0; i < two; ++i) {
-		if (showDamageCalculation[i] || searching) {
+		if (needDrawPair(PinnedWindowEnum_DamageCalculation, i) || searching) {
 			ImGui::PushID(i);
-			sprintf_s(strbuf, searching ? "search_damage" : "  Damage/RISC/Stun Calculation (P%d)", i + 1);
 			ImGui::SetNextWindowSize({
 				ImGui::GetFontSize() * 35.F,
 				150.F
 			}, ImGuiCond_FirstUseEver);
-			if (searching) {
-				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-			}
-			prebegin
-			ImGui::Begin(strbuf, showDamageCalculation + i, windowFlags);
-			postbegin
+			customBeginPair(PinnedWindowEnum_DamageCalculation, i);
 			drawPlayerIconInWindowTitle(i);
 			
 			const PlayerInfo& player = endScene.players[1 - i];
@@ -7947,8 +7902,7 @@ void UI::drawSearchableWindows() {
 			AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
 				" field value) to see their tooltips.");
 			
-			preend
-			ImGui::End();
+			customEnd();
 			ImGui::PopID();
 		}
 	}
@@ -7956,19 +7910,13 @@ void UI::drawSearchableWindows() {
 	searchCollapsibleSection("Stun/Stagger Mash");
 	bool useAlternativeStaggerMashProgressDisplayUse = settings.useAlternativeStaggerMashProgressDisplay;
 	for (int i = 0; i < two; ++i) {
-		if (showStunmash[i] || searching) {
+		if (needDrawPair(PinnedWindowEnum_StunMash, i) || searching) {
 			ImGui::PushID(i);
-			sprintf_s(strbuf, searching ? "search_stunmash" : "  Stun/Stagger Mash (P%d)", i + 1);
 			ImGui::SetNextWindowSize({
 				ImGui::GetFontSize() * 35.F,
 				180.F
 			}, ImGuiCond_FirstUseEver);
-			if (searching) {
-				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-			}
-			prebegin
-			ImGui::Begin(strbuf, showStunmash + i, windowFlags);
-			postbegin
+			customBeginPair(PinnedWindowEnum_StunMash, i);
 			drawPlayerIconInWindowTitle(i);
 			
 			const PlayerInfo& player = endScene.players[i];
@@ -8165,25 +8113,17 @@ void UI::drawSearchableWindows() {
 				ImGui::TextUnformatted("Match isn't running.");
 			}
 			
-			preend
-			ImGui::End();
+			customEnd();
 			ImGui::PopID();
 		}
 	}
 	popSearchStack();
 	searchCollapsibleSection("Combo Recipe");
 	for (int i = 0; i < two; ++i) {
-		if (showComboRecipe[i] || searching) {
+		if (needDrawPair(PinnedWindowEnum_ComboRecipe, i) || searching) {
 			ImGui::PushID(i);
-			sprintf_s(strbuf, searching ? "search_comborecipe%d" : "  Combo Recipe (P%d)", i + 1);
-			if (searching) {
-				ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-			}
 			ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
-			ImGui::Begin(strbuf, showComboRecipe + i, searching ? ImGuiWindowFlags_NoSavedSettings
-				: settings.comboRecipe_transparentBackground
-					? ImGuiWindowFlags_NoBackground
-					: 0);
+			customBeginPair(PinnedWindowEnum_ComboRecipe, i);
 			PlayerInfo& player = endScene.players[i];
 			
 			drawPlayerIconInWindowTitle(i);
@@ -8446,20 +8386,15 @@ void UI::drawSearchableWindows() {
 				}
 			}
 			
-			ImGui::End();
+			customEnd();
 			ImGui::PopID();
 		}
 	}
 	popSearchStack();
 	searchCollapsibleSection("Highlighted Cancels");
-	if (showMoveHighlightWindow || searching) {
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
+	if (needDraw(PinnedWindowEnum_HighlightedCancels) || searching) {
 		ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
-		prebegin
-		ImGui::Begin(searching ? "search_highlightedcancels" : "  Highlighted Cancels", &showMoveHighlightWindow, windowFlags);
-		postbegin
+		customBegin(PinnedWindowEnum_HighlightedCancels);
 		if (sortedMovesRedoPending || sortedMovesRedoPendingWhenAswEngingExists && *aswEngine) {
 			sortedMovesRedoPending = false;
 			if (*aswEngine) sortedMovesRedoPendingWhenAswEngingExists = false;
@@ -8636,29 +8571,23 @@ void UI::drawSearchableWindows() {
 				ImGui::EndTable();
 			}
 		}
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Framebar Help");
-	if (showFramebarHelp || searching) {
+	if (needDraw(PinnedWindowEnum_FramebarHelp) || searching) {
 		framebarHelpWindow();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Hitboxes Help");
-	if (showBoxesHelp || searching) {
+	if (needDraw(PinnedWindowEnum_HitboxesHelp) || searching) {
 		hitboxesHelpWindow();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Frame Advantage Help");
-	if (showFrameAdvTooltip || searching) {
+	if (needDraw(PinnedWindowEnum_FrameAdvantageHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_frame" : "Frame Advantage Help", &showFrameAdvTooltip, windowFlags);
-		postbegin
+		customBegin(PinnedWindowEnum_FrameAdvantageHelp);
 		ImGui::PushTextWrapPos(0.F);
 		searchFieldTitle("Help Contents");
 		ImGui::TextUnformatted(searchTooltip(
@@ -8691,19 +8620,13 @@ void UI::drawSearchableWindows() {
 			" then you may untick the 'Settings - General Settings - Frame Advantage: Don't Use Pre-Blockstun Time' checkbox"
 			" (called frameAdvantage_dontUsePreBlockstunTime in the INI file)."));
 		ImGui::PopTextWrapPos();
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Startup Field's Help");
-	if (showStartupTooltip || searching) {
+	if (needDraw(PinnedWindowEnum_StartupFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_startup" : "'Startup' Field Help", &showStartupTooltip, windowFlags);
-		postbegin
+		customBegin(PinnedWindowEnum_StartupFieldHelp);
 		ImGui::PushTextWrapPos(0.F);
 		searchFieldTitle("Help Contents");
 		ImGui::TextUnformatted(searchTooltip(
@@ -8728,19 +8651,13 @@ void UI::drawSearchableWindows() {
 			" before, over a + sign;\n"
 			"7) Some other moves may get combined with the ones they were performed from as well, using the + sign."));
 		ImGui::PopTextWrapPos();
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Active Field's Help");
-	if (showActiveTooltip || searching) {
+	if (needDraw(PinnedWindowEnum_ActiveFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_active" : "'Active' Field Help", &showActiveTooltip, windowFlags);
-		postbegin
+		customBegin(PinnedWindowEnum_ActiveFieldHelp);
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -8780,19 +8697,13 @@ void UI::drawSearchableWindows() {
 			" and 2 active frames after the superfreeze. The displayed result for active frames will be: 3. If we don't do this, Venom Red Hail hit up close"
 			" will display 0 active frames during superfreeze or on the frame after it."));
 		ImGui::PopTextWrapPos();
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Total Field's Help");
-	if (showTotalTooltip || searching) {
+	if (needDraw(PinnedWindowEnum_TotalFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_total" : "'Total' Field Help", &showTotalTooltip, windowFlags);
-		postbegin
+		customBegin(PinnedWindowEnum_TotalFieldHelp);
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
@@ -8824,26 +8735,19 @@ void UI::drawSearchableWindows() {
 			"\n"
 			"If the move started up during superfreeze, the startup+active+recovery will be = total+1 (see tooltip of 'Active')."));
 		ImGui::PopTextWrapPos();
-		preend
-		ImGui::End();
+		customEnd();
 	}
 	popSearchStack();
 	searchCollapsibleSection("Invul Help");
-	if (showInvulTooltip || searching) {
+	if (needDraw(PinnedWindowEnum_InvulFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
-		if (searching) {
-			ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-		}
-		prebegin
-		ImGui::Begin(searching ? "search_invul" : "Invul Help", &showInvulTooltip, windowFlags);
-		postbegin
+		customBegin(PinnedWindowEnum_InvulFieldHelp);
 		searchFieldTitle("Help Contents");
 		ImGui::PushTextWrapPos(0.F);
 		ImGui::TextUnformatted(searchTooltip(
 			"Strike invul: invulnerable to strike and projectiles.\n"
 			"Throw invul: invulnerable to throws.\n"
-			"Low profile: low profiles first active frame of Ky f.S"
-			" (read the bottom for how to configure maximum height that determines what 'low profile' is).\n"
+			"Low profile: low profiles first active frame of Ky f.S.\n"
 			"Projectile-only invul: only vulnerable to direct player strikes or throws.\n"
 			"Super armor: parry or super armor.\n"
 			"Reflect: able to reflect certain types of projectiles.\n\n"
@@ -8873,10 +8777,8 @@ void UI::drawSearchableWindows() {
 			"*) Slayer Undertow.\n"
 			"NOTE: If the super armor properties say it can armor unblockables, but does not mention overdrives, then that means it can't"
 			" armor overdrive unblockables such as Kum Enlightened 3000 Palm Strike max charge.\n"
-			"Some moves such as Kum max charge Falcon Dive cause guard crush and are not \"unblockables\".\n\n"
-			"Low profile invul can be configured using Settings - General Settings - Low Profile Cut-Off Height"));
-		preend
-		ImGui::End();
+			"The following moves cause guard crush and are not \"unblockables\": Kum Max Charge Falcon Dive, Johnny Bacchus-Powered Mist Finer and Leo bt.214H"));
+		customEnd();
 	}
 	popSearchStack();
 	if (searching) {
@@ -8897,7 +8799,7 @@ void UI::onEndScene(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9*
 
 // Runs on the main thread
 void UI::initialize() {
-	if (imguiInitialized || !visible && !needShowFramebarCached || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
+	if (imguiInitialized || windowShowMode == WindowShowMode_None && !needShowFramebarCached || !keyboard.thisProcessWindow || gifMode.modDisabled) return;
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(keyboard.thisProcessWindow);
@@ -8937,10 +8839,7 @@ void UI::initialize() {
 void UI::handleResetBefore() {
 	if (imguiD3DInitialized) {
 		ImGui_ImplDX9_InvalidateDeviceObjects();
-		if (imguiFontAlt) {
-			imguiFontAlt = nullptr;
-			attemptedCreatingAltFont = false;
-		}
+		clearSecondaryTextures();
 	}
 }
 
@@ -9006,12 +8905,13 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 		}
 		case WM_APP_OPEN_FILE_SELECTION: {
 			std::wstring selectedPath;
+			std::vector<wchar_t> selectedPathBuf;
 			{
 				std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
 				if (!settings.screenshotPath.empty()) {
-					selectedPath.assign(settings.screenshotPath.size() + 1, L'\0');
-					MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, &selectedPath.front(), selectedPath.size());
-					selectedPath.resize(wcslen(selectedPath.c_str()));
+					selectedPathBuf.resize(settings.screenshotPath.size() + 1);
+					MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, selectedPathBuf.data(), selectedPathBuf.size());
+					selectedPath = selectedPathBuf.data();
 					if (!selectedPath.empty()) {
 						lastSelectedPath = selectedPath;
 					}
@@ -9021,10 +8921,10 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 			if (selectFile(selectedPath, hWnd)) {
 				{
 					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
-					settings.screenshotPath.assign(selectedPath.size() * 4 + 1, '\0');
-					WideCharToMultiByte(CP_UTF8, 0, selectedPath.c_str(), -1, &settings.screenshotPath.front(), settings.screenshotPath.size(), NULL, NULL);
+					std::vector<char> screenshotPathBuf(selectedPath.size() * 4 + 1);
+					WideCharToMultiByte(CP_UTF8, 0, selectedPath.c_str(), -1, screenshotPathBuf.data(), screenshotPathBuf.size(), NULL, NULL);
 					logwrap(fprintf(logfile, "From selection dialog set screenshot path to: %s\n", settings.screenshotPath.c_str()));
-					settings.screenshotPath.resize(strlen(settings.screenshotPath.c_str()));
+					settings.screenshotPath = screenshotPathBuf.data();
 				}
 				if (timerId) {
 					logwrap(fprintf(logfile, "'WM_APP_OPEN_FILE_SELECTION': Killing timer. timerId: %d\n", timerId));
@@ -9385,6 +9285,13 @@ void copyDrawList(ImDrawListBackup& destination, const ImDrawList* drawList) {
 void UI::substituteTextureIDs(IDirect3DDevice9* device, void* drawData, IDirect3DTexture9* iconTexture, bool needsFramesTextureFramebar, bool needsFramesTextureHelp) {
 	ImGui_ImplDX9_AssignTexID(TEXID_IMGUIFONT, imguiFont);
 	ImGui_ImplDX9_AssignTexID(TEXID_IMGUIFONT_OUTLINED, imguiFontAlt ? (IDirect3DTexture9*)imguiFontAlt : imguiFont);
+	if (!pinTexture) {
+		if (!attemptedCreatingPin) {
+			attemptedCreatingPin = true;
+			pinTexture.Attach(graphics.createTexture(device, (BYTE*)pinResource->data.data(), pinResource->width, pinResource->height));
+		}
+	}
+	ImGui_ImplDX9_AssignTexID(TEXID_PIN, pinTexture);
 	ImGui_ImplDX9_AssignTexID(TEXID_GGICON, iconTexture);
 	if (needsFramesTextureHelp) {
 		ImGui_ImplDX9_AssignTexID(TEXID_FRAMES_HELP, graphics.getFramesTextureHelp(device, ui.packedTextureHelp));
@@ -9414,7 +9321,7 @@ void UI::onImGuiMessWithFontTexID(IDirect3DDevice9* device) {
 		}
 	}
 	if (!imguiFont) {
-		imguiFontAlt = nullptr;
+		clearImGuiFontAlt();
 	}
 }
 
@@ -9616,13 +9523,24 @@ int findCharRevW(const wchar_t* buf, wchar_t c) {
 bool UI::selectFile(std::wstring& path, HWND owner) {
 	std::wstring szFile;
 	szFile = lastSelectedPath;
-	szFile.resize(MAX_PATH, L'\0');
 
+	std::vector<WCHAR> szFileBuf(MAX_PATH, L'\0');
+	if (!szFile.empty()) {
+		memcpy(szFileBuf.data(), szFile.c_str(),
+				(
+					szFile.size() > MAX_PATH
+						? MAX_PATH
+						: szFile.size()
+				) * sizeof (WCHAR)
+			);
+		szFileBuf.back() = L'\0';
+	}
+	
 	OPENFILENAMEW selectedFiles{ 0 };
 	selectedFiles.lStructSize = sizeof(OPENFILENAMEW);
 	selectedFiles.hwndOwner = owner;
-	selectedFiles.lpstrFile = &szFile.front();
-	selectedFiles.nMaxFile = (DWORD)szFile.size() + 1;
+	selectedFiles.lpstrFile = szFileBuf.data();
+	selectedFiles.nMaxFile = (DWORD)szFileBuf.size();
 	selectedFiles.lpstrFilter = L"PNG file (*.png)\0*.PNG\0";
 	selectedFiles.nFilterIndex = 1;
 	selectedFiles.lpstrFileTitle = NULL;
@@ -9640,7 +9558,7 @@ bool UI::selectFile(std::wstring& path, HWND owner) {
 		}
 		return false;
 	}
-	szFile.resize(lstrlenW(szFile.c_str()));
+	szFile = szFileBuf.data();
 
 	if (!endsWithCaseInsensitive(szFile, L".png")) {
 		path = szFile + L".png";
@@ -10073,7 +9991,7 @@ int printInputs(char* buf, size_t bufSize, const InputType* inputs) {
 // runs on the main thread
 bool UI::needShowFramebar() const {
 	if (settings.showFramebar
-			&& (!settings.closingModWindowAlsoHidesFramebar || visible)
+			&& (!settings.closingModWindowAlsoHidesFramebar || windowShowMode != WindowShowMode_None)
 			&& !(drawingPostponed && pauseMenuOpen)
 			&& !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
 		GameMode mode = game.getGameMode();
@@ -10195,12 +10113,7 @@ int printCancels(const T& cancels, float maxY) {
 // runs on the main thread
 void UI::hitboxesHelpWindow() {
 	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
-	if (searching) {
-		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-	}
-	prebegin
-	ImGui::Begin(searching ? "search_hitboxeshelp" : "Hitboxes Help", &showBoxesHelp, windowFlags);
-	postbegin
+	customBegin(PinnedWindowEnum_HitboxesHelp);
 	ImGui::PushTextWrapPos(0.F);
 	static std::string boxesDesc1;
 	if (boxesDesc1.empty()) {
@@ -10543,8 +10456,7 @@ void UI::hitboxesHelpWindow() {
 	ImGui::TextUnformatted("If a move (like Riot Stamp) has a throw box as well as hitbox - both the hitbox and the throw box must connect.");
 	
 	ImGui::PopTextWrapPos();
-	preend
-	ImGui::End();
+	customEnd();
 }
 
 // runs on the main thread
@@ -10552,12 +10464,7 @@ void UI::framebarHelpWindow() {
 	packTextureHelp();
 	
 	ImGui::SetNextWindowSize({ ImGui::GetFontSize() * 35.0f + 16.F, 0.F }, ImGuiCond_FirstUseEver);
-	if (searching) {
-		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
-	}
-	prebegin
-	ImGui::Begin(searching ? "search_framebarhelp" : "Framebar Help", &showFramebarHelp, windowFlags);
-	postbegin
+	customBegin(PinnedWindowEnum_FramebarHelp);
 	float wordWrapWidth = ImGui::GetContentRegionAvail().x;
 	ImGui::PushTextWrapPos(wordWrapWidth);
 	
@@ -10849,8 +10756,7 @@ void UI::framebarHelpWindow() {
 		wordWrapWidth,
 		icons,
 		_countof(icons));
-	preend
-	ImGui::End();
+	customEnd();
 }
 
 // This is from imgui_draw.cpp::ImFont::CalcWordWrapPositionA, modified version. Added icons
@@ -13624,7 +13530,7 @@ static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInf
 }
 
 // runs on the main thread
-void UI::startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag) {
+void UI::startupOrTotal(int two, StringWithLength title, PinnedWindowEnum windowIndex) {
 	for (int i = 0; i < two; ++i) {
 		PlayerInfo& player = endScene.players[i];
 		ImGui::TableNextColumn();
@@ -13641,7 +13547,7 @@ void UI::startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag) 
 		
 		if (i == 0) {
 			ImGui::TableNextColumn();
-			headerThatCanBeClickedForTooltip(searchFieldTitle(title), showTooltipFlag, false);
+			headerThatCanBeClickedForTooltip(searchFieldTitle(title), windowIndex, false);
 			if (ImGui::BeginItemTooltip()) {
 				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 				for (int j = 0; j < 2; ++j) {
@@ -13755,7 +13661,7 @@ void drawPlayerIconInWindowTitle(int playerIndex) {
 }
 
 // runs on the main thread
-void drawTextInWindowTitle(const char* txt) {
+void drawTextInWindowTitle(const char* txt, bool hasPinIcon) {
 	ImVec2 windowPos = ImGui::GetWindowPos();
 	float windowWidth = ImGui::GetWindowWidth();
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -13765,7 +13671,8 @@ void drawTextInWindowTitle(const char* txt) {
 		windowPos.y + style.FramePadding.y
 	};
 	ImVec2 clipEnd {
-		windowPos.x + windowWidth - style.FramePadding.x - fontSize - style.ItemInnerSpacing.x,
+		windowPos.x + windowWidth - style.FramePadding.x - fontSize - style.ItemInnerSpacing.x
+			- (hasPinIcon ? 19.F + style.ItemInnerSpacing.x : 0.F),
 		startPos.y + 1000.F  // ImGui::CalcTextSize(txt).y produces height that was too small, and tails of y's were cut off
 	};
 	if (clipEnd.x > startPos.x) {
@@ -13934,11 +13841,11 @@ bool printMoveField(const PlayerInfo& player) {
 }
 
 // runs on the main thread
-void headerThatCanBeClickedForTooltip(const char* title, bool* windowVisibilityVar, bool makeTooltip) {
+void headerThatCanBeClickedForTooltip(const char* title, PinnedWindowEnum windowIndex, bool makeTooltip) {
 	CenterAlign(ImGui::CalcTextSize(title).x);
 	ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { 0.F, 0.F, 0.F, 0.F });
 	if (ImGui::Selectable(title)) {
-		*windowVisibilityVar = !*windowVisibilityVar;
+		ui.toggleOpenManually(windowIndex);
 	}
 	ImGui::PopStyleColor();
 	if (makeTooltip) {
@@ -14495,7 +14402,7 @@ const char* UI::searchFieldValue(const char* value, const char* textEnd) {
 
 // runs on the main thread
 void UI::searchWindow() {
-	ImGui::Begin("Search", &showSearch);
+	customBegin(PinnedWindowEnum_Search);
 	if (ImGui::InputText("##Search string", searchStringOriginal, sizeof searchStringOriginal, 0, nullptr, nullptr)) {
 		showTooFewCharactersError = false;
 		int totalCharacters = 0;
@@ -14607,7 +14514,7 @@ void UI::searchWindow() {
 		ImGui::EndTable();
 		ImGui::PopTextWrapPos();
 	}
-	ImGui::End();
+	customEnd();
 }
 
 // runs on the main thread
@@ -17686,4 +17593,290 @@ void pushOutlinedText(bool isOutlined) {
 void popOutlinedText() {
 	--outlinedTextHead;
 	setOutlinedText(*outlinedTextHead);
+}
+
+void UI::clearImGuiFontAlt() {
+	if (imguiFontAlt) {
+		imguiFontAlt = nullptr;
+		attemptedCreatingAltFont = false;
+	}
+}
+
+void UI::clearPinTexture() {
+	if (pinTexture) {
+		pinTexture = nullptr;
+		attemptedCreatingPin = false;
+	}
+}
+
+void UI::clearSecondaryTextures() {
+	clearImGuiFontAlt();
+	clearPinTexture();
+}
+
+void UI::readPinnedUniversal(PinnedWindowEnum index) {
+	bool newVal = ImGui::IsWindowPinned();
+	PinnedWindowElement& dest = settings.pinnedWindows[index];
+	if (dest.isPinned != newVal) {
+		dest.isPinned = newVal;
+		needWriteSettings = true;
+		if (newVal) {
+			int order = 0;
+			for (int i = 0; i < _countof(settings.pinnedWindows.elements); ++i) {
+				if (i != index) {
+					PinnedWindowElement& element = settings.pinnedWindows[i];
+					if (element.isPinned) {
+						element.order = order++;
+					}
+				}
+			}
+			dest.order = order;
+		}
+	}
+}
+
+void UI::pinnedWindowsChanged() {
+	// welp
+}
+
+void UI::WindowStruct::setOpen(bool newOpen, bool isManual) {
+	if (newOpen == isOpen) return;
+	isOpen = newOpen;
+	if (newOpen) openedJustNow = true;
+	if (newOpen && isManual && !ui.needDraw(index) && ui.windowShowMode == WindowShowMode_Pinned && !isPinned()) {
+		setPinned(true);
+	}
+	if (!newOpen && isManual) {
+		setPinned(false);
+	}
+}
+
+UI::WindowStruct::WindowStruct(PinnedWindowEnum index, const char* titleFmtString, ...)
+		: index(index) {
+	int requiredLength = 0;  // does not include null
+	{
+		va_list args;
+	    va_start(args, titleFmtString);
+	    requiredLength = vsnprintf(nullptr, 0, titleFmtString, args);
+	    // the returned count is in characters, not including null
+	    va_end(args);
+	}
+	if (!requiredLength) {
+		char buf[] = "search_0xFFFFFFFF";
+		sprintf_s(buf, "search_0x%p", this);
+		searchTitle = buf;
+		
+		sprintf_s(buf, "0x%p", this);
+		title = buf;
+		return;
+	}
+	// resizing string and then writing into it has not worked for me in some situations in the past but maybe I am
+	// misremembering exactly what happened and the problem was something else.
+	// Point is, I'm not longer trusting string to be contiguous until the call to c_str(), until they release and
+	// make available a writable pointer to their data.
+	// Without this, we might be running around, +'ing strings together which may or may not be string builders in disguise
+	// and we will never know the truth
+	std::vector<char> buf(requiredLength + 1);
+	va_list args;
+    va_start(args, titleFmtString);
+    // - - - - - - - - but this size is in bytes
+    vsnprintf(buf.data(), buf.size(), titleFmtString, args);
+    va_end(args);  // why I need to clean this up is beyond me. My caller is reponsible for cleaning up stack
+    title.assign(buf.data(), buf.data() + requiredLength);
+    
+    searchTitle = "search_" + title;
+}
+
+void UI::WindowStruct::init() {
+	element = &settings.pinnedWindows[index];
+	
+	setOpen(settings.openPinnedWindowsOnStartup && isPinned(), false);
+}
+
+void UI::customBegin(PinnedWindowEnum index) {
+	WindowStruct& windowStruct = windows[index];
+	ImGuiWindowFlags newFlags;
+	ImGuiWindowFlags pinFlag = settings.disablePinButton ? 0 : ImGuiWindowFlags_HasPinButton;
+	if (searching) {
+		newFlags = ImGuiWindowFlags_NoSavedSettings;
+	} else if (index == PinnedWindowEnum_ComboDamage_1
+			|| index == PinnedWindowEnum_ComboDamage_2) {
+		newFlags = ImGuiWindowFlags_NoBackground | pinFlag;
+	} else if (index == PinnedWindowEnum_ComboRecipe_1
+			|| index == PinnedWindowEnum_ComboRecipe_2) {
+		if (settings.comboRecipe_transparentBackground) {
+			newFlags = ImGuiWindowFlags_NoBackground | pinFlag;
+		} else {
+			newFlags = (windowFlags & ImGuiWindowFlags_NoBackground) | pinFlag;
+		}
+	} else {
+		newFlags = windowFlags;
+	}
+	if (windowStruct.openedJustNow) {
+		windowStruct.openedJustNow = false;
+	} else {
+		newFlags |= ImGuiWindowFlags_NoFocusOnAppearing;
+	}
+	if (overrideWindowColor && !(newFlags & ImGuiWindowFlags_NoBackground)) {
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, windowColor);
+		lastCustomBeginPushedAStyle = true;
+	} else {
+		lastCustomBeginPushedAStyle = false;
+	}
+	const PinnedWindowElement& pinnedElement = settings.pinnedWindows[index];
+	if (pinnedElement.isPinned && !settings.disablePinButton) {
+		ImGui::IsNextWindowPinned = true;
+		ImGui::NextWindowPinnedOrder = pinnedElement.order;
+	}
+	if (searching) {
+		ImGui::SetNextWindowPos({ 100000.F, 100000.F }, ImGuiCond_Always);
+	}
+	bool isOpen = true;
+	lastCustomBeginHadPinButton = (newFlags & ImGuiWindowFlags_HasPinButton);
+	ImGui::Begin(searching ? windowStruct.searchTitle.c_str() : windowStruct.title.c_str(), &isOpen, newFlags);
+	lastWindowClosed = !isOpen;
+	if (index != PinnedWindowEnum_ComboDamage_1
+			&& index != PinnedWindowEnum_ComboDamage_2
+			&& index != PinnedWindowEnum_ComboRecipe_1
+			&& index != PinnedWindowEnum_ComboRecipe_2
+			&& settingOutlineText) {
+		pushOutlinedText(true);
+		lastCustomBeginPushedOutlinedText = true;
+	} else {
+		lastCustomBeginPushedOutlinedText = false;
+	}
+	lastCustomBeginIndex = index;
+	readPinnedUniversal(index);
+}
+
+void UI::customEnd() {
+	WindowStruct& lastWindow = windows[lastCustomBeginIndex];
+	if (!searching && lastWindowClosed) {
+		lastWindow.setOpen(false, true);
+		if (settings.closingModWindowAlsoHidesFramebar && !isVisible()) {
+			windowShowMode = WindowShowMode_None;  // for closingModWindowAlsoHidesFramebar
+		}
+	}
+	if (lastCustomBeginPushedOutlinedText) popOutlinedText();
+	if (lastCustomBeginPushedAStyle) ImGui::PopStyleColor();
+	ImGui::End();
+}
+
+bool UI::needDraw(PinnedWindowEnum index) const {
+	const WindowStruct& windowStruct = windows[index];
+	if (!windowStruct.isOpen) return false;
+	switch (windowShowMode) {
+		case WindowShowMode_Pinned: return windowStruct.isPinned();
+		case WindowShowMode_None: return false;
+		default: return true;
+	}
+}
+
+void UI::toggleOpen(PinnedWindowEnum index, bool isManual) {
+	WindowStruct& windowStruct = windows[index];
+	windowStruct.toggleOpen(isManual);
+}
+
+void UI::setOpen(PinnedWindowEnum index, bool isOpen, bool isManual) {
+	WindowStruct& windowStruct = windows[index];
+	windowStruct.setOpen(isOpen, isManual);
+}
+
+bool UI::hasAtLeastOnePinnedOpenWindow() const {
+	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
+		const WindowStruct& windowStruct = windows[i];
+		if (windowStruct.isOpen && windowStruct.isPinned()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UI::hasAtLeastOnePinnedWindowThatIsNotTheMainWindow() const {
+	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
+		const WindowStruct& windowStruct = windows[i];
+		if (windowStruct.isPinned() && i != PinnedWindowEnum_MainWindow) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UI::hasAtLeastOneUnpinnedOpenWindow() const {
+	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
+		const WindowStruct& windowStruct = windows[i];
+		if (windowStruct.isOpen && !windowStruct.isPinned()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UI::hasAtLeastOneOpenWindow() const {
+	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
+		const WindowStruct& windowStruct = windows[i];
+		if (windowStruct.isOpen) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void UI::onVisibilityToggleKeyboardShortcutPressed() {
+	WindowStruct& mainWindow = windows[PinnedWindowEnum_MainWindow];
+	if (hasAtLeastOnePinnedOpenWindow() && hasAtLeastOneUnpinnedOpenWindow()) {
+		switch (windowShowMode) {
+			case WindowShowMode_All: windowShowMode = WindowShowMode_Pinned; break;
+			case WindowShowMode_Pinned: windowShowMode = WindowShowMode_None; break;
+			case WindowShowMode_None: windowShowMode = WindowShowMode_All; break;
+		}
+		if (windowShowMode == WindowShowMode_All) {
+			mainWindow.setOpen(true, false);
+		} else if (windowShowMode == WindowShowMode_Pinned && mainWindow.isPinned()) {
+			mainWindow.setOpen(true, false);
+		}
+	} else {
+		if (isVisible()) {
+			windowShowMode = WindowShowMode_None;
+		} else if (hasAtLeastOneOpenWindow()) {
+			windowShowMode = WindowShowMode_All;
+		} else if (windowShowMode == WindowShowMode_None) {
+			windowShowMode = WindowShowMode_All;
+		} else {
+			windowShowMode = WindowShowMode_All;
+		}
+		if (windowShowMode != WindowShowMode_None) {
+			mainWindow.setOpen(true, false);
+		}
+	}
+}
+
+bool UI::isVisible() const {
+	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
+		if (needDraw((PinnedWindowEnum)i)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void UI::onDisablePinButtonChanged(bool postedFromOutsideUI) {
+	if (!settings.disablePinButton) return;
+	
+	if (windowShowMode == WindowShowMode_Pinned) {
+		windowShowMode = WindowShowMode_All;
+	}
+	
+	if (postedFromOutsideUI) return;
+	bool weNeedToTalk = false;
+	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
+		bool& value = settings.pinnedWindows[i].isPinned;
+		if (value) {
+			value = false;
+			weNeedToTalk = true;
+		}
+	}
+	if (weNeedToTalk) {
+		needWriteSettings = true;
+	}
 }

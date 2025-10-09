@@ -6,7 +6,6 @@
 #include "Detouring.h"
 #include "WError.h"
 #include <list>
-#include "UI.h"
 #include "CustomWindowMessages.h"
 #include <unordered_map>
 #include <functional>
@@ -26,6 +25,13 @@ const char* const Settings::SETTINGS_GENERAL = "Settings - General Settings";
 const char* const Settings::SETTINGS_FRAMEBAR = "Settings - Framebar Settings";
 const char* const Settings::SETTINGS_COMBO_RECIPE = "Combo Recipe";
 const char* const Settings::SETTINGS_CHARACTER_SPECIFIC = "UI - Character specific";
+static const StringWithLength pinnableWindowNames[] {
+	#define pinnableWindowsFunc(name, title) #name,
+	#define pinnableWindowsPairFunc(name, titleFmtString) pinnableWindowsFunc(name##_1, 0) pinnableWindowsFunc(name##_2, 0)
+	pinnableWindowsEnum
+	#undef pinnableWindowsFunc
+	#undef pinnableWindowsPairFunc
+};
 
 bool Settings::onDllMain() {
 	#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode) addKey(identifier, userFriendlyName, virtualKeyCode);
@@ -194,7 +200,13 @@ void Settings::readSettings(bool isFirstEverRead) {
 	if (!isFirstEverRead && !file) {
 		return;
 	}
-	std::unique_lock<std::mutex> keyboardGuard(keyboard.mutex);
+	std::unique_lock<std::mutex> keyboardGuard;
+	try {
+		keyboardGuard = std::unique_lock<std::mutex>(keyboard.mutex);
+	} catch (const std::exception& e) {
+		(e);
+		return;
+	}
 	Keyboard::MutexLockedFromOutsideGuard keyboardOutsideGuard;
 	std::unique_lock<std::mutex> guard(keyCombosMutex);
 	std::unique_lock<std::mutex> screenshotGuard(screenshotPathMutex);
@@ -232,6 +244,9 @@ void Settings::readSettings(bool isFirstEverRead) {
 	unsigned int oldhighlightWhenCancelsIntoMovesAvailablehour = highlightWhenCancelsIntoMovesAvailable.hour;
 	unsigned int oldhighlightWhenCancelsIntoMovesAvailableminute = highlightWhenCancelsIntoMovesAvailable.minute;
 	unsigned int oldhighlightWhenCancelsIntoMovesAvailablesecond = highlightWhenCancelsIntoMovesAvailable.second;
+	PinnedWindowList oldpinnedWindows;
+	memcpy(oldpinnedWindows, pinnedWindows, sizeof pinnedWindows);
+	bool olddisablePinButton = disablePinButton;
 
 	std::string accum;
 	char buf[129];
@@ -312,12 +327,20 @@ void Settings::readSettings(bool isFirstEverRead) {
 										name##Parsed = parseMoveList(#name, keyValue, name); \
 									} \
 									break;
+										
+								#define pinnedWindowListPreset(name) \
+									case offsetof(Settings, name): \
+									if (!name##Parsed) { \
+										name##Parsed = parsePinnedWindowList(#name, keyValue, name); \
+									} \
+									break;
 								
 								#define int integerPreset
 								#define bool booleanPreset
 								#define ScreenshotPath screenshotPathPreset
 								#define float floatPreset
 								#define MoveList moveListPreset
+								#define PinnedWindowList pinnedWindowListPreset
 								#define settingsKeyCombo(name, displayName, defaultValue, description)
 								#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type(name)
 								#include "SettingsDefinitions.h"
@@ -333,6 +356,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 								#undef booleanPreset
 								#undef MoveList
 								#undef moveListPreset
+								#undef PinnedWindowList
+								#undef pinnedWindowListPreset
 							}
 						}
 					}
@@ -371,8 +396,11 @@ void Settings::readSettings(bool isFirstEverRead) {
 		framebarDisplayedFramesCount = framebarStoredFramesCount;
 	}
 	
+	if (disablePinButton) {
+		memset(pinnedWindows, 0, sizeof pinnedWindows);
+	}
+	
 	if (firstSettingsParse) {
-		ui.visible = modWindowVisibleOnStart;
 		if (startDisabled) {
 			gifMode.modDisabled = true;
 		}
@@ -413,6 +441,12 @@ void Settings::readSettings(bool isFirstEverRead) {
 				|| oldhighlightWhenCancelsIntoMovesAvailablesecond != highlightWhenCancelsIntoMovesAvailable.second) {
 			PostMessageW(keyboard.thisProcessWindow, WM_APP_HIGHLIGHTED_MOVES_CHANGED, FALSE, FALSE);
 		}
+		if (memcmp(oldpinnedWindows, pinnedWindows, sizeof pinnedWindows) != 0) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_PINNED_WINDOWS_CHANGED, FALSE, FALSE);
+		}
+		if (olddisablePinButton != disablePinButton) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_DISABLE_PIN_BUTTON_CHANGED, FALSE, FALSE);
+		}
 	}
 	
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
@@ -440,7 +474,7 @@ int Settings::findChar(const char* bufStart, const char* bufEnd, char c, int sta
 
 std::pair<int, int> Settings::trim(std::string& str) {
 	if (str.empty()) return {0,0};
-	const char* strStart = &str.front();
+	const char* strStart = str.c_str();
 	const char* c = strStart;
 	while (*c <= 32 && *c != '\0') {
 		++c;
@@ -465,7 +499,7 @@ std::pair<int, int> Settings::trim(std::string& str) {
 
 std::vector<std::string> Settings::split(const std::string& str, char c) {
 	std::vector<std::string> result;
-	const char* strStart = &str.front();
+	const char* strStart = str.c_str();
 	const char* strEnd = strStart + str.size();
 	const char* prevPtr = strStart;
 	const char* ptr = strStart;
@@ -648,14 +682,13 @@ std::wstring Settings::getCurrentDirectory() {
 		logwrap(fprintf(logfile, "GetCurrentDirectoryW failed: %ls\n", winErr.getMessage()));
 		return std::wstring{};
 	}
-	std::wstring currentDir;
-	currentDir.resize(requiredSize - 1);
-	if (!GetCurrentDirectoryW(currentDir.size() + 1, &currentDir.front())) {
+	std::vector<wchar_t> currentDirVec(requiredSize);
+	if (!GetCurrentDirectoryW(currentDirVec.size(), currentDirVec.data())) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "GetCurrentDirectoryW (second call) failed: %ls\n", winErr.getMessage()));
 		return std::wstring{};
 	}
-	return currentDir;
+	return std::wstring{currentDirVec.data()};
 }
 
 StringWithLength Settings::getComboRepresentation(const std::vector<int>& toggle) {
@@ -805,7 +838,8 @@ void Settings::writeSettingsMain() {
 		FieldType_Int,
 		FieldType_ScreenshotPath,
 		FieldType_Float,
-		FieldType_MoveList
+		FieldType_MoveList,
+		FieldType_PinnedWindowList
 	};
 	struct FieldInfo {
 		FieldType type;
@@ -821,6 +855,7 @@ void Settings::writeSettingsMain() {
 		#define ScreenshotPath FieldType_ScreenshotPath
 		#define float FieldType_Float
 		#define MoveList FieldType_MoveList
+		#define PinnedWindowList FieldType_PinnedWindowList
 		#define settingsKeyCombo(name, displayName, defaultValue, description) 
 		#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
 			fieldNameToIsFound[#name] = { \
@@ -836,6 +871,7 @@ void Settings::writeSettingsMain() {
 		#undef int
 		#undef bool
 		#undef MoveList
+		#undef PinnedWindowList
 	}
 	
 	size_t fieldsFound = 0;
@@ -1034,6 +1070,7 @@ void Settings::writeSettingsMain() {
 								case FieldType_Int: formatInteger(*(int*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
 								case FieldType_ScreenshotPath: fieldValuePtr = &screenshotPath; break;
 								case FieldType_Float: formatFloat(*(float*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
+								case FieldType_PinnedWindowList: formatPinnedWindowList(*(PinnedWindowList*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
 							}
 							if (fieldValuePtr) {
 								li.compareAndUpdateValue(*fieldValuePtr);
@@ -1179,11 +1216,20 @@ void Settings::writeSettingsMain() {
 			nl.iniDescription = getOtherINIDescription(&fieldName); \
 			nl.outputToFile(); \
 		}
+	#define pinnedWindowListPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			nl.name = StringWithLength { #fieldName }; \
+			formatPinnedWindowList(fieldName, fieldValue); \
+			nl.newValuePtr = fieldValue; \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.outputToFile(); \
+		}
 	#define int integerPreset
 	#define float floatPreset
 	#define ScreenshotPath screenshotPathPreset
 	#define bool booleanPreset
 	#define MoveList moveListPreset
+	#define PinnedWindowList pinnedWindowListPreset
 	#define settingsKeyCombo(name, displayName, defaultValue, description) keyComboPreset(name)
 	#define settingsField(type, fieldName, defaultValue, displayName, section, description, inlineComment) type(fieldName, inlineComment)
 	#include "SettingsDefinitions.h"
@@ -1200,6 +1246,8 @@ void Settings::writeSettingsMain() {
 	#undef keyComboPreset
 	#undef screenshotPathPreset
 	#undef moveListPreset
+	#undef pinnedWindowListPreset
+	#undef PinnedWindowList
 	
 	if (!nl.isFirst) {
 		DWORD bytesWritten;
@@ -1653,68 +1701,127 @@ bool Settings::parseMoveList(const char* keyName, const std::string& keyValue, M
 	return true;
 }
 
+bool Settings::parsePinnedWindowList(const char* keyName, const std::string& keyValue, PinnedWindowList& listValue) {
+	const char* start = nullptr;
+	size_t counter = keyValue.size()
+		+ 1;  // include '\0' in the loop
+	memset(listValue, 0, sizeof listValue);
+	int parsedElements = 0;
+	for (const char* ptr = keyValue.c_str(); counter != 0; ++ptr) {
+		--counter;
+		const char c = *ptr;  // '\0' when counter == 0
+		if (c <= 32) {
+			if (start) {
+				const StringWithLength arenaStr = { start, (size_t)(ptr - start) };
+				start = nullptr;
+				PinnedWindowEnum value = (PinnedWindowEnum)-1;
+				for (int i = 0; i < _countof(pinnableWindowNames); ++i) {
+					const StringWithLength& arElem = pinnableWindowNames[i];
+					if (arElem.length == arenaStr.length
+							&& memcmp(arElem.txt, arenaStr.txt, arenaStr.length) == 0) {
+						value = (PinnedWindowEnum)i;
+						break;
+					}
+				}
+				if (value != (PinnedWindowEnum)-1) {
+					listValue[value] = { true, parsedElements };
+					++parsedElements;
+				}
+			}
+		} else if (!start) {
+			start = ptr;
+		}
+	}
+	logwrap(fprintf(logfile, "Parsed pinned window list for %s: %u items\n", keyName, parsedElements));
+	return true;
+}
+
 void Settings::formatInteger(int d, std::string& result) {
 	static const char* formatString = "%d";
 	
-	result.assign(
-		snprintf(nullptr, 0, formatString, d),
-		'\0');
+	int neededCount = snprintf(nullptr, 0, formatString, d);
 	
-	if (result.empty()) {
+	if (neededCount == 0) {
+		result.clear();
 		return;
 	}
 	
-	snprintf(&result.front(), result.size() + 1, formatString, d);
+	if (neededCount < 79) {
+		char buf[80];
+		snprintf(buf, sizeof buf, formatString, d);
+		result = buf;
+		return;
+	}
+	
+	std::vector<char> vec(neededCount + 1, '\0');
+	snprintf(vec.data(), vec.size(), formatString, d);
+	result = vec.data();
 }
 
 void Settings::formatFloat(float f, std::string& result) {
 	static const char* formatString = "%.4f";
 	
-	result.assign(
-		snprintf(nullptr, 0, formatString, f),
-		'\0');
+	int neededCount = snprintf(nullptr, 0, formatString, f);
 	
-	if (result.empty()) {
+	if (neededCount == 0) {
+		result.clear();
 		return;
 	}
 	
-	auto firstDotPos = result.end();
-	auto firstNonZeroPos = result.end();
-	const auto lastCharPos = result.begin() + (result.size() - 1);
+	std::vector<char> vec;
+	char buf[80];
+	char* bufPtr;
 	
-	snprintf(&result.front(), result.size() + 1, formatString, f);
+	if (neededCount < 79) {
+		snprintf(buf, sizeof buf, formatString, f);
+		bufPtr = buf;
+	} else {
+		vec.resize(neededCount + 1, '\0');
+		snprintf(vec.data(), vec.size(), formatString, f);
+		bufPtr = vec.data();
+	}
+	
+	char* const bufEnd = bufPtr + neededCount;
+	const char* firstDotPos = bufEnd;
+	const char* firstNonZeroPos = firstDotPos;
+	const char* lastCharPos = firstDotPos - 1;
 	
 	// goal: remove repeating '0's after '.': 6.00000000000000000
-	for (auto it = lastCharPos; ; ) {
+	for (const char* it = lastCharPos; ; ) {
 		char c = *it;
 		
 		if (c == '.') {
 			firstDotPos = it;
 			break;
 		}
-		if (c != '0' && firstNonZeroPos == result.end()) {
-			if (it == lastCharPos) return;
+		if (c != '0' && firstNonZeroPos == bufEnd) {
+			if (it == lastCharPos) {
+				result = bufPtr;
+				return;
+			}
 			firstNonZeroPos = it;
 		}
-		if (it == result.begin()) break;
+		if (it == bufPtr) break;
 		--it;
 	}
-	if (firstDotPos == result.end()) {
+	if (firstDotPos == bufEnd) {
+		result = bufPtr;
 		return;
 	}
-	std::string::iterator firstZeroPos;
-	if (firstNonZeroPos == result.end()) {
+	const char* firstZeroPos;
+	if (firstNonZeroPos == bufEnd) {
 		firstZeroPos = firstDotPos + 1;
 	} else {
 		firstZeroPos = firstNonZeroPos + 1;
 	}
 	if (firstZeroPos == firstDotPos + 1) {
 		if (firstZeroPos == lastCharPos) {
+			result = bufPtr;
 			return;
 		}
 		++firstZeroPos;
 	}
-	result.erase(firstZeroPos, result.end());
+	result.assign((const char*)bufPtr, firstZeroPos);
 }
 
 void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
@@ -1754,9 +1861,9 @@ void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
 		neededSize += strlen(ptr.name)
 			+ 1;  // space
 	}
-	result.resize(neededSize);
-	char* str = &result.front();
-	int length = sprintf_s(str, result.size() + 1, "%.4u.%.2u.%.2uT%.2u:%.2u:%.2u ", moveList.year, moveList.month, moveList.day, moveList.hour, moveList.minute, moveList.second);
+	std::vector<char> resultBuf(neededSize + 1);
+	char* str = resultBuf.data();
+	int length = sprintf_s(str, resultBuf.size() + 1, "%.4u.%.2u.%.2uT%.2u:%.2u:%.2u ", moveList.year, moveList.month, moveList.day, moveList.hour, moveList.minute, moveList.second);
 	if (length == -1) {
 		result.clear();
 		return;
@@ -1826,7 +1933,38 @@ void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
 	}
 	*str = '\0';
 	++str;
-	result.resize(str - &result.front()
-		- 1);  // str points past the null character. Exclude null from the size of the string
-	return;
+	result = resultBuf.data();
+}
+
+void Settings::formatPinnedWindowList(const PinnedWindowList& list, std::string& result) {
+	const StringWithLength* names[PinnedWindowEnum_Last] { nullptr };
+	size_t totalSize = 0;
+	for (int i = 0; i < _countof(list.elements); ++i) {
+		const PinnedWindowElement& value = list[i];
+		if (value.isPinned) {
+			const StringWithLength& swl = pinnableWindowNames[i];
+			names[value.order] = &swl;
+			totalSize += swl.length
+				+ 1;  // space
+		}
+	}
+	// calling front() on empty string crashes in debug mode
+	if (!totalSize) {
+		result.clear();
+		return;
+	}
+	std::vector<char> outBuf(totalSize + 1);
+	result.resize(totalSize);
+	char* ptr = outBuf.data();
+	for (int i = 0; i < _countof(names); ++i) {
+		const StringWithLength* swl = names[i];
+		if (swl) {
+			memcpy(ptr, swl->txt, swl->length);
+			ptr += swl->length;
+			*ptr = ' ';
+			++ptr;
+		}
+	}
+	outBuf[outBuf.size() - 1] = '\0';
+	result.assign(outBuf.data(), outBuf.size() - 1);
 }

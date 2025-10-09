@@ -412,7 +412,13 @@ function task() {
                 } elseif (($value.Length -gt 0) -and ($value.Chars(0) -eq 46)) {  # .
                     $value = "0" + $value;
                 }
-            } elseif ($typename -eq "MoveInfo") {
+            } elseif (
+            	(
+            		$typename -eq "MoveList"
+        		) -or (
+        			$typename -eq "PinnedWindowList"
+    			)
+    		) {
             	$value = "";
             }
 

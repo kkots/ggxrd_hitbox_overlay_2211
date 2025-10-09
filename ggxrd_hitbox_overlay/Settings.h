@@ -8,6 +8,7 @@
 #include "HandleWrapper.h"
 #include "characterTypes.h"
 #include "Moves.h"
+#include "PinnedWindowList.h"
 
 const int JOY_START = 0x107;
 const int JOY_BTN_0 = 0x107;
@@ -141,7 +142,7 @@ public:
 	#undef settingsKeyCombo
 	bool keyCombosEnd;
 	
-	std:: mutex screenshotPathMutex;
+	std::mutex screenshotPathMutex;
 	bool settingsMembersStart = false;  // make sure all settings are contained between this and settingsMembersEnd
 	typedef std::string ScreenshotPath;
 	#define settingsKeyCombo(name, displayName, defaultValue, description) 
@@ -149,8 +150,6 @@ public:
 	#include "SettingsDefinitions.h"
 	#undef settingsField
 	#undef settingsKeyCombo
-	#undef int
-	#undef bool
 	bool settingsMembersEnd = false;
 	const float cameraCenterOffsetX_defaultValue = cameraCenterOffsetX;
 	const float cameraCenterOffsetY_defaultValue = cameraCenterOffsetY;
@@ -258,9 +257,11 @@ private:
 	static bool parseFloat(const char* keyName, const std::string& keyValue, float& floatValue);
 	static float parseFloat(const char* inputString, bool* error = nullptr);
 	static bool parseMoveList(const char* keyName, const std::string& keyValue, MoveList& listValue);
+	static bool parsePinnedWindowList(const char* keyName, const std::string& keyValue, PinnedWindowList& listValue);
 	static void formatFloat(float f, std::string& result);
 	static void formatInteger(int f, std::string& result);
 	static void formatMoveList(const MoveList& moveList, std::string& result);
+	static void formatPinnedWindowList(const PinnedWindowList& moveList, std::string& result);
 	static std::wstring getCurrentDirectory();
 	void registerListenerForChanges();
 	std::wstring settingsPath;

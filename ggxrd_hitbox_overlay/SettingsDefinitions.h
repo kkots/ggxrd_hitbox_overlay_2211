@@ -234,12 +234,12 @@ settingsField(bool, showIndividualHitboxOutlines, false,
 	"; Setting this to true allows you to see the outlines of each box\n"
 	"; within the combined overall outline.")
 	
-settingsKeyCombo(modWindowVisibilityToggle, "Hide UI Toggle", "Escape",
+settingsKeyCombo(modWindowVisibilityToggle, "Hide Mod's UI Toggle", "Escape",
 	"; A keyboard shortcut.\n"
-	"; Pressing this shortcut will show/hide the mod's UI window.")
+	"; Pressing this shortcut will show/hide the mod's UI windows.")
 	
 settingsField(bool, modWindowVisibleOnStart, true,
-	"Mod Window Visible On Start", SETTINGS_GENERAL,
+	"Open Mod's Main UI Window On Startup", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
 	"; If this is false, when this mod starts, the mod's UI window will be invisible.")
 	
@@ -348,10 +348,10 @@ settingsField(bool, showFramebarInOtherModes, false,
 	"; there are rollback frames and may start working slower on slower PCs.")
 	
 settingsField(bool, closingModWindowAlsoHidesFramebar, true,
-	"Closing Mod's Window Also Hides Framebar", SETTINGS_FRAMEBAR,
+	"Closing All Of Mod's Windows Also Hides Framebar", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
-	"; If this is true, then closing the main mod's window, either using a hotkey or the cross mark,\n"
-	"; will also hide the framebar, while opening the main mod's window will show the framebar.\n"
+	"; If this is true, then closing every last window of the mod, either using a hotkey or the cross marks,\n"
+	"; will also hide the framebar, while any new windows will show the framebar.\n"
 	"; Alternatively you could set up a separate hotkey to control visibility of the framebar, using \"framebarVisibilityToggle\".\n"
 	"; Note that even when the UI is open, \"showFramebar\" must be set to true for the framebar to be visible.")
 	
@@ -1000,12 +1000,30 @@ settingsField(MoveList, highlightWhenCancelsIntoMovesAvailable, {},
 settingsField(int, globalWindowTransparency, 100,
 	"Global Window Transparency", SETTINGS_GENERAL,
 	"; Specify a number from 0 to 100.\n"
-	"; Controls the transparency of the background of all UI windows, except Combo Recipe and Combo Damage & Combo Stun.\n"
-	"; Combo Recipe has its own setting for transparency, and Combo Damage is just always transparent.")
+	"; Controls the transparency of the background of all UI windows, Combo Damage & Combo Stun.\n"
+	"; Combo Recipe has its own setting for transparency, and if it is set to transparent,\n"
+	"; that will override this setting, but Combo Recipe's setting is not set, then this setting will take\n"
+	"; priority.\n"
+	"; Combo Damage is just always transparent and that can't be configured by any setting.")
 	
 settingsField(bool, outlineAllWindowText, false,
 	"Outline All Window Text", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
 	"; If true, all text in UI windows, except Combo Recipe and Combo Damage & Combo Stun, will be outlined with black color.\n"
 	"; Combo Recipe has its own setting for this, and Combo Damage is just always outlined.")
+	
+settingsField(PinnedWindowList, pinnedWindows, { { false } },
+	"Pinned Windows", SETTINGS_GENERAL,
+	"; Specify a list of windows that are pinned.")
+	
+settingsField(bool, openPinnedWindowsOnStartup, true,
+	"Open Pinned Windows On Startup", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; When true, all pinned windows will be opened when the mod starts.")
+	
+settingsField(bool, disablePinButton, false,
+	"Disable Pin Buttons On Windows", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; When true, windows no longer will show pin buttons next to their X button and the pin functionality will be disabled entirely.")
+	
 #pragma warning(pop)

@@ -41,17 +41,17 @@ int PngRelated::findRev(const wchar_t* path, wchar_t charToFind) const {
 
 std::wstring PngRelated::getScreenshotSavingPath() {
 	if (settings.ignoreScreenshotPathAndSaveToClipboard) return std::wstring{};
-	std::wstring pathUncounted;
+	std::vector<wchar_t> pathUncountedVec;
 	{
 		std::unique_lock<std::mutex> guard(settings.screenshotPathMutex);
 		if (settings.screenshotPath.empty()) {
 			return std::wstring{};
 		}
-		pathUncounted.resize(settings.screenshotPath.size());
-		MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, &pathUncounted.front(), pathUncounted.size());
+		pathUncountedVec.resize(settings.screenshotPath.size() + 1);
+		MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, pathUncountedVec.data(), pathUncountedVec.size());
 	}
-	pathUncounted.resize(wcslen(pathUncounted.c_str()));
-
+	std::wstring pathUncounted = pathUncountedVec.data();
+	
 	int backslashPos = findRev(pathUncounted.c_str(), L'\\');
 	if (isDirectory(pathUncounted.c_str())) {
 		if (backslashPos == -1 || backslashPos != pathUncounted.size() - 1) {

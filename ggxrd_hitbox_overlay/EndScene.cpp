@@ -7409,13 +7409,8 @@ void EndScene::processKeyStrokes() {
 		needWriteSettings = true;
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.modWindowVisibilityToggle)) {
-		if (ui.visible == true) {
-			ui.visible = false;
-			logwrap(fputs("UI display disabled\n", logfile));
-		} else {
-			ui.visible = true;
-			logwrap(fputs("UI display enabled\n", logfile));
-		}
+		ui.onVisibilityToggleKeyboardShortcutPressed();
+		logwrap(fputs("UI display toggled\n", logfile));
 	}
 	if (!gifMode.modDisabled && keyboard.gotPressed(settings.framebarVisibilityToggle)) {
 		if (settings.showFramebar == true) {
@@ -7760,6 +7755,14 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 			case WM_APP_HIGHLIGHTED_MOVES_CHANGED: {
 				ui.highlightedMovesChanged();
 				highlightSettingsChanged();
+			}
+			break;
+			case WM_APP_PINNED_WINDOWS_CHANGED: {
+				ui.pinnedWindowsChanged();
+			}
+			break;
+			case WM_APP_DISABLE_PIN_BUTTON_CHANGED: {
+				ui.onDisablePinButtonChanged(true);
 			}
 			break;
 		}
@@ -9137,7 +9140,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		if (*aswEngine) {
 			isFading = game.isFading();
 			logic();
-			uiWillBeDrawnOnTopOfPauseMenu = isFading || settings.displayUIOnTopOfPauseMenu && pauseMenuOpen && ui.visible;
+			uiWillBeDrawnOnTopOfPauseMenu = isFading || settings.displayUIOnTopOfPauseMenu && pauseMenuOpen && ui.isVisible();
 		} else {
 			uiWillBeDrawnOnTopOfPauseMenu = true;
 		}
@@ -9146,7 +9149,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 			ui.drawData = nullptr;
 			ui.pauseMenuOpen = pauseMenuOpen;
 			ui.drawingPostponed = drawingPostponedLocal;
-			ui.needSplitFramebar = uiWillBeDrawnOnTopOfPauseMenu && !drawingPostponedLocal && pauseMenuOpen && ui.visible;
+			ui.needSplitFramebar = uiWillBeDrawnOnTopOfPauseMenu && !drawingPostponedLocal && pauseMenuOpen && ui.isVisible();
 			ui.needShowFramebarCached = ui.needShowFramebar();
 			ui.needUpdateGraphicsFramebarTexture = false;
 			ui.prepareDrawData();

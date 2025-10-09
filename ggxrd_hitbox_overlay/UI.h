@@ -12,6 +12,7 @@
 #include "characterTypes.h"
 #include <array>
 #include <atlbase.h>
+#include "PinnedWindowList.h"
 
 enum FrameMarkerType {
 	MARKER_TYPE_STRIKE_INVUL,
@@ -71,7 +72,6 @@ public:
 		float width;
 		bool hitConnectedShouldBeAlt;
 	};
-	bool visible = true;
 	bool stateChanged = false;
 	bool gifModeOn = false;
 	bool gifModeToggleBackgroundOnly = false;
@@ -153,6 +153,13 @@ public:
 	DWORD punchCode = 0;
 	void onAswEngineDestroyed();
 	void highlightedMovesChanged();
+	void pinnedWindowsChanged();
+	void setOpen(PinnedWindowEnum index, bool isOpen, bool isManual);
+	void toggleOpen(PinnedWindowEnum index, bool isManual);
+	inline void toggleOpenManually(PinnedWindowEnum index) { toggleOpen(index, true); }
+	void onVisibilityToggleKeyboardShortcutPressed();
+	bool isVisible() const;
+	void onDisablePinButtonChanged(bool postedFromOutsideUI);
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -171,22 +178,16 @@ private:
 	void frameAdvantageControl(int frameAdvantage, int landingFrameAdvantage, bool frameAdvantageValid, bool landingFrameAdvantageValid, bool rightAlign);
 	int frameAdvantageTextFormat(int frameAdv, char* buf, size_t bufSize);
 	void frameAdvantageText(int frameAdv);
-	bool showTensionData = false;
-	bool showBurstGain = false;
-	bool showSpeedsData = false;
-	bool showProjectiles = false;
-	bool showBoxExtents = false;
-	bool showFrameAdvTooltip = false;
-	bool showStartupTooltip = false;
-	bool showActiveTooltip = false;
-	bool showTotalTooltip = false;
-	bool showInvulTooltip = false;
 	void* hook_GetKeyStatePtr = nullptr;
 	IDirect3DTexture9* imguiFont = nullptr;
 	CComPtr<IDirect3DTexture9> imguiFontAlt;
 	bool attemptedCreatingAltFont = false;
+	void clearImGuiFontAlt();
+	CComPtr<IDirect3DTexture9> pinTexture;
+	bool attemptedCreatingPin = false;
+	void clearPinTexture();
+	void clearSecondaryTextures();
 	void onImGuiMessWithFontTexID(IDirect3DDevice9* device);
-	bool showCharSpecific[2] = { false, false };
 	std::unique_ptr<PngResource> activeFrame;
 	std::unique_ptr<PngResource> activeFrameNonColorblind;
 	std::unique_ptr<PngResource> activeFrameHitstop;
@@ -248,6 +249,7 @@ private:
 	std::unique_ptr<PngResource> eddieIdleFrameNonColorblind;
 	std::unique_ptr<PngResource> bacchusSighFrame;
 	std::unique_ptr<PngResource> bacchusSighFrameNonColorblind;
+	std::unique_ptr<PngResource> pinResource;
 	enum UITextureType {
 		UITEX_HELP,
 		UITEX_FRAMEBAR
@@ -270,28 +272,20 @@ private:
 	bool textureIsColorblind;
 	void packTextureFramebar(const PackTextureSizes* sizes, bool isColorblind);
 	void drawFramebars();
-	bool showShaderCompilationError = true;
 	const std::string* shaderCompilationError = nullptr;
 	int two = 2;
 	bool imguiActiveTemp = false;
 	bool takeScreenshotTemp = false;
-	bool showErrorDialog = false;
 	const char* errorDialogText = nullptr;
 	void* errorDialogPos = nullptr;
-	bool showFramebarHelp = false;
-	bool showBoxesHelp = false;
 	void framebarHelpWindow();
 	void hitboxesHelpWindow();
 	bool booleanSettingPreset(bool& settingsRef);
 	bool booleanSettingPresetWithHotkey(bool& settingsRef, std::vector<int>& hotkey);
 	bool float4SettingPreset(float& settingsPtr);
 	bool intSettingPreset(int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX, bool isDisabled = false);
-	bool showCancels[2] { false, false };
-	bool showDamageCalculation[2] { false, false };
-	bool showStunmash[2] { false, false };
 	void drawSearchableWindows();
 	bool searching = false;
-	bool showSearch = false;
 	char searchString[101] { '\0' };
 	char searchStringOriginal[101] { '\0' };
 	size_t searchStringLen = 0;
@@ -383,14 +377,11 @@ private:
 	void resetFrameSelection();
 	bool dontUsePreBlockstunTime = false;
 	void adjustMousePosition();
-	void startupOrTotal(int two, StringWithLength title, bool* showTooltipFlag);
-	bool showComboDamage[2] { false };
-	bool showComboRecipe[2] { false };
+	void startupOrTotal(int two, StringWithLength title, PinnedWindowEnum windowIndex);
 	bool showComboRecipeSettings[2] { false };
 	bool settingsPresetsUseOutlinedText = false;
 	std::string pixelShaderFailReason;
 	bool pixelShaderFailReasonObtained = false;
-	bool showingFailedHideRankSigscanMessage = false;
 	void printLineOfResultOfHookingRankIcons(const char* placeName, bool result);
 	bool framebarHadScrollbar = false;
 	bool sigscannedButtonSettings = false;
@@ -409,7 +400,6 @@ private:
 	bool showZatoReflectableProjectiles[2] { false, false };
 	bool showLeoReflectableProjectiles[2] { false, false };
 	bool showDizzyReflectableProjectiles[2] { false, false };
-	bool showMoveHighlightWindow = false;
 	struct SortedMovesEntry {
 		const char* name = nullptr;
 		const NamePair* displayName = nullptr;
@@ -432,7 +422,48 @@ private:
 	// do not change this once it is filled in
 	// do not submit an FRenderCommand for rendering ImGui until this is ready
 	std::vector<BYTE> fontDataAlt;
+	struct WindowStruct {
+		PinnedWindowEnum index;
+		bool isOpen = false;
+		bool openedJustNow = false;
+		std::string title;
+		std::string searchTitle;
+		PinnedWindowElement* element = nullptr;
+		bool isPinned() const { return element->isPinned; }
+		void setPinned(bool isPinned) { element->isPinned = isPinned; }
+		void setOpen(bool newOpen, bool isManual);
+		inline void toggleOpen(bool isManual) { setOpen(!isOpen, isManual); }
+		WindowStruct(PinnedWindowEnum index, const char* titleFmtString, ...);
+		void init();
+	};
+	WindowStruct windows[PinnedWindowEnum_Last] {
+		#define pinnableWindowsFunc(name, title) {PinnedWindowEnum_##name, title},
+		#define pinnableWindowsPairFunc(name, titleFmtString) \
+			{PinnedWindowEnum_##name##_1, titleFmtString, 1}, \
+			{PinnedWindowEnum_##name##_2, titleFmtString, 2},
+		pinnableWindowsEnum
+		#undef pinnableWindowsFunc
+		#undef pinnableWindowsPairFunc
+	};
 	void prepareOutlinedFont();
+	void readPinnedUniversal(PinnedWindowEnum index);
+	void customBegin(PinnedWindowEnum index);
+	void customEnd();
+	bool needDraw(PinnedWindowEnum index) const;
+	enum WindowShowMode {
+		WindowShowMode_All,
+		WindowShowMode_Pinned,
+		WindowShowMode_None
+	} windowShowMode = WindowShowMode_All;
+	bool lastCustomBeginPushedAStyle = false;
+	bool lastCustomBeginPushedOutlinedText = false;
+	bool lastCustomBeginHadPinButton = false;
+	PinnedWindowEnum lastCustomBeginIndex = (PinnedWindowEnum)-1;
+	bool lastWindowClosed = false;
+	bool hasAtLeastOnePinnedOpenWindow() const;
+	bool hasAtLeastOnePinnedWindowThatIsNotTheMainWindow() const;
+	bool hasAtLeastOneUnpinnedOpenWindow() const;
+	bool hasAtLeastOneOpenWindow() const;
 };
 
 extern UI ui;

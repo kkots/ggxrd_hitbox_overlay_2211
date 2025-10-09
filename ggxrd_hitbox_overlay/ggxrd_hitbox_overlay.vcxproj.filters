@@ -267,6 +267,9 @@
     <ClInclude Include="..\imgui\texids.h">
       <Filter>imgui</Filter>
     </ClInclude>
+    <ClInclude Include="PinnedWindowList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -697,6 +700,9 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\images\Digit0_thickness1.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\pin.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

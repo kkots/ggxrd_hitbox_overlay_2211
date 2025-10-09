@@ -222,6 +222,7 @@
     <ClInclude Include="LineReaderFromString.h" />
     <ClInclude Include="NamePairManager.h" />
     <ClInclude Include="PackTextureSizes.h" />
+    <ClInclude Include="PinnedWindowList.h" />
     <ClInclude Include="RematchMenu.h" />
     <ClInclude Include="SettingsDefinitions.h" />
     <ClInclude Include="SettingsTopCommentDefinition.h" />
@@ -402,6 +403,7 @@
     <Image Include="..\images\NonActiveFrame_NonColorblind.png" />
     <Image Include="..\images\NoneFrame.png" />
     <Image Include="..\images\OTG.png" />
+    <Image Include="..\images\pin.png" />
     <Image Include="..\images\ProjectileFrame.png" />
     <Image Include="..\images\ProjectileFrame_NonColorblind.png" />
     <Image Include="..\images\RecoveryFrame.png" />

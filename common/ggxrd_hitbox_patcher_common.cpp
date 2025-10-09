@@ -185,7 +185,7 @@ bool readWholeFile(FILE* file, std::vector<char>& wholeFile) {
     size_t fileSize = ftell(file);
     fseek(file, 0, SEEK_SET);
     wholeFile.resize(fileSize);
-    char* wholeFilePtr = &wholeFile.front();
+    char* wholeFilePtr = wholeFile.data();
     size_t readBytesTotal = 0;
     while (true) {
         size_t sizeToRead = 1024;
@@ -233,7 +233,17 @@ DWORD followRelativeCall(DWORD callInstructionAddress, const char* callInstructi
 }
 
 struct Section {
-    std::string name;
+    char name[8];
+	std::string nameAsString() const {
+		std::string result;
+		int len = strnlen(name, 8);
+		if (len == 8) {
+			result.assign(name, 8);
+		} else {
+			result = name;
+		}
+		return result;
+	}
 	
 	// RVA. Virtual address offset relative to the virtual address start of the entire .exe.
 	// So let's say the whole .exe starts at 0x400000 and RVA is 0x400.
@@ -285,9 +295,7 @@ std::vector<Section> readSections(FILE* file, DWORD* imageBase) {
     for (size_t sectionCounter = numberOfSections; sectionCounter != 0; --sectionCounter) {
         Section newSection;
         fseek(file, sectionStart, SEEK_SET);
-        newSection.name.resize(8);
-        fread(&newSection.name.front(), 1, 8, file);
-        newSection.name.resize(strlen(newSection.name.c_str()));
+        fread(newSection.name, 1, 8, file);
         fread(&newSection.virtualSize, 4, 1, file);
         fread(&newSection.relativeVirtualAddress, 4, 1, file);
         newSection.virtualAddress = *imageBase + newSection.relativeVirtualAddress;
@@ -434,14 +442,12 @@ void meatOfTheProgram() {
 	#endif
 
     #ifndef FOR_LINUX
-    std::wstring szFile;
-    szFile.resize(MAX_PATH);
+    std::vector<WCHAR> szFile(MAX_PATH, L'\0');
 
     OPENFILENAMEW selectedFiles{ 0 };
     selectedFiles.lStructSize = sizeof(OPENFILENAMEW);
     selectedFiles.hwndOwner = NULL;
-    selectedFiles.lpstrFile = &szFile.front();
-    selectedFiles.lpstrFile[0] = L'\0';
+    selectedFiles.lpstrFile = szFile.data();
     selectedFiles.nMaxFile = szFile.size() + 1;
     // it says "Windows Executable\0*.EXE\0"
 	char scramble[] =
@@ -521,8 +527,8 @@ void meatOfTheProgram() {
 
     std::vector<char> wholeFile;
     if (!readWholeFile(file, wholeFile)) return;
-    char* wholeFileBegin = &wholeFile.front();
-    char* wholeFileEnd = &wholeFile.front() + wholeFile.size();
+    char* wholeFileBegin = wholeFile.data();
+    char* wholeFileEnd = wholeFileBegin + wholeFile.size();
 
     // sig for ghidra: b8 ?? ?? ?? ?? eb 05 b8 ?? ?? ?? ?? 50 e8 ?? ?? ?? ?? 83 c4 04 8b f0 39 1d ?? ?? ?? ?? 75 1a eb 06
     int patchingPlace = sigscan(wholeFileBegin, wholeFileEnd,
@@ -601,7 +607,7 @@ void meatOfTheProgram() {
             CrossPlatformCout << ",\n";
         }
         isFirst = false;
-        CrossPlatformCout << "{\n\tname: \"" << section.name.c_str() << "\""
+        CrossPlatformCout << "{\n\tname: \"" << section.nameAsString() << "\""
             << ",\n\tvirtualSize: 0x" << section.virtualSize
             << ",\n\tvirtualAddress: 0x" << section.virtualAddress
             << ",\n\trawSize: 0x" << section.rawSize

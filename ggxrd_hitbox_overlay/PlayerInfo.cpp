@@ -3481,8 +3481,6 @@ void ComboRecipeElement::player_onFirstHitHappenedBeforeFrame3(PlayerInfo& attac
 	attacker.lastPerformedMoveNameIsInComboRecipe = true;
 }
 
-const char PROJECTILES_STR[12] = "Projectiles";
-
 const NamePair PROJECTILES_NAMEPAIR {
 	"Projectiles"
 };
