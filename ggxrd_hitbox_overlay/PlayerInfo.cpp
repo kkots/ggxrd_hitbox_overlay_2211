@@ -2711,7 +2711,8 @@ bool PlayerCancelInfo::cancelsEqual(const PlayerCancelInfo& other) const {
 			|| enableJumpCancel != other.enableJumpCancel
 			|| enableSpecialCancel != other.enableSpecialCancel
 			|| enableSpecials != other.enableSpecials
-			|| airborne != other.airborne) {
+			|| airborne != other.airborne
+			|| canYrc != other.canYrc) {
 		return false;
 	}
 	{
@@ -2744,6 +2745,7 @@ void PlayerCancelInfo::clear() {
 	enableSpecialCancel = false;
 	enableSpecials = false;
 	hitAlreadyHappened = false;
+	canYrc = nullptr;
 }
 
 void PlayerInfo::appendPlayerCancelInfo(const PlayerCancelInfo& playerCancel) {
@@ -2793,7 +2795,12 @@ void PlayerInfo::appendPlayerCancelInfo(PlayerCancelInfo&& playerCancel) {
 }
 
 bool PlayerCancelInfo::isCompletelyEmpty() const {
-	return gatlings.empty() && whiffCancels.empty() && !enableJumpCancel && !enableSpecialCancel && !enableSpecials;
+	return gatlings.empty()
+		&& whiffCancels.empty()
+		&& !enableJumpCancel
+		&& !enableSpecialCancel
+		&& !enableSpecials
+		&& !canYrc;
 }
 
 void PlayerInfo::determineMoveNameAndSlangName(const NamePair** name) {

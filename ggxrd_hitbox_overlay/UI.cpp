@@ -2420,6 +2420,8 @@ void UI::drawSearchableWindows() {
 				intSettingPreset(settings.globalWindowTransparency, 0, 5, 20, 80.F, 100);
 				booleanSettingPreset(settings.outlineAllWindowText);
 				
+				booleanSettingPreset(settings.showYrcWindowsInCancelsPanel);
+				
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
 				ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"
@@ -6518,6 +6520,7 @@ void UI::drawSearchableWindows() {
 					cancels.enableSpecials,
 					cancels.hitAlreadyHappened,
 					cancels.airborne,
+					cancels.canYrc,
 					false,
 					false);
 			}
@@ -11142,6 +11145,7 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 			frame.enableSpecials,
 			frame.hitAlreadyHappened,
 			frame.airborne,
+			nullptr,
 			true,
 			true);
 	
@@ -13329,6 +13333,12 @@ void yellowText(const char* str, const char* strEnd) {
 }
 
 // runs on the main thread
+// without needManualMultilineOutput, the function draws one line and then the rest of all the other lines below in one TextUnformatted call.
+// needManualMultilineOutput prevents the remainder of the lines from becoming one giant box.
+// Imagine you would want to draw something extra at the end of the text you printed with this function, on the last line of it.
+// If the "rest of the lines" was multiple lines of text, now you will never find its actual right extent.
+// Since needManualMultilineOutput prints the "rest of the lines" one by one, you will be able to draw on the right of the last line.
+// If you don't plan to do that, pass needManualMultilineOutput false.
 void drawOneLineOnCurrentLineAndTheRestBelow(float wrapWidth, const char* str, const char* strEnd, bool needSameLine, bool needManualMultilineOutput, bool isLastLine) {
 	if (needSameLine) ImGui::SameLine();
 	ImFont* font = ImGui::GetFont();
@@ -13728,6 +13738,7 @@ void UI::printAllCancels(const T& cancels,
 		bool enableSpecials,
 		bool hitAlreadyHappened,
 		bool airborne,
+		const char* canYrc,
 		bool insertSeparators,
 		bool useMaxY) {
 	
@@ -13745,11 +13756,21 @@ void UI::printAllCancels(const T& cancels,
 		needUnpush = true;
 		ImGui::PushStyleVarX(ImGuiStyleVar_ItemSpacing, 0.F);
 	}
+	searchFieldTitle("YRC");
 	searchFieldTitle("Gatlings");
 	searchFieldTitle("Whiff Cancels");
 	searchFieldTitle("Late Cancels");
 	searchFieldTitle("Jump cancel");
 	searchFieldTitle("Specials");
+	if (canYrc && settings.showYrcWindowsInCancelsPanel) {
+		if (canYrc == (const char*)1) {
+			yellowText("YRC");
+		} else {
+			const float wrapWidth = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+			yellowText("YRC: ");
+			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, canYrc);
+		}
+	}
 	if (!cancels.gatlings.empty() || enableSpecialCancel || enableJumpCancel) {
 		if (insertSeparators) ImGui::Separator();
 		yellowText("Gatlings:");

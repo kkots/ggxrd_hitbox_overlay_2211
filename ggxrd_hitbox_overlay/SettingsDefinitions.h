@@ -1026,4 +1026,9 @@ settingsField(bool, disablePinButton, false,
 	"; Specify true or false.\n"
 	"; When true, windows no longer will show pin buttons next to their X button and the pin functionality will be disabled entirely.")
 	
+settingsField(bool, showYrcWindowsInCancelsPanel, true,
+	"Show YRC Windows In Cancels Panel", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; When false, the Cancels Panel will no longer show YRC windows.")
+	
 #pragma warning(pop)

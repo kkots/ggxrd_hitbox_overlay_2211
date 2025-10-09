@@ -1171,6 +1171,10 @@ openPinnedWindowsOnStartup = true
 ; Specify true or false.
 ; When true, windows no longer will show pin buttons next to their X button and the pin functionality will be disabled entirely.
 disablePinButton = false
+
+; Specify true or false.
+; When false, the Cancels Panel will no longer show YRC windows.
+showYrcWindowsInCancelsPanel = true
 ```
 
 </details>
@@ -1665,3 +1669,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 66) Added an option to make all of the mod's windows be transparent or semi-transparent and have outlined text. This does not apply to the Combo Recipe panel, as it has its own setting for this, and Combo Damage & Burst Gain panel, as it is always transparent and outlined anyway.
 67) Added a pin button to all of the mod's windows, which does the following: 1) it locks those windows on top of all others; 2) if multiple windows are pinned, their order is fixed based on in which order you pinned them; 3) pressing the UI show/hide toggle (ESC by default) will instead, if non-pinned windows are also present, traverse through three states: State 1: all windows are visible; State 2: only pinned windows are visible; State 3: no windows are visible; 4) Pinned windows get saved for the next restart, and can be restored on startup if you checked the 'Settings - General Settings - Open Pinned Windows On Startup' setting (ON by default).
 68) Now closing the main UI window does not close the whole UI. However, when you press the hotkey for showing/hiding UI (ESC by default), the main UI window will reappear automatically. To get rid of it you could pin every window but the main one and use ESC to toggle between "show all" - "show only pinned" - "show none" modes, stopping only on "show only pinned" and "show none", therefore not letting the main window be displayed.
+69) The Cancels panel now shows YRC windows. You can disable this in Settings - General Settings - Show YRC Windows In Cancels Panel.

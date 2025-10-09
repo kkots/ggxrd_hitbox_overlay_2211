@@ -5821,8 +5821,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				currentFrame.canYrc = player.wasCanYrc;
 				currentFrame.cantRc = player.wasCantRc;
 				// for Ramlethal BitLaser, we redefine this in character-specific codes below
-				currentFrame.canYrcProjectile = player.wasCanYrc && player.move.canYrcProjectile
+				player.canYrcProjectile = player.wasCanYrc && player.move.canYrcProjectile
 					? player.move.canYrcProjectile(player) : nullptr;
+				currentFrame.canYrcProjectile = player.canYrcProjectile;
 				
 				MilliaInfo milliaInfo { 0 };
 				if (player.charType == CHARACTER_TYPE_MILLIA) {
@@ -6855,6 +6856,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newCancelInfo.enableSpecials = false;
 				newCancelInfo.hitAlreadyHappened = hitAlreadyHappened;
 				newCancelInfo.airborne = player.airborne;
+				newCancelInfo.canYrc = player.canYrcProjectile
+					? player.canYrcProjectile
+					: player.wasCanYrc
+						? (const char*)1
+						: nullptr;
 				player.appendPlayerCancelInfo(newCancelInfo);
 			}
 			

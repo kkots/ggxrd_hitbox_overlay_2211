@@ -344,6 +344,7 @@ private:
 		bool enableSpecials,
 		bool hitOccured,
 		bool airborne,
+		const char* canYrc,
 		bool insertSeparators,
 		bool useMaxY);
 	int printBaseDamageCalc(const DmgCalc& dmgCalc, int* dmgWithHpScale);

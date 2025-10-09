@@ -391,6 +391,7 @@ struct PlayerCancelInfo {
 	std::vector<GatlingOrWhiffCancelInfo> gatlings;
 	std::vector<GatlingOrWhiffCancelInfo> whiffCancels;
 	const char* whiffCancelsNote = nullptr;
+	const char* canYrc = nullptr;
 	bool enableJumpCancel:1;
 	bool enableSpecialCancel:1;
 	bool enableSpecials:1;
@@ -1909,6 +1910,7 @@ struct PlayerInfo {
 	ChargeData charge { 0, 0 };
 	BlitzShieldPrereqData standingBlitzShieldPrereqData;
 	BlitzShieldPrereqData crouchingBlitzShieldPrereqData;
+	const char* canYrcProjectile = nullptr;
 	unsigned char chargeLeftLast;
 	unsigned char chargeRightLast;
 	unsigned char chargeDownLast;
