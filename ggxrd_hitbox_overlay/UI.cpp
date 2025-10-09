@@ -2301,7 +2301,8 @@ void UI::drawSearchableWindows() {
 				booleanSettingPreset(settings.ignoreNumpadEnterKey);
 				booleanSettingPreset(settings.ignoreRegularEnterKey);
 				
-				intSettingPreset(settings.startingTensionPulse, -25000, 100, 1000, 120.F, 25000);
+				intSettingPreset(settings.startingTensionPulseP1, -25000, 100, 1000, 120.F, 25000);
+				intSettingPreset(settings.startingTensionPulseP2, -25000, 100, 1000, 120.F, 25000);
 				
 				booleanSettingPreset(settings.clearInputHistoryOnStageReset);
 				booleanSettingPreset(settings.clearInputHistoryOnStageResetInTrainingMode);

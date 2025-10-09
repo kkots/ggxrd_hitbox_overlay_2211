@@ -1035,12 +1035,14 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	}
 	if (isTheFirstFrameInTheRound) {
 		bool isTraining = game.isTrainingMode();
-		if (isTraining && settings.startingTensionPulse) {
-			int val = settings.startingTensionPulse;
-			if (val > 25000) val = 25000;
-			if (val < -25000) val = -25000;
+		if (isTraining) {
 			for (int i = 0; i < 2; ++i) {
-				entityList.slots[i].tensionPulse() = settings.startingTensionPulse;
+				int val = i == 0 ? settings.startingTensionPulseP1 : settings.startingTensionPulseP2;
+				if (val) {
+					if (val > 25000) val = 25000;
+					if (val < -25000) val = -25000;
+					entityList.slots[i].tensionPulse() = val;
+				}
 			}
 		}
 		if (isTraining && settings.clearInputHistoryOnStageResetInTrainingMode

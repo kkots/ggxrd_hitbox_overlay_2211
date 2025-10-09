@@ -834,10 +834,16 @@ settingsField(bool, comboRecipe_transparentBackground, false,
 	"; Specify true or false.\n"
 	"; Setting this to true will make the Combo Recipe panel display without a background, just text and grid cell outlines.")
 	
-settingsField(int, startingTensionPulse, 0,
-	"Starting Tension Pulse", SETTINGS_GENERAL,
+settingsField(int, startingTensionPulseP1, 0,
+	"Starting Tension Pulse For Player 1", SETTINGS_GENERAL,
 	"; A number.\n"
-	"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.\n"
+	"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of Player 1 will be set to this value.\n"
+	"; Must be in the range [-25000; +25000].")
+	
+settingsField(int, startingTensionPulseP2, 0,
+	"Starting Tension Pulse For Player 2", SETTINGS_GENERAL,
+	"; A number.\n"
+	"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of Player 2 will be set to this value.\n"
 	"; Must be in the range [-25000; +25000].")
 	
 settingsField(bool, hideWins, false,

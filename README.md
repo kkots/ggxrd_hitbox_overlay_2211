@@ -1010,9 +1010,14 @@ comboRecipe_showCharge = true
 comboRecipe_transparentBackground = false
 
 ; A number.
-; Works only in Training Mode. Upon a stage reset, the Tension Pulse of both players will be set to this value.
+; Works only in Training Mode. Upon a stage reset, the Tension Pulse of Player 1 will be set to this value.
 ; Must be in the range [-25000; +25000].
-startingTensionPulse = 0
+startingTensionPulseP1 = 0
+
+; A number.
+; Works only in Training Mode. Upon a stage reset, the Tension Pulse of Player 2 will be set to this value.
+; Must be in the range [-25000; +25000].
+startingTensionPulseP2 = 0
 
 ; Specify true or false.
 ; Prevents wins from being displayed on the online rematch screen.
