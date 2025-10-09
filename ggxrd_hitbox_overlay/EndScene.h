@@ -748,6 +748,7 @@ private:
 	bool overwriteCall(uintptr_t callInstr, int newOffset);
 	// meant for use outside of onDllMain, but may be called from onDllMain as well
 	bool attach(PVOID* ppPointer, PVOID pDetour, const char* name);
+	bool lastRoundendContainedADeath = false;
 };
 
 extern EndScene endScene;

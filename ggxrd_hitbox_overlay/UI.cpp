@@ -8171,6 +8171,7 @@ void UI::drawSearchableWindows() {
 				booleanSettingPreset(settings.comboRecipe_showSuperJumpInstalls);
 				booleanSettingPreset(settings.comboRecipe_showNumberOfHits);
 				booleanSettingPreset(settings.comboRecipe_showCharge);
+				booleanSettingPreset(settings.comboRecipe_clearOnPositionReset);
 				booleanSettingPreset(settings.comboRecipe_transparentBackground);
 				settingsPresetsUseOutlinedText = false;
 			}

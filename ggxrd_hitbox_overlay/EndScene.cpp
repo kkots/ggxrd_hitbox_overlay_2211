@@ -934,11 +934,31 @@ void EndScene::logic() {
 			)
 			|| altModes.roundendCameraFlybyType() != 8
 			|| game.is0xa8PreparingCamera();
+		entityList.populate();
 		if (!isRunning && !iGiveUp) {
 			if (!settings.dontClearFramebarOnStageReset) {
 				playerFramebars.clear();
 				projectileFramebars.clear();
 				combinedFramebars.clear();
+			}
+			if (settings.comboRecipe_clearOnPositionReset) {
+				bool oneIsDead = lastRoundendContainedADeath;
+				if (!oneIsDead) {
+					for (int i = 0; i < 2; ++i) {
+						if (entityList.slots[i].hp() == 0) {
+							oneIsDead = true;
+							break;
+						}
+					}
+				}
+				if (!oneIsDead) {
+					for (int i = 0; i < 2; ++i) {
+						PlayerInfo& player = players[i];
+						player.comboRecipe.clear();
+					}
+				} else {
+					lastRoundendContainedADeath = true;
+				}
 			}
 			startedNewRound = true;
 			
@@ -951,7 +971,6 @@ void EndScene::logic() {
 			}
 		}
 		needDrawInputs = false;
-		entityList.populate();
 		if (requestedInputHistoryDraw) needDrawInputs = true;
 		if (gifMode.showInputHistory && !gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
 			if (settings.displayInputHistoryWhenObserving
@@ -1005,6 +1024,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 	logOnce(fputs("prepareDrawData called\n", logfile));
 	invisChipp.onEndSceneStart();
 	drawnEntities.clear();
+	lastRoundendContainedADeath = false;
 	
 	bool isTheFirstFrameInTheRound = false;
 	if (playerFramebars.empty() && !iGiveUp) {

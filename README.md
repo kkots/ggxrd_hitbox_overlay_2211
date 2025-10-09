@@ -1006,6 +1006,12 @@ comboRecipe_showNumberOfHits = true
 comboRecipe_showCharge = true
 
 ; Specify true or false.
+; Setting this to true will make the Combo Recipe panel clear when positions are reset only.
+; This won't include when the round ends due to one of the players dying, but will include round
+; resets that happened due to timeout.
+comboRecipe_clearOnPositionReset = true
+
+; Specify true or false.
 ; Setting this to true will make the Combo Recipe panel display without a background, just text and grid cell outlines.
 comboRecipe_transparentBackground = false
 
@@ -1726,3 +1732,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 70) In Combo Recipe, when showing microwalks or microdashes is disabled but showing idle time is enabled, microwalks and/or microdashes will be converted to idle time and all idle time there will be fused together and displayed as one entry of #) (Idle Xf).
 71) Added options in General Settings to prevent RISC from resetting in Training Mode when that player is not entirely idle, like for example when performing a Burst, and to prevent Burst Gauge and Tension Gauge from resetting (this is all Training Mode) when one of the players is not entirely idle (here the example would be Faint/Dizziness animation), and to prevent Training Mode's Counter Hit - Forced/Random/Forced Mortal Counter setting from taking effect on opponents that are either in Burst or Faint/Dizziness animation.
 72) Added fields to enter starting burst gauge values for P1 and P2 in General Settings.
+73) Added an option to make Combo Recipe clear itself on Position Reset. This option is ON by default. It can be found in Combo Recipe's cogwheel.

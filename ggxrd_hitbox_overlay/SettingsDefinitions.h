@@ -829,6 +829,13 @@ settingsField(bool, comboRecipe_showCharge, true,
 	"; parentheses, like so: 6P (Held: 2/99f);\n"
 	"; This would mean that you have advanced 2 frames out of the required 99 to reach the next level of charge.")
 	
+settingsField(bool, comboRecipe_clearOnPositionReset, true,
+	"Clear On Position Reset", SETTINGS_COMBO_RECIPE,
+	"; Specify true or false.\n"
+	"; Setting this to true will make the Combo Recipe panel clear when positions are reset only.\n"
+	"; This won't include when the round ends due to one of the players dying, but will include round\n"
+	"; resets that happened due to timeout.")
+	
 settingsField(bool, comboRecipe_transparentBackground, false,
 	"Transparent Background", SETTINGS_COMBO_RECIPE,
 	"; Specify true or false.\n"
