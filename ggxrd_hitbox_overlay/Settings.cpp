@@ -250,6 +250,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 	bool olddontResetBurstAndTensionGaugesWhenInStunOrFaint = dontResetBurstAndTensionGaugesWhenInStunOrFaint;
 	bool olddontResetRISCWhenInBurstOrFaint = dontResetRISCWhenInBurstOrFaint;
 	bool oldonlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun = onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun;
+	int oldstartingBurstGaugeP1 = startingBurstGaugeP1;
+	int oldstartingBurstGaugeP2 = startingBurstGaugeP2;
 
 	std::string accum;
 	char buf[129];
@@ -458,6 +460,10 @@ void Settings::readSettings(bool isFirstEverRead) {
 		}
 		if (oldonlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun != onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun) {
 			PostMessageW(keyboard.thisProcessWindow, WM_APP_ONLY_APPLY_COUNTERHIT_SETTING_WHEN_DEFENDER_NOT_IN_BURST_OR_FAINT_OR_HITSTUN_CHANGED, FALSE, FALSE);
+		}
+		if (oldstartingBurstGaugeP1 != startingBurstGaugeP1
+				|| oldstartingBurstGaugeP2 != startingBurstGaugeP2) {
+			PostMessageW(keyboard.thisProcessWindow, WM_APP_STARTING_BURST_GAUGE_CHANGED, FALSE, FALSE);
 		}
 	}
 	

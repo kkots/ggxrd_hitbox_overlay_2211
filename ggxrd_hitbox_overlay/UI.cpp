@@ -2304,6 +2304,17 @@ void UI::drawSearchableWindows() {
 				intSettingPreset(settings.startingTensionPulseP1, -25000, 100, 1000, 120.F, 25000);
 				intSettingPreset(settings.startingTensionPulseP2, -25000, 100, 1000, 120.F, 25000);
 				
+				bool startingBurstGaugeChanged = false;
+				if (intSettingPreset(settings.startingBurstGaugeP1, 0, 100, 1000, 120.F, 15000)) {
+					startingBurstGaugeChanged = true;
+				}
+				if (intSettingPreset(settings.startingBurstGaugeP2, 0, 100, 1000, 120.F, 15000)) {
+					startingBurstGaugeChanged = true;
+				}
+				if (startingBurstGaugeChanged) {
+					endScene.onStartingBurstGaugeChanged();
+				}
+				
 				booleanSettingPreset(settings.clearInputHistoryOnStageReset);
 				booleanSettingPreset(settings.clearInputHistoryOnStageResetInTrainingMode);
 				

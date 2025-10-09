@@ -839,6 +839,8 @@ bool EndScene::onDllMain() {
 	
 	if (!onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged()) return false;
 	
+	if (!onStartingBurstGaugeChanged()) return false;
+	
 	return !error;
 }
 
@@ -1039,9 +1041,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			for (int i = 0; i < 2; ++i) {
 				int val = i == 0 ? settings.startingTensionPulseP1 : settings.startingTensionPulseP2;
 				if (val) {
-					if (val > 25000) val = 25000;
-					if (val < -25000) val = -25000;
-					entityList.slots[i].tensionPulse() = val;
+					entityList.slots[i].tensionPulse() = minmax(-25000, 25000, val);
 				}
 			}
 		}
@@ -7800,6 +7800,10 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
 			}
 			break;
+			case WM_APP_STARTING_BURST_GAUGE_CHANGED: {
+				onStartingBurstGaugeChanged();
+			}
+			break;
 		}
 	}
 	
@@ -11757,24 +11761,10 @@ bool EndScene::hookPawnArcadeModeIsBoss() {
 	
 	if (!orig_Pawn_ArcadeMode_IsBoss) return false;
 	
-	// it is possible that we're already in transaction, as this function also gets called from onDllMain
-	bool wasTransaction = detouring.isInTransaction();
-	
-	if (!wasTransaction) {
-		// not freezing threads, because we moved UI.cpp::prepareDrawData to the main (logic) thread, and settings
-		// changed by overwriting the mod's INI file directly post a window message, so on main thread as well,
-		// and the function that we're about to hook only runs on the main thread
-		detouring.beginTransaction(false);
-	}
-	
 	auto Pawn_ArcadeMode_IsBossHookPtr = &HookHelp::Pawn_ArcadeMode_IsBossHook;
-	if (!detouring.attach(&(PVOID&)orig_Pawn_ArcadeMode_IsBoss,
+	if (!attach(&(PVOID&)orig_Pawn_ArcadeMode_IsBoss,
 		(PVOID&)Pawn_ArcadeMode_IsBossHookPtr,
 		"Pawn_ArcadeMode_IsBoss")) return false;
-	
-	if (!wasTransaction) {
-		detouring.endTransaction();
-	}
 	
 	Pawn_ArcadeMode_IsBossHooked = true;
 	
@@ -12475,18 +12465,10 @@ bool EndScene::highlightGreenWhenBecomingIdleChanged() {
 		orig_pawnGetColor = (pawnGetColor_t)sigscanBackwards16ByteAligned(place, "83 ec");
 	}
 	if (!orig_pawnGetColor) return false;
-	bool wasTransaction = detouring.isInTransaction();
-	if (!wasTransaction) {
-		detouring.beginTransaction(false);
-	}
 	auto pawnGetColorHookPtr = &HookHelp::pawnGetColorHook;
-	if (!detouring.attach(&(PVOID&)orig_pawnGetColor,
+	return attach(&(PVOID&)orig_pawnGetColor,
 		(PVOID&)pawnGetColorHookPtr,
-		"pawnGetColor")) return false;
-	if (!wasTransaction) {
-		detouring.endTransaction();
-	}
-	return true;
+		"pawnGetColor");
 }
 
 DWORD EndScene::HookHelp::pawnGetColorHook(DWORD* inColor) {
@@ -12619,17 +12601,9 @@ bool EndScene::onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged() {
 			trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingCallPlace);
 	auto trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHookPtr =
 		&HookHelp::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook;
-	bool wasTransaction = detouring.isInTransaction();
-	if (!wasTransaction) {
-		detouring.beginTransaction(false);
-	}
-	if (!detouring.attach(&(PVOID&)orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking,
+	return attach(&(PVOID&)orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking,
 		(PVOID&)trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHookPtr,
-		"trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking")) return false;
-	if (!wasTransaction) {
-		detouring.endTransaction();
-	}
-	return true;
+		"trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking");
 }
 
 BOOL EndScene::HookHelp::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook() {
@@ -12656,17 +12630,9 @@ bool EndScene::onDontResetRiscWhenInBurstOrFaintChanged() {
 		nullptr, "inHitstunBlockstunOrThrowProtectionOrDead");
 	if (!orig_inHitstunBlockstunOrThrowProtectionOrDead) return true;
 	auto inHitstunBlockstunOrThrowProtectionOrDeadHookPtr = &HookHelp::inHitstunBlockstunOrThrowProtectionOrDeadHook;
-	bool wasTransaction = detouring.isInTransaction();
-	if (!wasTransaction) {
-		detouring.beginTransaction(false);
-	}
-	if (!detouring.attach(&(PVOID&)orig_inHitstunBlockstunOrThrowProtectionOrDead,
+	return attach(&(PVOID&)orig_inHitstunBlockstunOrThrowProtectionOrDead,
 		(PVOID&)inHitstunBlockstunOrThrowProtectionOrDeadHookPtr,
-		"inHitstunBlockstunOrThrowProtectionOrDead")) return false;
-	if (!wasTransaction) {
-		detouring.endTransaction();
-	}
-	return true;
+		"inHitstunBlockstunOrThrowProtectionOrDead");
 }
 
 BOOL EndScene::HookHelp::inHitstunBlockstunOrThrowProtectionOrDeadHook() {
@@ -12692,17 +12658,7 @@ bool EndScene::onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstu
 		nullptr, "obtainingOfCounterhitTrainingSetting");
 	if (!callPlace) return true;
 	int offset = calculateRelativeCallOffset(callPlace, (uintptr_t)obtainingOfCounterhitTrainingSettingHookAsm);
-	bool wasTransaction = detouring.isInTransaction();
-	if (!wasTransaction) {
-		detouring.beginTransaction(false);
-	}
-	std::vector<char> newBytes(4);
-	memcpy(newBytes.data(), &offset, 4);
-	if (!detouring.patchPlace(callPlace + 1, newBytes)) return false;
-	if (!wasTransaction) {
-		detouring.endTransaction();
-	}
-	return true;
+	return overwriteCall(callPlace, offset);
 }
 
 int __cdecl obtainingOfCounterhitTrainingSettingHook(void* defender, void* trainingStruct, TrainingSettingId settingId, BOOL outsideTraining) {
@@ -12716,4 +12672,80 @@ int __cdecl obtainingOfCounterhitTrainingSettingHook(void* defender, void* train
 		return 0;
 	}
 	return game.getTrainingSetting(settingId);
+}
+
+// only return critical error as false, the rest as true
+bool EndScene::onStartingBurstGaugeChanged() {
+	int valP1 = minmax(0, 15000, settings.startingBurstGaugeP1);
+	int valP2 = minmax(0, 15000, settings.startingBurstGaugeP1);
+	if (valP1 == 15000
+			&& valP2 == 15000
+			|| attemptedToHookBurstGaugeReset) return true;
+	attemptedToHookBurstGaugeReset = true;
+	uintptr_t callPlace = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"85 c0 74 0c 68 98 3a 00 00 8b ce >e8",
+		nullptr, "burstGaugeReset");
+	if (!callPlace) return true;
+	addBurst = (addBurst_t)followRelativeCall(callPlace);
+	auto resetBurstHookPtr = &HookHelp::resetBurstHook;
+	int offset = calculateRelativeCallOffset(callPlace, (uintptr_t&)resetBurstHookPtr);
+	return overwriteCall(callPlace, offset);
+}
+
+void EndScene::HookHelp::resetBurstHook(int amount) {
+	endScene.resetBurstHook(Entity{(void*)this}, amount);
+}
+
+void EndScene::resetBurstHook(Entity pawn, int amout) {
+	
+	if (*gameModeFast != GAME_MODE_FAST_NORMAL) {
+		addBurst((void*)pawn.ent, 15000);
+		return;
+	}
+		
+	int team = pawn.team();
+	int needed = team == 0 ? settings.startingBurstGaugeP1 : settings.startingBurstGaugeP2;
+	needed = minmax(0, 15000, needed);
+	if (needed == 15000) {
+		addBurst((void*)pawn.ent, 15000);
+		return;
+	}
+	int currentBurst = game.getBurst(team);
+	int diff = needed - currentBurst;
+	if (diff <= 0) return;
+	addBurst((void*)pawn.ent, diff);
+}
+
+bool EndScene::overwriteCall(uintptr_t callInstr, int newOffset) {
+	bool wasTransaction = detouring.isInTransaction();
+	if (!wasTransaction) {
+		detouring.beginTransaction(false);
+	}
+	std::vector<char> newBytes(4);
+	memcpy(newBytes.data(), &newOffset, 4);
+	if (!detouring.patchPlace(callInstr + 1, newBytes)) return false;
+	if (!wasTransaction) {
+		detouring.endTransaction();
+	}
+	return true;
+}
+
+bool EndScene::attach(PVOID* ppPointer, PVOID pDetour, const char* name) {
+	// it is possible that we're already in transaction, as this function also gets called from onDllMain
+	bool wasTransaction = detouring.isInTransaction();
+	
+	// not freezing threads, because we moved UI.cpp::prepareDrawData to the main (logic) thread, and settings
+	// changed by overwriting the mod's INI file directly post a window message, so on main thread as well,
+	// and the function that we're about to hook only runs on the main thread
+	if (!wasTransaction) {
+		detouring.beginTransaction(false);
+	}
+	if (!detouring.attach(ppPointer,
+		pDetour,
+		name)) return false;
+	if (!wasTransaction) {
+		detouring.endTransaction();
+	}
+	return true;
 }

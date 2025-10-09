@@ -53,6 +53,7 @@ using multiplySpeedX_t = void(__thiscall*)(void* ent, int percentage);
 using pawnGetColor_t = DWORD(__thiscall*)(void* ent, DWORD* inColor);
 using trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking_t = BOOL(__thiscall*)(void* ent);
 using inHitstunBlockstunOrThrowProtectionOrDead_t = BOOL(__thiscall*)(void* ent);
+using addBurst_t = void(__thiscall*)(void* ent, int amount);
 
 struct FVector2D {
 	float X;
@@ -367,6 +368,7 @@ public:
 	bool onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged();
 	bool onDontResetRiscWhenInBurstOrFaintChanged();
 	bool onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
+	bool onStartingBurstGaugeChanged();
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -404,6 +406,7 @@ private:
 		DWORD pawnGetColorHook(DWORD* inColor);
 		BOOL trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook();
 		BOOL inHitstunBlockstunOrThrowProtectionOrDeadHook();
+		void resetBurstHook(int amount);
 	};
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
@@ -435,6 +438,7 @@ private:
 	DWORD pawnGetColorHook(Entity pawn, DWORD* inColor);
 	BOOL trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook(Entity pawn);
 	BOOL inHitstunBlockstunOrThrowProtectionOrDeadHook(Entity pawn);
+	void resetBurstHook(Entity pawn, int amount);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
@@ -738,6 +742,12 @@ private:
 	inHitstunBlockstunOrThrowProtectionOrDead_t orig_inHitstunBlockstunOrThrowProtectionOrDead = nullptr;
 	bool riscGaugeResettingHookAttempted = false;
 	bool attemptedToHookTheObtainingOfCounterhitTrainingSetting = false;
+	addBurst_t addBurst = nullptr;
+	bool attemptedToHookBurstGaugeReset = false;
+	// meant for use outside of onDllMain, but may be called from onDllMain as well
+	bool overwriteCall(uintptr_t callInstr, int newOffset);
+	// meant for use outside of onDllMain, but may be called from onDllMain as well
+	bool attach(PVOID* ppPointer, PVOID pDetour, const char* name);
 };
 
 extern EndScene endScene;

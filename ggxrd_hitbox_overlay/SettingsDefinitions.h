@@ -846,6 +846,20 @@ settingsField(int, startingTensionPulseP2, 0,
 	"; Works only in Training Mode. Upon a stage reset, the Tension Pulse of Player 2 will be set to this value.\n"
 	"; Must be in the range [-25000; +25000].")
 	
+settingsField(int, startingBurstGaugeP1, 15000,
+	"Starting Burst Gauge For Player 1", SETTINGS_GENERAL,
+	"; A number.\n"
+	"; Works only in Training Mode and if Pause Menu - Psych Burst is set to Infinite.\n"
+	"; Instead of to maximum, the Burst Gauge of Player 1 will be set to this value.\n"
+	"; Must be in the range [0; 15000]. Default value is 15000.")
+	
+settingsField(int, startingBurstGaugeP2, 15000,
+	"Starting Burst Gauge For Player 2", SETTINGS_GENERAL,
+	"; A number.\n"
+	"; Works only in Training Mode and if Pause Menu - Psych Burst is set to Infinite.\n"
+	"; Instead of to maximum, the Burst Gauge of Player 2 will be set to this value.\n"
+	"; Must be in the range [0; 15000]. Default value is 15000.")
+	
 settingsField(bool, hideWins, false,
 	"Hide Wins - On/Off", SETTINGS_GENERAL,
 	"; Specify true or false.\n"

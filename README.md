@@ -1019,6 +1019,18 @@ startingTensionPulseP1 = 0
 ; Must be in the range [-25000; +25000].
 startingTensionPulseP2 = 0
 
+; A number.
+; Works only in Training Mode and if Pause Menu - Psych Burst is set to Infinite.
+; Instead of to maximum, the Burst Gauge of Player 1 will be set to this value.
+; Must be in the range [0; 15000]. Default value is 15000.
+startingBurstGaugeP1 = 15000
+
+; A number.
+; Works only in Training Mode and if Pause Menu - Psych Burst is set to Infinite.
+; Instead of to maximum, the Burst Gauge of Player 2 will be set to this value.
+; Must be in the range [0; 15000]. Default value is 15000.
+startingBurstGaugeP2 = 15000
+
 ; Specify true or false.
 ; Prevents wins from being displayed on the online rematch screen.
 ; Works both when you're playing a match or observing.
@@ -1713,3 +1725,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 69) The Cancels panel now shows YRC windows. You can disable this in Settings - General Settings - Show YRC Windows In Cancels Panel.
 70) In Combo Recipe, when showing microwalks or microdashes is disabled but showing idle time is enabled, microwalks and/or microdashes will be converted to idle time and all idle time there will be fused together and displayed as one entry of #) (Idle Xf).
 71) Added options in General Settings to prevent RISC from resetting in Training Mode when that player is not entirely idle, like for example when performing a Burst, and to prevent Burst Gauge and Tension Gauge from resetting (this is all Training Mode) when one of the players is not entirely idle (here the example would be Faint/Dizziness animation), and to prevent Training Mode's Counter Hit - Forced/Random/Forced Mortal Counter setting from taking effect on opponents that are either in Burst or Faint/Dizziness animation.
+72) Added fields to enter starting burst gauge values for P1 and P2 in General Settings.
