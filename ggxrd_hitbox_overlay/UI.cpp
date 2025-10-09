@@ -13762,7 +13762,7 @@ void UI::printAllCancels(const T& cancels,
 	searchFieldTitle("Late Cancels");
 	searchFieldTitle("Jump cancel");
 	searchFieldTitle("Specials");
-	if (canYrc && settings.showYrcWindowsInCancelsPanel) {
+	if (canYrc) {
 		if (canYrc == (const char*)1) {
 			yellowText("YRC");
 		} else {

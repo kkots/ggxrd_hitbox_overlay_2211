@@ -1029,6 +1029,7 @@ settingsField(bool, disablePinButton, false,
 settingsField(bool, showYrcWindowsInCancelsPanel, true,
 	"Show YRC Windows In Cancels Panel", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
-	"; When false, the Cancels Panel will no longer show YRC windows.")
+	"; When false, the Cancels Panel will no longer show YRC windows.\n"
+	"; After changing this setting, you need to redo the move to update the display.")
 	
 #pragma warning(pop)

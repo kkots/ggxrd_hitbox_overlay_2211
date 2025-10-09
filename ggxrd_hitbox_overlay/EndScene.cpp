@@ -6856,11 +6856,15 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newCancelInfo.enableSpecials = false;
 				newCancelInfo.hitAlreadyHappened = hitAlreadyHappened;
 				newCancelInfo.airborne = player.airborne;
-				newCancelInfo.canYrc = player.canYrcProjectile
-					? player.canYrcProjectile
-					: player.wasCanYrc
-						? (const char*)1
-						: nullptr;
+				if (settings.showYrcWindowsInCancelsPanel) {
+					newCancelInfo.canYrc = player.canYrcProjectile
+						? player.canYrcProjectile
+						: player.wasCanYrc
+							? (const char*)1
+							: nullptr;
+				} else {
+					newCancelInfo.canYrc = nullptr;
+				}
 				player.appendPlayerCancelInfo(newCancelInfo);
 			}
 			
