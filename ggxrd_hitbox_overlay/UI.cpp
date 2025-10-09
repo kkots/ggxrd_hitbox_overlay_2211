@@ -602,6 +602,14 @@ bool UI::onDllMain(HMODULE hModule) {
 		IDB_BACCHUS_SIGH_FRAME, bacchusSighFrame,
 		IDB_BACCHUS_SIGH_FRAME_NON_COLORBLIND, bacchusSighFrameNonColorblind,
 		"Bacchus Sigh is ready to hit the opponent when in range.");
+	addFrameArt(hModule, FT_BACKDASH_RECOVERY,
+		IDB_BACKDASH_RECOVERY_FRAME, backdashRecoveryFrame,
+		"Backdash recovery: can attack, block and FD, but can't backdash."
+		" This is not cancelable by proximity blocking.");
+	addFrameArt(hModule, FT_NORMAL_LANDING_RECOVERY,
+		IDB_NORMAL_LANDING_RECOVERY_FRAME, normalLandingRecoveryFrame,
+		"Normal landing recovery: can attack, block and FD, but can't walk, dash, backdash, crouch, jump or superjump."
+		" This is cancelable by proximity blocking, meaning, if an attack is incoming, you can do all of those things anyway.");
 	
 	prepareSecondaryFrameArts(UITEX_HELP);  // need to call this to prevent null resource pointers in array indices > 0, so that packTexture doesn't trip over them
 	

@@ -249,6 +249,8 @@ private:
 	std::unique_ptr<PngResource> eddieIdleFrameNonColorblind;
 	std::unique_ptr<PngResource> bacchusSighFrame;
 	std::unique_ptr<PngResource> bacchusSighFrameNonColorblind;
+	std::unique_ptr<PngResource> backdashRecoveryFrame;
+	std::unique_ptr<PngResource> normalLandingRecoveryFrame;
 	std::unique_ptr<PngResource> pinResource;
 	enum UITextureType {
 		UITEX_HELP,

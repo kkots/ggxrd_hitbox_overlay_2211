@@ -1554,6 +1554,7 @@ public:
 	inline bool enableWhiffCancels() const { return (*(DWORD*)(ent + 0x4d48) & 0x2) != 0; }
 	inline bool enableSpecialCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x4) != 0; }
 	inline bool enableJumpCancel() const { return (*(DWORD*)(ent + 0x4d48) & 0x8) != 0; }
+	inline bool enableWalkForward() const { return (*(DWORD*)(ent + 0x4d3c) & 0x4) != 0; }
 	inline bool enableJump() const { return (*(DWORD*)(ent + 0x4d3c) & 0x100) != 0; }
 	inline bool enableAirOptions() const { return (*(DWORD*)(ent + 0x4d3c) & 0x400) != 0; }
 	inline bool enableNormals() const { return (*(DWORD*)(ent + 0x4d3c) & 0x1000) != 0; }

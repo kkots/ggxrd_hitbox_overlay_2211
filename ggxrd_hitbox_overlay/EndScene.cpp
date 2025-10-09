@@ -4833,6 +4833,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 								&& !player.prevFrameElpheltRifle_AimMem46
 							)
 						)
+						|| player.wasCantBackdashTimer != 0
+						|| player.cmnActIndex == CmnActJumpLanding
+						&& !player.pawn.enableWalkForward()
 					)
 					&& (
 						!settings.considerKnockdownWakeupAndAirtechIdle
@@ -6198,6 +6201,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& player.speedY != 0
 						&& !player.pawn.ascending()) {  // the last check idk if I need it
 					currentFrame.type = FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK;
+				} else if (player.wasCantBackdashTimer != 0) {
+					currentFrame.type = FT_BACKDASH_RECOVERY;
+				} else if (player.cmnActIndex == CmnActJumpLanding
+						&& player.idle && !player.pawn.enableWalkForward()) {
+					currentFrame.type = FT_NORMAL_LANDING_RECOVERY;
 				} else {
 					currentFrame.type = FT_IDLE;
 				}

@@ -83,12 +83,15 @@
 #define IDB_DIGIT_0_THICKNESS_1         208
 #define IDB_PNG1                        209
 #define IDB_PIN                         209
+#define IDB_BACKDASH_RECOVERY_FRAME     210
+#define IDB_PNG3                        211
+#define IDB_NORMAL_LANDING_RECOVERY_FRAME 211
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        210
+#define _APS_NEXT_RESOURCE_VALUE        212
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101

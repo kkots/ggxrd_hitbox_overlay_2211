@@ -705,5 +705,11 @@
     <Image Include="..\images\pin.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\images\BackdashRecoveryFrame.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\images\NormalLandingRecoveryFrame.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

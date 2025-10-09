@@ -419,6 +419,8 @@ enum FrameType : char {
 	FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK,
 	FT_IDLE_ELPHELT_RIFLE,
 	FT_IDLE_ELPHELT_RIFLE_READY,
+	FT_BACKDASH_RECOVERY,
+	FT_NORMAL_LANDING_RECOVERY,
 	FT_EDDIE_IDLE,
 	FT_BACCHUS_SIGH,
 	FT_HITSTOP,
@@ -550,8 +552,10 @@ inline FrameType frameMap(FrameType type) {
 		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE;
 		case FT_IDLE_ELPHELT_RIFLE:                 return FT_STARTUP;
 		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE;
+		case FT_BACKDASH_RECOVERY:                  return FT_IDLE;
+		case FT_NORMAL_LANDING_RECOVERY:            return FT_IDLE;
 		case FT_EDDIE_IDLE:                         return FT_EDDIE_IDLE;
-		case FT_BACCHUS_SIGH:                         return FT_BACCHUS_SIGH;
+		case FT_BACCHUS_SIGH:                       return FT_BACCHUS_SIGH;
 		case FT_HITSTOP:                            return FT_HITSTOP;
 		case FT_ACTIVE:                             return FT_ACTIVE;
 		case FT_ACTIVE_PROJECTILE:                  return FT_ACTIVE_PROJECTILE;
@@ -604,6 +608,8 @@ inline FrameType frameMapNoIdle(FrameType type) {
 		case FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK: return FT_IDLE_AIRBORNE_BUT_CAN_GROUND_BLOCK;
 		case FT_IDLE_ELPHELT_RIFLE:                 return FT_IDLE_ELPHELT_RIFLE;
 		case FT_IDLE_ELPHELT_RIFLE_READY:           return FT_IDLE_ELPHELT_RIFLE_READY;
+		case FT_BACKDASH_RECOVERY:                  return FT_BACKDASH_RECOVERY;
+		case FT_NORMAL_LANDING_RECOVERY:            return FT_NORMAL_LANDING_RECOVERY;
 		case FT_EDDIE_IDLE:                         return FT_EDDIE_IDLE;
 		case FT_BACCHUS_SIGH:                       return FT_BACCHUS_SIGH;
 		case FT_HITSTOP:                            return FT_HITSTOP;
@@ -649,10 +655,10 @@ inline FrameType frameMapNoIdle(FrameType type) {
 inline bool frameIsRed(FrameType type) {
 	return type == FT_ACTIVE
 		|| type == FT_ACTIVE_PROJECTILE
-		|| FT_EDDIE_ACTIVE
-		|| FT_ACTIVE_NEW_HIT
-		|| FT_ACTIVE_NEW_HIT_PROJECTILE
-		|| FT_EDDIE_ACTIVE_NEW_HIT;
+		|| type == FT_EDDIE_ACTIVE
+		|| type == FT_ACTIVE_NEW_HIT
+		|| type == FT_ACTIVE_NEW_HIT_PROJECTILE
+		|| type == FT_EDDIE_ACTIVE_NEW_HIT;
 }
 
 struct FrameStopInfo {

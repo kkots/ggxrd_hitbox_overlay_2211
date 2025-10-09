@@ -360,6 +360,7 @@
     <Image Include="..\images\ActiveFrame_NonColorblind.png" />
     <Image Include="..\images\BacchusSighFrame.png" />
     <Image Include="..\images\BacchusSighFrame_NonColorblind.png" />
+    <Image Include="..\images\BackdashRecoveryFrame.png" />
     <Image Include="..\images\Digit0.png" />
     <Image Include="..\images\Digit0_thickness1.png" />
     <Image Include="..\images\Digit1.png" />
@@ -402,6 +403,7 @@
     <Image Include="..\images\NonActiveFrame_CanCancel_NonColorblind.png" />
     <Image Include="..\images\NonActiveFrame_NonColorblind.png" />
     <Image Include="..\images\NoneFrame.png" />
+    <Image Include="..\images\NormalLandingRecoveryFrame.png" />
     <Image Include="..\images\OTG.png" />
     <Image Include="..\images\pin.png" />
     <Image Include="..\images\ProjectileFrame.png" />
