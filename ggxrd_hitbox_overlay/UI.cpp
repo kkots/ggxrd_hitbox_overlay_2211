@@ -284,7 +284,7 @@ static void drawTextButParenthesesInGrayColor(const char* str);
 static void printActiveWithMaxHit(const ActiveDataArray& active, const MaxHitInfo& maxHit, int hitOnFrame);
 static void drawPlayerIconInWindowTitle(int playerIndex);
 static void drawPlayerIconInWindowTitle(GGIcon& icon);
-static void drawTextInWindowTitle(const char* txt, bool hasPinIcon);
+static void drawTextInWindowTitle(const char* txt);
 static bool printMoveFieldTooltip(const PlayerInfo& player);
 static bool printMoveField(const PlayerInfo& player);
 static void headerThatCanBeClickedForTooltip(const char* title, PinnedWindowEnum windowIndex, bool makeTooltip);
@@ -866,7 +866,7 @@ void UI::drawSearchableWindows() {
 	
 	if (needDraw(PinnedWindowEnum_MainWindow)) {
 		customBegin(PinnedWindowEnum_MainWindow);
-		drawTextInWindowTitle(windowTitle.c_str(), lastCustomBeginHadPinButton);
+		drawTextInWindowTitle(windowTitle.c_str());
 		pushSearchStack("Main UI Window");
 		
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Framedata"), ImGuiTreeNodeFlags_DefaultOpen) || searching) {
@@ -13730,7 +13730,7 @@ void drawPlayerIconInWindowTitle(int playerIndex) {
 }
 
 // runs on the main thread
-void drawTextInWindowTitle(const char* txt, bool hasPinIcon) {
+void drawTextInWindowTitle(const char* txt) {
 	ImVec2 windowPos = ImGui::GetWindowPos();
 	float windowWidth = ImGui::GetWindowWidth();
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -13741,7 +13741,7 @@ void drawTextInWindowTitle(const char* txt, bool hasPinIcon) {
 	};
 	ImVec2 clipEnd {
 		windowPos.x + windowWidth - style.FramePadding.x - fontSize - style.ItemInnerSpacing.x
-			- (hasPinIcon ? 19.F + style.ItemInnerSpacing.x : 0.F),
+			- (ui.lastCustomBeginHadPinButton ? 19.F + style.ItemInnerSpacing.x : 0.F),
 		startPos.y + 1000.F  // ImGui::CalcTextSize(txt).y produces height that was too small, and tails of y's were cut off
 	};
 	if (clipEnd.x > startPos.x) {
@@ -13767,7 +13767,8 @@ void drawPlayerIconInWindowTitle(GGIcon& icon) {
 		windowPos.y + style.FramePadding.y
 	};
 	ImVec2 clipEnd {
-		windowPos.x + windowWidth - style.FramePadding.x - fontSize - style.ItemInnerSpacing.x,
+		windowPos.x + windowWidth - style.FramePadding.x - fontSize - style.ItemInnerSpacing.x
+			- (ui.lastCustomBeginHadPinButton ? 19.F + style.ItemInnerSpacing.x : 0.F),
 		startPos.y + icon.size.y
 	};
 	if (clipEnd.x > startPos.x) {

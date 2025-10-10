@@ -8,6 +8,8 @@
 #include "LineReaderFromString.h"
 #include "Settings.h"
 
+std::vector<HMODULE> allModules;
+
 const char* SIGSCAN_CACHE_FILE_NAME = "ggxrd_hitbox_overlay_sigscanCache.txt";
 
 int sigscanOrder = 0;
@@ -238,34 +240,34 @@ void loadSigscanCache() {
 static void determineNameSection(uintptr_t start, const char** moduleNameResult, const char** sectionResult, uintptr_t* wholeModuleStart) {
 	static char nameBuf[256];
 	static char sectionBuf[16] { 0 };
-	HMODULE hModArray[256];
-	DWORD cbNeeded = 0;
-	HMODULE* ptr = hModArray;
-	std::vector<HMODULE> allModules;
 	HANDLE currentProc = GetCurrentProcess();
-	if (!EnumProcessModules(currentProc, hModArray, sizeof hModArray, &cbNeeded)) {
-		return;
-	}
-	if (cbNeeded > sizeof hModArray) {
+	
+	if (allModules.empty()) {
+		DWORD cbNeeded = 0;
+		if (!EnumProcessModules(currentProc, NULL, 0, &cbNeeded)) {
+			return;
+		}
+		
 		while (true) {
 			allModules.resize(cbNeeded / sizeof HMODULE);
-			ptr = allModules.data();
 			DWORD cbSize = allModules.size() * sizeof HMODULE;
 			if (!EnumProcessModules(currentProc, allModules.data(), cbSize, &cbNeeded)) {
 				return;
 			}
 			if (cbNeeded <= cbSize) break;
 		}
+		allModules.resize(cbNeeded / sizeof HMODULE);
 	}
+	
 	MODULEINFO modInfo;
-	DWORD hModCount = cbNeeded / sizeof HMODULE;
+	DWORD hModCount = (DWORD)allModules.size();
 	for (DWORD i = 0; i < hModCount; ++i) {
-		HMODULE hMod = ptr[i];
+		HMODULE hMod = allModules[i];
 		if (!GetModuleInformation(currentProc, hMod, &modInfo, sizeof MODULEINFO)) {
 			continue;
 		}
 		if (start >= (uintptr_t)modInfo.lpBaseOfDll && start < (uintptr_t)modInfo.lpBaseOfDll + modInfo.SizeOfImage) {
-			if (!GetModuleBaseNameA(currentProc, hMod, nameBuf, 256)) {
+			if (!GetModuleBaseNameA(currentProc, hMod, nameBuf, sizeof nameBuf)) {
 				return;
 			}
 			const IMAGE_DOS_HEADER* dosHeader = (const IMAGE_DOS_HEADER*)modInfo.lpBaseOfDll;

@@ -160,6 +160,7 @@ public:
 	void onVisibilityToggleKeyboardShortcutPressed();
 	bool isVisible() const;
 	void onDisablePinButtonChanged(bool postedFromOutsideUI);
+	bool lastCustomBeginHadPinButton = false;
 private:
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
@@ -460,7 +461,6 @@ private:
 	} windowShowMode = WindowShowMode_All;
 	bool lastCustomBeginPushedAStyle = false;
 	bool lastCustomBeginPushedOutlinedText = false;
-	bool lastCustomBeginHadPinButton = false;
 	PinnedWindowEnum lastCustomBeginIndex = (PinnedWindowEnum)-1;
 	bool lastWindowClosed = false;
 	bool hasAtLeastOnePinnedOpenWindow() const;

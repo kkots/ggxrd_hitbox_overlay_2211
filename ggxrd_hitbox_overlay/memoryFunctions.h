@@ -198,6 +198,7 @@ void loadSigscanCache();
 // used to signal when it is time to write sigscan cache results into the file
 void finishedSigscanning();
 
+extern std::vector<HMODULE> allModules;
 extern HMODULE hInst;
 bool thisIsOurFunction(uintptr_t functionAddr);
 
