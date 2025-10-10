@@ -368,12 +368,15 @@ bool Game::sigscanAfterHitDetector() {
 	uintptr_t getTrainingSettingCallPlace = 0;
 	if (hitDetector.activeFrameHit) {
 		getTrainingSettingCallPlace = sigscanForward(hitDetector.activeFrameHit,
-			"6a 0b 89 6c 24 30 e8 ?? ?? ?? ?? 8b c8 e8 ?? ?? ?? ??",
+			"6a 0b 89 6c 24 30 e8 ?? ?? ?? ?? 8b c8 >e8 ?? ?? ?? ??",
 			0xc00);
 	}
 	
 	if (getTrainingSettingCallPlace) {
-		getTrainingSettingPtr = (getTrainingSetting_t)followRelativeCall(getTrainingSettingCallPlace + 13);
+		getTrainingSettingPtr = (getTrainingSetting_t)followRelativeCall(getTrainingSettingCallPlace);
+		if (thisIsOurFunction((uintptr_t)getTrainingSettingPtr)) {
+			getTrainingSettingPtr = endScene.orig_getTrainingSetting;  // you motherfucker, 
+		}
 	}
 	
 	if (hitDetector.orig_dealHit) {

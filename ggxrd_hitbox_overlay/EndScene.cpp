@@ -12685,6 +12685,12 @@ bool EndScene::onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstu
 		"55 6a 0b 89 6c 24 30 e8 ?? ?? ?? ?? 8b c8 >e8",
 		nullptr, "obtainingOfCounterhitTrainingSetting");
 	if (!callPlace) return true;
+	
+	getTrainingSetting_t whatIsThere = (getTrainingSetting_t)followRelativeCall(callPlace);
+	if (!thisIsOurFunction((uintptr_t)whatIsThere)) {
+		orig_getTrainingSetting = whatIsThere;
+	}
+	
 	int offset = calculateRelativeCallOffset(callPlace, (uintptr_t)obtainingOfCounterhitTrainingSettingHookAsm);
 	return overwriteCall(callPlace, offset);
 }

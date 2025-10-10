@@ -1389,3 +1389,9 @@ bool SigscanCacheEntry::equal(const SigscanCacheEntry& other) const {
 			&& maskForCaching.size() == other.maskForCaching.size()
 			&& (maskForCaching.empty() || memcmp(maskForCaching.data(), other.maskForCaching.data(), maskForCaching.size()) == 0);
 }
+
+bool thisIsOurFunction(uintptr_t functionAddr) {
+	uintptr_t textStart, textEnd, wholeModuleBegin;
+	getModuleBoundsHandle(hInst, ".text", &textStart, &textEnd, &wholeModuleBegin);
+	return functionAddr >= textStart && functionAddr < textEnd;
+}

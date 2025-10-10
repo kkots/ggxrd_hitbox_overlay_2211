@@ -270,6 +270,9 @@
     <ClInclude Include="PinnedWindowList.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="trainingSettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">

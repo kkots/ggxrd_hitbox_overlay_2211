@@ -80,7 +80,7 @@ struct PerformanceMeasurementEnder {
 
 static D3DXMATRIX identity;
 
-bool Graphics::onDllMain(HMODULE hInstance) {
+bool Graphics::onDllMain() {
 	bool error = false;
 	uintptr_t UpdateD3DDeviceFromViewportsCallPlace = sigscanOffset(
 		GUILTY_GEAR_XRD_EXE,
@@ -138,8 +138,6 @@ bool Graphics::onDllMain(HMODULE hInstance) {
 		logwrap(fprintf(logfile, "Failed to create event: %ls\n", winErr.getMessage()));
 		return false;
 	}
-	
-	this->hInstance = hInstance;
 	
 	D3DXMatrixIdentity(&identity);
 	
@@ -2360,7 +2358,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 	
 	if (pixelShaderCode && vertexShaderCode) return true;
 	
-	HRSRC resourceInfoHandle = FindResourceW(hInstance, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
+	HRSRC resourceInfoHandle = FindResourceW(hInst, MAKEINTRESOURCEW(IDR_MY_PIXEL_SHADER), L"HLSL");
 	if (!resourceInfoHandle) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "FindResource failed: %ls\n", winErr.getMessage()));
@@ -2370,7 +2368,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		failedToCompilePixelShader = true;
 		return false;
 	}
-	HGLOBAL resourceHandle = LoadResource(hInstance, resourceInfoHandle);
+	HGLOBAL resourceHandle = LoadResource(hInst, resourceInfoHandle);
 	if (!resourceHandle) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "LoadResource failed: %ls\n", winErr.getMessage()));
@@ -2390,7 +2388,7 @@ bool Graphics::compilePixelShader(std::string& errorMsg) {
 		failedToCompilePixelShader = true;
 		return false;
 	}
-	DWORD txtSize = SizeofResource(hInstance, resourceInfoHandle);
+	DWORD txtSize = SizeofResource(hInst, resourceInfoHandle);
 	if (!txtSize) {
 		WinError winErr;
 		logwrap(fprintf(logfile, "SizeofResource failed: %ls\n", winErr.getMessage()));

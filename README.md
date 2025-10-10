@@ -1713,6 +1713,7 @@ This won't affect existing users who update the mod (if they ever changed any se
 51) Added Baiken j.D "Can YRC, and projectile/powerup will stay" frame tooltip.
 52) Fixed damage calculation for hellfire supers in "Damage/RISC/Stun Calculation" panel. Previously was ignoring hellfire if hp was > 10%.
 53) Compared to version 6.28, fixed a crash caused by certain projectiles not having a name in the framebar at all.
+- 2025 October 10: Version 7.0:
 54) Added a list of projectiles Potemkin can flick to his Character Specific panel. Same for Faust, Zato, Leo, Dizzy (Zato, Leo and Dizzy share the same projectiles list).
 55) Fixed higher level projectiles clashing with lower level projectiles being displayed in the framebar as just the lower level projectile clashing with nothing using the white frame inner outline and text description "A hit connected on this frame." A good example of this is Sol DI Gunflame vs Stun Edge. The game doesn't even make higher level projectiles aware that a clash happened so we now work around that. Similarly, added "A hit connected on this frame." framebar indicator to projectiles being reflected and the one reflecting them.
 56) Added purple health display to Raven's Character Specific panel.

@@ -29,7 +29,7 @@ using Present_t = HRESULT(__stdcall*)(IDirect3DDevice9* device, const RECT* pSou
 class Graphics
 {
 public:
-	bool onDllMain(HMODULE hInstance);
+	bool onDllMain();
 	void onDllDetach();
 	void onShutdown();
 	void drawAllFromOutside(IDirect3DDevice9* device);
@@ -303,7 +303,6 @@ private:
 	CComPtr<IDirect3DTexture9> outlinesRTSamplingTexture = nullptr;
 	bool failedToCreateOutlinesRTSamplingTexture = false;
 	
-	HMODULE hInstance = NULL;
 	bool compilePixelShader(std::string& errorMsg);
 	bool failedToCompilePixelShader = false;
 	std::string lastCompilationFailureReason;

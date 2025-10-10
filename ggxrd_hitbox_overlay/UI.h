@@ -53,7 +53,7 @@ struct ButtonSettings {
 class UI
 {
 public:
-	bool onDllMain(HMODULE hModule);
+	bool onDllMain();
 	void onDllDetachStage1_killTimer();
 	void onDllDetachGraphics();
 	void onDllDetachNonGraphics();
@@ -257,15 +257,15 @@ private:
 		UITEX_FRAMEBAR
 	};
 	void prepareSecondaryFrameArts(UITextureType type);
-	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
+	void addFrameArt(FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
                  WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, StringWithLength description);
-	void addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description);
-	void addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType,
+	void addFrameArt(FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description);
+	void addFrameMarkerArt(FrameMarkerType markerType,
 			WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions,
 			DWORD outlineColorNonColorblind, DWORD outlineColorColorblind,
 			bool hasMiddleLineNonColorblind, bool hasMiddleLineColorblind);
-	bool addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource);
-	bool addDigit(HMODULE hModule, WORD resourceId, WORD resourceIdThickness1, DigitFrame& digit);
+	bool addImage(WORD resourceId, std::unique_ptr<PngResource>& resource);
+	bool addDigit(WORD resourceId, WORD resourceIdThickness1, DigitFrame& digit);
 	PngResource packedTextureHelp;  // do not change this once it is created
 	void packTexture(PngResource& packedTexture, UITextureType type, const PackTextureSizes* sizes);
 	void packTextureHelp();

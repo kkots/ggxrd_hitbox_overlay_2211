@@ -17,6 +17,7 @@
 #include "HitDetectionType.h"
 #include "PackTextureSizes.h"
 #include "PngResource.h"
+#include "trainingSettings.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, BBScrPosType posType);
@@ -369,6 +370,7 @@ public:
 	bool onDontResetRiscWhenInBurstOrFaintChanged();
 	bool onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
 	bool onStartingBurstGaugeChanged();
+	getTrainingSetting_t orig_getTrainingSetting = nullptr;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();

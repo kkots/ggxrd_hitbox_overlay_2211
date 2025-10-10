@@ -56,7 +56,7 @@ int findLast(const CrossPlatformString& str, CrossPlatformChar character) {
     auto it = str.cend();
     --it;
     while (true) {
-        if (*it == character) return it - str.cbegin();
+        if (*it == character) return (int)(it - str.cbegin());
         if (it == str.cbegin()) return -1;
         --it;
     }
@@ -106,7 +106,7 @@ int sigscan(const char* start, const char* end, const char* sig, const char* mas
         for (const char* maskPtr = mask; true; ++maskPtr) {
             const char maskPtrChar = *maskPtr;
             if (maskPtrChar != '?') {
-                if (maskPtrChar == '\0') return startPtr - start;
+                if (maskPtrChar == '\0') return (int)(startPtr - start);
                 if (*sigPtr != *stringPtr) break;
             }
             ++sigPtr;
@@ -122,7 +122,7 @@ uintptr_t sigscan(FILE* file, const char* sig, const char* mask) {
     public:
         DoThisWhenExiting(FILE* file, size_t originalPos) : file(file), originalPos(originalPos) { }
         ~DoThisWhenExiting() {
-            fseek(file, originalPos, SEEK_SET);
+            fseek(file, (long)originalPos, SEEK_SET);
         }
         FILE* file = nullptr;
         size_t originalPos = 0;
@@ -214,7 +214,7 @@ std::string repeatCharNTimes(char charToRepeat, int times) {
 
 bool writeStringToFile(FILE* file, size_t pos, const std::string& stringToWrite, char* fileLocationInRam) {
     memcpy(fileLocationInRam, stringToWrite.c_str(), stringToWrite.size() + 1);
-    fseek(file, pos, SEEK_SET);
+    fseek(file, (long)pos, SEEK_SET);
     size_t writtenBytes = fwrite(stringToWrite.c_str(), 1, stringToWrite.size() + 1, file);
     if (writtenBytes != stringToWrite.size() + 1) {
         CrossPlatformPerror(CrossPlatformText("Error writing to file"));
@@ -236,7 +236,7 @@ struct Section {
     char name[8];
 	std::string nameAsString() const {
 		std::string result;
-		int len = strnlen(name, 8);
+		int len = (int)strnlen(name, 8);
 		if (len == 8) {
 			result.assign(name, 8);
 		} else {
@@ -442,13 +442,13 @@ void meatOfTheProgram() {
 	#endif
 
     #ifndef FOR_LINUX
-    std::vector<WCHAR> szFile(MAX_PATH, L'\0');
+    std::vector<WCHAR> szFileBuf(MAX_PATH, L'\0');
 
     OPENFILENAMEW selectedFiles{ 0 };
     selectedFiles.lStructSize = sizeof(OPENFILENAMEW);
     selectedFiles.hwndOwner = NULL;
-    selectedFiles.lpstrFile = szFile.data();
-    selectedFiles.nMaxFile = szFile.size() + 1;
+    selectedFiles.lpstrFile = szFileBuf.data();
+    selectedFiles.nMaxFile = (DWORD)szFileBuf.size();
     // it says "Windows Executable\0*.EXE\0"
 	char scramble[] =
 		"\x4d\xf6\x5f\xf6\x64\xf6\x5a\xf6\x65\xf6\x6d\xf6\x69\xf6\x16\xf6\x3b\xf6"
@@ -478,7 +478,8 @@ void meatOfTheProgram() {
         }
         return;
     }
-    szFile.resize(lstrlenW(szFile.c_str()));
+    
+    std::wstring szFile = szFileBuf.data();
     #else
     std::string szFile;
     GetLine(szFile);
@@ -523,7 +524,7 @@ void meatOfTheProgram() {
     #endif
 
     FILE* file = nullptr;
-    if (!crossPlatformOpenFile(&file, szFile)) return;
+    if (!crossPlatformOpenFile(&file, szFile.c_str())) return;
 
     std::vector<char> wholeFile;
     if (!readWholeFile(file, wholeFile)) return;
@@ -543,8 +544,8 @@ void meatOfTheProgram() {
 
     std::string stringToWrite = "ggxrd_hitbox_overlay.dll";
     // thunk_... functions have huge regions of these
-    std::string sig = repeatCharNTimes('\xCC', stringToWrite.size() + 1);
-    std::string mask = repeatCharNTimes('x', stringToWrite.size() + 1);
+    std::string sig = repeatCharNTimes('\xCC', (int)stringToWrite.size() + 1);
+    std::string mask = repeatCharNTimes('x', (int)stringToWrite.size() + 1);
 
     int stringInsertionPlace = sigscan(wholeFileBegin, wholeFileEnd,
         sig.c_str(),
@@ -581,8 +582,8 @@ void meatOfTheProgram() {
         + 5 // JMP rel32
         ;
 
-    sig = repeatCharNTimes('\xCC', requiredCodeSize);
-    mask = repeatCharNTimes('x', requiredCodeSize);
+    sig = repeatCharNTimes('\xCC', (int)requiredCodeSize);
+    mask = repeatCharNTimes('x', (int)requiredCodeSize);
 
     int codeInsertionPlace = sigscan(wholeFileBegin, wholeFileEnd,
         sig.c_str(),
@@ -607,7 +608,7 @@ void meatOfTheProgram() {
             CrossPlatformCout << ",\n";
         }
         isFirst = false;
-        CrossPlatformCout << "{\n\tname: \"" << section.nameAsString() << "\""
+        CrossPlatformCout << "{\n\tname: \"" << section.nameAsString().c_str() << "\""
             << ",\n\tvirtualSize: 0x" << section.virtualSize
             << ",\n\tvirtualAddress: 0x" << section.virtualAddress
             << ",\n\trawSize: 0x" << section.rawSize
@@ -655,7 +656,7 @@ void meatOfTheProgram() {
     DWORD newRelocSize = relocSizeRoundUp + 12;  // into the relocation table we'll insert both the PUSH string and the LoadLibraryA call into a single block
     fwrite(&newRelocSize, 4, 1, file);
 
-    DWORD relocInFile = rvaToRaw(sections, relocRva) + relocSizeRoundUp;
+    DWORD relocInFile = (DWORD)rvaToRaw(sections, relocRva) + relocSizeRoundUp;
     fseek(file, relocInFile, SEEK_SET);
 
 

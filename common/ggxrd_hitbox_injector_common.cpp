@@ -372,7 +372,7 @@ bool injectorTask(DWORD procId) {
 	
 	if (wcscmp(ptr, exe) != 0) {
 		WinError winErr;
-		outputObject << L"The name of the found process is not '" << exe << L"\n";;
+		outputObject << L"The name of the found process is not '" << exe << L"'\n";;
 		return false;
 	}
 	

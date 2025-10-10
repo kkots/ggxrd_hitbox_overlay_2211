@@ -198,4 +198,7 @@ void loadSigscanCache();
 // used to signal when it is time to write sigscan cache results into the file
 void finishedSigscanning();
 
+extern HMODULE hInst;
+bool thisIsOurFunction(uintptr_t functionAddr);
+
 extern const char* SIGSCAN_CACHE_FILE_NAME;

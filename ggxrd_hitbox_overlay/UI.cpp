@@ -418,7 +418,7 @@ struct PerformanceMeasurementEnder {
 #endif
 
 // runs on the thread that is loading the DLL
-bool UI::onDllMain(HMODULE hModule) {
+bool UI::onDllMain() {
 	
 	for (int i = 0; i < 25; ++i) {
 		characterIcons[i] = coordsToGGIcon(1 + 42 * i, 1135, 41, 41);
@@ -449,12 +449,12 @@ bool UI::onDllMain(HMODULE hModule) {
 		}
 	}
 	#define blockFDNotice " May or may not be able to block or FD - this information is not displayed in the frame color graphic. In general should be unable to block/FD."
-	addFrameArt(hModule, FT_ACTIVE,
+	addFrameArt(FT_ACTIVE,
 		IDB_ACTIVE_FRAME, activeFrame,
 		IDB_ACTIVE_FRAME_NON_COLORBLIND, activeFrameNonColorblind,
 		"Active: an attack is currently active. Cannot perform another attack."
 		blockFDNotice);
-	addFrameArt(hModule, FT_ACTIVE_NEW_HIT,
+	addFrameArt(FT_ACTIVE_NEW_HIT,
 		IDB_ACTIVE_FRAME_NEW_HIT, activeFrameNewHit,
 		IDB_ACTIVE_FRAME_NEW_HIT_NON_COLORBLIND, activeFrameNewHitNonColorblind,
 		"Active, new (potential) hit has started: an attack is currently active. The black shadow on the left side of the frame"
@@ -465,12 +465,12 @@ bool UI::onDllMain(HMODULE hModule) {
 		" When the second hit happens the situation resets and you need another \"new hit\" frame to do an actual hit and so on."
 		" Cannot perform another attack."
 		blockFDNotice);
-	addFrameArt(hModule, FT_ACTIVE_HITSTOP,
+	addFrameArt(FT_ACTIVE_HITSTOP,
 		IDB_ACTIVE_FRAME_HITSTOP, activeFrameHitstop,
 		IDB_ACTIVE_FRAME_HITSTOP_NON_COLORBLIND, activeFrameHitstopNonColorblind,
 		"Active: an attack is currently active and the attacking player is in hitstop. Cannot perform another attack."
 		blockFDNotice);
-	#define addDigitMacro(n) addDigit(hModule, IDB_DIGIT_##n, IDB_DIGIT_##n##_THICKNESS_1, digitFrame[n])
+	#define addDigitMacro(n) addDigit(IDB_DIGIT_##n, IDB_DIGIT_##n##_THICKNESS_1, digitFrame[n])
 	addDigitMacro(0);
 	addDigitMacro(1);
 	addDigitMacro(2);
@@ -482,131 +482,131 @@ bool UI::onDllMain(HMODULE hModule) {
 	addDigitMacro(8);
 	addDigitMacro(9);
 	#undef addDigitMacro
-	addFrameArt(hModule, FT_IDLE, IDB_IDLE_FRAME, idleFrame,
+	addFrameArt(FT_IDLE, IDB_IDLE_FRAME, idleFrame,
 		"Idle: can attack, block and FD.");
-	addFrameArt(hModule, FT_IDLE_CANT_BLOCK,
+	addFrameArt(FT_IDLE_CANT_BLOCK,
 		IDB_IDLE_FRAME_CANT_BLOCK, idleFrameCantBlock,
 		IDB_IDLE_FRAME_CANT_BLOCK_NON_COLORBLIND, idleFrameCantBlockNonColorblind,
 		"Idle, but can't block: can only attack.");
-	addFrameArt(hModule, FT_IDLE_CANT_FD,
+	addFrameArt(FT_IDLE_CANT_FD,
 		IDB_IDLE_FRAME_CANT_FD, idleFrameCantFD,
 		IDB_IDLE_FRAME_CANT_FD_NON_COLORBLIND, idleFrameCantFDNonColorblind,
 		"Idle, but can't FD: can only attack and regular block.");
-	addFrameArt(hModule, FT_IDLE_ELPHELT_RIFLE,
+	addFrameArt(FT_IDLE_ELPHELT_RIFLE,
 		IDB_IDLE_FRAME_ELPHELT_RIFLE, idleFrameElpheltRifle,
 		IDB_IDLE_FRAME_ELPHELT_RIFLE_NON_COLORBLIND, idleFrameElpheltRifleNonColorblind,
 		"Idle: can cancel stance with specials, but not fire yet. Can't block or FD.");
-	addFrameArt(hModule, FT_STARTUP_STANCE_CAN_STOP_HOLDING,
+	addFrameArt(FT_STARTUP_STANCE_CAN_STOP_HOLDING,
 		IDB_IDLE_FRAME_ELPHELT_RIFLE_CAN_STOP_HOLDING, idleFrameElpheltRifleCanStopHolding,
 		IDB_IDLE_FRAME_ELPHELT_RIFLE_CAN_STOP_HOLDING_NON_COLORBLIND, idleFrameElpheltRifleCanStopHoldingNonColorblind,
 		"Being in some form of stance: can cancel into one or more specials. Can release the button to cancel stance. Can't block or FD or perform normal attacks.");
-	addFrameArt(hModule, FT_LANDING_RECOVERY,
+	addFrameArt(FT_LANDING_RECOVERY,
 		IDB_LANDING_RECOVERY_FRAME, landingRecoveryFrame,
 		IDB_LANDING_RECOVERY_FRAME_NON_COLORBLIND, landingRecoveryFrameNonColorblind,
 		"Landing recovery: can't perform another attack."
 		blockFDNotice);
-	addFrameArt(hModule, FT_LANDING_RECOVERY_CAN_CANCEL,
+	addFrameArt(FT_LANDING_RECOVERY_CAN_CANCEL,
 		IDB_LANDING_RECOVERY_FRAME_CAN_CANCEL, landingRecoveryFrameCanCancel,
 		IDB_LANDING_RECOVERY_FRAME_CAN_CANCEL_NON_COLORBLIND, landingRecoveryFrameCanCancelNonColorblind,
 		"Landing recovery: can't perform a regular attack, but can cancel into certain moves."
 		blockFDNotice);
-	addFrameArt(hModule, FT_NON_ACTIVE,
+	addFrameArt(FT_NON_ACTIVE,
 		IDB_NON_ACTIVE_FRAME, nonActiveFrame,
 		IDB_NON_ACTIVE_FRAME_NON_COLORBLIND, nonActiveFrameNonColorblind,
 		"Non-active: a frame inbetween active frames of an attack."
 		" Cannot perform another attack."
 		blockFDNotice);
-	addFrameArt(hModule, FT_PROJECTILE,
+	addFrameArt(FT_PROJECTILE,
 		IDB_PROJECTILE_FRAME, projectileFrame,
 		IDB_PROJECTILE_FRAME_NON_COLORBLIND, projectileFrameNonColorblind,
 		"Projectile: a projectile's attack is active. Can't perform another attack."
 		blockFDNotice);
-	addFrameArt(hModule, FT_RECOVERY,
+	addFrameArt(FT_RECOVERY,
 		IDB_RECOVERY_FRAME, recoveryFrame,
 		IDB_RECOVERY_FRAME_NON_COLORBLIND, recoveryFrameNonColorblind,
 		"Recovery: an attack's active frames are already over or projectile active frames have started. Can't perform another attack."
 		blockFDNotice);
-	addFrameArt(hModule, FT_RECOVERY_HAS_GATLINGS,
+	addFrameArt(FT_RECOVERY_HAS_GATLINGS,
 		IDB_RECOVERY_FRAME_HAS_GATLINGS, recoveryFrameHasGatlings,
 		IDB_RECOVERY_FRAME_HAS_GATLINGS_NON_COLORBLIND, recoveryFrameHasGatlingsNonColorblind,
 		"Recovery, but can gatling or cancel or release: an attack's active frames are already over 9or projectile active frames have started),"
 		" but can gatling or cancel into some other attacks"
 		" or release the button to end the attack sooner."
 		blockFDNotice);
-	addFrameArt(hModule, FT_RECOVERY_CAN_ACT,
+	addFrameArt(FT_RECOVERY_CAN_ACT,
 		IDB_RECOVERY_FRAME_CAN_ACT, recoveryFrameCanAct,
 		IDB_RECOVERY_FRAME_CAN_ACT_NON_COLORBLIND, recoveryFrameCanActNonColorblind,
 		"Recovery, but can gatling or cancel or more: an attack's active frames are already over (or projectile active frames have started),"
 		" but can gatling into some other attacks or do other actions."
 		blockFDNotice);
 	#undef blockFDNotice
-	addFrameArt(hModule, FT_STARTUP,
+	addFrameArt(FT_STARTUP,
 		IDB_STARTUP_FRAME, startupFrame,
 		IDB_STARTUP_FRAME_NON_COLORBLIND, startupFrameNonColorblind,
 		"Startup: an attack's active frames have not yet started, or this is not an attack."
 		" Can't perform another attack, can't block and can't FD.");
-	addFrameArt(hModule, FT_STARTUP_CAN_BLOCK,
+	addFrameArt(FT_STARTUP_CAN_BLOCK,
 		IDB_STARTUP_FRAME_CAN_BLOCK, startupFrameCanBlock,
 		IDB_STARTUP_FRAME_CAN_BLOCK_NON_COLORBLIND, startupFrameCanBlockNonColorblind,
 		"Startup, but can block:"
 		" an attack's active frames have not yet started, or this is not an attack."
 		" Can't perform another attack, but can block and/or maybe FD.");
-	addFrameMarkerArt(hModule, MARKER_TYPE_STRIKE_INVUL, IDB_STRIKE_INVUL, strikeInvulFrame, 0, 0, false, false);
-	addFrameMarkerArt(hModule, MARKER_TYPE_SUPER_ARMOR, IDB_SUPER_ARMOR_ACTIVE, superArmorFrame, 0, 0xFFFFFFFF, false, false);
-	addFrameMarkerArt(hModule, MARKER_TYPE_SUPER_ARMOR_FULL, IDB_SUPER_ARMOR_ACTIVE_FULL, superArmorFrameFull, 0, 0xfff0a847, false, true);
-	addFrameMarkerArt(hModule, MARKER_TYPE_THROW_INVUL, IDB_THROW_INVUL, throwInvulFrame, 0, 0, false, false);
-	addFrameMarkerArt(hModule, MARKER_TYPE_OTG, IDB_OTG, OTGFrame, 0, 0, false, false);
-	addFrameArt(hModule, FT_XSTUN,
+	addFrameMarkerArt(MARKER_TYPE_STRIKE_INVUL, IDB_STRIKE_INVUL, strikeInvulFrame, 0, 0, false, false);
+	addFrameMarkerArt(MARKER_TYPE_SUPER_ARMOR, IDB_SUPER_ARMOR_ACTIVE, superArmorFrame, 0, 0xFFFFFFFF, false, false);
+	addFrameMarkerArt(MARKER_TYPE_SUPER_ARMOR_FULL, IDB_SUPER_ARMOR_ACTIVE_FULL, superArmorFrameFull, 0, 0xfff0a847, false, true);
+	addFrameMarkerArt(MARKER_TYPE_THROW_INVUL, IDB_THROW_INVUL, throwInvulFrame, 0, 0, false, false);
+	addFrameMarkerArt(MARKER_TYPE_OTG, IDB_OTG, OTGFrame, 0, 0, false, false);
+	addFrameArt(FT_XSTUN,
 		IDB_XSTUN_FRAME, xstunFrame,
 		IDB_XSTUN_FRAME_NON_COLORBLIND, xstunFrameNonColorblind,
 		"Blockstun, hitstun, holding FD, wakeup or airtech: can't perform an attack, and, if in hitstun/wakeup/tech, then block/FD.");
-	addFrameArt(hModule, FT_XSTUN_CAN_CANCEL,
+	addFrameArt(FT_XSTUN_CAN_CANCEL,
 		IDB_XSTUN_FRAME_CAN_CANCEL, xstunFrameCanCancel,
 		IDB_XSTUN_FRAME_CAN_CANCEL_NON_COLORBLIND, xstunFrameCanCancelNonColorblind,
 		"Blockstun that can be cancelled into some specials: can't perform regular attacks.");
-	addFrameArt(hModule, FT_XSTUN_HITSTOP,
+	addFrameArt(FT_XSTUN_HITSTOP,
 		IDB_XSTUN_FRAME_HITSTOP, xstunFrameHitstop,
 		IDB_XSTUN_FRAME_HITSTOP_NON_COLORBLIND, xstunFrameHitstopNonColorblind,
 		"Blockstun, hitstun, holding FD while in hitstop: can't perform an attack, and, if in hitstun, then block/FD.");
-	addFrameArt(hModule, FT_GRAYBEAT_AIR_HITSTUN,
+	addFrameArt(FT_GRAYBEAT_AIR_HITSTUN,
 		IDB_GRAYBEAT_AIR_HITSTUN, graybeatAirHitstunFrame,
 		IDB_GRAYBEAT_AIR_HITSTUN_NON_COLORBLIND, graybeatAirHitstunFrameNonColorblind,
 		"In air hitstun, but can airtech: this is a graybeat combo. Can't perform an attack or block or FD.");
-	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE2,
+	addFrameArt(FT_ZATO_BREAK_THE_LAW_STAGE2,
 		IDB_ZATO_BREAK_THE_LAW_STAGE2, zatoBreakTheLawStage2Frame,
 		IDB_ZATO_BREAK_THE_LAW_STAGE2_NON_COLORBLIND, zatoBreakTheLawStage2FrameNonColorblind,
 		"Performing a move that can be held: can release the button any time to cancel the move."
 			" The move was held long enough to have longer recovery upon release."
 			" Can't block or FD or perform attacks.");
-	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE3,
+	addFrameArt(FT_ZATO_BREAK_THE_LAW_STAGE3,
 		IDB_ZATO_BREAK_THE_LAW_STAGE3, zatoBreakTheLawStage3Frame,
 		IDB_ZATO_BREAK_THE_LAW_STAGE3_NON_COLORBLIND, zatoBreakTheLawStage3FrameNonColorblind,
 		"Performing a move that can be held: can release the button any time to cancel the move."
 			" The move was held long enough to have an even longer recovery upon release."
 			" Can't block or FD or perform attacks.");
-	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED,
+	addFrameArt(FT_ZATO_BREAK_THE_LAW_STAGE2_RELEASED,
 		IDB_ZATO_BREAK_THE_LAW_STAGE2_RELEASED, zatoBreakTheLawStage2ReleasedFrame,
 		IDB_ZATO_BREAK_THE_LAW_STAGE2_RELEASED_NON_COLORBLIND, zatoBreakTheLawStage2ReleasedFrameNonColorblind,
 		"Performing a move that can be held: the move had been held long enough to have longer recovery upon release."
 			" Can't block or FD or perform attacks.");
-	addFrameArt(hModule, FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED,
+	addFrameArt(FT_ZATO_BREAK_THE_LAW_STAGE3_RELEASED,
 		IDB_ZATO_BREAK_THE_LAW_STAGE3_RELEASED, zatoBreakTheLawStage3ReleasedFrame,
 		IDB_ZATO_BREAK_THE_LAW_STAGE3_RELEASED_NON_COLORBLIND, zatoBreakTheLawStage3ReleasedFrameNonColorblind,
 		"Performing a move that can be held: the move had been held long enough to have an even longer recovery upon release."
 			" Can't block or FD or perform attacks.");
-	addFrameArt(hModule, FT_EDDIE_IDLE,
+	addFrameArt(FT_EDDIE_IDLE,
 		IDB_EDDIE_IDLE_FRAME, eddieIdleFrame,
 		IDB_EDDIE_IDLE_FRAME_NON_COLORBLIND, eddieIdleFrameNonColorblind,
 		"Eddie is idle.");
-	addFrameArt(hModule, FT_BACCHUS_SIGH,
+	addFrameArt(FT_BACCHUS_SIGH,
 		IDB_BACCHUS_SIGH_FRAME, bacchusSighFrame,
 		IDB_BACCHUS_SIGH_FRAME_NON_COLORBLIND, bacchusSighFrameNonColorblind,
 		"Bacchus Sigh is ready to hit the opponent when in range.");
-	addFrameArt(hModule, FT_BACKDASH_RECOVERY,
+	addFrameArt(FT_BACKDASH_RECOVERY,
 		IDB_BACKDASH_RECOVERY_FRAME, backdashRecoveryFrame,
 		"Backdash recovery: can attack, block and FD, but can't backdash."
 		" This is not cancelable by proximity blocking.");
-	addFrameArt(hModule, FT_NORMAL_LANDING_RECOVERY,
+	addFrameArt(FT_NORMAL_LANDING_RECOVERY,
 		IDB_NORMAL_LANDING_RECOVERY_FRAME, normalLandingRecoveryFrame,
 		"Normal landing recovery: can attack, block and FD, but can't walk, dash, backdash, crouch, jump or superjump."
 		" This is cancelable by proximity blocking, meaning, if an attack is incoming, you can do all of those things anyway.");
@@ -644,7 +644,7 @@ bool UI::onDllMain(HMODULE hModule) {
 	
 	errorDialogPos = new ImVec2();
 	
-	addImage(hModule, IDB_PIN, pinResource);
+	addImage(IDB_PIN, pinResource);
 	
 	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
 		windows[i].init();
@@ -9755,19 +9755,19 @@ float getItemSpacing() {
 }
 
 // runs on the main thread
-bool UI::addImage(HMODULE hModule, WORD resourceId, std::unique_ptr<PngResource>& resource) {
+bool UI::addImage(WORD resourceId, std::unique_ptr<PngResource>& resource) {
 	if (!resource) resource = std::make_unique<PngResource>();
-	if (!loadPngResource(hModule, resourceId, *resource)) return false;
+	if (!loadPngResource(hInst, resourceId, *resource)) return false;
 	return true;
 }
 
 // runs on the main thread
-bool UI::addDigit(HMODULE hModule, WORD resourceId, WORD resourceIdThickness1, DigitFrame& digit) {
+bool UI::addDigit(WORD resourceId, WORD resourceIdThickness1, DigitFrame& digit) {
 	for (std::unique_ptr<PngResource>& ptr : digit.thickness) {
 		if (!ptr) ptr = std::make_unique<PngResource>();
 	}
-	if (!loadPngResource(hModule, resourceId, *digit.thickness[0])) return false;
-	if (!loadPngResource(hModule, resourceIdThickness1, *digit.thickness[1])) return false;
+	if (!loadPngResource(hInst, resourceId, *digit.thickness[0])) return false;
+	if (!loadPngResource(hInst, resourceIdThickness1, *digit.thickness[1])) return false;
 	return true;
 }
 
@@ -9855,9 +9855,9 @@ int numDigits(int num) {
 }
 
 // runs on the main thread
-void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description) {
+void UI::addFrameArt(FrameType frameType, WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions, StringWithLength description) {
 	if (!resourceBothVersions) resourceBothVersions = std::make_unique<PngResource>();
-	addImage(hModule, resourceIdBothVersions, resourceBothVersions);
+	addImage(resourceIdBothVersions, resourceBothVersions);
 	frameArtNonColorblind[frameType] = frameArtColorblind[frameType] = {
 		frameType,
 		resourceBothVersions.get(),
@@ -9866,14 +9866,14 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdBoth
 }
 
 // runs on the main thread
-void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
+void UI::addFrameArt(FrameType frameType, WORD resourceIdColorblind, std::unique_ptr<PngResource>& resourceColorblind,
                  WORD resourceIdNonColorblind, std::unique_ptr<PngResource>& resourceNonColorblind, StringWithLength description) {
 	if (!resourceColorblind) resourceColorblind = std::make_unique<PngResource>();
 	if (!resourceNonColorblind) resourceNonColorblind = std::make_unique<PngResource>();
 	assert(&resourceIdColorblind != &resourceIdNonColorblind);
 	assert(&resourceColorblind != &resourceNonColorblind);
-	addImage(hModule, resourceIdColorblind, resourceColorblind);
-	addImage(hModule, resourceIdNonColorblind, resourceNonColorblind);
+	addImage(resourceIdColorblind, resourceColorblind);
+	addImage(resourceIdNonColorblind, resourceNonColorblind);
 	frameArtColorblind[frameType] = {
 		frameType,
 		resourceColorblind.get(),
@@ -9889,12 +9889,12 @@ void UI::addFrameArt(HINSTANCE hModule, FrameType frameType, WORD resourceIdColo
 
 // ARGB color
 // runs on the main thread
-void UI::addFrameMarkerArt(HINSTANCE hModule, FrameMarkerType markerType,
+void UI::addFrameMarkerArt(FrameMarkerType markerType,
 		WORD resourceIdBothVersions, std::unique_ptr<PngResource>& resourceBothVersions,
 		DWORD outlineColorNonColorblind, DWORD outlineColorColorblind,
 		bool hasMiddleLineNonColorblind, bool hasMiddleLineColorblind) {
 	if (!resourceBothVersions) resourceBothVersions = std::make_unique<PngResource>();
-	addImage(hModule, resourceIdBothVersions, resourceBothVersions);
+	addImage(resourceIdBothVersions, resourceBothVersions);
 	frameMarkerArtNonColorblind[markerType] = frameMarkerArtColorblind[markerType] = {
 		markerType,
 		resourceBothVersions.get()

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Make sure to give yourself permission to launch this script with 'chmod u+x launch_ggxrd_hitbox_injector_linux.sh' command.
 # Then cd into the same directory as this script and launch it using './launch_ggxrd_hitbox_injector_linux.sh' or 'bash launch_ggxrd_hitbox_injector_linux.sh'.
 

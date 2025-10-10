@@ -245,6 +245,7 @@
     <ClInclude Include="ThreadUnsafeSharedPtr.h" />
     <ClInclude Include="ThrowInfo.h" />
     <ClInclude Include="Throws.h" />
+    <ClInclude Include="trainingSettings.h" />
     <ClInclude Include="UI.h" />
     <ClInclude Include="Version.h" />
     <ClInclude Include="..\common\WError.h" />

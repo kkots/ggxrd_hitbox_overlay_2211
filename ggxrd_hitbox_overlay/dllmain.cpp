@@ -30,12 +30,14 @@ static void closeLog();
 #endif
 static bool initialized = false;
 static HMODULE obsDll = NULL;
+HMODULE hInst = NULL;
 
 BOOL APIENTRY DllMain( HMODULE hModule,
 					   DWORD  ul_reason_for_call,
 					   LPVOID lpReserved
 					 )
 {
+	hInst = hModule;
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH: {
@@ -76,12 +78,12 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!entityManager.onDllMain()) terminate
 		if (!direct3DVTable.onDllMain()) terminate
 		if (!keyboard.onDllMain()) terminate
-		if (!ui.onDllMain(hModule)) terminate
+		if (!ui.onDllMain()) terminate
 		if (!endScene.onDllMain()) terminate
 		if (!hitDetector.onDllMain()) terminate
 		if (!game.sigscanAfterHitDetector()) terminate
 		if (!endScene.sigscanAfterHitDetector()) terminate
-		if (!graphics.onDllMain(hModule)) terminate
+		if (!graphics.onDllMain()) terminate
 		if (!altModes.onDllMain()) terminate
 		if (!throws.onDllMain()) terminate
 		if (!hud.onDllMain()) terminate
