@@ -1735,3 +1735,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 72) Added an option to make Combo Recipe clear itself on Position Reset. This option is ON by default. It can be found in Combo Recipe's cogwheel.
 73) Added new framebar frame types for "Normal landing recovery" and "Backdash recovery". These frames will be black with blue hatching at the bottom.
 74) Split "Starting Tension Pulse" setting into two separate settings: one for P1, one for P2.
+- 2025 October 11: Version 7.1: Fixed everything, except damage, not being reset in Combo Damage & Combo Stun on combo restart or even position reset (damage was already resetting properly).

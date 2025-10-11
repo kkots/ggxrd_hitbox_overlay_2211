@@ -312,6 +312,10 @@ private:
 	std::list<SearchResult> searchResults;
 	void pushSearchStack(const char* name);
 	void popSearchStack();
+	inline const char* searchCollapsibleSection(PinnedWindowEnum index) {
+		const std::string& title = windows[index].title;
+		return searchCollapsibleSection(title.c_str(), title.c_str() + title.size());
+	}
 	template<size_t size> inline const char* searchCollapsibleSection(const char(&txt)[size]) { return searchCollapsibleSection(txt, txt + size - 1); }
 	template<size_t size> inline const char* searchFieldTitle(const char(&txt)[size]) { return searchFieldTitle(txt, txt + size - 1); }
 	template<size_t size> inline const char* searchTooltip(const char(&txt)[size]) { return searchTooltip(txt, txt + size - 1); }

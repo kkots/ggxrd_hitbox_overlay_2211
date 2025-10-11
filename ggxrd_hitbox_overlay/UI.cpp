@@ -2474,7 +2474,7 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Tension Data");
+	searchCollapsibleSection(PinnedWindowEnum_TensionData);
 	if (needDraw(PinnedWindowEnum_TensionData) || searching) {
 		customBegin(PinnedWindowEnum_TensionData);
 		if (endScene.isIGiveUp() && !searching) {
@@ -2769,7 +2769,7 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Burst Gain");
+	searchCollapsibleSection(PinnedWindowEnum_BurstGain);
 	if (needDraw(PinnedWindowEnum_BurstGain) || searching) {
 		customBegin(PinnedWindowEnum_BurstGain);
 		if (endScene.isIGiveUp() && !searching) {
@@ -2956,7 +2956,7 @@ void UI::drawSearchableWindows() {
 		}
 	}
 	popSearchStack();
-	searchCollapsibleSection("Speed/Hitstun Proration/...");
+	searchCollapsibleSection(PinnedWindowEnum_SpeedHitstunProration);
 	if (needDraw(PinnedWindowEnum_SpeedHitstunProration) || searching) {
 		customBegin(PinnedWindowEnum_SpeedHitstunProration);
 		
@@ -3250,7 +3250,7 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Projectiles");
+	searchCollapsibleSection(PinnedWindowEnum_Projectiles);
 	if (needDraw(PinnedWindowEnum_Projectiles) || searching) {
 		customBegin(PinnedWindowEnum_Projectiles);
 		
@@ -6351,7 +6351,7 @@ void UI::drawSearchableWindows() {
 		}
 	}
 	popSearchStack();
-	searchCollapsibleSection("Box Extents");
+	searchCollapsibleSection(PinnedWindowEnum_BoxExtents);
 	if (needDraw(PinnedWindowEnum_BoxExtents) || searching) {
 		customBegin(PinnedWindowEnum_BoxExtents);
 		if (endScene.isIGiveUp() && !searching) {
@@ -8453,7 +8453,7 @@ void UI::drawSearchableWindows() {
 		}
 	}
 	popSearchStack();
-	searchCollapsibleSection("Highlighted Cancels");
+	searchCollapsibleSection(PinnedWindowEnum_HighlightedCancels);
 	if (needDraw(PinnedWindowEnum_HighlightedCancels) || searching) {
 		ImGui::SetNextWindowSize({ 300.F, 300.F }, ImGuiCond_FirstUseEver);
 		customBegin(PinnedWindowEnum_HighlightedCancels);
@@ -8636,17 +8636,17 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Framebar Help");
+	searchCollapsibleSection(PinnedWindowEnum_FramebarHelp);
 	if (needDraw(PinnedWindowEnum_FramebarHelp) || searching) {
 		framebarHelpWindow();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Hitboxes Help");
+	searchCollapsibleSection(PinnedWindowEnum_HitboxesHelp);
 	if (needDraw(PinnedWindowEnum_HitboxesHelp) || searching) {
 		hitboxesHelpWindow();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Frame Advantage Help");
+	searchCollapsibleSection(PinnedWindowEnum_FrameAdvantageHelp);
 	if (needDraw(PinnedWindowEnum_FrameAdvantageHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
 		customBegin(PinnedWindowEnum_FrameAdvantageHelp);
@@ -8685,7 +8685,7 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Startup Field's Help");
+	searchCollapsibleSection(PinnedWindowEnum_StartupFieldHelp);
 	if (needDraw(PinnedWindowEnum_StartupFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
 		customBegin(PinnedWindowEnum_StartupFieldHelp);
@@ -8716,7 +8716,7 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Active Field's Help");
+	searchCollapsibleSection(PinnedWindowEnum_ActiveFieldHelp);
 	if (needDraw(PinnedWindowEnum_ActiveFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
 		customBegin(PinnedWindowEnum_ActiveFieldHelp);
@@ -8762,7 +8762,7 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Total Field's Help");
+	searchCollapsibleSection(PinnedWindowEnum_TotalFieldHelp);
 	if (needDraw(PinnedWindowEnum_TotalFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
 		customBegin(PinnedWindowEnum_TotalFieldHelp);
@@ -8800,7 +8800,7 @@ void UI::drawSearchableWindows() {
 		customEnd();
 	}
 	popSearchStack();
-	searchCollapsibleSection("Invul Help");
+	searchCollapsibleSection(PinnedWindowEnum_InvulFieldHelp);
 	if (needDraw(PinnedWindowEnum_InvulFieldHelp) || searching) {
 		ImGui::SetNextWindowSize({ 500.F, 0.F }, ImGuiCond_FirstUseEver);
 		customBegin(PinnedWindowEnum_InvulFieldHelp);

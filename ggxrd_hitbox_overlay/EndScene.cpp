@@ -941,24 +941,35 @@ void EndScene::logic() {
 				projectileFramebars.clear();
 				combinedFramebars.clear();
 			}
-			if (settings.comboRecipe_clearOnPositionReset) {
-				bool oneIsDead = lastRoundendContainedADeath;
-				if (!oneIsDead) {
-					for (int i = 0; i < 2; ++i) {
-						if (entityList.slots[i].hp() == 0) {
-							oneIsDead = true;
-							break;
-						}
+			
+			bool oneIsDead = lastRoundendContainedADeath;
+			if (!oneIsDead) {
+				for (int i = 0; i < 2; ++i) {
+					if (entityList.slots[i].hp() == 0) {
+						oneIsDead = true;
+						break;
 					}
 				}
-				if (!oneIsDead) {
+			}
+			if (oneIsDead) lastRoundendContainedADeath = true;
+			
+			if (!lastRoundendContainedADeath) {
+				// position reset
+				
+				if (settings.comboRecipe_clearOnPositionReset) {
 					for (int i = 0; i < 2; ++i) {
 						PlayerInfo& player = players[i];
 						player.comboRecipe.clear();
 					}
-				} else {
-					lastRoundendContainedADeath = true;
 				}
+				
+				for (int i = 0; i < 2; ++i) {
+					PlayerInfo& player = players[i];
+					player.stunCombo = 0;
+					player.tensionGainLastCombo = 0;
+					player.burstGainLastCombo = 0;
+				}
+				
 			}
 			startedNewRound = true;
 			
@@ -1130,12 +1141,11 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		for (int i = 0; i < 2; ++i) {
 			Entity ent = entityList.slots[i];
 			PlayerInfo& player = players[i];
-			player.inHitstunNowOrNextFrame = ent.inHitstun();
-			player.inHitstun = ent.inHitstunThisFrame();
 			if (ent.inHitstun() && !player.inHitstunNowOrNextFrame) {
 				comboStarted = true;
-				break;
 			}
+			player.inHitstunNowOrNextFrame = ent.inHitstun();
+			player.inHitstun = ent.inHitstunThisFrame();
 		}
 		
 		Entity superflashInstigator = getSuperflashInstigator();
