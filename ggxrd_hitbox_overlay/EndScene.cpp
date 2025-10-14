@@ -12764,11 +12764,14 @@ void EndScene::resetBurstHook(Entity pawn, int amout) {
 bool EndScene::overwriteCall(uintptr_t callInstr, int newOffset) {
 	bool wasTransaction = detouring.isInTransaction();
 	if (!wasTransaction) {
-		detouring.beginTransaction(false);
+		if (!detouring.beginTransaction(false)) return false;
 	}
 	std::vector<char> newBytes(4);
 	memcpy(newBytes.data(), &newOffset, 4);
-	if (!detouring.patchPlace(callInstr + 1, newBytes)) return false;
+	if (!detouring.patchPlace(callInstr + 1, newBytes)) {
+		if (!wasTransaction) detouring.cancelTransaction();
+		return false;
+	}
 	if (!wasTransaction) {
 		detouring.endTransaction();
 	}
@@ -12783,11 +12786,14 @@ bool EndScene::attach(PVOID* ppPointer, PVOID pDetour, const char* name) {
 	// changed by overwriting the mod's INI file directly post a window message, so on main thread as well,
 	// and the function that we're about to hook only runs on the main thread
 	if (!wasTransaction) {
-		detouring.beginTransaction(false);
+		if (!detouring.beginTransaction(false)) return false;
 	}
 	if (!detouring.attach(ppPointer,
-		pDetour,
-		name)) return false;
+			pDetour,
+			name)) {
+		if (!wasTransaction) detouring.cancelTransaction();
+		return false;
+	}
 	if (!wasTransaction) {
 		detouring.endTransaction();
 	}

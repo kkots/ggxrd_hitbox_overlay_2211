@@ -2997,23 +2997,32 @@ void Graphics::prepareDrawInputs() {
 			
 			float x;
 			if (i == 0 && drawDataUse.gameModeFast == GAME_MODE_FAST_NORMAL) {
-				x = 20.F;
+				x = 20.F * coef;
 				if (drawDataUse.inputsContainsDurations) {
 					x += coef3 + textWMax;
 				}
 			} else {
-				x = 1260.F - 30.F * row->count;
+				x = 1260.F * coef - columnWidthMult * row->count;
 				if (drawDataUse.inputsContainsDurations) {
 					x -= coef3 + textWMax;
 				}
 			}
-			box.xStart = x * coef;
+			box.xStart = x;
 			box.xEnd = box.xStart + iconSizeMult;
 			
 			bool inReverse = drawDataUse.gameModeFast != GAME_MODE_FAST_NORMAL;
 			
+			const InputsDrawingCommand* cmd;
+			int cmdIncrement;
+			if (inReverse) {
+				cmd = row->cmds + row->count - 1;
+				cmdIncrement = -1;
+			} else {
+				cmd = row->cmds;
+				cmdIncrement = 1;
+			}
+			
 			for (int column = 0; column < row->count; ++column) {
-				const InputsDrawingCommand* cmd = inReverse ? row->cmds + row->count - 1 - column : row->cmds + column;
 				
 				box.color = cmd->dark ? 0xffa0a0a0 : 0xffffffff;
 				
@@ -3026,6 +3035,8 @@ void Graphics::prepareDrawInputs() {
 				
 				box.xStart += columnWidthMult;
 				box.xEnd += columnWidthMult;
+				
+				cmd += cmdIncrement;
 			}
 			
 			box.yStart += rowHeightMult;

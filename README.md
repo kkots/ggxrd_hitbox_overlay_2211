@@ -898,6 +898,10 @@ showP1FramedataInFramebar = true
 ; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar.
 showP2FramedataInFramebar = true
 
+; Specify a floating point number. <=0 means to scale to a factor of 2 if the screen width is > 1920.
+; This controls the size of the 'Startup, Active, Recovery, Total, Advantage' text above P1's framebar and below P2's framebar.
+framedataInFramebarScale = 0.0
+
 ; Specify true or false.
 ; Normally we don't display hitstop in the framebar if both players are in hitstop on that frame,
 ; unless a projectile or a blocking Baiken (see "ignoreHitstopForBlockingBaiken") is present.
@@ -1736,3 +1740,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 73) Added new framebar frame types for "Normal landing recovery" and "Backdash recovery". These frames will be black with blue hatching at the bottom.
 74) Split "Starting Tension Pulse" setting into two separate settings: one for P1, one for P2.
 - 2025 October 11: Version 7.1: Fixed everything, except damage, not being reset in Combo Damage & Combo Stun on combo restart or even position reset (damage was already resetting properly).
+- 2025 October 14: Version 7.2: Fixed 'Display Durations In Input History' mode when the icons would be offset way too much from the text on higher screen resolutions. Added an option to scale the 'Startup, Active, Recovery, Total, Advantage' text next to the framebar, and it will now by default scale automatically to 2 times the size when on screen width larger than 1920. Made the text inside the frames that shows the number of same consecutive frames scale larger on higher screen resolutions.

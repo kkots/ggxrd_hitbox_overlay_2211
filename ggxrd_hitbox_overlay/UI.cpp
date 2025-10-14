@@ -2226,6 +2226,8 @@ void UI::drawSearchableWindows() {
 				
 				booleanSettingPreset(settings.showP2FramedataInFramebar);
 				
+				float4SettingPreset(settings.framedataInFramebarScale, 0.F, FLT_MAX, 0.1F, 0.2F, 100.F);
+				
 				if (intSettingPreset(settings.framebarStoredFramesCount, 1, 1, 1, 80.F, _countof(Framebar::frames))) {
 					if (settings.framebarDisplayedFramesCount > settings.framebarStoredFramesCount) {
 						settings.framebarDisplayedFramesCount = settings.framebarStoredFramesCount;
@@ -13675,10 +13677,15 @@ bool UI::booleanSettingPreset(bool& settingsRef) {
 }
 
 // runs on the main thread
-bool UI::float4SettingPreset(float& settingsPtr) {
+bool UI::float4SettingPreset(float& settingsPtr, float minValue, float maxValue, float step, float stepFast, float width) {
 	bool attentionPossiblyNeeded = false;
 	float floatValue = settingsPtr;
-	if (ImGui::InputFloat(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &floatValue, 1.F, 10.F, "%.4f")) {
+	if (width != 0.F) {
+		ImGui::SetNextItemWidth(width);
+	}
+	if (ImGui::InputFloat(searchFieldTitle(settings.getOtherUINameWithLength(&settingsPtr)), &floatValue, step, stepFast, "%.4f")) {
+		if (floatValue < minValue) floatValue = minValue;
+		if (floatValue > maxValue) floatValue = maxValue;
 		settingsPtr = floatValue;
 		needWriteSettings = true;
 		attentionPossiblyNeeded = true;
@@ -15012,12 +15019,13 @@ void UI::drawFramebars() {
 	const bool showThrowInvulOnFramebar = settings.showThrowInvulOnFramebar;
 	const bool showOTGOnFramebar = settings.showOTGOnFramebar;
 	ImGuiIO& io = ImGui::GetIO();
-	float settingsPlayerFramebarHeight = std::roundf((float)settings.playerFramebarHeight * io.DisplaySize.y / 720.F);
+	ImVec2 displaySize = io.DisplaySize;
+	float settingsPlayerFramebarHeight = std::roundf((float)settings.playerFramebarHeight * displaySize.y / 720.F);
 	if (settingsPlayerFramebarHeight < 5.F - 0.001F) {
 		settingsPlayerFramebarHeight = 5.F;
 	}
 	const float scale = settingsPlayerFramebarHeight / 19.F;
-	float settingsProjectileFramebarHeight = std::roundf((float)settings.projectileFramebarHeight * io.DisplaySize.y / 720.F);
+	float settingsProjectileFramebarHeight = std::roundf((float)settings.projectileFramebarHeight * displaySize.y / 720.F);
 	if (settingsProjectileFramebarHeight < 3.F - 0.001F) {
 		settingsProjectileFramebarHeight = 3.F;
 	}
@@ -15073,7 +15081,7 @@ void UI::drawFramebars() {
 	
 	const float framesCountFloat = (float)drawFramebars_framesCount;
 	
-	const float initialWindowWidthForFirstUseEver = 880.F / 1280.F * io.DisplaySize.x;
+	const float initialWindowWidthForFirstUseEver = 880.F / 1280.F * displaySize.x;
 	float widthForFramesWidthCalculation;
 	short existingWindowWidth = 0;
 	short existingWindowHeight = 0;
@@ -15276,9 +15284,24 @@ void UI::drawFramebars() {
 	float framebarFrameDataHeight = 0.F;
 	bool needShowFramebarFrameDataP1 = settings.showP1FramedataInFramebar;
 	bool needShowFramebarFrameDataP2 = settings.showP2FramedataInFramebar;
+	bool framebarFrameDataScaled = false;
+	float framebarFrameDataScale;
 	if (needShowFramebarFrameDataP1 || needShowFramebarFrameDataP2) {
-		framebarFrameDataHeight = std::roundf(ImGui::GetTextLineHeight())
-			+ 3.F;  // for whatever reason it's missing ~3px for the tails of letters like y and g
+		framebarFrameDataScale = settings.framedataInFramebarScale;
+		if (framebarFrameDataScale < 0.001F) {
+			if (displaySize.x > 1920.001F) {
+				framebarFrameDataScale = 2.F;
+			} else {
+				framebarFrameDataScale = 1.F;
+			}
+		}
+		// calling ImGui::SetWindowFontScale here causes the Debug window to appear
+		// not even setting it back to 1.F makes it go away
+		if (framebarFrameDataScale < 0.999F || framebarFrameDataScale > 1.001F) {
+			framebarFrameDataScaled = true;
+		}
+		framebarFrameDataHeight = std::roundf(ImGui::GetTextLineHeight() * framebarFrameDataScale
+			+ 3.F * (framebarFrameDataScale > 1.F ? framebarFrameDataScale : 1.F));  // for whatever reason it's missing ~3px for the tails of letters like y and g
 			// also we're going to add a 1px outline all around the text, so that adds 2 more pixels
 	}
 	
@@ -15440,8 +15463,8 @@ void UI::drawFramebars() {
 		+ 1.F
 		+ 2.F  // imgui window padding
 	};
-	float initialWindowPosXForFirstUseEver = std::floorf((io.DisplaySize.x - nextWindowSize.x) * 0.5F);
-	ImGui::SetNextWindowPos({ initialWindowPosXForFirstUseEver, std::floorf(85.F * io.DisplaySize.y / 720.F)
+	float initialWindowPosXForFirstUseEver = std::floorf((displaySize.x - nextWindowSize.x) * 0.5F);
+	ImGui::SetNextWindowPos({ initialWindowPosXForFirstUseEver, std::floorf(85.F * displaySize.y / 720.F)
 		- 1.F  // when testing on my 1920x1080 monitor with the game set to windowed with same resolution, with the default scaling and position,
 		// it skips the row of pixels that coincides with the bottom outline of the throw invulnerability marker, which makes it look weird and cut off.
 		// Hopefully, -1 offset will resolve this
@@ -15487,7 +15510,7 @@ void UI::drawFramebars() {
 		&& ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true)
 		&& ImGui::IsWindowFocused();
 	ImGui::PopStyleVar();
-	bool scaledText = scale > 1.F;
+	bool scaledText = scale > 1.001F;
 	if (scaledText) {
 		ImGui::SetWindowFontScale(scale);
 	} else {
@@ -15917,7 +15940,9 @@ void UI::drawFramebars() {
 				playerFrame.active,
 				playerFrame.recovery,
 				playerFrame.total);
-			if (scaledText) {
+			if (framebarFrameDataScaled) {
+				ImGui::SetWindowFontScale(framebarFrameDataScale);
+			} else if (scaledText) {
 				ImGui::SetWindowFontScale(1.F);
 			}
 			ImVec2 textPos;
@@ -16015,6 +16040,8 @@ void UI::drawFramebars() {
 			}
 			if (scaledText) {
 				ImGui::SetWindowFontScale(scale);
+			} else if (framebarFrameDataScaled) {
+				ImGui::SetWindowFontScale(1.F);
 			}
 		}
 		
@@ -17297,9 +17324,10 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 			int digitHeight;
 			if (scaleVertToUse > 1.F) {
 				digitHeight = (int)std::roundf(originalDigitHeight * scaleVertToUse + 0.25F);
-				if (digitHeight > (int)firstDigit.height) {
-					digitHeight = (int)firstDigit.height;
-				}
+				// commented out to allow text to upscale on 3K resolution: https://github.com/kkots/ggxrd_hitbox_overlay_2211/issues/6
+				//if (digitHeight > (int)firstDigit.height) {
+				//	digitHeight = (int)firstDigit.height;
+				//}
 			} else {
 				if (frameHeightToUse < originalDigitHeight) {
 					digitHeight = (int)frameHeightToUse;
@@ -17313,7 +17341,8 @@ void UI::packTexture(PngResource& packedTexture, UITextureType type, const PackT
 				w -= (int)std::ceilf(frameScaleHoriz - 1.F);
 			}
 			if (w > (int)drawFramebars_frameWidthScaled) w = (int)drawFramebars_frameWidthScaled;
-			if (w > (int)firstDigit.width) w = firstDigit.width;
+			// commented out to allow text to upscale on 3K resolution: https://github.com/kkots/ggxrd_hitbox_overlay_2211/issues/6
+			//if (w > (int)firstDigit.width) w = firstDigit.width;
 			if (w < 3) w = 3;
 			for (int i = 0; i <= 9; ++i) {
 				PngResource& digit = (isMiniIter == 1 ? digitsMini : digits)[i];
@@ -17919,14 +17948,9 @@ void UI::onVisibilityToggleKeyboardShortcutPressed() {
 	} else {
 		if (isVisible()) {
 			windowShowMode = WindowShowMode_None;
-		} else if (hasAtLeastOneOpenWindow()) {
-			windowShowMode = WindowShowMode_All;
-		} else if (windowShowMode == WindowShowMode_None) {
-			windowShowMode = WindowShowMode_All;
 		} else {
+			// no, you are not allowed to have no windows visible at all and still demand that I switch windowShowMode to None, that is an insane demand
 			windowShowMode = WindowShowMode_All;
-		}
-		if (windowShowMode != WindowShowMode_None) {
 			mainWindow.setOpen(true, false);
 		}
 	}

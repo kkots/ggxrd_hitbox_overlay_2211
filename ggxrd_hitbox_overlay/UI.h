@@ -285,7 +285,10 @@ private:
 	void hitboxesHelpWindow();
 	bool booleanSettingPreset(bool& settingsRef);
 	bool booleanSettingPresetWithHotkey(bool& settingsRef, std::vector<int>& hotkey);
-	bool float4SettingPreset(float& settingsPtr);
+	inline bool floatSettingPreset(float& settingsPtr, float minValue = FLT_MIN, float maxValue = FLT_MAX, float step = 1.F, float stepFast = 10.F, float width = 0.F) {
+		float4SettingPreset(settingsPtr, minValue, maxValue, step, stepFast, width);
+	}
+	bool float4SettingPreset(float& settingsPtr, float minValue = FLT_MIN, float maxValue = FLT_MAX, float step = 1.F, float stepFast = 10.F, float width = 0.F);
 	bool intSettingPreset(int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX, bool isDisabled = false);
 	void drawSearchableWindows();
 	bool searching = false;

@@ -706,6 +706,11 @@ settingsField(bool, showP2FramedataInFramebar, true,
 	"; Specify true or false.\n"
 	"; When this setting is true (default), Startup/Active/Recovery/Frame Advantage will be displayed underneath P2's framebar.")
 	
+settingsField(float, framedataInFramebarScale, 0.F,
+	"Framedata In Framebar Scale", SETTINGS_FRAMEBAR,
+	"; Specify a floating point number. <=0 means to scale to a factor of 2 if the screen width is > 1920.\n"
+	"; This controls the size of the 'Startup, Active, Recovery, Total, Advantage' text above P1's framebar and below P2's framebar.")
+	
 settingsField(bool, neverIgnoreHitstop, false,
 	"Never Ignore Hitstop", SETTINGS_FRAMEBAR,
 	"; Specify true or false.\n"
