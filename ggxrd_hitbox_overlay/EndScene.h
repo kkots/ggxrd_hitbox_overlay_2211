@@ -92,7 +92,7 @@ struct FRenderCommand {
 	virtual unsigned int Execute() = 0;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept = 0;
 	FRenderCommand();
-	static int totalCountOfCommandsInCirculation;
+	static LONG volatile totalCountOfCommandsInCirculation;
 };
 
 struct FSkipRenderCommand : FRenderCommand {

@@ -9329,7 +9329,7 @@ void FRingBuffer_AllocationContext::Commit() {
 
 void FRenderCommand::Destructor(BOOL freeMem) noexcept {
 	endScene.FRenderCommandDestructor((void*)this, freeMem);
-	--totalCountOfCommandsInCirculation;
+	InterlockedDecrement(&totalCountOfCommandsInCirculation);
 }
 
 // Runs on the main thread
@@ -12605,10 +12605,10 @@ void EndScene::highlightSettingsChanged() {
 	highlightMoveCache.clear();
 }
 
-int FRenderCommand::totalCountOfCommandsInCirculation = 0;
+LONG volatile FRenderCommand::totalCountOfCommandsInCirculation = 0;
 
 FRenderCommand::FRenderCommand() {
-	++totalCountOfCommandsInCirculation;
+	InterlockedIncrement(&totalCountOfCommandsInCirculation);
 }
 
 // only return critical error as false, the rest as true
