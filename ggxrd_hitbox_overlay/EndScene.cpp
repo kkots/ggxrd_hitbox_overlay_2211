@@ -8186,7 +8186,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 	registeredHits.emplace_back();
 	RegisteredHit& hit = registeredHits.back();
 	if (defender.isPawn()) {
-		attackerInRecoveryAfterBlock[attacker.team()] = true;
+		attackerInRecoveryAfterBlock[1 - defender.team()] = true;
 	}
 	if (hitResult == HIT_RESULT_ARMORED && attacker.isPawn() && defender.isPawn()
 			&& defender.characterType() == CHARACTER_TYPE_LEO
@@ -10701,6 +10701,12 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 				)
 				|| settings.showPunishMessageOnBlock
 				&& attackerInRecoveryAfterBlock[defenderPtr.team()]
+			)
+			// exclude Blitz rejection
+			&& !(
+				attackerPtr.isPawn()
+				&& strncmp(attackerPtr.animationName(), "CounterGuard", 12) == 0
+				&& attackerPtr.dealtAttack()->collisionForceExpand()
 			)
 	) {
 		std::vector<PunishMessageTimer>& vec = punishMessageTimers[defenderPtr.team()];
