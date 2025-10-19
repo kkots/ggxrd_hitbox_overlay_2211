@@ -951,6 +951,7 @@ void EndScene::logic() {
 		if (!isRunning) {
 			for (int i = 0; i < 2; ++i) {
 				punishMessageTimers[i].clear();
+				attackerInRecoveryAfterBlock[i] = false;
 			}
 			if (!iGiveUp) {
 				if (!settings.dontClearFramebarOnStageReset) {
@@ -8012,6 +8013,7 @@ void EndScene::onAswEngineDestroyed() {
 		players[i].clear();
 		reachedMaxStun[i] = -1;
 		punishMessageTimers[i].clear();
+		attackerInRecoveryAfterBlock[i] = false;
 	}
 	measuringFrameAdvantage = false;
 	measuringLandingFrameAdvantage = -1;
