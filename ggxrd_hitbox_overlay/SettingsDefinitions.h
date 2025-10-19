@@ -1102,4 +1102,16 @@ settingsField(bool, onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHit
 	"; Setting this to true prevents the 'Counter Hit' setting from working explicitly just for Burst\n"
 	"; and Faint animations, including all hitstun.")
 	
+settingsField(bool, showPunishMessageOnBlock, false,
+	"Show 'Punish' Message When Punishing After A Block/Hit/Armor", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Shows a message when you blocked/got hit by/armored an attack and then at that moment opponent was doing a move,\n"
+	"; and then you hit them while they were still in that move or in landing recovery after the move.")
+	
+settingsField(bool, showPunishMessageOnWhiff, false,
+	"Show 'Punish' Message When Punishing Presumed Recovery", SETTINGS_GENERAL,
+	"; Specify true or false.\n"
+	"; Shows a message when a player got hit during recovery of an attack move, or during\n"
+	"; landing animation of any move, or after 15 frames of starting a move.")
+	
 #pragma warning(pop)

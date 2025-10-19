@@ -2456,6 +2456,10 @@ void UI::drawSearchableWindows() {
 					endScene.onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
 				}
 				
+				booleanSettingPreset(settings.showPunishMessageOnWhiff);
+				
+				booleanSettingPreset(settings.showPunishMessageOnBlock);
+				
 				ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
 				ImGui::PushTextWrapPos(0.F);
 				ImGui::TextUnformatted(searchFieldTitle("Some character-specific settings are only found in \"Character Specific\" menus (see buttons above).\n"

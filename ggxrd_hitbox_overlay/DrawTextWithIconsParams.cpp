@@ -25,5 +25,5 @@ DrawTextWithIconsParams::DrawTextWithIconsParams() {
 	field152_0xd8 = 0;
 	field153_0xe0 = 0;
 	field154_0xe8 = 0;
-	memset(&field156_0xf4,0,0x60);
+	memset(&flags1,0,0x60);
 }

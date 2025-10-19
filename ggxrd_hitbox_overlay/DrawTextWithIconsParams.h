@@ -176,21 +176,33 @@ struct DrawTextWithIconsParams {
 	unsigned long long field153_0xe0;
 	unsigned long long field154_0xe8;
 	int field155_0xf0;
+	// 0x1 makes it green
+	// 0x2 is drop shadow
 	// flag 0x20 means single-byte string
+	// 0x20 made my single-byte encoded text passed into 'text', that said "oig", only display the 'g' letter. Don't use 0x20. Just pass ascii text
 	// flag 0x200 means outline - specify color in outlineColor
-	int field156_0xf4;
+	// 0x1000 makes the first letter a little bigger
+	// 0x2000 italic
+	// 0x4000 drop shadow towards top-left, instead of bottom-right
+	// 0x10000 the y specified is for the bottom of the text, not top
+	// 0x20000 the y specified is for the middle of the text, not top
+	// 0x40000 thicker outline
+	// Worse Than You: 0x10000000 elides text that doesn't fit with ...
+	// Worse Than You: 0x80000000 wraps... sometimes... without word wrap logic... and still mostly squashes
+	// Worse Than You: 0x400 big white text
+	int flags1;  // offset 0xf4
 	int field157_0xf8;
 	int field158_0xfc;
 	float field159_0x100;
 	float field160_0x104;
 	int field161_0x108;
 	int field162_0x10c;
-	int field163_0x110;
+	D3DCOLOR textColor;
 	int field164_0x114;
 	int field165_0x118;
 	int field166_0x11c;
 	D3DCOLOR outlineColor;
-	unsigned int flags2;
+	D3DCOLOR dropShadowColor;
 	char field169_0x128;
 	char field170_0x129;
 	char field171_0x12a;

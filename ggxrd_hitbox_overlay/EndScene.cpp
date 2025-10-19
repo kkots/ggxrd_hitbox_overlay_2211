@@ -107,6 +107,19 @@ static inline const T& minmax(const T& Min, const T& Max, const T& Value) {
 
 static const unsigned char greenHighlights[] { 255, 255, 255, 255, 255, 242, 228, 200, 165, 125, 82, 67, 55, 44, 33, 22, 17, 13, 9, 7, 4 };
 
+struct PunishFrame {
+	int xOffset;  // for P1 side
+	DWORD color;
+	int repeatCount = 0;
+};
+static const PunishFrame punishAnim[] { { -10, 0x00FFFFFF }, { -10, 0x11FFFFFF }, { -10, 0x33FFFFFF }, { -9, 0x66FFFFFF }, { -9, 0x99FFFFFF },
+	{ -9, 0xCCFFFFFF }, { -8, 0xDDFFFFFF }, { -8, 0xEEFFFFFF }, { -7, 0xFFFFFFFF }, { -7, 0xFFFFFFEE }, { -6, 0xFFFFFFDD }, { -6, 0xFFFFFFBB },
+	{ -5, 0xFFFFFF99 }, { -4, 0xFFFFFF66 }, { -4, 0xFFFFFF3A }, { -4, 0xFFFFFF28 }, { -3, 0xFFFFFF1A }, { -3, 0xFFFFFF0F }, { -3, 0xFFFFFF00 },
+	{ -2, 0xFFFFFF00 }, { -2, 0xFFFFFF00 }, { -2, 0xFFFFFF00 }, { -2, 0xFFFFFF00 }, { -1, 0xFFFFFF00 }, { -1, 0xFFFFFF00 }, { -1, 0xFFFFFF00 },
+	{ -1, 0xFFFFFF00 }, { -1, 0xFFFFFF00 }, { 0, 0xFFFFFF00, 60 * 3 }, { 0, 0xF0FFFF00 }, { 0, 0xE0FFFF00 }, { 0, 0xD4FFFF00 }, { 0, 0xC0FFFF00 },
+	{ 0, 0xAFFFFF00 }, { 0, 0x90FFFF00 }, { 0, 0x70FFFF00 }, { 0, 0x50FFFF00 }, { 0, 0x40FFFF00 }, { 0, 0x30FFFF00 }, { 0, 0x24FFFF00 },
+	{ 0, 0x18FFFF00 }, { 0, 0x14FFFF00 }, { 0, 0x10FFFF00 }, { 0, 0x0CFFFF00 }, { 0, 0x08FFFF00 }, { 0, 0x04FFFF00 } };
+
 bool EndScene::onDllMain() {
 	bool error = false;
 	
@@ -935,50 +948,55 @@ void EndScene::logic() {
 			|| altModes.roundendCameraFlybyType() != 8
 			|| game.is0xa8PreparingCamera();
 		entityList.populate();
-		if (!isRunning && !iGiveUp) {
-			if (!settings.dontClearFramebarOnStageReset) {
-				playerFramebars.clear();
-				projectileFramebars.clear();
-				combinedFramebars.clear();
+		if (!isRunning) {
+			for (int i = 0; i < 2; ++i) {
+				punishMessageTimers[i].clear();
 			}
-			
-			bool oneIsDead = lastRoundendContainedADeath;
-			if (!oneIsDead) {
-				for (int i = 0; i < 2; ++i) {
-					if (entityList.slots[i].hp() == 0) {
-						oneIsDead = true;
-						break;
+			if (!iGiveUp) {
+				if (!settings.dontClearFramebarOnStageReset) {
+					playerFramebars.clear();
+					projectileFramebars.clear();
+					combinedFramebars.clear();
+				}
+				
+				bool oneIsDead = lastRoundendContainedADeath;
+				if (!oneIsDead) {
+					for (int i = 0; i < 2; ++i) {
+						if (entityList.slots[i].hp() == 0) {
+							oneIsDead = true;
+							break;
+						}
 					}
 				}
-			}
-			if (oneIsDead) lastRoundendContainedADeath = true;
-			
-			if (!lastRoundendContainedADeath) {
-				// position reset
+				if (oneIsDead) lastRoundendContainedADeath = true;
 				
-				if (settings.comboRecipe_clearOnPositionReset) {
+				if (!lastRoundendContainedADeath) {
+					// position reset
+					
+					if (settings.comboRecipe_clearOnPositionReset) {
+						for (int i = 0; i < 2; ++i) {
+							PlayerInfo& player = players[i];
+							player.comboRecipe.clear();
+						}
+					}
+					
 					for (int i = 0; i < 2; ++i) {
 						PlayerInfo& player = players[i];
-						player.comboRecipe.clear();
+						player.stunCombo = 0;
+						player.tensionGainLastCombo = 0;
+						player.burstGainLastCombo = 0;
 					}
+					
 				}
+				startedNewRound = true;
 				
 				for (int i = 0; i < 2; ++i) {
 					PlayerInfo& player = players[i];
-					player.stunCombo = 0;
-					player.tensionGainLastCombo = 0;
-					player.burstGainLastCombo = 0;
+					player.inputs.clear();
+					player.prevInput = Input{0x0000};
+					player.inputsOverflow = false;
+					player.ramlethalForpeliMarteliDisabled = false;
 				}
-				
-			}
-			startedNewRound = true;
-			
-			for (int i = 0; i < 2; ++i) {
-				PlayerInfo& player = players[i];
-				player.inputs.clear();
-				player.prevInput = Input{0x0000};
-				player.inputsOverflow = false;
-				player.ramlethalForpeliMarteliDisabled = false;
 			}
 		}
 		needDrawInputs = false;
@@ -1003,6 +1021,56 @@ void EndScene::logic() {
 							&& entityList.slots[1].isCpu()
 						)) {
 					needDrawInputs = true;
+				}
+			}
+		}
+		if (!gifMode.gifModeToggleHudOnly && !gifMode.gifModeOn) {
+			for (int i = 0; i < 2; ++i) {
+				std::vector<PunishMessageTimer>& vec = punishMessageTimers[i];
+				for (auto it = vec.begin(); it != vec.end(); ) {
+					PunishMessageTimer& timer = *it;
+					if (timer.recheckTimer >= 0) {
+						int recheckTimer = timer.recheckTimer;
+						--timer.recheckTimer;
+						if (recheckTimer == 0 && !entityList.slots[i].inHitstun()) {
+							timer.animFrame = -1;
+						}
+						++it;
+					} else if (timer.animFrame >= 0 && timer.animFrame < (int)_countof(punishAnim)) {
+						const int swipeDur = 16;
+						const float swipeDistY = 30.F;
+						const float swipeDistX = 10.F;
+						if (timer.animFrame < swipeDur) {
+							for (auto itNext = vec.begin(); itNext != it; ++itNext) {
+								PunishMessageTimer& timerNext = *itNext;
+								timerNext.yOff -= swipeDistY / (float)swipeDur;
+								timerNext.xOff -= swipeDistX / (float)swipeDur;
+							}
+						}
+						int animFrame = timer.animFrame;
+						if (timer.animFrameRepeatCount > 0) {
+							--timer.animFrameRepeatCount;
+						} else {
+							++timer.animFrame;
+							if (timer.animFrame < (int)_countof(punishAnim)) {
+								timer.animFrameRepeatCount = punishAnim[timer.animFrame].repeatCount;
+							}
+						}
+						int attackerSide = 1 - i;
+						const PunishFrame& frameData = punishAnim[animFrame];
+						float x = (
+							attackerSide == 0
+								? 120.F
+								: 1280.F - 120.F
+						);
+						int sign = (attackerSide == 0 ? 1 : -1);
+						x += (float)(sign * frameData.xOffset + timer.xOff);
+						float y = 490.F + timer.yOff;
+						drawPunishMessage(x, y, attackerSide == 0 ? ALIGN_LEFT : ALIGN_RIGHT, frameData.color);
+						++it;
+					} else {
+						it = vec.erase(it);
+					}
 				}
 			}
 		}
@@ -7870,10 +7938,10 @@ void EndScene::drawTrainingHudHook(char* thisArg) {
 // Runs on the main thread
 void EndScene::drawTexts() {
 	return;
-	#if 0
 	// Example code
 	{
-		char HelloWorld[] = "oig^mAtk1;";
+		//char HelloWorld[] = "oig^mAtk1;";
+		char HelloWorld[] = "oig";
 		DrawTextWithIconsParams s;
 		s.field159_0x100 = 36.0;
 		s.layer = 177;
@@ -7884,17 +7952,17 @@ void EndScene::drawTexts() {
 		s.field158_0xfc = -1;
 		s.field161_0x108 = 0;
 		s.field162_0x10c = 0;
-		s.field163_0x110 = -1;
+		s.textColor = 0xffffff00;  // text color
 		s.field164_0x114 = 0;
 		s.field165_0x118 = 0;
 		s.field166_0x11c = -1;
 		s.outlineColor = 0xff000000;
-		s.flags2 = 0xff000000;
-		s.x = 100;
-		s.y = 185.0 + 34 * 3;
+		s.dropShadowColor = 0xff000000;
+		s.x = 100.F;
+		s.y = 185.0 + 34.F * 3.F;
 		s.alignment = ALIGN_LEFT;
 		s.text = HelloWorld;
-		s.field156_0xf4 = 0x210;
+		s.flags1 = 0x2612;
 		drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
 	return;
@@ -7910,20 +7978,19 @@ void EndScene::drawTexts() {
 		s.field158_0xfc = -1;
 		s.field161_0x108 = 0;
 		s.field162_0x10c = 0;
-		s.field163_0x110 = -1;
+		s.textColor = -1;
 		s.field164_0x114 = 0;
 		s.field165_0x118 = 0;
 		s.field166_0x11c = -1;
 		s.outlineColor = 0xff000000;
-		s.flags2 = 0xff000000;
+		s.dropShadowColor = 0xff000000;
 		s.x = 460;
 		s.y = 185.0 + 34 * 3;
 		s.alignment = ALIGN_CENTER;
 		s.text = HelloWorld;
-		s.field156_0xf4 = 0x210;
+		s.flags1 = 0x210;
 		drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
-	#endif
 }
 
 // Called when switching characters, exiting the match.
@@ -7944,6 +8011,7 @@ void EndScene::onAswEngineDestroyed() {
 	for (int i = 0; i < 2; ++i) {
 		players[i].clear();
 		reachedMaxStun[i] = -1;
+		punishMessageTimers[i].clear();
 	}
 	measuringFrameAdvantage = false;
 	measuringLandingFrameAdvantage = -1;
@@ -8115,6 +8183,9 @@ void EndScene::onProjectileHit(Entity ent) {
 void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker, Entity defender) {
 	registeredHits.emplace_back();
 	RegisteredHit& hit = registeredHits.back();
+	if (defender.isPawn()) {
+		attackerInRecoveryAfterBlock[attacker.team()] = true;
+	}
 	if (hitResult == HIT_RESULT_ARMORED && attacker.isPawn() && defender.isPawn()
 			&& defender.characterType() == CHARACTER_TYPE_LEO
 			&& strcmp(defender.animationName(), "Semuke5E") == 0) {
@@ -8506,26 +8577,31 @@ void EndScene::registerRun(PlayerInfo& player, Entity pawn, const char* animName
 // Runs on the main thread
 // This hook does not work on projectiles
 void EndScene::setAnimHook(Entity pawn, const char* animName) {
-	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled && !iGiveUp) {
-		PlayerInfo& player = findPlayer(pawn);
-		if (player.pawn) {  // The hook may run on match load before we initialize our pawns,
-			                // because we only do our pawn initialization after the end of the logic tick
-			player.lastIgnoredHitNum = -1;
-			player.wasAirborneOnAnimChange = player.airborne_insideTick();
-			player.changedAnimOnThisFrame = true;
-			static MoveInfo moveJustSitsThere;
-			bool moveIsFound = moves.getInfo(moveJustSitsThere, player.charType, player.moveNameIntraFrame, player.animIntraFrame, false);
-			memcpy(player.animIntraFrame, animName, 32);
-			player.setMoveName(player.moveNameIntraFrame, pawn);
-			if (moveJustSitsThere.isIdle(player)) player.wasIdle = true;
-			events.emplace_back();
-			OccuredEvent& event = events.back();
-			event.type = OccuredEvent::SET_ANIM;
-			event.u.setAnim.pawn = pawn;
-			memcpy(event.u.setAnim.fromAnim, pawn.animationName(), 32);
-			
-			registerJump(player, pawn, animName);
-			registerRun(player, pawn, animName);
+	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
+		if (strcmp(animName, "CmnActLandingStiff") != 0) {
+			attackerInRecoveryAfterBlock[pawn.team()] = false;
+		}
+		if (!iGiveUp) {
+			PlayerInfo& player = findPlayer(pawn);
+			if (player.pawn) {  // The hook may run on match load before we initialize our pawns,
+				                // because we only do our pawn initialization after the end of the logic tick
+				player.lastIgnoredHitNum = -1;
+				player.wasAirborneOnAnimChange = player.airborne_insideTick();
+				player.changedAnimOnThisFrame = true;
+				static MoveInfo moveJustSitsThere;
+				bool moveIsFound = moves.getInfo(moveJustSitsThere, player.charType, player.moveNameIntraFrame, player.animIntraFrame, false);
+				memcpy(player.animIntraFrame, animName, 32);
+				player.setMoveName(player.moveNameIntraFrame, pawn);
+				if (moveJustSitsThere.isIdle(player)) player.wasIdle = true;
+				events.emplace_back();
+				OccuredEvent& event = events.back();
+				event.type = OccuredEvent::SET_ANIM;
+				event.u.setAnim.pawn = pawn;
+				memcpy(event.u.setAnim.fromAnim, pawn.animationName(), 32);
+				
+				registerJump(player, pawn, animName);
+				registerRun(player, pawn, animName);
+			}
 		}
 	}
 	orig_setAnim((void*)pawn, animName);
@@ -9459,17 +9535,17 @@ void EndScene::queueDummyCommand(int layer, float x, char* txt) {
 	s.field158_0xfc = -1;
 	s.field161_0x108 = 0;
 	s.field162_0x10c = 0;
-	s.field163_0x110 = -1;
+	s.textColor = -1;
 	s.field164_0x114 = 0;
 	s.field165_0x118 = 0;
 	s.field166_0x11c = -1;
 	s.outlineColor = 0xff000000;
-	s.flags2 = 0xff000000;
+	s.dropShadowColor = 0xff000000;
 	s.x = x;
 	s.y = 0.F;
 	s.alignment = ALIGN_LEFT;
 	s.text = txt;
-	s.field156_0xf4 = 0x010;
+	s.flags1 = 0x010;
 	drawTextWithIcons(&s,0x0,1,4,0,0);
 }
 
@@ -10605,7 +10681,34 @@ void EndScene::onDealHit(Entity defenderPtr, Entity attackerPtr) {
 }
 
 void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
-	if (iGiveUp || !defenderPtr.isPawn()) return;
+	if (!defenderPtr.isPawn()) return;
+	if (!defenderPtr.enableBlock() && !defenderPtr.inHitstun()
+			&& (
+				settings.showPunishMessageOnWhiff
+				&& (
+					defenderPtr.currentHitNum() > 0  // non-0 after any 'hit' instruction
+					&& (
+						defenderPtr.isRecoveryState()
+						|| defenderPtr.hitboxCount(HITBOXTYPE_HITBOX) == 0
+						|| !defenderPtr.isActiveFrames()  // can be turned off using 'attackOff'
+						|| defenderPtr.hitAlreadyHappened() == defenderPtr.theValueHitAlreadyHappenedIsComparedAgainst()  // already landed the hit
+					)
+					|| defenderPtr.cmnActIndex() == CmnActJumpLanding
+					|| defenderPtr.cmnActIndex() == CmnActLandingStiff
+					|| defenderPtr.currentAnimDuration() > 15
+				)
+				|| settings.showPunishMessageOnBlock
+				&& attackerInRecoveryAfterBlock[defenderPtr.team()]
+			)
+	) {
+		std::vector<PunishMessageTimer>& vec = punishMessageTimers[defenderPtr.team()];
+		vec.emplace_back();
+		PunishMessageTimer& newTimer = vec.back();
+		newTimer.animFrame = 0;
+		newTimer.recheckTimer = 7;
+		newTimer.animFrameRepeatCount = punishAnim[0].repeatCount;
+	}
+	if (iGiveUp) return;
 	PlayerInfo& attacker = findPlayer(attackerPtr.playerEntity());
 	PlayerInfo& defender = findPlayer(defenderPtr);
 	if (!defender.pawn || defender.dmgCalcs.empty() || defender.dmgCalcs.back().hitResult != HIT_RESULT_NORMAL) return;
@@ -12798,4 +12901,32 @@ bool EndScene::attach(PVOID* ppPointer, PVOID pDetour, const char* name) {
 		detouring.endTransaction();
 	}
 	return true;
+}
+
+void EndScene::drawPunishMessage(float x, float y, DrawTextWithIconsAlignment alignment, DWORD textColor) {
+	char message[] = "PUNISH";
+	DrawTextWithIconsParams s;
+	s.field159_0x100 = 36.0;
+	s.layer = 177;
+	s.field160_0x104 = -1.0;
+	s.field4_0x10 = -1.0;
+	s.field155_0xf0 = 1;
+	s.field157_0xf8 = -1;
+	s.field158_0xfc = -1;
+	s.field161_0x108 = 0;
+	s.field162_0x10c = 0;
+	s.textColor = textColor;  // text color
+	s.field164_0x114 = 0;
+	s.field165_0x118 = 0;
+	s.field166_0x11c = -1;
+	BYTE blue = textColor & 0xFF;
+	BYTE alpha = (BYTE)((textColor & 0xFF000000) >> 24);
+	s.outlineColor = ((DWORD)alpha << 24) | ((DWORD)blue << 16) | ((DWORD)blue << 8) | blue;
+	s.dropShadowColor = s.outlineColor;
+	s.x = x;
+	s.y = y;
+	s.alignment = alignment;
+	s.text = message;
+	s.flags1 = 0x2612;
+	drawTextWithIcons(&s,0x0,1,4,0,0);
 }

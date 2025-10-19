@@ -751,6 +751,16 @@ private:
 	// meant for use outside of onDllMain, but may be called from onDllMain as well
 	bool attach(PVOID* ppPointer, PVOID pDetour, const char* name);
 	bool lastRoundendContainedADeath = false;
+	struct PunishMessageTimer {
+		int animFrame = -1;
+		int recheckTimer = -1;
+		int animFrameRepeatCount = 0;
+		float yOff = 0.F;
+		float xOff = 0.F;
+	};
+	std::array<std::vector<PunishMessageTimer>, 2> punishMessageTimers;
+	void drawPunishMessage(float x, float y, DrawTextWithIconsAlignment alignment, DWORD textColor);
+	bool attackerInRecoveryAfterBlock[2] { false, false };
 };
 
 extern EndScene endScene;

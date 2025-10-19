@@ -1238,6 +1238,16 @@ dontResetRISCWhenInBurstOrFaint = false
 ; Setting this to true prevents the 'Counter Hit' setting from working explicitly just for Burst
 ; and Faint animations, including all hitstun.
 onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun = false
+
+; Specify true or false.
+; Shows a message when you blocked/got hit by/armored an attack and then at that moment opponent was doing a move,
+; and then you hit them while they were still in that move or in landing recovery after the move.
+showPunishMessageOnBlock = false
+
+; Specify true or false.
+; Shows a message when a player got hit during recovery of an attack move, or during
+; landing animation of any move, or after 15 frames of starting a move.
+showPunishMessageOnWhiff = false
 ```
 
 </details>
@@ -1741,3 +1751,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 74) Split "Starting Tension Pulse" setting into two separate settings: one for P1, one for P2.
 - 2025 October 11: Version 7.1: Fixed everything, except damage, not being reset in Combo Damage & Combo Stun on combo restart or even position reset (damage was already resetting properly).
 - 2025 October 14: Version 7.2: Fixed 'Display Durations In Input History' mode when the icons would be offset way too much from the text on higher screen resolutions. Added an option to scale the 'Startup, Active, Recovery, Total, Advantage' text next to the framebar, and it will now by default scale automatically to 2 times the size when on screen width larger than 1920. Made the text inside the frames that shows the number of same consecutive frames scale larger on higher screen resolutions.
+- 2025 October 19: Version 7.3: Added an option to display a "PUNISH" message when punishing a move. There are two settings for this: Settings - General Settings - "Show 'Punish' Message When Punishing Presumed Recovery' and "Show 'Punish' Message When Punishing After A Block/Hit/Armor".
