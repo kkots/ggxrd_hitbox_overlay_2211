@@ -8192,7 +8192,8 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 		if (attacker.isPawn()) {
 			attackerInRecoveryAfterBlock[attackerIndex] = true;
 		} else {
-			attackerInRecoveryAfterBlock[attackerIndex] = attackerInRecoveryAfterCreatingProjectile[attackerIndex][getEffectIndex(attacker)];
+			attackerInRecoveryAfterBlock[attackerIndex] = attackerInRecoveryAfterBlock[attackerIndex]
+				|| attackerInRecoveryAfterCreatingProjectile[attackerIndex][getEffectIndex(attacker)];
 		}
 	}
 	if (hitResult == HIT_RESULT_ARMORED && attacker.isPawn() && defender.isPawn()
