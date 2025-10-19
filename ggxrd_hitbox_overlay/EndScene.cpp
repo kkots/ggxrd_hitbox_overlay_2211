@@ -953,6 +953,7 @@ void EndScene::logic() {
 				punishMessageTimers[i].clear();
 				attackerInRecoveryAfterBlock[i] = false;
 			}
+			memset(attackerInRecoveryAfterCreatingProjectile, 0, sizeof attackerInRecoveryAfterCreatingProjectile);
 			if (!iGiveUp) {
 				if (!settings.dontClearFramebarOnStageReset) {
 					playerFramebars.clear();
@@ -8015,6 +8016,7 @@ void EndScene::onAswEngineDestroyed() {
 		punishMessageTimers[i].clear();
 		attackerInRecoveryAfterBlock[i] = false;
 	}
+	memset(attackerInRecoveryAfterCreatingProjectile, 0, sizeof attackerInRecoveryAfterCreatingProjectile);
 	measuringFrameAdvantage = false;
 	measuringLandingFrameAdvantage = -1;
 	memset(tensionGainOnLastHit, 0, sizeof tensionGainOnLastHit);
@@ -8186,7 +8188,12 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 	registeredHits.emplace_back();
 	RegisteredHit& hit = registeredHits.back();
 	if (defender.isPawn()) {
-		attackerInRecoveryAfterBlock[1 - defender.team()] = true;
+		int attackerIndex = 1 - defender.team();
+		if (attacker.isPawn()) {
+			attackerInRecoveryAfterBlock[attackerIndex] = true;
+		} else {
+			attackerInRecoveryAfterBlock[attackerIndex] = attackerInRecoveryAfterCreatingProjectile[attackerIndex][getEffectIndex(attacker)];
+		}
 	}
 	if (hitResult == HIT_RESULT_ARMORED && attacker.isPawn() && defender.isPawn()
 			&& defender.characterType() == CHARACTER_TYPE_LEO
@@ -8582,6 +8589,7 @@ void EndScene::setAnimHook(Entity pawn, const char* animName) {
 	if (!shutdown && pawn.isPawn() && !gifMode.modDisabled) {
 		if (strcmp(animName, "CmnActLandingStiff") != 0) {
 			attackerInRecoveryAfterBlock[pawn.team()] = false;
+			memset(attackerInRecoveryAfterCreatingProjectile[pawn.team()], false, _countof(attackerInRecoveryAfterCreatingProjectile[0]));
 		}
 		if (!iGiveUp) {
 			PlayerInfo& player = findPlayer(pawn);
@@ -8808,6 +8816,17 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 	Entity newProjectilePtr { nullptr };
 	if (!shutdown && creatingObject) {
 		creatingObject = false;
+		if (endScene.creatorOfCreatedObject) {
+			int team = endScene.creatorOfCreatedObject.team();
+			int effectIndex = endScene.getEffectIndex(createdObj);
+			if (endScene.creatorOfCreatedObject.isPawn()) {
+				attackerInRecoveryAfterCreatingProjectile[team][effectIndex] = true;
+			} else {
+				attackerInRecoveryAfterCreatingProjectile[team][effectIndex] =
+					attackerInRecoveryAfterCreatingProjectile[team][endScene.getEffectIndex(endScene.creatorOfCreatedObject)];
+			}
+		}
+		
 		if (!iGiveUp) {
 			ProjectileInfo& newProjectileInfo = onObjectCreated(creatorOfCreatedObject, createdObj, createdObjectAnim, false, true);
 			newProjectilePtr = newProjectileInfo.ptr;
@@ -10707,6 +10726,13 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 				attackerPtr.isPawn()
 				&& strncmp(attackerPtr.animationName(), "CounterGuard", 12) == 0
 				&& attackerPtr.dealtAttack()->collisionForceExpand()
+			)
+			// exclude dashing, backdashing, airdashing
+			&& !(
+				defenderPtr.cmnActIndex() == CmnActFDash
+				|| defenderPtr.cmnActIndex() == CmnActBDash
+				|| defenderPtr.cmnActIndex() == CmnActAirFDash
+				|| defenderPtr.cmnActIndex() == CmnActAirBDash
 			)
 	) {
 		std::vector<PunishMessageTimer>& vec = punishMessageTimers[defenderPtr.team()];
@@ -12937,4 +12963,10 @@ void EndScene::drawPunishMessage(float x, float y, DrawTextWithIconsAlignment al
 	s.text = message;
 	s.flags1 = 0x2612;
 	drawTextWithIcons(&s,0x0,1,4,0,0);
+}
+
+int EndScene::getEffectIndex(Entity effect) {
+	return (
+		effect.ent - (*aswEngine + 0x4 + 0x460)  // an in-place array of 75 Effects is here
+	) / 0x4d10;  // size of 1 Effect;
 }

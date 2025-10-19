@@ -761,6 +761,8 @@ private:
 	std::array<std::vector<PunishMessageTimer>, 2> punishMessageTimers;
 	void drawPunishMessage(float x, float y, DrawTextWithIconsAlignment alignment, DWORD textColor);
 	bool attackerInRecoveryAfterBlock[2] { false, false };
+	bool attackerInRecoveryAfterCreatingProjectile[2][75] { false };
+	static int getEffectIndex(Entity effect);
 };
 
 extern EndScene endScene;
