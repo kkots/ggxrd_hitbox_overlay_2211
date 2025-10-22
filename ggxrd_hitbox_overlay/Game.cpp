@@ -1359,6 +1359,12 @@ bool Game::sigscanAndHookPositionResetAndGetPlayerPadID() {
 		}
 	}
 	if (orig_setPositionResetType && !attemptedToHookPositionReset) {
+		
+		bool wasInTransaction = detouring.isInTransaction();
+		if (!wasInTransaction) {
+			detouring.beginTransaction(false);
+		}
+		
 		attemptedToHookPositionReset = true;
 		detouring.attach(&(PVOID&)(orig_setPositionResetType),
 			setPositionResetTypeHookStatic,
@@ -1383,6 +1389,10 @@ bool Game::sigscanAndHookPositionResetAndGetPlayerPadID() {
 		detouring.attach(&(PVOID&)(orig_roundInit),
 			(PVOID&)roundInitHookPtr,
 			"roundInit");
+		
+		if (!wasInTransaction) {
+			detouring.endTransaction();
+		}
 	}
 	if (!getPlayerPadIDPtr && !attemptedToSigscanPlayedPadID) {
 		attemptedToSigscanPlayedPadID = true;
@@ -1498,6 +1508,8 @@ void Game::onConnectionTierChanged() {
 			"8b 94 81 98 bc 00 00 8d 8c 81 98 bc 00 00 8b 42 08 ff d0 8b 48 44 51 >e8",
 			nullptr,
 			"connectionTierPlaceForBypassingFilter");
+		
+		if (!detouring.isInTransaction()) finishedSigscanning();
 	}
 	if (!place) return;
 	

@@ -11937,10 +11937,15 @@ bool EndScene::hookPawnArcadeModeIsBoss() {
 	
 	if (!orig_Pawn_ArcadeMode_IsBoss) return false;
 	
+	bool wasInTransaction = detouring.isInTransaction();
+	if (!wasInTransaction) detouring.beginTransaction(false);
+	
 	auto Pawn_ArcadeMode_IsBossHookPtr = &HookHelp::Pawn_ArcadeMode_IsBossHook;
 	if (!attach(&(PVOID&)orig_Pawn_ArcadeMode_IsBoss,
 		(PVOID&)Pawn_ArcadeMode_IsBossHookPtr,
 		"Pawn_ArcadeMode_IsBoss")) return false;
+	
+	if (!wasInTransaction) detouring.endTransaction();
 	
 	Pawn_ArcadeMode_IsBossHooked = true;
 	
@@ -12639,12 +12644,20 @@ bool EndScene::highlightGreenWhenBecomingIdleChanged() {
 				nullptr, "pawnGetColor");
 		if (!place) return false;
 		orig_pawnGetColor = (pawnGetColor_t)sigscanBackwards16ByteAligned(place, "83 ec");
+		if (!detouring.isInTransaction()) finishedSigscanning();
 	}
 	if (!orig_pawnGetColor) return false;
+	
+	bool wasInTransaction = detouring.isInTransaction();
+	if (!wasInTransaction) detouring.beginTransaction(false);
+	
 	auto pawnGetColorHookPtr = &HookHelp::pawnGetColorHook;
-	return attach(&(PVOID&)orig_pawnGetColor,
+	bool result = attach(&(PVOID&)orig_pawnGetColor,
 		(PVOID&)pawnGetColorHookPtr,
 		"pawnGetColor");
+	
+	if (!wasInTransaction) detouring.endTransaction();
+	return result;
 }
 
 DWORD EndScene::HookHelp::pawnGetColorHook(DWORD* inColor) {
@@ -12777,9 +12790,16 @@ bool EndScene::onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged() {
 			trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingCallPlace);
 	auto trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHookPtr =
 		&HookHelp::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook;
-	return attach(&(PVOID&)orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking,
+	bool wasInTransaction = detouring.isInTransaction();
+	if (!wasInTransaction) {
+		finishedSigscanning();
+		detouring.beginTransaction(false);
+	}
+	bool result = attach(&(PVOID&)orig_trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking,
 		(PVOID&)trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHookPtr,
 		"trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking");
+	if (!wasInTransaction) detouring.endTransaction();
+	return result;
 }
 
 BOOL EndScene::HookHelp::trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook() {
@@ -12805,10 +12825,17 @@ bool EndScene::onDontResetRiscWhenInBurstOrFaintChanged() {
 		"8b 81 3c 02 00 00 a8 04 75 20 83 b9 54 4d 00 00 00 7f 17 83 b9 e4 9f 00 00 00 7f 0e a8 02 75 0a",
 		nullptr, "inHitstunBlockstunOrThrowProtectionOrDead");
 	if (!orig_inHitstunBlockstunOrThrowProtectionOrDead) return true;
+	bool wasInTransaction = detouring.isInTransaction();
+	if (!wasInTransaction) {
+		finishedSigscanning();
+		detouring.beginTransaction(false);
+	}
 	auto inHitstunBlockstunOrThrowProtectionOrDeadHookPtr = &HookHelp::inHitstunBlockstunOrThrowProtectionOrDeadHook;
-	return attach(&(PVOID&)orig_inHitstunBlockstunOrThrowProtectionOrDead,
+	bool result = attach(&(PVOID&)orig_inHitstunBlockstunOrThrowProtectionOrDead,
 		(PVOID&)inHitstunBlockstunOrThrowProtectionOrDeadHookPtr,
 		"inHitstunBlockstunOrThrowProtectionOrDead");
+	if (!wasInTransaction) detouring.endTransaction();
+	return result;
 }
 
 BOOL EndScene::HookHelp::inHitstunBlockstunOrThrowProtectionOrDeadHook() {
@@ -12817,7 +12844,7 @@ BOOL EndScene::HookHelp::inHitstunBlockstunOrThrowProtectionOrDeadHook() {
 
 // only runs in training mode. Only used to decide whether to reset RISC in Training Mode
 BOOL EndScene::inHitstunBlockstunOrThrowProtectionOrDeadHook(Entity ent) {
-	if (settings.dontResetRISCWhenInBurstOrFaint && !findPlayer(ent).isIdle()) {
+	if (!gifMode.modDisabled && settings.dontResetRISCWhenInBurstOrFaint && !findPlayer(ent).isIdle()) {
 		return TRUE;
 	}
 	return orig_inHitstunBlockstunOrThrowProtectionOrDead((void*)ent.ent);
@@ -12833,7 +12860,7 @@ bool EndScene::onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstu
 		"55 6a 0b 89 6c 24 30 e8 ?? ?? ?? ?? 8b c8 >e8",
 		nullptr, "obtainingOfCounterhitTrainingSetting");
 	if (!callPlace) return true;
-	
+	if (!detouring.isInTransaction()) finishedSigscanning();
 	getTrainingSetting_t whatIsThere = (getTrainingSetting_t)followRelativeCall(callPlace);
 	if (!thisIsOurFunction((uintptr_t)whatIsThere)) {
 		orig_getTrainingSetting = whatIsThere;
@@ -12850,7 +12877,8 @@ int __cdecl obtainingOfCounterhitTrainingSettingHook(void* defender, void* train
 			&& (
 				defenderEnt.cmnActIndex() == CmnActBurst
 				|| defenderEnt.cmnActIndex() == CmnActKizetsu
-			)) {
+			)
+			&& !gifMode.modDisabled) {
 		return 0;
 	}
 	return game.getTrainingSetting(settingId);
@@ -12869,6 +12897,7 @@ bool EndScene::onStartingBurstGaugeChanged() {
 		"85 c0 74 0c 68 98 3a 00 00 8b ce >e8",
 		nullptr, "burstGaugeReset");
 	if (!callPlace) return true;
+	if (!detouring.isInTransaction()) finishedSigscanning();
 	addBurst = (addBurst_t)followRelativeCall(callPlace);
 	auto resetBurstHookPtr = &HookHelp::resetBurstHook;
 	int offset = calculateRelativeCallOffset(callPlace, (uintptr_t&)resetBurstHookPtr);
@@ -12881,7 +12910,7 @@ void EndScene::HookHelp::resetBurstHook(int amount) {
 
 void EndScene::resetBurstHook(Entity pawn, int amout) {
 	
-	if (*gameModeFast != GAME_MODE_FAST_NORMAL) {
+	if (*gameModeFast != GAME_MODE_FAST_NORMAL || gifMode.modDisabled) {
 		addBurst((void*)pawn.ent, 15000);
 		return;
 	}
@@ -12900,18 +12929,10 @@ void EndScene::resetBurstHook(Entity pawn, int amout) {
 }
 
 bool EndScene::overwriteCall(uintptr_t callInstr, int newOffset) {
-	bool wasTransaction = detouring.isInTransaction();
-	if (!wasTransaction) {
-		if (!detouring.beginTransaction(false)) return false;
-	}
 	std::vector<char> newBytes(4);
 	memcpy(newBytes.data(), &newOffset, 4);
 	if (!detouring.patchPlace(callInstr + 1, newBytes)) {
-		if (!wasTransaction) detouring.cancelTransaction();
 		return false;
-	}
-	if (!wasTransaction) {
-		detouring.endTransaction();
 	}
 	return true;
 }
