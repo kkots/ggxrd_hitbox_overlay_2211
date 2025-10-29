@@ -9300,6 +9300,9 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	bool drawingPostponedLocal;
 	needEnqueueUiWithPoints = false;
 	if (!shutdown && !graphics.shutdown && *game.gameDataPtr) {
+		if (!game.isTrainingMode() || !*aswEngine) {
+			gifMode.fps = 60.F;
+		}
 		game.updateOnlineDelay();
 		
 		drawDataPrepared.gameModeFast = getGameModeFast();
