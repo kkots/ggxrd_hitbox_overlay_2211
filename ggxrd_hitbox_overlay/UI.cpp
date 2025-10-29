@@ -1972,6 +1972,23 @@ void UI::drawSearchableWindows() {
 			}
 			HelpMarkerWithHotkey(slowmoHelp, settings.slowmoGameToggle);
 			
+			float fpsValue = gifMode.fps;
+			ImGui::SetNextItemWidth(80.F);
+			if (ImGui::InputFloat(searchFieldTitle("FPS"), &fpsValue, 1.F, 5.F, "%.2f")) {
+				if (fpsValue < 1.F) fpsValue = 1.F;
+				if (fpsValue > 999.F) fpsValue = 999.F;
+			}
+			if (!game.isTrainingMode() || !*aswEngine) {
+				fpsValue = 60.F;
+			}
+			if (std::abs(fpsValue - gifMode.fps) > 0.001F) {
+				game.onFPSChanged();
+				gifMode.fps = fpsValue;
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::SameLine();
+			HelpMarker(searchTooltip("Changes FPS (frames per second) of the whole game. Works only in Training Mode."));
+			
 			ImGui::Button(searchFieldTitle("Take Screenshot"));
 			if (ImGui::IsItemActivated()) {
 				// Regular ImGui button 'press' (ImGui::Button(...) function returning true) happens when you RELEASE the button,

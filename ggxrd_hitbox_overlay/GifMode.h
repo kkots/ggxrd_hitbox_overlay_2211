@@ -21,6 +21,7 @@ public:
 	bool allowCreateParticles{ true };
 	bool makeOpponentFullInvul { false };
 	bool makePlayerFullInvul { false };
+	float fps { 60.F };
 };
 
 extern GifMode gifMode;

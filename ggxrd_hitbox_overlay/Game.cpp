@@ -1539,3 +1539,26 @@ void Game::onConnectionTierChanged() {
 	
 	detouring.patchPlaceNoBackup((uintptr_t)functionStart, workVector);
 }
+
+bool Game::swapOutFPS() {
+	if (attemptedToSwapOutFPS) return false;
+	attemptedToSwapOutFPS = true;
+	
+	uintptr_t fpsUsage = sigscanOffset(GUILTY_GEAR_XRD_EXE,
+		"f3 0f 10 86 00 05 00 00 0f 2f c1 77 15 f3 0f 10 05 >?? ?? ?? ?? 0f 2f c1 76 08 f3 0f 11 4c 24 08 eb 06",
+		nullptr, "fpsUsage");
+	if (fpsUsage) {
+		DWORD newFpsAddr = (DWORD)(uintptr_t)&gifMode.fps;
+		std::vector<char> newBytes(4);
+		memcpy(newBytes.data(), &newFpsAddr, 4);
+		detouring.patchPlace(fpsUsage, newBytes);
+		return true;
+	}
+	return false;
+}
+
+void Game::onFPSChanged() {
+	if (gifMode.fps != 60.F) {
+		swapOutFPS();
+	}
+}

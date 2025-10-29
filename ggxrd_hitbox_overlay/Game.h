@@ -159,6 +159,7 @@ public:
 	uintptr_t drawRankInLobbyMemberList_NonCircle = 0;
 	uintptr_t drawRankInLobbyMemberList_Circle = 0;
 	void onUsePositionResetChanged();
+	void onFPSChanged();
 private:
 	getPlayerPadID_t getPlayerPadIDPtr = nullptr;
 	class HookHelp {
@@ -271,6 +272,8 @@ private:
 	functionInIsPlayInsideProcessPlayRecordReset_t functionInIsPlayInsideProcessPlayRecordReset = nullptr;
 	static void* functionInIsPlayInsideProcessPlayRecordResetHook();
 	bool doNotIncrementSlotInputsIndex = false;
+	bool attemptedToSwapOutFPS = false;
+	bool swapOutFPS();
 };
 
 extern Game game;
