@@ -170,6 +170,7 @@ class UndoReorderLayersOperation : public UndoOperationBase {
 public:
 	UndoReorderLayersOperation();
 	UndoReorderLayersOperation(const UndoOperationBase& other);
+	void fill(std::vector<EditedHitbox>&& newLayers);
 	virtual ~UndoReorderLayersOperation() override = default;
 	virtual bool perform(ThreadUnsafeSharedPtr<UndoOperationBase>* oppositeOperation) const override;
 private:

@@ -21296,56 +21296,92 @@ void UI::hitboxEditProcessPressedCommands() {
 			}
 		}
 		
-		if (hitboxEditSendToBackPressed && !selectedHitboxes.empty()) {
-			ReorderLayersOperation newOp;
-			newOp.fill(editEntity.hitboxes()->hitboxCount() + 1);
+		if (hitboxEditSendToBackPressed && !selectedHitboxes.empty() && !selectedHitboxesAlreadyAtTheBottom(currentSpriteElement)) {
+			currentSpriteElement->convertToLayers(&secondaryData);
+			std::vector<EditedHitbox> newLayers(currentSpriteElement->layersSize);
+			EditedHitbox* dstLayer = newLayers.data();
+			for (int iteration = 0; iteration < 2; ++iteration) {
+				EditedHitbox* srcLayer = currentSpriteElement->layers;
+				for (int layerIndex = 0; layerIndex < (int)currentSpriteElement->layersSize; ++layerIndex) {
+					if (hitboxIsSelected(srcLayer->originalIndex) == (iteration == 0)) {
+						*dstLayer = *srcLayer;
+						++dstLayer;
+					}
+					++srcLayer;
+				}
+			}
+			UndoReorderLayersOperation newOp;
+			newOp.fill(std::move(newLayers));
 			performOp(&newOp);
 		}
-		if (hitboxEditSendBackwardsPressed && !selectedHitboxes.empty()) {
-			
-			int targetLayer = -1;
-			LayerIterator layerIterator(editEntity);
-			int count = layerIterator.count();
-			int prevPrevIndex = -1;
-			int prevIndex = count;
-			
-			while (layerIterator.getNext()) {
-				if (hitboxIsSelected(layerIterator.originalIndex)) {
-					if (prevPrevIndex != -1) {
-						ReorderLayersOperation newOp;
-						newOp.fill(prevPrevIndex);
-						performOp(&newOp);
-					}
-					break;
+		if (hitboxEditSendBackwardsPressed && !selectedHitboxes.empty() && !selectedHitboxesAlreadyAtTheBottom(currentSpriteElement)) {
+			currentSpriteElement->convertToLayers(&secondaryData);
+			std::vector<EditedHitbox> newLayers(currentSpriteElement->layersSize);
+			memcpy(newLayers.data(), currentSpriteElement->layers, currentSpriteElement->layersSize * sizeof (EditedHitbox));
+			bool prevLayerSelected;
+			if (!newLayers.empty()) {
+				prevLayerSelected = hitboxIsSelected(newLayers.front().originalIndex);
+			} else {
+				prevLayerSelected = false;
+			}
+			EditedHitbox* layer = newLayers.data() + 1;
+			for (int layerIndex = 1; layerIndex < (int)currentSpriteElement->layersSize; ++layerIndex) {
+				bool thisLayerSelected = hitboxIsSelected(layer->originalIndex);
+				if (thisLayerSelected && !prevLayerSelected) {
+					std::swap(*layer, *(layer - 1));
+					prevLayerSelected = false;
 				} else {
-					prevPrevIndex = prevIndex;
-					prevIndex = count - 1 - layerIterator.index;
+					prevLayerSelected = thisLayerSelected;
 				}
+				++layer;
 			}
 			
+			UndoReorderLayersOperation newOp;
+			newOp.fill(std::move(newLayers));
+			performOp(&newOp);
 		}
-		if (hitboxEditSendForwardsPressed && !selectedHitboxes.empty()) {
-			int prevIndex = -1;
-			LayerIterator layerIterator(editEntity);
-			layerIterator.scrollToEnd();
-			int index = 0;
-			while (layerIterator.getPrev()) {
-				if (hitboxIsSelected(layerIterator.originalIndex)) {
-					if (prevIndex != -1) {
-						ReorderLayersOperation newOp;
-						newOp.fill(prevIndex);
-						performOp(&newOp);
-					}
-					break;
+		if (hitboxEditSendForwardsPressed && !selectedHitboxes.empty() && !selectedHitboxesAlreadyAtTheTop(currentSpriteElement)) {
+			currentSpriteElement->convertToLayers(&secondaryData);
+			std::vector<EditedHitbox> newLayers(currentSpriteElement->layersSize);
+			memcpy(newLayers.data(), currentSpriteElement->layers, currentSpriteElement->layersSize * sizeof (EditedHitbox));
+			bool prevLayerSelected;
+			if (!newLayers.empty()) {
+				prevLayerSelected = hitboxIsSelected(newLayers.back().originalIndex);
+			} else {
+				prevLayerSelected = false;
+			}
+			EditedHitbox* layer = newLayers.data() + (newLayers.size() - 2);
+			for (int layerIndex = 1; layerIndex < (int)currentSpriteElement->layersSize; ++layerIndex) {
+				bool thisLayerSelected = hitboxIsSelected(layer->originalIndex);
+				if (thisLayerSelected && !prevLayerSelected) {
+					std::swap(*layer, *(layer + 1));
+					prevLayerSelected = false;
 				} else {
-					prevIndex = index;
-					++index;
+					prevLayerSelected = thisLayerSelected;
+				}
+				--layer;
+			}
+			
+			UndoReorderLayersOperation newOp;
+			newOp.fill(std::move(newLayers));
+			performOp(&newOp);
+		}
+		if (hitboxEditSendToFrontPressed && !selectedHitboxes.empty() && !selectedHitboxesAlreadyAtTheTop(currentSpriteElement)) {
+			currentSpriteElement->convertToLayers(&secondaryData);
+			std::vector<EditedHitbox> newLayers(currentSpriteElement->layersSize);
+			EditedHitbox* dstLayer = newLayers.data() + (newLayers.size() - 1);
+			for (int iteration = 0; iteration < 2; ++iteration) {
+				EditedHitbox* srcLayer = currentSpriteElement->layers + (currentSpriteElement->layersSize - 1);
+				for (int layerIndex = 0; layerIndex < (int)currentSpriteElement->layersSize; ++layerIndex) {
+					if (hitboxIsSelected(srcLayer->originalIndex) == (iteration == 0)) {
+						*dstLayer = *srcLayer;
+						--dstLayer;
+					}
+					--srcLayer;
 				}
 			}
-		}
-		if (hitboxEditSendToFrontPressed && !selectedHitboxes.empty()) {
-			ReorderLayersOperation newOp;
-			newOp.fill(0);
+			UndoReorderLayersOperation newOp;
+			newOp.fill(std::move(newLayers));
 			performOp(&newOp);
 		}
 		
@@ -23014,4 +23050,43 @@ P1P2CommonTable::~P1P2CommonTable() {
 		}, icon.uvStart, icon.uvEnd, 0xFFFFFFFF);
 		drawList->PopClipRect();
 	}
+}
+
+bool UI::selectedHitboxesAlreadyAtTheBottom(SortedSprite* sortedSprite) {
+	bool encounteredSelected = false;
+	bool encounteredNonSelected = false;
+	LayerIterator layerIterator(Entity{gifMode.editHitboxesEntity}, sortedSprite);
+	while (layerIterator.getNext()) {
+		if (!hitboxIsSelected(layerIterator.originalIndex)) {
+			if (!encounteredSelected) return false;
+			encounteredNonSelected = true;
+		} else {
+			if (encounteredNonSelected) {
+				return false;
+			}
+			encounteredSelected = true;
+		}
+	}
+	
+	return true;
+}
+
+bool UI::selectedHitboxesAlreadyAtTheTop(SortedSprite* sortedSprite) {
+	bool encounteredSelected = false;
+	bool encounteredNonSelected = false;
+	LayerIterator layerIterator(Entity{gifMode.editHitboxesEntity}, sortedSprite);
+	layerIterator.scrollToEnd();
+	while (layerIterator.getPrev()) {
+		if (!hitboxIsSelected(layerIterator.originalIndex)) {
+			if (!encounteredSelected) return false;
+			encounteredNonSelected = true;
+		} else {
+			if (encounteredNonSelected) {
+				return false;
+			}
+			encounteredSelected = true;
+		}
+	}
+	
+	return true;
 }

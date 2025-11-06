@@ -1980,3 +1980,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2025 October 29: Version 7.7: Added an "FPS" field to regulate the game's FPS.
 - 2025 November 6: Version 7.8: Added Hitbox Editor, accessible through the "Hitbox Editor" button in the "Hitboxes" section of the main UI.
 - 2025 November 6: Version 7.9: Added hotkey-able commands to Hitbox Editor to rearrange boxes up and down in the Z-order.
+- 2025 November 6: Version 7.10: Redo the hotkey-able commands to Hitbox Editor so they rearrange boxes up and down in the Z-order properly.

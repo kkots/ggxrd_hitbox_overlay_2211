@@ -30,4 +30,17 @@ private:
 	int prevDirection = 0;
 	void init();
 	BYTE* jonbin;
+	#if _DEBUG
+	std::vector<EditedHitbox> layersSnapshot;
+	bool hadLayers = false;
+	bool snapshotInitialized = false;
+	void checkSnapshot();
+	#endif
+};
+
+struct LayerIteratorIgnoreLayers : public LayerIterator {
+	LayerIteratorIgnoreLayers(Entity ent, SortedSprite* parent);
+	LayerIteratorIgnoreLayers(Entity ent);
+	LayerIteratorIgnoreLayers(FPAC* fpac, SortedSprite* parent);
+	LayerIteratorIgnoreLayers(BYTE* jonbin);
 };

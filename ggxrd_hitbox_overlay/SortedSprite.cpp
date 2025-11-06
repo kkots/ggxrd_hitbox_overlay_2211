@@ -6,6 +6,7 @@
 #include "EndScene.h"
 #include "Game.h"
 #include <stdexcept>
+#include "LayerIterator.h"
 
 static char reprbuf[128];
 
@@ -1034,3 +1035,15 @@ template void FPACSecondaryData::replaceFpac<FPACLookupElement0x50, true>(Source
 template void FPACSecondaryData::replaceFpac<FPACLookupElement0x30, true>(SourceFpacProvier* provider);
 template void FPACSecondaryData::replaceFpac<FPACLookupElement0x50, false>(SourceFpacProvier* provider);
 template void FPACSecondaryData::replaceFpac<FPACLookupElement0x30, false>(SourceFpacProvier* provider);
+
+void SortedSprite::convertToLayers(FPACSecondaryData* mainData) {
+	if (layers) return;
+	LayerIteratorIgnoreLayers layerIterator(mainData->Collision->TopData, this);
+	int count = layerIterator.count();
+	resizeLayers(count);
+	EditedHitbox* layer = layers;
+	while (layerIterator.getNext()) {
+		layerIterator.copyTo(layer);
+		++layer;
+	}
+}

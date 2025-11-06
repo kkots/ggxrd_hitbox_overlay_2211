@@ -31,6 +31,7 @@ struct SortedSprite {
 	void resizeJonbin(struct FPACSecondaryData* mainData, size_t newSize);
 	const char* repr() const;
 	void freeMemory();
+	void convertToLayers(FPACSecondaryData* mainData);
 };
 
 struct SourceFpacProvier {

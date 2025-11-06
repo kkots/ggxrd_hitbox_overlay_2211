@@ -1,6 +1,9 @@
 #include "pch.h"
 #include "LayerIterator.h"
 #include "UI.h"
+#if _DEBUG
+#include <stdexcept>
+#endif
 
 LayerIterator::LayerIterator(Entity ent) {
 	
@@ -45,12 +48,16 @@ LayerIterator::LayerIterator(FPAC* fpac, SortedSprite* parent)
 				? ((FPACLookupElement0x50*)parent->name)->offset
 				: ((FPACLookupElement0x30*)parent->name)->offset
 		)
-	) { }
-	// firstRun = true
+	) {
+}
+// firstRun = true
 
 LayerIterator::LayerIterator(BYTE* jonbin) : jonbin(jonbin), parent(nullptr) { }
 
 bool LayerIterator::getNext() {
+	#if _DEBUG
+	checkSnapshot();
+	#endif
 	if (scrolledToEnd) return false;
 	if (sof) { scrollToStart(); }
 	if (parent && parent->layers) {
@@ -136,6 +143,9 @@ bool LayerIterator::getNext() {
 }
 
 bool LayerIterator::getPrev() {
+	#if _DEBUG
+	checkSnapshot();
+	#endif
 	if (firstRun && !scrolledToEnd) return false;
 	if (eof) { scrollToEnd(); }
 	scrolledToEnd = false;
@@ -302,3 +312,41 @@ void LayerIterator::copyTo(EditedHitbox* dest) const {
 	#pragma warning(suppress:26437)
 	*dest = *src;
 }
+
+LayerIteratorIgnoreLayers::LayerIteratorIgnoreLayers(Entity ent, SortedSprite* parent)
+	: LayerIterator(
+		parent
+			? ent.fpac()->size0x50()
+				? (BYTE*)ent.fpac() + ent.fpac()->headerSize + ((FPACLookupElement0x50*)parent->name)->offset
+				: (BYTE*)ent.fpac() + ent.fpac()->headerSize + ((FPACLookupElement0x30*)parent->name)->offset
+			: ent.hitboxes()->jonbinPtr
+	) { }
+LayerIteratorIgnoreLayers::LayerIteratorIgnoreLayers(Entity ent)
+	: LayerIterator(ent.hitboxes()->jonbinPtr) { }
+LayerIteratorIgnoreLayers::LayerIteratorIgnoreLayers(FPAC* fpac, SortedSprite* parent)
+	: LayerIterator(
+		fpac->size0x50()
+			? (BYTE*)fpac + fpac->headerSize + ((FPACLookupElement0x50*)parent->name)->offset
+			: (BYTE*)fpac + fpac->headerSize + ((FPACLookupElement0x30*)parent->name)->offset
+	) { }
+LayerIteratorIgnoreLayers::LayerIteratorIgnoreLayers(BYTE* jonbin) : LayerIterator(jonbin) { }
+
+#if _DEBUG
+void LayerIterator::checkSnapshot() {
+	if (!parent) return;
+	if (!snapshotInitialized) {
+		snapshotInitialized = true;
+		hadLayers = parent->layers != nullptr;
+		if (hadLayers) {
+			layersSnapshot.resize(parent->layersSize);
+			memcpy(layersSnapshot.data(), parent->layers, parent->layersSize * sizeof (EditedHitbox));
+		}
+	}
+	if (hadLayers != (parent->layers != nullptr)
+			|| hadLayers && layersSnapshot.size() != parent->layersSize
+			|| hadLayers && memcmp(layersSnapshot.data(), parent->layers, parent->layersSize * sizeof (EditedHitbox)) != 0) {
+		throw std::logic_error("You're modifying the layers array as you're iterating it, you maniac!"
+			" Use LayerIteratorIgnoreLayers.");
+	}
+}
+#endif

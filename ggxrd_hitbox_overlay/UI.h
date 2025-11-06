@@ -766,6 +766,8 @@ private:
 	float lastClickPosX = 50.F;
 	float lastClickPosY = 50.F;
 	void hitboxEditorCheckEntityStillAlive();
+	bool selectedHitboxesAlreadyAtTheTop(SortedSprite* sortedSprite);
+	bool selectedHitboxesAlreadyAtTheBottom(SortedSprite* sortedSprite);
 };
 
 extern UI ui;

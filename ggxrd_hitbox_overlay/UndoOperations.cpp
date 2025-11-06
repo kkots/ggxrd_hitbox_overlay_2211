@@ -164,19 +164,7 @@ bool DeleteLayersOperation::perform(ThreadUnsafeSharedPtr<UndoOperationBase>* op
 		
 	EditedHitbox* layer;
 	
-	if (!sortedSprite->layers) {
-		// always include pushbox
-		sortedSprite->resizeLayers(hitboxCount + 1  // add pushbox
-			);
-		
-		layer = sortedSprite->layers;
-		
-		LayerIterator layerIterator(jonbin);
-		while (layerIterator.getNext()) {
-			layerIterator.copyTo(layer);
-			++layer;
-		}
-	}
+	sortedSprite->convertToLayers(secondaryData);
 	
 	newOp->oldLayers.resize(hitboxCount + 1);
 	memcpy(newOp->oldLayers.data(), sortedSprite->layers, (hitboxCount + 1) * sizeof (EditedHitbox));
@@ -1067,15 +1055,7 @@ bool ReorderLayersOperation::perform(ThreadUnsafeSharedPtr<UndoOperationBase>* o
 		}
 	}
 	
-	if (!sortedSprite->layers) {
-		sortedSprite->resizeLayers(hitboxCount);
-		EditedHitbox* layer = sortedSprite->layers;
-		LayerIterator layerIterator(jonbin);
-		while (layerIterator.getNext()) {
-			layerIterator.copyTo(layer);
-			++layer;
-		}
-	}
+	sortedSprite->convertToLayers(secondaryData);
 		
 	EditedHitbox* destLayer = sortedSprite->layers + sortedSprite->layersSize - 1;
 	EditedHitbox* gapStart = sortedSprite->layers + selectedHitboxesNoDuplicates.size() - 1;
@@ -1142,11 +1122,51 @@ UndoReorderLayersOperation::UndoReorderLayersOperation() : UndoOperationBase() {
 
 UndoReorderLayersOperation::UndoReorderLayersOperation(const UndoOperationBase& other) : UndoOperationBase(other) { }
 
+void UndoReorderLayersOperation::fill(std::vector<EditedHitbox>&& newLayers) {
+	fillFromEnt(gifMode.editHitboxesEntity, UNDO_OPERATION_TYPE_REORDER_LAYERS);
+	refresh();
+	if (!sortedSprite) return;
+	
+	sortedSprite->convertToLayers(secondaryData);
+	oldLayers.resize(sortedSprite->layersSize);
+	memcpy(oldLayers.data(), sortedSprite->layers, sortedSprite->layersSize * sizeof (EditedHitbox));
+	oldHitboxes.resize(sortedSprite->layersSize - 1);
+	
+	HitboxHolder hitboxes;
+	hitboxes.parse(jonbin);
+	Hitbox* hitboxesStart = hitboxes.hitboxesStart();
+	memcpy(oldHitboxes.data(), hitboxesStart, (sortedSprite->layersSize - 1) * sizeof (Hitbox));
+	
+	newHitboxes.resize(oldHitboxes.size());
+	
+	Hitbox* ptr = newHitboxes.data();
+	Hitbox* ptrStart = ptr;
+	for (int hitboxType = 0; hitboxType < 17; ++hitboxType) {
+		int count = hitboxes.count[hitboxType];
+		if (!count) continue;
+		EditedHitbox* layer = newLayers.data();
+		for (int layerIndex = 0; layerIndex < (int)sortedSprite->layersSize; ++layerIndex) {
+			if (!layer->isPushbox && layer->type == hitboxType) {
+				#if _DEBUG
+				if (ptr >= newHitboxes.data() + newHitboxes.size()) throw std::out_of_range("UndoReorderLayersOperation is going ham rn");
+				#endif
+				*ptr = *layer->ptr;
+				layer->ptr = hitboxesStart + (ptr - ptrStart);
+				++ptr;
+			}
+			++layer;
+		}
+	}
+	
+	this->newLayers = newLayers;
+	
+}
+
 bool UndoReorderLayersOperation::perform(ThreadUnsafeSharedPtr<UndoOperationBase>* oppositeOperation) const {
 	
 	refresh();
 	if (!jonbin || !sortedSprite) {
-		ui.showErrorDlg("Can't undo reordering of layers on a 'null' sprite.", true);
+		ui.showErrorDlg("Can't reorder layers on a 'null' sprite.", true);
 		return false;
 	}
 		
