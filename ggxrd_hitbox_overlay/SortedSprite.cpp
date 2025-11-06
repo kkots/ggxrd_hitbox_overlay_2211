@@ -891,7 +891,11 @@ void FPACSecondaryData::replaceFpac(SourceFpacProvier* provider) {
 			const NewSprite* sprite1 = (const NewSprite*)Ptr1;
 			const NewSprite* sprite2 = (const NewSprite*)Ptr2;
 			if (sprite1->insertionIndex == sprite2->insertionIndex) {
-				return sprite1->hash - sprite2->hash;
+				DWORD hash1 = sprite1->hash;
+				DWORD hash2 = sprite2->hash;
+				if (hash1 == hash2) return 0;
+				else if (hash1 < hash2) return -1;
+				else return 1;
 			} else {
 				return sprite1->insertionIndex - sprite2->insertionIndex;
 			}

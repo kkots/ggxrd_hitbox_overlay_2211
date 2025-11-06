@@ -21924,9 +21924,15 @@ static int __cdecl NewSortSortedSprite(const void* Ptr1, const void* Ptr2) {
 	SortedSprite** sprite2Ptr = (SortedSprite**)Ptr2;
 	SortedSprite* sprite1 = *sprite1Ptr;
 	SortedSprite* sprite2 = *sprite2Ptr;
-	return Entity::hashStringLowercase(sprite1->newName[0] ? sprite1->newName : sprite1->name)
-		-
-		Entity::hashStringLowercase(sprite2->newName[0] ? sprite2->newName : sprite2->name);
+	DWORD hash1 = Entity::hashStringLowercase(sprite1->newName[0] ? sprite1->newName : sprite1->name);
+	DWORD hash2 = Entity::hashStringLowercase(sprite2->newName[0] ? sprite2->newName : sprite2->name);
+	if (hash1 == hash2) {
+		return 0;
+	} else if (hash1 < hash2) {
+		return -1;
+	} else {
+		return 1;
+	}
 }
 
 static int __cdecl NewSortSortedSpriteAlphabetically(const void* Ptr1, const void* Ptr2) {
