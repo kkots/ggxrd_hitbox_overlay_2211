@@ -686,6 +686,10 @@ private:
 	bool hitboxEditRectDeletePressed = false;
 	bool hitboxEditUndoPressed = false;
 	bool hitboxEditRedoPressed = false;
+	bool hitboxEditSendToBackPressed = false;
+	bool hitboxEditSendBackwardsPressed = false;
+	bool hitboxEditSendForwardsPressed = false;
+	bool hitboxEditSendToFrontPressed = false;
 	void hitboxEditProcessBackground();
 	void hitboxEditProcessKeyboardShortcuts();
 	void hitboxEditProcessPressedCommands();

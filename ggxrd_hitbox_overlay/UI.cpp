@@ -18764,6 +18764,10 @@ void UI::drawHitboxEditor() {
 		keyComboControl(settings.hitboxEditDeleteSelectedHitboxesHotkey);
 		keyComboControl(settings.hitboxEditUndoHotkey);
 		keyComboControl(settings.hitboxEditRedoHotkey);
+		keyComboControl(settings.hitboxEditArrangeHitboxesToBack);
+		keyComboControl(settings.hitboxEditArrangeHitboxesBackwards);
+		keyComboControl(settings.hitboxEditArrangeHitboxesUpwards);
+		keyComboControl(settings.hitboxEditArrangeHitboxesToFront);
 		ImGui::Separator();
 	}
 	
@@ -21184,6 +21188,18 @@ void UI::hitboxEditProcessKeyboardShortcuts() {
 		if (keyboard.gotPressed(settings.hitboxEditRedoHotkey)) {
 			hitboxEditRedoPressed = true;
 		}
+		if (keyboard.gotPressed(settings.hitboxEditArrangeHitboxesToBack)) {
+			hitboxEditSendToBackPressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditArrangeHitboxesBackwards)) {
+			hitboxEditSendBackwardsPressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditArrangeHitboxesUpwards)) {
+			hitboxEditSendForwardsPressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditArrangeHitboxesToFront)) {
+			hitboxEditSendToFrontPressed = true;
+		}
 	}
 }
 
@@ -21280,6 +21296,59 @@ void UI::hitboxEditProcessPressedCommands() {
 			}
 		}
 		
+		if (hitboxEditSendToBackPressed && !selectedHitboxes.empty()) {
+			ReorderLayersOperation newOp;
+			newOp.fill(editEntity.hitboxes()->hitboxCount() + 1);
+			performOp(&newOp);
+		}
+		if (hitboxEditSendBackwardsPressed && !selectedHitboxes.empty()) {
+			
+			int targetLayer = -1;
+			LayerIterator layerIterator(editEntity);
+			int count = layerIterator.count();
+			int prevPrevIndex = -1;
+			int prevIndex = count;
+			
+			while (layerIterator.getNext()) {
+				if (hitboxIsSelected(layerIterator.originalIndex)) {
+					if (prevPrevIndex != -1) {
+						ReorderLayersOperation newOp;
+						newOp.fill(prevPrevIndex);
+						performOp(&newOp);
+					}
+					break;
+				} else {
+					prevPrevIndex = prevIndex;
+					prevIndex = count - 1 - layerIterator.index;
+				}
+			}
+			
+		}
+		if (hitboxEditSendForwardsPressed && !selectedHitboxes.empty()) {
+			int prevIndex = -1;
+			LayerIterator layerIterator(editEntity);
+			layerIterator.scrollToEnd();
+			int index = 0;
+			while (layerIterator.getPrev()) {
+				if (hitboxIsSelected(layerIterator.originalIndex)) {
+					if (prevIndex != -1) {
+						ReorderLayersOperation newOp;
+						newOp.fill(prevIndex);
+						performOp(&newOp);
+					}
+					break;
+				} else {
+					prevIndex = index;
+					++index;
+				}
+			}
+		}
+		if (hitboxEditSendToFrontPressed && !selectedHitboxes.empty()) {
+			ReorderLayersOperation newOp;
+			newOp.fill(0);
+			performOp(&newOp);
+		}
+		
 		if (ImGui::BeginPopup("Name Clash")) {
 			popupsOpen = true;
 			ImGui::PushTextWrapPos(0.F);
@@ -21339,6 +21408,10 @@ void UI::hitboxEditProcessPressedCommands() {
 	hitboxEditRectDeletePressed = false;
 	hitboxEditUndoPressed = false;
 	hitboxEditRedoPressed = false;
+	hitboxEditSendToBackPressed = false;
+	hitboxEditSendBackwardsPressed = false;
+	hitboxEditSendForwardsPressed = false;
+	hitboxEditSendToFrontPressed = false;
 }
 
 SortedSprite* UI::hitboxEditFindCurrentSprite() {

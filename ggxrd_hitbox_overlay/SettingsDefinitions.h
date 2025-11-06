@@ -1337,4 +1337,28 @@ settingsField(bool, hitboxEditDisplayRawCoordinates, false,
 	"; coodinates, which are usually multipled by 1000, and if the projectile or player is rotated\n"
 	"; or scaled, the coordinates will reflect that.")
 	
+settingsKeyCombo(hitboxEditArrangeHitboxesToBack, "Arrange Hitboxes To Back", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes as far back as possible in Z-order.\n"
+	"; This makes them display behind all the other boxes.\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditArrangeHitboxesBackwards, "Arrange Hitboxes Backward", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes back in Z-order.\n"
+	"; This makes them display behind other boxes.\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditArrangeHitboxesUpwards, "Arrange Hitboxes Forward", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes forward in Z-order.\n"
+	"; This makes them display in front of other boxes.\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditArrangeHitboxesToFront, "Arrange Hitboxes To Front", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes as far forward as possible in Z-order.\n"
+	"; This makes them display in front of all the other boxes.\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
 #pragma warning(pop)

@@ -1446,6 +1446,30 @@ hitboxEditMoveHitboxesLargeAmount = 10000
 ; coodinates, which are usually multipled by 1000, and if the projectile or player is rotated
 ; or scaled, the coordinates will reflect that.
 hitboxEditDisplayRawCoordinates = false
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes as far back as possible in Z-order.
+; This makes them display behind all the other boxes.
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditArrangeHitboxesToBack = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes back in Z-order.
+; This makes them display behind other boxes.
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditArrangeHitboxesBackwards = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes forward in Z-order.
+; This makes them display in front of other boxes.
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditArrangeHitboxesUpwards = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes as far forward as possible in Z-order.
+; This makes them display in front of all the other boxes.
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditArrangeHitboxesToFront = 
 ```
 
 </details>
@@ -1955,3 +1979,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 2025 October 22: Version 7.6: Fix the Pin icon's graphics in mod's windows being gibberish.
 2025 October 29: Version 7.7: Added an "FPS" field to regulate the game's FPS.
 2025 November 6: Version 7.8: Added Hitbox Editor, accessible through the "Hitbox Editor" button in the "Hitboxes" section of the main UI.
+2025 November 6: Version 7.9: Added hotkey-able commands to Hitbox Editor to rearrange boxes up and down in the Z-order.
