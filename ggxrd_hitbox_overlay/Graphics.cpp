@@ -25,6 +25,8 @@
 #include "InputsIcon.h"
 #include <WinError.h>
 #include "HandleWrapper.h"
+#include "Keyboard.h"
+#include "GifMode.h"
 
 Graphics graphics;
 
@@ -596,6 +598,7 @@ bool Graphics::prepareBox(const DrawBoxCallParams& params, BoundingRect* const b
 		drawOutlineCallParams.outlineColor = params.outlineColor;
 		drawOutlineCallParams.thickness = params.thickness;
 		drawOutlineCallParams.hatched = params.hatched;
+		drawOutlineCallParams.dashed = params.dashed;
 		if (params.hatched) {
 			drawOutlineCallParams.hatches.originX = params.originX;
 			drawOutlineCallParams.hatches.originY = params.originY;
@@ -1042,29 +1045,37 @@ void Graphics::drawAll() {
 			prepareComplicatedHurtbox(params);
 		}
 		
-		static std::vector<bool> algoArena;  // needed for Johnny hitboxes, they have a duplicate:
-		                                     // one is a projectile with clashOnly set, the other is Johnny himself
-		                                     // clashOnly we recently started displaying more thin, they're after Johnny's own hitboxes,
-		                                     // so that makes Johnny's own hitboxes end up displaying thin, which is wrong. We're fixing that
-		algoArena.assign(drawDataUse.hitboxes.size(), false);
-		
-		for (int i = 0; i < (int)drawDataUse.hitboxes.size(); ++i) {
-			DrawHitboxArrayCallParams& params = drawDataUse.hitboxes[i];
-			bool found = algoArena[i];
-			if (!found) {
-				for (int j = i + 1; j < (int)drawDataUse.hitboxes.size(); ++j) {
-					DrawHitboxArrayCallParams& paramsOther = drawDataUse.hitboxes[j];
-					if (params == paramsOther) {
-						if (paramsOther.thickness >= params.thickness) {
-							found = true;
-						} else {
-							algoArena[j] = true;
+		if (!(
+			gifMode.editHitboxes && gifMode.editHitboxesEntity
+		)) {
+			static std::vector<bool> algoArena;  // needed for Johnny hitboxes, they have a duplicate:
+			                                     // one is a projectile with clashOnly set, the other is Johnny himself
+			                                     // clashOnly we recently started displaying more thin, they're after Johnny's own hitboxes,
+			                                     // so that makes Johnny's own hitboxes end up displaying thin, which is wrong. We're fixing that
+			algoArena.assign(drawDataUse.hitboxes.size(), false);
+			
+			for (int i = 0; i < (int)drawDataUse.hitboxes.size(); ++i) {
+				DrawHitboxArrayCallParams& params = drawDataUse.hitboxes[i];
+				bool found = algoArena[i];
+				if (!found) {
+					for (int j = i + 1; j < (int)drawDataUse.hitboxes.size(); ++j) {
+						DrawHitboxArrayCallParams& paramsOther = drawDataUse.hitboxes[j];
+						if (params == paramsOther) {
+							if (paramsOther.thickness >= params.thickness) {
+								found = true;
+							} else {
+								algoArena[j] = true;
+							}
+							break;
 						}
-						break;
 					}
 				}
+				if (!found) {
+					prepareArraybox(params, false, false);
+				}
 			}
-			if (!found) {
+		} else {
+			for (const DrawHitboxArrayCallParams& params : drawDataUse.hitboxes) {
 				prepareArraybox(params, false, false);
 			}
 		}
@@ -1155,10 +1166,9 @@ void Graphics::bringBackOldTransform(IDirect3DDevice9* device) {
 
 void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isComplicatedHurtbox, bool isGraybox,
 								BoundingRect* boundingRect, std::vector<DrawOutlineCallParams>* outlinesOverride) {
-	if (!params.hitboxCount) return;
+	if (params.data.empty()) return;
 	logOnce(fputs("drawHitboxArray called with parameters:\n", logfile));
-	logOnce(fprintf(logfile, "hitboxData: %p\n", params.hitboxData));
-	logOnce(fprintf(logfile, "hitboxCount: %d\n", params.hitboxCount));
+	logOnce(fprintf(logfile, "hitboxCount: %d\n", params.data.size()));
 	logOnce(fputs("fillColor: ", logfile));
 	logColor(params.fillColor);
 	logOnce(fputs("\noutlineColor: ", logfile));
@@ -1168,7 +1178,7 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 		params.params.angle, params.params.hitboxOffsetX, params.params.hitboxOffsetY));
 	bool drawOutlines = screenshotStage != SCREENSHOT_STAGE_BASE_COLOR;
 	if (drawOutlines) {
-		rectCombinerInputBoxes.reserve(params.hitboxCount);
+		rectCombinerInputBoxes.reserve(params.data.size());
 	}
 	BoundingRect localBoundingRect;
 	if (!boundingRect) {
@@ -1189,7 +1199,7 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 		sin = getSin(anglePrep);
 	}
 	
-	const bool drawInnerOutlines = drawOutlines && !isGraybox && settings.showIndividualHitboxOutlines;
+	const bool drawInnerOutlines = drawOutlines && !isGraybox && (settings.showIndividualHitboxOutlines || gifMode.editHitboxes);
 	
 	DrawBoxCallParams drawBoxCall;
 	drawBoxCall.fillColor = params.fillColor;
@@ -1198,9 +1208,10 @@ void Graphics::prepareArraybox(const DrawHitboxArrayCallParams& params, bool isC
 		drawBoxCall.thickness = 1;
 		drawBoxCall.hatched = false;
 	}
-
-	for (int i = 0; i < params.hitboxCount; ++i) {
-		logOnce(fprintf(logfile, "drawing box %d\n", params.hitboxCount - i));
+	
+	int hitboxCount = (int)params.data.size();
+	for (int i = 0; i < hitboxCount; ++i) {
+		logOnce(fprintf(logfile, "drawing box %d\n", hitboxCount - i));
 		
 		RECT bounds = params.getWorldBounds(i, cos, sin);
 		
@@ -1278,35 +1289,241 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 	
 	if (params.thickness == 1) {
 		
-		preparedOutlines.emplace_back();
-		preparedOutlines.back().isOnePixelThick = true;
-
-		Vertex firstVertex;
-
-		for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
-			const PathElement& elem = params.getPathElem(outlineIndex);
-
-			drawIfOutOfSpace(1);
-			if (outlineIndex != 0) {
-				++preparedOutlines.back().linesSoFar;
+		if (!params.dashed) {
+			
+			preparedOutlines.emplace_back();
+			preparedOutlines.back().isOnePixelThick = true;
+			preparedOutlines.back().hatched = params.hatched;
+	
+			Vertex firstVertex;
+	
+			for (int outlineIndex = 0; outlineIndex < params.count(); ++outlineIndex) {
+				const PathElement& elem = params.getPathElem(outlineIndex);
+	
+				drawIfOutOfSpace(1);
+				if (outlineIndex != 0) {
+					++preparedOutlines.back().linesSoFar;
+				}
+	
+				logOnce(fprintf(logfile, "x: %d; y: %d;\n", elem.x, elem.y));
+				*vertexIt = Vertex{ (float)elem.x, (float)elem.y, 0.F, params.outlineColor };
+				if (outlineIndex == 0) firstVertex = *vertexIt;
+				++vertexIt;
+				consumeVertexBufferSpace(1);
 			}
-
-			logOnce(fprintf(logfile, "x: %d; y: %d;\n", elem.x, elem.y));
-			*vertexIt = Vertex{ (float)elem.x, (float)elem.y, 0.F, params.outlineColor };
-			if (outlineIndex == 0) firstVertex = *vertexIt;
+			drawIfOutOfSpace(1);
+			PreparedOutline& preparedOutline = preparedOutlines.back();
+			preparedOutlinePtr = &preparedOutline;
+			++preparedOutline.linesSoFar;
+			preparedOutline.isComplete = true;
+			*vertexIt = firstVertex;
 			++vertexIt;
 			consumeVertexBufferSpace(1);
-		}
-		drawIfOutOfSpace(1);
-		PreparedOutline& preparedOutline = preparedOutlines.back();
-		preparedOutlinePtr = &preparedOutline;
-		++preparedOutline.linesSoFar;
-		preparedOutline.isComplete = true;
-		*vertexIt = firstVertex;
-		++vertexIt;
-		consumeVertexBufferSpace(1);
-		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_THINLINE;
+			lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_THINLINE;
 
+		} else {
+			
+			preparedOutlines.emplace_back();
+			preparedOutlinePtr = &preparedOutlines.back();
+			preparedOutlinePtr->hatched = true;
+			preparedOutlinePtr->isOnePixelThick = true;
+			preparedOutlinePtr->isComplete = true;
+			
+			const PathElement& firstElem = params.getPathElem(0);
+			
+			PathElement prevElem = firstElem;
+			
+			int paramsCount = params.count();
+			
+			extern unsigned int getUE3EngineTick();
+			const int dashDist = 10000;
+			const int maxDashes = 100;  // in all
+			
+			unsigned int tickCount = getUE3EngineTick();
+			
+			int totalDist = 0;
+			
+			for (int outlineIndex = 1; outlineIndex < paramsCount + 1; ++outlineIndex) {
+				const PathElement& elem = outlineIndex == paramsCount ? firstElem : params.getPathElem(outlineIndex);
+				int dist;
+				if (prevElem.y == elem.y) {
+					dist = elem.x - prevElem.x;
+				} else {
+					dist = elem.y - prevElem.y;
+				}
+				if (dist >= 0) {
+					totalDist += dist;
+				} else {
+					totalDist -= dist;
+				}
+				prevElem = elem;
+			}
+			
+			int step = dashDist;
+			int stepHalf = dashDist >> 1;
+			int hatchCount = totalDist / dashDist;
+			if (hatchCount > maxDashes) {
+				step = totalDist / maxDashes + 1;
+				stepHalf = step >> 1;
+			}
+			
+			int leftoverDist = -stepHalf * 2 + (int)(
+				tickCount % 60
+			) * stepHalf * 2 / 60;
+			bool filledPart;
+			if (leftoverDist >= -stepHalf) {
+				if (leftoverDist == -stepHalf) leftoverDist = 0;
+				filledPart = true;
+			} else {
+				filledPart = false;
+				leftoverDist += stepHalf;
+			}
+			
+			prevElem = firstElem;
+			for (int outlineIndex = 1; outlineIndex < paramsCount + 1; ++outlineIndex) {
+				const PathElement& elem = outlineIndex == paramsCount ? firstElem : params.getPathElem(outlineIndex);
+				
+				if (prevElem.y == elem.y) {
+					float y = (float)elem.y;
+					int dist = elem.x - prevElem.x;
+					int sign;
+					if (dist < 0) {
+						sign = -1;
+						dist = -dist;
+					} else {
+						sign = 1;
+					}
+					int currentX = prevElem.x;
+					int endX;
+					if (leftoverDist) {
+						if (dist < -leftoverDist) {
+							endX = elem.x;
+						} else if (sign > 0) {
+							endX = currentX - leftoverDist;
+						} else {
+							endX = currentX + leftoverDist;
+						}
+					} else if (dist < stepHalf) {
+						endX = elem.x;
+					} else if (sign > 0) {
+						endX = currentX + stepHalf;
+					} else {
+						endX = currentX - stepHalf;
+					}
+					
+					while (dist > 0) {
+						
+						if (filledPart) {
+							if (drawIfOutOfSpace(2)) {
+								preparedOutlinePtr = &preparedOutlines.back();
+							}
+							++preparedOutlinePtr->hatchesCount;
+							*vertexIt = Vertex{ (float)currentX, y, 0.F, params.outlineColor };
+							++vertexIt;
+							*vertexIt = Vertex{ (float)endX, y, 0.F, params.outlineColor };
+							++vertexIt;
+							consumeVertexBufferSpace(2);
+							lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_HATCH;
+							filledPart = false;
+						} else {
+							filledPart = true;
+						}
+						
+						if (leftoverDist) {
+							dist += leftoverDist;
+							leftoverDist = 0;
+						} else {
+							dist -= stepHalf;
+						}
+						
+						currentX = endX;
+						if (dist < stepHalf) {
+							endX = elem.x;
+						} else if (sign > 0) {
+							endX = currentX + stepHalf;
+						} else {
+							endX = currentX - stepHalf;
+						}
+						
+					}
+					if (dist < 0) filledPart = !filledPart;
+					leftoverDist = dist;
+					
+				} else {  // x == x
+					float x = (float)elem.x;
+					int dist = elem.y - prevElem.y;
+					int sign;
+					if (dist < 0) {
+						sign = -1;
+						dist = -dist;
+					} else {
+						sign = 1;
+					}
+					
+					int currentY = prevElem.y;
+					int endY;
+					if (leftoverDist) {
+						if (dist < -leftoverDist) {
+							endY = elem.y;
+						} else if (sign > 0) {
+							endY = currentY - leftoverDist;
+						} else {
+							endY = currentY + leftoverDist;
+						}
+					} else if (dist < stepHalf) {
+						endY = elem.y;
+					} else if (sign > 0) {
+						endY = currentY + stepHalf;
+					} else {
+						endY = currentY - stepHalf;
+					}
+					
+					while (dist > 0) {
+						
+						if (filledPart) {
+							if (drawIfOutOfSpace(2)) {
+								preparedOutlinePtr = &preparedOutlines.back();
+							}
+							++preparedOutlinePtr->hatchesCount;
+							*vertexIt = Vertex{ x, (float)currentY, 0.F, params.outlineColor };
+							++vertexIt;
+							*vertexIt = Vertex{ x, (float)endY, 0.F, params.outlineColor };
+							++vertexIt;
+							consumeVertexBufferSpace(2);
+							lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_HATCH;
+							filledPart = false;
+						} else {
+							filledPart = true;
+						}
+						
+						if (leftoverDist) {
+							dist += leftoverDist;
+							leftoverDist = 0;
+						} else {
+							dist -= stepHalf;
+						}
+						
+						currentY = endY;
+						if (dist < stepHalf) {
+							endY = elem.y;
+						} else if (sign > 0) {
+							endY = currentY + stepHalf;
+						} else {
+							endY = currentY - stepHalf;
+						}
+						
+					}
+					if (dist < 0) filledPart = !filledPart;
+					leftoverDist = dist;
+				}
+				
+				prevElem = elem;
+			}
+			
+			preparedOutlinePtr->hatchesComplete = true;
+			
+		}
+		
 	} else {
 		
 		std::vector<D3DXVECTOR3> extraPoints(params.count(), D3DXVECTOR3{ 0.F, 0.F, 0.F });
@@ -1321,6 +1538,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 		}
 
 		preparedOutlines.emplace_back();
+		preparedOutlines.back().hatched = params.hatched;
 
 		Vertex firstVertex;
 		Vertex secondVertex;
@@ -1368,10 +1586,9 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			}
 		}
 		drawIfOutOfSpace(2);
-		PreparedOutline& preparedOutline = preparedOutlines.back();
-		preparedOutlinePtr = &preparedOutline;
-		++preparedOutline.linesSoFar;
-		preparedOutline.isComplete = true;
+		preparedOutlinePtr = &preparedOutlines.back();
+		++preparedOutlinePtr->linesSoFar;
+		preparedOutlinePtr->isComplete = true;
 		*vertexIt = firstVertex;
 		++vertexIt;
 		*vertexIt = secondVertex;
@@ -1380,9 +1597,10 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_THICKLINE;
 		
 	}
-		
-	if (params.hatched) {
-		preparedOutlinePtr->hatched = true;
+	
+	preparedOutlinePtr = &preparedOutlines.back();
+	
+	if (params.hatched && !(params.thickness == 1 && params.dashed)) {
 		
 		struct HatchPoint {
 			int n;
@@ -1511,6 +1729,7 @@ void Graphics::prepareOutline(DrawOutlineCallParams& params) {
 			hasPnt1 = false;
 			
 			drawIfOutOfSpace(2);
+			preparedOutlinePtr = &preparedOutlines.back();
 			++preparedOutlinePtr->hatchesCount;
 			*vertexIt = Vertex{ pnt1.x, pnt1.y, 0.F, params.outlineColor };
 			++vertexIt;
@@ -1633,9 +1852,57 @@ void Graphics::prepareSmallPoint(const DrawPointCallParams& params) {
 	
 	const D3DCOLOR fillColor = params.fillColor;
 	
-	const Vertex firstVertex = Vertex{ sp.x - 1, sp.y - 1, 0.F, fillColor };
+	Vertex firstVertex;
+	bool needPadding;
 	
-	bool needPadding = lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT;
+	if (params.selected) {
+		
+		firstVertex = Vertex{ sp.x - 3, sp.y - 3, 0.F, fillColor };
+		
+		needPadding = lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT;
+		if (drawIfOutOfSpace(10 + (needPadding ? 2 : 0))) {
+			needPadding = false;
+		}
+		consumeVertexBufferSpace(10 + (needPadding ? 2 : 0));
+		if (needPadding) {
+			*vertexIt = *(vertexIt - 1);
+			++vertexIt;
+			*vertexIt = firstVertex;
+			++vertexIt;
+		}
+		
+		*vertexIt = firstVertex;
+		++vertexIt;
+		*vertexIt = Vertex{ sp.x - 3, sp.y + 5, 0.F, fillColor };
+		++vertexIt;
+		*vertexIt = Vertex{ sp.x + 5, sp.y - 3, 0.F, fillColor };
+		++vertexIt;
+		*vertexIt = Vertex{ sp.x + 5, sp.y + 5, 0.F, fillColor };
+		++vertexIt;
+	
+		// PADDING
+		*vertexIt = Vertex{ sp.x + 5, sp.y + 5, 0.F, fillColor };
+		++vertexIt;
+		*vertexIt = Vertex{ sp.x - 2, sp.y - 2, 0.F, fillColor };
+		++vertexIt;
+	
+		const D3DCOLOR outlineColor = params.outlineColor;
+	
+		*vertexIt = Vertex{ sp.x - 2, sp.y - 2, 0.F, outlineColor };
+		++vertexIt;
+		*vertexIt = Vertex{ sp.x - 2, sp.y + 4, 0.F, outlineColor };
+		++vertexIt;
+		*vertexIt = Vertex{ sp.x + 4, sp.y - 2, 0.F, outlineColor };
+		++vertexIt;
+		*vertexIt = Vertex{ sp.x + 4, sp.y + 4, 0.F, outlineColor };
+		++vertexIt;
+		++numberOfSmallPointsPrepared;
+		lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT;
+	}
+	
+	firstVertex = Vertex{ sp.x - 1, sp.y - 1, 0.F, fillColor };
+	
+	needPadding = lastThingInVertexBuffer == LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT;
 	if (drawIfOutOfSpace(10 + (needPadding ? 2 : 0))) {
 		needPadding = false;
 	}
@@ -1673,6 +1940,7 @@ void Graphics::prepareSmallPoint(const DrawPointCallParams& params) {
 	*vertexIt = Vertex{ sp.x + 2, sp.y + 2, 0.F, outlineColor };
 	++vertexIt;
 	++numberOfSmallPointsPrepared;
+	
 	lastThingInVertexBuffer = LAST_THING_IN_VERTEX_BUFFER_END_OF_SMALL_POINT;
 }
 
@@ -2878,11 +3146,6 @@ void Graphics::executeBoxesRenderingCommand(IDirect3DDevice9* device) {
 		&& !inputHistoryIsSplitOut
 		|| needDrawWholeUiWithPoints && !uiDrawData.empty()
 		|| needDrawFramebarWithPoints && !uiFramebarDrawData.empty();
-		
-	if (!*aswEngine) {
-		// since we store pointers to hitbox data instead of copies of it, when aswEngine disappears those are gone and we get a crash if we try to read them
-		graphics.drawDataUse.clear();
-	}
 
 	if (doYourThing) {
 		if (graphics.drawDataUse.needTakeScreenshot && !settings.dontUseScreenshotTransparency) {
@@ -3128,10 +3391,10 @@ void Graphics::prepareCircle(const DrawCircleCallParams& params) {
 	if ((params.fillColor & 0xff000000) == 0) return;
 	stopPreparingTextureVertexBuffer();
 	
-	int nextInd = setupCircle(params.radius, params.fillColor, params.outlineColor);
+	int nextInd = setupCircle(params.hashKey, params.radius, params.fillColor, params.outlineColor);
 	
 	Vertex firstVertex{ 0.F, 0.F, 0.F, params.fillColor };
-	const CircleCacheElement& elem = circleCache[nextInd - 1];
+	const CircleCacheElement& elem = !params.hashKey ? circleCache[nextInd - 1] : circleCacheHardcoded[nextInd];
 	const Vertex* lastSourceVtx = elem.vertices.data();
 	int remainingVertices = elem.vertices.size();
 	while (remainingVertices) {
@@ -3176,9 +3439,9 @@ void Graphics::prepareCircle(const DrawCircleCallParams& params) {
 void Graphics::prepareCircleOutline(const DrawCircleCallParams& params) {
 	if ((params.outlineColor & 0xff000000) == 0) return;
 	
-	int nextInd = setupCircle(params.radius, params.fillColor, params.outlineColor);
+	int nextInd = setupCircle(params.hashKey, params.radius, params.fillColor, params.outlineColor);
 	
-	const CircleCacheElement& elem = circleCache[nextInd - 1];
+	const CircleCacheElement& elem = !params.hashKey ? circleCache[nextInd - 1] : circleCacheHardcoded[nextInd];
 	const std::vector<Vertex>* vecPtr;
 	if ((params.fillColor & 0xff000000) != 0 && params.fillColor == params.outlineColor) {
 		vecPtr = &elem.vertices;
@@ -3265,24 +3528,38 @@ int Graphics::getSin(int degrees) {
 	return -graphics.sinTable[899 - (i - 2700)];
 }
 
-int Graphics::setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor) {
-	if (circleCacheHashmap.empty()) {
+int Graphics::setupCircle(int hashKey, int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor) {
+	if (circleCacheHashmap.empty() && !hashKey) {
 		circleCacheHashmap.resize(100);
 	}
-	int cacheIndex = (radius / 1000) % 100;
+	int nextInd;
 	int lastInd = 0;
-	int nextInd = circleCacheHashmap[cacheIndex];
-	while (nextInd) {
-		lastInd = nextInd;
-		const CircleCacheElement& seekElem = circleCache[nextInd - 1];
-		if (seekElem.radius == radius
-				&& seekElem.fillColor == fillColor
-				&& seekElem.outlineColor == outlineColor) {
-			break;
+	int cacheIndex = 0;
+	if (!hashKey) {
+		cacheIndex = (radius / 1000) % 100;
+		nextInd = circleCacheHashmap[cacheIndex];
+		while (nextInd) {
+			lastInd = nextInd;
+			const CircleCacheElement& seekElem = circleCache[nextInd - 1];
+			if (seekElem.radius == radius
+					&& seekElem.fillColor == fillColor
+					&& seekElem.outlineColor == outlineColor) {
+				break;
+			}
+			nextInd = seekElem.next;
 		}
-		nextInd = seekElem.next;
+	} else {
+		auto found = circleCacheHardcoded.find(hashKey);
+		if (found == circleCacheHardcoded.end()
+				|| found->second.radius != radius
+				|| found->second.fillColor != fillColor
+				|| found->second.outlineColor != outlineColor) {
+			nextInd = 0;
+		} else {
+			nextInd = hashKey;
+		}
 	}
-	if (nextInd == 0 || circleCache[nextInd - 1].vertices.empty()) {
+	if (nextInd == 0 || !hashKey && circleCache[nextInd - 1].vertices.empty()) {
 		// approximate conversion of ArcSys size to the on-screen size in pixels at 1280x720 resolution
 		unsigned int totalCircumference = (unsigned int)radius * 229U / 266000U;
 		if (totalCircumference > 68356) {
@@ -3301,16 +3578,23 @@ int Graphics::setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor)
 		if (segments < 4) segments = 4;
 		CircleCacheElement* newElemPtr;
 		if (nextInd == 0) {
-			if (lastInd == 0) {
-				circleCacheHashmap[cacheIndex] = circleCache.size() + 1;
+			if (!hashKey) {
+				if (lastInd == 0) {
+					circleCacheHashmap[cacheIndex] = circleCache.size() + 1;
+				} else {
+					circleCache[lastInd - 1].next = circleCache.size() + 1;
+				}
+				nextInd = circleCache.size() + 1;
+				circleCache.emplace_back();
+				newElemPtr = &circleCache.back();
 			} else {
-				circleCache[lastInd - 1].next = circleCache.size() + 1;
+				circleCacheHardcoded[hashKey] = CircleCacheElement{};
+				newElemPtr = &circleCacheHardcoded[hashKey];
 			}
-			nextInd = circleCache.size() + 1;
-			circleCache.emplace_back();
-			newElemPtr = &circleCache.back();
-		} else {
+		} else if (!hashKey) {
 			newElemPtr = &circleCache[nextInd - 1];
+		} else {
+			newElemPtr = &circleCacheHardcoded[hashKey];
 		}
 		CircleCacheElement& newElem = *newElemPtr;
 		newElem.radius = radius;
@@ -3375,7 +3659,7 @@ int Graphics::setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor)
 			};
 		}
 	}
-	return nextInd;
+	return !hashKey ? nextInd : hashKey;
 }
 
 void Graphics::ensureWorldMatrixWorldCenterIsZero() {
@@ -3521,12 +3805,12 @@ void Graphics::initViewport(IDirect3DDevice9* device) {
 }
 
 void Graphics::fillInScreenSize(IDirect3DDevice9* device) {
-	ui.screenSizeKnown = true;
-	ui.screenWidth = viewportW;
-	ui.screenHeight = viewportH;
-	ui.usePresentRect = *usePresentRectPtr != 0;
-	ui.presentRectW = *presentRectWPtr;
-	ui.presentRectH = *presentRectHPtr;
+	keyboard.screenSizeKnown = true;
+	keyboard.screenWidth = viewportW;
+	keyboard.screenHeight = viewportH;
+	keyboard.usePresentRect = *usePresentRectPtr != 0;
+	keyboard.presentRectW = *presentRectWPtr;
+	keyboard.presentRectH = *presentRectHPtr;
 	CComPtr<IDirect3DSwapChain9> swapChain;
 	if (SUCCEEDED(device->GetSwapChain(0, &swapChain))) {
 		D3DPRESENT_PARAMETERS presentParameters;

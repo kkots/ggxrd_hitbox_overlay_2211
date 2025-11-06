@@ -29,12 +29,24 @@
 #include "ImGuiCorrecter.h"
 #include "SpecificFramebarIds.h"
 #include "texids.h"
+#include "Camera.h"
+#include "pi.h"
+#include "PinAtlas.h"
+#include <list>
+#include "JSON.h"
 
 UI ui;
+
+void showErrorDlgS(const char* error) {
+	ui.showErrorDlg(error, true);
+}
 
 static ImVec4 RGBToVec(DWORD color);
 static const float inverse_255 = 1.F / 255.F;
 static ImVec4 ARGBToVec(DWORD color);
+static DWORD VecToRGB(const ImVec4& vec);
+static DWORD ARGBToABGR(DWORD color) { return (color & 0xFF00FF00) | ((color & 0xFF0000) >> 16) | ((color & 0xFF) << 16); }
+static DWORD multiplyColor(DWORD colorLeft, DWORD colorRight);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 // The following two functions are from imgui_internal.h
 IMGUI_API int           ImTextCharFromUtf8(unsigned int* out_char, const char* in_text, const char* in_text_end);               // read one character. return input UTF-8 bytes count
@@ -63,6 +75,7 @@ static ImVec4 BLACK_COLOR = RGBToVec(0);
 static ImVec4 WHITE_COLOR = RGBToVec(0xFFFFFF);
 static ImVec4 SLIGHTLY_GRAY = RGBToVec(0xc2c2c2);  // it reads slightly "GRAY"
 static ImVec4 LIGHT_BLUE_COLOR = RGBToVec(0x72bcf2);
+static ImVec4 VERY_DARK_GRAY = RGBToVec(0x333333);
 static ImVec4 PURPLE_COLOR = RGBToVec(0xec3fbd);
 static ImVec4 FRAME_SKIPPED_COLOR = RGBToVec(0xc3a1e3);
 static ImVec4 FRAME_ADVANCED_COLOR = RGBToVec(0xd5e9f6);
@@ -80,7 +93,7 @@ static char strbuf2[512];
 static char* strbufs[2] { strbuf, strbuf2 };
 static std::string stringArena;
 static char printdecimalbuf[512];
-static int numDigits(int num);  // For negative numbers does not include the '-'
+int numDigits(int num);  // For negative numbers does not include the '-'
 struct UVStartEnd {
 	ImVec2 start;
 	ImVec2 end;
@@ -243,6 +256,18 @@ static GGIcon characterIcons[25];
 static GGIcon characterIconsBorderless[25];
 static void drawGGIcon(const GGIcon& icon);
 static GGIcon scaleGGIconToHeight(const GGIcon& icon, float height);
+#define makeIconAndBoolean(name, origName, size) \
+	static GGIcon name; \
+	static bool name##Prepared = false; \
+	static GGIcon* get_##name() { \
+		if (!name##Prepared) { \
+			name##Prepared = true; \
+			name = scaleGGIconToHeight(origName, size); \
+		} \
+		return &name; \
+	}
+makeIconAndBoolean(cogwheelIconScaled16, cogwheelIcon, 16.F)
+makeIconAndBoolean(tipsIconScaled14, tipsIcon, 14.F)
 static CharacterType getPlayerCharacter(int playerSide);
 static void drawPlayerIconWithTooltip(int playerSide);
 static void drawFontSizedPlayerIconWithCharacterName(CharacterType charType);
@@ -251,6 +276,7 @@ static bool endsWithCaseInsensitive(std::wstring str, const wchar_t* endingPart)
 static int findCharRev(const char* buf, char c);
 static int findCharRevW(const wchar_t* buf, wchar_t c);
 static void AddTooltip(const char* desc);
+static void AddTooltipNoSharedDelay(const char* desc);
 static void HelpMarker(const char* desc);
 static void RightAlign(float w);
 static void RightAlignedText(const char* txt);
@@ -373,6 +399,163 @@ static bool overrideWindowColor = false;
 			else ImGui::TextUnformatted(a);
 #define advanceBuf if (result != -1) { buf += result; bufSize -= result; }
 
+static const char* getEditEntityRepr(Entity ent);
+
+const char* hitboxTypeName[17] {
+	"Hurtbox",
+	"Hitbox",
+	"ExPnt",
+	"ExPntExt",
+	"Type4",
+	"Pushbox",
+	"Type6",
+	"Neck",
+	"Abdomen",
+	"RLeg",
+	"LLeg",
+	"Priv0",
+	"Priv1",
+	"Priv2",
+	"Priv3",
+	"Type15",
+	"Type16"
+};
+
+typedef GGIcon PinIcon;
+static const ImVec2 drawIconButton_minSize = { PinAtlas::add_size, PinAtlas::add_size };
+static bool drawIconButton(const char* buttonName, const PinIcon* icon, bool toolActive = false, bool flipHoriz = false, bool flipVert = false, bool disabled = false);
+
+#define makePinIcon(name) \
+	static PinIcon name##Btn { \
+		{ PinAtlas::name##_width, PinAtlas::name##_height }, \
+		{ PinAtlas::name##_x / PinAtlas::pin_texture_width, PinAtlas::name##_y / PinAtlas::pin_texture_height }, \
+		{ \
+			(PinAtlas::name##_x + PinAtlas::name##_width) / PinAtlas::pin_texture_width, \
+			(PinAtlas::name##_y + PinAtlas::name##_height) / PinAtlas::pin_texture_height \
+		} \
+	};
+
+makePinIcon(add)
+makePinIcon(delete)
+makePinIcon(select)
+makePinIcon(rect)
+makePinIcon(undo)
+makePinIcon(rename)
+makePinIcon(rect_delete)
+makePinIcon(eye_open)
+makePinIcon(eye_closed)
+
+float UI::dragNDropInterpolationAnim[dragNDropInterpolationTimerMax] { 0.F };
+const int UI::dragNDropInterpolationAnimRaw[dragNDropInterpolationTimerMax] {
+	3,3,4,6,9,13,16,21,22,22,22,22,21,16,13,9,6,4,3,3
+};
+static bool dragNDropInterpolationAnimReady = false;
+
+struct P1P2CommonTable {
+	ImVec2 tableCursorPos;
+	P1P2CommonTable();
+	~P1P2CommonTable();
+	static const char* tableHeaderTexts[3];
+	static float tableHeaderTextWidths[3];
+	static bool tableHeaderTextWidthsKnown;
+};
+const char* P1P2CommonTable::tableHeaderTexts[3] {
+	"P1",
+	"P2",
+	"Common"
+};
+float P1P2CommonTable::tableHeaderTextWidths[3];
+bool P1P2CommonTable::tableHeaderTextWidthsKnown = false;
+	
+
+struct CogwheelButtonContext {
+	ImVec2 cogwheelPos;  // where the cogwheel should be when settings are displayed
+	const GGIcon* scaledIcon;
+	const ImVec2* itemSpacing;
+	const char* elementName;
+	bool* cogwheelTogglePtr;
+	bool isOnTransparentBackground;
+	const char* description;
+	bool showSettings;
+	CogwheelButtonContext(
+			const char* elementName,
+			bool* cogwheelTogglePtr,
+			bool isOnTransparentBackground,
+			const char* description
+	) : elementName(elementName),
+		cogwheelTogglePtr(cogwheelTogglePtr),
+		isOnTransparentBackground(isOnTransparentBackground),
+		description(description),
+		showSettings(*cogwheelTogglePtr)
+	{
+		cogwheelPos = ImGui::GetCursorPos();
+		scaledIcon = get_cogwheelIconScaled16();
+		itemSpacing = &ImGui::GetStyle().ItemSpacing;
+		ImGui::SetCursorPosY(cogwheelPos.y + scaledIcon->size.y + itemSpacing->y * 3.F);
+	}
+	bool needShowSettings() {
+		bool retVal = showSettings;
+		showSettings = false;
+		return retVal;
+	}
+	// then draw settings, if needed
+	~CogwheelButtonContext() {
+		
+		ImVec2 contentPos = ImGui::GetCursorPos();
+		
+		const bool settingsShown = *cogwheelTogglePtr;
+		
+		ImVec2 buttonCursorPos = {
+			cogwheelPos.x + (
+				settingsShown
+					? 0.F
+					: (ImGui::GetContentRegionAvail().x - scaledIcon->size.x - itemSpacing->x * 2.F)
+			),
+			cogwheelPos.y
+		};
+		ImGui::SetCursorPos(buttonCursorPos);
+		if (isOnTransparentBackground) {
+			ImGui::PushStyleColor(ImGuiCol_Button, { 0.F, 0.F, 0.F, 0.F });
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 1.F, 1.F, 1.F, 0.25F });
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 1.F, 1.F, 1.F, 1.F });
+		}
+		
+		if (ImGui::Button(elementName,
+			{
+				scaledIcon->size.x + itemSpacing->x * 2.F,
+				scaledIcon->size.y + itemSpacing->y * 2.F
+			})) {
+			*cogwheelTogglePtr = !*cogwheelTogglePtr;
+		}
+		
+		if (isOnTransparentBackground) {
+			ImGui::PopStyleColor(3);
+		}
+		
+		if (description) AddTooltip(description);
+		
+		bool isHovered = ImGui::IsItemHovered();
+		bool mousePressed = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+		ImGui::SetCursorPos({
+			buttonCursorPos.x + itemSpacing->x,
+			buttonCursorPos.y + itemSpacing->y + (isHovered && mousePressed ? 1.F : 0.F)
+		});
+		ImVec4 tint { 1.F, 1.F, 1.F, 1.F };
+		if (isHovered && mousePressed) {
+			tint = { 0.5F, 0.5F, 0.5F, 1.F };
+		} else if (isHovered) {
+			tint = { 0.75F, 0.75F, 1.F, 1.F };
+		}
+		ImGui::Image(TEXID_GGICON, scaledIcon->size, scaledIcon->uvStart, scaledIcon->uvEnd, tint);
+		
+		if (settingsShown) {
+			ImGui::SetCursorPos(contentPos);
+		} else {
+			ImGui::SetCursorPos(cogwheelPos);
+		}
+		
+	}
+};
 
 // THIS PERFORMANCE MEASUREMENT IS NOT THREAD SAFE
 #ifdef PERFORMANCE_MEASUREMENT
@@ -642,8 +825,6 @@ bool UI::onDllMain() {
 		{ -10, 0 },
 		nullptr, "JamPanty");
 	
-	errorDialogPos = new ImVec2();
-	
 	addImage(IDB_PIN, pinResource);
 	
 	for (int i = 0; i < PinnedWindowEnum_Last; ++i) {
@@ -658,6 +839,10 @@ bool UI::onDllMain() {
 	windowShowMode = settings.modWindowVisibleOnStart || somePinnedWindowsWillOpenOnStartup
 			? WindowShowMode_All
 			: WindowShowMode_None;
+	
+	for (int i = 0; i < 3; ++i) {
+		hitboxEditorFPACSecondaryData[i].bbscrIndexInAswEng = i;
+	}
 	
 	return true;
 }
@@ -716,18 +901,23 @@ void UI::onDllDetachNonGraphics() {
 		ImGui::DestroyContext();
 		imguiInitialized = false;
 	}
+	detachFPAC();
 }
 
 // Runs on the main thread
 void UI::prepareDrawData() {
-	if (!screenSizeKnown) return;
+	if (!keyboard.screenSizeKnown) return;
+	convertedBoxesPrepared = false;
+	lastOverallSelectionBoxReady = false;
 	dontUsePreBlockstunTime = settings.frameAdvantage_dontUsePreBlockstunTime;
 	drewFramebar = false;
 	drewFrameTooltip = false;
-	if (!isVisible() && !needShowFramebarCached || gifMode.modDisabled) {
+	popupsOpen = false;
+	if (!isVisible() && !needShowFramebarCached && !boxMouseDown || gifMode.modDisabled) {
 		takeScreenshot = false;
 		takeScreenshotPress = false;
 		imguiActive = false;
+		keyboard.imguiActive = false;
 		needToDivertCodeInGetKeyState = needTestDelay;
 		
 		if (imguiInitialized) {
@@ -736,11 +926,34 @@ void UI::prepareDrawData() {
 			// However, the thread does not get hung up and both the game and ImGui display fine,
 			// it's just that ImGui does not respond to user input for a while.
 			// The cause of this is unknown, I haven't tried reproducing it yet and I think it may be related to not doing an ImGui frame every frame.
+			imguiContextMenuOpen = false;
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
+			hitboxEditorCheckEntityStillAlive();
+			ImGuiIO& imIO = ImGui::GetIO();
+			if (imIO.MouseClicked[0]) {
+				lastClickPosX = imIO.MousePos.x;
+				lastClickPosY = imIO.MousePos.y;
+			}
 			prepareOutlinedFont();
 			adjustMousePosition();
 			ImGui::EndFrame();
+			endDragNDrop();
+			dragNDropInterpolationTimer = 0;
+			hitboxEditorBoxSelect();
+			hitboxEditProcessBackground();
+			if (popupsOpen) {
+				ImGui::Render();
+				drawData = ImGui::GetDrawData();
+				
+				keyboard.imguiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow
+					| ImGuiHoveredFlags_AllowWhenBlockedByActiveItem
+					| ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+				
+			} else {
+				keyboard.imguiHovered = false;
+			}
+			keyboard.imguiContextMenuOpen = imguiContextMenuOpen;
 		}
 		return;
 	}
@@ -755,6 +968,7 @@ void UI::prepareDrawData() {
 	keyCombosChanged = false;
 	imguiActiveTemp = false;
 	takeScreenshotTemp = false;
+	imguiContextMenuOpen = false;
 	
 	decrementFlagTimer(allowNextFrameTimer, allowNextFrame);
 	decrementFlagTimer(takeScreenshotTimer, takeScreenshotPress);
@@ -766,12 +980,18 @@ void UI::prepareDrawData() {
 	ImGui_ImplWin32_NewFrame();
 	adjustMousePosition();
 	ImGui::NewFrame();
+	hitboxEditorCheckEntityStillAlive();
+	ImGuiIO& imIO = ImGui::GetIO();
+	if (imIO.MouseClicked[0]) {
+		lastClickPosX = imIO.MousePos.x;
+		lastClickPosY = imIO.MousePos.y;
+	}
 	prepareOutlinedFont();
 	
 	drawSearchableWindows();
 	
 	if (errorDialogText && *errorDialogText != '\0' && needDraw(PinnedWindowEnum_Error)) {
-		ImGui::SetNextWindowPos(*(ImVec2*)errorDialogPos, ImGuiCond_Appearing);
+		ImGui::SetNextWindowPos(ImVec2 { errorDialogPos[0], errorDialogPos[1] }, ImGuiCond_Appearing);
 		customBegin(PinnedWindowEnum_Error);
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 		ImGui::TextUnformatted(errorDialogText);
@@ -818,9 +1038,14 @@ void UI::prepareDrawData() {
 	} else {
 		resetFrameSelection();
 	}
+	keyboard.imguiHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow
+		| ImGuiHoveredFlags_AllowWhenBlockedByActiveItem
+		| ImGuiHoveredFlags_AllowWhenBlockedByPopup);
 	
 	takeScreenshot = takeScreenshotTemp;
 	imguiActive = imguiActiveTemp;
+	keyboard.imguiActive = imguiActiveTemp;
+	keyboard.imguiContextMenuOpen = imguiContextMenuOpen;
 	needToDivertCodeInGetKeyState = imguiActive || needTestDelay;
 	ImGui::EndFrame();
 	ImGui::Render();
@@ -828,7 +1053,7 @@ void UI::prepareDrawData() {
 	if (keyCombosChanged) {
 		settings.onKeyCombosUpdated();
 	}
-	if ((stateChanged || needWriteSettings) && keyboard.thisProcessWindow) {
+	if (needWriteSettings && keyboard.thisProcessWindow) {
 		PostMessageW(keyboard.thisProcessWindow, WM_APP_WIND_UP_TIMER_FOR_DEFERRED_SETTINGS_WRITE, stateChanged, needWriteSettings);
 	}
 	stateChanged = oldStateChanged || stateChanged;
@@ -881,9 +1106,9 @@ void UI::drawSearchableWindows() {
 				ImGui::TableNextColumn();
 				drawRightAlignedP1TitleWithCharIcon();
 				ImGui::TableNextColumn();
-				GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
-				CenterAlign(scaledIcon.size.x);
-				drawGGIcon(scaledIcon);
+				const GGIcon* scaledIcon = get_tipsIconScaled14();
+				CenterAlign(scaledIcon->size.x);
+				drawGGIcon(*scaledIcon);
 				AddTooltip("Hover your mouse cursor over individual row titles to see their corresponding tooltips.");
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted("P2");
@@ -1586,6 +1811,29 @@ void UI::drawSearchableWindows() {
 							CenterAlignedText("charge");
 						}
 					}
+					for (int i = 0; i < two; ++i) {
+						PlayerInfo& player = endScene.players[i];
+						ImGui::TableNextColumn();
+						if (player.pawn && *aswEngine) {
+							void* pawnWorld = *(void**)(player.pawn + 0x27a8);
+							if (pawnWorld) {
+								void* collision = *(void**)((BYTE*)pawnWorld + 0x4a84);
+								if (collision) {
+									void* top = *(void**)((BYTE*)collision + 0x3c);
+									if (top) {
+										DWORD flags = *(DWORD*)((BYTE*)top + 0x10);
+										sprintf_s(strbuf, "%.8x", flags);
+										printNoWordWrap
+									}
+								}
+							}
+						}
+						
+						if (i == 0) {
+							ImGui::TableNextColumn();
+							CenterAlignedText("collisionFlags");
+						}
+					}
 					
 				}
 				Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
@@ -1919,47 +2167,31 @@ void UI::drawSearchableWindows() {
 			}
 			HelpMarkerWithHotkey(neverDisplayGrayHurtboxesHelp, settings.toggleDisableGrayHurtboxes);
 			
-			stateChanged = ImGui::Checkbox(searchFieldTitle("Freeze Game"), &freezeGame) || stateChanged;
-			ImGui::SameLine();
-			if (ImGui::Button(searchFieldTitle("Next Frame"))) {
-				allowNextFrame = true;
-				allowNextFrameTimer = 10;
-			}
-			ImGui::SameLine();
-			static std::string freezeGameHelp;
-			if (freezeGameHelp.empty()) {
-				freezeGameHelp = settings.convertToUiDescription(
-					"Freezes the current frame of the game and stops gameplay from advancing."
-					" You can advance gameplay to the next frame using the 'Next Frame' button."
-					" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
-					" instead of pressing the button, and freezing and unfreezing the game can be achieved with"
-					" the \"freezeGameToggle\" shortcut.");
-			}
-			ImGui::TextDisabled("(?)");
-			if (ImGui::BeginItemTooltip()) {
-				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-				
-				sprintf_s(strbuf, "Freeze Game Hotkey: %s", comborepr(settings.freezeGameToggle));
-				ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
-				
-				sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", comborepr(settings.allowNextFrameKeyCombo));
-				ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
-				
-				ImGui::Separator();
-				ImGui::TextUnformatted(searchTooltipStr(freezeGameHelp));
-				ImGui::PopTextWrapPos();
-				ImGui::EndTooltip();
-			}
+			freezeGameAndAllowNextFrameControls();
 			
-			stateChanged = ImGui::Checkbox(searchFieldTitle("Slow-Mo Mode"), &slowmoGame) || stateChanged;
-			ImGui::SameLine();
-			int slowmoTimes = settings.slowmoTimes;
-			ImGui::SetNextItemWidth(80.F);
-			if (ImGui::InputInt(searchFieldTitle("Slow-Mo Factor"), &slowmoTimes, 1, 1, 0)) {
-				if (slowmoTimes <= 0) {
-					slowmoTimes = 1;
+			bool slowmoGame = std::abs(gifMode.fps - 60.F) > 0.001F;
+			if (ImGui::Checkbox(searchFieldTitle("Slow-Mo Mode"), &slowmoGame)) {
+				if (!*game.gameDataPtr || !game.isTrainingMode() && !*aswEngine) {
+					slowmoGame = false;
 				}
-				settings.slowmoTimes = slowmoTimes;
+				if (slowmoGame) {
+					gifMode.fps = settings.slowmoFps;
+					game.onFPSChanged();
+				} else {
+					gifMode.fps = 60.F;
+				}
+			}
+			ImGui::SameLine();
+			float slowmoFps = settings.slowmoFps;
+			ImGui::SetNextItemWidth(80.F);
+			if (ImGui::InputFloat(searchFieldTitle("Slow-Mo FPS"), &slowmoFps, 1.F, 5.F, "%.2f")) {
+				if (slowmoFps < 1.F) slowmoFps = 1.F;
+				if (slowmoFps > 999.F) slowmoFps = 999.F;
+				settings.slowmoFps = slowmoFps;
+				if (slowmoGame) {
+					gifMode.fps = settings.slowmoFps;
+					game.onFPSChanged();
+				}
 				needWriteSettings = true;
 			}
 			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
@@ -1967,8 +2199,9 @@ void UI::drawSearchableWindows() {
 			static std::string slowmoHelp;
 			if (slowmoHelp.empty()) {
 				slowmoHelp = settings.convertToUiDescription(
-					"Makes the game run slower, advancing only on every second, every third and so on frame, depending on 'Slow-Mo Factor' field.\n"
-					"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.");
+					"You can activate the Slow-mo mode to set the game's FPS to a different value, specified in 'Slow-Mo FPS' field.\n"
+					"You can use the \"slowmoGameToggle\" shortcut to toggle slow-mo on and off.\n"
+					"Slow-mo mode only works in Training Mode.");
 			}
 			HelpMarkerWithHotkey(slowmoHelp, settings.slowmoGameToggle);
 			
@@ -2044,6 +2277,16 @@ void UI::drawSearchableWindows() {
 					"You can use the \"toggleAllowCreateParticles\" shortcut to toggle this option.");
 			}
 			HelpMarkerWithHotkey(allowCreateParticlesHelp, settings.toggleAllowCreateParticles);
+			
+			if (ImGui::Button(searchFieldTitle("Hitbox Editor"))) {
+				toggleOpenManually(PinnedWindowEnum_HitboxEditor);
+			}
+			ImGui::SameLine();
+			HelpMarker(searchTooltip("Shows or hides the 'Hitbox Editor' menu. The edited data gets lost on character change or"
+				" after exiting training mode, unless saved into a .collision file."
+				" But keep in mind, when loading back from a .collision file, it still won't let you delete sprites that are"
+				" already in the game. Sprite deletion must go hand-in-hand with bbscript edits. Use Pangaea's ggxrd-mod to load"
+				" the right bbscript and .collision files on the loading screen: https://github.com/super-continent/ggxrd-mod."));
 			
 		}
 		popSearchStack();
@@ -2281,6 +2524,13 @@ void UI::drawSearchableWindows() {
 				keyComboControl(settings.toggleAllowCreateParticles);
 				keyComboControl(settings.clearInputHistory);
 				keyComboControl(settings.disableModToggle);
+				keyComboControl(settings.hitboxEditModeToggle);
+				keyComboControl(settings.hitboxEditMoveCameraUp);
+				keyComboControl(settings.hitboxEditMoveCameraDown);
+				keyComboControl(settings.hitboxEditMoveCameraLeft);
+				keyComboControl(settings.hitboxEditMoveCameraRight);
+				keyComboControl(settings.hitboxEditMoveCameraBack);
+				keyComboControl(settings.hitboxEditMoveCameraForward);
 			}
 			popSearchStack();
 			if (ImGui::CollapsingHeader(searchCollapsibleSection("General Settings")) || searching) {
@@ -2496,6 +2746,24 @@ void UI::drawSearchableWindows() {
 		}
 		customEnd();
 	}
+	popSearchStack();
+	searchCollapsibleSection(PinnedWindowEnum_HitboxEditor);
+	if (needDraw(PinnedWindowEnum_HitboxEditor) || searching) {
+		customBegin(PinnedWindowEnum_HitboxEditor);
+		if (!*aswEngine || !game.isTrainingMode()) {
+			ImGui::PushTextWrapPos(0.F);
+			ImGui::TextUnformatted("Editing hitboxes is only possible in training mode.");
+			ImGui::PopTextWrapPos();
+		} else {
+			drawHitboxEditor();
+		}
+		customEnd();
+	} else {
+		endDragNDrop();
+		dragNDropInterpolationTimer = 0;
+	}
+	hitboxEditProcessBackground();
+	hitboxEditorBoxSelect();
 	popSearchStack();
 	searchCollapsibleSection(PinnedWindowEnum_TensionData);
 	if (needDraw(PinnedWindowEnum_TensionData) || searching) {
@@ -3324,13 +3592,19 @@ void UI::drawSearchableWindows() {
 						ImGui::TableNextColumn();
 						if (row.side[i]) {
 							ProjectileInfo& projectile = *row.side[i];
-							sprintf_s(strbuf, "%p", (void*)projectile.ptr);
+							if (projectile.ptr) {
+								sprintf_s(strbuf, "%p (%d)", (void*)projectile.ptr, projectile.ptr.getEffectIndex());
+							} else {
+								sprintf_s(strbuf, "%p", (void*)projectile.ptr);
+							}
 							printNoWordWrap
 						}
 						
 						if (i == 0) {
 							ImGui::TableNextColumn();
 							CenterAlignedText("ptr");
+							AddTooltip("Displayes the pointer to the projectile's data and, in parentheses,"
+								" its index in the game's Effects[75] array.");
 						}
 					}
 				}
@@ -5950,6 +6224,7 @@ void UI::drawSearchableWindows() {
 				ImGui::PushItemWidth(80);
 				sprintf_s(strbuf, "%d", *jamPantyPtr);
 				if (ImGui::BeginCombo(searchFieldTitle("Panty"), strbuf)) {
+					imguiContextMenuOpen = true;
 					for (int i = 0; i <= 7; ++i) {
 						ImGui::PushID(i);
 						sprintf_s(strbuf, "%d", i);
@@ -6584,8 +6859,8 @@ void UI::drawSearchableWindows() {
 			}
 			
 			ImGui::PopTextWrapPos();
-			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
-			drawGGIcon(scaledIcon);
+			const GGIcon* scaledIcon = get_tipsIconScaled14();
+			drawGGIcon(*scaledIcon);
 			AddTooltip(thisHelpTextWillRepeat);
 			customEnd();
 			ImGui::PopID();
@@ -7955,8 +8230,8 @@ void UI::drawSearchableWindows() {
 				
 			}
 			
-			GGIcon scaledIcon = scaleGGIconToHeight(tipsIcon, 14.F);
-			drawGGIcon(scaledIcon);
+			const GGIcon* scaledIcon = get_tipsIconScaled14();
+			drawGGIcon(*scaledIcon);
 			AddTooltip("Hover your mouse over individual field titles or field values (depends on each field or even sometimes current"
 				" field value) to see their tooltips.");
 			
@@ -8150,7 +8425,7 @@ void UI::drawSearchableWindows() {
 					sprintf_s(strbuf, "%d/4", !player.pawn.bbscrvar() ? 0 : player.pawn.bbscrvar2() - 1);
 					ImGui::TextUnformatted(strbuf);
 					
-					drawGGIcon(scaleGGIconToHeight(tipsIcon, 14.F));
+					drawGGIcon(*get_tipsIconScaled14());
 					AddTooltip(searchTooltip("Every frame that a PKSHD button is pressed, Progress and Mashed increase by 3."
 						" Progress also increases by an extra 1 each non-hitstop/superfreeze/RC-slow-eaten frame,"
 						" and that means, if the attack applied hitstop to you, it is possible to start mashing before the stagger"
@@ -8186,14 +8461,19 @@ void UI::drawSearchableWindows() {
 			
 			drawPlayerIconInWindowTitle(i);
 			
-			ImVec2 cursorPosStart = ImGui::GetCursorPos();
-			
-			GGIcon scaledIcon = scaleGGIconToHeight(cogwheelIcon, 16.F);
-			const ImVec2& itemSpacing = ImGui::GetStyle().ItemSpacing;
-			const bool showingSettings = showComboRecipeSettings[i];
 			const bool transparentBackground = settings.comboRecipe_transparentBackground;
-			if (showingSettings) {
-				ImGui::SetCursorPosY(cursorPosStart.y + scaledIcon.size.y + itemSpacing.y * 3.F);
+			for (
+					CogwheelButtonContext cogwheel(
+						"##ComboRecipeCogwheel",
+						showComboRecipeSettings +i,
+						transparentBackground,
+						"Settings for the Combo Recipe panel.\n"
+							"The settings are shared between P1 and P2.\n"
+							"\n"
+							"Extra Info: The '>' symbol at the end of a move means that the next move is being cancelled from that move.\n"
+							"The ',' symbol at the end of a move means that the next move is being linked or done after some idle time after that move."
+					);
+					cogwheel.needShowSettings(); ) {
 				settingsPresetsUseOutlinedText = transparentBackground;
 				booleanSettingPreset(settings.comboRecipe_showDelaysBetweenCancels);
 				booleanSettingPreset(settings.comboRecipe_showIdleTimeBetweenMoves);
@@ -8206,56 +8486,6 @@ void UI::drawSearchableWindows() {
 				booleanSettingPreset(settings.comboRecipe_transparentBackground);
 				settingsPresetsUseOutlinedText = false;
 			}
-			
-			ImVec2 cursorPosForTable = ImGui::GetCursorPos();
-			
-			ImVec2 buttonCursorPos = {
-				cursorPosStart.x + (
-					showingSettings
-						? 0.F
-						: (ImGui::GetContentRegionAvail().x - scaledIcon.size.x - itemSpacing.x * 2.F)
-				),
-				cursorPosStart.y
-			};
-			ImGui::SetCursorPos(buttonCursorPos);
-			if (transparentBackground) {
-				ImGui::PushStyleColor(ImGuiCol_Button, { 0.F, 0.F, 0.F, 0.F });
-				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 1.F, 1.F, 1.F, 0.25F });
-				ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 1.F, 1.F, 1.F, 1.F });
-			}
-			
-			if (ImGui::Button("##ComboRecipeCogwheel",
-				{
-					scaledIcon.size.x + itemSpacing.x * 2.F,
-					scaledIcon.size.y + itemSpacing.y * 2.F
-				})) {
-				showComboRecipeSettings[i] = !showComboRecipeSettings[i];
-			}
-			
-			if (transparentBackground) {
-				ImGui::PopStyleColor(3);
-			}
-			
-			AddTooltip("Settings for the Combo Recipe panel.\n"
-				"The settings are shared between P1 and P2.\n"
-				"\n"
-				"Extra Info: The '>' symbol at the end of a move means that the next move is being cancelled from that move.\n"
-				"The ',' symbol at the end of a move means that the next move is being linked or done after some idle time after that move.");
-			bool isHovered = ImGui::IsItemHovered();
-			bool mousePressed = ImGui::IsMouseDown(ImGuiMouseButton_Left);
-			ImGui::SetCursorPos({
-				buttonCursorPos.x + itemSpacing.x,
-				buttonCursorPos.y + itemSpacing.y + (isHovered && mousePressed ? 1.F : 0.F)
-			});
-			ImVec4 tint { 1.F, 1.F, 1.F, 1.F };
-			if (isHovered && mousePressed) {
-				tint = { 0.5F, 0.5F, 0.5F, 1.F };
-			} else if (isHovered) {
-				tint = { 0.75F, 0.75F, 1.F, 1.F };
-			}
-			ImGui::Image(TEXID_GGICON, scaledIcon.size, scaledIcon.uvStart, scaledIcon.uvEnd, tint);
-			
-			ImGui::SetCursorPos(cursorPosForTable);
 			
 			if (ImGui::BeginTable("##ComboRecipe", 1, tableFlags)) {
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch, 1.F);
@@ -8960,6 +9190,11 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 			return TRUE;
 		
 		switch (message) {
+		case WM_MOUSEWHEEL: {
+			int wheelDelta = ((long)wParam >> 16);
+			keyboard.addWheelDelta(wheelDelta);
+		}
+		break;
 		case WM_APP_WIND_UP_TIMER_FOR_DEFERRED_SETTINGS_WRITE: {
 			if (!timerDisabled) {
 				if (timerId == 0) {
@@ -8998,12 +9233,12 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 					MultiByteToWideChar(CP_UTF8, 0, settings.screenshotPath.c_str(), -1, selectedPathBuf.data(), selectedPathBuf.size());
 					selectedPath = selectedPathBuf.data();
 					if (!selectedPath.empty()) {
-						lastSelectedPath = selectedPath;
+						lastSelectedScreenshotPath = selectedPath;
 					}
 				}
 			}
 			ShowCursor(TRUE);
-			if (selectFile(selectedPath, hWnd)) {
+			if (selectFile(selectedPath, hWnd, L"PNG file (*.png)\0*.PNG\0", lastSelectedScreenshotPath, SELECT_FILE_MODE_WRITE)) {
 				{
 					std::unique_lock<std::mutex> screenshotGuard(settings.screenshotPathMutex);
 					std::vector<char> screenshotPathBuf(selectedPath.size() * 4 + 1);
@@ -9021,6 +9256,32 @@ LRESULT UI::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 			ShowCursor(FALSE);
 			return TRUE;
 		}
+		case WM_APP_UI_REQUEST_FILE_SELECT_WRITE: {
+			std::wstring selectedPath;
+			ShowCursor(TRUE);
+			if (selectFile(selectedPath, hWnd, (const wchar_t*)lParam, *(std::wstring*)wParam, SELECT_FILE_MODE_WRITE)) {
+				writeOutFile(selectedPath, *dataToWriteToFile);
+				dataToWriteToFile = nullptr;
+			}
+			ShowCursor(FALSE);
+			return TRUE;
+		}
+		case WM_APP_UI_REQUEST_FILE_SELECT_READ: {
+			if (*aswEngine) {
+				std::wstring selectedPath;
+				ShowCursor(TRUE);
+				if (selectFile(selectedPath, hWnd,
+						L"JSON or COLLISION file (*.json or *.collision)\0*.json;*.collision\0"
+						L"JSON file (*.json)\0*.json\0"
+						L"COLLISION file (*.collision)\0*.collision\0",
+						lastSelectedCollisionPath,
+						SELECT_FILE_MODE_READ)) {
+					readCollisionFromFile(selectedPath, wParam);
+				}
+				ShowCursor(FALSE);
+			}
+			return TRUE;
+		}
 		}
 	}
 	return FALSE;
@@ -9036,26 +9297,44 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted(searchFieldTitle(info.uiNameWithLength));
 	ImGui::SameLine();
-	std::string idArena;
-	std::vector<int> indicesToRemove;
-	indicesToRemove.reserve(keyCombo.size());
+	enum DoWhatAction {
+		DO_WHAT_ACTION_REMOVE,
+		DO_WHAT_ACTION_INVERT
+	};
+	struct DoWhatWithIndex {
+		int index;
+		DoWhatAction action;
+		DoWhatWithIndex(int index, DoWhatAction action) : index(index), action(action) { }
+	};
+	std::vector<DoWhatWithIndex> indicesToDoStuffWith;
+	indicesToDoStuffWith.reserve(keyCombo.size());
 	
 	for (int i = 0; i < (int)keyCombo.size(); ++i) {
 		if (i > 0) {
 			ImGui::TextUnformatted(" + ");
 			ImGui::SameLine();
 		}
-		idArena = "##";
-		idArena += info.uiName;
-		idArena += std::to_string(i);
 		int currentlySelectedKey = keyCombo[i];
-		const char* currentKeyStr = settings.getKeyRepresentation(currentlySelectedKey);
+		bool negate = currentlySelectedKey < 0;
+		int codeAbs = negate ? -currentlySelectedKey : currentlySelectedKey;
+		if (negate) {
+			textUnformattedColored(LIGHT_BLUE_COLOR, "NOT HOLDING");
+			ImGui::SameLine();
+		}
+		sprintf_s(strbuf, "##%s%d", info.uiName, i);
+		const char* currentKeyStr = settings.getKeyRepresentation(codeAbs);
 		ImGui::PushItemWidth(80);
-		if (ImGui::BeginCombo(idArena.c_str(), searchFieldValue(currentKeyStr, nullptr)))
+		if (ImGui::BeginCombo(strbuf, searchFieldValue(currentKeyStr, nullptr)))
 		{
+			imguiContextMenuOpen = true;
 			ImGui::PushID(-1);
 			if (ImGui::Selectable("Remove this key", false)) {
-				indicesToRemove.push_back(i);
+				indicesToDoStuffWith.emplace_back(i, DO_WHAT_ACTION_REMOVE);
+				needWriteSettings = true;
+				keyCombosChanged = true;
+			}
+			if (ImGui::Selectable(negate ? "HOLDING THIS KEY" : "NOT HOLDING THIS KEY", false)) {
+				indicesToDoStuffWith.emplace_back(i, DO_WHAT_ACTION_INVERT);
 				needWriteSettings = true;
 				keyCombosChanged = true;
 			}
@@ -9064,7 +9343,7 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 			{
 				const Settings::Key& key = it->second;
 				ImGui::PushID((void*)&key);
-				if (ImGui::Selectable(key.uiName, currentlySelectedKey == key.code)) {
+				if (ImGui::Selectable(key.uiName, codeAbs == key.code)) {
 					needWriteSettings = true;
 					keyCombosChanged = true;
 					keyCombo[i] = key.code;
@@ -9083,12 +9362,11 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 		ImGui::TextUnformatted(" + ");
 		ImGui::SameLine();
 	}
-	idArena = "##";
-	idArena += info.uiName;
-	idArena += "New";
+	sprintf_s(strbuf, "##%sNew", info.uiName);
 	ImGui::PushItemWidth(80);
-	if (ImGui::BeginCombo(idArena.c_str(), ""))
+	if (ImGui::BeginCombo(strbuf, ""))
 	{
+		imguiContextMenuOpen = true;
 		for (auto it = settings.keys.cbegin(); it != settings.keys.cend(); ++it)
 		{
 			const Settings::Key& key = it->second;
@@ -9104,9 +9382,20 @@ void UI::keyComboControl(std::vector<int>& keyCombo) {
 	}
 	ImGui::PopItemWidth();
 	int offset = 0;
-	for (int indexToRemove : indicesToRemove) {
-		keyCombo.erase(keyCombo.begin() + indexToRemove - offset);
-		++offset;
+	for (const DoWhatWithIndex& indexToDoStuffWith : indicesToDoStuffWith) {
+		switch (indexToDoStuffWith.action) {
+			case DO_WHAT_ACTION_REMOVE: {
+				keyCombo.erase(keyCombo.begin() + indexToDoStuffWith.index - offset);
+				++offset;
+				break;
+			}
+			case DO_WHAT_ACTION_INVERT: {
+				int indWithOffset = indexToDoStuffWith.index - offset;
+				int code = keyCombo[indWithOffset];
+				keyCombo[indWithOffset] = -code;
+				break;
+			}
+		}
 	}
 	
 	ImGui::SameLine();
@@ -9605,50 +9894,124 @@ int findCharRevW(const wchar_t* buf, wchar_t c) {
 }
 
 // runs on the main thread
-bool UI::selectFile(std::wstring& path, HWND owner) {
+bool UI::selectFile(std::wstring& path, HWND owner, const wchar_t* filterStr, std::wstring& lastSelectedPath, SelectFileMode selectMode) {
 	std::wstring szFile;
 	szFile = lastSelectedPath;
 
 	std::vector<WCHAR> szFileBuf(MAX_PATH, L'\0');
-	if (!szFile.empty()) {
-		memcpy(szFileBuf.data(), szFile.c_str(),
-				(
-					szFile.size() > MAX_PATH
-						? MAX_PATH
-						: szFile.size()
-				) * sizeof (WCHAR)
-			);
-		szFileBuf.back() = L'\0';
+	while (true) {
+		if (!szFile.empty()) {
+			memcpy(szFileBuf.data(), szFile.c_str(),
+					(
+						szFile.size() > MAX_PATH
+							? MAX_PATH
+							: szFile.size()
+					) * sizeof (WCHAR)
+				);
+			szFileBuf.back() = L'\0';
+		}
+		
+		OPENFILENAMEW selectedFiles{ 0 };
+		selectedFiles.lStructSize = sizeof(OPENFILENAMEW);
+		selectedFiles.hwndOwner = owner;
+		selectedFiles.lpstrFile = szFileBuf.data();
+		selectedFiles.nMaxFile = (DWORD)szFileBuf.size();
+		selectedFiles.lpstrFilter = filterStr;
+		selectedFiles.nFilterIndex = 1;
+		selectedFiles.lpstrFileTitle = NULL;
+		selectedFiles.nMaxFileTitle = 0;
+		selectedFiles.lpstrInitialDir = NULL;
+		selectedFiles.Flags =
+			selectMode == SELECT_FILE_MODE_WRITE
+				? OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR | OFN_NOREADONLYRETURN
+				: OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+		
+		if (!(
+			selectMode == SELECT_FILE_MODE_WRITE
+				? GetSaveFileNameW(&selectedFiles)
+				: GetOpenFileNameW(&selectedFiles)
+		)) {
+			DWORD errCode = CommDlgExtendedError();
+			if (!errCode) {
+				logwrap(fputs("The file selection dialog was closed by the user.\n", logfile));
+			}
+			else {
+				logwrap(fprintf(logfile, "Error selecting file. Error code: %.8x\n", errCode));
+			}
+			return false;
+		}
+		szFile = szFileBuf.data();
+		
+		if (selectMode == SELECT_FILE_MODE_WRITE) {
+			
+			bool containsOneOfExtensions = false;
+			int numberOfExtensions = 0;
+			const wchar_t* lastExtension = nullptr;
+			
+			const wchar_t* extSeek = filterStr;
+			while (*extSeek != L'\0') {
+				++numberOfExtensions;
+				while (*extSeek != L'\0') ++extSeek;
+				++extSeek;
+				if (*extSeek == L'*') ++extSeek;
+				if (*extSeek == L'.') {
+					lastExtension = extSeek;
+					if (endsWithCaseInsensitive(szFile, extSeek)) {
+						containsOneOfExtensions = true;
+						break;
+					}
+				}
+				while (*extSeek != L'\0') ++extSeek;
+				++extSeek;
+			}
+			
+			if (!containsOneOfExtensions) {
+				if (numberOfExtensions == 1) {
+					path = szFile + lastExtension;
+				} else if (numberOfExtensions > 1) {
+					int pos = findCharRevW(szFile.c_str(), L'.');
+					int posSlash = findCharRevW(szFile.c_str(), L'\\');
+					std::wstring msg;
+					if (pos != -1 && posSlash != -1 && pos < posSlash) pos = -1;
+					if (pos == -1) {
+						msg = L"No file extension specified.";
+					} else {
+						msg = L"Wrong file extension specified (";
+						msg.append(szFile.begin() + pos, szFile.end());
+						msg += L").";
+					}
+					msg += L" Please specify one of: ";
+					extSeek = filterStr;
+					bool isFirst = true;
+					while (*extSeek != L'\0') {
+						while (*extSeek != L'\0') ++extSeek;
+						++extSeek;
+						if (*extSeek == L'*') ++extSeek;
+						if (isFirst) {
+							isFirst = false;
+						} else {
+							msg += L", ";
+						}
+						msg += extSeek;
+						while (*extSeek != L'\0') ++extSeek;
+						++extSeek;
+					}
+					int dialogResult = MessageBoxW(keyboard.thisProcessWindow ? keyboard.thisProcessWindow : NULL,
+						msg.c_str(),
+						pos == -1 ? L"No file extension" : L"Wrong file extension",
+						MB_RETRYCANCEL);
+					if (dialogResult == IDRETRY) {
+						memset(szFileBuf.data(), L'\0', szFileBuf.size() * sizeof (WCHAR));
+						continue;
+					} else {
+						return false;
+					}
+				}
+			}
+		}
+		break;
 	}
 	
-	OPENFILENAMEW selectedFiles{ 0 };
-	selectedFiles.lStructSize = sizeof(OPENFILENAMEW);
-	selectedFiles.hwndOwner = owner;
-	selectedFiles.lpstrFile = szFileBuf.data();
-	selectedFiles.nMaxFile = (DWORD)szFileBuf.size();
-	selectedFiles.lpstrFilter = L"PNG file (*.png)\0*.PNG\0";
-	selectedFiles.nFilterIndex = 1;
-	selectedFiles.lpstrFileTitle = NULL;
-	selectedFiles.nMaxFileTitle = 0;
-	selectedFiles.lpstrInitialDir = NULL;
-	selectedFiles.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-
-	if (!GetSaveFileNameW(&selectedFiles)) {
-		DWORD errCode = CommDlgExtendedError();
-		if (!errCode) {
-			logwrap(fputs("The file selection dialog was closed by the user.\n", logfile));
-		}
-		else {
-			logwrap(fprintf(logfile, "Error selecting file. Error code: %.8x\n", errCode));
-		}
-		return false;
-	}
-	szFile = szFileBuf.data();
-
-	if (!endsWithCaseInsensitive(szFile, L".png")) {
-		path = szFile + L".png";
-		return true;
-	}
 	path = szFile;
 	int pos = findCharRevW(path.c_str(), L'\\');
 	if (pos == -1) {
@@ -9662,6 +10025,18 @@ bool UI::selectFile(std::wstring& path, HWND owner) {
 // runs on the main thread
 void AddTooltip(const char* desc) {
 	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted(desc);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+}
+
+// runs on the main thread
+void AddTooltipNoSharedDelay(const char* desc) {
+    if (!ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip | ImGuiHoveredFlags_DelayNormal | ImGuiHoveredFlags_NoSharedDelay))
+        return;
+    if (ImGui::BeginTooltip()) {
 		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 		ImGui::TextUnformatted(desc);
 		ImGui::PopTextWrapPos();
@@ -9691,6 +10066,21 @@ void UI::AddTooltipWithHotkey(const char* desc, const char* descEnd, std::vector
 		}
 		ImGui::Separator();
 		ImGui::TextUnformatted(searchTooltip(desc, descEnd));
+		ImGui::PopTextWrapPos();
+		if (!searching) ImGui::EndTooltip();
+	}
+}
+
+// runs on the main thread
+void UI::AddTooltipWithHotkeyNoSearch(const char* desc, std::vector<int>& hotkey) {
+	if (searching || ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		int result = sprintf_s(strbuf, "Hotkey: %s", comborepr(hotkey));
+		if (result != -1) {
+			ImGui::TextUnformatted(strbuf, strbuf + result);
+		}
+		ImGui::Separator();
+		ImGui::TextUnformatted(desc);
 		ImGui::PopTextWrapPos();
 		if (!searching) ImGui::EndTooltip();
 	}
@@ -9763,6 +10153,31 @@ ImVec4 ARGBToVec(DWORD color) {
 		(float)(color & 0xff) * inverse_255,  // blue
 		(float)(color >> 24) * inverse_255  // alpha
 	};
+}
+
+DWORD VecToRGB(const ImVec4& vec) {
+	
+	DWORD color = 0xFF000000;
+	
+	// RED
+	int val = (int)std::roundf(vec.x * 255.F);
+	if (val < 0) val = 0;
+	if (val > 255) val = 255;
+	color |= val << 16;
+	
+	// GREEN
+	val = (int)std::roundf(vec.y * 255.F);
+	if (val < 0) val = 0;
+	if (val > 255) val = 255;
+	color |= val << 8;
+	
+	// BLUE
+	val = (int)std::roundf(vec.z * 255.F);
+	if (val < 0) val = 0;
+	if (val > 255) val = 255;
+	color |= val;
+	
+	return color;
 }
 
 // runs on the main thread
@@ -14915,7 +15330,7 @@ void printExtraBlockstunText(int amount) {
 
 // runs on the main thread
 const char* comborepr(std::vector<int>& combo) {
-	StringWithLength repr = settings.getComboRepresentation(combo);
+	StringWithLength repr = settings.getComboRepresentationUserFriendly(combo);
 	if (repr.txt[0] == '\0') return "<not set>";
 	return repr.txt;
 }
@@ -15527,9 +15942,10 @@ void UI::drawFramebars() {
 		| ImGuiWindowFlags_NoTitleBar
 		| ImGuiWindowFlags_NoBringToFrontOnFocus
 		| ImGuiWindowFlags_NoFocusOnAppearing);
-	bool drawFullBorder = ImGui::IsMouseDown(ImGuiMouseButton_Left)
-		&& ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true)
-		&& ImGui::IsWindowFocused();
+	bool drawFullBorder = (
+		ImGui::IsMouseDown(ImGuiMouseButton_Left)
+		&& ImGui::IsWindowFocused() || gifMode.editHitboxes && ImGui::IsWindowHovered()
+	) && ImGui::IsMouseHoveringRect({ 0.F, 0.F }, { FLT_MAX, FLT_MAX }, true);
 	ImGui::PopStyleVar();
 	bool scaledText = scale > 1.001F;
 	if (scaledText) {
@@ -16740,8 +17156,7 @@ void UI::drawFramebars() {
 // Interject between Win32 backend and ImGui::NewFrame
 // runs on the main thread
 void UI::adjustMousePosition() {
-	imGuiCorrecter.adjustMousePosition(screenWidth, screenHeight,
-		usePresentRect, presentRectW, presentRectH);
+	imGuiCorrecter.adjustMousePosition();
 }
 
 // runs on the main thread
@@ -17612,6 +18027,18 @@ int __cdecl UI::CompareMoveInfo(void const* moveLeft, void const* moveRight) {
 // runs on the main thread
 void UI::onAswEngineDestroyed() {
 	sortedMovesRedoPendingWhenAswEngingExists = true;
+	if (gifMode.editHitboxes && settings.hitboxEditUnfreezeGameWhenLeavingEditMode && freezeGame) {
+		stopHitboxEditMode(true);
+	}
+	gifMode.editHitboxesEntity = nullptr;
+	selectedHitboxes.clear();
+	resetKeyboardMoveCache();
+	resetCoordsMoveCache();
+	sortedAnimSeqs.clear();
+	for (FPACSecondaryData& data : hitboxEditorFPACSecondaryData) {
+		data.clear();
+	}
+	eraseHistory();
 }
 
 // runs on the main thread
@@ -17705,11 +18132,13 @@ void setOutlinedText(bool isOutlined) {
         	}
         	outlinedFont->ContainerAtlas->TexID = TEXID_IMGUIFONT_OUTLINED;
 	    	ImGui::PushFont(outlinedFont);
+	    	ImGui::GetWindowDrawList()->PushTextureID(TEXID_IMGUIFONT_OUTLINED);
         } else {
         	if (outlinedFont) {
         		outlinedFont->ContainerAtlas->TexID = TEXID_IMGUIFONT;
         	}
         	ImGui::PopFont();
+	    	ImGui::GetWindowDrawList()->PopTextureID();
         }
     }
 }
@@ -17803,10 +18232,11 @@ UI::WindowStruct::WindowStruct(PinnedWindowEnum index, const char* titleFmtStrin
 	}
 	// resizing string and then writing into it has not worked for me in some situations in the past but maybe I am
 	// misremembering exactly what happened and the problem was something else.
-	// Point is, I'm not longer trusting string to be contiguous until the call to c_str(), until they release and
+	// Point is, I'm no longer trusting string to be contiguous until the call to c_str(), until they release and
 	// make available a writable pointer to their data.
 	// Without this, we might be running around, +'ing strings together which may or may not be string builders in disguise
 	// and we will never know the truth
+	// In case you're confused, I was talking about why I am using std::vector instead of std::string
 	std::vector<char> buf(requiredLength + 1);
 	va_list args;
     va_start(args, titleFmtString);
@@ -17820,11 +18250,16 @@ UI::WindowStruct::WindowStruct(PinnedWindowEnum index, const char* titleFmtStrin
 
 void UI::WindowStruct::init() {
 	element = &settings.pinnedWindows[index];
-	
 	setOpen(settings.openPinnedWindowsOnStartup && isPinned(), false);
 }
 
 void UI::customBegin(PinnedWindowEnum index) {
+	lastCustomBeginPushedAStyleStack[lastCustomBeginPushedStackDepth] = lastCustomBeginPushedAStyle;
+	lastCustomBeginPushedOutlinedTextStack[lastCustomBeginPushedStackDepth] = lastCustomBeginPushedOutlinedText;
+	lastCustomBeginHadPinButtonStack[lastCustomBeginPushedStackDepth] = lastCustomBeginHadPinButton;
+	lastWindowClosedStack[lastCustomBeginPushedStackDepth] = lastWindowClosed;
+	++lastCustomBeginPushedStackDepth;
+	
 	WindowStruct& windowStruct = windows[index];
 	ImGuiWindowFlags newFlags;
 	ImGuiWindowFlags pinFlag = settings.disablePinButton ? 0 : ImGuiWindowFlags_HasPinButton;
@@ -17890,6 +18325,13 @@ void UI::customEnd() {
 	}
 	if (lastCustomBeginPushedOutlinedText) popOutlinedText();
 	if (lastCustomBeginPushedAStyle) ImGui::PopStyleColor();
+	
+	--lastCustomBeginPushedStackDepth;
+	lastCustomBeginPushedAStyle = lastCustomBeginPushedAStyleStack[lastCustomBeginPushedStackDepth];
+	lastCustomBeginPushedOutlinedText = lastCustomBeginPushedOutlinedTextStack[lastCustomBeginPushedStackDepth];
+	lastCustomBeginHadPinButton = lastCustomBeginHadPinButtonStack[lastCustomBeginPushedStackDepth];
+	lastWindowClosed = lastWindowClosedStack[lastCustomBeginPushedStackDepth];
+	
 	ImGui::End();
 }
 
@@ -18004,5 +18446,4493 @@ void UI::onDisablePinButtonChanged(bool postedFromOutsideUI) {
 	}
 	if (weNeedToTalk) {
 		needWriteSettings = true;
+	}
+}
+
+void UI::startHitboxEditMode() {
+	if (gifMode.editHitboxes) return;
+	gifMode.editHitboxes = true;
+	entityList.populate();
+	if (!gifMode.editHitboxesEntity) {
+		gifMode.editHitboxesEntity = entityList.slots[game.currentPlayerControllingSide()];
+	}
+	if (!freezeGame) {
+		stateChanged = true;
+		freezeGame = true;
+	}
+	
+	Entity pawn = entityList.slots[game.currentPlayerControllingSide()];
+	
+	
+	static DrawHitboxArrayCallParams boxes[17];
+	RECT bounds;
+	int posX = pawn.posX();
+	int posY = pawn.posY();
+	bounds.left = posX;
+	bounds.right = posX;
+	bounds.top = posY;
+	bounds.bottom = posY;
+	
+	for (int i = 0; i < 17; ++i) {
+		int count = pawn.hitboxes()->count[i];
+		if (!count) continue;
+		DrawHitboxArrayCallParams& box = boxes[i];
+		box.data.resize(count);
+		memcpy(box.data.data(), pawn.hitboxes()->data[i], sizeof (Hitbox) * count);
+		box.params.flip = pawn.isFacingLeft() ? 1 : -1;
+		box.params.scaleX = pawn.scaleX();
+		box.params.scaleY = pawn.scaleY();
+		box.params.angle = pawn.pitch();
+		box.params.transformCenterX = pawn.transformCenterX();
+		box.params.transformCenterY = pawn.transformCenterY();
+		box.params.posX = posX;
+		box.params.posY = posY;
+		combineBounds(bounds, box.getWorldBounds());
+	}
+	
+	camera.editHitboxesOffsetX = 0.F;
+	camera.editHitboxesOffsetY = settings.cameraCenterOffsetY_WhenForcePitch0;
+	camera.editHitboxesViewDistance = settings.cameraCenterOffsetZ;
+	
+	// I want to take a brief moment to ajust the camera view to capture all of the hitbox data without having to manually scroll anywhere
+	// I am as lost as you are so please bear with me
+	
+	// UE3 coordinate space is:
+	// Z points up
+	// Y points away from the fighting arena, to the right from P1's character's side
+	// X points to the right of arena
+	
+	// we force pitch to be 0, no yaw allowed during edit mode, so it's -PI/2. No roll either
+	// right = (1,0,0)     ; must later become y in camera space
+	// up = (0,0,1)        ; must later become z in camera space
+	// forward = (0,-1,0)  ; must later become x in camera space
+	
+	// (x,0,y) - the original vector of a hitbox point, x,y are from ArcSys space where x points right and y up
+	// we must first untranslate the camera. So, given cam_x, cam_y, cam_z, we get relative vector r:
+	// r = (x,0,y) - (cam_x, cam_y, cam_z) =
+	//   = (x-cam_x,-cam_y,y-cam_z)
+	// if we undo the yaw, the only rotation, we get, in UE3 camera's space (where x points forward, y right, z up):
+	// r'=(cam_y,x-cam_x,y-cam_z)
+	
+	// we have this: float t = 1.F / tanf(fov);  // this is from Altimor's formula
+	// we will never auto-adjust fov, so this is just an opaque constant to us that I'll call t
+	
+	// and this projection matrix:
+	//projection = {
+	// 1.F / viewportW, 1.F / viewportH,            1.F, 1.F,  // UE3 uses left-hand coordinates, and D3D also uses left-hand
+	// t,               0.F,                        0.F, 0.F,
+	// 0.F,             t * viewportW / viewportH,  0.F, 0.F,
+	// 0.F,             0.F,                        0.F, 0.F
+	//};
+	
+	// we will shorten viewportW to vw, viewportH to vh
+	
+	// so I take point r' and multiply by matrix to get projected point p:
+	// p=...hold on
+	// in case you're wondering how am I multiplying an (x,y,z) point by (4x4) matrix, I am legally obligated to add a fourth dimension, w=1, to the point.
+	// p=( r'x/vw + r'y*t, r'x/vh + r'z*t*vw/vh, r'x, r'x )
+	// D3D then autopilots the p'.x = p.x / p.z, p'.y = p.y / p.z, and p' is the actual screen coordinate, screen 0;0 being in the center, x right, y up, 1;-1 are edges
+	// p.z would equal our r'.x (makes sense)
+	
+	// I got this:
+	// p' = ( 1/vw + (x-cam_x)/cam_y*t, 1/vh+(y-cam_z)/cam_y*t*vw/vh )
+	// x and y are ArcSys coordinates, cam_x/y/z are UE3 camera coordinates, p' coordinates we just discussed
+	
+	// if we imagine we've locked cam_y in place, we can actually see how the point on the screen would move linearly when either
+	// moving the camera or the ArcSys (source) point. So there's some coefficient we can get that would allow us to convert
+	// displacement in the source point into displacement in camera position.
+	// But first I am most interested in adjusting cam_y so that our viewing rect is big enough to accomodate all the boxes.
+	// I assume same coefficient we can multiply by a size expressed in ArcSys units and get a size in screen units.
+	// And before even that, I want to get how big the default camera already is. Maybe we don't need to resize or move anything.
+	// p' must equal (1,1), then (-1,-1). Subtract one (resulting ArcSys point) from the other.
+	// 1/vw + (x-cam_x)/cam_y*t = DESTx;
+	// 1/vh+(y-cam_z)/cam_y*t*vw/vh = DESTy;
+	// --------
+	// (x-cam_x)/cam_y = (DESTx-1/vw)/t;
+	// (y-cam_z)/cam_y = (DESTy-1/vh)/t/vw*vh;
+	// --------
+	// x-cam_x = cam_y*(DESTx-1/vw)/t;
+	// y-cam_z = cam_y*(DESTy-1/vh)/t/vw*vh;
+	// --------
+	// x = cam_y*(DESTx-1/vw)/t+cam_x;
+	// y = cam_y*(DESTy-1/vh)/t/vw*vh+cam_z;
+	
+	EndScene::HitboxEditorCameraValues& vals = endScene.hitboxEditorCameraValues;
+	if (vals.prepare(pawn)) {
+		float boundsWASW = (bounds.right - bounds.left) * vals.xCoeff;
+		float boundsHASW = (bounds.bottom - bounds.top) * vals.yCoeff;
+		
+		if (boundsWASW > 1.9F || boundsHASW > 1.9F) {
+			// boundsWASW*t/cam_y*m must equal = 1.9F
+			// boundsHASW*t*vw/vh/cam_y*m must equal = 1.9F
+			// --------
+			// boundsWASW*t/cam_y*m = 1.9F
+			// boundsHASW*t*vw/vh/cam_y*m = 1.9F
+			// --------
+			// boundsWASW*t*m = 1.9F*cam_y
+			// boundsHASW*t*vw/vh*m = 1.9F*cam_y
+			// --------
+			// cam_y = boundsWASW*t*m/1.9F
+			// cam_y = boundsHASW*t*vw/vh*m/1.9F
+			float new_cam_y = boundsWASW * vals.t * vals.m / 1.9F;
+			float val = boundsHASW * vals.t * vals.vw / vals.vh * vals.m / 1.9F;
+			if (val > new_cam_y) {
+				new_cam_y = val;
+			}
+			camera.editHitboxesViewDistance = new_cam_y;
+		}
+		
+		float boundsXASW = (float)(
+			(bounds.right + bounds.left) >> 1
+		);
+		float boundsYASW = (float)(
+			(bounds.bottom + bounds.top) >> 1
+		);
+		
+		camera.editHitboxesOffsetX = (boundsXASW - (float)pawn.posX()) * vals.m;
+		camera.editHitboxesOffsetY = (boundsYASW - (float)pawn.posY()) * vals.m;
+		
+	}
+	
+	// we're frozen, the camera won't update the normal way
+	camera.updateCameraManually();
+	
+}
+
+void UI::stopHitboxEditMode(bool resetEntity) {
+	if (!gifMode.editHitboxes) return;
+	resetKeyboardMoveCache();
+	resetCoordsMoveCache();
+	gifMode.editHitboxes = false;
+	sortedAnimSeqs.clear();
+	if (resetEntity) {
+		if (settings.hitboxEditUnfreezeGameWhenLeavingEditMode) {
+			if (freezeGame) {
+				stateChanged = true;
+				freezeGame = false;
+			}
+		}
+		gifMode.editHitboxesEntity = nullptr;
+		selectedHitboxes.clear();
+	}
+}
+
+void UI::drawHitboxEditor() {
+	
+	if (gifMode.editHitboxes && gifMode.editHitboxesEntity) {
+		#define predetermText(name, text) \
+			static const StringWithLength name = text; \
+			static bool name##WidthCalculated = false; \
+			static float name##Width = 0.F; \
+			if (!name##WidthCalculated) { \
+				name##WidthCalculated = true; \
+				name##Width = ImGui::CalcTextSize(name.txt, name.txt + name.length).x; \
+			}
+		Entity playerEnt = Entity{gifMode.editHitboxesEntity}.playerEntity();
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		float windowWidth = ImGui::GetWindowWidth();
+		ImGuiStyle& style = ImGui::GetStyle();
+		const float fontSize = ImGui::GetFontSize();
+		int bbscrIndexInAswEng = Entity{gifMode.editHitboxesEntity}.bbscrIndexInAswEng();
+		const std::string& title = windows[PinnedWindowEnum_HitboxEditor].title;
+		ImVec2 titleSize = ImGui::CalcTextSize(title.c_str(), title.c_str() + title.size());
+		GGIcon icon;
+		if (bbscrIndexInAswEng != 2) {
+			icon = scaleGGIconToHeight(getCharIcon(playerEnt.characterType()), fontSize);
+		}
+		ImVec2 startPos {
+			windowPos.x + style.FramePadding.x + fontSize + style.ItemSpacing.x + titleSize.x + style.ItemSpacing.x,
+			windowPos.y + style.FramePadding.y
+		};
+		float startPosOrigX = startPos.x;
+		ImVec2 clipEnd {
+			windowPos.x + windowWidth - style.FramePadding.x - fontSize - style.ItemInnerSpacing.x
+				- (ui.lastCustomBeginHadPinButton ? 19.F + style.ItemInnerSpacing.x : 0.F),
+			startPos.y + icon.size.y
+		};
+		if (clipEnd.x > startPos.x) {
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			drawList->PushClipRect({ startPos.x, windowPos.y },
+				{ clipEnd.x, windowPos.y + style.FramePadding.y + fontSize + style.FramePadding.y },
+				false);
+			int alpha = ImGui::IsWindowCollapsed() ? 128 : 255;
+			ImU32 white = ImGui::GetColorU32(IM_COL32(255, 255, 255, alpha));
+			predetermText(parenthesisOpen, "(")
+			drawList->AddText(startPos, white, parenthesisOpen.txt, parenthesisOpen.txt + parenthesisOpen.length);
+			startPos.x += parenthesisOpenWidth;
+			drawList->AddImage(TEXID_GGICON,
+				startPos,
+				{
+					startPos.x + icon.size.x,
+					startPos.y + icon.size.y
+				},
+				icon.uvStart,
+				icon.uvEnd,
+				white);
+			startPos.x += icon.size.x + style.ItemInnerSpacing.x;
+			if (bbscrIndexInAswEng != 2) {
+				int strbufLength = sprintf_s(strbuf, "P%d's Collision (%s))",
+					bbscrIndexInAswEng + 1,
+					characterNames[playerEnt.characterType()]);
+				drawList->AddText(startPos, white, strbuf, strbuf + strbufLength);
+				startPos.x += ImGui::CalcTextSize(strbuf, strbuf + strbufLength).x;
+			} else {
+				predetermText(commonCollision, "Common Collision)")
+				drawList->AddText(startPos, white, commonCollision.txt, commonCollision.txt + commonCollision.length);
+				startPos.x += commonCollisionWidth;
+			}
+			drawList->PopClipRect();
+		}
+		#undef predetermText
+	}
+	
+	struct DrawHitboxEditorOnExit {
+		~DrawHitboxEditorOnExit() {
+			if (currentSpriteElement) {
+				ui.processDragNDrop(currentSpriteElement, 0);
+			} else {
+				ui.endDragNDrop();
+				ui.dragNDropInterpolationTimer = 0;
+			}
+			checkClearSelectedHitboxes(nullptr);
+		}
+		void checkClearSelectedHitboxes(SortedSprite* currentSpriteElement) {
+			if (gotToSelectedLayersPart) return;
+			this->currentSpriteElement = currentSpriteElement;
+			gotToSelectedLayersPart = true;
+			Entity editEntity{gifMode.editHitboxesEntity};
+			if (!gifMode.editHitboxes || !editEntity
+					|| strcmp(editEntity.spriteName(), ui.selectedHitboxesSprite) != 0) {
+				ui.selectedHitboxes.clear();
+				ui.resetKeyboardMoveCache();
+				ui.resetCoordsMoveCache();
+				ui.endDragNDrop();
+				ui.dragNDropInterpolationTimer = 0;
+			}
+			if (gifMode.editHitboxes && editEntity) {
+				memcpy(ui.selectedHitboxesSprite, editEntity.spriteName(), 32);
+			} else {
+				memset(ui.selectedHitboxesSprite, 0, 32);
+			}
+		}
+		SortedSprite* currentSpriteElement = nullptr;
+		bool gotToSelectedLayersPart = false;
+	} drawHitboxEditorOnExit;
+	
+	for (
+			CogwheelButtonContext cogwheel(
+				"##HitboxEditorCogwheel",
+				&showHitboxEditorSettings,
+				false,
+				"Settings for the Hitbox Editor."
+			);
+			cogwheel.needShowSettings(); ) {
+		ImGui::PushTextWrapPos(0.F);
+		ImGui::TextUnformatted("The edited data gets lost on character change or after leaving training mode, unless saved into a .collision file.");
+		ImGui::PopTextWrapPos();
+		keyComboControl(settings.hitboxEditModeToggle);
+		keyComboControl(settings.hitboxEditMoveCameraUp);
+		keyComboControl(settings.hitboxEditMoveCameraDown);
+		floatSettingPreset(settings.hitboxEditMoveCameraVerticalSpeedMultiplier);
+		keyComboControl(settings.hitboxEditMoveCameraLeft);
+		keyComboControl(settings.hitboxEditMoveCameraRight);
+		floatSettingPreset(settings.hitboxEditMoveCameraHorizontalSpeedMultiplier);
+		keyComboControl(settings.hitboxEditMoveCameraBack);
+		keyComboControl(settings.hitboxEditMoveCameraForward);
+		floatSettingPreset(settings.hitboxEditMoveCameraPerpendicularSpeedMultiplier);
+		booleanSettingPreset(settings.hitboxEditUnfreezeGameWhenLeavingEditMode);
+		booleanSettingPreset(settings.hitboxEditShowHitboxesOfEntitiesOtherThanTheOneBeingEdited);
+		booleanSettingPreset(settings.hitboxEditShowFloorline);
+		booleanSettingPreset(settings.hitboxEditShowOriginPoints);
+		booleanSettingPreset(settings.hitboxEditZoomOntoMouseCursor);
+		keyComboControl(settings.hitboxEditMoveHitboxesUp);
+		keyComboControl(settings.hitboxEditMoveHitboxesDown);
+		keyComboControl(settings.hitboxEditMoveHitboxesLeft);
+		keyComboControl(settings.hitboxEditMoveHitboxesRight);
+		intSettingPreset(settings.hitboxEditMoveHitboxesNormalAmount, INT_MIN, 1000, 10000);
+		keyComboControl(settings.hitboxEditMoveHitboxesALotUp);
+		keyComboControl(settings.hitboxEditMoveHitboxesALotDown);
+		keyComboControl(settings.hitboxEditMoveHitboxesALotLeft);
+		keyComboControl(settings.hitboxEditMoveHitboxesALotRight);
+		intSettingPreset(settings.hitboxEditMoveHitboxesLargeAmount, INT_MIN, 1000, 10000);
+		booleanSettingPreset(settings.hitboxEditDisplayRawCoordinates);
+		keyComboControl(settings.hitboxEditAddSpriteHotkey);
+		keyComboControl(settings.hitboxEditDeleteSpriteHotkey);
+		keyComboControl(settings.hitboxEditRenameSpriteHotkey);
+		keyComboControl(settings.hitboxEditSelectionToolHotkey);
+		keyComboControl(settings.hitboxEditAddHitboxHotkey);
+		keyComboControl(settings.hitboxEditDeleteSelectedHitboxesHotkey);
+		keyComboControl(settings.hitboxEditUndoHotkey);
+		keyComboControl(settings.hitboxEditRedoHotkey);
+		ImGui::Separator();
+	}
+	
+	comboBoxExtension.beginFrame();
+	
+	hitboxEditPressedToggleEditMode_isOn = gifMode.editHitboxes;
+	if (ImGui::Checkbox(searchFieldTitle("Hitbox Edit Mode On"), &hitboxEditPressedToggleEditMode_isOn)) {
+		hitboxEditPressedToggleEditMode = true;
+	}
+	static std::string hitboxEditModeCheckboxHelp;
+	const char* frameNumTitle = "Frame/99:";
+	ImGuiStyle& style = ImGui::GetStyle();
+	static ImVec2 averageSpriteNameSize;
+	static ImVec2 longestAnimSeqNameSize;
+	static ImVec2 longestFrameNumSize;
+	static ImVec2 frameNumTitleSize;
+	static ImVec2 addSpriteButtonSize;
+	static ImVec2 slashSize;
+	if (hitboxEditModeCheckboxHelp.empty()) {
+		hitboxEditModeCheckboxHelp = settings.convertToUiDescription(
+			"The hotkey for this checkbox can be configured at \"hitboxEditModeToggle\".\n\n"
+			
+			"The game will freeze the frame automatically once you enter the hitbox editing mode."
+			" Use the controls from the other, main menu, from the Hitboxes section, to"
+			" unfreeze/freeze the frame or step one frame forward at a time (those controls"
+			" can have hotkeys configured for them).\n\n"
+			
+			"The camera gets centered on the player. To move the camera up, down, left, right,"
+			" zoom it in or out, use the mouse or keyboard or gamepad controls configured in"
+			" \"hitboxEditMoveCameraUp\" and settings nearby there."
+			
+			);
+		averageSpriteNameSize = ImGui::CalcTextSize("sol999_999_rx");
+		longestAnimSeqNameSize = ImGui::CalcTextSize("WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW");
+		longestAnimSeqNameSize.x += 40.F;
+		longestFrameNumSize = ImGui::CalcTextSize("999");
+		longestFrameNumSize.x += 50.F;
+		frameNumTitleSize = ImGui::CalcTextSize(frameNumTitle);
+		addSpriteButtonSize.x = PinAtlas::add_size + style.FramePadding.x * 2.F;
+		slashSize = ImGui::CalcTextSize("/");
+	}
+	ImGui::SameLine();
+	HelpMarkerWithHotkey(searchTooltip(hitboxEditModeCheckboxHelp), settings.hitboxEditModeToggle);
+	
+	ImGui::SameLine();
+	if (ImGui::Button("Save##wasntthereanotherthingnamedSavesomewhere")) {
+		ImGui::OpenPopup("Select Save Format");
+	}
+	AddTooltip("Upon pressing this button, you will be asked to select which data to save, in what format, and where."
+		" The choices will be presented as a table with 3 rows and 3 columns."
+		" Each column (P1, P2, Common) represents which data to save. The data currently being edited is displayed to the left from this button."
+		" Each row represents a data format and where to save. You can choose to save:\n"
+		"1) .collision file. This will ask you to select a file, and binary .collision data will be written into it;\n"
+		"2) .json file. This will ask you to select a file, and text .json data will be written into it;\n"
+		"3) .json file to clipboard. This will overwrite your clipboard with JSON text. You will be able to paste that text into any text editor.");
+	if (ImGui::BeginPopup("Select Save Format")) {
+		enum SaveFormat {
+			SAVE_FORMAT_OOPS,
+			SAVE_FORMAT_COLLISION_FILE,
+			SAVE_FORMAT_JSON_FILE,
+			SAVE_FORMAT_JSON_TO_CLIPBOARD,
+			SAVE_FORMAT_TOTAL
+		} saveFormat = SAVE_FORMAT_OOPS;
+		int player = -1;
+		if (ImGui::BeginTable("##SelectSaveFormat", 3, tableFlags)) {
+			P1P2CommonTable table;
+			ImGui::TableHeadersRow();
+			
+			for (int row = 1; row < SAVE_FORMAT_TOTAL; ++row) {
+			
+				const char* elementName = "";
+				switch (row) {
+					case SAVE_FORMAT_COLLISION_FILE: elementName = ".collision file"; break;
+					case SAVE_FORMAT_JSON_FILE: elementName = ".json file"; break;
+					case SAVE_FORMAT_JSON_TO_CLIPBOARD: elementName = ".json to clipboard"; break;
+				}
+				
+				for (int column = 0; column < 3; ++column) {
+					
+					
+					ImGui::TableNextColumn();
+					bool youareallnotselected = false;
+					if (ImGui::Selectable(elementName, &youareallnotselected)) {
+						if (youareallnotselected) {
+							saveFormat = (SaveFormat)row;
+							player = column;
+						}
+					}
+				}
+			}
+			
+			ImGui::EndTable();
+		}
+		ImGui::EndPopup();
+		
+		if (saveFormat > SAVE_FORMAT_OOPS && saveFormat < SAVE_FORMAT_TOTAL && player >= 0 && player < 3) {
+			ImGui::CloseCurrentPopup();
+			std::vector<BYTE> data;
+			switch (saveFormat) {
+				case SAVE_FORMAT_COLLISION_FILE:
+					makeFileSelectRequest(&UI::serializeCollision, L"COLLISION file (*.collision)\0*.collision\0", player, false);
+					break;
+				case SAVE_FORMAT_JSON_FILE:
+					makeFileSelectRequest(&UI::serializeJson, L"JSON file (*.json)\0*.json\0", player, true);
+					break;
+				case SAVE_FORMAT_JSON_TO_CLIPBOARD:
+					serializeJson(data, player);
+					writeOutClipboard(data);
+					break;
+			}
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Load")) {
+		ImGui::OpenPopup("Select Location to Load From");
+	}
+	AddTooltip("Load collision data from a .collision file or .json file, or get json data from clipboard (similar to paste, but you have to press this button)."
+		" Upon pressing this button, you will be asked to select where to get the data from. The choice will be presented as a table with 3 columns and 2 rows."
+		" The columns are P1, P2 and Common, and rows are \"From file\" or \"JSON from clipboard\". There's also a \"Fom file (Autodetect P1/P2/Common)\" at"
+		" the top. If you press the autodetect button, you will be asked to provide a file, and the program will attempt to determine whose collision data that"
+		" is based on the file name. If the file name is, for example, sol.collision or sol.json, it will find the player that is a Sol and load the data into"
+		" him. If the file name is weird and it's impossible to determine like that, you will get an error message saying it couldn't autodetect, and you'll have"
+		" to click this button again and specify \"From file\" from one of the columns to tell the program explicitly whose data you're going to load.\n\n"
+		"If you select to \"From file\" in one of the columns, see right above what I just described.\n"
+		"The program automatically determines whether the file is a JSON or a .collision file based on its contents.\n\n"
+		"If you select \"JSON from clipboard\", your need to have copied a JSON text into your clipboard previously (that means selecting some JSON"
+		" text and pressing Ctrl+C, then pressing this button). The text will get read from the clipboard, it will be assumed to be JSON and not a .collision"
+		" binary data, and whose data that is (P1's, P2's, or Common) based on which column of the table you selected \"JSON from clipboard\" from."
+		" For example, if you picked it from the first column (P1), the data from the JSON will replace P1's collision data, and so on.");
+	if (ImGui::BeginPopup("Select Location to Load From")) {
+		
+		ImGui::Separator();
+		bool selected = false;
+		if (ImGui::Selectable("From file (Autodetect P1/P2/Common)", &selected)) {
+			if (selected) {
+				ImGui::CloseCurrentPopup();
+			}
+			if (keyboard.thisProcessWindow) {
+				PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_REQUEST_FILE_SELECT_READ, (WPARAM)-1, NULL);
+			}
+		}
+		ImGui::Separator();
+		
+		if (ImGui::BeginTable("##LoadFormat", 3, tableFlags)) {
+			P1P2CommonTable table;
+			ImGui::TableHeadersRow();
+			
+			for (int row = 0; row < 2; ++row) {
+				for (int column = 0; column < 3; ++column) {
+					ImGui::TableNextColumn();
+					selected = false;
+					if (row == 0) {
+						if (ImGui::Selectable("From file", &selected)) {
+							if (selected) {
+								ImGui::CloseCurrentPopup();
+								if (keyboard.thisProcessWindow) {
+									PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_REQUEST_FILE_SELECT_READ, (WPARAM)column, NULL);
+								}
+							}
+						}
+					} else {
+						if (ImGui::Selectable("JSON from clipboard", &selected)) {
+							if (selected) {
+								ImGui::CloseCurrentPopup();
+								readJsonFromClipboard(column);
+							}
+						}
+					}
+				}
+			}
+			
+			ImGui::EndTable();
+		}
+		ImGui::EndPopup();
+	}
+	
+	if (!gifMode.editHitboxes) return;
+	
+	bool editEntityChanged = false;
+	Entity editEntity{gifMode.editHitboxesEntity};
+	ImGui::TextUnformatted("Whom To Edit:");
+	AddTooltip("The two numbers in parentheses next to each listed Projectile show:\n"
+		" 1) The index of the Projectile in the game's internal Projectiles array;\n"
+		" 2) The number of hitboxes of that Projectile.\n"
+		"\n"
+		"For each displayed Player, the one number in parentheses shows:\n"
+		" 1) The number of hitboxes of that Player.");
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(200.F);
+	if (ImGui::BeginCombo("##whomToEdit", editEntity.ent ? getEditEntityRepr(editEntity) : nullptr)) {
+		imguiContextMenuOpen = true;
+		for (int i = 0; i < entityList.count; ++i) {
+			Entity ent = entityList.list[i];
+			ImGui::PushID(i);
+			if (ImGui::Selectable(getEditEntityRepr(ent), editEntity == ent)) {
+				gifMode.editHitboxesEntity = ent;
+				selectedHitboxes.clear();
+				editEntity = ent;
+				editEntityChanged = true;
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
+	
+	if (editEntityChanged) {
+		restartHitboxEditMode();
+	}
+	
+	if (!editEntity) return;
+	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()];
+	FPAC* fpac = editEntity.fpac();
+	if (!fpac || fpac->flag2() || !fpac->useHash()) return;
+	
+	parseAllSprites(editEntity);
+	
+	ImGui::TextUnformatted("Current Sprite:");
+	const char* spriteTooltip = "Displays the current sprite. May be changed. You can use the mouse wheel to scroll the dropdown list up and down."
+		" While the dropdown list is open, you can use the up and down arrow keys on the keyboard to select the"
+		" previous or next sprite in the list.";
+	AddTooltip(spriteTooltip);
+	ImGui::SameLine();
+	
+	sprintf_s(strbuf, "%d", editEntity.spriteFrameCounterMax());
+	ImVec2 frameCounterTextSize = ImGui::CalcTextSize(strbuf);
+	frameCounterTextSize.x = frameCounterTextSize.x * 2.F + slashSize.x;
+	
+	float w = ImGui::GetContentRegionAvail().x
+		- style.ItemSpacing.x
+		// BeginCombo
+		- style.ItemSpacing.x
+		- frameCounterTextSize.x
+		- style.ItemSpacing.x
+		- addSpriteButtonSize.x  // add button
+		- style.ItemSpacing.x
+		- addSpriteButtonSize.x  // delete button
+		- style.ItemSpacing.x
+		- addSpriteButtonSize.x  // rename button
+		;
+	
+	if (w < averageSpriteNameSize.x) {
+		w = averageSpriteNameSize.x;
+	}
+	ImGui::SetNextItemWidth(w);
+	
+	ImGui::SameLine();
+	SortedSprite* selectedSprite = nullptr;
+	REDPawn* pawnWorld = editEntity.pawnWorld();
+	
+	const FName* currentAnimSeqName = &FName::nullFName;
+	int maxFrame = -1;
+	int currentFrame = -1;
+	
+	if (pawnWorld) {
+		REDAnimNodeSequence* animSeq = pawnWorld->getFirstAnimSeq();
+		if (animSeq) {
+			currentAnimSeqName = &animSeq->AnimSeqName;
+			maxFrame = animSeq->FrameMax;
+			currentFrame = animSeq->CurrentFrame;
+		}
+	}
+	
+	SortedSprite* currentSpriteElement = hitboxEditFindCurrentSprite();
+	
+	char spriteRepr[128];
+	strcpy_s(spriteRepr, strbuf);
+	
+	if (ImGui::BeginCombo("##spriteName", getSpriteRepr(currentSpriteElement))) {
+		imguiContextMenuOpen = true;
+		comboBoxExtension.onComboBoxBegin();
+		
+		comboBoxExtension.totalCount = secondaryData.sortedSprites.size();
+		
+		char* currentSpriteNameInLookupTable = (char*)fpac->findLookupEntry(editEntity.spriteName());
+		
+		int imguiID = 0;
+		int sortedSpritesCount = (int)secondaryData.sortedSprites.size();
+		SortedSprite* sortedSpritePtr = secondaryData.sortedSprites.data();
+		for (int i = 0; i < sortedSpritesCount; ++i) {
+			SortedSprite& sortedSprite = *sortedSpritePtr;
+			++sortedSpritePtr;
+			
+			ImGui::PushID(imguiID++);
+			bool isSelected = sortedSprite.name == currentSpriteNameInLookupTable;
+			if (isSelected) {
+				comboBoxExtension.selectedIndex = i;
+			}
+			if (ImGui::Selectable(sortedSprite.repr(), isSelected)) {
+				selectedSprite = &sortedSprite;
+			}
+			ImGui::PopID();
+		};
+		
+		if (comboBoxExtension.fastScrollWithKeys()) {
+			selectedSprite = &secondaryData.sortedSprites[comboBoxExtension.selectedIndex];
+		}
+		
+		ImGui::EndCombo();
+	}
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted("Current sprite:");
+		ImGui::SameLine();
+		ImGui::TextUnformatted(spriteRepr);
+		ImGui::TextUnformatted(spriteTooltip);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+	
+	ImGui::SameLine();
+	sprintf_s(strbuf, "%d/%d", editEntity.spriteFrameCounter(), editEntity.spriteFrameCounterMax());
+	ImGui::TextUnformatted(strbuf);
+	AddTooltip("Current Sprite's frame-1/Max sprite's frames");
+	
+	ImGui::SameLine();
+	if (drawIconButton("##newSpriteBtn", &addBtn)) {
+		hitboxEditNewSpritePressed = true;
+	}
+	AddTooltipWithHotkeyNoSearch("Add Sprite.\n\nAdds a new sprite by copying the current one.", settings.hitboxEditAddSpriteHotkey);
+	
+	ImGui::SameLine();
+	if (drawIconButton("##deleteSpriteBtn", &deleteBtn)) {
+		hitboxEditDeleteSpritePressed = true;
+	}
+	AddTooltipWithHotkeyNoSearch("Delete/Undelete current sprite.\n\nMarks the current sprite for deletion, if it's not already deleted,"
+		" and unmarks it for deletion, if it's already deleted. Deleted sprites will not be saved to disk into a .collision file.",
+			settings.hitboxEditDeleteSpriteHotkey);
+	
+	ImGui::SameLine();
+	if (drawIconButton("##renameSpriteBtn", &renameBtn)) {
+		hitboxEditRenameSpritePressed = true;
+	}
+	AddTooltipWithHotkeyNoSearch("Rename current sprite.\n\nExisting bbscript will still refer to the sprite by old name, but into a .collision file"
+		" it will be exported with the new name. When importing that .collision file back, old renamed sprites will remain in the game"
+		" under their old name, and the new renamed sprites will be considered entirely new. Renaming sprites must go hand-in-hand"
+		" with modifying the bbscript. Use Pangaea's ggxrd-mod to load both the bbscript and the .collision file during the loading screen,"
+		" that's how you do all these changes properly.",
+		settings.hitboxEditRenameSpriteHotkey);
+	
+	if (selectedSprite && endScene.spriteImpl) {
+		endScene.spriteImpl((void*)editEntity.ent, selectedSprite->name, true);
+		game.allowTickForActor(pawnWorld);
+	}
+	
+	ImGui::TextUnformatted("Anim Sequence:");
+	const char* animSequenceTooltip = "The name of the current animation sequence."
+		" Changing this will modify which data is associated with the Current Sprite, until the round is restarted."
+		" You can scroll the dropdown list using the mouse wheel, and, when the dropdown is open, you can use the"
+		" up and down arrow keys to select the previous and the next item in the list.";
+	AddTooltip(animSequenceTooltip);
+	ImGui::SameLine();
+	
+	w = ImGui::GetContentRegionAvail().x
+		- style.ItemSpacing.x * 2
+		- frameNumTitleSize.x
+		- longestFrameNumSize.x;
+	ImGui::SetNextItemWidth(max(w, 100.F));
+	
+	const SortedAnimSeq* selectedAnimSeq = nullptr;
+	static const SortedAnimSeq nullAnimSeq { { 0, 0 }, "None" };
+	
+	if (currentAnimSeqName && editEntity.hitboxes()->nameCount == 0) {
+		strbuf[0] = '\0';
+	} else {
+		currentAnimSeqName->print(strbuf);
+	}
+	
+	if (ImGui::BeginCombo("##animSequence", strbuf)) {
+		imguiContextMenuOpen = true;
+		comboBoxExtension.onComboBoxBegin();
+		
+		if (sortedAnimSeqs.empty()) {
+			if (pawnWorld) {
+				for (int meshInd = 0; meshInd < pawnWorld->MeshControlNum(); ++meshInd) {
+					MeshControl& meshCtrl = pawnWorld->MeshControls()[meshInd];
+					REDAnimNodeSequence* animSeq = meshCtrl.AnimSeq;
+					if (animSeq) {
+						USkeletalMeshComponent* skelComp = animSeq->SkelComponent;
+						if (skelComp && skelComp->SkelMesh) {
+							for (int animSetInd = 0; animSetInd < skelComp->AnimSets.ArrayNum; ++animSetInd) {
+								UAnimSet* animSet = skelComp->AnimSets.Data[animSetInd];
+								if (animSet) {
+									for (int animSeqIndex = 0; animSeqIndex < animSet->Sequences.ArrayNum; ++animSeqIndex) {
+										UAnimSequence* animSeq = animSet->Sequences.Data[animSeqIndex];
+										if (animSeq) {
+											const FName* fname = &animSeq->SequenceName;
+											int insertIndex = findInsertionIndexUnique(sortedAnimSeqs, fname, fname->print(strbuf));
+											if (insertIndex != -1) {
+												SortedAnimSeq newSeq { *fname };
+												strcpy(newSeq.buf, strbuf);
+												sortedAnimSeqs.insert(sortedAnimSeqs.begin() + insertIndex, newSeq);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		comboBoxExtension.totalCount = sortedAnimSeqs.size() + 1  // add null anim seq
+		;
+		
+		if (ImGui::Selectable(nullAnimSeq.buf, currentAnimSeqName->low == 0)) {
+			selectedAnimSeq = &nullAnimSeq;
+		}
+		
+		for (const SortedAnimSeq& elem : sortedAnimSeqs) {
+			bool isSelected = *currentAnimSeqName == elem.fname;
+			if (isSelected) {
+				comboBoxExtension.selectedIndex = &elem - sortedAnimSeqs.data() + 1;
+			}
+			if (ImGui::Selectable(elem.buf, isSelected)) {
+				selectedAnimSeq = &elem;
+			}
+		}
+		
+		if (comboBoxExtension.fastScrollWithKeys()) {
+			selectedAnimSeq = &sortedAnimSeqs[comboBoxExtension.selectedIndex - 1];
+		}
+		
+		ImGui::EndCombo();
+	}
+	AddTooltip(animSequenceTooltip);
+	
+	comboBoxExtension.endFrame();
+	
+	if (selectedAnimSeq
+			&& endScene.spriteImpl
+			&& !(selectedAnimSeq == &nullAnimSeq && editEntity.hitboxes()->nameCount)
+			&& selectedAnimSeq->fname != *currentAnimSeqName) {
+		SetAnimOperation newOp;
+		newOp.fill(selectedAnimSeq->fname);
+		performOp(&newOp);
+	}
+	
+	int frameNum = currentFrame;
+	if (currentFrame != -1 && maxFrame != -1) {
+		ImGui::SameLine();
+		sprintf_s(strbuf, "Frame/%d", maxFrame);
+		ImGui::TextUnformatted(strbuf);
+		if (ImGui::BeginItemTooltip()) {
+			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+			sprintf_s(strbuf, "Maximum frame: %d", maxFrame);
+			ImGui::TextUnformatted(strbuf);
+			ImGui::TextUnformatted("Shows the current frame number out of the highest possible frame (inclusive)."
+				" Frame numbers start from 0 and end on the Maximum frame, inclusively.");
+			ImGui::PopTextWrapPos();
+			ImGui::EndTooltip();
+		}
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(longestFrameNumSize.x);
+		if (ImGui::InputInt("##frameNum", &frameNum, 1, 1)) {
+			if (frameNum > maxFrame) {
+				frameNum = maxFrame;
+			}
+			if (frameNum < 0) frameNum = 0;
+			if (frameNum != currentFrame && currentAnimSeqName && currentAnimSeqName->low && editEntity.hitboxes()->nameCount) {
+				SetAnimOperation newOp;
+				newOp.fill(*currentAnimSeqName, frameNum);
+				performOp(&newOp);
+			}
+		}
+		AddTooltip("Select the current frame of the Animation Sequence associated with this sprite using this field and '-', '+' buttons.\n"
+			" The changes will take effect immediately, but will be lost on stage reload, unless saved to a .collision file.");
+	}
+	
+	ImGui::TextUnformatted("Hitbox Type:");
+	const char* hitboxTypeTooltip = "Choose color for each type of hitbox and whether to show hitboxes of that type."
+		" The value displayed in () is the current number of hitboxes of that type.";
+	AddTooltip(hitboxTypeTooltip);
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(100.F);
+	sprintf_s(strbuf, "%s (%d)", hitboxTypeName[hitboxEditorCurrentHitboxType], editEntity.hitboxes()->count[hitboxEditorCurrentHitboxType]);
+	static bool popupOpen = false;
+	if (ImGui::BeginCombo("##hitboxType", strbuf)) {
+		imguiContextMenuOpen = true;
+		for (int i = 0; i < 17; ++i) {
+			// no need for PushID as all names are different
+			sprintf_s(strbuf, "%s (%d)", hitboxTypeName[i], editEntity.hitboxes()->count[i]);
+			if (ImGui::Selectable(strbuf, i == hitboxEditorCurrentHitboxType)) {
+				hitboxEditorCurrentHitboxType = (HitboxType)i;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	AddTooltip(hitboxTypeTooltip);
+	
+	ImGui::SameLine();
+	HitboxListElement& currentHitboxType = settings.hitboxList[hitboxEditorCurrentHitboxType];
+	ImVec4 colorVec = ARGBToVec(currentHitboxType.color);
+	colorVec.w = 1.F;
+	if (ImGui::ColorButton("Color", colorVec)) {
+		memcpy(hitboxEditorRefCol, &colorVec, sizeof(float) << 2);
+		ImGui::OpenPopup("picker");
+	}
+	ImGui::SameLine();
+	bool isShow = currentHitboxType.show;
+	if (ImGui::Checkbox("##Show", &isShow)) {
+		currentHitboxType.show = isShow;
+		needWriteSettings = true;
+	}
+	AddTooltip("Show this hitbox type.");
+	
+    if (ImGui::BeginPopup("picker"))
+    {
+    	float square_sz = ImGui::GetFrameHeight();
+        ImGuiColorEditFlags picker_flags = ImGuiColorEditFlags_DisplayMask_ | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaPreviewHalf
+        	| ImGuiColorEditFlags_NoAlpha;
+        ImGui::SetNextItemWidth(square_sz * 12.0f);
+        if (ImGui::ColorPicker4("##picker", (float*)&colorVec, picker_flags, hitboxEditorRefCol)) {
+        	currentHitboxType.color = VecToRGB(colorVec);
+        	needWriteSettings = true;
+        }
+        ImGui::EndPopup();
+    }
+	
+	ImGui::SameLine();
+	static float widthToBeConsumedByAllButtons;
+	static bool widthToBeConsumedByAllButtonsInitialized = false;
+	if (!widthToBeConsumedByAllButtonsInitialized) {
+		widthToBeConsumedByAllButtonsInitialized = true;
+		struct MyBtnSize {
+			void add(const PinIcon& icon) {
+				if (!isFirst) {
+					result += spacing;
+				} else {
+					isFirst = false;
+				}
+				float iconWidth = icon.size.x;
+				float widthUse;
+				if (iconWidth < drawIconButton_minSize.x) {
+					widthUse = drawIconButton_minSize.x;
+				} else {
+					widthUse = iconWidth;
+				}
+				result += padding + widthUse + padding;
+			}
+			float padding;
+			float spacing;
+			bool isFirst = true;
+			float result = 0.F;
+		} myBtnSize { style.FramePadding.x, style.ItemSpacing.x };
+		myBtnSize.add(selectBtn);
+		myBtnSize.add(rectBtn);
+		myBtnSize.add(rect_deleteBtn);
+		myBtnSize.add(undoBtn);
+		myBtnSize.add(undoBtn);
+		widthToBeConsumedByAllButtons = myBtnSize.result;
+	}
+	float remainingWidth = ImGui::GetContentRegionAvail().x;
+	if (remainingWidth > widthToBeConsumedByAllButtons) {
+		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (remainingWidth - widthToBeConsumedByAllButtons));
+	}
+	if (drawIconButton("##selectionToolBtn", &selectBtn, hitboxEditorTool == HITBOXEDITTOOL_SELECTION)) {
+		hitboxEditSelectionToolPressed = true;
+	}
+	AddTooltipWithHotkeyNoSearch("Selection Tool.\n\nUse the selection tool to select hitboxes by clicking and clicking and dragging the left"
+			" mouse button. Holding Shift or Ctrl will add or remove boxes to/from the selection."
+			" You can also resize hitboxes and move them with the mouse.",
+			settings.hitboxEditSelectionToolHotkey);
+	
+	ImGui::SameLine();
+	if (drawIconButton("##rectToolBtn", &rectBtn, hitboxEditorTool == HITBOXEDITTOOL_ADD_BOX)) {
+		hitboxEditRectToolPressed = true;
+	}
+	AddTooltipWithHotkeyNoSearch("New Hitbox Tool.\n\nUse this tool to add a new hitbox by clicking and dragging the left mouse button."
+			" Simply clicking will produce a point-sized hitbox, useful for certain types of hitboxes."
+			" The type of the created hitbox will be decided by the value currently selected in the 'Hitbox Type' field.",
+			settings.hitboxEditAddHitboxHotkey);
+	
+	ImGui::SameLine();
+	if (drawIconButton("##rectDeleteBtn", &rect_deleteBtn)) {
+		hitboxEditRectDeletePressed = true;
+	}
+	AddTooltipWithHotkeyNoSearch("Delete Selected Hitboxes.\n\nThis is not a tool, as in you can't toggle this on and off."
+			" As soon as you press this button, all currently selected hitboxes will be deleted.",
+			settings.hitboxEditDeleteSelectedHitboxesHotkey);
+	
+	ImGui::SameLine();
+	if (drawIconButton("##undoBtn", &undoBtn, false, false, false, !undoRingBuffer[undoRingBufferIndex])) {
+		hitboxEditUndoPressed = true;
+	}
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		int result = sprintf_s(strbuf, "Hotkey: %s", comborepr(settings.hitboxEditUndoHotkey));
+		if (result != -1) {
+			ImGui::TextUnformatted(strbuf, strbuf + result);
+		}
+		ImGui::Separator();
+		if (undoRingBuffer[undoRingBufferIndex]) {
+			sprintf_s(strbuf, "Undo '%s' operation.", undoOperationName[undoRingBuffer[undoRingBufferIndex]->type]);
+			ImGui::TextUnformatted(strbuf);
+		} else {
+			ImGui::TextUnformatted("Undo.");
+		}
+		ImGui::Separator();
+		ImGui::TextUnformatted("Pressing this button causes the last performed hitbox or sprite editing operation to be undone."
+			" You can undo multiple operation by repeatedly pressing this, up to a certain limit.");
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+	
+	ImGui::SameLine();
+	if (drawIconButton("##redoBtn", &undoBtn, false, true, false, !redoRingBuffer[redoRingBufferIndex])) {
+		hitboxEditRedoPressed = true;
+	}
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		int result = sprintf_s(strbuf, "Hotkey: %s", comborepr(settings.hitboxEditDeleteSelectedHitboxesHotkey));
+		if (result != -1) {
+			ImGui::TextUnformatted(strbuf, strbuf + result);
+		}
+		ImGui::Separator();
+		if (redoRingBuffer[redoRingBufferIndex]) {
+			sprintf_s(strbuf, "Redo '%s' operation.", undoOperationName[redoRingBuffer[redoRingBufferIndex]->type]);
+			ImGui::TextUnformatted(strbuf);
+		} else {
+			ImGui::TextUnformatted("Redo.");
+		}
+		ImGui::Separator();
+		ImGui::TextUnformatted("Pressing this button causes the last undone hitbox or sprite editing operation to be redone."
+			" You can only perform a redo, if the last thing you did was an undo. If since the last undo you have performed some"
+			" new operation, you will lose the ability to redo, until you perform an undo again."
+			" You can redo multiple undone operatios, up to a certain extent.");
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+	
+	ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
+	
+	bool showPushbox = editEntity.showPushbox();
+	
+	if (currentSpriteElement) {
+		drawHitboxEditorOnExit.checkClearSelectedHitboxes(currentSpriteElement);
+		
+		int overallHitboxIndex = 0;
+		
+		if (
+			beginDragNDropFrame(
+				currentSpriteElement,
+				ImGui::BeginChild(
+					"##layers",
+					{ contentRegionAvail.x * 0.5F, max(contentRegionAvail.y, 50.F) },
+					ImGuiChildFlags_Borders | ImGuiChildFlags_FrameStyle
+				)
+			)
+		) {
+			
+			float oldHoverDelay = style.HoverDelayNormal;
+			
+			style.HoverDelayNormal *= 4.F;
+			
+			const char* dragNDropHelp =
+				"Select an element to select that hitbox."
+				" Shift- or Ctrl-select to add or remove that hitbox to/from the selection."
+				" Drag-select to box-select multiple elements."
+				" Hold Shift while drag-selecting to add elements to the selection via box-select."
+				" Drag an already selected element or elements to move them, changing the order of the boxes."
+				" The eye icon means that hitbox type is visible. To make a hitbox type visible or invisible,"
+				" go to 'Hitbox Type' field, select the hitbox type of interest and check or uncheck"
+				" the checkbox on the right, denoting if it's visible.";
+			
+			bool shiftHeld = ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift);
+			
+			float windowWidth = ImGui::GetWindowWidth();
+			float itemHeight = ImGui::GetTextLineHeightWithSpacing();
+			
+			ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, 0.F);
+			
+			DragNDropItemInfo itemInfo;
+			itemInfo.topLayer = false;
+			bool destinationDrawn = false;
+			
+			if (currentSpriteElement) {
+				LayerIterator layerIterator(editEntity, currentSpriteElement);
+				int layersCount = layerIterator.count();
+				layerIterator.scrollToEnd();
+				while (layerIterator.getPrev()) {
+					if (!layerIterator.isPushbox || showPushbox) {
+						int layerInd = layersCount - layerIterator.index - 1;
+						bool selected = hitboxIsSelected(layerIterator.originalIndex);
+						ImVec2 cursorPos;
+						bool isCarried = dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_MOVE_ELEMENTS && selected;
+						if (!isCarried) {
+							if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_MOVE_ELEMENTS
+									&& layerInd >= dragNDropDestinationIndex
+									&& !destinationDrawn) {
+								destinationDrawn = true;
+								ImGui::InvisibleButton("##dragDestination", {
+									1.F,
+									itemHeight * (float)selectedHitboxes.size()
+								});
+								AddTooltipNoSharedDelay(dragNDropHelp);
+							}
+							cursorPos = ImGui::GetCursorPos();
+							ImGui::PushID(layerInd);
+							ImGui::InvisibleButton("##selElement", {
+								windowWidth,
+								itemHeight
+							});
+							AddTooltipNoSharedDelay(dragNDropHelp);
+							ImGui::PopID();
+						} else {
+							cursorPos = ImGui::GetCursorPos();
+						}
+						itemInfo.color = ARGBToABGR(settings.hitboxList[layerIterator.type].color);
+						itemInfo.hitboxIndex = layerIterator.subindex;
+						itemInfo.hitboxType = layerIterator.type;
+						itemInfo.isPushbox = layerIterator.isPushbox;
+						itemInfo.layerIndex = layerInd;
+						itemInfo.originalIndex = layerIterator.originalIndex;
+						if (!isCarried) {
+							itemInfo.x = cursorPos.x;
+							itemInfo.y = cursorPos.y;
+							itemInfo.active = ImGui::IsItemActive();
+							itemInfo.hovered = dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_NONE && ImGui::IsItemHovered()
+								|| dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_BOX_SELECT
+								&& shiftHeld
+								&& hitboxIsSelectedPreBoxSelect(layerIterator.originalIndex);
+							itemInfo.selected = selected;
+							dragNDropOnItem(currentSpriteElement, &itemInfo);
+						} else {
+							itemInfo.x = 0.F;
+							itemInfo.y = 0.F;
+							itemInfo.active = false;
+							itemInfo.hovered = true;
+							itemInfo.selected = false;
+							dragNDropOnCarriedItem(currentSpriteElement, &itemInfo);
+						}
+					}
+				}
+			}
+			
+			ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
+			float cursorY = ImGui::GetCursorPosY();
+			float remainingSpaceY = ImGui::GetWindowHeight() - ImGui::GetStyle().FramePadding.y - cursorY;
+			if (remainingSpaceY >= 1.F) {
+				ImGui::InvisibleButton("##layersEnd", {
+					contentRegionAvail.x,
+					remainingSpaceY
+				});
+				dragNDropOnItem(currentSpriteElement, nullptr);
+				AddTooltipNoSharedDelay(dragNDropHelp);
+			}
+			
+			ImGui::PopStyleVar();
+			
+			style.HoverDelayNormal = oldHoverDelay;
+			
+		}
+		processDragNDrop(currentSpriteElement, overallHitboxIndex);
+		ImGui::EndChild();
+	}
+	
+	ImGui::SameLine();
+	if (ImGui::BeginChild("##coordinates", { contentRegionAvail.x * 0.5F, max(contentRegionAvail.y, 50.F) },
+					ImGuiChildFlags_Borders | ImGuiChildFlags_FrameStyle)) {
+		int selectedCount = (int)selectedHitboxes.size();
+		int pushboxIndex = pushboxOriginalIndex();
+		if (selectedCount && pushboxIndex != -1 && hitboxIsSelected(pushboxIndex)) {
+			--selectedCount;
+		}
+		if (!settings.hitboxEditDisplayRawCoordinates) {
+			lastOverallSelectionBoxReady = false;
+			DrawHitboxArrayCallParams params;
+			convertedBoxes.clear();
+			HitboxHolder* hitboxes = editEntity.hitboxes();
+			Hitbox* hitboxesStart = hitboxes->hitboxesStart();
+			if (selectedCount && !boxMouseDown) {
+				editHitboxesFillParams(params, editEntity);
+				editHitboxesConvertBoxes(params, editEntity, currentSpriteElement);
+				convertedBoxesPrepared = false;
+			}
+			
+			// ImGui text field has a buffer and holds onto some old value.
+			// If you hold down the "+" button for example, and don't update the int value
+			// supplied to the field, the field will try to increment from the value you supplied.
+			// So you will never be able to increment the value using "+" like that, until you
+			// actually update the int value and supply a new value to the field.
+			// Meanwhile, all this time the field will be displaying a different value from its buffer,
+			// and that value will already be incremented.
+			// But that's beside the point. The user needs a way to resize boxes even if boxes did not react
+			// to the resizing on the last frame (due to scaling, rounding error, floating point fuzziness, rotation, whatever).
+			static int left = 0;
+			static int top = 0;
+			static int right = 0;
+			static int bottom = 0;
+			bool ready = lastOverallSelectionBoxReady && selectedCount && !boxMouseDown;
+			if (!coordsEntity && ready || !ready) {
+				left = lastOverallSelectionBox.bounds.left;
+				top = lastOverallSelectionBox.bounds.top;
+				right = lastOverallSelectionBox.bounds.right;
+				bottom = lastOverallSelectionBox.bounds.bottom;
+			}
+			bool changed = false;
+			static union {
+				const char* asArray[4] {
+					"Left:",
+					"Top:",
+					"Right:",
+					"Bottom:"
+				};
+				struct {
+					const char* left;
+					const char* top;
+					const char* right;
+					const char* bottom;
+				} asStruct;
+			} u;
+			static bool longestTitleArraySet = false;
+			static ImVec2 longestTitleArraySize;
+			if (!longestTitleArraySet) {
+				longestTitleArraySet = true;
+				for (int i = 0; i < _countof(u.asArray); ++i) {
+					ImVec2 size = ImGui::CalcTextSize(u.asArray[i]);
+					if (i == 0 || size.x > longestTitleArraySize.x) {
+						longestTitleArraySize.x = size.x;
+					}
+				}
+			}
+			if (!ready) ImGui::PushStyleColor(ImGuiCol_Text, { 0.7F, 0.7F, 0.7F, 1.F });
+			ImGui::TextUnformatted(u.asStruct.left);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##left", &left, 1000, 10000, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::TextUnformatted(u.asStruct.top);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##top", &bottom, 1000, 10000, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::TextUnformatted(u.asStruct.right);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##right", &right, 1000, 10000, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			ImGui::TextUnformatted(u.asStruct.bottom);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##bottom", &top, 1000, 10000, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			if (!ready) ImGui::PopStyleColor();
+			if (changed && selectedCount && !boxMouseDown && ready) {
+				resetKeyboardMoveCache();
+				int hitboxCount = hitboxes->hitboxCount();
+				if (coordsSprite != currentSpriteElement || coordsEntity != editEntity || boxResizeOldHitboxes.size() != hitboxCount) {
+					coordsSprite = currentSpriteElement;
+					coordsEntity = editEntity;
+					
+					boxResizeOldHitboxes.resize(hitboxCount);
+					memcpy(boxResizeOldHitboxes.data(), hitboxesStart, boxResizeOldHitboxes.size() * sizeof (Hitbox));
+					overallSelectionBoxOldBounds = lastOverallSelectionBox.bounds;
+				}
+				lastOverallSelectionBox.bounds.left = left;
+				lastOverallSelectionBox.bounds.top = top;
+				lastOverallSelectionBox.bounds.right = right;
+				lastOverallSelectionBox.bounds.bottom = bottom;
+				if (overallSelectionBoxOldBounds.left == overallSelectionBoxOldBounds.left) {
+					boxSelectArenaXStart = overallSelectionBoxOldBounds.right;
+					boxSelectArenaXEnd = lastOverallSelectionBox.bounds.right;
+				} else {
+					boxSelectArenaXStart = overallSelectionBoxOldBounds.left;
+					boxSelectArenaXEnd = lastOverallSelectionBox.bounds.left;
+				}
+				if (overallSelectionBoxOldBounds.top == lastOverallSelectionBox.bounds.top) {
+					boxSelectArenaYStart = overallSelectionBoxOldBounds.bottom;
+					boxSelectArenaYEnd = lastOverallSelectionBox.bounds.bottom;
+				} else {
+					boxSelectArenaYStart = overallSelectionBoxOldBounds.top;
+					boxSelectArenaYEnd = lastOverallSelectionBox.bounds.top;
+				}
+				boxResizePart = BOXPART_NONE;
+				
+				MoveResizeBoxesUndoHelper helper(hitboxesStart, hitboxCount, 60 * 10  /* 10 seconds */);
+				
+				boxResizeChangedSomething = false;
+				for (BoxSelectBox& box : convertedBoxes) {
+					if (hitboxIsSelected(box.originalIndex)) {
+						boxResizeProcessBox(params, hitboxesStart, box.ptr);
+					}
+				}
+				if (boxResizeChangedSomething) {
+					helper.finish();
+				}
+			}
+		} else if (selectedCount > 1) {
+			ImGui::TextUnformatted("More than one box selected.\nPlease select only one box.");
+		} else {
+			static int x = 0;
+			static int y = 0;
+			static int width = 0;
+			static int height = 0;
+			bool changed = false;
+			static union {
+				const char* asArray[4] {
+					"X:",
+					"Y:",
+					"Width:",
+					"Height:"
+				};
+				struct {
+					const char* x;
+					const char* y;
+					const char* width;
+					const char* height;
+				} asStruct;
+			} u;
+			Hitbox* ptr = nullptr;
+			static bool longestTitleArraySet = false;
+			static ImVec2 longestTitleArraySize;
+			if (!longestTitleArraySet) {
+				longestTitleArraySet = true;
+				for (int i = 0; i < _countof(u.asArray); ++i) {
+					ImVec2 size = ImGui::CalcTextSize(u.asArray[i]);
+					if (i == 0 || size.x > longestTitleArraySize.x) {
+						longestTitleArraySize.x = size.x;
+					}
+				}
+			}
+			if (selectedCount == 1) {
+				int selectedHitbox;
+				if (pushboxIndex == selectedHitboxes[0]) {
+					selectedHitbox = selectedHitboxes[1];
+				} else {
+					selectedHitbox = selectedHitboxes[0];
+				}
+				LayerIterator layerIterator(editEntity, currentSpriteElement);
+				while (layerIterator.getNext()) {
+					if (selectedHitbox == layerIterator.originalIndex) {
+						x = (int)layerIterator.ptr->offX;
+						y = (int)layerIterator.ptr->offY;
+						width = (int)layerIterator.ptr->sizeX;
+						height = (int)layerIterator.ptr->sizeY;
+						ptr = layerIterator.ptr;
+						break;
+					}
+				}
+			}
+			bool ready = selectedCount == 1 && !boxMouseDown;
+			if (!ready) ImGui::PushStyleColor(ImGuiCol_Text, { 0.7F, 0.7F, 0.7F, 1.F });
+			ImGui::TextUnformatted(u.asStruct.x);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##x", &x, 1, 10, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			ImGui::TextUnformatted(u.asStruct.y);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##y", &y, 1, 10, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			ImGui::TextUnformatted(u.asStruct.width);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##width", &width, 1, 10, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			ImGui::TextUnformatted(u.asStruct.height);
+			ImGui::SameLine();
+			ImGui::SetCursorPosX(longestTitleArraySize.x + style.ItemSpacing.x);
+			ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+			if (ImGui::InputInt("##height", &height, 1, 10, !ready ? ImGuiInputTextFlags_ReadOnly : 0)) {
+				changed = true;
+			}
+			if (!ready) ImGui::PopStyleColor();
+			if (changed && ptr) {
+				HitboxHolder* hitboxes = editEntity.hitboxes();
+				MoveResizeBoxesUndoHelper helper(hitboxes->hitboxesStart(), hitboxes->hitboxCount(), 60 * 10 /* 10 seconds */ );
+				
+				ptr->offX = (float)x;
+				ptr->offY = (float)y;
+				ptr->sizeX = (float)width;
+				ptr->sizeY = (float)height;
+				convertedBoxesPrepared = false;
+				
+				helper.finish();
+			}
+		}
+	}
+	ImGui::EndChild();
+	
+}
+
+void UI::onToggleHitboxEditMode() {
+	if (gifMode.editHitboxes || !*aswEngine || !game.isTrainingMode()) {
+		stopHitboxEditMode();
+	} else {
+		startHitboxEditMode();
+	}
+}
+
+void UI::freezeGameAndAllowNextFrameControls() {
+	
+	stateChanged = ImGui::Checkbox(searchFieldTitle("Freeze Game"), &freezeGame) || stateChanged;
+	ImGui::SameLine();
+	if (ImGui::Button(searchFieldTitle("Next Frame"))) {
+		allowNextFrame = true;
+		allowNextFrameTimer = 10;
+	}
+	ImGui::SameLine();
+	static std::string freezeGameHelp;
+	if (freezeGameHelp.empty()) {
+		freezeGameHelp = settings.convertToUiDescription(
+			"Freezes the current frame of the game and stops gameplay from advancing."
+			" You can advance gameplay to the next frame using the 'Next Frame' button."
+			" It is way more convenient to use this feature with the \"allowNextFrameKeyCombo\" shortcut"
+			" instead of pressing the button, and freezing and unfreezing the game can be achieved with"
+			" the \"freezeGameToggle\" shortcut.");
+	}
+	ImGui::TextDisabled("(?)");
+	if (ImGui::BeginItemTooltip()) {
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		
+		sprintf_s(strbuf, "Freeze Game Hotkey: %s", comborepr(settings.freezeGameToggle));
+		ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
+		
+		sprintf_s(strbuf, "Allow Next Frame Hotkey: %s", comborepr(settings.allowNextFrameKeyCombo));
+		ImGui::TextUnformatted(searchTooltip(strbuf, nullptr));
+		
+		ImGui::Separator();
+		ImGui::TextUnformatted(searchTooltipStr(freezeGameHelp));
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
+	}
+	
+}
+
+const char* getEditEntityRepr(Entity ent) {
+	static char buf[3 + 32 + 14 + 1];
+	if (ent.isPawn()) {
+		sprintf_s(buf, "Player %d (%d)", ent.team() + 1, ent.hitboxes()->count[HITBOXTYPE_HITBOX]);
+	} else {
+		sprintf_s(buf, "P%d %s (%d) (%d)", ent.team() + 1, ent.animationName(), ent.getEffectIndex(), ent.hitboxes()->count[HITBOXTYPE_HITBOX]);
+	}
+	return buf;
+}
+
+void UI::showErrorDlg(const char* msg, bool isManual) {
+	if (!msg) {
+		errorMsgBuf.clear();
+	} else {
+		errorMsgBuf = msg;
+	}
+	if (errorMsgBuf.empty()) {
+		errorDialogText = nullptr;
+		return;
+	}
+	errorDialogText = errorMsgBuf.c_str();
+	if (windowShowMode == WindowShowMode_Pinned) {
+		windows[PinnedWindowEnum_Error].setPinned(true);
+	}
+	setOpen(PinnedWindowEnum_Error, true, isManual);
+	if (isManual && windowShowMode == WindowShowMode_None) {
+		windowShowMode = WindowShowMode_All;
+		windows[PinnedWindowEnum_MainWindow].setOpen(true, false);
+	}
+	if (ImGui::WindowIsNotNull()) {
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		errorDialogPos[0] = cursorPos.x + windowPos.x;
+		errorDialogPos[1] = cursorPos.y + windowPos.y;
+	} else {
+		errorDialogPos[0] = lastClickPosX;
+		errorDialogPos[1] = lastClickPosY;
+	}
+	
+	const ImVec2& displaySize = ImGui::GetIO().DisplaySize;
+	if (errorDialogPos[0] > displaySize.x - 50.F) {
+		errorDialogPos[0] -= 200.F;
+	}
+	
+	if (errorDialogPos[1] > displaySize.y - 50.F) {
+		errorDialogPos[1] -= 200.F;
+	}
+	
+}
+
+int UI::findInsertionIndexUnique(const std::vector<SortedAnimSeq>& ar, const FName* value, const char* str) {
+	if (ar.empty()) return 0;
+	size_t start = 0;
+	size_t end = ar.size() - 1;
+	const SortedAnimSeq* data = ar.data();
+	const size_t size = ar.size();
+	while (true) {
+		size_t mid = (start + end) >> 1;
+		const SortedAnimSeq& midVal = data[mid];
+		int cmpResult = strcmp(str, midVal.buf);
+		if (cmpResult > 0) {
+			start = mid + 1;
+			if (start > end) {
+				return (int)start;
+			}
+		} else if (cmpResult < 0) {
+			if (mid == start) {
+				return (int)start;
+			}
+			end = mid - 1;
+		} else {
+			return -1;
+		}
+	}
+}
+
+void UI::ComboBoxPopupExtension::onComboBoxBegin() {
+	comboBoxBeganThisFrame = true;
+	if (appearing && selectedIndex != -1 && totalCount) {
+		float windowHeight = ImGui::GetWindowHeight();
+		float scrollMaxY = ImGui::GetScrollMaxY();
+		if (scrollMaxY > 0.001F) {
+			float oneElementHeight = (windowHeight + scrollMaxY) / (float)totalCount;
+			int numElementsFit = (int)std::roundf(windowHeight / oneElementHeight + 0.5F);
+			if (selectedIndex < numElementsFit - 1 || totalCount <= (size_t)numElementsFit) {
+				ImGui::SetScrollY(0.F);
+			} else {
+				int iOff = selectedIndex - numElementsFit + (numElementsFit >> 1);
+				ImGui::SetScrollY(scrollMaxY * (float)iOff / (float)(totalCount - (size_t)numElementsFit));
+			}
+		}
+	}
+	selectedIndex = -1;
+	appearing = ImGui::IsWindowAppearing();
+}
+
+bool UI::ComboBoxPopupExtension::fastScrollWithKeys() {
+	if (selectedIndex != -1) {
+		if (ImGui::IsKeyPressed(ImGuiKey_DownArrow, true)) {
+			if (selectedIndex + 1 < (int)totalCount) {
+				++selectedIndex;
+				requestAutoScroll();
+				return true;
+			}
+		} else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow, true)) {
+			if (selectedIndex > 0) {
+				--selectedIndex;
+				requestAutoScroll();
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void UI::ComboBoxPopupExtension::endFrame() {
+	if (!comboBoxBeganThisFrame) {
+		appearing = false;
+		selectedIndex = -1;
+		totalCount = 0;
+	}
+}
+
+bool drawIconButton(const char* buttonName, const PinIcon* icon, bool toolActive, bool flipHoriz, bool flipVert, bool disabled) {
+	ImVec2 buttonPos = ImGui::GetCursorPos();
+	const ImGuiStyle& style = ImGui::GetStyle();
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, style.Colors[ImGuiCol_Button]);
+	
+	ImVec2 sizeUse = icon->size;
+	
+	float padX = 0.F;
+	float padY = 0.F;
+	
+	if (sizeUse.x < drawIconButton_minSize.x) {
+		padX = std::floorf((drawIconButton_minSize.x - sizeUse.x) * 0.5F);
+		sizeUse.x = drawIconButton_minSize.x;
+	}
+	if (sizeUse.y < drawIconButton_minSize.y) {
+		padY = std::floorf((drawIconButton_minSize.y - sizeUse.y) * 0.5F);
+		sizeUse.y = drawIconButton_minSize.y;
+	}
+	
+	ImVec2 buttonSize {
+		sizeUse.x + style.FramePadding.x * 2.F,
+		sizeUse.y + style.FramePadding.y * 2.F
+	};
+	
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	
+	ImVec2 windowPos = ImGui::GetWindowPos();
+	float scrollY = ImGui::GetScrollY();
+	
+	if (toolActive) {
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.19f, 0.30f, 0.56f, 0.75f));
+		float outlineThickness = 4.F;
+		ImVec2 buttonToolOutlineStart {
+			std::floorf(windowPos.x + buttonPos.x - outlineThickness * 0.5F),
+			std::floorf(windowPos.y - scrollY + buttonPos.y - outlineThickness * 0.5F)
+		};
+		drawList->AddRectFilled(buttonToolOutlineStart, {
+			std::ceilf(buttonToolOutlineStart.x + buttonSize.x + outlineThickness),
+			std::ceilf(buttonToolOutlineStart.y + buttonSize.y + outlineThickness)
+		}, 0xFFFFFFFF, 0.F);
+	}
+	
+	struct MyDarken {
+		static ImVec4 darken(const ImVec4 src) {
+			return { src.x * 0.7F, src.y * 0.7F, src.z * 0.7F, src.w };
+		}
+	};
+	
+	if (disabled) {
+		ImVec4 colorOfTheFuture = MyDarken::darken(style.Colors[ImGuiCol_Button]);
+		ImGui::PushStyleColor(ImGuiCol_Button, colorOfTheFuture);
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, colorOfTheFuture);
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, colorOfTheFuture);
+	}
+	
+	bool clicked = ImGui::Button(buttonName, buttonSize) && !disabled;
+	bool isHovered = ImGui::IsItemHovered();
+	bool mousePressed = isHovered && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+	
+	if (disabled) {
+		ImGui::PopStyleColor();
+		ImGui::PopStyleColor();
+		ImGui::PopStyleColor();
+	}
+	
+	if (toolActive) {
+		ImGui::PopStyleColor();
+	}
+	
+	ImGui::PopStyleColor();
+	
+	ImVec2 uvStart;
+	ImVec2 uvEnd;
+	if (!flipHoriz && !flipVert) {
+		uvStart = icon->uvStart;
+		uvEnd = icon->uvEnd;
+	} else if (!flipHoriz && flipVert) {
+		uvStart.x = icon->uvStart.x;
+		uvStart.y = icon->uvEnd.y;
+		uvEnd.x = icon->uvEnd.x;
+		uvEnd.y = icon->uvStart.y;
+	} else if (flipHoriz && !flipVert) {
+		uvStart.x = icon->uvEnd.x;
+		uvStart.y = icon->uvStart.y;
+		uvEnd.x = icon->uvStart.x;
+		uvEnd.y = icon->uvEnd.y;
+	} else if (flipHoriz && flipVert) {
+		uvStart = icon->uvEnd;
+		uvEnd = icon->uvStart;
+	}
+	ImVec2 imgStart {
+		windowPos.x + buttonPos.x + style.FramePadding.x + padX,
+		windowPos.y - scrollY + buttonPos.y + style.FramePadding.y + padY + (isHovered && mousePressed && !disabled ? 1.F : 0.F)
+	};
+	drawList->AddImage(TEXID_PIN,
+		imgStart, {
+			imgStart.x + icon->size.x,
+			imgStart.y + icon->size.y
+		}, uvStart, uvEnd, disabled ? 0xFFAAAAAA : 0xFFFFFFFF);
+	if ((isHovered || mousePressed) && !disabled) {
+		ImU32 tint = isHovered ? 0x50FFFFFF : 0x50000000;
+		drawList->AddRectFilled({
+			windowPos.x + buttonPos.x,
+			windowPos.y - scrollY + buttonPos.y
+		}, {
+			windowPos.x + buttonPos.x + buttonSize.x,
+			windowPos.y - scrollY + buttonPos.y + buttonSize.y
+		}, tint);
+	}
+	
+	return clicked;
+}
+
+void UI::detachFPAC() {
+	for (FPACSecondaryData& data : hitboxEditorFPACSecondaryData) {
+		data.detach();
+	}
+}
+
+LayerIterator UI::getEntityLayers(Entity ent) {
+	if (ent != gifMode.editHitboxesEntity || !gifMode.editHitboxes) {
+		return { ent, nullptr };
+	} else {
+		return { ent, hitboxEditFindCurrentSprite(ent) };
+	}
+}
+
+// called right before drawing all the ImGui::Selectables and the ImGui::InvisibleButton
+bool UI::beginDragNDropFrame(SortedSprite* currentSpriteElement, bool childBegan) {
+	dragNDropBeganFrame = true;
+	dragNDropChildBegan = childBegan;
+	if (!dragNDropChildBegan) {
+		ImVec2 windowPos = ImGui::GetCursorPos();
+		dragNDropChildNotBegan_mouseAboveWholeWindow = ImGui::GetIO().MousePos.y < ImGui::GetCursorPosY();
+		dragNDropChildNotBegan_x = windowPos.x;
+		dragNDropChildNotBegan_y = windowPos.y;
+	}
+	dragNDropMouseIndex = -1;
+	dragNDropItems.clear();
+	dragNDropItemsCarried.clear();
+	dragNDropItemHeight = ImGui::GetTextLineHeightWithSpacing();
+	dragNDropMouseDragPurposePending = MOUSEDRAGPURPOSE_NONE;
+	selectedHitboxesBoxSelect.clear();
+	return childBegan;
+}
+
+// called after drawing ImGui::InvisibleButton
+// The index is -1 for the final ImGui::InvisibleButton that corresponds to the empty space
+void UI::dragNDropOnCarriedItem(SortedSprite* currentSpriteElement, DragNDropItemInfo* itemInfo) {
+	dragNDropItemsCarried.push_back(*itemInfo);
+}
+	
+void UI::dragNDropOnItem(SortedSprite* currentSpriteElement, DragNDropItemInfo* itemInfo) {
+	
+	if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_MOVE_ELEMENTS && itemInfo) {
+		ImVec2 mousePos = ImGui::GetIO().MousePos;
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		float scrollY = ImGui::GetScrollY();
+		if (mousePos.y >= itemInfo->y + (windowPos.y - scrollY) + dragNDropItemHeight * 0.5F) {
+			dragNDropMouseIndex = itemInfo->layerIndex + 1;
+		}
+	}
+	
+	if (itemInfo) {
+		dragNDropItems.push_back(*itemInfo);
+	}
+	if (!dragNDropActive && (itemInfo ? itemInfo->active : ImGui::IsItemActive())) {
+		dragNDropActivePending = true;
+		dragNDropActivePendingInfoIsNull = itemInfo == nullptr;
+		if (itemInfo) {
+			dragNDropActivePendingInfo = *itemInfo;
+		}
+	}
+	
+	if (itemInfo && dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_BOX_SELECT && boxSelectYSet) {
+		if (itemInfo->y < boxSelectYEnd
+				&& itemInfo->y + dragNDropItemHeight >= boxSelectYStart) {
+			selectedHitboxesBoxSelect.push_back(itemInfo->originalIndex);
+			dragNDropItems.back().hovered = true;
+		}
+	}
+	
+}
+
+// called after all ImGui::InvisibleButton have been drawn
+void UI::processDragNDrop(SortedSprite* currentSpriteElement, int overallHitboxCount) {
+	if (!dragNDropBeganFrame) return;
+	dragNDropBeganFrame = false;
+	const ImGuiIO& io = ImGui::GetIO();
+	bool mouseDown = io.MouseDown[0];
+	if (dragNDropActive && dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_NONE && !mouseDown) {
+		bool wasSelected = false;
+		auto itEnd = selectedHitboxes.end();
+		std::vector<int>::iterator it;
+		if (dragNDropActiveIndex != -1) {
+			for (it = selectedHitboxes.begin(); it != itEnd; ++it) {
+				if (*it == dragNDropActiveIndex) {
+					wasSelected = true;
+					break;
+				}
+			}
+		}
+		if (dragNDropWasShiftHeld || dragNDropWasCtrlHeld) {
+			resetKeyboardMoveCache();
+			resetCoordsMoveCache();
+			if (wasSelected) {
+				selectedHitboxes.erase(it);
+			} else {
+				selectedHitboxes.push_back(dragNDropActiveIndex);
+			}
+		} else if (!(
+			selectedHitboxes.size() == 1 && selectedHitboxes[0] == dragNDropActiveIndex
+		)) {
+			resetKeyboardMoveCache();
+			resetCoordsMoveCache();
+			selectedHitboxes.clear();
+			if (dragNDropActiveIndex != -1) {
+				selectedHitboxes.push_back(dragNDropActiveIndex);
+			}
+		}
+	}
+	
+	
+	if (dragNDropActive && dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_MOVE_ELEMENTS && mouseDown) {
+		if (!dragNDropChildBegan) {
+			if (dragNDropChildNotBegan_mouseAboveWholeWindow) {
+				dragNDropMouseIndex = 0;
+			} else {
+				dragNDropMouseIndex = overallHitboxCount;
+			}
+		}
+		if (dragNDropMouseIndex < 0) dragNDropMouseIndex = 0;
+		if (dragNDropDestinationIndex != dragNDropMouseIndex) {
+			dragNDropInterpolationTimer = dragNDropInterpolationTimerMax;
+			dragNDropDestinationIndex = dragNDropMouseIndex;
+		}
+	}
+	
+	ImVec2 windowPos = ImGui::GetWindowPos();
+	float windowWidth = ImGui::GetWindowWidth();
+	float windowHeight = ImGui::GetWindowHeight();
+	float scrollY = ImGui::GetScrollY();
+	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	ImVec4 clipRect = drawList->_CmdHeader.ClipRect;
+	
+	float itemHeight = ImGui::GetTextLineHeightWithSpacing();
+	
+	ImGuiStyle& style = ImGui::GetStyle();
+	
+	float fontSize = ImGui::GetFontSize();
+	
+	ImDrawList* foregroundDrawList = ImGui::GetForegroundDrawList();
+	
+	if (dragNDropChildBegan) {
+		
+		for (DragNDropItemInfo& info : dragNDropItems) {
+			ImVec2 infoStart {
+				info.x,
+				info.y
+			};
+			bool needTopLayer = false;
+			if (dragNDropInterpolationTimer != 0) {
+				bool prevPosFound = false;
+				ImVec2 prevPos;
+				for (int prevIndex = 0; prevIndex < (int)prevDragNDropItems.size(); ++prevIndex) {
+					PrevDragNDropItemInfo& prevInfo = prevDragNDropItems[prevIndex];
+					if (prevInfo.originalIndex == info.originalIndex) {
+						prevPos.x = prevInfo.x;
+						prevPos.y = prevInfo.y;
+						prevPosFound = true;
+						needTopLayer = prevInfo.topLayer;
+						break;
+					}
+				}
+				if (prevPosFound) {
+					ImVec2 dist {
+						infoStart.x - prevPos.x,
+						infoStart.y - prevPos.y
+					};
+					if (!dragNDropInterpolationAnimReady) {
+						dragNDropInterpolationAnimReady = true;
+						for (int animInd = dragNDropInterpolationTimerMax - 1; animInd >= 0; --animInd) {
+							int sum = 0;
+							for (int animIndOther = 0; animIndOther <= animInd; ++animIndOther) {
+								sum += dragNDropInterpolationAnimRaw[animIndOther];
+							}
+							dragNDropInterpolationAnim[animInd] = (float)dragNDropInterpolationAnimRaw[animInd] / (float)sum;
+						}
+					}
+					float distCoeff = dragNDropInterpolationAnim[dragNDropInterpolationTimer - 1];
+					ImVec2 speed {
+						(infoStart.x - prevPos.x) * distCoeff,
+						(infoStart.y - prevPos.y) * distCoeff
+					};
+					if (dist.x < 0.F ? speed.x < dist.x : speed.x > dist.x) speed.x = dist.x;
+					if (dist.y < 0.F ? speed.y < dist.y : speed.y > dist.y) speed.y = dist.y;
+					infoStart.x = prevPos.x + speed.x;
+					infoStart.y = prevPos.y + speed.y;
+				}
+			}
+			info.topLayer = needTopLayer;
+			info.drawX = infoStart.x;
+			info.drawY = infoStart.y;
+			infoStart.x = std::roundf(infoStart.x + windowPos.x - style.FramePadding.x);
+			infoStart.y = std::roundf(infoStart.y + windowPos.y - scrollY - style.FramePadding.y);
+			ImVec2 infoEnd {
+				infoStart.x + windowWidth,
+				infoStart.y + itemHeight
+			};
+			if (infoStart.x < clipRect.z && infoEnd.x >= clipRect.x
+					&& infoStart.y < clipRect.w && infoEnd.y >= clipRect.y) {
+				dragNDropDrawItem(&info,
+					infoStart.x,
+					infoStart.y,
+					windowWidth,
+					settings.hitboxList[info.hitboxType].show ? Moves::TriBool::TRIBOOL_TRUE : Moves::TriBool::TRIBOOL_FALSE,
+					needTopLayer ? (BYTE*)foregroundDrawList : (BYTE*)drawList);
+			}
+		}
+	}
+	if (dragNDropInterpolationTimer > 0) --dragNDropInterpolationTimer;
+	prevDragNDropItems.clear();
+	for (const DragNDropItemInfo& item : dragNDropItems) {
+		prevDragNDropItems.emplace_back();
+		PrevDragNDropItemInfo& newElem = prevDragNDropItems.back();
+		newElem.x = item.drawX;
+		newElem.y = item.drawY;
+		newElem.originalIndex = item.originalIndex;
+		newElem.topLayer = item.topLayer;
+	}
+	
+	if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_MOVE_ELEMENTS) {
+		float largestTextWidth = 0.F;
+		for (DragNDropItemInfo& elem : dragNDropItemsCarried) {
+			ImVec2 textSize = ImGui::CalcTextSize(elem.printLabel());
+			if (textSize.x > largestTextWidth) {
+				largestTextWidth = textSize.x;
+			}
+		}
+		ImVec2 allItemsSize {
+			style.FramePadding.x + fontSize + style.ItemSpacing.x + largestTextWidth + style.FramePadding.x,
+			style.FramePadding.y + (fontSize + style.ItemSpacing.y) * (float)dragNDropItemsCarried.size() + style.FramePadding.y
+		};
+		ImVec2 topLeftPos {
+			std::roundf(io.MousePos.x - allItemsSize.x * 0.5F),
+			std::roundf(io.MousePos.y - allItemsSize.y * 0.5F)
+		};
+		for (DragNDropItemInfo& elem : dragNDropItemsCarried) {
+			dragNDropDrawItem(&elem,
+				topLeftPos.x,
+				topLeftPos.y,
+				allItemsSize.x,
+				Moves::TRIBOOL_DUNNO,
+				(BYTE*)foregroundDrawList);
+			
+			prevDragNDropItems.emplace_back();
+			PrevDragNDropItemInfo& newElem = prevDragNDropItems.back();
+			newElem.x = topLeftPos.x - windowPos.x + style.FramePadding.x;
+			newElem.y = topLeftPos.y - (windowPos.y - scrollY) + style.FramePadding.y;
+			newElem.originalIndex = elem.originalIndex;
+			newElem.topLayer = true;
+			
+			topLeftPos.y += itemHeight;
+		}
+	}
+	
+	if (!mouseDown) {
+		Entity editEntity = gifMode.editHitboxesEntity;
+		if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_MOVE_ELEMENTS && currentSpriteElement && editEntity
+				&& !dragNDropOperationWontDoAnything(currentSpriteElement)) {
+			ReorderLayersOperation newOp;
+			newOp.fill(dragNDropDestinationIndex);
+			performOp(&newOp);
+		}
+		endDragNDrop();
+	}
+	
+	if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_BOX_SELECT && dragNDropChildBegan) {
+		ImGuiIO& io = ImGui::GetIO();
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		float scrollY = ImGui::GetScrollY();
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		ImVec2 boxSelectGraphicStartPos {
+			windowPos.x + dragNDropMouseClickedX,
+			windowPos.y - scrollY + dragNDropMouseClickedY
+		};
+		drawList->AddRectFilled(boxSelectGraphicStartPos, io.MousePos, 0x66FF6688, 0.F, 0);
+		drawList->AddRect(boxSelectGraphicStartPos, io.MousePos, 0xFFFF99AA, 0.F, 0);
+		boxSelectYSet = true;
+		boxSelectYStart = dragNDropMouseClickedY;
+		boxSelectYEnd = io.MousePos.y - (windowPos.y - scrollY);
+		if (boxSelectYStart > boxSelectYEnd) {
+			std::swap(boxSelectYStart, boxSelectYEnd);
+		}
+		resetKeyboardMoveCache();
+		resetCoordsMoveCache();
+		selectedHitboxes.clear();
+		if (ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift)) {
+			for (int i : selectedHitboxesPreBoxSelect) {
+				selectedHitboxes.push_back(i);
+			}
+		}
+		for (int i : selectedHitboxesBoxSelect) {
+			bool found = false;
+			for (int j : selectedHitboxes) {
+				if (i == j) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				selectedHitboxes.push_back(i);
+			}
+		}
+	}
+	
+	if (dragNDropActivePending) {
+		dragNDropActivePending = false;
+		resetKeyboardMoveCache();
+		resetCoordsMoveCache();
+		ImGuiIO& io = ImGui::GetIO();
+		ImVec2 windowPos = ImGui::GetWindowPos();
+		float scrollY = ImGui::GetScrollY();
+		dragNDropMouseClickedX = io.MouseClickedPos[0].x - windowPos.x;
+		dragNDropMouseClickedY = io.MouseClickedPos[0].y - (windowPos.y - scrollY);
+		dragNDropActiveIndex = dragNDropActivePendingInfoIsNull ? -1 : dragNDropActivePendingInfo.originalIndex;
+		dragNDropActive = true;
+		dragNDropActiveIndexWasSelected = dragNDropActivePendingInfoIsNull ? false : dragNDropActivePendingInfo.selected;
+		dragNDropWasShiftHeld = ImGui::IsKeyDown(ImGuiKey_LeftShift)
+			|| ImGui::IsKeyDown(ImGuiKey_RightShift);
+		dragNDropWasCtrlHeld = ImGui::IsKeyDown(ImGuiKey_LeftCtrl)
+			|| ImGui::IsKeyDown(ImGuiKey_RightCtrl);
+	}
+	
+	if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_NONE && dragNDropActive && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 3.F)) {
+		if (dragNDropActiveIndexWasSelected) {
+			dragNDropMouseDragPurposePending = MOUSEDRAGPURPOSE_MOVE_ELEMENTS;
+			for (PrevDragNDropItemInfo& info : prevDragNDropItems){
+				info.topLayer = false;
+			}
+		} else {
+			dragNDropMouseDragPurposePending = MOUSEDRAGPURPOSE_BOX_SELECT;
+			boxSelectYSet = false;
+			selectedHitboxesPreBoxSelect = selectedHitboxes;
+		}
+	}
+	
+	if (dragNDropMouseDragPurposePending != MOUSEDRAGPURPOSE_NONE) {
+		dragNDropMouseDragPurpose = dragNDropMouseDragPurposePending;
+		if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_MOVE_ELEMENTS) {
+			dragNDropInterpolationTimer = dragNDropInterpolationTimerMax;
+		}
+	}
+}
+
+// called when mod's UI is not visible,
+// or the Hitbox Editor window is not visible,
+// or hitbox editing mode is not on,
+// or there is no entity specified, for which hitboxes are being edited,
+// or the sprite of the entity changed from the last one,
+// or the drawHitboxEditor function didn't get to the drawing layers part
+void UI::endDragNDrop() {
+	MouseDragPurpose prevMode = dragNDropMouseDragPurpose;
+	dragNDropMouseDragPurpose = MOUSEDRAGPURPOSE_NONE;
+	dragNDropMouseDragPurposePending = MOUSEDRAGPURPOSE_NONE;
+	if (!dragNDropActive) return;
+	dragNDropActive = false;
+	dragNDropItemsCarried.clear();
+	dragNDropActivePending = false;
+	if (prevMode == MOUSEDRAGPURPOSE_MOVE_ELEMENTS) {
+		dragNDropInterpolationTimer = dragNDropInterpolationTimerMax;
+	} else if (prevMode == MOUSEDRAGPURPOSE_BOX_SELECT) {
+		resetKeyboardMoveCache();
+		resetCoordsMoveCache();
+		selectedHitboxes.clear();
+		if (ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift)) {
+			for (int i : selectedHitboxesPreBoxSelect) {
+				selectedHitboxes.push_back(i);
+			}
+		}
+		for (int i : selectedHitboxesBoxSelect) {
+			bool found = false;
+			for (int j : selectedHitboxes) {
+				if (i == j) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				selectedHitboxes.push_back(i);
+			}
+		}
+	}
+}
+
+bool UI::hitboxIsSelected(int index) const {
+	for (int selectedIndex : selectedHitboxes) {
+		if (index == selectedIndex) {
+			return true;
+		}
+	}
+	return false;
+}
+
+DWORD multiplyColor(DWORD colorLeft, DWORD colorRight) {
+	DWORD leftOne = colorLeft & 0xFF;
+	DWORD leftTwo = (colorLeft >> 8) & 0xFF;
+	DWORD leftThree = (colorLeft >> 16) & 0xFF;
+	DWORD leftFour = (colorLeft >> 24) & 0xFF;
+	DWORD rightOne = colorRight & 0xFF;
+	DWORD rightTwo = (colorRight >> 8) & 0xFF;
+	DWORD rightThree = (colorRight >> 16) & 0xFF;
+	DWORD rightFour = (colorRight >> 24) & 0xFF;
+	DWORD result = 0;
+	DWORD resultByte = leftOne * rightOne / 255;
+	result |= resultByte;
+	resultByte = leftTwo * rightTwo / 255;
+	result |= resultByte << 8;
+	resultByte = leftThree * rightThree / 255;
+	result |= resultByte << 16;
+	resultByte = leftFour * rightFour / 255;
+	result |= resultByte << 24;
+	return result;
+}
+
+const char* UI::DragNDropItemInfo::printLabel() const {
+	if (isPushbox) {
+		return "  PUSHBOX";
+	} else {
+		sprintf_s(strbuf, "  %s %d", hitboxTypeName[hitboxType], hitboxIndex + 1);
+		return strbuf;
+	}
+}
+
+void UI::dragNDropDrawItem(const DragNDropItemInfo* item, float x, float y, float width, Moves::TriBool eye, BYTE* drawListPtr) {
+	ImVec4 color4;
+	if (item->hovered) {
+		if (ImGui::GetIO().MouseDown[0] && dragNDropMouseDragPurpose != MOUSEDRAGPURPOSE_BOX_SELECT) {
+			color4 = ImVec4(0.f, 0.0f, 0.6f, 0.31f);
+		} else {
+			color4 = ImVec4(0.26f, 0.59f, 0.98f, 0.98f);
+		}
+	} else if (item->selected) {
+		color4 = ImVec4(0.26f, 0.59f, 0.98f, 0.6f);
+	} else {
+		color4 = ImVec4(0.06f, 0.06f, 0.06f, 0.0f);
+	}
+	ImVec2 infoEnd {
+		x + width,
+		y + ImGui::GetTextLineHeightWithSpacing()
+	};
+	ImDrawList* drawList = (ImDrawList*)drawListPtr;
+	if (color4.w > 0.001F) {
+		drawList->AddRectFilled({ x, y }, infoEnd, ImGui::GetColorU32(color4), 0.F, 0);
+	}
+	
+	const ImGuiStyle& style = ImGui::GetStyle();
+	const float eyeSize = dragNDropItemHeight;
+	float spaceForEye = 0.F;
+	if (eye != Moves::TRIBOOL_DUNNO) {
+		spaceForEye = eyeSize + 2.F;
+		const PinIcon& eyeIcon = eye == Moves::TRIBOOL_TRUE ? eye_openBtn : eye_closedBtn;
+		drawList->AddImage(TEXID_PIN,
+			{ x + style.FramePadding.x, y + 1.F },
+			{ x + style.FramePadding.x + eyeSize - 2.F, y + eyeSize - 2.F },
+			eyeIcon.uvStart, eyeIcon.uvEnd);
+	}
+	
+	drawList->AddText({
+		x + style.FramePadding.x + spaceForEye,
+		y + style.ItemSpacing.y * 0.5F
+	}, 0xFFFFFFFF, item->printLabel(), 0);
+	
+	ImVec2 colorRectStart {
+		x + style.FramePadding.x + spaceForEye,
+		y + style.FramePadding.y
+	};
+	float fontSize = ImGui::GetFontSize();
+	ImVec2 colorRectEnd {
+		colorRectStart.x + fontSize,
+		colorRectStart.y + fontSize
+	};
+	drawList->AddRectFilled(colorRectStart, colorRectEnd, item->color, 0.F, 0);
+	drawList->AddRect(colorRectStart, colorRectEnd, multiplyColor(item->color, 0xFF7F7F7F) | 0xFF000000, 0.F, 0, 1.F);
+}
+
+bool UI::dragNDropOperationWontDoAnything(SortedSprite* currentSpriteElement) {
+	int firstSelectedLayer = -1;
+	if (!gifMode.editHitboxesEntity) return false;
+	Entity editEntity{gifMode.editHitboxesEntity};
+		
+	LayerIterator layerIterator(editEntity, currentSpriteElement);
+	layerIterator.scrollToEnd();
+	bool prevSelected = false;
+	int iReverse = 0;
+	while (layerIterator.getPrev()) {
+		bool selected = hitboxIsSelected(layerIterator.originalIndex);
+		if (!prevSelected && selected && firstSelectedLayer != -1) {
+			return false;
+		}
+		if (selected && firstSelectedLayer == -1) {
+			firstSelectedLayer = iReverse;
+		}
+		prevSelected = selected;
+		++iReverse;
+	}
+	
+	return firstSelectedLayer == dragNDropDestinationIndex;
+}
+
+void UI::hitboxEditorBoxSelect() {
+	
+	if (!gifMode.editHitboxes || !gifMode.editHitboxesEntity) {
+		boxMouseDown = false;
+		boxSelectingBoxesDragging = false;
+		return;
+	}
+	
+	Entity editEntity{gifMode.editHitboxesEntity};
+	SortedSprite* sortedSprite = hitboxEditFindCurrentSprite();
+	
+	DrawHitboxArrayCallParams params;
+	editHitboxesFillParams(params, editEntity);
+	
+	if (!convertedBoxesPrepared && sortedSprite) {
+		convertedBoxes.clear();
+		editHitboxesConvertBoxes(params, editEntity, sortedSprite);
+	}
+	
+	lastOverallSelectionBoxHoverPart = BOXPART_NONE;
+	
+	const ImGuiIO& io = ImGui::GetIO();
+	bool isInSomeOtherWindow = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow
+				| ImGuiHoveredFlags_AllowWhenBlockedByActiveItem
+				| ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+	
+	if (isInSomeOtherWindow && !boxMouseDown) return;
+	
+	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()];
+	FPAC* fpac = secondaryData.Collision->TopData;
+	
+	if (dragNDropMouseDragPurpose == MOUSEDRAGPURPOSE_NONE
+			&& dragNDropMouseDragPurposePending == MOUSEDRAGPURPOSE_NONE
+			&& !isInSomeOtherWindow) {
+		if (io.MouseClicked[0]) {
+			resetKeyboardMoveCache();
+			resetCoordsMoveCache();
+			boxMouseDown = true;
+			boxResizePart = BOXPART_NONE;
+			boxSelectingBoxesDragging = false;
+			selectedHitboxesPreBoxSelect = selectedHitboxes;
+			selectedHitboxesBoxSelect.clear();
+			boxSelectingOriginalIndex = -1;
+			boxResizeHappened = false;
+		}
+	}
+	
+	if (boxMouseDown && boxResizePart != BOXPART_NONE && boxResizeSortedSprite != sortedSprite
+			|| io.MousePos.x == -FLT_MAX || io.MousePos.y == -FLT_MAX) {
+		boxMouseDown = false;
+	}
+	
+	ImDrawList* drawList = ImGui::GetForegroundDrawList();
+	EndScene::HitboxEditorCameraValues& vals = endScene.hitboxEditorCameraValues;
+	if (vals.prepare(editEntity)) {
+		
+		boxSelectArenaXEnd = (int)(
+			vals.cam_xASW + (io.MousePos.x - vals.vw * 0.5F) / vals.vw * vals.screenWidthASW
+		);
+		boxSelectArenaYEnd = (int)(
+			vals.cam_zASW - (io.MousePos.y - vals.vh * 0.5F) / vals.vh * vals.screenHeightASW
+		);
+		
+		if (boxMouseDown) {
+			
+			if (io.MouseClicked[0]) {
+				boxSelectArenaXStartOrig = (int)(
+					vals.cam_xASW + (io.MouseClickedPos[0].x - vals.vw * 0.5F) / vals.vw * vals.screenWidthASW
+				);
+				boxSelectArenaYStartOrig = (int)(
+					vals.cam_zASW - (io.MouseClickedPos[0].y - vals.vh * 0.5F) / vals.vh * vals.screenHeightASW
+				);
+			}
+			
+			boxSelectArenaXStart = boxSelectArenaXStartOrig;
+			boxSelectArenaYStart = boxSelectArenaYStartOrig;
+			
+			int xStartASW;
+			int xEndASW;
+			int yStartASW;
+			int yEndASW;
+			
+			if (boxSelectArenaXStart < boxSelectArenaXEnd) {
+				xStartASW = boxSelectArenaXStart;
+				xEndASW = boxSelectArenaXEnd;
+			} else {
+				xEndASW = boxSelectArenaXStart;
+				xStartASW = boxSelectArenaXEnd;
+			}
+			
+			if (boxSelectArenaYStart < boxSelectArenaYEnd) {
+				yStartASW = boxSelectArenaYStart;
+				yEndASW = boxSelectArenaYEnd;
+			} else {
+				yEndASW = boxSelectArenaYStart;
+				yStartASW = boxSelectArenaYEnd;
+			}
+			
+			ImVec2 mouseStartImgui {
+				((float)xStartASW - vals.cam_xASW) * vals.xCoeff * vals.vw * 0.5F + vals.vw * 0.5F,
+				-((float)yStartASW - vals.cam_zASW) * vals.yCoeff * vals.vh * 0.5F + vals.vh * 0.5F
+			};
+			
+			ImVec2 mouseEndImgui {
+				((float)xEndASW - vals.cam_xASW) * vals.xCoeff * vals.vw * 0.5F + vals.vw * 0.5F,
+				-((float)yEndASW - vals.cam_zASW) * vals.yCoeff * vals.vh * 0.5F + vals.vh * 0.5F
+			};
+			
+			if (boxSelectingBoxesDragging && hitboxEditorTool == HITBOXEDITTOOL_SELECTION) {
+				drawList->AddRectFilled(mouseStartImgui, mouseEndImgui, 0x66FF6688, 0.F, 0);
+				drawList->AddRect(mouseStartImgui, mouseEndImgui, 0xFFFF99AA, 0.F, 0);
+			}
+			
+		} else {
+			
+			boxSelectArenaXStart = boxSelectArenaXEnd;
+			boxSelectArenaYStart = boxSelectArenaYEnd;
+			
+		}
+		
+		aswOneScreenPixelWidth = (int)std::ceilf(1.F / vals.vw * 2.F / vals.xCoeff);
+		aswOneScreenPixelHeight = (int)std::ceilf(1.F / vals.vh * 2.F / vals.yCoeff);
+		
+	} else if (boxMouseDown) {
+		if (io.MouseClicked[0]) {
+			boxSelectArenaXStartOrig = 0;
+			boxSelectArenaYStartOrig = 0;
+		}
+		boxSelectArenaXStart = 0;
+		boxSelectArenaYStart = 0;
+		boxSelectArenaXEnd = 0;
+		boxSelectArenaYEnd = 0;
+		
+		if (boxSelectingBoxesDragging && hitboxEditorTool == HITBOXEDITTOOL_SELECTION) {
+			drawList->AddRectFilled(io.MouseClickedPos[0], io.MousePos, 0x66FF6688, 0.F, 0);
+			drawList->AddRect(io.MouseClickedPos[0], io.MousePos, 0xFFFF99AA, 0.F, 0);
+		}
+		aswOneScreenPixelWidth = 1250;
+		aswOneScreenPixelHeight = 1250;
+		
+		if (hitboxEditorTool == HITBOXEDITTOOL_ADD_BOX) {
+			// won't be able to add a box like this
+			boxMouseDown = false;
+		}
+		
+	}
+	
+	aswOneScreenPixelDiameter = max(aswOneScreenPixelWidth, aswOneScreenPixelHeight);
+	boxHoverRequestedCursor = -1;
+	boxHoverPart = BOXPART_NONE;
+	boxHoverOriginalIndex = -1;
+	
+	if (boxSelectArenaXStart < boxSelectArenaXEnd) {
+		boxSelectArenaXMin = boxSelectArenaXStart;
+		boxSelectArenaXMax = boxSelectArenaXEnd;
+	} else {
+		boxSelectArenaXMax = boxSelectArenaXStart;
+		boxSelectArenaXMin = boxSelectArenaXEnd;
+	}
+	
+	if (boxSelectArenaYStart < boxSelectArenaYEnd) {
+		boxSelectArenaYMin = boxSelectArenaYStart;
+		boxSelectArenaYMax = boxSelectArenaYEnd;
+	} else {
+		boxSelectArenaYMax = boxSelectArenaYStart;
+		boxSelectArenaYMin = boxSelectArenaYEnd;
+	}
+	
+	
+	if (boxMouseDown) {
+		selectedHitboxesBoxSelect.clear();
+	}
+	
+	bool shiftHeld = ImGui::IsKeyDown(ImGuiKey_LeftShift) || ImGui::IsKeyDown(ImGuiKey_RightShift)
+		|| !boxSelectingBoxesDragging
+		&& (
+			ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl)
+		);
+	
+	HitboxHolder* hitboxes = editEntity.hitboxes();
+	Hitbox* hitboxesStart = hitboxes->hitboxesStart();
+	bool showPushbox = editEntity.showPushbox();
+	
+	if (hitboxEditorTool == HITBOXEDITTOOL_SELECTION) {
+		
+		int selectedHitboxesCountWithoutPushbox = (int)selectedHitboxes.size();
+		int _pushboxOriginalIndex = pushboxOriginalIndex();
+		if (_pushboxOriginalIndex != -1 && hitboxIsSelected(_pushboxOriginalIndex)) {
+			--selectedHitboxesCountWithoutPushbox;
+		}
+		if (selectedHitboxesCountWithoutPushbox > 1 && !(boxMouseDown && boxSelectingBoxesDragging)) {
+			boxSelectProcessHitbox(lastOverallSelectionBox);
+			if (boxHoverPart == BOXPART_MIDDLE) {
+				boxHoverRequestedCursor = -1;
+				boxHoverPart = BOXPART_NONE;
+				boxHoverOriginalIndex = -1;
+			} else {
+				lastOverallSelectionBoxHoverPart = boxHoverPart;
+			}
+			selectedHitboxesBoxSelect.clear();
+		}
+		
+		// the boxSelectProcessHitbox calls in this if's body fill in the following variables:
+		//  BoxPart boxHoverPart. The hovered part of the hovered box. BOXPART_NONE if none.
+		//  int boxHoverOriginalIndex. The identifier of the hovered box. -1 if none.
+		//  ImGuiMouseCursor boxHoverRequestedCursor. The cursor to ask ImGui to set. -1 if none.
+		//  std::vector<int> selectedHitboxesBoxSelect. The boxes that are getting selected.
+		// We only call the boxSelectProcessHitbox's when mouse click first happens, or if box select is happening.
+		if (params.params.scaleX && params.params.scaleY && sortedSprite
+				&& (
+					!boxMouseDown
+					|| boxMouseDown
+					&& (
+						boxSelectingBoxesDragging
+						|| io.MouseClicked[0]
+					)
+				)
+				&& boxHoverPart == BOXPART_NONE
+		) {
+			for (BoxSelectBox& box : convertedBoxes) {
+				boxSelectProcessHitbox(box);
+			}
+		}
+		
+		if (boxHoverOriginalIndex != -2 && selectedHitboxesCountWithoutPushbox > 1 && boxHoverPart != BOXPART_NONE) {
+			boxHoverPart = BOXPART_MIDDLE;
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeAll;
+		}
+		
+		// this is for when we did not call the boxSelectProcessHitbox's - the box you originally clicked must remain selected,
+		// until you release the mouse. Unless you're doing box select
+		if (boxMouseDown && !boxSelectingBoxesDragging && !io.MouseClicked[0]
+				&& boxSelectingOriginalIndex != -1
+				&& boxSelectingOriginalIndex != -2) {
+			selectedHitboxesBoxSelect.push_back(boxSelectingOriginalIndex);
+		}
+		
+		// clicked on a box
+		if (io.MouseClicked[0] && boxMouseDown && boxHoverOriginalIndex != -1 && sortedSprite) {
+			boxResizePart = boxHoverPart;
+			boxResizeSortedSprite = sortedSprite;
+			boxSelectingBoxesDragging = false;
+			boxSelectingOriginalIndex = boxHoverOriginalIndex;
+			// back up in case you're resizing or moving the boxes
+			boxResizeOldHitboxes.resize(hitboxes->hitboxCount());
+			memcpy(boxResizeOldHitboxes.data(), hitboxesStart, boxResizeOldHitboxes.size() * sizeof (Hitbox));
+			// click on an unselected box? Select only it. The box should already be in selectedHitboxesBoxSelect, so no need to add it there
+			if (boxHoverOriginalIndex != -2 && !hitboxIsSelected(boxHoverOriginalIndex) && !shiftHeld) {
+				resetKeyboardMoveCache();
+				resetCoordsMoveCache();
+				selectedHitboxes.clear();
+				selectedHitboxes.push_back(boxHoverOriginalIndex);
+				selectedHitboxesPreBoxSelect.clear();
+				selectedHitboxesPreBoxSelect.push_back(boxHoverOriginalIndex);
+				convertedBoxes.clear();
+				editHitboxesConvertBoxes(params, editEntity, sortedSprite);
+			}
+			overallSelectionBoxOldBounds = lastOverallSelectionBox.bounds;
+			
+		} else if (!(boxMouseDown && boxSelectingBoxesDragging) && boxHoverRequestedCursor != -1 && (!boxMouseDown || boxResizePart == BOXPART_NONE)) {
+			ImGui::SetMouseCursor(boxHoverRequestedCursor);
+		}
+		
+		if (boxMouseDown && boxResizePart != BOXPART_NONE) {
+			ImGuiMouseCursor imguiCursor = (ImGuiMouseCursor)-1;
+			switch (boxResizePart) {
+				case BOXPART_MIDDLE: imguiCursor = ImGuiMouseCursor_ResizeAll; break;
+				case BOXPART_TOPLEFT: imguiCursor = ImGuiMouseCursor_ResizeNESW; break;
+				case BOXPART_TOPRIGHT: imguiCursor = ImGuiMouseCursor_ResizeNWSE; break;
+				case BOXPART_BOTTOMLEFT: imguiCursor = ImGuiMouseCursor_ResizeNWSE; break;
+				case BOXPART_BOTTOMRIGHT: imguiCursor = ImGuiMouseCursor_ResizeNESW; break;
+				case BOXPART_TOP: imguiCursor = ImGuiMouseCursor_ResizeNS; break;
+				case BOXPART_BOTTOM: imguiCursor = ImGuiMouseCursor_ResizeNS; break;
+				case BOXPART_LEFT: imguiCursor = ImGuiMouseCursor_ResizeEW; break;
+				case BOXPART_RIGHT: imguiCursor = ImGuiMouseCursor_ResizeEW; break;
+			}
+			if (imguiCursor != (ImGuiMouseCursor)-1) {
+				ImGui::SetMouseCursor(imguiCursor);
+			}
+		}
+		
+		if (boxMouseDown) {
+			resetKeyboardMoveCache();
+			resetCoordsMoveCache();
+			selectedHitboxes.clear();
+			// holding shift or clicking on one of already selected boxes keeps all boxes selected (clicking on a not yet selected box is handled earlier)
+			if (shiftHeld || boxResizePart != BOXPART_NONE) {
+				for (int i : selectedHitboxesPreBoxSelect) {
+					selectedHitboxes.push_back(i);
+				}
+			}
+			for (int i : selectedHitboxesBoxSelect) {
+				bool found = false;
+				for (int j : selectedHitboxes) {
+					if (i == j) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					selectedHitboxes.push_back(i);
+				}
+			}
+		}
+		
+	}
+	
+	// can only initiate box select if have not originated the click by clicking on a box
+	if (boxMouseDown && boxResizePart == BOXPART_NONE && !boxSelectingBoxesDragging
+				&& ImGui::IsMouseDragging(ImGuiMouseButton_Left, 3.F)) {
+		boxSelectingBoxesDragging = true;
+	}
+	
+	if (boxMouseDown && boxResizePart != BOXPART_NONE
+			&& (
+				boxSelectArenaXStart != boxSelectArenaXEnd
+				|| boxSelectArenaYStart != boxSelectArenaYEnd
+			) && sortedSprite) {
+		int hitboxCount = hitboxes->hitboxCount();
+		if ((int)boxResizeOldHitboxes.size() == hitboxCount) {
+			
+			boxResizeHappened = true;
+			
+			RECT& b = lastOverallSelectionBox.bounds;
+			b = overallSelectionBoxOldBounds;
+			
+			switch (boxResizePart) {
+				case BOXPART_MIDDLE:
+					b.left += boxSelectArenaXEnd - boxSelectArenaXStart;
+					b.top += boxSelectArenaYEnd - boxSelectArenaYStart;
+					b.right += boxSelectArenaXEnd - boxSelectArenaXStart;
+					b.bottom += boxSelectArenaYEnd - boxSelectArenaYStart;
+					break;
+				case BOXPART_TOPLEFT:
+					b.left += boxSelectArenaXEnd - boxSelectArenaXStart;
+					b.top += boxSelectArenaYEnd - boxSelectArenaYStart;
+					break;
+				case BOXPART_TOPRIGHT:
+					b.right += boxSelectArenaXEnd - boxSelectArenaXStart;
+					b.top += boxSelectArenaYEnd - boxSelectArenaYStart;
+					break;
+				case BOXPART_BOTTOMLEFT:
+					b.left += boxSelectArenaXEnd - boxSelectArenaXStart;
+					b.bottom += boxSelectArenaYEnd - boxSelectArenaYStart;
+					break;
+				case BOXPART_BOTTOMRIGHT:
+					b.right += boxSelectArenaXEnd - boxSelectArenaXStart;
+					b.bottom += boxSelectArenaYEnd - boxSelectArenaYStart;
+					break;
+				case BOXPART_LEFT:
+					b.left += boxSelectArenaXEnd - boxSelectArenaXStart;
+					break;
+				case BOXPART_RIGHT:
+					b.right += boxSelectArenaXEnd - boxSelectArenaXStart;
+					break;
+				case BOXPART_TOP:
+					b.top += boxSelectArenaYEnd - boxSelectArenaYStart;
+					break;
+				case BOXPART_BOTTOM:
+					b.bottom += boxSelectArenaYEnd - boxSelectArenaYStart;
+					break;
+			}
+			
+			
+			MoveResizeBoxesUndoHelper helper(hitboxesStart, hitboxCount, 60 * 10  /* 10 seconds */);
+			
+			boxResizeChangedSomething = false;
+			for (BoxSelectBox& box : convertedBoxes) {
+				if (hitboxIsSelected(box.originalIndex)) {
+					boxResizeProcessBox(params, hitboxesStart, box.ptr);
+				}
+			}
+			if (boxResizeChangedSomething) {
+				helper.finish();
+			}
+		}
+	}
+	
+	bool escPressed = ImGui::IsKeyPressed(ImGuiKey_Escape);
+	if (boxMouseDown && (!io.MouseDown[0] || escPressed)) {
+		if (!escPressed) {
+			if (hitboxEditorTool == HITBOXEDITTOOL_ADD_BOX) {
+				AddBoxOperation newOp;
+				newOp.fill(hitboxEditorCurrentHitboxType, params.params,
+					boxSelectArenaXStart,
+					boxSelectArenaYStart,
+					boxSelectArenaXEnd,
+					boxSelectArenaYEnd);
+				performOp(&newOp);
+			}
+			if (!boxSelectingBoxesDragging && !boxResizeHappened && hitboxEditorTool == HITBOXEDITTOOL_SELECTION && shiftHeld) {
+				for (auto i = selectedHitboxes.begin(); i != selectedHitboxes.end(); ) {
+					bool foundPre = false;
+					bool foundAfter = false;
+					int index = *i;
+					for (int j : selectedHitboxesPreBoxSelect) {
+						if (index == j) {
+							foundPre = true;
+							break;
+						}
+					}
+					for (int j : selectedHitboxesBoxSelect) {
+						if (index == j) {
+							foundAfter = true;
+							break;
+						}
+					}
+					if (foundPre && foundAfter) {
+						i = selectedHitboxes.erase(i);
+					} else {
+						++i;
+					}
+				}
+			}
+			if (!boxSelectingBoxesDragging && hitboxEditorTool == HITBOXEDITTOOL_SELECTION && !shiftHeld
+					&& boxResizePart != BOXPART_NONE && !boxResizeHappened) {
+				selectedHitboxes = selectedHitboxesBoxSelect;
+			}
+		}
+		boxMouseDown = false;
+		boxSelectingBoxesDragging = false;
+		boxResizePart = BOXPART_NONE;
+	}
+	
+	if (boxMouseDown && boxSelectingBoxesDragging && hitboxEditorTool == HITBOXEDITTOOL_ADD_BOX) {
+		DrawHitboxArrayCallParams::arenaToHitbox(params.params, boxSelectArenaXStart, boxSelectArenaYStart,
+			boxSelectArenaXEnd, boxSelectArenaYEnd, params.data.data());
+		endScene.forceFeedHitboxes(params);
+	}
+	
+}
+
+void UI::boxSelectProcessHitbox(BoxSelectBox& box) {
+	RECT* rect = &box.bounds;
+	
+	bool isPoint = rect->right - rect->left < 1500
+		|| rect->bottom - rect->top < 1500;
+	
+	unsigned int imprecision = (unsigned int)aswOneScreenPixelDiameter * 4;
+	
+	bool hit = false;
+	
+	if (!(boxMouseDown && boxSelectingBoxesDragging) && !isPoint && !box.isPushbox) {
+		
+		if (
+			dist(
+				boxSelectArenaXEnd,
+				boxSelectArenaYEnd,
+				rect->left,
+				rect->top
+			) <= imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeNESW;
+			boxHoverPart = BOXPART_TOPLEFT;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		} else if (
+			dist(
+				boxSelectArenaXEnd,
+				boxSelectArenaYEnd,
+				rect->right,
+				rect->top
+			) <= imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeNWSE;
+			boxHoverPart = BOXPART_TOPRIGHT;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		} else if (
+			dist(
+				boxSelectArenaXEnd,
+				boxSelectArenaYEnd,
+				rect->left,
+				rect->bottom
+			) <= imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeNWSE;
+			boxHoverPart = BOXPART_BOTTOMLEFT;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		} else if (
+			dist(
+				boxSelectArenaXEnd,
+				boxSelectArenaYEnd,
+				rect->right,
+				rect->bottom
+			) <= imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeNESW;
+			boxHoverPart = BOXPART_BOTTOMRIGHT;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		} else if (
+			(unsigned int)abs(boxSelectArenaYEnd - rect->top) <= imprecision
+			&& boxSelectArenaXEnd >= rect->left - (int)imprecision
+			&& boxSelectArenaXEnd < rect->right + (int)imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeNS;
+			boxHoverPart = BOXPART_TOP;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		} else if (
+			(unsigned int)abs(boxSelectArenaYEnd - rect->bottom) <= imprecision
+			&& boxSelectArenaXEnd >= rect->left - (int)imprecision
+			&& boxSelectArenaXEnd < rect->right + (int)imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeNS;
+			boxHoverPart = BOXPART_BOTTOM;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		} else if (
+			(unsigned int)abs(boxSelectArenaXEnd - rect->left) <= imprecision
+			&& boxSelectArenaYEnd >= rect->top - (int)imprecision
+			&& boxSelectArenaYEnd < rect->bottom + (int)imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeEW;
+			boxHoverPart = BOXPART_LEFT;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		} else if (
+			(unsigned int)abs(boxSelectArenaXEnd - rect->right) <= imprecision
+			&& boxSelectArenaYEnd >= rect->top - (int)imprecision
+			&& boxSelectArenaYEnd < rect->bottom + (int)imprecision
+		) {
+			boxHoverRequestedCursor = ImGuiMouseCursor_ResizeEW;
+			boxHoverPart = BOXPART_RIGHT;
+			boxHoverOriginalIndex = box.originalIndex;
+			hit = true;
+		}
+		
+	}
+	
+	if (!hit
+		&& (
+			rect->left < boxSelectArenaXMax && rect->right >= boxSelectArenaXMin
+			&& rect->top < boxSelectArenaYMax && rect->bottom >= boxSelectArenaYMin
+			|| (
+				isPoint
+				&& dist(
+					boxSelectArenaXEnd,
+					boxSelectArenaYEnd,
+					(rect->right + rect->left) >> 1,
+					(rect->bottom + rect->top) >> 1
+				) <= imprecision
+			)
+		)
+	) {
+		hit = true;
+		if (!box.isPushbox) {
+			boxHoverOriginalIndex = box.originalIndex;
+			if (!(boxMouseDown && boxSelectingBoxesDragging)) {
+				boxHoverRequestedCursor = ImGuiMouseCursor_ResizeAll;
+				boxHoverPart = BOXPART_MIDDLE;
+			}
+		}
+	}
+	
+	if (hit) {
+		if (boxMouseDown) {
+			if (!boxSelectingBoxesDragging && !box.isPushbox) selectedHitboxesBoxSelect.clear();
+			selectedHitboxesBoxSelect.push_back(box.originalIndex);
+		}
+	}
+}
+
+bool UI::hitboxIsSelectedForEndScene(int originalIndex) const {
+	return hitboxIsSelected(originalIndex);
+}
+
+// Algorithm taken from the Guilty Gear executable via reverse engineering! See BBScript instruction called 'calcDistance'
+// COPYRIGHT OWNED BY ARCSYS (we have no permission to copy this algorithm!)
+unsigned int UI::dist(int x1, int y1, int x2, int y2) {
+	int distX = (x2 - x1) / 100;
+	int distY = (y2 - y1) / 100;
+	unsigned int distPow2 = distX * distX + distY * distY;
+	if (distPow2 != 0) {
+		unsigned int i = 1;
+		unsigned int p = distPow2;
+		if (distPow2 > 1) {
+			do {
+				i <<= 1;
+				p >>= 1;
+			} while (i < p);
+		}
+		do {
+			p = i;
+			// wait, if we're dividing by p IN A LOOP, how is this faster?
+			i = (p + distPow2 / p) >> 1;
+		} while (i < p);
+		return p * 100;
+	}
+	return 0;
+}
+
+bool UI::hitboxIsSelectedPreBoxSelect(int originalIndex) const {
+	for (int i : selectedHitboxesPreBoxSelect) {
+		if (i == originalIndex) return true;
+	}
+	return false;
+}
+
+void UI::getMousePos(float* pos) const {
+	const ImVec2& imguiPos = ImGui::GetIO().MousePos;
+	pos[0] = imguiPos.x;
+	pos[1] = imguiPos.y;
+}
+
+void UI::hitboxEditProcessBackground() {
+	hitboxEditProcessKeyboardShortcuts();
+	hitboxEditProcessPressedCommands();
+}
+
+void UI::hitboxEditProcessKeyboardShortcuts() {
+	if (keyboard.gotPressed(settings.hitboxEditModeToggle)) {
+		hitboxEditPressedToggleEditMode = true;
+		hitboxEditPressedToggleEditMode_isOn = !gifMode.editHitboxes;
+	}
+	if (gifMode.editHitboxes && gifMode.editHitboxesEntity) {
+		if (keyboard.gotPressed(settings.hitboxEditAddSpriteHotkey)) {
+			hitboxEditNewSpritePressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditDeleteSpriteHotkey)) {
+			hitboxEditDeleteSpritePressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditRenameSpriteHotkey)) {
+			hitboxEditRenameSpritePressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditSelectionToolHotkey)) {
+			hitboxEditSelectionToolPressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditAddHitboxHotkey)) {
+			hitboxEditRectToolPressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditDeleteSelectedHitboxesHotkey)) {
+			hitboxEditRectDeletePressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditUndoHotkey)) {
+			hitboxEditUndoPressed = true;
+		}
+		if (keyboard.gotPressed(settings.hitboxEditRedoHotkey)) {
+			hitboxEditRedoPressed = true;
+		}
+	}
+}
+
+void UI::hitboxEditProcessPressedCommands() {
+	if (hitboxEditPressedToggleEditMode) {
+		if (hitboxEditPressedToggleEditMode_isOn) {
+			startHitboxEditMode();
+		} else {
+			stopHitboxEditMode();
+		}
+	}
+	
+	if (gifMode.editHitboxes && gifMode.editHitboxesEntity) {
+		
+		Entity editEntity = Entity{gifMode.editHitboxesEntity};
+		
+		REDPawn* pawnWorld = editEntity.pawnWorld();
+		FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()];
+		SortedSprite* currentSpriteElement = hitboxEditFindCurrentSprite();
+		
+		if (hitboxEditNewSpritePressed) {
+			AddSpriteOperation newOp;
+			newOp.fill();
+			performOp(&newOp);
+		}
+		
+		if (hitboxEditDeleteSpritePressed) {
+			DeleteSpriteOperation newOp;
+			newOp.fill();
+			performOp(&newOp);
+		}
+		
+		if (hitboxEditRenameSpritePressed) {
+			if (!currentSpriteElement) {
+				showErrorDlgS("Can't rename the 'null' sprite.");
+			} else {
+				ImGui::OpenPopup("Rename Sprite");
+				const char* oldName = currentSpriteElement->newName[0] ? currentSpriteElement->newName : currentSpriteElement->name;
+				memcpy(renameSpriteBuf, oldName, 32);
+			}
+		}
+		
+		if (hitboxEditSelectionToolPressed) {
+			hitboxEditorTool = HITBOXEDITTOOL_SELECTION;
+			boxMouseDown = false;
+		}
+		
+		if (hitboxEditRectToolPressed) {
+			hitboxEditorTool = HITBOXEDITTOOL_ADD_BOX;
+			boxMouseDown = false;
+		}
+		
+		if (hitboxEditRectDeletePressed && !selectedHitboxes.empty() && currentSpriteElement) {
+			DeleteLayersOperation newOp;
+			newOp.fill();
+			performOp(&newOp);
+		}
+		
+		if (hitboxEditUndoPressed) {
+			ThreadUnsafeSharedPtr<UndoOperationBase> undoOp = undoRingBuffer[undoRingBufferIndex];
+			if (undoOp) {
+				undoRingBuffer[undoRingBufferIndex] = nullptr;
+				--undoRingBufferIndex;
+				if (undoRingBufferIndex < 0) {
+					undoRingBufferIndex = (int)undoRingBuffer.size() - 1;
+				}
+				ThreadUnsafeSharedPtr<UndoOperationBase>& redoOp = allocateRedo();
+				undoOp->restoreView();
+				if (!undoOp->perform(&redoOp)) {
+					--redoRingBufferIndex;
+					if (redoRingBufferIndex < 0) {
+						redoRingBufferIndex = (int)redoRingBuffer.size() - 1;
+					}
+				}
+			}
+		}
+		
+		if (hitboxEditRedoPressed) {
+			ThreadUnsafeSharedPtr<UndoOperationBase> redoOp = redoRingBuffer[redoRingBufferIndex];
+			if (redoOp) {
+				redoRingBuffer[redoRingBufferIndex] = nullptr;
+				--redoRingBufferIndex;
+				if (redoRingBufferIndex < 0) {
+					redoRingBufferIndex = (int)redoRingBuffer.size() - 1;
+				}
+				ThreadUnsafeSharedPtr<UndoOperationBase>& undoOp = allocateUndo();
+				redoOp->restoreView();
+				if (!redoOp->perform(&undoOp)) {
+					--undoRingBufferIndex;
+					if (undoRingBufferIndex < 0) {
+						undoRingBufferIndex = (int)undoRingBuffer.size() - 1;
+					}
+				}
+			}
+		}
+		
+		if (ImGui::BeginPopup("Name Clash")) {
+			popupsOpen = true;
+			ImGui::PushTextWrapPos(0.F);
+			sprintf_s(strbuf, "The entered name, '%s', has a hash that clashes with another name's hash. Please pick a different name.", renameSpriteBuf);
+			ImGui::TextUnformatted(strbuf);
+			ImGui::PopTextWrapPos();
+			ImGui::EndPopup();
+		}
+		
+		bool nameClash = false;
+		if (ImGui::BeginPopup("Rename Sprite")) {
+			popupsOpen = true;
+			ImGui::TextUnformatted("New Name:");
+			ImGui::SameLine();
+			
+			struct MyCallback {
+				static int callback(ImGuiInputTextCallbackData* data) {
+					if (data->EventFlag == ImGuiInputTextFlags_CallbackCharFilter) {
+						if (data->EventChar <= 32 || data->EventChar > 126) {
+							return 1;
+						}
+					}
+					return 0;
+				}
+			};
+			
+			ImGui::InputText("##NewName", renameSpriteBuf, 32, ImGuiInputTextFlags_CallbackCharFilter, MyCallback::callback);
+			imguiActiveTemp = imguiActiveTemp || ImGui::IsItemActive();
+			if (ImGui::IsWindowAppearing()) {
+				ImGui::SetKeyboardFocusHere(-1);
+			}
+			
+			if (ImGui::Button("Save") || ImGui::IsKeyDown(ImGuiKey_Enter)) {
+				if (currentSpriteElement) {
+					RenameSpriteOperation newOp;
+					int len = strlen(renameSpriteBuf);
+					if (len < 32) memset(renameSpriteBuf + len, 0, 32 - len);
+					newOp.fill(renameSpriteBuf);
+					if (!performOp(&newOp)) nameClash = true;
+				}
+				ImGui::CloseCurrentPopup();
+			}
+			
+			ImGui::EndPopup();
+		}
+		if (nameClash) {
+			ImGui::OpenPopup("Name Clash");
+		}
+	}
+	
+	hitboxEditPressedToggleEditMode = false;
+	hitboxEditNewSpritePressed = false;
+	hitboxEditDeleteSpritePressed = false;
+	hitboxEditRenameSpritePressed = false;
+	hitboxEditSelectionToolPressed = false;
+	hitboxEditRectToolPressed = false;
+	hitboxEditRectDeletePressed = false;
+	hitboxEditUndoPressed = false;
+	hitboxEditRedoPressed = false;
+}
+
+SortedSprite* UI::hitboxEditFindCurrentSprite() {
+	
+	if (!gifMode.editHitboxes || !gifMode.editHitboxesEntity) return nullptr;
+	
+	Entity editEntity{gifMode.editHitboxesEntity};
+	return hitboxEditFindCurrentSprite(editEntity);
+}
+
+SortedSprite* UI::hitboxEditFindCurrentSprite(Entity ent) {
+	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[ent.bbscrIndexInAswEng()];
+	
+	DWORD currentSpriteHash = Entity::hashStringLowercase(ent.spriteName());
+	SortedSprite* currentSpriteElement;
+	auto currentSpriteIt = secondaryData.oldNameToSortedSpriteIndex.find(currentSpriteHash);
+	if (currentSpriteIt == secondaryData.oldNameToSortedSpriteIndex.end()) {
+		currentSpriteElement = nullptr;
+	} else {
+		currentSpriteElement = &secondaryData.sortedSprites[currentSpriteIt->second];
+	}
+	
+	return currentSpriteElement;
+}
+
+const char* UI::getSpriteRepr(SortedSprite* sortedSprite) {
+	if (!sortedSprite) {
+		static const char nullSpriteName[32] = "null";
+		return nullSpriteName;
+	}
+	return sortedSprite->repr();
+}
+
+BoxPart UI::hitboxHoveredPart(int hitboxIndex) const {
+	if (boxMouseDown && boxResizePart != BOXPART_NONE) {
+		if (hitboxIndex == boxSelectingOriginalIndex) {
+			return boxResizePart;
+		}
+		return BOXPART_NONE;
+	}
+	if (hitboxIndex == boxHoverOriginalIndex) {
+		return boxHoverPart;
+	}
+	return BOXPART_NONE;
+}
+
+void UI::boxResizeProcessBox(DrawHitboxArrayCallParams& params, Hitbox* hitboxesStart, Hitbox* ptr) {
+	Hitbox newData;
+	int index = ptr - hitboxesStart;
+	RECT oldBounds;
+	if (index >= 0 && index < (int)boxResizeOldHitboxes.size()) {
+		oldBounds = params.getWorldBounds(
+			boxResizeOldHitboxes[ptr - hitboxesStart]
+		);
+	} else {
+		return;
+	}
+	
+	if (overallSelectionBoxOldBounds.right != overallSelectionBoxOldBounds.left) {
+		oldBounds.left = (int)std::roundf(
+			(float)lastOverallSelectionBox.bounds.left / 100.F
+			+ (float)(oldBounds.left - overallSelectionBoxOldBounds.left) / 100.F
+			* (float)(lastOverallSelectionBox.bounds.right - lastOverallSelectionBox.bounds.left)
+			/ (float)(overallSelectionBoxOldBounds.right - overallSelectionBoxOldBounds.left)
+		) * 100;
+		
+		oldBounds.right = (int)std::roundf(
+			(float)lastOverallSelectionBox.bounds.left / 100.F
+			+ (float)(oldBounds.right - overallSelectionBoxOldBounds.left) / 100.F
+			* (float)(lastOverallSelectionBox.bounds.right - lastOverallSelectionBox.bounds.left)
+			/ (float)(overallSelectionBoxOldBounds.right - overallSelectionBoxOldBounds.left)
+		) * 100;
+	} else {
+		oldBounds.left += boxSelectArenaXEnd - boxSelectArenaXStart;
+		oldBounds.right += boxSelectArenaXEnd - boxSelectArenaXStart;
+	}
+	
+	if (overallSelectionBoxOldBounds.bottom != overallSelectionBoxOldBounds.top) {
+		oldBounds.top = (int)std::roundf(
+			(float)lastOverallSelectionBox.bounds.top / 100.F
+			+ (float)(oldBounds.top - overallSelectionBoxOldBounds.top) / 100.F
+			* (float)(lastOverallSelectionBox.bounds.bottom - lastOverallSelectionBox.bounds.top)
+			/ (float)(overallSelectionBoxOldBounds.bottom - overallSelectionBoxOldBounds.top)
+		) * 100;
+		
+		oldBounds.bottom = (int)std::roundf(
+			(float)lastOverallSelectionBox.bounds.top / 100.F
+			+ (float)(oldBounds.bottom - overallSelectionBoxOldBounds.top) / 100.F
+			* (float)(lastOverallSelectionBox.bounds.bottom - lastOverallSelectionBox.bounds.top)
+			/ (float)(overallSelectionBoxOldBounds.bottom - overallSelectionBoxOldBounds.top)
+		) * 100;
+	} else {
+		oldBounds.top += boxSelectArenaYEnd - boxSelectArenaYStart;
+		oldBounds.bottom += boxSelectArenaYEnd - boxSelectArenaYStart;
+	}
+	
+	DrawHitboxArrayCallParams::arenaToHitbox(params.params,
+		oldBounds.left,
+		oldBounds.top,
+		oldBounds.right,
+		oldBounds.bottom,
+		&newData);
+	if (newData.offX != ptr->offX
+			|| newData.offY != ptr->offY) {
+		boxResizeChangedSomething = true;
+	}
+	ptr->offX = newData.offX;
+	ptr->offY = newData.offY;
+	if (boxResizePart != BOXPART_MIDDLE) {
+		if (newData.sizeX != ptr->sizeX
+				|| newData.sizeY != ptr->sizeY) {
+			boxResizeChangedSomething = true;
+		}
+		ptr->sizeX = newData.sizeX;
+		ptr->sizeY = newData.sizeY;
+	}
+}
+
+bool UI::hasOverallSelectionBox(RECT* bounds, BoxPart* hoverPart) {
+	
+	int selectedHitboxesCountWithoutPushbox = (int)selectedHitboxes.size();
+	int _pushboxOriginalIndex = pushboxOriginalIndex();
+	if (_pushboxOriginalIndex != -1 && hitboxIsSelected(_pushboxOriginalIndex)) {
+		--selectedHitboxesCountWithoutPushbox;
+	}
+	
+	if (selectedHitboxesCountWithoutPushbox > 1 && lastOverallSelectionBoxReady) {
+		*bounds = lastOverallSelectionBox.bounds;
+		*hoverPart = lastOverallSelectionBoxHoverPart;
+		return true;
+	}
+	return false;
+}
+
+void UI::editHitboxesProcessControls() {
+	editHitboxesProcessCamera();
+	editHitboxesProcessHitboxMoving();
+}
+
+void UI::editHitboxesProcessCamera() {
+	float cameraVertical = 0.F;
+	float cameraHorizontal = 0.F;
+	float cameraPerpendicular = 0.F;
+	if (keyboard.isHeld(settings.hitboxEditMoveCameraUp)) {
+		cameraVertical += keyboard.moveAmount(settings.hitboxEditMoveCameraUp, MULTIPLICATION_GOAL_CAMERA_MOVE);
+	}
+	if (keyboard.isHeld(settings.hitboxEditMoveCameraDown)) {
+		cameraVertical -= keyboard.moveAmount(settings.hitboxEditMoveCameraDown, MULTIPLICATION_GOAL_CAMERA_MOVE);
+	}
+	if (keyboard.isHeld(settings.hitboxEditMoveCameraLeft)) {
+		cameraHorizontal -= keyboard.moveAmount(settings.hitboxEditMoveCameraLeft, MULTIPLICATION_GOAL_CAMERA_MOVE);
+	}
+	if (keyboard.isHeld(settings.hitboxEditMoveCameraRight)) {
+		cameraHorizontal += keyboard.moveAmount(settings.hitboxEditMoveCameraRight, MULTIPLICATION_GOAL_CAMERA_MOVE);
+	}
+	if (keyboard.isHeld(settings.hitboxEditMoveCameraForward)) {
+		cameraPerpendicular -= keyboard.moveAmount(settings.hitboxEditMoveCameraForward, MULTIPLICATION_GOAL_CAMERA_MOVE);
+	}
+	if (keyboard.isHeld(settings.hitboxEditMoveCameraBack)) {
+		cameraPerpendicular += keyboard.moveAmount(settings.hitboxEditMoveCameraBack, MULTIPLICATION_GOAL_CAMERA_MOVE);
+	}
+	if (camera.editHitboxesViewDistance < 300.F) {
+		float coeff = camera.editHitboxesViewDistance / 300.F;
+		cameraHorizontal *= coeff * settings.hitboxEditMoveCameraHorizontalSpeedMultiplier;
+		cameraVertical *= coeff * settings.hitboxEditMoveCameraVerticalSpeedMultiplier;
+		cameraPerpendicular *= coeff * settings.hitboxEditMoveCameraPerpendicularSpeedMultiplier;
+	}
+	if (cameraPerpendicular && settings.hitboxEditZoomOntoMouseCursor) {
+		EndScene::HitboxEditorCameraValues& vals = endScene.hitboxEditorCameraValues;
+		Entity editEntity{gifMode.editHitboxesEntity};
+		if (vals.prepare(editEntity)) {
+			float screenWidthUE3_beforeMove = vals.screenWidthASW / vals.m;
+			float screenHeightUE3_beforeMove = vals.screenHeightASW / vals.m;
+			float cam_xUE3_beforeMove = vals.cam_xASW / vals.m;
+			float cam_zUE3_beforeMove = vals.cam_zASW / vals.m;
+			float cursor[2];
+			ui.getMousePos(cursor);
+			if (cursor[0] >= 0.F && cursor[0] <= vals.vw
+					&& cursor[1] >= 0.F && cursor[1] <= vals.vh) {
+				float cam_yafterMove = vals.cam_y + cameraPerpendicular;
+				// cursor mapped to from -1 to 1
+				float cursor1x = ((cursor[0] - vals.vw * 0.5F) / vals.vw * 2.F);
+				float cursor1y = -((cursor[1] - vals.vh * 0.5F) / vals.vh * 2.F);
+				float xCoeffUE3_beforeMove = 1.F / vals.t * vals.cam_y;
+				float yCoeffUE3_beforeMove = 1.F / vals.t  / vals.vw * vals.vh * vals.cam_y;
+				float xCoeffUE3_afterMove = 1.F / vals.t * cam_yafterMove;
+				float yCoeffUE3_afterMove = 1.F / vals.t  / vals.vw * vals.vh * cam_yafterMove;
+				float cursor_xUE3_beforeMove = cursor1x * xCoeffUE3_beforeMove;
+				float cursor_yUE3_beforeMove = cursor1y * yCoeffUE3_beforeMove;
+				float cursor_xUE3_afterMove = cursor1x * xCoeffUE3_afterMove;
+				float cursor_yUE3_afterMove = cursor1y * yCoeffUE3_afterMove;
+				float cursorMoveDistX = cursor_xUE3_afterMove - cursor_xUE3_beforeMove;
+				float cursorMoveDistY = cursor_yUE3_afterMove - cursor_yUE3_beforeMove;
+				cameraHorizontal -= cursorMoveDistX;
+				cameraVertical -= cursorMoveDistY;
+			}
+		}
+	}
+	camera.editHitboxesOffsetX += cameraHorizontal;
+	camera.editHitboxesOffsetY += cameraVertical;
+	camera.editHitboxesViewDistance += cameraPerpendicular;
+	if (camera.editHitboxesViewDistance < 1.F) {
+		camera.editHitboxesViewDistance = 1.F;
+	}
+}
+
+static bool keyHeldWithRepeatCount(int* repeatCount, const std::vector<int>& keyCombo) {
+	if (keyboard.gotPressed(keyCombo)) {
+		*repeatCount = 1;
+		return true;
+	}
+	if (*repeatCount == 0) return false;
+	bool isHeld = keyboard.isHeld(keyCombo);
+	if (!isHeld) {
+		*repeatCount = 0;
+		return false;
+	}
+	if (*repeatCount >= 20) {
+		return true;
+	}
+	++*repeatCount;
+	return false;
+}
+
+static bool anythingDiffersExceptBounds(const std::vector<UI::BoxSelectBox>& left, const std::vector<UI::BoxSelectBox>& right) {
+	int count = (int)left.size();
+	if (count != (int)right.size()) return true;
+	
+	const UI::BoxSelectBox* boxLeft = left.data();
+	const UI::BoxSelectBox* boxRight = right.data();
+	for (int i = 0; i < count; ++i) {
+		if (memcmp(boxLeft, boxRight, sizeof EditedHitbox) != 0) return true;
+		++boxLeft;
+		++boxRight;
+	}
+	return false;
+}
+
+void UI::editHitboxesProcessHitboxMoving() {
+	
+	static int repeatCounts[4*4] { 0 };
+	
+	struct OnExit {
+		~OnExit() {
+			if (!reachedUsefulPart) {
+				memset(repeatCounts, 0, sizeof repeatCounts);
+				ui.keyboardMoveEntity = nullptr;
+				ui.keyboardMoveSprite = nullptr;
+			}
+		}
+		bool reachedUsefulPart = false;
+	} onExit;
+	
+	if (!gifMode.editHitboxes || !gifMode.editHitboxesEntity
+		|| selectedHitboxes.empty()) return;
+	
+	int selectedHitboxesCountWithoutPushbox = (int)selectedHitboxes.size();
+	int _pushboxOriginalIndex = pushboxOriginalIndex();
+	if (_pushboxOriginalIndex != -1 && hitboxIsSelected(_pushboxOriginalIndex)) {
+		--selectedHitboxesCountWithoutPushbox;
+	}
+	
+	if (selectedHitboxesCountWithoutPushbox == 0) return;
+	
+	Entity editEntity{gifMode.editHitboxesEntity};
+	SortedSprite* sortedSprite = hitboxEditFindCurrentSprite();
+	if (!sortedSprite) return;
+	
+	if (editEntity.scaleX() == 0 || editEntity.scaleY() == 0) return;
+	
+	DrawHitboxArrayCallParams params;
+	editHitboxesFillParams(params, editEntity);
+	
+	onExit.reachedUsefulPart = true;
+	
+	std::vector<BoxSelectBox> currentConvertedBoxes;
+	
+	LayerIterator layerIterator(editEntity, sortedSprite);
+	currentConvertedBoxes.reserve(layerIterator.count());
+	while (layerIterator.getNext()) {
+		if (settings.hitboxList[layerIterator.type].show && !layerIterator.isPushbox && hitboxIsSelected(layerIterator.originalIndex)) {
+			currentConvertedBoxes.emplace_back();
+			BoxSelectBox& newBox = currentConvertedBoxes.back();
+			layerIterator.copyTo(&newBox);
+			newBox.bounds = params.getWorldBounds(*layerIterator.ptr);
+		}
+	}
+	
+	int moveX = 0;
+	int moveY = 0;
+	if (keyHeldWithRepeatCount(repeatCounts + 0, settings.hitboxEditMoveHitboxesUp)) {
+		moveY -= settings.hitboxEditMoveHitboxesNormalAmount;
+	}
+	if (keyHeldWithRepeatCount(repeatCounts + 1, settings.hitboxEditMoveHitboxesDown)) {
+		moveY += settings.hitboxEditMoveHitboxesNormalAmount;
+	}
+	if (keyHeldWithRepeatCount(repeatCounts + 2, settings.hitboxEditMoveHitboxesLeft)) {
+		moveX -= settings.hitboxEditMoveHitboxesNormalAmount;
+	}
+	if (keyHeldWithRepeatCount(repeatCounts + 3, settings.hitboxEditMoveHitboxesRight)) {
+		moveX += settings.hitboxEditMoveHitboxesNormalAmount;
+	}
+	if (keyHeldWithRepeatCount(repeatCounts + 4, settings.hitboxEditMoveHitboxesALotUp)) {
+		moveY -= settings.hitboxEditMoveHitboxesLargeAmount;
+	}
+	if (keyHeldWithRepeatCount(repeatCounts + 5, settings.hitboxEditMoveHitboxesALotDown)) {
+		moveY += settings.hitboxEditMoveHitboxesLargeAmount;
+	}
+	if (keyHeldWithRepeatCount(repeatCounts + 6, settings.hitboxEditMoveHitboxesALotLeft)) {
+		moveX -= settings.hitboxEditMoveHitboxesLargeAmount;
+	}
+	if (keyHeldWithRepeatCount(repeatCounts + 7, settings.hitboxEditMoveHitboxesALotRight)) {
+		moveX += settings.hitboxEditMoveHitboxesLargeAmount;
+	}
+	
+	if (DrawHitboxArrayCallParams::willFlipWidthAndHeight(editEntity.pitch())) {
+		moveX *= editEntity.scaleY() / 1000;
+		moveY *= editEntity.scaleX() / 1000;
+	} else {
+		moveX *= editEntity.scaleX() / 1000;
+		moveY *= editEntity.scaleY() / 1000;
+	}
+	
+	if (moveX == 0 && moveY == 0) return;
+	
+	if (editEntity != keyboardMoveEntity || sortedSprite != keyboardMoveSprite
+			|| anythingDiffersExceptBounds(currentConvertedBoxes, keyboardMoveBackupBoxes)) {
+		for (int i = 0; i < _countof(repeatCounts); ++i) {
+			int repeatCount = repeatCounts[i];
+			if (repeatCount != 1) repeatCounts[i] = 0;
+		}
+		resetKeyboardMoveCache();
+		resetCoordsMoveCache();
+		keyboardMoveEntity = editEntity;
+		keyboardMoveSprite = sortedSprite;
+		keyboardMoveBackupBoxes.clear();
+		keyboardMoveBackupBoxes.reserve(currentConvertedBoxes.size());
+		for (BoxSelectBox& box : currentConvertedBoxes) {
+			if (hitboxIsSelected(box.originalIndex)) {
+				keyboardMoveBackupBoxes.push_back(box);
+			}
+		}
+	}
+	
+	keyboardMoveX += moveX;
+	keyboardMoveY += moveY;
+	
+	HitboxHolder* hitboxes = editEntity.hitboxes();
+	Hitbox* hitboxesStart = hitboxes->hitboxesStart();
+	
+	int hitboxCount = hitboxes->hitboxCount();
+	
+	MoveResizeBoxesUndoHelper helper(hitboxesStart, hitboxCount, 60 * 10  /* 10 seconds */);
+	bool actuallyMovedSomething = false;
+	
+	for (BoxSelectBox& box : keyboardMoveBackupBoxes) {
+		if (hitboxIsSelected(box.originalIndex)) {
+			Hitbox newData;
+			DrawHitboxArrayCallParams::arenaToHitbox(params.params,
+				box.bounds.left + keyboardMoveX,
+				box.bounds.top - keyboardMoveY,
+				box.bounds.right + keyboardMoveX,
+				box.bounds.bottom - keyboardMoveY,
+				&newData);
+			actuallyMovedSomething = actuallyMovedSomething || box.ptr->offX != newData.offX
+				|| box.ptr->offY != newData.offY;
+			box.ptr->offX = newData.offX;
+			box.ptr->offY = newData.offY;
+		}
+	}
+	
+	if (actuallyMovedSomething) {
+		helper.finish();
+	}
+	
+}
+
+void UI::editHitboxesConvertBoxes(DrawHitboxArrayCallParams& params, Entity editEntity, SortedSprite* sortedSprite) {
+	lastOverallSelectionBox.isPushbox = false;
+	lastOverallSelectionBox.originalIndex = -2;
+	lastOverallSelectionBoxReady = false;
+	
+	LayerIterator layerIterator(editEntity, sortedSprite);
+	convertedBoxes.reserve(layerIterator.count());
+	while (layerIterator.getNext()) {
+		if (settings.hitboxList[layerIterator.type].show && !layerIterator.isPushbox) {
+			convertedBoxes.emplace_back();
+			BoxSelectBox& newBox = convertedBoxes.back();
+			layerIterator.copyTo(&newBox);
+			newBox.bounds = params.getWorldBounds(*layerIterator.ptr);
+			if (hitboxIsSelected(layerIterator.originalIndex)) {
+				if (!lastOverallSelectionBoxReady) {
+					lastOverallSelectionBoxReady = true;
+					lastOverallSelectionBox.bounds = newBox.bounds;
+				} else {
+					combineBounds(lastOverallSelectionBox.bounds, newBox.bounds);
+				}
+			}
+		}
+	}
+	
+	convertedBoxesPrepared = true;
+	
+}
+
+void UI::editHitboxesFillParams(DrawHitboxArrayCallParams& params, Entity editEntity) {
+	params.params.posX = editEntity.posX();
+	params.params.posY = editEntity.posY();
+	params.params.angle = editEntity.pitch();
+	params.params.flip = editEntity.isFacingLeft() ? 1 : -1;
+	params.params.scaleX = editEntity.scaleX();
+	params.params.scaleY = editEntity.scaleY();
+	params.params.transformCenterX = editEntity.transformCenterX();
+	params.params.transformCenterY = editEntity.transformCenterY();
+	params.data.resize(1);
+	params.fillColor = replaceAlpha(64, settings.hitboxList[hitboxEditorCurrentHitboxType].color);
+	params.outlineColor = replaceAlpha(255, params.fillColor);
+	params.thickness = 1;
+}
+
+int UI::pushboxOriginalIndex() {
+	if (!gifMode.editHitboxes || !gifMode.editHitboxesEntity) return -1;
+	Entity editEntity{gifMode.editHitboxesEntity};
+	if (!editEntity.showPushbox()) return -1;
+	const SortedSprite* sortedSprite = hitboxEditFindCurrentSprite();
+	if (!sortedSprite) return -1;
+	if (sortedSprite->layers) {
+		EditedHitbox* layer = sortedSprite->layers;
+		for (int i = 0; i < (int)sortedSprite->layersSize; ++i) {
+			if (layer->isPushbox) return layer->originalIndex;
+			++layer;
+		}
+		return -1;
+	} else {
+		HitboxHolder* hitboxes = editEntity.hitboxes();
+		int overallHitboxIndex = 0;
+		for (int hitboxType = 0; hitboxType < HITBOXTYPE_PUSHBOX; ++hitboxType) {
+			overallHitboxIndex += hitboxes->count[hitboxType];
+		}
+		return overallHitboxIndex + hitboxes->count[HITBOXTYPE_PUSHBOX];
+	}
+}
+
+void UI::resetKeyboardMoveCache() {
+	keyboardMoveX = 0;
+	keyboardMoveY = 0;
+	keyboardMoveEntity = nullptr;
+	keyboardMoveSprite = nullptr;
+}
+
+void UI::editHitboxesChangeView(Entity newEditEntity) {
+	if (newEditEntity == gifMode.editHitboxesEntity) return;
+	gifMode.editHitboxesEntity = newEditEntity;
+	selectedHitboxes.clear();
+	restartHitboxEditMode();
+}
+
+UI::SortedAnimSeq::SortedAnimSeq(FName fname, const char* str) : fname(fname) {
+	char* ptr = buf;
+	size_t bufSize = sizeof buf - 1;  // reserve one char for null
+	while (bufSize) {
+		*ptr = *str;
+		--bufSize;
+		++ptr;
+		if (*str == '\0') {
+			break;
+		}
+		++str;
+	}
+	++bufSize;
+	memset(ptr, 0, bufSize);
+}
+
+void UI::castrateUndos() {
+	while (undoRingBuffer[undoRingBufferIndex]) {
+		undoRingBuffer[undoRingBufferIndex] = nullptr;
+		--undoRingBufferIndex;
+		if (undoRingBufferIndex < 0) {
+			undoRingBufferIndex = (int)undoRingBuffer.size() - 1;
+		}
+	}
+}
+
+void UI::castrateRedos() {
+	while (redoRingBuffer[redoRingBufferIndex]) {
+		redoRingBuffer[redoRingBufferIndex] = nullptr;
+		--redoRingBufferIndex;
+		if (redoRingBufferIndex < 0) {
+			redoRingBufferIndex = (int)redoRingBuffer.size() - 1;
+		}
+	}
+}
+
+ThreadUnsafeSharedPtr<UndoOperationBase>& UI::allocateUndo() {
+	// this will spawn the very first ever element at index 1
+	++undoRingBufferIndex;
+	if (undoRingBufferIndex >= (int)undoRingBuffer.size()) {
+		undoRingBufferIndex = 0;
+	}
+	return undoRingBuffer[undoRingBufferIndex];
+}
+
+ThreadUnsafeSharedPtr<UndoOperationBase>& UI::allocateRedo() {
+	// this will spawn the very first ever element at index 1
+	++redoRingBufferIndex;
+	if (redoRingBufferIndex >= (int)redoRingBuffer.size()) {
+		redoRingBufferIndex = 0;
+	}
+	return redoRingBuffer[redoRingBufferIndex];
+}
+
+bool UI::performOp(UndoOperationBase* op) {
+	ThreadUnsafeSharedPtr<UndoOperationBase>& oldOp = undoRingBuffer[undoRingBufferIndex];
+	if (oldOp && oldOp->combine(*op)) {
+		castrateRedos();
+		return true;
+	}
+	ThreadUnsafeSharedPtr<UndoOperationBase>& undoOp = allocateUndo();
+	if (!op->perform(&undoOp)) {
+		--undoRingBufferIndex;
+		if (undoRingBufferIndex < 0) {
+			undoRingBufferIndex = (int)undoRingBuffer.size() - 1;
+		}
+		return false;
+	}
+	castrateRedos();
+	return true;
+}
+
+void UI::onAddBoxWithoutLayers(BYTE* jonbin) {
+	if (gifMode.editHitboxes && gifMode.editHitboxesEntity && Entity{gifMode.editHitboxesEntity}.hitboxes()->jonbinPtr == jonbin) {
+		selectedHitboxesPreBoxSelect.clear();
+		selectedHitboxesBoxSelect.clear();
+		prevDragNDropItems.clear();
+		dragNDropItems.clear();
+		dragNDropItemsCarried.clear();
+		dragNDropActive = false;
+		dragNDropMouseDragPurpose = MOUSEDRAGPURPOSE_NONE;
+		dragNDropInterpolationTimer = 0;
+	}
+}
+
+UI::MoveResizeBoxesUndoHelper::MoveResizeBoxesUndoHelper(Hitbox* hitboxesStart, int hitboxCount, int timerRange)
+	: prevUndo(
+		(ThreadUnsafeSharedPtr<MoveResizeBoxesOperation>&)ui.undoRingBuffer[ui.undoRingBufferIndex]
+	),
+	hitboxesStart(hitboxesStart),
+	hitboxCount(hitboxCount)
+{
+	
+	extern unsigned int getUE3EngineTick();
+	engineTick = getUE3EngineTick();
+	prevUndoOk = prevUndo && prevUndo->combineOk(
+		gifMode.editHitboxesEntity, engineTick, timerRange, UNDO_OPERATION_TYPE_MOVE_RESIZE_BOXES,
+		hitboxCount);
+	
+	if (!prevUndoOk) {
+		oldData.resize(hitboxCount);
+		memcpy(oldData.data(), hitboxesStart, hitboxCount * sizeof (Hitbox));
+	}
+	
+}
+
+void UI::MoveResizeBoxesUndoHelper::finish() {
+	
+	Entity editEntity{gifMode.editHitboxesEntity};
+	
+	ui.castrateRedos();
+	
+	if (prevUndoOk) {
+		prevUndo->update(hitboxesStart, hitboxCount);
+		return;
+	}
+	
+	ThreadUnsafeSharedPtr<MoveResizeBoxesOperation>& newOp = (ThreadUnsafeSharedPtr<MoveResizeBoxesOperation>&)ui.allocateUndo();
+	newOp = new ThreadUnsafeSharedResource<MoveResizeBoxesOperation>();
+	newOp->fill(std::move(oldData), hitboxesStart, hitboxCount);
+	
+}
+
+static int __cdecl NewSortSortedSprite(const void* Ptr1, const void* Ptr2) {
+	SortedSprite** sprite1Ptr = (SortedSprite**)Ptr1;
+	SortedSprite** sprite2Ptr = (SortedSprite**)Ptr2;
+	SortedSprite* sprite1 = *sprite1Ptr;
+	SortedSprite* sprite2 = *sprite2Ptr;
+	return Entity::hashStringLowercase(sprite1->newName[0] ? sprite1->newName : sprite1->name)
+		-
+		Entity::hashStringLowercase(sprite2->newName[0] ? sprite2->newName : sprite2->name);
+}
+
+static int __cdecl NewSortSortedSpriteAlphabetically(const void* Ptr1, const void* Ptr2) {
+	SortedSprite** sprite1Ptr = (SortedSprite**)Ptr1;
+	SortedSprite** sprite2Ptr = (SortedSprite**)Ptr2;
+	SortedSprite* sprite1 = *sprite1Ptr;
+	SortedSprite* sprite2 = *sprite2Ptr;
+	return strcmp(sprite1->newName[0] ? sprite1->newName : sprite1->name,
+		sprite2->newName[0] ? sprite2->newName : sprite2->name);
+}
+
+static void sortNewSorted(FPACSecondaryData& secondaryData, std::vector<SortedSprite*>& newSorted, int (__cdecl * CompareFunc)(const void*, const void*)) {
+	
+	newSorted.reserve(secondaryData.sortedSprites.size());
+	for (SortedSprite& sortedSprite : secondaryData.sortedSprites) {
+		if (!sortedSprite.deleted) {
+			newSorted.push_back(&sortedSprite);
+		}
+	}
+	qsort(newSorted.data(), newSorted.size(), sizeof (SortedSprite*), CompareFunc);
+	
+}
+
+template<typename T>
+static void serializeCollision_writeJonbin(FPACSecondaryData& secondaryData, FPAC* oldFpac, FPAC* newFpac) {
+	DWORD offset = 0;
+	T* newLookupEntry = (T*)(
+		(BYTE*)newFpac + 0x20
+	);
+	DWORD newLookupEntryIndex = 0;
+	
+	std::vector<SortedSprite*> newSorted;
+	sortNewSorted(secondaryData, newSorted, NewSortSortedSprite);
+	
+	for (SortedSprite* sortedSprite : newSorted) {
+		T* oldLookupEntry = (T*)sortedSprite->name;
+		
+		memcpy(newLookupEntry, oldLookupEntry, sizeof (T));
+		if (sortedSprite->newName[0]) {
+			memcpy(newLookupEntry->spriteName, sortedSprite->newName, 32);
+			newLookupEntry->hash = Entity::hashStringLowercase(sortedSprite->newName);
+		}
+		newLookupEntry->index = newLookupEntryIndex++;
+		newLookupEntry->offset = offset;
+		
+		DWORD size = oldLookupEntry->size;
+		BYTE* newJonbin = (BYTE*)newFpac + newFpac->headerSize + offset;
+		memcpy(newJonbin, (BYTE*)oldFpac + oldFpac->headerSize + oldLookupEntry->offset, size);
+		
+		if (size & 7) {
+			DWORD slack = 8 - (size & 7);
+			memset(newJonbin + size, 0, slack);
+			size += slack;
+		}
+		
+		offset += size;
+		++newLookupEntry;
+	}
+}
+
+void UI::serializeCollision(std::vector<BYTE>& data, int player) {
+	DWORD totalSize = 0;
+	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[player];
+	secondaryData.parseAllSprites();
+	FPAC* fpac = secondaryData.Collision->TopData;
+	DWORD count = 0;  // lookup entries count
+	if (fpac->size0x50()) {
+		for (const SortedSprite& sortedSprite : secondaryData.sortedSprites) {
+			if (!sortedSprite.deleted) {
+				++count;
+				DWORD size = ((FPACLookupElement0x50*)sortedSprite.name)->size;
+				size = (size + 7) & (~7);
+				totalSize += size;
+			}
+		}
+	} else {
+		for (const SortedSprite& sortedSprite : secondaryData.sortedSprites) {
+			if (!sortedSprite.deleted) {
+				++count;
+				DWORD size = ((FPACLookupElement0x30*)sortedSprite.name)->size;
+				size = (size + 7) & (~7);
+				totalSize += size;
+			}
+		}
+	}
+	DWORD lookupEntrySize = fpac->elementSize();
+	totalSize += 0x20  // FPAC base data
+		+ lookupEntrySize * count;  // lookup entries
+	data.resize(totalSize);
+	FPAC* newFpac = (FPAC*)data.data();
+	memcpy(newFpac, fpac, 0x20);
+	newFpac->count = count;
+	newFpac->rawSize = data.size();
+	newFpac->headerSize = 0x20 + count * lookupEntrySize;
+	if (fpac->size0x50()) {
+		serializeCollision_writeJonbin<FPACLookupElement0x50>(secondaryData, fpac, newFpac);
+	} else {
+		serializeCollision_writeJonbin<FPACLookupElement0x30>(secondaryData, fpac, newFpac);
+	}
+}
+
+class MyOwnStringBuilder {
+private:
+	static const DWORD blockSize = 1024;
+public:
+
+	// error C3074: an array cannot be initialized with a parenthesized initializer
+	// me: *wraps array into a struct*
+	// me: and now it's ok somehow
+	struct IHateAllOfYou {
+		char array[blockSize];
+	};
+	
+	void dump(std::vector<BYTE>& out) const {
+		if (memory.empty()) {
+			out.clear();
+			return;
+		}
+		DWORD sizeLeft = blockSize * (memory.size() - 1) + blockSize - remaining;
+		out.resize(sizeLeft + 1);
+		BYTE* ptr = out.data();
+		for (const IHateAllOfYou& block : memory) {
+			DWORD sizeToCopy = min(sizeLeft, blockSize);
+			memcpy(ptr, block.array, sizeToCopy);
+			sizeLeft -= blockSize;
+			ptr += sizeToCopy;
+		}
+		out.back() = '\0';
+	}
+	MyOwnStringBuilder& operator<<(const char* str) {
+		
+		DWORD len = strlen(str);
+		
+		while (len) {
+			
+			DWORD sizeToCopy = min(len, remaining);
+			if (sizeToCopy) {
+				memcpy(buf, str, sizeToCopy);
+				len -= sizeToCopy;
+				str += sizeToCopy;
+				remaining -= sizeToCopy;
+				buf += sizeToCopy;
+			}
+			
+			if (len) newBlock();
+			
+		}
+		return *this;
+	}
+	MyOwnStringBuilder& operator<<(char c) {
+		if (remaining == 0) newBlock();
+		*buf = c;
+		++buf;
+		--remaining;
+		return *this;
+	}
+	MyOwnStringBuilder& operator<<(int num) {
+		char localBuf[12];
+		sprintf_s(localBuf, "%d", num);
+		return *this << localBuf;
+	}
+	MyOwnStringBuilder& operator<<(unsigned long num) {
+		char localBuf[11];
+		sprintf_s(localBuf, "%u", num);
+		return *this << localBuf;
+	}
+	// print floats yourself. I have no idea how long they can be and someone needs to set precision
+private:
+	std::list<IHateAllOfYou> memory;
+	char* buf;
+	DWORD remaining = 0;
+	void newBlock() {
+		memory.push_back({});
+		buf = memory.back().array;
+		remaining = blockSize;
+	}
+};
+
+static void printJsonString(const char* text, MyOwnStringBuilder& ss) {
+	while (*text != '\0') {
+		char c = *text;
+		// https://www.json.org/json-en.html
+		if (c == '"') {
+			ss << "\\\"";
+		} else if (c == '\\') {
+			ss << "\\\\";
+		} else if (c == '\b') {
+			ss << "\\b";
+		} else if (c == '\f') {
+			ss << "\\f";
+		} else if (c == '\n') {
+			ss << "\\n";
+		} else if (c == '\r') {
+			ss << "\\r";
+		} else if (c == '\t') {
+			ss << "\\t";
+		} else if (c > 126 || c < 32) {
+			// I'm not gonna read your UTF-8
+			// after seeing the walls of hardcode in UE3 and imgui I don't think wikipedia is telling the whole story on it
+			ss << '?';
+		} else {
+			ss << c;
+		}
+		++text;
+	}
+}
+
+static void printAnimSeq(BYTE* jonbin, MyOwnStringBuilder& ss) {
+	jonbin += 4;  // skip JONB
+	short nameCount = *(short*)jonbin;
+	if (!nameCount) {
+		ss << "null";
+		return;
+	}
+	ss << '"';
+	jonbin += 2;
+	printJsonString((const char*)jonbin, ss);
+	ss << '"';
+}
+
+template<typename T>
+void serializeJson_impl(FPACSecondaryData& secondaryData, MyOwnStringBuilder& ss) {
+	
+	FPAC* fpac = secondaryData.Collision->TopData;
+	
+	std::vector<SortedSprite*> newSorted;
+	sortNewSorted(secondaryData, newSorted, NewSortSortedSpriteAlphabetically);
+	
+	bool isFirst = true;
+	
+	for (SortedSprite* sortedSprite : newSorted) {
+		T* lookupEntry = (T*)sortedSprite->name;
+		BYTE* jonbin = (BYTE*)fpac + fpac->headerSize + lookupEntry->offset;
+		if (isFirst) {
+			isFirst = false;
+		} else {
+			ss << ",\n";
+		}
+		ss << "\t{\n"
+			"\t\t\"sprite\": \""; printJsonString(sortedSprite->name, ss); ss << "\",\n"
+			"\t\t\"anim\": "; printAnimSeq(jonbin, ss); ss << ",\n"
+			"\t\t\"boxes\": [";
+		
+		LayerIterator layerIterator(fpac, sortedSprite);
+		int hitboxCount = layerIterator.count();  // includes pushbox
+		if (hitboxCount <= 1) {
+			ss << "]\n"
+			"\t}";
+			continue;
+		}
+		
+		// this checks if the name count is > 0
+		bool showPushbox = *(short*)(
+			jonbin + 4  // skip JONB
+		) > 0;
+		
+		int printedCount = 0;
+		while (layerIterator.getNext()) {
+			if (!layerIterator.isPushbox || showPushbox) {
+				
+				if (layerIterator.isPushbox) {
+					continue;
+				}
+				
+				if (printedCount) {
+					ss << ",\n"
+					"\t\t\t{\n"
+					"\t\t\t\t\"type\": \"";
+				} else {
+					ss << "\n"
+					"\t\t\t{\n"
+					"\t\t\t\t\"type\": \"";
+				}
+				++printedCount;
+				ss << hitboxTypeName[layerIterator.type] << "\",\n"
+					"\t\t\t\t\"x\": " << (int)(layerIterator.ptr->offX) << ",\n"
+					"\t\t\t\t\"y\": " << (int)(layerIterator.ptr->offY) << ",\n"
+					"\t\t\t\t\"w\": " << (int)(layerIterator.ptr->sizeX) << ",\n"
+					"\t\t\t\t\"h\": " << (int)(layerIterator.ptr->sizeY) << "\n"
+					"\t\t\t}";
+			}
+		}
+		
+		if (!printedCount) {
+			ss << "]\n"
+			"\t}";
+		} else {
+			ss << "\n"
+			"\t\t]\n"
+			"\t}";
+		}
+		
+	}
+	
+}
+
+void UI::serializeJson(std::vector<BYTE>& data, int player) {
+	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[player];
+	secondaryData.parseAllSprites();
+	FPAC* fpac = secondaryData.Collision->TopData;
+	MyOwnStringBuilder ss;
+	ss << "[\n";
+	
+	if (fpac->size0x50()) {
+		serializeJson_impl<FPACLookupElement0x50>(secondaryData, ss);
+	} else {
+		serializeJson_impl<FPACLookupElement0x30>(secondaryData, ss);
+	}
+	ss << "\n"
+		"]";
+	ss.dump(data);
+}
+
+void UI::writeOutClipboard(const std::vector<BYTE>& data) {
+	char errorbuf[1024];
+	#define exitWinErr(msg) { \
+		WinError winErr; \
+		sprintf_s(errorbuf, msg ": %ls", winErr.getMessage()); \
+		showErrorDlgS(errorbuf); \
+		return; \
+	}
+		
+	if (!OpenClipboard(0)) {
+		exitWinErr("OpenClipboard failed")
+	}
+	class ClipboardCloser {
+	public:
+		~ClipboardCloser() {
+			if (!closedAlready) {
+				CloseClipboard();
+			}
+		}
+		bool closedAlready = false;
+	} clipboardCloser;
+	if (!EmptyClipboard()) {
+		exitWinErr("EmptyClipboard failed")
+	}
+	HGLOBAL hg = GlobalAlloc(GMEM_MOVEABLE, data.size());
+	if (!hg) {
+		exitWinErr("GlobalAlloc failed")
+	}
+	LPVOID hgLock = GlobalLock(hg);
+	if (!hgLock) {
+		exitWinErr("GlobalLock failed")
+	}
+	memcpy(hgLock, data.data(), data.size());
+	GlobalUnlock(hg);
+	if (!SetClipboardData(CF_TEXT, hg)) {
+		exitWinErr("SetClipboardData failed")
+	}
+	clipboardCloser.closedAlready = true;
+	CloseClipboard();
+	GlobalFree(hg);
+	#undef exitWinErr
+}
+
+void UI::requestFileSelect(const wchar_t* fileSpec, std::wstring& lastSelectedPath) {
+	if (keyboard.thisProcessWindow) {
+		PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_REQUEST_FILE_SELECT_WRITE, (WPARAM)&lastSelectedPath, (LPARAM)fileSpec);
+	}
+}
+
+void UI::writeOutFile(const std::wstring& path, const std::vector<BYTE>& data) {
+	
+	struct FileCloser {
+		~FileCloser() {
+			if (file) CloseHandle(file);
+		}
+		HANDLE file;
+	} fileCloser{NULL};
+	
+	char errorbuf[1024];
+	#define exitWinErr(msg) { \
+		WinError winErr; \
+		sprintf_s(errorbuf, msg ": %ls", winErr.getMessage()); \
+		showErrorDlgS(errorbuf); \
+		return; \
+	}
+	
+	fileCloser.file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (fileCloser.file == NULL || fileCloser.file == INVALID_HANDLE_VALUE) {
+		fileCloser.file = NULL;
+		WinError winErr;
+		sprintf_s(errorbuf, "Failed to open file '%ls': %ls", path.c_str(), winErr.getMessage());
+		showErrorDlgS(errorbuf);
+		return;
+	}
+	const BYTE* ptr = data.data();
+	size_t remaining = data.size();
+	DWORD bytesWritten;
+	while (remaining) {
+		size_t bytesToWrite = min(remaining, 1024);
+		if (!WriteFile(fileCloser.file, ptr, bytesToWrite, &bytesWritten, NULL)) {
+			exitWinErr("Failed to write to file")
+		}
+		if (bytesWritten != bytesToWrite) {
+			sprintf_s(errorbuf, "Number of bytes written doesn't match number of bytes we were supposed to write: wrote %u, wanted to write %u",
+				bytesWritten, bytesToWrite);
+			showErrorDlgS(errorbuf);
+			return;
+		}
+		ptr += bytesToWrite;
+		remaining -= bytesToWrite;
+	}
+	#undef exitWinErr
+	// fileCloser will close the file
+}
+
+void UI::makeFileSelectRequest(void(UI::*serializer)(std::vector<BYTE>& data, int player),
+				const wchar_t* filterStr, int player, bool removeNullTerminator) {
+	if (!dataToWriteToFile) {
+		dataToWriteToFile = new ThreadUnsafeSharedResource<std::vector<BYTE>>();
+	}
+	(ui.*serializer)(*dataToWriteToFile, player);
+	if (removeNullTerminator && !dataToWriteToFile->empty() && dataToWriteToFile->back() == '\0') {
+		dataToWriteToFile->resize(dataToWriteToFile->size() - 1);
+	}
+	int requiredStrLength;
+	if (player == 2) {
+		requiredStrLength = 3;
+	} else {
+		Entity ent = entityList.slots[player];
+		requiredStrLength = strlen(ent.charCodename());
+	}
+	const wchar_t* extSeek = filterStr;
+	const wchar_t* lastDot = nullptr;
+	while (*extSeek != L'\0') ++extSeek;
+	++extSeek;
+	if (*extSeek == L'*') ++extSeek;
+	if (*extSeek == L'.') lastDot = extSeek;
+	while (*extSeek != L'\0') ++extSeek;
+	if (lastDot) {
+		requiredStrLength += extSeek - lastDot;
+	} else {
+		lastDot = extSeek;
+	}
+	
+	lastSelectedCollisionPath.clear();
+	lastSelectedCollisionPath.reserve(requiredStrLength);
+	
+	if (player == 2) {
+		lastSelectedCollisionPath = L"cmn";
+	} else {
+		Entity ent = entityList.slots[player];
+		char* codename = ent.charCodename();
+		while (*codename != '\0') {
+			lastSelectedCollisionPath += (wchar_t)*codename;
+			++codename;
+		}
+	}
+	
+	while (*lastDot != L'\0') {
+		lastSelectedCollisionPath += towlower(*lastDot);
+		++lastDot;
+	}
+	
+	requestFileSelect(filterStr, lastSelectedCollisionPath);
+}
+
+void UI::readCollisionFromFile(const std::wstring& path, int player) {
+	
+	if (player == -1) {
+		int slashPos = findCharRevW(path.c_str(), L'\\');
+		int dotPos = findCharRevW(path.c_str(), L'.');
+		if (dotPos != -1 && slashPos != -1 && dotPos < slashPos) dotPos = -1;
+		if (dotPos != -1) {
+			++slashPos;
+			std::wstring baseName(path.begin() + slashPos, path.begin() + dotPos);
+			std::vector<char> baseNameAscii;
+			baseNameAscii.reserve(baseName.size() + 1);
+			bool error = false;
+			for (wchar_t wc : baseName) {
+				if ((wc & 0xFF00) != 0) {
+					error = true;
+					break;
+				}
+				char c = (char)wc;
+				if (c > 126 || c < 32) {
+					error = true;
+					break;
+				}
+				baseNameAscii.push_back(c);
+			}
+			if (!error) {
+				baseNameAscii.push_back('\0');
+				for (int i = 0; i < 2; ++i) {
+					entityList.populate();
+					Entity ent = entityList.slots[i];
+					if (_stricmp(ent.charCodename(), baseNameAscii.data()) == 0) {
+						player = i;
+						break;
+					}
+				}
+				if (player == -1 && _stricmp(baseNameAscii.data(), "cmn") == 0) {
+					player = 2;
+				}
+			}
+		}
+		if (player == -1) {
+			showErrorDlgS("Couldn't determine whose collision data is being loaded based on the file name alone.\n"
+				"Please, press the \"Load\" button again and, from the selection that shows up,"
+				" select \"From file\" from one of the columns. This will specify whose data to overwrite with this file.");
+			return;
+		}
+	}
+	
+	struct FileCloser {
+		~FileCloser() {
+			if (file) CloseHandle(file);
+		}
+		HANDLE file;
+	} fileCloser{NULL};
+	
+	char buf[1024];
+	#define exitWinErr(msg) { \
+		WinError winErr; \
+		sprintf_s(buf, msg ": %ls", winErr.getMessage()); \
+		showErrorDlgS(buf); \
+		return; \
+	}
+	
+	fileCloser.file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (fileCloser.file == NULL || fileCloser.file == INVALID_HANDLE_VALUE) {
+		fileCloser.file = NULL;
+		WinError winErr;
+		sprintf_s(buf, "Failed to open file '%ls': %ls", path.c_str(), winErr.getMessage());
+		showErrorDlgS(buf);
+		return;
+	}
+	
+	HANDLE file = fileCloser.file;
+	DWORD bytesRead = 0;
+	
+	if (!ReadFile(file, buf, 4, &bytesRead, NULL)) {
+		exitWinErr("Failed to read file")
+	}
+	
+	SetFilePointer(file, 0, NULL, FILE_BEGIN);
+	
+	std::vector<BYTE> data;
+	if (!readWholeFile(data, file, false, buf)) return;
+	
+	if (bytesRead == 4 && memcmp(buf, "FPAC", 4) == 0) {
+		readFpacFromBinaryData(data, player);
+	} else {
+		readJsonFromText(data.data(), data.size(), player);
+	}
+	
+	// fileCloser will close the file
+	
+	#undef exitWinErr
+}
+
+void UI::readJsonFromClipboard(int player) {
+	char errorbuf[1024];
+	#define exitWinErr(msg) { \
+		WinError winErr; \
+		sprintf_s(errorbuf, msg ": %ls", winErr.getMessage()); \
+		showErrorDlgS(errorbuf); \
+		return; \
+	}
+		
+	if (!OpenClipboard(0)) {
+		exitWinErr("OpenClipboard failed")
+	}
+	class ClipboardCloser {
+	public:
+		~ClipboardCloser() {
+			if (!closedAlready) {
+				CloseClipboard();
+			}
+		}
+		bool closedAlready = false;
+	} clipboardCloser;
+	
+	UINT format = 0;
+	while (true) {
+		format = EnumClipboardFormats(format);
+		if (!format) {
+			if (GetLastError() != ERROR_SUCCESS) {
+				exitWinErr("Failed to enumerate clipboard formats")
+			} else {
+				break;
+			}
+		}
+		if (format == CF_TEXT) {
+			HANDLE cData = GetClipboardData(format);
+			if (cData == NULL) {
+				exitWinErr("Failed to get CF_TEXT format clipboard data")
+			}
+			UINT flags = GlobalFlags(cData);
+			if ((flags & 0xff00) == GMEM_INVALID_HANDLE) {
+				showErrorDlgS("Got invalid memory handle from clipboard data.");
+				return;
+			}
+			SIZE_T size = GlobalSize(cData);
+			if (!size) {
+				exitWinErr("Failed on GlobalSize when trying to get clipboard data")
+			}
+			LPVOID lpPtr = GlobalLock(cData);
+			if (!lpPtr) {
+				exitWinErr("Failed on GlobalLock when trying to get clipboard data")
+			}
+			readJsonFromText((const BYTE*)lpPtr, size, player);
+			GlobalUnlock(cData);
+			break;
+		}
+	}
+	#undef exitWinErr
+}
+
+bool UI::readWholeFile(std::vector<BYTE>& data, HANDLE file, bool addNullTerminator, char (&errorbuf)[1024]) {
+	DWORD fileSizeHigh;
+	DWORD fileSizeLow;
+	fileSizeLow = GetFileSize(file, &fileSizeHigh);
+	if (fileSizeLow == INVALID_FILE_SIZE && GetLastError() != NO_ERROR) {
+		WinError winErr;
+		sprintf_s(errorbuf, "Failed to get file size: %ls", winErr.getMessage());
+		showErrorDlgS(errorbuf);
+		return false;
+	}
+	if (fileSizeHigh || fileSizeLow >= 0x7FFFFFFE) {
+		sprintf_s(errorbuf, "The file size is too big: %llu bytes", ((unsigned long long)fileSizeHigh << 32) | (unsigned long long)fileSizeLow);
+		showErrorDlgS(errorbuf);
+		return false;
+	}
+	
+	try {
+		data.resize(fileSizeLow + addNullTerminator);
+	} catch (std::length_error& err) {
+		(err);
+		sprintf_s(errorbuf, "The file size is too big: %llu bytes", ((unsigned long long)fileSizeHigh << 32) | (unsigned long long)fileSizeLow);
+		return false;
+	} catch (std::bad_alloc& err) {
+		(err);
+		sprintf_s(errorbuf, "The file does not fit into RAM: %llu bytes", ((unsigned long long)fileSizeHigh << 32) | (unsigned long long)fileSizeLow);
+		return false;
+	}
+	if (data.empty()) return true;
+	BYTE* ptr = data.data();
+	size_t remaining = fileSizeLow;
+	DWORD bytesRead = 0;
+	while (remaining) {
+		DWORD bytesToRead = min(remaining, 1024);
+		if (!ReadFile(file, ptr, bytesToRead, &bytesRead, NULL)) {
+			WinError winErr;
+			sprintf_s(errorbuf, "Failed to read file: %ls", winErr.getMessage());
+			showErrorDlgS(errorbuf);
+			return false;
+		}
+		if (bytesToRead != bytesRead) {
+			// um... ok
+			remaining -= bytesRead;
+			if ((int)remaining > 0) {
+				data.resize(data.size() - remaining);
+			}
+			if (addNullTerminator) {
+				data.back() = '\0';
+			}
+			return true;
+		}
+		remaining -= bytesRead;
+		ptr += bytesRead;
+	}
+	return true;
+}
+
+template<typename T>
+static bool validateFpacImpl(const FPAC* fpac) {
+	T* lookupEntry = (T*)((BYTE*)fpac + 0x20);
+	for (int lookupEntryIndex = 0; lookupEntryIndex < (int)fpac->count; ++lookupEntryIndex) {
+		if (lookupEntry->spriteName[31] != '\0') {
+			sprintf_s(strbuf, "Lookup entry #%d has a sprite name that is not null-terminated.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		if (lookupEntry->index != lookupEntryIndex) {
+			sprintf_s(strbuf, "Lookup entry #%d's index does not match its declared index (%d).",
+				lookupEntryIndex,
+				lookupEntry->index);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		BYTE* jonbin = (BYTE*)fpac + fpac->headerSize + lookupEntry->offset;
+		if (jonbin < (BYTE*)fpac || jonbin + lookupEntry->size > (BYTE*)fpac + fpac->rawSize) {
+			sprintf_s(strbuf, "Lookup entry #%d offset and size point to a jonbin that goes out of bounds.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		DWORD hash = Entity::hashStringLowercase(lookupEntry->spriteName);
+		if (hash != lookupEntry->hash) {
+			sprintf_s(strbuf, "Lookup entry #%d's hash does not match the actual hash of its sprite name.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		for (const char* c = lookupEntry->spriteName; *c != '\0'; ++c) {
+			char cVal = *c;
+			if (cVal <= 32 || cVal > 126) {
+				sprintf_s(strbuf, "Lookup entry #%d's sprite name contains characters that are not allowed (even a space isn't allowed).", lookupEntryIndex);
+				showErrorDlgS(strbuf);
+				return false;
+			}
+		}
+		DWORD size = lookupEntry->size;
+		if (lookupEntry->size < 4  // JONB
+				+ 2  // name count
+				+ 1  // number of types
+		) {
+			sprintf_s(strbuf, "Lookup entry #%d's declared JONBIN size is too small.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		if (memcmp(jonbin, "JONB", 4) != 0) {
+			sprintf_s(strbuf, "Lookup entry #%d's JONBIN does not start with \"JONB\".", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		jonbin += 4;
+		size -= 4;
+		short nameCount = *(short*)jonbin;
+		if (nameCount > 7) {
+			sprintf_s(strbuf, "Lookup entry #%d's JONBIN has more than 7 anim names.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		jonbin += 2;
+		size -= 2;
+		for (short nameIndex = 0; nameIndex < nameCount; ++nameIndex) {
+			if (size < 32) {
+				sprintf_s(strbuf, "Lookup entry #%d's JONBIN size is not big enough to contain name #%d.", lookupEntryIndex, nameIndex);
+				showErrorDlgS(strbuf);
+				return false;
+			}
+			if (*(jonbin + 31) != '\0') {
+				sprintf_s(strbuf, "Lookup entry #%d's JONBIN name #%d isn't null-terminated.", lookupEntryIndex, nameIndex);
+				showErrorDlgS(strbuf);
+				return false;
+			}
+			for (const char* c = (const char*)jonbin; *c != '\0'; ++c) {
+				if (*c <= 32 || *c > 126) {
+					sprintf_s(strbuf, "Lookup entry #%d's JONBIN name %d contains characters that are not allowed (even a space isn't allowed).",
+						lookupEntryIndex, nameIndex);
+					showErrorDlgS(strbuf);
+					return false;
+				}
+			}
+			jonbin += 32;
+			size -= 32;
+		}
+		BYTE numTypes = *jonbin;
+		if (numTypes < 3) {
+			sprintf_s(strbuf, "Lookup entry #%d's JONBIN's number of types is too low.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		++jonbin;
+		--size;
+		if (size < (DWORD)numTypes * 2) {
+			sprintf_s(strbuf, "Lookup entry #%d's JONBIN's size is not big enough to hold all the hitbox counts.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		short short1 = *(short*)jonbin;
+		jonbin += 2;
+		size -= 2;
+		short short2 = *(short*)jonbin;
+		jonbin += 2;
+		size -= 2;
+		short short3 = *(short*)jonbin;
+		jonbin += 2;
+		size -= 2;
+		int hitboxCount = 0;
+		numTypes -= 3;
+		for (BYTE boxType = 0; boxType < numTypes; ++boxType) {
+			hitboxCount += *(short*)jonbin;
+			jonbin += 2;
+			size -= 2;
+		}
+		int weirdCrap = short1 * FPAC::size1 + short2 * FPAC::size2 + short3 * FPAC::size3;
+		if (size < weirdCrap + hitboxCount * sizeof (Hitbox)) {
+			sprintf_s(strbuf, "Lookup entry #%d's JONBIN's size is not big enough to hold all the weird data it declared it has.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		}
+		// we're done with size
+		// nothing to validate in hitboxes
+		++lookupEntry;
+	}
+	return true;
+}
+
+static bool validateFpac(const std::vector<BYTE>& data) {
+	if (data.size() < 0x20) {
+		showErrorDlgS("FPAC is too small.");
+		return false;
+	}
+	const BYTE* ptr = data.data();
+	if (memcmp(ptr, "FPAC", 4) != 0) {
+		showErrorDlgS("FPAC magic number is wrong.");
+		return false;
+	}
+	const FPAC* fpac = (const FPAC*)ptr;
+	if (fpac->headerSize != fpac->count * fpac->elementSize() + 0x20) {
+		showErrorDlgS("FPAC header size is wrong.");
+		return false;
+	}
+	if (fpac->headerSize > data.size()) {
+		showErrorDlgS("FPAC header size is too big.");
+		return false;
+	}
+	if (fpac->rawSize > data.size()) {
+		showErrorDlgS("FPAC 'rawSize' is too big.");
+		return false;
+	}
+	if (fpac->flag2() || !fpac->useHash()) {
+		showErrorDlgS("Don't know how to read this type of FPAC.");
+		return false;
+	}
+	if (fpac->size0x50()) {
+		return validateFpacImpl<FPACLookupElement0x50>(fpac);
+	} else {
+		return validateFpacImpl<FPACLookupElement0x30>(fpac);
+	}
+}
+
+template<typename T>
+struct BinaryFpacProvider : public SourceFpacProvier {
+	const FPAC* fpac;
+	T* current;
+	int i;
+	int count;
+	virtual void rewind() {
+		i = -1;
+		current = (T*)((BYTE*)fpac + 0x20);
+		--current;
+	}
+	virtual bool getNext() {
+		if (i >= count - 1) {
+			i = count;
+			current = (T*)fpac->lookupEnd();
+			return false;
+		}
+		++i;
+		++current;
+		return true;
+	}
+	// of current entry
+	virtual DWORD getHash() const {
+		return current->hash;
+	}
+	virtual const char (&getName() const)[32] {
+		return current->spriteName;
+	}
+	virtual int getSize() const {
+		return current->size;
+	}
+	virtual BYTE* getJonbin() const {
+		return (BYTE*)fpac + fpac->headerSize + current->offset;
+	}
+	virtual void forgetJonbin()  // , it's mine now
+	{
+		throw std::logic_error("the whole FPAC is gonna be GONE YOU FOOL!!");
+	}
+	BinaryFpacProvider(const FPAC* fpac) : fpac(fpac) {
+		current = (T*)((BYTE*)fpac + 0x20);
+		--current;
+		count = (int)fpac->count;
+		i = -1;
+	}
+};
+
+void UI::readFpacFromBinaryData(const std::vector<BYTE>& data, int player) {
+	if (!validateFpac(data)) return;
+	
+	const FPAC* sourceFpac = (const FPAC*)data.data();
+	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[player];
+	secondaryData.parseAllSprites();
+	
+	BYTE shutup[sizeof (BinaryFpacProvider<FPACLookupElement0x50>)];
+	
+	if (sourceFpac->size0x50()) {
+		new (shutup) BinaryFpacProvider<FPACLookupElement0x50>(sourceFpac);
+	} else {
+		new (shutup) BinaryFpacProvider<FPACLookupElement0x30>(sourceFpac);
+	}
+	
+	if (secondaryData.Collision->TopData->size0x50()) {
+		secondaryData.replaceFpac<FPACLookupElement0x50, false>((SourceFpacProvier*)shutup);
+	} else {
+		secondaryData.replaceFpac<FPACLookupElement0x30, false>((SourceFpacProvier*)shutup);
+	}
+}
+
+// the data might or might not be null-terminated
+// dataSize may point past the null character, if any
+void UI::readJsonFromText(const BYTE* data, size_t dataSize, int player) {
+	
+	std::vector<JSONParsedSprite> parsedSprites;
+	
+	// I feel like this is 100 times better than writing a move constructor and a destructor for JSONParsedSprite. std::vector, new[] suck and their model is not very suited for us
+	struct OnExitFreeAllMemory {
+		std::vector<JSONParsedSprite>& vec;
+		OnExitFreeAllMemory(std::vector<JSONParsedSprite>& vec) : vec(vec) { }
+		~OnExitFreeAllMemory() {
+			for (JSONParsedSprite& sprite : vec) {
+				if (sprite.jonbin) free(sprite.jonbin);
+			}
+		}
+	} onExitFreeAllMemory{parsedSprites};
+	
+	if (!parseJson(data, &dataSize, parsedSprites)) return;
+	struct MyProvider : public SourceFpacProvier {
+		std::vector<JSONParsedSprite>& parsedSprites;
+		JSONParsedSprite* current;
+		int i;
+		int count;
+		virtual void rewind() {
+			i = -1;
+			current = parsedSprites.data() - 1;
+		}
+		virtual bool getNext() {
+			if (i >= count - 1) {
+				i = count;
+				current = parsedSprites.data() + count;
+				return false;
+			}
+			++i;
+			++current;
+			return true;
+		}
+		// of current entry
+		virtual DWORD getHash() const {
+			return Entity::hashStringLowercase(current->name);
+		}
+		virtual const char (&getName() const)[32] {
+			return current->name;
+		}
+		virtual int getSize() const {
+			return current->size;
+		}
+		virtual BYTE* getJonbin() const {
+			return current->jonbin;
+		}
+		virtual void forgetJonbin()  // , it's mine now
+		{
+			current->jonbin = nullptr;
+		}
+		MyProvider(std::vector<JSONParsedSprite>& parsedSprites) : parsedSprites(parsedSprites) {
+			current = parsedSprites.data() - 1;
+			count = (int)parsedSprites.size();
+			i = -1;
+		}
+	} provider { parsedSprites };
+	
+	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[player];
+	secondaryData.parseAllSprites();
+	
+	if (secondaryData.Collision->TopData->size0x50()) {
+		secondaryData.replaceFpac<FPACLookupElement0x50, true>(&provider);
+	} else {
+		secondaryData.replaceFpac<FPACLookupElement0x30, true>(&provider);
+	}
+}
+
+void UI::hitboxEditorCheckEntityStillAlive() {
+	if (gifMode.editHitboxes && gifMode.editHitboxesEntity && !Entity{gifMode.editHitboxesEntity}.isActive()) {
+		gifMode.editHitboxesEntity = nullptr;
+	}
+}
+
+P1P2CommonTable::P1P2CommonTable() {
+	for (const char* tableHeaderText : tableHeaderTexts) {
+		ImGui::TableSetupColumn(tableHeaderText, ImGuiTableColumnFlags_WidthStretch, 1.F);
+	}
+	
+	if (!tableHeaderTextWidthsKnown) {
+		tableHeaderTextWidthsKnown = true;
+		float* ptr = tableHeaderTextWidths;
+		for (const char* tableHeaderText : tableHeaderTexts) {
+			*ptr = ImGui::CalcTextSize(tableHeaderText).x;
+			++ptr;
+		}
+	}
+	
+	tableCursorPos = ImGui::GetCursorPos();
+}
+
+P1P2CommonTable::~P1P2CommonTable() {
+	ImVec2 windowPos = ImGui::GetWindowPos();
+	float windowWidth = ImGui::GetWindowWidth();
+	const ImGuiStyle& style = ImGui::GetStyle();
+	const float fontSize = ImGui::GetFontSize();
+	
+	for (int column = 0; column < 2; ++column) {
+		GGIcon icon = scaleGGIconToHeight(getCharIcon(entityList.slots[column].characterType()), fontSize);
+		ImDrawList* drawList = ImGui::GetWindowDrawList();
+		ImVec2 imgStart {
+			windowPos.x + style.WindowPadding.x + (windowWidth - style.WindowPadding.x * 2.F) / 3.F * (float)column
+				+ tableHeaderTextWidths[column] + style.ItemInnerSpacing.x,
+			windowPos.y + tableCursorPos.y + 2.F
+		};
+		drawList->PushClipRect({0.F,0.F},{10000.F,10000.F},false);
+		drawList->AddImage(TEXID_GGICON, imgStart, {
+			imgStart.x + icon.size.x,
+			imgStart.y + icon.size.y
+		}, icon.uvStart, icon.uvEnd, 0xFFFFFFFF);
+		drawList->PopClipRect();
 	}
 }

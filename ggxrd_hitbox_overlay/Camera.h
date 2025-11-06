@@ -7,6 +7,16 @@
 using updateDarken_t = void(__thiscall*)(char* thisArg);
 using updateCamera_t = void(__thiscall*)(char* thisArg, char** param1, char* param2);
 
+struct CameraPos {
+	float x = 0.F;
+	float y = 0.F;
+	float z = 0.F;
+	int pitch = 0;
+	int yaw = 0;
+	int roll = 0;
+	float fov = 0.F;
+};
+
 class Camera
 {
 public:
@@ -16,10 +26,16 @@ public:
 	void updateDarkenHook(char* thisArg);
 	void updateCameraHook(char* thisArg, char** param1, char* param2);
 	void grabValues();
+	void updateCameraManually();
 	CameraValues valuesPrepare;
 	CameraValues valuesUse;
 	bool grabbedValues = false;
 	bool shutdown = false;
+	float editHitboxesOffsetX = 0.F;
+	float editHitboxesOffsetY = 0.F;
+	float editHitboxesViewDistance = 0.F;
+	bool frozen = false;
+	bool lastGameTickRanFine = true;
 private:
 	friend struct CameraValues;
 	class HookHelp {
@@ -42,6 +58,7 @@ private:
 		float* forward, float* right, float* up) const;
 	float vecDot(float* a, float* b) const;
 	uintptr_t coordCoeffOffset = 0;
+	void updateCameraPos(CameraPos* camPos);
 };
 
 extern Camera camera;

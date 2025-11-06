@@ -7,6 +7,6 @@ struct DrawHitboxArrayParams {
 	int scaleX = 1000;
 	int scaleY = 1000;
 	int angle = 0;  // 1000 means one degree counter-clockwise, if facing right. Gets mirrored with facing, so when facing left, it's clockwise instead
-	int transformCenterX = 0;  // does not depend on sprite facing, does not get mirrored with sprite facing
-	int transformCenterY = 0;  // does not depend on sprite facing, does not get mirrored with sprite facing
+	int transformCenterX = 0;  // does not get mirrored with sprite facing, i.e. if positive and facing right, it transforms around the front, but if positive and facing left, it transforms around the back
+	int transformCenterY = 0;
 };

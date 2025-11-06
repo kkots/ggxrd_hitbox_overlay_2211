@@ -87,7 +87,8 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -192,6 +193,7 @@
     <ClInclude Include="DrawOutlineCallParams.h" />
     <ClInclude Include="DrawPointCallParams.h" />
     <ClInclude Include="DrawTextWithIconsParams.h" />
+    <ClInclude Include="EditedHitbox.h" />
     <ClInclude Include="EndScene.h" />
     <ClInclude Include="Entity.h" />
     <ClInclude Include="EntityList.h" />
@@ -216,16 +218,20 @@
     <ClInclude Include="InputsDrawingCommand.h" />
     <ClInclude Include="InputsIcon.h" />
     <ClInclude Include="InvisChipp.h" />
+    <ClInclude Include="JSON.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="KeyDefinitions.h" />
+    <ClInclude Include="LayerIterator.h" />
     <ClInclude Include="LineReader.h" />
     <ClInclude Include="LineReaderFromString.h" />
     <ClInclude Include="NamePairManager.h" />
     <ClInclude Include="PackTextureSizes.h" />
+    <ClInclude Include="PinAtlas.h" />
     <ClInclude Include="PinnedWindowList.h" />
     <ClInclude Include="RematchMenu.h" />
     <ClInclude Include="SettingsDefinitions.h" />
     <ClInclude Include="SettingsTopCommentDefinition.h" />
+    <ClInclude Include="SortedSprite.h" />
     <ClInclude Include="SpecificFramebarIds.h" />
     <ClInclude Include="Moves.h" />
     <ClInclude Include="pi.h" />
@@ -247,6 +253,7 @@
     <ClInclude Include="Throws.h" />
     <ClInclude Include="trainingSettings.h" />
     <ClInclude Include="UI.h" />
+    <ClInclude Include="UndoOperations.h" />
     <ClInclude Include="Version.h" />
     <ClInclude Include="..\common\WError.h" />
   </ItemGroup>
@@ -300,7 +307,9 @@
     <ClCompile Include="InputsDrawing.cpp" />
     <ClCompile Include="InputsIcon.cpp" />
     <ClCompile Include="InvisChipp.cpp" />
+    <ClCompile Include="JSON.cpp" />
     <ClCompile Include="Keyboard.cpp" />
+    <ClCompile Include="LayerIterator.cpp" />
     <ClCompile Include="LineReader.cpp" />
     <ClCompile Include="LineReaderFromString.cpp" />
     <ClCompile Include="logging.cpp" />
@@ -319,6 +328,7 @@
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="SettingsTopCommentDefinition.cpp" />
+    <ClCompile Include="SortedSprite.cpp" />
     <ClCompile Include="SpecificFramebarIds.cpp" />
     <ClCompile Include="SplitStringIterator.cpp" />
     <ClCompile Include="Stencil.cpp" />
@@ -326,6 +336,7 @@
     <ClCompile Include="Throws.cpp" />
     <ClCompile Include="UI.cpp" />
     <ClCompile Include="..\common\WinError.cpp" />
+    <ClCompile Include="UndoOperations.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CopyFileToFolders Include="..\ggxrd_hitbox_overlay.ini">

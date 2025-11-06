@@ -1,5 +1,4 @@
 #pragma once
-#include <array>
 
 class GifMode
 {
@@ -21,6 +20,8 @@ public:
 	bool allowCreateParticles{ true };
 	bool makeOpponentFullInvul { false };
 	bool makePlayerFullInvul { false };
+	bool editHitboxes { false };
+	void* editHitboxesEntity { nullptr };
 	float fps { 60.F };
 };
 

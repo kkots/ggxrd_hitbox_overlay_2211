@@ -13,6 +13,15 @@
 #include <array>
 #include <atlbase.h>
 #include "PinnedWindowList.h"
+#include "EditedHitbox.h"
+#include <map>
+#include <unordered_set>
+#include "DrawHitboxArrayCallParams.h"
+#include "DrawBoxCallParams.h"
+#include "SortedSprite.h"
+#include "LayerIterator.h"
+#include "UndoOperations.h"
+#include "ThreadUnsafeSharedPtr.h"
 
 enum FrameMarkerType {
 	MARKER_TYPE_STRIKE_INVUL,
@@ -91,7 +100,6 @@ public:
 	int clearTensionGainMaxComboTimer[2] { 0 };
 	bool clearBurstGainMaxCombo[2] { false };
 	int clearBurstGainMaxComboTimer[2] { 0 };
-	bool slowmoGame = false;
 	bool continuousScreenshotToggle = false;
 	bool imguiActive = false;
 	void* drawData = nullptr;
@@ -131,13 +139,6 @@ public:
 	} framebarSettings;
 	bool comboRecipeUpdatedOnThisFrame[2] { false, false };
 	
-	bool screenSizeKnown = false;
-	float screenWidth = 0.F;
-	float screenHeight = 0.F;
-	bool usePresentRect = false;
-	int presentRectW = 0;
-	int presentRectH = 0;
-	
 	bool needUpdateGraphicsFramebarTexture = false;
 	inline void getFramebarTexture(const PngResource** texture, const PackTextureSizes** sizes, bool* isColorblind) const {
 		*texture = &packedTextureFramebar;
@@ -161,7 +162,35 @@ public:
 	bool isVisible() const;
 	void onDisablePinButtonChanged(bool postedFromOutsideUI);
 	bool lastCustomBeginHadPinButton = false;
+	void startHitboxEditMode();
+	void stopHitboxEditMode(bool resetEntity = true);
+	inline void restartHitboxEditMode() { stopHitboxEditMode(false); startHitboxEditMode(); }
+	void onToggleHitboxEditMode();
+	std::vector<EditedHitbox> hitboxEditorLayers;
+	LayerIterator getEntityLayers(Entity ent);
+	bool hitboxIsSelectedForEndScene(int hitboxIndex) const;
+	bool hitboxIsSelected(int hitboxIndex) const;
+	BoxPart hitboxHoveredPart(int hitboxIndex) const;
+	void getMousePos(float* pos) const;
+	bool hasOverallSelectionBox(RECT* bounds, BoxPart* hoverPart);
+	void editHitboxesProcessControls();
+	struct BoxSelectBox : public EditedHitbox {
+		RECT bounds;
+	};
+	void editHitboxesChangeView(Entity newEditEntity);
+	inline void clearSelectedHitboxes() { selectedHitboxes.clear(); }
+	inline void setSelectedHitboxes(const std::vector<int>& source) { selectedHitboxes = source; }
+	inline void setSelectedHitboxes(std::vector<int>&& source) { selectedHitboxes = source; }
+	inline void onNewSprite() {
+		resetKeyboardMoveCache();
+		resetCoordsMoveCache();
+	}
+	void showErrorDlg(const char* msg, bool isManual);
+	void onAddBoxWithoutLayers(BYTE* jonbin);
 private:
+	friend class UndoOperationBase;
+	friend class DeleteLayersOperation;
+	friend struct LayerIterator;
 	void initialize();
 	void initializeD3D(IDirect3DDevice9* device);
 	bool imguiInitialized = false;
@@ -171,8 +200,12 @@ private:
 	bool keyCombosChanged = false;
 	char screenshotsPathBuf[MAX_PATH] { 0 };
 	UINT_PTR timerId = 0;
-	bool selectFile(std::wstring& path, HWND owner);
-	std::wstring lastSelectedPath;
+	enum SelectFileMode {
+		SELECT_FILE_MODE_READ,
+		SELECT_FILE_MODE_WRITE
+	};
+	bool selectFile(std::wstring& path, HWND owner, const wchar_t* filterStr, std::wstring& lastSelectedPath, SelectFileMode selectMode);
+	std::wstring lastSelectedScreenshotPath;
 	static void __stdcall Timerproc(HWND unnamedParam1, UINT unnamedParam2, UINT_PTR unnamedParam3, DWORD unnamedParam4);
 	static SHORT WINAPI hook_GetKeyState(int nVirtKey);
 	void decrementFlagTimer(int& timer, bool& flag);
@@ -280,15 +313,15 @@ private:
 	bool imguiActiveTemp = false;
 	bool takeScreenshotTemp = false;
 	const char* errorDialogText = nullptr;
-	void* errorDialogPos = nullptr;
+	float errorDialogPos[2];  // should be enough to hold an ImVec2
 	void framebarHelpWindow();
 	void hitboxesHelpWindow();
 	bool booleanSettingPreset(bool& settingsRef);
 	bool booleanSettingPresetWithHotkey(bool& settingsRef, std::vector<int>& hotkey);
-	inline bool floatSettingPreset(float& settingsPtr, float minValue = FLT_MIN, float maxValue = FLT_MAX, float step = 1.F, float stepFast = 10.F, float width = 0.F) {
-		float4SettingPreset(settingsPtr, minValue, maxValue, step, stepFast, width);
+	inline bool floatSettingPreset(float& settingsPtr, float minValue = FLT_MIN, float maxValue = FLT_MAX, float step = 1.F, float stepFast = 10.F, float width = 120.F) {
+		return float4SettingPreset(settingsPtr, minValue, maxValue, step, stepFast, width);
 	}
-	bool float4SettingPreset(float& settingsPtr, float minValue = FLT_MIN, float maxValue = FLT_MAX, float step = 1.F, float stepFast = 10.F, float width = 0.F);
+	bool float4SettingPreset(float& settingsPtr, float minValue = FLT_MIN, float maxValue = FLT_MAX, float step = 1.F, float stepFast = 10.F, float width = 120.F);
 	bool intSettingPreset(int& settingsPtr, int minValue, int step = 1, int stepFast = 1, float fieldWidth = 80.F, int maxValue = INT_MAX, bool isDisabled = false);
 	void drawSearchableWindows();
 	bool searching = false;
@@ -342,6 +375,7 @@ private:
 	const char* skipToNextUtf8CharStart(const char* ptr);
 	void searchWindow();
 	void AddTooltipWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey);
+	void AddTooltipWithHotkeyNoSearch(const char* desc, std::vector<int>& hotkey);
 	void HelpMarkerWithHotkey(const char* desc, const char* descEnd, std::vector<int>& hotkey);
 	inline void HelpMarkerWithHotkey(const char* desc, std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc, nullptr, hotkey); }
 	template<size_t size> inline void HelpMarkerWithHotkey(const char(&desc)[size], std::vector<int>& hotkey) { HelpMarkerWithHotkey(desc, desc + size - 1, hotkey); }
@@ -468,12 +502,266 @@ private:
 	} windowShowMode = WindowShowMode_All;
 	bool lastCustomBeginPushedAStyle = false;
 	bool lastCustomBeginPushedOutlinedText = false;
+	bool lastCustomBeginPushedAStyleStack[10] { false };
+	bool lastCustomBeginPushedOutlinedTextStack[10] { false };
+	bool lastCustomBeginHadPinButtonStack[10] { false };
+	bool lastWindowClosedStack[10] { false };
+	int lastCustomBeginPushedStackDepth = 0;
 	PinnedWindowEnum lastCustomBeginIndex = (PinnedWindowEnum)-1;
 	bool lastWindowClosed = false;
 	bool hasAtLeastOnePinnedOpenWindow() const;
 	bool hasAtLeastOnePinnedWindowThatIsNotTheMainWindow() const;
 	bool hasAtLeastOneUnpinnedOpenWindow() const;
 	bool hasAtLeastOneOpenWindow() const;
+	void drawHitboxEditor();
+	void freezeGameAndAllowNextFrameControls();
+	bool showHitboxEditorSettings = false;
+	HitboxType hitboxEditorCurrentHitboxType = HITBOXTYPE_HURTBOX;
+	std::string errorMsgBuf;
+	float hitboxEditorRefCol[4];
+	struct SortedAnimSeq {
+		FName fname;
+		char buf[32  // 32 chars max
+			+ 11  // longest possible number part
+			+ 1];  // null character
+		inline SortedAnimSeq(FName fname) : fname(fname) { }
+		SortedAnimSeq(FName fname, const char* str);
+	};
+	std::vector<SortedAnimSeq> sortedAnimSeqs;
+	static int findInsertionIndexUnique(const std::vector<SortedAnimSeq>& ar, const FName* value, const char* str);
+	struct ComboBoxPopupExtension {
+		bool comboBoxBeganThisFrame = false;
+		int selectedIndex = -1;
+		bool appearing = false;
+		size_t totalCount = 0;
+		inline void requestAutoScroll() { appearing = true; }
+		void onComboBoxBegin();
+		bool fastScrollWithKeys();
+		void endFrame();
+		inline void beginFrame() { comboBoxBeganThisFrame = false; }
+	} comboBoxExtension;
+	// 3 elements, because one for P1, one for P2 and one for cmn_ef
+	std::array<FPACSecondaryData, 3> hitboxEditorFPACSecondaryData;
+	
+	// when updating FPAC data you should also update:
+	// Each Entity's::hitboxes() {
+	//   jonbinPtr,
+	//   ptrLookup,
+	//   ptrRawAfterShort1,
+	//   data,
+	//   count
+	//   short2
+	//   names,
+	//   nameCount
+	// },
+	// Each Entity's::fpac()
+	// FPAC lookup table entry's offset
+	// FPAC lookup table entry's index
+	// FPAC headerSize
+	// FPAC rawSize
+	// FPAC lookup table entry's name
+	// FPAC lookup table entry's name hash
+	// FPAC lookup table entry's declared size of JONBIN data
+	// REDAssetCollision's TopData. It gets set into Entity::fpac() on round restart and freed on aswEngine destruction.
+	//     TopData is owned by GMalloc, so
+	//     use EndScene.cpp's appFree to free and Game.cpp's appRealloc to relocate
+	// If both Players are the same character, they share the same REDAssetCollision
+	// Our things to update:
+	// - sortedSprites - the char*'s in this array point to lookup entries
+	// - jonbinToLookupUE3 - the pair.first points to a jonbin, pair.second points to lookup entry. The jonbins are located in UE3-owned memory. Lookup is always in the UE3-owned memory.
+	// - oldNameToSortedSpriteIndex - maps an old, unmodified name's hash to an index in sortedSprites
+	// - newHashMap - must contain only all hashes after all the sprite deletions and renames
+	// - SortedSprite::layers - the 'ptr' field points to a Hitbox
+	
+	inline void parseAllSprites(Entity editEntity) {
+		hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()].parseAllSprites();
+	}
+	void detachFPAC();
+	char renameSpriteBuf[32];
+	char selectedHitboxesSprite[32] { 0 };
+	std::vector<int> selectedHitboxes;
+	std::vector<int> selectedHitboxesPreBoxSelect;
+	std::vector<int> selectedHitboxesBoxSelect;  // filled by boxSelectProcessHitbox. The boxes that are getting selected by the click or box select.
+	float boxSelectYStart = 0.F;
+	float boxSelectYEnd = 0.F;
+	bool boxSelectYSet = false;
+	bool beginDragNDropFrame(SortedSprite* currentSpriteElement, bool childBegan);
+	struct DragNDropItemInfo {
+		float x;
+		float y;
+		float drawX;
+		float drawY;
+		int layerIndex;
+		int originalIndex;
+		HitboxType hitboxType;
+		int hitboxIndex;
+		DWORD color;
+		bool isPushbox;
+		bool active;
+		bool selected;
+		bool hovered;
+		const char* printLabel() const;
+		bool topLayer;
+	};
+	struct PrevDragNDropItemInfo {
+		float x;
+		float y;
+		int originalIndex;
+		bool topLayer;
+	};
+	std::vector<PrevDragNDropItemInfo> prevDragNDropItems;
+	std::vector<DragNDropItemInfo> dragNDropItems;
+	std::vector<DragNDropItemInfo> dragNDropItemsCarried;
+	void dragNDropOnItem(SortedSprite* currentSpriteElement, DragNDropItemInfo* itemInfo);
+	void dragNDropOnCarriedItem(SortedSprite* currentSpriteElement, DragNDropItemInfo* itemInfo);
+	void processDragNDrop(SortedSprite* currentSpriteElement, int overallHitboxCount);
+	void endDragNDrop();
+	bool dragNDropBeganFrame = false;
+	bool dragNDropActive = false;
+	int dragNDropActiveIndex = -1;
+	bool dragNDropActiveIndexWasSelected = false;
+	enum MouseDragPurpose {
+		MOUSEDRAGPURPOSE_NONE,
+		MOUSEDRAGPURPOSE_BOX_SELECT,
+		MOUSEDRAGPURPOSE_MOVE_ELEMENTS
+	} dragNDropMouseDragPurpose;
+	MouseDragPurpose dragNDropMouseDragPurposePending;
+	bool dragNDropWasShiftHeld = false;
+	bool dragNDropWasCtrlHeld = false;
+	bool dragNDropChildBegan = false;
+	int dragNDropDestinationIndex = -1;
+	float dragNDropMouseClickedX = 0.F;
+	float dragNDropMouseClickedY = 0.F;
+	DragNDropItemInfo dragNDropActivePendingInfo;
+	bool dragNDropActivePending = false;
+	bool dragNDropActivePendingInfoIsNull = false;
+	bool dragNDropChildNotBegan_mouseAboveWholeWindow = false;
+	int dragNDropMouseIndex = -1;
+	float dragNDropChildNotBegan_x = 0.F;
+	float dragNDropChildNotBegan_y = 0.F;
+	float dragNDropItemHeight = 0.F;
+	int dragNDropInterpolationTimer = 0;
+	static const int dragNDropInterpolationTimerMax = 20;
+	static float dragNDropInterpolationAnim[dragNDropInterpolationTimerMax];
+	static const int dragNDropInterpolationAnimRaw[dragNDropInterpolationTimerMax];
+	// things to keep track of:
+	// don't draw selectables that are clipped or if dragNDropChildBegan is false
+	// reset all the things in endDragNDrop and when releasing the mouse
+	void dragNDropDrawItem(const DragNDropItemInfo* item, float x, float y, float width, Moves::TriBool eye, BYTE* drawListPtr);
+	bool dragNDropOperationWontDoAnything(SortedSprite* currentSpriteElement);
+	bool boxMouseDown = false;
+	void hitboxEditorBoxSelect();
+	int boxSelectArenaXStartOrig = 0;
+	int boxSelectArenaYStartOrig = 0;
+	int boxSelectArenaXStart = 0;
+	int boxSelectArenaYStart = 0;
+	int boxSelectArenaXEnd = 0;
+	int boxSelectArenaYEnd = 0;
+	int boxSelectArenaXMin = 0;
+	int boxSelectArenaYMin = 0;
+	int boxSelectArenaXMax = 0;
+	int boxSelectArenaYMax = 0;
+	bool boxSelectShiftHeld = false;
+	bool boxSelectingBoxesDragging = false;
+	int boxSelectingOriginalIndex = -1;
+	static unsigned int dist(int x1, int y1, int x2, int y2);
+	int boxHoverRequestedCursor = -1;  // filled by boxSelectProcessHitbox. The cursor to ask ImGui to set. -1 if none
+	int aswOneScreenPixelWidth = 0;
+	int aswOneScreenPixelHeight = 0;
+	int aswOneScreenPixelDiameter = 0;
+	BoxPart boxHoverPart = BOXPART_NONE;  // filled by boxSelectProcessHitbox. The hovered part of the hovered box. BOXPART_NONE if none
+	int boxHoverOriginalIndex = -1;  // filled by boxSelectProcessHitbox. The identifier of the hovered box. -1 if none
+	enum HitboxEditorToolEnum {
+		HITBOXEDITTOOL_SELECTION,
+		HITBOXEDITTOOL_ADD_BOX
+	} hitboxEditorTool = HITBOXEDITTOOL_SELECTION;
+	bool hitboxIsSelectedPreBoxSelect(int originalIndex) const;
+	bool hitboxEditPressedToggleEditMode = false;
+	bool hitboxEditPressedToggleEditMode_isOn = false;
+	bool hitboxEditNewSpritePressed = false;
+	bool hitboxEditDeleteSpritePressed = false;
+	bool hitboxEditRenameSpritePressed = false;
+	bool hitboxEditSelectionToolPressed = false;
+	bool hitboxEditRectToolPressed = false;
+	bool hitboxEditRectDeletePressed = false;
+	bool hitboxEditUndoPressed = false;
+	bool hitboxEditRedoPressed = false;
+	void hitboxEditProcessBackground();
+	void hitboxEditProcessKeyboardShortcuts();
+	void hitboxEditProcessPressedCommands();
+	SortedSprite* hitboxEditFindCurrentSprite();
+	SortedSprite* hitboxEditFindCurrentSprite(Entity ent);
+	static const char* getSpriteRepr(SortedSprite* sortedSprite);
+	bool popupsOpen = false;
+	BoxPart boxResizePart = BOXPART_NONE;
+	SortedSprite* boxResizeSortedSprite = nullptr;
+	std::vector<Hitbox> boxResizeOldHitboxes;
+	// this flag is needed, because if you click one box, then shift click another, then click just the other, we want to select just the other box.
+	// But if you click one box, then shift click another, then resize both boxes, we want to keep them selected.
+	bool boxResizeHappened = false;
+	void boxResizeProcessBox(DrawHitboxArrayCallParams& params, Hitbox* hitboxesStart, Hitbox* ptr);
+	void boxSelectProcessHitbox(BoxSelectBox& box);
+	BoxSelectBox lastOverallSelectionBox;
+	bool lastOverallSelectionBoxReady = false;
+	BoxPart lastOverallSelectionBoxHoverPart = BOXPART_NONE;
+	RECT overallSelectionBoxOldBounds;
+	bool imguiContextMenuOpen = false;
+	void editHitboxesProcessCamera();
+	void editHitboxesProcessHitboxMoving();
+	void editHitboxesConvertBoxes(DrawHitboxArrayCallParams& params, Entity editEntity, SortedSprite* sortedSprite);
+	void editHitboxesFillParams(DrawHitboxArrayCallParams& params, Entity editEntity);
+	std::vector<BoxSelectBox> convertedBoxes;
+	bool convertedBoxesPrepared = false;
+	int pushboxOriginalIndex();
+	Entity keyboardMoveEntity = nullptr;
+	SortedSprite* keyboardMoveSprite = nullptr;
+	std::vector<BoxSelectBox> keyboardMoveBackupBoxes;
+	int keyboardMoveX = 0;
+	int keyboardMoveY = 0;
+	void resetKeyboardMoveCache();
+	SortedSprite* coordsSprite = nullptr;
+	Entity coordsEntity = nullptr;
+	inline void resetCoordsMoveCache() { coordsSprite = nullptr; coordsEntity = nullptr; }
+	std::array<ThreadUnsafeSharedPtr<UndoOperationBase>, 100> undoRingBuffer;
+	int undoRingBufferIndex = 0;
+	ThreadUnsafeSharedPtr<UndoOperationBase>& allocateUndo();
+	std::array<ThreadUnsafeSharedPtr<UndoOperationBase>, 100> redoRingBuffer;
+	int redoRingBufferIndex = 0;
+	ThreadUnsafeSharedPtr<UndoOperationBase>& allocateRedo();
+	void castrateUndos();
+	void castrateRedos();
+	inline void eraseHistory() { castrateUndos(); castrateRedos(); }
+	bool performOp(UndoOperationBase* op);
+	struct MoveResizeBoxesUndoHelper {
+		MoveResizeBoxesUndoHelper(Hitbox* hitboxesStart, int hitboxCount, int timerRange = 20);
+		ThreadUnsafeSharedPtr<MoveResizeBoxesOperation>& prevUndo;
+		Hitbox* hitboxesStart;
+		int hitboxCount;
+		std::vector<Hitbox> oldData;
+		DWORD engineTick;
+		bool prevUndoOk;
+		void finish();
+	};
+	bool boxResizeChangedSomething = false;
+	void requestFileSelect(const wchar_t* fileSpec, std::wstring& lastSelectedPath);
+	void writeOutClipboard(const std::vector<BYTE>& data);
+	void serializeCollision(std::vector<BYTE>& data, int player);
+	void serializeJson(std::vector<BYTE>& data, int player);
+	ThreadUnsafeSharedPtr<std::vector<BYTE>> dataToWriteToFile;  // once the user selects it
+	void writeOutFile(const std::wstring& path, const std::vector<BYTE>& data);
+	std::wstring lastSelectedCollisionPath;
+	void makeFileSelectRequest(void(UI::*serializer)(std::vector<BYTE>& data, int player),
+		const wchar_t* filterStr, int player, bool removeNullTerminator);
+	void readCollisionFromFile(const std::wstring& path, int player);
+	void readJsonFromClipboard(int player);
+	bool readWholeFile(std::vector<BYTE>& data, HANDLE file, bool addNullTerminator, char (&errorbuf)[1024]);
+	void readFpacFromBinaryData(const std::vector<BYTE>& data, int player);
+	// the data might or might not be null-terminated
+	// dataSize may point past the null character, if any
+	void readJsonFromText(const BYTE* data, size_t dataSize, int player);
+	float lastClickPosX = 50.F;
+	float lastClickPosY = 50.F;
+	void hitboxEditorCheckEntityStillAlive();
 };
 
 extern UI ui;

@@ -7,6 +7,7 @@
 #include "WError.h"
 #include "LineReaderFromString.h"
 #include "Settings.h"
+#include <mutex>
 
 std::vector<HMODULE> allModules;
 
@@ -16,7 +17,7 @@ int sigscanOrder = 0;
 bool sigscanCacheLoaded = false;
 bool sigscansChanged = false;
 
-static DWORD hashStringCaseInsensitive(const char* str) {
+static DWORD hashStringLowercase(const char* str) {
 	DWORD hash = 0;
 	for (const char* c = str; *c != '\0'; ++c) {
 		char cVal = *c;
@@ -47,6 +48,7 @@ struct MyCompareFunction {
 
 using sigscanCacheType = std::unordered_map<SigscanCacheEntry, SigscanCacheValue, MyHashFunction, MyCompareFunction>;
 sigscanCacheType sigscanCache;
+std::mutex sigscanCacheMutex;
 
 void loadSigscanCache() {
 	#define fileParsingErr(msg, ...) { logwrap(fprintf(logfile, "%s parsing error: " msg, SIGSCAN_CACHE_FILE_NAME, __VA_ARGS__)); return; }
@@ -564,7 +566,9 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, size_t sigLen
 	static SigscanCacheEntry lookupEntry;
 	sigscanCacheType::iterator oldResult = sigscanCache.end();
 	bool useCache = logname && settings.useSigscanCaching;
+	std::unique_lock<std::mutex> guard;
 	if (useCache) {
+		guard = std::unique_lock<std::mutex>(sigscanCacheMutex);
 		++sigscanOrder;
 		loadSigscanCache();
 		wholeModuleBegin = fillInEntry(logname, name, section, start, end, wholeModuleBegin, sig, sigLength, nullptr, maskForCaching, &lookupEntry);
@@ -710,7 +714,9 @@ uintptr_t sigscan(uintptr_t start, uintptr_t end, const char* sig, const char* m
 	static SigscanCacheEntry lookupEntry;
 	auto oldResult = sigscanCache.end();
 	bool useCache = logname && settings.useSigscanCaching;
+	std::unique_lock<std::mutex> guard;
 	if (useCache) {
+		guard = std::unique_lock<std::mutex>(sigscanCacheMutex);
 		++sigscanOrder;
 		loadSigscanCache();
 		int maskLen = strlen(mask);
@@ -1266,6 +1272,8 @@ void SigscanCacheEntry::applyMaskForCachingToSig() {
 void finishedSigscanning() {
 	#define fileWriteErr(msg, ...) { logwrap(fprintf(logfile, "%s writing error: " msg, SIGSCAN_CACHE_FILE_NAME, __VA_ARGS__)); return; }
 	if (!sigscansChanged) return;
+	std::unique_lock<std::mutex> guard(sigscanCacheMutex);
+	if (!sigscansChanged) return;
 	sigscansChanged = false;
 	
 	bool failedWrite = false;
@@ -1278,6 +1286,7 @@ void finishedSigscanning() {
 	for (const auto& it : sigscanCache) {
 		cacheOrdered.push_back(&it);
 	}
+	guard.unlock();
 	struct MyCompare {
 		static int __cdecl TheCompare(void const* elemLeft, void const* elemRight) {
 			const SortElement* pairLeft = *(const SortElement**)elemLeft;

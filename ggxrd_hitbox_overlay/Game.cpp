@@ -15,6 +15,7 @@
 #include "UI.h"
 
 char** aswEngine = nullptr;
+appRealloc_t appRealloc = nullptr;
 
 Game game;
 
@@ -474,7 +475,18 @@ void Game::TickActorComponentsHookStatic(int param1, int param2, int param3, int
 void Game::TickActorComponentsHook(int param1, int param2, int param3, int param4) {
 	if (!shutdown) {
 		if (ignoreAllCalls) {
-			return;
+			bool found = false;
+			auto itEnd = actorsToAllowTickFor.end();
+			for (auto it = actorsToAllowTickFor.begin(); it != itEnd; ++it) {
+				if (*it == (void*)param1) {
+					actorsToAllowTickFor.erase(it);
+					found = true;
+					break;
+				}
+			}
+			if (!found) return;
+		} else {
+			actorsToAllowTickFor.clear();
 		}
 	}
 	orig_TickActorComponents(param1, param2, param3, param4);
@@ -511,7 +523,7 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 	// 8) REDAnywhereDispDraw hook gets called in EndScene.cpp - this happens even when pause menu is open or a match is not running (for ex. on main menu)
 
 	// In rollback-affected online matches, the camera code runs multiple times per frame, from oldest frame to latest.
-	// However, USkeletalMeshComponent::UpdateTransform is always called only once per frame.
+	// However, USkeletalMeshComponent::UpdateTransform (for Player 1, let's say) is always called only once per frame.
 	// It is also certain that in rollback-affected matches, camera code runs first, and only
 	// then USkeletalMeshComponent::UpdateTransform/FUpdatePrimitiveTransformCommand::Apply happen.
 	// 
@@ -527,6 +539,7 @@ void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHook(int param1, int
 			TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty();
 		}
 	}
+	camera.lastGameTickRanFine = !ignoreAllCalls;
 }
 
 void Game::TickActors_FDeferredTickList_FGlobalActorIteratorHookEmpty() {
@@ -639,21 +652,10 @@ void Game::UWorld_TickHook(void* thisArg, ELevelTick TickType, float DeltaSecond
 		
 		ignoreAllCallsButEvenEarlier = false;
 		if (freezeGame && *aswEngine) {
-			slowmoSkipCounter = 0;
 			if (!allowNextFrame) {
 				ignoreAllCallsButEvenEarlier = true;
 			}
 			allowNextFrame = false;
-		}
-		if (slowmoGame && *aswEngine) {
-			++slowmoSkipCounter;
-			if ((int)slowmoSkipCounter < settings.slowmoTimes) {
-				ignoreAllCallsButEvenEarlier = true;
-			} else {
-				slowmoSkipCounter = 0;
-			}
-		} else {
-			slowmoSkipCounter = 0;
 		}
 		
 		bool unused;
@@ -1540,6 +1542,56 @@ void Game::onConnectionTierChanged() {
 	detouring.patchPlaceNoBackup((uintptr_t)functionStart, workVector);
 }
 
+int Game::currentPlayerControllingSide() const {
+	DummyRecordingMode recordingMode = getDummyRecordingMode();
+	
+	int playerSide = getPlayerSide();
+	if (playerSide != 0 && playerSide != 1) playerSide = 0;
+	
+	if (recordingMode == DUMMY_MODE_CONTROLLING
+			|| recordingMode == DUMMY_MODE_RECORDING) {
+		return 1 - playerSide;
+	}
+	
+	return playerSide;
+}
+
+const char* Game::readFName(int fname, bool* isWide) {
+	if (!fnameNamesPtr) {
+		if (!sigscanFNamesAndAppRealloc() && !fnameNamesPtr) return nullptr;
+	}
+	// FNameNames may change location when loading new characters, as new names get added and it relocates its storage
+	FNameEntry* entry = (*fnameNamesPtr)[fname];
+	if (entry->Index & 1) {
+		*isWide = true;
+		return (const char*)entry->data;
+	} else {
+		*isWide = false;
+		return (const char*)entry->data;
+	}
+}
+
+bool Game::sigscanFNamesAndAppRealloc() {
+	if (attemptedToFindFNameNames) {
+		return false;
+	}
+	attemptedToFindFNameNames = true;
+	uintptr_t place = sigscanOffset(
+		GUILTY_GEAR_XRD_EXE,
+		"8b 04 81 f6 40 08 01 74 1c 83 c0 10 8d 50 02 eb 03",
+		nullptr, "FNameNames");
+	if (!place) return false;
+	fnameNamesPtr = *(ArrayOfFNameEntryPointers**)(place - 4);
+	if (!fnameNamesPtr) return false;
+	uintptr_t appReallocCallPlace = sigscanForward(place,
+		"6a 08 8d 14 00 52 51 >e8 ?? ?? ?? ?? 83 c4 0c 89 06", 0xc0);
+	if (appReallocCallPlace) {
+		appRealloc = (appRealloc_t)followRelativeCall(appReallocCallPlace);
+	}
+	if (!appRealloc) return false;
+	return true;
+}
+
 bool Game::swapOutFPS() {
 	if (attemptedToSwapOutFPS) return false;
 	attemptedToSwapOutFPS = true;
@@ -1547,6 +1599,7 @@ bool Game::swapOutFPS() {
 	uintptr_t fpsUsage = sigscanOffset(GUILTY_GEAR_XRD_EXE,
 		"f3 0f 10 86 00 05 00 00 0f 2f c1 77 15 f3 0f 10 05 >?? ?? ?? ?? 0f 2f c1 76 08 f3 0f 11 4c 24 08 eb 06",
 		nullptr, "fpsUsage");
+	finishedSigscanning();
 	if (fpsUsage) {
 		DWORD newFpsAddr = (DWORD)(uintptr_t)&gifMode.fps;
 		std::vector<char> newBytes(4);
@@ -1561,4 +1614,14 @@ void Game::onFPSChanged() {
 	if (gifMode.fps != 60.F) {
 		swapOutFPS();
 	}
+}
+
+void Game::allowTickForActor(void* actor) {
+	if (!actor) return;
+	for (void* elem : actorsToAllowTickFor) {
+		if (elem == actor) {
+			return;
+		}
+	}
+	actorsToAllowTickFor.push_back(actor);
 }

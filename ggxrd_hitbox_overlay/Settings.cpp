@@ -15,6 +15,10 @@
 #include <vector>
 #include "KeyDefinitions.h"
 #include "SettingsTopCommentDefinition.h"
+#include <Psapi.h>
+#if _DEBUG
+#include <stdexcept>
+#endif
 
 Settings settings;
 
@@ -25,6 +29,7 @@ const char* const Settings::SETTINGS_GENERAL = "Settings - General Settings";
 const char* const Settings::SETTINGS_FRAMEBAR = "Settings - Framebar Settings";
 const char* const Settings::SETTINGS_COMBO_RECIPE = "Combo Recipe";
 const char* const Settings::SETTINGS_CHARACTER_SPECIFIC = "UI - Character specific";
+const char* const Settings::SETTINGS_HITBOX_EDITOR = "Main UI - Hitboxes - 'Hitbox Editor' Button - Cogwheel";
 static const StringWithLength pinnableWindowNames[] {
 	#define pinnableWindowsFunc(name, title) #name,
 	#define pinnableWindowsPairFunc(name, titleFmtString) pinnableWindowsFunc(name##_1, 0) pinnableWindowsFunc(name##_2, 0)
@@ -34,16 +39,17 @@ static const StringWithLength pinnableWindowNames[] {
 };
 
 bool Settings::onDllMain() {
-	#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode) addKey(identifier, userFriendlyName, virtualKeyCode);
-	#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode) addKey(identifier, userFriendlyName, virtualKeyCode);
+	#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable) addKey(identifier, userFriendlyName, virtualKeyCode);
+	#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable) addKey(identifier, userFriendlyName, virtualKeyCode);
 	#define keyEnumFunc_keyRange(str) addKeyRange(str);
 	keyEnum
 	#undef keyEnumFunc
 	#undef keyEnumFuncLast
 	#undef keyEnumFunc_keyRange
 	
+	reverseKeys.resize(maxKeyCode + 1, nullptr);
 	for (auto it = keys.begin(); it != keys.end(); ++it) {
-		reverseKeys.insert({it->second.code, &it->second});
+		reverseKeys[it->second.code] = &it->second;
 	}
 	
 	#define settingsKeyCombo(name, displayName, defaultValue, description) insertKeyComboToParse(#name, displayName, &name, defaultValue, description);
@@ -71,9 +77,16 @@ bool Settings::onDllMain() {
 		offsetToKeyComboToParse[offsetToKeyComboIndex(keyCombo.keyCombo)] = &keyCombo;
 		
 		std::string& strRef = keyCombo.uiFullName;
-		static const StringWithLength prefix = "'Settings - Keyboard Shortcuts - ";
-		strRef.reserve(prefix.length + strlen(keyCombo.uiName) + 1);
-		strRef = prefix.txt;
+		static const StringWithLength prefixNormal = "'Settings - Keyboard Shortcuts - ";
+		static const StringWithLength prefixHitboxEditor = "'Hitbox Editor - Cogwheel - ";
+		const StringWithLength* prefixToUse;
+		if (strncmp(it->first.start, "hitboxEdit", 10) == 0) {
+			prefixToUse = &prefixHitboxEditor;
+		} else {
+			prefixToUse = &prefixNormal;
+		}
+		strRef.reserve(prefixToUse->length + strlen(keyCombo.uiName) + 1);
+		strRef = prefixToUse->txt;
 		strRef += keyCombo.uiName;
 		strRef += '\'';
 		iniNameToUiNameMap.insert(
@@ -91,12 +104,22 @@ bool Settings::onDllMain() {
 		desc.uiDescription = convertToUiDescription(desc.iniDescription.txt);
 	}
 	
-	std::wstring currentDir = getCurrentDirectory();
-	settingsPath = currentDir + L"\\ggxrd_hitbox_overlay.ini";
+	WCHAR ggModulePath[MAX_PATH];
+	ggModulePath[0] = L'\0';
+	HMODULE ggModule;
+	DWORD bytesNeeded;
+	if (EnumProcessModules(GetCurrentProcess(), &ggModule, sizeof HMODULE, &bytesNeeded)) {
+		GetModuleFileNameW(ggModule, ggModulePath, MAX_PATH);
+	}
+	settingsPath = ggModulePath;
+	int pos = findCharRevW(settingsPath.c_str(), L'\\');
+	if (pos != -1) {
+		settingsPath.resize(pos);
+	}
+	settingsPath += L"\\ggxrd_hitbox_overlay.ini";
 	logwrap(fprintf(logfile, "INI file path: %ls\n", settingsPath.c_str()));
 	
 	registerListenerForChanges();
-// todo: elphelt make shotgun charge display 1f later
 	readSettings(true);
 
 	return true;
@@ -151,7 +174,6 @@ void Settings::onDllDetach() {
 
 void Settings::addKey(const char* name, const char* uiName, int code) {
 	keys.insert({{ name, name + strlen(name) }, {name, uiName, code}});
-	if (code < minKeyCode) minKeyCode = code;
 	if (code > maxKeyCode) maxKeyCode = code;
 }
 
@@ -333,6 +355,13 @@ void Settings::readSettings(bool isFirstEverRead) {
 									} \
 									break;
 										
+								#define hitboxListPreset(name) \
+									case offsetof(Settings, name): \
+									if (!name##Parsed) { \
+										name##Parsed = parseHitboxList(#name, keyValue, name); \
+									} \
+									break;
+										
 								#define pinnedWindowListPreset(name) \
 									case offsetof(Settings, name): \
 									if (!name##Parsed) { \
@@ -345,6 +374,7 @@ void Settings::readSettings(bool isFirstEverRead) {
 								#define ScreenshotPath screenshotPathPreset
 								#define float floatPreset
 								#define MoveList moveListPreset
+								#define HitboxList hitboxListPreset
 								#define PinnedWindowList pinnedWindowListPreset
 								#define settingsKeyCombo(name, displayName, defaultValue, description)
 								#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) type(name)
@@ -361,6 +391,8 @@ void Settings::readSettings(bool isFirstEverRead) {
 								#undef booleanPreset
 								#undef MoveList
 								#undef moveListPreset
+								#undef HitboxList
+								#undef hitboxListPreset
 								#undef PinnedWindowList
 								#undef pinnedWindowListPreset
 							}
@@ -562,9 +594,13 @@ bool Settings::parseKeys(const char* keyName, const char* keyValueStart, const c
 				return false;
 			}
 			++partTrimmed.end;
+			bool negate = partTrimmed.start[0] == '-';
+			if (negate) {
+				++partTrimmed.start;
+			}
 			auto found = keys.find(partTrimmed);
 			if (found != keys.end()) {
-				keyCodes.push_back(found->second.code);
+				keyCodes.push_back(negate ? -found->second.code : found->second.code);
 			} else {
 				#ifdef LOG_PATH
 				std::string buf;
@@ -620,7 +656,7 @@ bool Settings::parseFloat(const char* keyName, const std::string& keyValue, floa
 	return true;
 }
 
-StringWithLength Settings::formatBoolean(bool value) {
+const StringWithLength& Settings::formatBoolean(bool value) {
 	static const StringWithLength trueStr = "true";
 	static const StringWithLength falseStr = "false";
 	return value ? trueStr : falseStr;
@@ -683,7 +719,7 @@ void Settings::getKeyValue(const char* buf, std::string& result) {
 
 	const char* bufPos = buf + equalSignPos + 1;
 	size_t bufLength = strlen(buf);
-	if (minCommentPos != -1) bufLength -= (bufLength - minCommentPos);
+	if (minCommentPos != -1) bufLength = minCommentPos;
 	int lengthFromBufPos = buf + bufLength - bufPos;
 	if (lengthFromBufPos == 0) {
 		result.clear();
@@ -693,27 +729,18 @@ void Settings::getKeyValue(const char* buf, std::string& result) {
 	trim(result);
 }
 
-std::wstring Settings::getCurrentDirectory() {
-	DWORD requiredSize = GetCurrentDirectoryW(0, NULL);
-	if (!requiredSize) {
-		WinError winErr;
-		logwrap(fprintf(logfile, "GetCurrentDirectoryW failed: %ls\n", winErr.getMessage()));
-		return std::wstring{};
-	}
-	std::vector<wchar_t> currentDirVec(requiredSize);
-	if (!GetCurrentDirectoryW(currentDirVec.size(), currentDirVec.data())) {
-		WinError winErr;
-		logwrap(fprintf(logfile, "GetCurrentDirectoryW (second call) failed: %ls\n", winErr.getMessage()));
-		return std::wstring{};
-	}
-	return std::wstring{currentDirVec.data()};
-}
-
 StringWithLength Settings::getComboRepresentation(const std::vector<int>& toggle) {
 	KeyComboToParse& combo = getKeyComboToParseByOffset(toggle);
 	if (!combo.representationGenerated) combo.generateRepresentation();
 	if (combo.representation.empty()) return "";
 	return combo.representation;
+}
+
+StringWithLength Settings::getComboRepresentationUserFriendly(const std::vector<int>& toggle) {
+	KeyComboToParse& combo = getKeyComboToParseByOffset(toggle);
+	if (!combo.representationUserFriendlyGenerated) combo.generateRepresentationUserFriendly();
+	if (combo.representationUserFriendly.empty()) return "";
+	return combo.representationUserFriendly;
 }
 
 void Settings::trashComboRepresentation(std::vector<int>& toggle) {
@@ -727,27 +754,44 @@ void Settings::KeyComboToParse::generateRepresentation() {
 	std::vector<int>& kCombo = *keyCombo;
 	bool isFirst = true;
 	for (int code : kCombo) {
-		const char* keyStr = settings.getKeyTxtName(code);
+		const char* keyStr = settings.getKeyTxtName(code < 0 ? -code : code);
 		if (!isFirst) {
 			representation += "+";
 		}
 		isFirst = false;
+		if (code < 0) representation += "-";
 		representation += keyStr;
 	}
 }
 
+void Settings::KeyComboToParse::generateRepresentationUserFriendly() {
+	representationUserFriendly.clear();
+	representationUserFriendlyGenerated = true;
+	std::vector<int>& kCombo = *keyCombo;
+	bool isFirst = true;
+	for (int code : kCombo) {
+		const char* keyStr = settings.getKeyTxtName(code < 0 ? -code : code);
+		if (!isFirst) {
+			representationUserFriendly += "+";
+		}
+		isFirst = false;
+		if (code < 0) representationUserFriendly += "NOT HELD ";
+		representationUserFriendly += keyStr;
+	}
+}
+
 const char* Settings::getKeyTxtName(int code) {
-	auto found = reverseKeys.find(code);
-	if (found != reverseKeys.end()) {
-		return found->second->name;
+	const Key* ptr = reverseKeys[code];
+	if (ptr) {
+		return ptr->name;
 	}
 	return "";
 }
 
 const char* Settings::getKeyRepresentation(int code) {
-	auto found = reverseKeys.find(code);
-	if (found != reverseKeys.end()) {
-		return found->second->uiName;
+	const Key* ptr = reverseKeys[code];
+	if (ptr) {
+		return ptr->uiName;
 	}
 	return "";
 }
@@ -857,6 +901,7 @@ void Settings::writeSettingsMain() {
 		FieldType_ScreenshotPath,
 		FieldType_Float,
 		FieldType_MoveList,
+		FieldType_HitboxList,
 		FieldType_PinnedWindowList
 	};
 	struct FieldInfo {
@@ -873,6 +918,7 @@ void Settings::writeSettingsMain() {
 		#define ScreenshotPath FieldType_ScreenshotPath
 		#define float FieldType_Float
 		#define MoveList FieldType_MoveList
+		#define HitboxList FieldType_HitboxList
 		#define PinnedWindowList FieldType_PinnedWindowList
 		#define settingsKeyCombo(name, displayName, defaultValue, description) 
 		#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment) \
@@ -889,6 +935,7 @@ void Settings::writeSettingsMain() {
 		#undef int
 		#undef bool
 		#undef MoveList
+		#undef HitboxList
 		#undef PinnedWindowList
 	}
 	
@@ -1089,6 +1136,7 @@ void Settings::writeSettingsMain() {
 								case FieldType_ScreenshotPath: fieldValuePtr = &screenshotPath; break;
 								case FieldType_Float: formatFloat(*(float*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
 								case FieldType_PinnedWindowList: formatPinnedWindowList(*(PinnedWindowList*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
+								case FieldType_HitboxList: formatHitboxList(*(HitboxList*)fi.ptr, fieldValue); fieldValuePtr = &fieldValue; break;
 							}
 							if (fieldValuePtr) {
 								li.compareAndUpdateValue(*fieldValuePtr);
@@ -1137,10 +1185,7 @@ void Settings::writeSettingsMain() {
 		bool rChar = false;
 		HANDLE file = NULL;
 		bool isFirst = true;
-		std::vector<std::string> printedNames;
 		void outputToFile() {
-			std::string nameAsString(name.txt, name.length);
-			printedNames.push_back(nameAsString);
 			DWORD bytesWritten;
 			
 			if (!isFirst) {
@@ -1234,6 +1279,15 @@ void Settings::writeSettingsMain() {
 			nl.iniDescription = getOtherINIDescription(&fieldName); \
 			nl.outputToFile(); \
 		}
+		
+	#define hitboxListPreset(fieldName, fieldInlineComment) \
+		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
+			nl.name = StringWithLength { #fieldName }; \
+			formatHitboxList(fieldName, fieldValue); \
+			nl.newValuePtr = fieldValue; \
+			nl.iniDescription = getOtherINIDescription(&fieldName); \
+			nl.outputToFile(); \
+		}
 	#define pinnedWindowListPreset(fieldName, fieldInlineComment) \
 		if (!fieldFoundInFile[offsetof(Settings, fieldName) - offsetof(Settings, settingsMembersStart)]) { \
 			nl.name = StringWithLength { #fieldName }; \
@@ -1247,6 +1301,7 @@ void Settings::writeSettingsMain() {
 	#define ScreenshotPath screenshotPathPreset
 	#define bool booleanPreset
 	#define MoveList moveListPreset
+	#define HitboxList hitboxListPreset
 	#define PinnedWindowList pinnedWindowListPreset
 	#define settingsKeyCombo(name, displayName, defaultValue, description) keyComboPreset(name)
 	#define settingsField(type, fieldName, defaultValue, displayName, section, description, inlineComment) type(fieldName, inlineComment)
@@ -1258,12 +1313,14 @@ void Settings::writeSettingsMain() {
 	#undef float
 	#undef int
 	#undef MoveList
+	#undef moveListPreset
+	#undef HitboxList
+	#undef hitboxListPreset
 	#undef floatPreset
 	#undef integerPreset
 	#undef booleanPreset
 	#undef keyComboPreset
 	#undef screenshotPathPreset
-	#undef moveListPreset
 	#undef pinnedWindowListPreset
 	#undef PinnedWindowList
 	
@@ -1390,6 +1447,7 @@ void Settings::onKeyCombosUpdated() {
 	for (auto it = keyCombosToParse.begin(); it != keyCombosToParse.end(); ++it) {
 		KeyComboToParse& k = it->second;
 		k.representationGenerated = false;
+		k.representationUserFriendlyGenerated = false;
 		keyboard.addNewKeyCodes(*k.keyCombo);
 	}
 }
@@ -1585,6 +1643,18 @@ int Settings::findCharRev(const char* buf, char c) {
 	return -1;
 }
 
+int Settings::findCharRevW(const wchar_t* buf, wchar_t c) {
+	const wchar_t* ptr = buf;
+	while (*ptr != L'\0') {
+		++ptr;
+	}
+	while (ptr != buf) {
+		--ptr;
+		if (*ptr == c) return ptr - buf;
+	}
+	return -1;
+}
+
 float Settings::parseFloat(const char* inputString, bool* error) {
 	if (error) *error = false;
 	float result;
@@ -1719,6 +1789,12 @@ bool Settings::parseMoveList(const char* keyName, const std::string& keyValue, M
 	return true;
 }
 
+bool Settings::parseHitboxList(const char* keyName, const std::string& keyValue, HitboxList& listValue) {
+	size_t itemsParsed = listValue.parse(keyValue.c_str());
+	logwrap(fprintf(logfile, "Parsed hitbox list for %s: %u items\n", keyName, itemsParsed));
+	return true;
+}
+
 bool Settings::parsePinnedWindowList(const char* keyName, const std::string& keyValue, PinnedWindowList& listValue) {
 	const char* start = nullptr;
 	size_t counter = keyValue.size()
@@ -1755,25 +1831,9 @@ bool Settings::parsePinnedWindowList(const char* keyName, const std::string& key
 }
 
 void Settings::formatInteger(int d, std::string& result) {
-	static const char* formatString = "%d";
-	
-	int neededCount = snprintf(nullptr, 0, formatString, d);
-	
-	if (neededCount == 0) {
-		result.clear();
-		return;
-	}
-	
-	if (neededCount < 79) {
-		char buf[80];
-		snprintf(buf, sizeof buf, formatString, d);
-		result = buf;
-		return;
-	}
-	
-	std::vector<char> vec(neededCount + 1, '\0');
-	snprintf(vec.data(), vec.size(), formatString, d);
-	result = vec.data();
+	char buf[12];  // -2147483647
+	sprintf(buf, "%d", d);
+	result = buf;
 }
 
 void Settings::formatFloat(float f, std::string& result) {
@@ -1790,7 +1850,7 @@ void Settings::formatFloat(float f, std::string& result) {
 	char buf[80];
 	char* bufPtr;
 	
-	if (neededCount < 79) {
+	if (neededCount < 80) {
 		snprintf(buf, sizeof buf, formatString, f);
 		bufPtr = buf;
 	} else {
@@ -1843,7 +1903,7 @@ void Settings::formatFloat(float f, std::string& result) {
 }
 
 void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
-	unsigned int neededSize = 20  // 20 is the length of the yyyy.MM.ddThh:mm:ss date time
+	unsigned int neededSize = 19  // 19 is the length of the yyyy.MM.ddThh:mm:ss date time
 		+ 1;  // one space
 	bool isFirst = true;
 	bool red = false;
@@ -1881,7 +1941,8 @@ void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
 	}
 	std::vector<char> resultBuf(neededSize + 1);
 	char* str = resultBuf.data();
-	int length = sprintf_s(str, resultBuf.size() + 1, "%.4u.%.2u.%.2uT%.2u:%.2u:%.2u ", moveList.year, moveList.month, moveList.day, moveList.hour, moveList.minute, moveList.second);
+	int year = min(moveList.year, 9999);  // do you really think
+	int length = sprintf_s(str, resultBuf.size(), "%.4u.%.2u.%.2uT%.2u:%.2u:%.2u ", year, moveList.month, moveList.day, moveList.hour, moveList.minute, moveList.second);
 	if (length == -1) {
 		result.clear();
 		return;
@@ -1891,6 +1952,14 @@ void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
 	red = false;
 	green = false;
 	blue = false;
+	#if _DEBUG
+	#define writeStr(c) \
+		if (str < resultBuf.data() || str >= resultBuf.data() + resultBuf.size()) throw std::out_of_range("formatMoveList fuckup"); \
+		else *str = c;
+	#else
+	#define writeStr(c) *str = c;
+	#endif
+	
 	for (const MoveListPointer& ptr : moveList.pointers) {
 		bool charChanged = false;
 		bool colorChanged = false;
@@ -1920,38 +1989,71 @@ void Settings::formatMoveList(const MoveList& moveList, std::string& result) {
 		}
 		if (charChanged) {
 			for (c = characterNamesCode[previousCharacter]; *c != '\0'; ++c) {
-				*str = *c;
+				writeStr(*c)
 				++str;
 			}
-			*str = ' ';
+			writeStr(' ')
 			++str;
 		}
 		if (colorChanged) {
 			if (ptr.red) {
-				*str = 'r';
+				writeStr('r')
 				++str;
 			}
 			if (ptr.green) {
-				*str = 'g';
+				writeStr('g')
 				++str;
 			}
 			if (ptr.blue) {
-				*str = 'b';
+				writeStr('b')
 				++str;
 			}
-			*str = ' ';
+			writeStr(' ')
 			++str;
 		}
 		for (c = ptr.name; *c != '\0'; ++c) {
-			*str = *c;
+			writeStr(*c)
 			++str;
 		}
-		*str = ' ';
+		writeStr(' ')
 		++str;
 	}
-	*str = '\0';
+	--str;
+	while (str >= resultBuf.data() && *str <= 32) --str;
 	++str;
+	writeStr('\0')
 	result = resultBuf.data();
+}
+
+void Settings::formatHitboxList(const HitboxList& hitboxList, std::string& result) {
+	const int oneElemLength = 
+			10  // length 0f 0xFFFFFFFF
+			+ 1  // space
+			+ 1  // boolean flag: 0 or 1
+			+ 1;  // space
+	
+	char buf[oneElemLength
+			* 17  // maximum number of hitboxes
+			+ 1];  // the null byte
+	
+	char* ptr = buf;
+	
+	for (int i = 0; i < 17; ++i) {
+		const HitboxListElement& element = hitboxList.elements[i];
+		int printedChars = sprintf_s(ptr, sizeof (buf) - (size_t)(ptr - buf), "0x%.8x %d ", element.color, element.show);
+		if (printedChars != oneElemLength) {
+			result.clear();
+			break;
+		}
+		
+		ptr += oneElemLength;
+	}
+	--ptr;
+	while (ptr >= buf && *ptr <= 32) --ptr;
+	++ptr;
+	*ptr = '\0';
+	result = buf;
+	
 }
 
 void Settings::formatPinnedWindowList(const PinnedWindowList& list, std::string& result) {
@@ -1971,8 +2073,13 @@ void Settings::formatPinnedWindowList(const PinnedWindowList& list, std::string&
 		result.clear();
 		return;
 	}
-	std::vector<char> outBuf(totalSize + 1);
-	result.resize(totalSize);
+	std::vector<char> outBuf(totalSize
+		// we're keeping the last space
+		+ 1  // include terminating null
+	);
+	result.resize(totalSize
+		- 1  // remove last space
+		);
 	char* ptr = outBuf.data();
 	for (int i = 0; i < _countof(names); ++i) {
 		const StringWithLength* swl = names[i];
@@ -1983,6 +2090,59 @@ void Settings::formatPinnedWindowList(const PinnedWindowList& list, std::string&
 			++ptr;
 		}
 	}
-	outBuf[outBuf.size() - 1] = '\0';
-	result.assign(outBuf.data(), outBuf.size() - 1);
+	result.assign(outBuf.data(), outBuf.size()
+		- 1  // remove last space
+		- 1  // remove terminating null
+	);
+}
+
+HitboxList::HitboxList(const char* str) {
+	parse(str);
+}
+
+size_t HitboxList::parse(const char* str) {
+	HitboxListElement* element = elements;
+	bool wantBoolean = false;
+	const char* hexStart = nullptr;
+	for (; *str != '\0'; ++str) {
+		char cVal = *str;
+		if (!wantBoolean) {
+			if (!hexStart) {
+				if (cVal > 32) {
+					hexStart = str;
+				}
+			} else if (cVal <= 32) {
+				if (*hexStart == '0' && hexStart + 1 < str && hexStart[1] == 'x') {
+					hexStart += 2;
+					DWORD color = 0;
+					for (; hexStart < str; ++hexStart) {
+						char hexVal = *hexStart;
+						if (hexVal >= '0' && hexVal <= '9') {
+							color = (color << 4) | (hexVal - '0');
+						} else if (hexVal >= 'a' && hexVal <= 'f') {
+							color = (color << 4) | (hexVal - 'a' + 10);
+						} else if (hexVal >= 'F' && hexVal <= 'F') {
+							color = (color << 4) | (hexVal - 'A' + 10);
+						}
+					}
+					element->color = color;
+				}
+				hexStart = nullptr;
+				wantBoolean = true;
+			}
+		} else if (cVal > 32) {
+			element->show = cVal == '1';
+			wantBoolean = false;
+			++element;
+			if (element - elements >= 17) {
+				break;
+			}
+		}
+	}
+	if (element - elements < _countof(elements)) {
+		memset(element, 0, sizeof (elements) - (
+			(BYTE*)element - (BYTE*)elements
+		));
+	}
+	return element - elements;
 }

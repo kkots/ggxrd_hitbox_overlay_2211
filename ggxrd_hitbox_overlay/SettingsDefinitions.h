@@ -114,19 +114,21 @@ settingsKeyCombo(freezeGameToggle, "Freeze Game Toggle", "",
 	
 settingsKeyCombo(slowmoGameToggle, "Slow-mo Game Toggle", "",
 	"; A keyboard shortcut to play the game in slow motion.\n"
-	"; Please specify by how many times to slow the game down in \"slowmoTimes\".\n"
-	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Slow-Mo Mode' checkbox.")
+	"; Please specify the FPS of the Slow-mo mode in \"slowmoFps\".\n"
+	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Slow-Mo Mode' checkbox.\n"
+	"; Slow-mo mode only works in Training Mode.\n")
 	
 settingsKeyCombo(allowNextFrameKeyCombo, "Allow Next Frame", "",
 	"; A keyboard shortcut. Only works while the game is frozen using \"freezeGameToggle\".\n"
 	"; Advances the game forward one frame.\n"
 	"; In the UI, this mode can also be toggled using 'UI - Hitboxes - Next Frame' button.")
 	
-settingsField(int, slowmoTimes, 3,
-	"Slow-Mo Factor", SETTINGS_HITBOX,
-	"; A number.\n"
-	"; This works in conjunction with \"slowmoGameToggle\". Only round numbers greater than 1 allowed.\n"
-	"; Specifies by how many times to slow the game down")
+settingsField(float, slowmoFps, 30.F,
+	"Slow-Mo FPS", SETTINGS_HITBOX,
+	"; A floating point number. Default value is 30.0 (half the normal game's FPS, which is 60).\n"
+	"; This works in conjunction with \"slowmoGameToggle\". Only numbers greater than or equal to 1 and lower than or equal to 999 allowed.\n"
+	"; Specifies the FPS that the game will run in when Slow-mo mode is active.\n"
+	"; Slow-mo mode only works in Training Mode.")
 	
 settingsKeyCombo(disableModToggle, "Disable Mod Toggle", "F6",
 	"; A keyboard shortcut to enable/disable the mod without having to load/unload it")
@@ -1102,6 +1104,109 @@ settingsField(bool, onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHit
 	"; Setting this to true prevents the 'Counter Hit' setting from working explicitly just for Burst\n"
 	"; and Faint animations, including all hitstun.")
 	
+settingsKeyCombo(hitboxEditModeToggle, "Hitbox Edit Mode Toggle", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will enable/disable the hitbox editing mode.\n"
+	"; Note that the 'Hitbox Editor' window is accessible through the 'Hitbox Editor' button in the 'Hitboxes' section,\n"
+	"; and the main functionality is in Hitbox Editor.")
+	
+settingsKeyCombo(hitboxEditMoveCameraUp, "Move Camera Up", "-Shift+-Ctrl+MouseWheelUp",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the camera up during the hitbox editing mode.\n"
+	"; You can adjust the speed with which the camera moves vertically using \"hitboxEditMoveCameraVerticalSpeedMultiplier\".")
+	
+settingsKeyCombo(hitboxEditMoveCameraDown, "Move Camera Down", "-Shift+-Ctrl+MouseWheelDown",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the camera down during the hitbox editing mode.\n"
+	"; You can adjust the speed with which the camera moves vertically using \"hitboxEditMoveCameraVerticalSpeedMultiplier\".")
+	
+settingsKeyCombo(hitboxEditMoveCameraLeft, "Move Camera Left", "Shift+MouseWheelUp",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the camera left during the hitbox editing mode.\n"
+	"; You can adjust the speed with which the camera moves horizontally using \"hitboxEditMoveCameraHorizontalSpeedMultiplier\".")
+	
+settingsKeyCombo(hitboxEditMoveCameraRight, "Move Camera Right", "Shift+MouseWheelDown",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the camera right during the hitbox editing mode.\n"
+	"; You can adjust the speed with which the camera moves horizontally using \"hitboxEditMoveCameraHorizontalSpeedMultiplier\".")
+	
+settingsKeyCombo(hitboxEditMoveCameraForward, "Move Camera Forward", "Ctrl+MouseWheelUp",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the camera forward during the hitbox editing mode.\n"
+	"; You can adjust the speed with which the camera moves forward and back using \"hitboxEditMoveCameraPerpendicularSpeedMultiplier\".")
+	
+settingsKeyCombo(hitboxEditMoveCameraBack, "Move Camera Back", "Ctrl+MouseWheelDown",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the camera back during the hitbox editing mode.\n"
+	"; You can adjust the speed with which the camera moves forward and back using \"hitboxEditMoveCameraPerpendicularSpeedMultiplier\".")
+	
+settingsField(float, hitboxEditMoveCameraVerticalSpeedMultiplier, 1.F,
+	"Move Camera Vertical Speed Multiplier", SETTINGS_HITBOX_EDITOR,
+	"; A floating point value. Default value is 1.0.\n"
+	"; Allows you to adjust how fast the camera moves vertically during the hitbox edit mode.\n"
+	"; The camera can be moved up/down using \"hitboxEditMoveCameraUp\" and \"hitboxEditMoveCameraDown\".")
+	
+settingsField(float, hitboxEditMoveCameraHorizontalSpeedMultiplier, 1.F,
+	"Move Camera Horizontal Speed Multiplier", SETTINGS_HITBOX_EDITOR,
+	"; A floating point value. Default value is 1.0.\n"
+	"; Allows you to adjust how fast the camera moves horizontally during the hitbox edit mode.\n"
+	"; The camera can be moved left/right using \"hitboxEditMoveCameraLeft\" and \"hitboxEditMoveCameraRight\".")
+	
+settingsField(float, hitboxEditMoveCameraPerpendicularSpeedMultiplier, 2.F,
+	"Move Camera Perpendicular Speed Multiplier", SETTINGS_HITBOX_EDITOR,
+	"; A floating point value. Default value is 1.0.\n"
+	"; Allows you to adjust how fast the camera moves farther away from or closer to the arena during the hitbox edit mode.\n"
+	"; The camera can be moved left/right using \"hitboxEditMoveCameraForward\" and \"hitboxEditMoveCameraBack\".")
+	
+settingsField(bool, hitboxEditUnfreezeGameWhenLeavingEditMode, true,
+	"Unfreeze Game When Leaving Edit Mode", SETTINGS_HITBOX_EDITOR,
+	"; Specify true or false.\n"
+	"; Specifying true means that, when you stop editing hitboxes using the 'Hitbox Editor' window,\n"
+	"; or exit the edit mode via a shortcut, you will unfreeze the game, if it's currently frozen.\n"
+	"; You can manually freeze and unfreeze the game using the controls in Main Mod UI - Hitboxes or\n"
+	"; \"freezeGameToggle\".")
+	
+settingsField(bool, hitboxEditShowHitboxesOfEntitiesOtherThanTheOneBeingEdited, true,
+	"Show Hitboxes Of Entities Other Than The One Being Edited", SETTINGS_HITBOX_EDITOR,
+	"; Specify true or false.\n"
+	"; Specifying true means that, when you're in hitbox editing mode,\n"
+	"; you will see hitboxes of all entities on the arena.\n"
+	"; When this is false, you will only see hitboxes of the entity you're currently editing.")
+	
+settingsField(HitboxList, hitboxList,
+		// 0xAARRGGBB Show (true/false). Can't use commas because preprocessor doesn't understand that they're inside curly braces
+		/* HURTBOX */           "0xFF00FF00 1 "
+		/* HITBOX */            "0xFFFF0000 1 "
+		/* EX_POINT */          "0xFFFFFFFF 0 "
+		/* EX_POINT_EXTENDED */ "0xFFFFFFFF 0 "
+		/* TYPE4 */             "0xFFFFFFFF 0 "
+		/* PUSHBOX */           "0xFFFFFF00 1 "
+		/* TYPE6 */             "0xFFFFFFFF 0 "
+		/* NECK */              "0xFFFFFFFF 0 "
+		/* ABDOMEN */           "0xFFFFFFFF 0 "
+		/* R_LEG */             "0xFFFFFFFF 0 "
+		/* L_LEG */             "0xFFFFFFFF 0 "
+		/* PRIVATE0 */          "0xFFFFFFFF 0 "
+		/* PRIVATE1 */          "0xFFFFFFFF 0 "
+		/* PRIVATE2 */          "0xFFFFFFFF 0 "
+		/* PRIVATE3 */          "0xFFFFFFFF 0 "
+		/* TYPE15 */            "0xFFFFFFFF 0 "
+		/* TYPE16 */            "0xFFFFFFFF 0 ",
+	"Hitbox List", SETTINGS_HITBOX_EDITOR,
+	"; Specify a list of hitboxes, sorted by type. You're not allowed to skip types.\n"
+	"; There are 17 types total. For each hitbox specify color in 0xAARRGGBB and whether it should\n"
+	"; be displayed (0/1). Separate everything with spaces.")
+	
+settingsField(bool, hitboxEditShowFloorline, true,
+	"Show Floorline", SETTINGS_HITBOX_EDITOR,
+	"; Specify true or false.\n"
+	"; Specifying true will draw a white line denoting the floor level during hitbox editing mode.")
+	
+settingsField(bool, hitboxEditShowOriginPoints, true,
+	"Show Origin Points", SETTINGS_HITBOX_EDITOR,
+	"; Specify true or false.\n"
+	"; Specifying true will draw origin points of both player during hitbox editing mode.")
+	
 settingsField(bool, showPunishMessageOnBlock, false,
 	"Show 'Punish' Message When Punishing After A Block/Hit/Armor", SETTINGS_GENERAL,
 	"; Specify true or false.\n"
@@ -1113,5 +1218,123 @@ settingsField(bool, showPunishMessageOnWhiff, false,
 	"; Specify true or false.\n"
 	"; Shows a message when a player got hit during recovery of an attack move, or during\n"
 	"; landing animation of any move, or after 15 frames of starting a move.")
+	
+settingsKeyCombo(hitboxEditAddSpriteHotkey, "Add Sprite", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will add a new sprite when inside the hitbox editor and hitbox editing mode is active.")
+	
+settingsKeyCombo(hitboxEditDeleteSpriteHotkey, "Delete Sprite", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will delete the current sprite when inside the hitbox editor and hitbox editing mode is active.")
+	
+settingsKeyCombo(hitboxEditRenameSpriteHotkey, "Rename Sprite", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will prompt to rename the current sprite when inside the hitbox editor and hitbox editing mode is active.")
+	
+settingsKeyCombo(hitboxEditAddHitboxHotkey, "Add Hitbox", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will turn on the hitbox addition mode, and when you drag your mouse across the stage,\n"
+	"; it will create a new hitbox of the type specified in the 'Hitbox Type' field.\n"
+	"; If you don't drag and just click instead, you will create a point-sized hitbox.\n"
+	"; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditDeleteSelectedHitboxesHotkey, "Delete Selected Hitboxes", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will delete the currently selected hitboxes when inside the hitbox editor and hitbox editing mode is active\n"
+	"; (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditSelectionToolHotkey, "Selection Tool", "",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will turn on the selection tool mode, and when you hover your mouse over hitboxes,\n"
+	"; the cursor will change, and you'll be able to select, box-select and move and resize hitboxes.\n"
+	"; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditUndoHotkey, "Undo", "Ctrl+Z",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will undo the last hitbox or sprite editing operation.\n"
+	"; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditRedoHotkey, "Redo", "Ctrl+Y",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will redo the last undone hitbox or sprite editing operation.\n"
+	"; If you have not yet undone any operation, or you did a new operation after last undoing one, redo is impossible.\n"
+	"; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsField(bool, hitboxEditZoomOntoMouseCursor, true,
+	"Zoom Onto/Away From Mouse Cursor", SETTINGS_HITBOX_EDITOR,
+	"; Specify true or false.\n"
+	"; When using some hotkey to zoom the camera in/out during hitbox editing mode,\n"
+	"; the camera will be scaled around the current position of the mouse cursor.")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesUp, "Move Hitboxes Up", "-Ctrl+-Shift+Up",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes up by a normal amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesNormalAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesDown, "Move Hitboxes Down", "-Ctrl+-Shift+Down",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes down by a normal amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesNormalAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesLeft, "Move Hitboxes Left", "-Ctrl+-Shift+Left",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes left by a normal amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesNormalAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesRight, "Move Hitboxes Right", "-Ctrl+-Shift+Right",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes right by a normal amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesNormalAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsField(int, hitboxEditMoveHitboxesNormalAmount, 1000,
+	"Move Hitboxes 'Normal Amount'", SETTINGS_HITBOX_EDITOR,
+	"; Specify a number. Default value is 1000.\n"
+	"; This controls how much the hitboxes are moved by the \"hitboxEditMoveHitboxesUp\",\n"
+	"; \"hitboxEditMoveHitboxesDown\", \"hitboxEditMoveHitboxesLeft\", \"hitboxEditMoveHitboxesRight\" controls.")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesALotUp, "Move Hitboxes A Lot Up", "-Ctrl+Shift+Up",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes up by a large amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesLargeAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesALotDown, "Move Hitboxes A Lot Down", "-Ctrl+Shift+Down",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes down by a large amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesLargeAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesALotLeft, "Move Hitboxes A Lot Left", "-Ctrl+Shift+Left",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes left by a large amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesLargeAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsKeyCombo(hitboxEditMoveHitboxesALotRight, "Move Hitboxes A Lot Right", "-Ctrl+Shift+Right",
+	"; A keyboard shortcut.\n"
+	"; Pressing this shortcut will move the currently selected hitboxes right by a large amount\n"
+	"; (specified in \"hitboxEditMoveHitboxesLargeAmount\").\n"
+	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
+	
+settingsField(int, hitboxEditMoveHitboxesLargeAmount, 10000,
+	"Move Hitboxes 'Large Amount'", SETTINGS_HITBOX_EDITOR,
+	"; Specify a number. Default value is 10000.\n"
+	"; This controls how much the hitboxes are moved by the \"hitboxEditMoveHitboxesALotUp\",\n"
+	"; \"hitboxEditMoveHitboxesALotDown\", \"hitboxEditMoveHitboxesALotLeft\", \"hitboxEditMoveHitboxesALotRight\" controls.")
+	
+settingsField(bool, hitboxEditDisplayRawCoordinates, false,
+	"Display Raw Coordinates", SETTINGS_HITBOX_EDITOR,
+	"; Specify true or false.\n"
+	"; This controls the four fields that are located on the bottom right of the Hitbox Editor:\n"
+	"; the 'Left', 'Top', 'Right' and 'Bottom' fields. When this setting is true, those fields show\n"
+	"; 'X', 'Y', 'Width', 'Height' instead, and the coordinates are in the internal coordinate system\n"
+	"; of the hitbox data.\n"
+	"; When this setting is false, those fields show 'Left', 'Top', 'Right', 'Bottom' and show arena\n"
+	"; coodinates, which are usually multipled by 1000, and if the projectile or player is rotated\n"
+	"; or scaled, the coordinates will reflect that.")
 	
 #pragma warning(pop)

@@ -1,6 +1,19 @@
 #pragma once
 #include <d3d9.h>
 
+enum BoxPart {
+	BOXPART_NONE,
+	BOXPART_MIDDLE,
+	BOXPART_TOPLEFT,
+	BOXPART_TOPRIGHT,
+	BOXPART_BOTTOMLEFT,
+	BOXPART_BOTTOMRIGHT,
+	BOXPART_LEFT,
+	BOXPART_TOP,
+	BOXPART_RIGHT,
+	BOXPART_BOTTOM
+};
+
 struct DrawBoxCallParams {
 	int left = 0;
 	int top = 0;
@@ -12,4 +25,5 @@ struct DrawBoxCallParams {
 	int originX = 0;
 	int originY = 0;
 	bool hatched = false;
+	bool dashed = false;
 };

@@ -5,6 +5,8 @@
 #include "DrawPointCallParams.h"
 #include "DrawBoxCallParams.h"
 
+bool isActiveFull(Entity ent);
+
 void collectHitboxes(Entity ent,
 		const bool active,
 		DrawHitboxArrayCallParams* const hurtbox,

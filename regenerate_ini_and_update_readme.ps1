@@ -382,6 +382,9 @@ function task() {
 
             # find the , after the default value
             $pos = $settingsDefinitions.IndexOf(44, $pos + 1);  # ,
+			if ($pos -eq -1) {
+				continue;
+			}
 
             # parse the value
             $value = $settingsDefinitions.Substring($valueStart, $pos - $valueStart);
@@ -412,6 +415,12 @@ function task() {
                 } elseif (($value.Length -gt 0) -and ($value.Chars(0) -eq 46)) {  # .
                     $value = "0" + $value;
                 }
+            } elseif ($typename -eq "HitboxList") {
+            	$vPos = $value.IndexOf(34);  # "
+            	if ($vPos -ne -1) {
+            		$parseCStringResult = parseCString $value $vPos
+				    $value = $parseCStringResult.str;
+			    }
             } elseif (
             	(
             		$typename -eq "MoveList"

@@ -1,8 +1,11 @@
 #pragma once
+#include "pch.h"
 #include "characterTypes.h"
 #include "Hitbox.h"
 #include <intrin.h>
 #include <limits.h>
+
+const int aswEnginePawnsOffset = 4 + 0x1c4b6c;
 
 using getPos_t = int(__thiscall*)(const void*);
 using getPushboxCoords_t = int(__thiscall*)(const void*, int*, int*, int*, int*);
@@ -14,7 +17,7 @@ enum HitboxType : char {
 	HITBOXTYPE_EX_POINT,  // used in some animations like Millia Bad Moon
 	HITBOXTYPE_EX_POINT_EXTENDED,
 	HITBOXTYPE_TYPE4,
-	HITBOXTYPE_TYPE5,
+	HITBOXTYPE_PUSHBOX,  // only affects horizontal extents
 	HITBOXTYPE_TYPE6,
 	HITBOXTYPE_NECK,
 	HITBOXTYPE_ABDOMEN,
@@ -24,7 +27,8 @@ enum HitboxType : char {
 	HITBOXTYPE_PRIVATE1,
 	HITBOXTYPE_PRIVATE2,
 	HITBOXTYPE_PRIVATE3,
-	HITBOXTYPE_TYPE17
+	HITBOXTYPE_TYPE15,
+	HITBOXTYPE_TYPE16
 };
 
 struct EntityState {
@@ -1467,6 +1471,287 @@ struct InflictedParameters {
 	int tumbleCount;  // 0x40
 };
 
+struct FName {
+	int low;
+	int high;
+	static FName nullFName;
+	char* print(char* buf, size_t bufSize) const;
+	template<size_t size>
+	inline char* print(char(&buf)[size]) const { return print(buf, size); }
+	inline bool operator==(const FName& other) const { return low == other.low && high == other.high; }
+	inline bool operator!=(const FName& other) const { return low != other.low || high != other.high; }
+};
+
+inline DWORD hash(const FName* fname) { return (DWORD)fname->low; }
+
+#pragma pack(push, 4)
+class UObject {
+public:
+	void* vtable;
+	UObject* HashNext;
+	unsigned long long ObjectFlags;
+	UObject* HashOuterNext;
+	void* StateFrame;
+	void* _Linker;
+	int* _LinkerIndex;
+	int Index;
+	int NetIndex;
+	UObject* Outer;
+	FName Name;
+	void* Class;
+	UObject* ObjectArchetype;
+};
+#pragma pack(pop)
+
+class FString {
+public:
+	wchar_t* Data;
+	int ArrayNum;
+	int ArrayMax;
+};
+
+struct FUntypedBulkData {
+	void* vtable;
+	DWORD BulkDataFlags;
+	int ElementCount;
+	int BulkDataOffsetInFile;
+	int BulkDataSizeOnDisk;
+	DWORD SavedBulkDataFlags;
+	int SavedElementCount;
+	int SavedBulkDataOffsetInFile;
+	int SavedBulkDataSizeOnDisk;
+	void* BulkData;
+	DWORD LockStatus;
+	void* AttachedAr;
+	BOOL bShouldFreeOnEmpty;
+};
+
+template<typename T>
+class REDAssetBase : public UObject {
+public:
+	T* TopData;
+	DWORD DataSize;
+	FUntypedBulkData BulkDataLE;
+	FUntypedBulkData BulkDataBE;
+	FString SourceFile;
+};
+
+struct FPACLookupElement0x30 {
+	char spriteName[32];
+	DWORD index;
+	DWORD offset;
+	DWORD size;
+	DWORD hash;
+};
+
+struct FPACLookupTable0x30 {
+	FPACLookupElement0x30 elements[1];
+	void insertAt(DWORD index, DWORD count, const FPACLookupElement0x30& newElement);
+};
+
+struct FPACLookupElement0x10 {
+	DWORD hash;
+	char unknown[12];
+};
+
+struct FPACLookupTable0x10 {
+	DWORD unknown[3];
+	FPACLookupElement0x10 elements[1];
+};
+
+struct FPACLookupElement0x50 {
+	char spriteName[32];
+	char unknown[0x20] { 0 };
+	DWORD index;
+	DWORD offset;
+	DWORD size;
+	DWORD hash;
+};
+
+struct FPACLookupTable0x50 {
+	FPACLookupElement0x50 elements[1];
+	void insertAt(DWORD index, DWORD count, const FPACLookupElement0x50& newElement);
+};
+
+union FPACLookupUnion {
+	FPACLookupTable0x10 table0x10;
+	FPACLookupTable0x30 table0x30;
+	FPACLookupTable0x50 table0x50;
+};
+
+struct FPAC {
+	char magic[4];  // "FPAC". Offset 0x0
+	DWORD headerSize;  // size of FPAC data before lookup entries and all lookup entries. Offset 0x4
+	DWORD rawSize;  // the size of the whole FPAC. Offset 0x8
+	DWORD count;  // count of lookup entries. Offset 0xc
+	DWORD flags;  // offset 0x10
+	inline bool useHash() const { return (flags & 0x80000000); }
+	inline bool size0x50() const { return (flags & 0x20000000); }
+	// bedman, answer and raven have 0x20000000 flag and 0x80000000 and 0x40000000 flags, everyone else only has 0x80000000 and 0x40000000
+	inline bool flag2() const { return (flags & 0x2); }  // not encountered in Xrd. Good. Less work
+	DWORD sizeOfSingleElement;  // for when !useHash(). Offset 0x14
+	char unknown[8];  // offset 0x18
+	FPACLookupUnion data;  // offset 0x20
+	// the callback receives each sprite name and returns whether to continue enumeration. True to continue, false to stop
+	void enumNames(bool (*callback)(char* name, BYTE* jonbin));
+	static int calcJonbSize(BYTE* dataPtr);
+	static const int size1 = 0x1a * 2;
+	static const int size2 = 0x28 * 2;
+	static const int size3 = 0x9a * 2;
+	inline DWORD elementSize() const { return size0x50() ? 0x50 : 0x30; }
+	DWORD findInsertionIndex(DWORD hash);
+	DWORD sizeOfJonbinAtOffset(DWORD offset, DWORD* offsetPtrOffset);
+	BYTE* findLookupEntry(DWORD hash);
+	BYTE* findLookupEntry(const char* str);
+	BYTE* lookupEnd() const;
+};
+
+// If both Players are the same character, they share the same REDAssetCollision
+class REDAssetCollision : public REDAssetBase<FPAC> {
+public:
+};
+
+template<typename T>
+struct TArray {
+	T* Data;
+	int ArrayNum;
+	int ArrayMax;
+};
+
+template<size_t size, typename T>
+struct TInlineAllocator {
+	T InlineData[size];
+	T* Data;
+};
+
+struct TBitArray {
+	DWORD InlineData[4];
+	DWORD* Data;
+	int NumBits;
+	int MaxBits;
+};
+
+template<typename T>
+struct TSparseArray {
+	TArray<T> Data;
+	TBitArray AllocationFlags;
+	int FirstFreeIndex;
+	int NumFreeIndices;
+};
+
+template<typename T>
+struct TSet {
+	struct FElement {
+		T Value;
+		int HashNextId;
+		int HashIndex;
+	};
+	TSparseArray<TSet<T>::FElement> Elements;
+	TInlineAllocator<1,int> Hash;
+	int HashSize;
+};
+
+template<typename Key, typename Value>
+struct TMap {
+	struct FPair {
+		Key key;
+		Value value;
+	};
+	TSet<TMap<Key,Value>::FPair> Pairs;
+	int find(Key* key) const;
+};
+
+struct UAnimSequence : public UObject {
+	FName SequenceName;
+	// there's more data
+	float SequenceLength() const { return *(float*)((BYTE*)this + 0x68); }
+	float RateScale() const { return *(float*)((BYTE*)this + 0x70); }
+};
+
+struct UAnimSet {
+	char knowndata[0x4c];
+	TArray<UAnimSequence*> Sequences;
+	TMap<FName,int> SequenceCache;  // UE3 contains code for when the cache is stale that rebuilds it. Do not trust this map, screw it
+	// there's more data
+	UAnimSequence* find(FName name) const;
+};
+
+struct USkeletalMeshComponent {
+	char knowndefinitelyknown[0x1e4];
+	BYTE* SkelMesh;
+	char thistoo[0xc4];
+	TArray<UAnimSet*> AnimSets;  // iterate from the end to find UAnimSequence by name. May contain null pointers.
+	UAnimSequence* find(FName name) const;
+};
+
+struct UAnimNodeSequence {
+	char iknowwhatshere[0x5c];  // but we don't need it
+	USkeletalMeshComponent* SkelComponent;
+	char other[0xb0];
+	FName AnimSeqName;
+	char toolazytofillin[0x14];
+	UAnimSequence* AnimSeq;
+	char rest[0x40];  // exact, verified. I know what's here, I'm just not filling it in because
+	inline UAnimSequence* find(FName name) const { return SkelComponent->find(name); }
+};
+
+struct REDAnimNodeSequence : public UAnimNodeSequence {
+	DWORD StepPlay:1;
+	DWORD AnimeEnd:1;
+	DWORD AnimeUpdate:1;
+	DWORD FirstTime:1;
+	DWORD bStepAnimeSectionLoop:1;
+	DWORD bNonStepAnimUseDeltaSeconds:1;
+	int CurrentFrame;
+	int FrameMax;
+	int StepFrame;
+	float SectionLoopBeginTime;
+	class REDPawn* Pawn;
+};
+
+struct MeshControl {
+	char iknowwhatisherebutwontbother[0x58];
+	REDAnimNodeSequence* AnimSeq;
+	char rest[0x14];
+	inline UAnimSequence* find(FName name) const { return AnimSeq->find(name); }
+};
+
+class REDPawn {
+public:
+	inline char* p() { return (char*)this; }
+	inline int MeshControlNum() { return *(int*)(p() + 0x1a84); }
+	inline MeshControl(&MeshControls())[50] { return *(MeshControl(*)[50])(p() + 0x4a4); }
+	REDAnimNodeSequence* getFirstAnimSeq();
+	int getMaxFrameOfAnimSequence(FName name);
+};
+
+class REDPawn_Player : public REDPawn {
+public:
+	// If both Players are the same character, they share the same REDAssetCollision
+	REDAssetCollision* Collision() { return *(REDAssetCollision**)(p() + 0x4a84); }
+};
+
+struct HitboxHolder {
+	void* vtable;
+	BYTE* jonbinPtr;  // points to the start of JONB (jonbin) data
+	BYTE* ptrLookup;  // only if not flag2()
+	BYTE* ptrRawAfterShort1;  // points to after hitbox counts + short1 * size1
+	Hitbox* data[17];  // use HitboxType enum
+	int short2;  // short read from an FPAC
+	int count[17];  // use HitboxType enum
+	char* names[7];  // only the first of these matters. Must contain a '_'. The part before that is the animation sequence name. Part after - animation frame.
+	char unknown[4];
+	int nameCount;
+	int xShift;  // these can't be set by the bbscript sprite instruction
+	int yShift;
+	Hitbox* hitboxesStart() const;
+	static BYTE numTypes(BYTE* jonbinPtr);
+	static Hitbox* hitboxesStart(BYTE* jonbinPtr);
+	static short* hitboxCounts(BYTE* jonbinPtr);
+	int hitboxCount() const;
+	void parse(BYTE* jonbinPtr);
+};
+
 class Entity
 {
 public:
@@ -1475,6 +1760,7 @@ public:
 	char* ent = nullptr;
 	
 	inline bool isActive() const { return *(DWORD*)(ent + 0xc) == 1; }
+	inline bool isFinalized() const { return *(DWORD*)(ent + 0xc) == 4; }  // both 0 and 4 mean entity is deleted. 2 is NEED_SET_TO_IS_ACTIVE_AND_CONSIDER_ACTIVE_NOW. 3 is NEED_CALL_FINALIZE
 	// Active means attack frames are coming
 	inline bool isActiveFrames() const {
 		return (*(DWORD*)(ent + 0x23C) & 0x100) != 0  // This signals that attack's hitboxes should not be ignored. Can happen before hitboxes come out
@@ -1491,18 +1777,15 @@ public:
 	inline bool isPawn() const { return *(bool*)(ent + 0x10); }
 	inline CharacterType characterType() const { return (CharacterType)*(char*)(ent + 0x44); }
 	
-	inline int x() const { return *(int*)(ent + 0x24c); }
-	inline int y() const { return *(int*)(ent + 0x250); }
-	inline int& x() { return *(int*)(ent + 0x24c); }
-	inline int& y() { return *(int*)(ent + 0x250); }
+	inline int& x() const { return *(int*)(ent + 0x24c); }
+	inline int& y() const { return *(int*)(ent + 0x250); }
 	// This function is for hitbox calculation only. To obtain raw x position, use x()
 	int posX() const;
 	// This function is for hitbox calculation only. To obtain raw y position, use y()
 	int posY() const;
 	
-	inline bool isFacingLeft() const { return *(int*)(ent + 0x248) == 1; }  // the graphical facing
-	inline BOOL& isFacingLeft() { return *(BOOL*)(ent + 0x248); }  // the graphical facing
-	inline BOOL& inputsFacingLeft() { return *(BOOL*)(ent + 0x4d38); }  // the facing for input motions interpreting
+	inline BOOL& isFacingLeft() const { return *(BOOL*)(ent + 0x248); }  // the graphical facing
+	inline BOOL& inputsFacingLeft() const { return *(BOOL*)(ent + 0x4d38); }  // the facing for input motions interpreting
 
 	bool isGettingThrown() const;
 	
@@ -1584,23 +1867,16 @@ public:
 	inline bool overridenYrcWindowOver() const { return (*(DWORD*)(ent + 0x4d28) & 0x10000000) != 0; }  // but this is only for moves that use yrcWindowLength
 	inline Entity previousEntity() const { return Entity{*(char**)(ent + 0x208)}; }  // the last created entity by this entity
 	inline Entity stackEntity(int index) const { return Entity{*(char**)(ent + 0x210 + index * 4)}; }  // STACK_0..7 from bbscript
-	inline int& scaleX() { return *(int*)(ent + 0x264); }
-	inline int scaleX() const { return *(int*)(ent + 0x264); }
-	inline int& scaleY() { return *(int*)(ent + 0x268); }
-	inline int scaleY() const { return *(int*)(ent + 0x268); }
-	inline int& scaleZ() { return *(int*)(ent + 0x26c); }
-	inline int scaleZ() const { return *(int*)(ent + 0x26c); }
-	inline int& scaleDefault() { return *(int*)(ent + 0x2594); }
-	inline int scaleDefault() const { return *(int*)(ent + 0x2594); }
+	inline int& scaleX() const { return *(int*)(ent + 0x264); }
+	inline int& scaleY() const { return *(int*)(ent + 0x268); }
+	inline int& scaleZ() const { return *(int*)(ent + 0x26c); }
+	inline int& scaleDefault() const { return *(int*)(ent + 0x2594); }
 	inline int defendersRisc() const { return *(int*)(ent + 0x25b0); }
 	inline int forceDisableFlagsIndividual() const { return *(int*)(ent + 0x25c0); }  // these flags combine from all entities belonging to a player's team into the player's main entity's forceDisableFlags()
-	inline int& scaleDefault2() { return *(int*)(ent + 0x2664); }
-	inline int scaleDefault2() const { return *(int*)(ent + 0x2664); }
-	inline int& scaleForParticles() { return *(int*)(ent + 0x2614 + 0x4); }
-	inline int scaleForParticles() const { return *(int*)(ent + 0x2614 + 0x4); }
+	inline int& scaleDefault2() const { return *(int*)(ent + 0x2664); }
+	inline int& scaleForParticles() const { return *(int*)(ent + 0x2614 + 0x4); }
 	inline int speedX() const { return *(int*)(ent + 0x2fc); }
-	inline int speedY() const { return *(int*)(ent + 0x300); }
-	inline int& speedY() { return *(int*)(ent + 0x300); }
+	inline int& speedY() const { return *(int*)(ent + 0x300); }
 	inline int dashSpeed() const { return *(int*)(ent + 0x2f4); }
 	inline int gravity() const { return *(int*)(ent + 0x304); }
 	inline int comboTimer() const { return *(int*)(ent + 0x9f50); }
@@ -1728,8 +2004,8 @@ public:
 	inline int storage(int n) const { return *(int*)(ent + 0x18c + 4 * (n - 1)); }  
 	inline int exGaugeValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0x10); }  // reset to 0 on stage reset
 	inline int exGaugeMaxValue(int n) const { return *(int*)(ent + 0x24cbc + 36 * n + 0xc); }  // reset to 0 on stage reset
-	inline const char* gotoLabelRequests() const { return (const char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state
-	inline const char* spriteName() const { return (const char*)(ent + 0xa58); }
+	inline char* gotoLabelRequests() const { return (char*)(ent + 0x2474 + 0x24); }  // on the next frame, go to marker named this, within the same state. Note: may go on the same frame, if the event you're calling this from happens before animations advance
+	inline char* spriteName() const { return (char*)(ent + 0xa58); }
 	inline int spriteFrameCounter() const { return *(int*)(ent + 0xa78); }
 	inline int spriteFrameCounterMax() const { return *(int*)(ent + 0xa80); }
 	inline bool justReachedSprite() const { return !isRCFrozen() && spriteFrameCounter() == 0; }
@@ -1749,8 +2025,7 @@ public:
 	inline int pitch() const { return *(int*)(ent + 0x258); }  // 1000 means one degree counter-clockwise, if facing right. Gets mirrored with facing, so when facing left, it's clockwise instead
 	inline int transformCenterX() const { return *(int*)(ent + 0x27c); }  // does not depend on sprite facing, does not get mirrored with sprite facing
 	inline int transformCenterY() const { return *(int*)(ent + 0x280); }  // does not depend on sprite facing, does not get mirrored with sprite facing
-	inline int hitboxCount(HitboxType type) const { return *(int*)(ent + 0xa0 + (int)type * 4); }
-	inline const Hitbox* hitboxData(HitboxType type) const { return *(const Hitbox**)(ent + 0x58 + (int)type * 4); }
+	HitboxHolder* hitboxes() const { return (HitboxHolder*)(ent + 0x48); }
 	inline const InflictedParameters* inflicted() const { return (const InflictedParameters*)(ent + 0x67c); }
 	inline const InflictedParameters* inflictedCH() const { return (const InflictedParameters*)(ent + 0x6c0); }
 	inline const InflictedParameters* received() const { return (const InflictedParameters*)(ent + 0x940); }
@@ -1776,7 +2051,7 @@ public:
 	inline int* moveIndices() const { return (int*)(ent + 0xa020 + 0x16530); }  // used to iterate moves
 	inline int moveIndicesCount() const { return *(int*)(ent + 0xa020 + 0x16800); }  // iterate from the end (count - 1) to 0
 	inline const AddedMoveData* movesBase() const { return (const AddedMoveData*)(ent + 0xa020); }
-	int movesCount() const { return *(int*)(ent + 0xa020 + 0x18748); }
+	inline int movesCount() const { return *(int*)(ent + 0xa020 + 0x18748); }
 	inline const AddedMoveData* currentMove() const { return movesBase() + currentMoveIndex(); }  // currentMoveIndex() MAY BE -1!!!
 	inline int hitAlreadyHappened() const { return *(int*)(ent + 0x444); }  // equal to 10 when occured, 0 when not
 	inline int theValueHitAlreadyHappenedIsComparedAgainst() const { return *(int*)(ent + 0x448); }  // always 10
@@ -1840,21 +2115,29 @@ public:
 	void getWakeupTimings(WakeupTimings* output) const;
 	int calculateGuts(int* gutsLevel = nullptr) const;
 	
-	CmnActHashtable* addedMovesHashtable() const { return (CmnActHashtable*)(ent + 0xa020 + 0x18750); }
+	inline CmnActHashtable* addedMovesHashtable() const { return (CmnActHashtable*)(ent + 0xa020 + 0x18750); }
 	const AddedMoveData* findAddedMove(const char* name) const;
-	static DWORD hashStringCaseInsensitive(const char* str);
+	static DWORD hashStringLowercase(const char* str);
 	static DWORD hashString(const char* str);
 	
-	DWORD burstGainCounter() const { return *(DWORD*)(ent + 0x2ce4c); }
-	DWORD venomBallFlags() const { return *(DWORD*)(ent + 0x25bc); }
-	bool canTriggerBalls() const { return (venomBallFlags() & 0x4) != 0; }  // can trigger Venom Balls
-	bool venomBallSpin() const { return (venomBallFlags() & 0x30) != 0; }
-	int venomBallArg2() const { return *(int*)(ent + 0x25b8); }
+	inline DWORD burstGainCounter() const { return *(DWORD*)(ent + 0x2ce4c); }
+	inline DWORD venomBallFlags() const { return *(DWORD*)(ent + 0x25bc); }
+	inline bool canTriggerBalls() const { return (venomBallFlags() & 0x4) != 0; }  // can trigger Venom Balls
+	inline bool venomBallSpin() const { return (venomBallFlags() & 0x30) != 0; }
+	inline int venomBallArg2() const { return *(int*)(ent + 0x25b8); }
 	
-	float attackY() const { return *(float*)(ent + 0x9c8); }
+	inline float attackY() const { return *(float*)(ent + 0x9c8); }
 	
-	int purpleHealthTimer() const { return *(int*)(ent + 0x2ce6c); }
-	int purpleHealth() const { return *(int*)(ent + 0x2ce68); }
+	inline int purpleHealthTimer() const { return *(int*)(ent + 0x2ce6c); }
+	inline int purpleHealth() const { return *(int*)(ent + 0x2ce68); }
+	
+	inline REDPawn* pawnWorld() const { return *(REDPawn**)(ent + 0x27a8); }
+	inline FPAC*& fpac() const { return *(FPAC**)(ent + 0x114); }
+	inline int bbscrIndexInAswEng() const { return *(int*)(ent + 0x3c); }
+	REDAssetCollision* getCollision() const;
+	int getEffectIndex() const;
+	inline bool showPushbox() const { return isPawn() || servant() || ghost(); }
+	inline char(&charCodename())[16] { return *(char(*)[16])(ent + 0x4d10); }
 	
 	inline char* operator+(int offset) const { return (char*)(ent + offset); }
 	inline char* operator+(DWORD offset) const { return (char*)(ent + offset); }

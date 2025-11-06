@@ -13,7 +13,10 @@ Also contains input history mod (see [Input History Mod](#input-history-mod) sec
 Also it can hide the main Enter key or numpad Enter key presses from the game, or both (in General Settings).  
 Also it can hide wins on the rematch screen (see [Hide Wins Mod](#hide-wins-mod) section).
 Also it can hide rank icons (circle, arrow up/down, equal sign) next to players (enable in General Settings).  
+Also it can display a "PUNISH" message when landing a hit on an opponent either after blocking their hit or when they're in a recovery portion of a move.
+Also it can change the FPS in Training Mode.
 The mod can optionally hide its output from OBS recording (can be turned on in 'UI - Settings - General Settings - Dodge OBS Recording').
+Includes Hitbox Editor that can save/load edited hitboxes to/from .collision and .json files.
 
 ## Credits
 
@@ -262,9 +265,10 @@ Here's an example of the `.ini` file:
   <summary>Here's an example of the `.ini` file:</summary>
 
 ```ini
-; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod. Allowed key names: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4, JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10, JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp, LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp, PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight, XboxTypeSRightStickDown.
+; Place this file into the game folder containing 'GuiltyGearXrd.exe' so that it gets seen by the mod. Allowed key names: Backspace, Tab, Enter, PauseBreak, CapsLock, Escape, Space, PageUp, PageDown, End, Home, Left, Up, Right, Down, PrintScreen, Insert, Delete, Num0, Num1, Num2, Num3, Num4, Num5, Num6, Num7, Num8, Num9, NumMultiply, NumAdd, NumSubtract, NumDecimal, NumDivide, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, NumLock, ScrollLock, Colon, Plus, Minus, Comma, Period, Slash, Tilde, OpenSquareBracket, Backslash, CloseSquareBracket, Quote, Backslash2, 0123456789, ABCDEFGHIJKLMNOPQRSTUVWXYZ, Shift, Ctrl, Alt, LeftClick, RightClick, MiddleClick, ThumbMouseClick, ThumbMouseClick2, MouseMoveLeft, MouseMoveUp, MouseMoveRight, MouseMoveDown, MouseWheelUp, MouseWheelDown, JoystickBtn1, JoystickBtn2, JoystickBtn3, JoystickBtn4, JoystickLeftTrigger, JoystickRightTrigger, JoystickLeftTrigger2, JoystickRightTrigger2, JoystickBtn9, JoystickBtn10, JoystickBtn11, JoystickBtn12, JoystickBtn13, JoystickBtn14, JoystickBtn15, JoystickBtn16, LeftStickLeft, LeftStickUp, LeftStickRight, LeftStickDown, DPadLeft, DPadUp, DPadRight, DPadDown, PS4DualshockRightStickLeft, PS4DualshockRightStickUp, PS4DualshockRightStickRight, PS4DualshockRightStickDown, XboxTypeSRightStickLeft, XboxTypeSRightStickUp, XboxTypeSRightStickRight, XboxTypeSRightStickDown.
 
 ; Key combinations can be specified by separating key names with '+' sign.
+; The '-' sign means that that key must not be held.
 ; You can assign same key to multiple features - it will toggle/set in motion all of them simultaneously.
 ; You don't need to reload the mod when you change this file - it re-reads this settings file automatically when it changes.
 
@@ -376,8 +380,10 @@ noGravityToggle =
 freezeGameToggle = 
 
 ; A keyboard shortcut to play the game in slow motion.
-; Please specify by how many times to slow the game down in "slowmoTimes".
+; Please specify the FPS of the Slow-mo mode in "slowmoFps".
 ; In the UI, this mode can also be toggled using 'UI - Hitboxes - Slow-Mo Mode' checkbox.
+; Slow-mo mode only works in Training Mode.
+
 slowmoGameToggle = 
 
 ; A keyboard shortcut. Only works while the game is frozen using "freezeGameToggle".
@@ -385,10 +391,11 @@ slowmoGameToggle =
 ; In the UI, this mode can also be toggled using 'UI - Hitboxes - Next Frame' button.
 allowNextFrameKeyCombo = 
 
-; A number.
-; This works in conjunction with "slowmoGameToggle". Only round numbers greater than 1 allowed.
-; Specifies by how many times to slow the game down
-slowmoTimes = 3
+; A floating point number. Default value is 30.0 (half the normal game's FPS, which is 60).
+; This works in conjunction with "slowmoGameToggle". Only numbers greater than or equal to 1 and lower than or equal to 999 allowed.
+; Specifies the FPS that the game will run in when Slow-mo mode is active.
+; Slow-mo mode only works in Training Mode.
+slowmoFps = 30.0
 
 ; A keyboard shortcut to enable/disable the mod without having to load/unload it
 disableModToggle = F6
@@ -1239,6 +1246,83 @@ dontResetRISCWhenInBurstOrFaint = false
 ; and Faint animations, including all hitstun.
 onlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstun = false
 
+; A keyboard shortcut.
+; Pressing this shortcut will enable/disable the hitbox editing mode.
+; Note that the 'Hitbox Editor' window is accessible through the 'Hitbox Editor' button in the 'Hitboxes' section,
+; and the main functionality is in Hitbox Editor.
+hitboxEditModeToggle = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the camera up during the hitbox editing mode.
+; You can adjust the speed with which the camera moves vertically using "hitboxEditMoveCameraVerticalSpeedMultiplier".
+hitboxEditMoveCameraUp = -Shift+-Ctrl+MouseWheelUp
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the camera down during the hitbox editing mode.
+; You can adjust the speed with which the camera moves vertically using "hitboxEditMoveCameraVerticalSpeedMultiplier".
+hitboxEditMoveCameraDown = -Shift+-Ctrl+MouseWheelDown
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the camera left during the hitbox editing mode.
+; You can adjust the speed with which the camera moves horizontally using "hitboxEditMoveCameraHorizontalSpeedMultiplier".
+hitboxEditMoveCameraLeft = Shift+MouseWheelUp
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the camera right during the hitbox editing mode.
+; You can adjust the speed with which the camera moves horizontally using "hitboxEditMoveCameraHorizontalSpeedMultiplier".
+hitboxEditMoveCameraRight = Shift+MouseWheelDown
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the camera forward during the hitbox editing mode.
+; You can adjust the speed with which the camera moves forward and back using "hitboxEditMoveCameraPerpendicularSpeedMultiplier".
+hitboxEditMoveCameraForward = Ctrl+MouseWheelUp
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the camera back during the hitbox editing mode.
+; You can adjust the speed with which the camera moves forward and back using "hitboxEditMoveCameraPerpendicularSpeedMultiplier".
+hitboxEditMoveCameraBack = Ctrl+MouseWheelDown
+
+; A floating point value. Default value is 1.0.
+; Allows you to adjust how fast the camera moves vertically during the hitbox edit mode.
+; The camera can be moved up/down using "hitboxEditMoveCameraUp" and "hitboxEditMoveCameraDown".
+hitboxEditMoveCameraVerticalSpeedMultiplier = 1.0
+
+; A floating point value. Default value is 1.0.
+; Allows you to adjust how fast the camera moves horizontally during the hitbox edit mode.
+; The camera can be moved left/right using "hitboxEditMoveCameraLeft" and "hitboxEditMoveCameraRight".
+hitboxEditMoveCameraHorizontalSpeedMultiplier = 1.0
+
+; A floating point value. Default value is 1.0.
+; Allows you to adjust how fast the camera moves farther away from or closer to the arena during the hitbox edit mode.
+; The camera can be moved left/right using "hitboxEditMoveCameraForward" and "hitboxEditMoveCameraBack".
+hitboxEditMoveCameraPerpendicularSpeedMultiplier = 2.0
+
+; Specify true or false.
+; Specifying true means that, when you stop editing hitboxes using the 'Hitbox Editor' window,
+; or exit the edit mode via a shortcut, you will unfreeze the game, if it's currently frozen.
+; You can manually freeze and unfreeze the game using the controls in Main Mod UI - Hitboxes or
+; "freezeGameToggle".
+hitboxEditUnfreezeGameWhenLeavingEditMode = true
+
+; Specify true or false.
+; Specifying true means that, when you're in hitbox editing mode,
+; you will see hitboxes of all entities on the arena.
+; When this is false, you will only see hitboxes of the entity you're currently editing.
+hitboxEditShowHitboxesOfEntitiesOtherThanTheOneBeingEdited = true
+
+; Specify a list of hitboxes, sorted by type. You're not allowed to skip types.
+; There are 17 types total. For each hitbox specify color in 0xAARRGGBB and whether it should
+; be displayed (0/1). Separate everything with spaces.
+hitboxList = 0xFF00FF00 1 0xFFFF0000 1 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFF00 1 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 0xFFFFFFFF 0 
+
+; Specify true or false.
+; Specifying true will draw a white line denoting the floor level during hitbox editing mode.
+hitboxEditShowFloorline = true
+
+; Specify true or false.
+; Specifying true will draw origin points of both player during hitbox editing mode.
+hitboxEditShowOriginPoints = true
+
 ; Specify true or false.
 ; Shows a message when you blocked/got hit by/armored an attack and then at that moment opponent was doing a move,
 ; and then you hit them while they were still in that move or in landing recovery after the move.
@@ -1248,6 +1332,120 @@ showPunishMessageOnBlock = false
 ; Shows a message when a player got hit during recovery of an attack move, or during
 ; landing animation of any move, or after 15 frames of starting a move.
 showPunishMessageOnWhiff = false
+
+; A keyboard shortcut.
+; Pressing this shortcut will add a new sprite when inside the hitbox editor and hitbox editing mode is active.
+hitboxEditAddSpriteHotkey = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will delete the current sprite when inside the hitbox editor and hitbox editing mode is active.
+hitboxEditDeleteSpriteHotkey = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will prompt to rename the current sprite when inside the hitbox editor and hitbox editing mode is active.
+hitboxEditRenameSpriteHotkey = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will turn on the hitbox addition mode, and when you drag your mouse across the stage,
+; it will create a new hitbox of the type specified in the 'Hitbox Type' field.
+; If you don't drag and just click instead, you will create a point-sized hitbox.
+; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditAddHitboxHotkey = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will delete the currently selected hitboxes when inside the hitbox editor and hitbox editing mode is active
+; (hitbox editor window need not be visible).
+hitboxEditDeleteSelectedHitboxesHotkey = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will turn on the selection tool mode, and when you hover your mouse over hitboxes,
+; the cursor will change, and you'll be able to select, box-select and move and resize hitboxes.
+; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditSelectionToolHotkey = 
+
+; A keyboard shortcut.
+; Pressing this shortcut will undo the last hitbox or sprite editing operation.
+; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditUndoHotkey = Ctrl+Z
+
+; A keyboard shortcut.
+; Pressing this shortcut will redo the last undone hitbox or sprite editing operation.
+; If you have not yet undone any operation, or you did a new operation after last undoing one, redo is impossible.
+; This all only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditRedoHotkey = Ctrl+Y
+
+; Specify true or false.
+; When using some hotkey to zoom the camera in/out during hitbox editing mode,
+; the camera will be scaled around the current position of the mouse cursor.
+hitboxEditZoomOntoMouseCursor = true
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes up by a normal amount
+; (specified in "hitboxEditMoveHitboxesNormalAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesUp = -Ctrl+-Shift+Up
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes down by a normal amount
+; (specified in "hitboxEditMoveHitboxesNormalAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesDown = -Ctrl+-Shift+Down
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes left by a normal amount
+; (specified in "hitboxEditMoveHitboxesNormalAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesLeft = -Ctrl+-Shift+Left
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes right by a normal amount
+; (specified in "hitboxEditMoveHitboxesNormalAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesRight = -Ctrl+-Shift+Right
+
+; Specify a number. Default value is 1000.
+; This controls how much the hitboxes are moved by the "hitboxEditMoveHitboxesUp",
+; "hitboxEditMoveHitboxesDown", "hitboxEditMoveHitboxesLeft", "hitboxEditMoveHitboxesRight" controls.
+hitboxEditMoveHitboxesNormalAmount = 1000
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes up by a large amount
+; (specified in "hitboxEditMoveHitboxesLargeAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesALotUp = -Ctrl+Shift+Up
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes down by a large amount
+; (specified in "hitboxEditMoveHitboxesLargeAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesALotDown = -Ctrl+Shift+Down
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes left by a large amount
+; (specified in "hitboxEditMoveHitboxesLargeAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesALotLeft = -Ctrl+Shift+Left
+
+; A keyboard shortcut.
+; Pressing this shortcut will move the currently selected hitboxes right by a large amount
+; (specified in "hitboxEditMoveHitboxesLargeAmount").
+; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
+hitboxEditMoveHitboxesALotRight = -Ctrl+Shift+Right
+
+; Specify a number. Default value is 10000.
+; This controls how much the hitboxes are moved by the "hitboxEditMoveHitboxesALotUp",
+; "hitboxEditMoveHitboxesALotDown", "hitboxEditMoveHitboxesALotLeft", "hitboxEditMoveHitboxesALotRight" controls.
+hitboxEditMoveHitboxesLargeAmount = 10000
+
+; Specify true or false.
+; This controls the four fields that are located on the bottom right of the Hitbox Editor:
+; the 'Left', 'Top', 'Right' and 'Bottom' fields. When this setting is true, those fields show
+; 'X', 'Y', 'Width', 'Height' instead, and the coordinates are in the internal coordinate system
+; of the hitbox data.
+; When this setting is false, those fields show 'Left', 'Top', 'Right', 'Bottom' and show arena
+; coodinates, which are usually multipled by 1000, and if the projectile or player is rotated
+; or scaled, the coordinates will reflect that.
+hitboxEditDisplayRawCoordinates = false
 ```
 
 </details>
@@ -1753,6 +1951,7 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2025 October 14: Version 7.2: Fixed 'Display Durations In Input History' mode when the icons would be offset way too much from the text on higher screen resolutions. Added an option to scale the 'Startup, Active, Recovery, Total, Advantage' text next to the framebar, and it will now by default scale automatically to 2 times the size when on screen width larger than 1920. Made the text inside the frames that shows the number of same consecutive frames scale larger on higher screen resolutions.
 - 2025 October 19: Version 7.3: Added an option to display a "PUNISH" message when punishing a move. There are two settings for this: Settings - General Settings - "Show 'Punish' Message When Punishing Presumed Recovery' and "Show 'Punish' Message When Punishing After A Block/Hit/Armor".
 - 2025 October 19: Version 7.4: Exclude hitting someone during their dash (yes, even Johnny's dash) or backdash animation from the "PUNISH" message. Exclude Blitz Shield Reject from the "PUNISH" message. After blocking/getting hit/armoring, if the hit you blocked/got hit by/armored was by a projectile, and after creating that projectile opponent has changed animation (i.e. recovered), then, if you "punish" afterwards, it won't show the "PUNISH" message.
-2025 October 22: Version 7.5: Fixed 'Position Reset Mod', 'Player 1/2 Is Boss', 'Highlight Red/Green/Blue When Becoming Idle', 'Don't Reset Burst And Tension Gauges When In Faint', 'Don't Reset RISC When In Burst Or Faint' checkboxes not having any effect if turned on after the mod is already initialized, and only enabling those features after the mod is reloaded.
+2025 October 22: Version 7.5: Fixed `Position Reset Mod`, `Player 1/2 Is Boss`, `Highlight Red/Green/Blue When Becoming Idle`, `Don't Reset Burst And Tension Gauges When In Faint`, `Don't Reset RISC When In Burst Or Faint` checkboxes and `Highlight When Cancels Into Moves Available` list not having any effect if turned on after the mod is already initialized with them being off, and only enabling those features after the mod is reloaded with them being on.
 2025 October 22: Version 7.6: Fix the Pin icon's graphics in mod's windows being gibberish.
 2025 October 29: Version 7.7: Added an "FPS" field to regulate the game's FPS.
+2025 November 6: Version 7.8: Added Hitbox Editor, accessible through the "Hitbox Editor" button in the "Hitboxes" section of the main UI.

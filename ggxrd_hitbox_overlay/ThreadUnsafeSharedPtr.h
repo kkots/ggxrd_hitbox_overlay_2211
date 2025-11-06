@@ -1,5 +1,8 @@
 #pragma once
 #include <type_traits>
+#if _DEBUG
+#include <stdexcept>
+#endif
 
 // std::shared_ptr has size 8, instead of 4, because it keeps track of the ref counter separately from the object
 // our shitty substitute does not allow you to have the object originally not meant to be shared and then turn it into shared through make_shared
@@ -13,7 +16,9 @@ template<typename T>
 class ThreadUnsafeSharedResource {
 public:
 	template<class... _Types>
-	inline ThreadUnsafeSharedResource(_Types&&... _Args) : resource(std::forward<_Types>(_Args)...) { }
+	inline ThreadUnsafeSharedResource(_Types&&... _Args) {
+		 new ((T*)resourceBytes) T (std::forward<_Types>(_Args)...);
+	}
 	inline ThreadUnsafeSharedResource(const ThreadUnsafeSharedResource& other) = delete;
 	inline ThreadUnsafeSharedResource(ThreadUnsafeSharedResource&& other) = delete;
 	inline ThreadUnsafeSharedResource& operator=(const ThreadUnsafeSharedResource& other) = delete;
@@ -21,15 +26,22 @@ public:
 	inline unsigned int addRef() { return ++refCount; }
 	inline unsigned int release() { return --refCount; }
 	inline unsigned int use_count() const { return refCount; }
-	inline T& get() { return resource; }
+	inline T& get() { return *(T*)resourceBytes; }
 private:
 	unsigned int refCount = 0;
-	T resource;
+	BYTE resourceBytes[sizeof(T)];  // can't instantiate abstract class
 };
 
 template<typename T>
 class ThreadUnsafeSharedPtr {
 public:
+	template<typename otherT>
+	inline operator ThreadUnsafeSharedPtr<otherT>() const {
+		ThreadUnsafeSharedPtr<otherT> result;
+		*(otherT**)&result = (otherT*)resource;
+		resource->addRef();
+		return result;
+	}
 	inline ThreadUnsafeSharedPtr() { }
 	inline ThreadUnsafeSharedPtr(ThreadUnsafeSharedResource<T>* resource) : resource(resource) {
 		if (resource) {
@@ -49,7 +61,7 @@ public:
 			resource->addRef();
 		}
 	}
-	inline ThreadUnsafeSharedPtr(ThreadUnsafeSharedPtr&& other) {
+	inline ThreadUnsafeSharedPtr(ThreadUnsafeSharedPtr&& other) noexcept {
 		resource = other.resource;
 		other.resource = nullptr;
 	}
@@ -69,7 +81,7 @@ public:
 		}
 		return *this;
 	}
-	inline ThreadUnsafeSharedPtr& operator=(ThreadUnsafeSharedPtr&& other) {
+	inline ThreadUnsafeSharedPtr& operator=(ThreadUnsafeSharedPtr&& other) noexcept {
 		if (resource == other.resource) {
 			other.resource = nullptr;
 			if (resource) {
@@ -102,11 +114,15 @@ public:
 		return *this;
 	}
 	inline T& operator*() {
-		if (!resource) return *(T*)nullptr;
+		if (!resource) return *(T*)nullptr;  // this I feel you could still survive somehow
 		return resource->get();
 	}
 	inline T* operator->() {
+		#if _DEBUG
+		if (!resource) throw std::logic_error("ThreadUnsafeSharedPtr: -> on a null pointer.");
+		#else
 		if (!resource) return nullptr;
+		#endif
 		return &(resource->get());
 	}
 	inline const T& operator*() const {
@@ -114,7 +130,11 @@ public:
 		return resource->get();
 	}
 	inline const T* operator->() const {
+		#if _DEBUG
+		if (!resource) throw std::logic_error("ThreadUnsafeSharedPtr: -> on a null pointer.");
+		#else
 		if (!resource) return nullptr;
+		#endif
 		return &resource->get();
 	}
 	inline operator bool () const {

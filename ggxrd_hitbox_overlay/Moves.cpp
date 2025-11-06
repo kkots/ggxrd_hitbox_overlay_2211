@@ -9678,13 +9678,13 @@ bool isDangerous_not_hasHitNumButInactive(Entity ent) {
 
 bool isDangerous_not_hasHitNumButNoHitboxes(Entity ent) {
 	return !(ent.currentHitNum() != 0 && !(
-		ent.hitboxCount(HITBOXTYPE_HITBOX) != 0
+		ent.hitboxes()->count[HITBOXTYPE_HITBOX] != 0
 		&& ent.isActiveFrames()
 	));
 }
 
 bool isDangerous_amorphous(Entity ent) {
-	return !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
+	return !(ent.currentHitNum() != 0 && ent.hitboxes()->count[HITBOXTYPE_HITBOX] == 0)
 		|| ent.inflicted()->untechableTime == 60; // boss version
 }
 
@@ -9701,19 +9701,19 @@ bool isDangerous_djavu(Entity ent) {
 }
 
 bool isDangerous_Djavu_D_Ghost(Entity ent) {
-	return !(ent.dealtAttack()->angle == -90 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0);
+	return !(ent.dealtAttack()->angle == -90 && ent.hitboxes()->count[HITBOXTYPE_HITBOX] == 0);
 }
 
 bool isDangerous_launchGreatsword(Entity ent) {
-	return !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0
+	return !(ent.currentHitNum() != 0 && ent.hitboxes()->count[HITBOXTYPE_HITBOX] == 0
 		|| !ent.hasUpon(BBSCREVENT_PLAYER_BLOCKED));
 }
 bool isDangerous_ramSwordMove(Entity ent) {
-	return !(ent.currentHitNum() == 3 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0
+	return !(ent.currentHitNum() == 3 && ent.hitboxes()->count[HITBOXTYPE_HITBOX] == 0
 		|| !ent.hasUpon(BBSCREVENT_PLAYER_BLOCKED));
 }
 bool isDangerous_hasHitboxes(Entity ent) {
-	return ent.hitboxCount(HITBOXTYPE_HITBOX) > 0;
+	return ent.hitboxes()->count[HITBOXTYPE_HITBOX] > 0;
 }
 bool isDangerous_bubble(Entity ent) {
 	if (!ent.bbscrCurrentFunc()) return false;
@@ -9722,11 +9722,11 @@ bool isDangerous_bubble(Entity ent) {
 		return false;
 	}
 	return ent.bbscrCurrentInstr() > markerPos
-		&& !(ent.currentHitNum() != 0 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
+		&& !(ent.currentHitNum() != 0 && ent.hitboxes()->count[HITBOXTYPE_HITBOX] == 0)
 		|| strcmp(ent.gotoLabelRequests(), "bomb") == 0;
 }
 bool isDangerous_kFish(Entity ent) {
-	return !(ent.currentHitNum() == 2 && ent.hitboxCount(HITBOXTYPE_HITBOX) == 0)
+	return !(ent.currentHitNum() == 2 && ent.hitboxes()->count[HITBOXTYPE_HITBOX] == 0)
 		|| !ent.fullInvul();
 }
 bool isDangerous_pFish(Entity ent) {
@@ -13573,7 +13573,7 @@ GroundBlitzType Moves::getBlitzType(PlayerInfo& ent) {
 		return BLITZTYPE_MAXCHARGE;
 	}
 	if (ent.pawn.mem48()) {
-		if (ent.pawn.hitboxCount(HITBOXTYPE_HITBOX) > 0 && ent.pawn.currentAnimDuration() > 62) {
+		if (ent.pawn.hitboxes()->count[HITBOXTYPE_HITBOX] > 0 && ent.pawn.currentAnimDuration() > 62) {
 			return BLITZTYPE_MAXCHARGE;
 		}
 		return BLITZTYPE_CHARGE;

@@ -18,6 +18,7 @@
 #include "PackTextureSizes.h"
 #include "PngResource.h"
 #include "trainingSettings.h"
+#include "DrawBoxCallParams.h"
 
 using drawTextWithIcons_t = void(*)(DrawTextWithIconsParams* param_1, int param_2, int param_3, int param_4, int param_5, int param_6);
 using BBScr_createObjectWithArg_t = void(__thiscall*)(void* pawn, const char* animName, BBScrPosType posType);
@@ -55,6 +56,9 @@ using pawnGetColor_t = DWORD(__thiscall*)(void* ent, DWORD* inColor);
 using trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttacking_t = BOOL(__thiscall*)(void* ent);
 using inHitstunBlockstunOrThrowProtectionOrDead_t = BOOL(__thiscall*)(void* ent);
 using addBurst_t = void(__thiscall*)(void* ent, int amount);
+using spriteImpl_t = void(__thiscall*)(void* ent, const char* name, int thisIs1);
+using appFree_t = void(__cdecl*)(void* mem);
+extern appFree_t appFree;
 
 struct FVector2D {
 	float X;
@@ -88,11 +92,12 @@ struct FRingBuffer_AllocationContext {
 };
 
 struct FRenderCommand {
+	// suspected heavily to run on the graphics thread
 	virtual void Destructor(BOOL freeMem) noexcept;
 	virtual unsigned int Execute() = 0;  // Runs on the graphics thread
 	virtual const wchar_t* DescribeCommand() noexcept = 0;
 	FRenderCommand();
-	static LONG volatile totalCountOfCommandsInCirculation;
+	static LONG volatile totalCountOfCommandsInCirculation;  // use InterlockedIncrement, InterlockedDecrement as this is ++ on main thread and -- on graphics
 };
 
 struct FSkipRenderCommand : FRenderCommand {
@@ -371,6 +376,34 @@ public:
 	bool onOnlyApplyCounterhitSettingWhenDefenderNotInBurstOrFaintOrHitstunChanged();
 	bool onStartingBurstGaugeChanged();
 	getTrainingSetting_t orig_getTrainingSetting = nullptr;
+	spriteImpl_t spriteImpl = nullptr;
+	inline void forceFeedHitboxes(const DrawHitboxArrayCallParams& params) { drawDataPrepared.hitboxes.push_back(params); }
+	inline void forceFeedOneHitbox(const DrawBoxCallParams& params) { drawDataPrepared.interactionBoxes.push_back(params); }
+	// explained in UI::startHitboxEditMode
+	struct HitboxEditorCameraValues {
+		float cam_y;
+		float fov;
+		float t;
+		float vw;
+		float vh;
+		
+		// all ArcSys points must be first scaled by m to get them in UE3 coordinate space's scale
+		float m;
+		
+		// multiply ArcSys displacements by this to get screen (1;-1) displacements
+		float xCoeff;
+		float yCoeff;
+		
+		float screenWidthASW;
+		float screenHeightASW;
+		
+		float cam_xASW;
+		float cam_zASW;
+		
+		bool prepare(Entity ent);
+		bool ready = false;
+	} hitboxEditorCameraValues;
+	bool hitboxEditorCameraValuesReady = false;
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -665,7 +698,6 @@ private:
 	// While in reality, projectiles run hit collision before players do, and there may be some order between different projectiles,
 	// so such projectiles could potentially deal hits on that very frame.
 	std::vector<AttackHitbox> attackHitboxes;
-	bool isActiveFull(Entity ent) const;
 	HitDetectionType currentHitDetectionType = HIT_DETECTION_EASY_CLASH;
 	bool objHasAttackHitboxes(Entity ent) const;
 	template<size_t size>
@@ -728,7 +760,6 @@ private:
 	void fillDizzyInfo(PlayerInfo& player, PlayerFrame& frame);
 	multiplySpeedX_t multiplySpeedX = nullptr;
 	pawnGetColor_t orig_pawnGetColor = nullptr;
-	int currentPlayerControllingSide() const;
 	bool hasCancelUnlocked(CharacterType charType, const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& array, std::vector<const AddedMoveData*>& markedMoves,
 		bool* redPtr, bool* greenPtr, bool* bluePtr);
 	void processColor(PlayerInfo& player);
@@ -751,6 +782,9 @@ private:
 	// meant for use outside of onDllMain, but may be called from onDllMain as well
 	bool attach(PVOID* ppPointer, PVOID pDetour, const char* name);
 	bool lastRoundendContainedADeath = false;
+	void drawHitboxEditorHitboxes();
+	void drawHitboxEditorHitboxesForEntity(Entity ent);
+	void drawHitboxEditorPushbox(Entity ent, int posY);
 	struct PunishMessageTimer {
 		int animFrame = -1;
 		int recheckTimer = -1;
@@ -762,7 +796,14 @@ private:
 	void drawPunishMessage(float x, float y, DrawTextWithIconsAlignment alignment, DWORD textColor);
 	bool attackerInRecoveryAfterBlock[2] { false, false };
 	bool attackerInRecoveryAfterCreatingProjectile[2][75] { false };
-	static int getEffectIndex(Entity effect);
+	int aswOneScreenPixelWidth = 0;
+	int aswOneScreenPixelHeight = 0;
+	int aswOneScreenPixelDiameter = 0;
+	void hitboxEditorDrawBox(DrawHitboxArrayCallParams& projector, int posX, int posY,
+					Hitbox* hitbox, DWORD color, bool selected, BoxPart highlightedPart);
+	void hitboxEditorDrawBox(const RECT* bounds, int posX, int posY, DWORD fillColor, DWORD outlineColor,
+		bool selected, BoxPart highlightedPart, bool dashed);
+	void hitboxEditorDrawPushbox(Entity ent, int posX, int posY, DWORD color);
 };
 
 extern EndScene endScene;

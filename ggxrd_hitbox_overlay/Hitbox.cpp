@@ -8,7 +8,3 @@ bool Hitbox::operator==(const Hitbox& other) const {
 		&& sizeX == other.sizeX
 		&& sizeY == other.sizeY;
 }
-
-bool Hitbox::operator!=(const Hitbox& other) const {
-	return !(*this == other);
-}

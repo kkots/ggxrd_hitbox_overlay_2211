@@ -13,6 +13,19 @@
 static void getMahojinDistXY(BYTE* functionStart, int* x, int* y);
 static void getMayBallJumpConnectOffsetYAndRange(BYTE* functionStart, int* mayBallJumpConnectPtr, int* mayBallJumpConnectRangePtr);
 
+bool isActiveFull(Entity ent) {
+	return ent.isActiveFrames()
+			&& (
+				ent.isPawn()
+					&& ent.characterType() == CHARACTER_TYPE_JAM
+					&& strcmp(ent.animationName(), "Saishingeki") == 0
+					&& ent.currentAnimDuration() > 100
+				?
+					ent.currentHitNum() > 1
+				: true
+			);
+}
+
 void collectHitboxes(Entity ent,
 		const bool active,
 		DrawHitboxArrayCallParams* const hurtbox,
@@ -72,7 +85,7 @@ void collectHitboxes(Entity ent,
 	// yellow - pushbox
 	// blue/purple - throwbox
 
-	bool isNotZeroScaled = *(int*)(ent + 0x2594) != 0 || scaleX != INT_MAX;
+	bool isNotZeroScaled = ent.scaleDefault() != 0 || scaleX != INT_MAX;
 	
 	bool isBedmanGhost = ownerType == CHARACTER_TYPE_BEDMAN
 			&& (
@@ -118,11 +131,11 @@ void collectHitboxes(Entity ent,
 	
 	static const HitboxType overrideHurtboxType = HITBOXTYPE_HURTBOX;
 	
-	const Hitbox* const hurtboxData = ent.hitboxData(overrideHurtboxType);
-	const Hitbox* const hitboxData = ent.hitboxData(HITBOXTYPE_HITBOX);
+	const Hitbox* const hurtboxData = ent.hitboxes()->data[overrideHurtboxType];
+	const Hitbox* const hitboxData = ent.hitboxes()->data[HITBOXTYPE_HITBOX];
 	
-	const int hurtboxCount = ent.hitboxCount(overrideHurtboxType);
-	const int hitboxCount = ent.hitboxCount(HITBOXTYPE_HITBOX);
+	const int hurtboxCount = ent.hitboxes()->count[overrideHurtboxType];
+	const int hitboxCount = ent.hitboxes()->count[HITBOXTYPE_HITBOX];
 
 	logOnce(fprintf(logfile, "hurtbox_count: %d; hitbox_count: %d\n", hurtboxCount, hitboxCount));
 
@@ -139,8 +152,8 @@ void collectHitboxes(Entity ent,
 			|| isBedmanGhost
 		)) {
 		callParams.thickness = THICKNESS_HURTBOX;
-		callParams.hitboxData = hurtboxData;
-		callParams.hitboxCount = hurtboxCount;
+		callParams.data.resize(hurtboxCount);
+		memcpy(callParams.data.data(), hurtboxData, sizeof (Hitbox) * hurtboxCount);
 		callParams.params = params;
 		callParams.params.angle = ent.pitch();
 		callParams.params.transformCenterX = ent.transformCenterX();
@@ -215,8 +228,8 @@ void collectHitboxes(Entity ent,
 				) {
 			*numHitboxes += hitboxCount;
 		}
-		callParams.hitboxData = hitboxData;
-		callParams.hitboxCount = hitboxCount;
+		callParams.data.resize(hitboxCount);
+		memcpy(callParams.data.data(), hitboxData, sizeof(Hitbox) * hitboxCount);
 		callParams.params = params;
 		callParams.params.angle = ent.pitch();
 		callParams.params.transformCenterX = ent.transformCenterX();
@@ -690,15 +703,15 @@ void collectHitboxes(Entity ent,
 					needFill = ent.justReachedSprite();
 					if (moves.faust5DExPointX == -1) {
 						HitboxType hitboxType = HITBOXTYPE_EX_POINT;
-						int count = ent.hitboxCount(HITBOXTYPE_EX_POINT);
+						int count = ent.hitboxes()->count[HITBOXTYPE_EX_POINT];
 						if (count == 0) {
 							hitboxType = HITBOXTYPE_EX_POINT_EXTENDED;
-							count = ent.hitboxCount(HITBOXTYPE_EX_POINT_EXTENDED);
+							count = ent.hitboxes()->count[HITBOXTYPE_EX_POINT_EXTENDED];
 						}
 						if (count) {
 							DrawHitboxArrayCallParams dummyParams;
-							dummyParams.hitboxData = ent.hitboxData(hitboxType);
-							dummyParams.hitboxCount = 1;
+							dummyParams.data.resize(1);
+							memcpy(dummyParams.data.data(), ent.hitboxes()->data[hitboxType], sizeof Hitbox);
 							dummyParams.params = params;
 							
 							RECT boxBounds = dummyParams.getWorldBounds(0);

@@ -108,7 +108,7 @@ void Throws::hitDetectionMainHook() {
 					|| attackType == ATTACK_TYPE_IK  // ATTACK_TYPE_IK is Potemkin's IK - it's a throw
 				) && isActive
 				&& !(currentAnimDuration > 25 && charType == CHARACTER_TYPE_AXL) // the 25 check is needed to stop Axl from showing a throwbox all throughout his Yes move
-				&& (attack->collisionForceExpand() || ent.hitboxCount(HITBOXTYPE_HITBOX))  // this fix needed to stop Leo Siegesparade from showing a throwbox all the way throughout
+				&& (attack->collisionForceExpand() || ent.hitboxes()->count[HITBOXTYPE_HITBOX])  // this fix needed to stop Leo Siegesparade from showing a throwbox all the way throughout
 			);
 
 		bool isMettagiri = charType == CHARACTER_TYPE_FAUST

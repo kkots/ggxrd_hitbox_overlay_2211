@@ -34,6 +34,7 @@ public:
 	int thickness = 0;
 	
 	bool hatched = false;
+	bool dashed = false;
 	HatchesCallParams hatches;
 	
 	// You must reserve size first for N elems and only then add them

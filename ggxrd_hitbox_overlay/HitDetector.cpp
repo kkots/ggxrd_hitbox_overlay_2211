@@ -249,7 +249,7 @@ HitResult HitDetector::HookHelp::determineHitTypeHook(void* defender, BOOL wasIt
 				theHurtbox.fillColor = replaceAlpha(oldTransparency == 0 ? 64 : oldTransparency, COLOR_HURTBOX_OLD);
 				theHurtbox.outlineColor = replaceAlpha(255, COLOR_HURTBOX_OLD);
 				theHurtbox.hatched = false;
-				if (theHurtbox.hitboxCount) {
+				if (!theHurtbox.data.empty()) {
 					for (auto it = hitDetector.hurtboxesThatGotHit.begin(); it != hitDetector.hurtboxesThatGotHit.end(); ++it) {
 						if (it->entity == otherEntity) {
 							hitDetector.hurtboxesThatGotHit.erase(it);
@@ -326,7 +326,7 @@ void HitDetector::prepareDrawHits() {
 				// this is also needed for Chipp's Gamma Blade. It stops being active very soon after it hits
 				if (ent.isActive() && hitboxThatHit.entity == ent) {
 					it->entityInTheList = true;
-					it->entityInTheListAndActive = ent.isActiveFrames() && ent.hitboxCount(HITBOXTYPE_HITBOX) > 0;
+					it->entityInTheListAndActive = ent.isActiveFrames() && ent.hitboxes()->count[HITBOXTYPE_HITBOX] > 0;
 					break;
 				}
 			}

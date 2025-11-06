@@ -10,6 +10,12 @@
 #include "Moves.h"
 #include "PinnedWindowList.h"
 
+const int MOUSE_MOVE_LEFT = 0x101;
+const int MOUSE_MOVE_UP = 0x102;
+const int MOUSE_MOVE_RIGHT = 0x103;
+const int MOUSE_MOVE_DOWN = 0x104;
+const int MOUSE_WHEEL_UP = 0x105;
+const int MOUSE_WHEEL_DOWN = 0x106;
 const int JOY_START = 0x107;
 const int JOY_BTN_0 = 0x107;
 const int JOY_BTN_1 = 0x108;
@@ -64,6 +70,21 @@ struct MoveList {
 	unsigned int hour = 0;
 	unsigned int minute = 0;
 	unsigned int second = 0;
+};
+
+struct HitboxListElement {
+	DWORD color;  // 0xAARRGGBB
+	bool show;
+};
+
+struct HitboxList {
+	HitboxListElement elements[17];
+	HitboxList() = default;
+	HitboxList(const char* str);
+	// returns the number of items parsed
+	size_t parse(const char* str);
+	inline HitboxListElement& operator[](int index) { return elements[index]; }
+	inline const HitboxListElement& operator[](int index) const { return elements[index]; }
 };
 
 class Settings
@@ -127,13 +148,14 @@ public:
 		}
 	};
 	std::map<StringView, Key, StringViewLess> keys;  // string to int code
-	std::map<int, Key*> reverseKeys; // int code to string
+	std::vector<Key*> reverseKeys; // int code to string
 	static const char* const SETTINGS_HITBOX;
 	static const char* const SETTINGS_HITBOX_SETTINGS;
 	static const char* const SETTINGS_GENERAL;
 	static const char* const SETTINGS_FRAMEBAR;
 	static const char* const SETTINGS_COMBO_RECIPE;
 	static const char* const SETTINGS_CHARACTER_SPECIFIC;
+	static const char* const SETTINGS_HITBOX_EDITOR;
 	bool keyCombosBegin;
 	#define settingsKeyCombo(name, displayName, defaultValue, description) std::vector<int> name;
 	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment)
@@ -174,9 +196,7 @@ public:
 	StringWithLength getOtherINIDescription(void* ptr);
 	std::string convertToUiDescription(const char* iniDescription);
 	StringWithLength getComboRepresentation(const std::vector<int>& toggle);
-	inline int getMinKeyCode() const {
-		return minKeyCode;
-	}
+	StringWithLength getComboRepresentationUserFriendly(const std::vector<int>& toggle);
 	inline int getMaxKeyCode() const {
 		return maxKeyCode;
 	}
@@ -192,8 +212,11 @@ private:
 		std::string uiDescription;
 		bool isParsed = false;
 		bool representationGenerated = false;
+		bool representationUserFriendlyGenerated = false;
 		std::string representation;
+		std::string representationUserFriendly;
 		void generateRepresentation();
+		void generateRepresentationUserFriendly();
 		KeyComboToParse(size_t keyLength, const char* name, const char* uiName, std::vector<int>* keyCombo, const StringWithLength& defaultValue, const StringWithLength& iniDescription);
 	};
 	std::unordered_map<StringView, KeyComboToParse, StringViewHash, StringViewCompare> keyCombosToParse;
@@ -242,6 +265,7 @@ private:
 	static int findChar(const char* buf, char c, int startingPos = 0);
 	static int findChar(const char* bufStart, const char* bufEnd, char c, int startingPos = 0);
 	static int findCharRev(const char* buf, char c);
+	static int findCharRevW(const wchar_t* buf, wchar_t c);
 	static std::pair<int, int> trim(std::string& str); // Trims left and right in-place. Returns how many chars were cut off from left (.first) and from right (.second).
 	static std::vector<std::string> split(const std::string& str, char c);
 	inline bool parseKeys(const char* keyName, const StringWithLength& keyValue, std::vector<int>& keyCodes) {
@@ -253,16 +277,17 @@ private:
 	bool parseKeys(const char* keyName, const char* keyValueStart, const char* keyValueEnd, std::vector<int>& keyCodes);
 	static bool parseInteger(const char* keyName, const std::string& keyValue, int& integer);
 	static bool parseBoolean(const char* keyName, const std::string& keyValue, bool& aBooleanValue);
-	static StringWithLength formatBoolean(bool value);
+	static const StringWithLength& formatBoolean(bool value);
 	static bool parseFloat(const char* keyName, const std::string& keyValue, float& floatValue);
 	static float parseFloat(const char* inputString, bool* error = nullptr);
 	static bool parseMoveList(const char* keyName, const std::string& keyValue, MoveList& listValue);
+	static bool parseHitboxList(const char* keyName, const std::string& keyValue, HitboxList& listValue);
 	static bool parsePinnedWindowList(const char* keyName, const std::string& keyValue, PinnedWindowList& listValue);
 	static void formatFloat(float f, std::string& result);
 	static void formatInteger(int f, std::string& result);
 	static void formatMoveList(const MoveList& moveList, std::string& result);
+	static void formatHitboxList(const HitboxList& hitboxList, std::string& result);
 	static void formatPinnedWindowList(const PinnedWindowList& moveList, std::string& result);
-	static std::wstring getCurrentDirectory();
 	void registerListenerForChanges();
 	std::wstring settingsPath;
 	bool firstSettingsParse = true;
@@ -312,7 +337,6 @@ private:
 		while (ptr != strEnd && *ptr <= 32) ++ptr;
 		return ptr;
 	}
-	int minKeyCode = INT_MAX;
 	int maxKeyCode = INT_MIN;
 };
 

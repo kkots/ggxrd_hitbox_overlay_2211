@@ -75,13 +75,13 @@ struct CreatedProjectileStruct {
 #define assignCreatedProjectile getCreatedProjectile<__COUNTER__>
 
 template<size_t lineNumber>
-inline const CreatedProjectileStruct* getCreatedProjectile(const char* name) {
+static inline const CreatedProjectileStruct* getCreatedProjectile(const char* name) {
 	static const CreatedProjectileStruct myStruct { name };
 	return &myStruct;
 }
 
 template<size_t lineNumber>
-inline const CreatedProjectileStruct* getCreatedProjectile(const NamePair* name) {
+static inline const CreatedProjectileStruct* getCreatedProjectile(const NamePair* name) {
 	static const CreatedProjectileStruct myStruct { name };
 	return &myStruct;
 }

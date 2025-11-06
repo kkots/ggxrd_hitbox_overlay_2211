@@ -19,6 +19,7 @@
 #include "PackTextureSizes.h"
 #include "PngResource.h"
 #include <d3dcommon.h>
+#include <unordered_map>
 
 using UpdateD3DDeviceFromViewports_t = void(__thiscall*)(char* thisArg);
 using FSuspendRenderingThread_t = void(__thiscall*)(char* thisArg, unsigned int InSuspendThreadFlags);
@@ -115,6 +116,8 @@ public:
 	std::string getFailedToCreatePixelShaderReason();
 	std::string failedToCreateOutlinesRTSamplingTextureReason;
 	bool isFullscreen() const { return fullscreen; }
+	float viewportW = 0.F;
+	float viewportH = 0.F;
 private:
 	UpdateD3DDeviceFromViewports_t orig_UpdateD3DDeviceFromViewports = nullptr;
 	FSuspendRenderingThread_t orig_FSuspendRenderingThread = nullptr;
@@ -337,8 +340,6 @@ private:
 	void setTransformMatrices3DProjection(IDirect3DDevice9* device);
 	void setTransformMatricesPlain2D(IDirect3DDevice9* device);
 	void setTransformMatricesPlain2DPart(IDirect3DDevice9* device);
-	float viewportW = 0.F;
-	float viewportH = 0.F;
 	#define RenderStateType(name) RENDER_STATE_TYPE_##name
 	#define RenderStateValue(settingName, value) RENDER_STATE_VALUE_##settingName##__##value
 	#define RenderStateHandler(name) RenderStateValueHandler_##name
@@ -468,8 +469,9 @@ private:
 	};
 	std::vector<int> circleCacheHashmap;
 	std::vector<CircleCacheElement> circleCache;
+	std::unordered_map<int, CircleCacheElement> circleCacheHardcoded;
 	const int* sinTable = nullptr;
-	int setupCircle(int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor);
+	int setupCircle(int hashKey, int radius, D3DCOLOR fillColor, D3DCOLOR outlineColor);
 	bool worldMatrixHasShiftedWorldCenter = false;
 	void ensureWorldMatrixWorldCenterIsZero();
 	void setWorld3DMatrix(int worldCenterShiftX = 0, int worldCenterShiftY = 0, bool updateVertexShaderConstant = true);

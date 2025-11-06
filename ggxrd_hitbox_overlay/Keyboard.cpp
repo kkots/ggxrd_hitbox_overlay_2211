@@ -3,6 +3,7 @@
 #include "logging.h"
 #include "Settings.h"
 #include "memoryFunctions.h"
+#include "KeyDefinitions.h"
 
 Keyboard keyboard;
 
@@ -15,6 +16,7 @@ BOOL CALLBACK EnumWindowsFindMyself(HWND hwnd, LPARAM lParam) {
 		// we got multiple windows on Linux, need to disambiguate
 		if (strcmp(className, "LaunchUnrealUWindowsClient") == 0) {
 			keyboard.thisProcessWindow = hwnd;
+			keyboard.windowThreadId = windsThreadId;
 		}
 	}
 	return TRUE;
@@ -38,10 +40,22 @@ void Keyboard::initialize() {
 	initialized = true;
 	
 	if (settings.getMaxKeyCode() != INT_MIN
-			&& settings.getMinKeyCode() != INT_MAX
-			&& settings.getMinKeyCode() >= 0
-			&& settings.getMaxKeyCode() >= settings.getMinKeyCode()) {
-		codeToStatus.resize(settings.getMaxKeyCode() - settings.getMinKeyCode() + 1);
+			&& settings.getMaxKeyCode() >= 0) {
+		size_t newSize = settings.getMaxKeyCode() + 1;
+		codeToStatus.resize(newSize);
+		codeToMovable.resize(newSize);
+		
+		#define keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable) \
+			codeToMovable[virtualKeyCode] = movable;
+		#define keyEnumFuncLast(identifier, userFriendlyName, virtualKeyCode, movable) keyEnumFunc(identifier, userFriendlyName, virtualKeyCode, movable);
+		#define keyEnumFunc_keyRange(str) \
+			for (const char* c = str; *c != '\0'; ++c) { \
+				codeToMovable[*c] = MULTIPLICATION_WHAT_KEYBOARD; \
+			}
+		keyEnum
+		#undef keyEnumFunc
+		#undef keyEnumFuncLast
+		#undef keyEnumFunc_keyRange
 	}
 }
 
@@ -50,17 +64,42 @@ void Keyboard::updateKeyStatuses() {
 	if (!mutexLockedFromOutside)
 		guard = std::unique_lock<std::mutex>(mutex);
 	
+	int mouseMoveX = 0;
+	int mouseMoveY = 0;
+	int wheel = wheelDelta;
+	wheelDelta = 0;
+	if (imguiHovered) wheel = 0;
+	
+	if (keyboard.thisProcessWindow && screenSizeKnown) {
+		if (firstTimeGettingMousePos || imguiHovered) {
+			if (getMousePos(&lastMousePos)) {
+				firstTimeGettingMousePos = false;
+			}
+		} else {
+			POINT currentMousePos;
+			if (getMousePos(&currentMousePos)) {
+				
+				mouseMoveX = currentMousePos.x - lastMousePos.x;
+				mouseMoveY = currentMousePos.y - lastMousePos.y;
+				
+				lastMousePos = currentMousePos;
+			}
+		}
+	}
+	
 	const bool windowActive = isWindowActive();
 	DIJOYSTATE2 joy;
 	if (hasJoyKeys && windowActive && !statuses.empty()) {
 		getJoyState(&joy);
 	}
 	for (KeyStatus& status : statuses) {
+		status.moveAmount = 0;
 		status.gotPressed = false;
 		bool isPressed;
 		if (!windowActive) {
 			isPressed = false;
 		} else {
+			
 			switch (status.code) {
 				case JOY_BTN_0:
 				case JOY_BTN_1:
@@ -79,62 +118,109 @@ void Keyboard::updateKeyStatuses() {
 				case JOY_BTN_14:
 				case JOY_BTN_15:
 					isPressed = joy.rgbButtons[status.code - JOY_BTN_0];
+					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_LEFT_STICK_LEFT:
 					isPressed = joy.lX < 32767 - 3000;
+					status.moveAmount = 32767 - joy.lX;
 					break;
 				case JOY_LEFT_STICK_UP:
 					isPressed = joy.lY < 32767 - 3000;
+					status.moveAmount = 32767 - joy.lY;
 					break;
 				case JOY_LEFT_STICK_RIGHT:
 					isPressed = joy.lX > 32767 + 3000;
+					status.moveAmount = joy.lX - 32767;
 					break;
 				case JOY_LEFT_STICK_DOWN:
 					isPressed = joy.lY > 32767 + 3000;
+					status.moveAmount = joy.lY - 32767;
 					break;
 				case JOY_DPAD_LEFT:
 					isPressed = joy.rgdwPOV[0] == 31500
 						|| joy.rgdwPOV[0] == 27000
 						|| joy.rgdwPOV[0] == 22500;
+					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_DPAD_UP:
 					isPressed = joy.rgdwPOV[0] == 0
 						|| joy.rgdwPOV[0] == 31500
 						|| joy.rgdwPOV[0] == 4500;
+					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_DPAD_RIGHT:
 					isPressed = joy.rgdwPOV[0] == 4500
 						|| joy.rgdwPOV[0] == 9000
 						|| joy.rgdwPOV[0] == 13500;
+					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_DPAD_DOWN:
 					isPressed = joy.rgdwPOV[0] == 22500
 						|| joy.rgdwPOV[0] == 18000
 						|| joy.rgdwPOV[0] == 13500;
+					status.moveAmount = isPressed ? 1 : 0;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_LEFT:
 					isPressed = joy.lZ < 32767 - 3000;
+					status.moveAmount = 32767 - joy.lZ;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_UP:
 					isPressed = joy.lRz < 32767 - 3000;
+					status.moveAmount = 32767 - joy.lRz;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_RIGHT:
 					isPressed = joy.lZ > 32767 + 3000;
+					status.moveAmount = joy.lZ - 32767;
 					break;
 				case JOY_PS4_DUALSHOCK_RIGHT_STICK_DOWN:
 					isPressed = joy.lRz > 32767 + 3000;
+					status.moveAmount = joy.lRz - 32767;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_LEFT:
 					isPressed = joy.lRx < 32767 - 3000;
+					status.moveAmount = 32767 - joy.lRx;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_UP:
 					isPressed = joy.lRy < 32767 - 3000;
+					status.moveAmount = 32767 - joy.lRy;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_RIGHT:
 					isPressed = joy.lRx > 32767 + 3000;
+					status.moveAmount = joy.lRx - 32767;
 					break;
 				case JOY_XBOX_TYPE_S_RIGHT_STICK_DOWN:
 					isPressed = joy.lRy > 32767 + 3000;
+					status.moveAmount = joy.lRy - 32767;
+					break;
+				case MOUSE_MOVE_LEFT:
+					isPressed = mouseMoveX < 0;
+					status.moveAmount = -mouseMoveX;
+					break;
+				case MOUSE_MOVE_RIGHT:
+					isPressed = mouseMoveX > 0;
+					status.moveAmount = mouseMoveX;
+					break;
+				case MOUSE_MOVE_UP:
+					isPressed = mouseMoveY < 0;
+					status.moveAmount = -mouseMoveY;
+					break;
+				case MOUSE_MOVE_DOWN:
+					isPressed = mouseMoveY > 0;
+					status.moveAmount = mouseMoveY;
+					break;
+				case MOUSE_WHEEL_UP:
+					isPressed = wheel > 0;
+					status.moveAmount = wheel;
+					break;
+				case MOUSE_WHEEL_DOWN:
+					isPressed = wheel < 0;
+					status.moveAmount = -wheel;
+					break;
+				case VK_UP:
+				case VK_DOWN:
+				case VK_LEFT:
+				case VK_RIGHT:
+					isPressed = !imguiContextMenuOpen && isKeyCodePressed(status.code);
 					break;
 				default:
 					isPressed = isKeyCodePressed(status.code);
@@ -154,7 +240,7 @@ void Keyboard::removeAllKeyCodes() {
 		guard = std::unique_lock<std::mutex>(mutex);
 	
 	for (const KeyStatus& status : statuses) {
-		codeToStatus[status.code - settings.getMinKeyCode()] = 0;
+		codeToStatus[status.code] = 0;
 	}
 	statuses.clear();
 	hasJoyKeys = false;
@@ -166,12 +252,16 @@ void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 		guard = std::unique_lock<std::mutex>(mutex);
 	
 	for (int code : keyCodes) {
-		int codeToStatusIndex = code - settings.getMinKeyCode();
-		if (codeToStatusIndex < 0) return;
+		int codeToStatusIndex = code;
+		bool negate = codeToStatusIndex < 0;
+		if (negate) {
+			codeToStatusIndex = -codeToStatusIndex;
+		}
 		if ((size_t)codeToStatusIndex >= codeToStatus.size()) return;
 		if (codeToStatus[codeToStatusIndex] == 0) {
 			codeToStatus[codeToStatusIndex] = (int)statuses.size() + 1;
-			statuses.push_back(KeyStatus{ code, false, false });
+			
+			statuses.push_back(KeyStatus{ codeToStatusIndex, false, false, codeToMovable[codeToStatusIndex] });
 			if (code >= JOY_START && code <= JOY_END) {
 				hasJoyKeys = true;
 			}
@@ -182,13 +272,14 @@ void Keyboard::addNewKeyCodes(const std::vector<int>& keyCodes) {
 bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 	std::unique_lock<std::mutex> guard;
 	std::unique_lock<std::mutex> guardSettings;
-	if (!mutexLockedFromOutside) {
+	// reading from the main thread does not require locking, as the data won't be modified
+	if (!mutexLockedFromOutside && GetCurrentThreadId() != windowThreadId) {
 		guard = std::unique_lock<std::mutex>(mutex);
 		guardSettings = std::unique_lock<std::mutex>(settings.keyCombosMutex);
 	}
 	bool hasNonModifierKeys = false;
 	for (int code : keyCodes) {
-		if (!isModifierKey(code)) {
+		if (!isModifierKey(code < 0 ? -code : code)) {
 			hasNonModifierKeys = true;
 			break;
 		}
@@ -198,19 +289,20 @@ bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 
 	if (hasNonModifierKeys) {
 		for (int code : keyCodes) {
-			KeyStatus* status = getStatus(code);
+			int absCode = code < 0 ? -code : code;
+			KeyStatus* status = getStatus(absCode);
 			if (!status) return false;
-			if (!status->isPressed) return false;
-			if (!isModifierKey(code)) {
+			if (status->isPressed != (code >= 0)) return false;
+			if (!isModifierKey(absCode) && code >= 0) {
 				if (status->gotPressed) atLeastOneGotPressed = true;
 			}
 		}
 	} else {
 		for (int code : keyCodes) {
-			KeyStatus* status = getStatus(code);
+			KeyStatus* status = getStatus(code < 0 ? -code : code);
 			if (!status) return false;
-			if (!status->isPressed) return false;
-			if (status->gotPressed) atLeastOneGotPressed = true;
+			if (status->isPressed != (code >= 0)) return false;
+			if (status->gotPressed && code >= 0) atLeastOneGotPressed = true;
 		}
 	}
 
@@ -220,20 +312,47 @@ bool Keyboard::gotPressed(const std::vector<int>& keyCodes) {
 bool Keyboard::isHeld(const std::vector<int>& keyCodes) {
 	std::unique_lock<std::mutex> guard;
 	std::unique_lock<std::mutex> guardSettings;
-	if (!mutexLockedFromOutside) {
+	// reading from the main thread does not require locking the mutex, as the data won't be modified
+	if (!mutexLockedFromOutside && GetCurrentThreadId() != windowThreadId) {
 		guard = std::unique_lock<std::mutex>(mutex);
 		guardSettings = std::unique_lock<std::mutex>(settings.keyCombosMutex);
 	}
 	if (keyCodes.empty()) return false;
 	for (int code : keyCodes) {
-		KeyStatus* status = getStatus(code);
-		if (!status) return false;
-		if (!status->isPressed) return false;
+		KeyStatus* status = getStatus(code < 0 ? -code : code);
+		if (!status || status->isPressed != (code >= 0)) return false;
 	}
 	return true;
 }
 
+float Keyboard::moveAmount(const std::vector<int>& keyCodes, MultiplicationGoal goal) {
+	std::unique_lock<std::mutex> guard;
+	std::unique_lock<std::mutex> guardSettings;
+	// reading from the main thread does not require locking, as the data won't be modified
+	if (!mutexLockedFromOutside && GetCurrentThreadId() != windowThreadId) {
+		guard = std::unique_lock<std::mutex>(mutex);
+		guardSettings = std::unique_lock<std::mutex>(settings.keyCombosMutex);
+	}
+	if (keyCodes.empty()) return 0.F;
+	float largestMoveAbsolute = 0.F;
+	float largestMove = 0.F;
+	for (int code : keyCodes) {
+		KeyStatus* status = getStatus(code < 0 ? -code : code);
+		if (!status || status->isPressed != (code >= 0)) return false;
+		float moveAmount = (float)status->moveAmount * multiplicationTable[status->movable][goal];
+		float moveAmountAbs = moveAmount < 0 ? -moveAmount : moveAmount;
+		if (moveAmountAbs > largestMoveAbsolute) {
+			largestMoveAbsolute = moveAmountAbs;
+			largestMove = moveAmount;
+		}
+	}
+	return largestMove;
+}
+
 bool Keyboard::isKeyCodePressed(int code) const {
+	if (imguiActive) {
+		return false;
+	}
 	return (GetKeyState(code) & 0x8000) != 0;
 }
 
@@ -248,10 +367,9 @@ bool Keyboard::isModifierKey(int code) const {
 }
 
 Keyboard::KeyStatus* Keyboard::getStatus(int code) {
-	int codeToStatusIndex = code - settings.getMinKeyCode();
-	if (codeToStatusIndex < 0) return nullptr;
-	if ((size_t)codeToStatusIndex >= codeToStatus.size()) return nullptr;
-	int statusesIndex = codeToStatus[codeToStatusIndex];
+	if (code < 0) return nullptr;
+	if ((size_t)code >= codeToStatus.size()) return nullptr;
+	int statusesIndex = codeToStatus[code];
 	if (statusesIndex == 0) return nullptr;
 	return &statuses[statusesIndex - 1];
 }
@@ -301,4 +419,22 @@ void Keyboard::getJoyState(DIJOYSTATE2* state) {
 		--ArrayNum;
 	}
 	
+}
+
+bool Keyboard::getMousePos(POINT* result) {
+	if (!GetCursorPos(result)) return false;
+	if (!ScreenToClient(thisProcessWindow, result)) return false;
+	if (usePresentRect) {
+		float v;
+		
+		v = (float)result->x;
+		v = v * screenWidth / (float)presentRectW;
+		result->x = (LONG)std::roundf(v);
+		
+		v = (float)result->y;
+		v = v * screenHeight / (float)presentRectH;
+		result->y = (LONG)std::roundf(v);
+		
+	}
+	return true;
 }

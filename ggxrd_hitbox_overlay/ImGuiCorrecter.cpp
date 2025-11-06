@@ -3,11 +3,11 @@
 #include "imgui.h"
 #include "imgui_internal.h"  // don't want this file in UI.cpp, it already takes a millennia to compile
 #include <cmath>
+#include "Keyboard.h"
 
 ImGuiCorrecter imGuiCorrecter;
 
-void ImGuiCorrecter::adjustMousePosition(float screenWidth, float screenHeight,
-										bool usePresentRect, int presentRectW, int presentRectH) {
+void ImGuiCorrecter::adjustMousePosition() {
 	ImGuiIO& io = ImGui::GetIO();
 	ImGuiContext* g = ImGui::GetCurrentContext();
 	
@@ -15,25 +15,25 @@ void ImGuiCorrecter::adjustMousePosition(float screenWidth, float screenHeight,
 	bool widthsDiffer;
 	bool heightsDiffer;
 	
-	if (usePresentRect) {
-		io.DisplaySize.x = screenWidth;
-		io.DisplaySize.y = screenHeight;
+	if (keyboard.usePresentRect) {
+		io.DisplaySize.x = keyboard.screenWidth;
+		io.DisplaySize.y = keyboard.screenHeight;
 		
-		float presentRectWF = (float)presentRectW;
-		float presentRectHF = (float)presentRectH;
+		float presentRectWF = (float)keyboard.presentRectW;
+		float presentRectHF = (float)keyboard.presentRectH;
 		
-		widthsDiffer = screenWidth != presentRectWF;
-		heightsDiffer = screenHeight != presentRectHF;
+		widthsDiffer = keyboard.screenWidth != presentRectWF;
+		heightsDiffer = keyboard.screenHeight != presentRectHF;
 		if (!widthsDiffer && !heightsDiffer) return;
 		
 		for (int i = 0; i < g->InputEventsQueue.Size; ++i) {
 			ImGuiInputEvent* e = &g->InputEventsQueue[i];
 			if (e->Type == ImGuiInputEventType_MousePos && !eventProcessed(e->EventId)) {
 				if (widthsDiffer) {
-					e->MousePos.PosX = std::floorf(e->MousePos.PosX * screenWidth / presentRectWF);
+					e->MousePos.PosX = std::floorf(e->MousePos.PosX * keyboard.screenWidth / presentRectWF);
 				}
 				if (heightsDiffer) {
-					e->MousePos.PosY = std::floorf(e->MousePos.PosY * screenHeight / presentRectHF);
+					e->MousePos.PosY = std::floorf(e->MousePos.PosY * keyboard.screenHeight / presentRectHF);
 				}
 				addProcessedEvent(e->EventId);
 			}
@@ -42,12 +42,12 @@ void ImGuiCorrecter::adjustMousePosition(float screenWidth, float screenHeight,
 		return;
 	}
 	
-	widthsDiffer = screenWidth != oldDisplaySize.x;
-	heightsDiffer = screenHeight != oldDisplaySize.y;
+	widthsDiffer = keyboard.screenWidth != oldDisplaySize.x;
+	heightsDiffer = keyboard.screenHeight != oldDisplaySize.y;
 	if (!widthsDiffer && !heightsDiffer) return;
 	
-	io.DisplaySize.x = screenWidth;
-	io.DisplaySize.y = screenHeight;
+	io.DisplaySize.x = keyboard.screenWidth;
+	io.DisplaySize.y = keyboard.screenHeight;
 	
 	
 	
@@ -55,10 +55,10 @@ void ImGuiCorrecter::adjustMousePosition(float screenWidth, float screenHeight,
 		ImGuiInputEvent* e = &g->InputEventsQueue[i];
 		if (e->Type == ImGuiInputEventType_MousePos && !eventProcessed(e->EventId)) {
 			if (widthsDiffer) {
-				e->MousePos.PosX = std::floorf(e->MousePos.PosX * screenWidth / oldDisplaySize.x);
+				e->MousePos.PosX = std::floorf(e->MousePos.PosX * keyboard.screenWidth / oldDisplaySize.x);
 			}
 			if (heightsDiffer) {
-				e->MousePos.PosY = std::floorf(e->MousePos.PosY * screenHeight / oldDisplaySize.y);
+				e->MousePos.PosY = std::floorf(e->MousePos.PosY * keyboard.screenHeight / oldDisplaySize.y);
 			}
 			addProcessedEvent(e->EventId);
 		}

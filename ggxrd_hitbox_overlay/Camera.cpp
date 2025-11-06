@@ -80,27 +80,22 @@ void Camera::updateDarkenHook(char* thisArg) {
 // Runs on the main thread
 void Camera::updateCameraHook(char* thisArg, char** param1, char* param2) {
 	if (!shutdown) {
-		if ((gifMode.gifModeOn || gifMode.gifModeToggleCameraCenterOnly || gifMode.toggleCameraCenterOpponent) && game.isTrainingMode() && *aswEngine) {
-			entityList.populate();
+		if (
+				(
+					gifMode.gifModeOn
+					|| gifMode.gifModeToggleCameraCenterOnly
+					|| gifMode.toggleCameraCenterOpponent
+					|| gifMode.editHitboxes && gifMode.editHitboxesEntity
+				)
+				&& game.isTrainingMode()
+				&& *aswEngine
+		) {
 	
-			char playerSide = game.getPlayerSide();
-			if (playerSide == 2) playerSide = 0;
-			if (entityList.count > playerSide) {
-				Entity ent = entityList.slots[gifMode.toggleCameraCenterOpponent ? 1 - playerSide : playerSide];
-				const auto posX = convertCoord((float)ent.posX());
-				const auto posY = convertCoord((float)ent.posY());
-	
-				char* deref = *param1;
-				*(float*)(deref + 0x54) = posX + settings.cameraCenterOffsetX;
-				*(float*)(deref + 0x58) = settings.cameraCenterOffsetZ;
-				if (settings.forceZeroPitchDuringCameraCentering) {
-					*(float*)(deref + 0x5C) = posY + settings.cameraCenterOffsetY_WhenForcePitch0;
-					*(int*)(deref + 0x60) = 0;
-					*(int*)(deref + 0x64) = -16384;
-					*(int*)(deref + 0x68) = 0;
-				} else {
-					*(float*)(deref + 0x5C) = posY + settings.cameraCenterOffsetY;
-				}
+			if (gifMode.editHitboxes && gifMode.editHitboxesEntity && frozen && !lastGameTickRanFine) {
+				updateCameraManually();
+			} else {
+				CameraPos* camPos = (CameraPos*)(*(char**)param1 + 0x54);
+				updateCameraPos(camPos);
 			}
 		}
 	}
@@ -145,10 +140,11 @@ bool Camera::worldToScreen(IDirect3DDevice9* device, const D3DXVECTOR3& vec, D3D
 bool CameraValues::setValues() {
 	const char* cam = *(char**)(*aswEngine + camera.cameraOffset);
 	if (!cam) return false;  // without this it will actually crash when a match finishes loading
-
-	pos.x = *(float*)(cam + 0x3C8);
-	pos.y = *(float*)(cam + 0x3CC);
-	pos.z = *(float*)(cam + 0x3D0);
+	
+	CameraPos* camPos = (CameraPos*)(cam + 0x3C8);
+	pos.x = camPos->x;
+	pos.y = camPos->y;
+	pos.z = camPos->z;
 
 	this->pitch = *(int*)(cam + 0x3D4);
 	this->yaw = *(int*)(cam + 0x3D8);
@@ -241,4 +237,54 @@ void Camera::grabValues() {
 	CameraValues newValues;
 	newValues.setValues();
 	valuesPrepare = newValues;
+}
+
+void Camera::updateCameraManually() {
+	if (!*aswEngine) return;
+	char* camPtr = *(char**)(*aswEngine + cameraOffset);
+	if (!camPtr) return;
+	CameraPos* cam = (CameraPos*)(camPtr + 0x384);
+	updateCameraPos(cam);
+	
+	CameraPos* pendingCam = *(CameraPos**)(camPtr + 0x3C0) + 0x54;
+	*pendingCam = *cam;
+
+	pendingCam = (CameraPos*)(camPtr + 0x3C8);
+	*pendingCam = *cam;
+}
+
+void Camera::updateCameraPos(CameraPos* camPos) {
+	entityList.populate();
+
+	char playerSide = game.getPlayerSide();
+	if (playerSide == 2) playerSide = 0;
+	if (playerSide >= entityList.count) return;
+	
+	Entity ent;
+	if (gifMode.editHitboxes) {
+		ent = gifMode.editHitboxesEntity;
+	} else {
+		ent = entityList.slots[gifMode.toggleCameraCenterOpponent ? 1 - playerSide : playerSide];
+	}
+	const float posX = convertCoord((float)ent.posX());
+	const float posY = convertCoord((float)ent.posY());
+	if (gifMode.editHitboxes) {
+		camPos->x = posX + editHitboxesOffsetX;
+		camPos->y = editHitboxesViewDistance;
+		camPos->z = posY + editHitboxesOffsetY;
+		camPos->pitch = 0;
+		camPos->yaw = -16384;
+		camPos->roll = 0;
+	} else {
+		camPos->x = posX + settings.cameraCenterOffsetX;
+		camPos->y = settings.cameraCenterOffsetZ;
+		if (settings.forceZeroPitchDuringCameraCentering) {
+			camPos->z = posY + settings.cameraCenterOffsetY_WhenForcePitch0;
+			camPos->pitch = 0;
+			camPos->yaw = -16384;
+			camPos->roll = 0;
+		} else {
+			camPos->z = posY + settings.cameraCenterOffsetY;
+		}
+	}
 }

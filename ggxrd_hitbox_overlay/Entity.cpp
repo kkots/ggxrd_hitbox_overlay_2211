@@ -5,8 +5,10 @@
 #include "EntityList.h"
 #include <string>
 #include <intrin.h>
+#include "Game.h"
 
 EntityManager entityManager;
+extern char** aswEngine;
 
 // There's no convenient way to sigscan this and usually we do it the other way around:
 // we use numbers like these to find stuff using sigscan. So we're hardcoding this and it's a decision that's made.
@@ -485,7 +487,7 @@ int EntityManager::calculateComboProration(int risc, AttackType attackType) {
 
 static BYTE* findInBBScrHashmap(const char* name, const BBScrInfo* bbscrInfo, const BBScrHashtable* table) {
 	
-	const DWORD hash = Entity::hashStringCaseInsensitive(name);
+	const DWORD hash = Entity::hashStringLowercase(name);
 	
 	int start = 0;
 	int middle;
@@ -535,7 +537,7 @@ const AddedMoveData* Entity::findAddedMove(const char* name) const {
 	return nullptr;
 }
 
-DWORD Entity::hashStringCaseInsensitive(const char* str) {
+DWORD Entity::hashStringLowercase(const char* str) {
 	DWORD hash = 0;
 	for (const char* c = str; *c != '\0'; ++c) {
 		char cVal = *c;
@@ -551,4 +553,418 @@ DWORD Entity::hashString(const char* str) {
 		hash = hash * 0x89 + *c;
 	}
 	return hash;
+}
+
+int FPAC::calcJonbSize(BYTE* dataPtr) {
+	if (memcmp(dataPtr, "JONB", 4) != 0) return 0xFF773311;
+	short nameCount = *(short*)(dataPtr + 4);
+	dataPtr += 4 + 2 + 32 * nameCount;
+	short typeCount = *(BYTE*)dataPtr - 3;
+	++dataPtr;
+	short short1 = *(short*)dataPtr;
+	dataPtr += 2;
+	short short2 = *(short*)dataPtr;
+	dataPtr += 2;
+	short short3 = *(short*)dataPtr;
+	dataPtr += 2;
+	short totalCount = 0;
+	for (int i = 0; i < typeCount; ++i) {
+		totalCount += *(short*)dataPtr;
+		dataPtr += 2;
+	}
+	return 4  // "JONB"
+		+ 2  // name count
+		+ 32 * nameCount
+		+ 1  // hitbox type count + 3
+		+ 2  // short1
+		+ 2  // short2
+		+ 2  // short3
+		+ 2 * typeCount  // count of hitboxes, for each type
+		+ short1 * size1
+		+ short2 * size2
+		+ short3 * size3
+		+ (sizeof(Hitbox)) * totalCount;
+}
+
+void FPAC::enumNames(bool (*callback)(char* name, BYTE* jonbin)) {
+	// flag2 we only know how to find name by hash and get that entry's data
+	if (useHash()) {
+		if (flag2()) {
+			return;
+			for (DWORD i = 0; i < count; ++i) {
+				//oops idk where the name is callback(data.table0x10.elements[i].
+			}
+		} else if (size0x50()) {
+			for (DWORD i = 0; i < count; ++i) {
+				FPACLookupElement0x50& elem = data.table0x50.elements[i];
+				if (!callback(elem.spriteName, (BYTE*)this + headerSize + elem.offset)) return;
+			}
+		} else {
+			for (DWORD i = 0; i < count; ++i) {
+				FPACLookupElement0x30& elem = data.table0x30.elements[i];
+				if (!callback(elem.spriteName, (BYTE*)this + headerSize + elem.offset)) return;
+			}
+		}
+	} else if (flag2()) {
+		return;
+	} else {
+		DWORD uVar2 = sizeOfSingleElement + 0xc;  // idk
+		// this pads the uVar2 up to the nearest 16-byte boundary
+		uVar2 = (uVar2 - (uVar2 & 0xf)) + 0x10;
+		
+		for (DWORD i = 0; i < count; ++i) {
+			if (
+				!callback(
+					(char*)&data + uVar2 * i,
+					(BYTE*)this + headerSize + *(int*)(
+						(BYTE*)&data + uVar2 * i + sizeOfSingleElement + 4
+					)
+				)
+			) {
+				return;
+			}
+		}
+	}
+	return;
+}
+
+REDAnimNodeSequence* REDPawn::getFirstAnimSeq() {
+	for (int i = 0; i < MeshControlNum(); ++i) {
+		REDAnimNodeSequence* result = MeshControls()[i].AnimSeq;
+		if (result) {
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+template<typename T>
+static inline DWORD findInsertionIndex(T* array, int count, DWORD hash) {
+	int start = 0;
+	int end = (int)count - 1;
+	while (true) {
+		int mid = (start + end) >> 1;
+		DWORD curHash = array[mid].hash;
+		if (hash == curHash) {
+			return 0xFFFFFFFF;
+		} else if (hash > curHash) {
+			start = mid + 1;
+			if (mid == end) {
+				return (DWORD)start;
+			}
+		} else {
+			end = mid - 1;
+			if (mid == start) {
+				return (DWORD)start;
+			}
+		}
+	}
+}
+
+DWORD FPAC::findInsertionIndex(DWORD hash) {
+	if (!count) return 0;
+	if (size0x50()) {
+		return ::findInsertionIndex(data.table0x50.elements, count, hash);
+	} else {
+		return ::findInsertionIndex(data.table0x30.elements, count, hash);
+	}
+}
+
+template<typename T>
+static BYTE* findLookupEntry(T* array, int count, DWORD hash) {
+	int start = 0;
+	int end = (int)count - 1;
+	while (true) {
+		int mid = (start + end) >> 1;
+		DWORD curHash = array[mid].hash;
+		if (hash == curHash) {
+			return (BYTE*)&array[mid];
+		} else if (hash > curHash) {
+			start = mid + 1;
+			if (mid == end) {
+				return nullptr;
+			}
+		} else {
+			end = mid - 1;
+			if (mid == start) {
+				return nullptr;
+			}
+		}
+	}
+}
+
+BYTE* FPAC::findLookupEntry(DWORD hash) {
+	if (!count) return nullptr;
+	if (size0x50()) {
+		return ::findLookupEntry(data.table0x50.elements, count, hash);
+	} else {
+		return ::findLookupEntry(data.table0x30.elements, count, hash);
+	}
+}
+
+BYTE* FPAC::findLookupEntry(const char* str) {
+	return findLookupEntry(Entity::hashStringLowercase(str));
+}
+
+template<typename T>
+void FPACInsertAtImpl(T* array, DWORD index, DWORD count, const T& newElement){
+	if (!count) {
+		array[0] = newElement;
+		return;
+	}
+	for (DWORD i = count - 1; i >= index; --i) {
+		array[i + 1] = array[i];
+		++array[i + 1].index;
+	}
+	array[index] = newElement;
+}
+
+void FPACLookupTable0x30::insertAt(DWORD index, DWORD count, const FPACLookupElement0x30& newElement) {
+	FPACInsertAtImpl(elements, index, count, newElement);
+}
+
+void FPACLookupTable0x50::insertAt(DWORD index, DWORD count, const FPACLookupElement0x50& newElement) {
+	FPACInsertAtImpl(elements, index, count, newElement);
+}
+
+REDAssetCollision* Entity::getCollision() const {
+	REDPawn_Player** ar = (REDPawn_Player**)(*aswEngine + aswEnginePawnsOffset);
+	return ar[bbscrIndexInAswEng()]->Collision();
+}
+
+static BYTE* sizeOfJonbinAtOffsetTarget;
+static BYTE* sizeOfJonbinAtOffsetEntryOffsetPtr;
+static DWORD sizeOfJonbinAtOffsetSize;
+
+template<typename T>
+static bool sizeOfJonbinAtOffsetImpl(char* name, BYTE* jonbin) {
+	if (jonbin == sizeOfJonbinAtOffsetTarget) {
+		sizeOfJonbinAtOffsetSize = ((T*)name)->size;
+		sizeOfJonbinAtOffsetEntryOffsetPtr = (BYTE*)name + offsetof(T, offset);
+		return false;
+	}
+	return true;
+}
+
+DWORD FPAC::sizeOfJonbinAtOffset(DWORD offset, DWORD* offsetPtrOffset) {
+	sizeOfJonbinAtOffsetSize = 0xFFFFFFFF;
+	sizeOfJonbinAtOffsetTarget = (BYTE*)this + headerSize + offset;
+	if (size0x50()) {
+		enumNames(sizeOfJonbinAtOffsetImpl<FPACLookupElement0x50>);
+	} else {
+		enumNames(sizeOfJonbinAtOffsetImpl<FPACLookupElement0x30>);
+	}
+	*offsetPtrOffset = sizeOfJonbinAtOffsetEntryOffsetPtr - (BYTE*)this;
+	return sizeOfJonbinAtOffsetSize;
+}
+
+int Entity::getEffectIndex() const {
+	return (
+		ent - (*aswEngine + 0x4 + 0x460)  // an in-place array of 75 Effects is here
+	) / 0x4d10;  // size of 1 Effect;
+}
+
+BYTE* FPAC::lookupEnd() const {
+	return (BYTE*)this + 0x20 + count * elementSize();
+}
+
+FName FName::nullFName { 0, 0 };
+
+Hitbox* HitboxHolder::hitboxesStart() const {
+	return hitboxesStart(jonbinPtr);
+}
+
+Hitbox* HitboxHolder::hitboxesStart(BYTE* jonbinPtr) {
+	BYTE* ptr = jonbinPtr;
+	ptr += 4;  // skip "JONB"
+	short nameCount = *(short*)ptr;
+	ptr += 2;
+	ptr += nameCount * 32;
+	BYTE numTypes = *ptr - 3;
+	++ptr;
+	short short1 = *(short*)ptr;
+	ptr += 2;
+	short short2 = *(short*)ptr;
+	ptr += 2;
+	short short3 = *(short*)ptr;
+	ptr += 2;
+	return (Hitbox*)(
+		ptr + numTypes * 2 + short1 * FPAC::size1 + short2 * FPAC::size2 + short3 * FPAC::size3
+	);
+}
+
+short* HitboxHolder::hitboxCounts(BYTE* jonbinPtr) {
+	BYTE* ptr = jonbinPtr;
+	ptr += 4;  // skip "JONB"
+	short nameCount = *(short*)ptr;
+	return (short*)(ptr + 2 + nameCount * 32 + 1 + 2 + 2 + 2);
+}
+
+BYTE HitboxHolder::numTypes(BYTE* jonbinPtr) {
+	BYTE* ptr = jonbinPtr;
+	ptr += 4;  // skip "JONB"
+	short nameCount = *(short*)ptr;
+	ptr += 2 + nameCount * 32;
+	return *ptr - 3;
+}
+
+int HitboxHolder::hitboxCount() const {
+	int result = 0;
+	for (int i = 0; i < 17; ++i) {
+		result += count[i];
+	}
+	return result;
+}
+
+void HitboxHolder::parse(BYTE* jonbinPtr) {
+	this->jonbinPtr = jonbinPtr;
+	
+	BYTE* ptr = jonbinPtr;
+	ptr += 4;  // skip "JONB"
+	nameCount = *(short*)ptr;
+	ptr += 2;
+	for (int i = 0; i < nameCount; ++i) {
+		names[i] = (char*)ptr;
+		ptr += 32;
+	}
+	BYTE numTypes = *ptr - 3;
+	++ptr;
+	short short1 = *(short*)ptr;
+	ptr += 2;
+	short2 = *(short*)ptr;
+	ptr += 2;
+	short short3 = *(short*)ptr;
+	ptr += 2;
+	
+	for (BYTE type = 0; type < numTypes; ++type) {
+		count[type] = *(short*)ptr;
+		ptr += 2;
+	}
+	
+	if (numTypes < 17) {
+		memset(count + numTypes, 0, 2 * (17 - numTypes));
+	}
+	
+	ptr += short1 * FPAC::size1;
+	ptrRawAfterShort1 = ptr;
+	
+	ptr += short2 * FPAC::size2 + short3 * FPAC::size3;
+	
+	for (BYTE type = 0; type < numTypes; ++type) {
+		data[type] = (Hitbox*)ptr;
+		ptr += count[type] * sizeof (Hitbox);
+	}
+	
+}
+
+static int wideStrIntoStrbuf(const wchar_t* widePtr, char* buf, size_t bufSize) {
+	char* ptr = buf;
+	if (!bufSize) return 0;
+	--bufSize;  // reserve the last character for null
+	for (; *widePtr != L'\0' && bufSize > 0; ++widePtr) {
+		char whoahwhoahholdontherepal = *(char*)widePtr;
+		if (whoahwhoahholdontherepal < 0 || whoahwhoahholdontherepal > 126 || *((char*)widePtr + 1) != 0) {
+			break;  // Worse Than You got me paranoid of malcoded UTF as an attack vector
+		}
+		*ptr = *(char*)widePtr;
+		++ptr;
+		--bufSize;
+	}
+	*ptr = '\0';
+	return ptr - buf;
+}
+
+char* FName::print(char* buf, size_t size) const {
+	if (!low) {
+		if (size) {
+			buf[0] = '\0';
+		}
+		return nullptr;
+	}
+	bool isWide;
+	const char* data = game.readFName(low, &isWide);
+	if (!high) {
+		if (!isWide) {
+			strcpy_s(buf, size, data);
+		} else {
+			wideStrIntoStrbuf((const wchar_t*)data, buf, size);
+		}
+	} else {
+		if (!isWide) {
+			sprintf_s(buf, size, "%s%d", data, high - 1);
+		} else {
+			int count = wideStrIntoStrbuf((const wchar_t*)data, buf, size);
+			// 12, because 11 is the longest int you can print with %d, plus null character
+			if (count + 12 < (int)size) {
+				sprintf_s(buf + count, size - (size_t)count, "%d", high - 1);
+			}
+		}
+	}
+	return buf;
+}
+
+template<typename Key, typename Value>
+int TMap<Key,Value>::find(Key* key) const {
+	int HashSize = Pairs.HashSize;
+	if (HashSize != 0) {
+		DWORD mask = (DWORD)HashSize - 1;
+		int* HashData;
+		if (Pairs.Hash.Data) {
+			HashData = Pairs.Hash.Data;
+		} else {
+			HashData = Pairs.Hash.InlineData;
+		}
+		typedef TSet<TMap<Key,Value>::FPair>::FElement unconfuseVisualStudio;  // if you write this in-place, the code won't compile, because ElementData: identifier not found. What the hell is happening inside the compiler or C++whatever-number specification??
+		unconfuseVisualStudio* ElementData = Pairs.Elements.Data.Data;
+		for (int HashNext = HashData[mask & hash(key)]; HashNext != -1; HashNext = ElementData[HashNext].HashNextId) {
+			if (ElementData[HashNext].Value.Key == key) {
+				return HashNext;
+			}
+		}
+	}
+	return -1;
+}
+
+UAnimSequence* UAnimSet::find(FName name) const {
+	for (int i = 0; i < Sequences.ArrayNum; ++i) {
+		UAnimSequence* element = Sequences.Data[i];
+		if (element->SequenceName == name) {
+			return element;
+		}
+	}
+	return nullptr;
+}
+
+UAnimSequence* USkeletalMeshComponent::find(FName name) const {
+	for (int i = AnimSets.ArrayNum - 1; i >= 0; --i) {
+		const UAnimSet* set = AnimSets.Data[i];
+		if (!set) continue;
+		UAnimSequence* found = set->find(name);
+		if (found) return found;
+	}
+	return nullptr;
+}
+
+int REDPawn::getMaxFrameOfAnimSequence(FName name) {
+	int numControls = MeshControlNum();
+	const MeshControl* meshControl = MeshControls();
+	for (int i = 0; i < numControls; ++i) {
+		UAnimSequence* animSeq = meshControl->find(name);
+		if (animSeq) {
+			BYTE* vtable = *(BYTE**)meshControl->AnimSeq;  // read vtable
+			typedef float (__thiscall * GetAnimPlaybackLength_t) (UAnimNodeSequence* thisArg);
+			GetAnimPlaybackLength_t GetAnimPlaybackLength = *(GetAnimPlaybackLength_t*)(vtable + 0x1e4);
+			UAnimSequence* currentSeq = meshControl->AnimSeq->AnimSeq;
+			float playbackLength = GetAnimPlaybackLength(meshControl->AnimSeq);
+			playbackLength = playbackLength * currentSeq->RateScale() / currentSeq->SequenceLength()
+				* animSeq->SequenceLength() / animSeq->RateScale();
+			return -1 - (int)(
+				(
+					playbackLength * 60.F + 0.04166667F
+				) * -0.2F
+			);
+		}
+		++meshControl;
+	}
+	return 0;
 }

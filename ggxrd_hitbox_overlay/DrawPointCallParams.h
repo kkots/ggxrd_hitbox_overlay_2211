@@ -3,6 +3,7 @@
 
 struct DrawPointCallParams {
 	bool isProjectile = false;
+	bool selected = false;
 	int posX = 0;
 	int posY = 0;
 	D3DCOLOR fillColor = D3DCOLOR_ARGB(255, 255, 255, 255);
@@ -23,4 +24,5 @@ struct DrawCircleCallParams {
 	int radius = 0;
 	D3DCOLOR fillColor = D3DCOLOR_ARGB(0, 0, 0, 0);
 	D3DCOLOR outlineColor = D3DCOLOR_ARGB(255, 255, 255, 255);
+	int hashKey = 0;
 };

@@ -5,6 +5,7 @@
 #include <limits.h>
 #include "DrawTextWithIconsParams.h"
 #include "trainingSettings.h"
+#include <vector>
 
 extern char** aswEngine;
 
@@ -89,6 +90,8 @@ using drawIcon_t = int (__cdecl*)(int iconIndex, DrawTextWithIconsParams* params
 using functionAfterSettingDelay_t = void (__thiscall*)(void* thisArg, int param1);
 using trainingStructProcessPlayRecordReset_t = void (__thiscall*)(void* thisArg);
 using functionInIsPlayInsideProcessPlayRecordReset_t = void* (__cdecl*)();
+using appRealloc_t = void*(__cdecl*)(void* Ptr, int NewSize, int Alignment_unused);  // just pass 8 into alignment. Passing 0 for Ptr allocates new memory. Non-0 reallocates. Passing NewSize 0 frees the memory.
+extern appRealloc_t appRealloc;
 
 class Game {
 public:
@@ -108,8 +111,8 @@ public:
 	bool bothPlayersHuman() const;
 	void updateOnlineDelay();
 	void onConnectionTierChanged();
+	int currentPlayerControllingSide() const;
 	bool freezeGame = false;
-	bool slowmoGame = false;
 	bool allowNextFrame = false;
 	trainingHudTick_t trainingHudTick = nullptr;  // the hook for this function is in EndScene.cpp
 	getTrainingHud_t getTrainingHud = nullptr;
@@ -159,6 +162,10 @@ public:
 	uintptr_t drawRankInLobbyMemberList_NonCircle = 0;
 	uintptr_t drawRankInLobbyMemberList_Circle = 0;
 	void onUsePositionResetChanged();
+	std::vector<void*> actorsToAllowTickFor;
+	void allowTickForActor(void* actor);
+	const char* readFName(int fname, bool* isWide);
+	bool sigscanFNamesAndAppRealloc();
 	void onFPSChanged();
 private:
 	getPlayerPadID_t getPlayerPadIDPtr = nullptr;
@@ -189,7 +196,6 @@ private:
 	updateBattleOfflineVer_t orig_updateBattleOfflineVer = nullptr;
 	TickActorComponents_t orig_TickActorComponents = nullptr;
 	char** netplayStruct = nullptr;
-	unsigned slowmoSkipCounter = 0;
 	bool ignoreAllCalls = false;
 	bool ignoreAllCallsButEvenEarlier = false;
 	uintptr_t burstOffset = 0;
@@ -272,6 +278,15 @@ private:
 	functionInIsPlayInsideProcessPlayRecordReset_t functionInIsPlayInsideProcessPlayRecordReset = nullptr;
 	static void* functionInIsPlayInsideProcessPlayRecordResetHook();
 	bool doNotIncrementSlotInputsIndex = false;
+	struct FNameEntry {
+		unsigned long long Flags;
+		int Index;
+		FNameEntry* HashNext;
+		BYTE data[1];
+	};
+	typedef FNameEntry** ArrayOfFNameEntryPointers;
+	ArrayOfFNameEntryPointers* fnameNamesPtr = nullptr;
+	bool attemptedToFindFNameNames = false;
 	bool attemptedToSwapOutFPS = false;
 	bool swapOutFPS();
 };

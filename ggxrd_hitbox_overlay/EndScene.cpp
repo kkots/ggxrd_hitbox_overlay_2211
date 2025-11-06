@@ -32,12 +32,13 @@
 #include <chrono>
 #include "NamePairManager.h"
 #include <unordered_map>
+#include "pi.h"
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
 ProjectileInfo emptyProjectile;
 findMoveByName_t findMoveByName = nullptr;
-
+appFree_t appFree = nullptr;
 
 // Runs on the main thread
 extern "C"
@@ -119,6 +120,9 @@ static const PunishFrame punishAnim[] { { -10, 0x00FFFFFF }, { -10, 0x11FFFFFF }
 	{ -1, 0xFFFFFF00 }, { -1, 0xFFFFFF00 }, { 0, 0xFFFFFF00, 60 * 3 }, { 0, 0xF0FFFF00 }, { 0, 0xE0FFFF00 }, { 0, 0xD4FFFF00 }, { 0, 0xC0FFFF00 },
 	{ 0, 0xAFFFFF00 }, { 0, 0x90FFFF00 }, { 0, 0x70FFFF00 }, { 0, 0x50FFFF00 }, { 0, 0x40FFFF00 }, { 0, 0x30FFFF00 }, { 0, 0x24FFFF00 },
 	{ 0, 0x18FFFF00 }, { 0, 0x14FFFF00 }, { 0, 0x10FFFF00 }, { 0, 0x0CFFFF00 }, { 0, 0x08FFFF00 }, { 0, 0x04FFFF00 } };
+
+bool colorIsLess(DWORD colorProtagonist, DWORD colorToCompareAgainst);
+static bool leoHasbtDAvailable(Entity pawn);
 
 bool EndScene::onDllMain() {
 	bool error = false;
@@ -248,11 +252,17 @@ bool EndScene::onDllMain() {
 		FRenderCommandVtable = *(void**)(commandVtableAssignment + 2);
 		FRenderCommandDestructor = *(FRenderCommandDestructor_t*)FRenderCommandVtable;
 		FSkipRenderCommandVtable = *(void**)(commandVtableAssignment + 8);
+		uintptr_t appFreeCallPlace = sigscanForward((uintptr_t)FRenderCommandDestructor,
+			"f6 44 24 04 01 56 8b f1 c7 06 ?? ?? ?? ?? 74 09 56 >e8", 0x20, nullptr);
+		if (appFreeCallPlace) {
+			appFree = (appFree_t)followRelativeCall(appFreeCallPlace);
+		}
 	}
 	if (!GIsThreadedRendering
 			|| !GRenderCommandBuffer
 			|| !FRingBuffer_AllocationContext_Constructor
-			|| !FRingBuffer_AllocationContext_Commit) {
+			|| !FRingBuffer_AllocationContext_Commit
+			|| !appFree) {
 		logwrap(fputs("Failed to find things needed for enqueueing render commands\n", logfile));
 		error = true;
 	}
@@ -381,6 +391,21 @@ bool EndScene::onDllMain() {
 	digUpBBScrFunctionAndHook(BBScr_setHitstop_t, BBScr_setHitstop, instr_setHitstop)
 	digUpBBScrFunctionAndHook(BBScr_ignoreDeactivate_t, BBScr_ignoreDeactivate, instr_ignoreDeactivate)
 	digUpBBScrFunctionAndHook(BBScr_timeSlow_t, BBScr_timeSlow, instr_timeSlow)
+	uintptr_t BBScr_sprite = 0;
+	digUpBBScrFunction(uintptr_t, BBScr_sprite, instr_sprite)
+	
+	if (BBScr_sprite) {
+		uintptr_t pos = sigscanForward(BBScr_sprite, "c2 08 00 >e9", 0x50);
+		if (pos) {
+			uintptr_t slightlyMoreInnerSprite = followRelativeCall(pos);
+			if (slightlyMoreInnerSprite) {
+				pos = sigscanForward(slightlyMoreInnerSprite, "89 be 68 0b 00 00 >e8", 0xb0);
+				if (pos) {
+					spriteImpl = (spriteImpl_t)followRelativeCall(pos);
+				}
+			}
+		}
+	}
 	
 	if (orig_BBScr_sendSignal) {
 		getReferredEntity = (getReferredEntity_t)followRelativeCall((uintptr_t)orig_BBScr_sendSignal + 5);
@@ -843,7 +868,7 @@ bool EndScene::onDllMain() {
 			isSignVer1_10OrHigher = (isSignVer1_10OrHigher_t)isSignVer1_10OrHigherPlace;
 		}
 	}
-	
+		
 	if (!highlightGreenWhenBecomingIdleChanged()) return false;
 	
 	if (!onDontResetBurstAndTensionGaugesWhenInStunOrFaintChanged()) return false;
@@ -948,7 +973,7 @@ void EndScene::logic() {
 			|| altModes.roundendCameraFlybyType() != 8
 			|| game.is0xa8PreparingCamera();
 		entityList.populate();
-		if (!isRunning) {
+		if (!isRunning && !iGiveUp) {
 			for (int i = 0; i < 2; ++i) {
 				punishMessageTimers[i].clear();
 				attackerInRecoveryAfterBlock[i] = false;
@@ -1090,6 +1115,8 @@ void EndScene::logic() {
 			prepareInputs();
 			prevAswEngineTickCountForInputs = aswEngineTickCount;
 		}
+		
+		drawHitboxEditorHitboxes();
 	}
 	if (needToClearHitDetection) {
 		attackHitboxes.clear();
@@ -1134,6 +1161,9 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		startedNewRound = false;
 		if (!iGiveUp) {
 			isTheFirstFrameInTheRound = true;
+			if (gifMode.editHitboxes) {
+				ui.stopHitboxEditMode();
+			}
 		}
 	}
 	if (isTheFirstFrameInTheRound) {
@@ -1153,7 +1183,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		}
 		for (int i = 0; i < 2; ++i) {
 			// on the first frame of a round people can't act. At all
-			// without this fix, the mod thinks normals are enabled except on the very first of a match where it thinks they're not
+			// without this fix, the mod thinks normals are enabled except on the very first frame of a match where it thinks they're not
 			PlayerInfo& player = players[i];
 			player.wasEnableNormals = false;
 			player.wasPrevFrameEnableNormals = false;
@@ -3084,7 +3114,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						bitInfo.blockstunLinked = p.hasUpon(BBSCREVENT_PLAYER_BLOCKED);
 						bitInfo.fallOnHitstun = false;
 						bitInfo.recoilOnHitstun = false;
-						bitInfo.isInvulnerable = p.fullInvul() || p.strikeInvul() || p.hitboxCount(HITBOXTYPE_HURTBOX) == 0;
+						bitInfo.isInvulnerable = p.fullInvul() || p.strikeInvul() || p.hitboxes()->count[HITBOXTYPE_HURTBOX] == 0;
 						anim = p.animationName();
 						if (bitInfo.stackIndex == 0) {
 							isTrance = strcmp(anim, "BitSpiral_NSpiral") == 0;
@@ -4329,6 +4359,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 			}
 		}
 		
+		// need entityState
 		collectHitboxes(ent,
 			active,
 			&hurtbox,
@@ -4516,11 +4547,12 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 		if (!wasHitResult.wasHit || settings.neverDisplayGrayHurtboxes
 				|| ent.isHidden()  // for when supers hide the defender. This is needed to not show hitboxes during a super cinematic
 		) {
-			drawDataPrepared.hurtboxes.push_back({ false, hurtbox });
+			drawDataPrepared.hurtboxes.emplace_back( hurtbox );
 		}
 		else {
-			drawDataPrepared.hurtboxes.push_back({ true, hurtbox, wasHitResult.hurtbox });
+			drawDataPrepared.hurtboxes.emplace_back( hurtbox, wasHitResult.hurtbox );
 		}
+		
 		logOnce(fputs("collectHitboxes(...) call successful\n", logfile));
 		drawnEntities.push_back(ent);
 		logOnce(fputs("drawnEntities.push_back(...) call successful\n", logfile));
@@ -4546,7 +4578,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				nullptr,
 				scaleX,
 				scaleY);
-			drawDataPrepared.hurtboxes.push_back({ false, attachedHurtbox });
+			drawDataPrepared.hurtboxes.emplace_back( attachedHurtbox );
 			drawnEntities.push_back(attached);
 		}
 		if (!iGiveUp && (team == 0 || team == 1)) {
@@ -4585,7 +4617,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					player.hitboxTopBottomValid = true;
 				}
 				RECT hurtboxBounds;
-				if (hurtbox.hitboxCount) {
+				if (!hurtbox.data.empty()) {
 					hurtboxBounds = hurtbox.getWorldBounds();
 					player.hurtboxTopY = hurtboxBounds.top;
 					player.hurtboxBottomY = hurtboxBounds.bottom;
@@ -4595,7 +4627,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				player.throwInvul.active = entityState.throwInvuln;
 				if (!entityState.strikeInvuln
 						&& !player.airborne
-						&& hurtbox.hitboxCount) {
+						&& !hurtbox.data.empty()) {
 					if (hurtboxBounds.bottom <= 88000) {
 						player.superLowProfile.active = true;
 					} else if (hurtboxBounds.bottom <= 159000) {
@@ -4620,7 +4652,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					}
 				}
 				if (player.y > 0) {
-					if (hurtbox.hitboxCount && hurtboxBounds.top < 20000 && !entityState.strikeInvuln) {
+					if (!hurtbox.data.empty() && hurtboxBounds.top < 20000 && !entityState.strikeInvuln) {
 						player.airborneButWontGoOverLows.active = true;
 					} else {
 						player.airborneInvul.active = true;
@@ -7506,18 +7538,24 @@ void EndScene::processKeyStrokes() {
 			freezeGame = true;
 			logwrap(fputs("Freeze game turned on\n", logfile));
 		}
+		camera.frozen = freezeGame;
 		ui.freezeGame = freezeGame;
 	}
-	if (!gifMode.modDisabled && (keyboard.gotPressed(settings.slowmoGameToggle) || stateChanged && ui.slowmoGame != game.slowmoGame)) {
-		if (game.slowmoGame == true) {
-			game.slowmoGame = false;
-			logwrap(fputs("Slowmo game turned off\n", logfile));
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.slowmoGameToggle)) {
+		if (std::abs(gifMode.fps - 60.F) < 0.001F) {
+			if (settings.slowmoFps < 1.F) settings.slowmoFps = 1.F;
+			if (settings.slowmoFps > 999.F) settings.slowmoFps = 999.F;
+			if (*game.gameDataPtr && game.isTrainingMode() && *aswEngine) {
+				logwrap(fputs("Changing FPS to a custom one from a hotkey press\n", logfile));
+				gifMode.fps = settings.slowmoFps;
+				game.onFPSChanged();
+			} else {
+				logwrap(fputs("Declined changing FPS to a custom one from a hotkey press\n", logfile));
+			}
+		} else {
+			gifMode.fps = 60.F;
+			logwrap(fputs("Changed FPS back to 60 from a hotkey press\n", logfile));
 		}
-		else if (trainingMode) {
-			game.slowmoGame = true;
-			logwrap(fputs("Slowmo game turned on\n", logfile));
-		}
-		ui.slowmoGame = game.slowmoGame;
 	}
 	if (keyboard.gotPressed(settings.disableModToggle)) {
 		if (gifMode.modDisabled == true) {
@@ -7624,6 +7662,13 @@ void EndScene::processKeyStrokes() {
 			}
 		}
 	}
+	if (!gifMode.modDisabled && keyboard.gotPressed(settings.hitboxEditModeToggle)) {
+		ui.onToggleHitboxEditMode();
+		logwrap(fputs("Toggled hitbox edit mode with a keyboard shortcut\n", logfile));
+	}
+	if (gifMode.editHitboxes && gifMode.editHitboxesEntity && *aswEngine) {
+		ui.editHitboxesProcessControls();
+	}
 	if (needWriteSettings && keyboard.thisProcessWindow) {
 		PostMessageW(keyboard.thisProcessWindow, WM_APP_UI_STATE_CHANGED, FALSE, TRUE);
 	}
@@ -7685,13 +7730,13 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		needContinuouslyTakeScreens = true;
 	}
 	game.freezeGame = freezeGame && trainingMode && !gifMode.modDisabled;
+	camera.frozen = game.freezeGame;
 	if (!trainingMode || gifMode.modDisabled) {
 		gifMode.gifModeOn = false;
 		ui.gifModeOn = false;
 		gifMode.noGravityOn = false;
 		ui.noGravityOn = false;
-		game.slowmoGame = false;
-		ui.slowmoGame = false;
+		gifMode.fps = 60.F;
 		gifMode.gifModeToggleBackgroundOnly = false;
 		onGifModeBlackBackgroundChanged();
 		ui.gifModeToggleBackgroundOnly = false;
@@ -7704,6 +7749,7 @@ void EndScene::actUponKeyStrokesThatAlreadyHappened() {
 		gifMode.gifModeToggleHudOnly = false;
 		ui.gifModeToggleHudOnly = false;
 		clearContinuousScreenshotMode();
+		ui.stopHitboxEditMode();
 	}
 	if (needToRunNoGravGifMode) {
 		entityList.populate();
@@ -7879,13 +7925,13 @@ LRESULT EndScene::WndProcHook(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 				game.onConnectionTierChanged();
 			}
 			break;
-			case WM_APP_HIGHLIGHT_GREEN_WHEN_BECOMING_IDLE_CHANGED: {
-				endScene.highlightGreenWhenBecomingIdleChanged();
-			}
-			break;
 			case WM_APP_HIGHLIGHTED_MOVES_CHANGED: {
 				ui.highlightedMovesChanged();
 				highlightSettingsChanged();
+			}
+			// omission of 'break' intentional
+			case WM_APP_HIGHLIGHT_GREEN_WHEN_BECOMING_IDLE_CHANGED: {
+				endScene.highlightGreenWhenBecomingIdleChanged();
 			}
 			break;
 			case WM_APP_PINNED_WINDOWS_CHANGED: {
@@ -7940,10 +7986,10 @@ void EndScene::drawTrainingHudHook(char* thisArg) {
 // Runs on the main thread
 void EndScene::drawTexts() {
 	return;
+	#if 0
 	// Example code
 	{
-		//char HelloWorld[] = "oig^mAtk1;";
-		char HelloWorld[] = "oig";
+		char HelloWorld[] = "oig^mAtk1;";
 		DrawTextWithIconsParams s;
 		s.field159_0x100 = 36.0;
 		s.layer = 177;
@@ -7954,17 +8000,17 @@ void EndScene::drawTexts() {
 		s.field158_0xfc = -1;
 		s.field161_0x108 = 0;
 		s.field162_0x10c = 0;
-		s.textColor = 0xffffff00;  // text color
+		s.textColor = -1;
 		s.field164_0x114 = 0;
 		s.field165_0x118 = 0;
 		s.field166_0x11c = -1;
 		s.outlineColor = 0xff000000;
 		s.dropShadowColor = 0xff000000;
-		s.x = 100.F;
-		s.y = 185.0 + 34.F * 3.F;
+		s.x = 100;
+		s.y = 185.0 + 34 * 3;
 		s.alignment = ALIGN_LEFT;
 		s.text = HelloWorld;
-		s.flags1 = 0x2612;
+		s.flags1 = 0x210;
 		drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
 	return;
@@ -7993,6 +8039,7 @@ void EndScene::drawTexts() {
 		s.flags1 = 0x210;
 		drawTextWithIcons(&s,0x0,1,4,0,0);
 	}
+	#endif
 }
 
 // Called when switching characters, exiting the match.
@@ -8193,7 +8240,7 @@ void EndScene::registerHit(HitResult hitResult, bool hasHitbox, Entity attacker,
 			attackerInRecoveryAfterBlock[attackerIndex] = true;
 		} else {
 			attackerInRecoveryAfterBlock[attackerIndex] = attackerInRecoveryAfterBlock[attackerIndex]
-				|| attackerInRecoveryAfterCreatingProjectile[attackerIndex][getEffectIndex(attacker)];
+				|| attackerInRecoveryAfterCreatingProjectile[attackerIndex][attacker.getEffectIndex()];
 		}
 	}
 	if (hitResult == HIT_RESULT_ARMORED && attacker.isPawn() && defender.isPawn()
@@ -8819,12 +8866,12 @@ void EndScene::pawnInitializeHook(Entity createdObj, void* initializationParams)
 		creatingObject = false;
 		if (endScene.creatorOfCreatedObject) {
 			int team = endScene.creatorOfCreatedObject.team();
-			int effectIndex = endScene.getEffectIndex(createdObj);
+			int effectIndex = createdObj.getEffectIndex();
 			if (endScene.creatorOfCreatedObject.isPawn()) {
 				attackerInRecoveryAfterCreatingProjectile[team][effectIndex] = true;
 			} else {
 				attackerInRecoveryAfterCreatingProjectile[team][effectIndex] =
-					attackerInRecoveryAfterCreatingProjectile[team][endScene.getEffectIndex(endScene.creatorOfCreatedObject)];
+					attackerInRecoveryAfterCreatingProjectile[team][endScene.creatorOfCreatedObject.getEffectIndex()];
 			}
 		}
 		
@@ -8965,7 +9012,7 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 						|| settings.highlightBlueWhenBecomingIdle
 					)
 				) {
-					controllingSide = currentPlayerControllingSide();
+					controllingSide = game.currentPlayerControllingSide();
 					if (player.index == controllingSide
 							&& !(
 								pawn.cmnActIndex() == CmnActJump
@@ -8998,7 +9045,7 @@ void EndScene::handleUponHook(Entity pawn, BBScrEvent signal) {
 				}
 				if (!settings.highlightWhenCancelsIntoMovesAvailable.pointers.empty()) {
 					if (controllingSide == 2) {
-						controllingSide = currentPlayerControllingSide();
+						controllingSide = game.currentPlayerControllingSide();
 					}
 					if (player.index == controllingSide) {
 						bool red = false;
@@ -9400,6 +9447,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 		if (needEnqueueOriginPoints) {
 			queueOriginPointDrawingDummyCommandAndInitializeIcon();
 		}
+		finishedSigscanning();
 	} else {
 		drawingPostponedLocal = drawingPostponed();
 	}
@@ -10714,13 +10762,15 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 					defenderPtr.currentHitNum() > 0  // non-0 after any 'hit' instruction
 					&& (
 						defenderPtr.isRecoveryState()
-						|| defenderPtr.hitboxCount(HITBOXTYPE_HITBOX) == 0
+						|| defenderPtr.hitboxes()->count[HITBOXTYPE_HITBOX] == 0
 						|| !defenderPtr.isActiveFrames()  // can be turned off using 'attackOff'
 						|| defenderPtr.hitAlreadyHappened() == defenderPtr.theValueHitAlreadyHappenedIsComparedAgainst()  // already landed the hit
+						&& !defenderPtr.hitSomethingOnThisFrame()  // but landed the hit not on this frame, to avoid showing Punish on trades
 					)
 					|| defenderPtr.cmnActIndex() == CmnActJumpLanding
 					|| defenderPtr.cmnActIndex() == CmnActLandingStiff
 					|| defenderPtr.currentAnimDuration() > 15
+					|| defenderPtr.isRecoveryState()  // some non-attack moves signal recovery state explicitly
 				)
 				|| settings.showPunishMessageOnBlock
 				&& attackerInRecoveryAfterBlock[defenderPtr.team()]
@@ -10738,8 +10788,18 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 				|| defenderPtr.cmnActIndex() == CmnActAirFDash
 				|| defenderPtr.cmnActIndex() == CmnActAirBDash
 			)
+			// exclude Leo Backturn idle, except the 22 (return from Backturn to neutral). Walk left/right is part of Backturn.
+			// Backturn backdash and forward dash are separate animations.
+			&& !leoHasbtDAvailable(defenderPtr)
 	) {
 		std::vector<PunishMessageTimer>& vec = punishMessageTimers[defenderPtr.team()];
+		for (auto it = vec.begin(); it != vec.end(); ) {
+			if (it->recheckTimer >= 0) {
+				it = vec.erase(it);
+			} else {
+				++it;
+			}
+		}
 		vec.emplace_back();
 		PunishMessageTimer& newTimer = vec.back();
 		newTimer.animFrame = 0;
@@ -11273,7 +11333,7 @@ void EndScene::checkSelfProjectileHarmInflictions() {
 		Entity attacker = entityList.list[i];
 		BBScrEvent event = attacker.signalToSendToYourOwnEffectsWhenHittingThem();
 		if (event == BBSCREVENT_HIT_OWN_PROJECTILE_DEFAULT
-				|| attacker.hitboxCount(HITBOXTYPE_HITBOX) == 0 && !attacker.effectLinkedCollision()) {
+				|| attacker.hitboxes()->count[HITBOXTYPE_HITBOX] == 0 && !attacker.effectLinkedCollision()) {
 			continue;
 		}
 		for (int j = 0; j < entityList.count; ++j) {
@@ -11551,19 +11611,6 @@ void EndScene::removeAttackHitbox(Entity attackerPtr) {
 	}
 }
 
-bool EndScene::isActiveFull(Entity ent) const {
-	return ent.isActiveFrames()
-			&& (
-				ent.isPawn()
-					&& ent.characterType() == CHARACTER_TYPE_JAM
-					&& strcmp(ent.animationName(), "Saishingeki") == 0
-					&& ent.currentAnimDuration() > 100
-				?
-					ent.currentHitNum() > 1
-				: true
-			);
-}
-
 void EndScene::onHitDetectionAttackerParticipate(Entity ent) {
 	if (
 			(
@@ -11573,7 +11620,7 @@ void EndScene::onHitDetectionAttackerParticipate(Entity ent) {
 				|| currentHitDetectionType == HIT_DETECTION_CLASH
 			)
 			&& !ent.isPawn()  // players can't lose their hitboxes at the end of a tick, so there's no point collecting them for them
-			&& ent.hitboxCount(HITBOXTYPE_HITBOX) > 0
+			&& ent.hitboxes()->count[HITBOXTYPE_HITBOX] > 0
 	) {
 		static std::vector<DrawHitboxArrayCallParams> hitboxesArena;
 		AttackHitbox attackBox;
@@ -11611,8 +11658,8 @@ void EndScene::onHitDetectionAttackerParticipate(Entity ent) {
 			if (!found) {
 				attackHitboxes.push_back(attackBox);
 			}
-			hitboxesArena.clear();
 		}
+		hitboxesArena.clear();
 	}
 }
 
@@ -12678,20 +12725,6 @@ DWORD EndScene::pawnGetColorHook(Entity pawn, DWORD* inColor) {
 	return orig_pawnGetColor((void*)pawn.ent, inColor);
 }
 
-int EndScene::currentPlayerControllingSide() const {
-	DummyRecordingMode recordingMode = game.getDummyRecordingMode();
-	
-	int playerSide = game.getPlayerSide();
-	if (playerSide != 0 && playerSide != 1) playerSide = 0;
-	
-	if (recordingMode == DUMMY_MODE_CONTROLLING
-			|| recordingMode == DUMMY_MODE_RECORDING) {
-		return 1 - playerSide;
-	}
-	
-	return playerSide;
-}
-
 bool EndScene::hasCancelUnlocked(CharacterType charType, const FixedArrayOfGatlingOrWhiffCancelInfos<GatlingOrWhiffCancelInfo>& array, std::vector<const AddedMoveData*>& markedMoves,
 		bool* redPtr, bool* greenPtr, bool* bluePtr) {
 	for (const GatlingOrWhiffCancelInfo& elem : array) {
@@ -12962,6 +12995,127 @@ bool EndScene::attach(PVOID* ppPointer, PVOID pDetour, const char* name) {
 	return true;
 }
 
+void EndScene::drawHitboxEditorHitboxes() {
+	if (!gifMode.editHitboxes || !gifMode.editHitboxesEntity) return;
+	drawDataPrepared.hurtboxes.clear();
+	drawDataPrepared.hitboxes.clear();
+	drawDataPrepared.circles.clear();
+	drawDataPrepared.interactionBoxes.clear();
+	drawDataPrepared.lines.clear();
+	drawDataPrepared.points.clear();
+	drawDataPrepared.pushboxes.clear();
+	drawDataPrepared.throwBoxes.clear();
+	
+	aswOneScreenPixelWidth = 0;
+	aswOneScreenPixelHeight = 0;
+	HitboxEditorCameraValues& vals = hitboxEditorCameraValues;
+	if (vals.prepare(Entity{gifMode.editHitboxesEntity})) {
+		aswOneScreenPixelWidth = (int)std::ceilf(1.F / vals.vw * 2.F / vals.xCoeff);
+		aswOneScreenPixelHeight = (int)std::ceilf(1.F / vals.vh * 2.F / vals.yCoeff);
+	}
+	aswOneScreenPixelDiameter = max(aswOneScreenPixelWidth, aswOneScreenPixelHeight);
+	
+	if (settings.hitboxEditShowHitboxesOfEntitiesOtherThanTheOneBeingEdited) {
+		for (int i = 0; i < entityList.count; ++i) {
+			Entity ent = entityList.list[i];
+			drawHitboxEditorHitboxesForEntity(ent);
+		}
+	} else {
+		drawHitboxEditorHitboxesForEntity(gifMode.editHitboxesEntity);
+	}
+	
+	if (settings.hitboxEditShowFloorline) {
+		drawDataPrepared.lines.emplace_back();
+		DrawLineCallParams& newLine = drawDataPrepared.lines.back();
+		newLine.color = 0xFFFFFFFF;
+		newLine.posX1 = -10000000;
+		newLine.posX2 =  10000000;
+		newLine.posY1 = 0;
+		newLine.posY2 = 0;
+	}
+	
+}
+
+void EndScene::drawHitboxEditorPushbox(Entity ent, int posY) {
+	int pushboxTop;
+	int pushboxBottom;
+	int pushboxLeft;
+	int pushboxRight;
+	ent.pushboxDimensions(&pushboxLeft, &pushboxTop, &pushboxRight, &pushboxBottom);
+	
+	if (!ent.isPawn() && pushboxTop - posY == 100 && pushboxBottom == posY) {
+		pushboxTop = 20000;
+	}
+	
+	drawDataPrepared.pushboxes.emplace_back();
+	DrawBoxCallParams& newPushbox = drawDataPrepared.pushboxes.back();
+	newPushbox.left = pushboxLeft;
+	newPushbox.right = pushboxRight;
+	newPushbox.top = pushboxTop;
+	newPushbox.bottom = pushboxBottom;
+	newPushbox.fillColor = replaceAlpha(64, COLOR_PUSHBOX);
+	newPushbox.outlineColor = replaceAlpha(255, COLOR_PUSHBOX);
+	newPushbox.thickness = 1;
+	newPushbox.hatched = false;
+}
+
+void EndScene::drawHitboxEditorHitboxesForEntity(Entity ent) {
+	if (ent.scaleDefault() == 0 && ent != gifMode.editHitboxesEntity) return;
+	
+	int posX = ent.posX();
+	int posY = ent.posY();
+	
+	if (settings.hitboxEditShowOriginPoints && ent.isPawn()) {
+		drawDataPrepared.points.emplace_back();
+		DrawPointCallParams& newPoint = drawDataPrepared.points.back();
+		newPoint.posX = posX;
+		newPoint.posY = posY;
+	}
+	
+	if (ent.scaleDefault() == 0) return;
+	
+	DrawHitboxArrayCallParams projector;
+	
+	DrawHitboxArrayParams& params = projector.params;
+	params.angle = ent.pitch();
+	params.flip = ent.isFacingLeft() ? 1 : -1;
+	params.posX = posX;
+	params.posY = posY;
+	params.scaleX = ent.scaleX();
+	params.scaleY = ent.scaleY();
+	params.transformCenterX = ent.transformCenterX();
+	params.transformCenterY = ent.transformCenterY();
+	
+	bool showPushbox = ent.showPushbox();
+	
+	LayerIterator layerIterator = ui.getEntityLayers(ent);
+	
+	bool isEditEntity = ent.ent == (char*)gifMode.editHitboxesEntity;
+	
+	while (layerIterator.getNext()) {
+		HitboxListElement& setting = settings.hitboxList[layerIterator.type];
+		if (!setting.show) continue;
+		if (layerIterator.isPushbox) {
+			if (showPushbox) {
+				hitboxEditorDrawPushbox(ent, posX, posY, setting.color);
+			}
+		} else {
+			hitboxEditorDrawBox(projector, posX, posY, layerIterator.ptr, setting.color,
+				isEditEntity ? ui.hitboxIsSelectedForEndScene(layerIterator.originalIndex) : false,
+				isEditEntity ? ui.hitboxHoveredPart(layerIterator.originalIndex) : BOXPART_NONE);
+		}
+	}
+	
+	if (isEditEntity) {
+		RECT overallBounds;
+		BoxPart overallHoverPart;
+		if (ui.hasOverallSelectionBox(&overallBounds, &overallHoverPart)) {
+			hitboxEditorDrawBox(&overallBounds, posX, posY, 0, 0xFF000000, true, overallHoverPart, true);
+		}
+	}
+	
+}
+
 void EndScene::drawPunishMessage(float x, float y, DrawTextWithIconsAlignment alignment, DWORD textColor) {
 	char message[] = "PUNISH";
 	DrawTextWithIconsParams s;
@@ -12990,8 +13144,252 @@ void EndScene::drawPunishMessage(float x, float y, DrawTextWithIconsAlignment al
 	drawTextWithIcons(&s,0x0,1,4,0,0);
 }
 
-int EndScene::getEffectIndex(Entity effect) {
-	return (
-		effect.ent - (*aswEngine + 0x4 + 0x460)  // an in-place array of 75 Effects is here
-	) / 0x4d10;  // size of 1 Effect;
+bool EndScene::HitboxEditorCameraValues::prepare(Entity ent) {
+	
+	cam_y = camera.editHitboxesViewDistance;
+	if (cam_y > 0.001F || cam_y < -0.001F) {
+		
+		fov = camera.valuesUse.fov;
+		t = 1.F / tanf(fov / 360.F * PI);
+		vw = graphics.viewportW;
+		vh = graphics.viewportH;
+		
+		// all ArcSys points must be first scaled by m to get them in UE3 coordinate space's scale
+		m = camera.valuesUse.coordCoefficient / 1000.F;
+		
+		// multiply ArcSys displacements by this to get screen (1;-1) displacements
+		xCoeff = t/cam_y*m;
+		yCoeff = t*vw/vh/cam_y*m;
+		
+		screenWidthASW = 2.F / xCoeff;
+		screenHeightASW = 2.F / yCoeff;
+		
+		cam_xASW = ent.posX() + camera.editHitboxesOffsetX / m;
+		cam_zASW = ent.posY() + camera.editHitboxesOffsetY / m;
+		
+		ready = true;
+	} else {
+		ready = false;
+	}
+	
+	return ready;
+}
+
+bool colorIsLess(DWORD colorProtagonist, DWORD colorToCompareAgainst) {
+	BYTE colorProtOne = colorProtagonist & 0xFF;
+	BYTE colorProtTwo = (colorProtagonist >> 8) & 0xFF;
+	BYTE colorProtThree = (colorProtagonist >> 16) & 0xFF;
+	BYTE colorAgstOne = colorToCompareAgainst & 0xFF;
+	BYTE colorAgstTwo = (colorToCompareAgainst >> 8) & 0xFF;
+	BYTE colorAgstThree = (colorToCompareAgainst >> 16) & 0xFF;
+	return colorProtOne < colorAgstOne
+		&& colorProtTwo < colorAgstTwo
+		&& colorProtThree < colorAgstThree;
+}
+
+bool leoHasbtDAvailable(Entity pawn) {
+	if (pawn.characterType() != CHARACTER_TYPE_LEO) return false;
+	if (strcmp(pawn.animationName(), "Semuke") != 0) return false;
+	const AddedMoveData* move = (const AddedMoveData*)findMoveByName(pawn, "Semuke5E", 0);
+	if (!move) return false;
+	return move->whiffCancelOption();
+}
+
+void EndScene::hitboxEditorDrawBox(DrawHitboxArrayCallParams& projector, int posX, int posY,
+				Hitbox* hitbox, DWORD color, bool selected, BoxPart highlightedPart) {
+	
+	RECT bounds = projector.getWorldBounds(*hitbox);
+	hitboxEditorDrawBox(&bounds, posX, posY, replaceAlpha(64, color), replaceAlpha(255, color), selected, highlightedPart, false);
+}
+
+void EndScene::hitboxEditorDrawBox(const RECT* bounds, int posX, int posY, DWORD fillColor, DWORD outlineColor,
+			bool selected, BoxPart highlightedPart, bool dashed) {
+	drawDataPrepared.pushboxes.emplace_back();
+	DrawBoxCallParams& newElem = drawDataPrepared.pushboxes.back();
+	
+	newElem.fillColor = fillColor;
+	newElem.hatched = false;
+	
+	newElem.left = bounds->left;
+	newElem.top = bounds->top;
+	newElem.right = bounds->right;
+	newElem.bottom = bounds->bottom;
+	
+	newElem.outlineColor = selected ? 0 : outlineColor;
+	newElem.thickness = 1;
+	newElem.originX = posX;
+	newElem.originY = posY;
+	
+	newElem.dashed = dashed;
+	
+	if (newElem.dashed && selected) {
+		
+		drawDataPrepared.pushboxes.emplace_back();
+		DrawBoxCallParams& newElem = drawDataPrepared.pushboxes.back();
+		
+		newElem.fillColor = 0;
+		newElem.hatched = false;
+		
+		newElem.left = bounds->left - aswOneScreenPixelDiameter;
+		newElem.top = bounds->top - aswOneScreenPixelDiameter;
+		newElem.right = bounds->right - aswOneScreenPixelDiameter;
+		newElem.bottom = bounds->bottom - aswOneScreenPixelDiameter;
+		
+		newElem.outlineColor = (~outlineColor & 0xFFFFFF) | (outlineColor & 0xFF000000);
+		newElem.thickness = 1;
+		newElem.originX = posX;
+		newElem.originY = posY;
+		
+		newElem.dashed = dashed;
+		
+	} else if (selected) {
+		
+		drawDataPrepared.pushboxes.emplace_back();
+		DrawBoxCallParams& thickestOutline = drawDataPrepared.pushboxes.back();
+		thickestOutline = newElem;
+		thickestOutline.fillColor = 0;
+		
+		thickestOutline.outlineColor = outlineColor;
+		thickestOutline.thickness = aswOneScreenPixelDiameter * 3;
+		
+		drawDataPrepared.pushboxes.emplace_back();
+		DrawBoxCallParams& midThickOutline = drawDataPrepared.pushboxes.back();
+		midThickOutline = newElem;
+		midThickOutline.fillColor = 0;
+		
+		midThickOutline.outlineColor = colorIsLess(0xFFFFFF - (newElem.outlineColor & 0xFFFFFF), 0x191919)
+			? 0xFF000000 : 0xFFFFFFFF;
+		midThickOutline.thickness = aswOneScreenPixelDiameter * 2;
+		
+		drawDataPrepared.pushboxes.emplace_back();
+		DrawBoxCallParams& thinOutline = drawDataPrepared.pushboxes.back();
+		thinOutline = newElem;
+		thinOutline.fillColor = 0;
+		
+		thinOutline.outlineColor = outlineColor;
+		thinOutline.thickness = 1;
+		
+	}
+	
+	if (bounds->right - bounds->left < 1500 || bounds->bottom - bounds->top < 1500) {
+		drawDataPrepared.points.emplace_back();
+		DrawPointCallParams& newPoint = drawDataPrepared.points.back();
+		newPoint.posX = (bounds->left + bounds->right) >> 1;
+		newPoint.posY = (bounds->top + bounds->bottom) >> 1;
+		newPoint.isProjectile = true;
+		newPoint.selected = selected;
+		newPoint.fillColor = colorIsLess(0xFFFFFF - (outlineColor & 0xFFFFFF), 0x191919)
+			? 0xFF000000 : 0xFFFFFFFF;
+		newPoint.outlineColor = outlineColor;
+	}
+	
+	if (highlightedPart != BOXPART_NONE) {
+		enum MyHighlightType {
+			MYHIGHLIGHTTYPE_NONE,
+			MYHIGHLIGHTTYPE_POINT,
+			MYHIGHLIGHTTYPE_LINE
+		} myHighlightType = MYHIGHLIGHTTYPE_NONE;
+		union {
+			struct MyHighlightLine {
+				int xStart;
+				int yStart;
+				int xEnd;
+				int yEnd;
+			} line;
+			struct MyHighlightPoint {
+				int x;
+				int y;
+			} point;
+		} myHighlightUnion;
+		switch (highlightedPart) {
+			case BOXPART_TOPLEFT:
+				myHighlightType = MYHIGHLIGHTTYPE_POINT;
+				myHighlightUnion.point.x = newElem.left;
+				myHighlightUnion.point.y = newElem.top;
+				break;
+			case BOXPART_TOPRIGHT:
+				myHighlightType = MYHIGHLIGHTTYPE_POINT;
+				myHighlightUnion.point.x = newElem.right;
+				myHighlightUnion.point.y = newElem.top;
+				break;
+			case BOXPART_BOTTOMLEFT:
+				myHighlightType = MYHIGHLIGHTTYPE_POINT;
+				myHighlightUnion.point.x = newElem.left;
+				myHighlightUnion.point.y = newElem.bottom;
+				break;
+			case BOXPART_BOTTOMRIGHT:
+				myHighlightType = MYHIGHLIGHTTYPE_POINT;
+				myHighlightUnion.point.x = newElem.right;
+				myHighlightUnion.point.y = newElem.bottom;
+				break;
+			case BOXPART_TOP:
+				myHighlightType = MYHIGHLIGHTTYPE_LINE;
+				myHighlightUnion.line.xStart = newElem.left;
+				myHighlightUnion.line.yStart = newElem.top;
+				myHighlightUnion.line.xEnd = newElem.right;
+				myHighlightUnion.line.yEnd = newElem.top;
+				break;
+			case BOXPART_BOTTOM:
+				myHighlightType = MYHIGHLIGHTTYPE_LINE;
+				myHighlightUnion.line.xStart = newElem.left;
+				myHighlightUnion.line.yStart = newElem.bottom;
+				myHighlightUnion.line.xEnd = newElem.right;
+				myHighlightUnion.line.yEnd = newElem.bottom;
+				break;
+			case BOXPART_LEFT:
+				myHighlightType = MYHIGHLIGHTTYPE_LINE;
+				myHighlightUnion.line.xStart = newElem.left;
+				myHighlightUnion.line.yStart = newElem.top;
+				myHighlightUnion.line.xEnd = newElem.left;
+				myHighlightUnion.line.yEnd = newElem.bottom;
+				break;
+			case BOXPART_RIGHT:
+				myHighlightType = MYHIGHLIGHTTYPE_LINE;
+				myHighlightUnion.line.xStart = newElem.right;
+				myHighlightUnion.line.yStart = newElem.top;
+				myHighlightUnion.line.xEnd = newElem.right;
+				myHighlightUnion.line.yEnd = newElem.bottom;
+				break;
+		}
+		
+		if (myHighlightType == MYHIGHLIGHTTYPE_POINT) {
+			drawDataPrepared.circles.emplace_back();
+			DrawCircleCallParams& newCircle = drawDataPrepared.circles.back();
+			newCircle.posX = myHighlightUnion.point.x;
+			newCircle.posY = myHighlightUnion.point.y;
+			newCircle.radius = aswOneScreenPixelDiameter * 6;
+			newCircle.fillColor = colorIsLess(0xFFFFFF - (outlineColor & 0xFFFFFF), 0x191919)
+				? 0x66000000 : 0x66FFFFFF;
+			newCircle.outlineColor = 0;
+			newCircle.hashKey = 1;
+		} else if (myHighlightType == MYHIGHLIGHTTYPE_LINE) {
+			drawDataPrepared.interactionBoxes.emplace_back();
+			DrawBoxCallParams& newBox = drawDataPrepared.interactionBoxes.back();
+			newBox.left = myHighlightUnion.line.xStart - aswOneScreenPixelDiameter * 3;
+			newBox.top = myHighlightUnion.line.yStart - aswOneScreenPixelDiameter * 3;
+			newBox.right = myHighlightUnion.line.xEnd + aswOneScreenPixelDiameter * 3;
+			newBox.bottom = myHighlightUnion.line.yEnd + aswOneScreenPixelDiameter * 3;
+			newBox.fillColor = colorIsLess(0xFFFFFF - (outlineColor & 0xFFFFFF), 0x191919)
+				? 0x66000000 : 0x66FFFFFF;
+			newBox.outlineColor = 0;
+			newBox.thickness = 0;
+			newBox.hatched = false;
+		}
+	}
+	
+}
+
+void EndScene::hitboxEditorDrawPushbox(Entity ent, int posX, int posY, DWORD color) {
+	drawDataPrepared.pushboxes.emplace_back();
+	DrawBoxCallParams& newElem = drawDataPrepared.pushboxes.back();
+	
+	newElem.fillColor = replaceAlpha(64, color);
+	newElem.hatched = false;
+	
+	ent.pushboxDimensions(&newElem.left, &newElem.top, &newElem.right, &newElem.bottom);
+	
+	newElem.outlineColor = replaceAlpha(255, color);
+	newElem.thickness = 1;
+	newElem.originX = posX;
+	newElem.originY = posY;
 }
