@@ -18838,6 +18838,7 @@ void UI::drawHitboxEditor() {
 			ImGui::TableHeadersRow();
 			
 			for (int row = 1; row < SAVE_FORMAT_TOTAL; ++row) {
+				ImGui::PushID(row);
 			
 				const char* elementName = "";
 				switch (row) {
@@ -18847,7 +18848,7 @@ void UI::drawHitboxEditor() {
 				}
 				
 				for (int column = 0; column < 3; ++column) {
-					
+					ImGui::PushID(column);
 					
 					ImGui::TableNextColumn();
 					bool youareallnotselected = false;
@@ -18857,7 +18858,10 @@ void UI::drawHitboxEditor() {
 							player = column;
 						}
 					}
+					
+					ImGui::PopID();
 				}
+				ImGui::PopID();
 			}
 			
 			ImGui::EndTable();
@@ -18917,7 +18921,9 @@ void UI::drawHitboxEditor() {
 			ImGui::TableHeadersRow();
 			
 			for (int row = 0; row < 2; ++row) {
+				ImGui::PushID(row);
 				for (int column = 0; column < 3; ++column) {
+					ImGui::PushID(column);
 					ImGui::TableNextColumn();
 					selected = false;
 					if (row == 0) {
@@ -18937,7 +18943,9 @@ void UI::drawHitboxEditor() {
 							}
 						}
 					}
+					ImGui::PopID();
 				}
+				ImGui::PopID();
 			}
 			
 			ImGui::EndTable();
