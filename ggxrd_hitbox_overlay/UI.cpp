@@ -18818,7 +18818,8 @@ void UI::drawHitboxEditor() {
 	}
 	AddTooltip("Upon pressing this button, you will be asked to select which data to save, in what format, and where."
 		" The choices will be presented as a table with 3 rows and 3 columns."
-		" Each column (P1, P2, Common) represents which data to save. The data currently being edited is displayed to the left from this button."
+		" Each column (P1, P2, Common) represents which data to save. The data currently being edited is displayed in"
+		" the title of the 'Hitbox Editor' window."
 		" Each row represents a data format and where to save. You can choose to save:\n"
 		"1) .collision file. This will ask you to select a file, and binary .collision data will be written into it;\n"
 		"2) .json file. This will ask you to select a file, and text .json data will be written into it;\n"
@@ -18891,11 +18892,11 @@ void UI::drawHitboxEditor() {
 		" is based on the file name. If the file name is, for example, sol.collision or sol.json, it will find the player that is a Sol and load the data into"
 		" him. If the file name is weird and it's impossible to determine like that, you will get an error message saying it couldn't autodetect, and you'll have"
 		" to click this button again and specify \"From file\" from one of the columns to tell the program explicitly whose data you're going to load.\n\n"
-		"If you select to \"From file\" in one of the columns, see right above what I just described.\n"
+		"If you select \"From file\" in one of the columns, see right above what I just described.\n"
 		"The program automatically determines whether the file is a JSON or a .collision file based on its contents.\n\n"
 		"If you select \"JSON from clipboard\", your need to have copied a JSON text into your clipboard previously (that means selecting some JSON"
 		" text and pressing Ctrl+C, then pressing this button). The text will get read from the clipboard, it will be assumed to be JSON and not a .collision"
-		" binary data, and whose data that is (P1's, P2's, or Common) based on which column of the table you selected \"JSON from clipboard\" from."
+		" binary data. Whose data that is (P1's, P2's, or Common) will be decided based on which column of the table you selected \"JSON from clipboard\" from."
 		" For example, if you picked it from the first column (P1), the data from the JSON will replace P1's collision data, and so on.");
 	if (ImGui::BeginPopup("Select Location to Load From")) {
 		
@@ -19033,9 +19034,9 @@ void UI::drawHitboxEditor() {
 	SortedSprite* currentSpriteElement = hitboxEditFindCurrentSprite();
 	
 	char spriteRepr[128];
-	strcpy_s(spriteRepr, strbuf);
+	strcpy_s(spriteRepr, getSpriteRepr(currentSpriteElement));
 	
-	if (ImGui::BeginCombo("##spriteName", getSpriteRepr(currentSpriteElement))) {
+	if (ImGui::BeginCombo("##spriteName", spriteRepr)) {
 		imguiContextMenuOpen = true;
 		comboBoxExtension.onComboBoxBegin();
 		
@@ -19233,7 +19234,7 @@ void UI::drawHitboxEditor() {
 			}
 		}
 		AddTooltip("Select the current frame of the Animation Sequence associated with this sprite using this field and '-', '+' buttons.\n"
-			" The changes will take effect immediately, but will be lost on stage reload, unless saved to a .collision file.");
+			"The changes will take effect immediately, but will be lost on stage reload, unless saved to a .collision file.");
 	}
 	
 	ImGui::TextUnformatted("Hitbox Type:");
@@ -19367,7 +19368,7 @@ void UI::drawHitboxEditor() {
 		}
 		ImGui::Separator();
 		ImGui::TextUnformatted("Pressing this button causes the last performed hitbox or sprite editing operation to be undone."
-			" You can undo multiple operation by repeatedly pressing this, up to a certain limit.");
+			" You can undo multiple operations by repeatedly pressing this, up to a certain limit.");
 		ImGui::PopTextWrapPos();
 		ImGui::EndTooltip();
 	}
@@ -19428,7 +19429,10 @@ void UI::drawHitboxEditor() {
 				" Drag-select to box-select multiple elements."
 				" Hold Shift while drag-selecting to add elements to the selection via box-select."
 				" Drag an already selected element or elements to move them, changing the order of the boxes."
-				" The eye icon means that hitbox type is visible. To make a hitbox type visible or invisible,"
+				" An alternative way to change the order of the boxes is to set up hotkeys through the cogwheel"
+				" at the top-right of the 'Hitbox Editor' window for the 'Arrange Hitboxes ...' commands.\n"
+				"\n"
+				"The eye icon means that hitbox type is visible. To make a hitbox type visible or invisible,"
 				" go to 'Hitbox Type' field, select the hitbox type of interest and check or uncheck"
 				" the checkbox on the right, denoting if it's visible.";
 			
@@ -20572,7 +20576,11 @@ void UI::hitboxEditorBoxSelect() {
 				| ImGuiHoveredFlags_AllowWhenBlockedByActiveItem
 				| ImGuiHoveredFlags_AllowWhenBlockedByPopup);
 	
-	if (isInSomeOtherWindow && !boxMouseDown) return;
+	if (isInSomeOtherWindow && !boxMouseDown) {
+		boxHoverOriginalIndex = -1;
+		boxHoverPart = BOXPART_NONE;
+		return;
+	}
 	
 	FPACSecondaryData& secondaryData = hitboxEditorFPACSecondaryData[editEntity.bbscrIndexInAswEng()];
 	FPAC* fpac = secondaryData.Collision->TopData;

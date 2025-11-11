@@ -594,7 +594,7 @@ bool Settings::parseKeys(const char* keyName, const char* keyValueStart, const c
 				return false;
 			}
 			++partTrimmed.end;
-			bool negate = partTrimmed.start[0] == '-';
+			bool negate = partTrimmed.start[0] == '-' || partTrimmed.start[0] == '~';
 			if (negate) {
 				++partTrimmed.start;
 			}

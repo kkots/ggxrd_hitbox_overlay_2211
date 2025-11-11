@@ -258,7 +258,7 @@ DWORD findModuleUsingEnumProcesses(DWORD procId, const wchar_t* name) {
 	OBF_IMPORT_WITH_NAME(kernel32, EnumProcessModulesEx, "EnumProcessModulesEx");
 	
 	// we're going to use EnumProcessModules, because CreateToolhelp32Snapshot with TH32CS_SNAPMODULE/TH32CS_SNAPMODULE32
-	// doesn't work under Linux under Winde under Steam Proton. It returns some specific error code that I forgot.
+	// doesn't work under Linux under Wine under Steam Proton. It returns some specific error code that I forgot.
 	// EnumProcessModules, on the other hand, works fine in that environment.
 	if (!OBF_FUNC_DOUBLE(EnumProcessModulesEx)) {
 		OBF_LOAD(Psapi);

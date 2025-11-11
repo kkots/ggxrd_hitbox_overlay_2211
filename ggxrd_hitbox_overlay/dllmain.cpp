@@ -15,8 +15,6 @@
 #include "Keyboard.h"
 #include "Hud.h"
 #include "memoryFunctions.h"
-#include <io.h>     // for _open_osfhandle
-#include <fcntl.h>  // for _O_APPEND
 #include "imgui.h"
 #include "UI.h"
 #include "WError.h"
@@ -24,6 +22,8 @@
 #include "InputNames.h"
 
 #ifdef LOG_PATH
+#include <io.h>     // for _open_osfhandle
+#include <fcntl.h>  // for _O_APPEND
 static void closeLog();
 #else
 #define closeLog()
