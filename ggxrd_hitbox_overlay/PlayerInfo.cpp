@@ -2710,6 +2710,7 @@ bool PlayerCancelInfo::cancelsEqual(const PlayerCancelInfo& other) const {
 			|| whiffCancels.size() != other.whiffCancels.size()
 			|| enableJumpCancel != other.enableJumpCancel
 			|| enableSpecialCancel != other.enableSpecialCancel
+			|| clashCancelTimer != other.clashCancelTimer
 			|| enableSpecials != other.enableSpecials
 			|| airborne != other.airborne
 			|| canYrc != other.canYrc) {
@@ -2743,6 +2744,7 @@ void PlayerCancelInfo::clear() {
 	whiffCancels.clear();
 	enableJumpCancel = false;
 	enableSpecialCancel = false;
+	clashCancelTimer = false;
 	enableSpecials = false;
 	hitAlreadyHappened = false;
 	canYrc = nullptr;
@@ -2799,6 +2801,7 @@ bool PlayerCancelInfo::isCompletelyEmpty() const {
 		&& whiffCancels.empty()
 		&& !enableJumpCancel
 		&& !enableSpecialCancel
+		&& !clashCancelTimer
 		&& !enableSpecials
 		&& !canYrc;
 }

@@ -5891,6 +5891,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 						&& (
 							!player.wasCancels.gatlings.empty()
 							|| player.wasEnableSpecialCancel
+							|| player.wasClashCancelTimer
 						)
 						|| player.wasEnableWhiffCancels
 						&& !player.wasCancels.whiffCancels.empty()
@@ -6364,6 +6365,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 					|| player.armoredHitOnThisFrame
 					|| player.gotHitOnThisFrame;
 				currentFrame.enableSpecialCancel = enableSpecialCancel;
+				currentFrame.clashCancelTimer = player.wasClashCancelTimer;
 				currentFrame.enableJumpCancel = player.wasEnableJumpCancel;
 				currentFrame.enableSpecials = false;
 				player.determineMoveNameAndSlangName(&currentFrame.animName);
@@ -7004,6 +7006,7 @@ void EndScene::prepareDrawData(bool* needClearHitDetection) {
 				newCancelInfo.start = player.cancelsTimer;
 				newCancelInfo.end = player.cancelsTimer;
 				newCancelInfo.enableSpecialCancel = enableSpecialCancel;
+				newCancelInfo.clashCancelTimer = player.wasClashCancelTimer;
 				newCancelInfo.enableJumpCancel = player.wasEnableJumpCancel;
 				newCancelInfo.copyFromAnotherArray(player.wasCancels);
 				newCancelInfo.enableSpecials = false;
@@ -8826,6 +8829,7 @@ void EndScene::frameCleanup() {
 		player.wasPrevFrameEnableSpecials = player.wasEnableSpecials;
 		player.wasEnableSpecials = false;
 		player.wasEnableSpecialCancel = false;
+		player.wasClashCancelTimer = false;
 		player.wasEnableJumpCancel = false;
 		player.wasSuperArmorEnabled = false;
 		player.wasFullInvul = false;
@@ -9901,6 +9905,7 @@ BOOL EndScene::skillCheckPieceHook(Entity pawn) {
 				? player.wasPrevFrameEnableSpecials
 				: player.wasEnableSpecials && pawn.currentAnimDuration() != 1 || pawn.enableSpecials();
 			player.wasEnableSpecialCancel = player.wasEnableSpecialCancel && pawn.currentAnimDuration() != 1 || pawn.enableSpecialCancel();
+			player.wasClashCancelTimer = player.wasClashCancelTimer && pawn.currentAnimDuration() != 1 || pawn.clashCancelTimer() > 0;
 			player.wasEnableJumpCancel = player.wasEnableJumpCancel && pawn.currentAnimDuration() != 1 || pawn.enableJumpCancel() && pawn.attackCollidedSoCanJumpCancelNow();
 			player.wasAttackCollidedSoCanCancelNow = player.wasAttackCollidedSoCanCancelNow && pawn.currentAnimDuration() != 1 || pawn.attackCollidedSoCanCancelNow();
 			player.wasEnableAirtech = player.wasEnableAirtech && pawn.currentAnimDuration() != 1 || pawn.enableAirtech();

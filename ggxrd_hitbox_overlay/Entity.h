@@ -1893,6 +1893,7 @@ public:
 	inline bool isHidden() const { return (*(DWORD*)(ent + 0x11c) & 0x40000000) != 0; }
 	inline bool isRecoveryState() const { return (*(DWORD*)(ent + 0x234) & 0x40000000) != 0; }
 	inline int playerVal(int n) const { return *(int*)(ent + 0x24c50 + 4 * n); }  // all get reset to 0 on stage reset
+	inline int clashCancelTimer() const { return *(int*)(ent + 0x24d80); }
 	inline HitEffect currentHitEffect() const { return *(HitEffect*)(ent + 0x24db0); }  // this is an enum, all values of which are not fully understood, so we're not writing it
 	inline int airdashHorizontallingTimer() const { return *(int*)(ent + 0x24db8); }
 	inline int cantBackdashTimer() const { return *(int*)(ent + 0x24dbc); }

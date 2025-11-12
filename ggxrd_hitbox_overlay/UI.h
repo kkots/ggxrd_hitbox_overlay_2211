@@ -384,6 +384,7 @@ private:
 	template<typename T>
 	void printAllCancels(const T& cancels,
 		bool enableSpecialCancel,
+		bool clashCancelTimer,
 		bool enableJumpCancel,
 		bool enableSpecials,
 		bool hitOccured,

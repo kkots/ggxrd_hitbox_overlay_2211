@@ -1982,3 +1982,4 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2025 November 6: Version 7.9: Added hotkey-able commands to Hitbox Editor to rearrange boxes up and down in the Z-order.
 - 2025 November 6: Version 7.10: Redo the hotkey-able commands in Hitbox Editor so they rearrange boxes up and down the Z-order properly.
 - 2025 November 11: Version 7.11: Updated some tooltips in Hitbox Editor. Fixed an issue when the Hitbox Editor window is pinned and the drop-down lists display behind it. Fixed an issue when the buttons to save and load collision data for P2 and Common were unclickable.
+- 2025 November 12: Version 7.12: Framebar and "Cancels" panel now can display "Clash cancels" gatling/cancel, which is available during the 16f hitstop of a clash and for 10f afterwards. It displays similar to the "Special cancel" gatling/cancel.

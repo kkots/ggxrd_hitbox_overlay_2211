@@ -6846,6 +6846,7 @@ void UI::drawSearchableWindows() {
 				textUnformattedColored(LIGHT_BLUE_COLOR, strbuf);
 				printAllCancels(cancels,
 					cancels.enableSpecialCancel,
+					cancels.clashCancelTimer,
 					cancels.enableJumpCancel,
 					cancels.enableSpecials,
 					cancels.hitAlreadyHappened,
@@ -11638,6 +11639,7 @@ void UI::drawPlayerFrameInputsInTooltip(const PlayerFrame& frame, int playerInde
 	
 	printAllCancels(*cancelsUse,
 			frame.enableSpecialCancel,
+			frame.clashCancelTimer,
 			frame.enableJumpCancel,
 			frame.enableSpecials,
 			frame.hitAlreadyHappened,
@@ -14237,6 +14239,7 @@ void drawPlayerIconInWindowTitle(GGIcon& icon) {
 template<typename T>
 void UI::printAllCancels(const T& cancels,
 		bool enableSpecialCancel,
+		bool clashCancelTimer,
 		bool enableJumpCancel,
 		bool enableSpecials,
 		bool hitAlreadyHappened,
@@ -14274,7 +14277,7 @@ void UI::printAllCancels(const T& cancels,
 			drawOneLineOnCurrentLineAndTheRestBelow(wrapWidth, canYrc);
 		}
 	}
-	if (!cancels.gatlings.empty() || enableSpecialCancel || enableJumpCancel) {
+	if (!cancels.gatlings.empty() || enableSpecialCancel || clashCancelTimer || enableJumpCancel) {
 		if (insertSeparators) ImGui::Separator();
 		yellowText("Gatlings:");
 		int count = 1;
@@ -14283,6 +14286,10 @@ void UI::printAllCancels(const T& cancels,
 		}
 		if (enableSpecialCancel && ImGui::GetCursorPosY() < maxY) {
 			ImGui::Text("%d) Specials", count);
+			++count;
+		}
+		if (clashCancelTimer && ImGui::GetCursorPosY() < maxY) {
+			ImGui::Text("%d) Clash cancels", count);
 			++count;
 		}
 		if (enableJumpCancel && ImGui::GetCursorPosY() < maxY) {
@@ -14309,7 +14316,7 @@ void UI::printAllCancels(const T& cancels,
 			}
 		}
 	}
-	if (cancels.gatlings.empty() && !enableSpecialCancel
+	if (cancels.gatlings.empty() && !enableSpecialCancel && !clashCancelTimer
 			&& cancels.whiffCancels.empty() && !enableSpecials
 			&& cancels.whiffCancelsNote && ImGui::GetCursorPosY() < maxY) {
 		if (insertSeparators) ImGui::Separator();

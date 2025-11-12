@@ -394,6 +394,7 @@ struct PlayerCancelInfo {
 	const char* canYrc = nullptr;
 	bool enableJumpCancel:1;
 	bool enableSpecialCancel:1;
+	bool clashCancelTimer:1;
 	bool enableSpecials:1;
 	bool airborne:1;
 	bool hitAlreadyHappened:1;
@@ -804,6 +805,7 @@ struct PlayerFrame : public FrameBase {
 	
 	bool hitAlreadyHappened:1;  // stays true for the remainder of the move
 	bool enableSpecialCancel:1;
+	bool clashCancelTimer:1;
 	bool enableSpecials:1;
 	bool enableJumpCancel:1;
 	bool airborne:1;
@@ -1901,6 +1903,7 @@ struct PlayerInfo {
 	DWORD timePassedInNonFrozenFramesSinceStartOfAnim = 0;  // for combo recipe - needed to not show 1-2f of a move that gets kara cancelled into something else
 	int delayLastMoveWasCancelledIntoWith = 0;
 	int timeSinceWasEnableSpecialCancel = 0;
+	int timeSinceWasClashCancelTimer = 0;
 	int timeSinceWasEnableSpecials = 0;
 	int timeSinceWasEnableJumpCancel = 0;
 	int timePassedPureIdle = 0;  // time passed since last change in 'idle' property from false to true, in frames no including superfreeze and hitstop. For combo recipe. The reason we take pure 'idle' and not 'idlePlus' is because we want to start measuring idle time after landing separately
@@ -1996,6 +1999,7 @@ struct PlayerInfo {
 	bool wasEnableSpecials:1;
 	bool wasPrevFrameEnableSpecials:1;
 	bool wasEnableSpecialCancel:1;
+	bool wasClashCancelTimer:1;
 	bool wasEnableJumpCancel:1;
 	bool wasEnableAirtech:1;
 	bool wasCanYrc:1;
