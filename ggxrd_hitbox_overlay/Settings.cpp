@@ -104,19 +104,7 @@ bool Settings::onDllMain() {
 		desc.uiDescription = convertToUiDescription(desc.iniDescription.txt);
 	}
 	
-	WCHAR ggModulePath[MAX_PATH];
-	ggModulePath[0] = L'\0';
-	HMODULE ggModule;
-	DWORD bytesNeeded;
-	if (EnumProcessModules(GetCurrentProcess(), &ggModule, sizeof HMODULE, &bytesNeeded)) {
-		GetModuleFileNameW(ggModule, ggModulePath, MAX_PATH);
-	}
-	settingsPath = ggModulePath;
-	int pos = findCharRevW(settingsPath.c_str(), L'\\');
-	if (pos != -1) {
-		settingsPath.resize(pos);
-	}
-	settingsPath += L"\\ggxrd_hitbox_overlay.ini";
+	settingsPath += settingsPathFolder + L"ggxrd_hitbox_overlay.ini";
 	logwrap(fprintf(logfile, "INI file path: %ls\n", settingsPath.c_str()));
 	
 	registerListenerForChanges();
@@ -2145,4 +2133,20 @@ size_t HitboxList::parse(const char* str) {
 		));
 	}
 	return element - elements;
+}
+
+void Settings::setupSettingsPathFolder() {
+	WCHAR ggModulePath[MAX_PATH];
+	ggModulePath[0] = L'\0';
+	HMODULE ggModule;
+	DWORD bytesNeeded;
+	if (EnumProcessModules(GetCurrentProcess(), &ggModule, sizeof HMODULE, &bytesNeeded)) {
+		GetModuleFileNameW(ggModule, ggModulePath, MAX_PATH);
+	}
+	settingsPathFolder = ggModulePath;
+	int pos = findCharRevW(settingsPathFolder.c_str(), L'\\');
+	if (pos != -1) {
+		settingsPathFolder.resize(pos);
+	}
+	settingsPathFolder += L'\\';
 }

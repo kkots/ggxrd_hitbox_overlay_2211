@@ -200,6 +200,9 @@ public:
 	inline int getMaxKeyCode() const {
 		return maxKeyCode;
 	}
+	// includes trailing slash
+	const std::wstring& getSettingsPath() const { return settingsPathFolder; }
+	void setupSettingsPathFolder();
 private:
 	struct KeyComboToParse {
 		size_t keyLength = 0;
@@ -289,6 +292,7 @@ private:
 	static void formatHitboxList(const HitboxList& hitboxList, std::string& result);
 	static void formatPinnedWindowList(const PinnedWindowList& moveList, std::string& result);
 	void registerListenerForChanges();
+	std::wstring settingsPathFolder;
 	std::wstring settingsPath;
 	bool firstSettingsParse = true;
 	HANDLE directoryChangeHandle = NULL;

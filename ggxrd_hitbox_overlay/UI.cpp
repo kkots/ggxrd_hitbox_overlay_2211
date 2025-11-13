@@ -22114,8 +22114,8 @@ static void serializeCollision_writeJonbin(FPACSecondaryData& secondaryData, FPA
 		BYTE* newJonbin = (BYTE*)newFpac + newFpac->headerSize + offset;
 		memcpy(newJonbin, (BYTE*)oldFpac + oldFpac->headerSize + oldLookupEntry->offset, size);
 		
-		if (size & 7) {
-			DWORD slack = 8 - (size & 7);
+		if (size & 3) {
+			DWORD slack = 4 - (size & 3);
 			memset(newJonbin + size, 0, slack);
 			size += slack;
 		}
@@ -22136,7 +22136,7 @@ void UI::serializeCollision(std::vector<BYTE>& data, int player) {
 			if (!sortedSprite.deleted) {
 				++count;
 				DWORD size = ((FPACLookupElement0x50*)sortedSprite.name)->size;
-				size = (size + 7) & (~7);
+				size = (size + 3) & (~3);
 				totalSize += size;
 			}
 		}
@@ -22145,7 +22145,7 @@ void UI::serializeCollision(std::vector<BYTE>& data, int player) {
 			if (!sortedSprite.deleted) {
 				++count;
 				DWORD size = ((FPACLookupElement0x30*)sortedSprite.name)->size;
-				size = (size + 7) & (~7);
+				size = (size + 3) & (~3);
 				totalSize += size;
 			}
 		}
@@ -22817,6 +22817,10 @@ static bool validateFpacImpl(const FPAC* fpac) {
 		BYTE numTypes = *jonbin;
 		if (numTypes < 3) {
 			sprintf_s(strbuf, "Lookup entry #%d's JONBIN's number of types is too low.", lookupEntryIndex);
+			showErrorDlgS(strbuf);
+			return false;
+		} else if (numTypes > 0x14) {
+			sprintf_s(strbuf, "Lookup entry #%d's JONBIN's number of types is too high.", lookupEntryIndex);
 			showErrorDlgS(strbuf);
 			return false;
 		}

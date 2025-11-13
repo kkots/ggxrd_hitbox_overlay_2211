@@ -564,6 +564,8 @@ void DeleteSpriteOperation::fill() {
 	refresh();
 	if (sortedSprite) {
 		memcpy(newSpriteName, sortedSprite->newName[0] ? sortedSprite->newName : sortedSprite->name, 32);
+	} else {
+		memset(newSpriteName, 0, 32);
 	}
 }
 
@@ -580,10 +582,6 @@ bool DeleteSpriteOperation::perform(ThreadUnsafeSharedPtr<UndoOperationBase>* op
 	} else {
 		FPACLookupElement0x30* lookupEntry = (FPACLookupElement0x30*)sortedSprite->name;
 		oldIndex = lookupEntry - (FPACLookupElement0x30*)((BYTE*)fpac + 0x20);
-	}
-	if (!sortedSprite) {
-		ui.showErrorDlg("Can't delete the 'null' sprite.", true);
-		return false;
 	}
 	if (!sortedSprite->added) {
 		DWORD newHash = Entity::hashStringLowercase(newSpriteName);

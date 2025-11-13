@@ -85,6 +85,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 		if (!detouring.beginTransaction(true)) terminate
 		obsDll = GetModuleHandleA("graphics-hook32.dll");
 		if (obsDll) graphics.imInDanger = true;
+		settings.setupSettingsPathFolder();
 		if (!moves.onDllMain()) terminate
 		if (!settings.onDllMain()) terminate
 		if (!game.onDllMain()) terminate

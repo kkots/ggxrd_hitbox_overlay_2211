@@ -363,7 +363,12 @@ void FPACSecondaryData::allocateNewLookupEntry() {
 	FPAC* fpac = Collision->TopData;
 	
 	DWORD headerElementSize = fpac->elementSize();
-	DWORD freeHeaderSpace = fpac->headerSize - 0x20 - fpac->count * headerElementSize;
+	DWORD freeHeaderSpace;
+	if (fpac->count * headerElementSize > fpac->headerSize - 0x20) {
+		freeHeaderSpace = 0;
+	} else {
+		freeHeaderSpace = fpac->headerSize - 0x20 - fpac->count * headerElementSize;
+	}
 	BYTE* lookupEnd = fpac->lookupEnd();
 	
 	if (freeHeaderSpace >= headerElementSize) {
@@ -507,13 +512,26 @@ void FPACSecondaryData::deleteSprite(SortedSprite& spriteToDelete) {
 		BYTE* lookupStart = (BYTE*)spriteToDelete.name + headerElementSize;
 		BYTE* lookupEnd = fpac->lookupEnd();
 		if (lookupStart != lookupEnd) {
-			relocateEntityJonbins(lookupStart + headerElementSize, lookupEnd, lookupStart);
+			relocateEntityJonbins(lookupStart, lookupEnd, lookupStart - headerElementSize);
 			BYTE* memmoveEnd = lookupEnd - headerElementSize;
-			DWORD indexOffset = fpac->size0x50() ? offsetof(FPACLookupElement0x50, index) : offsetof(FPACLookupElement0x30, index);
-			for (BYTE* lookupPtr = (BYTE*)spriteToDelete.name; lookupPtr < memmoveEnd; lookupPtr += headerElementSize) {
-				memcpy(lookupPtr, lookupPtr + headerElementSize, headerElementSize);
-				DWORD* indexPtr = (DWORD*)(lookupPtr + indexOffset);
-				--*indexPtr;
+			memmove(spriteToDelete.name, spriteToDelete.name + headerElementSize, (char*)lookupEnd - spriteToDelete.name - headerElementSize);
+			
+			if (fpac->size0x50()) {
+				for (
+					FPACLookupElement0x50* lookupPtr = (FPACLookupElement0x50*)spriteToDelete.name;
+					lookupPtr < (FPACLookupElement0x50*)memmoveEnd;
+					++lookupPtr
+				) {
+					--lookupPtr->index;
+				}
+			} else {
+				for (
+					FPACLookupElement0x30* lookupPtr = (FPACLookupElement0x30*)spriteToDelete.name;
+					lookupPtr < (FPACLookupElement0x30*)memmoveEnd;
+					++lookupPtr
+				) {
+					--lookupPtr->index;
+				}
 			}
 			
 			auto itEnd = jonbinToLookupUE3.end();

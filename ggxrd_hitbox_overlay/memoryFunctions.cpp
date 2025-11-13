@@ -54,7 +54,14 @@ void loadSigscanCache() {
 	#define fileParsingErr(msg, ...) { logwrap(fprintf(logfile, "%s parsing error: " msg, SIGSCAN_CACHE_FILE_NAME, __VA_ARGS__)); return; }
 	if (sigscanCacheLoaded) return;
 	sigscanCacheLoaded = true;  // we won't try again if we fail X)
-	HANDLE file = CreateFileA(SIGSCAN_CACHE_FILE_NAME, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	
+	std::wstring path;
+	path.reserve(settings.getSettingsPath().size() + strlen(SIGSCAN_CACHE_FILE_NAME));
+	path = settings.getSettingsPath();
+	for (const char* ptr = SIGSCAN_CACHE_FILE_NAME; *ptr != '\0'; ++ptr) {
+		path += (wchar_t)*ptr;
+	}
+	HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (file == INVALID_HANDLE_VALUE) {
 		WinError winErr;
 		fileParsingErr("Could not open file: %ls\n", winErr.getMessage());

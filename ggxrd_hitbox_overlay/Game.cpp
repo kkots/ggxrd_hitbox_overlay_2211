@@ -1625,3 +1625,13 @@ void Game::allowTickForActor(void* actor) {
 	}
 	actorsToAllowTickFor.push_back(actor);
 }
+
+// first check if the game mode is network at all, and that you're in a match (although it would also tell if you're just in the lobby)
+bool Game::isOnlineTrainingMode_Part() const {
+	if (netplayStruct && *netplayStruct) {
+		return *(BYTE*)(
+			*netplayStruct + 0x3c8 + 0x53
+		) == 2;
+	}
+	return false;
+}

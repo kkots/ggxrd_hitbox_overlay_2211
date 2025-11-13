@@ -167,6 +167,8 @@ public:
 	const char* readFName(int fname, bool* isWide);
 	bool sigscanFNamesAndAppRealloc();
 	void onFPSChanged();
+	// first check if the game mode is network at all, and that you're in a match (although it would also tell if you're just in the lobby)
+	bool isOnlineTrainingMode_Part() const;
 private:
 	getPlayerPadID_t getPlayerPadIDPtr = nullptr;
 	class HookHelp {
