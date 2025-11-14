@@ -477,7 +477,7 @@ private:
 	BOOL trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook(Entity pawn);
 	BOOL inHitstunBlockstunOrThrowProtectionOrDeadHook(Entity pawn);
 	void resetBurstHook(Entity pawn, int amount);
-	void execPreBeginPlay_InternalHook(void* thisArg, void* stack, void* result);
+	void execPreBeginPlay_InternalHook(UObject* thisArg, void* stack, void* result);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
@@ -816,6 +816,8 @@ private:
 	const std::wstring& getModsFolder();
 	void replaceAsset(WCHAR (&basePathWithFileNameButWithoutExtensionOrDot)[MAX_PATH], int basePathLen, const wchar_t* extensionWithDot, REDAssetBase<BYTE>* asset,
 		std::vector<BYTE>& data, bool* pathLengthError);
+	DWORD fillBBScrInfosWrapperVtblOffset = 0;
+	bool attemptedHookPreBeginPlay_Internal = false;
 };
 
 extern EndScene endScene;

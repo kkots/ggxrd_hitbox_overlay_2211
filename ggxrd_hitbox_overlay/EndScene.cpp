@@ -13408,6 +13408,8 @@ void EndScene::hitboxEditorDrawPushbox(Entity ent, int posX, int posY, DWORD col
 
 bool EndScene::onEnableModsChanged() {
 	if (!settings.enableScriptMods) return true;
+	if (attemptedHookPreBeginPlay_Internal) return true;
+	attemptedHookPreBeginPlay_Internal = true;
 	uintptr_t stringLocation = sigscanStrOffset("GuiltyGearXrd.exe:.rdata",
 		"AREDGameInfo_BattleexecPreBeginPlay_Internal",
 		nullptr, "execPreBeginPlay_Internal", nullptr);
@@ -13420,6 +13422,10 @@ bool EndScene::onEnableModsChanged() {
 	if (!detouring.isInTransaction()) finishedSigscanning();
 	stringMentionLocation += 4;
 	orig_execPreBeginPlay_Internal = *(execPreBeginPlay_Internal_t*)stringMentionLocation;
+	uintptr_t callPlace = sigscanForward((uintptr_t)orig_execPreBeginPlay_Internal,
+		"8b 06 8b 90 >?? ?? ?? ?? 8b ce ff d2", 0x30);
+	if (!callPlace) return true;
+	fillBBScrInfosWrapperVtblOffset = *(DWORD*)(callPlace);
 	auto ptr = &HookHelp::execPreBeginPlay_InternalHook;
 	if (!attach(&(PVOID&)orig_execPreBeginPlay_Internal,
 		(PVOID&)ptr,
@@ -13428,74 +13434,111 @@ bool EndScene::onEnableModsChanged() {
 }
 
 void EndScene::HookHelp::execPreBeginPlay_InternalHook(void* stack, void* result) {
-	endScene.execPreBeginPlay_InternalHook((void*)this, stack, result);
+	// actually, 'this' is .. well, it could be many things, due to compiler optimization settings, but it is a UObject definitely
+	endScene.execPreBeginPlay_InternalHook((UObject*)this, stack, result);
 }
 
-void EndScene::execPreBeginPlay_InternalHook(void* thisArg, void* stack, void* result) {
+void EndScene::execPreBeginPlay_InternalHook(UObject* thisArg, void* stack, void* result) {
 	std::vector<BYTE> data;
 	
 	if (settings.enableScriptMods) {
-		PANGAEA_MOD_VERSION pangaeaVer = getPangaeaModVersion();
-		bool loadBBScript = pangaeaVer == PANGAEA_MOD_NOT_PRESENT;
-		bool loadCollision = pangaeaVer == PANGAEA_MOD_NOT_PRESENT || pangaeaVer == PANGAEA_MOD_PRE_COLLISION;
-		if (loadBBScript || loadCollision) {
-			WCHAR pathBase[MAX_PATH];
-			bool pathLengthError = false;
-			if (getModsFolder().size() + 1 > MAX_PATH) {  // what if they're == ? We'll find out soon
-				pathLengthError = true;
-			} else {
-				memcpy(pathBase, getModsFolder().c_str(), (getModsFolder().size() + 1) * sizeof (WCHAR));
-				
-				REDPawn_Player** players = (REDPawn_Player**)((BYTE*)thisArg + 0x490);
-				for (int playerIndex = 0; playerIndex < 3; ++playerIndex) {
-					REDPawn_Player* player = players[playerIndex];
-					const char* charaName;
-					if (playerIndex < 2) {
-						charaName = determineCharaName(player->CharaScript());
-					} else {
-						charaName = "cmn";
+		game.sigscanFNamesAndAppRealloc();
+		bool isWide;
+		void* eitherNarrowOrWideStr = (void*)game.readFName(thisArg->Name.low, &isWide);
+		int strCmpResult;
+		if (isWide) {
+			strCmpResult = wcscmp((wchar_t*)eitherNarrowOrWideStr, L"REDGameInfo_Battle");
+		} else {
+			strCmpResult = strcmp((char*)eitherNarrowOrWideStr, "REDGameInfo_Battle");
+		}
+		// they set the compiler optimization setting so high it crushed multiple separate functions that have same code together.
+		// Luckily, this function is only used by things inheriting from UObject
+		if (strCmpResult == 0) {
+			PANGAEA_MOD_VERSION pangaeaVer = pangaeaVer = getPangaeaModVersion();
+			
+			static Moves::TriBool pangaeasModDefinitelyPresent = Moves::TRIBOOL_DUNNO;
+			if (pangaeasModDefinitelyPresent == Moves::TRIBOOL_DUNNO) {
+				pangaeasModDefinitelyPresent = Moves::TRIBOOL_FALSE;
+				BYTE* vtable = *(BYTE**)thisArg;
+				uintptr_t fillBBScrInfosWrapper = *(uintptr_t*)(vtable + fillBBScrInfosWrapperVtblOffset);
+				uintptr_t callPlace = sigscanForward(fillBBScrInfosWrapper, "8b cf 89 97 ?? ?? ?? ?? >e8", 0x50);
+				if (callPlace) {
+					uintptr_t fillBBScrInfos = followRelativeCall(callPlace);
+					uintptr_t BBScr_fillInfoCall = sigscanForward(fillBBScrInfos,
+						"8d 4f e8 >e8", 0x70);
+					if (BBScr_fillInfoCall) {
+						uintptr_t BBScr_fillInfo = followRelativeCall(BBScr_fillInfoCall);
+						if (*(BYTE*)BBScr_fillInfo == 0xE9 && belongsToPangaea((BYTE*)followRelativeCall(BBScr_fillInfo))) {
+							pangaeasModDefinitelyPresent = Moves::TRIBOOL_TRUE;
+						}
 					}
-					if (charaName && !(
-						playerIndex == 1
-						&& players[0]->Collision() == players[1]->Collision()  // if this matches, everything matches
-					)) {
-						const char* charaNameIter;
-						int destCharIndex;
-						for (charaNameIter = charaName; *charaNameIter != '\0'; ++charaNameIter) {
+				}
+			}
+			if (pangaeasModDefinitelyPresent == Moves::TRIBOOL_FALSE) {
+				pangaeaVer = PANGAEA_MOD_NOT_PRESENT;
+			}
+			
+			bool loadBBScript = pangaeaVer == PANGAEA_MOD_NOT_PRESENT;
+			bool loadCollision = pangaeaVer == PANGAEA_MOD_NOT_PRESENT || pangaeaVer == PANGAEA_MOD_PRE_COLLISION;
+			if (loadBBScript || loadCollision) {
+				WCHAR pathBase[MAX_PATH];
+				bool pathLengthError = false;
+				if (getModsFolder().size() + 1 > MAX_PATH) {  // what if they're == ? We'll find out soon
+					pathLengthError = true;
+				} else {
+					memcpy(pathBase, getModsFolder().c_str(), (getModsFolder().size() + 1) * sizeof (WCHAR));
+					
+					REDPawn_Player** players = (REDPawn_Player**)((BYTE*)thisArg + 0x490);
+					for (int playerIndex = 0; playerIndex < 3; ++playerIndex) {
+						REDPawn_Player* player = players[playerIndex];
+						const char* charaName;
+						if (playerIndex < 2) {
+							charaName = determineCharaName(player->CharaScript());
+						} else {
+							charaName = "cmn";
+						}
+						if (charaName && !(
+							playerIndex == 1
+							&& players[0]->Collision() == players[1]->Collision()  // if this matches, everything matches
+						)) {
+							const char* charaNameIter;
+							int destCharIndex;
+							for (charaNameIter = charaName; *charaNameIter != '\0'; ++charaNameIter) {
+								destCharIndex = (int)getModsFolder().size() + (charaNameIter - charaName);
+								if (destCharIndex >= MAX_PATH) {
+									pathLengthError = true;
+								} else {
+									pathBase[destCharIndex] = (wchar_t)*charaNameIter;
+								}
+							}
 							destCharIndex = (int)getModsFolder().size() + (charaNameIter - charaName);
 							if (destCharIndex >= MAX_PATH) {
 								pathLengthError = true;
 							} else {
-								pathBase[destCharIndex] = (wchar_t)*charaNameIter;
+								pathBase[destCharIndex] = L'\0';
+								if (loadBBScript) {
+									replaceAsset(pathBase, destCharIndex,
+											L".bbscript",
+											(REDAssetBase<BYTE>*)(player->CharaScript()),
+											data,
+											&pathLengthError);
+								}
+								pathBase[destCharIndex] = L'\0';
+								if (loadCollision) {
+									replaceAsset(pathBase, destCharIndex,
+											L".collision",
+											(REDAssetBase<BYTE>*)(player->Collision()),
+											data,
+											&pathLengthError);
+								}
 							}
+							
 						}
-						destCharIndex = (int)getModsFolder().size() + (charaNameIter - charaName);
-						if (destCharIndex >= MAX_PATH) {
-							pathLengthError = true;
-						} else {
-							pathBase[destCharIndex] = L'\0';
-							if (loadBBScript) {
-								replaceAsset(pathBase, destCharIndex,
-										L".bbscript",
-										(REDAssetBase<BYTE>*)(player->CharaScript()),
-										data,
-										&pathLengthError);
-							}
-							pathBase[destCharIndex] = L'\0';
-							if (loadCollision) {
-								replaceAsset(pathBase, destCharIndex,
-										L".collision",
-										(REDAssetBase<BYTE>*)(player->Collision()),
-										data,
-										&pathLengthError);
-							}
-						}
-						
 					}
 				}
-			}
-			if (pathLengthError) {
-				ui.showErrorDlg("Can't load script mods because the game is installed in a path that exceeds 260 characters or is very close to it.", true);
+				if (pathLengthError) {
+					ui.showErrorDlg("Can't load script mods because the game is installed in a path that exceeds 260 characters or is very close to it.", true);
+				}
 			}
 		}
 	}
@@ -13579,7 +13622,6 @@ void EndScene::replaceAsset(WCHAR (&basePathWithFileNameButWithoutExtensionOrDot
 	try {
 		if (readWholeFile(data, file, false, errorBuf, MyErrorHandler::showError, path)) {
 			if (data.size() > asset->DataSize) {
-				game.sigscanFNamesAndAppRealloc();
 				void* newMem = appRealloc(asset->TopData, data.size(), 8);
 				if (newMem) {
 					asset->TopData = (BYTE*)newMem;

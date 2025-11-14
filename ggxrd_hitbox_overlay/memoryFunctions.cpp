@@ -1423,6 +1423,8 @@ bool thisIsOurFunction(uintptr_t functionAddr) {
 }
 
 static PANGAEA_MOD_VERSION pangaeaModVersion = PANGAEA_MOD_NOT_CHECKED_YET;
+static BYTE* pangaeaStart;
+static BYTE* pangaeaEnd;
 PANGAEA_MOD_VERSION getPangaeaModVersion() {
 	if (pangaeaModVersion == PANGAEA_MOD_NOT_CHECKED_YET) {
 		HMODULE stackMem[80];
@@ -1475,14 +1477,16 @@ PANGAEA_MOD_VERSION getPangaeaModVersion() {
 						int sectionCount = ntHeaders->FileHeader.NumberOfSections;
 						PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(ntHeaders);
 						for (int sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
+							BYTE* sectionStart = (BYTE*)imageBase + section->VirtualAddress;
+							BYTE* sectionEnd = sectionStart + section->Misc.VirtualSize;
 							if (strncmp((char*)section->Name, ".rdata", 8) == 0) {
-								BYTE* sigscanStart = (BYTE*)imageBase + section->VirtualAddress;
-								BYTE* sigscanEnd = sigscanStart + section->Misc.VirtualSize;
 								static const char collisionString[] { ".collision" };
-								uintptr_t location = sigscanFundamental((uintptr_t)sigscanStart, (uintptr_t)sigscanEnd,
+								uintptr_t location = sigscanFundamental((uintptr_t)sectionStart, (uintptr_t)sectionEnd,
 									collisionString, sizeof (collisionString) - 1);
 								hasCollision = location != 0;
-								break;
+							} else if (strncmp((char*)section->Name, ".text", 8) == 0) {
+								pangaeaStart = sectionStart;
+								pangaeaEnd = sectionEnd;
 							}
 							++section;
 						}
@@ -1505,4 +1509,11 @@ PANGAEA_MOD_VERSION getPangaeaModVersion() {
 		}
 	}
 	return pangaeaModVersion == PANGAEA_MOD_NOT_CHECKED_YET ? PANGAEA_MOD_NOT_PRESENT : pangaeaModVersion;
+}
+
+bool belongsToPangaea(BYTE* addr) {
+	if (pangaeaModVersion == PANGAEA_MOD_NOT_CHECKED_YET) {
+		return false;
+	}
+	return addr >= pangaeaStart && addr < pangaeaEnd;
 }

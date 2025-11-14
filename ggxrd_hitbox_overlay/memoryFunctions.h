@@ -211,3 +211,5 @@ enum PANGAEA_MOD_VERSION {
 PANGAEA_MOD_VERSION getPangaeaModVersion();
 
 extern const char* SIGSCAN_CACHE_FILE_NAME;
+
+bool belongsToPangaea(BYTE* addr);
