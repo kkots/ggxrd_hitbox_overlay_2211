@@ -28,7 +28,7 @@ x for the actual byte value
 r.... starts the parsing of a module name, followed by what can only equal (????) to denote that those
       4 bytes are an address relative to the base of that module
 
-The name of the section, to which the search for confined, and maskForCaching are dumped directly
+The name of the section, to which the search is confined, and maskForCaching are dumped directly
 into the cache file, along with the actual sig and the mask.
 Mask and section are supposed to never change, but for sig, we use the relative and ? indicators from
 maskForCaching to check (equality check) or relative-check (relative to the base of some module; done
@@ -201,5 +201,13 @@ void finishedSigscanning();
 extern std::vector<HMODULE> allModules;
 extern HMODULE hInst;
 bool thisIsOurFunction(uintptr_t functionAddr);
+
+enum PANGAEA_MOD_VERSION {
+	PANGAEA_MOD_NOT_CHECKED_YET = -2,
+	PANGAEA_MOD_NOT_PRESENT = -1,  // it can't just appear out of thin air
+	PANGAEA_MOD_PRE_COLLISION = 0,
+	PANGAEA_MOD_POST_COLLISION = 1
+};
+PANGAEA_MOD_VERSION getPangaeaModVersion();
 
 extern const char* SIGSCAN_CACHE_FILE_NAME;

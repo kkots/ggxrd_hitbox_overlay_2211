@@ -1470,6 +1470,12 @@ hitboxEditArrangeHitboxesUpwards =
 ; This makes them display in front of all the other boxes.
 ; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).
 hitboxEditArrangeHitboxesToFront = 
+
+; Specify true or false.
+; This controls whether custom hitboxes (.collision files) and bbscript (.bbscript files)
+; will be loaded on battle initialization from the game's Mods folder
+; (GUILTY GEAR Xrd -REVELATOR-\Mods).
+enableScriptMods = false
 ```
 
 </details>
@@ -1749,7 +1755,7 @@ Iffy, 50/50, haven't tested yet but likely to crash or not work properly:
 - Pangaea's Guilty Gear Rev2 Mod: <https://github.com/super-continent/ggxrd-mod>  
 It hooks the same functions that I use, namely FN_DEINIT_GAMESTATE. It might be possible to first load his mod, then mine, because I sigscan a small portion of the function that doesn't change after anyone's hook. If you load my mod first, his mod won't find the function.
 
-In a bright future where the Detours library evolves to have a ~~brain~~ *mandatory DLL* and creates detouring functions that allow multiple ~~modders~~ *hackers* to sigscan and hook the same function without getting stupid conflicts, combining all mods will be possible.
+In a bright future where the Detours library evolves to have a ~~brain~~ ~~*mandatory DLL*~~ *struct with information that we can reach from a hook and confirm it using a magic number*, and creates detouring functions that allow multiple ~~modders~~ *hackers* to sigscan and hook the same function without getting stupid conflicts, combining all mods will be possible. (Also sigscans need to not break when someone hooks something or modifies the code, but you have to create a copy of the entire EXE in RAM for this so it's a long shot.)
 
 ## Changelog
 
@@ -1983,4 +1989,5 @@ This won't affect existing users who update the mod (if they ever changed any se
 - 2025 November 6: Version 7.10: Redo the hotkey-able commands in Hitbox Editor so they rearrange boxes up and down the Z-order properly.
 - 2025 November 11: Version 7.11: Updated some tooltips in Hitbox Editor. Fixed an issue when the Hitbox Editor window is pinned and the drop-down lists display behind it. Fixed an issue when the buttons to save and load collision data for P2 and Common were unclickable.
 - 2025 November 12: Version 7.12: Framebar frame cancels and "Cancels" panel now can display "Clash cancels" gatling/cancel, which is available during the 16f hitstop of a clash and for 10f afterwards. It displays similar to the "Special cancel" gatling/cancel. For danger time clash it is available during the last 16f of the 99f of clash hitstop and for 10f afterwards.
-- 2025 Novemebr 13: Version 7.13: Prevent loss of imgui settings and sigscan cache caused by navigating folders when saving .collision or .json hitbox data from the Hitbox Editor. Fix exported .collision file causing Xrd to crash when loaded through Pangaea's mod, which was caused by an error in this mod's Hitbox Editor when adding too many new sprites.
+- 2025 November 13: Version 7.13: Prevent loss of imgui settings and sigscan cache caused by navigating folders when saving .collision or .json hitbox data from the Hitbox Editor. Fix exported .collision file causing Xrd to crash when loaded through Pangaea's mod, which was caused by an error in this mod's Hitbox Editor when adding too many new sprites.
+- 2025 November 14: Version 7.14: Added a checkbox to enable BBScript (.bbscript files) and Collision (.collision files) mods. They get loaded from the 'Mods' loader in the game's installation directory, if one is present.

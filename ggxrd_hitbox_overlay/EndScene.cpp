@@ -33,6 +33,7 @@
 #include "NamePairManager.h"
 #include <unordered_map>
 #include "pi.h"
+#include "ReadWholeFile.h"
 
 EndScene endScene;
 PlayerInfo emptyPlayer {0};
@@ -879,6 +880,8 @@ bool EndScene::onDllMain() {
 	
 	if (!onStartingBurstGaugeChanged()) return false;
 	
+	if (!onEnableModsChanged()) return false;
+	
 	return !error;
 }
 
@@ -973,12 +976,14 @@ void EndScene::logic() {
 			|| altModes.roundendCameraFlybyType() != 8
 			|| game.is0xa8PreparingCamera();
 		entityList.populate();
-		if (!isRunning && !iGiveUp) {
+		if (!isRunning) {
 			for (int i = 0; i < 2; ++i) {
 				punishMessageTimers[i].clear();
 				attackerInRecoveryAfterBlock[i] = false;
 			}
 			memset(attackerInRecoveryAfterCreatingProjectile, 0, sizeof attackerInRecoveryAfterCreatingProjectile);
+		}
+		if (!isRunning && !iGiveUp) {
 			if (!iGiveUp) {
 				if (!settings.dontClearFramebarOnStageReset) {
 					playerFramebars.clear();
@@ -7548,7 +7553,7 @@ void EndScene::processKeyStrokes() {
 		if (std::abs(gifMode.fps - 60.F) < 0.001F) {
 			if (settings.slowmoFps < 1.F) settings.slowmoFps = 1.F;
 			if (settings.slowmoFps > 999.F) settings.slowmoFps = 999.F;
-			if (*game.gameDataPtr && game.isTrainingMode() && *aswEngine) {
+			if (*game.gameDataPtr && (game.isTrainingMode() || game.getGameMode() == GAME_MODE_REPLAY) && *aswEngine) {
 				logwrap(fputs("Changing FPS to a custom one from a hotkey press\n", logfile));
 				gifMode.fps = settings.slowmoFps;
 				game.onFPSChanged();
@@ -9351,7 +9356,7 @@ void EndScene::REDAnywhereDispDrawHook(void* canvas, FVector2D* screenSize) {
 	bool drawingPostponedLocal;
 	needEnqueueUiWithPoints = false;
 	if (!shutdown && !graphics.shutdown && *game.gameDataPtr) {
-		if (!game.isTrainingMode() || !*aswEngine) {
+		if (!game.isTrainingMode() && game.getGameMode() != GAME_MODE_REPLAY || !*aswEngine) {
 			gifMode.fps = 60.F;
 		}
 		game.updateOnlineDelay();
@@ -10777,6 +10782,8 @@ void EndScene::onAfterDealHit(Entity defenderPtr, Entity attackerPtr) {
 					|| defenderPtr.currentAnimDuration() > 15
 					|| defenderPtr.isRecoveryState()  // some non-attack moves signal recovery state explicitly
 				)
+				&& defenderPtr.cmnActIndex() != CmnActKizetsu
+				&& strcmp(defenderPtr.animationName(), "ExKizetsu") != 0
 				|| settings.showPunishMessageOnBlock
 				&& attackerInRecoveryAfterBlock[defenderPtr.team()]
 			)
@@ -13397,4 +13404,224 @@ void EndScene::hitboxEditorDrawPushbox(Entity ent, int posX, int posY, DWORD col
 	newElem.thickness = 1;
 	newElem.originX = posX;
 	newElem.originY = posY;
+}
+
+bool EndScene::onEnableModsChanged() {
+	if (!settings.enableScriptMods) return true;
+	uintptr_t stringLocation = sigscanStrOffset("GuiltyGearXrd.exe:.rdata",
+		"AREDGameInfo_BattleexecPreBeginPlay_Internal",
+		nullptr, "execPreBeginPlay_Internal", nullptr);
+	if (!stringLocation) return true;
+	uintptr_t stringMentionLocation = sigscanBufOffset("GuiltyGearXrd.exe:.data",
+		(char*)&stringLocation,
+		4,
+		nullptr, "execPreBeginPlay_InternalMention", "rel_GuiltyGearXrd.exe(????)");
+	if (!stringMentionLocation) return true;
+	if (!detouring.isInTransaction()) finishedSigscanning();
+	stringMentionLocation += 4;
+	orig_execPreBeginPlay_Internal = *(execPreBeginPlay_Internal_t*)stringMentionLocation;
+	auto ptr = &HookHelp::execPreBeginPlay_InternalHook;
+	if (!attach(&(PVOID&)orig_execPreBeginPlay_Internal,
+		(PVOID&)ptr,
+		"execPreBeginPlay_Internal")) return false;
+	return true;
+}
+
+void EndScene::HookHelp::execPreBeginPlay_InternalHook(void* stack, void* result) {
+	endScene.execPreBeginPlay_InternalHook((void*)this, stack, result);
+}
+
+void EndScene::execPreBeginPlay_InternalHook(void* thisArg, void* stack, void* result) {
+	std::vector<BYTE> data;
+	
+	if (settings.enableScriptMods) {
+		PANGAEA_MOD_VERSION pangaeaVer = getPangaeaModVersion();
+		bool loadBBScript = pangaeaVer == PANGAEA_MOD_NOT_PRESENT;
+		bool loadCollision = pangaeaVer == PANGAEA_MOD_NOT_PRESENT || pangaeaVer == PANGAEA_MOD_PRE_COLLISION;
+		if (loadBBScript || loadCollision) {
+			WCHAR pathBase[MAX_PATH];
+			bool pathLengthError = false;
+			if (getModsFolder().size() + 1 > MAX_PATH) {  // what if they're == ? We'll find out soon
+				pathLengthError = true;
+			} else {
+				memcpy(pathBase, getModsFolder().c_str(), (getModsFolder().size() + 1) * sizeof (WCHAR));
+				
+				REDPawn_Player** players = (REDPawn_Player**)((BYTE*)thisArg + 0x490);
+				for (int playerIndex = 0; playerIndex < 3; ++playerIndex) {
+					REDPawn_Player* player = players[playerIndex];
+					const char* charaName;
+					if (playerIndex < 2) {
+						charaName = determineCharaName(player->CharaScript());
+					} else {
+						charaName = "cmn";
+					}
+					if (charaName && !(
+						playerIndex == 1
+						&& players[0]->Collision() == players[1]->Collision()  // if this matches, everything matches
+					)) {
+						const char* charaNameIter;
+						int destCharIndex;
+						for (charaNameIter = charaName; *charaNameIter != '\0'; ++charaNameIter) {
+							destCharIndex = (int)getModsFolder().size() + (charaNameIter - charaName);
+							if (destCharIndex >= MAX_PATH) {
+								pathLengthError = true;
+							} else {
+								pathBase[destCharIndex] = (wchar_t)*charaNameIter;
+							}
+						}
+						destCharIndex = (int)getModsFolder().size() + (charaNameIter - charaName);
+						if (destCharIndex >= MAX_PATH) {
+							pathLengthError = true;
+						} else {
+							pathBase[destCharIndex] = L'\0';
+							if (loadBBScript) {
+								replaceAsset(pathBase, destCharIndex,
+										L".bbscript",
+										(REDAssetBase<BYTE>*)(player->CharaScript()),
+										data,
+										&pathLengthError);
+							}
+							pathBase[destCharIndex] = L'\0';
+							if (loadCollision) {
+								replaceAsset(pathBase, destCharIndex,
+										L".collision",
+										(REDAssetBase<BYTE>*)(player->Collision()),
+										data,
+										&pathLengthError);
+							}
+						}
+						
+					}
+				}
+			}
+			if (pathLengthError) {
+				ui.showErrorDlg("Can't load script mods because the game is installed in a path that exceeds 260 characters or is very close to it.", true);
+			}
+		}
+	}
+	orig_execPreBeginPlay_Internal(thisArg, stack, result);
+}
+
+char* EndScene::determineCharaName(REDAssetCharaScript* script) {
+	BYTE* ptr = script->TopData;
+	int entryCount = *(int*)ptr;
+	BYTE* dataEnd = ptr + script->DataSize;
+	for (
+		BYTE* dataStart = ptr + 4 + entryCount * sizeof (BBScriptLookupEntry);
+		dataStart < dataEnd;
+		dataStart = moves.skipInstr(dataStart)
+	) {
+		if (*dataStart == instr_beginSubroutine && strcmp(asInstr(dataStart, beginSubroutine)->name, "PreInit") == 0) {
+			for (loopInstr(dataStart)) {
+				if (moves.instrType(instr) == instr_charaName) {
+					return asInstr(instr, charaName)->name;
+				}
+			}
+			break;
+		}
+	}
+	return nullptr;
+}
+
+// includes trailing slash
+const std::wstring& EndScene::getModsFolder() {
+	if (modsFolder.empty()) {
+		modsFolder = settings.getSettingsPath();
+		if (modsFolder.size() <= 2) {
+			modsFolder.clear();
+			return modsFolder;
+		}
+		modsFolder.resize(modsFolder.size() - 1);
+		int count = 2;
+		auto it = modsFolder.begin() + (modsFolder.size() - 1);
+		for (; true; ) {
+			if (*it == L'\\') {
+				--count;
+				if (count == 0) break;
+			}
+			if (it == modsFolder.begin()) break;
+			--it;
+		}
+		if (count != 0) {
+			modsFolder.clear();
+			return modsFolder;
+		}
+		modsFolder.resize(it - modsFolder.begin() + 1);
+		modsFolder += L"Mods\\";
+	}
+	return modsFolder;
+}
+
+void EndScene::replaceAsset(WCHAR (&basePathWithFileNameButWithoutExtensionOrDot)[MAX_PATH], int basePathLen,
+			const wchar_t* extensionWithDot, REDAssetBase<BYTE>* asset,
+			std::vector<BYTE>& data, bool* pathLengthError) {
+	char errorBuf[1024];
+	struct MyErrorHandler {
+		static void showError(const char* errorMsg) {
+			ui.showErrorDlg(errorMsg, true);
+		}
+	};
+	
+	WCHAR* destPtr = basePathWithFileNameButWithoutExtensionOrDot + basePathLen;
+	int spaceLeft = MAX_PATH - (destPtr - basePathWithFileNameButWithoutExtensionOrDot);
+	if (spaceLeft < (int)wcslen(extensionWithDot) + 1) {
+		*pathLengthError = true;
+		return;
+	}
+	wcscpy(destPtr, extensionWithDot);
+	const WCHAR* const path = basePathWithFileNameButWithoutExtensionOrDot;
+	
+	HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (!file || file == INVALID_HANDLE_VALUE) {
+		return;
+	}
+	
+	try {
+		if (readWholeFile(data, file, false, errorBuf, MyErrorHandler::showError, path)) {
+			if (data.size() > asset->DataSize) {
+				game.sigscanFNamesAndAppRealloc();
+				void* newMem = appRealloc(asset->TopData, data.size(), 8);
+				if (newMem) {
+					asset->TopData = (BYTE*)newMem;
+					memcpy(newMem, data.data(), data.size());
+					asset->DataSize = data.size();
+				}
+			} else {
+				memcpy(asset->TopData, data.data(), data.size());
+				asset->DataSize = data.size();
+			}
+		}
+	} catch (std::exception& e) {
+		std::vector<char> err;
+		// WANNA CALL VSNPRINTF MAYBE??
+		static const char msg1[] { "Failed to read file '" };
+		static const char msg2[] { "': " };
+		int sizeNeeded /* will include null due to passing -1 */ = WideCharToMultiByte(CP_UTF8, 0, path, -1, NULL, 0, NULL, NULL);
+		if (sizeNeeded > 0) {
+			err.resize(sizeof (msg1) - 1 + sizeNeeded - 1 + sizeof (msg2) - 1 + strlen(e.what())
+				+ 1  // null terminator
+			);
+			char* errPtr = err.data();
+			
+			memcpy(errPtr, msg1, sizeof (msg1) - 1);
+			errPtr += sizeof (msg1) - 1;
+			
+			WideCharToMultiByte(CP_UTF8, 0, path, -1, errPtr, err.size() - (errPtr - err.data()), NULL, NULL);
+			errPtr += sizeNeeded - 1;
+			
+			memcpy(errPtr, msg2, sizeof (msg2) - 1);
+			errPtr += sizeof (msg2) - 1;
+			
+			strcpy_s(errPtr, err.size() - (errPtr - err.data()), e.what());
+			
+			// strcpy should've put the null terminator
+			
+			ui.showErrorDlg(err.data(), true);
+		}
+		if (file) CloseHandle(file);
+		file = NULL;
+	}
+	
+	if (file) CloseHandle(file);
+	file = NULL;
 }

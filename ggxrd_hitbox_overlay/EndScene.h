@@ -59,6 +59,7 @@ using addBurst_t = void(__thiscall*)(void* ent, int amount);
 using spriteImpl_t = void(__thiscall*)(void* ent, const char* name, int thisIs1);
 using appFree_t = void(__cdecl*)(void* mem);
 extern appFree_t appFree;
+using execPreBeginPlay_Internal_t = void(__thiscall*)(void* thisArg, void* stack, void* result);
 
 struct FVector2D {
 	float X;
@@ -404,6 +405,7 @@ public:
 		bool ready = false;
 	} hitboxEditorCameraValues;
 	bool hitboxEditorCameraValuesReady = false;
+	bool onEnableModsChanged();
 private:
 	void onDllDetachPiece();
 	void processKeyStrokes();
@@ -442,6 +444,7 @@ private:
 		BOOL trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook();
 		BOOL inHitstunBlockstunOrThrowProtectionOrDeadHook();
 		void resetBurstHook(int amount);
+		void execPreBeginPlay_InternalHook(void* stack, void* result);
 	};
 	void drawTrainingHudInputHistoryHook(void* trainingHud, unsigned int layer);
 	void setSuperFreezeAndRCSlowdownFlagsHook(char* asw_subengine);
@@ -474,6 +477,7 @@ private:
 	BOOL trainingModeAndNoOneInXStunOrThrowInvulFromStunOrAirborneOrAttackingHook(Entity pawn);
 	BOOL inHitstunBlockstunOrThrowProtectionOrDeadHook(Entity pawn);
 	void resetBurstHook(Entity pawn, int amount);
+	void execPreBeginPlay_InternalHook(void* thisArg, void* stack, void* result);
 	
 	void prepareDrawData(bool* needClearHitDetection);
 	struct HiddenEntity {
@@ -804,6 +808,14 @@ private:
 	void hitboxEditorDrawBox(const RECT* bounds, int posX, int posY, DWORD fillColor, DWORD outlineColor,
 		bool selected, BoxPart highlightedPart, bool dashed);
 	void hitboxEditorDrawPushbox(Entity ent, int posX, int posY, DWORD color);
+	execPreBeginPlay_Internal_t orig_execPreBeginPlay_Internal = nullptr;
+	char* determineCharaName(REDAssetCharaScript* script);
+	// includes trailing slash
+	std::wstring modsFolder;
+	// includes trailing slash
+	const std::wstring& getModsFolder();
+	void replaceAsset(WCHAR (&basePathWithFileNameButWithoutExtensionOrDot)[MAX_PATH], int basePathLen, const wchar_t* extensionWithDot, REDAssetBase<BYTE>* asset,
+		std::vector<BYTE>& data, bool* pathLengthError);
 };
 
 extern EndScene endScene;

@@ -34,6 +34,7 @@
 #include "PinAtlas.h"
 #include <list>
 #include "JSON.h"
+#include "ReadWholeFile.h"
 
 UI ui;
 
@@ -2171,7 +2172,7 @@ void UI::drawSearchableWindows() {
 			
 			bool slowmoGame = std::abs(gifMode.fps - 60.F) > 0.001F;
 			if (ImGui::Checkbox(searchFieldTitle("Slow-Mo Mode"), &slowmoGame)) {
-				if (!*game.gameDataPtr || !game.isTrainingMode() && !*aswEngine) {
+				if (!*game.gameDataPtr || !game.isTrainingMode() && game.getGameMode() != GAME_MODE_REPLAY && !*aswEngine) {
 					slowmoGame = false;
 				}
 				if (slowmoGame) {
@@ -2211,7 +2212,7 @@ void UI::drawSearchableWindows() {
 				if (fpsValue < 1.F) fpsValue = 1.F;
 				if (fpsValue > 999.F) fpsValue = 999.F;
 			}
-			if (!game.isTrainingMode() || !*aswEngine) {
+			if (!game.isTrainingMode() && game.getGameMode() != GAME_MODE_REPLAY || !*aswEngine) {
 				fpsValue = 60.F;
 			}
 			if (std::abs(fpsValue - gifMode.fps) > 0.001F) {
@@ -2278,16 +2279,7 @@ void UI::drawSearchableWindows() {
 			}
 			HelpMarkerWithHotkey(allowCreateParticlesHelp, settings.toggleAllowCreateParticles);
 			
-			if (ImGui::Button(searchFieldTitle("Hitbox Editor"))) {
-				toggleOpenManually(PinnedWindowEnum_HitboxEditor);
-			}
-			ImGui::SameLine();
-			HelpMarker(searchTooltip("Shows or hides the 'Hitbox Editor' menu. The edited data gets lost on character change or"
-				" after exiting training mode, unless saved into a .collision file."
-				" But keep in mind, when loading back from a .collision file, it still won't let you delete sprites that are"
-				" already in the game. Sprite deletion must go hand-in-hand with bbscript edits. Use Pangaea's ggxrd-mod to load"
-				" the right bbscript and .collision files on the loading screen: https://github.com/super-continent/ggxrd-mod."));
-			
+			hitboxEditorButton();
 		}
 		popSearchStack();
 		if (ImGui::CollapsingHeader(searchCollapsibleSection("Settings")) || searching) {
@@ -2736,6 +2728,19 @@ void UI::drawSearchableWindows() {
 				
 			}
 			popSearchStack();
+		}
+		popSearchStack();
+		pushSearchStack("Modding");
+		if (ImGui::CollapsingHeader(searchCollapsibleSection("Modding")) || searching) {
+			hitboxEditorButton();
+			ImGui::PushStyleColor(ImGuiCol_Text, SLIGHTLY_GRAY);
+			ImGui::PushTextWrapPos(0.F);
+			ImGui::TextUnformatted("If used online, make sure both players have the same mods to avoid desyncs!");
+			ImGui::PopTextWrapPos();
+			ImGui::PopStyleColor();
+			if (booleanSettingPreset(settings.enableScriptMods)) {
+				endScene.onEnableModsChanged();
+			}
 		}
 		popSearchStack();
 		if (!searching) {
@@ -19116,12 +19121,17 @@ void UI::drawHitboxEditor() {
 	if (drawIconButton("##renameSpriteBtn", &renameBtn)) {
 		hitboxEditRenameSpritePressed = true;
 	}
-	AddTooltipWithHotkeyNoSearch("Rename current sprite.\n\nExisting bbscript will still refer to the sprite by old name, but into a .collision file"
-		" it will be exported with the new name. When importing that .collision file back, old renamed sprites will remain in the game"
-		" under their old name, and the new renamed sprites will be considered entirely new. Renaming sprites must go hand-in-hand"
-		" with modifying the bbscript. Use Pangaea's ggxrd-mod to load both the bbscript and the .collision file during the loading screen,"
-		" that's how you do all these changes properly.",
-		settings.hitboxEditRenameSpriteHotkey);
+	static std::string renameSpriteHelp;
+	if (renameSpriteHelp.empty()) {
+		renameSpriteHelp = settings.convertToUiDescription("Rename current sprite.\n"
+			"\n"
+			"Existing bbscript will still refer to the sprite by old name, but into a .collision file"
+			" it will be exported with the new name. When importing that .collision file back, old renamed sprites will remain in the game"
+			" under their old name, and the new renamed sprites will be considered entirely new. Renaming sprites must go hand-in-hand"
+			" with modifying the bbscript. Use \"enableScriptMods\" to load both the .bbscript and the .collision file during the loading screen."
+			" That's how you do all these changes properly.");
+	}
+	AddTooltipWithHotkeyNoSearch(renameSpriteHelp.c_str(), settings.hitboxEditRenameSpriteHotkey);
 	
 	if (selectedSprite && endScene.spriteImpl) {
 		endScene.spriteImpl((void*)editEntity.ent, selectedSprite->name, true);
@@ -22677,59 +22687,7 @@ void UI::readJsonFromClipboard(int player) {
 }
 
 bool UI::readWholeFile(std::vector<BYTE>& data, HANDLE file, bool addNullTerminator, char (&errorbuf)[1024]) {
-	DWORD fileSizeHigh;
-	DWORD fileSizeLow;
-	fileSizeLow = GetFileSize(file, &fileSizeHigh);
-	if (fileSizeLow == INVALID_FILE_SIZE && GetLastError() != NO_ERROR) {
-		WinError winErr;
-		sprintf_s(errorbuf, "Failed to get file size: %ls", winErr.getMessage());
-		showErrorDlgS(errorbuf);
-		return false;
-	}
-	if (fileSizeHigh || fileSizeLow >= 0x7FFFFFFE) {
-		sprintf_s(errorbuf, "The file size is too big: %llu bytes", ((unsigned long long)fileSizeHigh << 32) | (unsigned long long)fileSizeLow);
-		showErrorDlgS(errorbuf);
-		return false;
-	}
-	
-	try {
-		data.resize(fileSizeLow + addNullTerminator);
-	} catch (std::length_error& err) {
-		(err);
-		sprintf_s(errorbuf, "The file size is too big: %llu bytes", ((unsigned long long)fileSizeHigh << 32) | (unsigned long long)fileSizeLow);
-		return false;
-	} catch (std::bad_alloc& err) {
-		(err);
-		sprintf_s(errorbuf, "The file does not fit into RAM: %llu bytes", ((unsigned long long)fileSizeHigh << 32) | (unsigned long long)fileSizeLow);
-		return false;
-	}
-	if (data.empty()) return true;
-	BYTE* ptr = data.data();
-	size_t remaining = fileSizeLow;
-	DWORD bytesRead = 0;
-	while (remaining) {
-		DWORD bytesToRead = min(remaining, 1024);
-		if (!ReadFile(file, ptr, bytesToRead, &bytesRead, NULL)) {
-			WinError winErr;
-			sprintf_s(errorbuf, "Failed to read file: %ls", winErr.getMessage());
-			showErrorDlgS(errorbuf);
-			return false;
-		}
-		if (bytesToRead != bytesRead) {
-			// um... ok
-			remaining -= bytesRead;
-			if ((int)remaining > 0) {
-				data.resize(data.size() - remaining);
-			}
-			if (addNullTerminator) {
-				data.back() = '\0';
-			}
-			return true;
-		}
-		remaining -= bytesRead;
-		ptr += bytesRead;
-	}
-	return true;
+	return ::readWholeFile(data, file, addNullTerminator, errorbuf, showErrorDlgS);
 }
 
 template<typename T>
@@ -23116,4 +23074,21 @@ bool UI::selectedHitboxesAlreadyAtTheTop(SortedSprite* sortedSprite) {
 	}
 	
 	return true;
+}
+
+void UI::hitboxEditorButton() {
+	if (ImGui::Button(searchFieldTitle("Hitbox Editor"))) {
+		toggleOpenManually(PinnedWindowEnum_HitboxEditor);
+	}
+	ImGui::SameLine();
+	static std::string hitboxEditorHelp;
+	if (hitboxEditorHelp.empty()) {
+		hitboxEditorHelp = settings.convertToUiDescription(
+			"Shows or hides the 'Hitbox Editor' menu. The edited data gets lost on character change or"
+			" after exiting training mode, unless saved into a .collision file."
+			" But keep in mind, when loading back from a .collision file, it still won't let you delete sprites that are"
+			" already in the game. Sprite deletion must go hand-in-hand with bbscript edits. Use \"enableScriptMods\" to load"
+			" the right .bbscript and .collision files on the loading screen.");
+	}
+	HelpMarker(searchTooltip(hitboxEditorHelp));
 }

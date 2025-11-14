@@ -228,6 +228,7 @@
     <ClInclude Include="PackTextureSizes.h" />
     <ClInclude Include="PinAtlas.h" />
     <ClInclude Include="PinnedWindowList.h" />
+    <ClInclude Include="ReadWholeFile.h" />
     <ClInclude Include="RematchMenu.h" />
     <ClInclude Include="SettingsDefinitions.h" />
     <ClInclude Include="SettingsTopCommentDefinition.h" />
@@ -325,6 +326,7 @@
     <ClCompile Include="PlayerInfo.cpp" />
     <ClCompile Include="PngRelated.cpp" />
     <ClCompile Include="PngResource.cpp" />
+    <ClCompile Include="ReadWholeFile.cpp" />
     <ClCompile Include="rectCombiner.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="SettingsTopCommentDefinition.cpp" />

@@ -50,18 +50,26 @@ using sigscanCacheType = std::unordered_map<SigscanCacheEntry, SigscanCacheValue
 sigscanCacheType sigscanCache;
 std::mutex sigscanCacheMutex;
 
+// must happen under the protection of the sigscanCacheMutex
+const std::wstring& getSigscanCachePath() {
+	static std::wstring sigscanCachePath;
+	if (sigscanCachePath.empty()) {
+		sigscanCachePath.reserve(settings.getSettingsPath().size() + strlen(SIGSCAN_CACHE_FILE_NAME));
+		sigscanCachePath = settings.getSettingsPath();
+		for (const char* ptr = SIGSCAN_CACHE_FILE_NAME; *ptr != '\0'; ++ptr) {
+			sigscanCachePath += (wchar_t)*ptr;
+		}
+	}
+	return sigscanCachePath;
+}
+
+// must happen under the protection of the sigscanCacheMutex
 void loadSigscanCache() {
 	#define fileParsingErr(msg, ...) { logwrap(fprintf(logfile, "%s parsing error: " msg, SIGSCAN_CACHE_FILE_NAME, __VA_ARGS__)); return; }
 	if (sigscanCacheLoaded) return;
 	sigscanCacheLoaded = true;  // we won't try again if we fail X)
 	
-	std::wstring path;
-	path.reserve(settings.getSettingsPath().size() + strlen(SIGSCAN_CACHE_FILE_NAME));
-	path = settings.getSettingsPath();
-	for (const char* ptr = SIGSCAN_CACHE_FILE_NAME; *ptr != '\0'; ++ptr) {
-		path += (wchar_t)*ptr;
-	}
-	HANDLE file = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE file = CreateFileW(getSigscanCachePath().c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (file == INVALID_HANDLE_VALUE) {
 		WinError winErr;
 		fileParsingErr("Could not open file: %ls\n", winErr.getMessage());
@@ -1305,7 +1313,7 @@ void finishedSigscanning() {
 		qsort(cacheOrdered.data(), cacheOrdered.size(), sizeof (void*), MyCompare::TheCompare);
 	}
 	
-	HANDLE file = CreateFileA(SIGSCAN_CACHE_FILE_NAME, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE file = CreateFileW(getSigscanCachePath().c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (file == INVALID_HANDLE_VALUE) {
 		WinError winErr;
 		fileWriteErr("Could not create file: %ls\n", winErr.getMessage());
@@ -1412,4 +1420,89 @@ bool thisIsOurFunction(uintptr_t functionAddr) {
 	uintptr_t textStart, textEnd, wholeModuleBegin;
 	getModuleBoundsHandle(hInst, ".text", &textStart, &textEnd, &wholeModuleBegin);
 	return functionAddr >= textStart && functionAddr < textEnd;
+}
+
+static PANGAEA_MOD_VERSION pangaeaModVersion = PANGAEA_MOD_NOT_CHECKED_YET;
+PANGAEA_MOD_VERSION getPangaeaModVersion() {
+	if (pangaeaModVersion == PANGAEA_MOD_NOT_CHECKED_YET) {
+		HMODULE stackMem[80];
+		std::vector<HMODULE> heapMem;
+		DWORD myCb = sizeof stackMem;
+		DWORD yourCb = 0xFFFFFFFF;
+		HANDLE currentProcessHandle = GetCurrentProcess();
+		WCHAR guiltyGearXrdExePath[MAX_PATH];
+		if (!GetModuleFileNameExW(currentProcessHandle, NULL, guiltyGearXrdExePath, MAX_PATH)) {
+			pangaeaModVersion = PANGAEA_MOD_NOT_PRESENT;
+			return PANGAEA_MOD_NOT_PRESENT;
+		}
+		size_t guiltyGearXrdExePathLen = 0;
+		for (wchar_t* ptr = guiltyGearXrdExePath + wcslen(guiltyGearXrdExePath) - 1; ptr >= guiltyGearXrdExePath; --ptr) {
+			if (*ptr == L'\\') {
+				guiltyGearXrdExePathLen = ptr + 1 - guiltyGearXrdExePath;
+				break;
+			}
+		}
+		if (!guiltyGearXrdExePathLen) {
+			pangaeaModVersion = PANGAEA_MOD_NOT_PRESENT;
+			return PANGAEA_MOD_NOT_PRESENT;
+		}
+		WCHAR moduleName[MAX_PATH];
+		bool modFound = false;
+		bool error = false;
+		do {
+			HMODULE* ptr = myCb <= sizeof (stackMem) ? stackMem : heapMem.data();
+			if (!EnumProcessModules(currentProcessHandle, ptr, myCb, &yourCb)) {
+				error = true;
+				break;
+			}
+			int modCount = min(myCb, yourCb) / sizeof (HMODULE);
+			for (int modIndex = 0; modIndex < modCount; ++modIndex) {
+				HMODULE imageBase = ptr[modIndex];
+				if (!GetModuleBaseNameW(currentProcessHandle, imageBase, moduleName, MAX_PATH)) {
+					error = true;
+					break;
+				}
+				if (_wcsicmp(moduleName, L"dinput8.dll") == 0) {
+					if (!GetModuleFileNameExW(currentProcessHandle, imageBase, moduleName, MAX_PATH)) {
+						error = true;
+						break;
+					}
+					if (_wcsnicmp(guiltyGearXrdExePath, moduleName, guiltyGearXrdExePathLen) == 0) {
+						modFound = true;
+						bool hasCollision = false;
+						PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)imageBase;
+						PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((BYTE*)imageBase + dosHeader->e_lfanew);
+						int sectionCount = ntHeaders->FileHeader.NumberOfSections;
+						PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(ntHeaders);
+						for (int sectionIndex = 0; sectionIndex < sectionCount; ++sectionIndex) {
+							if (strncmp((char*)section->Name, ".rdata", 8) == 0) {
+								BYTE* sigscanStart = (BYTE*)imageBase + section->VirtualAddress;
+								BYTE* sigscanEnd = sigscanStart + section->Misc.VirtualSize;
+								static const char collisionString[] { ".collision" };
+								uintptr_t location = sigscanFundamental((uintptr_t)sigscanStart, (uintptr_t)sigscanEnd,
+									collisionString, sizeof (collisionString) - 1);
+								hasCollision = location != 0;
+								break;
+							}
+							++section;
+						}
+						if (hasCollision) {
+							pangaeaModVersion = PANGAEA_MOD_POST_COLLISION;
+						} else {
+							pangaeaModVersion = PANGAEA_MOD_PRE_COLLISION;
+						}
+					}
+				}
+			}
+			if (error) break;
+			myCb = yourCb;
+			if (myCb > sizeof stackMem) {
+				heapMem.resize(myCb / sizeof (HMODULE));
+			}
+		} while (yourCb > myCb);
+		if (!modFound) {
+			pangaeaModVersion = PANGAEA_MOD_NOT_PRESENT;
+		}
+	}
+	return pangaeaModVersion == PANGAEA_MOD_NOT_CHECKED_YET ? PANGAEA_MOD_NOT_PRESENT : pangaeaModVersion;
 }

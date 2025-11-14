@@ -1361,4 +1361,11 @@ settingsKeyCombo(hitboxEditArrangeHitboxesToFront, "Arrange Hitboxes To Front", 
 	"; This makes them display in front of all the other boxes.\n"
 	"; This only works inside the hitbox editor when hitbox editing mode is active (hitbox editor window need not be visible).")
 	
+settingsField(bool, enableScriptMods, false,
+	"Enable Script Mods", SETTINGS_MODDING,
+	"; Specify true or false.\n"
+	"; This controls whether custom hitboxes (.collision files) and bbscript (.bbscript files)\n"
+	"; will be loaded on battle initialization from the game's Mods folder\n"
+	"; (GUILTY GEAR Xrd -REVELATOR-\\Mods).")
+	
 #pragma warning(pop)

@@ -1589,6 +1589,7 @@ bool Game::sigscanFNamesAndAppRealloc() {
 		appRealloc = (appRealloc_t)followRelativeCall(appReallocCallPlace);
 	}
 	if (!appRealloc) return false;
+	if (!detouring.isInTransaction()) finishedSigscanning();
 	return true;
 }
 
@@ -1599,7 +1600,7 @@ bool Game::swapOutFPS() {
 	uintptr_t fpsUsage = sigscanOffset(GUILTY_GEAR_XRD_EXE,
 		"f3 0f 10 86 00 05 00 00 0f 2f c1 77 15 f3 0f 10 05 >?? ?? ?? ?? 0f 2f c1 76 08 f3 0f 11 4c 24 08 eb 06",
 		nullptr, "fpsUsage");
-	finishedSigscanning();
+	if (!detouring.isInTransaction()) finishedSigscanning();
 	if (fpsUsage) {
 		DWORD newFpsAddr = (DWORD)(uintptr_t)&gifMode.fps;
 		std::vector<char> newBytes(4);

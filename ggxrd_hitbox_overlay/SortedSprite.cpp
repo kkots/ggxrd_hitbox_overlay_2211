@@ -412,6 +412,7 @@ void FPACSecondaryData::allocateNewLookupEntry() {
 	if (sum < headerElementSize) {
 		// resize time
 		DWORD newSize = Collision->DataSize + 100 * headerElementSize;
+		if (!appRealloc) game.sigscanFNamesAndAppRealloc();
 		void* newMem = appRealloc(fpac, newSize, 8);
 		if (!newMem) throw std::bad_alloc();
 		onFPACRelocate(fpac, (FPAC*)newMem, Collision->DataSize, newSize);
@@ -458,6 +459,7 @@ void FPACSecondaryData::detach() {
 		DWORD oldSize = fpac->rawSize;
 		DWORD newSize = oldSize + spaceNeeded;
 		Collision->DataSize = newSize;
+		if (!appRealloc) game.sigscanFNamesAndAppRealloc();
 		void* newMem = appRealloc(fpac, newSize, 8);
 		if (!newMem) throw std::bad_alloc();
 		onFPACRelocate(fpac, (FPAC*)newMem, oldSize, newSize);
@@ -792,6 +794,7 @@ void FPACSecondaryData::replaceFpac(SourceFpacProvier* provider) {
 		FPAC* oldLoc = Collision->TopData;
 		DWORD oldSize = Collision->DataSize;
 		DWORD newSize = requiredSize + 100 * sizeof (T);
+		if (!appRealloc) game.sigscanFNamesAndAppRealloc();
 		FPAC* newFpac = (FPAC*)appRealloc(oldLoc, newSize, 8);
 		if (!newFpac) throw std::bad_alloc();
 		Collision->TopData = newFpac;

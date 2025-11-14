@@ -759,7 +759,7 @@ private:
 		const wchar_t* filterStr, int player, bool removeNullTerminator);
 	void readCollisionFromFile(const std::wstring& path, int player);
 	void readJsonFromClipboard(int player);
-	bool readWholeFile(std::vector<BYTE>& data, HANDLE file, bool addNullTerminator, char (&errorbuf)[1024]);
+	inline bool readWholeFile(std::vector<BYTE>& data, HANDLE file, bool addNullTerminator, char (&errorbuf)[1024]);
 	void readFpacFromBinaryData(const std::vector<BYTE>& data, int player);
 	// the data might or might not be null-terminated
 	// dataSize may point past the null character, if any
@@ -769,6 +769,7 @@ private:
 	void hitboxEditorCheckEntityStillAlive();
 	bool selectedHitboxesAlreadyAtTheTop(SortedSprite* sortedSprite);
 	bool selectedHitboxesAlreadyAtTheBottom(SortedSprite* sortedSprite);
+	void hitboxEditorButton();
 };
 
 extern UI ui;

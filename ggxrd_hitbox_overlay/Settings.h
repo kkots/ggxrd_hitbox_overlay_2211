@@ -156,6 +156,7 @@ public:
 	static const char* const SETTINGS_COMBO_RECIPE;
 	static const char* const SETTINGS_CHARACTER_SPECIFIC;
 	static const char* const SETTINGS_HITBOX_EDITOR;
+	static const char* const SETTINGS_MODDING;
 	bool keyCombosBegin;
 	#define settingsKeyCombo(name, displayName, defaultValue, description) std::vector<int> name;
 	#define settingsField(type, name, defaultValue, displayName, section, description, inlineComment)

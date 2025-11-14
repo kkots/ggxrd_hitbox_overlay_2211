@@ -30,6 +30,7 @@ const char* const Settings::SETTINGS_FRAMEBAR = "Settings - Framebar Settings";
 const char* const Settings::SETTINGS_COMBO_RECIPE = "Combo Recipe";
 const char* const Settings::SETTINGS_CHARACTER_SPECIFIC = "UI - Character specific";
 const char* const Settings::SETTINGS_HITBOX_EDITOR = "Main UI - Hitboxes - 'Hitbox Editor' Button - Cogwheel";
+const char* const Settings::SETTINGS_MODDING = "Main UI - Modding";
 static const StringWithLength pinnableWindowNames[] {
 	#define pinnableWindowsFunc(name, title) #name,
 	#define pinnableWindowsPairFunc(name, titleFmtString) pinnableWindowsFunc(name##_1, 0) pinnableWindowsFunc(name##_2, 0)

@@ -1215,6 +1215,7 @@ struct AccessedValue {
 
 enum InstrType {
 	// these are from bbscript database: https://github.com/super-continent/bbscript
+	instr_beginState = 0,
 	instr_endState = 1,
 	instr_sprite = 2,
 	instr_spriteEnd = 3,
@@ -1225,6 +1226,7 @@ enum InstrType {
 	instr_setMarker = 11,
 	instr_goToMarker = 12,
 	instr_gotoLabelRequests = 14,
+	instr_beginSubroutine = 15,
 	instr_callSubroutine = 17,
 	instr_exitState = 18,
 	instr_deactivateObj = 19,
@@ -1255,6 +1257,7 @@ enum InstrType {
 	instr_blockstunAmount = 1023,
 	instr_stunValue = 1096,
 	instr_hitPushbackX = 1102,
+	instr_charaName = 1264,
 	instr_deleteMoveForceDisableFlag = 1603,
 	instr_whiffCancelOptionBufferTime = 1630,
 	instr_sendSignal = 1766,
@@ -1362,10 +1365,10 @@ struct BBScrInstr_gotoLabelRequests {
 	char name[32];
 };
 
-struct BBScrInstr_beginState {
+typedef struct BBScrInstr_beginState {
 	InstrType type;
 	char name[32];
-};
+} BBScrInstr_beginSubroutine;
 
 struct BBScrInstr_modifyVar {
 	InstrType type;
@@ -1409,7 +1412,21 @@ struct BBScrInstr_attackLevel {
 	int amount;
 };
 
+struct BBScrInstr_charaName {
+	InstrType type;
+	char name[16];
+};
+
 #define asInstr(instr, bbscrInstrName) ((BBScrInstr_##bbscrInstrName*)instr)
+
+// BBScript file data structure:
+// 4 bytes: count of lookup entries for states ONLY (excludes subroutines)
+// These entries follow next. The offset is against the first byte past the end of the last lookup entry
+// BBScript instructions follow. See enum InstrType. For an example of one instruction, see BBScrInstr_beginState
+struct BBScriptLookupEntry {
+	char name[32];
+	DWORD offset;  // against the first byte past the end of the last lookup entry. State code starts at WHOLE_BBSCRIPT_FILE_BEGIN+4+NUM_LOOKUP_ENTRIES*36+offset
+};
 
 struct CmnActHashtable {
 	unsigned short maximumBucketLoad;
@@ -1611,6 +1628,11 @@ class REDAssetCollision : public REDAssetBase<FPAC> {
 public:
 };
 
+// If both Players are the same character, they share the same REDAssetCharaScript for both the player and the effect scripts
+class REDAssetCharaScript : public REDAssetBase<BYTE> {
+public:
+};
+
 template<typename T>
 struct TArray {
 	T* Data;
@@ -1727,6 +1749,10 @@ public:
 
 class REDPawn_Player : public REDPawn {
 public:
+	// If both Players are the same character, they share the same REDAssetCharaScript for both the player and the effect scripts
+	REDAssetCharaScript* CharaScript() { return *(REDAssetCharaScript**)(p() + 0x4a7c); }
+	// If both Players are the same character, they share the same REDAssetCharaScript for both the player and the effect scripts
+	REDAssetCharaScript* EffectScript() { return *(REDAssetCharaScript**)(p() + 0x4a80); }
 	// If both Players are the same character, they share the same REDAssetCollision
 	REDAssetCollision* Collision() { return *(REDAssetCollision**)(p() + 0x4a84); }
 };
