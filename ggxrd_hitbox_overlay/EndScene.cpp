@@ -13478,8 +13478,10 @@ void EndScene::execPreBeginPlay_InternalHook(UObject* thisArg, void* stack, void
 				pangaeaVer = PANGAEA_MOD_NOT_PRESENT;
 			}
 			
-			bool loadBBScript = pangaeaVer == PANGAEA_MOD_NOT_PRESENT;
-			bool loadCollision = pangaeaVer == PANGAEA_MOD_NOT_PRESENT || pangaeaVer == PANGAEA_MOD_PRE_COLLISION;
+			// I didn't account for the fact that Pangaea's mod has a checkbox. Loading mods in it is optional!
+			// Ok, let's waste CPU/harddrive time and do double work per round init
+			bool loadBBScript = true;//pangaeaVer == PANGAEA_MOD_NOT_PRESENT;
+			bool loadCollision = true;//pangaeaVer == PANGAEA_MOD_NOT_PRESENT || pangaeaVer == PANGAEA_MOD_PRE_COLLISION;
 			if (loadBBScript || loadCollision) {
 				WCHAR pathBase[MAX_PATH];
 				bool pathLengthError = false;

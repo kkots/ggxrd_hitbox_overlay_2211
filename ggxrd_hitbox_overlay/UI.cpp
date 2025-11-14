@@ -1812,29 +1812,6 @@ void UI::drawSearchableWindows() {
 							CenterAlignedText("charge");
 						}
 					}
-					for (int i = 0; i < two; ++i) {
-						PlayerInfo& player = endScene.players[i];
-						ImGui::TableNextColumn();
-						if (player.pawn && *aswEngine) {
-							void* pawnWorld = *(void**)(player.pawn + 0x27a8);
-							if (pawnWorld) {
-								void* collision = *(void**)((BYTE*)pawnWorld + 0x4a84);
-								if (collision) {
-									void* top = *(void**)((BYTE*)collision + 0x3c);
-									if (top) {
-										DWORD flags = *(DWORD*)((BYTE*)top + 0x10);
-										sprintf_s(strbuf, "%.8x", flags);
-										printNoWordWrap
-									}
-								}
-							}
-						}
-						
-						if (i == 0) {
-							ImGui::TableNextColumn();
-							CenterAlignedText("collisionFlags");
-						}
-					}
 					
 				}
 				Entity superflashInstigator = endScene.getLastNonZeroSuperflashInstigator();
