@@ -51,6 +51,10 @@ struct VS_OUTPUT
 	float4 diffuse : COLOR0;
 };
 
+// Thanks to Worse Than You for discovering the fix for AMD:
+// without a vertex shader, if only a pixel shader was used, it would not draw anything
+// while that pixel shader is in use. On AMD Direct3D 9, non-NULL pixel shader must be
+// accompanied by a non-NULL vertex shader.
 VS_OUTPUT main_vs(in VS_INPUT vertex)
 {
 	VS_OUTPUT output = ( VS_OUTPUT )0;

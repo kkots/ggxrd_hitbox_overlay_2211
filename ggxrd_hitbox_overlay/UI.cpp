@@ -19190,7 +19190,9 @@ void UI::drawHitboxEditor() {
 		}
 		
 		if (comboBoxExtension.fastScrollWithKeys()) {
-			selectedAnimSeq = &sortedAnimSeqs[comboBoxExtension.selectedIndex - 1];
+			selectedAnimSeq = comboBoxExtension.selectedIndex == 0
+				? &nullAnimSeq
+				: &sortedAnimSeqs[comboBoxExtension.selectedIndex - 1];
 		}
 		
 		ImGui::EndCombo();

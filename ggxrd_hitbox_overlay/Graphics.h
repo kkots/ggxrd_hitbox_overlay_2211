@@ -309,6 +309,7 @@ private:
 	bool compilePixelShader(std::string& errorMsg);
 	bool failedToCompilePixelShader = false;
 	std::string lastCompilationFailureReason;
+	// Thanks to Worse Than You for suggesting to not copy the ID3DBlob around into std::vectors
 	CComPtr<ID3DBlob> pixelShaderCode;
 	CComPtr<ID3DBlob> vertexShaderCode;
 	
